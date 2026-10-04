@@ -95,7 +95,12 @@ function toggleAuthMode(){
   document.getElementById('auth-fp').style.display=authMode==='login'?'block':'none';
   authError('');
 }
+function ocultarCargaInicial(){
+  const pantalla=document.getElementById('screen-loading');
+  if(pantalla)pantalla.classList.remove('active');
+}
 function showAuthScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   document.getElementById('screen-auth').classList.add('active');
@@ -153,6 +158,7 @@ async function cargarEstadisticasPublicas(){
 // pantalla conserva esa distinción: no expone el stack, no cierra la sesión y
 // ofrece una acción que sí puede ayudar (cargar la app completa de nuevo).
 function showAppErrorScreen(fase){
+  ocultarCargaInicial();
   ['auth','home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   const app=document.querySelector('.app');
   if(app)app.classList.remove('tab-mode','dragging');
@@ -203,6 +209,7 @@ function registrarErrorArranque(error,fase){
   track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
 }
 function enterOnboarding(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   // Si entró con Google, ya sabemos su nombre: no se lo preguntamos en blanco
@@ -215,6 +222,7 @@ function enterOnboarding(){
   obIniciar();
 }
 function enterApp(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.remove('active');
   showMainApp();
@@ -445,6 +453,7 @@ async function submitNewPassword(){
 }
 
 function showResetScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','auth'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   document.getElementById('screen-reset').classList.add('active');
@@ -1099,6 +1108,7 @@ async function cerrarSesion(){
 async function boot(){
   if(!supabaseClient){
     // Sin configurar Supabase → funciona en modo local (fallback)
+    ocultarCargaInicial();
     document.getElementById('screen-auth').classList.remove('active');
     if(S.onboardingDone)showMainApp();
     else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
@@ -1137,6 +1147,8 @@ async function boot(){
   // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
   limpiarFragmentoAuth();
   if(enRecuperacion){showResetScreen();return;}
+  const detalle=document.getElementById('carga-inicial-detalle');
+  if(detalle)detalle.textContent='Preparando tu semestre…';
   try{
     await afterLogin();
   }catch(e){

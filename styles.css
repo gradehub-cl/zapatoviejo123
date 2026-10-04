@@ -199,6 +199,13 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
+#screen-loading.active{animation:none;}
+.carga-inicial{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px max(24px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));text-align:center;}
+.carga-inicial-marca{font-size:1.5rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
+.carga-inicial p{font-size:1rem;line-height:1.5;color:var(--fg2);}
+.carga-inicial-indicador{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--fg2);border-radius:50%;animation:carga-inicial-giro 900ms linear infinite;}
+@keyframes carga-inicial-giro{to{transform:rotate(360deg);}}
+@media(prefers-reduced-motion:reduce){.carga-inicial-indicador{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
@@ -1793,16 +1800,17 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
      ancho igual dejaba el login con una franja vacía a la izquierda y todo
      corrido hacia la derecha, con el toast descentrado de paso.
 
-     Se apaga SOLO en esas cuatro, y el defecto se queda encendido. El sentido
+     Se apaga SOLO en esas cinco, y el defecto se queda encendido. El sentido
      importa: si un selector deja de calzar, lo que queda es el riel de
      siempre —el defecto cosmético en una pantalla— y no un riel de ancho cero
      con sus etiquetas encima del contenido. Ese fue exactamente el resultado
      de intentarlo al revés en #217.
 
-     Y son estas cuatro y no otras porque son las únicas que reciben `.active`:
+     Y son estas cinco y no otras porque son las únicas que reciben `.active`:
      home, stats y agenda son un carrusel que se mueve con `translate3d` y
      marca el botón del riel, no la pantalla. `screen-ramo` recibe `.active`
      pero ahí ya estás dentro, así que conserva su riel. */
+  body:has(#screen-loading.active),
   body:has(#screen-auth.active),
   body:has(#screen-onboard.active),
   body:has(#screen-reset.active),
