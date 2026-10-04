@@ -200,10 +200,13 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
 #screen-loading.active{animation:none;}
-.carga-inicial{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px max(24px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));text-align:center;}
-.carga-inicial-marca{font-size:1.5rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
+.carga-inicial{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px max(24px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));text-align:center;}
+.carga-inicial-identidad{display:flex;flex-direction:column;align-items:center;gap:12px;}
+.carga-inicial-logo{display:block;width:88px;height:88px;object-fit:contain;}
+.carga-inicial-estado{display:flex;align-items:center;justify-content:center;gap:10px;max-width:100%;}
+.carga-inicial-marca{font-size:1.75rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
 .carga-inicial p{font-size:1rem;line-height:1.5;color:var(--fg2);}
-.carga-inicial-indicador{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--fg2);border-radius:50%;animation:carga-inicial-giro 900ms linear infinite;}
+.carga-inicial-indicador{flex:none;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--fg2);border-radius:50%;animation:carga-inicial-giro 900ms linear infinite;}
 @keyframes carga-inicial-giro{to{transform:rotate(360deg);}}
 @media(prefers-reduced-motion:reduce){.carga-inicial-indicador{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}

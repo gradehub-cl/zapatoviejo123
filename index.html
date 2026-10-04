@@ -87,9 +87,14 @@
 <!-- ARRANQUE: no se muestra el login antes de comprobar la sesión. -->
 <div id="screen-loading" class="screen active">
   <div class="carga-inicial" role="status" aria-live="polite" aria-atomic="true">
-    <div class="carga-inicial-marca">GradeHub</div>
-    <span class="carga-inicial-indicador" aria-hidden="true"></span>
-    <p id="carga-inicial-detalle">Comprobando tu sesión…</p>
+    <div class="carga-inicial-identidad">
+      <img class="carga-inicial-logo" src="logo.svg?v=__ASSET_VERSION__" alt="" width="88" height="88"/>
+      <div class="carga-inicial-marca">GradeHub</div>
+    </div>
+    <div class="carga-inicial-estado">
+      <span class="carga-inicial-indicador" aria-hidden="true"></span>
+      <p id="carga-inicial-detalle">Comprobando tu sesión…</p>
+    </div>
   </div>
 </div>
 <!-- AUTH (login / registro) -->
