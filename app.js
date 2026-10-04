@@ -6,6 +6,7 @@
 // Queremos saber si la app se usa, no qué le fue mal a quién.
 // tests/analitica.test.js falla si alguien manda una clave prohibida.
 function track(event, params){
+  if(typeof analiticaPermitida!=='function'||!analiticaPermitida())return;
   try{ if(typeof gtag==='function') gtag('event', event, params||{}); }catch(e){}
 }
 
@@ -1966,15 +1967,16 @@ function obStepValid(step,datos){
     tipo:obTipo,
     nombre:(document.getElementById('ob-name')||{}).value||'',
     edad:obEdad,
+    legal:!!(document.getElementById('ob-legal')||{}).checked,
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
     verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre,
     ...datosProfesorOnboarding()
   };
   if(step===0)return d.tipo===undefined||d.tipo==='estudiante'||d.tipo==='profesor';
-  // El paso 1 pide dos cosas: cómo te llamas y tu edad, que tiene que ser la
-  // mínima del tipo de cuenta (14 para estudiar, 18 para dar clases).
-  if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=edadMinimaOnboarding(d.tipo);
+  // Nombre, edad mínima por tipo de cuenta y aceptación legal son decisiones
+  // separadas. Declarar la edad no reemplaza aceptar los términos.
+  if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=edadMinimaOnboarding(d.tipo)&&d.legal===true;
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
   if(step===4)return !d.semInvalido&&(!!d.semestre||!!d.verano);
@@ -7962,7 +7964,7 @@ function openSettings(){
   const sections=[
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, privacidad y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir estadisticas analitica consentimiento'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
@@ -8157,6 +8159,11 @@ function openSettings(){
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
         <div id="s-compartidos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
       </div>`:''}
+      <h3>Estadísticas de uso opcionales</h3>
+      <p style="color:var(--fg2);font-size:1rem;line-height:1.5;">Si las activas, Google Analytics recibe eventos de uso y datos técnicos del dispositivo y la conexión para ayudarnos a mejorar la app. Sin cookies de analítica y sin enviar tus notas, correo ni nombre. GradeHub funciona igual si dices que no.</p>
+      <p id="s-analytics-state" role="status" style="color:var(--fg);">${typeof analiticaPermitida==='function'&&analiticaPermitida()?'Activadas en este navegador.':'Desactivadas en este navegador.'}</p>
+      <div class="settings-data-actions"><button id="s-analytics-toggle" type="button" style="min-height:44px;" onclick="cambiarAnaliticaDesdeAjustes()">${typeof analiticaPermitida==='function'&&analiticaPermitida()?'Desactivar estadísticas':'Activar estadísticas'}</button></div>
+      <p style="color:var(--fg2);font-size:1rem;line-height:1.5;">Puedes cambiarlo aquí cuando quieras. Al desactivar, la app se recarga para detener la medición. Tus notas se conservan.</p>
       <div class="settings-danger-zone">
         <div class="settings-danger-label">Zona sensible</div>
         <button type="button" class="settings-danger-btn" onclick="confirmarEliminarCuenta()">Eliminar mi cuenta</button>
@@ -8861,6 +8868,14 @@ function confirmArchiveSemester(){
   );
 }
 // ─── EXPORTAR / IMPORTAR ─────────────────────────────────────────────────────
+function cambiarAnaliticaDesdeAjustes(){
+  if(typeof cambiarConsentimientoAnalitica!=='function')return;
+  const activar=!analiticaPermitida();
+  cambiarConsentimientoAnalitica(activar);
+  const estado=document.getElementById('s-analytics-state'),boton=document.getElementById('s-analytics-toggle');
+  if(estado)estado.textContent=activar?'Activadas en este navegador.':'Desactivadas en este navegador.';
+  if(boton)boton.textContent=activar?'Desactivar estadísticas':'Activar estadísticas';
+}
 function exportarDatos(){
   const json=localStorage.getItem(STORAGE_KEY);
   if(!json){showToast('No hay datos para exportar');return;}

@@ -5,8 +5,7 @@
 // tabindex="0", y un solo handler global en app.js convierte Enter/Espacio en
 // click. Los overlays y backdrops quedan fuera: se cierran con Escape.
 //
-// Cookies: GA va con client_storage:'none'. Mientras eso siga ahí no hay banner
-// que mostrar y la política de privacidad puede decir "sin cookies" sin mentir.
+// No cargar GA hasta una autorización explícita: sin cookies todavía hay señales.
 const fs = require('fs');
 const leer = f => fs.readFileSync(__dirname + '/../' + f, 'utf8');
 const html = leer('index.html'), app = leer('app.js'), priv = leer('privacidad.html');
@@ -28,7 +27,7 @@ chk('Enter/Tab en una casilla de nota guarda y salta a la siguiente',
 
 const iConsent = html.search(/gtag\('consent',\s*'default',\s*\{[^}]*analytics_storage:\s*'denied'/), iConfig = html.search(/gtag\('config',\s*'G-[A-Z0-9]+'/);
 chk('GA sin cookies: analytics_storage denegado antes del config', iConsent > -1 && iConfig > iConsent);
-chk('la política ya no dice que GA usa cookies', !/usa cookies/.test(priv) && /sin cookies/.test(priv));
+chk('la política explica consentimiento previo incluso sin cookies', /sin cookies/i.test(priv) && /solo (lo )?cargamos si/i.test(priv) && !/por eso no te pedimos consentimiento/.test(priv));
 
 console.log(`\n${ok} ok, ${fail} fail`);
 if (fail) process.exit(1);

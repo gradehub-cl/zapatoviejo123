@@ -22,6 +22,7 @@ const ctx = {
   history: { replaceState() {} }, setTimeout, clearTimeout, console,
   // track() sale por acá: es el único punto donde se ve qué se manda de verdad.
   gtag: (tipo, evento, params) => eventos.push({ evento, params }),
+  analiticaPermitida:()=>true,
 };
 vm.createContext(ctx); vm.runInContext(src, ctx);
 const run = n => vm.runInContext(n, ctx);

@@ -1,0 +1,10 @@
+const fs=require('fs'),assert=require('assert');
+const p=fs.readFileSync(__dirname+'/../privacidad.html','utf8');
+assert(!/Google Fonts/.test(p),'no atribuir peticiones a un proveedor retirado');
+assert(!/no te pedimos consentimiento/.test(p),'sin cookies no es una exención de consentimiento');
+assert(/agentes[\s\S]{0,700}notas[\s\S]{0,700}revocar/i.test(p),'informar acceso a notas por agentes autorizados y su revocación');
+assert(/calendario[\s\S]{0,700}URL[\s\S]{0,700}(desactivar|revocar)/i.test(p),'informar suscripción por URL y su revocación');
+assert(/promedio[\s\S]{0,500}asociado a tu cuenta/i.test(p),'el promedio guardado no es anónimo si lleva user_id');
+assert(/retirar[\s\S]{0,350}(autorización|consentimiento)/i.test(p),'el canal de derechos también permite retirar autorización');
+assert(!/Contraseña[\s\S]{0,350}no recibe la contraseña en texto legible/.test(p),'la contraseña atraviesa el formulario: se explica no almacenarla, no no recibirla');
+console.log('Privacidad: proveedores, datos asociados, calendario, agentes y derechos OK');

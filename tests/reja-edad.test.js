@@ -23,7 +23,7 @@ const val=e=>vm.runInContext(e,ctx);
 let ok=0,fail=0;
 const chk=(n,c)=>{if(c){ok++;console.log('  ok   '+n);}else{fail++;console.log('  FAIL '+n);}};
 
-const base={nombre:'Persona Sintética',tenant:'fen',carrera:'IICG',semestre:2};
+const base={nombre:'Persona Sintética',legal:true,tenant:'fen',carrera:'IICG',semestre:2};
 // Desde #697 la edad se elige en una ruleta que parte vacía («—»).
 chk('sin elegir la edad, el paso 1 no se da por válido',val('obStepValid')(1,{...base,edad:null})===false);
 chk('con 13 años tampoco',val('obStepValid')(1,{...base,edad:13})===false);

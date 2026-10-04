@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-10-27';
+const LEGAL_ACCEPTANCE_VERSION = '2026-10-29';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -359,6 +359,9 @@ function registrarErrorArranque(error,fase){
 }
 function enterOnboarding(){
   ocultarCargaInicial();
+  // Otra cuenta en esta misma página tiene que elegir por sí misma.
+  const legalAccept=document.getElementById('ob-legal');
+  if(legalAccept)legalAccept.checked=false;
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();

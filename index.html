@@ -61,16 +61,45 @@
 
 <!-- Analítica: Google Analytics 4. Nunca le mandamos notas ni nombres de ramos
      — ver la regla en track(), app.js. El ID sale de GA → Admin → Flujos de datos. -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  // Sin cookies: así no hay nada que consentir. Cuenta visitas, no personas.
-  // Va ANTES del config. client_storage:'none' no sirve en GA4 (se probó en
-  // producción y la _ga apareció igual); lo que corta la cookie es consent mode.
-  gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
-  gtag('js', new Date());
-  gtag('config', 'G-TS791S6PDM');
+<script id="analytics-bootstrap">
+  // Consent mode denegado sigue enviando señales. No cargar el tercero hasta
+  // una elección explícita; no guardar eventos previos para mandarlos después.
+  const ANALITICA_KEY='gradehub_analitica_v1';
+  const ANALITICA_VERSION='2026-10-29';
+  let _analiticaConsentida=false, _analiticaCargada=false;
+  function analiticaPermitida(){return _analiticaConsentida;}
+  function gtag(){if(_analiticaConsentida)window.dataLayer.push(arguments);}
+  function consentimientoAnaliticaValido(valor){
+    try{const dato=JSON.parse(valor);return dato?.aceptada===true&&dato.version===ANALITICA_VERSION;}catch(e){return false;}
+  }
+  function cambiarConsentimientoAnalitica(permitida,guardar=true){
+    _analiticaConsentida=permitida===true;
+    if(guardar){
+      try{localStorage.setItem(ANALITICA_KEY,JSON.stringify({aceptada:_analiticaConsentida,version:ANALITICA_VERSION,fecha:new Date().toISOString()}));}catch(e){}
+    }
+    if(!_analiticaConsentida){
+      // Sacar el script no saca los listeners que ya instaló. Recargar detiene
+      // también la medición automática; el siguiente arranque no carga GA.
+      if(_analiticaCargada)location.reload();
+      return;
+    }
+    if(_analiticaCargada)return;
+    _analiticaCargada=true;
+    window.dataLayer=[];
+    // Conservamos la medición sin cookies incluso cuando se autoriza.
+    gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+    gtag('js', new Date());
+    // El retorno de auth puede traer secretos en query/hash o en el referrer.
+    gtag('set',{page_location:location.origin+location.pathname,page_referrer:''});
+    gtag('config', 'G-TS791S6PDM',{allow_google_signals:false,allow_ad_personalization_signals:false});
+    const script=document.createElement('script');script.async=true;
+    script.src='https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM';
+    document.head.appendChild(script);
+  }
+  try{cambiarConsentimientoAnalitica(consentimientoAnaliticaValido(localStorage.getItem(ANALITICA_KEY)),false);}catch(e){}
+  window.addEventListener('storage',e=>{
+    if(e.key===ANALITICA_KEY||e.key===null)cambiarConsentimientoAnalitica(consentimientoAnaliticaValido(e.newValue),false);
+  });
 </script>
 
 <!-- La app iOS (Capacitor) se marca antes de pintar: la pantalla de carga de
@@ -189,7 +218,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <label><input type="checkbox" id="auth-legal-accept" aria-describedby="auth-legal-detail auth-error"/>
           <span>Acepto los <a href="/terminos.html" target="_blank" rel="noopener">términos de uso</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</span>
         </label>
-        <p id="auth-legal-detail">GradeHub usa tus notas y ramos para ordenar recomendaciones de clases dentro de tu navegador. Los profesores no reciben tus notas ni tu identidad.</p>
+        <p id="auth-legal-detail">Autorizo el uso de mis datos para guardar mis notas y ramos, calcular promedios y sincronizar mi cuenta. GradeHub también usa notas y ramos para ordenar recomendaciones de clases dentro de mi navegador. Solo comparto mis notas e identidad con un profesor si lo autorizo. Analytics se autoriza por separado en Ajustes.</p>
       </div>
       <div id="auth-error" role="alert" aria-live="assertive" style="display:none;font-size:12px;color:var(--red);margin-top:10px;line-height:1.4;"></div>
     </div>
@@ -343,6 +372,10 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <p class="field-label" id="ob-edad-titulo">¿Cuántos años tienes?</p>
         <div id="ob-edad-ruleta"></div>
         <p class="ob-ruleta-aviso" id="ob-edad-aviso" role="status" aria-live="polite"></p>
+      </div>
+      <div class="auth-consent">
+        <label style="min-height:44px;"><input type="checkbox" id="ob-legal" onchange="checkOb()" aria-describedby="ob-legal-detail"/><span>Acepto los <a href="/terminos.html" target="_blank" rel="noopener">términos de uso</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</span></label>
+        <p id="ob-legal-detail">Autorizo el uso de mis datos para guardar mis notas y ramos, calcular promedios y sincronizar mi cuenta. GradeHub también usa notas y ramos en este navegador para ordenar recomendaciones de clases; solo comparto mis notas e identidad con un profesor si lo autorizo. Analytics se autoriza por separado en Ajustes.</p>
       </div>
     </div>
 

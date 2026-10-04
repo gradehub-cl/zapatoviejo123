@@ -26,6 +26,7 @@ const ctx={
   localStorage:{getItem(){return null;},setItem(){},removeItem(){}},navigator:{},
   location:{origin:'',pathname:'/',search:'',hash:'',reload(){}},history:{replaceState(){}},
   gtag:(accion,evento,params)=>eventos.push({accion,evento,params}),
+  analiticaPermitida:()=>true,
   setTimeout,clearTimeout,console,
 };
 vm.createContext(ctx);vm.runInContext(src,ctx);

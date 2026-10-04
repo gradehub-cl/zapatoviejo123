@@ -69,7 +69,7 @@
 <a class="volver" href="/">&larr; Volver a GradeHub</a>
 
 <h1>Política de privacidad</h1>
-<p class="sub">Última actualización: 27 de octubre de 2026</p>
+<p class="sub">Versión: 2026-10-29 · Última actualización: 29 de octubre de 2026</p>
 
 <p>GradeHub guarda tus notas para calcularte el promedio. Esta página explica
 exactamente qué datos toca la app, dónde quedan y cómo pedir que los borremos.
@@ -78,7 +78,8 @@ Está escrita para que se entienda, no para cubrirnos las espaldas.</p>
 <div class="caja">
 <p><strong>El resumen, si no quieres leer todo:</strong> guardamos tu correo,
 tu nombre si lo escribes, tu carrera y tus notas, y las usamos para que la app
-funcione. No las vendemos ni se las pasamos a tu universidad ni a nadie más.
+funcione. No las vendemos ni se las pasamos a tu universidad. Los proveedores
+que usamos y las funciones que tú puedes autorizar están explicados más abajo.
 GradeHub puede mostrarte clases particulares como publicidad, y usa tus
 notas y ramos dentro de tu navegador para ordenar esas recomendaciones. Los
 profesores no reciben tus notas ni saben quién eres. Puedes pedir que borremos todo escribiéndonos.</p>
@@ -104,11 +105,11 @@ Los nombres de universidades aparecen solo para que reconozcas tu malla.</p>
 <tr>
   <td>Contraseña</td>
   <td>Al crear tu cuenta</td>
-  <td>La procesa nuestro proveedor de autenticación. GradeHub no recibe la contraseña en texto legible ni puede recuperarla</td>
+  <td>La envías desde el formulario a Supabase para verificar el acceso. No la guardamos en nuestros registros ni podemos recuperarla; puedes restablecerla</td>
 </tr>
 <tr>
   <td>Nombre</td>
-  <td>Si lo escribes en la app (es opcional)</td>
+  <td>Al configurar la app, o desde Google si eliges ese acceso. Puedes usar un apodo</td>
   <td>Saludarte por tu nombre</td>
 </tr>
 <tr>
@@ -134,7 +135,8 @@ Los nombres de universidades aparecen solo para que reconozcas tu malla.</p>
   <td>El promedio de cada ramo que tiene sigla</td>
   <td>Al entrar a la app y al abrir Estadísticas</td>
   <td>Mostrarte cómo vas respecto de quienes cursan el mismo ramo y la misma
-  universidad. Se guarda solo el promedio, sin tu nombre; nadie ve el tuyo ni
+  universidad. El promedio queda asociado a tu cuenta para actualizarlo o borrarlo,
+  sin copiar tu nombre; nadie ve el tuyo ni
   el de otra persona, solo un porcentaje, y únicamente cuando hay al menos cinco
   personas. Si borras un ramo o archivas el semestre, su promedio deja de
   contar, y cualquiera sin actualizar en 30 días tampoco cuenta</td>
@@ -208,16 +210,24 @@ partes de la app se usan. También contamos visitas a la calculadora, cálculos
 válidos y aperturas de GradeHub desde ella. Registra eventos de uso del tipo
 «alguien agregó un ramo» o «alguien abrió el simulador», junto con datos
 generales como el país, el tipo de dispositivo y desde qué página llegaste.</p>
-<p>Configuramos Google Analytics <strong>sin cookies</strong> de analítica ni
-publicidad. El costo es que no distingue
-visitantes: cuenta visitas, no personas, y con eso nos basta. Si abres la app
-desde la calculadora, guardamos solo ese origen durante la sesión de la pestaña
-para contar registros e inicios de sesión que vienen de ahí.</p>
+<p><strong>Solo lo cargamos si activas «Estadísticas de uso» en Ajustes → Datos
+y cuenta.</strong> Parte desactivado y puedes usar GradeHub completo sin
+autorizarlo. Puedes desactivarlo en el mismo lugar; la app se recarga para
+detener también la medición automática. La elección, su fecha y la versión se
+guardan en este navegador, separadas de tus notas y sin sincronizarse con tu cuenta.</p>
+<p>Lo configuramos <strong>sin cookies de analítica</strong>. Eso no elimina
+el envío de datos técnicos a Google: recibe eventos y datos de la conexión y
+el dispositivo para elaborar estadísticas. Por eso pedimos autorización antes
+de cargarlo, aunque no use cookies. La dirección de página que configuramos
+para la analítica excluye los parámetros y el fragmento de la URL de acceso.</p>
+<p>Si abres la app desde la calculadora, guardamos solo ese origen durante la
+sesión de la pestaña para contar registros e inicios de sesión que vienen de ahí,
+cuando autorizas la analítica.</p>
 <p><strong>Tus notas no salen de ahí.</strong> A la analítica no le mandamos
 notas, ni nombres de ramos, ni nombres de evaluaciones, ni nada que hayas
-escrito tú. Contamos cuántas veces pasa algo, no qué le pasó a quién. Esto no es
-una intención: hay un test automático que revienta la publicación si alguien
-intenta agregar un evento que se lleve datos tuyos.</p>
+escrito tú. Contamos cuántas veces pasa algo, no qué le pasó a quién. Revisamos
+los eventos de la app con tests automáticos para detectar parámetros que
+incluyan datos personales.</p>
 
 <h2>Dónde viven tus datos</h2>
 <p>En dos lugares, y conviene entender la diferencia:</p>
@@ -239,20 +249,18 @@ la base de datos misma, no por el código de la app. Ningún usuario puede ver l
 notas de otro.</p>
 
 <h2>Con quién se comparten</h2>
-<p><strong>Con nadie, salvo que tú lo decidas.</strong> No vendemos, arrendamos ni cedemos tus datos
-personales, y tu universidad no recibe nada. Esto no depende de cómo se financie
-la app: hay una sección sobre publicidad más abajo y ahí también rige.</p>
-<p>Las únicas empresas que participan son las que necesitamos para que la app
-exista, y solo en su rol técnico:</p>
+<p>No vendemos ni arrendamos tus datos personales, y tu universidad no recibe
+nada. Usamos proveedores para operar la app y puedes autorizar las funciones
+externas descritas en esta página:</p>
 <ul>
   <li><strong>Supabase</strong> — base de datos y cuentas.</li>
   <li><strong>Cloudflare</strong> — servidor del sitio.</li>
-  <li><strong>Google Analytics</strong> — estadísticas de uso. Recibe
+  <li><strong>Google Analytics</strong> — estadísticas de uso opcionales. Solo si las activas, recibe
       identificadores técnicos y eventos del tipo «alguien abrió el simulador»,
       nunca tus notas ni tu identidad dentro de GradeHub.</li>
-  <li><strong>Google Fonts y jsDelivr</strong> — entregan las tipografías y una
-      librería que la app necesita. Al cargar la página, tu navegador les pide
-      esos archivos directamente, y en esa petición ellos ven tu dirección IP.
+  <li><strong>jsDelivr</strong> — entrega la librería de autenticación que la app
+      necesita. Al cargar la página, tu navegador pide ese archivo directamente,
+      y en esa petición el proveedor ve tu dirección IP.
       No reciben ninguna de tus notas ni tu identidad dentro de GradeHub.</li>
   <li><strong>Google</strong> — solo si eliges iniciar sesión con tu cuenta Google.</li>
 </ul>
@@ -266,6 +274,18 @@ en ese momento y se compromete a borrar lo que haya descargado.</p>
 comparten un ramo le mostramos el promedio de todos los usuarios de GradeHub en
 ese ramo y en cada prueba. Tus notas pueden formar parte de ese promedio, pero
 solo se muestra cuando hay al menos cinco personas y nunca dice quiénes son.</p>
+<h3>Calendario y agentes que autorizas</h3>
+<p>Si activas la suscripción al calendario, quien tenga su URL privada puede
+leer los nombres y fechas de tus evaluaciones, sin tus notas. Al agregarla a
+Google Calendar, Apple Calendar u otro servicio, ese proveedor recibe los
+eventos. Puedes desactivar la suscripción desde Calendario. La revocación
+impide nuevas consultas; no borra archivos ni eventos que ya se hayan copiado.</p>
+<p>Si conectas agentes, la herramienta que autorizas puede leer el estado de
+tu semestre, incluidos tus ramos y notas, mientras su enlace esté vigente.
+Revisa cómo trata los datos el proveedor de esa herramienta antes de conectarla.
+Puedes revocar el acceso desde Agentes; eso detiene nuevas consultas, pero no
+borra lo que la herramienta ya haya recibido. Los cambios que proponga se
+revisan dentro de GradeHub antes de aplicarlos.</p>
 <p>Podríamos entregar datos si una obligación legal u orden de autoridad lo
 exige. Si incorporamos proveedores de publicidad u otros destinatarios,
 actualizaremos esta sección antes de que empiecen a recibir información.</p>
@@ -332,11 +352,16 @@ acotado en respaldos automáticos de nuestros proveedores antes de rotar.</p>
 Ajustes → Reiniciar app, o limpiando los datos del sitio en tu navegador.</p>
 
 <h2>Tus derechos</h2>
-<p>La ley chilena te da derecho a saber qué datos tuyos tenemos, a corregirlos
-si están mal, a pedir que los borremos y a oponerte a que los usemos. Para
+<p>La ley chilena te da derecho a saber qué datos tuyos tenemos, su origen,
+destinatarios y propósito, a corregirlos si están mal y a solicitar su eliminación
+o bloqueo en los casos que contempla la ley. También puedes retirar tu
+autorización de tratamiento, sin efecto retroactivo, y oponerte al uso de tus
+datos para publicidad o encuestas. Estas solicitudes son gratuitas. Para
 ejercer cualquiera de esos derechos, escríbenos a
 <a href="mailto:gradehub.app@gmail.com">gradehub.app@gmail.com</a> desde el mismo correo con
-el que creaste tu cuenta. Respondemos dentro de los plazos que fija la ley.</p>
+el que creaste tu cuenta. Si ya no tienes acceso a ese correo, indícalo:
+acordaremos una forma de verificar tu identidad sin pedir datos innecesarios.
+Respondemos dentro de los plazos que fija la ley.</p>
 <p>También puedes preguntarnos cómo tratamos tus datos. Las recomendaciones de
 clases se ordenan dentro de GradeHub y no crean un perfil académico que se
 entregue a profesores.</p>
