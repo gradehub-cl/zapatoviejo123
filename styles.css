@@ -201,14 +201,22 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .screen.active{display:flex;}
 #screen-loading.active{animation:none;}
 .carga-inicial{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px max(24px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));text-align:center;}
-.carga-inicial-identidad{display:flex;flex-direction:column;align-items:center;gap:12px;}
-.carga-inicial-logo{display:block;width:88px;height:88px;object-fit:contain;}
+.carga-inicial-identidad{display:flex;flex-direction:column;align-items:center;gap:0;}
+.carga-inicial-logo{display:block;width:132px;height:132px;flex:none;}
 .carga-inicial-estado{display:flex;align-items:center;justify-content:center;gap:10px;max-width:100%;}
 .carga-inicial-marca{font-size:1.75rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
 .carga-inicial p{font-size:1rem;line-height:1.5;color:var(--fg2);}
-.carga-inicial-indicador{flex:none;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--fg2);border-radius:50%;animation:carga-inicial-giro 900ms linear infinite;}
-@keyframes carga-inicial-giro{to{transform:rotate(360deg);}}
-@media(prefers-reduced-motion:reduce){.carga-inicial-indicador{animation:none;}}
+/* Las máscaras se mueven junto con sus capas: mientras se arma, no recortan
+   una capa con la silueta de otra que todavía no llegó. Geometría de logo.svg. */
+.carga-capa{animation-duration:2400ms;animation-timing-function:var(--ease-out);animation-iteration-count:infinite;}
+.carga-capa-base{animation-name:carga-capa-base;}
+.carga-capa-intermedia{animation-name:carga-capa-intermedia;}
+.carga-capa-superior{animation-name:carga-capa-superior;}
+@keyframes carga-capa-base{0%,100%{opacity:0;transform:translateY(22px);}18%,84%{opacity:1;transform:translateY(0);}98%{opacity:0;transform:translateY(-10px);}}
+@keyframes carga-capa-intermedia{0%,10%,100%{opacity:0;transform:translateY(-24px);}30%,78%{opacity:1;transform:translateY(0);}92%{opacity:0;transform:translateY(-14px);}}
+@keyframes carga-capa-superior{0%,22%,100%{opacity:0;transform:translateY(-32px);}42%,72%{opacity:1;transform:translateY(0);}86%{opacity:0;transform:translateY(-18px);}}
+#screen-loading:not(.active) .carga-capa{animation:none;}
+@media(prefers-reduced-motion:reduce){#screen-loading .carga-capa{animation:none;opacity:1;transform:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
