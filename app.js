@@ -1470,10 +1470,8 @@ function initSemGrid(){
     g.appendChild(b);
   }
 }
-// Con 71 carreras en la UC una grilla de botones no se puede recorrer. Es una
-// lista buscable, y las que tienen malla van arriba marcadas: son el caso
-// común y tienen que estar a un toque, pero el resto ahora EXISTE — antes un
-// estudiante de Derecho no tenía cómo decir qué estudiaba.
+// La lista buscable permite declarar cualquier carrera. Cada opción muestra
+// solo su nombre: la cobertura del catálogo no orienta qué carrera elegir.
 function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
   const todas=carrerasDeclarables(selectedTenant);
@@ -1486,7 +1484,7 @@ function initCarreraGrid(){
     const elegida=c.malla?c.malla===selectedCarrera:(!selectedCarrera&&c.n===selectedCarreraNombre);
     const b=document.createElement('button');
     b.className='carrera-opt'+(elegida?' sel':'');
-    b.innerHTML=esc(c.n)+(mallaCubreTodoElPaso(c.malla)?' <span class="carrera-tiene-malla">tu malla se carga sola</span>':'');
+    b.textContent=c.n;
     b.onclick=()=>{
       // `carrera` sigue siendo el código de la malla y manda en todo lo que ya
       // existe. `carreraNombre` es lo declarado, y es lo único que hay cuando
@@ -6687,7 +6685,7 @@ function openSettings(){
       const elegida=c.malla?c.malla===settingsCarrera:(!settingsCarrera&&c.n===settingsCarreraNombre);
       const b=document.createElement('button');
       b.className='carrera-opt'+(elegida?' sel':'');
-      b.innerHTML=esc(c.n)+(mallaCubreTodoElPaso(c.malla)?' <span class="carrera-tiene-malla">tu malla se carga sola</span>':'');
+      b.textContent=c.n;
       b.onclick=()=>{settingsCarrera=c.malla||null;settingsCarreraNombre=c.n;renderSettingsCarreraGrid();};
       g.appendChild(b);
     });
