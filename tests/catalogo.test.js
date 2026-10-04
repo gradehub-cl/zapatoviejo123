@@ -126,7 +126,7 @@ const buscarUC = (q, car) => run('searchCatalog(' + JSON.stringify(q) + ',"uc",'
 const buscarEn = (q, t, car) => run('searchCatalog(' + JSON.stringify(q) + ',' + JSON.stringify(t) + ',' + JSON.stringify(car) + ',2)');
 const mallaUc = run('MALLAS_UC_EXTRA["UC-DERECHO"]["1"][0]');
 chk('Ingeniería UC encuentra un ramo de Derecho UC', buscarEn(mallaUc, 'uc', 'ING-PC').some(r => r.nombre === mallaUc));
-const uaiCom = run('CARRERAS_DECLARABLES.uai.find(c=>c.n==="Ingeniería Comercial").malla');
+const uaiCom = run('CARRERAS_DECLARABLES.uai.find(c=>c.malla==="UAI-INGENIERIA-COMERCIAL").malla');
 const ajenoUai = run(`(()=>{const M=MALLAS_UAI_EXTRA,propios=new Set(Object.values(M[${JSON.stringify(uaiCom)}]).flat());
   for(const [car,porSem] of Object.entries(M))if(car!==${JSON.stringify(uaiCom)})for(const l of Object.values(porSem))for(const n of l)if(!propios.has(n))return n;})()`);
 const hallado = buscarEn(ajenoUai, 'uai', uaiCom).find(r => r.nombre === ajenoUai);
