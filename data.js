@@ -1767,7 +1767,7 @@ const CREDITOS_UC={
   'Estrategia Competitiva':[10,'EAA2420'],
   'Competencia y Mercado':[10,'EAE2130'],
   'Contabilidad de Costos':[10,'EAA2220'],
-  'Ética, Economía y Empresa':[10,'FIL209'],
+  'Ética, Economía y Empresa':[10,'ETI209'],
   'Marketing Analytics':[10,'EAA2320'],
   'Empresas y Legislación':[5,'EAA2230'],
   'Macroeconomía II':[10,'EAE2220'],

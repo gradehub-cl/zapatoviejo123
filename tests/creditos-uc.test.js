@@ -94,7 +94,7 @@ console.log('\n=== Valores oficiales de Ingeniería Comercial ===');
   ['Microeconomía II',10,'EAE2120'], ['Macroeconomía I',10,'EAE2210'],
   ['Teoría Financiera',10,'EAA2210'], ['Estrategia Competitiva',10,'EAA2420'],
   ['Competencia y Mercado',10,'EAE2130'], ['Contabilidad de Costos',10,'EAA2220'],
-  ['Ética, Economía y Empresa',10,'FIL209'], ['Marketing Analytics',10,'EAA2320'],
+  ['Ética, Economía y Empresa',10,'ETI209'], ['Marketing Analytics',10,'EAA2320'],
   // Estas dos estaban cruzadas entre sí desde la primera transcripción de la
   // malla. Comprobado el 2026-09-17 pidiendo las fichas a catalogo.uc.cl:
   // EAA2230 = EMPRESA Y LEGISLACION, 05 créditos; EAA2240 = CONTABILIDAD
