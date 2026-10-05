@@ -98,6 +98,13 @@ chk('y también Prueba y Control', sugUAI.some(s => /^prueba/i.test(s)) && sugUA
 // Ninguno de sus cinco programas transcritos dice "interrogación": esa es UC.
 chk('pero NO le ofrece el vocabulario de la UC', !sugUAI.some(s => /interrogaci/i.test(s)));
 
+console.log('\n=== La UAndes tampoco hereda el idioma de otra ===');
+// Sale de su Reglamento del Alumno y de normativas de facultad: ninguno dice
+// "solemne", y "Interrogación" es la palabra de la UC.
+const sugUA = llamar('sugerenciasEvaluacion', 'uandes');
+chk('a la UAndes no se le ofrece Solemne ni Interrogación', !sugUA.some(s => SOLO_FEN.test(s) || /interrogaci/i.test(s)));
+chk('le ofrece Prueba, Examen y Control de lectura', ['Prueba 1', 'Examen', 'Control de lectura'].every(n => sugUA.includes(n)));
+
 console.log('\n=== Una universidad que no conocemos no hereda el idioma de otra ===');
 // El default de sugerenciasEvaluacion era la lista de FEN, así que a cualquier
 // universidad nueva le habrían aparecido "Solemne 1, Solemne 2". Con dos

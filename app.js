@@ -5238,6 +5238,13 @@ function sugerenciasEvaluacion(tenant){
   // que es como se llaman sus evaluaciones más grandes. Lo que NO lleva es
   // "Interrogación": ninguno de sus programas la usa, esa es de la UC.
   if(tenant==='uai')return ['Solemne 1','Solemne 2','Solemne 3','Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3','Control de lectura','Trabajo grupal',...comunes];
+  // La UAndes dice "prueba" y "examen" en todas sus normativas, y nunca
+  // "solemne". Lo demás también sale de documentos suyos: "controles de
+  // lectura" (Reglamento del Alumno, art. 20, y el catálogo de Teología III),
+  // "certámenes" (normativa de Kinesiología), "ensayo" y "trabajo escrito"
+  // (catálogo de Teología III). "Interrogaciones orales" aparece una sola vez,
+  // como ejemplo en el reglamento, y "Interrogación" es la señal de la UC: no va.
+  if(tenant==='uandes')return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3','Control de lectura','Certamen','Ensayo','Trabajo escrito',...comunes];
   return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
 }
 function opcionesSugerenciasEvaluacion(tenant){
