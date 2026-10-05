@@ -5610,9 +5610,11 @@ function pintarAgentesConectados(){
 }
 async function cargarAgentesConectados(){
   if(!currentUser||!supabaseClient)return;
+  const usuario=currentUser;
   agentesCargando=true;agentesError='';pintarAgentesConectados();
   try{
     const {data,error}=await rpcAgente('listar_agentes');
+    if(currentUser!==usuario)return;
     if(error)throw error;
     // Copiar solo las cinco columnas declaradas por la RPC: aunque el servidor
     // cambie su respuesta, la interfaz jamás debe terminar mostrando un token.
@@ -5621,8 +5623,9 @@ async function cargarAgentesConectados(){
       return {id:/^[A-Za-z0-9_-]{1,64}$/.test(id)?id:'',agente:typeof a.agente==='string'?a.agente:'Agente',created_at:a.created_at||null,last_used_at:a.last_used_at||null,expires_at:a.expires_at||null};
     }).filter(a=>a.id);
   }catch(e){
+    if(currentUser!==usuario)return;
     agentesError='No pudimos cargar tus agentes conectados. Intenta de nuevo en un momento.';
-  }finally{agentesCargando=false;pintarAgentesConectados();}
+  }finally{if(currentUser===usuario){agentesCargando=false;pintarAgentesConectados();}}
 }
 // Las RPC del agente exigen sesión: resuelven todo con auth.uid(). Una app que
 // queda abierta días llega con el JWT vencido, y entonces la base contesta "sin
@@ -5634,9 +5637,12 @@ function sesionCaducada(error){
   return /sin sesi[oó]n|jwt|token/i.test(m);
 }
 async function rpcAgente(nombre,args){
+  const usuario=currentUser;
   let r=await supabaseClient.rpc(nombre,args);
+  if(currentUser!==usuario)return r;
   if(r&&r.error&&sesionCaducada(r.error)){
     try{await supabaseClient.auth.refreshSession();}catch(e){}
+    if(currentUser!==usuario)return r;
     r=await supabaseClient.rpc(nombre,args);
   }
   return r;
@@ -5647,11 +5653,13 @@ async function rpcAgente(nombre,args){
 // se muestra, con lo que eso significa dicho en la misma pantalla.
 async function crearUrlAgente(){
   if(!currentUser||!supabaseClient){showToast('Inicia sesión para conectar un agente',true);return;}
+  const usuario=currentUser;
   const btn=document.getElementById('s-agent-url-create');
   if(btn){btn.disabled=true;btn.textContent='Creando…';}
   try{
     const nombre=(document.getElementById('s-agent-url-nombre')||{}).value||'';
     const {data,error}=await rpcAgente('crear_vinculo_agente',{p_agente:nombre});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     const fila=Array.isArray(data)?data[0]:data;
     const token=fila&&fila.token;
@@ -5660,13 +5668,14 @@ async function crearUrlAgente(){
     pintarUrlAgente();
     cargarAgentesConectados();
   }catch(e){
+    if(currentUser!==usuario)return;
     const motivo=(e&&(e.message||e.msg))||'';
     showToast(sesionCaducada(e)
       ? 'Tu sesión expiró. Vuelve a entrar y créala otra vez.'
       : ('No pudimos crear la URL'+(motivo?': '+motivo:'. Intenta de nuevo.')),true);
     console.warn('crear_vinculo_agente falló:',e);
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=agenteUrlActual?'Crear otra URL':'Crear URL de conexión';}
+    if(btn&&currentUser===usuario){btn.disabled=false;btn.textContent=agenteUrlActual?'Crear otra URL':'Crear URL de conexión';}
   }
 }
 async function copiarPromptConectorAgente(){
@@ -5759,6 +5768,9 @@ async function copiarUrlAgente(){
 // para eso se crea otra, que además queda registrada aparte y se puede
 // desconectar sola.
 function olvidarUrlAgente(){agenteUrlActual='';}
+function olvidarSesionAgentes(){
+  olvidarUrlAgente();agentesConectados=[];agentesCargando=false;agentesError='';
+}
 function confirmarRevocarAgente(id){
   const agente=agentesConectados.find(a=>a.id===id);
   if(!agente)return;
@@ -5766,12 +5778,14 @@ function confirmarRevocarAgente(id){
 }
 async function revocarAgente(id){
   if(!currentUser||!supabaseClient)return;
+  const usuario=currentUser;
   try{
     const {error}=await rpcAgente('revocar_agente',{p_id:id});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     agentesConectados=agentesConectados.filter(a=>a.id!==id);
     pintarAgentesConectados();showToast('Agente desconectado');
-  }catch(e){showToast('No pudimos desconectar ese agente. Intenta de nuevo.',true);}
+  }catch(e){if(currentUser===usuario)showToast('No pudimos desconectar ese agente. Intenta de nuevo.',true);}
 }
 
 // Las propuestas no viven en S: son mensajes pendientes del agente, no una
