@@ -8457,7 +8457,7 @@ function renderSimulador(){
 
   const deltaEl=document.getElementById('sim-delta');
   // ¿La proyección quedó topada por un piso de nota? Avisar el porqué.
-  const gateHit=(r.gates||[]).find(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);if(!c)return false;const a=avgPond(simCombinadas(c));return a!==null&&a<g.min;});
+  const gateHit=(r.gates||[]).find(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);if(!c)return false;const a=avgPond(simCombinadas(c));return a!==null&&!gh_cumpleMinimo(a,g.min);});
   if(gateHit&&proj!==null){
     deltaEl.className='sim-delta down';
     deltaEl.textContent=`${gateHit.nombre} bajo ${simConComa(gateHit.min.toFixed(1))}: la nota queda topada en ${simConComa(gateHit.cap.toFixed(1))}`;

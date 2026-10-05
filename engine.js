@@ -3,6 +3,11 @@
 // weighted_average · gated_average (ambos hijos ≥ mín) · min_grade_required (piso por hoja).
 // FENnotas lo alimenta vía ramoToStructure() (adaptador del modelo categorias→notas).
 function gh_excelRound(value,decimals){const f=Math.pow(10,decimals);return Math.sign(value)*Math.round(Math.abs(value)*f)/f;}
+// Un requisito mínimo se mide igual que la nota final: redondeado a la décima.
+// En la UC un 3,95 es 4,0 también para "promedio de pruebas ≥ 4,0", no solo
+// para aprobar el ramo. El 1e-9 evita que un 3,95 exacto, que el punto flotante
+// puede guardar como 3,9499999…, se redondee hacia abajo.
+function gh_cumpleMinimo(valor,min){return gh_excelRound(valor+1e-9,1)>=min;}
 function gh_roundFinal(value,meta){if(value===null)return null;const d=meta?.rounding?.decimals??1;return gh_excelRound(value,d);}
 function gh_weightOf(node,ov){const o=ov?.[node.id];if(o&&typeof o.weight==='number')return o.weight;return node.weight;}
 function gh_meta(s){return s.__meta||{};}
@@ -128,7 +133,7 @@ function calculateFinalGrade(structure,grades,overrides={}){
     let sumW=0,acc=0;
     for(const k of known){acc+=k.value*k.weight;sumW+=k.weight;}
     let value=sumW>0?acc/sumW:null;
-    if(node.aggregation_rule==='gated_average'&&value!==null){const p=node.rule_params||{};const off=known.filter(k=>k.value<p.min_required);const locked=off.filter(o=>o.complete);const ok=off.length===0;gates.push({nodeId:node.id,kind:'gated_average',ok,min_required:p.min_required,fail_cap:p.fail_cap,offenders:off.map(o=>o.child.name),lockedOffenders:locked.map(o=>o.child.name),pending:known.length<node.children.length});if(!ok)value=Math.min(value,p.fail_cap);}
+    if(node.aggregation_rule==='gated_average'&&value!==null){const p=node.rule_params||{};const off=known.filter(k=>!gh_cumpleMinimo(k.value,p.min_required));const locked=off.filter(o=>o.complete);const ok=off.length===0;gates.push({nodeId:node.id,kind:'gated_average',ok,min_required:p.min_required,fail_cap:p.fail_cap,offenders:off.map(o=>o.child.name),lockedOffenders:locked.map(o=>o.child.name),pending:known.length<node.children.length});if(!ok)value=Math.min(value,p.fail_cap);}
     breakdown.push({id:node.id,name:node.name,value,complete:allComplete});return {value,complete:allComplete};
   }
   let rootValue=evalNode(structure).value;
@@ -139,7 +144,7 @@ function calculateFinalGrade(structure,grades,overrides={}){
 }
 function gh_effWeights(structure,overrides={}){const eff={};function walk(node,pw){if(node.type==='leaf'){eff[node.id]=pw;return;}const total=node.children.reduce((s,c)=>s+gh_weightOf(c,overrides),0);for(const c of node.children){const norm=total>0?gh_weightOf(c,overrides)/total:0;walk(c,pw*norm);}}walk(structure,1);return eff;}
 function gh_collectEmpty(structure,grades,effW,out){function walk(node){if(node.type==='leaf'){if(typeof grades[node.id]!=='number')out.push({id:node.id,name:node.name,effectiveWeight:effW[node.id]});return;}node.children.forEach(walk);}walk(structure);}
-function gh_leafGates(structure,grades,emit){function walk(node){if(node.type==='leaf'){if(typeof node.min_grade_required==='number'){const g=grades[node.id];const known=typeof g==='number';const ok=!known||g>=node.min_grade_required;emit({nodeId:node.id,kind:'min_grade_required',ok,min_required:node.min_grade_required,fail_cap:node.fail_cap,pending:!known,current:known?g:null,name:node.name});}return;}node.children.forEach(walk);}walk(structure);}
+function gh_leafGates(structure,grades,emit){function walk(node){if(node.type==='leaf'){if(typeof node.min_grade_required==='number'){const g=grades[node.id];const known=typeof g==='number';const ok=!known||gh_cumpleMinimo(g,node.min_grade_required);emit({nodeId:node.id,kind:'min_grade_required',ok,min_required:node.min_grade_required,fail_cap:node.fail_cap,pending:!known,current:known?g:null,name:node.name});}return;}node.children.forEach(walk);}walk(structure);}
 function gh_hasPendingLeaf(node,grades){return node.type==='leaf'?typeof grades[node.id]!=='number':node.children.some(c=>gh_hasPendingLeaf(c,grades));}
 function gh_hasPendingDrop(node,grades){
   if(node.type==='leaf')return false;
@@ -158,7 +163,7 @@ function solveForTarget(structure,grades,target,overrides={},options={}){
   const decimales=meta?.rounding?.decimals??1;
   // Si la nota oficial se informa a una décima, 3,95 ya llega a 4,0. La meta
   // se resuelve contra ese borde real, no contra el 4,00 bruto que la interfaz
-  // nunca muestra. Las compuertas se evalúan aparte con sus mínimos explícitos.
+  // nunca muestra. Las compuertas se evalúan aparte, con `gh_cumpleMinimo`.
   const targetRaw=target-(0.5/Math.pow(10,decimales));
   const direct=calculateFinalGrade(structure,grades,overrides);const effW=gh_effWeights(structure,overrides);
   let known=0;for(const id in grades){if(typeof grades[id]==='number'&&effW[id]!=null)known+=grades[id]*effW[id];}
@@ -333,12 +338,12 @@ function gh_crearCalculoRamo(deps){
       for(const g of r.gates){
         if(g.type==='min_grade_required'){
           const node=res.breakdown.find(b=>b.id===g.catId);
-          if(node && node.value!==null && node.value < g.min){
+          if(node && node.value!==null && !gh_cumpleMinimo(node.value,g.min)){
             const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
           }
         } else if(g.type==='group_min'){
           const ga=avgDeGrupoCalculado(res,estructura,g.catIds);
-          if(ga!==null && ga < g.min){
+          if(ga!==null && !gh_cumpleMinimo(ga,g.min)){
             const tope=(g.cap==='self')?ga:g.cap;
             const siguiente=Math.min(v,tope);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
           }
@@ -392,7 +397,7 @@ function gh_crearCalculoRamo(deps){
     if(externo===null)return propio;
     const p=(link.peso||0)/100;
     let v=propio*(1-p)+externo*p;
-    if(typeof link.min==='number'&&(propio<link.min||externo<link.min))v=Math.min(propio,externo);
+    if(typeof link.min==='number'&&(!gh_cumpleMinimo(propio,link.min)||!gh_cumpleMinimo(externo,link.min)))v=Math.min(propio,externo);
     return v;
   }
   function gatesActivas(r){
@@ -404,10 +409,10 @@ function gh_crearCalculoRamo(deps){
         const c=(r.categorias||[]).find(x=>x.id===g.catId);
         if(!c)return;
         const a=valores.get(c.id);
-        if(a!==null&&a<g.min)out.push({nombre:g.nombre||c.nombre,actual:a,min:g.min,cap:g.cap});
+        if(a!==null&&!gh_cumpleMinimo(a,g.min))out.push({nombre:g.nombre||c.nombre,actual:a,min:g.min,cap:g.cap});
       } else if(g.type==='group_min'){
         const ga=avgDeGrupoCalculado(calculo.res,calculo.estructura,g.catIds);
-        if(ga!==null&&ga<g.min){
+        if(ga!==null&&!gh_cumpleMinimo(ga,g.min)){
           out.push({nombre:g.nombre||'Requisito',actual:ga,min:g.min,cap:(g.cap==='self')?ga:g.cap,grupo:true});
         }
       }
@@ -494,7 +499,7 @@ function gh_crearCalculoRamo(deps){
         // la interfaz diga "ya no es posible" en vez de pedir un número.
         if(otro&&ramoCompletamenteEvaluado(otro)){
           const suyo=ramoAvg(otro);
-          if(typeof suyo==='number'&&suyo<link.min)return (gh_meta(estructura)?.grade_scale?.max??7)+1;
+          if(typeof suyo==='number'&&!gh_cumpleMinimo(suyo,link.min))return (gh_meta(estructura)?.grade_scale?.max??7)+1;
         }
         const ponderado=resolver(estructura,objetivo);
         // La parte propia tiene que llegar al mínimo por su cuenta.
