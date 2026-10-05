@@ -392,6 +392,53 @@ const CARRERAS_DECLARABLES={
     {n:'Ingeniería Civil en Minería',malla:'UAI-INGENIERIA-CIVIL-EN-MINERIA'},
     {n:'Bachillerato de Ingeniería Civil',malla:'UAI-BACHILLERATO-DE-INGENIERIA-CIVIL'}
   ],
+  // Las carreras y bachilleratos que la UAndes lista en admision.uandes.cl/carreras
+  // (revisada el 2026-10-03), con los nombres tal como salen ahí. Quedó fuera
+  // "Derecho e Historia": su enlace lleva a una página de respaldo, no a la de
+  // admisión. Ninguna tiene malla todavía.
+  //
+  // Los cuatro códigos `-UA` NO son mallas: vienen de CARRERAS_UANDES, que era
+  // la lista anterior, y hay cuentas que ya los tienen guardados en S.carrera y
+  // en el origen de sus ramos. Se conservan para que esas personas sigan viendo
+  // su carrera marcada. La quinta, "Ingeniería Civil" (ING-UA), no calza con
+  // ninguna carrera oficial —la UAndes admite por especialidad— y no se ofrece
+  // más; quien la tenga la sigue viendo por su nombre en Ajustes.
+  uandes:[
+    {n:'Administración de Servicios'},
+    {n:'Arquitectura'},
+    {n:'Ciencia Política'},
+    {n:'Derecho',malla:'DER-UA'},
+    {n:'Derecho y Filosofía'},
+    {n:'Educación de Párvulos con menciones'},
+    {n:'Enfermería'},
+    {n:'Filosofía'},
+    {n:'Historia'},
+    {n:'Ingeniería Civil Eléctrica'},
+    {n:'Ingeniería Civil en Ciencias de la Computación'},
+    {n:'Ingeniería Civil en Obras Civiles'},
+    {n:'Ingeniería Civil Industrial'},
+    {n:'Ingeniería Civil Química'},
+    {n:'Ingeniería Comercial',malla:'COM-UA'},
+    {n:'International Business'},
+    {n:'Kinesiología'},
+    {n:'Marketing y Publicidad'},
+    {n:'Medicina',malla:'MED-UA'},
+    {n:'Odontología'},
+    {n:'Pedagogía Básica con menciones'},
+    {n:'Pedagogía Básica Bilingüe Inglés Español'},
+    {n:'Periodismo y Comunicación Estratégica'},
+    {n:'Psicología',malla:'PSI-UA'},
+    {n:'Sociología'},
+    {n:'Terapia Ocupacional'},
+    {n:'Bachillerato de Derecho'},
+    {n:'Bachillerato de Enfermería'},
+    {n:'Bachillerato de Ingeniería Civil'},
+    {n:'Bachillerato de Ingeniería Comercial'},
+    {n:'Bachillerato de Medicina'},
+    {n:'Bachillerato de Obstetricia y Puericultura'},
+    {n:'Bachillerato de Odontología'},
+    {n:'Bachillerato de Psicología'},
+  ],
   fen:[
     {n:'Ingeniería Comercial',malla:'IC'},
     {n:'Ingeniería en Información y Control de Gestión',malla:'IICG'},
@@ -1048,18 +1095,38 @@ const PRESETS_UC={
   // otro. El catálogo oficial dice EAA2240 = Contabilidad Gerencial (10 cr) y
   // EAA2230 = Empresa y Legislación (5 cr); los créditos de cada nombre ya
   // calzaban, solo estaba mal el código.
+  // Programa 2026-2 de Luis Camilla, pp. 3-4 (PDF recibido por Lucas).
   'Contabilidad Gerencial':{
+    sigla:'EAA2240',periodo:'2026-2',
     evals:[
-      ['Pruebas y controles',30,{lista:true}],
-      ['Casos prácticos y trabajos',40,{lista:true}],
-      ['Examen final escrito',30],
+      ['Ejercicios, casos y tareas',20],
+      ['Prueba 1',24,{fecha:'2026-10-05'}],
+      ['Prueba 2',24,{fecha:'2026-11-09'}],
+      ['Examen',32,{fecha:'2026-12-12',nombresAnteriores:['Examen final escrito']}],
+    ],
+    noCalcula:[
+      'Si la nota de ejercicios, casos y tareas es al menos 4,0 y el promedio de pruebas y examen es menor que 3,8, la final excluye las tareas: 30% Prueba 1 + 30% Prueba 2 + 40% Examen. Si las tareas están bajo 4,0, sí pesan 20%. El texto exige ≥ 3,8, pero la fórmula impresa dice > 3,8; confirma el caso exacto de 3,8 con el profesor',
+      'La nota de ejercicios, casos y tareas se calcula por puntos acumulados, con 7,0 al 90% del puntaje máximo y escala lineal. Ingresa la nota del bloque entregada por el profesor',
+    ],
+    reglasDelCurso:[
+      'Programa 2026-2 de Luis Camilla. Calendario tentativo: pruebas a las 17:30 y examen a las 08:20; confirma cambios con el curso',
+      'La recuperativa por una prueba justificada es el 12 de diciembre después del examen; si no la rindes, la prueba justificada queda en 1,0. El examen no puede ponderar más de 56%; sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
     ],
   },
+  // Empresa y Legislación, EAA2230, Luis Enrique Seguel, pp. 3-4.
+  // Conservamos la clave plural de la malla para no romper ramos existentes.
   'Empresas y Legislación':{
+    sigla:'EAA2230',periodo:'2026-2',
     evals:[
-      ['Controles y pruebas',50,{lista:true}],
-      ['Examen',30],
-      ['Proyecto grupal',20],
+      ['Prueba 1',30,{fecha:'2026-09-26'}],
+      ['Prueba 2',30,{fecha:'2026-11-03'}],
+      ['Examen',40,{fecha:'2026-12-02'}],
+    ],
+    noCalcula:['Una prueba justificada traspasa su 30% al examen, que no puede superar 70%. Ajusta los pesos según la justificación aprobada; justificar ambas pruebas no habilita un examen de 100%',
+      'Las preguntas bonus pueden sumar hasta 0,3 a cada prueba. La participación, tareas voluntarias y 100% de asistencia a clases y ayudantías pueden dar décimas; su asignación depende del profesor'],
+    reglasDelCurso:[
+      'Programa recibido como 2026-2 de Luis Enrique Seguel. Prueba 1: 09:40; Prueba 2: 17:30; Examen: 13:30',
+      'El examen no puede superar 70% del curso: justificar ambas pruebas trasladaría 100% y no cumple el requisito. No hay eximición',
     ],
   },
   'Fundamentos de Marketing':{
@@ -1070,12 +1137,27 @@ const PRESETS_UC={
       ['Examen final escrito',30],
     ],
   },
+  // EAA2320, programa 2026-2, pp. 8-12. El ensayo pesa 20%:
+  // sus hitos 20/30/50 internos equivalen a 4/6/10 de la nota final.
   'Marketing Analytics':{
+    sigla:'EAA2320',periodo:'2026-2',
     evals:[
-      ['Pruebas',40,{lista:true}],
-      ['Participación en clases',10],
-      ['Casos y tareas grupales',30,{lista:true}],
-      ['Examen final',20],
+      ['Tareas',40,{slots:3,slotLabel:'Tarea'}],
+      ['Prueba 1',10,{fecha:'2026-09-30'}],
+      ['Prueba 2',10,{fecha:'2026-11-05'}],
+      ['Examen',20,{fecha:'2026-12-11',nombresAnteriores:['Examen final']}],
+      ['Ensayo: primer hito',4],
+      ['Ensayo: segundo hito',6],
+      ['Ensayo: entrega final',10,{fecha:'2026-11-24'}],
+    ],
+    // El requisito usa el promedio redondeado a una décima: ≥ 4,0
+    // equivale a un promedio sin redondear ≥ 3,95. No exigimos 4,0 crudo.
+    grupos:[{nombre:'Competencias técnicas (promedio redondeado ≥ 4,0)',evals:['Prueba 1','Prueba 2','Examen'],min:3.95,cap:3.9}],
+    reglasDelCurso:[
+      'Programa 2026-2: pruebas a las 17:30; examen el 11 de diciembre a las 13:30; entrega final del ensayo el 24 de noviembre a las 17:30. Fechas de tareas e hitos intermedios por anunciar',
+      'Para aprobar, 25% Prueba 1 + 25% Prueba 2 + 50% Examen debe llegar a 4,0 redondeado a la décima; de lo contrario, la final se topa en 3,9',
+      'Para rendir examen debes haber sido evaluado en al menos 40% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba regular. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
+      'La recuperativa por una prueba justificada es el 11 de diciembre a las 17:30; si no la rindes, la prueba justificada queda en 1,0',
     ],
   },
   'Estrategia de la Organización':{
@@ -1085,11 +1167,23 @@ const PRESETS_UC={
       ['Examen final escrito',40],
     ],
   },
+  // Gastón Llanes, programa 2026-2 versión 13-08-26, pp. 1-3.
   'Estrategia Competitiva':{
+    sigla:'EAA2420',periodo:'2026-2',
     evals:[
-      ['Prueba 1',30],
-      ['Prueba 2',30],
-      ['Examen final escrito',40],
+      ['Participación',10],
+      ['Actividades',10,{slots:4,slotLabel:'Actividad',dropLowest:{count:1}}],
+      ['Prueba 1',23],
+      ['Prueba 2',23],
+      ['Examen',34,{nombresAnteriores:['Examen final escrito']}],
+    ],
+    noCalcula:[
+      'Participación y actividades cuentan solo si obtienes al menos un 4,0 en pruebas, examen o recuperativa, y 28,75% Prueba 1 + 28,75% Prueba 2 + 42,5% Examen llega a 3,75. Si falla cualquiera, esa fórmula es la nota final y se excluyen participación y actividades',
+    ],
+    reglasDelCurso:[
+      'Programa 2026-2 de Gastón Llanes. Hay cuatro actividades y se promedian las tres mejores; las fechas las anuncia el curso',
+      'Para rendir examen debes haber sido evaluado en al menos 33% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba. El examen no puede superar 70%: el exceso se califica con 1,0. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
+      'Una prueba justificada se recupera en la fecha de Facultad; no rendir la recuperativa implica 1,0 en esa prueba. Si faltas a ambas pruebas, no puedes rendir recuperativa ni examen y ambas quedan en 1,0',
     ],
   },
   // INTRO A LA MICROECONOMÍA (EAE1110). El catálogo la publica como Guías 20 /
@@ -1167,12 +1261,19 @@ const PRESETS_UC={
       ['Presentación final Feria de proyectos',20],
     ],
   },
+  // ETI209, syllabus común 2026-2 versión 6 de agosto, pp. 7-8.
   'Ética, Economía y Empresa':{
+    sigla:'ETI209',periodo:'2026-2',
+    noCalcula:['Una prueba justificada traspasa su 20% al examen. Si supera 60%, se exige una recuperativa adicional cuya ponderación define el profesor; ajusta la pauta según sus instrucciones'],
     evals:[
-      ['Pruebas',40,{slots:2}],
-      ['Examen',30],
-      ['Trabajo grupal',20],
-      ['Controles y trabajos en clase',10,{lista:true}],
+      ['Prueba 1',20,{fecha:'2026-09-10'}],
+      ['Prueba 2',20,{fecha:'2026-10-26'}],
+      ['Actividades participativas',25,{slots:5,slotLabel:'Actividad'}],
+      ['Examen',35,{fecha:'2026-12-14'}],
+    ],
+    reglasDelCurso:[
+      'Syllabus común 2026-2 para las tres secciones: pruebas a las 17:30 y examen a las 08:20. Las cinco actividades se anuncian por sección',
+      'Si el traspaso por pruebas justificadas hace que el examen supere 60%, habrá una recuperativa adicional definida por el profesor, que puede ser oral. En ese caso ajusta la pauta con sus instrucciones',
     ],
   },
   'Cálculo III':{
@@ -1775,7 +1876,10 @@ const CREDITOS_FEN={
   'Inglés II':[2,null],
   'Inglés III':[2,null],
   'Introducción a la Economía':[6,null],
-  'Métodos Matemáticos I':[6,null],
+  // Sigla de Docencia Web FEN (Catedra=ENMEM1005), sin el prefijo EN como el
+  // resto de CREDITOS_FEN. Verificada el 2026-10-02 contra ENMEM1505 →
+  // Métodos Matemáticos II = MEM1505.
+  'Métodos Matemáticos I':[6,'MEM1005'],
   'Programación para Analítica de Datos':[6,null],
 
   // ─── Por la regla de créditos de la FEN, no ramo por ramo ───────────────

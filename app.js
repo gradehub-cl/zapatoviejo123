@@ -29,8 +29,11 @@ function estadoPeriodoPauta(periodo,ahora){
   if(!m)return 'desconocido';
   const fecha=ahora&&typeof ahora.getTime==='function'?ahora:new Date();
   const anio=Number(m[1]),semestre=Number(m[2]);
-  const fin=Date.UTC(semestre===1?anio:anio+1,semestre===1?7:0,1);
-  return fecha.getTime()<fin?'vigente':'vencido';
+  // El período cierra a la medianoche de Chile, no a la de Greenwich: con
+  // Date.UTC vencía a las 20:00 o 21:00 del último día (issue #579, punto 14).
+  const hoy=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(fecha);
+  const fin=semestre===1?`${anio}-08-01`:`${anio+1}-01-01`;
+  return hoy<fin?'vigente':'vencido';
 }
 function definicionPreset(nombre,tenant,carrera){
   if(tenant!=='uc'){
@@ -356,6 +359,14 @@ function normalize(data) {
     // sin reinterpretar notas ni tocar ramos manuales.
     const recuperativoOficial=copiarRecuperativo(definicionPresetDelRamo(r)?.recuperativo);
     if(!r.recuperativo&&recuperativoOficial)r.recuperativo=recuperativoOficial;
+    // La regla de eximición vive en el catálogo, que el conector MCP no tiene:
+    // sin una copia en el ramo, un examen eximido y confirmado seguía pendiente
+    // para el agente (60% evaluado en vez de 100%; issue #579, punto 7). La app
+    // sigue calculando con el catálogo; la copia solo viaja con los datos y se
+    // renueva en cada carga, así que sigue al catálogo si este cambia.
+    const eximicionOficial=definicionPresetDelRamo(r)?.eximicion;
+    if(eximicionOficial)r.eximicion=JSON.parse(JSON.stringify(eximicionOficial));
+    else delete r.eximicion;
     // Igual que el recuperativo, la regla llega a los ramos oficiales creados
     // antes de publicarla, sin activar nada por sí sola.
     if(!r.reglasAusenciaJustificada){
@@ -976,6 +987,8 @@ function save(){
   if(_storageOK){
     try{
       localStorage.setItem(STORAGE_KEY,JSON.stringify(S));
+      // S y la base de esta pestaña viajan juntas (ver leerBaseSync).
+      if(typeof escribirBaseEnDisco==='function')escribirBaseEnDisco();
     }catch(e){
       const lleno = e && (e.name==='QuotaExceededError' || e.code===22 || e.code===1014 || /quota|exceeded/i.test(e.message||''));
       if(lleno){
@@ -1457,10 +1470,8 @@ function initSemGrid(){
     g.appendChild(b);
   }
 }
-// Con 71 carreras en la UC una grilla de botones no se puede recorrer. Es una
-// lista buscable, y las que tienen malla van arriba marcadas: son el caso
-// común y tienen que estar a un toque, pero el resto ahora EXISTE — antes un
-// estudiante de Derecho no tenía cómo decir qué estudiaba.
+// La lista buscable permite declarar cualquier carrera. Cada opción muestra
+// solo su nombre: la cobertura del catálogo no orienta qué carrera elegir.
 function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
   const todas=carrerasDeclarables(selectedTenant);
@@ -1473,7 +1484,7 @@ function initCarreraGrid(){
     const elegida=c.malla?c.malla===selectedCarrera:(!selectedCarrera&&c.n===selectedCarreraNombre);
     const b=document.createElement('button');
     b.className='carrera-opt'+(elegida?' sel':'');
-    b.innerHTML=esc(c.n)+(mallaCubreTodoElPaso(c.malla)?' <span class="carrera-tiene-malla">tu malla se carga sola</span>':'');
+    b.textContent=c.n;
     b.onclick=()=>{
       // `carrera` sigue siendo el código de la malla y manda en todo lo que ya
       // existe. `carreraNombre` es lo declarado, y es lo único que hay cuando
@@ -5557,6 +5568,10 @@ function closeUserMenu(){
 // Cierra el menú y ejecuta la acción (deja que corra la animación de cierre)
 function umGo(fn){
   closeUserMenu();
+  // El menú deja de ser visible antes de abrir la hoja. Conserva su origen
+  // para que el cierre de la siguiente vista no devuelva el foco al body.
+  const origen=document.getElementById('user-avatar');
+  if(origen&&origen.isConnected){try{origen.focus({preventScroll:true});}catch(e){origen.focus();}}
   setTimeout(()=>{try{fn();}catch(e){}},60);
 }
 document.addEventListener('keydown',e=>{
@@ -5597,9 +5612,11 @@ function pintarAgentesConectados(){
 }
 async function cargarAgentesConectados(){
   if(!currentUser||!supabaseClient)return;
+  const usuario=currentUser;
   agentesCargando=true;agentesError='';pintarAgentesConectados();
   try{
     const {data,error}=await rpcAgente('listar_agentes');
+    if(currentUser!==usuario)return;
     if(error)throw error;
     // Copiar solo las cinco columnas declaradas por la RPC: aunque el servidor
     // cambie su respuesta, la interfaz jamás debe terminar mostrando un token.
@@ -5608,8 +5625,9 @@ async function cargarAgentesConectados(){
       return {id:/^[A-Za-z0-9_-]{1,64}$/.test(id)?id:'',agente:typeof a.agente==='string'?a.agente:'Agente',created_at:a.created_at||null,last_used_at:a.last_used_at||null,expires_at:a.expires_at||null};
     }).filter(a=>a.id);
   }catch(e){
+    if(currentUser!==usuario)return;
     agentesError='No pudimos cargar tus agentes conectados. Intenta de nuevo en un momento.';
-  }finally{agentesCargando=false;pintarAgentesConectados();}
+  }finally{if(currentUser===usuario){agentesCargando=false;pintarAgentesConectados();}}
 }
 // Las RPC del agente exigen sesión: resuelven todo con auth.uid(). Una app que
 // queda abierta días llega con el JWT vencido, y entonces la base contesta "sin
@@ -5621,9 +5639,12 @@ function sesionCaducada(error){
   return /sin sesi[oó]n|jwt|token/i.test(m);
 }
 async function rpcAgente(nombre,args){
+  const usuario=currentUser;
   let r=await supabaseClient.rpc(nombre,args);
+  if(currentUser!==usuario)return r;
   if(r&&r.error&&sesionCaducada(r.error)){
     try{await supabaseClient.auth.refreshSession();}catch(e){}
+    if(currentUser!==usuario)return r;
     r=await supabaseClient.rpc(nombre,args);
   }
   return r;
@@ -5634,11 +5655,13 @@ async function rpcAgente(nombre,args){
 // se muestra, con lo que eso significa dicho en la misma pantalla.
 async function crearUrlAgente(){
   if(!currentUser||!supabaseClient){showToast('Inicia sesión para conectar un agente',true);return;}
+  const usuario=currentUser;
   const btn=document.getElementById('s-agent-url-create');
   if(btn){btn.disabled=true;btn.textContent='Creando…';}
   try{
     const nombre=(document.getElementById('s-agent-url-nombre')||{}).value||'';
     const {data,error}=await rpcAgente('crear_vinculo_agente',{p_agente:nombre});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     const fila=Array.isArray(data)?data[0]:data;
     const token=fila&&fila.token;
@@ -5647,13 +5670,14 @@ async function crearUrlAgente(){
     pintarUrlAgente();
     cargarAgentesConectados();
   }catch(e){
+    if(currentUser!==usuario)return;
     const motivo=(e&&(e.message||e.msg))||'';
     showToast(sesionCaducada(e)
       ? 'Tu sesión expiró. Vuelve a entrar y créala otra vez.'
       : ('No pudimos crear la URL'+(motivo?': '+motivo:'. Intenta de nuevo.')),true);
     console.warn('crear_vinculo_agente falló:',e);
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=agenteUrlActual?'Crear otra URL':'Crear URL de conexión';}
+    if(btn&&currentUser===usuario){btn.disabled=false;btn.textContent=agenteUrlActual?'Crear otra URL':'Crear URL de conexión';}
   }
 }
 async function copiarPromptConectorAgente(){
@@ -5746,6 +5770,9 @@ async function copiarUrlAgente(){
 // para eso se crea otra, que además queda registrada aparte y se puede
 // desconectar sola.
 function olvidarUrlAgente(){agenteUrlActual='';}
+function olvidarSesionAgentes(){
+  olvidarUrlAgente();agentesConectados=[];agentesCargando=false;agentesError='';
+}
 function confirmarRevocarAgente(id){
   const agente=agentesConectados.find(a=>a.id===id);
   if(!agente)return;
@@ -5753,12 +5780,14 @@ function confirmarRevocarAgente(id){
 }
 async function revocarAgente(id){
   if(!currentUser||!supabaseClient)return;
+  const usuario=currentUser;
   try{
     const {error}=await rpcAgente('revocar_agente',{p_id:id});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     agentesConectados=agentesConectados.filter(a=>a.id!==id);
     pintarAgentesConectados();showToast('Agente desconectado');
-  }catch(e){showToast('No pudimos desconectar ese agente. Intenta de nuevo.',true);}
+  }catch(e){if(currentUser===usuario)showToast('No pudimos desconectar ese agente. Intenta de nuevo.',true);}
 }
 
 // Las propuestas no viven en S: son mensajes pendientes del agente, no una
@@ -6674,7 +6703,7 @@ function openSettings(){
       const elegida=c.malla?c.malla===settingsCarrera:(!settingsCarrera&&c.n===settingsCarreraNombre);
       const b=document.createElement('button');
       b.className='carrera-opt'+(elegida?' sel':'');
-      b.innerHTML=esc(c.n)+(mallaCubreTodoElPaso(c.malla)?' <span class="carrera-tiene-malla">tu malla se carga sola</span>':'');
+      b.textContent=c.n;
       b.onclick=()=>{settingsCarrera=c.malla||null;settingsCarreraNombre=c.n;renderSettingsCarreraGrid();};
       g.appendChild(b);
     });
@@ -7367,7 +7396,8 @@ let _quienAbrioModal=null;
 
 function openModal(){
   const ov=document.getElementById('modal');
-  _quienAbrioModal=document.activeElement;
+  // Cambiar una hoja ya abierta conserva el punto de regreso original.
+  if(!ov.classList.contains('open'))_quienAbrioModal=document.activeElement;
   ov.classList.add('open');
   const sheet=document.querySelector('.modal-sheet');
   const contenido=document.getElementById('modal-content');
@@ -7466,6 +7496,22 @@ document.addEventListener('keydown',e=>{
   el.click();
 });
 
+// Una hoja abierta conserva el recorrido del teclado dentro de sus controles.
+// La confirmación de encima tiene su propio recorrido y toma la prioridad.
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Tab')return;
+  const modal=document.getElementById('modal');
+  const confirmacion=document.getElementById('confirm-overlay');
+  if(!modal.classList.contains('open')||confirmacion.classList.contains('open'))return;
+  const controles=[...modal.querySelectorAll('button,input,select,textarea,a[href],[tabindex]')]
+    .filter(el=>!el.disabled&&el.tabIndex>=0&&el.getClientRects().length);
+  const i=controles.indexOf(document.activeElement);
+  if(controles.length&&(i<0||(e.shiftKey?i===0:i===controles.length-1))){
+    e.preventDefault();
+    controles[e.shiftKey?controles.length-1:0].focus({preventScroll:true});
+  }
+});
+
 // Enter o Tab en una casilla de nota guarda y salta a la siguiente (Shift+Tab,
 // a la anterior). Guardar repinta la ficha entera (renderRamo) y el foco caía
 // al body: quien llenaba varias notas seguidas tenía que volver a tocar cada
@@ -7483,14 +7529,28 @@ document.addEventListener('keydown',e=>{
   if(sig){sig.focus();sig.select();}
 });
 document.addEventListener('keydown',e=>{
+  const conf=document.getElementById('confirm-overlay');
+  if(e.key==='Tab'&&conf.classList.contains('open')){
+    const botones=[...conf.querySelectorAll('button:not(:disabled)')];
+    const i=botones.indexOf(document.activeElement);
+    if(botones.length&&(i<0||(e.shiftKey?i===0:i===botones.length-1))){
+      e.preventDefault();
+      botones[e.shiftKey?botones.length-1:0].focus({preventScroll:true});
+    }
+    return;
+  }
   if(e.key!=='Escape')return;
-  if(document.getElementById('confirm-overlay').classList.contains('open'))closeConfirm();
+  if(conf.classList.contains('open'))closeConfirm();
   else if(document.getElementById('modal').classList.contains('open'))closeModal();
 });
 
 let _confirmFn=null;
+let _quienAbrioConfirm=null,_focoConfirmTimer=null;
 function showConfirm(title,desc,fn,opts){
   opts=opts||{};
+  const overlay=document.getElementById('confirm-overlay');
+  if(!overlay.classList.contains('open'))_quienAbrioConfirm=document.activeElement;
+  clearTimeout(_focoConfirmTimer);
   document.getElementById('confirm-title').textContent=title;
   document.getElementById('confirm-desc').textContent=desc;
   _confirmFn=fn;
@@ -7504,13 +7564,22 @@ function showConfirm(title,desc,fn,opts){
   };
   const btns=btn.parentElement;
   btns.style.flexDirection=opts.actionFirst?'row-reverse':'row';
-  document.getElementById('confirm-overlay').classList.add('open');
-  setTimeout(()=>{
+  overlay.classList.add('open');
+  _focoConfirmTimer=setTimeout(()=>{
+    _focoConfirmTimer=null;
+    if(!overlay.classList.contains('open'))return;
     const cancelar=btns.querySelector('.btn-cancel-sm');
     (opts.focusCancel&&cancelar?cancelar:btn).focus();
   },50);
 }
-function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('open');}
+function closeConfirm(){
+  clearTimeout(_focoConfirmTimer);_focoConfirmTimer=null;
+  document.getElementById('confirm-overlay').classList.remove('open');
+  const volver=_quienAbrioConfirm;_quienAbrioConfirm=null;
+  if(volver&&volver.isConnected&&!volver.disabled&&volver!==document.body&&typeof volver.focus==='function'){
+    try{volver.focus({preventScroll:true});}catch(e){volver.focus();}
+  }
+}
 
 // Cobertura real del semestre: contar notas no dice cuánto del ramo ya está
 // decidido. Esta métrica usa las ponderaciones de las evaluaciones rendidas.
@@ -8682,13 +8751,16 @@ function formatEventDate(iso){
 function icsEscape(s){
   return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
 }
-// El RFC dice máx 75 octetos por línea; se pliega con CRLF + espacio.
+// RFC 5545: hasta 75 octetos UTF-8, incluido el espacio de continuación.
+// Recorrer puntos de código evita partir un emoji al serializar el archivo.
 function icsFold(line){
-  if(line.length<=73)return line;
-  const out=[];let rest=line;
-  out.push(rest.slice(0,73));rest=rest.slice(73);
-  while(rest.length>72){out.push(' '+rest.slice(0,72));rest=rest.slice(72);}
-  if(rest.length)out.push(' '+rest);
+  const out=[];let actual='',largo=0;
+  for(const ch of line){
+    const cp=ch.codePointAt(0),bytes=cp<0x80?1:cp<0x800?2:cp<0x10000?3:4;
+    if(largo+bytes>75){out.push(actual);actual=' ';largo=1;}
+    actual+=ch;largo+=bytes;
+  }
+  if(actual)out.push(actual);
   return out.join('\r\n');
 }
 function isoOf(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
@@ -8965,7 +9037,9 @@ function buildICS(){
     // prueba. Se usa una hora como convención visible, no como afirmación.
     if(e.hora){
       lines.push(`DTSTART:${icsDateTime(e.fecha,e.hora)}`);
-      lines.push(`DTEND:${icsDateTime(e.fecha,sumaUnaHora(e.hora))}`);
+      // La hora convencional de duración cruza de día si parte a las 23:xx.
+      const fin=e.hora.startsWith('23')?icsDatePlus1(e.fecha):e.fecha;
+      lines.push(`DTEND:${icsDateTime(fin,sumaUnaHora(e.hora))}`);
     }else{
       lines.push(`DTSTART;VALUE=DATE:${icsDate(e.fecha)}`);
       lines.push(`DTEND;VALUE=DATE:${icsDatePlus1(e.fecha)}`);
@@ -8997,21 +9071,29 @@ function buildICS(){
 // de una RPC `security definer` y va en la ruta, que es el único lugar donde
 // Google puede llevar un secreto.
 let _feedUrl=null;
+let _feedUsuario=null,_feedVersion=0;
 
 async function pedirFeedCalendario(regenerar){
   if(!supabaseClient||!currentUser)return null;
+  const usuario=currentUser,version=++_feedVersion;
   const {data,error}=await supabaseClient.rpc(regenerar?'calendar_feed_revoke':'calendar_feed_token');
+  if(currentUser!==usuario||version!==_feedVersion)return null;
   if(error)throw error;
   _feedUrl=location.origin+'/cal/'+data;
+  _feedUsuario=usuario;
   return _feedUrl;
 }
 
 async function pintarFeedCalendario(regenerar){
   const inp=document.getElementById('s-cal-url');if(!inp)return;
   inp.value=regenerar?'Generando una nueva…':'Generando…';
+  const usuario=currentUser,pendiente=pedirFeedCalendario(regenerar),version=_feedVersion;
+  const vigente=()=>currentUser===usuario&&version===_feedVersion&&document.getElementById('s-cal-url')===inp;
   try{
-    inp.value=await pedirFeedCalendario(regenerar);
+    const url=await pendiente;
+    if(vigente()&&url)inp.value=url;
   }catch(e){
+    if(!vigente())return;
     inp.value='';
     showToast('No pudimos generar tu URL. Intenta de nuevo.',true);
   }
@@ -9019,7 +9101,7 @@ async function pintarFeedCalendario(regenerar){
 
 function copiarFeedCalendario(){
   const inp=document.getElementById('s-cal-url');
-  if(!inp||!inp.value||!_feedUrl){showToast('Todavía se está generando',true);return;}
+  if(!inp||!inp.value||!_feedUrl||_feedUsuario!==currentUser){showToast('Todavía se está generando',true);return;}
   navigator.clipboard.writeText(_feedUrl)
     .then(()=>{track('calendar_feed_copiado');showToast('URL copiada — pégala en tu calendario');})
     .catch(()=>{inp.select();showToast('Cópiala a mano: quedó seleccionada',true);});

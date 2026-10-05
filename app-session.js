@@ -297,6 +297,9 @@ async function cambiarCorreoCuenta(){
 }
 
 async function submitAuth(){
+  const btn=document.getElementById('auth-btn');
+  // Enter llama esta función desde el campo, aunque el botón esté deshabilitado.
+  if(btn.disabled)return;
   const email=(document.getElementById('auth-user').value||'').trim().toLowerCase();
   const p=document.getElementById('auth-pass').value;
   const p2=document.getElementById('auth-pass2').value;
@@ -321,7 +324,7 @@ async function submitAuth(){
   }
   if(!supabaseClient){authError('Falta configurar Supabase (URL y clave) en el código.');return;}
 
-  const btn=document.getElementById('auth-btn');const orig=btn.textContent;
+  const orig=btn.textContent;
   btn.disabled=true;btn.textContent='Cargando...';
   try{
     if(authMode==='signup'){
@@ -423,6 +426,8 @@ async function forgotPassword(){
 // Al volver del correo, Supabase dispara PASSWORD_RECOVERY (ver boot()).
 // Esta función recibe la nueva contraseña y la guarda.
 async function submitNewPassword(){
+  const btn=document.getElementById('reset-btn');
+  if(btn.disabled)return;
   const p1=document.getElementById('reset-pass').value;
   const p2=document.getElementById('reset-pass2').value;
   const err=document.getElementById('reset-error');
@@ -431,7 +436,7 @@ async function submitNewPassword(){
   if(policyError){err.textContent=policyError;err.style.display='block';return;}
   if(p1!==p2){err.textContent='Las contraseñas no coinciden.';err.style.display='block';return;}
   if(!supabaseClient){err.textContent='Supabase no está configurado.';err.style.display='block';return;}
-  const btn=document.getElementById('reset-btn');const orig=btn.textContent;
+  const orig=btn.textContent;
   const usuario=currentUser;
   btn.disabled=true;btn.textContent='Guardando...';
   try{
@@ -509,7 +514,7 @@ function aislarCacheEnRegistro(uid){
     if(owner||importable)apartarCacheLocal(owner);
     const vacia=freshState();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(vacia));
-    localStorage.removeItem(SYNC_BASE_KEY);
+    localStorage.removeItem(SYNC_BASE_KEY);if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     localStorage.setItem(CACHE_OWNER_KEY,uid);
     S=vacia;
     return {propia:false,importable};
@@ -524,6 +529,7 @@ function aislarCacheEnRegistro(uid){
       if(owner)localStorage.setItem(CACHE_OWNER_KEY,owner);
       else localStorage.removeItem(CACHE_OWNER_KEY);
     }catch(_){}
+    if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     return null;
   }
 }
@@ -547,6 +553,7 @@ function restaurarCacheApartada(uid){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(restaurada));
     if(copia.base)localStorage.setItem(SYNC_BASE_KEY,copia.base);
     else localStorage.removeItem(SYNC_BASE_KEY);
+    if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     localStorage.setItem(CACHE_OWNER_KEY,uid);
     S=restaurada;
     localStorage.removeItem(key);
@@ -561,6 +568,7 @@ function restaurarCacheApartada(uid){
       if(ownerPrevio)localStorage.setItem(CACHE_OWNER_KEY,ownerPrevio);
       else localStorage.removeItem(CACHE_OWNER_KEY);
     }catch(_){}
+    if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     return false;
   }
 }
@@ -610,6 +618,8 @@ async function afterSignup(){
 async function afterLogin(){
   track('login');
   const uid=currentUser?currentUser.id:null;
+  const visita=++_visitaSesion;
+  const vigente=()=>visita===_visitaSesion&&!!currentUser&&currentUser.id===uid;
   // Una sesión anterior pudo terminar por vencimiento, sin pasar por signOut.
   // Ninguna de sus propuestas debe asomarse en Inicio de la cuenta nueva.
   if(typeof propuestasPautaAgente!=='undefined')propuestasPautaAgente=[];
@@ -624,6 +634,7 @@ async function afterLogin(){
   // normalize() y enterApp() quedan fuera a propósito. Si una de ellas falla,
   // continuar con estado o DOM a medias sería peor que detenerse con un aviso.
   try{cloud=await loadFromCloud();}catch(e){ok=false;}
+  if(!vigente())return;
   const mismaCache=getCacheOwner()===uid;
   // La copia previa a importar es de quien importó. Si la caché es de otra
   // cuenta (navegador compartido, o una sesión que venció sin cerrarse), se va:
@@ -675,6 +686,7 @@ async function afterLogin(){
       showToast('No pudimos cargar tus datos. Revisa tu conexión.',true);
     }
   }
+  if(!vigente())return;
   if(S.onboardingDone)enterApp();else enterOnboarding();
   // No bloquea la entrada: es una lectura de red y la app ya está en pantalla.
   // Si llega con algo, repinta y lo dice — una pauta no aparece en silencio.
@@ -723,6 +735,12 @@ async function afterLogin(){
   }
 }
 
+// Cada entrada y cada salida abren una visita nueva. Una lectura de la nube que
+// vuelve después de cambiar de cuenta, o de salir y volver a entrar, es de la
+// visita anterior: aplicarla mostraba los datos de A en la sesión de B y los
+// dejaba en su caché (issue #579, punto 2).
+let _visitaSesion=0;
+
 // La persona suele consultar al agente en otra app y volver a GradeHub. Al
 // regresar, se consulta la bandeja sin obligarla a cerrar sesión ni recargar.
 if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('visibilitychange',()=>{
@@ -752,10 +770,22 @@ function subirSyncPendiente(){
   syncNow();
   return true;
 }
+// Una subida que falló sin red no se reintentaba hasta la próxima edición: la
+// nota quedaba solo en el dispositivo aunque la conexión ya hubiera vuelto
+// (issue #579, punto 13). Se reintenta al volver la red y al volver a la
+// pestaña, por el mismo camino de siempre (subida condicional y fusión).
+function reintentarSubida(){
+  if(!_syncTimer&&!_subida&&hayCambiosSinSubir())syncNow();
+}
 if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')subirSyncPendiente();});
-if(typeof window!=='undefined'&&typeof window.addEventListener==='function')
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden')subirSyncPendiente();
+    else reintentarSubida();
+  });
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
   window.addEventListener('pagehide',subirSyncPendiente);
+  window.addEventListener('online',reintentarSubida);
+}
 // Una subida a la vez: si llega otra mientras una va en camino, se repite al
 // terminar con el estado de ese momento. Dos subidas cruzadas partirían de la
 // misma versión y la segunda chocaría con la primera.
@@ -804,18 +834,42 @@ function revSync(x){return objetoSync(x)&&Number.isInteger(x._rev)?x._rev:null;}
 
 // La base se guarda con su dueño: en un navegador compartido, la versión que
 // vio otra cuenta no sirve para nada y no debe mezclarse.
+//
+// Y es la de ESTA pestaña. Dos pestañas del mismo navegador comparten
+// localStorage: cuando cada una leía la base de ahí, la que tenía S viejo en
+// memoria tomaba la versión que acababa de subir la otra, la escritura
+// condicional pasaba y su documento entero borraba la nota ajena, también en
+// la nube (issue #579). Ahora cada pestaña recuerda en memoria la versión de
+// la que salió su S, y el disco guarda S junto con SU base: el próximo arranque
+// compara lo que quedó escrito contra la versión de la que salió, aunque otra
+// pestaña haya subido entremedio.
+// undefined = esta pestaña todavía no la conoce y la lee del disco.
+let _baseSesion;
 function leerBaseSync(uid){
+  if(_baseSesion!==undefined)return _baseSesion&&_baseSesion.owner===uid?_baseSesion.data:null;
   try{
     const b=JSON.parse(localStorage.getItem(SYNC_BASE_KEY)||'null');
     return b&&b.owner===uid&&objetoSync(b.data)?b.data:null;
   }catch(e){return null;}
 }
 function guardarBaseSync(uid,data){
+  // Copia profunda: S suele compartir objetos con `data` (la nube recién
+  // leída, o lo que se acaba de subir) y anotar una nota cambiaría la base.
+  _baseSesion=data&&uid?{owner:uid,data:clonarSync(data)}:null;
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
+  escribirBaseEnDisco();
+}
+// La llama también save(), justo después de escribir S.
+function escribirBaseEnDisco(){
+  if(_baseSesion===undefined)return;
   try{
-    if(data&&uid)localStorage.setItem(SYNC_BASE_KEY,JSON.stringify({owner:uid,data}));
+    if(_baseSesion)localStorage.setItem(SYNC_BASE_KEY,JSON.stringify(_baseSesion));
     else localStorage.removeItem(SYNC_BASE_KEY);
   }catch(e){}
 }
+// Quien escribe la base directo en el disco (registro, restaurar una copia
+// apartada, cerrar sesión) hace que esta pestaña la vuelva a leer de ahí.
+function olvidarBaseSesion(){_baseSesion=undefined;}
 
 // Al entrar con la caché de la misma cuenta. `nube` ya viene normalizada;
 // `crudo` es la fila tal como llegó, para revisar sus ids.
@@ -911,13 +965,19 @@ async function subirConVersion(uid){
         escrito=Array.isArray(filas)&&filas.length>0;
       }
       if(escrito){
+        // Si entretanto se cambió de cuenta, S y el disco ya son de la otra:
+        // la subida quedó hecha, pero no se le anota esta base ni este dueño.
+        if(!currentUser||currentUser.id!==uid)return true;
+        S._rev=enviado._rev;
         guardarBaseSync(uid,enviado);
-        if(currentUser&&currentUser.id===uid)S._rev=enviado._rev;
         setCacheOwner(uid); // la caché local quedó alineada con esta cuenta
         return true;
       }
       // Otro dispositivo escribió desde la última vez: se fusiona y se reintenta.
+      // Nunca sobre la cuenta que entró después: loadFromCloud lee la sesión actual.
+      if(!currentUser||currentUser.id!==uid)return false;
       const cloud=await loadFromCloud();
+      if(!currentUser||currentUser.id!==uid)return false;
       if(cloud===null){guardarBaseSync(uid,null);continue;}
       if(!fusionarConNube(uid,base,cloud))return false;
     }
@@ -1001,17 +1061,17 @@ async function registrarAceptacionLegal(){
 // la copia local: una nota anotada sin conexión se perdía sin aviso, aunque la
 // app ya hubiera dicho "No cierres sesión". Antes de salir se intenta subir y,
 // si no se puede, se pregunta.
+// ¿Tiene esta pestaña algo que la nube todavía no tiene?
+function hayCambiosSinSubir(){
+  if(!supabaseClient||!currentUser)return false;
+  const base=leerBaseSync(currentUser.id);
+  if(base)return !igualSync(sinRevSync(S),sinRevSync(base));
+  return !!(S.ramos?.length||S.historial?.length||S.onboardingDone);
+}
 async function respaldoAlDia(){
-  if(!supabaseClient||!currentUser)return true;
-  const uid=currentUser.id;
-  const alDia=()=>{
-    const base=leerBaseSync(uid);
-    if(base)return igualSync(sinRevSync(S),sinRevSync(base));
-    return !(S.ramos?.length||S.historial?.length||S.onboardingDone);
-  };
-  if(alDia())return true;
+  if(!hayCambiosSinSubir())return true;
   clearTimeout(_syncTimer);_syncTimer=null;
-  return (await syncNow())&&alDia();
+  return (await syncNow())&&!hayCambiosSinSubir();
 }
 async function signOut(){
   if(!(await respaldoAlDia())){
@@ -1023,9 +1083,11 @@ async function signOut(){
   await cerrarSesion();
 }
 async function cerrarSesion(){
+  _visitaSesion++;
   try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
   finally{_cerrandoSesion=false;}
   currentUser=null;closeModal();
+  if(typeof olvidarSesionAgentes==='function')olvidarSesionAgentes();
   // Las propuestas pertenecen a la cuenta que salió, no al navegador.
   if(typeof propuestasPautaAgente!=='undefined')propuestasPautaAgente=[];
   if(typeof propuestasNotasAgente!=='undefined')propuestasNotasAgente=[];
@@ -1037,6 +1099,7 @@ async function cerrarSesion(){
   // Y la copia previa a importar: la siguiente persona podía restaurarla con
   // "Deshacer importación" y quedarse con los datos de esta cuenta.
   try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(CACHE_OWNER_KEY);localStorage.removeItem(SYNC_BASE_KEY);localStorage.removeItem(CURSO_SIGLAS_KEY);localStorage.removeItem(PRE_IMPORT_KEY);}catch(e){}
+  olvidarBaseSesion();
   S=freshState();
   // Las pestañas de profesor y admin son de la cuenta que salió, no del navegador.
   if(typeof olvidarSesionMarketplace==='function')olvidarSesionMarketplace();

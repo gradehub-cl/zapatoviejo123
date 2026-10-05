@@ -1093,7 +1093,7 @@ function datosWrapped(ramos){
     // Un color por nota, en orden de ramo: la grilla del semestre.
     notasColores:lista.flatMap(({r})=>(r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>typeof n.valor==='number').map(()=>r.color))),
     ranking:orden.map(x=>({nombre:x.r.nombre,color:x.r.color,avg:x.avg})),
-    aprobando:lista.filter(x=>notaAprobada(x.avg)).length,
+    aprobando:lista.filter(x=>notaAprobadaRamo(x.r,x.avg)).length,
     estrella:orden[0],
     // Con un solo ramo, "el que más te costó" sería la misma estrella.
     dificil:orden.length>1?orden[orden.length-1]:null,
@@ -1131,7 +1131,8 @@ async function comparacionWrapped(){
 
 // ─── Piezas visuales de cada pantalla ───
 // Todo lo que llevan adentro es texto ya escapado o números que calculó la app.
-// Son decorado con `aria-hidden`: lo que importa también está dicho en palabras.
+// Los gráficos son decorado con `aria-hidden`; el ranking conserva su lista
+// accesible porque contiene nombres y promedios que no se repiten en el texto.
 
 // Una cifra que cuenta desde `desde` hasta su valor cuando aparece la pantalla.
 // El texto final es SIEMPRE el que ya formateó la app (`fmtPromedio`, `fmt`):
@@ -1162,7 +1163,7 @@ function arcoWrapped(g){
 // Los ramos ordenados por promedio. La línea de color a la izquierda es la
 // misma que en Inicio: el color del ramo vive ahí y no tiñe la barra.
 function rankingWrapped(ranking){
-  return `<ol class="wrapped-ranking" aria-hidden="true">${ranking.slice(0,5).map((x,i)=>`
+  return `<ol class="wrapped-ranking">${ranking.slice(0,5).map((x,i)=>`
     <li class="${i===0?'top':''}" style="--c:${esc(x.color)};--d:${3+i/2};--v:${Math.max((x.avg-1)/6,.02).toFixed(3)}">
       <span>${esc(x.nombre)}</span><b>${fmtPromedio(x.avg)}</b><i></i></li>`).join('')}</ol>`;
 }
@@ -1187,7 +1188,7 @@ function slidesWrapped(d,comp,label){
   // "Lo sacaste adelante" solo si de verdad lo aprobó: el resumen no celebra
   // lo que el semáforo pinta rojo.
   if(d.dificil)s.push({k:'El que más pelea dio',titulo:esc(d.dificil.r.nombre),big:cifraWrapped(fmtPromedio(d.dificil.avg),1),
-    sub:notaAprobada(d.dificil.avg)?'Y lo sacaste adelante.':'Un semestre no define a nadie.'});
+    sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía quedan evaluaciones por registrar.':notaAprobadaRamo(d.dificil.r,d.dificil.avg)?'Y lo sacaste adelante.':'Un semestre no define a nadie.'});
   if(comp&&comp.curso)s.push({k:`En ${esc(comp.curso.ramo)}`,big:cifraWrapped(comp.curso.mejorQue+'%'),
     sub:frasePosicionCurso(comp.curso.mejorQue,comp.curso.total).replace(/<\/?b>/g,'')+'.',viz:reglaWrapped(comp.curso.mejorQue)});
   // El servidor compara el promedio simple de los ramos, no el ponderado de
@@ -1361,11 +1362,15 @@ function pasarWrapped(paso){
   const i=_wrapped.i+paso;
   if(i>=_wrapped.slides.length)return cerrarWrapped();
   if(i<0)return;
+  const estado=_wrapped,focoEnHistoria=document.activeElement&&document.activeElement.closest('.wrapped-slide');
   _wrapped.i=i;
   // La entrada viene del lado hacia donde se avanzó: adelante entra desde la
   // derecha, atrás desde la izquierda (HIG: consistencia espacial).
   _wrapped.ov.dataset.dir=paso>0?'adelante':'atras';
   pintarWrapped();
+  // Compartir y Descargar pertenecen a una historia: al reemplazarla se
+  // retiran del DOM. El teclado sigue en el control persistente de ese paso.
+  if(focoEnHistoria&&_wrapped===estado)estado.ov.querySelector(`[data-paso="${paso>0?1:-1}"]`).focus({preventScroll:true});
 }
 function teclaWrapped(e){
   if(!_wrapped)return;
