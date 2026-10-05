@@ -76,15 +76,25 @@ assert.equal(ctx.run('ramoAvg(fijo)'),3.9);
 assert.equal(ctx.run('fmtPromedio(ramoAvg(fijo))'),'3.9');
 assert.equal(ctx.run('notaAprobadaRamo(fijo,ramoAvg(fijo))'),false);
 
+// El requisito se mide redondeado, igual que la final: 3,98 es 4,0 y cumple.
 const propio=ramo('tope-propio',[categoria('individual',50,3.98),categoria('grupal',50,6)],{
   gates:[{type:'group_min',catIds:['individual'],min:4,cap:'self',nombre:'Individual'}],
 });
 ctx.propio=propio;
-assert.equal(ctx.run('r2(ramoAvg(propio))'),3.98,'cap self conserva el promedio del requisito');
-assert.equal(ctx.run('fmtPromedio(ramoAvg(propio))'),'4.0','la nota se redondea aunque exista una regla aparte');
-assert.equal(ctx.run('gatesActivas(propio).length'),1,'la compuerta sigue explícitamente activa');
-assert.equal(ctx.run('notaAprobadaRamo(propio,ramoAvg(propio))'),false,'la compuerta explícita sigue reprobando');
-assert.equal(ctx.run('colorClassRamo(propio,ramoAvg(propio))'),'bad','el semáforo refleja la excepción explícita');
+assert.equal(ctx.run('gatesActivas(propio).length'),0,'3,98 redondea a 4,0 y cumple el requisito');
+assert.equal(ctx.run('r2(ramoAvg(propio))'),4.99,'sin compuerta activa la final es el ponderado');
+assert.equal(ctx.run('notaAprobadaRamo(propio,ramoAvg(propio))'),true);
+
+// Bajo 3,95 el requisito no se cumple y la final queda en su propio promedio.
+const bajo=ramo('tope-propio-bajo',[categoria('individual',50,3.94),categoria('grupal',50,6)],{
+  gates:[{type:'group_min',catIds:['individual'],min:4,cap:'self',nombre:'Individual'}],
+});
+ctx.bajo=bajo;
+assert.equal(ctx.run('r2(ramoAvg(bajo))'),3.94,'cap self conserva el promedio del requisito');
+assert.equal(ctx.run('fmtPromedio(ramoAvg(bajo))'),'3.9');
+assert.equal(ctx.run('gatesActivas(bajo).length'),1,'la compuerta sigue explícitamente activa');
+assert.equal(ctx.run('notaAprobadaRamo(bajo,ramoAvg(bajo))'),false,'la compuerta explícita sigue reprobando');
+assert.equal(ctx.run('colorClassRamo(bajo,ramoAvg(bajo))'),'bad','el semáforo refleja la excepción explícita');
 
 // Los puntos visibles donde aparecía el promedio del ramo comparten el helper.
 const main=fs.readFileSync(path.join(root,'render-main.js'),'utf8');
