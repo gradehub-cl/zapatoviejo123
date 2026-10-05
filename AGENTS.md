@@ -67,6 +67,7 @@ proyecto entero cuesta ~80k tokens y casi nunca hace falta.
 | compuertas | `app.js` | `grep -n "function gatesActivas\|group_min"` |
 | "¿qué nota necesito?" | `engine.js` | `grep -n "function solveForTarget"` |
 | motor de estructura/pesos | `engine.js` | `grep -n "function calculateFinalGrade"` |
+| reglas de nota de cada universidad | `engine.js` | `grep -n "GH_REGLAS_NOTA_POR_TENANT"` |
 | pantalla principal | `render-main.js` | `rg -n "function renderHome"` |
 | ficha de un ramo | `render-main.js` | `rg -n "function renderRamo"` |
 | estadísticas | `render-main.js` | `rg -n "function renderStats"` |
@@ -88,7 +89,7 @@ Sin build, sin frameworks. Los archivos de la app se despliegan tal cual:
 |---|---|
 | `index.html` | Estructura, logo en base64, metadatos |
 | `data.js` | Mallas, carreras, presets, temas, portales — solo literales |
-| `engine.js` | El motor: `calculateFinalGrade`, `solveForTarget`, compuertas y descartes |
+| `engine.js` | El motor de notas, uno solo para todas las universidades: `calculateFinalGrade`, `solveForTarget`, compuertas, descartes y las reglas de nota de cada universidad (`GH_REGLAS_NOTA_POR_TENANT`) |
 | `app.js` | Estado, navegación, editor y adaptadores de cálculo |
 | `app-session.js` | Auth, recuperación, persistencia local y sync con Supabase |
 | `marketplace.js` | Avisos, segmentación local, cotización pura y espacio privado de profesor; publicidad y cobro aún sin activar |
@@ -113,6 +114,10 @@ Backend: **Supabase** (auth email + Google, RLS activo). Hosting: **Cloudflare P
 **El motor de cálculo es la razón de existir de la app.** Si tocas `ramoAvg`,
 `gpa`, `calculateFinalGrade` o las compuertas, corre los tests antes de entregar.
 Un promedio mal calculado destruye la confianza más rápido que cualquier bug visual.
+
+**El motor es uno solo y calcula según la universidad.** Lo que cambia de una
+universidad a otra se declara como dato, nunca como un `if(tenant===…)` en el
+cálculo. Ver "Motor de notas por universidad" en Modelo de datos.
 
 **Nunca inventes ponderaciones.** Los presets salen de programas oficiales. Si un
 dato no está en el documento, se marca como faltante — no se rellena con lo
@@ -270,16 +275,49 @@ inventa cuántas evaluaciones faltan.
 // cap:'self' → el tope es el promedio del propio grupo.
 // Modela la regla FEN "la nota final es la más baja entre los dos requisitos".
 { type:'group_min', catIds: [...], min: 4.0, cap: 'self' }
+
+// exacto:true → el mínimo se compara SIN aproximación: 2,96 no es 3,0.
+// Sin él, el mínimo se redondea a la décima como la nota final (3,95 cumple 4,0).
+// Lo usa el art. 27 UAndes: presentación ≥ 3,0 sin aproximación para dar examen.
+{ type:'group_min', catIds: [...], min: 3.0, cap: 'self', exacto: true }
 ```
 
-### Nota oficial por universidad
+En un preset de `data.js` la compuerta de grupo se escribe en `grupos`
+(`{nombre, evals:[nombres], min, cap, exacto}`) y la de una evaluación como
+`{min, cap, exacto}` en su fila. `presetRamo` las copia al ramo.
 
-Un solo motor; cada universidad declara cómo su promedio se vuelve nota oficial
-en `GH_REGLAS_NOTA_POR_TENANT` (`engine.js`, no `data.js`: el servidor MCP
-calcula con ese archivo solo). Sin entrada rige la común —1 a 7, aprueba con
-4,0, a la décima—. La UAndes redondea a la centésima y después a la décima
-(art. 22 de su reglamento): 3,946 → 3,95 → 4,0. Nada redondea una nota final a
-mano: se pasa por `notaFinalOficial` (app) o `gh_notaOficial` (motor).
+### Motor de notas por universidad
+
+Hay **un solo motor** (`engine.js`) y cada universidad le dice cómo calcular. Las
+reglas viven en dos niveles, según de quién son:
+
+| Nivel | Qué | Dónde | Ejemplo |
+|---|---|---|---|
+| Universidad | Escala, nota de aprobación y cómo el promedio se vuelve nota oficial | `GH_REGLAS_NOTA_POR_TENANT` en `engine.js` | UAndes: a la centésima y después a la décima |
+| Ramo | Pesos, casillas, descartes, compuertas, eximición, recuperativo | el preset del ramo en `data.js` | "presentación ≥ 3,0 sin aproximación para dar examen" |
+
+- **Sin entrada, la regla común:** 1 a 7, aprueba con 4,0, a la décima. FEN, UC y
+  UAI la usan. Una universidad nueva hereda esa y solo declara lo que cambia,
+  **con el artículo de su reglamento al lado**. No se agrega una regla por
+  parecido con otra universidad.
+- **Vive en `engine.js` y no en `data.js`** porque el servidor MCP calcula con ese
+  archivo solo. Si la regla estuviera afuera, el agente conectado calcularía
+  distinto que la app.
+- **La universidad la elige el tenant de la cuenta:** `S.tenant` en la app y
+  `estado.tenant` en el MCP. Ambos se la pasan a `gh_crearCalculoRamo` como
+  dependencia `tenant`.
+- **Nada redondea una nota final a mano.** Todo pasa por `notaFinalOficial`
+  (app) o `gh_notaOficial` (motor), y la nota necesaria resuelve contra
+  `gh_bordeOficial`: 3,95 con la regla común, 3,945 en la UAndes
+  (3,946 → 3,95 → 4,0).
+- **Una regla de reglamento que solo aplica a ramos con cierta estructura** (por
+  ejemplo, "para dar examen") no se infiere por nombre de categoría: va como
+  compuerta en el preset de cada ramo, que es lo que el ramo guarda y el MCP
+  lee tal cual.
+
+Hoy: UAndes declara `rounding:{decimals:1,previo:2}` (Reglamento del Alumno,
+art. 22). Sus normativas por facultad (exámenes 70/30 en Salud, eximición en
+Medicina, etc.) se cargan como reglas de cada pauta, no del tenant.
 
 ### Promedio general
 
