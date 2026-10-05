@@ -13,17 +13,56 @@ function gh_cumpleMinimo(valor,min){return gh_excelRound(valor+1e-9,1)>=min;}
 // (pasa con los pesos 10/10/23/23/34) y sin el margen se leía 3,9 —reprobado—.
 // `gh_roundFinal` queda sin margen porque el buscador de la nota necesaria
 // depende de su borde exacto.
-function gh_notaOficial(value,meta){if(value===null)return null;const d=meta?.rounding?.decimals??1;return gh_excelRound(value+1e-9,d);}
-function gh_roundFinal(value,meta){if(value===null)return null;const d=meta?.rounding?.decimals??1;return gh_excelRound(value,d);}
+//
+// Una universidad puede redondear en dos pasos (`rounding.previo`): primero a
+// esos decimales y después a `decimals`. Ver GH_REGLAS_NOTA_POR_TENANT.
+function gh_redondearNota(value,meta,margen){
+  const r=meta?.rounding||{},d=r.decimals??1;
+  const previo=Number.isInteger(r.previo)&&r.previo>d?gh_excelRound(value+margen,r.previo):value;
+  return gh_excelRound(previo+margen,d);
+}
+function gh_notaOficial(value,meta){if(value===null)return null;return gh_redondearNota(value,meta,1e-9);}
+function gh_roundFinal(value,meta){if(value===null)return null;return gh_redondearNota(value,meta,0);}
+// Lo más bajo que todavía da `target` como nota oficial. A la décima, 4,0 se
+// alcanza desde 3,95; con el paso previo a la centésima, desde 3,945
+// (3,945 → 3,95 → 4,0).
+function gh_bordeOficial(target,meta){
+  const r=meta?.rounding||{},d=r.decimals??1;
+  const previo=Number.isInteger(r.previo)&&r.previo>d?0.5/Math.pow(10,r.previo):0;
+  return target-0.5/Math.pow(10,d)-previo;
+}
+
+// ─── REGLAS DE NOTA POR UNIVERSIDAD ─────────────────────────────────────────
+// Un solo motor, y cada universidad declara cómo su promedio se vuelve nota
+// oficial. Sin entrada rige la regla común: escala 1 a 7, se aprueba con 4,0 y
+// se redondea a la décima. Una entrada solo trae lo que cambia, y cada regla
+// lleva el artículo del que sale: no se agrega una por parecido.
+//
+// Vive en el motor y no en data.js porque el servidor MCP calcula con este
+// archivo solo. Si viviera afuera, el agente redondearía distinto que la app.
+const GH_REGLAS_NOTA_BASE={grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4.0};
+const GH_REGLAS_NOTA_POR_TENANT={
+  // Reglamento del Alumno de Pregrado UAndes (2022, vigente con la
+  // modificación de marzo de 2026), art. 22: "La nota final de la asignatura
+  // se expresa con un decimal. Para su cálculo se aproximan dos decimales."
+  // Un 3,946 pasa a 3,95 y queda en 4,0: aprueba. Con la regla común sería 3,9.
+  uandes:{rounding:{decimals:1,previo:2}},
+};
+function gh_reglasNota(tenant){
+  const propia=Object.prototype.hasOwnProperty.call(GH_REGLAS_NOTA_POR_TENANT,tenant)?GH_REGLAS_NOTA_POR_TENANT[tenant]:{};
+  return {grade_scale:{...GH_REGLAS_NOTA_BASE.grade_scale,...propia.grade_scale},
+    rounding:{...GH_REGLAS_NOTA_BASE.rounding,...propia.rounding},
+    passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade};
+}
 function gh_weightOf(node,ov){const o=ov?.[node.id];if(o&&typeof o.weight==='number')return o.weight;return node.weight;}
 function gh_meta(s){return s.__meta||{};}
 // El recuperativo no es una hoja de la pauta: no tiene peso ni participa en el
 // promedio. Se decide sobre la nota FINAL, una vez aplicadas las compuertas.
 // `gateLimited` solo bloquea cuando un tope efectivamente BAJÓ la nota hasta el
 // rango: una compuerta presente que no cambió el número no inventa una barrera.
-function gh_estadoRecuperativo(value,complete,gateLimited,rule,declaration){
+function gh_estadoRecuperativo(value,complete,gateLimited,rule,declaration,meta){
   if(!rule||!Number.isFinite(rule.min)||!Number.isFinite(rule.max)||!Number.isFinite(rule.nota))return null;
-  const final=gh_notaOficial(value,{rounding:{decimals:1}});
+  const final=gh_notaOficial(value,meta||GH_REGLAS_NOTA_BASE);
   const base={valor:value,final,regla:rule,declaracion:declaration};
   if(value===null)return {...base,motivo:'sin_nota',puedeDeclarar:false};
   if(!complete)return {...base,motivo:'incompleto',puedeDeclarar:false};
@@ -166,11 +205,10 @@ function solveForTarget(structure,grades,target,overrides={},options={}){
   // sin redondear y extender la búsqueda para explicar una meta inalcanzable.
   const requiredValue=n=>options.precision===null?n:gh_excelRound(n,2);
   const meta=gh_meta(structure);const scaleMin=meta?.grade_scale?.min??1.0,scaleMax=meta?.grade_scale?.max??7.0;
-  const decimales=meta?.rounding?.decimals??1;
   // Si la nota oficial se informa a una décima, 3,95 ya llega a 4,0. La meta
   // se resuelve contra ese borde real, no contra el 4,00 bruto que la interfaz
   // nunca muestra. Las compuertas se evalúan aparte, con `gh_cumpleMinimo`.
-  const targetRaw=target-(0.5/Math.pow(10,decimales));
+  const targetRaw=gh_bordeOficial(target,meta);
   const direct=calculateFinalGrade(structure,grades,overrides);const effW=gh_effWeights(structure,overrides);
   let known=0;for(const id in grades){if(typeof grades[id]==='number'&&effW[id]!=null)known+=grades[id]*effW[id];}
   const remainingWeight=direct.emptyLeaves.reduce((s,l)=>s+l.effectiveWeight,0);
@@ -216,6 +254,8 @@ function gh_crearCalculoRamo(deps){
   const normName=deps.normName;
   const copiarRecuperativo=deps.copiarRecuperativo;
   const definicionPresetDelRamo=deps.definicionPresetDelRamo;
+  // La universidad de la cuenta. Sin ella, la regla común.
+  const reglasNota=()=>gh_reglasNota(typeof deps.tenant==='function'?deps.tenant():null);
   const S={get ramos(){return deps.ramos();}};
 
   function hojasCategoria(c){
@@ -240,7 +280,7 @@ function gh_crearCalculoRamo(deps){
     return hojas;
   }
   function ramoToStructure(r){
-    return {__meta:{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4.0},
+    return {__meta:reglasNota(),
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
       children:categoriasVigentes(r).map(c=>({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
         drop_lowest:c.dropLowest||null,
@@ -370,7 +410,7 @@ function gh_crearCalculoRamo(deps){
   function estadoRecuperativo(r,calculo){
     const regla=copiarRecuperativo(r&&r.recuperativo);if(!regla)return null;
     const base=calculo||calculoRamoConCompuertas(r);
-    return gh_estadoRecuperativo(base.valor,ramoCompletamenteEvaluado(r,base),base.limitadoPorCompuerta,regla,r.recuperativoRendido);
+    return gh_estadoRecuperativo(base.valor,ramoCompletamenteEvaluado(r,base),base.limitadoPorCompuerta,regla,r.recuperativoRendido,gh_meta(base.estructura));
   }
   function resumenCategoriasCalculadas(r,calculo){
     const base=calculo||calculoRamoConCompuertas(r);
@@ -519,7 +559,7 @@ function gh_crearCalculoRamo(deps){
     // exigencia ponderada. Solo el solver decide cómo cambia el descarte al rendir.
     return resolver(estructura,objetivo);
   }
-  return {notaFinalOficial:gh_notaOficial,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial};
