@@ -257,9 +257,9 @@ saber dónde empezar a mirar.
    "Solemne" ni "Interrogación".
 4. **Motor por universidad** — hecho (#615): la UAndes redondea a la centésima y
    después a la décima (art. 22). Compuertas `exacto` para el art. 27.
-5. **Pautas** — en curso. Las de los PEG (2° semestre 2026) salen de la página
-   oficial del Centro de Estudios Generales. Las de carrera viven en Canvas,
-   detrás del login: hay que conseguir los programas.
+5. **Pautas** — 44 cursos PEG del 2° semestre 2026, de la página oficial del
+   Centro de Estudios Generales, con la compuerta del art. 27. Las de carrera
+   viven en Canvas, detrás del login: hay que conseguir los programas.
 
 **Créditos:** la UAndes no publica créditos en sus mallas. Sus ramos no los
 traen, y el promedio general cae a promedio simple, que es también lo que dice
