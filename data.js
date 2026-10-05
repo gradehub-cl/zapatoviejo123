@@ -173,6 +173,15 @@ const TENANTS={
   uandes:{name:'U. de los Andes', short:'UANDES', mono:'UA', sub:'Todas las carreras'},
 };
 
+// El dominio del correo institucional de los estudiantes, por universidad. Al
+// entrar por primera vez con uno de estos correos (Google o correo), el paso 2
+// del onboarding llega con esa universidad ya marcada; se puede cambiar. Solo
+// dominios de ESTUDIANTES y verificados: miuandes.cl es el dominio de Google
+// Workspace de los alumnos UAndes (su acceso al correo usa hd=miuandes.cl).
+const DOMINIOS_CORREO_POR_TENANT={
+  uandes:['miuandes.cl'],
+};
+
 // Equivalencias institucionales para calificaciones que sí participan del
 // promedio. Son dato por universidad: no se aplican a otro tenant por parecido.
 // La "C" UC queda fuera a propósito: no tiene equivalencia numérica y el modelo
