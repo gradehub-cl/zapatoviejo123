@@ -2932,12 +2932,12 @@ function presetRamo(nombre,tenant,carrera,ahora){
     // el período venció o no se conoce, simplemente no se ofrece.
     if(extra&&extra.fecha&&incluirFechas){cat.fecha=extra.fecha;cat.fechaOrigen='catalogo';}
     categorias.push(cat);porNombre[nom]=id;
-    if(extra&&extra.min)gates.push({type:'min_grade_required',catId:id,min:extra.min,cap:extra.cap,nombre:nom});
+    if(extra&&extra.min)gates.push({type:'min_grade_required',catId:id,min:extra.min,cap:extra.cap,nombre:nom,...(extra.exacto===true?{exacto:true}:{})});
   });
   const aporta=(!Array.isArray(def)&&def.aporta)?{...def.aporta}:null;
   (!Array.isArray(def)&&def.grupos||[]).forEach(g=>{
     const ids=g.evals.map(n=>porNombre[n]).filter(Boolean);
-    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre});
+    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{})});
   });
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
@@ -8468,7 +8468,7 @@ function renderSimulador(){
 
   const deltaEl=document.getElementById('sim-delta');
   // ¿La proyección quedó topada por un piso de nota? Avisar el porqué.
-  const gateHit=(r.gates||[]).find(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);if(!c)return false;const a=avgPond(simCombinadas(c));return a!==null&&!gh_cumpleMinimo(a,g.min);});
+  const gateHit=(r.gates||[]).find(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);if(!c)return false;const a=avgPond(simCombinadas(c));return a!==null&&!gh_cumpleCompuerta(a,g);});
   if(gateHit&&proj!==null){
     deltaEl.className='sim-delta down';
     deltaEl.textContent=`${gateHit.nombre} bajo ${simConComa(gateHit.min.toFixed(1))}: la nota queda topada en ${simConComa(gateHit.cap.toFixed(1))}`;

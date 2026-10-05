@@ -8,6 +8,10 @@ function gh_excelRound(value,decimals){const f=Math.pow(10,decimals);return Math
 // para aprobar el ramo. El 1e-9 evita que un 3,95 exacto, que el punto flotante
 // puede guardar como 3,9499999…, se redondee hacia abajo.
 function gh_cumpleMinimo(valor,min){return gh_excelRound(valor+1e-9,1)>=min;}
+// Una compuerta puede exigir el mínimo SIN aproximación (`exacto:true`): ahí
+// 2,96 no es 3,0. Es el art. 27 del reglamento UAndes para dar examen. El 1e-9
+// solo absorbe el punto flotante de un 3,0 exacto, no redondea.
+function gh_cumpleCompuerta(valor,g){return g&&g.exacto===true?valor+1e-9>=g.min:gh_cumpleMinimo(valor,g.min);}
 // La nota oficial que ve la persona: redondeada a la décima con margen de punto
 // flotante. Un final de exactamente 3,95 puede llegar como 3,9499999999999993
 // (pasa con los pesos 10/10/23/23/34) y sin el margen se leía 3,9 —reprobado—.
@@ -384,12 +388,12 @@ function gh_crearCalculoRamo(deps){
       for(const g of r.gates){
         if(g.type==='min_grade_required'){
           const node=res.breakdown.find(b=>b.id===g.catId);
-          if(node && node.value!==null && !gh_cumpleMinimo(node.value,g.min)){
+          if(node && node.value!==null && !gh_cumpleCompuerta(node.value,g)){
             const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
           }
         } else if(g.type==='group_min'){
           const ga=avgDeGrupoCalculado(res,estructura,g.catIds);
-          if(ga!==null && !gh_cumpleMinimo(ga,g.min)){
+          if(ga!==null && !gh_cumpleCompuerta(ga,g)){
             const tope=(g.cap==='self')?ga:g.cap;
             const siguiente=Math.min(v,tope);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
           }
@@ -455,10 +459,10 @@ function gh_crearCalculoRamo(deps){
         const c=(r.categorias||[]).find(x=>x.id===g.catId);
         if(!c)return;
         const a=valores.get(c.id);
-        if(a!==null&&!gh_cumpleMinimo(a,g.min))out.push({nombre:g.nombre||c.nombre,actual:a,min:g.min,cap:g.cap});
+        if(a!==null&&!gh_cumpleCompuerta(a,g))out.push({nombre:g.nombre||c.nombre,actual:a,min:g.min,cap:g.cap});
       } else if(g.type==='group_min'){
         const ga=avgDeGrupoCalculado(calculo.res,calculo.estructura,g.catIds);
-        if(ga!==null&&!gh_cumpleMinimo(ga,g.min)){
+        if(ga!==null&&!gh_cumpleCompuerta(ga,g)){
           out.push({nombre:g.nombre||'Requisito',actual:ga,min:g.min,cap:(g.cap==='self')?ga:g.cap,grupo:true});
         }
       }
@@ -562,4 +566,4 @@ function gh_crearCalculoRamo(deps){
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta};
