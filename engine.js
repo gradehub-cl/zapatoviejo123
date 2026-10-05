@@ -68,7 +68,7 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
   const base=calculateFinalGrade(structure,grades);
   const valores=new Map(base.breakdown.map(n=>[n.id,n.value]));
   const copia=gh_clonarArbol(structure),nodos=gh_nodosPorId(copia),notas={...grades};
-  const activas=[],pendientes=[],inactivas=[],vistas=new Set();
+  const activas=[],pendientes=[],inactivas=[],bloqueadas=[],vistas=new Set();
   const topePesoDestino=Number.isFinite(norma&&norma.topePesoDestino)?norma.topePesoDestino:null;
   const notaExceso=Number.isFinite(norma&&norma.notaExceso)?norma.notaExceso:1;
   const agregarExceso=(hacia,peso)=>{
@@ -99,6 +99,9 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
     }else{
       const pesoDesde=Number(desde.weight)||0,pesoAntes=Number(hacia.weight)||0;
       const pesoPropuesto=pesoAntes+pesoDesde;
+      if(norma&&norma.requiereResolucion===true&&topePesoDestino!==null&&pesoPropuesto>topePesoDestino){
+        bloqueadas.push({...entrada,tipo,motivo:'supera_tope',topePesoDestino,pesoPropuesto});return;
+      }
       const pesoFinal=topePesoDestino===null?pesoPropuesto:Math.min(topePesoDestino,pesoPropuesto);
       const pesoAplicado=Math.max(0,pesoFinal-pesoAntes);
       const pesoExcedente=Math.max(0,pesoDesde-pesoAplicado);
@@ -115,27 +118,54 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
   (regla.reemplazos||[]).forEach(entrada=>revisar('reemplazo',entrada));
   (regla.traspasos||[]).forEach(entrada=>revisar('traspaso',entrada));
   declaradas.forEach(desdeId=>{if(!vistas.has(desdeId))inactivas.push({desdeId,tipo:'desconocida',motivo:'pauta_cambio'});});
-  return {estructura:copia,notas,activas,pendientes,inactivas};
+  return {estructura:copia,notas,activas,pendientes,inactivas,bloqueadas};
 }
 function calculateFinalGrade(structure,grades,overrides={}){
-  const breakdown=[],emptyLeaves=[],gates=[],drops=[];
+  overrides={...overrides};
+  const breakdown=[],emptyLeaves=[],gates=[],drops=[],formulas=[];
+  function cumple(condicion,valores){
+    const entradas=(condicion.catIds||[]).map(id=>valores.get(id));
+    if(!entradas.length||entradas.some(e=>!e||e.value===null||!e.complete))return null;
+    const total=entradas.reduce((a,e)=>a+e.weight,0);
+    if(!(total>0))return null;
+    const promedio=entradas.reduce((a,e)=>a+e.value*e.weight,0)/total;
+    if(condicion.tipo==='no_cumple_requisitos')return promedio<condicion.min-1e-10||!entradas.some(e=>e.value>=condicion.algunaMin);
+    if(condicion.tipo==='promedio_igual')return Math.abs(promedio-condicion.min)<1e-10;
+    if(condicion.tipo==='promedio_menor')return promedio<condicion.min-1e-10;
+    return promedio>=condicion.min-1e-10;
+  }
   function evalNode(node){
     if(node.type==='leaf'){const g=grades[node.id];const value=(typeof g==='number')?g:null;breakdown.push({id:node.id,name:node.name,value,complete:value!==null});return {value,complete:value!==null};}
     let known=[],allComplete=true;
     for(const c of node.children){const cr=evalNode(c);if(!cr.complete)allComplete=false;if(cr.value!==null)known.push({child:c,value:cr.value,complete:cr.complete,weight:gh_weightOf(c,overrides)});}
     const fuera=gh_applyDrop(node,known);
     if(fuera.length)drops.push({nodeId:node.id,name:node.name,dropped:fuera.map(f=>({id:f.child.id,name:f.child.name,value:f.value})),rendidas:known.length+fuera.length});
+    let ambiguo=false;
+    const valores=new Map(known.map(e=>[e.child.id,e]));
+    (node.formulas_condicionales||[]).forEach(regla=>{
+      const resultados=(regla.cuando||[]).map(c=>cumple(c,valores));
+      const pendiente=resultados.some(v=>v===null);
+      const activa=!pendiente&&resultados.every(v=>v===true);
+      formulas.push({nombre:regla.nombre,activa,pendiente,ambigua:activa&&regla.ambigua===true});
+      if(!activa)return;
+      if(regla.ambigua===true){ambiguo=true;return;}
+      (regla.pesos||[]).forEach(e=>{overrides[e.catId]={...overrides[e.catId],weight:e.peso};});
+      known.forEach(e=>{e.weight=gh_weightOf(e.child,overrides);});
+    });
     let sumW=0,acc=0;
     for(const k of known){acc+=k.value*k.weight;sumW+=k.weight;}
-    let value=sumW>0?acc/sumW:null;
+    let value=ambiguo?null:sumW>0?acc/sumW:null;
     if(node.aggregation_rule==='gated_average'&&value!==null){const p=node.rule_params||{};const off=known.filter(k=>k.value<p.min_required);const locked=off.filter(o=>o.complete);const ok=off.length===0;gates.push({nodeId:node.id,kind:'gated_average',ok,min_required:p.min_required,fail_cap:p.fail_cap,offenders:off.map(o=>o.child.name),lockedOffenders:locked.map(o=>o.child.name),pending:known.length<node.children.length});if(!ok)value=Math.min(value,p.fail_cap);}
     breakdown.push({id:node.id,name:node.name,value,complete:allComplete});return {value,complete:allComplete};
   }
   let rootValue=evalNode(structure).value;
   const effW=gh_effWeights(structure,overrides);
   gh_collectEmpty(structure,grades,effW,emptyLeaves);
+  if(formulas.some(f=>f.activa&&!f.ambigua)){
+    for(let i=emptyLeaves.length-1;i>=0;i--)if(emptyLeaves[i].effectiveWeight===0)emptyLeaves.splice(i,1);
+  }
   gh_leafGates(structure,grades,(gate)=>{gates.push(gate);if(!gate.ok&&rootValue!==null)rootValue=Math.min(rootValue,gate.fail_cap);});
-  return {value:gh_roundFinal(rootValue,gh_meta(structure)),raw:rootValue,complete:emptyLeaves.length===0,breakdown,emptyLeaves,gates,drops};
+  return {value:gh_roundFinal(rootValue,gh_meta(structure)),raw:rootValue,complete:emptyLeaves.length===0,breakdown,emptyLeaves,gates,drops,formulas,weightOverrides:overrides};
 }
 function gh_effWeights(structure,overrides={}){const eff={};function walk(node,pw){if(node.type==='leaf'){eff[node.id]=pw;return;}const total=node.children.reduce((s,c)=>s+gh_weightOf(c,overrides),0);for(const c of node.children){const norm=total>0?gh_weightOf(c,overrides)/total:0;walk(c,pw*norm);}}walk(structure,1);return eff;}
 function gh_collectEmpty(structure,grades,effW,out){function walk(node){if(node.type==='leaf'){if(typeof grades[node.id]!=='number')out.push({id:node.id,name:node.name,effectiveWeight:effW[node.id]});return;}node.children.forEach(walk);}walk(structure);}
@@ -145,6 +175,7 @@ function gh_hasPendingDrop(node,grades){
   if(node.type==='leaf')return false;
   return (!!node.drop_lowest&&gh_hasPendingLeaf(node,grades))||node.children.some(c=>gh_hasPendingDrop(c,grades));
 }
+function gh_hasConditionalFormula(node){return !!(node.formulas_condicionales||[]).length||(node.children||[]).some(gh_hasConditionalFormula);}
 function gh_projectGrades(grades,emptyLeaves,value){
   const projected={...grades};
   emptyLeaves.forEach(l=>{projected[l.id]=value;});
@@ -171,6 +202,15 @@ function solveForTarget(structure,grades,target,overrides={},options={}){
     if(g.kind==='min_grade_required'&&g.pending)conditions.push(`${g.name} debe ser ≥ ${g.min_required} (si no, repruebas pese al promedio).`);
   }
   if(remainingWeight===0){const reached=direct.value;return {feasible:reached>=target&&gateWarnings.length===0,requiredAverage:null,emptyLeaves:direct.emptyLeaves,message:gateWarnings.length?`Curso completo, con tope por compuerta. Nota final: ${direct.value}.`:(reached>=target?`Ya alcanzaste ${target}.`:`No quedan evaluaciones; tu nota final es ${direct.value}.`),conditions,gateWarnings,scaleMin,scaleMax,dropAware:false};}
+  if(gh_hasConditionalFormula(structure)){
+    conditions.push('Se proyecta la misma nota en todas las pendientes y se comprueban las fórmulas condicionales del programa.');
+    for(let decima=Math.ceil(scaleMin*10);decima<=Math.floor(scaleMax*10);decima++){
+      const candidato=decima/10;
+      const final=calculateFinalGrade(structure,gh_projectGrades(grades,direct.emptyLeaves,candidato),overrides).value;
+      if(final!==null&&final>=target)return {feasible:true,requiredAverage:candidato,emptyLeaves:direct.emptyLeaves,message:'',conditions,gateWarnings,scaleMin,scaleMax,dropAware:true};
+    }
+    return {feasible:false,requiredAverage:options.extrapolate?scaleMax+1:null,emptyLeaves:direct.emptyLeaves,message:'La meta no se alcanza con una misma nota entre 1,0 y 7,0 en todas las pendientes.',conditions,gateWarnings,scaleMin,scaleMax,dropAware:true};
+  }
   // Con una nota pendiente en un grupo que descarta la peor, su peso efectivo
   // depende de su propio valor. En vez de fingir un peso fijo, proyectamos la
   // misma nota en todas las pendientes y buscamos el mínimo que llega a meta.
@@ -228,9 +268,18 @@ function gh_crearCalculoRamo(deps){
     }
     return hojas;
   }
+  function reglasCalculoVigentes(r){
+    const categorias=(r&&r.categorias||[]).filter(c=>!c.fueraDePauta);
+    return (r&&r.gates||[]).filter(g=>['conditional_weights','absence_limit'].includes(g.type)&&
+      Array.isArray(g.pauta)&&g.pauta.length===categorias.length&&g.pauta.every(e=>{
+        const c=categorias.find(c=>c.id===e.catId);
+        return c&&c.peso===e.peso&&(c.slots||1)===e.slots&&normName(c.nombre)===normName(e.nombre)&&JSON.stringify(c.dropLowest||null)===JSON.stringify(e.dropLowest||null);
+      }));
+  }
   function ramoToStructure(r){
     return {__meta:{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4.0},
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
+      formulas_condicionales:reglasCalculoVigentes(r).filter(g=>g.type==='conditional_weights'),
       children:categoriasVigentes(r).map(c=>({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
         drop_lowest:c.dropLowest||null,
         children:hojasCategoria(c)}))};
@@ -289,16 +338,21 @@ function gh_crearCalculoRamo(deps){
   }
   function categoriaEximida(ramo,cat){const estado=estadoEximicion(ramo);return !!(estado&&estado.activa&&estado.examenId===cat.id);}
   function categoriasVigentes(ramo){return (ramo&&ramo.categorias||[]).filter(c=>!categoriaEximida(ramo,c));}
+  function reglasAusenciaOficiales(ramo){
+    const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
+    return ramo&&ramo.reglasAusenciaJustificada||(limite&&{traspasos:limite.traspasos})||null;
+  }
   function estadoAusenciasJustificadas(ramo){
     if(!ramo)return null;
-    const oficial=ramo.reglasAusenciaJustificada;
+    const oficial=reglasAusenciaOficiales(ramo);
     const declarada=ramo.reglasAusenciaJustificadaUsuario&&ramo.reglasAusenciaJustificadaUsuario.declaradaPor==='estudiante'
       ? ramo.reglasAusenciaJustificadaUsuario:null;
+    const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
     const regla=oficial||declarada;
     if(!regla)return null;
     // La elección entre rezago y acumulación viene del formulario del curso.
     // El techo y la nota del excedente son una norma institucional distinta.
-    const normaFacultad={nivel:'facultad',topePesoDestino:75,notaExceso:1};
+    const normaFacultad=limite?{nivel:'programa',topePesoDestino:limite.max,requiereResolucion:true}:{nivel:'facultad',topePesoDestino:75,notaExceso:1};
     return {...gh_prepararAusenciasJustificadas(ramoToStructure(ramo),gradesOf(ramo),regla,ramo.ausenciasJustificadas,normaFacultad),
       origenRegla:oficial?'programa':'estudiante',normaAplicada:normaFacultad};
   }
@@ -328,7 +382,9 @@ function gh_crearCalculoRamo(deps){
     const estructura=ausencias?ausencias.estructura:ramoToStructure(r);
     const notas=ausencias?ausencias.notas:gradesOf(r);
     const res=calculateFinalGrade(estructura,notas);
-    let v=res.raw,limitadoPorCompuerta=false;
+    // Los pesos efectivos solo viven en la copia de cálculo; jamás en las notas.
+    Object.entries(res.weightOverrides).forEach(([id,extra])=>{const node=estructura.children.find(n=>n.id===id);if(node)node.weight=extra.weight;});
+    let v=ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length?null:res.raw,limitadoPorCompuerta=false;
     if(v!==null && Array.isArray(r.gates)){
       for(const g of r.gates){
         if(g.type==='min_grade_required'){
@@ -442,6 +498,8 @@ function gh_crearCalculoRamo(deps){
   }
   function notaNecesaria(ramo,meta){
     const objetivo=Number.isFinite(meta)?meta:4.0;
+    const baseInicial=calculoRamoConCompuertas(ramo);
+    if(baseInicial.ausencias&&baseInicial.ausencias.bloqueadas&&baseInicial.ausencias.bloqueadas.length)return null;
     const notas={};
     function preparar(r,prefijo){
       const base=calculoRamoConCompuertas(r);
@@ -452,7 +510,11 @@ function gh_crearCalculoRamo(deps){
         if(typeof base.notas[node.id]==='number')notas[id]=base.notas[node.id];
         return {...node,id,...(node.children?{children:node.children.map(copiar)}:{})};
       }
-      return {...base.estructura,children:base.estructura.children.map(node=>{
+      // Cada nota proyectada reevalúa la fórmula original; una categoría
+      // excluida puede volver a entrar cuando se cumple la condición.
+      const fuente=reglasCalculoVigentes(r).some(g=>g.type==='conditional_weights')?ramoToStructure(r):base.estructura;
+      const formulas=(fuente.formulas_condicionales||[]).map(g=>({...g,cuando:g.cuando.map(c=>({...c,catIds:c.catIds.map(id=>prefijo+id)})),pesos:(g.pesos||[]).map(e=>({...e,catId:prefijo+e.catId}))}));
+      return {...fuente,formulas_condicionales:formulas,children:fuente.children.map(node=>{
         const cat=categorias.get(node.id),valor=valores.get(node.id);
         // Una lista sin cantidad declarada conserva su promedio conocido. Un
         // grupo completo conserva su descarte ya calculado, no sus pesos brutos.
@@ -508,7 +570,7 @@ function gh_crearCalculoRamo(deps){
     // exigencia ponderada. Solo el solver decide cómo cambia el descarte al rendir.
     return resolver(estructura,objetivo);
   }
-  return {notaFinalOficial:gh_roundFinal,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:gh_roundFinal,reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo};

@@ -120,14 +120,21 @@ function queNecesitoParaAprobar(ramos, args) {
     tope: g.cap,
   }));
 
+  const base = calculo.calculoRamoConCompuertas?.(ramo);
+  const motivosPendientes = [];
+  if(base?.ausencias?.bloqueadas?.length)motivosPendientes.push('Las pruebas justificadas superan el máximo del examen; falta resolver el derecho a examen o la recuperativa con el curso.');
+  if(base?.res.formulas?.some(f=>f.ambigua))motivosPendientes.push('El programa se contradice en el límite exacto 3,8: confirma con el profesor cómo ponderar las tareas.');
   let estado = 'alcanzable';
   if (promedioNecesario === null) estado = promedioActual === null ? 'sin_notas' : (alcanzaMetaOficial(calculo, ramo, promedioActual, meta) ? 'meta_alcanzada' : 'sin_evaluaciones_pendientes');
   else if (promedioNecesario > 7) estado = 'fuera_de_escala';
   else if (promedioNecesario < 1) estado = 'con_cualquier_nota';
 
+  if(motivosPendientes.length)estado='requiere_confirmacion_curso';
   return {
     ramo: ramo.nombre,
     meta,
+    ...(motivosPendientes.length?{motivosPendientes}:{}),
+    ...((calculo.reglasCalculoVigentes?.(ramo)||[]).some(g=>g.type==='conditional_weights')?{supuesto:'La misma nota en cada evaluación pendiente. Cambiar una nota puede activar otra fórmula; el resultado no es un mínimo monotónico.'}:{}),
     promedioActual,
     promedioNecesario,
     factibleEnEscala: promedioNecesario === null ? alcanzaMetaOficial(calculo, ramo, promedioActual, meta) : promedioNecesario <= 7,
