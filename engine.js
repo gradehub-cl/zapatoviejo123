@@ -8,6 +8,12 @@ function gh_excelRound(value,decimals){const f=Math.pow(10,decimals);return Math
 // para aprobar el ramo. El 1e-9 evita que un 3,95 exacto, que el punto flotante
 // puede guardar como 3,9499999…, se redondee hacia abajo.
 function gh_cumpleMinimo(valor,min){return gh_excelRound(valor+1e-9,1)>=min;}
+// La nota oficial que ve la persona: redondeada a la décima con margen de punto
+// flotante. Un final de exactamente 3,95 puede llegar como 3,9499999999999993
+// (pasa con los pesos 10/10/23/23/34) y sin el margen se leía 3,9 —reprobado—.
+// `gh_roundFinal` queda sin margen porque el buscador de la nota necesaria
+// depende de su borde exacto.
+function gh_notaOficial(value,meta){if(value===null)return null;const d=meta?.rounding?.decimals??1;return gh_excelRound(value+1e-9,d);}
 function gh_roundFinal(value,meta){if(value===null)return null;const d=meta?.rounding?.decimals??1;return gh_excelRound(value,d);}
 function gh_weightOf(node,ov){const o=ov?.[node.id];if(o&&typeof o.weight==='number')return o.weight;return node.weight;}
 function gh_meta(s){return s.__meta||{};}
@@ -17,7 +23,7 @@ function gh_meta(s){return s.__meta||{};}
 // rango: una compuerta presente que no cambió el número no inventa una barrera.
 function gh_estadoRecuperativo(value,complete,gateLimited,rule,declaration){
   if(!rule||!Number.isFinite(rule.min)||!Number.isFinite(rule.max)||!Number.isFinite(rule.nota))return null;
-  const final=gh_roundFinal(value,{rounding:{decimals:1}});
+  const final=gh_notaOficial(value,{rounding:{decimals:1}});
   const base={valor:value,final,regla:rule,declaracion:declaration};
   if(value===null)return {...base,motivo:'sin_nota',puedeDeclarar:false};
   if(!complete)return {...base,motivo:'incompleto',puedeDeclarar:false};
@@ -513,7 +519,7 @@ function gh_crearCalculoRamo(deps){
     // exigencia ponderada. Solo el solver decide cómo cambia el descarte al rendir.
     return resolver(estructura,objetivo);
   }
-  return {notaFinalOficial:gh_roundFinal,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:gh_notaOficial,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo};
