@@ -108,7 +108,11 @@ function renderHome(){
     gpael.innerHTML=`${entera}<span class="gpa-decimal">${decimal}</span>`;
     gpael.className='gpa-num '+colorClass(g)+claseNotaEspecial(g);
     gpael.style.setProperty('--grade-color',getColor(g));
+    pintarPromedioExacto('home-gpa-exacto',g);
     gpael.onclick=()=>{
+      alternarPromedioExacto();
+      pintarPromedioExacto('home-gpa-exacto',g);
+      if(!promedioExactoVisible)return;
       const oficial=notaFinalOficial(g);
       const umbrales=[4.0,5.0,6.0,7.0];
       const next=umbrales.find(u=>u>oficial+0.001);
@@ -129,6 +133,7 @@ function renderHome(){
     }
   }else{
     gpael.textContent='·';gpael.className='gpa-num empty';gpael.onclick=null;
+    pintarPromedioExacto('home-gpa-exacto',null);
   }
   const cr=totalCreditos(S.ramos);
   const modo=gpaMode(S.ramos);
@@ -297,6 +302,24 @@ function renderHome(){
 // esta sesión, igual que el orden de la Agenda: no entra a S ni a gradehub_v1.
 // Plegar un texto no justifica migrar el estado guardado de nadie.
 const reglasRamoAbiertas={};
+// El promedio sin redondear aparece al tocar el número grande (general o del
+// ramo), a su lado y sin pinta de botón: es un dato para quien quiere ver a
+// cuánto está de la décima siguiente, no una acción. Vale para la sesión y no
+// se guarda. Se TRUNCA a milésimas, nunca se redondea: un 3,9499 redondeado se
+// leería 3,950 y diría que ya llegaste al 4,0 cuando no.
+let promedioExactoVisible=false;
+function alternarPromedioExacto(){promedioExactoVisible=!promedioExactoVisible;}
+function fmtPromedioExacto(n){
+  // El 1e-9 evita que un 3,95 guardado como 3,9499999… se trunque a 3,949.
+  const t=Math.floor((Number(n)+1e-9)*1000)/1000;
+  return t.toFixed(3).replace(/0$/,'');
+}
+function pintarPromedioExacto(id,valor){
+  const el=document.getElementById(id);if(!el)return;
+  const mostrar=promedioExactoVisible&&typeof valor==='number'&&!isNaN(valor);
+  el.textContent=mostrar?fmtPromedioExacto(valor):'';
+  el.hidden=!mostrar;
+}
 function toggleReglasRamo(id){
   reglasRamoAbiertas[id]=!reglasRamoAbiertas[id];
   renderRamo();
@@ -316,9 +339,11 @@ function renderRamo(){
     avgEl.innerHTML=`${s.slice(0,dot)}<span class="ramo-decimal">${s.slice(dot)}</span>`;
     avgEl.className='ramo-num '+colorClassRamo(r,avg)+claseNotaEspecial(avg);
     avgEl.style.setProperty('--grade-color',getColorRamo(r,avg));
+    avgEl.onclick=()=>{alternarPromedioExacto();pintarPromedioExacto('ramo-hero-exacto',avg);};
   } else {
-    avgEl.textContent='Sin notas';avgEl.className='ramo-num empty';
+    avgEl.textContent='Sin notas';avgEl.className='ramo-num empty';avgEl.onclick=null;
   }
+  pintarPromedioExacto('ramo-hero-exacto',avg);
   const tp=r.categorias.reduce((a,c)=>a+c.peso,0);
   const categoriasVisibles=r.categorias.filter(c=>!(eximicion&&eximicion.activa&&eximicion.regla.ocultaEvaluacion===true&&eximicion.examenId===c.id));
   const crTxt=(r.seccion?` · Sección ${r.seccion}`:'')+(r.creditos?` · ${r.creditos} créditos`:'');
