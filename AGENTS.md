@@ -272,6 +272,15 @@ inventa cuántas evaluaciones faltan.
 { type:'group_min', catIds: [...], min: 4.0, cap: 'self' }
 ```
 
+### Nota oficial por universidad
+
+Un solo motor; cada universidad declara cómo su promedio se vuelve nota oficial
+en `GH_REGLAS_NOTA_POR_TENANT` (`engine.js`, no `data.js`: el servidor MCP
+calcula con ese archivo solo). Sin entrada rige la común —1 a 7, aprueba con
+4,0, a la décima—. La UAndes redondea a la centésima y después a la décima
+(art. 22 de su reglamento): 3,946 → 3,95 → 4,0. Nada redondea una nota final a
+mano: se pasa por `notaFinalOficial` (app) o `gh_notaOficial` (motor).
+
 ### Promedio general
 
 Se pondera por créditos **solo si todos los ramos con nota los tienen**. Si alguno
