@@ -1033,7 +1033,9 @@ function r2(n){return Math.round(n*100)/100;}
 // La nota final oficial se redondea a una décima antes de decidir su estado:
 // 3,94 queda en 3,9 y 3,95 pasa a 4,0. `r2` sigue disponible para porcentajes y
 // cuentas intermedias; no se usa para contradecir la nota que ve la persona.
-function notaFinalOficial(n){return n===null||isNaN(n)?null:Math.round(Number(n)*10)/10;}
+// Con el mismo margen de punto flotante que `gh_notaOficial` en el motor: un
+// 3,95 exacto que llega como 3,9499999… es 4,0, no 3,9.
+function notaFinalOficial(n){return n===null||isNaN(n)?null:Math.round((Number(n)+1e-9)*10)/10;}
 // La nota que necesitas se redondea HACIA ARRIBA, nunca al más cercano.
 //
 // Con `nf()` la app podía decirte un número menor al que de verdad hace falta:
