@@ -58,9 +58,21 @@ const LLEGA_DE_RECUPERACION=typeof location!=='undefined'&&/(?:^|[#&])type=recov
 let enRecuperacion=LLEGA_DE_RECUPERACION;
 let supabaseClient=null, currentUser=null, authMode='login';
 let _cerrandoSesion=false;
+// En la app iOS (Capacitor) la página no puede irse a Google. Capacitor manda
+// esa navegación a Safari y la vista web quedaba congelada: cancelar el login
+// obligaba a cerrar la app. Y la vuelta a `capacitor://localhost` no llega a
+// ninguna parte. Ahí Google se abre en una hoja de Safari dentro de la app y
+// vuelve por el esquema propio, que tiene que estar en las Redirect URLs de
+// Supabase (Authentication → URL Configuration).
+//
+// Con PKCE: otra app podría reclamar el mismo esquema, así que lo que vuelve es
+// un código que solo sirve con el verificador guardado en este dispositivo, no
+// la sesión. La web sigue con el flujo de siempre.
+const APP_NATIVA=typeof window!=='undefined'&&!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+const VUELTA_NATIVA='cl.gradehub.app://login-callback';
 try{
   if(window.supabase && SUPABASE_URL.startsWith('http')){
-    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,APP_NATIVA?{auth:{flowType:'pkce'}}:undefined);
   }
 }catch(e){console.warn('Supabase no inicializado:',e);}
 
@@ -405,6 +417,17 @@ async function signInWithProvider(provider){
   const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
+    if(APP_NATIVA){
+      const {data,error}=await supabaseClient.auth.signInWithOAuth({
+        provider,
+        options:{redirectTo:VUELTA_NATIVA,skipBrowserRedirect:true}
+      });
+      if(error)throw error;
+      recordarMetodoLogin(provider);
+      // El botón vuelve con la sesión (appUrlOpen) o al cerrar la hoja.
+      await window.Capacitor.Plugins.Browser.open({url:data.url,presentationStyle:'popover'});
+      return;
+    }
     const {error}=await supabaseClient.auth.signInWithOAuth({
       provider,
       options:{redirectTo:location.origin+location.pathname}
@@ -417,6 +440,42 @@ async function signInWithProvider(provider){
     authError(traduceAuthError(e));
     if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=orig;}
   }
+}
+
+function reactivarBotonesOAuth(){
+  const b=document.getElementById('btn-google');
+  if(b){b.disabled=false;b.style.opacity='';}
+}
+// La vuelta de Google en la app nativa. Cerrar la hoja sin terminar no es un
+// error: solo reactiva el botón.
+async function volverDeOAuthNativo(url){
+  if(typeof url!=='string'||!url.startsWith(VUELTA_NATIVA))return false;
+  try{await window.Capacitor.Plugins.Browser.close();}catch(e){}
+  let code=null;
+  try{code=new URL(url).searchParams.get('code');}catch(e){}
+  if(!code){
+    authError('No pudimos iniciar sesión con Google. Intenta de nuevo.');
+    reactivarBotonesOAuth();
+    return false;
+  }
+  try{
+    const {data,error}=await supabaseClient.auth.exchangeCodeForSession(code);
+    if(error)throw error;
+    currentUser=data.user;
+    reactivarBotonesOAuth();
+    await afterLogin();
+    return true;
+  }catch(e){
+    authError(traduceAuthError(e));
+    reactivarBotonesOAuth();
+    return false;
+  }
+}
+// El typeof es porque hay tests que cargan solo este tramo del archivo.
+if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
+  const {App,Browser}=window.Capacitor.Plugins;
+  if(App)App.addListener('appUrlOpen',ev=>{volverDeOAuthNativo(ev&&ev.url);});
+  if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 
 // Recuperar contraseña
