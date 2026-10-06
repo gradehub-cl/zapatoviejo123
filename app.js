@@ -2863,7 +2863,15 @@ function fusionarPauta(r,nuevas){
       typeof x==='string'?{nombre:x}:x)];
     const usadas=new Set(),idsNotas=new Set(),notas=[];
     fuentes.forEach(f=>{
-      const k=normName(f.nombre),vieja=viejas.get(k);
+      let k=normName(f.nombre),vieja=viejas.get(k);
+      if(!vieja){
+        // El mismo nombre salvo conectores o plural ("Controles Ejercicios" y
+        // "Control de Ejercicios"): sin esto, adoptar una pauta dejaba esas
+        // notas en 0%. Solo si hay una candidata; con dos no se adivina.
+        const clave=nombreHuella(f.nombre);
+        const candidatas=[...viejas].filter(([,v])=>nombreHuella(v.nombre)===clave);
+        if(candidatas.length===1)[k,vieja]=candidatas[0];
+      }
       if(!vieja||usadas.has(k))return;
       usadas.add(k);viejas.delete(k);
       (vieja.notas||[]).forEach(n=>{
@@ -4086,14 +4094,18 @@ function estructuraParaConsenso(est){
 //
 // Nombre: sin may\u00fasculas ni tildes, "Solemne3" = "Solemne 3", y cada palabra de
 // 4+ letras en singular, porque "Controles" y "Control" son la misma evaluaci\u00f3n.
+// Sin conectores: "Controles Ejercicios" y "Control de Ejercicios" tambi\u00e9n lo
+// son (Contabilidad FEN, 2026-10-05). `conConectores` es la regla anterior, solo
+// para reconocer lo que ya se envi\u00f3 con ella (ver yaAportada).
 function singularHuella(p){
   if(!/^[a-z]{4,}$/.test(p))return p;
   return p.replace(/zz/g,'z').replace(/s$/,'').replace(/([lrndjz])e$/,'$1');
 }
-function nombreHuella(nombre){
+const CONECTORES_HUELLA=new Set(['de','del','la','las','el','los','y','e','en']);
+function nombreHuella(nombre,conConectores){
   return normName(nombre).replace(/\s+/g,' ')
     .replace(/([a-z])(?=\d)|(\d)(?=[a-z])/g,'$& ')
-    .split(' ').filter(Boolean).map(singularHuella).join(' ');
+    .split(' ').filter(w=>w&&(conConectores||!CONECTORES_HUELLA.has(w))).map(singularHuella).join(' ');
 }
 // Tres o m\u00e1s evaluaciones numeradas del mismo nombre y el mismo peso son una
 // categor\u00eda con casillas: "Control 1, 2 y 3" de 10% cada uno = "Controles" de
@@ -4122,10 +4134,10 @@ function agruparNumeradasHuella(filas){
   });
   return filas.filter(f=>!fuera.has(f)).concat(grupos);
 }
-function huellaEstructura(est){
+function huellaEstructura(est,conConectores){
   // Las filas en 0% no son parte de la pauta (#272). Los reportes anteriores a
   // ese arreglo las traen guardadas, y el servidor también las descarta.
-  const filas=(est||[]).filter(e=>Number(e.peso)>0).map(e=>({clave:nombreHuella(e.nombre),peso:Number(e.peso),
+  const filas=(est||[]).filter(e=>Number(e.peso)>0).map(e=>({clave:nombreHuella(e.nombre,conConectores),peso:Number(e.peso),
     slots:Number(e.slots)||1,min:e.min||0,cap:e.cap||0}));
   // sort() sin comparador ordena por c\u00f3digo, igual en todos los dispositivos y
   // igual que `collate "C"` en el servidor.
@@ -4608,15 +4620,12 @@ async function consensoParaRamo(r){
 // reportada y la nuestra no tiene sí se ofrece: puede ser un dato que nos falta.
 // La huella de agrupar reportes no cambia (es la del servidor); esto solo
 // decide qué se le muestra al estudiante.
-const CONECTORES_OFERTA=new Set(['de','del','la','las','el','los','y','e','en']);
-function nombreOferta(nombre){
-  return normName(nombre).split(/\s+/).filter(w=>w&&!CONECTORES_OFERTA.has(w)).join(' ');
-}
+// Los conectores ya los ignora la huella (nombreHuella).
 function nadaQueOfrecer(suya,mia){
-  const sinReglas=est=>huellaEstructura((est||[]).map(e=>({...e,nombre:nombreOferta(e.nombre),min:0,cap:0})));
+  const sinReglas=est=>huellaEstructura((est||[]).map(e=>({...e,min:0,cap:0})));
   if(sinReglas(suya)!==sinReglas(mia))return false;
   const reglas=est=>(est||[]).filter(e=>Number(e.peso)>0&&(e.min||e.cap))
-    .map(e=>[nombreHuella(nombreOferta(e.nombre)),e.min||0,e.cap||0].join('~'));
+    .map(e=>[nombreHuella(e.nombre),e.min||0,e.cap||0].join('~'));
   const mias=new Set(reglas(mia));
   return reglas(suya).every(x=>mias.has(x));
 }
@@ -4792,6 +4801,12 @@ async function aplicarConsensoAuto(){
   return puestas;
 }
 
+// Lo aportado antes del 2026-10-05 quedó guardado con la huella de entonces,
+// que contaba los conectores. Sin aceptar las dos, cada ramo que recibió una
+// pauta del consenso con un "de" en un nombre se reenviaría como voto propio.
+function yaAportada(r,est){
+  return !!r.consensoAportado&&(r.consensoAportado===huellaEstructura(est)||r.consensoAportado===huellaEstructura(est,true));
+}
 // Participan las pautas completas que alguien armó o corrigió, cualquiera sea
 // el camino: editor, ramo manual o propuesta del agente ya aceptada. Una pauta
 // oficial sin editar y una pauta recibida del propio consenso no son votos
@@ -4799,8 +4814,7 @@ async function aplicarConsensoAuto(){
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
   if(r.consensoRespaldos){
-    const huella=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-    return !!r.consensoAportado&&r.consensoAportado!==huella;
+    return !!r.consensoAportado&&!yaAportada(r,estructuraParaConsenso(estructuraDe(r)));
   }
   const o=r.origen;
   if(!o||!o.tenant)return true;
@@ -4822,8 +4836,8 @@ async function aportarPautasAlCatalogo(){
       if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
       if(!pautaPropiaParaConsenso(r))continue;
       if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)continue;
-      const huella=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-      if(!huella||r.consensoAportado===huella)continue;
+      const est=estructuraParaConsenso(estructuraDe(r)),huella=huellaEstructura(est);
+      if(!huella||yaAportada(r,est))continue;
       const enviado=await aportarPropuestaAlCatalogo(r);
       if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
       if(enviado){r.consensoAportado=huella;n++;}
