@@ -4589,13 +4589,36 @@ function renderEditarSecciones(){
 async function consensoParaRamo(r){
   const cons=await cargarConsenso();
   if(!cons)return null;
-  const mine=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-  // Las dos huellas se calculan acá, con la misma función: comparar contra
+  const mia=estructuraParaConsenso(estructuraDe(r));
+  // Las dos se comparan acá, con las mismas funciones: comparar contra
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma
   // si alguna vez las dos implementaciones difieren en un detalle.
   const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&
-    huellaEstructura(estructuraParaConsenso(c.estructura))!==mine);
+    !nadaQueOfrecer(estructuraParaConsenso(c.estructura),mia));
   return hit||null;
+}
+
+// Que la huella difiera no basta para ofrecer una pauta ajena. En Contabilidad
+// FEN (2026-10-05) se ofrecía como "otra pauta" la misma, por dos detalles:
+//   · Nombres que solo cambian en un conector: "Controles Ejercicios" y
+//     "Control de Ejercicios".
+//   · Una pauta que solo PIERDE reglas de la nuestra: casi nadie escribe el
+//     mínimo del examen, y adoptarla lo borraba sin que el aviso lo dijera.
+// Si sin eso quedan iguales, no hay nada que ofrecer. Una regla que trae la
+// reportada y la nuestra no tiene sí se ofrece: puede ser un dato que nos falta.
+// La huella de agrupar reportes no cambia (es la del servidor); esto solo
+// decide qué se le muestra al estudiante.
+const CONECTORES_OFERTA=new Set(['de','del','la','las','el','los','y','e','en']);
+function nombreOferta(nombre){
+  return normName(nombre).split(/\s+/).filter(w=>w&&!CONECTORES_OFERTA.has(w)).join(' ');
+}
+function nadaQueOfrecer(suya,mia){
+  const sinReglas=est=>huellaEstructura((est||[]).map(e=>({...e,nombre:nombreOferta(e.nombre),min:0,cap:0})));
+  if(sinReglas(suya)!==sinReglas(mia))return false;
+  const reglas=est=>(est||[]).filter(e=>Number(e.peso)>0&&(e.min||e.cap))
+    .map(e=>[nombreHuella(nombreOferta(e.nombre)),e.min||0,e.cap||0].join('~'));
+  const mias=new Set(reglas(mia));
+  return reglas(suya).every(x=>mias.has(x));
 }
 
 // Un ramo CON pauta oficial no se toca solo aunque haya consenso: el programa

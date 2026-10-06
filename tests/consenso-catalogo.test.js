@@ -146,7 +146,7 @@ chk('el orden en que se escribieron no cambia la huella',
 chk('una fila en 0% guardada antes del #272 no separa el reporte',
   h([...tresControles, { nombre: 'X', peso: 0 }]) === h(tresControles));
 chk('la ficha compara con la huella calculada acá, no con la del servidor',
-  /huellaEstructura\(estructuraParaConsenso\(c\.estructura\)\)!==mine/.test(src) && !/c\.huella!==mine/.test(src));
+  /nadaQueOfrecer\(estructuraParaConsenso\(c\.estructura\),mia\)/.test(src) && !/c\.huella\s*[!=]==/.test(src));
 
 console.log('\n=== La huella la decide el servidor ===');
 const fnHuella = sql.slice(sql.indexOf('create or replace function public.huella_catalogo'), sql.indexOf('create or replace function public.submit_catalog_report'));
