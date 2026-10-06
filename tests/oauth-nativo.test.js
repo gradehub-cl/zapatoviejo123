@@ -67,6 +67,10 @@ const espera = () => new Promise(r => setTimeout(r, 0));
   await w.run(`signInWithProvider('google')`);
   chk('vuelve a gradehub.cl y deja que Supabase redirija', w.llamadas.oauth[0].options.redirectTo === 'https://gradehub.cl/' && !w.llamadas.oauth[0].options.skipBrowserRedirect);
 
+  console.log('\n=== "Ten GradeHub como app" es solo para la web ===');
+  chk('en la app nativa cuenta como ya instalada', a.run('appYaInstalada()') === true);
+  chk('en Safari se sigue ofreciendo', w.run('appYaInstalada()') === false);
+
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

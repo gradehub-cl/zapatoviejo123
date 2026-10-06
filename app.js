@@ -1960,6 +1960,9 @@ function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
 function appYaInstalada(){
   try{
+    // La app iOS (Capacitor) ya es la app instalada: ofrecer "Agregar a
+    // pantalla de inicio" ahí no tiene sentido. El aviso queda solo para la web.
+    if(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform())return true;
     return !!(navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches));
   }catch(e){return false;}
 }
