@@ -1958,11 +1958,38 @@ let _promptInstalar=null;
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
+// La app iOS (Capacitor). app-session.js tiene su propia constante; esta es
+// función porque app.js carga antes y no puede declarar el mismo nombre.
+function enAppNativa(){
+  try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
+  catch(e){return false;}
+}
+// Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
+// nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
+// a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
+// hoja de Safari; las páginas propias, desde gradehub.cl. Devuelve false si no
+// lo manejó (la web, o un mailto: que abre iOS).
+function abrirFuera(url){
+  if(!enAppNativa())return false;
+  let abs;
+  try{abs=new URL(url,'https://gradehub.cl/').href;}catch(e){return false;}
+  const Browser=window.Capacitor.Plugins&&window.Capacitor.Plugins.Browser;
+  if(!/^https?:/.test(abs)||!Browser)return false;
+  Browser.open({url:abs,presentationStyle:'popover'}).catch(()=>{});
+  return true;
+}
+if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('click',e=>{
+  const a=e.target&&e.target.closest&&e.target.closest('a[target="_blank"]');
+  // El contacto de una clase tiene su propio manejo (mide antes de abrir).
+  if(!a||a.hasAttribute('data-contactar'))return;
+  if(abrirFuera(a.getAttribute('href')))e.preventDefault();
+},true);
+
 function appYaInstalada(){
   try{
     // La app iOS (Capacitor) ya es la app instalada: ofrecer "Agregar a
     // pantalla de inicio" ahí no tiene sentido. El aviso queda solo para la web.
-    if(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform())return true;
+    if(enAppNativa())return true;
     return !!(navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches));
   }catch(e){return false;}
 }

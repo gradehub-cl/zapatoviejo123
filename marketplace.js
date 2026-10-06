@@ -1052,7 +1052,9 @@ function activarTarjetasClases(raiz){
     link.dataset.contactando='true';link.setAttribute('aria-busy','true');
     // Abrir una pestaña vacía dentro del gesto del usuario evita el bloqueo
     // del navegador después del await. La cerramos si no se confirmó el cobro.
-    const ventana=link.target==='_blank'&&typeof window!=='undefined'&&typeof window.open==='function'
+    // En la app iOS no hay pestaña que abrir: se abre al final con abrirFuera.
+    const nativa=typeof enAppNativa==='function'&&enAppNativa();
+    const ventana=!nativa&&link.target==='_blank'&&typeof window!=='undefined'&&typeof window.open==='function'
       ?window.open('about:blank','_blank'):null;
     if(ventana)ventana.opener=null;
     const cargo=await registrarInteraccionMedida(link.dataset.contactar,'contacto',link.dataset.sigla);
@@ -1063,7 +1065,7 @@ function activarTarjetasClases(raiz){
       return;
     }
     if(ventana&&!ventana.closed)ventana.location.href=link.href;
-    else if(typeof window!=='undefined')window.location.assign(link.href);
+    else if(!(nativa&&abrirFuera(link.href))&&typeof window!=='undefined')window.location.assign(link.href);
   }));
   raiz.querySelectorAll('[data-abrir]').forEach(boton=>boton.addEventListener('click',()=>{
     const tarjeta=boton.closest('.catalogo-clase-card'),mas=tarjeta&&tarjeta.querySelector('.catalogo-clase-mas');

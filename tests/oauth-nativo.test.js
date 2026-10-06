@@ -67,6 +67,13 @@ const espera = () => new Promise(r => setTimeout(r, 0));
   await w.run(`signInWithProvider('google')`);
   chk('vuelve a gradehub.cl y deja que Supabase redirija', w.llamadas.oauth[0].options.redirectTo === 'https://gradehub.cl/' && !w.llamadas.oauth[0].options.skipBrowserRedirect);
 
+  console.log('\n=== Enlaces que abren otra ventana ===');
+  a.llamadas.abrir.length = 0;
+  chk('Términos se abre en la hoja, desde gradehub.cl', a.run(`abrirFuera('/terminos.html')`) === true && a.llamadas.abrir[0].url === 'https://gradehub.cl/terminos.html');
+  chk('un enlace externo se abre tal cual', a.run(`abrirFuera('https://wa.me/56900000000')`) === true && a.llamadas.abrir[1].url === 'https://wa.me/56900000000');
+  chk('un correo lo abre iOS, no la hoja', a.run(`abrirFuera('mailto:prueba@ejemplo.test')`) === false && a.llamadas.abrir.length === 2);
+  chk('en la web no se intercepta nada', w.run(`abrirFuera('/terminos.html')`) === false);
+
   console.log('\n=== "Ten GradeHub como app" es solo para la web ===');
   chk('en la app nativa cuenta como ya instalada', a.run('appYaInstalada()') === true);
   chk('en Safari se sigue ofreciendo', w.run('appYaInstalada()') === false);

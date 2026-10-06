@@ -35,6 +35,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>GradeHub usa la cámara solo si eliges sacar una foto: la de tu horario para reconocer tus ramos, o el logo o flyer de tu clase.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>GradeHub guarda en tus fotos la imagen de tu semestre cuando eliges guardarla.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
