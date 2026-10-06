@@ -1,0 +1,15 @@
+{
+  "status": "draft",
+  "locale": "es-CL",
+  "name": "GradeHub",
+  "subtitle": "Tus notas y tu semestre",
+  "promotionalText": "Organiza tus ramos, registra tus notas y explora qué necesitas para alcanzar tu meta.",
+  "keywords": "notas,promedio,universidad,semestre,estudiante,calculadora,agenda,Chile",
+  "description": "Lleva tu semestre universitario en un solo lugar.\n\nCon GradeHub puedes registrar tus ramos y notas, calcular promedios ponderados, simular escenarios y consultar qué necesitas para alcanzar una meta. También puedes organizar las fechas de tus evaluaciones y revisar tus semestres anteriores.\n\nIncluye catálogos y pautas para universidades chilenas cuando tenemos información verificada. Puedes ajustar las evaluaciones según el programa de tu sección. Algunas reglas requieren confirmación con el curso: revisa siempre tu programa y la nota oficial de tu universidad.\n\nGradeHub es una herramienta independiente y no representa a las universidades. Tus datos se sincronizan con tu cuenta para que puedas continuar en otro dispositivo.",
+  "privacyPolicyUrl": "https://gradehub.cl/privacidad.html",
+  "supportUrl": "https://gradehub.cl/preguntas.html",
+  "marketingUrl": "https://gradehub.cl/",
+  "primaryCategoryProposal": "Education",
+  "ageRating": null,
+  "reviewNotesDraft": "Explicar el cálculo de notas, simulación y agenda. Proporcionar acceso a una cuenta demo con notas sintéticas y detallar las reglas de curso que requieren confirmación. Verificar que el backend esté disponible durante la revisión. Credenciales por canal privado de App Store Connect; nunca en este archivo."
+}
