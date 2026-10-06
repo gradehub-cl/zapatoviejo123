@@ -213,6 +213,20 @@ function enterOnboarding(){
     if(n)nameInput.value=n.split(' ')[0];
   }
   obIniciar();
+  // Con el correo institucional ya sabemos su universidad: llega marcada en el
+  // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:
+  // una cuenta que ya existe nunca cambia de universidad por su correo.
+  const porCorreo=tenantPorCorreo(currentUser&&currentUser.email);
+  if(porCorreo){selectedTenant=porCorreo;applyTheme();renderTenantPick();checkOb();}
+}
+// La universidad que corresponde al dominio del correo, o null. Compara el
+// dominio completo, no un sufijo: "x@noesmiuandes.cl" no es de la UAndes.
+function tenantPorCorreo(correo){
+  const texto=String(correo||'').trim().toLowerCase(),arroba=texto.lastIndexOf('@');
+  const dominio=arroba>0?texto.slice(arroba+1):'';
+  if(!dominio)return null;
+  const t=Object.keys(DOMINIOS_CORREO_POR_TENANT).find(k=>DOMINIOS_CORREO_POR_TENANT[k].includes(dominio));
+  return t&&TENANTS[t]&&!TENANTS[t].oculto?t:null;
 }
 function enterApp(){
   document.getElementById('screen-auth').classList.remove('active');
