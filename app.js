@@ -230,6 +230,9 @@ function normalize(data) {
     // Contador de faltas — opcional, lo enciende el estudiante en Editar ramo.
     // Sin él (cuentas anteriores) queda en null y no se muestra nada.
     faltas: copiarFaltas(r.faltas),
+    // Horario de clases — opcional. Sin él (cuentas anteriores) es [] y nada
+    // cambia; un bloque que no es válido se descarta, no se corrige.
+    horario: copiarHorario(r.horario),
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
@@ -3302,6 +3305,119 @@ function codigosDeFotoHorario(lecturas,existe){
     return {sigla,seccion};
   });
 }
+// De un pantallazo del horario (Mi UC, BuscaCursos), también los bloques de
+// clase: qué día y qué módulo. Con la caja de cada palabra se arma la grilla
+// como la ve una persona: los días son la fila de encabezados con más días
+// distintos, de izquierda a derecha; los módulos son las horas o números del
+// margen izquierdo, de arriba hacia abajo. Cada sigla cae en la columna y la
+// fila más cercanas. Si la foto no tiene una grilla reconocible, no se propone
+// ningún horario: uno inventado es peor que ninguno.
+const DIAS_FOTO={LUNES:1,LUN:1,MARTES:2,MAR:2,MIERCOLES:3,MIE:3,JUEVES:4,JUE:4,VIERNES:5,VIE:5,SABADO:6,SAB:6};
+const LETRAS_DIA_FOTO={L:1,M:2,W:3,J:4,V:5,S:6};
+const TIPOS_FOTO={CAT:'catedra',CLAS:'catedra',CATEDRA:'catedra',AYU:'ayudantia',AYUD:'ayudantia',AYUDANTIA:'ayudantia',
+  LAB:'laboratorio',LABORATORIO:'laboratorio',TAL:'taller',TALLER:'taller'};
+function textoGrillaFoto(t){return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9:.]/g,'');}
+function grillaDeFotoHorario(palabras,tenant){
+  const mods=modulosHorario(tenant);
+  if(!mods||!Array.isArray(palabras)||!palabras.length)return null;
+  const cx=p=>(p.x0+p.x1)/2,cy=p=>(p.y0+p.y1)/2;
+  const candidatos=[];
+  palabras.forEach(p=>{
+    const t=textoGrillaFoto(p.texto);
+    const d=DIAS_FOTO[t]||(t.length===1?LETRAS_DIA_FOTO[t]:null);
+    if(d)candidatos.push({d,x:cx(p),y:cy(p),h:Math.max(1,p.y1-p.y0),letra:t.length===1});
+  });
+  let encabezado=null;
+  candidatos.forEach(c=>{
+    const dias=new Map();
+    candidatos.filter(o=>Math.abs(o.y-c.y)<=Math.max(c.h,o.h)*0.8).sort((a,b)=>a.x-b.x)
+      .forEach(o=>{if(!dias.has(o.d))dias.set(o.d,o);});
+    if(!encabezado||dias.size>encabezado.size)encabezado=dias;
+  });
+  // Tres días con nombre, o cuatro letras sueltas (una "M" sola puede ser cualquier cosa).
+  if(!encabezado)return null;
+  const cols=[...encabezado.values()].sort((a,b)=>a.x-b.x);
+  if(cols.length<(cols.every(c=>c.letra)?4:3))return null;
+  for(let i=1;i<cols.length;i++)if(cols[i].d<=cols[i-1].d)return null;
+  const paso=(cols[cols.length-1].x-cols[0].x)/Math.max(1,cols[cols.length-1].d-cols[0].d);
+  const bajoEncabezado=Math.max(...cols.map(c=>c.y+c.h/2));
+  const margen=cols[0].x-paso*0.5;
+  const ys=new Map();
+  palabras.forEach(p=>{
+    if(cx(p)>=margen||cy(p)<=bajoEncabezado)return;
+    const t=String(p.texto||'').trim();
+    const hora=/^(\d{1,2})[:.](\d{2})$/.exec(t);
+    let n=null;
+    if(hora){const h=hora[1].padStart(2,'0')+':'+hora[2];const f=mods.lista.find(([,i])=>i===h);n=f?f[0]:null;}
+    else if(/^\d$/.test(t)&&mods.lista.some(([k])=>k===Number(t)))n=Number(t);
+    if(n){if(!ys.has(n))ys.set(n,[]);ys.get(n).push(cy(p));}
+  });
+  const filas=[...ys].map(([mod,v])=>({mod,y:v.reduce((s,x)=>s+x,0)/v.length})).sort((a,b)=>a.y-b.y);
+  if(!filas[1])return null;
+  for(let i=1;i<filas.length;i++)if(filas[i].mod<=filas[i-1].mod)return null;
+  const altos=filas.slice(1).map((f,i)=>(f.y-filas[i].y)/(f.mod-filas[i].mod)).sort((a,b)=>a-b);
+  const alto=altos[Math.floor(altos.length/2)];
+  return {
+    paso,alto,
+    dia(x){
+      let mejor=null;
+      cols.forEach(c=>{const dist=Math.abs(x-c.x);if(dist<=paso*0.55&&(!mejor||dist<mejor.dist))mejor={d:c.d,dist};});
+      if(mejor)return mejor.d;
+      // Una columna cuyo encabezado no se leyó: se ubica por el paso entre días.
+      const d=Math.round(cols[0].d+(x-cols[0].x)/paso);
+      return d>=1&&d<=6&&!encabezado.has(d)&&Math.abs(x-(cols[0].x+(d-cols[0].d)*paso))<=paso*0.4?d:null;
+    },
+    modulo(y){
+      let mejor=null;
+      filas.forEach(f=>{const dist=Math.abs(y-f.y);if(!mejor||dist<mejor.dist)mejor={mod:f.mod,dist};});
+      return mejor&&mejor.dist<=alto*0.6?mejor.mod:null;
+    },
+    tipoBajo(p){
+      const centro=cx(p);
+      const cerca=palabras.filter(q=>q!==p&&TIPOS_FOTO[textoGrillaFoto(q.texto)]
+        &&Math.abs(cx(q)-centro)<=paso*0.55&&q.y0>=p.y0&&q.y0<=p.y1+alto*0.8)
+        .sort((a,b)=>a.y0-b.y0);
+      return cerca.length?TIPOS_FOTO[textoGrillaFoto(cerca[0].texto)]:null;
+    },
+  };
+}
+// sigla → bloques de clase. Con varias lecturas de la misma foto, un bloque se
+// propone solo si aparece en al menos la mitad de las que tienen grilla.
+function clasesDeFotoHorario(lecturas,existe,tenant){
+  const mods=modulosHorario(tenant);if(!mods)return new Map();
+  const votos=new Map();let conGrilla=0;
+  [].concat(lecturas||[]).forEach(l=>{
+    const palabras=l&&Array.isArray(l.palabras)?l.palabras:[];
+    const g=grillaDeFotoHorario(palabras,tenant);if(!g)return;
+    conGrilla++;
+    const vistos=new Set();
+    palabras.forEach(p=>{
+      const t=normalizarTextoOcrHorario(String(p.texto||'').replace(/[.,;:)\]]+$/,'')).trim();
+      const m=SIGLA_FOTO_RE.exec(t);if(!m)return;
+      const sigla=existe?siglaOcrEnCatalogo(m[1],existe):m[1];
+      const dia=g.dia((p.x0+p.x1)/2),mod=g.modulo((p.y0+p.y1)/2);
+      if(!dia||!mod)return;
+      const tipo=g.tipoBajo(p);
+      const clave=`${sigla}|${dia}|${mod}`;
+      if(vistos.has(clave))return;vistos.add(clave);
+      if(!votos.has(sigla))votos.set(sigla,new Map());
+      const v=votos.get(sigla);const previo=v.get(`${dia}|${mod}`)||{dia,mod,n:0,tipos:new Map()};
+      previo.n++;if(tipo)previo.tipos.set(tipo,(previo.tipos.get(tipo)||0)+1);
+      v.set(`${dia}|${mod}`,previo);
+    });
+  });
+  const minimo=Math.max(1,Math.ceil(conGrilla/2)),out=new Map();
+  votos.forEach((v,sigla)=>{
+    const bloques=[...v.values()].filter(b=>b.n>=minimo).map(b=>{
+      const fila=mods.lista.find(([k])=>k===b.mod);
+      const tipo=[...b.tipos].sort((x,y)=>y[1]-x[1])[0];
+      return {dia:b.dia,inicio:fila[1],fin:fila[2],sala:null,tipo:tipo?tipo[0]:null};
+    });
+    const horario=copiarHorario(bloques);
+    if(horario.length)out.set(sigla,horario);
+  });
+  return out;
+}
 const FOTO_HORARIO_MAX=20*1024*1024;
 let _horarioLeyendoFoto=false;
 async function leerFotoHorario(input){
@@ -3328,7 +3444,7 @@ async function leerFotoHorario(input){
   return reconocerHorarioBuscacursos(lecturas);
 }
 
-let _horarioUCReconocido=null,_horarioSeccionesUC=[],_horarioTextoPegado='';
+let _horarioUCReconocido=null,_horarioSeccionesUC=[],_horarioClasesUC=[],_horarioTextoPegado='';
 function abrirImportarHorarioBuscacursos(conservarTexto=false){
   if(S.tenant!=='uc')return;
   if(!conservarTexto)_horarioTextoPegado='';
@@ -3363,7 +3479,7 @@ async function reconocerHorarioBuscacursos(lecturasFoto){
   if(!deFoto&&(!boton||boton.disabled))return false;
   if(!deFoto)_horarioTextoPegado=entrada.value;
   let codigos=deFoto?codigosDeFotoHorario(lecturasFoto):extraerCodigosHorarioBuscacursos(entrada.value);
-  _horarioUCReconocido=null;_horarioSeccionesUC=[];
+  _horarioUCReconocido=null;_horarioSeccionesUC=[];_horarioClasesUC=[];
   if(!codigos.length){
     estado.textContent=deFoto
       ?'No encontramos siglas en la foto. Prueba con un pantallazo más nítido, donde se lean códigos como MAT1610-1.'
@@ -3422,6 +3538,17 @@ async function reconocerHorarioBuscacursos(lecturasFoto){
     .map(([sigla,s])=>{const ramo=ramoConSigla(sigla);return ramo&&ramo.seccion!==[...s][0]
       ?{id:ramo.id,nombre:ramo.nombre,sigla,antes:ramo.seccion??null,seccion:[...s][0]}:null;})
     .filter(Boolean);
+  // Del pantallazo salen también los bloques de clase de cada ramo reconocido.
+  // Igual que la sección: al que ya tenía horario se le ofrece desmarcado,
+  // porque reemplazarlo es una decisión y no un relleno.
+  if(deFoto)clasesDeFotoHorario(lecturasFoto,x=>porSigla.has(x),'uc').forEach((bloques,sigla)=>{
+    if(!porSigla.has(sigla))return;
+    const ramo=ramoConSigla(sigla),nuevo=_horarioUCReconocido.find(r=>r.sigla===sigla);
+    if(!ramo&&!nuevo)return;
+    const antes=ramo?horarioDeRamo(ramo):[];
+    if(antes.length&&JSON.stringify(antes)===JSON.stringify(bloques))return;
+    _horarioClasesUC.push({sigla,nombre:ramo?ramo.nombre:nuevo.nombre,bloques,reemplaza:antes.length>0});
+  });
   const avisos=[];
   // De una foto, lo que no calza con el catálogo suele ser ruido del lector
   // ("TTF0012"): nombrarlo solo confunde. Se dice qué hacer si falta algo.
@@ -3438,19 +3565,27 @@ async function reconocerHorarioBuscacursos(lecturasFoto){
     <input type="checkbox" class="agent-ramo-check horario-seccion-check" data-i="${i}"${r.antes==null?' checked':''}/>
     <span><b>${esc(r.nombre)}</b><small>${esc(r.sigla)} · ${r.antes==null?`Sección ${r.seccion}`:`Sección ${r.antes} → ${r.seccion}`}</small></span>
   </label>`).join('');
-  const textoBoton=lista&&listaSecciones?'Aplicar lo marcado':lista?'Agregar los marcados':'Poner las secciones';
+  const listaClases=_horarioClasesUC.map((r,i)=>`<label class="agent-ramo-row">
+    <input type="checkbox" class="agent-ramo-check horario-clases-check" data-i="${i}"${r.reemplaza?'':' checked'}/>
+    <span><b>${esc(r.nombre)}</b><small>${esc(gruposHorario(r.bloques).map(g=>`${listaDiasTexto(g.dias)} · ${etiquetaHoraBloque(g,'uc')}`).join(' / '))}${r.reemplaza?' · reemplaza el que tenías':''}</small></span>
+  </label>`).join('');
+  const textoBoton=[lista,listaSecciones,listaClases].filter(Boolean).length>1?'Aplicar lo marcado'
+    :lista?'Agregar los marcados':listaSecciones?'Poner las secciones':'Guardar el horario';
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Ramos reconocidos</div>
     <p class="modal-desc">Revisa lo que encontramos en el catálogo UC. <b>Todavía no cambiamos nada.</b> Desmarca lo que no corresponde.</p>
     ${avisos.length?`<p class="horario-importar-estado" role="status">${avisos.join(' ')}</p>`:''}
-    ${lista?`<div class="agent-ramo-list">${lista}</div>`:listaSecciones?'':'<p class="cat-empty">No hay ramos nuevos para agregar. Puedes probar con otra foto o agregarlos uno por uno.</p>'}
+    ${lista?`<div class="agent-ramo-list">${lista}</div>`:listaSecciones||listaClases?'':'<p class="cat-empty">No hay ramos nuevos para agregar. Puedes probar con otra foto o agregarlos uno por uno.</p>'}
     ${listaSecciones?`<p class="modal-label horario-secciones-titulo">Ponerle la sección a los que ya tienes</p>
     <p class="horario-importar-estado">Solo cambia la sección. Tus notas y tu pauta quedan igual.${_horarioSeccionesUC.some(r=>r.antes!=null)?' Los que ya tenían otra sección van desmarcados: márcalos si la foto está bien.':''}</p>
     <div class="agent-ramo-list">${listaSecciones}</div>`:''}
+    ${listaClases?`<p class="modal-label horario-secciones-titulo">Guardar el horario de tus clases</p>
+    <p class="horario-importar-estado">Lo verás en la Agenda. Revisa días y módulos; la sala la agregas después en cada ramo.${_horarioClasesUC.some(r=>r.reemplaza)?' Los que ya tenían horario van desmarcados.':''}</p>
+    <div class="agent-ramo-list">${listaClases}</div>`:''}
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button type="button" class="btn-cancel" onclick="abrirImportarHorarioBuscacursos(true)">Volver</button>
-      ${lista||listaSecciones?`<button type="button" class="btn-confirm" onclick="aplicarHorarioBuscacursos()">${textoBoton}</button>`:''}
+      ${lista||listaSecciones||listaClases?`<button type="button" class="btn-confirm" onclick="aplicarHorarioBuscacursos()">${textoBoton}</button>`:''}
     </div>`;
   return true;
 }
@@ -3460,8 +3595,10 @@ function aplicarHorarioBuscacursos(){
     .filter(c=>c.checked).map(c=>_horarioUCReconocido[Number(c.dataset.i)]).filter(Boolean);
   const seccionesMarcadas=[...document.querySelectorAll('.horario-seccion-check')]
     .filter(c=>c.checked).map(c=>(_horarioSeccionesUC||[])[Number(c.dataset.i)]).filter(Boolean);
-  if(!marcados.length&&!seccionesMarcadas.length){showToast('No marcaste nada',true);return false;}
-  let puestos=0,actualizados=0;
+  const clasesMarcadas=[...document.querySelectorAll('.horario-clases-check')]
+    .filter(c=>c.checked).map(c=>(_horarioClasesUC||[])[Number(c.dataset.i)]).filter(Boolean);
+  if(!marcados.length&&!seccionesMarcadas.length&&!clasesMarcadas.length){showToast('No marcaste nada',true);return false;}
+  let puestos=0,actualizados=0,horarios=0;
   marcados.forEach(r=>{
     if(ramoPropuestoYaEsta(r))return;
     const creado=crearRamoDesdeCatalogo(r.nombre,r.sigla);
@@ -3478,15 +3615,26 @@ function aplicarHorarioBuscacursos(){
     if(seccion===null||ramo.seccion===seccion)return;
     ramo.seccion=seccion;actualizados++;
   });
-  if(!puestos&&!actualizados){showToast('Ya tienes esos ramos en tu semestre',true);return false;}
+  // Después de crear los nuevos: el horario de un ramo desmarcado no tiene
+  // dónde guardarse y se descarta. Solo se escribe `horario`.
+  clasesMarcadas.forEach(r=>{
+    const ramo=ramoConSigla(r.sigla);
+    const bloques=copiarHorario(r.bloques);
+    if(!ramo||!bloques.length)return;
+    ramo.horario=bloques;horarios++;
+  });
+  if(!puestos&&!actualizados&&!horarios){showToast('Ya tienes esos ramos en tu semestre',true);return false;}
   save();
   if(puestos)track('ramos_horario_agregados',{cantidad:puestos});
   if(actualizados)track('secciones_horario_puestas',{cantidad:actualizados});
-  _horarioUCReconocido=null;_horarioSeccionesUC=[];_horarioTextoPegado='';
+  if(horarios)track('horarios_foto_guardados',{cantidad:horarios});
+  _horarioUCReconocido=null;_horarioSeccionesUC=[];_horarioClasesUC=[];_horarioTextoPegado='';
   closeModal();renderHome();
+  if(horarios&&typeof renderAgenda==='function')renderAgenda();
   const partes=[];
   if(puestos)partes.push(puestos===1?'1 ramo agregado':`${puestos} ramos agregados`);
   if(actualizados)partes.push(actualizados===1?'1 sección puesta':`${actualizados} secciones puestas`);
+  if(horarios)partes.push(horarios===1?'1 horario guardado':`${horarios} horarios guardados`);
   showToast(partes.join(' y ')+' desde tu horario');
   return true;
 }
@@ -5084,6 +5232,179 @@ function cambiarFaltas(delta){
   if(nueva===r.faltas.cantidad)return;
   r.faltas.cantidad=nueva;
   save();track(delta>0?'falta_sumada':'falta_restada');renderRamo();
+}
+// ─── HORARIO DE CLASES ──────────────────────────────────────────────────────
+// Opcional en cada ramo: [{dia,inicio,fin,sala,tipo}]. `dia` va de 1 (lunes) a
+// 6 (sábado); las horas son locales, "HH:MM", sin zona horaria. Es un registro
+// del estudiante para ver su semana: no toca ningún promedio. Un ramo sin
+// horario (todas las cuentas anteriores) tiene [] y funciona igual que antes.
+const HORARIO_MAX_BLOQUES=24;
+const TIPOS_CLASE=[['catedra','Cátedra'],['ayudantia','Ayudantía'],['laboratorio','Laboratorio'],['taller','Taller']];
+const DIAS_CLASE=['','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+// En la UC el miércoles es "W", como en BuscaCursos y Mi UC. En el resto, "Mi".
+function diaClaseCorto(d){return ['','L','M',S.tenant==='uc'?'W':'Mi','J','V','S'][d]||'';}
+function horaClaseValida(h){return typeof h==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(h)?h:null;}
+function copiarHorario(x){
+  if(!Array.isArray(x))return [];
+  const out=[],vistos=new Set();
+  for(const b of x){
+    if(!b||typeof b!=='object'||Array.isArray(b))continue;
+    const dia=Number.isInteger(b.dia)&&b.dia>=1&&b.dia<=6?b.dia:null;
+    const inicio=horaClaseValida(b.inicio),fin=horaClaseValida(b.fin);
+    if(!dia||!inicio||!fin||fin<=inicio)continue;
+    const sala=typeof b.sala==='string'&&b.sala.trim()?b.sala.trim().slice(0,24):null;
+    const tipo=TIPOS_CLASE.some(([t])=>t===b.tipo)?b.tipo:null;
+    const clave=[dia,inicio,fin,tipo].join('|');
+    if(vistos.has(clave))continue;
+    vistos.add(clave);
+    out.push({dia,inicio,fin,sala,tipo});
+    if(out.length>=HORARIO_MAX_BLOQUES)break;
+  }
+  return out.sort((a,b)=>a.dia-b.dia||a.inicio.localeCompare(b.inicio));
+}
+function horarioDeRamo(r){return copiarHorario(r&&r.horario);}
+// Los módulos de la universidad (data.js). Sin módulos, las horas se escriben.
+function modulosHorario(tenant){
+  const m=typeof MODULOS_HORARIO!=='undefined'&&MODULOS_HORARIO?MODULOS_HORARIO[tenant||S.tenant]:null;
+  return m&&Array.isArray(m.lista)&&m.lista.length?m:null;
+}
+function moduloDeBloque(b,tenant){
+  const m=modulosHorario(tenant);if(!m||!b)return null;
+  const fila=m.lista.find(([,i,f])=>i===b.inicio&&f===b.fin);
+  return fila?fila[0]:null;
+}
+function horaCorta(h){return String(h||'').replace(/^0(\d)/,'$1');}
+function horasBloque(b){return `${horaCorta(b.inicio)}–${horaCorta(b.fin)}`;}
+function etiquetaHoraBloque(b,tenant){
+  const n=moduloDeBloque(b,tenant);
+  return n?`${modulosHorario(tenant).nombre} ${n} · ${horasBloque(b)}`:horasBloque(b);
+}
+function nombreTipoClase(t){const f=TIPOS_CLASE.find(([k])=>k===t);return f?f[1]:'';}
+function listaDiasTexto(dias){
+  const n=dias.map((d,i)=>i?DIAS_CLASE[d].toLowerCase():DIAS_CLASE[d]);
+  return n.length<=1?(n[0]||''):`${n.slice(0,-1).join(', ')} y ${n[n.length-1]}`;
+}
+// Bloques iguales en hora, tipo y sala se muestran juntos: "Lunes y miércoles".
+function gruposHorario(horario){
+  const grupos=new Map();
+  copiarHorario(horario).forEach(b=>{
+    const clave=[b.inicio,b.fin,b.tipo||'',b.sala||''].join('|');
+    if(!grupos.has(clave))grupos.set(clave,{...b,dias:[]});
+    grupos.get(clave).dias.push(b.dia);
+  });
+  return [...grupos.values()].sort((a,b)=>a.dias[0]-b.dias[0]||a.inicio.localeCompare(b.inicio));
+}
+
+// La hoja para editar las clases de un ramo. Trabaja sobre una copia: Cancelar
+// no cambia nada y Guardar escribe una sola vez.
+let _clasesEdit=null;
+function abrirClasesRamo(){
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+  _clasesEdit={ramoId:r.id,bloques:horarioDeRamo(r),dias:[],modulo:null,otraHora:!modulosHorario(),
+    inicio:'',fin:'',sala:'',tipo:'catedra',error:''};
+  pintarClasesRamo();openModal();
+}
+function leerFormClases(){
+  if(!_clasesEdit)return;
+  const val=id=>{const el=document.getElementById(id);return el?String(el.value||''):null;};
+  const sala=val('m-clase-sala');if(sala!==null)_clasesEdit.sala=sala;
+  const ini=val('m-clase-inicio');if(ini!==null)_clasesEdit.inicio=ini;
+  const fin=val('m-clase-fin');if(fin!==null)_clasesEdit.fin=fin;
+}
+function pintarClasesRamo(){
+  const e=_clasesEdit;if(!e)return;
+  const r=S.ramos.find(x=>x.id===e.ramoId);if(!r){closeModal();return;}
+  const mods=modulosHorario();
+  const fila=b=>`<div class="clase-fila">
+      <div class="clase-fila-txt"><b>${DIAS_CLASE[b.dia]} · ${esc(etiquetaHoraBloque(b))}</b>
+        <small>${[nombreTipoClase(b.tipo),b.sala?`Sala ${esc(b.sala)}`:''].filter(Boolean).join(' · ')||'Sin sala'}</small></div>
+      <button type="button" class="clase-quitar" onclick="quitarClaseEdit(${e.bloques.indexOf(b)})" aria-label="Quitar la clase del ${DIAS_CLASE[b.dia].toLowerCase()} a las ${horaCorta(b.inicio)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>
+    </div>`;
+  const chip=(label,activo,accion,aria)=>`<button type="button" class="clase-chip${activo?' sel':''}" aria-pressed="${activo?'true':'false'}" onclick="${accion}"${aria?` aria-label="${aria}"`:''}>${label}</button>`;
+  const elegido=mods&&e.modulo?mods.lista.find(([n])=>n===e.modulo):null;
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Clases de ${esc(r.nombre)}</div>
+    <p class="modal-desc">Para ver tu semana en la Agenda. No cambia ningún promedio.</p>
+    ${e.bloques.length?`<div class="clase-lista">${e.bloques.map(fila).join('')}</div>`:''}
+    <p class="modal-label">Agregar clase</p>
+    <div class="clase-chips clase-dias" role="group" aria-label="Días">${[1,2,3,4,5,6].map(d=>chip(diaClaseCorto(d),e.dias.includes(d),`alternarDiaClase(${d})`,DIAS_CLASE[d])).join('')}</div>
+    ${mods?`<p class="clase-sub">${esc(mods.nombre)}</p>
+    <div class="clase-chips clase-modulos" role="group" aria-label="${esc(mods.nombre)}">${mods.lista.map(([n])=>chip(String(n),!e.otraHora&&e.modulo===n,`elegirModuloClase(${n})`,`${mods.nombre} ${n}`)).join('')}${chip('Otra hora',e.otraHora,'elegirModuloClase(0)')}</div>
+    ${elegido&&!e.otraHora?`<p class="clase-sub">${horasBloque({inicio:elegido[1],fin:elegido[2]})}</p>`:''}`:''}
+    ${e.otraHora?`<div class="clase-horas">
+      <label class="clase-hora"><span>Desde</span><input type="time" id="m-clase-inicio" value="${esc(e.inicio)}"/></label>
+      <label class="clase-hora"><span>Hasta</span><input type="time" id="m-clase-fin" value="${esc(e.fin)}"/></label></div>`:''}
+    <label class="modal-label" for="m-clase-sala">Sala <span class="clase-opcional">(opcional)</span></label>
+    <div class="modal-input"><input type="text" id="m-clase-sala" maxlength="24" autocomplete="off" placeholder="B12" value="${esc(e.sala)}"/></div>
+    <p class="clase-sub">Tipo</p>
+    <div class="clase-chips clase-tipos" role="group" aria-label="Tipo de clase">${TIPOS_CLASE.map(([t,label])=>chip(label,e.tipo===t,`elegirTipoClase('${t}')`)).join('')}</div>
+    <p id="m-clase-error" class="clase-error" role="alert"${e.error?'':' hidden'}>${esc(e.error)}</p>
+    <button type="button" class="btn-cancel clase-agregar" onclick="agregarClaseEdit()">Agregar a la lista</button>
+    <div class="modal-btns">
+      <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn-confirm" onclick="guardarClasesRamo()">Guardar</button>
+    </div>`;
+}
+function alternarDiaClase(d){
+  if(!_clasesEdit)return;leerFormClases();
+  const i=_clasesEdit.dias.indexOf(d);
+  if(i>=0)_clasesEdit.dias.splice(i,1);else _clasesEdit.dias.push(d);
+  _clasesEdit.error='';pintarClasesRamo();
+}
+function elegirModuloClase(n){
+  if(!_clasesEdit)return;leerFormClases();
+  if(n===0){_clasesEdit.otraHora=true;_clasesEdit.modulo=null;}
+  else{_clasesEdit.otraHora=false;_clasesEdit.modulo=_clasesEdit.modulo===n?null:n;}
+  _clasesEdit.error='';pintarClasesRamo();
+}
+function elegirTipoClase(t){
+  if(!_clasesEdit)return;leerFormClases();
+  _clasesEdit.tipo=_clasesEdit.tipo===t?null:t;pintarClasesRamo();
+}
+function quitarClaseEdit(i){
+  if(!_clasesEdit)return;leerFormClases();
+  _clasesEdit.bloques.splice(i,1);pintarClasesRamo();
+}
+// Devuelve true si agregó, false si el formulario estaba vacío, y un texto de
+// error si quedó a medias (para no guardar algo distinto de lo que se ve).
+function bloquesDelFormClases(){
+  const e=_clasesEdit;
+  const mods=modulosHorario();
+  let inicio,fin;
+  if(!e.otraHora&&mods&&e.modulo){const f=mods.lista.find(([n])=>n===e.modulo);inicio=f&&f[1];fin=f&&f[2];}
+  else{inicio=horaClaseValida(e.inicio);fin=horaClaseValida(e.fin);}
+  const algo=e.dias.length||e.modulo||e.inicio||e.fin||e.sala.trim();
+  if(!algo)return {vacio:true};
+  if(!e.dias.length)return {error:'Elige al menos un día.'};
+  if(!inicio||!fin)return {error:e.otraHora||!mods?'Escribe la hora de inicio y la de término.':`Elige el ${mods.nombre.toLowerCase()} o la hora.`};
+  if(fin<=inicio)return {error:'La hora de término tiene que ser después de la de inicio.'};
+  return {bloques:e.dias.map(dia=>({dia,inicio,fin,sala:e.sala.trim()||null,tipo:e.tipo}))};
+}
+function agregarClaseEdit(){
+  if(!_clasesEdit)return false;leerFormClases();
+  const res=bloquesDelFormClases();
+  if(res.vacio){_clasesEdit.error='Elige un día y una hora para agregar la clase.';pintarClasesRamo();return false;}
+  if(res.error){_clasesEdit.error=res.error;pintarClasesRamo();return false;}
+  const antes=_clasesEdit.bloques.length;
+  _clasesEdit.bloques=copiarHorario(_clasesEdit.bloques.concat(res.bloques));
+  if(_clasesEdit.bloques.length===antes){_clasesEdit.error='Esa clase ya está en la lista.';pintarClasesRamo();return false;}
+  Object.assign(_clasesEdit,{dias:[],modulo:null,inicio:'',fin:'',sala:'',error:''});
+  pintarClasesRamo();return true;
+}
+function guardarClasesRamo(){
+  if(!_clasesEdit)return false;leerFormClases();
+  // Lo que quedó escrito sin apretar "Agregar a la lista" también se guarda;
+  // si quedó a medias, se avisa en vez de guardar otra cosa.
+  const res=bloquesDelFormClases();
+  if(res.error){_clasesEdit.error=res.error;pintarClasesRamo();return false;}
+  const r=S.ramos.find(x=>x.id===_clasesEdit.ramoId);
+  if(!r){closeModal();return false;}
+  r.horario=copiarHorario(_clasesEdit.bloques.concat(res.bloques||[]));
+  _clasesEdit=null;
+  save();track('horario_editado',{bloques:r.horario.length});
+  closeModal();renderRamo();
+  if(typeof renderAgenda==='function')renderAgenda();
+  return true;
 }
 function parseCreditos(raw){
   const n=parseInt(String(raw==null?'':raw).trim(),10);
