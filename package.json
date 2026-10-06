@@ -8,10 +8,17 @@
   "scripts": {
     "test": "node bin/tests.js",
     "deploy": "npx --no-install wrangler pages deploy . --project-name gradehub --branch=main --commit-dirty=true",
-    "sql": "node bin/sql.js"
+    "sql": "node bin/sql.js",
+    "ios:preparar": "bash bin/preparar-ios.sh",
+    "ios:abrir": "npx --no-install cap open ios"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.2",
     "@electric-sql/pglite": "0.3.16",
     "wrangler": "4.123.0"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2"
   }
 }
