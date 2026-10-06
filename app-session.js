@@ -110,6 +110,13 @@ function toggleAuthMode(){
 function showAuthScreen(){
   ['home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
+  // Al cerrar sesión la app viene del carrusel de pestañas. Con `tab-mode` el
+  // login se dibuja como capa superpuesta y quedaba corrido hacia abajo; al
+  // abrir de cero esa clase no existe y se veía bien (visto en iPhone,
+  // 2026-10-06). Se sale del carrusel igual que en showAppErrorScreen.
+  const app=document.querySelector('.app');
+  if(app)app.classList.remove('tab-mode','dragging');
+  try{window.scrollTo(0,0);}catch(e){}
   document.getElementById('screen-auth').classList.add('active');
   marcarUltimoLogin();
   // El esqueleto se pinta YA, con el alto definitivo: la RPC tarda cerca de un
