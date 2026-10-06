@@ -4622,8 +4622,18 @@ async function consensoParaRamo(r){
 // decide qué se le muestra al estudiante.
 // Los conectores ya los ignora la huella (nombreHuella).
 function nadaQueOfrecer(suya,mia){
-  const sinReglas=est=>huellaEstructura((est||[]).map(e=>({...e,min:0,cap:0})));
-  if(sinReglas(suya)!==sinReglas(mia))return false;
+  // Por evaluación: [peso, casillas]. Un grupo reportado como nota única donde
+  // la nuestra dice cuántas son ("Controles 30%" frente a "Control 1, 2 y 3")
+  // tampoco es otra pauta: trae menos detalle, no un dato distinto
+  // (Contabilidad y Microeconomía FEN, 2026-10-06).
+  const filas=est=>new Map(huellaEstructura((est||[]).map(e=>({...e,min:0,cap:0})))
+    .split('|').filter(Boolean).map(f=>{const [clave,peso,slots]=f.split('~');return [clave,[peso,Number(slots)]];}));
+  const s=filas(suya),m=filas(mia);
+  if(s.size!==m.size)return false;
+  for(const [clave,[peso,slots]] of s){
+    const nuestra=m.get(clave);
+    if(!nuestra||nuestra[0]!==peso||(slots!==nuestra[1]&&slots!==1))return false;
+  }
   const reglas=est=>(est||[]).filter(e=>Number(e.peso)>0&&(e.min||e.cap))
     .map(e=>[nombreHuella(e.nombre),e.min||0,e.cap||0].join('~'));
   const mias=new Set(reglas(mia));

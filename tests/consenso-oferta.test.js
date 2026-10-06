@@ -33,12 +33,15 @@ const reportada = [{ nombre: 'Controles de Lectura', peso: 10, slots: 3 }, { nom
   chk('sin el "de" y sin el mínimo del examen: no hay aviso', !(await ofrece(reportada)));
   chk('con el mínimo del examen igual al nuestro, tampoco', !(await ofrece(reportada.map(e => e.nombre === 'Examen' ? { ...e, min: 3, cap: 3.4 } : e))));
 
+  chk('los grupos como nota única, sin decir cuántos son: no hay aviso', !(await ofrece(reportada.map(e => { const { slots, ...resto } = e; return resto; }))));
+
   console.log('\n=== Lo que sí difiere se sigue ofreciendo ===');
   chk('otros pesos', await ofrece(reportada.map(e => e.nombre === 'Solemne' ? { ...e, peso: 25 } : e.nombre === 'Examen' ? { ...e, peso: 20 } : e)));
   chk('una regla que la nuestra no tiene', await ofrece(reportada.map(e => e.nombre === 'Solemne' ? { ...e, min: 3.5, cap: 3.9 } : e)));
   chk('otro mínimo para el examen', await ofrece(reportada.map(e => e.nombre === 'Examen' ? { ...e, min: 4, cap: 3.9 } : e)));
   chk('otra evaluación con otro nombre', await ofrece(reportada.map(e => e.nombre === 'Solemne' ? { ...e, nombre: 'Proyecto' } : e)));
   chk('otra cantidad de controles', await ofrece(reportada.map(e => e.nombre === 'Controles Ejercicios' ? { ...e, slots: 3 } : e)));
+  chk('una nota única donde la nuestra también es única pero pesa distinto', await ofrece(reportada.map(e => e.nombre === 'Controles sorpresa' ? { ...e, peso: 10 } : e.nombre === 'Solemne' ? { ...e, peso: 15 } : e)));
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail ? 1 : 0);
