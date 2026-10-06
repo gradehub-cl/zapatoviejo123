@@ -934,6 +934,18 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
    seguir al dedo. */
 .modal-sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));width:100%;max-width:430px;box-shadow:0 -4px 32px rgba(0,0,0,.2);max-height:92vh;max-height:92dvh;overflow-y:auto;
   touch-action:pan-y;overscroll-behavior-y:contain;}
+/* App iOS: las hojas abren enteras, el "large detent" de las HIG (Sheets). Con
+   el alto según el contenido cada hoja medía distinto y Ajustes saltaba al
+   cambiar de sección: se sentía página web (Martín, 2026-10-06). Queda a la
+   vista una franja de la pantalla de atrás, como en iOS. El simulador de
+   semestre, que ya es de pantalla completa, sigue mandando más abajo. */
+@media (max-width:767px){
+  .app-nativa .modal-sheet{height:calc(100dvh - env(safe-area-inset-top,0px) - 10px);max-height:none;}
+  /* Con la hoja entera, la lista de "Agregar ramo" usa el alto que sobra en
+     vez de quedarse en un tercio con media hoja vacía debajo. Los ~290px son
+     el título, el buscador y los botones. */
+  .app-nativa .cat-results{max-height:max(34vh,calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 290px));}
+}
 .modal-title{font-size:1.0625rem;font-weight:700;color:var(--fg);margin-bottom:16px;}
 /* Sin doble toque para hacer zoom sobre un botón: en iPhone un toque rápido
    se leía a veces como el comienzo de un doble toque y el botón no respondía. */

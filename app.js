@@ -1964,6 +1964,8 @@ function enAppNativa(){
   try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
   catch(e){return false;}
 }
+// Marca para el CSS de lo que solo cambia en la app (las hojas a alto completo).
+if(typeof document!=='undefined'&&enAppNativa()&&document.documentElement)document.documentElement.classList.add('app-nativa');
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
 // a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
@@ -6533,15 +6535,18 @@ function openSettings(){
       <label class="modal-label" for="s-carrera-buscar">Carrera</label>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarrerasAjustes(this.value)"/></div>
       <div id="s-carrera-grid" class="settings-carrera-grid"></div>
+      <label class="modal-label">Semestre de carrera</label>
+      <div class="sem-grid" id="s-sem-grid"></div>
+      ${guardarBtn()}
+      <!-- Aparte y al final: no se guarda con el botón de arriba, abre otra hoja.
+           Entre Carrera y Semestre partía en dos lo que ese botón guarda, y el
+           botón quedaba pegado al título siguiente (iPhone, 2026-10-06). -->
       <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Semestres que ya cursaste</label>
       <p class="settings-help" style="margin-top:0;">Si empezaste la carrera antes de usar GradeHub, agrégalos con la nota final de cada ramo para que tu promedio cuente todo lo que llevas.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
-      </div>
-      <label class="modal-label">Semestre de carrera</label>
-      <div class="sem-grid" id="s-sem-grid"></div>
-      ${guardarBtn()}`;
+      </div>`;
     if(section==='calendario')return `
       <p class="settings-help settings-help-top">Suscribe tus evaluaciones a Google Calendar, Apple Calendar u Outlook. Se agrega una vez y después se actualiza sola: si cambias una fecha acá, se corrige allá. No al instante — tu calendario relee la suscripción cada varias horas.</p>
       ${currentUser?`
