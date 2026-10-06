@@ -27,7 +27,9 @@ alter table public.catalog_reports
 -- Espeja `huellaEstructura()` de app.js. Si cambias una regla acá, cámbiala allá.
 --   · Filas en 0% fuera: no son parte de la pauta.
 --   · Nombre sin mayúsculas ni tildes, "Solemne3" = "Solemne 3", y cada palabra
---     de 4+ letras en singular ("Controles" = "Control").
+--     de 4+ letras en singular ("Controles" = "Control"). Sin conectores (de,
+--     del, la, las, el, los, y, e, en): "Controles Ejercicios" = "Control de
+--     Ejercicios" (2026-10-05). Mismo conjunto que CONECTORES_HUELLA en app.js.
 --   · 3+ evaluaciones numeradas del mismo nombre y el mismo peso, sin casillas
 --     ni compuerta propia, son una categoría con casillas: "Control 1, 2 y 3" de
 --     10% = "Controles" de 30% con 3 casillas. Con pesos distintos no se juntan.
@@ -54,7 +56,7 @@ as $$
               '([a-z])([0-9])', '\1 \2', 'g'),
             '([0-9])([a-z])', '\1 \2', 'g'),
           ' ') with ordinality as t(w, i)
-        where w <> ''
+        where w <> '' and w not in ('de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en')
       ) as clave,
       (e.valor->>'peso')::numeric as peso,
       coalesce((e.valor->>'slots')::numeric, 1) as slots,
