@@ -1433,11 +1433,18 @@ function fraseInicio(fecha=new Date()){
 // y la app crasheaba si Supabase no cargaba.
 let obStep=1;
 const OB_TOTAL=5;
-// Cuántos semestres ofrece el paso 4. Vive acá porque `mallaCubreTodoElPaso`
-// compara contra este número: si crece la lista y una malla no llega, la
-// promesa de "tu malla se carga sola" deja de aparecer sola, sin que nadie
-// tenga que acordarse.
+// Cuántos semestres ofrece el paso 4 como mínimo. Una carrera cuya malla llega
+// más lejos ofrece los suyos (`semestresDeCarrera`): Medicina UAndes y UC y
+// Derecho y Filosofía tienen 12, los dobles títulos UAI 13. Antes era un 11
+// fijo y quien iba en 12° no tenía cómo decirlo. `mallaCubreTodoElPaso` compara
+// contra el mismo número, así que la promesa de "tu malla se carga sola" sigue
+// siendo cierta para todos los semestres que se ofrecen.
 const OB_SEMESTRES=11;
+function semestresDeCarrera(tenant,codigo){
+  const malla=codigo?mallaDeCarrera(tenant,codigo):null;
+  const ultimo=malla?Math.max(0,...Object.keys(malla).map(Number).filter(Number.isInteger)):0;
+  return Math.max(OB_SEMESTRES,ultimo);
+}
 // Etiquetas fijas nuestras, de lista cerrada: no son texto del estudiante, y
 // hacen legible el embudo sin tener que traducir números mirando el código.
 const OB_ETAPAS=['nombre','universidad','carrera','semestre','ramos'];
@@ -1461,12 +1468,14 @@ function mallaCubreTodoElPaso(codigo){
   if(!codigo)return false;
   const porCarrera=mallaDeCarrera(selectedTenant,codigo);
   if(!porCarrera)return false;
-  for(let i=1;i<=OB_SEMESTRES;i++)if(!porCarrera[i]&&!porCarrera[String(i)])return false;
+  for(let i=1;i<=semestresDeCarrera(selectedTenant,codigo);i++)if(!porCarrera[i]&&!porCarrera[String(i)])return false;
   return true;
 }
 function initSemGrid(){
   const g=document.getElementById('sem-grid');g.innerHTML='';
-  for(let i=1;i<=OB_SEMESTRES;i++){
+  const total=semestresDeCarrera(selectedTenant,selectedCarrera);
+  if(selectedSem>total)selectedSem=total;
+  for(let i=1;i<=total;i++){
     const b=document.createElement('button');
     b.className='sem-btn'+(i===selectedSem?' sel':'');
     b.textContent=i+'°';
@@ -1795,6 +1804,9 @@ function obTrackPaso(){
 function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;renderTenantPick();obRender();checkOb();}
 
 function obRender(){
+  // Cuántos semestres ofrecer depende de la malla, que puede venir en un
+  // archivo diferido: se pide acá y el selector se repinta cuando llega.
+  if(obStep===4){initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4)initSemGrid();});}
   if(obStep===5)prepararObRamos();
   obTrackPaso();
   document.querySelectorAll('.ob-step').forEach(el=>{
@@ -6659,7 +6671,10 @@ function openSettings(){
   window.renderFondoGrid=renderFondoGrid;
   function renderSettingsSemGrid(){
     const g=document.getElementById('s-sem-grid');if(!g)return;g.innerHTML='';
-    for(let i=1;i<=11;i++){
+    const total=semestresDeCarrera(settingsTenant,settingsCarrera);
+    if(settingsSem>total)settingsSem=total;
+    repintarAlCargarMallas(settingsTenant,renderSettingsSemGrid);
+    for(let i=1;i<=total;i++){
       const b=document.createElement('button');b.className='sem-btn'+(i===settingsSem?' sel':'');
       b.textContent=i+'°';b.onclick=()=>{settingsSem=i;renderSettingsSemGrid();};g.appendChild(b);
     }
@@ -6694,6 +6709,8 @@ function openSettings(){
   // que hay cuando no tenemos su malla.
   window._sFiltro=v=>{settingsCarreraFiltro=v;renderSettingsCarreraGrid();};
   function renderSettingsCarreraGrid(){
+    // La carrera decide cuántos semestres se ofrecen (12 en Medicina).
+    renderSettingsSemGrid();
     const g=document.getElementById('s-carrera-grid');if(!g)return;g.innerHTML='';
     const q=normName(settingsCarreraFiltro||'');
     const todas=carrerasDeclarables(settingsTenant);
