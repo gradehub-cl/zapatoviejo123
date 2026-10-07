@@ -1917,15 +1917,15 @@ function mostrarRamosCargados(cantidad,oficiales){
   if(oficiales===cantidad){
     titulo='Tu semestre está listo';
     principal=oficialesTxt;
-    detalle='Los porcentajes ya están configurados. Cuando tengas una nota, ingrésala en el ramo.';
+    detalle='Ya tienen sus porcentajes. Ingresa tus notas en cada ramo.';
   }else if(oficiales>0){
     titulo='Tus ramos están listos';
     principal=oficialesTxt;
-    detalle=`En esos ramos, los porcentajes ya están configurados. En ${pendientes===1?'el otro':`los otros ${pendientes}`}, agrega evaluaciones y sus porcentajes antes de ingresar notas.`;
+    detalle=`Ya tienen sus porcentajes. ${pendientes===1?'Al otro agrégale':`A los otros ${pendientes} agrégales`} sus evaluaciones.`;
   }else{
     titulo='Ahora, las evaluaciones';
     principal=ramosTxt;
-    detalle='Antes de ingresar una nota, agrega las evaluaciones y sus porcentajes en cada ramo.';
+    detalle='Agrega las evaluaciones y sus porcentajes en cada ramo.';
   }
   modal.innerHTML=`
     <div class="modal-title">${titulo}</div>
@@ -1958,8 +1958,39 @@ let _promptInstalar=null;
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
+// La app iOS (Capacitor). app-session.js tiene su propia constante; esta es
+// función porque app.js carga antes y no puede declarar el mismo nombre.
+function enAppNativa(){
+  try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
+  catch(e){return false;}
+}
+// La clase html.app-nativa la pone index.html antes de pintar.
+// Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
+// nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
+// a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
+// hoja de Safari; las páginas propias, desde gradehub.cl. Devuelve false si no
+// lo manejó (la web, o un mailto: que abre iOS).
+function abrirFuera(url){
+  if(!enAppNativa())return false;
+  let abs;
+  try{abs=new URL(url,'https://gradehub.cl/').href;}catch(e){return false;}
+  const Browser=window.Capacitor.Plugins&&window.Capacitor.Plugins.Browser;
+  if(!/^https?:/.test(abs)||!Browser)return false;
+  Browser.open({url:abs,presentationStyle:'popover'}).catch(()=>{});
+  return true;
+}
+if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('click',e=>{
+  const a=e.target&&e.target.closest&&e.target.closest('a[target="_blank"]');
+  // El contacto de una clase tiene su propio manejo (mide antes de abrir).
+  if(!a||a.hasAttribute('data-contactar'))return;
+  if(abrirFuera(a.getAttribute('href')))e.preventDefault();
+},true);
+
 function appYaInstalada(){
   try{
+    // La app iOS (Capacitor) ya es la app instalada: ofrecer "Agregar a
+    // pantalla de inicio" ahí no tiene sentido. El aviso queda solo para la web.
+    if(enAppNativa())return true;
     return !!(navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches));
   }catch(e){return false;}
 }
@@ -2329,10 +2360,6 @@ function activarReordenRamos(container){
   });
 }
 
-function cycleSortMode(){
-  S.sortMode=S.sortMode==='manual'?'avg':S.sortMode==='avg'?'name':'manual';
-  save();renderHome();
-}
 
 function openRamo(id){
   currentRamoId=id;
@@ -2688,7 +2715,7 @@ function mallaFaltantes(){
 }
 let _mallaSel={}, _mallaList=[];
 function openMallaModal(){
-  if(!S.carrera){showToast('Primero elige tu carrera en Configuración');return;}
+  if(!S.carrera){showToast('Primero elige tu carrera en Ajustes');return;}
   _mallaList=mallaFaltantes();
   if(!_mallaList.length){
     const hayMalla=Object.keys((mallaFor(S.tenant)[S.carrera]||{})).length>0;
@@ -4309,9 +4336,8 @@ function openReportModal(ramoId,conservarBorrador=false){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Reportar pauta</div>
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin-bottom:14px;">
-      Ajusta las evaluaciones y porcentajes de <b>${esc(r.nombre)}</b> para que calcen con tu curso. Lo que cambies
-      tambi\u00e9n queda en tu ramo, con tus notas. Si varios estudiantes reportan lo mismo, pasa a ser la versi\u00f3n
-      sugerida del cat\u00e1logo.
+      Corrige las evaluaciones de <b>${esc(r.nombre)}</b> como son en tu curso. El cambio queda en tu ramo y,
+      si otros reportan lo mismo, pasa al cat\u00e1logo.
     </p>
     <div class="rep-box">
       ${filas}
@@ -4701,7 +4727,7 @@ async function verConsensoDisponible(ramoId){
     : `<p class="modal-desc" style="margin-top:10px;">Tus notas se conservan: se reconocen por el nombre de la evaluación.</p>`;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">La pauta que reportan tus compañeros</div>
-    <p class="modal-desc">La enviaron <b>${hit.respaldos} estudiantes</b> de tu universidad por separado y coincidieron. <b>No la sacamos del programa del curso</b> — compárala con la tuya.</p>
+    <p class="modal-desc">La reportaron <b>${hit.respaldos} estudiantes</b> de tu universidad. <b>No sale del programa del curso</b>: compárala con la tuya.</p>
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${pauta.categorias.map(fila).join('')}</ul>
     ${aviso}
     <div class="modal-btns" style="margin-top:16px;">
@@ -5406,7 +5432,7 @@ function renderPautaManualModal(){
   }).join('');
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Editar evaluaciones</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.45;margin:-4px 0 12px;">Escribe cada evaluación con el porcentaje que vale del ramo. Puedes guardar aunque te falten algunas; el resto solo se asigna cuando tú eliges la fila.</p>
+    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.45;margin:-4px 0 12px;">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
     ${plantillas}
     ${duplicar}
     <datalist id="m-pauta-sugerencias">${sugerencias}</datalist>
@@ -5675,7 +5701,68 @@ function umGo(fn){
 }
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('user-menu').classList.contains('open'))closeUserMenu();
+  if(e.key==='Escape'&&document.getElementById('menu-flotante'))cerrarMenu();
 });
+
+// ─── Menús desplegables ─────────────────────────────────────────────────────
+// Un menú que se abre bajo su botón, como los de iOS: el orden de Inicio y el
+// "⋯" del ramo. Tiene el aspecto del menú de la cuenta. Antes el orden cambiaba
+// con cada toque sin mostrar las opciones, y editar y eliminar el ramo eran
+// dos botones sueltos, el de eliminar siempre a la vista y en rojo.
+// items: {texto, icono?, marcado?, peligro?, accion} o 'sep' para separar.
+let _botonMenu=null;
+const CHECK_MENU='<svg class="ic menu-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+function abrirMenu(boton,items){
+  cerrarMenu();
+  const fondo=document.createElement('div');
+  fondo.id='menu-flotante-fondo';fondo.className='user-menu-backdrop open';fondo.onclick=cerrarMenu;
+  const m=document.createElement('div');
+  m.id='menu-flotante';m.className='user-menu open menu-flotante';m.setAttribute('role','menu');
+  items.forEach(it=>{
+    if(it==='sep'){const s=document.createElement('div');s.className='user-menu-sep';m.appendChild(s);return;}
+    const b=document.createElement('button');
+    b.type='button';b.className='user-menu-item'+(it.peligro?' danger':'');
+    const radio=it.marcado!==undefined;
+    b.setAttribute('role',radio?'menuitemradio':'menuitem');
+    if(radio)b.setAttribute('aria-checked',String(!!it.marcado));
+    // Como en iOS, el ✓ va antes del texto y las otras opciones guardan su lugar.
+    b.innerHTML=`${radio?(it.marcado?CHECK_MENU:'<span class="menu-check" aria-hidden="true"></span>'):''}${it.icono||''}<span class="menu-texto">${esc(it.texto)}</span>`;
+    b.onclick=()=>{cerrarMenu();setTimeout(()=>{try{it.accion();}catch(e){}},60);};
+    m.appendChild(b);
+  });
+  document.body.append(fondo,m);
+  _botonMenu=boton;boton.setAttribute('aria-expanded','true');
+  // Bajo el botón y alineado a su borde derecho; si no cabe abajo, encima.
+  const r=boton.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  const vw=window.innerWidth,vh=window.innerHeight;
+  m.style.left=Math.max(10,Math.min(r.right-w,vw-w-10))+'px';
+  m.style.top=(r.bottom+8+h>vh-10?Math.max(10,r.top-8-h):r.bottom+8)+'px';
+  const primero=m.querySelector('[aria-checked="true"]')||m.querySelector('button');
+  if(primero){try{primero.focus({preventScroll:true});}catch(e){}}
+}
+function cerrarMenu(){
+  const m=document.getElementById('menu-flotante');if(!m)return;
+  m.remove();const f=document.getElementById('menu-flotante-fondo');if(f)f.remove();
+  const b=_botonMenu;_botonMenu=null;
+  if(b){b.setAttribute('aria-expanded','false');if(b.isConnected){try{b.focus({preventScroll:true});}catch(e){}}}
+}
+const ORDENES_RAMOS=[['manual','Manual'],['avg','Por nota'],['name','A-Z']];
+function abrirMenuOrden(boton){
+  abrirMenu(boton,ORDENES_RAMOS.map(([modo,texto])=>({texto,marcado:S.sortMode===modo,
+    accion:()=>{S.sortMode=modo;save();renderHome();}})));
+}
+function abrirMenuRamo(boton){
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+  const ic=d=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const oficial=r.categorias.length&&r.origen&&r.origen.tenant&&presetRamo(r.nombre,r.origen.tenant,r.origen.carrera);
+  abrirMenu(boton,[
+    {texto:'Editar ramo',icono:ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),accion:openEditRamoModal},
+    {texto:'Editar evaluaciones',icono:ic('<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'),accion:openPautaManualModal},
+    ...(oficial?[{texto:'Reportar pauta',icono:ic('<path d="M4 21V4h12l-1.5 4L16 12H4"/>'),accion:()=>openReportModal(r.id)}]:[]),
+    'sep',
+    {texto:'Eliminar ramo',peligro:true,icono:ic('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>'),accion:confirmDeleteRamo}
+  ]);
+}
 
 // ─── AGENTES CONECTADOS ────────────────────────────────────────────────────
 let agentesConectados=[],agentesCargando=false,agentesError='';
@@ -5790,7 +5877,7 @@ function pintarUrlAgente(){
   if(!raiz)return;
   if(!agenteUrlActual){raiz.innerHTML='';return;}
   raiz.innerHTML=`<div class="agent-url-box">
-    <div class="agent-url-warn">Esta URL es como una contraseña: quien la tenga puede ver tus ramos y tus notas. Pégala solo en el campo de URL del conector que te indicó tu agente; no la envíes por el chat. No se vuelve a mostrar.</div>
+    <div class="agent-url-warn">Es como una contraseña: quien la tenga ve tus ramos y notas. Pégala solo en el conector; no la envíes por el chat. No se vuelve a mostrar.</div>
     <code class="agent-url-value">${esc(agenteUrlActual)}</code>
     <button type="button" class="agent-refresh" onclick="copiarUrlAgente()">Copiar URL del conector</button>
   </div>`;
@@ -6475,7 +6562,7 @@ function openSettings(){
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
   ];
 
-  function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar cambios</button>';}
+  function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar</button>';}
   // "Soy profesor particular" es una POSTULACIÓN, no un interruptor: apretarlo
   // no enciende nada hasta que alguien del equipo la revise. Por eso el panel
   // muestra siempre en qué va, y no deja a nadie esperando sin saber.
@@ -6483,7 +6570,7 @@ function openSettings(){
     if(typeof perfilProfesorConocido!=='function')
       return '<p class="settings-help settings-help-top">Las clases particulares todavía no están disponibles.</p>';
     if(!currentUser)
-      return '<p class="settings-help settings-help-top">Necesitas iniciar sesión para ofrecer clases: tu postulación va atada a tu cuenta, no a este dispositivo.</p>';
+      return '<p class="settings-help settings-help-top">Inicia sesión para ofrecer clases.</p>';
     const perfil=perfilProfesorConocido();
     if(perfil===undefined)
       return '<p class="settings-help settings-help-top">Revisando tu acceso…</p>';
@@ -6493,14 +6580,14 @@ function openSettings(){
     if(perfil===null)
       return '<p class="settings-help settings-help-top">Las clases particulares todavía no están disponibles. Vuelve a mirar más adelante.</p>';
     if(!perfil)return `
-      <p class="settings-help settings-help-top">Si haces clases particulares, puedes publicar tus avisos acá. Tu cuenta de estudiante sigue igual: tus notas no se muestran a nadie ni se usan para tu anuncio.</p>
+      <p class="settings-help settings-help-top">Si haces clases particulares, publica tus avisos acá. Tus notas no se muestran ni se usan en tu anuncio.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" class="btn-primary" onclick="postularComoProfesor()">Soy profesor particular</button>
       </div>
-      <p class="settings-help">Un miembro de nuestro equipo revisa cada postulación antes de que puedas preparar anuncios.</p>`;
+      <p class="settings-help">Revisamos cada postulación antes de que puedas publicar.</p>`;
     const estados={
-      pendiente:['Tu postulación está en revisión.','Te avisamos cuando un miembro de nuestro equipo la revise. Todavía no puedes publicar clases.'],
-      aprobado:['Estás aprobado como profesor particular.','Tienes la pestaña <b>Clases</b> abajo, junto a Inicio: ahí preparas tus anuncios y ves cómo les va.'],
+      pendiente:['Tu postulación está en revisión.','Te avisamos cuando la revisemos.'],
+      aprobado:['Estás aprobado como profesor particular.','Preparas tus anuncios en la pestaña <b>Clases</b>.'],
       rechazado:['Tu postulación no fue aprobada.','Puedes escribirnos desde Sugerencias y comentarios para revisar el motivo.'],
       suspendido:['Tu acceso de profesor está suspendido.','Tus notas y tu semestre siguen igual. Escríbenos si crees que es un error.'],
     };
@@ -6522,7 +6609,7 @@ function openSettings(){
       ${currentUser?`<div class="settings-account-access">
         <label class="modal-label" for="s-account-email">Correo de acceso</label>
         <div class="modal-input"><input type="email" id="s-account-email" value="${esc(currentUser.email||'')}" maxlength="60" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" aria-describedby="s-account-email-help s-account-email-status"/></div>
-        <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Cámbialo al tiro. Revisa que esté bien escrito: lo usarás para entrar y recuperar tu cuenta.</p>
+        <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Se cambia al tiro. Revisa que esté bien escrito: con él entras y recuperas tu cuenta.</p>
         <p id="s-account-email-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
       </div>`:''}`;
@@ -6533,17 +6620,20 @@ function openSettings(){
       <label class="modal-label" for="s-carrera-buscar">Carrera</label>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarrerasAjustes(this.value)"/></div>
       <div id="s-carrera-grid" class="settings-carrera-grid"></div>
-      <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
-      <label class="modal-label">Semestres que ya cursaste</label>
-      <p class="settings-help" style="margin-top:0;">Si empezaste la carrera antes de usar GradeHub, agrégalos con la nota final de cada ramo para que tu promedio cuente todo lo que llevas.</p>
-      <div class="settings-data-actions" style="margin-bottom:0;">
-        <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
-      </div>
       <label class="modal-label">Semestre de carrera</label>
       <div class="sem-grid" id="s-sem-grid"></div>
-      ${guardarBtn()}`;
+      ${guardarBtn()}
+      <!-- Aparte y al final: no se guarda con el botón de arriba, abre otra hoja.
+           Entre Carrera y Semestre partía en dos lo que ese botón guarda, y el
+           botón quedaba pegado al título siguiente (iPhone, 2026-10-06). -->
+      <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Semestres que ya cursaste</label>
+      <p class="settings-help" style="margin-top:0;">Agrega los que cursaste antes de usar GradeHub, con la nota final de cada ramo.</p>
+      <div class="settings-data-actions" style="margin-bottom:0;">
+        <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
+      </div>`;
     if(section==='calendario')return `
-      <p class="settings-help settings-help-top">Suscribe tus evaluaciones a Google Calendar, Apple Calendar u Outlook. Se agrega una vez y después se actualiza sola: si cambias una fecha acá, se corrige allá. No al instante — tu calendario relee la suscripción cada varias horas.</p>
+      <p class="settings-help settings-help-top">Tus evaluaciones en Google Calendar, Apple Calendar u Outlook. Se agrega una vez y se actualiza sola cada algunas horas.</p>
       ${currentUser?`
       <label class="modal-label">Tu URL de suscripción</label>
       <div class="modal-input"><input type="text" id="s-cal-url" readonly value="Generando…" onclick="this.select()"/></div>
@@ -6551,17 +6641,17 @@ function openSettings(){
         <button type="button" onclick="copiarFeedCalendario()">Copiar URL</button>
         <button type="button" onclick="revocarFeedCalendario()">Generar una nueva</button>
       </div>
-      <p class="settings-help">En Google Calendar: <b>Otros calendarios · + · Desde URL</b>. Google la consulta cada 8 a 24 horas, así que un cambio de fecha no aparece al tiro.</p>
-      <p class="settings-help">Quien tenga esta URL puede ver tus ramos, tus evaluaciones y sus fechas. <b>Tus notas no salen nunca.</b> Si se te escapa, genera una nueva y la anterior deja de servir al instante.</p>`
-      :`<p class="settings-help">Necesitas iniciar sesión: el feed va atado a tu cuenta, no a este dispositivo.</p>`}
+      <p class="settings-help">En Google Calendar: <b>Otros calendarios · + · Desde URL</b>.</p>
+      <p class="settings-help">Quien tenga esta URL ve tus evaluaciones y fechas. <b>Tus notas no salen nunca.</b> Si se filtra, genera una nueva.</p>`
+      :`<p class="settings-help">Inicia sesión para suscribirte.</p>`}
       <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Traer fechas desde un calendario</label>
-      <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> exportado desde tu calendario. Revisas cada coincidencia antes de agregarla; nunca cambia tus ponderaciones ni fechas que ya ajustaste.</p>
+      <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> de tu calendario. Revisas cada fecha antes de agregarla.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
       </div>`;
     if(section==='apariencia')return `
-      <p class="settings-help settings-help-top">Elige cómo prefieres ver GradeHub. Se guarda al elegir.</p>
+      <p class="settings-help settings-help-top">Se guarda al elegir.</p>
       <div class="modo-grid" id="s-modo-grid"></div>
       <label class="modal-label accent-picker-label">Color de acento</label>
       <div class="accent-grid" id="s-acento-grid" role="radiogroup" aria-label="Color de acento"></div>
@@ -6570,24 +6660,24 @@ function openSettings(){
     // Una sola forma de conectar: crear la URL y pegarla en el agente.
     if(section==='agentes')return currentUser?`
       <div class="agent-explainer">
-        <b>Qué puede hacer un agente conectado</b>
-        <span>Ver tus ramos, notas, ponderaciones y fechas. Simular qué pasa si te va de cierta forma y decirte dónde rinde estudiar. Agregar un ramo. Proponerte una pauta, que no se aplica hasta que la confirmes.</span>
+        <b>Qué puede hacer</b>
+        <span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span>
         <span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>
       </div>
 
       <label class="modal-label">1. Pregúntale a tu agente dónde conectarlo</label>
-      <p class="settings-help" style="margin-top:0;">Copia este mensaje y pégalo en el chat. Tu agente te mostrará dónde agregar un conector por URL en la app que usas.</p>
+      <p class="settings-help" style="margin-top:0;">Pégalo en el chat y te dirá dónde agregar el conector.</p>
       <div class="agent-prompt-box">
         <p id="s-agent-prompt-text" class="agent-prompt-text">Quiero conectar GradeHub a este agente mediante una URL MCP. Explícame paso a paso dónde debo agregar un conector o servidor MCP en esta aplicación. No me pidas que envíe la URL por el chat: debo pegarla directamente en la configuración del conector.</p>
         <button type="button" class="agent-refresh" onclick="copiarPromptConectorAgente()">Copiar mensaje para mi agente</button>
       </div>
 
       <label class="modal-label">2. Ponle un nombre a la conexión</label>
-      <p class="settings-help" style="margin-top:0;">Es el que vas a ver en la lista para reconocerlo y desconectarlo.</p>
+      <p class="settings-help" style="margin-top:0;">Para reconocerlo en la lista.</p>
       <div class="modal-input" style="margin-bottom:12px;"><input type="text" id="s-agent-url-nombre" placeholder="Ej: Mi agente" maxlength="60" autocomplete="off"/></div>
 
       <label class="modal-label">3. Crea la URL y agrégala al conector</label>
-      <p class="settings-help" style="margin-top:0;">Vuelve a los pasos que te dio tu agente y pega ahí la URL. Dura 90 días y la verás una sola vez.</p>
+      <p class="settings-help" style="margin-top:0;">Pégala donde te indicó tu agente. Dura 90 días y se muestra una vez.</p>
       <button type="button" class="settings-reset-btn agent-url-create" id="s-agent-url-create" onclick="crearUrlAgente()">Crear URL de conexión</button>
       <div id="s-agent-url" class="agent-url-wrap" aria-live="polite"></div>
 
@@ -6596,8 +6686,8 @@ function openSettings(){
       <div id="s-agent-list" class="agent-list" aria-live="polite"></div>
 
       <div class="agent-proposal-entry agent-prompt-picker"><div>
-        <b>Pídele algo con lo que ya sabe</b>
-        <span>Elige un mensaje, cópialo y pégalo en el chat de tu agente.</span>
+        <b>Ideas para pedirle</b>
+        <span>Elige un mensaje y pégalo en el chat.</span>
         <select class="feedback-select" id="s-agent-prompt-pick" onchange="pintarPromptAgente()" aria-label="Qué pedirle a tu agente">
           ${Object.entries(PROMPTS_AGENTE).map(([clave,p])=>`<option value="${esc(clave)}">${esc(p.titulo)}</option>`).join('')}
         </select>
@@ -6605,8 +6695,8 @@ function openSettings(){
         <details class="agent-prompt-ver"><summary>Ver el mensaje</summary><span id="s-agent-prompt-texto">${esc(PROMPTS_AGENTE.repaso.texto)}</span></details>
       </div><button type="button" class="agent-refresh" onclick="copiarPromptAgente()">Copiar</button></div>
 
-      <div class="agent-proposal-entry"><div><b>Pautas por revisar</b><span>Si un agente te propuso una pauta, la revisas acá. Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
-      :`<div class="feedback-empty"><b>Necesitas iniciar sesión</b><p>La conexión queda atada a tu cuenta para que puedas ver y desconectar tus agentes.</p></div>`;
+      <div class="agent-proposal-entry"><div><b>Pautas por revisar</b><span>Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
+      :`<div class="feedback-empty"><b>Necesitas iniciar sesión</b><p>Así puedes ver y desconectar tus agentes.</p></div>`;
     if(section==='sugerencias'){
       const contacto=`<p class="feedback-contact">¿Prefieres escribirnos por correo? <a id="feedback-contact" href="${esc(correoSugerenciaHref())}" onclick="actualizarCorreoSugerencia()">gradehub.app@gmail.com</a></p>`;
       return currentUser?`
@@ -6644,7 +6734,10 @@ function openSettings(){
     const tokens=normName(settingsSearch).split(/\s+/).filter(t=>t&&!['mi','mis','el','la','los','las','de','del','un','una','y','en'].includes(t));
     const results=sections.filter(section=>tokens.every(t=>normName(section.join(' ')).includes(t)));
     const nav=document.getElementById('settings-nav-list');
-    nav.innerHTML=results.map(([group,id,title,detail],i)=>`${!i||results[i-1][0]!==group?`<div class="settings-nav-group">${group}</div>`:''}<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')||'<p class="settings-search-empty">No encontramos esa opción. Prueba con «carrera», «correo» o «fondo».</p>';
+    // Cada grupo va en su propia caja: en la app es la tarjeta agrupada de iOS;
+    // en la web la caja no se ve (display:contents).
+    const grupos=[];results.forEach(x=>{const g=grupos[grupos.length-1];if(g&&g[0]===x[0])g[1].push(x);else grupos.push([x[0],[x]]);});
+    nav.innerHTML=grupos.map(([group,filas])=>`<div class="settings-nav-group">${group}</div><div class="settings-nav-card">${filas.map(([,id,title,detail])=>`<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`).join('')||'<p class="settings-search-empty">No encontramos esa opción. Prueba con «carrera», «correo» o «fondo».</p>';
     document.getElementById('settings-search-status').textContent=settingsSearch.trim()?`${results.length} ${results.length===1?'sección encontrada':'secciones encontradas'}`:'';
     document.querySelectorAll('[data-settings-section]').forEach(b=>b.onclick=()=>{
       activeSection=b.dataset.settingsSection;renderSettings();
@@ -6661,7 +6754,7 @@ function openSettings(){
       <div class="settings-shell${activeSection?' settings-detail-open':''}">
         <nav class="settings-nav" aria-label="Secciones de Ajustes">
           <label class="settings-search-label" for="settings-search">Buscar en Ajustes</label>
-          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="¿Qué buscas?" autocomplete="off" aria-controls="settings-nav-list"/>
+          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="Buscar" autocomplete="off" aria-controls="settings-nav-list"/>
           <span class="settings-search-status" id="settings-search-status" role="status"></span>
           <div id="settings-nav-list"></div>
         </nav>
@@ -6711,7 +6804,7 @@ function openSettings(){
   function renderModoGrid(){
     const g=document.getElementById('s-modo-grid');if(!g)return;g.innerHTML='';
     // 'sistema' primero: es el default y lo que la mayoría quiere.
-    [['sistema','Sistema','Se adapta a cómo lo tienes configurado'],['claro','Claro',''],['oscuro','Oscuro','']]
+    [['sistema','Sistema','Como tu dispositivo'],['claro','Claro',''],['oscuro','Oscuro','']]
       .forEach(([val,nom,sub])=>{
         const b=document.createElement('button');
         b.type='button';
@@ -7131,9 +7224,7 @@ function pasoRamosSemestreAnterior(){
   return `
     <div class="modal-title">Agregar un semestre anterior</div>
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin-bottom:14px;">
-      Para que tu promedio de carrera cuente lo que ya cursaste. Elige los ramos y
-      despu\u00e9s pones la nota final de cada uno: no hace falta que te acuerdes de las
-      evaluaciones.
+      Elige los ramos y pon la nota final de cada uno. No necesitas las evaluaciones.
     </p>
     <label class="modal-label">Qu\u00e9 semestre fue</label>
     <div class="sem-picker" id="m-hist-sem">${selectorSemestreHTML(histManual.anio,histManual.periodo,'setAnioSemestreAnterior','setPeriodoSemestreAnterior')}</div>
@@ -7497,6 +7588,51 @@ function etiquetarCamposDelModal(raiz){
     lab.setAttribute('for',campo.id);
   });
 }
+// ─── Hojas como en iOS (solo en la app) ─────────────────────────────────────
+// En la app, cada hoja lleva arriba la barra de iOS: cerrar (X) o volver (‹) a
+// la izquierda y la acción principal a la derecha, a la vista aunque la hoja
+// sea larga (HIG, Sheets: Cancel al inicio de la barra, Done al final). No se
+// reescribe ninguna hoja: se mueven a la barra los botones que ya traen, con su
+// onclick y su id. Lo que no es cerrar, volver o confirmar (elegir entre dos,
+// borrar, copiar) se queda abajo, igual que en la web.
+const HOJA_CERRAR=/^(cancelar|cerrar)$/i,HOJA_VOLVER=/^(atrás|volver)$/i;
+const HOJA_CONFIRMAR=/^(guardar|agregar|enviar|marcar|importar|continuar|listo|crear|aplicar|actualizar)\b/i;
+function armarBarraDeHoja(c){
+  if(!c||typeof c.querySelector!=='function'||c.querySelector(':scope > .hoja-barra'))return;
+  const txt=b=>(b.textContent||'').trim();
+  const filas=[...c.querySelectorAll('.modal-btns:not(.agent-proposal-actions)')];
+  const fila=filas[filas.length-1];
+  const enFila=fila?[...fila.querySelectorAll('button')]:[];
+  const cancelar=b=>b.classList.contains('btn-cancel');
+  const izq=c.querySelector('.settings-back')||c.querySelector('.settings-cerrar')
+    ||enFila.find(b=>cancelar(b)&&HOJA_CERRAR.test(txt(b)))||enFila.find(b=>cancelar(b)&&HOJA_VOLVER.test(txt(b)));
+  const confirmables=enFila.filter(b=>b!==izq&&b.classList.contains('btn-confirm')&&HOJA_CONFIRMAR.test(txt(b)));
+  const der=c.querySelector('.settings-save')||(confirmables.length===1?confirmables[0]:null);
+  if(!izq&&!der)return;
+  const barra=document.createElement('div');barra.className='hoja-barra';
+  [izq,der].forEach((b,i)=>{
+    const lado=document.createElement('div');lado.className=i?'hoja-barra-der':'hoja-barra-izq';
+    if(b){
+      // Un botón de envío fuera de su <form> deja de enviarlo: se le dice cuál es.
+      const form=b.form;
+      if(form&&b.type==='submit'){if(!form.id)form.id='hoja-form';b.setAttribute('form',form.id);}
+      if(i)b.classList.add('hoja-confirmar');
+      else{
+        b.classList.add(b.classList.contains('settings-back')||HOJA_VOLVER.test(txt(b))?'hoja-volver':'hoja-cerrar');
+        if(!b.getAttribute('aria-label'))b.setAttribute('aria-label',txt(b));
+      }
+      lado.appendChild(b);
+    }
+    barra.appendChild(lado);
+  });
+  c.prepend(barra);
+  if(fila&&!fila.querySelector('button'))fila.remove();
+}
+try{
+  const contenido=document.getElementById('modal-content');
+  if(contenido&&typeof MutationObserver==='function'&&document.documentElement.classList.contains('app-nativa'))
+    new MutationObserver(()=>armarBarraDeHoja(contenido)).observe(contenido,{childList:true});
+}catch(e){}
 let _quienAbrioModal=null;
 
 function openModal(){
@@ -8256,7 +8392,7 @@ function openSimGlobalModal(){
   simGlobalState={};
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Simular el semestre</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:16px;line-height:1.5;">Ajusta la nota final de cada ramo y mira cómo queda tu promedio general. Puedes escribirla directo. Nada de esto se guarda.</p>
+    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:16px;line-height:1.5;">Cambia la nota final de cada ramo y mira tu promedio. No se guarda.</p>
     <div class="simg-hero">
       <div class="simg-hero-label">Promedio proyectado</div>
       <div class="simg-hero-num" id="simg-avg">—</div>
@@ -9032,7 +9168,7 @@ function abrirImportarCalendario(){
     '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">Elige un archivo <b>.ics</b> exportado desde Apple, Google u Outlook. Primero revisas dónde va cada fecha: nada se guarda todavía.</p>',
     '<label class="modal-label" for="ics-file">Archivo de calendario</label>',
     '<div class="modal-input"><input type="file" id="ics-file" accept=".ics,text/calendar" aria-describedby="ics-file-help"/></div>',
-    '<p id="ics-file-help" class="settings-help">Máximo 500 KB y 250 eventos. Solo usamos títulos y fechas para proponer evaluaciones; tus notas no se leen ni se modifican.</p>',
+    '<p id="ics-file-help" class="settings-help">Máximo 500 KB y 250 eventos. Solo leemos títulos y fechas; tus notas no se tocan.</p>',
     '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button></div>'
   ].join('');
   openModal();
@@ -9229,25 +9365,25 @@ function openAgendaCalendarOptions(){
   const tieneEventos=agendaEvents().length>0;
   const opcionesSalida=tieneEventos?`
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">
-      La suscripción es la opción recomendada: <b>se actualiza sola</b> cuando cambias una fecha —en unas horas, no al instante— y queda como un calendario separado.
+      Recomendado: <b>se actualiza sola</b> cuando cambias una fecha y queda como un calendario aparte.
     </p>
     <button class="btn-primary" type="button" onclick="openCalendarSubscriptionFromAgenda()">Suscribirme al calendario</button>
     <div style="height:1px;background:var(--border);margin:20px 0 16px;"></div>
     <label class="modal-label">Exportar archivo .ics</label>
-    <p class="settings-help" style="margin-top:0;">Es una copia del momento: si después cambias una fecha en GradeHub, el archivo no se actualiza.</p>
-    <p class="settings-help"><b>En iPhone:</b> los eventos se agregan a un calendario que ya existe; no se crea uno nuevo.</p>
+    <p class="settings-help" style="margin-top:0;">Una copia del momento: no se actualiza si cambias una fecha.</p>
+    <p class="settings-help"><b>En iPhone</b> se suman a un calendario que ya existe.</p>
     <div class="settings-data-actions" style="margin-bottom:0;">
       <button type="button" onclick="exportCalendarSnapshotFromAgenda()">Exportar copia</button>
     </div>
     <div style="height:1px;background:var(--border);margin:20px 0 16px;"></div>`:
     `<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">
-      Todavía no tienes fechas en GradeHub. Puedes traerlas desde tu calendario y revisarlas antes de agregarlas.
+      Todavía no tienes fechas. Tráelas desde tu calendario.
     </p>`;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Conecta GradeHub y tu calendario</div>
     ${opcionesSalida}
     <label class="modal-label">Importar archivo .ics</label>
-    <p class="settings-help" style="margin-top:0;">Trae fechas desde Apple, Google u Outlook. Revisas cada coincidencia antes de agregarla.</p>
+    <p class="settings-help" style="margin-top:0;">Desde Apple, Google u Outlook. Revisas cada fecha antes de agregarla.</p>
     <div class="settings-data-actions" style="margin-bottom:0;">
       <button${tieneEventos?'':' class="btn-primary"'} type="button" onclick="abrirImportarCalendario()">Importar fechas</button>
     </div>
