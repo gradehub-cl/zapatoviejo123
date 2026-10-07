@@ -6566,7 +6566,12 @@ function openSettings(){
       <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> exportado desde tu calendario. Revisas cada coincidencia antes de agregarla; nunca cambia tus ponderaciones ni fechas que ya ajustaste.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
-      </div>`;
+      </div>
+      ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Avisos antes de tus evaluaciones</label>
+      <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
+      <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-avisos-pruebas" onclick="alternarAvisosPruebas()">${avisosPruebasActivos()?'Desactivar avisos':'Activar avisos'}</button></div>
+      <p class="settings-help" id="s-avisos-estado" role="status" aria-live="polite"></p>`:''}`;
     if(section==='apariencia')return `
       <p class="settings-help settings-help-top">Elige cómo prefieres ver GradeHub. Se guarda al elegir.</p>
       <div class="modo-grid" id="s-modo-grid"></div>
@@ -8876,6 +8881,8 @@ function publicarResumenWidgets(){
       const pedido=S.onboardingDone?p.guardarResumen({json:JSON.stringify(resumenParaWidgets())}):p.borrarResumen();
       if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});
     }catch(e){}
+    programarAvisosPruebas();
+    sincronizarActividadesPrueba();
   },400);
 }
 // Al cerrar sesión no pueden quedar notas de esa cuenta en la pantalla de inicio.
@@ -8883,15 +8890,127 @@ function borrarResumenWidgets(){
   const p=pluginWidgets();if(!p)return;
   clearTimeout(_widgetsTimer);
   try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
+  // Ni avisos ni tarjetas de la cuenta que salió.
+  try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  const ln=pluginNotificaciones();
+  if(ln)Promise.resolve(ln.getPending()).then(r=>{const ids=((r&&r.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba').map(n=>({id:n.id}));
+    return ids.length?ln.cancel({notifications:ids}):null;}).catch(()=>{});
 }
 // Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
 // ://agenda o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
-  const m=/^cl\.gradehub\.app:\/\/(ramo|agenda|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
   if(!m||!S.onboardingDone)return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
-  if(m[1]==='ramo'&&S.ramos.some(r=>r.id===m[2])){openRamo(m[2]);return true;}
+  if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
+    openRamo(m[2]);
+    // "¿Cómo crees que te fue?" abre el simulador del ramo.
+    if(m[1]==='simular')setTimeout(()=>{if(typeof openSimuladorModal==='function')openSimuladorModal();},320);
+    return true;
+  }
   showTab('home');return m[1]==='inicio';
+}
+// ─── AVISOS ANTES DE UNA EVALUACIÓN (app iOS, #645) ─────────────────────────
+// Versión sin servidor. Para cada evaluación pendiente CON HORA: notificaciones
+// locales de cada fase (repaso, baño y agua, caminar a la sala, cómo te fue) y,
+// dentro de las 8 horas previas, la Actividad en Vivo con la cuenta regresiva.
+// Es opt-in y vale por dispositivo: la preferencia no entra a S ni a la nube.
+// Sin hora no hay a partir de cuándo contar, así que no se avisa nada.
+const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
+const DURACION_PRUEBA_MIN=120;
+const AVISOS_PRUEBA_MAX=60; // iOS guarda hasta 64 notificaciones pendientes por app
+function pluginNotificaciones(){
+  if(!pluginWidgets())return null;
+  const cap=window.Capacitor;
+  return cap&&cap.Plugins&&cap.Plugins.LocalNotifications||null;
+}
+function avisosPruebasDisponibles(){return !!pluginNotificaciones();}
+function avisosPruebasActivos(){try{return localStorage.getItem(CLAVE_AVISOS_PRUEBAS)==='1';}catch(e){return false;}}
+function fechaHoraLocal(fecha,hora){
+  const f=/^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha||''),h=/^(\d{1,2}):(\d{2})$/.exec(hora||'');
+  return f&&h?new Date(+f[1],+f[2]-1,+f[3],+h[1],+h[2]):null;
+}
+function horaDe(d){return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function pruebasConHora(ahora,dias){
+  ahora=ahora||new Date();
+  const limite=ahora.getTime()+dias*864e5;
+  return agendaEvents().filter(e=>e.pending&&e.hora).map(e=>{
+    const inicio=fechaHoraLocal(e.fecha,e.hora);
+    if(!inicio)return null;
+    return {clave:[e.ramo.id,e.cat.id,e.nota?e.nota.id:'',e.fecha].join('|'),ramoId:e.ramo.id,ramo:e.ramo.nombre,
+      sigla:(typeof siglaDeRamo==='function'?siglaDeRamo(e.ramo):null)||null,color:e.ramo.color||null,
+      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,sala:null,
+      inicio,fin:new Date(inicio.getTime()+DURACION_PRUEBA_MIN*6e4)};
+  }).filter(p=>p&&p.fin.getTime()>ahora.getTime()&&p.inicio.getTime()<=limite);
+}
+function idAvisoPrueba(clave,fase){
+  let h=5381;for(const c of clave)h=((h*33)^c.charCodeAt(0))>>>0;
+  return (h%200000000)*4+fase+1;
+}
+// Los textos de cada fase. Tono de compañero (AGENTS.md); los decide Lucas.
+function avisosDePrueba(p,ahora){
+  const lugar=p.sala?`la sala ${p.sala}`:'tu sala';
+  return [
+    [30,'Último repaso',`${p.evaluacion} de ${p.ramo} empieza en 30 minutos.`,'ramo'],
+    [15,'Anda al baño y llena tu botella de agua',`${p.evaluacion} empieza en 15 minutos.`,'ramo'],
+    [10,`Camina a ${lugar}`,`${p.evaluacion} de ${p.ramo} a las ${horaDe(p.inicio)}.`,'ramo'],
+    [-DURACION_PRUEBA_MIN,'¿Cómo crees que te fue?',`${p.evaluacion} de ${p.ramo}. Toca para simular tu nota.`,'simular'],
+  ].map(([antes,titulo,cuerpo,destino],fase)=>({id:idAvisoPrueba(p.clave,fase),at:new Date(p.inicio.getTime()-antes*6e4),
+    titulo,cuerpo,url:`cl.gradehub.app://${destino}/${p.ramoId}`}))
+   .filter(a=>a.at.getTime()>(ahora||new Date()).getTime());
+}
+async function programarAvisosPruebas(ahora){
+  const ln=pluginNotificaciones();if(!ln)return 0;
+  try{
+    const pendientes=await ln.getPending();
+    const nuestras=((pendientes&&pendientes.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba');
+    if(nuestras.length)await ln.cancel({notifications:nuestras.map(n=>({id:n.id}))});
+    if(!avisosPruebasActivos()||!S.onboardingDone)return 0;
+    const permiso=await ln.checkPermissions();
+    if(!permiso||permiso.display!=='granted')return 0;
+    const lista=pruebasConHora(ahora,14).flatMap(p=>avisosDePrueba(p,ahora))
+      .sort((a,b)=>a.at-b.at).slice(0,AVISOS_PRUEBA_MAX);
+    if(lista.length)await ln.schedule({notifications:lista.map(a=>({id:a.id,title:a.titulo,body:a.cuerpo,
+      schedule:{at:a.at},extra:{gradehub:'prueba',url:a.url}}))});
+    return lista.length;
+  }catch(e){return 0;}
+}
+function sincronizarActividadesPrueba(ahora){
+  const p=pluginWidgets();if(!p||typeof p.sincronizarActividades!=='function')return;
+  ahora=ahora||new Date();
+  const vigentes=avisosPruebasActivos()&&S.onboardingDone
+    ?pruebasConHora(ahora,1).filter(x=>x.inicio.getTime()-ahora.getTime()<=8*36e5):[];
+  try{
+    const r=p.sincronizarActividades({actividades:vigentes.map(x=>({clave:x.clave,ramoId:x.ramoId,ramo:x.ramo,sigla:x.sigla,
+      color:x.color,evaluacion:x.evaluacion,sala:x.sala,inicio:x.inicio.getTime(),fin:x.fin.getTime()}))});
+    if(r&&typeof r.catch==='function')r.catch(()=>{});
+  }catch(e){}
+}
+function pintarAvisosPruebas(){
+  const b=document.getElementById('s-avisos-pruebas');
+  if(b)b.textContent=avisosPruebasActivos()?'Desactivar avisos':'Activar avisos';
+}
+async function alternarAvisosPruebas(){
+  const ln=pluginNotificaciones();
+  const estado=document.getElementById('s-avisos-estado');
+  if(!ln)return false;
+  if(avisosPruebasActivos()){
+    try{localStorage.removeItem(CLAVE_AVISOS_PRUEBAS);}catch(e){}
+    await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
+    if(estado)estado.textContent='Avisos desactivados en este iPhone.';
+    return false;
+  }
+  let permiso=null;
+  try{permiso=await ln.requestPermissions();}catch(e){}
+  if(!permiso||permiso.display!=='granted'){
+    if(estado)estado.textContent='Para recibirlos, permite las notificaciones de GradeHub en la app Ajustes del iPhone.';
+    return false;
+  }
+  try{localStorage.setItem(CLAVE_AVISOS_PRUEBAS,'1');}catch(e){}
+  await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
+  if(estado)estado.textContent='Listo. Te avisaremos antes de cada evaluación que tenga hora.';
+  track('avisos_pruebas_activados');
+  return true;
 }
 
 // Esto recuerda una acción todavía no hecha: mandar una prueba ya rendida a

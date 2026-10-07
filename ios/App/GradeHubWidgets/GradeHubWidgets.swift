@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import WidgetKit
 
@@ -237,10 +238,84 @@ struct PromedioGeneralWidget: Widget {
     }
 }
 
+// MARK: - Actividad en Vivo de una evaluación (#645)
+
+// Antes de la hora de inicio: cuenta regresiva. Desde la hora de inicio el
+// sistema la marca como "stale" y se dibuja "Suerte" con el tiempo que queda,
+// sin que la app tenga que estar abierta. Los mensajes de cada fase (repaso,
+// baño y agua, caminar a la sala) llegan como notificaciones locales.
+struct PruebaBloqueoVista: View {
+    let contexto: ActivityViewContext<ActividadPruebaAtributos>
+
+    var body: some View {
+        let a = contexto.attributes, e = contexto.state
+        HStack(alignment: .top, spacing: 10) {
+            Rectangle().fill(Color(hexRamo: a.color)).frame(width: 3)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(a.evaluacion) · \(a.sigla ?? a.ramo)").font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(lugarYHora(a, e)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                if contexto.isStale {
+                    Text("Suerte").font(.title2.weight(.bold))
+                    ProgressView(timerInterval: e.inicio...e.fin, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
+                        .tint(Color(hexRamo: a.color))
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("Empieza en").font(.subheadline).foregroundStyle(.secondary)
+                        Text(e.inicio, style: .timer).font(.title2.weight(.bold)).monospacedDigit()
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+    }
+}
+
+func lugarYHora(_ a: ActividadPruebaAtributos, _ e: ActividadPruebaAtributos.ContentState) -> String {
+    let f = DateFormatter()
+    // 24 horas siempre, como se usa en Chile, aunque el iPhone esté en 12 horas.
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "H:mm"
+    let horas = "\(f.string(from: e.inicio))–\(f.string(from: e.fin))"
+    return a.sala.map { "Sala \($0) · \(horas)" } ?? horas
+}
+
+struct ActividadPruebaWidget: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: ActividadPruebaAtributos.self) { contexto in
+            PruebaBloqueoVista(contexto: contexto)
+                .widgetURL(URL(string: "cl.gradehub.app://ramo/\(contexto.attributes.ramoId)"))
+        } dynamicIsland: { contexto in
+            let a = contexto.attributes, e = contexto.state
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Text(a.sigla ?? a.ramo).font(.headline).lineLimit(1)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if contexto.isStale { Text("Suerte").font(.headline) }
+                    else { Text(e.inicio, style: .timer).font(.headline).monospacedDigit().frame(maxWidth: 80) }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text("\(a.evaluacion) · \(lugarYHora(a, e))").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            } compactLeading: {
+                Text(a.sigla ?? a.ramo).font(.caption2.weight(.semibold)).lineLimit(1)
+            } compactTrailing: {
+                if contexto.isStale { Image(systemName: "pencil.line") }
+                else { Text(e.inicio, style: .timer).font(.caption2).monospacedDigit().frame(maxWidth: 44) }
+            } minimal: {
+                Image(systemName: "pencil.line")
+            }
+            .widgetURL(URL(string: "cl.gradehub.app://ramo/\(a.ramoId)"))
+        }
+    }
+}
+
 @main
 struct GradeHubWidgets: WidgetBundle {
     var body: some Widget {
         ProximaEvaluacionWidget()
         PromedioGeneralWidget()
+        ActividadPruebaWidget()
     }
 }

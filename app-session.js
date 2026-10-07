@@ -483,6 +483,12 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
   const {App,Browser}=window.Capacitor.Plugins;
   // La vuelta del login con Google y los enlaces de los widgets llegan por el
   // mismo esquema propio; cada uno reconoce solo lo suyo.
+  // Tocar un aviso de evaluación abre el ramo o su simulador.
+  const notificaciones=window.Capacitor.Plugins.LocalNotifications;
+  if(notificaciones&&typeof notificaciones.addListener==='function')notificaciones.addListener('localNotificationActionPerformed',ev=>{
+    const extra=ev&&ev.notification&&ev.notification.extra;
+    if(extra&&extra.gradehub==='prueba'&&typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(extra.url);
+  });
   if(App)App.addListener('appUrlOpen',ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
