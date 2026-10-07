@@ -68,19 +68,35 @@
   gtag('config', 'G-TS791S6PDM');
 </script>
 
-<!-- Supabase -->
-<!-- Versión fija + SRI. Con `@2` cualquier release nueva de la librería entraba
-     sola, y con la sesión de Supabase en localStorage eso es acceso completo a
-     las notas de todos. El navegador verifica el hash y, si no calza, no lo
-     ejecuta: una CDN comprometida o un paquete secuestrado dejan la app sin
-     sesión, no con una sesión robada. Al subir de versión hay que recalcular:
-       curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2"
-        integrity="sha384-B2duOBIryCXbX4eDE4BdJwtNkQMRQde3o6IsjfPW28E6aH1CYE96hHeZRG3zY56O"
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- La app iOS (Capacitor) se marca antes de pintar: la pantalla de carga de
+     abajo solo existe ahí, y el CSS la tiene que ver en el primer cuadro. -->
+<script>try{if(window.Capacitor&&Capacitor.isNativePlatform())document.documentElement.classList.add('app-nativa');}catch(e){}</script>
 <link rel="stylesheet" href="styles.css?v=__ASSET_VERSION__"/>
 </head>
 <body>
+<!-- Pantalla de carga de la app. Calza con el splash nativo
+     (ios/App/App/Base.lproj/LaunchScreen.storyboard): mismo fondo y el logo de
+     96 px al centro. Las capas van por separado, cada una con un "tapa" del color
+     del fondo, para poder moverlas sin las máscaras de logo.svg. boot() la saca
+     cuando ya eligió qué mostrar; antes, quien tenía sesión veía el login
+     mientras bajaban sus datos. En la web no se muestra. -->
+<div id="arranque" role="progressbar" aria-label="Cargando GradeHub">
+  <svg viewBox="0 0 128 128" aria-hidden="true">
+    <defs>
+      <path id="arr-ext" d="M57 12.20862Q64 8.27112 71 12.20862L111.62912 35.0625Q118.62912 39 111.62912 42.9375L71 65.79138Q64 69.72888 57 65.79138L16.37088 42.9375Q9.37088 39 16.37088 35.0625Z"/>
+      <path id="arr-plano" fill-rule="evenodd" d="M57 12.20862Q64 8.27112 71 12.20862L111.62912 35.0625Q118.62912 39 111.62912 42.9375L71 65.79138Q64 69.72888 57 65.79138L16.37088 42.9375Q9.37088 39 16.37088 35.0625Z M62 16.85388Q64 15.72888 66 16.85388L103.37088 37.875Q105.37088 39 103.37088 40.125L66 61.14612Q64 62.27112 62 61.14612L24.62912 40.125Q22.62912 39 24.62912 37.875Z"/>
+    </defs>
+    <g transform="translate(0 3)">
+      <g class="arr-capa arr-abajo"><use href="#arr-plano" fill="#A78BFA" transform="translate(0 50)"/></g>
+      <g class="arr-capa arr-medio"><use href="#arr-ext" class="arr-tapa" transform="translate(0 25)"/><use href="#arr-plano" fill="#2DD4BF" transform="translate(0 25)"/></g>
+      <g class="arr-capa arr-arriba"><use href="#arr-ext" class="arr-tapa"/><use href="#arr-plano" fill="#A6A8B1"/></g>
+    </g>
+  </svg>
+</div>
+<!-- El splash nativo se queda puesto hasta que esta pantalla ya se pintó (dos
+     cuadros); sin esto quedaba un fondo vacío entre los dos. Si nunca llega, se
+     va solo a los 3 s (capacitor.config.json). -->
+<script>try{if(document.documentElement.classList.contains('app-nativa')&&Capacitor.Plugins.SplashScreen)requestAnimationFrame(()=>requestAnimationFrame(()=>Capacitor.Plugins.SplashScreen.hide()));}catch(e){}</script>
 <noscript><div style="padding:40px 24px;text-align:center;font-family:sans-serif;color:#0f172a;">GradeHub necesita JavaScript para funcionar. Actívalo en tu navegador para registrar tus notas.</div></noscript>
 <div class="app">
 
@@ -535,6 +551,18 @@
   </div>
 </div>
 
+<!-- Supabase -->
+<!-- Versión fija + SRI. Con `@2` cualquier release nueva de la librería entraba
+     sola, y con la sesión de Supabase en localStorage eso es acceso completo a
+     las notas de todos. El navegador verifica el hash y, si no calza, no lo
+     ejecuta: una CDN comprometida o un paquete secuestrado dejan la app sin
+     sesión, no con una sesión robada. Al subir de versión hay que recalcular:
+       curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A
+     Va acá y no en el <head>: ahí la pantalla quedaba en blanco hasta que
+     bajara de internet. Sigue antes de los scripts de la app, que lo usan. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2"
+        integrity="sha384-B2duOBIryCXbX4eDE4BdJwtNkQMRQde3o6IsjfPW28E6aH1CYE96hHeZRG3zY56O"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <!-- data.js primero: app.js lee sus const (mallas, temas, presets) -->
 <script src="data.js?v=__ASSET_VERSION__"></script>
 <script src="engine.js?v=__ASSET_VERSION__"></script>

@@ -1964,8 +1964,7 @@ function enAppNativa(){
   try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
   catch(e){return false;}
 }
-// Marca para el CSS de lo que solo cambia en la app (las hojas a alto completo).
-if(typeof document!=='undefined'&&enAppNativa()&&document.documentElement)document.documentElement.classList.add('app-nativa');
+// La clase html.app-nativa la pone index.html antes de pintar.
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
 // a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la

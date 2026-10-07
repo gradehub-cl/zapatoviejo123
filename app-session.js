@@ -1190,53 +1190,62 @@ async function cerrarSesion(){
   showAuthScreen();
 }
 
+// La pantalla de carga de la app (#arranque en index.html) se va recién acá,
+// con la pantalla que corresponde ya puesta debajo, sea cual sea el camino.
+function quitarArranque(){
+  const a=typeof document!=='undefined'&&document.getElementById&&document.getElementById('arranque');
+  if(!a||!a.classList||typeof a.classList.add!=='function')return; // los tests usan elementos de mentira
+  a.classList.add('listo');setTimeout(()=>a.remove(),400);
+}
 async function boot(){
-  if(!supabaseClient){
-    // Sin configurar Supabase → funciona en modo local (fallback)
-    document.getElementById('screen-auth').classList.remove('active');
-    if(S.onboardingDone)showMainApp();
-    else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
-    return;
-  }
-  // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
-  // el usuario abre el link del correo de "olvidé mi contraseña".
-  supabaseClient.auth.onAuthStateChange((event, session)=>{
-    // Otra pestaña puede salir o cambiar de cuenta, y una sesión puede vencer.
-    // Se reinicia la visita para cancelar también las lecturas de la cuenta
-    // anterior. La copia local se conserva; no se borra una edición sin subir.
-    if(!_cerrandoSesion&&currentUser&&(event==='SIGNED_OUT'||
-      (event==='SIGNED_IN'&&session&&session.user.id!==currentUser.id))){
-      currentUser=null;closeModal();showAuthScreen();location.reload();return;
-    }
-    if(event==='PASSWORD_RECOVERY'){
-      enRecuperacion=true;
-      if(session)currentUser=session.user;
-      limpiarFragmentoAuth();
-      showResetScreen();
-    }
-  });
-  let session=null;
   try{
-    const result=await supabaseClient.auth.getSession();
-    session=result&&result.data?result.data.session:null;
-  }catch(e){
-    registrarErrorArranque(e,'obtener_sesion');
-    showAppErrorScreen('obtener_sesion');
-    return;
-  }
-  if(!session){showAuthScreen();return;}
+    if(!supabaseClient){
+      // Sin configurar Supabase → funciona en modo local (fallback)
+      document.getElementById('screen-auth').classList.remove('active');
+      if(S.onboardingDone)showMainApp();
+      else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
+      return;
+    }
+    // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
+    // el usuario abre el link del correo de "olvidé mi contraseña".
+    supabaseClient.auth.onAuthStateChange((event, session)=>{
+      // Otra pestaña puede salir o cambiar de cuenta, y una sesión puede vencer.
+      // Se reinicia la visita para cancelar también las lecturas de la cuenta
+      // anterior. La copia local se conserva; no se borra una edición sin subir.
+      if(!_cerrandoSesion&&currentUser&&(event==='SIGNED_OUT'||
+        (event==='SIGNED_IN'&&session&&session.user.id!==currentUser.id))){
+        currentUser=null;closeModal();showAuthScreen();location.reload();return;
+      }
+      if(event==='PASSWORD_RECOVERY'){
+        enRecuperacion=true;
+        if(session)currentUser=session.user;
+        limpiarFragmentoAuth();
+        showResetScreen();
+      }
+    });
+    let session=null;
+    try{
+      const result=await supabaseClient.auth.getSession();
+      session=result&&result.data?result.data.session:null;
+    }catch(e){
+      registrarErrorArranque(e,'obtener_sesion');
+      showAppErrorScreen('obtener_sesion');
+      return;
+    }
+    if(!session){showAuthScreen();return;}
 
-  currentUser=session.user;
-  // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
-  // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
-  limpiarFragmentoAuth();
-  if(enRecuperacion){showResetScreen();return;}
-  try{
-    await afterLogin();
-  }catch(e){
-    registrarErrorArranque(e,'abrir_app');
-    showAppErrorScreen('abrir_app');
-  }
+    currentUser=session.user;
+    // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
+    // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
+    limpiarFragmentoAuth();
+    if(enRecuperacion){showResetScreen();return;}
+    try{
+      await afterLogin();
+    }catch(e){
+      registrarErrorArranque(e,'abrir_app');
+      showAppErrorScreen('abrir_app');
+    }
+  }finally{quitarArranque();}
 }
 // ─── VERIFICACIÓN EN DOS PASOS ──────────────────────────────────────────────
 //

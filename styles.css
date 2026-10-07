@@ -199,6 +199,23 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
+/* Pantalla de carga de la app (index.html, #arranque). Solo en la app nativa.
+   Calza con el splash de iOS (fondo de la app y logo de 96 px al centro) y se
+   va cuando boot() eligió qué mostrar. Si boot() se colgara, a los 12 s se va
+   igual y queda lo de abajo, como antes de que existiera. */
+#arranque{display:none;}
+.app-nativa #arranque{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity var(--motion-screen) var(--ease-standard);animation:arranqueTope 0s 12s forwards;}
+.app-nativa #arranque.listo{opacity:0;pointer-events:none;}
+@keyframes arranqueTope{to{opacity:0;visibility:hidden;}}
+#arranque svg{width:96px;height:96px;overflow:visible;}
+#arranque .arr-tapa{fill:var(--bg);}
+/* Mientras carga, las capas se separan y se vuelven a juntar. Parte juntas:
+   el primer cuadro es igual al splash nativo. */
+#arranque .arr-arriba{animation:arrArriba 1.6s ease-in-out infinite;}
+#arranque .arr-abajo{animation:arrAbajo 1.6s ease-in-out infinite;}
+@keyframes arrArriba{50%{transform:translateY(-8px);}}
+@keyframes arrAbajo{50%{transform:translateY(8px);}}
+@media(prefers-reduced-motion:reduce){#arranque .arr-capa{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
