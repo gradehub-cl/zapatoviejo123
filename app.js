@@ -4218,6 +4218,31 @@ function quitarReporteFila(i){
   quitarFilaReporte(reporteDraft,i);openReportModal(reporteRamoId,true);
 }
 
+// La sección acompaña al reporte para distinguir ramos no coordinados, donde
+// cada sección tiene su propia pauta. No participa de la huella: dos secciones
+// con la misma pauta siguen siendo el mismo voto.
+function seccionReporte(r){
+  const s=r&&r.seccion;
+  return Number.isInteger(s)&&s>=1&&s<=999?s:null;
+}
+// Si el SQL que agrega p_seccion todavía no está aplicado, PostgREST no
+// encuentra la firma (PGRST202): se reenvía sin sección para no perder el voto.
+// `conSeccion` dice si el servidor la guardó, para reintentarla más adelante.
+// Detectado una vez, no se vuelve a probar en la sesión: sin esa marca, cada
+// guardado reenviaría todos los votos con sección mientras falte el SQL.
+let _servidorSinSeccion=false;
+async function rpcReporteCatalogo(r,args){
+  const seccion=_servidorSinSeccion?null:seccionReporte(r);
+  if(seccion!==null){
+    const {error}=await supabaseClient.rpc('submit_catalog_report',{...args,p_seccion:seccion});
+    if(!error)return {error:null,conSeccion:true};
+    if(error.code!=='PGRST202')return {error,conSeccion:false};
+    _servidorSinSeccion=true;
+  }
+  const {error}=await supabaseClient.rpc('submit_catalog_report',args);
+  return {error,conSeccion:false};
+}
+
 // La sigla de un reporte UC no puede depender solo de la malla que ya tenemos.
 // Los majors aparecen en CREDITOS_UC antes de que exista su malla: si caen al
 // nombre normalizado, dos ramos homónimos pueden formar consenso juntos. La
@@ -4364,7 +4389,7 @@ async function enviarReporte(ramoId){
     // Si había un aporte automático en vuelo, el reporte explícito debe ser
     // el último valor para este ramo, no quedar pisado por una petición vieja.
     if(_aportePautasEnCurso)await _aportePautasEnCurso;
-    const {error}=await supabaseClient.rpc('submit_catalog_report',{
+    const {error,conSeccion}=await rpcReporteCatalogo(r,{
       p_tenant:S.tenant,
       // Se conserva como contexto del reporte, pero no participa del consenso.
       p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
@@ -4379,6 +4404,7 @@ async function enviarReporte(ramoId){
     // Un reporte explícito puede describir una corrección que no se pudo
     // aplicar por una compuerta. El aporte automático no debe reemplazarla.
     r.consensoAportado=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
+    if(conSeccion)r.seccionAportada=seccionReporte(r);
     save();
     track('reporte_catalogo',{tenant:S.tenant});
     closeModal();
@@ -4847,7 +4873,10 @@ async function aportarPautasAlCatalogo(){
       if(!pautaPropiaParaConsenso(r))continue;
       if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)continue;
       const est=estructuraParaConsenso(estructuraDe(r)),huella=huellaEstructura(est);
-      if(!huella||yaAportada(r,est))continue;
+      // Un voto ya enviado se repite una sola vez si le faltó la sección, para
+      // que los reportes anteriores a ella también distingan su sección.
+      const seccion=seccionReporte(r);
+      if(!huella||(yaAportada(r,est)&&(seccion===null||r.seccionAportada===seccion||_servidorSinSeccion)))continue;
       const enviado=await aportarPropuestaAlCatalogo(r);
       if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
       if(enviado){r.consensoAportado=huella;n++;}
@@ -6350,11 +6379,12 @@ async function aportarPropuestaAlCatalogo(r){
   const estado=estadoReporte(estructura);
   if(!estructura.length||!estado.lista)return false;
   try{
-    const {error}=await supabaseClient.rpc('submit_catalog_report',{
+    const {error,conSeccion}=await rpcReporteCatalogo(r,{
       p_tenant:S.tenant,p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
       p_ramo:r.nombre,p_ramo_norm:normName(r.nombre),p_ramo_sigla:siglaReporteUC(r),
       p_estructura:estructura,p_huella:huellaEstructura(estructura),p_nota:null,
     });
+    if(!error&&conSeccion)r.seccionAportada=seccionReporte(r);
     return !error;
   }catch(e){return false;}
 }
