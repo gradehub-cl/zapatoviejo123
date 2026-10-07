@@ -1556,6 +1556,11 @@ function prepararObRamos(){
   if(selectedCarrera&&ARCHIVO_MALLAS[selectedTenant]&&!(mallaFor(selectedTenant)||{})[selectedCarrera]&&!mallasExtraDe(selectedTenant)){
     cargarMallasUC(selectedTenant).then(ok=>{if(ok){obRamosKey=null;if(obStep===5)obRender();}});
   }
+  // Lo mismo con las pautas del consenso: el buscador las ofrece en cuanto llegan.
+  if(!consensoCargado(selectedTenant)){
+    const t=selectedTenant;
+    cargarConsenso(t).then(filas=>{if(filas&&filas.length&&obStep===5&&selectedTenant===t)obRender();});
+  }
   if(key===obRamosKey)return;
   obRamosKey=key;obManualOpen=false;
   obRamos=obRamosActuales().map(nombre=>({nombre,manual:false}));
@@ -1695,7 +1700,7 @@ function obCatalogMeta(r){
   const detalles=[r.sigla?esc(r.sigla):'',lugar];
   if(typeof r.creditos==='number')detalles.push(`${r.creditos} créditos`);
   if(r.escuela)detalles.push(esc(r.escuela));
-  if(r.tienePreset)detalles.push('con pauta');
+  if(r.tienePreset)detalles.push(r.consenso?`pauta de ${r.consenso} estudiantes`:'con pauta');
   return detalles.filter(Boolean).join(' · ');
 }
 function renderObCoursePicker(){
@@ -1880,6 +1885,7 @@ function completeOnboarding(){
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
     S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
   syncProfile();
@@ -3008,6 +3014,7 @@ function confirmAddMalla(){
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
     S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
   closeModal();
@@ -3116,6 +3123,7 @@ function crearRamoDesdeCatalogo(nombre,sigla){
     categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
+  consensoAlAgregar(ramo);
   return ramo;
 }
 function addFromCatalog(nombre,sigla){
@@ -3857,6 +3865,14 @@ function catalogRamosUniversidad(tenant,carreraPropia){
     // estudiante en el orden, porque no le corresponde a nadie en particular.
     out.push({nombre,semestre:0,propio:false,sigla,siglaPauta,tienePreset:true});
   });
+  // Las pautas que cinco o más estudiantes reportaron igual se ofrecen como las
+  // del catálogo, diciendo de dónde salen. Si hay una de programa para ese ramo,
+  // manda la del programa y esta no entra.
+  pautasConsensoCatalogo(tenant).forEach(c=>{
+    if(findPresetName(c.ramo,tenant,carreraPropia))return;
+    const nombre=limpiarNombreAjeno(c.ramo);if(!nombre)return;
+    out.push({nombre,semestre:0,propio:false,sigla:tenant==='uc'?siglaCatalogoUC(nombre):null,tienePreset:true,consenso:c.respaldos});
+  });
   // Y los cursos que existen sin pertenecer a un semestre ni traer pauta: los
   // optativos y OFG. Entran por el mismo camino que los presets fuera de
   // malla, con `tienePreset:false` porque no hay ponderaciones que prometer.
@@ -3904,6 +3920,7 @@ function fuentesDiferidasCatalogo(tenant){
     mallas:mallasExtraDe(tenant),
     cursos:tenant==='uc'?cursosUcExtra():null,
     remotos:tenant==='uc'?_cursosUcRemotos:null,
+    consenso:consensoCargado(tenant),
   };
 }
 // El catálogo escribe el nivel en romano —"Matemáticas Avanzadas II"— y la
@@ -3930,10 +3947,10 @@ const ENLACES_BUSQUEDA=new Set(['de','del','la','el','los','las','y','e','o','u'
 function indiceBusquedaCatalogo(tenant,carrera){
   const key=catalogKey(tenant,carrera),fuentes=fuentesDiferidasCatalogo(tenant);
   const guardado=_indicesBusquedaCatalogo.get(key);
-  if(guardado&&guardado.mallas===fuentes.mallas&&guardado.cursos===fuentes.cursos&&guardado.remotos===fuentes.remotos)return guardado;
+  if(guardado&&guardado.mallas===fuentes.mallas&&guardado.cursos===fuentes.cursos&&guardado.remotos===fuentes.remotos&&guardado.consenso===fuentes.consenso)return guardado;
   const todos=catalogRamosUniversidad(tenant,carrera);
   const indice={
-    mallas:fuentes.mallas,cursos:fuentes.cursos,remotos:fuentes.remotos,todos,
+    mallas:fuentes.mallas,cursos:fuentes.cursos,remotos:fuentes.remotos,consenso:fuentes.consenso,todos,
     filas:todos.map(r=>{
       const nombre=normName(r.nombre);
       return {ramo:r,nombre,sigla:normName(r.sigla||''),busqueda:normBusqueda(nombre)};
@@ -4451,17 +4468,27 @@ async function enviarReporte(ramoId){
 
 // Lee el consenso (solo agregados, sin datos de nadie) y avisa si el cat\u00e1logo
 // que tiene el estudiante qued\u00f3 desactualizado respecto de lo que reporta el resto.
-let _consensoCache=null;
-async function cargarConsenso(){
-  if(!supabaseClient||!currentUser)return null;
-  if(_consensoCache)return _consensoCache;
+//
+// Una caché por universidad. Era una sola: una cuenta nueva arranca con el
+// tenant por defecto, el arranque leía ese consenso y, si en el onboarding
+// elegía otra universidad, seguía viendo el ajeno hasta recargar. Fuera de la
+// UC el consenso se cruza por nombre, así que "Microeconomía" de una podía
+// calzar con la de otra.
+const _consensoPorTenant=new Map();
+async function cargarConsenso(tenant){
+  tenant=tenant||S.tenant;
+  if(!supabaseClient||!currentUser||!tenant)return null;
+  if(_consensoPorTenant.has(tenant))return _consensoPorTenant.get(tenant);
   try{
-    const {data,error}=await supabaseClient.rpc('catalog_consensus',{p_tenant:S.tenant});
+    const {data,error}=await supabaseClient.rpc('catalog_consensus',{p_tenant:tenant});
     if(error)throw error;
-    _consensoCache=data||[];
-    return _consensoCache;
+    const filas=data||[];
+    _consensoPorTenant.set(tenant,filas);
+    return filas;
   }catch(e){return null;}
 }
+// Lo ya cargado, sin red: el buscador es síncrono y no espera a nadie.
+function consensoCargado(tenant){return _consensoPorTenant.get(tenant)||null;}
 
 // \u00bfHay una versi\u00f3n con m\u00e1s respaldo que la que tiene este ramo?
 // --- COMO VAS RESPECTO DE QUIENES CURSAN TU MISMO RAMO ---
@@ -4770,6 +4797,22 @@ async function adoptarConsenso(ramoId){
 // sigue contando como uno—, así que bajar este número no hace nada. Subirlo sí,
 // y sin migrar: `respaldos` viene en cada fila del consenso.
 const CONSENSO_AUTO=3;
+// Con cinco personas distintas, la pauta del consenso además se ofrece como una
+// del catálogo: aparece en el buscador al agregar el ramo, con cuántos la
+// respaldan. Sigue sin ser oficial —la ficha lo dice— y una pauta transcrita
+// del programa siempre manda sobre ella (pedido de Martín, 2026-10-06).
+const CONSENSO_CATALOGO=5;
+function pautasConsensoCatalogo(tenant){
+  const vistas=new Set();
+  return (consensoCargado(tenant)||[]).filter(c=>{
+    if(!c||typeof c.ramo!=='string'||!c.ramo.trim()||!(c.respaldos>=CONSENSO_CATALOGO))return false;
+    if(!pautaDeConsenso(c.estructura).categorias.length)return false;
+    // Una fila por ramo: si dos pautas distintas del mismo ramo llegan a cinco,
+    // la con más respaldos (el SQL ya ordena así) es la que se ofrece.
+    if(vistas.has(c.ramo_key))return false;
+    vistas.add(c.ramo_key);return true;
+  });
+}
 
 // La estructura reportada, con la forma que usa el resto de la app. Espeja a
 // presetRamo(), pero solo con lo que el reporte trae de verdad: pesos, `slots`
@@ -4840,28 +4883,34 @@ async function aplicarConsensoAuto(){
   const cons=await cargarConsenso();
   if(!cons||!cons.length)return 0;
   let puestas=0;
-  (S.ramos||[]).forEach(r=>{
-    if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return;
-    if((r.categorias||[]).length||(r.gates||[]).length)return;
-    if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return; // una oficial existente manda
-    if(pautaPendiente(r))return;                    // hay programa oficial esperando: ese manda
-    const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&c.respaldos>=CONSENSO_AUTO);
-    if(!hit)return;
-    const pauta=pautaDeConsenso(hit.estructura);
-    if(!pauta.categorias.length)return;
-    r.categorias=pauta.categorias;
-    r.gates=pauta.gates;
-    r.pautaHuella=huellaPauta(pauta.categorias);
-    // Marca de origen: esta pauta NO sale de un programa oficial. La ficha lo
-    // dice, y el día que transcribamos el programa, cambioDePauta() ofrece el
-    // cambio como con cualquier otra pauta vieja.
-    r.consensoRespaldos=hit.respaldos;
-    r.consensoAportado=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-    puestas++;
-  });
+  (S.ramos||[]).forEach(r=>{if(ponerConsensoEnRamo(r,cons))puestas++;});
   if(puestas)save();
   return puestas;
 }
+function ponerConsensoEnRamo(r,cons){
+  if(!r||!cons||!cons.length)return false;
+  if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return false;
+  if((r.categorias||[]).length||(r.gates||[]).length)return false;
+  if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return false; // una oficial existente manda
+  if(pautaPendiente(r))return false;                    // hay programa oficial esperando: ese manda
+  const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&c.respaldos>=CONSENSO_AUTO);
+  if(!hit)return false;
+  const pauta=pautaDeConsenso(hit.estructura);
+  if(!pauta.categorias.length)return false;
+  r.categorias=pauta.categorias;
+  r.gates=pauta.gates;
+  r.pautaHuella=huellaPauta(pauta.categorias);
+  // Marca de origen: esta pauta NO sale de un programa oficial. La ficha lo
+  // dice, y el día que transcribamos el programa, cambioDePauta() ofrece el
+  // cambio como con cualquier otra pauta vieja.
+  r.consensoRespaldos=hit.respaldos;
+  r.consensoAportado=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
+  return true;
+}
+// Al agregar un ramo sin pauta, la del consenso entra en el mismo momento —con
+// lo ya cargado, sin esperar la red—, no en la próxima sesión. Mismas reglas
+// que aplicarConsensoAuto: solo ramos vacíos y nunca sobre una de programa.
+function consensoAlAgregar(r){return ponerConsensoEnRamo(r,consensoCargado(S.tenant));}
 
 // Lo aportado antes del 2026-10-05 quedó guardado con la huella de entonces,
 // que contaba los conectores. Sin aceptar las dos, cada ramo que recibió una
@@ -5155,6 +5204,7 @@ function confirmAddRamo(){
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
   S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  consensoAlAgregar(S.ramos[S.ramos.length-1]);
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
   showToast(preset?'Pauta cargada':'Ramo agregado');
 }
