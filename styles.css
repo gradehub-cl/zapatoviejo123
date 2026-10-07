@@ -216,13 +216,13 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 @keyframes arranqueTope{to{opacity:0;visibility:hidden;}}
 #arranque svg{width:96px;height:96px;overflow:visible;transition:transform .5s var(--ease-viaje);}
 #arranque .arr-tapa{fill:var(--bg);transition:fill .5s var(--ease-viaje);}
-/* Mientras carga, las capas se separan y se vuelven a juntar. Parte juntas:
-   el primer cuadro es igual al splash nativo. */
-#arranque .arr-arriba{animation:arrArriba 1.6s ease-in-out infinite;}
-#arranque .arr-abajo{animation:arrAbajo 1.6s ease-in-out infinite;}
+/* Mientras carga, las capas se separan y se vuelven a juntar. Parte con .vivo,
+   cuando se va el splash nativo (soltarSplash, index.html), desde juntas. */
+#arranque.vivo .arr-arriba{animation:arrArriba 1.6s ease-in-out infinite;}
+#arranque.vivo .arr-abajo{animation:arrAbajo 1.6s ease-in-out infinite;}
 @keyframes arrArriba{50%{transform:translateY(-8px);}}
 @keyframes arrAbajo{50%{transform:translateY(8px);}}
-@media(prefers-reduced-motion:reduce){#arranque .arr-capa{animation:none;}}
+@media(prefers-reduced-motion:reduce){#arranque.vivo .arr-capa{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}

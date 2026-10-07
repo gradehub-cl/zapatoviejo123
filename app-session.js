@@ -1198,26 +1198,38 @@ async function cerrarSesion(){
 // Los mismos de la transición de #arranque svg en styles.css. Parte quieta y
 // frena largo: con una curva que arranca rápido, el logo saltaba arriba.
 const VIAJE_ARRANQUE_MS=500,VIAJE_ARRANQUE_CURVA='cubic-bezier(.45,0,.15,1)';
+const RESPIRO_MS=1600; // una respiración: el 1.6s de .arr-arriba en styles.css
 function quitarArranque(){
   const a=typeof document!=='undefined'&&document.getElementById&&document.getElementById('arranque');
   if(!a||!a.classList||typeof a.classList.add!=='function')return; // los tests usan elementos de mentira
   // Cuando la app carga rápido, el splash nativo todavía tapa la vista web, que
   // recién se está dibujando: sacarlo de una dejaba un cuadro en blanco, y con
   // su desvanecido quedaba un segundo logo quieto al centro. Se espera a que la
-  // web esté en pantalla, se saca el splash (es idéntico) y después se sigue.
+  // web esté en pantalla, se saca el splash (soltarSplash, en index.html) y
+  // después se sigue.
   const despues=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(()=>requestAnimationFrame(f)):f();
   despues(()=>{
-    try{window.Capacitor.Plugins.SplashScreen.hide({fadeOutDuration:0});}catch(e){}
+    if(typeof soltarSplash==='function')soltarSplash();
     despues(()=>{
       // Cualquier falla del viaje termina en desvanecer: la pantalla se va igual.
       try{if(volarAlLogin(a))return;}catch(e){}
-      a.classList.add('listo');setTimeout(()=>a.remove(),400);
+      desvanecer(a);
     });
   });
 }
+function desvanecer(a){a.classList.add('listo');setTimeout(()=>a.remove(),400);}
 function volarAlLogin(a){
   const svg=a.querySelector('svg'),destino=document.querySelector('#screen-auth.active .ob-icon img');
   if(!svg||!destino||matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
+  // Sin sesión la app carga tan rápido que el logo subía apenas aparecía
+  // (Martín, en su iPhone): se deja terminar la primera respiración, que acaba
+  // con las capas juntas. Con sesión ya respiró mientras bajaban los datos.
+  const desde=Number(a.dataset&&a.dataset.desde)||0;
+  const falta=RESPIRO_MS-(performance.now()-desde);
+  setTimeout(()=>{try{if(despegar(a,svg,destino))return;}catch(e){}desvanecer(a);},Math.max(0,falta));
+  return true;
+}
+function despegar(a,svg,destino){
   const r=destino.getBoundingClientRect(),o=svg.getBoundingClientRect();
   if(!r.width||!o.width)return false;
   // El logo del login va dentro del padding del <img>: el destino es esa caja.
