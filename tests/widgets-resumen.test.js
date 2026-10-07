@@ -66,6 +66,13 @@ b.run('borrarResumenWidgets()');
 chk('borrar al cerrar sesión llama al plugin',b.llamadas.borrar===2);
 chk('cerrarSesion lo llama',/borrarResumenWidgets\(\)/.test(leer('app-session.js').slice(leer('app-session.js').indexOf('async function cerrarSesion'),leer('app-session.js').indexOf('async function cerrarSesion')+600)));
 
+// Así llega de verdad en la app: sin @capacitor/core no hay registerPlugin, y el
+// puente nativo deja el plugin en Capacitor.Plugins.
+const c=contexto(false);
+c.run(`window.Capacitor={isNativePlatform:()=>true,Plugins:{GradeHubWidgets:{guardarResumen(o){globalThis.__enviado=o;return Promise.resolve();},borrarResumen(){return Promise.resolve();}}}};_pluginWidgets=undefined;publicarResumenWidgets();`);
+c.correrTimers();
+chk('sin registerPlugin usa el plugin que deja el puente nativo',c.run('typeof __enviado')==='object'&&JSON.parse(c.run('__enviado.json')).version===1);
+
 console.log('\n=== Tocar un widget abre la pantalla exacta ===');
 b.run(`S.onboardingDone=true;globalThis.__abierto=null;openRamo=id=>{__abierto='ramo:'+id};showTab=t=>{__abierto='tab:'+t};`);
 chk('ramo existente',b.run(`abrirEnlaceWidget('cl.gradehub.app://ramo/a')`)===true&&b.run('__abierto')==='ramo:a');
