@@ -149,7 +149,7 @@ function focoAgendaCopy(e){
   if(e.dias<=2)return `Faltan ${e.dias} día${e.dias!==1?'s':''}: es lo que más te conviene atender ahora.`;
   if(e.necesita!==null&&e.necesita>5.0)return `Te exige ${nfNecesaria(e.necesita)} en lo pendiente para aprobar: adelántate.`;
   // Sin el "cuándo": la tarjeta ya lo dice en su propia línea justo arriba.
-  return 'Destacada por cercanía, peso y cómo vas en el ramo.';
+  return 'Por cercanía, peso y cómo vas.';
 }
 
 function razonDestacadaAgenda(e){
@@ -447,7 +447,7 @@ function agendaFechasPasadasHTML(eventos){
       </div>
       <span class="ag-count">${ordenados.length}</span>
     </div>
-    <p class="ag-waiting-help">Si ya la rendiste, agrega la nota cuando llegue. Si se movió, corrige o quita la fecha.</p>
+    <p class="ag-waiting-help">Si ya la rendiste, agrega la nota. Si se movió, corrige la fecha.</p>
     <div class="ag-waiting-list">${ordenados.map(e=>{
       const f=formatEventDate(e.fecha);
       const notaId=e.nota?e.nota.id:'';

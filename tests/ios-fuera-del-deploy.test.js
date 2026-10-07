@@ -27,5 +27,14 @@ chk('copia a ios-web y sincroniza con Capacitor', /rsync -a \.\/ ios-web\//.test
 const config = JSON.parse(fs.readFileSync(path.join(raiz, 'capacitor.config.json'), 'utf8'));
 chk('Capacitor toma la web de ios-web', config.webDir === 'ios-web' && config.appId === 'cl.gradehub.app');
 
+console.log('\n=== Permisos que iOS exige antes de usar la cámara o las fotos ===');
+// Sin estas claves iOS cierra la app de golpe: la foto del horario y el
+// flyer de una clase ofrecen "Tomar foto", y compartir el Wrapped ofrece
+// "Guardar imagen".
+const plist = fs.readFileSync(path.join(raiz, 'ios/App/App/Info.plist'), 'utf8');
+for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryAddUsageDescription'])
+  chk(`Info.plist declara ${k}`, new RegExp(`<key>${k}</key>\\s*<string>[^<]{20,}</string>`).test(plist));
+chk('la vuelta del login con Google está registrada', /<string>cl\.gradehub\.app<\/string>/.test(plist));
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail ? 1 : 0);

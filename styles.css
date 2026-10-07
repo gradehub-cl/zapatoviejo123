@@ -21,12 +21,17 @@ button:active{transform:scale(.97);}
   /* En claro los extremos se vuelven profundos para seguir leyéndose sobre blanco. */
   --grade-light:30%;--grade-urgent-light:37%;--grade-perfect-light:33%;
   --muted:#f2f2f4;--radius:10px;
+  /* Listas agrupadas de la app iOS (Ajustes): fondo y celda, como iOS. */
+  --fondo-agrupado:var(--muted);--celda-agrupada:var(--card);
   --shadow:0 1px 2px rgba(7,23,27,.04),0 4px 16px -4px rgba(7,23,27,.08);
   --shadow-lg:0 8px 30px -8px rgba(7,23,27,.16);
   /* Un ritmo compartido evita que cada pantalla "invente" su propia
      transición. Corto a propósito: orienta la interacción, no la retrasa. */
   --motion-press:120ms;--motion-fast:160ms;--motion-base:220ms;--motion-screen:320ms;
   --ease-out:cubic-bezier(.22,1,.36,1);--ease-standard:cubic-bezier(.2,.8,.2,1);
+  /* Para recorrer un trecho largo (el logo de la pantalla de carga al login):
+     parte quieta y frena largo, como un resorte sin rebote. */
+  --ease-viaje:cubic-bezier(.45,0,.15,1);
   /* Dos direcciones bastan para las superficies y los acentos decorativos.
      Los gradientes que expresan avance, cierre o una nota son funcionales y
      permanecen junto a su selector: no usan estos tokens. */
@@ -52,6 +57,7 @@ button:active{transform:scale(.97);}
     --red:#ff5f7a;--red-bg:#280d15;
     --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
     --muted:#1b1b1f;
+    --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
     --shadow-lg:0 10px 36px -10px rgba(0,0,0,.75);
     /* En oscuro el texto del botón es oscuro, así que acá el degradado sí se
@@ -72,6 +78,7 @@ button:active{transform:scale(.97);}
     --red:#ff5f7a;--red-bg:#280d15;
     --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
     --muted:#1b1b1f;
+    --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
     --shadow-lg:0 10px 36px -10px rgba(0,0,0,.75);
     /* En oscuro el texto del botón es oscuro, así que acá el degradado sí se
@@ -199,6 +206,27 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
+/* Pantalla de carga de la app (index.html, #arranque). Solo en la app nativa.
+   Calza con el splash de iOS (fondo de la app y logo de 96 px al centro) y se
+   va cuando boot() eligió qué mostrar. Si boot() se colgara, a los 12 s se va
+   igual y queda lo de abajo, como antes de que existiera. */
+#arranque{display:none;}
+.app-nativa #arranque{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity var(--motion-screen) var(--ease-standard),background-color var(--motion-screen) var(--ease-standard);animation:arranqueTope 0s 12s forwards;}
+.app-nativa #arranque.listo{opacity:0;pointer-events:none;}
+/* Hacia el login: se va el fondo y el logo vuela a su lugar (quitarArranque).
+   Las tapas toman el color del cuadro del logo del login, donde aterriza. */
+.app-nativa #arranque.viaje{background-color:transparent;pointer-events:none;}
+#arranque.viaje .arr-tapa{fill:var(--card);}
+@keyframes arranqueTope{to{opacity:0;visibility:hidden;}}
+#arranque svg{width:96px;height:96px;overflow:visible;transition:transform .5s var(--ease-viaje);}
+#arranque .arr-tapa{fill:var(--bg);transition:fill .5s var(--ease-viaje);}
+/* Mientras carga, las capas se separan y se vuelven a juntar. Parte con .vivo,
+   cuando se va el splash nativo (soltarSplash, index.html), desde juntas. */
+#arranque.vivo .arr-arriba{animation:arrArriba 1.6s ease-in-out infinite;}
+#arranque.vivo .arr-abajo{animation:arrAbajo 1.6s ease-in-out infinite;}
+@keyframes arrArriba{50%{transform:translateY(-8px);}}
+@keyframes arrAbajo{50%{transform:translateY(8px);}}
+@media(prefers-reduced-motion:reduce){#arranque.vivo .arr-capa{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
@@ -229,6 +257,10 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .user-menu-name{font-size:0.90625rem;font-weight:700;color:var(--fg);letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-menu-mail{font-size:0.75rem;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-menu-sep{height:1px;background:var(--border);margin:5px 4px;}
+/* `hidden` no basta: el `display:flex` de abajo le gana. "Espacio de
+   profesor" lleva `hidden` a propósito (va en Ajustes, no en este menú; Lucas,
+   2026-09-21) y se veía igual para todos. */
+.user-menu-item[hidden]{display:none;}
 .user-menu-item{display:flex;align-items:center;gap:11px;width:100%;padding:10px 11px;border:none;background:none;border-radius:10px;color:var(--fg2);font-family:var(--font-ui);font-size:0.875rem;font-weight:500;text-align:left;cursor:pointer;letter-spacing:-.01em;transition:background var(--motion-press),color var(--motion-press);}
 .user-menu-item .ic{width:17px;height:17px;flex-shrink:0;color:var(--fg3);transition:color var(--motion-press);}
 .user-menu-item:hover{background:var(--muted);color:var(--fg);}
@@ -237,12 +269,21 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .user-menu-item.danger .ic{color:var(--red);}
 .user-menu-item.danger:hover{background:var(--red-bg);color:var(--red);}
 .user-menu-item.danger:hover .ic{color:var(--red);}
+/* Menús desplegables (abrirMenu, app.js): el aspecto del menú de la cuenta,
+   con ✓ en la opción elegida. */
+.menu-flotante{width:220px;}
+.user-menu-item .menu-texto{flex:1;min-width:0;}
+.user-menu-item .menu-check{flex:none;width:17px;height:17px;color:var(--primary);stroke-width:2.4;}
 /* Links de texto en topbar (Ajustes) */
 .topbar-link{background:var(--card);border:1.5px solid var(--border2);color:var(--fg2);font-size:0.84375rem;font-weight:600;cursor:pointer;padding:7px 12px;border-radius:9px;letter-spacing:-.01em;transition:color var(--motion-fast),background var(--motion-fast),border-color var(--motion-fast);}
 .topbar-link:hover{color:var(--primary);border-color:var(--primary);background:var(--card);}
 .scroll{flex:1;overflow-y:auto;padding-bottom:calc(80px + env(safe-area-inset-bottom,0px));}
 /* ONBOARDING */
-.ob-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px));overflow-y:auto;}
+/* El alto de la pantalla menos el margen de la isla dinámica, que ya ocupa
+   el padding-top de .app. Con 100dvh solo, en la app iOS (y en la PWA
+   instalada) el login medía unos 60 puntos de más y se podía arrastrar. En
+   Safari ese margen vale 0 y nada cambia. */
+.ob-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:calc(100dvh - env(safe-area-inset-top,0px));padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px));overflow-y:auto;}
 .ob-icon{width:72px;height:72px;border-radius:20px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:20px;box-shadow:0 8px 24px rgba(37,99,235,.3);}
 .ob-icon-logo{background:#0a0e14;box-shadow:0 10px 28px -6px rgba(10,14,20,.5);overflow:hidden;}
 /* La marca es transparente: la superficie sigue el modo elegido en Ajustes,
@@ -450,6 +491,10 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 #screen-auth .auth-stats[hidden]{display:none;}
 /* Aviso de instalación al pie de Inicio. Tono de nota al margen: sin fondo de
    tarjeta ni color de acento en el cuerpo, para que no compita con los ramos. */
+/* Mismo caso que la banda de arriba: sin esto, el aviso oculto (descartado,
+   primera visita, navegador sin instalación o la app iOS) se dibujaba como un
+   cuadro vacío al pie de Inicio. Lo vio Martín en la app el 2026-10-06. */
+.instalar-aviso[hidden]{display:none;}
 .instalar-aviso{display:flex;align-items:flex-start;gap:12px;margin:18px 20px 0;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--muted);}
 .instalar-aviso .ic{width:20px;height:20px;flex:0 0 auto;margin-top:1px;color:var(--fg3);}
 .instalar-cuerpo{flex:1;min-width:0;}
@@ -922,6 +967,18 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
    seguir al dedo. */
 .modal-sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));width:100%;max-width:430px;box-shadow:0 -4px 32px rgba(0,0,0,.2);max-height:92vh;max-height:92dvh;overflow-y:auto;
   touch-action:pan-y;overscroll-behavior-y:contain;}
+/* App iOS: las hojas abren enteras, el "large detent" de las HIG (Sheets). Con
+   el alto según el contenido cada hoja medía distinto y Ajustes saltaba al
+   cambiar de sección: se sentía página web (Martín, 2026-10-06). Queda a la
+   vista una franja de la pantalla de atrás, como en iOS. El simulador de
+   semestre, que ya es de pantalla completa, sigue mandando más abajo. */
+@media (max-width:767px){
+  .app-nativa .modal-sheet{height:calc(100dvh - env(safe-area-inset-top,0px) - 10px);max-height:none;}
+  /* Con la hoja entera, la lista de "Agregar ramo" usa el alto que sobra en
+     vez de quedarse en un tercio con media hoja vacía debajo. Los ~290px son
+     el título, el buscador y los botones. */
+  .app-nativa .cat-results{max-height:max(34vh,calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 290px));}
+}
 .modal-title{font-size:1.0625rem;font-weight:700;color:var(--fg);margin-bottom:16px;}
 /* Sin doble toque para hacer zoom sobre un botón: en iPhone un toque rápido
    se leía a veces como el comienzo de un doble toque y el botón no respondía. */
@@ -1422,6 +1479,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .settings-account-access{margin-top:28px;padding-top:22px;border-top:1px solid var(--border);}
 .settings-nav-group{margin:16px 10px 6px;font-size:0.65625rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);}
 .settings-nav-group:first-child{margin-top:0;}
+.settings-nav-card{display:contents;}
 .settings-nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:11px 10px;border:0;border-radius:12px;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
 .settings-nav-item>span:nth-child(2){display:flex;min-width:0;flex:1;flex-direction:column;gap:2px;}
 .settings-nav-item b{font-size:0.84375rem;letter-spacing:-.01em;line-height:1.2;}
@@ -2980,3 +3038,55 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 @media(min-width:1000px){#admin-body:has(.admin-hig){max-width:1100px;margin:0 auto;}}
 @media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-buscar{flex-basis:100%;}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
 @media(prefers-reduced-motion:reduce){.admin-hig *{animation:none;transition:none;}}
+
+/* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
+   Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
+   Martín: "que la app parezca lo menos PWA posible".
+   HIG Sheets y Toolbars: cerrar arriba a la izquierda con su símbolo y no con
+   texto; la acción principal arriba a la derecha, destacada y una sola.
+   HIG Lists and tables y Settings: grupos en tarjetas redondeadas.
+   HIG Buttons: todo lo que se toca mide al menos 44 pt. */
+.app-nativa .modal-sheet{--fondo-hoja:var(--bg2);background:var(--fondo-hoja);}
+.app-nativa .hoja-barra{position:sticky;top:-16px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-16px -20px 10px;padding:10px 14px 6px;background:var(--fondo-hoja);}
+.app-nativa .hoja-barra-izq,.app-nativa .hoja-barra-der{display:flex;min-width:44px;}
+.app-nativa .hoja-barra button{flex:none;width:auto;min-width:44px;height:44px;margin:0;border:0;border-radius:22px;box-shadow:none;background-image:none;}
+.app-nativa .hoja-cerrar,.app-nativa .hoja-volver{display:inline-flex;align-items:center;justify-content:center;width:44px;padding:0;font-size:0;background:color-mix(in srgb,var(--fg) 9%,var(--fondo-hoja));color:var(--fg);}
+.app-nativa .hoja-volver>*{display:none;}
+.app-nativa .hoja-cerrar::before,.app-nativa .hoja-volver::before{content:"";width:17px;height:17px;background:currentColor;-webkit-mask:var(--ic-hoja) center/contain no-repeat;mask:var(--ic-hoja) center/contain no-repeat;}
+.app-nativa .hoja-cerrar{--ic-hoja:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6 6 18'/%3E%3C/svg%3E");}
+.app-nativa .hoja-volver{--ic-hoja:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E");}
+.app-nativa .hoja-confirmar{padding:0 18px;background:var(--primary);color:var(--primary-fg);font-family:var(--font-ui);font-size:0.9375rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap;}
+.app-nativa .hoja-confirmar:disabled{opacity:.35;}
+/* La cabecera propia de Ajustes queda solo con el título. */
+.app-nativa .settings-modal-head .modal-title{margin-bottom:12px;}
+
+/* Ajustes como la app Ajustes: búsqueda gris con lupa, grupos en tarjetas y
+   filas sin bajada (el título basta y la búsqueda encuentra lo de adentro). */
+.app-nativa .modal-sheet:has(.settings-shell){--fondo-hoja:var(--fondo-agrupado);}
+.app-nativa .settings-search-label{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);}
+.app-nativa input.settings-search{min-height:40px;margin-bottom:6px;padding:8px 12px 8px 36px;border:0;border-radius:12px;background:var(--celda-agrupada) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E") 12px 50%/17px no-repeat;font-size:1.0625rem;}
+.app-nativa .settings-nav{gap:0;}
+.app-nativa .settings-nav-group{margin:20px 16px 7px;}
+.app-nativa .settings-nav-card{display:block;background:var(--celda-agrupada);border-radius:14px;overflow:hidden;}
+.app-nativa .settings-nav-item{position:relative;min-height:50px;padding:8px 14px;gap:13px;border:0;border-radius:0;background:transparent;}
+.app-nativa .settings-nav-item+.settings-nav-item::before{content:"";position:absolute;top:0;left:57px;right:0;height:1px;background:var(--border);}
+.app-nativa .settings-nav-item small{display:none;}
+.app-nativa .settings-nav-item b{font-weight:500;font-size:1rem;}
+.app-nativa .settings-nav-icon{width:30px;height:30px;border-radius:8px;background:var(--muted);color:var(--fg);}
+.app-nativa .settings-nav-icon .ic{width:17px;height:17px;}
+.app-nativa .settings-nav-chevron{font-size:1.375rem;}
+.app-nativa .settings-detail-heading{margin-bottom:14px;}
+.app-nativa .settings-detail-heading p{display:none;}
+
+/* Botones de las barras de arriba: redondos y sin borde, como los de iOS. */
+.app-nativa .icon-btn{width:44px;height:44px;border:0;border-radius:50%;}
+.app-nativa .topbar-link{min-height:44px;padding:0 16px;border:0;border-radius:22px;background:var(--muted);color:var(--fg);}
+
+
+/* Confirmaciones como las alertas de iOS (HIG Alerts): texto centrado y
+   botones en cápsula; lo destructivo en rojo sobre gris, no un bloque lleno. */
+.app-nativa .confirm-box{max-width:300px;padding:22px 18px 16px;border-radius:28px;text-align:center;}
+.app-nativa .confirm-title{font-size:1.0625rem;font-weight:600;}
+.app-nativa .confirm-desc{font-size:0.875rem;}
+.app-nativa .confirm-btns button{min-height:48px;border:0;border-radius:24px;font-size:1rem;font-weight:600;}
+.app-nativa .confirm-btns .btn-danger{background:var(--muted);color:var(--red);}
