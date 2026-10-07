@@ -68,6 +68,14 @@ enum Fechas {
         default: return "En \(n) días"
         }
     }
+    // "jue 8 oct", en español, sin depender del idioma del iPhone.
+    static func corta(_ texto: String) -> String {
+        guard let d = dia(texto) else { return texto }
+        let c = Calendar(identifier: .gregorian).dateComponents([.weekday, .day, .month], from: d)
+        let dias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"]
+        let meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"]
+        return "\(dias[(c.weekday ?? 1) - 1]) \(c.day ?? 0) \(meses[(c.month ?? 1) - 1])"
+    }
     // La próxima evaluación que todavía no pasa, vista desde la fecha de la entrada.
     static func proxima(_ r: Resumen?, desde ahora: Date) -> Resumen.Evaluacion? {
         r?.agenda.first { (diasHasta($0.fecha, desde: ahora) ?? -1) >= 0 }
@@ -159,11 +167,16 @@ struct ProximaVista: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("PRÓXIMA").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Text(Fechas.cuando(e, desde: entrada.date)).font(.title3.weight(.bold)).minimumScaleFactor(0.8)
+                Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
                 Text(e.evaluacion).font(.subheadline.weight(.semibold)).lineLimit(2)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 0)
                 if let n = e.necesitas {
-                    Text("Necesitas \(n)").font(.caption.weight(.semibold)).monospacedDigit().privacySensitive()
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("Necesitas").font(.caption).foregroundStyle(.secondary)
+                        Text(n).font(.caption.weight(.bold)).monospacedDigit()
+                    }
+                    .privacySensitive()
                 } else if e.inalcanzable == true {
                     Text("Ya no alcanza el 4,0").font(.caption).privacySensitive()
                 } else if e.margen == true {
@@ -240,44 +253,75 @@ struct PromedioGeneralWidget: Widget {
 
 // MARK: - Actividad en Vivo de una evaluación (#645)
 
-// Antes de la hora de inicio: cuenta regresiva. Desde la hora de inicio el
-// sistema la marca como "stale" y se dibuja "Suerte" con el tiempo que queda,
-// sin que la app tenga que estar abierta. Los mensajes de cada fase (repaso,
-// baño y agua, caminar a la sala) llegan como notificaciones locales.
+// Antes de la hora de inicio: cuenta regresiva grande, como reloj. Desde la hora
+// de inicio el sistema la marca "stale" y se dibuja "Suerte" con la barra del
+// tiempo que queda, sin que la app tenga que estar abierta. Los mensajes de
+// cada fase (repaso, baño y agua, caminar a la sala) llegan como notificaciones.
+// Sin notas: solo qué evaluación es, dónde y cuándo.
+
+enum Hora {
+    // 24 horas siempre, como se usa en Chile, aunque el iPhone esté en 12 horas.
+    static let formato: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "H:mm"
+        return f
+    }()
+    static func de(_ d: Date) -> String { formato.string(from: d) }
+}
+
+func lugarYHora(_ a: ActividadPruebaAtributos, _ e: ActividadPruebaAtributos.ContentState) -> String {
+    let horas = "\(Hora.de(e.inicio))–\(Hora.de(e.fin))"
+    return a.sala.map { "Sala \($0) · \(horas)" } ?? horas
+}
+
+struct CuentaRegresiva: View {
+    let hasta: Date
+    var body: some View {
+        Text(timerInterval: Date.now...max(hasta, Date.now), countsDown: true, showsHours: true)
+            .monospacedDigit()
+            .multilineTextAlignment(.trailing)
+    }
+}
+
 struct PruebaBloqueoVista: View {
     let contexto: ActivityViewContext<ActividadPruebaAtributos>
 
     var body: some View {
         let a = contexto.attributes, e = contexto.state
-        HStack(alignment: .top, spacing: 10) {
-            Rectangle().fill(Color(hexRamo: a.color)).frame(width: 3)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(a.evaluacion) · \(a.sigla ?? a.ramo)").font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(lugarYHora(a, e)).font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+        let color = Color(hexRamo: a.color)
+        HStack(alignment: .center, spacing: 12) {
+            // El color del ramo vive en su línea lateral, como en la app.
+            RoundedRectangle(cornerRadius: 1.5).fill(color).frame(width: 3)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(contexto.isStale ? "EN CURSO" : "PRÓXIMA EVALUACIÓN")
+                    .font(.caption2.weight(.semibold)).tracking(0.6).foregroundStyle(.secondary).lineLimit(1)
+                Text(a.evaluacion).font(.headline).lineLimit(1)
+                Text(a.ramo).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(lugarYHora(a, e)).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
                 if contexto.isStale {
                     Text("Suerte").font(.title2.weight(.bold))
-                    ProgressView(timerInterval: e.inicio...e.fin, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
-                        .tint(Color(hexRamo: a.color))
+                    Text("Termina \(Hora.de(e.fin))").font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("Empieza en").font(.subheadline).foregroundStyle(.secondary)
-                        Text(e.inicio, style: .timer).font(.title2.weight(.bold)).monospacedDigit()
-                    }
+                    // En la pantalla de bloqueo iOS esconde los segundos de un reloj
+                    // ("24:--"); este formato se adapta solo y se lee "24 minutos".
+                    Text(e.inicio, style: .timer).font(.title2.weight(.bold)).monospacedDigit()
+                        .multilineTextAlignment(.trailing).minimumScaleFactor(0.7).lineLimit(1).frame(maxWidth: 130, alignment: .trailing)
+                    Text("para empezar").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Spacer(minLength: 0)
         }
-        .padding(14)
+        .overlay(alignment: .bottom) {
+            if contexto.isStale {
+                ProgressView(timerInterval: e.inicio...e.fin, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .tint(color).offset(y: 10)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
     }
-}
-
-func lugarYHora(_ a: ActividadPruebaAtributos, _ e: ActividadPruebaAtributos.ContentState) -> String {
-    let f = DateFormatter()
-    // 24 horas siempre, como se usa en Chile, aunque el iPhone esté en 12 horas.
-    f.locale = Locale(identifier: "en_US_POSIX")
-    f.dateFormat = "H:mm"
-    let horas = "\(f.string(from: e.inicio))–\(f.string(from: e.fin))"
-    return a.sala.map { "Sala \($0) · \(horas)" } ?? horas
 }
 
 struct ActividadPruebaWidget: Widget {
@@ -287,25 +331,35 @@ struct ActividadPruebaWidget: Widget {
                 .widgetURL(URL(string: "cl.gradehub.app://ramo/\(contexto.attributes.ramoId)"))
         } dynamicIsland: { contexto in
             let a = contexto.attributes, e = contexto.state
+            let color = Color(hexRamo: a.color)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text(a.sigla ?? a.ramo).font(.headline).lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(a.evaluacion).font(.headline).lineLimit(1)
+                        Text(a.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if contexto.isStale { Text("Suerte").font(.headline) }
-                    else { Text(e.inicio, style: .timer).font(.headline).monospacedDigit().frame(maxWidth: 80) }
+                    if contexto.isStale { Text("Suerte").font(.headline).foregroundStyle(color) }
+                    else { CuentaRegresiva(hasta: e.inicio).font(.title3.weight(.semibold)).foregroundStyle(color).frame(maxWidth: 90, alignment: .trailing) }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("\(a.evaluacion) · \(lugarYHora(a, e))").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if contexto.isStale {
+                        ProgressView(timerInterval: e.inicio...e.fin, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }.tint(color)
+                    } else {
+                        Text(lugarYHora(a, e)).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
             } compactLeading: {
-                Text(a.sigla ?? a.ramo).font(.caption2.weight(.semibold)).lineLimit(1)
+                Circle().fill(color).frame(width: 10, height: 10).padding(.leading, 2)
             } compactTrailing: {
-                if contexto.isStale { Image(systemName: "pencil.line") }
-                else { Text(e.inicio, style: .timer).font(.caption2).monospacedDigit().frame(maxWidth: 44) }
+                if contexto.isStale { Text("Suerte").font(.caption2.weight(.semibold)) }
+                else { CuentaRegresiva(hasta: e.inicio).font(.caption2.weight(.semibold)).frame(maxWidth: 46) }
             } minimal: {
-                Image(systemName: "pencil.line")
+                Circle().fill(color).frame(width: 10, height: 10)
             }
+            .keylineTint(color)
             .widgetURL(URL(string: "cl.gradehub.app://ramo/\(a.ramoId)"))
         }
     }
