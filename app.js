@@ -8868,7 +8868,10 @@ function pluginWidgets(){
   if(_pluginWidgets!==undefined)return _pluginWidgets;
   const cap=typeof window!=='undefined'?window.Capacitor:null;
   const nativa=!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
-  try{_pluginWidgets=nativa&&typeof cap.registerPlugin==='function'?cap.registerPlugin('GradeHubWidgets'):null;}
+  // La app no carga @capacitor/core (no hay build), así que no hay registerPlugin:
+  // el puente nativo deja cada plugin registrado en Capacitor.Plugins.
+  try{_pluginWidgets=!nativa?null:(cap.Plugins&&cap.Plugins.GradeHubWidgets)
+    ||(typeof cap.registerPlugin==='function'?cap.registerPlugin('GradeHubWidgets'):null);}
   catch(e){_pluginWidgets=null;}
   return _pluginWidgets;
 }
