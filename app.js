@@ -1002,6 +1002,7 @@ function save(){
     }
   }
   syncToCloud();
+  publicarResumenWidgets();
   // Una pauta que la persona acaba de terminar también puede sumar al
   // consenso durante esta visita; no necesita cerrar y volver a entrar.
   if(!_suspenderAportePautas&&typeof currentUser!=='undefined'&&currentUser&&typeof supabaseClient!=='undefined'&&supabaseClient&&S.onboardingDone){
@@ -2054,6 +2055,7 @@ window.addEventListener('appinstalled',()=>{_promptInstalar=null;descartarAvisoI
 
 function showMainApp(){
   applyTheme();
+  publicarResumenWidgets();
   document.getElementById('screen-onboard').classList.remove('active');
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
@@ -8827,6 +8829,69 @@ function agendaEvents(){
   });
   out.sort((a,b)=>a.fecha.localeCompare(b.fecha)||(a.hora||'').localeCompare(b.hora||''));
   return out;
+}
+// ─── WIDGETS DE LA APP iOS (#634) ──────────────────────────────────────────
+// Los widgets no calculan: la app arma un resumen con las mismas funciones que
+// usa la interfaz (notaFinalOficial, nivelRamo, notaNecesaria, nfNecesaria) y
+// lo entrega al lado nativo, que lo guarda para que los widgets lo muestren.
+// En la web (fuera de la app) no hay plugin y nada de esto corre.
+const WIDGETS_VERSION=1;
+function resumenParaWidgets(ahora){
+  ahora=ahora||new Date();
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const sigla=r=>(typeof siglaDeRamo==='function'?siglaDeRamo(r):null)||null;
+  const g=gpa(S.ramos);
+  const ramos=S.ramos.map(r=>{
+    const v=ramoAvg(r);
+    return {id:r.id,nombre:r.nombre,promedio:v===null?null:notaFinalOficial(v),nivel:v===null?null:nivelRamo(r,v)};
+  });
+  const necesitaPorRamo=new Map();
+  const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
+    if(!necesitaPorRamo.has(e.ramo.id))necesitaPorRamo.set(e.ramo.id,notaNecesaria(e.ramo));
+    const nec=necesitaPorRamo.get(e.ramo.id);
+    const valido=typeof nec==='number'&&Number.isFinite(nec);
+    return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
+      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
+      necesitas:valido&&nec>1&&nec<=7?nfNecesaria(nec):null,
+      margen:valido&&nec<=1,inalcanzable:valido&&nec>7};
+  });
+  return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
+    promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda};
+}
+let _pluginWidgets,_widgetsTimer=null;
+function pluginWidgets(){
+  if(_pluginWidgets!==undefined)return _pluginWidgets;
+  const cap=typeof window!=='undefined'?window.Capacitor:null;
+  const nativa=!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
+  try{_pluginWidgets=nativa&&typeof cap.registerPlugin==='function'?cap.registerPlugin('GradeHubWidgets'):null;}
+  catch(e){_pluginWidgets=null;}
+  return _pluginWidgets;
+}
+// Se agrupan los guardados seguidos (escribir varias notas) en un solo envío.
+function publicarResumenWidgets(){
+  const p=pluginWidgets();if(!p)return;
+  clearTimeout(_widgetsTimer);
+  _widgetsTimer=setTimeout(()=>{
+    try{
+      const pedido=S.onboardingDone?p.guardarResumen({json:JSON.stringify(resumenParaWidgets())}):p.borrarResumen();
+      if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});
+    }catch(e){}
+  },400);
+}
+// Al cerrar sesión no pueden quedar notas de esa cuenta en la pantalla de inicio.
+function borrarResumenWidgets(){
+  const p=pluginWidgets();if(!p)return;
+  clearTimeout(_widgetsTimer);
+  try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
+}
+// Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
+// ://agenda o ://inicio. Un ramo que ya no existe deja en Inicio.
+function abrirEnlaceWidget(url){
+  const m=/^cl\.gradehub\.app:\/\/(ramo|agenda|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  if(!m||!S.onboardingDone)return false;
+  if(m[1]==='agenda'){showTab('agenda');return true;}
+  if(m[1]==='ramo'&&S.ramos.some(r=>r.id===m[2])){openRamo(m[2]);return true;}
+  showTab('home');return m[1]==='inicio';
 }
 
 // Esto recuerda una acción todavía no hecha: mandar una prueba ya rendida a

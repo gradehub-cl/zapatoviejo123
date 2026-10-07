@@ -481,7 +481,13 @@ async function volverDeOAuthNativo(url){
 // El typeof es porque hay tests que cargan solo este tramo del archivo.
 if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
   const {App,Browser}=window.Capacitor.Plugins;
-  if(App)App.addListener('appUrlOpen',ev=>{volverDeOAuthNativo(ev&&ev.url);});
+  // La vuelta del login con Google y los enlaces de los widgets llegan por el
+  // mismo esquema propio; cada uno reconoce solo lo suyo.
+  if(App)App.addListener('appUrlOpen',ev=>{
+    const url=ev&&ev.url;
+    if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
+    else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
+  });
   if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 
@@ -1167,6 +1173,7 @@ async function cerrarSesion(){
   try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
   finally{_cerrandoSesion=false;}
   currentUser=null;closeModal();
+  if(typeof borrarResumenWidgets==='function')borrarResumenWidgets();
   if(typeof olvidarSesionAgentes==='function')olvidarSesionAgentes();
   // Las propuestas pertenecen a la cuenta que salió, no al navegador.
   if(typeof propuestasPautaAgente!=='undefined')propuestasPautaAgente=[];
