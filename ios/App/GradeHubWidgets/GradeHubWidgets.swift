@@ -166,11 +166,12 @@ struct ProximaVista: View {
             Rectangle().fill(Color(hexRamo: e.color)).frame(width: 3)
             VStack(alignment: .leading, spacing: 3) {
                 Text("PRÓXIMA").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                Text(Fechas.cuando(e, desde: entrada.date)).font(.title3.weight(.bold)).minimumScaleFactor(0.8)
-                Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Text(e.evaluacion).font(.subheadline.weight(.semibold)).lineLimit(2)
+                // Primero qué es; después cuánto falta (pedido de Lucas, 2026-10-07).
+                Text(e.evaluacion).font(.headline).lineLimit(2).minimumScaleFactor(0.85)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 0)
+                Text(Fechas.cuando(e, desde: entrada.date)).font(.subheadline.weight(.bold)).minimumScaleFactor(0.8)
+                Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
                 if let n = e.necesitas {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Necesitas").font(.caption).foregroundStyle(.secondary)
