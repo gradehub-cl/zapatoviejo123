@@ -1192,10 +1192,47 @@ async function cerrarSesion(){
 
 // La pantalla de carga de la app (#arranque en index.html) se va recién acá,
 // con la pantalla que corresponde ya puesta debajo, sea cual sea el camino.
+// Si lo que queda es el login, el logo no desaparece: vuela a su lugar en el
+// login mientras el fondo se va, y ahí se cambia por el de verdad. A la app o
+// con movimiento reducido, solo se desvanece.
+// Los mismos de la transición de #arranque svg en styles.css. Parte quieta y
+// frena largo: con una curva que arranca rápido, el logo saltaba arriba.
+const VIAJE_ARRANQUE_MS=500,VIAJE_ARRANQUE_CURVA='cubic-bezier(.45,0,.15,1)';
 function quitarArranque(){
   const a=typeof document!=='undefined'&&document.getElementById&&document.getElementById('arranque');
   if(!a||!a.classList||typeof a.classList.add!=='function')return; // los tests usan elementos de mentira
-  a.classList.add('listo');setTimeout(()=>a.remove(),400);
+  // Cuando la app carga rápido, el splash nativo todavía tapa la vista web, que
+  // recién se está dibujando: sacarlo de una dejaba un cuadro en blanco, y con
+  // su desvanecido quedaba un segundo logo quieto al centro. Se espera a que la
+  // web esté en pantalla, se saca el splash (es idéntico) y después se sigue.
+  const despues=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(()=>requestAnimationFrame(f)):f();
+  despues(()=>{
+    try{window.Capacitor.Plugins.SplashScreen.hide({fadeOutDuration:0});}catch(e){}
+    despues(()=>{
+      // Cualquier falla del viaje termina en desvanecer: la pantalla se va igual.
+      try{if(volarAlLogin(a))return;}catch(e){}
+      a.classList.add('listo');setTimeout(()=>a.remove(),400);
+    });
+  });
+}
+function volarAlLogin(a){
+  const svg=a.querySelector('svg'),destino=document.querySelector('#screen-auth.active .ob-icon img');
+  if(!svg||!destino||matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
+  const r=destino.getBoundingClientRect(),o=svg.getBoundingClientRect();
+  if(!r.width||!o.width)return false;
+  // El logo del login va dentro del padding del <img>: el destino es esa caja.
+  const pad=parseFloat(getComputedStyle(destino).paddingLeft)||0;
+  const dx=r.left+r.width/2-(o.left+o.width/2),dy=r.top+r.height/2-(o.top+o.height/2);
+  // Las capas vuelven a juntarse desde donde iban, no de golpe.
+  a.querySelectorAll('.arr-capa').forEach(c=>{
+    const t=getComputedStyle(c).transform;c.style.animation='none';
+    if(t&&t!=='none'&&c.animate)c.animate([{transform:t},{transform:'none'}],{duration:VIAJE_ARRANQUE_MS,easing:VIAJE_ARRANQUE_CURVA});
+  });
+  destino.style.opacity='0';
+  a.classList.add('viaje');
+  svg.style.transform=`translate(${dx}px,${dy}px) scale(${((r.width-2*pad)/o.width).toFixed(4)})`;
+  setTimeout(()=>{destino.style.opacity='';a.remove();},VIAJE_ARRANQUE_MS+20);
+  return true;
 }
 async function boot(){
   try{

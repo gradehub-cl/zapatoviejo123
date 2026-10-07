@@ -27,6 +27,9 @@ button:active{transform:scale(.97);}
      transición. Corto a propósito: orienta la interacción, no la retrasa. */
   --motion-press:120ms;--motion-fast:160ms;--motion-base:220ms;--motion-screen:320ms;
   --ease-out:cubic-bezier(.22,1,.36,1);--ease-standard:cubic-bezier(.2,.8,.2,1);
+  /* Para recorrer un trecho largo (el logo de la pantalla de carga al login):
+     parte quieta y frena largo, como un resorte sin rebote. */
+  --ease-viaje:cubic-bezier(.45,0,.15,1);
   /* Dos direcciones bastan para las superficies y los acentos decorativos.
      Los gradientes que expresan avance, cierre o una nota son funcionales y
      permanecen junto a su selector: no usan estos tokens. */
@@ -204,11 +207,15 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
    va cuando boot() eligió qué mostrar. Si boot() se colgara, a los 12 s se va
    igual y queda lo de abajo, como antes de que existiera. */
 #arranque{display:none;}
-.app-nativa #arranque{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity var(--motion-screen) var(--ease-standard);animation:arranqueTope 0s 12s forwards;}
+.app-nativa #arranque{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity var(--motion-screen) var(--ease-standard),background-color var(--motion-screen) var(--ease-standard);animation:arranqueTope 0s 12s forwards;}
 .app-nativa #arranque.listo{opacity:0;pointer-events:none;}
+/* Hacia el login: se va el fondo y el logo vuela a su lugar (quitarArranque).
+   Las tapas toman el color del cuadro del logo del login, donde aterriza. */
+.app-nativa #arranque.viaje{background-color:transparent;pointer-events:none;}
+#arranque.viaje .arr-tapa{fill:var(--card);}
 @keyframes arranqueTope{to{opacity:0;visibility:hidden;}}
-#arranque svg{width:96px;height:96px;overflow:visible;}
-#arranque .arr-tapa{fill:var(--bg);}
+#arranque svg{width:96px;height:96px;overflow:visible;transition:transform .5s var(--ease-viaje);}
+#arranque .arr-tapa{fill:var(--bg);transition:fill .5s var(--ease-viaje);}
 /* Mientras carga, las capas se separan y se vuelven a juntar. Parte juntas:
    el primer cuadro es igual al splash nativo. */
 #arranque .arr-arriba{animation:arrArriba 1.6s ease-in-out infinite;}

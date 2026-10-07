@@ -31,8 +31,28 @@ const clases = new Set(); let quitado = false;
 const ctx = { setTimeout: f => f(), document: { getElementById: id => id === 'arranque'
   ? { classList: { add: c => clases.add(c) }, remove: () => { quitado = true; } } : null } };
 vm.createContext(ctx);
-vm.runInContext(sesion.match(/function quitarArranque\(\)\{[\s\S]*?\n\}/)[0] + ';quitarArranque();', ctx);
-chk('quitarArranque() la desvanece y la saca', clases.has('listo') && quitado);
+vm.runInContext(sesion.match(/function quitarArranque\(\)\{[\s\S]*?\n\}/)[0] + ';function volarAlLogin(){throw 1};quitarArranque();', ctx);
+chk('si el viaje falla, igual se desvanece y se va', clases.has('listo') && quitado);
+
+// Hacia el login: el logo de 96 px al centro de un iPhone de 393×852 vuela al
+// <img> del login (48 px con 11 de padding, arriba): mismo centro, 26/96 de tamaño.
+const funcion = sesion.match(/const VIAJE_ARRANQUE_MS=[\s\S]*?\nfunction volarAlLogin\(a\)\{[\s\S]*?\n\}/)[0];
+const viaje = (reducido) => {
+  const svg = { style: {}, getBoundingClientRect: () => ({ left: 148.5, top: 378, width: 96, height: 96 }) };
+  const img = { style: {}, getBoundingClientRect: () => ({ left: 172.5, top: 60, width: 48, height: 48 }) };
+  const cls = new Set(), capas = [{ style: {}, animate: () => {} }];
+  const el = { classList: { add: c => cls.add(c) }, remove: () => {}, querySelector: () => svg, querySelectorAll: () => capas };
+  const c = { setTimeout: f => f(), matchMedia: () => ({ matches: reducido }),
+    getComputedStyle: x => x === img ? { paddingLeft: '11px' } : { transform: 'matrix(1, 0, 0, 1, 0, -5)' },
+    document: { getElementById: () => el, querySelector: s => s === '#screen-auth.active .ob-icon img' ? img : null } };
+  vm.createContext(c); vm.runInContext(funcion + ';quitarArranque();', c);
+  return { svg, img, cls, capas };
+};
+const v = viaje(false);
+chk('hacia el login el logo vuela a su lugar', v.cls.has('viaje') && v.svg.style.transform === 'translate(0px,-342px) scale(0.2708)');
+chk('las capas dejan de respirar y el logo del login vuelve al final', v.capas[0].style.animation === 'none' && v.img.style.opacity === '');
+chk('con movimiento reducido solo se desvanece', viaje(true).cls.has('listo') && !viaje(true).cls.has('viaje'));
+chk('la duración y la curva del viaje son las mismas en CSS y JS', /#arranque svg\{[^}]*transition:transform \.5s var\(--ease-viaje\)/.test(css) && /--ease-viaje:cubic-bezier\(\.45,0,\.15,1\);/.test(css) && /VIAJE_ARRANQUE_MS=500,VIAJE_ARRANQUE_CURVA='cubic-bezier\(\.45,0,\.15,1\)'/.test(sesion));
 
 console.log('\n=== El splash nativo es igual a la pantalla web ===');
 const ios = 'ios/App/App/';
