@@ -106,8 +106,20 @@ chk('otro esquema o la vuelta del login no se tocan',b.run(`abrirEnlaceWidget('h
 console.log('\n=== El lado nativo está en el proyecto ===');
 const pbx=leer('ios/App/App.xcodeproj/project.pbxproj');
 chk('la extensión de widgets es un target y va embebida en la app',/productType = "com.apple.product-type.app-extension"/.test(pbx)&&/Embed Foundation Extensions/.test(pbx));
-chk('app y widget comparten el mismo App Group',['ios/App/App/App.entitlements','ios/App/GradeHubWidgets/GradeHubWidgets.entitlements'].every(f=>/group\.cl\.gradehub\.app/.test(leer(f))));
-chk('el plugin y el widget usan el mismo grupo y clave',/"group\.cl\.gradehub\.app"/.test(leer('ios/App/App/WidgetsPlugin.swift'))&&/"resumen\.v1"/.test(leer('ios/App/App/WidgetsPlugin.swift'))&&/"resumen\.v1"/.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
+// El grupo vive en Firma.xcconfig: con otra cuenta de Apple cambia, y cada uno
+// lo pone en su Firma.local.xcconfig sin tocar el proyecto ni el Swift.
+const firma=leer('ios/App/Firma.xcconfig');
+chk('app y widget comparten el mismo App Group',['ios/App/App/App.entitlements','ios/App/GradeHubWidgets/GradeHubWidgets.entitlements'].every(f=>/<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))&&/^GRADEHUB_APP_GROUP = group\.cl\.gradehub\.app$/m.test(firma));
+chk('el Swift lee el grupo del Info.plist de su target',['ios/App/App/Info.plist','ios/App/GradeHubWidgets/Info.plist'].every(f=>/<key>GradeHubAppGroup<\/key>\s*<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))
+  &&['ios/App/App/WidgetsPlugin.swift','ios/App/GradeHubWidgets/GradeHubWidgets.swift','ios/App/Shared/ActividadPrueba.swift'].every(f=>/static let grupo = Bundle\.main\.object\(forInfoDictionaryKey: "GradeHubAppGroup"\)/.test(leer(f))));
+chk('el plugin y el widget usan la misma clave',/"resumen\.v1"/.test(leer('ios/App/App/WidgetsPlugin.swift'))&&/"resumen\.v1"/.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
+
+console.log('\n=== La firma de cada uno no entra al proyecto ===');
+chk('el proyecto no trae Team ni Bundle ID escritos',!/DEVELOPMENT_TEAM =/.test(pbx)&&!/PRODUCT_BUNDLE_IDENTIFIER = cl\./.test(pbx)
+  &&(pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = "\$\(GRADEHUB_BUNDLE_ID\)";/g)||[]).length===2&&(pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = "\$\(GRADEHUB_BUNDLE_ID\)\.widgets";/g)||[]).length===2);
+chk('Debug y Release de los dos targets parten de Firma.xcconfig',/#include "App\/Firma\.xcconfig"/.test(leer('ios/debug.xcconfig'))
+  &&(pbx.match(/baseConfigurationReference = [0-9A-F]+ \/\* Firma\.xcconfig \*\//g)||[]).length===2&&(pbx.match(/baseConfigurationReference = [0-9A-F]+ \/\* debug\.xcconfig \*\//g)||[]).length===3);
+chk('la firma personal va en un archivo que git ignora',/^GRADEHUB_BUNDLE_ID = cl\.gradehub\.app$/m.test(firma)&&/#include\? "Firma\.local\.xcconfig"/.test(firma)&&/^ios\/App\/Firma\.local\.xcconfig$/m.test(leer('.gitignore')));
 chk('el widget no calcula notas: no hay promedios ni ponderaciones en Swift',!/\bpeso\b|ponderad|ramoAvg|\.reduce\(/i.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
 chk('la nota en el widget es privada en la pantalla de bloqueo',/privacySensitive/.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));
 

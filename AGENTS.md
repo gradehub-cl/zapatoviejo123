@@ -80,6 +80,7 @@ proyecto entero cuesta ~80k tokens y casi nunca hace falta.
 | subir foto del horario (OCR en el teléfono) | `app.js` + `ocr/` | `rg -n "function leerFotoHorario\|function codigosDeFotoHorario"` |
 | herramientas para agentes (MCP) | `functions/mcp/herramientas.js` | léelo completo |
 | SQL de Supabase (se aplica a mano) | `supabase/*.sql` | un archivo por tema |
+| app iOS: Capacitor, widgets, Actividad en Vivo | `ios/App/` | lee «La app iOS», más abajo |
 
 ## Arquitectura
 
@@ -251,6 +252,66 @@ pero necesita Wrangler autenticado en la máquina de quien lo corra. Lucas y
 Martín tienen acceso de administrador a la cuenta de Cloudflare; tener Wrangler
 autenticado localmente es otra cosa y se hace aparte.
 
+## La app iOS
+
+La app es la misma web metida en Capacitor (`ios/`), más lo nativo: widgets
+(`ios/App/GradeHubWidgets/`), Actividad en Vivo (`ios/App/Shared/`) y el puente
+`ios/App/App/WidgetsPlugin.swift`. Lo que cambies en `app.js` o `styles.css`
+cambia también la app.
+
+**Se trabaja en la rama `ios`**, compartida por Martín y Lucas (acordado el
+2026-10-08). Una tarea de la app sale de `ios` (rama `ms/…` o `li/…`) y vuelve a
+`ios` por PR, nunca a `main`. Cada push a `ios` corre los tests y publica la
+versión de prueba en https://ios.gradehub.pages.dev; la PR en borrador `ios` →
+`main` muestra lo que todavía no llega a gradehub.cl. Si entró algo a `main`,
+se trae con `git merge origin/main` estando en `ios` (sin rebase: ver «Una rama
+con trabajo de otros adentro ya no se rebasea»).
+
+**Qué tiene que hacer la persona según lo que toques**, y dilo en la PR:
+
+| Cambias | Llega a su iPhone |
+|---|---|
+| HTML, JS o CSS | solo, con el push a `ios`: la app armada con `npm run ios:rama` lo carga al abrirse |
+| Swift, widgets, `Info.plist`, entitlements, plugins, `capacitor.config.json`, ícono o splash | reinstalando: `npm run ios:rama` y ▶︎ en Xcode |
+
+**Lo que es solo de la app** se marca con `html.app-nativa` en CSS (la pone
+`index.html` antes de pintar) y con `enAppNativa()` en JS; la web no debe
+cambiar. Un enlace externo se abre con `abrirFuera()` (hoja de Safari: un
+`target=_blank` no abre nada en la app). Las hojas toman solas la barra de iOS
+(`armarBarraDeHoja`): basta con que la última `.modal-btns` traiga el cerrar
+como `.btn-cancel` («Cancelar» o «Cerrar») y la acción como `.btn-confirm`. Las
+HIG valen igual que en la web.
+
+**Firma.** Nunca commitees un Team ni un Bundle ID. El proyecto los toma de
+`ios/App/Firma.xcconfig`; cada uno pone los suyos en `ios/App/Firma.local.xcconfig`,
+que git ignora (el ejemplo está en `Firma.xcconfig`). No elijas el Team en
+Signing & Capabilities: Xcode lo escribe en `project.pbxproj`, y si ese archivo
+aparece modificado sin que lo hayas tocado, no lo subas. Nunca registres
+`cl.gradehub.app` ni `group.cl.gradehub.app` con una cuenta personal. Si Xcode
+ofrece «Update to recommended settings», es Cancel.
+
+**Compilar y ver:**
+
+```bash
+npm run ios:preparar   # mete la web dentro de la app (la que va a la App Store)
+npm run ios:rama       # lo mismo, pero la app carga desde ios.gradehub.pages.dev
+```
+
+En el simulador, sin firmar (`xcrun simctl list devices available` dice cuáles
+hay). El DerivedData va fuera de `~/Desktop`: codesign rechaza los atributos que
+pone iCloud («resource fork… detritus not allowed»).
+
+```bash
+cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Debug -destination 'platform=iOS Simulator,name=<simulador>' -derivedDataPath /tmp/gradehub-dd CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build
+```
+
+Para verla sin iniciar sesión: después de `ios:preparar`, quita el `<script>` de
+supabase-js de `ios/App/App/public/index.html` (es generado y no se commitea) y
+la app abre en modo local. Al terminar, vuelve a correr `ios:preparar`.
+
+**Tests:** `npm test`, como siempre. Los de la app son `ios-fuera-del-deploy`,
+`oauth-nativo`, `pantalla-de-carga`, `app-nativa-ios` y `widgets-resumen`.
+
 ## Modelo de datos
 
 ```js
@@ -370,13 +431,7 @@ Dos personas y varios agentes sobre cuatro archivos. Para no chocar:
 - **Ramas con prefijo**: `li/…` (Lucas), `ms/…` (Martín), `codex/…`. Así se ve de
   quién es cada rama sin preguntar.
 - `bash bin/estado.sh` antes de empezar cualquier cosa (incluye el `git fetch`).
-- **La app iOS se trabaja en la rama `ios`**, compartida por Martín y Lucas: las
-  PRs de la app van hacia `ios` y no hacia `main`. Cada push a `ios` se publica
-  como versión de prueba en ios.gradehub.pages.dev, y la app de prueba armada
-  con `npm run ios:rama` carga desde ahí: al abrirla muestra lo último de la
-  rama sin reinstalar. Lo nativo (Swift, widgets, plugins, permisos) sí pide
-  volver a instalar desde Xcode. `ios` se mergea a `main` cuando está lista, y lo
-  que entre a `main` mientras tanto se trae a `ios` con un merge.
+- **Lo que es para la app iOS va a la rama `ios`, no a `main`.** Ver «La app iOS».
 
 ### Carriles
 
@@ -390,6 +445,7 @@ tocar todo, es lo único que evita conflictos.
 | Contenido UAndes | `data.js` — carreras de la UAndes; `mallas-uandes.js` | `ms` |
 | Motor y experiencia | `engine.js`, `app.js`, `app-session.js`, `render-main.js`, `render-agenda.js` | `codex` |
 | Infra y seguridad | workflows, `sw.js`, `styles.css`, `_headers` | `li` |
+| App iOS | `ios/`, `capacitor.config.json`, `bin/preparar-ios.sh` | `li` y `ms`, en la rama `ios` |
 
 Si tu tarea te obliga a salir de tu carril, no lo hagas: dilo primero.
 

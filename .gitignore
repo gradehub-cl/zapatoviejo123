@@ -10,6 +10,8 @@ ios-web/
 ios/App/App/public/
 ios/App/App/capacitor.config.json
 ios/App/App/config.xml
+# La firma de cada uno (ver ios/App/Firma.xcconfig).
+ios/App/Firma.local.xcconfig
 ios/App/build/
 ios/DerivedData/
 xcuserdata/
