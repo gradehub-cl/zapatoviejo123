@@ -10,7 +10,8 @@
     "deploy": "npx --no-install wrangler pages deploy . --project-name gradehub --branch=main --commit-dirty=true",
     "sql": "node bin/sql.js",
     "ios:preparar": "bash bin/preparar-ios.sh",
-    "ios:abrir": "npx --no-install cap open ios"
+    "ios:abrir": "npx --no-install cap open ios",
+    "ios:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.2",

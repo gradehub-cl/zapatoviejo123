@@ -28,6 +28,19 @@ rsync -a ./ ios-web/ \
 
 npx --no-install cap sync ios
 
+# `npm run ios:rama`: la app de prueba no usa la copia de la web que lleva
+# adentro, sino la que está publicada en la rama compartida, así cada push a
+# `ios` aparece al volver a abrirla. El archivo es generado y no se commitea:
+# un `npm run ios:preparar` normal lo deja sin servidor, como va a la App Store.
+if [ -n "${GRADEHUB_SERVIDOR:-}" ]; then
+  node -e '
+    const f="ios/App/App/capacitor.config.json",fs=require("fs");
+    const c=JSON.parse(fs.readFileSync(f,"utf8"));
+    c.server={url:process.env.GRADEHUB_SERVIDOR};
+    fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");
+    console.log("La app carga desde "+c.server.url);'
+fi
+
 # Xcode se niega a firmar si los archivos traen atributos extendidos de macOS
 # ("resource fork, Finder information, or similar detritus not allowed"). Los
 # pone, por ejemplo, un repo dentro de ~/Desktop sincronizado con iCloud.

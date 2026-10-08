@@ -36,5 +36,19 @@ for (const k of ['NSCameraUsageDescription', 'NSPhotoLibraryAddUsageDescription'
   chk(`Info.plist declara ${k}`, new RegExp(`<key>${k}</key>\\s*<string>[^<]{20,}</string>`).test(plist));
 chk('la vuelta del login con Google está registrada', /<string>cl\.gradehub\.app<\/string>/.test(plist));
 
+console.log('\n=== La rama compartida `ios` y su versión de prueba ===');
+// Un push a `ios` publica una vista previa; solo main llega a gradehub.cl.
+chk('el deploy corre para main y para ios', /branches: \[main, ios\]/.test(deploy));
+chk('publica con el nombre de la rama: main es producción, ios queda de prueba',
+  /--branch="\$RAMA"/.test(deploy) && /RAMA: \$\{\{ github\.ref_name \}\}/.test(deploy) && !/--branch=main/.test(deploy));
+chk('los deploys de ios no hacen esperar a los de producción',
+  /group: deploy-\$\{\{ github\.ref_name == 'main' && 'produccion' \|\| github\.ref_name \}\}/.test(deploy));
+const pkg = JSON.parse(fs.readFileSync(path.join(raiz, 'package.json'), 'utf8'));
+chk('ios:rama arma la app cargando desde la versión de prueba',
+  /GRADEHUB_SERVIDOR=https:\/\/ios\.gradehub\.pages\.dev/.test(pkg.scripts['ios:rama'] || '') && /GRADEHUB_SERVIDOR:-/.test(preparar));
+// La de la App Store lleva su copia: una app que es solo una página puede ser
+// rechazada y no abre sin internet.
+chk('la app normal no carga desde un servidor', !config.server);
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail ? 1 : 0);

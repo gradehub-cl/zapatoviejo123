@@ -370,6 +370,13 @@ Dos personas y varios agentes sobre cuatro archivos. Para no chocar:
 - **Ramas con prefijo**: `li/…` (Lucas), `ms/…` (Martín), `codex/…`. Así se ve de
   quién es cada rama sin preguntar.
 - `bash bin/estado.sh` antes de empezar cualquier cosa (incluye el `git fetch`).
+- **La app iOS se trabaja en la rama `ios`**, compartida por Martín y Lucas: las
+  PRs de la app van hacia `ios` y no hacia `main`. Cada push a `ios` se publica
+  como versión de prueba en ios.gradehub.pages.dev, y la app de prueba armada
+  con `npm run ios:rama` carga desde ahí: al abrirla muestra lo último de la
+  rama sin reinstalar. Lo nativo (Swift, widgets, plugins, permisos) sí pide
+  volver a instalar desde Xcode. `ios` se mergea a `main` cuando está lista, y lo
+  que entre a `main` mientras tanto se trae a `ios` con un merge.
 
 ### Carriles
 
