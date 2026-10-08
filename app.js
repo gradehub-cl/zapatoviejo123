@@ -107,7 +107,6 @@ function completarFechasOficiales(r,contexto){
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
   evals.forEach(([nom,,extra])=>{if(extra&&extra.fecha)porNombre.set(normName(nom),extra.fecha);});
-  if(!porNombre.size)return;
   r.categorias.forEach(c=>{
     if(c.fecha)return;
     // `fechaQuitada` distingue "nunca tuvo fecha" de "el estudiante la borró".
@@ -118,6 +117,38 @@ function completarFechasOficiales(r,contexto){
     if(c.fechaQuitada)return;
     const f=porNombre.get(normName(c.nombre));
     if(f){c.fecha=f;c.fechaOrigen='catalogo';c.fechaQuitada=false;}
+  });
+  completarFechasDeSeccion(r,def);
+}
+// Algunas fechas no son del ramo sino de una sección: los controles de
+// Dinámica se rinden en el horario de taller, que cambia entre secciones.
+// `fechasPorSeccion` las declara solo para las secciones de las que tenemos
+// el dato: `{13:{'Controles':['2026-08-28',…]}}`, una fecha por casilla y en
+// orden. Sin sección, o con otra, no se pone nada. Mismas reglas que arriba:
+// solo se llena lo vacío y nunca lo que el estudiante borró.
+function completarFechasDeSeccion(r,def){
+  const porSeccion=!Array.isArray(def)&&def&&def.fechasPorSeccion;
+  if(!porSeccion||!Number.isInteger(r.seccion))return;
+  const delGrupo=porSeccion[r.seccion];
+  if(!delGrupo)return;
+  Object.entries(delGrupo).forEach(([nombre,fechas])=>{
+    const c=(r.categorias||[]).find(x=>normName(x.nombre)===normName(nombre));
+    if(!c||!Array.isArray(fechas))return;
+    const slots=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
+    if(slots===1){
+      if(!c.fecha&&!c.fechaQuitada&&FECHA_RE.test(fechas[0]||'')){c.fecha=fechas[0];c.fechaOrigen='catalogo';c.fechaQuitada=false;}
+      return;
+    }
+    c.notas=Array.isArray(c.notas)?c.notas:[];
+    fechas.slice(0,slots).forEach((fecha,slot)=>{
+      if(!FECHA_RE.test(fecha||''))return;
+      let n=c.notas.find(x=>x.slot===slot);
+      if(n&&(n.fecha||n.fechaQuitada))return;
+      // Una casilla sin nota se guarda como nota vacía con fecha: es lo mismo
+      // que hace la app cuando el estudiante le pone fecha a mano.
+      if(!n){n={id:uid(),nombre:etiquetaCasilla(r,c,slot),valor:null,peso:1,slot};c.notas.push(n);}
+      n.fecha=fecha;n.fechaOrigen='catalogo';n.fechaQuitada=false;
+    });
   });
 }
 
@@ -8023,6 +8054,9 @@ function confirmEditRamo(){
   r.nombre=name;r.color=modalColor;
   r.creditos=parseCreditos((document.getElementById('m-ramo-creditos')||{}).value);
   r.seccion=seccion;
+  // Las fechas de la sección (los controles de Dinámica, por ejemplo) se
+  // ven al tiro, sin esperar a la próxima carga.
+  completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});
   // Apagarlo no borra la cuenta: si se vuelve a encender, sigue donde estaba.
   if(conFaltas)r.faltas={activo:true,cantidad:r.faltas?r.faltas.cantidad:0,limite:limiteFaltas};
   else if(r.faltas)r.faltas={...r.faltas,activo:false};
