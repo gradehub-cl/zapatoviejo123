@@ -65,13 +65,27 @@ function contexto({search='',sesion=false}={}){
   a.run(`globalThis.__r={id:'r1',nombre:'Cálculo II',sigla:'MAT1620',color:'#7F77DD',gates:[],categorias:[
     {id:'c1',nombre:'Interrogaciones',peso:60,notas:[{id:'n1',nombre:'Interrogación 1',valor:4.2},{id:'n2',nombre:'Interrogación 2',valor:5.6}]},
     {id:'c2',nombre:'Examen',peso:40,notas:[]}]}`);
-  const html=a.run(`ramoPanelHTML(__r,{ramo:{promedio:4.7,personas:23},evaluaciones:[{clave:'interrogacion 1',nombre:'Interrogación 1',promedio:4.6,personas:9}]})`);
+  const html=a.run(`ramoPanelHTML(__r,{ramo:{promedio:4.7,personas:23},
+    evaluaciones:[{clave:'interrogacion 1',nombre:'Interrogación 1',promedio:4.6,personas:9}],
+    categorias:[{clave:'interrogaciones',nombre:'Interrogaciones',promedio:4.4,personas:31}]})`);
   const prom=a.run('fmtPromedio(ramoAvg(ramoParaPanel(__r)))');
   chk('el promedio es el de ramoAvg, el mismo de la app del alumno',html.includes(prom+'<small>promedio</small>'));
-  chk('cada nota con su promedio de GradeHub cuando hay',/Interrogación 1<\/td><td>4\.2<\/td><td><span class="panel-alumnos-gh">4\.6<small>9 personas/.test(html));
-  chk('y "aún pocos datos" cuando no',/Interrogación 2<\/td><td>5\.6<\/td><td><span class="panel-alumnos-sin">Aún pocos datos/.test(html));
+  const catProm=a.run(`(()=>{const r=ramoParaPanel(__r);const b=calculoRamoConCompuertas(r);return fmtPromedio(b.res.breakdown.find(n=>n.id==='c1').value);})()`);
+  chk('las notas van agrupadas en su categoría, con el promedio del motor',
+    new RegExp('Interrogaciones<small>2 notas</small></td><td>'+catProm.replace('.','\\.')+'</td><td><span class="panel-alumnos-gh">4\\.4<small>31 personas').test(html));
+  chk('cada nota debajo, con su comparación cuando el nombre calza',/panel-alumnos-nota"><td>Interrogación 1<\/td><td>4\.2<\/td><td><span class="panel-alumnos-gh">4\.6<small>9 personas/.test(html));
+  chk('y "—" cuando no, sin repetir "aún pocos datos"',/Interrogación 2<\/td><td>5\.6<\/td><td><span class="panel-alumnos-sin">—/.test(html));
   chk('el ramo completo contra GradeHub, con la etiqueta',/4\.7<small>GradeHub · 23 personas/.test(html));
-  chk('las evaluaciones sin nota no aparecen como 1,0',!/Examen<\/td>/.test(html));
+  chk('las categorías sin notas no aparecen',!/Examen/.test(html));
+  // Como Martín: notas renombradas ("1", "(Falté)"). Igual se comparan por categoría.
+  const renombradas=a.run(`ramoPanelHTML({id:'r9',nombre:'Contabilidad',sigla:'EAA1210',gates:[],categorias:[
+    {id:'k1',nombre:'Controles',peso:30,notas:[{id:'a',nombre:'1',valor:7},{id:'b',nombre:'(Falté)',valor:1}]},
+    {id:'k2',nombre:'Solemne',peso:70,notas:[{id:'c',nombre:'Pero perro',valor:4.4}]}]},
+    {ramo:null,evaluaciones:[],categorias:[{clave:'controles',promedio:4.9,personas:12},{clave:'solemne',promedio:4.1,personas:12}]})`);
+  chk('con notas renombradas, la comparación sale igual por categoría',
+    /Controles<small>2 notas<\/small><\/td><td>[^<]+<\/td><td><span class="panel-alumnos-gh">4\.9/.test(renombradas));
+  chk('una categoría de una sola nota es una sola fila, con el nombre de la categoría',
+    /panel-alumnos-cat"><td>Solemne<\/td><td>4\.4<\/td><td><span class="panel-alumnos-gh">4\.1/.test(renombradas)&&!/Pero perro/.test(renombradas));
 
   console.log('\n=== Medición sin datos de nadie ===');
   const mk=leer('marketplace.js');

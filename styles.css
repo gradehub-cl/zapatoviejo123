@@ -3091,6 +3091,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-notas th:not(:first-child),.panel-alumnos-notas td:not(:first-child){text-align:right;}
 .panel-alumnos-notas td{padding:8px 0;border-top:1px solid var(--border);color:var(--fg);font-variant-numeric:tabular-nums;}
 .panel-alumnos-notas td .panel-alumnos-gh{flex-direction:row;justify-content:flex-end;align-items:baseline;gap:6px;}
+.panel-alumnos-cat td{font-weight:600;}
+.panel-alumnos-cat td small{margin-left:8px;font-size:0.6875rem;font-weight:400;color:var(--fg3);}
+.panel-alumnos-nota td{border-top:0;padding-top:4px;color:var(--fg2);}
+.panel-alumnos-nota td:first-child{padding-left:14px;}
 
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
