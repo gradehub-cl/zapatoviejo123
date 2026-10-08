@@ -49,7 +49,7 @@ chk('si solo cambia su porcentaje, se aplica y la regla sigue apuntando a ella',
 console.log('\n=== El envío guarda primero ===');
 const app=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
 const envio=app.slice(app.indexOf('async function enviarReporte'),app.indexOf('async function cargarConsenso'));
-chk('la pauta se guarda antes de llamar al servidor',envio.indexOf('aplicarReporteAlRamo')>-1&&envio.indexOf('aplicarReporteAlRamo')<envio.indexOf("rpc('submit_catalog_report'"));
+chk('la pauta se guarda antes de llamar al servidor',envio.indexOf('aplicarReporteAlRamo')>-1&&envio.indexOf('aplicarReporteAlRamo')<envio.indexOf('rpcReporteCatalogo('));
 chk('si el envío falla, lo dice sin decir que se perdió',/Tu pauta qued\\u00f3 guardada, pero el reporte no se pudo enviar/.test(envio));
 
 console.log('\nPASS: '+ok+'   FAIL: '+fail);

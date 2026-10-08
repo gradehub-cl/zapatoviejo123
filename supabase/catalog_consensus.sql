@@ -19,6 +19,15 @@ alter table public.catalog_reports
 alter table public.catalog_reports
   add column if not exists updated_at timestamptz not null default now();
 
+-- La sección del estudiante (2026-10-07, pedido de Lucas): en un ramo no
+-- coordinado cada sección puede tener su propia pauta, y sin este dato no hay
+-- cómo distinguirlas. Es contexto: el consenso todavía no agrupa por sección.
+-- Los reportes anteriores quedan con null; la app los reenvía una vez con la
+-- sección cuando el ramo la tiene.
+alter table public.catalog_reports
+  add column if not exists seccion integer
+  check (seccion is null or seccion between 1 and 999);
+
 -- La huella que agrupa reportes: dos estudiantes que describen la MISMA pauta
 -- tienen que sumar al mismo grupo aunque la escriban distinto. La calcula el
 -- servidor desde `estructura`, no la que manda el cliente: así un navegador con
@@ -153,6 +162,10 @@ revoke all on function public.es_sigla_uc(text) from public, anon, authenticated
 revoke all on function public.busqueda_catalogo_uc(text) from public, anon, authenticated;
 revoke all on function public.sigla_catalogo_uc(text) from public, anon, authenticated;
 
+-- La firma de 8 argumentos se reemplaza por una de 9 (p_seccion). Sin el drop
+-- quedarían las dos y PostgREST no sabría cuál llamar con los argumentos de una
+-- app vieja en caché; con p_seccion opcional, esa app sigue funcionando.
+drop function if exists public.submit_catalog_report(text, text, text, text, text, jsonb, text, text);
 create or replace function public.submit_catalog_report(
   p_tenant text,
   p_carrera text,
@@ -161,7 +174,8 @@ create or replace function public.submit_catalog_report(
   p_ramo_sigla text,
   p_estructura jsonb,
   p_huella text,
-  p_nota text default null
+  p_nota text default null,
+  p_seccion integer default null
 )
 returns void
 language plpgsql
@@ -194,6 +208,10 @@ begin
      or length(p_huella) > 4000
      or length(coalesce(p_nota, '')) > 500 then
     raise exception 'El reporte excede el largo permitido';
+  end if;
+
+  if p_seccion is not null and p_seccion not between 1 and 999 then
+    raise exception 'La sección debe estar entre 1 y 999';
   end if;
 
   if jsonb_typeof(p_estructura) <> 'array'
@@ -257,6 +275,8 @@ begin
          estructura = p_estructura,
          huella = public.huella_catalogo(p_estructura),
          nota = nullif(trim(p_nota), ''),
+         -- Una app vieja no manda sección: no borra la que ya estaba.
+         seccion = coalesce(p_seccion, seccion),
          updated_at = now()
    where user_id = uid
      and tenant = p_tenant
@@ -269,10 +289,10 @@ begin
 
   if not found then
     insert into public.catalog_reports
-      (user_id, tenant, carrera, ramo, ramo_norm, ramo_sigla, estructura, huella, nota)
+      (user_id, tenant, carrera, ramo, ramo_norm, ramo_sigla, estructura, huella, nota, seccion)
     values
       (uid, p_tenant, coalesce(p_carrera, ''), p_ramo, p_ramo_norm, sigla,
-       p_estructura, public.huella_catalogo(p_estructura), nullif(trim(p_nota), ''));
+       p_estructura, public.huella_catalogo(p_estructura), nullif(trim(p_nota), ''), p_seccion);
   end if;
 end;
 $$;
@@ -327,11 +347,11 @@ as $$
   order by g.respaldos desc, g.ramo_key;
 $$;
 
-revoke all on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text) from public, anon;
+revoke all on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text, integer) from public, anon;
 revoke all on function public.catalog_consensus(text) from public, anon;
 -- Solo la usan las dos RPC de arriba, que corren como dueño.
 revoke all on function public.huella_catalogo(jsonb) from public, anon, authenticated;
-grant execute on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text) to authenticated;
+grant execute on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text, integer) to authenticated;
 grant execute on function public.catalog_consensus(text) to authenticated;
 
 -- Los reportes que ya existen se guardaron con la huella que mandó el cliente.
