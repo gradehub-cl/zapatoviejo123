@@ -988,8 +988,23 @@ const PRESETS_UC={
       ['Examen',30,{fecha:'2026-12-01'}],
     ],
     aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
+    // El programa dice que la nota de la interrogación "será reemplazada por la
+    // nota del examen"; en la práctica del curso su porcentaje pasa al examen
+    // (decisión de Lucas, 2026-10-08). Faltar a las dos es "caso a caso" y no
+    // se modela: la ficha lo dice abajo.
+    ausenciasJustificadas:{
+      traspasos:[
+        {desde:'Interrogación 1',hacia:'Examen'},
+        {desde:'Interrogación 2',hacia:'Examen'},
+      ],
+    },
     noCalcula:[
+      // El programa dice "6 o más sesiones" y, en la misma frase, "faltar como
+      // máximo a 2". La profesora aclaró después que son 8: no es un error.
       'Si asistes a 8 o más talleres, sumas 5 décimas al promedio de los Controles; para optar a ellas puedes faltar como máximo a 2 talleres, con o sin justificación',
+      'Si faltas con justificación a un control, lo recuperas con un control recuperativo en el último taller del semestre',
+      'Si faltas con justificación a las dos interrogaciones, el equipo docente evalúa tu caso',
+      'Las inasistencias a talleres no se justifican',
     ],
   },
   // El laboratorio tiene nota propia: se aprueba o se reprueba por sí solo, y
@@ -1008,6 +1023,8 @@ const PRESETS_UC={
     noCalcula:[
       'Si no realizas un Control, tu nota máxima en el Informe de ese experimento queda en 4,0',
       'Tu nota de evaluación de pares se calcula promediando la nota que te asignan tus compañeros y tu autoevaluación; si no respondes la autoevaluación, esa parte queda con nota 1',
+      'Si faltas a un experimento sin justificación, tu informe de ese experimento queda con nota 1',
+      'Puedes justificar una sola inasistencia en el semestre y optar al laboratorio recuperativo; una segunda inasistencia reprueba el laboratorio',
     ],
   },
   // ── Dinámica ICE1514 ──────────────────────────────────────────────────────
