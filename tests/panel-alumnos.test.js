@@ -78,6 +78,18 @@ function contexto({search='',sesion=false}={}){
   chk('solo cuenta cuántos ramos o alumnos, nunca nombres ni notas',
     /track\('compartir_con_profesor',\{ramos:n\}\)/.test(mk)&&/track\('panel_alumnos_abierto',\{alumnos:alumnos\.length\}\)/.test(mk));
 
+  console.log('\n=== Lo que no se deshace se confirma (HIG) ===');
+  chk('dejar de compartir, quitar alumno y cambiar link usan el diálogo de la app',
+    (mk.match(/showConfirm\(/g)||[]).length>=3&&!/Toca de nuevo/.test(mk));
+  chk('con Cancelar a mano',(mk.match(/focusCancel:true/g)||[]).length>=3);
+
+  console.log('\n=== Términos y privacidad lo dicen ===');
+  const terminos=leer('terminos.html'),privacidad=leer('privacidad.html');
+  chk('los términos explican qué ve el profesor y cómo dejar de compartir',
+    /Compartir tus notas con un profesor/.test(terminos)&&/dejar de\s+compartir/.test(terminos)&&/al menos cinco personas/.test(terminos));
+  chk('y lo que se compromete el profesor',/no las copias, no las publicas/.test(terminos));
+  chk('la privacidad ya no dice "con nadie" a secas',/Con nadie, salvo que tú lo decidas/.test(privacidad)&&/Con un profesor, si tú lo eliges/.test(privacidad));
+
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});

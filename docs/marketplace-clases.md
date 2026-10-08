@@ -408,8 +408,9 @@ igual: los avisos no reciben datos académicos y nadie ve quién recibió un avi
 - Piloto gratis, mostrando lo que costaría.
 
 Esquema y funciones: `supabase/profesor_alumnos.sql`, probado en
-`tests/profesor-alumnos-sql.test.js`. **Antes de que lo use un alumno real**
-hay que actualizar términos y privacidad, y que lo revise el abogado.
+`tests/profesor-alumnos-sql.test.js`. Términos y privacidad lo explican desde
+el 2026-10-08 (decisión de Lucas: se publica con los términos actualizados, sin
+esperar revisión legal).
 
 ## Fuera de alcance por ahora
 

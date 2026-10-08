@@ -3226,20 +3226,22 @@ async function pintarCompartidosProfesor(){
     const ramos=(p.ramos||[]).map(nombreRamo).filter(Boolean);
     return `<div class="compartido-fila" data-compartido="${esc(p.id)}">
       <div><b>${esc(p.nombre_publico)}</b><small>${ramos.length?esc(ramos.join(' · ')):'Ramos que ya no tienes'} · como «${esc(p.nombre_visible)}»</small></div>
-      <button type="button" class="settings-danger-btn" data-dejar="${esc(p.id)}">Dejar de compartir</button>
+      <button type="button" class="settings-danger-btn" data-dejar="${esc(p.id)}" data-nombre="${esc(p.nombre_publico)}">Dejar de compartir</button>
     </div>`;
   }).join('');
-  caja.querySelectorAll('[data-dejar]').forEach(b=>b.addEventListener('click',async()=>{
-    // Destructivo: se confirma en el mismo lugar, con el nombre a la vista.
-    if(b.dataset.confirmar!=='1'){b.dataset.confirmar='1';b.textContent='Toca de nuevo para confirmar';return;}
-    b.disabled=true;
-    try{
-      const {error}=await supabaseClient.rpc('dejar_de_compartir',{p_id:b.dataset.dejar});
-      if(error)throw error;
-      showToast('Dejaste de compartir tus notas.');
-      track('dejar_de_compartir_profesor');
-      pintarCompartidosProfesor();
-    }catch(e){b.disabled=false;showToast('No pudimos dejar de compartir. Intenta de nuevo.',true);}
+  // Destructivo: se confirma en el diálogo de la app (HIG), con Cancelar a mano.
+  caja.querySelectorAll('[data-dejar]').forEach(b=>b.addEventListener('click',()=>{
+    showConfirm(`Dejar de compartir con ${b.dataset.nombre}`,
+      'Deja de ver tus notas en este momento. Si quieres volver a compartir, abre su link otra vez.',async()=>{
+      b.disabled=true;
+      try{
+        const {error}=await supabaseClient.rpc('dejar_de_compartir',{p_id:b.dataset.dejar});
+        if(error)throw error;
+        showToast('Dejaste de compartir tus notas.');
+        track('dejar_de_compartir_profesor');
+        pintarCompartidosProfesor();
+      }catch(e){b.disabled=false;showToast('No pudimos dejar de compartir. Intenta de nuevo.',true);}
+    },{label:'Dejar de compartir',focusCancel:true});
   }));
 }
 
@@ -3321,7 +3323,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     (alumnos.length?alumnos.map(al=>`<details class="panel-alumnos-alumno" open>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
       ${(al.ramos||[]).length?(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r))).join(''):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
-      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}">Quitar de mi lista</button>
+      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`).join('')
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>')+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
@@ -3333,21 +3335,22 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       if(sel&&el){const rango=document.createRange();rango.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rango);}
       showToast('Selecciónalo y cópialo.',true);}
   });
+  // Lo que no se deshace se confirma en el diálogo de la app (HIG), con Cancelar a mano.
   const renovar=raiz.querySelector('#alumnos-renovar');
-  renovar.addEventListener('click',async()=>{
-    if(renovar.dataset.confirmar!=='1'){renovar.dataset.confirmar='1';renovar.textContent='El link actual dejará de funcionar. Toca de nuevo para cambiarlo';return;}
-    renovar.disabled=true;
-    try{const {error}=await supabaseClient.rpc('codigo_alumnos_profesor',{p_renovar:true});if(error)throw error;
-      showToast('Link cambiado. Los alumnos que ya compartían siguen igual.');renderAlumnosProfesor(raiz,{volver});}
-    catch(e){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}
-  });
-  raiz.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',async()=>{
-    if(b.dataset.confirmar!=='1'){b.dataset.confirmar='1';b.textContent='Toca de nuevo para quitarlo';return;}
-    b.disabled=true;
-    try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
-      showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
-    catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
-  }));
+  renovar.addEventListener('click',()=>showConfirm('Cambiar tu link',
+    'El link actual deja de funcionar y tendrás que mandar el nuevo. Los alumnos que ya comparten contigo siguen igual.',async()=>{
+      renovar.disabled=true;
+      try{const {error}=await supabaseClient.rpc('codigo_alumnos_profesor',{p_renovar:true});if(error)throw error;
+        showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver});}
+      catch(e){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}
+    },{label:'Cambiar link',focusCancel:true}));
+  raiz.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
+    'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
+      b.disabled=true;
+      try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
+        showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
+      catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
+    },{label:'Quitar',focusCancel:true})));
   track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
 
