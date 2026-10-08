@@ -1621,6 +1621,16 @@ const PRESETS_UC_COM=[
 // —Lucas está consiguiendo el programa del laboratorio— y por eso acá se
 // registran tal cual: el dato oficial es 0 y falsearlo para que el promedio
 // funcione sería exactamente lo que este proyecto no hace.
+// Módulos de clases de la UC: 70 minutos, con almuerzo entre el 4 y el 5.
+// Confirmados en los programas 2026-2: módulo 1 = 8:20 (EAA2240), módulo 2 =
+// 9:40 (EAA2240), bloque 4 = 12:20 a 13:30 (EAA2230) y módulo 7 = 17:30
+// (ETI209). El 3, 5, 6 y 8 salen de la misma grilla (70 min + 10 de pausa,
+// almuerzo 13:30–14:50) y calzan con el 7. El 9 no está confirmado: no se
+// ofrece. Quien tenga otra hora la escribe a mano en "Otra hora".
+const MODULOS_HORARIO={
+  uc:{nombre:'Módulo',lista:[[1,'08:20','09:30'],[2,'09:40','10:50'],[3,'11:00','12:10'],[4,'12:20','13:30'],
+    [5,'14:50','16:00'],[6,'16:10','17:20'],[7,'17:30','18:40'],[8,'18:50','20:00']]},
+};
 const CREDITOS_UC={
   'Introducción a la Arquitectura':[10,'AQH0000'],
   'Taller de Formación y Representación I':[20,'AQT0000'],

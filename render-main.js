@@ -603,6 +603,19 @@ function renderRamo(){
     }
   }
 
+  // Clases del ramo: lo que anotó el estudiante o lo que leímos de su
+  // pantallazo. Sin horario queda una invitación discreta: no es obligatorio.
+  const cw=document.getElementById('clases-ramo');
+  if(cw){
+    const grupos=gruposHorario(r.horario);
+    cw.style.display='block';
+    cw.className='clases-card'+(grupos.length?'':' is-vacio');
+    cw.innerHTML=grupos.length
+      ?`<div class="clases-head"><span class="clases-titulo">Clases</span><button type="button" class="clases-editar" onclick="abrirClasesRamo()">Editar clases</button></div>
+        ${grupos.map(g=>`<div class="clases-fila"><b>${esc(listaDiasTexto(g.dias))} · ${esc(etiquetaHoraBloque(g))}</b>${g.tipo||g.sala?`<small>${[nombreTipoClase(g.tipo),g.sala?`Sala ${esc(g.sala)}`:''].filter(Boolean).join(' · ')}</small>`:''}</div>`).join('')}`
+      :`<button type="button" class="clases-vacio" onclick="abrirClasesRamo()"><span>Agregar el horario de este ramo</span><small>Para ver tu semana en la Agenda</small></button>`;
+  }
+
   const rw=document.getElementById('recuperativo-warning');
   if(rw&&recuperativo){
     rw.style.display='flex';rw.className='weight-setup-nudge';rw.style.width='auto';rw.style.margin='12px 20px';

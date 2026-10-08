@@ -377,6 +377,12 @@ function activarAccionesAgenda(body){
       openRamo(boton.dataset.ramoId);
       setTimeout(openAddCatModal,320);
     }else if(accion==='agregar-ramo')openAddRamoModal();
+    else if(accion==='vista')cambiarVistaAgenda(boton.dataset.agendaVista);
+    else if(accion==='subir-horario')abrirImportarHorarioBuscacursos();
+    else if(accion==='editar-clases'){
+      openRamo(boton.dataset.ramoId);
+      setTimeout(abrirClasesRamo,320);
+    }
   });
 }
 
@@ -468,9 +474,96 @@ function agendaFechasPasadasHTML(eventos){
   </section>`;
 }
 
+// La Agenda tiene dos vistas: las evaluaciones (la de siempre) y la semana de
+// clases. La elección vale para la sesión y no entra a S ni a gradehub_v1.
+let agendaVista='evaluaciones';
+// El selector vive en su propio contenedor, arriba de la lista: la vista de
+// evaluaciones queda exactamente como era.
+function agendaVistaHTML(){
+  if(!S.ramos.length)return '';
+  return `<div class="ag-order-options ag-vista" role="group" aria-label="Vista de la Agenda">${[['evaluaciones','Evaluaciones'],['horario','Horario']]
+    .map(([v,l])=>`<button type="button" class="ag-order-option${agendaVista===v?' active':''}" aria-pressed="${agendaVista===v?'true':'false'}" data-agenda-action="vista" data-agenda-vista="${v}">${l}</button>`).join('')}</div>`;
+}
+function cambiarVistaAgenda(v){agendaVista=v==='horario'?'horario':'evaluaciones';renderAgenda();}
 function renderAgenda(){
   const body=document.getElementById("agenda-body");if(!body)return;
   activarAccionesAgenda(body);
+  const vista=document.getElementById('agenda-vista');
+  if(vista){activarAccionesAgenda(vista);vista.innerHTML=agendaVistaHTML();}
+  if(agendaVista==='horario'&&S.ramos.length){renderHorarioAgenda(body);return;}
+  const titulo=document.getElementById('agenda-title');if(titulo)titulo.textContent='Qué se viene';
+  renderAgendaEvaluaciones();
+}
+function bloquesSemana(){
+  const out=[];
+  S.ramos.forEach(r=>horarioDeRamo(r).forEach(b=>out.push({...b,ramo:r})));
+  return out;
+}
+// Fecha local (YYYY-MM-DD) de cada día de ESTA semana, de lunes a sábado.
+function fechasSemanaActual(hoy){
+  const base=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+  const lunes=new Date(base);lunes.setDate(base.getDate()-((base.getDay()+6)%7));
+  const out={};
+  for(let d=1;d<=6;d++){const f=new Date(lunes);f.setDate(lunes.getDate()+d-1);out[d]=isoOf(f.getFullYear(),f.getMonth(),f.getDate());}
+  return out;
+}
+function nombreCortoRamo(r){
+  const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(r):null;
+  if(sigla)return sigla;
+  const n=String(r.nombre||'');return n.length>9?n.slice(0,8)+'…':n;
+}
+function renderHorarioAgenda(body,hoy){
+  hoy=hoy||new Date();
+  const titulo=document.getElementById('agenda-title');if(titulo)titulo.textContent='Tu semana';
+  const sub=document.getElementById('agenda-sub');
+  const bloques=bloquesSemana();
+  if(!bloques.length){
+    if(sub)sub.textContent='';
+    const uc=S.tenant==='uc';
+    const primero=S.ramos[0];
+    body.innerHTML=`
+      <div class="ag-empty">
+        <div class="ag-empty-title">Arma tu horario</div>
+        <div class="ag-empty-desc">${uc?'Sube un pantallazo de tu horario de Mi UC y lo armamos por ti, o agrega las clases desde cada ramo.':'Agrega las clases desde la ficha de cada ramo y acá verás tu semana.'}</div>
+        ${uc?'<button type="button" class="ag-empty-cta" data-agenda-action="subir-horario">Subir pantallazo</button>'
+          :`<button type="button" class="ag-empty-cta" data-agenda-action="editar-clases" data-ramo-id="${esc(primero.id)}">Agregar clases a ${esc(primero.nombre)}</button>`}
+      </div>`;
+    return;
+  }
+  const diaHoy=hoy.getDay()===0?7:hoy.getDay();
+  const dias=[1,2,3,4,5].concat(bloques.some(b=>b.dia===6)?[6]:[]);
+  const franjas=[...new Set(bloques.map(b=>`${b.inicio}|${b.fin}`))].sort();
+  const fechas=fechasSemanaActual(hoy);
+  const evaluaciones={};
+  agendaEvents().forEach(e=>{dias.forEach(d=>{if(e.fecha===fechas[d])evaluaciones[d]=(evaluaciones[d]||0)+1;});});
+  const deHoy=bloques.filter(b=>b.dia===diaHoy).length;
+  if(sub)sub.textContent=`${bloques.length} ${bloques.length===1?'clase':'clases'} a la semana`+(diaHoy<=6?` · hoy ${deHoy||'ninguna'}`:'');
+  const encabezado=dias.map(d=>{
+    const n=evaluaciones[d]||0;
+    return `<div class="hor-dia${d===diaHoy?' is-hoy':''}" role="columnheader" aria-label="${DIAS_CLASE[d]}${d===diaHoy?', hoy':''}${n?`, ${n} ${n===1?'evaluación':'evaluaciones'}`:''}">
+      <span aria-hidden="true">${diaClaseCorto(d)}</span>${n?`<span class="hor-eval" aria-hidden="true">${n}</span>`:''}</div>`;
+  }).join('');
+  const filas=franjas.map(franja=>{
+    const [inicio,fin]=franja.split('|');
+    const mod=moduloDeBloque({inicio,fin});
+    const celdas=dias.map(d=>{
+      const aca=bloques.filter(b=>b.dia===d&&b.inicio===inicio&&b.fin===fin);
+      return `<div class="hor-celda${d===diaHoy?' is-hoy':''}" role="cell">${aca.map(b=>`<button type="button" class="hor-bloque" style="--c:${esc(b.ramo.color||'#888')}" data-agenda-action="ver-ramo" data-ramo-id="${esc(b.ramo.id)}"
+        aria-label="${esc(b.ramo.nombre)}, ${DIAS_CLASE[d].toLowerCase()} ${horasBloque(b)}${b.tipo?`, ${nombreTipoClase(b.tipo).toLowerCase()}`:''}${b.sala?`, sala ${esc(b.sala)}`:''}">
+        <b>${esc(nombreCortoRamo(b.ramo))}</b>${b.sala?`<small>${esc(b.sala)}</small>`:''}</button>`).join('')}</div>`;
+    }).join('');
+    return `<div class="hor-hora" role="rowheader">${mod?`<b>${mod}</b>`:''}<small>${horaCorta(inicio)}</small></div>${celdas}`;
+  }).join('');
+  body.innerHTML=`
+    <div class="hor-grid" style="--dias:${dias.length}" role="table" aria-label="Horario de la semana">
+      <div class="hor-esquina" aria-hidden="true"></div>${encabezado}${filas}
+    </div>
+    <p class="hor-nota">Toca una clase para abrir su ramo. Para cambiarla, entra a Editar clases en la ficha.</p>
+    ${S.tenant==='uc'?'<button type="button" class="hor-link" data-agenda-action="subir-horario">Subir otro pantallazo</button>':''}`;
+}
+
+function renderAgendaEvaluaciones(){
+  const body=document.getElementById("agenda-body");if(!body)return;
   agendaDetalleAbierto=null;
   const events=agendaEvents();
   const sinFecha=agendaSinFecha();

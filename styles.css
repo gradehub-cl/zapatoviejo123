@@ -2593,6 +2593,52 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 /* Notas que un agente propuso, dentro de la ficha del ramo. La nota anterior se
    muestra tachada al lado de la nueva: pisar un 6,2 con un 4,0 es una decisión
    distinta de llenar una casilla vacía. */
+/* Horario de clases: ficha del ramo, hoja de edición y semana en la Agenda.
+   Todo lo que se toca mide al menos 44 px (HIG). El color del ramo va solo en
+   la línea lateral del bloque, igual que en Inicio. */
+.clases-card{margin:12px 20px;padding:4px 14px 6px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+.clases-card.is-vacio{padding:0;border-style:dashed;}
+.clases-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.clases-titulo{font-size:0.8125rem;font-weight:700;color:var(--fg);}
+.clases-editar{min-height:44px;padding:0 2px;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:0.8125rem;font-weight:650;cursor:pointer;}
+.clases-fila{display:flex;flex-direction:column;gap:1px;padding:7px 0;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;}
+.clases-fila b{font-size:0.8125rem;font-weight:600;color:var(--fg);}
+.clases-fila small{font-size:0.75rem;color:var(--fg2);}
+.clases-vacio{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;min-height:44px;padding:11px 14px;border:0;background:none;text-align:left;font-family:var(--font-ui);cursor:pointer;}
+.clases-vacio span{font-size:0.8125rem;font-weight:650;color:var(--primary);}
+.clases-vacio small{font-size:0.75rem;color:var(--fg2);}
+.clase-lista{display:flex;flex-direction:column;margin-bottom:14px;}
+.clase-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);}
+.clase-fila-txt{display:flex;flex-direction:column;gap:1px;font-variant-numeric:tabular-nums;}
+.clase-fila-txt b{font-size:0.8125rem;font-weight:600;color:var(--fg);}
+.clase-fila-txt small{font-size:0.75rem;color:var(--fg2);}
+.clase-quitar{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:10px;background:none;color:var(--fg2);cursor:pointer;}
+.clase-quitar .ic{width:18px;height:18px;}
+.clase-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.clase-chip{min-width:44px;min-height:44px;padding:0 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--muted);color:var(--fg2);font-family:var(--font-ui);font-size:0.8125rem;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard),border-color var(--motion-fast) var(--ease-standard);}
+.clase-chip.sel{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);}
+.clase-sub{margin:-4px 0 8px;font-size:0.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.clase-horas{display:flex;gap:10px;margin-bottom:12px;}
+.clase-hora{flex:1;display:flex;flex-direction:column;gap:4px;font-size:0.75rem;color:var(--fg2);}
+.clase-hora input{min-height:44px;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border2);border-radius:10px;background:var(--bg2);color:var(--fg);font-family:var(--font-ui);font-size:1rem;font-variant-numeric:tabular-nums;}
+.clase-opcional{text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;}
+.clase-error{margin:0 0 10px;font-size:0.8125rem;color:var(--red);}
+.clase-agregar{width:100%;min-height:44px;margin-bottom:6px;}
+.ag-vista{display:grid;grid-template-columns:repeat(2,1fr);width:100%;margin-bottom:14px;}
+.ag-vista .ag-order-option{min-height:44px;font-size:0.8125rem;}
+.hor-grid{display:grid;grid-template-columns:28px repeat(var(--dias),minmax(0,1fr));gap:2px;font-variant-numeric:tabular-nums;}
+.hor-dia{display:flex;align-items:center;justify-content:center;gap:4px;min-height:30px;border-radius:8px;font-size:0.75rem;font-weight:700;color:var(--fg2);}
+.hor-dia.is-hoy{background:var(--muted);color:var(--fg);}
+.hor-eval{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--fg);color:var(--card);font-size:0.6875rem;line-height:16px;text-align:center;}
+.hor-hora{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding-right:2px;font-size:0.6875rem;color:var(--fg3);}
+.hor-hora b{font-size:0.75rem;color:var(--fg2);}
+.hor-celda{display:flex;flex-direction:column;gap:3px;min-height:44px;border-radius:8px;}
+.hor-celda.is-hoy{background:color-mix(in srgb,var(--muted),transparent 40%);}
+.hor-bloque{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;width:100%;min-height:44px;padding:4px 2px 4px 3px;border:0;border-left:2px solid var(--c);border-radius:0 8px 8px 0;background:var(--card);box-shadow:inset 0 0 0 1px var(--border);text-align:left;font-family:var(--font-ui);cursor:pointer;overflow:hidden;}
+.hor-bloque b{max-width:100%;overflow:hidden;font-size:0.6875rem;font-weight:650;letter-spacing:-.03em;color:var(--fg);white-space:nowrap;text-overflow:ellipsis;}
+.hor-bloque small{max-width:100%;overflow:hidden;font-size:0.6875rem;color:var(--fg2);white-space:nowrap;text-overflow:ellipsis;}
+.hor-nota{margin:12px 0 0;font-size:0.75rem;line-height:1.5;color:var(--fg2);}
+.hor-link{display:block;min-height:44px;padding:0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:0.8125rem;font-weight:650;cursor:pointer;}
 .faltas-card{align-items:center;justify-content:space-between;gap:12px;margin:12px 20px;padding:11px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
 .faltas-txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .faltas-titulo{font-size:0.875rem;font-weight:650;color:var(--fg);}
