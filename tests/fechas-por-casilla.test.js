@@ -90,7 +90,8 @@ const casilla = (a, slot) => JSON.parse(a.run(`JSON.stringify(S.ramos[0].categor
   a.run(`propuestasFechasAgente=[propuestaFechasLimpia(${JSON.stringify(fila)})]`);
   chk('la propuesta se leyó', a.run('propuestasFechasAgente.length') === 1);
   await a.ctx.aplicarPropuestaFechas('11111111-2222-3333-4444-555555555555');
-  n = casilla(a, 2);
+  // La casilla 2 del agente es el slot 1 (cuenta desde 0; issue #655).
+  n = casilla(a, 1);
   chk('la casilla 2 quedó con su fecha', n && n.fecha === '2026-10-18' && n.hora === '08:30');
   chk('y sin nota inventada', n && n.valor === null);
   chk('la que no trae casilla va a la categoría', a.run(`S.ramos[0].categorias[0].fecha`) === '2026-09-30');

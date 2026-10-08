@@ -74,7 +74,7 @@ const fila = (notas) => ({
 const nota = (ramoRun, cat, slot) => {
   const notas = ramoRun(`JSON.stringify(S.ramos[0].categorias.find(c=>c.id==='${cat}').notas)`);
   const arr = JSON.parse(notas);
-  const n = slot ? arr.find(x => x.slot === slot) : arr[0];
+  const n = slot === undefined ? arr[0] : arr.find(x => x.slot === slot);
   return n ? n.valor : undefined;
 };
 
@@ -95,8 +95,9 @@ const nota = (ramoRun, cat, slot) => {
   console.log('\n=== Una casilla concreta va a su casilla ===');
   a = app(fila([{ evaluacion: 'Controles', valor: 4.8, casilla: 2 }]));
   await a.ctx.aplicarPropuestaNotas('11111111-2222-3333-4444-555555555555');
-  chk('Controles casilla 2 queda en 4,8', nota(a.run, 'c3', 2) === 4.8);
-  chk('y no se llenó la casilla 1', nota(a.run, 'c3', 1) === undefined);
+  // `casilla` cuenta desde 1 y `slot` desde 0 (issue #655).
+  chk('Controles casilla 2 queda en 4,8', nota(a.run, 'c3', 1) === 4.8);
+  chk('y no se llenó la casilla 1', nota(a.run, 'c3', 0) === undefined);
 
   console.log('\n=== Editar aplica lo editado, no lo propuesto ===');
   a = app(fila([{ evaluacion: 'Interrogación 2', valor: 5.5 }]));
@@ -112,7 +113,7 @@ const nota = (ramoRun, cat, slot) => {
   a.ctx.guardarPropuestaNotasEditada('11111111-2222-3333-4444-555555555555');
   await new Promise(r => setTimeout(r, 0));
   chk('la vaciada no se escribió', nota(a.run, 'c2') === undefined);
-  chk('la otra sí', nota(a.run, 'c3', 1) === 6);
+  chk('la otra sí', nota(a.run, 'c3', 0) === 6);
 
   console.log('\n=== Rechazar no cambia ninguna nota ===');
   a = app(fila([{ evaluacion: 'Interrogación 1', valor: 2.0 }]));
