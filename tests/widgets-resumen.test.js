@@ -44,6 +44,7 @@ chk('la agenda trae solo lo pendiente desde hoy, en orden',r.agenda.map(e=>e.eva
 chk('lo vencido no aparece',!r.agenda.some(e=>e.evaluacion==='Control 0'));
 chk('la nota necesaria es la que muestra la app (redondeada hacia arriba)',r.agenda[0].necesitas===a.run('nfNecesaria(notaNecesaria(S.ramos[0]))'));
 chk('lleva el color del ramo para su línea lateral',r.agenda[0].color==='#7F77DD');
+chk('lleva cuánto del ramo define, el mismo de la Agenda',r.agenda[0].parte===30&&r.agenda[1].parte===40);
 chk('no lleva notas individuales ni nombres de personas',!JSON.stringify(r).includes('"valor"')&&!('userName' in r));
 
 console.log('\n=== En la web no hay plugin ===');

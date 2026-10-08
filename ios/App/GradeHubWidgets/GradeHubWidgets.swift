@@ -22,6 +22,8 @@ struct Resumen: Decodable {
         let necesitas: String?
         let margen: Bool?
         let inalcanzable: Bool?
+        // Porcentaje del ramo que define (0–100); nil si no es fijo.
+        let parte: Double?
     }
     let version: Int
     let actualizado: String
@@ -132,6 +134,27 @@ struct Semaforo {
 
 // MARK: - Próxima evaluación
 
+// Cuánto del ramo define la evaluación, como un anillo que se llena: se lee de
+// un vistazo y no compite con el texto. Neutro: no es el color del ramo ni el
+// semáforo, que hablan de otra cosa.
+struct ParteDelRamo: View {
+    let porcentaje: Double
+    var body: some View {
+        HStack(spacing: 6) {
+            ZStack {
+                Circle().stroke(.quaternary, lineWidth: 3)
+                Circle().trim(from: 0, to: min(max(porcentaje, 0), 100) / 100)
+                    .stroke(.primary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .frame(width: 16, height: 16)
+            Text("\(Int(porcentaje.rounded()))% del ramo").font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Vale el \(Int(porcentaje.rounded())) por ciento del ramo")
+    }
+}
+
 struct ProximaVista: View {
     @Environment(\.widgetFamily) var familia
     let entrada: Entrada
@@ -173,16 +196,17 @@ struct ProximaVista: View {
                 // Una línea: se achica antes que partirse ("Interrogación / 2").
                 Text(e.evaluacion).font(.headline).lineLimit(1).minimumScaleFactor(0.6)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                // Qué es y cuándo van juntos; lo que necesitas queda abajo.
+                if let p = e.parte { ParteDelRamo(porcentaje: p).padding(.top, 6) }
                 Text(Fechas.cuando(e, desde: entrada.date)).font(.headline).lineLimit(1).minimumScaleFactor(0.7)
-                    .padding(.top, 8)
+                    .padding(.top, 6)
                 Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
+                // Todo en un bloque, sin huecos al medio: el aire queda abajo.
                 if let n = e.necesitas {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Necesitas").font(.caption).foregroundStyle(.secondary)
                         Text(n).font(.subheadline.weight(.bold)).monospacedDigit()
                     }
+                    .padding(.top, 8)
                     .privacySensitive()
                 } else if e.inalcanzable == true {
                     Text("Ya no alcanza el 4,0").font(.caption).privacySensitive()

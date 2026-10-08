@@ -8862,7 +8862,10 @@ function resumenParaWidgets(ahora){
     return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
       evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
       necesitas:valido&&nec>1&&nec<=7?nfNecesaria(nec):null,
-      margen:valido&&nec<=1,inalcanzable:valido&&nec>7};
+      margen:valido&&nec<=1,inalcanzable:valido&&nec>7,
+      // Cuánto del ramo define, igual que en la Agenda. Si no es fijo (se descarta
+      // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
+      parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
   });
   return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
     promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda};
