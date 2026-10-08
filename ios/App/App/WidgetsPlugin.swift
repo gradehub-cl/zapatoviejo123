@@ -38,6 +38,10 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // Al cerrar sesión: que no queden notas de una cuenta en la pantalla de inicio.
     @objc func borrarResumen(_ call: CAPPluginCall) {
+        #if DEBUG
+        // Sin sesión la app borra el resumen al arrancar; la demo lo necesita.
+        if ProcessInfo.processInfo.arguments.contains("-gradehubDemoWidgets") { call.resolve(); return }
+        #endif
         UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.clave)
         WidgetCenter.shared.reloadAllTimelines()
         call.resolve()
@@ -131,6 +135,18 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let (a, e, _) = actividad(datos) else { return }
         _ = try? Activity.request(attributes: a, content: contenido(e), pushType: nil)
     }
+
+    // `-gradehubDemoWidgets`: los widgets con un resumen inventado, sin iniciar sesión.
+    static func demoWidgets() {
+        let enDosDias = Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date()
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+        let json = """
+        {"version":1,"actualizado":"\(ISO8601DateFormatter().string(from: Date()))","promedio":{"oficial":5.3,"nivel":"good"},
+        "ramos":[{"id":"demo","nombre":"Cálculo II","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","promedio":3.8,"nivel":"bad"}],
+        "agenda":[{"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Interrogación 2","fecha":"\(f.string(from: enDosDias))","hora":"17:30","necesitas":"3.9"}]}
+        """
+        UserDefaults(suiteName: grupo)?.set(json, forKey: clave)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
     #endif
 }
-

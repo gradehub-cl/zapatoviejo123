@@ -9,6 +9,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-gradehubDemoActividad") { GradeHubWidgetsPlugin.iniciarDemo() }
+        if ProcessInfo.processInfo.arguments.contains("-gradehubDemoWidgets") { GradeHubWidgetsPlugin.demoWidgets() }
         #endif
         return true
     }
