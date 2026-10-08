@@ -4652,13 +4652,16 @@ const SECCIONES_STATS=[
   {id:'curso',      titulo:'Cómo vas en tus ramos'},
   {id:'rango',      titulo:'Rango del semestre'},
   {id:'historial',  titulo:'Historial'},
+  // Sale de lo que se responde en la Actividad en Vivo: existe solo en la app.
+  {id:'olfato',     titulo:'Tu olfato',disponible:()=>typeof avisosPruebasDisponibles==='function'&&avisosPruebasDisponibles()},
 ];
 function ordenSecciones(){
   const guardado=Array.isArray(S.statsOrden)?S.statsOrden:[];
-  const validos=guardado.filter(id=>SECCIONES_STATS.some(s=>s.id===id));
+  const existe=id=>{const d=SECCIONES_STATS.find(s=>s.id===id);return !!d&&(!d.disponible||d.disponible());};
+  const validos=guardado.filter(existe);
   // Una seccion nueva no puede quedar invisible solo porque el estudiante
   // guardo su orden antes de que existiera: las que faltan se agregan al final.
-  SECCIONES_STATS.forEach(s=>{if(!validos.includes(s.id))validos.push(s.id);});
+  SECCIONES_STATS.forEach(s=>{if(existe(s.id)&&!validos.includes(s.id))validos.push(s.id);});
   return validos;
 }
 function seccionOculta(id){
@@ -6755,7 +6758,12 @@ function openSettings(){
       <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> de tu calendario. Revisas cada fecha antes de agregarla.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
-      </div>`;
+      </div>
+      ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Avisos antes de tus evaluaciones</label>
+      <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
+      <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-avisos-pruebas" onclick="alternarAvisosPruebas()">${avisosPruebasActivos()?'Desactivar avisos':'Activar avisos'}</button></div>
+      <p class="settings-help" id="s-avisos-estado" role="status" aria-live="polite"></p>`:''}`;
     if(section==='apariencia')return `
       <p class="settings-help settings-help-top">Se guarda al elegir.</p>
       <div class="modo-grid" id="s-modo-grid"></div>
@@ -8684,6 +8692,7 @@ function openSimuladorModal(){
     </div>`;
   openModal();
   renderSimulador();
+  precargarSensacion(r);
 }
 
 // Combina notas reales (con su peso) + hipotéticas (peso 1) de una categoría
@@ -9074,6 +9083,42 @@ function agendaEvents(){
 // lo entrega al lado nativo, que lo guarda para que los widgets lo muestren.
 // En la web (fuera de la app) no hay plugin y nada de esto corre.
 const WIDGETS_VERSION=1;
+// Cuánto necesitas en ESTA evaluación para ir con 4 después de rendirla: lo
+// ya evaluado más ella, sin suponer nada de lo que viene después (decisión de
+// Lucas, 2026-10-08). Si es la última del ramo, es la nota para cerrarlo con 4.
+// Se calcula con el motor de siempre (ramoAvg, compuertas, aprobación del ramo)
+// sobre una copia con la nota hipotética; nada de esto toca S.
+function ramoConNotaHipotetica(r,e,x){
+  const copia=JSON.parse(JSON.stringify(r));
+  const cat=(copia.categorias||[]).find(k=>k.id===e.cat.id);if(!cat)return null;
+  cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+  if(e.nota){
+    const n=cat.notas.find(k=>k.id===e.nota.id);if(!n)return null;
+    n.valor=x;return copia;
+  }
+  if(Number.isInteger(cat.slots)&&cat.slots>1){
+    // Un evento de la categoría cubre sus casillas que no tienen fecha propia.
+    const ocupadas=new Set(cat.notas.filter(n=>Number.isInteger(n.slot)).map(n=>n.slot));
+    for(let i=0;i<cat.slots;i++)if(!ocupadas.has(i))cat.notas.push({id:'hipotetica'+i,nombre:cat.nombre,peso:1,valor:x,slot:i});
+    return copia;
+  }
+  if(cat.notas.some(n=>typeof n.valor==='number'))return null;
+  cat.notas.push({id:'hipotetica',nombre:cat.nombre,peso:1,valor:x});
+  return copia;
+}
+function notaParaIrConCuatro(e){
+  const aprueba=decimas=>{
+    const r=ramoConNotaHipotetica(e.ramo,e,decimas/10);if(!r)return null;
+    const v=ramoAvg(r);return v===null?null:notaAprobadaRamo(r,v);
+  };
+  const conUno=aprueba(10),conSiete=aprueba(70);
+  if(conUno===null||conSiete===null)return null;
+  if(conUno)return {margen:true};
+  if(!conSiete)return {inalcanzable:true};
+  let bajo=10,alto=70;
+  while(alto-bajo>1){const m=(bajo+alto)>>1;if(aprueba(m))alto=m;else bajo=m;}
+  return {nota:(alto/10).toFixed(1)};
+}
 function resumenParaWidgets(ahora){
   ahora=ahora||new Date();
   const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
@@ -9083,15 +9128,15 @@ function resumenParaWidgets(ahora){
     const v=ramoAvg(r);
     return {id:r.id,nombre:r.nombre,promedio:v===null?null:notaFinalOficial(v),nivel:v===null?null:nivelRamo(r,v)};
   });
-  const necesitaPorRamo=new Map();
   const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
-    if(!necesitaPorRamo.has(e.ramo.id))necesitaPorRamo.set(e.ramo.id,notaNecesaria(e.ramo));
-    const nec=necesitaPorRamo.get(e.ramo.id);
-    const valido=typeof nec==='number'&&Number.isFinite(nec);
+    const cuatro=notaParaIrConCuatro(e)||{};
     return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
       evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
-      necesitas:valido&&nec>1&&nec<=7?nfNecesaria(nec):null,
-      margen:valido&&nec<=1,inalcanzable:valido&&nec>7};
+      // En esta evaluación, para ir con 4 después de rendirla (ver notaParaIrConCuatro).
+      necesitas:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable,
+      // Cuánto del ramo define, igual que en la Agenda. Si no es fijo (se descarta
+      // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
+      parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
   });
   return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
     promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda};
@@ -9117,6 +9162,11 @@ function publicarResumenWidgets(){
       const pedido=S.onboardingDone?p.guardarResumen({json:JSON.stringify(resumenParaWidgets())}):p.borrarResumen();
       if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});
     }catch(e){}
+    // Después del aviso de "nota agregada", no encima.
+    const reveladas=S.onboardingDone?revisarOlfato():[];
+    if(reveladas.length)setTimeout(()=>showToast(textoRevelacion(reveladas[reveladas.length-1])),2200);
+    programarAvisosPruebas();
+    sincronizarActividadesPrueba();
   },400);
 }
 // Al cerrar sesión no pueden quedar notas de esa cuenta en la pantalla de inicio.
@@ -9124,15 +9174,253 @@ function borrarResumenWidgets(){
   const p=pluginWidgets();if(!p)return;
   clearTimeout(_widgetsTimer);
   try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
+  // Ni avisos ni tarjetas de la cuenta que salió.
+  try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  const ln=pluginNotificaciones();
+  if(ln)Promise.resolve(ln.getPending()).then(r=>{const ids=((r&&r.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba').map(n=>({id:n.id}));
+    return ids.length?ln.cancel({notifications:ids}):null;}).catch(()=>{});
 }
 // Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
 // ://agenda o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
-  const m=/^cl\.gradehub\.app:\/\/(ramo|agenda|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
   if(!m||!S.onboardingDone)return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
-  if(m[1]==='ramo'&&S.ramos.some(r=>r.id===m[2])){openRamo(m[2]);return true;}
+  if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
+    openRamo(m[2]);
+    // "¿Cómo crees que te fue?" abre el simulador del ramo.
+    if(m[1]==='simular'){
+      setTimeout(()=>{if(typeof openSimuladorModal==='function')openSimuladorModal();},320);
+      // Si la respuesta de la Actividad llega después de abrir el simulador, se precarga igual.
+      Promise.resolve(recogerSensaciones()).then(n=>{
+        if(n&&currentRamoId===m[2]&&document.getElementById('sim-cats')&&!Object.values(simState).some(a=>a&&a.length))
+          precargarSensacion(S.ramos.find(r=>r.id===m[2]));
+      });
+    }
+    return true;
+  }
   showTab('home');return m[1]==='inicio';
+}
+// ─── AVISOS ANTES DE UNA EVALUACIÓN (app iOS, #645) ─────────────────────────
+// Versión sin servidor. Para cada evaluación pendiente CON HORA: notificaciones
+// locales de cada fase (repaso, baño y agua, caminar a la sala, cómo te fue) y
+// la Actividad en Vivo desde 6 horas antes, con el riel de fases y "¿cómo te fue?".
+// Es opt-in y vale por dispositivo: la preferencia no entra a S ni a la nube.
+// Sin hora no hay a partir de cuándo contar, así que no se avisa nada.
+const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
+const DURACION_PRUEBA_MIN=120;
+const AVISOS_PRUEBA_MAX=60; // iOS guarda hasta 64 notificaciones pendientes por app
+function pluginNotificaciones(){
+  if(!pluginWidgets())return null;
+  const cap=window.Capacitor;
+  return cap&&cap.Plugins&&cap.Plugins.LocalNotifications||null;
+}
+function avisosPruebasDisponibles(){return !!pluginNotificaciones();}
+function avisosPruebasActivos(){try{return localStorage.getItem(CLAVE_AVISOS_PRUEBAS)==='1';}catch(e){return false;}}
+function fechaHoraLocal(fecha,hora){
+  const f=/^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha||''),h=/^(\d{1,2}):(\d{2})$/.exec(hora||'');
+  return f&&h?new Date(+f[1],+f[2]-1,+f[3],+h[1],+h[2]):null;
+}
+function horaDe(d){return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function pruebasConHora(ahora,dias){
+  ahora=ahora||new Date();
+  const limite=ahora.getTime()+dias*864e5;
+  return agendaEvents().filter(e=>e.pending&&e.hora).map(e=>{
+    const inicio=fechaHoraLocal(e.fecha,e.hora);
+    if(!inicio)return null;
+    return {clave:[e.ramo.id,e.cat.id,e.nota?e.nota.id:'',e.fecha].join('|'),ramoId:e.ramo.id,ramo:e.ramo.nombre,
+      sigla:(typeof siglaDeRamo==='function'?siglaDeRamo(e.ramo):null)||null,color:e.ramo.color||null,
+      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,sala:null,
+      inicio,fin:new Date(inicio.getTime()+DURACION_PRUEBA_MIN*6e4)};
+  }).filter(p=>p&&p.fin.getTime()>ahora.getTime()&&p.inicio.getTime()<=limite);
+}
+function idAvisoPrueba(clave,fase){
+  let h=5381;for(const c of clave)h=((h*33)^c.charCodeAt(0))>>>0;
+  return (h%200000000)*4+fase+1;
+}
+// Los textos de cada fase. Tono de compañero (AGENTS.md); los decide Lucas.
+function avisosDePrueba(p,ahora){
+  const lugar=p.sala?`la sala ${p.sala}`:'tu sala';
+  return [
+    [30,'Último repaso',`${p.evaluacion} de ${p.ramo} empieza en 30 minutos.`,'ramo'],
+    [15,'Anda al baño y llena tu botella de agua',`${p.evaluacion} empieza en 15 minutos.`,'ramo'],
+    [10,`Camina a ${lugar}`,`${p.evaluacion} de ${p.ramo} a las ${horaDe(p.inicio)}.`,'ramo'],
+    [-DURACION_PRUEBA_MIN,'¿Cómo crees que te fue?',`${p.evaluacion} de ${p.ramo}. Toca para simular tu nota.`,'simular'],
+  ].map(([antes,titulo,cuerpo,destino],fase)=>({id:idAvisoPrueba(p.clave,fase),at:new Date(p.inicio.getTime()-antes*6e4),
+    titulo,cuerpo,url:`cl.gradehub.app://${destino}/${p.ramoId}`}))
+   .filter(a=>a.at.getTime()>(ahora||new Date()).getTime());
+}
+async function programarAvisosPruebas(ahora){
+  const ln=pluginNotificaciones();if(!ln)return 0;
+  try{
+    const pendientes=await ln.getPending();
+    const nuestras=((pendientes&&pendientes.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba');
+    if(nuestras.length)await ln.cancel({notifications:nuestras.map(n=>({id:n.id}))});
+    if(!avisosPruebasActivos()||!S.onboardingDone)return 0;
+    const permiso=await ln.checkPermissions();
+    if(!permiso||permiso.display!=='granted')return 0;
+    const lista=pruebasConHora(ahora,14).flatMap(p=>avisosDePrueba(p,ahora))
+      .sort((a,b)=>a.at-b.at).slice(0,AVISOS_PRUEBA_MAX);
+    if(lista.length)await ln.schedule({notifications:lista.map(a=>({id:a.id,title:a.titulo,body:a.cuerpo,
+      schedule:{at:a.at},extra:{gradehub:'prueba',url:a.url}}))});
+    return lista.length;
+  }catch(e){return 0;}
+}
+// iOS mantiene viva una Actividad hasta 8 horas: 6 antes de la prueba y las 2
+// que dura. Las próximas se mandan con su hora de partida (`desde`); desde
+// iOS 26 el teléfono las deja programadas y aparecen solas, con la app cerrada.
+const HORAS_ACTIVIDAD_ANTES=6,ACTIVIDADES_MAX=3;
+function sincronizarActividadesPrueba(ahora){
+  const p=pluginWidgets();if(!p||typeof p.sincronizarActividades!=='function')return;
+  ahora=ahora||new Date();
+  const vigentes=avisosPruebasActivos()&&S.onboardingDone?pruebasConHora(ahora,3).slice(0,ACTIVIDADES_MAX):[];
+  try{
+    const r=p.sincronizarActividades({actividades:vigentes.map(x=>({clave:x.clave,ramoId:x.ramoId,ramo:x.ramo,sigla:x.sigla,
+      color:x.color,evaluacion:x.evaluacion,sala:x.sala,inicio:x.inicio.getTime(),fin:x.fin.getTime(),
+      desde:x.inicio.getTime()-HORAS_ACTIVIDAD_ANTES*36e5}))});
+    if(r&&typeof r.catch==='function')r.catch(()=>{});
+  }catch(e){}
+}
+// "¿Cómo te fue?" se responde tocando la Actividad en Vivo, con la app cerrada:
+// el iPhone lo deja en el App Group y acá se recoge. Es una sensación, no una
+// nota: vive solo en este dispositivo (fuera de S y de la nube) y sirve para
+// abrir el simulador con una nota de partida que la persona cambia si quiere.
+const CLAVE_SENSACIONES='gradehub_sensaciones';
+const SENSACIONES=[
+  {valor:1,texto:'Muy mal',nota:'2,5'},{valor:2,texto:'Mal',nota:'3,5'},{valor:3,texto:'Normal',nota:'4,5'},
+  {valor:4,texto:'Bien',nota:'5,5'},{valor:5,texto:'Muy bien',nota:'6,5'}];
+function sensacionesGuardadas(){
+  try{const o=JSON.parse(localStorage.getItem(CLAVE_SENSACIONES)||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{};}
+  catch(e){return {};}
+}
+async function recogerSensaciones(){
+  const p=pluginWidgets();if(!p||typeof p.leerSensaciones!=='function')return 0;
+  try{
+    const r=await p.leerSensaciones();
+    const nuevas=(r&&Array.isArray(r.sensaciones)?r.sensaciones:[])
+      .filter(x=>x&&typeof x.clave==='string'&&SENSACIONES.some(s=>s.valor===x.valor));
+    if(!nuevas.length)return 0;
+    const todas=sensacionesGuardadas(),limite=Date.now()-30*864e5;
+    nuevas.forEach(x=>{
+      const [ramoId,catId]=x.clave.split('|');
+      const r=S.ramos.find(y=>y.id===ramoId),cat=r&&(r.categorias||[]).find(c=>c.id===catId);
+      todas[x.clave]={valor:x.valor,fecha:Number(x.fecha)||Date.now(),previas:cat?notasConValor(cat).map(n=>n.id):[]};
+      track('sensacion_respondida');
+    });
+    Object.keys(todas).forEach(k=>{if(!(todas[k].fecha>limite))delete todas[k];});
+    try{localStorage.setItem(CLAVE_SENSACIONES,JSON.stringify(todas));}catch(e){}
+    return nuevas.length;
+  }catch(e){return 0;}
+}
+// La sensación más reciente de este ramo cuya evaluación sigue sin nota.
+function sensacionPendiente(r,ahora){
+  const todas=sensacionesGuardadas(),hace=(ahora||Date.now())-3*864e5;
+  return Object.entries(todas).map(([clave,x])=>{
+    const [ramoId,catId]=clave.split('|');
+    const cat=ramoId===r.id&&(r.categorias||[]).find(c=>c.id===catId);
+    const s=SENSACIONES.find(y=>y.valor===x.valor);
+    return cat&&s&&x.fecha>hace&&!simCatLlena(cat)?{cat,s,fecha:x.fecha}:null;
+  }).filter(Boolean).sort((a,b)=>b.fecha-a.fecha)[0]||null;
+}
+function precargarSensacion(r){
+  const x=sensacionPendiente(r);if(!x)return null;
+  const inp=document.getElementById('sim-in-'+x.cat.id);if(!inp)return null;
+  const propia=notaHabitual(x.s.valor);
+  inp.value=propia?propia.texto:x.s.nota;simAddNota(x.cat.id);
+  const intro=document.querySelector('.sim-intro');
+  if(intro)intro.textContent=propia
+    ?`Dijiste que ${x.cat.nombre} te fue ${x.s.texto.toLowerCase()}: partimos con un ${propia.texto}, lo que sueles sacarte cuando dices eso. Cámbialo si quieres.`
+    :`Dijiste que ${x.cat.nombre} te fue ${x.s.texto.toLowerCase()}: partimos con un ${x.s.nota}. Cámbialo si quieres.`;
+  track('simulador_precargado',{propia:!!propia});
+  return x;
+}
+
+// ─── TU OLFATO ────────────────────────────────────────────────────────────────
+// Cuando llega la nota de una evaluación que tenía sensación, se juntan las dos:
+// "dijiste Bien y te sacaste 6,2". Con eso la app aprende cuánto te sacas de
+// verdad cuando dices cada cosa. Vive solo en este dispositivo, como las
+// sensaciones: nada de esto entra a S ni a la nube.
+const CLAVE_OLFATO='gradehub_olfato',OLFATO_MAX=60;
+function notasConValor(cat){return (cat.notas||[]).filter(n=>n&&typeof n.valor==='number'&&isFinite(n.valor));}
+function olfatoGuardado(){
+  try{const a=JSON.parse(localStorage.getItem(CLAVE_OLFATO)||'[]');return Array.isArray(a)?a.filter(x=>x&&x.valor>=1&&x.valor<=5&&typeof x.nota==='number'):[];}
+  catch(e){return [];}
+}
+// En una prueba, ocho décimas de diferencia ya es otra sensación; en el promedio
+// de varias, cinco bastan para que sea costumbre y no casualidad.
+function veredictoOlfato(diferencia,umbral=0.8){
+  return diferencia>=umbral?'pesimista':diferencia<=-umbral?'optimista':'acierto';
+}
+// Junta cada sensación con la nota que llegó después. Devuelve lo recién revelado.
+function revisarOlfato(){
+  const todas=sensacionesGuardadas(),pares=olfatoGuardado(),reveladas=[];
+  Object.entries(todas).forEach(([clave,x])=>{
+    const [ramoId,catId,notaId]=clave.split('|');
+    const r=S.ramos.find(y=>y.id===ramoId),cat=r&&(r.categorias||[]).find(c=>c.id===catId);
+    const s=SENSACIONES.find(y=>y.valor===x.valor);
+    if(!cat||!s)return;
+    const conValor=notasConValor(cat);
+    // La nota de esa fecha si estaba anotada como pendiente; si no, la primera
+    // que apareció después de responder. Sin forma de saberlo, se espera.
+    const nota=notaId?conValor.find(n=>n.id===notaId)
+      :Array.isArray(x.previas)?conValor.find(n=>!x.previas.includes(n.id))
+      :conValor.length===1?conValor[0]:null;
+    if(!nota)return;
+    const par={valor:x.valor,nota:Math.round(nota.valor*10)/10,fecha:Date.now()};
+    pares.push(par);delete todas[clave];
+    const resultado=veredictoOlfato(par.nota-parseNota(s.nota));
+    reveladas.push({evaluacion:nota.nombre||cat.nombre,s,nota:par.nota,resultado});
+    track('olfato_revelado',{resultado});
+  });
+  if(reveladas.length){
+    try{localStorage.setItem(CLAVE_OLFATO,JSON.stringify(pares.slice(-OLFATO_MAX)));localStorage.setItem(CLAVE_SENSACIONES,JSON.stringify(todas));}catch(e){}
+  }
+  return reveladas;
+}
+function textoRevelacion(x){
+  const fin={pesimista:'fuiste pesimista',optimista:'fuiste optimista',acierto:'le achuntaste'}[x.resultado];
+  return `Dijiste que ${x.evaluacion} te fue ${x.s.texto.toLowerCase()} y te sacaste un ${simConComa(x.nota.toFixed(1))}: ${fin}.`;
+}
+// Lo que sueles sacarte cuando dices algo; con una sola vez todavía no es costumbre.
+function notaHabitual(valor){
+  const de=olfatoGuardado().filter(x=>x.valor===valor);
+  if(!de[1])return null;
+  const prom=de.reduce((a,x)=>a+x.nota,0)/de.length;
+  return {prom,veces:de.length,texto:simConComa((Math.round(prom*10)/10).toFixed(1))};
+}
+function resumenOlfato(){
+  const pares=olfatoGuardado();
+  const filas=SENSACIONES.map(s=>({s,h:notaHabitual(s.valor)||(()=>{const de=pares.filter(x=>x.valor===s.valor);
+    return de.length?{prom:de[0].nota,veces:1,texto:simConComa(de[0].nota.toFixed(1))}:null;})()})).filter(f=>f.h);
+  const dif=pares.length?pares.reduce((a,x)=>a+x.nota-parseNota(SENSACIONES[x.valor-1].nota),0)/pares.length:0;
+  return {pares:pares.length,filas,diferencia:dif,veredicto:pares.length>=3?veredictoOlfato(dif,0.5):null};
+}
+function pintarAvisosPruebas(){
+  const b=document.getElementById('s-avisos-pruebas');
+  if(b)b.textContent=avisosPruebasActivos()?'Desactivar avisos':'Activar avisos';
+}
+async function alternarAvisosPruebas(){
+  const ln=pluginNotificaciones();
+  const estado=document.getElementById('s-avisos-estado');
+  if(!ln)return false;
+  if(avisosPruebasActivos()){
+    try{localStorage.removeItem(CLAVE_AVISOS_PRUEBAS);}catch(e){}
+    await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
+    if(estado)estado.textContent='Avisos desactivados en este iPhone.';
+    track('avisos_pruebas_desactivados');
+    return false;
+  }
+  let permiso=null;
+  try{permiso=await ln.requestPermissions();}catch(e){}
+  if(!permiso||permiso.display!=='granted'){
+    if(estado)estado.textContent='Para recibirlos, permite las notificaciones de GradeHub en la app Ajustes del iPhone.';
+    return false;
+  }
+  try{localStorage.setItem(CLAVE_AVISOS_PRUEBAS,'1');}catch(e){}
+  await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
+  if(estado)estado.textContent='Listo. Te avisaremos antes de cada evaluación que tenga hora.';
+  track('avisos_pruebas_activados');
+  return true;
 }
 
 // Esto recuerda una acción todavía no hecha: mandar una prueba ya rendida a

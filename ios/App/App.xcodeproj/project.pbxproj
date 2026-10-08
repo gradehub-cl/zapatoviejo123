@@ -20,6 +20,8 @@
 		A6E000000000000000000009 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000002 /* MainViewController.swift */; };
 		A6E00000000000000000000A /* GradeHubWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000004 /* GradeHubWidgets.swift */; };
 		A6E00000000000000000000B /* GradeHubWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000007 /* GradeHubWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A6E100000000000000000002 /* ActividadPrueba.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E100000000000000000001 /* ActividadPrueba.swift */; };
+		A6E100000000000000000003 /* ActividadPrueba.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E100000000000000000001 /* ActividadPrueba.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,6 +67,7 @@
 		A6E000000000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A6E000000000000000000006 /* GradeHubWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GradeHubWidgets.entitlements; sourceTree = "<group>"; };
 		A6E000000000000000000007 /* GradeHubWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GradeHubWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A6E100000000000000000001 /* ActividadPrueba.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActividadPrueba.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +95,7 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				A6E00000000000000000000C /* GradeHubWidgets */,
+				A6E100000000000000000004 /* Shared */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -132,6 +136,14 @@
 				A6E000000000000000000006 /* GradeHubWidgets.entitlements */,
 			);
 			path = GradeHubWidgets;
+			sourceTree = "<group>";
+		};
+		A6E100000000000000000004 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A6E100000000000000000001 /* ActividadPrueba.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -246,6 +258,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A6E000000000000000000009 /* MainViewController.swift in Sources */,
 				A6E000000000000000000008 /* WidgetsPlugin.swift in Sources */,
+				A6E100000000000000000002 /* ActividadPrueba.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -254,6 +267,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A6E00000000000000000000A /* GradeHubWidgets.swift in Sources */,
+				A6E100000000000000000003 /* ActividadPrueba.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

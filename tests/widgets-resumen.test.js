@@ -42,8 +42,30 @@ chk('el promedio general es el oficial de la interfaz',r.promedio.oficial===a.ru
 chk('cada ramo con su nota oficial y su nivel',r.ramos.length===2&&r.ramos[0].promedio===a.run('notaFinalOficial(ramoAvg(S.ramos[0]))')&&r.ramos[0].nivel===a.run('nivelRamo(S.ramos[0],ramoAvg(S.ramos[0]))'));
 chk('la agenda trae solo lo pendiente desde hoy, en orden',r.agenda.map(e=>e.evaluacion).join()==='Interrogación 2,Control 2,Examen');
 chk('lo vencido no aparece',!r.agenda.some(e=>e.evaluacion==='Control 0'));
-chk('la nota necesaria es la que muestra la app (redondeada hacia arriba)',r.agenda[0].necesitas===a.run('nfNecesaria(notaNecesaria(S.ramos[0]))'));
+// Cálculo I (sintético): I1 = 4,2 (30%), I2 (30%) y Examen (40%) pendientes.
+// Para ir con 4 tras la I2: (4,2·30 + x·30)/60 ≥ 3,95 → x ≥ 3,7.
+chk('"para ir con 4" cuenta lo evaluado más esa evaluación, nada de lo que viene',r.agenda[0].necesitas==='3.7');
+chk('no es el promedio que necesitas en todo lo pendiente',r.agenda[0].necesitas!==a.run('nfNecesaria(notaNecesaria(S.ramos[0]))'));
+chk('en la última evaluación del ramo es la nota para cerrarlo con 4',
+  a.run(`(()=>{const r=normalize({ramos:[{id:'u',nombre:'Última',color:'#000',gates:[],categorias:[
+    {id:'p',nombre:'Prueba',peso:60,notas:[{id:'q',valor:5.0}]},{id:'f',nombre:'Final',peso:40,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
+    const e={ramo:r,cat:r.categorias[1],nota:null};return notaParaIrConCuatro(e).nota===nfNecesaria(notaNecesaria(r));})()`));
+chk('con margen: aunque te saques un 1,0 sigues con 4',
+  a.run(`(()=>{const r=normalize({ramos:[{id:'m',nombre:'Holgado',color:'#000',gates:[],categorias:[
+    {id:'p',nombre:'Prueba',peso:80,notas:[{id:'q',valor:6.5}]},{id:'f',nombre:'Control',peso:20,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
+    return !!notaParaIrConCuatro({ramo:r,cat:r.categorias[1],nota:null}).margen;})()`));
+chk('si sola no alcanza, lo dice en vez de inventar un 7,5',
+  a.run(`(()=>{const r=normalize({ramos:[{id:'n',nombre:'Difícil',color:'#000',gates:[],categorias:[
+    {id:'p',nombre:'Prueba',peso:80,notas:[{id:'q',valor:2.0}]},{id:'f',nombre:'Control',peso:20,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
+    return !!notaParaIrConCuatro({ramo:r,cat:r.categorias[1],nota:null}).inalcanzable;})()`));
+chk('una compuerta que topa la nota sube lo que necesitas',
+  a.run(`(()=>{const r=normalize({ramos:[{id:'g',nombre:'Con piso',color:'#000',categorias:[
+    {id:'p',nombre:'Prueba',peso:50,notas:[{id:'q',valor:6.0}]},{id:'f',nombre:'Examen',peso:50,fecha:'2026-12-01',notas:[]}],
+    gates:[{type:'min_grade_required',catId:'f',min:3.0,cap:3.9}]}]}).ramos[0];
+    return notaParaIrConCuatro({ramo:r,cat:r.categorias[1],nota:null}).nota;})()`)==='3.0');
+chk('no toca los datos guardados',a.run('JSON.stringify(S.ramos)')===a.run('(resumenParaWidgets(new Date(2026,9,6,12)),JSON.stringify(S.ramos))'));
 chk('lleva el color del ramo para su línea lateral',r.agenda[0].color==='#7F77DD');
+chk('lleva cuánto del ramo define, el mismo de la Agenda',r.agenda[0].parte===30&&r.agenda[1].parte===40);
 chk('no lleva notas individuales ni nombres de personas',!JSON.stringify(r).includes('"valor"')&&!('userName' in r));
 
 console.log('\n=== En la web no hay plugin ===');
