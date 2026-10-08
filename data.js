@@ -987,6 +987,12 @@ const PRESETS_UC={
       ['Controles',20,{slots:3}],
       ['Examen',30,{fecha:'2026-12-01'}],
     ],
+    // Los controles se rinden en horario de taller, que no es el mismo en
+    // todas las secciones. Solo cargamos las de secciones confirmadas: la 13
+    // (Lucas, 2026-10-08) usa las fechas del programa.
+    fechasPorSeccion:{
+      13:{'Controles':['2026-08-28','2026-10-09','2026-11-06']},
+    },
     aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
     // El programa dice que la nota de la interrogación "será reemplazada por la
     // nota del examen"; en la práctica del curso su porcentaje pasa al examen
