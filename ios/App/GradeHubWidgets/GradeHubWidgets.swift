@@ -201,18 +201,22 @@ struct ProximaVista: View {
                     .padding(.top, 6)
                 Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
                 // Todo en un bloque, sin huecos al medio: el aire queda abajo.
-                if let n = e.necesitas {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("Necesitas").font(.caption).foregroundStyle(.secondary)
-                        Text(n).font(.subheadline.weight(.bold)).monospacedDigit()
+                // Lo que necesitas en ESTA evaluación para ir con 4 después de
+                // rendirla (lo calcula la app; ver notaParaIrConCuatro).
+                Group {
+                    if let n = e.necesitas {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("Para ir con 4").font(.caption).foregroundStyle(.secondary)
+                            Text(n).font(.subheadline.weight(.bold)).monospacedDigit()
+                        }
+                    } else if e.inalcanzable == true {
+                        Text("Sola no alcanza para el 4").font(.caption)
+                    } else if e.margen == true {
+                        Text("Sigues con 4 aunque te vaya mal").font(.caption).lineLimit(1).minimumScaleFactor(0.8)
                     }
-                    .padding(.top, 8)
-                    .privacySensitive()
-                } else if e.inalcanzable == true {
-                    Text("Ya no alcanza el 4,0").font(.caption).privacySensitive()
-                } else if e.margen == true {
-                    Text("Tienes margen").font(.caption).privacySensitive()
                 }
+                .padding(.top, 8)
+                .privacySensitive()
             }
             Spacer(minLength: 0)
         }

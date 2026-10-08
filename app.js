@@ -8845,6 +8845,42 @@ function agendaEvents(){
 // lo entrega al lado nativo, que lo guarda para que los widgets lo muestren.
 // En la web (fuera de la app) no hay plugin y nada de esto corre.
 const WIDGETS_VERSION=1;
+// Cuánto necesitas en ESTA evaluación para ir con 4 después de rendirla: lo
+// ya evaluado más ella, sin suponer nada de lo que viene después (decisión de
+// Lucas, 2026-10-08). Si es la última del ramo, es la nota para cerrarlo con 4.
+// Se calcula con el motor de siempre (ramoAvg, compuertas, aprobación del ramo)
+// sobre una copia con la nota hipotética; nada de esto toca S.
+function ramoConNotaHipotetica(r,e,x){
+  const copia=JSON.parse(JSON.stringify(r));
+  const cat=(copia.categorias||[]).find(k=>k.id===e.cat.id);if(!cat)return null;
+  cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+  if(e.nota){
+    const n=cat.notas.find(k=>k.id===e.nota.id);if(!n)return null;
+    n.valor=x;return copia;
+  }
+  if(Number.isInteger(cat.slots)&&cat.slots>1){
+    // Un evento de la categoría cubre sus casillas que no tienen fecha propia.
+    const ocupadas=new Set(cat.notas.filter(n=>Number.isInteger(n.slot)).map(n=>n.slot));
+    for(let i=0;i<cat.slots;i++)if(!ocupadas.has(i))cat.notas.push({id:'hipotetica'+i,nombre:cat.nombre,peso:1,valor:x,slot:i});
+    return copia;
+  }
+  if(cat.notas.some(n=>typeof n.valor==='number'))return null;
+  cat.notas.push({id:'hipotetica',nombre:cat.nombre,peso:1,valor:x});
+  return copia;
+}
+function notaParaIrConCuatro(e){
+  const aprueba=decimas=>{
+    const r=ramoConNotaHipotetica(e.ramo,e,decimas/10);if(!r)return null;
+    const v=ramoAvg(r);return v===null?null:notaAprobadaRamo(r,v);
+  };
+  const conUno=aprueba(10),conSiete=aprueba(70);
+  if(conUno===null||conSiete===null)return null;
+  if(conUno)return {margen:true};
+  if(!conSiete)return {inalcanzable:true};
+  let bajo=10,alto=70;
+  while(alto-bajo>1){const m=(bajo+alto)>>1;if(aprueba(m))alto=m;else bajo=m;}
+  return {nota:(alto/10).toFixed(1)};
+}
 function resumenParaWidgets(ahora){
   ahora=ahora||new Date();
   const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
@@ -8854,15 +8890,12 @@ function resumenParaWidgets(ahora){
     const v=ramoAvg(r);
     return {id:r.id,nombre:r.nombre,promedio:v===null?null:notaFinalOficial(v),nivel:v===null?null:nivelRamo(r,v)};
   });
-  const necesitaPorRamo=new Map();
   const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
-    if(!necesitaPorRamo.has(e.ramo.id))necesitaPorRamo.set(e.ramo.id,notaNecesaria(e.ramo));
-    const nec=necesitaPorRamo.get(e.ramo.id);
-    const valido=typeof nec==='number'&&Number.isFinite(nec);
+    const cuatro=notaParaIrConCuatro(e)||{};
     return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
       evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
-      necesitas:valido&&nec>1&&nec<=7?nfNecesaria(nec):null,
-      margen:valido&&nec<=1,inalcanzable:valido&&nec>7,
+      // En esta evaluación, para ir con 4 después de rendirla (ver notaParaIrConCuatro).
+      necesitas:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable,
       // Cuánto del ramo define, igual que en la Agenda. Si no es fijo (se descarta
       // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
       parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};

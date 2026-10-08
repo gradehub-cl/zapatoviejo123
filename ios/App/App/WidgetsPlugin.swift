@@ -143,7 +143,7 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         let json = """
         {"version":1,"actualizado":"\(ISO8601DateFormatter().string(from: Date()))","promedio":{"oficial":5.3,"nivel":"good"},
         "ramos":[{"id":"demo","nombre":"Cálculo II","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","promedio":3.8,"nivel":"bad"}],
-        "agenda":[{"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Interrogación 2","fecha":"\(f.string(from: enDosDias))","hora":"17:30","necesitas":"3.9","parte":30},
+        "agenda":[{"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Interrogación 2","fecha":"\(f.string(from: enDosDias))","hora":"17:30","necesitas":"3.7","parte":30},
         {"ramoId":"b","ramo":"Física","sigla":"FIS1514","color":"#1D9E75","evaluacion":"Control 4","fecha":"\(f.string(from: enDosDias.addingTimeInterval(86400)))"},
         {"ramoId":"c","ramo":"Programación","sigla":"IIC1103","color":"#D85A30","evaluacion":"Tarea 3","fecha":"\(f.string(from: enDosDias.addingTimeInterval(4 * 86400)))"},
         {"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Examen","fecha":"\(f.string(from: enDosDias.addingTimeInterval(9 * 86400)))"}]}
