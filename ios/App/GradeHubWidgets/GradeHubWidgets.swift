@@ -168,7 +168,8 @@ struct ProximaVista: View {
             // una evaluación con fecha ya dice que es la próxima.
             VStack(alignment: .leading, spacing: 2) {
                 // Primero qué es; después cuánto falta (pedido de Lucas, 2026-10-07).
-                Text(e.evaluacion).font(.headline).lineLimit(2).minimumScaleFactor(0.85)
+                // Una línea: se achica antes que partirse ("Interrogación / 2").
+                Text(e.evaluacion).font(.headline).lineLimit(1).minimumScaleFactor(0.6)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: 0)
                 Text(Fechas.cuando(e, desde: entrada.date)).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
