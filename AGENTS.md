@@ -260,7 +260,9 @@ La app es la misma web metida en Capacitor (`ios/`), más lo nativo: widgets
 cambia también la app.
 
 **Se trabaja en la rama `ios`**, compartida por Martín y Lucas (acordado el
-2026-10-08). Una tarea de la app sale de `ios` (rama `ms/…` o `li/…`) y vuelve a
+2026-10-08). Antes de tocar la app, trae lo último: `git switch ios && git pull
+--ff-only` (`bin/estado.sh` solo hace `fetch`: avisa que hay algo nuevo, pero no
+lo trae). Una tarea de la app sale de `ios` (rama `ms/…` o `li/…`) y vuelve a
 `ios` por PR, nunca a `main`. Cada push a `ios` corre los tests y publica la
 versión de prueba en https://ios.gradehub.pages.dev; la PR en borrador `ios` →
 `main` muestra lo que todavía no llega a gradehub.cl. Si entró algo a `main`,
