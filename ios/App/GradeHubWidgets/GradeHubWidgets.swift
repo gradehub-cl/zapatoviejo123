@@ -206,7 +206,7 @@ struct ProximaVista: View {
                 Group {
                     if let n = e.necesitas {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("Para ir con 4").font(.caption).foregroundStyle(.secondary)
+                            Text("Necesitas").font(.caption).foregroundStyle(.secondary)
                             Text(n).font(.subheadline.weight(.bold)).monospacedDigit()
                         }
                     } else if e.inalcanzable == true {
