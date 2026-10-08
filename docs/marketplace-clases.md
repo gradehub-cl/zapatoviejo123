@@ -388,9 +388,33 @@ duración, la unidad de cobro y quién puede aprobar quedaron fijados arriba. Si
 prueba real obliga a cambiarlos, se modifica esta decisión explícitamente; no se
 dejan variantes ocultas en distintas funciones.
 
+## Panel de alumnos: el alumno decide compartir (2026-10-08)
+
+Decisión de Lucas tras la reunión con Salva Ramos, que dijo que esto sí lo
+pagaría. Cambia lo de arriba en un punto: **un profesor puede ver notas, pero
+solo las que un alumno decidió compartirle**. Lo demás de este documento sigue
+igual: los avisos no reciben datos académicos y nadie ve quién recibió un aviso.
+
+- Cada profesor aprobado tiene un link fijo, renovable si se filtra. El alumno
+  lo abre, elige qué ramos comparte y con qué nombre aparece. Sin ese paso no
+  hay nada.
+- El alumno ve en Ajustes con quién comparte qué, y deja de compartir con un
+  toque. El profesor pierde el acceso en ese momento.
+- El profesor ve cada nota de los ramos compartidos. El promedio lo calcula su
+  navegador con `ramoAvg`, el mismo motor de la app.
+- La comparación con GradeHub (por ramo y por prueba) es solo agregada y desde
+  cinco personas, y solo para un profesor con un alumno que le comparta ese ramo.
+- Ninguno de los dos recibe el `user_id` ni el correo del otro.
+- Piloto gratis, mostrando lo que costaría.
+
+Esquema y funciones: `supabase/profesor_alumnos.sql`, probado en
+`tests/profesor-alumnos-sql.test.js`. **Antes de que lo use un alumno real**
+hay que actualizar términos y privacidad, y que lo revise el abogado.
+
 ## Fuera de alcance por ahora
 
-- Vender notas, riesgos, listas de ramos o identidades a profesores.
+- Vender notas, riesgos, listas de ramos o identidades a profesores. La única
+  excepción es lo que un alumno comparte por decisión propia (ver arriba).
 - Cobros dentro de GradeHub, comisiones por nota o verificaciones falsas de
   inscritos.
 - Ranking de estudiantes o listas de perfiles académicos para anunciantes.
