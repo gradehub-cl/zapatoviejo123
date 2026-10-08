@@ -3251,14 +3251,23 @@ function ramoParaPanel(r){
   // que una versión vieja pudo no escribir, igual que al cargar la app.
   try{const n=typeof normalize==='function'?normalize({ramos:[r]}).ramos[0]:r;return n||r;}catch(e){return r;}
 }
-function notasDeRamoPanel(r){
-  const filas=[];
-  (r.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{
-    if(typeof n.valor!=='number'||!isFinite(n.valor))return;
-    const nombre=(n.nombre||'').trim()||c.nombre;
-    filas.push({nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)});
-  }));
-  return filas;
+// Notas agrupadas como en la ficha del ramo: cada categoría con su promedio
+// (el del motor, con descartes y reglas) y sus notas debajo.
+function categoriasDeRamoPanel(r){
+  let valores=new Map();
+  try{
+    const base=typeof calculoRamoConCompuertas==='function'?calculoRamoConCompuertas(r):null;
+    if(base&&base.res)valores=new Map((base.res.breakdown||[]).map(n=>[n.id,n.value]));
+  }catch(e){}
+  return (r.categorias||[]).map(c=>{
+    const notas=(c.notas||[]).filter(n=>typeof n.valor==='number'&&isFinite(n.valor)).map(n=>{
+      const nombre=(n.nombre||'').trim()||c.nombre;
+      return {nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
+    });
+    const v=valores.get(c.id);
+    const promedio=typeof v==='number'&&isFinite(v)?v:(typeof avgPond==='function'?avgPond(notas):null);
+    return {nombre:c.nombre,clave:claveEvaluacionPanel(c.nombre),notas,promedio};
+  }).filter(c=>c.notas.length);
 }
 function comparacionTexto(prom,personas,etiqueta=false){
   if(prom==null)return `<span class="panel-alumnos-sin">${etiqueta?'GradeHub: aún pocos datos':'Aún pocos datos'}</span>`;
@@ -3268,18 +3277,27 @@ function ramoPanelHTML(r,comp){
   const ramo=ramoParaPanel(r);
   const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
-  const porClave=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
-  const notas=notasDeRamoPanel(ramo);
+  const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
+  const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
+  const categorias=categoriasDeRamoPanel(ramo);
+  // Una nota cuyo nombre no calza con nadie no repite "aún pocos datos": la
+  // comparación útil está en su categoría.
+  const deNota=n=>{const e=porNota.get(n.clave);return e?comparacionTexto(e.promedio,e.personas):'<span class="panel-alumnos-sin">—</span>';};
+  const deCategoria=c=>{const e=porCategoria.get(c.clave);return comparacionTexto(e?e.promedio:null,e?e.personas:0);};
+  const filas=categorias.map(c=>{
+    // Una categoría de una sola nota es una sola fila.
+    if(c.notas.length===1)return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}</td><td>${esc(fmt(c.notas[0].valor))}</td><td>${deCategoria(c)}</td></tr></tbody>`;
+    return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${c.notas.length} notas</small></td><td>${c.promedio===null?'·':esc(fmtPromedio(c.promedio))}</td><td>${deCategoria(c)}</td></tr>
+      ${c.notas.map(n=>`<tr class="panel-alumnos-nota"><td>${esc(n.nombre)}</td><td>${esc(fmt(n.valor))}</td><td>${deNota(n)}</td></tr>`).join('')}</tbody>`;
+  }).join('');
   return `<div class="panel-alumnos-ramo">
     <div class="panel-alumnos-ramo-cabeza">
       <span><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
       <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
       ${comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,true)}
     </div>
-    ${notas.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead><tbody>
-      ${notas.map(n=>{const e=porClave.get(n.clave);
-        return `<tr><td>${esc(n.nombre)}</td><td>${esc(fmt(n.valor))}</td><td>${comparacionTexto(e?e.promedio:null,e?e.personas:0)}</td></tr>`;}).join('')}
-    </tbody></table>`:'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
+    ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead>${filas}</table>`
+      :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
   </div>`;
 }
 
@@ -3326,7 +3344,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`).join('')
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>')+
-    '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
+    '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
     '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
   raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
   raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{

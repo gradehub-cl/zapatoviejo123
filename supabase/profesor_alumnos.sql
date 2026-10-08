@@ -260,6 +260,13 @@ $$;
 -- El promedio del ramo sale de curso_notas (lo que cada estudiante ve en su
 -- app, al día en los últimos 30 días). El de cada prueba sale de las notas
 -- guardadas: una nota no lleva fórmula, así que no se duplica ramoAvg.
+--
+-- POR CATEGORÍA (2026-10-08, pedido de Lucas): cada estudiante puede renombrar
+-- sus notas ("1", "(Falté)"), así que nota por nota casi nunca calzan. Las
+-- categorías vienen de la pauta del catálogo y se llaman igual para todos. El
+-- promedio de una categoría acá es el ponderado de sus notas por su peso, SIN
+-- descartes ni reglas: es una referencia de cómo le va al resto, no la nota de
+-- nadie. La del alumno la calcula el navegador con el motor de siempre.
 create or replace function public.comparacion_ramo_profesor(p_tenant text, p_sigla text)
 returns jsonb
 language plpgsql
@@ -273,6 +280,7 @@ declare
   v_sigla text := nullif(upper(btrim(p_sigla)), '');
   v_ramo jsonb;
   v_evaluaciones jsonb;
+  v_categorias jsonb;
 begin
   if uid is null or v_tenant is null or v_sigla is null then
     return null;
@@ -326,7 +334,40 @@ begin
     into v_evaluaciones
     from agregado;
 
-  return jsonb_build_object('ramo', v_ramo, 'evaluaciones', v_evaluaciones);
+  with notas as (
+    select ur.user_id, c->>'nombre' as nombre,
+           (n->>'valor')::numeric as valor,
+           case when jsonb_typeof(n->'peso') = 'number' and (n->>'peso')::numeric > 0
+                then (n->>'peso')::numeric else 1 end as peso
+    from public.user_ramos ur,
+         jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r,
+         jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
+         jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
+    where ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+      and jsonb_typeof(n->'valor') = 'number'
+      and (n->>'valor')::numeric between 1 and 7
+  ),
+  por_persona as (
+    select public.clave_evaluacion(nombre) as clave, min(nombre) as nombre, user_id,
+           sum(valor * peso) / sum(peso) as valor
+    from notas
+    where public.clave_evaluacion(nombre) is not null
+    group by 1, user_id
+  ),
+  agregado as (
+    select clave, mode() within group (order by nombre) as nombre,
+           round(avg(valor), 1) as promedio, count(*) as personas
+    from por_persona
+    group by clave
+    having count(*) >= 5
+  )
+  select coalesce(jsonb_agg(jsonb_build_object('clave', clave, 'nombre', nombre,
+                                               'promedio', promedio, 'personas', personas)
+                            order by clave), '[]'::jsonb)
+    into v_categorias
+    from agregado;
+
+  return jsonb_build_object('ramo', v_ramo, 'evaluaciones', v_evaluaciones, 'categorias', v_categorias);
 end;
 $$;
 

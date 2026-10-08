@@ -96,6 +96,11 @@ try{
   check('junta la misma prueba escrita distinto: 5 personas en la I1',i1&&i1.personas===5&&Number(i1.promedio)===4.6);
   check('la I2 tiene 3 personas y no aparece',!comp.evaluaciones.some(e=>e.clave==='interrogacion 2'));
   check('la FEN no se mezcla con la UC',comp.evaluaciones.every(e=>e.personas<=5));
+  // Las cinco tienen la categoría "Pruebas" aunque cada una nombre distinto sus notas.
+  const catPruebas=comp.categorias.find(c=>c.clave==='pruebas');
+  check('por categoría calzan aunque cada uno renombre sus notas',catPruebas&&catPruebas.personas===5);
+  // Por persona: alumna (4,2+5,0)/2=4,6; u20 (5+4)/2=4,5; u21 (3+4)/2=3,5; u22 6,0; u23 4,8 → 4,68.
+  check('con el promedio de la categoría de cada uno (4,7)',catPruebas&&Number(catPruebas.promedio)===4.7);
   check('sin un alumno que le comparta ese ramo, no puede consultarlo',
     (await q(`select comparacion_ramo_profesor('uc','FIS1514') c`))[0].c===null);
   await soy(OTRO);
