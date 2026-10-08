@@ -95,6 +95,21 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   chk('la usa en la evaluación de ese ramo que sigue sin nota',a.run(`(x=>x&&x.cat.id+':'+x.s.nota)(sensacionPendiente(S.ramos[0]))`)==='i2:5,5'&&a.run('sensacionPendiente(S.ramos[1])')===null);
   chk('una sensación vieja ya no precarga nada',a.run(`sensacionPendiente(S.ramos[0],Date.now()+4*864e5)`)===null);
   chk('el simulador parte con esa nota de partida',/precargarSensacion\(r\)/.test(leer('app.js'))&&a.run(`SENSACIONES.map(s=>s.texto).join()`)==='Muy mal,Mal,Normal,Bien,Muy bien');
+  console.log('\n=== Tu olfato ===');
+  chk('sin nota todavía, no hay nada que revelar',a.run('revisarOlfato().length')===0);
+  a.run(`S.ramos[0].categorias[0].notas.push({id:'g1',nombre:'Interrogación 2',valor:6.4})`);
+  const rev=a.run('revisarOlfato().map(x=>x.resultado+"|"+textoRevelacion(x))');
+  chk('al llegar la nota se junta con lo que dijiste',rev.length===1&&/^pesimista\|Dijiste que Interrogación 2 te fue bien y te sacaste un 6,4: fuiste pesimista\.$/.test(rev[0]));
+  chk('la sensación se consume y el par queda en este dispositivo',a.run('sensacionPendiente(S.ramos[0])')===null&&/"valor":4,"nota":6.4/.test(a.almacen.get('gradehub_olfato')));
+  chk('con una sola vez no hay costumbre',a.run('notaHabitual(4)')===null);
+  a.run(`localStorage.setItem('gradehub_olfato',JSON.stringify([...olfatoGuardado(),{valor:4,nota:5.8,fecha:1},{valor:2,nota:4.6,fecha:2}]))`);
+  chk('con dos, el simulador parte con lo que sueles sacarte',a.run('notaHabitual(4).texto')==='6,1');
+  const o=a.run('resumenOlfato()');
+  chk('con tres pruebas hay veredicto',o.pares===3&&o.veredicto==='pesimista'&&o.filas.map(f=>f.s.texto).join()==='Mal,Bien');
+  chk('una nota que llega a otra evaluación no cuenta',(()=>{a.run(`localStorage.setItem('gradehub_sensaciones',JSON.stringify({'b|c2||2026-10-07':{valor:3,fecha:Date.now(),previas:['y']}}))`);return a.run('revisarOlfato().length')===0;})());
+  chk('"Tu olfato" está en Estadísticas solo en la app',a.run('ordenSecciones().includes("olfato")')===true&&/piezas\.olfato=/.test(leer('render-main.js')));
+  chk('se mide lo que engancha: responder, precargar, revelar y apagar',['sensacion_respondida','simulador_precargado','olfato_revelado','avisos_pruebas_desactivados'].every(e=>leer('app.js').includes(`track('${e}'`)));
+
   chk('al volver a la app se recoge',/addListener\('resume',\(\)=>recogerSensaciones\(\)\)/.test(leer('app-session.js')));
 
   console.log('\n=== Desactivar y cerrar sesión ===');
@@ -114,6 +129,7 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   console.log('\n=== En la web no hay nada de esto ===');
   const w=contexto(false);
   chk('sin plugin de notificaciones',w.run('avisosPruebasDisponibles()')===false);
+  chk('ni "Tu olfato" en Estadísticas',w.run('ordenSecciones().includes("olfato")')===false);
   chk('activar no hace nada',(await w.run('alternarAvisosPruebas()'))===false&&!w.almacen.has('gradehub_avisos_pruebas'));
   chk('Ajustes solo muestra la opción si hay notificaciones (la app)',/\$\{avisosPruebasDisponibles\(\)\?`[\s\S]{0,200}Avisos antes de tus evaluaciones/.test(leer('app.js')));
 

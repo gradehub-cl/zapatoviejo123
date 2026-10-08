@@ -1059,6 +1059,26 @@ function renderStats(){
     piezas.historial=hist;
   }
 
+  // Tu olfato: cuánto te sacas de verdad cuando dices que te fue bien o mal.
+  if(typeof resumenOlfato==='function'&&avisosPruebasDisponibles()){
+    const o=resumenOlfato();
+    if(o.pares){
+      const titular=o.veredicto==='pesimista'?`Eres pesimista: te va ${simConComa(Math.abs(o.diferencia).toFixed(1))} mejor de lo que crees`
+        :o.veredicto==='optimista'?`Eres optimista: te va ${simConComa(Math.abs(o.diferencia).toFixed(1))} peor de lo que crees`
+        :o.veredicto==='acierto'?'Tienes buen olfato: lo que sientes es lo que te sacas'
+        :`Faltan ${3-o.pares} prueba${3-o.pares===1?'':'s'} para tu veredicto`;
+      piezas.olfato=`
+        <div class="section-hd" style="padding:20px 20px 8px;">
+          <span class="section-hd-title">Tu olfato</span>
+        </div>
+        <div class="stat-card stats-olfato-card" style="margin:0 20px 16px;">
+          <div class="stats-olfato-titular">${esc(titular)}</div>
+          ${o.filas.map(f=>`<div class="stats-olfato-fila"><span>Cuando dices <b>${esc(f.s.texto)}</b></span><span class="stats-olfato-nota">${esc(f.h.texto)}<small>${f.h.veces===1?'1 vez':f.h.veces+' veces'}</small></span></div>`).join('')}
+          <p class="stats-olfato-nota-pie">Se arma con lo que respondes en la pantalla de bloqueo al terminar cada prueba. Solo en este iPhone.</p>
+        </div>`;
+    }
+  }
+
   // Las secciones se emiten en el orden que dejó el estudiante y sin las que
   // escondió. Una sección que no existe en este semestre —no hay proyección, no
   // hay nada urgente— simplemente no está en `piezas` y se salta sola.
