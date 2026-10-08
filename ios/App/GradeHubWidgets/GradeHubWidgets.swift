@@ -254,11 +254,12 @@ struct PromedioGeneralWidget: Widget {
 
 // MARK: - Actividad en Vivo de una evaluación (#645)
 
-// Antes de la hora de inicio: cuenta regresiva grande, como reloj. Desde la hora
-// de inicio el sistema la marca "stale" y se dibuja "Suerte" con la barra del
-// tiempo que queda, sin que la app tenga que estar abierta. Los mensajes de
-// cada fase (repaso, baño y agua, caminar a la sala) llegan como notificaciones.
-// Sin notas: solo qué evaluación es, dónde y cuándo.
+// Te acompaña las 6 horas previas y las 2 de la prueba. Nada de esto necesita
+// que la app esté abierta ni un servidor: la cuenta regresiva y el riel de fases
+// los anima el sistema solo (cada tramo es un ProgressView con su intervalo), y
+// a la hora de inicio el sistema la marca "stale" y se dibuja "Suerte" con los
+// botones de "¿cómo te fue?". Los botones no se exigen: la Actividad muestra,
+// no pide. Sin notas: solo qué evaluación es, dónde, cuándo y la sensación.
 
 enum Hora {
     // 24 horas siempre, como se usa en Chile, aunque el iPhone esté en 12 horas.
@@ -285,40 +286,109 @@ struct CuentaRegresiva: View {
     }
 }
 
+// Las fases que acompañan la cuenta regresiva, iguales a los avisos de la app.
+struct Fase: Identifiable {
+    let id: String, icono: String, desde: Date, hasta: Date
+    static let horasAntes: Double = 6
+    static func de(_ e: ActividadPruebaAtributos.ContentState) -> [Fase] {
+        let m = { (min: Double) in e.inicio.addingTimeInterval(-min * 60) }
+        return [
+            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(30)),
+            Fase(id: "Repaso", icono: "text.book.closed", desde: m(30), hasta: m(15)),
+            Fase(id: "Agua", icono: "drop", desde: m(15), hasta: m(10)),
+            Fase(id: "Sala", icono: "figure.walk", desde: m(10), hasta: e.inicio),
+            Fase(id: "Prueba", icono: "pencil", desde: e.inicio, hasta: e.fin),
+        ]
+    }
+}
+
+// Un tramo por fase, de igual ancho: cada uno se llena solo durante su tiempo.
+struct RielFases: View {
+    let estado: ActividadPruebaAtributos.ContentState
+    let color: Color
+    var conEtiquetas = true
+    var body: some View {
+        HStack(alignment: .top, spacing: 4) {
+            ForEach(Fase.de(estado)) { f in
+                VStack(alignment: .leading, spacing: 3) {
+                    ProgressView(timerInterval: f.desde...f.hasta, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                        .progressViewStyle(.linear).tint(color)
+                    if conEtiquetas {
+                        Label(f.id, systemImage: f.icono).labelStyle(.titleAndIcon)
+                            .font(.caption2.weight(.medium)).lineLimit(1).minimumScaleFactor(0.8)
+                        Text(Hora.de(f.desde)).font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Estudia, último repaso a las \(Hora.de(Fase.de(estado)[1].desde)), agua, sala y prueba a las \(Hora.de(estado.inicio))")
+    }
+}
+
+// "¿Cómo te fue?": cinco botones que se pueden tocar sin abrir la app. No se exigen.
+struct BotonesSensacion: View {
+    let clave: String
+    let color: Color
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(1...5, id: \.self) { v in
+                Button(intent: ResponderSensacion(clave: clave, valor: v)) {
+                    Text(Sensacion.texto(v)).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                }
+                .buttonStyle(.plain)
+                .background(color.opacity(0.18), in: Capsule())
+            }
+        }
+    }
+}
+
 struct PruebaBloqueoVista: View {
     let contexto: ActivityViewContext<ActividadPruebaAtributos>
 
     var body: some View {
         let a = contexto.attributes, e = contexto.state
         let color = Color(hexRamo: a.color)
-        HStack(alignment: .center, spacing: 12) {
-            // El color del ramo vive en su línea lateral, como en la app.
-            RoundedRectangle(cornerRadius: 1.5).fill(color).frame(width: 3)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(contexto.isStale ? "EN CURSO" : "PRÓXIMA EVALUACIÓN")
-                    .font(.caption2.weight(.semibold)).tracking(0.6).foregroundStyle(.secondary).lineLimit(1)
-                Text(a.evaluacion).font(.headline).lineLimit(1)
-                Text(a.ramo).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                Text(lugarYHora(a, e)).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
-                if contexto.isStale {
-                    Text("Suerte").font(.title2.weight(.bold))
-                    Text("Termina \(Hora.de(e.fin))").font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                } else {
-                    // En la pantalla de bloqueo iOS esconde los segundos de un reloj
-                    // ("24:--"); este formato se adapta solo y se lee "24 minutos".
-                    Text(e.inicio, style: .timer).font(.title2.weight(.bold)).monospacedDigit()
-                        .multilineTextAlignment(.trailing).minimumScaleFactor(0.7).lineLimit(1).frame(maxWidth: 130, alignment: .trailing)
-                    Text("para empezar").font(.caption).foregroundStyle(.secondary)
+        let enCurso = contexto.isStale || Date() >= e.inicio
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                // El color del ramo vive en su línea lateral, como en la app.
+                RoundedRectangle(cornerRadius: 1.5).fill(color).frame(width: 3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(e.sensacion != nil ? "ANOTADO" : enCurso ? "EN CURSO" : "PRÓXIMA EVALUACIÓN")
+                        .font(.caption2.weight(.semibold)).tracking(0.6).foregroundStyle(.secondary).lineLimit(1)
+                    Text(a.evaluacion).font(.headline).lineLimit(1)
+                    // La hora ya está en el riel ("Prueba 17:30") y, en curso, en "Termina".
+                    Text([a.ramo, a.sala.map { "Sala \($0)" }].compactMap { $0 }.joined(separator: " · "))
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let s = e.sensacion {
+                        Text(Sensacion.texto(s)).font(.title2.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
+                    } else if enCurso {
+                        Text("Suerte").font(.title2.weight(.bold))
+                        Text("Termina \(Hora.de(e.fin))").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    } else {
+                        // En la pantalla de bloqueo iOS esconde los segundos de un reloj
+                        // ("24:--"); este formato se adapta solo y se lee "24 minutos".
+                        // Lejos de la prueba se lee "3 horas y 19 minutos": cabe en dos líneas.
+                        Text(e.inicio, style: .timer).font(.title3.weight(.bold)).monospacedDigit()
+                            .multilineTextAlignment(.trailing).minimumScaleFactor(0.8).lineLimit(2).frame(maxWidth: 120, alignment: .trailing)
+                    }
                 }
             }
-        }
-        .overlay(alignment: .bottom) {
-            if contexto.isStale {
-                ProgressView(timerInterval: e.inicio...e.fin, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
-                    .tint(color).offset(y: 10)
+            .fixedSize(horizontal: false, vertical: true)
+            if e.sensacion != nil {
+                Text("Toca para ver cuánto necesitas en lo que queda.").font(.caption).foregroundStyle(.secondary)
+            } else if enCurso {
+                ProgressView(timerInterval: e.inicio...e.fin, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .tint(color)
+                BotonesSensacion(clave: a.clave, color: color)
+            } else {
+                RielFases(estado: e, color: color)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
@@ -329,7 +399,7 @@ struct ActividadPruebaWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ActividadPruebaAtributos.self) { contexto in
             PruebaBloqueoVista(contexto: contexto)
-                .widgetURL(URL(string: "cl.gradehub.app://ramo/\(contexto.attributes.ramoId)"))
+                .widgetURL(URL(string: "cl.gradehub.app://\(contexto.state.sensacion != nil ? "simular" : "ramo")/\(contexto.attributes.ramoId)"))
         } dynamicIsland: { contexto in
             let a = contexto.attributes, e = contexto.state
             let color = Color(hexRamo: a.color)
@@ -342,14 +412,20 @@ struct ActividadPruebaWidget: Widget {
                     .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if contexto.isStale { Text("Suerte").font(.headline).foregroundStyle(color) }
+                    if let s = e.sensacion { Text(Sensacion.texto(s)).font(.headline).foregroundStyle(color) }
+                    else if contexto.isStale { Text("Suerte").font(.headline).foregroundStyle(color) }
                     else { CuentaRegresiva(hasta: e.inicio).font(.title3.weight(.semibold)).foregroundStyle(color).frame(maxWidth: 90, alignment: .trailing) }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    if contexto.isStale {
-                        ProgressView(timerInterval: e.inicio...e.fin, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }.tint(color)
+                    if e.sensacion != nil {
+                        EmptyView()
+                    } else if contexto.isStale {
+                        VStack(spacing: 8) {
+                            ProgressView(timerInterval: e.inicio...e.fin, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }.tint(color)
+                            BotonesSensacion(clave: a.clave, color: color)
+                        }
                     } else {
-                        Text(lugarYHora(a, e)).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                        RielFases(estado: e, color: color, conEtiquetas: false)
                     }
                 }
             } compactLeading: {

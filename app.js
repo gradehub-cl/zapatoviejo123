@@ -8451,6 +8451,7 @@ function openSimuladorModal(){
     </div>`;
   openModal();
   renderSimulador();
+  precargarSensacion(r);
 }
 
 // Combina notas reales (con su peso) + hipotéticas (peso 1) de una categoría
@@ -8908,15 +8909,22 @@ function abrirEnlaceWidget(url){
   if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
     openRamo(m[2]);
     // "¿Cómo crees que te fue?" abre el simulador del ramo.
-    if(m[1]==='simular')setTimeout(()=>{if(typeof openSimuladorModal==='function')openSimuladorModal();},320);
+    if(m[1]==='simular'){
+      setTimeout(()=>{if(typeof openSimuladorModal==='function')openSimuladorModal();},320);
+      // Si la respuesta de la Actividad llega después de abrir el simulador, se precarga igual.
+      Promise.resolve(recogerSensaciones()).then(n=>{
+        if(n&&currentRamoId===m[2]&&document.getElementById('sim-cats')&&!Object.values(simState).some(a=>a&&a.length))
+          precargarSensacion(S.ramos.find(r=>r.id===m[2]));
+      });
+    }
     return true;
   }
   showTab('home');return m[1]==='inicio';
 }
 // ─── AVISOS ANTES DE UNA EVALUACIÓN (app iOS, #645) ─────────────────────────
 // Versión sin servidor. Para cada evaluación pendiente CON HORA: notificaciones
-// locales de cada fase (repaso, baño y agua, caminar a la sala, cómo te fue) y,
-// dentro de las 8 horas previas, la Actividad en Vivo con la cuenta regresiva.
+// locales de cada fase (repaso, baño y agua, caminar a la sala, cómo te fue) y
+// la Actividad en Vivo desde 6 horas antes, con el riel de fases y "¿cómo te fue?".
 // Es opt-in y vale por dispositivo: la preferencia no entra a S ni a la nube.
 // Sin hora no hay a partir de cuándo contar, así que no se avisa nada.
 const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
@@ -8978,16 +8986,64 @@ async function programarAvisosPruebas(ahora){
     return lista.length;
   }catch(e){return 0;}
 }
+// iOS mantiene viva una Actividad hasta 8 horas: 6 antes de la prueba y las 2
+// que dura. Las próximas se mandan con su hora de partida (`desde`); desde
+// iOS 26 el teléfono las deja programadas y aparecen solas, con la app cerrada.
+const HORAS_ACTIVIDAD_ANTES=6,ACTIVIDADES_MAX=3;
 function sincronizarActividadesPrueba(ahora){
   const p=pluginWidgets();if(!p||typeof p.sincronizarActividades!=='function')return;
   ahora=ahora||new Date();
-  const vigentes=avisosPruebasActivos()&&S.onboardingDone
-    ?pruebasConHora(ahora,1).filter(x=>x.inicio.getTime()-ahora.getTime()<=8*36e5):[];
+  const vigentes=avisosPruebasActivos()&&S.onboardingDone?pruebasConHora(ahora,3).slice(0,ACTIVIDADES_MAX):[];
   try{
     const r=p.sincronizarActividades({actividades:vigentes.map(x=>({clave:x.clave,ramoId:x.ramoId,ramo:x.ramo,sigla:x.sigla,
-      color:x.color,evaluacion:x.evaluacion,sala:x.sala,inicio:x.inicio.getTime(),fin:x.fin.getTime()}))});
+      color:x.color,evaluacion:x.evaluacion,sala:x.sala,inicio:x.inicio.getTime(),fin:x.fin.getTime(),
+      desde:x.inicio.getTime()-HORAS_ACTIVIDAD_ANTES*36e5}))});
     if(r&&typeof r.catch==='function')r.catch(()=>{});
   }catch(e){}
+}
+// "¿Cómo te fue?" se responde tocando la Actividad en Vivo, con la app cerrada:
+// el iPhone lo deja en el App Group y acá se recoge. Es una sensación, no una
+// nota: vive solo en este dispositivo (fuera de S y de la nube) y sirve para
+// abrir el simulador con una nota de partida que la persona cambia si quiere.
+const CLAVE_SENSACIONES='gradehub_sensaciones';
+const SENSACIONES=[
+  {valor:1,texto:'Muy mal',nota:'2,5'},{valor:2,texto:'Mal',nota:'3,5'},{valor:3,texto:'Normal',nota:'4,5'},
+  {valor:4,texto:'Bien',nota:'5,5'},{valor:5,texto:'Muy bien',nota:'6,5'}];
+function sensacionesGuardadas(){
+  try{const o=JSON.parse(localStorage.getItem(CLAVE_SENSACIONES)||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{};}
+  catch(e){return {};}
+}
+async function recogerSensaciones(){
+  const p=pluginWidgets();if(!p||typeof p.leerSensaciones!=='function')return 0;
+  try{
+    const r=await p.leerSensaciones();
+    const nuevas=(r&&Array.isArray(r.sensaciones)?r.sensaciones:[])
+      .filter(x=>x&&typeof x.clave==='string'&&SENSACIONES.some(s=>s.valor===x.valor));
+    if(!nuevas.length)return 0;
+    const todas=sensacionesGuardadas(),limite=Date.now()-30*864e5;
+    nuevas.forEach(x=>{todas[x.clave]={valor:x.valor,fecha:Number(x.fecha)||Date.now()};});
+    Object.keys(todas).forEach(k=>{if(!(todas[k].fecha>limite))delete todas[k];});
+    try{localStorage.setItem(CLAVE_SENSACIONES,JSON.stringify(todas));}catch(e){}
+    return nuevas.length;
+  }catch(e){return 0;}
+}
+// La sensación más reciente de este ramo cuya evaluación sigue sin nota.
+function sensacionPendiente(r,ahora){
+  const todas=sensacionesGuardadas(),hace=(ahora||Date.now())-3*864e5;
+  return Object.entries(todas).map(([clave,x])=>{
+    const [ramoId,catId]=clave.split('|');
+    const cat=ramoId===r.id&&(r.categorias||[]).find(c=>c.id===catId);
+    const s=SENSACIONES.find(y=>y.valor===x.valor);
+    return cat&&s&&x.fecha>hace&&!simCatLlena(cat)?{cat,s,fecha:x.fecha}:null;
+  }).filter(Boolean).sort((a,b)=>b.fecha-a.fecha)[0]||null;
+}
+function precargarSensacion(r){
+  const x=sensacionPendiente(r);if(!x)return null;
+  const inp=document.getElementById('sim-in-'+x.cat.id);if(!inp)return null;
+  inp.value=x.s.nota;simAddNota(x.cat.id);
+  const intro=document.querySelector('.sim-intro');
+  if(intro)intro.textContent=`Dijiste que ${x.cat.nombre} te fue ${x.s.texto.toLowerCase()}: partimos con un ${x.s.nota}. Cámbialo si quieres.`;
+  return x;
 }
 function pintarAvisosPruebas(){
   const b=document.getElementById('s-avisos-pruebas');

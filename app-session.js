@@ -494,6 +494,11 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
     else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
   });
+  // Lo que se respondió en la Actividad en Vivo con la app cerrada.
+  if(typeof recogerSensaciones==='function'){
+    setTimeout(recogerSensaciones,0);
+    if(App)App.addListener('resume',()=>recogerSensaciones());
+  }
   if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 

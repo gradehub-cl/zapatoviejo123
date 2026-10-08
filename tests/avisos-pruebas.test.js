@@ -11,11 +11,12 @@ function contexto(nativa,{permiso='granted'}={}){
   const el=()=>({style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},contains(){return false},toggle(){}},addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},getAttribute(){return null},querySelector(){return null},querySelectorAll(){return []},focus(){},value:'',innerHTML:'',textContent:'',dataset:{}});
   const ids={};const porId=id=>ids[id]||(ids[id]=el());
   const almacen=new Map();
-  const reg={programadas:[],canceladas:[],actividades:[],pendientes:[],pidioPermiso:0};
+  const reg={programadas:[],canceladas:[],actividades:[],pendientes:[],pidioPermiso:0,sensaciones:[]};
   const window={addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}})};
   if(nativa)window.Capacitor={isNativePlatform:()=>true,
     registerPlugin:()=>({guardarResumen:()=>Promise.resolve(),borrarResumen:()=>Promise.resolve(),
-      sincronizarActividades:o=>{reg.actividades.push(o.actividades);return Promise.resolve();}}),
+      sincronizarActividades:o=>{reg.actividades.push(o.actividades);return Promise.resolve();},
+      leerSensaciones:()=>{const s=reg.sensaciones.splice(0);return Promise.resolve({sensaciones:s});}}),
     Plugins:{LocalNotifications:{
       getPending:async()=>({notifications:reg.pendientes}),
       cancel:async o=>{reg.canceladas.push(...o.notifications.map(n=>n.id));reg.pendientes=reg.pendientes.filter(n=>!o.notifications.some(x=>x.id===n.id));},
@@ -79,8 +80,22 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   chk('reprogramar no duplica: cancela los anteriores',a.reg.canceladas.length>=antes&&a.reg.pendientes.length===8);
   a.run(`sincronizarActividadesPrueba(${AHORA})`);
   const act=a.reg.actividades.pop();
-  chk('la Actividad en Vivo solo para lo que empieza dentro de 8 horas',act.length===1&&act[0].evaluacion==='Interrogación 2');
+  chk('manda las de los próximos 3 días, no las lejanas',act.length===1&&act[0].evaluacion==='Interrogación 2');
+  chk('cada una con su hora de partida: 6 horas antes, para que iOS la programe',act[0].inicio-act[0].desde===6*36e5);
   chk('no lleva notas, solo qué evaluación, dónde y cuándo',!('necesitas' in act[0])&&typeof act[0].inicio==='number'&&act[0].fin-act[0].inicio===120*6e4);
+  a.run(`S.ramos[1].categorias.push({id:'c3',nombre:'Control 3',peso:0,fecha:'2026-10-08',hora:'09:00',notas:[]},{id:'c4',nombre:'Control 4',peso:0,fecha:'2026-10-09',hora:'09:00',notas:[]},{id:'c5',nombre:'Control 5',peso:0,fecha:'2026-10-09',hora:'15:00',notas:[]})`);
+  a.run(`sincronizarActividadesPrueba(${AHORA})`);
+  chk('como mucho 3 a la vez',a.reg.actividades.pop().map(x=>x.evaluacion).join()==='Interrogación 2,Control 3,Control 4');
+  a.run(`S.ramos[1].categorias.splice(2)`);
+
+  console.log('\n=== "¿Cómo te fue?" desde la Actividad ===');
+  a.reg.sensaciones.push({clave:'a|i2||2026-10-07',valor:4,fecha:Date.now()},{clave:'x',valor:9,fecha:Date.now()});
+  chk('recoge lo respondido con la app cerrada y descarta lo inválido',(await a.run('recogerSensaciones()'))===1);
+  chk('queda solo en este dispositivo, fuera de S',/"a\|i2\|\|2026-10-07":\{"valor":4/.test(a.almacen.get('gradehub_sensaciones'))&&!/sensaci/.test(a.run('JSON.stringify(S)')));
+  chk('la usa en la evaluación de ese ramo que sigue sin nota',a.run(`(x=>x&&x.cat.id+':'+x.s.nota)(sensacionPendiente(S.ramos[0]))`)==='i2:5,5'&&a.run('sensacionPendiente(S.ramos[1])')===null);
+  chk('una sensación vieja ya no precarga nada',a.run(`sensacionPendiente(S.ramos[0],Date.now()+4*864e5)`)===null);
+  chk('el simulador parte con esa nota de partida',/precargarSensacion\(r\)/.test(leer('app.js'))&&a.run(`SENSACIONES.map(s=>s.texto).join()`)==='Muy mal,Mal,Normal,Bien,Muy bien');
+  chk('al volver a la app se recoge',/addListener\('resume',\(\)=>recogerSensaciones\(\)\)/.test(leer('app-session.js')));
 
   console.log('\n=== Desactivar y cerrar sesión ===');
   await a.run('alternarAvisosPruebas()');
@@ -111,8 +126,12 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   const plugin=leer('ios/App/App/WidgetsPlugin.swift'),widgets=leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift');
   chk('el plugin inicia y termina Actividades en Vivo',/sincronizarActividades/.test(plugin)&&/Activity\.request/.test(plugin)&&/\.end\(/.test(plugin));
   chk('la extensión dibuja la Actividad y la isla dinámica',/ActivityConfiguration\(for: ActividadPruebaAtributos\.self\)/.test(widgets)&&/DynamicIsland/.test(widgets));
-  chk('al empezar la prueba pasa a "Suerte" sola',/isStale/.test(widgets)&&/staleDate: estado\.inicio/.test(plugin));
+  chk('al empezar la prueba pasa a "Suerte" sola',/isStale/.test(widgets)&&/staleDate: e\.inicio > Date\(\) \? e\.inicio/.test(plugin));
   chk('la app declara que usa Actividades en Vivo',/NSSupportsLiveActivities/.test(leer('ios/App/App/Info.plist')));
+  chk('desde iOS 26 se programa sola a su hora, con la app cerrada',/#available\(iOS 26\.0, \*\)[\s\S]{0,700}start: desde/.test(plugin));
+  chk('el riel de fases y los botones de "¿cómo te fue?" en la pantalla de bloqueo',/struct RielFases/.test(widgets)&&/Button\(intent: ResponderSensacion/.test(widgets));
+  const compartido=leer('ios/App/Shared/ActividadPrueba.swift');
+  chk('responder corre sin abrir la app y no vuelve a aparecer',/LiveActivityIntent/.test(compartido)&&/respondidas/.test(compartido)&&/Sensacion\.respondidas\(\)/.test(plugin)&&/leerSensaciones/.test(plugin));
   chk('el modelo compartido está en los dos targets',(leer('ios/App/App.xcodeproj/project.pbxproj').match(/ActividadPrueba\.swift in Sources \*\/ = /g)||[]).length===2);
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
