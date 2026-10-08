@@ -123,6 +123,12 @@ cálculo. Ver "Motor de notas por universidad" en Modelo de datos.
 dato no está en el documento, se marca como faltante — no se rellena con lo
 plausible.
 
+Las pautas que reportan los estudiantes (el consenso) **no son presets** y no se
+presentan como del programa. Con 3 personas que coinciden se aplican solas en
+ramos vacíos; con 5 (`CONSENSO_CATALOGO`) además se ofrecen en el buscador como
+una del catálogo, siempre diciendo "pauta de N estudiantes". Una pauta de
+programa manda sobre cualquier consenso.
+
 **El semáforo es semántico.** Verde/ámbar/rojo significan aprobado / al borde /
 reprobado. No se tiñen por tema ni por decoración.
 El 100% de avance solo significa que el ramo quedó completamente evaluado: se

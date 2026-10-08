@@ -167,7 +167,7 @@ const consenso = sql.slice(sql.indexOf('create or replace function public.catalo
 chk('el reporte se escribe por RPC, no desde el cliente a la tabla',
   /rpc\('submit_catalog_report'/.test(src) && !/from\('catalog_reports'\)\.upsert/.test(src));
 chk('el consenso pide solo la universidad al backend',
-  /rpc\('catalog_consensus',\{p_tenant:S\.tenant\}\)/.test(src));
+  /rpc\('catalog_consensus',\{p_tenant:tenant\}\)/.test(src) && /tenant=tenant\|\|S\.tenant/.test(src));
 chk('la función no filtra por carrera ni semestre',
   !/p_carrera|semestre/i.test(consenso));
 chk('el consenso cuenta personas distintas y exige tres',

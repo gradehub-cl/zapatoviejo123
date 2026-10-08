@@ -93,7 +93,7 @@ console.log('\n=== Nunca se aplica sola ===');
 {
   const app = fs.readFileSync(raiz + 'app.js', 'utf8');
   const render = fs.readFileSync(raiz + 'render-main.js', 'utf8');
-  chk('aplicarConsensoAuto sigue saltando los ramos con pauta oficial', /if\(pautaPendiente\(r\)\)return;/.test(app));
+  chk('aplicarConsensoAuto sigue saltando los ramos con pauta oficial', /if\(pautaPendiente\(r\)\)return( false)?;/.test(app));
   chk('la ficha solo pinta el aviso', /pintarConsensoDisponible\(r\)/.test(render));
   chk('adoptar cuelga de un botón, no del render', /onclick="adoptarConsenso\(/.test(app));
   chk('el aviso dice que no sale del programa del curso', /No sale del programa del curso|No la sacamos del programa del curso/.test(app));

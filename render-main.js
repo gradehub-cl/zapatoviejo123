@@ -76,7 +76,7 @@ function renderHome(){
     };
     const label=labels[S.sortMode]||labels.manual;
     sortBtn.innerHTML=`<span>${label}</span><svg class="ic sort-mode-icon" viewBox="0 0 24 24" aria-hidden="true">${iconos[S.sortMode]||iconos.manual}</svg>`;
-    sortBtn.setAttribute('aria-label',`Orden actual: ${label}. Cambiar orden`);
+    sortBtn.setAttribute('aria-label',`Ordenar ramos. Ahora: ${label}`);
   }
 
   const simGlobalBtn=document.getElementById('sim-global-btn');
@@ -515,7 +515,7 @@ function renderRamo(){
       // Esta pauta la reportaron estudiantes, no sale de un programa oficial.
       // Decirlo es la diferencia entre una pauta y una ponderación inventada.
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
-      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Pauta reportada por estudiantes.</b><br>La enviaron ${r.consensoRespaldos} personas de tu universidad y coincidieron. No la sacamos del programa del curso: compárala con la tuya y corrígela si no calza.</div>`;
+      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Pauta reportada por estudiantes.</b><br>La enviaron ${r.consensoRespaldos} personas de tu universidad. No sale del programa del curso: compárala con la tuya.</div>`;
     }else{pcw.style.display='none';pcw.innerHTML='';}
   }
 
@@ -872,7 +872,7 @@ async function pintarPosicionesCurso(){
   if(!filas.length){
     // Con menos de cinco no hay comparación posible, y es el caso normal al
     // principio. Se dice por qué en vez de dejar un hueco.
-    box.innerHTML=`<p class="stats-curso-vacio">Cuando al menos cinco personas lleven uno de tus ramos, vas a ver acá cómo te va respecto del resto. Nadie ve tu nota ni tu nombre.</p>`;
+    box.innerHTML=`<p class="stats-curso-vacio">Cuando cinco personas lleven uno de tus ramos, verás acá cómo te va frente al resto. Nadie ve tu nota ni tu nombre.</p>`;
     return;
   }
   box.innerHTML=filas.map(r=>{
@@ -914,7 +914,7 @@ function renderStats(){
         </svg>
       </div>
       <div class="ag-empty-title">${S.ramos.length?'Parte con tu primera nota':'Agrega tu primer ramo'}</div>
-      <div class="ag-empty-desc">${S.ramos.length?`Tienes ${S.ramos.length} ${S.ramos.length===1?'ramo':'ramos'} y ${evaluaciones} ${evaluaciones===1?'evaluación configurada':'evaluaciones configuradas'}. Ingresa una nota desde Inicio para ver cuánto necesitas en cada ramo.`:'Puedes buscarlo desde Inicio. Acá verás tu avance cuando ingreses notas.'}</div>
+      <div class="ag-empty-desc">${S.ramos.length?`${S.ramos.length} ${S.ramos.length===1?'ramo':'ramos'} y ${evaluaciones} ${evaluaciones===1?'evaluación configurada':'evaluaciones configuradas'}. Ingresa una nota para ver cuánto necesitas.`:'Agrégalo desde Inicio y acá verás tu avance.'}</div>
       ${ramosConPauta<S.ramos.length?`<div class="ag-empty-desc" style="margin-top:8px;">Falta configurar las evaluaciones de ${S.ramos.length-ramosConPauta} ${S.ramos.length-ramosConPauta===1?'ramo':'ramos'}.</div>`:''}
     </div>`;
   } else {
@@ -1019,7 +1019,7 @@ function renderStats(){
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
     </div>`;
     if(!validos.length){
-      hist+=`<p class="stats-hist-vacio">Agrega las notas finales de semestres anteriores para incluirlos en tu promedio de carrera.</p>`;
+      hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
     if(validos.length>0){
       validos.forEach(h=>{
