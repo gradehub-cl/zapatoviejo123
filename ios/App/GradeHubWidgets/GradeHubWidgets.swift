@@ -172,7 +172,7 @@ struct ProximaVista: View {
                 Text(e.evaluacion).font(.headline).lineLimit(1).minimumScaleFactor(0.6)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: 0)
-                Text(Fechas.cuando(e, desde: entrada.date)).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
+                Text(Fechas.cuando(e, desde: entrada.date)).font(.headline).lineLimit(1).minimumScaleFactor(0.7)
                 Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
                 if let n = e.necesitas {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
