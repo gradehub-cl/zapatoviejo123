@@ -6133,19 +6133,30 @@ function propuestasFechasDeRamo(ramo){
 // Escribe una fecha propuesta. Con casilla va a esa casilla del grupo —y la
 // crea pendiente si no existía, que es el caso normal: la fecha se sabe antes
 // que la nota—; sin casilla va a la categoría, que es la fecha del grupo.
+// La `casilla` del agente cuenta desde 1 ("el Control 2"), como en el conector
+// MCP; `slot` cuenta desde 0. Antes se usaba tal cual: el Control 1 caía en la
+// casilla del Control 2 y el último creaba una casilla de más (issue #655).
+function slotDeCasilla(cat,casilla){
+  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
+  if(!Number.isInteger(casilla)||casilla<1||casilla>slots)return undefined;
+  return slots>1?casilla-1:null;
+}
 function escribirFechaPropuesta(ramo,cat,prop){
   if(!cat)return false;
   if(prop.casilla){
-    const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
-    if(prop.casilla>slots)return false;
-    cat.notas=Array.isArray(cat.notas)?cat.notas:[];
-    let n=cat.notas.find(x=>x.slot===prop.casilla);
-    if(!n){
-      n={id:uid(),nombre:etiquetaCasilla(ramo,cat,prop.casilla),valor:null,peso:1,slot:prop.casilla};
-      cat.notas.push(n);
+    const slot=slotDeCasilla(cat,prop.casilla);
+    if(slot===undefined)return false;
+    // "Casilla 1" de una evaluación sin casillas es la evaluación misma.
+    if(slot!==null){
+      cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+      let n=cat.notas.find(x=>x.slot===slot);
+      if(!n){
+        n={id:uid(),nombre:etiquetaCasilla(ramo,cat,slot),valor:null,peso:1,slot};
+        cat.notas.push(n);
+      }
+      marcarFechaUsuario(n,prop.fecha,prop.hora||'');
+      return true;
     }
-    marcarFechaUsuario(n,prop.fecha,prop.hora||'');
-    return true;
   }
   marcarFechaUsuario(cat,prop.fecha,prop.hora||'');
   return true;
@@ -6246,16 +6257,28 @@ function propuestasNotasDeRamo(ramo){
 }
 // Escribe una nota propuesta en su categoría. Devuelve false si no calza, para
 // no dar por aplicada una propuesta que en realidad no entró.
-function escribirNotaPropuesta(cat,propuesta){
+function escribirNotaPropuesta(cat,propuesta,ramo){
   if(!cat)return false;
   cat.notas=Array.isArray(cat.notas)?cat.notas:[];
   const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
   let destino=null;
-  if(propuesta.casilla&&slots>1){
-    if(propuesta.casilla>slots)return false;
-    destino=cat.notas.find(n=>n.slot===propuesta.casilla);
+  if(slots>1){
+    // Sin casilla, va a la primera libre. Antes caía en cat.notas[0] cuando
+    // todas tenían nota: pisaba una nota ya ingresada sin avisar.
+    let slot;
+    if(propuesta.casilla){
+      slot=slotDeCasilla(cat,propuesta.casilla);
+      if(slot===undefined)return false;
+    }else{
+      for(let i=0;i<slots&&slot===undefined;i++){
+        const n=cat.notas.find(x=>x.slot===i);
+        if(!n||n.valor===null||n.valor===undefined)slot=i;
+      }
+      if(slot===undefined)return false;
+    }
+    destino=cat.notas.find(n=>n.slot===slot);
     if(!destino){
-      destino={id:uid(),nombre:cat.nombre+' '+propuesta.casilla,valor:null,peso:1,slot:propuesta.casilla};
+      destino={id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
       cat.notas.push(destino);
     }
   }else{
@@ -6284,7 +6307,7 @@ async function aplicarPropuestaNotas(id,valores){
     let puestas=0;
     aplicar.forEach(n=>{
       const cat=(ramo.categorias||[]).find(c=>normName(c.nombre)===normName(n.evaluacion));
-      if(escribirNotaPropuesta(cat,n))puestas++;
+      if(escribirNotaPropuesta(cat,n,ramo))puestas++;
     });
     save();
     track('notas_agente_confirmadas',{notas:puestas,editadas:!!(valores&&valores.length)});
