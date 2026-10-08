@@ -153,6 +153,8 @@ struct ProximaVista: View {
                 } else {
                     Text(entrada.resumen == nil ? "Abre GradeHub" : "Sin evaluaciones próximas").font(.subheadline)
                 }
+            case .systemMedium:
+                if let e { mediano(e) } else { vacio }
             default:
                 if let e { tarjeta(e) } else { vacio }
             }
@@ -171,15 +173,16 @@ struct ProximaVista: View {
                 // Una línea: se achica antes que partirse ("Interrogación / 2").
                 Text(e.evaluacion).font(.headline).lineLimit(1).minimumScaleFactor(0.6)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 0)
+                // Qué es y cuándo van juntos; lo que necesitas queda abajo.
                 Text(Fechas.cuando(e, desde: entrada.date)).font(.headline).lineLimit(1).minimumScaleFactor(0.7)
+                    .padding(.top, 8)
                 Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
                 if let n = e.necesitas {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("Necesitas").font(.caption).foregroundStyle(.secondary)
                         Text(n).font(.subheadline.weight(.bold)).monospacedDigit()
                     }
-                    .padding(.top, 4)
                     .privacySensitive()
                 } else if e.inalcanzable == true {
                     Text("Ya no alcanza el 4,0").font(.caption).privacySensitive()
@@ -188,6 +191,39 @@ struct ProximaVista: View {
                 }
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    // 0.5 s: la próxima a la izquierda, igual que el chico; a la derecha, en
+    // fila, lo que viene después. Cada fila abre su ramo.
+    func mediano(_ e: Resumen.Evaluacion) -> some View {
+        // `proxima` es la primera que no ha pasado; después vienen las siguientes.
+        let despues = Array((entrada.resumen?.agenda ?? [])
+            .filter { (Fechas.diasHasta($0.fecha, desde: entrada.date) ?? -1) >= 0 }
+            .dropFirst().prefix(3))
+        return HStack(alignment: .top, spacing: 16) {
+            tarjeta(e).frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Después").font(.caption).foregroundStyle(.secondary)
+                if despues.isEmpty {
+                    Text("Nada más por ahora").font(.subheadline).foregroundStyle(.secondary)
+                }
+                ForEach(Array(despues.enumerated()), id: \.offset) { _, d in
+                    Link(destination: URL(string: "cl.gradehub.app://ramo/\(d.ramoId)")!) {
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 1.5).fill(Color(hexRamo: d.color)).frame(width: 3)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(d.evaluacion).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                                Text("\(d.sigla ?? d.ramo) · \(Fechas.cuando(d, desde: entrada.date))")
+                                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -208,7 +244,7 @@ struct ProximaEvaluacionWidget: Widget {
         }
         .configurationDisplayName("Próxima evaluación")
         .description("Lo que viene y qué nota necesitas.")
-        .supportedFamilies([.systemSmall, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -433,7 +469,8 @@ struct ActividadPruebaWidget: Widget {
                 Circle().fill(color).frame(width: 10, height: 10).padding(.leading, 2)
             } compactTrailing: {
                 if contexto.isStale { Text("Suerte").font(.caption2.weight(.semibold)) }
-                else { CuentaRegresiva(hasta: e.inicio).font(.caption2.weight(.semibold)).frame(maxWidth: 46) }
+                // Con horas el reloj es "3:19:58": 46 pt lo cortaba en "03:1…".
+                else { CuentaRegresiva(hasta: e.inicio).font(.caption2.weight(.semibold)).minimumScaleFactor(0.7).frame(width: 60) }
             } minimal: {
                 Circle().fill(color).frame(width: 10, height: 10)
             }
