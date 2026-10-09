@@ -44,6 +44,11 @@ node -e '
   fs.writeFileSync("ios-web/index.html",html.replace(m[0],"<script src=\"supabase.js\" integrity=\""+sri+"\"></script>"));
   console.log("supabase-js "+v+" va dentro de la app");'
 
+# La versión se sella con el commit, como hace el deploy de la web: así un error
+# guardado en errores_app dice de qué versión de la app vino.
+VERSION="$(git rev-parse --short=7 HEAD 2>/dev/null || echo dev)"
+perl -pi -e "s/__ASSET_VERSION__/$VERSION/g" ios-web/index.html
+
 npx --no-install cap sync ios
 
 # `npm run ios:rama`: la app de prueba no usa la copia de la web que lleva
