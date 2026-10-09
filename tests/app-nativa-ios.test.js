@@ -92,5 +92,15 @@ chk('sin seleccionar texto ni menú de mantener presionado, salvo en campos', /\
 chk('sin zoom en la app (la web lo conserva)', /maximum-scale=1, user-scalable=no/.test(html) && /<meta name="viewport" content="width=device-width, initial-scale=1\.0, viewport-fit=cover"\/>/.test(html));
 chk('sin vista previa al mantener presionado un enlace', JSON.parse(leer('capacitor.config.json')).ios.allowsLinkPreview === false);
 
+console.log('\n=== Para la App Store ===');
+const pbx = leer('ios/App/App.xcodeproj/project.pbxproj');
+for (const f of ['ios/App/App/PrivacyInfo.xcprivacy', 'ios/App/GradeHubWidgets/PrivacyInfo.xcprivacy']) {
+  const m = leer(f);
+  chk(f.split('/')[2] + ': manifiesto sin rastreo y con el motivo del App Group', /<key>NSPrivacyTracking<\/key>\s*<false\/>/.test(m) && /NSPrivacyAccessedAPICategoryUserDefaults/.test(m) && /<string>1C8F\.1<\/string>/.test(m));
+}
+chk('los dos manifiestos van en los recursos de la app y del widget', (pbx.match(/PrivacyInfo\.xcprivacy in Resources \*\/,/g) || []).length === 2);
+const icono = JSON.parse(leer('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json')).images;
+chk('ícono con versión oscura y teñida', ['dark', 'tinted'].every(v => icono.some(i => (i.appearances || []).some(a => a.value === v) && fs.existsSync(path.join(raiz, 'ios/App/App/Assets.xcassets/AppIcon.appiconset', i.filename)))));
+
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if (fail) process.exit(1);
