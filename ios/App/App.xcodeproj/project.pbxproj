@@ -17,6 +17,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A6E000000000000000000008 /* WidgetsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000001 /* WidgetsPlugin.swift */; };
+		A6E200000000000000000002 /* CanvasPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E200000000000000000001 /* CanvasPlugin.swift */; };
 		A6E000000000000000000009 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000002 /* MainViewController.swift */; };
 		A6E00000000000000000000A /* GradeHubWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000004 /* GradeHubWidgets.swift */; };
 		A6E00000000000000000000B /* GradeHubWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A6E000000000000000000007 /* GradeHubWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -61,6 +62,7 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A6E000000000000000000001 /* WidgetsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetsPlugin.swift; sourceTree = "<group>"; };
+		A6E200000000000000000001 /* CanvasPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasPlugin.swift; sourceTree = "<group>"; };
 		A6E000000000000000000002 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		A6E000000000000000000003 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		A6E000000000000000000004 /* GradeHubWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeHubWidgets.swift; sourceTree = "<group>"; };
@@ -115,6 +117,7 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A6E000000000000000000002 /* MainViewController.swift */,
 				A6E000000000000000000001 /* WidgetsPlugin.swift */,
+				A6E200000000000000000001 /* CanvasPlugin.swift */,
 				A6E000000000000000000003 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -258,6 +261,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A6E000000000000000000009 /* MainViewController.swift in Sources */,
 				A6E000000000000000000008 /* WidgetsPlugin.swift in Sources */,
+				A6E200000000000000000002 /* CanvasPlugin.swift in Sources */,
 				A6E100000000000000000002 /* ActividadPrueba.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

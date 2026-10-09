@@ -3097,6 +3097,12 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-nota td:first-child{padding-left:14px;}
 
 
+/* ─── Canvas UC en Ajustes (app iOS) ─────────────────────────────────────── */
+.canvas-pasos{margin:0 0 12px;padding-left:1.2em;display:grid;gap:6px;font-size:0.875rem;line-height:1.45;color:var(--fg2);}
+#s-canvas .btn-confirm{width:100%;min-height:44px;margin-top:10px;}
+#s-canvas .settings-reset-btn{margin-top:12px;min-height:44px;}
+#s-canvas-estado.es-error{color:var(--red);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

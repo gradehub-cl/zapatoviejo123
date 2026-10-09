@@ -6668,7 +6668,7 @@ function openSettings(){
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial'],
-    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
+    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
   ];
@@ -6761,6 +6761,10 @@ function openSettings(){
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
       </div>
+      ${canvasDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Canvas UC</label>
+      <p class="settings-help" style="margin-top:0;">Trae tus ramos y las fechas de tareas y cuestionarios. Revisas cada uno antes de agregarlo.</p>
+      <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`:''}
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
       <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
@@ -6895,6 +6899,7 @@ function openSettings(){
     if(activeSection==='academico'){renderSettingsSemGrid();renderSettingsTenantGrid();renderSettingsCarreraGrid();}
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
+    if(activeSection==='calendario'&&typeof pintarCanvasAjustes==='function')pintarCanvasAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.
@@ -9705,6 +9710,159 @@ function confirmarImportarCalendario(){
   showToast(aplicadas+' fecha'+(aplicadas===1?' agregada':'s agregadas'));
 }
 
+
+// ─── CANVAS UC (app iOS, #648) ──────────────────────────────────────────────
+// El token personal vive solo en el llavero del iPhone (CanvasPlugin.swift):
+// esta parte lo entrega una vez al conectar y después solo pide datos. Nada se
+// aplica solo: los ramos entran por la misma revisión del horario y las fechas
+// por la misma revisión que un .ics. No se importan notas ni ponderaciones:
+// Canvas UC casi no las usa y convertir puntajes sería inventar la fórmula.
+function pluginCanvas(){
+  const cap=typeof window!=='undefined'&&window.Capacitor;
+  return cap&&cap.Plugins&&cap.Plugins.GradeHubCanvas||null;
+}
+function canvasDisponible(){return !!pluginCanvas()&&S.tenant==='uc';}
+const TOKEN_CANVAS_RE=/^[0-9]{1,8}~[A-Za-z0-9]{20,100}$/;
+const CODIGO_CANVAS_RE=/^([A-Z]{3,4}[0-9]{3,4}[A-Z]?)-([0-9]{1,3})$/;
+
+// "2026 Segundo Semestre": el período de los ramos de hoy. Canvas deja activos
+// cursos de semestres pasados, y algunos no son ramos (Integridad Académica,
+// Ruta Novata): sin un código como MAT1620-2 no se proponen.
+function cursosCanvasDelSemestre(cursos,ahora){
+  ahora=ahora||new Date();
+  const anio=String(ahora.getFullYear()),parte=ahora.getMonth()>=6?'segundo':'primer';
+  const conCodigo=(Array.isArray(cursos)?cursos:[]).map(c=>{
+    const m=CODIGO_CANVAS_RE.exec(String(c&&c.course_code||'').trim().toUpperCase());
+    return m?{id:c.id,sigla:m[1],seccion:Number(m[2]),nombre:c.name||'',periodo:normName((c.term&&c.term.name)||'')}:null;
+  }).filter(Boolean);
+  const actuales=conCodigo.filter(c=>c.periodo.includes(anio)&&c.periodo.includes(parte));
+  return actuales.length?actuales:conCodigo.filter(c=>c.periodo.includes(anio));
+}
+function siglaRamoCanvas(r){return String((typeof siglaDeRamo==='function'?siglaDeRamo(r,S.tenant):null)||r.sigla||'').toUpperCase();}
+function codigosCanvasTexto(cursos){return cursos.map(c=>`${c.sigla}-${c.seccion}`).join(', ');}
+
+// Una interrogación subida por pregunta ("I1-P1", "I1-P2"…) es una sola fecha.
+function fechasCanvas(tareas,ramo,ahora){
+  ahora=ahora||new Date();
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const vistas=new Map();
+  (Array.isArray(tareas)?tareas:[]).forEach(t=>{
+    if(!t||!t.due_at)return;
+    const d=new Date(t.due_at);if(isNaN(d))return;
+    const fecha=isoOf(d.getFullYear(),d.getMonth(),d.getDate());
+    if(fecha<hoy)return;
+    const nombre=String(t.name||'').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim()||String(t.name||'').trim();
+    if(!nombre)return;
+    const clave=normName(nombre)+'|'+fecha;
+    if(!vistas.has(clave))vistas.set(clave,{nombre,fecha});
+  });
+  const destinos=destinosIcs().filter(t=>t.ramo.id===ramo.id);
+  return [...vistas.values()].map(v=>{
+    const pref=prefijosEvaluacionIcs(v.nombre);
+    const calzan=destinos.filter(t=>{
+      const nombres=t.nota?[t.nota.nombre,nombreNotaCasilla(t.ramo,t.cat,t.nota)]:[t.cat.nombre];
+      return nombres.some(n=>prefijosEvaluacionIcs(n).some(x=>pref.includes(x)));
+    });
+    return {titulo:`${v.nombre} · ${ramo.nombre}`,fecha:v.fecha,target:calzan.length===1?claveDestinoIcs(calzan[0]):null};
+  });
+}
+
+async function canvasGet(path,params){
+  const r=await pluginCanvas().get({path,params:params||{}});
+  return r&&r.data;
+}
+async function cursosCanvas(){
+  return cursosCanvasDelSemestre(await canvasGet('courses',{enrollment_state:'active','include[]':['term'],per_page:50}));
+}
+function avisoCanvas(texto,error){
+  const el=document.getElementById('s-canvas-estado');
+  if(el){el.textContent=texto;el.classList.toggle('es-error',!!error);}
+  else if(texto)showToast(texto,!!error);
+}
+
+async function pintarCanvasAjustes(){
+  const caja=document.getElementById('s-canvas');
+  if(!caja||!canvasDisponible())return;
+  let conectado=false;
+  try{const r=await pluginCanvas().estado();conectado=!!(r&&r.conectado);}catch(e){}
+  if(!caja.isConnected)return;
+  caja.innerHTML=conectado?`
+    <p class="settings-help" style="margin-top:0;"><b>Canvas conectado.</b> Tu token está guardado solo en este iPhone.</p>
+    <div class="settings-data-actions" style="margin-bottom:0;">
+      <button type="button" onclick="traerRamosCanvas()">Traer mis ramos</button>
+      <button type="button" onclick="traerFechasCanvas()">Traer fechas</button>
+    </div>
+    <button type="button" class="settings-reset-btn" onclick="desconectarCanvas()">Desconectar Canvas</button>
+    <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite"></p>`
+  :`
+    <ol class="canvas-pasos">
+      <li>En Canvas UC toca <b>Cuenta</b>, abre la configuración de tu perfil y toca <b>+ Nuevo token de acceso</b>.</li>
+      <li>Copia el token y pégalo acá.</li>
+    </ol>
+    <label class="modal-label" for="s-canvas-token">Token de Canvas</label>
+    <div class="modal-input"><input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="1234~…"/></div>
+    <button type="button" class="btn-confirm" id="s-canvas-conectar" onclick="conectarCanvas()">Conectar Canvas</button>
+    <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite">Queda guardado solo en este iPhone y nunca pasa por GradeHub. Solo leemos tus ramos y fechas.</p>`;
+}
+async function conectarCanvas(){
+  const campo=document.getElementById('s-canvas-token'),boton=document.getElementById('s-canvas-conectar');
+  const token=String(campo&&campo.value||'').trim();
+  if(!TOKEN_CANVAS_RE.test(token)){avisoCanvas('Eso no parece un token de Canvas. Cópialo completo, con el número y la ~.',true);return;}
+  if(boton)boton.disabled=true;
+  avisoCanvas('Revisando con Canvas…');
+  try{
+    await pluginCanvas().conectar({token});
+    if(campo)campo.value='';
+    track('canvas_conectado');
+    await pintarCanvasAjustes();
+    avisoCanvas('Listo. Ahora puedes traer tus ramos y fechas.');
+  }catch(e){
+    if(boton)boton.disabled=false;
+    avisoCanvas((e&&e.message)||'No pudimos conectar Canvas.',true);
+  }
+}
+function desconectarCanvas(){
+  showConfirm('Desconectar Canvas','Se borra el token de este iPhone. Tus ramos y fechas no cambian. Si quieres, bórralo también en Canvas.',async()=>{
+    try{await pluginCanvas().desconectar();}catch(e){}
+    track('canvas_desconectado');
+    pintarCanvasAjustes();
+  },{label:'Desconectar',focusCancel:true});
+}
+async function traerRamosCanvas(){
+  avisoCanvas('Buscando tus ramos en Canvas…');
+  let cursos;
+  try{cursos=await cursosCanvas();}
+  catch(e){avisoCanvas((e&&e.message)||'No pudimos leer Canvas.',true);pintarCanvasAjustes();return;}
+  const tienes=new Set((S.ramos||[]).map(siglaRamoCanvas).filter(Boolean));
+  const faltan=cursos.filter(c=>!tienes.has(c.sigla));
+  track('canvas_ramos',{encontrados:cursos.length,faltan:faltan.length});
+  if(!cursos.length){avisoCanvas('No encontramos ramos de este semestre en tu Canvas.');return;}
+  if(!faltan.length){avisoCanvas('Ya tienes todos tus ramos de Canvas.');return;}
+  // La misma revisión que la foto del horario: verifica cada sigla en el
+  // catálogo y deja elegir antes de agregar.
+  _horarioTextoPegado=codigosCanvasTexto(faltan);
+  abrirImportarHorarioBuscacursos(true);
+  await reconocerHorarioBuscacursos();
+}
+async function traerFechasCanvas(){
+  avisoCanvas('Buscando fechas en Canvas…');
+  let propuestas=[];
+  try{
+    const cursos=await cursosCanvas();
+    for(const c of cursos){
+      const ramo=(S.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla);
+      if(!ramo)continue;
+      const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
+      propuestas=propuestas.concat(fechasCanvas(tareas,ramo));
+    }
+  }catch(e){avisoCanvas((e&&e.message)||'No pudimos leer Canvas.',true);pintarCanvasAjustes();return;}
+  track('canvas_fechas',{propuestas:propuestas.length});
+  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos.');return;}
+  // La misma revisión que un .ics: cada fecha se confirma o se deja fuera.
+  icsImportDraft=propuestas.sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,ICS_IMPORT_MAX_EVENTS||250);
+  renderRevisionIcs();
+  openModal();
+}
 
 
 function buildICS(){
