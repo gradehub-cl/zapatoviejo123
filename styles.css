@@ -1022,6 +1022,43 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .peso-marks span{position:absolute;top:0;left:calc(var(--peso-thumb) / 2 + (100% - var(--peso-thumb)) * var(--p) / 100);transform:translateX(-50%);}
 .slider-desc{font-size:0.75rem;color:var(--fg3);margin-top:4px;}
 .modal-btns{display:flex;gap:10px;margin-top:6px;}
+/* Editor de pauta (renderPautaManualModal en app.js): las evaluaciones en una
+   sola lista, nombre a la izquierda y porcentaje a la derecha; marcar "varias
+   notas" y quitar van en el "⋯" de cada fila. El total queda a la vista
+   mientras se escribe. Los campos se escriben con .contenedor input: la regla
+   base input[type=text] le gana a una clase sola. */
+.pauta-intro{margin:-4px 0 14px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.pauta-copiar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;margin:0 0 12px;padding:2px 6px 2px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:.9375rem;color:var(--fg);}
+.pauta-copiar span{flex:none;white-space:nowrap;}
+.pauta-copiar select{min-width:0;width:auto;max-width:45%;min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--primary);font:600 .9375rem var(--font-ui);text-align:right;text-overflow:ellipsis;}
+.pauta-plantillas{margin:0 0 12px;padding:12px;border-radius:12px;background:var(--muted);}
+.pauta-plantillas-titulo{margin-bottom:8px;font-size:.8125rem;font-weight:700;color:var(--fg);}
+.pauta-plantillas-opciones{display:flex;flex-wrap:wrap;gap:7px;}
+.pauta-plantillas-opciones button{min-height:36px;padding:7px 11px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:600 .75rem var(--font-ui);cursor:pointer;}
+.pauta-plantillas-nota{margin-top:8px;font-size:.75rem;line-height:1.4;color:var(--fg2);}
+.pauta-total{position:sticky;top:0;z-index:2;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--muted);}
+.pauta-total-texto{font-size:.8125rem;font-weight:600;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.pauta-total-texto.lista{color:var(--fg);}
+.pauta-total-barra{height:4px;margin-top:8px;border-radius:2px;background:color-mix(in srgb,var(--fg),transparent 88%);overflow:hidden;}
+.pauta-total-barra i{display:block;height:100%;background:var(--primary);transform-origin:left;transition:transform var(--motion-base) var(--ease-standard);}
+#m-pauta-error{margin:-3px 0 10px;font-size:.8125rem;color:var(--red);}
+.pauta-lista{border:1px solid var(--border);border-radius:14px;background:var(--card);overflow:hidden;}
+.pauta-fila{padding:4px 6px 4px 14px;}
+.pauta-fila+.pauta-fila{border-top:1px solid var(--border);}
+.pauta-fila-main{display:flex;align-items:center;gap:8px;}
+.pauta-fila input.pauta-nombre{flex:1;min-width:0;min-height:44px;padding:10px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;}
+.pauta-peso{display:flex;align-items:center;flex:none;gap:3px;min-height:36px;padding:0 10px;border-radius:10px;background:var(--muted);cursor:text;}
+.pauta-peso input[type=text]{width:2.8em;padding:6px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;font-variant-numeric:tabular-nums;text-align:right;}
+.pauta-peso span{font-size:.875rem;color:var(--fg3);}
+.pauta-peso:focus-within{box-shadow:0 0 0 2px color-mix(in srgb,var(--primary),transparent 60%);}
+.pauta-mas{display:flex;flex:none;align-items:center;justify-content:center;width:40px;height:44px;border:0;border-radius:10px;background:none;color:var(--fg3);cursor:pointer;}
+.pauta-mas .ic{width:20px;height:20px;}
+.pauta-fila-extra{display:flex;align-items:center;gap:10px;min-height:32px;margin:-4px 46px 4px 0;font-size:.75rem;color:var(--fg2);}
+.pauta-cantidad{display:flex;align-items:center;gap:5px;}
+.pauta-cantidad input[type=text]{width:2.6em;padding:4px 2px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--fg);font:inherit;text-align:center;}
+.pauta-resto{min-height:32px;margin-left:auto;padding:0;border:0;background:none;color:var(--primary);font:600 .75rem var(--font-ui);cursor:pointer;}
+.pauta-agregar{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 14px;border:0;border-top:1px solid var(--border);background:none;color:var(--primary);font:600 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
+.pauta-agregar span{font-size:1.25rem;font-weight:500;line-height:1;}
 .profesor-info{font-size:.8125rem;line-height:1.5;color:var(--fg2);margin:0 0 16px;}
 .profesor-form{display:grid;gap:8px;min-width:0;}
 .profesor-form-cuerpo,.profesor-form-campos,.profesor-form-vista,.profesor-form-acciones{display:grid;gap:8px;min-width:0;}
@@ -3159,3 +3196,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 @media(prefers-contrast:more){
   .app-nativa .bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;border-color:var(--fg3);}
 }
+
+/* El total del editor de pauta se pega justo bajo la barra de la hoja. */
+.app-nativa .pauta-total{top:44px;}

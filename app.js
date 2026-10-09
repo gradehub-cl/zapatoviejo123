@@ -5478,6 +5478,9 @@ function confirmAddCat(){
 // veces todavía no está toda la información.
 let pautaDraft=[];
 let pautaDraftError='',pautaDraftErrorIndex=null,pautaDraftErrorTarget='';
+// Se abrió desde "Armar mi pauta" (el ramo no tenía evaluaciones): el título
+// dice eso y no "Editar evaluaciones", que es lo que dice el botón con pauta.
+let pautaArmando=false;
 function openPautaManualModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
@@ -5485,6 +5488,7 @@ function openPautaManualModal(){
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
+  pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
   setTimeout(()=>{const i=document.getElementById('m-pauta-nombre-0');if(i)i.focus();},100);
@@ -5600,7 +5604,10 @@ function textoConfirmarPautaDuplicada(origen,copia){
   return `Vas a copiar ${cantidad} evaluaci${cantidad===1?'ón':'ones'} y sus porcentajes desde ${origen.nombre}. No se copian notas ni fechas. Podrás ajustarla antes de guardar.`;
 }
 function duplicarPautaDesdeRamo(){
-  const origenId=(document.getElementById('m-pauta-origen')||{}).value;
+  const selector=document.getElementById('m-pauta-origen')||{};
+  const origenId=selector.value;
+  // Si cancela la confirmación, el selector no se queda mostrando ese ramo.
+  if(origenId)selector.value='';
   const origen=S.ramos.find(r=>r.id===origenId);const copia=pautaDuplicada(origen);
   if(!copia.length){showToast('Elige un ramo con evaluaciones',true);return;}
   showConfirm(`Usar la pauta de ${origen.nombre}`,textoConfirmarPautaDuplicada(origen,copia),()=>{
@@ -5613,51 +5620,66 @@ function renderPautaManualModal(){
   const ejemplo=ejemploEvaluacion(S.tenant);
   const sugerencias=opcionesSugerenciasEvaluacion(S.tenant);
   const disponibles=plantillasPauta(S.tenant);
-  const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div style="margin:0 0 12px;padding:11px 12px;border-radius:10px;background:var(--muted);">
-    <div style="font-size:0.8125rem;font-weight:700;color:var(--fg);margin-bottom:7px;">Parte con una estructura</div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')" style="padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--fg);font:600 12px var(--font-ui);cursor:pointer;">${p.label}</button>`).join('')}</div>
-    <div style="font-size:0.75rem;color:var(--fg2);line-height:1.4;margin-top:8px;">Los pesos quedan en 0%. Confírmalos con el programa del curso.</div>
+  const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div class="pauta-plantillas">
+    <div class="pauta-plantillas-titulo">Parte con una estructura</div>
+    <div class="pauta-plantillas-opciones">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')">${p.label}</button>`).join('')}</div>
+    <div class="pauta-plantillas-nota">Los pesos quedan en 0%. Confírmalos con el programa del curso.</div>
   </div>`:'';
-  const duplicar=fuentes.length?`<div style="margin:0 0 12px;padding:11px 12px;border-radius:10px;border:1px solid var(--border);">
-    <div style="font-size:0.8125rem;font-weight:700;color:var(--fg);margin-bottom:4px;">¿Ya la tienes armada en otro ramo?</div>
-    <div style="font-size:0.75rem;color:var(--fg2);line-height:1.4;margin-bottom:8px;">Copia evaluaciones y porcentajes. Tus notas y fechas no se copian.</div>
-    <div style="display:flex;gap:7px;"><select id="m-pauta-origen" style="min-width:0;flex:1;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--fg);font:inherit;"><option value="">Elige un ramo</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluación${r.cantidad!==1?'es':''}</option>`).join('')}</select><button type="button" onclick="duplicarPautaDesdeRamo()" style="padding:9px 11px;border:0;border-radius:9px;background:var(--primary);color:white;font:600 12px var(--font-ui);cursor:pointer;">Usar pauta</button></div>
-  </div>`:'';
+  // Elegir un ramo ya pide confirmación (duplicarPautaDesdeRamo): sin botón aparte.
+  const duplicar=fuentes.length?`<label class="pauta-copiar"><span>Copiar de otro ramo</span>
+    <select id="m-pauta-origen" onchange="duplicarPautaDesdeRamo()"><option value="">Elegir</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluaci${r.cantidad===1?'ón':'ones'}</option>`).join('')}</select></label>`:'';
+  // Una sola fila vacía no tiene nada que quitar ni marcar.
+  const unaVacia=pautaDraft.length===1&&!pautaDraft[0].nombre.trim()&&!pautaDraft[0].peso;
   const filas=pautaDraft.map((fila,i)=>{
     // El editor nunca decide un porcentaje. Solo calcula el resto y se lo
-    // ofrece a la fila vacía que la persona eligió explícitamente.
+    // ofrece a la fila vacía, que la persona elige explícitamente.
     const resto=restoParaPautaFila(i);
-    const errorEnFila=pautaDraftErrorIndex===i;
-    const usarResto=fila.peso===0?`<button type="button" onclick="usarRestoPauta(${i})" style="margin-top:4px;padding:0;border:0;background:none;color:var(--primary);font:700 10px var(--font-ui);cursor:pointer;white-space:nowrap;">${resto>0?`Usar ${r2(resto)}%`:'Usar el resto'}</button>`:'';
-    const cantidad=fila.varias?`<div style="grid-column:1 / -1;display:flex;align-items:center;gap:7px;padding:7px 9px;margin-top:-2px;border-radius:9px;background:var(--muted);font-size:0.75rem;color:var(--fg2);"><span style="flex:1;min-width:0;">Se promedian varias notas</span><label style="display:flex;align-items:center;gap:4px;white-space:nowrap;">Esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${esc(fila.nombre||'evaluación')}" style="width:32px;padding:5px 4px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--fg);font:inherit;text-align:center;"/> notas</label></div>`:'';
+    const invalido=t=>pautaDraftErrorIndex===i&&pautaDraftErrorTarget===t?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
+    const nombre=esc(fila.nombre||'evaluación');
+    const usarResto=!fila.peso&&resto>0?`<button type="button" class="pauta-resto" onclick="usarRestoPauta(${i})">Usar ${r2(resto)}%</button>`:'';
+    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
+    const mas=unaVacia?'':`<button type="button" class="pauta-mas" id="m-pauta-quitar-${i}" onclick="abrirMenuPautaFila(this,${i})" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de ${nombre}"${invalido('quitar')}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>`;
     return `
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 52px 30px;gap:6px;align-items:center;margin:8px 0;">
-      <input type="text" id="m-pauta-nombre-${i}" value="${esc(fila.nombre)}" placeholder="Ej: ${ejemplo} ${i+1}" maxlength="${NOMBRE_MAX}" list="m-pauta-sugerencias" autocomplete="off" oninput="actualizarPautaNombre(${i},this.value)" onkeydown="pautaTecla(event,${i},'nombre')" ${errorEnFila&&pautaDraftErrorTarget==='nombre'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="min-width:0;padding:11px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;"/>
-      <div style="position:relative;"><input type="text" inputmode="decimal" id="m-pauta-peso-${i}" value="${fila.peso?r2(fila.peso):''}" placeholder="0" maxlength="6" oninput="actualizarPautaPeso(${i},this.value)" onkeydown="pautaTecla(event,${i},'peso')" aria-label="Peso de ${esc(fila.nombre||'evaluación')}" ${errorEnFila&&pautaDraftErrorTarget==='peso'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="width:100%;box-sizing:border-box;padding:11px 23px 11px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;"/><span style="position:absolute;right:9px;top:11px;color:var(--fg3);font-size:0.8125rem;pointer-events:none;">%</span>${usarResto}</div>
-      <label title="Son varias notas que se promedian" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:40px;cursor:pointer;font-size:0.5625rem;color:var(--fg3);font-weight:700;line-height:1;">
-        <input type="checkbox" ${fila.varias?'checked':''} onchange="actualizarPautaVarias(${i},this.checked)" aria-label="${esc(fila.nombre||'Evaluación')}: son varias notas que se promedian" style="width:17px;height:17px;accent-color:var(--primary);"/><span style="margin-top:2px;">VARIAS</span>
-      </label>
-      <button type="button" id="m-pauta-quitar-${i}" onclick="quitarPautaFila(${i})" title="${fila.tieneNotas?'Esta evaluación ya tiene notas':'Quitar evaluación'}" aria-label="Quitar evaluación" ${errorEnFila&&pautaDraftErrorTarget==='quitar'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="height:40px;border:0;border-radius:10px;background:var(--muted);color:var(--fg2);font-size:1.25rem;cursor:pointer;">×</button>
-      ${cantidad}
+    <div class="pauta-fila">
+      <div class="pauta-fila-main">
+        <input type="text" class="pauta-nombre" id="m-pauta-nombre-${i}" value="${esc(fila.nombre)}" placeholder="Ej: ${ejemplo} ${i+1}" maxlength="${NOMBRE_MAX}" list="m-pauta-sugerencias" autocomplete="off" oninput="actualizarPautaNombre(${i},this.value)" onkeydown="pautaTecla(event,${i},'nombre')" aria-label="Nombre de la evaluación"${invalido('nombre')}/>
+        <label class="pauta-peso"><input type="text" inputmode="decimal" id="m-pauta-peso-${i}" value="${fila.peso?r2(fila.peso):''}" placeholder="0" maxlength="6" oninput="actualizarPautaPeso(${i},this.value)" onkeydown="pautaTecla(event,${i},'peso')" aria-label="Peso de ${nombre}"${invalido('peso')}/><span aria-hidden="true">%</span></label>
+        ${mas}
+      </div>${cantidad||usarResto?`
+      <div class="pauta-fila-extra">${cantidad}${usarResto}</div>`:''}
     </div>`;
   }).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Editar evaluaciones</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.45;margin:-4px 0 12px;">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
+    <div class="modal-title">${pautaArmando?'Armar mi pauta':'Editar evaluaciones'}</div>
+    <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
     ${plantillas}
     ${duplicar}
     <datalist id="m-pauta-sugerencias">${sugerencias}</datalist>
-    <div id="m-pauta-total" style="padding:10px 12px;border-radius:10px;background:var(--muted);color:var(--fg2);font-size:0.8125rem;font-weight:600;margin-bottom:10px;">${pautaResumen()}</div>
-    <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'} style="margin:-3px 0 10px;font-size:0.8125rem;color:var(--red);">${esc(pautaDraftError)}</p>
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 52px 30px;gap:6px;font-size:0.6875rem;color:var(--fg3);text-transform:uppercase;letter-spacing:.04em;font-weight:700;">
-      <span>Evaluación</span><span>Peso</span><span title="Son varias notas que se promedian" style="text-align:center;">Notas</span><span></span>
+    <div class="pauta-total" id="m-pauta-total">${totalPautaHTML()}</div>
+    <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'}>${esc(pautaDraftError)}</p>
+    <div class="pauta-lista">${filas}
+      <button type="button" class="pauta-agregar" onclick="agregarPautaFila()"><span aria-hidden="true">+</span> Agregar evaluación</button>
     </div>
-    <div>${filas}</div>
-    <button type="button" onclick="agregarPautaFila()" style="width:100%;padding:10px;border:1px dashed var(--border2);border-radius:10px;background:none;color:var(--primary);font:600 13px var(--font-ui);cursor:pointer;">+ Otra evaluación</button>
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" onclick="guardarPautaManual()">Guardar</button>
     </div>`;
+}
+// El total con su barra. La barra es neutra a propósito: el semáforo es de las
+// notas, no de cuánto porcentaje lleva escrito la pauta.
+function totalPautaHTML(){
+  const e=estadoPauta(pautaDraft);
+  const avance=Math.min(Math.max(e.total/100,0),1);
+  return `<div class="pauta-total-texto${e.lista?' lista':''}" aria-live="polite">${pautaResumen()}</div><div class="pauta-total-barra" aria-hidden="true"><i style="transform:scaleX(${avance.toFixed(3)})"></i></div>`;
+}
+// "⋯" de cada evaluación: marcar que se promedian varias notas y quitarla.
+function abrirMenuPautaFila(boton,i){
+  const fila=pautaDraft[i];if(!fila)return;
+  abrirMenu(boton,[
+    {texto:'Varias notas',marcado:!!fila.varias,accion:()=>actualizarPautaVarias(i,!fila.varias)},
+    'sep',
+    {texto:'Quitar evaluación',peligro:true,accion:()=>quitarPautaFila(i)}
+  ]);
 }
 function limpiarErrorPauta(){
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
@@ -5703,7 +5725,7 @@ function actualizarPautaPeso(i,valor){
   const peso=Math.min(100,Number(limpio)||0);
   pautaDraft[i].peso=peso;
   const input=document.getElementById('m-pauta-peso-'+i);if(input&&input.value!==limpio)input.value=limpio;
-  const total=document.getElementById('m-pauta-total');if(total)total.textContent=pautaResumen();
+  const total=document.getElementById('m-pauta-total');if(total)total.innerHTML=totalPautaHTML();
 }
 function agregarPautaFila(){
   pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});renderPautaManualModal();
@@ -5930,6 +5952,8 @@ function abrirMenu(boton,items){
   fondo.id='menu-flotante-fondo';fondo.className='user-menu-backdrop open';fondo.onclick=cerrarMenu;
   const m=document.createElement('div');
   m.id='menu-flotante';m.className='user-menu open menu-flotante';m.setAttribute('role','menu');
+  // Si alguna opción lleva ✓, todas guardan su lugar y el texto queda alineado.
+  const conMarcas=items.some(it=>it!=='sep'&&it.marcado!==undefined);
   items.forEach(it=>{
     if(it==='sep'){const s=document.createElement('div');s.className='user-menu-sep';m.appendChild(s);return;}
     const b=document.createElement('button');
@@ -5938,7 +5962,7 @@ function abrirMenu(boton,items){
     b.setAttribute('role',radio?'menuitemradio':'menuitem');
     if(radio)b.setAttribute('aria-checked',String(!!it.marcado));
     // Como en iOS, el ✓ va antes del texto y las otras opciones guardan su lugar.
-    b.innerHTML=`${radio?(it.marcado?CHECK_MENU:'<span class="menu-check" aria-hidden="true"></span>'):''}${it.icono||''}<span class="menu-texto">${esc(it.texto)}</span>`;
+    b.innerHTML=`${it.marcado?CHECK_MENU:conMarcas?'<span class="menu-check" aria-hidden="true"></span>':''}${it.icono||''}<span class="menu-texto">${esc(it.texto)}</span>`;
     b.onclick=()=>{cerrarMenu();setTimeout(()=>{try{it.accion();}catch(e){}},60);};
     m.appendChild(b);
   });
