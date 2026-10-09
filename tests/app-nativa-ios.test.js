@@ -38,5 +38,30 @@ chk('eliminar va al final, separado y en rojo', /'sep',\s*\{texto:'Eliminar ramo
 chk('Escape cierra el menú', /Escape'&&document\.getElementById\('menu-flotante'\)\)cerrarMenu\(\)/.test(app));
 chk('Ajustes se llama igual en el menú y en la hoja', !/Configuración/.test(html + app));
 
+console.log('\n=== Navegar como en iOS ===');
+// Abrir un ramo lo empuja desde la derecha y Volver lo devuelve por el mismo
+// camino (View Transitions). Solo en la app; sin soporte cambia de golpe.
+const vm = require('vm');
+const funcion = app.match(/let _navTransicion=0;\nfunction transicionNativa\([\s\S]*?\n\}/)[0];
+const probar = ({ nativa, vt, reducido }) => {
+  const hechos = [], raiz = { dataset: {}, classList: { contains: c => c === 'app-nativa' && nativa } };
+  const ctx = { document: { documentElement: raiz, startViewTransition: vt ? cb => { hechos.push('vt:' + raiz.dataset.nav); cb(); return { finished: Promise.resolve() }; } : undefined },
+    matchMedia: () => ({ matches: reducido }) };
+  vm.createContext(ctx); vm.runInContext(funcion + ';transicionNativa("push",()=>__h.push("cambio"))', Object.assign(ctx, { __h: hechos }));
+  return hechos.join(',');
+};
+chk('en la app con View Transitions, el push anima', probar({ nativa: true, vt: true, reducido: false }) === 'vt:push,cambio');
+chk('con movimiento reducido es un fundido', probar({ nativa: true, vt: true, reducido: true }) === 'vt:fundido,cambio');
+chk('en la web cambia de golpe, como siempre', probar({ nativa: false, vt: true, reducido: false }) === 'cambio');
+chk('sin View Transitions (iOS 17 o antes) también cambia', probar({ nativa: true, vt: false, reducido: false }) === 'cambio');
+chk('abrir un ramo es push y volver es pop', /transicionNativa\('push',\(\)=>\{[\s\S]{0,300}screen-ramo'\)\.classList\.add\('active'\)/.test(app)
+  && /transicionNativa\('pop',\(\)=>showTab\(destino\)\)/.test(app));
+chk('Volver regresa a la pestaña desde donde se abrió el ramo', /const destino=NAV_TABS\.includes\(currentTab\)\?currentTab:'home';/.test(app));
+chk('la barra de pestañas se queda quieta', /\.app-nativa \.bottom-nav\{view-transition-name:barra-pestanas;\}/.test(css));
+chk('el ramo entra y sale por la derecha', /\.app-nativa\[data-nav="push"\]::view-transition-new\(root\)\{animation:navEntraDer/.test(css)
+  && /\.app-nativa\[data-nav="pop"\]::view-transition-old\(root\)\{z-index:1;animation:navSaleDer/.test(css));
+chk('dentro de Ajustes el contenido entra desde el lado al que se navega',
+  /entrarDesde\(document\.querySelector\('\.settings-shell'\),'push'\)/.test(app) && /entrarDesde\(document\.querySelector\('\.settings-shell'\),'pop'\)/.test(app));
+
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if (fail) process.exit(1);

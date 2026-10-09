@@ -2174,7 +2174,16 @@ function showTab(tab,skipAnim){
     if(el)el.classList.add('active');
   }
 }
-function goHome(){showTab('home');}
+// Salir de un ramo vuelve a la pestaña desde donde se abrió: abierto desde
+// Agenda o Estadísticas, Volver llevaba siempre a Inicio. Todos los que llaman
+// a goHome() están saliendo de la ficha (Volver, borrar el ramo, un ramo que ya
+// no existe).
+function goHome(){
+  const ramo=document.getElementById('screen-ramo');
+  const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
+  if(ramo&&ramo.classList.contains('active'))transicionNativa('pop',()=>showTab(destino));
+  else showTab('home');
+}
 
 // Drag continuo entre tabs — tipo historia de Instagram.
 // El track sigue el dedo durante touchmove, snappea a next/prev/actual en touchend.
@@ -2400,14 +2409,38 @@ function activarReordenRamos(container){
 }
 
 
+// ─── Transiciones de la app (solo en la app) ────────────────────────────────
+// Abrir un ramo lo empuja desde la derecha y Volver lo devuelve por el mismo
+// camino, como la navegación de iOS (HIG Motion; "si algo desaparece por un
+// lado, se espera que vuelva por ahí"). Son View Transitions: el navegador
+// fotografía la pantalla de antes y la de después y styles.css las desliza;
+// la barra de pestañas tiene su propio nombre y se queda quieta. Sin soporte
+// (iOS 17 o anterior) cambia de golpe, como antes; con movimiento reducido, un
+// fundido. En la web no se usa.
+let _navTransicion=0;
+function transicionNativa(sentido,cambio){
+  const raiz=typeof document!=='undefined'&&document.documentElement;
+  if(!raiz||!raiz.classList||!raiz.classList.contains('app-nativa')||typeof document.startViewTransition!=='function'){cambio();return;}
+  const n=++_navTransicion;
+  raiz.dataset.nav=matchMedia('(prefers-reduced-motion: reduce)').matches?'fundido':sentido;
+  document.startViewTransition(cambio).finished.finally(()=>{if(n===_navTransicion)delete raiz.dataset.nav;});
+}
+// El contenido nuevo de una hoja (Ajustes) entra desde el lado hacia el que se
+// navega; la barra de arriba se queda, como en iOS.
+function entrarDesde(el,sentido){
+  const raiz=typeof document!=='undefined'&&document.documentElement;
+  if(el&&raiz&&raiz.classList&&raiz.classList.contains('app-nativa'))el.classList.add('nav-'+sentido);
+}
 function openRamo(id){
   currentRamoId=id;
-  ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
-  ['nav-home','nav-stats','nav-agenda'].forEach(n=>document.getElementById(n).classList.remove('active'));
-  document.getElementById('screen-ramo').classList.add('active');
   const r=S.ramos.find(x=>x.id===id);
   track('view_ramo',{del_catalogo:!!(r&&r.origen)});
-  renderRamo();
+  transicionNativa('push',()=>{
+    ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
+    ['nav-home','nav-stats','nav-agenda'].forEach(n=>document.getElementById(n).classList.remove('active'));
+    document.getElementById('screen-ramo').classList.add('active');
+    renderRamo();
+  });
 }
 function horaCorta(hora){return HORA_RE.test(hora||'')?hora:'';}
 function fechaHoraCorta(iso,hora){
@@ -6855,6 +6888,7 @@ function openSettings(){
     document.getElementById('settings-search-status').textContent=settingsSearch.trim()?`${results.length} ${results.length===1?'sección encontrada':'secciones encontradas'}`:'';
     document.querySelectorAll('[data-settings-section]').forEach(b=>b.onclick=()=>{
       activeSection=b.dataset.settingsSection;renderSettings();
+      entrarDesde(document.querySelector('.settings-shell'),'push');
       if(activeSection!=='perfil')document.getElementById('settings-detail-title').focus();
     });
   }
@@ -6881,6 +6915,7 @@ function openSettings(){
     search.oninput=()=>{settingsSearch=search.value;renderSettingsNav();};
     const back=document.querySelector('.settings-back');if(back)back.onclick=()=>{
       const previous=activeSection;activeSection='';renderSettings();
+      entrarDesde(document.querySelector('.settings-shell'),'pop');
       const option=document.querySelector(`[data-settings-section="${previous}"]`);
       (option||document.getElementById('settings-search')).focus();
     };
