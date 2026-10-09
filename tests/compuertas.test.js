@@ -286,8 +286,9 @@ ctx.document.querySelector=sel=>sel==='.modal-sheet'?pautaNodes.sheet:stub;
 vm.runInContext("S={ramos:[{id:'sin-preset',nombre:'Economía I',origen:{tenant:'fen'},gates:[]}]};currentRamoId='sin-preset';",ctx);
 try{ctx.openPautaManualModal();
   // El título dejó de ser "Configurar pauta": era jerga y el estudiante no viene
-  // a configurar nada, viene a escribir sus evaluaciones.
-  if(pautaNodes.modal.classList.open&&pautaNodes['modal-content'].innerHTML.includes('Editar evaluaciones')){ok++;console.log('  OK   ramo FEN sin preset abre el editor de evaluaciones');}
+  // a configurar nada, viene a escribir sus evaluaciones. Un ramo sin
+  // evaluaciones llega desde "Armar mi pauta" y el título dice eso.
+  if(pautaNodes.modal.classList.open&&pautaNodes['modal-content'].innerHTML.includes('Armar mi pauta')){ok++;console.log('  OK   ramo FEN sin preset abre el editor de evaluaciones');}
   else {fail++;console.log('  FAIL el editor no abrió para ramo sin preset');}
 }catch(e){fail++;console.log('  FAIL ramo sin preset lanzó → '+e.message);}
 ctx.document.getElementById=getBeforePauta;ctx.document.querySelector=queryBeforePauta;
