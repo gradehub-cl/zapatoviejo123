@@ -3134,3 +3134,28 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
    el que se navega (entrarDesde en app.js). */
 .app-nativa .settings-shell.nav-push{animation:navContenidoDer var(--motion-screen) var(--ease-navegar) both;}
 .app-nativa .settings-shell.nav-pop{animation:navContenidoIzq var(--motion-screen) var(--ease-navegar) both;}
+
+/* Barra de pestañas de vidrio, como la de iOS 26: una cápsula flotante y
+   translúcida, separada de los bordes, con la pestaña activa en una píldora.
+   El contenido pasa por debajo (.scroll ya deja 80 px + el área segura).
+   Con "Reducir transparencia" o "Aumentar contraste" vuelve a ser opaca: está
+   al final del archivo. */
+.app-nativa .bottom-nav{left:16px;right:16px;width:auto;max-width:none;transform:none;bottom:calc(env(safe-area-inset-bottom,0px) * .5 + 6px);padding:5px;gap:2px;border:1px solid color-mix(in srgb,var(--fg),transparent 90%);border-radius:999px;background:color-mix(in srgb,var(--bg2),transparent 28%);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff,transparent 82%),0 10px 30px rgba(0,0,0,.14);}
+.app-nativa .bottom-nav .nav-item{min-height:52px;padding:6px 0 5px;border-radius:999px;}
+.app-nativa .bottom-nav .nav-item.active{background:color-mix(in srgb,var(--fg),transparent 91%);}
+
+/* Nada de comportamientos de página (pedido de Martín: "sácalos todos"): sin
+   seleccionar texto de la interfaz, sin el menú de mantener presionado y sin
+   el destello gris al tocar. Se puede seguir escribiendo y copiando en los
+   campos y en las URL que se muestran para copiar. El zoom lo quita index.html
+   y la vista previa de enlaces, capacitor.config.json. */
+.app-nativa body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.app-nativa input,.app-nativa textarea,.app-nativa select,.app-nativa [contenteditable],.app-nativa code{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+.app-nativa *{-webkit-tap-highlight-color:transparent;}
+
+@media(prefers-reduced-transparency:reduce){
+  .app-nativa .bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;}
+}
+@media(prefers-contrast:more){
+  .app-nativa .bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;border-color:var(--fg3);}
+}

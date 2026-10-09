@@ -50,5 +50,15 @@ chk('ios:rama arma la app cargando desde la versión de prueba',
 // rechazada y no abre sin internet.
 chk('la app normal no carga desde un servidor', !config.server);
 
+console.log('\n=== La app abre sin internet ===');
+// supabase-js viaja dentro de la app, con la misma versión que pide la web.
+const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
+const versionWeb = (html.match(/supabase-js@([\d.]+)/) || [])[1];
+chk('la versión empaquetada es la misma que pide index.html', !!versionWeb && (pkg.devDependencies || {})['@supabase/supabase-js'] === versionWeb);
+chk('preparar copia supabase-js del paquete y le pone su SRI',
+  /node_modules\/@supabase\/supabase-js\/dist\/umd\/supabase\.js/.test(preparar) && /ios-web\/supabase\.js/.test(preparar) && /createHash\("sha384"\)/.test(preparar));
+chk('si las versiones no coinciden, se detiene', /if\(v!==m\[1\]\)\{[^}]*process\.exit\(1\)/.test(preparar));
+chk('lo hace antes de pasarle la web a Capacitor', preparar.indexOf('ios-web/supabase.js') < preparar.indexOf('cap sync ios'));
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail ? 1 : 0);
