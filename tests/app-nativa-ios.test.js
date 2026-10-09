@@ -25,7 +25,8 @@ chk('solo en la app nativa', /classList\.contains\('app-nativa'\)\)\s*new Mutati
 
 console.log('\n=== La web no cambia ===');
 const bloque = css.slice(css.indexOf('/* ─── App iOS: aspecto nativo'));
-const reglas = bloque.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g) || [];
+// Las @media (transparencia, contraste) no son selectores: se revisa lo de adentro.
+const reglas = (bloque.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g) || []).filter(r => !r.trim().startsWith('@'));
 chk('todo el bloque de la app va bajo .app-nativa', reglas.length > 10 && reglas.every(r => r.split(',').every(s => s.trim().startsWith('.app-nativa'))));
 chk('la caja de cada grupo de Ajustes no existe en la web', /\.settings-nav-card\{display:contents;\}/.test(css));
 
@@ -62,6 +63,34 @@ chk('el ramo entra y sale por la derecha', /\.app-nativa\[data-nav="push"\]::vie
   && /\.app-nativa\[data-nav="pop"\]::view-transition-old\(root\)\{z-index:1;animation:navSaleDer/.test(css));
 chk('dentro de Ajustes el contenido entra desde el lado al que se navega',
   /entrarDesde\(document\.querySelector\('\.settings-shell'\),'push'\)/.test(app) && /entrarDesde\(document\.querySelector\('\.settings-shell'\),'pop'\)/.test(app));
+
+console.log('\n=== Vibración: solo al agregar una nota y al borrar ===');
+const vib = app.match(/function vibrar\(tipo\)\{[\s\S]*?\n\}/)[0];
+const probarVib = (nativa, tipo) => { const h = []; const ctx = { enAppNativa: () => nativa, window: { Capacitor: { Plugins: { Haptics: {
+  impact: o => (h.push('impact:' + o.style), Promise.resolve()), notification: o => (h.push('notification:' + o.type), Promise.resolve()) } } } } };
+  vm.createContext(ctx); vm.runInContext(vib + ';vibrar(' + JSON.stringify(tipo) + ')', ctx); return h.join(','); };
+chk('al agregar una nota, un toque suave', probarVib(true, 'nota') === 'impact:LIGHT');
+chk('al borrar, la advertencia', probarVib(true, 'borrar') === 'notification:WARNING');
+chk('en la web no vibra', probarVib(false, 'nota') === '');
+chk('se llama al guardar una nota válida (casillas, directa, agregar y editar)', (app.match(/vibrar\('nota'\)/g) || []).length === 4);
+chk('y al confirmar un borrado y al borrar una nota', /if\(borra&&typeof vibrar==='function'\)vibrar\('borrar'\);/.test(app) && /save\(\);renderRamo\(\);vibrar\('borrar'\);/.test(app));
+chk('el plugin de vibración está instalado', !!(JSON.parse(leer('package.json')).dependencies || {})['@capacitor/haptics']);
+
+console.log('\n=== Deslizar desde el borde para volver ===');
+const gesto = app.slice(app.indexOf('(function initVolverDeslizando(){'), app.indexOf('(function initVolverDeslizando(){') + 4000);
+chk('parte solo desde el borde izquierdo y solo en la app', /const BORDE=24;/.test(gesto) && /!enAppNativa\(\)/.test(gesto) && /t\.clientX>BORDE\)return;/.test(gesto));
+chk('no se activa con una hoja, una alerta o un menú abiertos', /\.modal-overlay\.open,\.confirm-overlay\.open,#menu-flotante/.test(gesto));
+chk('un scroll vertical no se confunde con el gesto', /Math\.abs\(dy\)>=Math\.abs\(dx\)\)\{g=null;return;\}/.test(gesto));
+chk('decide por velocidad o por la mitad, y vuelve a la pestaña de origen', /const sale=v>0\.35\|\|\(v>-0\.2&&s\.dx>w\/2\);/.test(gesto) && /showTab\(s\.destino\)/.test(gesto));
+chk('la pestaña de origen queda marcada dentro del ramo', !/\['nav-home','nav-stats','nav-agenda'\]\.forEach\(n=>document\.getElementById\(n\)\.classList\.remove\('active'\)\)/.test(app));
+
+console.log('\n=== Barra de vidrio y nada de página web ===');
+chk('barra de pestañas flotante y translúcida', /\.app-nativa \.bottom-nav\{[^}]*border-radius:999px;[^}]*backdrop-filter:blur/.test(css));
+chk('opaca con Reducir transparencia y con más contraste', /prefers-reduced-transparency:reduce\)\{\s*\.app-nativa \.bottom-nav\{background:var\(--bg2\);backdrop-filter:none/.test(css)
+  && /prefers-contrast:more\)\{\s*\.app-nativa \.bottom-nav\{background:var\(--bg2\);backdrop-filter:none/.test(css));
+chk('sin seleccionar texto ni menú de mantener presionado, salvo en campos', /\.app-nativa body\{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;\}/.test(css) && /\.app-nativa input,\.app-nativa textarea/.test(css));
+chk('sin zoom en la app (la web lo conserva)', /maximum-scale=1, user-scalable=no/.test(html) && /<meta name="viewport" content="width=device-width, initial-scale=1\.0, viewport-fit=cover"\/>/.test(html));
+chk('sin vista previa al mantener presionado un enlace', JSON.parse(leer('capacitor.config.json')).ios.allowsLinkPreview === false);
 
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if (fail) process.exit(1);

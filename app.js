@@ -2003,6 +2003,17 @@ function enAppNativa(){
   catch(e){return false;}
 }
 // La clase html.app-nativa la pone index.html antes de pintar.
+// Vibración, solo en la app y solo en dos momentos (pedido de Martín): un toque
+// suave al agregar una nota y la advertencia al borrar. Una vibración que se
+// repite en todo deja de decir algo (HIG Playing haptics).
+function vibrar(tipo){
+  try{
+    const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
+    if(!H)return;
+    if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    else H.impact({style:'LIGHT'}).catch(()=>{});
+  }catch(e){}
+}
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
 // a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
@@ -2253,6 +2264,85 @@ function goHome(){
   document.addEventListener('touchcancel',onEnd,{passive:true});
 })();
 
+// Deslizar desde el borde izquierdo para salir de un ramo (solo en la app),
+// como en cualquier app de iOS. La ficha sigue al dedo 1:1 y la pestaña de
+// atrás asoma desde un tercio, oscurecida: el mismo dibujo que el pop animado.
+// Al soltar decide por la velocidad y por cuánto se corrió; si sale, termina el
+// recorrido desde donde quedó el dedo y recién ahí cambia de pantalla (sin la
+// transición, que ya se vio); si no, vuelve a su lugar.
+(function initVolverDeslizando(){
+  if(typeof document==='undefined'||typeof document.addEventListener!=='function')return;
+  const BORDE=24;      // px desde el borde donde parte el gesto
+  const BLOQUEO=10;    // px para decidir si es horizontal o un scroll
+  let g=null,animando=false;
+  const ancho=()=>window.innerWidth||document.documentElement.clientWidth||390;
+  function pintar(dx){
+    const w=ancho(),p=Math.min(Math.max(dx/w,0),1);
+    g.ramo.style.transform=`translate3d(${dx}px,0,0)`;
+    g.atras.style.transform=`translate3d(${-0.3*w*(1-p)}px,0,0)`;
+    g.atras.style.filter=`brightness(${0.9+0.1*p})`;
+  }
+  function limpiar(ramo,atras){
+    [['transform',ramo],['transition',ramo],['boxShadow',ramo],['transition',atras],['filter',atras]].forEach(([k,el])=>{if(el)el.style[k]='';});
+  }
+  document.addEventListener('touchstart',e=>{
+    if(animando||!enAppNativa()||!e.touches||e.touches.length!==1)return;
+    const ramo=document.getElementById('screen-ramo');
+    if(!ramo||!ramo.classList.contains('active')||document.documentElement.dataset.nav)return;
+    if(document.querySelector('.modal-overlay.open,.confirm-overlay.open,#menu-flotante'))return;
+    const t=e.touches[0];if(t.clientX>BORDE)return;
+    const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
+    const atras=document.getElementById('screen-'+destino);if(!atras)return;
+    g={ramo,atras,destino,x0:t.clientX,y0:t.clientY,dx:0,decidido:false,hist:[[t.clientX,Date.now()]]};
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!g)return;
+    const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
+    if(!g.decidido){
+      if(Math.abs(dx)<BLOQUEO&&Math.abs(dy)<BLOQUEO)return;
+      if(dx<=0||Math.abs(dy)>=Math.abs(dx)){g=null;return;}
+      g.decidido=true;
+      document.querySelector('.app').classList.add('dragging');
+      g.ramo.style.transition='none';g.atras.style.transition='none';
+      g.ramo.style.boxShadow='-12px 0 32px rgba(0,0,0,.18)';
+    }
+    if(e.cancelable)e.preventDefault();
+    g.dx=Math.max(0,dx);pintar(g.dx);
+    g.hist.push([t.clientX,Date.now()]);if(g.hist.length>5)g.hist.shift();
+  },{passive:false});
+  function soltar(){
+    if(!g)return;
+    const s=g;g=null;
+    if(!s.decidido)return;
+    const [x1,t1]=s.hist[0],[x2,t2]=s.hist[s.hist.length-1];
+    const v=(x2-x1)/Math.max(t2-t1,1); // px/ms; positivo = hacia la derecha
+    const w=ancho();
+    // Un tirón hacia la derecha sale aunque haya corrido poco; uno de vuelta se
+    // queda aunque haya corrido mucho. Si no hubo tirón, manda la mitad.
+    const sale=v>0.35||(v>-0.2&&s.dx>w/2);
+    const fin=sale?w+60:0,falta=Math.abs(fin-s.dx);
+    // Termina a la velocidad del dedo: más rápido si venía rápido.
+    const ms=Math.round(Math.min(380,Math.max(160,falta/Math.max(Math.abs(v),0.9))));
+    animando=true;
+    const curva=`transform ${ms}ms cubic-bezier(.2,.8,.2,1)`;
+    s.ramo.style.transition=curva;
+    s.atras.style.transition=`${curva},filter ${ms}ms linear`;
+    requestAnimationFrame(()=>{
+      s.ramo.style.transform=`translate3d(${fin}px,0,0)`;
+      s.atras.style.transform=`translate3d(${sale?0:-0.3*w}px,0,0)`;
+      s.atras.style.filter=`brightness(${sale?1:0.9})`;
+    });
+    setTimeout(()=>{
+      if(sale)showTab(s.destino);
+      limpiar(s.ramo,s.atras);
+      if(sale)setTabTransforms(currentTabIdx,0);
+      requestAnimationFrame(()=>{document.querySelector('.app').classList.remove('dragging');animando=false;});
+    },ms+30);
+  }
+  document.addEventListener('touchend',soltar,{passive:true});
+  document.addEventListener('touchcancel',soltar,{passive:true});
+})();
+
 // ─── ORDEN MANUAL DE RAMOS ─────────────────────────────────────────────────
 // En touch, mover al primer contacto vuelve imposible hacer scroll desde una
 // tarjeta. La espera separa las dos intenciones: deslizar antes de 420 ms sigue
@@ -2436,8 +2526,8 @@ function openRamo(id){
   const r=S.ramos.find(x=>x.id===id);
   track('view_ramo',{del_catalogo:!!(r&&r.origen)});
   transicionNativa('push',()=>{
+    // La pestaña de donde viene queda marcada, como en iOS: dice a dónde lleva Volver.
     ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
-    ['nav-home','nav-stats','nav-agenda'].forEach(n=>document.getElementById(n).classList.remove('active'));
     document.getElementById('screen-ramo').classList.add('active');
     renderRamo();
   });
@@ -2720,6 +2810,7 @@ function setSlotNota(catId,slot,raw){
   save();track('set_nota_slot');renderRamo();
   const notaValida=txt!==''&&!isNaN(parseNota(txt));
   if(notaValida){
+    vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
     animarPromedio(document.getElementById('ramo-hero-avg'),promedioAntes,promedioDespues,'ramo');
     if(cambioDePromedio(gpaAntes,gpaDespues)){
@@ -2749,6 +2840,7 @@ function setDirectNota(catId,raw){
   save();track('set_nota_directa');renderRamo();
   const notaValida=txt!==''&&!isNaN(parseNota(txt));
   if(notaValida){
+    vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
     animarPromedio(document.getElementById('ramo-hero-avg'),promedioAntes,promedioDespues,'ramo');
     if(cambioDePromedio(gpaAntes,gpaDespues)){
@@ -2776,7 +2868,7 @@ function confirmDeleteCat(catId){
 }
 function deleteNota(catId,notaId){
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
-  cat.notas=cat.notas.filter(n=>n.id!==notaId);save();renderRamo();
+  cat.notas=cat.notas.filter(n=>n.id!==notaId);save();renderRamo();vibrar('borrar');
 }
 
 // ─── RAMOS DE LA MALLA ───────────────────────────────────────────────────────
@@ -5751,6 +5843,7 @@ function confirmAddNota(catId){
   else asignarCalificacionNota(nueva,rawNota,val);
   cat.notas.push(nueva);
   openCats[catId]=true;save();track('add_nota',{ponderada:usaPond,pendiente:isNaN(val)});closeModal();renderRamo();
+  if(!isNaN(val))vibrar('nota');
   // Si trae fecha entra a la Agenda, que vive en otra pantalla.
   if(typeof renderAgenda==='function')renderAgenda();
   showToast(isNaN(val)?'Anotada para el '+fechaCorta(fechaNota||'')+' — agrega la nota cuando la rindas':lecturaDespuesDeNota(r));
@@ -7947,7 +8040,9 @@ function showConfirm(title,desc,fn,opts){
   const btn=document.getElementById('confirm-action');
   btn.textContent=opts.label||'Eliminar';
   btn.className=opts.danger===false?'btn-prim-sm':'btn-danger';
+  const borra=opts.danger!==false;
   btn.onclick=()=>{
+    if(borra&&typeof vibrar==='function')vibrar('borrar');
     const confirmar=_confirmFn;
     closeConfirm();
     if(confirmar)confirmar();
@@ -8434,6 +8529,7 @@ function confirmEditNota(catId,notaId){
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
+  if(!isNaN(val))vibrar('nota');
   if(typeof renderAgenda==='function')renderAgenda();
   showToast(isNaN(val)?'Guardada como pendiente':lecturaDespuesDeNota(r));
 }
