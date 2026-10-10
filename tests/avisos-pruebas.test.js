@@ -148,6 +148,8 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   chk('el riel de fases y los botones de "¿cómo te fue?" en la pantalla de bloqueo',/struct RielFases/.test(widgets)&&/Button\(intent: ResponderSensacion/.test(widgets));
   const compartido=leer('ios/App/Shared/ActividadPrueba.swift');
   chk('responder corre sin abrir la app y no vuelve a aparecer',/LiveActivityIntent/.test(compartido)&&/respondidas/.test(compartido)&&/Sensacion\.respondidas\(\)/.test(plugin)&&/leerSensaciones/.test(plugin));
+  chk('si cambia la hora de una que ya está en pantalla, se actualiza',/a\.content\.state\.inicio != estado\.inicio[\s\S]{0,200}await a\.update\(Self\.contenido\(estado\)\)/.test(plugin));
+  chk('una programada que cambió de hora se termina y se vuelve a pedir',/esProgramada\(a\) \{ await a\.end\(nil, dismissalPolicy: \.immediate\)/.test(plugin)&&/activityState == \.pending/.test(plugin));
   chk('el modelo compartido está en los dos targets',(leer('ios/App/App.xcodeproj/project.pbxproj').match(/ActividadPrueba\.swift in Sources \*\/ = /g)||[]).length===2);
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
