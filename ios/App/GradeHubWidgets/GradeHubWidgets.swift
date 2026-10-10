@@ -3,7 +3,7 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// Widgets de GradeHub (#634–#638). Solo muestran el resumen que calculó
+// Widgets de GradeHub (#634–#638, #641). Solo muestran el resumen que calculó
 // la app con el motor de siempre: acá no se calcula ninguna nota. Lo único que
 // depende de la hora ("hoy", "en 3 días") se resuelve en el widget.
 
@@ -49,11 +49,24 @@ struct Resumen: Decodable {
         let rango: Rango?
         let exigente: Exigente?
     }
+    // Una clase del horario (#640). `dia`: 1 = lunes … 6 = sábado; horas "H:MM" de Chile.
+    struct Clase: Decodable {
+        let dia: Int
+        let inicio: String
+        let fin: String
+        let sala: String?
+        let tipo: String?
+        let ramoId: String
+        let ramo: String
+        let sigla: String?
+        let color: String?
+    }
     let ramos: [Ramo]
     let agenda: [Evaluacion]
     // Opcionales: un resumen guardado por una versión anterior de la app no los trae.
     let pendientes: [Pendiente]?
     let estadisticas: Estadisticas?
+    let horario: [Clase]?
 }
 
 enum Almacen {
@@ -545,6 +558,190 @@ struct PendientesWidget: Widget {
     }
 }
 
+// MARK: - Horario (#641)
+
+// Qué clase toca lo decide el widget con la hora real: es lo único que calcula.
+enum Horario {
+    static let cal = Calendar.current
+    static let dias = ["", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+    // 1 = lunes … 7 = domingo, como en la app.
+    static func dia(_ d: Date) -> Int { (cal.component(.weekday, from: d) + 5) % 7 + 1 }
+    static func minutos(_ hora: String) -> Int? {
+        let partes = hora.split(separator: ":").compactMap { Int($0) }
+        return partes.count == 2 ? partes[0] * 60 + partes[1] : nil
+    }
+    static func instante(_ hora: String, en dia: Date) -> Date? {
+        minutos(hora).flatMap { cal.date(byAdding: .minute, value: $0, to: cal.startOfDay(for: dia)) }
+    }
+    static func delDia(_ clases: [Resumen.Clase], _ d: Date) -> [Resumen.Clase] {
+        clases.filter { $0.dia == dia(d) }.sorted { (minutos($0.inicio) ?? 0) < (minutos($1.inicio) ?? 0) }
+    }
+    // El primer día desde `ahora` (hoy incluido) que todavía tiene clases por terminar.
+    static func proximoDia(_ clases: [Resumen.Clase], desde ahora: Date) -> (Date, [Resumen.Clase])? {
+        for k in 0..<8 {
+            guard let d = cal.date(byAdding: .day, value: k, to: cal.startOfDay(for: ahora)) else { continue }
+            let quedan = delDia(clases, d).filter { (instante($0.fin, en: d) ?? .distantPast) > ahora }
+            if !quedan.isEmpty { return (d, quedan) }
+        }
+        return nil
+    }
+    static func enCurso(_ c: Resumen.Clase, _ d: Date, _ ahora: Date) -> Bool {
+        (instante(c.inicio, en: d) ?? .distantFuture) <= ahora
+    }
+    // "Ahora", "Hoy", "Mañana" o el nombre del día.
+    static func cuando(_ c: Resumen.Clase, _ d: Date, _ ahora: Date) -> String {
+        if enCurso(c, d, ahora) { return "Ahora" }
+        if cal.isDate(d, inSameDayAs: ahora) { return "Hoy" }
+        if let m = cal.date(byAdding: .day, value: 1, to: ahora), cal.isDate(d, inSameDayAs: m) { return "Mañana" }
+        return dias[dia(d)].capitalized
+    }
+    static func tipo(_ t: String?) -> String? {
+        ["catedra": "Cátedra", "ayudantia": "Ayudantía", "laboratorio": "Laboratorio", "taller": "Taller"][t ?? ""]
+    }
+    // La cátedra es lo normal y no se dice; ayudantía, laboratorio o taller, sí.
+    static func tipoSiNoEsCatedra(_ c: Resumen.Clase) -> String? { c.tipo == "catedra" ? nil : tipo(c.tipo) }
+    static func lugar(_ c: Resumen.Clase) -> String {
+        ["\(c.inicio)–\(c.fin)", c.sala.map { "Sala \($0)" }, tipoSiNoEsCatedra(c)].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+// Una entrada al inicio y al fin de cada clase de los próximos días: lo que
+// toca cambia solo, sin abrir la app.
+struct ProveedorHorario: TimelineProvider {
+    func placeholder(in context: Context) -> Entrada { Entrada(date: .now, resumen: nil) }
+    func getSnapshot(in context: Context, completion: @escaping (Entrada) -> Void) {
+        completion(Entrada(date: .now, resumen: Almacen.leer()))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<Entrada>) -> Void) {
+        let resumen = Almacen.leer(), ahora = Date(), cal = Horario.cal
+        var cambios: [Date] = []
+        for k in 0..<3 {
+            guard let d = cal.date(byAdding: .day, value: k, to: cal.startOfDay(for: ahora)) else { continue }
+            if k > 0 { cambios.append(d) }
+            for c in Horario.delDia(resumen?.horario ?? [], d) {
+                cambios += [Horario.instante(c.inicio, en: d), Horario.instante(c.fin, en: d)].compactMap { $0 }
+            }
+        }
+        let fechas = Array(Set(cambios.filter { $0 > ahora })).sorted()
+        let fin = fechas.last ?? cal.date(byAdding: .day, value: 1, to: ahora) ?? ahora
+        completion(Timeline(entries: [Entrada(date: ahora, resumen: resumen)] + fechas.map { Entrada(date: $0, resumen: resumen) },
+                            policy: .after(fin)))
+    }
+}
+
+struct HorarioVista: View {
+    @Environment(\.widgetFamily) var familia
+    let entrada: Entrada
+
+    var body: some View {
+        let clases = entrada.resumen?.horario ?? []
+        let ahora = entrada.date
+        let proximo = Horario.proximoDia(clases, desde: ahora)
+        let vacio = entrada.resumen == nil ? "Abre GradeHub" : clases.isEmpty ? "Agrega tu horario en GradeHub" : "Sin clases esta semana"
+        Group {
+            switch familia {
+            case .accessoryInline:
+                if let (d, quedan) = proximo, let c = quedan.first {
+                    Text("\(c.sigla ?? c.ramo) \(Horario.enCurso(c, d, ahora) ? "hasta \(c.fin)" : c.inicio)\(c.sala.map { " \($0)" } ?? "")")
+                } else { Text(vacio) }
+            case .accessoryRectangular:
+                if let (d, quedan) = proximo, let c = quedan.first {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(Horario.cuando(c, d, ahora)) · \(Horario.enCurso(c, d, ahora) ? "hasta \(c.fin)" : c.inicio)")
+                            .font(.headline).monospacedDigit().widgetAccentable().lineLimit(1)
+                        Text(c.ramo).font(.subheadline).lineLimit(1)
+                        Text(c.sala.map { "Sala \($0)" } ?? Horario.tipoSiNoEsCatedra(c) ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(vacio).font(.subheadline)
+                }
+            case .systemSmall:
+                VStack(alignment: .leading, spacing: 2) {
+                    if let (d, quedan) = proximo, let c = quedan.first {
+                        Text(Horario.cuando(c, d, ahora).uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        HStack(alignment: .top, spacing: 8) {
+                            Rectangle().fill(Color(hexRamo: c.color)).frame(width: 3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(c.ramo).font(.headline).lineLimit(2).minimumScaleFactor(0.7)
+                                Text("\(c.inicio)–\(c.fin)").font(.subheadline.weight(.semibold)).monospacedDigit()
+                                let detalle = [c.sala.map { "Sala \($0)" }, Horario.tipoSiNoEsCatedra(c)].compactMap { $0 }
+                                if !detalle.isEmpty {
+                                    Text(detalle.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        if quedan.count > 1 {
+                            // La hora primero: si no cabe, se corta el nombre y no la hora.
+                            Text("Después \(quedan[1].inicio) · \(quedan[1].sigla ?? quedan[1].ramo)")
+                                .font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1).padding(.top, 4)
+                        }
+                    } else {
+                        Text("HORARIO").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        Text(vacio).font(.subheadline)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            default:
+                // Mediano: el día que viene (hoy si quedan clases). Grande: ese día y el siguiente con clases.
+                let grande = familia == .systemLarge
+                let siguiente = proximo.flatMap { (d, _) in
+                    Horario.cal.date(byAdding: .day, value: 1, to: d).flatMap { Horario.proximoDia(clases, desde: $0) }
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    if let (d, quedan) = proximo {
+                        bloque(d, quedan, max: grande ? 4 : 3)
+                        if grande, let (d2, todas) = siguiente {
+                            Divider()
+                            bloque(d2, todas, max: 3)
+                        }
+                    } else {
+                        Text("HORARIO").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                        Text(vacio).font(.subheadline)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .widgetURL(proximo?.1.first.map { enlaceRamo($0.ramoId) } ?? URL(string: "cl.gradehub.app://agenda"))
+    }
+
+    @ViewBuilder
+    func bloque(_ d: Date, _ clases: [Resumen.Clase], max: Int) -> some View {
+        let ahora = entrada.date
+        let titulo = Horario.cal.isDate(d, inSameDayAs: ahora) ? "HOY"
+            : Horario.cal.isDate(d, inSameDayAs: Horario.cal.date(byAdding: .day, value: 1, to: ahora) ?? ahora) ? "MAÑANA"
+            : Horario.dias[Horario.dia(d)].uppercased()
+        Text(titulo).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+        ForEach(Array(clases.prefix(max).enumerated()), id: \.offset) { _, c in
+            Fila(ramoId: c.ramoId, color: c.color, titulo: c.ramo, detalle: Horario.lugar(c)) {
+                if Horario.enCurso(c, d, ahora) {
+                    Text("Ahora").font(.caption.weight(.semibold)).widgetAccentable()
+                }
+            }
+        }
+        if clases.count > max {
+            Text("y \(clases.count - max) más").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct HorarioWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "horario", provider: ProveedorHorario()) { entrada in
+            HorarioVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Horario")
+        .description("Qué clase toca y en qué sala.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+    }
+}
+
 // MARK: - Estadísticas configurable (#638)
 
 enum Estadistica: String, AppEnum {
@@ -862,6 +1059,7 @@ struct GradeHubWidgets: WidgetBundle {
         PromedioGeneralWidget()
         PendientesWidget()
         EstadisticasWidget()
+        HorarioWidget()
         ActividadPruebaWidget()
     }
 }
