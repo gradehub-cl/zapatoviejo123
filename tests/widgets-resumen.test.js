@@ -18,7 +18,7 @@ function contexto(nativa){
     localStorage:{getItem(){return null},setItem(){},removeItem(){}},navigator:{},location:{origin:'',pathname:'/',hash:''},
     setTimeout:(f)=>{timers.push(f);return timers.length;},clearTimeout:()=>{timers.length=0;},console,URL};
   vm.createContext(ctx);
-  vm.runInContext(['data.js','engine.js','app.js'].map(leer).join('\n'),ctx);
+  vm.runInContext(['data.js','engine.js','app.js','render-agenda.js'].map(leer).join('\n'),ctx);
   const run=c=>vm.runInContext(c,ctx);
   run('syncToCloud=function(){};');
   run(`S.tenant='uc';S.onboardingDone=true;S.ramos=normalize({ramos:[
@@ -66,7 +66,22 @@ chk('una compuerta que topa la nota sube lo que necesitas',
 chk('no toca los datos guardados',a.run('JSON.stringify(S.ramos)')===a.run('(resumenParaWidgets(new Date(2026,9,6,12)),JSON.stringify(S.ramos))'));
 chk('lleva el color del ramo para su línea lateral',r.agenda[0].color==='#7F77DD');
 chk('lleva cuánto del ramo define, el mismo de la Agenda',r.agenda[0].parte===30&&r.agenda[1].parte===40);
+chk('cada ramo lleva su color para la línea lateral',r.ramos[0].color==='#7F77DD');
+chk('las estadísticas son las mismas de la pantalla Estadísticas',r.estadisticas.avance===a.run('avanceEvaluaciones(S.ramos).pct')
+  &&r.estadisticas.rango.piso===a.run('nf(proyeccionSemestre(S.ramos).piso)')&&r.estadisticas.rango.techo===a.run('nf(proyeccionSemestre(S.ramos).techo)')
+  &&r.estadisticas.exigente.ramoId===a.run('loQueFaltaPorRamo(S.ramos)[0].ramo.id')&&r.estadisticas.exigente.necesitas===a.run('nfNecesaria(loQueFaltaPorRamo(S.ramos)[0].necesita)'));
 chk('no lleva notas individuales ni nombres de personas',!JSON.stringify(r).includes('"valor"')&&!('userName' in r));
+
+console.log('\n=== Pendientes, en orden de urgencia (#639) ===');
+const p=contexto(false);
+p.run(`S.ramos[1].categorias[1].notas[0].recorreccionPendiente=true;S.ramos[1].categorias[1].notas[0].nombre='Control 1';delete S.ramos[0].categorias[2].fecha;`);
+const lista=p.run(`pendientes(new Date(2026,9,7,12)).map(x=>x.tipo+':'+x.nombre).join()`);
+chk('mañana, recorregir, lo que pasó sin nota y lo que no tiene fecha',lista==='hoy:Interrogación 2,recorregir:Control 1,sin-nota:Control 0,sin-fecha:Examen');
+chk('lo de pasado mañana todavía no es pendiente',!p.run(`pendientes(new Date(2026,9,6,12)).some(x=>x.tipo==='hoy')`));
+chk('una evaluación con nota deja de ser pendiente',p.run(`(S.ramos[1].categorias[0].notas.push({id:'z',valor:5}),!pendientes(new Date(2026,9,7,12)).some(x=>x.tipo==='sin-nota'))`));
+const rp=p.run('resumenParaWidgets(new Date(2026,9,7,12))');
+chk('el resumen lleva los pendientes menos los de hoy, que el widget saca de la agenda',rp.pendientes.map(x=>x.tipo).join()==='recorregir,sin-fecha'&&rp.pendientes[0].ramoId==='b'&&rp.agenda[0].evaluacion==='Interrogación 2');
+chk('pendientes no guarda nada',p.run('JSON.stringify(S.ramos)')===p.run('(pendientes(new Date(2026,9,7,12)),JSON.stringify(S.ramos))'));
 
 console.log('\n=== En la web no hay plugin ===');
 a.run('publicarResumenWidgets();borrarResumenWidgets();');
@@ -99,6 +114,7 @@ console.log('\n=== Tocar un widget abre la pantalla exacta ===');
 b.run(`S.onboardingDone=true;globalThis.__abierto=null;openRamo=id=>{__abierto='ramo:'+id};showTab=t=>{__abierto='tab:'+t};`);
 chk('ramo existente',b.run(`abrirEnlaceWidget('cl.gradehub.app://ramo/a')`)===true&&b.run('__abierto')==='ramo:a');
 chk('la agenda',b.run(`abrirEnlaceWidget('cl.gradehub.app://agenda')`)===true&&b.run('__abierto')==='tab:agenda');
+chk('estadísticas',b.run(`abrirEnlaceWidget('cl.gradehub.app://estadisticas')`)===true&&b.run('__abierto')==='tab:stats');
 chk('un ramo que ya no existe deja en Inicio',b.run(`abrirEnlaceWidget('cl.gradehub.app://ramo/zz')`)===false&&b.run('__abierto')==='tab:home');
 b.run(`__abierto=null`);
 chk('otro esquema o la vuelta del login no se tocan',b.run(`abrirEnlaceWidget('https://gradehub.cl/ramo/a')`)===false&&b.run(`abrirEnlaceWidget('cl.gradehub.app://login-callback?code=x')`)===false&&b.run('__abierto')===null);
