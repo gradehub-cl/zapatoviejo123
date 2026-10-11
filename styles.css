@@ -3085,6 +3085,57 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 @media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-buscar{flex-basis:100%;}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
 @media(prefers-reduced-motion:reduce){.admin-hig *{animation:none;transition:none;}}
 
+/* ─── Panel de alumnos (profesor) y compartir notas (alumno) ─────────────── */
+.compartir-profe{display:flex;flex-direction:column;gap:12px;}
+.compartir-explica{margin:0;font-size:0.875rem;line-height:1.45;color:var(--fg2);}
+.compartir-ramos{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.compartir-ramo{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;}
+.compartir-ramo:first-child{border-top:0;}
+.compartir-ramo input{width:22px;height:22px;flex:none;accent-color:var(--primary);}
+.compartir-ramo span{display:flex;flex-direction:column;min-width:0;}
+.compartir-ramo b{font-size:0.9375rem;font-weight:600;color:var(--fg);}
+.compartir-ramo small{font-size:0.75rem;color:var(--fg3);}
+.compartir-error{margin:0;font-size:0.8125rem;color:var(--red);}
+.settings-compartidos{margin:22px 0 6px;padding-top:16px;border-top:1px solid var(--border);}
+.compartido-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap;}
+.compartido-fila:first-child{border-top:0;}
+.compartido-fila div{display:flex;flex-direction:column;min-width:0;flex:1 1 12rem;}
+.compartido-fila b{font-size:0.9375rem;color:var(--fg);}
+.compartido-fila small{font-size:0.75rem;color:var(--fg3);}
+.compartido-fila .settings-danger-btn{min-height:44px;width:auto;}
+.panel-alumnos-link{display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
+.panel-alumnos-link h2{margin:0;font-size:1rem;color:var(--fg);}
+.panel-alumnos-link p{margin:0;font-size:0.875rem;color:var(--fg2);}
+.panel-alumnos-url{display:flex;flex-direction:column;gap:10px;}
+.panel-alumnos-url code{flex:none;min-width:0;overflow-wrap:anywhere;padding:10px 12px;border-radius:10px;background:var(--bg2);font-size:0.8125rem;color:var(--fg);user-select:all;}
+.panel-alumnos-url .btn-confirm{min-height:44px;width:100%;}
+.panel-alumnos-link .agent-refresh{align-self:flex-start;min-height:44px;}
+.panel-alumnos-link + .profesor-hig-lista-cabeza{margin-top:22px;}
+.panel-alumnos-alumno{border:1px solid var(--border);border-radius:14px;padding:4px 14px 14px;margin-top:10px;background:var(--card);}
+.panel-alumnos-alumno summary{display:flex;align-items:baseline;gap:10px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
+.panel-alumnos-alumno summary::-webkit-details-marker{display:none;}
+.panel-alumnos-alumno summary b{font-size:1rem;color:var(--fg);}
+.panel-alumnos-alumno summary small{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-alumno .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}
+.panel-alumnos-ramo{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;}
+.panel-alumnos-ramo-cabeza > span:first-child{display:flex;flex-direction:column;min-width:0;}
+.panel-alumnos-ramo-cabeza b{font-size:0.9375rem;color:var(--fg);}
+.panel-alumnos-ramo-cabeza small{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-prom,.panel-alumnos-gh{display:flex;flex-direction:column;align-items:flex-end;font-variant-numeric:tabular-nums;font-weight:650;color:var(--fg);}
+.panel-alumnos-gh{font-weight:500;color:var(--fg2);}
+.panel-alumnos-prom small,.panel-alumnos-gh small{font-size:0.6875rem;font-weight:400;color:var(--fg3);}
+.panel-alumnos-sin{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-notas{width:100%;margin-top:8px;border-collapse:collapse;font-size:0.875rem;}
+.panel-alumnos-notas th{text-align:left;font-size:0.6875rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3);padding:6px 0;}
+.panel-alumnos-notas th:not(:first-child),.panel-alumnos-notas td:not(:first-child){text-align:right;}
+.panel-alumnos-notas td{padding:8px 0;border-top:1px solid var(--border);color:var(--fg);font-variant-numeric:tabular-nums;}
+.panel-alumnos-notas td .panel-alumnos-gh{flex-direction:row;justify-content:flex-end;align-items:baseline;gap:6px;}
+.panel-alumnos-cat td{font-weight:600;}
+.panel-alumnos-cat td small{margin-left:8px;font-size:0.6875rem;font-weight:400;color:var(--fg3);}
+.panel-alumnos-nota td{border-top:0;padding-top:4px;color:var(--fg2);}
+.panel-alumnos-nota td:first-child{padding-left:14px;}
+
 /* ─── App iOS: navegar ────────────────────────────────────────────────────────
    Recorridos de transicionNativa() y entrarDesde() (app.js). Las reglas que
    los usan están en el bloque de la app, más abajo: la web no los usa. */
