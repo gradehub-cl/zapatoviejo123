@@ -130,6 +130,27 @@ function contexto({search='',sesion=false}={}){
     Math.abs(a.run(`resumenAlumnosPanel([{...__alDin,ramos:[__din]}],()=>null)[0].promedio`)-a.run(`ramoAvg(ramoParaPanel(__din),undefined,[ramoParaPanel(__din)])`))<1e-9);
   a.run('S.ramos=[]');
 
+  console.log('\n=== Cada alumno con las reglas de nota de su universidad ===');
+  // 3,892 y 4,0 en 50/50: promedio bruto 3,946. La UAndes redondea a la
+  // centésima y después a la décima (4,0); la regla común, directo (3,9).
+  a.run(`globalThis.__borde=(id)=>({id,nombre:'Ramo de borde',sigla:'TST100',gates:[],categorias:[
+    {id:'a',nombre:'Prueba 1',peso:50,notas:[{id:'x',nombre:'Prueba 1',valor:3.892}]},
+    {id:'b',nombre:'Prueba 2',peso:50,notas:[{id:'y',nombre:'Prueba 2',valor:4.0}]}]});
+    globalThis.__al=(tenant)=>({id:'al-'+tenant,nombre_visible:'Alumno '+tenant,tenant,ramos:[__borde('r-'+tenant)]})`);
+  const ve=(profe,alumno)=>a.run(`(S.tenant=${JSON.stringify(profe)},alumnosPanelHTML([__al(${JSON.stringify(alumno)})],()=>null))`);
+  chk('profesor UC, alumno UAndes: ve 4,0, como el alumno en su app',/4\.0<small>promedio/.test(ve('uc','uandes')));
+  chk('profesor UAndes, alumno UC: ve 3,9, no un aprobado que no es',/3\.9<small>promedio/.test(ve('uandes','uc')));
+  chk('misma universidad: igual que antes',/3\.9<small>promedio/.test(ve('uc','uc'))&&/4\.0<small>promedio/.test(ve('uandes','uandes')));
+  chk('la universidad del profesor queda como estaba',a.run(`(S.tenant='uc',alumnosPanelHTML([__al('uandes')],()=>null),S.tenant)`)==='uc');
+  chk('y también si algo falla adentro',a.run(`(()=>{S.tenant='uc';try{conUniversidadPanel('uandes',()=>{throw new Error('x')});}catch(e){}return S.tenant;})()`)==='uc');
+  const resCruce=a.run(`(S.tenant='uc',resumenAlumnosPanel([__al('uandes'),__al('uc')],()=>null))`);
+  chk('el resumen no mezcla universidades en un mismo grupo',resCruce.length===2&&resCruce.every(g=>g.alumnos===1));
+  chk('y cuenta el semáforo con la regla de cada uno',
+    resCruce.find(g=>g.tenant==='uandes').semaforo.warn===1&&resCruce.find(g=>g.tenant==='uc').semaforo.bad===1);
+  const csvCruce=a.run(`(S.tenant='uc',csvAlumnosPanel([__al('uandes')],()=>null))`).split('\r\n')[1].split(';');
+  chk('el Excel también: 4,0 para el alumno UAndes',csvCruce[6]==='4,0');
+  a.run(`S.tenant='uc'`);
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.
