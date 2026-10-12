@@ -114,6 +114,46 @@ y mirando que no queden filas suyas en ninguna tabla.
 Lo que está tomado ahora mismo. Se borra cuando se mergea. Si tu tarea no está
 acá, pregunta antes de empezar — hay tres agentes sobre cuatro archivos.
 
+### Lucas · tomado el 2026-10-12
+
+Todo tiene PR abierto y el detalle está en su issue. **No lo rehagas**: si
+necesitas cambiar algo de ahí, parte de la rama del PR. Al 2026-10-12 no hay
+nada mergeado y **no queda SQL por correr**: el de #680 y el de #687 ya están
+aplicados en producción.
+
+| Issue | PR | Estado | Para mergear |
+|---|---|---|---|
+| #657 anuncio pausado que seguía cobrando días | #680 | SQL aplicado; `b338c850` y `cc8630fa` corregidos | listo |
+| #667 panel: buscador y exportar | #681 | cambia términos y privacidad (el profesor puede descargar) | 1.º de la cadena |
+| #667 panel: resumen por ramo | #684 | encima de #681 | 2.º |
+| #663 panel: próxima evaluación por alumno | #685 | encima de #684 | 3.º |
+| arreglo del panel: laboratorio del profesor | #686 | encima de #685; error que está en `main` | 4.º |
+| panel: cada alumno con la regla de nota de su universidad | #693 | encima de #686 | 5.º |
+| #664 anuncio antes de cada evaluación | #682 | prioriza, no filtra | listo |
+| #664 precio por clase en packs | #683 | solo texto | listo |
+| #666 visitas diarias y crecimiento semanal | #687 | SQL aplicado; registra desde el merge | junto con #691 |
+| #666 privacidad: qué días entras | #691 | solo texto | con #687 o antes |
+| #657 terminar un pausado sin campaña | #692 | encima de #680; aplicar solo esa función | después de #680 |
+| #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; función nueva en `functions/` | después de #670 |
+| #631 décimas: Principios Ecológicos y Dinámica | #690 | toca `engine.js`; migración aditiva | listo |
+
+Los PR del panel (#681 → #684 → #685 → #686 → #693) tocan las mismas funciones de
+`marketplace.js`: se mergean en ese orden y cada uno pasa a apuntar a `main`
+cuando entra el anterior. Nada más del panel hasta que entren.
+
+**Pendiente, sin dueño todavía:**
+
+- #631, **en pausa por decisión de Lucas**: Econometría Aplicada (falta su
+  programa) y Revelación y Fe (falta confirmar si «la nota más baja» incluye el
+  examen). No se retoman sin ese dato.
+- #664: los testimonios (#643). La «entrada» barata **no se hace**: una clase
+  de prueba se publica con precio $0, como el Salvatón (Lucas, 2026-10-12).
+- #663: precio del panel, Universal Links y comparación del ramo para UAI y
+  UAndes.
+- #630: «la inasistencia es 1,0» no tiene dónde vivir: no existe «marcar
+  ausente», solo «Falté con justificativo».
+- #639: `pendientes()` ya existe en la rama `ios` (#676); falta la pantalla.
+
 ### Con qué parte cada uno
 
 **Codex — la revisión estética, PR 3 en adelante.** Los PR 1 (tokens de
