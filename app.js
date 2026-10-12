@@ -1652,9 +1652,14 @@ function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto
     if(mover&&lista.scrollTo)lista.scrollTo({top:i*RULETA_FILA,behavior:movimientoReducido()?'auto':'smooth'});
     if(cambio&&alCambiar)alCambiar(opciones[idx]);
   };
-  // Al soltar, la fila que quedó al centro es la elegida.
-  let espera=null;
-  lista.addEventListener('scroll',()=>{clearTimeout(espera);espera=setTimeout(()=>elegir(Math.round(lista.scrollTop/RULETA_FILA),{mover:false}),90);},{passive:true});
+  // Al soltar, la fila que quedó al centro es la elegida. Mientras gira, cada
+  // fila que pasa por el centro hace tic, como el selector de iOS.
+  let espera=null,filaAlCentro=idx;
+  lista.addEventListener('scroll',()=>{
+    const f=Math.round(lista.scrollTop/RULETA_FILA);
+    if(f!==filaAlCentro&&f>=0&&f<opciones.length){filaAlCentro=f;vibrar('seleccion');}
+    clearTimeout(espera);espera=setTimeout(()=>elegir(f,{mover:false}),90);
+  },{passive:true});
   // Con el mouse se agarra y se arrastra, como con el dedo. Mientras se
   // arrastra se apaga el encaje, que si no tironea la lista a cada movimiento.
   let arrastre=null;
@@ -2068,7 +2073,9 @@ function obRender(){
   const bar=document.getElementById('ob-progress-bar');
   if(bar)bar.style.transform='scaleX('+(obProgressPct(obStep)/100)+')';
   const back=document.getElementById('ob-back');
-  if(back)back.style.visibility=obStep>1?'visible':'hidden';
+  // En el paso 1 no hay a dónde volver: sin el botón, Continuar ocupa el ancho
+  // completo en vez de quedar corrido a la derecha junto a un hueco.
+  if(back)back.hidden=obStep<=1;
   const next=document.getElementById('ob-next');
   if(next){
     next.textContent=obStep===OB_TOTAL?(obRamos.length?`Continuar con ${obRamos.length} ramo${obRamos.length!==1?'s':''}`:'Continuar sin ramos'):'Continuar';
@@ -2219,6 +2226,31 @@ function enAppNativa(){
   catch(e){return false;}
 }
 // La clase html.app-nativa la pone index.html antes de pintar.
+// Vibración, solo en la app (HIG Playing haptics): un toque suave al agregar
+// una nota y la advertencia al borrar (pedido de Martín). Además, lo que en iOS
+// ya vibra solo: el tic de selección de la ruleta y de los interruptores, y el
+// golpe al levantar un ramo para reordenarlo. Nada más: una vibración que se
+// repite en todo deja de decir algo.
+let _hapticaSeleccion=null;
+function vibrar(tipo){
+  try{
+    const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
+    if(!H)return;
+    if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
+    // El generador de selección se prepara una vez y queda listo para cada tic.
+    else if(tipo==='seleccion'){
+      _hapticaSeleccion=_hapticaSeleccion||Promise.resolve(H.selectionStart());
+      _hapticaSeleccion.then(()=>H.selectionChanged()).catch(()=>{});
+    }
+    else H.impact({style:'LIGHT'}).catch(()=>{});
+  }catch(e){}
+}
+// Un interruptor de iOS hace tic al cambiar; los de la app (.toggle) también.
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t&&t.matches&&t.matches('.toggle input[type=checkbox]'))vibrar('seleccion');
+});
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
 // a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
@@ -2395,7 +2427,16 @@ function showTab(tab,skipAnim){
     if(el)el.classList.add('active');
   }
 }
-function goHome(){showTab('home');}
+// Salir de un ramo vuelve a la pestaña desde donde se abrió: abierto desde
+// Agenda o Estadísticas, Volver llevaba siempre a Inicio. Todos los que llaman
+// a goHome() están saliendo de la ficha (Volver, borrar el ramo, un ramo que ya
+// no existe).
+function goHome(){
+  const ramo=document.getElementById('screen-ramo');
+  const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
+  if(ramo&&ramo.classList.contains('active'))transicionNativa('pop',()=>showTab(destino));
+  else showTab('home');
+}
 
 // Drag continuo entre tabs — tipo historia de Instagram.
 // El track sigue el dedo durante touchmove, snappea a next/prev/actual en touchend.
@@ -2463,6 +2504,85 @@ function goHome(){showTab('home');}
   document.addEventListener('touchmove',onMove,{passive:false});
   document.addEventListener('touchend',onEnd,{passive:true});
   document.addEventListener('touchcancel',onEnd,{passive:true});
+})();
+
+// Deslizar desde el borde izquierdo para salir de un ramo (solo en la app),
+// como en cualquier app de iOS. La ficha sigue al dedo 1:1 y la pestaña de
+// atrás asoma desde un tercio, oscurecida: el mismo dibujo que el pop animado.
+// Al soltar decide por la velocidad y por cuánto se corrió; si sale, termina el
+// recorrido desde donde quedó el dedo y recién ahí cambia de pantalla (sin la
+// transición, que ya se vio); si no, vuelve a su lugar.
+(function initVolverDeslizando(){
+  if(typeof document==='undefined'||typeof document.addEventListener!=='function')return;
+  const BORDE=24;      // px desde el borde donde parte el gesto
+  const BLOQUEO=10;    // px para decidir si es horizontal o un scroll
+  let g=null,animando=false;
+  const ancho=()=>window.innerWidth||document.documentElement.clientWidth||390;
+  function pintar(dx){
+    const w=ancho(),p=Math.min(Math.max(dx/w,0),1);
+    g.ramo.style.transform=`translate3d(${dx}px,0,0)`;
+    g.atras.style.transform=`translate3d(${-0.3*w*(1-p)}px,0,0)`;
+    g.atras.style.filter=`brightness(${0.9+0.1*p})`;
+  }
+  function limpiar(ramo,atras){
+    [['transform',ramo],['transition',ramo],['boxShadow',ramo],['transition',atras],['filter',atras]].forEach(([k,el])=>{if(el)el.style[k]='';});
+  }
+  document.addEventListener('touchstart',e=>{
+    if(animando||!enAppNativa()||!e.touches||e.touches.length!==1)return;
+    const ramo=document.getElementById('screen-ramo');
+    if(!ramo||!ramo.classList.contains('active')||document.documentElement.dataset.nav)return;
+    if(document.querySelector('.modal-overlay.open,.confirm-overlay.open,#menu-flotante'))return;
+    const t=e.touches[0];if(t.clientX>BORDE)return;
+    const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
+    const atras=document.getElementById('screen-'+destino);if(!atras)return;
+    g={ramo,atras,destino,x0:t.clientX,y0:t.clientY,dx:0,decidido:false,hist:[[t.clientX,Date.now()]]};
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!g)return;
+    const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
+    if(!g.decidido){
+      if(Math.abs(dx)<BLOQUEO&&Math.abs(dy)<BLOQUEO)return;
+      if(dx<=0||Math.abs(dy)>=Math.abs(dx)){g=null;return;}
+      g.decidido=true;
+      document.querySelector('.app').classList.add('dragging');
+      g.ramo.style.transition='none';g.atras.style.transition='none';
+      g.ramo.style.boxShadow='-12px 0 32px rgba(0,0,0,.18)';
+    }
+    if(e.cancelable)e.preventDefault();
+    g.dx=Math.max(0,dx);pintar(g.dx);
+    g.hist.push([t.clientX,Date.now()]);if(g.hist.length>5)g.hist.shift();
+  },{passive:false});
+  function soltar(){
+    if(!g)return;
+    const s=g;g=null;
+    if(!s.decidido)return;
+    const [x1,t1]=s.hist[0],[x2,t2]=s.hist[s.hist.length-1];
+    const v=(x2-x1)/Math.max(t2-t1,1); // px/ms; positivo = hacia la derecha
+    const w=ancho();
+    // Un tirón hacia la derecha sale aunque haya corrido poco; uno de vuelta se
+    // queda aunque haya corrido mucho. Si no hubo tirón, manda la mitad.
+    const sale=v>0.35||(v>-0.2&&s.dx>w/2);
+    const fin=sale?w+60:0,falta=Math.abs(fin-s.dx);
+    // Termina a la velocidad del dedo: más rápido si venía rápido.
+    const ms=Math.round(Math.min(380,Math.max(160,falta/Math.max(Math.abs(v),0.9))));
+    animando=true;
+    const curva=`transform ${ms}ms cubic-bezier(.2,.8,.2,1)`;
+    s.ramo.style.transition=curva;
+    s.atras.style.transition=`${curva},filter ${ms}ms linear`;
+    requestAnimationFrame(()=>{
+      s.ramo.style.transform=`translate3d(${fin}px,0,0)`;
+      s.atras.style.transform=`translate3d(${sale?0:-0.3*w}px,0,0)`;
+      s.atras.style.filter=`brightness(${sale?1:0.9})`;
+    });
+    setTimeout(()=>{
+      if(sale)showTab(s.destino);
+      limpiar(s.ramo,s.atras);
+      if(sale)setTabTransforms(currentTabIdx,0);
+      requestAnimationFrame(()=>{document.querySelector('.app').classList.remove('dragging');animando=false;});
+    },ms+30);
+  }
+  document.addEventListener('touchend',soltar,{passive:true});
+  document.addEventListener('touchcancel',soltar,{passive:true});
 })();
 
 // ─── ORDEN MANUAL DE RAMOS ─────────────────────────────────────────────────
@@ -2564,6 +2684,8 @@ function activarReordenRamos(container){
       ghost.style.width=rect.width+'px';
       document.body.appendChild(ghost);
       drag={ghost,offsetX:x-rect.left,offsetY:y-rect.top,x,y};
+      // En iOS, lo que se levanta con el dedo se siente al despegar.
+      vibrar('levantar');
       row.classList.add('ramo-drag-source');
       container.classList.add('ramo-reordering');
       document.body.classList.add('ramo-drag-active');
@@ -2621,14 +2743,38 @@ function activarReordenRamos(container){
 }
 
 
+// ─── Transiciones de la app (solo en la app) ────────────────────────────────
+// Abrir un ramo lo empuja desde la derecha y Volver lo devuelve por el mismo
+// camino, como la navegación de iOS (HIG Motion; "si algo desaparece por un
+// lado, se espera que vuelva por ahí"). Son View Transitions: el navegador
+// fotografía la pantalla de antes y la de después y styles.css las desliza;
+// la barra de pestañas tiene su propio nombre y se queda quieta. Sin soporte
+// (iOS 17 o anterior) cambia de golpe, como antes; con movimiento reducido, un
+// fundido. En la web no se usa.
+let _navTransicion=0;
+function transicionNativa(sentido,cambio){
+  const raiz=typeof document!=='undefined'&&document.documentElement;
+  if(!raiz||!raiz.classList||!raiz.classList.contains('app-nativa')||typeof document.startViewTransition!=='function'){cambio();return;}
+  const n=++_navTransicion;
+  raiz.dataset.nav=matchMedia('(prefers-reduced-motion: reduce)').matches?'fundido':sentido;
+  document.startViewTransition(cambio).finished.finally(()=>{if(n===_navTransicion)delete raiz.dataset.nav;});
+}
+// El contenido nuevo de una hoja (Ajustes) entra desde el lado hacia el que se
+// navega; la barra de arriba se queda, como en iOS.
+function entrarDesde(el,sentido){
+  const raiz=typeof document!=='undefined'&&document.documentElement;
+  if(el&&raiz&&raiz.classList&&raiz.classList.contains('app-nativa'))el.classList.add('nav-'+sentido);
+}
 function openRamo(id){
   currentRamoId=id;
-  ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
-  ['nav-home','nav-stats','nav-agenda'].forEach(n=>document.getElementById(n).classList.remove('active'));
-  document.getElementById('screen-ramo').classList.add('active');
   const r=S.ramos.find(x=>x.id===id);
   track('view_ramo',{del_catalogo:!!(r&&r.origen)});
-  renderRamo();
+  transicionNativa('push',()=>{
+    // La pestaña de donde viene queda marcada, como en iOS: dice a dónde lleva Volver.
+    ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
+    document.getElementById('screen-ramo').classList.add('active');
+    renderRamo();
+  });
 }
 function horaCorta(hora){return HORA_RE.test(hora||'')?hora:'';}
 function fechaHoraCorta(iso,hora){
@@ -2910,6 +3056,7 @@ function setSlotNota(catId,slot,raw){
   save();track('set_nota_slot');renderRamo();
   const notaValida=txt!==''&&!isNaN(parseNota(txt));
   if(notaValida){
+    vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
     animarPromedio(document.getElementById('ramo-hero-avg'),promedioAntes,promedioDespues,'ramo');
     if(cambioDePromedio(gpaAntes,gpaDespues)){
@@ -2939,6 +3086,7 @@ function setDirectNota(catId,raw){
   save();track('set_nota_directa');renderRamo();
   const notaValida=txt!==''&&!isNaN(parseNota(txt));
   if(notaValida){
+    vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
     animarPromedio(document.getElementById('ramo-hero-avg'),promedioAntes,promedioDespues,'ramo');
     if(cambioDePromedio(gpaAntes,gpaDespues)){
@@ -2966,7 +3114,7 @@ function confirmDeleteCat(catId){
 }
 function deleteNota(catId,notaId){
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
-  cat.notas=cat.notas.filter(n=>n.id!==notaId);save();renderRamo();
+  cat.notas=cat.notas.filter(n=>n.id!==notaId);save();renderRamo();vibrar('borrar');
 }
 
 // ─── RAMOS DE LA MALLA ───────────────────────────────────────────────────────
@@ -5613,7 +5761,7 @@ function openAddCatModal(prefillDate){
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
     </div>`;
   openModal();wirePesoControl();
-  setTimeout(()=>document.getElementById('m-cat-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-cat-name'));
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(addCatError){addCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddCat();});
 }
@@ -5645,6 +5793,9 @@ function confirmAddCat(){
 // veces todavía no está toda la información.
 let pautaDraft=[];
 let pautaDraftError='',pautaDraftErrorIndex=null,pautaDraftErrorTarget='';
+// Se abrió desde "Armar mi pauta" (el ramo no tenía evaluaciones): el título
+// dice eso y no "Editar evaluaciones", que es lo que dice el botón con pauta.
+let pautaArmando=false;
 function openPautaManualModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
@@ -5652,6 +5803,7 @@ function openPautaManualModal(){
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
+  pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
   setTimeout(()=>{const i=document.getElementById('m-pauta-nombre-0');if(i)i.focus();},100);
@@ -5767,7 +5919,10 @@ function textoConfirmarPautaDuplicada(origen,copia){
   return `Vas a copiar ${cantidad} evaluaci${cantidad===1?'ón':'ones'} y sus porcentajes desde ${origen.nombre}. No se copian notas ni fechas. Podrás ajustarla antes de guardar.`;
 }
 function duplicarPautaDesdeRamo(){
-  const origenId=(document.getElementById('m-pauta-origen')||{}).value;
+  const selector=document.getElementById('m-pauta-origen')||{};
+  const origenId=selector.value;
+  // Si cancela la confirmación, el selector no se queda mostrando ese ramo.
+  if(origenId)selector.value='';
   const origen=S.ramos.find(r=>r.id===origenId);const copia=pautaDuplicada(origen);
   if(!copia.length){showToast('Elige un ramo con evaluaciones',true);return;}
   showConfirm(`Usar la pauta de ${origen.nombre}`,textoConfirmarPautaDuplicada(origen,copia),()=>{
@@ -5780,51 +5935,66 @@ function renderPautaManualModal(){
   const ejemplo=ejemploEvaluacion(S.tenant);
   const sugerencias=opcionesSugerenciasEvaluacion(S.tenant);
   const disponibles=plantillasPauta(S.tenant);
-  const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div style="margin:0 0 12px;padding:11px 12px;border-radius:10px;background:var(--muted);">
-    <div style="font-size:0.8125rem;font-weight:700;color:var(--fg);margin-bottom:7px;">Parte con una estructura</div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')" style="padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--fg);font:600 12px var(--font-ui);cursor:pointer;">${p.label}</button>`).join('')}</div>
-    <div style="font-size:0.75rem;color:var(--fg2);line-height:1.4;margin-top:8px;">Los pesos quedan en 0%. Confírmalos con el programa del curso.</div>
+  const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div class="pauta-plantillas">
+    <div class="pauta-plantillas-titulo">Parte con una estructura</div>
+    <div class="pauta-plantillas-opciones">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')">${p.label}</button>`).join('')}</div>
+    <div class="pauta-plantillas-nota">Los pesos quedan en 0%. Confírmalos con el programa del curso.</div>
   </div>`:'';
-  const duplicar=fuentes.length?`<div style="margin:0 0 12px;padding:11px 12px;border-radius:10px;border:1px solid var(--border);">
-    <div style="font-size:0.8125rem;font-weight:700;color:var(--fg);margin-bottom:4px;">¿Ya la tienes armada en otro ramo?</div>
-    <div style="font-size:0.75rem;color:var(--fg2);line-height:1.4;margin-bottom:8px;">Copia evaluaciones y porcentajes. Tus notas y fechas no se copian.</div>
-    <div style="display:flex;gap:7px;"><select id="m-pauta-origen" style="min-width:0;flex:1;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--fg);font:inherit;"><option value="">Elige un ramo</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluación${r.cantidad!==1?'es':''}</option>`).join('')}</select><button type="button" onclick="duplicarPautaDesdeRamo()" style="padding:9px 11px;border:0;border-radius:9px;background:var(--primary);color:white;font:600 12px var(--font-ui);cursor:pointer;">Usar pauta</button></div>
-  </div>`:'';
+  // Elegir un ramo ya pide confirmación (duplicarPautaDesdeRamo): sin botón aparte.
+  const duplicar=fuentes.length?`<label class="pauta-copiar"><span>Copiar de otro ramo</span>
+    <select id="m-pauta-origen" onchange="duplicarPautaDesdeRamo()"><option value="">Elegir</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluaci${r.cantidad===1?'ón':'ones'}</option>`).join('')}</select></label>`:'';
+  // Una sola fila vacía no tiene nada que quitar ni marcar.
+  const unaVacia=pautaDraft.length===1&&!pautaDraft[0].nombre.trim()&&!pautaDraft[0].peso;
   const filas=pautaDraft.map((fila,i)=>{
     // El editor nunca decide un porcentaje. Solo calcula el resto y se lo
-    // ofrece a la fila vacía que la persona eligió explícitamente.
+    // ofrece a la fila vacía, que la persona elige explícitamente.
     const resto=restoParaPautaFila(i);
-    const errorEnFila=pautaDraftErrorIndex===i;
-    const usarResto=fila.peso===0?`<button type="button" onclick="usarRestoPauta(${i})" style="margin-top:4px;padding:0;border:0;background:none;color:var(--primary);font:700 10px var(--font-ui);cursor:pointer;white-space:nowrap;">${resto>0?`Usar ${r2(resto)}%`:'Usar el resto'}</button>`:'';
-    const cantidad=fila.varias?`<div style="grid-column:1 / -1;display:flex;align-items:center;gap:7px;padding:7px 9px;margin-top:-2px;border-radius:9px;background:var(--muted);font-size:0.75rem;color:var(--fg2);"><span style="flex:1;min-width:0;">Se promedian varias notas</span><label style="display:flex;align-items:center;gap:4px;white-space:nowrap;">Esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${esc(fila.nombre||'evaluación')}" style="width:32px;padding:5px 4px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--fg);font:inherit;text-align:center;"/> notas</label></div>`:'';
+    const invalido=t=>pautaDraftErrorIndex===i&&pautaDraftErrorTarget===t?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
+    const nombre=esc(fila.nombre||'evaluación');
+    const usarResto=!fila.peso&&resto>0?`<button type="button" class="pauta-resto" onclick="usarRestoPauta(${i})">Usar ${r2(resto)}%</button>`:'';
+    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
+    const mas=unaVacia?'':`<button type="button" class="pauta-mas" id="m-pauta-quitar-${i}" onclick="abrirMenuPautaFila(this,${i})" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de ${nombre}"${invalido('quitar')}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>`;
     return `
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 52px 30px;gap:6px;align-items:center;margin:8px 0;">
-      <input type="text" id="m-pauta-nombre-${i}" value="${esc(fila.nombre)}" placeholder="Ej: ${ejemplo} ${i+1}" maxlength="${NOMBRE_MAX}" list="m-pauta-sugerencias" autocomplete="off" oninput="actualizarPautaNombre(${i},this.value)" onkeydown="pautaTecla(event,${i},'nombre')" ${errorEnFila&&pautaDraftErrorTarget==='nombre'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="min-width:0;padding:11px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;"/>
-      <div style="position:relative;"><input type="text" inputmode="decimal" id="m-pauta-peso-${i}" value="${fila.peso?r2(fila.peso):''}" placeholder="0" maxlength="6" oninput="actualizarPautaPeso(${i},this.value)" onkeydown="pautaTecla(event,${i},'peso')" aria-label="Peso de ${esc(fila.nombre||'evaluación')}" ${errorEnFila&&pautaDraftErrorTarget==='peso'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="width:100%;box-sizing:border-box;padding:11px 23px 11px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;"/><span style="position:absolute;right:9px;top:11px;color:var(--fg3);font-size:0.8125rem;pointer-events:none;">%</span>${usarResto}</div>
-      <label title="Son varias notas que se promedian" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:40px;cursor:pointer;font-size:0.5625rem;color:var(--fg3);font-weight:700;line-height:1;">
-        <input type="checkbox" ${fila.varias?'checked':''} onchange="actualizarPautaVarias(${i},this.checked)" aria-label="${esc(fila.nombre||'Evaluación')}: son varias notas que se promedian" style="width:17px;height:17px;accent-color:var(--primary);"/><span style="margin-top:2px;">VARIAS</span>
-      </label>
-      <button type="button" id="m-pauta-quitar-${i}" onclick="quitarPautaFila(${i})" title="${fila.tieneNotas?'Esta evaluación ya tiene notas':'Quitar evaluación'}" aria-label="Quitar evaluación" ${errorEnFila&&pautaDraftErrorTarget==='quitar'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="height:40px;border:0;border-radius:10px;background:var(--muted);color:var(--fg2);font-size:1.25rem;cursor:pointer;">×</button>
-      ${cantidad}
+    <div class="pauta-fila">
+      <div class="pauta-fila-main">
+        <input type="text" class="pauta-nombre" id="m-pauta-nombre-${i}" value="${esc(fila.nombre)}" placeholder="Ej: ${ejemplo} ${i+1}" maxlength="${NOMBRE_MAX}" list="m-pauta-sugerencias" autocomplete="off" oninput="actualizarPautaNombre(${i},this.value)" onkeydown="pautaTecla(event,${i},'nombre')" aria-label="Nombre de la evaluación"${invalido('nombre')}/>
+        <label class="pauta-peso"><input type="text" inputmode="decimal" id="m-pauta-peso-${i}" value="${fila.peso?r2(fila.peso):''}" placeholder="0" maxlength="6" oninput="actualizarPautaPeso(${i},this.value)" onkeydown="pautaTecla(event,${i},'peso')" aria-label="Peso de ${nombre}"${invalido('peso')}/><span aria-hidden="true">%</span></label>
+        ${mas}
+      </div>${cantidad||usarResto?`
+      <div class="pauta-fila-extra">${cantidad}${usarResto}</div>`:''}
     </div>`;
   }).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Editar evaluaciones</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.45;margin:-4px 0 12px;">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
+    <div class="modal-title">${pautaArmando?'Armar mi pauta':'Editar evaluaciones'}</div>
+    <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
     ${plantillas}
     ${duplicar}
     <datalist id="m-pauta-sugerencias">${sugerencias}</datalist>
-    <div id="m-pauta-total" style="padding:10px 12px;border-radius:10px;background:var(--muted);color:var(--fg2);font-size:0.8125rem;font-weight:600;margin-bottom:10px;">${pautaResumen()}</div>
-    <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'} style="margin:-3px 0 10px;font-size:0.8125rem;color:var(--red);">${esc(pautaDraftError)}</p>
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 52px 30px;gap:6px;font-size:0.6875rem;color:var(--fg3);text-transform:uppercase;letter-spacing:.04em;font-weight:700;">
-      <span>Evaluación</span><span>Peso</span><span title="Son varias notas que se promedian" style="text-align:center;">Notas</span><span></span>
+    <div class="pauta-total" id="m-pauta-total">${totalPautaHTML()}</div>
+    <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'}>${esc(pautaDraftError)}</p>
+    <div class="pauta-lista">${filas}
+      <button type="button" class="pauta-agregar" onclick="agregarPautaFila()"><span aria-hidden="true">+</span> Agregar evaluación</button>
     </div>
-    <div>${filas}</div>
-    <button type="button" onclick="agregarPautaFila()" style="width:100%;padding:10px;border:1px dashed var(--border2);border-radius:10px;background:none;color:var(--primary);font:600 13px var(--font-ui);cursor:pointer;">+ Otra evaluación</button>
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" onclick="guardarPautaManual()">Guardar</button>
     </div>`;
+}
+// El total con su barra. La barra es neutra a propósito: el semáforo es de las
+// notas, no de cuánto porcentaje lleva escrito la pauta.
+function totalPautaHTML(){
+  const e=estadoPauta(pautaDraft);
+  const avance=Math.min(Math.max(e.total/100,0),1);
+  return `<div class="pauta-total-texto${e.lista?' lista':''}" aria-live="polite">${pautaResumen()}</div><div class="pauta-total-barra" aria-hidden="true"><i style="transform:scaleX(${avance.toFixed(3)})"></i></div>`;
+}
+// "⋯" de cada evaluación: marcar que se promedian varias notas y quitarla.
+function abrirMenuPautaFila(boton,i){
+  const fila=pautaDraft[i];if(!fila)return;
+  abrirMenu(boton,[
+    {texto:'Varias notas',marcado:!!fila.varias,accion:()=>actualizarPautaVarias(i,!fila.varias)},
+    'sep',
+    {texto:'Quitar evaluación',peligro:true,accion:()=>quitarPautaFila(i)}
+  ]);
 }
 function limpiarErrorPauta(){
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
@@ -5870,7 +6040,7 @@ function actualizarPautaPeso(i,valor){
   const peso=Math.min(100,Number(limpio)||0);
   pautaDraft[i].peso=peso;
   const input=document.getElementById('m-pauta-peso-'+i);if(input&&input.value!==limpio)input.value=limpio;
-  const total=document.getElementById('m-pauta-total');if(total)total.textContent=pautaResumen();
+  const total=document.getElementById('m-pauta-total');if(total)total.innerHTML=totalPautaHTML();
 }
 function agregarPautaFila(){
   pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});renderPautaManualModal();
@@ -5979,7 +6149,7 @@ function openAddNotaModal(catId){
       <button class="btn-confirm" id="m-add-nota-btn" onclick="confirmAddNota('${catId}')">Agregar nota</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   function checkValid(){
     const v=parseNota(document.getElementById('m-nota-val').value);
     const btn=document.getElementById('m-add-nota-btn');
@@ -6010,6 +6180,7 @@ function confirmAddNota(catId){
   else asignarCalificacionNota(nueva,rawNota,val);
   cat.notas.push(nueva);
   openCats[catId]=true;save();track('add_nota',{ponderada:usaPond,pendiente:isNaN(val)});closeModal();renderRamo();
+  if(!isNaN(val))vibrar('nota');
   // Si trae fecha entra a la Agenda, que vive en otra pantalla.
   if(typeof renderAgenda==='function')renderAgenda();
   showToast(isNaN(val)?'Anotada para el '+fechaCorta(fechaNota||'')+' — agrega la nota cuando la rindas':lecturaDespuesDeNota(r));
@@ -6096,6 +6267,8 @@ function abrirMenu(boton,items){
   fondo.id='menu-flotante-fondo';fondo.className='user-menu-backdrop open';fondo.onclick=cerrarMenu;
   const m=document.createElement('div');
   m.id='menu-flotante';m.className='user-menu open menu-flotante';m.setAttribute('role','menu');
+  // Si alguna opción lleva ✓, todas guardan su lugar y el texto queda alineado.
+  const conMarcas=items.some(it=>it!=='sep'&&it.marcado!==undefined);
   items.forEach(it=>{
     if(it==='sep'){const s=document.createElement('div');s.className='user-menu-sep';m.appendChild(s);return;}
     const b=document.createElement('button');
@@ -6104,7 +6277,7 @@ function abrirMenu(boton,items){
     b.setAttribute('role',radio?'menuitemradio':'menuitem');
     if(radio)b.setAttribute('aria-checked',String(!!it.marcado));
     // Como en iOS, el ✓ va antes del texto y las otras opciones guardan su lugar.
-    b.innerHTML=`${radio?(it.marcado?CHECK_MENU:'<span class="menu-check" aria-hidden="true"></span>'):''}${it.icono||''}<span class="menu-texto">${esc(it.texto)}</span>`;
+    b.innerHTML=`${it.marcado?CHECK_MENU:conMarcas?'<span class="menu-check" aria-hidden="true"></span>':''}${it.icono||''}<span class="menu-texto">${esc(it.texto)}</span>`;
     b.onclick=()=>{cerrarMenu();setTimeout(()=>{try{it.accion();}catch(e){}},60);};
     m.appendChild(b);
   });
@@ -7152,6 +7325,7 @@ function openSettings(){
     document.getElementById('settings-search-status').textContent=settingsSearch.trim()?`${results.length} ${results.length===1?'sección encontrada':'secciones encontradas'}`:'';
     document.querySelectorAll('[data-settings-section]').forEach(b=>b.onclick=()=>{
       activeSection=b.dataset.settingsSection;renderSettings();
+      entrarDesde(document.querySelector('.settings-shell'),'push');
       if(activeSection!=='perfil')document.getElementById('settings-detail-title').focus();
     });
   }
@@ -7178,6 +7352,7 @@ function openSettings(){
     search.oninput=()=>{settingsSearch=search.value;renderSettingsNav();};
     const back=document.querySelector('.settings-back');if(back)back.onclick=()=>{
       const previous=activeSection;activeSection='';renderSettings();
+      entrarDesde(document.querySelector('.settings-shell'),'pop');
       const option=document.querySelector(`[data-settings-section="${previous}"]`);
       (option||document.getElementById('settings-search')).focus();
     };
@@ -7195,7 +7370,7 @@ function openSettings(){
       if(inp){
         inp.addEventListener('input',()=>{settingsName=inp.value;if(settingsNameError){settingsNameError='';limpiarErrorCampo('s-name','s-name-error');}checkSave();});
         inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
-        setTimeout(()=>{inp.focus();inp.select();},100);
+        enfocarEnHoja(inp,()=>inp.select());
       }
     }
   }
@@ -7823,7 +7998,7 @@ function abrirImportar(){
     ${hayRespaldoPreImport()?`<p style="text-align:center;margin:14px 0 0;font-size:0.78125rem;">
       <button onclick="deshacerImport()" style="border:none;background:none;padding:0;cursor:pointer;font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;color:var(--primary);">Deshacer la última importación</button></p>`:''}`;
   openModal();
-  setTimeout(()=>document.getElementById('import-text').focus(),100);
+  enfocarEnHoja(document.getElementById('import-text'));
 }
 // Clave del respaldo automático previo a un import. Existe porque importar es
 // la única acción de la app que destruye datos sin posible deshacer: reemplaza
@@ -8074,6 +8249,26 @@ function openModal(){
 // quitar `.open` basta para que el sheet baje y recién ahí desaparezca.
 // La versión anterior de este arreglo llevaba una clase `.cerrando` y un
 // `transitionend`; sobraba entera.
+// El campo que una hoja enfoca al abrirse. En la app espera a que la hoja
+// termine de subir y no desplaza la página: si el foco llegaba antes, WebKit
+// corría todo hacia arriba para mostrar un campo que todavía venía subiendo, y
+// la hoja quedaba bajo la barra de estado, con el botón de cerrar fuera de la
+// vista. En la web sigue como siempre.
+function enfocarEnHoja(el,despues){
+  if(!el)return;
+  const ir=()=>{
+    if(!el.isConnected)return;
+    if(enAppNativa()){try{el.focus({preventScroll:true});}catch(e){el.focus();}}
+    else el.focus();
+    if(despues)despues();
+  };
+  // Solo se espera si la hoja está subiendo (recién abierta); dentro de una
+  // hoja ya abierta, como Ajustes, el foco llega como antes.
+  const hoja=enAppNativa()&&document.querySelector('#modal.open .modal-sheet');
+  const dura=hoja?parseFloat(getComputedStyle(hoja).transitionDuration)*1000||0:0;
+  const subiendo=!!(hoja&&hoja.getAnimations&&hoja.getAnimations().length);
+  setTimeout(ir,subiendo?Math.max(100,dura):100);
+}
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
   // En el carrusel de pestañas el documento nunca se desplaza: cada pantalla
@@ -8211,7 +8406,9 @@ function showConfirm(title,desc,fn,opts){
   const btn=document.getElementById('confirm-action');
   btn.textContent=opts.label||'Eliminar';
   btn.className=opts.danger===false?'btn-prim-sm':'btn-danger';
+  const borra=opts.danger!==false;
   btn.onclick=()=>{
+    if(borra&&typeof vibrar==='function')vibrar('borrar');
     const confirmar=_confirmFn;
     closeConfirm();
     if(confirmar)confirmar();
@@ -8675,7 +8872,7 @@ function openEditNotaModal(catId,notaId){
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
 }
 function confirmEditNota(catId,notaId){
@@ -8698,6 +8895,7 @@ function confirmEditNota(catId,notaId){
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
+  if(!isNaN(val))vibrar('nota');
   if(typeof renderAgenda==='function')renderAgenda();
   showToast(isNaN(val)?'Guardada como pendiente':lecturaDespuesDeNota(r));
 }
@@ -8736,7 +8934,7 @@ function openCalculadoraModal(){
       <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-calc-target').focus(),100);
+  enfocarEnHoja(document.getElementById('m-calc-target'));
 
   window.calcResult=function(){
     const target=parseNota(document.getElementById('m-calc-target').value);
@@ -9431,6 +9629,25 @@ function notaParaIrConCuatro(e,ramosContexto){
   while(alto-bajo>1){const m=(bajo+alto)>>1;if(aprueba(m))alto=m;else bajo=m;}
   return {nota:(alto/10).toFixed(1)};
 }
+// Lo que hay que hacer, en orden de urgencia (#639): lo de hoy o mañana, mandar
+// a recorregir, lo que ya pasó sin nota y lo que no tiene fecha. Se deriva de
+// lo que ya existe y no guarda nada. `ahora` se inyecta en los tests.
+function pendientes(ahora){
+  ahora=ahora||new Date();
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const m=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+1);
+  const manana=isoOf(m.getFullYear(),m.getMonth(),m.getDate());
+  // El mismo nombre que usa la Agenda para cada casilla.
+  const item=(tipo,ramo,cat,nota,fecha,hora)=>({tipo,ramo,cat,nota:nota||null,fecha:fecha||null,hora:hora||null,
+    nombre:(nota&&nombreNotaCasilla(ramo,cat,nota))||cat.nombre});
+  const fechadas=agendaEvents().filter(e=>e.pending&&e.fecha<=manana);
+  return [
+    ...fechadas.filter(e=>e.fecha>=hoy).map(e=>item('hoy',e.ramo,e.cat,e.nota,e.fecha,e.hora)),
+    ...recorreccionesPendientes().map(x=>item('recorregir',x.ramo,x.cat,x.nota,x.plazo&&x.plazo.fecha)),
+    ...fechadas.filter(e=>e.fecha<hoy).map(e=>item('sin-nota',e.ramo,e.cat,e.nota,e.fecha)),
+    ...agendaSinFecha().map(x=>item('sin-fecha',x.ramo,x.cat)),
+  ];
+}
 function resumenParaWidgets(ahora){
   ahora=ahora||new Date();
   const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
@@ -9438,8 +9655,17 @@ function resumenParaWidgets(ahora){
   const g=gpa(S.ramos);
   const ramos=S.ramos.map(r=>{
     const v=ramoAvg(r);
-    return {id:r.id,nombre:r.nombre,promedio:v===null?null:notaFinalOficial(v),nivel:v===null?null:nivelRamo(r,v)};
+    return {id:r.id,nombre:r.nombre,color:r.color||null,promedio:v===null?null:notaFinalOficial(v),nivel:v===null?null:nivelRamo(r,v)};
   });
+  // Lo de hoy o mañana no va: el widget lo saca de la agenda, que sabe la hora.
+  const tareas=pendientes(ahora).filter(p=>p.tipo!=='hoy').slice(0,12).map(p=>({tipo:p.tipo,ramoId:p.ramo.id,ramo:p.ramo.nombre,
+    sigla:sigla(p.ramo),color:p.ramo.color||null,evaluacion:p.nombre,fecha:p.fecha}));
+  // Las mismas cifras de Estadísticas (renderStats), escritas como allá.
+  const proy=proyeccionSemestre(S.ramos),exige=loQueFaltaPorRamo(S.ramos)[0];
+  const estadisticas={avance:avanceEvaluaciones(S.ramos).pct,
+    rango:proy&&{piso:nf(proy.piso),techo:nf(proy.techo),nivelPiso:nivelNota(proy.piso),nivelTecho:nivelNota(proy.techo)},
+    exigente:exige?{ramoId:exige.ramo.id,ramo:exige.ramo.nombre,color:exige.ramo.color||null,
+      necesitas:exige.necesita>7.05?null:nfNecesaria(Math.max(1,exige.necesita))}:null};
   const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
     const cuatro=notaParaIrConCuatro(e)||{};
     return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
@@ -9451,7 +9677,7 @@ function resumenParaWidgets(ahora){
       parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
   });
   return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
-    promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda};
+    promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda,pendientes:tareas,estadisticas};
 }
 let _pluginWidgets,_widgetsTimer=null;
 function pluginWidgets(){
@@ -9493,11 +9719,12 @@ function borrarResumenWidgets(){
     return ids.length?ln.cancel({notifications:ids}):null;}).catch(()=>{});
 }
 // Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
-// ://agenda o ://inicio. Un ramo que ya no existe deja en Inicio.
+// ://agenda, ://estadisticas o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
-  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
   if(!m||!S.onboardingDone)return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
+  if(m[1]==='estadisticas'){showTab('stats');return true;}
   if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
     openRamo(m[2]);
     // "¿Cómo crees que te fue?" abre el simulador del ramo.
