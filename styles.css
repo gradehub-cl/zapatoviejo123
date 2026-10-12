@@ -311,7 +311,7 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
    de ~130px— y en el celular el calendario nativo se abre anclado a esa caja
    diminuta. Poner la fecha de una prueba era pelear con un control enano.
    El font-size de 16px además evita que iOS haga zoom al enfocarlo. */
-input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search]{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;font-family:var(--font-ui);color:var(--fg);background:var(--bg2);outline:none;transition:border var(--motion-fast);}
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search],input[type=url]{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;font-family:var(--font-ui);color:var(--fg);background:var(--bg2);outline:none;transition:border var(--motion-fast);}
 /* El campo tiene que ser tocable con el pulgar: 44px es el mínimo que
    recomiendan iOS y Android para un objetivo táctil. Y el ícono del calendario
    viene de 12px en Chrome — a ese tamaño hay que apuntarle. */
@@ -3102,6 +3102,11 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 #s-canvas .btn-confirm{width:100%;min-height:44px;margin-top:10px;}
 #s-canvas .settings-reset-btn{margin-top:12px;min-height:44px;}
 #s-canvas-estado.es-error{color:var(--red);}
+/* La misma sección en la web, con la fuente de calendario (#647). */
+#s-canvas-ics .btn-confirm{width:100%;min-height:44px;margin-top:10px;}
+#s-canvas-ics .settings-reset-btn{margin-top:12px;min-height:44px;}
+#s-canvas-ics .settings-data-actions button,#s-canvas-ics input.campo-url{min-height:44px;}
+#s-canvas-ics-estado.es-error{color:var(--red);}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

@@ -58,7 +58,9 @@ chk('en la app sí, para la UC',run(`canvasDisponible()`)===true&&run(`S.tenant=
 const app=leer('app.js');
 chk('Ajustes lo muestra solo si está disponible',/\$\{canvasDisponible\(\)\?`[\s\S]{0,120}Canvas UC/.test(app));
 chk('el token se valida antes de mandarlo',run(`TOKEN_CANVAS_RE.test('1234~'+'a'.repeat(64))`)===true&&run(`TOKEN_CANVAS_RE.test('hola')`)===false);
-const canvasJs=app.slice(app.indexOf('// ─── CANVAS UC'),app.indexOf('function buildICS'));
+// Solo la parte iOS (el token). La de la web, que sí guarda su URL en el
+// dispositivo, tiene su propio test: tests/canvas-calendario.test.js.
+const canvasJs=app.slice(app.indexOf('// ─── CANVAS UC (app iOS'),app.indexOf('// ─── CANVAS UC EN LA WEB'));
 chk('el token no se guarda en el navegador ni en S',!/localStorage|S\.\w+\s*=.*token|syncToCloud/.test(canvasJs));
 chk('la medición solo lleva conteos',/track\('canvas_ramos',\{encontrados:cursos\.length,faltan:faltan\.length\}\)/.test(app)&&!/track\('canvas[^)]*token/.test(app));
 chk('desconectar se confirma con el diálogo de la app',/showConfirm\('Desconectar Canvas'/.test(app));
