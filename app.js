@@ -498,8 +498,12 @@ function normalize(data) {
   data.acento = ACENTOS[data.acento] ? data.acento : 'turquesa';
   data.fondo = FONDOS[data.fondo] ? data.fondo : 'neutro';
   data.sortMode = ['manual','avg','name'].includes(data.sortMode) ? data.sortMode : 'manual';
+  // Estudiante o profesor (#697). Toda cuenta que no diga 'profesor' es de
+  // estudiante: así cargan igual que siempre las que existían antes de esto.
+  data.tipoCuenta = data.tipoCuenta === 'profesor' ? 'profesor' : 'estudiante';
   return data;
 }
+function esCuentaProfesor(){return !!(S&&S.tipoCuenta==='profesor');}
 
 function loadData() {
   try {
