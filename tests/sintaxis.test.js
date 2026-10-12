@@ -219,7 +219,8 @@ if ((html.match(/class="password-toggle"/g) || []).length !== 2 ||
   console.error('los dos campos del registro necesitan un ojo accesible para mostrar y ocultar');
   process.exit(1);
 }
-if (!/\.password-toggle\{[^}]*top:2px;[^}]*height:40px/.test(css)) {
+// El campo mide 44 pt y el ojo también: arriba en 0, completo dentro del campo.
+if (!/\.password-toggle\{[^}]*top:0;[^}]*height:44px/.test(css) || !/input\[type=password\][^{]*\{[^}]*min-height:44px/.test(css)) {
   console.error('el ojo debe quedar completo dentro del campo, no partir desde su mitad');
   process.exit(1);
 }
