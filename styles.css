@@ -313,6 +313,10 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ob-ruleta-ayuda{margin:-4px 0 10px;font-size:0.8125rem;color:var(--fg2);}
 .ob-ruleta-aviso{margin:10px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
 .ob-ruleta-aviso:empty{display:none;}
+.sem-grid[hidden]{display:none;}
+.ob-sem-calculado{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;font-size:0.9375rem;color:var(--fg2);}
+.ob-sem-calculado b{color:var(--fg);}
+.ob-sem-cambiar{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;flex-shrink:0;}
 .ob-edad label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;}
 .ob-edad input{margin-top:2px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--primary);}
 .ob-edad b{color:var(--fg);font-weight:650;}

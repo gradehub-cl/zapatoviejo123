@@ -296,14 +296,15 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 
     <div class="ob-step" data-step="4" style="display:none;">
       <div class="ob-step-num">Paso 4 de 5</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1">¿En qué semestre vas?</h1>
-      <div class="ob-sub ob-sub-left">Lo usamos para sugerirte ramos, cuando tenemos tu malla.</div>
-      <div class="sem-grid" id="sem-grid"></div>
-      <div class="ob-card ob-ruleta-card" style="margin-top:16px;">
-        <p class="field-label" id="ob-generacion-titulo">¿De qué generación eres?</p>
-        <p class="ob-ruleta-ayuda">El año en que entraste a la universidad.</p>
+      <h1 class="ob-title ob-title-left" tabindex="-1">¿De qué generación eres?</h1>
+      <div class="ob-sub ob-sub-left">El año en que entraste a la universidad. Con eso y la fecha sabemos en qué semestre vas.</div>
+      <div class="ob-card ob-ruleta-card">
+        <p class="field-label" id="ob-generacion-titulo">Año de ingreso</p>
         <div id="ob-generacion-ruleta"></div>
       </div>
+      <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
+      <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
+      <div class="sem-grid" id="sem-grid" hidden></div>
     </div>
 
     <div class="ob-step" data-step="5" style="display:none;">

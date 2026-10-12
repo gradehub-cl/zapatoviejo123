@@ -32,7 +32,7 @@ assert.equal(run("semestresDeCarrera('uandes',null)"),11,'carrera sin malla: 11 
 const botones=()=>porId('sem-grid').hijos.map(b=>b.textContent);
 setImmediate(()=>{
 assert.equal(botones().length,12);assert.equal(botones()[11],'12°');
-run("selectedSem=12;selectedCarrera='ONCE';obRender()");
+run("selectedSem=12;obSemManual=true;selectedCarrera='ONCE';obRender()"); // elegido a mano con «Cambiar»
 assert.equal(botones().length,11);
 assert.equal(run('selectedSem'),11,'si la carrera nueva es más corta, no queda un semestre invisible elegido');
 

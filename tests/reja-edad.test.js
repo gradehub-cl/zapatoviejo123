@@ -54,6 +54,19 @@ chk('completeOnboarding la llama',/registrarDeclaracionEdad\(\{edad:obEdad,gener
 chk('la columna es aditiva y nullable: no toca las cuentas que ya existen',
   /add column if not exists edad_declarada_en timestamptz;/.test(sql)&&!/not null/i.test(sql));
 
+// El semestre sale de la generación y la fecha (Lucas, 2026-10-12).
+const sem=(g,y,m)=>val(`semestreSegunGeneracion(${g},new Date(${y},${m},15))`);
+chk('entró en 2026 y es octubre de 2026: 2.º semestre',sem(2026,2026,9)===2);
+chk('entró en 2026 y es abril: 1.º',sem(2026,2026,3)===1);
+chk('entró en 2025 y es octubre de 2026: 4.º',sem(2025,2026,9)===4);
+chk('en el verano cuenta el que empieza en marzo: enero de 2027 → 3.º',sem(2026,2027,0)===3);
+chk('quien entra este año y es verano: 1.º',sem(2027,2027,1)===1);
+chk('agosto ya es segundo semestre',sem(2026,2026,7)===2&&sem(2026,2026,6)===1);
+chk('nunca menos que el 1.º',sem(2030,2026,9)===1);
+chk('se muestra y se puede cambiar',/id="ob-sem-calculado"/.test(html)&&/id="sem-grid" hidden/.test(html)&&/mostrarSemestreManual\(\)">Cambiar</.test(fs.readFileSync(path.join(raiz,'app.js'),'utf8')));
+chk('la generación se guarda en la cuenta; las anteriores quedan en null',
+  val('normalize({ramos:[]}).generacion')===null&&val('normalize({ramos:[],generacion:2024}).generacion')===2024&&val('normalize({ramos:[],generacion:1999}).generacion')===null);
+
 // Edad y generación se guardan en el perfil, aparte de la constancia: si sus
 // columnas todavía no existieran, la declaración igual queda registrada.
 const subidas=[];
