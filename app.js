@@ -9116,10 +9116,12 @@ function ramoConNotaHipotetica(r,e,x){
   cat.notas.push({id:'hipotetica',nombre:cat.nombre,peso:1,valor:x});
   return copia;
 }
-function notaParaIrConCuatro(e){
+// `ramosContexto` son los ramos donde buscar el vinculado (el laboratorio de
+// Dinámica); sin él, los de la persona. El panel del profesor pasa los del alumno.
+function notaParaIrConCuatro(e,ramosContexto){
   const aprueba=decimas=>{
     const r=ramoConNotaHipotetica(e.ramo,e,decimas/10);if(!r)return null;
-    const v=ramoAvg(r);return v===null?null:notaAprobadaRamo(r,v);
+    const v=ramoAvg(r,undefined,ramosContexto);return v===null?null:notaAprobadaRamo(r,v);
   };
   const conUno=aprueba(10),conSiete=aprueba(70);
   if(conUno===null||conSiete===null)return null;

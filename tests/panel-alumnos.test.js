@@ -109,6 +109,27 @@ function contexto({search='',sesion=false}={}){
   chk('sin fechas por venir, no aparece nada',!/panel-alumnos-proxima/.test(a.run(`ramoPanelHTML(__conI2(3.0,50,'2026-10-01'),null,__hoy)`)));
   chk('agendaEvents sin argumento sigue usando los ramos de la persona',a.run('S.ramos=[__conI2(3.0)];agendaEvents().length')===2&&a.run('(S.ramos=[],agendaEvents().length)')===0);
 
+  console.log('\n=== El ramo vinculado se busca entre los ramos del alumno ===');
+  // El profesor también tiene su Laboratorio de Dinámica (un 1,0). Antes, la
+  // Dinámica del alumno se combinaba con ese laboratorio y no con el suyo.
+  a.run(`globalThis.__din={id:'d',nombre:'Dinámica',sigla:'FIS1514',aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},gates:[],categorias:[
+      {id:'i',nombre:'Interrogaciones',peso:100,notas:[{id:'x',nombre:'Interrogación 1',valor:5.0}]}]};
+    globalThis.__lab=v=>({id:'l'+v,nombre:'Laboratorio de Dinámica',sigla:'FIS0154',gates:[],categorias:[{id:'k',nombre:'Laboratorios',peso:100,notas:[{id:'y',nombre:'Lab 1',valor:v}]}]});
+    globalThis.__alDin={id:'ad',nombre_visible:'Dani',tenant:'uc',ramos:[__din,__lab(6.0)]};
+    S.ramos=[__lab(1.0)];`);
+  const propio=a.run(`ramoAvg(ramoParaPanel(__din),undefined,[ramoParaPanel(__din),ramoParaPanel(__lab(6.0))])`);
+  const conElDelProfe=a.run(`ramoAvg(ramoParaPanel(__din))`);
+  chk('el caso existe: con el laboratorio del profesor el promedio cambia',Math.abs(propio-conElDelProfe)>0.5);
+  chk('la ficha del alumno usa su propio laboratorio',
+    a.run(`alumnosPanelHTML([__alDin],()=>null)`).includes(`${a.run(`fmtPromedio(${propio})`)}<small>promedio`));
+  chk('el resumen también',Math.abs(a.run(`resumenAlumnosPanel([__alDin],()=>null).find(g=>g.sigla==='FIS1514').promedio`)-propio)<1e-9);
+  chk('y el archivo para Excel',a.run(`csvAlumnosPanel([__alDin],()=>null)`).split('\r\n')[1].split(';')[6]===a.run(`fmtPromedio(${propio})`).replace('.',','));
+  chk('buscar "dinámica" no cambia su promedio aunque esconda el laboratorio',
+    a.run(`alumnosPanelHTML(filtrarAlumnosPanel([__alDin],'dinámica'),()=>null)`).includes(`${a.run(`fmtPromedio(${propio})`)}<small>promedio`));
+  chk('sin laboratorio compartido, no toma el del profesor',
+    Math.abs(a.run(`resumenAlumnosPanel([{...__alDin,ramos:[__din]}],()=>null)[0].promedio`)-a.run(`ramoAvg(ramoParaPanel(__din),undefined,[ramoParaPanel(__din)])`))<1e-9);
+  a.run('S.ramos=[]');
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.
