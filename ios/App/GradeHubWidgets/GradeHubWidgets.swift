@@ -1,8 +1,9 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
-// Widgets de GradeHub (#634, #635, #637). Solo muestran el resumen que calculó
+// Widgets de GradeHub (#634–#638). Solo muestran el resumen que calculó
 // la app con el motor de siempre: acá no se calcula ninguna nota. Lo único que
 // depende de la hora ("hoy", "en 3 días") se resuelve en el widget.
 
@@ -10,7 +11,7 @@ import WidgetKit
 
 struct Resumen: Decodable {
     struct Promedio: Decodable { let oficial: Double; let nivel: String }
-    struct Ramo: Decodable { let id: String; let nombre: String; let promedio: Double?; let nivel: String? }
+    struct Ramo: Decodable { let id: String; let nombre: String; let color: String?; let promedio: Double?; let nivel: String? }
     struct Evaluacion: Decodable {
         let ramoId: String
         let ramo: String
@@ -28,12 +29,36 @@ struct Resumen: Decodable {
     let version: Int
     let actualizado: String
     let promedio: Promedio?
+    // Lo que hay que hacer (#639): recorregir, sin nota o sin fecha. Lo de hoy
+    // o mañana no viene: sale de `agenda`, que el widget mira con la hora real.
+    struct Pendiente: Decodable {
+        let tipo: String
+        let ramoId: String
+        let ramo: String
+        let sigla: String?
+        let color: String?
+        let evaluacion: String
+        let fecha: String?
+        var hora: String? = nil
+    }
+    // Las cifras de Estadísticas, ya escritas como en la app.
+    struct Estadisticas: Decodable {
+        struct Rango: Decodable { let piso: String; let techo: String; let nivelPiso: String; let nivelTecho: String }
+        struct Exigente: Decodable { let ramoId: String; let ramo: String; let color: String?; let necesitas: String? }
+        let avance: Int
+        let rango: Rango?
+        let exigente: Exigente?
+    }
     let ramos: [Ramo]
     let agenda: [Evaluacion]
+    // Opcionales: un resumen guardado por una versión anterior de la app no los trae.
+    let pendientes: [Pendiente]?
+    let estadisticas: Estadisticas?
 }
 
 enum Almacen {
-    static let grupo = "group.cl.gradehub.app"
+    // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
+    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app"
     static let clave = "resumen.v1"
     static func leer() -> Resumen? {
         guard let texto = UserDefaults(suiteName: grupo)?.string(forKey: clave),
@@ -62,8 +87,11 @@ enum Fechas {
         return cal.dateComponents([.day], from: cal.startOfDay(for: ahora), to: cal.startOfDay(for: d)).day
     }
     static func cuando(_ e: Resumen.Evaluacion, desde ahora: Date) -> String {
-        guard let n = diasHasta(e.fecha, desde: ahora) else { return e.fecha }
-        let hora = e.hora.map { " · \($0)" } ?? ""
+        cuando(fecha: e.fecha, hora: e.hora, desde: ahora)
+    }
+    static func cuando(fecha: String, hora h: String?, desde ahora: Date) -> String {
+        guard let n = diasHasta(fecha, desde: ahora) else { return fecha }
+        let hora = h.map { " · \($0)" } ?? ""
         switch n {
         case 0: return "Hoy" + hora
         case 1: return "Mañana" + hora
@@ -82,6 +110,10 @@ enum Fechas {
     static func proxima(_ r: Resumen?, desde ahora: Date) -> Resumen.Evaluacion? {
         r?.agenda.first { (diasHasta($0.fecha, desde: ahora) ?? -1) >= 0 }
     }
+}
+
+func enlaceRamo(_ id: String) -> URL {
+    URL(string: "cl.gradehub.app://ramo/\(id)") ?? URL(string: "cl.gradehub.app://inicio")!
 }
 
 // MARK: - Línea de tiempo
@@ -132,6 +164,37 @@ struct Semaforo {
     }
 }
 
+// Una fila con la línea lateral del ramo, como en Inicio. Abre su ramo.
+struct Fila<Valor: View>: View {
+    let ramoId: String
+    let color: String?
+    let titulo: String
+    let detalle: String?
+    @ViewBuilder var valor: Valor
+    var body: some View {
+        Link(destination: enlaceRamo(ramoId)) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 1.5).fill(Color(hexRamo: color)).frame(width: 3)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(titulo).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                    if let detalle {
+                        Text(detalle).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                }
+                Spacer(minLength: 4)
+                valor
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+extension Fila where Valor == EmptyView {
+    init(ramoId: String, color: String?, titulo: String, detalle: String?) {
+        self.init(ramoId: ramoId, color: color, titulo: titulo, detalle: detalle) { EmptyView() }
+    }
+}
+
 // MARK: - Próxima evaluación
 
 // Cuánto del ramo define la evaluación, como un anillo que se llena: se lee de
@@ -178,11 +241,24 @@ struct ProximaVista: View {
                 }
             case .systemMedium:
                 if let e { mediano(e) } else { vacio }
+            case .systemLarge:
+                if let e { grande(e) } else { vacio }
             default:
                 if let e { tarjeta(e) } else { vacio }
             }
         }
-        .widgetURL(URL(string: e.map { "cl.gradehub.app://ramo/\($0.ramoId)" } ?? "cl.gradehub.app://agenda"))
+        .widgetURL(e.map { enlaceRamo($0.ramoId) } ?? URL(string: "cl.gradehub.app://agenda"))
+    }
+
+    // Las que vienen después de la próxima, en orden.
+    func despues(_ cuantas: Int) -> [Resumen.Evaluacion] {
+        Array((entrada.resumen?.agenda ?? [])
+            .filter { (Fechas.diasHasta($0.fecha, desde: entrada.date) ?? -1) >= 0 }
+            .dropFirst().prefix(cuantas))
+    }
+
+    func filaDespues(_ d: Resumen.Evaluacion) -> some View {
+        Fila(ramoId: d.ramoId, color: d.color, titulo: d.evaluacion, detalle: "\(d.sigla ?? d.ramo) · \(Fechas.cuando(d, desde: entrada.date))")
     }
 
     func tarjeta(_ e: Resumen.Evaluacion) -> some View {
@@ -226,9 +302,7 @@ struct ProximaVista: View {
     // fila, lo que viene después. Cada fila abre su ramo.
     func mediano(_ e: Resumen.Evaluacion) -> some View {
         // `proxima` es la primera que no ha pasado; después vienen las siguientes.
-        let despues = Array((entrada.resumen?.agenda ?? [])
-            .filter { (Fechas.diasHasta($0.fecha, desde: entrada.date) ?? -1) >= 0 }
-            .dropFirst().prefix(3))
+        let despues = despues(3)
         return HStack(alignment: .top, spacing: 16) {
             tarjeta(e).frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .leading, spacing: 10) {
@@ -236,22 +310,25 @@ struct ProximaVista: View {
                 if despues.isEmpty {
                     Text("Nada más por ahora").font(.subheadline).foregroundStyle(.secondary)
                 }
-                ForEach(Array(despues.enumerated()), id: \.offset) { _, d in
-                    Link(destination: URL(string: "cl.gradehub.app://ramo/\(d.ramoId)")!) {
-                        HStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 1.5).fill(Color(hexRamo: d.color)).frame(width: 3)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(d.evaluacion).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("\(d.sigla ?? d.ramo) · \(Fechas.cuando(d, desde: entrada.date))")
-                                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
-                            }
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
+                ForEach(Array(despues.enumerated()), id: \.offset) { _, d in filaDespues(d) }
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // Grande (#635): la próxima completa y, debajo, las cuatro que siguen.
+    func grande(_ e: Resumen.Evaluacion) -> some View {
+        let despues = despues(4)
+        return VStack(alignment: .leading, spacing: 10) {
+            tarjeta(e).fixedSize(horizontal: false, vertical: true)
+            Divider()
+            Text("Después").font(.caption).foregroundStyle(.secondary)
+            if despues.isEmpty {
+                Text("Nada más por ahora").font(.subheadline).foregroundStyle(.secondary)
+            }
+            ForEach(Array(despues.enumerated()), id: \.offset) { _, d in filaDespues(d) }
+            Spacer(minLength: 0)
         }
     }
 
@@ -272,7 +349,7 @@ struct ProximaEvaluacionWidget: Widget {
         }
         .configurationDisplayName("Próxima evaluación")
         .description("Lo que viene y qué nota necesitas.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -280,9 +357,50 @@ struct ProximaEvaluacionWidget: Widget {
 
 struct PromedioVista: View {
     @Environment(\.colorScheme) var esquema
+    @Environment(\.widgetFamily) var familia
     let entrada: Entrada
 
     var body: some View {
+        Group {
+            switch familia {
+            // Mediano y grande (#637): el promedio y, al lado o debajo, los ramos.
+            case .systemMedium:
+                HStack(alignment: .top, spacing: 16) {
+                    general.frame(maxWidth: .infinity, alignment: .leading)
+                    lista(4).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            case .systemLarge:
+                VStack(alignment: .leading, spacing: 12) {
+                    general.frame(height: 110)
+                    Divider()
+                    lista(8)
+                }
+            default:
+                general
+            }
+        }
+        .widgetURL(URL(string: "cl.gradehub.app://inicio"))
+    }
+
+    func lista(_ cuantos: Int) -> some View {
+        let ramos = entrada.resumen?.ramos ?? []
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(ramos.prefix(cuantos).enumerated()), id: \.offset) { _, r in
+                Fila(ramoId: r.id, color: r.color, titulo: r.nombre, detalle: nil) {
+                    Text(r.promedio.map { String(format: "%.1f", $0) } ?? "—")
+                        .font(.subheadline.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(Semaforo.color(r.nivel, esquema))
+                        .privacySensitive()
+                }
+            }
+            if ramos.count > cuantos {
+                Text("y \(ramos.count - cuantos) más").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    var general: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("PROMEDIO GENERAL").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -297,7 +415,6 @@ struct PromedioVista: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .widgetURL(URL(string: "cl.gradehub.app://inicio"))
     }
 
     var conteo: String {
@@ -314,8 +431,238 @@ struct PromedioGeneralWidget: Widget {
             PromedioVista(entrada: entrada).containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Promedio general")
-        .description("Tu promedio con su semáforo.")
-        .supportedFamilies([.systemSmall])
+        .description("Tu promedio con su semáforo y cómo va cada ramo.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+// MARK: - Pendientes (#636)
+
+enum Tareas {
+    // Hoy y mañana salen de la agenda, mirada con la fecha de la entrada; el
+    // resto (recorregir, sin nota, sin fecha) ya viene ordenado desde la app.
+    // ponytail: lo de ayer sin nota aparece recién cuando se abre la app.
+    static func lista(_ r: Resumen?, desde ahora: Date) -> [Resumen.Pendiente] {
+        guard let r else { return [] }
+        let pronto = r.agenda.filter { (0...1).contains(Fechas.diasHasta($0.fecha, desde: ahora) ?? -1) }.map {
+            Resumen.Pendiente(tipo: "hoy", ramoId: $0.ramoId, ramo: $0.ramo, sigla: $0.sigla, color: $0.color,
+                              evaluacion: $0.evaluacion, fecha: $0.fecha, hora: $0.hora)
+        }
+        return pronto + (r.pendientes ?? [])
+    }
+    static func texto(_ p: Resumen.Pendiente, desde ahora: Date) -> String {
+        switch p.tipo {
+        case "hoy": return Fechas.cuando(fecha: p.fecha ?? "", hora: p.hora, desde: ahora)
+        case "recorregir": return p.fecha.map { "Recorregir hasta el \(Fechas.corta($0))" } ?? "Mandar a recorregir"
+        case "sin-nota": return "Falta la nota"
+        default: return "Falta la fecha"
+        }
+    }
+}
+
+struct PendientesVista: View {
+    @Environment(\.widgetFamily) var familia
+    let entrada: Entrada
+
+    var body: some View {
+        let lista = Tareas.lista(entrada.resumen, desde: entrada.date)
+        let vacio = entrada.resumen == nil ? "Abre GradeHub" : "Nada pendiente"
+        Group {
+            switch familia {
+            case .accessoryInline:
+                if let p = lista.first { Text("\(p.sigla ?? p.ramo) · \(Tareas.texto(p, desde: entrada.date))") } else { Text(vacio) }
+            case .accessoryRectangular:
+                if let p = lista.first {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(Tareas.texto(p, desde: entrada.date)).font(.headline).widgetAccentable().lineLimit(1)
+                        Text(p.evaluacion).font(.subheadline).lineLimit(1)
+                        Text(lista.count > 1 ? "\(p.sigla ?? p.ramo) · y \(lista.count - 1) más" : p.sigla ?? p.ramo)
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(vacio).font(.subheadline)
+                }
+            case .systemSmall:
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("PENDIENTES").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    if let p = lista.first {
+                        HStack(alignment: .top, spacing: 8) {
+                            Rectangle().fill(Color(hexRamo: p.color)).frame(width: 3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                // Una línea: se achica antes que partirse, como en Próxima evaluación.
+                                Text(p.evaluacion).font(.headline).lineLimit(1).minimumScaleFactor(0.6)
+                                Text(p.sigla ?? p.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                Text(Tareas.texto(p, desde: entrada.date)).font(.subheadline.weight(.semibold)).lineLimit(2)
+                                    .minimumScaleFactor(0.8).padding(.top, 4)
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        if lista.count > 1 { Text("y \(lista.count - 1) más").font(.caption).foregroundStyle(.secondary).padding(.top, 4) }
+                    } else {
+                        Text(vacio).font(.subheadline)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            default:
+                // En el mediano caben tres filas y nada más, sin rótulo: cada
+                // fila ya dice qué hay que hacer.
+                let mediano = familia == .systemMedium
+                let cuantos = mediano ? 3 : 6
+                VStack(alignment: .leading, spacing: mediano ? 8 : 10) {
+                    if !mediano {
+                        Text("PENDIENTES").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    }
+                    if lista.isEmpty {
+                        Spacer(minLength: 0)
+                        Text(vacio).font(.subheadline)
+                    }
+                    ForEach(Array(lista.prefix(cuantos).enumerated()), id: \.offset) { _, p in
+                        Fila(ramoId: p.ramoId, color: p.color, titulo: p.evaluacion,
+                             detalle: "\(p.sigla ?? p.ramo) · \(Tareas.texto(p, desde: entrada.date))")
+                    }
+                    if !mediano && lista.count > cuantos {
+                        Text("y \(lista.count - cuantos) más").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .widgetURL(lista.first.map { enlaceRamo($0.ramoId) } ?? URL(string: "cl.gradehub.app://agenda"))
+    }
+}
+
+struct PendientesWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "pendientes", provider: Proveedor()) { entrada in
+            PendientesVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Pendientes")
+        .description("Lo que tienes que hacer, lo más urgente primero.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+// MARK: - Estadísticas configurable (#638)
+
+enum Estadistica: String, AppEnum {
+    case avance, rango, exigente
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Estadística"
+    static var caseDisplayRepresentations: [Estadistica: DisplayRepresentation] = [
+        .avance: "Avance del semestre",
+        .rango: "Rango del semestre",
+        .exigente: "Lo que más te exige",
+    ]
+}
+
+struct ElegirEstadistica: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Estadística"
+    static var description = IntentDescription("Elige qué estadística ver.")
+    @Parameter(title: "Mostrar", default: .avance) var estadistica: Estadistica
+}
+
+struct EntradaEstadistica: TimelineEntry {
+    let date: Date
+    let resumen: Resumen?
+    let estadistica: Estadistica
+}
+
+// Nada depende de la hora: cambia solo cuando la app guarda un resumen nuevo.
+struct ProveedorEstadistica: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> EntradaEstadistica { EntradaEstadistica(date: .now, resumen: nil, estadistica: .avance) }
+    func snapshot(for c: ElegirEstadistica, in context: Context) async -> EntradaEstadistica {
+        EntradaEstadistica(date: .now, resumen: Almacen.leer(), estadistica: c.estadistica)
+    }
+    func timeline(for c: ElegirEstadistica, in context: Context) async -> Timeline<EntradaEstadistica> {
+        Timeline(entries: [EntradaEstadistica(date: .now, resumen: Almacen.leer(), estadistica: c.estadistica)], policy: .never)
+    }
+}
+
+// 0.5 s: una cifra grande y una línea que dice qué es. Las mismas de Estadísticas.
+struct EstadisticaVista: View {
+    @Environment(\.colorScheme) var esquema
+    let entrada: EntradaEstadistica
+
+    var titulo: String {
+        switch entrada.estadistica {
+        case .avance: return "AVANCE DEL SEMESTRE"
+        case .rango: return "RANGO DEL SEMESTRE"
+        case .exigente: return "LO QUE MÁS TE EXIGE"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(titulo).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+            if let s = entrada.resumen?.estadisticas {
+                contenido(s)
+            } else {
+                Text("Abre GradeHub").font(.subheadline)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .widgetURL(URL(string: entrada.estadistica == .exigente
+            ? entrada.resumen?.estadisticas?.exigente.map { "cl.gradehub.app://ramo/\($0.ramoId)" } ?? "cl.gradehub.app://estadisticas"
+            : "cl.gradehub.app://estadisticas"))
+    }
+
+    @ViewBuilder
+    func contenido(_ s: Resumen.Estadisticas) -> some View {
+        switch entrada.estadistica {
+        case .avance:
+            // Un riel neutro, como en Inicio: el 100% es "cerrado", no una celebración.
+            Text("\(s.avance)%").font(.system(size: 44, weight: .medium)).monospacedDigit()
+            ProgressView(value: Double(min(max(s.avance, 0), 100)), total: 100).progressViewStyle(.linear).tint(.primary)
+            Text(s.avance >= 100 ? "Todo evaluado" : "del semestre ya tiene nota").font(.caption).foregroundStyle(.secondary).lineLimit(2)
+        case .rango:
+            if let r = s.rango {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(r.piso).foregroundStyle(Semaforo.color(r.nivelPiso, esquema))
+                    Text("y").font(.title3.weight(.semibold)).foregroundStyle(.tertiary)
+                    Text(r.techo).foregroundStyle(Semaforo.color(r.nivelTecho, esquema))
+                }
+                .font(.system(size: 36, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                .privacySensitive()
+                Text("Tu promedio final puede quedar entre estos dos").font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            } else {
+                Text("Nada pendiente por evaluar").font(.subheadline)
+            }
+        case .exigente:
+            if let x = s.exigente {
+                HStack(alignment: .top, spacing: 8) {
+                    Rectangle().fill(Color(hexRamo: x.color)).frame(width: 3)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(x.ramo).font(.subheadline.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.8)
+                        Group {
+                            if let n = x.necesitas {
+                                Text(n).font(.system(size: 36, weight: .medium)).monospacedDigit()
+                                Text("necesitas en lo pendiente").font(.caption).foregroundStyle(.secondary)
+                            } else {
+                                Text("Ya no alcanza solo con lo pendiente").font(.caption).foregroundStyle(Semaforo.color("bad", esquema))
+                            }
+                        }
+                        .privacySensitive()
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Ingresa una nota para verlo").font(.subheadline)
+            }
+        }
+    }
+}
+
+struct EstadisticasWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: "estadisticas", intent: ElegirEstadistica.self, provider: ProveedorEstadistica()) { entrada in
+            EstadisticaVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Estadísticas")
+        .description("Elige qué ver: avance, rango del semestre o lo que más te exige.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
@@ -513,6 +860,8 @@ struct GradeHubWidgets: WidgetBundle {
     var body: some Widget {
         ProximaEvaluacionWidget()
         PromedioGeneralWidget()
+        PendientesWidget()
+        EstadisticasWidget()
         ActividadPruebaWidget()
     }
 }

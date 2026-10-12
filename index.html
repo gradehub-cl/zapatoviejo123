@@ -69,8 +69,10 @@
 </script>
 
 <!-- La app iOS (Capacitor) se marca antes de pintar: la pantalla de carga de
-     abajo solo existe ahí, y el CSS la tiene que ver en el primer cuadro. -->
-<script>try{if(window.Capacitor&&Capacitor.isNativePlatform())document.documentElement.classList.add('app-nativa');}catch(e){}</script>
+     abajo solo existe ahí, y el CSS la tiene que ver en el primer cuadro. En la
+     app tampoco hay zoom: ni pellizcando ni al tocar un campo, que acercaba la
+     pantalla como una página. En la web se conserva. -->
+<script>try{if(window.Capacitor&&Capacitor.isNativePlatform()){document.documentElement.classList.add('app-nativa');const v=document.querySelector('meta[name=viewport]');if(v)v.content+=', maximum-scale=1, user-scalable=no';}}catch(e){}</script>
 <link rel="stylesheet" href="styles.css?v=__ASSET_VERSION__"/>
 </head>
 <body>
@@ -323,7 +325,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
 
     <div class="ob-nav">
-      <button class="ob-back" id="ob-back" onclick="obBack()" style="visibility:hidden;">Atrás</button>
+      <button class="ob-back" id="ob-back" onclick="obBack()" hidden>Atrás</button>
       <button class="btn-primary ob-next" id="ob-next" onclick="obNext()" disabled>Continuar</button>
     </div>
     <p class="ob-note">Puedes editar tus datos y ramos más adelante.</p>
