@@ -144,9 +144,11 @@ cuando entra el anterior. Nada más del panel hasta que entren.
 
 - Aviso dentro de la app del cambio de términos de #681: la política promete
   avisar los cambios importantes.
-- #631: Econometría Aplicada (décimas por evaluación) y Revelación y Fe, que
-  queda sin calcular hasta confirmar si «la nota más baja» incluye el examen.
-- #664: la «entrada» barata como tipo de anuncio, y los testimonios (#643).
+- #631, **en pausa por decisión de Lucas**: Econometría Aplicada (falta su
+  programa) y Revelación y Fe (falta confirmar si «la nota más baja» incluye el
+  examen). No se retoman sin ese dato.
+- #664: los testimonios (#643). La «entrada» barata **no se hace**: una clase
+  de prueba se publica con precio $0, como el Salvatón (Lucas, 2026-10-12).
 - #663: precio del panel, Universal Links, comparación del ramo para UAI y
   UAndes, y que el panel calcule con las reglas de la universidad del alumno y
   no con las del profesor.
