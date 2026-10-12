@@ -237,6 +237,39 @@ function resolverReglasAusencia(def,categorias){
   const reemplazos=resolver(declaracion.reemplazos),traspasos=resolver(declaracion.traspasos);
   return reemplazos.length||traspasos.length?{reemplazos,traspasos}:null;
 }
+// Décimas y bonus del programa (#631). El preset nombra evaluaciones y acá se
+// resuelven a las categorías del ramo, como las compuertas. Si una evaluación
+// nombrada ya no está (la pauta se editó), esa regla no se carga: sumarle
+// décimas a otra cosa sería inventar. Vuelve a la lista de lo no calculado.
+function resolverBonus(def,categorias){
+  const lista=!Array.isArray(def)&&def&&Array.isArray(def.bonus)?def.bonus:null;
+  if(!lista||!Array.isArray(categorias))return null;
+  const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c?c.id:null;};
+  const out=[];
+  lista.forEach(b=>{
+    if(!b||typeof b.id!=='string'||!['decimas','faltas'].includes(b.entrada))return;
+    const destino=b.a==='final'?'final':idDe(b.a);
+    if(!destino)return;
+    let si=null;
+    if(b.si){
+      const ids=(b.si.evals||[]).map(idDe);
+      if(!ids.length||ids.some(x=>!x)||typeof b.si.mayorQue!=='number')return;
+      si={catIds:ids,mayorQue:b.si.mayorQue};
+    }
+    out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
+      ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
+      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
+  });
+  return out.length?out:null;
+}
+// Lo que el estudiante ingresó: un entero entre 0 y BONUS_MAX por regla.
+const BONUS_MAX=60;
+function copiarBonusIngresado(raw){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+  const out={};
+  Object.keys(raw).forEach(k=>{const v=raw[k];if(/^[a-z0-9_-]{1,32}$/.test(k)&&Number.isInteger(v)&&v>=0&&v<=BONUS_MAX)out[k]=v;});
+  return Object.keys(out).length?out:null;
+}
 function ausenciasDeclaradas(raw){return [...new Set((Array.isArray(raw)?raw:[]).filter(id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(id)))];}
 
 // `x || []` no alcanza cuando el dato no es una lista: un string no vacío es
@@ -261,6 +294,9 @@ function normalize(data) {
     // Contador de faltas — opcional, lo enciende el estudiante en Editar ramo.
     // Sin él (cuentas anteriores) queda en null y no se muestra nada.
     faltas: copiarFaltas(r.faltas),
+    // Décimas o talleres que el estudiante anotó para una regla de `bonus`.
+    // Sin ellas (cuentas anteriores) queda en null y no se suma nada.
+    bonusIngresado: copiarBonusIngresado(r.bonusIngresado),
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
@@ -384,7 +420,7 @@ function normalize(data) {
   data.ramos.forEach(r => {
     migrarOrigenesFecha(r);
     const p = pautaPendiente(r);
-    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.pautaHuella = huellaPauta(p.categorias); }
+    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así
     // los ramos oficiales ya creados también pueden ofrecer el recuperativo,
     // sin reinterpretar notas ni tocar ramos manuales.
@@ -398,6 +434,12 @@ function normalize(data) {
     const eximicionOficial=definicionPresetDelRamo(r)?.eximicion;
     if(eximicionOficial)r.eximicion=JSON.parse(JSON.stringify(eximicionOficial));
     else delete r.eximicion;
+    // Las décimas del programa (#631), igual: la regla llega también a los
+    // ramos ya creados y se renueva en cada carga para seguir al catálogo. No
+    // suma nada hasta que la persona anota lo que ganó (bonusIngresado).
+    const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
+    if(bonusOficial)r.bonus=bonusOficial;
+    else delete r.bonus;
     // Igual que el recuperativo, la regla llega a los ramos oficiales creados
     // antes de publicarla, sin activar nada por sí sola.
     if(!r.reglasAusenciaJustificada){
@@ -1916,7 +1958,7 @@ function completeOnboarding(){
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
-    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
@@ -2914,6 +2956,7 @@ function actualizarPauta(ramoId){
   r.aporta=cambio.preset.aporta||null;
   r.recuperativo=cambio.preset.recuperativo||null;
   r.reglasAusenciaJustificada=cambio.preset.reglasAusenciaJustificada||null;
+  r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
   return true;
 }
@@ -3029,7 +3072,8 @@ function presetRamo(nombre,tenant,carrera,ahora){
   });
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
-  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,periodo,estadoPeriodo,
+  const bonus=resolverBonus(def,categorias);
+  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,bonus,periodo,estadoPeriodo,
     creditos:(!Array.isArray(def)&&typeof def.creditos==='number')?def.creditos:null};
 }
 
@@ -3048,7 +3092,7 @@ function confirmAddMalla(){
     // estrella de "pauta oficial" al lado, porque el selector SÍ normaliza.
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
@@ -3155,7 +3199,7 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const ramo={
     id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
     creditos,origen:origenActual(presetName||nombre,sigla),
-    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
+    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
   consensoAlAgregar(ramo);
@@ -5062,7 +5106,13 @@ function reglasDelPreset(ramo,campo){
   return Array.isArray(lista)?lista:[];
 }
 // Reglas que el motor todavía no sabe calcular: deuda nuestra, se van a ir.
-function reglasNoCalculadas(ramo){return reglasDelPreset(ramo,'noCalcula');}
+// Una regla de décimas que no se pudo cargar en este ramo (la pauta se editó)
+// sigue apareciendo acá, para que nadie la pierda de vista.
+function reglasNoCalculadas(ramo){
+  const cargadas=new Set((ramo&&Array.isArray(ramo.bonus)?ramo.bonus:[]).map(b=>b.id));
+  const sinCargar=reglasDelPreset(ramo,'bonus').filter(b=>b&&!cargadas.has(b.id)&&b.ayuda).map(b=>b.ayuda);
+  return reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
+}
 // Reglas del curso que el promedio NUNCA va a incluir. Decirle al estudiante
 // "todavía no las calculamos" sería prometerle algo que no va a pasar: dependen
 // de un dato que el programa no da, de algo que decide el profesor caso a caso,
@@ -5219,6 +5269,18 @@ function parseLimiteFaltas(raw){
   const n=/^\d{1,2}$/.test(txt)?Number(txt):NaN;
   return n>=1&&n<=FALTAS_MAX?n:undefined;
 }
+// Décimas o talleres de una regla de `bonus`. Anotar parte en 0: hasta ahí no
+// suma nada. El tope de la regla (5 décimas) también es el del contador.
+function topeBonus(b){return b.entrada==='decimas'&&typeof b.max==='number'?b.max:BONUS_MAX;}
+function cambiarBonus(id,delta){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const b=r&&(r.bonus||[]).find(x=>x.id===id);if(!b)return;
+  const actual=r.bonusIngresado&&Number.isInteger(r.bonusIngresado[id])?r.bonusIngresado[id]:null;
+  const nueva=delta===null?0:Math.max(0,Math.min(topeBonus(b),(actual===null?0:actual)+delta));
+  if(nueva===actual)return;
+  r.bonusIngresado={...(r.bonusIngresado||{}),[id]:nueva};
+  save();track('bonus_ingresado',{entrada:b.entrada});renderRamo();
+}
 function cambiarFaltas(delta){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   if(!faltasActivas(r))return;
@@ -5241,7 +5303,7 @@ function confirmAddRamo(){
   const presetName=findPresetName(name,S.tenant,S.carrera);
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
-  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
   consensoAlAgregar(S.ramos[S.ramos.length-1]);
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
   showToast(preset?'Pauta cargada':'Ramo agregado');
