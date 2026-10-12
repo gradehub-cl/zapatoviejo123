@@ -34,7 +34,7 @@ rsync -a ./ ios-web/ \
 node -e '
   const fs=require("fs"),crypto=require("crypto");
   const html=fs.readFileSync("ios-web/index.html","utf8");
-  const m=html.match(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@([\d.]+)"[^>]*><\/script>/);
+  const m=html.match(/<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@([\d.]+)(?:\/[^"]*)?"[^>]*><\/script>/);
   if(!m){console.error("No encontré el <script> de supabase-js en index.html.");process.exit(1);}
   const v=require("./node_modules/@supabase/supabase-js/package.json").version;
   if(v!==m[1]){console.error("supabase-js: index.html pide "+m[1]+" y node_modules tiene "+v+". Ajusta package.json y corre npm install.");process.exit(1);}
