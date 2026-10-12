@@ -207,6 +207,15 @@ function contexto({search='',sesion=false}={}){
   chk('con pocos datos lo dice, sin inventar un cambio',/Aún pocos datos para comparar/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__poco,__cursoAA))')));
   chk('nada de esto usa los colores del semáforo',!/panel-resumen-(good|warn|bad)|--green|--red|--yellow/.test(gh+ah));
 
+  console.log('\n=== Antes y ahora en el Excel (#697) ===');
+  const csvAA=a.run('csvAlumnosPanel([__antesAhora],__cursoAA)').split('\r\n').map(l=>l.split(';'));
+  const filaDe=ev=>csvAA.find(f=>f[4]===ev);
+  chk('cada evaluación con su fecha y si fue antes o desde que empezó',
+    filaDe('Interrogación 1')[10]==='2026-09-01'&&filaDe('Interrogación 1')[11]==='antes'&&filaDe('Interrogación 2')[11]==='desde que empezó');
+  chk('y su diferencia con el curso, con coma decimal',filaDe('Interrogación 1')[12]==='-1,0'&&filaDe('Interrogación 2')[12]==='0,4');
+  chk('una nota sin fecha lo dice',filaDe('Tarea')[11]==='sin fecha'&&filaDe('Tarea')[10]==='');
+  chk('las columnas de antes siguen en su lugar',filaDe('Interrogación 1')[5]==='3,0');
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.
@@ -261,18 +270,19 @@ function contexto({search='',sesion=false}={}){
   const csv=a.run(`csvAlumnosPanel(__exp,(al,r)=>r.id==='r1'?{ramo:{promedio:4.7,personas:23},
     evaluaciones:[{clave:'interrogacion 1',promedio:4.6,personas:9}],categorias:[{clave:'interrogaciones',promedio:4.44,personas:31}]}:null)`);
   const lineas=csv.split('\r\n');
+  chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
   chk('decimales con coma y el promedio del ramo es el de ramoAvg',
     lineas[1].split(';')[6]===a.run('fmtPromedio(ramoAvg(ramoParaPanel(__r)))').replace('.',','));
-  chk('GradeHub por evaluación, categoría y ramo, redondeado como en la app',lineas[1].endsWith(';4,6;4,4;4,7'));
-  chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7$/.test(lineas[2]));
+  chk('GradeHub por evaluación, categoría y ramo, redondeado como en la app',lineas[1].split(';').slice(7,10).join(';')==='4,6;4,4;4,7');
+  chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154;;;;;;;'));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(10)));
   const mk=leer('marketplace.js');
   chk('exportar pide confirmar con el recordatorio de los términos',
     /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));

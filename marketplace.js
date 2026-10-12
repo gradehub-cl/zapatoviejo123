@@ -3292,7 +3292,7 @@ function categoriasDeRamoPanel(r){
   return (r.categorias||[]).map(c=>{
     const notas=(c.notas||[]).filter(n=>typeof n.valor==='number'&&isFinite(n.valor)).map(n=>{
       const nombre=(n.nombre||'').trim()||c.nombre;
-      return {nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
+      return {id:n.id,nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
     });
     const v=valores.get(c.id);
     const promedio=typeof v==='number'&&isFinite(v)?v:(typeof avgPond==='function'?avgPond(notas):null);
@@ -3480,7 +3480,7 @@ function evaluacionesConFechaPanel(ramo,comp){
     const nombre=(n.nombre||'').trim()||e.cat.nombre;
     const unica=!(Number.isInteger(e.cat.slots)&&e.cat.slots>1)&&(e.cat.notas||[]).length<=1;
     const ref=porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null);
-    out.push({ramo:ramo.nombre,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
+    out.push({id:n.id,ramo:ramo.nombre,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
       curso:ref&&ref.promedio!=null&&isFinite(Number(ref.promedio))?Number(ref.promedio):null,
       aprobada:typeof notaAprobada==='function'?notaAprobada(n.valor):n.valor>=4});
   }));
@@ -3663,14 +3663,21 @@ function celdaCsvPanel(v){
   if(v===null||v===undefined)return '';
   let s=String(v);
   // El nombre lo escribe el alumno: "=…" no puede llegar a Excel como fórmula.
-  if(/^[=+\-@\t\r]/.test(s))s="'"+s;
+  // Un número negativo ("-1,0") no es una fórmula y tiene que llegar como número.
+  if(/^[=+\-@\t\r]/.test(s)&&!/^-\d+(,\d+)?$/.test(s))s="'"+s;
   return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
 function csvAlumnosPanel(alumnos,compDe){
   const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
   const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
-  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo']];
-  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+  // Las tres últimas son las de "antes y ahora" (#697): van al final para no
+  // mover las columnas que alguien ya usa en su planilla.
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso']];
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
+    const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
+    const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
+      return [e.fecha,e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
+    (al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
     const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
@@ -3680,9 +3687,9 @@ function csvAlumnosPanel(alumnos,compDe){
     const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
     const categorias=categoriasDeRamoPanel(ramo);
     // Un ramo sin notas igual sale, para que el archivo tenga a todos.
-    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo]);return;}
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','']);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
-      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo])));
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id)])));
   });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
