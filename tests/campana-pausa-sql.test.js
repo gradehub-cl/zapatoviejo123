@@ -69,7 +69,22 @@ try{
     (await q('select detenido_at from tutor_anuncios where id=$1',[tardio]))[0].detenido_at===null);
   check('la publicación nueva cobra solo desde que volvió',(await coste(tardio)).dias_cobrados===1);
 
-  // 5. La marca es interna: nadie la lee ni la escribe desde la app.
+  // 5. El panel puede terminar un anuncio pausado sin campaña, sin cobrar más.
+  await sesion(admin);
+  const antes=(await coste(heredado)).dias_cobrados;
+  check('el panel termina un anuncio pausado sin campaña',
+    (await q('select admin_terminar_anuncio_pausado(id,publicado_at) as ok from tutor_anuncios where id=$1',[heredado]))[0].ok===true
+    &&(await q('select estado from tutor_anuncios where id=$1',[heredado]))[0].estado==='expirado');
+  check('y sus días cobrados no cambian',(await coste(heredado)).dias_cobrados===antes);
+  const sinMarca='00000000-0000-0000-0000-000000000007';
+  await publicadoSinCampana(sinMarca);
+  // Como quedaban los pausados antes de #680: sin marca en ningún lado.
+  await db.query("update tutor_anuncios set estado='pausado' where id=$1",[sinMarca]);
+  await db.query('update tutor_anuncios set detenido_at=null where id=$1',[sinMarca]);
+  await assert.rejects(db.query('select admin_terminar_anuncio_pausado(id,publicado_at) from tutor_anuncios where id=$1',[sinMarca]),/no tiene marcado/);
+  check('uno pausado sin ninguna marca no se termina: se cobraría hasta hoy',true);
+
+  // 6. La marca es interna: nadie la lee ni la escribe desde la app.
   await db.exec('set role authenticated');
   await assert.rejects(db.query('update tutor_anuncios set detenido_at=null where id=$1',[heredado]),/permission denied/);
   await assert.rejects(db.query('select detenido_at from tutor_anuncios where id=$1',[heredado]),/permission denied/);

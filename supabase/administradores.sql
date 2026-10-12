@@ -401,9 +401,15 @@ begin
      or a.publicado_at is null then
     raise exception 'la campaña pausada cambió; actualiza el panel';
   end if;
-  update public.anuncio_campanas set detenido_at = coalesce(detenido_at, now())
+  -- La pausa se marca en el anuncio (#657). Un anuncio publicado antes de que
+  -- la campaña fuera obligatoria no tiene fila en anuncio_campanas, y igual se
+  -- tiene que poder cerrar. Lo que no se cierra es uno sin ninguna marca: se
+  -- cobraría hasta hoy. Ese se corrige a mano antes.
+  update public.anuncio_campanas set detenido_at = coalesce(detenido_at, a.detenido_at, now())
     where anuncio_id = p_anuncio_id;
-  if not found then raise exception 'no se encontró la campaña; revisa el anuncio antes de terminarlo'; end if;
+  if not found and a.detenido_at is null then
+    raise exception 'el anuncio no tiene marcado cuándo se pausó; revísalo antes de terminarlo';
+  end if;
   update public.tutor_anuncios set estado = 'expirado' where id = p_anuncio_id;
   insert into admin.acciones (admin_id, accion, objetivo, detalle)
   values (auth.uid(), 'terminar_anuncio_pausado', p_anuncio_id,
