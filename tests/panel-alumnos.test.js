@@ -102,11 +102,33 @@ function contexto({search='',sesion=false}={}){
   const lista=a.run(`alumnosPanelHTML([{id:'x"1',nombre_visible:'<img src=x>',ramos:[]}],()=>null)`);
   chk('el nombre que eligió el alumno va escapado',/&lt;img src=x&gt;/.test(lista)&&!/<img/.test(lista));
 
-  console.log('\n=== Medición sin datos de nadie ===');
-
+  console.log('\n=== Exportar a Excel ===');
+  a.run(`globalThis.__exp=[
+    {id:'e1',nombre_visible:'Pérez, "Cami"',tenant:'uc',ramos:[__r]},
+    {id:'e2',nombre_visible:'=HYPERLINK("http://x")',tenant:'uc',ramos:[{id:'r8',nombre:'Física; Lab',sigla:'FIS0154',gates:[],categorias:[]}]}]`);
+  const csv=a.run(`csvAlumnosPanel(__exp,(al,r)=>r.id==='r1'?{ramo:{promedio:4.7,personas:23},
+    evaluaciones:[{clave:'interrogacion 1',promedio:4.6,personas:9}],categorias:[{clave:'interrogaciones',promedio:4.44,personas:31}]}:null)`);
+  const lineas=csv.split('\r\n');
+  chk('una fila de títulos con las columnas acordadas',
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo');
+  chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
+  chk('comas y comillas en el nombre van entre comillas, dobladas',
+    lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
+  chk('decimales con coma y el promedio del ramo es el de ramoAvg',
+    lineas[1].split(';')[6]===a.run('fmtPromedio(ramoAvg(ramoParaPanel(__r)))').replace('.',','));
+  chk('GradeHub por evaluación, categoría y ramo, redondeado como en la app',lineas[1].endsWith(';4,6;4,4;4,7'));
+  chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7$/.test(lineas[2]));
+  chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
+  chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154;;;;;;;'));
   const mk=leer('marketplace.js');
+  chk('exportar pide confirmar con el recordatorio de los términos',
+    /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
+
+  console.log('\n=== Medición sin datos de nadie ===');
   chk('solo cuenta cuántos ramos o alumnos, nunca nombres ni notas',
-    /track\('compartir_con_profesor',\{ramos:n\}\)/.test(mk)&&/track\('panel_alumnos_abierto',\{alumnos:alumnos\.length\}\)/.test(mk));
+    /track\('compartir_con_profesor',\{ramos:n\}\)/.test(mk)&&/track\('panel_alumnos_abierto',\{alumnos:alumnos\.length\}\)/.test(mk)
+    &&/track\('panel_alumnos_exportado',\{alumnos:lista\.length\}\)/.test(mk));
 
   console.log('\n=== Lo que no se deshace se confirma (HIG) ===');
   chk('dejar de compartir, quitar alumno y cambiar link usan el diálogo de la app',
@@ -117,7 +139,10 @@ function contexto({search='',sesion=false}={}){
   const terminos=leer('terminos.html'),privacidad=leer('privacidad.html');
   chk('los términos explican qué ve el profesor y cómo dejar de compartir',
     /Compartir tus notas con un profesor/.test(terminos)&&/dejar de\s+compartir/.test(terminos)&&/al menos cinco personas/.test(terminos));
-  chk('y lo que se compromete el profesor',/no las copias, no las publicas/.test(terminos));
+  chk('y lo que se compromete el profesor, también con lo que descarga',
+    /Puedes descargarlas para tu propio\s+seguimiento, pero no las publicas/.test(terminos)&&/borras lo que hayas\s+descargado/.test(terminos));
+  chk('el alumno sabe al compartir que el profesor puede descargarlas',
+    /puede descargarlas para hacerte seguimiento/.test(hoja)&&/puede descargarlas en un\s+archivo/.test(privacidad));
   chk('la privacidad ya no dice "con nadie" a secas',/Con nadie, salvo que tú lo decidas/.test(privacidad)&&/Con un profesor, si tú lo eliges/.test(privacidad));
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);

@@ -3155,7 +3155,7 @@ function hojaInvitacionProfesorHTML(profe,ramos,nombre){
   }).join('');
   return `<div class="compartir-profe">
     <div class="modal-title" id="modal-titulo">${esc(profe.nombre_publico)} quiere ver tus notas</div>
-    <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub. Nada más: ni tus otros ramos ni tu correo.</p>
+    <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
     <div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas||'<p class="compartir-explica">Todavía no tienes ramos para compartir.</p>'}</div>
     <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
     <div class="modal-input"><input type="text" id="compartir-nombre" maxlength="60" autocomplete="off" value="${esc(nombre)}"></div>
@@ -3323,6 +3323,57 @@ function alumnosPanelHTML(lista,compDe){
     </details>`).join('');
 }
 
+// Exportar: una fila por alumno, ramo y evaluación, armada en el navegador con
+// lo que el panel ya tiene; no pasa por ningún servidor. Punto y coma y coma
+// decimal, como lo abre Excel en Chile; Google Sheets lo detecta igual.
+function celdaCsvPanel(v){
+  if(v===null||v===undefined)return '';
+  let s=String(v);
+  // El nombre lo escribe el alumno: "=…" no puede llegar a Excel como fórmula.
+  if(/^[=+\-@\t\r]/.test(s))s="'"+s;
+  return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function csvAlumnosPanel(alumnos,compDe){
+  const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
+  const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo']];
+  alumnos.forEach(al=>(al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const base=[al.nombre_visible,ramo.nombre,sigla];
+    const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
+    const categorias=categoriasDeRamoPanel(ramo);
+    // Un ramo sin notas igual sale, para que el archivo tenga a todos.
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo]);return;}
+    categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo])));
+  }));
+  return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
+}
+async function exportarAlumnosPanel(lista,compDe){
+  const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
+  const nombre=`gradehub-alumnos-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
+  // La marca BOM hace que Excel lea bien las tildes.
+  const blob=new Blob(['\ufeff'+csvAlumnosPanel(lista,compDe)],{type:'text/csv;charset=utf-8'});
+  track('panel_alumnos_exportado',{alumnos:lista.length});
+  // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
+  try{
+    const archivo=typeof File==='function'?new File([blob],nombre,{type:blob.type}):null;
+    const tactil=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
+    if(tactil&&archivo&&navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){
+      await navigator.share({files:[archivo]});return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=nombre;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast('Archivo descargado.');
+}
+
 async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
@@ -3363,6 +3414,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     // Con uno solo no hay nada que buscar.
     (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
       aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+
+    (alumnos.length?'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>':'')+
     `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
@@ -3394,12 +3446,23 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   enlazarQuitar();
   // Se filtra en el navegador, con lo que el panel ya bajó.
   const buscar=raiz.querySelector('#alumnos-buscar');
+  let vista=alumnos;
   if(buscar)buscar.addEventListener('input',()=>{
-    const texto=buscar.value,vista=filtrarAlumnosPanel(alumnos,texto);
+    const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);
     raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
     lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
       :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
     enlazarQuitar();
+  });
+  // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
+  // recordatorio de lo que el profesor aceptó en los términos.
+  const exportar=raiz.querySelector('#alumnos-exportar');
+  if(exportar)exportar.addEventListener('click',()=>{
+    if(!vista.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
+    const n=vista.length;
+    showConfirm('Exportar notas',
+      `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
+      ()=>exportarAlumnosPanel(vista,compDe),{label:'Exportar',danger:false});
   });
   track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
