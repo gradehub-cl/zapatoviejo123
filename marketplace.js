@@ -3299,11 +3299,33 @@ function categoriasDeRamoPanel(r){
     return {nombre:c.nombre,clave:claveEvaluacionPanel(c.nombre),notas,promedio};
   }).filter(c=>c.notas.length);
 }
+// La próxima evaluación sin nota del ramo, de hoy en adelante, y cuánto
+// necesita en ella para ir con 4 después de rendirla: lo mismo que el alumno
+// ve en sus widgets (notaParaIrConCuatro), con las fechas de su Agenda.
+function proximaEvaluacionPanel(ramo,ahora=new Date()){
+  if(typeof agendaEvents!=='function')return null;
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  let e=null;
+  try{e=agendaEvents([ramo]).find(x=>x.pending&&x.fecha>=hoy)||null;}catch(err){return null;}
+  if(!e)return null;
+  const cuatro=(typeof notaParaIrConCuatro==='function'?notaParaIrConCuatro(e):null)||{};
+  return {evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
+    necesita:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable};
+}
+function proximaEvaluacionPanelHTML(p){
+  if(!p)return '';
+  const cuando=esc(fechaCorta(p.fecha))+(p.hora?' · '+esc(p.hora):'');
+  // Sin color: el semáforo es para notas, y esto es una meta.
+  const meta=p.necesita?`necesita <b>${esc(p.necesita.replace('.',','))}</b> para ir con 4`
+    :p.margen?'va con 4 con cualquier nota'
+    :p.inalcanzable?'con esta sola no alcanza el 4':'';
+  return `<p class="panel-alumnos-proxima"><span>Próxima: <b>${esc(p.evaluacion)}</b> · ${cuando}</span>${meta?`<span>${meta}</span>`:''}</p>`;
+}
 function comparacionTexto(prom,personas,etiqueta=false){
   if(prom==null)return `<span class="panel-alumnos-sin">${etiqueta?'GradeHub: aún pocos datos':'Aún pocos datos'}</span>`;
   return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${etiqueta?'GradeHub · ':''}${personas} personas</small></span>`;
 }
-function ramoPanelHTML(r,comp){
+function ramoPanelHTML(r,comp,ahora=new Date()){
   const ramo=ramoParaPanel(r);
   const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
@@ -3326,6 +3348,7 @@ function ramoPanelHTML(r,comp){
       <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
       ${comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,true)}
     </div>
+    ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora))}
     ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead>${filas}</table>`
       :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
   </div>`;
