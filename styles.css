@@ -1719,6 +1719,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-home,
 .app.tab-mode #screen-agenda,
 .app.tab-mode #screen-profesor,
+.app.tab-mode #screen-alumnos,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -1732,11 +1733,13 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    tapando todo, porque además no la mueve `setTabTransforms` al no estar en
    NAV_TABS. Esta regla la devuelve a su sitio. */
 .app.tab-mode #screen-profesor[hidden],
+.app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
 .app.tab-mode.dragging #screen-agenda,
 .app.tab-mode.dragging #screen-profesor,
+.app.tab-mode.dragging #screen-alumnos,
 .app.tab-mode.dragging #screen-admin{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
@@ -2182,6 +2185,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-home,
   .app.tab-mode #screen-agenda,
   .app.tab-mode #screen-profesor,
+  .app.tab-mode #screen-alumnos,
   .app.tab-mode #screen-admin{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group,.cat-card{will-change:auto;}
 
