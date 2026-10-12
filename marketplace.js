@@ -945,12 +945,15 @@ function preciosClase(a){
   return {gratis:false,pack:n,descuento:d,porClase:base,porClaseFinal:conDescuento(base),
     packTotal:n?base*n:null,packFinal:n?conDescuento(base*n):null};
 }
-// Corto, para la línea bajo el título: "$45.000 pack de 4" o "$11.250".
+// Corto, para la línea bajo el título: "4 clases · $11.250 c/u" o "$11.250".
+// En un pack se lee el precio por clase y no el total (#664): en la primera
+// campaña pagada, el pack de $45.000 casi no se abrió. El total sigue en la
+// tarjeta del catálogo, con precioCatalogoHTML.
 function precioClase(anuncio){
   const p=preciosClase(anuncio);
   if(p.gratis)return 'Gratis';
   if(p.porClase==null)return pesosClase(anuncio&&anuncio.precio_clp);
-  return p.pack?`${pesosClase(p.packFinal)} pack de ${p.pack}`:pesosClase(p.porClaseFinal);
+  return p.pack?`${p.pack} clases · ${pesosClase(p.porClaseFinal)} c/u`:pesosClase(p.porClaseFinal);
 }
 // El bloque de precio de la tarjeta. El precio anterior va tachado con texto
 // oculto ("antes") para lectores de pantalla, y el descuento en el color de la
