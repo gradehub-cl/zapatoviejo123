@@ -130,8 +130,15 @@ chk('y no anuncia un envío que nadie despacha',
   !/(enviamos|enviaremos|mandamos|te llega|revisa (tu |el )?(correo|bandeja|spam))/i.test(MSG || ''));
 chk('"ese correo ya existe" responde el mismo texto',
   traduce({ message: 'User already registered' }) === MSG);
-chk('y el registro a la espera de confirmación también',
-  /if\(!data\.session\)\{authError\(MSG_VERIFICA,'info'\)/.test(src));
+// Desde el 2026-10-12, si el registro vuelve sin sesión se intenta entrar con
+// lo mismo que se escribió. Quien ya tenía cuenta y puso su contraseña entra;
+// si no calza, el MISMO aviso: sigue sin revelarse si el correo existe.
+const sinSesion=(src.match(/if\(!data\.session\)\{[\s\S]*?\n      \}/)||[''])[0];
+chk('sin sesión, intenta entrar con el mismo correo y la misma contraseña',
+  /signInWithPassword\(\{email,password:p\}\)/.test(sinSesion));
+chk('si no calza, responde el mismo texto que un registro nuevo',
+  /if\(errorEntrada\|\|!entrada\|\|!entrada\.session\)\{authError\(MSG_VERIFICA,'info'\)/.test(sinSesion));
+chk('si calza, entra por el camino normal de inicio de sesión',/await afterLogin\(\);/.test(sinSesion)&&!/afterSignup/.test(sinSesion));
 chk('el texto vive en una constante, no copiado en dos lados',
   src.split(MSG).length - 1 === 1);
 

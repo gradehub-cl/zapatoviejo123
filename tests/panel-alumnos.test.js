@@ -151,6 +151,71 @@ function contexto({search='',sesion=false}={}){
   chk('el Excel también: 4,0 para el alumno UAndes',csvCruce[6]==='4,0');
   a.run(`S.tenant='uc'`);
 
+  console.log('\n=== Antes y ahora: el cálculo (#697) ===');
+  // Empezó con el profesor el 15 de septiembre. Dos pruebas antes, dos después
+  // y una tarea sin fecha. El curso: I1 4,0 · C1 4,5 · I2 4,6 · C2 4,5.
+  a.run(`globalThis.__ev=(id,nombre,fecha,valor)=>({id:'c'+id,nombre,peso:20,fecha,notas:[{id:'n'+id,nombre,valor}]});
+    globalThis.__antesAhora={id:'aa',nombre_visible:'Ana',tenant:'uc',desde:'2026-09-15T15:00:00Z',ramos:[{id:'ra',nombre:'Cálculo II',sigla:'MAT1620',gates:[],categorias:[
+      __ev(1,'Interrogación 1','2026-09-01',3.0),__ev(2,'Control 1','2026-09-08',3.5),
+      __ev(3,'Interrogación 2','2026-10-01',5.0),__ev(4,'Control 2','2026-10-08',5.5),
+      {id:'ct',nombre:'Tarea',peso:20,notas:[{id:'nt',nombre:'Tarea',valor:6.0}]}]}]};
+    globalThis.__cursoAA=()=>({ramo:{promedio:4.5,personas:30},evaluaciones:[
+      {clave:'interrogacion 1',promedio:4.0,personas:9},{clave:'control 1',promedio:4.5,personas:9},
+      {clave:'interrogacion 2',promedio:4.6,personas:9},{clave:'control 2',promedio:4.5,personas:9}],categorias:[]})`);
+  const m=a.run('metricasAlumnoPanel(__antesAhora,__cursoAA)');
+  const cerca1=(x,y)=>typeof x==='number'&&Math.abs(x-y)<1e-9;
+  chk('cada evaluación con fecha cae antes o después del día que empezó',m.antes.n===2&&m.ahora.n===2&&m.desde==='2026-09-15');
+  chk('la sin fecha queda fuera y se cuenta',m.sinFecha===1);
+  chk('antes iba 1,0 bajo el curso; ahora 0,7 sobre el curso',cerca1(m.antes.diferencia,-1.0)&&cerca1(m.ahora.diferencia,0.7));
+  chk('subió 1,7 respecto del curso',cerca1(m.cambio,1.7));
+  chk('aprobación: 0 de 2 antes, 2 de 2 ahora',m.antes.aprobacion===0&&m.ahora.aprobacion===1);
+  chk('promedio: 3,25 antes y 5,25 ahora',cerca1(m.antes.promedio,3.25)&&cerca1(m.ahora.promedio,5.25));
+  chk('con la fecha de inicio corregida, cambia el corte',a.run(`metricasAlumnoPanel(__antesAhora,__cursoAA,{inicio:'2026-09-05'}).antes.n`)===1);
+  // Un alumno con una sola evaluación comparable de un lado no tiene "cambio".
+  a.run(`globalThis.__poco={...__antesAhora,id:'pp',nombre_visible:'Beto',ramos:[{...__antesAhora.ramos[0],categorias:__antesAhora.ramos[0].categorias.slice(0,3)}]}`);
+  chk('con menos de 2 evaluaciones a un lado, no se inventa un cambio',a.run('metricasAlumnoPanel(__poco,__cursoAA).cambio')===null);
+  chk('sin promedio del curso, la evaluación cuenta para el promedio pero no para la diferencia',
+    a.run('metricasAlumnoPanel(__antesAhora,()=>null)').ahora.nComparadas===0&&a.run('metricasAlumnoPanel(__antesAhora,()=>null)').ahora.n===2);
+  const g=a.run('metricasGrupoPanel([__antesAhora,__poco],__cursoAA)');
+  chk('el grupo: 1 de 1 con datos mejoró, mediana 1,7',g.conCambio===1&&g.mejoraron===1&&cerca1(g.cambioMediana,1.7));
+  chk('y junta aprobación y sin fecha de todos',g.antes.n===4&&g.ahora.n===3&&g.sinFecha===1);
+  chk('la aprobación usa la regla de nota de la universidad del alumno',
+    a.run(`(()=>{const x={...__antesAhora,tenant:'uandes',ramos:[{...__antesAhora.ramos[0],categorias:[__ev(9,'Interrogación 3','2026-10-20',3.946)]}]};return metricasAlumnoPanel(x,()=>null).ahora.aprobacion;})()`)===1
+    &&a.run(`(()=>{const x={...__antesAhora,tenant:'uc',ramos:[{...__antesAhora.ramos[0],categorias:[__ev(9,'Interrogación 3','2026-10-20',3.946)]}]};return metricasAlumnoPanel(x,()=>null).ahora.aprobacion;})()`)===0);
+
+  chk('la fecha que corrigió el profesor manda sobre cuándo compartió',
+    a.run(`metricasAlumnoPanel({...__antesAhora,inicio:'2026-09-05'},__cursoAA).antes.n`)===1);
+  chk('una fecha sin hora es ese mismo día, no el anterior',a.run(`diaLocalPanel('2026-09-01')`)==='2026-09-01'
+    &&/Empezó contigo el <b>1 sep<\/b>/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-01'}],()=>null)`))
+    &&a.run(`metricasAlumnoPanel({...__antesAhora,inicio:'2026-09-08'},__cursoAA).antes.n`)===1);
+  const linea=a.run(`alumnosPanelHTML([{...__antesAhora,inicio:null}],()=>null)`);
+  chk('cada alumno dice desde cuándo, y se puede cambiar',/Empezó contigo el <b>15 sep<\/b> · el día que compartió/.test(linea)&&/data-inicio-alumno="aa"/.test(linea));
+  chk('si el profesor la corrigió, no dice "el día que compartió"',!/el día que compartió/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-05'}],()=>null)`)));
+
+  console.log('\n=== Antes y ahora: la pantalla (#697) ===');
+  const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
+  chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
+    /ah-cifra-valor">\+1\.7</.test(gh)&&/ah-cifra-valor">1 de 1</.test(gh)&&/0% → 100%/.test(gh));
+  chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 sin fecha no cuentan/.test(gh));
+  chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
+  const ah=a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))');
+  chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
+    /Subió 1\.7 respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
+  chk('el gráfico es una imagen con su resumen y un punto por evaluación comparable',
+    /<svg class="ah-grafico"[^>]*role="img"[^>]*aria-label="Diferencia con el curso en 4 evaluaciones/.test(ah)&&(ah.match(/class="ah-punto"/g)||[]).length===4&&/empezó/.test(ah));
+  chk('y la lista con las mismas cifras, para quien no ve el gráfico',/Ver sus evaluaciones/.test(ah)&&(ah.match(/<tr><td>/g)||[]).length===4);
+  chk('con pocos datos lo dice, sin inventar un cambio',/Aún pocos datos para comparar/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__poco,__cursoAA))')));
+  chk('nada de esto usa los colores del semáforo',!/panel-resumen-(good|warn|bad)|--green|--red|--yellow/.test(gh+ah));
+
+  console.log('\n=== Antes y ahora en el Excel (#697) ===');
+  const csvAA=a.run('csvAlumnosPanel([__antesAhora],__cursoAA)').split('\r\n').map(l=>l.split(';'));
+  const filaDe=ev=>csvAA.find(f=>f[4]===ev);
+  chk('cada evaluación con su fecha y si fue antes o desde que empezó',
+    filaDe('Interrogación 1')[10]==='2026-09-01'&&filaDe('Interrogación 1')[11]==='antes'&&filaDe('Interrogación 2')[11]==='desde que empezó');
+  chk('y su diferencia con el curso, con coma decimal',filaDe('Interrogación 1')[12]==='-1,0'&&filaDe('Interrogación 2')[12]==='0,4');
+  chk('una nota sin fecha lo dice',filaDe('Tarea')[11]==='sin fecha'&&filaDe('Tarea')[10]==='');
+  chk('las columnas de antes siguen en su lugar',filaDe('Interrogación 1')[5]==='3,0');
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.
@@ -205,21 +270,29 @@ function contexto({search='',sesion=false}={}){
   const csv=a.run(`csvAlumnosPanel(__exp,(al,r)=>r.id==='r1'?{ramo:{promedio:4.7,personas:23},
     evaluaciones:[{clave:'interrogacion 1',promedio:4.6,personas:9}],categorias:[{clave:'interrogaciones',promedio:4.44,personas:31}]}:null)`);
   const lineas=csv.split('\r\n');
+  chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
   chk('decimales con coma y el promedio del ramo es el de ramoAvg',
     lineas[1].split(';')[6]===a.run('fmtPromedio(ramoAvg(ramoParaPanel(__r)))').replace('.',','));
-  chk('GradeHub por evaluación, categoría y ramo, redondeado como en la app',lineas[1].endsWith(';4,6;4,4;4,7'));
-  chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7$/.test(lineas[2]));
+  chk('GradeHub por evaluación, categoría y ramo, redondeado como en la app',lineas[1].split(';').slice(7,10).join(';')==='4,6;4,4;4,7');
+  chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154;;;;;;;'));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(10)));
   const mk=leer('marketplace.js');
   chk('exportar pide confirmar con el recordatorio de los términos',
     /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
+
+  console.log('\n=== El panel en su propia pestaña (#697) ===');
+  const appSrc=leer('app.js'),htmlSrc=leer('index.html'),mkSrc=leer('marketplace.js');
+  chk('un profesor aprobado tiene Clases y Alumnos',/conProfesor\?\['profesor','alumnos'\]/.test(appSrc)&&/tab==='alumnos'[^\n]*renderAlumnosTab\(\)/.test(appSrc));
+  chk('la pestaña y su botón existen, ocultos hasta que corresponda',/id="screen-alumnos" class="screen" hidden/.test(htmlSrc)&&/id="nav-alumnos"[^>]*aria-label="Alumnos" hidden/.test(htmlSrc));
+  chk('Clases ya no lleva la sección de alumnos',!/Ver mis alumnos/.test(mkSrc)&&!/clase-alumnos/.test(mkSrc));
+  chk('en la pestaña no hay "Volver": si falla, se ofrece reintentar',/volver\?'Volver':'Reintentar'/.test(mkSrc));
 
   console.log('\n=== Medición sin datos de nadie ===');
   chk('solo cuenta cuántos ramos o alumnos, nunca nombres ni notas',

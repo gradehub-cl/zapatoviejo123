@@ -498,8 +498,16 @@ function normalize(data) {
   data.acento = ACENTOS[data.acento] ? data.acento : 'turquesa';
   data.fondo = FONDOS[data.fondo] ? data.fondo : 'neutro';
   data.sortMode = ['manual','avg','name'].includes(data.sortMode) ? data.sortMode : 'manual';
+  // Estudiante o profesor (#697). Toda cuenta que no diga 'profesor' es de
+  // estudiante: así cargan igual que siempre las que existían antes de esto.
+  data.tipoCuenta = data.tipoCuenta === 'profesor' ? 'profesor' : 'estudiante';
+  // Año de ingreso a la universidad (#697). Las cuentas anteriores no lo tienen.
+  // TAV o verano marcado a mano en el onboarding: vale hasta el 1 de marzo.
+  data.verano = data.verano&&typeof data.verano.hasta==='string'&&/^\d{4}-03-01$/.test(data.verano.hasta)?{hasta:data.verano.hasta}:null;
+  data.generacion = Number.isInteger(data.generacion)&&data.generacion>=2000&&data.generacion<=new Date().getFullYear()?data.generacion:null;
   return data;
 }
+function esCuentaProfesor(){return !!(S&&S.tipoCuenta==='profesor');}
 
 function loadData() {
   try {
@@ -1247,8 +1255,10 @@ function asignarCalificacionNota(n,raw,valor,tenant){
   return n;
 }
 function textoCalificacionNota(n,tenant){
-  return calificacionConceptualGuardada(n,tenant)||fmt(n&&n.valor!=null?n.valor:null);
+  return calificacionConceptualGuardada(n,tenant)||fmtNota(n&&n.valor!=null?n.valor:null);
 }
+// Una nota se muestra como se escribió: 5.1 o 5.14. Los promedios siguen con fmt.
+function fmtNota(n){return n===null?'·':Math.round(n*100)%10?n.toFixed(2):n.toFixed(1);}
 function conceptosNota(tenant){
   const tenantActual=typeof tenant==='string'?tenant:(typeof S!=='undefined'&&S?S.tenant:null);
   return Object.keys(CALIFICACIONES_CONCEPTUALES_POR_TENANT[tenantActual]||{});
@@ -1262,7 +1272,8 @@ function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5.5
 
 // Parser de notas: acepta "6.5", "6,5", "65" (autocorrige a 6.5), "70" → 7.0.
 // En tenants que lo declaran en data.js acepta además sus conceptos oficiales.
-// Devuelve un número con 1 decimal en rango [1.0, 7.0], o NaN si inválido.
+// Devuelve un número con hasta 2 decimales en rango [1.0, 7.0], o NaN si
+// inválido. Hay profesores que ponen 5,14: se guarda tal cual, no como 5,1.
 function parseNota(raw,tenant){
   const conceptual=calificacionConceptual(raw,tenant);
   if(conceptual)return conceptual.valor;
@@ -1277,7 +1288,7 @@ function parseNota(raw,tenant){
     v=v/10;
   }
   if(v<1||v>7)return NaN;
-  return Math.round(v*10)/10;
+  return Math.round(v*100)/100;
 }
 // initials recibe texto plano; esc() se aplica después sobre el resultado
 function initials(s){return s.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();}
@@ -1371,7 +1382,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -1553,7 +1564,7 @@ function initSemGrid(){
     const b=document.createElement('button');
     b.className='sem-btn'+(i===selectedSem?' sel':'');
     b.textContent=i+'°';
-    b.onclick=()=>{selectedSem=i;initSemGrid();checkOb();};
+    b.onclick=()=>{selectedSem=i;obSemManual=true;initSemGrid();if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();checkOb();};
     g.appendChild(b);
   }
 }
@@ -1602,24 +1613,181 @@ function filtrarCarrerasAjustes(v){window._sFiltro&&window._sFiltro(v);}
 
 // La validación es independiente por paso: la lista sugerida nunca obliga a
 // tomar un ramo, y cada pantalla solo exige su propio dato.
+// ─── RULETAS DEL ONBOARDING (#697) ───────────────────────────────────────────
+// Como la del reloj del iPhone: filas de 44 pt que encajan al centro al soltar.
+// Se usa con el dedo, la rueda del mouse, un toque en la fila, las flechas del
+// teclado y el lector de pantalla (role="spinbutton"). El tamaño de la letra
+// va en rem, así que respeta el que eligió la persona.
+const RULETA_FILA=44;
+const CHEVRON_RULETA=d=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto=v=>String(v),alCambiar}){
+  if(!contenedor)return null;
+  const opciones=vacio!==null?[null,...valores]:valores.slice();
+  // Arriba y abajo, dos botones chicos para moverla de a uno con un clic (en el
+  // computador arrastrar con la rueda no siempre es cómodo). Van fuera del
+  // spinbutton: un control no puede llevar otros controles adentro.
+  contenedor.className='ruleta-control';
+  contenedor.innerHTML='<div class="ruleta"><div class="ruleta-marco" aria-hidden="true"></div><div class="ruleta-lista" aria-hidden="true">'+
+    opciones.map((v,i)=>`<div class="ruleta-fila" data-i="${i}">${esc(v===null?vacio:texto(v))}</div>`).join('')+'</div></div>'+
+    `<button type="button" class="ruleta-paso ruleta-arriba" aria-label="Anterior">${CHEVRON_RULETA('M6 15l6-6 6 6')}</button>`+
+    `<button type="button" class="ruleta-paso ruleta-abajo" aria-label="Siguiente">${CHEVRON_RULETA('M6 9l6 6 6-6')}</button>`;
+  const caja=contenedor.querySelector('.ruleta');
+  if(!caja)return null;
+  caja.setAttribute('role','spinbutton');caja.tabIndex=0;
+  caja.setAttribute('aria-labelledby',etiqueta);
+  caja.setAttribute('aria-valuemin',String(valores[0]));caja.setAttribute('aria-valuemax',String(valores[valores.length-1]));
+  const lista=caja.querySelector('.ruleta-lista');
+  // Sin DOM de verdad (un entorno de prueba) no hay ruleta, pero el onboarding sigue.
+  if(!lista)return null;
+  let idx=Math.max(0,opciones.indexOf(inicial));
+  const pintar=()=>{
+    lista.querySelectorAll('.ruleta-fila').forEach((f,i)=>f.classList.toggle('es-elegida',i===idx));
+    const v=opciones[idx];
+    if(v===null){caja.removeAttribute('aria-valuenow');caja.setAttribute('aria-valuetext',vacio);}
+    else{caja.setAttribute('aria-valuenow',String(v));caja.setAttribute('aria-valuetext',texto(v));}
+  };
+  const elegir=(i,{mover=true}={})=>{
+    i=Math.max(0,Math.min(opciones.length-1,i));
+    const cambio=i!==idx;idx=i;pintar();
+    if(mover&&lista.scrollTo)lista.scrollTo({top:i*RULETA_FILA,behavior:movimientoReducido()?'auto':'smooth'});
+    if(cambio&&alCambiar)alCambiar(opciones[idx]);
+  };
+  // Al soltar, la fila que quedó al centro es la elegida.
+  let espera=null;
+  lista.addEventListener('scroll',()=>{clearTimeout(espera);espera=setTimeout(()=>elegir(Math.round(lista.scrollTop/RULETA_FILA),{mover:false}),90);},{passive:true});
+  // Con el mouse se agarra y se arrastra, como con el dedo. Mientras se
+  // arrastra se apaga el encaje, que si no tironea la lista a cada movimiento.
+  let arrastre=null;
+  lista.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='mouse'||e.button!==0)return;
+    arrastre={y:e.clientY,top:lista.scrollTop,movio:false};
+    lista.classList.add('arrastrando');
+    if(lista.setPointerCapture)lista.setPointerCapture(e.pointerId);
+  });
+  lista.addEventListener('pointermove',e=>{
+    if(!arrastre)return;
+    const dy=e.clientY-arrastre.y;
+    if(Math.abs(dy)>4)arrastre.movio=true;
+    lista.scrollTop=arrastre.top-dy;
+  });
+  const soltar=()=>{
+    if(!arrastre)return;
+    const movio=arrastre.movio;arrastre=null;
+    lista.classList.remove('arrastrando');
+    if(movio){lista.dataset.recienArrastrada='1';elegir(Math.round(lista.scrollTop/RULETA_FILA));}
+  };
+  lista.addEventListener('pointerup',soltar);lista.addEventListener('pointercancel',soltar);
+  lista.addEventListener('click',e=>{
+    if(lista.dataset.recienArrastrada){delete lista.dataset.recienArrastrada;return;}
+    const f=e.target.closest&&e.target.closest('.ruleta-fila');if(f)elegir(Number(f.dataset.i));
+  });
+  contenedor.querySelector('.ruleta-arriba').addEventListener('click',()=>elegir(idx-1));
+  contenedor.querySelector('.ruleta-abajo').addEventListener('click',()=>elegir(idx+1));
+  caja.addEventListener('keydown',e=>{
+    const d={ArrowUp:-1,ArrowDown:1,PageUp:-5,PageDown:5}[e.key];
+    if(d){e.preventDefault();elegir(idx+d);}
+    else if(e.key==='Home'){e.preventDefault();elegir(0);}
+    else if(e.key==='End'){e.preventDefault();elegir(opciones.length-1);}
+  });
+  pintar();
+  // Un paso oculto no tiene alto: se ubica la fila cuando el paso se muestra.
+  const sincronizar=()=>{lista.scrollTop=idx*RULETA_FILA;};
+  sincronizar();
+  return {valor:()=>opciones[idx],elegir,sincronizar};
+}
+const rangoAnios=(desde,hasta)=>Array.from({length:hasta-desde+1},(_,i)=>desde+i);
+// La edad se declara: parte vacía y no se avanza hasta elegirla. La generación
+// parte en el año actual. Las dos se guardan en el perfil (decisión de Lucas,
+// 2026-10-12; ver supabase/edad_declarada.sql y la política de privacidad).
+const EDAD_MINIMA=14;
+let obEdad=null,obGeneracion=new Date().getFullYear(),ruletaEdad=null,ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
+// Quien está en TAV lo marca a mano y queda guardado hasta el 1 de marzo
+// siguiente: desde ahí vuelve a regir el semestre calculado. Mientras dura no
+// se sugieren ramos de la malla, porque en TAV se toman ramos sueltos.
+function finDeVerano(fecha=new Date()){const y=fecha.getMonth()>=2?fecha.getFullYear()+1:fecha.getFullYear();return y+'-03-01';}
+function enVerano(fecha=new Date()){
+  const v=S&&S.verano;if(!v||typeof v.hasta!=='string')return false;
+  const hoy=fecha.getFullYear()+'-'+String(fecha.getMonth()+1).padStart(2,'0')+'-'+String(fecha.getDate()).padStart(2,'0');
+  return hoy<v.hasta;
+}
+// El semestre sale de la generación y la fecha (decisión de Lucas, 2026-10-12):
+// marzo a julio es el primero del año, agosto a diciembre el segundo, y en
+// enero y febrero —el verano— cuenta el que empieza en marzo. Quien entró en
+// 2026 va en su 2.º semestre en octubre de 2026 y empieza el 3.º en marzo de 2027.
+function semestreSegunGeneracion(generacion,fecha=new Date()){
+  return Math.max(1,(fecha.getFullYear()-generacion)*2+(fecha.getMonth()>=7?2:1));
+}
+function actualizarSemestreCalculado(){
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
+  const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
+  if(!caja)return;
+  const editar=document.getElementById('ob-sem-editar');
+  const pasaMarzo=!obSemManual&&new Date().getMonth()<2;
+  const frase=obVerano?`Estás en <b>${esc(nombreVerano(selectedTenant))}</b>.`
+    :`${pasaMarzo?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.`;
+  caja.innerHTML=`<span>${frase}</span>`+
+    (editar&&editar.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
+  const boton=document.getElementById('ob-sem-verano');
+  if(boton){boton.textContent=nombreVerano(selectedTenant);boton.setAttribute('aria-pressed',obVerano?'true':'false');}
+}
+// "Cambiar" pide escribir el semestre, o marcar TAV/verano.
+function mostrarSemestreManual(){
+  const editar=document.getElementById('ob-sem-editar');if(!editar)return;
+  editar.hidden=false;actualizarSemestreCalculado();
+  const campo=document.getElementById('ob-sem-input');
+  if(campo){campo.value=obVerano?'':String(selectedSem);campo.focus();campo.select&&campo.select();}
+}
+function escribirSemestreOnboarding(texto){
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const error=document.getElementById('ob-sem-error');
+  const limpio=String(texto||'').trim();
+  const n=/^\d{1,2}$/.test(limpio)?Number(limpio):NaN;
+  obSemInvalido=!(n>=1&&n<=total);
+  if(!obSemInvalido){selectedSem=n;obSemManual=true;obVerano=false;}
+  if(error)error.textContent=obSemInvalido&&limpio?`Escribe un número entre 1 y ${total}.`:'';
+  if(!limpio)obSemInvalido=!obVerano;
+  actualizarSemestreCalculado();checkOb();
+}
+function alternarVeranoOnboarding(){
+  obVerano=!obVerano;obSemInvalido=false;
+  const campo=document.getElementById('ob-sem-input'),error=document.getElementById('ob-sem-error');
+  if(obVerano&&campo)campo.value='';
+  if(error)error.textContent='';
+  if(!obVerano&&campo)campo.value=String(selectedSem);
+  actualizarSemestreCalculado();checkOb();
+}
+function avisoEdadOnboarding(){
+  const aviso=document.getElementById('ob-edad-aviso');if(!aviso)return;
+  aviso.textContent=obEdad!==null&&obEdad<EDAD_MINIMA?`Para usar GradeHub tienes que tener ${EDAD_MINIMA} años o más.`:'';
+}
+function montarRuletasOnboarding(){
+  ruletaEdad=montarRuleta(document.getElementById('ob-edad-ruleta'),{valores:rangoAnios(10,99),etiqueta:'ob-edad-titulo',
+    inicial:obEdad,vacio:'—',texto:v=>v+' años',alCambiar:v=>{obEdad=v;avisoEdadOnboarding();checkOb();}});
+  ruletaGeneracion=montarRuleta(document.getElementById('ob-generacion-ruleta'),{valores:rangoAnios(2000,new Date().getFullYear()),
+    etiqueta:'ob-generacion-titulo',inicial:obGeneracion,alCambiar:v=>{obGeneracion=v;actualizarSemestreCalculado();if(document.getElementById('sem-grid')&&!document.getElementById('sem-grid').hidden)initSemGrid();checkOb();}});
+}
+
 function obStepValid(step,datos){
   const d=datos||{
     nombre:(document.getElementById('ob-name')||{}).value||'',
-    edad:!!(document.getElementById('ob-edad')||{}).checked,
+    edad:obEdad,
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
+    verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre
   };
-  // El paso 1 pide dos cosas: cómo te llamas y que declares la edad mínima.
-  if(step===1)return !!String(d.nombre||'').trim()&&!!d.edad;
+  // El paso 1 pide dos cosas: cómo te llamas y tu edad, que tiene que ser la mínima.
+  if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=EDAD_MINIMA;
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
-  if(step===4)return !!d.semestre;
+  if(step===4)return !d.semInvalido&&(!!d.semestre||!!d.verano);
   if(step===5)return true;
   return false;
 }
 function obProgressPct(step){return Math.round(step/OB_TOTAL*100);}
 
-function obRamosActuales(){return ((mallaDeCarrera(selectedTenant,selectedCarrera)||{})[selectedSem]||[]);}
+// En TAV no se sugieren ramos de la malla: se toman ramos sueltos.
+function obRamosActuales(){if(typeof obVerano!=='undefined'&&obVerano)return [];return ((mallaDeCarrera(selectedTenant,selectedCarrera)||{})[selectedSem]||[]);}
 function prepararObRamos(){
   const key=[selectedTenant,selectedCarrera,selectedSem].join(':');
   // Traer la malla antes de decidir qué sugerir. Si no llega, el paso 5 muestra
@@ -1880,12 +2048,18 @@ function obTrackPaso(){
 // carreras de FEN, donde la primera opción es "Ingeniería Comercial", y se llevaba
 // la malla de otra universidad. `obStepValid(2)` ya exige un tenant; lo que faltaba
 // era no dárselo puesto.
-function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;renderTenantPick();obRender();checkOb();}
+function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;montarRuletasOnboarding();renderTenantPick();obRender();checkOb();}
 
 function obRender(){
   // Cuántos semestres ofrecer depende de la malla, que puede venir en un
   // archivo diferido: se pide acá y el selector se repinta cuando llega.
-  if(obStep===4){initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4)initSemGrid();});}
+  if(obStep===4){
+    if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();
+    initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4){if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();initSemGrid();}});
+  }
+  const alPintar=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(f):f();
+  if(obStep===1&&typeof ruletaEdad!=='undefined'&&ruletaEdad)alPintar(ruletaEdad.sincronizar);
+  if(obStep===4&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
   if(obStep===5)prepararObRamos();
   obTrackPaso();
   document.querySelectorAll('.ob-step').forEach(el=>{
@@ -1953,7 +2127,7 @@ function completeOnboarding(){
     showToast('Falta un dato para crear tu cuenta',true);
     return;
   }
-  S.userName=name;S.careerSemestre=selectedSem;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
+  S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.verano=obVerano?{hasta:finDeVerano()}:null;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
   obRamos.forEach(item=>{
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
@@ -1967,7 +2141,7 @@ function completeOnboarding(){
   // formulario de correo porque por el onboarding pasan también las cuentas de
   // Google, que nunca vieron ese formulario — y con ellas, la aceptación de
   // los términos, que hasta ahora solo se registraba en el camino del correo.
-  registrarDeclaracionEdad();
+  registrarDeclaracionEdad({edad:obEdad,generacion:obGeneracion});
   // `carrera` es un código de una lista cerrada y puede viajar. El nombre
   // declarado NO: es texto escrito por el estudiante y la analítica no recibe
   // texto suyo — lo prohíbe tests/analitica.test.js y lo promete la política.
@@ -2182,8 +2356,10 @@ function recalcularNavTabs(){
   // La de administración, solo para cuentas administradoras. Que aparezca no da
   // acceso a nada: el servidor exige además el segundo factor.
   const conAdmin=typeof esAdministrador==='function'&&esAdministrador();
-  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor']:[]),...(conAdmin?['admin']:[])];
-  [['profesor',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
+  // Un profesor aprobado tiene Clases (sus anuncios) y Alumnos (el panel), en
+  // pestañas separadas (#697).
+  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
+  [['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
@@ -2220,6 +2396,7 @@ function showTab(tab,skipAnim){
     else if(tab==='stats')renderStats();
     else if(tab==='agenda')renderAgenda();
     else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
+    else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
     track('screen_view',{screen_name:tab});
   } else {
@@ -2614,7 +2791,7 @@ function evaluacionSinNota(cat){return !(cat?.notas||[]).some(n=>n&&n.valor!=nul
 function porcentajeAusencia(valor){return String(r2(Number(valor)||0)).replace('.',',');}
 function declararAusenciaJustificada(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  const regla=r.reglasAusenciaJustificada;
+  const regla=reglasAusenciaOficiales(r);
   const declarable=[...(regla&&regla.reemplazos||[]),...(regla&&regla.traspasos||[]),...(regla&&regla.rezagos||[])].some(x=>x.desdeId===catId);
   const cat=(r.categorias||[]).find(c=>c.id===catId);
   if(!declarable||!cat||!evaluacionSinNota(cat)){showToast('Esa ausencia ya no se puede aplicar a tu pauta',true);return;}
@@ -2625,7 +2802,7 @@ function declararAusenciaJustificada(catId){
 function ausenciaDeEvaluacion(r,cat){
   if(!r||!cat)return null;
   const declarada=(r.ausenciasJustificadas||[]).includes(cat.id);
-  const oficial=r.reglasAusenciaJustificada;
+  const oficial=reglasAusenciaOficiales(r);
   const regla=oficial||(r.reglasAusenciaJustificadaUsuario?.declaradaPor==='estudiante'?r.reglasAusenciaJustificadaUsuario:null);
   const entradas=[...(regla?.reemplazos||[]).map(x=>({...x,tipo:'reemplazo'})),
     ...(regla?.traspasos||[]).map(x=>({...x,tipo:'traspaso'})),
@@ -2635,13 +2812,15 @@ function ausenciaDeEvaluacion(r,cat){
   if(!declarada&&(!pendiente||!(Number(cat.peso)>0)||!!oficial&&!entrada))return null;
   const estado=declarada?estadoAusenciasJustificadas(r):null;
   const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===cat.id);
+  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===cat.id);
   const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===cat.id)||
-    (declarada&&!aplicada?{motivo:'pauta_cambio'}:null);
-  const detalle=aplicada||inactiva||entrada;
+    (declarada&&!aplicada&&!bloqueada?{motivo:'pauta_cambio'}:null);
+  const detalle=aplicada||bloqueada||inactiva||entrada;
   const destino=(r.categorias||[]).find(c=>c.id===detalle?.haciaId);
   const peso=porcentajeAusencia(cat.peso);
   let texto='';
-  if(inactiva)texto=inactiva.motivo==='tiene_nota'
+  if(bloqueada)texto=`El traspaso supera el máximo de ${bloqueada.topePesoDestino}% del examen. El resultado queda pendiente hasta resolverlo con el curso.`;
+  else if(inactiva)texto=inactiva.motivo==='tiene_nota'
     ?'La declaración se conserva, pero no se aplica porque esta evaluación tiene nota.'
     :'La declaración se conserva, pero no se aplica porque cambió la pauta.';
   else if(detalle?.tipo==='rezago')texto=`Su ${peso}% queda pendiente para rendir en rezago.`;
@@ -2699,7 +2878,7 @@ function confirmarCorreccionAusenciaJustificada(catId){
     ()=>corregirAusenciaJustificada(catId),{label:'Deshacer justificación',focusCancel:true});
 }
 function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
-  if(!r||r.reglasAusenciaJustificada)return false;
+  if(!r||reglasAusenciaOficiales(r))return false;
   const desde=(r.categorias||[]).find(c=>c.id===desdeId);
   if(!desde||!(Number(desde.peso)>0)||!evaluacionSinNota(desde))return false;
   if(!['rezago','traspaso'].includes(tipo))return false;
@@ -2722,7 +2901,7 @@ function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
 function openAusenciaJustificadaModal(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const desde=r&&(r.categorias||[]).find(c=>c.id===catId);
-  if(!r||r.reglasAusenciaJustificada||!desde||!evaluacionSinNota(desde)){
+  if(!r||reglasAusenciaOficiales(r)||!desde||!evaluacionSinNota(desde)){
     showToast('Esa ausencia ya no se puede configurar',true);return;
   }
   const destinos=(r.categorias||[]).filter(c=>c.id!==catId&&Number(c.peso)>0);
@@ -2918,7 +3097,8 @@ function deleteNota(catId,notaId){
 // ─── RAMOS DE LA MALLA ───────────────────────────────────────────────────────
 function mallaFaltantes(){
   if(!S.carrera) return [];
-  const ramos=(mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[];
+  // En TAV no hay ramos de malla que sugerir.
+  const ramos=enVerano()?[]:((mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[]);
   return ramos.filter(n=>!S.ramos.some(r=>r.nombre.toLowerCase()===n.toLowerCase()));
 }
 let _mallaSel={}, _mallaList=[];
@@ -3004,6 +3184,15 @@ function pautaEditada(r){
 // Devuelve el cambio pendiente, o null. Null significa las tres cosas buenas:
 // no hay pauta oficial, ya está al día, o el estudiante la editó a mano —y en
 // ese caso su versión manda sobre la nuestra, sin preguntar ni avisar.
+function firmaReglasCalculo(r){
+  const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
+  return JSON.stringify((r.gates||[]).filter(g=>['conditional_weights','absence_limit'].includes(g.type)).map(g=>({
+    type:g.type,nombre:g.nombre,max:g.max,ambigua:g.ambigua,
+    cuando:(g.cuando||[]).map(c=>({tipo:c.tipo,min:c.min,algunaMin:c.algunaMin,evals:c.catIds.map(id=>nombres.get(id))})),
+    pesos:(g.pesos||[]).map(e=>({evaluacion:nombres.get(e.catId),peso:e.peso})),
+    traspasos:(g.traspasos||[]).map(e=>({desde:nombres.get(e.desdeId),hacia:nombres.get(e.haciaId)})),
+  })));
+}
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
   const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
@@ -3013,11 +3202,12 @@ function cambioDePauta(r){
   const actual=huellaPauta(catsDePauta(r.categorias));
   if(actual!==r.pautaHuella)return null;      // la editó: no se opina
   const oficial=huellaPauta(p.categorias);
-  if(oficial===actual)return null;            // al día
+  const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
+  if(oficial===actual&&!reglasCambian)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
-  const cambios=[];
+  const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
@@ -3041,6 +3231,7 @@ function verCambioDePauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return;
   const cambio=cambioDePauta(r);if(!cambio)return;
   const fila=c=>{
+    if(c.tipo==='regla')return `<li>${esc(c.nombre)}</li>`;
     if(c.tipo==='peso')return `<li><b>${esc(c.nombre)}</b>: ${r2(c.antes)}% → <b>${r2(c.despues)}%</b></li>`;
     if(c.tipo==='llega')return `<li><b>${esc(c.nombre)}</b>: nueva, ${r2(c.despues)}%</li>`;
     return `<li><b>${esc(c.nombre)}</b>: ya no está en la pauta del catálogo</li>`;
@@ -3195,6 +3386,19 @@ function presetRamo(nombre,tenant,carrera,ahora){
     const ids=g.evals.map(n=>porNombre[n]).filter(Boolean);
     if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{})});
   });
+  // Las reglas nuevas usan gates; un ramo ya guardado las recibe únicamente
+  // cuando su dueño acepta actualizar la pauta.
+  const pauta=categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}));
+  const ids=nombres=>nombres.map(n=>porNombre[n]).filter(Boolean);
+  (!Array.isArray(def)&&def.formulasCondicionales||[]).forEach(regla=>{
+    const cuando=(regla.cuando||[]).map(c=>({...c,catIds:ids(c.evals)}));
+    if(cuando.some((c,i)=>c.catIds.length!==regla.cuando[i].evals.length))return;
+    gates.push({type:'conditional_weights',nombre:regla.nombre,pauta,cuando,
+      ambigua:regla.ambigua===true,pesos:(regla.pesos||[]).map(e=>({catId:porNombre[e.evaluacion],peso:e.peso}))});
+  });
+  const limite=!Array.isArray(def)&&def.limiteAusencias;
+  if(limite)gates.push({type:'absence_limit',nombre:limite.nombre,pauta,max:limite.max,
+    traspasos:limite.desde.map(n=>({desdeId:porNombre[n],haciaId:porNombre[limite.hacia]}))});
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
   const bonus=resolverBonus(def,categorias);
@@ -5236,7 +5440,31 @@ function reglasDelPreset(ramo,campo){
 function reglasNoCalculadas(ramo){
   const cargadas=new Set((ramo&&Array.isArray(ramo.bonus)?ramo.bonus:[]).map(b=>b.id));
   const sinCargar=reglasDelPreset(ramo,'bonus').filter(b=>b&&!cargadas.has(b.id)&&b.ayuda).map(b=>b.ayuda);
-  return reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
+  const pendientes=reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
+  const def=definicionPresetDelRamo(ramo);
+  const calculadas=reglasCalculoVigentes(ramo);
+  const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
+  const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
+  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
+  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
+  const ausencias=estadoAusenciasJustificadas(ramo);
+  if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
+  return pendientes;
+}
+function notaNecesariaCondicional(ramo){return reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights');}
+function motivoCalculoPendiente(ramo){
+  const base=calculoRamoConCompuertas(ramo);
+  if(base.ausencias?.bloqueadas?.length)return 'El examen supera su ponderación máxima. Confirma con el curso el derecho a examen o la recuperativa antes de calcular la final';
+  if(base.res.formulas?.some(f=>f.ambigua))return 'El programa se contradice en el límite 3,8. Confirma con el profesor cómo ponderar las tareas';
+  return null;
+}
+function reglasCalculadas(ramo){
+  const calculo=calculoRamoConCompuertas(ramo);
+  const formulas=calculo.res.formulas||[];
+  const notas=formulas.map(f=>`${f.nombre}: ${f.ambigua?'el programa contradice el límite; confirma con el profesor':f.pendiente?'se resolverá al completar las evaluaciones que deciden la condición':f.activa?'se aplica al promedio':'no se activa con tus notas'}`);
+  const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
+  if(limite)notas.push(`${limite.nombre}. Solo se mueve el peso de una prueba que declares justificada; el máximo del examen es ${limite.max}%`);
+  return notas;
 }
 // Reglas del curso que el promedio NUNCA va a incluir. Decirle al estudiante
 // "todavía no las calculamos" sería prometerle algo que no va a pasar: dependen
@@ -6463,7 +6691,7 @@ function propuestaNotasLimpia(valor){
     const clave=normName(evaluacion)+'#'+(casilla==null?'':casilla);
     if(!evaluacion||!Number.isFinite(v)||v<1||v>7||vistas.has(clave))return null;
     if(casilla!==null&&(!Number.isInteger(casilla)||casilla<1||casilla>100))return null;
-    vistas.add(clave);notas.push({evaluacion,valor:Math.round(v*10)/10,casilla});
+    vistas.add(clave);notas.push({evaluacion,valor:Math.round(v*100)/100,casilla});
   }
   if(!notas.length||notas.length>60)return null;
   return {id,ramo,ramoKey,fuente,notas,createdAt:valor.created_at||null};
@@ -6566,7 +6794,7 @@ function guardarPropuestaNotasEditada(id){
     // Una casilla que quedó vacía o con algo que no es nota se omite, no se
     // guarda como 1,0 ni se inventa: omitir es lo que la persona quiso decir.
     if(isNaN(v)||v<1||v>7)continue;
-    valores.push({...propuesta.notas[i],valor:Math.round(v*10)/10});
+    valores.push({...propuesta.notas[i],valor:v});
   }
   if(!valores.length){showToast('No quedó ninguna nota válida para guardar',true);return;}
   aplicarPropuestaNotas(id,valores);
@@ -7417,7 +7645,8 @@ const PERIODOS_SEMESTRE=[
   {id:'2',corto:'2°',nombre:'Segundo semestre'},
   {id:'v',corto:'',nombre:'Temporada de verano'}
 ];
-function nombreVerano(){return S.tenant==='uc'?'TAV':'Verano';}
+// En el onboarding la cuenta todavía no tiene universidad: se pasa la elegida.
+function nombreVerano(tenant=S.tenant){return tenant==='uc'?'TAV':'Verano';}
 function cortoPeriodo(p){return p.id==='v'?nombreVerano():p.corto;}
 
 function etiquetaSemestre(anio,periodo){
@@ -8619,7 +8848,7 @@ function confirmEditNota(catId,notaId){
   const n=cat.notas.find(x=>x.id===notaId);
   n.nombre=name;n.peso=peso;
   if(isNaN(val)){n.valor=null;delete n.calificacionConceptual;}
-  else asignarCalificacionNota(n,rawNota,Math.round(val*10)/10);
+  else asignarCalificacionNota(n,rawNota,val);
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
@@ -8688,7 +8917,11 @@ function openCalculadoraModal(){
         const oficial=notaFinalOficial(avg),metaOficial=notaFinalOficial(target);
         const ok=oficial>=metaOficial;
         el.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'}">Tu promedio actual es <b>${fmtPromedio(avg)}</b> — ${ok?'ya lo lograste.':`te faltan ${(metaOficial-oficial).toFixed(1)} puntos y no quedan evaluaciones.`}</span>`;
-      } else {el.innerHTML=`<span style="color:var(--fg3)">No hay notas ingresadas aún.</span>`;}
+      } else {el.innerHTML=`<span style="color:var(--fg3)">${esc(motivoCalculoPendiente(r)||'No hay notas ingresadas aún.')}</span>`;}
+      return;
+    }
+    if(notaNecesariaCondicional(r)&&needed<=7){
+      el.innerHTML=`<div>Con <b>${nfNecesaria(needed)}</b> en cada evaluación pendiente llegas a ${target.toFixed(1)}.<p class="modal-desc">Cambiar una nota puede activar otra fórmula del programa. Comprueba tus escenarios en el simulador.</p></div>`;
       return;
     }
     const metaCalculada=resumenMetaCalculadora(needed);
@@ -8783,8 +9016,10 @@ function simGlobalStep(ramoId,delta){
 // escala después de eso pasa al clamp — que se queda, porque escribir "9" es
 // querer el máximo, no querer nada, y eso ya estaba decidido.
 function simGlobalDesdeTexto(raw){
+  // El simulador del semestre va en décimas (sus botones suben de a 0,1), aunque
+  // una nota real admita centésimas.
   const n=parseNota(raw);
-  if(!isNaN(n))return n;
+  if(!isNaN(n))return simGlobalNormaliza(n);
   return simGlobalNormaliza(parseFloat(String(raw).replace(',','.')));
 }
 function simGlobalSet(ramoId,raw){
@@ -8997,7 +9232,9 @@ function simNotaNecesaria(proyectado){
   const peso=(proyectado.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
   if(Math.abs(peso-100)>0.05)return {texto:'Completa la pauta para calcularlo'};
   const calculo=calculoRamoConCompuertas(proyectado);
-  if(!calculo.res.emptyLeaves.length)return null;
+  const motivo=motivoCalculoPendiente(proyectado);
+  if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
+  if(!calculo.res.emptyLeaves.length&&!notaNecesariaCondicional(proyectado))return null;
 
   const necesaria=notaNecesaria(proyectado,meta);
   const nodos=new Map((calculo.estructura.children||[]).map(c=>[c.id,c]));
@@ -9022,6 +9259,7 @@ function simNotaNecesaria(proyectado){
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
     return `Además, ${nombre} debe llegar a ${simConComa(fmtPromedio(x.g.min))} para cumplir su mínimo.`;
   }).join(' ');
+  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas al 4,0`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
     ?{texto:'El promedio ponderado ya alcanza el 4,0',detalle:condiciones}
     :{texto:'Ya tienes el 4,0 asegurado'};
@@ -10189,6 +10427,7 @@ function lecturaDespuesDeNota(ramo){
   const necesita=notaNecesaria(ramo);
   if(necesita===null)return `Vas ${fmtPromedio(avg)} · ramo completamente evaluado`;
   if(necesita>7.05)return `Vas ${fmtPromedio(avg)} · ya no alcanza sólo con lo pendiente`;
+  if(notaNecesariaCondicional(ramo))return `Vas ${fmtPromedio(avg)} · con ${nfNecesaria(necesita)} en cada evaluación pendiente llegas al 4,0`;
   if(necesita<=1.0)return `Vas ${fmtPromedio(avg)} · tienes margen para aprobar`;
   if(nivelNota(avg)==='good'&&necesita<=4.0)return `Vas ${fmtPromedio(avg)} · buen margen en lo pendiente`;
   return `Vas ${fmtPromedio(avg)} · necesitas ${nfNecesaria(necesita)} en lo pendiente para aprobar`;

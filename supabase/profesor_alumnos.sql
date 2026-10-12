@@ -53,6 +53,13 @@ create table if not exists public.profesor_alumnos (
 );
 create index if not exists profesor_alumnos_alumno_idx on public.profesor_alumnos (alumno_id);
 
+-- Cuándo empezó el alumno con el profesor (#697). Las estadísticas comparan
+-- cómo le iba antes y cómo le va desde ahí. Vacía = cuándo compartió, que
+-- suele ser después de empezar; el profesor la corrige con fijar_inicio_alumno.
+alter table public.profesor_alumnos
+  add column if not exists inicio_clases date
+  check (inicio_clases between date '2000-01-01' and date '2100-12-31');
+
 alter table public.profesor_alumnos enable row level security;
 revoke all on public.profesor_alumnos from public, anon, authenticated;
 
@@ -209,8 +216,12 @@ $$;
 -- ─── PROFESOR: sus alumnos ──────────────────────────────────────────────────
 -- Devuelve, de cada alumno, SOLO los ramos que compartió, tal como los guardó.
 -- Un ramo que el alumno borró desaparece solo.
-create or replace function public.mis_alumnos()
-returns table (id uuid, nombre_visible text, tenant text, ramos jsonb, desde timestamptz)
+-- Devolver `inicio` cambia el tipo de retorno: Postgres no lo deja con
+-- create or replace, así que se borra y se vuelve a crear (los permisos se
+-- vuelven a dar al final del archivo).
+drop function if exists public.mis_alumnos();
+create function public.mis_alumnos()
+returns table (id uuid, nombre_visible text, tenant text, ramos jsonb, desde timestamptz, inicio date)
 language plpgsql
 stable
 security definer
@@ -229,7 +240,7 @@ begin
   select pa.id, pa.nombre_visible, ur.data->>'tenant',
          coalesce((select jsonb_agg(r) from jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
                    where r->>'id' = any (pa.ramos)), '[]'::jsonb),
-         pa.created_at
+         pa.created_at, pa.inicio_clases
   from public.profesor_alumnos pa
   left join public.user_ramos ur on ur.user_id = pa.alumno_id
   where pa.tutor_id = uid
@@ -248,6 +259,30 @@ begin
     raise exception 'hay que haber iniciado sesión';
   end if;
   delete from public.profesor_alumnos where id = p_id and tutor_id = auth.uid();
+  return found;
+end;
+$$;
+
+-- El profesor corrige cuándo empezó cada alumno con él. null vuelve a usar
+-- cuándo compartió. No puede ser futura: no se compara contra lo que no pasó.
+create or replace function public.fijar_inicio_alumno(p_id uuid, p_inicio date)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'hay que haber iniciado sesión';
+  end if;
+  if not public.tutor_aprobado(auth.uid()) then
+    raise exception 'solo un profesor aprobado ve a sus alumnos';
+  end if;
+  if p_inicio is not null and (p_inicio < date '2000-01-01' or p_inicio > current_date) then
+    raise exception 'la fecha de inicio no puede ser futura';
+  end if;
+  update public.profesor_alumnos set inicio_clases = p_inicio, updated_at = now()
+   where id = p_id and tutor_id = auth.uid();
   return found;
 end;
 $$;
@@ -379,6 +414,7 @@ revoke all on function public.dejar_de_compartir(uuid) from public, anon;
 revoke all on function public.mis_profesores() from public, anon;
 revoke all on function public.mis_alumnos() from public, anon;
 revoke all on function public.quitar_alumno(uuid) from public, anon;
+revoke all on function public.fijar_inicio_alumno(uuid, date) from public, anon;
 revoke all on function public.comparacion_ramo_profesor(text, text) from public, anon;
 grant execute on function public.clave_evaluacion(text) to authenticated;
 grant execute on function public.codigo_alumnos_profesor(boolean) to authenticated;
@@ -388,4 +424,5 @@ grant execute on function public.dejar_de_compartir(uuid) to authenticated;
 grant execute on function public.mis_profesores() to authenticated;
 grant execute on function public.mis_alumnos() to authenticated;
 grant execute on function public.quitar_alumno(uuid) to authenticated;
+grant execute on function public.fijar_inicio_alumno(uuid, date) to authenticated;
 grant execute on function public.comparacion_ramo_profesor(text, text) to authenticated;

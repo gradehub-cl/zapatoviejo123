@@ -1880,7 +1880,6 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
            :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
        <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
      </details>`+
-    '<section class="clases-seccion"><h3>Tus alumnos</h3><p class="clase-sin-datos">Mira las notas que tus alumnos te comparten y compáralas con el resto de GradeHub.</p><button type="button" class="btn-confirm" id="clase-alumnos">Ver mis alumnos</button></section>'+
     '<section class="clases-seccion"><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
     salida()+'</div>';
   // Al cambiar el estado se vuelve a pedir la lista: el estado, los números y
@@ -1889,8 +1888,6 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const repintar=()=>renderEspacioProfesor(raiz,{titulo:!!cabecera('x')});
   const nueva=raiz.querySelector('#clase-nueva');
   if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null));
-  const verAlumnos=raiz.querySelector('#clase-alumnos');
-  if(verAlumnos)verAlumnos.addEventListener('click',()=>renderAlumnosProfesor(raiz,{volver:repintar}));
   const cajaLogo=raiz.querySelector('#clases-logo');
   if(cajaLogo&&cajaLogo.isConnected&&typeof cajaLogo.addEventListener==='function')renderLogoProfesor(cajaLogo);
   raiz.querySelectorAll('[data-editar]').forEach(b=>
@@ -3292,7 +3289,7 @@ function categoriasDeRamoPanel(r){
   return (r.categorias||[]).map(c=>{
     const notas=(c.notas||[]).filter(n=>typeof n.valor==='number'&&isFinite(n.valor)).map(n=>{
       const nombre=(n.nombre||'').trim()||c.nombre;
-      return {nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
+      return {id:n.id,nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
     });
     const v=valores.get(c.id);
     const promedio=typeof v==='number'&&isFinite(v)?v:(typeof avgPond==='function'?avgPond(notas):null);
@@ -3444,6 +3441,89 @@ function resumenAlumnosPanelHTML(resumen){
   </section>`;
 }
 
+// ─── ESTADÍSTICAS DEL PROFESOR: ANTES Y AHORA (#697) ─────────────────────────
+// Cómo les iba a sus alumnos antes de empezar con el profesor y cómo les va
+// ahora. La medida principal es la DIFERENCIA CON EL CURSO: la nota menos el
+// promedio de GradeHub en esa misma evaluación (desde 5 personas), para que una
+// prueba más fácil no parezca una mejora. Una evaluación sin fecha no se puede
+// poner antes ni después: queda fuera y se cuenta. Con menos de
+// MIN_EVALS_COMPARACION evaluaciones comparables a cada lado no hay "cambio".
+// Antes y después no prueba que la mejora sea por las clases: quien busca
+// clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.
+const MIN_EVALS_COMPARACION=2;
+function diaLocalPanel(f){
+  // Una fecha sin hora ya es un día: leída con new Date sería medianoche UTC,
+  // que en Chile todavía es el día anterior (el 1 de septiembre salía 31 de agosto).
+  if(typeof f==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(f))return f;
+  const d=f instanceof Date?f:new Date(f);if(f==null||isNaN(d))return null;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+const mediaPanel=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+function medianaPanel(xs){
+  if(!xs.length)return null;const o=xs.slice().sort((a,b)=>a-b),m=o.length>>1;
+  return o.length%2?o[m]:(o[m-1]+o[m])/2;
+}
+// Cada nota con su fecha (la de la Agenda del alumno) y el promedio del curso
+// en esa evaluación. Una categoría de una sola evaluación se compara con su
+// categoría, que es la misma prueba.
+function evaluacionesConFechaPanel(ramo,comp){
+  const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
+  const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
+  const out=[],vistas=new Set();
+  let eventos=[];try{eventos=typeof agendaEvents==='function'?agendaEvents([ramo]):[];}catch(e){}
+  eventos.forEach(e=>(e.notas||[]).forEach(n=>{
+    if(typeof n.valor!=='number'||vistas.has(n.id))return;
+    vistas.add(n.id);
+    const nombre=(n.nombre||'').trim()||e.cat.nombre;
+    const unica=!(Number.isInteger(e.cat.slots)&&e.cat.slots>1)&&(e.cat.notas||[]).length<=1;
+    const ref=porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null);
+    out.push({id:n.id,ramo:ramo.nombre,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
+      curso:ref&&ref.promedio!=null&&isFinite(Number(ref.promedio))?Number(ref.promedio):null,
+      aprobada:typeof notaAprobada==='function'?notaAprobada(n.valor):n.valor>=4});
+  }));
+  let sinFecha=0;
+  (ramo.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{if(typeof n.valor==='number'&&!vistas.has(n.id))sinFecha++;}));
+  return {evaluaciones:out,sinFecha};
+}
+function resumenLadoPanel(lista){
+  const comparadas=lista.filter(e=>e.curso!==null);
+  return {n:lista.length,nComparadas:comparadas.length,
+    promedio:mediaPanel(lista.map(e=>e.nota)),
+    diferencia:mediaPanel(comparadas.map(e=>e.nota-e.curso)),
+    aprobacion:lista.length?lista.filter(e=>e.aprobada).length/lista.length:null};
+}
+// `inicio` es cuándo empezó con el profesor: por omisión, cuándo compartió.
+function metricasAlumnoPanel(al,compDe,{inicio}={}){
+  return conUniversidadPanel(al.tenant,()=>{
+    const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
+    let evaluaciones=[],sinFecha=0;
+    (al.ramos||[]).forEach(r=>{
+      const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
+    });
+    evaluaciones.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
+    evaluaciones.forEach(e=>{e.lado=desde&&e.fecha<desde?'antes':'ahora';});
+    const antes=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='antes'));
+    const ahora=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='ahora'));
+    const suficiente=antes.nComparadas>=MIN_EVALS_COMPARACION&&ahora.nComparadas>=MIN_EVALS_COMPARACION;
+    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,
+      cambio:suficiente?ahora.diferencia-antes.diferencia:null};
+  });
+}
+// El grupo: la mediana del cambio (un alumno que subió mucho no la mueve sola),
+// cuántos mejoraron de los que tienen datos, y aprobación y promedio de todas
+// las evaluaciones juntas, antes y ahora.
+function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
+  const porAlumno=(alumnos||[]).map(al=>metricasAlumnoPanel(al,compDe,inicioDe?{inicio:inicioDe(al)}:{}));
+  const conCambio=porAlumno.filter(m=>m.cambio!==null);
+  const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
+  return {alumnos:porAlumno,conCambio:conCambio.length,
+    mejoraron:conCambio.filter(m=>m.cambio>0).length,
+    cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
+    antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),
+    sinFecha:porAlumno.reduce((s,m)=>s+m.sinFecha,0)};
+}
+
 // Buscador del panel: por el nombre con que el alumno eligió aparecer, o por
 // ramo o sigla, sin importar tildes ni mayúsculas. Si calza el nombre se ven
 // todos sus ramos; si calza un ramo, solo ese.
@@ -3458,9 +3538,116 @@ function filtrarAlumnosPanel(alumnos,texto){
     return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
 }
+// ─── La pantalla de "antes y ahora" ──────────────────────────────────────────
+// Tres cifras del grupo (cifras destacadas, no gráficos) y, en cada alumno, su
+// cambio, un gráfico de una sola serie y la lista con las mismas cifras. Nada
+// lleva los colores del semáforo: subir respecto del curso no es "aprobar".
+const unDecimalPanel=v=>Math.abs(v).toFixed(1);
+const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
+const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
+function frenteAlCursoPanel(d){
+  if(d===null)return 'sin comparación';
+  return Math.abs(d)<0.05?'igual que el curso':`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} el curso`;
+}
+function antesAhoraGrupoHTML(g){
+  if(!g||!g.alumnos.length)return '';
+  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
+  const pocos='Aún pocos datos';
+  const cifras=[
+    g.cambioMediana===null?cifra('—','Respecto del curso',pocos)
+      :cifra(esc(conSignoPanel(g.cambioMediana)),'Respecto del curso',`mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
+    g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron','respecto del curso'):cifra('—','Mejoraron',pocos),
+    cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Aprobación','de sus evaluaciones')
+  ].join('');
+  const prom=v=>v===null?'—':esc(fmt(v));
+  return `<section class="ah-grupo" aria-labelledby="ah-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Cómo van tus alumnos</h2></div>
+    <div class="ah-cifras">${cifras}</div>
+    <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
+    <p class="clase-privacidad">Con ${g.antes.n+g.ahora.n} evaluaciones con fecha${g.sinFecha?`; ${g.sinFecha} sin fecha no cuentan`:''}. “Respecto del curso” compara cada nota con el promedio de GradeHub en esa misma prueba, antes y después de que empezaran contigo. El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
+  </section>`;
+}
+// Una serie: la diferencia con el curso en cada evaluación comparable, en el
+// orden en que fueron. La línea del curso (0) va tenue y una marca dice cuándo
+// empezó. Cada punto tiene un área de 12 px para mostrar su detalle.
+function graficoAntesAhoraSVG(m){
+  const pts=m.evaluaciones.filter(e=>e.curso!==null);
+  if(pts.length<2)return '';
+  const W=320,H=96,P=14;
+  const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
+  const x=i=>P+i*(W-2*P)/(pts.length-1),y=d=>H/2-(d/lim)*(H/2-P);
+  const corte=pts.findIndex(e=>e.lado==='ahora');
+  const linea=pts.map((e,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(e.nota-e.curso).toFixed(1)}`).join(' ');
+  const xc=corte>0?((x(corte-1)+x(corte))/2).toFixed(1):null;
+  const marca=xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
+  const puntos=pts.map((e,i)=>`<g><title>${esc(e.evaluacion)} · ${esc(fechaCorta(e.fecha))}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="12"/><circle class="ah-punto" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="4"/></g>`).join('');
+  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}<path class="ah-linea" d="${linea}"/>${puntos}</svg>
+    <p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.</p>`;
+}
+function antesAhoraAlumnoHTML(m){
+  if(!m||!m.evaluaciones.length)return '';
+  const resumen=m.cambio===null?'Aún pocos datos para comparar antes y ahora'
+    :Math.abs(m.cambio)<0.05?'Igual que antes, respecto del curso'
+    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} respecto del curso`;
+  const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
+  return `<div class="ah-alumno">
+    <p class="ah-alumno-resumen">${resumen}</p>
+    <p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia)}</span></p>
+    ${graficoAntesAhoraSVG(m)}
+    <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
+      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>Curso</th></tr></thead><tbody>${filas}</tbody></table>
+      ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
+    </details>
+  </div>`;
+}
+
+// "Empezó contigo el …": por omisión el día que compartió, que suele ser
+// después de la primera clase; el profesor lo corrige y las estadísticas
+// comparan desde ahí.
+function inicioAlumnoPanel(al){return diaLocalPanel(al&&(al.inicio||al.desde));}
+function lineaInicioAlumnoHTML(al){
+  const dia=inicioAlumnoPanel(al);if(!dia)return '';
+  return `<p class="panel-alumnos-inicio"><span>Empezó contigo el <b>${esc(fechaCorta(dia))}</b>${al.inicio?'':' · el día que compartió'}</span>
+    <button type="button" class="agent-refresh" data-inicio-alumno="${esc(al.id)}">Cambiar</button></p>`;
+}
+// Hoja con el selector de fecha del sistema (HIG: Date pickers). La fecha no
+// puede ser futura: no se compara contra lo que todavía no pasa.
+function abrirInicioAlumno(al,alGuardar){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  const hoy=diaLocalPanel(new Date());
+  caja.innerHTML=`<div class="modal-title" id="modal-titulo">¿Cuándo empezó ${esc(al.nombre_visible)} contigo?</div>
+    <p class="compartir-explica">Las estadísticas comparan cómo le iba antes de esa fecha y cómo le va desde ahí.</p>
+    <label class="modal-label" for="inicio-fecha">Primera clase</label>
+    <div class="modal-input"><input type="date" id="inicio-fecha" min="2000-01-01" max="${hoy}" value="${esc(inicioAlumnoPanel(al)||'')}"></div>
+    <p class="compartir-error" id="inicio-error" role="alert" hidden></p>
+    ${al.inicio?'<button type="button" class="rep-link" id="inicio-reset">Usar el día que compartió</button>':''}
+    <div class="modal-btns"><button type="button" class="btn-cancel" id="inicio-cancelar">Cancelar</button><button type="button" class="btn-confirm" id="inicio-guardar">Guardar</button></div>`;
+  openModal();
+  const error=caja.querySelector('#inicio-error'),boton=caja.querySelector('#inicio-guardar');
+  const avisar=t=>{error.textContent=t;error.hidden=!t;};
+  const guardar=async valor=>{
+    boton.disabled=true;avisar('');
+    try{
+      const {error:e}=await supabaseClient.rpc('fijar_inicio_alumno',{p_id:al.id,p_inicio:valor});
+      if(e)throw e;
+      closeModal();showToast('Fecha guardada.');alGuardar();
+    }catch(e){boton.disabled=false;avisar(/futura/.test((e&&e.message)||'')?'Elige una fecha que ya pasó.':'No pudimos guardarla. Intenta de nuevo.');}
+  };
+  caja.querySelector('#inicio-cancelar').addEventListener('click',closeModal);
+  boton.addEventListener('click',()=>{
+    const v=caja.querySelector('#inicio-fecha').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){avisar('Elige una fecha.');return;}
+    if(v>hoy){avisar('Elige una fecha que ya pasó.');return;}
+    guardar(v);
+  });
+  const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
+}
 function alumnosPanelHTML(lista,compDe){
   return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
+      ${lineaInicioAlumnoHTML(al)}
+      ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe))}
       ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`)).join('');
@@ -3473,14 +3660,21 @@ function celdaCsvPanel(v){
   if(v===null||v===undefined)return '';
   let s=String(v);
   // El nombre lo escribe el alumno: "=…" no puede llegar a Excel como fórmula.
-  if(/^[=+\-@\t\r]/.test(s))s="'"+s;
+  // Un número negativo ("-1,0") no es una fórmula y tiene que llegar como número.
+  if(/^[=+\-@\t\r]/.test(s)&&!/^-\d+(,\d+)?$/.test(s))s="'"+s;
   return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
 function csvAlumnosPanel(alumnos,compDe){
   const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
   const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
-  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo']];
-  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+  // Las tres últimas son las de "antes y ahora" (#697): van al final para no
+  // mover las columnas que alguien ya usa en su planilla.
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso']];
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
+    const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
+    const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
+      return [e.fecha,e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
+    (al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
     const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
@@ -3490,9 +3684,9 @@ function csvAlumnosPanel(alumnos,compDe){
     const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
     const categorias=categoriasDeRamoPanel(ramo);
     // Un ramo sin notas igual sale, para que el archivo tenga a todos.
-    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo]);return;}
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','']);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
-      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo])));
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id)])));
   });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
@@ -3517,6 +3711,11 @@ async function exportarAlumnosPanel(lista,compDe){
   showToast('Archivo descargado.');
 }
 
+// La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
+function renderAlumnosTab(){
+  const raiz=document.getElementById('alumnos-body');
+  if(raiz)renderAlumnosProfesor(raiz);
+}
 async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
@@ -3528,8 +3727,9 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   }catch(e){
     raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
       '<p class="profesor-info" role="alert">No pudimos cargar tus alumnos. Vuelve a intentarlo en un rato.</p>'+
-      '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
-    raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
+      `<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
+    // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
+    raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver?volver():renderAlumnosProfesor(raiz));
     return;
   }
   // Una consulta por ramo distinto, no por alumno.
@@ -3544,15 +3744,19 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   }));
   const compDe=(al,r)=>cursos.get(`${al.tenant}|${String(r.sigla||'').toUpperCase()}`)||null;
   const link=linkAlumnosProfesor(codigo);
-  raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
-    `<section class="panel-alumnos-link">
+  // Con alumnos, lo primero es cómo van y el link para invitar más va al final.
+  // Sin alumnos, el link es lo único que se puede hacer: va arriba.
+  const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
       <h2>Tu link para alumnos</h2>
       <p>Mándalo a tus alumnos. Cada uno elige qué ramos te comparte y puede dejar de hacerlo cuando quiera.</p>
       <div class="panel-alumnos-url"><code id="alumnos-link">${esc(link)}</code><button type="button" class="btn-confirm" id="alumnos-copiar">Copiar link</button></div>
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
-    </section>
+    </section>`;
+  raiz.innerHTML='<div class="profesor-hig">'+
+    cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
+    `${alumnos.length?'':seccionLink}
+    ${alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):''}
     ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
     <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
     // Con uno solo no hay nada que buscar.
@@ -3562,8 +3766,10 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
-    '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
-  raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
+    (alumnos.length?seccionLink:'')+
+    (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
+  const botonVolver=raiz.querySelector('#alumnos-volver');
+  if(botonVolver)botonVolver.addEventListener('click',()=>volver());
   raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
     try{await navigator.clipboard.writeText(link);showToast('Link copiado.');}
     catch(e){const el=raiz.querySelector('#alumnos-link');const sel=window.getSelection&&window.getSelection();
@@ -3588,6 +3794,11 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
     },{label:'Quitar',focusCancel:true})));
   enlazarQuitar();
+  const enlazarInicio=()=>lista.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
+    const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
+    if(al)abrirInicioAlumno(al,()=>renderAlumnosProfesor(raiz,{volver}));
+  }));
+  enlazarInicio();
   // Se filtra en el navegador, con lo que el panel ya bajó.
   const buscar=raiz.querySelector('#alumnos-buscar');
   let vista=alumnos;
@@ -3596,7 +3807,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
     lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
       :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
-    enlazarQuitar();
+    enlazarQuitar();enlazarInicio();
   });
   // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
   // recordatorio de lo que el profesor aceptó en los términos.

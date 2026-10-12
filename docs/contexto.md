@@ -116,30 +116,11 @@ acá, pregunta antes de empezar — hay tres agentes sobre cuatro archivos.
 
 ### Lucas · tomado el 2026-10-12
 
-Todo tiene PR abierto y el detalle está en su issue. **No lo rehagas**: si
-necesitas cambiar algo de ahí, parte de la rama del PR. Al 2026-10-12 no hay
-nada mergeado y **no queda SQL por correr**: el de #680 y el de #687 ya están
-aplicados en producción.
+Lo del 2026-10-12 ya está en `main` y en `ios` (#694), salvo:
 
-| Issue | PR | Estado | Para mergear |
-|---|---|---|---|
-| #657 anuncio pausado que seguía cobrando días | #680 | SQL aplicado; `b338c850` y `cc8630fa` corregidos | listo |
-| #667 panel: buscador y exportar | #681 | cambia términos y privacidad (el profesor puede descargar) | 1.º de la cadena |
-| #667 panel: resumen por ramo | #684 | encima de #681 | 2.º |
-| #663 panel: próxima evaluación por alumno | #685 | encima de #684 | 3.º |
-| arreglo del panel: laboratorio del profesor | #686 | encima de #685; error que está en `main` | 4.º |
-| panel: cada alumno con la regla de nota de su universidad | #693 | encima de #686 | 5.º |
-| #664 anuncio antes de cada evaluación | #682 | prioriza, no filtra | listo |
-| #664 precio por clase en packs | #683 | solo texto | listo |
-| #666 visitas diarias y crecimiento semanal | #687 | SQL aplicado; registra desde el merge | junto con #691 |
-| #666 privacidad: qué días entras | #691 | solo texto | con #687 o antes |
-| #657 terminar un pausado sin campaña | #692 | encima de #680; aplicar solo esa función | después de #680 |
-| #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; función nueva en `functions/` | después de #670 |
-| #631 décimas: Principios Ecológicos y Dinámica | #690 | toca `engine.js`; migración aditiva | listo |
-
-Los PR del panel (#681 → #684 → #685 → #686 → #693) tocan las mismas funciones de
-`marketplace.js`: se mergean en ese orden y cada uno pasa a apuntar a `main`
-cuando entra el anterior. Nada más del panel hasta que entren.
+| Issue | PR | Estado |
+|---|---|---|
+| #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; se mergea después de #670 |
 
 **Pendiente, sin dueño todavía:**
 

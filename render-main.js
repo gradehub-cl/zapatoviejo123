@@ -477,7 +477,7 @@ function renderRamo(){
       const needed=notaNecesaria(r);
       if(needed===null){
         chipEl.style.display='none';
-      } else if(avg!==null && needed<=1.0){
+      } else if(avg!==null && needed<=1.0&&!notaNecesariaCondicional(r)){
         // Ya no puede reprobar con lo pendiente → aprobación asegurada
         chipEl.style.display='inline-flex';
         chipEl.className='ramo-chip good';chipEl.textContent=`Va aprobando · falta ${pctPendiente}%`;
@@ -486,7 +486,7 @@ function renderRamo(){
         chipEl.className='ramo-chip bad';chipEl.textContent='Ya no es posible aprobar';
       } else {
         chipEl.style.display='inline-flex';
-        chipEl.className='ramo-chip warn';chipEl.textContent=`Necesitas ${nfNecesaria(needed)} en lo pendiente para aprobar`;
+        chipEl.className='ramo-chip warn';chipEl.textContent=notaNecesariaCondicional(r)?`Con ${nfNecesaria(needed)} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${nfNecesaria(needed)} en lo pendiente para aprobar`;
       }
     } else {chipEl.style.display='none';}
   } else {chipEl.style.display='none';}
@@ -524,10 +524,12 @@ function renderRamo(){
   const ncw=document.getElementById('no-calcula-warning');
   const noCalcula=reglasNoCalculadas(r);
   const delCurso=reglasDelCurso(r);
-  if(noCalcula.length||delCurso.length){
+  const calculadas=reglasCalculadas(r);
+  if(noCalcula.length||delCurso.length||calculadas.length){
     ncw.style.display='flex';ncw.className='weight-setup-nudge';
     const items=lista=>`<ul style="margin:6px 0 0;padding-left:17px;">${lista.map(regla=>`<li>${esc(regla)}</li>`).join('')}</ul>`;
     const bloques=[];
+    if(calculadas.length)bloques.push(`<b>Reglas que aplicamos al promedio.</b>${items(calculadas)}`);
     if(delCurso.length)bloques.push(`<b>Reglas de tu curso que el promedio no incluye.</b><br>Están en el programa, pero dependen de información que la app no puede tener:${items(delCurso)}`);
     if(noCalcula.length)bloques.push(`<b>Reglas que todavía no calculamos.</b><br>Las vamos a incorporar. Por ahora el promedio no considera:${items(noCalcula)}`);
     // El texto completo ocupaba media pantalla en cada carga de la ficha, todo
@@ -536,8 +538,8 @@ function renderRamo(){
     // Pero plegado tiene que seguir DICIENDO que existe: esto explica por qué
     // su promedio puede no calzar con el del profesor, y esconderlo del todo
     // sería peor que ocuparle espacio. Por eso el resumen lleva la cuenta.
-    const total=noCalcula.length+delCurso.length;
-    const resumen=`${total} regla${total!==1?'s':''} del programa que el promedio no incluye`;
+    const total=noCalcula.length+delCurso.length+calculadas.length;
+    const resumen=calculadas.length?`${total} reglas del programa: ${calculadas.length} en el cálculo`:`${total} regla${total!==1?'s':''} del programa que el promedio no incluye`;
     const abierto=reglasRamoAbiertas[r.id]===true;
     ncw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div>
       <button type="button" class="reglas-toggle" aria-expanded="${abierto?'true':'false'}" onclick="toggleReglasRamo('${esc(r.id)}')">
@@ -782,7 +784,7 @@ function renderRamo(){
               ${sobra?'<span class="eval-sub-aviso">sobra en la pauta · sigue contando</span>':(fSub?`<span class="eval-sub-fecha">${esc(fSub)}</span>`:'<span class="eval-sub-fecha vacia">sin fecha</span>')}
               ${recorreccion?`<span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}
             </button>
-            <input class="eval-row-input sm" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="3" placeholder="—" value="${v!=null?textoCalificacionNota(nota):''}" style="color:${v!=null?getColor(v):'var(--fg)'}" onchange="setSlotNota('${cat.id}',${i},this.value)" onclick="event.stopPropagation();" aria-label="${esc(etiqueta)}"/>
+            <input class="eval-row-input sm" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" placeholder="—" value="${v!=null?textoCalificacionNota(nota):''}" style="color:${v!=null?getColor(v):'var(--fg)'}" onchange="setSlotNota('${cat.id}',${i},this.value)" onclick="event.stopPropagation();" aria-label="${esc(etiqueta)}"/>
           </div>`;
         }
         // Casillas con nota, no notas: un duplicado de la misma casilla no es
@@ -816,7 +818,7 @@ function renderRamo(){
           <div class="eval-row-name">${esc(cat.nombre)}</div>
           <div class="eval-row-weight">${r2(cat.peso)}% de la nota final${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${justificada?'':`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="3" placeholder="—" value="${g!=null?textoCalificacionNota(notas[0]):''}" style="color:${g!=null?getColor(g):'var(--fg)'}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${justificada?'':`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" placeholder="—" value="${g!=null?textoCalificacionNota(notas[0]):''}" style="color:${g!=null?getColor(g):'var(--fg)'}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}`;
       cl.appendChild(row);
       return;
@@ -943,7 +945,7 @@ function renderStats(){
 
   // Hero title dinámico
   if(heroTitle){
-    heroTitle.textContent=totalNotas===0?'Este semestre':`Sem. ${S.careerSemestre} · ${semester()}`;
+    heroTitle.textContent=totalNotas===0?'Este semestre':enVerano()?`${nombreVerano(S.tenant)} · ${semester()}`:`Sem. ${S.careerSemestre} · ${semester()}`;
   }
 
   let html='';

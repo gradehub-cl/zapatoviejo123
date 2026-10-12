@@ -1147,8 +1147,17 @@ const PRESETS_UC={
       ['Prueba 2',24,{fecha:'2026-11-09'}],
       ['Examen',32,{fecha:'2026-12-12',nombresAnteriores:['Examen final escrito']}],
     ],
+    formulasCondicionales:[
+      {nombre:'Tareas ≥ 4,0 y promedio de pruebas/examen < 3,8: se excluyen tareas',
+        cuando:[{tipo:'promedio_min',evals:['Ejercicios, casos y tareas'],min:4},
+          {tipo:'promedio_menor',evals:['Prueba 1','Prueba 2','Examen'],min:3.8}],
+        pesos:[{evaluacion:'Ejercicios, casos y tareas',peso:0},{evaluacion:'Prueba 1',peso:30},{evaluacion:'Prueba 2',peso:30},{evaluacion:'Examen',peso:40}]},
+      {nombre:'Tareas ≥ 4,0 y promedio de pruebas/examen exactamente 3,8',ambigua:true,
+        cuando:[{tipo:'promedio_min',evals:['Ejercicios, casos y tareas'],min:4},
+          {tipo:'promedio_igual',evals:['Prueba 1','Prueba 2','Examen'],min:3.8}]},
+    ],
     noCalcula:[
-      'Si la nota de ejercicios, casos y tareas es al menos 4,0 y el promedio de pruebas y examen es menor que 3,8, la final excluye las tareas: 30% Prueba 1 + 30% Prueba 2 + 40% Examen. Si las tareas están bajo 4,0, sí pesan 20%. El texto exige ≥ 3,8, pero la fórmula impresa dice > 3,8; confirma el caso exacto de 3,8 con el profesor',
+      'En el caso exacto de 3,8 en pruebas y examen, con tareas ≥ 4,0, el programa se contradice: texto ≥ 3,8 y fórmula > 3,8. El resultado queda pendiente hasta confirmar con el profesor',
       'La nota de ejercicios, casos y tareas se calcula por puntos acumulados, con 7,0 al 90% del puntaje máximo y escala lineal. Ingresa la nota del bloque entregada por el profesor',
     ],
     reglasDelCurso:[
@@ -1165,8 +1174,8 @@ const PRESETS_UC={
       ['Prueba 2',30,{fecha:'2026-11-03'}],
       ['Examen',40,{fecha:'2026-12-02'}],
     ],
-    noCalcula:['Una prueba justificada traspasa su 30% al examen, que no puede superar 70%. Ajusta los pesos según la justificación aprobada; justificar ambas pruebas no habilita un examen de 100%',
-      'Las preguntas bonus pueden sumar hasta 0,3 a cada prueba. La participación, tareas voluntarias y 100% de asistencia a clases y ayudantías pueden dar décimas; su asignación depende del profesor'],
+    limiteAusencias:{nombre:'Traspaso de pruebas justificadas al examen',desde:['Prueba 1','Prueba 2'],hacia:'Examen',max:70},
+    noCalcula:['Las preguntas bonus pueden sumar hasta 0,3 a cada prueba. La participación, tareas voluntarias y 100% de asistencia a clases y ayudantías pueden dar décimas; su asignación depende del profesor'],
     reglasDelCurso:[
       'Programa recibido como 2026-2 de Luis Enrique Seguel. Prueba 1: 09:40; Prueba 2: 17:30; Examen: 13:30',
       'El examen no puede superar 70% del curso: justificar ambas pruebas trasladaría 100% y no cumple el requisito. No hay eximición',
@@ -1220,9 +1229,13 @@ const PRESETS_UC={
       ['Prueba 2',23],
       ['Examen',34,{nombresAnteriores:['Examen final escrito']}],
     ],
-    noCalcula:[
-      'Participación y actividades cuentan solo si obtienes al menos un 4,0 en pruebas, examen o recuperativa, y 28,75% Prueba 1 + 28,75% Prueba 2 + 42,5% Examen llega a 3,75. Si falla cualquiera, esa fórmula es la nota final y se excluyen participación y actividades',
-    ],
+    formulasCondicionales:[{
+      nombre:'Se excluyen participación y actividades si ninguna prueba/examen llega a 4,0 o el promedio técnico está bajo 3,75 (28,75% / 28,75% / 42,5%)',
+      // Cuando falla un requisito se usa solo la fórmula de pruebas y examen.
+      cuando:[{tipo:'no_cumple_requisitos',evals:['Prueba 1','Prueba 2','Examen'],min:3.75,algunaMin:4}],
+      pesos:[{evaluacion:'Participación',peso:0},{evaluacion:'Actividades',peso:0},
+        {evaluacion:'Prueba 1',peso:28.75},{evaluacion:'Prueba 2',peso:28.75},{evaluacion:'Examen',peso:42.5}],
+    }],
     reglasDelCurso:[
       'Programa 2026-2 de Gastón Llanes. Hay cuatro actividades y se promedian las tres mejores; las fechas las anuncia el curso',
       'Para rendir examen debes haber sido evaluado en al menos 33% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba. El examen no puede superar 70%: el exceso se califica con 1,0. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
@@ -1307,7 +1320,8 @@ const PRESETS_UC={
   // ETI209, syllabus común 2026-2 versión 6 de agosto, pp. 7-8.
   'Ética, Economía y Empresa':{
     sigla:'ETI209',periodo:'2026-2',
-    noCalcula:['Una prueba justificada traspasa su 20% al examen. Si supera 60%, se exige una recuperativa adicional cuya ponderación define el profesor; ajusta la pauta según sus instrucciones'],
+    limiteAusencias:{nombre:'Traspaso de pruebas justificadas al examen',desde:['Prueba 1','Prueba 2'],hacia:'Examen',max:60},
+    noCalcula:['Si las pruebas justificadas hacen que el examen supere 60%, se exige una recuperativa adicional cuya ponderación define el profesor. El resultado queda pendiente hasta resolver esa evaluación'],
     evals:[
       ['Prueba 1',20,{fecha:'2026-09-10'}],
       ['Prueba 2',20,{fecha:'2026-10-26'}],

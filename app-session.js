@@ -76,7 +76,7 @@ try{
   }
 }catch(e){console.warn('Supabase no inicializado:',e);}
 
-function freshState(){return{ramos:[],userName:'',careerSemestre:1,carrera:null,tenant:'fen',onboardingDone:false,historial:[],sortMode:'manual',modo:'sistema',acento:'turquesa',fondo:'neutro',carreraNombre:null};}
+function freshState(){return{ramos:[],userName:'',careerSemestre:1,carrera:null,tenant:'fen',onboardingDone:false,tipoCuenta:'estudiante',generacion:null,verano:null,historial:[],sortMode:'manual',modo:'sistema',acento:'turquesa',fondo:'neutro',carreraNombre:null};}
 
 function authError(msg,kind){
   // kind: 'error' (default, rojo) | 'info' (neutro, para mensajes tipo "revisa tu correo")
@@ -413,7 +413,23 @@ async function submitAuth(){
     if(authMode==='signup'){
       const {data,error}=await supabaseClient.auth.signUp({email,password:p});
       if(error)throw error;
-      if(!data.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+      if(!data.session){
+        // Supabase no dice si el correo ya tenía cuenta: en ese caso responde
+        // sin sesión, igual que si hubiera que confirmar el correo. Se intenta
+        // entrar con lo mismo que se escribió: quien ya tenía cuenta y puso su
+        // contraseña queda adentro, que es lo que esperaba al registrarse. Si
+        // no calza, el mismo aviso de siempre, así que no se revela nada: la
+        // contraseña correcta ya bastaba para entrar.
+        const {data:entrada,error:errorEntrada}=await supabaseClient.auth.signInWithPassword({email,password:p});
+        if(errorEntrada||!entrada||!entrada.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+        recordarMetodoLogin('correo');
+        currentUser=entrada.user;
+        // Volvió a aceptar los términos en este formulario: se anota, sin que
+        // un fallo de esa constancia le impida entrar a su propia cuenta.
+        try{await registrarAceptacionLegal();}catch(e){}
+        await afterLogin();
+        return;
+      }
       currentUser=data.user;
       await registrarAceptacionLegal();
       await afterSignup();
@@ -1199,7 +1215,11 @@ async function syncProfile(){
       // malla— no vale para nada. Los códigos viejos siguen siendo válidos y
       // se distinguen porque están en CARRERAS_DECLARABLES.
       carrera:S.carreraNombre||S.carrera||null,
-      semestre:S.careerSemestre||null,
+      // En TAV no hay número de semestre.
+      semestre:(typeof enVerano==='function'&&enVerano())?null:(S.careerSemestre||null),
+      // Columna de #697: si todavía no existe, esta subida falla entera; por
+      // eso solo va cuando hay generación, que tienen solo las cuentas nuevas.
+      ...(S.generacion?{generacion:S.generacion}:{}),
     });
   }catch(e){}
 }
@@ -1209,7 +1229,7 @@ async function syncProfile(){
 // Se llama al terminar el onboarding, que es por donde pasa toda cuenta nueva.
 // No revienta hacia afuera: la persona ya está adentro y su semestre ya está
 // guardado; un fallo de red acá no puede dejarla fuera de su propia cuenta.
-async function registrarDeclaracionEdad(){
+async function registrarDeclaracionEdad({edad=null,generacion=null}={}){
   if(!supabaseClient||!currentUser)return;
   try{
     await supabaseClient.from('profiles').upsert({
@@ -1218,6 +1238,14 @@ async function registrarDeclaracionEdad(){
     });
     // Quien entró con Google nunca vio la casilla del formulario de correo.
     await registrarAceptacionLegal();
+  }catch(e){}
+  // Edad y generación (#697) van aparte: si sus columnas todavía no existen,
+  // la constancia de la declaración ya quedó guardada arriba igual.
+  try{
+    const datos={id:currentUser.id};
+    if(Number.isInteger(edad)&&edad>=14&&edad<=120)datos.edad=edad;
+    if(Number.isInteger(generacion)&&generacion>=2000&&generacion<=new Date().getFullYear())datos.generacion=generacion;
+    if(Object.keys(datos).length>1)await supabaseClient.from('profiles').upsert(datos);
   }catch(e){}
 }
 async function registrarAceptacionLegal(){

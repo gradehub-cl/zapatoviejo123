@@ -305,6 +305,35 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ob-sub{font-size:0.9375rem;color:var(--fg2);text-align:center;line-height:1.5;margin-bottom:32px;max-width:340px;letter-spacing:-.005em;}
 .ob-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px 20px;width:100%;box-shadow:var(--shadow-lg);margin-bottom:16px;}
 .ob-edad{width:100%;max-width:640px;margin:-4px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
+/* Ruletas del onboarding (#697): como la del reloj del iPhone, filas de 44 pt. */
+.ruleta{position:relative;height:220px;border-radius:14px;background:var(--bg2);overflow:hidden;outline:none;}
+.ruleta:focus-visible{box-shadow:0 0 0 3px var(--primary-light);}
+.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:10px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
+.ruleta-lista{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:88px 0;box-sizing:border-box;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.ruleta-lista::-webkit-scrollbar{display:none;}
+.ruleta-fila{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:1.0625rem;color:var(--fg3);font-variant-numeric:tabular-nums;cursor:pointer;}
+.ruleta-fila.es-elegida{color:var(--fg);font-size:1.375rem;font-weight:650;}
+.ruleta-control{position:relative;}
+.ruleta-lista{cursor:grab;user-select:none;-webkit-user-select:none;}
+.ruleta-lista.arrastrando{cursor:grabbing;scroll-snap-type:none;}
+/* Botones chicos a la vista, pero de 44 pt al tocarlos. */
+.ruleta-paso{position:absolute;right:6px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--fg2);cursor:pointer;}
+.ruleta-paso .ic{width:18px;height:18px;padding:5px;box-sizing:content-box;border-radius:999px;background:var(--card);border:1px solid var(--border);}
+.ruleta-arriba{top:4px;}
+.ruleta-abajo{bottom:4px;}
+.ob-sem-editar{margin:0 0 14px;}
+.ob-sem-fila{display:flex;gap:10px;}
+.ob-sem-fila input{flex:1;min-height:44px;}
+.ob-sem-verano{min-height:44px;padding:0 16px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;}
+.ob-sem-verano[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-light);}
+.ob-sem-editar[hidden]{display:none;}
+.ob-ruleta-ayuda{margin:-4px 0 10px;font-size:0.8125rem;color:var(--fg2);}
+.ob-ruleta-aviso{margin:10px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
+.ob-ruleta-aviso:empty{display:none;}
+.sem-grid[hidden]{display:none;}
+.ob-sem-calculado{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;font-size:0.9375rem;color:var(--fg2);}
+.ob-sem-calculado b{color:var(--fg);}
+.ob-sem-cambiar{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;flex-shrink:0;}
 .ob-edad label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;}
 .ob-edad input{margin-top:2px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--primary);}
 .ob-edad b{color:var(--fg);font-weight:650;}
@@ -1730,6 +1759,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-home,
 .app.tab-mode #screen-agenda,
 .app.tab-mode #screen-profesor,
+.app.tab-mode #screen-alumnos,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -1743,11 +1773,13 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    tapando todo, porque además no la mueve `setTabTransforms` al no estar en
    NAV_TABS. Esta regla la devuelve a su sitio. */
 .app.tab-mode #screen-profesor[hidden],
+.app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
 .app.tab-mode.dragging #screen-agenda,
 .app.tab-mode.dragging #screen-profesor,
+.app.tab-mode.dragging #screen-alumnos,
 .app.tab-mode.dragging #screen-admin{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
@@ -2193,6 +2225,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-home,
   .app.tab-mode #screen-agenda,
   .app.tab-mode #screen-profesor,
+  .app.tab-mode #screen-alumnos,
   .app.tab-mode #screen-admin{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group,.cat-card{will-change:auto;}
 
@@ -3115,6 +3148,8 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-url .btn-confirm{min-height:44px;width:100%;}
 .panel-alumnos-link .agent-refresh{align-self:flex-start;min-height:44px;}
 .panel-alumnos-link + .profesor-hig-lista-cabeza{margin-top:22px;}
+.panel-alumnos-link.al-final{margin-top:26px;}
+.ah-grupo:first-of-type{margin-top:8px;}
 .panel-alumnos-buscar{margin-top:8px;}
 .panel-alumnos-buscar input{min-height:44px;}
 .panel-alumnos-exportar{min-height:44px;margin-top:4px;}
@@ -3132,6 +3167,33 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-resumen{margin-top:22px;}
 .panel-alumnos-proxima{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;margin:10px 0 0;padding:8px 10px;border-radius:10px;background:var(--bg2);font-size:0.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
 .panel-alumnos-proxima b{color:var(--fg);font-weight:600;}
+.panel-alumnos-inicio{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 0;font-size:0.8125rem;color:var(--fg2);}
+.panel-alumnos-inicio b{color:var(--fg);font-weight:600;}
+.panel-alumnos-inicio .agent-refresh{min-height:44px;flex-shrink:0;}
+/* Antes y ahora (#697): cifras del grupo, gráfico de una serie en el color del texto. */
+.ah-grupo{margin-top:22px;}
+.ah-cifras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.ah-cifra:nth-child(3){grid-column:1/-1;}
+@media (min-width:560px){.ah-cifras{grid-template-columns:repeat(3,minmax(0,1fr));}.ah-cifra:nth-child(3){grid-column:auto;}}
+.ah-cifra{display:flex;flex-direction:column;gap:2px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
+.ah-cifra-valor{font-size:1.375rem;font-weight:650;color:var(--fg);font-variant-numeric:tabular-nums;}
+.ah-cifra-etiqueta{font-size:0.8125rem;font-weight:600;color:var(--fg);}
+.ah-cifra small{font-size:0.75rem;color:var(--fg3);}
+.ah-nota{margin:12px 0 0;font-size:0.875rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.ah-alumno{margin-top:10px;}
+.ah-alumno-resumen{margin:0;font-size:0.9375rem;font-weight:600;color:var(--fg);}
+.ah-alumno-lados{display:flex;flex-wrap:wrap;gap:4px 14px;margin:4px 0 0;font-size:0.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.ah-grafico{display:block;width:100%;height:auto;margin-top:8px;overflow:visible;}
+.ah-cero{stroke:var(--border);stroke-width:1;}
+.ah-inicio{stroke:var(--fg3);stroke-width:1;stroke-dasharray:3 3;}
+.ah-eje{fill:var(--fg3);font-size:11px;}
+.ah-linea{fill:none;stroke:var(--fg);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.ah-punto{fill:var(--fg);stroke:var(--card);stroke-width:2;}
+.ah-zona{fill:transparent;}
+.ah-pie{margin:2px 0 0;font-size:0.75rem;color:var(--fg3);}
+.ah-detalle{margin-top:6px;}
+.ah-detalle summary{min-height:44px;display:flex;align-items:center;font-size:0.875rem;font-weight:600;color:var(--primary);cursor:pointer;}
+.ah-detalle td small{display:block;font-size:0.6875rem;color:var(--fg3);}
 /* En el resumen la cuenta va bajo el nombre: "Interrogación 1 3 notas" se leía "Interrogación 13". */
 .panel-resumen-ramo .panel-alumnos-notas td small{display:block;margin-left:0;font-size:0.6875rem;font-weight:400;color:var(--fg3);}
 .panel-resumen-ramo .panel-alumnos-notas td:not(:first-child),.panel-resumen-ramo .panel-alumnos-notas th:not(:first-child){padding-left:12px;white-space:nowrap;vertical-align:top;}

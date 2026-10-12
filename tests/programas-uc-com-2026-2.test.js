@@ -54,7 +54,7 @@ actividades.notas=[1,4,5,6].map((valor,slot)=>({id:'act'+slot,nombre:'Actividad'
 const est={id:'est',nombre:'Estrategia Competitiva',categorias:estrategia.categorias,gates:[]};
 ctx.est=est;
 assert.equal(ctx.run('calculateFinalGrade(ramoToStructure(est),gradesOf(est)).breakdown.find(b=>b.id===est.categorias[1].id).value'),5);
-assert.ok(defs['Estrategia Competitiva'].noCalcula.some(r=>r.includes('3,75')));
+assert.equal(defs['Estrategia Competitiva'].formulasCondicionales[0].cuando[0].min,3.75);
 assert.ok(defs['Contabilidad Gerencial'].noCalcula.some(r=>r.includes('3,8')));
 assert.ok(defs['Contabilidad Gerencial'].noCalcula.some(r=>r.includes('puntos')));
 const etica=ctx.presetRamo('Ética, Economía y Empresa','uc','COM',at);
