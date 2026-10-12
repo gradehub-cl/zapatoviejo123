@@ -3302,13 +3302,18 @@ function categoriasDeRamoPanel(r){
 // La próxima evaluación sin nota del ramo, de hoy en adelante, y cuánto
 // necesita en ella para ir con 4 después de rendirla: lo mismo que el alumno
 // ve en sus widgets (notaParaIrConCuatro), con las fechas de su Agenda.
-function proximaEvaluacionPanel(ramo,ahora=new Date()){
+// Los ramos que el alumno compartió, que es donde se busca el ramo vinculado.
+// Sin esto ramoAvg buscaba en S.ramos, que en el panel son los del PROFESOR: la
+// Dinámica de un alumno se combinaba con el laboratorio del profesor. Con una
+// búsqueda escrita, igual se usan todos los que compartió, no solo los que se ven.
+function ramosDelAlumnoPanel(al){return ((al&&(al.todosLosRamos||al.ramos))||[]).map(ramoParaPanel);}
+function proximaEvaluacionPanel(ramo,ahora=new Date(),contexto=[ramo]){
   if(typeof agendaEvents!=='function')return null;
   const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
   let e=null;
   try{e=agendaEvents([ramo]).find(x=>x.pending&&x.fecha>=hoy)||null;}catch(err){return null;}
   if(!e)return null;
-  const cuatro=(typeof notaParaIrConCuatro==='function'?notaParaIrConCuatro(e):null)||{};
+  const cuatro=(typeof notaParaIrConCuatro==='function'?notaParaIrConCuatro(e,contexto):null)||{};
   return {evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
     necesita:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable};
 }
@@ -3325,9 +3330,10 @@ function comparacionTexto(prom,personas,etiqueta=false){
   if(prom==null)return `<span class="panel-alumnos-sin">${etiqueta?'GradeHub: aún pocos datos':'Aún pocos datos'}</span>`;
   return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${etiqueta?'GradeHub · ':''}${personas} personas</small></span>`;
 }
-function ramoPanelHTML(r,comp,ahora=new Date()){
+function ramoPanelHTML(r,comp,ahora=new Date(),contexto){
   const ramo=ramoParaPanel(r);
-  const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
+  contexto=contexto||[ramo];
+  const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
   const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
   const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
@@ -3348,7 +3354,7 @@ function ramoPanelHTML(r,comp,ahora=new Date()){
       <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
       ${comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,true)}
     </div>
-    ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora))}
+    ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
     ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead>${filas}</table>`
       :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
   </div>`;
@@ -3362,7 +3368,7 @@ function ramoPanelHTML(r,comp,ahora=new Date()){
 function resumenAlumnosPanel(alumnos,compDe){
   const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
   const grupos=new Map();
-  (alumnos||[]).forEach(al=>(al.ramos||[]).forEach(r=>{
+  (alumnos||[]).forEach(al=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r);
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
     const clave=sigla?`${al.tenant}|${String(sigla).toUpperCase()}`:'nombre|'+claveEvaluacionPanel(ramo.nombre);
@@ -3370,7 +3376,7 @@ function resumenAlumnosPanel(alumnos,compDe){
       promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
     const g=grupos.get(clave);
     g.alumnos++;
-    const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
     if(Number.isFinite(avg))g.promedios.push(avg);
     g.semaforo[Number.isFinite(avg)&&typeof nivelRamo==='function'?nivelRamo(ramo,avg):'neutral']++;
     categoriasDeRamoPanel(ramo).forEach(c=>{
@@ -3384,7 +3390,7 @@ function resumenAlumnosPanel(alumnos,compDe){
         gc.evaluaciones.get(n.clave).notas.push(n.valor);
       });
     });
-  }));
+  });});
   return [...grupos.values()].map(g=>({clave:g.clave,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
     conNotas:g.promedios.length,promedio:media(g.promedios),semaforo:g.semaforo,
     categorias:[...g.categorias.values()].map(c=>({clave:c.clave,nombre:c.nombre,alumnos:c.promedios.length,promedio:media(c.promedios),
@@ -3434,13 +3440,13 @@ function filtrarAlumnosPanel(alumnos,texto){
     if(calza(al.nombre_visible))return al;
     const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
       (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
-    return ramos.length?{...al,ramos}:null;
+    return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
 }
 function alumnosPanelHTML(lista,compDe){
   return lista.map(al=>`<details class="panel-alumnos-alumno" open>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
-      ${(al.ramos||[]).length?(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r))).join(''):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`).join('');
 }
@@ -3459,9 +3465,9 @@ function csvAlumnosPanel(alumnos,compDe){
   const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
   const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
   const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo']];
-  alumnos.forEach(al=>(al.ramos||[]).forEach(r=>{
+  alumnos.forEach(al=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
-    const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
     const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
     const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
@@ -3472,7 +3478,7 @@ function csvAlumnosPanel(alumnos,compDe){
     if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo]);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
       gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo])));
-  }));
+  });});
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
 async function exportarAlumnosPanel(lista,compDe){
