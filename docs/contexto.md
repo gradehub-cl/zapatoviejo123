@@ -130,7 +130,9 @@ aplicados en producción.
 | arreglo del panel: laboratorio del profesor | #686 | encima de #685; error que está en `main` | 4.º |
 | #664 anuncio antes de cada evaluación | #682 | prioriza, no filtra | listo |
 | #664 precio por clase en packs | #683 | solo texto | listo |
-| #666 visitas diarias y crecimiento semanal | #687 | SQL aplicado; registra desde el merge | junto con la privacidad |
+| #666 visitas diarias y crecimiento semanal | #687 | SQL aplicado; registra desde el merge | junto con #691 |
+| #666 privacidad: qué días entras | #691 | solo texto | con #687 o antes |
+| #657 terminar un pausado sin campaña | #692 | encima de #680; aplicar solo esa función | después de #680 |
 | #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; función nueva en `functions/` | después de #670 |
 | #631 décimas: Principios Ecológicos y Dinámica | #690 | toca `engine.js`; migración aditiva | listo |
 
@@ -140,12 +142,8 @@ cuando entra el anterior. Nada más del panel hasta que entren.
 
 **Pendiente, sin dueño todavía:**
 
-- Política de privacidad: agregar las visitas diarias de #687 (13 meses, solo
-  cuenta y día). Va junto con ese merge.
 - Aviso dentro de la app del cambio de términos de #681: la política promete
   avisar los cambios importantes.
-- Cerrar desde el panel un anuncio pausado sin campaña:
-  `admin_terminar_anuncio_pausado` exige fila en `anuncio_campanas` (#657).
 - #631: Econometría Aplicada (décimas por evaluación) y Revelación y Fe, que
   queda sin calcular hasta confirmar si «la nota más baja» incluye el examen.
 - #664: la «entrada» barata como tipo de anuncio, y los testimonios (#643).
