@@ -270,9 +270,13 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
            por acá pasa toda cuenta nueva, también las que entran con Google.
            No se pide fecha de nacimiento: para saber si alguien puede usar la
            app basta la declaración, y el dato exacto sería recolectar de más. -->
-      <p class="ob-edad">
-        <label><input type="checkbox" id="ob-edad" onchange="checkOb()"/><span>Tengo <b>14 años o más</b>.</span></label>
-      </p>
+      <!-- La edad se elige en una ruleta como la del reloj del iPhone (#697).
+           Parte en «—»: la declaración tiene que ser activa. -->
+      <div class="ob-card ob-ruleta-card">
+        <p class="field-label" id="ob-edad-titulo">¿Cuántos años tienes?</p>
+        <div id="ob-edad-ruleta"></div>
+        <p class="ob-ruleta-aviso" id="ob-edad-aviso" role="status" aria-live="polite"></p>
+      </div>
     </div>
 
     <div class="ob-step" data-step="2" style="display:none;">
@@ -292,9 +296,15 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 
     <div class="ob-step" data-step="4" style="display:none;">
       <div class="ob-step-num">Paso 4 de 5</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1">¿En qué semestre vas?</h1>
-      <div class="ob-sub ob-sub-left">Lo usamos para sugerirte ramos, cuando tenemos tu malla.</div>
-      <div class="sem-grid" id="sem-grid"></div>
+      <h1 class="ob-title ob-title-left" tabindex="-1">¿De qué generación eres?</h1>
+      <div class="ob-sub ob-sub-left">El año en que entraste a la universidad. Con eso y la fecha sabemos en qué semestre vas.</div>
+      <div class="ob-card ob-ruleta-card">
+        <p class="field-label" id="ob-generacion-titulo">Año de ingreso</p>
+        <div id="ob-generacion-ruleta"></div>
+      </div>
+      <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
+      <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
+      <div class="sem-grid" id="sem-grid" hidden></div>
     </div>
 
     <div class="ob-step" data-step="5" style="display:none;">

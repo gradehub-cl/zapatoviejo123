@@ -501,6 +501,8 @@ function normalize(data) {
   // Estudiante o profesor (#697). Toda cuenta que no diga 'profesor' es de
   // estudiante: así cargan igual que siempre las que existían antes de esto.
   data.tipoCuenta = data.tipoCuenta === 'profesor' ? 'profesor' : 'estudiante';
+  // Año de ingreso a la universidad (#697). Las cuentas anteriores no lo tienen.
+  data.generacion = Number.isInteger(data.generacion)&&data.generacion>=2000&&data.generacion<=new Date().getFullYear()?data.generacion:null;
   return data;
 }
 function esCuentaProfesor(){return !!(S&&S.tipoCuenta==='profesor');}
@@ -1557,7 +1559,7 @@ function initSemGrid(){
     const b=document.createElement('button');
     b.className='sem-btn'+(i===selectedSem?' sel':'');
     b.textContent=i+'°';
-    b.onclick=()=>{selectedSem=i;initSemGrid();checkOb();};
+    b.onclick=()=>{selectedSem=i;obSemManual=true;initSemGrid();if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();checkOb();};
     g.appendChild(b);
   }
 }
@@ -1606,15 +1608,100 @@ function filtrarCarrerasAjustes(v){window._sFiltro&&window._sFiltro(v);}
 
 // La validación es independiente por paso: la lista sugerida nunca obliga a
 // tomar un ramo, y cada pantalla solo exige su propio dato.
+// ─── RULETAS DEL ONBOARDING (#697) ───────────────────────────────────────────
+// Como la del reloj del iPhone: filas de 44 pt que encajan al centro al soltar.
+// Se usa con el dedo, la rueda del mouse, un toque en la fila, las flechas del
+// teclado y el lector de pantalla (role="spinbutton"). El tamaño de la letra
+// va en rem, así que respeta el que eligió la persona.
+const RULETA_FILA=44;
+function montarRuleta(caja,{valores,etiqueta,inicial=null,vacio=null,texto=v=>String(v),alCambiar}){
+  if(!caja)return null;
+  const opciones=vacio!==null?[null,...valores]:valores.slice();
+  caja.className='ruleta';
+  caja.setAttribute('role','spinbutton');caja.tabIndex=0;
+  caja.setAttribute('aria-labelledby',etiqueta);
+  caja.setAttribute('aria-valuemin',String(valores[0]));caja.setAttribute('aria-valuemax',String(valores[valores.length-1]));
+  caja.innerHTML='<div class="ruleta-marco" aria-hidden="true"></div><div class="ruleta-lista" aria-hidden="true">'+
+    opciones.map((v,i)=>`<div class="ruleta-fila" data-i="${i}">${esc(v===null?vacio:texto(v))}</div>`).join('')+'</div>';
+  const lista=caja.querySelector('.ruleta-lista');
+  // Sin DOM de verdad (un entorno de prueba) no hay ruleta, pero el onboarding sigue.
+  if(!lista)return null;
+  let idx=Math.max(0,opciones.indexOf(inicial));
+  const pintar=()=>{
+    lista.querySelectorAll('.ruleta-fila').forEach((f,i)=>f.classList.toggle('es-elegida',i===idx));
+    const v=opciones[idx];
+    if(v===null){caja.removeAttribute('aria-valuenow');caja.setAttribute('aria-valuetext',vacio);}
+    else{caja.setAttribute('aria-valuenow',String(v));caja.setAttribute('aria-valuetext',texto(v));}
+  };
+  const elegir=(i,{mover=true}={})=>{
+    i=Math.max(0,Math.min(opciones.length-1,i));
+    const cambio=i!==idx;idx=i;pintar();
+    if(mover&&lista.scrollTo)lista.scrollTo({top:i*RULETA_FILA,behavior:movimientoReducido()?'auto':'smooth'});
+    if(cambio&&alCambiar)alCambiar(opciones[idx]);
+  };
+  // Al soltar, la fila que quedó al centro es la elegida.
+  let espera=null;
+  lista.addEventListener('scroll',()=>{clearTimeout(espera);espera=setTimeout(()=>elegir(Math.round(lista.scrollTop/RULETA_FILA),{mover:false}),90);},{passive:true});
+  lista.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.ruleta-fila');if(f)elegir(Number(f.dataset.i));});
+  caja.addEventListener('keydown',e=>{
+    const d={ArrowUp:-1,ArrowDown:1,PageUp:-5,PageDown:5}[e.key];
+    if(d){e.preventDefault();elegir(idx+d);}
+    else if(e.key==='Home'){e.preventDefault();elegir(0);}
+    else if(e.key==='End'){e.preventDefault();elegir(opciones.length-1);}
+  });
+  pintar();
+  // Un paso oculto no tiene alto: se ubica la fila cuando el paso se muestra.
+  const sincronizar=()=>{lista.scrollTop=idx*RULETA_FILA;};
+  sincronizar();
+  return {valor:()=>opciones[idx],elegir,sincronizar};
+}
+const rangoAnios=(desde,hasta)=>Array.from({length:hasta-desde+1},(_,i)=>desde+i);
+// La edad se declara: parte vacía y no se avanza hasta elegirla. La generación
+// parte en el año actual. Las dos se guardan en el perfil (decisión de Lucas,
+// 2026-10-12; ver supabase/edad_declarada.sql y la política de privacidad).
+const EDAD_MINIMA=14;
+let obEdad=null,obGeneracion=new Date().getFullYear(),ruletaEdad=null,ruletaGeneracion=null,obSemManual=false;
+// El semestre sale de la generación y la fecha (decisión de Lucas, 2026-10-12):
+// marzo a julio es el primero del año, agosto a diciembre el segundo, y en
+// enero y febrero —el verano— cuenta el que empieza en marzo. Quien entró en
+// 2026 va en su 2.º semestre en octubre de 2026 y empieza el 3.º en marzo de 2027.
+function semestreSegunGeneracion(generacion,fecha=new Date()){
+  return Math.max(1,(fecha.getFullYear()-generacion)*2+(fecha.getMonth()>=7?2:1));
+}
+function actualizarSemestreCalculado(){
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
+  const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
+  if(!caja)return;
+  const verano=!obSemManual&&new Date().getMonth()<2;
+  caja.innerHTML=`<span>${verano?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.</span>`+
+    (grilla&&grilla.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
+}
+function mostrarSemestreManual(){
+  const grilla=document.getElementById('sem-grid');if(!grilla)return;
+  grilla.hidden=false;actualizarSemestreCalculado();
+  const elegido=grilla.querySelector('.sel');if(elegido)elegido.focus();
+}
+function avisoEdadOnboarding(){
+  const aviso=document.getElementById('ob-edad-aviso');if(!aviso)return;
+  aviso.textContent=obEdad!==null&&obEdad<EDAD_MINIMA?`Para usar GradeHub tienes que tener ${EDAD_MINIMA} años o más.`:'';
+}
+function montarRuletasOnboarding(){
+  ruletaEdad=montarRuleta(document.getElementById('ob-edad-ruleta'),{valores:rangoAnios(10,99),etiqueta:'ob-edad-titulo',
+    inicial:obEdad,vacio:'—',texto:v=>v+' años',alCambiar:v=>{obEdad=v;avisoEdadOnboarding();checkOb();}});
+  ruletaGeneracion=montarRuleta(document.getElementById('ob-generacion-ruleta'),{valores:rangoAnios(2000,new Date().getFullYear()),
+    etiqueta:'ob-generacion-titulo',inicial:obGeneracion,alCambiar:v=>{obGeneracion=v;actualizarSemestreCalculado();if(document.getElementById('sem-grid')&&!document.getElementById('sem-grid').hidden)initSemGrid();checkOb();}});
+}
+
 function obStepValid(step,datos){
   const d=datos||{
     nombre:(document.getElementById('ob-name')||{}).value||'',
-    edad:!!(document.getElementById('ob-edad')||{}).checked,
+    edad:obEdad,
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
     carreraNombre:selectedCarreraNombre
   };
-  // El paso 1 pide dos cosas: cómo te llamas y que declares la edad mínima.
-  if(step===1)return !!String(d.nombre||'').trim()&&!!d.edad;
+  // El paso 1 pide dos cosas: cómo te llamas y tu edad, que tiene que ser la mínima.
+  if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=EDAD_MINIMA;
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
   if(step===4)return !!d.semestre;
@@ -1884,12 +1971,18 @@ function obTrackPaso(){
 // carreras de FEN, donde la primera opción es "Ingeniería Comercial", y se llevaba
 // la malla de otra universidad. `obStepValid(2)` ya exige un tenant; lo que faltaba
 // era no dárselo puesto.
-function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;renderTenantPick();obRender();checkOb();}
+function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;montarRuletasOnboarding();renderTenantPick();obRender();checkOb();}
 
 function obRender(){
   // Cuántos semestres ofrecer depende de la malla, que puede venir en un
   // archivo diferido: se pide acá y el selector se repinta cuando llega.
-  if(obStep===4){initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4)initSemGrid();});}
+  if(obStep===4){
+    if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();
+    initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4){if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();initSemGrid();}});
+  }
+  const alPintar=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(f):f();
+  if(obStep===1&&typeof ruletaEdad!=='undefined'&&ruletaEdad)alPintar(ruletaEdad.sincronizar);
+  if(obStep===4&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
   if(obStep===5)prepararObRamos();
   obTrackPaso();
   document.querySelectorAll('.ob-step').forEach(el=>{
@@ -1957,7 +2050,7 @@ function completeOnboarding(){
     showToast('Falta un dato para crear tu cuenta',true);
     return;
   }
-  S.userName=name;S.careerSemestre=selectedSem;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
+  S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
   obRamos.forEach(item=>{
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
@@ -1971,7 +2064,7 @@ function completeOnboarding(){
   // formulario de correo porque por el onboarding pasan también las cuentas de
   // Google, que nunca vieron ese formulario — y con ellas, la aceptación de
   // los términos, que hasta ahora solo se registraba en el camino del correo.
-  registrarDeclaracionEdad();
+  registrarDeclaracionEdad({edad:obEdad,generacion:obGeneracion});
   // `carrera` es un código de una lista cerrada y puede viajar. El nombre
   // declarado NO: es texto escrito por el estudiante y la analítica no recibe
   // texto suyo — lo prohíbe tests/analitica.test.js y lo promete la política.
