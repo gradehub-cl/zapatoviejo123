@@ -183,6 +183,15 @@ function contexto({search='',sesion=false}={}){
     a.run(`(()=>{const x={...__antesAhora,tenant:'uandes',ramos:[{...__antesAhora.ramos[0],categorias:[__ev(9,'Interrogación 3','2026-10-20',3.946)]}]};return metricasAlumnoPanel(x,()=>null).ahora.aprobacion;})()`)===1
     &&a.run(`(()=>{const x={...__antesAhora,tenant:'uc',ramos:[{...__antesAhora.ramos[0],categorias:[__ev(9,'Interrogación 3','2026-10-20',3.946)]}]};return metricasAlumnoPanel(x,()=>null).ahora.aprobacion;})()`)===0);
 
+  chk('la fecha que corrigió el profesor manda sobre cuándo compartió',
+    a.run(`metricasAlumnoPanel({...__antesAhora,inicio:'2026-09-05'},__cursoAA).antes.n`)===1);
+  chk('una fecha sin hora es ese mismo día, no el anterior',a.run(`diaLocalPanel('2026-09-01')`)==='2026-09-01'
+    &&/Empezó contigo el <b>1 sep<\/b>/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-01'}],()=>null)`))
+    &&a.run(`metricasAlumnoPanel({...__antesAhora,inicio:'2026-09-08'},__cursoAA).antes.n`)===1);
+  const linea=a.run(`alumnosPanelHTML([{...__antesAhora,inicio:null}],()=>null)`);
+  chk('cada alumno dice desde cuándo, y se puede cambiar',/Empezó contigo el <b>15 sep<\/b> · el día que compartió/.test(linea)&&/data-inicio-alumno="aa"/.test(linea));
+  chk('si el profesor la corrigió, no dice "el día que compartió"',!/el día que compartió/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-05'}],()=>null)`)));
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.

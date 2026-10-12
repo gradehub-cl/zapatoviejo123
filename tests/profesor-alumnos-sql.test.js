@@ -80,7 +80,18 @@ try{
   console.log('\n=== Lo que ve el profesor ===');
   const alumnos=await q('select * from mis_alumnos()');
   check('ve a su alumna con el nombre que ella eligió',alumnos.length===1&&alumnos[0].nombre_visible==='Cami');
-  check('no recibe su user_id ni su correo',Object.keys(alumnos[0]).sort().join()==='desde,id,nombre_visible,ramos,tenant');
+  check('no recibe su user_id ni su correo',Object.keys(alumnos[0]).sort().join()==='desde,id,inicio,nombre_visible,ramos,tenant');
+
+  console.log('\n=== Cuándo empezó contigo (#697) ===');
+  check('por omisión no hay fecha de inicio: se usa cuándo compartió',alumnos[0].inicio===null);
+  check('el profesor la corrige',(await q("select fijar_inicio_alumno($1,'2026-08-20') ok",[alumnos[0].id]))[0].ok===true
+    &&String((await q('select inicio::text i from mis_alumnos()'))[0].i)==='2026-08-20');
+  check('no puede ser futura',/futura/.test(await falla("select fijar_inicio_alumno($1,current_date+1)",[alumnos[0].id])));
+  check('null vuelve a cuándo compartió',(await q('select fijar_inicio_alumno($1,null) ok',[alumnos[0].id]))[0].ok===true
+    &&(await q('select inicio from mis_alumnos()'))[0].inicio===null);
+  await soy(OTRO);
+  check('otra cuenta no puede tocarla',!!(await falla("select fijar_inicio_alumno($1,'2026-08-01')",[alumnos[0].id])));
+  await soy(PROFE);
   check('recibe solo el ramo compartido, completo para calcular con ramoAvg',
     alumnos[0].ramos.length===1&&alumnos[0].ramos[0].sigla==='MAT1620'&&alumnos[0].ramos[0].categorias[0].notas.length===2);
   await soy(PENDIENTE);
