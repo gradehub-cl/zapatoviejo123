@@ -142,8 +142,6 @@ cuando entra el anterior. Nada más del panel hasta que entren.
 
 **Pendiente, sin dueño todavía:**
 
-- Aviso dentro de la app del cambio de términos de #681: la política promete
-  avisar los cambios importantes.
 - #631, **en pausa por decisión de Lucas**: Econometría Aplicada (falta su
   programa) y Revelación y Fe (falta confirmar si «la nota más baja» incluye el
   examen). No se retoman sin ese dato.
