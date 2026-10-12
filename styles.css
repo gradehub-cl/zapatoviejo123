@@ -3075,6 +3075,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-url .btn-confirm{min-height:44px;width:100%;}
 .panel-alumnos-link .agent-refresh{align-self:flex-start;min-height:44px;}
 .panel-alumnos-link + .profesor-hig-lista-cabeza{margin-top:22px;}
+.panel-alumnos-buscar{margin-top:8px;}
+.panel-alumnos-buscar input{min-height:44px;}
+.panel-alumnos-exportar{min-height:44px;margin-top:4px;}
 .panel-alumnos-alumno{border:1px solid var(--border);border-radius:14px;padding:4px 14px 14px;margin-top:10px;background:var(--card);}
 .panel-alumnos-alumno summary{display:flex;align-items:baseline;gap:10px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
 .panel-alumnos-alumno summary::-webkit-details-marker{display:none;}
