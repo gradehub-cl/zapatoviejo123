@@ -120,8 +120,8 @@ Cada uno tiene su PR abierto y el detalle está en su issue. **No los rehagas**:
 si necesitas cambiar algo de ahí, parte de la rama del PR.
 
 - **#657 (anuncio pausado que seguía cobrando días): #680.** El SQL ya está
-  aplicado en producción. Falta mergear y corregir a mano el anuncio
-  `b338c850` (paso 2 del PR).
+  aplicado en producción y los dos anuncios afectados están corregidos. Solo
+  falta mergear.
 - **Panel de alumnos (#667 y #663), en cadena, porque tocan las mismas
   funciones de `marketplace.js`:** #681 (buscador y exportar; cambia términos y
   privacidad) → #684 (resumen por ramo) → #685 (próxima evaluación por alumno)
@@ -129,8 +129,9 @@ si necesitas cambiar algo de ahí, parte de la rama del PR.
   mergean en ese orden. Nada más del panel hasta que entren.
 - **Anuncios de clases (#664): #682** (el ramo con evaluación en 7 días va
   primero) **y #683** («4 clases · $11.250 c/u»).
-- **Métricas propias (#666): #687, borrador.** El SQL se aplica a mano antes de
-  mergear, y el texto de privacidad va aparte.
+- **Métricas propias (#666): #687, borrador.** El SQL ya está aplicado en
+  producción; la app recién empieza a registrar visitas al mergear. El texto de
+  privacidad va aparte y conviene publicarlo junto con el merge.
 
 Sin dueño, salidos de este trabajo: el aviso dentro de la app del cambio de
 términos de #681, cerrar un anuncio pausado sin campaña desde el panel (#657), y
