@@ -2068,7 +2068,9 @@ function obRender(){
   const bar=document.getElementById('ob-progress-bar');
   if(bar)bar.style.transform='scaleX('+(obProgressPct(obStep)/100)+')';
   const back=document.getElementById('ob-back');
-  if(back)back.style.visibility=obStep>1?'visible':'hidden';
+  // En el paso 1 no hay a dónde volver: sin el botón, Continuar ocupa el ancho
+  // completo en vez de quedar corrido a la derecha junto a un hueco.
+  if(back)back.hidden=obStep<=1;
   const next=document.getElementById('ob-next');
   if(next){
     next.textContent=obStep===OB_TOTAL?(obRamos.length?`Continuar con ${obRamos.length} ramo${obRamos.length!==1?'s':''}`:'Continuar sin ramos'):'Continuar';
