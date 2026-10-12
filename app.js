@@ -1652,9 +1652,14 @@ function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto
     if(mover&&lista.scrollTo)lista.scrollTo({top:i*RULETA_FILA,behavior:movimientoReducido()?'auto':'smooth'});
     if(cambio&&alCambiar)alCambiar(opciones[idx]);
   };
-  // Al soltar, la fila que quedó al centro es la elegida.
-  let espera=null;
-  lista.addEventListener('scroll',()=>{clearTimeout(espera);espera=setTimeout(()=>elegir(Math.round(lista.scrollTop/RULETA_FILA),{mover:false}),90);},{passive:true});
+  // Al soltar, la fila que quedó al centro es la elegida. Mientras gira, cada
+  // fila que pasa por el centro hace tic, como el selector de iOS.
+  let espera=null,filaAlCentro=idx;
+  lista.addEventListener('scroll',()=>{
+    const f=Math.round(lista.scrollTop/RULETA_FILA);
+    if(f!==filaAlCentro&&f>=0&&f<opciones.length){filaAlCentro=f;vibrar('seleccion');}
+    clearTimeout(espera);espera=setTimeout(()=>elegir(f,{mover:false}),90);
+  },{passive:true});
   // Con el mouse se agarra y se arrastra, como con el dedo. Mientras se
   // arrastra se apaga el encaje, que si no tironea la lista a cada movimiento.
   let arrastre=null;
@@ -2219,17 +2224,31 @@ function enAppNativa(){
   catch(e){return false;}
 }
 // La clase html.app-nativa la pone index.html antes de pintar.
-// Vibración, solo en la app y solo en dos momentos (pedido de Martín): un toque
-// suave al agregar una nota y la advertencia al borrar. Una vibración que se
-// repite en todo deja de decir algo (HIG Playing haptics).
+// Vibración, solo en la app (HIG Playing haptics): un toque suave al agregar
+// una nota y la advertencia al borrar (pedido de Martín). Además, lo que en iOS
+// ya vibra solo: el tic de selección de la ruleta y de los interruptores, y el
+// golpe al levantar un ramo para reordenarlo. Nada más: una vibración que se
+// repite en todo deja de decir algo.
+let _hapticaSeleccion=null;
 function vibrar(tipo){
   try{
     const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
     if(!H)return;
     if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
+    // El generador de selección se prepara una vez y queda listo para cada tic.
+    else if(tipo==='seleccion'){
+      _hapticaSeleccion=_hapticaSeleccion||Promise.resolve(H.selectionStart());
+      _hapticaSeleccion.then(()=>H.selectionChanged()).catch(()=>{});
+    }
     else H.impact({style:'LIGHT'}).catch(()=>{});
   }catch(e){}
 }
+// Un interruptor de iOS hace tic al cambiar; los de la app (.toggle) también.
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t&&t.matches&&t.matches('.toggle input[type=checkbox]'))vibrar('seleccion');
+});
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
 // a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
@@ -2663,6 +2682,8 @@ function activarReordenRamos(container){
       ghost.style.width=rect.width+'px';
       document.body.appendChild(ghost);
       drag={ghost,offsetX:x-rect.left,offsetY:y-rect.top,x,y};
+      // En iOS, lo que se levanta con el dedo se siente al despegar.
+      vibrar('levantar');
       row.classList.add('ramo-drag-source');
       container.classList.add('ramo-reordering');
       document.body.classList.add('ramo-drag-active');
@@ -5738,7 +5759,7 @@ function openAddCatModal(prefillDate){
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
     </div>`;
   openModal();wirePesoControl();
-  setTimeout(()=>document.getElementById('m-cat-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-cat-name'));
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(addCatError){addCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddCat();});
 }
@@ -6126,7 +6147,7 @@ function openAddNotaModal(catId){
       <button class="btn-confirm" id="m-add-nota-btn" onclick="confirmAddNota('${catId}')">Agregar nota</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   function checkValid(){
     const v=parseNota(document.getElementById('m-nota-val').value);
     const btn=document.getElementById('m-add-nota-btn');
@@ -7347,7 +7368,7 @@ function openSettings(){
       if(inp){
         inp.addEventListener('input',()=>{settingsName=inp.value;if(settingsNameError){settingsNameError='';limpiarErrorCampo('s-name','s-name-error');}checkSave();});
         inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
-        setTimeout(()=>{inp.focus();inp.select();},100);
+        enfocarEnHoja(inp,()=>inp.select());
       }
     }
   }
@@ -7975,7 +7996,7 @@ function abrirImportar(){
     ${hayRespaldoPreImport()?`<p style="text-align:center;margin:14px 0 0;font-size:0.78125rem;">
       <button onclick="deshacerImport()" style="border:none;background:none;padding:0;cursor:pointer;font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;color:var(--primary);">Deshacer la última importación</button></p>`:''}`;
   openModal();
-  setTimeout(()=>document.getElementById('import-text').focus(),100);
+  enfocarEnHoja(document.getElementById('import-text'));
 }
 // Clave del respaldo automático previo a un import. Existe porque importar es
 // la única acción de la app que destruye datos sin posible deshacer: reemplaza
@@ -8226,6 +8247,26 @@ function openModal(){
 // quitar `.open` basta para que el sheet baje y recién ahí desaparezca.
 // La versión anterior de este arreglo llevaba una clase `.cerrando` y un
 // `transitionend`; sobraba entera.
+// El campo que una hoja enfoca al abrirse. En la app espera a que la hoja
+// termine de subir y no desplaza la página: si el foco llegaba antes, WebKit
+// corría todo hacia arriba para mostrar un campo que todavía venía subiendo, y
+// la hoja quedaba bajo la barra de estado, con el botón de cerrar fuera de la
+// vista. En la web sigue como siempre.
+function enfocarEnHoja(el,despues){
+  if(!el)return;
+  const ir=()=>{
+    if(!el.isConnected)return;
+    if(enAppNativa()){try{el.focus({preventScroll:true});}catch(e){el.focus();}}
+    else el.focus();
+    if(despues)despues();
+  };
+  // Solo se espera si la hoja está subiendo (recién abierta); dentro de una
+  // hoja ya abierta, como Ajustes, el foco llega como antes.
+  const hoja=enAppNativa()&&document.querySelector('#modal.open .modal-sheet');
+  const dura=hoja?parseFloat(getComputedStyle(hoja).transitionDuration)*1000||0:0;
+  const subiendo=!!(hoja&&hoja.getAnimations&&hoja.getAnimations().length);
+  setTimeout(ir,subiendo?Math.max(100,dura):100);
+}
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
   // En el carrusel de pestañas el documento nunca se desplaza: cada pantalla
@@ -8829,7 +8870,7 @@ function openEditNotaModal(catId,notaId){
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
 }
 function confirmEditNota(catId,notaId){
@@ -8891,7 +8932,7 @@ function openCalculadoraModal(){
       <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-calc-target').focus(),100);
+  enfocarEnHoja(document.getElementById('m-calc-target'));
 
   window.calcResult=function(){
     const target=parseNota(document.getElementById('m-calc-target').value);

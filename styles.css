@@ -3293,6 +3293,23 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .app-nativa .confirm-desc{font-size:0.875rem;}
 .app-nativa .confirm-btns button{min-height:48px;border:0;border-radius:24px;font-size:1rem;font-weight:600;}
 .app-nativa .confirm-btns .btn-danger{background:var(--muted);color:var(--red);}
+/* Y aparecen como ellas (HIG Motion: breve y precisa): un fundido con un leve
+   acercamiento al abrir y solo el fundido al cerrar. Antes saltaban de golpe. */
+.app-nativa .confirm-overlay{opacity:0;transition:opacity var(--motion-fast) var(--ease-standard),display var(--motion-fast) allow-discrete;}
+.app-nativa .confirm-overlay.open{opacity:1;}
+.app-nativa .confirm-overlay.open .confirm-box{transition:transform var(--motion-base) var(--ease-out);}
+@starting-style{
+  .app-nativa .confirm-overlay.open{opacity:0;}
+  .app-nativa .confirm-overlay.open .confirm-box{transform:scale(1.08);}
+}
+@media(prefers-reduced-motion:reduce){.app-nativa .confirm-overlay.open .confirm-box{transition:none;}}
+
+/* Las hojas suben con la misma curva y duración que empujar un ramo (HIG
+   Motion: el movimiento de la app es uno solo). Con 220 ms aparecían el doble
+   de rápido que todo lo demás. El overlay espera a que la hoja termine de bajar
+   antes de esconderse. Con movimiento reducido la hoja sigue sin desplazarse. */
+.app-nativa .modal-sheet{transition-duration:var(--motion-navegar);transition-timing-function:var(--ease-navegar);}
+.app-nativa .modal-overlay{transition:opacity var(--motion-base) var(--ease-standard),display var(--motion-navegar) allow-discrete;}
 
 /* Navegar como en iOS (HIG Motion; transicionNativa en app.js). Abrir un ramo
    lo empuja desde la derecha mientras Inicio se corre un tercio y se oscurece;
