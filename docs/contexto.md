@@ -134,6 +134,9 @@ si necesitas cambiar algo de ahí, parte de la rama del PR.
   privacidad va aparte y conviene publicarlo junto con el merge.
 - **Canvas en la web (#647): #689, encima de #670.** Fechas desde la fuente de
   calendario, con `functions/canvas-calendario.js`. Se mergea después de #670.
+- **Décimas del estudiante (#631): #690.** Principios Ecológicos y Dinámica.
+  Toca el motor (`engine.js`) y la ficha. Econometría y Revelación y Fe quedan
+  para después; Revelación y Fe, hasta confirmar a qué nota van.
 
 Sin dueño, salidos de este trabajo: el aviso dentro de la app del cambio de
 términos de #681, cerrar un anuncio pausado sin campaña desde el panel (#657), y
