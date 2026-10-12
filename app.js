@@ -1379,7 +1379,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -2665,7 +2665,7 @@ function evaluacionSinNota(cat){return !(cat?.notas||[]).some(n=>n&&n.valor!=nul
 function porcentajeAusencia(valor){return String(r2(Number(valor)||0)).replace('.',',');}
 function declararAusenciaJustificada(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  const regla=r.reglasAusenciaJustificada;
+  const regla=reglasAusenciaOficiales(r);
   const declarable=[...(regla&&regla.reemplazos||[]),...(regla&&regla.traspasos||[]),...(regla&&regla.rezagos||[])].some(x=>x.desdeId===catId);
   const cat=(r.categorias||[]).find(c=>c.id===catId);
   if(!declarable||!cat||!evaluacionSinNota(cat)){showToast('Esa ausencia ya no se puede aplicar a tu pauta',true);return;}
@@ -2676,7 +2676,7 @@ function declararAusenciaJustificada(catId){
 function ausenciaDeEvaluacion(r,cat){
   if(!r||!cat)return null;
   const declarada=(r.ausenciasJustificadas||[]).includes(cat.id);
-  const oficial=r.reglasAusenciaJustificada;
+  const oficial=reglasAusenciaOficiales(r);
   const regla=oficial||(r.reglasAusenciaJustificadaUsuario?.declaradaPor==='estudiante'?r.reglasAusenciaJustificadaUsuario:null);
   const entradas=[...(regla?.reemplazos||[]).map(x=>({...x,tipo:'reemplazo'})),
     ...(regla?.traspasos||[]).map(x=>({...x,tipo:'traspaso'})),
@@ -2686,13 +2686,15 @@ function ausenciaDeEvaluacion(r,cat){
   if(!declarada&&(!pendiente||!(Number(cat.peso)>0)||!!oficial&&!entrada))return null;
   const estado=declarada?estadoAusenciasJustificadas(r):null;
   const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===cat.id);
+  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===cat.id);
   const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===cat.id)||
-    (declarada&&!aplicada?{motivo:'pauta_cambio'}:null);
-  const detalle=aplicada||inactiva||entrada;
+    (declarada&&!aplicada&&!bloqueada?{motivo:'pauta_cambio'}:null);
+  const detalle=aplicada||bloqueada||inactiva||entrada;
   const destino=(r.categorias||[]).find(c=>c.id===detalle?.haciaId);
   const peso=porcentajeAusencia(cat.peso);
   let texto='';
-  if(inactiva)texto=inactiva.motivo==='tiene_nota'
+  if(bloqueada)texto=`El traspaso supera el máximo de ${bloqueada.topePesoDestino}% del examen. El resultado queda pendiente hasta resolverlo con el curso.`;
+  else if(inactiva)texto=inactiva.motivo==='tiene_nota'
     ?'La declaración se conserva, pero no se aplica porque esta evaluación tiene nota.'
     :'La declaración se conserva, pero no se aplica porque cambió la pauta.';
   else if(detalle?.tipo==='rezago')texto=`Su ${peso}% queda pendiente para rendir en rezago.`;
@@ -2750,7 +2752,7 @@ function confirmarCorreccionAusenciaJustificada(catId){
     ()=>corregirAusenciaJustificada(catId),{label:'Deshacer justificación',focusCancel:true});
 }
 function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
-  if(!r||r.reglasAusenciaJustificada)return false;
+  if(!r||reglasAusenciaOficiales(r))return false;
   const desde=(r.categorias||[]).find(c=>c.id===desdeId);
   if(!desde||!(Number(desde.peso)>0)||!evaluacionSinNota(desde))return false;
   if(!['rezago','traspaso'].includes(tipo))return false;
@@ -2773,7 +2775,7 @@ function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
 function openAusenciaJustificadaModal(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const desde=r&&(r.categorias||[]).find(c=>c.id===catId);
-  if(!r||r.reglasAusenciaJustificada||!desde||!evaluacionSinNota(desde)){
+  if(!r||reglasAusenciaOficiales(r)||!desde||!evaluacionSinNota(desde)){
     showToast('Esa ausencia ya no se puede configurar',true);return;
   }
   const destinos=(r.categorias||[]).filter(c=>c.id!==catId&&Number(c.peso)>0);
@@ -3054,6 +3056,15 @@ function pautaEditada(r){
 // Devuelve el cambio pendiente, o null. Null significa las tres cosas buenas:
 // no hay pauta oficial, ya está al día, o el estudiante la editó a mano —y en
 // ese caso su versión manda sobre la nuestra, sin preguntar ni avisar.
+function firmaReglasCalculo(r){
+  const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
+  return JSON.stringify((r.gates||[]).filter(g=>['conditional_weights','absence_limit'].includes(g.type)).map(g=>({
+    type:g.type,nombre:g.nombre,max:g.max,ambigua:g.ambigua,
+    cuando:(g.cuando||[]).map(c=>({tipo:c.tipo,min:c.min,algunaMin:c.algunaMin,evals:c.catIds.map(id=>nombres.get(id))})),
+    pesos:(g.pesos||[]).map(e=>({evaluacion:nombres.get(e.catId),peso:e.peso})),
+    traspasos:(g.traspasos||[]).map(e=>({desde:nombres.get(e.desdeId),hacia:nombres.get(e.haciaId)})),
+  })));
+}
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
   const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
@@ -3063,11 +3074,12 @@ function cambioDePauta(r){
   const actual=huellaPauta(catsDePauta(r.categorias));
   if(actual!==r.pautaHuella)return null;      // la editó: no se opina
   const oficial=huellaPauta(p.categorias);
-  if(oficial===actual)return null;            // al día
+  const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
+  if(oficial===actual&&!reglasCambian)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
-  const cambios=[];
+  const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
@@ -3091,6 +3103,7 @@ function verCambioDePauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return;
   const cambio=cambioDePauta(r);if(!cambio)return;
   const fila=c=>{
+    if(c.tipo==='regla')return `<li>${esc(c.nombre)}</li>`;
     if(c.tipo==='peso')return `<li><b>${esc(c.nombre)}</b>: ${r2(c.antes)}% → <b>${r2(c.despues)}%</b></li>`;
     if(c.tipo==='llega')return `<li><b>${esc(c.nombre)}</b>: nueva, ${r2(c.despues)}%</li>`;
     return `<li><b>${esc(c.nombre)}</b>: ya no está en la pauta del catálogo</li>`;
@@ -3245,6 +3258,19 @@ function presetRamo(nombre,tenant,carrera,ahora){
     const ids=g.evals.map(n=>porNombre[n]).filter(Boolean);
     if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{})});
   });
+  // Las reglas nuevas usan gates; un ramo ya guardado las recibe únicamente
+  // cuando su dueño acepta actualizar la pauta.
+  const pauta=categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}));
+  const ids=nombres=>nombres.map(n=>porNombre[n]).filter(Boolean);
+  (!Array.isArray(def)&&def.formulasCondicionales||[]).forEach(regla=>{
+    const cuando=(regla.cuando||[]).map(c=>({...c,catIds:ids(c.evals)}));
+    if(cuando.some((c,i)=>c.catIds.length!==regla.cuando[i].evals.length))return;
+    gates.push({type:'conditional_weights',nombre:regla.nombre,pauta,cuando,
+      ambigua:regla.ambigua===true,pesos:(regla.pesos||[]).map(e=>({catId:porNombre[e.evaluacion],peso:e.peso}))});
+  });
+  const limite=!Array.isArray(def)&&def.limiteAusencias;
+  if(limite)gates.push({type:'absence_limit',nombre:limite.nombre,pauta,max:limite.max,
+    traspasos:limite.desde.map(n=>({desdeId:porNombre[n],haciaId:porNombre[limite.hacia]}))});
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
   const bonus=resolverBonus(def,categorias);
@@ -5286,7 +5312,31 @@ function reglasDelPreset(ramo,campo){
 function reglasNoCalculadas(ramo){
   const cargadas=new Set((ramo&&Array.isArray(ramo.bonus)?ramo.bonus:[]).map(b=>b.id));
   const sinCargar=reglasDelPreset(ramo,'bonus').filter(b=>b&&!cargadas.has(b.id)&&b.ayuda).map(b=>b.ayuda);
-  return reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
+  const pendientes=reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
+  const def=definicionPresetDelRamo(ramo);
+  const calculadas=reglasCalculoVigentes(ramo);
+  const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
+  const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
+  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
+  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
+  const ausencias=estadoAusenciasJustificadas(ramo);
+  if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
+  return pendientes;
+}
+function notaNecesariaCondicional(ramo){return reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights');}
+function motivoCalculoPendiente(ramo){
+  const base=calculoRamoConCompuertas(ramo);
+  if(base.ausencias?.bloqueadas?.length)return 'El examen supera su ponderación máxima. Confirma con el curso el derecho a examen o la recuperativa antes de calcular la final';
+  if(base.res.formulas?.some(f=>f.ambigua))return 'El programa se contradice en el límite 3,8. Confirma con el profesor cómo ponderar las tareas';
+  return null;
+}
+function reglasCalculadas(ramo){
+  const calculo=calculoRamoConCompuertas(ramo);
+  const formulas=calculo.res.formulas||[];
+  const notas=formulas.map(f=>`${f.nombre}: ${f.ambigua?'el programa contradice el límite; confirma con el profesor':f.pendiente?'se resolverá al completar las evaluaciones que deciden la condición':f.activa?'se aplica al promedio':'no se activa con tus notas'}`);
+  const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
+  if(limite)notas.push(`${limite.nombre}. Solo se mueve el peso de una prueba que declares justificada; el máximo del examen es ${limite.max}%`);
+  return notas;
 }
 // Reglas del curso que el promedio NUNCA va a incluir. Decirle al estudiante
 // "todavía no las calculamos" sería prometerle algo que no va a pasar: dependen
@@ -8709,7 +8759,11 @@ function openCalculadoraModal(){
         const oficial=notaFinalOficial(avg),metaOficial=notaFinalOficial(target);
         const ok=oficial>=metaOficial;
         el.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'}">Tu promedio actual es <b>${fmtPromedio(avg)}</b> — ${ok?'ya lo lograste.':`te faltan ${(metaOficial-oficial).toFixed(1)} puntos y no quedan evaluaciones.`}</span>`;
-      } else {el.innerHTML=`<span style="color:var(--fg3)">No hay notas ingresadas aún.</span>`;}
+      } else {el.innerHTML=`<span style="color:var(--fg3)">${esc(motivoCalculoPendiente(r)||'No hay notas ingresadas aún.')}</span>`;}
+      return;
+    }
+    if(notaNecesariaCondicional(r)&&needed<=7){
+      el.innerHTML=`<div>Con <b>${nfNecesaria(needed)}</b> en cada evaluación pendiente llegas a ${target.toFixed(1)}.<p class="modal-desc">Cambiar una nota puede activar otra fórmula del programa. Comprueba tus escenarios en el simulador.</p></div>`;
       return;
     }
     const metaCalculada=resumenMetaCalculadora(needed);
@@ -9018,7 +9072,9 @@ function simNotaNecesaria(proyectado){
   const peso=(proyectado.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
   if(Math.abs(peso-100)>0.05)return {texto:'Completa la pauta para calcularlo'};
   const calculo=calculoRamoConCompuertas(proyectado);
-  if(!calculo.res.emptyLeaves.length)return null;
+  const motivo=motivoCalculoPendiente(proyectado);
+  if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
+  if(!calculo.res.emptyLeaves.length&&!notaNecesariaCondicional(proyectado))return null;
 
   const necesaria=notaNecesaria(proyectado,meta);
   const nodos=new Map((calculo.estructura.children||[]).map(c=>[c.id,c]));
@@ -9043,6 +9099,7 @@ function simNotaNecesaria(proyectado){
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
     return `Además, ${nombre} debe llegar a ${simConComa(fmtPromedio(x.g.min))} para cumplir su mínimo.`;
   }).join(' ');
+  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas al 4,0`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
     ?{texto:'El promedio ponderado ya alcanza el 4,0',detalle:condiciones}
     :{texto:'Ya tienes el 4,0 asegurado'};
@@ -10181,6 +10238,7 @@ function lecturaDespuesDeNota(ramo){
   const necesita=notaNecesaria(ramo);
   if(necesita===null)return `Vas ${fmtPromedio(avg)} · ramo completamente evaluado`;
   if(necesita>7.05)return `Vas ${fmtPromedio(avg)} · ya no alcanza sólo con lo pendiente`;
+  if(notaNecesariaCondicional(ramo))return `Vas ${fmtPromedio(avg)} · con ${nfNecesaria(necesita)} en cada evaluación pendiente llegas al 4,0`;
   if(necesita<=1.0)return `Vas ${fmtPromedio(avg)} · tienes margen para aprobar`;
   if(nivelNota(avg)==='good'&&necesita<=4.0)return `Vas ${fmtPromedio(avg)} · buen margen en lo pendiente`;
   return `Vas ${fmtPromedio(avg)} · necesitas ${nfNecesaria(necesita)} en lo pendiente para aprobar`;

@@ -1,7 +1,7 @@
 {
   "fuentes": "Cinco PDF entregados por Lucas; extracción textual y revisión visual de páginas de evaluación.",
   "alcance": "Transcripción de programas 2026-2; no modifica la malla, créditos, motor ni pautas personalizadas. No generaliza entre secciones.",
-  "limitaciones": "Las horas se conservan en reglasDelCurso porque presetRamo solo precarga fechas. Los traspasos con topes no se modelan como reglas incondicionales. Las condiciones de Gerencial y Estrategia están visibles en noCalcula.",
+  "limitaciones": "Las horas se conservan en reglasDelCurso. Las fórmulas condicionales y los traspasos con topes se calculan al aceptar la pauta; el caso exacto 3,8 de Gerencial y las recuperativas adicionales indefinidas quedan pendientes.",
   "programas": [
     {
       "nombre_catalogo": "Contabilidad Gerencial",
@@ -56,7 +56,7 @@
         "Calendario explícitamente tentativo."
       ],
       "no_calcula": [
-        "Si la nota de ejercicios, casos y tareas es al menos 4,0 y el promedio de pruebas y examen es menor que 3,8, la final excluye las tareas: 30% Prueba 1 + 30% Prueba 2 + 40% Examen. Si las tareas están bajo 4,0, sí pesan 20%. El texto exige ≥ 3,8, pero la fórmula impresa dice > 3,8; confirma el caso exacto de 3,8 con el profesor",
+        "Solo queda pendiente el caso exacto 3,8 con tareas ≥ 4,0: texto ≥ y fórmula > se contradicen.",
         "La nota de ejercicios, casos y tareas se calcula por puntos acumulados, con 7,0 al 90% del puntaje máximo y escala lineal. Ingresa la nota del bloque entregada por el profesor"
       ],
       "reglas_del_curso": [
@@ -109,7 +109,6 @@
         "Cantidad de décimas por participación/asistencia no publicada."
       ],
       "no_calcula": [
-        "Una prueba justificada traspasa su 30% al examen, que no puede superar 70%. Ajusta los pesos según la justificación aprobada; justificar ambas pruebas no habilita un examen de 100%",
         "Las preguntas bonus pueden sumar hasta 0,3 a cada prueba. La participación, tareas voluntarias y 100% de asistencia a clases y ayudantías pueden dar décimas; su asignación depende del profesor"
       ],
       "reglas_del_curso": [
@@ -176,9 +175,7 @@
         "Sin fechas de evaluaciones.",
         "Nivel de participación requerido para 7,0 lo decide el profesor."
       ],
-      "no_calcula": [
-        "Participación y actividades cuentan solo si obtienes al menos un 4,0 en pruebas, examen o recuperativa, y 28,75% Prueba 1 + 28,75% Prueba 2 + 42,5% Examen llega a 3,75. Si falla cualquiera, esa fórmula es la nota final y se excluyen participación y actividades"
-      ],
+      "no_calcula": [],
       "reglas_del_curso": [
         "Programa 2026-2 de Gastón Llanes. Hay cuatro actividades y se promedian las tres mejores; las fechas las anuncia el curso",
         "Para rendir examen debes haber sido evaluado en al menos 33% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba. El examen no puede superar 70%: el exceso se califica con 1,0. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario",
@@ -241,7 +238,7 @@
         "Peso de eventual recuperativa si examen supera 60% no definido."
       ],
       "no_calcula": [
-        "Una prueba justificada traspasa su 20% al examen. Si supera 60%, se exige una recuperativa adicional cuya ponderación define el profesor; ajusta la pauta según sus instrucciones"
+        "Recuperativa adicional cuando el examen supera 60%: falta su ponderación."
       ],
       "reglas_del_curso": [
         "Syllabus común 2026-2 para las tres secciones: pruebas a las 17:30 y examen a las 08:20. Las cinco actividades se anuncian por sección",
