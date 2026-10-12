@@ -764,6 +764,7 @@ async function afterSignup(){
 }
 async function afterLogin(){
   track('login');
+  registrarVisitaDiaria();
   const uid=currentUser?currentUser.id:null;
   const visita=++_visitaSesion;
   const vigente=()=>visita===_visitaSesion&&!!currentUser&&currentUser.id===uid;
@@ -893,7 +894,31 @@ let _visitaSesion=0;
 if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&currentUser&&S.onboardingDone
     &&typeof cargarPropuestasPautaAgente==='function')cargarPropuestasPautaAgente().catch(()=>{});
+  // La app instalada puede quedar abierta de un día para otro sin recargar.
+  if(document.visibilityState==='visible')registrarVisitaDiaria();
 });
+
+// Una visita por cuenta y por día (#666, supabase/visitas_diarias.sql), para
+// medir activos y quién vuelve sin depender de las sesiones de Supabase. El
+// servidor solo guarda la cuenta y la fecha. Este dispositivo anota que ya la
+// mandó hoy, fuera de gradehub_v1, para no llamar en cada apertura; si falla,
+// se vuelve a intentar la próxima vez.
+const VISITA_DIA_KEY='gradehub_visita_dia';
+function diaChileVisita(ahora=new Date()){
+  try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(ahora);}catch(e){return null;}
+}
+async function registrarVisitaDiaria(ahora=new Date()){
+  if(!supabaseClient||!currentUser)return false;
+  const dia=diaChileVisita(ahora);if(!dia)return false;
+  const marca=currentUser.id+'|'+dia;
+  try{if(localStorage.getItem(VISITA_DIA_KEY)===marca)return false;}catch(e){}
+  try{
+    const {error}=await supabaseClient.rpc('registrar_visita');
+    if(error)return false;
+    try{localStorage.setItem(VISITA_DIA_KEY,marca);}catch(e){}
+    return true;
+  }catch(e){return false;}
+}
 
 async function loadFromCloud(){
   const {data,error}=await supabaseClient.from('user_ramos').select('data').eq('user_id',currentUser.id).maybeSingle();

@@ -737,8 +737,14 @@ const PRESETS_UC={
       ['Prueba 2',40,{fecha:'2026-11-03'}],
       ['Prueba 3',35,{fecha:'2026-12-01'}],
     ],
-    noCalcula:[
-      'Si tu promedio ponderado de las Pruebas supera 4,0, las décimas que ganes en los talleres se suman a tu nota final, con un máximo de 5 décimas',
+    // Programa 2026-2: los talleres "son instancias para sumar décimas (5
+    // décimas máximo) a la nota final, sólo para los estudiantes que tengan
+    // nota superior a 4.0 en las interrogaciones respetando la ponderación
+    // final de estas". Superior: 4,0 justo no alcanza.
+    bonus:[
+      {id:'talleres',pregunta:'Décimas de talleres',entrada:'decimas',max:5,a:'final',
+        si:{evals:['Prueba 1','Prueba 2','Prueba 3'],mayorQue:4.0},
+        ayuda:'Si tu promedio ponderado de las Pruebas supera 4,0, las décimas que ganes en los talleres se suman a tu nota final, con un máximo de 5 décimas'},
     ],
   },
   // Biología de la Célula · BIO141C · secciones 4 y 5 · programa oficial
@@ -1004,10 +1010,15 @@ const PRESETS_UC={
         {desde:'Interrogación 2',hacia:'Examen'},
       ],
     },
+    // El programa dice "6 o más sesiones" y, en la misma frase, "como máximo
+    // podrá faltar a 2 talleres, independiente de la justificación". La
+    // profesora aclaró después que son 8. Se pregunta por las faltas, que es
+    // como el programa la opera y no depende de cuántos talleres hay en total.
+    bonus:[
+      {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
+        ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
+    ],
     noCalcula:[
-      // El programa dice "6 o más sesiones" y, en la misma frase, "faltar como
-      // máximo a 2". La profesora aclaró después que son 8: no es un error.
-      'Si asistes a 8 o más talleres, sumas 5 décimas al promedio de los Controles; para optar a ellas puedes faltar como máximo a 2 talleres, con o sin justificación',
       'Si faltas con justificación a un control, lo recuperas con un control recuperativo en el último taller del semestre',
       'Si faltas con justificación a las dos interrogaciones, el equipo docente evalúa tu caso',
       'Las inasistencias a talleres no se justifican',

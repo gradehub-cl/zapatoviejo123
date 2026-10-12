@@ -666,13 +666,40 @@ function criteriosClaseValidos(c){
     c.promedioMenorA>1&&c.promedioMenorA<=7&&Number.isFinite(c.avanceMinimo)&&
     c.avanceMinimo>=0&&c.avanceMinimo<100;
 }
+// La próxima evaluación sin nota del ramo según su Agenda, si cae entre hoy y
+// los próximos DIAS_ANTES_EVALUACION_CLASES días; si no, null. Misma regla
+// que agendaEvents: una nota con fecha propia es su propia evaluación, y la
+// fecha del grupo cuenta mientras le falten notas para sus casillas.
+const DIAS_ANTES_EVALUACION_CLASES=7;
+function proximaEvaluacionClases(ramo,ahora=Date.now()){
+  const desde=diaLocalClases(ahora),hasta=diaLocalClases(ahora+DIAS_ANTES_EVALUACION_CLASES*864e5);
+  const enVentana=f=>typeof f==='string'&&f>=desde&&f<=hasta;
+  let proxima=null;
+  const anotar=f=>{if(enVentana(f)&&(!proxima||f<proxima))proxima=f;};
+  (ramo&&ramo.categorias||[]).forEach(c=>{
+    if(typeof categoriaEximida==='function'&&categoriaEximida(ramo,c))return;
+    const notas=c.notas||[];
+    notas.forEach(n=>{if(n.fecha&&(n.valor===null||n.valor===undefined))anotar(n.fecha);});
+    if(c.fecha&&notas.filter(n=>!n.fecha).length<(c.slots||1))anotar(c.fecha);
+  });
+  return proxima;
+}
+
 function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now(),turno=0}={}){
-  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant);
+  // Primero los ramos con una evaluación en los próximos días, la más cercana
+  // antes (#664: con la prueba encima es cuando alguien escribe a un profesor).
+  // Los demás quedan detrás en el orden que eligió la persona, así que quien no
+  // tiene fechas en la Agenda ve lo mismo que antes.
+  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant)
+    .map((r,i)=>({r,i,f:proximaEvaluacionClases(r,ahora)}))
+    .sort((x,y)=>x.f&&y.f?(x.f<y.f?-1:x.f>y.f?1:x.i-y.i):x.f?-1:y.f?1:x.i-y.i)
+    .map(x=>x.r);
   const omitidos=new Set(descartados);
   const disponibles=anunciosParaRamosLocales(anuncios,propios).filter(a=>
     a.tenant===tenant&&a.estado==='publicado'&&!omitidos.has(a.id)&&
     (a.vence_at==null||Date.parse(a.vence_at)>ahora)&&criteriosClaseValidos(a.criterios));
-  // El orden de ramos que eligió la persona manda. Si varios avisos calzan con
+  // Después de la próxima evaluación, el orden de ramos que eligió la persona
+  // manda. Si varios avisos calzan con
   // el mismo ramo, se alternan en cada apertura de la app: antes ganaba siempre
   // el publicado último, y un profesor con dos clases del mismo ramo casi no
   // veía la otra en Inicio (Salva Ramos, 2026-09-30). Se entrega como máximo
@@ -918,12 +945,15 @@ function preciosClase(a){
   return {gratis:false,pack:n,descuento:d,porClase:base,porClaseFinal:conDescuento(base),
     packTotal:n?base*n:null,packFinal:n?conDescuento(base*n):null};
 }
-// Corto, para la línea bajo el título: "$45.000 pack de 4" o "$11.250".
+// Corto, para la línea bajo el título: "4 clases · $11.250 c/u" o "$11.250".
+// En un pack se lee el precio por clase y no el total (#664): en la primera
+// campaña pagada, el pack de $45.000 casi no se abrió. El total sigue en la
+// tarjeta del catálogo, con precioCatalogoHTML.
 function precioClase(anuncio){
   const p=preciosClase(anuncio);
   if(p.gratis)return 'Gratis';
   if(p.porClase==null)return pesosClase(anuncio&&anuncio.precio_clp);
-  return p.pack?`${pesosClase(p.packFinal)} pack de ${p.pack}`:pesosClase(p.porClaseFinal);
+  return p.pack?`${p.pack} clases · ${pesosClase(p.porClaseFinal)} c/u`:pesosClase(p.porClaseFinal);
 }
 // El bloque de precio de la tarjeta. El precio anterior va tachado con texto
 // oculto ("antes") para lectores de pantalla, y el descuento en el color de la
@@ -3155,7 +3185,7 @@ function hojaInvitacionProfesorHTML(profe,ramos,nombre){
   }).join('');
   return `<div class="compartir-profe">
     <div class="modal-title" id="modal-titulo">${esc(profe.nombre_publico)} quiere ver tus notas</div>
-    <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub. Nada más: ni tus otros ramos ni tu correo.</p>
+    <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
     <div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas||'<p class="compartir-explica">Todavía no tienes ramos para compartir.</p>'}</div>
     <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
     <div class="modal-input"><input type="text" id="compartir-nombre" maxlength="60" autocomplete="off" value="${esc(nombre)}"></div>
@@ -3269,13 +3299,41 @@ function categoriasDeRamoPanel(r){
     return {nombre:c.nombre,clave:claveEvaluacionPanel(c.nombre),notas,promedio};
   }).filter(c=>c.notas.length);
 }
+// La próxima evaluación sin nota del ramo, de hoy en adelante, y cuánto
+// necesita en ella para ir con 4 después de rendirla: lo mismo que el alumno
+// ve en sus widgets (notaParaIrConCuatro), con las fechas de su Agenda.
+// Los ramos que el alumno compartió, que es donde se busca el ramo vinculado.
+// Sin esto ramoAvg buscaba en S.ramos, que en el panel son los del PROFESOR: la
+// Dinámica de un alumno se combinaba con el laboratorio del profesor. Con una
+// búsqueda escrita, igual se usan todos los que compartió, no solo los que se ven.
+function ramosDelAlumnoPanel(al){return ((al&&(al.todosLosRamos||al.ramos))||[]).map(ramoParaPanel);}
+function proximaEvaluacionPanel(ramo,ahora=new Date(),contexto=[ramo]){
+  if(typeof agendaEvents!=='function')return null;
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  let e=null;
+  try{e=agendaEvents([ramo]).find(x=>x.pending&&x.fecha>=hoy)||null;}catch(err){return null;}
+  if(!e)return null;
+  const cuatro=(typeof notaParaIrConCuatro==='function'?notaParaIrConCuatro(e,contexto):null)||{};
+  return {evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
+    necesita:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable};
+}
+function proximaEvaluacionPanelHTML(p){
+  if(!p)return '';
+  const cuando=esc(fechaCorta(p.fecha))+(p.hora?' · '+esc(p.hora):'');
+  // Sin color: el semáforo es para notas, y esto es una meta.
+  const meta=p.necesita?`necesita <b>${esc(p.necesita.replace('.',','))}</b> para ir con 4`
+    :p.margen?'va con 4 con cualquier nota'
+    :p.inalcanzable?'con esta sola no alcanza el 4':'';
+  return `<p class="panel-alumnos-proxima"><span>Próxima: <b>${esc(p.evaluacion)}</b> · ${cuando}</span>${meta?`<span>${meta}</span>`:''}</p>`;
+}
 function comparacionTexto(prom,personas,etiqueta=false){
   if(prom==null)return `<span class="panel-alumnos-sin">${etiqueta?'GradeHub: aún pocos datos':'Aún pocos datos'}</span>`;
   return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${etiqueta?'GradeHub · ':''}${personas} personas</small></span>`;
 }
-function ramoPanelHTML(r,comp){
+function ramoPanelHTML(r,comp,ahora=new Date(),contexto){
   const ramo=ramoParaPanel(r);
-  const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
+  contexto=contexto||[ramo];
+  const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
   const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
   const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
@@ -3296,9 +3354,167 @@ function ramoPanelHTML(r,comp){
       <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
       ${comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,true)}
     </div>
+    ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
     ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead>${filas}</table>`
       :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
   </div>`;
+}
+
+// Resumen del grupo (#667): por ramo, cuántos alumnos, su promedio (ramoAvg de
+// cada uno, como en su app, y después el promedio simple entre ellos), cómo va
+// cada categoría y cada prueba, y cuántos van en cada color del semáforo. Todo
+// con lo que el panel ya bajó; la comparación con GradeHub es la misma de
+// siempre, agregada y desde 5 personas.
+// Cada alumno se calcula con las reglas de nota de SU universidad, no con las
+// del profesor que mira. La UAndes redondea a la centésima y después a la
+// décima: un 3,946 es 4,0 para un alumno UAndes y 3,9 para uno de la UC. Con
+// la universidad del profesor, uno UAndes salía reprobando siendo aprobado, y
+// uno UC aprobando siendo reprobado. El motor lee S.tenant en cada llamada:
+// acá se pone la del alumno y se restaura siempre, aunque algo falle. Todo lo
+// que corre adentro es sincrónico.
+function conUniversidadPanel(tenant,fn){
+  const conocida=typeof TENANTS==='object'&&TENANTS&&Object.prototype.hasOwnProperty.call(TENANTS,tenant);
+  if(!S||!conocida||S.tenant===tenant)return fn();
+  const propia=S.tenant;
+  S.tenant=tenant;
+  try{return fn();}finally{S.tenant=propia;}
+}
+function resumenAlumnosPanel(alumnos,compDe){
+  const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+  const grupos=new Map();
+  (alumnos||[]).forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r);
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
+    // Con la universidad en la clave, un grupo nunca mezcla reglas de nota.
+    const clave=`${al.tenant}|`+(sigla?String(sigla).toUpperCase():'nombre|'+claveEvaluacionPanel(ramo.nombre));
+    if(!grupos.has(clave))grupos.set(clave,{clave,tenant:al.tenant,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
+      promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
+    const g=grupos.get(clave);
+    g.alumnos++;
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+    if(Number.isFinite(avg))g.promedios.push(avg);
+    g.semaforo[Number.isFinite(avg)&&typeof nivelRamo==='function'?nivelRamo(ramo,avg):'neutral']++;
+    categoriasDeRamoPanel(ramo).forEach(c=>{
+      if(!c.clave)return;
+      if(!g.categorias.has(c.clave))g.categorias.set(c.clave,{clave:c.clave,nombre:c.nombre,promedios:[],evaluaciones:new Map()});
+      const gc=g.categorias.get(c.clave);
+      if(Number.isFinite(c.promedio))gc.promedios.push(c.promedio);
+      c.notas.forEach(n=>{
+        if(!n.clave)return;
+        if(!gc.evaluaciones.has(n.clave))gc.evaluaciones.set(n.clave,{clave:n.clave,nombre:n.nombre,notas:[]});
+        gc.evaluaciones.get(n.clave).notas.push(n.valor);
+      });
+    });
+  });}));
+  return [...grupos.values()].map(g=>({clave:g.clave,tenant:g.tenant,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
+    conNotas:g.promedios.length,promedio:media(g.promedios),semaforo:g.semaforo,
+    categorias:[...g.categorias.values()].map(c=>({clave:c.clave,nombre:c.nombre,alumnos:c.promedios.length,promedio:media(c.promedios),
+      evaluaciones:[...c.evaluaciones.values()].map(e=>({clave:e.clave,nombre:e.nombre,alumnos:e.notas.length,promedio:media(e.notas)}))}))}))
+    .sort((x,y)=>y.alumnos-x.alumnos||String(x.nombre).localeCompare(String(y.nombre),'es'));
+}
+function resumenAlumnosPanelHTML(resumen){
+  const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
+  const prom=v=>v===null?'·':esc(fmtPromedio(v));
+  const ramos=resumen.map(g=>conUniversidadPanel(g.tenant,()=>{
+    const comp=g.comp||{};
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
+    // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
+    const sem=[['good','aprobando'],['warn','al borde'],['bad','reprobando']].filter(([k])=>g.semaforo[k])
+      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('')+
+      (g.semaforo.neutral?`<span class="panel-resumen-sem">${g.semaforo.neutral} sin notas</span>`:'');
+    const filas=g.categorias.map(c=>`<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${n(c.alumnos,'alumno','alumnos')}</small></td><td>${prom(c.promedio)}</td><td>${gh(porCategoria.get(c.clave))}</td></tr>
+      ${c.evaluaciones.length>1?c.evaluaciones.map(e=>`<tr class="panel-alumnos-nota"><td>${esc(e.nombre)}<small>${n(e.alumnos,'nota','notas')}</small></td><td>${prom(e.promedio)}</td><td>${porNota.has(e.clave)?gh(porNota.get(e.clave)):'<span class="panel-alumnos-sin">—</span>'}</td></tr>`).join(''):''}</tbody>`).join('');
+    return `<details class="panel-resumen-ramo">
+      <summary>
+        <span class="panel-resumen-nombre"><b>${esc(g.nombre)}</b><small>${g.sigla?esc(g.sigla)+' · ':''}${n(g.alumnos,'alumno','alumnos')}</small></span>
+        <span class="panel-alumnos-prom">${g.promedio===null?'Sin notas':prom(g.promedio)}<small>tus alumnos</small></span>
+        ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
+        <span class="panel-resumen-semaforo">${sem}</span>
+      </summary>
+      ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
+        :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
+    </details>`;
+  })).join('');
+  return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Resumen por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
+    ${ramos}
+    <p class="clase-privacidad">“Tus alumnos” es el promedio simple entre los alumnos con nota. Si van sobre o bajo GradeHub no dice por qué: también cuentan el profesor de cátedra, la sección y lo que cada uno estudia.</p>
+  </section>`;
+}
+
+// Buscador del panel: por el nombre con que el alumno eligió aparecer, o por
+// ramo o sigla, sin importar tildes ni mayúsculas. Si calza el nombre se ven
+// todos sus ramos; si calza un ramo, solo ese.
+function filtrarAlumnosPanel(alumnos,texto){
+  const q=claveEvaluacionPanel(texto);
+  if(!q)return alumnos;
+  const calza=s=>(claveEvaluacionPanel(s)||'').includes(q);
+  return alumnos.map(al=>{
+    if(calza(al.nombre_visible))return al;
+    const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
+      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
+    return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
+  }).filter(Boolean);
+}
+function alumnosPanelHTML(lista,compDe){
+  return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
+      <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
+      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
+    </details>`)).join('');
+}
+
+// Exportar: una fila por alumno, ramo y evaluación, armada en el navegador con
+// lo que el panel ya tiene; no pasa por ningún servidor. Punto y coma y coma
+// decimal, como lo abre Excel en Chile; Google Sheets lo detecta igual.
+function celdaCsvPanel(v){
+  if(v===null||v===undefined)return '';
+  let s=String(v);
+  // El nombre lo escribe el alumno: "=…" no puede llegar a Excel como fórmula.
+  if(/^[=+\-@\t\r]/.test(s))s="'"+s;
+  return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function csvAlumnosPanel(alumnos,compDe){
+  const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
+  const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo']];
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const base=[al.nombre_visible,ramo.nombre,sigla];
+    const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
+    const categorias=categoriasDeRamoPanel(ramo);
+    // Un ramo sin notas igual sale, para que el archivo tenga a todos.
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo]);return;}
+    categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo])));
+  });}));
+  return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
+}
+async function exportarAlumnosPanel(lista,compDe){
+  const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
+  const nombre=`gradehub-alumnos-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
+  // La marca BOM hace que Excel lea bien las tildes.
+  const blob=new Blob(['\ufeff'+csvAlumnosPanel(lista,compDe)],{type:'text/csv;charset=utf-8'});
+  track('panel_alumnos_exportado',{alumnos:lista.length});
+  // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
+  try{
+    const archivo=typeof File==='function'?new File([blob],nombre,{type:blob.type}):null;
+    const tactil=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
+    if(tactil&&archivo&&navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){
+      await navigator.share({files:[archivo]});return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=nombre;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast('Archivo descargado.');
 }
 
 async function renderAlumnosProfesor(raiz,{volver}={}){
@@ -3337,13 +3553,14 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>
-    <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span>${alumnos.length}</span></div>`+
-    (alumnos.length?alumnos.map(al=>`<details class="panel-alumnos-alumno" open>
-      <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
-      ${(al.ramos||[]).length?(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r))).join(''):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
-      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
-    </details>`).join('')
-      :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>')+
+    ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
+    <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
+    // Con uno solo no hay nada que buscar.
+    (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
+      aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+
+    (alumnos.length?'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>':'')+
+    `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
+      :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
     '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
   raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
@@ -3362,13 +3579,35 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
         showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver});}
       catch(e){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}
     },{label:'Cambiar link',focusCancel:true}));
-  raiz.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
+  const lista=raiz.querySelector('#alumnos-lista');
+  const enlazarQuitar=()=>lista.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
     'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
       b.disabled=true;
       try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
         showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
       catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
     },{label:'Quitar',focusCancel:true})));
+  enlazarQuitar();
+  // Se filtra en el navegador, con lo que el panel ya bajó.
+  const buscar=raiz.querySelector('#alumnos-buscar');
+  let vista=alumnos;
+  if(buscar)buscar.addEventListener('input',()=>{
+    const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);
+    raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
+    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
+      :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
+    enlazarQuitar();
+  });
+  // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
+  // recordatorio de lo que el profesor aceptó en los términos.
+  const exportar=raiz.querySelector('#alumnos-exportar');
+  if(exportar)exportar.addEventListener('click',()=>{
+    if(!vista.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
+    const n=vista.length;
+    showConfirm('Exportar notas',
+      `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
+      ()=>exportarAlumnosPanel(vista,compDe),{label:'Exportar',danger:false});
+  });
   track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
 
