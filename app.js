@@ -2342,8 +2342,10 @@ function recalcularNavTabs(){
   // La de administración, solo para cuentas administradoras. Que aparezca no da
   // acceso a nada: el servidor exige además el segundo factor.
   const conAdmin=typeof esAdministrador==='function'&&esAdministrador();
-  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor']:[]),...(conAdmin?['admin']:[])];
-  [['profesor',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
+  // Un profesor aprobado tiene Clases (sus anuncios) y Alumnos (el panel), en
+  // pestañas separadas (#697).
+  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
+  [['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
@@ -2380,6 +2382,7 @@ function showTab(tab,skipAnim){
     else if(tab==='stats')renderStats();
     else if(tab==='agenda')renderAgenda();
     else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
+    else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
     track('screen_view',{screen_name:tab});
   } else {

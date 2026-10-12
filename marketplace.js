@@ -1880,7 +1880,6 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
            :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
        <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
      </details>`+
-    '<section class="clases-seccion"><h3>Tus alumnos</h3><p class="clase-sin-datos">Mira las notas que tus alumnos te comparten y compáralas con el resto de GradeHub.</p><button type="button" class="btn-confirm" id="clase-alumnos">Ver mis alumnos</button></section>'+
     '<section class="clases-seccion"><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
     salida()+'</div>';
   // Al cambiar el estado se vuelve a pedir la lista: el estado, los números y
@@ -1889,8 +1888,6 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const repintar=()=>renderEspacioProfesor(raiz,{titulo:!!cabecera('x')});
   const nueva=raiz.querySelector('#clase-nueva');
   if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null));
-  const verAlumnos=raiz.querySelector('#clase-alumnos');
-  if(verAlumnos)verAlumnos.addEventListener('click',()=>renderAlumnosProfesor(raiz,{volver:repintar}));
   const cajaLogo=raiz.querySelector('#clases-logo');
   if(cajaLogo&&cajaLogo.isConnected&&typeof cajaLogo.addEventListener==='function')renderLogoProfesor(cajaLogo);
   raiz.querySelectorAll('[data-editar]').forEach(b=>
@@ -3714,6 +3711,11 @@ async function exportarAlumnosPanel(lista,compDe){
   showToast('Archivo descargado.');
 }
 
+// La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
+function renderAlumnosTab(){
+  const raiz=document.getElementById('alumnos-body');
+  if(raiz)renderAlumnosProfesor(raiz);
+}
 async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
@@ -3725,8 +3727,9 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   }catch(e){
     raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
       '<p class="profesor-info" role="alert">No pudimos cargar tus alumnos. Vuelve a intentarlo en un rato.</p>'+
-      '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
-    raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
+      `<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
+    // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
+    raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver?volver():renderAlumnosProfesor(raiz));
     return;
   }
   // Una consulta por ramo distinto, no por alumno.
@@ -3741,15 +3744,18 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   }));
   const compDe=(al,r)=>cursos.get(`${al.tenant}|${String(r.sigla||'').toUpperCase()}`)||null;
   const link=linkAlumnosProfesor(codigo);
-  raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
-    `<section class="panel-alumnos-link">
+  // Con alumnos, lo primero es cómo van y el link para invitar más va al final.
+  // Sin alumnos, el link es lo único que se puede hacer: va arriba.
+  const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
       <h2>Tu link para alumnos</h2>
       <p>Mándalo a tus alumnos. Cada uno elige qué ramos te comparte y puede dejar de hacerlo cuando quiera.</p>
       <div class="panel-alumnos-url"><code id="alumnos-link">${esc(link)}</code><button type="button" class="btn-confirm" id="alumnos-copiar">Copiar link</button></div>
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
-    </section>
+    </section>`;
+  raiz.innerHTML='<div class="profesor-hig">'+
+    cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
+    `${alumnos.length?'':seccionLink}
     ${alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):''}
     ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
     <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
@@ -3760,8 +3766,10 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
-    '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
-  raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
+    (alumnos.length?seccionLink:'')+
+    (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
+  const botonVolver=raiz.querySelector('#alumnos-volver');
+  if(botonVolver)botonVolver.addEventListener('click',()=>volver());
   raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
     try{await navigator.clipboard.writeText(link);showToast('Link copiado.');}
     catch(e){const el=raiz.querySelector('#alumnos-link');const sel=window.getSelection&&window.getSelection();

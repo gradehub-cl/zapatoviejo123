@@ -287,6 +287,13 @@ function contexto({search='',sesion=false}={}){
   chk('exportar pide confirmar con el recordatorio de los términos',
     /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
 
+  console.log('\n=== El panel en su propia pestaña (#697) ===');
+  const appSrc=leer('app.js'),htmlSrc=leer('index.html'),mkSrc=leer('marketplace.js');
+  chk('un profesor aprobado tiene Clases y Alumnos',/conProfesor\?\['profesor','alumnos'\]/.test(appSrc)&&/tab==='alumnos'[^\n]*renderAlumnosTab\(\)/.test(appSrc));
+  chk('la pestaña y su botón existen, ocultos hasta que corresponda',/id="screen-alumnos" class="screen" hidden/.test(htmlSrc)&&/id="nav-alumnos"[^>]*aria-label="Alumnos" hidden/.test(htmlSrc));
+  chk('Clases ya no lleva la sección de alumnos',!/Ver mis alumnos/.test(mkSrc)&&!/clase-alumnos/.test(mkSrc));
+  chk('en la pestaña no hay "Volver": si falla, se ofrece reintentar',/volver\?'Volver':'Reintentar'/.test(mkSrc));
+
   console.log('\n=== Medición sin datos de nadie ===');
   chk('solo cuenta cuántos ramos o alumnos, nunca nombres ni notas',
     /track\('compartir_con_profesor',\{ramos:n\}\)/.test(mk)&&/track\('panel_alumnos_abierto',\{alumnos:alumnos\.length\}\)/.test(mk)
