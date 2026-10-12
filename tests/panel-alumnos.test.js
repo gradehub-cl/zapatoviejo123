@@ -192,6 +192,21 @@ function contexto({search='',sesion=false}={}){
   chk('cada alumno dice desde cuándo, y se puede cambiar',/Empezó contigo el <b>15 sep<\/b> · el día que compartió/.test(linea)&&/data-inicio-alumno="aa"/.test(linea));
   chk('si el profesor la corrigió, no dice "el día que compartió"',!/el día que compartió/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-05'}],()=>null)`)));
 
+  console.log('\n=== Antes y ahora: la pantalla (#697) ===');
+  const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
+  chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
+    /ah-cifra-valor">\+1\.7</.test(gh)&&/ah-cifra-valor">1 de 1</.test(gh)&&/0% → 100%/.test(gh));
+  chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 sin fecha no cuentan/.test(gh));
+  chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
+  const ah=a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))');
+  chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
+    /Subió 1\.7 respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
+  chk('el gráfico es una imagen con su resumen y un punto por evaluación comparable',
+    /<svg class="ah-grafico"[^>]*role="img"[^>]*aria-label="Diferencia con el curso en 4 evaluaciones/.test(ah)&&(ah.match(/class="ah-punto"/g)||[]).length===4&&/empezó/.test(ah));
+  chk('y la lista con las mismas cifras, para quien no ve el gráfico',/Ver sus evaluaciones/.test(ah)&&(ah.match(/<tr><td>/g)||[]).length===4);
+  chk('con pocos datos lo dice, sin inventar un cambio',/Aún pocos datos para comparar/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__poco,__cursoAA))')));
+  chk('nada de esto usa los colores del semáforo',!/panel-resumen-(good|warn|bad)|--green|--red|--yellow/.test(gh+ah));
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.
