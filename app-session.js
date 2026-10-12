@@ -363,7 +363,23 @@ async function submitAuth(){
     if(authMode==='signup'){
       const {data,error}=await supabaseClient.auth.signUp({email,password:p});
       if(error)throw error;
-      if(!data.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+      if(!data.session){
+        // Supabase no dice si el correo ya tenía cuenta: en ese caso responde
+        // sin sesión, igual que si hubiera que confirmar el correo. Se intenta
+        // entrar con lo mismo que se escribió: quien ya tenía cuenta y puso su
+        // contraseña queda adentro, que es lo que esperaba al registrarse. Si
+        // no calza, el mismo aviso de siempre, así que no se revela nada: la
+        // contraseña correcta ya bastaba para entrar.
+        const {data:entrada,error:errorEntrada}=await supabaseClient.auth.signInWithPassword({email,password:p});
+        if(errorEntrada||!entrada||!entrada.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+        recordarMetodoLogin('correo');
+        currentUser=entrada.user;
+        // Volvió a aceptar los términos en este formulario: se anota, sin que
+        // un fallo de esa constancia le impida entrar a su propia cuenta.
+        try{await registrarAceptacionLegal();}catch(e){}
+        await afterLogin();
+        return;
+      }
       currentUser=data.user;
       await registrarAceptacionLegal();
       await afterSignup();
