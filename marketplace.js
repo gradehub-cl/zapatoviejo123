@@ -3541,6 +3541,70 @@ function filtrarAlumnosPanel(alumnos,texto){
     return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
 }
+// ─── La pantalla de "antes y ahora" ──────────────────────────────────────────
+// Tres cifras del grupo (cifras destacadas, no gráficos) y, en cada alumno, su
+// cambio, un gráfico de una sola serie y la lista con las mismas cifras. Nada
+// lleva los colores del semáforo: subir respecto del curso no es "aprobar".
+const unDecimalPanel=v=>Math.abs(v).toFixed(1);
+const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
+const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
+function frenteAlCursoPanel(d){
+  if(d===null)return 'sin comparación';
+  return Math.abs(d)<0.05?'igual que el curso':`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} el curso`;
+}
+function antesAhoraGrupoHTML(g){
+  if(!g||!g.alumnos.length)return '';
+  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
+  const pocos='Aún pocos datos';
+  const cifras=[
+    g.cambioMediana===null?cifra('—','Respecto del curso',pocos)
+      :cifra(esc(conSignoPanel(g.cambioMediana)),'Respecto del curso',`mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
+    g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron','respecto del curso'):cifra('—','Mejoraron',pocos),
+    cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Aprobación','de sus evaluaciones')
+  ].join('');
+  const prom=v=>v===null?'—':esc(fmt(v));
+  return `<section class="ah-grupo" aria-labelledby="ah-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Cómo van tus alumnos</h2></div>
+    <div class="ah-cifras">${cifras}</div>
+    <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
+    <p class="clase-privacidad">Con ${g.antes.n+g.ahora.n} evaluaciones con fecha${g.sinFecha?`; ${g.sinFecha} sin fecha no cuentan`:''}. “Respecto del curso” compara cada nota con el promedio de GradeHub en esa misma prueba, antes y después de que empezaran contigo. El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
+  </section>`;
+}
+// Una serie: la diferencia con el curso en cada evaluación comparable, en el
+// orden en que fueron. La línea del curso (0) va tenue y una marca dice cuándo
+// empezó. Cada punto tiene un área de 12 px para mostrar su detalle.
+function graficoAntesAhoraSVG(m){
+  const pts=m.evaluaciones.filter(e=>e.curso!==null);
+  if(pts.length<2)return '';
+  const W=320,H=96,P=14;
+  const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
+  const x=i=>P+i*(W-2*P)/(pts.length-1),y=d=>H/2-(d/lim)*(H/2-P);
+  const corte=pts.findIndex(e=>e.lado==='ahora');
+  const linea=pts.map((e,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(e.nota-e.curso).toFixed(1)}`).join(' ');
+  const xc=corte>0?((x(corte-1)+x(corte))/2).toFixed(1):null;
+  const marca=xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
+  const puntos=pts.map((e,i)=>`<g><title>${esc(e.evaluacion)} · ${esc(fechaCorta(e.fecha))}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="12"/><circle class="ah-punto" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="4"/></g>`).join('');
+  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}<path class="ah-linea" d="${linea}"/>${puntos}</svg>
+    <p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.</p>`;
+}
+function antesAhoraAlumnoHTML(m){
+  if(!m||!m.evaluaciones.length)return '';
+  const resumen=m.cambio===null?'Aún pocos datos para comparar antes y ahora'
+    :Math.abs(m.cambio)<0.05?'Igual que antes, respecto del curso'
+    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} respecto del curso`;
+  const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
+  return `<div class="ah-alumno">
+    <p class="ah-alumno-resumen">${resumen}</p>
+    <p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia)}</span></p>
+    ${graficoAntesAhoraSVG(m)}
+    <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
+      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>Curso</th></tr></thead><tbody>${filas}</tbody></table>
+      ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
+    </details>
+  </div>`;
+}
+
 // "Empezó contigo el …": por omisión el día que compartió, que suele ser
 // después de la primera clase; el profesor lo corrige y las estadísticas
 // comparan desde ahí.
@@ -3586,6 +3650,7 @@ function alumnosPanelHTML(lista,compDe){
   return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
       ${lineaInicioAlumnoHTML(al)}
+      ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe))}
       ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`)).join('');
@@ -3678,6 +3743,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>
+    ${alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):''}
     ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
     <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
     // Con uno solo no hay nada que buscar.
