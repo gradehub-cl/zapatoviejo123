@@ -114,6 +114,28 @@ y mirando que no queden filas suyas en ninguna tabla.
 Lo que está tomado ahora mismo. Se borra cuando se mergea. Si tu tarea no está
 acá, pregunta antes de empezar — hay tres agentes sobre cuatro archivos.
 
+### Lucas · tomado el 2026-10-12
+
+Cada uno tiene su PR abierto y el detalle está en su issue. **No los rehagas**:
+si necesitas cambiar algo de ahí, parte de la rama del PR.
+
+- **#657 (anuncio pausado que seguía cobrando días): #680.** El SQL ya está
+  aplicado en producción. Falta mergear y corregir a mano el anuncio
+  `b338c850` (paso 2 del PR).
+- **Panel de alumnos (#667 y #663), en cadena, porque tocan las mismas
+  funciones de `marketplace.js`:** #681 (buscador y exportar; cambia términos y
+  privacidad) → #684 (resumen por ramo) → #685 (próxima evaluación por alumno)
+  → #686 (el laboratorio vinculado se buscaba entre los ramos del profesor). Se
+  mergean en ese orden. Nada más del panel hasta que entren.
+- **Anuncios de clases (#664): #682** (el ramo con evaluación en 7 días va
+  primero) **y #683** («4 clases · $11.250 c/u»).
+- **Métricas propias (#666): #687, borrador.** El SQL se aplica a mano antes de
+  mergear, y el texto de privacidad va aparte.
+
+Sin dueño, salidos de este trabajo: el aviso dentro de la app del cambio de
+términos de #681, cerrar un anuncio pausado sin campaña desde el panel (#657), y
+la «entrada» barata de #664.
+
 ### Con qué parte cada uno
 
 **Codex — la revisión estética, PR 3 en adelante.** Los PR 1 (tokens de
