@@ -151,6 +151,38 @@ function contexto({search='',sesion=false}={}){
   chk('el Excel también: 4,0 para el alumno UAndes',csvCruce[6]==='4,0');
   a.run(`S.tenant='uc'`);
 
+  console.log('\n=== Antes y ahora: el cálculo (#697) ===');
+  // Empezó con el profesor el 15 de septiembre. Dos pruebas antes, dos después
+  // y una tarea sin fecha. El curso: I1 4,0 · C1 4,5 · I2 4,6 · C2 4,5.
+  a.run(`globalThis.__ev=(id,nombre,fecha,valor)=>({id:'c'+id,nombre,peso:20,fecha,notas:[{id:'n'+id,nombre,valor}]});
+    globalThis.__antesAhora={id:'aa',nombre_visible:'Ana',tenant:'uc',desde:'2026-09-15T15:00:00Z',ramos:[{id:'ra',nombre:'Cálculo II',sigla:'MAT1620',gates:[],categorias:[
+      __ev(1,'Interrogación 1','2026-09-01',3.0),__ev(2,'Control 1','2026-09-08',3.5),
+      __ev(3,'Interrogación 2','2026-10-01',5.0),__ev(4,'Control 2','2026-10-08',5.5),
+      {id:'ct',nombre:'Tarea',peso:20,notas:[{id:'nt',nombre:'Tarea',valor:6.0}]}]}]};
+    globalThis.__cursoAA=()=>({ramo:{promedio:4.5,personas:30},evaluaciones:[
+      {clave:'interrogacion 1',promedio:4.0,personas:9},{clave:'control 1',promedio:4.5,personas:9},
+      {clave:'interrogacion 2',promedio:4.6,personas:9},{clave:'control 2',promedio:4.5,personas:9}],categorias:[]})`);
+  const m=a.run('metricasAlumnoPanel(__antesAhora,__cursoAA)');
+  const cerca1=(x,y)=>typeof x==='number'&&Math.abs(x-y)<1e-9;
+  chk('cada evaluación con fecha cae antes o después del día que empezó',m.antes.n===2&&m.ahora.n===2&&m.desde==='2026-09-15');
+  chk('la sin fecha queda fuera y se cuenta',m.sinFecha===1);
+  chk('antes iba 1,0 bajo el curso; ahora 0,7 sobre el curso',cerca1(m.antes.diferencia,-1.0)&&cerca1(m.ahora.diferencia,0.7));
+  chk('subió 1,7 respecto del curso',cerca1(m.cambio,1.7));
+  chk('aprobación: 0 de 2 antes, 2 de 2 ahora',m.antes.aprobacion===0&&m.ahora.aprobacion===1);
+  chk('promedio: 3,25 antes y 5,25 ahora',cerca1(m.antes.promedio,3.25)&&cerca1(m.ahora.promedio,5.25));
+  chk('con la fecha de inicio corregida, cambia el corte',a.run(`metricasAlumnoPanel(__antesAhora,__cursoAA,{inicio:'2026-09-05'}).antes.n`)===1);
+  // Un alumno con una sola evaluación comparable de un lado no tiene "cambio".
+  a.run(`globalThis.__poco={...__antesAhora,id:'pp',nombre_visible:'Beto',ramos:[{...__antesAhora.ramos[0],categorias:__antesAhora.ramos[0].categorias.slice(0,3)}]}`);
+  chk('con menos de 2 evaluaciones a un lado, no se inventa un cambio',a.run('metricasAlumnoPanel(__poco,__cursoAA).cambio')===null);
+  chk('sin promedio del curso, la evaluación cuenta para el promedio pero no para la diferencia',
+    a.run('metricasAlumnoPanel(__antesAhora,()=>null)').ahora.nComparadas===0&&a.run('metricasAlumnoPanel(__antesAhora,()=>null)').ahora.n===2);
+  const g=a.run('metricasGrupoPanel([__antesAhora,__poco],__cursoAA)');
+  chk('el grupo: 1 de 1 con datos mejoró, mediana 1,7',g.conCambio===1&&g.mejoraron===1&&cerca1(g.cambioMediana,1.7));
+  chk('y junta aprobación y sin fecha de todos',g.antes.n===4&&g.ahora.n===3&&g.sinFecha===1);
+  chk('la aprobación usa la regla de nota de la universidad del alumno',
+    a.run(`(()=>{const x={...__antesAhora,tenant:'uandes',ramos:[{...__antesAhora.ramos[0],categorias:[__ev(9,'Interrogación 3','2026-10-20',3.946)]}]};return metricasAlumnoPanel(x,()=>null).ahora.aprobacion;})()`)===1
+    &&a.run(`(()=>{const x={...__antesAhora,tenant:'uc',ramos:[{...__antesAhora.ramos[0],categorias:[__ev(9,'Interrogación 3','2026-10-20',3.946)]}]};return metricasAlumnoPanel(x,()=>null).ahora.aprobacion;})()`)===0);
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.
