@@ -1652,9 +1652,14 @@ function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto
     if(mover&&lista.scrollTo)lista.scrollTo({top:i*RULETA_FILA,behavior:movimientoReducido()?'auto':'smooth'});
     if(cambio&&alCambiar)alCambiar(opciones[idx]);
   };
-  // Al soltar, la fila que quedó al centro es la elegida.
-  let espera=null;
-  lista.addEventListener('scroll',()=>{clearTimeout(espera);espera=setTimeout(()=>elegir(Math.round(lista.scrollTop/RULETA_FILA),{mover:false}),90);},{passive:true});
+  // Al soltar, la fila que quedó al centro es la elegida. Mientras gira, cada
+  // fila que pasa por el centro hace tic, como el selector de iOS.
+  let espera=null,filaAlCentro=idx;
+  lista.addEventListener('scroll',()=>{
+    const f=Math.round(lista.scrollTop/RULETA_FILA);
+    if(f!==filaAlCentro&&f>=0&&f<opciones.length){filaAlCentro=f;vibrar('seleccion');}
+    clearTimeout(espera);espera=setTimeout(()=>elegir(f,{mover:false}),90);
+  },{passive:true});
   // Con el mouse se agarra y se arrastra, como con el dedo. Mientras se
   // arrastra se apaga el encaje, que si no tironea la lista a cada movimiento.
   let arrastre=null;
@@ -2219,17 +2224,31 @@ function enAppNativa(){
   catch(e){return false;}
 }
 // La clase html.app-nativa la pone index.html antes de pintar.
-// Vibración, solo en la app y solo en dos momentos (pedido de Martín): un toque
-// suave al agregar una nota y la advertencia al borrar. Una vibración que se
-// repite en todo deja de decir algo (HIG Playing haptics).
+// Vibración, solo en la app (HIG Playing haptics): un toque suave al agregar
+// una nota y la advertencia al borrar (pedido de Martín). Además, lo que en iOS
+// ya vibra solo: el tic de selección de la ruleta y de los interruptores, y el
+// golpe al levantar un ramo para reordenarlo. Nada más: una vibración que se
+// repite en todo deja de decir algo.
+let _hapticaSeleccion=null;
 function vibrar(tipo){
   try{
     const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
     if(!H)return;
     if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
+    // El generador de selección se prepara una vez y queda listo para cada tic.
+    else if(tipo==='seleccion'){
+      _hapticaSeleccion=_hapticaSeleccion||Promise.resolve(H.selectionStart());
+      _hapticaSeleccion.then(()=>H.selectionChanged()).catch(()=>{});
+    }
     else H.impact({style:'LIGHT'}).catch(()=>{});
   }catch(e){}
 }
+// Un interruptor de iOS hace tic al cambiar; los de la app (.toggle) también.
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t&&t.matches&&t.matches('.toggle input[type=checkbox]'))vibrar('seleccion');
+});
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
 // a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
@@ -2663,6 +2682,8 @@ function activarReordenRamos(container){
       ghost.style.width=rect.width+'px';
       document.body.appendChild(ghost);
       drag={ghost,offsetX:x-rect.left,offsetY:y-rect.top,x,y};
+      // En iOS, lo que se levanta con el dedo se siente al despegar.
+      vibrar('levantar');
       row.classList.add('ramo-drag-source');
       container.classList.add('ramo-reordering');
       document.body.classList.add('ramo-drag-active');

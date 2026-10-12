@@ -64,17 +64,32 @@ chk('el ramo entra y sale por la derecha', /\.app-nativa\[data-nav="push"\]::vie
 chk('dentro de Ajustes el contenido entra desde el lado al que se navega',
   /entrarDesde\(document\.querySelector\('\.settings-shell'\),'push'\)/.test(app) && /entrarDesde\(document\.querySelector\('\.settings-shell'\),'pop'\)/.test(app));
 
-console.log('\n=== Vibración: solo al agregar una nota y al borrar ===');
+console.log('\n=== Vibración: nota, borrar y lo que en iOS ya vibra solo ===');
 const vib = app.match(/function vibrar\(tipo\)\{[\s\S]*?\n\}/)[0];
 const probarVib = (nativa, tipo) => { const h = []; const ctx = { enAppNativa: () => nativa, window: { Capacitor: { Plugins: { Haptics: {
-  impact: o => (h.push('impact:' + o.style), Promise.resolve()), notification: o => (h.push('notification:' + o.type), Promise.resolve()) } } } } };
-  vm.createContext(ctx); vm.runInContext(vib + ';vibrar(' + JSON.stringify(tipo) + ')', ctx); return h.join(','); };
-chk('al agregar una nota, un toque suave', probarVib(true, 'nota') === 'impact:LIGHT');
-chk('al borrar, la advertencia', probarVib(true, 'borrar') === 'notification:WARNING');
-chk('en la web no vibra', probarVib(false, 'nota') === '');
+  impact: o => (h.push('impact:' + o.style), Promise.resolve()), notification: o => (h.push('notification:' + o.type), Promise.resolve()),
+  selectionStart: () => (h.push('start'), Promise.resolve()), selectionChanged: () => (h.push('tic'), Promise.resolve()) } } } } };
+  vm.createContext(ctx); vm.runInContext('let _hapticaSeleccion=null;' + vib + ';vibrar(' + JSON.stringify(tipo) + ');vibrar(' + JSON.stringify(tipo) + ')', ctx);
+  return new Promise(r => setTimeout(() => r(h.join(',')), 0)); };
+const vibraciones = (async () => {
+chk('al agregar una nota, un toque suave', await probarVib(true, 'nota') === 'impact:LIGHT,impact:LIGHT');
+chk('al borrar, la advertencia', await probarVib(true, 'borrar') === 'notification:WARNING,notification:WARNING');
+chk('la selección prepara el generador una vez y hace un tic por cambio', await probarVib(true, 'seleccion') === 'start,tic,tic');
+chk('al levantar un ramo, un golpe medio', await probarVib(true, 'levantar') === 'impact:MEDIUM,impact:MEDIUM');
+chk('en la web no vibra', await probarVib(false, 'nota') === '' && await probarVib(false, 'seleccion') === '');
+})();
+chk('la ruleta hace tic cuando otra fila pasa por el centro', /if\(f!==filaAlCentro&&f>=0&&f<opciones\.length\)\{filaAlCentro=f;vibrar\('seleccion'\);\}/.test(app));
+chk('los interruptores hacen tic al cambiar', /t\.matches\('\.toggle input\[type=checkbox\]'\)\)vibrar\('seleccion'\)/.test(app));
+chk('levantar un ramo para reordenar se siente', /drag=\{ghost,[^\n]*\n[^\n]*\n\s*vibrar\('levantar'\);/.test(app));
 chk('se llama al guardar una nota válida (casillas, directa, agregar y editar)', (app.match(/vibrar\('nota'\)/g) || []).length === 4);
 chk('y al confirmar un borrado y al borrar una nota', /if\(borra&&typeof vibrar==='function'\)vibrar\('borrar'\);/.test(app) && /save\(\);renderRamo\(\);vibrar\('borrar'\);/.test(app));
 chk('el plugin de vibración está instalado', !!(JSON.parse(leer('package.json')).dependencies || {})['@capacitor/haptics']);
+
+console.log('\n=== Hojas y alertas se mueven como en iOS ===');
+chk('las hojas suben con la curva y la duración de la navegación', /\.app-nativa \.modal-sheet\{transition-duration:var\(--motion-navegar\);transition-timing-function:var\(--ease-navegar\);\}/.test(css)
+  && /\.app-nativa \.modal-overlay\{[^}]*display var\(--motion-navegar\) allow-discrete/.test(css));
+chk('la alerta entra con fundido y un leve acercamiento', /@starting-style\{\s*\.app-nativa \.confirm-overlay\.open\{opacity:0;\}\s*\.app-nativa \.confirm-overlay\.open \.confirm-box\{transform:scale\(1\.08\);\}/.test(css));
+chk('con movimiento reducido la alerta solo se funde', /prefers-reduced-motion:reduce\)\{\.app-nativa \.confirm-overlay\.open \.confirm-box\{transition:none;\}\}/.test(css));
 
 console.log('\n=== Deslizar desde el borde para volver ===');
 const gesto = app.slice(app.indexOf('(function initVolverDeslizando(){'), app.indexOf('(function initVolverDeslizando(){') + 4000);
@@ -102,5 +117,8 @@ chk('los dos manifiestos van en los recursos de la app y del widget', (pbx.match
 const icono = JSON.parse(leer('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json')).images;
 chk('ícono con versión oscura y teñida', ['dark', 'tinted'].every(v => icono.some(i => (i.appearances || []).some(a => a.value === v) && fs.existsSync(path.join(raiz, 'ios/App/App/Assets.xcassets/AppIcon.appiconset', i.filename)))));
 
-console.log(`\n${ok} OK, ${fail} FAIL`);
-if (fail) process.exit(1);
+// Las vibraciones de selección se resuelven en una promesa: el resumen las espera.
+vibraciones.then(() => {
+  console.log(`\n${ok} OK, ${fail} FAIL`);
+  if (fail) process.exit(1);
+});
