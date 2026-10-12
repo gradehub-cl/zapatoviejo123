@@ -1159,7 +1159,7 @@ async function syncProfile(){
 // Se llama al terminar el onboarding, que es por donde pasa toda cuenta nueva.
 // No revienta hacia afuera: la persona ya está adentro y su semestre ya está
 // guardado; un fallo de red acá no puede dejarla fuera de su propia cuenta.
-async function registrarDeclaracionEdad(){
+async function registrarDeclaracionEdad({edad=null,generacion=null}={}){
   if(!supabaseClient||!currentUser)return;
   try{
     await supabaseClient.from('profiles').upsert({
@@ -1168,6 +1168,14 @@ async function registrarDeclaracionEdad(){
     });
     // Quien entró con Google nunca vio la casilla del formulario de correo.
     await registrarAceptacionLegal();
+  }catch(e){}
+  // Edad y generación (#697) van aparte: si sus columnas todavía no existen,
+  // la constancia de la declaración ya quedó guardada arriba igual.
+  try{
+    const datos={id:currentUser.id};
+    if(Number.isInteger(edad)&&edad>=14&&edad<=120)datos.edad=edad;
+    if(Number.isInteger(generacion)&&generacion>=2000&&generacion<=new Date().getFullYear())datos.generacion=generacion;
+    if(Object.keys(datos).length>1)await supabaseClient.from('profiles').upsert(datos);
   }catch(e){}
 }
 async function registrarAceptacionLegal(){

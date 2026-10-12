@@ -302,6 +302,17 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ob-sub{font-size:0.9375rem;color:var(--fg2);text-align:center;line-height:1.5;margin-bottom:32px;max-width:340px;letter-spacing:-.005em;}
 .ob-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px 20px;width:100%;box-shadow:var(--shadow-lg);margin-bottom:16px;}
 .ob-edad{width:100%;max-width:640px;margin:-4px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
+/* Ruletas del onboarding (#697): como la del reloj del iPhone, filas de 44 pt. */
+.ruleta{position:relative;height:220px;border-radius:14px;background:var(--bg2);overflow:hidden;outline:none;}
+.ruleta:focus-visible{box-shadow:0 0 0 3px var(--primary-light);}
+.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:10px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
+.ruleta-lista{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:88px 0;box-sizing:border-box;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.ruleta-lista::-webkit-scrollbar{display:none;}
+.ruleta-fila{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:1.0625rem;color:var(--fg3);font-variant-numeric:tabular-nums;cursor:pointer;}
+.ruleta-fila.es-elegida{color:var(--fg);font-size:1.375rem;font-weight:650;}
+.ob-ruleta-ayuda{margin:-4px 0 10px;font-size:0.8125rem;color:var(--fg2);}
+.ob-ruleta-aviso{margin:10px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
+.ob-ruleta-aviso:empty{display:none;}
 .ob-edad label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;}
 .ob-edad input{margin-top:2px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--primary);}
 .ob-edad b{color:var(--fg);font-weight:650;}

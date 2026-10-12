@@ -270,9 +270,13 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
            por acá pasa toda cuenta nueva, también las que entran con Google.
            No se pide fecha de nacimiento: para saber si alguien puede usar la
            app basta la declaración, y el dato exacto sería recolectar de más. -->
-      <p class="ob-edad">
-        <label><input type="checkbox" id="ob-edad" onchange="checkOb()"/><span>Tengo <b>14 años o más</b>.</span></label>
-      </p>
+      <!-- La edad se elige en una ruleta como la del reloj del iPhone (#697).
+           Parte en «—»: la declaración tiene que ser activa. -->
+      <div class="ob-card ob-ruleta-card">
+        <p class="field-label" id="ob-edad-titulo">¿Cuántos años tienes?</p>
+        <div id="ob-edad-ruleta"></div>
+        <p class="ob-ruleta-aviso" id="ob-edad-aviso" role="status" aria-live="polite"></p>
+      </div>
     </div>
 
     <div class="ob-step" data-step="2" style="display:none;">
@@ -295,6 +299,11 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
       <h1 class="ob-title ob-title-left" tabindex="-1">¿En qué semestre vas?</h1>
       <div class="ob-sub ob-sub-left">Lo usamos para sugerirte ramos, cuando tenemos tu malla.</div>
       <div class="sem-grid" id="sem-grid"></div>
+      <div class="ob-card ob-ruleta-card" style="margin-top:16px;">
+        <p class="field-label" id="ob-generacion-titulo">¿De qué generación eres?</p>
+        <p class="ob-ruleta-ayuda">El año en que entraste a la universidad.</p>
+        <div id="ob-generacion-ruleta"></div>
+      </div>
     </div>
 
     <div class="ob-step" data-step="5" style="display:none;">
