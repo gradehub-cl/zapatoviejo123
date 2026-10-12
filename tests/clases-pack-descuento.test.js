@@ -28,7 +28,7 @@ chk('un descuento fuera de rango se ignora',run('preciosClase(__p)').porClaseFin
 
 console.log('\n=== Cómo se lee ===');
 ctx.__p={...base,pack_clases:4,descuento_gradehub_pct:10};
-chk('línea corta: "$45.000 pack de 4"',run('precioClase(__p)')==='$45.000 pack de 4');
+chk('línea corta: el precio por clase, "4 clases · $11.250 c/u" (#664)',run('precioClase(__p)')==='4 clases · $11.250 c/u');
 let html=run('precioCatalogoHTML(__p)');
 chk('el total del pack va tachado',/<del>[^]*\$50\.000<\/del>/.test(html));
 chk('y el precio con descuento al lado',/\$45\.000 <small>pack de 4<\/small>/.test(html));
