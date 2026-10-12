@@ -3335,14 +3335,29 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto){
 // cada categoría y cada prueba, y cuántos van en cada color del semáforo. Todo
 // con lo que el panel ya bajó; la comparación con GradeHub es la misma de
 // siempre, agregada y desde 5 personas.
+// Cada alumno se calcula con las reglas de nota de SU universidad, no con las
+// del profesor que mira. La UAndes redondea a la centésima y después a la
+// décima: un 3,946 es 4,0 para un alumno UAndes y 3,9 para uno de la UC. Con
+// la universidad del profesor, uno UAndes salía reprobando siendo aprobado, y
+// uno UC aprobando siendo reprobado. El motor lee S.tenant en cada llamada:
+// acá se pone la del alumno y se restaura siempre, aunque algo falle. Todo lo
+// que corre adentro es sincrónico.
+function conUniversidadPanel(tenant,fn){
+  const conocida=typeof TENANTS==='object'&&TENANTS&&Object.prototype.hasOwnProperty.call(TENANTS,tenant);
+  if(!S||!conocida||S.tenant===tenant)return fn();
+  const propia=S.tenant;
+  S.tenant=tenant;
+  try{return fn();}finally{S.tenant=propia;}
+}
 function resumenAlumnosPanel(alumnos,compDe){
   const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
   const grupos=new Map();
-  (alumnos||[]).forEach(al=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+  (alumnos||[]).forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r);
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
-    const clave=sigla?`${al.tenant}|${String(sigla).toUpperCase()}`:'nombre|'+claveEvaluacionPanel(ramo.nombre);
-    if(!grupos.has(clave))grupos.set(clave,{clave,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
+    // Con la universidad en la clave, un grupo nunca mezcla reglas de nota.
+    const clave=`${al.tenant}|`+(sigla?String(sigla).toUpperCase():'nombre|'+claveEvaluacionPanel(ramo.nombre));
+    if(!grupos.has(clave))grupos.set(clave,{clave,tenant:al.tenant,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
       promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
     const g=grupos.get(clave);
     g.alumnos++;
@@ -3360,8 +3375,8 @@ function resumenAlumnosPanel(alumnos,compDe){
         gc.evaluaciones.get(n.clave).notas.push(n.valor);
       });
     });
-  });});
-  return [...grupos.values()].map(g=>({clave:g.clave,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
+  });}));
+  return [...grupos.values()].map(g=>({clave:g.clave,tenant:g.tenant,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
     conNotas:g.promedios.length,promedio:media(g.promedios),semaforo:g.semaforo,
     categorias:[...g.categorias.values()].map(c=>({clave:c.clave,nombre:c.nombre,alumnos:c.promedios.length,promedio:media(c.promedios),
       evaluaciones:[...c.evaluaciones.values()].map(e=>({clave:e.clave,nombre:e.nombre,alumnos:e.notas.length,promedio:media(e.notas)}))}))}))
@@ -3370,7 +3385,7 @@ function resumenAlumnosPanel(alumnos,compDe){
 function resumenAlumnosPanelHTML(resumen){
   const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
   const prom=v=>v===null?'·':esc(fmtPromedio(v));
-  const ramos=resumen.map(g=>{
+  const ramos=resumen.map(g=>conUniversidadPanel(g.tenant,()=>{
     const comp=g.comp||{};
     const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
     const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
@@ -3391,7 +3406,7 @@ function resumenAlumnosPanelHTML(resumen){
       ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
         :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
     </details>`;
-  }).join('');
+  })).join('');
   return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
     <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Resumen por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
     ${ramos}
@@ -3414,11 +3429,11 @@ function filtrarAlumnosPanel(alumnos,texto){
   }).filter(Boolean);
 }
 function alumnosPanelHTML(lista,compDe){
-  return lista.map(al=>`<details class="panel-alumnos-alumno" open>
+  return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
       ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
-    </details>`).join('');
+    </details>`)).join('');
 }
 
 // Exportar: una fila por alumno, ramo y evaluación, armada en el navegador con
@@ -3435,7 +3450,7 @@ function csvAlumnosPanel(alumnos,compDe){
   const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
   const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
   const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo']];
-  alumnos.forEach(al=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
     const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
@@ -3448,7 +3463,7 @@ function csvAlumnosPanel(alumnos,compDe){
     if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo]);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
       gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo])));
-  });});
+  });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
 async function exportarAlumnosPanel(lista,compDe){
