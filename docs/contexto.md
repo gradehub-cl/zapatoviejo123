@@ -122,10 +122,6 @@ Lo del 2026-10-12 ya está en `main` y en `ios` (#694), salvo:
 |---|---|---|
 | #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; se mergea después de #670 |
 
-La función de #692 (`admin_terminar_anuncio_pausado`) está en `main` pero se
-aplica a mano en Supabase: hasta entonces, el panel no cierra anuncios pausados
-sin campaña.
-
 **Pendiente, sin dueño todavía:**
 
 - #631, **en pausa por decisión de Lucas**: Econometría Aplicada (falta su
