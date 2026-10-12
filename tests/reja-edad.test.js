@@ -67,6 +67,24 @@ chk('se muestra y se puede cambiar',/id="ob-sem-calculado"/.test(html)&&/id="sem
 chk('la generación se guarda en la cuenta; las anteriores quedan en null',
   val('normalize({ramos:[]}).generacion')===null&&val('normalize({ramos:[],generacion:2024}).generacion')===2024&&val('normalize({ramos:[],generacion:1999}).generacion')===null);
 
+// "Cambiar" pide escribir el semestre o marcar TAV (verano fuera de la UC).
+val("selectedTenant='uc';selectedCarrera=null;obSemManual=false;obVerano=false;obSemInvalido=false;selectedSem=2");
+val("escribirSemestreOnboarding('5')");
+chk('escribir 5 deja el 5.º, elegido a mano',val('selectedSem')===5&&val('obSemManual')===true&&val('obStepValid')(4)===true);
+val("escribirSemestreOnboarding('abc')");
+chk('algo que no es un semestre no deja avanzar',val('obSemInvalido')===true&&val('obStepValid')(4)===false);
+val("escribirSemestreOnboarding('99')");
+chk('un número fuera de la carrera tampoco',val('obStepValid')(4)===false);
+val("escribirSemestreOnboarding('3');alternarVeranoOnboarding()");
+chk('marcar TAV deja avanzar y no sugiere ramos de la malla',val('obVerano')===true&&val('obStepValid')(4)===true&&val('obRamosActuales()').length===0);
+chk('la TAV es de la UC: en las otras se dice Verano',val("nombreVerano('uc')")==='TAV'&&val("nombreVerano('fen')")==='Verano'&&val("nombreVerano('uandes')")==='Verano');
+chk('la TAV vale hasta el 1 de marzo siguiente',val("finDeVerano(new Date(2027,0,10))")==='2027-03-01'&&val("finDeVerano(new Date(2026,11,20))")==='2027-03-01');
+val("S.verano={hasta:'2027-03-01'}");
+chk('en febrero sigue en TAV; en marzo ya no',val("enVerano(new Date(2027,1,27))")===true&&val("enVerano(new Date(2027,2,1))")===false);
+chk('se guarda y se limpia lo que no corresponde',
+  JSON.stringify(val("normalize({ramos:[],verano:{hasta:'2027-03-01'}}).verano"))==='{"hasta":"2027-03-01"}'&&val("normalize({ramos:[],verano:{hasta:'mañana'}}).verano")===null&&val('normalize({ramos:[]}).verano')===null);
+val("obVerano=false;S.verano=null");
+
 // Edad y generación se guardan en el perfil, aparte de la constancia: si sus
 // columnas todavía no existieran, la declaración igual queda registrada.
 const subidas=[];

@@ -943,7 +943,7 @@ function renderStats(){
 
   // Hero title dinámico
   if(heroTitle){
-    heroTitle.textContent=totalNotas===0?'Este semestre':`Sem. ${S.careerSemestre} · ${semester()}`;
+    heroTitle.textContent=totalNotas===0?'Este semestre':enVerano()?`${nombreVerano(S.tenant)} · ${semester()}`:`Sem. ${S.careerSemestre} · ${semester()}`;
   }
 
   let html='';

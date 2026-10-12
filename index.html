@@ -304,6 +304,15 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
       </div>
       <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
       <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
+      <div class="ob-sem-editar" id="ob-sem-editar" hidden>
+        <label class="field-label" for="ob-sem-input">¿En qué semestre vas?</label>
+        <div class="ob-sem-fila">
+          <input type="text" id="ob-sem-input" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="Ej. 3"
+            aria-describedby="ob-sem-error" oninput="escribirSemestreOnboarding(this.value)"/>
+          <button type="button" class="ob-sem-verano" id="ob-sem-verano" aria-pressed="false" onclick="alternarVeranoOnboarding()">TAV</button>
+        </div>
+        <p class="ob-ruleta-aviso" id="ob-sem-error" role="alert"></p>
+      </div>
       <div class="sem-grid" id="sem-grid" hidden></div>
     </div>
 
