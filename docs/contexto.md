@@ -114,6 +114,27 @@ y mirando que no queden filas suyas en ninguna tabla.
 Lo que está tomado ahora mismo. Se borra cuando se mergea. Si tu tarea no está
 acá, pregunta antes de empezar — hay tres agentes sobre cuatro archivos.
 
+### Lucas · tomado el 2026-10-12
+
+Lo del 2026-10-12 ya está en `main` y en `ios` (#694), salvo:
+
+| Issue | PR | Estado |
+|---|---|---|
+| #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; se mergea después de #670 |
+
+**Pendiente, sin dueño todavía:**
+
+- #631, **en pausa por decisión de Lucas**: Econometría Aplicada (falta su
+  programa) y Revelación y Fe (falta confirmar si «la nota más baja» incluye el
+  examen). No se retoman sin ese dato.
+- #664: los testimonios (#643). La «entrada» barata **no se hace**: una clase
+  de prueba se publica con precio $0, como el Salvatón (Lucas, 2026-10-12).
+- #663: precio del panel, Universal Links y comparación del ramo para UAI y
+  UAndes.
+- #630: «la inasistencia es 1,0» no tiene dónde vivir: no existe «marcar
+  ausente», solo «Falté con justificativo».
+- #639: `pendientes()` ya existe en la rama `ios` (#676); falta la pantalla.
+
 ### Con qué parte cada uno
 
 **Codex — la revisión estética, PR 3 en adelante.** Los PR 1 (tokens de
@@ -246,35 +267,24 @@ saber dónde empezar a mirar.
 
 ### Pedidas por Martín, sin dueño todavía
 
-**Meter a la Universidad de los Andes.** El andamiaje ya está: `uandes` es un
-tenant en `TENANTS` y `CARRERAS_UANDES` declara cinco carreras (Ingeniería
-Civil, Ingeniería Comercial, Derecho, Medicina, Psicología) más "Otra". Lo que
-no existe es nada de contenido: no hay `MALLA_UANDES`, ni `PRESETS_UANDES`, ni
-`CREDITOS_UANDES`, y `CARRERAS_DECLARABLES` solo tiene `fen` y `uc` — así que
-quien elige UANDES hoy entra a una app vacía y arma todo a mano.
+**Meter a la Universidad de los Andes.** En marcha desde el 2026-10-03, carril
+`ms` (acordado con Lucas). Estado:
 
-El orden que se sostiene solo, mirando cómo se construyeron FEN y UC:
+1. **Carreras declarables** — hecho (#594): las 34 de admision.uandes.cl. Los
+   códigos antiguos `COM-UA`, `DER-UA`, `MED-UA` y `PSI-UA` se conservan.
+2. **Mallas** — hecho (#597): `mallas-uandes.js`, 33 carreras desde sus PDF
+   oficiales (Arquitectura no publica malla).
+3. **Vocabulario** — hecho (#614): Prueba, Control de lectura, Certamen…; nunca
+   "Solemne" ni "Interrogación".
+4. **Motor por universidad** — hecho (#615): la UAndes redondea a la centésima y
+   después a la décima (art. 22). Compuertas `exacto` para el art. 27.
+5. **Pautas** — 44 cursos PEG del 2° semestre 2026, de la página oficial del
+   Centro de Estudios Generales, con la compuerta del art. 27. Las de carrera
+   viven en Canvas, detrás del login: hay que conseguir los programas.
 
-1. **Carreras declarables primero.** Es la lista completa de lo que se estudia
-   ahí, sin malla asociada. Barata, no necesita ningún programa, y hace que la
-   app deje de sentirse ajena: el estudiante se ve en la lista.
-2. **Una malla, la de la carrera con más gente.** `MALLA_UANDES` con la misma
-   forma que `MALLA_UC`, y su carrera pasa a llevar `malla:` en declarables.
-3. **Presets solo con programas oficiales en la mano.** Vale la regla de
-   siempre: si el documento no dice la ponderación, no se rellena. Diez pautas
-   FEN tomaron semanas de juntar PDFs, así que esto es lo lento y no se
-   improvisa.
-
-Ojo con dos cosas antes de escribir código. **El vocabulario de cada universidad
-es distinto** —en FEN son Solemnes, en la UC Interrogaciones— y hay un test que
-lo vigila (`tests/vocabulario.test.js`): las evaluaciones de UANDES tienen que
-hablar como habla UANDES, y si aparece un tercer vocabulario hay que separarlo
-igual que los otros dos. Y **los créditos**: la UC usa SCT y FEN también; si
-UANDES pondera distinto, `creditosDe` y el modo de promedio necesitan saberlo
-antes de que alguien cargue notas y el número salga mal.
-
-Tamaño realista: el paso 1 es una sesión, el 2 depende de conseguir la malla
-publicada, el 3 es trabajo continuo de transcripción como el que lleva FEN.
+**Créditos:** la UAndes no publica créditos en sus mallas. Sus ramos no los
+traen, y el promedio general cae a promedio simple, que es también lo que dice
+su reglamento para planes sin créditos (art. 31).
 
 ### Pedidas por Lucas, sin dueño todavía
 

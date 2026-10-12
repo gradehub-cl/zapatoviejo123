@@ -58,9 +58,21 @@ const LLEGA_DE_RECUPERACION=typeof location!=='undefined'&&/(?:^|[#&])type=recov
 let enRecuperacion=LLEGA_DE_RECUPERACION;
 let supabaseClient=null, currentUser=null, authMode='login';
 let _cerrandoSesion=false;
+// En la app iOS (Capacitor) la página no puede irse a Google. Capacitor manda
+// esa navegación a Safari y la vista web quedaba congelada: cancelar el login
+// obligaba a cerrar la app. Y la vuelta a `capacitor://localhost` no llega a
+// ninguna parte. Ahí Google se abre en una hoja de Safari dentro de la app y
+// vuelve por el esquema propio, que tiene que estar en las Redirect URLs de
+// Supabase (Authentication → URL Configuration).
+//
+// Con PKCE: otra app podría reclamar el mismo esquema, así que lo que vuelve es
+// un código que solo sirve con el verificador guardado en este dispositivo, no
+// la sesión. La web sigue con el flujo de siempre.
+const APP_NATIVA=typeof window!=='undefined'&&!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+const VUELTA_NATIVA='cl.gradehub.app://login-callback';
 try{
   if(window.supabase && SUPABASE_URL.startsWith('http')){
-    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,APP_NATIVA?{auth:{flowType:'pkce'}}:undefined);
   }
 }catch(e){console.warn('Supabase no inicializado:',e);}
 
@@ -98,6 +110,13 @@ function toggleAuthMode(){
 function showAuthScreen(){
   ['home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
+  // Al cerrar sesión la app viene del carrusel de pestañas. Con `tab-mode` el
+  // login se dibuja como capa superpuesta y quedaba corrido hacia abajo; al
+  // abrir de cero esa clase no existe y se veía bien (visto en iPhone,
+  // 2026-10-06). Se sale del carrusel igual que en showAppErrorScreen.
+  const app=document.querySelector('.app');
+  if(app)app.classList.remove('tab-mode','dragging');
+  try{window.scrollTo(0,0);}catch(e){}
   document.getElementById('screen-auth').classList.add('active');
   marcarUltimoLogin();
   // El esqueleto se pinta YA, con el alto definitivo: la RPC tarda cerca de un
@@ -213,6 +232,20 @@ function enterOnboarding(){
     if(n)nameInput.value=n.split(' ')[0];
   }
   obIniciar();
+  // Con el correo institucional ya sabemos su universidad: llega marcada en el
+  // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:
+  // una cuenta que ya existe nunca cambia de universidad por su correo.
+  const porCorreo=tenantPorCorreo(currentUser&&currentUser.email);
+  if(porCorreo){selectedTenant=porCorreo;applyTheme();renderTenantPick();checkOb();}
+}
+// La universidad que corresponde al dominio del correo, o null. Compara el
+// dominio completo, no un sufijo: "x@noesmiuandes.cl" no es de la UAndes.
+function tenantPorCorreo(correo){
+  const texto=String(correo||'').trim().toLowerCase(),arroba=texto.lastIndexOf('@');
+  const dominio=arroba>0?texto.slice(arroba+1):'';
+  if(!dominio)return null;
+  const t=Object.keys(DOMINIOS_CORREO_POR_TENANT).find(k=>DOMINIOS_CORREO_POR_TENANT[k].includes(dominio));
+  return t&&TENANTS[t]&&!TENANTS[t].oculto?t:null;
 }
 function enterApp(){
   document.getElementById('screen-auth').classList.remove('active');
@@ -391,6 +424,17 @@ async function signInWithProvider(provider){
   const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
+    if(APP_NATIVA){
+      const {data,error}=await supabaseClient.auth.signInWithOAuth({
+        provider,
+        options:{redirectTo:VUELTA_NATIVA,skipBrowserRedirect:true}
+      });
+      if(error)throw error;
+      recordarMetodoLogin(provider);
+      // El botón vuelve con la sesión (appUrlOpen) o al cerrar la hoja.
+      await window.Capacitor.Plugins.Browser.open({url:data.url,presentationStyle:'popover'});
+      return;
+    }
     const {error}=await supabaseClient.auth.signInWithOAuth({
       provider,
       options:{redirectTo:location.origin+location.pathname}
@@ -403,6 +447,59 @@ async function signInWithProvider(provider){
     authError(traduceAuthError(e));
     if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=orig;}
   }
+}
+
+function reactivarBotonesOAuth(){
+  const b=document.getElementById('btn-google');
+  if(b){b.disabled=false;b.style.opacity='';}
+}
+// La vuelta de Google en la app nativa. Cerrar la hoja sin terminar no es un
+// error: solo reactiva el botón.
+async function volverDeOAuthNativo(url){
+  if(typeof url!=='string'||!url.startsWith(VUELTA_NATIVA))return false;
+  try{await window.Capacitor.Plugins.Browser.close();}catch(e){}
+  let code=null;
+  try{code=new URL(url).searchParams.get('code');}catch(e){}
+  if(!code){
+    authError('No pudimos iniciar sesión con Google. Intenta de nuevo.');
+    reactivarBotonesOAuth();
+    return false;
+  }
+  try{
+    const {data,error}=await supabaseClient.auth.exchangeCodeForSession(code);
+    if(error)throw error;
+    currentUser=data.user;
+    reactivarBotonesOAuth();
+    await afterLogin();
+    return true;
+  }catch(e){
+    authError(traduceAuthError(e));
+    reactivarBotonesOAuth();
+    return false;
+  }
+}
+// El typeof es porque hay tests que cargan solo este tramo del archivo.
+if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
+  const {App,Browser}=window.Capacitor.Plugins;
+  // La vuelta del login con Google y los enlaces de los widgets llegan por el
+  // mismo esquema propio; cada uno reconoce solo lo suyo.
+  // Tocar un aviso de evaluación abre el ramo o su simulador.
+  const notificaciones=window.Capacitor.Plugins.LocalNotifications;
+  if(notificaciones&&typeof notificaciones.addListener==='function')notificaciones.addListener('localNotificationActionPerformed',ev=>{
+    const extra=ev&&ev.notification&&ev.notification.extra;
+    if(extra&&extra.gradehub==='prueba'&&typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(extra.url);
+  });
+  if(App)App.addListener('appUrlOpen',ev=>{
+    const url=ev&&ev.url;
+    if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
+    else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
+  });
+  // Lo que se respondió en la Actividad en Vivo con la app cerrada.
+  if(typeof recogerSensaciones==='function'){
+    setTimeout(recogerSensaciones,0);
+    if(App)App.addListener('resume',()=>recogerSensaciones());
+  }
+  if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 
 // Recuperar contraseña
@@ -617,6 +714,7 @@ async function afterSignup(){
 }
 async function afterLogin(){
   track('login');
+  registrarVisitaDiaria();
   const uid=currentUser?currentUser.id:null;
   const visita=++_visitaSesion;
   const vigente=()=>visita===_visitaSesion&&!!currentUser&&currentUser.id===uid;
@@ -746,7 +844,31 @@ let _visitaSesion=0;
 if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&currentUser&&S.onboardingDone
     &&typeof cargarPropuestasPautaAgente==='function')cargarPropuestasPautaAgente().catch(()=>{});
+  // La app instalada puede quedar abierta de un día para otro sin recargar.
+  if(document.visibilityState==='visible')registrarVisitaDiaria();
 });
+
+// Una visita por cuenta y por día (#666, supabase/visitas_diarias.sql), para
+// medir activos y quién vuelve sin depender de las sesiones de Supabase. El
+// servidor solo guarda la cuenta y la fecha. Este dispositivo anota que ya la
+// mandó hoy, fuera de gradehub_v1, para no llamar en cada apertura; si falla,
+// se vuelve a intentar la próxima vez.
+const VISITA_DIA_KEY='gradehub_visita_dia';
+function diaChileVisita(ahora=new Date()){
+  try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(ahora);}catch(e){return null;}
+}
+async function registrarVisitaDiaria(ahora=new Date()){
+  if(!supabaseClient||!currentUser)return false;
+  const dia=diaChileVisita(ahora);if(!dia)return false;
+  const marca=currentUser.id+'|'+dia;
+  try{if(localStorage.getItem(VISITA_DIA_KEY)===marca)return false;}catch(e){}
+  try{
+    const {error}=await supabaseClient.rpc('registrar_visita');
+    if(error)return false;
+    try{localStorage.setItem(VISITA_DIA_KEY,marca);}catch(e){}
+    return true;
+  }catch(e){return false;}
+}
 
 async function loadFromCloud(){
   const {data,error}=await supabaseClient.from('user_ramos').select('data').eq('user_id',currentUser.id).maybeSingle();
@@ -1087,6 +1209,7 @@ async function cerrarSesion(){
   try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
   finally{_cerrandoSesion=false;}
   currentUser=null;closeModal();
+  if(typeof borrarResumenWidgets==='function')borrarResumenWidgets();
   if(typeof olvidarSesionAgentes==='function')olvidarSesionAgentes();
   // Las propuestas pertenecen a la cuenta que salió, no al navegador.
   if(typeof propuestasPautaAgente!=='undefined')propuestasPautaAgente=[];
@@ -1110,53 +1233,111 @@ async function cerrarSesion(){
   showAuthScreen();
 }
 
-async function boot(){
-  if(!supabaseClient){
-    // Sin configurar Supabase → funciona en modo local (fallback)
-    document.getElementById('screen-auth').classList.remove('active');
-    if(S.onboardingDone)showMainApp();
-    else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
-    return;
-  }
-  // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
-  // el usuario abre el link del correo de "olvidé mi contraseña".
-  supabaseClient.auth.onAuthStateChange((event, session)=>{
-    // Otra pestaña puede salir o cambiar de cuenta, y una sesión puede vencer.
-    // Se reinicia la visita para cancelar también las lecturas de la cuenta
-    // anterior. La copia local se conserva; no se borra una edición sin subir.
-    if(!_cerrandoSesion&&currentUser&&(event==='SIGNED_OUT'||
-      (event==='SIGNED_IN'&&session&&session.user.id!==currentUser.id))){
-      currentUser=null;closeModal();showAuthScreen();location.reload();return;
-    }
-    if(event==='PASSWORD_RECOVERY'){
-      enRecuperacion=true;
-      if(session)currentUser=session.user;
-      limpiarFragmentoAuth();
-      showResetScreen();
-    }
+// La pantalla de carga de la app (#arranque en index.html) se va recién acá,
+// con la pantalla que corresponde ya puesta debajo, sea cual sea el camino.
+// Si lo que queda es el login, el logo no desaparece: vuela a su lugar en el
+// login mientras el fondo se va, y ahí se cambia por el de verdad. A la app o
+// con movimiento reducido, solo se desvanece.
+// Los mismos de la transición de #arranque svg en styles.css. Parte quieta y
+// frena largo: con una curva que arranca rápido, el logo saltaba arriba.
+const VIAJE_ARRANQUE_MS=500,VIAJE_ARRANQUE_CURVA='cubic-bezier(.45,0,.15,1)';
+const RESPIRO_MS=1600; // una respiración: el 1.6s de .arr-arriba en styles.css
+function quitarArranque(){
+  const a=typeof document!=='undefined'&&document.getElementById&&document.getElementById('arranque');
+  if(!a||!a.classList||typeof a.classList.add!=='function')return; // los tests usan elementos de mentira
+  // Cuando la app carga rápido, el splash nativo todavía tapa la vista web, que
+  // recién se está dibujando: sacarlo de una dejaba un cuadro en blanco, y con
+  // su desvanecido quedaba un segundo logo quieto al centro. Se espera a que la
+  // web esté en pantalla, se saca el splash (soltarSplash, en index.html) y
+  // después se sigue.
+  const despues=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(()=>requestAnimationFrame(f)):f();
+  despues(()=>{
+    if(typeof soltarSplash==='function')soltarSplash();
+    despues(()=>{
+      // Cualquier falla del viaje termina en desvanecer: la pantalla se va igual.
+      try{if(volarAlLogin(a))return;}catch(e){}
+      desvanecer(a);
+    });
   });
-  let session=null;
+}
+function desvanecer(a){a.classList.add('listo');setTimeout(()=>a.remove(),400);}
+function volarAlLogin(a){
+  const svg=a.querySelector('svg'),destino=document.querySelector('#screen-auth.active .ob-icon img');
+  if(!svg||!destino||matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
+  // Sin sesión la app carga tan rápido que el logo subía apenas aparecía
+  // (Martín, en su iPhone): se deja terminar la primera respiración, que acaba
+  // con las capas juntas. Con sesión ya respiró mientras bajaban los datos.
+  const desde=Number(a.dataset&&a.dataset.desde)||0;
+  const falta=RESPIRO_MS-(performance.now()-desde);
+  setTimeout(()=>{try{if(despegar(a,svg,destino))return;}catch(e){}desvanecer(a);},Math.max(0,falta));
+  return true;
+}
+function despegar(a,svg,destino){
+  const r=destino.getBoundingClientRect(),o=svg.getBoundingClientRect();
+  if(!r.width||!o.width)return false;
+  // El logo del login va dentro del padding del <img>: el destino es esa caja.
+  const pad=parseFloat(getComputedStyle(destino).paddingLeft)||0;
+  const dx=r.left+r.width/2-(o.left+o.width/2),dy=r.top+r.height/2-(o.top+o.height/2);
+  // Las capas vuelven a juntarse desde donde iban, no de golpe.
+  a.querySelectorAll('.arr-capa').forEach(c=>{
+    const t=getComputedStyle(c).transform;c.style.animation='none';
+    if(t&&t!=='none'&&c.animate)c.animate([{transform:t},{transform:'none'}],{duration:VIAJE_ARRANQUE_MS,easing:VIAJE_ARRANQUE_CURVA});
+  });
+  destino.style.opacity='0';
+  a.classList.add('viaje');
+  svg.style.transform=`translate(${dx}px,${dy}px) scale(${((r.width-2*pad)/o.width).toFixed(4)})`;
+  setTimeout(()=>{destino.style.opacity='';a.remove();},VIAJE_ARRANQUE_MS+20);
+  return true;
+}
+async function boot(){
   try{
-    const result=await supabaseClient.auth.getSession();
-    session=result&&result.data?result.data.session:null;
-  }catch(e){
-    registrarErrorArranque(e,'obtener_sesion');
-    showAppErrorScreen('obtener_sesion');
-    return;
-  }
-  if(!session){showAuthScreen();return;}
+    if(!supabaseClient){
+      // Sin configurar Supabase → funciona en modo local (fallback)
+      document.getElementById('screen-auth').classList.remove('active');
+      if(S.onboardingDone)showMainApp();
+      else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
+      return;
+    }
+    // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
+    // el usuario abre el link del correo de "olvidé mi contraseña".
+    supabaseClient.auth.onAuthStateChange((event, session)=>{
+      // Otra pestaña puede salir o cambiar de cuenta, y una sesión puede vencer.
+      // Se reinicia la visita para cancelar también las lecturas de la cuenta
+      // anterior. La copia local se conserva; no se borra una edición sin subir.
+      if(!_cerrandoSesion&&currentUser&&(event==='SIGNED_OUT'||
+        (event==='SIGNED_IN'&&session&&session.user.id!==currentUser.id))){
+        currentUser=null;closeModal();showAuthScreen();location.reload();return;
+      }
+      if(event==='PASSWORD_RECOVERY'){
+        enRecuperacion=true;
+        if(session)currentUser=session.user;
+        limpiarFragmentoAuth();
+        showResetScreen();
+      }
+    });
+    let session=null;
+    try{
+      const result=await supabaseClient.auth.getSession();
+      session=result&&result.data?result.data.session:null;
+    }catch(e){
+      registrarErrorArranque(e,'obtener_sesion');
+      showAppErrorScreen('obtener_sesion');
+      return;
+    }
+    if(!session){showAuthScreen();return;}
 
-  currentUser=session.user;
-  // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
-  // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
-  limpiarFragmentoAuth();
-  if(enRecuperacion){showResetScreen();return;}
-  try{
-    await afterLogin();
-  }catch(e){
-    registrarErrorArranque(e,'abrir_app');
-    showAppErrorScreen('abrir_app');
-  }
+    currentUser=session.user;
+    // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
+    // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
+    limpiarFragmentoAuth();
+    if(enRecuperacion){showResetScreen();return;}
+    try{
+      await afterLogin();
+    }catch(e){
+      registrarErrorArranque(e,'abrir_app');
+      showAppErrorScreen('abrir_app');
+    }
+  }finally{quitarArranque();}
 }
 // ─── VERIFICACIÓN EN DOS PASOS ──────────────────────────────────────────────
 //

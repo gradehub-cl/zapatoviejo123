@@ -1140,6 +1140,12 @@ create table if not exists public.anuncio_campanas (
   detenido_at  timestamptz,
   updated_at   timestamptz not null default now()
 );
+-- La misma marca, en el anuncio. Un anuncio publicado antes de que la campaña
+-- fuera obligatoria no tiene fila en anuncio_campanas, y una campaña creada
+-- con el anuncio ya pausado tampoco la tenía al pausarse: la pausa no quedaba
+-- en ningún lado y los días seguían sumando hasta vencer (issue #657). El
+-- anuncio siempre existe. Sin permiso de columna: lo escribe el trigger.
+alter table public.tutor_anuncios add column if not exists detenido_at timestamptz;
 alter table public.anuncio_campanas enable row level security;
 revoke all on public.anuncio_campanas from public, anon, authenticated;
 grant select (anuncio_id, dias, inicio, tope_clp, detenido_at) on public.anuncio_campanas to authenticated;
@@ -1317,7 +1323,7 @@ begin
   tope_clp := c.tope_clp;
   dias_cobrados := 0;
   if a.publicado_at is not null and a.publicado_at <= now() then
-    hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(c.detenido_at, 'infinity'));
+    hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(a.detenido_at, c.detenido_at, 'infinity'));
     select coalesce(sum(greatest(0, extract(epoch from
       (least(hasta_cobro, coalesce(s.hasta, hasta_cobro)) - greatest(a.publicado_at, s.desde))))), 0)
       into segundos_suspendidos from public.tutor_suspensiones s
@@ -1462,7 +1468,8 @@ revoke all on function public.campana_anuncio(uuid) from public, anon;
 grant execute on function public.campana_anuncio(uuid) to authenticated;
 
 -- Al dejar de estar publicado antes de tiempo, los días se dejan de contar.
--- Al volver a publicarse, se retoma.
+-- Al volver a publicarse, se retoma. La marca va en el anuncio, que siempre
+-- existe, y en la campaña si la tiene. Es BEFORE para escribir el anuncio.
 create or replace function public.anuncio_marca_detencion()
 returns trigger
 language plpgsql
@@ -1471,9 +1478,11 @@ set search_path = public
 as $$
 begin
   if old.estado = 'publicado' and new.estado <> 'publicado' then
+    new.detenido_at := now();
     update public.anuncio_campanas set detenido_at = now()
      where anuncio_id = new.id and detenido_at is null;
   elsif new.estado = 'publicado' and old.estado <> 'publicado' then
+    new.detenido_at := null;
     update public.anuncio_campanas set detenido_at = null where anuncio_id = new.id;
   end if;
   return new;
@@ -1482,7 +1491,7 @@ $$;
 revoke all on function public.anuncio_marca_detencion() from public, anon, authenticated;
 drop trigger if exists tutor_anuncios_marca_detencion on public.tutor_anuncios;
 create trigger tutor_anuncios_marca_detencion
-after update of estado on public.tutor_anuncios
+before update of estado on public.tutor_anuncios
 for each row
 execute function public.anuncio_marca_detencion();
 

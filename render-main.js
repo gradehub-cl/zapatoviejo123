@@ -76,7 +76,7 @@ function renderHome(){
     };
     const label=labels[S.sortMode]||labels.manual;
     sortBtn.innerHTML=`<span>${label}</span><svg class="ic sort-mode-icon" viewBox="0 0 24 24" aria-hidden="true">${iconos[S.sortMode]||iconos.manual}</svg>`;
-    sortBtn.setAttribute('aria-label',`Orden actual: ${label}. Cambiar orden`);
+    sortBtn.setAttribute('aria-label',`Ordenar ramos. Ahora: ${label}`);
   }
 
   const simGlobalBtn=document.getElementById('sim-global-btn');
@@ -108,7 +108,11 @@ function renderHome(){
     gpael.innerHTML=`${entera}<span class="gpa-decimal">${decimal}</span>`;
     gpael.className='gpa-num '+colorClass(g)+claseNotaEspecial(g);
     gpael.style.setProperty('--grade-color',getColor(g));
+    pintarPromedioExacto('home-gpa-exacto',g);
     gpael.onclick=()=>{
+      alternarPromedioExacto();
+      pintarPromedioExacto('home-gpa-exacto',g);
+      if(!promedioExactoVisible)return;
       const oficial=notaFinalOficial(g);
       const umbrales=[4.0,5.0,6.0,7.0];
       const next=umbrales.find(u=>u>oficial+0.001);
@@ -129,6 +133,7 @@ function renderHome(){
     }
   }else{
     gpael.textContent='·';gpael.className='gpa-num empty';gpael.onclick=null;
+    pintarPromedioExacto('home-gpa-exacto',null);
   }
   const cr=totalCreditos(S.ramos);
   const modo=gpaMode(S.ramos);
@@ -297,6 +302,24 @@ function renderHome(){
 // esta sesión, igual que el orden de la Agenda: no entra a S ni a gradehub_v1.
 // Plegar un texto no justifica migrar el estado guardado de nadie.
 const reglasRamoAbiertas={};
+// El promedio sin redondear aparece al tocar el número grande (general o del
+// ramo), a su lado y sin pinta de botón: es un dato para quien quiere ver a
+// cuánto está de la décima siguiente, no una acción. Vale para la sesión y no
+// se guarda. Se TRUNCA a milésimas, nunca se redondea: un 3,9499 redondeado se
+// leería 3,950 y diría que ya llegaste al 4,0 cuando no.
+let promedioExactoVisible=false;
+function alternarPromedioExacto(){promedioExactoVisible=!promedioExactoVisible;}
+function fmtPromedioExacto(n){
+  // El 1e-9 evita que un 3,95 guardado como 3,9499999… se trunque a 3,949.
+  const t=Math.floor((Number(n)+1e-9)*1000)/1000;
+  return t.toFixed(3).replace(/0$/,'');
+}
+function pintarPromedioExacto(id,valor){
+  const el=document.getElementById(id);if(!el)return;
+  const mostrar=promedioExactoVisible&&typeof valor==='number'&&!isNaN(valor);
+  el.textContent=mostrar?fmtPromedioExacto(valor):'';
+  el.hidden=!mostrar;
+}
 function toggleReglasRamo(id){
   reglasRamoAbiertas[id]=!reglasRamoAbiertas[id];
   renderRamo();
@@ -316,9 +339,11 @@ function renderRamo(){
     avgEl.innerHTML=`${s.slice(0,dot)}<span class="ramo-decimal">${s.slice(dot)}</span>`;
     avgEl.className='ramo-num '+colorClassRamo(r,avg)+claseNotaEspecial(avg);
     avgEl.style.setProperty('--grade-color',getColorRamo(r,avg));
+    avgEl.onclick=()=>{alternarPromedioExacto();pintarPromedioExacto('ramo-hero-exacto',avg);};
   } else {
-    avgEl.textContent='Sin notas';avgEl.className='ramo-num empty';
+    avgEl.textContent='Sin notas';avgEl.className='ramo-num empty';avgEl.onclick=null;
   }
+  pintarPromedioExacto('ramo-hero-exacto',avg);
   const tp=r.categorias.reduce((a,c)=>a+c.peso,0);
   const categoriasVisibles=r.categorias.filter(c=>!(eximicion&&eximicion.activa&&eximicion.regla.ocultaEvaluacion===true&&eximicion.examenId===c.id));
   const crTxt=(r.seccion?` · Sección ${r.seccion}`:'')+(r.creditos?` · ${r.creditos} créditos`:'');
@@ -490,7 +515,7 @@ function renderRamo(){
       // Esta pauta la reportaron estudiantes, no sale de un programa oficial.
       // Decirlo es la diferencia entre una pauta y una ponderación inventada.
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
-      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Pauta reportada por estudiantes.</b><br>La enviaron ${r.consensoRespaldos} personas de tu universidad y coincidieron. No la sacamos del programa del curso: compárala con la tuya y corrígela si no calza.</div>`;
+      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Pauta reportada por estudiantes.</b><br>La enviaron ${r.consensoRespaldos} personas de tu universidad. No sale del programa del curso: compárala con la tuya.</div>`;
     }else{pcw.style.display='none';pcw.innerHTML='';}
   }
 
@@ -577,6 +602,53 @@ function renderRamo(){
           <span class="faltas-num" aria-live="polite">${cantidad}</span>
           <button type="button" class="faltas-btn" onclick="cambiarFaltas(1)" aria-label="Sumar una falta" ${cantidad>=FALTAS_MAX?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
         </div>`;
+    }
+  }
+
+  // Décimas del programa (#631): la persona anota lo que ganó y el motor las
+  // suma donde dice la regla. Sin anotar no suma nada, y se dice por qué una
+  // décima anotada todavía no cuenta (la condición del programa).
+  const bw=document.getElementById('bonus-ramo');
+  if(bw){
+    const reglas=Array.isArray(r.bonus)?r.bonus:[];
+    if(!reglas.length){bw.style.display='none';bw.innerHTML='';}
+    else{
+      const calc=calculoRamoConCompuertas(r);
+      const valorDe=id=>{const n=calc.res.breakdown.find(x=>x.id===id);return n?n.value:null;};
+      const cumple=si=>{
+        if(!si)return true;
+        let acc=0,w=0;
+        si.catIds.forEach(id=>{const v=valorDe(id),c=(r.categorias||[]).find(x=>x.id===id);if(v!==null&&c){acc+=v*(Number(c.peso)||0);w+=Number(c.peso)||0;}});
+        return w>0&&acc/w>si.mayorQue;
+      };
+      const coma=n=>String(n).replace('.',',');
+      const nombres=ids=>{const n=ids.map(id=>(r.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean);return n.length>1?n.slice(0,-1).join(', ')+' y '+n[n.length-1]:(n[0]||'');};
+      const destino=b=>b.destino==='final'?'a tu nota final':`al promedio de ${(r.categorias||[]).find(c=>c.id===b.destino)?.nombre||'la evaluación'}`;
+      bw.style.display='block';
+      bw.innerHTML=reglas.map(b=>{
+        const v=r.bonusIngresado&&Number.isInteger(r.bonusIngresado[b.id])?r.bonusIngresado[b.id]:null;
+        const unidad=b.entrada==='decimas'?['décima','décimas']:['falta','faltas'];
+        let detalle;
+        if(v===null)detalle=esc(b.ayuda);
+        else if(b.entrada==='decimas'){
+          detalle=v===0?'Anota las que vayas ganando.'
+            :!cumple(b.si)?`Todavía no suman: tu promedio ponderado de ${esc(nombres(b.si.catIds))} tiene que superar ${coma(b.si.mayorQue.toFixed(1))}.`
+            :`Suman ${coma((Math.min(v,topeBonus(b))/10).toFixed(1))} ${esc(destino(b))}.`;
+        }else{
+          const quedan=b.hasta-v;
+          detalle=v<=b.hasta?`Sumas ${coma(b.suma.toFixed(1))} ${esc(destino(b))}. ${quedan===0?'No puedes faltar a otro.':quedan===1?'Puedes faltar a 1 más.':`Puedes faltar a ${quedan} más.`}`
+            :`Con más de ${b.hasta} ${unidad[1]} ya no sumas las ${coma((b.suma*10).toFixed(0))} décimas.`;
+        }
+        const control=v===null
+          ?`<button type="button" class="bonus-anotar" onclick="cambiarBonus('${esc(b.id)}',null)">Anotar</button>`
+          :`<div class="faltas-ctrl">
+              <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',-1)" aria-label="Restar una ${unidad[0]}" ${v===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+              <span class="faltas-num" aria-live="polite">${v}</span>
+              <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',1)" aria-label="Sumar una ${unidad[0]}" ${v>=topeBonus(b)?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>`;
+        return `<div class="faltas-card bonus-card" role="group" aria-label="${esc(b.pregunta)}">
+          <div class="faltas-txt"><span class="faltas-titulo">${esc(b.pregunta)}</span><span class="faltas-detalle">${detalle}</span></div>${control}</div>`;
+      }).join('');
     }
   }
 
@@ -849,7 +921,7 @@ async function pintarPosicionesCurso(){
   if(!filas.length){
     // Con menos de cinco no hay comparación posible, y es el caso normal al
     // principio. Se dice por qué en vez de dejar un hueco.
-    box.innerHTML=`<p class="stats-curso-vacio">Cuando al menos cinco personas lleven uno de tus ramos, vas a ver acá cómo te va respecto del resto. Nadie ve tu nota ni tu nombre.</p>`;
+    box.innerHTML=`<p class="stats-curso-vacio">Cuando cinco personas lleven uno de tus ramos, verás acá cómo te va frente al resto. Nadie ve tu nota ni tu nombre.</p>`;
     return;
   }
   box.innerHTML=filas.map(r=>{
@@ -891,7 +963,7 @@ function renderStats(){
         </svg>
       </div>
       <div class="ag-empty-title">${S.ramos.length?'Parte con tu primera nota':'Agrega tu primer ramo'}</div>
-      <div class="ag-empty-desc">${S.ramos.length?`Tienes ${S.ramos.length} ${S.ramos.length===1?'ramo':'ramos'} y ${evaluaciones} ${evaluaciones===1?'evaluación configurada':'evaluaciones configuradas'}. Ingresa una nota desde Inicio para ver cuánto necesitas en cada ramo.`:'Puedes buscarlo desde Inicio. Acá verás tu avance cuando ingreses notas.'}</div>
+      <div class="ag-empty-desc">${S.ramos.length?`${S.ramos.length} ${S.ramos.length===1?'ramo':'ramos'} y ${evaluaciones} ${evaluaciones===1?'evaluación configurada':'evaluaciones configuradas'}. Ingresa una nota para ver cuánto necesitas.`:'Agrégalo desde Inicio y acá verás tu avance.'}</div>
       ${ramosConPauta<S.ramos.length?`<div class="ag-empty-desc" style="margin-top:8px;">Falta configurar las evaluaciones de ${S.ramos.length-ramosConPauta} ${S.ramos.length-ramosConPauta===1?'ramo':'ramos'}.</div>`:''}
     </div>`;
   } else {
@@ -996,7 +1068,7 @@ function renderStats(){
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
     </div>`;
     if(!validos.length){
-      hist+=`<p class="stats-hist-vacio">Agrega las notas finales de semestres anteriores para incluirlos en tu promedio de carrera.</p>`;
+      hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
     if(validos.length>0){
       validos.forEach(h=>{
@@ -1034,6 +1106,26 @@ function renderStats(){
       });
     }
     piezas.historial=hist;
+  }
+
+  // Tu olfato: cuánto te sacas de verdad cuando dices que te fue bien o mal.
+  if(typeof resumenOlfato==='function'&&avisosPruebasDisponibles()){
+    const o=resumenOlfato();
+    if(o.pares){
+      const titular=o.veredicto==='pesimista'?`Eres pesimista: te va ${simConComa(Math.abs(o.diferencia).toFixed(1))} mejor de lo que crees`
+        :o.veredicto==='optimista'?`Eres optimista: te va ${simConComa(Math.abs(o.diferencia).toFixed(1))} peor de lo que crees`
+        :o.veredicto==='acierto'?'Tienes buen olfato: lo que sientes es lo que te sacas'
+        :`Faltan ${3-o.pares} prueba${3-o.pares===1?'':'s'} para tu veredicto`;
+      piezas.olfato=`
+        <div class="section-hd" style="padding:20px 20px 8px;">
+          <span class="section-hd-title">Tu olfato</span>
+        </div>
+        <div class="stat-card stats-olfato-card" style="margin:0 20px 16px;">
+          <div class="stats-olfato-titular">${esc(titular)}</div>
+          ${o.filas.map(f=>`<div class="stats-olfato-fila"><span>Cuando dices <b>${esc(f.s.texto)}</b></span><span class="stats-olfato-nota">${esc(f.h.texto)}<small>${f.h.veces===1?'1 vez':f.h.veces+' veces'}</small></span></div>`).join('')}
+          <p class="stats-olfato-nota-pie">Se arma con lo que respondes en la pantalla de bloqueo al terminar cada prueba. Solo en este iPhone.</p>
+        </div>`;
+    }
   }
 
   // Las secciones se emiten en el orden que dejó el estudiante y sin las que
