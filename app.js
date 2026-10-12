@@ -1255,8 +1255,10 @@ function asignarCalificacionNota(n,raw,valor,tenant){
   return n;
 }
 function textoCalificacionNota(n,tenant){
-  return calificacionConceptualGuardada(n,tenant)||fmt(n&&n.valor!=null?n.valor:null);
+  return calificacionConceptualGuardada(n,tenant)||fmtNota(n&&n.valor!=null?n.valor:null);
 }
+// Una nota se muestra como se escribió: 5.1 o 5.14. Los promedios siguen con fmt.
+function fmtNota(n){return n===null?'·':Math.round(n*100)%10?n.toFixed(2):n.toFixed(1);}
 function conceptosNota(tenant){
   const tenantActual=typeof tenant==='string'?tenant:(typeof S!=='undefined'&&S?S.tenant:null);
   return Object.keys(CALIFICACIONES_CONCEPTUALES_POR_TENANT[tenantActual]||{});
@@ -1270,7 +1272,8 @@ function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5.5
 
 // Parser de notas: acepta "6.5", "6,5", "65" (autocorrige a 6.5), "70" → 7.0.
 // En tenants que lo declaran en data.js acepta además sus conceptos oficiales.
-// Devuelve un número con 1 decimal en rango [1.0, 7.0], o NaN si inválido.
+// Devuelve un número con hasta 2 decimales en rango [1.0, 7.0], o NaN si
+// inválido. Hay profesores que ponen 5,14: se guarda tal cual, no como 5,1.
 function parseNota(raw,tenant){
   const conceptual=calificacionConceptual(raw,tenant);
   if(conceptual)return conceptual.valor;
@@ -1285,7 +1288,7 @@ function parseNota(raw,tenant){
     v=v/10;
   }
   if(v<1||v>7)return NaN;
-  return Math.round(v*10)/10;
+  return Math.round(v*100)/100;
 }
 // initials recibe texto plano; esc() se aplica después sobre el resultado
 function initials(s){return s.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();}
@@ -6538,7 +6541,7 @@ function propuestaNotasLimpia(valor){
     const clave=normName(evaluacion)+'#'+(casilla==null?'':casilla);
     if(!evaluacion||!Number.isFinite(v)||v<1||v>7||vistas.has(clave))return null;
     if(casilla!==null&&(!Number.isInteger(casilla)||casilla<1||casilla>100))return null;
-    vistas.add(clave);notas.push({evaluacion,valor:Math.round(v*10)/10,casilla});
+    vistas.add(clave);notas.push({evaluacion,valor:Math.round(v*100)/100,casilla});
   }
   if(!notas.length||notas.length>60)return null;
   return {id,ramo,ramoKey,fuente,notas,createdAt:valor.created_at||null};
@@ -6641,7 +6644,7 @@ function guardarPropuestaNotasEditada(id){
     // Una casilla que quedó vacía o con algo que no es nota se omite, no se
     // guarda como 1,0 ni se inventa: omitir es lo que la persona quiso decir.
     if(isNaN(v)||v<1||v>7)continue;
-    valores.push({...propuesta.notas[i],valor:Math.round(v*10)/10});
+    valores.push({...propuesta.notas[i],valor:v});
   }
   if(!valores.length){showToast('No quedó ninguna nota válida para guardar',true);return;}
   aplicarPropuestaNotas(id,valores);
@@ -8691,7 +8694,7 @@ function confirmEditNota(catId,notaId){
   const n=cat.notas.find(x=>x.id===notaId);
   n.nombre=name;n.peso=peso;
   if(isNaN(val)){n.valor=null;delete n.calificacionConceptual;}
-  else asignarCalificacionNota(n,rawNota,Math.round(val*10)/10);
+  else asignarCalificacionNota(n,rawNota,val);
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
@@ -8858,8 +8861,10 @@ function simGlobalStep(ramoId,delta){
 // escala después de eso pasa al clamp — que se queda, porque escribir "9" es
 // querer el máximo, no querer nada, y eso ya estaba decidido.
 function simGlobalDesdeTexto(raw){
+  // El simulador del semestre va en décimas (sus botones suben de a 0,1), aunque
+  // una nota real admita centésimas.
   const n=parseNota(raw);
-  if(!isNaN(n))return n;
+  if(!isNaN(n))return simGlobalNormaliza(n);
   return simGlobalNormaliza(parseFloat(String(raw).replace(',','.')));
 }
 function simGlobalSet(ramoId,raw){
