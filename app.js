@@ -5759,7 +5759,7 @@ function openAddCatModal(prefillDate){
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
     </div>`;
   openModal();wirePesoControl();
-  setTimeout(()=>document.getElementById('m-cat-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-cat-name'));
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(addCatError){addCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddCat();});
 }
@@ -6147,7 +6147,7 @@ function openAddNotaModal(catId){
       <button class="btn-confirm" id="m-add-nota-btn" onclick="confirmAddNota('${catId}')">Agregar nota</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   function checkValid(){
     const v=parseNota(document.getElementById('m-nota-val').value);
     const btn=document.getElementById('m-add-nota-btn');
@@ -7368,7 +7368,7 @@ function openSettings(){
       if(inp){
         inp.addEventListener('input',()=>{settingsName=inp.value;if(settingsNameError){settingsNameError='';limpiarErrorCampo('s-name','s-name-error');}checkSave();});
         inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
-        setTimeout(()=>{inp.focus();inp.select();},100);
+        enfocarEnHoja(inp,()=>inp.select());
       }
     }
   }
@@ -7996,7 +7996,7 @@ function abrirImportar(){
     ${hayRespaldoPreImport()?`<p style="text-align:center;margin:14px 0 0;font-size:0.78125rem;">
       <button onclick="deshacerImport()" style="border:none;background:none;padding:0;cursor:pointer;font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;color:var(--primary);">Deshacer la última importación</button></p>`:''}`;
   openModal();
-  setTimeout(()=>document.getElementById('import-text').focus(),100);
+  enfocarEnHoja(document.getElementById('import-text'));
 }
 // Clave del respaldo automático previo a un import. Existe porque importar es
 // la única acción de la app que destruye datos sin posible deshacer: reemplaza
@@ -8247,6 +8247,26 @@ function openModal(){
 // quitar `.open` basta para que el sheet baje y recién ahí desaparezca.
 // La versión anterior de este arreglo llevaba una clase `.cerrando` y un
 // `transitionend`; sobraba entera.
+// El campo que una hoja enfoca al abrirse. En la app espera a que la hoja
+// termine de subir y no desplaza la página: si el foco llegaba antes, WebKit
+// corría todo hacia arriba para mostrar un campo que todavía venía subiendo, y
+// la hoja quedaba bajo la barra de estado, con el botón de cerrar fuera de la
+// vista. En la web sigue como siempre.
+function enfocarEnHoja(el,despues){
+  if(!el)return;
+  const ir=()=>{
+    if(!el.isConnected)return;
+    if(enAppNativa()){try{el.focus({preventScroll:true});}catch(e){el.focus();}}
+    else el.focus();
+    if(despues)despues();
+  };
+  // Solo se espera si la hoja está subiendo (recién abierta); dentro de una
+  // hoja ya abierta, como Ajustes, el foco llega como antes.
+  const hoja=enAppNativa()&&document.querySelector('#modal.open .modal-sheet');
+  const dura=hoja?parseFloat(getComputedStyle(hoja).transitionDuration)*1000||0:0;
+  const subiendo=!!(hoja&&hoja.getAnimations&&hoja.getAnimations().length);
+  setTimeout(ir,subiendo?Math.max(100,dura):100);
+}
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
   // En el carrusel de pestañas el documento nunca se desplaza: cada pantalla
@@ -8850,7 +8870,7 @@ function openEditNotaModal(catId,notaId){
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
 }
 function confirmEditNota(catId,notaId){
@@ -8912,7 +8932,7 @@ function openCalculadoraModal(){
       <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-calc-target').focus(),100);
+  enfocarEnHoja(document.getElementById('m-calc-target'));
 
   window.calcResult=function(){
     const target=parseNota(document.getElementById('m-calc-target').value);
