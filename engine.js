@@ -171,8 +171,38 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
   declaradas.forEach(desdeId=>{if(!vistas.has(desdeId))inactivas.push({desdeId,tipo:'desconocida',motivo:'pauta_cambio'});});
   return {estructura:copia,notas,activas,pendientes,inactivas};
 }
+// Décimas y bonus que ingresa el estudiante (#631). La regla va en el preset
+// del ramo (`bonus` en data.js, que presetRamo copia al ramo) y lo que ganó, en
+// `ramo.bonusIngresado[id]`. Sin un valor ingresado no se suma nada: nadie
+// recibe décimas por omisión. Devuelve cuánto suma cada destino:
+//   entrada 'decimas' → lo ingresado / 10, con el tope `max` (en décimas)
+//   entrada 'faltas'  → `suma` si faltó a `hasta` talleres o menos
+// `destino` es 'final' o el id de una categoría; `si` condiciona el bonus a que
+// el promedio ponderado de esas categorías SUPERE `mayorQue`, sin redondear.
+function gh_bonusActivos(bonus,ingresado){
+  const out={final:[],porCategoria:{}};
+  (Array.isArray(bonus)?bonus:[]).forEach(b=>{
+    const v=ingresado&&ingresado[b&&b.id];
+    if(!b||typeof v!=='number'||!Number.isFinite(v)||v<0)return;
+    let suma=0;
+    if(b.entrada==='decimas'){
+      const tope=typeof b.max==='number'&&b.max>=0?b.max:v;
+      suma=Math.min(v,tope)/10;
+    }else if(b.entrada==='faltas'){
+      if(Number.isInteger(v)&&typeof b.hasta==='number'&&v<=b.hasta&&typeof b.suma==='number')suma=b.suma;
+    }
+    if(!(suma>0))return;
+    const si=b.si&&Array.isArray(b.si.catIds)&&typeof b.si.mayorQue==='number'?{ids:b.si.catIds,mayorQue:b.si.mayorQue}:null;
+    if(b.destino==='final')out.final.push({suma,si});
+    else if(typeof b.destino==='string')(out.porCategoria[b.destino]=out.porCategoria[b.destino]||[]).push({suma,si});
+  });
+  return out;
+}
+function gh_tieneBonus(node){return !!(node&&((Array.isArray(node.bonus)&&node.bonus.length)||(node.children||[]).some(gh_tieneBonus)));}
+
 function calculateFinalGrade(structure,grades,overrides={}){
   const breakdown=[],emptyLeaves=[],gates=[],drops=[];
+  const escalaMax=gh_meta(structure)?.grade_scale?.max??7.0;
   function evalNode(node){
     if(node.type==='leaf'){const g=grades[node.id];const value=(typeof g==='number')?g:null;breakdown.push({id:node.id,name:node.name,value,complete:value!==null});return {value,complete:value!==null};}
     let known=[],allComplete=true;
@@ -183,6 +213,15 @@ function calculateFinalGrade(structure,grades,overrides={}){
     for(const k of known){acc+=k.value*k.weight;sumW+=k.weight;}
     let value=sumW>0?acc/sumW:null;
     if(node.aggregation_rule==='gated_average'&&value!==null){const p=node.rule_params||{};const off=known.filter(k=>!gh_cumpleMinimo(k.value,p.min_required));const locked=off.filter(o=>o.complete);const ok=off.length===0;gates.push({nodeId:node.id,kind:'gated_average',ok,min_required:p.min_required,fail_cap:p.fail_cap,offenders:off.map(o=>o.child.name),lockedOffenders:locked.map(o=>o.child.name),pending:known.length<node.children.length});if(!ok)value=Math.min(value,p.fail_cap);}
+    // Las décimas van encima del promedio del nodo, nunca sobre la escala.
+    if(value!==null&&Array.isArray(node.bonus))for(const b of node.bonus){
+      if(b.si){
+        const de=known.filter(k=>b.si.ids.includes(k.child.id));
+        const w=de.reduce((x,k)=>x+k.weight,0);
+        if(!(w>0)||!(de.reduce((x,k)=>x+k.value*k.weight,0)/w>b.si.mayorQue))continue;
+      }
+      value=Math.min(escalaMax,value+b.suma);
+    }
     breakdown.push({id:node.id,name:node.name,value,complete:allComplete});return {value,complete:allComplete};
   }
   let rootValue=evalNode(structure).value;
@@ -228,8 +267,10 @@ function solveForTarget(structure,grades,target,overrides={},options={}){
   // depende de su propio valor. En vez de fingir un peso fijo, proyectamos la
   // misma nota en todas las pendientes y buscamos el mínimo que llega a meta.
   const dropAware=gh_hasPendingDrop(structure,grades);
-  if(dropAware){
-    conditions.push('El cálculo supone la misma nota en todas las evaluaciones pendientes y considera que la peor nota del grupo se descarta según la regla del programa.');
+  // Con décimas la nota deja de ser lineal (tienen tope y condición): se busca
+  // la nota necesaria con el motor completo, igual que con un descarte.
+  if(dropAware||gh_tieneBonus(structure)){
+    if(dropAware)conditions.push('El cálculo supone la misma nota en todas las evaluaciones pendientes y considera que la peor nota del grupo se descarta según la regla del programa.');
     const finalCon=value=>calculateFinalGrade(structure,gh_projectGrades(grades,direct.emptyLeaves,value),overrides).value;
     const conMax=finalCon(scaleMax);
     if(conMax===null||gateWarnings.length>0||(!options.extrapolate&&conMax<target))return {feasible:false,requiredAverage:gh_excelRound(scaleMax,2),emptyLeaves:direct.emptyLeaves,message:'',conditions,gateWarnings,scaleMin,scaleMax,dropAware};
@@ -284,11 +325,13 @@ function gh_crearCalculoRamo(deps){
     return hojas;
   }
   function ramoToStructure(r){
-    return {__meta:reglasNota(),
+    const bonus=gh_bonusActivos(r.bonus,r.bonusIngresado);
+    const conBonus=(nodo,lista)=>lista&&lista.length?{...nodo,bonus:lista}:nodo;
+    return conBonus({__meta:reglasNota(),
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
-      children:categoriasVigentes(r).map(c=>({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
+      children:categoriasVigentes(r).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
         drop_lowest:c.dropLowest||null,
-        children:hojasCategoria(c)}))};
+        children:hojasCategoria(c)},bonus.porCategoria[c.id]))},bonus.final);
   }
   function gradesOf(r){const g={};(r.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{if(n.valor!==null&&n.valor!==undefined)g[n.id]=n.valor;}));return g;}
   function avgPond(notas){let tv=0,tp=0;notas.forEach(n=>{if(n.valor!==null){tv+=n.valor*(n.peso||1);tp+=(n.peso||1);}});return tp>0?tv/tp:null;}
@@ -507,7 +550,7 @@ function gh_crearCalculoRamo(deps){
         if(typeof base.notas[node.id]==='number')notas[id]=base.notas[node.id];
         return {...node,id,...(node.children?{children:node.children.map(copiar)}:{})};
       }
-      return {...base.estructura,children:base.estructura.children.map(node=>{
+      const raiz={...base.estructura,children:base.estructura.children.map(node=>{
         const cat=categorias.get(node.id),valor=valores.get(node.id);
         // Una lista sin cantidad declarada conserva su promedio conocido. Un
         // grupo completo conserva su descarte ya calculado, no sus pesos brutos.
@@ -518,6 +561,10 @@ function gh_crearCalculoRamo(deps){
         }
         return copiar(node);
       })};
+      // La condición de un bonus a la nota final nombra categorías por id: con
+      // el prefijo de acá tiene que seguir encontrándolas.
+      if(Array.isArray(raiz.bonus))raiz.bonus=raiz.bonus.map(b=>b.si?{...b,si:{...b.si,ids:b.si.ids.map(id=>prefijo+id)}}:b);
+      return raiz;
     }
     const propio=preparar(ramo,'propio:');
     if(!propio.children.some(c=>c.weight>0))return null;
@@ -528,7 +575,9 @@ function gh_crearCalculoRamo(deps){
       const p=link.peso/100;
       const otro=ramoVinculado(ramo);
       const externo=otro?preparar(otro,'externo:'):{id:'externo',name:link.ramo,type:'leaf'};
-      estructura={...propio,children:[{...propio,id:'propio',weight:1-p},{...externo,id:'externo',weight:p}]};
+      // El bonus de la nota final es del ramo propio: va en su nodo, no otra
+      // vez en el que lo combina con el vinculado.
+      estructura={...propio,bonus:undefined,children:[{...propio,id:'propio',weight:1-p},{...externo,id:'externo',weight:p}]};
 
       // El promedio ponderado NO basta cuando el vínculo declara un mínimo.
       //
@@ -566,4 +615,4 @@ function gh_crearCalculoRamo(deps){
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos};

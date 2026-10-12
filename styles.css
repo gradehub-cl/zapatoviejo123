@@ -2604,6 +2604,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .faltas-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--fg2);cursor:pointer;}
 .faltas-btn .ic{width:16px;height:16px;}
 .faltas-btn:disabled{opacity:.35;cursor:default;}
+/* Décimas del programa (#631): la misma tarjeta que las faltas, con botones de 44 pt. */
+.bonus-card{display:flex;}
+.bonus-card .faltas-btn{width:44px;height:44px;}
+.bonus-anotar{min-height:44px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit;font-size:0.875rem;font-weight:600;cursor:pointer;flex-shrink:0;}
 .prop-notas-card{margin-bottom:12px;padding:13px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);}
 .prop-notas-head{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;}
 .prop-notas-head b{font-size:0.875rem;font-weight:700;color:var(--fg);}
