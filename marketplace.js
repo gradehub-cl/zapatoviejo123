@@ -3331,6 +3331,75 @@ function ramoPanelHTML(r,comp){
   </div>`;
 }
 
+// Resumen del grupo (#667): por ramo, cuántos alumnos, su promedio (ramoAvg de
+// cada uno, como en su app, y después el promedio simple entre ellos), cómo va
+// cada categoría y cada prueba, y cuántos van en cada color del semáforo. Todo
+// con lo que el panel ya bajó; la comparación con GradeHub es la misma de
+// siempre, agregada y desde 5 personas.
+function resumenAlumnosPanel(alumnos,compDe){
+  const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+  const grupos=new Map();
+  (alumnos||[]).forEach(al=>(al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r);
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
+    const clave=sigla?`${al.tenant}|${String(sigla).toUpperCase()}`:'nombre|'+claveEvaluacionPanel(ramo.nombre);
+    if(!grupos.has(clave))grupos.set(clave,{clave,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
+      promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
+    const g=grupos.get(clave);
+    g.alumnos++;
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo):null;
+    if(Number.isFinite(avg))g.promedios.push(avg);
+    g.semaforo[Number.isFinite(avg)&&typeof nivelRamo==='function'?nivelRamo(ramo,avg):'neutral']++;
+    categoriasDeRamoPanel(ramo).forEach(c=>{
+      if(!c.clave)return;
+      if(!g.categorias.has(c.clave))g.categorias.set(c.clave,{clave:c.clave,nombre:c.nombre,promedios:[],evaluaciones:new Map()});
+      const gc=g.categorias.get(c.clave);
+      if(Number.isFinite(c.promedio))gc.promedios.push(c.promedio);
+      c.notas.forEach(n=>{
+        if(!n.clave)return;
+        if(!gc.evaluaciones.has(n.clave))gc.evaluaciones.set(n.clave,{clave:n.clave,nombre:n.nombre,notas:[]});
+        gc.evaluaciones.get(n.clave).notas.push(n.valor);
+      });
+    });
+  }));
+  return [...grupos.values()].map(g=>({clave:g.clave,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
+    conNotas:g.promedios.length,promedio:media(g.promedios),semaforo:g.semaforo,
+    categorias:[...g.categorias.values()].map(c=>({clave:c.clave,nombre:c.nombre,alumnos:c.promedios.length,promedio:media(c.promedios),
+      evaluaciones:[...c.evaluaciones.values()].map(e=>({clave:e.clave,nombre:e.nombre,alumnos:e.notas.length,promedio:media(e.notas)}))}))}))
+    .sort((x,y)=>y.alumnos-x.alumnos||String(x.nombre).localeCompare(String(y.nombre),'es'));
+}
+function resumenAlumnosPanelHTML(resumen){
+  const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
+  const prom=v=>v===null?'·':esc(fmtPromedio(v));
+  const ramos=resumen.map(g=>{
+    const comp=g.comp||{};
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
+    // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
+    const sem=[['good','aprobando'],['warn','al borde'],['bad','reprobando']].filter(([k])=>g.semaforo[k])
+      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('')+
+      (g.semaforo.neutral?`<span class="panel-resumen-sem">${g.semaforo.neutral} sin notas</span>`:'');
+    const filas=g.categorias.map(c=>`<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${n(c.alumnos,'alumno','alumnos')}</small></td><td>${prom(c.promedio)}</td><td>${gh(porCategoria.get(c.clave))}</td></tr>
+      ${c.evaluaciones.length>1?c.evaluaciones.map(e=>`<tr class="panel-alumnos-nota"><td>${esc(e.nombre)}<small>${n(e.alumnos,'nota','notas')}</small></td><td>${prom(e.promedio)}</td><td>${porNota.has(e.clave)?gh(porNota.get(e.clave)):'<span class="panel-alumnos-sin">—</span>'}</td></tr>`).join(''):''}</tbody>`).join('');
+    return `<details class="panel-resumen-ramo">
+      <summary>
+        <span class="panel-resumen-nombre"><b>${esc(g.nombre)}</b><small>${g.sigla?esc(g.sigla)+' · ':''}${n(g.alumnos,'alumno','alumnos')}</small></span>
+        <span class="panel-alumnos-prom">${g.promedio===null?'Sin notas':prom(g.promedio)}<small>tus alumnos</small></span>
+        ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
+        <span class="panel-resumen-semaforo">${sem}</span>
+      </summary>
+      ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
+        :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
+    </details>`;
+  }).join('');
+  return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Resumen por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
+    ${ramos}
+    <p class="clase-privacidad">“Tus alumnos” es el promedio simple entre los alumnos con nota. Si van sobre o bajo GradeHub no dice por qué: también cuentan el profesor de cátedra, la sección y lo que cada uno estudia.</p>
+  </section>`;
+}
+
 // Buscador del panel: por el nombre con que el alumno eligió aparecer, o por
 // ramo o sigla, sin importar tildes ni mayúsculas. Si calza el nombre se ven
 // todos sus ramos; si calza un ramo, solo ese.
@@ -3440,6 +3509,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>
+    ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
     <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
     // Con uno solo no hay nada que buscar.
     (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"

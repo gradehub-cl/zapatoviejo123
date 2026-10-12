@@ -87,6 +87,38 @@ function contexto({search='',sesion=false}={}){
   chk('una categoría de una sola nota es una sola fila, con el nombre de la categoría',
     /panel-alumnos-cat"><td>Solemne<\/td><td>4\.4<\/td><td><span class="panel-alumnos-gh">4\.1/.test(renombradas)&&!/Pero perro/.test(renombradas));
 
+  console.log('\n=== Resumen por ramo (#667) ===');
+  // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
+  // minúsculas) y uno en Física. Pautas escritas acá.
+  a.run(`globalThis.__calc=(id,i1,i2)=>({id,nombre:'Cálculo II',sigla:'MAT1620',gates:[],categorias:[
+    {id:'c1',nombre:'Interrogaciones',peso:60,notas:[{id:'n1',nombre:i1[0],valor:i1[1]},...(i2?[{id:'n2',nombre:'Interrogación 2',valor:i2}]:[])]},
+    {id:'c2',nombre:'Examen',peso:40,notas:[]}]});
+    globalThis.__grupo=[
+      {id:'a1',nombre_visible:'Ana',tenant:'uc',ramos:[__calc('r1',['Interrogación 1',6.0],5.6)]},
+      {id:'a2',nombre_visible:'Beto',tenant:'uc',ramos:[__calc('r2',['interrogacion 1',3.0],3.4),{id:'f',nombre:'Física',sigla:'FIS1514',gates:[],categorias:[{id:'k',nombre:'Controles',peso:100,notas:[{id:'x',nombre:'Control 1',valor:4.5}]}]}]},
+      {id:'a3',nombre_visible:'Caro',tenant:'uc',ramos:[{id:'r3',nombre:'Cálculo II',sigla:'MAT1620',gates:[],categorias:[{id:'c1',nombre:'Interrogaciones',peso:100,notas:[]}]}]}];
+    globalThis.__res=resumenAlumnosPanel(__grupo,(al,r)=>r.sigla==='MAT1620'?{ramo:{promedio:4.7,personas:23},
+      evaluaciones:[{clave:'interrogacion 1',promedio:4.6,personas:9}],categorias:[{clave:'interrogaciones',promedio:4.4,personas:31}]}:null)`);
+  const res=a.run('__res');
+  const calc=res[0];
+  chk('un grupo por ramo, el con más alumnos primero',res.length===2&&calc.sigla==='MAT1620'&&calc.alumnos===3&&res[1].sigla==='FIS1514');
+  const esperado=a.run(`(ramoAvg(ramoParaPanel(__grupo[0].ramos[0]))+ramoAvg(ramoParaPanel(__grupo[1].ramos[0])))/2`);
+  chk('el promedio es el simple entre los ramoAvg de quienes tienen nota',Math.abs(calc.promedio-esperado)<1e-9&&calc.conNotas===2);
+  const niveles=a.run(`[nivelRamo(ramoParaPanel(__grupo[0].ramos[0]),ramoAvg(ramoParaPanel(__grupo[0].ramos[0]))),nivelRamo(ramoParaPanel(__grupo[1].ramos[0]),ramoAvg(ramoParaPanel(__grupo[1].ramos[0])))]`);
+  chk('el semáforo cuenta con nivelRamo, y el sin notas va aparte',niveles[0]==='good'&&niveles[1]==='bad'&&
+    calc.semaforo.good===1&&calc.semaforo.bad===1&&calc.semaforo.warn===0&&calc.semaforo.neutral===1);
+  const i1=calc.categorias[0].evaluaciones.find(e=>e.clave==='interrogacion 1');
+  chk('la misma prueba escrita distinto se junta',i1&&i1.alumnos===2&&Math.abs(i1.promedio-4.5)<1e-9);
+  chk('las categorías sin notas no aparecen',calc.categorias.length===1&&calc.categorias[0].nombre==='Interrogaciones');
+  const rh=a.run('resumenAlumnosPanelHTML(__res)');
+  chk('compara el ramo, la categoría y la prueba con GradeHub',/4\.7<small>GradeHub · 23 personas/.test(rh)&&/4\.4<small>31 personas/.test(rh)&&/4\.6<small>9 personas/.test(rh));
+  const rhCalc=rh.split('Física')[0];
+  chk('el semáforo dice aprobando, reprobando y sin notas, con su color',
+    /panel-resumen-good">1 aprobando/.test(rhCalc)&&/panel-resumen-bad">1 reprobando/.test(rhCalc)&&/>1 sin notas</.test(rhCalc)&&!/al borde/.test(rhCalc));
+  chk('y un 4,5 va al borde',/panel-resumen-warn">1 al borde/.test(rh));
+  chk('y advierte que comparar no dice por qué',/no dice por qué/.test(rh));
+  chk('cada ramo es un desplegable de al menos 44 pt',/class="panel-resumen-ramo"/.test(rh)&&/\.panel-resumen-ramo summary\{[^}]*min-height:44px/.test(leer('styles.css')));
+
   console.log('\n=== Buscador de alumnos ===');
   a.run(`globalThis.__al=[
     {id:'a1',nombre_visible:'Camila Pérez',tenant:'uc',ramos:[{id:'r1',nombre:'Cálculo II',sigla:'MAT1620'},{id:'r2',nombre:'Dinámica',sigla:'FIS1514'}]},
