@@ -87,7 +87,23 @@ function contexto({search='',sesion=false}={}){
   chk('una categoría de una sola nota es una sola fila, con el nombre de la categoría',
     /panel-alumnos-cat"><td>Solemne<\/td><td>4\.4<\/td><td><span class="panel-alumnos-gh">4\.1/.test(renombradas)&&!/Pero perro/.test(renombradas));
 
+  console.log('\n=== Buscador de alumnos ===');
+  a.run(`globalThis.__al=[
+    {id:'a1',nombre_visible:'Camila Pérez',tenant:'uc',ramos:[{id:'r1',nombre:'Cálculo II',sigla:'MAT1620'},{id:'r2',nombre:'Dinámica',sigla:'FIS1514'}]},
+    {id:'a2',nombre_visible:'Tomás',tenant:'uc',ramos:[{id:'r3',nombre:'Álgebra Lineal',sigla:'MAT1203'}]},
+    {id:'a3',nombre_visible:'Ignacia',tenant:'uc',ramos:[]}]`);
+  const ids=t=>a.run(`filtrarAlumnosPanel(__al,${JSON.stringify(t)}).map(x=>x.id+':'+x.ramos.map(r=>r.id).join(',')).join(' ')`);
+  chk('sin texto se ven todos, igual que antes',ids('   ')==='a1:r1,r2 a2:r3 a3:');
+  chk('por nombre, sin tildes ni mayúsculas, con todos sus ramos',ids('camila perez')==='a1:r1,r2'&&ids('TOMAS')==='a2:r3');
+  chk('por ramo, solo con el ramo que calza',ids('dinamica')==='a1:r2'&&ids('álgebra')==='a2:r3');
+  chk('por sigla, también un trozo',ids('mat1')==='a1:r1 a2:r3'&&ids('fis1514')==='a1:r2');
+  chk('si nadie calza, la lista queda vacía',ids('química')==='');
+  chk('no cambia la lista original',a.run('__al[0].ramos.length')===2);
+  const lista=a.run(`alumnosPanelHTML([{id:'x"1',nombre_visible:'<img src=x>',ramos:[]}],()=>null)`);
+  chk('el nombre que eligió el alumno va escapado',/&lt;img src=x&gt;/.test(lista)&&!/<img/.test(lista));
+
   console.log('\n=== Medición sin datos de nadie ===');
+
   const mk=leer('marketplace.js');
   chk('solo cuenta cuántos ramos o alumnos, nunca nombres ni notas',
     /track\('compartir_con_profesor',\{ramos:n\}\)/.test(mk)&&/track\('panel_alumnos_abierto',\{alumnos:alumnos\.length\}\)/.test(mk));

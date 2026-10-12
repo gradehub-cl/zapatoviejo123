@@ -3301,6 +3301,28 @@ function ramoPanelHTML(r,comp){
   </div>`;
 }
 
+// Buscador del panel: por el nombre con que el alumno eligió aparecer, o por
+// ramo o sigla, sin importar tildes ni mayúsculas. Si calza el nombre se ven
+// todos sus ramos; si calza un ramo, solo ese.
+function filtrarAlumnosPanel(alumnos,texto){
+  const q=claveEvaluacionPanel(texto);
+  if(!q)return alumnos;
+  const calza=s=>(claveEvaluacionPanel(s)||'').includes(q);
+  return alumnos.map(al=>{
+    if(calza(al.nombre_visible))return al;
+    const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
+      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
+    return ramos.length?{...al,ramos}:null;
+  }).filter(Boolean);
+}
+function alumnosPanelHTML(lista,compDe){
+  return lista.map(al=>`<details class="panel-alumnos-alumno" open>
+      <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
+      ${(al.ramos||[]).length?(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r))).join(''):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
+    </details>`).join('');
+}
+
 async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
@@ -3337,13 +3359,12 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>
-    <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span>${alumnos.length}</span></div>`+
-    (alumnos.length?alumnos.map(al=>`<details class="panel-alumnos-alumno" open>
-      <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
-      ${(al.ramos||[]).length?(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r))).join(''):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
-      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
-    </details>`).join('')
-      :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>')+
+    <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
+    // Con uno solo no hay nada que buscar.
+    (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
+      aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+
+    `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
+      :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
     '<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div></div>';
   raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver&&volver());
@@ -3362,13 +3383,24 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
         showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver});}
       catch(e){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}
     },{label:'Cambiar link',focusCancel:true}));
-  raiz.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
+  const lista=raiz.querySelector('#alumnos-lista');
+  const enlazarQuitar=()=>lista.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
     'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
       b.disabled=true;
       try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
         showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
       catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
     },{label:'Quitar',focusCancel:true})));
+  enlazarQuitar();
+  // Se filtra en el navegador, con lo que el panel ya bajó.
+  const buscar=raiz.querySelector('#alumnos-buscar');
+  if(buscar)buscar.addEventListener('input',()=>{
+    const texto=buscar.value,vista=filtrarAlumnosPanel(alumnos,texto);
+    raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
+    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
+      :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
+    enlazarQuitar();
+  });
   track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
 
