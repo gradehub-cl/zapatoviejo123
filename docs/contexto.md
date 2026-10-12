@@ -116,31 +116,45 @@ acá, pregunta antes de empezar — hay tres agentes sobre cuatro archivos.
 
 ### Lucas · tomado el 2026-10-12
 
-Cada uno tiene su PR abierto y el detalle está en su issue. **No los rehagas**:
-si necesitas cambiar algo de ahí, parte de la rama del PR.
+Todo tiene PR abierto y el detalle está en su issue. **No lo rehagas**: si
+necesitas cambiar algo de ahí, parte de la rama del PR. Al 2026-10-12 no hay
+nada mergeado y **no queda SQL por correr**: el de #680 y el de #687 ya están
+aplicados en producción.
 
-- **#657 (anuncio pausado que seguía cobrando días): #680.** El SQL ya está
-  aplicado en producción y los dos anuncios afectados están corregidos. Solo
-  falta mergear.
-- **Panel de alumnos (#667 y #663), en cadena, porque tocan las mismas
-  funciones de `marketplace.js`:** #681 (buscador y exportar; cambia términos y
-  privacidad) → #684 (resumen por ramo) → #685 (próxima evaluación por alumno)
-  → #686 (el laboratorio vinculado se buscaba entre los ramos del profesor). Se
-  mergean en ese orden. Nada más del panel hasta que entren.
-- **Anuncios de clases (#664): #682** (el ramo con evaluación en 7 días va
-  primero) **y #683** («4 clases · $11.250 c/u»).
-- **Métricas propias (#666): #687, borrador.** El SQL ya está aplicado en
-  producción; la app recién empieza a registrar visitas al mergear. El texto de
-  privacidad va aparte y conviene publicarlo junto con el merge.
-- **Canvas en la web (#647): #689, encima de #670.** Fechas desde la fuente de
-  calendario, con `functions/canvas-calendario.js`. Se mergea después de #670.
-- **Décimas del estudiante (#631): #690.** Principios Ecológicos y Dinámica.
-  Toca el motor (`engine.js`) y la ficha. Econometría y Revelación y Fe quedan
-  para después; Revelación y Fe, hasta confirmar a qué nota van.
+| Issue | PR | Estado | Para mergear |
+|---|---|---|---|
+| #657 anuncio pausado que seguía cobrando días | #680 | SQL aplicado; `b338c850` y `cc8630fa` corregidos | listo |
+| #667 panel: buscador y exportar | #681 | cambia términos y privacidad (el profesor puede descargar) | 1.º de la cadena |
+| #667 panel: resumen por ramo | #684 | encima de #681 | 2.º |
+| #663 panel: próxima evaluación por alumno | #685 | encima de #684 | 3.º |
+| arreglo del panel: laboratorio del profesor | #686 | encima de #685; error que está en `main` | 4.º |
+| #664 anuncio antes de cada evaluación | #682 | prioriza, no filtra | listo |
+| #664 precio por clase en packs | #683 | solo texto | listo |
+| #666 visitas diarias y crecimiento semanal | #687 | SQL aplicado; registra desde el merge | junto con la privacidad |
+| #647 Canvas en la web (fuente de calendario) | #689 | encima de #670; función nueva en `functions/` | después de #670 |
+| #631 décimas: Principios Ecológicos y Dinámica | #690 | toca `engine.js`; migración aditiva | listo |
 
-Sin dueño, salidos de este trabajo: el aviso dentro de la app del cambio de
-términos de #681, cerrar un anuncio pausado sin campaña desde el panel (#657), y
-la «entrada» barata de #664.
+Los PR del panel (#681 → #684 → #685 → #686) tocan las mismas funciones de
+`marketplace.js`: se mergean en ese orden y cada uno pasa a apuntar a `main`
+cuando entra el anterior. Nada más del panel hasta que entren.
+
+**Pendiente, sin dueño todavía:**
+
+- Política de privacidad: agregar las visitas diarias de #687 (13 meses, solo
+  cuenta y día). Va junto con ese merge.
+- Aviso dentro de la app del cambio de términos de #681: la política promete
+  avisar los cambios importantes.
+- Cerrar desde el panel un anuncio pausado sin campaña:
+  `admin_terminar_anuncio_pausado` exige fila en `anuncio_campanas` (#657).
+- #631: Econometría Aplicada (décimas por evaluación) y Revelación y Fe, que
+  queda sin calcular hasta confirmar si «la nota más baja» incluye el examen.
+- #664: la «entrada» barata como tipo de anuncio, y los testimonios (#643).
+- #663: precio del panel, Universal Links, comparación del ramo para UAI y
+  UAndes, y que el panel calcule con las reglas de la universidad del alumno y
+  no con las del profesor.
+- #630: «la inasistencia es 1,0» no tiene dónde vivir: no existe «marcar
+  ausente», solo «Falté con justificativo».
+- #639: `pendientes()` ya existe en la rama `ios` (#676); falta la pantalla.
 
 ### Con qué parte cada uno
 
