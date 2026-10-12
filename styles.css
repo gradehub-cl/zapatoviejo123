@@ -310,6 +310,20 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ruleta-lista::-webkit-scrollbar{display:none;}
 .ruleta-fila{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:1.0625rem;color:var(--fg3);font-variant-numeric:tabular-nums;cursor:pointer;}
 .ruleta-fila.es-elegida{color:var(--fg);font-size:1.375rem;font-weight:650;}
+.ruleta-control{position:relative;}
+.ruleta-lista{cursor:grab;user-select:none;-webkit-user-select:none;}
+.ruleta-lista.arrastrando{cursor:grabbing;scroll-snap-type:none;}
+/* Botones chicos a la vista, pero de 44 pt al tocarlos. */
+.ruleta-paso{position:absolute;right:6px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--fg2);cursor:pointer;}
+.ruleta-paso .ic{width:18px;height:18px;padding:5px;box-sizing:content-box;border-radius:999px;background:var(--card);border:1px solid var(--border);}
+.ruleta-arriba{top:4px;}
+.ruleta-abajo{bottom:4px;}
+.ob-sem-editar{margin:0 0 14px;}
+.ob-sem-fila{display:flex;gap:10px;}
+.ob-sem-fila input{flex:1;min-height:44px;}
+.ob-sem-verano{min-height:44px;padding:0 16px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;}
+.ob-sem-verano[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-light);}
+.ob-sem-editar[hidden]{display:none;}
 .ob-ruleta-ayuda{margin:-4px 0 10px;font-size:0.8125rem;color:var(--fg2);}
 .ob-ruleta-aviso{margin:10px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
 .ob-ruleta-aviso:empty{display:none;}

@@ -502,6 +502,8 @@ function normalize(data) {
   // estudiante: así cargan igual que siempre las que existían antes de esto.
   data.tipoCuenta = data.tipoCuenta === 'profesor' ? 'profesor' : 'estudiante';
   // Año de ingreso a la universidad (#697). Las cuentas anteriores no lo tienen.
+  // TAV o verano marcado a mano en el onboarding: vale hasta el 1 de marzo.
+  data.verano = data.verano&&typeof data.verano.hasta==='string'&&/^\d{4}-03-01$/.test(data.verano.hasta)?{hasta:data.verano.hasta}:null;
   data.generacion = Number.isInteger(data.generacion)&&data.generacion>=2000&&data.generacion<=new Date().getFullYear()?data.generacion:null;
   return data;
 }
@@ -1614,15 +1616,23 @@ function filtrarCarrerasAjustes(v){window._sFiltro&&window._sFiltro(v);}
 // teclado y el lector de pantalla (role="spinbutton"). El tamaño de la letra
 // va en rem, así que respeta el que eligió la persona.
 const RULETA_FILA=44;
-function montarRuleta(caja,{valores,etiqueta,inicial=null,vacio=null,texto=v=>String(v),alCambiar}){
-  if(!caja)return null;
+const CHEVRON_RULETA=d=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto=v=>String(v),alCambiar}){
+  if(!contenedor)return null;
   const opciones=vacio!==null?[null,...valores]:valores.slice();
-  caja.className='ruleta';
+  // Arriba y abajo, dos botones chicos para moverla de a uno con un clic (en el
+  // computador arrastrar con la rueda no siempre es cómodo). Van fuera del
+  // spinbutton: un control no puede llevar otros controles adentro.
+  contenedor.className='ruleta-control';
+  contenedor.innerHTML='<div class="ruleta"><div class="ruleta-marco" aria-hidden="true"></div><div class="ruleta-lista" aria-hidden="true">'+
+    opciones.map((v,i)=>`<div class="ruleta-fila" data-i="${i}">${esc(v===null?vacio:texto(v))}</div>`).join('')+'</div></div>'+
+    `<button type="button" class="ruleta-paso ruleta-arriba" aria-label="Anterior">${CHEVRON_RULETA('M6 15l6-6 6 6')}</button>`+
+    `<button type="button" class="ruleta-paso ruleta-abajo" aria-label="Siguiente">${CHEVRON_RULETA('M6 9l6 6 6-6')}</button>`;
+  const caja=contenedor.querySelector('.ruleta');
+  if(!caja)return null;
   caja.setAttribute('role','spinbutton');caja.tabIndex=0;
   caja.setAttribute('aria-labelledby',etiqueta);
   caja.setAttribute('aria-valuemin',String(valores[0]));caja.setAttribute('aria-valuemax',String(valores[valores.length-1]));
-  caja.innerHTML='<div class="ruleta-marco" aria-hidden="true"></div><div class="ruleta-lista" aria-hidden="true">'+
-    opciones.map((v,i)=>`<div class="ruleta-fila" data-i="${i}">${esc(v===null?vacio:texto(v))}</div>`).join('')+'</div>';
   const lista=caja.querySelector('.ruleta-lista');
   // Sin DOM de verdad (un entorno de prueba) no hay ruleta, pero el onboarding sigue.
   if(!lista)return null;
@@ -1642,7 +1652,34 @@ function montarRuleta(caja,{valores,etiqueta,inicial=null,vacio=null,texto=v=>St
   // Al soltar, la fila que quedó al centro es la elegida.
   let espera=null;
   lista.addEventListener('scroll',()=>{clearTimeout(espera);espera=setTimeout(()=>elegir(Math.round(lista.scrollTop/RULETA_FILA),{mover:false}),90);},{passive:true});
-  lista.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.ruleta-fila');if(f)elegir(Number(f.dataset.i));});
+  // Con el mouse se agarra y se arrastra, como con el dedo. Mientras se
+  // arrastra se apaga el encaje, que si no tironea la lista a cada movimiento.
+  let arrastre=null;
+  lista.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='mouse'||e.button!==0)return;
+    arrastre={y:e.clientY,top:lista.scrollTop,movio:false};
+    lista.classList.add('arrastrando');
+    if(lista.setPointerCapture)lista.setPointerCapture(e.pointerId);
+  });
+  lista.addEventListener('pointermove',e=>{
+    if(!arrastre)return;
+    const dy=e.clientY-arrastre.y;
+    if(Math.abs(dy)>4)arrastre.movio=true;
+    lista.scrollTop=arrastre.top-dy;
+  });
+  const soltar=()=>{
+    if(!arrastre)return;
+    const movio=arrastre.movio;arrastre=null;
+    lista.classList.remove('arrastrando');
+    if(movio){lista.dataset.recienArrastrada='1';elegir(Math.round(lista.scrollTop/RULETA_FILA));}
+  };
+  lista.addEventListener('pointerup',soltar);lista.addEventListener('pointercancel',soltar);
+  lista.addEventListener('click',e=>{
+    if(lista.dataset.recienArrastrada){delete lista.dataset.recienArrastrada;return;}
+    const f=e.target.closest&&e.target.closest('.ruleta-fila');if(f)elegir(Number(f.dataset.i));
+  });
+  contenedor.querySelector('.ruleta-arriba').addEventListener('click',()=>elegir(idx-1));
+  contenedor.querySelector('.ruleta-abajo').addEventListener('click',()=>elegir(idx+1));
   caja.addEventListener('keydown',e=>{
     const d={ArrowUp:-1,ArrowDown:1,PageUp:-5,PageDown:5}[e.key];
     if(d){e.preventDefault();elegir(idx+d);}
@@ -1660,7 +1697,16 @@ const rangoAnios=(desde,hasta)=>Array.from({length:hasta-desde+1},(_,i)=>desde+i
 // parte en el año actual. Las dos se guardan en el perfil (decisión de Lucas,
 // 2026-10-12; ver supabase/edad_declarada.sql y la política de privacidad).
 const EDAD_MINIMA=14;
-let obEdad=null,obGeneracion=new Date().getFullYear(),ruletaEdad=null,ruletaGeneracion=null,obSemManual=false;
+let obEdad=null,obGeneracion=new Date().getFullYear(),ruletaEdad=null,ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
+// Quien está en TAV lo marca a mano y queda guardado hasta el 1 de marzo
+// siguiente: desde ahí vuelve a regir el semestre calculado. Mientras dura no
+// se sugieren ramos de la malla, porque en TAV se toman ramos sueltos.
+function finDeVerano(fecha=new Date()){const y=fecha.getMonth()>=2?fecha.getFullYear()+1:fecha.getFullYear();return y+'-03-01';}
+function enVerano(fecha=new Date()){
+  const v=S&&S.verano;if(!v||typeof v.hasta!=='string')return false;
+  const hoy=fecha.getFullYear()+'-'+String(fecha.getMonth()+1).padStart(2,'0')+'-'+String(fecha.getDate()).padStart(2,'0');
+  return hoy<v.hasta;
+}
 // El semestre sale de la generación y la fecha (decisión de Lucas, 2026-10-12):
 // marzo a julio es el primero del año, agosto a diciembre el segundo, y en
 // enero y febrero —el verano— cuenta el que empieza en marzo. Quien entró en
@@ -1673,14 +1719,40 @@ function actualizarSemestreCalculado(){
   if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
   const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
   if(!caja)return;
-  const verano=!obSemManual&&new Date().getMonth()<2;
-  caja.innerHTML=`<span>${verano?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.</span>`+
-    (grilla&&grilla.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
+  const editar=document.getElementById('ob-sem-editar');
+  const pasaMarzo=!obSemManual&&new Date().getMonth()<2;
+  const frase=obVerano?`Estás en <b>${esc(nombreVerano(selectedTenant))}</b>.`
+    :`${pasaMarzo?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.`;
+  caja.innerHTML=`<span>${frase}</span>`+
+    (editar&&editar.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
+  const boton=document.getElementById('ob-sem-verano');
+  if(boton){boton.textContent=nombreVerano(selectedTenant);boton.setAttribute('aria-pressed',obVerano?'true':'false');}
 }
+// "Cambiar" pide escribir el semestre, o marcar TAV/verano.
 function mostrarSemestreManual(){
-  const grilla=document.getElementById('sem-grid');if(!grilla)return;
-  grilla.hidden=false;actualizarSemestreCalculado();
-  const elegido=grilla.querySelector('.sel');if(elegido)elegido.focus();
+  const editar=document.getElementById('ob-sem-editar');if(!editar)return;
+  editar.hidden=false;actualizarSemestreCalculado();
+  const campo=document.getElementById('ob-sem-input');
+  if(campo){campo.value=obVerano?'':String(selectedSem);campo.focus();campo.select&&campo.select();}
+}
+function escribirSemestreOnboarding(texto){
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const error=document.getElementById('ob-sem-error');
+  const limpio=String(texto||'').trim();
+  const n=/^\d{1,2}$/.test(limpio)?Number(limpio):NaN;
+  obSemInvalido=!(n>=1&&n<=total);
+  if(!obSemInvalido){selectedSem=n;obSemManual=true;obVerano=false;}
+  if(error)error.textContent=obSemInvalido&&limpio?`Escribe un número entre 1 y ${total}.`:'';
+  if(!limpio)obSemInvalido=!obVerano;
+  actualizarSemestreCalculado();checkOb();
+}
+function alternarVeranoOnboarding(){
+  obVerano=!obVerano;obSemInvalido=false;
+  const campo=document.getElementById('ob-sem-input'),error=document.getElementById('ob-sem-error');
+  if(obVerano&&campo)campo.value='';
+  if(error)error.textContent='';
+  if(!obVerano&&campo)campo.value=String(selectedSem);
+  actualizarSemestreCalculado();checkOb();
 }
 function avisoEdadOnboarding(){
   const aviso=document.getElementById('ob-edad-aviso');if(!aviso)return;
@@ -1698,19 +1770,21 @@ function obStepValid(step,datos){
     nombre:(document.getElementById('ob-name')||{}).value||'',
     edad:obEdad,
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
+    verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre
   };
   // El paso 1 pide dos cosas: cómo te llamas y tu edad, que tiene que ser la mínima.
   if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=EDAD_MINIMA;
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
-  if(step===4)return !!d.semestre;
+  if(step===4)return !d.semInvalido&&(!!d.semestre||!!d.verano);
   if(step===5)return true;
   return false;
 }
 function obProgressPct(step){return Math.round(step/OB_TOTAL*100);}
 
-function obRamosActuales(){return ((mallaDeCarrera(selectedTenant,selectedCarrera)||{})[selectedSem]||[]);}
+// En TAV no se sugieren ramos de la malla: se toman ramos sueltos.
+function obRamosActuales(){if(typeof obVerano!=='undefined'&&obVerano)return [];return ((mallaDeCarrera(selectedTenant,selectedCarrera)||{})[selectedSem]||[]);}
 function prepararObRamos(){
   const key=[selectedTenant,selectedCarrera,selectedSem].join(':');
   // Traer la malla antes de decidir qué sugerir. Si no llega, el paso 5 muestra
@@ -2050,7 +2124,7 @@ function completeOnboarding(){
     showToast('Falta un dato para crear tu cuenta',true);
     return;
   }
-  S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
+  S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.verano=obVerano?{hasta:finDeVerano()}:null;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
   obRamos.forEach(item=>{
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
@@ -2890,7 +2964,8 @@ function deleteNota(catId,notaId){
 // ─── RAMOS DE LA MALLA ───────────────────────────────────────────────────────
 function mallaFaltantes(){
   if(!S.carrera) return [];
-  const ramos=(mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[];
+  // En TAV no hay ramos de malla que sugerir.
+  const ramos=enVerano()?[]:((mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[]);
   return ramos.filter(n=>!S.ramos.some(r=>r.nombre.toLowerCase()===n.toLowerCase()));
 }
 let _mallaSel={}, _mallaList=[];
@@ -7362,7 +7437,8 @@ const PERIODOS_SEMESTRE=[
   {id:'2',corto:'2°',nombre:'Segundo semestre'},
   {id:'v',corto:'',nombre:'Temporada de verano'}
 ];
-function nombreVerano(){return S.tenant==='uc'?'TAV':'Verano';}
+// En el onboarding la cuenta todavía no tiene universidad: se pasa la elegida.
+function nombreVerano(tenant=S.tenant){return tenant==='uc'?'TAV':'Verano';}
 function cortoPeriodo(p){return p.id==='v'?nombreVerano():p.corto;}
 
 function etiquetaSemestre(anio,periodo){

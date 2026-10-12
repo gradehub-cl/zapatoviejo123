@@ -76,7 +76,7 @@ try{
   }
 }catch(e){console.warn('Supabase no inicializado:',e);}
 
-function freshState(){return{ramos:[],userName:'',careerSemestre:1,carrera:null,tenant:'fen',onboardingDone:false,tipoCuenta:'estudiante',generacion:null,historial:[],sortMode:'manual',modo:'sistema',acento:'turquesa',fondo:'neutro',carreraNombre:null};}
+function freshState(){return{ramos:[],userName:'',careerSemestre:1,carrera:null,tenant:'fen',onboardingDone:false,tipoCuenta:'estudiante',generacion:null,verano:null,historial:[],sortMode:'manual',modo:'sistema',acento:'turquesa',fondo:'neutro',carreraNombre:null};}
 
 function authError(msg,kind){
   // kind: 'error' (default, rojo) | 'info' (neutro, para mensajes tipo "revisa tu correo")
@@ -1149,7 +1149,8 @@ async function syncProfile(){
       // malla— no vale para nada. Los códigos viejos siguen siendo válidos y
       // se distinguen porque están en CARRERAS_DECLARABLES.
       carrera:S.carreraNombre||S.carrera||null,
-      semestre:S.careerSemestre||null,
+      // En TAV no hay número de semestre.
+      semestre:(typeof enVerano==='function'&&enVerano())?null:(S.careerSemestre||null),
       // Columna de #697: si todavía no existe, esta subida falla entera; por
       // eso solo va cuando hay generación, que tienen solo las cuentas nuevas.
       ...(S.generacion?{generacion:S.generacion}:{}),
