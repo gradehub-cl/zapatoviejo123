@@ -666,13 +666,40 @@ function criteriosClaseValidos(c){
     c.promedioMenorA>1&&c.promedioMenorA<=7&&Number.isFinite(c.avanceMinimo)&&
     c.avanceMinimo>=0&&c.avanceMinimo<100;
 }
+// La próxima evaluación sin nota del ramo según su Agenda, si cae entre hoy y
+// los próximos DIAS_ANTES_EVALUACION_CLASES días; si no, null. Misma regla
+// que agendaEvents: una nota con fecha propia es su propia evaluación, y la
+// fecha del grupo cuenta mientras le falten notas para sus casillas.
+const DIAS_ANTES_EVALUACION_CLASES=7;
+function proximaEvaluacionClases(ramo,ahora=Date.now()){
+  const desde=diaLocalClases(ahora),hasta=diaLocalClases(ahora+DIAS_ANTES_EVALUACION_CLASES*864e5);
+  const enVentana=f=>typeof f==='string'&&f>=desde&&f<=hasta;
+  let proxima=null;
+  const anotar=f=>{if(enVentana(f)&&(!proxima||f<proxima))proxima=f;};
+  (ramo&&ramo.categorias||[]).forEach(c=>{
+    if(typeof categoriaEximida==='function'&&categoriaEximida(ramo,c))return;
+    const notas=c.notas||[];
+    notas.forEach(n=>{if(n.fecha&&(n.valor===null||n.valor===undefined))anotar(n.fecha);});
+    if(c.fecha&&notas.filter(n=>!n.fecha).length<(c.slots||1))anotar(c.fecha);
+  });
+  return proxima;
+}
+
 function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now(),turno=0}={}){
-  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant);
+  // Primero los ramos con una evaluación en los próximos días, la más cercana
+  // antes (#664: con la prueba encima es cuando alguien escribe a un profesor).
+  // Los demás quedan detrás en el orden que eligió la persona, así que quien no
+  // tiene fechas en la Agenda ve lo mismo que antes.
+  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant)
+    .map((r,i)=>({r,i,f:proximaEvaluacionClases(r,ahora)}))
+    .sort((x,y)=>x.f&&y.f?(x.f<y.f?-1:x.f>y.f?1:x.i-y.i):x.f?-1:y.f?1:x.i-y.i)
+    .map(x=>x.r);
   const omitidos=new Set(descartados);
   const disponibles=anunciosParaRamosLocales(anuncios,propios).filter(a=>
     a.tenant===tenant&&a.estado==='publicado'&&!omitidos.has(a.id)&&
     (a.vence_at==null||Date.parse(a.vence_at)>ahora)&&criteriosClaseValidos(a.criterios));
-  // El orden de ramos que eligió la persona manda. Si varios avisos calzan con
+  // Después de la próxima evaluación, el orden de ramos que eligió la persona
+  // manda. Si varios avisos calzan con
   // el mismo ramo, se alternan en cada apertura de la app: antes ganaba siempre
   // el publicado último, y un profesor con dos clases del mismo ramo casi no
   // veía la otra en Inicio (Salva Ramos, 2026-09-30). Se entrega como máximo

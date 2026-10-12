@@ -48,6 +48,35 @@ ctx.__avisos=[];const vacio=dia(complicado,{},lunes).estado;ctx.__avisos=[aviso(
 chk('si la clase se publica más tarde, aparece',dia(complicado,vacio,lunes+3600e3,'v2').sel?.anuncio.id==='a1');
 chk('un estado de la versión anterior (una sola vez cerrada) no la descarta',dia(complicado,{dia:'2026-09-28',anuncioId:null,cerradaHoy:true,descartados:['a1']},lunes).sel?.anuncio.id==='a1');
 
+console.log('\n=== Antes de una evaluación, ese ramo va primero (#664) ===');
+// Dos ramos que calzan, cada uno con su clase. Química va segundo en el orden
+// de la persona; las fechas de su Agenda deciden si pasa adelante.
+const conFechas=(id,sigla,{fechaGrupo=null,fechaNota=null,valorConFecha=null}={})=>({id,nombre:'Ramo '+sigla,sigla,origen:{tenant:'uc',ramoKey:sigla},gates:[],categorias:[
+  {id:'informes',nombre:'Informes',peso:70,slots:6,directNota:true,notas:[nota(0,3.5),nota(1,3.5),
+    ...(fechaNota?[{...nota(2,valorConFecha),fecha:fechaNota}]:[])]},
+  {id:'examen',nombre:'Examen',peso:30,directNota:true,fecha:fechaGrupo,notas:[]}]});
+const avisoDe=(id,sigla)=>({...aviso(id),ramos_siglas:[sigla]});
+ctx.__avisosFecha=[avisoDe('calculo','MAT1610'),avisoDe('quimica','QIM100A')];
+const elige=ramos=>{ctx.__rf=ramos;return run(`seleccionarClaseApoyo(__avisosFecha,__rf,'uc',{ahora:${lunes}})?.anuncio.id`);};
+const fechaDe=r=>{ctx.__rp=r;return run(`proximaEvaluacionClases(__rp,${lunes})`);};
+chk('sin fechas manda el orden de la persona, como antes',elige([conFechas('c','MAT1610'),conFechas('q','QIM100A')])==='calculo');
+chk('con el examen de Química en 3 días, va primero Química',
+  elige([conFechas('c','MAT1610'),conFechas('q','QIM100A',{fechaGrupo:'2026-10-01'})])==='quimica');
+chk('con los dos en la semana, el más cercano',
+  elige([conFechas('c','MAT1610',{fechaGrupo:'2026-10-02'}),conFechas('q','QIM100A',{fechaGrupo:'2026-09-29'})])==='quimica');
+chk('una evaluación en más de 7 días todavía no cuenta',
+  elige([conFechas('c','MAT1610'),conFechas('q','QIM100A',{fechaGrupo:'2026-10-06'})])==='calculo');
+chk('la de hoy y la del día 7 sí',fechaDe(conFechas('q','QIM100A',{fechaGrupo:'2026-09-28'}))==='2026-09-28'&&
+  fechaDe(conFechas('q','QIM100A',{fechaGrupo:'2026-10-05'}))==='2026-10-05');
+chk('una que ya pasó no cuenta',fechaDe(conFechas('q','QIM100A',{fechaGrupo:'2026-09-27'}))===null);
+chk('una nota con fecha propia y sin nota cuenta',fechaDe(conFechas('q','QIM100A',{fechaNota:'2026-09-30'}))==='2026-09-30');
+chk('si esa nota ya está puesta, no',fechaDe(conFechas('q','QIM100A',{fechaNota:'2026-09-30',valorConFecha:3.5}))===null);
+ctx.__lleno={...conFechas('q','QIM100A'),categorias:[{id:'k',nombre:'Control',peso:100,slots:1,fecha:'2026-09-30',notas:[nota(0,3.5)]}]};
+chk('un grupo con todas sus casillas con nota no cuenta',run(`proximaEvaluacionClases(__lleno,${lunes})`)===null);
+chk('un ramo que no calza no gana por tener fecha',
+  elige([conFechas('c','MAT1610'),{...conFechas('q','QIM100A',{fechaGrupo:'2026-10-01'}),categorias:ramo('x',[6.5,6.5]).categorias.map((c,i)=>i?{...c,fecha:'2026-10-01'}:c)}])==='calculo');
+chk('no cambia el orden de los ramos guardados',(()=>{const rs=[conFechas('c','MAT1610'),conFechas('q','QIM100A',{fechaGrupo:'2026-10-01'})];elige(rs);return rs[0].id==='c';})());
+
 console.log('\n=== Dos clases del mismo ramo se alternan en cada apertura ===');
 // Antes ganaba siempre la publicada último, y la otra casi no salía en Inicio.
 let est={},seq=[];
