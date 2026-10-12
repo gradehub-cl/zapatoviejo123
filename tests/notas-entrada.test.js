@@ -44,6 +44,16 @@ console.log('\n=== La coma es como se escribe acá ===');
 eq('"5,5" → 5.5', parseNota('5,5'), 5.5);
 eq('"5.5" → 5.5', parseNota('5.5'), 5.5);
 eq('"  6,2  " con espacios', parseNota('  6,2  '), 6.2);
+// Hay profesores que ponen centésimas: 5,14 se guarda como 5,14, no como 5,1.
+eq('"5,14" → 5.14', parseNota('5,14'), 5.14);
+eq('"5.14" → 5.14', parseNota('5.14'), 5.14);
+eq('"6,999" se queda en centésimas', parseNota('6,999'), 7.0);
+eq('"7,01" está fuera de la escala', parseNota('7,01'), NaN);
+chk('se muestra como se escribió (5.14)', val('textoCalificacionNota')({valor:5.14}) === '5.14');
+chk('una nota con décima sigue con una (5.1)', val('textoCalificacionNota')({valor:5.1}) === '5.1');
+const ficha = fs.readFileSync(raiz + 'render-main.js', 'utf8');
+chk('editar una nota no la vuelve a redondear a la décima', !/asignarCalificacionNota\(n,rawNota,Math\.round/.test(fs.readFileSync(raiz + 'app.js', 'utf8')));
+chk('los campos de nota de la ficha dejan escribir "5,14"', (ficha.match(/class="eval-row-input[^"]*"[^>]*maxlength="(\d)"/g) || []).every(m => +m.match(/maxlength="(\d)"/)[1] >= 4));
 
 console.log('\n=== Un dígito solo se respeta ===');
 // Escribir "5" mientras se apunta a "5,5" tiene que valer 5,0 y no convertirse
