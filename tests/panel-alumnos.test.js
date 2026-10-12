@@ -87,6 +87,28 @@ function contexto({search='',sesion=false}={}){
   chk('una categoría de una sola nota es una sola fila, con el nombre de la categoría',
     /panel-alumnos-cat"><td>Solemne<\/td><td>4\.4<\/td><td><span class="panel-alumnos-gh">4\.1/.test(renombradas)&&!/Pero perro/.test(renombradas));
 
+  console.log('\n=== Próxima evaluación de cada alumno (#663) ===');
+  // Hoy es el 12 de octubre. I1 ya tiene nota; I2 es el 15. Pautas escritas acá.
+  a.run(`globalThis.__hoy=new Date(2026,9,12,10);
+    globalThis.__conI2=(i1,pesoI1=50,fechaI2='2026-10-15')=>({id:'p',nombre:'Cálculo II',sigla:'MAT1620',gates:[],categorias:[
+      {id:'i1',nombre:'Interrogación 1',peso:pesoI1,fecha:'2026-09-20',notas:[{id:'a',nombre:'Interrogación 1',valor:i1}]},
+      {id:'i2',nombre:'Interrogación 2',peso:100-pesoI1,fecha:fechaI2,notas:[]}]})`);
+  const prox=(...args)=>a.run(`proximaEvaluacionPanel(ramoParaPanel(__conI2(${args.map(x=>JSON.stringify(x)).join(',')})),__hoy)`);
+  let p=prox(3.0);
+  chk('la próxima es la que viene con fecha y sin nota',p&&p.evaluacion==='Interrogación 2'&&p.fecha==='2026-10-15');
+  chk('con un 3,0 en la I1 (50/50) necesita 4,9 para ir con 4',p.necesita==='4.9');
+  chk('es lo mismo que calcula la app del alumno (notaParaIrConCuatro)',
+    a.run(`notaParaIrConCuatro(agendaEvents([ramoParaPanel(__conI2(3.0))]).find(e=>e.pending)).nota`)===p.necesita);
+  chk('con un 7,0 va con 4 con cualquier nota',prox(7.0).margen===true&&prox(7.0).necesita===null);
+  chk('con un 1,0 que pesa 70%, con esta sola no alcanza',prox(1.0,70).inalcanzable===true);
+  chk('una evaluación que ya pasó no es la próxima',prox(3.0,50,'2026-10-01')===null);
+  chk('hoy sí cuenta',prox(3.0,50,'2026-10-12')?.fecha==='2026-10-12');
+  const hp=a.run(`ramoPanelHTML(__conI2(3.0),null,__hoy)`);
+  chk('la ficha del alumno lo dice: evaluación, fecha y nota necesaria',
+    /Próxima: <b>Interrogación 2<\/b> · 15 oct<\/span><span>necesita <b>4,9<\/b> para ir con 4/.test(hp));
+  chk('sin fechas por venir, no aparece nada',!/panel-alumnos-proxima/.test(a.run(`ramoPanelHTML(__conI2(3.0,50,'2026-10-01'),null,__hoy)`)));
+  chk('agendaEvents sin argumento sigue usando los ramos de la persona',a.run('S.ramos=[__conI2(3.0)];agendaEvents().length')===2&&a.run('(S.ramos=[],agendaEvents().length)')===0);
+
   console.log('\n=== Resumen por ramo (#667) ===');
   // Tres alumnos en Cálculo II (uno sin notas, uno que escribió la prueba en
   // minúsculas) y uno en Física. Pautas escritas acá.

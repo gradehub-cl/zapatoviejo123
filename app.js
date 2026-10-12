@@ -9051,9 +9051,11 @@ function pesoEventoAgenda(e){
   return peso*seleccion.reduce((s,h)=>s+h.weight,0)/total;
 }
 
-function agendaEvents(){
+// Sin argumento, los ramos de la persona. El panel del profesor le pasa los
+// ramos que un alumno le compartió, para usar exactamente la misma regla.
+function agendaEvents(ramos){
   const out=[];
-  S.ramos.forEach(r=>{
+  (ramos||S.ramos).forEach(r=>{
     r.categorias.forEach(c=>{
       if(categoriaEximida(r,c))return;
       // Las notas con fecha propia son evaluaciones sueltas dentro del grupo:
