@@ -603,6 +603,53 @@ function renderRamo(){
     }
   }
 
+  // Décimas del programa (#631): la persona anota lo que ganó y el motor las
+  // suma donde dice la regla. Sin anotar no suma nada, y se dice por qué una
+  // décima anotada todavía no cuenta (la condición del programa).
+  const bw=document.getElementById('bonus-ramo');
+  if(bw){
+    const reglas=Array.isArray(r.bonus)?r.bonus:[];
+    if(!reglas.length){bw.style.display='none';bw.innerHTML='';}
+    else{
+      const calc=calculoRamoConCompuertas(r);
+      const valorDe=id=>{const n=calc.res.breakdown.find(x=>x.id===id);return n?n.value:null;};
+      const cumple=si=>{
+        if(!si)return true;
+        let acc=0,w=0;
+        si.catIds.forEach(id=>{const v=valorDe(id),c=(r.categorias||[]).find(x=>x.id===id);if(v!==null&&c){acc+=v*(Number(c.peso)||0);w+=Number(c.peso)||0;}});
+        return w>0&&acc/w>si.mayorQue;
+      };
+      const coma=n=>String(n).replace('.',',');
+      const nombres=ids=>{const n=ids.map(id=>(r.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean);return n.length>1?n.slice(0,-1).join(', ')+' y '+n[n.length-1]:(n[0]||'');};
+      const destino=b=>b.destino==='final'?'a tu nota final':`al promedio de ${(r.categorias||[]).find(c=>c.id===b.destino)?.nombre||'la evaluación'}`;
+      bw.style.display='block';
+      bw.innerHTML=reglas.map(b=>{
+        const v=r.bonusIngresado&&Number.isInteger(r.bonusIngresado[b.id])?r.bonusIngresado[b.id]:null;
+        const unidad=b.entrada==='decimas'?['décima','décimas']:['falta','faltas'];
+        let detalle;
+        if(v===null)detalle=esc(b.ayuda);
+        else if(b.entrada==='decimas'){
+          detalle=v===0?'Anota las que vayas ganando.'
+            :!cumple(b.si)?`Todavía no suman: tu promedio ponderado de ${esc(nombres(b.si.catIds))} tiene que superar ${coma(b.si.mayorQue.toFixed(1))}.`
+            :`Suman ${coma((Math.min(v,topeBonus(b))/10).toFixed(1))} ${esc(destino(b))}.`;
+        }else{
+          const quedan=b.hasta-v;
+          detalle=v<=b.hasta?`Sumas ${coma(b.suma.toFixed(1))} ${esc(destino(b))}. ${quedan===0?'No puedes faltar a otro.':quedan===1?'Puedes faltar a 1 más.':`Puedes faltar a ${quedan} más.`}`
+            :`Con más de ${b.hasta} ${unidad[1]} ya no sumas las ${coma((b.suma*10).toFixed(0))} décimas.`;
+        }
+        const control=v===null
+          ?`<button type="button" class="bonus-anotar" onclick="cambiarBonus('${esc(b.id)}',null)">Anotar</button>`
+          :`<div class="faltas-ctrl">
+              <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',-1)" aria-label="Restar una ${unidad[0]}" ${v===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+              <span class="faltas-num" aria-live="polite">${v}</span>
+              <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',1)" aria-label="Sumar una ${unidad[0]}" ${v>=topeBonus(b)?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>`;
+        return `<div class="faltas-card bonus-card" role="group" aria-label="${esc(b.pregunta)}">
+          <div class="faltas-txt"><span class="faltas-titulo">${esc(b.pregunta)}</span><span class="faltas-detalle">${detalle}</span></div>${control}</div>`;
+      }).join('');
+    }
+  }
+
   const rw=document.getElementById('recuperativo-warning');
   if(rw&&recuperativo){
     rw.style.display='flex';rw.className='weight-setup-nudge';rw.style.width='auto';rw.style.margin='12px 20px';
