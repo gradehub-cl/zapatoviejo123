@@ -3455,6 +3455,9 @@ function resumenAlumnosPanelHTML(resumen){
 // clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.
 const MIN_EVALS_COMPARACION=2;
 function diaLocalPanel(f){
+  // Una fecha sin hora ya es un día: leída con new Date sería medianoche UTC,
+  // que en Chile todavía es el día anterior (el 1 de septiembre salía 31 de agosto).
+  if(typeof f==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(f))return f;
   const d=f instanceof Date?f:new Date(f);if(f==null||isNaN(d))return null;
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
@@ -3495,7 +3498,7 @@ function resumenLadoPanel(lista){
 // `inicio` es cuándo empezó con el profesor: por omisión, cuándo compartió.
 function metricasAlumnoPanel(al,compDe,{inicio}={}){
   return conUniversidadPanel(al.tenant,()=>{
-    const desde=diaLocalPanel(inicio!==undefined?inicio:al.desde);
+    const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
     let evaluaciones=[],sinFecha=0;
     (al.ramos||[]).forEach(r=>{
       const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
@@ -3538,9 +3541,51 @@ function filtrarAlumnosPanel(alumnos,texto){
     return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
 }
+// "Empezó contigo el …": por omisión el día que compartió, que suele ser
+// después de la primera clase; el profesor lo corrige y las estadísticas
+// comparan desde ahí.
+function inicioAlumnoPanel(al){return diaLocalPanel(al&&(al.inicio||al.desde));}
+function lineaInicioAlumnoHTML(al){
+  const dia=inicioAlumnoPanel(al);if(!dia)return '';
+  return `<p class="panel-alumnos-inicio"><span>Empezó contigo el <b>${esc(fechaCorta(dia))}</b>${al.inicio?'':' · el día que compartió'}</span>
+    <button type="button" class="agent-refresh" data-inicio-alumno="${esc(al.id)}">Cambiar</button></p>`;
+}
+// Hoja con el selector de fecha del sistema (HIG: Date pickers). La fecha no
+// puede ser futura: no se compara contra lo que todavía no pasa.
+function abrirInicioAlumno(al,alGuardar){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  const hoy=diaLocalPanel(new Date());
+  caja.innerHTML=`<div class="modal-title" id="modal-titulo">¿Cuándo empezó ${esc(al.nombre_visible)} contigo?</div>
+    <p class="compartir-explica">Las estadísticas comparan cómo le iba antes de esa fecha y cómo le va desde ahí.</p>
+    <label class="modal-label" for="inicio-fecha">Primera clase</label>
+    <div class="modal-input"><input type="date" id="inicio-fecha" min="2000-01-01" max="${hoy}" value="${esc(inicioAlumnoPanel(al)||'')}"></div>
+    <p class="compartir-error" id="inicio-error" role="alert" hidden></p>
+    ${al.inicio?'<button type="button" class="rep-link" id="inicio-reset">Usar el día que compartió</button>':''}
+    <div class="modal-btns"><button type="button" class="btn-cancel" id="inicio-cancelar">Cancelar</button><button type="button" class="btn-confirm" id="inicio-guardar">Guardar</button></div>`;
+  openModal();
+  const error=caja.querySelector('#inicio-error'),boton=caja.querySelector('#inicio-guardar');
+  const avisar=t=>{error.textContent=t;error.hidden=!t;};
+  const guardar=async valor=>{
+    boton.disabled=true;avisar('');
+    try{
+      const {error:e}=await supabaseClient.rpc('fijar_inicio_alumno',{p_id:al.id,p_inicio:valor});
+      if(e)throw e;
+      closeModal();showToast('Fecha guardada.');alGuardar();
+    }catch(e){boton.disabled=false;avisar(/futura/.test((e&&e.message)||'')?'Elige una fecha que ya pasó.':'No pudimos guardarla. Intenta de nuevo.');}
+  };
+  caja.querySelector('#inicio-cancelar').addEventListener('click',closeModal);
+  boton.addEventListener('click',()=>{
+    const v=caja.querySelector('#inicio-fecha').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){avisar('Elige una fecha.');return;}
+    if(v>hoy){avisar('Elige una fecha que ya pasó.');return;}
+    guardar(v);
+  });
+  const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
+}
 function alumnosPanelHTML(lista,compDe){
   return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
+      ${lineaInicioAlumnoHTML(al)}
       ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`)).join('');
@@ -3668,6 +3713,11 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
     },{label:'Quitar',focusCancel:true})));
   enlazarQuitar();
+  const enlazarInicio=()=>lista.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
+    const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
+    if(al)abrirInicioAlumno(al,()=>renderAlumnosProfesor(raiz,{volver}));
+  }));
+  enlazarInicio();
   // Se filtra en el navegador, con lo que el panel ya bajó.
   const buscar=raiz.querySelector('#alumnos-buscar');
   let vista=alumnos;
@@ -3676,7 +3726,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
     lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
       :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
-    enlazarQuitar();
+    enlazarQuitar();enlazarInicio();
   });
   // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
   // recordatorio de lo que el profesor aceptó en los términos.
