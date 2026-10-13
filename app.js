@@ -421,6 +421,15 @@ function normalize(data) {
     migrarOrigenesFecha(r);
     const p = pautaPendiente(r);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
+    // Un cambio de pauta se ofrece y la persona decide. `actualizaSola` es la
+    // excepción para una pauta que NOSOTROS transcribimos mal: esperar el botón
+    // deja su promedio calculando con nuestro error. Igual vale solo para quien
+    // no la editó (cambioDePauta ya calla en ese caso: su versión manda) y
+    // nunca si alguna nota quedaría fuera de la pauta en 0%.
+    if (definicionPresetDelRamo(r)?.actualizaSola) {
+      const cambio = cambioDePauta(r);
+      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+    }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así
     // los ramos oficiales ya creados también pueden ofrecer el recuperativo,
     // sin reinterpretar notas ni tocar ramos manuales.
@@ -3281,6 +3290,11 @@ function verCambioDePauta(ramoId){
 function actualizarPauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return false;
   const cambio=cambioDePauta(r);if(!cambio)return false;
+  aplicarCambioDePauta(r,cambio);
+  return true;
+}
+// Recibe el ramo y no su id porque normalize() la usa antes de que exista S.
+function aplicarCambioDePauta(r,cambio){
   // Por NOMBRE NORMALIZADO, no exacto: una pauta retranscrita cambia mayúsculas,
   // tildes o un espacio sin querer, y con igualdad estricta "Solemne 1" y
   // "solemne 1" eran evaluaciones distintas — la nota se iba por un acento.
@@ -3297,7 +3311,6 @@ function actualizarPauta(ramoId){
   r.reglasAusenciaJustificada=cambio.preset.reglasAusenciaJustificada||null;
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
-  return true;
 }
 
 // Cambia las evaluaciones de un ramo CONSERVANDO lo que el estudiante escribió.

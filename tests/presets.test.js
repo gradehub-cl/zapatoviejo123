@@ -67,7 +67,7 @@ console.log('  ' + conAviso + ' de ' + Object.keys(FEN).length + ' ramos FEN dec
 console.log('\n=== Programas UC transcritos ===');
 const pautaUC=(nombre,esperada)=>chk(nombre+' conserva sus ponderaciones oficiales',
   evalsUC(UC[nombre]).map(([n,p])=>n+':'+p).join('|')===esperada);
-pautaUC('Introducción a la Programación','Interrogación 1:15|Interrogación 2:20|Examen:30|Tarea 1:5|Tarea 2:5|Tarea 3:5|Nota de participación:16|Talleres de Inteligencia Artificial:4');
+pautaUC('Introducción a la Programación','Interrogación 1:15|Interrogación 2:20|Examen:30|Tarea 1:5|Tarea 2:5|Tarea 3:5|Nota de participación:16|Cápsulas de Inteligencia Artificial:2|Talleres de Inteligencia Artificial:2');
 pautaUC('Principios Ecológicos y Medio Ambiente','Prueba 1:25|Prueba 2:40|Prueba 3:35');
 pautaUC('Biología de la Célula','Interrogaciones:45.5|Talleres:14|Trabajos prácticos:7|Trabajo grupal:3.5|Examen final:30');
 pautaUC('Introducción al Álgebra Lineal','Interrogación 1:20|Interrogación 2:25|Interrogación 3:25|Examen:30');
