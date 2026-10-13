@@ -3,9 +3,14 @@
 // Lo normal es ofrecer el cambio y que la persona apriete "Actualizar". Pero
 // Introducción a la Programación tenía "Talleres de IA" al 4% cuando el curso
 // lo divide en Cápsulas 2% y Talleres 2%: mientras nadie apretara el botón, su
-// promedio seguía calculando con nuestro error. `actualizaSola` en el preset
-// aplica el cambio en normalize(), con los mismos límites de siempre: no toca
-// una pauta que la persona editó y no deja ninguna nota fuera de la pauta.
+// promedio seguía calculando con nuestro error. `corrigePautas` en el preset
+// dice cuál era la pauta equivocada, y normalize() corrige a quien la tenga
+// tal cual: no toca una pauta que la persona editó y no deja ninguna nota
+// fuera de la pauta.
+//
+// Se reconoce por la pauta y no por `pautaHuella`: la primera versión
+// (`actualizaSola`) dependía de la huella y no alcanzó a una cuenta real cuya
+// huella era null —ramo antiguo o pauta aceptada desde un agente—.
 const fs = require('fs'), vm = require('vm');
 const raiz = __dirname + '/../';
 const stub = { style: { setProperty() {}, removeProperty() {} }, addEventListener() {}, appendChild() {}, classList: { add() {}, remove() {}, contains() { return false } }, value: '', innerHTML: '', textContent: '', focus() {}, select() {}, setAttribute() {}, removeAttribute() {}, getAttribute() { return null }, querySelectorAll() { return [] }, querySelector() { return stub }, clientWidth: 400, dataset: {}, click() {} };
@@ -42,7 +47,7 @@ const notaEn = (r, nombre) => ((r.categorias.find(c => c.nombre === nombre) || {
 
 console.log('\n=== Pauta sin editar: se corrige al cargar, con sus notas ===');
 {
-  ponerPreset(NUEVA, { actualizaSola: true });
+  ponerPreset(NUEVA, { corrigePautas: [VIEJA] });
   const r = cargar(guardado({ Prueba: 5.5, Talleres: 6.0 }));
   chk('queda con la pauta nueva', JSON.stringify(pesos(r)) === JSON.stringify({ Prueba: 60, Tarea: 36, 'Cápsulas': 2, Talleres: 2 }));
   chk('la nota de Talleres sigue en Talleres', JSON.stringify(notaEn(r, 'Talleres')) === '[6]');
@@ -54,13 +59,24 @@ console.log('\n=== Pauta sin editar: se corrige al cargar, con sus notas ===');
   chk('cargarlo de nuevo no cambia nada', esencia(cargar(r)) === esencia(r));
 }
 
+console.log('\n=== Pauta vieja exacta, pero sin huella guardada ===');
+{
+  ponerPreset(NUEVA, { corrigePautas: [VIEJA] });
+  const r = cargar({ ...guardado({ Talleres: 6.0 }), pautaHuella: null });
+  chk('también se corrige', JSON.stringify(pesos(r)) === JSON.stringify({ Prueba: 60, Tarea: 36, 'Cápsulas': 2, Talleres: 2 }));
+  chk('con su nota en Talleres', JSON.stringify(notaEn(r, 'Talleres')) === '[6]');
+  chk('y queda con huella', r.pautaHuella === g('huellaPauta')(r.categorias));
+}
+
 console.log('\n=== Pauta editada por la persona: su versión manda ===');
 {
-  ponerPreset(NUEVA, { actualizaSola: true });
+  ponerPreset(NUEVA, { corrigePautas: [VIEJA] });
   const r0 = guardado();
   r0.categorias[1].peso = 30; r0.categorias.push({ id: 'cx', nombre: 'Control', peso: 6, notas: [] });
   const r = cargar(r0);
   chk('no se toca', JSON.stringify(pesos(r)) === JSON.stringify({ Prueba: 60, Tarea: 30, Talleres: 4, Control: 6 }));
+  const sinHuella = cargar({ ...r0, pautaHuella: null });
+  chk('tampoco sin huella', JSON.stringify(pesos(sinHuella)) === JSON.stringify({ Prueba: 60, Tarea: 30, Talleres: 4, Control: 6 }));
 }
 
 console.log('\n=== Sin la marca: se ofrece, no se aplica ===');
@@ -73,7 +89,7 @@ console.log('\n=== Sin la marca: se ofrece, no se aplica ===');
 
 console.log('\n=== Una nota quedaría fuera de la pauta: se pregunta ===');
 {
-  ponerPreset([['Prueba', 60], ['Tarea', 36], ['Cápsulas', 4]], { actualizaSola: true });
+  ponerPreset([['Prueba', 60], ['Tarea', 36], ['Cápsulas', 4]], { corrigePautas: [VIEJA] });
   const r = cargar(guardado({ Talleres: 6.0 }));
   chk('no se aplica solo', JSON.stringify(pesos(r)) === JSON.stringify({ Prueba: 60, Tarea: 36, Talleres: 4 }));
   chk('se sigue ofreciendo', !!g('cambioDePauta')(r));
@@ -104,9 +120,10 @@ console.log('\n=== Introducción a la Programación ===');
   chk('las casillas son Cápsulas y Talleres', ia && JSON.stringify(ia.extra.nombresCasillas) === '["Cápsulas","Talleres"]');
   chk('ya no hay un Talleres suelto', !evals['Talleres de Inteligencia Artificial']);
   chk('suma 100', Math.abs(Object.values(evals).reduce((a, b) => a + b.w, 0) - 100) < 1e-9);
-  chk('se corrige sola', p.actualizaSola === true);
+  chk('declara la pauta vieja como corregible', Array.isArray(p.corrigePautas) && p.corrigePautas.length === 1);
 
-  // La cuenta que ya existe: la pauta vieja, sin editar, con nota en Talleres.
+  // La cuenta que ya existe: la pauta vieja, sin editar, con nota en Talleres
+  // y sin huella —el caso real que la primera versión no alcanzó—.
   const vieja = [['Interrogación 1', 15], ['Interrogación 2', 20], ['Examen', 30], ['Tarea 1', 5], ['Tarea 2', 5],
     ['Tarea 3', 5], ['Nota de participación', 16], ['Talleres de Inteligencia Artificial', 4]]
     .map(([nombre, peso], i) => ({ id: 'v' + i, nombre, peso, notas: [] }));
@@ -114,7 +131,7 @@ console.log('\n=== Introducción a la Programación ===');
   vieja[7].notas = [{ id: 'ta', nombre: 'Talleres de Inteligencia Artificial', valor: 6.5, peso: 1 }];
   const r = g('normalize')({ tenant: 'uc', carrera: 'ING-PC', ramos: [{ id: 'ip', nombre: 'Introducción a la Programación',
     color: '#000', origen: { tenant: 'uc', carrera: 'ING-PC' }, gates: [], categorias: vieja,
-    pautaHuella: g('huellaPauta')(vieja) }] }).ramos[0];
+    pautaHuella: null }] }).ramos[0];
   const trabajos = r.categorias.find(c => c.nombre === 'Trabajos de Inteligencia Artificial');
   chk('la cuenta existente se corrige sola', !!trabajos && trabajos.peso === 4 && !r.categorias.some(c => c.fueraDePauta));
   const nota = trabajos && trabajos.notas.find(n => n.valor === 6.5);
