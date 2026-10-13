@@ -274,6 +274,9 @@ chk('Contabilidad · el período confirmado ofrece las fechas de los controles',
 // decida de nuevo.
 chk('Contabilidad · sin mínimos por control',
   !contaPreset.gates.some(g => g.min === 1.5));
+// Y las cuentas creadas antes de esa fecha los pierden al cargar.
+chk('Contabilidad · retira los mínimos de 1,5 de las cuentas antiguas',
+  JSON.stringify(run('PRESETS_FEN')['Contabilidad'].retiraCompuertas) === JSON.stringify([{ min: 1.5, cap: 3.9 }]));
 
 // Una cuenta antigua recibe una fecha oficial actual solo con período
 // confirmado; la que puso el estudiante sigue mandando.

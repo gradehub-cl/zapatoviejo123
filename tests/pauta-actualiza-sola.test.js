@@ -141,5 +141,28 @@ console.log('\n=== Introducción a la Programación ===');
   chk('Cápsulas queda pendiente', g('etiquetaCasilla')(r, trabajos, 0) === 'Cápsulas' && trabajos.notas.every(n => n.slot !== 0));
 }
 
+console.log('\n=== Una compuerta que el catálogo retiró se quita sola ===');
+{
+  const RAMO2 = 'Ramo de prueba sin mínimos';
+  g('PRESETS_FEN')[RAMO2] = { evals: [['Control 1', 30], ['Control 2', 30], ['Examen', 40, { min: 3.0, cap: 3.4 }]],
+    retiraCompuertas: [{ min: 1.5, cap: 3.9 }] };
+  const cats = [['Control 1', 30, 1.2], ['Control 2', 30, 6.5], ['Examen', 40, 6.0]].map(([nombre, peso, v], i) =>
+    ({ id: 'k' + i, nombre, peso, notas: [{ id: 'm' + i, nombre, valor: v, peso: 1 }] }));
+  const gates = [
+    { type: 'min_grade_required', catId: 'k0', min: 1.5, cap: 3.9, nombre: 'Control 1' },
+    { type: 'min_grade_required', catId: 'k1', min: 1.5, cap: 3.9, nombre: 'Control 2' },
+    { type: 'min_grade_required', catId: 'k2', min: 3.0, cap: 3.4, nombre: 'Examen' },
+  ];
+  const cargar = origen => g('normalize')({ tenant: 'fen', ramos: [{ id: 'cg', nombre: RAMO2, color: '#000', origen,
+    gates: JSON.parse(JSON.stringify(gates)), categorias: JSON.parse(JSON.stringify(cats)) }] }).ramos[0];
+  const delCatalogo = cargar({ tenant: 'fen', carrera: null });
+  chk('se van los mínimos de 1,5 que el catálogo retiró', !delCatalogo.gates.some(x => x.min === 1.5));
+  chk('el mínimo del Examen se queda', delCatalogo.gates.some(x => x.min === 3.0 && x.cap === 3.4));
+  // Con un 1,2 en un control: antes la final quedaba topada en 3,9.
+  chk('un control bajo 1,5 ya no topa la nota final', g('ramoAvg')(delCatalogo) > 3.9);
+  chk('un ramo manual del mismo nombre no se toca', cargar(null).gates.filter(x => x.min === 1.5).length === 2);
+  delete g('PRESETS_FEN')[RAMO2];
+}
+
 console.log(`\n${ok} ok, ${fail} fallos`);
 if (fail) process.exit(1);
