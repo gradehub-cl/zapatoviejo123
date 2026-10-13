@@ -421,12 +421,16 @@ function normalize(data) {
     migrarOrigenesFecha(r);
     const p = pautaPendiente(r);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
-    // Un cambio de pauta se ofrece y la persona decide. `actualizaSola` es la
-    // excepción para una pauta que NOSOTROS transcribimos mal: esperar el botón
-    // deja su promedio calculando con nuestro error. Igual vale solo para quien
-    // no la editó (cambioDePauta ya calla en ese caso: su versión manda) y
-    // nunca si alguna nota quedaría fuera de la pauta en 0%.
-    if (definicionPresetDelRamo(r)?.actualizaSola) {
+    // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
+    // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
+    // deja su promedio calculando con nuestro error. Se reconoce por la pauta
+    // misma y no por `pautaHuella`, que falta en ramos antiguos y en los que
+    // aceptaron una propuesta de un agente: tener exactamente nuestra pauta
+    // equivocada no es haberla editado. Nunca si una nota quedaría en 0%.
+    const corregibles = definicionPresetDelRamo(r)?.corrigePautas;
+    const tiene = huellaPauta(catsDePauta(r.categorias));
+    if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
+      r.pautaHuella = tiene;
       const cambio = cambioDePauta(r);
       if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
     }

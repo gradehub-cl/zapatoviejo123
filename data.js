@@ -727,10 +727,13 @@ const PRESETS_UC={
       ['Trabajos de Inteligencia Artificial',4,{slots:2,nombresCasillas:['Cápsulas','Talleres'],
         nombresAnteriores:[{nombre:'Talleres de Inteligencia Artificial',slot:1}]}],
     ],
-    // Corrige una pauta mal transcrita, así que no se pregunta: ver
-    // `actualizaSola` en normalize(). Una nota ya escrita en el Talleres de
-    // antes pasa a la casilla Talleres.
-    actualizaSola:true,
+    // La pauta que publicamos mal: quien la tenga tal cual se corrige al
+    // cargar, sin preguntar (ver `corrigePautas` en normalize()). Una nota ya
+    // escrita en el Talleres de antes pasa a la casilla Talleres.
+    corrigePautas:[[
+      ['Interrogación 1',15],['Interrogación 2',20],['Examen',30],['Tarea 1',5],['Tarea 2',5],['Tarea 3',5],
+      ['Nota de participación',16],['Talleres de Inteligencia Artificial',4],
+    ]],
     grupos:[{nombre:'Evaluaciones principales',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9}],
     // Sin reglas visibles: el programa solo trae la sustitución automática por
     // inasistencia justificada y la sanción por no registrar asistencia.
