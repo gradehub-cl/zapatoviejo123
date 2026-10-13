@@ -607,8 +607,10 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
      sesión, no con una sesión robada. Al subir de versión hay que recalcular:
        curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A
      Va acá y no en el <head>: ahí la pantalla quedaba en blanco hasta que
-     bajara de internet. Sigue antes de los scripts de la app, que lo usan. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2"
+     bajara de internet. Sigue antes de los scripts de la app, que lo usan.
+     Apunta al archivo y no al paquete: la URL sin archivo es la que jsDelivr
+     elige (y puede cambiar), y ellos mismos piden no ponerle SRI. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/dist/umd/supabase.min.js"
         integrity="sha384-B2duOBIryCXbX4eDE4BdJwtNkQMRQde3o6IsjfPW28E6aH1CYE96hHeZRG3zY56O"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <!-- data.js primero: app.js lee sus const (mallas, temas, presets) -->
