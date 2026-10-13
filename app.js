@@ -421,6 +421,15 @@ function normalize(data) {
     migrarOrigenesFecha(r);
     const p = pautaPendiente(r);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
+    // Un cambio de pauta se ofrece y la persona decide. `actualizaSola` es la
+    // excepción para una pauta que NOSOTROS transcribimos mal: esperar el botón
+    // deja su promedio calculando con nuestro error. Igual vale solo para quien
+    // no la editó (cambioDePauta ya calla en ese caso: su versión manda) y
+    // nunca si alguna nota quedaría fuera de la pauta en 0%.
+    if (definicionPresetDelRamo(r)?.actualizaSola) {
+      const cambio = cambioDePauta(r);
+      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+    }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así
     // los ramos oficiales ya creados también pueden ofrecer el recuperativo,
     // sin reinterpretar notas ni tocar ramos manuales.
@@ -1358,18 +1367,25 @@ function detalleCasillas(ramo,cat){
   return {
     nombre:typeof cat?.slotLabel==='string'?cat.slotLabel:(typeof extra.slotLabel==='string'?extra.slotLabel:singularEtiquetaCasilla(cat.nombre)),
     inicio:Number.isInteger(cat?.slotStart)?cat.slotStart:(Number.isInteger(extra.slotStart)?extra.slotStart:1),
+    // Cuando cada casilla es una cosa distinta y no la N-ésima de lo mismo:
+    // "Trabajos de IA" tiene Cápsulas y Talleres, no "Trabajo 1" y "Trabajo 2".
+    nombres:Array.isArray(cat?.nombresCasillas)?cat.nombresCasillas:(Array.isArray(extra.nombresCasillas)?extra.nombresCasillas:[]),
   };
 }
 function etiquetaCasilla(ramo,cat,slot){
   const detalle=detalleCasillas(ramo,cat);
-  return `${detalle.nombre} ${detalle.inicio+slot}`;
+  const propio=detalle.nombres[slot];
+  return typeof propio==='string'&&propio.trim()?propio:`${detalle.nombre} ${detalle.inicio+slot}`;
 }
-// Una nota antigua puede guardar el nombre colectivo ("Controles 1"). Se ve
-// con el singular sin reescribirla; si la persona la renombró, su nombre manda.
+// Una nota antigua puede guardar el nombre colectivo ("Controles 1") o el de
+// la evaluación de la que vino ("Talleres de Inteligencia Artificial"). Se ve
+// con el nombre de su casilla sin reescribirla; si la persona la renombró, su
+// nombre manda.
 function nombreNotaCasilla(ramo,cat,nota){
   if(!nota||!Number.isInteger(nota.slot)||!(cat&&cat.slots>1))return nota&&nota.nombre||'';
   const inicio=detalleCasillas(ramo,cat).inicio;
-  return normName(nota.nombre)===normName(`${cat.nombre} ${inicio+nota.slot}`)
+  const anteriores=(cat.nombresAnteriores||[]).filter(x=>x&&typeof x==='object'&&x.slot===nota.slot).map(x=>x.nombre);
+  return [`${cat.nombre} ${inicio+nota.slot}`,...anteriores].some(n=>normName(n)===normName(nota.nombre))
     ?etiquetaCasilla(ramo,cat,nota.slot):nota.nombre;
 }
 // El navegador entrega las dependencias que el motor no puede conocer por sí
@@ -3281,6 +3297,11 @@ function verCambioDePauta(ramoId){
 function actualizarPauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return false;
   const cambio=cambioDePauta(r);if(!cambio)return false;
+  aplicarCambioDePauta(r,cambio);
+  return true;
+}
+// Recibe el ramo y no su id porque normalize() la usa antes de que exista S.
+function aplicarCambioDePauta(r,cambio){
   // Por NOMBRE NORMALIZADO, no exacto: una pauta retranscrita cambia mayúsculas,
   // tildes o un espacio sin querer, y con igualdad estricta "Solemne 1" y
   // "solemne 1" eran evaluaciones distintas — la nota se iba por un acento.
@@ -3297,7 +3318,6 @@ function actualizarPauta(ramoId){
   r.reglasAusenciaJustificada=cambio.preset.reglasAusenciaJustificada||null;
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
-  return true;
 }
 
 // Cambia las evaluaciones de un ramo CONSERVANDO lo que el estudiante escribió.
@@ -3390,6 +3410,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
     if(extra&&extra.slots)cat.slots=extra.slots;
     if(extra&&typeof extra.slotLabel==='string')cat.slotLabel=extra.slotLabel;
     if(extra&&Number.isInteger(extra.slotStart))cat.slotStart=extra.slotStart;
+    if(extra&&Array.isArray(extra.nombresCasillas))cat.nombresCasillas=extra.nombresCasillas.slice();
     // Una corrección de nombres no puede soltar las notas que alguien ya
     // escribió con la versión anterior. También puede reunir categorías
     // antiguas en casillas concretas si el dato nuevo aclara que eran un grupo.

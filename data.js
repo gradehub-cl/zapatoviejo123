@@ -717,8 +717,20 @@ const PRESETS_UC={
       // La agenda del curso publica inicio y fin de cada tarea. La evaluación
       // es la entrega, por eso Agenda recibe el cierre y no el hito de apertura.
       ['Tarea 1',5,{fecha:'2026-10-02'}],['Tarea 2',5,{fecha:'2026-10-27'}],['Tarea 3',5,{fecha:'2026-11-27'}],
-      ['Nota de participación',16],['Talleres de Inteligencia Artificial',4],
+      ['Nota de participación',16],
+      // "Uso responsable de IA: cómo se evalúa" (2026-2): el 4% son dos notas
+      // de 2%. Cápsulas es una sola nota sobre las 18 preguntas de los 6 videos;
+      // Talleres, una sola sobre las 6 preguntas de los 2 talleres —no hay nota
+      // por taller—. Estaba como un solo "Talleres" al 4%: quien anotaba su nota
+      // de talleres la hacía pesar el doble y las cápsulas no tenían dónde ir.
+      // Dos casillas iguales de un 4% son exactamente dos notas de 2%.
+      ['Trabajos de Inteligencia Artificial',4,{slots:2,nombresCasillas:['Cápsulas','Talleres'],
+        nombresAnteriores:[{nombre:'Talleres de Inteligencia Artificial',slot:1}]}],
     ],
+    // Corrige una pauta mal transcrita, así que no se pregunta: ver
+    // `actualizaSola` en normalize(). Una nota ya escrita en el Talleres de
+    // antes pasa a la casilla Talleres.
+    actualizaSola:true,
     grupos:[{nombre:'Evaluaciones principales',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9}],
     // Sin reglas visibles: el programa solo trae la sustitución automática por
     // inasistencia justificada y la sanción por no registrar asistencia.
