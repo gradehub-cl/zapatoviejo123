@@ -80,14 +80,48 @@ console.log('\n=== Una nota quedaría fuera de la pauta: se pregunta ===');
 }
 delete g('PRESETS_FEN')[RAMO];
 
+console.log('\n=== Casillas con nombre propio ===');
+{
+  // Sin preset detrás: el nombre viaja en la evaluación guardada.
+  const ramo = { id: 'm', nombre: 'Ramo manual', origen: null };
+  const cat = { id: 't', nombre: 'Trabajos', slots: 3, nombresCasillas: ['Cápsulas', 'Talleres'],
+    nombresAnteriores: [{ nombre: 'Talleres viejos', slot: 1 }] };
+  chk('la casilla 1 se llama Cápsulas', g('etiquetaCasilla')(ramo, cat, 0) === 'Cápsulas');
+  chk('la casilla 2 se llama Talleres', g('etiquetaCasilla')(ramo, cat, 1) === 'Talleres');
+  chk('una casilla sin nombre vuelve al número', g('etiquetaCasilla')(ramo, cat, 2) === 'Trabajo 3');
+  chk('una nota que vino de la evaluación anterior se ve con el nombre de su casilla',
+    g('nombreNotaCasilla')(ramo, cat, { slot: 1, nombre: 'Talleres viejos' }) === 'Talleres');
+  chk('un nombre que puso la persona manda',
+    g('nombreNotaCasilla')(ramo, cat, { slot: 1, nombre: 'Mi taller' }) === 'Mi taller');
+}
+
 console.log('\n=== Introducción a la Programación ===');
 {
   const p = g('PRESETS_UC')['Introducción a la Programación'];
-  const evals = Object.fromEntries(p.evals.map(([n, w]) => [n, w]));
-  chk('Cápsulas de IA al 2%', evals['Cápsulas de Inteligencia Artificial'] === 2);
-  chk('Talleres de IA al 2%', evals['Talleres de Inteligencia Artificial'] === 2);
-  chk('suma 100', Math.abs(Object.values(evals).reduce((a, b) => a + b, 0) - 100) < 1e-9);
+  const evals = Object.fromEntries(p.evals.map(([n, w, extra]) => [n, { w, extra }]));
+  const ia = evals['Trabajos de Inteligencia Artificial'];
+  chk('Trabajos de IA al 4% en dos casillas', ia && ia.w === 4 && ia.extra.slots === 2);
+  chk('las casillas son Cápsulas y Talleres', ia && JSON.stringify(ia.extra.nombresCasillas) === '["Cápsulas","Talleres"]');
+  chk('ya no hay un Talleres suelto', !evals['Talleres de Inteligencia Artificial']);
+  chk('suma 100', Math.abs(Object.values(evals).reduce((a, b) => a + b.w, 0) - 100) < 1e-9);
   chk('se corrige sola', p.actualizaSola === true);
+
+  // La cuenta que ya existe: la pauta vieja, sin editar, con nota en Talleres.
+  const vieja = [['Interrogación 1', 15], ['Interrogación 2', 20], ['Examen', 30], ['Tarea 1', 5], ['Tarea 2', 5],
+    ['Tarea 3', 5], ['Nota de participación', 16], ['Talleres de Inteligencia Artificial', 4]]
+    .map(([nombre, peso], i) => ({ id: 'v' + i, nombre, peso, notas: [] }));
+  vieja[0].notas = [{ id: 'i1', nombre: 'Interrogación 1', valor: 4.8, peso: 1 }];
+  vieja[7].notas = [{ id: 'ta', nombre: 'Talleres de Inteligencia Artificial', valor: 6.5, peso: 1 }];
+  const r = g('normalize')({ tenant: 'uc', carrera: 'ING-PC', ramos: [{ id: 'ip', nombre: 'Introducción a la Programación',
+    color: '#000', origen: { tenant: 'uc', carrera: 'ING-PC' }, gates: [], categorias: vieja,
+    pautaHuella: g('huellaPauta')(vieja) }] }).ramos[0];
+  const trabajos = r.categorias.find(c => c.nombre === 'Trabajos de Inteligencia Artificial');
+  chk('la cuenta existente se corrige sola', !!trabajos && trabajos.peso === 4 && !r.categorias.some(c => c.fueraDePauta));
+  const nota = trabajos && trabajos.notas.find(n => n.valor === 6.5);
+  chk('su nota de talleres queda en la casilla Talleres', !!nota && nota.slot === 1
+    && g('nombreNotaCasilla')(r, trabajos, nota) === 'Talleres');
+  chk('la Interrogación 1 conserva su nota', JSON.stringify(r.categorias.find(c => c.nombre === 'Interrogación 1').notas.map(n => n.valor)) === '[4.8]');
+  chk('Cápsulas queda pendiente', g('etiquetaCasilla')(r, trabajos, 0) === 'Cápsulas' && trabajos.notas.every(n => n.slot !== 0));
 }
 
 console.log(`\n${ok} ok, ${fail} fallos`);

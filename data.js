@@ -723,11 +723,13 @@ const PRESETS_UC={
       // Talleres, una sola sobre las 6 preguntas de los 2 talleres —no hay nota
       // por taller—. Estaba como un solo "Talleres" al 4%: quien anotaba su nota
       // de talleres la hacía pesar el doble y las cápsulas no tenían dónde ir.
-      ['Cápsulas de Inteligencia Artificial',2],['Talleres de Inteligencia Artificial',2],
+      // Dos casillas iguales de un 4% son exactamente dos notas de 2%.
+      ['Trabajos de Inteligencia Artificial',4,{slots:2,nombresCasillas:['Cápsulas','Talleres'],
+        nombresAnteriores:[{nombre:'Talleres de Inteligencia Artificial',slot:1}]}],
     ],
     // Corrige una pauta mal transcrita, así que no se pregunta: ver
-    // `actualizaSola` en normalize(). Talleres conserva su nombre para que una
-    // nota ya escrita ahí se quede donde está.
+    // `actualizaSola` en normalize(). Una nota ya escrita en el Talleres de
+    // antes pasa a la casilla Talleres.
     actualizaSola:true,
     grupos:[{nombre:'Evaluaciones principales',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9}],
     // Sin reglas visibles: el programa solo trae la sustitución automática por

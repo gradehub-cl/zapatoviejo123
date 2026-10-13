@@ -666,6 +666,9 @@ function despachar(nombre, estado, args) {
         nombre: c.nombre,
         peso: c.peso,
         casillas: c.slots || 1,
+        // Qué es cada casilla cuando no son la N-ésima de lo mismo: sin esto el
+        // agente no sabe si la casilla 1 de "Trabajos de IA" son las Cápsulas.
+        ...(Array.isArray(c.nombresCasillas) && c.nombresCasillas.length ? { nombresCasillas: c.nombresCasillas } : {}),
         notas: (c.notas || []).filter(n => typeof n.valor === 'number').map(n => ({ nombre: n.nombre, valor: n.valor })),
       })),
     };

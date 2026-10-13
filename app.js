@@ -1367,18 +1367,25 @@ function detalleCasillas(ramo,cat){
   return {
     nombre:typeof cat?.slotLabel==='string'?cat.slotLabel:(typeof extra.slotLabel==='string'?extra.slotLabel:singularEtiquetaCasilla(cat.nombre)),
     inicio:Number.isInteger(cat?.slotStart)?cat.slotStart:(Number.isInteger(extra.slotStart)?extra.slotStart:1),
+    // Cuando cada casilla es una cosa distinta y no la N-ésima de lo mismo:
+    // "Trabajos de IA" tiene Cápsulas y Talleres, no "Trabajo 1" y "Trabajo 2".
+    nombres:Array.isArray(cat?.nombresCasillas)?cat.nombresCasillas:(Array.isArray(extra.nombresCasillas)?extra.nombresCasillas:[]),
   };
 }
 function etiquetaCasilla(ramo,cat,slot){
   const detalle=detalleCasillas(ramo,cat);
-  return `${detalle.nombre} ${detalle.inicio+slot}`;
+  const propio=detalle.nombres[slot];
+  return typeof propio==='string'&&propio.trim()?propio:`${detalle.nombre} ${detalle.inicio+slot}`;
 }
-// Una nota antigua puede guardar el nombre colectivo ("Controles 1"). Se ve
-// con el singular sin reescribirla; si la persona la renombró, su nombre manda.
+// Una nota antigua puede guardar el nombre colectivo ("Controles 1") o el de
+// la evaluación de la que vino ("Talleres de Inteligencia Artificial"). Se ve
+// con el nombre de su casilla sin reescribirla; si la persona la renombró, su
+// nombre manda.
 function nombreNotaCasilla(ramo,cat,nota){
   if(!nota||!Number.isInteger(nota.slot)||!(cat&&cat.slots>1))return nota&&nota.nombre||'';
   const inicio=detalleCasillas(ramo,cat).inicio;
-  return normName(nota.nombre)===normName(`${cat.nombre} ${inicio+nota.slot}`)
+  const anteriores=(cat.nombresAnteriores||[]).filter(x=>x&&typeof x==='object'&&x.slot===nota.slot).map(x=>x.nombre);
+  return [`${cat.nombre} ${inicio+nota.slot}`,...anteriores].some(n=>normName(n)===normName(nota.nombre))
     ?etiquetaCasilla(ramo,cat,nota.slot):nota.nombre;
 }
 // El navegador entrega las dependencias que el motor no puede conocer por sí
@@ -3403,6 +3410,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
     if(extra&&extra.slots)cat.slots=extra.slots;
     if(extra&&typeof extra.slotLabel==='string')cat.slotLabel=extra.slotLabel;
     if(extra&&Number.isInteger(extra.slotStart))cat.slotStart=extra.slotStart;
+    if(extra&&Array.isArray(extra.nombresCasillas))cat.nombresCasillas=extra.nombresCasillas.slice();
     // Una corrección de nombres no puede soltar las notas que alguien ya
     // escribió con la versión anterior. También puede reunir categorías
     // antiguas en casillas concretas si el dato nuevo aclara que eran un grupo.
