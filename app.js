@@ -1493,10 +1493,14 @@ function descripcionMetodoGpa(ramos){
   const sinCreditos=ramosSinCreditosParaPpa(ramos);
   const primero=sinCreditos[0];
   if(!primero)return{modo,texto:'Promedio simple.'};
-  const faltante=sinCreditos.length===1
+  const uno=sinCreditos.length===1;
+  const faltante=uno
     ?`falta el crédito de ${primero.nombre}`
     :`faltan los créditos de ${primero.nombre} y ${sinCreditos.length-1} más`;
-  return{modo,texto:`Promedio simple porque ${faltante}. Cuando estén disponibles, se calculará ponderado por créditos.`};
+  // No hay que esperar a que lleguen: se ponen a mano en Editar ramo (lo pidió
+  // un estudiante de la UAndes el 2026-10-06, donde los ramos de carrera no
+  // traen créditos). Sigue siendo una frase, no una alarma.
+  return{modo,texto:`Promedio simple porque ${faltante}. Si ${uno?'lo':'los'} pones en Editar ramo, se calcula ponderado por créditos.`};
 }
 function semester(){
   const now=new Date(),m=now.getMonth(),y=now.getFullYear();
