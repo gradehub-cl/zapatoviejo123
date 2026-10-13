@@ -69,6 +69,11 @@ const pautaUC=(nombre,esperada)=>chk(nombre+' conserva sus ponderaciones oficial
   evalsUC(UC[nombre]).map(([n,p])=>n+':'+p).join('|')===esperada);
 pautaUC('Introducción a la Programación','Interrogación 1:15|Interrogación 2:20|Examen:30|Tarea 1:5|Tarea 2:5|Tarea 3:5|Nota de participación:16|Trabajos de Inteligencia Artificial:4');
 pautaUC('Principios Ecológicos y Medio Ambiente','Prueba 1:25|Prueba 2:40|Prueba 3:35');
+// Las cantidades que completaron reportes de estudiantes con los mismos pesos.
+const casillasUC=(nombre,esperada)=>chk(nombre+' declara cuántas notas lleva cada evaluación',
+  evalsUC(UC[nombre]).map(([n,p,x])=>n+':'+p+'x'+((x&&x.slots)||1)).join('|')===esperada);
+casillasUC('Química para Ingeniería','Pruebas:44.1x2|Ev. de Taller:4.9x5|Examen:21x1|Informes:18x5|Controles:12x5');
+casillasUC('Contabilidad','Controles:30x3|Pruebas:40x2|Examen:30x1');
 pautaUC('Biología de la Célula','Interrogaciones:45.5|Talleres:14|Trabajos prácticos:7|Trabajo grupal:3.5|Examen final:30');
 pautaUC('Introducción al Álgebra Lineal','Interrogación 1:20|Interrogación 2:25|Interrogación 3:25|Examen:30');
 pautaUC('Introducción a la Macroeconomía','Control 1:16|Prueba 1:22|Prueba 2:22|Parte del profesor:10|Examen:30');

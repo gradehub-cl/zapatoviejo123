@@ -708,7 +708,15 @@ const PRESETS_UC={
     ]}],
     ['Examen',25],
   ],
-  'Química para Ingeniería':[['Pruebas',44.1],['Ev. de Taller',4.9],['Examen',21],['Informes',18],['Controles',12]],
+  // Los pesos son del programa (QIM100E V2); las cantidades no las dice. Son 2
+  // interrogaciones —la planilla oficial de notas trae I1 e I2 al 45% de
+  // Pruebas— y 5 informes, 5 controles y 5 talleres según dos reportes de
+  // estudiantes con esta misma pauta (2026-10-13). Decisión de Lucas: un
+  // reporte que coincide en pesos completa las cantidades.
+  'Química para Ingeniería':[
+    ['Pruebas',44.1,{slots:2,slotLabel:'Interrogación'}],['Ev. de Taller',4.9,{slots:5,slotLabel:'Taller'}],['Examen',21],
+    ['Informes',18,{slots:5,slotLabel:'Informe'}],['Controles',12,{slots:5,slotLabel:'Control'}],
+  ],
   'Filosofía: ¿para qué?':[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
   'Introducción a la Programación':{
     periodo:'2026-2',
@@ -1120,10 +1128,15 @@ const PRESETS_UC={
       ['Examen final escrito',30],
     ],
   },
+  // El catálogo no dice cuántos controles ni cuántas pruebas. Las cantidades
+  // salen de un reporte de estudiante con los mismos totales (2026-10-13):
+  // Control 1 y 2 al 10%, controles sorpresa y tarea al 10%, e Interrogación 1
+  // y 2 al 20%. Decisión de Lucas: un reporte que coincide en pesos completa
+  // las cantidades. Otra sección puede tener otras; edita su pauta.
   'Contabilidad':{
     evals:[
-      ['Controles',30,{lista:true}],
-      ['Pruebas',40,{lista:true}],
+      ['Controles',30,{slots:3,nombresCasillas:['Control 1','Control 2','Controles sorpresa y tarea']}],
+      ['Pruebas',40,{slots:2,slotLabel:'Interrogación'}],
       ['Examen',30],
     ],
   },
