@@ -2273,6 +2273,12 @@ const PRESETS_FEN={
     // existe el denominador contra el cual medir el 75%.
     // Sin noCalcula: no queda ninguna regla pendiente de implementar.
     reglasDelCurso:['Rendir menos del 75% de los controles sorpresa reprueba el curso con 3,9'],
+    // Los mínimos de 1,5 (tope 3,9) que tuvo cada control hasta el 2026-09-23
+    // se sacaron a propósito (36db509). Un ramo creado antes los trae guardados
+    // y el aviso de pauta cambiada no los ve, porque mira nombres y pesos: se
+    // quitan solos al cargar (`retiraCompuertas` en normalize()). Lo confirmó un
+    // reporte del 2026-10-12. El mínimo del Examen se queda.
+    retiraCompuertas:[{min:1.5,cap:3.9}],
     evals:[
       // Los controles de lectura y los de ejercicios van en filas propias, cada
       // una con su fecha, porque el programa da las dos cosas: cuántos son y

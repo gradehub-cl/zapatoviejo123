@@ -434,6 +434,17 @@ function normalize(data) {
       const cambio = cambioDePauta(r);
       if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
     }
+    // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
+    // topando la nota en los ramos creados antes: el aviso de pauta cambiada
+    // compara nombres y pesos, no compuertas. Se quita solo y sin preguntar,
+    // como `corrigePautas`: la compuerta era nuestra y quitarla solo puede
+    // levantar una nota que topábamos por una regla que decidimos no aplicar.
+    // Solo las de una evaluación con ese mínimo y ese tope exactos.
+    const retiradas = definicionPresetDelRamo(r)?.retiraCompuertas;
+    if (Array.isArray(retiradas) && Array.isArray(r.gates)) {
+      r.gates = r.gates.filter(gt => !(gt && gt.type === 'min_grade_required'
+        && retiradas.some(x => x && x.min === gt.min && x.cap === gt.cap)));
+    }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así
     // los ramos oficiales ya creados también pueden ofrecer el recuperativo,
     // sin reinterpretar notas ni tocar ramos manuales.
