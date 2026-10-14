@@ -6790,38 +6790,36 @@ function propuestasNotasDeRamo(ramo){
   return propuestasNotasAgente.filter(p=>
     (clave&&p.ramoKey===clave)||normName(p.ramo)===normName(ramo.nombre));
 }
+// Dónde cae una nota propuesta: {slot, nota} con la nota que ya ocupa ese lugar
+// (o undefined si se crea), o null si no calza. La usan escribir la nota y la
+// tarjeta que muestra qué nota se pisa, para que las dos digan lo mismo.
+function destinoNotaPropuesta(cat,propuesta){
+  if(!cat)return null;
+  const notas=Array.isArray(cat.notas)?cat.notas:[];
+  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
+  if(slots===1)return {slot:null,nota:notas.find(n=>n.valor===null||n.valor===undefined)||notas[0]};
+  // Sin casilla, va a la primera libre. Antes caía en cat.notas[0] cuando
+  // todas tenían nota: pisaba una nota ya ingresada sin avisar.
+  let slot;
+  if(propuesta.casilla)slot=slotDeCasilla(cat,propuesta.casilla);
+  else for(let i=0;i<slots&&slot===undefined;i++){
+    const n=notas.find(x=>x.slot===i);
+    if(!n||n.valor===null||n.valor===undefined)slot=i;
+  }
+  return slot===undefined?null:{slot,nota:notas.find(n=>n.slot===slot)};
+}
 // Escribe una nota propuesta en su categoría. Devuelve false si no calza, para
 // no dar por aplicada una propuesta que en realidad no entró.
 function escribirNotaPropuesta(cat,propuesta,ramo){
-  if(!cat)return false;
+  const lugar=destinoNotaPropuesta(cat,propuesta);
+  if(!lugar)return false;
   cat.notas=Array.isArray(cat.notas)?cat.notas:[];
-  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
-  let destino=null;
-  if(slots>1){
-    // Sin casilla, va a la primera libre. Antes caía en cat.notas[0] cuando
-    // todas tenían nota: pisaba una nota ya ingresada sin avisar.
-    let slot;
-    if(propuesta.casilla){
-      slot=slotDeCasilla(cat,propuesta.casilla);
-      if(slot===undefined)return false;
-    }else{
-      for(let i=0;i<slots&&slot===undefined;i++){
-        const n=cat.notas.find(x=>x.slot===i);
-        if(!n||n.valor===null||n.valor===undefined)slot=i;
-      }
-      if(slot===undefined)return false;
-    }
-    destino=cat.notas.find(n=>n.slot===slot);
-    if(!destino){
-      destino={id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
-      cat.notas.push(destino);
-    }
-  }else{
-    destino=cat.notas.find(n=>n.valor===null||n.valor===undefined)||cat.notas[0];
-    if(!destino){
-      destino={id:uid(),nombre:cat.nombre,valor:null,peso:1};
-      cat.notas.push(destino);
-    }
+  let destino=lugar.nota;
+  if(!destino){
+    const slot=lugar.slot;
+    destino=slot===null?{id:uid(),nombre:cat.nombre,valor:null,peso:1}
+      :{id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
+    cat.notas.push(destino);
   }
   destino.valor=propuesta.valor;
   return true;
