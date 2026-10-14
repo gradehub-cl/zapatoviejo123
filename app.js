@@ -9675,9 +9675,17 @@ function agendaEvents(ramos){
         });
       });
       if(!c.fecha)return;
-      const conFechaPropia=(c.notas||[]).filter(n=>n.fecha).length;
-      const notasCount=(c.notas||[]).length-conFechaPropia;
-      const targetCount=c.slots||1;
+      const propias=(c.notas||[]).filter(n=>n.fecha);
+      const conFechaPropia=propias.length;
+      // Solo cuenta lo rendido, por casilla. Tocar una casilla y cancelar deja
+      // una nota vacía guardada (abrirCasilla), y "Guardada como pendiente"
+      // también: contarlas daba la evaluación por rendida y desaparecía de la
+      // Agenda y de "Próxima evaluación" sin tener nota. Y la fecha del grupo
+      // solo cubre las casillas sin fecha propia: esas son eventos aparte.
+      const casillas=Number.isInteger(c.slots)&&c.slots>1;
+      const rendidas=(c.notas||[]).filter(n=>!n.fecha&&typeof n.valor==='number');
+      const notasCount=casillas?new Set(rendidas.map(n=>Number.isInteger(n.slot)?n.slot:n.id)).size:rendidas.length;
+      const targetCount=casillas?Math.max(1,c.slots-new Set(propias.filter(n=>Number.isInteger(n.slot)).map(n=>n.slot)).size):1;
       const pending=notasCount<targetCount;
       // Si TODAS las notas del grupo tienen su propia fecha, la del grupo ya no
       // aporta: mostrarla duplicaría lo mismo en otro día.
