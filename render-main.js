@@ -118,7 +118,11 @@ function renderHome(){
       const next=umbrales.find(u=>u>oficial+0.001);
       let msg=`Promedio redondeado: ${fmtPromedio(g)}`;
       if(next!==undefined){
-        msg+=`  ·  ${nf(Math.max(0,next-0.05-g),2)} para redondear a ${nf(next)}`;
+        // El borde sale de la regla de la universidad (3,95 en la común, 3,945
+        // en la UAndes) y la distancia se redondea hacia arriba: con 3,949 decía
+        // "0.00 para redondear a 4.0".
+        const falta=Math.ceil((gh_bordeOficial(next,gh_reglasNota(S.tenant))-g)*100-1e-9)/100;
+        msg+=`  ·  ${nf(Math.max(0.01,falta),2)} para redondear a ${nf(next)}`;
       }else{
         msg+=`  ·  máximo`;
       }

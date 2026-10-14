@@ -99,14 +99,17 @@ function toggleRestantesAgenda(){
 
 function ordenarAgenda(pendientes,orden='recomendado'){
   const criterio=AGENDA_ORDENES.includes(orden)?orden:'recomendado';
+  // La hora también es cronología: dos pruebas el mismo día salían por puntaje
+  // y "Después" podía apuntar a la de la tarde estando la de la mañana.
+  const cuando=e=>`${e.fecha}T${e.hora||''}`;
   return [...pendientes].sort((a,b)=>{
     if(criterio==='fecha'){
-      const porFecha=a.fecha.localeCompare(b.fecha);
+      const porFecha=cuando(a).localeCompare(cuando(b));
       return porFecha||b.score-a.score;
     }
     if(criterio==='peso'){
       const porPeso=(pesoEventoAgenda(b)??-1)-(pesoEventoAgenda(a)??-1);
-      return porPeso||a.fecha.localeCompare(b.fecha)||b.score-a.score;
+      return porPeso||cuando(a).localeCompare(cuando(b))||b.score-a.score;
     }
     // Es exactamente el comparador que usaba renderAgenda antes de ofrecer
     // alternativas. "Recomendado" nombra el comportamiento, no lo reescribe.
