@@ -1413,7 +1413,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -1421,6 +1421,58 @@ function nivelRamo(r,n){return gatesActivas(r).length?'bad':nivelNota(n);}
 function notaAprobadaRamo(r,n){const nivel=nivelRamo(r,n);return nivel==='warn'||nivel==='good';}
 function colorClassRamo(r,n){return nivelRamo(r,n);}
 function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(n);}
+
+// ─── CÁTEDRA Y LABORATORIO ───────────────────────────────────────────────────
+// Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a
+// 4,0, pero la ficha mostraba un único número combinado: quien iba bien en el
+// lab no podía ver si la cátedra sola lo estaba dejando abajo. La ficha y el
+// simulador muestran la cátedra sola al lado del promedio y, debajo, cómo va el
+// laboratorio, con las cuentas de `partesDelVinculo`.
+// `fmt` decide la coma decimal: el simulador la usa y la ficha no.
+function textoParteVinculo(parte,min,fmt){
+  const m=fmt(nf(min));
+  if(parte.valor===null)return 'Sin notas todavía';
+  if(parte.completo)return gh_cumpleMinimo(parte.valor,min)?`Cumple el mínimo de ${m}`:`Bajo el mínimo de ${m}: repruebas el ramo`;
+  const n=parte.necesaria;
+  if(n===null)return '';
+  if(n>7)return `Ya no alcanza el ${m}`;
+  if(n<=1)return `Tiene el ${m} asegurado`;
+  return `Necesitas ${fmt(nfNecesaria(n))} en lo pendiente para el ${m}`;
+}
+// La cátedra sola, al lado del promedio de siempre (que ya incluye el lab).
+// Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
+// siempre YA es solo la cátedra, y repetir el mismo número confundiría.
+function htmlSoloCatedra(r,{fmt=x=>x}={}){
+  const partes=partesDelVinculo(r);
+  if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
+  const v=partes.propio.valor;
+  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
+    `<span class="solo-parte-label">Solo cátedra</span>`;
+}
+// El recuadro bajo el promedio: la regla y el laboratorio. La cátedra no se
+// repite acá porque ya está al lado del promedio (`htmlSoloCatedra`).
+// `r` es el ramo que recibe el aporte, tal cual se calcula: en el simulador, la
+// proyección con las notas hipotéticas. `interactivo` deja abrir el laboratorio
+// desde la ficha; dentro del simulador no, porque saldría de la hoja.
+function htmlPartesVinculo(r,{fmt=x=>x,interactivo=false}={}){
+  const partes=partesDelVinculo(r);
+  if(!partes)return '';
+  const {min,propio,externo}=partes;
+  const lab=externo.ramo;
+  const valor=externo.valor===null?'—':fmt(fmtPromedio(externo.valor));
+  const color=externo.valor===null?'var(--fg3)':getColorRamo(lab,externo.valor);
+  const estado=lab?textoParteVinculo(externo,min,fmt):'No está entre tus ramos';
+  const cuerpo=`<span class="parte-txt"><span class="parte-nombre">${esc(externo.nombre)} · ${r2(externo.peso)}%</span>`+
+    `<span class="parte-estado">${esc(estado)}</span></span>`+
+    `<span class="parte-nota" style="color:${color}">${valor}</span>`;
+  const fila=lab&&interactivo
+    ?`<button type="button" class="parte-fila" onclick="openRamo('${esc(lab.id)}')" aria-label="${esc(externo.nombre)}: ${esc(valor)}. ${esc(estado)}. Abrir ramo">${cuerpo}<span class="chevron-r" aria-hidden="true">›</span></button>`
+    :`<div class="parte-fila">${cuerpo}</div>`;
+  const soloCatedra=propio.valor!==null&&externo.valor===null
+    ?`<p class="partes-nota">Mientras ${esc(externo.nombre)} no tenga notas, el promedio de arriba es solo la cátedra.</p>`:'';
+  return `<div class="partes-hd">Para aprobar, la cátedra y el laboratorio tienen que llegar a ${fmt(nf(min))} cada uno</div>`+
+    fila+soloCatedra;
+}
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
 function textoDescarte(cat,descarte){
@@ -9223,9 +9275,13 @@ function openSimuladorModal(){
     <p class="sim-intro">Agrega notas hipotéticas y mira cómo quedaría tu promedio. No se guardan hasta que confirmes.</p>
     <div class="sim-proj">
       <div class="sim-proj-label">Promedio proyectado</div>
-      <div class="sim-proj-num" id="sim-avg">—</div>
+      <div class="sim-proj-nums">
+        <div class="sim-proj-num" id="sim-avg">—</div>
+        <div class="solo-parte" id="sim-solo-parte" hidden></div>
+      </div>
       <div id="sim-delta"></div>
       <div class="sim-needed" id="sim-needed" aria-live="polite" hidden></div>
+      <div class="partes" id="sim-partes" hidden></div>
     </div>
     <div class="sim-section-label">Evaluaciones</div>
     <div class="sim-cats" id="sim-cats"></div>
@@ -9384,6 +9440,16 @@ function renderSimulador(){
   if(neededEl){
     neededEl.hidden=!necesaria;
     neededEl.textContent=necesaria?[necesaria.texto,necesaria.detalle].filter(Boolean).join(' '):'';
+  }
+  const soloEl=document.getElementById('sim-solo-parte');
+  if(soloEl){
+    const html=htmlSoloCatedra(proyectado,{fmt:simConComa});
+    soloEl.hidden=!html;soloEl.innerHTML=html;
+  }
+  const partesEl=document.getElementById('sim-partes');
+  if(partesEl){
+    const html=htmlPartesVinculo(proyectado,{fmt:simConComa});
+    partesEl.hidden=!html;partesEl.innerHTML=html;
   }
 
   const cb=document.getElementById('sim-commit-btn');if(cb)cb.disabled=!hasSim;

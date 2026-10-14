@@ -594,6 +594,27 @@ function gh_crearCalculoRamo(deps){
     });
     return {total,conocido:conocido/total,pendiente:Math.max(0,1-pesoConocido/total)};
   }
+  // Las dos partes de un ramo con `aporta`, cada una por su cuenta: la cátedra
+  // de Dinámica y su laboratorio. El promedio combinado no dice cuál de las dos
+  // te está dejando abajo, y cada una tiene que llegar sola al mínimo del
+  // vínculo. null si el ramo no recibe aporte o si su nota es una corrección
+  // manual de un ramo archivado (ahí no hay partes que separar).
+  function partesDelVinculo(r,ramosContexto){
+    const link=r&&r.aporta;
+    if(!link||!link.ramo||!link.peso)return null;
+    if(typeof r.avgOverride==='number'&&Number.isFinite(r.avgOverride))return null;
+    const min=typeof link.min==='number'?link.min:4.0;
+    const base=calculoRamoConCompuertas(r);
+    const recuperativo=estadoRecuperativo(r,base);
+    const otro=ramoVinculado(r,ramosContexto);
+    return {
+      min,
+      propio:{peso:100-link.peso,valor:recuperativo?recuperativo.valor:base.valor},
+      externo:{ramo:otro,nombre:otro?otro.nombre:link.ramo,peso:link.peso,
+        valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null,
+        completo:!!otro&&ramoCompletamenteEvaluado(otro),necesaria:otro?notaNecesaria(otro,min):null},
+    };
+  }
   function notaNecesaria(ramo,meta){
     const objetivo=Number.isFinite(meta)?meta:4.0;
     const baseInicial=calculoRamoConCompuertas(ramo);
@@ -674,7 +695,7 @@ function gh_crearCalculoRamo(deps){
     // exigencia ponderada. Solo el solver decide cómo cambia el descarte al rendir.
     return resolver(estructura,objetivo);
   }
-  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos};
