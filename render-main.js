@@ -420,6 +420,19 @@ function renderRamo(){
     }
   }
 
+  // Cátedra y laboratorio por separado: la cátedra sola al lado de la nota
+  // final, y el desglose con lo que le falta a cada una abajo.
+  const soloEl=document.getElementById('ramo-solo-parte');
+  if(soloEl){
+    const html=htmlSoloCatedra(r);
+    soloEl.hidden=!html;soloEl.innerHTML=html;
+  }
+  const partesEl=document.getElementById('ramo-partes');
+  if(partesEl){
+    const html=htmlPartesVinculo(r,{interactivo:true});
+    partesEl.hidden=!html;partesEl.innerHTML=html;
+  }
+
   // Chip nota mínima para el 4.0
   const chipEl=document.getElementById('ramo-min-chip');
   if(r.categorias.length>0){
