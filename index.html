@@ -260,8 +260,32 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div class="ob-icon ob-icon-logo ob-icon-brand"><img src="logo.svg?v=__ASSET_VERSION__" alt="GradeHub" width="72" height="72" style="width:100%;height:100%;object-fit:contain;border-radius:inherit;"/></div>
     <div class="ob-progress" aria-hidden="true"><div class="ob-progress-bar" id="ob-progress-bar"></div></div>
 
+    <!-- Estudiante o profesor particular (#697). Estudiante viene marcado: es
+         casi todo el que llega. Se elige una vez; para cambiarlo se nos escribe. -->
+    <div class="ob-step" data-step="0">
+      <div class="ob-step-num">Paso 1 de 6</div>
+      <h1 class="ob-title ob-title-left" tabindex="-1" id="ob-tipo-titulo">¿Cómo vas a usar GradeHub?</h1>
+      <div class="ob-sub ob-sub-left">Se elige una vez. Si después necesitas cambiarlo, escríbenos.</div>
+      <div class="ob-options" role="radiogroup" aria-labelledby="ob-tipo-titulo">
+        <label class="tenant-opt ob-tipo-opt sel" style="--tb:var(--primary);">
+          <input type="radio" name="ob-tipo" value="estudiante" checked onchange="elegirTipoCuenta(this.value)"/>
+          <span class="tenant-opt-info">
+            <span class="tenant-opt-name">Estudiante</span>
+            <span class="tenant-opt-sub">Tus ramos, tus notas y qué necesitas para aprobar.</span>
+          </span>
+        </label>
+        <label class="tenant-opt ob-tipo-opt" style="--tb:var(--primary);">
+          <input type="radio" name="ob-tipo" value="profesor" onchange="elegirTipoCuenta(this.value)"/>
+          <span class="tenant-opt-info">
+            <span class="tenant-opt-name">Profesor particular</span>
+            <span class="tenant-opt-sub">Publicas tus clases y sigues cómo les va a tus alumnos.</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
     <div class="ob-step" data-step="1">
-      <div class="ob-step-num">Paso 1 de 5</div>
+      <div class="ob-step-num">Paso 2 de 6</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Cómo te llamas?</h1>
       <div class="ob-sub ob-sub-left">Puede ser tu nombre o un apodo.</div>
       <div class="ob-card">
@@ -282,14 +306,14 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
 
     <div class="ob-step" data-step="2" style="display:none;">
-      <div class="ob-step-num">Paso 2 de 5</div>
+      <div class="ob-step-num">Paso 3 de 6</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Dónde estudias?</h1>
       <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
 
     <div class="ob-step" data-step="3" style="display:none;">
-      <div class="ob-step-num">Paso 3 de 5</div>
+      <div class="ob-step-num">Paso 4 de 6</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Qué estudias?</h1>
       <div class="ob-sub ob-sub-left">Busca tu carrera. Si no aparece, puedes escribirla.</div>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
@@ -297,7 +321,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
 
     <div class="ob-step" data-step="4" style="display:none;">
-      <div class="ob-step-num">Paso 4 de 5</div>
+      <div class="ob-step-num">Paso 5 de 6</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿De qué generación eres?</h1>
       <div class="ob-sub ob-sub-left">El año en que entraste a la universidad. Con eso y la fecha sabemos en qué semestre vas.</div>
       <div class="ob-card ob-ruleta-card">
@@ -319,16 +343,32 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
 
     <div class="ob-step" data-step="5" style="display:none;">
-      <div class="ob-step-num">Paso 5 de 5</div>
+      <div class="ob-step-num">Paso 6 de 6</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">Elige tus ramos</h1>
       <div id="ob-course-picker"></div>
+    </div>
+
+    <!-- Solo el profesor llega acá, después del paso 1. Crea su postulación en
+         `tutor_perfiles`, pendiente de revisión, con los mismos largos de Ajustes. -->
+    <div class="ob-step" data-step="6" style="display:none;">
+      <div class="ob-step-num">Paso 3 de 3</div>
+      <h1 class="ob-title ob-title-left" tabindex="-1">Cuéntanos de tus clases</h1>
+      <div class="ob-sub ob-sub-left">Revisamos cada postulación antes de que puedas publicar.</div>
+      <div class="ob-card ob-prof-card">
+        <label class="field-label" for="ob-prof-nombre">Nombre público</label>
+        <input type="text" id="ob-prof-nombre" maxlength="100" autocomplete="name" placeholder="Como te verán tus alumnos" oninput="checkOb()"/>
+        <label class="field-label" for="ob-prof-presentacion">Qué ramos enseñas y qué experiencia tienes</label>
+        <textarea id="ob-prof-presentacion" maxlength="1500" rows="5" aria-describedby="ob-prof-ayuda ob-prof-error" oninput="checkOb()"></textarea>
+        <p class="ob-ruleta-aviso" id="ob-prof-ayuda">Al menos 20 caracteres.</p>
+        <p class="ob-ruleta-aviso ob-prof-error" id="ob-prof-error" role="alert"></p>
+      </div>
     </div>
 
     <div class="ob-nav">
       <button class="ob-back" id="ob-back" onclick="obBack()" hidden>Atrás</button>
       <button class="btn-primary ob-next" id="ob-next" onclick="obNext()" disabled>Continuar</button>
     </div>
-    <p class="ob-note">Puedes editar tus datos y ramos más adelante.</p>
+    <p class="ob-note" id="ob-note">Puedes editar tus datos y ramos más adelante.</p>
   </div>
 </div>
 

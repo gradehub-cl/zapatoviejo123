@@ -460,6 +460,16 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .tenant-opt-info{display:flex;flex-direction:column;min-width:0;gap:2px;}
 .tenant-opt-name{font-size:0.90625rem;font-weight:700;color:var(--fg);letter-spacing:-.015em;line-height:1.2;}
 .tenant-opt-sub{font-size:0.75rem;color:var(--fg3);letter-spacing:-.005em;}
+/* Paso 0 del onboarding (#697): radios de verdad dentro de la tarjeta. El
+   círculo no se ve, pero sigue ahí para el teclado y el lector de pantalla. */
+.ob-tipo-opt{position:relative;min-height:64px;}
+.ob-tipo-opt input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none;}
+.ob-tipo-opt:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px;}
+/* El profesor escribe su presentación: mismo campo que los de texto. */
+.ob-prof-card input{margin-bottom:16px;}
+.ob-prof-card textarea{width:100%;min-height:120px;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font:inherit;font-size:1rem;line-height:1.45;color:var(--fg);background:var(--bg2);resize:vertical;outline:none;}
+.ob-prof-card textarea:focus-visible{border-color:var(--primary);}
+.ob-prof-error{color:var(--red);}
 /* Selector de universidad en Configuración: chips de texto, sin códigos de
    color por institución. */
 .s-tenant-grid{display:flex;flex-wrap:wrap;gap:7px;}
