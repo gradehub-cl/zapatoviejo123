@@ -339,11 +339,21 @@ function renderRamo(){
     avgEl.innerHTML=`${s.slice(0,dot)}<span class="ramo-decimal">${s.slice(dot)}</span>`;
     avgEl.className='ramo-num '+colorClassRamo(r,avg)+claseNotaEspecial(avg);
     avgEl.style.setProperty('--grade-color',getColorRamo(r,avg));
-    avgEl.onclick=()=>{alternarPromedioExacto();pintarPromedioExacto('ramo-hero-exacto',avg);};
+    avgEl.onclick=()=>{alternarPromedioExacto();pintarPromedioExacto('ramo-hero-exacto',avg);pintarSoloCatedra();};
   } else {
     avgEl.textContent='Sin notas';avgEl.className='ramo-num empty';avgEl.onclick=null;
   }
   pintarPromedioExacto('ramo-hero-exacto',avg);
+  // La cátedra sola, al lado de la nota final. Se toca igual que el número
+  // grande: los dos muestran o esconden su promedio exacto a la vez.
+  const soloEl=document.getElementById('ramo-solo-parte');
+  function pintarSoloCatedra(){
+    if(!soloEl)return;
+    const html=htmlSoloCatedra(r,{exacto:promedioExactoVisible?fmtPromedioExacto:null});
+    soloEl.hidden=!html;soloEl.innerHTML=html;
+  }
+  pintarSoloCatedra();
+  if(soloEl)soloEl.onclick=()=>{alternarPromedioExacto();pintarPromedioExacto('ramo-hero-exacto',avg);pintarSoloCatedra();};
   const tp=r.categorias.reduce((a,c)=>a+c.peso,0);
   const categoriasVisibles=r.categorias.filter(c=>!(eximicion&&eximicion.activa&&eximicion.regla.ocultaEvaluacion===true&&eximicion.examenId===c.id));
   const crTxt=(r.seccion?` · Sección ${r.seccion}`:'')+(r.creditos?` · ${r.creditos} créditos`:'');
@@ -420,19 +430,6 @@ function renderRamo(){
     }
   }
 
-  // Cátedra y laboratorio por separado: la cátedra sola al lado de la nota
-  // final, y el desglose con lo que le falta a cada una abajo.
-  const soloEl=document.getElementById('ramo-solo-parte');
-  if(soloEl){
-    const html=htmlSoloCatedra(r);
-    soloEl.hidden=!html;soloEl.innerHTML=html;
-  }
-  const partesEl=document.getElementById('ramo-partes');
-  if(partesEl){
-    const html=htmlPartesVinculo(r,{interactivo:true});
-    partesEl.hidden=!html;partesEl.innerHTML=html;
-  }
-
   // Chip nota mínima para el 4.0
   const chipEl=document.getElementById('ramo-min-chip');
   if(r.categorias.length>0){
@@ -487,19 +484,20 @@ function renderRamo(){
       // del ramo vinculado. Es la misma que usan Estadísticas y la calculadora:
       // que el número salga de un solo lugar es la única forma de que no haya
       // dos respuestas a la misma pregunta.
-      const needed=notaNecesaria(r);
+      // En un ramo con laboratorio, la cuenta y el texto son de la cátedra.
+      const {valor:needed,cual}=notaNecesariaParaAprobar(r);
       if(needed===null){
         chipEl.style.display='none';
       } else if(avg!==null && needed<=1.0&&!notaNecesariaCondicional(r)){
         // Ya no puede reprobar con lo pendiente → aprobación asegurada
         chipEl.style.display='inline-flex';
-        chipEl.className='ramo-chip good';chipEl.textContent=`Va aprobando · falta ${pctPendiente}%`;
+        chipEl.className='ramo-chip good';chipEl.textContent=`Va aprobando${cual} · falta ${pctPendiente}%`;
       } else if(needed>7){
         chipEl.style.display='inline-flex';
-        chipEl.className='ramo-chip bad';chipEl.textContent='Ya no es posible aprobar';
+        chipEl.className='ramo-chip bad';chipEl.textContent=`Ya no es posible aprobar${cual}`;
       } else {
         chipEl.style.display='inline-flex';
-        chipEl.className='ramo-chip warn';chipEl.textContent=notaNecesariaCondicional(r)?`Con ${nfNecesaria(needed)} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${nfNecesaria(needed)} en lo pendiente para aprobar`;
+        chipEl.className='ramo-chip warn';chipEl.textContent=notaNecesariaCondicional(r)?`Con ${nfNecesaria(needed)} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${nfNecesaria(needed)} en lo pendiente para aprobar${cual}`;
       }
     } else {chipEl.style.display='none';}
   } else {chipEl.style.display='none';}
