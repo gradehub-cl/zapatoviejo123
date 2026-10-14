@@ -7217,8 +7217,10 @@ function openSettings(){
     datos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/></svg>',
     arrow:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'
   };
+  // Las cuentas de Google no tienen contraseña: ni la prometen ni la encuentran al buscar.
+  const conClave=typeof cuentaConClave==='function'&&cuentaConClave(currentUser);
   const sections=[
-    ['Tu cuenta','perfil','Perfil','Tu nombre y correo de acceso','cambiar nombre correo email'],
+    ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
@@ -7278,6 +7280,15 @@ function openSettings(){
         <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Se cambia al tiro. Revisa que esté bien escrito: con él entras y recuperas tu cuenta.</p>
         <p id="s-account-email-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
+      </div>`:''}
+      ${currentUser&&conClave?`<div class="settings-account-access">
+        <label class="modal-label" for="s-account-pass">Nueva contraseña</label>
+        <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
+        <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
+        <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>
+        <p class="settings-help" id="s-account-pass-help" style="margin:7px 0 10px;">Al menos ${PASS_MIN} caracteres, con letras y números.</p>
+        <p id="s-account-pass-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-save" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
       </div>`:''}`;
     if(section==='academico')return `
       <div class="modal-label">Universidad</div>
