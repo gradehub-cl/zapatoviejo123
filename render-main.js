@@ -190,13 +190,15 @@ function renderHome(){
     const ne=nextExam();
     if(ne){
       const daysLabel=ne.daysUntil===0?'hoy':ne.daysUntil===1?'mañana':`en ${ne.daysUntil} días`;
+      // El color del ramo va en la línea lateral y el ícono, no en el texto:
+      // un ramo violeta dejaba "en 2 días" a 3,9:1 en modo claro.
       cards.push(`
         <div class="insight-card" role="button" tabindex="0" style="--insight-color:${esc(ne.ramo.color)}" onclick="openRamo('${esc(ne.ramo.id)}')">
           <div class="insight-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg></div>
           <div class="insight-body">
             <div class="insight-label">Próxima evaluación</div>
             <div class="insight-title">${esc(ne.nombre)} · ${esc(ne.ramo.nombre)}</div>
-            <div class="insight-meta"><span class="strong">${daysLabel}</span></div>
+            <div class="insight-meta"><span class="strong" style="color:var(--fg)">${daysLabel}</span></div>
           </div>
           <span class="chevron-r">›</span>
         </div>`);
@@ -206,7 +208,9 @@ function renderHome(){
       // El caso sin salida no se pinta como una advertencia más: si ya no se
       // puede aprobar con lo que queda, la etiqueta y el color tienen que
       // decirlo, no pedir una nota que no existe en la escala.
-      const warnColor=(risky.imposible||!notaAprobadaRamo(risky.ramo,risky.avg))?'#ff7a8f':'#ffcf5c';
+      // Con los tokens del semáforo y no con hex: '#ff7a8f' y '#ffcf5c' eran
+      // los del modo oscuro, y en claro el número quedaba a 2,5:1 y 1,4:1.
+      const warnColor=(risky.imposible||!notaAprobadaRamo(risky.ramo,risky.avg))?'var(--red)':'var(--yellow)';
       cards.push(`
         <div class="insight-card" role="button" tabindex="0" style="--insight-color:${warnColor}" onclick="openRamo('${esc(risky.ramo.id)}')">
           <div class="insight-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg></div>
