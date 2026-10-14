@@ -376,12 +376,16 @@ function renderRamo(){
       propEl.innerHTML=pendientes.map(p=>{
         const filas=p.notas.map(n=>{
           const cat=(r.categorias||[]).find(c=>normName(c.nombre)===normName(n.evaluacion));
-          const actual=cat?(cat.notas||[]).find(x=>typeof x.valor==='number'&&(n.casilla?x.slot===n.casilla:true)):null;
+          // La misma casilla donde la va a escribir aplicarPropuestaNotas: la
+          // `casilla` del agente parte en 1 y `slot` en 0, y compararlas tal cual
+          // tachaba la nota de la casilla siguiente.
+          const lugar=destinoNotaPropuesta(cat,n);
+          const actual=lugar&&lugar.nota&&typeof lugar.nota.valor==='number'?lugar.nota:null;
           // Se muestra la nota que ya está, si la hay: aceptar una propuesta
           // que PISA un 6,2 con un 4,0 es una decisión distinta de anotar una
           // casilla vacía, y no se puede tomar sin ver las dos.
           return `<div class="prop-fila"><span class="prop-eval">${esc(n.evaluacion)}${n.casilla?` · casilla ${n.casilla}`:''}</span>`+
-            `<span class="prop-valor">${actual?`<s>${nf(actual.valor)}</s> → `:''}${nf(n.valor)}</span></div>`;
+            `<span class="prop-valor">${actual?`<s>${textoCalificacionNota(actual)}</s> → `:''}${fmtNota(n.valor)}</span></div>`;
         }).join('');
         return `<div class="prop-notas-card">
           <div class="prop-notas-head"><b>Un agente propone ${p.notas.length} nota${p.notas.length!==1?'s':''}</b><span>Nada se aplicó todavía.</span></div>
@@ -396,13 +400,16 @@ function renderRamo(){
       }).join('')+pendientesFechas.map(p=>{
         const filas=p.fechas.map(f=>{
           const cat=(r.categorias||[]).find(c=>normName(c.nombre)===normName(f.evaluacion));
-          const actual=f.casilla
-            ? (cat&&(cat.notas||[]).find(x=>x.slot===f.casilla)||null)
-            : cat;
+          // Igual que escribirFechaPropuesta: la casilla del agente parte en 1.
+          const slot=cat&&f.casilla?slotDeCasilla(cat,f.casilla):null;
+          const actual=!cat||slot===undefined?null
+            : slot===null?cat
+            : (cat.notas||[]).find(x=>x.slot===slot)||null;
           // La fecha que ya está, si la hay. Mover una prueba que ya estaba
           // agendada es otra decisión que ponerle fecha a una que no tenía.
-          const antes=actual&&actual.fecha?formatEventDate({fecha:actual.fecha,hora:actual.hora||null}):'';
-          const nueva=formatEventDate({fecha:f.fecha,hora:f.hora||null});
+          // `formatEventDate` devuelve {day,mon,dow}: acá salía "[object Object]".
+          const antes=actual&&actual.fecha?fechaHoraCorta(actual.fecha,actual.hora):'';
+          const nueva=fechaHoraCorta(f.fecha,f.hora);
           return `<div class="prop-fila"><span class="prop-eval">${esc(f.evaluacion)}${f.casilla?` · casilla ${f.casilla}`:''}</span>`+
             `<span class="prop-valor">${antes?`<s>${esc(antes)}</s> → `:''}${esc(nueva)}</span></div>`;
         }).join('');
