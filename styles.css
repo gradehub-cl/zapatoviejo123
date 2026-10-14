@@ -932,7 +932,7 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
 }
 .ramo-num.good,.ramo-num.warn,.ramo-num.bad{background-image:linear-gradient(160deg,color-mix(in srgb,var(--grade-color),#fff 10%),var(--grade-color) 72%,color-mix(in srgb,var(--grade-color),#000 8%));}
-.ramo-num.empty{background-image:none;-webkit-text-fill-color:var(--fg3);color:var(--fg3);font-size:2rem;font-weight:600;opacity:.7;letter-spacing:-.01em;}
+.ramo-num.empty{background-image:none;-webkit-text-fill-color:var(--fg3);color:var(--fg3);font-size:2rem;font-weight:600;letter-spacing:-.01em;}
 .ramo-num .ramo-decimal{
   background-image:inherit;-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;
@@ -1064,7 +1064,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
    y hay que declararlo acá. 18px es lo que miden Chrome y Safari. Si algún
    navegador usa otro, el error vuelve a ser de un par de píxeles en las puntas
    y cero en el 50%: bastante mejor que los 7px de todas partes. */
-.peso-marks{--peso-thumb:18px;position:relative;height:0.8rem;margin:4px 0 14px;font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;opacity:.6;}
+.peso-marks{--peso-thumb:18px;position:relative;height:0.8rem;margin:4px 0 14px;font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .peso-marks span{position:absolute;top:0;left:calc(var(--peso-thumb) / 2 + (100% - var(--peso-thumb)) * var(--p) / 100);transform:translateX(-50%);}
 .slider-desc{font-size:0.75rem;color:var(--fg3);margin-top:4px;}
 .modal-btns{display:flex;gap:10px;margin-top:6px;}
@@ -1473,8 +1473,10 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 
 .ag-row:active{transform:scale(.99);}
 .ag-row-bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
-.ag-row.done{opacity:.62;}
-.ag-row.done:hover{opacity:.85;}
+/* Una rendida se distingue por su sección y su barra apagada, no por bajar
+   la opacidad de la fila entera: así la fecha y la nota quedaban bajo 4,5:1
+   (2,5:1 en claro). La nota sigue con su semáforo a contraste completo. */
+.ag-row.done .ag-row-bar{opacity:.62;}
 .ag-row-main{flex:1;min-width:0;}
 .ag-row-top{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;}
 .ag-row-when{font-size:0.8125rem;font-weight:700;color:var(--fg2);}
@@ -1483,7 +1485,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-row-when.alta{color:var(--yellow);}
 .ag-row-when.media{color:var(--primary);}
 .ag-row-when.done{color:var(--fg3);text-transform:none;letter-spacing:0;font-weight:600;}
-.ag-row-date{font-size:0.6875rem;color:var(--fg3);opacity:.7;font-variant-numeric:tabular-nums;}
+.ag-row-date{font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .ag-row-peso{margin-left:auto;font-family:var(--font-ui);font-size:0.75rem;font-weight:700;color:var(--fg2);background:var(--muted);border-radius:6px;padding:2px 8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
 .ag-row-peso.heavy{color:var(--secondary);background:color-mix(in srgb,var(--secondary),transparent 80%);border:1px solid color-mix(in srgb,var(--secondary),transparent 70%);padding:1px 7px;}
 .ag-row-name{font-size:0.96875rem;font-weight:600;color:var(--fg);letter-spacing:-.015em;line-height:1.25;}
@@ -2082,7 +2084,10 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* En el modal este aviso vive dentro de una caja que ya trae sangría, por eso
    la clase lo declara a ancho completo. En la ficha del ramo cuelga directo del
    scroll, así que ahí la sangría la pone él y se alinea con el resto. */
-#no-calcula-warning.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;}
+#no-calcula-warning.weight-setup-nudge,#pauta-cambio.weight-setup-nudge,#consenso-disponible.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;}
+/* Las propuestas de un agente cuelgan del mismo scroll: sin esto, sus tarjetas
+   iban de borde a borde, con las esquinas redondeadas cortadas por la pantalla. */
+#notas-propuestas{margin:12px 20px 0;}
 .eximicion-note.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;
   background:var(--card);border-color:var(--border2);}
 .eximicion-note.weight-setup-nudge .ic{color:var(--fg3);}
@@ -2719,7 +2724,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .eval-sub-open{display:flex;flex-direction:column;align-items:flex-start;gap:1px;flex:1;min-width:0;padding:4px 0;border:0;background:transparent;text-align:left;cursor:pointer;font-family:inherit;}
 .eval-sub-open:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
 .eval-sub-fecha{font-size:0.6875rem;color:var(--fg3);}
-.eval-sub-fecha.vacia{color:var(--border2);}
 /* Una casilla que quedó fuera de la pauta al bajar las casillas del grupo.
    Su nota sigue contando, así que tiene que verse: antes desaparecía y el
    promedio quedaba sin explicación.
