@@ -132,5 +132,5 @@ byId('sim-in-cierre').value='4,5';
 run("simAddNota('cierre')");
 assert.equal(JSON.stringify(explorado),antes,'la simulación conserva intacto el ramo original');
 assert.equal(writes.length,0,'no se toca gradehub_v1 ni otra clave local al simular');
-assert.match(fs.readFileSync(path.join(root,'app.js'),'utf8'),/const necesaria=notaNecesaria\(proyectado,meta\)/);
+assert.match(fs.readFileSync(path.join(root,'app.js'),'utf8'),/const necesaria=notaNecesaria\(proyectado,meta[,)]/);
 console.log('OK: simulador, compuertas, ausencias y ficha');

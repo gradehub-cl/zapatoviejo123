@@ -599,6 +599,7 @@ function gh_crearCalculoRamo(deps){
   // te está dejando abajo, y cada una tiene que llegar sola al mínimo del
   // vínculo. null si el ramo no recibe aporte o si su nota es una corrección
   // manual de un ramo archivado (ahí no hay partes que separar).
+  // `necesaria` es lo que le falta a la cátedra sola para su mínimo.
   function partesDelVinculo(r,ramosContexto){
     const link=r&&r.aporta;
     if(!link||!link.ramo||!link.peso)return null;
@@ -609,13 +610,13 @@ function gh_crearCalculoRamo(deps){
     const otro=ramoVinculado(r,ramosContexto);
     return {
       min,
-      propio:{peso:100-link.peso,valor:recuperativo?recuperativo.valor:base.valor},
-      externo:{ramo:otro,nombre:otro?otro.nombre:link.ramo,peso:link.peso,
-        valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null,
-        completo:!!otro&&ramoCompletamenteEvaluado(otro),necesaria:otro?notaNecesaria(otro,min):null},
+      propio:{valor:recuperativo?recuperativo.valor:base.valor,necesaria:notaNecesaria(r,min,{soloPropio:true})},
+      externo:{ramo:otro,valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null},
     };
   }
-  function notaNecesaria(ramo,meta){
+  // `soloPropio` pregunta por la parte propia sin el ramo que le aporta: cuánto
+  // necesita la cátedra para llegar sola a la meta.
+  function notaNecesaria(ramo,meta,opciones){
     const objetivo=Number.isFinite(meta)?meta:4.0;
     const baseInicial=calculoRamoConCompuertas(ramo);
     if(baseInicial.ausencias&&baseInicial.ausencias.bloqueadas&&baseInicial.ausencias.bloqueadas.length)return null;
@@ -654,6 +655,7 @@ function gh_crearCalculoRamo(deps){
     let estructura=propio;
     const link=ramo.aporta;
     const resolver=(est,meta)=>solveForTarget(est,notas,meta,{}, {precision:null,extrapolate:true}).requiredAverage;
+    if(opciones&&opciones.soloPropio)return resolver(propio,objetivo);
     if(link&&link.peso){
       const p=link.peso/100;
       const otro=ramoVinculado(ramo);
