@@ -104,10 +104,6 @@ y mirando que no queden filas suyas en ninguna tabla.
   `auth.users` con `ON DELETE CASCADE`. Sin eso, esos datos sobreviven al
   borrado de cuenta y la política de privacidad pasa a ser mentira sin que
   falle nada. Ver `supabase/eliminar_mi_cuenta.sql`
-- Refrescar `ramoKey` en `normalize()`. Los ramos guardan su clave de consenso
-  desde que se crearon y `claveReporte()` prefiere esa, así que un sinónimo
-  agregado después no reagrupa los reportes viejos. Con 3 reportes no cuesta
-  nada; conviene resolverlo antes de que sí cueste
 
 ## En vuelo
 
@@ -468,38 +464,10 @@ Revisados el 2026-09-12 contra la tabla de sugerencias. Se dejan solo los que
 NO están resueltos; los que sí (apagar secciones de Estadísticas, borrar y
 renombrar un semestre del historial, las dos Dinámicas, "sigue a tu teléfono"
 en iPad, los fondos pizarra y neutro) ya salieron y no vuelven a la cola.
-
-**1. Las evaluaciones de una categoría con varias notas desaparecen.** Lo más
-grave de la lista: TRES reportes, dos usuarios distintos más Lucas, entre el
-2026-08-29 y el 08-30. "Cuando agrego controles y le pongo que son varias notas
-dentro de esa categoría, no me aparece después y deja de funcionar. Si saco que
-son varias notas, vuelven a aparecer todos." Otro lo describe desde la otra
-punta: "al poner que una nota depende de varias evaluaciones que se promedian
-como que desaparecen, ya no puedo verlas ni poner mis notas". Y el tercero lo
-encontró armando Dinámica ICE a mano. Uno dice que empezó "luego de la última
-actualización", así que hay una regresión con fecha. Primero reproducirlo: son
-tres descripciones que pueden ser el mismo camino o dos.
-
-**2. No hay dónde cambiar la clave estando dentro de la app.** El mecanismo ya
-existe entero —`submitNewPassword` en `app-session.js`— pero solo se alcanza
-por el correo de recuperación, en `screen-reset`. Falta la puerta en Ajustes,
-no la función.
-
-**3. Sección del ramo, opcional.** Pedida por Lucas el 2026-09-12. **Hecha**:
-`seccion` se escribe en Editar ramo, la ficha la muestra, y un agente puede
-proponer el semestre entero con sigla y sección desde el horario
-(`proponer_ramos`, con su bandeja en Inicio). Lo que queda de esa idea es
-reconocer el horario sin agente, dentro de la app: el de BuscaCursos trae
-`SIGLA-SECCIÓN` de todos los ramos, y el estudiante lo tiene a mano. Validar cada sigla contra
-`cursos-uc.js` hace el reconocimiento robusto: lo que no sea una sigla real se
-descarta solo. De las 6 siglas de un horario de prueba, 5 estaban en el
-catálogo. La sección también le daría sentido a la comparación por curso
-—compararse con su sección y no con el ramo entero—, que hoy agrupa por sigla.
-
-**4. "Controles 1, Controles 2".** Si la categoría se llama en plural, las
-evaluaciones heredan el plural y quedan con un nombre que no se dice así. Hay
-que derivar el singular o dejar que el nombre de la evaluación se separe del de
-la categoría.
+Después salieron también: las notas que desaparecían en una categoría de
+varias notas (acedbe1), "Controles 1" en vez de "Control 1" (b275c72), la
+sección del ramo y su horario desde una foto o BuscaCursos, los créditos UC
+que no llegaban (926ceef) y cambiar la contraseña estando dentro (#729).
 
 **5. "No me muestra cómo voy comparado al resto del curso."** Reportado el
 2026-09-12. Puede ser el mínimo de 5 participantes funcionando como se diseñó
@@ -511,33 +479,6 @@ contar cuántas filas hay por sigla.
 Probablemente es lo que arregla el PR de la sigla de los presets, donde la
 sigla salía vacía. Pero el reporte dice "mal", no "falta": hay que confirmarlo
 con esa persona después del deploy en vez de darlo por cerrado.
-**Muchos ramos se quedan sin créditos aunque el catálogo SÍ los tenga.**
-Reportado por Lucas el 2026-09-12. Su ejemplo: "Principios Ecológicos y Medio
-Ambiente" aparece sin créditos en la app, y en `cursos-uc.js` está la fila
-`["BIO143M","Principios Ecológicos y Medio Ambiente",10]`. O sea el dato lo
-tenemos y no llega. Y dice que no es un ramo suelto: "muchos no más no tienen
-créditos".
-
-No está medido cuántos son. Lo primero es contarlos —recorrer las mallas y ver
-a cuántos `creditosDe` les devuelve null— porque eso separa "faltan tres" de
-"falta el mecanismo".
-
-Dos pistas para quien lo tome, ninguna comprobada todavía:
-
-- `cursos-uc.js` es de CARGA DIFERIDA (`cargarCursosUC()`, ~660 KB que solo se
-  bajan al buscar un ramo). `creditosDe` cae al catálogo completo con
-  `cursoUcCompleto`, pero si el ramo se crea o se normaliza ANTES de que el
-  archivo esté cargado, `CURSOS_UC_FULL` no existe y devuelve null. Nadie
-  reintenta después.
-- `CREDITOS_POR_TENANT` solo tiene `uc` y `fen` (app.js), y el respaldo del
-  catálogo completo corre solo `if(tenant==='uc')`. Para UAI y UAndes no hay
-  ninguna fuente de créditos: ahí el null es esperado, no un bug.
-
-Por qué importa y no es cosmético: el promedio general se pondera por créditos
-SOLO si todos los ramos con nota los tienen. Un ramo sin créditos arrastra a
-toda la cuenta a promedio simple —otro número— sin que falle nada ni aparezca
-ningún error. Es justo lo que ya documenta `tests/creditos-pendientes.test.js`.
-
 ### Las reglas que el motor todavía no calcula
 
 `drop_lowest` fue la primera de `noCalcula` que pasó a calcularse. La segunda
