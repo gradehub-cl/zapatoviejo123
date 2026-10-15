@@ -64,16 +64,13 @@
   .calc input[aria-invalid="true"]{border-color:var(--error);}
   .grupo{margin-top:18px; border:0; padding:0;}
   .grupo-titulo{display:flex; align-items:center; gap:2px; margin-bottom:6px; padding:0;}
-  /* El "?" se ve chico pero se toca en 44×44: el círculo es solo el dibujo. */
+  /* El "?" se ve chico pero se toca en 44×44. */
   .ayuda{
     width:44px; height:44px; margin:-12px 0 -12px -6px; padding:0; border:0; background:none; cursor:pointer;
     display:inline-flex; align-items:center; justify-content:center;
   }
-  .ayuda span{
-    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--fg3); color:var(--fg2);
-    display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;
-  }
-  .ayuda[aria-expanded="true"] span{border-color:var(--primary); background:var(--primary); color:var(--primary-fg);}
+  .ayuda span{color:var(--fg3); font-size:16px; font-weight:700;}
+  .ayuda[aria-expanded="true"] span{color:var(--primary);}
   .explicacion{margin:10px 0 0; padding:14px 16px; border-radius:12px; background:var(--card); border:1px solid var(--border); font-size:15px;}
   .explicacion p{margin:0 0 10px;}
   .explicacion p:last-child{margin-bottom:0;}
@@ -144,7 +141,7 @@
 <a class="marca" href="/"><img src="/icon.svg?v=capas-1" alt="" width="32" height="32"/>GradeHub</a>
 
 <h1>Calculadora de notas</h1>
-<p class="sub">100% gratis, sin crear cuenta, sin anuncios.</p>
+<p class="sub">100% gratis · sin crear cuenta · sin anuncios</p>
 
 <form class="calc" id="calc" novalidate>
   <div class="campos">
