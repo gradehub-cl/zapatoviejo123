@@ -255,13 +255,22 @@ function dondeDelError(archivo,linea,columna){
   const nombre=String(archivo||'').split('?')[0].split('/').pop()||'?';
   return nombre+(linea?':'+linea+(columna?':'+columna:''):'');
 }
+// Una promesa rechazada no trae archivo ni línea: se sacan del primer marco del
+// stack. Sin esto, "promesa" no distinguía un error nuestro de uno de una
+// extensión del navegador ("reading 'M_ID'", 2026-10-14, no está en el repo).
+function dondeDeLaPromesa(error){
+  const m=String(error&&error.stack||'').match(/([a-z-]+:\/\/[^\s()]+?):(\d+):(\d+)/i);
+  if(!m)return 'promesa';
+  if(/^(chrome|moz|safari-web)-extension:/i.test(m[1]))return 'promesa · extensión';
+  return 'promesa · '+dondeDelError(m[1],m[2],m[3]);
+}
 if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
   window.addEventListener('error',e=>{
     // Un <img> o un <script> que no carga también dispara "error", sin mensaje.
     if(!e||!e.message)return;
     reportarError(e.error||{message:e.message},dondeDelError(e.filename,e.lineno,e.colno));
   });
-  window.addEventListener('unhandledrejection',e=>reportarError(e&&e.reason,'promesa'));
+  window.addEventListener('unhandledrejection',e=>reportarError(e&&e.reason,dondeDeLaPromesa(e&&e.reason)));
 }
 
 function registrarErrorArranque(error,fase){
@@ -269,7 +278,12 @@ function registrarErrorArranque(error,fase){
   const tipo=error&&tiposSeguros.includes(error.name)?error.name:'Error';
   const detalle=detalleErrorSeguro(error);
   console.error('GradeHub no pudo completar el arranque ('+fase+'): '+tipo+' · '+detalle);
-  track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
+  // `track` vive en app.js. Si app.js no alcanzó a cargar (una descarga
+  // cortada), llamarla reventaba acá: la persona quedaba en el login con la
+  // sesión abierta, sin el aviso de recargar, y errores_app solo recibía
+  // "Can't find variable: track" en vez del error de verdad (2026-10-14).
+  if(typeof track==='function')track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
+  reportarError(error,'arranque:'+fase);
 }
 function enterOnboarding(){
   document.getElementById('screen-auth').classList.remove('active');
@@ -1463,6 +1477,16 @@ async function boot(){
     // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
     limpiarFragmentoAuth();
     if(enRecuperacion){showResetScreen();return;}
+    // app.js trae el estado y las pantallas. Si su descarga se cortó (pesa
+    // ~600 KB), no hay app que abrir: se pide recargar y se reporta con nombre,
+    // en vez de fallar adentro de afterLogin con un error que no dice qué pasó.
+    // `track` es una declaración de función de app.js: existe apenas el archivo
+    // se leyó, aunque algo falle más abajo.
+    if(typeof track!=='function'){
+      registrarErrorArranque(new Error('app.js no cargó'),'cargar_app');
+      showAppErrorScreen('abrir_app');
+      return;
+    }
     try{
       await afterLogin();
     }catch(e){

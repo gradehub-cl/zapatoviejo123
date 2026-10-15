@@ -45,6 +45,16 @@ console.log('\n=== Escucha lo que nadie atrapó ===');
 chk('errores y promesas rechazadas', /addEventListener\('error'/.test(sesion) && /addEventListener\('unhandledrejection'/.test(sesion));
 chk('ignora recursos que no cargan (sin mensaje)', /if\(!e\|\|!e\.message\)return;/.test(sesion));
 
+console.log('\n=== Dónde, en una promesa rechazada ===');
+// "reading 'M_ID'" (2026-10-14) llegó solo con "promesa": no se sabía si era nuestro.
+const p = arnes();
+const donde = stack => p.run(`dondeDeLaPromesa(${JSON.stringify({ stack })})`);
+chk('Chrome: archivo y línea', donde('TypeError: x\n    at f (https://gradehub.cl/app.js?v=774a70f:1234:56)') === 'promesa · app.js:1234:56');
+chk('Safari y la app iOS', donde('f@https://gradehub.cl/render-main.js?v=1:88:12') === 'promesa · render-main.js:88:12' && donde('f@capacitor://localhost/app.js:5:6') === 'promesa · app.js:5:6');
+chk('una extensión del navegador se nombra como tal, sin su ruta', donde('at chrome-extension://abc/content.js:10:5') === 'promesa · extensión');
+chk('sin stack sigue diciendo "promesa"', p.run('dondeDeLaPromesa(undefined)') === 'promesa' && p.run('dondeDeLaPromesa("texto")') === 'promesa');
+chk('el escucha de promesas la usa', /unhandledrejection',e=>reportarError\(e&&e\.reason,dondeDeLaPromesa\(e&&e\.reason\)\)/.test(sesion));
+
 console.log('\n=== La tabla ===');
 chk('el cliente solo inserta, a su nombre', /grant insert \(plataforma, version, tipo, mensaje, donde, pantalla\) on public\.errores_app to authenticated;/.test(sql)
   && /revoke all on public\.errores_app from public, anon, authenticated;/.test(sql) && /with check \(\(select auth\.uid\(\)\) = user_id\)/.test(sql));
