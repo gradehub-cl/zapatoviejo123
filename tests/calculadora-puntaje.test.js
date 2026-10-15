@@ -63,6 +63,11 @@ chk('respeta las áreas seguras', /env\(safe-area-inset-bottom\)/.test(html));
 chk('la nota usa números tabulares', /\.nota\{[^}]*tabular-nums/.test(html.replace(/\s+/g, ' ').replace(/\.resultado \.nota\{/, '.nota{')));
 // El canonical apunta a la URL final: /calculadora.html redirige a /calculadora.
 chk('el canonical es la URL final, sin .html', html.includes('<link rel="canonical" href="https://gradehub.cl/calculadora"/>'));
+// La tarjeta que muestra WhatsApp al compartir el link: la propia de la
+// calculadora (bin/og-calculadora.html), no la general de og-v3.png.
+const og = fs.readFileSync(path.join(raiz, 'og-calculadora.png'));
+chk('comparte su propia tarjeta', html.includes('<meta property="og:image" content="https://gradehub.cl/og-calculadora.png"/>'));
+chk('la tarjeta mide 1200×630 y pesa menos de 200 KB', og.readUInt32BE(16) === 1200 && og.readUInt32BE(20) === 630 && og.length < 200000);
 chk('la app enlaza a la calculadora', /href="\/calculadora\.html"/.test(leer('index.html')));
 chk('las preguntas enlazan a la calculadora', /href="\/calculadora\.html"/.test(leer('preguntas.html')));
 
