@@ -6,7 +6,8 @@ function arnes(){
   const almacen=new Map([['gradehub_v1','{"ramos":[{"id":"r-a"}]}'],['gradehub_cache_owner','a']]);
   const ctx={window:{},document:{addEventListener(){},getElementById:()=>({value:'',classList:{remove(){}},style:{}})},
     location:{hash:'',reload(){recargas++;}},localStorage:{getItem:k=>almacen.get(k)||null,setItem:(k,v)=>almacen.set(k,v),removeItem:k=>almacen.delete(k)},
-    S:{onboardingDone:true},console,setTimeout,clearTimeout};
+    // track viene de app.js: sin ella, boot() trata la visita como app.js sin cargar.
+    S:{onboardingDone:true},track(){},console,setTimeout,clearTimeout};
   vm.createContext(ctx);vm.runInContext(fuente,ctx);
   ctx.__cliente={auth:{onAuthStateChange:fn=>{callback=fn;},getSession:async()=>({data:{session:{user:{id:'a'}}}}),signOut:async()=>{callback('SIGNED_OUT',null);return {error:null};}}};
   ctx.__mostrar=()=>auth++;ctx.__cerrar=()=>cierres++;
