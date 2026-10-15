@@ -61,6 +61,8 @@ chk('los campos no bajan de 16px', !/\.calc input[^}]*font-size:(1[0-5]|[0-9])px
 chk('el resultado se anuncia al lector de pantalla', /aria-live="polite"/.test(html));
 chk('respeta las áreas seguras', /env\(safe-area-inset-bottom\)/.test(html));
 chk('la nota usa números tabulares', /\.nota\{[^}]*tabular-nums/.test(html.replace(/\s+/g, ' ').replace(/\.resultado \.nota\{/, '.nota{')));
+// El canonical apunta a la URL final: /calculadora.html redirige a /calculadora.
+chk('el canonical es la URL final, sin .html', html.includes('<link rel="canonical" href="https://gradehub.cl/calculadora"/>'));
 chk('la app enlaza a la calculadora', /href="\/calculadora\.html"/.test(leer('index.html')));
 chk('las preguntas enlazan a la calculadora', /href="\/calculadora\.html"/.test(leer('preguntas.html')));
 
