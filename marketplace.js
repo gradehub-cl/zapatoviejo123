@@ -3712,9 +3712,21 @@ async function exportarAlumnosPanel(lista,compDe){
 }
 
 // La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
-function renderAlumnosTab(){
+async function renderAlumnosTab(){
   const raiz=document.getElementById('alumnos-body');
-  if(raiz)renderAlumnosProfesor(raiz);
+  if(!raiz)return;
+  // Una cuenta de profesor tiene esta pestaña desde el primer día (#697), pero
+  // sus consultas exigen estar aprobado: mientras no lo esté, se dice por qué
+  // está vacía en vez de mostrar un error.
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(perfilProfesorConocido()===undefined)await cargarPerfilProfesor().catch(()=>{});
+    if(!esProfesorAprobado()){
+      raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
+        '<p class="profesor-info" role="status">Cuando aprobemos tu postulación, acá vas a ver las notas que tus alumnos decidan compartirte.</p></div>';
+      return;
+    }
+  }
+  renderAlumnosProfesor(raiz);
 }
 async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
