@@ -46,7 +46,7 @@ chk('el SW ya no pide nada a un tercero al abrir la app',
   !/fonts\.googleapis\.com|fonts\.gstatic\.com/.test(sw));
 
 console.log('\n=== Editorial usa la fuente del sistema sin descargas ===');
-const paginas = ['index.html', 'preguntas.html', 'privacidad.html', 'terminos.html', '404.html'];
+const paginas = ['index.html', 'preguntas.html', 'privacidad.html', 'terminos.html', '404.html', 'calculadora.html'];
 paginas.forEach(archivo => {
   const html = fs.readFileSync(raiz + archivo, 'utf8');
   chk(`${archivo} no descarga fuentes ni abre conexiones innecesarias`,

@@ -58,6 +58,26 @@ function gh_reglasNota(tenant){
     rounding:{...GH_REGLAS_NOTA_BASE.rounding,...propia.rounding},
     passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade};
 }
+
+// ─── PUNTAJE → NOTA ─────────────────────────────────────────────────────────
+// La escala lineal con exigencia de las pruebas chilenas: el puntaje de
+// aprobación (exigencia × total) vale la nota de aprobación, y de ahí salen dos
+// rectas, una hasta la mínima en 0 puntos y otra hasta la máxima en el total.
+// Con 50% de exigencia, 25 de 50 es un 4,0; con 60%, hacen falta 30.
+// La usa la calculadora pública (calculadora.html) y la usará el ingreso de
+// notas de la app: una sola fórmula para las dos. Devuelve null si los datos
+// no forman una escala, para que nadie muestre una nota inventada.
+function gh_notaDesdePuntaje(puntaje,total,o={}){
+  const exigencia=o.exigencia??0.5,nmin=o.nmin??1,naprob=o.naprob??4,nmax=o.nmax??7;
+  if(![puntaje,total,exigencia,nmin,naprob,nmax].every(Number.isFinite))return null;
+  if(total<=0||puntaje<0||puntaje>total||exigencia<=0||exigencia>=1||!(nmin<naprob&&naprob<nmax))return null;
+  const corte=exigencia*total;
+  const cruda=puntaje<corte?nmin+(naprob-nmin)*puntaje/corte:naprob+(nmax-naprob)*(puntaje-corte)/(total-corte);
+  // El 1e-9 es el mismo margen de gh_notaOficial: un 3,95 o un 4,0 exactos no
+  // pueden caer a 3,9 por cómo el punto flotante guarda el número.
+  const nota=o.truncar?Math.floor((cruda+1e-9)*10)/10:gh_excelRound(cruda+1e-9,1);
+  return {nota,cruda,puntajeAprobacion:corte};
+}
 function gh_weightOf(node,ov){const o=ov?.[node.id];if(o&&typeof o.weight==='number')return o.weight;return node.weight;}
 function gh_meta(s){return s.__meta||{};}
 // El recuperativo no es una hoja de la pauta: no tiene peso ni participa en el
@@ -700,4 +720,4 @@ function gh_crearCalculoRamo(deps){
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje};

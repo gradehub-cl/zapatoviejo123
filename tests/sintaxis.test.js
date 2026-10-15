@@ -142,7 +142,7 @@ assetsVersionados.forEach(asset => {
     process.exit(1);
   }
 });
-['/', '/index.html', '/preguntas.html', '/privacidad.html'].forEach(page => {
+['/', '/index.html', '/preguntas.html', '/privacidad.html', '/calculadora.html'].forEach(page => {
   if (!swSrc.includes("'" + page + "'") || swSrc.includes("'" + page + '?v=')) {
     console.error('las páginas deben permanecer sin versión en el SHELL: ' + page);
     process.exit(1);

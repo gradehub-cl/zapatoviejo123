@@ -55,12 +55,16 @@ jobs:
             echo "index.html no tiene marcadores de versión para los assets."
             exit 1
           }
+          grep -q '__ASSET_VERSION__' calculadora.html || {
+            echo "calculadora.html no tiene el marcador de versión de engine.js."
+            exit 1
+          }
           grep -q '__ASSET_VERSION__' sw.js || {
             echo "sw.js no tiene marcadores de versión para los assets."
             exit 1
           }
           sed -i "s/'gradehub-dev'/'gradehub-${GITHUB_SHA::7}'/" sw.js
-          sed -i "s/__ASSET_VERSION__/${ASSET_VERSION}/g" index.html sw.js
+          sed -i "s/__ASSET_VERSION__/${ASSET_VERSION}/g" index.html sw.js calculadora.html
           grep -n 'CACHE_NAME' sw.js | head -1
 
       # Pages sube el directorio que se le pase, tal cual. Pasarle `.` publicaba
@@ -88,7 +92,7 @@ jobs:
           # Lista cerrada: comprueba a la vez que la app esté completa y que
           # ningún artefacto interno termine publicado por una exclusión
           # olvidada. Agregar un archivo de la app exige declararlo acá.
-          archivos_app='index.html 404.html preguntas.html privacidad.html terminos.html
+          archivos_app='index.html 404.html preguntas.html privacidad.html terminos.html calculadora.html
           data.js mallas-uc.js mallas-uai.js cursos-uc.js engine.js app.js app-session.js marketplace.js render-main.js render-agenda.js styles.css sw.js mallas-uandes.js
           manifest.json _headers robots.txt sitemap.xml
           logo.svg icon.svg icon-192.png icon-512.png og-v3.png
@@ -122,9 +126,15 @@ jobs:
               echo "dist/sw.js no precachea ${asset} sellado"; exit 1; }
           done
 
+          # La calculadora carga engine.js sola, sin index.html: tiene que pedir
+          # el mismo engine.js sellado que el precache, o un engine viejo en
+          # cache dejaría la página sin la fórmula.
+          grep -Fq "\"/engine.js?v=${ASSET_VERSION}\"" dist/calculadora.html || {
+            echo "dist/calculadora.html no selló engine.js"; exit 1; }
+
           # Las páginas se siguen navegando network-first y el fallback offline
           # busca /index.html sin versión. Versionarlas rompería ese camino.
-          for page in / /index.html /preguntas.html /privacidad.html; do
+          for page in / /index.html /preguntas.html /privacidad.html /calculadora.html; do
             grep -Fq "'${page}'" dist/sw.js || {
               echo "dist/sw.js perdió la página ${page} del SHELL"; exit 1; }
             ! grep -Fq "'${page}?v=" dist/sw.js || {

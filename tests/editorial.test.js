@@ -52,5 +52,5 @@ check('las notas conservan el color calculado, no reciben el color del ramo',/\.
 check('no queda el llenado de Home que teñía toda la fila',!css.includes('--ramo-progress-end'));
 check('el oscuro neutro no es azulado',run('FONDOS.neutro.oscuro.bg')==='#080809');
 check('la fuente del sistema evita descargas en las cinco páginas',
-  ['index.html','404.html','preguntas.html','privacidad.html','terminos.html'].every(f=>!/<link[^>]*fonts\.(googleapis|gstatic)\.com/.test(read(f))));
+  ['index.html','404.html','preguntas.html','privacidad.html','terminos.html','calculadora.html'].every(f=>!/<link[^>]*fonts\.(googleapis|gstatic)\.com/.test(read(f))));
 console.log(`\n${passed} correctas; ${failed} errores`);process.exit(failed?1:0);
