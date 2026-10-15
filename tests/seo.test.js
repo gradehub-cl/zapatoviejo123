@@ -38,7 +38,7 @@ chk('cada URL corresponde a un archivo que existe',
   }));
 
 console.log('\n=== Metadatos de las páginas ===');
-const PAGINAS = [['index.html', 'la app'], ['preguntas.html', 'las preguntas'], ['privacidad.html', 'la política'], ['terminos.html', 'los términos']];
+const PAGINAS = [['index.html', 'la app'], ['preguntas.html', 'las preguntas'], ['privacidad.html', 'la política'], ['terminos.html', 'los términos'], ['calculadora.html', 'la calculadora']];
 PAGINAS.forEach(([f, que]) => {
   const html = leer(f);
   const titulo = (html.match(/<title>([^<]+)<\/title>/) || [])[1] || '';
@@ -129,7 +129,7 @@ const ESPERADO = {
   '--primary-light': TEMA.darkPrimaryLight, '--accent': TEMA.accent,
   '--secondary': TEMA.darkSecondary,
 };
-['404.html', 'preguntas.html', 'privacidad.html'].forEach(f => {
+['404.html', 'preguntas.html', 'privacidad.html', 'calculadora.html'].forEach(f => {
   const bloque = (leer(f).match(/:root\{([^}]+)\}/) || [])[1] || '';
   const fijados = Object.fromEntries(
     bloque.split(';').filter(p => p.includes(':')).map(p => {

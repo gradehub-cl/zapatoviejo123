@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Tres URLs: la app, las preguntas frecuentes y la política de privacidad. No
-     se agregan rutas de la app porque es una sola página — las pantallas (Home,
-     ramo, agenda) no tienen URL propia. Si algún día la tienen, van acá. -->
+<!-- La app y sus páginas sueltas. No se agregan rutas de la app porque es una
+     sola página — las pantallas (Home, ramo, agenda) no tienen URL propia. Si
+     algún día la tienen, van acá. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://gradehub.cl/</loc>
@@ -13,6 +13,13 @@
        y la única puerta de entrada al sitio que no es una pantalla de login. -->
   <url>
     <loc>https://gradehub.cl/preguntas.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Responde lo que hoy se busca en Google con "calculadora de notas" y
+       "escala de notas 60%": es entrada de tráfico, no una pantalla de la app. -->
+  <url>
+    <loc>https://gradehub.cl/calculadora.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
