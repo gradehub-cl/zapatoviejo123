@@ -53,7 +53,10 @@ chk('Chrome: archivo y línea', donde('TypeError: x\n    at f (https://gradehub.
 chk('Safari y la app iOS', donde('f@https://gradehub.cl/render-main.js?v=1:88:12') === 'promesa · render-main.js:88:12' && donde('f@capacitor://localhost/app.js:5:6') === 'promesa · app.js:5:6');
 chk('una extensión del navegador se nombra como tal, sin su ruta', donde('at chrome-extension://abc/content.js:10:5') === 'promesa · extensión');
 chk('sin stack sigue diciendo "promesa"', p.run('dondeDeLaPromesa(undefined)') === 'promesa' && p.run('dondeDeLaPromesa("texto")') === 'promesa');
-chk('el escucha de promesas la usa', /unhandledrejection',e=>reportarError\(e&&e\.reason,dondeDeLaPromesa\(e&&e\.reason\)\)/.test(sesion));
+chk('el escucha de promesas la usa', /unhandledrejection',e=>\{\s*const donde=dondeDeLaPromesa\(e&&e\.reason\);[\s\S]*?reportarError\(e&&e\.reason,donde\);/.test(sesion));
+// Los errores de extensiones ("reading 'M_ID'") no son de GradeHub: no se guardan (2026-10-15).
+chk('las promesas de una extensión no se guardan', /if\(donde==='promesa · extensión'\)return;/.test(sesion));
+chk('los errores de una extensión no se guardan', /if\(\/\^\(chrome\|moz\|safari-web\)-extension:\/i\.test\(String\(e\.filename\|\|''\)\)\)return;/.test(sesion));
 
 console.log('\n=== La tabla ===');
 chk('el cliente solo inserta, a su nombre', /grant insert \(plataforma, version, tipo, mensaje, donde, pantalla\) on public\.errores_app to authenticated;/.test(sql)
