@@ -162,6 +162,26 @@ revoke all on function public.es_sigla_uc(text) from public, anon, authenticated
 revoke all on function public.busqueda_catalogo_uc(text) from public, anon, authenticated;
 revoke all on function public.sigla_catalogo_uc(text) from public, anon, authenticated;
 
+-- `profiles.universidad` guarda el nombre histórico de TENANTS en data.js.
+-- En particular, todas las carreras UC guardan "U. Católica · Ingeniería"
+-- (#719). Solo se comparan nombres conocidos: un perfil viejo o incompleto
+-- no debe invalidar un tenant que sí coincide con user_ramos.data.
+create or replace function public.tenant_perfil_catalogo(p_universidad text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select case btrim(p_universidad)
+    when 'U. de Chile · FEN' then 'fen'
+    when 'U. Católica · Ingeniería' then 'uc'
+    when 'U. Adolfo Ibáñez' then 'uai'
+    when 'U. de los Andes' then 'uandes'
+  end;
+$$;
+
+revoke all on function public.tenant_perfil_catalogo(text) from public, anon, authenticated;
+
 -- La firma de 8 argumentos se reemplaza por una de 9 (p_seccion). Sin el drop
 -- quedarían las dos y PostgREST no sabría cuál llamar con los argumentos de una
 -- app vieja en caché; con p_seccion opcional, esa app sigue funcionando.
@@ -186,6 +206,9 @@ declare
   uid uuid := auth.uid();
   total numeric;
   sigla text := nullif(upper(trim(p_ramo_sigla)), '');
+  tenant_guardado text;
+  onboarding_guardado boolean;
+  tenant_perfil text;
 begin
   if uid is null then
     raise exception 'No hay sesión activa';
@@ -208,6 +231,24 @@ begin
      or length(p_huella) > 4000
      or length(coalesce(p_nota, '')) > 500 then
     raise exception 'El reporte excede el largo permitido';
+  end if;
+
+  -- El navegador puede estar en una pestaña vieja o tener una universidad por
+  -- defecto mientras termina el onboarding. El tenant enviado no autoriza su
+  -- propio reporte: se contrasta con el estado ya sincronizado y, cuando el
+  -- perfil tiene un nombre conocido, también con la universidad del perfil.
+  -- Si la nube aún no tiene el onboarding, el aporte queda pendiente en la app
+  -- y se puede reintentar tras sincronizar; nunca se cuenta como FEN por defecto.
+  select u.data->>'tenant', u.data->>'onboardingDone' = 'true',
+         public.tenant_perfil_catalogo(p.universidad)
+    into tenant_guardado, onboarding_guardado, tenant_perfil
+    from public.user_ramos as u
+    left join public.profiles as p on p.id = u.user_id
+   where u.user_id = uid;
+  if not coalesce(onboarding_guardado, false)
+     or tenant_guardado is distinct from p_tenant
+     or (tenant_perfil is not null and tenant_perfil <> p_tenant) then
+    raise exception 'La universidad del reporte no coincide con la cuenta sincronizada';
   end if;
 
   if p_seccion is not null and p_seccion not between 1 and 999 then
@@ -313,14 +354,27 @@ as $$
   -- ("controles" o "Control 1, 2, 3") y no puede partir un grupo. Se cuentan
   -- personas distintas del grupo entero, y para mostrar se devuelve la variante
   -- que más personas escribieron; si empatan, la más reciente.
-  with grupos as (
+  -- Los reportes anteriores no se borran ni se reetiquetan. Si hoy el estado
+  -- académico o el perfil contradicen su tenant, no cuentan para el consenso.
+  -- Se filtra ANTES de elegir la variante para que una pauta incompatible
+  -- tampoco pueda ganar un desempate por fecha.
+  with reportes_vigentes as (
+    select cr.*
+    from public.catalog_reports as cr
+    join public.user_ramos as u on u.user_id = cr.user_id
+    left join public.profiles as p on p.id = cr.user_id
+    where cr.tenant = p_tenant
+      and u.data->>'onboardingDone' = 'true'
+      and u.data->>'tenant' = cr.tenant
+      and (public.tenant_perfil_catalogo(p.universidad) is null
+           or public.tenant_perfil_catalogo(p.universidad) = cr.tenant)
+  ), grupos as (
     select
       coalesce(nullif(cr.ramo_sigla, ''), cr.ramo_norm) as ramo_key,
       cr.huella,
       min(cr.ramo) as ramo,
       count(distinct cr.user_id)::integer as respaldos
-    from public.catalog_reports as cr
-    where cr.tenant = p_tenant
+    from reportes_vigentes as cr
     group by 1, 2
     having count(distinct cr.user_id) >= 3
   ), variantes as (
@@ -330,8 +384,7 @@ as $$
       cr.estructura,
       count(distinct cr.user_id) as personas,
       max(cr.updated_at) as ultimo
-    from public.catalog_reports as cr
-    where cr.tenant = p_tenant
+    from reportes_vigentes as cr
     group by 1, 2, 3
   )
   select
