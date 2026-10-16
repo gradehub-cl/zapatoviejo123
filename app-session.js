@@ -886,12 +886,21 @@ async function afterLogin(){
     const {estado,subir}=mismaCache?reconciliarAlEntrar(uid,S,nube,cloud):{estado:nube,subir:false};
     S=estado;
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
-    guardarBaseSync(uid,nube);
+    // Si normalize() corrigió la estructura de un ramo de la nube (una pauta
+    // nuestra mal publicada, evaluaciones repetidas), esa corrección también
+    // se sube. Antes solo quedaba en el dispositivo: la nube —que es lo que
+    // leen los agentes conectados— seguía con el error hasta la próxima nota.
+    // La base queda en la copia tal como estaba, así la subida sale como un
+    // cambio de este dispositivo y no como un choque.
+    const corregida=firmaEstructuraSync(nube)!==firmaEstructuraSync(cloud);
+    guardarBaseSync(uid,corregida?cloud:nube);
     setCacheOwner(uid);
     if(subir){
       syncNow().then(respaldado=>{
         if(respaldado)showToast('✓ Guardamos en la nube lo que anotaste en este dispositivo');
       }).catch(()=>{});
+    }else if(corregida){
+      syncNow().catch(()=>{});
     }
   }else if(ok&&mismaCache){
     // `null` significa que la consulta no encontró una fila; NO demuestra que
@@ -1084,6 +1093,13 @@ async function syncNow(){
 const SYNC_BASE_KEY='gradehub_v1_base';
 const clonarSync=x=>x==null?x:JSON.parse(JSON.stringify(x));
 const igualSync=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// Qué evaluaciones tiene cada ramo y cuánto pesan: lo que cambia cuando
+// normalize() corrige una pauta. No mira notas ni campos que normalize()
+// completa por defecto, así un ramo antiguo no se sube en cada arranque.
+function firmaEstructuraSync(d){
+  const ramos=d&&Array.isArray(d.ramos)?d.ramos:[];
+  return JSON.stringify(ramos.map(r=>[r&&r.id,(r&&Array.isArray(r.categorias)?r.categorias:[]).map(c=>[c&&c.id,c&&c.peso])]));
+}
 const objetoSync=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function sinRevSync(x){if(!objetoSync(x))return x;const {_rev,...resto}=x;return resto;}
 function revSync(x){return objetoSync(x)&&Number.isInteger(x._rev)?x._rev:null;}

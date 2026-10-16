@@ -300,6 +300,34 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     chk('y sin nada pendiente no vuelve a escribir',nube.escrituras===antes);
   }
 
+  console.log('\n=== 12. Lo que normalize() corrige al entrar también llega a la nube ===');
+  {
+    // 2026-10-15: la nube quedó con el Laboratorio de Dinámica duplicado. La
+    // app lo reparaba al cargar, pero solo en el dispositivo: la nube —lo que
+    // leen los agentes— seguía con todo dos veces hasta la próxima nota.
+    const cat=(id,nombre,peso,extra={})=>({id,nombre,peso,directNota:true,ponderaNotas:false,notas:[],...extra});
+    const pauta=s=>[cat('ctrl'+s,'Controles',25/3,{slots:5}),cat('inf'+s,'Informes',70,{slots:6,slotStart:0}),
+      cat('par'+s,'Evaluación de pares',65/3,{slots:6,slotStart:0,pesosCasillas:[1.5,1,1,1,1,1]})];
+    const duplicado=()=>({...estadoInicial(),tenant:'uc',ramos:[{id:'lab',nombre:'Laboratorio de Dinámica',color:'#a73',
+      origen:{tenant:'uc',carrera:'ING-PC'},promedioParcial:'por-casilla',categorias:[...pauta('-a'),...pauta('-b')],
+      gates:[{type:'min_grade_required',catId:'par-b',min:4,cap:3.9}]}]});
+    const enNube=nube=>nube.filas.get('u1').ramos[0].categorias.map(c=>c.nombre);
+    for(const [titulo,conCache] of [['un dispositivo nuevo',false],['el mismo teléfono de siempre',true]]){
+      const nube=createNubeYa();nube.filas.set('u1',duplicado());
+      const almacen=new Map();
+      if(conCache){almacen.set('gradehub_v1',JSON.stringify(duplicado()));almacen.set('gradehub_cache_owner','u1');}
+      const d=dispositivo(nube,almacen);await d.entrar('u1');await esperar(30);
+      chk(`${titulo}: la nube queda reparada (${enNube(nube).join(', ')})`,enNube(nube).length===3);
+      const escrituras=nube.escrituras;
+      // Desde otro dispositivo, la nube ya reparada no tiene nada que corregir.
+      const otra=dispositivo(nube);await otra.entrar('u1');await esperar(30);
+      chk(`${titulo}: la corrección no se vuelve a subir`,nube.escrituras===escrituras&&enNube(nube).length===3);
+    }
+    const nube=createNubeYa();const d=await preparar(nube);const antes=nube.escrituras;
+    const otro=dispositivo(nube);await otro.entrar('u1');await esperar(30);
+    chk('una cuenta sin nada que corregir no escribe al entrar',nube.escrituras===antes);
+  }
+
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});
