@@ -1043,14 +1043,40 @@ const PRESETS_UC={
   // la evaluación de pares bajo 4,0 lo reprueba aunque el resto vaya bien.
   // 5 experimentos presenciales con control, informe y evaluación de pares, más
   // un Lab 0 online con informe y pares: 5 controles, 6 informes, 6 pares.
+  //
+  // La nota final del laboratorio es el PROMEDIO DE LAS 6 "NOTA LAB", y el
+  // Lab 0 vale lo mismo que los otros (coordinación del laboratorio, correo a
+  // Lucas del 2026-10-14). Cada "Nota lab" sale de la planilla oficial, con la
+  // misma fórmula en todas las secciones:
+  //
+  //   Lab 0 (online, sin control):  0,7·Informe + 0,3·Pares
+  //   Labs 1–5:                     0,7·Informe + 0,1·Control + 0,2·Pares
+  //
+  // Repartido sobre el ramo: cada informe 7/60, cada control 1/60, la
+  // evaluación de pares del Lab 0 3/60 y las otras 2/60. Por eso Controles
+  // pesa 25/3 % (no 10) y Evaluación de pares 65/3 % (no 20), con la casilla
+  // del Lab 0 pesando 1,5 veces las demás (`pesosCasillas`). Antes eran 10 y
+  // 20 parejos: el lab quedaba corrido en (pares del Lab 0 − promedio de
+  // controles) ÷ 60, hasta una décima.
+  //
+  // El mínimo de 4,0 en pares es sobre el promedio simple de las seis
+  // (decisión de Lucas, 2026-10-15); 3,95 ya cuenta, y si la nota del lab ya
+  // es menor que 3,9 queda esa y no 3,9 (coordinación).
   'Laboratorio de Dinámica':{
+    // A mitad de semestre, la planilla da el promedio de los laboratorios ya
+    // hechos: cada nota pesa lo que pesa en su laboratorio, no lo que pesa su
+    // evaluación entera. Comprobado contra la planilla: 630 de 630 iguales.
+    promedioParcial:'por-casilla',
+    // La pauta de antes (10/70/20 parejos) era un error nuestro: se corrige
+    // sola al cargar, conservando las notas (ver `corrigePautas` en normalize).
+    corrigePautas:[[['Controles',10],['Informes',70],['Evaluación de pares',20]]],
     evals:[
-      ['Controles',10,{slots:5,slotLabel:'Control'}],
+      ['Controles',8.333333333333334,{slots:5,slotLabel:'Control'}],
       // El Lab 0 online también tiene informe y pares. La categoría conserva
       // el plural porque es su nombre en el programa, pero cada casilla se
       // nombra como la entrega real: Informe 0 … Informe 5.
       ['Informes',70,{slots:6,slotLabel:'Informe',slotStart:0}],
-      ['Evaluación de pares',20,{slots:6,slotStart:0,min:4.0,cap:3.9}],
+      ['Evaluación de pares',21.666666666666668,{slots:6,slotStart:0,pesosCasillas:[1.5,1,1,1,1,1],min:4.0,cap:3.9}],
     ],
     noCalcula:[
       'Si no realizas un Control, tu nota máxima en el Informe de ese experimento queda en 4,0',
