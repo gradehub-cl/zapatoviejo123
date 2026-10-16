@@ -15,6 +15,7 @@ function elemento(valor=''){
 }
 function arnes(responder){
   const ids={
+    's-account-current-pass':elemento(''),
     's-account-pass':elemento(''),'s-account-pass2':elemento(''),
     's-account-pass-status':elemento(),'s-account-pass-save':Object.assign(elemento(),{textContent:'Cambiar contraseña'}),
   };
@@ -33,7 +34,7 @@ function arnes(responder){
   vm.runInContext(sesion.slice(inicio,sesion.indexOf('async function submitAuth',inicio)),ctx);
   return {ctx,ids,llamadas};
 }
-const llenar=(kit,a,b)=>{kit.ids['s-account-pass'].value=a;kit.ids['s-account-pass2'].value=b;};
+const llenar=(kit,a,b,actual='claveAnterior123')=>{kit.ids['s-account-current-pass'].value=actual;kit.ids['s-account-pass'].value=a;kit.ids['s-account-pass2'].value=b;};
 const estado=kit=>kit.ids['s-account-pass-status'].textContent;
 
 (async()=>{
@@ -46,9 +47,13 @@ const estado=kit=>kit.ids['s-account-pass-status'].textContent;
   chk('Ajustes la muestra solo con sesión y cuenta con clave',
     /currentUser&&conClave\?`[\s\S]{0,1600}id="s-account-pass"/.test(app));
   chk('los campos piden contraseña nueva (el llavero sugiere una)', (app.match(/id="s-account-pass2?"[^>]*autocomplete="new-password"/g)||[]).length===2);
+  chk('pide contraseña actual con autocompletado correcto', /id="s-account-current-pass"[^>]*autocomplete="current-password"/.test(app));
 
   console.log('\n=== Validación antes de llamar a Supabase ===');
   let kit=arnes(()=>({error:null}));
+  llenar(kit,'clave1234','clave1234','');
+  chk('exige la contraseña actual', await kit.ctx.cambiarClaveCuenta()===false&&kit.llamadas.length===0&&/contraseña actual/.test(estado(kit))&&kit.ids['s-account-current-pass'].focused);
+  kit=arnes(()=>({error:null}));
   llenar(kit,'corta1','corta1');
   chk('aplica la política de siempre', await kit.ctx.cambiarClaveCuenta()===false&&kit.llamadas.length===0&&/al menos 8/.test(estado(kit))&&kit.ids['s-account-pass'].focused);
   kit=arnes(()=>({error:null}));
@@ -59,8 +64,8 @@ const estado=kit=>kit.ids['s-account-pass-status'].textContent;
   kit=arnes(()=>({data:{user:{id:'u1'}},error:null}));
   llenar(kit,'clave1234','clave1234');
   const usuario=kit.ctx.currentUser;
-  chk('manda solo la contraseña', await kit.ctx.cambiarClaveCuenta()===true&&kit.llamadas.length===1&&JSON.stringify(kit.llamadas[0])==='{"password":"clave1234"}');
-  chk('lo dice y vacía los campos', /actualizada/i.test(estado(kit))&&kit.ids['s-account-pass'].value===''&&kit.ids['s-account-pass2'].value==='');
+  chk('manda contraseña nueva y actual', await kit.ctx.cambiarClaveCuenta()===true&&kit.llamadas.length===1&&JSON.stringify(kit.llamadas[0])==='{"password":"clave1234","current_password":"claveAnterior123"}');
+  chk('lo dice y vacía los campos', /actualizada/i.test(estado(kit))&&kit.ids['s-account-current-pass'].value===''&&kit.ids['s-account-pass'].value===''&&kit.ids['s-account-pass2'].value==='');
   chk('no reemplaza la sesión en memoria', kit.ctx.currentUser===usuario);
   chk('el botón vuelve a quedar disponible', kit.ids['s-account-pass-save'].disabled===false&&kit.ids['s-account-pass-save'].textContent==='Cambiar contraseña');
 
@@ -71,6 +76,12 @@ const estado=kit=>kit.ids['s-account-pass-status'].textContent;
   kit=arnes(()=>({error:{code:'reauthentication_needed',message:'Password update requires reauthentication.'}}));
   llenar(kit,'clave1234','clave1234');
   chk('sesión antigua: pide volver a entrar, no dice que es corta', await kit.ctx.cambiarClaveCuenta()===false&&/vuelve a entrar/.test(estado(kit))&&!/al menos/.test(estado(kit)));
+  kit=arnes(()=>({error:{code:'current_password_required',message:'Current password required when setting new password.'}}));
+  llenar(kit,'clave1234','clave1234');
+  chk('contraseña actual requerida: error preciso', await kit.ctx.cambiarClaveCuenta()===false&&/contraseña actual/.test(estado(kit))&&kit.ids['s-account-current-pass'].focused&&!/al menos/.test(estado(kit)));
+  kit=arnes(()=>({error:{code:'current_password_mismatch',message:'Current password required when setting new password.'}}));
+  llenar(kit,'clave1234','clave1234');
+  chk('contraseña actual incorrecta: error preciso', await kit.ctx.cambiarClaveCuenta()===false&&/no es correcta/.test(estado(kit))&&kit.ids['s-account-current-pass'].focused);
 
   console.log('\n=== Una respuesta tardía no escribe en otra visita (#579) ===');
   kit=arnes(ctx=>{ctx.currentUser={id:'u2'};return {error:null};});
