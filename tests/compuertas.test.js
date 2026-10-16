@@ -361,10 +361,14 @@ chk('Dinámica declara de dónde viene el 30% que le falta',
 chk('el laboratorio vuelve a existir como ramo propio',
   !!presetRamo('Laboratorio de Dinámica', 'uc', 'ING-PC'));
 
-// La fórmula del programa, escrita aparte para contrastar.
+// La fórmula del programa, escrita aparte para contrastar. La nota del lab es
+// la de la planilla oficial: el promedio de las 6 "Nota lab", donde el Lab 0
+// (sin control) es 0,7·Informe + 0,3·Pares y los Labs 1–5 son
+// 0,7·Informe + 0,1·Control + 0,2·Pares.
 function segunElPrograma(I1, I2, NC, NE, NClab, NI, NP) {
   const NFC = 0.25 * I1 + 0.25 * I2 + 0.20 * NC + 0.30 * NE;
-  let NL = 0.10 * NClab + 0.70 * NI + 0.20 * NP;
+  const lab0 = 0.70 * NI + 0.30 * NP, labN = 0.70 * NI + 0.10 * NClab + 0.20 * NP;
+  let NL = (lab0 + 5 * labN) / 6;
   if (NP < 4.0) NL = Math.min(NL, 3.9); // evaluación de pares reprobatoria
   return (NL >= 4.0 && NFC >= 4.0) ? 0.7 * NFC + 0.3 * NL : Math.min(NFC, NL);
 }

@@ -363,6 +363,14 @@ function gh_crearCalculoRamo(deps){
   const reglasNota=()=>gh_reglasNota(typeof deps.tenant==='function'?deps.tenant():null);
   const S={get ramos(){return deps.ramos();}};
 
+  // `pesosCasillas` (opcional) dice cuánto pesa cada casilla frente a las
+  // otras de la misma evaluación. Lo usa el Laboratorio de Dinámica: el Lab 0
+  // no tiene control y ese 10% se lo lleva su evaluación de pares, que pesa
+  // 1,5 veces la de los otros laboratorios. Sin el campo, todas pesan 1.
+  function pesoCasilla(c,slot){
+    const p=Array.isArray(c&&c.pesosCasillas)?Number(c.pesosCasillas[slot]):NaN;
+    return Number.isFinite(p)&&p>0?p:1;
+  }
   function hojasCategoria(c){
     const notas=Array.isArray(c&&c.notas)?c.notas:[];
     const slots=Number.isInteger(c&&c.slots)&&c.slots>1?c.slots:0;
@@ -374,13 +382,13 @@ function gh_crearCalculoRamo(deps){
     });
     const reales=[...porSlot.values(),...sinSlot];
     const ids=new Set(reales.map(n=>n.id));
-    const hojas=reales.map(n=>({id:n.id,name:n.nombre,weight:(n.peso||1),type:'leaf'}));
+    const hojas=reales.map(n=>({id:n.id,name:n.nombre,weight:(n.peso||1)*(Number.isInteger(n.slot)&&porSlot.get(n.slot)===n?pesoCasilla(c,n.slot):1),type:'leaf'}));
     for(let slot=0;slot<slots;slot++){
       if(porSlot.has(slot))continue;
       let id=`__gh_pendiente_slot__${c.id}__${slot}`;
       while(ids.has(id))id+='_';
       ids.add(id);
-      hojas.push({id,name:`${c.nombre} pendiente ${slot+1}`,weight:1,type:'leaf'});
+      hojas.push({id,name:`${c.nombre} pendiente ${slot+1}`,weight:pesoCasilla(c,slot),type:'leaf'});
     }
     return hojas;
   }
@@ -495,6 +503,20 @@ function gh_crearCalculoRamo(deps){
     });
     return den>0?num/den:null;
   }
+  // Lo que compara el mínimo de una evaluación. Con pesos por casilla, el
+  // promedio que pondera la nota final no es el que se exige: el mínimo de la
+  // evaluación de pares del Laboratorio de Dinámica es sobre el promedio simple
+  // de las seis (decisión de Lucas, 2026-10-15). Sin pesos por casilla, es el
+  // mismo valor de siempre.
+  function valorParaCompuerta(r,res,catId){
+    const c=(r.categorias||[]).find(x=>x.id===catId);
+    if(c&&Array.isArray(c.pesosCasillas)){
+      const notas=notasVigentesSinDescarte(c);
+      return notas.length?notas.reduce((s,n)=>s+n.valor,0)/notas.length:null;
+    }
+    const node=res.breakdown.find(b=>b.id===catId);
+    return node?node.value:null;
+  }
   function calculoRamoConCompuertas(r){
     const ausencias=estadoAusenciasJustificadas(r);
     const estructura=ausencias?ausencias.estructura:ramoToStructure(r);
@@ -503,11 +525,21 @@ function gh_crearCalculoRamo(deps){
     // Los pesos efectivos solo viven en la copia de cálculo; jamás en las notas.
     Object.entries(res.weightOverrides).forEach(([id,extra])=>{const node=estructura.children.find(n=>n.id===id);if(node)node.weight=extra.weight;});
     let v=ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length?null:res.raw,limitadoPorCompuerta=false;
+    // Con el semestre a medias, el promedio de siempre pondera cada evaluación
+    // con lo que lleva. Un ramo cuya pauta declara `promedioParcial:'por-casilla'`
+    // pondera cada nota con su peso efectivo en el ramo: así el Laboratorio de
+    // Dinámica da el promedio de los laboratorios que ya hiciste, igual que la
+    // planilla oficial. Con todo rendido, las dos cuentas son la misma.
+    if(v!==null&&r.promedioParcial==='por-casilla'&&res.emptyLeaves.length){
+      const pesos=gh_effWeights(estructura);let suma=0,peso=0;
+      Object.entries(notas).forEach(([id,valor])=>{const w=pesos[id];if(typeof valor==='number'&&w>0){suma+=valor*w;peso+=w;}});
+      if(peso>0)v=suma/peso;
+    }
     if(v!==null && Array.isArray(r.gates)){
       for(const g of r.gates){
         if(g.type==='min_grade_required'){
-          const node=res.breakdown.find(b=>b.id===g.catId);
-          if(node && node.value!==null && !gh_cumpleCompuerta(node.value,g)){
+          const valor=valorParaCompuerta(r,res,g.catId);
+          if(valor!==null && !gh_cumpleCompuerta(valor,g)){
             const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
           }
         } else if(g.type==='group_min'){
@@ -577,7 +609,7 @@ function gh_crearCalculoRamo(deps){
       if(g.type==='min_grade_required'){
         const c=(r.categorias||[]).find(x=>x.id===g.catId);
         if(!c)return;
-        const a=valores.get(c.id);
+        const a=Array.isArray(c.pesosCasillas)?valorParaCompuerta(r,calculo.res,c.id):valores.get(c.id);
         if(a!==null&&!gh_cumpleCompuerta(a,g))out.push({nombre:g.nombre||c.nombre,actual:a,min:g.min,cap:g.cap});
       } else if(g.type==='group_min'){
         const ga=avgDeGrupoCalculado(calculo.res,calculo.estructura,g.catIds);
