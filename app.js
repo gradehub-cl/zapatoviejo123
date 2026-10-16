@@ -419,6 +419,7 @@ function normalize(data) {
   // ramo simplemente nunca se entera. Por eso se rellena al cargar.
   data.ramos.forEach(r => {
     migrarOrigenesFecha(r);
+    repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
@@ -3355,12 +3356,12 @@ function aplicarCambioDePauta(r,cambio){
   // ella en vez de quedar duplicadas —la vieja en 0% y la nueva vacía—. Las de
   // la pauta van después a propósito: si por lo que sea coinciden en nombre,
   // manda la que está viva.
-  fusionarPauta(r,cambio.preset.categorias);
-  r.gates=cambio.preset.gates;
+  const ids=fusionarPauta(r,cambio.preset.categorias);
+  r.gates=traducirIdsCategoria(cambio.preset.gates,ids);
   r.aporta=cambio.preset.aporta||null;
   r.promedioParcial=cambio.preset.promedioParcial||null;
   r.recuperativo=cambio.preset.recuperativo||null;
-  r.reglasAusenciaJustificada=cambio.preset.reglasAusenciaJustificada||null;
+  r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
 }
@@ -3369,14 +3370,31 @@ function aplicarCambioDePauta(r,cambio){
 // Vive aparte porque el trato con sus notas es el mismo venga la pauta de donde
 // venga: del programa oficial o de lo que reportaron sus compañeros. Una nota
 // es suya y no se pierde porque nosotros cambiemos de fuente.
+// Devuelve qué id quedó para cada evaluación de `nuevas` ({idNuevo: idFinal}):
+// quien trae compuertas o reglas con los ids del preset las traduce con eso.
+//
+// Una evaluación que sigue CONSERVA SU ID, y una que llega recibe uno que sale
+// de su nombre y del ramo. Nunca uno al azar: corrigePautas corre por separado
+// sobre la copia del teléfono y sobre la de la nube, y la sincronización las
+// junta por id. Con ids al azar cada copia inventaba los suyos y el ramo
+// quedaba con todas sus evaluaciones dos veces (2026-10-15, Laboratorio de
+// Dinámica). Con ids que no dependen de quién corrige, las dos copias quedan
+// idénticas.
+function idCategoriaEstable(r,nombre){
+  let h=2166136261;const s=(r&&r.id||'')+'|'+normName(nombre);
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
+  return 'c'+h.toString(36);
+}
 function fusionarPauta(r,nuevas){
   const nombresAusencia=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
   const viejas=new Map([...(r.categorias||[]).filter(c=>c.fueraDePauta),...catsDePauta(r.categorias)]
     .map(c=>[normName(c.nombre),c]));
+  const idsFinales={},idsUsados=new Set();
   r.categorias=nuevas.map(c=>{
     const fuentes=[{nombre:c.nombre},...(c.nombresAnteriores||[]).map(x=>
       typeof x==='string'?{nombre:x}:x)];
     const usadas=new Set(),idsNotas=new Set(),notas=[];
+    let idHeredado=null;
     fuentes.forEach(f=>{
       let k=normName(f.nombre),vieja=viejas.get(k);
       if(!vieja){
@@ -3389,6 +3407,7 @@ function fusionarPauta(r,nuevas){
       }
       if(!vieja||usadas.has(k))return;
       usadas.add(k);viejas.delete(k);
+      if(!idHeredado&&vieja.id&&!idsUsados.has(vieja.id))idHeredado=vieja.id;
       (vieja.notas||[]).forEach(n=>{
         if(n&&n.id&&idsNotas.has(n.id))return;
         const copia={...n};
@@ -3397,7 +3416,10 @@ function fusionarPauta(r,nuevas){
         notas.push(copia);
       });
     });
-    return {...c,notas};   // `c` no trae fueraDePauta: revivir la limpia
+    let id=idHeredado||idCategoriaEstable(r,c.nombre);
+    while(idsUsados.has(id))id+='_';
+    idsUsados.add(id);idsFinales[c.id]=id;
+    return {...c,id,notas};   // `c` no trae fueraDePauta: revivir la limpia
   });
   // Lo que la pauta nueva ya no tiene NO se borra. La pauta es nuestra; la nota
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en
@@ -3424,6 +3446,57 @@ function fusionarPauta(r,nuevas){
     usuario.traspasos=usuario.traspasos.map(x=>({desdeId:idAusenciaEnPautaNueva(x.desdeId),haciaId:idAusenciaEnPautaNueva(x.haciaId)}));
     r.reglasAusenciaJustificadaUsuario=usuario;
   }
+  return idsFinales;
+}
+// Cambia ids de evaluación dentro de reglas (compuertas, ausencias): cualquier
+// texto igual a un id viejo pasa a ser el nuevo. Los ids son al azar o salen de
+// un hash, así que no chocan con otros textos de la regla.
+// El 2026-10-15 corrigePautas dejó ramos con todas sus evaluaciones dos veces
+// (ver idCategoriaEstable): la copia del teléfono y la de la nube se corrigieron
+// por separado con ids distintos y la sincronización sumó las dos. Esto las
+// vuelve a juntar al cargar. Solo actúa con la huella exacta de ese error, para
+// no tocar a nadie que tenga dos evaluaciones con el mismo nombre a propósito:
+// ramo del catálogo, mismo nombre, mismo peso y mismas casillas, y una pauta que
+// suma más de 100% y vuelve a sumar 100% sin las repetidas. Queda la de id
+// menor y las notas se juntan por id: así las dos copias se reparan igual y la
+// sincronización no las vuelve a duplicar.
+function repararEvaluacionesRepetidas(r){
+  if(!r||!r.origen||!Array.isArray(r.categorias))return false;
+  const vivas=r.categorias.filter(c=>c&&!c.fueraDePauta);
+  const grupos=new Map();
+  vivas.forEach(c=>{const k=normName(c.nombre);if(!k)return;if(!grupos.has(k))grupos.set(k,[]);grupos.get(k).push(c);});
+  const repetidos=[...grupos.values()].filter(g=>g.length>1&&g.every(c=>r2(Number(c.peso)||0)===r2(Number(g[0].peso)||0)&&
+    (Number(c.slots)||1)===(Number(g[0].slots)||1)));
+  if(!repetidos.length)return false;
+  const total=vivas.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  const sobra=repetidos.reduce((s,g)=>s+(Number(g[0].peso)||0)*(g.length-1),0);
+  if(!(total>100.05&&Math.abs(total-sobra-100)<=0.05))return false;
+  const mapa={},fuera=new Set();
+  repetidos.forEach(g=>{
+    const orden=[...g].sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    const queda=orden[0],ids=new Set((queda.notas||[]).map(n=>n&&n.id));
+    orden.slice(1).forEach(c=>{
+      (c.notas||[]).forEach(n=>{if(n&&!ids.has(n.id)){ids.add(n.id);queda.notas.push(n);}});
+      mapa[c.id]=queda.id;fuera.add(c.id);
+    });
+  });
+  r.categorias=r.categorias.filter(c=>!fuera.has(c&&c.id));
+  Object.keys(mapa).forEach(desde=>{r.gates=unificarCategoriaEnReglas(r.gates,desde,mapa[desde]);});
+  if(Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[...new Set(traducirIdsCategoria(r.ausenciasJustificadas,mapa))];
+  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
+  return true;
+}
+// Una evaluación absorbe a otra: sus reglas apuntan a la que queda y las que
+// quedan iguales se cuentan una vez.
+function unificarCategoriaEnReglas(gates,desde,hacia){
+  const vistas=new Set();
+  return traducirIdsCategoria(gates||[],{[desde]:hacia}).filter(g=>{const k=JSON.stringify(g);if(vistas.has(k))return false;vistas.add(k);return true;});
+}
+function traducirIdsCategoria(valor,mapa){
+  if(typeof valor==='string')return Object.prototype.hasOwnProperty.call(mapa,valor)?mapa[valor]:valor;
+  if(Array.isArray(valor))return valor.map(v=>traducirIdsCategoria(v,mapa));
+  if(valor&&typeof valor==='object'){const out={};Object.keys(valor).forEach(k=>{out[k]=traducirIdsCategoria(valor[k],mapa);});return out;}
+  return valor;
 }
 function aplicarPautaNueva(ramoId){
   if(!actualizarPauta(ramoId))return;
@@ -5271,8 +5344,8 @@ async function verConsensoDisponible(ramoId){
 function adoptarConsensoEnRamo(r,hit){
   const pauta=pautaDeConsenso(hit&&hit.estructura);
   if(!pauta.categorias.length)return false;
-  fusionarPauta(r,pauta.categorias);
-  r.gates=pauta.gates;
+  const ids=fusionarPauta(r,pauta.categorias);
+  r.gates=traducirIdsCategoria(pauta.gates,ids);
   // `pautaHuella` NO se actualiza, y es a propósito. Sigue apuntando a la que
   // le dimos nosotros, así que la pauta adoptada queda distinta de esa y
   // cambioDePauta() la lee como lo que es: una decisión del estudiante, que
@@ -5860,6 +5933,9 @@ function confirmAddCat(){
 // pauta real. Los pesos pueden quedar incompletos porque en semana 1 muchas
 // veces todavía no está toda la información.
 let pautaDraft=[];
+// Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
+// `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.
+let pautaQuitadas=[];
 let pautaDraftError='',pautaDraftErrorIndex=null,pautaDraftErrorTarget='';
 // Se abrió desde "Armar mi pauta" (el ramo no tenía evaluaciones): el título
 // dice eso y no "Editar evaluaciones", que es lo que dice el botón con pauta.
@@ -5870,7 +5946,7 @@ function openPautaManualModal(){
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
-  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
+  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
@@ -6116,7 +6192,7 @@ function agregarPautaFila(){
 }
 function quitarPautaFila(i){
   if(!pautaDraft[i])return false;
-  if(pautaDraft[i].tieneNotas){mostrarErrorPauta(i,'Esta evaluación ya tiene notas, por eso no se puede quitar.','quitar');return false;}
+  if(pautaDraft[i].tieneNotas)return quitarPautaFilaConNotas(i);
   const nombre=String(pautaDraft[i].nombre||'').trim();
   showConfirm(nombre?`¿Quitar "${nombre}"?`:'¿Quitar esta evaluación?',
     'Se quitará de esta pauta. Puedes volver a agregarla antes de guardar.',()=>{
@@ -6148,12 +6224,51 @@ function ofrecerCompartirPauta(r){
 function abrirGrupoVacio(cat){
   if(cat&&Number.isInteger(cat.slots)&&cat.slots>1&&!(cat.notas||[]).length)openCats[cat.id]=true;
 }
+// Quitar una evaluación que ya tiene notas. Si hay otra con el mismo nombre (una
+// evaluación repetida), sus notas pasan a esa y no se pierde nada. Si no, se
+// borran con ella, y por eso se pide confirmar como una acción destructiva.
+function quitarPautaFilaConNotas(i){
+  const r=S.ramos.find(x=>x.id===currentRamoId);const fila=pautaDraft[i];
+  const cat=r&&(r.categorias||[]).find(c=>c.id===fila.id);if(!cat)return false;
+  const nombre=String(fila.nombre||cat.nombre||'').trim();
+  const gemela=pautaDraft.find((f,j)=>j!==i&&f.id&&normName(f.nombre)===normName(nombre));
+  const n=(cat.notas||[]).filter(x=>typeof x.valor==='number').length;
+  const desc=gemela
+    ?`Hay otra evaluación llamada "${nombre}": sus notas quedan en esa y no se pierde ninguna.`
+    :`Se ${n===1?'borra su nota':`borran sus ${n} notas`} al guardar. No se puede deshacer.`;
+  showConfirm(`¿Quitar "${nombre}"?`,desc,()=>{
+    limpiarErrorPauta();
+    pautaQuitadas.push({id:fila.id,hacia:gemela?gemela.id:null});
+    const totalAntes=pautaDraft.reduce((s,f)=>s+(Number(f.peso)||0),0);
+    pautaDraft.splice(i,1);
+    // Una repetida no deja porcentaje que repartir: la otra ya lo tiene.
+    if(!gemela)repartirPesoRestante(pautaDraft,totalAntes);
+    if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
+    renderPautaManualModal();
+  },{label:gemela?'Quitar repetida':'Quitar y borrar notas',danger:!gemela,focusCancel:true});
+  return true;
+}
 function guardarPautaManual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estabaVacia=!(r.categorias||[]).some(c=>String(c.nombre||'').trim());
   const filas=pautaDraft.filter(f=>f.nombre.trim());
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
-  r.categorias=r.categorias.filter(c=>ids.has(c.id)||(c.notas||[]).length>0);
+  // Las que la persona quitó con notas: pasan a su gemela o se van.
+  const quitadas=new Set();
+  pautaQuitadas.forEach(q=>{
+    const cat=r.categorias.find(c=>c.id===q.id);if(!cat||ids.has(q.id))return;
+    const destino=q.hacia&&r.categorias.find(c=>c.id===q.hacia);
+    if(destino){
+      const ya=new Set((destino.notas||[]).map(x=>x.id));
+      destino.notas=[...(destino.notas||[]),...(cat.notas||[]).filter(x=>!ya.has(x.id))];
+    }
+    quitadas.add(q.id);
+    // Sus reglas (un mínimo, un grupo) pasan a la gemela; sin gemela se van.
+    r.gates=destino?unificarCategoriaEnReglas(r.gates,q.id,destino.id)
+      :(r.gates||[]).filter(g=>g.catId!==q.id).map(g=>Array.isArray(g.catIds)?{...g,catIds:g.catIds.filter(id=>id!==q.id)}:g);
+  });
+  pautaQuitadas=[];
+  r.categorias=r.categorias.filter(c=>!quitadas.has(c.id)&&(ids.has(c.id)||(c.notas||[]).length>0));
   filas.forEach(f=>{
     const existente=f.id&&r.categorias.find(c=>c.id===f.id);
     const cantidadFija=f.varias&&Number.isInteger(f.cantidad)&&f.cantidad>1;
