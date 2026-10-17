@@ -42,6 +42,10 @@ const login=async(n,aal='aal1')=>{
   ctx.__rows=data;
   const html=vm.runInContext('crecimientoAdminHTML(__rows)',ctx);
   assert(html.includes('3 total')&&html.includes('1 estudiantes · 2 profesores'));
+  assert(html.includes('<details class="admin-crecimiento-historial">')&&html.includes('Ver 1 semana anterior'),
+    'el historial queda disponible sin ocupar la vista principal');
+  assert(!vm.runInContext('crecimientoAdminHTML(__rows.slice(0,1))',ctx).includes('<details'),
+    'una sola semana no necesita historial');
   assert.equal(vm.runInContext('crecimientoAdminHTML([])',ctx),'','sin SQL el resto del panel sigue');
   const node=()=>({innerHTML:'',value:'',textContent:'',hidden:false,dataset:{},addEventListener(){},setAttribute(){},
     querySelector(){return node()},querySelectorAll(){return []}});

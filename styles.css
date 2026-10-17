@@ -3086,8 +3086,11 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-crecimiento{border-bottom:1px solid var(--border);padding:0 0 24px;margin-bottom:24px;}
 .admin-crecimiento h2{font-size:1.125rem;margin:0;}
 .admin-crecimiento>p{color:var(--fg2);font-size:.8125rem;margin:4px 0 16px;}
+.admin-crecimiento-actual{border:1px solid var(--border);border-radius:12px;padding:16px;}
+.admin-crecimiento-historial{margin-top:8px;}
+.admin-crecimiento-historial>summary{cursor:pointer;font-size:.875rem;font-weight:600;padding:10px 0;}
 .admin-crecimiento ol{list-style:none;margin:0;padding:0;display:grid;gap:12px;}
-.admin-crecimiento li{border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0;}
+.admin-crecimiento li{border-top:1px solid var(--border);padding:16px 0;min-width:0;}
 .admin-crecimiento h3{font-size:.9375rem;margin:0 0 12px;}
 .admin-crecimiento dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;}
 .admin-crecimiento dt{font-size:.8125rem;color:var(--fg2);}

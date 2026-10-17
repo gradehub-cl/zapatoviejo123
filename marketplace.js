@@ -2961,9 +2961,10 @@ function crecimientoAdminHTML(semanas){
   if(!Array.isArray(semanas)||!semanas.length)return '';
   const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
   const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
+  const semana=f=>`<h3>Semana del ${esc(String(f.semana||''))}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
   return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h2 id="admin-crecimiento-titulo">Crecimiento semanal</h2>
-    <p>Cuentas nuevas, activas y que volvieron cada semana.</p><ol>${semanas.map(f=>`<li><h3>Semana del ${esc(String(f.semana||''))}</h3>
-    <dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl></li>`).join('')}</ol></section>`;
+    <p>Cuentas nuevas, activas y que volvieron cada semana.</p><div class="admin-crecimiento-actual">${semana(semanas[0])}</div>
+    ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
 }
 function panelAdminHigHTML(profesores,ahora,crecimiento=[]){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
