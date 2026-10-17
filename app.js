@@ -5048,6 +5048,7 @@ async function enviarReporte(ramoId){
 // calzar con la de otra.
 const _consensoPorTenant=new Map();
 async function cargarConsenso(tenant){
+  if(esCuentaProfesor())return null;
   tenant=tenant||S.tenant;
   if(!supabaseClient||!currentUser||!tenant)return null;
   if(_consensoPorTenant.has(tenant))return _consensoPorTenant.get(tenant);
@@ -5105,6 +5106,7 @@ function guardarSiglasCurso(siglas){
 // no se repiten las llamadas cada vez que se abre Estadísticas.
 let _firmaNotasCurso=null;
 async function subirNotasCurso(){
+  if(esCuentaProfesor())return;
   if(!supabaseClient||!currentUser)return;
   const firma=currentUser.id+'|'+JSON.stringify((S.ramos||[]).map(r=>[siglaParaCurso(r),ramoAvg(r,undefined,S.ramos)]));
   if(firma===_firmaNotasCurso)return;
@@ -5151,6 +5153,7 @@ async function subirNotasCurso(){
 
 let _posCursoCache=null;
 async function cargarPosicionesCurso(){
+  if(esCuentaProfesor())return null;
   if(!supabaseClient||!currentUser)return null;
   if(_posCursoCache)return _posCursoCache;
   const out={};
@@ -5253,6 +5256,7 @@ function renderEditarSecciones(){
 }
 
 async function consensoParaRamo(r){
+  if(esCuentaProfesor())return null;
   const cons=await cargarConsenso();
   if(!cons)return null;
   const mia=estructuraParaConsenso(estructuraDe(r));
@@ -5455,6 +5459,7 @@ function pautaDeConsenso(est){
 //
 // En un ramo vacío, aunque lo agregaran a mano, no hay nada que pisar.
 async function aplicarConsensoAuto(){
+  if(esCuentaProfesor())return 0;
   const cons=await cargarConsenso();
   if(!cons||!cons.length)return 0;
   let puestas=0;
@@ -5463,6 +5468,7 @@ async function aplicarConsensoAuto(){
   return puestas;
 }
 function ponerConsensoEnRamo(r,cons){
+  if(esCuentaProfesor())return false;
   if(!r||!cons||!cons.length)return false;
   if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return false;
   if((r.categorias||[]).length||(r.gates||[]).length)return false;
@@ -5485,7 +5491,10 @@ function ponerConsensoEnRamo(r,cons){
 // Al agregar un ramo sin pauta, la del consenso entra en el mismo momento —con
 // lo ya cargado, sin esperar la red—, no en la próxima sesión. Mismas reglas
 // que aplicarConsensoAuto: solo ramos vacíos y nunca sobre una de programa.
-function consensoAlAgregar(r){return ponerConsensoEnRamo(r,consensoCargado(S.tenant));}
+function consensoAlAgregar(r){
+  if(esCuentaProfesor())return false;
+  return ponerConsensoEnRamo(r,consensoCargado(S.tenant));
+}
 
 // Lo aportado antes del 2026-10-05 quedó guardado con la huella de entonces,
 // que contaba los conectores. Sin aceptar las dos, cada ramo que recibió una
@@ -9912,6 +9921,8 @@ function pluginWidgets(){
 }
 // Se agrupan los guardados seguidos (escribir varias notas) en un solo envío.
 function publicarResumenWidgets(){
+  // Una cuenta convertida puede dejar widgets antiguos en este iPhone.
+  if(esCuentaProfesor()){borrarResumenWidgets();return;}
   const p=pluginWidgets();if(!p)return;
   clearTimeout(_widgetsTimer);
   _widgetsTimer=setTimeout(()=>{
@@ -10009,6 +10020,7 @@ function avisosDePrueba(p,ahora){
    .filter(a=>a.at.getTime()>(ahora||new Date()).getTime());
 }
 async function programarAvisosPruebas(ahora){
+  if(esCuentaProfesor())return 0;
   const ln=pluginNotificaciones();if(!ln)return 0;
   try{
     const pendientes=await ln.getPending();
@@ -10029,6 +10041,7 @@ async function programarAvisosPruebas(ahora){
 // iOS 26 el teléfono las deja programadas y aparecen solas, con la app cerrada.
 const HORAS_ACTIVIDAD_ANTES=6,ACTIVIDADES_MAX=3;
 function sincronizarActividadesPrueba(ahora){
+  if(esCuentaProfesor())return;
   const p=pluginWidgets();if(!p||typeof p.sincronizarActividades!=='function')return;
   ahora=ahora||new Date();
   const vigentes=avisosPruebasActivos()&&S.onboardingDone?pruebasConHora(ahora,3).slice(0,ACTIVIDADES_MAX):[];

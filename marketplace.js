@@ -2576,6 +2576,7 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 function cargarAnunciosRecomendacion(tenant,alTerminar){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
   if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant)return;
   const pedido={tenant,lista:null,pidiendo:true};
   anunciosRecomendacion=pedido;
@@ -2657,6 +2658,11 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
 }
 
 function pintarRecomendacionClase(contenedor){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(contenedor)contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
+    if(contenedor)contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+    return;
+  }
   if(!RECOMENDACIONES_CLASES_ACTIVAS||!contenedor||!currentUser||!supabaseClient||!S||!S.tenant)return;
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
