@@ -159,10 +159,19 @@ function renderHome(){
 
   // Chips de estado — contexto exclusivo del promedio general
   if(tagsEl){
-    let good=0,warn=0,bad=0,pend=0;
-    S.ramos.forEach(r=>{const a=ramoAvg(r),nivel=a===null?'neutral':nivelRamo(r,a);if(nivel==='neutral')pend++;else if(nivel==='good')good++;else if(nivel==='warn')warn++;else bad++;});
+    let good=0,goodEnCurso=0,warn=0,bad=0,pend=0;
+    S.ramos.forEach(r=>{
+      const a=ramoAvg(r),nivel=a===null?'neutral':nivelRamo(r,a);
+      if(nivel==='neutral')pend++;
+      else if(nivel==='good'){
+        if(ramoCompletamenteEvaluado(r))good++;
+        else goodEnCurso++;
+      }else if(nivel==='warn')warn++;
+      else bad++;
+    });
     const parts=[];
     if(good)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${good} aprobado${good!==1?'s':''}</span>`);
+    if(goodEnCurso)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${goodEnCurso} ${goodEnCurso===1?'va':'van'} aprobando</span>`);
     if(warn)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot warn"></span>${warn} en riesgo</span>`);
     if(bad)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot bad"></span>${bad} bajo 4.0</span>`);
     if(pend)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot neutral"></span>${pend} pendiente${pend!==1?'s':''}</span>`);

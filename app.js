@@ -9714,8 +9714,13 @@ function mostRiskyRamo(){
 // Progreso del ramo: % de peso evaluado
 function ramoProgress(r){
   const categorias=categoriasVigentes(r);
-  const total=categorias.reduce((s,c)=>s+c.peso,0);
-  if(total<=0)return {pct:0,pending:0,total:0};
+  const pesoDeclarado=(r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
+  if(pesoDeclarado<=0)return {pct:0,pending:0,total:0};
+  const pesoVigente=categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  // La parte todavía sin pauta sigue pendiente. Una eximición, en cambio,
+  // cubre el peso de esa categoría sin necesitar una nota.
+  const total=Math.max(100,pesoDeclarado);
+  const pesoEximido=pesoDeclarado-pesoVigente;
   let done=0;
   categorias.forEach(c=>{
     // Una categoría con casillas fijas se evalúa proporcionalmente: una de
@@ -9731,6 +9736,7 @@ function ramoProgress(r){
       : notas.filter(n=>typeof n.valor==='number').length;
     done+=c.peso*Math.min(1,evaluadas/objetivo);
   });
+  done+=pesoEximido;
   return {pct:Math.round(done/total*100),pending:total-done,total};
 }
 function ramoRecienCerrado(anterior,actual){return Number.isFinite(anterior)&&anterior<100&&actual===100;}

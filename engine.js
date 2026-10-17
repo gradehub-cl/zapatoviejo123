@@ -554,6 +554,11 @@ function gh_crearCalculoRamo(deps){
     return {res,valor:v,limitadoPorCompuerta,estructura,notas,ausencias};
   }
   function ramoCompletamenteEvaluado(r,calculo){
+    // Tener nota en todo lo declarado no cierra un ramo cuya pauta aún omite
+    // parte de la ponderación. Las categorías eximidas siguen en esta suma:
+    // no se deben pedir sus notas para dar por terminado el ramo.
+    const pesoDeclarado=(r&&r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
+    if(Math.abs(pesoDeclarado-100)>0.05)return false;
     const cubiertas=new Set((calculo&&calculo.ausencias&&calculo.ausencias.activas||[]).map(x=>x.desdeId));
     const categorias=categoriasVigentes(r);
     return categorias.length>0&&categorias.every(c=>{

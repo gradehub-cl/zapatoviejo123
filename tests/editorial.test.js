@@ -33,6 +33,22 @@ for(const [count,pct,grade] of [[0,0,null],[2,40,5.5],[5,100,3.6]]){
   check(`${pct}%: dibujar no mueve el promedio ni escribe datos`,avg===grade&&run('ramoAvg(S.ramos[0])')===avg&&run('JSON.stringify(S)')===before&&writes===beforeWrites);
   if(pct===100)check('100% reprobado conserva la nota 3.6 y distingue cierre de aprobación',row.innerHTML.includes('3.6')&&row.classList.contains('is-complete')&&row.innerHTML.includes('100%'));
 }
+run(`S={...freshState(),tenant:'fen',userName:'Prueba',sortMode:'name',onboardingDone:true,ramos:[{
+  id:'incompleto',nombre:'Pauta de prueba',color:'#9873bd',categorias:[{
+    id:'prueba',nombre:'Prueba',peso:50,directNota:true,
+    notas:[{id:'n1',nombre:'Prueba',valor:5.2,peso:1}]
+  }]
+}]};`);
+run('renderHome()');
+const parcial=get('home-ramos').children[0];
+check('una pauta de 50% con nota no cierra el ramo ni su avance',
+  run('ramoCompletamenteEvaluado(S.ramos[0])')===false&&
+  run('ramoProgress(S.ramos[0]).pct')===50&&
+  run('avanceEvaluaciones(S.ramos).pct')===50&&
+  parcial.dataset.progress==='50'&&!parcial.classList.contains('is-complete'));
+check('Inicio dice que va aprobando sin afirmar aprobación final',
+  get('gpa-tags').innerHTML.includes('1 va aprobando')&&
+  !get('gpa-tags').innerHTML.includes('1 aprobado'));
 const css=read('styles.css');
 check('el contexto ocupa la columna derecha sin empujar la nota',
   /\.gpa-card\{[^}]*grid-template-columns:max-content minmax\(0,1fr\)/.test(css)&&
