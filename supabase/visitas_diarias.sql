@@ -56,6 +56,7 @@ grant execute on function public.registrar_visita() to authenticated;
 --   vuelven      activas esa semana que también lo estuvieron la anterior
 --   pct_vuelven  vuelven / activas de la semana anterior
 -- La universidad es la que la cuenta tiene hoy en user_ramos.
+-- tipoCuenta ausente corresponde a estudiante (cuentas anteriores a #698).
 create or replace view admin.crecimiento_semanal as
 with activos as (
   select distinct date_trunc('week', dia)::date as semana, user_id
@@ -64,7 +65,8 @@ with activos as (
 cuentas as (
   select u.id as user_id,
          date_trunc('week', u.created_at at time zone 'America/Santiago')::date as semana_alta,
-         coalesce(nullif(r.data->>'tenant', ''), 'sin universidad') as universidad
+         coalesce(nullif(r.data->>'tenant', ''), 'sin universidad') as universidad,
+         case when r.data->>'tipoCuenta' = 'profesor' then 'profesor' else 'estudiante' end as tipo_cuenta
   from auth.users u
   left join public.user_ramos r on r.user_id = u.id
 ),
@@ -72,7 +74,7 @@ semanas as (
   select distinct semana from activos
 ),
 base as (
-  select s.semana, c.universidad,
+  select s.semana, c.universidad, c.tipo_cuenta,
          c.semana_alta = s.semana as nueva,
          exists (select 1 from activos a where a.user_id = c.user_id and a.semana = s.semana) as activa,
          exists (select 1 from activos a where a.user_id = c.user_id and a.semana = s.semana - 7) as activa_antes
@@ -85,11 +87,37 @@ select semana,
        count(*) filter (where activa) as activas,
        count(*) filter (where activa and activa_antes) as vuelven,
        round(100.0 * count(*) filter (where activa and activa_antes)
-             / nullif(count(*) filter (where activa_antes), 0), 1) as pct_vuelven
+             / nullif(count(*) filter (where activa_antes), 0), 1) as pct_vuelven,
+       count(*) filter (where nueva and tipo_cuenta='estudiante') as nuevas_estudiantes,
+       count(*) filter (where nueva and tipo_cuenta='profesor') as nuevas_profesores,
+       count(*) filter (where activa and tipo_cuenta='estudiante') as activas_estudiantes,
+       count(*) filter (where activa and tipo_cuenta='profesor') as activas_profesores,
+       count(*) filter (where activa and activa_antes and tipo_cuenta='estudiante') as vuelven_estudiantes,
+       count(*) filter (where activa and activa_antes and tipo_cuenta='profesor') as vuelven_profesores,
+       round(100.0 * count(*) filter (where activa and activa_antes and tipo_cuenta='estudiante')
+             / nullif(count(*) filter (where activa_antes and tipo_cuenta='estudiante'), 0), 1) as pct_vuelven_estudiantes,
+       round(100.0 * count(*) filter (where activa and activa_antes and tipo_cuenta='profesor')
+             / nullif(count(*) filter (where activa_antes and tipo_cuenta='profesor'), 0), 1) as pct_vuelven_profesores
 from base
 group by grouping sets ((semana, universidad), (semana))
 order by semana desc, grouping(universidad) desc, universidad;
 
 revoke all on admin.crecimiento_semanal from public, anon, authenticated;
+
+-- Solo cifras agregadas para el panel. La comprobación de MFA se hace aquí,
+-- aunque alguien invoque esta RPC fuera de la interfaz.
+create or replace function public.crecimiento_semanal_admin()
+returns jsonb language plpgsql stable security definer set search_path = public, admin as $$
+begin
+  if not public.administrador_verificado() then
+    raise exception 'administración requiere segundo factor' using errcode='42501';
+  end if;
+  return coalesce((select jsonb_agg(to_jsonb(f) order by f.semana desc)
+    from (select * from admin.crecimiento_semanal
+          where universidad='todas' order by semana desc limit 8) f),'[]'::jsonb);
+end;
+$$;
+revoke all on function public.crecimiento_semanal_admin() from public, anon, authenticated;
+grant execute on function public.crecimiento_semanal_admin() to authenticated;
 
 commit;

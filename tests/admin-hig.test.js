@@ -94,13 +94,14 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
   modo=fallo;fila=filas()[0];await fila.querySelector('[data-cobro-guardar]').listeners.click();assert.equal(toasts.at(-1).error,true);assert.equal(fila.querySelector('[data-cobro-guardar]').disabled,false);
   root.querySelector('[data-admin-pausar]').listeners.click();await confirmacion;assert.equal(toasts.at(-1).error,true);
  }
- modo='ok';root.querySelector('[data-admin-pausar]').listeners.click();await confirmacion;assert.equal(calls.at(-2).n,'admin_pausar_anuncio');
+ modo='ok';const antesPausar=calls.length;root.querySelector('[data-admin-pausar]').listeners.click();await confirmacion;
+ assert(calls.slice(antesPausar).some(c=>c.n==='admin_pausar_anuncio'));
  root.querySelector('[data-admin-profesor]').listeners.click();await confirmacion;assert(calls.some(c=>c.n==='admin_estado_profesor'&&c.p.p_estado==='suspendido'));
  assert(calls.every(c=>!/^registrar_/.test(c.n)));
  panelActual=[{...profesores[0],anuncios:[{...anuncio,estado:'pausado',publicado_at:'2026-09-30T00:00:00Z'},...profesores[0].anuncios.slice(1)]}];
  const previas=calls.length;
  await root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1').listeners.click();
- assert.deepEqual(calls.slice(previas).map(c=>c.n),['admin_panel_clases','admin_panel_clases'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
+ assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='crecimiento_semanal_admin'),['admin_panel_clases','admin_panel_clases'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
  assert.match(toasts.at(-1).text,/Actualicé el panel/);
  modo='denegado';await run('pintarPanelAdmin(root)');assert.match(root.innerHTML,/no tiene acceso/);assert.doesNotMatch(root.innerHTML,/admin-hig-fila/);
  console.log('OK admin HIG: MFA, acceso denegado, filtros, cobro por fecha histórica, RPC reales y errores sin falso éxito');

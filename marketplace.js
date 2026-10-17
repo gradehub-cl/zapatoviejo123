@@ -2963,7 +2963,16 @@ function personaAdminHigHTML(p){
   return `<section class="admin-hig-persona"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[p.estado]||p.estado)} · ${(p.anuncios||[]).length} anuncios</p></div>
     ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}</section>`;
 }
-function panelAdminHigHTML(profesores,ahora){
+function crecimientoAdminHTML(semanas){
+  if(!Array.isArray(semanas)||!semanas.length)return '';
+  const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
+  const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
+  const semana=f=>`<h3>Semana del ${esc(String(f.semana||''))}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
+  return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h2 id="admin-crecimiento-titulo">Crecimiento semanal</h2>
+    <p>Cuentas nuevas, activas y que volvieron cada semana.</p><div class="admin-crecimiento-actual">${semana(semanas[0])}</div>
+    ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
+}
+function panelAdminHigHTML(profesores,ahora,crecimiento=[]){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
   return `<div class="admin-hig"><header class="admin-hig-cabecera"><p class="admin-hig-ceja">ADMINISTRACIÓN · CLASES PARTICULARES</p><h1>Todo en orden.</h1><p>Revisa anuncios, acompaña a los profesores y lleva los cobros al día.</p></header>
@@ -2972,6 +2981,7 @@ function panelAdminHigHTML(profesores,ahora){
     ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
     ${kpi('Deuda registrada',pesosClase(r.deuda),'Incluye publicaciones anteriores')}
     ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
+    ${crecimientoAdminHTML(crecimiento)}
     <p class="admin-hig-nota">Revisa y decide los anuncios desde acá. Aprobar profesores y revisar logos sigue en SQL Editor. Cada acción queda registrada.</p>
     <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
     <div class="admin-hig-herramientas"><label class="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label>Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label></div>
@@ -2995,8 +3005,14 @@ async function pintarPanelAdmin(raiz){
     profesores=Array.isArray(data)?data:[];
     if(profesores.some(p=>(p.anuncios||[]).some(a=>!Array.isArray(a.cobros))))compatibilidadSqlClases.cobros=true;
   }catch(e){raiz.innerHTML='<p class="profesor-info" role="alert">No pudimos cargar la administración. Intenta de nuevo.</p>';return;}
+  // Si el SQL agregado aún no se aplicó, las campañas siguen disponibles.
+  let crecimiento=[];
+  try{
+    const {data,error}=await supabaseClient.rpc('crecimiento_semanal_admin');
+    if(!error&&Array.isArray(data))crecimiento=data;
+  }catch(e){}
   const ahora=Date.now();
-  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora);
+  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento);
   let seccion=vistaAdmin.seccion;
   const buscar=raiz.querySelector('#admin-hig-buscar'),filtro=raiz.querySelector('#admin-hig-estado');
   buscar.value=vistaAdmin.busqueda;filtro.value=vistaAdmin.estado;
