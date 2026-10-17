@@ -1,4 +1,4 @@
--- Conversión manual de UNA cuenta existente. Revisar el UUID antes de ejecutar.
+-- Conversión manual de UNA cuenta existente. Revisar el correo antes de ejecutar.
 -- No borra ramos, evaluaciones, notas ni historial dentro de user_ramos.data.
 -- Aplicar antes del deploy de la app que concilia tipoCuenta con la nube.
 begin;
@@ -22,10 +22,17 @@ for each row execute function public.conservar_tipo_cuenta_profesor();
 
 do $$
 declare
-  -- Sustituir solo este marcador por el UUID de la cuenta a convertir.
-  objetivo uuid := 'PEGAR_UUID_AQUI'::uuid;
+  -- Sustituir solo este marcador por el correo de la cuenta a convertir.
+  objetivo_correo text := 'CORREO_DE_LA_CUENTA';
+  objetivo uuid;
   anterior jsonb;
 begin
+  if position('@' in objetivo_correo)=0 then
+    raise exception 'Completa el correo de la cuenta a convertir';
+  end if;
+  select id into objetivo from auth.users
+  where lower(email)=lower(trim(objetivo_correo));
+  if objetivo is null then raise exception 'No se encontró la cuenta indicada'; end if;
   select data into anterior from public.user_ramos where user_id=objetivo for update;
   if not found then raise exception 'La cuenta no tiene fila en user_ramos'; end if;
   if anterior->>'tipoCuenta' = 'profesor' then return; end if;
