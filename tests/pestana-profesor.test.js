@@ -52,8 +52,10 @@ chk('al abrirla se pinta el espacio de profesor',
   /async function renderProfesor\(\)/.test(mk));
 
 console.log('\n=== Y si te suspenden estando ahí, no te deja en blanco ===');
-chk('vuelve a Inicio cuando la pestaña desaparece',
-  /if\(!NAV_TABS\.includes\(currentTab\)\)showTab\('home'\)/.test(app));
+// Inicio para una cuenta de estudiante; Clases para una de profesor (#697).
+chk('vuelve a su pestaña de entrada cuando la pestaña desaparece',
+  /if\(!NAV_TABS\.includes\(currentTab\)\)showTab\(pestanaInicial\(\)\)/.test(app) &&
+  /function pestanaInicial\(\)\{return esCuentaProfesor\(\)\?'profesor':'home';\}/.test(app));
 chk('el carrusel se reacomoda con la lista nueva',
   /setTabTransforms\(Math\.max\(0,NAV_TABS\.indexOf\(currentTab\)\),0\)/.test(app));
 

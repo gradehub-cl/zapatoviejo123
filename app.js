@@ -2405,7 +2405,9 @@ function showMainApp(){
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
   renderHome();renderStats();renderAgenda(); // los 3 siempre montados
-  showTab('home');
+  // Una cuenta de profesor abre en Clases (#697): sus pestañas se arman antes.
+  recalcularNavTabs();
+  showTab(pestanaInicial());
   contarVisita();
   pintarAvisoInstalar();
   // Si llegó con el link de un profesor, ahora que hay sesión se le ofrece compartir.
@@ -2433,23 +2435,34 @@ function showMainApp(){
 // encogerse sin dejar a nadie parado en una pestaña que ya no está.
 const NAV_TABS_BASE=['stats','home','agenda'];
 let NAV_TABS=NAV_TABS_BASE.slice();
+// Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
+// (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
+const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
+// Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
+// Inicio para todas las demás, incluidas las de estudiante que además dan clases.
+function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
 function recalcularNavTabs(){
-  const conProfesor=typeof esProfesorAprobado==='function'&&esProfesorAprobado();
+  // Una cuenta de profesor (#697) no tiene Inicio, Estadísticas ni Agenda: no
+  // estudia acá. Clases y Alumnos las tiene siempre, aprobada o no; mientras
+  // no lo esté, cada una explica en qué va. Las cuentas de estudiante que
+  // además son profesores aprobados siguen con sus cinco pestañas.
+  const soloProfesor=esCuentaProfesor();
+  const conProfesor=soloProfesor||(typeof esProfesorAprobado==='function'&&esProfesorAprobado());
   // La de administración, solo para cuentas administradoras. Que aparezca no da
   // acceso a nada: el servidor exige además el segundo factor.
   const conAdmin=typeof esAdministrador==='function'&&esAdministrador();
   // Un profesor aprobado tiene Clases (sus anuncios) y Alumnos (el panel), en
   // pestañas separadas (#697).
-  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
-  [['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
+  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
   if(nuevas.join()===NAV_TABS.join())return false;
   NAV_TABS=nuevas;
   // Si a alguien le quitan el acceso estando en su pestaña, no se le deja la
-  // pantalla en blanco: vuelve a Inicio.
-  if(!NAV_TABS.includes(currentTab))showTab('home');
+  // pantalla en blanco: vuelve a su pestaña de entrada.
+  if(!NAV_TABS.includes(currentTab))showTab(pestanaInicial());
   else setTabTransforms(Math.max(0,NAV_TABS.indexOf(currentTab)),0);
   return true;
 }
@@ -2466,6 +2479,11 @@ function setTabTransforms(idx, dragPx){
 }
 
 function showTab(tab,skipAnim){
+  if(PESTANAS.includes(tab)&&!NAV_TABS.includes(tab)){
+    // La lista puede venir atrasada (recién terminó el onboarding de profesor).
+    recalcularNavTabs();
+    if(!NAV_TABS.includes(tab))tab=pestanaInicial();
+  }
   if(NAV_TABS.includes(tab)){
     // Modo tab: snap del carrusel
     ['ramo','auth','onboard','reset'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
@@ -2496,7 +2514,7 @@ function goHome(){
   const ramo=document.getElementById('screen-ramo');
   const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
   if(ramo&&ramo.classList.contains('active'))transicionNativa('pop',()=>showTab(destino));
-  else showTab('home');
+  else showTab(pestanaInicial());
 }
 
 // Drag continuo entre tabs — tipo historia de Instagram.
@@ -6385,19 +6403,24 @@ function userInitial(){
   const e=currentUser&&currentUser.email?currentUser.email.trim():'';
   return e?e[0].toUpperCase():'?';
 }
+// Hay un avatar en Inicio y otro en Clases y en Alumnos: una cuenta de profesor
+// (#697) no tiene Inicio y sin el suyo no llegaría a Ajustes ni a cerrar sesión.
+// El menú se abre bajo el que se tocó.
+let _avatarMenu=null;
+function avatarMenu(){return (_avatarMenu&&_avatarMenu.isConnected&&_avatarMenu)||document.getElementById('user-avatar');}
 function refreshAvatar(){
-  const av=document.getElementById('user-avatar');
-  if(av)av.textContent=userInitial();
+  document.querySelectorAll('.avatar-btn').forEach(av=>{av.textContent=userInitial();});
 }
 function toggleUserMenu(ev){
   if(ev)ev.stopPropagation();
+  if(ev&&ev.currentTarget&&ev.currentTarget.classList&&ev.currentTarget.classList.contains('avatar-btn'))_avatarMenu=ev.currentTarget;
   const m=document.getElementById('user-menu');
   m.classList.contains('open')?closeUserMenu():openUserMenu();
 }
 function openUserMenu(){
   const m=document.getElementById('user-menu');
   const b=document.getElementById('user-menu-backdrop');
-  const av=document.getElementById('user-avatar');
+  const av=avatarMenu();
   // Contenido dinámico
   document.getElementById('um-name').textContent=S.userName||'Tu cuenta';
   const mail=document.getElementById('um-mail');
@@ -6405,6 +6428,9 @@ function openUserMenu(){
   // Archivar solo tiene sentido con ramos cargados
   const arch=document.getElementById('um-archivar');
   if(arch)arch.style.display=S.ramos.length?'flex':'none';
+  // La malla es del estudiante: una cuenta de profesor no tiene carrera.
+  const malla=document.getElementById('um-malla');
+  if(malla)malla.style.display=esCuentaProfesor()?'none':'flex';
   // Sin sesión no hay nada que cerrar
   const out=document.getElementById('um-logout'),sep=document.getElementById('um-sep-logout');
   const hay=!!currentUser;
@@ -6428,7 +6454,7 @@ function openUserMenu(){
 function closeUserMenu(){
   document.getElementById('user-menu').classList.remove('open');
   document.getElementById('user-menu-backdrop').classList.remove('open');
-  const av=document.getElementById('user-avatar');
+  const av=avatarMenu();
   if(av)av.setAttribute('aria-expanded','false');
 }
 // Cierra el menú y ejecuta la acción (deja que corra la animación de cierre)
@@ -6436,7 +6462,7 @@ function umGo(fn){
   closeUserMenu();
   // El menú deja de ser visible antes de abrir la hoja. Conserva su origen
   // para que el cierre de la siguiente vista no devuelva el foco al body.
-  const origen=document.getElementById('user-avatar');
+  const origen=avatarMenu();
   if(origen&&origen.isConnected){try{origen.focus({preventScroll:true});}catch(e){origen.focus();}}
   setTimeout(()=>{try{fn();}catch(e){}},60);
 }
@@ -9955,7 +9981,8 @@ function borrarResumenWidgets(){
 // ://agenda, ://estadisticas o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
   const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
-  if(!m||!S.onboardingDone)return false;
+  // Una cuenta de profesor no tiene ramos ni widgets de estudiante.
+  if(!m||!S.onboardingDone||esCuentaProfesor())return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
   if(m[1]==='estadisticas'){showTab('stats');return true;}
   if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){

@@ -471,6 +471,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 <div id="screen-profesor" class="screen" hidden>
   <div class="topbar">
     <span class="brand-word" style="flex:1;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--fg);">Clases</span>
+    <button class="avatar-btn" onclick="toggleUserMenu(event)" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded="false">?</button>
   </div>
   <div class="scroll">
     <div id="profesor-body" style="padding:14px 20px 20px;"></div>
@@ -481,6 +482,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 <div id="screen-alumnos" class="screen" hidden>
   <div class="topbar">
     <span class="brand-word" style="flex:1;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--fg);">Alumnos</span>
+    <button class="avatar-btn" onclick="toggleUserMenu(event)" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded="false">?</button>
   </div>
   <div class="scroll">
     <div id="alumnos-body" style="padding:14px 20px 20px;"></div>
@@ -511,7 +513,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1z"/></svg>
     Ajustes
   </button>
-  <button class="user-menu-item" role="menuitem" onclick="umGo(openMallaModal)">
+  <button class="user-menu-item" role="menuitem" id="um-malla" onclick="umGo(openMallaModal)">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg>
     Ramos de mi malla
   </button>

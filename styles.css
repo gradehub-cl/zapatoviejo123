@@ -1791,6 +1791,10 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    de Clases quedaba ENCIMA de Inicio para quien no es profesor: en blanco y
    tapando todo, porque además no la mueve `setTabTransforms` al no estar en
    NAV_TABS. Esta regla la devuelve a su sitio. */
+/* Una cuenta de profesor (#697) esconde Inicio, Estadísticas y Agenda. */
+.app.tab-mode #screen-stats[hidden],
+.app.tab-mode #screen-home[hidden],
+.app.tab-mode #screen-agenda[hidden],
 .app.tab-mode #screen-profesor[hidden],
 .app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden]{display:none!important;}
