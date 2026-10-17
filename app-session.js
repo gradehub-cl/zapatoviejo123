@@ -1175,7 +1175,11 @@ function idsCompletosSync(doc){
 // código) no se sabe quién cambió qué: se suma lo que exista en cualquiera de
 // las dos y, si un mismo dato difiere, manda la nube, como hacía la app antes.
 function fusionarSync(base,local,nube){
-  return fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  const fusion=fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  // El tipo de cuenta lo puede corregir el servidor. Una copia vieja del
+  // teléfono no debe devolver a estudiante una cuenta ya convertida.
+  if(objetoSync(fusion)&&objetoSync(nube)&&nube.tipoCuenta==='profesor')fusion.tipoCuenta='profesor';
+  return fusion;
 }
 function fusionarValorSync(b,l,n,gana){
   if(igualSync(l,n))return l;
