@@ -6305,6 +6305,123 @@ function guardarPautaManual(){
 function abrirPautaDesdeNota(){closeModal();setTimeout(openPautaManualModal,120);}
 
 let addNotaError='';
+// La calculadora de una nota comparte la fórmula con calculadora.html. El
+// resultado entra por los mismos guardados de siempre: en el ramo solo queda
+// la nota, nunca el puntaje de la prueba.
+let destinoNotaDesdePuntaje=null;
+function exigenciaPuntajeRamo(r){
+  const e=r&&r.exigenciaPuntaje;
+  if(Number.isFinite(e)&&e>=1&&e<=99)return e;
+  const pauta=definicionPresetDelRamo(r);
+  const oficial=pauta&&pauta.exigenciaPuntaje;
+  return Number.isFinite(oficial)&&oficial>=1&&oficial<=99?oficial:50;
+}
+function recordarExigenciaDeHoja(r){
+  const aplicada=document.getElementById('m-puntaje-wrap')?.dataset?.aplicada;
+  const e=numeroPuntaje(aplicada);
+  if(r&&e>=1&&e<=99)r.exigenciaPuntaje=e;
+}
+function numeroPuntaje(raw){
+  const txt=String(raw??'').trim().replace(',','.');
+  return /^\d+(?:\.\d+)?$/.test(txt)?Number(txt):NaN;
+}
+function notaDesdePuntajeHTML(exigencia,integrada){
+  const valor=Number.isFinite(exigencia)&&exigencia>=1&&exigencia<=99?exigencia:50;
+  return `
+    ${integrada?'<button type="button" class="btn-cancel" style="width:100%;margin:10px 0;" onclick="mostrarNotaDesdePuntaje()">Desde puntaje</button>':''}
+    <div id="m-puntaje-wrap" ${integrada?'hidden':''}>
+      <label class="modal-label" for="m-puntaje-obtenido">Puntaje obtenido</label>
+      <div class="modal-input"><input id="m-puntaje-obtenido" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej: 29,5" aria-describedby="m-puntaje-mensaje" oninput="actualizarNotaDesdePuntaje()"/></div>
+      <label class="modal-label" for="m-puntaje-total">Puntaje total</label>
+      <div class="modal-input"><input id="m-puntaje-total" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej: 50" aria-describedby="m-puntaje-mensaje" oninput="actualizarNotaDesdePuntaje()"/></div>
+      <label class="modal-label" for="m-puntaje-exigencia">Exigencia (%)</label>
+      <div class="modal-input"><input id="m-puntaje-exigencia" type="text" inputmode="decimal" autocomplete="off" value="${valor}" aria-describedby="m-puntaje-mensaje" oninput="actualizarNotaDesdePuntaje()"/></div>
+      <label style="display:flex;align-items:center;gap:10px;min-height:44px;margin:2px 0 12px;color:var(--fg2);font-size:0.875rem;">
+        <input id="m-puntaje-truncar" type="checkbox" onchange="actualizarNotaDesdePuntaje()"/> Truncar a una décima
+      </label>
+      <p id="m-puntaje-mensaje" role="status" aria-live="polite" style="margin:0 0 12px;min-height:20px;color:var(--fg2);font-size:0.875rem;">Escribe los puntos de tu prueba.</p>
+      ${integrada?'<button type="button" class="btn-cancel" id="m-puntaje-aplicar" style="width:100%;margin-bottom:12px;" onclick="usarNotaDesdePuntaje()" disabled>Usar esta nota</button>':''}
+    </div>`;
+}
+function mostrarNotaDesdePuntaje(){
+  const wrap=document.getElementById('m-puntaje-wrap');
+  if(!wrap)return;
+  wrap.hidden=!wrap.hidden;
+  if(!wrap.hidden)enfocarEnHoja(document.getElementById('m-puntaje-obtenido'));
+}
+function calcularNotaDesdePuntaje(){
+  const obtenido=document.getElementById('m-puntaje-obtenido');
+  const total=document.getElementById('m-puntaje-total');
+  const porcentaje=document.getElementById('m-puntaje-exigencia');
+  if(!obtenido||!total||!porcentaje)return {error:'No se encontró la calculadora.'};
+  const p=numeroPuntaje(obtenido.value),t=numeroPuntaje(total.value),e=numeroPuntaje(porcentaje.value);
+  if(!obtenido.value.trim()&&!total.value.trim())return {espera:true};
+  if(!(t>0))return {error:'El puntaje total tiene que ser mayor que cero.',campo:total};
+  if(!(p>=0))return {error:'Escribe tu puntaje como número, por ejemplo 29,5.',campo:obtenido};
+  if(p>t)return {error:'Tu puntaje no puede superar el total.',campo:obtenido};
+  if(!(e>=1&&e<=99))return {error:'La exigencia va entre 1% y 99%.',campo:porcentaje};
+  const truncar=!!document.getElementById('m-puntaje-truncar')?.checked;
+  const resultado=gh_notaDesdePuntaje(p,t,{exigencia:e/100,truncar});
+  return resultado?{nota:resultado.nota,exigencia:e}:{error:'Revisa los puntajes y la exigencia.'};
+}
+function actualizarNotaDesdePuntaje(){
+  const resultado=calcularNotaDesdePuntaje();
+  const wrap=document.getElementById('m-puntaje-wrap');
+  if(wrap)delete wrap.dataset.aplicada;
+  const mensaje=document.getElementById('m-puntaje-mensaje');
+  const aplicar=document.getElementById('m-puntaje-aplicar');
+  const guardar=document.getElementById('m-puntaje-guardar');
+  ['m-puntaje-obtenido','m-puntaje-total','m-puntaje-exigencia'].forEach(id=>{
+    const campo=document.getElementById(id);
+    if(campo){if(resultado.campo===campo)campo.setAttribute('aria-invalid','true');else campo.removeAttribute('aria-invalid');}
+  });
+  if(mensaje){
+    mensaje.textContent=resultado.nota!=null?`Nota calculada: ${nf(resultado.nota)}`
+      :resultado.error||'Escribe los puntos de tu prueba.';
+    mensaje.style.color=resultado.error?'var(--red)':'var(--fg2)';
+  }
+  if(aplicar)aplicar.disabled=resultado.nota==null;
+  if(guardar)guardar.disabled=resultado.nota==null;
+  return resultado;
+}
+function usarNotaDesdePuntaje(){
+  const resultado=actualizarNotaDesdePuntaje();
+  if(resultado.nota==null)return false;
+  const nota=document.getElementById('m-nota-val');
+  if(!nota)return false;
+  nota.value=nf(resultado.nota);
+  nota.dispatchEvent(new Event('input',{bubbles:true}));
+  const wrap=document.getElementById('m-puntaje-wrap');
+  if(wrap)wrap.dataset.aplicada=String(resultado.exigencia);
+  nota.focus();
+  return true;
+}
+function openNotaDesdePuntajeModal(catId,slot){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const cat=r&&r.categorias.find(c=>c.id===catId);
+  if(!cat)return;
+  destinoNotaDesdePuntaje={ramoId:r.id,catId,slot:Number.isInteger(slot)?slot:null};
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Nota desde puntaje — ${esc(cat.nombre)}</div>
+    ${notaDesdePuntajeHTML(exigenciaPuntajeRamo(r),false)}
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn-confirm" id="m-puntaje-guardar" onclick="confirmarNotaDesdePuntaje()" disabled>Guardar como nota</button></div>`;
+  openModal();
+  enfocarEnHoja(document.getElementById('m-puntaje-obtenido'));
+}
+function confirmarNotaDesdePuntaje(){
+  const destino=destinoNotaDesdePuntaje,resultado=actualizarNotaDesdePuntaje();
+  if(!destino||destino.ramoId!==currentRamoId||resultado.nota==null)return false;
+  const ramo=S.ramos.find(r=>r.id===destino.ramoId);
+  if(!ramo||!ramo.categorias.some(c=>c.id===destino.catId))return false;
+  ramo.exigenciaPuntaje=resultado.exigencia;
+  closeModal();
+  const nota=nf(resultado.nota);
+  if(destino.slot===null)setDirectNota(destino.catId,nota);
+  else setSlotNota(destino.catId,destino.slot,nota);
+  destinoNotaDesdePuntaje=null;
+  return true;
+}
 function openAddNotaModal(catId){
   addNotaError='';
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
@@ -6317,6 +6434,7 @@ function openAddNotaModal(catId){
     <p id="m-nota-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     <label class="modal-label">${etiquetaNotaEntrada()} <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">— déjala vacía si todavía no la rindes</span></label>
     <div class="modal-input"><input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="m-nota-val" placeholder="${ejemploNotaEntrada()}"/></div>
+    ${notaDesdePuntajeHTML(exigenciaPuntajeRamo(r),true)}
     ${campoFechaHoraHTML('m-nota','',null,false)}
     <div class="toggle-row">
       <div><div class="toggle-label">Ponderación personalizada</div><div class="toggle-sub">Por defecto se promedia simple</div></div>
@@ -6339,7 +6457,10 @@ function openAddNotaModal(catId){
     if(btn)btn.textContent=isNaN(v)?'Anotar como pendiente':'Agregar nota';
   }
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(addNotaError){addNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}checkValid();});
-  document.getElementById('m-nota-val').addEventListener('input',checkValid);
+  document.getElementById('m-nota-val').addEventListener('input',()=>{
+    const wrap=document.getElementById('m-puntaje-wrap');if(wrap?.dataset)delete wrap.dataset.aplicada;
+    checkValid();
+  });
 }
 function togglePondSlider(){
   document.getElementById('pond-slider-wrap').style.display=document.getElementById('m-pond-toggle').checked?'block':'none';
@@ -6362,6 +6483,7 @@ function confirmAddNota(catId){
   if(isNaN(val))nueva.valor=null;
   else asignarCalificacionNota(nueva,rawNota,val);
   cat.notas.push(nueva);
+  if(!isNaN(val))recordarExigenciaDeHoja(r);
   openCats[catId]=true;save();track('add_nota',{ponderada:usaPond,pendiente:isNaN(val)});closeModal();renderRamo();
   if(!isNaN(val))vibrar('nota');
   // Si trae fecha entra a la Agenda, que vive en otra pantalla.
@@ -9048,6 +9170,7 @@ function openEditNotaModal(catId,notaId){
     <p id="m-nota-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     <label class="modal-label">${etiquetaNotaEntrada()} <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">— vacía si todavía no la rindes</span></label>
     <div class="modal-input"><input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="m-nota-val" value="${n.valor!==null?textoCalificacionNota(n):''}"/></div>
+    ${notaDesdePuntajeHTML(exigenciaPuntajeRamo(r),true)}
     ${campoFechaHoraHTML('m-nota',n.fecha,n.hora,true)}
     ${controlRecorreccionHTML(n,n.fecha||cat.fecha,cat.fecha)}
     <div class="toggle-row">
@@ -9066,6 +9189,9 @@ function openEditNotaModal(catId,notaId){
   openModal();
   enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
+  document.getElementById('m-nota-val').addEventListener('input',()=>{
+    const wrap=document.getElementById('m-puntaje-wrap');if(wrap?.dataset)delete wrap.dataset.aplicada;
+  });
 }
 function confirmEditNota(catId,notaId){
   const input=document.getElementById('m-nota-name');
@@ -9084,6 +9210,7 @@ function confirmEditNota(catId,notaId){
   n.nombre=name;n.peso=peso;
   if(isNaN(val)){n.valor=null;delete n.calificacionConceptual;}
   else asignarCalificacionNota(n,rawNota,val);
+  if(!isNaN(val))recordarExigenciaDeHoja(r);
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
