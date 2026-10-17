@@ -23,10 +23,9 @@ for each row execute function public.conservar_tipo_cuenta_profesor();
 do $$
 declare
   -- Sustituir solo este marcador por el UUID de la cuenta a convertir.
-  objetivo uuid := nullif('PEGAR_UUID_AQUI','PEGAR_UUID_AQUI')::uuid;
+  objetivo uuid := 'PEGAR_UUID_AQUI'::uuid;
   anterior jsonb;
 begin
-  if objetivo is null then raise exception 'Falta completar el UUID de la cuenta'; end if;
   select data into anterior from public.user_ramos where user_id=objetivo for update;
   if not found then raise exception 'La cuenta no tiene fila en user_ramos'; end if;
   if anterior->>'tipoCuenta' = 'profesor' then return; end if;

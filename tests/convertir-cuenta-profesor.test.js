@@ -28,7 +28,9 @@ assert.deepEqual(merged.ramos[0].categorias[0].notas.map(n=>n.valor),[5.1,6.2],'
     await db.exec('create table public.user_ramos(user_id uuid primary key references auth.users(id), data jsonb not null)');
     for(let n=1;n<=2;n++)await db.query('insert into auth.users(id) values($1)',[uid(n)]);
     for(let n=1;n<=2;n++)await db.query('insert into user_ramos(user_id,data) values($1,$2)',[uid(n),JSON.stringify({...base,_rev:3})]);
-    const sql=read('supabase/tipo_cuenta_profesor.sql').replace("nullif('PEGAR_UUID_AQUI','PEGAR_UUID_AQUI')",`'${uid(1)}'`);
+    const original=read('supabase/tipo_cuenta_profesor.sql');
+    assert.equal(original.split('PEGAR_UUID_AQUI').length-1,1,'el UUID se reemplaza una sola vez');
+    const sql=original.replace('PEGAR_UUID_AQUI',uid(1));
     await db.exec(sql);
     const row=async n=>(await db.query('select data from user_ramos where user_id=$1',[uid(n)])).rows[0].data;
     assert.equal((await row(1)).tipoCuenta,'profesor');
