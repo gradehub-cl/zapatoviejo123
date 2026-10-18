@@ -2,9 +2,20 @@
 // les falta fecha. Se ofrecen como acción, no como un dato perdido.
 function agendaSinFecha(){
   const out=[];
-  S.ramos.forEach(r=>(r.categorias||[]).forEach(c=>{
-    if(!categoriaEximida(r,c)&&!c.fecha&&avgPond(c.notas)===null)out.push({ramo:r,cat:c});
-  }));
+  S.ramos.forEach(r=>{
+    const calculo=calculoRamoConCompuertas(r);
+    const pendientes=new Set(calculo.res.emptyLeaves.map(n=>n.id));
+    (r.categorias||[]).forEach(c=>{
+      if(c.fecha)return;
+      const grupo=calculo.estructura.children.find(g=>g.id===c.id);
+      // La estructura ya excluye eximidos y resuelve ausencias justificadas.
+      if(!grupo||!(grupo.weight>0))return;
+      const fechadas=new Set((c.notas||[]).filter(n=>n.fecha).map(n=>n.id));
+      // Una primera nota no cierra las demás casillas. Tampoco se pide fecha
+      // para las pendientes que ya aparecen con fecha propia en la Agenda.
+      if(!grupo.children.length||grupo.children.some(n=>pendientes.has(n.id)&&!fechadas.has(n.id)))out.push({ramo:r,cat:c});
+    });
+  });
   return out;
 }
 
@@ -88,14 +99,17 @@ function toggleRestantesAgenda(){
 
 function ordenarAgenda(pendientes,orden='recomendado'){
   const criterio=AGENDA_ORDENES.includes(orden)?orden:'recomendado';
+  // La hora también es cronología: dos pruebas el mismo día salían por puntaje
+  // y "Después" podía apuntar a la de la tarde estando la de la mañana.
+  const cuando=e=>`${e.fecha}T${e.hora||''}`;
   return [...pendientes].sort((a,b)=>{
     if(criterio==='fecha'){
-      const porFecha=a.fecha.localeCompare(b.fecha);
+      const porFecha=cuando(a).localeCompare(cuando(b));
       return porFecha||b.score-a.score;
     }
     if(criterio==='peso'){
       const porPeso=(pesoEventoAgenda(b)??-1)-(pesoEventoAgenda(a)??-1);
-      return porPeso||a.fecha.localeCompare(b.fecha)||b.score-a.score;
+      return porPeso||cuando(a).localeCompare(cuando(b))||b.score-a.score;
     }
     // Es exactamente el comparador que usaba renderAgenda antes de ofrecer
     // alternativas. "Recomendado" nombra el comportamiento, no lo reescribe.
@@ -138,7 +152,7 @@ function focoAgendaCopy(e){
   if(e.dias<=2)return `Faltan ${e.dias} día${e.dias!==1?'s':''}: es lo que más te conviene atender ahora.`;
   if(e.necesita!==null&&e.necesita>5.0)return `Te exige ${nfNecesaria(e.necesita)} en lo pendiente para aprobar: adelántate.`;
   // Sin el "cuándo": la tarjeta ya lo dice en su propia línea justo arriba.
-  return 'Destacada por cercanía, peso y cómo vas en el ramo.';
+  return 'Por cercanía, peso y cómo vas.';
 }
 
 function razonDestacadaAgenda(e){
@@ -436,7 +450,7 @@ function agendaFechasPasadasHTML(eventos){
       </div>
       <span class="ag-count">${ordenados.length}</span>
     </div>
-    <p class="ag-waiting-help">Si ya la rendiste, agrega la nota cuando llegue. Si se movió, corrige o quita la fecha.</p>
+    <p class="ag-waiting-help">Si ya la rendiste, agrega la nota. Si se movió, corrige la fecha.</p>
     <div class="ag-waiting-list">${ordenados.map(e=>{
       const f=formatEventDate(e.fecha);
       const notaId=e.nota?e.nota.id:'';

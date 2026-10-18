@@ -56,7 +56,7 @@ Promise.resolve(cambiar()).then(resultado=>{
   return kit.ctx.cambiarCorreoCuenta();
 }).then(resultado=>{
   chk('el éxito confirma el cambio inmediato sin pedir correos',resultado===true&&/correo actualizado/i.test(kit.ids['s-account-email-status'].textContent)&&!/confirm/i.test(kit.ids['s-account-email-status'].textContent)&&kit.ctx.currentUser.email==='nuevo@ejemplo.test');
-  chk('Ajustes no promete una confirmación por correo',!/confirmación a tu correo actual/i.test(app)&&/Cámbialo al tiro/.test(app));
+  chk('Ajustes no promete una confirmación por correo',!/confirmación a tu correo actual/i.test(app)&&/al tiro/.test(app));
   chk('Ajustes expone el correo de acceso solo para una sesión iniciada',/id="s-account-email"/.test(app)&&/cambiarCorreoCuenta\(\)/.test(app)&&/currentUser\?`[\s\S]{0,1400}s-account-email/.test(app));
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);

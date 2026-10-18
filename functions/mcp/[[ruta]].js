@@ -88,12 +88,15 @@ function buscarRamo(ramos, consulta) {
 // No se guarda identidad ni estado académico en el isolate: otro request nunca
 // puede heredar la cuenta anterior. El catálogo no viaja al servidor, por eso
 // las reglas que el ramo persiste se usan tal cual y no se infieren por nombre.
-function calculoPara(ramos) {
+function calculoPara(ramos, tenant) {
   return motorCompartido.gh_crearCalculoRamo({
     normName: norm,
     copiarRecuperativo,
     definicionPresetDelRamo: ramo => ramo && ramo.eximicion ? { eximicion: ramo.eximicion } : null,
     ramos: () => ramos,
+    // Cada universidad redondea su nota oficial a su manera (ver
+    // GH_REGLAS_NOTA_POR_TENANT en engine.js). Sin tenant, la regla común.
+    tenant: () => tenant,
   });
 }
 
@@ -104,13 +107,13 @@ function alcanzaMetaOficial(calculo, ramo, promedio, meta) {
     && !(objetivo >= 4 && calculo.gatesActivas(ramo).length);
 }
 
-function queNecesitoParaAprobar(ramos, args) {
+function queNecesitoParaAprobar(ramos, args, tenant) {
   const ramo = buscarRamo(ramos, args.ramo);
   if (!ramo) return { error: 'No encontré ese ramo', ramos: ramos.map(r => r.nombre) };
   const meta = args.meta == null ? 4 : Number(args.meta);
   if (!Number.isFinite(meta) || meta < 1 || meta > 7) return { error: 'La meta debe ser una nota entre 1,0 y 7,0.' };
 
-  const calculo = calculoPara(ramos);
+  const calculo = calculoPara(ramos, tenant);
   const promedioNecesario = calculo.notaNecesaria(ramo, meta);
   const promedioActual = calculo.ramoAvg(ramo);
   const compuertasIncumplidas = calculo.gatesActivas(ramo).map(g => ({
@@ -120,14 +123,21 @@ function queNecesitoParaAprobar(ramos, args) {
     tope: g.cap,
   }));
 
+  const base = calculo.calculoRamoConCompuertas?.(ramo);
+  const motivosPendientes = [];
+  if(base?.ausencias?.bloqueadas?.length)motivosPendientes.push('Las pruebas justificadas superan el máximo del examen; falta resolver el derecho a examen o la recuperativa con el curso.');
+  if(base?.res.formulas?.some(f=>f.ambigua))motivosPendientes.push('El programa se contradice en el límite exacto 3,8: confirma con el profesor cómo ponderar las tareas.');
   let estado = 'alcanzable';
   if (promedioNecesario === null) estado = promedioActual === null ? 'sin_notas' : (alcanzaMetaOficial(calculo, ramo, promedioActual, meta) ? 'meta_alcanzada' : 'sin_evaluaciones_pendientes');
   else if (promedioNecesario > 7) estado = 'fuera_de_escala';
   else if (promedioNecesario < 1) estado = 'con_cualquier_nota';
 
+  if(motivosPendientes.length)estado='requiere_confirmacion_curso';
   return {
     ramo: ramo.nombre,
     meta,
+    ...(motivosPendientes.length?{motivosPendientes}:{}),
+    ...((calculo.reglasCalculoVigentes?.(ramo)||[]).some(g=>g.type==='conditional_weights')?{supuesto:'La misma nota en cada evaluación pendiente. Cambiar una nota puede activar otra fórmula; el resultado no es un mínimo monotónico.'}:{}),
     promedioActual,
     promedioNecesario,
     factibleEnEscala: promedioNecesario === null ? alcanzaMetaOficial(calculo, ramo, promedioActual, meta) : promedioNecesario <= 7,
@@ -507,7 +517,7 @@ function pendientesDeCategoria(cat) {
   return libres;
 }
 
-function impactoPendientes(ramos, ramo, meta) {
+function impactoPendientes(ramos, ramo, meta, tenant) {
   const pendientes = (ramo.categorias || [])
     .map(cat => ({ cat, casillas: pendientesDeCategoria(cat) }))
     .filter(x => x.casillas.length);
@@ -515,7 +525,7 @@ function impactoPendientes(ramos, ramo, meta) {
     casillas.map(casilla => ({ evaluacion: cat.nombre, valor: valorPorCategoria(cat), casilla })));
   const finalCon = valorPorCategoria => {
     const clon = ramoSimulado(ramo, relleno(valorPorCategoria));
-    return calculoPara(ramos.map(x => (x === ramo ? clon : x))).ramoAvg(clon);
+    return calculoPara(ramos.map(x => (x === ramo ? clon : x)), tenant).ramoAvg(clon);
   };
   return pendientes.map(({ cat, casillas }) => {
     const mejor = finalCon(c => (c === cat ? 7 : BASE_PENDIENTE));
@@ -558,7 +568,7 @@ function porRegistrar(ramos, hoy, diasAtras = 45) {
   return filas.sort((a, b) => b.fecha.localeCompare(a.fecha));
 }
 
-function simular(ramos, args) {
+function simular(ramos, args, tenant) {
   const ramo = buscarRamo(ramos, args.ramo);
   if (!ramo) return { error: 'No encontré ese ramo', ramos: ramos.map(r => r.nombre) };
   const meta = args.meta == null ? 4 : Number(args.meta);
@@ -570,11 +580,11 @@ function simular(ramos, args) {
   const preparadas = prepararAusenciasSimuladas(ramo, ausencias, notas);
   if (preparadas.error) return { error: preparadas.error };
 
-  const actual = calculoPara(ramos).ramoAvg(ramo);
+  const actual = calculoPara(ramos, tenant).ramoAvg(ramo);
   if (!notas.length && !preparadas.categorias.length) {
     return {
       ramo: ramo.nombre, meta, promedioActual: actual,
-      impacto: impactoPendientes(ramos, ramo, meta),
+      impacto: impactoPendientes(ramos, ramo, meta, tenant),
       supuesto: `Para comparar, el resto de lo pendiente se deja en ${BASE_PENDIENTE},0 en los dos escenarios.`,
       nota: 'Nada de esto está guardado: es lo que pasaría con cada evaluación que le queda.',
     };
@@ -587,7 +597,7 @@ function simular(ramos, args) {
       ...preparadas.categorias.map(cat => cat.id),
     ])];
   }
-  const calculo = calculoPara(ramos.map(x => (x === ramo ? clon : x)));
+  const calculo = calculoPara(ramos.map(x => (x === ramo ? clon : x)), tenant);
   const estadoAusencias = preparadas.categorias.length ? calculo.estadoAusenciasJustificadas(clon) : null;
   const detalleAusencias = estadoAusencias ? detalleAusenciasSimuladas(ramo, preparadas.categorias, estadoAusencias) : [];
   const noAplicable = detalleAusencias.find(x => x.error);
@@ -613,6 +623,7 @@ function simular(ramos, args) {
 
 function despachar(nombre, estado, args) {
   const ramos = Array.isArray(estado.ramos) ? estado.ramos : [];
+  const tenant = typeof estado.tenant === 'string' ? estado.tenant : null;
   const buscar = q => buscarRamo(ramos, q);
 
   if (nombre === 'listar_ramos') {
@@ -625,7 +636,7 @@ function despachar(nombre, estado, args) {
     // `cantidadEvaluaciones` en vez de `evaluaciones`: la clave `evaluaciones`
     // en `ver_ramo` es el ARRAY de evaluaciones, y tenerla acá como número
     // hacía que la misma palabra significara dos cosas distintas.
-    const calculo = calculoPara(ramos);
+    const calculo = calculoPara(ramos, tenant);
     return ramos.map(r => {
       const promedio = calculo.ramoAvg(r);
       const necesario = calculo.notaNecesaria(r);
@@ -655,6 +666,9 @@ function despachar(nombre, estado, args) {
         nombre: c.nombre,
         peso: c.peso,
         casillas: c.slots || 1,
+        // Qué es cada casilla cuando no son la N-ésima de lo mismo: sin esto el
+        // agente no sabe si la casilla 1 de "Trabajos de IA" son las Cápsulas.
+        ...(Array.isArray(c.nombresCasillas) && c.nombresCasillas.length ? { nombresCasillas: c.nombresCasillas } : {}),
         notas: (c.notas || []).filter(n => typeof n.valor === 'number').map(n => ({ nombre: n.nombre, valor: n.valor })),
       })),
     };
@@ -668,7 +682,7 @@ function despachar(nombre, estado, args) {
   if (nombre === 'estado_semestre') {
     const dias = ventanaDias(args.dias, 14);
     const hoy = hoyChile(), hasta = sumarDias(hoy, dias);
-    const calculo = calculoPara(ramos);
+    const calculo = calculoPara(ramos, tenant);
     const filas = ramos.map(r => {
       const promedio = calculo.ramoAvg(r);
       const necesario = calculo.notaNecesaria(r);
@@ -701,7 +715,7 @@ function despachar(nombre, estado, args) {
   if (nombre === 'resumen_para_hoy') {
     const dias = ventanaDias(args.dias, 7);
     const hoy = hoyChile(), hasta = sumarDias(hoy, dias);
-    const calculo = calculoPara(ramos);
+    const calculo = calculoPara(ramos, tenant);
     const proximas = fechasDeRamos(ramos).filter(f => f.fecha >= hoy && f.fecha <= hasta).map(f => ({ ...f, esHoy: f.fecha === hoy }));
     const enRiesgo = ramos.map(r => {
       const promedio = calculo.ramoAvg(r);
@@ -713,7 +727,7 @@ function despachar(nombre, estado, args) {
     // lo que decide aprobar; entre dos que deciden, la que está peor parada —su
     // peor escenario es más grave—, y recién ahí cuánto mueve la final.
     const dondeRinde = ramos
-      .flatMap(r => impactoPendientes(ramos, r, 4).map(i => ({ ramo: r.nombre, ...i })))
+      .flatMap(r => impactoPendientes(ramos, r, 4, tenant).map(i => ({ ramo: r.nombre, ...i })))
       .sort((a, b) => {
         if (a.decideAprobar !== b.decideAprobar) return a.decideAprobar ? -1 : 1;
         if (a.notaFinalSiSacas1 !== b.notaFinalSiSacas1) return a.notaFinalSiSacas1 - b.notaFinalSiSacas1;
@@ -736,11 +750,11 @@ function despachar(nombre, estado, args) {
   }
 
   if (nombre === 'simular') {
-    return simular(ramos, args);
+    return simular(ramos, args, tenant);
   }
 
   if (nombre === 'que_necesito_para_aprobar') {
-    return queNecesitoParaAprobar(ramos, args);
+    return queNecesitoParaAprobar(ramos, args, tenant);
   }
 
   return undefined;

@@ -107,7 +107,6 @@ function completarFechasOficiales(r,contexto){
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
   evals.forEach(([nom,,extra])=>{if(extra&&extra.fecha)porNombre.set(normName(nom),extra.fecha);});
-  if(!porNombre.size)return;
   r.categorias.forEach(c=>{
     if(c.fecha)return;
     // `fechaQuitada` distingue "nunca tuvo fecha" de "el estudiante la borró".
@@ -118,6 +117,38 @@ function completarFechasOficiales(r,contexto){
     if(c.fechaQuitada)return;
     const f=porNombre.get(normName(c.nombre));
     if(f){c.fecha=f;c.fechaOrigen='catalogo';c.fechaQuitada=false;}
+  });
+  completarFechasDeSeccion(r,def);
+}
+// Algunas fechas no son del ramo sino de una sección: los controles de
+// Dinámica se rinden en el horario de taller, que cambia entre secciones.
+// `fechasPorSeccion` las declara solo para las secciones de las que tenemos
+// el dato: `{13:{'Controles':['2026-08-28',…]}}`, una fecha por casilla y en
+// orden. Sin sección, o con otra, no se pone nada. Mismas reglas que arriba:
+// solo se llena lo vacío y nunca lo que el estudiante borró.
+function completarFechasDeSeccion(r,def){
+  const porSeccion=!Array.isArray(def)&&def&&def.fechasPorSeccion;
+  if(!porSeccion||!Number.isInteger(r.seccion))return;
+  const delGrupo=porSeccion[r.seccion];
+  if(!delGrupo)return;
+  Object.entries(delGrupo).forEach(([nombre,fechas])=>{
+    const c=(r.categorias||[]).find(x=>normName(x.nombre)===normName(nombre));
+    if(!c||!Array.isArray(fechas))return;
+    const slots=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
+    if(slots===1){
+      if(!c.fecha&&!c.fechaQuitada&&FECHA_RE.test(fechas[0]||'')){c.fecha=fechas[0];c.fechaOrigen='catalogo';c.fechaQuitada=false;}
+      return;
+    }
+    c.notas=Array.isArray(c.notas)?c.notas:[];
+    fechas.slice(0,slots).forEach((fecha,slot)=>{
+      if(!FECHA_RE.test(fecha||''))return;
+      let n=c.notas.find(x=>x.slot===slot);
+      if(n&&(n.fecha||n.fechaQuitada))return;
+      // Una casilla sin nota se guarda como nota vacía con fecha: es lo mismo
+      // que hace la app cuando el estudiante le pone fecha a mano.
+      if(!n){n={id:uid(),nombre:etiquetaCasilla(r,c,slot),valor:null,peso:1,slot};c.notas.push(n);}
+      n.fecha=fecha;n.fechaOrigen='catalogo';n.fechaQuitada=false;
+    });
   });
 }
 
@@ -206,6 +237,39 @@ function resolverReglasAusencia(def,categorias){
   const reemplazos=resolver(declaracion.reemplazos),traspasos=resolver(declaracion.traspasos);
   return reemplazos.length||traspasos.length?{reemplazos,traspasos}:null;
 }
+// Décimas y bonus del programa (#631). El preset nombra evaluaciones y acá se
+// resuelven a las categorías del ramo, como las compuertas. Si una evaluación
+// nombrada ya no está (la pauta se editó), esa regla no se carga: sumarle
+// décimas a otra cosa sería inventar. Vuelve a la lista de lo no calculado.
+function resolverBonus(def,categorias){
+  const lista=!Array.isArray(def)&&def&&Array.isArray(def.bonus)?def.bonus:null;
+  if(!lista||!Array.isArray(categorias))return null;
+  const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c?c.id:null;};
+  const out=[];
+  lista.forEach(b=>{
+    if(!b||typeof b.id!=='string'||!['decimas','faltas'].includes(b.entrada))return;
+    const destino=b.a==='final'?'final':idDe(b.a);
+    if(!destino)return;
+    let si=null;
+    if(b.si){
+      const ids=(b.si.evals||[]).map(idDe);
+      if(!ids.length||ids.some(x=>!x)||typeof b.si.mayorQue!=='number')return;
+      si={catIds:ids,mayorQue:b.si.mayorQue};
+    }
+    out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
+      ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
+      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
+  });
+  return out.length?out:null;
+}
+// Lo que el estudiante ingresó: un entero entre 0 y BONUS_MAX por regla.
+const BONUS_MAX=60;
+function copiarBonusIngresado(raw){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+  const out={};
+  Object.keys(raw).forEach(k=>{const v=raw[k];if(/^[a-z0-9_-]{1,32}$/.test(k)&&Number.isInteger(v)&&v>=0&&v<=BONUS_MAX)out[k]=v;});
+  return Object.keys(out).length?out:null;
+}
 function ausenciasDeclaradas(raw){return [...new Set((Array.isArray(raw)?raw:[]).filter(id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(id)))];}
 
 // `x || []` no alcanza cuando el dato no es una lista: un string no vacío es
@@ -230,6 +294,9 @@ function normalize(data) {
     // Contador de faltas — opcional, lo enciende el estudiante en Editar ramo.
     // Sin él (cuentas anteriores) queda en null y no se muestra nada.
     faltas: copiarFaltas(r.faltas),
+    // Décimas o talleres que el estudiante anotó para una regla de `bonus`.
+    // Sin ellas (cuentas anteriores) queda en null y no se suma nada.
+    bonusIngresado: copiarBonusIngresado(r.bonusIngresado),
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
@@ -352,8 +419,33 @@ function normalize(data) {
   // ramo simplemente nunca se entera. Por eso se rellena al cargar.
   data.ramos.forEach(r => {
     migrarOrigenesFecha(r);
+    repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
-    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.pautaHuella = huellaPauta(p.categorias); }
+    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
+    // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
+    // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
+    // deja su promedio calculando con nuestro error. Se reconoce por la pauta
+    // misma y no por `pautaHuella`, que falta en ramos antiguos y en los que
+    // aceptaron una propuesta de un agente: tener exactamente nuestra pauta
+    // equivocada no es haberla editado. Nunca si una nota quedaría en 0%.
+    const corregibles = definicionPresetDelRamo(r)?.corrigePautas;
+    const tiene = huellaPauta(catsDePauta(r.categorias));
+    if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
+      r.pautaHuella = tiene;
+      const cambio = cambioDePauta(r);
+      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+    }
+    // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
+    // topando la nota en los ramos creados antes: el aviso de pauta cambiada
+    // compara nombres y pesos, no compuertas. Se quita solo y sin preguntar,
+    // como `corrigePautas`: la compuerta era nuestra y quitarla solo puede
+    // levantar una nota que topábamos por una regla que decidimos no aplicar.
+    // Solo las de una evaluación con ese mínimo y ese tope exactos.
+    const retiradas = definicionPresetDelRamo(r)?.retiraCompuertas;
+    if (Array.isArray(retiradas) && Array.isArray(r.gates)) {
+      r.gates = r.gates.filter(gt => !(gt && gt.type === 'min_grade_required'
+        && retiradas.some(x => x && x.min === gt.min && x.cap === gt.cap)));
+    }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así
     // los ramos oficiales ya creados también pueden ofrecer el recuperativo,
     // sin reinterpretar notas ni tocar ramos manuales.
@@ -367,6 +459,12 @@ function normalize(data) {
     const eximicionOficial=definicionPresetDelRamo(r)?.eximicion;
     if(eximicionOficial)r.eximicion=JSON.parse(JSON.stringify(eximicionOficial));
     else delete r.eximicion;
+    // Las décimas del programa (#631), igual: la regla llega también a los
+    // ramos ya creados y se renueva en cada carga para seguir al catálogo. No
+    // suma nada hasta que la persona anota lo que ganó (bonusIngresado).
+    const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
+    if(bonusOficial)r.bonus=bonusOficial;
+    else delete r.bonus;
     // Igual que el recuperativo, la regla llega a los ramos oficiales creados
     // antes de publicarla, sin activar nada por sí sola.
     if(!r.reglasAusenciaJustificada){
@@ -425,8 +523,16 @@ function normalize(data) {
   data.acento = ACENTOS[data.acento] ? data.acento : 'turquesa';
   data.fondo = FONDOS[data.fondo] ? data.fondo : 'neutro';
   data.sortMode = ['manual','avg','name'].includes(data.sortMode) ? data.sortMode : 'manual';
+  // Estudiante o profesor (#697). Toda cuenta que no diga 'profesor' es de
+  // estudiante: así cargan igual que siempre las que existían antes de esto.
+  data.tipoCuenta = data.tipoCuenta === 'profesor' ? 'profesor' : 'estudiante';
+  // Año de ingreso a la universidad (#697). Las cuentas anteriores no lo tienen.
+  // TAV o verano marcado a mano en el onboarding: vale hasta el 1 de marzo.
+  data.verano = data.verano&&typeof data.verano.hasta==='string'&&/^\d{4}-03-01$/.test(data.verano.hasta)?{hasta:data.verano.hasta}:null;
+  data.generacion = Number.isInteger(data.generacion)&&data.generacion>=2000&&data.generacion<=new Date().getFullYear()?data.generacion:null;
   return data;
 }
+function esCuentaProfesor(){return !!(S&&S.tipoCuenta==='profesor');}
 
 function loadData() {
   try {
@@ -624,12 +730,12 @@ function mallaDeCarrera(tenant,carrera){
 function mallasExtraDe(tenant){
   if(tenant==='uc'&&typeof MALLAS_UC_EXTRA!=='undefined')return MALLAS_UC_EXTRA;
   if(tenant==='uai'&&typeof MALLAS_UAI_EXTRA!=='undefined')return MALLAS_UAI_EXTRA;
+  if(tenant==='uandes'&&typeof MALLAS_UANDES_EXTRA!=='undefined')return MALLAS_UANDES_EXTRA;
   return null;
 }
 // Qué archivo trae las mallas diferidas de cada universidad. Sin entrada acá,
-// el tenant funciona igual: sin sugerencia automática y agregando ramos a mano,
-// que es como funciona hoy la UAndes.
-const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js'};
+// el tenant funciona igual: sin sugerencia automática y agregando ramos a mano.
+const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js'};
 
 // Las mallas extra de UC y UAI se traen cuando se necesitan y no en cada carga:
 // meterlas en data.js habría cobrado ese peso a todo el mundo, incluida la gente
@@ -1002,6 +1108,7 @@ function save(){
     }
   }
   syncToCloud();
+  publicarResumenWidgets();
   // Una pauta que la persona acaba de terminar también puede sumar al
   // consenso durante esta visita; no necesita cerrar y volver a entrar.
   if(!_suspenderAportePautas&&typeof currentUser!=='undefined'&&currentUser&&typeof supabaseClient!=='undefined'&&supabaseClient&&S.onboardingDone){
@@ -1033,7 +1140,10 @@ function r2(n){return Math.round(n*100)/100;}
 // La nota final oficial se redondea a una décima antes de decidir su estado:
 // 3,94 queda en 3,9 y 3,95 pasa a 4,0. `r2` sigue disponible para porcentajes y
 // cuentas intermedias; no se usa para contradecir la nota que ve la persona.
-function notaFinalOficial(n){return n===null||isNaN(n)?null:Math.round(Number(n)*10)/10;}
+// Es la misma `gh_notaOficial` del motor, con las reglas de la universidad de
+// la cuenta (GH_REGLAS_NOTA_POR_TENANT): en la UAndes 3,946 → 3,95 → 4,0. Lleva
+// el margen de punto flotante: un 3,95 exacto que llega como 3,9499999… es 4,0.
+function notaFinalOficial(n){return n===null||isNaN(n)?null:gh_notaOficial(Number(n),gh_reglasNota(S.tenant));}
 // La nota que necesitas se redondea HACIA ARRIBA, nunca al más cercano.
 //
 // Con `nf()` la app podía decirte un número menor al que de verdad hace falta:
@@ -1170,8 +1280,10 @@ function asignarCalificacionNota(n,raw,valor,tenant){
   return n;
 }
 function textoCalificacionNota(n,tenant){
-  return calificacionConceptualGuardada(n,tenant)||fmt(n&&n.valor!=null?n.valor:null);
+  return calificacionConceptualGuardada(n,tenant)||fmtNota(n&&n.valor!=null?n.valor:null);
 }
+// Una nota se muestra como se escribió: 5.1 o 5.14. Los promedios siguen con fmt.
+function fmtNota(n){return n===null?'·':Math.round(n*100)%10?n.toFixed(2):n.toFixed(1);}
 function conceptosNota(tenant){
   const tenantActual=typeof tenant==='string'?tenant:(typeof S!=='undefined'&&S?S.tenant:null);
   return Object.keys(CALIFICACIONES_CONCEPTUALES_POR_TENANT[tenantActual]||{});
@@ -1185,7 +1297,8 @@ function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5.5
 
 // Parser de notas: acepta "6.5", "6,5", "65" (autocorrige a 6.5), "70" → 7.0.
 // En tenants que lo declaran en data.js acepta además sus conceptos oficiales.
-// Devuelve un número con 1 decimal en rango [1.0, 7.0], o NaN si inválido.
+// Devuelve un número con hasta 2 decimales en rango [1.0, 7.0], o NaN si
+// inválido. Hay profesores que ponen 5,14: se guarda tal cual, no como 5,1.
 function parseNota(raw,tenant){
   const conceptual=calificacionConceptual(raw,tenant);
   if(conceptual)return conceptual.valor;
@@ -1200,7 +1313,7 @@ function parseNota(raw,tenant){
     v=v/10;
   }
   if(v<1||v>7)return NaN;
-  return Math.round(v*10)/10;
+  return Math.round(v*100)/100;
 }
 // initials recibe texto plano; esc() se aplica después sobre el resultado
 function initials(s){return s.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();}
@@ -1270,18 +1383,25 @@ function detalleCasillas(ramo,cat){
   return {
     nombre:typeof cat?.slotLabel==='string'?cat.slotLabel:(typeof extra.slotLabel==='string'?extra.slotLabel:singularEtiquetaCasilla(cat.nombre)),
     inicio:Number.isInteger(cat?.slotStart)?cat.slotStart:(Number.isInteger(extra.slotStart)?extra.slotStart:1),
+    // Cuando cada casilla es una cosa distinta y no la N-ésima de lo mismo:
+    // "Trabajos de IA" tiene Cápsulas y Talleres, no "Trabajo 1" y "Trabajo 2".
+    nombres:Array.isArray(cat?.nombresCasillas)?cat.nombresCasillas:(Array.isArray(extra.nombresCasillas)?extra.nombresCasillas:[]),
   };
 }
 function etiquetaCasilla(ramo,cat,slot){
   const detalle=detalleCasillas(ramo,cat);
-  return `${detalle.nombre} ${detalle.inicio+slot}`;
+  const propio=detalle.nombres[slot];
+  return typeof propio==='string'&&propio.trim()?propio:`${detalle.nombre} ${detalle.inicio+slot}`;
 }
-// Una nota antigua puede guardar el nombre colectivo ("Controles 1"). Se ve
-// con el singular sin reescribirla; si la persona la renombró, su nombre manda.
+// Una nota antigua puede guardar el nombre colectivo ("Controles 1") o el de
+// la evaluación de la que vino ("Talleres de Inteligencia Artificial"). Se ve
+// con el nombre de su casilla sin reescribirla; si la persona la renombró, su
+// nombre manda.
 function nombreNotaCasilla(ramo,cat,nota){
   if(!nota||!Number.isInteger(nota.slot)||!(cat&&cat.slots>1))return nota&&nota.nombre||'';
   const inicio=detalleCasillas(ramo,cat).inicio;
-  return normName(nota.nombre)===normName(`${cat.nombre} ${inicio+nota.slot}`)
+  const anteriores=(cat.nombresAnteriores||[]).filter(x=>x&&typeof x==='object'&&x.slot===nota.slot).map(x=>x.nombre);
+  return [`${cat.nombre} ${inicio+nota.slot}`,...anteriores].some(n=>normName(n)===normName(nota.nombre))
     ?etiquetaCasilla(ramo,cat,nota.slot):nota.nombre;
 }
 // El navegador entrega las dependencias que el motor no puede conocer por sí
@@ -1292,8 +1412,9 @@ const calculoRamo=gh_crearCalculoRamo({
   copiarRecuperativo,
   definicionPresetDelRamo,
   ramos:()=>S.ramos,
+  tenant:()=>S.tenant,
 });
-var {hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -1301,6 +1422,31 @@ function nivelRamo(r,n){return gatesActivas(r).length?'bad':nivelNota(n);}
 function notaAprobadaRamo(r,n){const nivel=nivelRamo(r,n);return nivel==='warn'||nivel==='good';}
 function colorClassRamo(r,n){return nivelRamo(r,n);}
 function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(n);}
+
+// ─── CÁTEDRA Y LABORATORIO ───────────────────────────────────────────────────
+// Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a
+// 4,0, pero la ficha mostraba un único número combinado: quien iba bien en el
+// lab no podía ver si la cátedra sola lo estaba dejando abajo. La ficha y el
+// simulador muestran la cátedra sola al lado del promedio, y lo que falta para
+// aprobar habla de la cátedra (`notaNecesariaParaAprobar`).
+//
+// Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
+// siempre YA es solo la cátedra, y repetir el mismo número confundiría.
+// `fmt` decide la coma decimal: el simulador la usa y la ficha no. `exacto`
+// agrega el promedio sin redondear, como el número grande al tocarlo.
+function htmlSoloCatedra(r,{fmt=x=>x,exacto=null}={}){
+  const partes=partesDelVinculo(r);
+  if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
+  const v=partes.propio.valor;
+  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
+    `<span class="solo-parte-label">Solo cátedra${exacto?` · ${exacto(v)}`:''}</span>`;
+}
+// Lo que falta para aprobar. En un ramo con laboratorio habla solo de la
+// cátedra: el lab tiene su propia ficha y su propio "cuánto me falta".
+function notaNecesariaParaAprobar(r){
+  const partes=partesDelVinculo(r);
+  return partes?{valor:partes.propio.necesaria,cual:' cátedra'}:{valor:notaNecesaria(r),cual:''};
+}
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
 function textoDescarte(cat,descarte){
@@ -1384,10 +1530,14 @@ function descripcionMetodoGpa(ramos){
   const sinCreditos=ramosSinCreditosParaPpa(ramos);
   const primero=sinCreditos[0];
   if(!primero)return{modo,texto:'Promedio simple.'};
-  const faltante=sinCreditos.length===1
+  const uno=sinCreditos.length===1;
+  const faltante=uno
     ?`falta el crédito de ${primero.nombre}`
     :`faltan los créditos de ${primero.nombre} y ${sinCreditos.length-1} más`;
-  return{modo,texto:`Promedio simple porque ${faltante}. Cuando estén disponibles, se calculará ponderado por créditos.`};
+  // No hay que esperar a que lleguen: se ponen a mano en Editar ramo (lo pidió
+  // un estudiante de la UAndes el 2026-10-06, donde los ramos de carrera no
+  // traen créditos). Sigue siendo una frase, no una alarma.
+  return{modo,texto:`Promedio simple porque ${faltante}. Si ${uno?'lo':'los'} pones en Editar ramo, se calcula ponderado por créditos.`};
 }
 function semester(){
   const now=new Date(),m=now.getMonth(),y=now.getFullYear();
@@ -1429,11 +1579,18 @@ function fraseInicio(fecha=new Date()){
 // y la app crasheaba si Supabase no cargaba.
 let obStep=1;
 const OB_TOTAL=5;
-// Cuántos semestres ofrece el paso 4. Vive acá porque `mallaCubreTodoElPaso`
-// compara contra este número: si crece la lista y una malla no llega, la
-// promesa de "tu malla se carga sola" deja de aparecer sola, sin que nadie
-// tenga que acordarse.
+// Cuántos semestres ofrece el paso 4 como mínimo. Una carrera cuya malla llega
+// más lejos ofrece los suyos (`semestresDeCarrera`): Medicina UAndes y UC y
+// Derecho y Filosofía tienen 12, los dobles títulos UAI 13. Antes era un 11
+// fijo y quien iba en 12° no tenía cómo decirlo. `mallaCubreTodoElPaso` compara
+// contra el mismo número, así que la promesa de "tu malla se carga sola" sigue
+// siendo cierta para todos los semestres que se ofrecen.
 const OB_SEMESTRES=11;
+function semestresDeCarrera(tenant,codigo){
+  const malla=codigo?mallaDeCarrera(tenant,codigo):null;
+  const ultimo=malla?Math.max(0,...Object.keys(malla).map(Number).filter(Number.isInteger)):0;
+  return Math.max(OB_SEMESTRES,ultimo);
+}
 // Etiquetas fijas nuestras, de lista cerrada: no son texto del estudiante, y
 // hacen legible el embudo sin tener que traducir números mirando el código.
 const OB_ETAPAS=['nombre','universidad','carrera','semestre','ramos'];
@@ -1457,23 +1614,23 @@ function mallaCubreTodoElPaso(codigo){
   if(!codigo)return false;
   const porCarrera=mallaDeCarrera(selectedTenant,codigo);
   if(!porCarrera)return false;
-  for(let i=1;i<=OB_SEMESTRES;i++)if(!porCarrera[i]&&!porCarrera[String(i)])return false;
+  for(let i=1;i<=semestresDeCarrera(selectedTenant,codigo);i++)if(!porCarrera[i]&&!porCarrera[String(i)])return false;
   return true;
 }
 function initSemGrid(){
   const g=document.getElementById('sem-grid');g.innerHTML='';
-  for(let i=1;i<=OB_SEMESTRES;i++){
+  const total=semestresDeCarrera(selectedTenant,selectedCarrera);
+  if(selectedSem>total)selectedSem=total;
+  for(let i=1;i<=total;i++){
     const b=document.createElement('button');
     b.className='sem-btn'+(i===selectedSem?' sel':'');
     b.textContent=i+'°';
-    b.onclick=()=>{selectedSem=i;initSemGrid();checkOb();};
+    b.onclick=()=>{selectedSem=i;obSemManual=true;initSemGrid();if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();checkOb();};
     g.appendChild(b);
   }
 }
-// Con 71 carreras en la UC una grilla de botones no se puede recorrer. Es una
-// lista buscable, y las que tienen malla van arriba marcadas: son el caso
-// común y tienen que estar a un toque, pero el resto ahora EXISTE — antes un
-// estudiante de Derecho no tenía cómo decir qué estudiaba.
+// La lista buscable permite declarar cualquier carrera. Cada opción muestra
+// solo su nombre: la cobertura del catálogo no orienta qué carrera elegir.
 function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
   const todas=carrerasDeclarables(selectedTenant);
@@ -1486,7 +1643,7 @@ function initCarreraGrid(){
     const elegida=c.malla?c.malla===selectedCarrera:(!selectedCarrera&&c.n===selectedCarreraNombre);
     const b=document.createElement('button');
     b.className='carrera-opt'+(elegida?' sel':'');
-    b.innerHTML=esc(c.n)+(mallaCubreTodoElPaso(c.malla)?' <span class="carrera-tiene-malla">tu malla se carga sola</span>':'');
+    b.textContent=c.n;
     b.onclick=()=>{
       // `carrera` sigue siendo el código de la malla y manda en todo lo que ya
       // existe. `carreraNombre` es lo declarado, y es lo único que hay cuando
@@ -1517,24 +1674,186 @@ function filtrarCarrerasAjustes(v){window._sFiltro&&window._sFiltro(v);}
 
 // La validación es independiente por paso: la lista sugerida nunca obliga a
 // tomar un ramo, y cada pantalla solo exige su propio dato.
+// ─── RULETAS DEL ONBOARDING (#697) ───────────────────────────────────────────
+// Como la del reloj del iPhone: filas de 44 pt que encajan al centro al soltar.
+// Se usa con el dedo, la rueda del mouse, un toque en la fila, las flechas del
+// teclado y el lector de pantalla (role="spinbutton"). El tamaño de la letra
+// va en rem, así que respeta el que eligió la persona.
+const RULETA_FILA=44;
+const CHEVRON_RULETA=d=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto=v=>String(v),alCambiar}){
+  if(!contenedor)return null;
+  const opciones=vacio!==null?[null,...valores]:valores.slice();
+  // Arriba y abajo, dos botones chicos para moverla de a uno con un clic (en el
+  // computador arrastrar con la rueda no siempre es cómodo). Van fuera del
+  // spinbutton: un control no puede llevar otros controles adentro.
+  contenedor.className='ruleta-control';
+  contenedor.innerHTML='<div class="ruleta"><div class="ruleta-marco" aria-hidden="true"></div><div class="ruleta-lista" aria-hidden="true">'+
+    opciones.map((v,i)=>`<div class="ruleta-fila" data-i="${i}">${esc(v===null?vacio:texto(v))}</div>`).join('')+'</div></div>'+
+    `<button type="button" class="ruleta-paso ruleta-arriba" aria-label="Anterior">${CHEVRON_RULETA('M6 15l6-6 6 6')}</button>`+
+    `<button type="button" class="ruleta-paso ruleta-abajo" aria-label="Siguiente">${CHEVRON_RULETA('M6 9l6 6 6-6')}</button>`;
+  const caja=contenedor.querySelector('.ruleta');
+  if(!caja)return null;
+  caja.setAttribute('role','spinbutton');caja.tabIndex=0;
+  caja.setAttribute('aria-labelledby',etiqueta);
+  caja.setAttribute('aria-valuemin',String(valores[0]));caja.setAttribute('aria-valuemax',String(valores[valores.length-1]));
+  const lista=caja.querySelector('.ruleta-lista');
+  // Sin DOM de verdad (un entorno de prueba) no hay ruleta, pero el onboarding sigue.
+  if(!lista)return null;
+  let idx=Math.max(0,opciones.indexOf(inicial));
+  const pintar=()=>{
+    lista.querySelectorAll('.ruleta-fila').forEach((f,i)=>f.classList.toggle('es-elegida',i===idx));
+    const v=opciones[idx];
+    if(v===null){caja.removeAttribute('aria-valuenow');caja.setAttribute('aria-valuetext',vacio);}
+    else{caja.setAttribute('aria-valuenow',String(v));caja.setAttribute('aria-valuetext',texto(v));}
+  };
+  const elegir=(i,{mover=true}={})=>{
+    i=Math.max(0,Math.min(opciones.length-1,i));
+    const cambio=i!==idx;idx=i;pintar();
+    if(mover&&lista.scrollTo)lista.scrollTo({top:i*RULETA_FILA,behavior:movimientoReducido()?'auto':'smooth'});
+    if(cambio&&alCambiar)alCambiar(opciones[idx]);
+  };
+  // Al soltar, la fila que quedó al centro es la elegida. Mientras gira, cada
+  // fila que pasa por el centro hace tic, como el selector de iOS.
+  let espera=null,filaAlCentro=idx;
+  lista.addEventListener('scroll',()=>{
+    const f=Math.round(lista.scrollTop/RULETA_FILA);
+    if(f!==filaAlCentro&&f>=0&&f<opciones.length){filaAlCentro=f;vibrar('seleccion');}
+    clearTimeout(espera);espera=setTimeout(()=>elegir(f,{mover:false}),90);
+  },{passive:true});
+  // Con el mouse se agarra y se arrastra, como con el dedo. Mientras se
+  // arrastra se apaga el encaje, que si no tironea la lista a cada movimiento.
+  let arrastre=null;
+  lista.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='mouse'||e.button!==0)return;
+    arrastre={y:e.clientY,top:lista.scrollTop,movio:false};
+    lista.classList.add('arrastrando');
+    if(lista.setPointerCapture)lista.setPointerCapture(e.pointerId);
+  });
+  lista.addEventListener('pointermove',e=>{
+    if(!arrastre)return;
+    const dy=e.clientY-arrastre.y;
+    if(Math.abs(dy)>4)arrastre.movio=true;
+    lista.scrollTop=arrastre.top-dy;
+  });
+  const soltar=()=>{
+    if(!arrastre)return;
+    const movio=arrastre.movio;arrastre=null;
+    lista.classList.remove('arrastrando');
+    if(movio){lista.dataset.recienArrastrada='1';elegir(Math.round(lista.scrollTop/RULETA_FILA));}
+  };
+  lista.addEventListener('pointerup',soltar);lista.addEventListener('pointercancel',soltar);
+  lista.addEventListener('click',e=>{
+    if(lista.dataset.recienArrastrada){delete lista.dataset.recienArrastrada;return;}
+    const f=e.target.closest&&e.target.closest('.ruleta-fila');if(f)elegir(Number(f.dataset.i));
+  });
+  contenedor.querySelector('.ruleta-arriba').addEventListener('click',()=>elegir(idx-1));
+  contenedor.querySelector('.ruleta-abajo').addEventListener('click',()=>elegir(idx+1));
+  caja.addEventListener('keydown',e=>{
+    const d={ArrowUp:-1,ArrowDown:1,PageUp:-5,PageDown:5}[e.key];
+    if(d){e.preventDefault();elegir(idx+d);}
+    else if(e.key==='Home'){e.preventDefault();elegir(0);}
+    else if(e.key==='End'){e.preventDefault();elegir(opciones.length-1);}
+  });
+  pintar();
+  // Un paso oculto no tiene alto: se ubica la fila cuando el paso se muestra.
+  const sincronizar=()=>{lista.scrollTop=idx*RULETA_FILA;};
+  sincronizar();
+  return {valor:()=>opciones[idx],elegir,sincronizar};
+}
+const rangoAnios=(desde,hasta)=>Array.from({length:hasta-desde+1},(_,i)=>desde+i);
+// La edad se declara: parte vacía y no se avanza hasta elegirla. La generación
+// parte en el año actual. Las dos se guardan en el perfil (decisión de Lucas,
+// 2026-10-12; ver supabase/edad_declarada.sql y la política de privacidad).
+const EDAD_MINIMA=14;
+let obEdad=null,obGeneracion=new Date().getFullYear(),ruletaEdad=null,ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
+// Quien está en TAV lo marca a mano y queda guardado hasta el 1 de marzo
+// siguiente: desde ahí vuelve a regir el semestre calculado. Mientras dura no
+// se sugieren ramos de la malla, porque en TAV se toman ramos sueltos.
+function finDeVerano(fecha=new Date()){const y=fecha.getMonth()>=2?fecha.getFullYear()+1:fecha.getFullYear();return y+'-03-01';}
+function enVerano(fecha=new Date()){
+  const v=S&&S.verano;if(!v||typeof v.hasta!=='string')return false;
+  const hoy=fecha.getFullYear()+'-'+String(fecha.getMonth()+1).padStart(2,'0')+'-'+String(fecha.getDate()).padStart(2,'0');
+  return hoy<v.hasta;
+}
+// El semestre sale de la generación y la fecha (decisión de Lucas, 2026-10-12):
+// marzo a julio es el primero del año, agosto a diciembre el segundo, y en
+// enero y febrero —el verano— cuenta el que empieza en marzo. Quien entró en
+// 2026 va en su 2.º semestre en octubre de 2026 y empieza el 3.º en marzo de 2027.
+function semestreSegunGeneracion(generacion,fecha=new Date()){
+  return Math.max(1,(fecha.getFullYear()-generacion)*2+(fecha.getMonth()>=7?2:1));
+}
+function actualizarSemestreCalculado(){
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
+  const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
+  if(!caja)return;
+  const editar=document.getElementById('ob-sem-editar');
+  const pasaMarzo=!obSemManual&&new Date().getMonth()<2;
+  const frase=obVerano?`Estás en <b>${esc(nombreVerano(selectedTenant))}</b>.`
+    :`${pasaMarzo?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.`;
+  caja.innerHTML=`<span>${frase}</span>`+
+    (editar&&editar.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
+  const boton=document.getElementById('ob-sem-verano');
+  if(boton){boton.textContent=nombreVerano(selectedTenant);boton.setAttribute('aria-pressed',obVerano?'true':'false');}
+}
+// "Cambiar" pide escribir el semestre, o marcar TAV/verano.
+function mostrarSemestreManual(){
+  const editar=document.getElementById('ob-sem-editar');if(!editar)return;
+  editar.hidden=false;actualizarSemestreCalculado();
+  const campo=document.getElementById('ob-sem-input');
+  if(campo){campo.value=obVerano?'':String(selectedSem);campo.focus();campo.select&&campo.select();}
+}
+function escribirSemestreOnboarding(texto){
+  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const error=document.getElementById('ob-sem-error');
+  const limpio=String(texto||'').trim();
+  const n=/^\d{1,2}$/.test(limpio)?Number(limpio):NaN;
+  obSemInvalido=!(n>=1&&n<=total);
+  if(!obSemInvalido){selectedSem=n;obSemManual=true;obVerano=false;}
+  if(error)error.textContent=obSemInvalido&&limpio?`Escribe un número entre 1 y ${total}.`:'';
+  if(!limpio)obSemInvalido=!obVerano;
+  actualizarSemestreCalculado();checkOb();
+}
+function alternarVeranoOnboarding(){
+  obVerano=!obVerano;obSemInvalido=false;
+  const campo=document.getElementById('ob-sem-input'),error=document.getElementById('ob-sem-error');
+  if(obVerano&&campo)campo.value='';
+  if(error)error.textContent='';
+  if(!obVerano&&campo)campo.value=String(selectedSem);
+  actualizarSemestreCalculado();checkOb();
+}
+function avisoEdadOnboarding(){
+  const aviso=document.getElementById('ob-edad-aviso');if(!aviso)return;
+  aviso.textContent=obEdad!==null&&obEdad<EDAD_MINIMA?`Para usar GradeHub tienes que tener ${EDAD_MINIMA} años o más.`:'';
+}
+function montarRuletasOnboarding(){
+  ruletaEdad=montarRuleta(document.getElementById('ob-edad-ruleta'),{valores:rangoAnios(10,99),etiqueta:'ob-edad-titulo',
+    inicial:obEdad,vacio:'—',texto:v=>v+' años',alCambiar:v=>{obEdad=v;avisoEdadOnboarding();checkOb();}});
+  ruletaGeneracion=montarRuleta(document.getElementById('ob-generacion-ruleta'),{valores:rangoAnios(2000,new Date().getFullYear()),
+    etiqueta:'ob-generacion-titulo',inicial:obGeneracion,alCambiar:v=>{obGeneracion=v;actualizarSemestreCalculado();if(document.getElementById('sem-grid')&&!document.getElementById('sem-grid').hidden)initSemGrid();checkOb();}});
+}
+
 function obStepValid(step,datos){
   const d=datos||{
     nombre:(document.getElementById('ob-name')||{}).value||'',
-    edad:!!(document.getElementById('ob-edad')||{}).checked,
+    edad:obEdad,
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
+    verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre
   };
-  // El paso 1 pide dos cosas: cómo te llamas y que declares la edad mínima.
-  if(step===1)return !!String(d.nombre||'').trim()&&!!d.edad;
+  // El paso 1 pide dos cosas: cómo te llamas y tu edad, que tiene que ser la mínima.
+  if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=EDAD_MINIMA;
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
-  if(step===4)return !!d.semestre;
+  if(step===4)return !d.semInvalido&&(!!d.semestre||!!d.verano);
   if(step===5)return true;
   return false;
 }
 function obProgressPct(step){return Math.round(step/OB_TOTAL*100);}
 
-function obRamosActuales(){return ((mallaDeCarrera(selectedTenant,selectedCarrera)||{})[selectedSem]||[]);}
+// En TAV no se sugieren ramos de la malla: se toman ramos sueltos.
+function obRamosActuales(){if(typeof obVerano!=='undefined'&&obVerano)return [];return ((mallaDeCarrera(selectedTenant,selectedCarrera)||{})[selectedSem]||[]);}
 function prepararObRamos(){
   const key=[selectedTenant,selectedCarrera,selectedSem].join(':');
   // Traer la malla antes de decidir qué sugerir. Si no llega, el paso 5 muestra
@@ -1544,6 +1863,11 @@ function prepararObRamos(){
   // completa marcada encima.
   if(selectedCarrera&&ARCHIVO_MALLAS[selectedTenant]&&!(mallaFor(selectedTenant)||{})[selectedCarrera]&&!mallasExtraDe(selectedTenant)){
     cargarMallasUC(selectedTenant).then(ok=>{if(ok){obRamosKey=null;if(obStep===5)obRender();}});
+  }
+  // Lo mismo con las pautas del consenso: el buscador las ofrece en cuanto llegan.
+  if(!consensoCargado(selectedTenant)){
+    const t=selectedTenant;
+    cargarConsenso(t).then(filas=>{if(filas&&filas.length&&obStep===5&&selectedTenant===t)obRender();});
   }
   if(key===obRamosKey)return;
   obRamosKey=key;obManualOpen=false;
@@ -1684,7 +2008,7 @@ function obCatalogMeta(r){
   const detalles=[r.sigla?esc(r.sigla):'',lugar];
   if(typeof r.creditos==='number')detalles.push(`${r.creditos} créditos`);
   if(r.escuela)detalles.push(esc(r.escuela));
-  if(r.tienePreset)detalles.push('con pauta');
+  if(r.tienePreset)detalles.push(r.consenso?`pauta de ${r.consenso} estudiantes`:'con pauta');
   return detalles.filter(Boolean).join(' · ');
 }
 function renderObCoursePicker(){
@@ -1790,9 +2114,18 @@ function obTrackPaso(){
 // carreras de FEN, donde la primera opción es "Ingeniería Comercial", y se llevaba
 // la malla de otra universidad. `obStepValid(2)` ya exige un tenant; lo que faltaba
 // era no dárselo puesto.
-function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;renderTenantPick();obRender();checkOb();}
+function obIniciar(){obStep=1;obMaxPasoVisto=0;selectedTenant=null;montarRuletasOnboarding();renderTenantPick();obRender();checkOb();}
 
 function obRender(){
+  // Cuántos semestres ofrecer depende de la malla, que puede venir en un
+  // archivo diferido: se pide acá y el selector se repinta cuando llega.
+  if(obStep===4){
+    if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();
+    initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4){if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();initSemGrid();}});
+  }
+  const alPintar=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(f):f();
+  if(obStep===1&&typeof ruletaEdad!=='undefined'&&ruletaEdad)alPintar(ruletaEdad.sincronizar);
+  if(obStep===4&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
   if(obStep===5)prepararObRamos();
   obTrackPaso();
   document.querySelectorAll('.ob-step').forEach(el=>{
@@ -1801,7 +2134,9 @@ function obRender(){
   const bar=document.getElementById('ob-progress-bar');
   if(bar)bar.style.transform='scaleX('+(obProgressPct(obStep)/100)+')';
   const back=document.getElementById('ob-back');
-  if(back)back.style.visibility=obStep>1?'visible':'hidden';
+  // En el paso 1 no hay a dónde volver: sin el botón, Continuar ocupa el ancho
+  // completo en vez de quedar corrido a la derecha junto a un hueco.
+  if(back)back.hidden=obStep<=1;
   const next=document.getElementById('ob-next');
   if(next){
     next.textContent=obStep===OB_TOTAL?(obRamos.length?`Continuar con ${obRamos.length} ramo${obRamos.length!==1?'s':''}`:'Continuar sin ramos'):'Continuar';
@@ -1860,12 +2195,13 @@ function completeOnboarding(){
     showToast('Falta un dato para crear tu cuenta',true);
     return;
   }
-  S.userName=name;S.careerSemestre=selectedSem;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
+  S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.verano=obVerano?{hasta:finDeVerano()}:null;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
   obRamos.forEach(item=>{
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
-    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
   syncProfile();
@@ -1873,7 +2209,7 @@ function completeOnboarding(){
   // formulario de correo porque por el onboarding pasan también las cuentas de
   // Google, que nunca vieron ese formulario — y con ellas, la aceptación de
   // los términos, que hasta ahora solo se registraba en el camino del correo.
-  registrarDeclaracionEdad();
+  registrarDeclaracionEdad({edad:obEdad,generacion:obGeneracion});
   // `carrera` es un código de una lista cerrada y puede viajar. El nombre
   // declarado NO: es texto escrito por el estudiante y la analítica no recibe
   // texto suyo — lo prohíbe tests/analitica.test.js y lo promete la política.
@@ -1903,15 +2239,15 @@ function mostrarRamosCargados(cantidad,oficiales){
   if(oficiales===cantidad){
     titulo='Tu semestre está listo';
     principal=oficialesTxt;
-    detalle='Los porcentajes ya están configurados. Cuando tengas una nota, ingrésala en el ramo.';
+    detalle='Ya tienen sus porcentajes. Ingresa tus notas en cada ramo.';
   }else if(oficiales>0){
     titulo='Tus ramos están listos';
     principal=oficialesTxt;
-    detalle=`En esos ramos, los porcentajes ya están configurados. En ${pendientes===1?'el otro':`los otros ${pendientes}`}, agrega evaluaciones y sus porcentajes antes de ingresar notas.`;
+    detalle=`Ya tienen sus porcentajes. ${pendientes===1?'Al otro agrégale':`A los otros ${pendientes} agrégales`} sus evaluaciones.`;
   }else{
     titulo='Ahora, las evaluaciones';
     principal=ramosTxt;
-    detalle='Antes de ingresar una nota, agrega las evaluaciones y sus porcentajes en cada ramo.';
+    detalle='Agrega las evaluaciones y sus porcentajes en cada ramo.';
   }
   modal.innerHTML=`
     <div class="modal-title">${titulo}</div>
@@ -1944,8 +2280,64 @@ let _promptInstalar=null;
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
+// La app iOS (Capacitor). app-session.js tiene su propia constante; esta es
+// función porque app.js carga antes y no puede declarar el mismo nombre.
+function enAppNativa(){
+  try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
+  catch(e){return false;}
+}
+// La clase html.app-nativa la pone index.html antes de pintar.
+// Vibración, solo en la app (HIG Playing haptics): un toque suave al agregar
+// una nota y la advertencia al borrar (pedido de Martín). Además, lo que en iOS
+// ya vibra solo: el tic de selección de la ruleta y de los interruptores, y el
+// golpe al levantar un ramo para reordenarlo. Nada más: una vibración que se
+// repite en todo deja de decir algo.
+let _hapticaSeleccion=null;
+function vibrar(tipo){
+  try{
+    const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
+    if(!H)return;
+    if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
+    // El generador de selección se prepara una vez y queda listo para cada tic.
+    else if(tipo==='seleccion'){
+      _hapticaSeleccion=_hapticaSeleccion||Promise.resolve(H.selectionStart());
+      _hapticaSeleccion.then(()=>H.selectionChanged()).catch(()=>{});
+    }
+    else H.impact({style:'LIGHT'}).catch(()=>{});
+  }catch(e){}
+}
+// Un interruptor de iOS hace tic al cambiar; los de la app (.toggle) también.
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t&&t.matches&&t.matches('.toggle input[type=checkbox]'))vibrar('seleccion');
+});
+// Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
+// nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web
+// a otro sitio la dejaba congelada, como pasaba con Google. Ahí se abre en la
+// hoja de Safari; las páginas propias, desde gradehub.cl. Devuelve false si no
+// lo manejó (la web, o un mailto: que abre iOS).
+function abrirFuera(url){
+  if(!enAppNativa())return false;
+  let abs;
+  try{abs=new URL(url,'https://gradehub.cl/').href;}catch(e){return false;}
+  const Browser=window.Capacitor.Plugins&&window.Capacitor.Plugins.Browser;
+  if(!/^https?:/.test(abs)||!Browser)return false;
+  Browser.open({url:abs,presentationStyle:'popover'}).catch(()=>{});
+  return true;
+}
+if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('click',e=>{
+  const a=e.target&&e.target.closest&&e.target.closest('a[target="_blank"]');
+  // El contacto de una clase tiene su propio manejo (mide antes de abrir).
+  if(!a||a.hasAttribute('data-contactar'))return;
+  if(abrirFuera(a.getAttribute('href')))e.preventDefault();
+},true);
+
 function appYaInstalada(){
   try{
+    // La app iOS (Capacitor) ya es la app instalada: ofrecer "Agregar a
+    // pantalla de inicio" ahí no tiene sentido. El aviso queda solo para la web.
+    if(enAppNativa())return true;
     return !!(navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches));
   }catch(e){return false;}
 }
@@ -2008,13 +2400,18 @@ window.addEventListener('appinstalled',()=>{_promptInstalar=null;descartarAvisoI
 
 function showMainApp(){
   applyTheme();
+  publicarResumenWidgets();
   document.getElementById('screen-onboard').classList.remove('active');
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
   renderHome();renderStats();renderAgenda(); // los 3 siempre montados
-  showTab('home');
+  // Una cuenta de profesor abre en Clases (#697): sus pestañas se arman antes.
+  recalcularNavTabs();
+  showTab(pestanaInicial());
   contarVisita();
   pintarAvisoInstalar();
+  // Si llegó con el link de un profesor, ahora que hay sesión se le ofrece compartir.
+  if(typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
   // En una cuenta existente el catálogo puede no haberse pedido nunca: si un
   // ramo UC quedó sin SCT, hay que traerlo incluso sin abrir el buscador. Si ya
   // se cargó durante onboarding, completa de inmediato.
@@ -2038,21 +2435,34 @@ function showMainApp(){
 // encogerse sin dejar a nadie parado en una pestaña que ya no está.
 const NAV_TABS_BASE=['stats','home','agenda'];
 let NAV_TABS=NAV_TABS_BASE.slice();
+// Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
+// (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
+const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
+// Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
+// Inicio para todas las demás, incluidas las de estudiante que además dan clases.
+function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
 function recalcularNavTabs(){
-  const conProfesor=typeof esProfesorAprobado==='function'&&esProfesorAprobado();
+  // Una cuenta de profesor (#697) no tiene Inicio, Estadísticas ni Agenda: no
+  // estudia acá. Clases y Alumnos las tiene siempre, aprobada o no; mientras
+  // no lo esté, cada una explica en qué va. Las cuentas de estudiante que
+  // además son profesores aprobados siguen con sus cinco pestañas.
+  const soloProfesor=esCuentaProfesor();
+  const conProfesor=soloProfesor||(typeof esProfesorAprobado==='function'&&esProfesorAprobado());
   // La de administración, solo para cuentas administradoras. Que aparezca no da
   // acceso a nada: el servidor exige además el segundo factor.
   const conAdmin=typeof esAdministrador==='function'&&esAdministrador();
-  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor']:[]),...(conAdmin?['admin']:[])];
-  [['profesor',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
+  // Un profesor aprobado tiene Clases (sus anuncios) y Alumnos (el panel), en
+  // pestañas separadas (#697).
+  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
   if(nuevas.join()===NAV_TABS.join())return false;
   NAV_TABS=nuevas;
   // Si a alguien le quitan el acceso estando en su pestaña, no se le deja la
-  // pantalla en blanco: vuelve a Inicio.
-  if(!NAV_TABS.includes(currentTab))showTab('home');
+  // pantalla en blanco: vuelve a su pestaña de entrada.
+  if(!NAV_TABS.includes(currentTab))showTab(pestanaInicial());
   else setTabTransforms(Math.max(0,NAV_TABS.indexOf(currentTab)),0);
   return true;
 }
@@ -2069,6 +2479,11 @@ function setTabTransforms(idx, dragPx){
 }
 
 function showTab(tab,skipAnim){
+  if(PESTANAS.includes(tab)&&!NAV_TABS.includes(tab)){
+    // La lista puede venir atrasada (recién terminó el onboarding de profesor).
+    recalcularNavTabs();
+    if(!NAV_TABS.includes(tab))tab=pestanaInicial();
+  }
   if(NAV_TABS.includes(tab)){
     // Modo tab: snap del carrusel
     ['ramo','auth','onboard','reset'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
@@ -2081,6 +2496,7 @@ function showTab(tab,skipAnim){
     else if(tab==='stats')renderStats();
     else if(tab==='agenda')renderAgenda();
     else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
+    else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
     track('screen_view',{screen_name:tab});
   } else {
@@ -2090,7 +2506,16 @@ function showTab(tab,skipAnim){
     if(el)el.classList.add('active');
   }
 }
-function goHome(){showTab('home');}
+// Salir de un ramo vuelve a la pestaña desde donde se abrió: abierto desde
+// Agenda o Estadísticas, Volver llevaba siempre a Inicio. Todos los que llaman
+// a goHome() están saliendo de la ficha (Volver, borrar el ramo, un ramo que ya
+// no existe).
+function goHome(){
+  const ramo=document.getElementById('screen-ramo');
+  const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
+  if(ramo&&ramo.classList.contains('active'))transicionNativa('pop',()=>showTab(destino));
+  else showTab(pestanaInicial());
+}
 
 // Drag continuo entre tabs — tipo historia de Instagram.
 // El track sigue el dedo durante touchmove, snappea a next/prev/actual en touchend.
@@ -2158,6 +2583,85 @@ function goHome(){showTab('home');}
   document.addEventListener('touchmove',onMove,{passive:false});
   document.addEventListener('touchend',onEnd,{passive:true});
   document.addEventListener('touchcancel',onEnd,{passive:true});
+})();
+
+// Deslizar desde el borde izquierdo para salir de un ramo (solo en la app),
+// como en cualquier app de iOS. La ficha sigue al dedo 1:1 y la pestaña de
+// atrás asoma desde un tercio, oscurecida: el mismo dibujo que el pop animado.
+// Al soltar decide por la velocidad y por cuánto se corrió; si sale, termina el
+// recorrido desde donde quedó el dedo y recién ahí cambia de pantalla (sin la
+// transición, que ya se vio); si no, vuelve a su lugar.
+(function initVolverDeslizando(){
+  if(typeof document==='undefined'||typeof document.addEventListener!=='function')return;
+  const BORDE=24;      // px desde el borde donde parte el gesto
+  const BLOQUEO=10;    // px para decidir si es horizontal o un scroll
+  let g=null,animando=false;
+  const ancho=()=>window.innerWidth||document.documentElement.clientWidth||390;
+  function pintar(dx){
+    const w=ancho(),p=Math.min(Math.max(dx/w,0),1);
+    g.ramo.style.transform=`translate3d(${dx}px,0,0)`;
+    g.atras.style.transform=`translate3d(${-0.3*w*(1-p)}px,0,0)`;
+    g.atras.style.filter=`brightness(${0.9+0.1*p})`;
+  }
+  function limpiar(ramo,atras){
+    [['transform',ramo],['transition',ramo],['boxShadow',ramo],['transition',atras],['filter',atras]].forEach(([k,el])=>{if(el)el.style[k]='';});
+  }
+  document.addEventListener('touchstart',e=>{
+    if(animando||!enAppNativa()||!e.touches||e.touches.length!==1)return;
+    const ramo=document.getElementById('screen-ramo');
+    if(!ramo||!ramo.classList.contains('active')||document.documentElement.dataset.nav)return;
+    if(document.querySelector('.modal-overlay.open,.confirm-overlay.open,#menu-flotante'))return;
+    const t=e.touches[0];if(t.clientX>BORDE)return;
+    const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
+    const atras=document.getElementById('screen-'+destino);if(!atras)return;
+    g={ramo,atras,destino,x0:t.clientX,y0:t.clientY,dx:0,decidido:false,hist:[[t.clientX,Date.now()]]};
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!g)return;
+    const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
+    if(!g.decidido){
+      if(Math.abs(dx)<BLOQUEO&&Math.abs(dy)<BLOQUEO)return;
+      if(dx<=0||Math.abs(dy)>=Math.abs(dx)){g=null;return;}
+      g.decidido=true;
+      document.querySelector('.app').classList.add('dragging');
+      g.ramo.style.transition='none';g.atras.style.transition='none';
+      g.ramo.style.boxShadow='-12px 0 32px rgba(0,0,0,.18)';
+    }
+    if(e.cancelable)e.preventDefault();
+    g.dx=Math.max(0,dx);pintar(g.dx);
+    g.hist.push([t.clientX,Date.now()]);if(g.hist.length>5)g.hist.shift();
+  },{passive:false});
+  function soltar(){
+    if(!g)return;
+    const s=g;g=null;
+    if(!s.decidido)return;
+    const [x1,t1]=s.hist[0],[x2,t2]=s.hist[s.hist.length-1];
+    const v=(x2-x1)/Math.max(t2-t1,1); // px/ms; positivo = hacia la derecha
+    const w=ancho();
+    // Un tirón hacia la derecha sale aunque haya corrido poco; uno de vuelta se
+    // queda aunque haya corrido mucho. Si no hubo tirón, manda la mitad.
+    const sale=v>0.35||(v>-0.2&&s.dx>w/2);
+    const fin=sale?w+60:0,falta=Math.abs(fin-s.dx);
+    // Termina a la velocidad del dedo: más rápido si venía rápido.
+    const ms=Math.round(Math.min(380,Math.max(160,falta/Math.max(Math.abs(v),0.9))));
+    animando=true;
+    const curva=`transform ${ms}ms cubic-bezier(.2,.8,.2,1)`;
+    s.ramo.style.transition=curva;
+    s.atras.style.transition=`${curva},filter ${ms}ms linear`;
+    requestAnimationFrame(()=>{
+      s.ramo.style.transform=`translate3d(${fin}px,0,0)`;
+      s.atras.style.transform=`translate3d(${sale?0:-0.3*w}px,0,0)`;
+      s.atras.style.filter=`brightness(${sale?1:0.9})`;
+    });
+    setTimeout(()=>{
+      if(sale)showTab(s.destino);
+      limpiar(s.ramo,s.atras);
+      if(sale)setTabTransforms(currentTabIdx,0);
+      requestAnimationFrame(()=>{document.querySelector('.app').classList.remove('dragging');animando=false;});
+    },ms+30);
+  }
+  document.addEventListener('touchend',soltar,{passive:true});
+  document.addEventListener('touchcancel',soltar,{passive:true});
 })();
 
 // ─── ORDEN MANUAL DE RAMOS ─────────────────────────────────────────────────
@@ -2259,6 +2763,8 @@ function activarReordenRamos(container){
       ghost.style.width=rect.width+'px';
       document.body.appendChild(ghost);
       drag={ghost,offsetX:x-rect.left,offsetY:y-rect.top,x,y};
+      // En iOS, lo que se levanta con el dedo se siente al despegar.
+      vibrar('levantar');
       row.classList.add('ramo-drag-source');
       container.classList.add('ramo-reordering');
       document.body.classList.add('ramo-drag-active');
@@ -2315,19 +2821,39 @@ function activarReordenRamos(container){
   });
 }
 
-function cycleSortMode(){
-  S.sortMode=S.sortMode==='manual'?'avg':S.sortMode==='avg'?'name':'manual';
-  save();renderHome();
-}
 
+// ─── Transiciones de la app (solo en la app) ────────────────────────────────
+// Abrir un ramo lo empuja desde la derecha y Volver lo devuelve por el mismo
+// camino, como la navegación de iOS (HIG Motion; "si algo desaparece por un
+// lado, se espera que vuelva por ahí"). Son View Transitions: el navegador
+// fotografía la pantalla de antes y la de después y styles.css las desliza;
+// la barra de pestañas tiene su propio nombre y se queda quieta. Sin soporte
+// (iOS 17 o anterior) cambia de golpe, como antes; con movimiento reducido, un
+// fundido. En la web no se usa.
+let _navTransicion=0;
+function transicionNativa(sentido,cambio){
+  const raiz=typeof document!=='undefined'&&document.documentElement;
+  if(!raiz||!raiz.classList||!raiz.classList.contains('app-nativa')||typeof document.startViewTransition!=='function'){cambio();return;}
+  const n=++_navTransicion;
+  raiz.dataset.nav=matchMedia('(prefers-reduced-motion: reduce)').matches?'fundido':sentido;
+  document.startViewTransition(cambio).finished.finally(()=>{if(n===_navTransicion)delete raiz.dataset.nav;});
+}
+// El contenido nuevo de una hoja (Ajustes) entra desde el lado hacia el que se
+// navega; la barra de arriba se queda, como en iOS.
+function entrarDesde(el,sentido){
+  const raiz=typeof document!=='undefined'&&document.documentElement;
+  if(el&&raiz&&raiz.classList&&raiz.classList.contains('app-nativa'))el.classList.add('nav-'+sentido);
+}
 function openRamo(id){
   currentRamoId=id;
-  ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
-  ['nav-home','nav-stats','nav-agenda'].forEach(n=>document.getElementById(n).classList.remove('active'));
-  document.getElementById('screen-ramo').classList.add('active');
   const r=S.ramos.find(x=>x.id===id);
   track('view_ramo',{del_catalogo:!!(r&&r.origen)});
-  renderRamo();
+  transicionNativa('push',()=>{
+    // La pestaña de donde viene queda marcada, como en iOS: dice a dónde lleva Volver.
+    ['home','stats','agenda'].forEach(s=>document.getElementById('screen-'+s).classList.remove('active'));
+    document.getElementById('screen-ramo').classList.add('active');
+    renderRamo();
+  });
 }
 function horaCorta(hora){return HORA_RE.test(hora||'')?hora:'';}
 function fechaHoraCorta(iso,hora){
@@ -2367,7 +2893,7 @@ function evaluacionSinNota(cat){return !(cat?.notas||[]).some(n=>n&&n.valor!=nul
 function porcentajeAusencia(valor){return String(r2(Number(valor)||0)).replace('.',',');}
 function declararAusenciaJustificada(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  const regla=r.reglasAusenciaJustificada;
+  const regla=reglasAusenciaOficiales(r);
   const declarable=[...(regla&&regla.reemplazos||[]),...(regla&&regla.traspasos||[]),...(regla&&regla.rezagos||[])].some(x=>x.desdeId===catId);
   const cat=(r.categorias||[]).find(c=>c.id===catId);
   if(!declarable||!cat||!evaluacionSinNota(cat)){showToast('Esa ausencia ya no se puede aplicar a tu pauta',true);return;}
@@ -2378,7 +2904,7 @@ function declararAusenciaJustificada(catId){
 function ausenciaDeEvaluacion(r,cat){
   if(!r||!cat)return null;
   const declarada=(r.ausenciasJustificadas||[]).includes(cat.id);
-  const oficial=r.reglasAusenciaJustificada;
+  const oficial=reglasAusenciaOficiales(r);
   const regla=oficial||(r.reglasAusenciaJustificadaUsuario?.declaradaPor==='estudiante'?r.reglasAusenciaJustificadaUsuario:null);
   const entradas=[...(regla?.reemplazos||[]).map(x=>({...x,tipo:'reemplazo'})),
     ...(regla?.traspasos||[]).map(x=>({...x,tipo:'traspaso'})),
@@ -2388,13 +2914,15 @@ function ausenciaDeEvaluacion(r,cat){
   if(!declarada&&(!pendiente||!(Number(cat.peso)>0)||!!oficial&&!entrada))return null;
   const estado=declarada?estadoAusenciasJustificadas(r):null;
   const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===cat.id);
+  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===cat.id);
   const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===cat.id)||
-    (declarada&&!aplicada?{motivo:'pauta_cambio'}:null);
-  const detalle=aplicada||inactiva||entrada;
+    (declarada&&!aplicada&&!bloqueada?{motivo:'pauta_cambio'}:null);
+  const detalle=aplicada||bloqueada||inactiva||entrada;
   const destino=(r.categorias||[]).find(c=>c.id===detalle?.haciaId);
   const peso=porcentajeAusencia(cat.peso);
   let texto='';
-  if(inactiva)texto=inactiva.motivo==='tiene_nota'
+  if(bloqueada)texto=`El traspaso supera el máximo de ${bloqueada.topePesoDestino}% del examen. El resultado queda pendiente hasta resolverlo con el curso.`;
+  else if(inactiva)texto=inactiva.motivo==='tiene_nota'
     ?'La declaración se conserva, pero no se aplica porque esta evaluación tiene nota.'
     :'La declaración se conserva, pero no se aplica porque cambió la pauta.';
   else if(detalle?.tipo==='rezago')texto=`Su ${peso}% queda pendiente para rendir en rezago.`;
@@ -2452,7 +2980,7 @@ function confirmarCorreccionAusenciaJustificada(catId){
     ()=>corregirAusenciaJustificada(catId),{label:'Deshacer justificación',focusCancel:true});
 }
 function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
-  if(!r||r.reglasAusenciaJustificada)return false;
+  if(!r||reglasAusenciaOficiales(r))return false;
   const desde=(r.categorias||[]).find(c=>c.id===desdeId);
   if(!desde||!(Number(desde.peso)>0)||!evaluacionSinNota(desde))return false;
   if(!['rezago','traspaso'].includes(tipo))return false;
@@ -2475,7 +3003,7 @@ function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
 function openAusenciaJustificadaModal(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const desde=r&&(r.categorias||[]).find(c=>c.id===catId);
-  if(!r||r.reglasAusenciaJustificada||!desde||!evaluacionSinNota(desde)){
+  if(!r||reglasAusenciaOficiales(r)||!desde||!evaluacionSinNota(desde)){
     showToast('Esa ausencia ya no se puede configurar',true);return;
   }
   const destinos=(r.categorias||[]).filter(c=>c.id!==catId&&Number(c.peso)>0);
@@ -2607,6 +3135,7 @@ function setSlotNota(catId,slot,raw){
   save();track('set_nota_slot');renderRamo();
   const notaValida=txt!==''&&!isNaN(parseNota(txt));
   if(notaValida){
+    vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
     animarPromedio(document.getElementById('ramo-hero-avg'),promedioAntes,promedioDespues,'ramo');
     if(cambioDePromedio(gpaAntes,gpaDespues)){
@@ -2636,6 +3165,7 @@ function setDirectNota(catId,raw){
   save();track('set_nota_directa');renderRamo();
   const notaValida=txt!==''&&!isNaN(parseNota(txt));
   if(notaValida){
+    vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
     animarPromedio(document.getElementById('ramo-hero-avg'),promedioAntes,promedioDespues,'ramo');
     if(cambioDePromedio(gpaAntes,gpaDespues)){
@@ -2663,18 +3193,19 @@ function confirmDeleteCat(catId){
 }
 function deleteNota(catId,notaId){
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
-  cat.notas=cat.notas.filter(n=>n.id!==notaId);save();renderRamo();
+  cat.notas=cat.notas.filter(n=>n.id!==notaId);save();renderRamo();vibrar('borrar');
 }
 
 // ─── RAMOS DE LA MALLA ───────────────────────────────────────────────────────
 function mallaFaltantes(){
   if(!S.carrera) return [];
-  const ramos=(mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[];
+  // En TAV no hay ramos de malla que sugerir.
+  const ramos=enVerano()?[]:((mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[]);
   return ramos.filter(n=>!S.ramos.some(r=>r.nombre.toLowerCase()===n.toLowerCase()));
 }
 let _mallaSel={}, _mallaList=[];
 function openMallaModal(){
-  if(!S.carrera){showToast('Primero elige tu carrera en Configuración');return;}
+  if(!S.carrera){showToast('Primero elige tu carrera en Ajustes');return;}
   _mallaList=mallaFaltantes();
   if(!_mallaList.length){
     const hayMalla=Object.keys((mallaFor(S.tenant)[S.carrera]||{})).length>0;
@@ -2755,6 +3286,15 @@ function pautaEditada(r){
 // Devuelve el cambio pendiente, o null. Null significa las tres cosas buenas:
 // no hay pauta oficial, ya está al día, o el estudiante la editó a mano —y en
 // ese caso su versión manda sobre la nuestra, sin preguntar ni avisar.
+function firmaReglasCalculo(r){
+  const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
+  return JSON.stringify((r.gates||[]).filter(g=>['conditional_weights','absence_limit'].includes(g.type)).map(g=>({
+    type:g.type,nombre:g.nombre,max:g.max,ambigua:g.ambigua,
+    cuando:(g.cuando||[]).map(c=>({tipo:c.tipo,min:c.min,algunaMin:c.algunaMin,evals:c.catIds.map(id=>nombres.get(id))})),
+    pesos:(g.pesos||[]).map(e=>({evaluacion:nombres.get(e.catId),peso:e.peso})),
+    traspasos:(g.traspasos||[]).map(e=>({desde:nombres.get(e.desdeId),hacia:nombres.get(e.haciaId)})),
+  })));
+}
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
   const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
@@ -2764,11 +3304,12 @@ function cambioDePauta(r){
   const actual=huellaPauta(catsDePauta(r.categorias));
   if(actual!==r.pautaHuella)return null;      // la editó: no se opina
   const oficial=huellaPauta(p.categorias);
-  if(oficial===actual)return null;            // al día
+  const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
+  if(oficial===actual&&!reglasCambian)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
-  const cambios=[];
+  const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
@@ -2792,6 +3333,7 @@ function verCambioDePauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return;
   const cambio=cambioDePauta(r);if(!cambio)return;
   const fila=c=>{
+    if(c.tipo==='regla')return `<li>${esc(c.nombre)}</li>`;
     if(c.tipo==='peso')return `<li><b>${esc(c.nombre)}</b>: ${r2(c.antes)}% → <b>${r2(c.despues)}%</b></li>`;
     if(c.tipo==='llega')return `<li><b>${esc(c.nombre)}</b>: nueva, ${r2(c.despues)}%</li>`;
     return `<li><b>${esc(c.nombre)}</b>: ya no está en la pauta del catálogo</li>`;
@@ -2818,6 +3360,11 @@ function verCambioDePauta(ramoId){
 function actualizarPauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return false;
   const cambio=cambioDePauta(r);if(!cambio)return false;
+  aplicarCambioDePauta(r,cambio);
+  return true;
+}
+// Recibe el ramo y no su id porque normalize() la usa antes de que exista S.
+function aplicarCambioDePauta(r,cambio){
   // Por NOMBRE NORMALIZADO, no exacto: una pauta retranscrita cambia mayúsculas,
   // tildes o un espacio sin querer, y con igualdad estricta "Solemne 1" y
   // "solemne 1" eran evaluaciones distintas — la nota se iba por un acento.
@@ -2827,31 +3374,58 @@ function actualizarPauta(ramoId){
   // ella en vez de quedar duplicadas —la vieja en 0% y la nueva vacía—. Las de
   // la pauta van después a propósito: si por lo que sea coinciden en nombre,
   // manda la que está viva.
-  fusionarPauta(r,cambio.preset.categorias);
-  r.gates=cambio.preset.gates;
+  const ids=fusionarPauta(r,cambio.preset.categorias);
+  r.gates=traducirIdsCategoria(cambio.preset.gates,ids);
   r.aporta=cambio.preset.aporta||null;
+  r.promedioParcial=cambio.preset.promedioParcial||null;
   r.recuperativo=cambio.preset.recuperativo||null;
-  r.reglasAusenciaJustificada=cambio.preset.reglasAusenciaJustificada||null;
+  r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
+  r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
-  return true;
 }
 
 // Cambia las evaluaciones de un ramo CONSERVANDO lo que el estudiante escribió.
 // Vive aparte porque el trato con sus notas es el mismo venga la pauta de donde
 // venga: del programa oficial o de lo que reportaron sus compañeros. Una nota
 // es suya y no se pierde porque nosotros cambiemos de fuente.
+// Devuelve qué id quedó para cada evaluación de `nuevas` ({idNuevo: idFinal}):
+// quien trae compuertas o reglas con los ids del preset las traduce con eso.
+//
+// Una evaluación que sigue CONSERVA SU ID, y una que llega recibe uno que sale
+// de su nombre y del ramo. Nunca uno al azar: corrigePautas corre por separado
+// sobre la copia del teléfono y sobre la de la nube, y la sincronización las
+// junta por id. Con ids al azar cada copia inventaba los suyos y el ramo
+// quedaba con todas sus evaluaciones dos veces (2026-10-15, Laboratorio de
+// Dinámica). Con ids que no dependen de quién corrige, las dos copias quedan
+// idénticas.
+function idCategoriaEstable(r,nombre){
+  let h=2166136261;const s=(r&&r.id||'')+'|'+normName(nombre);
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
+  return 'c'+h.toString(36);
+}
 function fusionarPauta(r,nuevas){
   const nombresAusencia=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
   const viejas=new Map([...(r.categorias||[]).filter(c=>c.fueraDePauta),...catsDePauta(r.categorias)]
     .map(c=>[normName(c.nombre),c]));
+  const idsFinales={},idsUsados=new Set();
   r.categorias=nuevas.map(c=>{
     const fuentes=[{nombre:c.nombre},...(c.nombresAnteriores||[]).map(x=>
       typeof x==='string'?{nombre:x}:x)];
     const usadas=new Set(),idsNotas=new Set(),notas=[];
+    let idHeredado=null;
     fuentes.forEach(f=>{
-      const k=normName(f.nombre),vieja=viejas.get(k);
+      let k=normName(f.nombre),vieja=viejas.get(k);
+      if(!vieja){
+        // El mismo nombre salvo conectores o plural ("Controles Ejercicios" y
+        // "Control de Ejercicios"): sin esto, adoptar una pauta dejaba esas
+        // notas en 0%. Solo si hay una candidata; con dos no se adivina.
+        const clave=nombreHuella(f.nombre);
+        const candidatas=[...viejas].filter(([,v])=>nombreHuella(v.nombre)===clave);
+        if(candidatas.length===1)[k,vieja]=candidatas[0];
+      }
       if(!vieja||usadas.has(k))return;
       usadas.add(k);viejas.delete(k);
+      if(!idHeredado&&vieja.id&&!idsUsados.has(vieja.id))idHeredado=vieja.id;
       (vieja.notas||[]).forEach(n=>{
         if(n&&n.id&&idsNotas.has(n.id))return;
         const copia={...n};
@@ -2860,7 +3434,10 @@ function fusionarPauta(r,nuevas){
         notas.push(copia);
       });
     });
-    return {...c,notas};   // `c` no trae fueraDePauta: revivir la limpia
+    let id=idHeredado||idCategoriaEstable(r,c.nombre);
+    while(idsUsados.has(id))id+='_';
+    idsUsados.add(id);idsFinales[c.id]=id;
+    return {...c,id,notas};   // `c` no trae fueraDePauta: revivir la limpia
   });
   // Lo que la pauta nueva ya no tiene NO se borra. La pauta es nuestra; la nota
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en
@@ -2887,6 +3464,57 @@ function fusionarPauta(r,nuevas){
     usuario.traspasos=usuario.traspasos.map(x=>({desdeId:idAusenciaEnPautaNueva(x.desdeId),haciaId:idAusenciaEnPautaNueva(x.haciaId)}));
     r.reglasAusenciaJustificadaUsuario=usuario;
   }
+  return idsFinales;
+}
+// Cambia ids de evaluación dentro de reglas (compuertas, ausencias): cualquier
+// texto igual a un id viejo pasa a ser el nuevo. Los ids son al azar o salen de
+// un hash, así que no chocan con otros textos de la regla.
+// El 2026-10-15 corrigePautas dejó ramos con todas sus evaluaciones dos veces
+// (ver idCategoriaEstable): la copia del teléfono y la de la nube se corrigieron
+// por separado con ids distintos y la sincronización sumó las dos. Esto las
+// vuelve a juntar al cargar. Solo actúa con la huella exacta de ese error, para
+// no tocar a nadie que tenga dos evaluaciones con el mismo nombre a propósito:
+// ramo del catálogo, mismo nombre, mismo peso y mismas casillas, y una pauta que
+// suma más de 100% y vuelve a sumar 100% sin las repetidas. Queda la de id
+// menor y las notas se juntan por id: así las dos copias se reparan igual y la
+// sincronización no las vuelve a duplicar.
+function repararEvaluacionesRepetidas(r){
+  if(!r||!r.origen||!Array.isArray(r.categorias))return false;
+  const vivas=r.categorias.filter(c=>c&&!c.fueraDePauta);
+  const grupos=new Map();
+  vivas.forEach(c=>{const k=normName(c.nombre);if(!k)return;if(!grupos.has(k))grupos.set(k,[]);grupos.get(k).push(c);});
+  const repetidos=[...grupos.values()].filter(g=>g.length>1&&g.every(c=>r2(Number(c.peso)||0)===r2(Number(g[0].peso)||0)&&
+    (Number(c.slots)||1)===(Number(g[0].slots)||1)));
+  if(!repetidos.length)return false;
+  const total=vivas.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  const sobra=repetidos.reduce((s,g)=>s+(Number(g[0].peso)||0)*(g.length-1),0);
+  if(!(total>100.05&&Math.abs(total-sobra-100)<=0.05))return false;
+  const mapa={},fuera=new Set();
+  repetidos.forEach(g=>{
+    const orden=[...g].sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    const queda=orden[0],ids=new Set((queda.notas||[]).map(n=>n&&n.id));
+    orden.slice(1).forEach(c=>{
+      (c.notas||[]).forEach(n=>{if(n&&!ids.has(n.id)){ids.add(n.id);queda.notas.push(n);}});
+      mapa[c.id]=queda.id;fuera.add(c.id);
+    });
+  });
+  r.categorias=r.categorias.filter(c=>!fuera.has(c&&c.id));
+  Object.keys(mapa).forEach(desde=>{r.gates=unificarCategoriaEnReglas(r.gates,desde,mapa[desde]);});
+  if(Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[...new Set(traducirIdsCategoria(r.ausenciasJustificadas,mapa))];
+  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
+  return true;
+}
+// Una evaluación absorbe a otra: sus reglas apuntan a la que queda y las que
+// quedan iguales se cuentan una vez.
+function unificarCategoriaEnReglas(gates,desde,hacia){
+  const vistas=new Set();
+  return traducirIdsCategoria(gates||[],{[desde]:hacia}).filter(g=>{const k=JSON.stringify(g);if(vistas.has(k))return false;vistas.add(k);return true;});
+}
+function traducirIdsCategoria(valor,mapa){
+  if(typeof valor==='string')return Object.prototype.hasOwnProperty.call(mapa,valor)?mapa[valor]:valor;
+  if(Array.isArray(valor))return valor.map(v=>traducirIdsCategoria(v,mapa));
+  if(valor&&typeof valor==='object'){const out={};Object.keys(valor).forEach(k=>{out[k]=traducirIdsCategoria(valor[k],mapa);});return out;}
+  return valor;
 }
 function aplicarPautaNueva(ramoId){
   if(!actualizarPauta(ramoId))return;
@@ -2918,6 +3546,8 @@ function presetRamo(nombre,tenant,carrera,ahora){
     if(extra&&extra.slots)cat.slots=extra.slots;
     if(extra&&typeof extra.slotLabel==='string')cat.slotLabel=extra.slotLabel;
     if(extra&&Number.isInteger(extra.slotStart))cat.slotStart=extra.slotStart;
+    if(extra&&Array.isArray(extra.nombresCasillas))cat.nombresCasillas=extra.nombresCasillas.slice();
+    if(extra&&Array.isArray(extra.pesosCasillas))cat.pesosCasillas=extra.pesosCasillas.slice();
     // Una corrección de nombres no puede soltar las notas que alguien ya
     // escribió con la versión anterior. También puede reunir categorías
     // antiguas en casillas concretas si el dato nuevo aclara que eran un grupo.
@@ -2930,16 +3560,31 @@ function presetRamo(nombre,tenant,carrera,ahora){
     // el período venció o no se conoce, simplemente no se ofrece.
     if(extra&&extra.fecha&&incluirFechas){cat.fecha=extra.fecha;cat.fechaOrigen='catalogo';}
     categorias.push(cat);porNombre[nom]=id;
-    if(extra&&extra.min)gates.push({type:'min_grade_required',catId:id,min:extra.min,cap:extra.cap,nombre:nom});
+    if(extra&&extra.min)gates.push({type:'min_grade_required',catId:id,min:extra.min,cap:extra.cap,nombre:nom,...(extra.exacto===true?{exacto:true}:{})});
   });
   const aporta=(!Array.isArray(def)&&def.aporta)?{...def.aporta}:null;
   (!Array.isArray(def)&&def.grupos||[]).forEach(g=>{
     const ids=g.evals.map(n=>porNombre[n]).filter(Boolean);
-    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre});
+    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{})});
   });
+  // Las reglas nuevas usan gates; un ramo ya guardado las recibe únicamente
+  // cuando su dueño acepta actualizar la pauta.
+  const pauta=categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}));
+  const ids=nombres=>nombres.map(n=>porNombre[n]).filter(Boolean);
+  (!Array.isArray(def)&&def.formulasCondicionales||[]).forEach(regla=>{
+    const cuando=(regla.cuando||[]).map(c=>({...c,catIds:ids(c.evals)}));
+    if(cuando.some((c,i)=>c.catIds.length!==regla.cuando[i].evals.length))return;
+    gates.push({type:'conditional_weights',nombre:regla.nombre,pauta,cuando,
+      ambigua:regla.ambigua===true,pesos:(regla.pesos||[]).map(e=>({catId:porNombre[e.evaluacion],peso:e.peso}))});
+  });
+  const limite=!Array.isArray(def)&&def.limiteAusencias;
+  if(limite)gates.push({type:'absence_limit',nombre:limite.nombre,pauta,max:limite.max,
+    traspasos:limite.desde.map(n=>({desdeId:porNombre[n],haciaId:porNombre[limite.hacia]}))});
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
-  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,periodo,estadoPeriodo,
+  const bonus=resolverBonus(def,categorias);
+  const promedioParcial=!Array.isArray(def)&&def.promedioParcial==='por-casilla'?'por-casilla':null;
+  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,bonus,promedioParcial,periodo,estadoPeriodo,
     creditos:(!Array.isArray(def)&&typeof def.creditos==='number')?def.creditos:null};
 }
 
@@ -2958,7 +3603,8 @@ function confirmAddMalla(){
     // estrella de "pauta oficial" al lado, porque el selector SÍ normaliza.
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
   closeModal();
@@ -3064,9 +3710,10 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const ramo={
     id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
     creditos,origen:origenActual(presetName||nombre,sigla),
-    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
+    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
+  consensoAlAgregar(ramo);
   return ramo;
 }
 function addFromCatalog(nombre,sigla){
@@ -3808,6 +4455,14 @@ function catalogRamosUniversidad(tenant,carreraPropia){
     // estudiante en el orden, porque no le corresponde a nadie en particular.
     out.push({nombre,semestre:0,propio:false,sigla,siglaPauta,tienePreset:true});
   });
+  // Las pautas que cinco o más estudiantes reportaron igual se ofrecen como las
+  // del catálogo, diciendo de dónde salen. Si hay una de programa para ese ramo,
+  // manda la del programa y esta no entra.
+  pautasConsensoCatalogo(tenant).forEach(c=>{
+    if(findPresetName(c.ramo,tenant,carreraPropia))return;
+    const nombre=limpiarNombreAjeno(c.ramo);if(!nombre)return;
+    out.push({nombre,semestre:0,propio:false,sigla:tenant==='uc'?siglaCatalogoUC(nombre):null,tienePreset:true,consenso:c.respaldos});
+  });
   // Y los cursos que existen sin pertenecer a un semestre ni traer pauta: los
   // optativos y OFG. Entran por el mismo camino que los presets fuera de
   // malla, con `tienePreset:false` porque no hay ponderaciones que prometer.
@@ -3855,6 +4510,7 @@ function fuentesDiferidasCatalogo(tenant){
     mallas:mallasExtraDe(tenant),
     cursos:tenant==='uc'?cursosUcExtra():null,
     remotos:tenant==='uc'?_cursosUcRemotos:null,
+    consenso:consensoCargado(tenant),
   };
 }
 // El catálogo escribe el nivel en romano —"Matemáticas Avanzadas II"— y la
@@ -3881,10 +4537,10 @@ const ENLACES_BUSQUEDA=new Set(['de','del','la','el','los','las','y','e','o','u'
 function indiceBusquedaCatalogo(tenant,carrera){
   const key=catalogKey(tenant,carrera),fuentes=fuentesDiferidasCatalogo(tenant);
   const guardado=_indicesBusquedaCatalogo.get(key);
-  if(guardado&&guardado.mallas===fuentes.mallas&&guardado.cursos===fuentes.cursos&&guardado.remotos===fuentes.remotos)return guardado;
+  if(guardado&&guardado.mallas===fuentes.mallas&&guardado.cursos===fuentes.cursos&&guardado.remotos===fuentes.remotos&&guardado.consenso===fuentes.consenso)return guardado;
   const todos=catalogRamosUniversidad(tenant,carrera);
   const indice={
-    mallas:fuentes.mallas,cursos:fuentes.cursos,remotos:fuentes.remotos,todos,
+    mallas:fuentes.mallas,cursos:fuentes.cursos,remotos:fuentes.remotos,consenso:fuentes.consenso,todos,
     filas:todos.map(r=>{
       const nombre=normName(r.nombre);
       return {ramo:r,nombre,sigla:normName(r.sigla||''),busqueda:normBusqueda(nombre)};
@@ -4072,14 +4728,18 @@ function estructuraParaConsenso(est){
 //
 // Nombre: sin may\u00fasculas ni tildes, "Solemne3" = "Solemne 3", y cada palabra de
 // 4+ letras en singular, porque "Controles" y "Control" son la misma evaluaci\u00f3n.
+// Sin conectores: "Controles Ejercicios" y "Control de Ejercicios" tambi\u00e9n lo
+// son (Contabilidad FEN, 2026-10-05). `conConectores` es la regla anterior, solo
+// para reconocer lo que ya se envi\u00f3 con ella (ver yaAportada).
 function singularHuella(p){
   if(!/^[a-z]{4,}$/.test(p))return p;
   return p.replace(/zz/g,'z').replace(/s$/,'').replace(/([lrndjz])e$/,'$1');
 }
-function nombreHuella(nombre){
+const CONECTORES_HUELLA=new Set(['de','del','la','las','el','los','y','e','en']);
+function nombreHuella(nombre,conConectores){
   return normName(nombre).replace(/\s+/g,' ')
     .replace(/([a-z])(?=\d)|(\d)(?=[a-z])/g,'$& ')
-    .split(' ').filter(Boolean).map(singularHuella).join(' ');
+    .split(' ').filter(w=>w&&(conConectores||!CONECTORES_HUELLA.has(w))).map(singularHuella).join(' ');
 }
 // Tres o m\u00e1s evaluaciones numeradas del mismo nombre y el mismo peso son una
 // categor\u00eda con casillas: "Control 1, 2 y 3" de 10% cada uno = "Controles" de
@@ -4108,10 +4768,10 @@ function agruparNumeradasHuella(filas){
   });
   return filas.filter(f=>!fuera.has(f)).concat(grupos);
 }
-function huellaEstructura(est){
+function huellaEstructura(est,conConectores){
   // Las filas en 0% no son parte de la pauta (#272). Los reportes anteriores a
   // ese arreglo las traen guardadas, y el servidor también las descarta.
-  const filas=(est||[]).filter(e=>Number(e.peso)>0).map(e=>({clave:nombreHuella(e.nombre),peso:Number(e.peso),
+  const filas=(est||[]).filter(e=>Number(e.peso)>0).map(e=>({clave:nombreHuella(e.nombre,conConectores),peso:Number(e.peso),
     slots:Number(e.slots)||1,min:e.min||0,cap:e.cap||0}));
   // sort() sin comparador ordena por c\u00f3digo, igual en todos los dispositivos y
   // igual que `collate "C"` en el servidor.
@@ -4192,6 +4852,31 @@ function quitarReporteFila(i){
   quitarFilaReporte(reporteDraft,i);openReportModal(reporteRamoId,true);
 }
 
+// La sección acompaña al reporte para distinguir ramos no coordinados, donde
+// cada sección tiene su propia pauta. No participa de la huella: dos secciones
+// con la misma pauta siguen siendo el mismo voto.
+function seccionReporte(r){
+  const s=r&&r.seccion;
+  return Number.isInteger(s)&&s>=1&&s<=999?s:null;
+}
+// Si el SQL que agrega p_seccion todavía no está aplicado, PostgREST no
+// encuentra la firma (PGRST202): se reenvía sin sección para no perder el voto.
+// `conSeccion` dice si el servidor la guardó, para reintentarla más adelante.
+// Detectado una vez, no se vuelve a probar en la sesión: sin esa marca, cada
+// guardado reenviaría todos los votos con sección mientras falte el SQL.
+let _servidorSinSeccion=false;
+async function rpcReporteCatalogo(r,args){
+  const seccion=_servidorSinSeccion?null:seccionReporte(r);
+  if(seccion!==null){
+    const {error}=await supabaseClient.rpc('submit_catalog_report',{...args,p_seccion:seccion});
+    if(!error)return {error:null,conSeccion:true};
+    if(error.code!=='PGRST202')return {error,conSeccion:false};
+    _servidorSinSeccion=true;
+  }
+  const {error}=await supabaseClient.rpc('submit_catalog_report',args);
+  return {error,conSeccion:false};
+}
+
 // La sigla de un reporte UC no puede depender solo de la malla que ya tenemos.
 // Los majors aparecen en CREDITOS_UC antes de que exista su malla: si caen al
 // nombre normalizado, dos ramos homónimos pueden formar consenso juntos. La
@@ -4258,9 +4943,8 @@ function openReportModal(ramoId,conservarBorrador=false){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Reportar pauta</div>
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin-bottom:14px;">
-      Ajusta las evaluaciones y porcentajes de <b>${esc(r.nombre)}</b> para que calcen con tu curso. Lo que cambies
-      tambi\u00e9n queda en tu ramo, con tus notas. Si varios estudiantes reportan lo mismo, pasa a ser la versi\u00f3n
-      sugerida del cat\u00e1logo.
+      Corrige las evaluaciones de <b>${esc(r.nombre)}</b> como son en tu curso. El cambio queda en tu ramo y,
+      si otros reportan lo mismo, pasa al cat\u00e1logo.
     </p>
     <div class="rep-box">
       ${filas}
@@ -4338,7 +5022,7 @@ async function enviarReporte(ramoId){
     // Si había un aporte automático en vuelo, el reporte explícito debe ser
     // el último valor para este ramo, no quedar pisado por una petición vieja.
     if(_aportePautasEnCurso)await _aportePautasEnCurso;
-    const {error}=await supabaseClient.rpc('submit_catalog_report',{
+    const {error,conSeccion}=await rpcReporteCatalogo(r,{
       p_tenant:S.tenant,
       // Se conserva como contexto del reporte, pero no participa del consenso.
       p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
@@ -4353,6 +5037,7 @@ async function enviarReporte(ramoId){
     // Un reporte explícito puede describir una corrección que no se pudo
     // aplicar por una compuerta. El aporte automático no debe reemplazarla.
     r.consensoAportado=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
+    if(conSeccion)r.seccionAportada=seccionReporte(r);
     save();
     track('reporte_catalogo',{tenant:S.tenant});
     closeModal();
@@ -4373,17 +5058,28 @@ async function enviarReporte(ramoId){
 
 // Lee el consenso (solo agregados, sin datos de nadie) y avisa si el cat\u00e1logo
 // que tiene el estudiante qued\u00f3 desactualizado respecto de lo que reporta el resto.
-let _consensoCache=null;
-async function cargarConsenso(){
-  if(!supabaseClient||!currentUser)return null;
-  if(_consensoCache)return _consensoCache;
+//
+// Una caché por universidad. Era una sola: una cuenta nueva arranca con el
+// tenant por defecto, el arranque leía ese consenso y, si en el onboarding
+// elegía otra universidad, seguía viendo el ajeno hasta recargar. Fuera de la
+// UC el consenso se cruza por nombre, así que "Microeconomía" de una podía
+// calzar con la de otra.
+const _consensoPorTenant=new Map();
+async function cargarConsenso(tenant){
+  if(esCuentaProfesor())return null;
+  tenant=tenant||S.tenant;
+  if(!supabaseClient||!currentUser||!tenant)return null;
+  if(_consensoPorTenant.has(tenant))return _consensoPorTenant.get(tenant);
   try{
-    const {data,error}=await supabaseClient.rpc('catalog_consensus',{p_tenant:S.tenant});
+    const {data,error}=await supabaseClient.rpc('catalog_consensus',{p_tenant:tenant});
     if(error)throw error;
-    _consensoCache=data||[];
-    return _consensoCache;
+    const filas=data||[];
+    _consensoPorTenant.set(tenant,filas);
+    return filas;
   }catch(e){return null;}
 }
+// Lo ya cargado, sin red: el buscador es síncrono y no espera a nadie.
+function consensoCargado(tenant){return _consensoPorTenant.get(tenant)||null;}
 
 // \u00bfHay una versi\u00f3n con m\u00e1s respaldo que la que tiene este ramo?
 // --- COMO VAS RESPECTO DE QUIENES CURSAN TU MISMO RAMO ---
@@ -4428,6 +5124,7 @@ function guardarSiglasCurso(siglas){
 // no se repiten las llamadas cada vez que se abre Estadísticas.
 let _firmaNotasCurso=null;
 async function subirNotasCurso(){
+  if(esCuentaProfesor())return;
   if(!supabaseClient||!currentUser)return;
   const firma=currentUser.id+'|'+JSON.stringify((S.ramos||[]).map(r=>[siglaParaCurso(r),ramoAvg(r,undefined,S.ramos)]));
   if(firma===_firmaNotasCurso)return;
@@ -4474,6 +5171,7 @@ async function subirNotasCurso(){
 
 let _posCursoCache=null;
 async function cargarPosicionesCurso(){
+  if(esCuentaProfesor())return null;
   if(!supabaseClient||!currentUser)return null;
   if(_posCursoCache)return _posCursoCache;
   const out={};
@@ -4514,13 +5212,16 @@ const SECCIONES_STATS=[
   {id:'curso',      titulo:'Cómo vas en tus ramos'},
   {id:'rango',      titulo:'Rango del semestre'},
   {id:'historial',  titulo:'Historial'},
+  // Sale de lo que se responde en la Actividad en Vivo: existe solo en la app.
+  {id:'olfato',     titulo:'Tu olfato',disponible:()=>typeof avisosPruebasDisponibles==='function'&&avisosPruebasDisponibles()},
 ];
 function ordenSecciones(){
   const guardado=Array.isArray(S.statsOrden)?S.statsOrden:[];
-  const validos=guardado.filter(id=>SECCIONES_STATS.some(s=>s.id===id));
+  const existe=id=>{const d=SECCIONES_STATS.find(s=>s.id===id);return !!d&&(!d.disponible||d.disponible());};
+  const validos=guardado.filter(existe);
   // Una seccion nueva no puede quedar invisible solo porque el estudiante
   // guardo su orden antes de que existiera: las que faltan se agregan al final.
-  SECCIONES_STATS.forEach(s=>{if(!validos.includes(s.id))validos.push(s.id);});
+  SECCIONES_STATS.forEach(s=>{if(existe(s.id)&&!validos.includes(s.id))validos.push(s.id);});
   return validos;
 }
 function seccionOculta(id){
@@ -4573,15 +5274,46 @@ function renderEditarSecciones(){
 }
 
 async function consensoParaRamo(r){
+  if(esCuentaProfesor())return null;
   const cons=await cargarConsenso();
   if(!cons)return null;
-  const mine=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-  // Las dos huellas se calculan acá, con la misma función: comparar contra
+  const mia=estructuraParaConsenso(estructuraDe(r));
+  // Las dos se comparan acá, con las mismas funciones: comparar contra
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma
   // si alguna vez las dos implementaciones difieren en un detalle.
   const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&
-    huellaEstructura(estructuraParaConsenso(c.estructura))!==mine);
+    !nadaQueOfrecer(estructuraParaConsenso(c.estructura),mia));
   return hit||null;
+}
+
+// Que la huella difiera no basta para ofrecer una pauta ajena. En Contabilidad
+// FEN (2026-10-05) se ofrecía como "otra pauta" la misma, por dos detalles:
+//   · Nombres que solo cambian en un conector: "Controles Ejercicios" y
+//     "Control de Ejercicios".
+//   · Una pauta que solo PIERDE reglas de la nuestra: casi nadie escribe el
+//     mínimo del examen, y adoptarla lo borraba sin que el aviso lo dijera.
+// Si sin eso quedan iguales, no hay nada que ofrecer. Una regla que trae la
+// reportada y la nuestra no tiene sí se ofrece: puede ser un dato que nos falta.
+// La huella de agrupar reportes no cambia (es la del servidor); esto solo
+// decide qué se le muestra al estudiante.
+// Los conectores ya los ignora la huella (nombreHuella).
+function nadaQueOfrecer(suya,mia){
+  // Por evaluación: [peso, casillas]. Un grupo reportado como nota única donde
+  // la nuestra dice cuántas son ("Controles 30%" frente a "Control 1, 2 y 3")
+  // tampoco es otra pauta: trae menos detalle, no un dato distinto
+  // (Contabilidad y Microeconomía FEN, 2026-10-06).
+  const filas=est=>new Map(huellaEstructura((est||[]).map(e=>({...e,min:0,cap:0})))
+    .split('|').filter(Boolean).map(f=>{const [clave,peso,slots]=f.split('~');return [clave,[peso,Number(slots)]];}));
+  const s=filas(suya),m=filas(mia);
+  if(s.size!==m.size)return false;
+  for(const [clave,[peso,slots]] of s){
+    const nuestra=m.get(clave);
+    if(!nuestra||nuestra[0]!==peso||(slots!==nuestra[1]&&slots!==1))return false;
+  }
+  const reglas=est=>(est||[]).filter(e=>Number(e.peso)>0&&(e.min||e.cap))
+    .map(e=>[nombreHuella(e.nombre),e.min||0,e.cap||0].join('~'));
+  const mias=new Set(reglas(mia));
+  return reglas(suya).every(x=>mias.has(x));
 }
 
 // Un ramo CON pauta oficial no se toca solo aunque haya consenso: el programa
@@ -4619,7 +5351,7 @@ async function verConsensoDisponible(ramoId){
     : `<p class="modal-desc" style="margin-top:10px;">Tus notas se conservan: se reconocen por el nombre de la evaluación.</p>`;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">La pauta que reportan tus compañeros</div>
-    <p class="modal-desc">La enviaron <b>${hit.respaldos} estudiantes</b> de tu universidad por separado y coincidieron. <b>No la sacamos del programa del curso</b> — compárala con la tuya.</p>
+    <p class="modal-desc">La reportaron <b>${hit.respaldos} estudiantes</b> de tu universidad. <b>No sale del programa del curso</b>: compárala con la tuya.</p>
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${pauta.categorias.map(fila).join('')}</ul>
     ${aviso}
     <div class="modal-btns" style="margin-top:16px;">
@@ -4634,8 +5366,8 @@ async function verConsensoDisponible(ramoId){
 function adoptarConsensoEnRamo(r,hit){
   const pauta=pautaDeConsenso(hit&&hit.estructura);
   if(!pauta.categorias.length)return false;
-  fusionarPauta(r,pauta.categorias);
-  r.gates=pauta.gates;
+  const ids=fusionarPauta(r,pauta.categorias);
+  r.gates=traducirIdsCategoria(pauta.gates,ids);
   // `pautaHuella` NO se actualiza, y es a propósito. Sigue apuntando a la que
   // le dimos nosotros, así que la pauta adoptada queda distinta de esa y
   // cambioDePauta() la lee como lo que es: una decisión del estudiante, que
@@ -4662,6 +5394,22 @@ async function adoptarConsenso(ramoId){
 // sigue contando como uno—, así que bajar este número no hace nada. Subirlo sí,
 // y sin migrar: `respaldos` viene en cada fila del consenso.
 const CONSENSO_AUTO=3;
+// Con cinco personas distintas, la pauta del consenso además se ofrece como una
+// del catálogo: aparece en el buscador al agregar el ramo, con cuántos la
+// respaldan. Sigue sin ser oficial —la ficha lo dice— y una pauta transcrita
+// del programa siempre manda sobre ella (pedido de Martín, 2026-10-06).
+const CONSENSO_CATALOGO=5;
+function pautasConsensoCatalogo(tenant){
+  const vistas=new Set();
+  return (consensoCargado(tenant)||[]).filter(c=>{
+    if(!c||typeof c.ramo!=='string'||!c.ramo.trim()||!(c.respaldos>=CONSENSO_CATALOGO))return false;
+    if(!pautaDeConsenso(c.estructura).categorias.length)return false;
+    // Una fila por ramo: si dos pautas distintas del mismo ramo llegan a cinco,
+    // la con más respaldos (el SQL ya ordena así) es la que se ofrece.
+    if(vistas.has(c.ramo_key))return false;
+    vistas.add(c.ramo_key);return true;
+  });
+}
 
 // La estructura reportada, con la forma que usa el resto de la app. Espeja a
 // presetRamo(), pero solo con lo que el reporte trae de verdad: pesos, `slots`
@@ -4729,32 +5477,49 @@ function pautaDeConsenso(est){
 //
 // En un ramo vacío, aunque lo agregaran a mano, no hay nada que pisar.
 async function aplicarConsensoAuto(){
+  if(esCuentaProfesor())return 0;
   const cons=await cargarConsenso();
   if(!cons||!cons.length)return 0;
   let puestas=0;
-  (S.ramos||[]).forEach(r=>{
-    if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return;
-    if((r.categorias||[]).length||(r.gates||[]).length)return;
-    if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return; // una oficial existente manda
-    if(pautaPendiente(r))return;                    // hay programa oficial esperando: ese manda
-    const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&c.respaldos>=CONSENSO_AUTO);
-    if(!hit)return;
-    const pauta=pautaDeConsenso(hit.estructura);
-    if(!pauta.categorias.length)return;
-    r.categorias=pauta.categorias;
-    r.gates=pauta.gates;
-    r.pautaHuella=huellaPauta(pauta.categorias);
-    // Marca de origen: esta pauta NO sale de un programa oficial. La ficha lo
-    // dice, y el día que transcribamos el programa, cambioDePauta() ofrece el
-    // cambio como con cualquier otra pauta vieja.
-    r.consensoRespaldos=hit.respaldos;
-    r.consensoAportado=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-    puestas++;
-  });
+  (S.ramos||[]).forEach(r=>{if(ponerConsensoEnRamo(r,cons))puestas++;});
   if(puestas)save();
   return puestas;
 }
+function ponerConsensoEnRamo(r,cons){
+  if(esCuentaProfesor())return false;
+  if(!r||!cons||!cons.length)return false;
+  if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return false;
+  if((r.categorias||[]).length||(r.gates||[]).length)return false;
+  if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return false; // una oficial existente manda
+  if(pautaPendiente(r))return false;                    // hay programa oficial esperando: ese manda
+  const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&c.respaldos>=CONSENSO_AUTO);
+  if(!hit)return false;
+  const pauta=pautaDeConsenso(hit.estructura);
+  if(!pauta.categorias.length)return false;
+  r.categorias=pauta.categorias;
+  r.gates=pauta.gates;
+  r.pautaHuella=huellaPauta(pauta.categorias);
+  // Marca de origen: esta pauta NO sale de un programa oficial. La ficha lo
+  // dice, y el día que transcribamos el programa, cambioDePauta() ofrece el
+  // cambio como con cualquier otra pauta vieja.
+  r.consensoRespaldos=hit.respaldos;
+  r.consensoAportado=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
+  return true;
+}
+// Al agregar un ramo sin pauta, la del consenso entra en el mismo momento —con
+// lo ya cargado, sin esperar la red—, no en la próxima sesión. Mismas reglas
+// que aplicarConsensoAuto: solo ramos vacíos y nunca sobre una de programa.
+function consensoAlAgregar(r){
+  if(esCuentaProfesor())return false;
+  return ponerConsensoEnRamo(r,consensoCargado(S.tenant));
+}
 
+// Lo aportado antes del 2026-10-05 quedó guardado con la huella de entonces,
+// que contaba los conectores. Sin aceptar las dos, cada ramo que recibió una
+// pauta del consenso con un "de" en un nombre se reenviaría como voto propio.
+function yaAportada(r,est){
+  return !!r.consensoAportado&&(r.consensoAportado===huellaEstructura(est)||r.consensoAportado===huellaEstructura(est,true));
+}
 // Participan las pautas completas que alguien armó o corrigió, cualquiera sea
 // el camino: editor, ramo manual o propuesta del agente ya aceptada. Una pauta
 // oficial sin editar y una pauta recibida del propio consenso no son votos
@@ -4762,8 +5527,7 @@ async function aplicarConsensoAuto(){
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
   if(r.consensoRespaldos){
-    const huella=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-    return !!r.consensoAportado&&r.consensoAportado!==huella;
+    return !!r.consensoAportado&&!yaAportada(r,estructuraParaConsenso(estructuraDe(r)));
   }
   const o=r.origen;
   if(!o||!o.tenant)return true;
@@ -4785,8 +5549,11 @@ async function aportarPautasAlCatalogo(){
       if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
       if(!pautaPropiaParaConsenso(r))continue;
       if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)continue;
-      const huella=huellaEstructura(estructuraParaConsenso(estructuraDe(r)));
-      if(!huella||r.consensoAportado===huella)continue;
+      const est=estructuraParaConsenso(estructuraDe(r)),huella=huellaEstructura(est);
+      // Un voto ya enviado se repite una sola vez si le faltó la sección, para
+      // que los reportes anteriores a ella también distingan su sección.
+      const seccion=seccionReporte(r);
+      if(!huella||(yaAportada(r,est)&&(seccion===null||r.seccionAportada===seccion||_servidorSinSeccion)))continue;
       const enviado=await aportarPropuestaAlCatalogo(r);
       if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
       if(enviado){r.consensoAportado=huella;n++;}
@@ -4859,7 +5626,37 @@ function reglasDelPreset(ramo,campo){
   return Array.isArray(lista)?lista:[];
 }
 // Reglas que el motor todavía no sabe calcular: deuda nuestra, se van a ir.
-function reglasNoCalculadas(ramo){return reglasDelPreset(ramo,'noCalcula');}
+// Una regla de décimas que no se pudo cargar en este ramo (la pauta se editó)
+// sigue apareciendo acá, para que nadie la pierda de vista.
+function reglasNoCalculadas(ramo){
+  const cargadas=new Set((ramo&&Array.isArray(ramo.bonus)?ramo.bonus:[]).map(b=>b.id));
+  const sinCargar=reglasDelPreset(ramo,'bonus').filter(b=>b&&!cargadas.has(b.id)&&b.ayuda).map(b=>b.ayuda);
+  const pendientes=reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
+  const def=definicionPresetDelRamo(ramo);
+  const calculadas=reglasCalculoVigentes(ramo);
+  const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
+  const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
+  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
+  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
+  const ausencias=estadoAusenciasJustificadas(ramo);
+  if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
+  return pendientes;
+}
+function notaNecesariaCondicional(ramo){return reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights');}
+function motivoCalculoPendiente(ramo){
+  const base=calculoRamoConCompuertas(ramo);
+  if(base.ausencias?.bloqueadas?.length)return 'El examen supera su ponderación máxima. Confirma con el curso el derecho a examen o la recuperativa antes de calcular la final';
+  if(base.res.formulas?.some(f=>f.ambigua))return 'El programa se contradice en el límite 3,8. Confirma con el profesor cómo ponderar las tareas';
+  return null;
+}
+function reglasCalculadas(ramo){
+  const calculo=calculoRamoConCompuertas(ramo);
+  const formulas=calculo.res.formulas||[];
+  const notas=formulas.map(f=>`${f.nombre}: ${f.ambigua?'el programa contradice el límite; confirma con el profesor':f.pendiente?'se resolverá al completar las evaluaciones que deciden la condición':f.activa?'se aplica al promedio':'no se activa con tus notas'}`);
+  const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
+  if(limite)notas.push(`${limite.nombre}. Solo se mueve el peso de una prueba que declares justificada; el máximo del examen es ${limite.max}%`);
+  return notas;
+}
 // Reglas del curso que el promedio NUNCA va a incluir. Decirle al estudiante
 // "todavía no las calculamos" sería prometerle algo que no va a pasar: dependen
 // de un dato que el programa no da, de algo que decide el profesor caso a caso,
@@ -5016,6 +5813,18 @@ function parseLimiteFaltas(raw){
   const n=/^\d{1,2}$/.test(txt)?Number(txt):NaN;
   return n>=1&&n<=FALTAS_MAX?n:undefined;
 }
+// Décimas o talleres de una regla de `bonus`. Anotar parte en 0: hasta ahí no
+// suma nada. El tope de la regla (5 décimas) también es el del contador.
+function topeBonus(b){return b.entrada==='decimas'&&typeof b.max==='number'?b.max:BONUS_MAX;}
+function cambiarBonus(id,delta){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const b=r&&(r.bonus||[]).find(x=>x.id===id);if(!b)return;
+  const actual=r.bonusIngresado&&Number.isInteger(r.bonusIngresado[id])?r.bonusIngresado[id]:null;
+  const nueva=delta===null?0:Math.max(0,Math.min(topeBonus(b),(actual===null?0:actual)+delta));
+  if(nueva===actual)return;
+  r.bonusIngresado={...(r.bonusIngresado||{}),[id]:nueva};
+  save();track('bonus_ingresado',{entrada:b.entrada});renderRamo();
+}
 function cambiarFaltas(delta){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   if(!faltasActivas(r))return;
@@ -5038,7 +5847,8 @@ function confirmAddRamo(){
   const presetName=findPresetName(name,S.tenant,S.carrera);
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
-  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  consensoAlAgregar(S.ramos[S.ramos.length-1]);
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
   showToast(preset?'Pauta cargada':'Ramo agregado');
 }
@@ -5119,7 +5929,7 @@ function openAddCatModal(prefillDate){
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
     </div>`;
   openModal();wirePesoControl();
-  setTimeout(()=>document.getElementById('m-cat-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-cat-name'));
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(addCatError){addCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddCat();});
 }
@@ -5150,14 +5960,21 @@ function confirmAddCat(){
 // pauta real. Los pesos pueden quedar incompletos porque en semana 1 muchas
 // veces todavía no está toda la información.
 let pautaDraft=[];
+// Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
+// `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.
+let pautaQuitadas=[];
 let pautaDraftError='',pautaDraftErrorIndex=null,pautaDraftErrorTarget='';
+// Se abrió desde "Armar mi pauta" (el ramo no tenía evaluaciones): el título
+// dice eso y no "Editar evaluaciones", que es lo que dice el botón con pauta.
+let pautaArmando=false;
 function openPautaManualModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
-  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
+  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];
+  pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
   setTimeout(()=>{const i=document.getElementById('m-pauta-nombre-0');if(i)i.focus();},100);
@@ -5187,10 +6004,13 @@ function plantillaPauta(tipo){
     return {id:null,nombre:def.nombre,peso:0,tieneNotas:false,varias:false,cantidad:null,...def};
   });
 }
-// En UC las evaluaciones se llaman pruebas, no solemnes. FEN conserva el
-// término porque aparece así en sus programas oficiales. Solo alimenta el
-// placeholder del campo: no arma ninguna estructura.
-function ejemploEvaluacion(tenant){return tenant==='uc'?'Prueba':'Solemne';}
+// Derecho UC usa «Solemne» en sus programas y calendario de evaluaciones.
+// La carrera guardada puede ser el código de malla o el nombre declarado.
+function esDerechoUC(tenant,carrera){return tenant==='uc'&&(carrera==='UC-DERECHO'||carrera==='Derecho');}
+// Solo alimenta el placeholder del campo: no arma ninguna estructura.
+function ejemploEvaluacion(tenant,carrera){
+  return esDerechoUC(tenant,carrera)||tenant==='fen'||tenant==='uai'?'Solemne':'Prueba';
+}
 
 // Plantillas de estructura, POR TENANT — y FEN no tiene.
 //
@@ -5203,7 +6023,10 @@ function ejemploEvaluacion(tenant){return tenant==='uc'?'Prueba':'Solemne';}
 // controles sorpresa, trabajos grupales y participación — y ninguno es "3
 // solemnes + examen". Ofrecer esa plantilla empujaba a la mayoría a una
 // estructura que después tenían que deshacer a mano.
-function plantillasPauta(tenant){
+function plantillasPauta(tenant,carrera){
+  // Las plantillas UC conocidas vienen de Ingeniería. No hay una estructura
+  // común verificada para Derecho: se deja escribir la pauta de cada curso.
+  if(esDerechoUC(tenant,carrera))return [];
   return tenant==='uc'
     ?[
       {tipo:'tres-pruebas',label:'3 pruebas + examen'},
@@ -5214,8 +6037,8 @@ function plantillasPauta(tenant){
     :[];
 }
 // Son atajos de escritura, no una pauta sugerida: el estudiante elige el
-// nombre y siempre define sus propios pesos. UC y FEN usan vocabularios
-// distintos en sus programas, por eso no se mezclan en la misma lista.
+// nombre y siempre define sus propios pesos. Dentro de la UC, Derecho usa
+// «Solemne» y el resto conserva las sugerencias de prueba/interrogación.
 // Tres vocabularios, no dos. El tercero es el que faltaba: para una
 // universidad que no conocemos NO se puede elegir entre el de la FEN y el de
 // la UC — hay que no usar ninguno. Antes el default era el de FEN, así que a
@@ -5224,8 +6047,9 @@ function plantillasPauta(tenant){
 //
 // El neutro usa solo nombres que no pertenecen a una institución: nada de
 // "Solemne" (FEN) ni de "Interrogación" (UC).
-function sugerenciasEvaluacion(tenant){
+function sugerenciasEvaluacion(tenant,carrera){
   const comunes=['Laboratorio','Informe','Taller','Proyecto','Tarea','Presentación','Examen'];
+  if(esDerechoUC(tenant,carrera))return ['Solemne','Control de lectura','Prueba','Control','Trabajo',...comunes];
   if(tenant==='uc')return ['Interrogación 1','Interrogación 2','Interrogación 3','Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
   if(tenant==='fen')return ['Solemne 1','Solemne 2','Solemne 3','Control 1','Control 2','Control 3','Prueba sorpresa','Casos y ensayos','Trabajo individual','Trabajo en grupo','Participación',...comunes];
   // La UAI usa las dos palabras, y eso no es una suposición: sale de sus
@@ -5238,10 +6062,17 @@ function sugerenciasEvaluacion(tenant){
   // que es como se llaman sus evaluaciones más grandes. Lo que NO lleva es
   // "Interrogación": ninguno de sus programas la usa, esa es de la UC.
   if(tenant==='uai')return ['Solemne 1','Solemne 2','Solemne 3','Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3','Control de lectura','Trabajo grupal',...comunes];
+  // La UAndes dice "prueba" y "examen" en todas sus normativas, y nunca
+  // "solemne". Lo demás también sale de documentos suyos: "controles de
+  // lectura" (Reglamento del Alumno, art. 20, y el catálogo de Teología III),
+  // "certámenes" (normativa de Kinesiología), "ensayo" y "trabajo escrito"
+  // (catálogo de Teología III). "Interrogaciones orales" aparece una sola vez,
+  // como ejemplo en el reglamento, y "Interrogación" es la señal de la UC: no va.
+  if(tenant==='uandes')return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3','Control de lectura','Certamen','Ensayo','Trabajo escrito',...comunes];
   return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
 }
-function opcionesSugerenciasEvaluacion(tenant){
-  return sugerenciasEvaluacion(tenant).map(nombre=>`<option value="${esc(nombre)}"></option>`).join('');
+function opcionesSugerenciasEvaluacion(tenant,carrera){
+  return sugerenciasEvaluacion(tenant,carrera).map(nombre=>`<option value="${esc(nombre)}"></option>`).join('');
 }
 function puedeUsarPlantillaPauta(){
   return pautaDraft.every(fila=>!fila.tieneNotas&&!fila.nombre.trim());
@@ -5266,7 +6097,10 @@ function textoConfirmarPautaDuplicada(origen,copia){
   return `Vas a copiar ${cantidad} evaluaci${cantidad===1?'ón':'ones'} y sus porcentajes desde ${origen.nombre}. No se copian notas ni fechas. Podrás ajustarla antes de guardar.`;
 }
 function duplicarPautaDesdeRamo(){
-  const origenId=(document.getElementById('m-pauta-origen')||{}).value;
+  const selector=document.getElementById('m-pauta-origen')||{};
+  const origenId=selector.value;
+  // Si cancela la confirmación, el selector no se queda mostrando ese ramo.
+  if(origenId)selector.value='';
   const origen=S.ramos.find(r=>r.id===origenId);const copia=pautaDuplicada(origen);
   if(!copia.length){showToast('Elige un ramo con evaluaciones',true);return;}
   showConfirm(`Usar la pauta de ${origen.nombre}`,textoConfirmarPautaDuplicada(origen,copia),()=>{
@@ -5276,54 +6110,70 @@ function duplicarPautaDesdeRamo(){
 }
 function renderPautaManualModal(){
   const fuentes=puedeUsarPlantillaPauta()?ramosParaDuplicarPauta(S.ramos,currentRamoId):[];
-  const ejemplo=ejemploEvaluacion(S.tenant);
-  const sugerencias=opcionesSugerenciasEvaluacion(S.tenant);
-  const disponibles=plantillasPauta(S.tenant);
-  const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div style="margin:0 0 12px;padding:11px 12px;border-radius:10px;background:var(--muted);">
-    <div style="font-size:0.8125rem;font-weight:700;color:var(--fg);margin-bottom:7px;">Parte con una estructura</div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')" style="padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--fg);font:600 12px var(--font-ui);cursor:pointer;">${p.label}</button>`).join('')}</div>
-    <div style="font-size:0.75rem;color:var(--fg2);line-height:1.4;margin-top:8px;">Los pesos quedan en 0%. Confírmalos con el programa del curso.</div>
+  const carrera=S.carrera||S.carreraNombre;
+  const ejemplo=ejemploEvaluacion(S.tenant,carrera);
+  const sugerencias=opcionesSugerenciasEvaluacion(S.tenant,carrera);
+  const disponibles=plantillasPauta(S.tenant,carrera);
+  const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div class="pauta-plantillas">
+    <div class="pauta-plantillas-titulo">Parte con una estructura</div>
+    <div class="pauta-plantillas-opciones">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')">${p.label}</button>`).join('')}</div>
+    <div class="pauta-plantillas-nota">Los pesos quedan en 0%. Confírmalos con el programa del curso.</div>
   </div>`:'';
-  const duplicar=fuentes.length?`<div style="margin:0 0 12px;padding:11px 12px;border-radius:10px;border:1px solid var(--border);">
-    <div style="font-size:0.8125rem;font-weight:700;color:var(--fg);margin-bottom:4px;">¿Ya la tienes armada en otro ramo?</div>
-    <div style="font-size:0.75rem;color:var(--fg2);line-height:1.4;margin-bottom:8px;">Copia evaluaciones y porcentajes. Tus notas y fechas no se copian.</div>
-    <div style="display:flex;gap:7px;"><select id="m-pauta-origen" style="min-width:0;flex:1;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--fg);font:inherit;"><option value="">Elige un ramo</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluación${r.cantidad!==1?'es':''}</option>`).join('')}</select><button type="button" onclick="duplicarPautaDesdeRamo()" style="padding:9px 11px;border:0;border-radius:9px;background:var(--primary);color:white;font:600 12px var(--font-ui);cursor:pointer;">Usar pauta</button></div>
-  </div>`:'';
+  // Elegir un ramo ya pide confirmación (duplicarPautaDesdeRamo): sin botón aparte.
+  const duplicar=fuentes.length?`<label class="pauta-copiar"><span>Copiar de otro ramo</span>
+    <select id="m-pauta-origen" onchange="duplicarPautaDesdeRamo()"><option value="">Elegir</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluaci${r.cantidad===1?'ón':'ones'}</option>`).join('')}</select></label>`:'';
+  // Una sola fila vacía no tiene nada que quitar ni marcar.
+  const unaVacia=pautaDraft.length===1&&!pautaDraft[0].nombre.trim()&&!pautaDraft[0].peso;
   const filas=pautaDraft.map((fila,i)=>{
     // El editor nunca decide un porcentaje. Solo calcula el resto y se lo
-    // ofrece a la fila vacía que la persona eligió explícitamente.
+    // ofrece a la fila vacía, que la persona elige explícitamente.
     const resto=restoParaPautaFila(i);
-    const errorEnFila=pautaDraftErrorIndex===i;
-    const usarResto=fila.peso===0?`<button type="button" onclick="usarRestoPauta(${i})" style="margin-top:4px;padding:0;border:0;background:none;color:var(--primary);font:700 10px var(--font-ui);cursor:pointer;white-space:nowrap;">${resto>0?`Usar ${r2(resto)}%`:'Usar el resto'}</button>`:'';
-    const cantidad=fila.varias?`<div style="grid-column:1 / -1;display:flex;align-items:center;gap:7px;padding:7px 9px;margin-top:-2px;border-radius:9px;background:var(--muted);font-size:0.75rem;color:var(--fg2);"><span style="flex:1;min-width:0;">Se promedian varias notas</span><label style="display:flex;align-items:center;gap:4px;white-space:nowrap;">Esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${esc(fila.nombre||'evaluación')}" style="width:32px;padding:5px 4px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--fg);font:inherit;text-align:center;"/> notas</label></div>`:'';
+    const invalido=t=>pautaDraftErrorIndex===i&&pautaDraftErrorTarget===t?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
+    const nombre=esc(fila.nombre||'evaluación');
+    const usarResto=!fila.peso&&resto>0?`<button type="button" class="pauta-resto" onclick="usarRestoPauta(${i})">Usar ${r2(resto)}%</button>`:'';
+    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
+    const mas=unaVacia?'':`<button type="button" class="pauta-mas" id="m-pauta-quitar-${i}" onclick="abrirMenuPautaFila(this,${i})" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de ${nombre}"${invalido('quitar')}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>`;
     return `
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 52px 30px;gap:6px;align-items:center;margin:8px 0;">
-      <input type="text" id="m-pauta-nombre-${i}" value="${esc(fila.nombre)}" placeholder="Ej: ${ejemplo} ${i+1}" maxlength="${NOMBRE_MAX}" list="m-pauta-sugerencias" autocomplete="off" oninput="actualizarPautaNombre(${i},this.value)" onkeydown="pautaTecla(event,${i},'nombre')" ${errorEnFila&&pautaDraftErrorTarget==='nombre'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="min-width:0;padding:11px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;"/>
-      <div style="position:relative;"><input type="text" inputmode="decimal" id="m-pauta-peso-${i}" value="${fila.peso?r2(fila.peso):''}" placeholder="0" maxlength="6" oninput="actualizarPautaPeso(${i},this.value)" onkeydown="pautaTecla(event,${i},'peso')" aria-label="Peso de ${esc(fila.nombre||'evaluación')}" ${errorEnFila&&pautaDraftErrorTarget==='peso'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="width:100%;box-sizing:border-box;padding:11px 23px 11px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;"/><span style="position:absolute;right:9px;top:11px;color:var(--fg3);font-size:0.8125rem;pointer-events:none;">%</span>${usarResto}</div>
-      <label title="Son varias notas que se promedian" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:40px;cursor:pointer;font-size:0.5625rem;color:var(--fg3);font-weight:700;line-height:1;">
-        <input type="checkbox" ${fila.varias?'checked':''} onchange="actualizarPautaVarias(${i},this.checked)" aria-label="${esc(fila.nombre||'Evaluación')}: son varias notas que se promedian" style="width:17px;height:17px;accent-color:var(--primary);"/><span style="margin-top:2px;">VARIAS</span>
-      </label>
-      <button type="button" id="m-pauta-quitar-${i}" onclick="quitarPautaFila(${i})" title="${fila.tieneNotas?'Esta evaluación ya tiene notas':'Quitar evaluación'}" aria-label="Quitar evaluación" ${errorEnFila&&pautaDraftErrorTarget==='quitar'?'aria-invalid="true" aria-describedby="m-pauta-error"':''} style="height:40px;border:0;border-radius:10px;background:var(--muted);color:var(--fg2);font-size:1.25rem;cursor:pointer;">×</button>
-      ${cantidad}
+    <div class="pauta-fila">
+      <div class="pauta-fila-main">
+        <input type="text" class="pauta-nombre" id="m-pauta-nombre-${i}" value="${esc(fila.nombre)}" placeholder="Ej: ${ejemplo} ${i+1}" maxlength="${NOMBRE_MAX}" list="m-pauta-sugerencias" autocomplete="off" oninput="actualizarPautaNombre(${i},this.value)" onkeydown="pautaTecla(event,${i},'nombre')" aria-label="Nombre de la evaluación"${invalido('nombre')}/>
+        <label class="pauta-peso"><input type="text" inputmode="decimal" id="m-pauta-peso-${i}" value="${fila.peso?r2(fila.peso):''}" placeholder="0" maxlength="6" oninput="actualizarPautaPeso(${i},this.value)" onkeydown="pautaTecla(event,${i},'peso')" aria-label="Peso de ${nombre}"${invalido('peso')}/><span aria-hidden="true">%</span></label>
+        ${mas}
+      </div>${cantidad||usarResto?`
+      <div class="pauta-fila-extra">${cantidad}${usarResto}</div>`:''}
     </div>`;
   }).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Editar evaluaciones</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.45;margin:-4px 0 12px;">Escribe cada evaluación con el porcentaje que vale del ramo. Puedes guardar aunque te falten algunas; el resto solo se asigna cuando tú eliges la fila.</p>
+    <div class="modal-title">${pautaArmando?'Armar mi pauta':'Editar evaluaciones'}</div>
+    <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
     ${plantillas}
     ${duplicar}
     <datalist id="m-pauta-sugerencias">${sugerencias}</datalist>
-    <div id="m-pauta-total" style="padding:10px 12px;border-radius:10px;background:var(--muted);color:var(--fg2);font-size:0.8125rem;font-weight:600;margin-bottom:10px;">${pautaResumen()}</div>
-    <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'} style="margin:-3px 0 10px;font-size:0.8125rem;color:var(--red);">${esc(pautaDraftError)}</p>
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 52px 30px;gap:6px;font-size:0.6875rem;color:var(--fg3);text-transform:uppercase;letter-spacing:.04em;font-weight:700;">
-      <span>Evaluación</span><span>Peso</span><span title="Son varias notas que se promedian" style="text-align:center;">Notas</span><span></span>
+    <div class="pauta-total" id="m-pauta-total">${totalPautaHTML()}</div>
+    <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'}>${esc(pautaDraftError)}</p>
+    <div class="pauta-lista">${filas}
+      <button type="button" class="pauta-agregar" onclick="agregarPautaFila()"><span aria-hidden="true">+</span> Agregar evaluación</button>
     </div>
-    <div>${filas}</div>
-    <button type="button" onclick="agregarPautaFila()" style="width:100%;padding:10px;border:1px dashed var(--border2);border-radius:10px;background:none;color:var(--primary);font:600 13px var(--font-ui);cursor:pointer;">+ Otra evaluación</button>
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" onclick="guardarPautaManual()">Guardar</button>
     </div>`;
+}
+// El total con su barra. La barra es neutra a propósito: el semáforo es de las
+// notas, no de cuánto porcentaje lleva escrito la pauta.
+function totalPautaHTML(){
+  const e=estadoPauta(pautaDraft);
+  const avance=Math.min(Math.max(e.total/100,0),1);
+  return `<div class="pauta-total-texto${e.lista?' lista':''}" aria-live="polite">${pautaResumen()}</div><div class="pauta-total-barra" aria-hidden="true"><i style="transform:scaleX(${avance.toFixed(3)})"></i></div>`;
+}
+// "⋯" de cada evaluación: marcar que se promedian varias notas y quitarla.
+function abrirMenuPautaFila(boton,i){
+  const fila=pautaDraft[i];if(!fila)return;
+  abrirMenu(boton,[
+    {texto:'Varias notas',marcado:!!fila.varias,accion:()=>actualizarPautaVarias(i,!fila.varias)},
+    'sep',
+    {texto:'Quitar evaluación',peligro:true,accion:()=>quitarPautaFila(i)}
+  ]);
 }
 function limpiarErrorPauta(){
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
@@ -5369,7 +6219,7 @@ function actualizarPautaPeso(i,valor){
   const peso=Math.min(100,Number(limpio)||0);
   pautaDraft[i].peso=peso;
   const input=document.getElementById('m-pauta-peso-'+i);if(input&&input.value!==limpio)input.value=limpio;
-  const total=document.getElementById('m-pauta-total');if(total)total.textContent=pautaResumen();
+  const total=document.getElementById('m-pauta-total');if(total)total.innerHTML=totalPautaHTML();
 }
 function agregarPautaFila(){
   pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});renderPautaManualModal();
@@ -5377,7 +6227,7 @@ function agregarPautaFila(){
 }
 function quitarPautaFila(i){
   if(!pautaDraft[i])return false;
-  if(pautaDraft[i].tieneNotas){mostrarErrorPauta(i,'Esta evaluación ya tiene notas, por eso no se puede quitar.','quitar');return false;}
+  if(pautaDraft[i].tieneNotas)return quitarPautaFilaConNotas(i);
   const nombre=String(pautaDraft[i].nombre||'').trim();
   showConfirm(nombre?`¿Quitar "${nombre}"?`:'¿Quitar esta evaluación?',
     'Se quitará de esta pauta. Puedes volver a agregarla antes de guardar.',()=>{
@@ -5409,12 +6259,51 @@ function ofrecerCompartirPauta(r){
 function abrirGrupoVacio(cat){
   if(cat&&Number.isInteger(cat.slots)&&cat.slots>1&&!(cat.notas||[]).length)openCats[cat.id]=true;
 }
+// Quitar una evaluación que ya tiene notas. Si hay otra con el mismo nombre (una
+// evaluación repetida), sus notas pasan a esa y no se pierde nada. Si no, se
+// borran con ella, y por eso se pide confirmar como una acción destructiva.
+function quitarPautaFilaConNotas(i){
+  const r=S.ramos.find(x=>x.id===currentRamoId);const fila=pautaDraft[i];
+  const cat=r&&(r.categorias||[]).find(c=>c.id===fila.id);if(!cat)return false;
+  const nombre=String(fila.nombre||cat.nombre||'').trim();
+  const gemela=pautaDraft.find((f,j)=>j!==i&&f.id&&normName(f.nombre)===normName(nombre));
+  const n=(cat.notas||[]).filter(x=>typeof x.valor==='number').length;
+  const desc=gemela
+    ?`Hay otra evaluación llamada "${nombre}": sus notas quedan en esa y no se pierde ninguna.`
+    :`Se ${n===1?'borra su nota':`borran sus ${n} notas`} al guardar. No se puede deshacer.`;
+  showConfirm(`¿Quitar "${nombre}"?`,desc,()=>{
+    limpiarErrorPauta();
+    pautaQuitadas.push({id:fila.id,hacia:gemela?gemela.id:null});
+    const totalAntes=pautaDraft.reduce((s,f)=>s+(Number(f.peso)||0),0);
+    pautaDraft.splice(i,1);
+    // Una repetida no deja porcentaje que repartir: la otra ya lo tiene.
+    if(!gemela)repartirPesoRestante(pautaDraft,totalAntes);
+    if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
+    renderPautaManualModal();
+  },{label:gemela?'Quitar repetida':'Quitar y borrar notas',danger:!gemela,focusCancel:true});
+  return true;
+}
 function guardarPautaManual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estabaVacia=!(r.categorias||[]).some(c=>String(c.nombre||'').trim());
   const filas=pautaDraft.filter(f=>f.nombre.trim());
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
-  r.categorias=r.categorias.filter(c=>ids.has(c.id)||(c.notas||[]).length>0);
+  // Las que la persona quitó con notas: pasan a su gemela o se van.
+  const quitadas=new Set();
+  pautaQuitadas.forEach(q=>{
+    const cat=r.categorias.find(c=>c.id===q.id);if(!cat||ids.has(q.id))return;
+    const destino=q.hacia&&r.categorias.find(c=>c.id===q.hacia);
+    if(destino){
+      const ya=new Set((destino.notas||[]).map(x=>x.id));
+      destino.notas=[...(destino.notas||[]),...(cat.notas||[]).filter(x=>!ya.has(x.id))];
+    }
+    quitadas.add(q.id);
+    // Sus reglas (un mínimo, un grupo) pasan a la gemela; sin gemela se van.
+    r.gates=destino?unificarCategoriaEnReglas(r.gates,q.id,destino.id)
+      :(r.gates||[]).filter(g=>g.catId!==q.id).map(g=>Array.isArray(g.catIds)?{...g,catIds:g.catIds.filter(id=>id!==q.id)}:g);
+  });
+  pautaQuitadas=[];
+  r.categorias=r.categorias.filter(c=>!quitadas.has(c.id)&&(ids.has(c.id)||(c.notas||[]).length>0));
   filas.forEach(f=>{
     const existente=f.id&&r.categorias.find(c=>c.id===f.id);
     const cantidadFija=f.varias&&Number.isInteger(f.cantidad)&&f.cantidad>1;
@@ -5478,7 +6367,7 @@ function openAddNotaModal(catId){
       <button class="btn-confirm" id="m-add-nota-btn" onclick="confirmAddNota('${catId}')">Agregar nota</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   function checkValid(){
     const v=parseNota(document.getElementById('m-nota-val').value);
     const btn=document.getElementById('m-add-nota-btn');
@@ -5509,6 +6398,7 @@ function confirmAddNota(catId){
   else asignarCalificacionNota(nueva,rawNota,val);
   cat.notas.push(nueva);
   openCats[catId]=true;save();track('add_nota',{ponderada:usaPond,pendiente:isNaN(val)});closeModal();renderRamo();
+  if(!isNaN(val))vibrar('nota');
   // Si trae fecha entra a la Agenda, que vive en otra pantalla.
   if(typeof renderAgenda==='function')renderAgenda();
   showToast(isNaN(val)?'Anotada para el '+fechaCorta(fechaNota||'')+' — agrega la nota cuando la rindas':lecturaDespuesDeNota(r));
@@ -5521,19 +6411,24 @@ function userInitial(){
   const e=currentUser&&currentUser.email?currentUser.email.trim():'';
   return e?e[0].toUpperCase():'?';
 }
+// Hay un avatar en Inicio y otro en Clases y en Alumnos: una cuenta de profesor
+// (#697) no tiene Inicio y sin el suyo no llegaría a Ajustes ni a cerrar sesión.
+// El menú se abre bajo el que se tocó.
+let _avatarMenu=null;
+function avatarMenu(){return (_avatarMenu&&_avatarMenu.isConnected&&_avatarMenu)||document.getElementById('user-avatar');}
 function refreshAvatar(){
-  const av=document.getElementById('user-avatar');
-  if(av)av.textContent=userInitial();
+  document.querySelectorAll('.avatar-btn').forEach(av=>{av.textContent=userInitial();});
 }
 function toggleUserMenu(ev){
   if(ev)ev.stopPropagation();
+  if(ev&&ev.currentTarget&&ev.currentTarget.classList&&ev.currentTarget.classList.contains('avatar-btn'))_avatarMenu=ev.currentTarget;
   const m=document.getElementById('user-menu');
   m.classList.contains('open')?closeUserMenu():openUserMenu();
 }
 function openUserMenu(){
   const m=document.getElementById('user-menu');
   const b=document.getElementById('user-menu-backdrop');
-  const av=document.getElementById('user-avatar');
+  const av=avatarMenu();
   // Contenido dinámico
   document.getElementById('um-name').textContent=S.userName||'Tu cuenta';
   const mail=document.getElementById('um-mail');
@@ -5541,6 +6436,9 @@ function openUserMenu(){
   // Archivar solo tiene sentido con ramos cargados
   const arch=document.getElementById('um-archivar');
   if(arch)arch.style.display=S.ramos.length?'flex':'none';
+  // La malla es del estudiante: una cuenta de profesor no tiene carrera.
+  const malla=document.getElementById('um-malla');
+  if(malla)malla.style.display=esCuentaProfesor()?'none':'flex';
   // Sin sesión no hay nada que cerrar
   const out=document.getElementById('um-logout'),sep=document.getElementById('um-sep-logout');
   const hay=!!currentUser;
@@ -5564,17 +6462,84 @@ function openUserMenu(){
 function closeUserMenu(){
   document.getElementById('user-menu').classList.remove('open');
   document.getElementById('user-menu-backdrop').classList.remove('open');
-  const av=document.getElementById('user-avatar');
+  const av=avatarMenu();
   if(av)av.setAttribute('aria-expanded','false');
 }
 // Cierra el menú y ejecuta la acción (deja que corra la animación de cierre)
 function umGo(fn){
   closeUserMenu();
+  // El menú deja de ser visible antes de abrir la hoja. Conserva su origen
+  // para que el cierre de la siguiente vista no devuelva el foco al body.
+  const origen=avatarMenu();
+  if(origen&&origen.isConnected){try{origen.focus({preventScroll:true});}catch(e){origen.focus();}}
   setTimeout(()=>{try{fn();}catch(e){}},60);
 }
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('user-menu').classList.contains('open'))closeUserMenu();
+  if(e.key==='Escape'&&document.getElementById('menu-flotante'))cerrarMenu();
 });
+
+// ─── Menús desplegables ─────────────────────────────────────────────────────
+// Un menú que se abre bajo su botón, como los de iOS: el orden de Inicio y el
+// "⋯" del ramo. Tiene el aspecto del menú de la cuenta. Antes el orden cambiaba
+// con cada toque sin mostrar las opciones, y editar y eliminar el ramo eran
+// dos botones sueltos, el de eliminar siempre a la vista y en rojo.
+// items: {texto, icono?, marcado?, peligro?, accion} o 'sep' para separar.
+let _botonMenu=null;
+const CHECK_MENU='<svg class="ic menu-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+function abrirMenu(boton,items){
+  cerrarMenu();
+  const fondo=document.createElement('div');
+  fondo.id='menu-flotante-fondo';fondo.className='user-menu-backdrop open';fondo.onclick=cerrarMenu;
+  const m=document.createElement('div');
+  m.id='menu-flotante';m.className='user-menu open menu-flotante';m.setAttribute('role','menu');
+  // Si alguna opción lleva ✓, todas guardan su lugar y el texto queda alineado.
+  const conMarcas=items.some(it=>it!=='sep'&&it.marcado!==undefined);
+  items.forEach(it=>{
+    if(it==='sep'){const s=document.createElement('div');s.className='user-menu-sep';m.appendChild(s);return;}
+    const b=document.createElement('button');
+    b.type='button';b.className='user-menu-item'+(it.peligro?' danger':'');
+    const radio=it.marcado!==undefined;
+    b.setAttribute('role',radio?'menuitemradio':'menuitem');
+    if(radio)b.setAttribute('aria-checked',String(!!it.marcado));
+    // Como en iOS, el ✓ va antes del texto y las otras opciones guardan su lugar.
+    b.innerHTML=`${it.marcado?CHECK_MENU:conMarcas?'<span class="menu-check" aria-hidden="true"></span>':''}${it.icono||''}<span class="menu-texto">${esc(it.texto)}</span>`;
+    b.onclick=()=>{cerrarMenu();setTimeout(()=>{try{it.accion();}catch(e){}},60);};
+    m.appendChild(b);
+  });
+  document.body.append(fondo,m);
+  _botonMenu=boton;boton.setAttribute('aria-expanded','true');
+  // Bajo el botón y alineado a su borde derecho; si no cabe abajo, encima.
+  const r=boton.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  const vw=window.innerWidth,vh=window.innerHeight;
+  m.style.left=Math.max(10,Math.min(r.right-w,vw-w-10))+'px';
+  m.style.top=(r.bottom+8+h>vh-10?Math.max(10,r.top-8-h):r.bottom+8)+'px';
+  const primero=m.querySelector('[aria-checked="true"]')||m.querySelector('button');
+  if(primero){try{primero.focus({preventScroll:true});}catch(e){}}
+}
+function cerrarMenu(){
+  const m=document.getElementById('menu-flotante');if(!m)return;
+  m.remove();const f=document.getElementById('menu-flotante-fondo');if(f)f.remove();
+  const b=_botonMenu;_botonMenu=null;
+  if(b){b.setAttribute('aria-expanded','false');if(b.isConnected){try{b.focus({preventScroll:true});}catch(e){}}}
+}
+const ORDENES_RAMOS=[['manual','Manual'],['avg','Por nota'],['name','A-Z']];
+function abrirMenuOrden(boton){
+  abrirMenu(boton,ORDENES_RAMOS.map(([modo,texto])=>({texto,marcado:S.sortMode===modo,
+    accion:()=>{S.sortMode=modo;save();renderHome();}})));
+}
+function abrirMenuRamo(boton){
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+  const ic=d=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const oficial=r.categorias.length&&r.origen&&r.origen.tenant&&presetRamo(r.nombre,r.origen.tenant,r.origen.carrera);
+  abrirMenu(boton,[
+    {texto:'Editar ramo',icono:ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),accion:openEditRamoModal},
+    {texto:'Editar evaluaciones',icono:ic('<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'),accion:openPautaManualModal},
+    ...(oficial?[{texto:'Reportar pauta',icono:ic('<path d="M4 21V4h12l-1.5 4L16 12H4"/>'),accion:()=>openReportModal(r.id)}]:[]),
+    'sep',
+    {texto:'Eliminar ramo',peligro:true,icono:ic('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>'),accion:confirmDeleteRamo}
+  ]);
+}
 
 // ─── AGENTES CONECTADOS ────────────────────────────────────────────────────
 let agentesConectados=[],agentesCargando=false,agentesError='';
@@ -5610,9 +6575,11 @@ function pintarAgentesConectados(){
 }
 async function cargarAgentesConectados(){
   if(!currentUser||!supabaseClient)return;
+  const usuario=currentUser;
   agentesCargando=true;agentesError='';pintarAgentesConectados();
   try{
     const {data,error}=await rpcAgente('listar_agentes');
+    if(currentUser!==usuario)return;
     if(error)throw error;
     // Copiar solo las cinco columnas declaradas por la RPC: aunque el servidor
     // cambie su respuesta, la interfaz jamás debe terminar mostrando un token.
@@ -5621,8 +6588,9 @@ async function cargarAgentesConectados(){
       return {id:/^[A-Za-z0-9_-]{1,64}$/.test(id)?id:'',agente:typeof a.agente==='string'?a.agente:'Agente',created_at:a.created_at||null,last_used_at:a.last_used_at||null,expires_at:a.expires_at||null};
     }).filter(a=>a.id);
   }catch(e){
+    if(currentUser!==usuario)return;
     agentesError='No pudimos cargar tus agentes conectados. Intenta de nuevo en un momento.';
-  }finally{agentesCargando=false;pintarAgentesConectados();}
+  }finally{if(currentUser===usuario){agentesCargando=false;pintarAgentesConectados();}}
 }
 // Las RPC del agente exigen sesión: resuelven todo con auth.uid(). Una app que
 // queda abierta días llega con el JWT vencido, y entonces la base contesta "sin
@@ -5634,9 +6602,12 @@ function sesionCaducada(error){
   return /sin sesi[oó]n|jwt|token/i.test(m);
 }
 async function rpcAgente(nombre,args){
+  const usuario=currentUser;
   let r=await supabaseClient.rpc(nombre,args);
+  if(currentUser!==usuario)return r;
   if(r&&r.error&&sesionCaducada(r.error)){
     try{await supabaseClient.auth.refreshSession();}catch(e){}
+    if(currentUser!==usuario)return r;
     r=await supabaseClient.rpc(nombre,args);
   }
   return r;
@@ -5647,11 +6618,13 @@ async function rpcAgente(nombre,args){
 // se muestra, con lo que eso significa dicho en la misma pantalla.
 async function crearUrlAgente(){
   if(!currentUser||!supabaseClient){showToast('Inicia sesión para conectar un agente',true);return;}
+  const usuario=currentUser;
   const btn=document.getElementById('s-agent-url-create');
   if(btn){btn.disabled=true;btn.textContent='Creando…';}
   try{
     const nombre=(document.getElementById('s-agent-url-nombre')||{}).value||'';
     const {data,error}=await rpcAgente('crear_vinculo_agente',{p_agente:nombre});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     const fila=Array.isArray(data)?data[0]:data;
     const token=fila&&fila.token;
@@ -5660,13 +6633,14 @@ async function crearUrlAgente(){
     pintarUrlAgente();
     cargarAgentesConectados();
   }catch(e){
+    if(currentUser!==usuario)return;
     const motivo=(e&&(e.message||e.msg))||'';
     showToast(sesionCaducada(e)
       ? 'Tu sesión expiró. Vuelve a entrar y créala otra vez.'
       : ('No pudimos crear la URL'+(motivo?': '+motivo:'. Intenta de nuevo.')),true);
     console.warn('crear_vinculo_agente falló:',e);
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=agenteUrlActual?'Crear otra URL':'Crear URL de conexión';}
+    if(btn&&currentUser===usuario){btn.disabled=false;btn.textContent=agenteUrlActual?'Crear otra URL':'Crear URL de conexión';}
   }
 }
 async function copiarPromptConectorAgente(){
@@ -5680,7 +6654,7 @@ function pintarUrlAgente(){
   if(!raiz)return;
   if(!agenteUrlActual){raiz.innerHTML='';return;}
   raiz.innerHTML=`<div class="agent-url-box">
-    <div class="agent-url-warn">Esta URL es como una contraseña: quien la tenga puede ver tus ramos y tus notas. Pégala solo en el campo de URL del conector que te indicó tu agente; no la envíes por el chat. No se vuelve a mostrar.</div>
+    <div class="agent-url-warn">Es como una contraseña: quien la tenga ve tus ramos y notas. Pégala solo en el conector; no la envíes por el chat. No se vuelve a mostrar.</div>
     <code class="agent-url-value">${esc(agenteUrlActual)}</code>
     <button type="button" class="agent-refresh" onclick="copiarUrlAgente()">Copiar URL del conector</button>
   </div>`;
@@ -5759,6 +6733,9 @@ async function copiarUrlAgente(){
 // para eso se crea otra, que además queda registrada aparte y se puede
 // desconectar sola.
 function olvidarUrlAgente(){agenteUrlActual='';}
+function olvidarSesionAgentes(){
+  olvidarUrlAgente();agentesConectados=[];agentesCargando=false;agentesError='';
+}
 function confirmarRevocarAgente(id){
   const agente=agentesConectados.find(a=>a.id===id);
   if(!agente)return;
@@ -5766,12 +6743,14 @@ function confirmarRevocarAgente(id){
 }
 async function revocarAgente(id){
   if(!currentUser||!supabaseClient)return;
+  const usuario=currentUser;
   try{
     const {error}=await rpcAgente('revocar_agente',{p_id:id});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     agentesConectados=agentesConectados.filter(a=>a.id!==id);
     pintarAgentesConectados();showToast('Agente desconectado');
-  }catch(e){showToast('No pudimos desconectar ese agente. Intenta de nuevo.',true);}
+  }catch(e){if(currentUser===usuario)showToast('No pudimos desconectar ese agente. Intenta de nuevo.',true);}
 }
 
 // Las propuestas no viven en S: son mensajes pendientes del agente, no una
@@ -5850,19 +6829,30 @@ function propuestasFechasDeRamo(ramo){
 // Escribe una fecha propuesta. Con casilla va a esa casilla del grupo —y la
 // crea pendiente si no existía, que es el caso normal: la fecha se sabe antes
 // que la nota—; sin casilla va a la categoría, que es la fecha del grupo.
+// La `casilla` del agente cuenta desde 1 ("el Control 2"), como en el conector
+// MCP; `slot` cuenta desde 0. Antes se usaba tal cual: el Control 1 caía en la
+// casilla del Control 2 y el último creaba una casilla de más (issue #655).
+function slotDeCasilla(cat,casilla){
+  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
+  if(!Number.isInteger(casilla)||casilla<1||casilla>slots)return undefined;
+  return slots>1?casilla-1:null;
+}
 function escribirFechaPropuesta(ramo,cat,prop){
   if(!cat)return false;
   if(prop.casilla){
-    const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
-    if(prop.casilla>slots)return false;
-    cat.notas=Array.isArray(cat.notas)?cat.notas:[];
-    let n=cat.notas.find(x=>x.slot===prop.casilla);
-    if(!n){
-      n={id:uid(),nombre:etiquetaCasilla(ramo,cat,prop.casilla),valor:null,peso:1,slot:prop.casilla};
-      cat.notas.push(n);
+    const slot=slotDeCasilla(cat,prop.casilla);
+    if(slot===undefined)return false;
+    // "Casilla 1" de una evaluación sin casillas es la evaluación misma.
+    if(slot!==null){
+      cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+      let n=cat.notas.find(x=>x.slot===slot);
+      if(!n){
+        n={id:uid(),nombre:etiquetaCasilla(ramo,cat,slot),valor:null,peso:1,slot};
+        cat.notas.push(n);
+      }
+      marcarFechaUsuario(n,prop.fecha,prop.hora||'');
+      return true;
     }
-    marcarFechaUsuario(n,prop.fecha,prop.hora||'');
-    return true;
   }
   marcarFechaUsuario(cat,prop.fecha,prop.hora||'');
   return true;
@@ -5950,7 +6940,7 @@ function propuestaNotasLimpia(valor){
     const clave=normName(evaluacion)+'#'+(casilla==null?'':casilla);
     if(!evaluacion||!Number.isFinite(v)||v<1||v>7||vistas.has(clave))return null;
     if(casilla!==null&&(!Number.isInteger(casilla)||casilla<1||casilla>100))return null;
-    vistas.add(clave);notas.push({evaluacion,valor:Math.round(v*10)/10,casilla});
+    vistas.add(clave);notas.push({evaluacion,valor:Math.round(v*100)/100,casilla});
   }
   if(!notas.length||notas.length>60)return null;
   return {id,ramo,ramoKey,fuente,notas,createdAt:valor.created_at||null};
@@ -5961,26 +6951,36 @@ function propuestasNotasDeRamo(ramo){
   return propuestasNotasAgente.filter(p=>
     (clave&&p.ramoKey===clave)||normName(p.ramo)===normName(ramo.nombre));
 }
+// Dónde cae una nota propuesta: {slot, nota} con la nota que ya ocupa ese lugar
+// (o undefined si se crea), o null si no calza. La usan escribir la nota y la
+// tarjeta que muestra qué nota se pisa, para que las dos digan lo mismo.
+function destinoNotaPropuesta(cat,propuesta){
+  if(!cat)return null;
+  const notas=Array.isArray(cat.notas)?cat.notas:[];
+  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
+  if(slots===1)return {slot:null,nota:notas.find(n=>n.valor===null||n.valor===undefined)||notas[0]};
+  // Sin casilla, va a la primera libre. Antes caía en cat.notas[0] cuando
+  // todas tenían nota: pisaba una nota ya ingresada sin avisar.
+  let slot;
+  if(propuesta.casilla)slot=slotDeCasilla(cat,propuesta.casilla);
+  else for(let i=0;i<slots&&slot===undefined;i++){
+    const n=notas.find(x=>x.slot===i);
+    if(!n||n.valor===null||n.valor===undefined)slot=i;
+  }
+  return slot===undefined?null:{slot,nota:notas.find(n=>n.slot===slot)};
+}
 // Escribe una nota propuesta en su categoría. Devuelve false si no calza, para
 // no dar por aplicada una propuesta que en realidad no entró.
-function escribirNotaPropuesta(cat,propuesta){
-  if(!cat)return false;
+function escribirNotaPropuesta(cat,propuesta,ramo){
+  const lugar=destinoNotaPropuesta(cat,propuesta);
+  if(!lugar)return false;
   cat.notas=Array.isArray(cat.notas)?cat.notas:[];
-  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
-  let destino=null;
-  if(propuesta.casilla&&slots>1){
-    if(propuesta.casilla>slots)return false;
-    destino=cat.notas.find(n=>n.slot===propuesta.casilla);
-    if(!destino){
-      destino={id:uid(),nombre:cat.nombre+' '+propuesta.casilla,valor:null,peso:1,slot:propuesta.casilla};
-      cat.notas.push(destino);
-    }
-  }else{
-    destino=cat.notas.find(n=>n.valor===null||n.valor===undefined)||cat.notas[0];
-    if(!destino){
-      destino={id:uid(),nombre:cat.nombre,valor:null,peso:1};
-      cat.notas.push(destino);
-    }
+  let destino=lugar.nota;
+  if(!destino){
+    const slot=lugar.slot;
+    destino=slot===null?{id:uid(),nombre:cat.nombre,valor:null,peso:1}
+      :{id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
+    cat.notas.push(destino);
   }
   destino.valor=propuesta.valor;
   return true;
@@ -6001,7 +7001,7 @@ async function aplicarPropuestaNotas(id,valores){
     let puestas=0;
     aplicar.forEach(n=>{
       const cat=(ramo.categorias||[]).find(c=>normName(c.nombre)===normName(n.evaluacion));
-      if(escribirNotaPropuesta(cat,n))puestas++;
+      if(escribirNotaPropuesta(cat,n,ramo))puestas++;
     });
     save();
     track('notas_agente_confirmadas',{notas:puestas,editadas:!!(valores&&valores.length)});
@@ -6041,7 +7041,7 @@ function guardarPropuestaNotasEditada(id){
     // Una casilla que quedó vacía o con algo que no es nota se omite, no se
     // guarda como 1,0 ni se inventa: omitir es lo que la persona quiso decir.
     if(isNaN(v)||v<1||v>7)continue;
-    valores.push({...propuesta.notas[i],valor:Math.round(v*10)/10});
+    valores.push({...propuesta.notas[i],valor:v});
   }
   if(!valores.length){showToast('No quedó ninguna nota válida para guardar',true);return;}
   aplicarPropuestaNotas(id,valores);
@@ -6264,11 +7264,12 @@ async function aportarPropuestaAlCatalogo(r){
   const estado=estadoReporte(estructura);
   if(!estructura.length||!estado.lista)return false;
   try{
-    const {error}=await supabaseClient.rpc('submit_catalog_report',{
+    const {error,conSeccion}=await rpcReporteCatalogo(r,{
       p_tenant:S.tenant,p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
       p_ramo:r.nombre,p_ramo_norm:normName(r.nombre),p_ramo_sigla:siglaReporteUC(r),
       p_estructura:estructura,p_huella:huellaEstructura(estructura),p_nota:null,
     });
+    if(!error&&conSeccion)r.seccionAportada=seccionReporte(r);
     return !error;
   }catch(e){return false;}
 }
@@ -6327,6 +7328,8 @@ function renderSettingsSiAbierto(){
 }
 function openSettings(){
   const initialSection=arguments[0];
+  const soloProfesor=esCuentaProfesor();
+  const seccionesProfesor=['perfil','apariencia','datos','sugerencias'];
   let settingsSem=S.careerSemestre;
   let settingsCarrera=S.carrera,settingsCarreraNombre=S.carreraNombre||null,settingsCarreraFiltro='';
   let settingsName=S.userName;
@@ -6335,7 +7338,8 @@ function openSettings(){
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
   let settingsTenant=S.tenant||'fen';
-  const directSection=['perfil','academico','calendario','apariencia','agentes','sugerencias','datos'].includes(initialSection)?initialSection:'';
+  const directSection=['perfil','academico','calendario','apariencia','agentes','sugerencias','datos'].includes(initialSection)
+    &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
     perfil:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.4 3.5-5.3 7.5-5.3s6.7 1.9 7.5 5.3"/></svg>',
@@ -6348,18 +7352,20 @@ function openSettings(){
     datos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/></svg>',
     arrow:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'
   };
+  // Las cuentas de Google no tienen contraseña: ni la prometen ni la encuentran al buscar.
+  const conClave=typeof cuentaConClave==='function'&&cuentaConClave(currentUser);
   const sections=[
-    ['Tu cuenta','perfil','Perfil','Tu nombre y correo de acceso','cambiar nombre correo email'],
+    ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
-  ];
+  ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
 
-  function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar cambios</button>';}
+  function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar</button>';}
   // "Soy profesor particular" es una POSTULACIÓN, no un interruptor: apretarlo
   // no enciende nada hasta que alguien del equipo la revise. Por eso el panel
   // muestra siempre en qué va, y no deja a nadie esperando sin saber.
@@ -6367,7 +7373,7 @@ function openSettings(){
     if(typeof perfilProfesorConocido!=='function')
       return '<p class="settings-help settings-help-top">Las clases particulares todavía no están disponibles.</p>';
     if(!currentUser)
-      return '<p class="settings-help settings-help-top">Necesitas iniciar sesión para ofrecer clases: tu postulación va atada a tu cuenta, no a este dispositivo.</p>';
+      return '<p class="settings-help settings-help-top">Inicia sesión para ofrecer clases.</p>';
     const perfil=perfilProfesorConocido();
     if(perfil===undefined)
       return '<p class="settings-help settings-help-top">Revisando tu acceso…</p>';
@@ -6377,14 +7383,14 @@ function openSettings(){
     if(perfil===null)
       return '<p class="settings-help settings-help-top">Las clases particulares todavía no están disponibles. Vuelve a mirar más adelante.</p>';
     if(!perfil)return `
-      <p class="settings-help settings-help-top">Si haces clases particulares, puedes publicar tus avisos acá. Tu cuenta de estudiante sigue igual: tus notas no se muestran a nadie ni se usan para tu anuncio.</p>
+      <p class="settings-help settings-help-top">Si haces clases particulares, publica tus avisos acá. Tus notas no se muestran ni se usan en tu anuncio.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" class="btn-primary" onclick="postularComoProfesor()">Soy profesor particular</button>
       </div>
-      <p class="settings-help">Un miembro de nuestro equipo revisa cada postulación antes de que puedas preparar anuncios.</p>`;
+      <p class="settings-help">Revisamos cada postulación antes de que puedas publicar.</p>`;
     const estados={
-      pendiente:['Tu postulación está en revisión.','Te avisamos cuando un miembro de nuestro equipo la revise. Todavía no puedes publicar clases.'],
-      aprobado:['Estás aprobado como profesor particular.','Tienes la pestaña <b>Clases</b> abajo, junto a Inicio: ahí preparas tus anuncios y ves cómo les va.'],
+      pendiente:['Tu postulación está en revisión.','Te avisamos cuando la revisemos.'],
+      aprobado:['Estás aprobado como profesor particular.','Preparas tus anuncios en la pestaña <b>Clases</b>.'],
       rechazado:['Tu postulación no fue aprobada.','Puedes escribirnos desde Sugerencias y comentarios para revisar el motivo.'],
       suspendido:['Tu acceso de profesor está suspendido.','Tus notas y tu semestre siguen igual. Escríbenos si crees que es un error.'],
     };
@@ -6400,15 +7406,26 @@ function openSettings(){
       <div class="settings-name-field">
         <div class="modal-input"><input type="text" id="s-name" value="${esc(settingsName)}" maxlength="30" autocomplete="off" aria-describedby="s-name-hint s-name-error"/></div>
         <p id="s-name-error" role="alert" ${settingsNameError?'':'hidden'} style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);">${esc(settingsNameError)}</p>
-        <p class="settings-name-hint" id="s-name-hint">Aparece en el saludo de inicio.</p>
+        <p class="settings-name-hint" id="s-name-hint">${soloProfesor?'Es el nombre que ves en tu cuenta.':'Aparece en el saludo de inicio.'}</p>
       </div>
       ${guardarBtn()}
       ${currentUser?`<div class="settings-account-access">
         <label class="modal-label" for="s-account-email">Correo de acceso</label>
         <div class="modal-input"><input type="email" id="s-account-email" value="${esc(currentUser.email||'')}" maxlength="60" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" aria-describedby="s-account-email-help s-account-email-status"/></div>
-        <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Cámbialo al tiro. Revisa que esté bien escrito: lo usarás para entrar y recuperar tu cuenta.</p>
+        <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Se cambia al tiro. Revisa que esté bien escrito: con él entras y recuperas tu cuenta.</p>
         <p id="s-account-email-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
+      </div>`:''}
+      ${currentUser&&conClave?`<div class="settings-account-access">
+        <label class="modal-label" for="s-account-current-pass">Contraseña actual</label>
+        <div class="modal-input"><input type="password" id="s-account-current-pass" maxlength="72" autocomplete="current-password" aria-describedby="s-account-pass-status"/></div>
+        <label class="modal-label" for="s-account-pass" style="margin-top:10px;">Nueva contraseña</label>
+        <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
+        <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
+        <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>
+        <p class="settings-help" id="s-account-pass-help" style="margin:7px 0 10px;">Al menos ${PASS_MIN} caracteres, con letras y números.</p>
+        <p id="s-account-pass-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-save" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
       </div>`:''}`;
     if(section==='academico')return `
       <div class="modal-label">Universidad</div>
@@ -6417,17 +7434,20 @@ function openSettings(){
       <label class="modal-label" for="s-carrera-buscar">Carrera</label>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="s-carrera-buscar" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarrerasAjustes(this.value)"/></div>
       <div id="s-carrera-grid" class="settings-carrera-grid"></div>
-      <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
-      <label class="modal-label">Semestres que ya cursaste</label>
-      <p class="settings-help" style="margin-top:0;">Si empezaste la carrera antes de usar GradeHub, agrégalos con la nota final de cada ramo para que tu promedio cuente todo lo que llevas.</p>
-      <div class="settings-data-actions" style="margin-bottom:0;">
-        <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
-      </div>
       <label class="modal-label">Semestre de carrera</label>
       <div class="sem-grid" id="s-sem-grid"></div>
-      ${guardarBtn()}`;
+      ${guardarBtn()}
+      <!-- Aparte y al final: no se guarda con el botón de arriba, abre otra hoja.
+           Entre Carrera y Semestre partía en dos lo que ese botón guarda, y el
+           botón quedaba pegado al título siguiente (iPhone, 2026-10-06). -->
+      <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Semestres que ya cursaste</label>
+      <p class="settings-help" style="margin-top:0;">Agrega los que cursaste antes de usar GradeHub, con la nota final de cada ramo.</p>
+      <div class="settings-data-actions" style="margin-bottom:0;">
+        <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
+      </div>`;
     if(section==='calendario')return `
-      <p class="settings-help settings-help-top">Suscribe tus evaluaciones a Google Calendar, Apple Calendar u Outlook. Se agrega una vez y después se actualiza sola: si cambias una fecha acá, se corrige allá. No al instante — tu calendario relee la suscripción cada varias horas.</p>
+      <p class="settings-help settings-help-top">Tus evaluaciones en Google Calendar, Apple Calendar u Outlook. Se agrega una vez y se actualiza sola cada algunas horas.</p>
       ${currentUser?`
       <label class="modal-label">Tu URL de suscripción</label>
       <div class="modal-input"><input type="text" id="s-cal-url" readonly value="Generando…" onclick="this.select()"/></div>
@@ -6435,17 +7455,22 @@ function openSettings(){
         <button type="button" onclick="copiarFeedCalendario()">Copiar URL</button>
         <button type="button" onclick="revocarFeedCalendario()">Generar una nueva</button>
       </div>
-      <p class="settings-help">En Google Calendar: <b>Otros calendarios · + · Desde URL</b>. Google la consulta cada 8 a 24 horas, así que un cambio de fecha no aparece al tiro.</p>
-      <p class="settings-help">Quien tenga esta URL puede ver tus ramos, tus evaluaciones y sus fechas. <b>Tus notas no salen nunca.</b> Si se te escapa, genera una nueva y la anterior deja de servir al instante.</p>`
-      :`<p class="settings-help">Necesitas iniciar sesión: el feed va atado a tu cuenta, no a este dispositivo.</p>`}
+      <p class="settings-help">En Google Calendar: <b>Otros calendarios · + · Desde URL</b>.</p>
+      <p class="settings-help">Quien tenga esta URL ve tus evaluaciones y fechas. <b>Tus notas no salen nunca.</b> Si se filtra, genera una nueva.</p>`
+      :`<p class="settings-help">Inicia sesión para suscribirte.</p>`}
       <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Traer fechas desde un calendario</label>
-      <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> exportado desde tu calendario. Revisas cada coincidencia antes de agregarla; nunca cambia tus ponderaciones ni fechas que ya ajustaste.</p>
+      <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> de tu calendario. Revisas cada fecha antes de agregarla.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
-      </div>`;
+      </div>
+      ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Avisos antes de tus evaluaciones</label>
+      <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
+      <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-avisos-pruebas" onclick="alternarAvisosPruebas()">${avisosPruebasActivos()?'Desactivar avisos':'Activar avisos'}</button></div>
+      <p class="settings-help" id="s-avisos-estado" role="status" aria-live="polite"></p>`:''}`;
     if(section==='apariencia')return `
-      <p class="settings-help settings-help-top">Elige cómo prefieres ver GradeHub. Se guarda al elegir.</p>
+      <p class="settings-help settings-help-top">Se guarda al elegir.</p>
       <div class="modo-grid" id="s-modo-grid"></div>
       <label class="modal-label accent-picker-label">Color de acento</label>
       <div class="accent-grid" id="s-acento-grid" role="radiogroup" aria-label="Color de acento"></div>
@@ -6454,24 +7479,24 @@ function openSettings(){
     // Una sola forma de conectar: crear la URL y pegarla en el agente.
     if(section==='agentes')return currentUser?`
       <div class="agent-explainer">
-        <b>Qué puede hacer un agente conectado</b>
-        <span>Ver tus ramos, notas, ponderaciones y fechas. Simular qué pasa si te va de cierta forma y decirte dónde rinde estudiar. Agregar un ramo. Proponerte una pauta, que no se aplica hasta que la confirmes.</span>
+        <b>Qué puede hacer</b>
+        <span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span>
         <span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>
       </div>
 
       <label class="modal-label">1. Pregúntale a tu agente dónde conectarlo</label>
-      <p class="settings-help" style="margin-top:0;">Copia este mensaje y pégalo en el chat. Tu agente te mostrará dónde agregar un conector por URL en la app que usas.</p>
+      <p class="settings-help" style="margin-top:0;">Pégalo en el chat y te dirá dónde agregar el conector.</p>
       <div class="agent-prompt-box">
         <p id="s-agent-prompt-text" class="agent-prompt-text">Quiero conectar GradeHub a este agente mediante una URL MCP. Explícame paso a paso dónde debo agregar un conector o servidor MCP en esta aplicación. No me pidas que envíe la URL por el chat: debo pegarla directamente en la configuración del conector.</p>
         <button type="button" class="agent-refresh" onclick="copiarPromptConectorAgente()">Copiar mensaje para mi agente</button>
       </div>
 
       <label class="modal-label">2. Ponle un nombre a la conexión</label>
-      <p class="settings-help" style="margin-top:0;">Es el que vas a ver en la lista para reconocerlo y desconectarlo.</p>
+      <p class="settings-help" style="margin-top:0;">Para reconocerlo en la lista.</p>
       <div class="modal-input" style="margin-bottom:12px;"><input type="text" id="s-agent-url-nombre" placeholder="Ej: Mi agente" maxlength="60" autocomplete="off"/></div>
 
       <label class="modal-label">3. Crea la URL y agrégala al conector</label>
-      <p class="settings-help" style="margin-top:0;">Vuelve a los pasos que te dio tu agente y pega ahí la URL. Dura 90 días y la verás una sola vez.</p>
+      <p class="settings-help" style="margin-top:0;">Pégala donde te indicó tu agente. Dura 90 días y se muestra una vez.</p>
       <button type="button" class="settings-reset-btn agent-url-create" id="s-agent-url-create" onclick="crearUrlAgente()">Crear URL de conexión</button>
       <div id="s-agent-url" class="agent-url-wrap" aria-live="polite"></div>
 
@@ -6480,8 +7505,8 @@ function openSettings(){
       <div id="s-agent-list" class="agent-list" aria-live="polite"></div>
 
       <div class="agent-proposal-entry agent-prompt-picker"><div>
-        <b>Pídele algo con lo que ya sabe</b>
-        <span>Elige un mensaje, cópialo y pégalo en el chat de tu agente.</span>
+        <b>Ideas para pedirle</b>
+        <span>Elige un mensaje y pégalo en el chat.</span>
         <select class="feedback-select" id="s-agent-prompt-pick" onchange="pintarPromptAgente()" aria-label="Qué pedirle a tu agente">
           ${Object.entries(PROMPTS_AGENTE).map(([clave,p])=>`<option value="${esc(clave)}">${esc(p.titulo)}</option>`).join('')}
         </select>
@@ -6489,8 +7514,8 @@ function openSettings(){
         <details class="agent-prompt-ver"><summary>Ver el mensaje</summary><span id="s-agent-prompt-texto">${esc(PROMPTS_AGENTE.repaso.texto)}</span></details>
       </div><button type="button" class="agent-refresh" onclick="copiarPromptAgente()">Copiar</button></div>
 
-      <div class="agent-proposal-entry"><div><b>Pautas por revisar</b><span>Si un agente te propuso una pauta, la revisas acá. Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
-      :`<div class="feedback-empty"><b>Necesitas iniciar sesión</b><p>La conexión queda atada a tu cuenta para que puedas ver y desconectar tus agentes.</p></div>`;
+      <div class="agent-proposal-entry"><div><b>Pautas por revisar</b><span>Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
+      :`<div class="feedback-empty"><b>Necesitas iniciar sesión</b><p>Así puedes ver y desconectar tus agentes.</p></div>`;
     if(section==='sugerencias'){
       const contacto=`<p class="feedback-contact">¿Prefieres escribirnos por correo? <a id="feedback-contact" href="${esc(correoSugerenciaHref())}" onclick="actualizarCorreoSugerencia()">gradehub.app@gmail.com</a></p>`;
       return currentUser?`
@@ -6514,12 +7539,17 @@ function openSettings(){
         <button type="button" onclick="exportarDatos()">Exportar mis datos</button>
         <button type="button" onclick="abrirImportar()">Importar datos</button>
       </div>
+      ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
+        <label class="modal-label">Compartido con profesores</label>
+        <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
+        <div id="s-compartidos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
+      </div>`:''}
       <div class="settings-danger-zone">
         <div class="settings-danger-label">Zona sensible</div>
         <button type="button" class="settings-danger-btn" onclick="confirmarEliminarCuenta()">Eliminar mi cuenta</button>
-        <p>Borra tu cuenta y todas tus notas, en este dispositivo y en la nube. No se puede deshacer.</p>
+        <p>${soloProfesor?'Borra tu cuenta y sus datos, en este dispositivo y en la nube.':'Borra tu cuenta y todas tus notas, en este dispositivo y en la nube.'} No se puede deshacer.</p>
       </div>
-      ${currentUser?`<div class="settings-reset-zone"><button type="button" class="settings-reset-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra los datos de este dispositivo y cierra sesión. Tus notas en la nube se conservan.</p></div>`:`<div class="settings-danger-zone settings-reset-danger-zone"><div class="settings-danger-label">Zona sensible</div><button type="button" class="settings-danger-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra todos tus datos de este dispositivo. No se puede deshacer.</p></div>`}
+      ${currentUser?`<div class="settings-reset-zone"><button type="button" class="settings-reset-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra los datos de este dispositivo y cierra sesión. ${soloProfesor?'Tus datos':'Tus notas'} en la nube se conservan.</p></div>`:`<div class="settings-danger-zone settings-reset-danger-zone"><div class="settings-danger-label">Zona sensible</div><button type="button" class="settings-danger-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra todos tus datos de este dispositivo. No se puede deshacer.</p></div>`}
       <p class="settings-privacy"><a href="/terminos.html" target="_blank" rel="noopener">Términos de uso</a> · <a href="/privacidad.html" target="_blank" rel="noopener">Política de privacidad</a></p>`;
   }
   function renderSettingsNav(){
@@ -6528,10 +7558,14 @@ function openSettings(){
     const tokens=normName(settingsSearch).split(/\s+/).filter(t=>t&&!['mi','mis','el','la','los','las','de','del','un','una','y','en'].includes(t));
     const results=sections.filter(section=>tokens.every(t=>normName(section.join(' ')).includes(t)));
     const nav=document.getElementById('settings-nav-list');
-    nav.innerHTML=results.map(([group,id,title,detail],i)=>`${!i||results[i-1][0]!==group?`<div class="settings-nav-group">${group}</div>`:''}<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')||'<p class="settings-search-empty">No encontramos esa opción. Prueba con «carrera», «correo» o «fondo».</p>';
+    // Cada grupo va en su propia caja: en la app es la tarjeta agrupada de iOS;
+    // en la web la caja no se ve (display:contents).
+    const grupos=[];results.forEach(x=>{const g=grupos[grupos.length-1];if(g&&g[0]===x[0])g[1].push(x);else grupos.push([x[0],[x]]);});
+    nav.innerHTML=grupos.map(([group,filas])=>`<div class="settings-nav-group">${group}</div><div class="settings-nav-card">${filas.map(([,id,title,detail])=>`<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`).join('')||`<p class="settings-search-empty">No encontramos esa opción. Prueba con ${soloProfesor?'«correo», «fondo» o «cuenta»':'«carrera», «correo» o «fondo»'}.</p>`;
     document.getElementById('settings-search-status').textContent=settingsSearch.trim()?`${results.length} ${results.length===1?'sección encontrada':'secciones encontradas'}`:'';
     document.querySelectorAll('[data-settings-section]').forEach(b=>b.onclick=()=>{
       activeSection=b.dataset.settingsSection;renderSettings();
+      entrarDesde(document.querySelector('.settings-shell'),'push');
       if(activeSection!=='perfil')document.getElementById('settings-detail-title').focus();
     });
   }
@@ -6545,7 +7579,7 @@ function openSettings(){
       <div class="settings-shell${activeSection?' settings-detail-open':''}">
         <nav class="settings-nav" aria-label="Secciones de Ajustes">
           <label class="settings-search-label" for="settings-search">Buscar en Ajustes</label>
-          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="¿Qué buscas?" autocomplete="off" aria-controls="settings-nav-list"/>
+          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="Buscar" autocomplete="off" aria-controls="settings-nav-list"/>
           <span class="settings-search-status" id="settings-search-status" role="status"></span>
           <div id="settings-nav-list"></div>
         </nav>
@@ -6558,6 +7592,7 @@ function openSettings(){
     search.oninput=()=>{settingsSearch=search.value;renderSettingsNav();};
     const back=document.querySelector('.settings-back');if(back)back.onclick=()=>{
       const previous=activeSection;activeSection='';renderSettings();
+      entrarDesde(document.querySelector('.settings-shell'),'pop');
       const option=document.querySelector(`[data-settings-section="${previous}"]`);
       (option||document.getElementById('settings-search')).focus();
     };
@@ -6565,6 +7600,7 @@ function openSettings(){
     if(activeSection==='academico'){renderSettingsSemGrid();renderSettingsTenantGrid();renderSettingsCarreraGrid();}
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
+    if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.
     if(activeSection!=='agentes')olvidarUrlAgente();
@@ -6574,7 +7610,7 @@ function openSettings(){
       if(inp){
         inp.addEventListener('input',()=>{settingsName=inp.value;if(settingsNameError){settingsNameError='';limpiarErrorCampo('s-name','s-name-error');}checkSave();});
         inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
-        setTimeout(()=>{inp.focus();inp.select();},100);
+        enfocarEnHoja(inp,()=>inp.select());
       }
     }
   }
@@ -6595,7 +7631,7 @@ function openSettings(){
   function renderModoGrid(){
     const g=document.getElementById('s-modo-grid');if(!g)return;g.innerHTML='';
     // 'sistema' primero: es el default y lo que la mayoría quiere.
-    [['sistema','Sistema','Se adapta a cómo lo tienes configurado'],['claro','Claro',''],['oscuro','Oscuro','']]
+    [['sistema','Sistema','Como tu dispositivo'],['claro','Claro',''],['oscuro','Oscuro','']]
       .forEach(([val,nom,sub])=>{
         const b=document.createElement('button');
         b.type='button';
@@ -6632,7 +7668,10 @@ function openSettings(){
   window.renderFondoGrid=renderFondoGrid;
   function renderSettingsSemGrid(){
     const g=document.getElementById('s-sem-grid');if(!g)return;g.innerHTML='';
-    for(let i=1;i<=11;i++){
+    const total=semestresDeCarrera(settingsTenant,settingsCarrera);
+    if(settingsSem>total)settingsSem=total;
+    repintarAlCargarMallas(settingsTenant,renderSettingsSemGrid);
+    for(let i=1;i<=total;i++){
       const b=document.createElement('button');b.className='sem-btn'+(i===settingsSem?' sel':'');
       b.textContent=i+'°';b.onclick=()=>{settingsSem=i;renderSettingsSemGrid();};g.appendChild(b);
     }
@@ -6667,6 +7706,8 @@ function openSettings(){
   // que hay cuando no tenemos su malla.
   window._sFiltro=v=>{settingsCarreraFiltro=v;renderSettingsCarreraGrid();};
   function renderSettingsCarreraGrid(){
+    // La carrera decide cuántos semestres se ofrecen (12 en Medicina).
+    renderSettingsSemGrid();
     const g=document.getElementById('s-carrera-grid');if(!g)return;g.innerHTML='';
     const q=normName(settingsCarreraFiltro||'');
     const todas=carrerasDeclarables(settingsTenant);
@@ -6687,7 +7728,7 @@ function openSettings(){
       const elegida=c.malla?c.malla===settingsCarrera:(!settingsCarrera&&c.n===settingsCarreraNombre);
       const b=document.createElement('button');
       b.className='carrera-opt'+(elegida?' sel':'');
-      b.innerHTML=esc(c.n)+(mallaCubreTodoElPaso(c.malla)?' <span class="carrera-tiene-malla">tu malla se carga sola</span>':'');
+      b.textContent=c.n;
       b.onclick=()=>{settingsCarrera=c.malla||null;settingsCarreraNombre=c.n;renderSettingsCarreraGrid();};
       g.appendChild(b);
     });
@@ -6867,7 +7908,8 @@ const PERIODOS_SEMESTRE=[
   {id:'2',corto:'2°',nombre:'Segundo semestre'},
   {id:'v',corto:'',nombre:'Temporada de verano'}
 ];
-function nombreVerano(){return S.tenant==='uc'?'TAV':'Verano';}
+// En el onboarding la cuenta todavía no tiene universidad: se pasa la elegida.
+function nombreVerano(tenant=S.tenant){return tenant==='uc'?'TAV':'Verano';}
 function cortoPeriodo(p){return p.id==='v'?nombreVerano():p.corto;}
 
 function etiquetaSemestre(anio,periodo){
@@ -7010,9 +8052,7 @@ function pasoRamosSemestreAnterior(){
   return `
     <div class="modal-title">Agregar un semestre anterior</div>
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin-bottom:14px;">
-      Para que tu promedio de carrera cuente lo que ya cursaste. Elige los ramos y
-      despu\u00e9s pones la nota final de cada uno: no hace falta que te acuerdes de las
-      evaluaciones.
+      Elige los ramos y pon la nota final de cada uno. No necesitas las evaluaciones.
     </p>
     <label class="modal-label">Qu\u00e9 semestre fue</label>
     <div class="sem-picker" id="m-hist-sem">${selectorSemestreHTML(histManual.anio,histManual.periodo,'setAnioSemestreAnterior','setPeriodoSemestreAnterior')}</div>
@@ -7198,7 +8238,7 @@ function abrirImportar(){
     ${hayRespaldoPreImport()?`<p style="text-align:center;margin:14px 0 0;font-size:0.78125rem;">
       <button onclick="deshacerImport()" style="border:none;background:none;padding:0;cursor:pointer;font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;color:var(--primary);">Deshacer la última importación</button></p>`:''}`;
   openModal();
-  setTimeout(()=>document.getElementById('import-text').focus(),100);
+  enfocarEnHoja(document.getElementById('import-text'));
 }
 // Clave del respaldo automático previo a un import. Existe porque importar es
 // la única acción de la app que destruye datos sin posible deshacer: reemplaza
@@ -7376,11 +8416,57 @@ function etiquetarCamposDelModal(raiz){
     lab.setAttribute('for',campo.id);
   });
 }
+// ─── Hojas como en iOS (solo en la app) ─────────────────────────────────────
+// En la app, cada hoja lleva arriba la barra de iOS: cerrar (X) o volver (‹) a
+// la izquierda y la acción principal a la derecha, a la vista aunque la hoja
+// sea larga (HIG, Sheets: Cancel al inicio de la barra, Done al final). No se
+// reescribe ninguna hoja: se mueven a la barra los botones que ya traen, con su
+// onclick y su id. Lo que no es cerrar, volver o confirmar (elegir entre dos,
+// borrar, copiar) se queda abajo, igual que en la web.
+const HOJA_CERRAR=/^(cancelar|cerrar)$/i,HOJA_VOLVER=/^(atrás|volver)$/i;
+const HOJA_CONFIRMAR=/^(guardar|agregar|enviar|marcar|importar|continuar|listo|crear|aplicar|actualizar)\b/i;
+function armarBarraDeHoja(c){
+  if(!c||typeof c.querySelector!=='function'||c.querySelector(':scope > .hoja-barra'))return;
+  const txt=b=>(b.textContent||'').trim();
+  const filas=[...c.querySelectorAll('.modal-btns:not(.agent-proposal-actions)')];
+  const fila=filas[filas.length-1];
+  const enFila=fila?[...fila.querySelectorAll('button')]:[];
+  const cancelar=b=>b.classList.contains('btn-cancel');
+  const izq=c.querySelector('.settings-back')||c.querySelector('.settings-cerrar')
+    ||enFila.find(b=>cancelar(b)&&HOJA_CERRAR.test(txt(b)))||enFila.find(b=>cancelar(b)&&HOJA_VOLVER.test(txt(b)));
+  const confirmables=enFila.filter(b=>b!==izq&&b.classList.contains('btn-confirm')&&HOJA_CONFIRMAR.test(txt(b)));
+  const der=c.querySelector('.settings-save')||(confirmables.length===1?confirmables[0]:null);
+  if(!izq&&!der)return;
+  const barra=document.createElement('div');barra.className='hoja-barra';
+  [izq,der].forEach((b,i)=>{
+    const lado=document.createElement('div');lado.className=i?'hoja-barra-der':'hoja-barra-izq';
+    if(b){
+      // Un botón de envío fuera de su <form> deja de enviarlo: se le dice cuál es.
+      const form=b.form;
+      if(form&&b.type==='submit'){if(!form.id)form.id='hoja-form';b.setAttribute('form',form.id);}
+      if(i)b.classList.add('hoja-confirmar');
+      else{
+        b.classList.add(b.classList.contains('settings-back')||HOJA_VOLVER.test(txt(b))?'hoja-volver':'hoja-cerrar');
+        if(!b.getAttribute('aria-label'))b.setAttribute('aria-label',txt(b));
+      }
+      lado.appendChild(b);
+    }
+    barra.appendChild(lado);
+  });
+  c.prepend(barra);
+  if(fila&&!fila.querySelector('button'))fila.remove();
+}
+try{
+  const contenido=document.getElementById('modal-content');
+  if(contenido&&typeof MutationObserver==='function'&&document.documentElement.classList.contains('app-nativa'))
+    new MutationObserver(()=>armarBarraDeHoja(contenido)).observe(contenido,{childList:true});
+}catch(e){}
 let _quienAbrioModal=null;
 
 function openModal(){
   const ov=document.getElementById('modal');
-  _quienAbrioModal=document.activeElement;
+  // Cambiar una hoja ya abierta conserva el punto de regreso original.
+  if(!ov.classList.contains('open'))_quienAbrioModal=document.activeElement;
   ov.classList.add('open');
   const sheet=document.querySelector('.modal-sheet');
   const contenido=document.getElementById('modal-content');
@@ -7403,6 +8489,26 @@ function openModal(){
 // quitar `.open` basta para que el sheet baje y recién ahí desaparezca.
 // La versión anterior de este arreglo llevaba una clase `.cerrando` y un
 // `transitionend`; sobraba entera.
+// El campo que una hoja enfoca al abrirse. En la app espera a que la hoja
+// termine de subir y no desplaza la página: si el foco llegaba antes, WebKit
+// corría todo hacia arriba para mostrar un campo que todavía venía subiendo, y
+// la hoja quedaba bajo la barra de estado, con el botón de cerrar fuera de la
+// vista. En la web sigue como siempre.
+function enfocarEnHoja(el,despues){
+  if(!el)return;
+  const ir=()=>{
+    if(!el.isConnected)return;
+    if(enAppNativa()){try{el.focus({preventScroll:true});}catch(e){el.focus();}}
+    else el.focus();
+    if(despues)despues();
+  };
+  // Solo se espera si la hoja está subiendo (recién abierta); dentro de una
+  // hoja ya abierta, como Ajustes, el foco llega como antes.
+  const hoja=enAppNativa()&&document.querySelector('#modal.open .modal-sheet');
+  const dura=hoja?parseFloat(getComputedStyle(hoja).transitionDuration)*1000||0:0;
+  const subiendo=!!(hoja&&hoja.getAnimations&&hoja.getAnimations().length);
+  setTimeout(ir,subiendo?Math.max(100,dura):100);
+}
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
   // En el carrusel de pestañas el documento nunca se desplaza: cada pantalla
@@ -7479,6 +8585,22 @@ document.addEventListener('keydown',e=>{
   el.click();
 });
 
+// Una hoja abierta conserva el recorrido del teclado dentro de sus controles.
+// La confirmación de encima tiene su propio recorrido y toma la prioridad.
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Tab')return;
+  const modal=document.getElementById('modal');
+  const confirmacion=document.getElementById('confirm-overlay');
+  if(!modal.classList.contains('open')||confirmacion.classList.contains('open'))return;
+  const controles=[...modal.querySelectorAll('button,input,select,textarea,a[href],[tabindex]')]
+    .filter(el=>!el.disabled&&el.tabIndex>=0&&el.getClientRects().length);
+  const i=controles.indexOf(document.activeElement);
+  if(controles.length&&(i<0||(e.shiftKey?i===0:i===controles.length-1))){
+    e.preventDefault();
+    controles[e.shiftKey?controles.length-1:0].focus({preventScroll:true});
+  }
+});
+
 // Enter o Tab en una casilla de nota guarda y salta a la siguiente (Shift+Tab,
 // a la anterior). Guardar repinta la ficha entera (renderRamo) y el foco caía
 // al body: quien llenaba varias notas seguidas tenía que volver a tocar cada
@@ -7496,34 +8618,59 @@ document.addEventListener('keydown',e=>{
   if(sig){sig.focus();sig.select();}
 });
 document.addEventListener('keydown',e=>{
+  const conf=document.getElementById('confirm-overlay');
+  if(e.key==='Tab'&&conf.classList.contains('open')){
+    const botones=[...conf.querySelectorAll('button:not(:disabled)')];
+    const i=botones.indexOf(document.activeElement);
+    if(botones.length&&(i<0||(e.shiftKey?i===0:i===botones.length-1))){
+      e.preventDefault();
+      botones[e.shiftKey?botones.length-1:0].focus({preventScroll:true});
+    }
+    return;
+  }
   if(e.key!=='Escape')return;
-  if(document.getElementById('confirm-overlay').classList.contains('open'))closeConfirm();
+  if(conf.classList.contains('open'))closeConfirm();
   else if(document.getElementById('modal').classList.contains('open'))closeModal();
 });
 
 let _confirmFn=null;
+let _quienAbrioConfirm=null,_focoConfirmTimer=null;
 function showConfirm(title,desc,fn,opts){
   opts=opts||{};
+  const overlay=document.getElementById('confirm-overlay');
+  if(!overlay.classList.contains('open'))_quienAbrioConfirm=document.activeElement;
+  clearTimeout(_focoConfirmTimer);
   document.getElementById('confirm-title').textContent=title;
   document.getElementById('confirm-desc').textContent=desc;
   _confirmFn=fn;
   const btn=document.getElementById('confirm-action');
   btn.textContent=opts.label||'Eliminar';
   btn.className=opts.danger===false?'btn-prim-sm':'btn-danger';
+  const borra=opts.danger!==false;
   btn.onclick=()=>{
+    if(borra&&typeof vibrar==='function')vibrar('borrar');
     const confirmar=_confirmFn;
     closeConfirm();
     if(confirmar)confirmar();
   };
   const btns=btn.parentElement;
   btns.style.flexDirection=opts.actionFirst?'row-reverse':'row';
-  document.getElementById('confirm-overlay').classList.add('open');
-  setTimeout(()=>{
+  overlay.classList.add('open');
+  _focoConfirmTimer=setTimeout(()=>{
+    _focoConfirmTimer=null;
+    if(!overlay.classList.contains('open'))return;
     const cancelar=btns.querySelector('.btn-cancel-sm');
     (opts.focusCancel&&cancelar?cancelar:btn).focus();
   },50);
 }
-function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('open');}
+function closeConfirm(){
+  clearTimeout(_focoConfirmTimer);_focoConfirmTimer=null;
+  document.getElementById('confirm-overlay').classList.remove('open');
+  const volver=_quienAbrioConfirm;_quienAbrioConfirm=null;
+  if(volver&&volver.isConnected&&!volver.disabled&&volver!==document.body&&typeof volver.focus==='function'){
+    try{volver.focus({preventScroll:true});}catch(e){volver.focus();}
+  }
+}
 
 // Cobertura real del semestre: contar notas no dice cuánto del ramo ya está
 // decidido. Esta métrica usa las ponderaciones de las evaluaciones rendidas.
@@ -7676,6 +8823,9 @@ function confirmEditRamo(){
   r.nombre=name;r.color=modalColor;
   r.creditos=parseCreditos((document.getElementById('m-ramo-creditos')||{}).value);
   r.seccion=seccion;
+  // Las fechas de la sección (los controles de Dinámica, por ejemplo) se
+  // ven al tiro, sin esperar a la próxima carga.
+  completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});
   // Apagarlo no borra la cuenta: si se vuelve a encender, sigue donde estaba.
   if(conFaltas)r.faltas={activo:true,cantidad:r.faltas?r.faltas.cantidad:0,limite:limiteFaltas};
   else if(r.faltas)r.faltas={...r.faltas,activo:false};
@@ -7962,7 +9112,7 @@ function openEditNotaModal(catId,notaId){
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-nota-name').focus(),100);
+  enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
 }
 function confirmEditNota(catId,notaId){
@@ -7981,10 +9131,11 @@ function confirmEditNota(catId,notaId){
   const n=cat.notas.find(x=>x.id===notaId);
   n.nombre=name;n.peso=peso;
   if(isNaN(val)){n.valor=null;delete n.calificacionConceptual;}
-  else asignarCalificacionNota(n,rawNota,Math.round(val*10)/10);
+  else asignarCalificacionNota(n,rawNota,val);
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
+  if(!isNaN(val))vibrar('nota');
   if(typeof renderAgenda==='function')renderAgenda();
   showToast(isNaN(val)?'Guardada como pendiente':lecturaDespuesDeNota(r));
 }
@@ -8023,7 +9174,7 @@ function openCalculadoraModal(){
       <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
     </div>`;
   openModal();
-  setTimeout(()=>document.getElementById('m-calc-target').focus(),100);
+  enfocarEnHoja(document.getElementById('m-calc-target'));
 
   window.calcResult=function(){
     const target=parseNota(document.getElementById('m-calc-target').value);
@@ -8049,7 +9200,11 @@ function openCalculadoraModal(){
         const oficial=notaFinalOficial(avg),metaOficial=notaFinalOficial(target);
         const ok=oficial>=metaOficial;
         el.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'}">Tu promedio actual es <b>${fmtPromedio(avg)}</b> — ${ok?'ya lo lograste.':`te faltan ${(metaOficial-oficial).toFixed(1)} puntos y no quedan evaluaciones.`}</span>`;
-      } else {el.innerHTML=`<span style="color:var(--fg3)">No hay notas ingresadas aún.</span>`;}
+      } else {el.innerHTML=`<span style="color:var(--fg3)">${esc(motivoCalculoPendiente(r)||'No hay notas ingresadas aún.')}</span>`;}
+      return;
+    }
+    if(notaNecesariaCondicional(r)&&needed<=7){
+      el.innerHTML=`<div>Con <b>${nfNecesaria(needed)}</b> en cada evaluación pendiente llegas a ${target.toFixed(1)}.<p class="modal-desc">Cambiar una nota puede activar otra fórmula del programa. Comprueba tus escenarios en el simulador.</p></div>`;
       return;
     }
     const metaCalculada=resumenMetaCalculadora(needed);
@@ -8095,7 +9250,7 @@ function openSimGlobalModal(){
   simGlobalState={};
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Simular el semestre</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:16px;line-height:1.5;">Ajusta la nota final de cada ramo y mira cómo queda tu promedio general. Puedes escribirla directo. Nada de esto se guarda.</p>
+    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:16px;line-height:1.5;">Cambia la nota final de cada ramo y mira tu promedio. No se guarda.</p>
     <div class="simg-hero">
       <div class="simg-hero-label">Promedio proyectado</div>
       <div class="simg-hero-num" id="simg-avg">—</div>
@@ -8144,8 +9299,10 @@ function simGlobalStep(ramoId,delta){
 // escala después de eso pasa al clamp — que se queda, porque escribir "9" es
 // querer el máximo, no querer nada, y eso ya estaba decidido.
 function simGlobalDesdeTexto(raw){
+  // El simulador del semestre va en décimas (sus botones suben de a 0,1), aunque
+  // una nota real admita centésimas.
   const n=parseNota(raw);
-  if(!isNaN(n))return n;
+  if(!isNaN(n))return simGlobalNormaliza(n);
   return simGlobalNormaliza(parseFloat(String(raw).replace(',','.')));
 }
 function simGlobalSet(ramoId,raw){
@@ -8266,7 +9423,10 @@ function openSimuladorModal(){
     <p class="sim-intro">Agrega notas hipotéticas y mira cómo quedaría tu promedio. No se guardan hasta que confirmes.</p>
     <div class="sim-proj">
       <div class="sim-proj-label">Promedio proyectado</div>
-      <div class="sim-proj-num" id="sim-avg">—</div>
+      <div class="sim-proj-nums">
+        <div class="sim-proj-num" id="sim-avg">—</div>
+        <div class="solo-parte" id="sim-solo-parte" hidden></div>
+      </div>
       <div id="sim-delta"></div>
       <div class="sim-needed" id="sim-needed" aria-live="polite" hidden></div>
     </div>
@@ -8278,6 +9438,7 @@ function openSimuladorModal(){
     </div>`;
   openModal();
   renderSimulador();
+  precargarSensacion(r);
 }
 
 // Combina notas reales (con su peso) + hipotéticas (peso 1) de una categoría
@@ -8357,9 +9518,14 @@ function simNotaNecesaria(proyectado){
   const peso=(proyectado.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
   if(Math.abs(peso-100)>0.05)return {texto:'Completa la pauta para calcularlo'};
   const calculo=calculoRamoConCompuertas(proyectado);
-  if(!calculo.res.emptyLeaves.length)return null;
+  const motivo=motivoCalculoPendiente(proyectado);
+  if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
+  if(!calculo.res.emptyLeaves.length&&!notaNecesariaCondicional(proyectado))return null;
 
-  const necesaria=notaNecesaria(proyectado,meta);
+  const vinculo=partesDelVinculo(proyectado);
+  // En un ramo con laboratorio, lo que falta es para la cátedra sola.
+  const necesaria=notaNecesaria(proyectado,meta,vinculo?{soloPropio:true}:null);
+  const deCatedra=vinculo?' de cátedra':'';
   const nodos=new Map((calculo.estructura.children||[]).map(c=>[c.id,c]));
   const compuertas=(proyectado.gates||[]).map(g=>{
     const activa=gatesActivas({...proyectado,gates:[g]})[0]||null;
@@ -8374,7 +9540,7 @@ function simNotaNecesaria(proyectado){
   if(bloqueante)return {texto:'Con esto ya no alcanzas el 4,0',
     detalle:`${bloqueante.activa.nombre} está bajo el mínimo de ${simConComa(fmtPromedio(bloqueante.activa.min))} y topa la nota.`};
   if(necesaria===null)return null;
-  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:'Con esto ya no alcanzas el 4,0'};
+  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el 4,0${deCatedra}`};
 
   const pendientes=compuertas.filter(x=>x.pendiente);
   const condiciones=pendientes.map(x=>{
@@ -8382,10 +9548,13 @@ function simNotaNecesaria(proyectado){
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
     return `Además, ${nombre} debe llegar a ${simConComa(fmtPromedio(x.g.min))} para cumplir su mínimo.`;
   }).join(' ');
+  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas al 4,0`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
-    ?{texto:'El promedio ponderado ya alcanza el 4,0',detalle:condiciones}
-    :{texto:'Ya tienes el 4,0 asegurado'};
-  return {texto:`Para el 4,0 necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
+    ?{texto:`El promedio ponderado ya alcanza el 4,0${deCatedra}`,detalle:condiciones}
+    :{texto:`Ya tienes el 4,0${deCatedra} asegurado`};
+  return {texto:vinculo
+    ?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`
+    :`Para el 4,0 necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
 }
 
 function renderSimulador(){
@@ -8401,7 +9570,7 @@ function renderSimulador(){
 
   const deltaEl=document.getElementById('sim-delta');
   // ¿La proyección quedó topada por un piso de nota? Avisar el porqué.
-  const gateHit=(r.gates||[]).find(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);if(!c)return false;const a=avgPond(simCombinadas(c));return a!==null&&a<g.min;});
+  const gateHit=(r.gates||[]).find(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);if(!c)return false;const a=avgPond(simCombinadas(c));return a!==null&&!gh_cumpleCompuerta(a,g);});
   if(gateHit&&proj!==null){
     deltaEl.className='sim-delta down';
     deltaEl.textContent=`${gateHit.nombre} bajo ${simConComa(gateHit.min.toFixed(1))}: la nota queda topada en ${simConComa(gateHit.cap.toFixed(1))}`;
@@ -8424,6 +9593,11 @@ function renderSimulador(){
     neededEl.hidden=!necesaria;
     neededEl.textContent=necesaria?[necesaria.texto,necesaria.detalle].filter(Boolean).join(' '):'';
   }
+  const soloEl=document.getElementById('sim-solo-parte');
+  if(soloEl){
+    const html=htmlSoloCatedra(proyectado,{fmt:simConComa});
+    soloEl.hidden=!html;soloEl.innerHTML=html;
+  }
 
   const cb=document.getElementById('sim-commit-btn');if(cb)cb.disabled=!hasSim;
 
@@ -8445,7 +9619,7 @@ function renderSimulador(){
     return `
       <div class="sim-cat">
         <div class="sim-cat-head">
-          <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${c.peso}% del ramo</div></div>
+          <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${r2(c.peso)}% del ramo</div></div>
           <div class="sim-cat-avg" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
         </div>
         ${(realChips||hypChips)?`<div class="sim-chips">${realChips}${hypChips}</div>`:''}
@@ -8588,8 +9762,13 @@ function mostRiskyRamo(){
 // Progreso del ramo: % de peso evaluado
 function ramoProgress(r){
   const categorias=categoriasVigentes(r);
-  const total=categorias.reduce((s,c)=>s+c.peso,0);
-  if(total<=0)return {pct:0,pending:0,total:0};
+  const pesoDeclarado=(r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
+  if(pesoDeclarado<=0)return {pct:0,pending:0,total:0};
+  const pesoVigente=categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  // La parte todavía sin pauta sigue pendiente. Una eximición, en cambio,
+  // cubre el peso de esa categoría sin necesitar una nota.
+  const total=Math.max(100,pesoDeclarado);
+  const pesoEximido=pesoDeclarado-pesoVigente;
   let done=0;
   categorias.forEach(c=>{
     // Una categoría con casillas fijas se evalúa proporcionalmente: una de
@@ -8605,6 +9784,7 @@ function ramoProgress(r){
       : notas.filter(n=>typeof n.valor==='number').length;
     done+=c.peso*Math.min(1,evaluadas/objetivo);
   });
+  done+=pesoEximido;
   return {pct:Math.round(done/total*100),pending:total-done,total};
 }
 function ramoRecienCerrado(anterior,actual){return Number.isFinite(anterior)&&anterior<100&&actual===100;}
@@ -8628,9 +9808,11 @@ function pesoEventoAgenda(e){
   return peso*seleccion.reduce((s,h)=>s+h.weight,0)/total;
 }
 
-function agendaEvents(){
+// Sin argumento, los ramos de la persona. El panel del profesor le pasa los
+// ramos que un alumno le compartió, para usar exactamente la misma regla.
+function agendaEvents(ramos){
   const out=[];
-  S.ramos.forEach(r=>{
+  (ramos||S.ramos).forEach(r=>{
     r.categorias.forEach(c=>{
       if(categoriaEximida(r,c))return;
       // Las notas con fecha propia son evaluaciones sueltas dentro del grupo:
@@ -8646,9 +9828,17 @@ function agendaEvents(){
         });
       });
       if(!c.fecha)return;
-      const conFechaPropia=(c.notas||[]).filter(n=>n.fecha).length;
-      const notasCount=(c.notas||[]).length-conFechaPropia;
-      const targetCount=c.slots||1;
+      const propias=(c.notas||[]).filter(n=>n.fecha);
+      const conFechaPropia=propias.length;
+      // Solo cuenta lo rendido, por casilla. Tocar una casilla y cancelar deja
+      // una nota vacía guardada (abrirCasilla), y "Guardada como pendiente"
+      // también: contarlas daba la evaluación por rendida y desaparecía de la
+      // Agenda y de "Próxima evaluación" sin tener nota. Y la fecha del grupo
+      // solo cubre las casillas sin fecha propia: esas son eventos aparte.
+      const casillas=Number.isInteger(c.slots)&&c.slots>1;
+      const rendidas=(c.notas||[]).filter(n=>!n.fecha&&typeof n.valor==='number');
+      const notasCount=casillas?new Set(rendidas.map(n=>Number.isInteger(n.slot)?n.slot:n.id)).size:rendidas.length;
+      const targetCount=casillas?Math.max(1,c.slots-new Set(propias.filter(n=>Number.isInteger(n.slot)).map(n=>n.slot)).size):1;
       const pending=notasCount<targetCount;
       // Si TODAS las notas del grupo tienen su propia fecha, la del grupo ya no
       // aporta: mostrarla duplicaría lo mismo en otro día.
@@ -8661,6 +9851,387 @@ function agendaEvents(){
   });
   out.sort((a,b)=>a.fecha.localeCompare(b.fecha)||(a.hora||'').localeCompare(b.hora||''));
   return out;
+}
+// ─── WIDGETS DE LA APP iOS (#634) ──────────────────────────────────────────
+// Los widgets no calculan: la app arma un resumen con las mismas funciones que
+// usa la interfaz (notaFinalOficial, nivelRamo, notaNecesaria, nfNecesaria) y
+// lo entrega al lado nativo, que lo guarda para que los widgets lo muestren.
+// En la web (fuera de la app) no hay plugin y nada de esto corre.
+const WIDGETS_VERSION=1;
+// Cuánto necesitas en ESTA evaluación para ir con 4 después de rendirla: lo
+// ya evaluado más ella, sin suponer nada de lo que viene después (decisión de
+// Lucas, 2026-10-08). Si es la última del ramo, es la nota para cerrarlo con 4.
+// Se calcula con el motor de siempre (ramoAvg, compuertas, aprobación del ramo)
+// sobre una copia con la nota hipotética; nada de esto toca S.
+function ramoConNotaHipotetica(r,e,x){
+  const copia=JSON.parse(JSON.stringify(r));
+  const cat=(copia.categorias||[]).find(k=>k.id===e.cat.id);if(!cat)return null;
+  cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+  if(e.nota){
+    const n=cat.notas.find(k=>k.id===e.nota.id);if(!n)return null;
+    n.valor=x;return copia;
+  }
+  if(Number.isInteger(cat.slots)&&cat.slots>1){
+    // Un evento de la categoría cubre sus casillas que no tienen fecha propia.
+    const ocupadas=new Set(cat.notas.filter(n=>Number.isInteger(n.slot)).map(n=>n.slot));
+    for(let i=0;i<cat.slots;i++)if(!ocupadas.has(i))cat.notas.push({id:'hipotetica'+i,nombre:cat.nombre,peso:1,valor:x,slot:i});
+    return copia;
+  }
+  if(cat.notas.some(n=>typeof n.valor==='number'))return null;
+  cat.notas.push({id:'hipotetica',nombre:cat.nombre,peso:1,valor:x});
+  return copia;
+}
+// `ramosContexto` son los ramos donde buscar el vinculado (el laboratorio de
+// Dinámica); sin él, los de la persona. El panel del profesor pasa los del alumno.
+function notaParaIrConCuatro(e,ramosContexto){
+  const aprueba=decimas=>{
+    const r=ramoConNotaHipotetica(e.ramo,e,decimas/10);if(!r)return null;
+    const v=ramoAvg(r,undefined,ramosContexto);return v===null?null:notaAprobadaRamo(r,v);
+  };
+  const conUno=aprueba(10),conSiete=aprueba(70);
+  if(conUno===null||conSiete===null)return null;
+  if(conUno)return {margen:true};
+  if(!conSiete)return {inalcanzable:true};
+  let bajo=10,alto=70;
+  while(alto-bajo>1){const m=(bajo+alto)>>1;if(aprueba(m))alto=m;else bajo=m;}
+  return {nota:(alto/10).toFixed(1)};
+}
+// Lo que hay que hacer, en orden de urgencia (#639): lo de hoy o mañana, mandar
+// a recorregir, lo que ya pasó sin nota y lo que no tiene fecha. Se deriva de
+// lo que ya existe y no guarda nada. `ahora` se inyecta en los tests.
+function pendientes(ahora){
+  ahora=ahora||new Date();
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const m=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+1);
+  const manana=isoOf(m.getFullYear(),m.getMonth(),m.getDate());
+  // El mismo nombre que usa la Agenda para cada casilla.
+  const item=(tipo,ramo,cat,nota,fecha,hora)=>({tipo,ramo,cat,nota:nota||null,fecha:fecha||null,hora:hora||null,
+    nombre:(nota&&nombreNotaCasilla(ramo,cat,nota))||cat.nombre});
+  const fechadas=agendaEvents().filter(e=>e.pending&&e.fecha<=manana);
+  return [
+    ...fechadas.filter(e=>e.fecha>=hoy).map(e=>item('hoy',e.ramo,e.cat,e.nota,e.fecha,e.hora)),
+    ...recorreccionesPendientes().map(x=>item('recorregir',x.ramo,x.cat,x.nota,x.plazo&&x.plazo.fecha)),
+    ...fechadas.filter(e=>e.fecha<hoy).map(e=>item('sin-nota',e.ramo,e.cat,e.nota,e.fecha)),
+    ...agendaSinFecha().map(x=>item('sin-fecha',x.ramo,x.cat)),
+  ];
+}
+function resumenParaWidgets(ahora){
+  ahora=ahora||new Date();
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const sigla=r=>(typeof siglaDeRamo==='function'?siglaDeRamo(r):null)||null;
+  const g=gpa(S.ramos);
+  const ramos=S.ramos.map(r=>{
+    const v=ramoAvg(r);
+    return {id:r.id,nombre:r.nombre,color:r.color||null,promedio:v===null?null:notaFinalOficial(v),nivel:v===null?null:nivelRamo(r,v)};
+  });
+  // Lo de hoy o mañana no va: el widget lo saca de la agenda, que sabe la hora.
+  const tareas=pendientes(ahora).filter(p=>p.tipo!=='hoy').slice(0,12).map(p=>({tipo:p.tipo,ramoId:p.ramo.id,ramo:p.ramo.nombre,
+    sigla:sigla(p.ramo),color:p.ramo.color||null,evaluacion:p.nombre,fecha:p.fecha}));
+  // Las mismas cifras de Estadísticas (renderStats), escritas como allá.
+  const proy=proyeccionSemestre(S.ramos),exige=loQueFaltaPorRamo(S.ramos)[0];
+  const estadisticas={avance:avanceEvaluaciones(S.ramos).pct,
+    rango:proy&&{piso:nf(proy.piso),techo:nf(proy.techo),nivelPiso:nivelNota(proy.piso),nivelTecho:nivelNota(proy.techo)},
+    exigente:exige?{ramoId:exige.ramo.id,ramo:exige.ramo.nombre,color:exige.ramo.color||null,
+      necesitas:exige.necesita>7.05?null:nfNecesaria(Math.max(1,exige.necesita))}:null};
+  const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
+    const cuatro=notaParaIrConCuatro(e)||{};
+    return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,
+      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
+      // En esta evaluación, para ir con 4 después de rendirla (ver notaParaIrConCuatro).
+      necesitas:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable,
+      // Cuánto del ramo define, igual que en la Agenda. Si no es fijo (se descarta
+      // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
+      parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
+  });
+  return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
+    promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda,pendientes:tareas,estadisticas};
+}
+let _pluginWidgets,_widgetsTimer=null;
+function pluginWidgets(){
+  if(_pluginWidgets!==undefined)return _pluginWidgets;
+  const cap=typeof window!=='undefined'?window.Capacitor:null;
+  const nativa=!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
+  // La app no carga @capacitor/core (no hay build), así que no hay registerPlugin:
+  // el puente nativo deja cada plugin registrado en Capacitor.Plugins.
+  try{_pluginWidgets=!nativa?null:(cap.Plugins&&cap.Plugins.GradeHubWidgets)
+    ||(typeof cap.registerPlugin==='function'?cap.registerPlugin('GradeHubWidgets'):null);}
+  catch(e){_pluginWidgets=null;}
+  return _pluginWidgets;
+}
+// Se agrupan los guardados seguidos (escribir varias notas) en un solo envío.
+function publicarResumenWidgets(){
+  // Una cuenta convertida puede dejar widgets antiguos en este iPhone.
+  if(esCuentaProfesor()){borrarResumenWidgets();return;}
+  const p=pluginWidgets();if(!p)return;
+  clearTimeout(_widgetsTimer);
+  _widgetsTimer=setTimeout(()=>{
+    try{
+      const pedido=S.onboardingDone?p.guardarResumen({json:JSON.stringify(resumenParaWidgets())}):p.borrarResumen();
+      if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});
+    }catch(e){}
+    // Después del aviso de "nota agregada", no encima.
+    const reveladas=S.onboardingDone?revisarOlfato():[];
+    if(reveladas.length)setTimeout(()=>showToast(textoRevelacion(reveladas[reveladas.length-1])),2200);
+    programarAvisosPruebas();
+    sincronizarActividadesPrueba();
+  },400);
+}
+// Al cerrar sesión no pueden quedar notas de esa cuenta en la pantalla de inicio.
+function borrarResumenWidgets(){
+  const p=pluginWidgets();if(!p)return;
+  clearTimeout(_widgetsTimer);
+  try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
+  // Ni avisos ni tarjetas de la cuenta que salió.
+  try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  const ln=pluginNotificaciones();
+  if(ln)Promise.resolve(ln.getPending()).then(r=>{const ids=((r&&r.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba').map(n=>({id:n.id}));
+    return ids.length?ln.cancel({notifications:ids}):null;}).catch(()=>{});
+}
+// Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
+// ://agenda, ://estadisticas o ://inicio. Un ramo que ya no existe deja en Inicio.
+function abrirEnlaceWidget(url){
+  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  // Una cuenta de profesor no tiene ramos ni widgets de estudiante.
+  if(!m||!S.onboardingDone||esCuentaProfesor())return false;
+  if(m[1]==='agenda'){showTab('agenda');return true;}
+  if(m[1]==='estadisticas'){showTab('stats');return true;}
+  if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
+    openRamo(m[2]);
+    // "¿Cómo crees que te fue?" abre el simulador del ramo.
+    if(m[1]==='simular'){
+      setTimeout(()=>{if(typeof openSimuladorModal==='function')openSimuladorModal();},320);
+      // Si la respuesta de la Actividad llega después de abrir el simulador, se precarga igual.
+      Promise.resolve(recogerSensaciones()).then(n=>{
+        if(n&&currentRamoId===m[2]&&document.getElementById('sim-cats')&&!Object.values(simState).some(a=>a&&a.length))
+          precargarSensacion(S.ramos.find(r=>r.id===m[2]));
+      });
+    }
+    return true;
+  }
+  showTab('home');return m[1]==='inicio';
+}
+// ─── AVISOS ANTES DE UNA EVALUACIÓN (app iOS, #645) ─────────────────────────
+// Versión sin servidor. Para cada evaluación pendiente CON HORA: notificaciones
+// locales de cada fase (repaso, baño y agua, caminar a la sala, cómo te fue) y
+// la Actividad en Vivo desde 6 horas antes, con el riel de fases y "¿cómo te fue?".
+// Es opt-in y vale por dispositivo: la preferencia no entra a S ni a la nube.
+// Sin hora no hay a partir de cuándo contar, así que no se avisa nada.
+const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
+const DURACION_PRUEBA_MIN=120;
+const AVISOS_PRUEBA_MAX=60; // iOS guarda hasta 64 notificaciones pendientes por app
+function pluginNotificaciones(){
+  if(!pluginWidgets())return null;
+  const cap=window.Capacitor;
+  return cap&&cap.Plugins&&cap.Plugins.LocalNotifications||null;
+}
+function avisosPruebasDisponibles(){return !!pluginNotificaciones();}
+function avisosPruebasActivos(){try{return localStorage.getItem(CLAVE_AVISOS_PRUEBAS)==='1';}catch(e){return false;}}
+function fechaHoraLocal(fecha,hora){
+  const f=/^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha||''),h=/^(\d{1,2}):(\d{2})$/.exec(hora||'');
+  return f&&h?new Date(+f[1],+f[2]-1,+f[3],+h[1],+h[2]):null;
+}
+function horaDe(d){return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function pruebasConHora(ahora,dias){
+  ahora=ahora||new Date();
+  const limite=ahora.getTime()+dias*864e5;
+  return agendaEvents().filter(e=>e.pending&&e.hora).map(e=>{
+    const inicio=fechaHoraLocal(e.fecha,e.hora);
+    if(!inicio)return null;
+    return {clave:[e.ramo.id,e.cat.id,e.nota?e.nota.id:'',e.fecha].join('|'),ramoId:e.ramo.id,ramo:e.ramo.nombre,
+      sigla:(typeof siglaDeRamo==='function'?siglaDeRamo(e.ramo):null)||null,color:e.ramo.color||null,
+      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,sala:null,
+      inicio,fin:new Date(inicio.getTime()+DURACION_PRUEBA_MIN*6e4)};
+  }).filter(p=>p&&p.fin.getTime()>ahora.getTime()&&p.inicio.getTime()<=limite);
+}
+function idAvisoPrueba(clave,fase){
+  let h=5381;for(const c of clave)h=((h*33)^c.charCodeAt(0))>>>0;
+  return (h%200000000)*4+fase+1;
+}
+// Los textos de cada fase. Tono de compañero (AGENTS.md); los decide Lucas.
+function avisosDePrueba(p,ahora){
+  const lugar=p.sala?`la sala ${p.sala}`:'tu sala';
+  return [
+    [30,'Último repaso',`${p.evaluacion} de ${p.ramo} empieza en 30 minutos.`,'ramo'],
+    [15,'Anda al baño y llena tu botella de agua',`${p.evaluacion} empieza en 15 minutos.`,'ramo'],
+    [10,`Camina a ${lugar}`,`${p.evaluacion} de ${p.ramo} a las ${horaDe(p.inicio)}.`,'ramo'],
+    [-DURACION_PRUEBA_MIN,'¿Cómo crees que te fue?',`${p.evaluacion} de ${p.ramo}. Toca para simular tu nota.`,'simular'],
+  ].map(([antes,titulo,cuerpo,destino],fase)=>({id:idAvisoPrueba(p.clave,fase),at:new Date(p.inicio.getTime()-antes*6e4),
+    titulo,cuerpo,url:`cl.gradehub.app://${destino}/${p.ramoId}`}))
+   .filter(a=>a.at.getTime()>(ahora||new Date()).getTime());
+}
+async function programarAvisosPruebas(ahora){
+  if(esCuentaProfesor())return 0;
+  const ln=pluginNotificaciones();if(!ln)return 0;
+  try{
+    const pendientes=await ln.getPending();
+    const nuestras=((pendientes&&pendientes.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba');
+    if(nuestras.length)await ln.cancel({notifications:nuestras.map(n=>({id:n.id}))});
+    if(!avisosPruebasActivos()||!S.onboardingDone)return 0;
+    const permiso=await ln.checkPermissions();
+    if(!permiso||permiso.display!=='granted')return 0;
+    const lista=pruebasConHora(ahora,14).flatMap(p=>avisosDePrueba(p,ahora))
+      .sort((a,b)=>a.at-b.at).slice(0,AVISOS_PRUEBA_MAX);
+    if(lista.length)await ln.schedule({notifications:lista.map(a=>({id:a.id,title:a.titulo,body:a.cuerpo,
+      schedule:{at:a.at},extra:{gradehub:'prueba',url:a.url}}))});
+    return lista.length;
+  }catch(e){return 0;}
+}
+// iOS mantiene viva una Actividad hasta 8 horas: 6 antes de la prueba y las 2
+// que dura. Las próximas se mandan con su hora de partida (`desde`); desde
+// iOS 26 el teléfono las deja programadas y aparecen solas, con la app cerrada.
+const HORAS_ACTIVIDAD_ANTES=6,ACTIVIDADES_MAX=3;
+function sincronizarActividadesPrueba(ahora){
+  if(esCuentaProfesor())return;
+  const p=pluginWidgets();if(!p||typeof p.sincronizarActividades!=='function')return;
+  ahora=ahora||new Date();
+  const vigentes=avisosPruebasActivos()&&S.onboardingDone?pruebasConHora(ahora,3).slice(0,ACTIVIDADES_MAX):[];
+  try{
+    const r=p.sincronizarActividades({actividades:vigentes.map(x=>({clave:x.clave,ramoId:x.ramoId,ramo:x.ramo,sigla:x.sigla,
+      color:x.color,evaluacion:x.evaluacion,sala:x.sala,inicio:x.inicio.getTime(),fin:x.fin.getTime(),
+      desde:x.inicio.getTime()-HORAS_ACTIVIDAD_ANTES*36e5}))});
+    if(r&&typeof r.catch==='function')r.catch(()=>{});
+  }catch(e){}
+}
+// "¿Cómo te fue?" se responde tocando la Actividad en Vivo, con la app cerrada:
+// el iPhone lo deja en el App Group y acá se recoge. Es una sensación, no una
+// nota: vive solo en este dispositivo (fuera de S y de la nube) y sirve para
+// abrir el simulador con una nota de partida que la persona cambia si quiere.
+const CLAVE_SENSACIONES='gradehub_sensaciones';
+const SENSACIONES=[
+  {valor:1,texto:'Muy mal',nota:'2,5'},{valor:2,texto:'Mal',nota:'3,5'},{valor:3,texto:'Normal',nota:'4,5'},
+  {valor:4,texto:'Bien',nota:'5,5'},{valor:5,texto:'Muy bien',nota:'6,5'}];
+function sensacionesGuardadas(){
+  try{const o=JSON.parse(localStorage.getItem(CLAVE_SENSACIONES)||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{};}
+  catch(e){return {};}
+}
+async function recogerSensaciones(){
+  const p=pluginWidgets();if(!p||typeof p.leerSensaciones!=='function')return 0;
+  try{
+    const r=await p.leerSensaciones();
+    const nuevas=(r&&Array.isArray(r.sensaciones)?r.sensaciones:[])
+      .filter(x=>x&&typeof x.clave==='string'&&SENSACIONES.some(s=>s.valor===x.valor));
+    if(!nuevas.length)return 0;
+    const todas=sensacionesGuardadas(),limite=Date.now()-30*864e5;
+    nuevas.forEach(x=>{
+      const [ramoId,catId]=x.clave.split('|');
+      const r=S.ramos.find(y=>y.id===ramoId),cat=r&&(r.categorias||[]).find(c=>c.id===catId);
+      todas[x.clave]={valor:x.valor,fecha:Number(x.fecha)||Date.now(),previas:cat?notasConValor(cat).map(n=>n.id):[]};
+      track('sensacion_respondida');
+    });
+    Object.keys(todas).forEach(k=>{if(!(todas[k].fecha>limite))delete todas[k];});
+    try{localStorage.setItem(CLAVE_SENSACIONES,JSON.stringify(todas));}catch(e){}
+    return nuevas.length;
+  }catch(e){return 0;}
+}
+// La sensación más reciente de este ramo cuya evaluación sigue sin nota.
+function sensacionPendiente(r,ahora){
+  const todas=sensacionesGuardadas(),hace=(ahora||Date.now())-3*864e5;
+  return Object.entries(todas).map(([clave,x])=>{
+    const [ramoId,catId]=clave.split('|');
+    const cat=ramoId===r.id&&(r.categorias||[]).find(c=>c.id===catId);
+    const s=SENSACIONES.find(y=>y.valor===x.valor);
+    return cat&&s&&x.fecha>hace&&!simCatLlena(cat)?{cat,s,fecha:x.fecha}:null;
+  }).filter(Boolean).sort((a,b)=>b.fecha-a.fecha)[0]||null;
+}
+function precargarSensacion(r){
+  const x=sensacionPendiente(r);if(!x)return null;
+  const inp=document.getElementById('sim-in-'+x.cat.id);if(!inp)return null;
+  const propia=notaHabitual(x.s.valor);
+  inp.value=propia?propia.texto:x.s.nota;simAddNota(x.cat.id);
+  const intro=document.querySelector('.sim-intro');
+  if(intro)intro.textContent=propia
+    ?`Dijiste que ${x.cat.nombre} te fue ${x.s.texto.toLowerCase()}: partimos con un ${propia.texto}, lo que sueles sacarte cuando dices eso. Cámbialo si quieres.`
+    :`Dijiste que ${x.cat.nombre} te fue ${x.s.texto.toLowerCase()}: partimos con un ${x.s.nota}. Cámbialo si quieres.`;
+  track('simulador_precargado',{propia:!!propia});
+  return x;
+}
+
+// ─── TU OLFATO ────────────────────────────────────────────────────────────────
+// Cuando llega la nota de una evaluación que tenía sensación, se juntan las dos:
+// "dijiste Bien y te sacaste 6,2". Con eso la app aprende cuánto te sacas de
+// verdad cuando dices cada cosa. Vive solo en este dispositivo, como las
+// sensaciones: nada de esto entra a S ni a la nube.
+const CLAVE_OLFATO='gradehub_olfato',OLFATO_MAX=60;
+function notasConValor(cat){return (cat.notas||[]).filter(n=>n&&typeof n.valor==='number'&&isFinite(n.valor));}
+function olfatoGuardado(){
+  try{const a=JSON.parse(localStorage.getItem(CLAVE_OLFATO)||'[]');return Array.isArray(a)?a.filter(x=>x&&x.valor>=1&&x.valor<=5&&typeof x.nota==='number'):[];}
+  catch(e){return [];}
+}
+// En una prueba, ocho décimas de diferencia ya es otra sensación; en el promedio
+// de varias, cinco bastan para que sea costumbre y no casualidad.
+function veredictoOlfato(diferencia,umbral=0.8){
+  return diferencia>=umbral?'pesimista':diferencia<=-umbral?'optimista':'acierto';
+}
+// Junta cada sensación con la nota que llegó después. Devuelve lo recién revelado.
+function revisarOlfato(){
+  const todas=sensacionesGuardadas(),pares=olfatoGuardado(),reveladas=[];
+  Object.entries(todas).forEach(([clave,x])=>{
+    const [ramoId,catId,notaId]=clave.split('|');
+    const r=S.ramos.find(y=>y.id===ramoId),cat=r&&(r.categorias||[]).find(c=>c.id===catId);
+    const s=SENSACIONES.find(y=>y.valor===x.valor);
+    if(!cat||!s)return;
+    const conValor=notasConValor(cat);
+    // La nota de esa fecha si estaba anotada como pendiente; si no, la primera
+    // que apareció después de responder. Sin forma de saberlo, se espera.
+    const nota=notaId?conValor.find(n=>n.id===notaId)
+      :Array.isArray(x.previas)?conValor.find(n=>!x.previas.includes(n.id))
+      :conValor.length===1?conValor[0]:null;
+    if(!nota)return;
+    const par={valor:x.valor,nota:Math.round(nota.valor*10)/10,fecha:Date.now()};
+    pares.push(par);delete todas[clave];
+    const resultado=veredictoOlfato(par.nota-parseNota(s.nota));
+    reveladas.push({evaluacion:nota.nombre||cat.nombre,s,nota:par.nota,resultado});
+    track('olfato_revelado',{resultado});
+  });
+  if(reveladas.length){
+    try{localStorage.setItem(CLAVE_OLFATO,JSON.stringify(pares.slice(-OLFATO_MAX)));localStorage.setItem(CLAVE_SENSACIONES,JSON.stringify(todas));}catch(e){}
+  }
+  return reveladas;
+}
+function textoRevelacion(x){
+  const fin={pesimista:'fuiste pesimista',optimista:'fuiste optimista',acierto:'le achuntaste'}[x.resultado];
+  return `Dijiste que ${x.evaluacion} te fue ${x.s.texto.toLowerCase()} y te sacaste un ${simConComa(x.nota.toFixed(1))}: ${fin}.`;
+}
+// Lo que sueles sacarte cuando dices algo; con una sola vez todavía no es costumbre.
+function notaHabitual(valor){
+  const de=olfatoGuardado().filter(x=>x.valor===valor);
+  if(!de[1])return null;
+  const prom=de.reduce((a,x)=>a+x.nota,0)/de.length;
+  return {prom,veces:de.length,texto:simConComa((Math.round(prom*10)/10).toFixed(1))};
+}
+function resumenOlfato(){
+  const pares=olfatoGuardado();
+  const filas=SENSACIONES.map(s=>({s,h:notaHabitual(s.valor)||(()=>{const de=pares.filter(x=>x.valor===s.valor);
+    return de.length?{prom:de[0].nota,veces:1,texto:simConComa(de[0].nota.toFixed(1))}:null;})()})).filter(f=>f.h);
+  const dif=pares.length?pares.reduce((a,x)=>a+x.nota-parseNota(SENSACIONES[x.valor-1].nota),0)/pares.length:0;
+  return {pares:pares.length,filas,diferencia:dif,veredicto:pares.length>=3?veredictoOlfato(dif,0.5):null};
+}
+function pintarAvisosPruebas(){
+  const b=document.getElementById('s-avisos-pruebas');
+  if(b)b.textContent=avisosPruebasActivos()?'Desactivar avisos':'Activar avisos';
+}
+async function alternarAvisosPruebas(){
+  const ln=pluginNotificaciones();
+  const estado=document.getElementById('s-avisos-estado');
+  if(!ln)return false;
+  if(avisosPruebasActivos()){
+    try{localStorage.removeItem(CLAVE_AVISOS_PRUEBAS);}catch(e){}
+    await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
+    if(estado)estado.textContent='Avisos desactivados en este iPhone.';
+    track('avisos_pruebas_desactivados');
+    return false;
+  }
+  let permiso=null;
+  try{permiso=await ln.requestPermissions();}catch(e){}
+  if(!permiso||permiso.display!=='granted'){
+    if(estado)estado.textContent='Para recibirlos, permite las notificaciones de GradeHub en la app Ajustes del iPhone.';
+    return false;
+  }
+  try{localStorage.setItem(CLAVE_AVISOS_PRUEBAS,'1');}catch(e){}
+  await programarAvisosPruebas();sincronizarActividadesPrueba();pintarAvisosPruebas();
+  if(estado)estado.textContent='Listo. Te avisaremos antes de cada evaluación que tenga hora.';
+  track('avisos_pruebas_activados');
+  return true;
 }
 
 // Esto recuerda una acción todavía no hecha: mandar una prueba ya rendida a
@@ -8695,13 +10266,16 @@ function formatEventDate(iso){
 function icsEscape(s){
   return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
 }
-// El RFC dice máx 75 octetos por línea; se pliega con CRLF + espacio.
+// RFC 5545: hasta 75 octetos UTF-8, incluido el espacio de continuación.
+// Recorrer puntos de código evita partir un emoji al serializar el archivo.
 function icsFold(line){
-  if(line.length<=73)return line;
-  const out=[];let rest=line;
-  out.push(rest.slice(0,73));rest=rest.slice(73);
-  while(rest.length>72){out.push(' '+rest.slice(0,72));rest=rest.slice(72);}
-  if(rest.length)out.push(' '+rest);
+  const out=[];let actual='',largo=0;
+  for(const ch of line){
+    const cp=ch.codePointAt(0),bytes=cp<0x80?1:cp<0x800?2:cp<0x10000?3:4;
+    if(largo+bytes>75){out.push(actual);actual=' ';largo=1;}
+    actual+=ch;largo+=bytes;
+  }
+  if(actual)out.push(actual);
   return out.join('\r\n');
 }
 function isoOf(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
@@ -8868,7 +10442,7 @@ function abrirImportarCalendario(){
     '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">Elige un archivo <b>.ics</b> exportado desde Apple, Google u Outlook. Primero revisas dónde va cada fecha: nada se guarda todavía.</p>',
     '<label class="modal-label" for="ics-file">Archivo de calendario</label>',
     '<div class="modal-input"><input type="file" id="ics-file" accept=".ics,text/calendar" aria-describedby="ics-file-help"/></div>',
-    '<p id="ics-file-help" class="settings-help">Máximo 500 KB y 250 eventos. Solo usamos títulos y fechas para proponer evaluaciones; tus notas no se leen ni se modifican.</p>',
+    '<p id="ics-file-help" class="settings-help">Máximo 500 KB y 250 eventos. Solo leemos títulos y fechas; tus notas no se tocan.</p>',
     '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button></div>'
   ].join('');
   openModal();
@@ -8978,7 +10552,9 @@ function buildICS(){
     // prueba. Se usa una hora como convención visible, no como afirmación.
     if(e.hora){
       lines.push(`DTSTART:${icsDateTime(e.fecha,e.hora)}`);
-      lines.push(`DTEND:${icsDateTime(e.fecha,sumaUnaHora(e.hora))}`);
+      // La hora convencional de duración cruza de día si parte a las 23:xx.
+      const fin=e.hora.startsWith('23')?icsDatePlus1(e.fecha):e.fecha;
+      lines.push(`DTEND:${icsDateTime(fin,sumaUnaHora(e.hora))}`);
     }else{
       lines.push(`DTSTART;VALUE=DATE:${icsDate(e.fecha)}`);
       lines.push(`DTEND;VALUE=DATE:${icsDatePlus1(e.fecha)}`);
@@ -9010,21 +10586,29 @@ function buildICS(){
 // de una RPC `security definer` y va en la ruta, que es el único lugar donde
 // Google puede llevar un secreto.
 let _feedUrl=null;
+let _feedUsuario=null,_feedVersion=0;
 
 async function pedirFeedCalendario(regenerar){
   if(!supabaseClient||!currentUser)return null;
+  const usuario=currentUser,version=++_feedVersion;
   const {data,error}=await supabaseClient.rpc(regenerar?'calendar_feed_revoke':'calendar_feed_token');
+  if(currentUser!==usuario||version!==_feedVersion)return null;
   if(error)throw error;
   _feedUrl=location.origin+'/cal/'+data;
+  _feedUsuario=usuario;
   return _feedUrl;
 }
 
 async function pintarFeedCalendario(regenerar){
   const inp=document.getElementById('s-cal-url');if(!inp)return;
   inp.value=regenerar?'Generando una nueva…':'Generando…';
+  const usuario=currentUser,pendiente=pedirFeedCalendario(regenerar),version=_feedVersion;
+  const vigente=()=>currentUser===usuario&&version===_feedVersion&&document.getElementById('s-cal-url')===inp;
   try{
-    inp.value=await pedirFeedCalendario(regenerar);
+    const url=await pendiente;
+    if(vigente()&&url)inp.value=url;
   }catch(e){
+    if(!vigente())return;
     inp.value='';
     showToast('No pudimos generar tu URL. Intenta de nuevo.',true);
   }
@@ -9032,7 +10616,7 @@ async function pintarFeedCalendario(regenerar){
 
 function copiarFeedCalendario(){
   const inp=document.getElementById('s-cal-url');
-  if(!inp||!inp.value||!_feedUrl){showToast('Todavía se está generando',true);return;}
+  if(!inp||!inp.value||!_feedUrl||_feedUsuario!==currentUser){showToast('Todavía se está generando',true);return;}
   navigator.clipboard.writeText(_feedUrl)
     .then(()=>{track('calendar_feed_copiado');showToast('URL copiada — pégala en tu calendario');})
     .catch(()=>{inp.select();showToast('Cópiala a mano: quedó seleccionada',true);});
@@ -9055,25 +10639,25 @@ function openAgendaCalendarOptions(){
   const tieneEventos=agendaEvents().length>0;
   const opcionesSalida=tieneEventos?`
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">
-      La suscripción es la opción recomendada: <b>se actualiza sola</b> cuando cambias una fecha —en unas horas, no al instante— y queda como un calendario separado.
+      Recomendado: <b>se actualiza sola</b> cuando cambias una fecha y queda como un calendario aparte.
     </p>
     <button class="btn-primary" type="button" onclick="openCalendarSubscriptionFromAgenda()">Suscribirme al calendario</button>
     <div style="height:1px;background:var(--border);margin:20px 0 16px;"></div>
     <label class="modal-label">Exportar archivo .ics</label>
-    <p class="settings-help" style="margin-top:0;">Es una copia del momento: si después cambias una fecha en GradeHub, el archivo no se actualiza.</p>
-    <p class="settings-help"><b>En iPhone:</b> los eventos se agregan a un calendario que ya existe; no se crea uno nuevo.</p>
+    <p class="settings-help" style="margin-top:0;">Una copia del momento: no se actualiza si cambias una fecha.</p>
+    <p class="settings-help"><b>En iPhone</b> se suman a un calendario que ya existe.</p>
     <div class="settings-data-actions" style="margin-bottom:0;">
       <button type="button" onclick="exportCalendarSnapshotFromAgenda()">Exportar copia</button>
     </div>
     <div style="height:1px;background:var(--border);margin:20px 0 16px;"></div>`:
     `<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">
-      Todavía no tienes fechas en GradeHub. Puedes traerlas desde tu calendario y revisarlas antes de agregarlas.
+      Todavía no tienes fechas. Tráelas desde tu calendario.
     </p>`;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Conecta GradeHub y tu calendario</div>
     ${opcionesSalida}
     <label class="modal-label">Importar archivo .ics</label>
-    <p class="settings-help" style="margin-top:0;">Trae fechas desde Apple, Google u Outlook. Revisas cada coincidencia antes de agregarla.</p>
+    <p class="settings-help" style="margin-top:0;">Desde Apple, Google u Outlook. Revisas cada fecha antes de agregarla.</p>
     <div class="settings-data-actions" style="margin-bottom:0;">
       <button${tieneEventos?'':' class="btn-primary"'} type="button" onclick="abrirImportarCalendario()">Importar fechas</button>
     </div>
@@ -9158,6 +10742,7 @@ function lecturaDespuesDeNota(ramo){
   const necesita=notaNecesaria(ramo);
   if(necesita===null)return `Vas ${fmtPromedio(avg)} · ramo completamente evaluado`;
   if(necesita>7.05)return `Vas ${fmtPromedio(avg)} · ya no alcanza sólo con lo pendiente`;
+  if(notaNecesariaCondicional(ramo))return `Vas ${fmtPromedio(avg)} · con ${nfNecesaria(necesita)} en cada evaluación pendiente llegas al 4,0`;
   if(necesita<=1.0)return `Vas ${fmtPromedio(avg)} · tienes margen para aprobar`;
   if(nivelNota(avg)==='good'&&necesita<=4.0)return `Vas ${fmtPromedio(avg)} · buen margen en lo pendiente`;
   return `Vas ${fmtPromedio(avg)} · necesitas ${nfNecesaria(necesita)} en lo pendiente para aprobar`;

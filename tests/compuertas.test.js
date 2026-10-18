@@ -192,7 +192,7 @@ eq('historial archivado vacío', ctx.ultimoHistorialConGpa([]), null);
 
 console.log('\n=== Onboarding · carga flexible ===');
 eq('el último paso llena la barra', ctx.obProgressPct(5), 100);
-const obDatos={nombre:'Antonia',edad:true,tenant:'fen',carrera:'ING',semestre:2};
+const obDatos={nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
 if(ctx.obStepValid(1,obDatos)&&ctx.obStepValid(2,obDatos)&&ctx.obStepValid(3,obDatos)&&ctx.obStepValid(4,obDatos)&&ctx.obStepValid(5,obDatos)){ok++;console.log('  OK   cada paso valida su propio dato');}
 else {fail++;console.log('  FAIL validación de pasos del onboarding');}
 if(!ctx.obStepValid(1,{tenant:'fen'})&&!ctx.obStepValid(2,{nombre:'Antonia'})&&!ctx.obStepValid(3,{tenant:'fen'})&&!ctx.obStepValid(4,{carrera:'ING'})&&ctx.obStepValid(5,{})){ok++;console.log('  OK   ramos sugeridos no son obligatorios');}
@@ -277,7 +277,7 @@ if(confirmacionCopia.includes('2 evaluaciones')&&confirmacionCopia.includes('No 
 else {fail++;console.log('  FAIL texto de confirmación → '+confirmacionCopia);}
 const pautaNodes={
   'modal-content':{innerHTML:'',style:{},focus(){}},
-  modal:{style:{},classList:{open:false,add(c){if(c==='open')this.open=true;},remove(c){if(c==='open')this.open=false;}}},
+  modal:{style:{},classList:{open:false,contains(c){return c==='open'&&this.open;},add(c){if(c==='open')this.open=true;},remove(c){if(c==='open')this.open=false;}}},
   sheet:{style:{},scrollTop:0,addEventListener(){}}
 };
 const getBeforePauta=ctx.document.getElementById,queryBeforePauta=ctx.document.querySelector;
@@ -286,8 +286,9 @@ ctx.document.querySelector=sel=>sel==='.modal-sheet'?pautaNodes.sheet:stub;
 vm.runInContext("S={ramos:[{id:'sin-preset',nombre:'Economía I',origen:{tenant:'fen'},gates:[]}]};currentRamoId='sin-preset';",ctx);
 try{ctx.openPautaManualModal();
   // El título dejó de ser "Configurar pauta": era jerga y el estudiante no viene
-  // a configurar nada, viene a escribir sus evaluaciones.
-  if(pautaNodes.modal.classList.open&&pautaNodes['modal-content'].innerHTML.includes('Editar evaluaciones')){ok++;console.log('  OK   ramo FEN sin preset abre el editor de evaluaciones');}
+  // a configurar nada, viene a escribir sus evaluaciones. Un ramo sin
+  // evaluaciones llega desde "Armar mi pauta" y el título dice eso.
+  if(pautaNodes.modal.classList.open&&pautaNodes['modal-content'].innerHTML.includes('Armar mi pauta')){ok++;console.log('  OK   ramo FEN sin preset abre el editor de evaluaciones');}
   else {fail++;console.log('  FAIL el editor no abrió para ramo sin preset');}
 }catch(e){fail++;console.log('  FAIL ramo sin preset lanzó → '+e.message);}
 ctx.document.getElementById=getBeforePauta;ctx.document.querySelector=queryBeforePauta;
@@ -360,10 +361,14 @@ chk('Dinámica declara de dónde viene el 30% que le falta',
 chk('el laboratorio vuelve a existir como ramo propio',
   !!presetRamo('Laboratorio de Dinámica', 'uc', 'ING-PC'));
 
-// La fórmula del programa, escrita aparte para contrastar.
+// La fórmula del programa, escrita aparte para contrastar. La nota del lab es
+// la de la planilla oficial: el promedio de las 6 "Nota lab", donde el Lab 0
+// (sin control) es 0,7·Informe + 0,3·Pares y los Labs 1–5 son
+// 0,7·Informe + 0,1·Control + 0,2·Pares.
 function segunElPrograma(I1, I2, NC, NE, NClab, NI, NP) {
   const NFC = 0.25 * I1 + 0.25 * I2 + 0.20 * NC + 0.30 * NE;
-  let NL = 0.10 * NClab + 0.70 * NI + 0.20 * NP;
+  const lab0 = 0.70 * NI + 0.30 * NP, labN = 0.70 * NI + 0.10 * NClab + 0.20 * NP;
+  let NL = (lab0 + 5 * labN) / 6;
   if (NP < 4.0) NL = Math.min(NL, 3.9); // evaluación de pares reprobatoria
   return (NL >= 4.0 && NFC >= 4.0) ? 0.7 * NFC + 0.3 * NL : Math.min(NFC, NL);
 }

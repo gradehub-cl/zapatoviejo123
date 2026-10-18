@@ -22,6 +22,9 @@ chk('hay scripts externos que revisar', scripts.length > 0);
 const jsdelivr = scripts.find(s => s[1].includes('cdn.jsdelivr.net'));
 chk('supabase-js viene de jsDelivr', !!jsdelivr);
 chk('con versión exacta, no flotante', /supabase-js@\d+\.\d+\.\d+/.test(jsdelivr[1]));
+// Sin archivo, jsDelivr sirve el que elige él y lo puede cambiar: el hash dejaría
+// de calzar y la web quedaría sin sesión.
+chk('apunta a un archivo fijo, no a la raíz del paquete', /supabase-js@[\d.]+\/dist\/umd\/supabase\.min\.js$/.test(jsdelivr[1]));
 chk('con integrity sha384', /integrity="sha384-[A-Za-z0-9+/=]{60,}"/.test(jsdelivr[0]));
 chk('con crossorigin, sin el cual el navegador ignora el integrity',
   /crossorigin="anonymous"/.test(jsdelivr[0]));

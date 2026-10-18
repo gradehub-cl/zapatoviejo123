@@ -10,8 +10,9 @@ create schema if not exists storage;
 
 -- auth.users es la tabla real a la que apuntan todas nuestras llaves foráneas.
 create table auth.users (
-  id    uuid primary key default gen_random_uuid(),
-  email text
+  id         uuid primary key default gen_random_uuid(),
+  email      text,
+  created_at timestamptz not null default now()
 );
 
 -- En Supabase auth.uid() lee el JWT de la petición. Acá lee una variable de

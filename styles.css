@@ -21,12 +21,20 @@ button:active{transform:scale(.97);}
   /* En claro los extremos se vuelven profundos para seguir leyéndose sobre blanco. */
   --grade-light:30%;--grade-urgent-light:37%;--grade-perfect-light:33%;
   --muted:#f2f2f4;--radius:10px;
+  /* Listas agrupadas de la app iOS (Ajustes): fondo y celda, como iOS. */
+  --fondo-agrupado:var(--muted);--celda-agrupada:var(--card);
   --shadow:0 1px 2px rgba(7,23,27,.04),0 4px 16px -4px rgba(7,23,27,.08);
   --shadow-lg:0 8px 30px -8px rgba(7,23,27,.16);
   /* Un ritmo compartido evita que cada pantalla "invente" su propia
      transición. Corto a propósito: orienta la interacción, no la retrasa. */
   --motion-press:120ms;--motion-fast:160ms;--motion-base:220ms;--motion-screen:320ms;
   --ease-out:cubic-bezier(.22,1,.36,1);--ease-standard:cubic-bezier(.2,.8,.2,1);
+  /* Para recorrer un trecho largo (el logo de la pantalla de carga al login):
+     parte quieta y frena largo, como un resorte sin rebote. */
+  --ease-viaje:cubic-bezier(.45,0,.15,1);
+  /* Navegar en la app iOS: la curva y la duración de la navegación de iOS
+     (arranca rápido y frena largo, sin rebote). */
+  --ease-navegar:cubic-bezier(.32,.72,0,1);--motion-navegar:480ms;
   /* Dos direcciones bastan para las superficies y los acentos decorativos.
      Los gradientes que expresan avance, cierre o una nota son funcionales y
      permanecen junto a su selector: no usan estos tokens. */
@@ -52,6 +60,7 @@ button:active{transform:scale(.97);}
     --red:#ff5f7a;--red-bg:#280d15;
     --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
     --muted:#1b1b1f;
+    --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
     --shadow-lg:0 10px 36px -10px rgba(0,0,0,.75);
     /* En oscuro el texto del botón es oscuro, así que acá el degradado sí se
@@ -72,6 +81,7 @@ button:active{transform:scale(.97);}
     --red:#ff5f7a;--red-bg:#280d15;
     --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
     --muted:#1b1b1f;
+    --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
     --shadow-lg:0 10px 36px -10px rgba(0,0,0,.75);
     /* En oscuro el texto del botón es oscuro, así que acá el degradado sí se
@@ -150,13 +160,19 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ramo-action{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border:none;border-radius:11px;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:var(--font-ui);background:var(--primary-light);color:var(--primary);transition:transform var(--motion-press),box-shadow var(--motion-fast);}
 .ramo-action.primary{background:var(--primary);background:linear-gradient(var(--gradient-accent),var(--primary),color-mix(in srgb,var(--primary),#000 18%));color:var(--primary-fg);box-shadow:0 6px 16px -4px color-mix(in srgb,var(--primary),transparent 55%);}
 .ramo-action:active{transform:scale(.97);}
+/* Área táctil de 44 pt sin cambiar cómo se ven (HIG Buttons: "a hit region of
+   at least 44x44 pt"). Estos controles se dibujan más bajos a propósito, como
+   los compactos de iOS; un ::after invisible los extiende hacia arriba y abajo. */
+.ramo-action,.reglas-toggle,.ag-order-option,.stats-hist-add,.ag-recorreccion-row button,.ag-rest-ver{position:relative;}
+.ramo-action::after,.reglas-toggle::after,.ag-order-option::after,.stats-hist-add::after,.ag-recorreccion-row button::after,.ag-rest-ver::after{
+  content:"";position:absolute;left:0;right:0;top:50%;height:max(100%,44px);transform:translateY(-50%);}
 /* Evaluación multi-nota (Laboratorio 1/2/3) — header + body colapsable */
 .eval-group{background:var(--card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:14px;padding:13px 15px;margin-bottom:8px;box-shadow:var(--shadow);transition:border-left-color var(--motion-fast) var(--ease-standard);}
 .eval-group-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:background var(--motion-press);border-radius:8px;margin:-4px;padding:4px;}
 .eval-group-hd:active{background:var(--muted);}
 .eval-group-body{display:none;padding-top:8px;margin-top:6px;border-top:1px solid var(--border);}
 .eval-group-body.open{display:block;}
-.recorreccion-chip{display:inline-flex;align-items:center;margin-left:5px;padding:2px 6px;border:1px solid color-mix(in srgb,var(--primary),transparent 55%);border-radius:999px;background:var(--primary-light);color:var(--primary);font-size:0.59375rem;font-weight:700;line-height:1.2;vertical-align:middle;white-space:nowrap;}
+.recorreccion-chip{display:inline-flex;align-items:center;margin-left:5px;padding:2px 6px;border:1px solid color-mix(in srgb,var(--primary),transparent 55%);border-radius:999px;background:var(--primary-light);color:var(--primary);font-size:0.6875rem;font-weight:700;line-height:1.2;vertical-align:middle;white-space:nowrap;}
 .recorreccion-toggle{display:flex;align-items:flex-start;gap:10px;margin:2px 0 14px;padding:12px;border:1px solid color-mix(in srgb,var(--primary),transparent 55%);border-radius:10px;background:var(--primary-light);cursor:pointer;}
 .recorreccion-toggle input{width:18px;height:18px;margin:1px 0 0;flex-shrink:0;accent-color:var(--primary);}
 .recorreccion-toggle span{display:flex;flex-direction:column;gap:2px;color:var(--fg);font-size:0.8125rem;line-height:1.3;}
@@ -217,6 +233,27 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 @keyframes carga-capa-superior{0%,22%,100%{opacity:0;transform:translateY(-32px);}42%,72%{opacity:1;transform:translateY(0);}86%{opacity:0;transform:translateY(-18px);}}
 #screen-loading:not(.active) .carga-capa{animation:none;}
 @media(prefers-reduced-motion:reduce){#screen-loading .carga-capa{animation:none;opacity:1;transform:none;}}
+/* Pantalla de carga de la app (index.html, #arranque). Solo en la app nativa.
+   Calza con el splash de iOS (fondo de la app y logo de 96 px al centro) y se
+   va cuando boot() eligió qué mostrar. Si boot() se colgara, a los 12 s se va
+   igual y queda lo de abajo, como antes de que existiera. */
+#arranque{display:none;}
+.app-nativa #arranque{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity var(--motion-screen) var(--ease-standard),background-color var(--motion-screen) var(--ease-standard);animation:arranqueTope 0s 12s forwards;}
+.app-nativa #arranque.listo{opacity:0;pointer-events:none;}
+/* Hacia el login: se va el fondo y el logo vuela a su lugar (quitarArranque).
+   Las tapas toman el color del cuadro del logo del login, donde aterriza. */
+.app-nativa #arranque.viaje{background-color:transparent;pointer-events:none;}
+#arranque.viaje .arr-tapa{fill:var(--card);}
+@keyframes arranqueTope{to{opacity:0;visibility:hidden;}}
+#arranque svg{width:96px;height:96px;overflow:visible;transition:transform .5s var(--ease-viaje);}
+#arranque .arr-tapa{fill:var(--bg);transition:fill .5s var(--ease-viaje);}
+/* Mientras carga, las capas se separan y se vuelven a juntar. Parte con .vivo,
+   cuando se va el splash nativo (soltarSplash, index.html), desde juntas. */
+#arranque.vivo .arr-arriba{animation:arrArriba 1.6s ease-in-out infinite;}
+#arranque.vivo .arr-abajo{animation:arrAbajo 1.6s ease-in-out infinite;}
+@keyframes arrArriba{50%{transform:translateY(-8px);}}
+@keyframes arrAbajo{50%{transform:translateY(8px);}}
+@media(prefers-reduced-motion:reduce){#arranque.vivo .arr-capa{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
@@ -247,6 +284,10 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .user-menu-name{font-size:0.90625rem;font-weight:700;color:var(--fg);letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-menu-mail{font-size:0.75rem;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-menu-sep{height:1px;background:var(--border);margin:5px 4px;}
+/* `hidden` no basta: el `display:flex` de abajo le gana. "Espacio de
+   profesor" lleva `hidden` a propósito (va en Ajustes, no en este menú; Lucas,
+   2026-09-21) y se veía igual para todos. */
+.user-menu-item[hidden]{display:none;}
 .user-menu-item{display:flex;align-items:center;gap:11px;width:100%;padding:10px 11px;border:none;background:none;border-radius:10px;color:var(--fg2);font-family:var(--font-ui);font-size:0.875rem;font-weight:500;text-align:left;cursor:pointer;letter-spacing:-.01em;transition:background var(--motion-press),color var(--motion-press);}
 .user-menu-item .ic{width:17px;height:17px;flex-shrink:0;color:var(--fg3);transition:color var(--motion-press);}
 .user-menu-item:hover{background:var(--muted);color:var(--fg);}
@@ -255,12 +296,21 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .user-menu-item.danger .ic{color:var(--red);}
 .user-menu-item.danger:hover{background:var(--red-bg);color:var(--red);}
 .user-menu-item.danger:hover .ic{color:var(--red);}
+/* Menús desplegables (abrirMenu, app.js): el aspecto del menú de la cuenta,
+   con ✓ en la opción elegida. */
+.menu-flotante{width:220px;}
+.user-menu-item .menu-texto{flex:1;min-width:0;}
+.user-menu-item .menu-check{flex:none;width:17px;height:17px;color:var(--primary);stroke-width:2.4;}
 /* Links de texto en topbar (Ajustes) */
 .topbar-link{background:var(--card);border:1.5px solid var(--border2);color:var(--fg2);font-size:0.84375rem;font-weight:600;cursor:pointer;padding:7px 12px;border-radius:9px;letter-spacing:-.01em;transition:color var(--motion-fast),background var(--motion-fast),border-color var(--motion-fast);}
 .topbar-link:hover{color:var(--primary);border-color:var(--primary);background:var(--card);}
 .scroll{flex:1;overflow-y:auto;padding-bottom:calc(80px + env(safe-area-inset-bottom,0px));}
 /* ONBOARDING */
-.ob-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px));overflow-y:auto;}
+/* El alto de la pantalla menos el margen de la isla dinámica, que ya ocupa
+   el padding-top de .app. Con 100dvh solo, en la app iOS (y en la PWA
+   instalada) el login medía unos 60 puntos de más y se podía arrastrar. En
+   Safari ese margen vale 0 y nada cambia. */
+.ob-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:calc(100dvh - env(safe-area-inset-top,0px));padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px));overflow-y:auto;}
 .ob-icon{width:72px;height:72px;border-radius:20px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:20px;box-shadow:0 8px 24px rgba(37,99,235,.3);}
 .ob-icon-logo{background:#0a0e14;box-shadow:0 10px 28px -6px rgba(10,14,20,.5);overflow:hidden;}
 /* La marca es transparente: la superficie sigue el modo elegido en Ajustes,
@@ -279,6 +329,35 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ob-sub{font-size:0.9375rem;color:var(--fg2);text-align:center;line-height:1.5;margin-bottom:32px;max-width:340px;letter-spacing:-.005em;}
 .ob-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px 20px;width:100%;box-shadow:var(--shadow-lg);margin-bottom:16px;}
 .ob-edad{width:100%;max-width:640px;margin:-4px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
+/* Ruletas del onboarding (#697): como la del reloj del iPhone, filas de 44 pt. */
+.ruleta{position:relative;height:220px;border-radius:14px;background:var(--bg2);overflow:hidden;outline:none;}
+.ruleta:focus-visible{box-shadow:0 0 0 3px var(--primary-light);}
+.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:10px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
+.ruleta-lista{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:88px 0;box-sizing:border-box;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.ruleta-lista::-webkit-scrollbar{display:none;}
+.ruleta-fila{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:1.0625rem;color:var(--fg3);font-variant-numeric:tabular-nums;cursor:pointer;}
+.ruleta-fila.es-elegida{color:var(--fg);font-size:1.375rem;font-weight:650;}
+.ruleta-control{position:relative;}
+.ruleta-lista{cursor:grab;user-select:none;-webkit-user-select:none;}
+.ruleta-lista.arrastrando{cursor:grabbing;scroll-snap-type:none;}
+/* Botones chicos a la vista, pero de 44 pt al tocarlos. */
+.ruleta-paso{position:absolute;right:6px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--fg2);cursor:pointer;}
+.ruleta-paso .ic{width:18px;height:18px;padding:5px;box-sizing:content-box;border-radius:999px;background:var(--card);border:1px solid var(--border);}
+.ruleta-arriba{top:4px;}
+.ruleta-abajo{bottom:4px;}
+.ob-sem-editar{margin:0 0 14px;}
+.ob-sem-fila{display:flex;gap:10px;}
+.ob-sem-fila input{flex:1;min-height:44px;}
+.ob-sem-verano{min-height:44px;padding:0 16px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;}
+.ob-sem-verano[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-light);}
+.ob-sem-editar[hidden]{display:none;}
+.ob-ruleta-ayuda{margin:-4px 0 10px;font-size:0.8125rem;color:var(--fg2);}
+.ob-ruleta-aviso{margin:10px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
+.ob-ruleta-aviso:empty{display:none;}
+.sem-grid[hidden]{display:none;}
+.ob-sem-calculado{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 14px;font-size:0.9375rem;color:var(--fg2);}
+.ob-sem-calculado b{color:var(--fg);}
+.ob-sem-cambiar{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:600;cursor:pointer;flex-shrink:0;}
 .ob-edad label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;}
 .ob-edad input{margin-top:2px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--primary);}
 .ob-edad b{color:var(--fg);font-weight:650;}
@@ -288,7 +367,7 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
    de ~130px— y en el celular el calendario nativo se abre anclado a esa caja
    diminuta. Poner la fecha de una prueba era pelear con un control enano.
    El font-size de 16px además evita que iOS haga zoom al enfocarlo. */
-input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search]{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;font-family:var(--font-ui);color:var(--fg);background:var(--bg2);outline:none;transition:border var(--motion-fast);}
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search]{width:100%;min-height:44px;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;font-family:var(--font-ui);color:var(--fg);background:var(--bg2);outline:none;transition:border var(--motion-fast);}
 /* El campo tiene que ser tocable con el pulgar: 44px es el mínimo que
    recomiendan iOS y Android para un objetivo táctil. Y el ícono del calendario
    viene de 12px en Chrome — a ese tamaño hay que apuntarle. */
@@ -297,7 +376,7 @@ input[type=date]::-webkit-calendar-picker-indicator{width:22px;height:22px;paddi
 input[type=date]::-webkit-calendar-picker-indicator:hover{opacity:1;}
 .password-input-wrap{position:relative;}
 .password-input-wrap input{padding-right:48px;}
-.password-toggle{position:absolute;top:2px;right:3px;display:flex;width:40px;height:40px;align-items:center;justify-content:center;padding:0;border:0;border-radius:9px;background:transparent;color:var(--fg3);cursor:pointer;transition:color var(--motion-fast),background var(--motion-fast),transform var(--motion-press);}
+.password-toggle{position:absolute;top:0;right:1px;display:flex;width:44px;height:44px;align-items:center;justify-content:center;padding:0;border:0;border-radius:9px;background:transparent;color:var(--fg3);cursor:pointer;transition:color var(--motion-fast),background var(--motion-fast),transform var(--motion-press);}
 .password-toggle .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .password-toggle .eye-closed{display:none;}
 .password-toggle.is-visible .eye-open{display:none;}
@@ -316,7 +395,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
 .sem-btn{padding:11px 4px;border-radius:10px;font-size:0.8125rem;font-weight:600;border:1.5px solid var(--border);background:var(--muted);color:var(--fg2);cursor:pointer;transition:border-color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard);}
 .sem-btn.sel{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);box-shadow:0 2px 8px color-mix(in srgb,var(--primary),transparent 70%);}
 /* REPORTE DE PONDERACIONES */
-.rep-link{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+.rep-link{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;
   margin-top:12px;padding:11px;background:none;border:none;border-radius:10px;
   font-family:var(--font-ui);font-size:0.8125rem;font-weight:600;color:var(--fg3);
   cursor:pointer;letter-spacing:-.01em;transition:color var(--motion-fast),background var(--motion-fast),transform var(--motion-press) var(--ease-standard);}
@@ -327,7 +406,7 @@ input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus
   padding:10px 0;border-bottom:1px solid var(--border);}
 .rep-row:last-of-type{border-bottom:none;}
 .rep-name{flex:1;font-size:0.84375rem;color:var(--fg2);min-width:0;line-height:1.35;cursor:pointer;}
-.rep-tag{font-size:0.65625rem;font-weight:700;color:var(--fg3);background:var(--card);
+.rep-tag{font-size:0.6875rem;font-weight:700;color:var(--fg3);background:var(--card);
   border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap;}
 .rep-peso-field{position:relative;display:block;width:78px;flex-shrink:0;}
 input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9px 25px 9px 9px;
@@ -425,7 +504,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .ob-step-num{font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--primary);margin-bottom:10px;}
 .ob-title-left{text-align:left;max-width:none;font-size:1.875rem;margin-bottom:8px;}
 /* Es un destino de lectura al cambiar de paso, no un control accionable. */
-.ob-title[tabindex="-1"]:focus{outline:none;}
+.ob-title[tabindex="-1"]:focus,.settings-detail-heading h2[tabindex="-1"]:focus{outline:none;}
 .ob-sub-left{text-align:left;max-width:none;margin-bottom:22px;}
 .ob-options{display:flex;flex-direction:column;gap:9px;}
 /* La búsqueda y los controles siguen a mano aun con 71 carreras. La lista
@@ -437,7 +516,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .ob-back:hover{color:var(--fg);background:var(--muted);}
 .ob-next{flex:1;}
 /* Links tipo botón del auth (olvidaste contraseña / crear cuenta) */
-.auth-link{display:block;width:100%;background:none;border:none;padding:12px;margin-top:6px;font-family:var(--font-ui);font-size:0.84375rem;font-weight:600;color:var(--fg3);cursor:pointer;letter-spacing:-.005em;border-radius:8px;transition:color var(--motion-fast),background var(--motion-fast),transform var(--motion-press) var(--ease-standard);}
+.auth-link{display:block;width:100%;min-height:44px;background:none;border:none;padding:12px;margin-top:6px;font-family:var(--font-ui);font-size:0.84375rem;font-weight:600;color:var(--fg3);cursor:pointer;letter-spacing:-.005em;border-radius:8px;transition:color var(--motion-fast),background var(--motion-fast),transform var(--motion-press) var(--ease-standard);}
 .auth-link:hover{color:var(--fg);background:var(--muted);}
 .auth-link-primary{color:var(--primary);font-weight:700;margin-top:2px;}
 .auth-link-primary:hover{color:var(--primary);background:color-mix(in srgb,var(--primary),transparent 88%);}
@@ -458,7 +537,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .auth-stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 8px;}
 .auth-stat+.auth-stat{border-left:1px solid var(--border);}
 .auth-stat b{font-size:1.375rem;font-weight:650;letter-spacing:-.025em;line-height:1.1;color:var(--primary);font-variant-numeric:tabular-nums;}
-.auth-stat span{font-size:0.625rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);}
+.auth-stat span{font-size:0.6875rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);}
 /* `hidden` no basta por sí solo: cualquier `display` de autor le gana al
    `[hidden]{display:none}` del navegador, y esta banda declara `display:flex`.
    Sin esta regla, mientras la RPC responde (≈1 s en producción) se ve una
@@ -468,6 +547,10 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 #screen-auth .auth-stats[hidden]{display:none;}
 /* Aviso de instalación al pie de Inicio. Tono de nota al margen: sin fondo de
    tarjeta ni color de acento en el cuerpo, para que no compita con los ramos. */
+/* Mismo caso que la banda de arriba: sin esto, el aviso oculto (descartado,
+   primera visita, navegador sin instalación o la app iOS) se dibujaba como un
+   cuadro vacío al pie de Inicio. Lo vio Martín en la app el 2026-10-06. */
+.instalar-aviso[hidden]{display:none;}
 .instalar-aviso{display:flex;align-items:flex-start;gap:12px;margin:18px 20px 0;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--muted);}
 .instalar-aviso .ic{width:20px;height:20px;flex:0 0 auto;margin-top:1px;color:var(--fg3);}
 .instalar-cuerpo{flex:1;min-width:0;}
@@ -663,6 +746,10 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .gpa-delta.up{color:var(--green);background:var(--green-bg);}
 .gpa-delta.down{color:var(--red);background:var(--red-bg);}
 .gpa-delta.flat{color:var(--fg3);}
+/* Promedio sin redondear al lado del número grande. Es texto, no un control:
+   sin fondo, borde ni subrayado. Se apoya en la línea base del número. */
+.promedio-exacto{align-self:flex-end;margin-bottom:.5em;font-family:var(--font-ui);font-size:.9375rem;font-weight:500;letter-spacing:-.01em;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.promedio-exacto[hidden]{display:none;}
 /* CTA simulador global (abajo de la lista de ramos) */
 .sim-global-cta{display:flex;align-items:center;justify-content:center;gap:9px;width:calc(100% - 40px);margin:14px 20px 4px;padding:15px;border:1.5px dashed color-mix(in srgb,var(--primary),transparent 55%);border-radius:14px;background:color-mix(in srgb,var(--primary),transparent 93%);color:var(--primary);font-family:var(--font-ui);font-size:0.875rem;font-weight:700;letter-spacing:-.01em;cursor:pointer;transition:background var(--motion-fast),border-color var(--motion-fast),transform var(--motion-press);}
 .sim-global-cta:hover{background:color-mix(in srgb,var(--primary),transparent 86%);border-color:color-mix(in srgb,var(--primary),transparent 35%);}
@@ -670,7 +757,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .sim-global-cta .ic{width:17px;height:17px;stroke-width:2;}
 /* Filas del simulador global (un ramo por fila con slider) */
 .simg-hero{background:linear-gradient(var(--gradient-surface),color-mix(in srgb,var(--primary),transparent 88%) 0%,var(--card) 60%);border:1px solid color-mix(in srgb,var(--primary),transparent 78%);border-radius:18px;padding:18px 20px;margin-bottom:16px;text-align:center;}
-.simg-hero-label{font-size:0.65625rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--fg3);margin-bottom:4px;}
+.simg-hero-label{font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--fg3);margin-bottom:4px;}
 .simg-hero-num{font-family:var(--font-ui);font-size:3.25rem;font-weight:800;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;}
 .simg-hero-delta{display:inline-flex;align-items:center;gap:4px;margin-top:10px;padding:4px 11px;border-radius:999px;font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;letter-spacing:-.01em;}
 .simg-hero-delta.up{background:var(--green-bg);color:var(--green);}
@@ -710,7 +797,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .insight-icon{width:38px;height:38px;border-radius:11px;background:color-mix(in srgb,var(--insight-color,var(--primary)),transparent 84%);color:var(--insight-color,var(--primary));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .insight-icon .ic{width:19px;height:19px;stroke-width:2.1;}
 .insight-body{flex:1;min-width:0;}
-.insight-label{font-size:0.65625rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--fg3);margin-bottom:2px;}
+.insight-label{font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--fg3);margin-bottom:2px;}
 .insight-title{font-size:0.90625rem;font-weight:600;color:var(--fg);letter-spacing:-.01em;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .insight-meta{font-size:0.75rem;color:var(--fg2);margin-top:2px;letter-spacing:-.005em;}
 .insight-meta .strong{color:var(--insight-color,var(--fg));font-weight:700;}
@@ -734,7 +821,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .clase-apoyo-abrir{display:flex;flex:1;min-width:0;flex-direction:column;justify-content:center;padding:11px 4px 12px 14px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;}
 .clase-apoyo-texto,.ca-cabeza,.ca-pie{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .clase-apoyo-texto{gap:2px;}
-.clase-apoyo-abrir small{font-size:.625rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);}
+.clase-apoyo-abrir small{font-size:0.6875rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);}
 .clase-apoyo-abrir strong{font-size:.875rem;line-height:1.3;color:var(--fg);letter-spacing:-.01em;overflow-wrap:anywhere;}
 .clase-apoyo-datos{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
 .clase-apoyo-ver{display:block;margin-top:6px;font-size:.75rem;font-weight:700;color:var(--primary);}
@@ -863,7 +950,7 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
 }
 .ramo-num.good,.ramo-num.warn,.ramo-num.bad{background-image:linear-gradient(160deg,color-mix(in srgb,var(--grade-color),#fff 10%),var(--grade-color) 72%,color-mix(in srgb,var(--grade-color),#000 8%));}
-.ramo-num.empty{background-image:none;-webkit-text-fill-color:var(--fg3);color:var(--fg3);font-size:2rem;font-weight:600;opacity:.7;letter-spacing:-.01em;}
+.ramo-num.empty{background-image:none;-webkit-text-fill-color:var(--fg3);color:var(--fg3);font-size:2rem;font-weight:600;letter-spacing:-.01em;}
 .ramo-num .ramo-decimal{
   background-image:inherit;-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;
@@ -876,6 +963,17 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
 .ramo-chip.bad{background:var(--red-bg);color:var(--red);}
 /* Botones de acción del ramo — pill grandes */
 .ramo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
+/* La cátedra sola, al lado de la nota final (Dinámica y su laboratorio). Más
+   chica y separada por una línea: la final sigue siendo la que manda. En la
+   ficha es un botón —se toca como el número grande— y mide al menos 44pt. */
+.solo-parte{display:flex;flex-direction:column;gap:3px;align-self:flex-end;margin-bottom:.35em;padding-left:14px;border-left:1px solid var(--border);}
+button.solo-parte{min-height:44px;justify-content:flex-end;padding-top:0;padding-bottom:0;padding-right:0;border-top:0;border-right:0;border-bottom:0;
+  background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.solo-parte[hidden]{display:none;}
+.solo-parte-num{font-size:2.25rem;font-weight:750;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;}
+.solo-parte-label{color:var(--fg2);font-size:0.75rem;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums;}
+.sim-proj-nums{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+.sim-proj-nums .solo-parte{margin-bottom:.4em;}
 .ramo-warning{background:var(--yellow-bg);border:1px solid color-mix(in srgb,var(--yellow),transparent 45%);border-radius:12px;padding:11px 14px;margin:6px 20px 14px;font-size:0.8125rem;color:var(--yellow);display:flex;align-items:center;gap:8px;letter-spacing:-.005em;}
 /* La ficha del ramo tenía tres sangrías distintas para la misma columna: el
    hero y los avisos a 20px, las cat-card a 16px, y las filas de evaluación
@@ -895,7 +993,7 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
 .nota-row-dropped{opacity:.68;}
 .nota-row-name{flex:1;min-height:44px;display:flex;align-items:center;font-size:0.875rem;color:var(--fg2);}
 .nota-row-pond{font-size:0.6875rem;color:var(--fg3);background:var(--muted);border-radius:6px;padding:2px 7px;}
-.nota-row-drop-tag{font-size:0.625rem;font-weight:700;color:var(--fg2);background:var(--muted);border-radius:999px;padding:3px 7px;white-space:nowrap;}
+.nota-row-drop-tag{font-size:0.6875rem;font-weight:700;color:var(--fg2);background:var(--muted);border-radius:999px;padding:3px 7px;white-space:nowrap;}
 .nota-row-val{font-size:0.875rem;font-weight:700;}
 .nota-row-del{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-width:44px;min-height:44px;background:none;border:none;cursor:pointer;color:var(--fg3);font-size:0.9375rem;padding:0;border-radius:6px;}
 .nota-row-del:hover{background:var(--red-bg);color:var(--red);}
@@ -936,6 +1034,18 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
    seguir al dedo. */
 .modal-sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));width:100%;max-width:430px;box-shadow:0 -4px 32px rgba(0,0,0,.2);max-height:92vh;max-height:92dvh;overflow-y:auto;
   touch-action:pan-y;overscroll-behavior-y:contain;}
+/* App iOS: las hojas abren enteras, el "large detent" de las HIG (Sheets). Con
+   el alto según el contenido cada hoja medía distinto y Ajustes saltaba al
+   cambiar de sección: se sentía página web (Martín, 2026-10-06). Queda a la
+   vista una franja de la pantalla de atrás, como en iOS. El simulador de
+   semestre, que ya es de pantalla completa, sigue mandando más abajo. */
+@media (max-width:767px){
+  .app-nativa .modal-sheet{height:calc(100dvh - env(safe-area-inset-top,0px) - 10px);max-height:none;}
+  /* Con la hoja entera, la lista de "Agregar ramo" usa el alto que sobra en
+     vez de quedarse en un tercio con media hoja vacía debajo. Los ~290px son
+     el título, el buscador y los botones. */
+  .app-nativa .cat-results{max-height:max(34vh,calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 290px));}
+}
 .modal-title{font-size:1.0625rem;font-weight:700;color:var(--fg);margin-bottom:16px;}
 /* Sin doble toque para hacer zoom sobre un botón: en iPhone un toque rápido
    se leía a veces como el comienzo de un doble toque y el botón no respondía. */
@@ -972,10 +1082,47 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
    y hay que declararlo acá. 18px es lo que miden Chrome y Safari. Si algún
    navegador usa otro, el error vuelve a ser de un par de píxeles en las puntas
    y cero en el 50%: bastante mejor que los 7px de todas partes. */
-.peso-marks{--peso-thumb:18px;position:relative;height:0.8rem;margin:4px 0 14px;font-size:0.625rem;color:var(--fg3);font-variant-numeric:tabular-nums;opacity:.6;}
+.peso-marks{--peso-thumb:18px;position:relative;height:0.8rem;margin:4px 0 14px;font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .peso-marks span{position:absolute;top:0;left:calc(var(--peso-thumb) / 2 + (100% - var(--peso-thumb)) * var(--p) / 100);transform:translateX(-50%);}
 .slider-desc{font-size:0.75rem;color:var(--fg3);margin-top:4px;}
 .modal-btns{display:flex;gap:10px;margin-top:6px;}
+/* Editor de pauta (renderPautaManualModal en app.js): las evaluaciones en una
+   sola lista, nombre a la izquierda y porcentaje a la derecha; marcar "varias
+   notas" y quitar van en el "⋯" de cada fila. El total queda a la vista
+   mientras se escribe. Los campos se escriben con .contenedor input: la regla
+   base input[type=text] le gana a una clase sola. */
+.pauta-intro{margin:-4px 0 14px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.pauta-copiar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;margin:0 0 12px;padding:2px 6px 2px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:.9375rem;color:var(--fg);}
+.pauta-copiar span{flex:none;white-space:nowrap;}
+.pauta-copiar select{min-width:0;width:auto;max-width:45%;min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--primary);font:600 .9375rem var(--font-ui);text-align:right;text-overflow:ellipsis;}
+.pauta-plantillas{margin:0 0 12px;padding:12px;border-radius:12px;background:var(--muted);}
+.pauta-plantillas-titulo{margin-bottom:8px;font-size:.8125rem;font-weight:700;color:var(--fg);}
+.pauta-plantillas-opciones{display:flex;flex-wrap:wrap;gap:7px;}
+.pauta-plantillas-opciones button{min-height:36px;padding:7px 11px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:600 .75rem var(--font-ui);cursor:pointer;}
+.pauta-plantillas-nota{margin-top:8px;font-size:.75rem;line-height:1.4;color:var(--fg2);}
+.pauta-total{position:sticky;top:0;z-index:2;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--muted);}
+.pauta-total-texto{font-size:.8125rem;font-weight:600;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.pauta-total-texto.lista{color:var(--fg);}
+.pauta-total-barra{height:4px;margin-top:8px;border-radius:2px;background:color-mix(in srgb,var(--fg),transparent 88%);overflow:hidden;}
+.pauta-total-barra i{display:block;height:100%;background:var(--primary);transform-origin:left;transition:transform var(--motion-base) var(--ease-standard);}
+#m-pauta-error{margin:-3px 0 10px;font-size:.8125rem;color:var(--red);}
+.pauta-lista{border:1px solid var(--border);border-radius:14px;background:var(--card);overflow:hidden;}
+.pauta-fila{padding:4px 6px 4px 14px;}
+.pauta-fila+.pauta-fila{border-top:1px solid var(--border);}
+.pauta-fila-main{display:flex;align-items:center;gap:8px;}
+.pauta-fila input.pauta-nombre{flex:1;min-width:0;min-height:44px;padding:10px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;}
+.pauta-peso{display:flex;align-items:center;flex:none;gap:3px;min-height:36px;padding:0 10px;border-radius:10px;background:var(--muted);cursor:text;}
+.pauta-peso input[type=text]{width:2.8em;padding:6px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;font-variant-numeric:tabular-nums;text-align:right;}
+.pauta-peso span{font-size:.875rem;color:var(--fg3);}
+.pauta-peso:focus-within{box-shadow:0 0 0 2px color-mix(in srgb,var(--primary),transparent 60%);}
+.pauta-mas{display:flex;flex:none;align-items:center;justify-content:center;width:40px;height:44px;border:0;border-radius:10px;background:none;color:var(--fg3);cursor:pointer;}
+.pauta-mas .ic{width:20px;height:20px;}
+.pauta-fila-extra{display:flex;align-items:center;gap:10px;min-height:32px;margin:-4px 46px 4px 0;font-size:.75rem;color:var(--fg2);}
+.pauta-cantidad{display:flex;align-items:center;gap:5px;}
+.pauta-cantidad input[type=text]{width:2.6em;padding:4px 2px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--fg);font:inherit;text-align:center;}
+.pauta-resto{min-height:32px;margin-left:auto;padding:0;border:0;background:none;color:var(--primary);font:600 .75rem var(--font-ui);cursor:pointer;}
+.pauta-agregar{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 14px;border:0;border-top:1px solid var(--border);background:none;color:var(--primary);font:600 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
+.pauta-agregar span{font-size:1.25rem;font-weight:500;line-height:1;}
 .profesor-info{font-size:.8125rem;line-height:1.5;color:var(--fg2);margin:0 0 16px;}
 .profesor-form{display:grid;gap:8px;min-width:0;}
 .profesor-form-cuerpo,.profesor-form-campos,.profesor-form-vista,.profesor-form-acciones{display:grid;gap:8px;min-width:0;}
@@ -1097,7 +1244,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .home-clases-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;}
 .home-clases-copy strong{font-size:.9375rem;line-height:1.25;color:var(--fg);letter-spacing:-.015em;}
 .home-clases-copy>span:last-child{font-size:.75rem;line-height:1.4;color:var(--fg3);}
-.home-clases-kicker{font-size:.65625rem;font-weight:750;letter-spacing:.065em;text-transform:uppercase;color:var(--primary);}
+.home-clases-kicker{font-size:0.6875rem;font-weight:750;letter-spacing:.065em;text-transform:uppercase;color:var(--primary);}
 @media(hover:hover) and (pointer:fine){
   .home-clases-card:hover{background:var(--muted);border-color:var(--border2);}
   .home-clases-card:hover::before{transform:scaleX(1.65) scaleY(1);filter:brightness(1.2);box-shadow:0 0 6px color-mix(in srgb,var(--primary) 35%,transparent);}
@@ -1122,7 +1269,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .catalogo-clase-flyer[hidden]{display:none;}
 .catalogo-clase-flyer img{display:block;width:100%;height:auto;max-height:80vh;object-fit:contain;}
 .catalogo-clase-contenido{display:flex;flex:1;min-width:0;flex-direction:column;padding:15px;}
-.catalogo-clase-contenido>small{margin-bottom:5px;color:var(--primary);font-size:.65625rem;font-weight:700;letter-spacing:.045em;text-transform:uppercase;}
+.catalogo-clase-contenido>small{margin-bottom:5px;color:var(--primary);font-size:0.6875rem;font-weight:700;letter-spacing:.045em;text-transform:uppercase;}
 .catalogo-clase-contenido h3{margin:0;color:var(--fg);font-size:1rem;line-height:1.25;letter-spacing:-.015em;overflow-wrap:anywhere;}
 .catalogo-clase-ramos{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:7px 0 0;color:var(--fg2);font-size:.75rem;line-height:1.35;}
 .catalogo-clase-ramos strong{color:var(--fg);font-variant-numeric:tabular-nums;}
@@ -1131,7 +1278,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 /* Logo del profesor a la derecha del título, y detalles como pares cortos. */
 .catalogo-clase-cabeza{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
 .catalogo-clase-cabeza>div:first-child{display:flex;flex-direction:column;min-width:0;}
-.catalogo-clase-cabeza small{margin-bottom:5px;color:var(--primary);font-size:.65625rem;font-weight:700;letter-spacing:.045em;text-transform:uppercase;}
+.catalogo-clase-cabeza small{margin-bottom:5px;color:var(--primary);font-size:0.6875rem;font-weight:700;letter-spacing:.045em;text-transform:uppercase;}
 .catalogo-clase-logo{flex:none;display:flex;align-items:center;justify-content:flex-end;height:48px;max-width:120px;}
 .catalogo-clase-detalles{display:grid;gap:4px;margin:10px 0 0;font-size:.75rem;}
 .catalogo-clase-detalles div{display:flex;gap:6px;min-width:0;}
@@ -1140,7 +1287,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .catalogo-clase-detalles dd{margin:0;color:var(--fg2);overflow-wrap:anywhere;}
 .catalogo-clase-datos{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:auto;padding-top:10px;border-top:1px solid var(--border);color:var(--fg2);font-size:.75rem;}
 .catalogo-clase-datos strong{color:var(--fg);font-size:.875rem;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.catalogo-clase-datos strong small{color:var(--fg3);font-size:.625rem;font-weight:600;}
+.catalogo-clase-datos strong small{color:var(--fg3);font-size:0.6875rem;font-weight:600;}
 /* Pack y descuento por venir de GradeHub. El descuento va en el color de la
    marca, nunca en verde: el verde es "aprobado" en el semáforo. */
 .catalogo-clase-precio{display:grid;justify-items:end;gap:4px;text-align:right;}
@@ -1211,8 +1358,8 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .profesor-logo-acciones{display:flex;gap:8px;margin-top:10px;}
 .profesor-logo-acciones>*{flex:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
 .profesor-estado{min-height:20px;color:var(--fg2);font-size:.75rem;line-height:1.45;margin:8px 0 0;}
-.btn-cancel{flex:1;padding:12px;background:var(--muted);color:var(--fg2);border:none;border-radius:10px;font-size:0.875rem;font-weight:600;cursor:pointer;}
-.btn-confirm{flex:2;padding:12px;background:var(--primary);color:var(--primary-fg);border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;}
+.btn-cancel{flex:1;min-height:44px;padding:12px;background:var(--muted);color:var(--fg2);border:none;border-radius:10px;font-size:0.875rem;font-weight:600;cursor:pointer;}
+.btn-confirm{flex:2;min-height:44px;padding:12px;background:var(--primary);color:var(--primary-fg);border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;}
 .btn-confirm:disabled{opacity:.35;cursor:default;}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);margin-top:4px;}
 .toggle-label{font-size:0.875rem;color:var(--fg2);}
@@ -1247,7 +1394,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 /* STATS */
 .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 16px 14px;box-shadow:var(--shadow);cursor:pointer;transition:transform var(--motion-press),border-color var(--motion-fast),box-shadow var(--motion-fast);}
 
-.stat-label{font-size:0.65625rem;color:var(--fg3);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+.stat-label{font-size:0.6875rem;color:var(--fg3);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
 .stat-val{font-family:var(--font-ui);font-size:1.75rem;font-weight:800;letter-spacing:-.035em;color:var(--fg);line-height:1;font-variant-numeric:tabular-nums;}
 .stat-sub{font-size:0.75rem;color:var(--fg3);margin-top:6px;line-height:1.35;letter-spacing:-.005em;overflow-wrap:anywhere;}
 /* El avance vive en el fondo de su propia tarjeta: no es una barra separada.
@@ -1272,8 +1419,14 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .stats-situation-reading{margin-top:17px;font-size:.9375rem;font-weight:650;line-height:1.35;color:var(--fg);letter-spacing:-.015em;}
 .stats-priority-row{margin-bottom:8px;min-height:72px;}
 .stats-priority-value{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:66px;font-size:1.375rem;line-height:1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums;}
-.stats-priority-value small{font-size:.625rem;font-weight:700;letter-spacing:.035em;text-transform:uppercase;color:var(--fg3);}
+.stats-priority-value small{font-size:0.6875rem;font-weight:700;letter-spacing:.035em;text-transform:uppercase;color:var(--fg3);}
 .stats-range-card{padding:17px 18px 16px;}
+.stats-olfato-card{padding:17px 18px 14px;}
+.stats-olfato-titular{font-size:1.02rem;font-weight:650;line-height:1.35;margin-bottom:10px;}
+.stats-olfato-fila{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-height:44px;border-top:1px solid var(--border);font-size:0.9rem;}
+.stats-olfato-nota{font-variant-numeric:tabular-nums;font-weight:650;}
+.stats-olfato-nota small{margin-left:6px;font-weight:400;color:var(--fg3);font-size:0.75rem;}
+.stats-olfato-nota-pie{margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--fg3);}
 @media(max-width:380px){.stats-situation-value{font-size:2rem;}}
 /* AGENDA */
 
@@ -1316,7 +1469,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-priority-card:active{transform:scale(.985);}
 .ag-priority-bar{position:absolute;inset:0 0 auto;height:5px;background:var(--ag-course);}
 .ag-priority-top{display:flex;align-items:center;gap:7px;margin:2px 0 8px;}
-.ag-priority-rank{min-width:0;font-size:0.65625rem;font-weight:800;line-height:1.2;letter-spacing:.065em;text-transform:uppercase;color:var(--primary);}
+.ag-priority-rank{min-width:0;font-size:0.6875rem;font-weight:800;line-height:1.2;letter-spacing:.065em;text-transform:uppercase;color:var(--primary);}
 /* El rótulo NO se tiñe con el semáforo, aunque el nivel se llame "crítica".
    Rojo y ámbar significan reprobado y al borde en toda la app, y acá el nivel
    mide otra cosa: que faltan pocos días y pesa harto. Pintado de rojo, "Tu foco
@@ -1338,8 +1491,10 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 
 .ag-row:active{transform:scale(.99);}
 .ag-row-bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
-.ag-row.done{opacity:.62;}
-.ag-row.done:hover{opacity:.85;}
+/* Una rendida se distingue por su sección y su barra apagada, no por bajar
+   la opacidad de la fila entera: así la fecha y la nota quedaban bajo 4,5:1
+   (2,5:1 en claro). La nota sigue con su semáforo a contraste completo. */
+.ag-row.done .ag-row-bar{opacity:.62;}
 .ag-row-main{flex:1;min-width:0;}
 .ag-row-top{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;}
 .ag-row-when{font-size:0.8125rem;font-weight:700;color:var(--fg2);}
@@ -1348,7 +1503,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-row-when.alta{color:var(--yellow);}
 .ag-row-when.media{color:var(--primary);}
 .ag-row-when.done{color:var(--fg3);text-transform:none;letter-spacing:0;font-weight:600;}
-.ag-row-date{font-size:0.6875rem;color:var(--fg3);opacity:.7;font-variant-numeric:tabular-nums;}
+.ag-row-date{font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .ag-row-peso{margin-left:auto;font-family:var(--font-ui);font-size:0.75rem;font-weight:700;color:var(--fg2);background:var(--muted);border-radius:6px;padding:2px 8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
 .ag-row-peso.heavy{color:var(--secondary);background:color-mix(in srgb,var(--secondary),transparent 80%);border:1px solid color-mix(in srgb,var(--secondary),transparent 70%);padding:1px 7px;}
 .ag-row-name{font-size:0.96875rem;font-weight:600;color:var(--fg);letter-spacing:-.015em;line-height:1.25;}
@@ -1362,7 +1517,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-waiting-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .ag-waiting-head>div{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .ag-waiting-head strong{font-size:0.875rem;color:var(--fg);}
-.ag-waiting-kicker{font-size:0.65625rem;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);}
+.ag-waiting-kicker{font-size:0.6875rem;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);}
 .ag-waiting-help{margin-top:7px;font-size:0.75rem;line-height:1.45;color:var(--fg2);}
 .ag-waiting-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
 .ag-waiting-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;overflow:hidden;padding:12px 12px 12px 17px;background:var(--card);border:1px solid var(--border);border-radius:12px;}
@@ -1370,7 +1525,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-waiting-copy{display:flex;min-width:0;flex-direction:column;gap:2px;}
 .ag-waiting-copy strong{overflow:hidden;font-size:0.84375rem;color:var(--fg);text-overflow:ellipsis;white-space:nowrap;}
 .ag-waiting-copy>span:last-child{overflow:hidden;font-size:0.71875rem;color:var(--fg3);text-overflow:ellipsis;white-space:nowrap;}
-.ag-waiting-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.65625rem;font-weight:700;color:var(--fg3);}
+.ag-waiting-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.6875rem;font-weight:700;color:var(--fg3);}
 .ag-waiting-meta b{color:var(--primary);font-size:inherit;text-transform:uppercase;letter-spacing:.04em;}
 .ag-waiting-actions{display:flex;gap:6px;align-items:center;}
 .ag-waiting-actions button{min-height:38px;padding:7px 10px;border-radius:9px;font-family:var(--font-ui);font-size:0.71875rem;font-weight:700;white-space:nowrap;cursor:pointer;}
@@ -1390,7 +1545,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-event-detail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:7px;padding:14px;background:var(--muted);border:1px solid var(--border);border-radius:14px;}
 .ag-event-detail[hidden]{display:none;}
 .ag-event-detail-block{display:flex;min-width:0;flex-direction:column;gap:3px;}
-.ag-event-detail-label{font-size:0.65625rem;font-weight:800;line-height:1.2;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3);}
+.ag-event-detail-label{font-size:0.6875rem;font-weight:800;line-height:1.2;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3);}
 .ag-event-detail-block strong{font-family:var(--font-ui);font-size:0.84375rem;font-weight:750;line-height:1.3;color:var(--fg);letter-spacing:-.015em;overflow-wrap:anywhere;}
 .ag-event-detail-block>span:last-child{font-size:0.75rem;line-height:1.45;color:var(--fg2);overflow-wrap:anywhere;}
 .ag-event-course{grid-column:1/-1;justify-self:start;min-height:40px;padding:7px 11px;border:1px solid var(--border2);border-radius:10px;background:var(--card);color:var(--primary);font-family:var(--font-ui);font-size:0.75rem;font-weight:700;cursor:pointer;}
@@ -1404,7 +1559,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-alldone-s{font-size:0.8125rem;color:var(--fg2);margin-top:3px;line-height:1.4;}
 .ag-undated{display:flex;align-items:center;gap:14px;margin-top:24px;padding:16px 2px 2px;border-top:1px solid var(--border);}
 .ag-undated-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px;}
-.ag-undated-kicker{font-size:0.625rem;font-weight:750;letter-spacing:.065em;text-transform:uppercase;color:var(--fg3);}
+.ag-undated-kicker{font-size:0.6875rem;font-weight:750;letter-spacing:.065em;text-transform:uppercase;color:var(--fg3);}
 .ag-undated-copy strong{font-size:0.84375rem;font-weight:650;color:var(--fg2);letter-spacing:-.01em;}
 .ag-undated-copy>span:last-child{overflow:hidden;font-size:0.71875rem;color:var(--fg3);text-overflow:ellipsis;white-space:nowrap;}
 .ag-undated-action{flex-shrink:0;min-height:44px;padding:8px 11px;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:0.75rem;font-weight:650;cursor:pointer;transition:transform var(--motion-press),border-color var(--motion-fast),color var(--motion-fast),background-color var(--motion-fast);}
@@ -1434,8 +1589,9 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .settings-search-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;}
 .settings-search-empty{margin:14px 6px;font-size:.8125rem;line-height:1.5;color:var(--fg2);}
 .settings-account-access{margin-top:28px;padding-top:22px;border-top:1px solid var(--border);}
-.settings-nav-group{margin:16px 10px 6px;font-size:0.65625rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);}
+.settings-nav-group{margin:16px 10px 6px;font-size:0.6875rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);}
 .settings-nav-group:first-child{margin-top:0;}
+.settings-nav-card{display:contents;}
 .settings-nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:11px 10px;border:0;border-radius:12px;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
 .settings-nav-item>span:nth-child(2){display:flex;min-width:0;flex:1;flex-direction:column;gap:2px;}
 .settings-nav-item b{font-size:0.84375rem;letter-spacing:-.01em;line-height:1.2;}
@@ -1467,7 +1623,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .settings-data-actions button:hover{border-color:var(--primary);color:var(--primary);}
 .settings-data-actions button:active{background:var(--muted);}
 .settings-danger-zone{padding:16px;border:1px solid color-mix(in srgb,var(--red),transparent 68%);border-radius:14px;background:var(--red-bg);}
-.settings-danger-label{margin-bottom:10px;color:var(--red);font-size:0.65625rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
+.settings-danger-label{margin-bottom:10px;color:var(--red);font-size:0.6875rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
 .settings-danger-btn{width:100%;padding:11px;border:1px solid color-mix(in srgb,var(--red),transparent 55%);border-radius:10px;background:transparent;color:var(--red);font-family:var(--font-ui);font-size:0.875rem;font-weight:700;cursor:pointer;}
 .settings-danger-zone p{margin:7px 0 0;color:var(--fg2);font-size:0.71875rem;line-height:1.4;}
 .settings-reset-zone{margin-top:12px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--muted);}
@@ -1486,7 +1642,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    apretada contra el título en la misma línea. */
 .agent-list-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 14px;margin:26px 0 10px;padding-top:18px;border-top:1px solid var(--border);}
 .agent-list-heading .modal-label{margin:0;}
-.agent-list-heading span{color:var(--fg3);font-size:.65625rem;line-height:1.35;}
+.agent-list-heading span{color:var(--fg3);font-size:0.6875rem;line-height:1.35;}
 /* Es un enlace dentro de un formulario de botones grandes: sin área propia se
    confundía con la bajada de arriba. El padding le da dónde tocarlo en el
    teléfono, que es donde se usa. */
@@ -1563,7 +1719,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .feedback-select:focus,.feedback-message:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 84%);}
 .feedback-message[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 3px color-mix(in srgb,var(--red),transparent 86%);}
 .feedback-message::placeholder{color:var(--fg3);}
-.feedback-meta{display:flex;justify-content:space-between;gap:12px;margin:7px 2px 16px;color:var(--fg3);font-size:0.65625rem;line-height:1.35;}
+.feedback-meta{display:flex;justify-content:space-between;gap:12px;margin:7px 2px 16px;color:var(--fg3);font-size:0.6875rem;line-height:1.35;}
 .feedback-meta span:first-child{max-width:72%;}
 .feedback-meta span:last-child{white-space:nowrap;}
 .feedback-help.pending{color:var(--fg2);}
@@ -1640,6 +1796,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-home,
 .app.tab-mode #screen-agenda,
 .app.tab-mode #screen-profesor,
+.app.tab-mode #screen-alumnos,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -1652,12 +1809,18 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    de Clases quedaba ENCIMA de Inicio para quien no es profesor: en blanco y
    tapando todo, porque además no la mueve `setTabTransforms` al no estar en
    NAV_TABS. Esta regla la devuelve a su sitio. */
+/* Una cuenta de profesor (#697) esconde Inicio, Estadísticas y Agenda. */
+.app.tab-mode #screen-stats[hidden],
+.app.tab-mode #screen-home[hidden],
+.app.tab-mode #screen-agenda[hidden],
 .app.tab-mode #screen-profesor[hidden],
+.app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
 .app.tab-mode.dragging #screen-agenda,
 .app.tab-mode.dragging #screen-profesor,
+.app.tab-mode.dragging #screen-alumnos,
 .app.tab-mode.dragging #screen-admin{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
@@ -1685,8 +1848,8 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .hist-ramo-name{flex:1;min-width:0;color:var(--fg2);display:flex;align-items:center;gap:7px;flex-wrap:wrap;overflow-wrap:anywhere;}
 .hist-ramo-val{font-family:var(--font-ui);font-weight:700;font-variant-numeric:tabular-nums;font-size:0.90625rem;letter-spacing:-.02em;}
 .hist-pencil{width:13px;height:13px;color:var(--fg3);opacity:0;transition:opacity var(--motion-fast);flex-shrink:0;}
-.hist-cr{font-size:0.65625rem;font-weight:600;color:var(--fg3);background:var(--muted);border-radius:5px;padding:1px 6px;letter-spacing:-.01em;}
-.hist-edited{font-size:0.625rem;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary),transparent 86%);border-radius:5px;padding:1px 6px;text-transform:uppercase;letter-spacing:.4px;}
+.hist-cr{font-size:0.6875rem;font-weight:600;color:var(--fg3);background:var(--muted);border-radius:5px;padding:1px 6px;letter-spacing:-.01em;}
+.hist-edited{font-size:0.6875rem;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary),transparent 86%);border-radius:5px;padding:1px 6px;text-transform:uppercase;letter-spacing:.4px;}
 .sem-picker{display:flex;align-items:stretch;gap:8px;margin-bottom:14px;}
 .sem-picker-anio{flex:0 0 92px;margin-bottom:0;padding:11px 8px;}
 .sem-picker-per{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
@@ -1944,7 +2107,10 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* En el modal este aviso vive dentro de una caja que ya trae sangría, por eso
    la clase lo declara a ancho completo. En la ficha del ramo cuelga directo del
    scroll, así que ahí la sangría la pone él y se alinea con el resto. */
-#no-calcula-warning.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;}
+#no-calcula-warning.weight-setup-nudge,#pauta-cambio.weight-setup-nudge,#consenso-disponible.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;}
+/* Las propuestas de un agente cuelgan del mismo scroll: sin esto, sus tarjetas
+   iban de borde a borde, con las esquinas redondeadas cortadas por la pantalla. */
+#notas-propuestas{margin:12px 20px 0;}
 .eximicion-note.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;
   background:var(--card);border-color:var(--border2);}
 .eximicion-note.weight-setup-nudge .ic{color:var(--fg3);}
@@ -1979,11 +2145,10 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .modo-opt.sel{border-color:var(--primary);background:var(--primary-light);}
 .modo-opt-name{font-size:0.84375rem;font-weight:600;color:var(--fg);letter-spacing:-.01em;}
 .modo-opt.sel .modo-opt-name{color:var(--primary);}
-.modo-opt-sub{font-size:0.65625rem;color:var(--fg3);line-height:1.2;text-align:center;}
+.modo-opt-sub{font-size:0.6875rem;color:var(--fg3);line-height:1.2;text-align:center;}
 .accent-picker-label{display:block;margin-top:22px;}
-.accent-grid{display:flex;gap:10px;overflow-x:auto;padding:3px 2px 5px;scrollbar-width:none;}
-.accent-grid::-webkit-scrollbar{display:none;}
-.accent-opt{display:flex;min-width:62px;flex:1;flex-direction:column;align-items:center;gap:7px;padding:9px 6px;border:1.5px solid transparent;border-radius:12px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:0.6875rem;font-weight:650;cursor:pointer;transition:border-color var(--motion-fast),background var(--motion-fast),color var(--motion-fast);}
+.accent-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:3px 2px 5px;}
+.accent-opt{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:9px 6px;border:1.5px solid transparent;border-radius:12px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:0.6875rem;font-weight:650;cursor:pointer;transition:border-color var(--motion-fast),background var(--motion-fast),color var(--motion-fast);}
 .accent-opt.sel{border-color:var(--primary);background:var(--primary-light);color:var(--primary);}
 .accent-swatch{width:30px;height:30px;border:3px solid var(--card);border-radius:50%;background:linear-gradient(var(--gradient-accent),var(--swatch-light) 0 50%,var(--swatch-dark) 50%);box-shadow:0 0 0 1px var(--border2);}
 .accent-opt.sel .accent-swatch{box-shadow:0 0 0 2px var(--primary),0 3px 10px color-mix(in srgb,var(--primary),transparent 65%);}
@@ -2098,6 +2263,14 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    toggle y el scale del punto de color seleccionado. Son posición y estado,
    no animación — anularlos descoloca la interfaz. */
 @media(prefers-reduced-motion:reduce){
+  /* El carrusel mantiene la posición de cada pestaña, pero cambia de pantalla
+     sin recorrer un viewport cuando la persona pidió reducir movimiento. */
+  .app.tab-mode #screen-stats,
+  .app.tab-mode #screen-home,
+  .app.tab-mode #screen-agenda,
+  .app.tab-mode #screen-profesor,
+  .app.tab-mode #screen-alumnos,
+  .app.tab-mode #screen-admin{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group,.cat-card{will-change:auto;}
 
   /* Hundirse al tocar y levantarse al apuntar: el color y la sombra siguen
@@ -2236,7 +2409,7 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .greet-line{font-size:1.75rem;font-weight:400;letter-spacing:-.04em;line-height:1.18;color:var(--fg2);}
 .greet-line .greet-name{display:block;font-weight:600;color:var(--fg);}
 .gpa-card{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:24px;margin:0 20px;padding-bottom:24px;border-bottom:1px solid var(--border);}
-.gpa-label{font-size:.625rem;font-weight:600;letter-spacing:.11em;margin-bottom:10px;}
+.gpa-label{font-size:0.6875rem;font-weight:600;letter-spacing:.11em;margin-bottom:10px;}
 .gpa-label,.gpa-reading,#home-gpa-method,.gpa-tags,#gpa-empty-hint{grid-column:1 / -1;}
 .gpa-reading{display:flex;align-items:flex-start;flex-wrap:wrap;gap:14px 20px;grid-column:1;grid-row:2;}
 /* La nota conserva exactamente el color calculado; se quita el brillo, no el
@@ -2548,6 +2721,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .faltas-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--fg2);cursor:pointer;}
 .faltas-btn .ic{width:16px;height:16px;}
 .faltas-btn:disabled{opacity:.35;cursor:default;}
+/* Décimas del programa (#631): la misma tarjeta que las faltas, con botones de 44 pt. */
+.bonus-card{display:flex;}
+.bonus-card .faltas-btn{width:44px;height:44px;}
+.bonus-anotar{min-height:44px;padding:0 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit;font-size:0.875rem;font-weight:600;cursor:pointer;flex-shrink:0;}
 .prop-notas-card{margin-bottom:12px;padding:13px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);}
 .prop-notas-head{display:flex;flex-direction:column;gap:2px;margin-bottom:10px;}
 .prop-notas-head b{font-size:0.875rem;font-weight:700;color:var(--fg);}
@@ -2569,7 +2746,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .eval-sub-open{display:flex;flex-direction:column;align-items:flex-start;gap:1px;flex:1;min-width:0;padding:4px 0;border:0;background:transparent;text-align:left;cursor:pointer;font-family:inherit;}
 .eval-sub-open:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
 .eval-sub-fecha{font-size:0.6875rem;color:var(--fg3);}
-.eval-sub-fecha.vacia{color:var(--border2);}
 /* Una casilla que quedó fuera de la pauta al bajar las casillas del grupo.
    Su nota sigue contando, así que tiene que verse: antes desaparecía y el
    promedio quedaba sin explicación.
@@ -2930,6 +3106,21 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig-resumen span,.admin-hig-resumen p{font-size:.8125rem;color:var(--fg2);margin:0;}
 .admin-hig-resumen strong{display:block;font-size:1.875rem;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:7px 0;overflow-wrap:anywhere;}
 .admin-hig-nota{font-size:.8125rem;color:var(--fg2);margin:16px 0;}
+.admin-crecimiento{border-bottom:1px solid var(--border);padding:0 0 24px;margin-bottom:24px;}
+.admin-crecimiento h2{font-size:1.125rem;margin:0;}
+.admin-crecimiento>p{color:var(--fg2);font-size:.8125rem;margin:4px 0 16px;}
+.admin-crecimiento-actual{border:1px solid var(--border);border-radius:12px;padding:16px;}
+.admin-crecimiento-historial{margin-top:8px;}
+.admin-crecimiento-historial>summary{cursor:pointer;font-size:.875rem;font-weight:600;padding:10px 0;}
+.admin-crecimiento ol{list-style:none;margin:0;padding:0;display:grid;gap:12px;}
+.admin-crecimiento li{border-top:1px solid var(--border);padding:16px 0;min-width:0;}
+.admin-crecimiento h3{font-size:.9375rem;margin:0 0 12px;}
+.admin-crecimiento dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;}
+.admin-crecimiento dt{font-size:.8125rem;color:var(--fg2);}
+.admin-crecimiento dd{margin:0;font-variant-numeric:tabular-nums;}
+.admin-crecimiento dd strong,.admin-crecimiento dd span{display:block;}
+.admin-crecimiento dd span{font-size:.8125rem;color:var(--fg2);}
+@media(max-width:600px){.admin-crecimiento dl{grid-template-columns:1fr;}}
 .admin-hig-pestanas{display:flex;gap:6px;border-bottom:1px solid var(--border);margin:24px 0;flex-wrap:wrap;}
 .admin-hig-pestanas button{padding:10px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--fg2);font:inherit;font-size:.875rem;cursor:pointer;}
 .admin-hig-pestanas button[aria-pressed=true]{border-color:var(--primary);color:var(--primary);}
@@ -2988,3 +3179,237 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 @media(min-width:1000px){#admin-body:has(.admin-hig){max-width:1100px;margin:0 auto;}}
 @media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-buscar{flex-basis:100%;}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
 @media(prefers-reduced-motion:reduce){.admin-hig *{animation:none;transition:none;}}
+
+/* ─── Panel de alumnos (profesor) y compartir notas (alumno) ─────────────── */
+.compartir-profe{display:flex;flex-direction:column;gap:12px;}
+.compartir-explica{margin:0;font-size:0.875rem;line-height:1.45;color:var(--fg2);}
+.compartir-ramos{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.compartir-ramo{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 14px;border-top:1px solid var(--border);cursor:pointer;}
+.compartir-ramo:first-child{border-top:0;}
+.compartir-ramo input{width:22px;height:22px;flex:none;accent-color:var(--primary);}
+.compartir-ramo span{display:flex;flex-direction:column;min-width:0;}
+.compartir-ramo b{font-size:0.9375rem;font-weight:600;color:var(--fg);}
+.compartir-ramo small{font-size:0.75rem;color:var(--fg3);}
+.compartir-error{margin:0;font-size:0.8125rem;color:var(--red);}
+.settings-compartidos{margin:22px 0 6px;padding-top:16px;border-top:1px solid var(--border);}
+.compartido-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap;}
+.compartido-fila:first-child{border-top:0;}
+.compartido-fila div{display:flex;flex-direction:column;min-width:0;flex:1 1 12rem;}
+.compartido-fila b{font-size:0.9375rem;color:var(--fg);}
+.compartido-fila small{font-size:0.75rem;color:var(--fg3);}
+.compartido-fila .settings-danger-btn{min-height:44px;width:auto;}
+.panel-alumnos-link{display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
+.panel-alumnos-link h2{margin:0;font-size:1rem;color:var(--fg);}
+.panel-alumnos-link p{margin:0;font-size:0.875rem;color:var(--fg2);}
+.panel-alumnos-url{display:flex;flex-direction:column;gap:10px;}
+.panel-alumnos-url code{flex:none;min-width:0;overflow-wrap:anywhere;padding:10px 12px;border-radius:10px;background:var(--bg2);font-size:0.8125rem;color:var(--fg);user-select:all;}
+.panel-alumnos-url .btn-confirm{min-height:44px;width:100%;}
+.panel-alumnos-link .agent-refresh{align-self:flex-start;min-height:44px;}
+.panel-alumnos-link + .profesor-hig-lista-cabeza{margin-top:22px;}
+.panel-alumnos-link.al-final{margin-top:26px;}
+.ah-grupo:first-of-type{margin-top:8px;}
+.panel-alumnos-buscar{margin-top:8px;}
+.panel-alumnos-buscar input{min-height:44px;}
+.panel-alumnos-exportar{min-height:44px;margin-top:4px;}
+.panel-resumen-ramo{border:1px solid var(--border);border-radius:14px;padding:4px 14px 12px;margin-top:10px;background:var(--card);}
+.panel-resumen-ramo summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 14px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
+.panel-resumen-ramo summary::-webkit-details-marker{display:none;}
+.panel-resumen-nombre{display:flex;flex-direction:column;min-width:0;}
+.panel-resumen-nombre b{font-size:0.9375rem;color:var(--fg);}
+.panel-resumen-nombre small{font-size:0.75rem;color:var(--fg3);}
+.panel-resumen-semaforo{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;}
+.panel-resumen-sem{padding:3px 8px;border-radius:999px;font-size:0.75rem;font-variant-numeric:tabular-nums;color:var(--fg2);background:var(--bg2);}
+.panel-resumen-good{color:var(--green);background:var(--green-bg);}
+.panel-resumen-warn{color:var(--yellow);background:var(--yellow-bg);}
+.panel-resumen-bad{color:var(--red);background:var(--red-bg);}
+.panel-alumnos-resumen{margin-top:22px;}
+.panel-alumnos-proxima{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;margin:10px 0 0;padding:8px 10px;border-radius:10px;background:var(--bg2);font-size:0.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.panel-alumnos-proxima b{color:var(--fg);font-weight:600;}
+.panel-alumnos-inicio{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 0;font-size:0.8125rem;color:var(--fg2);}
+.panel-alumnos-inicio b{color:var(--fg);font-weight:600;}
+.panel-alumnos-inicio .agent-refresh{min-height:44px;flex-shrink:0;}
+/* Antes y ahora (#697): cifras del grupo, gráfico de una serie en el color del texto. */
+.ah-grupo{margin-top:22px;}
+.ah-cifras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.ah-cifra:nth-child(3){grid-column:1/-1;}
+@media (min-width:560px){.ah-cifras{grid-template-columns:repeat(3,minmax(0,1fr));}.ah-cifra:nth-child(3){grid-column:auto;}}
+.ah-cifra{display:flex;flex-direction:column;gap:2px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
+.ah-cifra-valor{font-size:1.375rem;font-weight:650;color:var(--fg);font-variant-numeric:tabular-nums;}
+.ah-cifra-etiqueta{font-size:0.8125rem;font-weight:600;color:var(--fg);}
+.ah-cifra small{font-size:0.75rem;color:var(--fg3);}
+.ah-nota{margin:12px 0 0;font-size:0.875rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.ah-alumno{margin-top:10px;}
+.ah-alumno-resumen{margin:0;font-size:0.9375rem;font-weight:600;color:var(--fg);}
+.ah-alumno-lados{display:flex;flex-wrap:wrap;gap:4px 14px;margin:4px 0 0;font-size:0.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.ah-grafico{display:block;width:100%;height:auto;margin-top:8px;overflow:visible;}
+.ah-cero{stroke:var(--border);stroke-width:1;}
+.ah-inicio{stroke:var(--fg3);stroke-width:1;stroke-dasharray:3 3;}
+.ah-eje{fill:var(--fg3);font-size:11px;}
+.ah-linea{fill:none;stroke:var(--fg);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.ah-punto{fill:var(--fg);stroke:var(--card);stroke-width:2;}
+.ah-zona{fill:transparent;}
+.ah-pie{margin:2px 0 0;font-size:0.75rem;color:var(--fg3);}
+.ah-detalle{margin-top:6px;}
+.ah-detalle summary{min-height:44px;display:flex;align-items:center;font-size:0.875rem;font-weight:600;color:var(--primary);cursor:pointer;}
+.ah-detalle td small{display:block;font-size:0.6875rem;color:var(--fg3);}
+/* En el resumen la cuenta va bajo el nombre: "Interrogación 1 3 notas" se leía "Interrogación 13". */
+.panel-resumen-ramo .panel-alumnos-notas td small{display:block;margin-left:0;font-size:0.6875rem;font-weight:400;color:var(--fg3);}
+.panel-resumen-ramo .panel-alumnos-notas td:not(:first-child),.panel-resumen-ramo .panel-alumnos-notas th:not(:first-child){padding-left:12px;white-space:nowrap;vertical-align:top;}
+.panel-resumen-ramo .panel-alumnos-notas td .panel-alumnos-gh{flex-direction:column;align-items:flex-end;gap:0;}
+.panel-alumnos-resumen + .profesor-hig-lista-cabeza{margin-top:22px;}
+.panel-alumnos-alumno{border:1px solid var(--border);border-radius:14px;padding:4px 14px 14px;margin-top:10px;background:var(--card);}
+.panel-alumnos-alumno summary{display:flex;align-items:baseline;gap:10px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
+.panel-alumnos-alumno summary::-webkit-details-marker{display:none;}
+.panel-alumnos-alumno summary b{font-size:1rem;color:var(--fg);}
+.panel-alumnos-alumno summary small{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-alumno .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}
+.panel-alumnos-ramo{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;}
+.panel-alumnos-ramo-cabeza > span:first-child{display:flex;flex-direction:column;min-width:0;}
+.panel-alumnos-ramo-cabeza b{font-size:0.9375rem;color:var(--fg);}
+.panel-alumnos-ramo-cabeza small{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-prom,.panel-alumnos-gh{display:flex;flex-direction:column;align-items:flex-end;font-variant-numeric:tabular-nums;font-weight:650;color:var(--fg);}
+.panel-alumnos-gh{font-weight:500;color:var(--fg2);}
+.panel-alumnos-prom small,.panel-alumnos-gh small{font-size:0.6875rem;font-weight:400;color:var(--fg3);}
+.panel-alumnos-sin{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-notas{width:100%;margin-top:8px;border-collapse:collapse;font-size:0.875rem;}
+.panel-alumnos-notas th{text-align:left;font-size:0.6875rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3);padding:6px 0;}
+.panel-alumnos-notas th:not(:first-child),.panel-alumnos-notas td:not(:first-child){text-align:right;}
+.panel-alumnos-notas td{padding:8px 0;border-top:1px solid var(--border);color:var(--fg);font-variant-numeric:tabular-nums;}
+.panel-alumnos-notas td .panel-alumnos-gh{flex-direction:row;justify-content:flex-end;align-items:baseline;gap:6px;}
+.panel-alumnos-cat td{font-weight:600;}
+.panel-alumnos-cat td small{margin-left:8px;font-size:0.6875rem;font-weight:400;color:var(--fg3);}
+.panel-alumnos-nota td{border-top:0;padding-top:4px;color:var(--fg2);}
+.panel-alumnos-nota td:first-child{padding-left:14px;}
+
+/* ─── App iOS: navegar ────────────────────────────────────────────────────────
+   Recorridos de transicionNativa() y entrarDesde() (app.js). Las reglas que
+   los usan están en el bloque de la app, más abajo: la web no los usa. */
+@keyframes navEntraDer{from{transform:translateX(100%);}}
+@keyframes navSaleIzq{to{transform:translateX(-30%);filter:brightness(.9);}}
+/* Sale un poco más allá del borde: con la curva larga, la sombra quedaba
+   asomada a la derecha los últimos cuadros. */
+@keyframes navSaleDer{to{transform:translateX(calc(100% + 60px));}}
+@keyframes navEntraIzq{from{transform:translateX(-30%);filter:brightness(.9);}}
+@keyframes navContenidoDer{from{transform:translateX(36px);opacity:0;}}
+@keyframes navContenidoIzq{from{transform:translateX(-36px);opacity:0;}}
+@keyframes navContenidoFundido{from{opacity:0;}}
+/* Con movimiento reducido el contenido de Ajustes solo aparece (fundido); el
+   push y el pop se vuelven un fundido desde app.js (data-nav="fundido"). */
+@media(prefers-reduced-motion:reduce){
+  .app-nativa .settings-shell.nav-push,.app-nativa .settings-shell.nav-pop{animation-name:navContenidoFundido;}
+}
+
+/* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
+   Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
+   Martín: "que la app parezca lo menos PWA posible".
+   HIG Sheets y Toolbars: cerrar arriba a la izquierda con su símbolo y no con
+   texto; la acción principal arriba a la derecha, destacada y una sola.
+   HIG Lists and tables y Settings: grupos en tarjetas redondeadas.
+   HIG Buttons: todo lo que se toca mide al menos 44 pt. */
+.app-nativa .modal-sheet{--fondo-hoja:var(--bg2);background:var(--fondo-hoja);}
+.app-nativa .hoja-barra{position:sticky;top:-16px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-16px -20px 10px;padding:10px 14px 6px;background:var(--fondo-hoja);}
+.app-nativa .hoja-barra-izq,.app-nativa .hoja-barra-der{display:flex;min-width:44px;}
+.app-nativa .hoja-barra button{flex:none;width:auto;min-width:44px;height:44px;margin:0;border:0;border-radius:22px;box-shadow:none;background-image:none;}
+.app-nativa .hoja-cerrar,.app-nativa .hoja-volver{display:inline-flex;align-items:center;justify-content:center;width:44px;padding:0;font-size:0;background:color-mix(in srgb,var(--fg) 9%,var(--fondo-hoja));color:var(--fg);}
+.app-nativa .hoja-volver>*{display:none;}
+.app-nativa .hoja-cerrar::before,.app-nativa .hoja-volver::before{content:"";width:17px;height:17px;background:currentColor;-webkit-mask:var(--ic-hoja) center/contain no-repeat;mask:var(--ic-hoja) center/contain no-repeat;}
+.app-nativa .hoja-cerrar{--ic-hoja:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6 6 18'/%3E%3C/svg%3E");}
+.app-nativa .hoja-volver{--ic-hoja:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E");}
+.app-nativa .hoja-confirmar{padding:0 18px;background:var(--primary);color:var(--primary-fg);font-family:var(--font-ui);font-size:0.9375rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap;}
+.app-nativa .hoja-confirmar:disabled{opacity:.35;}
+/* La cabecera propia de Ajustes queda solo con el título. */
+.app-nativa .settings-modal-head .modal-title{margin-bottom:12px;}
+
+/* Ajustes como la app Ajustes: búsqueda gris con lupa, grupos en tarjetas y
+   filas sin bajada (el título basta y la búsqueda encuentra lo de adentro). */
+.app-nativa .modal-sheet:has(.settings-shell){--fondo-hoja:var(--fondo-agrupado);}
+.app-nativa .settings-search-label{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);}
+.app-nativa input.settings-search{min-height:44px;margin-bottom:6px;padding:8px 12px 8px 36px;border:0;border-radius:12px;background:var(--celda-agrupada) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E") 12px 50%/17px no-repeat;font-size:1.0625rem;}
+.app-nativa .settings-nav{gap:0;}
+.app-nativa .settings-nav-group{margin:20px 16px 7px;}
+.app-nativa .settings-nav-card{display:block;background:var(--celda-agrupada);border-radius:14px;overflow:hidden;}
+.app-nativa .settings-nav-item{position:relative;min-height:50px;padding:8px 14px;gap:13px;border:0;border-radius:0;background:transparent;}
+.app-nativa .settings-nav-item+.settings-nav-item::before{content:"";position:absolute;top:0;left:57px;right:0;height:1px;background:var(--border);}
+.app-nativa .settings-nav-item small{display:none;}
+.app-nativa .settings-nav-item b{font-weight:500;font-size:1rem;}
+.app-nativa .settings-nav-icon{width:30px;height:30px;border-radius:8px;background:var(--muted);color:var(--fg);}
+.app-nativa .settings-nav-icon .ic{width:17px;height:17px;}
+.app-nativa .settings-nav-chevron{font-size:1.375rem;}
+.app-nativa .settings-detail-heading{margin-bottom:14px;}
+.app-nativa .settings-detail-heading p{display:none;}
+
+/* Botones de las barras de arriba: redondos y sin borde, como los de iOS. */
+.app-nativa .icon-btn{width:44px;height:44px;border:0;border-radius:50%;}
+.app-nativa .topbar-link{min-height:44px;padding:0 16px;border:0;border-radius:22px;background:var(--muted);color:var(--fg);}
+
+
+/* Confirmaciones como las alertas de iOS (HIG Alerts): texto centrado y
+   botones en cápsula; lo destructivo en rojo sobre gris, no un bloque lleno. */
+.app-nativa .confirm-box{max-width:300px;padding:22px 18px 16px;border-radius:28px;text-align:center;}
+.app-nativa .confirm-title{font-size:1.0625rem;font-weight:600;}
+.app-nativa .confirm-desc{font-size:0.875rem;}
+.app-nativa .confirm-btns button{min-height:48px;border:0;border-radius:24px;font-size:1rem;font-weight:600;}
+.app-nativa .confirm-btns .btn-danger{background:var(--muted);color:var(--red);}
+/* Y aparecen como ellas (HIG Motion: breve y precisa): un fundido con un leve
+   acercamiento al abrir y solo el fundido al cerrar. Antes saltaban de golpe. */
+.app-nativa .confirm-overlay{opacity:0;transition:opacity var(--motion-fast) var(--ease-standard),display var(--motion-fast) allow-discrete;}
+.app-nativa .confirm-overlay.open{opacity:1;}
+.app-nativa .confirm-overlay.open .confirm-box{transition:transform var(--motion-base) var(--ease-out);}
+@starting-style{
+  .app-nativa .confirm-overlay.open{opacity:0;}
+  .app-nativa .confirm-overlay.open .confirm-box{transform:scale(1.08);}
+}
+@media(prefers-reduced-motion:reduce){.app-nativa .confirm-overlay.open .confirm-box{transition:none;}}
+
+/* Las hojas suben con la misma curva y duración que empujar un ramo (HIG
+   Motion: el movimiento de la app es uno solo). Con 220 ms aparecían el doble
+   de rápido que todo lo demás. El overlay espera a que la hoja termine de bajar
+   antes de esconderse. Con movimiento reducido la hoja sigue sin desplazarse. */
+.app-nativa .modal-sheet{transition-duration:var(--motion-navegar);transition-timing-function:var(--ease-navegar);}
+.app-nativa .modal-overlay{transition:opacity var(--motion-base) var(--ease-standard),display var(--motion-navegar) allow-discrete;}
+
+/* Navegar como en iOS (HIG Motion; transicionNativa en app.js). Abrir un ramo
+   lo empuja desde la derecha mientras Inicio se corre un tercio y se oscurece;
+   Volver hace el mismo camino al revés. La barra de pestañas tiene su propio
+   nombre y se queda quieta. Las dos fotos se mueven completas (sin el fundido
+   por defecto) y la que va encima lleva una sombra en su borde. */
+.app-nativa .bottom-nav{view-transition-name:barra-pestanas;}
+.app-nativa[data-nav="push"]::view-transition-old(root),.app-nativa[data-nav="push"]::view-transition-new(root),.app-nativa[data-nav="pop"]::view-transition-old(root),.app-nativa[data-nav="pop"]::view-transition-new(root){mix-blend-mode:normal;}
+.app-nativa[data-nav="push"]::view-transition-old(root){animation:navSaleIzq var(--motion-navegar) var(--ease-navegar) both;}
+.app-nativa[data-nav="push"]::view-transition-new(root){animation:navEntraDer var(--motion-navegar) var(--ease-navegar) both;box-shadow:-12px 0 32px rgba(0,0,0,.18);}
+.app-nativa[data-nav="pop"]::view-transition-old(root){z-index:1;animation:navSaleDer var(--motion-navegar) var(--ease-navegar) both;box-shadow:-12px 0 32px rgba(0,0,0,.18);}
+.app-nativa[data-nav="pop"]::view-transition-new(root){animation:navEntraIzq var(--motion-navegar) var(--ease-navegar) both;}
+.app-nativa[data-nav="fundido"]::view-transition-group(root){animation-duration:var(--motion-base);}
+/* Dentro de Ajustes la barra se queda y el contenido entra desde el lado hacia
+   el que se navega (entrarDesde en app.js). */
+.app-nativa .settings-shell.nav-push{animation:navContenidoDer var(--motion-screen) var(--ease-navegar) both;}
+.app-nativa .settings-shell.nav-pop{animation:navContenidoIzq var(--motion-screen) var(--ease-navegar) both;}
+
+/* Barra de pestañas de vidrio, como la de iOS 26: una cápsula flotante y
+   translúcida, separada de los bordes, con la pestaña activa en una píldora.
+   El contenido pasa por debajo (.scroll ya deja 80 px + el área segura).
+   Con "Reducir transparencia" o "Aumentar contraste" vuelve a ser opaca: está
+   al final del archivo. */
+.app-nativa .bottom-nav{left:16px;right:16px;width:auto;max-width:none;transform:none;bottom:calc(env(safe-area-inset-bottom,0px) * .5 + 6px);padding:5px;gap:2px;border:1px solid color-mix(in srgb,var(--fg),transparent 90%);border-radius:999px;background:color-mix(in srgb,var(--bg2),transparent 28%);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff,transparent 82%),0 10px 30px rgba(0,0,0,.14);}
+.app-nativa .bottom-nav .nav-item{min-height:52px;padding:6px 0 5px;border-radius:999px;}
+.app-nativa .bottom-nav .nav-item.active{background:color-mix(in srgb,var(--fg),transparent 91%);}
+
+/* Nada de comportamientos de página (pedido de Martín: "sácalos todos"): sin
+   seleccionar texto de la interfaz, sin el menú de mantener presionado y sin
+   el destello gris al tocar. Se puede seguir escribiendo y copiando en los
+   campos y en las URL que se muestran para copiar. El zoom lo quita index.html
+   y la vista previa de enlaces, capacitor.config.json. */
+.app-nativa body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.app-nativa input,.app-nativa textarea,.app-nativa select,.app-nativa [contenteditable],.app-nativa code{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+.app-nativa *{-webkit-tap-highlight-color:transparent;}
+
+@media(prefers-reduced-transparency:reduce){
+  .app-nativa .bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;}
+}
+@media(prefers-contrast:more){
+  .app-nativa .bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;border-color:var(--fg3);}
+}
+
+/* El total del editor de pauta se pega justo bajo la barra de la hoja. */
+.app-nativa .pauta-total{top:44px;}

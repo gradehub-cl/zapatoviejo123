@@ -36,7 +36,9 @@ declare
   n integer;
   debajo_o_igual integer;
 begin
-  if uid is null or v_tenant is null then
+  if uid is null or v_tenant is null or exists (
+    select 1 from public.user_ramos ur
+    where ur.user_id = uid and ur.data->>'tipoCuenta' = 'profesor') then
     return;
   end if;
 
@@ -54,6 +56,8 @@ begin
     from public.curso_notas
     where tenant = v_tenant
       and updated_at > now() - interval '30 days'
+      and not exists (select 1 from public.user_ramos ur
+                      where ur.user_id = curso_notas.user_id and ur.data->>'tipoCuenta' = 'profesor')
     group by user_id
   )
   select count(*), count(*) filter (where promedio <= mi) - 1

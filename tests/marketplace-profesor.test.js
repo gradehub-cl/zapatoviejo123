@@ -34,7 +34,7 @@ ctx.supabaseClient={from(tabla){
   fallar=false;
   perfil={estado:'pendiente'};
   await run('openEspacioProfesor()');
-  check('pendiente no entra al editor',/esperando revisión/.test(modal.innerHTML)&&!/pr-enviar/.test(modal.innerHTML));
+  check('pendiente muestra su estado sin ofrecer envío a revisión',/pendiente de revisión/.test(modal.innerHTML)&&!/pr-enviar/.test(modal.innerHTML));
   perfil={estado:'suspendido'};
   await run('openEspacioProfesor()');
   check('suspendido no entra al editor',/suspendido/.test(modal.innerHTML)&&!/pr-enviar/.test(modal.innerHTML));

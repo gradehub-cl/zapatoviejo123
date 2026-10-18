@@ -1,0 +1,332 @@
+{
+  "fuentes": "Cinco PDF entregados por Lucas; extracción textual y revisión visual de páginas de evaluación.",
+  "alcance": "Transcripción de programas 2026-2; no modifica la malla, créditos, motor ni pautas personalizadas. No generaliza entre secciones.",
+  "limitaciones": "Las horas se conservan en reglasDelCurso. Las fórmulas condicionales y los traspasos con topes se calculan al aceptar la pauta; el caso exacto 3,8 de Gerencial y las recuperativas adicionales indefinidas quedan pendientes.",
+  "programas": [
+    {
+      "nombre_catalogo": "Contabilidad Gerencial",
+      "archivo_fuente": "2026-2+Programa+EAA2240-3.pdf",
+      "paginas": [
+        3,
+        4
+      ],
+      "citas_textuales": [
+        "Ejercicios, casos y tareas 20%",
+        "Pruebas 48% (24% cada una)",
+        "Examen 32%"
+      ],
+      "semestre_malla_actual": 7,
+      "periodo": "2026-2",
+      "sigla": "EAA2240",
+      "evaluaciones": [
+        [
+          "Ejercicios, casos y tareas",
+          20
+        ],
+        [
+          "Prueba 1",
+          24,
+          {
+            "fecha": "2026-10-05"
+          }
+        ],
+        [
+          "Prueba 2",
+          24,
+          {
+            "fecha": "2026-11-09"
+          }
+        ],
+        [
+          "Examen",
+          32,
+          {
+            "fecha": "2026-12-12",
+            "nombresAnteriores": [
+              "Examen final escrito"
+            ]
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "Cantidad y puntajes de ejercicios/casos/tareas no publicados.",
+        "Texto ≥ 3,8 y fórmula > 3,8 discrepan en el límite.",
+        "Calendario explícitamente tentativo."
+      ],
+      "no_calcula": [
+        "Solo queda pendiente el caso exacto 3,8 con tareas ≥ 4,0: texto ≥ y fórmula > se contradicen.",
+        "La nota de ejercicios, casos y tareas se calcula por puntos acumulados, con 7,0 al 90% del puntaje máximo y escala lineal. Ingresa la nota del bloque entregada por el profesor"
+      ],
+      "reglas_del_curso": [
+        "Programa 2026-2 de Luis Camilla. Calendario tentativo: pruebas a las 17:30 y examen a las 08:20; confirma cambios con el curso",
+        "La recuperativa por una prueba justificada es el 12 de diciembre después del examen; si no la rindes, la prueba justificada queda en 1,0. El examen no puede ponderar más de 56%; sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario"
+      ]
+    },
+    {
+      "nombre_catalogo": "Empresas y Legislación",
+      "archivo_fuente": "Programa+Empresa+y+Legislacio%CC%81n+2026-2.pdf",
+      "paginas": [
+        3,
+        4
+      ],
+      "citas_textuales": [
+        "Prueba 1: 30%",
+        "Prueba 2: 30%",
+        "Examen: 40%"
+      ],
+      "semestre_malla_actual": 7,
+      "periodo": "2026-2",
+      "sigla": "EAA2230",
+      "evaluaciones": [
+        [
+          "Prueba 1",
+          30,
+          {
+            "fecha": "2026-09-26"
+          }
+        ],
+        [
+          "Prueba 2",
+          30,
+          {
+            "fecha": "2026-11-03"
+          }
+        ],
+        [
+          "Examen",
+          40,
+          {
+            "fecha": "2026-12-02"
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta en pauta; media en período inferido del archivo",
+      "faltantes_y_ambiguedades": [
+        "El cuerpo no imprime el año; 2026-2 procede del nombre del archivo y los días de semana coinciden con 2026.",
+        "Cantidad de décimas por participación/asistencia no publicada."
+      ],
+      "no_calcula": [
+        "Las preguntas bonus pueden sumar hasta 0,3 a cada prueba. La participación, tareas voluntarias y 100% de asistencia a clases y ayudantías pueden dar décimas; su asignación depende del profesor"
+      ],
+      "reglas_del_curso": [
+        "Programa recibido como 2026-2 de Luis Enrique Seguel. Prueba 1: 09:40; Prueba 2: 17:30; Examen: 13:30",
+        "El examen no puede superar 70% del curso: justificar ambas pruebas trasladaría 100% y no cumple el requisito. No hay eximición"
+      ]
+    },
+    {
+      "nombre_catalogo": "Estrategia Competitiva",
+      "archivo_fuente": "Programa+Estrategia+Competitiva.pdf",
+      "paginas": [
+        1,
+        2,
+        3
+      ],
+      "citas_textuales": [
+        "Participación* 10%",
+        "Actividades* 10%",
+        "Prueba 1 23%",
+        "Prueba 2 23%",
+        "Examen 34%",
+        "promedio de las tres notas mayores"
+      ],
+      "semestre_malla_actual": 6,
+      "periodo": "2026-2",
+      "sigla": "EAA2420",
+      "evaluaciones": [
+        [
+          "Participación",
+          10
+        ],
+        [
+          "Actividades",
+          10,
+          {
+            "slots": 4,
+            "slotLabel": "Actividad",
+            "dropLowest": {
+              "count": 1
+            }
+          }
+        ],
+        [
+          "Prueba 1",
+          23
+        ],
+        [
+          "Prueba 2",
+          23
+        ],
+        [
+          "Examen",
+          34,
+          {
+            "nombresAnteriores": [
+              "Examen final escrito"
+            ]
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "Sin fechas de evaluaciones.",
+        "Nivel de participación requerido para 7,0 lo decide el profesor."
+      ],
+      "no_calcula": [],
+      "reglas_del_curso": [
+        "Programa 2026-2 de Gastón Llanes. Hay cuatro actividades y se promedian las tres mejores; las fechas las anuncia el curso",
+        "Para rendir examen debes haber sido evaluado en al menos 33% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba. El examen no puede superar 70%: el exceso se califica con 1,0. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario",
+        "Una prueba justificada se recupera en la fecha de Facultad; no rendir la recuperativa implica 1,0 en esa prueba. Si faltas a ambas pruebas, no puedes rendir recuperativa ni examen y ambas quedan en 1,0"
+      ]
+    },
+    {
+      "nombre_catalogo": "Ética, Economía y Empresa",
+      "archivo_fuente": "ETI209+-+Syllabus+comu%CC%81n+Segundo+Semestre+de+2026+v6ago.pdf",
+      "paginas": [
+        7,
+        8
+      ],
+      "citas_textuales": [
+        "Prueba 1 20%",
+        "Prueba 2 20%",
+        "Actividades 25%",
+        "participativas (5)",
+        "Examen 35%"
+      ],
+      "semestre_malla_actual": 6,
+      "periodo": "2026-2",
+      "sigla": "ETI209",
+      "evaluaciones": [
+        [
+          "Prueba 1",
+          20,
+          {
+            "fecha": "2026-09-10"
+          }
+        ],
+        [
+          "Prueba 2",
+          20,
+          {
+            "fecha": "2026-10-26"
+          }
+        ],
+        [
+          "Actividades participativas",
+          25,
+          {
+            "slots": 5,
+            "slotLabel": "Actividad"
+          }
+        ],
+        [
+          "Examen",
+          35,
+          {
+            "fecha": "2026-12-14"
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "Fechas de las cinco actividades por sección.",
+        "Reparto interno de las cinco actividades no explícito: se conserva bloque 25% con cinco casillas; el usuario puede ingresar la nota del bloque.",
+        "Peso de eventual recuperativa si examen supera 60% no definido."
+      ],
+      "no_calcula": [
+        "Recuperativa adicional cuando el examen supera 60%: falta su ponderación."
+      ],
+      "reglas_del_curso": [
+        "Syllabus común 2026-2 para las tres secciones: pruebas a las 17:30 y examen a las 08:20. Las cinco actividades se anuncian por sección",
+        "Si el traspaso por pruebas justificadas hace que el examen supere 60%, habrá una recuperativa adicional definida por el profesor, que puede ser oral. En ese caso ajusta la pauta con sus instrucciones"
+      ]
+    },
+    {
+      "nombre_catalogo": "Marketing Analytics",
+      "archivo_fuente": "2026_2_eaa2320_marketing_analytics_programa.pdf",
+      "paginas": [
+        8,
+        9,
+        10,
+        12
+      ],
+      "citas_textuales": [
+        "Tareas 40%",
+        "Pruebas 20%",
+        "Examen 20%",
+        "Ensayo 20%",
+        "Primero 20%",
+        "Segundo 30%",
+        "Entrega Final 50%"
+      ],
+      "semestre_malla_actual": 6,
+      "periodo": "2026-2",
+      "sigla": "EAA2320",
+      "evaluaciones": [
+        [
+          "Tareas",
+          40,
+          {
+            "slots": 3,
+            "slotLabel": "Tarea"
+          }
+        ],
+        [
+          "Prueba 1",
+          10,
+          {
+            "fecha": "2026-09-30"
+          }
+        ],
+        [
+          "Prueba 2",
+          10,
+          {
+            "fecha": "2026-11-05"
+          }
+        ],
+        [
+          "Examen",
+          20,
+          {
+            "fecha": "2026-12-11",
+            "nombresAnteriores": [
+              "Examen final"
+            ]
+          }
+        ],
+        [
+          "Ensayo: primer hito",
+          4
+        ],
+        [
+          "Ensayo: segundo hito",
+          6
+        ],
+        [
+          "Ensayo: entrega final",
+          10,
+          {
+            "fecha": "2026-11-24"
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "Fechas de tareas e hitos intermedios no publicadas."
+      ],
+      "no_calcula": [],
+      "reglas_del_curso": [
+        "Programa 2026-2: pruebas a las 17:30; examen el 11 de diciembre a las 13:30; entrega final del ensayo el 24 de noviembre a las 17:30. Fechas de tareas e hitos intermedios por anunciar",
+        "Para aprobar, 25% Prueba 1 + 25% Prueba 2 + 50% Examen debe llegar a 4,0 redondeado a la décima; de lo contrario, la final se topa en 3,9",
+        "Para rendir examen debes haber sido evaluado en al menos 40% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba regular. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario",
+        "La recuperativa por una prueba justificada es el 11 de diciembre a las 17:30; si no la rindes, la prueba justificada queda en 1,0"
+      ]
+    }
+  ]
+}

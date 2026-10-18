@@ -27,6 +27,8 @@ const ctx = {
 };
 vm.createContext(ctx); vm.runInContext(src, ctx);
 const run = n => vm.runInContext(n, ctx);
+// Desde #697 la edad se elige en una ruleta: alguien de 20 años.
+run('obEdad=20');
 
 let ok = 0, fail = 0;
 function chk(nombre, cond) { if (cond) { ok++; console.log('  ok   ' + nombre); } else { fail++; console.log('  FAIL ' + nombre); } }
