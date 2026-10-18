@@ -357,9 +357,16 @@ function fechasDeRamos(ramos) {
         rendida: typeof n.valor === 'number',
       });
     });
-    if (c.fecha) out.push({ ramo: r.nombre, evaluacion: c.nombre, fecha: c.fecha, hora: c.hora || null, peso: c.peso });
+    if (!c.fecha) return;
+    // La fecha del grupo vale para las casillas sin fecha propia, como en
+    // porRegistrar. Sin `rendida`, una prueba que ya tenía nota seguía saliendo
+    // como la próxima del ramo, y la app (agendaEvents) ya no la mostraba.
+    const conFecha = new Set((c.notas || []).filter(n => n.fecha && Number.isInteger(n.slot)).map(n => n.slot + 1));
+    const rendida = !pendientesDeCategoria(c).some(casilla => !conFecha.has(casilla));
+    out.push({ ramo: r.nombre, evaluacion: c.nombre, fecha: c.fecha, hora: c.hora || null, peso: c.peso, rendida });
   }));
-  return out.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  // Mismo orden que la Agenda: dos pruebas el mismo día van por hora.
+  return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.hora || '').localeCompare(b.hora || ''));
 }
 
 // La regla del promedio general es la de `gpa()` en app.js y tiene que decir lo
