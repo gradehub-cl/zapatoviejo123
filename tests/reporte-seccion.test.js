@@ -66,6 +66,8 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};globalThi
   const db=new PGlite();
   await db.exec(fs.readFileSync(path.join(raiz,'bin/supabase-stubs.sql'),'utf8'));
   await db.exec(`create table public.catalogo_uc(sigla text primary key,nombre text not null,creditos integer,busqueda text not null);
+    create table public.user_ramos(user_id uuid primary key references auth.users(id),data jsonb not null);
+    create table public.profiles(id uuid primary key references auth.users(id),universidad text);
     create table public.catalog_reports(id uuid primary key default gen_random_uuid(),user_id uuid not null,tenant text not null,
       carrera text,ramo text not null,ramo_norm text not null,estructura jsonb not null,huella text not null,nota text,created_at timestamptz default now());`);
   const sql=fs.readFileSync(path.join(raiz,'supabase/catalog_consensus.sql'),'utf8');
@@ -76,6 +78,9 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};globalThi
   const firmas=(await db.query(`select count(*)::int n from pg_proc where proname='submit_catalog_report'`)).rows[0].n;
   chk('reaplicado dos veces deja una sola firma',firmas===1);
   const u='00000000-0000-0000-0000-0000000000a1';
+  await db.query(`insert into auth.users(id) values ($1)`,[u]);
+  await db.query(`insert into public.user_ramos(user_id,data) values ($1,$2::jsonb)`,[u,J({tenant:'uc',onboardingDone:true,ramos:[]})]);
+  await db.query(`insert into public.profiles(id,universidad) values ($1,$2)`,[u,'U. Católica · Ingeniería']);
   await db.query(`select set_config('request.jwt.claim.sub',$1,false)`,[u]);
   const est=J([{nombre:'Control',peso:40},{nombre:'Examen',peso:60}]);
   await db.query(`select public.submit_catalog_report('uc','x','Curso de prueba','curso de prueba','ABC1234',$1::jsonb,'h',null,3)`,[est]);
