@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-09-07';
+const LEGAL_ACCEPTANCE_VERSION = '2026-10-18';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -18,6 +18,28 @@ const LEGAL_ACCEPTANCE_VERSION = '2026-09-07';
 // casos y sigue sin distinguirlos. Si algún día se reactiva la confirmación,
 // hay que volver a redactarlo. Lo fija `tests/seguridad.test.js`.
 const MSG_VERIFICA = 'Ya puedes entrar con ese correo y tu contraseña.';
+
+// El enlace de la calculadora solo atribuye la entrada en esta pestaña. No se
+// mezcla con gradehub_v1 ni se guarda puntaje, nota o identidad en la URL.
+const ORIGEN_ENTRADA_KEY='gradehub_origen_entrada';
+try{
+  if(new URLSearchParams(location.search).get('desde')==='calculadora'){
+    sessionStorage.setItem(ORIGEN_ENTRADA_KEY,'calculadora');
+    // Limpiar solo este parámetro: si queda en la barra, una recarga lo vuelve
+    // a atribuir. Conservar parámetros y fragmentos de OAuth o recuperación.
+    const url=new URL(location.href);
+    url.searchParams.delete('desde');
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }
+}catch(e){}
+function consumirOrigenEntrada(){
+  try{
+    const origen=sessionStorage.getItem(ORIGEN_ENTRADA_KEY);
+    sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);
+    if(origen==='calculadora')return {origen:'calculadora'};
+  }catch(e){}
+  return undefined;
+}
 
 function passwordPolicyError(password){
   if(password.length<PASS_MIN)return 'La contraseña debe tener al menos '+PASS_MIN+' caracteres.';
@@ -831,7 +853,7 @@ async function importarCacheSinDueno(uid){
   }catch(e){showToast('No pudimos traer los ramos de este dispositivo. Siguen guardados aquí.',true);}
 }
 async function afterSignup(){
-  track('signup');
+  track('signup',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
   const uid=currentUser?.id;
   const aislamiento=uid&&aislarCacheEnRegistro(uid);
   if(!aislamiento){
@@ -857,7 +879,7 @@ async function afterSignup(){
   }
 }
 async function afterLogin(){
-  track('login');
+  track('login',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
   registrarVisitaDiaria();
   const uid=currentUser?currentUser.id:null;
   const visita=++_visitaSesion;
