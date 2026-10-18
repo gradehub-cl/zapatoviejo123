@@ -8186,7 +8186,8 @@ function guardarSemestreAnterior(){
 function confirmArchiveSemester(){
   const label=semester();
   const nr=S.ramos.length;
-  const nn=S.ramos.reduce((a,r)=>a+r.categorias.reduce((b,c)=>b+c.notas.length,0),0);
+  // Solo las notas puestas: una casilla con fecha y sin nota también se guarda.
+  const nn=S.ramos.reduce((a,r)=>a+r.categorias.reduce((b,c)=>b+c.notas.filter(n=>n&&n.valor!=null).length,0),0);
   showConfirm(
     `Archivar ${label}`,
     `Se guardarán ${nr} ramo${nr!==1?'s':''} con ${nn} nota${nn!==1?'s':''} en el historial. El semestre actual quedará vacío para empezar de nuevo.`,
