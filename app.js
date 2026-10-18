@@ -6004,10 +6004,13 @@ function plantillaPauta(tipo){
     return {id:null,nombre:def.nombre,peso:0,tieneNotas:false,varias:false,cantidad:null,...def};
   });
 }
-// En UC las evaluaciones se llaman pruebas, no solemnes. FEN conserva el
-// término porque aparece así en sus programas oficiales. Solo alimenta el
-// placeholder del campo: no arma ninguna estructura.
-function ejemploEvaluacion(tenant){return tenant==='uc'?'Prueba':'Solemne';}
+// Derecho UC usa «Solemne» en sus programas y calendario de evaluaciones.
+// La carrera guardada puede ser el código de malla o el nombre declarado.
+function esDerechoUC(tenant,carrera){return tenant==='uc'&&(carrera==='UC-DERECHO'||carrera==='Derecho');}
+// Solo alimenta el placeholder del campo: no arma ninguna estructura.
+function ejemploEvaluacion(tenant,carrera){
+  return esDerechoUC(tenant,carrera)||tenant==='fen'||tenant==='uai'?'Solemne':'Prueba';
+}
 
 // Plantillas de estructura, POR TENANT — y FEN no tiene.
 //
@@ -6020,7 +6023,10 @@ function ejemploEvaluacion(tenant){return tenant==='uc'?'Prueba':'Solemne';}
 // controles sorpresa, trabajos grupales y participación — y ninguno es "3
 // solemnes + examen". Ofrecer esa plantilla empujaba a la mayoría a una
 // estructura que después tenían que deshacer a mano.
-function plantillasPauta(tenant){
+function plantillasPauta(tenant,carrera){
+  // Las plantillas UC conocidas vienen de Ingeniería. No hay una estructura
+  // común verificada para Derecho: se deja escribir la pauta de cada curso.
+  if(esDerechoUC(tenant,carrera))return [];
   return tenant==='uc'
     ?[
       {tipo:'tres-pruebas',label:'3 pruebas + examen'},
@@ -6031,8 +6037,8 @@ function plantillasPauta(tenant){
     :[];
 }
 // Son atajos de escritura, no una pauta sugerida: el estudiante elige el
-// nombre y siempre define sus propios pesos. UC y FEN usan vocabularios
-// distintos en sus programas, por eso no se mezclan en la misma lista.
+// nombre y siempre define sus propios pesos. Dentro de la UC, Derecho usa
+// «Solemne» y el resto conserva las sugerencias de prueba/interrogación.
 // Tres vocabularios, no dos. El tercero es el que faltaba: para una
 // universidad que no conocemos NO se puede elegir entre el de la FEN y el de
 // la UC — hay que no usar ninguno. Antes el default era el de FEN, así que a
@@ -6041,8 +6047,9 @@ function plantillasPauta(tenant){
 //
 // El neutro usa solo nombres que no pertenecen a una institución: nada de
 // "Solemne" (FEN) ni de "Interrogación" (UC).
-function sugerenciasEvaluacion(tenant){
+function sugerenciasEvaluacion(tenant,carrera){
   const comunes=['Laboratorio','Informe','Taller','Proyecto','Tarea','Presentación','Examen'];
+  if(esDerechoUC(tenant,carrera))return ['Solemne','Control de lectura','Prueba','Control','Trabajo',...comunes];
   if(tenant==='uc')return ['Interrogación 1','Interrogación 2','Interrogación 3','Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
   if(tenant==='fen')return ['Solemne 1','Solemne 2','Solemne 3','Control 1','Control 2','Control 3','Prueba sorpresa','Casos y ensayos','Trabajo individual','Trabajo en grupo','Participación',...comunes];
   // La UAI usa las dos palabras, y eso no es una suposición: sale de sus
@@ -6064,8 +6071,8 @@ function sugerenciasEvaluacion(tenant){
   if(tenant==='uandes')return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3','Control de lectura','Certamen','Ensayo','Trabajo escrito',...comunes];
   return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
 }
-function opcionesSugerenciasEvaluacion(tenant){
-  return sugerenciasEvaluacion(tenant).map(nombre=>`<option value="${esc(nombre)}"></option>`).join('');
+function opcionesSugerenciasEvaluacion(tenant,carrera){
+  return sugerenciasEvaluacion(tenant,carrera).map(nombre=>`<option value="${esc(nombre)}"></option>`).join('');
 }
 function puedeUsarPlantillaPauta(){
   return pautaDraft.every(fila=>!fila.tieneNotas&&!fila.nombre.trim());
@@ -6103,9 +6110,10 @@ function duplicarPautaDesdeRamo(){
 }
 function renderPautaManualModal(){
   const fuentes=puedeUsarPlantillaPauta()?ramosParaDuplicarPauta(S.ramos,currentRamoId):[];
-  const ejemplo=ejemploEvaluacion(S.tenant);
-  const sugerencias=opcionesSugerenciasEvaluacion(S.tenant);
-  const disponibles=plantillasPauta(S.tenant);
+  const carrera=S.carrera||S.carreraNombre;
+  const ejemplo=ejemploEvaluacion(S.tenant,carrera);
+  const sugerencias=opcionesSugerenciasEvaluacion(S.tenant,carrera);
+  const disponibles=plantillasPauta(S.tenant,carrera);
   const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div class="pauta-plantillas">
     <div class="pauta-plantillas-titulo">Parte con una estructura</div>
     <div class="pauta-plantillas-opciones">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')">${p.label}</button>`).join('')}</div>

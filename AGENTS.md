@@ -496,18 +496,19 @@ cada uno toca lo suyo — `PRESETS_FEN` y las mallas FEN por un lado,
 
 ### Cada universidad habla su idioma
 
-**Nunca uses el vocabulario de una universidad en los datos de otra.** En FEN las
-pruebas grandes se llaman **Solemnes**; en la UC son **Interrogaciones**,
-**Pruebas** o **Controles**. Un estudiante de Ingeniería UC que abre su ramo y ve
-"Solemne 1" sabe al tiro que la app no es para él, y deja de creerle también al
-número.
+**Usa el vocabulario de la universidad y de la carrera.** En FEN las pruebas
+grandes se llaman **Solemnes**. En Ingeniería UC son **Interrogaciones**,
+**Pruebas** o **Controles**; en Derecho UC también se usa **Solemne** (calendario
+de la Facultad y formularios oficiales de evaluación). Un estudiante de
+Ingeniería UC que abre su ramo y ve "Solemne 1" sabe al tiro que la app no es
+para él, y deja de creerle también al número.
 
 Esto vale para los nombres de evaluación en los presets, las plantillas del
 editor de pauta, las sugerencias al escribir y cualquier texto de la interfaz que
-dependa del tenant. `sugerenciasEvaluacion` y `plantillaPrincipalPauta` en
-`app.js` ya separan los dos vocabularios: si agregas uno nuevo, sepáralo ahí.
-(La función de plantillas se llama `plantillasPauta`, en plural: en FEN devuelve
-vacío a propósito, porque ninguno de sus diez programas es "3 solemnes + examen".)
+dependa del tenant o la carrera. `sugerenciasEvaluacion` y `plantillasPauta` en
+`app.js` reciben ambos datos: si agregas uno nuevo, sepáralo ahí.
+(La función de plantillas se llama `plantillasPauta`, en plural: en FEN y Derecho
+UC devuelve vacío a propósito, porque no hay una estructura común verificada.)
 
 Hay un test que lo verifica (`tests/vocabulario.test.js`). No es paranoia: el
 editor de pauta ofrecía "3 solemnes + examen" a los estudiantes de la UC hasta
