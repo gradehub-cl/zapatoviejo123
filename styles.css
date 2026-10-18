@@ -215,6 +215,26 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
+#screen-loading.active{animation:none;}
+.carga-inicial{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px max(24px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));text-align:center;}
+.carga-inicial-identidad{display:flex;flex-direction:column;align-items:center;gap:0;}
+.carga-inicial-logo{display:block;width:132px;height:132px;flex:none;}
+.carga-inicial-estado{display:flex;align-items:center;justify-content:center;gap:10px;max-width:100%;}
+.carga-inicial-marca{font-size:1.75rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
+.carga-inicial p{font-size:1rem;line-height:1.5;color:var(--fg2);}
+#carga-inicial-reintentar{min-height:44px;padding:10px 18px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:650;cursor:pointer;}
+#carga-inicial-reintentar[hidden]{display:none;}
+/* Las máscaras se mueven junto con sus capas: mientras se arma, no recortan
+   una capa con la silueta de otra que todavía no llegó. Geometría de logo.svg. */
+.carga-capa{animation-duration:2400ms;animation-timing-function:var(--ease-out);animation-iteration-count:infinite;}
+.carga-capa-base{animation-name:carga-capa-base;}
+.carga-capa-intermedia{animation-name:carga-capa-intermedia;}
+.carga-capa-superior{animation-name:carga-capa-superior;}
+@keyframes carga-capa-base{0%,100%{opacity:0;transform:translateY(22px);}18%,84%{opacity:1;transform:translateY(0);}98%{opacity:0;transform:translateY(-10px);}}
+@keyframes carga-capa-intermedia{0%,10%,100%{opacity:0;transform:translateY(-24px);}30%,78%{opacity:1;transform:translateY(0);}92%{opacity:0;transform:translateY(-14px);}}
+@keyframes carga-capa-superior{0%,22%,100%{opacity:0;transform:translateY(-32px);}42%,72%{opacity:1;transform:translateY(0);}86%{opacity:0;transform:translateY(-18px);}}
+#screen-loading:not(.active) .carga-capa{animation:none;}
+@media(prefers-reduced-motion:reduce){#screen-loading .carga-capa{animation:none;opacity:1;transform:none;}}
 /* Pantalla de carga de la app (index.html, #arranque). Solo en la app nativa.
    Calza con el splash de iOS (fondo de la app y logo de 96 px al centro) y se
    va cuando boot() eligió qué mostrar. Si boot() se colgara, a los 12 s se va
@@ -1956,16 +1976,17 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
      ancho igual dejaba el login con una franja vacía a la izquierda y todo
      corrido hacia la derecha, con el toast descentrado de paso.
 
-     Se apaga SOLO en esas cuatro, y el defecto se queda encendido. El sentido
+     Se apaga SOLO en esas cinco, y el defecto se queda encendido. El sentido
      importa: si un selector deja de calzar, lo que queda es el riel de
      siempre —el defecto cosmético en una pantalla— y no un riel de ancho cero
      con sus etiquetas encima del contenido. Ese fue exactamente el resultado
      de intentarlo al revés en #217.
 
-     Y son estas cuatro y no otras porque son las únicas que reciben `.active`:
+     Y son estas cinco y no otras porque son las únicas que reciben `.active`:
      home, stats y agenda son un carrusel que se mueve con `translate3d` y
      marca el botón del riel, no la pantalla. `screen-ramo` recibe `.active`
      pero ahí ya estás dentro, así que conserva su riel. */
+  body:has(#screen-loading.active),
   body:has(#screen-auth.active),
   body:has(#screen-onboard.active),
   body:has(#screen-reset.active),

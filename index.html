@@ -109,11 +109,43 @@ function soltarSplash(){
 }
 if(document.documentElement.classList.contains('app-nativa'))requestAnimationFrame(()=>requestAnimationFrame(soltarSplash));
 </script>
-<noscript><div style="padding:40px 24px;text-align:center;font-family:sans-serif;color:#0f172a;">GradeHub necesita JavaScript para funcionar. Actívalo en tu navegador para registrar tus notas.</div></noscript>
+<noscript><style>#screen-loading{display:none;}</style><div style="padding:40px 24px;text-align:center;font-family:sans-serif;color:#0f172a;">GradeHub necesita JavaScript para funcionar. Actívalo en tu navegador para registrar tus notas.</div></noscript>
 <div class="app">
 
+<!-- ARRANQUE: no se muestra el login antes de comprobar la sesión. -->
+<div id="screen-loading" class="screen active">
+  <div class="carga-inicial" role="status" aria-live="polite" aria-atomic="true">
+    <div class="carga-inicial-identidad">
+      <svg class="carga-inicial-logo" viewBox="-24 -24 176 176" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <defs>
+          <path id="carga-logo-exterior" d="M57 12.20862Q64 8.27112 71 12.20862L111.62912 35.0625Q118.62912 39 111.62912 42.9375L71 65.79138Q64 69.72888 57 65.79138L16.37088 42.9375Q9.37088 39 16.37088 35.0625Z"/>
+          <path id="carga-logo-plano" fill-rule="evenodd" d="M57 12.20862Q64 8.27112 71 12.20862L111.62912 35.0625Q118.62912 39 111.62912 42.9375L71 65.79138Q64 69.72888 57 65.79138L16.37088 42.9375Q9.37088 39 16.37088 35.0625Z M62 16.85388Q64 15.72888 66 16.85388L103.37088 37.875Q105.37088 39 103.37088 40.125L66 61.14612Q64 62.27112 62 61.14612L24.62912 40.125Q22.62912 39 24.62912 37.875Z"/>
+          <mask id="carga-logo-bajo-superior" maskUnits="userSpaceOnUse" x="-24" y="-24" width="176" height="176" style="mask-type:luminance">
+            <rect x="-24" y="-24" width="176" height="176" fill="white"/>
+            <g class="carga-capa carga-capa-superior"><use href="#carga-logo-exterior" fill="black"/></g>
+          </mask>
+          <mask id="carga-logo-bajo-intermedio" maskUnits="userSpaceOnUse" x="-24" y="-24" width="176" height="176" style="mask-type:luminance">
+            <rect x="-24" y="-24" width="176" height="176" fill="white"/>
+            <g class="carga-capa carga-capa-superior"><use href="#carga-logo-exterior" fill="black"/></g>
+            <g class="carga-capa carga-capa-intermedia"><use href="#carga-logo-exterior" transform="translate(0 25)" fill="black"/></g>
+          </mask>
+        </defs>
+        <g transform="translate(0 3)">
+          <g mask="url(#carga-logo-bajo-intermedio)"><g class="carga-capa carga-capa-base"><use href="#carga-logo-plano" fill="#A78BFA" transform="translate(0 50)"/></g></g>
+          <g mask="url(#carga-logo-bajo-superior)"><g class="carga-capa carga-capa-intermedia"><use href="#carga-logo-plano" fill="#2DD4BF" transform="translate(0 25)"/></g></g>
+          <g class="carga-capa carga-capa-superior"><use href="#carga-logo-plano" fill="#A6A8B1"/></g>
+        </g>
+      </svg>
+      <div class="carga-inicial-marca">GradeHub</div>
+    </div>
+    <div class="carga-inicial-estado">
+      <p id="carga-inicial-detalle">Comprobando tu sesión…</p>
+    </div>
+    <button id="carga-inicial-reintentar" type="button" hidden>Recargar</button>
+  </div>
+</div>
 <!-- AUTH (login / registro) -->
-<div id="screen-auth" class="screen active">
+<div id="screen-auth" class="screen">
   <div class="ob-wrap">
     <div class="ob-icon ob-icon-logo ob-icon-brand"><img src="logo.svg?v=__ASSET_VERSION__" alt="GradeHub" width="72" height="72" style="width:100%;height:100%;object-fit:contain;border-radius:inherit;"/></div>
     <div class="ob-brand">GradeHub</div>

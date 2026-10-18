@@ -129,7 +129,26 @@ function toggleAuthMode(){
   document.getElementById('auth-fp').style.display=authMode==='login'?'block':'none';
   authError('');
 }
+let temporizadorCargaInicial=null;
+function ocultarCargaInicial(){
+  if(temporizadorCargaInicial!==null){clearTimeout(temporizadorCargaInicial);temporizadorCargaInicial=null;}
+  const pantalla=document.getElementById('screen-loading');
+  if(pantalla)pantalla.classList.remove('active');
+}
+function prepararCargaInicial(){
+  const boton=document.getElementById('carga-inicial-reintentar');
+  if(!boton||typeof boton.addEventListener!=='function')return;
+  boton.addEventListener('click',()=>location.reload());
+  temporizadorCargaInicial=setTimeout(()=>{
+    const pantalla=document.getElementById('screen-loading');
+    if(!pantalla||!pantalla.classList.contains('active'))return;
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Está tardando más de lo esperado. Revisa tu conexión y recarga.';
+    boton.hidden=false;
+  },12000);
+}
 function showAuthScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   // Al cerrar sesión la app viene del carrusel de pestañas. Con `tab-mode` el
@@ -194,6 +213,7 @@ async function cargarEstadisticasPublicas(){
 // pantalla conserva esa distinción: no expone el stack, no cierra la sesión y
 // ofrece una acción que sí puede ayudar (cargar la app completa de nuevo).
 function showAppErrorScreen(fase){
+  ocultarCargaInicial();
   ['auth','home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   const app=document.querySelector('.app');
   if(app)app.classList.remove('tab-mode','dragging');
@@ -315,6 +335,7 @@ function registrarErrorArranque(error,fase){
   reportarError(error,'arranque:'+fase);
 }
 function enterOnboarding(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   // Si entró con Google, ya sabemos su nombre: no se lo preguntamos en blanco
@@ -341,6 +362,7 @@ function tenantPorCorreo(correo){
   return t&&TENANTS[t]&&!TENANTS[t].oculto?t:null;
 }
 function enterApp(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.remove('active');
   showMainApp();
@@ -728,6 +750,7 @@ async function submitNewPassword(){
 }
 
 function showResetScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','auth'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   document.getElementById('screen-reset').classList.add('active');
@@ -1498,11 +1521,13 @@ async function boot(){
   try{
     if(!supabaseClient){
       // Sin configurar Supabase → funciona en modo local (fallback)
+      ocultarCargaInicial();
       document.getElementById('screen-auth').classList.remove('active');
       if(S.onboardingDone)showMainApp();
       else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
       return;
     }
+    prepararCargaInicial();
     // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
     // el usuario abre el link del correo de "olvidé mi contraseña".
     supabaseClient.auth.onAuthStateChange((event, session)=>{
@@ -1546,6 +1571,8 @@ async function boot(){
       showAppErrorScreen('abrir_app');
       return;
     }
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Preparando tu semestre…';
     try{
       await afterLogin();
     }catch(e){
