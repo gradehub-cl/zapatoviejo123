@@ -37,13 +37,15 @@ function authDesde(query,tipo){
   const fin=tipo==='afterSignup'?sesion.indexOf('async function afterLogin()',inicio):sesion.indexOf('async function syncProfile()',inicio);
   if(inicio<0||fin<0)throw Error('No se encontró el flujo de auth');
   const stop=new Error('detener tras track');
-  const ctx={location:{search:query},URLSearchParams,sessionStorage:{
+  let urlRestante=null;
+  const ctx={location:{search:query.split('#')[0],href:'https://gradehub.cl/'+query},URL,URLSearchParams,
+    history:{state:null,replaceState(_estado,_titulo,url){urlRestante=url;}},sessionStorage:{
     getItem:k=>almacen.get(k)||null,setItem:(k,v)=>almacen.set(k,v),removeItem:k=>almacen.delete(k)},
     track:(...args)=>eventos.push(args),currentUser:{id:'sintetica'},supabaseClient:null,
     aislarCacheEnRegistro:()=>{throw stop;},registrarVisitaDiaria:()=>{throw stop;}};
   ctx.restaurarCacheApartada=()=>{throw stop;};
   vm.createContext(ctx);vm.runInContext(helper+sesion.slice(inicio,fin),ctx);
-  return {ctx,almacen,eventos,stop};
+  return {ctx,almacen,eventos,stop,urlRestante:()=>urlRestante};
 }
 
 (async()=>{
@@ -71,7 +73,10 @@ function authDesde(query,tipo){
     const nombre=tipo==='afterSignup'?'signup':'login';
     chk(`${nombre} atribuye solo el origen calculadora`,h.eventos.length===1&&h.eventos[0][0]===nombre&&h.eventos[0][1]?.origen==='calculadora');
     chk(`${nombre} consume el origen una sola vez`,!h.almacen.size&&h.ctx.consumirOrigenEntrada()===undefined);
+    chk(`${nombre} limpia la URL para que recargar no lo atribuya otra vez`,h.urlRestante()==='/');
   }
+  const conOAuth=authDesde('?code=temporal&desde=calculadora#type=recovery','afterLogin');
+  chk('limpiar el origen conserva los parámetros y el fragmento de autenticación',conOAuth.urlRestante()==='/?code=temporal#type=recovery');
   const ajeno=authDesde('?desde=externo','afterSignup');
   chk('un origen arbitrario no entra a la analítica',ajeno.ctx.consumirOrigenEntrada()===undefined&&ajeno.almacen.size===0);
   chk('la política explica la medición y el origen temporal',/calculadora, cálculos[\s\S]*?sesión de la pestaña/.test(fs.readFileSync(__dirname+'/../privacidad.html','utf8')));

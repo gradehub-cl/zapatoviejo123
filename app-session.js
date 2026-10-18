@@ -23,8 +23,14 @@ const MSG_VERIFICA = 'Ya puedes entrar con ese correo y tu contraseña.';
 // mezcla con gradehub_v1 ni se guarda puntaje, nota o identidad en la URL.
 const ORIGEN_ENTRADA_KEY='gradehub_origen_entrada';
 try{
-  if(new URLSearchParams(location.search).get('desde')==='calculadora')
+  if(new URLSearchParams(location.search).get('desde')==='calculadora'){
     sessionStorage.setItem(ORIGEN_ENTRADA_KEY,'calculadora');
+    // Limpiar solo este parámetro: si queda en la barra, una recarga lo vuelve
+    // a atribuir. Conservar parámetros y fragmentos de OAuth o recuperación.
+    const url=new URL(location.href);
+    url.searchParams.delete('desde');
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }
 }catch(e){}
 function consumirOrigenEntrada(){
   try{
