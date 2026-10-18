@@ -222,6 +222,8 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .carga-inicial-estado{display:flex;align-items:center;justify-content:center;gap:10px;max-width:100%;}
 .carga-inicial-marca{font-size:1.75rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
 .carga-inicial p{font-size:1rem;line-height:1.5;color:var(--fg2);}
+#carga-inicial-reintentar{min-height:44px;padding:10px 18px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:650;cursor:pointer;}
+#carga-inicial-reintentar[hidden]{display:none;}
 /* Las máscaras se mueven junto con sus capas: mientras se arma, no recortan
    una capa con la silueta de otra que todavía no llegó. Geometría de logo.svg. */
 .carga-capa{animation-duration:2400ms;animation-timing-function:var(--ease-out);animation-iteration-count:infinite;}

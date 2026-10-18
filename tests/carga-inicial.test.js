@@ -15,19 +15,23 @@ const ids={};
   ids['screen-'+id]={style:{},classList:classList(new RegExp('id=\"screen-'+id+'\" class=\"screen[^\"]* active\"').test(html)?['active']:[]),textContent:'',setAttribute(){},removeAttribute(){}};
 });
 ids['carga-inicial-detalle']={textContent:'Comprobando tu sesión…'};
+ids['carga-inicial-reintentar']={hidden:true,addEventListener(event,fn){if(event==='click')this.accion=fn;}};
 ids['bottom-nav']={style:{display:'flex'},classList:classList()};
 ids['app-error-title']={style:{},classList:classList(),textContent:''};
 ids['app-error-desc']={style:{},classList:classList(),textContent:''};
 const stub={style:{setProperty(){},removeProperty(){}},classList:classList(),addEventListener(){},appendChild(){},value:'',innerHTML:'',textContent:'',focus(){},select(){},setAttribute(){},removeAttribute(){},getAttribute(){return null;},querySelector(){return stub;},querySelectorAll(){return[];},clientWidth:400,dataset:{},click(){}};
 const appEl={style:{},classList:classList(['tab-mode'])};
 const eventos=[];
+const programados=[];
+let recargas=0;
 const ctx={
   window:{addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}})},
   document:{getElementById:id=>ids[id]||stub,createElement:()=>stub,addEventListener(){},documentElement:{style:{setProperty(){},removeProperty(){}},setAttribute(){},removeAttribute(){},getAttribute(){return null;}},querySelector:q=>q==='.app'?appEl:stub,querySelectorAll:()=>[],body:stub},
   localStorage:{getItem(){return null;},setItem(){},removeItem(){}},navigator:{},
-  location:{origin:'',pathname:'/',search:'',hash:'',reload(){}},history:{replaceState(){}},
+  location:{origin:'',pathname:'/',search:'',hash:'',reload(){recargas++;}},history:{replaceState(){}},
   gtag:(accion,evento,params)=>eventos.push({accion,evento,params}),
-  setTimeout:()=>0,clearTimeout(){},console,
+  setTimeout:(fn,ms)=>{programados.push({fn,ms,cancelado:false});return programados.length;},
+  clearTimeout:id=>{if(programados[id-1])programados[id-1].cancelado=true;},console,
 };
 vm.createContext(ctx);vm.runInContext(src,ctx);
 
@@ -38,6 +42,8 @@ const diferida=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve
 function iniciar(local=false,listo=true){
   ['loading','auth','home','onboard','reset','app-error'].forEach(id=>ids['screen-'+id].classList.remove('active'));
   ids['screen-loading'].classList.add('active');
+  ids['carga-inicial-detalle'].textContent='Comprobando tu sesión…';
+  ids['carga-inicial-reintentar'].hidden=true;
   ctx.sesion=diferida();ctx.carga=diferida();
   vm.runInContext(`
     currentUser=null;enRecuperacion=false;S={...freshState(),onboardingDone:${listo}};
@@ -54,6 +60,12 @@ async function main(){
   assert.ok(!activa('auth'),'el HTML inicial no adelanta un logout');
   let arranque=iniciar();
   assert.ok(activa('loading')&&!activa('auth'),'sesión lenta no muestra login');
+  const aviso=programados.findLast(t=>t.ms===12000&&!t.cancelado);
+  assert.ok(aviso,'la espera tiene un aviso si se demora');
+  aviso.fn();
+  assert.ok(!ids['carga-inicial-reintentar'].hidden&&/recarga/.test(ids['carga-inicial-detalle'].textContent),'tras 12 s ofrece recargar sin mostrar login');
+  ids['carga-inicial-reintentar'].accion();
+  assert.equal(recargas,1,'Recargar reinicia la visita');
   ctx.sesion.resolve({data:{session:{user:{id:'cuenta-sintetica'}}}});
   await new Promise(setImmediate);
   assert.ok(activa('loading')&&!activa('home'),'ramos pendientes mantienen carga');

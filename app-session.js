@@ -129,9 +129,23 @@ function toggleAuthMode(){
   document.getElementById('auth-fp').style.display=authMode==='login'?'block':'none';
   authError('');
 }
+let temporizadorCargaInicial=null;
 function ocultarCargaInicial(){
+  if(temporizadorCargaInicial!==null){clearTimeout(temporizadorCargaInicial);temporizadorCargaInicial=null;}
   const pantalla=document.getElementById('screen-loading');
   if(pantalla)pantalla.classList.remove('active');
+}
+function prepararCargaInicial(){
+  const boton=document.getElementById('carga-inicial-reintentar');
+  if(!boton||typeof boton.addEventListener!=='function')return;
+  boton.addEventListener('click',()=>location.reload());
+  temporizadorCargaInicial=setTimeout(()=>{
+    const pantalla=document.getElementById('screen-loading');
+    if(!pantalla||!pantalla.classList.contains('active'))return;
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Está tardando más de lo esperado. Revisa tu conexión y recarga.';
+    boton.hidden=false;
+  },12000);
 }
 function showAuthScreen(){
   ocultarCargaInicial();
@@ -1513,6 +1527,7 @@ async function boot(){
       else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
       return;
     }
+    prepararCargaInicial();
     // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
     // el usuario abre el link del correo de "olvidé mi contraseña".
     supabaseClient.auth.onAuthStateChange((event, session)=>{
