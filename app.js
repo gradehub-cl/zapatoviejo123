@@ -7409,7 +7409,9 @@ function openSettings(){
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
       </div>`:''}
       ${currentUser&&conClave?`<div class="settings-account-access">
-        <label class="modal-label" for="s-account-pass">Nueva contraseña</label>
+        <label class="modal-label" for="s-account-current-pass">Contraseña actual</label>
+        <div class="modal-input"><input type="password" id="s-account-current-pass" maxlength="72" autocomplete="current-password" aria-describedby="s-account-pass-status"/></div>
+        <label class="modal-label" for="s-account-pass" style="margin-top:10px;">Nueva contraseña</label>
         <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
         <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
         <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>

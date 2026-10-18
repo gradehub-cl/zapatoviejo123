@@ -320,6 +320,9 @@ function enterApp(){
 function traduceAuthError(e,contexto){
   if(e&&e.code==='CACHE_LOCAL_NO_AISLADA')return 'No pudimos proteger los ramos guardados en este dispositivo. La cuenta se creó, pero no se copiaron. Libera espacio o entra desde otro navegador.';
   const m=((e&&e.message)||'').toLowerCase();
+  const code=String((e&&e.code)||'');
+  if(code==='current_password_required')return 'Escribe tu contraseña actual para poder cambiarla.';
+  if(code==='current_password_mismatch')return 'La contraseña actual no es correcta.';
   // No confirmar si un correo ya tiene cuenta: esa diferencia permite enumerar
   // usuarios y preparar phishing o credential stuffing. Registro existente y
   // registro aceptado tienen que verse iguales hacia afuera.
@@ -329,7 +332,6 @@ function traduceAuthError(e,contexto){
   if(m.includes('invalid login')||m.includes('credentials'))return 'Usuario o contraseña incorrectos.';
   // Sin esto caían en "revisa tu internet": el correo de recuperación tiene un
   // límite por hora y quien lo pedía dos veces creía que no tenía conexión.
-  const code=String((e&&e.code)||'');
   if((e&&e.status===429)||code.includes('rate_limit')||m.includes('rate limit')||m.includes('security purposes'))
     return 'Hiciste varios intentos seguidos. Espera unos minutos y vuelve a intentarlo.';
   if(code==='same_password'||m.includes('different from the old'))return 'La nueva contraseña tiene que ser distinta de la anterior.';
@@ -404,20 +406,25 @@ function cuentaConClave(u){
   const m=u&&u.app_metadata;
   return !!m&&(Array.isArray(m.providers)?m.providers.includes('email'):m.provider==='email');
 }
-function estadoCambioClave(mensaje,esError){
+function estadoCambioClave(mensaje,esError,campo){
   const aviso=document.getElementById('s-account-pass-status');
   if(aviso){aviso.textContent=mensaje||'';aviso.hidden=!mensaje;aviso.style.color=esError?'var(--red)':'var(--fg2)';}
-  ['s-account-pass','s-account-pass2'].forEach(id=>{
+  ['s-account-current-pass','s-account-pass','s-account-pass2'].forEach(id=>{
     const input=document.getElementById(id);
-    if(input){if(esError)input.setAttribute('aria-invalid','true');else input.removeAttribute('aria-invalid');}
+    if(!input)return;
+    const invalido=esError&&(campo==='actual'?id==='s-account-current-pass':id!=='s-account-current-pass');
+    if(invalido)input.setAttribute('aria-invalid','true');
+    else input.removeAttribute('aria-invalid');
   });
 }
 async function cambiarClaveCuenta(){
   const btn=document.getElementById('s-account-pass-save');
   if(btn&&btn.disabled)return false;
+  const actual=document.getElementById('s-account-current-pass');
   const i1=document.getElementById('s-account-pass'),i2=document.getElementById('s-account-pass2');
-  const p1=i1?i1.value:'',p2=i2?i2.value:'';
+  const pActual=actual?actual.value:'',p1=i1?i1.value:'',p2=i2?i2.value:'';
   estadoCambioClave('',false);
+  if(!pActual){estadoCambioClave('Escribe tu contraseña actual para poder cambiarla.',true,'actual');if(actual)actual.focus();return false;}
   const politica=passwordPolicyError(p1);
   if(politica){estadoCambioClave(politica,true);if(i1)i1.focus();return false;}
   if(p1!==p2){estadoCambioClave('Las contraseñas no coinciden.',true);if(i2)i2.focus();return false;}
@@ -429,18 +436,21 @@ async function cambiarClaveCuenta(){
   const usuario=currentUser;
   if(btn){btn.disabled=true;btn.textContent='Guardando…';}
   try{
-    const {error}=await supabaseClient.auth.updateUser({password:p1});
+    const {error}=await supabaseClient.auth.updateUser({password:p1,current_password:pActual});
     // La respuesta es de la visita que la pidió: una tardía no puede escribir
     // en la hoja de otra cuenta (#579, punto 15).
     if(currentUser!==usuario)return false;
     if(error)throw error;
+    if(actual)actual.value='';
     if(i1)i1.value='';
     if(i2)i2.value='';
     estadoCambioClave('Contraseña actualizada. La próxima vez entra con la nueva.',false);
     return true;
   }catch(e){
     if(currentUser!==usuario)return false;
-    estadoCambioClave(traduceAuthError(e),true);
+    const errorActual=e&&(e.code==='current_password_required'||e.code==='current_password_mismatch');
+    estadoCambioClave(traduceAuthError(e),true,errorActual?'actual':'nueva');
+    if(errorActual&&actual)actual.focus();
     return false;
   }finally{
     if(btn){btn.disabled=false;btn.textContent=original;}
