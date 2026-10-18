@@ -24,6 +24,15 @@
 <meta name="theme-color" content="#080809" media="(prefers-color-scheme: dark)"/>
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
 <link rel="icon" href="/icon.svg?v=capas-1" type="image/svg+xml"/>
+<!-- Misma medición sin cookies que la app. Nunca se envían puntajes ni notas. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+  gtag('js', new Date());
+  gtag('config', 'G-TS791S6PDM');
+</script>
 <!-- Una página suelta como preguntas.html: no carga app.js ni pide sesión, para
      que quien llega desde Google tenga su nota antes de saber qué es GradeHub.
      La fórmula sí es la de la app: viene de engine.js (gh_notaDesdePuntaje). -->
@@ -212,7 +221,7 @@
 <div class="caja">
   <p><strong>¿Y con esa nota, qué necesitas para aprobar el ramo?</strong>
   GradeHub lleva tus notas con la pauta de cada ramo y te dice qué te falta.</p>
-  <a class="cta" href="/">Abrir GradeHub</a>
+  <a class="cta" id="abrir-gradehub" href="/?desde=calculadora">Abrir GradeHub</a>
 </div>
 
 <footer>
@@ -236,6 +245,7 @@
   var campos={puntaje:$('puntaje'),total:$('total'),exigencia:$('exigencia'),nmin:$('nmin'),naprob:$('naprob'),nmax:$('nmax')};
   var botones=[].slice.call(document.querySelectorAll('[data-exigencia]'));
   var exigencia=50;
+  var calculoMedido=false;
 
   function num(s){
     s=String(s||'').trim().replace(/\s/g,'').replace(',','.');
@@ -292,6 +302,10 @@
     var escala={exigencia:exigencia/100,nmin:nmin,naprob:naprob,nmax:nmax,truncar:truncar()};
     var corte=t>0?exigencia/100*t:null;
     var r=!err&&t>0&&p>=0?gh_notaDesdePuntaje(p,t,escala):null;
+    if(r&&!calculoMedido){
+      calculoMedido=true;
+      if(typeof gtag==='function')gtag('event','calculadora_calculo');
+    }
     $('nota').textContent=r?fmt(r.nota,1):'–';
     $('etiqueta').textContent=r?'Tu nota con '+fmt(p)+' de '+fmt(t)+' puntos':'Tu nota';
     if(err)$('detalle').textContent='Corrige el dato marcado para ver tu nota.';
@@ -352,6 +366,20 @@
   $('tabla-det').addEventListener('toggle',calcular);
   $('calc').addEventListener('submit',function(e){e.preventDefault();document.activeElement&&document.activeElement.blur();});
   campos.puntaje.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();campos.total.focus();}});
+  $('abrir-gradehub').addEventListener('click',function(e){
+    if(typeof gtag!=='function')return;
+    // Abrir en otra pestaña conserva el comportamiento normal del enlace.
+    if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey){
+      gtag('event','calculadora_abrir_gradehub');return;
+    }
+    // Esperar el envío con un límite breve; si GA está bloqueado, el enlace
+    // sigue funcionando. El destino es fijo y no lleva puntajes en la URL.
+    e.preventDefault();
+    var destino=this.href,abierto=false;
+    var seguir=function(){if(abierto)return;abierto=true;location.href=destino;};
+    setTimeout(seguir,250);
+    gtag('event','calculadora_abrir_gradehub',{event_callback:seguir,event_timeout:250});
+  });
   calcular();
 })();
 </script>
