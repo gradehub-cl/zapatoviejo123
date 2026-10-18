@@ -290,9 +290,16 @@ if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
   window.addEventListener('error',e=>{
     // Un <img> o un <script> que no carga también dispara "error", sin mensaje.
     if(!e||!e.message)return;
+    if(/^(chrome|moz|safari-web)-extension:/i.test(String(e.filename||'')))return;
     reportarError(e.error||{message:e.message},dondeDelError(e.filename,e.lineno,e.colno));
   });
-  window.addEventListener('unhandledrejection',e=>reportarError(e&&e.reason,dondeDeLaPromesa(e&&e.reason)));
+  window.addEventListener('unhandledrejection',e=>{
+    const donde=dondeDeLaPromesa(e&&e.reason);
+    // Un error de una extensión del navegador ("reading 'M_ID'") no es nuestro:
+    // guardarlo solo ensucia errores_app (2026-10-15).
+    if(donde==='promesa · extensión')return;
+    reportarError(e&&e.reason,donde);
+  });
 }
 
 function registrarErrorArranque(error,fase){
