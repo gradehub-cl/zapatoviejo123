@@ -291,6 +291,9 @@ Object.entries(fondos).forEach(([fondoKey,fondo])=>[['claro',fondo.claro,semafor
     ['green','yellow','red'].forEach(color=>
       chk(`${fondoKey} ${modo}: ${color} sobre ${superficie} ≥4.5`,ratio(s[color],f[superficie])>=4.5));
   });
+  // Las pastillas (.ag-count, .hist-cr, .nota-row-pond) ponen el terciario sobre
+  // muted: Pizarra y Papel oscuros quedaban en 4,49 y 4,44.
+  chk(`${fondoKey} ${modo}: texto terciario sobre muted ≥4.5`,ratio(f.fg3,f.muted)>=4.5);
 }));
 Object.keys(PL).forEach(k=>delete PL[k]);light.applyTheme('fen');
 chk('claro usa su propio semáforo', ['green','yellow','red'].every(k=>PL['--'+k]===semaforo.claro[k]));

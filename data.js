@@ -333,7 +333,7 @@ const FONDOS={
     },
     oscuro:{
       bg:'#0e141b',bg2:'#141c25',card:'#1b2632',border:'#2b3b4c',border2:'#3b5166',muted:'#202c38',
-      fg:'#edf4f8',fg2:'#aab8c4',fg3:'#8293a2',
+      fg:'#edf4f8',fg2:'#aab8c4',fg3:'#8394a3',
     },
   },
   papel:{
@@ -344,7 +344,7 @@ const FONDOS={
     },
     oscuro:{
       bg:'#1b1510',bg2:'#251d15',card:'#30261d',border:'#44372a',border2:'#5c4c3c',muted:'#352a20',
-      fg:'#f8f0e4',fg2:'#c6b8a7',fg3:'#9e8f7c',
+      fg:'#f8f0e4',fg2:'#c6b8a7',fg3:'#a0917e',
     },
   },
 };
