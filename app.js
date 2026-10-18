@@ -10562,10 +10562,12 @@ function buildICS(){
     lines.push(icsFold(`SUMMARY:${icsEscape(titulo)}`));
     lines.push(icsFold(`DESCRIPTION:${icsEscape(desc)}`));
     lines.push('TRANSP:TRANSPARENT');
-    // Recordatorio el día anterior a las 9:00 (solo para pendientes)
+    // Recordatorio el día anterior a las 9:00 (solo para pendientes). Sin hora,
+    // el evento parte a las 00:00: 15 horas antes son las 9:00 del día anterior.
+    // -P1DT9H eran 33 horas: dos días antes a las 15:00, diciendo "Mañana".
     if(e.pending){
       lines.push('BEGIN:VALARM');
-      lines.push(e.hora?'TRIGGER:-P1D':'TRIGGER:-P1DT9H');
+      lines.push(e.hora?'TRIGGER:-P1D':'TRIGGER:-PT15H');
       lines.push('ACTION:DISPLAY');
       lines.push(icsFold(`DESCRIPTION:${icsEscape('Mañana: '+titulo)}`));
       lines.push('END:VALARM');
