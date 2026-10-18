@@ -163,9 +163,13 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 /* Área táctil de 44 pt sin cambiar cómo se ven (HIG Buttons: "a hit region of
    at least 44x44 pt"). Estos controles se dibujan más bajos a propósito, como
    los compactos de iOS; un ::after invisible los extiende hacia arriba y abajo. */
-.ramo-action,.reglas-toggle,.ag-order-option,.stats-hist-add,.ag-recorreccion-row button,.ag-rest-ver{position:relative;}
-.ramo-action::after,.reglas-toggle::after,.ag-order-option::after,.stats-hist-add::after,.ag-recorreccion-row button::after,.ag-rest-ver::after{
+.ramo-action,.reglas-toggle,.ag-order-option,.stats-hist-add,.ag-recorreccion-row button,.ag-rest-ver,.topbar-link,.settings-back,.settings-cerrar,.settings-privacy a,.error-brand{position:relative;}
+.ramo-action::after,.reglas-toggle::after,.ag-order-option::after,.stats-hist-add::after,.ag-recorreccion-row button::after,.ag-rest-ver::after,.topbar-link::after,.settings-back::after,.settings-cerrar::after,.settings-privacy a::after,.error-brand::after{
   content:"";position:absolute;left:0;right:0;top:50%;height:max(100%,44px);transform:translateY(-50%);}
+/* Los botones de Ajustes medían entre 36 y 41 px de alto. Van de ancho completo
+   o en grilla, así que crecen hasta 44 en vez de llevar un área invisible que
+   se montaría sobre el vecino; en el onboarding ya se hacía así. */
+.settings-data-actions button,.settings-danger-btn,.horario-importar-link,.s-tenant-btn,.sem-btn,.carrera-opt{min-height:44px;}
 /* Evaluación multi-nota (Laboratorio 1/2/3) — header + body colapsable */
 .eval-group{background:var(--card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:14px;padding:13px 15px;margin-bottom:8px;box-shadow:var(--shadow);transition:border-left-color var(--motion-fast) var(--ease-standard);}
 .eval-group-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:background var(--motion-press);border-radius:8px;margin:-4px;padding:4px;}
