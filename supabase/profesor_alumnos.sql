@@ -133,6 +133,30 @@ begin
 end;
 $$;
 
+-- La persona que ya comparte con este código puede recuperar SU selección.
+-- No entrega el id de ninguna cuenta ni permite leer compartidos ajenos.
+create or replace function public.mi_compartido_profesor(p_codigo text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'hay que haber iniciado sesión';
+  end if;
+  return (
+    select jsonb_build_object('nombre_visible', pa.nombre_visible, 'ramos', pa.ramos)
+    from public.profesor_alumnos pa
+    join public.tutor_perfiles t on t.user_id = pa.tutor_id
+    where pa.alumno_id = auth.uid()
+      and t.codigo_alumnos = upper(btrim(p_codigo))
+      and t.estado = 'aprobado'
+  );
+end;
+$$;
+
 -- ─── ALUMNO: compartir, cambiar o dejar de compartir ───────────────────────
 create or replace function public.compartir_con_profesor(p_codigo text, p_nombre text, p_ramos text[])
 returns uuid
@@ -432,6 +456,7 @@ $$;
 revoke all on function public.clave_evaluacion(text) from public;
 revoke all on function public.codigo_alumnos_profesor(boolean) from public, anon;
 revoke all on function public.profesor_por_codigo(text) from public, anon;
+revoke all on function public.mi_compartido_profesor(text) from public, anon;
 revoke all on function public.compartir_con_profesor(text, text, text[]) from public, anon;
 revoke all on function public.dejar_de_compartir(uuid) from public, anon;
 revoke all on function public.mis_profesores() from public, anon;
@@ -442,6 +467,7 @@ revoke all on function public.comparacion_ramo_profesor(text, text) from public,
 grant execute on function public.clave_evaluacion(text) to authenticated;
 grant execute on function public.codigo_alumnos_profesor(boolean) to authenticated;
 grant execute on function public.profesor_por_codigo(text) to authenticated;
+grant execute on function public.mi_compartido_profesor(text) to authenticated;
 grant execute on function public.compartir_con_profesor(text, text, text[]) to authenticated;
 grant execute on function public.dejar_de_compartir(uuid) to authenticated;
 grant execute on function public.mis_profesores() to authenticated;

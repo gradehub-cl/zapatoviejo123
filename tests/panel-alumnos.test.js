@@ -96,6 +96,42 @@ function contexto({search='',sesion=false}={}){
   chk('el botón Compartir parte deshabilitado',/id="compartir-si" disabled/.test(hoja));
   chk('dice qué ve el profesor y dónde dejar de compartir',/cada nota de esos ramos/.test(hoja)&&/Ajustes → Datos y cuenta/.test(hoja));
   chk('el nombre del profesor va escapado',/Academia &lt;b&gt;X&lt;\/b&gt;/.test(hoja));
+  const editada=a.run(`hojaInvitacionProfesorHTML({nombre_publico:'Academia X'},
+    [{id:'r1',nombre:'Cálculo II'},{id:'r2',nombre:'Física'}],'Cami',
+    {nombre_visible:'Cami',ramos:['r2']})`);
+  chk('al reabrir solo aparece marcado el ramo que ya comparte',
+    /value="r2" data-compartir-ramo checked/.test(editada)&&
+    /value="r1" data-compartir-ramo>/.test(editada));
+  chk('editar dice Guardar cambios y conserva la salida Cancelar',
+    /Guardar cambios/.test(editada)&&/id="compartir-no">Cancelar/.test(editada));
+  const deNuevo=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  deNuevo.run(`S.onboardingDone=true;
+    supabaseClient={rpc:async nombre=>nombre==='profesor_por_codigo'
+      ?{data:[{nombre_publico:'Academia X'}],error:null}
+      :{data:{nombre_visible:'Cami',ramos:['r2']},error:null}};
+    abrirHojaInvitacionProfesor=(...args)=>{globalThis.__hoja=args};`);
+  chk('la cuenta conectada recibe su selección guardada',
+    (await deNuevo.run('revisarInvitacionProfesor()'))===true&&
+    deNuevo.run('__hoja[2].ramos.join()')==='r2');
+  const sinSql=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  sinSql.run(`S.onboardingDone=true;
+    supabaseClient={rpc:async nombre=>nombre==='profesor_por_codigo'
+      ?{data:[{nombre_publico:'Academia X'}],error:null}
+      :{data:null,error:{code:'PGRST202'}}};
+    abrirHojaInvitacionProfesor=(...args)=>{globalThis.__hoja=args};`);
+  chk('sin el SQL nuevo se conserva la hoja anterior',
+    (await sinSql.run('revisarInvitacionProfesor()'))===true&&
+    sinSql.run('__hoja[2]')===null);
+  const falloRed=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  falloRed.run(`S.onboardingDone=true;
+    supabaseClient={rpc:async nombre=>nombre==='profesor_por_codigo'
+      ?{data:[{nombre_publico:'Academia X'}],error:null}
+      :{data:null,error:{code:'NETWORK'}}};
+    abrirHojaInvitacionProfesor=()=>{globalThis.__abierta=true};`);
+  chk('un error de red no abre una hoja vacía que reemplace ramos',
+    (await falloRed.run('revisarInvitacionProfesor()'))===false&&
+    falloRed.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG'&&
+    falloRed.run('globalThis.__abierta')===undefined);
 
   console.log('\n=== Lo que ve el profesor ===');
   a.run(`globalThis.__r={id:'r1',nombre:'Cálculo II',sigla:'MAT1620',color:'#7F77DD',gates:[],categorias:[
