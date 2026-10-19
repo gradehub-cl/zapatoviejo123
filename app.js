@@ -218,7 +218,18 @@ function copiarReglasAusenciaIds(regla){
   if(!regla)return null;
   const copiar=lista=>(Array.isArray(lista)?lista:[]).filter(x=>x&&typeof x.desdeId==='string'&&typeof x.haciaId==='string').map(x=>({desdeId:x.desdeId,haciaId:x.haciaId}));
   const reemplazos=copiar(regla.reemplazos),traspasos=copiar(regla.traspasos);
-  return reemplazos.length||traspasos.length?{reemplazos,traspasos}:null;
+  const promedios=(Array.isArray(regla.promedios)?regla.promedios:[])
+    .filter(x=>x&&typeof x.desdeId==='string'&&Array.isArray(x.deIds)&&x.deIds.every(id=>typeof id==='string'))
+    .map(x=>({desdeId:x.desdeId,deIds:x.deIds.slice()}));
+  const reemplazosCasilla=(Array.isArray(regla.reemplazosCasilla)?regla.reemplazosCasilla:[])
+    .filter(x=>x&&typeof x.desdeId==='string'&&typeof x.haciaId==='string'&&Number.isInteger(x.desdeSlot)&&x.desdeSlot>=0&&(!('haciaSlot' in x)||(Number.isInteger(x.haciaSlot)&&x.haciaSlot>=0)))
+    .map(x=>({desdeId:x.desdeId,desdeSlot:x.desdeSlot,haciaId:x.haciaId,...(Number.isInteger(x.haciaSlot)?{haciaSlot:x.haciaSlot}:{})}));
+  return reemplazos.length||traspasos.length||promedios.length||reemplazosCasilla.length?{reemplazos,traspasos,promedios,reemplazosCasilla,
+    ...(Number.isInteger(regla.maxReemplazos)&&regla.maxReemplazos>=1?{maxReemplazos:regla.maxReemplazos}:{}),
+    ...(Number.isInteger(regla.maxTraspasos)&&regla.maxTraspasos>=1?{maxTraspasos:regla.maxTraspasos}:{}),
+    ...(regla.excesoReemplazos==='rezago'?{excesoReemplazos:'rezago'}:{}),
+    ...(Number.isInteger(regla.maxPromedios)&&regla.maxPromedios>=1?{maxPromedios:regla.maxPromedios}:{}),
+    ...(Number.isFinite(regla.notaExceso)&&regla.notaExceso>=1&&regla.notaExceso<=7?{notaExceso:regla.notaExceso}:{})}:null;
 }
 function copiarReglasAusenciaUsuario(regla){
   if(!regla||regla.declaradaPor!=='estudiante')return null;
@@ -235,7 +246,18 @@ function resolverReglasAusencia(def,categorias){
   const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c&&c.id;};
   const resolver=lista=>(Array.isArray(lista)?lista:[]).map(x=>({desdeId:idDe(x.desde),haciaId:idDe(x.hacia)})).filter(x=>x.desdeId&&x.haciaId);
   const reemplazos=resolver(declaracion.reemplazos),traspasos=resolver(declaracion.traspasos);
-  return reemplazos.length||traspasos.length?{reemplazos,traspasos}:null;
+  const promedios=(Array.isArray(declaracion.promedios)?declaracion.promedios:[])
+    .map(x=>({desdeId:idDe(x.desde),deIds:(Array.isArray(x.de)?x.de:[]).map(idDe)}))
+    .filter(x=>x.desdeId&&x.deIds.length&&x.deIds.every(Boolean));
+  const reemplazosCasilla=(Array.isArray(declaracion.reemplazosCasilla)?declaracion.reemplazosCasilla:[])
+    .map(x=>({desdeId:idDe(x.desde),desdeSlot:x.desdeSlot,haciaId:idDe(x.hacia),...(Number.isInteger(x.haciaSlot)?{haciaSlot:x.haciaSlot}:{})}))
+    .filter(x=>x.desdeId&&x.haciaId&&Number.isInteger(x.desdeSlot)&&x.desdeSlot>=0);
+  return reemplazos.length||traspasos.length||promedios.length||reemplazosCasilla.length?{reemplazos,traspasos,promedios,reemplazosCasilla,
+    ...(Number.isInteger(declaracion.maxReemplazos)&&declaracion.maxReemplazos>=1?{maxReemplazos:declaracion.maxReemplazos}:{}),
+    ...(Number.isInteger(declaracion.maxTraspasos)&&declaracion.maxTraspasos>=1?{maxTraspasos:declaracion.maxTraspasos}:{}),
+    ...(declaracion.excesoReemplazos==='rezago'?{excesoReemplazos:'rezago'}:{}),
+    ...(Number.isInteger(declaracion.maxPromedios)&&declaracion.maxPromedios>=1?{maxPromedios:declaracion.maxPromedios}:{}),
+    ...(Number.isFinite(declaracion.notaExceso)&&declaracion.notaExceso>=1&&declaracion.notaExceso<=7?{notaExceso:declaracion.notaExceso}:{})}:null;
 }
 // Décimas y bonus del programa (#631). El preset nombra evaluaciones y acá se
 // resuelven a las categorías del ramo, como las compuertas. Si una evaluación
@@ -3035,42 +3057,55 @@ function corregirEximicionActual(){
 }
 function evaluacionSinNota(cat){return !(cat?.notas||[]).some(n=>n&&n.valor!=null);}
 function porcentajeAusencia(valor){return String(r2(Number(valor)||0)).replace('.',',');}
-function declararAusenciaJustificada(catId){
+function declararAusenciaJustificada(catId,slot){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const regla=reglasAusenciaOficiales(r);
-  const declarable=[...(regla&&regla.reemplazos||[]),...(regla&&regla.traspasos||[]),...(regla&&regla.rezagos||[])].some(x=>x.desdeId===catId);
   const cat=(r.categorias||[]).find(c=>c.id===catId);
-  if(!declarable||!cat||!evaluacionSinNota(cat)){showToast('Esa ausencia ya no se puede aplicar a tu pauta',true);return;}
+  const esCasilla=Number.isInteger(slot);
+  const declarable=esCasilla?(regla?.reemplazosCasilla||[]).some(x=>x.desdeId===catId&&x.desdeSlot===slot)
+    :[...(regla&&regla.reemplazos||[]),...(regla&&regla.traspasos||[]),...(regla&&regla.rezagos||[]),...(regla&&regla.promedios||[])].some(x=>x.desdeId===catId);
+  const sinNota=esCasilla?!(cat?.notas||[]).some(n=>n.slot===slot&&n.valor!=null):evaluacionSinNota(cat);
+  if(!declarable||!cat||!sinNota){showToast('Esa ausencia ya no se puede aplicar a tu pauta',true);return;}
+  const clave=esCasilla?gh_claveAusenciaCasilla(catId,slot):catId;
   if(!Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[];
-  if(!r.ausenciasJustificadas.includes(catId))r.ausenciasJustificadas.push(catId);
+  if(!r.ausenciasJustificadas.includes(clave))r.ausenciasJustificadas.push(clave);
   save();track('declarar_ausencia_justificada');renderRamo();
 }
-function ausenciaDeEvaluacion(r,cat){
+function ausenciaDeEvaluacion(r,cat,slot){
   if(!r||!cat)return null;
-  const declarada=(r.ausenciasJustificadas||[]).includes(cat.id);
+  const esCasilla=Number.isInteger(slot);
+  const clave=esCasilla?gh_claveAusenciaCasilla(cat.id,slot):cat.id;
+  const declarada=(r.ausenciasJustificadas||[]).includes(clave);
   const oficial=reglasAusenciaOficiales(r);
   const regla=oficial||(r.reglasAusenciaJustificadaUsuario?.declaradaPor==='estudiante'?r.reglasAusenciaJustificadaUsuario:null);
-  const entradas=[...(regla?.reemplazos||[]).map(x=>({...x,tipo:'reemplazo'})),
+  const entradas=esCasilla?(regla?.reemplazosCasilla||[]).filter(x=>x.desdeSlot===slot).map(x=>({...x,tipo:'reemplazo_casilla'})):[...(regla?.reemplazos||[]).map(x=>({...x,tipo:'reemplazo'})),
     ...(regla?.traspasos||[]).map(x=>({...x,tipo:'traspaso'})),
-    ...(regla?.rezagos||[]).map(x=>({...x,tipo:'rezago'}))];
+    ...(regla?.rezagos||[]).map(x=>({...x,tipo:'rezago'})),
+    ...(regla?.promedios||[]).map(x=>({...x,tipo:'promedio'}))];
   const entrada=entradas.find(x=>x.desdeId===cat.id);
-  const pendiente=evaluacionSinNota(cat);
+  const pendiente=esCasilla?!(cat.notas||[]).some(n=>n.slot===slot&&n.valor!=null):evaluacionSinNota(cat);
+  if(esCasilla&&!entrada&&!declarada)return null;
   if(!declarada&&(!pendiente||!(Number(cat.peso)>0)||!!oficial&&!entrada))return null;
   const estado=declarada?estadoAusenciasJustificadas(r):null;
-  const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===cat.id);
-  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===cat.id);
-  const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===cat.id)||
+  const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===clave);
+  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===clave);
+  const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===clave)||
     (declarada&&!aplicada&&!bloqueada?{motivo:'pauta_cambio'}:null);
   const detalle=aplicada||bloqueada||inactiva||entrada;
   const destino=(r.categorias||[]).find(c=>c.id===detalle?.haciaId);
-  const peso=porcentajeAusencia(cat.peso);
+  const peso=porcentajeAusencia(esCasilla?cat.peso/cat.slots:cat.peso);
   let texto='';
-  if(bloqueada)texto=`El traspaso supera el máximo de ${bloqueada.topePesoDestino}% del examen. El resultado queda pendiente hasta resolverlo con el curso.`;
+  if(bloqueada)texto=bloqueada.motivo==='sin_regla_para_exceso'
+    ?'El programa no define qué pasa con otra inasistencia justificada. El resultado queda pendiente hasta resolverlo con el curso.'
+    :`El traspaso supera el máximo de ${bloqueada.topePesoDestino}% del examen. El resultado queda pendiente hasta resolverlo con el curso.`;
   else if(inactiva)texto=inactiva.motivo==='tiene_nota'
     ?'La declaración se conserva, pero no se aplica porque esta evaluación tiene nota.'
     :'La declaración se conserva, pero no se aplica porque cambió la pauta.';
   else if(detalle?.tipo==='rezago')texto=`Su ${peso}% queda pendiente para rendir en rezago.`;
   else if(detalle?.tipo==='reemplazo')texto=`Su ${peso}% se calcula con la nota ${/^Examen\b/i.test(destino?.nombre||'')?'del ':'de '}${destino?.nombre||'la evaluación de reemplazo'}.`;
+  else if(detalle?.tipo==='reemplazo_casilla')texto=`Su ${peso}% se calcula con la nota ${Number.isInteger(detalle.haciaSlot)?`de la casilla ${detalle.haciaSlot+1} de `:'de '}${destino?.nombre||'la evaluación de reemplazo'}.`;
+  else if(detalle?.tipo==='promedio')texto=`Su ${peso}% se calcula con el promedio ponderado de las otras evaluaciones sumativas declaradas. Si faltan notas, queda pendiente.`;
+  else if(detalle?.tipo==='nota_exceso')texto=`Una segunda inasistencia justificada cuenta como ${nf(detalle.notaExceso)} en esta evaluación.`;
   else if(detalle?.tipo==='traspaso'){
     texto=`Su ${peso}% pasa ${/^Examen\b/i.test(destino?.nombre||'')?'al ':'a '}${destino?.nombre||'otra evaluación'}.`;
     if(aplicada?.pesoExcedente>0)texto+=` El destino queda topado en ${porcentajeAusencia(aplicada.topePesoDestino)}%; el ${porcentajeAusencia(aplicada.pesoExcedente)}% excedente cuenta con nota ${nf(aplicada.notaExceso)}.`;
@@ -3082,46 +3117,52 @@ function ausenciaDeEvaluacion(r,cat){
 // fecha), no como botón en la ficha: es una excepción, y en cada fila pendiente
 // ocupaba más que la propia nota (pedido de Lucas del 2026-09-30). En una
 // casilla de un grupo se declara la evaluación completa, como exige el modelo.
-function opcionAusenciaHojaHTML(r,cat,{casilla=false}={}){
-  const a=ausenciaDeEvaluacion(r,cat);
-  if(!a||a.declarada)return '';
+function opcionAusenciaHojaHTML(r,cat,{slot}={}){
+  let esCasilla=Number.isInteger(slot),a=ausenciaDeEvaluacion(r,cat,slot);
+  // La elección personal previa para un grupo sin regla oficial sigue
+  // abarcando toda la evaluación, incluso si se abre desde una casilla.
+  const desdeCasillaSinRegla=esCasilla&&!a&&!reglasAusenciaOficiales(r);
+  if(desdeCasillaSinRegla){a=ausenciaDeEvaluacion(r,cat);esCasilla=false;}
+  if(!a)return '';
+  if(a.declarada)return esCasilla?`<button type="button" class="ausencia-hoja" onclick="openDetalleAusenciaJustificada('${esc(cat.id)}',${slot})">Justificada · ver detalle</button>`:'';
   return `<div class="hoja-ausencia">
-      <button type="button" class="ausencia-hoja" onclick="elegirAusenciaDesdeEvaluacion('${esc(cat.id)}')">Falté con justificativo</button>
-      <p class="hoja-ausencia-ayuda">${casilla?`Aplica a toda la evaluación ${esc(cat.nombre)}. `:''}Te decimos a dónde va su ${porcentajeAusencia(cat.peso)}%.</p>
+      <button type="button" class="ausencia-hoja" onclick="elegirAusenciaDesdeEvaluacion('${esc(cat.id)}'${esCasilla?`,${slot}`:''})">Falté con justificativo</button>
+      <p class="hoja-ausencia-ayuda">${desdeCasillaSinRegla?`Aplica a toda la evaluación ${esc(cat.nombre)}. `:''}Te decimos a dónde va su ${porcentajeAusencia(esCasilla?cat.peso/cat.slots:cat.peso)}%.</p>
     </div>`;
 }
-function elegirAusenciaDesdeEvaluacion(catId){
+function elegirAusenciaDesdeEvaluacion(catId,slot){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r?.categorias.find(c=>c.id===catId);
-  const ausencia=ausenciaDeEvaluacion(r,cat);
+  const ausencia=ausenciaDeEvaluacion(r,cat,slot);
   if(!ausencia||ausencia.declarada){showToast('Esa ausencia ya no se puede declarar',true);return;}
   if(!ausencia.oficial){openAusenciaJustificadaModal(catId);return;}
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Justificar ${esc(cat.nombre)}</div>
+    <div class="modal-title">Justificar ${esc(Number.isInteger(slot)?etiquetaCasilla(r,cat,slot):cat.nombre)}</div>
     <p class="ausencia-modal-detalle">${esc(ausencia.texto)}</p>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
-      <button type="button" class="btn-confirm" onclick="declararAusenciaJustificada('${esc(catId)}');closeModal()">Marcar justificada</button></div>`;
+      <button type="button" class="btn-confirm" onclick="declararAusenciaJustificada('${esc(catId)}'${Number.isInteger(slot)?`,${slot}`:''});closeModal()">Marcar justificada</button></div>`;
   openModal();
 }
-function openDetalleAusenciaJustificada(catId){
+function openDetalleAusenciaJustificada(catId,slot){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r?.categorias.find(c=>c.id===catId);
-  const ausencia=ausenciaDeEvaluacion(r,cat);
+  const ausencia=ausenciaDeEvaluacion(r,cat,slot);
   if(!ausencia?.declarada)return;
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">${ausencia.inactiva?'Declaración no aplicada':'Justificada'} · ${esc(cat.nombre)}</div>
+    <div class="modal-title">${ausencia.inactiva?'Declaración no aplicada':'Justificada'} · ${esc(Number.isInteger(slot)?etiquetaCasilla(r,cat,slot):cat.nombre)}</div>
     <p class="ausencia-modal-detalle">${esc(ausencia.texto)}</p>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button>
-      <button type="button" class="btn-danger" onclick="confirmarCorreccionAusenciaJustificada('${esc(catId)}')">Deshacer justificación</button></div>`;
+      <button type="button" class="btn-danger" onclick="confirmarCorreccionAusenciaJustificada('${esc(catId)}'${Number.isInteger(slot)?`,${slot}`:''})">Deshacer justificación</button></div>`;
   openModal();
 }
-function confirmarCorreccionAusenciaJustificada(catId){
+function confirmarCorreccionAusenciaJustificada(catId,slot){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r?.categorias.find(c=>c.id===catId);
-  if(!cat||(r.ausenciasJustificadas||[]).includes(catId)===false)return;
+  const clave=Number.isInteger(slot)?gh_claveAusenciaCasilla(catId,slot):catId;
+  if(!cat||(r.ausenciasJustificadas||[]).includes(clave)===false)return;
   closeModal();
-  showConfirm('¿Deshacer la justificación?',`Se restaurará el porcentaje de ${cat.nombre} y podrás ingresar su nota.`,
-    ()=>corregirAusenciaJustificada(catId),{label:'Deshacer justificación',focusCancel:true});
+  showConfirm('¿Deshacer la justificación?',`Se restaurará el porcentaje de ${Number.isInteger(slot)?etiquetaCasilla(r,cat,slot):cat.nombre} y podrás ingresar su nota.`,
+    ()=>corregirAusenciaJustificada(catId,slot),{label:'Deshacer justificación',focusCancel:true});
 }
 function configurarAusenciaJustificadaEstudiante(r,desdeId,tipo,haciaId){
   if(!r||reglasAusenciaOficiales(r))return false;
@@ -3172,9 +3213,10 @@ function declararAusenciaJustificadaEstudiante(catId,tipo){
   }
   save();track('declarar_ausencia_justificada_estudiante',{tipo});closeModal();renderRamo();
 }
-function corregirAusenciaJustificada(catId){
+function corregirAusenciaJustificada(catId,slot){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  r.ausenciasJustificadas=(r.ausenciasJustificadas||[]).filter(id=>id!==catId);
+  const clave=Number.isInteger(slot)?gh_claveAusenciaCasilla(catId,slot):catId;
+  r.ausenciasJustificadas=(r.ausenciasJustificadas||[]).filter(id=>id!==clave);
   const usuario=copiarReglasAusenciaUsuario(r.reglasAusenciaJustificadaUsuario);
   if(usuario){
     usuario.rezagos=usuario.rezagos.filter(x=>x.desdeId!==catId);
@@ -3595,6 +3637,8 @@ function fusionarPauta(r,nuevas){
   // una evaluación por su nombre, no al id efímero; si esa evaluación ya no
   // existe la conservamos como inactiva, igual que una fecha quitada a mano.
   const idAusenciaEnPautaNueva=id=>{
+    const casilla=/^__gh_ausencia_(.+)_([0-9]+)$/.exec(id);
+    if(casilla)return gh_claveAusenciaCasilla(idAusenciaEnPautaNueva(casilla[1]),Number(casilla[2]));
     const nombre=nombresAusencia.get(id);
     const nueva=(r.categorias||[]).find(c=>[c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x.nombre)]
       .some(n=>normName(n)===nombre));
@@ -3655,7 +3699,11 @@ function unificarCategoriaEnReglas(gates,desde,hacia){
   return traducirIdsCategoria(gates||[],{[desde]:hacia}).filter(g=>{const k=JSON.stringify(g);if(vistas.has(k))return false;vistas.add(k);return true;});
 }
 function traducirIdsCategoria(valor,mapa){
-  if(typeof valor==='string')return Object.prototype.hasOwnProperty.call(mapa,valor)?mapa[valor]:valor;
+  if(typeof valor==='string'){
+    const casilla=/^__gh_ausencia_(.+)_([0-9]+)$/.exec(valor);
+    if(casilla&&Object.prototype.hasOwnProperty.call(mapa,casilla[1]))return gh_claveAusenciaCasilla(mapa[casilla[1]],Number(casilla[2]));
+    return Object.prototype.hasOwnProperty.call(mapa,valor)?mapa[valor]:valor;
+  }
   if(Array.isArray(valor))return valor.map(v=>traducirIdsCategoria(v,mapa));
   if(valor&&typeof valor==='object'){const out={};Object.keys(valor).forEach(k=>{out[k]=traducirIdsCategoria(valor[k],mapa);});return out;}
   return valor;
@@ -9427,7 +9475,7 @@ function openEditNotaModal(catId,notaId){
       <label class="modal-label">Peso de esta nota: <span id="m-nota-peso-val">${n.peso}</span>%</label>
       <input type="range" min="1" max="100" value="${n.peso}" id="m-nota-peso" oninput="document.getElementById('m-nota-peso-val').textContent=this.value"/>
     </div>
-    ${Number.isInteger(n.slot)?opcionAusenciaHojaHTML(r,cat,{casilla:true}):''}
+    ${Number.isInteger(n.slot)?opcionAusenciaHojaHTML(r,cat,{slot:n.slot}):''}
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
