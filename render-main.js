@@ -1382,7 +1382,7 @@ function contextoWrappedVigente(estado){
 }
 // Reevaluar al minuto civil y al volver a la app: ni una pestaña abierta de
 // noche ni un teléfono que despierta mantienen la sorpresa fuera de fecha.
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')renderWrappedHome();});
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')renderWrappedHome();});
 async function abrirWrapped(){
   const base=wrappedDisponible()&&ramosWrapped();if(!base||_wrapped||_wrappedAbriendo)return;
   const cierre=cierreWrapped(base);if(!cierre.listo){revisarCierreWrapped(base,cierre);return;}
@@ -1681,6 +1681,9 @@ function renderWrappedHome(){
   const caja=document.getElementById('home-wrapped');
   if(!caja)return;
   if(ramosWrapped())_wrappedVentanaTimer=setTimeout(renderWrappedHome,60000-Date.now()%60000);
+  // En Node (los tests) el reloj del minuto mantenía vivo el proceso y la suite
+  // no terminaba. `unref` no existe en el navegador, donde todo sigue igual.
+  if(_wrappedVentanaTimer&&typeof _wrappedVentanaTimer.unref==='function')_wrappedVentanaTimer.unref();
   if(_wrapped&&!contextoWrappedVigente(_wrapped))cerrarWrapped(true);
   const base=wrappedDisponible()&&ramosWrapped();
   if(!base){caja.style.display='none';caja.innerHTML='';if(_wrapped)cerrarWrapped(true);return;}
