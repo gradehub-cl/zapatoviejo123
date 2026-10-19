@@ -3413,6 +3413,37 @@ function firmaReglasCalculo(r){
     traspasos:(g.traspasos||[]).map(e=>({desde:nombres.get(e.desdeId),hacia:nombres.get(e.haciaId)})),
   })));
 }
+// Los requisitos de nota (un mínimo por evaluación o por grupo) también son de
+// la pauta. Hasta acá cambioDePauta() comparaba nombres, pesos y las reglas de
+// fórmula, pero NO las compuertas: cuando el catálogo agregaba un requisito
+// que faltaba (#627: "sin 4,0 en lo individual se reprueba"), quien ya tenía
+// el ramo seguía viendo un promedio aprobado aunque estuviera reprobando, y la
+// app nunca se lo ofrecía. Se comparan por NOMBRE de evaluación, como los
+// pesos, porque los ids del preset se generan de nuevo cada vez.
+function requisitosDePauta(cats,gates){
+  const nombres=new Map((cats||[]).map(c=>[c.id,c.nombre]));
+  // Una nota se escribe con su décima: 4,0 y no 4.
+  const coma=v=>{if(typeof v!=='number')return '';const t=r2(v);return (Number.isInteger(Math.round(t*100)/10)?t.toFixed(1):String(t)).replace('.',',');};
+  const out=new Map();
+  (gates||[]).forEach(g=>{
+    if(!g)return;
+    const tope=g.cap==='self'?'self':(typeof g.cap==='number'?r2(g.cap):null);
+    const exacto=g.exacto===true;
+    if(g.type==='min_grade_required'){
+      const n=nombres.get(g.catId);if(!n)return;
+      out.set(['min',normName(n),r2(g.min),tope,exacto].join('|'),
+        `«${n}» con mínimo ${coma(g.min)}${exacto?' sin aproximar':''}: si no llegas, tu final queda en máximo ${coma(g.cap)}`);
+    }else if(g.type==='group_min'){
+      const ns=(g.catIds||[]).map(id=>nombres.get(id));
+      if(!ns.length||ns.some(n=>!n))return;
+      const lista=ns.map(n=>`«${n}»`).join(', ');
+      out.set(['grupo',ns.map(normName).sort().join('+'),r2(g.min),tope,exacto].join('|'),
+        `${g.nombre?`${g.nombre}: `:''}el promedio de ${lista} tiene que ser al menos ${coma(g.min)}${exacto?' sin aproximar':''}`+
+        (tope==='self'?'; si no, tu final queda en ese promedio':`; si no, tu final queda en máximo ${coma(g.cap)}`));
+    }
+  });
+  return out;
+}
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
   const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
@@ -3423,11 +3454,16 @@ function cambioDePauta(r){
   if(actual!==r.pautaHuella)return null;      // la editó: no se opina
   const oficial=huellaPauta(p.categorias);
   const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
-  if(oficial===actual&&!reglasCambian)return null; // al día
+  const requisitosAntes=requisitosDePauta(catsDePauta(r.categorias),r.gates);
+  const requisitosDespues=requisitosDePauta(p.categorias,p.gates);
+  const requisitosCambian=[...requisitosAntes.keys()].some(k=>!requisitosDespues.has(k))||[...requisitosDespues.keys()].some(k=>!requisitosAntes.has(k));
+  if(oficial===actual&&!reglasCambian&&!requisitosCambian)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
+  requisitosDespues.forEach((texto,k)=>{if(!requisitosAntes.has(k))cambios.push({tipo:'regla',nombre:`Requisito nuevo del programa. ${texto}`});});
+  requisitosAntes.forEach((texto,k)=>{if(!requisitosDespues.has(k))cambios.push({tipo:'regla',nombre:`Deja de aplicarse: ${texto}`});});
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});

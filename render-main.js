@@ -543,9 +543,15 @@ function renderRamo(){
   if(pcw){
     const cambio=cambioDePauta(r);
     if(cambio){
-      const cuantos=cambio.cambios.length;
+      // Una regla del programa (un requisito o una fórmula) no es una
+      // evaluación: contarla como "evaluación distinta" confundía (#627).
+      const reglas=cambio.cambios.filter(c=>c.tipo==='regla').length,cuantos=cambio.cambios.length-reglas;
+      const partes=[];
+      if(cuantos)partes.push(`${cuantos} ${cuantos===1?'evaluación distinta':'evaluaciones distintas'}`);
+      if(reglas)partes.push(`${reglas} ${reglas===1?'regla del programa distinta':'reglas del programa distintas'}`);
+      const resumen=partes.join(' y ')+' a lo que tienes hoy';
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
-      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${cuantos} ${cuantos===1?'evaluación distinta':'evaluaciones distintas'} a lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
+      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${resumen.charAt(0).toUpperCase()+resumen.slice(1)}. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
     }else if(r.consensoRespaldos){
       // Esta pauta la reportaron estudiantes, no sale de un programa oficial.
       // Decirlo es la diferencia entre una pauta y una ponderación inventada.
