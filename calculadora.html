@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Calculadora de notas — GradeHub</title>
+<meta name="description" content="Convierte tu puntaje en nota de 1,0 a 7,0 con la exigencia de tu prueba: 50%, 60% o la que sea. Te dice en cuántos puntos está el 4,0. Gratis y sin crear cuenta."/>
+<meta name="robots" content="index,follow"/>
+<link rel="canonical" href="https://gradehub.cl/calculadora"/>
+<meta property="og:title" content="Calculadora de notas — GradeHub"/>
+<meta property="og:description" content="Transforma tu puntaje a nota en escala del 1,0 al 7,0, con la exigencia de tu prueba. 100% gratis y sin crear cuenta."/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="GradeHub"/>
+<meta property="og:locale" content="es_CL"/>
+<meta property="og:url" content="https://gradehub.cl/calculadora"/>
+<meta property="og:image" content="https://gradehub.cl/og-calculadora.png"/>
+<meta property="og:image:secure_url" content="https://gradehub.cl/og-calculadora.png"/>
+<meta property="og:image:type" content="image/png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="GradeHub — Calculadora de notas."/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://gradehub.cl/og-calculadora.png"/>
+<meta name="theme-color" content="#080809" media="(prefers-color-scheme: dark)"/>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
+<link rel="icon" href="/icon.svg?v=capas-1" type="image/svg+xml"/>
+<!-- Misma medición sin cookies que la app. Nunca se envían puntajes ni notas. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+  gtag('js', new Date());
+  gtag('config', 'G-TS791S6PDM');
+</script>
+<!-- Una página suelta como preguntas.html: no carga app.js ni pide sesión, para
+     que quien llega desde Google tenga su nota antes de saber qué es GradeHub.
+     La fórmula sí es la de la app: viene de engine.js (gh_notaDesdePuntaje). -->
+<style>
+  :root{
+    --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --bg:#080809; --card:#111113; --border:#27272c;
+    --fg:#f1f1f3; --fg2:#b4b4bd; --fg3:#92929c; --primary:#2dd4bf; --primary-fg:#04231e; --accent:#56e2e8;
+    --error:#f87171;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#ffffff; --card:#fafafa; --border:#e7e7e9; --fg:#19191c; --fg2:#54545b; --fg3:#6c6c74; --primary:#0d7a6b; --primary-fg:#ffffff; --error:#b91c1c; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:var(--font-ui);
+    font-size:16px; line-height:1.6;
+    padding:max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(72px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:560px; margin:0 auto;}
+  a{color:var(--fg);text-underline-offset:3px;}
+  .marca{
+    display:inline-flex; align-items:center; gap:10px; min-height:44px; margin-bottom:18px;
+    color:var(--fg); text-decoration:none; font-weight:700; font-size:17px; letter-spacing:-0.01em;
+  }
+  .marca img{width:32px; height:32px; border-radius:8px;}
+  h1{font-size:30px; line-height:1.15; margin:0 0 6px; letter-spacing:-0.02em;}
+  .sub{color:var(--fg3); font-size:14px; margin:0 0 26px;}
+  p, li{color:var(--fg2);}
+  strong{color:var(--fg); font-weight:600;}
+
+  .campos{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .campo{display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .campo > span, .grupo-titulo{font-size:14px; font-weight:600; color:var(--fg);}
+  .calc input{
+    font:inherit; font-size:22px; font-variant-numeric:tabular-nums;
+    width:100%; min-height:52px; padding:10px 14px;
+    color:var(--fg); background:var(--card);
+    border:1px solid var(--border); border-radius:12px;
+    -webkit-appearance:none; appearance:none;
+  }
+  .calc input:focus{outline:2px solid var(--primary); outline-offset:1px; border-color:transparent;}
+  .calc input[aria-invalid="true"]{border-color:var(--error);}
+  .grupo{margin-top:18px; border:0; padding:0;}
+  .grupo-titulo{display:flex; align-items:center; gap:2px; margin-bottom:6px; padding:0;}
+  /* El "?" se ve chico pero se toca en 44×44. */
+  .ayuda{
+    width:44px; height:44px; margin:-12px 0 -12px -6px; padding:0; border:0; background:none; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .ayuda span{color:var(--fg3); font-size:16px; font-weight:700;}
+  .ayuda[aria-expanded="true"] span{color:var(--primary);}
+  .explicacion{margin:10px 0 0; padding:14px 16px; border-radius:12px; background:var(--card); border:1px solid var(--border); font-size:15px;}
+  .explicacion p{margin:0 0 10px;}
+  .explicacion p:last-child{margin-bottom:0;}
+  .exigencias{display:flex; gap:8px; align-items:stretch;}
+  .exigencias button{
+    font:inherit; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums;
+    min-width:64px; min-height:48px; padding:0 12px;
+    color:var(--fg2); background:var(--card);
+    border:1px solid var(--border); border-radius:12px; cursor:pointer;
+  }
+  .exigencias button[aria-pressed="true"]{color:var(--primary-fg); background:var(--primary); border-color:var(--primary);}
+  .exigencias .otra{flex:1; min-width:84px; position:relative;}
+  .exigencias .otra input{font-size:18px; min-height:48px; padding-right:34px;}
+  .exigencias .otra::after{content:'%'; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--fg3); pointer-events:none;}
+  .error{min-height:20px; margin:6px 0 0; font-size:14px; color:var(--error);}
+
+  .resultado{
+    margin-top:14px; padding:20px; border:1px solid var(--border); border-left:4px solid var(--primary);
+    border-radius:16px; background:var(--card);
+  }
+  .resultado .etiqueta{font-size:14px; color:var(--fg3); margin:0;}
+  .resultado .nota{
+    font-size:64px; line-height:1.05; font-weight:700; letter-spacing:-0.02em;
+    font-variant-numeric:tabular-nums; color:var(--fg); margin:4px 0 8px;
+  }
+  .resultado .detalle{margin:0; font-size:15px;}
+
+  details{margin-top:14px; border-top:1px solid var(--border);}
+  summary{
+    min-height:48px; display:flex; align-items:center; cursor:pointer;
+    font-weight:600; color:var(--fg); list-style:none;
+  }
+  summary::-webkit-details-marker{display:none;}
+  summary::after{content:'+'; margin-left:auto; color:var(--fg3); font-weight:400; font-size:20px;}
+  details[open] summary::after{content:'−';}
+  .opciones{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .opciones input{font-size:18px; min-height:48px;}
+  .redondeo{display:flex; flex-direction:column; gap:2px; margin:12px 0 4px;}
+  .redondeo label{display:flex; align-items:center; gap:10px; min-height:44px; color:var(--fg2); cursor:pointer;}
+  .redondeo input{width:20px; height:20px; min-height:0; margin:0; accent-color:var(--fg); -webkit-appearance:auto; appearance:auto;}
+
+  .tabla-wrap{max-height:360px; overflow:auto; border:1px solid var(--border); border-radius:12px; margin-bottom:14px;}
+  table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:15px;}
+  th, td{padding:8px 14px; text-align:right; border-bottom:1px solid var(--border);}
+  th{position:sticky; top:0; background:var(--card); color:var(--fg3); font-weight:600; font-size:13px;}
+  td{color:var(--fg2);}
+  tr.actual td{color:var(--fg); font-weight:700;}
+
+  .caja{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin:30px 0 0;}
+  .caja p{margin:0 0 12px;}
+  .cta{
+    display:inline-flex; align-items:center; min-height:44px; padding:0 20px; border-radius:12px;
+    background:var(--primary); color:var(--primary-fg); text-decoration:none; font-weight:600; font-size:15px;
+  }
+  .formula{font-variant-numeric:tabular-nums; color:var(--fg);}
+  footer{margin-top:44px; padding-top:20px; border-top:1px solid var(--border); color:var(--fg3); font-size:13px;}
+  footer a{display:inline-flex; align-items:center; min-height:44px;}
+
+  @media (max-width:380px){
+    .resultado .nota{font-size:56px;}
+    .exigencias button{min-width:56px; padding:0 8px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<a class="marca" href="/"><img src="/icon.svg?v=capas-1" alt="" width="32" height="32"/>GradeHub</a>
+
+<h1>Calculadora de notas</h1>
+<p class="sub">100% gratis · sin crear cuenta · sin anuncios</p>
+
+<form class="calc" id="calc" novalidate>
+  <div class="campos">
+    <label class="campo">
+      <span>Tu puntaje</span>
+      <input id="puntaje" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="0" aria-describedby="error"/>
+    </label>
+    <label class="campo">
+      <span>Puntaje total</span>
+      <input id="total" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0" aria-describedby="error"/>
+    </label>
+  </div>
+
+  <fieldset class="grupo">
+    <legend class="grupo-titulo">Exigencia <button type="button" class="ayuda" id="ayuda" aria-expanded="false" aria-controls="explicacion" aria-label="Qué es la exigencia y cómo se calcula la nota"><span aria-hidden="true">?</span></button></legend>
+    <div class="exigencias">
+      <button type="button" data-exigencia="50" aria-pressed="true">50%</button>
+      <button type="button" data-exigencia="60" aria-pressed="false">60%</button>
+      <span class="otra"><input id="exigencia" type="text" inputmode="decimal" autocomplete="off" placeholder="Otra" aria-label="Otra exigencia, en porcentaje" aria-describedby="error"/></span>
+    </div>
+    <div class="explicacion" id="explicacion" hidden>
+      <p>La <strong>exigencia</strong> es el porcentaje del puntaje total que vale un
+      <strong>4,0</strong>. Con 60% en una prueba de 50 puntos, el 4,0 está en 30.
+      Usa la que diga el programa o la prueba; si no la sabes, pregúntale al profe.</p>
+      <p>Desde ahí la nota sube en línea recta hasta el 7,0 con el puntaje total, y
+      baja hasta el 1,0 con cero puntos:</p>
+      <p class="formula">Bajo el 4,0: 1 + 3 × puntaje ÷ (exigencia × total)<br/>
+      Desde el 4,0: 4 + 3 × (puntaje − exigencia × total) ÷ (total − exigencia × total)</p>
+      <p>Se aproxima a la décima: 3,95 es 4,0. Si tu profe trunca, cámbialo en
+      <em>Otra escala</em>.</p>
+    </div>
+  </fieldset>
+
+  <p class="error" id="error" role="alert"></p>
+
+  <section class="resultado" aria-live="polite" aria-atomic="true">
+    <p class="etiqueta" id="etiqueta">Tu nota</p>
+    <p class="nota" id="nota">–</p>
+    <p class="detalle" id="detalle">Escribe tu puntaje y el total de la prueba.</p>
+  </section>
+
+  <details id="tabla-det">
+    <summary>Tabla de puntajes y notas</summary>
+    <div class="tabla-wrap"><table><thead><tr><th scope="col">Puntaje</th><th scope="col">Nota</th></tr></thead><tbody id="tabla"></tbody></table></div>
+  </details>
+
+  <details>
+    <summary>Otra escala</summary>
+    <div class="opciones">
+      <label class="campo"><span>Mínima</span><input id="nmin" type="text" inputmode="decimal" autocomplete="off" value="1,0" aria-describedby="error"/></label>
+      <label class="campo"><span>Aprobación</span><input id="naprob" type="text" inputmode="decimal" autocomplete="off" value="4,0" aria-describedby="error"/></label>
+      <label class="campo"><span>Máxima</span><input id="nmax" type="text" inputmode="decimal" autocomplete="off" value="7,0" aria-describedby="error"/></label>
+    </div>
+    <div class="redondeo" role="radiogroup" aria-label="Decimales">
+      <label><input type="radio" name="redondeo" value="aproximar" checked/> Aproximar a la décima (3,95 es 4,0)</label>
+      <label><input type="radio" name="redondeo" value="truncar"/> Truncar a la décima (3,95 es 3,9)</label>
+    </div>
+  </details>
+</form>
+
+<div class="caja">
+  <p><strong>¿Y con esa nota, qué necesitas para aprobar el ramo?</strong>
+  GradeHub lleva tus notas con la pauta de cada ramo y te dice qué te falta.</p>
+  <a class="cta" id="abrir-gradehub" href="/?desde=calculadora">Abrir GradeHub</a>
+</div>
+
+<footer>
+  GradeHub · hecho por estudiantes, para estudiantes ·
+  <a href="/preguntas.html">Preguntas frecuentes</a>
+  ·
+  <a href="/privacidad.html">Política de privacidad</a>
+</footer>
+
+</div>
+
+<script src="/engine.js?v=__ASSET_VERSION__"></script>
+<script>
+(function(){
+  // Se recuerda solo "Otra escala" (mínima, aprobación, máxima y redondeo), nunca
+  // un puntaje. La exigencia siempre parte en 50%: es lo que espera quien llega
+  // de Google, y una exigencia recordada de otra prueba cambiaría su nota sin
+  // que lo note. Clave propia y aparte de gradehub_v1, el estado académico.
+  var CLAVE='gradehub_calculadora_v1';
+  var $=function(id){return document.getElementById(id);};
+  var campos={puntaje:$('puntaje'),total:$('total'),exigencia:$('exigencia'),nmin:$('nmin'),naprob:$('naprob'),nmax:$('nmax')};
+  var botones=[].slice.call(document.querySelectorAll('[data-exigencia]'));
+  var exigencia=50;
+  var calculoMedido=false;
+
+  function num(s){
+    s=String(s||'').trim().replace(/\s/g,'').replace(',','.');
+    if(!/^\d*\.?\d+$|^\d+\.$/.test(s))return NaN;
+    return parseFloat(s);
+  }
+  function fmt(n,dec){
+    var r=dec==null?String(Math.round(n*100)/100):n.toFixed(dec);
+    return r.replace('.',',');
+  }
+  function truncar(){return document.querySelector('input[name="redondeo"]:checked').value==='truncar';}
+
+  function leer(){try{return JSON.parse(localStorage.getItem(CLAVE)||'{}')||{};}catch(e){return {};}}
+  function guardar(){
+    try{localStorage.setItem(CLAVE,JSON.stringify({nmin:campos.nmin.value,naprob:campos.naprob.value,nmax:campos.nmax.value,truncar:truncar()}));}catch(e){}
+  }
+
+  function marcarExigencia(){
+    var propia=true;
+    botones.forEach(function(b){
+      var si=Number(b.dataset.exigencia)===exigencia;
+      if(si)propia=false;
+      b.setAttribute('aria-pressed',si?'true':'false');
+    });
+    if(!propia&&document.activeElement!==campos.exigencia)campos.exigencia.value='';
+  }
+
+  function invalidar(lista){
+    Object.keys(campos).forEach(function(k){campos[k].removeAttribute('aria-invalid');});
+    lista.forEach(function(k){campos[k].setAttribute('aria-invalid','true');});
+  }
+
+  function calcular(){
+    var p=num(campos.puntaje.value),t=num(campos.total.value);
+    var nmin=num(campos.nmin.value),naprob=num(campos.naprob.value),nmax=num(campos.nmax.value);
+    var err='',malos=[];
+    if(campos.exigencia.value.trim()!==''){
+      var e=num(campos.exigencia.value);
+      if(!(e>=1&&e<=99)){err='La exigencia va entre 1% y 99%.';malos.push('exigencia');}
+      else exigencia=e;
+      marcarExigencia();
+    }else if(botones.every(function(b){return Number(b.dataset.exigencia)!==exigencia;})){
+      // Borró la exigencia propia: vuelve a la de por defecto en vez de seguir
+      // calculando con un número que ya no se ve en pantalla.
+      exigencia=50;marcarExigencia();
+    }
+    if(!err&&!(nmin<naprob&&naprob<nmax)){err='La escala tiene que subir: mínima, después aprobación, después máxima.';malos.push('nmin','naprob','nmax');}
+    if(!err&&campos.total.value.trim()!==''&&!(t>0)){err='El puntaje total tiene que ser mayor que cero.';malos.push('total');}
+    if(!err&&campos.puntaje.value.trim()!==''&&!(p>=0)){err='Escribe el puntaje como número, por ejemplo 23,5.';malos.push('puntaje');}
+    if(!err&&p>t){err='Tu puntaje no puede pasar el total ('+fmt(t)+').';malos.push('puntaje');}
+    $('error').textContent=err;
+    invalidar(malos);
+
+    var escala={exigencia:exigencia/100,nmin:nmin,naprob:naprob,nmax:nmax,truncar:truncar()};
+    var corte=t>0?exigencia/100*t:null;
+    var r=!err&&t>0&&p>=0?gh_notaDesdePuntaje(p,t,escala):null;
+    if(r&&!calculoMedido){
+      calculoMedido=true;
+      if(typeof gtag==='function')gtag('event','calculadora_calculo');
+    }
+    $('nota').textContent=r?fmt(r.nota,1):'–';
+    $('etiqueta').textContent=r?'Tu nota con '+fmt(p)+' de '+fmt(t)+' puntos':'Tu nota';
+    if(err)$('detalle').textContent='Corrige el dato marcado para ver tu nota.';
+    else if(corte===null)$('detalle').textContent='Escribe tu puntaje y el total de la prueba.';
+    else $('detalle').textContent='Con '+fmt(exigencia)+'% de exigencia, el '+fmt(naprob,1)+' está en '+fmt(corte)+' de '+fmt(t)+' puntos.';
+    if($('tabla-det').open)tabla(err?null:t,p,escala);
+    guardar();
+  }
+
+  // Paso de la tabla: de a un punto si caben, si no el paso más chico que deje
+  // unas 120 filas. El total siempre va al final, aunque el paso no caiga justo.
+  function tabla(t,p,escala){
+    var cuerpo=$('tabla');
+    cuerpo.textContent='';
+    if(!(t>0))return;
+    var pasos=[0.5,1,2,5,10,20,25,50,100,250,500,1000],paso=pasos[pasos.length-1];
+    for(var i=0;i<pasos.length;i++){
+      if(Number.isInteger(t)&&pasos[i]<1)continue;
+      if(t/pasos[i]<=120){paso=pasos[i];break;}
+    }
+    var filas=[];
+    for(var x=0;x<t-1e-9;x+=paso)filas.push(Math.round(x*100)/100);
+    filas.push(t);
+    var frag=document.createDocumentFragment();
+    filas.forEach(function(x){
+      var r=gh_notaDesdePuntaje(x,t,escala);
+      if(!r)return;
+      var tr=document.createElement('tr');
+      // Solo la fila que calza exacto: 29,5 no es la fila del 29, que da otra nota.
+      if(Math.abs(p-x)<1e-9)tr.className='actual';
+      var a=document.createElement('td'),b=document.createElement('td');
+      a.textContent=fmt(x);b.textContent=fmt(r.nota,1);
+      tr.appendChild(a);tr.appendChild(b);frag.appendChild(tr);
+    });
+    cuerpo.appendChild(frag);
+  }
+
+  var previo=leer();
+  ['nmin','naprob','nmax'].forEach(function(k){if(typeof previo[k]==='string'&&previo[k])campos[k].value=previo[k];});
+  if(previo.truncar)document.querySelector('input[value="truncar"]').checked=true;
+  marcarExigencia();
+  $('ayuda').addEventListener('click',function(){
+    var abrir=this.getAttribute('aria-expanded')!=='true';
+    this.setAttribute('aria-expanded',abrir?'true':'false');
+    $('explicacion').hidden=!abrir;
+  });
+
+  botones.forEach(function(b){
+    b.addEventListener('click',function(){
+      exigencia=Number(b.dataset.exigencia);
+      campos.exigencia.value='';
+      marcarExigencia();
+      calcular();
+    });
+  });
+  Object.keys(campos).forEach(function(k){campos[k].addEventListener('input',calcular);});
+  [].forEach.call(document.querySelectorAll('input[name="redondeo"]'),function(r){r.addEventListener('change',calcular);});
+  $('tabla-det').addEventListener('toggle',calcular);
+  $('calc').addEventListener('submit',function(e){e.preventDefault();document.activeElement&&document.activeElement.blur();});
+  campos.puntaje.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();campos.total.focus();}});
+  $('abrir-gradehub').addEventListener('click',function(e){
+    if(typeof gtag!=='function')return;
+    // Abrir en otra pestaña conserva el comportamiento normal del enlace.
+    if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey){
+      gtag('event','calculadora_abrir_gradehub');return;
+    }
+    // Esperar el envío con un límite breve; si GA está bloqueado, el enlace
+    // sigue funcionando. El destino es fijo y no lleva puntajes en la URL.
+    e.preventDefault();
+    var destino=this.href,abierto=false;
+    var seguir=function(){if(abierto)return;abierto=true;location.href=destino;};
+    setTimeout(seguir,250);
+    gtag('event','calculadora_abrir_gradehub',{event_callback:seguir,event_timeout:250});
+  });
+  calcular();
+})();
+</script>
+</body>
+</html>

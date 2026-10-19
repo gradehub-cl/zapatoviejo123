@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-09-07';
+const LEGAL_ACCEPTANCE_VERSION = '2026-10-18';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -18,6 +18,28 @@ const LEGAL_ACCEPTANCE_VERSION = '2026-09-07';
 // casos y sigue sin distinguirlos. Si algún día se reactiva la confirmación,
 // hay que volver a redactarlo. Lo fija `tests/seguridad.test.js`.
 const MSG_VERIFICA = 'Ya puedes entrar con ese correo y tu contraseña.';
+
+// El enlace de la calculadora solo atribuye la entrada en esta pestaña. No se
+// mezcla con gradehub_v1 ni se guarda puntaje, nota o identidad en la URL.
+const ORIGEN_ENTRADA_KEY='gradehub_origen_entrada';
+try{
+  if(new URLSearchParams(location.search).get('desde')==='calculadora'){
+    sessionStorage.setItem(ORIGEN_ENTRADA_KEY,'calculadora');
+    // Limpiar solo este parámetro: si queda en la barra, una recarga lo vuelve
+    // a atribuir. Conservar parámetros y fragmentos de OAuth o recuperación.
+    const url=new URL(location.href);
+    url.searchParams.delete('desde');
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }
+}catch(e){}
+function consumirOrigenEntrada(){
+  try{
+    const origen=sessionStorage.getItem(ORIGEN_ENTRADA_KEY);
+    sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);
+    if(origen==='calculadora')return {origen:'calculadora'};
+  }catch(e){}
+  return undefined;
+}
 
 function passwordPolicyError(password){
   if(password.length<PASS_MIN)return 'La contraseña debe tener al menos '+PASS_MIN+' caracteres.';
@@ -107,7 +129,26 @@ function toggleAuthMode(){
   document.getElementById('auth-fp').style.display=authMode==='login'?'block':'none';
   authError('');
 }
+let temporizadorCargaInicial=null;
+function ocultarCargaInicial(){
+  if(temporizadorCargaInicial!==null){clearTimeout(temporizadorCargaInicial);temporizadorCargaInicial=null;}
+  const pantalla=document.getElementById('screen-loading');
+  if(pantalla)pantalla.classList.remove('active');
+}
+function prepararCargaInicial(){
+  const boton=document.getElementById('carga-inicial-reintentar');
+  if(!boton||typeof boton.addEventListener!=='function')return;
+  boton.addEventListener('click',()=>location.reload());
+  temporizadorCargaInicial=setTimeout(()=>{
+    const pantalla=document.getElementById('screen-loading');
+    if(!pantalla||!pantalla.classList.contains('active'))return;
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Está tardando más de lo esperado. Revisa tu conexión y recarga.';
+    boton.hidden=false;
+  },12000);
+}
 function showAuthScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   // Al cerrar sesión la app viene del carrusel de pestañas. Con `tab-mode` el
@@ -172,6 +213,7 @@ async function cargarEstadisticasPublicas(){
 // pantalla conserva esa distinción: no expone el stack, no cierra la sesión y
 // ofrece una acción que sí puede ayudar (cargar la app completa de nuevo).
 function showAppErrorScreen(fase){
+  ocultarCargaInicial();
   ['auth','home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   const app=document.querySelector('.app');
   if(app)app.classList.remove('tab-mode','dragging');
@@ -255,13 +297,29 @@ function dondeDelError(archivo,linea,columna){
   const nombre=String(archivo||'').split('?')[0].split('/').pop()||'?';
   return nombre+(linea?':'+linea+(columna?':'+columna:''):'');
 }
+// Una promesa rechazada no trae archivo ni línea: se sacan del primer marco del
+// stack. Sin esto, "promesa" no distinguía un error nuestro de uno de una
+// extensión del navegador ("reading 'M_ID'", 2026-10-14, no está en el repo).
+function dondeDeLaPromesa(error){
+  const m=String(error&&error.stack||'').match(/([a-z-]+:\/\/[^\s()]+?):(\d+):(\d+)/i);
+  if(!m)return 'promesa';
+  if(/^(chrome|moz|safari-web)-extension:/i.test(m[1]))return 'promesa · extensión';
+  return 'promesa · '+dondeDelError(m[1],m[2],m[3]);
+}
 if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
   window.addEventListener('error',e=>{
     // Un <img> o un <script> que no carga también dispara "error", sin mensaje.
     if(!e||!e.message)return;
+    if(/^(chrome|moz|safari-web)-extension:/i.test(String(e.filename||'')))return;
     reportarError(e.error||{message:e.message},dondeDelError(e.filename,e.lineno,e.colno));
   });
-  window.addEventListener('unhandledrejection',e=>reportarError(e&&e.reason,'promesa'));
+  window.addEventListener('unhandledrejection',e=>{
+    const donde=dondeDeLaPromesa(e&&e.reason);
+    // Un error de una extensión del navegador ("reading 'M_ID'") no es nuestro:
+    // guardarlo solo ensucia errores_app (2026-10-15).
+    if(donde==='promesa · extensión')return;
+    reportarError(e&&e.reason,donde);
+  });
 }
 
 function registrarErrorArranque(error,fase){
@@ -269,9 +327,15 @@ function registrarErrorArranque(error,fase){
   const tipo=error&&tiposSeguros.includes(error.name)?error.name:'Error';
   const detalle=detalleErrorSeguro(error);
   console.error('GradeHub no pudo completar el arranque ('+fase+'): '+tipo+' · '+detalle);
-  track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
+  // `track` vive en app.js. Si app.js no alcanzó a cargar (una descarga
+  // cortada), llamarla reventaba acá: la persona quedaba en el login con la
+  // sesión abierta, sin el aviso de recargar, y errores_app solo recibía
+  // "Can't find variable: track" en vez del error de verdad (2026-10-14).
+  if(typeof track==='function')track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
+  reportarError(error,'arranque:'+fase);
 }
 function enterOnboarding(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   // Si entró con Google, ya sabemos su nombre: no se lo preguntamos en blanco
@@ -298,6 +362,7 @@ function tenantPorCorreo(correo){
   return t&&TENANTS[t]&&!TENANTS[t].oculto?t:null;
 }
 function enterApp(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.remove('active');
   showMainApp();
@@ -306,6 +371,9 @@ function enterApp(){
 function traduceAuthError(e,contexto){
   if(e&&e.code==='CACHE_LOCAL_NO_AISLADA')return 'No pudimos proteger los ramos guardados en este dispositivo. La cuenta se creó, pero no se copiaron. Libera espacio o entra desde otro navegador.';
   const m=((e&&e.message)||'').toLowerCase();
+  const code=String((e&&e.code)||'');
+  if(code==='current_password_required')return 'Escribe tu contraseña actual para poder cambiarla.';
+  if(code==='current_password_mismatch')return 'La contraseña actual no es correcta.';
   // No confirmar si un correo ya tiene cuenta: esa diferencia permite enumerar
   // usuarios y preparar phishing o credential stuffing. Registro existente y
   // registro aceptado tienen que verse iguales hacia afuera.
@@ -315,10 +383,13 @@ function traduceAuthError(e,contexto){
   if(m.includes('invalid login')||m.includes('credentials'))return 'Usuario o contraseña incorrectos.';
   // Sin esto caían en "revisa tu internet": el correo de recuperación tiene un
   // límite por hora y quien lo pedía dos veces creía que no tenía conexión.
-  const code=String((e&&e.code)||'');
   if((e&&e.status===429)||code.includes('rate_limit')||m.includes('rate limit')||m.includes('security purposes'))
     return 'Hiciste varios intentos seguidos. Espera unos minutos y vuelve a intentarlo.';
   if(code==='same_password'||m.includes('different from the old'))return 'La nueva contraseña tiene que ser distinta de la anterior.';
+  // Con "Secure password change" encendido en Supabase, una sesión antigua no
+  // puede cambiarla. Va antes del caso genérico de 'password', que diría que
+  // la contraseña es corta.
+  if(code==='reauthentication_needed'||m.includes('reauthentication'))return 'Por seguridad, cierra sesión, vuelve a entrar y cámbiala apenas entres.';
   if(code==='email_address_invalid'||(m.includes('email')&&m.includes('invalid')))return 'Ese correo no es válido. Revísalo e intenta de nuevo.';
   if(m.includes('password'))return 'La contraseña debe tener al menos '+PASS_MIN+' caracteres e incluir letras y números.';
   return 'No se pudo conectar. Revisa tu internet e intenta de nuevo.';
@@ -373,6 +444,64 @@ async function cambiarCorreoCuenta(){
   }catch(e){
     if(currentUser!==usuario)return false;
     estadoCambioCorreo(traduceAuthError(e,'cambio_correo'),true);
+    return false;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=original;}
+  }
+}
+
+// Cambiar la contraseña estando dentro (#714). Antes solo se llegaba desde el
+// correo de recuperación. Misma política y mismo updateUser que esa pantalla.
+// Solo para cuentas que entran con correo: las de Google no tienen contraseña.
+function cuentaConClave(u){
+  const m=u&&u.app_metadata;
+  return !!m&&(Array.isArray(m.providers)?m.providers.includes('email'):m.provider==='email');
+}
+function estadoCambioClave(mensaje,esError,campo){
+  const aviso=document.getElementById('s-account-pass-status');
+  if(aviso){aviso.textContent=mensaje||'';aviso.hidden=!mensaje;aviso.style.color=esError?'var(--red)':'var(--fg2)';}
+  ['s-account-current-pass','s-account-pass','s-account-pass2'].forEach(id=>{
+    const input=document.getElementById(id);
+    if(!input)return;
+    const invalido=esError&&(campo==='actual'?id==='s-account-current-pass':id!=='s-account-current-pass');
+    if(invalido)input.setAttribute('aria-invalid','true');
+    else input.removeAttribute('aria-invalid');
+  });
+}
+async function cambiarClaveCuenta(){
+  const btn=document.getElementById('s-account-pass-save');
+  if(btn&&btn.disabled)return false;
+  const actual=document.getElementById('s-account-current-pass');
+  const i1=document.getElementById('s-account-pass'),i2=document.getElementById('s-account-pass2');
+  const pActual=actual?actual.value:'',p1=i1?i1.value:'',p2=i2?i2.value:'';
+  estadoCambioClave('',false);
+  if(!pActual){estadoCambioClave('Escribe tu contraseña actual para poder cambiarla.',true,'actual');if(actual)actual.focus();return false;}
+  const politica=passwordPolicyError(p1);
+  if(politica){estadoCambioClave(politica,true);if(i1)i1.focus();return false;}
+  if(p1!==p2){estadoCambioClave('Las contraseñas no coinciden.',true);if(i2)i2.focus();return false;}
+  if(!supabaseClient||!supabaseClient.auth||!currentUser){
+    estadoCambioClave('Necesitas iniciar sesión para cambiar tu contraseña.',true);
+    return false;
+  }
+  const original=btn?btn.textContent:'';
+  const usuario=currentUser;
+  if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password:p1,current_password:pActual});
+    // La respuesta es de la visita que la pidió: una tardía no puede escribir
+    // en la hoja de otra cuenta (#579, punto 15).
+    if(currentUser!==usuario)return false;
+    if(error)throw error;
+    if(actual)actual.value='';
+    if(i1)i1.value='';
+    if(i2)i2.value='';
+    estadoCambioClave('Contraseña actualizada. La próxima vez entra con la nueva.',false);
+    return true;
+  }catch(e){
+    if(currentUser!==usuario)return false;
+    const errorActual=e&&(e.code==='current_password_required'||e.code==='current_password_mismatch');
+    estadoCambioClave(traduceAuthError(e),true,errorActual?'actual':'nueva');
+    if(errorActual&&actual)actual.focus();
     return false;
   }finally{
     if(btn){btn.disabled=false;btn.textContent=original;}
@@ -621,6 +750,7 @@ async function submitNewPassword(){
 }
 
 function showResetScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','auth'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   document.getElementById('screen-reset').classList.add('active');
@@ -753,7 +883,7 @@ async function importarCacheSinDueno(uid){
   }catch(e){showToast('No pudimos traer los ramos de este dispositivo. Siguen guardados aquí.',true);}
 }
 async function afterSignup(){
-  track('signup');
+  track('signup',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
   const uid=currentUser?.id;
   const aislamiento=uid&&aislarCacheEnRegistro(uid);
   if(!aislamiento){
@@ -779,7 +909,7 @@ async function afterSignup(){
   }
 }
 async function afterLogin(){
-  track('login');
+  track('login',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
   registrarVisitaDiaria();
   const uid=currentUser?currentUser.id:null;
   const visita=++_visitaSesion;
@@ -818,12 +948,21 @@ async function afterLogin(){
     const {estado,subir}=mismaCache?reconciliarAlEntrar(uid,S,nube,cloud):{estado:nube,subir:false};
     S=estado;
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
-    guardarBaseSync(uid,nube);
+    // Si normalize() corrigió la estructura de un ramo de la nube (una pauta
+    // nuestra mal publicada, evaluaciones repetidas), esa corrección también
+    // se sube. Antes solo quedaba en el dispositivo: la nube —que es lo que
+    // leen los agentes conectados— seguía con el error hasta la próxima nota.
+    // La base queda en la copia tal como estaba, así la subida sale como un
+    // cambio de este dispositivo y no como un choque.
+    const corregida=firmaEstructuraSync(nube)!==firmaEstructuraSync(cloud);
+    guardarBaseSync(uid,corregida?cloud:nube);
     setCacheOwner(uid);
     if(subir){
       syncNow().then(respaldado=>{
         if(respaldado)showToast('✓ Guardamos en la nube lo que anotaste en este dispositivo');
       }).catch(()=>{});
+    }else if(corregida){
+      syncNow().catch(()=>{});
     }
   }else if(ok&&mismaCache){
     // `null` significa que la consulta no encontró una fila; NO demuestra que
@@ -1016,6 +1155,13 @@ async function syncNow(){
 const SYNC_BASE_KEY='gradehub_v1_base';
 const clonarSync=x=>x==null?x:JSON.parse(JSON.stringify(x));
 const igualSync=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// Qué evaluaciones tiene cada ramo y cuánto pesan: lo que cambia cuando
+// normalize() corrige una pauta. No mira notas ni campos que normalize()
+// completa por defecto, así un ramo antiguo no se sube en cada arranque.
+function firmaEstructuraSync(d){
+  const ramos=d&&Array.isArray(d.ramos)?d.ramos:[];
+  return JSON.stringify(ramos.map(r=>[r&&r.id,(r&&Array.isArray(r.categorias)?r.categorias:[]).map(c=>[c&&c.id,c&&c.peso])]));
+}
 const objetoSync=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function sinRevSync(x){if(!objetoSync(x))return x;const {_rev,...resto}=x;return resto;}
 function revSync(x){return objetoSync(x)&&Number.isInteger(x._rev)?x._rev:null;}
@@ -1091,7 +1237,11 @@ function idsCompletosSync(doc){
 // código) no se sabe quién cambió qué: se suma lo que exista en cualquiera de
 // las dos y, si un mismo dato difiere, manda la nube, como hacía la app antes.
 function fusionarSync(base,local,nube){
-  return fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  const fusion=fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  // El tipo de cuenta lo puede corregir el servidor. Una copia vieja del
+  // teléfono no debe devolver a estudiante una cuenta ya convertida.
+  if(objetoSync(fusion)&&objetoSync(nube)&&nube.tipoCuenta==='profesor')fusion.tipoCuenta='profesor';
+  return fusion;
 }
 function fusionarValorSync(b,l,n,gana){
   if(igualSync(l,n))return l;
@@ -1371,11 +1521,13 @@ async function boot(){
   try{
     if(!supabaseClient){
       // Sin configurar Supabase → funciona en modo local (fallback)
+      ocultarCargaInicial();
       document.getElementById('screen-auth').classList.remove('active');
       if(S.onboardingDone)showMainApp();
       else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
       return;
     }
+    prepararCargaInicial();
     // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
     // el usuario abre el link del correo de "olvidé mi contraseña".
     supabaseClient.auth.onAuthStateChange((event, session)=>{
@@ -1409,6 +1561,18 @@ async function boot(){
     // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
     limpiarFragmentoAuth();
     if(enRecuperacion){showResetScreen();return;}
+    // app.js trae el estado y las pantallas. Si su descarga se cortó (pesa
+    // ~600 KB), no hay app que abrir: se pide recargar y se reporta con nombre,
+    // en vez de fallar adentro de afterLogin con un error que no dice qué pasó.
+    // `track` es una declaración de función de app.js: existe apenas el archivo
+    // se leyó, aunque algo falle más abajo.
+    if(typeof track!=='function'){
+      registrarErrorArranque(new Error('app.js no cargó'),'cargar_app');
+      showAppErrorScreen('abrir_app');
+      return;
+    }
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Preparando tu semestre…';
     try{
       await afterLogin();
     }catch(e){

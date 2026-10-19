@@ -419,8 +419,9 @@ function normalize(data) {
   // ramo simplemente nunca se entera. Por eso se rellena al cargar.
   data.ramos.forEach(r => {
     migrarOrigenesFecha(r);
+    repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
-    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
+    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
     // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
     // deja su promedio calculando con nuestro error. Se reconoce por la pauta
@@ -1426,52 +1427,25 @@ function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(
 // Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a
 // 4,0, pero la ficha mostraba un único número combinado: quien iba bien en el
 // lab no podía ver si la cátedra sola lo estaba dejando abajo. La ficha y el
-// simulador muestran la cátedra sola al lado del promedio y, debajo, cómo va el
-// laboratorio, con las cuentas de `partesDelVinculo`.
-// `fmt` decide la coma decimal: el simulador la usa y la ficha no.
-function textoParteVinculo(parte,min,fmt){
-  const m=fmt(nf(min));
-  if(parte.valor===null)return 'Sin notas todavía';
-  if(parte.completo)return gh_cumpleMinimo(parte.valor,min)?`Cumple el mínimo de ${m}`:`Bajo el mínimo de ${m}: repruebas el ramo`;
-  const n=parte.necesaria;
-  if(n===null)return '';
-  if(n>7)return `Ya no alcanza el ${m}`;
-  if(n<=1)return `Tiene el ${m} asegurado`;
-  return `Necesitas ${fmt(nfNecesaria(n))} en lo pendiente para el ${m}`;
-}
-// La cátedra sola, al lado del promedio de siempre (que ya incluye el lab).
+// simulador muestran la cátedra sola al lado del promedio, y lo que falta para
+// aprobar habla de la cátedra (`notaNecesariaParaAprobar`).
+//
 // Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
 // siempre YA es solo la cátedra, y repetir el mismo número confundiría.
-function htmlSoloCatedra(r,{fmt=x=>x}={}){
+// `fmt` decide la coma decimal: el simulador la usa y la ficha no. `exacto`
+// agrega el promedio sin redondear, como el número grande al tocarlo.
+function htmlSoloCatedra(r,{fmt=x=>x,exacto=null}={}){
   const partes=partesDelVinculo(r);
   if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
   const v=partes.propio.valor;
   return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
-    `<span class="solo-parte-label">Solo cátedra</span>`;
+    `<span class="solo-parte-label">Solo cátedra${exacto?` · ${exacto(v)}`:''}</span>`;
 }
-// El recuadro bajo el promedio: la regla y el laboratorio. La cátedra no se
-// repite acá porque ya está al lado del promedio (`htmlSoloCatedra`).
-// `r` es el ramo que recibe el aporte, tal cual se calcula: en el simulador, la
-// proyección con las notas hipotéticas. `interactivo` deja abrir el laboratorio
-// desde la ficha; dentro del simulador no, porque saldría de la hoja.
-function htmlPartesVinculo(r,{fmt=x=>x,interactivo=false}={}){
+// Lo que falta para aprobar. En un ramo con laboratorio habla solo de la
+// cátedra: el lab tiene su propia ficha y su propio "cuánto me falta".
+function notaNecesariaParaAprobar(r){
   const partes=partesDelVinculo(r);
-  if(!partes)return '';
-  const {min,propio,externo}=partes;
-  const lab=externo.ramo;
-  const valor=externo.valor===null?'—':fmt(fmtPromedio(externo.valor));
-  const color=externo.valor===null?'var(--fg3)':getColorRamo(lab,externo.valor);
-  const estado=lab?textoParteVinculo(externo,min,fmt):'No está entre tus ramos';
-  const cuerpo=`<span class="parte-txt"><span class="parte-nombre">${esc(externo.nombre)} · ${r2(externo.peso)}%</span>`+
-    `<span class="parte-estado">${esc(estado)}</span></span>`+
-    `<span class="parte-nota" style="color:${color}">${valor}</span>`;
-  const fila=lab&&interactivo
-    ?`<button type="button" class="parte-fila" onclick="openRamo('${esc(lab.id)}')" aria-label="${esc(externo.nombre)}: ${esc(valor)}. ${esc(estado)}. Abrir ramo">${cuerpo}<span class="chevron-r" aria-hidden="true">›</span></button>`
-    :`<div class="parte-fila">${cuerpo}</div>`;
-  const soloCatedra=propio.valor!==null&&externo.valor===null
-    ?`<p class="partes-nota">Mientras ${esc(externo.nombre)} no tenga notas, el promedio de arriba es solo la cátedra.</p>`:'';
-  return `<div class="partes-hd">Para aprobar, la cátedra y el laboratorio tienen que llegar a ${fmt(nf(min))} cada uno</div>`+
-    fila+soloCatedra;
+  return partes?{valor:partes.propio.necesaria,cual:' cátedra'}:{valor:notaNecesaria(r),cual:''};
 }
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
@@ -2303,7 +2277,7 @@ function completeOnboarding(){
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
-    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
@@ -2546,7 +2520,9 @@ function showMainApp(){
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
   renderHome();renderStats();renderAgenda(); // los 3 siempre montados
-  showTab('home');
+  // Una cuenta de profesor abre en Clases (#697): sus pestañas se arman antes.
+  recalcularNavTabs();
+  showTab(pestanaInicial());
   contarVisita();
   pintarAvisoInstalar();
   // Si llegó con el link de un profesor, ahora que hay sesión se le ofrece compartir.
@@ -2574,23 +2550,34 @@ function showMainApp(){
 // encogerse sin dejar a nadie parado en una pestaña que ya no está.
 const NAV_TABS_BASE=['stats','home','agenda'];
 let NAV_TABS=NAV_TABS_BASE.slice();
+// Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
+// (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
+const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
+// Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
+// Inicio para todas las demás, incluidas las de estudiante que además dan clases.
+function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
 function recalcularNavTabs(){
-  const conProfesor=typeof esProfesorAprobado==='function'&&esProfesorAprobado();
+  // Una cuenta de profesor (#697) no tiene Inicio, Estadísticas ni Agenda: no
+  // estudia acá. Clases y Alumnos las tiene siempre, aprobada o no; mientras
+  // no lo esté, cada una explica en qué va. Las cuentas de estudiante que
+  // además son profesores aprobados siguen con sus cinco pestañas.
+  const soloProfesor=esCuentaProfesor();
+  const conProfesor=soloProfesor||(typeof esProfesorAprobado==='function'&&esProfesorAprobado());
   // La de administración, solo para cuentas administradoras. Que aparezca no da
   // acceso a nada: el servidor exige además el segundo factor.
   const conAdmin=typeof esAdministrador==='function'&&esAdministrador();
   // Un profesor aprobado tiene Clases (sus anuncios) y Alumnos (el panel), en
   // pestañas separadas (#697).
-  const nuevas=[...NAV_TABS_BASE,...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
-  [['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
+  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
   if(nuevas.join()===NAV_TABS.join())return false;
   NAV_TABS=nuevas;
   // Si a alguien le quitan el acceso estando en su pestaña, no se le deja la
-  // pantalla en blanco: vuelve a Inicio.
-  if(!NAV_TABS.includes(currentTab))showTab('home');
+  // pantalla en blanco: vuelve a su pestaña de entrada.
+  if(!NAV_TABS.includes(currentTab))showTab(pestanaInicial());
   else setTabTransforms(Math.max(0,NAV_TABS.indexOf(currentTab)),0);
   return true;
 }
@@ -2607,6 +2594,11 @@ function setTabTransforms(idx, dragPx){
 }
 
 function showTab(tab,skipAnim){
+  if(PESTANAS.includes(tab)&&!NAV_TABS.includes(tab)){
+    // La lista puede venir atrasada (recién terminó el onboarding de profesor).
+    recalcularNavTabs();
+    if(!NAV_TABS.includes(tab))tab=pestanaInicial();
+  }
   if(NAV_TABS.includes(tab)){
     // Modo tab: snap del carrusel
     ['ramo','auth','onboard','reset'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
@@ -2637,7 +2629,7 @@ function goHome(){
   const ramo=document.getElementById('screen-ramo');
   const destino=NAV_TABS.includes(currentTab)?currentTab:'home';
   if(ramo&&ramo.classList.contains('active'))transicionNativa('pop',()=>showTab(destino));
-  else showTab('home');
+  else showTab(pestanaInicial());
 }
 
 // Drag continuo entre tabs — tipo historia de Instagram.
@@ -3497,11 +3489,12 @@ function aplicarCambioDePauta(r,cambio){
   // ella en vez de quedar duplicadas —la vieja en 0% y la nueva vacía—. Las de
   // la pauta van después a propósito: si por lo que sea coinciden en nombre,
   // manda la que está viva.
-  fusionarPauta(r,cambio.preset.categorias);
-  r.gates=cambio.preset.gates;
+  const ids=fusionarPauta(r,cambio.preset.categorias);
+  r.gates=traducirIdsCategoria(cambio.preset.gates,ids);
   r.aporta=cambio.preset.aporta||null;
+  r.promedioParcial=cambio.preset.promedioParcial||null;
   r.recuperativo=cambio.preset.recuperativo||null;
-  r.reglasAusenciaJustificada=cambio.preset.reglasAusenciaJustificada||null;
+  r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
 }
@@ -3510,14 +3503,31 @@ function aplicarCambioDePauta(r,cambio){
 // Vive aparte porque el trato con sus notas es el mismo venga la pauta de donde
 // venga: del programa oficial o de lo que reportaron sus compañeros. Una nota
 // es suya y no se pierde porque nosotros cambiemos de fuente.
+// Devuelve qué id quedó para cada evaluación de `nuevas` ({idNuevo: idFinal}):
+// quien trae compuertas o reglas con los ids del preset las traduce con eso.
+//
+// Una evaluación que sigue CONSERVA SU ID, y una que llega recibe uno que sale
+// de su nombre y del ramo. Nunca uno al azar: corrigePautas corre por separado
+// sobre la copia del teléfono y sobre la de la nube, y la sincronización las
+// junta por id. Con ids al azar cada copia inventaba los suyos y el ramo
+// quedaba con todas sus evaluaciones dos veces (2026-10-15, Laboratorio de
+// Dinámica). Con ids que no dependen de quién corrige, las dos copias quedan
+// idénticas.
+function idCategoriaEstable(r,nombre){
+  let h=2166136261;const s=(r&&r.id||'')+'|'+normName(nombre);
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
+  return 'c'+h.toString(36);
+}
 function fusionarPauta(r,nuevas){
   const nombresAusencia=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
   const viejas=new Map([...(r.categorias||[]).filter(c=>c.fueraDePauta),...catsDePauta(r.categorias)]
     .map(c=>[normName(c.nombre),c]));
+  const idsFinales={},idsUsados=new Set();
   r.categorias=nuevas.map(c=>{
     const fuentes=[{nombre:c.nombre},...(c.nombresAnteriores||[]).map(x=>
       typeof x==='string'?{nombre:x}:x)];
     const usadas=new Set(),idsNotas=new Set(),notas=[];
+    let idHeredado=null;
     fuentes.forEach(f=>{
       let k=normName(f.nombre),vieja=viejas.get(k);
       if(!vieja){
@@ -3530,6 +3540,7 @@ function fusionarPauta(r,nuevas){
       }
       if(!vieja||usadas.has(k))return;
       usadas.add(k);viejas.delete(k);
+      if(!idHeredado&&vieja.id&&!idsUsados.has(vieja.id))idHeredado=vieja.id;
       (vieja.notas||[]).forEach(n=>{
         if(n&&n.id&&idsNotas.has(n.id))return;
         const copia={...n};
@@ -3538,7 +3549,10 @@ function fusionarPauta(r,nuevas){
         notas.push(copia);
       });
     });
-    return {...c,notas};   // `c` no trae fueraDePauta: revivir la limpia
+    let id=idHeredado||idCategoriaEstable(r,c.nombre);
+    while(idsUsados.has(id))id+='_';
+    idsUsados.add(id);idsFinales[c.id]=id;
+    return {...c,id,notas};   // `c` no trae fueraDePauta: revivir la limpia
   });
   // Lo que la pauta nueva ya no tiene NO se borra. La pauta es nuestra; la nota
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en
@@ -3565,6 +3579,57 @@ function fusionarPauta(r,nuevas){
     usuario.traspasos=usuario.traspasos.map(x=>({desdeId:idAusenciaEnPautaNueva(x.desdeId),haciaId:idAusenciaEnPautaNueva(x.haciaId)}));
     r.reglasAusenciaJustificadaUsuario=usuario;
   }
+  return idsFinales;
+}
+// Cambia ids de evaluación dentro de reglas (compuertas, ausencias): cualquier
+// texto igual a un id viejo pasa a ser el nuevo. Los ids son al azar o salen de
+// un hash, así que no chocan con otros textos de la regla.
+// El 2026-10-15 corrigePautas dejó ramos con todas sus evaluaciones dos veces
+// (ver idCategoriaEstable): la copia del teléfono y la de la nube se corrigieron
+// por separado con ids distintos y la sincronización sumó las dos. Esto las
+// vuelve a juntar al cargar. Solo actúa con la huella exacta de ese error, para
+// no tocar a nadie que tenga dos evaluaciones con el mismo nombre a propósito:
+// ramo del catálogo, mismo nombre, mismo peso y mismas casillas, y una pauta que
+// suma más de 100% y vuelve a sumar 100% sin las repetidas. Queda la de id
+// menor y las notas se juntan por id: así las dos copias se reparan igual y la
+// sincronización no las vuelve a duplicar.
+function repararEvaluacionesRepetidas(r){
+  if(!r||!r.origen||!Array.isArray(r.categorias))return false;
+  const vivas=r.categorias.filter(c=>c&&!c.fueraDePauta);
+  const grupos=new Map();
+  vivas.forEach(c=>{const k=normName(c.nombre);if(!k)return;if(!grupos.has(k))grupos.set(k,[]);grupos.get(k).push(c);});
+  const repetidos=[...grupos.values()].filter(g=>g.length>1&&g.every(c=>r2(Number(c.peso)||0)===r2(Number(g[0].peso)||0)&&
+    (Number(c.slots)||1)===(Number(g[0].slots)||1)));
+  if(!repetidos.length)return false;
+  const total=vivas.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  const sobra=repetidos.reduce((s,g)=>s+(Number(g[0].peso)||0)*(g.length-1),0);
+  if(!(total>100.05&&Math.abs(total-sobra-100)<=0.05))return false;
+  const mapa={},fuera=new Set();
+  repetidos.forEach(g=>{
+    const orden=[...g].sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    const queda=orden[0],ids=new Set((queda.notas||[]).map(n=>n&&n.id));
+    orden.slice(1).forEach(c=>{
+      (c.notas||[]).forEach(n=>{if(n&&!ids.has(n.id)){ids.add(n.id);queda.notas.push(n);}});
+      mapa[c.id]=queda.id;fuera.add(c.id);
+    });
+  });
+  r.categorias=r.categorias.filter(c=>!fuera.has(c&&c.id));
+  Object.keys(mapa).forEach(desde=>{r.gates=unificarCategoriaEnReglas(r.gates,desde,mapa[desde]);});
+  if(Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[...new Set(traducirIdsCategoria(r.ausenciasJustificadas,mapa))];
+  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
+  return true;
+}
+// Una evaluación absorbe a otra: sus reglas apuntan a la que queda y las que
+// quedan iguales se cuentan una vez.
+function unificarCategoriaEnReglas(gates,desde,hacia){
+  const vistas=new Set();
+  return traducirIdsCategoria(gates||[],{[desde]:hacia}).filter(g=>{const k=JSON.stringify(g);if(vistas.has(k))return false;vistas.add(k);return true;});
+}
+function traducirIdsCategoria(valor,mapa){
+  if(typeof valor==='string')return Object.prototype.hasOwnProperty.call(mapa,valor)?mapa[valor]:valor;
+  if(Array.isArray(valor))return valor.map(v=>traducirIdsCategoria(v,mapa));
+  if(valor&&typeof valor==='object'){const out={};Object.keys(valor).forEach(k=>{out[k]=traducirIdsCategoria(valor[k],mapa);});return out;}
+  return valor;
 }
 function aplicarPautaNueva(ramoId){
   if(!actualizarPauta(ramoId))return;
@@ -3597,6 +3662,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
     if(extra&&typeof extra.slotLabel==='string')cat.slotLabel=extra.slotLabel;
     if(extra&&Number.isInteger(extra.slotStart))cat.slotStart=extra.slotStart;
     if(extra&&Array.isArray(extra.nombresCasillas))cat.nombresCasillas=extra.nombresCasillas.slice();
+    if(extra&&Array.isArray(extra.pesosCasillas))cat.pesosCasillas=extra.pesosCasillas.slice();
     // Una corrección de nombres no puede soltar las notas que alguien ya
     // escribió con la versión anterior. También puede reunir categorías
     // antiguas en casillas concretas si el dato nuevo aclara que eran un grupo.
@@ -3632,7 +3698,8 @@ function presetRamo(nombre,tenant,carrera,ahora){
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
   const bonus=resolverBonus(def,categorias);
-  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,bonus,periodo,estadoPeriodo,
+  const promedioParcial=!Array.isArray(def)&&def.promedioParcial==='por-casilla'?'por-casilla':null;
+  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,bonus,promedioParcial,periodo,estadoPeriodo,
     creditos:(!Array.isArray(def)&&typeof def.creditos==='number')?def.creditos:null};
 }
 
@@ -3651,7 +3718,7 @@ function confirmAddMalla(){
     // estrella de "pauta oficial" al lado, porque el selector SÍ normaliza.
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
@@ -3758,7 +3825,7 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const ramo={
     id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
     creditos,origen:origenActual(presetName||nombre,sigla),
-    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
+    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
   consensoAlAgregar(ramo);
@@ -5114,6 +5181,7 @@ async function enviarReporte(ramoId){
 // calzar con la de otra.
 const _consensoPorTenant=new Map();
 async function cargarConsenso(tenant){
+  if(esCuentaProfesor())return null;
   tenant=tenant||S.tenant;
   if(!supabaseClient||!currentUser||!tenant)return null;
   if(_consensoPorTenant.has(tenant))return _consensoPorTenant.get(tenant);
@@ -5171,6 +5239,7 @@ function guardarSiglasCurso(siglas){
 // no se repiten las llamadas cada vez que se abre Estadísticas.
 let _firmaNotasCurso=null;
 async function subirNotasCurso(){
+  if(esCuentaProfesor())return;
   if(!supabaseClient||!currentUser)return;
   const firma=currentUser.id+'|'+JSON.stringify((S.ramos||[]).map(r=>[siglaParaCurso(r),ramoAvg(r,undefined,S.ramos)]));
   if(firma===_firmaNotasCurso)return;
@@ -5217,6 +5286,7 @@ async function subirNotasCurso(){
 
 let _posCursoCache=null;
 async function cargarPosicionesCurso(){
+  if(esCuentaProfesor())return null;
   if(!supabaseClient||!currentUser)return null;
   if(_posCursoCache)return _posCursoCache;
   const out={};
@@ -5319,6 +5389,7 @@ function renderEditarSecciones(){
 }
 
 async function consensoParaRamo(r){
+  if(esCuentaProfesor())return null;
   const cons=await cargarConsenso();
   if(!cons)return null;
   const mia=estructuraParaConsenso(estructuraDe(r));
@@ -5410,8 +5481,8 @@ async function verConsensoDisponible(ramoId){
 function adoptarConsensoEnRamo(r,hit){
   const pauta=pautaDeConsenso(hit&&hit.estructura);
   if(!pauta.categorias.length)return false;
-  fusionarPauta(r,pauta.categorias);
-  r.gates=pauta.gates;
+  const ids=fusionarPauta(r,pauta.categorias);
+  r.gates=traducirIdsCategoria(pauta.gates,ids);
   // `pautaHuella` NO se actualiza, y es a propósito. Sigue apuntando a la que
   // le dimos nosotros, así que la pauta adoptada queda distinta de esa y
   // cambioDePauta() la lee como lo que es: una decisión del estudiante, que
@@ -5521,6 +5592,7 @@ function pautaDeConsenso(est){
 //
 // En un ramo vacío, aunque lo agregaran a mano, no hay nada que pisar.
 async function aplicarConsensoAuto(){
+  if(esCuentaProfesor())return 0;
   const cons=await cargarConsenso();
   if(!cons||!cons.length)return 0;
   let puestas=0;
@@ -5529,6 +5601,7 @@ async function aplicarConsensoAuto(){
   return puestas;
 }
 function ponerConsensoEnRamo(r,cons){
+  if(esCuentaProfesor())return false;
   if(!r||!cons||!cons.length)return false;
   if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return false;
   if((r.categorias||[]).length||(r.gates||[]).length)return false;
@@ -5551,7 +5624,10 @@ function ponerConsensoEnRamo(r,cons){
 // Al agregar un ramo sin pauta, la del consenso entra en el mismo momento —con
 // lo ya cargado, sin esperar la red—, no en la próxima sesión. Mismas reglas
 // que aplicarConsensoAuto: solo ramos vacíos y nunca sobre una de programa.
-function consensoAlAgregar(r){return ponerConsensoEnRamo(r,consensoCargado(S.tenant));}
+function consensoAlAgregar(r){
+  if(esCuentaProfesor())return false;
+  return ponerConsensoEnRamo(r,consensoCargado(S.tenant));
+}
 
 // Lo aportado antes del 2026-10-05 quedó guardado con la huella de entonces,
 // que contaba los conectores. Sin aceptar las dos, cada ramo que recibió una
@@ -5886,7 +5962,7 @@ function confirmAddRamo(){
   const presetName=findPresetName(name,S.tenant,S.carrera);
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
-  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
   consensoAlAgregar(S.ramos[S.ramos.length-1]);
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
   showToast(preset?'Pauta cargada':'Ramo agregado');
@@ -5999,6 +6075,9 @@ function confirmAddCat(){
 // pauta real. Los pesos pueden quedar incompletos porque en semana 1 muchas
 // veces todavía no está toda la información.
 let pautaDraft=[];
+// Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
+// `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.
+let pautaQuitadas=[];
 let pautaDraftError='',pautaDraftErrorIndex=null,pautaDraftErrorTarget='';
 // Se abrió desde "Armar mi pauta" (el ramo no tenía evaluaciones): el título
 // dice eso y no "Editar evaluaciones", que es lo que dice el botón con pauta.
@@ -6009,7 +6088,7 @@ function openPautaManualModal(){
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
-  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';
+  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
@@ -6040,10 +6119,13 @@ function plantillaPauta(tipo){
     return {id:null,nombre:def.nombre,peso:0,tieneNotas:false,varias:false,cantidad:null,...def};
   });
 }
-// En UC las evaluaciones se llaman pruebas, no solemnes. FEN conserva el
-// término porque aparece así en sus programas oficiales. Solo alimenta el
-// placeholder del campo: no arma ninguna estructura.
-function ejemploEvaluacion(tenant){return tenant==='uc'?'Prueba':'Solemne';}
+// Derecho UC usa «Solemne» en sus programas y calendario de evaluaciones.
+// La carrera guardada puede ser el código de malla o el nombre declarado.
+function esDerechoUC(tenant,carrera){return tenant==='uc'&&(carrera==='UC-DERECHO'||carrera==='Derecho');}
+// Solo alimenta el placeholder del campo: no arma ninguna estructura.
+function ejemploEvaluacion(tenant,carrera){
+  return esDerechoUC(tenant,carrera)||tenant==='fen'||tenant==='uai'?'Solemne':'Prueba';
+}
 
 // Plantillas de estructura, POR TENANT — y FEN no tiene.
 //
@@ -6056,7 +6138,10 @@ function ejemploEvaluacion(tenant){return tenant==='uc'?'Prueba':'Solemne';}
 // controles sorpresa, trabajos grupales y participación — y ninguno es "3
 // solemnes + examen". Ofrecer esa plantilla empujaba a la mayoría a una
 // estructura que después tenían que deshacer a mano.
-function plantillasPauta(tenant){
+function plantillasPauta(tenant,carrera){
+  // Las plantillas UC conocidas vienen de Ingeniería. No hay una estructura
+  // común verificada para Derecho: se deja escribir la pauta de cada curso.
+  if(esDerechoUC(tenant,carrera))return [];
   return tenant==='uc'
     ?[
       {tipo:'tres-pruebas',label:'3 pruebas + examen'},
@@ -6067,8 +6152,8 @@ function plantillasPauta(tenant){
     :[];
 }
 // Son atajos de escritura, no una pauta sugerida: el estudiante elige el
-// nombre y siempre define sus propios pesos. UC y FEN usan vocabularios
-// distintos en sus programas, por eso no se mezclan en la misma lista.
+// nombre y siempre define sus propios pesos. Dentro de la UC, Derecho usa
+// «Solemne» y el resto conserva las sugerencias de prueba/interrogación.
 // Tres vocabularios, no dos. El tercero es el que faltaba: para una
 // universidad que no conocemos NO se puede elegir entre el de la FEN y el de
 // la UC — hay que no usar ninguno. Antes el default era el de FEN, así que a
@@ -6077,8 +6162,9 @@ function plantillasPauta(tenant){
 //
 // El neutro usa solo nombres que no pertenecen a una institución: nada de
 // "Solemne" (FEN) ni de "Interrogación" (UC).
-function sugerenciasEvaluacion(tenant){
+function sugerenciasEvaluacion(tenant,carrera){
   const comunes=['Laboratorio','Informe','Taller','Proyecto','Tarea','Presentación','Examen'];
+  if(esDerechoUC(tenant,carrera))return ['Solemne','Control de lectura','Prueba','Control','Trabajo',...comunes];
   if(tenant==='uc')return ['Interrogación 1','Interrogación 2','Interrogación 3','Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
   if(tenant==='fen')return ['Solemne 1','Solemne 2','Solemne 3','Control 1','Control 2','Control 3','Prueba sorpresa','Casos y ensayos','Trabajo individual','Trabajo en grupo','Participación',...comunes];
   // La UAI usa las dos palabras, y eso no es una suposición: sale de sus
@@ -6100,8 +6186,8 @@ function sugerenciasEvaluacion(tenant){
   if(tenant==='uandes')return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3','Control de lectura','Certamen','Ensayo','Trabajo escrito',...comunes];
   return ['Prueba 1','Prueba 2','Prueba 3','Control 1','Control 2','Control 3',...comunes];
 }
-function opcionesSugerenciasEvaluacion(tenant){
-  return sugerenciasEvaluacion(tenant).map(nombre=>`<option value="${esc(nombre)}"></option>`).join('');
+function opcionesSugerenciasEvaluacion(tenant,carrera){
+  return sugerenciasEvaluacion(tenant,carrera).map(nombre=>`<option value="${esc(nombre)}"></option>`).join('');
 }
 function puedeUsarPlantillaPauta(){
   return pautaDraft.every(fila=>!fila.tieneNotas&&!fila.nombre.trim());
@@ -6139,9 +6225,10 @@ function duplicarPautaDesdeRamo(){
 }
 function renderPautaManualModal(){
   const fuentes=puedeUsarPlantillaPauta()?ramosParaDuplicarPauta(S.ramos,currentRamoId):[];
-  const ejemplo=ejemploEvaluacion(S.tenant);
-  const sugerencias=opcionesSugerenciasEvaluacion(S.tenant);
-  const disponibles=plantillasPauta(S.tenant);
+  const carrera=S.carrera||S.carreraNombre;
+  const ejemplo=ejemploEvaluacion(S.tenant,carrera);
+  const sugerencias=opcionesSugerenciasEvaluacion(S.tenant,carrera);
+  const disponibles=plantillasPauta(S.tenant,carrera);
   const plantillas=(puedeUsarPlantillaPauta()&&disponibles.length)?`<div class="pauta-plantillas">
     <div class="pauta-plantillas-titulo">Parte con una estructura</div>
     <div class="pauta-plantillas-opciones">${disponibles.map(p=>`<button type="button" onclick="aplicarPlantillaPauta('${p.tipo}')">${p.label}</button>`).join('')}</div>
@@ -6255,7 +6342,7 @@ function agregarPautaFila(){
 }
 function quitarPautaFila(i){
   if(!pautaDraft[i])return false;
-  if(pautaDraft[i].tieneNotas){mostrarErrorPauta(i,'Esta evaluación ya tiene notas, por eso no se puede quitar.','quitar');return false;}
+  if(pautaDraft[i].tieneNotas)return quitarPautaFilaConNotas(i);
   const nombre=String(pautaDraft[i].nombre||'').trim();
   showConfirm(nombre?`¿Quitar "${nombre}"?`:'¿Quitar esta evaluación?',
     'Se quitará de esta pauta. Puedes volver a agregarla antes de guardar.',()=>{
@@ -6287,12 +6374,51 @@ function ofrecerCompartirPauta(r){
 function abrirGrupoVacio(cat){
   if(cat&&Number.isInteger(cat.slots)&&cat.slots>1&&!(cat.notas||[]).length)openCats[cat.id]=true;
 }
+// Quitar una evaluación que ya tiene notas. Si hay otra con el mismo nombre (una
+// evaluación repetida), sus notas pasan a esa y no se pierde nada. Si no, se
+// borran con ella, y por eso se pide confirmar como una acción destructiva.
+function quitarPautaFilaConNotas(i){
+  const r=S.ramos.find(x=>x.id===currentRamoId);const fila=pautaDraft[i];
+  const cat=r&&(r.categorias||[]).find(c=>c.id===fila.id);if(!cat)return false;
+  const nombre=String(fila.nombre||cat.nombre||'').trim();
+  const gemela=pautaDraft.find((f,j)=>j!==i&&f.id&&normName(f.nombre)===normName(nombre));
+  const n=(cat.notas||[]).filter(x=>typeof x.valor==='number').length;
+  const desc=gemela
+    ?`Hay otra evaluación llamada "${nombre}": sus notas quedan en esa y no se pierde ninguna.`
+    :`Se ${n===1?'borra su nota':`borran sus ${n} notas`} al guardar. No se puede deshacer.`;
+  showConfirm(`¿Quitar "${nombre}"?`,desc,()=>{
+    limpiarErrorPauta();
+    pautaQuitadas.push({id:fila.id,hacia:gemela?gemela.id:null});
+    const totalAntes=pautaDraft.reduce((s,f)=>s+(Number(f.peso)||0),0);
+    pautaDraft.splice(i,1);
+    // Una repetida no deja porcentaje que repartir: la otra ya lo tiene.
+    if(!gemela)repartirPesoRestante(pautaDraft,totalAntes);
+    if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
+    renderPautaManualModal();
+  },{label:gemela?'Quitar repetida':'Quitar y borrar notas',danger:!gemela,focusCancel:true});
+  return true;
+}
 function guardarPautaManual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estabaVacia=!(r.categorias||[]).some(c=>String(c.nombre||'').trim());
   const filas=pautaDraft.filter(f=>f.nombre.trim());
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
-  r.categorias=r.categorias.filter(c=>ids.has(c.id)||(c.notas||[]).length>0);
+  // Las que la persona quitó con notas: pasan a su gemela o se van.
+  const quitadas=new Set();
+  pautaQuitadas.forEach(q=>{
+    const cat=r.categorias.find(c=>c.id===q.id);if(!cat||ids.has(q.id))return;
+    const destino=q.hacia&&r.categorias.find(c=>c.id===q.hacia);
+    if(destino){
+      const ya=new Set((destino.notas||[]).map(x=>x.id));
+      destino.notas=[...(destino.notas||[]),...(cat.notas||[]).filter(x=>!ya.has(x.id))];
+    }
+    quitadas.add(q.id);
+    // Sus reglas (un mínimo, un grupo) pasan a la gemela; sin gemela se van.
+    r.gates=destino?unificarCategoriaEnReglas(r.gates,q.id,destino.id)
+      :(r.gates||[]).filter(g=>g.catId!==q.id).map(g=>Array.isArray(g.catIds)?{...g,catIds:g.catIds.filter(id=>id!==q.id)}:g);
+  });
+  pautaQuitadas=[];
+  r.categorias=r.categorias.filter(c=>!quitadas.has(c.id)&&(ids.has(c.id)||(c.notas||[]).length>0));
   filas.forEach(f=>{
     const existente=f.id&&r.categorias.find(c=>c.id===f.id);
     const cantidadFija=f.varias&&Number.isInteger(f.cantidad)&&f.cantidad>1;
@@ -6400,19 +6526,24 @@ function userInitial(){
   const e=currentUser&&currentUser.email?currentUser.email.trim():'';
   return e?e[0].toUpperCase():'?';
 }
+// Hay un avatar en Inicio y otro en Clases y en Alumnos: una cuenta de profesor
+// (#697) no tiene Inicio y sin el suyo no llegaría a Ajustes ni a cerrar sesión.
+// El menú se abre bajo el que se tocó.
+let _avatarMenu=null;
+function avatarMenu(){return (_avatarMenu&&_avatarMenu.isConnected&&_avatarMenu)||document.getElementById('user-avatar');}
 function refreshAvatar(){
-  const av=document.getElementById('user-avatar');
-  if(av)av.textContent=userInitial();
+  document.querySelectorAll('.avatar-btn').forEach(av=>{av.textContent=userInitial();});
 }
 function toggleUserMenu(ev){
   if(ev)ev.stopPropagation();
+  if(ev&&ev.currentTarget&&ev.currentTarget.classList&&ev.currentTarget.classList.contains('avatar-btn'))_avatarMenu=ev.currentTarget;
   const m=document.getElementById('user-menu');
   m.classList.contains('open')?closeUserMenu():openUserMenu();
 }
 function openUserMenu(){
   const m=document.getElementById('user-menu');
   const b=document.getElementById('user-menu-backdrop');
-  const av=document.getElementById('user-avatar');
+  const av=avatarMenu();
   // Contenido dinámico
   document.getElementById('um-name').textContent=S.userName||'Tu cuenta';
   const mail=document.getElementById('um-mail');
@@ -6420,6 +6551,9 @@ function openUserMenu(){
   // Archivar solo tiene sentido con ramos cargados
   const arch=document.getElementById('um-archivar');
   if(arch)arch.style.display=S.ramos.length?'flex':'none';
+  // La malla es del estudiante: una cuenta de profesor no tiene carrera.
+  const malla=document.getElementById('um-malla');
+  if(malla)malla.style.display=esCuentaProfesor()?'none':'flex';
   // Sin sesión no hay nada que cerrar
   const out=document.getElementById('um-logout'),sep=document.getElementById('um-sep-logout');
   const hay=!!currentUser;
@@ -6443,7 +6577,7 @@ function openUserMenu(){
 function closeUserMenu(){
   document.getElementById('user-menu').classList.remove('open');
   document.getElementById('user-menu-backdrop').classList.remove('open');
-  const av=document.getElementById('user-avatar');
+  const av=avatarMenu();
   if(av)av.setAttribute('aria-expanded','false');
 }
 // Cierra el menú y ejecuta la acción (deja que corra la animación de cierre)
@@ -6451,7 +6585,7 @@ function umGo(fn){
   closeUserMenu();
   // El menú deja de ser visible antes de abrir la hoja. Conserva su origen
   // para que el cierre de la siguiente vista no devuelva el foco al body.
-  const origen=document.getElementById('user-avatar');
+  const origen=avatarMenu();
   if(origen&&origen.isConnected){try{origen.focus({preventScroll:true});}catch(e){origen.focus();}}
   setTimeout(()=>{try{fn();}catch(e){}},60);
 }
@@ -6932,38 +7066,36 @@ function propuestasNotasDeRamo(ramo){
   return propuestasNotasAgente.filter(p=>
     (clave&&p.ramoKey===clave)||normName(p.ramo)===normName(ramo.nombre));
 }
+// Dónde cae una nota propuesta: {slot, nota} con la nota que ya ocupa ese lugar
+// (o undefined si se crea), o null si no calza. La usan escribir la nota y la
+// tarjeta que muestra qué nota se pisa, para que las dos digan lo mismo.
+function destinoNotaPropuesta(cat,propuesta){
+  if(!cat)return null;
+  const notas=Array.isArray(cat.notas)?cat.notas:[];
+  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
+  if(slots===1)return {slot:null,nota:notas.find(n=>n.valor===null||n.valor===undefined)||notas[0]};
+  // Sin casilla, va a la primera libre. Antes caía en cat.notas[0] cuando
+  // todas tenían nota: pisaba una nota ya ingresada sin avisar.
+  let slot;
+  if(propuesta.casilla)slot=slotDeCasilla(cat,propuesta.casilla);
+  else for(let i=0;i<slots&&slot===undefined;i++){
+    const n=notas.find(x=>x.slot===i);
+    if(!n||n.valor===null||n.valor===undefined)slot=i;
+  }
+  return slot===undefined?null:{slot,nota:notas.find(n=>n.slot===slot)};
+}
 // Escribe una nota propuesta en su categoría. Devuelve false si no calza, para
 // no dar por aplicada una propuesta que en realidad no entró.
 function escribirNotaPropuesta(cat,propuesta,ramo){
-  if(!cat)return false;
+  const lugar=destinoNotaPropuesta(cat,propuesta);
+  if(!lugar)return false;
   cat.notas=Array.isArray(cat.notas)?cat.notas:[];
-  const slots=Number.isInteger(cat.slots)&&cat.slots>1?cat.slots:1;
-  let destino=null;
-  if(slots>1){
-    // Sin casilla, va a la primera libre. Antes caía en cat.notas[0] cuando
-    // todas tenían nota: pisaba una nota ya ingresada sin avisar.
-    let slot;
-    if(propuesta.casilla){
-      slot=slotDeCasilla(cat,propuesta.casilla);
-      if(slot===undefined)return false;
-    }else{
-      for(let i=0;i<slots&&slot===undefined;i++){
-        const n=cat.notas.find(x=>x.slot===i);
-        if(!n||n.valor===null||n.valor===undefined)slot=i;
-      }
-      if(slot===undefined)return false;
-    }
-    destino=cat.notas.find(n=>n.slot===slot);
-    if(!destino){
-      destino={id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
-      cat.notas.push(destino);
-    }
-  }else{
-    destino=cat.notas.find(n=>n.valor===null||n.valor===undefined)||cat.notas[0];
-    if(!destino){
-      destino={id:uid(),nombre:cat.nombre,valor:null,peso:1};
-      cat.notas.push(destino);
-    }
+  let destino=lugar.nota;
+  if(!destino){
+    const slot=lugar.slot;
+    destino=slot===null?{id:uid(),nombre:cat.nombre,valor:null,peso:1}
+      :{id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
+    cat.notas.push(destino);
   }
   destino.valor=propuesta.valor;
   return true;
@@ -7311,6 +7443,8 @@ function renderSettingsSiAbierto(){
 }
 function openSettings(){
   const initialSection=arguments[0];
+  const soloProfesor=esCuentaProfesor();
+  const seccionesProfesor=['perfil','apariencia','datos','sugerencias'];
   let settingsSem=S.careerSemestre;
   let settingsCarrera=S.carrera,settingsCarreraNombre=S.carreraNombre||null,settingsCarreraFiltro='';
   let settingsName=S.userName;
@@ -7319,7 +7453,8 @@ function openSettings(){
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
   let settingsTenant=S.tenant||'fen';
-  const directSection=['perfil','academico','calendario','apariencia','agentes','sugerencias','datos'].includes(initialSection)?initialSection:'';
+  const directSection=['perfil','academico','calendario','apariencia','agentes','sugerencias','datos'].includes(initialSection)
+    &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
     perfil:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.4 3.5-5.3 7.5-5.3s6.7 1.9 7.5 5.3"/></svg>',
@@ -7332,8 +7467,10 @@ function openSettings(){
     datos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/></svg>',
     arrow:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'
   };
+  // Las cuentas de Google no tienen contraseña: ni la prometen ni la encuentran al buscar.
+  const conClave=typeof cuentaConClave==='function'&&cuentaConClave(currentUser);
   const sections=[
-    ['Tu cuenta','perfil','Perfil','Tu nombre y correo de acceso','cambiar nombre correo email'],
+    ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
@@ -7341,7 +7478,7 @@ function openSettings(){
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
-  ];
+  ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
 
   function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar</button>';}
   // "Soy profesor particular" es una POSTULACIÓN, no un interruptor: apretarlo
@@ -7384,7 +7521,7 @@ function openSettings(){
       <div class="settings-name-field">
         <div class="modal-input"><input type="text" id="s-name" value="${esc(settingsName)}" maxlength="30" autocomplete="off" aria-describedby="s-name-hint s-name-error"/></div>
         <p id="s-name-error" role="alert" ${settingsNameError?'':'hidden'} style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);">${esc(settingsNameError)}</p>
-        <p class="settings-name-hint" id="s-name-hint">Aparece en el saludo de inicio.</p>
+        <p class="settings-name-hint" id="s-name-hint">${soloProfesor?'Es el nombre que ves en tu cuenta.':'Aparece en el saludo de inicio.'}</p>
       </div>
       ${guardarBtn()}
       ${currentUser?`<div class="settings-account-access">
@@ -7393,6 +7530,17 @@ function openSettings(){
         <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Se cambia al tiro. Revisa que esté bien escrito: con él entras y recuperas tu cuenta.</p>
         <p id="s-account-email-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
+      </div>`:''}
+      ${currentUser&&conClave?`<div class="settings-account-access">
+        <label class="modal-label" for="s-account-current-pass">Contraseña actual</label>
+        <div class="modal-input"><input type="password" id="s-account-current-pass" maxlength="72" autocomplete="current-password" aria-describedby="s-account-pass-status"/></div>
+        <label class="modal-label" for="s-account-pass" style="margin-top:10px;">Nueva contraseña</label>
+        <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
+        <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
+        <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>
+        <p class="settings-help" id="s-account-pass-help" style="margin:7px 0 10px;">Al menos ${PASS_MIN} caracteres, con letras y números.</p>
+        <p id="s-account-pass-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-save" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
       </div>`:''}`;
     if(section==='academico')return `
       <div class="modal-label">Universidad</div>
@@ -7506,7 +7654,7 @@ function openSettings(){
         <button type="button" onclick="exportarDatos()">Exportar mis datos</button>
         <button type="button" onclick="abrirImportar()">Importar datos</button>
       </div>
-      ${currentUser?`<div class="settings-compartidos">
+      ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
         <div id="s-compartidos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
@@ -7514,9 +7662,9 @@ function openSettings(){
       <div class="settings-danger-zone">
         <div class="settings-danger-label">Zona sensible</div>
         <button type="button" class="settings-danger-btn" onclick="confirmarEliminarCuenta()">Eliminar mi cuenta</button>
-        <p>Borra tu cuenta y todas tus notas, en este dispositivo y en la nube. No se puede deshacer.</p>
+        <p>${soloProfesor?'Borra tu cuenta y sus datos, en este dispositivo y en la nube.':'Borra tu cuenta y todas tus notas, en este dispositivo y en la nube.'} No se puede deshacer.</p>
       </div>
-      ${currentUser?`<div class="settings-reset-zone"><button type="button" class="settings-reset-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra los datos de este dispositivo y cierra sesión. Tus notas en la nube se conservan.</p></div>`:`<div class="settings-danger-zone settings-reset-danger-zone"><div class="settings-danger-label">Zona sensible</div><button type="button" class="settings-danger-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra todos tus datos de este dispositivo. No se puede deshacer.</p></div>`}
+      ${currentUser?`<div class="settings-reset-zone"><button type="button" class="settings-reset-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra los datos de este dispositivo y cierra sesión. ${soloProfesor?'Tus datos':'Tus notas'} en la nube se conservan.</p></div>`:`<div class="settings-danger-zone settings-reset-danger-zone"><div class="settings-danger-label">Zona sensible</div><button type="button" class="settings-danger-btn" onclick="confirmResetApp()">Reiniciar app</button><p>Borra todos tus datos de este dispositivo. No se puede deshacer.</p></div>`}
       <p class="settings-privacy"><a href="/terminos.html" target="_blank" rel="noopener">Términos de uso</a> · <a href="/privacidad.html" target="_blank" rel="noopener">Política de privacidad</a></p>`;
   }
   function renderSettingsNav(){
@@ -7528,7 +7676,7 @@ function openSettings(){
     // Cada grupo va en su propia caja: en la app es la tarjeta agrupada de iOS;
     // en la web la caja no se ve (display:contents).
     const grupos=[];results.forEach(x=>{const g=grupos[grupos.length-1];if(g&&g[0]===x[0])g[1].push(x);else grupos.push([x[0],[x]]);});
-    nav.innerHTML=grupos.map(([group,filas])=>`<div class="settings-nav-group">${group}</div><div class="settings-nav-card">${filas.map(([,id,title,detail])=>`<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`).join('')||'<p class="settings-search-empty">No encontramos esa opción. Prueba con «carrera», «correo» o «fondo».</p>';
+    nav.innerHTML=grupos.map(([group,filas])=>`<div class="settings-nav-group">${group}</div><div class="settings-nav-card">${filas.map(([,id,title,detail])=>`<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`).join('')||`<p class="settings-search-empty">No encontramos esa opción. Prueba con ${soloProfesor?'«correo», «fondo» o «cuenta»':'«carrera», «correo» o «fondo»'}.</p>`;
     document.getElementById('settings-search-status').textContent=settingsSearch.trim()?`${results.length} ${results.length===1?'sección encontrada':'secciones encontradas'}`:'';
     document.querySelectorAll('[data-settings-section]').forEach(b=>b.onclick=()=>{
       activeSection=b.dataset.settingsSection;renderSettings();
@@ -9396,7 +9544,6 @@ function openSimuladorModal(){
       </div>
       <div id="sim-delta"></div>
       <div class="sim-needed" id="sim-needed" aria-live="polite" hidden></div>
-      <div class="partes" id="sim-partes" hidden></div>
     </div>
     <div class="sim-section-label">Evaluaciones</div>
     <div class="sim-cats" id="sim-cats"></div>
@@ -9490,7 +9637,10 @@ function simNotaNecesaria(proyectado){
   if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
   if(!calculo.res.emptyLeaves.length&&!notaNecesariaCondicional(proyectado))return null;
 
-  const necesaria=notaNecesaria(proyectado,meta);
+  const vinculo=partesDelVinculo(proyectado);
+  // En un ramo con laboratorio, lo que falta es para la cátedra sola.
+  const necesaria=notaNecesaria(proyectado,meta,vinculo?{soloPropio:true}:null);
+  const deCatedra=vinculo?' de cátedra':'';
   const nodos=new Map((calculo.estructura.children||[]).map(c=>[c.id,c]));
   const compuertas=(proyectado.gates||[]).map(g=>{
     const activa=gatesActivas({...proyectado,gates:[g]})[0]||null;
@@ -9505,7 +9655,7 @@ function simNotaNecesaria(proyectado){
   if(bloqueante)return {texto:'Con esto ya no alcanzas el 4,0',
     detalle:`${bloqueante.activa.nombre} está bajo el mínimo de ${simConComa(fmtPromedio(bloqueante.activa.min))} y topa la nota.`};
   if(necesaria===null)return null;
-  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:'Con esto ya no alcanzas el 4,0'};
+  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el 4,0${deCatedra}`};
 
   const pendientes=compuertas.filter(x=>x.pendiente);
   const condiciones=pendientes.map(x=>{
@@ -9515,9 +9665,11 @@ function simNotaNecesaria(proyectado){
   }).join(' ');
   if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas al 4,0`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
-    ?{texto:'El promedio ponderado ya alcanza el 4,0',detalle:condiciones}
-    :{texto:'Ya tienes el 4,0 asegurado'};
-  return {texto:`Para el 4,0 necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
+    ?{texto:`El promedio ponderado ya alcanza el 4,0${deCatedra}`,detalle:condiciones}
+    :{texto:`Ya tienes el 4,0${deCatedra} asegurado`};
+  return {texto:vinculo
+    ?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`
+    :`Para el 4,0 necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
 }
 
 function renderSimulador(){
@@ -9561,11 +9713,6 @@ function renderSimulador(){
     const html=htmlSoloCatedra(proyectado,{fmt:simConComa});
     soloEl.hidden=!html;soloEl.innerHTML=html;
   }
-  const partesEl=document.getElementById('sim-partes');
-  if(partesEl){
-    const html=htmlPartesVinculo(proyectado,{fmt:simConComa});
-    partesEl.hidden=!html;partesEl.innerHTML=html;
-  }
 
   const cb=document.getElementById('sim-commit-btn');if(cb)cb.disabled=!hasSim;
 
@@ -9587,7 +9734,7 @@ function renderSimulador(){
     return `
       <div class="sim-cat">
         <div class="sim-cat-head">
-          <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${c.peso}% del ramo</div></div>
+          <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${r2(c.peso)}% del ramo</div></div>
           <div class="sim-cat-avg" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
         </div>
         ${(realChips||hypChips)?`<div class="sim-chips">${realChips}${hypChips}</div>`:''}
@@ -9730,8 +9877,13 @@ function mostRiskyRamo(){
 // Progreso del ramo: % de peso evaluado
 function ramoProgress(r){
   const categorias=categoriasVigentes(r);
-  const total=categorias.reduce((s,c)=>s+c.peso,0);
-  if(total<=0)return {pct:0,pending:0,total:0};
+  const pesoDeclarado=(r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
+  if(pesoDeclarado<=0)return {pct:0,pending:0,total:0};
+  const pesoVigente=categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  // La parte todavía sin pauta sigue pendiente. Una eximición, en cambio,
+  // cubre el peso de esa categoría sin necesitar una nota.
+  const total=Math.max(100,pesoDeclarado);
+  const pesoEximido=pesoDeclarado-pesoVigente;
   let done=0;
   categorias.forEach(c=>{
     // Una categoría con casillas fijas se evalúa proporcionalmente: una de
@@ -9747,6 +9899,7 @@ function ramoProgress(r){
       : notas.filter(n=>typeof n.valor==='number').length;
     done+=c.peso*Math.min(1,evaluadas/objetivo);
   });
+  done+=pesoEximido;
   return {pct:Math.round(done/total*100),pending:total-done,total};
 }
 function ramoRecienCerrado(anterior,actual){return Number.isFinite(anterior)&&anterior<100&&actual===100;}
@@ -9790,9 +9943,17 @@ function agendaEvents(ramos){
         });
       });
       if(!c.fecha)return;
-      const conFechaPropia=(c.notas||[]).filter(n=>n.fecha).length;
-      const notasCount=(c.notas||[]).length-conFechaPropia;
-      const targetCount=c.slots||1;
+      const propias=(c.notas||[]).filter(n=>n.fecha);
+      const conFechaPropia=propias.length;
+      // Solo cuenta lo rendido, por casilla. Tocar una casilla y cancelar deja
+      // una nota vacía guardada (abrirCasilla), y "Guardada como pendiente"
+      // también: contarlas daba la evaluación por rendida y desaparecía de la
+      // Agenda y de "Próxima evaluación" sin tener nota. Y la fecha del grupo
+      // solo cubre las casillas sin fecha propia: esas son eventos aparte.
+      const casillas=Number.isInteger(c.slots)&&c.slots>1;
+      const rendidas=(c.notas||[]).filter(n=>!n.fecha&&typeof n.valor==='number');
+      const notasCount=casillas?new Set(rendidas.map(n=>Number.isInteger(n.slot)?n.slot:n.id)).size:rendidas.length;
+      const targetCount=casillas?Math.max(1,c.slots-new Set(propias.filter(n=>Number.isInteger(n.slot)).map(n=>n.slot)).size):1;
       const pending=notasCount<targetCount;
       // Si TODAS las notas del grupo tienen su propia fecha, la del grupo ya no
       // aporta: mostrarla duplicaría lo mismo en otro día.
@@ -9914,6 +10075,8 @@ function pluginWidgets(){
 }
 // Se agrupan los guardados seguidos (escribir varias notas) en un solo envío.
 function publicarResumenWidgets(){
+  // Una cuenta convertida puede dejar widgets antiguos en este iPhone.
+  if(esCuentaProfesor()){borrarResumenWidgets();return;}
   const p=pluginWidgets();if(!p)return;
   clearTimeout(_widgetsTimer);
   _widgetsTimer=setTimeout(()=>{
@@ -9943,7 +10106,8 @@ function borrarResumenWidgets(){
 // ://agenda, ://estadisticas o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
   const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
-  if(!m||!S.onboardingDone)return false;
+  // Una cuenta de profesor no tiene ramos ni widgets de estudiante.
+  if(!m||!S.onboardingDone||esCuentaProfesor())return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
   if(m[1]==='estadisticas'){showTab('stats');return true;}
   if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
@@ -10011,6 +10175,7 @@ function avisosDePrueba(p,ahora){
    .filter(a=>a.at.getTime()>(ahora||new Date()).getTime());
 }
 async function programarAvisosPruebas(ahora){
+  if(esCuentaProfesor())return 0;
   const ln=pluginNotificaciones();if(!ln)return 0;
   try{
     const pendientes=await ln.getPending();
@@ -10031,6 +10196,7 @@ async function programarAvisosPruebas(ahora){
 // iOS 26 el teléfono las deja programadas y aparecen solas, con la app cerrada.
 const HORAS_ACTIVIDAD_ANTES=6,ACTIVIDADES_MAX=3;
 function sincronizarActividadesPrueba(ahora){
+  if(esCuentaProfesor())return;
   const p=pluginWidgets();if(!p||typeof p.sincronizarActividades!=='function')return;
   ahora=ahora||new Date();
   const vigentes=avisosPruebasActivos()&&S.onboardingDone?pruebasConHora(ahora,3).slice(0,ACTIVIDADES_MAX):[];

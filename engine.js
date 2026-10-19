@@ -58,6 +58,26 @@ function gh_reglasNota(tenant){
     rounding:{...GH_REGLAS_NOTA_BASE.rounding,...propia.rounding},
     passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade};
 }
+
+// ─── PUNTAJE → NOTA ─────────────────────────────────────────────────────────
+// La escala lineal con exigencia de las pruebas chilenas: el puntaje de
+// aprobación (exigencia × total) vale la nota de aprobación, y de ahí salen dos
+// rectas, una hasta la mínima en 0 puntos y otra hasta la máxima en el total.
+// Con 50% de exigencia, 25 de 50 es un 4,0; con 60%, hacen falta 30.
+// La usa la calculadora pública (calculadora.html) y la usará el ingreso de
+// notas de la app: una sola fórmula para las dos. Devuelve null si los datos
+// no forman una escala, para que nadie muestre una nota inventada.
+function gh_notaDesdePuntaje(puntaje,total,o={}){
+  const exigencia=o.exigencia??0.5,nmin=o.nmin??1,naprob=o.naprob??4,nmax=o.nmax??7;
+  if(![puntaje,total,exigencia,nmin,naprob,nmax].every(Number.isFinite))return null;
+  if(total<=0||puntaje<0||puntaje>total||exigencia<=0||exigencia>=1||!(nmin<naprob&&naprob<nmax))return null;
+  const corte=exigencia*total;
+  const cruda=puntaje<corte?nmin+(naprob-nmin)*puntaje/corte:naprob+(nmax-naprob)*(puntaje-corte)/(total-corte);
+  // El 1e-9 es el mismo margen de gh_notaOficial: un 3,95 o un 4,0 exactos no
+  // pueden caer a 3,9 por cómo el punto flotante guarda el número.
+  const nota=o.truncar?Math.floor((cruda+1e-9)*10)/10:gh_excelRound(cruda+1e-9,1);
+  return {nota,cruda,puntajeAprobacion:corte};
+}
 function gh_weightOf(node,ov){const o=ov?.[node.id];if(o&&typeof o.weight==='number')return o.weight;return node.weight;}
 function gh_meta(s){return s.__meta||{};}
 // El recuperativo no es una hoja de la pauta: no tiene peso ni participa en el
@@ -343,6 +363,14 @@ function gh_crearCalculoRamo(deps){
   const reglasNota=()=>gh_reglasNota(typeof deps.tenant==='function'?deps.tenant():null);
   const S={get ramos(){return deps.ramos();}};
 
+  // `pesosCasillas` (opcional) dice cuánto pesa cada casilla frente a las
+  // otras de la misma evaluación. Lo usa el Laboratorio de Dinámica: el Lab 0
+  // no tiene control y ese 10% se lo lleva su evaluación de pares, que pesa
+  // 1,5 veces la de los otros laboratorios. Sin el campo, todas pesan 1.
+  function pesoCasilla(c,slot){
+    const p=Array.isArray(c&&c.pesosCasillas)?Number(c.pesosCasillas[slot]):NaN;
+    return Number.isFinite(p)&&p>0?p:1;
+  }
   function hojasCategoria(c){
     const notas=Array.isArray(c&&c.notas)?c.notas:[];
     const slots=Number.isInteger(c&&c.slots)&&c.slots>1?c.slots:0;
@@ -354,13 +382,13 @@ function gh_crearCalculoRamo(deps){
     });
     const reales=[...porSlot.values(),...sinSlot];
     const ids=new Set(reales.map(n=>n.id));
-    const hojas=reales.map(n=>({id:n.id,name:n.nombre,weight:(n.peso||1),type:'leaf'}));
+    const hojas=reales.map(n=>({id:n.id,name:n.nombre,weight:(n.peso||1)*(Number.isInteger(n.slot)&&porSlot.get(n.slot)===n?pesoCasilla(c,n.slot):1),type:'leaf'}));
     for(let slot=0;slot<slots;slot++){
       if(porSlot.has(slot))continue;
       let id=`__gh_pendiente_slot__${c.id}__${slot}`;
       while(ids.has(id))id+='_';
       ids.add(id);
-      hojas.push({id,name:`${c.nombre} pendiente ${slot+1}`,weight:1,type:'leaf'});
+      hojas.push({id,name:`${c.nombre} pendiente ${slot+1}`,weight:pesoCasilla(c,slot),type:'leaf'});
     }
     return hojas;
   }
@@ -475,6 +503,20 @@ function gh_crearCalculoRamo(deps){
     });
     return den>0?num/den:null;
   }
+  // Lo que compara el mínimo de una evaluación. Con pesos por casilla, el
+  // promedio que pondera la nota final no es el que se exige: el mínimo de la
+  // evaluación de pares del Laboratorio de Dinámica es sobre el promedio simple
+  // de las seis (decisión de Lucas, 2026-10-15). Sin pesos por casilla, es el
+  // mismo valor de siempre.
+  function valorParaCompuerta(r,res,catId){
+    const c=(r.categorias||[]).find(x=>x.id===catId);
+    if(c&&Array.isArray(c.pesosCasillas)){
+      const notas=notasVigentesSinDescarte(c);
+      return notas.length?notas.reduce((s,n)=>s+n.valor,0)/notas.length:null;
+    }
+    const node=res.breakdown.find(b=>b.id===catId);
+    return node?node.value:null;
+  }
   function calculoRamoConCompuertas(r){
     const ausencias=estadoAusenciasJustificadas(r);
     const estructura=ausencias?ausencias.estructura:ramoToStructure(r);
@@ -483,11 +525,21 @@ function gh_crearCalculoRamo(deps){
     // Los pesos efectivos solo viven en la copia de cálculo; jamás en las notas.
     Object.entries(res.weightOverrides).forEach(([id,extra])=>{const node=estructura.children.find(n=>n.id===id);if(node)node.weight=extra.weight;});
     let v=ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length?null:res.raw,limitadoPorCompuerta=false;
+    // Con el semestre a medias, el promedio de siempre pondera cada evaluación
+    // con lo que lleva. Un ramo cuya pauta declara `promedioParcial:'por-casilla'`
+    // pondera cada nota con su peso efectivo en el ramo: así el Laboratorio de
+    // Dinámica da el promedio de los laboratorios que ya hiciste, igual que la
+    // planilla oficial. Con todo rendido, las dos cuentas son la misma.
+    if(v!==null&&r.promedioParcial==='por-casilla'&&res.emptyLeaves.length){
+      const pesos=gh_effWeights(estructura);let suma=0,peso=0;
+      Object.entries(notas).forEach(([id,valor])=>{const w=pesos[id];if(typeof valor==='number'&&w>0){suma+=valor*w;peso+=w;}});
+      if(peso>0)v=suma/peso;
+    }
     if(v!==null && Array.isArray(r.gates)){
       for(const g of r.gates){
         if(g.type==='min_grade_required'){
-          const node=res.breakdown.find(b=>b.id===g.catId);
-          if(node && node.value!==null && !gh_cumpleCompuerta(node.value,g)){
+          const valor=valorParaCompuerta(r,res,g.catId);
+          if(valor!==null && !gh_cumpleCompuerta(valor,g)){
             const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
           }
         } else if(g.type==='group_min'){
@@ -502,6 +554,11 @@ function gh_crearCalculoRamo(deps){
     return {res,valor:v,limitadoPorCompuerta,estructura,notas,ausencias};
   }
   function ramoCompletamenteEvaluado(r,calculo){
+    // Tener nota en todo lo declarado no cierra un ramo cuya pauta aún omite
+    // parte de la ponderación. Las categorías eximidas siguen en esta suma:
+    // no se deben pedir sus notas para dar por terminado el ramo.
+    const pesoDeclarado=(r&&r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
+    if(Math.abs(pesoDeclarado-100)>0.05)return false;
     const cubiertas=new Set((calculo&&calculo.ausencias&&calculo.ausencias.activas||[]).map(x=>x.desdeId));
     const categorias=categoriasVigentes(r);
     return categorias.length>0&&categorias.every(c=>{
@@ -557,7 +614,7 @@ function gh_crearCalculoRamo(deps){
       if(g.type==='min_grade_required'){
         const c=(r.categorias||[]).find(x=>x.id===g.catId);
         if(!c)return;
-        const a=valores.get(c.id);
+        const a=Array.isArray(c.pesosCasillas)?valorParaCompuerta(r,calculo.res,c.id):valores.get(c.id);
         if(a!==null&&!gh_cumpleCompuerta(a,g))out.push({nombre:g.nombre||c.nombre,actual:a,min:g.min,cap:g.cap});
       } else if(g.type==='group_min'){
         const ga=avgDeGrupoCalculado(calculo.res,calculo.estructura,g.catIds);
@@ -599,6 +656,7 @@ function gh_crearCalculoRamo(deps){
   // te está dejando abajo, y cada una tiene que llegar sola al mínimo del
   // vínculo. null si el ramo no recibe aporte o si su nota es una corrección
   // manual de un ramo archivado (ahí no hay partes que separar).
+  // `necesaria` es lo que le falta a la cátedra sola para su mínimo.
   function partesDelVinculo(r,ramosContexto){
     const link=r&&r.aporta;
     if(!link||!link.ramo||!link.peso)return null;
@@ -609,13 +667,13 @@ function gh_crearCalculoRamo(deps){
     const otro=ramoVinculado(r,ramosContexto);
     return {
       min,
-      propio:{peso:100-link.peso,valor:recuperativo?recuperativo.valor:base.valor},
-      externo:{ramo:otro,nombre:otro?otro.nombre:link.ramo,peso:link.peso,
-        valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null,
-        completo:!!otro&&ramoCompletamenteEvaluado(otro),necesaria:otro?notaNecesaria(otro,min):null},
+      propio:{valor:recuperativo?recuperativo.valor:base.valor,necesaria:notaNecesaria(r,min,{soloPropio:true})},
+      externo:{ramo:otro,valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null},
     };
   }
-  function notaNecesaria(ramo,meta){
+  // `soloPropio` pregunta por la parte propia sin el ramo que le aporta: cuánto
+  // necesita la cátedra para llegar sola a la meta.
+  function notaNecesaria(ramo,meta,opciones){
     const objetivo=Number.isFinite(meta)?meta:4.0;
     const baseInicial=calculoRamoConCompuertas(ramo);
     if(baseInicial.ausencias&&baseInicial.ausencias.bloqueadas&&baseInicial.ausencias.bloqueadas.length)return null;
@@ -654,6 +712,7 @@ function gh_crearCalculoRamo(deps){
     let estructura=propio;
     const link=ramo.aporta;
     const resolver=(est,meta)=>solveForTarget(est,notas,meta,{}, {precision:null,extrapolate:true}).requiredAverage;
+    if(opciones&&opciones.soloPropio)return resolver(propio,objetivo);
     if(link&&link.peso){
       const p=link.peso/100;
       const otro=ramoVinculado(ramo);
@@ -698,4 +757,4 @@ function gh_crearCalculoRamo(deps){
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje};

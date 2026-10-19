@@ -34,7 +34,7 @@ element('#pr-guardar');element('#pr-enviar');element('#pr-quitar-flyer');
 element('.profesor-estado');element('strong');element('p');element('img');
 const preview=element('.profesor-flyer-preview');preview.querySelector=sel=>elements[sel];
 const vista=element('.profesor-vista');vista.querySelector=sel=>elements[sel];
-form.querySelector=sel=>elements[sel];
+form.querySelector=sel=>sel==='#pr-enviar'&&!raiz.innerHTML.includes('id="pr-enviar"')?null:elements[sel];
 const raiz={innerHTML:'',querySelector(sel){return elements[sel];}};
 let guardados=0,enviados=0,fallar=true;
 ctx.guardarSimulado=async(datos,id)=>{
@@ -99,6 +99,17 @@ function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
   errorCampana={ok:false,falta:true};
   await events['#pr-enviar:click']();
   check('SQL antiguo permite revisión con aviso sin fingir campaña guardada',enviados===4&&/Los días y el tope todavía no se guardaron/.test(raiz.innerHTML));
+  // Mientras la postulación está pendiente, el mismo editor solo guarda.
+  errorCampana=null;
+  elements['#pr-flyer'].files=[];
+  const enviosAntesPendiente=enviados,guardadosAntesPendiente=guardados;
+  run('renderBorradorProfesor(raiz,null,{pendiente:true})');
+  check('pendiente tiene una sola acción principal y no puede subir flyer',
+    /id="pr-guardar"/.test(raiz.innerHTML)&&!/id="pr-enviar"/.test(raiz.innerHTML)&&
+    /id="pr-flyer"[^>]*disabled/.test(raiz.innerHTML));
+  await events['#pr-guardar:click']();
+  check('pendiente guarda sin enviar a revisión',guardados===guardadosAntesPendiente+1&&
+    enviados===enviosAntesPendiente&&/cuando aprobemos tu postulación/.test(elements['.profesor-estado'].textContent));
   // Un borrador existente no debe reemplazar su campaña por valores por
   // omisión cuando falla la lectura. El reintento recupera el tope original.
   element('#pr-reintentar-campana');

@@ -215,6 +215,26 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
+#screen-loading.active{animation:none;}
+.carga-inicial{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px max(24px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));text-align:center;}
+.carga-inicial-identidad{display:flex;flex-direction:column;align-items:center;gap:0;}
+.carga-inicial-logo{display:block;width:132px;height:132px;flex:none;}
+.carga-inicial-estado{display:flex;align-items:center;justify-content:center;gap:10px;max-width:100%;}
+.carga-inicial-marca{font-size:1.75rem;font-weight:750;letter-spacing:-.04em;color:var(--fg);}
+.carga-inicial p{font-size:1rem;line-height:1.5;color:var(--fg2);}
+#carga-inicial-reintentar{min-height:44px;padding:10px 18px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-weight:650;cursor:pointer;}
+#carga-inicial-reintentar[hidden]{display:none;}
+/* Las máscaras se mueven junto con sus capas: mientras se arma, no recortan
+   una capa con la silueta de otra que todavía no llegó. Geometría de logo.svg. */
+.carga-capa{animation-duration:2400ms;animation-timing-function:var(--ease-out);animation-iteration-count:infinite;}
+.carga-capa-base{animation-name:carga-capa-base;}
+.carga-capa-intermedia{animation-name:carga-capa-intermedia;}
+.carga-capa-superior{animation-name:carga-capa-superior;}
+@keyframes carga-capa-base{0%,100%{opacity:0;transform:translateY(22px);}18%,84%{opacity:1;transform:translateY(0);}98%{opacity:0;transform:translateY(-10px);}}
+@keyframes carga-capa-intermedia{0%,10%,100%{opacity:0;transform:translateY(-24px);}30%,78%{opacity:1;transform:translateY(0);}92%{opacity:0;transform:translateY(-14px);}}
+@keyframes carga-capa-superior{0%,22%,100%{opacity:0;transform:translateY(-32px);}42%,72%{opacity:1;transform:translateY(0);}86%{opacity:0;transform:translateY(-18px);}}
+#screen-loading:not(.active) .carga-capa{animation:none;}
+@media(prefers-reduced-motion:reduce){#screen-loading .carga-capa{animation:none;opacity:1;transform:none;}}
 /* Pantalla de carga de la app (index.html, #arranque). Solo en la app nativa.
    Calza con el splash de iOS (fondo de la app y logo de 96 px al centro) y se
    va cuando boot() eligió qué mostrar. Si boot() se colgara, a los 12 s se va
@@ -942,7 +962,7 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
 }
 .ramo-num.good,.ramo-num.warn,.ramo-num.bad{background-image:linear-gradient(160deg,color-mix(in srgb,var(--grade-color),#fff 10%),var(--grade-color) 72%,color-mix(in srgb,var(--grade-color),#000 8%));}
-.ramo-num.empty{background-image:none;-webkit-text-fill-color:var(--fg3);color:var(--fg3);font-size:2rem;font-weight:600;opacity:.7;letter-spacing:-.01em;}
+.ramo-num.empty{background-image:none;-webkit-text-fill-color:var(--fg3);color:var(--fg3);font-size:2rem;font-weight:600;letter-spacing:-.01em;}
 .ramo-num .ramo-decimal{
   background-image:inherit;-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;
@@ -955,28 +975,17 @@ body.ramo-drag-active{overflow:hidden;-webkit-user-select:none;user-select:none;
 .ramo-chip.bad{background:var(--red-bg);color:var(--red);}
 /* Botones de acción del ramo — pill grandes */
 .ramo-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
-/* Cátedra y laboratorio por separado (Dinámica). Filas de al menos 44pt: la del
-   laboratorio abre su ramo. El color va solo en la nota, que es semáforo. */
-/* La cátedra sola, al lado de la nota final. Más chica y separada por una
-   línea: la final sigue siendo la que manda. */
+/* La cátedra sola, al lado de la nota final (Dinámica y su laboratorio). Más
+   chica y separada por una línea: la final sigue siendo la que manda. En la
+   ficha es un botón —se toca como el número grande— y mide al menos 44pt. */
 .solo-parte{display:flex;flex-direction:column;gap:3px;align-self:flex-end;margin-bottom:.35em;padding-left:14px;border-left:1px solid var(--border);}
+button.solo-parte{min-height:44px;justify-content:flex-end;padding-top:0;padding-bottom:0;padding-right:0;border-top:0;border-right:0;border-bottom:0;
+  background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
 .solo-parte[hidden]{display:none;}
 .solo-parte-num{font-size:2.25rem;font-weight:750;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;}
-.solo-parte-label{color:var(--fg2);font-size:0.75rem;font-weight:600;line-height:1.3;}
+.solo-parte-label{color:var(--fg2);font-size:0.75rem;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums;}
 .sim-proj-nums{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
 .sim-proj-nums .solo-parte{margin-bottom:.4em;}
-.partes{margin:0 0 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden;}
-.partes[hidden]{display:none;}
-.sim-proj .partes{margin:14px 0 0;}
-.partes-hd{padding:10px 14px 8px;color:var(--fg2);font-size:0.75rem;font-weight:600;line-height:1.35;}
-.parte-fila{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:9px 14px;
-  border:0;border-top:1px solid var(--border);background:none;color:inherit;font:inherit;text-align:left;}
-button.parte-fila{cursor:pointer;}
-.parte-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-.parte-nombre{color:var(--fg);font-size:0.875rem;font-weight:600;line-height:1.3;overflow-wrap:anywhere;}
-.parte-estado{color:var(--fg2);font-size:0.75rem;line-height:1.35;}
-.parte-nota{flex:none;font-size:1.0625rem;font-weight:700;font-variant-numeric:tabular-nums;}
-.partes-nota{margin:0;padding:8px 14px 10px;border-top:1px solid var(--border);color:var(--fg3);font-size:0.75rem;line-height:1.4;}
 .ramo-warning{background:var(--yellow-bg);border:1px solid color-mix(in srgb,var(--yellow),transparent 45%);border-radius:12px;padding:11px 14px;margin:6px 20px 14px;font-size:0.8125rem;color:var(--yellow);display:flex;align-items:center;gap:8px;letter-spacing:-.005em;}
 /* La ficha del ramo tenía tres sangrías distintas para la misma columna: el
    hero y los avisos a 20px, las cat-card a 16px, y las filas de evaluación
@@ -1085,7 +1094,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
    y hay que declararlo acá. 18px es lo que miden Chrome y Safari. Si algún
    navegador usa otro, el error vuelve a ser de un par de píxeles en las puntas
    y cero en el 50%: bastante mejor que los 7px de todas partes. */
-.peso-marks{--peso-thumb:18px;position:relative;height:0.8rem;margin:4px 0 14px;font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;opacity:.6;}
+.peso-marks{--peso-thumb:18px;position:relative;height:0.8rem;margin:4px 0 14px;font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .peso-marks span{position:absolute;top:0;left:calc(var(--peso-thumb) / 2 + (100% - var(--peso-thumb)) * var(--p) / 100);transform:translateX(-50%);}
 .slider-desc{font-size:0.75rem;color:var(--fg3);margin-top:4px;}
 .modal-btns{display:flex;gap:10px;margin-top:6px;}
@@ -1494,8 +1503,10 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 
 .ag-row:active{transform:scale(.99);}
 .ag-row-bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
-.ag-row.done{opacity:.62;}
-.ag-row.done:hover{opacity:.85;}
+/* Una rendida se distingue por su sección y su barra apagada, no por bajar
+   la opacidad de la fila entera: así la fecha y la nota quedaban bajo 4,5:1
+   (2,5:1 en claro). La nota sigue con su semáforo a contraste completo. */
+.ag-row.done .ag-row-bar{opacity:.62;}
 .ag-row-main{flex:1;min-width:0;}
 .ag-row-top{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;}
 .ag-row-when{font-size:0.8125rem;font-weight:700;color:var(--fg2);}
@@ -1504,7 +1515,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-row-when.alta{color:var(--yellow);}
 .ag-row-when.media{color:var(--primary);}
 .ag-row-when.done{color:var(--fg3);text-transform:none;letter-spacing:0;font-weight:600;}
-.ag-row-date{font-size:0.6875rem;color:var(--fg3);opacity:.7;font-variant-numeric:tabular-nums;}
+.ag-row-date{font-size:0.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .ag-row-peso{margin-left:auto;font-family:var(--font-ui);font-size:0.75rem;font-weight:700;color:var(--fg2);background:var(--muted);border-radius:6px;padding:2px 8px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
 .ag-row-peso.heavy{color:var(--secondary);background:color-mix(in srgb,var(--secondary),transparent 80%);border:1px solid color-mix(in srgb,var(--secondary),transparent 70%);padding:1px 7px;}
 .ag-row-name{font-size:0.96875rem;font-weight:600;color:var(--fg);letter-spacing:-.015em;line-height:1.25;}
@@ -1810,6 +1821,10 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    de Clases quedaba ENCIMA de Inicio para quien no es profesor: en blanco y
    tapando todo, porque además no la mueve `setTabTransforms` al no estar en
    NAV_TABS. Esta regla la devuelve a su sitio. */
+/* Una cuenta de profesor (#697) esconde Inicio, Estadísticas y Agenda. */
+.app.tab-mode #screen-stats[hidden],
+.app.tab-mode #screen-home[hidden],
+.app.tab-mode #screen-agenda[hidden],
 .app.tab-mode #screen-profesor[hidden],
 .app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden]{display:none!important;}
@@ -1971,16 +1986,17 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
      ancho igual dejaba el login con una franja vacía a la izquierda y todo
      corrido hacia la derecha, con el toast descentrado de paso.
 
-     Se apaga SOLO en esas cuatro, y el defecto se queda encendido. El sentido
+     Se apaga SOLO en esas cinco, y el defecto se queda encendido. El sentido
      importa: si un selector deja de calzar, lo que queda es el riel de
      siempre —el defecto cosmético en una pantalla— y no un riel de ancho cero
      con sus etiquetas encima del contenido. Ese fue exactamente el resultado
      de intentarlo al revés en #217.
 
-     Y son estas cuatro y no otras porque son las únicas que reciben `.active`:
+     Y son estas cinco y no otras porque son las únicas que reciben `.active`:
      home, stats y agenda son un carrusel que se mueve con `translate3d` y
      marca el botón del riel, no la pantalla. `screen-ramo` recibe `.active`
      pero ahí ya estás dentro, así que conserva su riel. */
+  body:has(#screen-loading.active),
   body:has(#screen-auth.active),
   body:has(#screen-onboard.active),
   body:has(#screen-reset.active),
@@ -2103,7 +2119,10 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* En el modal este aviso vive dentro de una caja que ya trae sangría, por eso
    la clase lo declara a ancho completo. En la ficha del ramo cuelga directo del
    scroll, así que ahí la sangría la pone él y se alinea con el resto. */
-#no-calcula-warning.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;}
+#no-calcula-warning.weight-setup-nudge,#pauta-cambio.weight-setup-nudge,#consenso-disponible.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;}
+/* Las propuestas de un agente cuelgan del mismo scroll: sin esto, sus tarjetas
+   iban de borde a borde, con las esquinas redondeadas cortadas por la pantalla. */
+#notas-propuestas{margin:12px 20px 0;}
 .eximicion-note.weight-setup-nudge{width:auto;margin-left:20px;margin-right:20px;
   background:var(--card);border-color:var(--border2);}
 .eximicion-note.weight-setup-nudge .ic{color:var(--fg3);}
@@ -2140,9 +2159,8 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .modo-opt.sel .modo-opt-name{color:var(--primary);}
 .modo-opt-sub{font-size:0.6875rem;color:var(--fg3);line-height:1.2;text-align:center;}
 .accent-picker-label{display:block;margin-top:22px;}
-.accent-grid{display:flex;gap:10px;overflow-x:auto;padding:3px 2px 5px;scrollbar-width:none;}
-.accent-grid::-webkit-scrollbar{display:none;}
-.accent-opt{display:flex;min-width:62px;flex:1;flex-direction:column;align-items:center;gap:7px;padding:9px 6px;border:1.5px solid transparent;border-radius:12px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:0.6875rem;font-weight:650;cursor:pointer;transition:border-color var(--motion-fast),background var(--motion-fast),color var(--motion-fast);}
+.accent-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:3px 2px 5px;}
+.accent-opt{display:flex;min-width:0;flex-direction:column;align-items:center;gap:7px;padding:9px 6px;border:1.5px solid transparent;border-radius:12px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:0.6875rem;font-weight:650;cursor:pointer;transition:border-color var(--motion-fast),background var(--motion-fast),color var(--motion-fast);}
 .accent-opt.sel{border-color:var(--primary);background:var(--primary-light);color:var(--primary);}
 .accent-swatch{width:30px;height:30px;border:3px solid var(--card);border-radius:50%;background:linear-gradient(var(--gradient-accent),var(--swatch-light) 0 50%,var(--swatch-dark) 50%);box-shadow:0 0 0 1px var(--border2);}
 .accent-opt.sel .accent-swatch{box-shadow:0 0 0 2px var(--primary),0 3px 10px color-mix(in srgb,var(--primary),transparent 65%);}
@@ -2740,7 +2758,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .eval-sub-open{display:flex;flex-direction:column;align-items:flex-start;gap:1px;flex:1;min-width:0;padding:4px 0;border:0;background:transparent;text-align:left;cursor:pointer;font-family:inherit;}
 .eval-sub-open:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
 .eval-sub-fecha{font-size:0.6875rem;color:var(--fg3);}
-.eval-sub-fecha.vacia{color:var(--border2);}
 /* Una casilla que quedó fuera de la pauta al bajar las casillas del grupo.
    Su nota sigue contando, así que tiene que verse: antes desaparecía y el
    promedio quedaba sin explicación.
@@ -3101,6 +3118,21 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig-resumen span,.admin-hig-resumen p{font-size:.8125rem;color:var(--fg2);margin:0;}
 .admin-hig-resumen strong{display:block;font-size:1.875rem;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:7px 0;overflow-wrap:anywhere;}
 .admin-hig-nota{font-size:.8125rem;color:var(--fg2);margin:16px 0;}
+.admin-crecimiento{border-bottom:1px solid var(--border);padding:0 0 24px;margin-bottom:24px;}
+.admin-crecimiento h2{font-size:1.125rem;margin:0;}
+.admin-crecimiento>p{color:var(--fg2);font-size:.8125rem;margin:4px 0 16px;}
+.admin-crecimiento-actual{border:1px solid var(--border);border-radius:12px;padding:16px;}
+.admin-crecimiento-historial{margin-top:8px;}
+.admin-crecimiento-historial>summary{cursor:pointer;font-size:.875rem;font-weight:600;padding:10px 0;}
+.admin-crecimiento ol{list-style:none;margin:0;padding:0;display:grid;gap:12px;}
+.admin-crecimiento li{border-top:1px solid var(--border);padding:16px 0;min-width:0;}
+.admin-crecimiento h3{font-size:.9375rem;margin:0 0 12px;}
+.admin-crecimiento dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;}
+.admin-crecimiento dt{font-size:.8125rem;color:var(--fg2);}
+.admin-crecimiento dd{margin:0;font-variant-numeric:tabular-nums;}
+.admin-crecimiento dd strong,.admin-crecimiento dd span{display:block;}
+.admin-crecimiento dd span{font-size:.8125rem;color:var(--fg2);}
+@media(max-width:600px){.admin-crecimiento dl{grid-template-columns:1fr;}}
 .admin-hig-pestanas{display:flex;gap:6px;border-bottom:1px solid var(--border);margin:24px 0;flex-wrap:wrap;}
 .admin-hig-pestanas button{padding:10px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--fg2);font:inherit;font-size:.875rem;cursor:pointer;}
 .admin-hig-pestanas button[aria-pressed=true]{border-color:var(--primary);color:var(--primary);}

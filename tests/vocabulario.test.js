@@ -1,7 +1,8 @@
 // Cada universidad habla su idioma.
 //
-// En FEN las pruebas grandes se llaman Solemnes; en la UC son Interrogaciones,
-// Pruebas o Controles. Un estudiante de Ingeniería UC que abre su ramo y ve
+// En FEN las pruebas grandes se llaman Solemnes; en Ingeniería UC son
+// Interrogaciones, Pruebas o Controles. Derecho UC también usa Solemnes.
+// Un estudiante de Ingeniería UC que abre su ramo y ve
 // "Solemne 1" sabe al tiro que la app no es para él — y deja de creerle también
 // al número, que es lo único que la app tiene que comunicar sin error.
 //
@@ -20,11 +21,10 @@ let ok = 0, fail = 0;
 const chk = (n, c) => { if (c) { ok++; console.log('  OK   ' + n); } else { fail++; console.log('  FAIL ' + n); } };
 
 // Palabras que pertenecen a UNA universidad y no deben cruzarse.
-// "Controles de lectura" dejó de pertenecer a una sola universidad: el
-// programa UC LET202G-1 lo usa literalmente. Prohibirlo haría que el test
-// fuerce a cambiar un nombre oficial; Solemne y Casos y ensayos sí siguen
-// siendo vocabulario propio de FEN en los datos que conocemos.
-const SOLO_FEN = /solemne|casos y ensayos/i;
+// "Solemne" también figura en formularios oficiales de Derecho UC. Prohibirlo
+// en todos los presets UC bloquearía esa facultad; el test lo separa por carrera.
+const SOLO_FEN = /casos y ensayos/i;
+const SOLEMNE = /solemne/i;
 const SOLO_UC = /interrogaci[oó]n/i;
 
 const textoDe = x => JSON.stringify(x);
@@ -70,22 +70,40 @@ const appCtx = {
 };
 vm.createContext(appCtx);
 vm.runInContext(['data.js', 'engine.js', 'app.js', 'render-agenda.js'].map(f => fs.readFileSync(raiz + f, 'utf8')).join('\n'), appCtx);
-const llamar = (fn, arg) => vm.runInContext(fn, appCtx)(arg);
+const llamar = (fn, ...args) => vm.runInContext(fn, appCtx)(...args);
 
 const sugUC = llamar('sugerenciasEvaluacion', 'uc');
 const sugFEN = llamar('sugerenciasEvaluacion', 'fen');
-chk(`a un estudiante UC no se le ofrece Solemne  (${sugUC.slice(0, 3).join(', ')}…)`,
-  !sugUC.some(n => SOLO_FEN.test(n)));
+chk(`a Ingeniería UC no se le ofrece Solemne  (${sugUC.slice(0, 3).join(', ')}…)`,
+  !sugUC.some(n => SOLEMNE.test(n)));
 chk(`a uno de FEN no se le ofrece Interrogación  (${sugFEN.slice(0, 3).join(', ')}…)`,
   !sugFEN.some(n => SOLO_UC.test(n)));
 chk('las dos listas son distintas', JSON.stringify(sugUC) !== JSON.stringify(sugFEN));
 
+console.log('\n=== Derecho UC tiene su propio vocabulario ===');
+const sugDerecho=llamar('sugerenciasEvaluacion','uc','UC-DERECHO');
+chk('el código de Derecho UC ofrece Solemne y Control de lectura',
+  sugDerecho.includes('Solemne')&&sugDerecho.includes('Control de lectura'));
+chk('Derecho UC no recibe Interrogación ni Casos y ensayos',
+  !sugDerecho.some(n => SOLO_UC.test(n)||SOLO_FEN.test(n)));
+chk('el nombre declarado antiguo de Derecho también funciona',
+  llamar('sugerenciasEvaluacion','uc','Derecho').includes('Solemne'));
+chk('Derecho UC no recibe plantillas de Ingeniería sin estructura verificada',
+  llamar('plantillasPauta','uc','UC-DERECHO').length===0);
+
 const plUC = llamar('plantillasPauta', 'uc');
 const plFEN = llamar('plantillasPauta', 'fen');
 chk(`las plantillas de UC no dicen solemnes  (${plUC.map(p => p.label).join(' · ') || 'ninguna'})`,
-  !plUC.some(p => SOLO_FEN.test(p.label)));
+  !plUC.some(p => SOLEMNE.test(p.label)));
 chk('las plantillas de FEN no dicen interrogaciones',
   !plFEN.some(p => SOLO_UC.test(p.label)));
+
+vm.runInContext("S.tenant='uc';S.carrera='UC-DERECHO';S.carreraNombre='Derecho';pautaDraft=[{id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null}];pautaDraftError='';pautaArmando=true;renderPautaManualModal()",appCtx);
+chk('el editor de Derecho muestra Solemne y no ofrece plantilla de Ingeniería',
+  /placeholder="Ej: Solemne 1"/.test(stub.innerHTML)&&stub.innerHTML.includes('<option value="Solemne">')&&!stub.innerHTML.includes('3 interrogaciones + laboratorio'));
+vm.runInContext("S.carrera='ING-PC';S.carreraNombre='Ingeniería Civil';renderPautaManualModal()",appCtx);
+chk('el mismo editor conserva Prueba e Interrogación para Ingeniería',
+  /placeholder="Ej: Prueba 1"/.test(stub.innerHTML)&&stub.innerHTML.includes('<option value="Interrogación 1">')&&stub.innerHTML.includes('3 interrogaciones + laboratorio'));
 
 console.log('\n=== La UAI habla su propio idioma, que usa las dos palabras ===');
 // No es una suposición: sale de sus programas. Management 2026-2 dice "tres
@@ -102,8 +120,9 @@ console.log('\n=== La UAndes tampoco hereda el idioma de otra ===');
 // Sale de su Reglamento del Alumno y de normativas de facultad: ninguno dice
 // "solemne", y "Interrogación" es la palabra de la UC.
 const sugUA = llamar('sugerenciasEvaluacion', 'uandes');
-chk('a la UAndes no se le ofrece Solemne ni Interrogación', !sugUA.some(s => SOLO_FEN.test(s) || /interrogaci/i.test(s)));
+chk('a la UAndes no se le ofrece Solemne ni Interrogación', !sugUA.some(s => SOLEMNE.test(s) || /interrogaci/i.test(s)));
 chk('le ofrece Prueba, Examen y Control de lectura', ['Prueba 1', 'Examen', 'Control de lectura'].every(n => sugUA.includes(n)));
+chk('su ejemplo del editor también dice Prueba', llamar('ejemploEvaluacion','uandes')==='Prueba');
 
 console.log('\n=== Una universidad que no conocemos no hereda el idioma de otra ===');
 // El default de sugerenciasEvaluacion era la lista de FEN, así que a cualquier
@@ -114,6 +133,7 @@ const neutro = llamar('sugerenciasEvaluacion', 'usach');
 chk('no le ofrece el vocabulario de FEN', !neutro.some(s => /solemne/i.test(s)));
 chk('ni el de la UC', !neutro.some(s => /interrogaci/i.test(s)));
 chk('pero sí le ofrece algo utilizable', neutro.length > 3);
+chk('su ejemplo tampoco hereda Solemne', llamar('ejemploEvaluacion','usach')==='Prueba');
 // mallaFor devolvía la malla de la FEN por defecto: un estudiante de otra
 // universidad habría visto los ramos de Economía y Negocios de la Chile.
 chk('tampoco hereda la malla de FEN', Object.keys(llamar('mallaFor', 'usach')).length === 0);

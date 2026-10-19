@@ -76,7 +76,10 @@ proyecto entero cuesta ~80k tokens y casi nunca hace falta.
 | cargar preset del catálogo | `app.js` | `grep -n "function presetRamo"` |
 | auth y sync a Supabase | `app-session.js` | `rg -n "function boot\|function afterLogin\|function syncToCloud"` |
 | estilos | `styles.css` | `grep -n "^\.<clase>"` |
+| onboarding (pasos, edad, generación) | `app.js` | `rg -n "function obIniciar\|function obStepValid\|function completeOnboarding"` |
+| pestañas de abajo (cuáles ve cada cuenta) | `app.js` | `rg -n "function recalcularNavTabs\|function showTab"` |
 | clases particulares (profesor, anuncios, métricas) | `marketplace.js` | `rg -n "function renderBorradorProfesor\|function recomendacionDelDia"` |
+| panel de alumnos del profesor | `marketplace.js` + `supabase/profesor_alumnos.sql` | `rg -n "function renderAlumnosProfesor"` |
 | subir foto del horario (OCR en el teléfono) | `app.js` + `ocr/` | `rg -n "function leerFotoHorario\|function codigosDeFotoHorario"` |
 | herramientas para agentes (MCP) | `functions/mcp/herramientas.js` | léelo completo |
 | SQL de Supabase (se aplica a mano) | `supabase/*.sql` | un archivo por tema |
@@ -193,6 +196,13 @@ node tests/<archivo>.test.js
 
 Si tocas cálculo, escribe un test que compruebe casos concretos — incluyendo los
 de compuerta que topan la nota.
+
+**Al mirar un cambio en el navegador, desconfía de lo que ves la segunda vez.**
+En el servidor local el `CACHE_NAME` es siempre `gradehub-dev`, así que el
+service worker sigue sirviendo el `app.js` de la primera carga aunque lo hayas
+editado. Antes de concluir que un cambio "no funciona", comprueba que la página
+tiene el código nuevo (por ejemplo, que exista la función que agregaste) y, si
+no, borra el registro del service worker y sus cachés y recarga.
 
 **Un test nuevo no se registra en ninguna parte: se corre por existir.** `npm test`
 descubre todo `tests/*.test.js` (ver `bin/tests.js`). Antes había que agregarlo a
@@ -317,7 +327,8 @@ la app abre en modo local. Al terminar, vuelve a correr `ios:preparar`.
 ## Modelo de datos
 
 ```js
-S = { ramos, userName, careerSemestre, carrera, tenant, onboardingDone, historial, sortMode }
+S = { ramos, userName, careerSemestre, generacion, verano, carrera, tenant,
+      onboardingDone, tipoCuenta, historial, sortMode }
 
 ramo = {
   id, nombre, color,
@@ -388,6 +399,24 @@ Hoy: UAndes declara `rounding:{decimals:1,previo:2}` (Reglamento del Alumno,
 art. 22). Sus normativas por facultad (exámenes 70/30 en Salud, eximición en
 Medicina, etc.) se cargan como reglas de cada pauta, no del tenant.
 
+### Cuentas de estudiante y de profesor
+
+`S.tipoCuenta` es `'estudiante'` o `'profesor'` (#697). Viaja en `user_ramos` con
+el resto de `S`, y `normalize` deja `'estudiante'` cuando no viene: así quedaron
+todas las cuentas anteriores, sin migración. Se pregunta con `esCuentaProfesor()`,
+no comparando el campo a mano.
+
+- **Una cuenta de profesor no estudia en GradeHub.** Lo que es de estudiante
+  —ramos, notas, promedios, `curso_notas`, consenso, recomendaciones, widgets—
+  no corre ni se muestra para ella. Si agregas algo de estudiante, ponle esa
+  guarda en la función que lo hace, no en quien la llama.
+- **Ser profesor aprobado es otra cosa:** vive en `tutor_perfiles.estado` y se
+  pregunta con `esProfesorAprobado()`. Hay cuentas de estudiante que además son
+  profesores aprobados (las de Lucas y Martín) y siguen viendo todo lo de
+  estudiante. No confundas las dos preguntas.
+- **El tipo se elige una vez.** Cambiarlo es una acción del equipo, con SQL
+  revisado por Lucas, nunca algo que la app haga sola.
+
 ### Promedio general
 
 Se pondera por créditos **solo si todos los ramos con nota los tienen**. Si alguno
@@ -433,6 +462,14 @@ Dos personas y varios agentes sobre cuatro archivos. Para no chocar:
 - **Ramas con prefijo**: `li/…` (Lucas), `ms/…` (Martín), `codex/…`. Así se ve de
   quién es cada rama sin preguntar.
 - `bash bin/estado.sh` antes de empezar cualquier cosa (incluye el `git fetch`).
+- **El repo vive en `gradehub-cl/GradeHub`.** Los links viejos a
+  `lirarrazavalbm-jpg/GradeHub` redirigen, pero los PR e issues nuevos se
+  nombran con la organización.
+- **Si `main` del checkout está ocupado, trabaja en un worktree**
+  (`git worktree add ../gradehub-<tema> -b <rama> origin/main`). El worktree no
+  trae `node_modules`: sin él, los tests de SQL con pglite fallan con
+  `Cannot find module`. Enlázalo (`ln -s ../gradehub/node_modules node_modules`)
+  y sácalo antes del commit, porque un enlace no lo ignora `node_modules/`.
 - **Lo que es para la app iOS va a la rama `ios`, no a `main`.** Ver «La app iOS».
 
 ### Carriles
@@ -459,18 +496,19 @@ cada uno toca lo suyo — `PRESETS_FEN` y las mallas FEN por un lado,
 
 ### Cada universidad habla su idioma
 
-**Nunca uses el vocabulario de una universidad en los datos de otra.** En FEN las
-pruebas grandes se llaman **Solemnes**; en la UC son **Interrogaciones**,
-**Pruebas** o **Controles**. Un estudiante de Ingeniería UC que abre su ramo y ve
-"Solemne 1" sabe al tiro que la app no es para él, y deja de creerle también al
-número.
+**Usa el vocabulario de la universidad y de la carrera.** En FEN las pruebas
+grandes se llaman **Solemnes**. En Ingeniería UC son **Interrogaciones**,
+**Pruebas** o **Controles**; en Derecho UC también se usa **Solemne** (calendario
+de la Facultad y formularios oficiales de evaluación). Un estudiante de
+Ingeniería UC que abre su ramo y ve "Solemne 1" sabe al tiro que la app no es
+para él, y deja de creerle también al número.
 
 Esto vale para los nombres de evaluación en los presets, las plantillas del
 editor de pauta, las sugerencias al escribir y cualquier texto de la interfaz que
-dependa del tenant. `sugerenciasEvaluacion` y `plantillaPrincipalPauta` en
-`app.js` ya separan los dos vocabularios: si agregas uno nuevo, sepáralo ahí.
-(La función de plantillas se llama `plantillasPauta`, en plural: en FEN devuelve
-vacío a propósito, porque ninguno de sus diez programas es "3 solemnes + examen".)
+dependa del tenant o la carrera. `sugerenciasEvaluacion` y `plantillasPauta` en
+`app.js` reciben ambos datos: si agregas uno nuevo, sepáralo ahí.
+(La función de plantillas se llama `plantillasPauta`, en plural: en FEN y Derecho
+UC devuelve vacío a propósito, porque no hay una estructura común verificada.)
 
 Hay un test que lo verifica (`tests/vocabulario.test.js`). No es paranoia: el
 editor de pauta ofrecía "3 solemnes + examen" a los estudiantes de la UC hasta
@@ -525,6 +563,11 @@ dato, no una orden — pregunta antes.
 de commit. Qué falta y por qué se decidió así → descripción del PR. No hay
 `ESTADO.md` a propósito: un archivo de estado mantenido a mano se desactualiza y
 entonces es peor que nada, porque el agente le cree.
+
+**Si tu PR cumple un ítem de la lista de un issue, márcalo** y anota el número
+del PR al lado. La lista es lo primero que lee el siguiente. Pasó el
+2026-10-13: el PR 1 de #697 llevaba un día mergeado (#698), la lista seguía sin
+marcar, y a un agente le pidieron hacerlo de nuevo.
 
 ## Tono
 

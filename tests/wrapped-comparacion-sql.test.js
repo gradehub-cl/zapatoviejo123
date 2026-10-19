@@ -7,6 +7,7 @@ const soy=n=>db.query("select set_config('request.jwt.claim.sub',$1,false)",[n?u
 const posicion=()=>q("select * from universidad_posicion('uc')");
 (async()=>{try{
  await db.exec(read('bin/supabase-stubs.sql'));
+ await db.exec('create table public.user_ramos(user_id uuid primary key, data jsonb not null)');
  await db.exec(read('supabase/curso_posicion.sql'));
  await db.exec(read('supabase/universidad_posicion.sql'));
  await db.exec(read('supabase/universidad_posicion.sql'));

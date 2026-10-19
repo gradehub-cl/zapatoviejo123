@@ -21,7 +21,7 @@ vm.createContext(ctx);vm.runInContext(src,ctx);
 const run=c=>vm.runInContext(c,ctx);
 let ok=0,fail=0;const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('  FAIL '+n);}};
 
-const com=run("CARRERAS_DECLARABLES.uai.find(x=>x.n==='Ingeniería Comercial').malla");
+const com=run("CARRERAS_DECLARABLES.uai.find(x=>x.malla==='UAI-INGENIERIA-COMERCIAL').malla");
 const p=run(`presetRamo('Matemáticas Avanzadas II','uai','${com}')`);
 const r={id:'m',nombre:'Matemáticas Avanzadas II',color:'#000',origen:{tenant:'uai',carrera:com},categorias:p.categorias,gates:p.gates||[]};
 const cat=n=>r.categorias.find(c=>c.nombre===n);

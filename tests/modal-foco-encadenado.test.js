@@ -11,8 +11,8 @@ const document={activeElement:null,body:{},scrollingElement:{scrollTop:0},getEle
 const nodo=id=>({id,isConnected:true,llamadas:0,setAttribute(){},focus(opts){this.llamadas++;document.activeElement=this;assert.equal(opts.preventScroll,true);}});
 const avatar=nodo('avatar'),origen=nodo('agregar'),interno=nodo('importar'),campo=nodo('texto');
 const ctx={document,console,setTimeout:fn=>fn()};vm.createContext(ctx);
-vm.runInContext('let _quienAbrioModal=null;',ctx);
-for(const nombre of ['etiquetarCamposDelModal','openModal','closeModal','closeUserMenu','umGo']){
+vm.runInContext('let _quienAbrioModal=null,_avatarMenu=null;',ctx);
+for(const nombre of ['etiquetarCamposDelModal','openModal','closeModal','avatarMenu','closeUserMenu','umGo']){
  const i=app.indexOf('function '+nombre+'(');
  vm.runInContext(app.slice(i,app.indexOf('\n}',i)+2),ctx);
 }

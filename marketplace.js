@@ -1373,6 +1373,30 @@ async function renderEspacioProfesor(raiz,{titulo=true}={}){
   const ficha=await perfilProfesorActual();
   if(!ficha.ok){raiz.innerHTML=cabecera('Espacio de profesor')+`<p class="profesor-info" role="alert">${esc(ficha.error)}</p>`+salida();return;}
   if(!ficha.perfil){renderPostulacionProfesor(raiz);return;}
+  if(ficha.perfil.estado==='pendiente'){
+    const mios=await misAnunciosClase();
+    const fecha=new Date(ficha.perfil.solicitado_at);
+    const enviada=Number.isFinite(fecha.getTime())
+      ?`Enviada el ${new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'}).format(fecha)}.`
+      :'Fecha de envío no disponible.';
+    const borradores=mios.ok?mios.anuncios.filter(a=>a.estado==='borrador'):[];
+    raiz.innerHTML=cabecera('Espacio de profesor')+
+      `<div class="profesor-hig"><section class="clases-seccion" aria-labelledby="profesor-postulacion-titulo"><h2 id="profesor-postulacion-titulo">Tu postulación</h2><p class="profesor-info" role="status">Está pendiente de revisión. ${esc(enviada)}</p><p class="profesor-info">Te avisaremos cuando esté aprobada. Mientras tanto, puedes preparar un anuncio y guardarlo como borrador.</p></section>`+
+      `<section class="clases-seccion" aria-labelledby="profesor-borradores-titulo"><h2 id="profesor-borradores-titulo">Tu borrador</h2>`+
+      (mios.ok
+        ?borradores.length
+          ?`<div class="clase-lista">${borradores.map(a=>`<div class="clase-card"><div class="clase-card-top"><strong>${esc(a.titulo||'Sin título')}</strong><span class="clase-estado">Borrador</span></div><p class="clase-card-meta">Nadie lo ve todavía.</p><button type="button" class="clase-accion" data-borrador-pendiente="${esc(a.id)}">Seguir preparando</button></div>`).join('')}</div>`
+          :'<p class="profesor-info">Todavía no tienes un borrador.</p><button type="button" class="btn-confirm" id="clase-nueva-pendiente">Preparar anuncio</button>'
+        :`<p class="profesor-info" role="alert">${esc(mios.error)}</p>`)+
+      '</section></div>'+salida();
+    const nueva=raiz.querySelector('#clase-nueva-pendiente');
+    if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null,{pendiente:true}));
+    if(typeof raiz.querySelectorAll==='function')raiz.querySelectorAll('[data-borrador-pendiente]').forEach(b=>b.addEventListener('click',()=>{
+      const anuncio=borradores.find(a=>a.id===b.dataset.borradorPendiente);
+      if(anuncio)renderBorradorProfesor(raiz,anuncio,{pendiente:true});
+    }));
+    return;
+  }
   if(ficha.perfil.estado!=='aprobado'){
     const avisos={pendiente:'Tu postulación está esperando revisión. Todavía no puedes ofrecer clases.',rechazado:'Tu postulación no fue aprobada. Puedes escribirnos desde Sugerencias para revisar el motivo.',suspendido:'Tu acceso de profesor está suspendido. Tus notas como estudiante siguen disponibles.'};
     raiz.innerHTML=cabecera('Espacio de profesor')+`<p class="profesor-info" role="status">${esc(avisos[ficha.perfil.estado]||'Tu perfil necesita revisión.')}</p>`+salida();
@@ -1393,7 +1417,7 @@ function postularComoProfesor(){
 }
 function renderPostulacionProfesor(raiz){
   raiz.innerHTML=`<div class="modal-title" id="modal-titulo">Postula para ofrecer clases</div>
-    <p class="profesor-info">Tu cuenta de estudiante sigue igual. Un miembro de nuestro equipo revisará tu postulación antes de que puedas preparar anuncios.</p>
+    <p class="profesor-info">Tu cuenta de estudiante sigue igual. Un miembro de nuestro equipo revisará tu postulación. Mientras esperas, podrás preparar un borrador de anuncio.</p>
     <form class="profesor-form" id="profesor-postular">
       <label class="modal-label" for="profesor-nombre">Nombre público</label><input id="profesor-nombre" type="text" maxlength="100" minlength="2" required autocomplete="name">
       <label class="modal-label" for="profesor-presentacion">Qué ramos enseñas y qué experiencia tienes</label><textarea id="profesor-presentacion" minlength="20" maxlength="1500" required></textarea>
@@ -2140,13 +2164,13 @@ async function guardarCampanaClase(anuncioId,datos){
   }catch(e){return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};}
 }
 
-function renderBorradorProfesor(raiz,anuncio){
+function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   let id=anuncio&&anuncio.id||null,flyerActual=anuncio&&anuncio.flyer_path||null;
   const valor=(campo,defecto='')=>esc(anuncio&&anuncio[campo]!=null?anuncio[campo]:defecto);
   const tipoContactoInicial=anuncio&&PREFIJO_CONTACTO_CLASE[anuncio.contacto_tipo]!==undefined?anuncio.contacto_tipo:'whatsapp';
   const elegir=(opciones,actual)=>opciones.map(([clave,texto])=>`<option value="${clave}"${actual===clave?' selected':''}>${texto}</option>`).join('');
   raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+cabeceraProfesorHTML(id?'Edita tu borrador.':'Prepara tu clase.',
-    'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
+    pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
     ${anuncio&&anuncio.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(anuncio.comentario_revision)}</p></div>`:''}
     <form class="profesor-form" id="profesor-borrador">
       <!-- Campos y vista previa van juntos para que la vista previa, sticky en
@@ -2180,7 +2204,7 @@ function renderBorradorProfesor(raiz,anuncio){
       <label class="modal-label" for="pr-contacto" id="pr-contacto-etiqueta">Tu WhatsApp</label><input id="pr-contacto" type="text" minlength="3" maxlength="160" required autocomplete="off" aria-describedby="pr-contacto-error pr-contacto-ayuda" placeholder="${esc(EJEMPLO_CONTACTO_CLASE[tipoContactoInicial])}" value="${esc(anuncio&&anuncio.contacto_valor!=null?anuncio.contacto_valor:PREFIJO_CONTACTO_CLASE[tipoContactoInicial])}">
       <p id="pr-contacto-error" role="alert" hidden style="margin:6px 0 0;font-size:0.8125rem;color:var(--red);"></p>
       <p class="profesor-info" id="pr-contacto-ayuda"></p>
-      <label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp"><p class="profesor-info">JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.</p>
+      <label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp" ${pendiente?'disabled':''}><p class="profesor-info">${pendiente?'Podrás subir el flyer cuando aprobemos tu postulación.':'JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.'}</p>
       <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
       <button class="btn-cancel" id="pr-quitar-flyer" type="button" ${flyerActual?'':'hidden'}>Quitar flyer guardado</button>
       <div id="pr-logo"></div>
@@ -2228,7 +2252,7 @@ function renderBorradorProfesor(raiz,anuncio){
       </section>
       </div>
       <div class="profesor-form-acciones">
-      <div class="modal-btns"><button class="btn-cancel" id="pr-guardar" type="button">Guardar borrador</button><button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button></div>
+      <div class="modal-btns"><button class="${pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">Guardar borrador</button>${pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
       <p class="profesor-estado" role="status" aria-live="polite">${id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
       </div>
     </form></div>`;
@@ -2380,7 +2404,7 @@ function renderBorradorProfesor(raiz,anuncio){
   actualizarVista();
   activarBuscadorRamosClase(form,campo);
   const cajaLogo=campo('logo');
-  if(cajaLogo)renderLogoProfesor(cajaLogo);
+  if(cajaLogo&&!pendiente)renderLogoProfesor(cajaLogo);
   // WhatsApp parte con "+56 9 " escrito y se ordena con sus espacios. Si la
   // clase es gratis aparece el selector con Instagram y link de inscripción;
   // si deja de ser gratis, vuelve a WhatsApp.
@@ -2449,6 +2473,7 @@ function renderBorradorProfesor(raiz,anuncio){
   };
   if(contacto&&typeof contacto.addEventListener==='function')contacto.addEventListener('input',limpiarContacto);
   const procesar=async enviar=>{
+    if(enviar&&pendiente)return;
     if(procesando||!campanaLista)return;
     if(typeof form.querySelectorAll==='function')[...form.querySelectorAll(':invalid')].forEach(abrirSeccionDe);
     if(!form.reportValidity())return;
@@ -2465,7 +2490,7 @@ function renderBorradorProfesor(raiz,anuncio){
       detalles:leerDetalles(),linea_datos:lineaParaGuardar(borradorEnVivo()),
       contacto_tipo:tipoActual(),contacto_valor:campo('contacto').value};
     procesando=true;
-    const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')];botones.forEach(b=>b.disabled=true);
+    const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')].filter(Boolean);botones.forEach(b=>b.disabled=true);
     estado.textContent='Guardando borrador…';
     try{
       const guardado=await guardarBorradorClase(datos,id);
@@ -2481,13 +2506,14 @@ function renderBorradorProfesor(raiz,anuncio){
         if(!respuesta.ok){estado.textContent=respuesta.error;if(respuesta.campo==='contacto_valor')marcarContacto(respuesta.error);return;}
         raiz.innerHTML='<div class="modal-title" id="modal-titulo">En revisión</div><p class="profesor-info" role="status">Recibimos tu anuncio. Nadie lo verá hasta que GradeHub lo revise y apruebe.</p>'+(guardadaCampana.falta||respuesta.sqlAnterior?'<p class="profesor-info" role="status">Los días y el tope todavía no se guardaron. GradeHub debe confirmarlos contigo antes de publicar.</p>':'');return;
       }
-      estado.textContent='Borrador guardado. Puedes volver después o enviarlo a revisión.'+(guardadaCampana.falta?' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.':'');
+      estado.textContent=(pendiente?'Borrador guardado. Podrás enviarlo a revisión cuando aprobemos tu postulación.':'Borrador guardado. Puedes volver después o enviarlo a revisión.')+(guardadaCampana.falta?' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.':'');
     }catch(e){estado.textContent='No pudimos completar la acción. Revisa si tu borrador quedó guardado e intenta de nuevo.';
     }finally{procesando=false;botones.forEach(b=>{if(b.isConnected)b.disabled=false;});}
   };
   form.addEventListener('submit',e=>{e.preventDefault();procesar(false);});
   form.querySelector('#pr-guardar').addEventListener('click',()=>procesar(false));
-  form.querySelector('#pr-enviar').addEventListener('click',()=>procesar(true));
+  const enviarBoton=form.querySelector('#pr-enviar');
+  if(enviarBoton)enviarBoton.addEventListener('click',()=>procesar(true));
 }
 
 // ─── RECOMENDACIÓN EN INICIO ────────────────────────────────────────────────
@@ -2576,6 +2602,7 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 function cargarAnunciosRecomendacion(tenant,alTerminar){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
   if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant)return;
   const pedido={tenant,lista:null,pidiendo:true};
   anunciosRecomendacion=pedido;
@@ -2657,6 +2684,11 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
 }
 
 function pintarRecomendacionClase(contenedor){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(contenedor)contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
+    if(contenedor)contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+    return;
+  }
   if(!RECOMENDACIONES_CLASES_ACTIVAS||!contenedor||!currentUser||!supabaseClient||!S||!S.tenant)return;
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
@@ -2957,7 +2989,16 @@ function personaAdminHigHTML(p){
   return `<section class="admin-hig-persona"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[p.estado]||p.estado)} · ${(p.anuncios||[]).length} anuncios</p></div>
     ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}</section>`;
 }
-function panelAdminHigHTML(profesores,ahora){
+function crecimientoAdminHTML(semanas){
+  if(!Array.isArray(semanas)||!semanas.length)return '';
+  const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
+  const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
+  const semana=f=>`<h3>Semana del ${esc(String(f.semana||''))}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
+  return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h2 id="admin-crecimiento-titulo">Crecimiento semanal</h2>
+    <p>Cuentas nuevas, activas y que volvieron cada semana.</p><div class="admin-crecimiento-actual">${semana(semanas[0])}</div>
+    ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
+}
+function panelAdminHigHTML(profesores,ahora,crecimiento=[]){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
   return `<div class="admin-hig"><header class="admin-hig-cabecera"><p class="admin-hig-ceja">ADMINISTRACIÓN · CLASES PARTICULARES</p><h1>Todo en orden.</h1><p>Revisa anuncios, acompaña a los profesores y lleva los cobros al día.</p></header>
@@ -2966,6 +3007,7 @@ function panelAdminHigHTML(profesores,ahora){
     ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
     ${kpi('Deuda registrada',pesosClase(r.deuda),'Incluye publicaciones anteriores')}
     ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
+    ${crecimientoAdminHTML(crecimiento)}
     <p class="admin-hig-nota">Revisa y decide los anuncios desde acá. Aprobar profesores y revisar logos sigue en SQL Editor. Cada acción queda registrada.</p>
     <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
     <div class="admin-hig-herramientas"><label class="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label>Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label></div>
@@ -2989,8 +3031,14 @@ async function pintarPanelAdmin(raiz){
     profesores=Array.isArray(data)?data:[];
     if(profesores.some(p=>(p.anuncios||[]).some(a=>!Array.isArray(a.cobros))))compatibilidadSqlClases.cobros=true;
   }catch(e){raiz.innerHTML='<p class="profesor-info" role="alert">No pudimos cargar la administración. Intenta de nuevo.</p>';return;}
+  // Si el SQL agregado aún no se aplicó, las campañas siguen disponibles.
+  let crecimiento=[];
+  try{
+    const {data,error}=await supabaseClient.rpc('crecimiento_semanal_admin');
+    if(!error&&Array.isArray(data))crecimiento=data;
+  }catch(e){}
   const ahora=Date.now();
-  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora);
+  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento);
   let seccion=vistaAdmin.seccion;
   const buscar=raiz.querySelector('#admin-hig-buscar'),filtro=raiz.querySelector('#admin-hig-estado');
   buscar.value=vistaAdmin.busqueda;filtro.value=vistaAdmin.estado;
@@ -3712,9 +3760,21 @@ async function exportarAlumnosPanel(lista,compDe){
 }
 
 // La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
-function renderAlumnosTab(){
+async function renderAlumnosTab(){
   const raiz=document.getElementById('alumnos-body');
-  if(raiz)renderAlumnosProfesor(raiz);
+  if(!raiz)return;
+  // Una cuenta de profesor tiene esta pestaña desde el primer día (#697), pero
+  // sus consultas exigen estar aprobado: mientras no lo esté, se dice por qué
+  // está vacía en vez de mostrar un error.
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(perfilProfesorConocido()===undefined)await cargarPerfilProfesor().catch(()=>{});
+    if(!esProfesorAprobado()){
+      raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
+        '<p class="profesor-info" role="status">Cuando aprobemos tu postulación, acá vas a ver las notas que tus alumnos decidan compartirte.</p></div>';
+      return;
+    }
+  }
+  renderAlumnosProfesor(raiz);
 }
 async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+

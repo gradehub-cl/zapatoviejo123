@@ -1,7 +1,8 @@
 // Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a
 // 4,0, pero la ficha y el simulador mostraban un único número combinado: quien
 // iba bien en el lab no podía ver si la cátedra sola lo estaba dejando abajo.
-// `partesDelVinculo` separa las dos partes y `htmlPartesVinculo` las pinta.
+// `partesDelVinculo` separa las dos partes; la ficha y el simulador ponen la
+// cátedra sola al lado del promedio y lo que falta para aprobar habla de ella.
 const fs=require('fs'),vm=require('vm');
 const raiz=__dirname+'/../';
 const stub={style:{setProperty(){},removeProperty(){}},addEventListener(){},appendChild(){},classList:{add(){},remove(){},contains(){return false}},value:'',innerHTML:'',textContent:'',focus(){},select(){},setAttribute(){},removeAttribute(){},getAttribute(){return null},querySelectorAll(){return[]},querySelector(){return stub},clientWidth:400,dataset:{},click(){}};
@@ -31,27 +32,41 @@ console.log('\n=== Lab aprobado, cátedra cerrada bajo 4,0 ===');
   chk(`la cátedra sale sola (${propio.toFixed(2)}), no mezclada con el lab`,Math.abs(p.propio.valor-propio)<1e-9);
   chk('el lab sale con su propia nota',Math.abs(p.externo.valor-6.5)<1e-9);
   chk('la final es la más baja de las dos, como siempre',Math.abs(g('ramoAvg')(din)-propio)<1e-9);
-  const html=g('htmlPartesVinculo')(din,{interactivo:true});
-  chk('el recuadro no repite la cátedra, que ya está al lado del promedio',!html.includes('Cátedra ·'));
-  chk('el lab dice que cumple su mínimo',/Laboratorio de Dinámica · 30%[\s\S]*Cumple el mínimo de 4\.0/.test(html));
-  chk('el lab se puede abrir desde la ficha',html.includes(`openRamo('l')`));
-  chk('en el simulador no se puede abrir',!g('htmlPartesVinculo')(din).includes('openRamo'));
   const solo=g('htmlSoloCatedra')(din);
   chk('al lado del promedio va la cátedra sola',solo.includes('Solo cátedra')&&solo.includes(`>${g('fmtPromedio')(propio)}<`));
+  chk('con el exacto activado, agrega el promedio sin redondear',
+    g('htmlSoloCatedra')(din,{exacto:v=>'exacto:'+v.toFixed(3)}).includes(`Solo cátedra · exacto:${propio.toFixed(3)}`));
 }
 
-console.log('\n=== Lab pendiente: cuánto le falta ===');
+console.log('\n=== Lo que falta para aprobar habla de la cátedra ===');
 {
-  const lab={...laboratorio(3.0),categorias:[{id:'x',nombre:'Nota',peso:100,slots:2,notas:[{id:'n',slot:0,valor:3.0,peso:1}]}]};
-  const din=catedra(4.5,null);S.ramos=[din,lab];
-  const p=g('partesDelVinculo')(din);
-  // 3,0 y 4,9 dan 3,95, que ya es 4,0: no hace falta el 5,0 exacto.
-  chk(`pide ${p.externo.necesaria} en lo que le queda al lab`,p.externo.necesaria>4.8&&p.externo.necesaria<=4.9);
-  const html=g('htmlPartesVinculo')(din,{fmt:g('simConComa')});
-  chk('el simulador lo escribe con coma',html.includes('Necesitas 4,9 en lo pendiente para el 4,0'));
+  const din=catedra(4.5,null);S.ramos=[din,laboratorio(6.5)];
+  const {valor:nec,cual}=g('notaNecesariaParaAprobar')(din);
+  chk(`pide ${nec&&nec.toFixed(2)} en el examen, para la cátedra`,nec>1&&nec<=7&&cual===' cátedra');
+  // Seguir el consejo tiene que alcanzar: con esa nota la cátedra llega a 4,0.
+  const puesta=Math.ceil((nec-1e-9)*10)/10;
+  const cerrada=catedra(4.5,puesta);
+  chk(`poniendo ${puesta} la cátedra queda en ${oficial(g('calculoRamoConCompuertas')(cerrada).valor)}`,
+    oficial(g('calculoRamoConCompuertas')(cerrada).valor)>=4.0);
+  // Y una décima menos no alcanza: no pide de más.
+  const menos=Math.round((puesta-0.1)*10)/10,corta=catedra(4.5,menos);
+  chk(`con ${menos} no llega`,oficial(g('calculoRamoConCompuertas')(corta).valor)<4.0);
+  // En el simulador, con un control todavía pendiente.
+  const conControl=catedra(4.5,null);conControl.categorias[2].notas=conControl.categorias[2].notas.slice(0,2);
+  S.ramos=[conControl,laboratorio(6.5)];
+  vm.runInContext('simState={};simAusencias={};',ctx);
+  const necSim=g('notaNecesariaParaAprobar')(conControl).valor;
+  const sim=g('simNotaNecesaria')(g('simProjectedRamo')(conControl));
+  chk(`el simulador lo dice para la cátedra: "${sim&&sim.texto}"`,
+    sim&&sim.texto===`Para aprobar cátedra necesitas ${g('simConComa')(g('nfNecesaria')(necSim))} en lo que queda`);
+  const suelto={id:'s',nombre:'Suelto',color:'#3aa',creditos:10,origen:null,gates:[],categorias:[
+    {id:'a',nombre:'Prueba',peso:50,notas:[{id:'n',valor:3.0,peso:1}]},{id:'b',nombre:'Examen',peso:50,notas:[]}]};
+  S.ramos=[suelto];
+  const sinLab=g('notaNecesariaParaAprobar')(suelto);
+  chk('un ramo sin laboratorio sigue preguntando por el ramo entero',sinLab.cual===''&&Math.abs(sinLab.valor-g('notaNecesaria')(suelto))<1e-9);
 }
 
-console.log('\n=== El simulador desglosa la proyección, no lo guardado ===');
+console.log('\n=== El simulador muestra la proyección, no lo guardado ===');
 {
   const din=catedra(null,null);S.ramos=[din,laboratorio(5.0)];
   vm.runInContext(`simState={i2:[{id:'h1',valor:7.0}],ex:[{id:'h2',valor:7.0}]};simAusencias={};`,ctx);
@@ -68,14 +83,9 @@ console.log('\n=== El simulador desglosa la proyección, no lo guardado ===');
 console.log('\n=== Lab sin notas o sin agregar ===');
 {
   const din=catedra(4.0,4.0);S.ramos=[din,laboratorio(null)];
-  let html=g('htmlPartesVinculo')(din,{interactivo:true});
-  chk('avisa que el promedio de arriba es solo la cátedra',html.includes('es solo la cátedra'));
   chk('sin notas de lab no se repite el mismo número al lado',g('htmlSoloCatedra')(din)==='');
-  chk('el lab dice que no tiene notas',/Laboratorio de Dinámica · 30%[\s\S]*Sin notas todavía/.test(html));
   S.ramos=[din];
-  html=g('htmlPartesVinculo')(din,{interactivo:true});
-  chk('sin el lab entre sus ramos, lo dice',html.includes('No está entre tus ramos'));
-  chk('y no ofrece abrir un ramo que no existe',!html.includes('openRamo'));
+  chk('sin el lab entre sus ramos tampoco',g('htmlSoloCatedra')(din)==='');
 }
 
 console.log('\n=== Lo que no tiene partes no cambia ===');
@@ -83,7 +93,7 @@ console.log('\n=== Lo que no tiene partes no cambia ===');
   const suelto={id:'s',nombre:'Suelto',color:'#3aa',creditos:10,origen:null,gates:[],categorias:[
     {id:'a',nombre:'Prueba',peso:100,notas:[{id:'n',valor:5.0,peso:1}]}]};
   S.ramos=[suelto];
-  chk('un ramo sin vínculo no tiene partes',g('partesDelVinculo')(suelto)===null&&g('htmlPartesVinculo')(suelto)===''&&g('htmlSoloCatedra')(suelto)==='');
+  chk('un ramo sin vínculo no tiene partes',g('partesDelVinculo')(suelto)===null&&g('htmlSoloCatedra')(suelto)==='');
   const archivado={...catedra(5,5),avgOverride:5.5};S.ramos=[archivado,laboratorio(6)];
   chk('un ramo archivado con nota corregida a mano tampoco',g('partesDelVinculo')(archivado)===null);
 }

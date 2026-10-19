@@ -1,0 +1,36 @@
+name: catalogo-uc
+
+# Cuando cursos-uc.js cambia en main, la tabla public.catalogo_uc de Supabase se
+# actualiza sola (bin/catalogo-uc-subir.js). Antes había que regenerar el CSV e
+# importarlo a mano, y mientras tanto la búsqueda por servidor iba atrasada.
+#
+# Necesita el secreto SUPABASE_SECRET_KEY (la sb_secret_* de Supabase, que nunca
+# va en el código) en el environment `supabase`, restringido a la rama main:
+# Settings → Environments → supabase → Deployment branches: main.
+# Sin el secreto, el job avisa y termina sin fallar.
+on:
+  push:
+    branches: [main]
+    paths: [cursos-uc.js]
+  workflow_dispatch:
+
+concurrency:
+  group: catalogo-uc
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  subir:
+    runs-on: ubuntu-latest
+    environment: supabase
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Subir catálogo UC
+        run: node bin/catalogo-uc-subir.js
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
