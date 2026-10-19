@@ -2263,12 +2263,21 @@ const PRESETS_FEN={
   'Comunicación':{
     periodo:'2026-2',
     creditos:2,
-    // El programa dice que sin 4,0 en lo individual las notas grupales "no son
-    // válidas" Y que el estudiante reprueba, pero nunca dice con qué nota queda.
-    // No es la regla "la final es la más baja entre los dos requisitos": esa sí
-    // se modela; esta cambia QUÉ evaluaciones entran en el promedio, y el motor
-    // no sabe expresarlo. Se declara en vez de forzarla.
-    noCalcula:['Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que este promedio no lo refleja'],
+    // Programa 4.2.4: "promedio mínimo de 4,0 en el conjunto de las evaluaciones
+    // individuales del curso para que las evaluaciones grupales sean
+    // consideradas válidas"; si no, "reprobará el curso, independientemente del
+    // desempeño obtenido en las instancias grupales". Individuales, según su
+    // tabla: Pitch inicial 15%, Columna 15%, Solemne 20% y Video storytelling
+    // 10% (60%). La participación es "Mixto/Grupal" y tiene su propio mínimo.
+    //
+    // Hasta el 2026-10-19 quedaba en noCalcula y el promedio podía salir
+    // APROBADO mientras el estudiante reprobaba (#627). El programa no dice con
+    // qué nota se reprueba, así que se usa la compuerta de grupo con tope en el
+    // propio promedio individual: siempre bajo 4,0, y se dice en la ficha.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Pitch inicial individual','Columna de opinión','Solemne: elevator pitch','Examen: video storytelling'],min:4.0,cap:'self'},
+    ],
+    noCalcula:['Si tu promedio en las evaluaciones individuales queda bajo 4,0, las grupales dejan de contar y repruebas. El programa no dice con qué nota, así que tu nota final queda, como máximo, en tu promedio individual'],
     reglasDelCurso:[
       'Necesitas al menos 6 de las 11 actividades hechas en clases para aprobar',
       'Las notas grupales se ajustan según cómo te evalúan tus compañeros, y pueden moverse hasta un 100%',
