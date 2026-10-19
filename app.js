@@ -6557,6 +6557,8 @@ function openUserMenu(){
   // La malla es del estudiante: una cuenta de profesor no tiene carrera.
   const malla=document.getElementById('um-malla');
   if(malla)malla.style.display=esCuentaProfesor()?'none':'flex';
+  const calculadora=document.getElementById('um-calculadora');
+  if(calculadora)calculadora.style.display=esCuentaProfesor()?'none':'flex';
   // Sin sesión no hay nada que cerrar
   const out=document.getElementById('um-logout'),sep=document.getElementById('um-sep-logout');
   const hay=!!currentUser;
@@ -6591,6 +6593,180 @@ function umGo(fn){
   const origen=avatarMenu();
   if(origen&&origen.isConnected){try{origen.focus({preventScroll:true});}catch(e){origen.focus();}}
   setTimeout(()=>{try{fn();}catch(e){}},60);
+}
+
+// Herramienta aparte del editor de evaluaciones (#735). Solo la nota calculada
+// entra a S; los dos puntajes viven en la hoja y se descartan al cerrarla.
+let _resultadoCalculadoraApp=null,_destinosCalculadoraApp=[],_exigenciaEditadaCalculadoraApp=false;
+function numeroCalculadoraApp(valor){
+  const texto=String(valor??'').trim().replace(',','.');
+  if(!/^\d+(?:\.\d+)?$/.test(texto))return NaN;
+  const n=Number(texto);
+  return Number.isFinite(n)?n:NaN;
+}
+function formatoCalculadoraApp(n,decimales){
+  return Number(n).toFixed(decimales).replace('.',',');
+}
+function ramoCalculadoraApp(){
+  const id=document.getElementById('calc-app-ramo')?.value;
+  return S.ramos.find(r=>r.id===id)||null;
+}
+function exigenciaRamoCalculadoraApp(r){
+  const e=Number(r?.exigenciaPuntaje);
+  return e>=1&&e<=99?e:50;
+}
+function editarExigenciaCalculadoraApp(){
+  _exigenciaEditadaCalculadoraApp=true;
+  calcularNotaApp();
+}
+function recordarExigenciaCalculadoraApp(){
+  const r=ramoCalculadoraApp();
+  const e=numeroCalculadoraApp(document.getElementById('calc-app-exigencia')?.value);
+  if(!r||!(e>=1&&e<=99))return;
+  if(e!==exigenciaRamoCalculadoraApp(r)||
+    (e===50&&Object.prototype.hasOwnProperty.call(r,'exigenciaPuntaje')&&r.exigenciaPuntaje!==50)){
+    r.exigenciaPuntaje=e;save();
+  }
+  _exigenciaEditadaCalculadoraApp=false;
+}
+function destinosCalculadoraApp(r){
+  const destinos=[];
+  for(const cat of r?.categorias||[]){
+    // La ficha tampoco permite escribir encima de una ausencia justificada ni
+    // de una evaluación que quedó oculta por eximición confirmada.
+    const ausencia=ausenciaDeEvaluacion(r,cat);
+    if(ausenciaActivaCalculadoraApp(ausencia)||categoriaEximida(r,cat))continue;
+    if(!cat.directNota)continue;
+    if(Number.isInteger(cat.slots)&&cat.slots>1){
+      const ultimo=(cat.notas||[]).reduce((m,n)=>Number.isInteger(n.slot)?Math.max(m,n.slot):m,-1);
+      for(let slot=0;slot<Math.max(cat.slots,ultimo+1);slot++){
+        destinos.push({catId:cat.id,slot,etiqueta:`${cat.nombre} › ${etiquetaCasilla(r,cat,slot)}`,nota:(cat.notas||[]).find(n=>n.slot===slot)});
+      }
+    }else destinos.push({catId:cat.id,slot:null,etiqueta:cat.nombre,nota:(cat.notas||[])[0]});
+  }
+  return destinos;
+}
+function ausenciaActivaCalculadoraApp(a){return !!(a?.declarada&&!a.inactiva);}
+function seleccionarRamoCalculadoraApp(){
+  const r=ramoCalculadoraApp();
+  const guardada=Number(r?.exigenciaPuntaje);
+  if(r&&guardada>=1&&guardada<=99){
+    document.getElementById('calc-app-exigencia').value=String(guardada);
+    _exigenciaEditadaCalculadoraApp=false;
+  }else if(!_exigenciaEditadaCalculadoraApp||!r){
+    document.getElementById('calc-app-exigencia').value='50';
+    _exigenciaEditadaCalculadoraApp=false;
+  }
+  if(r&&_exigenciaEditadaCalculadoraApp)recordarExigenciaCalculadoraApp();
+  _destinosCalculadoraApp=destinosCalculadoraApp(r);
+  const selector=document.getElementById('calc-app-destino');
+  selector.innerHTML='<option value="">Elige una evaluación o casilla</option>'+
+    _destinosCalculadoraApp.map((d,i)=>`<option value="${i}">${esc(d.etiqueta)}</option>`).join('');
+  selector.disabled=!_destinosCalculadoraApp.length;
+  const aviso=document.getElementById('calc-app-destino-aviso');
+  aviso.textContent=r&&!_destinosCalculadoraApp.length
+    ?'Este ramo aún no tiene una evaluación simple o casilla donde guardar la nota.'
+    :'Las secciones de varias notas se editan en la ficha del ramo.';
+  calcularNotaApp();
+}
+function calcularNotaApp(){
+  const campo=id=>document.getElementById('calc-app-'+id);
+  const p=numeroCalculadoraApp(campo('puntaje').value),t=numeroCalculadoraApp(campo('total').value);
+  const e=numeroCalculadoraApp(campo('exigencia').value);
+  const nmin=numeroCalculadoraApp(campo('nmin').value),naprob=numeroCalculadoraApp(campo('naprob').value),nmax=numeroCalculadoraApp(campo('nmax').value);
+  const datos={puntaje:p,total:t,exigencia:e,nmin,naprob,nmax};
+  for(const id of Object.keys(datos))campo(id).removeAttribute('aria-invalid');
+  let error='',mal=[];
+  const hayP=campo('puntaje').value.trim()!=='',hayT=campo('total').value.trim()!=='';
+  if(!(e>=1&&e<=99)){error='La exigencia va entre 1 % y 99 %.';mal=['exigencia'];}
+  else if(!(nmin>=1&&nmin<naprob&&naprob<nmax&&nmax<=7)){
+    error='La escala debe subir desde 1,0 hasta 7,0.';mal=['nmin','naprob','nmax'];
+  }else if(hayT&&!(t>0)){error='El puntaje total debe ser mayor que cero.';mal=['total'];}
+  else if(hayP&&!(p>=0)){error='Escribe un puntaje válido, por ejemplo 23,5.';mal=['puntaje'];}
+  else if(hayP&&hayT&&p>t){error='Tu puntaje no puede superar el total.';mal=['puntaje'];}
+  for(const id of mal)campo(id).setAttribute('aria-invalid','true');
+  const resultado=!error&&hayP&&hayT?gh_notaDesdePuntaje(p,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked}):null;
+  _resultadoCalculadoraApp=resultado;
+  campo('error').textContent=error;
+  campo('nota').textContent=resultado?formatoCalculadoraApp(resultado.nota,1):'–';
+  campo('detalle').textContent=resultado
+    ?`Con ${String(e).replace('.',',')} % de exigencia, el ${formatoCalculadoraApp(naprob,1)} está en ${formatoCalculadoraApp(resultado.puntajeAprobacion,2)} de ${formatoCalculadoraApp(t,2)} puntos.`
+    :(error?'Corrige el dato marcado para ver tu nota.':'Escribe tu puntaje y el total de la prueba.');
+  const destino=campo('destino'),seleccion=destino.value;
+  const elegido=seleccion!==''?_destinosCalculadoraApp[Number(seleccion)]:null;
+  campo('guardar').disabled=!resultado||!ramoCalculadoraApp()||!elegido;
+  campo('guardar-aviso').textContent=elegido?.nota?.valor!=null
+    ?`Guardar reemplazará la nota que ya tiene ${elegido.etiqueta}.`
+    :'El puntaje obtenido y el total no se guardan.';
+  const tabla=campo('tabla');
+  if(campo('tabla-det').open&&resultado){
+    const pasos=[0.5,1,2,5,10,20,25,50,100,250,500,1000];
+    const paso=pasos.find(x=>(!Number.isInteger(t)||x>=1)&&t/x<=120)||Math.ceil(t/120/1000)*1000;
+    let filas='';
+    for(let x=0;x<t-1e-9;x+=paso){
+      const nota=gh_notaDesdePuntaje(x,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked});
+      if(nota)filas+=`<tr><td>${formatoCalculadoraApp(x,2)}</td><td>${formatoCalculadoraApp(nota.nota,1)}</td></tr>`;
+    }
+    const final=gh_notaDesdePuntaje(t,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked});
+    tabla.innerHTML=filas+`<tr><td>${formatoCalculadoraApp(t,2)}</td><td>${formatoCalculadoraApp(final.nota,1)}</td></tr>`;
+  }else tabla.textContent='';
+  return resultado;
+}
+function openCalculadoraApp(){
+  if(esCuentaProfesor())return;
+  _resultadoCalculadoraApp=null;_destinosCalculadoraApp=[];_exigenciaEditadaCalculadoraApp=false;
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Calculadora de nota</div>
+    <p class="modal-desc">Convierte el puntaje de una prueba a nota. Puedes calcular sin elegir un ramo.</p>
+    <label class="modal-label" style="font-size:.8125rem;" for="calc-app-puntaje">Puntaje obtenido</label>
+    <input class="modal-input" id="calc-app-puntaje" type="text" inputmode="decimal" autocomplete="off" placeholder="Por ejemplo, 25" oninput="calcularNotaApp()">
+    <label class="modal-label" style="font-size:.8125rem;" for="calc-app-total">Puntaje total</label>
+    <input class="modal-input" id="calc-app-total" type="text" inputmode="decimal" autocomplete="off" placeholder="Por ejemplo, 50" oninput="calcularNotaApp()">
+    <label class="modal-label" style="font-size:.8125rem;" for="calc-app-exigencia">Exigencia (%)</label>
+    <input class="modal-input" id="calc-app-exigencia" type="text" inputmode="decimal" value="50" oninput="editarExigenciaCalculadoraApp()" onchange="recordarExigenciaCalculadoraApp()">
+    <details style="margin-bottom:12px;"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;">Más opciones de escala</summary>
+      <label class="modal-label" style="font-size:.8125rem;" for="calc-app-nmin">Nota mínima</label><input class="modal-input" id="calc-app-nmin" type="text" inputmode="decimal" value="1" oninput="calcularNotaApp()">
+      <label class="modal-label" style="font-size:.8125rem;" for="calc-app-naprob">Nota de aprobación</label><input class="modal-input" id="calc-app-naprob" type="text" inputmode="decimal" value="4" oninput="calcularNotaApp()">
+      <label class="modal-label" style="font-size:.8125rem;" for="calc-app-nmax">Nota máxima</label><input class="modal-input" id="calc-app-nmax" type="text" inputmode="decimal" value="7" oninput="calcularNotaApp()">
+      <label style="min-height:44px;display:flex;align-items:center;gap:10px;"><input id="calc-app-truncar" type="checkbox" onchange="calcularNotaApp()"> Truncar en vez de redondear</label>
+    </details>
+    <p id="calc-app-error" role="alert" style="color:var(--red);font-size:.8125rem;min-height:1.2em;"></p>
+    <div aria-live="polite" style="padding:16px;margin:8px 0 14px;background:var(--muted);border-radius:12px;">
+      <div style="font-size:.8125rem;color:var(--fg2);">Tu nota</div>
+      <strong id="calc-app-nota" style="display:block;font-size:2rem;font-variant-numeric:tabular-nums;">–</strong>
+      <div id="calc-app-detalle" style="font-size:.8125rem;color:var(--fg2);">Escribe tu puntaje y el total de la prueba.</div>
+    </div>
+    <details id="calc-app-tabla-det" ontoggle="calcularNotaApp()" style="margin-bottom:18px;"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;">Ver tabla de puntaje a nota</summary>
+      <div style="max-height:180px;overflow:auto;"><table style="width:100%;font-variant-numeric:tabular-nums;"><thead><tr><th>Puntos</th><th>Nota</th></tr></thead><tbody id="calc-app-tabla"></tbody></table></div>
+    </details>
+    <label class="modal-label" style="font-size:.8125rem;" for="calc-app-ramo">Guardar en un ramo</label>
+    <select id="calc-app-ramo" class="feedback-select" style="min-height:44px;" onchange="seleccionarRamoCalculadoraApp()">
+      <option value="">Solo calcular</option>${S.ramos.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)}</option>`).join('')}
+    </select>
+    <label class="modal-label" style="font-size:.8125rem;" for="calc-app-destino">Evaluación o casilla</label>
+    <select id="calc-app-destino" class="feedback-select" style="min-height:44px;" onchange="calcularNotaApp()" disabled><option value="">Elige un ramo primero</option></select>
+    <p id="calc-app-destino-aviso" class="modal-desc">Las secciones de varias notas se editan en la ficha del ramo.</p>
+    <p id="calc-app-guardar-aviso" class="modal-desc">El puntaje obtenido y el total no se guardan.</p>
+    <div class="modal-btns" style="position:sticky;bottom:0;background:var(--bg2);padding:8px 0;z-index:1;"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button>
+      <button type="button" class="btn-confirm" id="calc-app-guardar" onclick="guardarNotaCalculadoraApp()" disabled>Guardar como nota</button></div>`;
+  openModal();calcularNotaApp();
+}
+function guardarNotaCalculadoraApp(){
+  const resultado=calcularNotaApp(),r=ramoCalculadoraApp();
+  const valor=document.getElementById('calc-app-destino')?.value;
+  const destino=valor!==''?_destinosCalculadoraApp[Number(valor)]:null;
+  const cat=r?.categorias.find(c=>c.id===destino?.catId);
+  if(!resultado||!r||!destino||!cat||!cat.directNota||
+    ausenciaActivaCalculadoraApp(ausenciaDeEvaluacion(r,cat))||categoriaEximida(r,cat))return;
+  const e=numeroCalculadoraApp(document.getElementById('calc-app-exigencia').value);
+  // Campo opcional y aditivo: si no se eligió otra exigencia, las cuentas
+  // antiguas siguen sin esta clave y reciben 50 % por defecto.
+  if(e!==50||Object.prototype.hasOwnProperty.call(r,'exigenciaPuntaje'))r.exigenciaPuntaje=e;
+  const nota=resultado.nota.toFixed(1);
+  document.getElementById('calc-app-guardar').disabled=true;
+  closeModal();showTab('home');openRamo(r.id);
+  if(destino.slot===null)setDirectNota(cat.id,nota);
+  else setSlotNota(cat.id,destino.slot,nota);
 }
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('user-menu').classList.contains('open'))closeUserMenu();
