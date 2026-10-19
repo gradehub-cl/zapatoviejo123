@@ -68,6 +68,27 @@ function contexto({search='',sesion=false}={}){
   const c=contexto({search:'?profe=<script>'});
   chk('un código inválido no se guarda',!c.almacen.has('gradehub_profe_pendiente'));
   chk('sin sesión no se ofrece compartir todavía',(await b.run('revisarInvitacionProfesor()'))===false&&b.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG');
+  const sinRed=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  sinRed.run(`S.onboardingDone=true;showToast=texto=>{globalThis.__aviso=texto};
+    supabaseClient={rpc:async()=>({data:null,error:{code:'NETWORK'}})};`);
+  chk('un error de red conserva el link y dice cómo reintentar',
+    (await sinRed.run('revisarInvitacionProfesor()'))===false&&
+    sinRed.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG'&&
+    /Recarga GradeHub/.test(sinRed.run('__aviso')));
+  sinRed.run(`supabaseClient={rpc:async()=>({data:[{nombre_publico:'Profesora sintética'}],error:null})};
+    abrirHojaInvitacionProfesor=()=>{globalThis.__abierta=true};`);
+  chk('cuando vuelve la conexión se puede retomar la misma invitación',
+    (await sinRed.run('revisarInvitacionProfesor()'))===true&&sinRed.run('__abierta')===true);
+  const excepcion=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  excepcion.run(`S.onboardingDone=true;showToast=()=>{};supabaseClient={rpc:async()=>{throw Error('sin red')}};`);
+  chk('una excepción de red tampoco borra el link',
+    (await excepcion.run('revisarInvitacionProfesor()'))===false&&
+    excepcion.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG');
+  const invalido=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  invalido.run(`S.onboardingDone=true;showToast=()=>{};supabaseClient={rpc:async()=>({data:[],error:null})};`);
+  chk('un código realmente inexistente sí deja de quedar pendiente',
+    (await invalido.run('revisarInvitacionProfesor()'))===false&&
+    !invalido.almacen.has('gradehub_profe_pendiente'));
 
   console.log('\n=== Compartir parte sin nada elegido ===');
   const hoja=a.run(`hojaInvitacionProfesorHTML({nombre_publico:'Academia <b>X</b>'},[{id:'r1',nombre:'Cálculo II',sigla:'MAT1620'},{id:'r2',nombre:'Física',sigla:'FIS1514'}],'Cami')`);
