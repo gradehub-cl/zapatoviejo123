@@ -22,7 +22,7 @@ function servidor(r){
   return async(name,args)=>{const response=await ctx.onRequestPost({params:{ruta:['a'.repeat(64)]},request:{json:async()=>({id:1,method:'tools/call',params:{name,arguments:args}})}});const body=await response.json();assert.equal(body.error,undefined);return JSON.parse(body.result.content[0].text);};
 }
 (async()=>{
-  for(const [valor,meta,gates] of [[3.95,4,[]],[3.94,4,[]],[4.97,5,[]],[4.94,5,[]],[3.99,4,[{type:'min_grade_required',catId:'P',min:4,cap:3.99}]]]){
+  for(const [valor,meta,gates,activas] of [[3.95,4,[]],[3.94,4,[]],[4.97,5,[]],[4.94,5,[]],[3.94,4,[{type:'min_grade_required',catId:'P',min:4,cap:3.94}],1],[3.95,4,[{type:'min_grade_required',catId:'P',min:4,cap:3.9}],0]]){
     const r=course('Curso sintético',[cat('P',100,[note('n',valor)])],{gates});
     const antes=JSON.stringify(r),llamar=servidor(r);app.r=r;app.run('S.ramos=[r]');
     const promedio=app.run('ramoAvg(r)');
@@ -35,7 +35,8 @@ function servidor(r){
     const simulado=await llamar('simular',{ramo:r.nombre,meta,notas:[{evaluacion:'P',valor}]});
     assert.equal(simulado.promedioSimulado,promedio);
     assert.equal(simulado.alcanzaLaMeta,alcanzada);
-    if(gates.length)assert.equal(simulado.compuertasIncumplidas.length,1,'la compuerta no se borra con el redondeo');
+    // El requisito se mide redondeado como la final: 3,95 cumple, 3,94 no.
+    if(gates.length)assert.equal(simulado.compuertasIncumplidas.length,activas,'la compuerta se mide con el mismo redondeo que la final');
     assert.equal(JSON.stringify(r),antes,'ninguna nota guardada cambia');
   }
   console.log('OK: metas MCP respetan el redondeo final oficial y las compuertas');

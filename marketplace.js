@@ -666,13 +666,40 @@ function criteriosClaseValidos(c){
     c.promedioMenorA>1&&c.promedioMenorA<=7&&Number.isFinite(c.avanceMinimo)&&
     c.avanceMinimo>=0&&c.avanceMinimo<100;
 }
+// La próxima evaluación sin nota del ramo según su Agenda, si cae entre hoy y
+// los próximos DIAS_ANTES_EVALUACION_CLASES días; si no, null. Misma regla
+// que agendaEvents: una nota con fecha propia es su propia evaluación, y la
+// fecha del grupo cuenta mientras le falten notas para sus casillas.
+const DIAS_ANTES_EVALUACION_CLASES=7;
+function proximaEvaluacionClases(ramo,ahora=Date.now()){
+  const desde=diaLocalClases(ahora),hasta=diaLocalClases(ahora+DIAS_ANTES_EVALUACION_CLASES*864e5);
+  const enVentana=f=>typeof f==='string'&&f>=desde&&f<=hasta;
+  let proxima=null;
+  const anotar=f=>{if(enVentana(f)&&(!proxima||f<proxima))proxima=f;};
+  (ramo&&ramo.categorias||[]).forEach(c=>{
+    if(typeof categoriaEximida==='function'&&categoriaEximida(ramo,c))return;
+    const notas=c.notas||[];
+    notas.forEach(n=>{if(n.fecha&&(n.valor===null||n.valor===undefined))anotar(n.fecha);});
+    if(c.fecha&&notas.filter(n=>!n.fecha).length<(c.slots||1))anotar(c.fecha);
+  });
+  return proxima;
+}
+
 function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now(),turno=0}={}){
-  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant);
+  // Primero los ramos con una evaluación en los próximos días, la más cercana
+  // antes (#664: con la prueba encima es cuando alguien escribe a un profesor).
+  // Los demás quedan detrás en el orden que eligió la persona, así que quien no
+  // tiene fechas en la Agenda ve lo mismo que antes.
+  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant)
+    .map((r,i)=>({r,i,f:proximaEvaluacionClases(r,ahora)}))
+    .sort((x,y)=>x.f&&y.f?(x.f<y.f?-1:x.f>y.f?1:x.i-y.i):x.f?-1:y.f?1:x.i-y.i)
+    .map(x=>x.r);
   const omitidos=new Set(descartados);
   const disponibles=anunciosParaRamosLocales(anuncios,propios).filter(a=>
     a.tenant===tenant&&a.estado==='publicado'&&!omitidos.has(a.id)&&
     (a.vence_at==null||Date.parse(a.vence_at)>ahora)&&criteriosClaseValidos(a.criterios));
-  // El orden de ramos que eligió la persona manda. Si varios avisos calzan con
+  // Después de la próxima evaluación, el orden de ramos que eligió la persona
+  // manda. Si varios avisos calzan con
   // el mismo ramo, se alternan en cada apertura de la app: antes ganaba siempre
   // el publicado último, y un profesor con dos clases del mismo ramo casi no
   // veía la otra en Inicio (Salva Ramos, 2026-09-30). Se entrega como máximo
@@ -918,12 +945,15 @@ function preciosClase(a){
   return {gratis:false,pack:n,descuento:d,porClase:base,porClaseFinal:conDescuento(base),
     packTotal:n?base*n:null,packFinal:n?conDescuento(base*n):null};
 }
-// Corto, para la línea bajo el título: "$45.000 pack de 4" o "$11.250".
+// Corto, para la línea bajo el título: "4 clases · $11.250 c/u" o "$11.250".
+// En un pack se lee el precio por clase y no el total (#664): en la primera
+// campaña pagada, el pack de $45.000 casi no se abrió. El total sigue en la
+// tarjeta del catálogo, con precioCatalogoHTML.
 function precioClase(anuncio){
   const p=preciosClase(anuncio);
   if(p.gratis)return 'Gratis';
   if(p.porClase==null)return pesosClase(anuncio&&anuncio.precio_clp);
-  return p.pack?`${pesosClase(p.packFinal)} pack de ${p.pack}`:pesosClase(p.porClaseFinal);
+  return p.pack?`${p.pack} clases · ${pesosClase(p.porClaseFinal)} c/u`:pesosClase(p.porClaseFinal);
 }
 // El bloque de precio de la tarjeta. El precio anterior va tachado con texto
 // oculto ("antes") para lectores de pantalla, y el descuento en el color de la
@@ -1052,7 +1082,9 @@ function activarTarjetasClases(raiz){
     link.dataset.contactando='true';link.setAttribute('aria-busy','true');
     // Abrir una pestaña vacía dentro del gesto del usuario evita el bloqueo
     // del navegador después del await. La cerramos si no se confirmó el cobro.
-    const ventana=link.target==='_blank'&&typeof window!=='undefined'&&typeof window.open==='function'
+    // En la app iOS no hay pestaña que abrir: se abre al final con abrirFuera.
+    const nativa=typeof enAppNativa==='function'&&enAppNativa();
+    const ventana=!nativa&&link.target==='_blank'&&typeof window!=='undefined'&&typeof window.open==='function'
       ?window.open('about:blank','_blank'):null;
     if(ventana)ventana.opener=null;
     const cargo=await registrarInteraccionMedida(link.dataset.contactar,'contacto',link.dataset.sigla);
@@ -1063,7 +1095,7 @@ function activarTarjetasClases(raiz){
       return;
     }
     if(ventana&&!ventana.closed)ventana.location.href=link.href;
-    else if(typeof window!=='undefined')window.location.assign(link.href);
+    else if(!(nativa&&abrirFuera(link.href))&&typeof window!=='undefined')window.location.assign(link.href);
   }));
   raiz.querySelectorAll('[data-abrir]').forEach(boton=>boton.addEventListener('click',()=>{
     const tarjeta=boton.closest('.catalogo-clase-card'),mas=tarjeta&&tarjeta.querySelector('.catalogo-clase-mas');
@@ -1341,6 +1373,30 @@ async function renderEspacioProfesor(raiz,{titulo=true}={}){
   const ficha=await perfilProfesorActual();
   if(!ficha.ok){raiz.innerHTML=cabecera('Espacio de profesor')+`<p class="profesor-info" role="alert">${esc(ficha.error)}</p>`+salida();return;}
   if(!ficha.perfil){renderPostulacionProfesor(raiz);return;}
+  if(ficha.perfil.estado==='pendiente'){
+    const mios=await misAnunciosClase();
+    const fecha=new Date(ficha.perfil.solicitado_at);
+    const enviada=Number.isFinite(fecha.getTime())
+      ?`Enviada el ${new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'}).format(fecha)}.`
+      :'Fecha de envío no disponible.';
+    const borradores=mios.ok?mios.anuncios.filter(a=>a.estado==='borrador'):[];
+    raiz.innerHTML=cabecera('Espacio de profesor')+
+      `<div class="profesor-hig"><section class="clases-seccion" aria-labelledby="profesor-postulacion-titulo"><h2 id="profesor-postulacion-titulo">Tu postulación</h2><p class="profesor-info" role="status">Está pendiente de revisión. ${esc(enviada)}</p><p class="profesor-info">Te avisaremos cuando esté aprobada. Mientras tanto, puedes preparar un anuncio y guardarlo como borrador.</p></section>`+
+      `<section class="clases-seccion" aria-labelledby="profesor-borradores-titulo"><h2 id="profesor-borradores-titulo">Tu borrador</h2>`+
+      (mios.ok
+        ?borradores.length
+          ?`<div class="clase-lista">${borradores.map(a=>`<div class="clase-card"><div class="clase-card-top"><strong>${esc(a.titulo||'Sin título')}</strong><span class="clase-estado">Borrador</span></div><p class="clase-card-meta">Nadie lo ve todavía.</p><button type="button" class="clase-accion" data-borrador-pendiente="${esc(a.id)}">Seguir preparando</button></div>`).join('')}</div>`
+          :'<p class="profesor-info">Todavía no tienes un borrador.</p><button type="button" class="btn-confirm" id="clase-nueva-pendiente">Preparar anuncio</button>'
+        :`<p class="profesor-info" role="alert">${esc(mios.error)}</p>`)+
+      '</section></div>'+salida();
+    const nueva=raiz.querySelector('#clase-nueva-pendiente');
+    if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null,{pendiente:true}));
+    if(typeof raiz.querySelectorAll==='function')raiz.querySelectorAll('[data-borrador-pendiente]').forEach(b=>b.addEventListener('click',()=>{
+      const anuncio=borradores.find(a=>a.id===b.dataset.borradorPendiente);
+      if(anuncio)renderBorradorProfesor(raiz,anuncio,{pendiente:true});
+    }));
+    return;
+  }
   if(ficha.perfil.estado!=='aprobado'){
     const avisos={pendiente:'Tu postulación está esperando revisión. Todavía no puedes ofrecer clases.',rechazado:'Tu postulación no fue aprobada. Puedes escribirnos desde Sugerencias para revisar el motivo.',suspendido:'Tu acceso de profesor está suspendido. Tus notas como estudiante siguen disponibles.'};
     raiz.innerHTML=cabecera('Espacio de profesor')+`<p class="profesor-info" role="status">${esc(avisos[ficha.perfil.estado]||'Tu perfil necesita revisión.')}</p>`+salida();
@@ -1361,7 +1417,7 @@ function postularComoProfesor(){
 }
 function renderPostulacionProfesor(raiz){
   raiz.innerHTML=`<div class="modal-title" id="modal-titulo">Postula para ofrecer clases</div>
-    <p class="profesor-info">Tu cuenta de estudiante sigue igual. Un miembro de nuestro equipo revisará tu postulación antes de que puedas preparar anuncios.</p>
+    <p class="profesor-info">Tu cuenta de estudiante sigue igual. Un miembro de nuestro equipo revisará tu postulación. Mientras esperas, podrás preparar un borrador de anuncio.</p>
     <form class="profesor-form" id="profesor-postular">
       <label class="modal-label" for="profesor-nombre">Nombre público</label><input id="profesor-nombre" type="text" maxlength="100" minlength="2" required autocomplete="name">
       <label class="modal-label" for="profesor-presentacion">Qué ramos enseñas y qué experiencia tienes</label><textarea id="profesor-presentacion" minlength="20" maxlength="1500" required></textarea>
@@ -2108,13 +2164,13 @@ async function guardarCampanaClase(anuncioId,datos){
   }catch(e){return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};}
 }
 
-function renderBorradorProfesor(raiz,anuncio){
+function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   let id=anuncio&&anuncio.id||null,flyerActual=anuncio&&anuncio.flyer_path||null;
   const valor=(campo,defecto='')=>esc(anuncio&&anuncio[campo]!=null?anuncio[campo]:defecto);
   const tipoContactoInicial=anuncio&&PREFIJO_CONTACTO_CLASE[anuncio.contacto_tipo]!==undefined?anuncio.contacto_tipo:'whatsapp';
   const elegir=(opciones,actual)=>opciones.map(([clave,texto])=>`<option value="${clave}"${actual===clave?' selected':''}>${texto}</option>`).join('');
   raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+cabeceraProfesorHTML(id?'Edita tu borrador.':'Prepara tu clase.',
-    'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
+    pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
     ${anuncio&&anuncio.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(anuncio.comentario_revision)}</p></div>`:''}
     <form class="profesor-form" id="profesor-borrador">
       <!-- Campos y vista previa van juntos para que la vista previa, sticky en
@@ -2148,7 +2204,7 @@ function renderBorradorProfesor(raiz,anuncio){
       <label class="modal-label" for="pr-contacto" id="pr-contacto-etiqueta">Tu WhatsApp</label><input id="pr-contacto" type="text" minlength="3" maxlength="160" required autocomplete="off" aria-describedby="pr-contacto-error pr-contacto-ayuda" placeholder="${esc(EJEMPLO_CONTACTO_CLASE[tipoContactoInicial])}" value="${esc(anuncio&&anuncio.contacto_valor!=null?anuncio.contacto_valor:PREFIJO_CONTACTO_CLASE[tipoContactoInicial])}">
       <p id="pr-contacto-error" role="alert" hidden style="margin:6px 0 0;font-size:0.8125rem;color:var(--red);"></p>
       <p class="profesor-info" id="pr-contacto-ayuda"></p>
-      <label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp"><p class="profesor-info">JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.</p>
+      <label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp" ${pendiente?'disabled':''}><p class="profesor-info">${pendiente?'Podrás subir el flyer cuando aprobemos tu postulación.':'JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.'}</p>
       <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
       <button class="btn-cancel" id="pr-quitar-flyer" type="button" ${flyerActual?'':'hidden'}>Quitar flyer guardado</button>
       <div id="pr-logo"></div>
@@ -2196,7 +2252,7 @@ function renderBorradorProfesor(raiz,anuncio){
       </section>
       </div>
       <div class="profesor-form-acciones">
-      <div class="modal-btns"><button class="btn-cancel" id="pr-guardar" type="button">Guardar borrador</button><button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button></div>
+      <div class="modal-btns"><button class="${pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">Guardar borrador</button>${pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
       <p class="profesor-estado" role="status" aria-live="polite">${id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
       </div>
     </form></div>`;
@@ -2348,7 +2404,7 @@ function renderBorradorProfesor(raiz,anuncio){
   actualizarVista();
   activarBuscadorRamosClase(form,campo);
   const cajaLogo=campo('logo');
-  if(cajaLogo)renderLogoProfesor(cajaLogo);
+  if(cajaLogo&&!pendiente)renderLogoProfesor(cajaLogo);
   // WhatsApp parte con "+56 9 " escrito y se ordena con sus espacios. Si la
   // clase es gratis aparece el selector con Instagram y link de inscripción;
   // si deja de ser gratis, vuelve a WhatsApp.
@@ -2417,6 +2473,7 @@ function renderBorradorProfesor(raiz,anuncio){
   };
   if(contacto&&typeof contacto.addEventListener==='function')contacto.addEventListener('input',limpiarContacto);
   const procesar=async enviar=>{
+    if(enviar&&pendiente)return;
     if(procesando||!campanaLista)return;
     if(typeof form.querySelectorAll==='function')[...form.querySelectorAll(':invalid')].forEach(abrirSeccionDe);
     if(!form.reportValidity())return;
@@ -2433,7 +2490,7 @@ function renderBorradorProfesor(raiz,anuncio){
       detalles:leerDetalles(),linea_datos:lineaParaGuardar(borradorEnVivo()),
       contacto_tipo:tipoActual(),contacto_valor:campo('contacto').value};
     procesando=true;
-    const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')];botones.forEach(b=>b.disabled=true);
+    const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')].filter(Boolean);botones.forEach(b=>b.disabled=true);
     estado.textContent='Guardando borrador…';
     try{
       const guardado=await guardarBorradorClase(datos,id);
@@ -2449,13 +2506,14 @@ function renderBorradorProfesor(raiz,anuncio){
         if(!respuesta.ok){estado.textContent=respuesta.error;if(respuesta.campo==='contacto_valor')marcarContacto(respuesta.error);return;}
         raiz.innerHTML='<div class="modal-title" id="modal-titulo">En revisión</div><p class="profesor-info" role="status">Recibimos tu anuncio. Nadie lo verá hasta que GradeHub lo revise y apruebe.</p>'+(guardadaCampana.falta||respuesta.sqlAnterior?'<p class="profesor-info" role="status">Los días y el tope todavía no se guardaron. GradeHub debe confirmarlos contigo antes de publicar.</p>':'');return;
       }
-      estado.textContent='Borrador guardado. Puedes volver después o enviarlo a revisión.'+(guardadaCampana.falta?' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.':'');
+      estado.textContent=(pendiente?'Borrador guardado. Podrás enviarlo a revisión cuando aprobemos tu postulación.':'Borrador guardado. Puedes volver después o enviarlo a revisión.')+(guardadaCampana.falta?' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.':'');
     }catch(e){estado.textContent='No pudimos completar la acción. Revisa si tu borrador quedó guardado e intenta de nuevo.';
     }finally{procesando=false;botones.forEach(b=>{if(b.isConnected)b.disabled=false;});}
   };
   form.addEventListener('submit',e=>{e.preventDefault();procesar(false);});
   form.querySelector('#pr-guardar').addEventListener('click',()=>procesar(false));
-  form.querySelector('#pr-enviar').addEventListener('click',()=>procesar(true));
+  const enviarBoton=form.querySelector('#pr-enviar');
+  if(enviarBoton)enviarBoton.addEventListener('click',()=>procesar(true));
 }
 
 // ─── RECOMENDACIÓN EN INICIO ────────────────────────────────────────────────
@@ -2544,6 +2602,7 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 function cargarAnunciosRecomendacion(tenant,alTerminar){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
   if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant)return;
   const pedido={tenant,lista:null,pidiendo:true};
   anunciosRecomendacion=pedido;
@@ -2625,6 +2684,11 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
 }
 
 function pintarRecomendacionClase(contenedor){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(contenedor)contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
+    if(contenedor)contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+    return;
+  }
   if(!RECOMENDACIONES_CLASES_ACTIVAS||!contenedor||!currentUser||!supabaseClient||!S||!S.tenant)return;
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
@@ -2925,7 +2989,16 @@ function personaAdminHigHTML(p){
   return `<section class="admin-hig-persona"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[p.estado]||p.estado)} · ${(p.anuncios||[]).length} anuncios</p></div>
     ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}</section>`;
 }
-function panelAdminHigHTML(profesores,ahora){
+function crecimientoAdminHTML(semanas){
+  if(!Array.isArray(semanas)||!semanas.length)return '';
+  const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
+  const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
+  const semana=f=>`<h3>Semana del ${esc(String(f.semana||''))}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
+  return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h2 id="admin-crecimiento-titulo">Crecimiento semanal</h2>
+    <p>Cuentas nuevas, activas y que volvieron cada semana.</p><div class="admin-crecimiento-actual">${semana(semanas[0])}</div>
+    ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
+}
+function panelAdminHigHTML(profesores,ahora,crecimiento=[]){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
   return `<div class="admin-hig"><header class="admin-hig-cabecera"><p class="admin-hig-ceja">ADMINISTRACIÓN · CLASES PARTICULARES</p><h1>Todo en orden.</h1><p>Revisa anuncios, acompaña a los profesores y lleva los cobros al día.</p></header>
@@ -2934,6 +3007,7 @@ function panelAdminHigHTML(profesores,ahora){
     ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
     ${kpi('Deuda registrada',pesosClase(r.deuda),'Incluye publicaciones anteriores')}
     ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
+    ${crecimientoAdminHTML(crecimiento)}
     <p class="admin-hig-nota">Revisa y decide los anuncios desde acá. Aprobar profesores y revisar logos sigue en SQL Editor. Cada acción queda registrada.</p>
     <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
     <div class="admin-hig-herramientas"><label class="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label>Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label></div>
@@ -2957,8 +3031,14 @@ async function pintarPanelAdmin(raiz){
     profesores=Array.isArray(data)?data:[];
     if(profesores.some(p=>(p.anuncios||[]).some(a=>!Array.isArray(a.cobros))))compatibilidadSqlClases.cobros=true;
   }catch(e){raiz.innerHTML='<p class="profesor-info" role="alert">No pudimos cargar la administración. Intenta de nuevo.</p>';return;}
+  // Si el SQL agregado aún no se aplicó, las campañas siguen disponibles.
+  let crecimiento=[];
+  try{
+    const {data,error}=await supabaseClient.rpc('crecimiento_semanal_admin');
+    if(!error&&Array.isArray(data))crecimiento=data;
+  }catch(e){}
   const ahora=Date.now();
-  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora);
+  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento);
   let seccion=vistaAdmin.seccion;
   const buscar=raiz.querySelector('#admin-hig-buscar'),filtro=raiz.querySelector('#admin-hig-estado');
   buscar.value=vistaAdmin.busqueda;filtro.value=vistaAdmin.estado;
@@ -3078,3 +3158,730 @@ async function pintarPanelAdmin(raiz){
     });
   });
 }
+
+// ─── PANEL DE ALUMNOS (decisión de Lucas, 2026-10-08) ───────────────────────
+// Un profesor ve las notas de un alumno solo si ese alumno se las comparte, ramo
+// por ramo, desde el link del profesor; y deja de verlas cuando el alumno lo
+// decide. El SQL (supabase/profesor_alumnos.sql) entrega los ramos tal como el
+// alumno los guardó: el promedio lo calcula este navegador con ramoAvg, el mismo
+// motor de la app, para que el profesor vea exactamente lo que ve el alumno.
+const CLAVE_PROFE_PENDIENTE='gradehub_profe_pendiente';
+const URL_PANEL_ALUMNOS='https://gradehub.cl/';
+
+// Misma regla que clave_evaluacion() en SQL: así cada nota encuentra su promedio.
+function claveEvaluacionPanel(nombre){
+  const s=String(nombre||'').toLowerCase()
+    .replace(/[áàäâ]/g,'a').replace(/[éèëê]/g,'e').replace(/[íìïî]/g,'i')
+    .replace(/[óòöô]/g,'o').replace(/[úùüû]/g,'u').replace(/ñ/g,'n')
+    .replace(/\s+/g,' ').trim();
+  return s||null;
+}
+function codigoProfeValido(codigo){
+  const c=String(codigo||'').trim().toUpperCase();
+  return /^[A-HJ-NP-Z2-9]{8}$/.test(c)?c:null;
+}
+function linkAlumnosProfesor(codigo){return `${URL_PANEL_ALUMNOS}?profe=${encodeURIComponent(codigo)}`;}
+
+// El link se abre antes de iniciar sesión: el código espera acá hasta que haya
+// una cuenta con su semestre listo. Solo el código, nunca datos del profesor.
+function guardarProfePendiente(codigo){
+  const c=codigoProfeValido(codigo);if(!c)return false;
+  try{localStorage.setItem(CLAVE_PROFE_PENDIENTE,c);}catch(e){}
+  return true;
+}
+function profePendiente(){try{return codigoProfeValido(localStorage.getItem(CLAVE_PROFE_PENDIENTE));}catch(e){return null;}}
+function olvidarProfePendiente(){try{localStorage.removeItem(CLAVE_PROFE_PENDIENTE);}catch(e){}}
+function capturarProfeDeUrl(){
+  if(typeof location==='undefined'||typeof URLSearchParams==='undefined')return null;
+  const params=new URLSearchParams(location.search||'');
+  if(!params.has('profe'))return null;
+  const c=guardarProfePendiente(params.get('profe'))?profePendiente():null;
+  // Fuera de la barra de direcciones: si la persona comparte la página, no
+  // reparte el link de su profesor.
+  params.delete('profe');
+  try{history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:'')+location.hash);}catch(e){}
+  return c;
+}
+
+let invitacionProfeAbierta=false;
+async function revisarInvitacionProfesor(){
+  const codigo=profePendiente();
+  if(!codigo||invitacionProfeAbierta||!supabaseClient||!currentUser||!S.onboardingDone)return false;
+  invitacionProfeAbierta=true;
+  try{
+    const {data,error}=await supabaseClient.rpc('profesor_por_codigo',{p_codigo:codigo});
+    const profe=!error&&Array.isArray(data)?data[0]:null;
+    if(!profe){
+      olvidarProfePendiente();
+      if(!error)showToast('Ese link de profesor ya no funciona. Pídele uno nuevo.',true);
+      return false;
+    }
+    abrirHojaInvitacionProfesor(codigo,profe);
+    return true;
+  }catch(e){return false;}
+  finally{invitacionProfeAbierta=false;}
+}
+
+function hojaInvitacionProfesorHTML(profe,ramos,nombre){
+  const filas=ramos.map(r=>{
+    const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(r):r.sigla;
+    return `<label class="compartir-ramo"><input type="checkbox" value="${esc(r.id)}" data-compartir-ramo>
+      <span><b>${esc(r.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span></label>`;
+  }).join('');
+  return `<div class="compartir-profe">
+    <div class="modal-title" id="modal-titulo">${esc(profe.nombre_publico)} quiere ver tus notas</div>
+    <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
+    <div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas||'<p class="compartir-explica">Todavía no tienes ramos para compartir.</p>'}</div>
+    <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
+    <div class="modal-input"><input type="text" id="compartir-nombre" maxlength="60" autocomplete="off" value="${esc(nombre)}"></div>
+    <p class="compartir-explica">Puedes dejar de compartir cuando quieras en Ajustes → Datos y cuenta.</p>
+    <p class="compartir-error" id="compartir-error" role="alert" hidden></p>
+    <div class="modal-btns">
+      <button type="button" class="btn-cancel" id="compartir-no">Ahora no</button>
+      <button type="button" class="btn-confirm" id="compartir-si" disabled>Compartir</button>
+    </div>
+  </div>`;
+}
+
+function abrirHojaInvitacionProfesor(codigo,profe){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  caja.innerHTML=hojaInvitacionProfesorHTML(profe,S.ramos||[],S.userName||'');
+  openModal();
+  const si=caja.querySelector('#compartir-si'),nombre=caja.querySelector('#compartir-nombre'),aviso=caja.querySelector('#compartir-error');
+  const elegidos=()=>[...caja.querySelectorAll('[data-compartir-ramo]')].filter(c=>c.checked).map(c=>c.value);
+  const actualizar=()=>{si.disabled=!elegidos().length||!nombre.value.trim();};
+  caja.querySelectorAll('[data-compartir-ramo]').forEach(c=>c.addEventListener('change',actualizar));
+  nombre.addEventListener('input',actualizar);
+  caja.querySelector('#compartir-no').addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
+  si.addEventListener('click',async()=>{
+    if(si.disabled)return;
+    si.disabled=true;aviso.hidden=true;
+    const r=await compartirConProfesor(codigo,nombre.value,elegidos());
+    if(r.ok){
+      olvidarProfePendiente();closeModal();
+      const n=elegidos().length;
+      showToast(`Listo: ${profe.nombre_publico} ya ve tus notas de ${n} ${n===1?'ramo':'ramos'}.`);
+      track('compartir_con_profesor',{ramos:n});
+    }else{aviso.textContent=r.error;aviso.hidden=false;actualizar();}
+  });
+}
+
+async function compartirConProfesor(codigo,nombre,ramos){
+  const pedir=()=>supabaseClient.rpc('compartir_con_profesor',{p_codigo:codigo,p_nombre:String(nombre||'').trim(),p_ramos:ramos});
+  try{
+    let {error}=await pedir();
+    // Un ramo recién agregado puede no haber subido todavía a la nube, que es
+    // donde se revisa que sea tuyo: se sube y se intenta una vez más.
+    if(error&&/al menos un ramo/.test(error.message||'')&&typeof syncNow==='function'){
+      await syncNow();({error}=await pedir());
+    }
+    if(!error)return {ok:true};
+    const m=error.message||'';
+    return {ok:false,error:/nombre/.test(m)?'Escribe con qué nombre quieres aparecer.'
+      :/al menos un ramo/.test(m)?'No pudimos guardar tus ramos en la nube. Revisa tu conexión e intenta de nuevo.'
+      :/ningún profesor/.test(m)?'Ese link ya no funciona. Pídele uno nuevo a tu profesor.'
+      :'No pudimos compartir. Intenta de nuevo.'};
+  }catch(e){return {ok:false,error:'No pudimos compartir. Revisa tu conexión e intenta de nuevo.'};}
+}
+
+// Ajustes → Datos y cuenta: con quién comparte el alumno, y cómo dejar de hacerlo.
+async function pintarCompartidosProfesor(){
+  const caja=document.getElementById('s-compartidos');
+  if(!caja||!supabaseClient||!currentUser)return;
+  let lista;
+  try{
+    const {data,error}=await supabaseClient.rpc('mis_profesores');
+    if(error)throw error;
+    lista=Array.isArray(data)?data:[];
+  }catch(e){caja.innerHTML='<p class="settings-help">No pudimos cargar con quién compartes. Vuelve a abrir esta sección.</p>';return;}
+  if(!caja.isConnected)return;
+  if(!lista.length){caja.innerHTML='<p class="settings-help">No compartes tus notas con ningún profesor.</p>';return;}
+  const nombreRamo=id=>{const r=(S.ramos||[]).find(x=>x.id===id);return r?r.nombre:null;};
+  caja.innerHTML=lista.map(p=>{
+    const ramos=(p.ramos||[]).map(nombreRamo).filter(Boolean);
+    return `<div class="compartido-fila" data-compartido="${esc(p.id)}">
+      <div><b>${esc(p.nombre_publico)}</b><small>${ramos.length?esc(ramos.join(' · ')):'Ramos que ya no tienes'} · como «${esc(p.nombre_visible)}»</small></div>
+      <button type="button" class="settings-danger-btn" data-dejar="${esc(p.id)}" data-nombre="${esc(p.nombre_publico)}">Dejar de compartir</button>
+    </div>`;
+  }).join('');
+  // Destructivo: se confirma en el diálogo de la app (HIG), con Cancelar a mano.
+  caja.querySelectorAll('[data-dejar]').forEach(b=>b.addEventListener('click',()=>{
+    showConfirm(`Dejar de compartir con ${b.dataset.nombre}`,
+      'Deja de ver tus notas en este momento. Si quieres volver a compartir, abre su link otra vez.',async()=>{
+      b.disabled=true;
+      try{
+        const {error}=await supabaseClient.rpc('dejar_de_compartir',{p_id:b.dataset.dejar});
+        if(error)throw error;
+        showToast('Dejaste de compartir tus notas.');
+        track('dejar_de_compartir_profesor');
+        pintarCompartidosProfesor();
+      }catch(e){b.disabled=false;showToast('No pudimos dejar de compartir. Intenta de nuevo.',true);}
+    },{label:'Dejar de compartir',focusCancel:true});
+  }));
+}
+
+// ─── Lado del profesor ───────────────────────────────────────────────────────
+function ramoParaPanel(r){
+  // Los ramos llegan tal como el alumno los guardó; normalize les completa lo
+  // que una versión vieja pudo no escribir, igual que al cargar la app.
+  try{const n=typeof normalize==='function'?normalize({ramos:[r]}).ramos[0]:r;return n||r;}catch(e){return r;}
+}
+// Notas agrupadas como en la ficha del ramo: cada categoría con su promedio
+// (el del motor, con descartes y reglas) y sus notas debajo.
+function categoriasDeRamoPanel(r){
+  let valores=new Map();
+  try{
+    const base=typeof calculoRamoConCompuertas==='function'?calculoRamoConCompuertas(r):null;
+    if(base&&base.res)valores=new Map((base.res.breakdown||[]).map(n=>[n.id,n.value]));
+  }catch(e){}
+  return (r.categorias||[]).map(c=>{
+    const notas=(c.notas||[]).filter(n=>typeof n.valor==='number'&&isFinite(n.valor)).map(n=>{
+      const nombre=(n.nombre||'').trim()||c.nombre;
+      return {id:n.id,nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
+    });
+    const v=valores.get(c.id);
+    const promedio=typeof v==='number'&&isFinite(v)?v:(typeof avgPond==='function'?avgPond(notas):null);
+    return {nombre:c.nombre,clave:claveEvaluacionPanel(c.nombre),notas,promedio};
+  }).filter(c=>c.notas.length);
+}
+// La próxima evaluación sin nota del ramo, de hoy en adelante, y cuánto
+// necesita en ella para ir con 4 después de rendirla: lo mismo que el alumno
+// ve en sus widgets (notaParaIrConCuatro), con las fechas de su Agenda.
+// Los ramos que el alumno compartió, que es donde se busca el ramo vinculado.
+// Sin esto ramoAvg buscaba en S.ramos, que en el panel son los del PROFESOR: la
+// Dinámica de un alumno se combinaba con el laboratorio del profesor. Con una
+// búsqueda escrita, igual se usan todos los que compartió, no solo los que se ven.
+function ramosDelAlumnoPanel(al){return ((al&&(al.todosLosRamos||al.ramos))||[]).map(ramoParaPanel);}
+function proximaEvaluacionPanel(ramo,ahora=new Date(),contexto=[ramo]){
+  if(typeof agendaEvents!=='function')return null;
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  let e=null;
+  try{e=agendaEvents([ramo]).find(x=>x.pending&&x.fecha>=hoy)||null;}catch(err){return null;}
+  if(!e)return null;
+  const cuatro=(typeof notaParaIrConCuatro==='function'?notaParaIrConCuatro(e,contexto):null)||{};
+  return {evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
+    necesita:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable};
+}
+function proximaEvaluacionPanelHTML(p){
+  if(!p)return '';
+  const cuando=esc(fechaCorta(p.fecha))+(p.hora?' · '+esc(p.hora):'');
+  // Sin color: el semáforo es para notas, y esto es una meta.
+  const meta=p.necesita?`necesita <b>${esc(p.necesita.replace('.',','))}</b> para ir con 4`
+    :p.margen?'va con 4 con cualquier nota'
+    :p.inalcanzable?'con esta sola no alcanza el 4':'';
+  return `<p class="panel-alumnos-proxima"><span>Próxima: <b>${esc(p.evaluacion)}</b> · ${cuando}</span>${meta?`<span>${meta}</span>`:''}</p>`;
+}
+function comparacionTexto(prom,personas,etiqueta=false){
+  if(prom==null)return `<span class="panel-alumnos-sin">${etiqueta?'GradeHub: aún pocos datos':'Aún pocos datos'}</span>`;
+  return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${etiqueta?'GradeHub · ':''}${personas} personas</small></span>`;
+}
+function ramoPanelHTML(r,comp,ahora=new Date(),contexto){
+  const ramo=ramoParaPanel(r);
+  contexto=contexto||[ramo];
+  const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
+  const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
+  const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
+  const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
+  const categorias=categoriasDeRamoPanel(ramo);
+  // Una nota cuyo nombre no calza con nadie no repite "aún pocos datos": la
+  // comparación útil está en su categoría.
+  const deNota=n=>{const e=porNota.get(n.clave);return e?comparacionTexto(e.promedio,e.personas):'<span class="panel-alumnos-sin">—</span>';};
+  const deCategoria=c=>{const e=porCategoria.get(c.clave);return comparacionTexto(e?e.promedio:null,e?e.personas:0);};
+  const filas=categorias.map(c=>{
+    // Una categoría de una sola nota es una sola fila.
+    if(c.notas.length===1)return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}</td><td>${esc(fmt(c.notas[0].valor))}</td><td>${deCategoria(c)}</td></tr></tbody>`;
+    return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${c.notas.length} notas</small></td><td>${c.promedio===null?'·':esc(fmtPromedio(c.promedio))}</td><td>${deCategoria(c)}</td></tr>
+      ${c.notas.map(n=>`<tr class="panel-alumnos-nota"><td>${esc(n.nombre)}</td><td>${esc(fmt(n.valor))}</td><td>${deNota(n)}</td></tr>`).join('')}</tbody>`;
+  }).join('');
+  return `<div class="panel-alumnos-ramo">
+    <div class="panel-alumnos-ramo-cabeza">
+      <span><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
+      <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
+      ${comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,true)}
+    </div>
+    ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
+    ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead>${filas}</table>`
+      :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
+  </div>`;
+}
+
+// Resumen del grupo (#667): por ramo, cuántos alumnos, su promedio (ramoAvg de
+// cada uno, como en su app, y después el promedio simple entre ellos), cómo va
+// cada categoría y cada prueba, y cuántos van en cada color del semáforo. Todo
+// con lo que el panel ya bajó; la comparación con GradeHub es la misma de
+// siempre, agregada y desde 5 personas.
+// Cada alumno se calcula con las reglas de nota de SU universidad, no con las
+// del profesor que mira. La UAndes redondea a la centésima y después a la
+// décima: un 3,946 es 4,0 para un alumno UAndes y 3,9 para uno de la UC. Con
+// la universidad del profesor, uno UAndes salía reprobando siendo aprobado, y
+// uno UC aprobando siendo reprobado. El motor lee S.tenant en cada llamada:
+// acá se pone la del alumno y se restaura siempre, aunque algo falle. Todo lo
+// que corre adentro es sincrónico.
+function conUniversidadPanel(tenant,fn){
+  const conocida=typeof TENANTS==='object'&&TENANTS&&Object.prototype.hasOwnProperty.call(TENANTS,tenant);
+  if(!S||!conocida||S.tenant===tenant)return fn();
+  const propia=S.tenant;
+  S.tenant=tenant;
+  try{return fn();}finally{S.tenant=propia;}
+}
+function resumenAlumnosPanel(alumnos,compDe){
+  const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+  const grupos=new Map();
+  (alumnos||[]).forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r);
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
+    // Con la universidad en la clave, un grupo nunca mezcla reglas de nota.
+    const clave=`${al.tenant}|`+(sigla?String(sigla).toUpperCase():'nombre|'+claveEvaluacionPanel(ramo.nombre));
+    if(!grupos.has(clave))grupos.set(clave,{clave,tenant:al.tenant,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
+      promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
+    const g=grupos.get(clave);
+    g.alumnos++;
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+    if(Number.isFinite(avg))g.promedios.push(avg);
+    g.semaforo[Number.isFinite(avg)&&typeof nivelRamo==='function'?nivelRamo(ramo,avg):'neutral']++;
+    categoriasDeRamoPanel(ramo).forEach(c=>{
+      if(!c.clave)return;
+      if(!g.categorias.has(c.clave))g.categorias.set(c.clave,{clave:c.clave,nombre:c.nombre,promedios:[],evaluaciones:new Map()});
+      const gc=g.categorias.get(c.clave);
+      if(Number.isFinite(c.promedio))gc.promedios.push(c.promedio);
+      c.notas.forEach(n=>{
+        if(!n.clave)return;
+        if(!gc.evaluaciones.has(n.clave))gc.evaluaciones.set(n.clave,{clave:n.clave,nombre:n.nombre,notas:[]});
+        gc.evaluaciones.get(n.clave).notas.push(n.valor);
+      });
+    });
+  });}));
+  return [...grupos.values()].map(g=>({clave:g.clave,tenant:g.tenant,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
+    conNotas:g.promedios.length,promedio:media(g.promedios),semaforo:g.semaforo,
+    categorias:[...g.categorias.values()].map(c=>({clave:c.clave,nombre:c.nombre,alumnos:c.promedios.length,promedio:media(c.promedios),
+      evaluaciones:[...c.evaluaciones.values()].map(e=>({clave:e.clave,nombre:e.nombre,alumnos:e.notas.length,promedio:media(e.notas)}))}))}))
+    .sort((x,y)=>y.alumnos-x.alumnos||String(x.nombre).localeCompare(String(y.nombre),'es'));
+}
+function resumenAlumnosPanelHTML(resumen){
+  const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
+  const prom=v=>v===null?'·':esc(fmtPromedio(v));
+  const ramos=resumen.map(g=>conUniversidadPanel(g.tenant,()=>{
+    const comp=g.comp||{};
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
+    // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
+    const sem=[['good','aprobando'],['warn','al borde'],['bad','reprobando']].filter(([k])=>g.semaforo[k])
+      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('')+
+      (g.semaforo.neutral?`<span class="panel-resumen-sem">${g.semaforo.neutral} sin notas</span>`:'');
+    const filas=g.categorias.map(c=>`<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${n(c.alumnos,'alumno','alumnos')}</small></td><td>${prom(c.promedio)}</td><td>${gh(porCategoria.get(c.clave))}</td></tr>
+      ${c.evaluaciones.length>1?c.evaluaciones.map(e=>`<tr class="panel-alumnos-nota"><td>${esc(e.nombre)}<small>${n(e.alumnos,'nota','notas')}</small></td><td>${prom(e.promedio)}</td><td>${porNota.has(e.clave)?gh(porNota.get(e.clave)):'<span class="panel-alumnos-sin">—</span>'}</td></tr>`).join(''):''}</tbody>`).join('');
+    return `<details class="panel-resumen-ramo">
+      <summary>
+        <span class="panel-resumen-nombre"><b>${esc(g.nombre)}</b><small>${g.sigla?esc(g.sigla)+' · ':''}${n(g.alumnos,'alumno','alumnos')}</small></span>
+        <span class="panel-alumnos-prom">${g.promedio===null?'Sin notas':prom(g.promedio)}<small>tus alumnos</small></span>
+        ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
+        <span class="panel-resumen-semaforo">${sem}</span>
+      </summary>
+      ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
+        :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
+    </details>`;
+  })).join('');
+  return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Resumen por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
+    ${ramos}
+    <p class="clase-privacidad">“Tus alumnos” es el promedio simple entre los alumnos con nota. Si van sobre o bajo GradeHub no dice por qué: también cuentan el profesor de cátedra, la sección y lo que cada uno estudia.</p>
+  </section>`;
+}
+
+// ─── ESTADÍSTICAS DEL PROFESOR: ANTES Y AHORA (#697) ─────────────────────────
+// Cómo les iba a sus alumnos antes de empezar con el profesor y cómo les va
+// ahora. La medida principal es la DIFERENCIA CON EL CURSO: la nota menos el
+// promedio de GradeHub en esa misma evaluación (desde 5 personas), para que una
+// prueba más fácil no parezca una mejora. Una evaluación sin fecha no se puede
+// poner antes ni después: queda fuera y se cuenta. Con menos de
+// MIN_EVALS_COMPARACION evaluaciones comparables a cada lado no hay "cambio".
+// Antes y después no prueba que la mejora sea por las clases: quien busca
+// clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.
+const MIN_EVALS_COMPARACION=2;
+function diaLocalPanel(f){
+  // Una fecha sin hora ya es un día: leída con new Date sería medianoche UTC,
+  // que en Chile todavía es el día anterior (el 1 de septiembre salía 31 de agosto).
+  if(typeof f==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(f))return f;
+  const d=f instanceof Date?f:new Date(f);if(f==null||isNaN(d))return null;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+const mediaPanel=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+function medianaPanel(xs){
+  if(!xs.length)return null;const o=xs.slice().sort((a,b)=>a-b),m=o.length>>1;
+  return o.length%2?o[m]:(o[m-1]+o[m])/2;
+}
+// Cada nota con su fecha (la de la Agenda del alumno) y el promedio del curso
+// en esa evaluación. Una categoría de una sola evaluación se compara con su
+// categoría, que es la misma prueba.
+function evaluacionesConFechaPanel(ramo,comp){
+  const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
+  const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
+  const out=[],vistas=new Set();
+  let eventos=[];try{eventos=typeof agendaEvents==='function'?agendaEvents([ramo]):[];}catch(e){}
+  eventos.forEach(e=>(e.notas||[]).forEach(n=>{
+    if(typeof n.valor!=='number'||vistas.has(n.id))return;
+    vistas.add(n.id);
+    const nombre=(n.nombre||'').trim()||e.cat.nombre;
+    const unica=!(Number.isInteger(e.cat.slots)&&e.cat.slots>1)&&(e.cat.notas||[]).length<=1;
+    const ref=porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null);
+    out.push({id:n.id,ramo:ramo.nombre,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
+      curso:ref&&ref.promedio!=null&&isFinite(Number(ref.promedio))?Number(ref.promedio):null,
+      aprobada:typeof notaAprobada==='function'?notaAprobada(n.valor):n.valor>=4});
+  }));
+  let sinFecha=0;
+  (ramo.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{if(typeof n.valor==='number'&&!vistas.has(n.id))sinFecha++;}));
+  return {evaluaciones:out,sinFecha};
+}
+function resumenLadoPanel(lista){
+  const comparadas=lista.filter(e=>e.curso!==null);
+  return {n:lista.length,nComparadas:comparadas.length,
+    promedio:mediaPanel(lista.map(e=>e.nota)),
+    diferencia:mediaPanel(comparadas.map(e=>e.nota-e.curso)),
+    aprobacion:lista.length?lista.filter(e=>e.aprobada).length/lista.length:null};
+}
+// `inicio` es cuándo empezó con el profesor: por omisión, cuándo compartió.
+function metricasAlumnoPanel(al,compDe,{inicio}={}){
+  return conUniversidadPanel(al.tenant,()=>{
+    const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
+    let evaluaciones=[],sinFecha=0;
+    (al.ramos||[]).forEach(r=>{
+      const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
+    });
+    evaluaciones.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
+    evaluaciones.forEach(e=>{e.lado=desde&&e.fecha<desde?'antes':'ahora';});
+    const antes=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='antes'));
+    const ahora=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='ahora'));
+    const suficiente=antes.nComparadas>=MIN_EVALS_COMPARACION&&ahora.nComparadas>=MIN_EVALS_COMPARACION;
+    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,
+      cambio:suficiente?ahora.diferencia-antes.diferencia:null};
+  });
+}
+// El grupo: la mediana del cambio (un alumno que subió mucho no la mueve sola),
+// cuántos mejoraron de los que tienen datos, y aprobación y promedio de todas
+// las evaluaciones juntas, antes y ahora.
+function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
+  const porAlumno=(alumnos||[]).map(al=>metricasAlumnoPanel(al,compDe,inicioDe?{inicio:inicioDe(al)}:{}));
+  const conCambio=porAlumno.filter(m=>m.cambio!==null);
+  const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
+  return {alumnos:porAlumno,conCambio:conCambio.length,
+    mejoraron:conCambio.filter(m=>m.cambio>0).length,
+    cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
+    antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),
+    sinFecha:porAlumno.reduce((s,m)=>s+m.sinFecha,0)};
+}
+
+// Buscador del panel: por el nombre con que el alumno eligió aparecer, o por
+// ramo o sigla, sin importar tildes ni mayúsculas. Si calza el nombre se ven
+// todos sus ramos; si calza un ramo, solo ese.
+function filtrarAlumnosPanel(alumnos,texto){
+  const q=claveEvaluacionPanel(texto);
+  if(!q)return alumnos;
+  const calza=s=>(claveEvaluacionPanel(s)||'').includes(q);
+  return alumnos.map(al=>{
+    if(calza(al.nombre_visible))return al;
+    const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
+      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
+    return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
+  }).filter(Boolean);
+}
+// ─── La pantalla de "antes y ahora" ──────────────────────────────────────────
+// Tres cifras del grupo (cifras destacadas, no gráficos) y, en cada alumno, su
+// cambio, un gráfico de una sola serie y la lista con las mismas cifras. Nada
+// lleva los colores del semáforo: subir respecto del curso no es "aprobar".
+const unDecimalPanel=v=>Math.abs(v).toFixed(1);
+const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
+const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
+function frenteAlCursoPanel(d){
+  if(d===null)return 'sin comparación';
+  return Math.abs(d)<0.05?'igual que el curso':`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} el curso`;
+}
+function antesAhoraGrupoHTML(g){
+  if(!g||!g.alumnos.length)return '';
+  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
+  const pocos='Aún pocos datos';
+  const cifras=[
+    g.cambioMediana===null?cifra('—','Respecto del curso',pocos)
+      :cifra(esc(conSignoPanel(g.cambioMediana)),'Respecto del curso',`mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
+    g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron','respecto del curso'):cifra('—','Mejoraron',pocos),
+    cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Aprobación','de sus evaluaciones')
+  ].join('');
+  const prom=v=>v===null?'—':esc(fmt(v));
+  return `<section class="ah-grupo" aria-labelledby="ah-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Cómo van tus alumnos</h2></div>
+    <div class="ah-cifras">${cifras}</div>
+    <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
+    <p class="clase-privacidad">Con ${g.antes.n+g.ahora.n} evaluaciones con fecha${g.sinFecha?`; ${g.sinFecha} sin fecha no cuentan`:''}. “Respecto del curso” compara cada nota con el promedio de GradeHub en esa misma prueba, antes y después de que empezaran contigo. El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
+  </section>`;
+}
+// Una serie: la diferencia con el curso en cada evaluación comparable, en el
+// orden en que fueron. La línea del curso (0) va tenue y una marca dice cuándo
+// empezó. Cada punto tiene un área de 12 px para mostrar su detalle.
+function graficoAntesAhoraSVG(m){
+  const pts=m.evaluaciones.filter(e=>e.curso!==null);
+  if(pts.length<2)return '';
+  const W=320,H=96,P=14;
+  const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
+  const x=i=>P+i*(W-2*P)/(pts.length-1),y=d=>H/2-(d/lim)*(H/2-P);
+  const corte=pts.findIndex(e=>e.lado==='ahora');
+  const linea=pts.map((e,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(e.nota-e.curso).toFixed(1)}`).join(' ');
+  const xc=corte>0?((x(corte-1)+x(corte))/2).toFixed(1):null;
+  const marca=xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
+  const puntos=pts.map((e,i)=>`<g><title>${esc(e.evaluacion)} · ${esc(fechaCorta(e.fecha))}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="12"/><circle class="ah-punto" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="4"/></g>`).join('');
+  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}<path class="ah-linea" d="${linea}"/>${puntos}</svg>
+    <p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.</p>`;
+}
+function antesAhoraAlumnoHTML(m){
+  if(!m||!m.evaluaciones.length)return '';
+  const resumen=m.cambio===null?'Aún pocos datos para comparar antes y ahora'
+    :Math.abs(m.cambio)<0.05?'Igual que antes, respecto del curso'
+    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} respecto del curso`;
+  const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
+  return `<div class="ah-alumno">
+    <p class="ah-alumno-resumen">${resumen}</p>
+    <p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia)}</span></p>
+    ${graficoAntesAhoraSVG(m)}
+    <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
+      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>Curso</th></tr></thead><tbody>${filas}</tbody></table>
+      ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
+    </details>
+  </div>`;
+}
+
+// "Empezó contigo el …": por omisión el día que compartió, que suele ser
+// después de la primera clase; el profesor lo corrige y las estadísticas
+// comparan desde ahí.
+function inicioAlumnoPanel(al){return diaLocalPanel(al&&(al.inicio||al.desde));}
+function lineaInicioAlumnoHTML(al){
+  const dia=inicioAlumnoPanel(al);if(!dia)return '';
+  return `<p class="panel-alumnos-inicio"><span>Empezó contigo el <b>${esc(fechaCorta(dia))}</b>${al.inicio?'':' · el día que compartió'}</span>
+    <button type="button" class="agent-refresh" data-inicio-alumno="${esc(al.id)}">Cambiar</button></p>`;
+}
+// Hoja con el selector de fecha del sistema (HIG: Date pickers). La fecha no
+// puede ser futura: no se compara contra lo que todavía no pasa.
+function abrirInicioAlumno(al,alGuardar){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  const hoy=diaLocalPanel(new Date());
+  caja.innerHTML=`<div class="modal-title" id="modal-titulo">¿Cuándo empezó ${esc(al.nombre_visible)} contigo?</div>
+    <p class="compartir-explica">Las estadísticas comparan cómo le iba antes de esa fecha y cómo le va desde ahí.</p>
+    <label class="modal-label" for="inicio-fecha">Primera clase</label>
+    <div class="modal-input"><input type="date" id="inicio-fecha" min="2000-01-01" max="${hoy}" value="${esc(inicioAlumnoPanel(al)||'')}"></div>
+    <p class="compartir-error" id="inicio-error" role="alert" hidden></p>
+    ${al.inicio?'<button type="button" class="rep-link" id="inicio-reset">Usar el día que compartió</button>':''}
+    <div class="modal-btns"><button type="button" class="btn-cancel" id="inicio-cancelar">Cancelar</button><button type="button" class="btn-confirm" id="inicio-guardar">Guardar</button></div>`;
+  openModal();
+  const error=caja.querySelector('#inicio-error'),boton=caja.querySelector('#inicio-guardar');
+  const avisar=t=>{error.textContent=t;error.hidden=!t;};
+  const guardar=async valor=>{
+    boton.disabled=true;avisar('');
+    try{
+      const {error:e}=await supabaseClient.rpc('fijar_inicio_alumno',{p_id:al.id,p_inicio:valor});
+      if(e)throw e;
+      closeModal();showToast('Fecha guardada.');alGuardar();
+    }catch(e){boton.disabled=false;avisar(/futura/.test((e&&e.message)||'')?'Elige una fecha que ya pasó.':'No pudimos guardarla. Intenta de nuevo.');}
+  };
+  caja.querySelector('#inicio-cancelar').addEventListener('click',closeModal);
+  boton.addEventListener('click',()=>{
+    const v=caja.querySelector('#inicio-fecha').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){avisar('Elige una fecha.');return;}
+    if(v>hoy){avisar('Elige una fecha que ya pasó.');return;}
+    guardar(v);
+  });
+  const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
+}
+function alumnosPanelHTML(lista,compDe){
+  return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
+      <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
+      ${lineaInicioAlumnoHTML(al)}
+      ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe))}
+      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
+    </details>`)).join('');
+}
+
+// Exportar: una fila por alumno, ramo y evaluación, armada en el navegador con
+// lo que el panel ya tiene; no pasa por ningún servidor. Punto y coma y coma
+// decimal, como lo abre Excel en Chile; Google Sheets lo detecta igual.
+function celdaCsvPanel(v){
+  if(v===null||v===undefined)return '';
+  let s=String(v);
+  // El nombre lo escribe el alumno: "=…" no puede llegar a Excel como fórmula.
+  // Un número negativo ("-1,0") no es una fórmula y tiene que llegar como número.
+  if(/^[=+\-@\t\r]/.test(s)&&!/^-\d+(,\d+)?$/.test(s))s="'"+s;
+  return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function csvAlumnosPanel(alumnos,compDe){
+  const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
+  const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
+  // Las tres últimas son las de "antes y ahora" (#697): van al final para no
+  // mover las columnas que alguien ya usa en su planilla.
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso']];
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
+    const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
+    const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
+      return [e.fecha,e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
+    (al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const base=[al.nombre_visible,ramo.nombre,sigla];
+    const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
+    const categorias=categoriasDeRamoPanel(ramo);
+    // Un ramo sin notas igual sale, para que el archivo tenga a todos.
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','']);return;}
+    categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id)])));
+  });}));
+  return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
+}
+async function exportarAlumnosPanel(lista,compDe){
+  const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
+  const nombre=`gradehub-alumnos-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
+  // La marca BOM hace que Excel lea bien las tildes.
+  const blob=new Blob(['\ufeff'+csvAlumnosPanel(lista,compDe)],{type:'text/csv;charset=utf-8'});
+  track('panel_alumnos_exportado',{alumnos:lista.length});
+  // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
+  try{
+    const archivo=typeof File==='function'?new File([blob],nombre,{type:blob.type}):null;
+    const tactil=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
+    if(tactil&&archivo&&navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){
+      await navigator.share({files:[archivo]});return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=nombre;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast('Archivo descargado.');
+}
+
+// La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
+async function renderAlumnosTab(){
+  const raiz=document.getElementById('alumnos-body');
+  if(!raiz)return;
+  // Una cuenta de profesor tiene esta pestaña desde el primer día (#697), pero
+  // sus consultas exigen estar aprobado: mientras no lo esté, se dice por qué
+  // está vacía en vez de mostrar un error.
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(perfilProfesorConocido()===undefined)await cargarPerfilProfesor().catch(()=>{});
+    if(!esProfesorAprobado()){
+      raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
+        '<p class="profesor-info" role="status">Cuando aprobemos tu postulación, acá vas a ver las notas que tus alumnos decidan compartirte.</p></div>';
+      return;
+    }
+  }
+  renderAlumnosProfesor(raiz);
+}
+async function renderAlumnosProfesor(raiz,{volver}={}){
+  raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
+    '<p class="profesor-info" role="status">Cargando…</p></div>';
+  let codigo,alumnos;
+  try{
+    const [c,a]=await Promise.all([supabaseClient.rpc('codigo_alumnos_profesor'),supabaseClient.rpc('mis_alumnos')]);
+    if(c.error||a.error)throw (c.error||a.error);
+    codigo=c.data;alumnos=Array.isArray(a.data)?a.data:[];
+  }catch(e){
+    raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
+      '<p class="profesor-info" role="alert">No pudimos cargar tus alumnos. Vuelve a intentarlo en un rato.</p>'+
+      `<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
+    // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
+    raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver?volver():renderAlumnosProfesor(raiz));
+    return;
+  }
+  // Una consulta por ramo distinto, no por alumno.
+  const cursos=new Map();
+  alumnos.forEach(al=>(al.ramos||[]).forEach(r=>{
+    // La sigla guardada en el ramo, que es la misma con que el SQL lo busca.
+    if(r.sigla&&al.tenant)cursos.set(`${al.tenant}|${String(r.sigla).toUpperCase()}`,null);
+  }));
+  await Promise.all([...cursos.keys()].map(async k=>{
+    const [tenant,sigla]=k.split('|');
+    try{const {data,error}=await supabaseClient.rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
+  }));
+  const compDe=(al,r)=>cursos.get(`${al.tenant}|${String(r.sigla||'').toUpperCase()}`)||null;
+  const link=linkAlumnosProfesor(codigo);
+  // Con alumnos, lo primero es cómo van y el link para invitar más va al final.
+  // Sin alumnos, el link es lo único que se puede hacer: va arriba.
+  const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
+      <h2>Tu link para alumnos</h2>
+      <p>Mándalo a tus alumnos. Cada uno elige qué ramos te comparte y puede dejar de hacerlo cuando quiera.</p>
+      <div class="panel-alumnos-url"><code id="alumnos-link">${esc(link)}</code><button type="button" class="btn-confirm" id="alumnos-copiar">Copiar link</button></div>
+      <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
+      <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
+    </section>`;
+  raiz.innerHTML='<div class="profesor-hig">'+
+    cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
+    `${alumnos.length?'':seccionLink}
+    ${alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):''}
+    ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
+    <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
+    // Con uno solo no hay nada que buscar.
+    (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
+      aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+
+    (alumnos.length?'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>':'')+
+    `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
+      :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
+    '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
+    (alumnos.length?seccionLink:'')+
+    (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
+  const botonVolver=raiz.querySelector('#alumnos-volver');
+  if(botonVolver)botonVolver.addEventListener('click',()=>volver());
+  raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
+    try{await navigator.clipboard.writeText(link);showToast('Link copiado.');}
+    catch(e){const el=raiz.querySelector('#alumnos-link');const sel=window.getSelection&&window.getSelection();
+      if(sel&&el){const rango=document.createRange();rango.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rango);}
+      showToast('Selecciónalo y cópialo.',true);}
+  });
+  // Lo que no se deshace se confirma en el diálogo de la app (HIG), con Cancelar a mano.
+  const renovar=raiz.querySelector('#alumnos-renovar');
+  renovar.addEventListener('click',()=>showConfirm('Cambiar tu link',
+    'El link actual deja de funcionar y tendrás que mandar el nuevo. Los alumnos que ya comparten contigo siguen igual.',async()=>{
+      renovar.disabled=true;
+      try{const {error}=await supabaseClient.rpc('codigo_alumnos_profesor',{p_renovar:true});if(error)throw error;
+        showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver});}
+      catch(e){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}
+    },{label:'Cambiar link',focusCancel:true}));
+  const lista=raiz.querySelector('#alumnos-lista');
+  const enlazarQuitar=()=>lista.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
+    'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
+      b.disabled=true;
+      try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
+        showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
+      catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
+    },{label:'Quitar',focusCancel:true})));
+  enlazarQuitar();
+  const enlazarInicio=()=>lista.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
+    const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
+    if(al)abrirInicioAlumno(al,()=>renderAlumnosProfesor(raiz,{volver}));
+  }));
+  enlazarInicio();
+  // Se filtra en el navegador, con lo que el panel ya bajó.
+  const buscar=raiz.querySelector('#alumnos-buscar');
+  let vista=alumnos;
+  if(buscar)buscar.addEventListener('input',()=>{
+    const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);
+    raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
+    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
+      :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
+    enlazarQuitar();enlazarInicio();
+  });
+  // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
+  // recordatorio de lo que el profesor aceptó en los términos.
+  const exportar=raiz.querySelector('#alumnos-exportar');
+  if(exportar)exportar.addEventListener('click',()=>{
+    if(!vista.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
+    const n=vista.length;
+    showConfirm('Exportar notas',
+      `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
+      ()=>exportarAlumnosPanel(vista,compDe),{label:'Exportar',danger:false});
+  });
+  track('panel_alumnos_abierto',{alumnos:alumnos.length});
+}
+
+// El link del profesor puede llegar antes de que haya sesión: se guarda el
+// código y se ofrece compartir apenas la persona entra con su semestre listo.
+capturarProfeDeUrl();

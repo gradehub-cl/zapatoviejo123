@@ -25,7 +25,9 @@ const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
 // acá, que es justo el descuido que deja una página sin que nadie la encuentre.
 // La 404 no va: se sirve, pero no se indexa.
 const publicables = fs.readdirSync(raiz).filter(f => f.endsWith('.html') && f !== '404.html');
-const enSitemap = ruta => urls.includes('https://gradehub.cl/' + (ruta === 'index.html' ? '' : ruta));
+// Sin .html: es la URL final después del 308 de Cloudflare Pages.
+const urlFinal = ruta => 'https://gradehub.cl/' + (ruta === 'index.html' ? '' : ruta.replace(/\.html$/, ''));
+const enSitemap = ruta => urls.includes(urlFinal(ruta));
 publicables.forEach(f => chk(`${f} está en el sitemap`, enSitemap(f)));
 chk('y el sitemap no lista páginas de más', urls.length === publicables.length);
 chk('todas absolutas y en https', urls.every(u => u.startsWith('https://gradehub.cl/')));
@@ -33,12 +35,13 @@ chk('todas absolutas y en https', urls.every(u => u.startsWith('https://gradehub
 // mantenido. Se comprueba contra los archivos del repo.
 chk('cada URL corresponde a un archivo que existe',
   urls.every(u => {
-    const ruta = u.replace('https://gradehub.cl/', '') || 'index.html';
-    return fs.existsSync(path.join(raiz, ruta));
+    const ruta = u.replace('https://gradehub.cl/', '');
+    return fs.existsSync(path.join(raiz, ruta ? ruta + '.html' : 'index.html'));
   }));
+chk('ninguna URL lleva .html: Pages la redirigiría', urls.every(u => !u.endsWith('.html')));
 
 console.log('\n=== Metadatos de las páginas ===');
-const PAGINAS = [['index.html', 'la app'], ['preguntas.html', 'las preguntas'], ['privacidad.html', 'la política'], ['terminos.html', 'los términos']];
+const PAGINAS = [['index.html', 'la app'], ['preguntas.html', 'las preguntas'], ['privacidad.html', 'la política'], ['terminos.html', 'los términos'], ['calculadora.html', 'la calculadora']];
 PAGINAS.forEach(([f, que]) => {
   const html = leer(f);
   const titulo = (html.match(/<title>([^<]+)<\/title>/) || [])[1] || '';
@@ -129,7 +132,7 @@ const ESPERADO = {
   '--primary-light': TEMA.darkPrimaryLight, '--accent': TEMA.accent,
   '--secondary': TEMA.darkSecondary,
 };
-['404.html', 'preguntas.html', 'privacidad.html'].forEach(f => {
+['404.html', 'preguntas.html', 'privacidad.html', 'calculadora.html'].forEach(f => {
   const bloque = (leer(f).match(/:root\{([^}]+)\}/) || [])[1] || '';
   const fijados = Object.fromEntries(
     bloque.split(';').filter(p => p.includes(':')).map(p => {

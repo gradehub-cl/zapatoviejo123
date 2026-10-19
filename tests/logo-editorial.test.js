@@ -15,6 +15,18 @@ check('el logo vectorial es plano y reutiliza las tres capas aprobadas',()=>{
   assert.match(icon,/mask="url\(#bajo-superior\)"/);
   assert.match(icon,/mask="url\(#bajo-intermedio\)"/);
 });
+check('la marca animada conserva la geometría y los colores del logo original',()=>{
+  const logo=read('logo.svg');
+  const animado=html.match(/<svg class="carga-inicial-logo"[\s\S]*?<\/svg>/)[0];
+  for(const id of ['exterior','plano']){
+    const original=logo.match(new RegExp('<path id="'+id+'"[^>]+/>'))[0];
+    const copia=animado.match(new RegExp('<path id="carga-logo-'+id+'"[^>]+/>'))[0];
+    assert.equal(copia.replace('carga-logo-'+id,id),original,'no divergir del contorno aprobado');
+  }
+  const capas=svg=>(svg.split('</defs>')[1].match(/<use href="#[^"]*plano"[^>]*\/>/g)||[])
+    .map(tag=>tag.replace('carga-logo-plano','plano'));
+  assert.deepEqual(capas(animado),capas(logo),'mismo orden, colores y separación de capas');
+});
 check('registro y onboarding usan el mismo SVG, no dos copias raster antiguas',()=>{
   assert(!/data:image\/png;base64/.test(html));
   assert.equal((html.match(/<img src="logo\.svg\?v=__ASSET_VERSION__"/g)||[]).length,2);

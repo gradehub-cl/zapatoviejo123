@@ -67,7 +67,7 @@ console.log('  ' + conAviso + ' de ' + Object.keys(FEN).length + ' ramos FEN dec
 console.log('\n=== Programas UC transcritos ===');
 const pautaUC=(nombre,esperada)=>chk(nombre+' conserva sus ponderaciones oficiales',
   evalsUC(UC[nombre]).map(([n,p])=>n+':'+p).join('|')===esperada);
-pautaUC('Introducción a la Programación','Interrogación 1:15|Interrogación 2:20|Examen:30|Tarea 1:5|Tarea 2:5|Tarea 3:5|Nota de participación:16|Talleres de Inteligencia Artificial:4');
+pautaUC('Introducción a la Programación','Interrogación 1:15|Interrogación 2:20|Examen:30|Tarea 1:5|Tarea 2:5|Tarea 3:5|Nota de participación:16|Trabajos de Inteligencia Artificial:4');
 pautaUC('Principios Ecológicos y Medio Ambiente','Prueba 1:25|Prueba 2:40|Prueba 3:35');
 pautaUC('Biología de la Célula','Interrogaciones:45.5|Talleres:14|Trabajos prácticos:7|Trabajo grupal:3.5|Examen final:30');
 pautaUC('Introducción al Álgebra Lineal','Interrogación 1:20|Interrogación 2:25|Interrogación 3:25|Examen:30');
@@ -78,7 +78,10 @@ pautaUC('Probabilidad y Estadística','Control 1:10|Control 2:10|Control 3:10|Pr
 // NO está en esta lista, entra por `aporta`. La equivalencia con la fórmula
 // completa se comprueba en compuertas.test.js, contra ramoAvg.
 pautaUC('Dinámica','Interrogación 1:25|Interrogación 2:25|Controles:20|Examen:30');
-pautaUC('Laboratorio de Dinámica','Controles:10|Informes:70|Evaluación de pares:20');
+// Planilla oficial de notas (promedio de las 6 "Nota lab"): ver data.js.
+pautaUC('Laboratorio de Dinámica','Controles:8.333333333333334|Informes:70|Evaluación de pares:21.666666666666668');
+chk('la evaluación de pares del Lab 0 pesa 1,5 veces las otras',
+  JSON.stringify((evalsUC(UC['Laboratorio de Dinámica']).find(([n])=>n==='Evaluación de pares')||[])[2]?.pesosCasillas)==='[1.5,1,1,1,1,1]');
 // El vínculo es un dato, no un `if` de ramo en el código.
 chk('Dinámica declara de dónde sale el 30% que le falta',
   UC['Dinámica'].aporta.ramo==='Laboratorio de Dinámica'&&UC['Dinámica'].aporta.peso===30&&UC['Dinámica'].aporta.min===4);

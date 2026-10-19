@@ -146,7 +146,7 @@ chk('el orden en que se escribieron no cambia la huella',
 chk('una fila en 0% guardada antes del #272 no separa el reporte',
   h([...tresControles, { nombre: 'X', peso: 0 }]) === h(tresControles));
 chk('la ficha compara con la huella calculada acá, no con la del servidor',
-  /huellaEstructura\(estructuraParaConsenso\(c\.estructura\)\)!==mine/.test(src) && !/c\.huella!==mine/.test(src));
+  /nadaQueOfrecer\(estructuraParaConsenso\(c\.estructura\),mia\)/.test(src) && !/c\.huella\s*[!=]==/.test(src));
 
 console.log('\n=== La huella la decide el servidor ===');
 const fnHuella = sql.slice(sql.indexOf('create or replace function public.huella_catalogo'), sql.indexOf('create or replace function public.submit_catalog_report'));
@@ -167,7 +167,7 @@ const consenso = sql.slice(sql.indexOf('create or replace function public.catalo
 chk('el reporte se escribe por RPC, no desde el cliente a la tabla',
   /rpc\('submit_catalog_report'/.test(src) && !/from\('catalog_reports'\)\.upsert/.test(src));
 chk('el consenso pide solo la universidad al backend',
-  /rpc\('catalog_consensus',\{p_tenant:S\.tenant\}\)/.test(src));
+  /rpc\('catalog_consensus',\{p_tenant:tenant\}\)/.test(src) && /tenant=tenant\|\|S\.tenant/.test(src));
 chk('la función no filtra por carrera ni semestre',
   !/p_carrera|semestre/i.test(consenso));
 chk('el consenso cuenta personas distintas y exige tres',

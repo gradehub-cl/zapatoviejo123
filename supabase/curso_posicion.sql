@@ -68,6 +68,10 @@ begin
   if uid is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
+  if exists (select 1 from public.user_ramos ur
+             where ur.user_id = uid and ur.data->>'tipoCuenta' = 'profesor') then
+    return;   -- una cuenta solo profesor no vuelve a publicar promedios
+  end if;
   if v_sigla is null or v_tenant is null then
     return;   -- un ramo sin sigla no participa: no se puede saber cuál es
   end if;
@@ -128,7 +132,9 @@ declare
   n integer;
   debajo_o_igual integer;
 begin
-  if uid is null or v_sigla is null or v_tenant is null then
+  if uid is null or v_sigla is null or v_tenant is null or exists (
+    select 1 from public.user_ramos ur
+    where ur.user_id = uid and ur.data->>'tipoCuenta' = 'profesor') then
     return;
   end if;
 
@@ -141,7 +147,9 @@ begin
 
   select count(*) into n from public.curso_notas
     where tenant = v_tenant and ramo_sigla = v_sigla
-      and updated_at > now() - interval '30 days';
+      and updated_at > now() - interval '30 days'
+      and not exists (select 1 from public.user_ramos ur
+                      where ur.user_id = curso_notas.user_id and ur.data->>'tipoCuenta' = 'profesor');
 
   -- Cinco contándose a sí mismo: cuatro compañeros no alcanzan para que el
   -- agregado sea anónimo.
@@ -153,6 +161,8 @@ begin
   select count(*) - 1 into debajo_o_igual from public.curso_notas
     where tenant = v_tenant and ramo_sigla = v_sigla
       and updated_at > now() - interval '30 days'
+      and not exists (select 1 from public.user_ramos ur
+                      where ur.user_id = curso_notas.user_id and ur.data->>'tipoCuenta' = 'profesor')
       and promedio <= mi;
 
   total := n;

@@ -67,6 +67,7 @@ proyecto entero cuesta ~80k tokens y casi nunca hace falta.
 | compuertas | `app.js` | `grep -n "function gatesActivas\|group_min"` |
 | "¿qué nota necesito?" | `engine.js` | `grep -n "function solveForTarget"` |
 | motor de estructura/pesos | `engine.js` | `grep -n "function calculateFinalGrade"` |
+| reglas de nota de cada universidad | `engine.js` | `grep -n "GH_REGLAS_NOTA_POR_TENANT"` |
 | pantalla principal | `render-main.js` | `rg -n "function renderHome"` |
 | ficha de un ramo | `render-main.js` | `rg -n "function renderRamo"` |
 | estadísticas | `render-main.js` | `rg -n "function renderStats"` |
@@ -75,10 +76,14 @@ proyecto entero cuesta ~80k tokens y casi nunca hace falta.
 | cargar preset del catálogo | `app.js` | `grep -n "function presetRamo"` |
 | auth y sync a Supabase | `app-session.js` | `rg -n "function boot\|function afterLogin\|function syncToCloud"` |
 | estilos | `styles.css` | `grep -n "^\.<clase>"` |
+| onboarding (pasos, edad, generación) | `app.js` | `rg -n "function obIniciar\|function obStepValid\|function completeOnboarding"` |
+| pestañas de abajo (cuáles ve cada cuenta) | `app.js` | `rg -n "function recalcularNavTabs\|function showTab"` |
 | clases particulares (profesor, anuncios, métricas) | `marketplace.js` | `rg -n "function renderBorradorProfesor\|function recomendacionDelDia"` |
+| panel de alumnos del profesor | `marketplace.js` + `supabase/profesor_alumnos.sql` | `rg -n "function renderAlumnosProfesor"` |
 | subir foto del horario (OCR en el teléfono) | `app.js` + `ocr/` | `rg -n "function leerFotoHorario\|function codigosDeFotoHorario"` |
 | herramientas para agentes (MCP) | `functions/mcp/herramientas.js` | léelo completo |
 | SQL de Supabase (se aplica a mano) | `supabase/*.sql` | un archivo por tema |
+| app iOS: Capacitor, widgets, Actividad en Vivo | `ios/App/` | lee «La app iOS», más abajo |
 
 ## Arquitectura
 
@@ -88,7 +93,7 @@ Sin build, sin frameworks. Los archivos de la app se despliegan tal cual:
 |---|---|
 | `index.html` | Estructura, logo en base64, metadatos |
 | `data.js` | Mallas, carreras, presets, temas, portales — solo literales |
-| `engine.js` | El motor: `calculateFinalGrade`, `solveForTarget`, compuertas y descartes |
+| `engine.js` | El motor de notas, uno solo para todas las universidades: `calculateFinalGrade`, `solveForTarget`, compuertas, descartes y las reglas de nota de cada universidad (`GH_REGLAS_NOTA_POR_TENANT`) |
 | `app.js` | Estado, navegación, editor y adaptadores de cálculo |
 | `app-session.js` | Auth, recuperación, persistencia local y sync con Supabase |
 | `marketplace.js` | Avisos, segmentación local, cotización pura y espacio privado de profesor; publicidad y cobro aún sin activar |
@@ -114,9 +119,19 @@ Backend: **Supabase** (auth email + Google, RLS activo). Hosting: **Cloudflare P
 `gpa`, `calculateFinalGrade` o las compuertas, corre los tests antes de entregar.
 Un promedio mal calculado destruye la confianza más rápido que cualquier bug visual.
 
+**El motor es uno solo y calcula según la universidad.** Lo que cambia de una
+universidad a otra se declara como dato, nunca como un `if(tenant===…)` en el
+cálculo. Ver "Motor de notas por universidad" en Modelo de datos.
+
 **Nunca inventes ponderaciones.** Los presets salen de programas oficiales. Si un
 dato no está en el documento, se marca como faltante — no se rellena con lo
 plausible.
+
+Las pautas que reportan los estudiantes (el consenso) **no son presets** y no se
+presentan como del programa. Con 3 personas que coinciden se aplican solas en
+ramos vacíos; con 5 (`CONSENSO_CATALOGO`) además se ofrecen en el buscador como
+una del catálogo, siempre diciendo "pauta de N estudiantes". Una pauta de
+programa manda sobre cualquier consenso.
 
 **El semáforo es semántico.** Verde/ámbar/rojo significan aprobado / al borde /
 reprobado. No se tiñen por tema ni por decoración.
@@ -182,6 +197,13 @@ node tests/<archivo>.test.js
 Si tocas cálculo, escribe un test que compruebe casos concretos — incluyendo los
 de compuerta que topan la nota.
 
+**Al mirar un cambio en el navegador, desconfía de lo que ves la segunda vez.**
+En el servidor local el `CACHE_NAME` es siempre `gradehub-dev`, así que el
+service worker sigue sirviendo el `app.js` de la primera carga aunque lo hayas
+editado. Antes de concluir que un cambio "no funciona", comprueba que la página
+tiene el código nuevo (por ejemplo, que exista la función que agregaste) y, si
+no, borra el registro del service worker y sus cachés y recarga.
+
 **Un test nuevo no se registra en ninguna parte: se corre por existir.** `npm test`
 descubre todo `tests/*.test.js` (ver `bin/tests.js`). Antes había que agregarlo a
 mano a una cadena de `&&` en `package.json`, y eso fallaba de las dos formas
@@ -240,10 +262,73 @@ pero necesita Wrangler autenticado en la máquina de quien lo corra. Lucas y
 Martín tienen acceso de administrador a la cuenta de Cloudflare; tener Wrangler
 autenticado localmente es otra cosa y se hace aparte.
 
+## La app iOS
+
+La app es la misma web metida en Capacitor (`ios/`), más lo nativo: widgets
+(`ios/App/GradeHubWidgets/`), Actividad en Vivo (`ios/App/Shared/`) y el puente
+`ios/App/App/WidgetsPlugin.swift`. Lo que cambies en `app.js` o `styles.css`
+cambia también la app.
+
+**Se trabaja en la rama `ios`**, compartida por Martín y Lucas (acordado el
+2026-10-08). Antes de tocar la app, trae lo último: `git switch ios && git pull
+--ff-only` (`bin/estado.sh` solo hace `fetch`: avisa que hay algo nuevo, pero no
+lo trae). Una tarea de la app sale de `ios` (rama `ms/…` o `li/…`) y vuelve a
+`ios` por PR, nunca a `main`. Cada push a `ios` corre los tests y publica la
+versión de prueba en https://ios.gradehub.pages.dev; la PR en borrador `ios` →
+`main` muestra lo que todavía no llega a gradehub.cl. Si entró algo a `main`,
+se trae con `git merge origin/main` estando en `ios` (sin rebase: ver «Una rama
+con trabajo de otros adentro ya no se rebasea»).
+
+**Qué tiene que hacer la persona según lo que toques**, y dilo en la PR:
+
+| Cambias | Llega a su iPhone |
+|---|---|
+| HTML, JS o CSS | solo, con el push a `ios`: la app armada con `npm run ios:rama` lo carga al abrirse |
+| Swift, widgets, `Info.plist`, entitlements, plugins, `capacitor.config.json`, ícono o splash | reinstalando: `npm run ios:rama` y ▶︎ en Xcode |
+
+**Lo que es solo de la app** se marca con `html.app-nativa` en CSS (la pone
+`index.html` antes de pintar) y con `enAppNativa()` en JS; la web no debe
+cambiar. Un enlace externo se abre con `abrirFuera()` (hoja de Safari: un
+`target=_blank` no abre nada en la app). Las hojas toman solas la barra de iOS
+(`armarBarraDeHoja`): basta con que la última `.modal-btns` traiga el cerrar
+como `.btn-cancel` («Cancelar» o «Cerrar») y la acción como `.btn-confirm`. Las
+HIG valen igual que en la web.
+
+**Firma.** Nunca commitees un Team ni un Bundle ID. El proyecto los toma de
+`ios/App/Firma.xcconfig`; cada uno pone los suyos en `ios/App/Firma.local.xcconfig`,
+que git ignora (el ejemplo está en `Firma.xcconfig`). No elijas el Team en
+Signing & Capabilities: Xcode lo escribe en `project.pbxproj`, y si ese archivo
+aparece modificado sin que lo hayas tocado, no lo subas. Nunca registres
+`cl.gradehub.app` ni `group.cl.gradehub.app` con una cuenta personal. Si Xcode
+ofrece «Update to recommended settings», es Cancel.
+
+**Compilar y ver:**
+
+```bash
+npm run ios:preparar   # mete la web dentro de la app (la que va a la App Store)
+npm run ios:rama       # lo mismo, pero la app carga desde ios.gradehub.pages.dev
+```
+
+En el simulador, sin firmar (`xcrun simctl list devices available` dice cuáles
+hay). El DerivedData va fuera de `~/Desktop`: codesign rechaza los atributos que
+pone iCloud («resource fork… detritus not allowed»).
+
+```bash
+cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Debug -destination 'platform=iOS Simulator,name=<simulador>' -derivedDataPath /tmp/gradehub-dd CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build
+```
+
+Para verla sin iniciar sesión: después de `ios:preparar`, quita el `<script>` de
+supabase-js de `ios/App/App/public/index.html` (es generado y no se commitea) y
+la app abre en modo local. Al terminar, vuelve a correr `ios:preparar`.
+
+**Tests:** `npm test`, como siempre. Los de la app son `ios-fuera-del-deploy`,
+`oauth-nativo`, `pantalla-de-carga`, `app-nativa-ios` y `widgets-resumen`.
+
 ## Modelo de datos
 
 ```js
-S = { ramos, userName, careerSemestre, carrera, tenant, onboardingDone, historial, sortMode }
+S = { ramos, userName, careerSemestre, generacion, verano, carrera, tenant,
+      onboardingDone, tipoCuenta, historial, sortMode }
 
 ramo = {
   id, nombre, color,
@@ -270,7 +355,67 @@ inventa cuántas evaluaciones faltan.
 // cap:'self' → el tope es el promedio del propio grupo.
 // Modela la regla FEN "la nota final es la más baja entre los dos requisitos".
 { type:'group_min', catIds: [...], min: 4.0, cap: 'self' }
+
+// exacto:true → el mínimo se compara SIN aproximación: 2,96 no es 3,0.
+// Sin él, el mínimo se redondea a la décima como la nota final (3,95 cumple 4,0).
+// Lo usa el art. 27 UAndes: presentación ≥ 3,0 sin aproximación para dar examen.
+{ type:'group_min', catIds: [...], min: 3.0, cap: 'self', exacto: true }
 ```
+
+En un preset de `data.js` la compuerta de grupo se escribe en `grupos`
+(`{nombre, evals:[nombres], min, cap, exacto}`) y la de una evaluación como
+`{min, cap, exacto}` en su fila. `presetRamo` las copia al ramo.
+
+### Motor de notas por universidad
+
+Hay **un solo motor** (`engine.js`) y cada universidad le dice cómo calcular. Las
+reglas viven en dos niveles, según de quién son:
+
+| Nivel | Qué | Dónde | Ejemplo |
+|---|---|---|---|
+| Universidad | Escala, nota de aprobación y cómo el promedio se vuelve nota oficial | `GH_REGLAS_NOTA_POR_TENANT` en `engine.js` | UAndes: a la centésima y después a la décima |
+| Ramo | Pesos, casillas, descartes, compuertas, eximición, recuperativo | el preset del ramo en `data.js` | "presentación ≥ 3,0 sin aproximación para dar examen" |
+
+- **Sin entrada, la regla común:** 1 a 7, aprueba con 4,0, a la décima. FEN, UC y
+  UAI la usan. Una universidad nueva hereda esa y solo declara lo que cambia,
+  **con el artículo de su reglamento al lado**. No se agrega una regla por
+  parecido con otra universidad.
+- **Vive en `engine.js` y no en `data.js`** porque el servidor MCP calcula con ese
+  archivo solo. Si la regla estuviera afuera, el agente conectado calcularía
+  distinto que la app.
+- **La universidad la elige el tenant de la cuenta:** `S.tenant` en la app y
+  `estado.tenant` en el MCP. Ambos se la pasan a `gh_crearCalculoRamo` como
+  dependencia `tenant`.
+- **Nada redondea una nota final a mano.** Todo pasa por `notaFinalOficial`
+  (app) o `gh_notaOficial` (motor), y la nota necesaria resuelve contra
+  `gh_bordeOficial`: 3,95 con la regla común, 3,945 en la UAndes
+  (3,946 → 3,95 → 4,0).
+- **Una regla de reglamento que solo aplica a ramos con cierta estructura** (por
+  ejemplo, "para dar examen") no se infiere por nombre de categoría: va como
+  compuerta en el preset de cada ramo, que es lo que el ramo guarda y el MCP
+  lee tal cual.
+
+Hoy: UAndes declara `rounding:{decimals:1,previo:2}` (Reglamento del Alumno,
+art. 22). Sus normativas por facultad (exámenes 70/30 en Salud, eximición en
+Medicina, etc.) se cargan como reglas de cada pauta, no del tenant.
+
+### Cuentas de estudiante y de profesor
+
+`S.tipoCuenta` es `'estudiante'` o `'profesor'` (#697). Viaja en `user_ramos` con
+el resto de `S`, y `normalize` deja `'estudiante'` cuando no viene: así quedaron
+todas las cuentas anteriores, sin migración. Se pregunta con `esCuentaProfesor()`,
+no comparando el campo a mano.
+
+- **Una cuenta de profesor no estudia en GradeHub.** Lo que es de estudiante
+  —ramos, notas, promedios, `curso_notas`, consenso, recomendaciones, widgets—
+  no corre ni se muestra para ella. Si agregas algo de estudiante, ponle esa
+  guarda en la función que lo hace, no en quien la llama.
+- **Ser profesor aprobado es otra cosa:** vive en `tutor_perfiles.estado` y se
+  pregunta con `esProfesorAprobado()`. Hay cuentas de estudiante que además son
+  profesores aprobados (las de Lucas y Martín) y siguen viendo todo lo de
+  estudiante. No confundas las dos preguntas.
+- **El tipo se elige una vez.** Cambiarlo es una acción del equipo, con SQL
+  revisado por Lucas, nunca algo que la app haga sola.
 
 ### Promedio general
 
@@ -294,7 +439,7 @@ Lo que las separa no es el selector sino cuánto contenido tienen detrás:
 | UC | 71 | 2 (ING-PC, COM) | 49 en malla + catálogo completo | 45 |
 | FEN | 3 | 3 | 88 | 12 |
 | UAI | 23, todas con malla | 23 | 530 | 6 |
-| UAndes | 5 + "Otra" | ninguna | — | — |
+| UAndes | 34, todas menos Arquitectura con malla | 33 | 869 | 44 (cursos PEG) |
 
 **Una pauta que deja la mitad o más del ramo en grupos sin cantidad** (por
 ejemplo "Evaluaciones sumativas 60%" sin decir cuántas) no se carga ni se
@@ -317,6 +462,15 @@ Dos personas y varios agentes sobre cuatro archivos. Para no chocar:
 - **Ramas con prefijo**: `li/…` (Lucas), `ms/…` (Martín), `codex/…`. Así se ve de
   quién es cada rama sin preguntar.
 - `bash bin/estado.sh` antes de empezar cualquier cosa (incluye el `git fetch`).
+- **El repo vive en `gradehub-cl/GradeHub`.** Los links viejos a
+  `lirarrazavalbm-jpg/GradeHub` redirigen, pero los PR e issues nuevos se
+  nombran con la organización.
+- **Si `main` del checkout está ocupado, trabaja en un worktree**
+  (`git worktree add ../gradehub-<tema> -b <rama> origin/main`). El worktree no
+  trae `node_modules`: sin él, los tests de SQL con pglite fallan con
+  `Cannot find module`. Enlázalo (`ln -s ../gradehub/node_modules node_modules`)
+  y sácalo antes del commit, porque un enlace no lo ignora `node_modules/`.
+- **Lo que es para la app iOS va a la rama `ios`, no a `main`.** Ver «La app iOS».
 
 ### Carriles
 
@@ -327,8 +481,10 @@ tocar todo, es lo único que evita conflictos.
 |---|---|---|
 | Contenido FEN | `data.js` — mallas, presets y carreras de FEN | `ms` |
 | Contenido UC | `data.js` — mallas, presets, carreras y créditos de UC | `li` |
+| Contenido UAndes | `data.js` — carreras de la UAndes; `mallas-uandes.js` | `ms` |
 | Motor y experiencia | `engine.js`, `app.js`, `app-session.js`, `render-main.js`, `render-agenda.js` | `codex` |
 | Infra y seguridad | workflows, `sw.js`, `styles.css`, `_headers` | `li` |
+| App iOS | `ios/`, `capacitor.config.json`, `bin/preparar-ios.sh` | `li` y `ms`, en la rama `ios` |
 
 Si tu tarea te obliga a salir de tu carril, no lo hagas: dilo primero.
 
@@ -340,18 +496,19 @@ cada uno toca lo suyo — `PRESETS_FEN` y las mallas FEN por un lado,
 
 ### Cada universidad habla su idioma
 
-**Nunca uses el vocabulario de una universidad en los datos de otra.** En FEN las
-pruebas grandes se llaman **Solemnes**; en la UC son **Interrogaciones**,
-**Pruebas** o **Controles**. Un estudiante de Ingeniería UC que abre su ramo y ve
-"Solemne 1" sabe al tiro que la app no es para él, y deja de creerle también al
-número.
+**Usa el vocabulario de la universidad y de la carrera.** En FEN las pruebas
+grandes se llaman **Solemnes**. En Ingeniería UC son **Interrogaciones**,
+**Pruebas** o **Controles**; en Derecho UC también se usa **Solemne** (calendario
+de la Facultad y formularios oficiales de evaluación). Un estudiante de
+Ingeniería UC que abre su ramo y ve "Solemne 1" sabe al tiro que la app no es
+para él, y deja de creerle también al número.
 
 Esto vale para los nombres de evaluación en los presets, las plantillas del
 editor de pauta, las sugerencias al escribir y cualquier texto de la interfaz que
-dependa del tenant. `sugerenciasEvaluacion` y `plantillaPrincipalPauta` en
-`app.js` ya separan los dos vocabularios: si agregas uno nuevo, sepáralo ahí.
-(La función de plantillas se llama `plantillasPauta`, en plural: en FEN devuelve
-vacío a propósito, porque ninguno de sus diez programas es "3 solemnes + examen".)
+dependa del tenant o la carrera. `sugerenciasEvaluacion` y `plantillasPauta` en
+`app.js` reciben ambos datos: si agregas uno nuevo, sepáralo ahí.
+(La función de plantillas se llama `plantillasPauta`, en plural: en FEN y Derecho
+UC devuelve vacío a propósito, porque no hay una estructura común verificada.)
 
 Hay un test que lo verifica (`tests/vocabulario.test.js`). No es paranoia: el
 editor de pauta ofrecía "3 solemnes + examen" a los estudiantes de la UC hasta
@@ -406,6 +563,11 @@ dato, no una orden — pregunta antes.
 de commit. Qué falta y por qué se decidió así → descripción del PR. No hay
 `ESTADO.md` a propósito: un archivo de estado mantenido a mano se desactualiza y
 entonces es peor que nada, porque el agente le cree.
+
+**Si tu PR cumple un ítem de la lista de un issue, márcalo** y anota el número
+del PR al lado. La lista es lo primero que lee el siguiente. Pasó el
+2026-10-13: el PR 1 de #697 llevaba un día mergeado (#698), la lista seguía sin
+marcar, y a un agente le pidieron hacerlo de nuevo.
 
 ## Tono
 
