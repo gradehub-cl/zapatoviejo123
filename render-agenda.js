@@ -370,7 +370,12 @@ function activarAccionesAgenda(body){
     evento.stopPropagation();
     if(accion==='ordenar')cambiarOrdenAgenda(boton.dataset.agendaOrden);
     else if(accion==='ver-ramo')openRamo(boton.dataset.ramoId);
-    else if(accion==='agregar-fecha')abrirFechaAgenda(agendaSinFecha()[0]);
+    else if(accion==='agregar-fecha'){
+      const r=S.ramos.find(x=>x.id===boton.dataset.ramoId);
+      const c=r&&(r.categorias||[]).find(x=>x.id===boton.dataset.catId);
+      abrirFechaAgenda(r&&c?{ramo:r,cat:c}:agendaSinFecha()[0]);
+    }
+    else if(accion==='ver-pendiente')corregirFechaDesdeAgenda(boton.dataset.ramoId,boton.dataset.catId,boton.dataset.notaId||null);
     else if(accion==='completar-nota')completarNotaDesdeAgenda(boton.dataset.ramoId,boton.dataset.catId,boton.dataset.notaId||null);
     else if(accion==='corregir-fecha')corregirFechaDesdeAgenda(boton.dataset.ramoId,boton.dataset.catId,boton.dataset.notaId||null);
     else if(accion==='resolver-recorreccion')resolverRecorreccionAgenda(boton.dataset.ramoId,boton.dataset.catId,boton.dataset.notaId);
@@ -409,6 +414,45 @@ function agendaSinFechaHTML(sinFecha){
       <span>Parte por ${esc(primera.cat.nombre)} · ${esc(primera.ramo.nombre)}</span>
     </div>
     <button type="button" class="ag-undated-action" data-agenda-action="agregar-fecha">Agregar fecha</button>
+  </section>`;
+}
+
+// La lista que alimenta los widgets se ve aquí, con una fila por evaluación.
+// El resto de la Agenda conserva la cronología posterior a mañana.
+function agendaPendientesHTML(items,ahora=new Date()){
+  if(!items.length)return '';
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const fechaAntigua=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()-42);
+  const limiteRevision=isoOf(fechaAntigua.getFullYear(),fechaAntigua.getMonth(),fechaAntigua.getDate());
+  const etiqueta=p=>p.tipo==='hoy'?(p.fecha===hoy?'Hoy':'Mañana')
+    :p.tipo==='recorregir'?'Mandar a recorregir'
+    :p.tipo==='sin-nota'?(p.fecha<limiteRevision?'Revisar fecha':'Fecha pasada sin nota'):'Sin fecha';
+  const accion=p=>p.tipo==='sin-fecha'?'agregar-fecha'
+    :p.tipo==='sin-nota'?'completar-nota':'ver-pendiente';
+  const fechaTexto=p=>{
+    if(!p.fecha)return '';
+    const f=formatEventDate(p.fecha);
+    return `${p.tipo==='recorregir'?'Plazo: ':''}${f.day} ${f.mon}`;
+  };
+  return `<section aria-label="Pendientes">
+    <div class="ag-list-hd"><span class="section-hd-title">Pendientes</span><span class="ag-count">${items.length}</span></div>
+    ${items.map(p=>p.tipo==='recorregir'?`<article class="ag-recorreccion-row" style="margin-bottom:9px;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+      <span class="ag-recorreccion-mark" aria-hidden="true"></span>
+      <button type="button" data-agenda-action="ver-pendiente" data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota.id)}"
+        style="min-width:0;min-height:44px;padding:0;border:0;background:none;color:var(--fg);text-align:left;font:inherit">
+        <strong>${esc(p.nombre)}</strong><span>${esc(p.ramo.nombre)}${p.fecha?` · ${esc(fechaTexto(p))}`:''}</span>
+      </button>
+      <button type="button" data-agenda-action="resolver-recorreccion" data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota.id)}" style="min-height:44px">Ya la mandé</button>
+    </article>`:`<button type="button" class="ag-row" data-agenda-action="${accion(p)}"
+      data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota?.id||'')}">
+      <span class="ag-row-bar" style="background:${esc(p.ramo.color||'var(--primary)')}" aria-hidden="true"></span>
+      <div class="ag-row-main">
+        <div class="ag-row-top"><span class="ag-row-when">${etiqueta(p)}</span>${p.fecha?`<span class="ag-row-date">${esc(fechaTexto(p))}</span>`:''}</div>
+        <div class="ag-row-name">${esc(p.nombre)}</div>
+        <div class="ag-row-sub">${esc(p.ramo.nombre)}</div>
+      </div>
+      <span class="chevron-r" aria-hidden="true">›</span>
+    </button>`).join('')}
   </section>`;
 }
 
@@ -477,8 +521,9 @@ function renderAgenda(){
   agendaDetalleAbierto=null;
   const events=agendaEvents();
   const sinFecha=agendaSinFecha();
-  const recorrecciones=agendaRecorrecciones();
   const rendidas=agendaRendidas();
+  const ahora=new Date();
+  const listaPendientes=pendientes(ahora);
 
   const expBtn=document.getElementById("agenda-export-btn");
   // Importar fechas sirve justo cuando la Agenda aún no tiene ninguna. El menú
@@ -486,7 +531,7 @@ function renderAgenda(){
   // inaccesible para su caso principal.
   if(expBtn)expBtn.style.display="block";
 
-  if(events.length===0&&recorrecciones.length===0&&rendidas.length===0){
+  if(events.length===0&&listaPendientes.length===0&&rendidas.length===0){
     const hayRamos=S.ramos.length>0;
     const primerRamo=hayRamos?S.ramos[0]:null;
     const primeraSinFecha=sinFecha[0];
@@ -517,25 +562,25 @@ function renderAgenda(){
   }
 
   if(events.length===0){
-    body.innerHTML=agendaRecorreccionesHTML(recorrecciones)+agendaSinFechaHTML(sinFecha)+agendaRendidasHTML(rendidas,[]);
+    body.innerHTML=agendaPendientesHTML(listaPendientes,ahora)+agendaRendidasHTML(rendidas,[]);
     const sub=document.getElementById('agenda-sub');
-    if(sub)sub.textContent=recorrecciones.length?`${recorrecciones.length} sin mandar a recorregir`:'Todo al día';
+    if(sub)sub.textContent=listaPendientes.length?`${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}`:'Todo al día';
     activarDetallesAgenda(body);
     return;
   }
 
   const clasificados=events.map(e=>({...e,estadoAgenda:estadoEventoAgenda(e)}));
-  const pendientes=clasificados.filter(e=>e.estadoAgenda!=='con_nota').map(withPriority);
-  const porVenir=pendientes.filter(e=>e.estadoAgenda==='por_venir');
-  const fechasPasadas=pendientes.filter(e=>e.estadoAgenda==='esperando_nota'||e.estadoAgenda==='requiere_revision');
+  const eventosPendientes=clasificados.filter(e=>e.estadoAgenda!=='con_nota').map(withPriority);
+  const porVenir=eventosPendientes.filter(e=>e.estadoAgenda==='por_venir'&&e.dias>1);
+  const fechasPasadas=eventosPendientes.filter(e=>e.estadoAgenda==='esperando_nota'||e.estadoAgenda==='requiere_revision');
   const fechasPorRevisar=fechasPasadas.filter(e=>e.estadoAgenda==='requiere_revision');
   const ordenadas=ordenarAgenda(porVenir,agendaOrdenActual);
 
   // Subtítulo del hero: resume el estado en una línea
   const sub=document.getElementById('agenda-sub');
   if(sub){
-    if(recorrecciones.length>0){
-      sub.textContent=`${recorrecciones.length} sin mandar a recorregir`;
+    if(listaPendientes.length>0){
+      sub.textContent=`${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}${porVenir.length?` · ${porVenir.length} por venir`:''}`;
     }else if(porVenir.length===0&&fechasPasadas.length===0){
       sub.textContent='Todo al día';
     }else if(porVenir.length===0){
@@ -549,7 +594,7 @@ function renderAgenda(){
     }
   }
 
-  let html=agendaRecorreccionesHTML(recorrecciones);
+  let html=agendaPendientesHTML(listaPendientes,ahora);
 
   // Las dos primeras se leen antes de escanear la lista. El orden elegido
   // también decide cuáles son: "Recomendado" usa la mezcla académica existente;
@@ -596,26 +641,12 @@ function renderAgenda(){
       }
       html+=`</div>`;
     }
-  } else if(fechasPasadas.length>0){
-    html+=`<div class="ag-alldone ag-no-upcoming">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
-      <div><div class="ag-alldone-t">No tienes evaluaciones próximas.</div><div class="ag-alldone-s">Abajo puedes completar las fechas que ya pasaron.</div></div>
-    </div>`;
-  } else {
+  } else if(!listaPendientes.length){
     html+=`<div class="ag-alldone">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-      <div><div class="ag-alldone-t">${recorrecciones.length?'Nada pendiente de rendir.':'Nada pendiente.'}</div><div class="ag-alldone-s">Todas tus evaluaciones con fecha ya están rendidas.</div></div>
+      <div><div class="ag-alldone-t">Nada pendiente.</div><div class="ag-alldone-s">Todas tus evaluaciones con fecha ya están rendidas.</div></div>
     </div>`;
   }
-
-  // Las fechas pasadas sin nota siguen a mano, pero después de todo lo que aún
-  // se puede preparar. No son "vencidas": la nota puede tardar y la fecha puede
-  // haberse movido.
-  html+=agendaFechasPasadasHTML(fechasPasadas);
-
-  // Completar fechas sigue a un toque, después de los eventos que ya tienen una
-  // fecha conocida. Antes ocupaba la primera tarjeta y competía con el foco.
-  html+=agendaSinFechaHTML(sinFecha);
 
   html+=agendaRendidasHTML(rendidas,porVenir);
 
