@@ -209,6 +209,22 @@ const pIce=presetRamo('Dinámica (ICE1514)','uc','ING-PC',new Date('2026-10-19T1
 chk('ICE1514 declara promedio, límite y nota de segunda ausencia por ids',
   pIce?.reglasAusenciaJustificada?.promedios?.length===5&&
   pIce.reglasAusenciaJustificada.maxPromedios===1&&pIce.reglasAusenciaJustificada.notaExceso===1);
+const iceCategorias=new Map(pIce.categorias.map(c=>[c.id,c.nombre]));
+chk('ICE1514 ordena las ausencias por fecha, aunque la pauta agrupe controles antes de interrogaciones',
+  pIce.reglasAusenciaJustificada.promedios.map(x=>iceCategorias.get(x.desdeId)).join('|')===
+  'Control 1|Interrogación 1|Control 2|Control 3|Interrogación 2');
+const ordenCronologico=sumativasSinteticas();
+ordenCronologico.categorias.find(c=>c.id==='c1').notas=[{id:'n-c1',nombre:'c1',peso:1,valor:5}];
+ordenCronologico.categorias.find(c=>c.id==='c2').notas=[];
+ordenCronologico.categorias.find(c=>c.id==='i1').notas=[];
+ordenCronologico.reglasAusenciaJustificada.promedios.sort((a,b)=>
+  ['c1','i1','c2','c3','i2'].indexOf(a.desdeId)-['c1','i1','c2','c3','i2'].indexOf(b.desdeId));
+ordenCronologico.ausenciasJustificadas=['c2','i1'];
+const cronologico=estadoAusencias(ordenCronologico);
+chk('la primera ausencia por fecha toma el promedio y la segunda 1,0 aunque se marquen al revés',
+  cronologico.activas.some(x=>x.desdeId==='i1'&&x.tipo==='promedio')&&
+  cronologico.activas.some(x=>x.desdeId==='c2'&&x.tipo==='nota_exceso')&&
+  cronologico.notas['ausencia-i1']===5&&cronologico.notas['ausencia-c2']===1);
 
 console.log('\n=== Una sola sustitución o traspaso declarado ===');
 const pruebaUnica={id:'uai-sintetico',nombre:'Curso sintético',categorias:[

@@ -1126,11 +1126,12 @@ const PRESETS_UC={
     // Programa del 5-ago-2026: una justificada en control o interrogación
     // toma el promedio ponderado de las otras sumativas, sin talleres;
     // la segunda inasistencia cuenta como 1,0. El examen sí es sumativo.
+    // El orden declara cuál fue la primera ausencia según las fechas del preset.
     ausenciasJustificadas:{maxPromedios:1,notaExceso:1,promedios:[
       {desde:'Control 1',de:['Control 2','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Interrogación 1',de:['Control 1','Control 2','Control 3','Interrogación 2','Examen']},
       {desde:'Control 2',de:['Control 1','Control 3','Interrogación 1','Interrogación 2','Examen']},
       {desde:'Control 3',de:['Control 1','Control 2','Interrogación 1','Interrogación 2','Examen']},
-      {desde:'Interrogación 1',de:['Control 1','Control 2','Control 3','Interrogación 2','Examen']},
       {desde:'Interrogación 2',de:['Control 1','Control 2','Control 3','Interrogación 1','Examen']},
     ]},
     evals:[
