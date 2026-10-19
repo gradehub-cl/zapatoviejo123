@@ -656,7 +656,16 @@ const PORTAL=[
 // ese período siga vigente. Si un programa no declara el período, se omite el
 // campo y la app conserva los pesos sin presentar sus fechas como actuales.
 const PRESETS_UC={
-  'Cálculo I':[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
+  // MAT1610, programa 2026-1: la primera interrogación justificada toma la
+  // nota del examen; las siguientes se recuperan con pruebas especiales (P).
+  'Cálculo I':{
+    evals:[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
+    ausenciasJustificadas:{maxReemplazos:1,excesoReemplazos:'rezago',reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+      {desde:'Interrogación 3',hacia:'Examen'},
+    ]},
+  },
   'Álgebra Lineal':[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
   // Ingeniería Comercial · 2° semestre. Transcripción de la pauta 2026-2
   // confirmada por Lucas el 17-08-2026. La regla de aprobación de Álgebra
@@ -876,6 +885,13 @@ const PRESETS_UC={
   // ninguna pasa el filtro de arriba.
   'Cálculo II':{
     periodo:'2026-2',
+    // Normativa MAT1620 2026-2, punto 9: una justificada toma el examen;
+    // con dos o tres, solo la primera y las demás quedan en nota P pendiente.
+    ausenciasJustificadas:{maxReemplazos:1,excesoReemplazos:'rezago',reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+      {desde:'Interrogación 3',hacia:'Examen'},
+    ]},
     evals:[
       ['Interrogación 1',20,{fecha:'2026-08-31'}],
       ['Interrogación 2',20,{fecha:'2026-10-05'}],
@@ -1107,6 +1123,16 @@ const PRESETS_UC={
   // ICE. Si una sección tiene otra, la edita y el consenso de reportes lo dirá.
   'Dinámica (ICE1514)':{
     periodo:'2026-2',
+    // Programa del 5-ago-2026: una justificada en control o interrogación
+    // toma el promedio ponderado de las otras sumativas, sin talleres;
+    // la segunda inasistencia cuenta como 1,0. El examen sí es sumativo.
+    ausenciasJustificadas:{maxPromedios:1,notaExceso:1,promedios:[
+      {desde:'Control 1',de:['Control 2','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Control 2',de:['Control 1','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Control 3',de:['Control 1','Control 2','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Interrogación 1',de:['Control 1','Control 2','Control 3','Interrogación 2','Examen']},
+      {desde:'Interrogación 2',de:['Control 1','Control 2','Control 3','Interrogación 1','Examen']},
+    ]},
     evals:[
       ['Control 1',10,{fecha:'2026-09-04'}],
       ['Control 2',10,{fecha:'2026-10-16'}],
@@ -1118,7 +1144,6 @@ const PRESETS_UC={
     ],
     aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
     noCalcula:[
-      'Si faltas con justificación a un control o interrogación, esa nota se reemplaza por el promedio ponderado de tus otras evaluaciones sumativas, sin contar los talleres; una segunda inasistencia es un 1,0',
       'Faltar a un taller, con o sin justificación, es un 1,0 en ese taller',
       'Si repruebas la cátedra o el laboratorio, repruebas Dinámica: el programa no dice con qué nota quedas, así que mostramos la más baja de las dos',
     ],
@@ -2642,6 +2667,17 @@ const PRESETS_UAI={
   // requiere haber rendido el primer examen en la fecha indicada.
   'Matemáticas Avanzadas I':{
     periodo:'2026-2',creditos:6,
+    ausenciasJustificadas:{reemplazosCasilla:[
+      {desde:'Talleres',desdeSlot:0,hacia:'Pruebas',haciaSlot:0},
+      {desde:'Talleres',desdeSlot:1,hacia:'Pruebas',haciaSlot:1},
+      {desde:'Talleres',desdeSlot:2,hacia:'Pruebas',haciaSlot:2},
+      {desde:'Controles',desdeSlot:0,hacia:'Examen'},
+      {desde:'Controles',desdeSlot:1,hacia:'Examen'},
+      {desde:'Controles',desdeSlot:2,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:0,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:1,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:2,hacia:'Examen'},
+    ]},
     evals:[
       ['Talleres',7,{slots:3,slotLabel:'Taller'}],
       ['Controles',14,{slots:3,slotLabel:'Control'}],
@@ -2651,7 +2687,6 @@ const PRESETS_UAI={
     noCalcula:[
       'Con presentación de al menos 5,0 puedes eximirte: la final queda en la presentación. Si rindes el examen voluntariamente, su nota cuenta aunque baje el promedio',
       'Solo si rendiste el examen en la fecha indicada y la final queda entre 3,5 y 3,9, puedes rendir un segundo examen: aprobarlo deja la final en 4,0; reprobarlo conserva la final anterior',
-      'Con justificativo aceptado, un taller se reemplaza por su prueba correspondiente y un control o prueba por el examen',
     ],
     reglasDelCurso:[
       'Programa MAT124 UAI 2026-2, sección 2, Santiago. Esta pauta calcula el camino con examen',
@@ -2664,6 +2699,15 @@ const PRESETS_UAI={
   // redondean sus pesos internos 2,625/6,125 ni se los confunde con 30/70 final.
   'Razonamiento Cuantitativo con Datos I':{
     periodo:'2026-2',
+    ausenciasJustificadas:{reemplazosCasilla:[
+      {desde:'Pruebas teóricas',desdeSlot:0,hacia:'Examen teórico'},
+      {desde:'Pruebas teóricas',desdeSlot:1,hacia:'Examen teórico'},
+      {desde:'Controles',desdeSlot:0,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:1,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:2,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:3,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:4,hacia:'Examen práctico'},
+    ]},
     evals:[
       ['Pruebas teóricas',35,{slots:2,slotLabel:'Prueba'}],
       ['Controles',26.25,{slots:5,slotLabel:'Control'}],
@@ -2674,7 +2718,7 @@ const PRESETS_UAI={
     noCalcula:[
       'Puedes eximirte con presentación de al menos 5,0 y con ET y EP de al menos 4,0 cada una. Sin examen la final es 50% ET y 50% EP',
       'Tras rendir el examen, ET y EP deben ser al menos 4,0. Si no se cumple, el curso se reprueba con la menor de ET y EP; este promedio no aplica esa sustitución',
-      'Una prueba con ausencia justificada se reemplaza por el examen teórico; un control recuperado se reemplaza por el examen práctico. En ambos casos debes rendir el examen y no puedes eximirte',
+      'Con una ausencia justificada debes rendir ambos exámenes; no puedes eximirte. La app aún no calcula esa eximición en este ramo',
     ],
     reglasDelCurso:[
       'Programa MAT125 UAI 2026-2, cátedra de Macarena Larrain. Esta pauta calcula el camino con examen',
@@ -2687,6 +2731,13 @@ const PRESETS_UAI={
   // recuperativo 3,6–3,9 de FEN. El número/reparto de controles no está fijado.
   'Introducción a la Microeconomía':{
     periodo:'2026-2',creditos:6,
+    // ECO122 2026-2: una prueba justificada pasa su peso al examen. El
+    // programa no define dos; el motor deja ese caso pendiente. El bloque
+    // consolidado de controles y tareas sigue sin detalle por instancia.
+    ausenciasJustificadas:{maxTraspasos:1,traspasos:[
+      {desde:'Prueba 1',hacia:'Examen'},
+      {desde:'Prueba 2',hacia:'Examen'},
+    ]},
     evals:[
       ['Controles y tareas',20],
       ['Prueba 1',25],
@@ -2694,7 +2745,7 @@ const PRESETS_UAI={
       ['Examen',30],
     ],
     noCalcula:[
-      'Con inasistencia justificada a una prueba, su ponderación pasa al examen. Si la ausencia justificada es a un control o tarea, su nota se reemplaza por la del examen',
+      'Una ausencia justificada en un control o tarea se reemplaza por el examen, pero el bloque está consolidado y el programa no fija el peso de cada instancia. Con dos pruebas justificadas, el programa no define el destino de la segunda',
       'Con examen de al menos 4,8 y todas las pruebas rendidas, el examen reemplaza la peor prueba solo si mejora la final',
     ],
     reglasDelCurso:[
@@ -2727,6 +2778,13 @@ const PRESETS_UAI={
   // "dos o tres" descartes no autoriza elegir una cantidad en dropLowest.
   'Introducción a la Macroeconomía':{
     periodo:'2026-2',creditos:6,
+    // ECO123 2026-2: el examen reemplaza una prueba justificada. Una segunda
+    // queda pendiente hasta que el curso confirme su tratamiento.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Prueba oficial 1',hacia:'Examen final'},
+      {desde:'Prueba oficial 2',hacia:'Examen final'},
+      {desde:'Prueba oficial 3',hacia:'Examen final'},
+    ]},
     evals:[
       ['Controles y otras evaluaciones',15],
       ['Prueba oficial 1',20],
@@ -2734,9 +2792,7 @@ const PRESETS_UAI={
       ['Prueba oficial 3',20],
       ['Examen final',25],
     ],
-    noCalcula:[
-      'La nota del examen reemplaza una prueba con inasistencia justificada',
-    ],
+    noCalcula:['Con más de una prueba justificada, el programa no define cómo resolver las siguientes ausencias'],
     reglasDelCurso:[
       'Programa ECO123 UAI 2026-2, sección 03, Santiago. Revisa que corresponda a tu sección',
       'Ingresa el promedio consolidado de Controles y otras evaluaciones del curso: contempla al menos ocho evaluaciones y elimina dos o tres notas, sin fijar cuántas. Puede incluir participación con 50% de ese bloque a criterio del profesor',
