@@ -2,6 +2,7 @@
 // La fórmula vive en engine.js para que la página y la app den la misma nota;
 // acá se prueban los casos que alguien comprobaría con su prueba en la mano.
 const fs = require('fs'), path = require('path');
+const vm = require('vm');
 const raiz = path.join(__dirname, '..');
 const leer = f => fs.readFileSync(path.join(raiz, f), 'utf8');
 const { gh_notaDesdePuntaje } = require('../engine.js');
@@ -70,6 +71,83 @@ chk('comparte su propia tarjeta', html.includes('<meta property="og:image" conte
 chk('la tarjeta mide 1200×630 y pesa menos de 200 KB', og.readUInt32BE(16) === 1200 && og.readUInt32BE(20) === 630 && og.length < 200000);
 chk('la app enlaza a la calculadora', /href="\/calculadora\.html"/.test(leer('index.html')));
 chk('las preguntas enlazan a la calculadora', /href="\/calculadora\.html"/.test(leer('preguntas.html')));
+
+console.log('\n=== Herramienta independiente dentro de la app ===');
+const app = leer('app.js'), inicio = app.indexOf('// Herramienta aparte del editor de evaluaciones (#735).');
+const fin = app.indexOf("document.addEventListener('keydown'", inicio);
+chk('el menú abre una calculadora aparte', /id="um-calculadora"[^>]*openCalculadoraApp/.test(leer('index.html')));
+chk('la herramienta usa la fórmula común, no otra copia', inicio >= 0 && fin > inicio && app.slice(inicio, fin).includes('gh_notaDesdePuntaje('));
+chk('cada evaluación sigue pidiendo solo nota', !leer('render-main.js').includes('Desde puntaje'));
+
+function escenarioCalculadora({profesor=false,exigenciaGuardada}={}){
+  // Pauta sintética: una evaluación directa, dos casillas y una lista abierta.
+  // La lista no se reinterpreta como una casilla al guardar.
+  const ramo={id:'ramo-sintetico',nombre:'Ramo de prueba',categorias:[
+    {id:'prueba',nombre:'Prueba',peso:60,directNota:true,notas:[]},
+    {id:'controles',nombre:'Controles',peso:30,directNota:true,slots:2,notas:[]},
+    {id:'tareas',nombre:'Tareas',peso:10,directNota:false,notas:[]}
+  ]};
+  if(exigenciaGuardada!==undefined)ramo.exigenciaPuntaje=exigenciaGuardada;
+  const elementos={};
+  function el(id){return elementos[id] ||= {
+    value:'',textContent:'',innerHTML:'',disabled:false,checked:false,open:false,attributes:{},
+    setAttribute(k,v){this.attributes[k]=v;},removeAttribute(k){delete this.attributes[k];}
+  };}
+  for(const [id,value] of Object.entries({puntaje:'',total:'',exigencia:'50',nmin:'1',naprob:'4',nmax:'7',ramo:'',destino:''}))el('calc-app-'+id).value=value;
+  const llamadas=[];
+  const ctx=vm.createContext({
+    S:{ramos:[ramo]},document:{getElementById:el},gh_notaDesdePuntaje,
+    esCuentaProfesor:()=>profesor,ausenciaDeEvaluacion:()=>null,categoriaEximida:()=>false,
+    etiquetaCasilla:(_r,c,i)=>`${c.nombre} ${i+1}`,esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;'),
+    openModal:()=>llamadas.push('abrir'),closeModal:()=>llamadas.push('cerrar'),
+    showTab:s=>llamadas.push('tab:'+s),openRamo:id=>llamadas.push('ramo:'+id),
+    save:()=>llamadas.push('sync'),
+    setDirectNota:(id,raw)=>llamadas.push(`directa:${id}:${raw}`),
+    setSlotNota:(id,slot,raw)=>llamadas.push(`casilla:${id}:${slot}:${raw}`)
+  });
+  vm.runInContext(app.slice(inicio,fin),ctx);
+  ctx.openCalculadoraApp();
+  return {ctx,ramo,el,llamadas};
+}
+let caso=escenarioCalculadora();
+caso.el('calc-app-puntaje').value='25';caso.el('calc-app-total').value='50';
+caso.ctx.calcularNotaApp();
+chk('25/50 al 50 % aparece en vivo como 4,0',caso.el('calc-app-nota').textContent==='4,0');
+chk('sin ramo se puede calcular, pero no guardar',caso.el('calc-app-guardar').disabled===true);
+caso.el('calc-app-ramo').value=caso.ramo.id;caso.ctx.seleccionarRamoCalculadoraApp();
+caso.el('calc-app-destino').value='0';caso.ctx.calcularNotaApp();caso.ctx.guardarNotaCalculadoraApp();
+chk('guardar evaluación simple pasa por setDirectNota',caso.llamadas.includes('directa:prueba:4.0'));
+chk('50 % por defecto no agrega un campo al ramo',!Object.hasOwn(caso.ramo,'exigenciaPuntaje'));
+chk('ningún puntaje entra al estado guardable',!JSON.stringify(caso.ctx.S).includes('puntaje'));
+
+caso=escenarioCalculadora();
+caso.el('calc-app-puntaje').value='30';caso.el('calc-app-total').value='50';
+caso.el('calc-app-ramo').value=caso.ramo.id;caso.ctx.seleccionarRamoCalculadoraApp();
+caso.el('calc-app-exigencia').value='60';caso.el('calc-app-destino').value='2';
+caso.ctx.calcularNotaApp();
+chk('30/50 al 60 % aparece en vivo como 4,0',caso.el('calc-app-nota').textContent==='4,0');
+caso.ctx.guardarNotaCalculadoraApp();
+chk('guardar casilla pasa por setSlotNota',caso.llamadas.includes('casilla:controles:1:4.0'));
+chk('exigencia elegida queda en campo opcional del ramo',caso.ramo.exigenciaPuntaje===60);
+chk('el puntaje no se agregó al ramo con la preferencia',!Object.keys(caso.ramo).some(k=>/puntaje/i.test(k)&&k!=='exigenciaPuntaje'));
+
+caso=escenarioCalculadora();
+caso.el('calc-app-exigencia').value='60';caso.ctx.editarExigenciaCalculadoraApp();
+caso.el('calc-app-ramo').value=caso.ramo.id;caso.ctx.seleccionarRamoCalculadoraApp();
+chk('elegir ramo después de escribir 60 % no lo devuelve a 50 %',caso.el('calc-app-exigencia').value==='60');
+chk('la exigencia se sincroniza sin guardar una nota',caso.ramo.exigenciaPuntaje===60&&caso.llamadas.includes('sync'));
+
+caso=escenarioCalculadora({exigenciaGuardada:60});
+caso.el('calc-app-ramo').value=caso.ramo.id;caso.ctx.seleccionarRamoCalculadoraApp();
+chk('un ramo existente recupera su exigencia entre dispositivos',caso.el('calc-app-exigencia').value==='60');
+caso.el('calc-app-puntaje').value='50';caso.el('calc-app-total').value='50';caso.ctx.calcularNotaApp();
+chk('50/50 llega a 7,0',caso.el('calc-app-nota').textContent==='7,0');
+caso.el('calc-app-puntaje').value='0';caso.ctx.calcularNotaApp();
+chk('0/50 llega a 1,0',caso.el('calc-app-nota').textContent==='1,0');
+caso.el('calc-app-puntaje').value='51';caso.ctx.calcularNotaApp();
+chk('puntaje mayor al total bloquea el guardado',caso.el('calc-app-guardar').disabled&&caso.el('calc-app-error').textContent.includes('superar'));
+caso=escenarioCalculadora({profesor:true});
+chk('una cuenta solo profesor no abre la herramienta de estudiante',!caso.llamadas.includes('abrir'));
 
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if (fail) process.exit(1);
