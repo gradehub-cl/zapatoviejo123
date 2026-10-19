@@ -22,7 +22,7 @@ chk('ninguna promete una malla que no existe',
 chk('y ya hay mallas de verdad', (ctx.CD.uai||[]).filter(c=>c.malla).length >= 20);
 // Nombres exactos de la página oficial de mallas, no inventados ni normalizados.
 chk('están las que publica la UAI',
-  ['Derecho','Psicología','Ingeniería Comercial','Ingeniería Civil en Bioingeniería']
+  ['Derecho','Psicología','Ingeniería Comercial (Economía)','Ingeniería Civil en Bioingeniería']
     .every(n=>(ctx.CD.uai||[]).some(c=>c.n===n)));
 
 console.log('\n=== El cargador de mallas sirve a cualquier universidad ===');

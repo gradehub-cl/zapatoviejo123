@@ -370,11 +370,10 @@ const SURFACE_KEYS=['bg','bg2','card','border','border2','muted','fg','fg2','fg3
 // nombre inventado acá no falla, se queda en la base y después manda a
 // construir la malla equivocada.
 const CARRERAS_DECLARABLES={
-  // Las 21 carreras de pregrado que la UAI publica en su página de mallas
-  // (uai.cl/admision/mallas-curriculares-y-folletos). Ninguna trae `malla`
-  // todavía: los ramos por semestre se están transcribiendo desde esos PDF y
-  // entran después sin tocar esta lista. Declararse ya funciona: quien estudia
-  // acá elige su carrera y arma sus ramos, que es el camino del 95%.
+  // Carreras y vías verificadas en las mallas oficiales UAI. Cada licenciatura
+  // o vía distinta tiene su propia opción: no se unen planes incompatibles.
+  // Los códigos existentes se conservan; solo se precisa su nombre visible.
+  // Fuentes y límites de la ampliación de octubre: docs/mallas-uai.md.
   uai:[
     {n:'Ingeniería Aeroespacial',malla:'UAI-INGENIERIA-AEROESPACIAL'},
     {n:'Periodismo',malla:'UAI-PERIODISMO'},
@@ -384,12 +383,15 @@ const CARRERAS_DECLARABLES={
     {n:'Psicología',malla:'UAI-PSICOLOGIA'},
     {n:'Derecho',malla:'UAI-DERECHO'},
     {n:'Doble Grado Derecho + Ingeniería Comercial',malla:'UAI-DOBLE-GRADO-DERECHO-E-INGENIERIA-COMERCIAL'},
-    {n:'Doble Título Ingeniería Comercial + Sociología',malla:'UAI-DOBLE-TITULO-INGENIERIA-COMERCIAL-SOCIOLOGIA'},
-    {n:'Ingeniería Comercial',malla:'UAI-INGENIERIA-COMERCIAL'},
+    {n:'Doble Título Ingeniería Comercial + Sociología (Administración de Empresas)',malla:'UAI-DOBLE-TITULO-INGENIERIA-COMERCIAL-SOCIOLOGIA'},
+    {n:'Doble Título Ingeniería Comercial + Sociología (Economía)',malla:'UAI-DOBLE-TITULO-INGENIERIA-COMERCIAL-SOCIOLOGIA-ECONOMIA'},
+    {n:'Ingeniería Comercial (Economía)',malla:'UAI-INGENIERIA-COMERCIAL'},
+    {n:'Ingeniería Comercial (Administración de Empresas)',malla:'UAI-INGENIERIA-COMERCIAL-ADMINISTRACION'},
     {n:'Bachillerato de Ingeniería Comercial',malla:'UAI-BACHILLERATO-DE-INGENIERIA-COMERCIAL'},
     {n:'International Management',malla:'UAI-INTERNATIONAL-MANAGEMENT'},
     {n:'Ingeniería en Negocios y Tecnología',malla:'UAI-INGENIERIA-EN-NEGOCIOS-Y-TECNOLOGIA'},
-    {n:'Ingeniería en Diseño',malla:'UAI-INGENIERIA-EN-DISENO'},
+    {n:'Ingeniería en Diseño (vía Ingeniería Civil)',malla:'UAI-INGENIERIA-EN-DISENO'},
+    {n:'Ingeniería en Diseño (vía Ingeniería Comercial)',malla:'UAI-INGENIERIA-EN-DISENO-VIA-COMERCIAL'},
     {n:'Ingeniería en Computer Science',malla:'UAI-INGENIERIA-EN-COMPUTER-SCIENCE'},
     {n:'Ingeniería Civil Industrial',malla:'UAI-INGENIERIA-CIVIL-INDUSTRIAL'},
     {n:'Ingeniería Civil Informática',malla:'UAI-INGENIERIA-CIVIL-INFORMATICA'},
