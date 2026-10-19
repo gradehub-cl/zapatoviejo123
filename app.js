@@ -2325,7 +2325,7 @@ function completeOnboarding(){
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
-    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
@@ -3795,7 +3795,7 @@ function confirmAddMalla(){
     // estrella de "pauta oficial" al lado, porque el selector SÍ normaliza.
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
@@ -3902,7 +3902,7 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const ramo={
     id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
     creditos,origen:origenActual(presetName||nombre,sigla),
-    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
+    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
   consensoAlAgregar(ramo);
@@ -6046,7 +6046,7 @@ function confirmAddRamo(){
   const presetName=findPresetName(name,S.tenant,S.carrera);
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
-  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
   consensoAlAgregar(S.ramos[S.ramos.length-1]);
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
   showToast(preset?'Pauta cargada':'Ramo agregado');
