@@ -21,7 +21,8 @@ for(const [correo,esperado] of [
 // Primera vez con correo UAndes: paso 1, con la UAndes ya elegida para el paso 2.
 run(`currentUser={email:'ana@miuandes.cl',user_metadata:{full_name:'Ana Pérez'}};enterOnboarding();`);
 assert.equal(run('selectedTenant'),'uandes');
-assert.equal(run('obStep'),1,'no se salta pasos');
+// Desde #697 el primer paso es elegir estudiante o profesor (el 0).
+assert.equal(run('obStep'),0,'no se salta pasos');
 assert.equal(run('obStepValid(2)'),true,'el paso 2 ya está completo');
 // Se puede cambiar.
 run(`obStep=2;selectTenant('uc')`);assert.equal(run('selectedTenant'),'uc');

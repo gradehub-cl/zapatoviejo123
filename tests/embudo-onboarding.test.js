@@ -33,34 +33,36 @@ const chk = (n, c) => { if (c) { ok++; console.log('  OK   ' + n); } else { fail
 
 console.log('\n=== Cada paso alcanzado se cuenta una vez ===');
 run('obIniciar()');
-chk('entrar al onboarding emite el paso 1', JSON.stringify(pasos()) === '[1]');
+// Desde #697 se entra por el paso 0, estudiante o profesor. Los del
+// estudiante siguen siendo 1 a 5, así que el embudo se compara con el de antes.
+chk('entrar al onboarding emite el paso 0', JSON.stringify(pasos()) === '[0]');
 
 // El paso 5 se salta acá a propósito: dispara prepararObRamos(), que necesita el
 // catálogo y la carrera elegida. El dedupe no depende del paso.
-[2, 3, 4].forEach(irAlPaso);
-chk('avanzar emite cada paso nuevo', JSON.stringify(pasos()) === '[1,2,3,4]');
+[1, 2, 3, 4].forEach(irAlPaso);
+chk('avanzar emite cada paso nuevo', JSON.stringify(pasos()) === '[0,1,2,3,4]');
 
 irAlPaso(3); irAlPaso(2);
-chk('volver atrás no emite nada', JSON.stringify(pasos()) === '[1,2,3,4]');
+chk('volver atrás no emite nada', JSON.stringify(pasos()) === '[0,1,2,3,4]');
 
 irAlPaso(3); irAlPaso(4);
-chk('y volver a avanzar tampoco reemite', JSON.stringify(pasos()) === '[1,2,3,4]');
+chk('y volver a avanzar tampoco reemite', JSON.stringify(pasos()) === '[0,1,2,3,4]');
 
 console.log('\n=== Una pasada nueva vuelve a contar ===');
 // Cerrar sesión y entrar con otra cuenta no recarga la página: si el contador no
 // se reiniciara, ese onboarding entero quedaría fuera del embudo.
 run('obIniciar()');
-chk('reentrar al onboarding vuelve a emitir el paso 1', JSON.stringify(pasos()) === '[1,2,3,4,1]');
+chk('reentrar al onboarding vuelve a emitir el paso 0', JSON.stringify(pasos()) === '[0,1,2,3,4,0]');
 
 console.log('\n=== Y nunca viaja texto del estudiante ===');
 // La regla dura de la analítica. `etapa` es una etiqueta nuestra de lista
 // cerrada, no lo que el estudiante escribió.
-const ETAPAS = ['nombre', 'universidad', 'carrera', 'semestre', 'ramos'];
+const ETAPAS = ['tipo', 'nombre', 'universidad', 'carrera', 'semestre', 'ramos', 'profesor'];
 const etapas = eventos.filter(e => e.evento === 'onboarding_step');
 chk('cada evento manda paso y etapa, nada más',
   etapas.every(e => Object.keys(e.params).sort().join() === 'etapa,paso'));
 chk('la etapa sale de la lista cerrada',
-  etapas.every(e => ETAPAS[e.params.paso - 1] === e.params.etapa));
+  etapas.every(e => ETAPAS[e.params.paso] === e.params.etapa));
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
