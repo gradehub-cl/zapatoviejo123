@@ -302,6 +302,25 @@ $$;
 -- promedio de una categoría acá es el ponderado de sus notas por su peso, SIN
 -- descartes ni reglas: es una referencia de cómo le va al resto, no la nota de
 -- nadie. La del alumno la calcula el navegador con el motor de siempre.
+-- UC/FEN se identifican por sigla. UAI/UAndes, si no la tienen, usan el
+-- nombre normalizado guardado en origen.ramoKey, como el consenso de pautas.
+-- La función solo construye la clave: no calcula promedios ni expone filas.
+create or replace function public.clave_curso_comparacion(p_tenant text, p_ramo jsonb)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(
+    nullif(upper(btrim(p_ramo->>'sigla')), ''),
+    case when lower(p_tenant) in ('uai', 'uandes') then
+      nullif(upper(btrim(regexp_replace(
+        normalize(lower(coalesce(nullif(p_ramo#>>'{origen,ramoKey}', ''), p_ramo->>'nombre', '')), NFD),
+        '[\u0300-\u036f]', '', 'g'))), '')
+    end);
+$$;
+revoke all on function public.clave_curso_comparacion(text, jsonb) from public, anon, authenticated;
+
 create or replace function public.comparacion_ramo_profesor(p_tenant text, p_sigla text)
 returns jsonb
 language plpgsql
@@ -326,7 +345,7 @@ begin
     join public.user_ramos ur on ur.user_id = pa.alumno_id,
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
     where pa.tutor_id = uid and r->>'id' = any (pa.ramos)
-      and ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+      and ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
   ) then
     return null;
   end if;
@@ -334,8 +353,10 @@ begin
   select case when count(*) >= 5
               then jsonb_build_object('promedio', round(avg(promedio), 1), 'personas', count(*)) end
     into v_ramo
-    from public.curso_notas
-    where tenant = v_tenant and ramo_sigla = v_sigla and updated_at > now() - interval '30 days';
+    from public.curso_notas cn
+    where cn.tenant = v_tenant and cn.ramo_sigla = v_sigla and cn.updated_at > now() - interval '30 days'
+      and not exists (select 1 from public.user_ramos ur
+                      where ur.user_id = cn.user_id and ur.data->>'tipoCuenta' = 'profesor');
 
   with notas as (
     select ur.user_id,
@@ -345,7 +366,8 @@ begin
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r,
          jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
          jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
-    where ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+    where ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and jsonb_typeof(n->'valor') = 'number'
       and (n->>'valor')::numeric between 1 and 7
   ),
@@ -378,7 +400,8 @@ begin
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r,
          jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
          jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
-    where ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+    where ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and jsonb_typeof(n->'valor') = 'number'
       and (n->>'valor')::numeric between 1 and 7
   ),

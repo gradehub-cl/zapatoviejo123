@@ -3792,17 +3792,18 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     raiz.querySelector('#alumnos-volver').addEventListener('click',()=>volver?volver():renderAlumnosProfesor(raiz));
     return;
   }
-  // Una consulta por ramo distinto, no por alumno.
+  // Una consulta por ramo distinto, no por alumno. UAI y UAndes pueden usar
+  // nombre normalizado cuando no existe sigla, igual que curso_notas.
   const cursos=new Map();
   alumnos.forEach(al=>(al.ramos||[]).forEach(r=>{
-    // La sigla guardada en el ramo, que es la misma con que el SQL lo busca.
-    if(r.sigla&&al.tenant)cursos.set(`${al.tenant}|${String(r.sigla).toUpperCase()}`,null);
+    const clave=al.tenant&&claveRamoCurso(r,al.tenant);
+    if(clave)cursos.set(claveCurso(al.tenant,clave),null);
   }));
   await Promise.all([...cursos.keys()].map(async k=>{
-    const [tenant,sigla]=k.split('|');
+    const separador=k.indexOf('|'),tenant=k.slice(0,separador),sigla=k.slice(separador+1);
     try{const {data,error}=await supabaseClient.rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
   }));
-  const compDe=(al,r)=>cursos.get(`${al.tenant}|${String(r.sigla||'').toUpperCase()}`)||null;
+  const compDe=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
   const link=linkAlumnosProfesor(codigo);
   // Con alumnos, lo primero es cómo van y el link para invitar más va al final.
   // Sin alumnos, el link es lo único que se puede hacer: va arriba.

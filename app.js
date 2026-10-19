@@ -5279,9 +5279,8 @@ function consensoCargado(tenant){return _consensoPorTenant.get(tenant)||null;}
 // posicion: "mejor que el 70%". Nunca baja una nota ajena al navegador: la
 // comparacion la hace el servidor y devuelve dos enteros.
 //
-// Solo participan los ramos CON SIGLA. Sin ella no hay forma de saber que la
-// "Dinamica" de uno es la misma que la del otro, y juntar dos ramos distintos
-// bajo el mismo nombre haria que la posicion no signifique nada.
+// UC y FEN siguen usando la sigla. UAI y UAndes, cuando no la publican,
+// comparten la clave de nombre normalizado del consenso dentro de su tenant.
 
 // Se manda el mismo numero que el estudiante ve en su pantalla, no uno
 // recalculado: `ramoAvg` es la unica formula de promedio que existe.
@@ -5289,11 +5288,19 @@ function consensoCargado(tenant){return _consensoPorTenant.get(tenant)||null;}
 // `siglaDeRamo`. Esto se escribio filtrando por `r.sigla`, que es undefined en
 // todos, asi que la lista quedaba vacia y no se subio nunca nada. La tabla
 // estaba en cero y la seccion no aparecia jamas.
-function siglaParaCurso(r){
-  const s=(r&&r.sigla)||siglaDeRamo(r);
+function siglaParaCurso(r,tenant){
+  const s=(r&&r.sigla)||siglaDeRamo(r,tenant);
   return typeof s==='string'&&s.trim()?s.trim():null;
 }
-// Qué siglas mandó esta cuenta desde este dispositivo, como [tenant, sigla].
+function claveRamoCurso(r,tenant){
+  const sigla=siglaParaCurso(r,tenant);
+  if(sigla)return sigla;
+  if(!['uai','uandes'].includes(tenant))return null;
+  const origen=r&&r.origen;
+  const clave=origen&&origen.tenant===tenant&&origen.ramoKey||ramoKey(r&&r.nombre,tenant,origen&&origen.carrera);
+  return typeof clave==='string'&&clave.trim()?normName(clave):null;
+}
+// Qué claves de ramo mandó esta cuenta desde este dispositivo, como [tenant, clave].
 // Hasta el 2026-09-29 solo se recorrían los ramos de AHORA: uno borrado, o
 // todos al archivar el semestre, nunca recibían el null que los saca, y su
 // último promedio quedaba para siempre en `curso_notas` contando en la
@@ -5318,13 +5325,13 @@ let _firmaNotasCurso=null;
 async function subirNotasCurso(){
   if(esCuentaProfesor())return;
   if(!supabaseClient||!currentUser)return;
-  const firma=currentUser.id+'|'+JSON.stringify((S.ramos||[]).map(r=>[siglaParaCurso(r),ramoAvg(r,undefined,S.ramos)]));
+  const firma=currentUser.id+'|'+JSON.stringify((S.ramos||[]).map(r=>[claveRamoCurso(r,S.tenant),ramoAvg(r,undefined,S.ramos)]));
   if(firma===_firmaNotasCurso)return;
   invalidarPosicionesCurso();
   let fallos=0;
   const vigentes=new Map();
   for(const r of (S.ramos||[])){
-    const sigla=siglaParaCurso(r);
+    const sigla=claveRamoCurso(r,S.tenant);
     if(!sigla)continue;
     vigentes.set(claveCurso(S.tenant,sigla),[S.tenant,sigla]);
     const avg=ramoAvg(r,undefined,S.ramos);
@@ -5368,7 +5375,7 @@ async function cargarPosicionesCurso(){
   if(_posCursoCache)return _posCursoCache;
   const out={};
   for(const r of (S.ramos||[])){
-    const sigla=siglaParaCurso(r);
+    const sigla=claveRamoCurso(r,S.tenant);
     if(!sigla)continue;
     try{
       const {data,error}=await supabaseClient.rpc('curso_posicion',{p_tenant:S.tenant,p_sigla:sigla});

@@ -117,6 +117,42 @@ try{
   await soy(OTRO);
   check('otra cuenta no puede consultar comparaciones',(await q(`select comparacion_ramo_profesor('uc','MAT1620') c`))[0].c===null);
 
+  console.log('\n=== UAI y UAndes sin sigla: nombre normalizado y piso de cinco ===');
+  for(const [tenant,nombre,base] of [
+    ['uai','Curso Sintético de Álgebra',30],['uandes','Curso Sintético de Historia',40],
+  ]){
+    const clave=nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    const curso=i=>({id:`${tenant}-${i}`,nombre,sigla:null,origen:{tenant,ramoKey:clave},gates:[],
+      categorias:[{id:`c-${i}`,nombre:'Prueba',peso:100,notas:[{id:`n-${i}`,nombre:'Prueba',valor:4+i%3}]}]});
+    for(let i=0;i<4;i++){
+      const id=u(base+i);
+      await db.query('insert into auth.users(id) values($1)',[id]);
+      await guardar(id,[curso(i)],tenant);
+      if(i===0){await soy(id);await q('select compartir_con_profesor($1,$2,$3)',[nuevo,'Alumno Sintético',[`${tenant}-${i}`]]);}
+      await db.query('insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,$2,$3,$4)',[id,tenant,clave.toUpperCase(),4+i/2]);
+    }
+    // Una fila antigua de una cuenta solo profesor no suma al agregado.
+    await db.query('insert into user_ramos(user_id,data) values($1,$2) on conflict(user_id) do update set data=excluded.data',
+      [PROFE,JSON.stringify({tenant,tipoCuenta:'profesor',ramos:[curso(9)]})]);
+    await db.query('insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,$2,$3,7)',[PROFE,tenant,clave.toUpperCase()]);
+    await soy(PROFE);
+    const consulta=()=>q('select comparacion_ramo_profesor($1,$2) c',[tenant,clave]);
+    const cuatro=(await consulta())[0].c;
+    check(`${tenant}: cuatro estudiantes y un profesor no revelan promedio`,cuatro?.ramo===null&&cuatro?.evaluaciones?.length===0);
+    await db.query('insert into auth.users(id) values($1)',[u(base+4)]);
+    await guardar(u(base+4),[curso(4)],tenant);
+    await db.query('insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,$2,$3,6)',[u(base+4),tenant,clave.toUpperCase()]);
+    const cinco=(await consulta())[0].c;
+    check(`${tenant}: cinco estudiantes sin sigla muestran solo agregados`,
+      cinco?.ramo?.personas===5&&Number(cinco.ramo.promedio)===5.0&&
+      cinco.evaluaciones?.[0]?.personas===5&&cinco.categorias?.[0]?.personas===5);
+    check(`${tenant}: la clave SQL coincide con nombre y ramoKey guardado`,
+      (await q('select clave_curso_comparacion($1,$2::jsonb) c',[tenant,JSON.stringify(curso(1))]))[0].c===clave.toUpperCase());
+    const sinOrigen=curso(1);delete sinOrigen.origen;
+    check(`${tenant}: una cuenta anterior sin ramoKey usa su nombre`,
+      (await q('select clave_curso_comparacion($1,$2::jsonb) c',[tenant,JSON.stringify(sinOrigen)]))[0].c===clave.toUpperCase());
+  }
+
   console.log('\n=== Dejar de compartir y borrar cuentas ===');
   await soy(ALUMNA);
   const mios=await q('select * from mis_profesores()');
@@ -127,7 +163,7 @@ try{
   await soy(ALUMNA);
   check('la alumna deja de compartir con un toque',(await q('select dejar_de_compartir($1) b',[idCompartido]))[0].b===true);
   await soy(PROFE);
-  check('y el profesor deja de verla al tiro',(await q('select * from mis_alumnos()')).length===0);
+  check('y el profesor deja de verla al tiro',!(await q('select * from mis_alumnos()')).some(x=>x.id===idCompartido));
   await soy(ALUMNA);
   const otraVez=(await q('select compartir_con_profesor($1,$2,$3) id',[nuevo,'Cami',['r1','r2']]))[0].id;
   await soy(PROFE);
@@ -135,7 +171,7 @@ try{
   await soy(ALUMNA);
   await q('select compartir_con_profesor($1,$2,$3)',[nuevo,'Cami',['r1']]);
   await db.query('delete from auth.users where id=$1',[ALUMNA]);
-  check('borrar la cuenta del alumno borra lo compartido',(await q('select count(*)::int n from profesor_alumnos'))[0].n===0);
+  check('borrar la cuenta del alumno borra lo compartido',(await q('select count(*)::int n from profesor_alumnos where alumno_id=$1',[ALUMNA]))[0].n===0);
 
   console.log('\n=== Seguridad de las funciones ===');
   const funciones=await q(`select proname, prosecdef, proconfig from pg_proc
