@@ -211,7 +211,9 @@ function contexto({search='',sesion=false}={}){
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
     /ah-cifra-valor">\+1\.7</.test(gh)&&/ah-cifra-valor">1 de 1</.test(gh)&&/0% → 100%/.test(gh));
-  chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 sin fecha no cuentan/.test(gh));
+  chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
+  const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
+  chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
   chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
   const ah=a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))');
   chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
@@ -277,6 +279,22 @@ function contexto({search='',sesion=false}={}){
   chk('no cambia la lista original',a.run('__al[0].ramos.length')===2);
   const lista=a.run(`alumnosPanelHTML([{id:'x"1',nombre_visible:'<img src=x>',ramos:[]}],()=>null)`);
   chk('el nombre que eligió el alumno va escapado',/&lt;img src=x&gt;/.test(lista)&&!/<img/.test(lista));
+  chk('un alumno abre su detalle; con varios, la lista parte compacta',
+    /class="panel-alumnos-alumno" open/.test(lista)&&
+    !/class="panel-alumnos-alumno" open/.test(a.run(`alumnosPanelHTML(__al,()=>null)`)));
+  chk('la lista compacta indica visualmente qué fila se despliega',
+    /\.panel-alumnos-alumno summary::after\{content:'›'/.test(leer('styles.css')));
+  console.log('\n=== Jerarquía del panel a 1, 4 y 6 alumnos ===');
+  for(const n of [1,4,6]){
+    a.run(`globalThis.__alumnosVista=Array.from({length:${n}},(_,i)=>({id:'a'+i,nombre_visible:'Alumno '+(i+1),tenant:'uc',ramos:[]}));
+      globalThis.__raizVista={innerHTML:'',querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
+      supabaseClient={rpc:async nombre=>nombre==='codigo_alumnos_profesor'?{data:'AB3CDEFG',error:null}:{data:__alumnosVista,error:null}};`);
+    await a.run('renderAlumnosProfesor(__raizVista)');
+    const vista=a.run('__raizVista.innerHTML');
+    chk(`${n} alumnos: la lista y sus nombres aparecen antes de las cifras`,
+      vista.indexOf('<h2>Alumnos</h2>')<vista.indexOf('Cómo van tus alumnos')&&
+      vista.indexOf('Alumno 1')<vista.indexOf('Cómo van tus alumnos'));
+  }
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
