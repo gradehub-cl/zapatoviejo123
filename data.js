@@ -2349,6 +2349,11 @@ const PRESETS_FEN={
   // El programa da la fórmula cerrada y suma 100 exacto:
   //   NF = 20% NS1 + 20% NS2 + 5% JITT + 10% NC + 15% NTF + 30% NE
   //
+  // PERO en la práctica no hay JITT: el consenso de los reportes (3 estudiantes,
+  // catalog_consensus('fen') al 2026-10-19) trae Controles 15% con dos casillas
+  // y nada más distinto. Martín lo dio por oficial ese día. Si un programa
+  // posterior vuelve a separar el JITT, se revierte acá.
+  //
   // Las dos solemnes van en filas propias porque el programa les da peso propio
   // (20% cada una, no un bloque de 40%), igual que en Métodos Matemáticos II: si
   // falta una y el examen ya está puesto, filas separadas reponderan sobre lo
@@ -2373,8 +2378,7 @@ const PRESETS_FEN={
       'La asistencia a las ayudantías es obligatoria, y los controles se rinden en ese horario',
     ],
     evals:[
-      ['Just in Time Teaching',5],
-      ['Controles',10,{slots:2}],
+      ['Controles',15,{slots:2}],
       ['Trabajo Final',15],
       ['Solemne 1',20,{fecha:'2026-09-25'}],
       ['Solemne 2',20],
