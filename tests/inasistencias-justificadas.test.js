@@ -327,4 +327,43 @@ chk('MAT124 y MAT125 también conservan su promedio sin casillas justificadas',[
   return ramoAvg(nuevo)===ramoAvg(viejo);
 }));
 
+console.log('\n=== La regla está disponible apenas se agrega el ramo ===');
+const alta=vm.runInContext(`(()=>{
+  const nombre='Curso sintético con ausencia por casilla';
+  PRESETS_POR_TENANT.uai[nombre]={
+    evals:[['Talleres',30,{slots:3,slotLabel:'Taller'}],['Pruebas',70,{slots:3,slotLabel:'Prueba'}]],
+    ausenciasJustificadas:{reemplazosCasilla:[{desde:'Talleres',desdeSlot:1,hacia:'Pruebas',haciaSlot:1}]}
+  };
+  save=()=>{};syncProfile=()=>{};registrarDeclaracionEdad=()=>{};
+  track=()=>{};enterApp=()=>{};mostrarRamosCargados=()=>{};
+  consensoAlAgregar=()=>{};closeModal=()=>{};renderHome=()=>{};showToast=()=>{};
+  obPasoIncompleto=()=>0;
+  document.getElementById=()=>({value:nombre,classList:{contains:()=>false}});
+  const conRegla=r=>{
+    const talleres=r?.categorias?.find(c=>c.nombre==='Talleres');
+    const prueba=r?.categorias?.find(c=>c.nombre==='Pruebas');
+    const regla=r?.reglasAusenciaJustificada?.reemplazosCasilla?.[0];
+    const hoja=talleres?opcionAusenciaHojaHTML(r,talleres,{slot:1}):'';
+    return regla?.desdeId===talleres?.id&&regla?.haciaId===prueba?.id&&
+      regla?.desdeSlot===1&&regla?.haciaSlot===1&&
+      hoja.includes('10%')&&!hoja.includes('Aplica a toda la evaluación');
+  };
+  selectedTenant='uai';selectedCarrera=null;selectedSem=1;
+  obTipo='estudiante';obRamos=[{nombre,manual:false}];
+  S.ramos=[];completeOnboarding();
+  const onboarding=conRegla(S.ramos[0]);
+  S.ramos=[];S.tenant='uai';S.carrera=null;
+  _mallaList=[nombre];_mallaSel={[nombre]:true};confirmAddMalla();
+  const malla=conRegla(S.ramos[0]);
+  S.ramos=[];crearRamoDesdeCatalogo(nombre,null);
+  const catalogo=conRegla(S.ramos[0]);
+  S.ramos=[];
+  confirmAddRamo();
+  const buscador=conRegla(S.ramos[0]);
+  delete PRESETS_POR_TENANT.uai[nombre];
+  return {onboarding,malla,catalogo,buscador};
+})()`,ctx);
+Object.entries(alta).forEach(([ruta,correcta])=>
+  chk(`${ruta}: la regla de Taller 2 aparece antes de recargar`,correcta));
+
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);
