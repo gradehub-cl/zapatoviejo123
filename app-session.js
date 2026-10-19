@@ -278,6 +278,9 @@ function reportarError(error,donde){
     const mensaje=detalleErrorSeguro(error);
     // "Script error." es lo único que deja un script de otro origen: no dice nada.
     if(/^Script error\.?$/i.test(mensaje))return false;
+    // __gCrWeb es el script que Chrome para iPhone inyecta en cada página: si
+    // falla, no es nuestro (2026-10-16, "Can't find variable: __gCrWeb").
+    if(/__gCrWeb/.test(mensaje))return false;
     const tipos=['TypeError','ReferenceError','RangeError','SyntaxError','AbortError','NotAllowedError'];
     const tipo=error&&tipos.includes(error.name)?error.name:'Error';
     const clave=tipo+'|'+mensaje+'|'+donde;
