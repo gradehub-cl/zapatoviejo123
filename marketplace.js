@@ -3196,6 +3196,10 @@ async function compartirInvitacionAlumnos(link){
     return 'copiado';
   }catch(e){return 'fallo';}
 }
+function medirInvitacionCompartida(resultado){
+  if(resultado==='compartido')track('panel_alumnos_link_compartido');
+  if(resultado==='copiado')track('panel_alumnos_link_copiado');
+}
 
 // El link se abre antes de iniciar sesión: el código espera acá hasta que haya
 // una cuenta con su semestre listo. Solo el código, nunca datos del profesor.
@@ -3211,6 +3215,10 @@ function capturarProfeDeUrl(){
   const params=new URLSearchParams(location.search||'');
   if(!params.has('profe'))return null;
   const c=guardarProfePendiente(params.get('profe'))?profePendiente():null;
+  if(c){
+    track('panel_alumnos_link_abierto');
+    try{if(typeof ORIGEN_ENTRADA_KEY==='string')sessionStorage.setItem(ORIGEN_ENTRADA_KEY,'profesor');}catch(e){}
+  }
   // Fuera de la barra de direcciones: si la persona comparte la página, no
   // reparte el link de su profesor.
   params.delete('profe');
@@ -3262,6 +3270,8 @@ function abrirHojaInvitacionProfesor(codigo,profe){
   const caja=document.getElementById('modal-content');if(!caja)return;
   caja.innerHTML=hojaInvitacionProfesorHTML(profe,S.ramos||[],S.userName||'');
   openModal();
+  track('panel_alumnos_invitacion_mostrada');
+  try{if(typeof ORIGEN_ENTRADA_KEY==='string'&&sessionStorage.getItem(ORIGEN_ENTRADA_KEY)==='profesor')sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);}catch(e){}
   const si=caja.querySelector('#compartir-si'),nombre=caja.querySelector('#compartir-nombre'),aviso=caja.querySelector('#compartir-error');
   const elegidos=()=>[...caja.querySelectorAll('[data-compartir-ramo]')].filter(c=>c.checked).map(c=>c.value);
   const actualizar=()=>{si.disabled=!elegidos().length||!nombre.value.trim();};
@@ -3854,11 +3864,12 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     if(sel&&el){const rango=document.createRange();rango.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rango);}};
   raiz.querySelector('#alumnos-compartir').addEventListener('click',async()=>{
     const resultado=await compartirInvitacionAlumnos(link);
+    medirInvitacionCompartida(resultado);
     if(resultado==='copiado')showToast('Invitación copiada. Pégala en WhatsApp.');
     if(resultado==='fallo'){seleccionarLink();showToast('No pudimos compartir. Selecciona y copia el link.',true);}
   });
   raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
-    try{await navigator.clipboard.writeText(link);showToast('Link copiado.');}
+    try{await navigator.clipboard.writeText(link);track('panel_alumnos_link_copiado');showToast('Link copiado.');}
     catch(e){seleccionarLink();showToast('Selecciónalo y cópialo.',true);}
   });
   // Lo que no se deshace se confirma en el diálogo de la app (HIG), con Cancelar a mano.
