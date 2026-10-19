@@ -2557,6 +2557,54 @@ const PRESETS_FEN={
       ['Final Exam',30],
     ],
   },
+  // ─── Pautas del consenso de reportes ─────────────────────────────────────
+  // Estos tres ramos no tienen programa transcrito: la pauta es la que
+  // coincidieron en reportar los estudiantes (catalog_consensus('fen') al
+  // 2026-10-19) y Martín la dejó como oficial ese día. Si aparece el programa,
+  // se reemplaza.
+  //
+  // Nombres, mayúsculas y ORDEN son los del consenso a propósito, aunque no sea
+  // el orden del semestre. Quien ya tenía la pauta del consenso puesta sola
+  // guardó `pautaHuella` con ese orden y esos nombres exactos, y huellaPauta()
+  // compara las dos cosas: cualquier diferencia le mostraría "La pauta de este
+  // ramo cambió" sin ningún cambio real que mostrar.
+  //
+  // Inglés II · 9 estudiantes.
+  'Inglés II':{
+    periodo:'2026-2',
+    creditos:2,
+    evals:[
+      ['busuu',15],
+      ['Final Exam',40],
+      ['Midterm test',15],
+      ['Oral quiz',20],
+      ['written quiz',10],
+    ],
+  },
+  // Introducción al Pensamiento Económico y Político · 3 estudiantes. Es una
+  // sola solemne aunque se llame "Solemne 1": así la reportaron.
+  'Introducción al Pensamiento Económico y Político':{
+    periodo:'2026-2',
+    creditos:4,
+    evals:[
+      ['Control 1',15],
+      ['Control 2',15],
+      ['Examen',40],
+      ['Solemne 1',30],
+    ],
+  },
+  // Métodos Matemáticos IV · 3 estudiantes. Nadie reportó mínimo en el examen
+  // (Métodos Matemáticos I sí lo tiene); no se copia de allá.
+  'Métodos Matemáticos IV':{
+    periodo:'2026-2',
+    creditos:6,
+    evals:[
+      ['Examen',40],
+      ['Solemne 1',20],
+      ['Solemne 2',20],
+      ['Solemne 3',20],
+    ],
+  },
 };
 
 // UAI · programas entregados por Lucas el 2026-09-08. Son pautas de secciones
