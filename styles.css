@@ -19,7 +19,7 @@ button:active{transform:scale(.97);}
   --yellow:#a16207;--yellow-bg:#fdf9e7;
   --red:#c02b3f;--red-bg:#fdecef;
   /* En claro los extremos se vuelven profundos para seguir leyéndose sobre blanco. */
-  --grade-light:30%;--grade-urgent-light:37%;--grade-perfect-light:33%;
+  --grade-light:30%;--grade-urgent-light:37%;--grade-perfect-light:25%;--grade-claro:1;
   --muted:#f2f2f4;--radius:10px;
   /* Listas agrupadas de la app iOS (Ajustes): fondo y celda, como iOS. */
   --fondo-agrupado:var(--muted);--celda-agrupada:var(--card);
@@ -58,7 +58,7 @@ button:active{transform:scale(.97);}
     --green:#2ecc40;--green-bg:#08210d;--green-border:#155224;
     --yellow:#ffc94d;--yellow-bg:#231a06;
     --red:#ff5f7a;--red-bg:#280d15;
-    --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
+    --grade-light:62%;--grade-urgent-light:65%;--grade-perfect-light:58%;--grade-claro:0;
     --muted:#1b1b1f;
     --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
@@ -79,7 +79,7 @@ button:active{transform:scale(.97);}
     --green:#2ecc40;--green-bg:#08210d;--green-border:#155224;
     --yellow:#ffc94d;--yellow-bg:#231a06;
     --red:#ff5f7a;--red-bg:#280d15;
-    --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
+    --grade-light:62%;--grade-urgent-light:65%;--grade-perfect-light:58%;--grade-claro:0;
     --muted:#1b1b1f;
     --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
@@ -163,9 +163,13 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 /* Área táctil de 44 pt sin cambiar cómo se ven (HIG Buttons: "a hit region of
    at least 44x44 pt"). Estos controles se dibujan más bajos a propósito, como
    los compactos de iOS; un ::after invisible los extiende hacia arriba y abajo. */
-.ramo-action,.reglas-toggle,.ag-order-option,.stats-hist-add,.ag-recorreccion-row button,.ag-rest-ver{position:relative;}
-.ramo-action::after,.reglas-toggle::after,.ag-order-option::after,.stats-hist-add::after,.ag-recorreccion-row button::after,.ag-rest-ver::after{
+.ramo-action,.reglas-toggle,.ag-order-option,.stats-hist-add,.ag-recorreccion-row button,.ag-rest-ver,.topbar-link,.settings-back,.settings-cerrar,.settings-privacy a,.error-brand{position:relative;}
+.ramo-action::after,.reglas-toggle::after,.ag-order-option::after,.stats-hist-add::after,.ag-recorreccion-row button::after,.ag-rest-ver::after,.topbar-link::after,.settings-back::after,.settings-cerrar::after,.settings-privacy a::after,.error-brand::after{
   content:"";position:absolute;left:0;right:0;top:50%;height:max(100%,44px);transform:translateY(-50%);}
+/* Los botones de Ajustes medían entre 36 y 41 px de alto. Van de ancho completo
+   o en grilla, así que crecen hasta 44 en vez de llevar un área invisible que
+   se montaría sobre el vecino; en el onboarding ya se hacía así. */
+.settings-data-actions button,.settings-danger-btn,.horario-importar-link,.s-tenant-btn,.sem-btn,.carrera-opt{min-height:44px;}
 /* Evaluación multi-nota (Laboratorio 1/2/3) — header + body colapsable */
 .eval-group{background:var(--card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:14px;padding:13px 15px;margin-bottom:8px;box-shadow:var(--shadow);transition:border-left-color var(--motion-fast) var(--ease-standard);}
 .eval-group-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:background var(--motion-press);border-radius:8px;margin:-4px;padding:4px;}
@@ -211,7 +215,7 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ag-recorreccion-row button{min-height:38px;padding:8px 11px;border:1px solid color-mix(in srgb,var(--primary),transparent 50%);border-radius:8px;background:var(--primary-light);color:var(--primary);font:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;}
 .ag-rendidas{margin-top:26px;}.ag-rendidas-toggle{display:flex;align-items:center;width:100%;min-height:44px;padding:2px 2px 12px;border:0;background:none;color:var(--fg);font:inherit;cursor:pointer;text-align:left;}.ag-rendidas-toggle .ag-count{margin-left:8px;}.ag-rendidas-hint{margin-left:auto;color:var(--fg3);font-size:0.6875rem;font-weight:600;}.ag-rendidas-toggle .ic{width:17px;height:17px;margin-left:5px;fill:none;stroke:currentColor;stroke-width:2;transition:transform var(--motion-base) var(--ease-standard);}.ag-rendidas-toggle[aria-expanded="true"] .ic{transform:rotate(180deg);}.ag-rendidas-list{display:grid;gap:8px;}
 /* Chip fecha en el header de una evaluación (ramo detail) */
-.cat-fecha-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:6px;background:color-mix(in srgb,var(--primary),transparent 85%);color:var(--primary);font-size:0.6875rem;font-weight:700;letter-spacing:-.01em;vertical-align:baseline;}
+.cat-fecha-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:6px;background:color-mix(in srgb,var(--primary),transparent 85%);color:color-mix(in srgb,var(--primary) 85%,var(--fg));font-size:0.6875rem;font-weight:700;letter-spacing:-.01em;vertical-align:baseline;}
 .app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
@@ -797,8 +801,10 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   background:transparent;text-align:center;font-family:var(--font-ui);font-size:1.5rem;
   font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
   transition:border-color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard);}
-.simg-val.real{opacity:.5;}
-.simg-val:focus{outline:none;border-color:var(--primary);background:var(--primary-light);opacity:1;}
+/* La nota real, todavía sin tocar, va más liviana que la simulada. Antes iba al
+   50% de opacidad: 1,8:1, ilegible. La fila ya dice "Actual 4,5" debajo. */
+.simg-val.real{font-weight:400;}
+.simg-val:focus{outline:none;border-color:var(--primary);background:var(--primary-light);}
 .simg-val::placeholder{color:var(--fg3);opacity:.6;}
 .simg-row-meta{display:flex;align-items:center;justify-content:space-between;font-size:0.71875rem;color:var(--fg3);margin-top:5px;letter-spacing:-.005em;}
 .simg-reset{background:none;border:none;color:var(--primary);font-family:var(--font-ui);font-size:0.71875rem;font-weight:600;cursor:pointer;padding:0;}

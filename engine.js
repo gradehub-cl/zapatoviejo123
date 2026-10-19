@@ -671,6 +671,70 @@ function gh_crearCalculoRamo(deps){
       externo:{ramo:otro,valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null},
     };
   }
+  // Lo mínimo que hay que sacar en cada evaluación pendiente para que ninguna
+  // compuerta tope la final bajo la meta, o null si ninguna la topa.
+  //
+  // El solver resuelve el promedio ponderado y las compuertas se aplican
+  // después (calculoRamoConCompuertas), así que la nota necesaria las ignoraba:
+  // con "presentación a examen ≥ 3,0" decía "necesitas 2,9", y con 2,9 en todo
+  // lo pendiente la presentación quedaba en 2,9 y topaba la final ahí.
+  //
+  // Se proyecta la misma nota en todas las pendientes, como el solver, y se
+  // miden las compuertas con sus propias reglas. Subir esa nota nunca baja el
+  // promedio de una evaluación ni de un grupo, así que basta una bisección. Si
+  // ninguna nota alcanza —la compuerta ya cerró bajo la meta—, se devuelve
+  // fuera de escala para que la interfaz diga "ya no es posible".
+  function exigenciaDeCompuertas(ramo,raiz,notas,objetivo,base){
+    const compuertas=(ramo.gates||[]).filter(g=>g&&(g.type==='min_grade_required'||g.type==='group_min'));
+    if(!compuertas.length)return null;
+    const pendientes=calculateFinalGrade(raiz,notas).emptyLeaves;
+    if(!pendientes.length)return null;
+    const meta=gh_meta(raiz),borde=gh_bordeOficial(objetivo,meta);
+    const escalaMin=meta?.grade_scale?.min??1,escalaMax=meta?.grade_scale?.max??7;
+    const nodos=new Map((raiz.children||[]).map(n=>[n.id.slice('propio:'.length),n]));
+    const tope=x=>{
+      const proyectadas=gh_projectGrades(notas,pendientes,x);
+      const res=calculateFinalGrade(raiz,proyectadas);
+      const valores=new Map(res.breakdown.map(b=>[b.id,b.value]));
+      const valorDe=id=>{const v=valores.get('propio:'+id);return typeof v==='number'?v:null;};
+      // Con pesos por casilla el mínimo es sobre el promedio simple de las
+      // casillas (valorParaCompuerta), no sobre el ponderado de la categoría.
+      const valorEvaluacion=id=>{
+        const c=(ramo.categorias||[]).find(x=>x.id===id);
+        if(!(c&&Array.isArray(c.pesosCasillas)))return valorDe(id);
+        const nodo=nodos.get(id);
+        if(!(nodo&&nodo.children))return valorParaCompuerta(ramo,base.res,id);
+        const hojas=nodo.children.map(h=>proyectadas[h.id]).filter(v=>typeof v==='number');
+        return hojas.length?hojas.reduce((a,b)=>a+b,0)/hojas.length:null;
+      };
+      let t=Infinity;
+      for(const g of compuertas){
+        if(g.type==='min_grade_required'){
+          const v=valorEvaluacion(g.catId);
+          if(v!==null&&!gh_cumpleCompuerta(v,g))t=Math.min(t,g.cap);
+        }else{
+          let num=0,den=0;
+          (g.catIds||[]).forEach(id=>{
+            const nodo=nodos.get(id),v=valorDe(id);
+            const w=nodo?gh_weightOf(nodo,res.weightOverrides):0;
+            if(w>0&&v!==null){num+=v*w;den+=w;}
+          });
+          if(den>0){const ga=num/den;if(!gh_cumpleCompuerta(ga,g))t=Math.min(t,g.cap==='self'?ga:g.cap);}
+        }
+      }
+      return t;
+    };
+    const alcanza=x=>tope(x)>=borde;
+    if(alcanza(escalaMin))return null;
+    let lo=escalaMin,hi=escalaMax;
+    while(!alcanza(hi)){
+      // Más allá de 64 ninguna nota cambia nada: la compuerta ya cerró.
+      if(hi>=64)return escalaMax+1;
+      hi*=2;
+    }
+    for(let i=0;i<48;i++){const mid=(lo+hi)/2;if(alcanza(mid))hi=mid;else lo=mid;}
+    return hi;
+  }
   // `soloPropio` pregunta por la parte propia sin el ramo que le aporta: cuánto
   // necesita la cátedra para llegar sola a la meta.
   function notaNecesaria(ramo,meta,opciones){
@@ -712,7 +776,10 @@ function gh_crearCalculoRamo(deps){
     let estructura=propio;
     const link=ramo.aporta;
     const resolver=(est,meta)=>solveForTarget(est,notas,meta,{}, {precision:null,extrapolate:true}).requiredAverage;
-    if(opciones&&opciones.soloPropio)return resolver(propio,objetivo);
+    // Las compuertas son del ramo propio: pesan igual con o sin vinculado.
+    const porCompuertas=exigenciaDeCompuertas(ramo,propio,notas,objetivo,baseInicial);
+    const conCompuertas=v=>v===null||porCompuertas===null?v:Math.max(v,porCompuertas);
+    if(opciones&&opciones.soloPropio)return conCompuertas(resolver(propio,objetivo));
     if(link&&link.peso){
       const p=link.peso/100;
       const otro=ramoVinculado(ramo);
@@ -745,14 +812,15 @@ function gh_crearCalculoRamo(deps){
         const ponderado=resolver(estructura,objetivo);
         // La parte propia tiene que llegar al mínimo por su cuenta.
         const porSuCuenta=resolver(propio,link.min);
-        if(ponderado===null)return porSuCuenta;
-        if(porSuCuenta===null)return ponderado;
-        return Math.max(ponderado,porSuCuenta);
+        if(ponderado===null)return conCompuertas(porSuCuenta);
+        if(porSuCuenta===null)return conCompuertas(ponderado);
+        return conCompuertas(Math.max(ponderado,porSuCuenta));
       }
     }
-    // Las compuertas se siguen comunicando por gatesActivas; acá se obtiene la
-    // exigencia ponderada. Solo el solver decide cómo cambia el descarte al rendir.
-    return resolver(estructura,objetivo);
+    // Solo el solver decide cómo cambia el descarte al rendir; las compuertas
+    // suben la exigencia cuando topan la final bajo la meta. gatesActivas sigue
+    // diciendo cuál está incumplida hoy.
+    return conCompuertas(resolver(estructura,objetivo));
   }
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }

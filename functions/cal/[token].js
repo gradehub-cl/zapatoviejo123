@@ -117,7 +117,9 @@ function buildICS(filas) {
     lines.push(icsFold(`DESCRIPTION:${icsEscape(cuanto)}`));
     lines.push('TRANSP:TRANSPARENT');
     lines.push('BEGIN:VALARM');
-    lines.push(hora ? 'TRIGGER:-P1D' : 'TRIGGER:-P1DT9H');
+    // Sin hora, el evento parte a las 00:00: 15 horas antes son las 9:00 del
+    // día anterior. -P1DT9H eran 33 horas, dos días antes, diciendo "Mañana".
+    lines.push(hora ? 'TRIGGER:-P1D' : 'TRIGGER:-PT15H');
     lines.push('ACTION:DISPLAY');
     lines.push(icsFold(`DESCRIPTION:${icsEscape('Mañana: ' + titulo)}`));
     lines.push('END:VALARM');

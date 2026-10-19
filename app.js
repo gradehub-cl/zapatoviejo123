@@ -1199,7 +1199,33 @@ function getColor(n){
   // rodea el número pero nunca lo colorea, y por eso no puede confundirse con un
   // estado.
   if(notaPerfecta(n))return'hsl(142 92% var(--grade-perfect-light))';
-  return`hsl(${notaHue(notaFinalOficial(n)).toFixed(1)} 84% var(--grade-light))`;
+  const h=notaHue(notaFinalOficial(n)).toFixed(1);
+  return`hsl(${h} 84% ${luzNotaLegible(Number(h))})`;
+}
+// Una sola luminosidad para todos los matices no se lee igual: a 30% el rojo da
+// 5,6:1 sobre blanco y el ámbar o el verde de un 4,5 apenas 3,1:1 sobre
+// Pizarra (HIG: texto ≥ 4,5:1). Cada matiz baja en claro —o sube en oscuro— lo
+// justo para llegar a 4,5:1 sobre las superficies de todos los fondos; el matiz,
+// y con él lo que significa el color, no cambia. Sigue leyendo --grade-light,
+// así el número cambia solo cuando el sistema pasa de claro a oscuro:
+// --grade-claro vale 1 en claro y 0 en oscuro, y anula el límite que no toca.
+const _luzNota=new Map();
+function luzNotaLegible(h){
+  if(_luzNota.has(h))return _luzNota.get(h);
+  const lin=x=>{x/=255;return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4);};
+  const lum=rgb=>0.2126*lin(rgb[0])+0.7152*lin(rgb[1])+0.0722*lin(rgb[2]);
+  const rgbHsl=l=>{const s=0.84,L=l/100,a=s*Math.min(L,1-L),k=m=>(m+h/30)%12;
+    return [0,8,4].map(m=>Math.round(255*(L-a*Math.max(-1,Math.min(k(m)-3,9-k(m),1)))));};
+  const superficies=modo=>Object.values(FONDOS).flatMap(f=>['bg','bg2','card'].map(s=>{const c=f[modo][s];return lum([1,3,5].map(i=>parseInt(c.slice(i,i+2),16)));}));
+  const legible=(l,modo)=>{const y=lum(rgbHsl(l));return superficies(modo).every(z=>(Math.max(y,z)+0.05)/(Math.min(y,z)+0.05)>=4.55);};
+  let claro=30,oscuro=62;
+  while(claro>0&&!legible(claro,'claro'))claro=Math.round((claro-0.5)*10)/10;
+  while(oscuro<100&&!legible(oscuro,'oscuro'))oscuro=Math.round((oscuro+0.5)*10)/10;
+  let luz='var(--grade-light)';
+  if(claro<30)luz=`min(${luz}, calc(${claro}% + (1 - var(--grade-claro)) * 100%))`;
+  if(oscuro>62)luz=`max(${luz}, calc(${oscuro}% - var(--grade-claro) * 100%))`;
+  _luzNota.set(h,luz);
+  return luz;
 }
 function fmt(n){return n===null?'·':n.toFixed(1);}
 // Formato numérico con 1 decimal por defecto (usa punto, no coma)
@@ -8480,7 +8506,8 @@ function guardarSemestreAnterior(){
 function confirmArchiveSemester(){
   const label=semester();
   const nr=S.ramos.length;
-  const nn=S.ramos.reduce((a,r)=>a+r.categorias.reduce((b,c)=>b+c.notas.length,0),0);
+  // Solo las notas puestas: una casilla con fecha y sin nota también se guarda.
+  const nn=S.ramos.reduce((a,r)=>a+r.categorias.reduce((b,c)=>b+c.notas.filter(n=>n&&n.valor!=null).length,0),0);
   showConfirm(
     `Archivar ${label}`,
     `Se guardarán ${nr} ramo${nr!==1?'s':''} con ${nn} nota${nn!==1?'s':''} en el historial. El semestre actual quedará vacío para empezar de nuevo.`,
@@ -10856,10 +10883,12 @@ function buildICS(){
     lines.push(icsFold(`SUMMARY:${icsEscape(titulo)}`));
     lines.push(icsFold(`DESCRIPTION:${icsEscape(desc)}`));
     lines.push('TRANSP:TRANSPARENT');
-    // Recordatorio el día anterior a las 9:00 (solo para pendientes)
+    // Recordatorio el día anterior a las 9:00 (solo para pendientes). Sin hora,
+    // el evento parte a las 00:00: 15 horas antes son las 9:00 del día anterior.
+    // -P1DT9H eran 33 horas: dos días antes a las 15:00, diciendo "Mañana".
     if(e.pending){
       lines.push('BEGIN:VALARM');
-      lines.push(e.hora?'TRIGGER:-P1D':'TRIGGER:-P1DT9H');
+      lines.push(e.hora?'TRIGGER:-P1D':'TRIGGER:-PT15H');
       lines.push('ACTION:DISPLAY');
       lines.push(icsFold(`DESCRIPTION:${icsEscape('Mañana: '+titulo)}`));
       lines.push('END:VALARM');

@@ -410,7 +410,7 @@ function agendaSinFechaHTML(sinFecha){
   return `<section class="ag-undated" aria-label="Evaluaciones sin fecha">
     <div class="ag-undated-copy">
       <span class="ag-undated-kicker">Por completar</span>
-      <strong>${sinFecha.length} evaluación${sinFecha.length!==1?'es':''} sin fecha</strong>
+      <strong>${sinFecha.length} ${sinFecha.length===1?'evaluación':'evaluaciones'} sin fecha</strong>
       <span>Parte por ${esc(primera.cat.nombre)} · ${esc(primera.ramo.nombre)}</span>
     </div>
     <button type="button" class="ag-undated-action" data-agenda-action="agregar-fecha">Agregar fecha</button>

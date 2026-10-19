@@ -274,7 +274,9 @@ function renderHome(){
     // La lista ya se vació. Si una integración dejó una categoría sin el
     // arreglo `notas`, ese ramo sigue siendo parte del semestre: se muestra
     // como sin notas en vez de borrar visualmente todos los ramos.
-    const nn=r.categorias.reduce((a,cat)=>a+(Array.isArray(cat.notas)?cat.notas.length:0),0);
+    // Notas puestas, no casillas: una casilla creada solo para ponerle fecha
+    // dejaba el ramo en "0% evaluado" en vez de decir cuántas evaluaciones tiene.
+    const nn=r.categorias.reduce((a,cat)=>a+(Array.isArray(cat.notas)?cat.notas.filter(n=>n&&n.valor!=null).length:0),0);
     const prog=ramoProgress(r);
     const completo=prog.pct===100;
     const recienCerrado=ramoRecienCerrado(progresosAnteriores.get(r.id),prog.pct);
