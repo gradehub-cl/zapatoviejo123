@@ -19,7 +19,7 @@ button:active{transform:scale(.97);}
   --yellow:#a16207;--yellow-bg:#fdf9e7;
   --red:#c02b3f;--red-bg:#fdecef;
   /* En claro los extremos se vuelven profundos para seguir leyéndose sobre blanco. */
-  --grade-light:30%;--grade-urgent-light:37%;--grade-perfect-light:33%;
+  --grade-light:30%;--grade-urgent-light:37%;--grade-perfect-light:25%;--grade-claro:1;
   --muted:#f2f2f4;--radius:10px;
   /* Listas agrupadas de la app iOS (Ajustes): fondo y celda, como iOS. */
   --fondo-agrupado:var(--muted);--celda-agrupada:var(--card);
@@ -58,7 +58,7 @@ button:active{transform:scale(.97);}
     --green:#2ecc40;--green-bg:#08210d;--green-border:#155224;
     --yellow:#ffc94d;--yellow-bg:#231a06;
     --red:#ff5f7a;--red-bg:#280d15;
-    --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
+    --grade-light:62%;--grade-urgent-light:65%;--grade-perfect-light:58%;--grade-claro:0;
     --muted:#1b1b1f;
     --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
@@ -79,7 +79,7 @@ button:active{transform:scale(.97);}
     --green:#2ecc40;--green-bg:#08210d;--green-border:#155224;
     --yellow:#ffc94d;--yellow-bg:#231a06;
     --red:#ff5f7a;--red-bg:#280d15;
-    --grade-light:62%;--grade-urgent-light:58%;--grade-perfect-light:58%;
+    --grade-light:62%;--grade-urgent-light:65%;--grade-perfect-light:58%;--grade-claro:0;
     --muted:#1b1b1f;
     --fondo-agrupado:var(--bg2);--celda-agrupada:var(--muted);
     --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px -6px rgba(0,0,0,.6);
@@ -791,8 +791,10 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   background:transparent;text-align:center;font-family:var(--font-ui);font-size:1.5rem;
   font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
   transition:border-color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard);}
-.simg-val.real{opacity:.5;}
-.simg-val:focus{outline:none;border-color:var(--primary);background:var(--primary-light);opacity:1;}
+/* La nota real, todavía sin tocar, va más liviana que la simulada. Antes iba al
+   50% de opacidad: 1,8:1, ilegible. La fila ya dice "Actual 4,5" debajo. */
+.simg-val.real{font-weight:400;}
+.simg-val:focus{outline:none;border-color:var(--primary);background:var(--primary-light);}
 .simg-val::placeholder{color:var(--fg3);opacity:.6;}
 .simg-row-meta{display:flex;align-items:center;justify-content:space-between;font-size:0.71875rem;color:var(--fg3);margin-top:5px;letter-spacing:-.005em;}
 .simg-reset{background:none;border:none;color:var(--primary);font-family:var(--font-ui);font-size:0.71875rem;font-weight:600;cursor:pointer;padding:0;}

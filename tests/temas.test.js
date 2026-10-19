@@ -358,6 +358,36 @@ chk('el oro del 7,0 es el contorno del número', /grade-perfect\{[^}]*-webkit-te
 chk('el relleno del 7,0 sigue siendo verde', /grade-perfect[^}]*linear-gradient\(158deg,#7bffa8/.test(cssPerfecto));
 chk('ya no hay anillo alrededor del número', !/\.grade-perfect::after/.test(cssPerfecto));
 chk('los extremos grandes reciben su acabado propio', vm.runInContext('claseNotaEspecial(1.0)+"|"+claseNotaEspecial(7.0)', dark) === ' grade-urgent| grade-perfect');
+
+// El número de cada nota se lee (HIG: texto ≥ 4,5:1, también en oscuro). Una
+// sola luminosidad para todos los matices dejaba el ámbar y el verde en 3,1:1
+// sobre Pizarra y el 7,0 en 2,85:1. Se resuelve el color como lo haría CSS, con
+// las variables de cada modo, y se mide contra las superficies de cada fondo.
+const varsModo = bloque => Object.fromEntries([...bloque.matchAll(/--(grade-[a-z-]+):([0-9.]+)%?;/g)].map(m => [m[1], Number(m[2])]));
+const varsClaro = varsModo(css.match(/:root\{[^}]*--grade-light[^}]*\}/)[0]);
+const varsOscuro = varsModo(css.match(/:root\[data-modo="oscuro"\]\{[^}]*\}/)[0]);
+const luzResuelta = (expr, v) => Function('"use strict";return (' + expr
+  .replace(/var\(--([a-z-]+)\)/g, (_, k) => String(v[k]))
+  .replace(/calc\(/g, '(').replace(/min\(/g, 'Math.min(').replace(/max\(/g, 'Math.max(')
+  .replace(/%/g, '') + ');')();
+const hslRgb = (h, s, l) => { s /= 100; l /= 100; const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  return '#' + [0, 8, 4].map(n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))).toString(16).padStart(2, '0')).join(''); };
+let peorNota = { r: Infinity };
+for (let d = 10; d <= 70; d++) {
+  const nota = d / 10, c = vm.runInContext(`getColor(${nota})`, dark);
+  const m = c.match(/^hsl\(([\d.]+) ([\d.]+)% (.+)\)$/);
+  if (!m) { peorNota = { r: 0, donde: `${nota}: ${c}` }; break; }
+  [['claro', varsClaro], ['oscuro', varsOscuro]].forEach(([modo, v]) => {
+    const color = hslRgb(Number(m[1]), Number(m[2]), luzResuelta(m[3], v));
+    Object.entries(fondos).forEach(([fk, f]) => ['bg', 'bg2', 'card'].forEach(sup => {
+      const r = ratio(color, f[modo][sup]);
+      if (r < peorNota.r) peorNota = { r, donde: `${nota} en ${fk} ${modo} sobre ${sup}` };
+    }));
+  });
+}
+chk(`toda nota de 1,0 a 7,0 ≥4,5:1 en cada fondo y modo (peor ${peorNota.r.toFixed(2)}: ${peorNota.donde})`, peorNota.r >= 4.5);
+chk('el número sigue el modo por CSS, sin repintar', /var\(--grade-light\)/.test(vm.runInContext('getColor(4.5)', dark)) && varsClaro['grade-claro'] === 1 && varsOscuro['grade-claro'] === 0);
+chk('la nota real del simulador no se apaga con opacidad', !/\.simg-val\.real\{[^}]*opacity/.test(css));
 console.log('  ' + gradeHues.map((h, i) => (i + 1) + '.0=' + h + '°').join('  '));
 
 console.log('\n=== Colores de ramo: identificadores, no decoración ===');
