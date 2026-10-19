@@ -630,8 +630,9 @@ const PORTAL=[
 // elemento {min,cap} marca un PISO de aprobación en esa sección (regla
 // min_grade_required): si su nota < min, la final se topa en cap.
 // Caso real: el Podcast de FIL2001. El piso lo aplica ramoAvg vía r.gates.
-// ING1004 NO está aquí: su compuerta es entre GRUPOS anidados (Individual/Grupal)
-// y no cabe en el modelo plano de secciones — necesita el árbol completo (próximo brick).
+// ING1004 (Desafíos de la Ingeniería) estuvo fuera porque su requisito es por
+// bloque (Individual/Grupal). Desde que existe `grupos` con tope numérico, cabe:
+// ver su entrada más abajo.
 // QUÉ REGLA SE MUESTRA Y CUÁL NO. Transcribimos el programa completo, pero no
 // se muestra completo: una tarjeta con doce reglas no se lee, y lo que importa
 // queda enterrado entre normativa que es igual en toda la universidad.
@@ -711,7 +712,54 @@ const PRESETS_UC={
     ['Examen',25],
   ],
   'Química para Ingeniería':[['Pruebas',44.1],['Ev. de Taller',4.9],['Examen',21],['Informes',18],['Controles',12]],
-  'Filosofía: ¿para qué?':[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+  // Programa FIL2001 (Primer Semestre 2026): 30/20/30/20 y el Podcast bajo 4,0
+  // es "causal de reprobación del curso, independientemente del promedio";
+  // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
+  // el filtro de reglas visibles: el estudiante puede cumplirla y cambia su nota.
+  'Filosofía: ¿para qué?':{
+    evals:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+    reglasDelCurso:[
+      'Necesitas al menos 75% de asistencia a clases: si no, el curso queda con nota R, que equivale a 3,0. La app no registra asistencia',
+    ],
+  },
+  // Desafíos de la Ingeniería · ING1004 · programa del Primer Semestre 2026.
+  // Dos bloques de 50% que se aprueban por separado: "Para aprobar el curso es
+  // requisito poseer un promedio ponderado tanto en la evaluación individual
+  // como en la grupal superior o igual a 4,0. Si se reprueba una de las dos
+  // instancias la nota de reprobación será el mínimo entre la nota obtenida y
+  // un 3,9" → dos `grupos` con tope 3,9.
+  //   Individual 50%: Participación en talleres 15%, 4 tareas de 15% cada una
+  //     (60%) y Actividades/cuestionarios 25%.
+  //   Grupal 50%: Presentaciones 1-3 de 20% cada una (60%), Pre-Feria 15% y
+  //     Feria Tecnológica 25%.
+  // Aplanado: 7,5 / 30 (4×7,5) / 12,5 / 30 (3×10) / 7,5 / 12,5. Un reporte de
+  // 2026-2 da los mismos pesos con 3 casillas de tareas; el programa dice 4.
+  // Las actividades en clase no dicen cuántas son: van como lista.
+  'Desafíos de la Ingeniería':{
+    sigla:'ING1004',periodo:'2026-1',
+    evals:[
+      ['Participación en talleres',7.5],
+      ['Tareas',30,{slots:4,slotLabel:'Tarea'}],
+      ['Actividades y cuestionarios',12.5,{lista:true}],
+      ['Presentaciones',30,{slots:3,slotLabel:'Presentación'}],
+      ['Pre-Feria',7.5],
+      ['Feria Tecnológica',12.5],
+    ],
+    grupos:[
+      {nombre:'Evaluación individual',evals:['Participación en talleres','Tareas','Actividades y cuestionarios'],min:4.0,cap:3.9},
+      {nombre:'Evaluación grupal',evals:['Presentaciones','Pre-Feria','Feria Tecnológica'],min:4.0,cap:3.9},
+    ],
+    noCalcula:[
+      'Si en tres de las cuatro evaluaciones de pares quedas bajo el promedio de tu equipo, repruebas con el mínimo entre tu nota y 3,9',
+    ],
+    reglasDelCurso:[
+      'Las notas de las Presentaciones y de la Feria se ajustan según tu evaluación de pares: ingresa la nota ya ajustada',
+      'Si no asistes sin justificación a la Actividad de Trabajo Grupal que sigue a una tarea, esa tarea queda con nota máxima 4,0',
+      'Contestar el 90% de los cuestionarios te permite borrar una ausencia o atraso a las presentaciones',
+      'Faltar sin justificación a una presentación te deja con la mitad de la nota de tu equipo',
+      'Un grupo que no entrega su archivo presenta sin apoyo audiovisual y queda con nota máxima 4,0',
+    ],
+  },
   'Introducción a la Programación':{
     periodo:'2026-2',
     evals:[

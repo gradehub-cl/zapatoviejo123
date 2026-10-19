@@ -1,0 +1,500 @@
+{
+  "fuentes": "Programas UC en Escritorio/GradeHub/Programas de Ramos/UC, convertidos con markitdown y revisados contra la pauta el 2026-10-19.",
+  "alcance": "Verificación de pesos, cantidades y requisitos de las pautas UC que no estaban en docs/programas-uc-com-2026-2.json. No modifica pautas personalizadas.",
+  "limitaciones": "Un programa vale para su período y sección; donde la pauta se aparta del archivo, se dice por qué.",
+  "programas": [
+    {
+      "nombre_catalogo": "Cálculo I",
+      "archivo_fuente": "Programa_CalculoI_UC.pdf",
+      "sigla": "MAT1610",
+      "citas_textuales": [
+        "NF = 0,1∗L+0,2∗(I1+I2+I3)+0,3∗E",
+        "el curso se aprueba con NF≥ 4,0"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          20
+        ],
+        [
+          "Interrogación 2",
+          20
+        ],
+        [
+          "Interrogación 3",
+          20
+        ],
+        [
+          "Laboratorio",
+          10,
+          {
+            "slots": 3
+          }
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "El programa es del primer semestre 2026 (fechas de marzo a junio); la pauta no fija período.",
+        "Los 3 laboratorios no salen del programa: dice solo «la nota del laboratorio se simboliza por L».",
+        "Una primera interrogación con inasistencia justificada se reemplaza por el examen; las siguientes van a pruebas especiales (nota P). No se muestra (contingencia automática) y no se calcula: ver #630."
+      ],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Química para Ingeniería",
+      "archivo_fuente": "Programa_QuimicaParaIngenieria_UC.pdf",
+      "sigla": "QIM100E",
+      "citas_textuales": [
+        "Cátedra: 70%",
+        "Pruebas (90%) y evaluaciones de taller (10%): 70%",
+        "Examen: 30%",
+        "Laboratorio: 30%",
+        "Informes: 60%",
+        "Controles: 40%"
+      ],
+      "evaluaciones": [
+        [
+          "Pruebas",
+          44.1
+        ],
+        [
+          "Ev. de Taller",
+          4.9
+        ],
+        [
+          "Examen",
+          21
+        ],
+        [
+          "Informes",
+          18
+        ],
+        [
+          "Controles",
+          12
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "El programa no dice cuántas pruebas, talleres, informes ni controles hay."
+      ],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Filosofía: ¿para qué?",
+      "archivo_fuente": "Programa_FilosofiaParaQue_UC.pdf",
+      "sigla": "FIL2001",
+      "citas_textuales": [
+        "Prueba 1 30%, Ejercicio de análisis 20%, Prueba 2 30%, Podcast 20%",
+        "el Podcast no puede tener nota inferior a 4, porque sería causal de reprobación del curso",
+        "75% de asistencia [...] nota R (equivalente a un 3.0)"
+      ],
+      "evaluaciones": [
+        [
+          "Prueba 1",
+          30
+        ],
+        [
+          "Ejercicio de análisis",
+          20
+        ],
+        [
+          "Prueba 2",
+          30
+        ],
+        [
+          "Podcast",
+          20,
+          {
+            "min": 4,
+            "cap": 3.9
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "No dice con qué nota se reprueba por el Podcast: se usa 3,9."
+      ],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Desafíos de la Ingeniería",
+      "archivo_fuente": "Programa_DesafiosDeLaIngenieria_UC.pdf",
+      "sigla": "ING1004",
+      "periodo": "2026-1",
+      "citas_textuales": [
+        "Evaluación Individual (50% >= 4,0)",
+        "Participación de los talleres y días de apoyo (15%)",
+        "Tareas individuales (60%; 15% cada una)",
+        "Actividades o cuestionarios en clases (25%)",
+        "Evaluación Grupal (50% >= 4,0)",
+        "Presentaciones 1, 2 & 3: 60% (20 % cada una); Pre-Feria 15%; Feria Tecnológica 25 %",
+        "la nota de reprobación será el mínimo entre la nota obtenida y un 3,9"
+      ],
+      "evaluaciones": [
+        [
+          "Participación en talleres",
+          7.5
+        ],
+        [
+          "Tareas",
+          30,
+          {
+            "slots": 4,
+            "slotLabel": "Tarea"
+          }
+        ],
+        [
+          "Actividades y cuestionarios",
+          12.5,
+          {
+            "lista": true
+          }
+        ],
+        [
+          "Presentaciones",
+          30,
+          {
+            "slots": 3,
+            "slotLabel": "Presentación"
+          }
+        ],
+        [
+          "Pre-Feria",
+          7.5
+        ],
+        [
+          "Feria Tecnológica",
+          12.5
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "Un reporte de 2026-2 trae 3 casillas de tareas; el programa (2026-1) dice 4.",
+        "No dice cuántas actividades o cuestionarios hay.",
+        "La evaluación de pares ajusta individualmente las notas de Presentaciones y Feria; se ingresa la nota ajustada."
+      ],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Dinámica",
+      "archivo_fuente": "Programa_Dinamica_UC.pdf",
+      "sigla": "FIS1514",
+      "periodo": "2026-2",
+      "citas_textuales": [
+        "Interrogaciones 2, 25% cada una",
+        "Controles 3, 20%",
+        "Examen Final 30%",
+        "NFC = 0,25·I1+0,25·I2+0,2·NC+0,3·NE",
+        "NF = 0,7·NFC+0,3·NL",
+        "NF = min(NFC,NL)"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          25,
+          {
+            "fecha": "2026-09-29"
+          }
+        ],
+        [
+          "Interrogación 2",
+          25,
+          {
+            "fecha": "2026-11-13"
+          }
+        ],
+        [
+          "Controles",
+          20,
+          {
+            "slots": 3
+          }
+        ],
+        [
+          "Examen",
+          30,
+          {
+            "fecha": "2026-12-01"
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Laboratorio de Dinámica",
+      "archivo_fuente": "Reglas_LaboratorioDinamica_UC.pdf",
+      "sigla": "FIS0154",
+      "citas_textuales": [
+        "NF = 0.10 × NC + 0.70 × NI + 0.20 × NP"
+      ],
+      "evaluaciones": [
+        [
+          "Controles",
+          8.333333333333334,
+          {
+            "slots": 5,
+            "slotLabel": "Control"
+          }
+        ],
+        [
+          "Informes",
+          70,
+          {
+            "slots": 6,
+            "slotLabel": "Informe",
+            "slotStart": 0
+          }
+        ],
+        [
+          "Evaluación de pares",
+          21.666666666666668,
+          {
+            "slots": 6,
+            "slotStart": 0,
+            "pesosCasillas": [
+              1.5,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "min": 4,
+            "cap": 3.9
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "La pauta usa 25/3 / 70 / 65/3 y no 10/70/20, a propósito: la nota final es el promedio de las seis «Nota lab» de la planilla oficial (correo de coordinación a Lucas del 2026-10-14). Está explicado junto a la pauta en data.js."
+      ],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Cálculo II",
+      "archivo_fuente": "Reglas_CalculoII_UC.pdf",
+      "sigla": "MAT1620",
+      "periodo": "2026-2",
+      "citas_textuales": [],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          20,
+          {
+            "fecha": "2026-08-31"
+          }
+        ],
+        [
+          "Interrogación 2",
+          20,
+          {
+            "fecha": "2026-10-05"
+          }
+        ],
+        [
+          "Interrogación 3",
+          20,
+          {
+            "fecha": "2026-11-02"
+          }
+        ],
+        [
+          "Examen",
+          30,
+          {
+            "fecha": "2026-11-30"
+          }
+        ],
+        [
+          "Laboratorio",
+          10,
+          {
+            "slots": 3
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "media",
+      "faltantes_y_ambiguedades": [
+        "Este archivo es la normativa y no publica ponderaciones. Los pesos salen del programa clase a clase MAT1620-2026-S2, que no está en la carpeta; los 3 laboratorios los confirmó Lucas.",
+        "Una interrogación con inasistencia justificada se reemplaza por el examen; dos o más dejan nota P. No se muestra (contingencia automática) y no se calcula: ver #630."
+      ],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Introducción a la Programación",
+      "archivo_fuente": "Programa_IntroduccionALaProgramacion_UC.pdf",
+      "periodo": "2026-2",
+      "citas_textuales": [
+        "NF = 15%·I1+20%·I2+30%·E +5%·T1+5%·T2+5%·T3 +16%·NP +4%·TIA",
+        "Promedio ponderado de evaluaciones 15·I1+20·I2+30·E ≥4.0",
+        "la nota final del curso será el mínimo entre NF y la nota 3.9"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          15,
+          {
+            "fecha": "2026-09-24"
+          }
+        ],
+        [
+          "Interrogación 2",
+          20,
+          {
+            "fecha": "2026-10-22"
+          }
+        ],
+        [
+          "Examen",
+          30,
+          {
+            "fecha": "2026-12-10"
+          }
+        ],
+        [
+          "Tarea 1",
+          5,
+          {
+            "fecha": "2026-10-02"
+          }
+        ],
+        [
+          "Tarea 2",
+          5,
+          {
+            "fecha": "2026-10-27"
+          }
+        ],
+        [
+          "Tarea 3",
+          5,
+          {
+            "fecha": "2026-11-27"
+          }
+        ],
+        [
+          "Nota de participación",
+          16
+        ],
+        [
+          "Trabajos de Inteligencia Artificial",
+          4,
+          {
+            "slots": 2,
+            "nombresCasillas": [
+              "Cápsulas",
+              "Talleres"
+            ],
+            "nombresAnteriores": [
+              {
+                "nombre": "Talleres de Inteligencia Artificial",
+                "slot": 1
+              }
+            ]
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Principios Ecológicos y Medio Ambiente",
+      "archivo_fuente": "Programa_PrincipiosDeEcologiaYMedioAmbiente_UC.pdf",
+      "sigla": "BIO143M",
+      "periodo": "2026-2",
+      "citas_textuales": [
+        "Prueba 1 (I-1) 25%",
+        "Prueba 2 (I-2) 40%",
+        "Prueba 3 (I-3) 35%"
+      ],
+      "evaluaciones": [
+        [
+          "Prueba 1",
+          25,
+          {
+            "fecha": "2026-09-01"
+          }
+        ],
+        [
+          "Prueba 2",
+          40,
+          {
+            "fecha": "2026-11-03"
+          }
+        ],
+        [
+          "Prueba 3",
+          35,
+          {
+            "fecha": "2026-12-01"
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [],
+      "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Revelación y Fe",
+      "archivo_fuente": "Programa_RevelacionYFe_UC.docx",
+      "sigla": "TTF012",
+      "periodo": "2026-2",
+      "citas_textuales": [
+        "Evaluación 1 individual 20%",
+        "Evaluación 2 duplas 20%",
+        "Evaluación 3 grupal 30%",
+        "SOBRE EL EXAMEN (30%)"
+      ],
+      "evaluaciones": [
+        [
+          "Evaluación 1",
+          20,
+          {
+            "fecha": "2026-09-07"
+          }
+        ],
+        [
+          "Evaluación 2",
+          20,
+          {
+            "fecha": "2026-10-14"
+          }
+        ],
+        [
+          "Evaluación 3",
+          30,
+          {
+            "fecha": "2026-11-16"
+          }
+        ],
+        [
+          "Examen final",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta",
+      "faltantes_y_ambiguedades": [
+        "Eximición, décimas y texto voluntario siguen en noCalcula (en pausa, decisión de Lucas del 2026-10-12)."
+      ],
+      "verificado": "2026-10-19"
+    }
+  ]
+}
