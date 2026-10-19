@@ -3221,8 +3221,11 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-link p{margin:0;font-size:0.875rem;color:var(--fg2);}
 .panel-alumnos-url{display:flex;flex-direction:column;gap:10px;}
 .panel-alumnos-url code{flex:none;min-width:0;overflow-wrap:anywhere;padding:10px 12px;border-radius:10px;background:var(--bg2);font-size:0.8125rem;color:var(--fg);user-select:all;}
-.panel-alumnos-url .btn-confirm{min-height:44px;width:100%;}
+.panel-alumnos-link > .btn-confirm{min-height:44px;width:100%;}
 .panel-alumnos-link .agent-refresh{align-self:flex-start;min-height:44px;}
+.panel-alumnos-mensaje{display:flex;flex-direction:column;gap:5px;padding:12px;border-radius:10px;background:var(--bg2);line-height:1.45;}
+.panel-alumnos-mensaje strong{color:var(--fg);font-size:0.8125rem;}
+.panel-alumnos-mensaje span{color:var(--fg2);}
 .panel-alumnos-link + .profesor-hig-lista-cabeza{margin-top:22px;}
 .panel-alumnos-link.al-final{margin-top:26px;}
 .ah-grupo:first-of-type{margin-top:8px;}
