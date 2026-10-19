@@ -3624,6 +3624,7 @@ function frenteAlCursoPanel(d){
 }
 function antesAhoraGrupoHTML(g){
   if(!g||!g.alumnos.length)return '';
+  const conFecha=g.antes.n+g.ahora.n;
   const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
   const pocos='Aún pocos datos';
   const cifras=[
@@ -3637,7 +3638,7 @@ function antesAhoraGrupoHTML(g){
     <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Cómo van tus alumnos</h2></div>
     <div class="ah-cifras">${cifras}</div>
     <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
-    <p class="clase-privacidad">Con ${g.antes.n+g.ahora.n} evaluaciones con fecha${g.sinFecha?`; ${g.sinFecha} sin fecha no cuentan`:''}. “Respecto del curso” compara cada nota con el promedio de GradeHub en esa misma prueba, antes y después de que empezaran contigo. El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
+    <p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “Respecto del curso” compara cada nota con el promedio de GradeHub en esa misma prueba, antes y después de que empezaran contigo. El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
   </section>`;
 }
 // Una serie: la diferencia con el curso en cada evaluación comparable, en el
@@ -3717,7 +3718,8 @@ function abrirInicioAlumno(al,alGuardar){
   const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
 }
 function alumnosPanelHTML(lista,compDe){
-  return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno" open>
+  const abierto=lista.length===1?' open':'';
+  return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno"${abierto}>
       <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
       ${lineaInicioAlumnoHTML(al)}
       ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe))}
@@ -3831,8 +3833,8 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   const compDe=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
   const link=linkAlumnosProfesor(codigo);
   const mensaje=mensajeInvitacionAlumnos();
-  // Con alumnos, lo primero es cómo van y el link para invitar más va al final.
-  // Sin alumnos, el link es lo único que se puede hacer: va arriba.
+  // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
+  // primero a quiénes están conectados y luego las cifras del grupo.
   const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
       <h2>${alumnos.length?'Invita a otro alumno':'Invita a tu primer alumno'}</h2>
       <p>Mándale este link. Elegirá qué ramos te comparte y podrá dejar de hacerlo cuando quiera.</p>
@@ -3846,8 +3848,6 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   raiz.innerHTML='<div class="profesor-hig">'+
     cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
     `${alumnos.length?'':seccionLink}
-    ${alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):''}
-    ${alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):''}
     <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
     // Con uno solo no hay nada que buscar.
     (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
@@ -3855,6 +3855,8 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     (alumnos.length?'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>':'')+
     `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
+    (alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):'')+
+    (alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):'')+
     '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
     (alumnos.length?seccionLink:'')+
     (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
