@@ -436,7 +436,14 @@ function agendaPendientesHTML(items,ahora=new Date()){
   };
   return `<section aria-label="Pendientes">
     <div class="ag-list-hd"><span class="section-hd-title">Pendientes</span><span class="ag-count">${items.length}</span></div>
-    ${items.map(p=>`<button type="button" class="ag-row" data-agenda-action="${accion(p)}"
+    ${items.map(p=>p.tipo==='recorregir'?`<article class="ag-recorreccion-row" style="margin-bottom:9px;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+      <span class="ag-recorreccion-mark" aria-hidden="true"></span>
+      <button type="button" data-agenda-action="ver-pendiente" data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota.id)}"
+        style="min-width:0;min-height:44px;padding:0;border:0;background:none;color:var(--fg);text-align:left;font:inherit">
+        <strong>${esc(p.nombre)}</strong><span>${esc(p.ramo.nombre)}${p.fecha?` · ${esc(fechaTexto(p))}`:''}</span>
+      </button>
+      <button type="button" data-agenda-action="resolver-recorreccion" data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota.id)}" style="min-height:44px">Ya la mandé</button>
+    </article>`:`<button type="button" class="ag-row" data-agenda-action="${accion(p)}"
       data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota?.id||'')}">
       <span class="ag-row-bar" style="background:${esc(p.ramo.color||'var(--primary)')}" aria-hidden="true"></span>
       <div class="ag-row-main">

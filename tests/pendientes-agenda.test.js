@@ -25,11 +25,13 @@ ctx.__ahora=ahora;
 const lista=run('pendientes(__ahora)');
 assert.equal(lista.map(p=>p.tipo).join(','),'hoy,recorregir,sin-nota,sin-fecha');
 const html=run('agendaPendientesHTML(pendientes(__ahora),__ahora)');
-assert.equal((html.match(/class="ag-row"/g)||[]).length,4);
+assert.equal((html.match(/class="ag-row"/g)||[]).length,3);
+assert.equal((html.match(/class="ag-recorreccion-row"/g)||[]).length,1);
 assert.equal((html.match(/aria-label="Pendientes"/g)||[]).length,1);
 for(const [id,accion] of [['hoy','ver-pendiente'],['rec','ver-pendiente'],['pasada','completar-nota'],['sin','agregar-fecha']]){
   assert.match(html,new RegExp(`data-agenda-action="${accion}"[^>]*data-ramo-id="r"[^>]*data-cat-id="${id}"`));
 }
+assert.match(html,/data-agenda-action="resolver-recorreccion"[^>]*data-cat-id="rec"[^>]*data-nota-id="n-rec"/);
 assert.match(html,/Hoy/);
 assert.match(html,/Fecha pasada sin nota/);
 assert.match(html,/Sin fecha/);
@@ -54,6 +56,7 @@ run(`globalThis.__abierto=null;
   corregirFechaDesdeAgenda=(r,c,n)=>{__abierto=['editar',r,c,n]};
   completarNotaDesdeAgenda=(r,c,n)=>{__abierto=['nota',r,c,n]};
   abrirFechaAgenda=p=>{__abierto=['fecha',p.ramo.id,p.cat.id]};
+  resolverRecorreccionAgenda=(r,c,n)=>{__abierto=['enviada',r,c,n]};
   activarAccionesAgenda(__body)`);
 function tocar(dataset){
   escuchar({target:{closest(){return {dataset}}},preventDefault(){},stopPropagation(){}});
@@ -62,4 +65,5 @@ function tocar(dataset){
 assert.equal(tocar({agendaAction:'ver-pendiente',ramoId:'r',catId:'rec',notaId:'n-rec'}),'editar:r:rec:n-rec');
 assert.equal(tocar({agendaAction:'completar-nota',ramoId:'r',catId:'pasada',notaId:''}),'nota:r:pasada:');
 assert.equal(tocar({agendaAction:'agregar-fecha',ramoId:'r',catId:'sin',notaId:''}),'fecha:r:sin');
+assert.equal(tocar({agendaAction:'resolver-recorreccion',ramoId:'r',catId:'rec',notaId:'n-rec'}),'enviada:r:rec:n-rec');
 console.log('OK: pendientes de Agenda conservan orden, destino y datos');
