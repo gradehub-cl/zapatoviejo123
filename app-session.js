@@ -1355,6 +1355,10 @@ function repintarTrasFusion(){
 }
 async function syncProfile(){
   if(!supabaseClient||!currentUser)return;
+  // Una cuenta solo profesor no eligió universidad ni carrera en el onboarding.
+  // S.tenant conserva el valor técnico por defecto ('fen'): publicarlo en
+  // profiles haría parecer que estudia en FEN y contaminaría los reportes.
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
   try{
     await supabaseClient.from('profiles').upsert({
       id:currentUser.id,

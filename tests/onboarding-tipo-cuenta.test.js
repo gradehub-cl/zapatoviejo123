@@ -32,11 +32,11 @@ const run = n => vm.runInContext(n, ctx);
 
 // Lo que sale de la app se reemplaza por registros: acá no hay Supabase.
 run(`
-  var _postulaciones=[],_declaraciones=[],_entro=0,_respuestaPostular={ok:true,perfil:{estado:'pendiente'}},_perfilPrevio={ok:true,perfil:null};
+  var _postulaciones=[],_declaraciones=[],_entro=0,_modales=0,_syncProfileReal=syncProfile,_respuestaPostular={ok:true,perfil:{estado:'pendiente'}},_perfilPrevio={ok:true,perfil:null};
   postularProfesor=async(nombre,presentacion)=>{_postulaciones.push({nombre,presentacion});return _respuestaPostular;};
   perfilProfesorActual=async()=>_perfilPrevio;
   registrarDeclaracionEdad=d=>{_declaraciones.push(d);};
-  syncProfile=()=>{};save=()=>{};enterApp=()=>{_entro++;};openModal=()=>{};
+  syncProfile=()=>{};save=()=>{};enterApp=()=>{_entro++;};openModal=()=>{_modales++;};
 `);
 
 let ok = 0, fail = 0;
@@ -123,12 +123,37 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   const fin = eventos.filter(e => e.evento === 'onboarding_complete');
   chk('la analítica recibe solo el tipo, nada que escribió', fin.length === 1 && JSON.stringify(fin[0].params) === '{"tipo":"profesor"}');
   chk('el tipo sobrevive el normalize de la sincronización', run('normalize(JSON.parse(JSON.stringify(S))).tipoCuenta') === 'profesor');
+  chk('el aviso dice que Clases ya está disponible', /preparar tu anuncio en Clases/.test(el('modal-content').innerHTML)
+    && !/aparece la pestaña Clases/.test(el('modal-content').innerHTML));
+
+  console.log('\n=== Una postulación previa conserva su estado ===');
+  empezar();
+  run(`elegirTipoCuenta('profesor');obEdad=30;_respuestaPostular={ok:false};_perfilPrevio={ok:true,perfil:{estado:'rechazado'}}`);
+  el('ob-name').value='Ana';el('ob-prof-nombre').value='Ana Profe';el('ob-prof-presentacion').value=PRESENTACION;
+  const modalesAntes=run('_modales');
+  await run('completarOnboardingProfesor("Ana")');
+  chk('una postulación rechazada entra para ver su estado sin falso aviso de recepción',
+    run('S.tipoCuenta')==='profesor'&&run('_modales')===modalesAntes);
 
   console.log('\n=== Volver a Estudiante devuelve el camino de siempre ===');
   empezar();
   run(`elegirTipoCuenta('profesor');elegirTipoCuenta('estudiante')`);
   chk('los pasos vuelven a ser 0 a 5', JSON.stringify(run('obPasos()')) === '[0,1,2,3,4,5]');
   chk('y un estudiante nuevo no queda como profesor', run('S.tipoCuenta') === 'estudiante');
+
+  console.log('\n=== El perfil académico no inventa universidad para un profesor ===');
+  run(`var _perfilesSubidos=[];
+    supabaseClient={from:tabla=>({upsert:datos=>{_perfilesSubidos.push({tabla,datos});return {error:null}}})};
+    currentUser={id:'usuario-sintetico'};syncProfile=_syncProfileReal;
+    S=freshState();S.tipoCuenta='profesor';S.userName='Ana';`);
+  await run('syncProfile()');
+  chk('profesor sin universidad no sube FEN por el valor técnico de S',run('_perfilesSubidos.length')===0);
+  run(`S.tipoCuenta='estudiante';S.tenant='uc';S.carrera='ing';S.careerSemestre=3`);
+  await run('syncProfile()');
+  chk('estudiante sigue sincronizando su perfil académico',run('_perfilesSubidos.length')===1
+    &&run('_perfilesSubidos[0].tabla')==='profiles'
+    &&run('_perfilesSubidos[0].datos.universidad')===run('TENANTS.uc.name')
+    &&run('_perfilesSubidos[0].datos.semestre')===3);
 
   console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
   process.exit(fail ? 1 : 0);

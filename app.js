@@ -2328,10 +2328,13 @@ async function completarOnboardingProfesor(name){
   if(typeof olvidarPerfilProfesor==='function')olvidarPerfilProfesor();
   track('onboarding_complete',{tipo:'profesor'});
   enterApp();
+  // Si se recuperó una postulación previa, Clases ya muestra su estado exacto.
+  // No se le anuncia como recién recibida si fue rechazada o suspendida.
+  if(resultado.perfil?.estado!=='pendiente')return;
   const modal=document.getElementById('modal-content');
   modal.innerHTML=`
     <div class="modal-title">Recibimos tu postulación</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0;">La revisamos antes de que puedas publicar clases. Cuando quede aprobada, aparece la pestaña Clases.</p>
+    <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0;">Puedes preparar tu anuncio en Clases mientras revisamos tu postulación. Podrás publicarlo cuando quede aprobada.</p>
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Entendido</button></div>`;
   openModal();
 }
