@@ -3233,15 +3233,16 @@ async function revisarInvitacionProfesor(){
   invitacionProfeAbierta=true;
   try{
     const {data,error}=await supabaseClient.rpc('profesor_por_codigo',{p_codigo:codigo});
-    const profe=!error&&Array.isArray(data)?data[0]:null;
+    if(error){showToast('No pudimos abrir la invitación. Recarga GradeHub para intentarlo de nuevo.',true);return false;}
+    const profe=Array.isArray(data)?data[0]:null;
     if(!profe){
       olvidarProfePendiente();
-      if(!error)showToast('Ese link de profesor ya no funciona. Pídele uno nuevo.',true);
+      showToast('Ese link de profesor ya no funciona. Pídele uno nuevo.',true);
       return false;
     }
     abrirHojaInvitacionProfesor(codigo,profe);
     return true;
-  }catch(e){return false;}
+  }catch(e){showToast('No pudimos abrir la invitación. Recarga GradeHub para intentarlo de nuevo.',true);return false;}
   finally{invitacionProfeAbierta=false;}
 }
 
