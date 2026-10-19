@@ -47,6 +47,21 @@ function contexto({search='',sesion=false}={}){
   chk('un código válido se acepta en mayúsculas',a.run(`codigoProfeValido(' ab3cdefg ')`)==='AB3CDEFG');
   chk('con letras ambiguas (O, I, 0, 1) no',a.run(`codigoProfeValido('ABCDEFG0')`)===null&&a.run(`codigoProfeValido('ABCDEFGI')`)===null);
   chk('el link apunta a gradehub.cl también desde la app iOS',a.run(`linkAlumnosProfesor('AB3CDEFG')`)==='https://gradehub.cl/?profe=AB3CDEFG');
+  const invitacion=contexto();
+  invitacion.run(`navigator.share=async payload=>{globalThis.__compartido=payload};`);
+  const url='https://gradehub.cl/?profe=AB3CDEFG';
+  chk('la hoja del sistema recibe el link y texto sin notas ni nombres',
+    (await invitacion.run(`compartirInvitacionAlumnos(${JSON.stringify(url)})`))==='compartido'&&
+    invitacion.run('__compartido.url')===url&&
+    /eliges los ramos/.test(invitacion.run('__compartido.text'))&&
+    !/4[,\.]0|Alumno de prueba/.test(invitacion.run('__compartido.text')));
+  invitacion.run(`navigator.share=undefined;navigator.clipboard={writeText:async texto=>{globalThis.__copiado=texto}};`);
+  chk('sin hoja del sistema se copia el mensaje sugerido y el link',
+    (await invitacion.run(`compartirInvitacionAlumnos(${JSON.stringify(url)})`))==='copiado'&&
+    invitacion.run('__copiado').endsWith('\n'+url));
+  invitacion.run(`navigator.share=async()=>{const e=new Error('cancelado');e.name='AbortError';throw e};globalThis.__copiado=null;`);
+  chk('cancelar la hoja no copia sin permiso',
+    (await invitacion.run(`compartirInvitacionAlumnos(${JSON.stringify(url)})`))==='cancelado'&&invitacion.run('__copiado')===null);
   const b=contexto({search:'?profe=ab3cdefg&x=1'});
   chk('al abrir el link se guarda el código para después del login',b.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG');
   chk('y sale de la barra de direcciones, sin tocar lo demás',b.historial[0]==='/?x=1');

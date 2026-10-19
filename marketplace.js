@@ -3181,6 +3181,21 @@ function codigoProfeValido(codigo){
   return /^[A-HJ-NP-Z2-9]{8}$/.test(c)?c:null;
 }
 function linkAlumnosProfesor(codigo){return `${URL_PANEL_ALUMNOS}?profe=${encodeURIComponent(codigo)}`;}
+function mensajeInvitacionAlumnos(){
+  return 'Hola, si quieres compartir conmigo las notas de tus ramos en GradeHub, abre este link. Tú eliges los ramos y puedes dejar de compartir cuando quieras.';
+}
+async function compartirInvitacionAlumnos(link){
+  try{
+    if(typeof navigator.share==='function'){
+      await navigator.share({text:mensajeInvitacionAlumnos(),url:link});
+      return 'compartido';
+    }
+  }catch(e){if(e&&e.name==='AbortError')return 'cancelado';}
+  try{
+    await navigator.clipboard.writeText(`${mensajeInvitacionAlumnos()}\n${link}`);
+    return 'copiado';
+  }catch(e){return 'fallo';}
+}
 
 // El link se abre antes de iniciar sesión: el código espera acá hasta que haya
 // una cuenta con su semestre listo. Solo el código, nunca datos del profesor.
@@ -3805,12 +3820,16 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
   }));
   const compDe=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
   const link=linkAlumnosProfesor(codigo);
+  const mensaje=mensajeInvitacionAlumnos();
   // Con alumnos, lo primero es cómo van y el link para invitar más va al final.
   // Sin alumnos, el link es lo único que se puede hacer: va arriba.
   const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
-      <h2>Tu link para alumnos</h2>
-      <p>Mándalo a tus alumnos. Cada uno elige qué ramos te comparte y puede dejar de hacerlo cuando quiera.</p>
-      <div class="panel-alumnos-url"><code id="alumnos-link">${esc(link)}</code><button type="button" class="btn-confirm" id="alumnos-copiar">Copiar link</button></div>
+      <h2>${alumnos.length?'Invita a otro alumno':'Invita a tu primer alumno'}</h2>
+      <p>Mándale este link. Elegirá qué ramos te comparte y podrá dejar de hacerlo cuando quiera.</p>
+      <div class="panel-alumnos-url"><code id="alumnos-link">${esc(link)}</code></div>
+      <button type="button" class="btn-confirm" id="alumnos-compartir">Compartir invitación</button>
+      <button type="button" class="agent-refresh" id="alumnos-copiar">Copiar link</button>
+      <p class="panel-alumnos-mensaje"><strong>Mensaje sugerido para WhatsApp</strong><span>${esc(mensaje)}</span></p>
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
@@ -3831,11 +3850,16 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
   const botonVolver=raiz.querySelector('#alumnos-volver');
   if(botonVolver)botonVolver.addEventListener('click',()=>volver());
+  const seleccionarLink=()=>{const el=raiz.querySelector('#alumnos-link'),sel=window.getSelection&&window.getSelection();
+    if(sel&&el){const rango=document.createRange();rango.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rango);}};
+  raiz.querySelector('#alumnos-compartir').addEventListener('click',async()=>{
+    const resultado=await compartirInvitacionAlumnos(link);
+    if(resultado==='copiado')showToast('Invitación copiada. Pégala en WhatsApp.');
+    if(resultado==='fallo'){seleccionarLink();showToast('No pudimos compartir. Selecciona y copia el link.',true);}
+  });
   raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
     try{await navigator.clipboard.writeText(link);showToast('Link copiado.');}
-    catch(e){const el=raiz.querySelector('#alumnos-link');const sel=window.getSelection&&window.getSelection();
-      if(sel&&el){const rango=document.createRange();rango.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rango);}
-      showToast('Selecciónalo y cópialo.',true);}
+    catch(e){seleccionarLink();showToast('Selecciónalo y cópialo.',true);}
   });
   // Lo que no se deshace se confirma en el diálogo de la app (HIG), con Cancelar a mano.
   const renovar=raiz.querySelector('#alumnos-renovar');
