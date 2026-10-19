@@ -36,7 +36,7 @@ function consumirOrigenEntrada(){
   try{
     const origen=sessionStorage.getItem(ORIGEN_ENTRADA_KEY);
     sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);
-    if(origen==='calculadora')return {origen:'calculadora'};
+    if(origen==='calculadora'||origen==='profesor')return {origen};
   }catch(e){}
   return undefined;
 }
