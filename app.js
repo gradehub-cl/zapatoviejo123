@@ -11169,6 +11169,10 @@ function withPriority(e){
   // diciembre le ganaba a una interrogación de 15% en septiembre.
   const urgencia=100*Math.pow(2,-dias/21);
 
+  // Un ramo que ya no se puede aprobar no compite por "Tu foco ahora"
+  // (Lucas, 2026-10-20): su riesgo no suma y su puntaje baja. Sigue en la
+  // Agenda, pero el tiempo se va primero a lo que todavía se puede salvar.
+  const imposible=necesita!==null&&necesita>7.05;
   // Riesgo: si el ramo va mal, sus evaluaciones suben de prioridad
   let riesgo=0;
   if(avg!==null){
@@ -11184,7 +11188,7 @@ function withPriority(e){
   // El riesgo del ramo reordena, pero solo dentro del horizonte que uno puede
   // preparar: avisar de un examen a cuatro meses porque el ramo va mal es
   // volver a poner algo lejano en el lugar de "ahora".
-  const riesgoAplicado=(dias>=0&&dias<=HORIZONTE_FOCO)?riesgo:0;
+  const riesgoAplicado=(!imposible&&dias>=0&&dias<=HORIZONTE_FOCO)?riesgo:0;
 
   // Los tres factores se MULTIPLICAN, no se suman, y ese es el arreglo de
   // fondo. Sumando, `peso*1.2` valía 36 puntos fijos para un 30%: como la
@@ -11192,7 +11196,7 @@ function withPriority(e){
   // la evaluación estaba lo bastante lejos. Multiplicando, la cercanía manda y
   // el peso y el riesgo modulan: un 30% pesa un 30% más que un 0%, esté donde
   // esté, pero nunca convierte diciembre en "ahora".
-  const score=urgencia*(1+peso/100)*(1+riesgoAplicado/100);
+  const score=urgencia*(1+peso/100)*(1+riesgoAplicado/100)*(imposible?0.25:1);
 
   // Nivel legible para el color de la barra. Va por DÍAS y no por el valor de
   // `urgencia`: los cortes viejos (85, 35) eran los escalones de la escala
@@ -11224,12 +11228,24 @@ function cuandoTexto(dias){
 // decía en gris mientras otro lo decía en rojo.
 function alertaRamoAgendaHTML(e){
   const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>';
-  if(e.avg!==null&&!notaAprobadaRamo(e.ramo,e.avg)&&e.necesita!==null&&e.necesita<=7.05)
-    return `<div class="ag-alert bad">${icono}Vas ${fmtPromedio(e.avg)} · necesitas ${nfNecesaria(e.necesita)} en lo que queda</div>`;
-  if(e.necesita!==null&&e.necesita>5.0&&e.necesita<=7.05)
-    return `<div class="ag-alert warn">${icono}Necesitas ${nfNecesaria(e.necesita)} en lo que queda para aprobar</div>`;
-  if(e.necesita!==null&&e.necesita>7.05)
-    return `<div class="ag-alert bad">${icono}Ya no alcanza para aprobar este ramo</div>`;
+  const caja=(tono,texto)=>`<div class="ag-alert ${tono}">${icono}${texto}</div>`;
+  // Textos de Lucas (2026-10-20): urgencia sin alarma. El rojo queda solo para
+  // lo que de verdad es reprobado (ya no alcanza); ir bajo 4,0 con margen para
+  // recuperarse es "al borde", ámbar, igual que en el semáforo.
+  if(e.necesita!==null&&e.necesita>7.05)return caja('bad','No es posible que apruebes este ramo, pero da lo mejor de ti.');
+  if(e.avg!==null&&!notaAprobadaRamo(e.ramo,e.avg)){
+    // X es la nota en ESTA evaluación que te deja aprobando después de rendirla
+    // (la misma de los widgets). Si esta sola no alcanza, lo que queda en conjunto.
+    const ir=notaParaIrConCuatro(e);
+    if(ir&&ir.nota)return Number(ir.nota)>5.0
+      ?caja('warn',`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`)
+      :caja('warn',`Es importante: si sacas un ${ir.nota}, estarás aprobando el ramo.`);
+    if(e.necesita!==null)return e.necesita>5.0
+      ?caja('warn',`Es urgente: necesitas un ${nfNecesaria(e.necesita)} en lo que queda para ir aprobando el ramo.`)
+      :caja('warn',`Es importante: si sacas un ${nfNecesaria(e.necesita)} en lo que queda, estarás aprobando el ramo.`);
+    return '';
+  }
+  if(e.necesita!==null&&e.necesita>5.0&&e.necesita<=7.05)return caja('warn',`Necesitas ${nfNecesaria(e.necesita)} en lo que queda para aprobar`);
   return '';
 }
 function agendaItemHTML(e){
