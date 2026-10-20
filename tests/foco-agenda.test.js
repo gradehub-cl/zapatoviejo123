@@ -67,8 +67,13 @@ chk('el Control 1 de 10% de mañana le gana al Lab 1 de 5% de hace cuatro días'
 chk('esperar una nota no compra prioridad aunque la evaluación fuera pesada',
   gana(evento('proxima', 30, 1), evento('pasada', -1, 100, 2.0)));
 chk('a igual fecha, más peso sube', gana(evento('pesada', 7, 30), evento('liviana', 7, 10)));
+// En riesgo pero recuperable: 3,8 en el 80% rendido pide 4,6 en lo que queda.
 chk('a igual fecha y peso, el ramo en riesgo sube',
-  gana(evento('riesgo', 7, 20, 2.0), evento('sana', 7, 20, 6.5)));
+  gana(evento('riesgo', 7, 20, 3.8), evento('sana', 7, 20, 6.5)));
+// Con 2,0 en el 80% ya no alcanza: un ramo imposible no compite por el foco
+// (Lucas, 2026-10-20). Sigue en la Agenda, pero detrás.
+chk('un ramo que ya no se puede aprobar no sube: baja',
+  gana(evento('sana', 7, 20, 6.5), evento('imposible', 7, 20, 2.0)));
 
 console.log('\n=== El riesgo avisa, pero no convierte diciembre en "ahora" ===');
 chk('un ramo reprobado no trae al frente su evaluación a cuatro meses',

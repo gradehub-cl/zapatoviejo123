@@ -15,6 +15,8 @@ const run=s=>vm.runInContext(s,ctx);
 // Ramo A: 3,6 con una prueba mañana y el examen en un mes.
 // Ramo B: 3,8 con un control en dos semanas y el examen en un mes y medio.
 // Ramo C: 6,0, sin riesgo, con una entrega en tres semanas.
+// Ramo D: 1,5 en el 90% ya rendido: imposible, con un control mañana.
+// Ramo E: 2,0 en la mitad, con una prueba en una semana: urgente.
 run(`S=normalize({tenant:'uc',ramos:[
   {id:'a',nombre:'Ramo A',color:'#33f',gates:[],categorias:[
     {id:'a1',nombre:'Prueba 1',peso:30,fecha:'2026-09-20',notas:[{id:'na1',nombre:'Prueba 1',valor:3.6,peso:1}]},
@@ -26,20 +28,38 @@ run(`S=normalize({tenant:'uc',ramos:[
     {id:'b3',nombre:'Examen B',peso:40,fecha:'2026-12-03',notas:[]}]},
   {id:'c',nombre:'Ramo C',color:'#3a3',gates:[],categorias:[
     {id:'c1',nombre:'Tarea 1',peso:50,fecha:'2026-09-28',notas:[{id:'nc1',nombre:'Tarea 1',valor:6.0,peso:1}]},
-    {id:'c2',nombre:'Entrega final',peso:50,fecha:'2026-11-09',notas:[]}]}
+    {id:'c2',nombre:'Entrega final',peso:50,fecha:'2026-11-09',notas:[]}]},
+  {id:'d',nombre:'Ramo D',color:'#999',gates:[],categorias:[
+    {id:'d1',nombre:'Pruebas D',peso:90,fecha:'2026-09-15',notas:[{id:'nd1',nombre:'Pruebas D',valor:1.5,peso:1}]},
+    {id:'d2',nombre:'Control D',peso:10,fecha:'2026-10-20',notas:[]}]},
+  {id:'e',nombre:'Ramo E',color:'#f90',gates:[],categorias:[
+    {id:'e1',nombre:'Prueba E1',peso:50,fecha:'2026-09-22',notas:[{id:'ne1',nombre:'Prueba E1',valor:2.0,peso:1}]},
+    {id:'e2',nombre:'Prueba E2',peso:50,fecha:'2026-10-26',notas:[]}]}
 ]})`);
-run('agendaOrdenActual="fecha";renderAgenda()');
+run('agendaOrdenActual="fecha";agendaRestantesAbiertas=true;renderAgenda()');
 const h=stub.innerHTML;
 // Cada aparición (tarjeta o fila) con su aviso, en orden de pantalla.
 const apariciones=[];const re=/(ag-priority-name|ag-row-name)">([^<]*)<[\s\S]*?(?=ag-priority-name|ag-row-name|$)/g;let m;
 while((m=re.exec(h))){const a=/class="ag-alert (bad|warn)"/.exec(m[0]);apariciones.push({tipo:m[1]==='ag-priority-name'?'tarjeta':'fila',nombre:m[2],aviso:a?a[1]:null});}
 const de=n=>apariciones.find(x=>x.nombre===n);
 assert.equal(de('Prueba 2').tipo,'tarjeta','la prueba de mañana es una prioridad');
-assert.equal(de('Prueba 2').aviso,'bad','y la tarjeta trae el aviso rojo de su ramo');
-assert.match(h,/ag-priority-name">Prueba 2<[\s\S]*?Vas 3\.6 · necesitas/,'con cuánto va y cuánto necesita');
+assert.equal(de('Prueba 2').aviso,'warn','bajo 4,0 pero recuperable: ámbar, no rojo');
+// 30% con 3,6 + 30% con X ≥ 3,95 → X = 4,3 en esta evaluación.
+assert.match(h,/ag-priority-name">Prueba 2<[\s\S]*?Es importante: si sacas un 4\.3, estarás aprobando el ramo\./,'la nota de esta evaluación para ir aprobando');
 assert.equal(de('Examen A').aviso,null,'el aviso de un ramo no se repite en sus otras apariciones');
-assert.equal(de('Control 2').aviso,'bad','el otro ramo en riesgo también lo trae en su primera aparición');
+assert.equal(de('Control 2').aviso,'warn','el otro ramo en riesgo también lo trae en su primera aparición');
 assert.equal(de('Examen B').aviso,null,'una sola vez por ramo');
 assert.equal(de('Entrega final').aviso,null,'un ramo que va bien no lleva aviso');
 assert.doesNotMatch(h,/ag-priority-name">Prueba 2<[^]*?ag-priority-reason">Vas 3\.6/,'la razón de la tarjeta no repite el aviso');
-console.log('OK: el aviso del ramo sale una vez, en su primera aparición, también en prioridades');
+// 50% con 2,0 + 50% con X ≥ 3,95 → X = 5,9: urgente.
+assert.equal(de('Prueba E2').aviso,'warn');
+assert.match(h,/Es urgente: necesitas un 5\.9 para ir aprobando el ramo\./,'sobre 5,0 es urgente');
+assert.equal(de('Control D').aviso,'bad','imposible: rojo');
+assert.match(h,/No es posible que apruebes este ramo, pero da lo mejor de ti\./);
+
+console.log('\n=== Recomendado no prioriza un ramo imposible ===');
+run('agendaOrdenActual="recomendado";renderAgenda()');
+const tarjetas=[...stub.innerHTML.matchAll(/ag-priority-name">([^<]*)</g)].map(x=>x[1]);
+assert.ok(!tarjetas.includes('Control D'),'el control de mañana del ramo imposible no es prioridad: '+tarjetas.join(', '));
+assert.match(stub.innerHTML,/Control D/,'pero sigue en la Agenda');
+console.log('OK: avisos con urgencia sin alarma, una vez por ramo, y Recomendado no prioriza lo imposible');
