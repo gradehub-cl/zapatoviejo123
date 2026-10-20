@@ -3230,9 +3230,11 @@ let invitacionProfeAbierta=false;
 async function revisarInvitacionProfesor(){
   const codigo=profePendiente();
   if(!codigo||invitacionProfeAbierta||!supabaseClient||!currentUser||!S.onboardingDone)return false;
+  const uid=currentUser.id;
   invitacionProfeAbierta=true;
   try{
     const {data,error}=await supabaseClient.rpc('profesor_por_codigo',{p_codigo:codigo});
+    if(currentUser?.id!==uid)return false;
     if(error){showToast('No pudimos abrir la invitación. Recarga GradeHub para intentarlo de nuevo.',true);return false;}
     const profe=Array.isArray(data)?data[0]:null;
     if(!profe){
@@ -3240,20 +3242,32 @@ async function revisarInvitacionProfesor(){
       showToast('Ese link de profesor ya no funciona. Pídele uno nuevo.',true);
       return false;
     }
-    abrirHojaInvitacionProfesor(codigo,profe);
+    // El RPC nuevo solo lee la selección de esta misma persona. Hasta que Lucas
+    // aplique el SQL, un servidor anterior sigue usando la hoja de siempre.
+    let compartido=null;
+    const previo=await supabaseClient.rpc('mi_compartido_profesor',{p_codigo:codigo});
+    if(currentUser?.id!==uid)return false;
+    if(previo.error){
+      if(!['PGRST202','42883'].includes(previo.error.code)){
+        showToast('No pudimos revisar lo que ya compartes. Intenta de nuevo.',true);
+        return false;
+      }
+    }else if(previo.data&&Array.isArray(previo.data.ramos))compartido=previo.data;
+    abrirHojaInvitacionProfesor(codigo,profe,compartido);
     return true;
   }catch(e){showToast('No pudimos abrir la invitación. Recarga GradeHub para intentarlo de nuevo.',true);return false;}
   finally{invitacionProfeAbierta=false;}
 }
 
-function hojaInvitacionProfesorHTML(profe,ramos,nombre){
+function hojaInvitacionProfesorHTML(profe,ramos,nombre,compartido=null){
+  const marcados=new Set(compartido?.ramos||[]);
   const filas=ramos.map(r=>{
     const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(r):r.sigla;
-    return `<label class="compartir-ramo"><input type="checkbox" value="${esc(r.id)}" data-compartir-ramo>
+    return `<label class="compartir-ramo"><input type="checkbox" value="${esc(r.id)}" data-compartir-ramo${marcados.has(r.id)?' checked':''}>
       <span><b>${esc(r.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span></label>`;
   }).join('');
   return `<div class="compartir-profe">
-    <div class="modal-title" id="modal-titulo">${esc(profe.nombre_publico)} quiere ver tus notas</div>
+    <div class="modal-title" id="modal-titulo">${compartido?'Edita lo que compartes con '+esc(profe.nombre_publico):esc(profe.nombre_publico)+' quiere ver tus notas'}</div>
     <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
     <div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas||'<p class="compartir-explica">Todavía no tienes ramos para compartir.</p>'}</div>
     <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
@@ -3261,15 +3275,15 @@ function hojaInvitacionProfesorHTML(profe,ramos,nombre){
     <p class="compartir-explica">Puedes dejar de compartir cuando quieras en Ajustes → Datos y cuenta.</p>
     <p class="compartir-error" id="compartir-error" role="alert" hidden></p>
     <div class="modal-btns">
-      <button type="button" class="btn-cancel" id="compartir-no">Ahora no</button>
-      <button type="button" class="btn-confirm" id="compartir-si" disabled>Compartir</button>
+      <button type="button" class="btn-cancel" id="compartir-no">${compartido?'Cancelar':'Ahora no'}</button>
+      <button type="button" class="btn-confirm" id="compartir-si" disabled>${compartido?'Guardar cambios':'Compartir'}</button>
     </div>
   </div>`;
 }
 
-function abrirHojaInvitacionProfesor(codigo,profe){
+function abrirHojaInvitacionProfesor(codigo,profe,compartido=null){
   const caja=document.getElementById('modal-content');if(!caja)return;
-  caja.innerHTML=hojaInvitacionProfesorHTML(profe,S.ramos||[],S.userName||'');
+  caja.innerHTML=hojaInvitacionProfesorHTML(profe,S.ramos||[],compartido?.nombre_visible||S.userName||'',compartido);
   openModal();
   track('panel_alumnos_invitacion_mostrada');
   try{if(typeof ORIGEN_ENTRADA_KEY==='string'&&sessionStorage.getItem(ORIGEN_ENTRADA_KEY)==='profesor')sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);}catch(e){}
@@ -3278,6 +3292,7 @@ function abrirHojaInvitacionProfesor(codigo,profe){
   const actualizar=()=>{si.disabled=!elegidos().length||!nombre.value.trim();};
   caja.querySelectorAll('[data-compartir-ramo]').forEach(c=>c.addEventListener('change',actualizar));
   nombre.addEventListener('input',actualizar);
+  actualizar();
   caja.querySelector('#compartir-no').addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
   si.addEventListener('click',async()=>{
     if(si.disabled)return;

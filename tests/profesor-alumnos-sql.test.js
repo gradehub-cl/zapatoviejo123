@@ -61,6 +61,8 @@ try{
   const perfil=await q('select * from profesor_por_codigo($1)',[nuevo.toLowerCase()+' ']);
   check('el nuevo muestra solo nombre y logo, sin la cuenta del profesor',
     perfil.length===1&&perfil[0].nombre_publico==='Academia Sintética'&&Object.keys(perfil[0]).sort().join()==='logo_path,nombre_publico');
+  check('antes de compartir, consultar su selección devuelve vacío',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('nadie puede leer los códigos de la tabla',
     !(await q(`select has_column_privilege('authenticated','public.tutor_perfiles','codigo_alumnos','select') p`))[0].p);
 
@@ -71,7 +73,15 @@ try{
   const idCompartido=(await q('select compartir_con_profesor($1,$2,$3) id',[nuevo,'Cami',['r1','ramo-ajeno']]))[0].id;
   check('comparte solo sus propios ramos (el ajeno se descarta)',
     (await q('select ramos from profesor_alumnos where id=$1',[idCompartido]))[0].ramos.join()==='r1');
+  const propia=(await q('select mi_compartido_profesor($1) c',[nuevo.toLowerCase()]))[0].c;
+  check('al reabrir el link recupera su nombre y solo los ramos compartidos',
+    propia.nombre_visible==='Cami'&&propia.ramos.join()==='r1'&&
+    Object.keys(propia).sort().join()==='nombre_visible,ramos');
+  check('otro código no revela esa selección',
+    (await q('select mi_compartido_profesor($1) c',[codigo]))[0].c===null);
   await soy(PROFE);
+  check('el profesor tampoco puede leer la selección privada del alumno',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('el profesor no puede compartirse a sí mismo',/contigo mismo/.test(await falla('select compartir_con_profesor($1,$2,$3)',[nuevo,'Yo',['r1']])));
   check('la tabla no se lee ni se escribe desde el cliente',
     !(await q(`select has_table_privilege('authenticated','public.profesor_alumnos','select') s,
@@ -90,6 +100,8 @@ try{
   check('null vuelve a cuándo compartió',(await q('select fijar_inicio_alumno($1,null) ok',[alumnos[0].id]))[0].ok===true
     &&(await q('select inicio from mis_alumnos()'))[0].inicio===null);
   await soy(OTRO);
+  check('otra cuenta no puede leer lo que comparte la alumna',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('otra cuenta no puede tocarla',!!(await falla("select fijar_inicio_alumno($1,'2026-08-01')",[alumnos[0].id])));
   await soy(PROFE);
   check('recibe solo el ramo compartido, completo para calcular con ramoAvg',
@@ -162,6 +174,8 @@ try{
   check('otra cuenta no puede borrar el compartido ajeno',(await q('select dejar_de_compartir($1) b',[idCompartido]))[0].b===false);
   await soy(ALUMNA);
   check('la alumna deja de compartir con un toque',(await q('select dejar_de_compartir($1) b',[idCompartido]))[0].b===true);
+  check('al revocar ya no hay selección que recuperar con el link',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   await soy(PROFE);
   check('y el profesor deja de verla al tiro',!(await q('select * from mis_alumnos()')).some(x=>x.id===idCompartido));
   await soy(ALUMNA);
@@ -175,13 +189,13 @@ try{
 
   console.log('\n=== Seguridad de las funciones ===');
   const funciones=await q(`select proname, prosecdef, proconfig from pg_proc
-    where proname in ('codigo_alumnos_profesor','profesor_por_codigo','compartir_con_profesor','dejar_de_compartir',
+    where proname in ('codigo_alumnos_profesor','profesor_por_codigo','mi_compartido_profesor','compartir_con_profesor','dejar_de_compartir',
                       'mis_profesores','mis_alumnos','quitar_alumno','comparacion_ramo_profesor')`);
-  check('las ocho son security definer con search_path fijo',
-    funciones.length===8&&funciones.every(f=>f.prosecdef&&(f.proconfig||[]).some(c=>c==='search_path=public')));
+  check('las nueve son security definer con search_path fijo',
+    funciones.length===9&&funciones.every(f=>f.prosecdef&&(f.proconfig||[]).some(c=>c==='search_path=public')));
   check('anon no puede llamar ninguna',
     !(await q(`select bool_or(has_function_privilege('anon',p.oid,'execute')) a from pg_proc p
-      where proname in ('mis_alumnos','compartir_con_profesor','comparacion_ramo_profesor')`))[0].a);
+      where proname in ('mis_alumnos','mi_compartido_profesor','compartir_con_profesor','comparacion_ramo_profesor')`))[0].a);
 
   console.log(`\nPASS: ${pruebas}   FAIL: 0`);
 }catch(e){console.error('  FAIL',e.message);process.exit(1);}
