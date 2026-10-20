@@ -11217,21 +11217,25 @@ function cuandoTexto(dias){
   const m=Math.round(dias/30);return `En ${m} mes${m!==1?'es':''}`;
 }
 
+// El aviso del ramo en la Agenda: ramo bajo 4,0, nota exigente en lo pendiente
+// o que ya no alcanza. Lo usan las filas y las tarjetas de prioridad, y se
+// pinta UNA vez por ramo, en su primera aparición (ver renderAgenda): antes
+// solo lo tenían las filas, y un ramo en riesgo que estaba en prioridades lo
+// decía en gris mientras otro lo decía en rojo.
+function alertaRamoAgendaHTML(e){
+  const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>';
+  if(e.avg!==null&&!notaAprobadaRamo(e.ramo,e.avg)&&e.necesita!==null&&e.necesita<=7.05)
+    return `<div class="ag-alert bad">${icono}Vas ${fmtPromedio(e.avg)} · necesitas ${nfNecesaria(e.necesita)} en lo que queda</div>`;
+  if(e.necesita!==null&&e.necesita>5.0&&e.necesita<=7.05)
+    return `<div class="ag-alert warn">${icono}Necesitas ${nfNecesaria(e.necesita)} en lo que queda para aprobar</div>`;
+  if(e.necesita!==null&&e.necesita>7.05)
+    return `<div class="ag-alert bad">${icono}Ya no alcanza para aprobar este ramo</div>`;
+  return '';
+}
 function agendaItemHTML(e){
   const f=formatEventDate(e.fecha);
   const peso=pesoEventoAgenda(e);
-  // Aviso solo cuando aporta: ramo en riesgo o nota exigente en lo pendiente.
-  // Se pinta una sola vez por ramo (ver renderAgenda) para no repetirlo.
-  let alerta='';
-  if(!e.mostrarAlerta){
-    alerta='';
-  } else if(e.avg!==null&&!notaAprobadaRamo(e.ramo,e.avg)&&e.necesita!==null&&e.necesita<=7.05){
-    alerta=`<div class="ag-alert bad"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>Vas ${fmtPromedio(e.avg)} · necesitas ${nfNecesaria(e.necesita)} en lo que queda</div>`;
-  } else if(e.necesita!==null&&e.necesita>5.0&&e.necesita<=7.05){
-    alerta=`<div class="ag-alert warn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>Necesitas ${nfNecesaria(e.necesita)} en lo que queda para aprobar</div>`;
-  } else if(e.necesita!==null&&e.necesita>7.05){
-    alerta=`<div class="ag-alert bad"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>Ya no alcanza para aprobar este ramo</div>`;
-  }
+  const alerta=e.mostrarAlerta?alertaRamoAgendaHTML(e):'';
   return `<button class="ag-row ${e.nivel}" style="--ag-course:${esc(e.ramo.color)}" onclick="openRamo('${esc(e.ramo.id)}')">
     <span class="ag-row-bar" style="background:${esc(e.ramo.color)}"></span>
     <div class="ag-row-main">
