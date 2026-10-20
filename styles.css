@@ -333,6 +333,9 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .oauth-divider{display:flex;align-items:center;gap:12px;width:100%;margin:12px 0 16px;color:var(--fg3);font-size:0.75rem;font-weight:500;}
 .oauth-divider::before,.oauth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
 .ob-sub{font-size:0.9375rem;color:var(--fg2);text-align:center;line-height:1.5;margin-bottom:32px;max-width:340px;letter-spacing:-.005em;}
+.invitacion-profesor-contexto{width:100%;max-width:640px;margin:0 auto 18px;padding:12px 14px;border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:10px;background:var(--card);color:var(--fg);font-size:0.9375rem;line-height:1.45;}
+.invitacion-profesor-contexto[hidden]{display:none;}
+#screen-auth .invitacion-profesor-contexto{max-width:360px;}
 .ob-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px 20px;width:100%;box-shadow:var(--shadow-lg);margin-bottom:16px;}
 .ob-edad{width:100%;max-width:640px;margin:-4px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
 /* Ruletas del onboarding (#697): como la del reloj del iPhone, filas de 44 pt. */
