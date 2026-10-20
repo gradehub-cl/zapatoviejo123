@@ -68,6 +68,26 @@ function contexto({search='',sesion=false}={}){
   const c=contexto({search:'?profe=<script>'});
   chk('un código inválido no se guarda',!c.almacen.has('gradehub_profe_pendiente'));
   chk('sin sesión no se ofrece compartir todavía',(await b.run('revisarInvitacionProfesor()'))===false&&b.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG');
+  const avisoAprobado='Te invitaron a compartir notas con un profesor. Al entrar, tú elegirás los ramos; no verá tus otros ramos ni tu correo.';
+  chk('registro y onboarding conservan el mismo contexto aprobado',
+    leer('index.html').split(avisoAprobado).length===3&&
+    leer('app-session.js').includes("mostrarContextoInvitacionProfesor();"));
+  b.run(`globalThis.__avisos={
+    'auth-invitacion-profesor':{hidden:true},'ob-invitacion-profesor':{hidden:true}};
+    document.getElementById=id=>__avisos[id]||null;
+    mostrarContextoInvitacionProfesor();`);
+  chk('un link válido muestra el aviso antes y después de crear la cuenta',
+    b.run('!__avisos["auth-invitacion-profesor"].hidden&&!__avisos["ob-invitacion-profesor"].hidden'));
+  b.run('olvidarProfePendiente()');
+  chk('al cancelar o terminar de compartir, el aviso desaparece',
+    b.run('__avisos["auth-invitacion-profesor"].hidden&&__avisos["ob-invitacion-profesor"].hidden'));
+  const sinInvitacion=contexto();
+  sinInvitacion.run(`globalThis.__avisos={
+    'auth-invitacion-profesor':{hidden:false},'ob-invitacion-profesor':{hidden:false}};
+    document.getElementById=id=>__avisos[id]||null;
+    mostrarContextoInvitacionProfesor();`);
+  chk('quien llega sin link ve el registro normal',
+    sinInvitacion.run('__avisos["auth-invitacion-profesor"].hidden&&__avisos["ob-invitacion-profesor"].hidden'));
   const sinRed=contexto({search:'?profe=AB3CDEFG',sesion:true});
   sinRed.run(`S.onboardingDone=true;showToast=texto=>{globalThis.__aviso=texto};
     supabaseClient={rpc:async()=>({data:null,error:{code:'NETWORK'}})};`);

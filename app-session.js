@@ -160,6 +160,7 @@ function showAuthScreen(){
   try{window.scrollTo(0,0);}catch(e){}
   document.getElementById('screen-auth').classList.add('active');
   marcarUltimoLogin();
+  if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();
   // El esqueleto se pinta YA, con el alto definitivo: la RPC tarda cerca de un
   // segundo en producción y, sin esto, los números entraban empujando el botón
   // de Google hacia abajo justo cuando alguien iba a tocarlo.
@@ -338,6 +339,7 @@ function enterOnboarding(){
   ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
+  if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();
   // Si entró con Google, ya sabemos su nombre: no se lo preguntamos en blanco
   const nameInput=document.getElementById('ob-name');
   if(nameInput && !nameInput.value.trim() && currentUser && currentUser.user_metadata){

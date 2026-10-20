@@ -3209,7 +3209,14 @@ function guardarProfePendiente(codigo){
   return true;
 }
 function profePendiente(){try{return codigoProfeValido(localStorage.getItem(CLAVE_PROFE_PENDIENTE));}catch(e){return null;}}
-function olvidarProfePendiente(){try{localStorage.removeItem(CLAVE_PROFE_PENDIENTE);}catch(e){}}
+function mostrarContextoInvitacionProfesor(){
+  if(typeof document==='undefined')return;
+  const visible=!!profePendiente();
+  ['auth-invitacion-profesor','ob-invitacion-profesor'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.hidden=!visible;
+  });
+}
+function olvidarProfePendiente(){try{localStorage.removeItem(CLAVE_PROFE_PENDIENTE);}catch(e){}mostrarContextoInvitacionProfesor();}
 function capturarProfeDeUrl(){
   if(typeof location==='undefined'||typeof URLSearchParams==='undefined')return null;
   const params=new URLSearchParams(location.search||'');
@@ -3953,3 +3960,4 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
 // El link del profesor puede llegar antes de que haya sesión: se guarda el
 // código y se ofrece compartir apenas la persona entra con su semestre listo.
 capturarProfeDeUrl();
+mostrarContextoInvitacionProfesor();
