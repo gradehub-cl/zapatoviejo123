@@ -133,6 +133,44 @@ function contexto({search='',sesion=false}={}){
     falloRed.almacen.get('gradehub_profe_pendiente')==='AB3CDEFG'&&
     falloRed.run('globalThis.__abierta')===undefined);
 
+  console.log('\n=== El consentimiento durante el envío ===');
+  const envio=contexto({sesion:true});
+  envio.run(`currentUser={id:'alumno-sintetico'};S.ramos=[{id:'r1',nombre:'Cálculo'},{id:'r2',nombre:'Física'}];
+    globalThis.__nodo=(valor='')=>({value:valor,textContent:'Compartir',disabled:false,hidden:true,checked:false,
+      eventos:{},addEventListener(tipo,fn){this.eventos[tipo]=fn}});
+    globalThis.__ui={si:__nodo(),nombre:__nodo('Ana'),no:__nodo(),error:__nodo(),r1:__nodo('r1'),r2:__nodo('r2')};
+    __ui.r1.checked=true;
+    globalThis.__caja={innerHTML:'',querySelector(s){return ({'#compartir-si':__ui.si,'#compartir-nombre':__ui.nombre,
+      '#compartir-no':__ui.no,'#compartir-error':__ui.error})[s]||null},querySelectorAll(){return [__ui.r1,__ui.r2]}};
+    document.getElementById=()=>__caja;openModal=()=>{};closeModal=()=>{globalThis.__cerrado=true};
+    showToast=t=>{globalThis.__aviso=t};track=(evento,datos)=>{globalThis.__medida={evento,datos}};
+    compartirConProfesor=(codigo,nombre,ramos)=>{globalThis.__enviado={codigo,nombre,ramos};
+      return new Promise(res=>{globalThis.__resolver=res})};
+    abrirHojaInvitacionProfesor('AB3CDEFG',{nombre_publico:'Profe de prueba'});`);
+  const pendiente=envio.run('__ui.si.eventos.click()');
+  chk('se congela la selección, el nombre y Cancelar mientras se envía',
+    envio.run('__ui.si.disabled&&__ui.nombre.disabled&&__ui.no.disabled&&__ui.r1.disabled&&__ui.r2.disabled&&__ui.si.textContent===\'Compartiendo…\''));
+  envio.run(`__ui.nombre.value='Nombre cambiado';__ui.r1.checked=false;__ui.r2.checked=false;
+    __resolver({ok:true})`);
+  await pendiente;
+  chk('el servidor recibe la selección original y el aviso describe lo enviado',
+    envio.run('__enviado.nombre')==='Ana'&&envio.run('__enviado.ramos.join()')==='r1'&&
+    /1 ramo\./.test(envio.run('__aviso'))&&envio.run('__medida.datos.ramos')===1);
+  envio.run(`__ui.r1.checked=true;__ui.nombre.value='Ana';__ui.si.textContent='Compartir';
+    abrirHojaInvitacionProfesor('AB3CDEFG',{nombre_publico:'Profe de prueba'})`);
+  const falloEnvio=envio.run('__ui.si.eventos.click()');
+  envio.run(`__resolver({ok:false,error:'No pudimos compartir.'})`);
+  await falloEnvio;
+  chk('si falla, se puede corregir y reintentar sin perder la selección',
+    envio.run(`!__ui.si.disabled&&!__ui.nombre.disabled&&!__ui.no.disabled&&!__ui.r1.disabled&&
+      __ui.r1.checked&&__ui.si.textContent==='Compartir'&&!__ui.error.hidden`));
+  envio.run(`__aviso=null;__cerrado=false;abrirHojaInvitacionProfesor('AB3CDEFG',{nombre_publico:'Profe de prueba'})`);
+  const cambioCuenta=envio.run('__ui.si.eventos.click()');
+  envio.run(`currentUser={id:'otra-cuenta'};__resolver({ok:true})`);
+  await cambioCuenta;
+  chk('la respuesta de una sesión anterior no cierra la hoja de otra cuenta',
+    envio.run('__aviso===null&&__cerrado===false'));
+
   console.log('\n=== Lo que ve el profesor ===');
   a.run(`globalThis.__r={id:'r1',nombre:'Cálculo II',sigla:'MAT1620',color:'#7F77DD',gates:[],categorias:[
     {id:'c1',nombre:'Interrogaciones',peso:60,notas:[{id:'n1',nombre:'Interrogación 1',valor:4.2},{id:'n2',nombre:'Interrogación 2',valor:5.6}]},

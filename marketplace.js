@@ -3288,22 +3288,36 @@ function abrirHojaInvitacionProfesor(codigo,profe,compartido=null){
   track('panel_alumnos_invitacion_mostrada');
   try{if(typeof ORIGEN_ENTRADA_KEY==='string'&&sessionStorage.getItem(ORIGEN_ENTRADA_KEY)==='profesor')sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);}catch(e){}
   const si=caja.querySelector('#compartir-si'),nombre=caja.querySelector('#compartir-nombre'),aviso=caja.querySelector('#compartir-error');
-  const elegidos=()=>[...caja.querySelectorAll('[data-compartir-ramo]')].filter(c=>c.checked).map(c=>c.value);
+  const cancelar=caja.querySelector('#compartir-no');
+  const casillas=[...caja.querySelectorAll('[data-compartir-ramo]')];
+  const elegidos=()=>casillas.filter(c=>c.checked).map(c=>c.value);
   const actualizar=()=>{si.disabled=!elegidos().length||!nombre.value.trim();};
-  caja.querySelectorAll('[data-compartir-ramo]').forEach(c=>c.addEventListener('change',actualizar));
+  casillas.forEach(c=>c.addEventListener('change',actualizar));
   nombre.addEventListener('input',actualizar);
   actualizar();
-  caja.querySelector('#compartir-no').addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
+  cancelar.addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
   si.addEventListener('click',async()=>{
     if(si.disabled)return;
-    si.disabled=true;aviso.hidden=true;
-    const r=await compartirConProfesor(codigo,nombre.value,elegidos());
+    const ramos=elegidos(),nombreVisible=nombre.value.trim(),uid=currentUser?.id;
+    const textoBoton=si.textContent;
+    si.disabled=true;nombre.disabled=true;cancelar.disabled=true;
+    casillas.forEach(c=>{c.disabled=true;});
+    si.textContent=compartido?'Guardando…':'Compartiendo…';
+    aviso.hidden=true;
+    const r=await compartirConProfesor(codigo,nombreVisible,ramos);
+    // La hoja pudo ser reemplazada o la sesión pudo cambiar mientras esperaba.
+    if(caja.querySelector('#compartir-si')!==si||currentUser?.id!==uid)return;
     if(r.ok){
       olvidarProfePendiente();closeModal();
-      const n=elegidos().length;
+      const n=ramos.length;
       showToast(`Listo: ${profe.nombre_publico} ya ve tus notas de ${n} ${n===1?'ramo':'ramos'}.`);
       track('compartir_con_profesor',{ramos:n});
-    }else{aviso.textContent=r.error;aviso.hidden=false;actualizar();}
+    }else{
+      nombre.disabled=false;cancelar.disabled=false;
+      casillas.forEach(c=>{c.disabled=false;});
+      si.textContent=textoBoton;
+      aviso.textContent=r.error;aviso.hidden=false;actualizar();
+    }
   });
 }
 
