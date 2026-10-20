@@ -156,14 +156,24 @@ function agendaOrdenHTML(activo=agendaOrdenActual){
 function focoAgendaCopy(e){
   if(e.estadoAgenda==='esperando_nota'||e.estadoAgenda==='requiere_revision')return 'Fecha pasada: agrega la nota o corrige la fecha.';
   if(e.dias===0)return 'Es hoy. Revisa lo esencial y llega con lo importante resuelto.';
-  if(e.dias<=2)return `Faltan ${e.dias} día${e.dias!==1?'s':''}: es lo que más te conviene atender ahora.`;
+  if(e.dias===1)return 'Es mañana: es lo que más te conviene atender ahora.';
+  if(e.dias<=2)return `Faltan ${e.dias} días: es lo que más te conviene atender ahora.`;
   if(e.necesita!==null&&e.necesita>5.0)return `Te exige ${nfNecesaria(e.necesita)} en lo pendiente para aprobar: adelántate.`;
   // Sin el "cuándo": la tarjeta ya lo dice en su propia línea justo arriba.
   return 'Por cercanía, peso y cómo vas.';
 }
 
-function razonDestacadaAgenda(e){
+// Con el aviso rojo o ámbar del ramo en la tarjeta, la razón no lo repite:
+// dice cuándo es o cuánto pesa.
+function razonDestacadaAgenda(e,conAlerta=false){
   if(e.estadoAgenda==='esperando_nota'||e.estadoAgenda==='requiere_revision')return focoAgendaCopy(e);
+  if(conAlerta){
+    if(e.dias===0)return 'Es hoy. Revisa lo esencial y llega con lo importante resuelto.';
+    if(e.dias===1)return 'Es mañana: es lo que más te conviene atender ahora.';
+    if(e.dias===2)return 'Faltan 2 días: es lo que más te conviene atender ahora.';
+    const pesoAlerta=pesoEventoAgenda(e);
+    return pesoAlerta!==null&&pesoAlerta>=30?`Define ${r2(pesoAlerta)}% del ramo.`:'Por cercanía, peso y cómo vas.';
+  }
   if(e.necesita!==null&&e.necesita>7.05)return 'Con lo pendiente ya no alcanza para aprobar el ramo.';
   if(e.necesita!==null&&e.necesita>5.0)return `Necesitas ${nfNecesaria(e.necesita)} en lo pendiente para aprobar.`;
   // Desde que hoy y mañana entran a las prioridades, "con tiempo" ya no aplica.
@@ -183,6 +193,7 @@ function pesoEventoAgendaTexto(e){
 function agendaDestacadaHTML(e,posicion){
   if(!e)return '';
   const f=formatEventDate(e.fecha);
+  const alerta=e.mostrarAlerta?alertaRamoAgendaHTML(e):'';
   return `<button type="button" class="ag-priority-card ${e.nivel}" style="--ag-course:${esc(e.ramo.color)}">
     <span class="ag-priority-bar" aria-hidden="true"></span>
     <div class="ag-priority-top">
@@ -192,7 +203,8 @@ function agendaDestacadaHTML(e,posicion){
     <div class="ag-priority-date">${cuandoTexto(e.dias)} <span>· ${f.day} ${f.mon}${e.hora?' · '+esc(e.hora):''}</span></div>
     <div class="ag-priority-name">${esc(nombreEventoAgenda(e))}</div>
     <div class="ag-priority-course"><span class="ag-ramo-dot" style="background:${esc(e.ramo.color)}"></span>${esc(e.ramo.nombre)}</div>
-    <div class="ag-priority-reason">${razonDestacadaAgenda(e)}</div>
+    <div class="ag-priority-reason">${razonDestacadaAgenda(e,!!alerta)}</div>
+    ${alerta}
   </button>`;
 }
 
@@ -626,6 +638,9 @@ function renderAgenda(){
   // Fecha y Peso son overrides explícitos del estudiante.
   if(porVenir.length>0){
     const destacadas=destacadasAgenda(porVenir,agendaOrdenActual);
+    // El aviso del ramo va en su primera aparición, sea tarjeta o fila.
+    const ramosConAviso=new Set();
+    destacadas.forEach(e=>{e.mostrarAlerta=!ramosConAviso.has(e.ramo.id);ramosConAviso.add(e.ramo.id);});
     const restantes=ordenadas.slice(destacadas.length);
     html+=resumenSemanaHTML(porVenir);
     html+=`<div class="ag-priority-heading"><span class="section-hd-title">Tus prioridades</span><span class="ag-count">${destacadas.length}</span>${agendaOrdenHTML(agendaOrdenActual)}</div>`;
