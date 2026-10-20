@@ -11229,24 +11229,37 @@ function cuandoTexto(dias){
 function alertaRamoAgendaHTML(e){
   const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>';
   const caja=(tono,texto)=>`<div class="ag-alert ${tono}">${icono}${texto}</div>`;
-  // Textos de Lucas (2026-10-20): urgencia sin alarma. El rojo queda solo para
-  // lo que de verdad es reprobado (ya no alcanza); ir bajo 4,0 con margen para
-  // recuperarse es "al borde", ámbar, igual que en el semáforo.
-  if(e.necesita!==null&&e.necesita>7.05)return caja('bad','No es posible que apruebes este ramo, pero da lo mejor de ti.');
-  if(e.avg!==null&&!notaAprobadaRamo(e.ramo,e.avg)){
-    // X es la nota en ESTA evaluación que te deja aprobando después de rendirla
-    // (la misma de los widgets). Si esta sola no alcanza, lo que queda en conjunto.
-    const ir=notaParaIrConCuatro(e);
-    if(ir&&ir.nota)return Number(ir.nota)>5.0
-      ?caja('warn',`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`)
-      :caja('warn',`Es importante: si sacas un ${ir.nota}, estarás aprobando el ramo.`);
-    if(e.necesita!==null)return e.necesita>5.0
-      ?caja('warn',`Es urgente: necesitas un ${nfNecesaria(e.necesita)} en lo que queda para ir aprobando el ramo.`)
-      :caja('warn',`Es importante: si sacas un ${nfNecesaria(e.necesita)} en lo que queda, estarás aprobando el ramo.`);
-    return '';
-  }
-  if(e.necesita!==null&&e.necesita>5.0&&e.necesita<=7.05)return caja('warn',`Necesitas ${nfNecesaria(e.necesita)} en lo que queda para aprobar`);
-  return '';
+  // Textos y tonos de Lucas (2026-10-20).
+  //
+  // La GRAVEDAD sale de N, el promedio que necesitas en todo lo pendiente: es
+  // lo realista. Si saliera de la nota en esta evaluación, un quiz de 5% podía
+  // decir "es urgente, necesitas un 6,8" en un ramo al que le basta un 4,1.
+  // El MENSAJE depende de cuánto pesa esta evaluación dentro de lo que queda:
+  // si pesa un tercio o más, se dice la nota X en ella que te deja aprobando
+  // después de rendirla (la de los widgets); si pesa menos, se habla de N.
+  // Urgente va en rojo por decisión de Lucas; importante, en ámbar.
+  if(e.necesita===null)return '';
+  if(e.necesita>7.05)return caja('bad','No es posible que apruebes este ramo, pero da lo mejor de ti.');
+  const N=nfNecesaria(e.necesita);
+  if(e.avg===null||notaAprobadaRamo(e.ramo,e.avg))
+    return e.necesita>5.0?caja('warn',`Necesitas ${N} en lo que queda para aprobar`):'';
+  const urgente=e.necesita>5.0,tono=urgente?'bad':'warn';
+  const peso=pesoEventoAgenda(e);
+  const pendiente=estadoParaNotaNecesaria(e.ramo).pendiente;
+  if(peso===null||!(pendiente>0))return caja(tono,urgente
+    ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Es importante: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+  const pesaMucho=peso/100>=pendiente/3-1e-9;
+  if(!pesaMucho)return caja(tono,urgente
+    ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+  const ir=notaParaIrConCuatro(e);
+  if(ir&&ir.nota)return caja(tono,urgente
+    ?`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`
+    :`Es importante: si sacas un ${ir.nota}, estarás aprobando el ramo.`);
+  return caja(tono,urgente
+    ?`Es urgente: con esta evaluación sola no alcanzas a quedar aprobando; necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Es importante: con esta evaluación sola no alcanzas a quedar aprobando, pero con un ${N} en lo pendiente apruebas el ramo.`);
 }
 function agendaItemHTML(e){
   const f=formatEventDate(e.fecha);
