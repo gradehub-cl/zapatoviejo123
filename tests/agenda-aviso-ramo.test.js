@@ -17,6 +17,9 @@ const run=s=>vm.runInContext(s,ctx);
 // Ramo C: 6,0, sin riesgo, con una entrega en tres semanas.
 // Ramo D: 1,5 en el 90% ya rendido: imposible, con un control mañana.
 // Ramo E: 2,0 en la mitad, con una prueba en una semana: urgente.
+// Ramo F: 3,6 en la mitad; lo próximo es un quiz de 5% (pesa poco).
+// Ramo G: 3,0 en el 60%; la próxima pesa 15% de un 40% pendiente (pesa mucho)
+//   pero sola no alcanza para quedar en 4,0.
 run(`S=normalize({tenant:'uc',ramos:[
   {id:'a',nombre:'Ramo A',color:'#33f',gates:[],categorias:[
     {id:'a1',nombre:'Prueba 1',peso:30,fecha:'2026-09-20',notas:[{id:'na1',nombre:'Prueba 1',valor:3.6,peso:1}]},
@@ -32,6 +35,14 @@ run(`S=normalize({tenant:'uc',ramos:[
   {id:'d',nombre:'Ramo D',color:'#999',gates:[],categorias:[
     {id:'d1',nombre:'Pruebas D',peso:90,fecha:'2026-09-15',notas:[{id:'nd1',nombre:'Pruebas D',valor:1.5,peso:1}]},
     {id:'d2',nombre:'Control D',peso:10,fecha:'2026-10-20',notas:[]}]},
+  {id:'f',nombre:'Ramo F',color:'#0aa',gates:[],categorias:[
+    {id:'f1',nombre:'Prueba F1',peso:50,fecha:'2026-09-18',notas:[{id:'nf1',nombre:'Prueba F1',valor:3.6,peso:1}]},
+    {id:'f2',nombre:'Quiz F',peso:5,fecha:'2026-10-21',notas:[]},
+    {id:'f3',nombre:'Examen F',peso:45,fecha:'2026-12-10',notas:[]}]},
+  {id:'g',nombre:'Ramo G',color:'#a0a',gates:[],categorias:[
+    {id:'g1',nombre:'Prueba G1',peso:60,fecha:'2026-09-16',notas:[{id:'ng1',nombre:'Prueba G1',valor:3.0,peso:1}]},
+    {id:'g2',nombre:'Prueba G2',peso:15,fecha:'2026-10-23',notas:[]},
+    {id:'g3',nombre:'Examen G',peso:25,fecha:'2026-12-11',notas:[]}]},
   {id:'e',nombre:'Ramo E',color:'#f90',gates:[],categorias:[
     {id:'e1',nombre:'Prueba E1',peso:50,fecha:'2026-09-22',notas:[{id:'ne1',nombre:'Prueba E1',valor:2.0,peso:1}]},
     {id:'e2',nombre:'Prueba E2',peso:50,fecha:'2026-10-26',notas:[]}]}
@@ -51,9 +62,19 @@ assert.equal(de('Control 2').aviso,'warn','el otro ramo en riesgo también lo tr
 assert.equal(de('Examen B').aviso,null,'una sola vez por ramo');
 assert.equal(de('Entrega final').aviso,null,'un ramo que va bien no lleva aviso');
 assert.doesNotMatch(h,/ag-priority-name">Prueba 2<[^]*?ag-priority-reason">Vas 3\.6/,'la razón de la tarjeta no repite el aviso');
-// 50% con 2,0 + 50% con X ≥ 3,95 → X = 5,9: urgente.
-assert.equal(de('Prueba E2').aviso,'warn');
+// 50% con 2,0 y queda solo E2: N = X = 5,9. Urgente, en rojo (Lucas).
+assert.equal(de('Prueba E2').aviso,'bad','urgente va en rojo');
 assert.match(h,/Es urgente: necesitas un 5\.9 para ir aprobando el ramo\./,'sobre 5,0 es urgente');
+// El caso de Lucas: un quiz de 5% en un ramo al que le basta 4,3 en lo
+// pendiente. Para quedar en 4,0 justo después del quiz haría falta más de 7,0;
+// eso no es urgencia: se dice que pesa poco y cuánto necesita en lo pendiente.
+const bloque=n=>(new RegExp(`ag-(?:priority|row)-name">${n}<([\\s\\S]*?)(?=ag-(?:priority|row)-name"|$)`).exec(h)||[])[1]||'';
+assert.equal(de('Quiz F').aviso,'warn','importante, no urgente');
+assert.match(bloque('Quiz F'),/Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un 4\.3 en lo pendiente para aprobar el ramo\./);
+// G2 pesa 15 de 40 pendientes (≥ un tercio), pero quedar en 4,0 tras ella pide
+// 7,75: no alcanza sola. N = (3,95 − 1,8) / 0,4 = 5,4: urgente.
+assert.equal(de('Prueba G2').aviso,'bad');
+assert.match(bloque('Prueba G2'),/Es urgente: con esta evaluación sola no alcanzas a quedar aprobando; necesitas un 5\.4 en lo pendiente para aprobar el ramo\./);
 assert.equal(de('Control D').aviso,'bad','imposible: rojo');
 assert.match(h,/No es posible que apruebes este ramo, pero da lo mejor de ti\./);
 
