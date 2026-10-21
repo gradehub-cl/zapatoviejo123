@@ -1,0 +1,523 @@
+{
+  "fuentes": "Seis archivos de Programas de Ramos/UAI entregados por Lucas, convertidos localmente con markitdown el 2026-10-21.",
+  "alcance": "Las nueve pautas PRESETS_UAI: seis cotejadas con programas disponibles y tres pendientes de fuente en esta carpeta.",
+  "limitaciones": "Los programas son de secciones y períodos concretos. Las citas documentan pesos y condiciones; no autorizan a inventar cantidad de evaluaciones cuando el texto se contradice. En las tres entradas falta_fuente, evaluaciones y suma son una foto del catálogo, no una verificación contra el programa.",
+  "programas": [
+    {
+      "nombre_catalogo": "Escritura Argumentativa",
+      "archivo_fuente": "Programa_EscrituraArgumentativa_UAI.docx",
+      "ubicacion": "Sistema de evaluación; Porcentajes de las evaluaciones del semestre",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "Test diagnóstico | 5 %",
+        "Análisis de textos | 15 %",
+        "Comentario crítico | 20 %",
+        "Ensayo | 30 %",
+        "Evaluación entre pares | 15 %",
+        "Actividades y participación en clases | 15 %",
+        "El porcentaje de la nota de presentación al examen (NPE) es de un 75%",
+        "El porcentaje del examen es de un 25 %",
+        "se considerará la calificación más alta obtenida entre ambos intentos",
+        "logres una nota igual o superior a seis coma tres (6,3)",
+        "Hay eximición para quienes tengan una nota de presentación a examen que los ubique en el 20% superior del curso"
+      ],
+      "faltantes_y_ambiguedades": [
+        "La pauta reúne Comentario crítico y Ensayo en notas consolidadas porque el reemplazo de la escritura por la reescritura depende de alcanzar 6,3.",
+        "El programa no fija el peso entre las dos evaluaciones entre pares ni entre actividades.",
+        "El 20% superior para eximir no se puede inferir de las notas del estudiante."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Test diagnóstico",
+          3.75
+        ],
+        [
+          "Análisis de textos 1",
+          4.5,
+          {
+            "fecha": "2026-08-20"
+          }
+        ],
+        [
+          "Análisis de textos 2",
+          6.75,
+          {
+            "fecha": "2026-08-27"
+          }
+        ],
+        [
+          "Comentario crítico",
+          15
+        ],
+        [
+          "Ensayo",
+          22.5
+        ],
+        [
+          "Evaluación entre pares",
+          11.25
+        ],
+        [
+          "Actividades y participación",
+          11.25
+        ],
+        [
+          "Examen",
+          25
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-10-21",
+      "reglas_modeladas": {},
+      "reglas_no_calculadas": []
+    },
+    {
+      "nombre_catalogo": "Matemáticas Avanzadas I",
+      "archivo_fuente": null,
+      "ubicacion": null,
+      "estado": "falta_fuente",
+      "confianza": "sin_fuente",
+      "citas_textuales": [],
+      "faltantes_y_ambiguedades": [
+        "Programa MAT124 citado en data.js, no está en la carpeta UAI entregada para esta auditoría."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Talleres",
+          7,
+          {
+            "slots": 3,
+            "slotLabel": "Taller"
+          }
+        ],
+        [
+          "Controles",
+          14,
+          {
+            "slots": 3,
+            "slotLabel": "Control"
+          }
+        ],
+        [
+          "Pruebas",
+          49,
+          {
+            "slots": 3,
+            "slotLabel": "Prueba"
+          }
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": null
+    },
+    {
+      "nombre_catalogo": "Razonamiento Cuantitativo con Datos I",
+      "archivo_fuente": null,
+      "ubicacion": null,
+      "estado": "falta_fuente",
+      "confianza": "sin_fuente",
+      "citas_textuales": [],
+      "faltantes_y_ambiguedades": [
+        "Syllabus MAT125 citado en data.js, no está en la carpeta UAI entregada para esta auditoría."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Pruebas teóricas",
+          35,
+          {
+            "slots": 2,
+            "slotLabel": "Prueba"
+          }
+        ],
+        [
+          "Controles",
+          26.25,
+          {
+            "slots": 5,
+            "slotLabel": "Control"
+          }
+        ],
+        [
+          "Trabajo aplicado",
+          8.75
+        ],
+        [
+          "Examen teórico",
+          15
+        ],
+        [
+          "Examen práctico",
+          15
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": null
+    },
+    {
+      "nombre_catalogo": "Introducción a la Microeconomía",
+      "archivo_fuente": null,
+      "ubicacion": null,
+      "estado": "falta_fuente",
+      "confianza": "sin_fuente",
+      "citas_textuales": [],
+      "faltantes_y_ambiguedades": [
+        "Syllabus ECO122 citado en data.js, no está en la carpeta UAI entregada para esta auditoría."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Controles y tareas",
+          20
+        ],
+        [
+          "Prueba 1",
+          25
+        ],
+        [
+          "Prueba 2",
+          25
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": null
+    },
+    {
+      "nombre_catalogo": "Management",
+      "archivo_fuente": "Programa_Management_UAI.pdf",
+      "ubicacion": "Evaluaciones & aprobación; Régimen de controles de lectura",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "Prueba Solemne 1: 20%",
+        "Prueba Solemne 2: 20%",
+        "Prueba Solemne 3: 20%",
+        "Promedio de Controles: 25%",
+        "Promedio de Tareas: 15%",
+        "se omitirán las dos (2) notas más bajas",
+        "ser igual o superior a 4,0. En caso de que el promedio general del curso sea aprobatorio",
+        "Registrar un mínimo de 75% de asistencia efectiva"
+      ],
+      "faltantes_y_ambiguedades": [
+        "El número total de controles y tareas depende de la sección; quedan como listas abiertas.",
+        "La asistencia mínima de 75% depende de un dato que la app no registra.",
+        "El recuperativo por ausencia a solemne depende de una aprobación individual de Secretaría."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Solemne 1",
+          20
+        ],
+        [
+          "Solemne 2",
+          20
+        ],
+        [
+          "Solemne 3",
+          20
+        ],
+        [
+          "Controles",
+          25,
+          {
+            "lista": true,
+            "dropLowest": {
+              "count": 2
+            },
+            "min": 4,
+            "cap": 3.9
+          }
+        ],
+        [
+          "Tareas",
+          15,
+          {
+            "lista": true
+          }
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-10-21",
+      "reglas_modeladas": {},
+      "reglas_no_calculadas": []
+    },
+    {
+      "nombre_catalogo": "Introducción a la Macroeconomía",
+      "archivo_fuente": "Programa_IntroduccionALaMacroeconomia_UAI.docx",
+      "ubicacion": "Procedimiento de Evaluación",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "Promedio de controles y otras evaluaciones (PC): 15%",
+        "Prueba oficial 1 (PO1): 20%",
+        "Prueba oficial 2 (PO2): 20%",
+        "Prueba oficial 3 (PO3): 20%",
+        "Examen final (EF): 25%",
+        "Se realizarán tres pruebas oficiales",
+        "será la nota del examen final la que reemplace la nota de aquella evaluación no rendida",
+        "Aquellas personas que hayan rendido las tres pruebas oficiales"
+      ],
+      "faltantes_y_ambiguedades": [
+        "El programa no fija cuántos controles hay ni cuántos se descartan: el bloque queda consolidado.",
+        "El incentivo por asistencia aparece como “por confirmar”; no se incorpora al cálculo."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Controles y otras evaluaciones",
+          15
+        ],
+        [
+          "Prueba oficial 1",
+          20
+        ],
+        [
+          "Prueba oficial 2",
+          20
+        ],
+        [
+          "Prueba oficial 3",
+          20
+        ],
+        [
+          "Examen final",
+          25
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-10-21",
+      "reglas_modeladas": {
+        "ausenciasJustificadas": {
+          "maxReemplazos": 1,
+          "reemplazos": [
+            {
+              "desde": "Prueba oficial 1",
+              "hacia": "Examen final"
+            },
+            {
+              "desde": "Prueba oficial 2",
+              "hacia": "Examen final"
+            },
+            {
+              "desde": "Prueba oficial 3",
+              "hacia": "Examen final"
+            }
+          ]
+        }
+      },
+      "reglas_no_calculadas": [
+        "Con más de una prueba justificada, el programa no define cómo resolver las siguientes ausencias"
+      ]
+    },
+    {
+      "nombre_catalogo": "Matemáticas Avanzadas II",
+      "archivo_fuente": "Programa_MatematicasAvanzadasII_UAI.pdf",
+      "ubicacion": "Procedimiento de Evaluación; Reglamento",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "trespruebasdecátedra,trescontroles,unexamen",
+        "tiene una ponderación del 70%",
+        "controles(𝐶), tieneunaponderacióndel30%",
+        "Se eximirán todos los estudiantes cuya nota de presentación a examen sea mayor o igual 5,0",
+        "deberá rendir el examen (𝐸𝑋) con ponderación del 30%",
+        "que 3,5 y menor o igual que 3,9 tienen derecho a rendir un segundo examen",
+        "lanotadeunadelaspruebasporlanotadelexamen"
+      ],
+      "faltantes_y_ambiguedades": [
+        "La eximición además requiere haber rendido todas las evaluaciones; el estudiante la confirma.",
+        "La opción de reemplazar una prueba por el examen y las condiciones de Honor se tratan en #628; este registro no las declara."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Pruebas",
+          49,
+          {
+            "slots": 3
+          }
+        ],
+        [
+          "Controles",
+          21,
+          {
+            "slots": 3
+          }
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-10-21",
+      "reglas_modeladas": {
+        "eximicion": {
+          "evaluacion": "Examen",
+          "segun": [
+            "Pruebas",
+            "Controles"
+          ],
+          "min": 5,
+          "ignoraDescartes": true,
+          "requiereConfirmacion": true,
+          "confirmar": "rendiste todas las pruebas y controles"
+        },
+        "recuperativo": {
+          "min": 3.5,
+          "max": 3.9,
+          "nota": 4
+        },
+        "ausenciasJustificadas": {
+          "reemplazos": [
+            {
+              "desde": "Controles",
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Pruebas",
+              "hacia": "Examen"
+            }
+          ]
+        }
+      },
+      "reglas_no_calculadas": [
+        "Si rendiste todas las pruebas y controles puedes reemplazar la nota de UNA prueba por la del examen, siempre que el examen sea al menos 4,0"
+      ]
+    },
+    {
+      "nombre_catalogo": "Razonamiento Cuantitativo con Datos II",
+      "archivo_fuente": "Programa_RazonamientoCuantitativoConDatosII_UAI.pdf",
+      "ubicacion": "Procedimiento de Evaluación",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "Cada una de estas dimensiones representa un 50%",
+        "Promediodelas4mejoresnotasentreloslaboratoriosrealizados",
+        "NP = 0,75",
+        "NT = Promedio",
+        "0,7×NT+0,3×ET y 0,7×NP+0,3×EP",
+        "Encasodereprobaralgunadelasdosáreas",
+        "Serealizaráncincolaboratorios"
+      ],
+      "faltantes_y_ambiguedades": [
+        "El programa no fija cuántas pruebas teóricas habrá; “Pruebas” queda consolidado.",
+        "La eximición de dos partes del examen necesita el mecanismo de #629; aquí no se inventa una nota única."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Pruebas",
+          35
+        ],
+        [
+          "Laboratorios",
+          26.25,
+          {
+            "slots": 5,
+            "dropLowest": {
+              "count": 1
+            }
+          }
+        ],
+        [
+          "Trabajo grupal",
+          8.75
+        ],
+        [
+          "Examen teórico",
+          15
+        ],
+        [
+          "Examen práctico",
+          15
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-10-21",
+      "reglas_modeladas": {
+        "grupos": [
+          {
+            "nombre": "Nota teórica",
+            "evals": [
+              "Pruebas",
+              "Examen teórico"
+            ],
+            "min": 4,
+            "cap": "self"
+          },
+          {
+            "nombre": "Nota práctica",
+            "evals": [
+              "Laboratorios",
+              "Trabajo grupal",
+              "Examen práctico"
+            ],
+            "min": 4,
+            "cap": "self"
+          }
+        ]
+      },
+      "reglas_no_calculadas": [
+        "Te eximes del examen si la nota de presentación es al menos 5,0 y las notas teórica y práctica son ambas al menos 4,0. No se declara como eximición porque el examen son dos evaluaciones separadas y el modelo exime de una"
+      ]
+    },
+    {
+      "nombre_catalogo": "Civilización Contemporánea II",
+      "archivo_fuente": "Programa_CivilizacionContemporaneaII_UAI.docx",
+      "ubicacion": "Sistema de evaluación; Exención",
+      "estado": "se_corrigio",
+      "confianza": "media",
+      "citas_textuales": [
+        "Evaluaciones de lectura (ponderación: 32,5%; cantidad: 10)",
+        "las once evaluaciones semestrales",
+        "Ensayo breve escrito en clases (ponderación: 10%; cantidad: 1 por semestre)",
+        "Participación en clases (ponderación: 32,5%)",
+        "examen final tendrá una ponderación del 25%",
+        "20% superior del curso",
+        "el estudiante de todas formas tiene derecho a dar examen"
+      ],
+      "faltantes_y_ambiguedades": [
+        "Cantidad de evaluaciones de lectura contradictoria: tabla dice 10 y cuerpo dice 11. Se eliminó el precargado de diez casillas y se conserva el peso 32,5% con una nota consolidada hasta confirmación de la sección.",
+        "La exención depende de quedar en el 20% superior, dato que la app no conoce."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Evaluaciones de lectura",
+          32.5
+        ],
+        [
+          "Participación en clases",
+          32.5
+        ],
+        [
+          "Ensayo breve escrito en clases",
+          10
+        ],
+        [
+          "Examen",
+          25
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-10-21",
+      "reglas_modeladas": {},
+      "reglas_no_calculadas": [
+        "Te eximes del examen si tu nota de presentación te deja en el 20% superior del curso y además es al menos 5,5: la app no conoce las notas del resto del curso"
+      ]
+    }
+  ]
+}

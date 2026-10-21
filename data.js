@@ -2771,7 +2771,6 @@ const PRESETS_UAI={
       'Al terminar los controles se eliminan las dos notas más bajas. Mientras agregas notas, el descarte y el promedio que muestra la app son una estimación parcial',
       'Para aprobar, el promedio de Controles debe ser al menos 4,0; si la final era aprobatoria y no cumples, queda en 3,9',
       'También se exige 75% de asistencia: si no la cumples, una final aprobatoria queda en 3,9. La app no conoce tu asistencia',
-      'Una ausencia a solemne aceptada por Secretaría habilita la evaluación recuperativa. Sin justificación aceptada, o si faltas al recuperativo, corresponde 1,0',
     ],
   },
   // Fuente: 03_08_2026_Syllabus Introducción a la Macroeconomía para webc -
@@ -2837,7 +2836,6 @@ const PRESETS_UAI={
     ],
     reglasDelCurso:[
       'La eximición pide además haber rendido todas las evaluaciones; la app no sabe si una casilla vacía es una que no rendiste o una que no has ingresado',
-      'Las evaluaciones corregidas se entregan en un máximo de 2 semanas hábiles',
     ],
   },
   // Syllabus oficial UAI 2026-2.
@@ -2884,12 +2882,12 @@ const PRESETS_UAI={
   //
   // El documento se contradice sobre cuántas evaluaciones de lectura son: el
   // encabezado de la ponderación declara "cantidad: 10" y el cuerpo habla de
-  // "las once evaluaciones semestrales". Se toma el 10 declarado junto al
-  // porcentaje, que es el dato que la ponderación fija.
+  // "las once evaluaciones semestrales". No se precargan casillas hasta que
+  // la sección confirme cuál de las dos cantidades corresponde.
   'Civilización Contemporánea II':{
     periodo:'2026-2',
     evals:[
-      ['Evaluaciones de lectura',32.5,{slots:10}],
+      ['Evaluaciones de lectura',32.5],
       ['Participación en clases',32.5],
       ['Ensayo breve escrito en clases',10],
       ['Examen',25],
@@ -2898,9 +2896,8 @@ const PRESETS_UAI={
       'Te eximes del examen si tu nota de presentación te deja en el 20% superior del curso y además es al menos 5,5: la app no conoce las notas del resto del curso',
     ],
     reglasDelCurso:[
+      'En Evaluaciones de lectura ingresa el promedio consolidado de tu sección: el programa dice 10 en la ponderación y 11 en el texto, así que no precargamos casillas',
       'El curso exige 80% de asistencia: bajo eso repruebas, con 3,9 si tu promedio era 4,0 o más, o con tu promedio si era 3,9 o menos. La app no registra asistencia',
-      'Las recorrecciones se piden dentro de una semana desde que entregan la evaluación',
-      'El plagio se califica con 1,0',
     ],
   },
 };
