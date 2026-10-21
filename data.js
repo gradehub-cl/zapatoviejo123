@@ -2198,7 +2198,8 @@ const PRESETS_FEN={
     // (3 dic) no es una evaluación aparte, así que no va como fila.
     periodo:'2026-2',
     creditos:6,
-    noCalcula:['Examen de Segunda Fecha para quien saque bajo 3,0 en el examen pero tenga promedio ≥ 3,95'],
+    segundaFecha:{evaluacion:'Examen Final',examenMenorQue:3,promedioPonderadoMin:3.95,
+      requiereTodas:true,aviso:'Confirma con la Escuela los requisitos y la fecha. La app no calcula el resultado'},
     // El programa lista los tres solemnes por separado: van como filas propias,
     // y así cada uno lleva su fecha a la agenda.
     //
@@ -2493,10 +2494,12 @@ const PRESETS_FEN={
   'Métodos Matemáticos I':{
     creditos:6,
     periodo:'2026-2',
+    segundaFecha:{evaluacion:'Examen',examenMenorQue:3,promedioPonderadoMin:3.95,
+      requiereTodas:true,aviso:'Confirma con la Escuela los requisitos y la fecha. La app no calcula el resultado'},
     noCalcula:[
       'Cada evaluación que no rindas se califica con 1,0',
-      'Hay Examen de Segunda Fecha en dos casos: si la Secretaría de Estudios te justificó la inasistencia a una solemne o al examen, o si sacaste bajo 3,0 en el examen pero tu promedio ponderado quedó en 3,95 o más',
     ],
+    reglasDelCurso:['Una inasistencia a una solemne o al examen justificada por la Secretaría también puede dar derecho al Examen de Segunda Fecha. La app no conoce esa resolución'],
     evals:[
       ['Solemne 1',20],
       ['Solemne 2',20],
@@ -2671,7 +2674,7 @@ const PRESETS_UAI={
     eximicion:{evaluacion:'Examen',segun:['Talleres','Controles','Pruebas'],min:5,
       ignoraDescartes:true,comparaNotaOficial:true,sinAusenciasJustificadas:true,
       requierePautaOriginal:true},
-    segundaFecha:{evaluacion:'Examen',finalMin:3.5,finalMax:3.9,
+    segundaFecha:{evaluacion:'Examen',finalMin:3.5,finalMax:3.9,requiereTodas:true,
       aviso:'Si rendiste el examen en la fecha indicada, consulta por el segundo examen. La app no calcula su resultado'},
     ausenciasJustificadas:{reemplazosCasilla:[
       {desde:'Talleres',desdeSlot:0,hacia:'Pruebas',haciaSlot:0},

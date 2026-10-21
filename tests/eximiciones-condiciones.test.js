@@ -16,7 +16,7 @@ const ctx={window:{addEventListener(){},matchMedia:()=>({matches:false,addEventL
   getComputedStyle:()=>({getPropertyValue:()=>''}),setTimeout(fn){fn();return 0},clearTimeout(){},
   requestAnimationFrame(){return 0},cancelAnimationFrame(){},console,gtag(){}};
 vm.createContext(ctx);vm.runInContext(src,ctx);
-const api=vm.runInContext('({presetRamo,ramoAvg,estadoEximicion,estadoSegundaFecha,categoriaEximida,ramoCompletamenteEvaluado,gh_notaOficial,gh_reglasNota,PRESETS_UAI,PRESETS_UANDES,PRESETS_POR_TENANT,CARRERAS_DECLARABLES,definicionPresetDelRamo})',ctx);
+const api=vm.runInContext('({presetRamo,ramoAvg,estadoEximicion,estadoSegundaFecha,categoriaEximida,ramoCompletamenteEvaluado,gh_notaOficial,gh_reglasNota,PRESETS_FEN,PRESETS_UAI,PRESETS_UANDES,PRESETS_POR_TENANT,CARRERAS_DECLARABLES,definicionPresetDelRamo})',ctx);
 const run=code=>vm.runInContext(code,ctx);
 let id=0;
 function nota(valor,slot){return {id:'n'+(++id),nombre:'Nota',valor,peso:1,...(slot===undefined?{}:{slot})};}
@@ -104,7 +104,7 @@ assert.equal(api.gh_notaOficial(4.945,api.gh_reglasNota('uandes')),5);
 assert.equal(api.estadoEximicion(andes).elegible,true,'se aplica el redondeo doble de UAndes');
 
 api.PRESETS_UAI['Segunda fecha sintética']={evals:[['Presentación',70],['Examen',30]],
-  segundaFecha:{evaluacion:'Examen',finalMin:3.5,finalMax:3.9,aviso:'Consulta la fecha'}};
+  segundaFecha:{evaluacion:'Examen',finalMin:3.5,finalMax:3.9,requiereTodas:true,aviso:'Consulta la fecha'}};
 const segunda=ramo('Segunda fecha sintética','uai',null);
 run("S.tenant='uai'");
 poner(segunda,'Presentación',[3.7]);
@@ -120,6 +120,21 @@ assert.equal(api.estadoSegundaFecha(segunda).aviso,false);
 run('renderRamo()');
 assert.equal(ids['eximicion-warning'].innerHTML,'','fuera del rango no se muestra el aviso');
 
+api.PRESETS_FEN['Segunda fecha sintética']={evals:[['Solemnes',60],['Examen',40,{min:3,cap:3.9}]],
+  segundaFecha:{evaluacion:'Examen',examenMenorQue:3,promedioPonderadoMin:3.95,
+    requiereTodas:true,aviso:'Consulta la fecha'}};
+const fen=ramo('Segunda fecha sintética','fen','IC');
+run("S.tenant='fen'");
+poner(fen,'Solemnes',[4.65]);poner(fen,'Examen',[2.9]);
+assert.equal(api.ramoAvg(fen),3.9,'la compuerta topa la final visible');
+assert.equal(api.estadoSegundaFecha(fen).aviso,true,'el derecho usa el promedio ponderado previo al tope');
+poner(fen,'Solemnes',[4.64]);
+assert.equal(api.estadoSegundaFecha(fen).aviso,false,'3,944 ponderado no llega a 3,95');
+poner(fen,'Solemnes',[4.65]);poner(fen,'Examen',[2.95]);
+assert.equal(api.estadoSegundaFecha(fen).aviso,false,'un 2,95 oficial es 3,0: no está bajo 3,0');
+poner(fen,'Examen',[]);
+assert.equal(api.estadoSegundaFecha(fen).aviso,false,'sin examen no se anuncia segunda fecha');
+
 for(const nombre of ['Razonamiento Cuantitativo con Datos I','Razonamiento Cuantitativo con Datos II']){
   const def=api.PRESETS_UAI[nombre];
   assert.equal(def.eximicion.evaluaciones.length,2,`${nombre}: ambos exámenes declarados`);
@@ -127,6 +142,12 @@ for(const nombre of ['Razonamiento Cuantitativo con Datos I','Razonamiento Cuant
   assert.equal((def.noCalcula||[]).some(t=>/exim/i.test(t)),false,`${nombre}: la eximición ya se calcula`);
 }
 assert.ok(api.PRESETS_UAI['Matemáticas Avanzadas I'].segundaFecha,'la segunda fecha solo avisa');
+for(const nombre of ['Métodos Matemáticos I','Métodos Matemáticos II']){
+  assert.ok(api.PRESETS_FEN[nombre].segundaFecha,`${nombre}: el aviso numérico está declarado`);
+  const curso=ramo(nombre,'fen','IC');
+  for(const c of curso.categorias)poner(curso,c.nombre,[c.nombre.startsWith('Examen')?2.9:4.65]);
+  assert.equal(api.estadoSegundaFecha(curso).aviso,true,`${nombre}: el preset llega al aviso sin alterar la nota`);
+}
 
 // Todas las pautas disponibles en cada carrera: con presentación sintética
 // insuficiente, quitar la regla de eximición no puede cambiar el promedio.

@@ -582,11 +582,21 @@ function gh_crearCalculoRamo(deps){
   function estadoSegundaFecha(ramo){
     const def=definicionPresetDelRamo(ramo);
     const regla=!Array.isArray(def)&&def&&def.segundaFecha;
-    if(!regla||!Number.isFinite(regla.finalMin)||!Number.isFinite(regla.finalMax))return null;
+    if(!regla)return null;
     const examen=(ramo.categorias||[]).find(c=>normName(c.nombre)===normName(regla.evaluacion));
-    if(!examen||avgPond(examen.notas)===null)return {aviso:false,regla};
+    const notaExamen=examen?avgPond(examen.notas):null;
+    if(notaExamen===null)return {aviso:false,regla};
+    if(regla.requiereTodas===true&&!ramoCompletamenteEvaluado(ramo))return {aviso:false,regla};
     const final=gh_notaOficial(ramoAvg(ramo),reglasNota());
-    return {aviso:final!==null&&final>=regla.finalMin&&final<=regla.finalMax,final,regla};
+    if(final===null)return {aviso:false,regla};
+    const promedioPonderado=Number.isFinite(regla.promedioPonderadoMin)
+      ?calculoRamoConCompuertas(ramo).res.raw:null;
+    const aviso=(!Number.isFinite(regla.finalMin)||final>=regla.finalMin)
+      &&(!Number.isFinite(regla.finalMax)||final<=regla.finalMax)
+      &&(!Number.isFinite(regla.examenMenorQue)||gh_notaOficial(notaExamen,reglasNota())<regla.examenMenorQue)
+      &&(!Number.isFinite(regla.promedioPonderadoMin)
+        ||(promedioPonderado!==null&&promedioPonderado+1e-9>=regla.promedioPonderadoMin));
+    return {aviso,final,regla};
   }
   function reglasAusenciaOficiales(ramo){
     const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
