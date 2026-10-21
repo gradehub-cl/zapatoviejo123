@@ -429,6 +429,30 @@ function contexto({search='',sesion=false}={}){
     /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
     &&/exportarAlumnosPanel\(vista,compGeneral,compSeccion\)/.test(mkSec));
 
+  console.log('\n=== Un alumno con varios ramos (2026-10-21) ===');
+  const fichaVarios=a.run(`alumnosPanelHTML([__dos],()=>null)`);
+  chk('la fila muestra el estado de cada ramo, con su nombre',
+    /panel-alumnos-fila-estados/.test(fichaVarios)&&/aria-label="Cálculo II: [a-z ]+">Cálculo II · /.test(fichaVarios)&&/aria-label="Física: [a-z ]+">Física · /.test(fichaVarios));
+  chk('con un ramo, el estado de siempre',/aria-label="Estado: [a-z ]+">(Aprobando|Al borde|Reprobando|Sin notas)</.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`))
+    &&!/panel-alumnos-fila-estados/.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`)));
+  chk('con varios ramos, cada uno parte plegado y se abre con su flecha',
+    (fichaVarios.match(/<details class="panel-alumnos-ramo" data-ramo="r[af]">/g)||[]).length===2&&/<summary class="panel-alumnos-ramo-cabeza">/.test(fichaVarios));
+  chk('con un solo ramo, parte abierto',/<details class="panel-alumnos-ramo" data-ramo="ra" open>/.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`)));
+  const graf2=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__dos,${curso2}))`);
+  chk('el gráfico dibuja una línea por ramo, cada una con su serie',
+    /<g class="ah-serie-0"><path class="ah-linea"/.test(graf2)&&/<g class="ah-serie-1">/.test(graf2)&&(graf2.match(/class="ah-linea"/g)||[]).length>=1);
+  chk('y una leyenda con el nombre de cada ramo: el color solo no basta',
+    /<p class="ah-leyenda"><span class="ah-serie-0"><i aria-hidden="true"><\/i>Cálculo II<\/span><span class="ah-serie-1"><i aria-hidden="true"><\/i>Física<\/span>/.test(graf2)
+    &&/aria-label="Diferencia con el curso en \d+ evaluaciones de 2 ramos/.test(graf2));
+  chk('con un ramo no hay leyenda',!/ah-leyenda/.test(ah0()));
+  const css=leer('styles.css');
+  chk('las series no usan los colores del semáforo',!/\.ah-serie-\d\{--serie:var\(--(green|yellow|red|primary)/.test(css));
+  chk('solo gira la flecha de lo abierto, no la de todo lo que hay adentro',
+    /\.panel-alumnos-alumno\[open\]>summary::after,\.panel-alumnos-alumno details\[open\]>summary::after\{transform:rotate\(90deg\)/.test(css)
+    &&!/\.panel-alumnos-alumno\[open\] summary::after/.test(css));
+  chk('la hoja del alumno pide los ramos en que toma clases con ese profesor',
+    /Elige los ramos en que tomas clases con \$\{esc\(profe\.nombre_publico\)\}/.test(leer('marketplace.js')));
+
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
