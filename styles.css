@@ -3236,6 +3236,11 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-buscar{margin-top:8px;}
 .panel-alumnos-buscar input{min-height:44px;}
 .panel-alumnos-exportar{min-height:44px;margin-top:4px;}
+/* Control segmentado (HIG: Segmented controls): dos opciones de una misma vista. */
+.panel-alumnos-compara{display:flex;gap:2px;padding:2px;margin:4px 0 8px;border-radius:10px;background:rgba(118,118,128,.12);}
+.panel-alumnos-compara button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
+.panel-alumnos-compara button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
+.panel-alumnos-compara button:disabled{opacity:.6;cursor:default;}
 .panel-resumen-ramo{border:1px solid var(--border);border-radius:14px;padding:4px 14px 12px;margin-top:10px;background:var(--card);}
 .panel-resumen-ramo summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 14px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
 .panel-resumen-ramo summary::-webkit-details-marker{display:none;}

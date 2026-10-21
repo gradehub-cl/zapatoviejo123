@@ -385,7 +385,25 @@ as $$
 $$;
 revoke all on function public.clave_curso_comparacion(text, jsonb) from public, anon, authenticated;
 
-create or replace function public.comparacion_ramo_profesor(p_tenant text, p_sigla text)
+-- POR SECCIÓN (2026-10-20, pedido de Salva Ramos): comparar a cada alumno con
+-- los de su misma sección, no solo con todo GradeHub. La sección es la que el
+-- estudiante escribe en Editar ramo (entero 1–999 en el ramo guardado). Sin
+-- p_seccion, la comparación de siempre. Mismo piso de cinco personas.
+create or replace function public.seccion_calza(p_ramo jsonb, p_seccion integer)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_seccion is null or p_ramo->'seccion' = to_jsonb(p_seccion);
+$$;
+revoke all on function public.seccion_calza(jsonb, integer) from public, anon, authenticated;
+
+-- La firma de 2 argumentos se reemplaza por una de 3 (p_seccion opcional). Sin
+-- el drop quedarían las dos y una llamada con p_tenant y p_sigla sería ambigua;
+-- con p_seccion por omisión, la app vieja en caché sigue llamando igual.
+drop function if exists public.comparacion_ramo_profesor(text, text);
+create or replace function public.comparacion_ramo_profesor(p_tenant text, p_sigla text, p_seccion integer default null)
 returns jsonb
 language plpgsql
 stable
@@ -396,13 +414,16 @@ declare
   uid uuid := auth.uid();
   v_tenant text := nullif(lower(btrim(p_tenant)), '');
   v_sigla text := nullif(upper(btrim(p_sigla)), '');
+  v_seccion integer := p_seccion;
   v_ramo jsonb;
   v_evaluaciones jsonb;
   v_categorias jsonb;
 begin
-  if uid is null or v_tenant is null or v_sigla is null then
+  if uid is null or v_tenant is null or v_sigla is null
+     or (v_seccion is not null and v_seccion not between 1 and 999) then
     return null;
   end if;
+  -- Por sección, solo una que declara un alumno que le comparte ese ramo.
   if not public.tutor_aprobado(uid) or not exists (
     select 1
     from public.profesor_alumnos pa
@@ -410,6 +431,7 @@ begin
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
     where pa.tutor_id = uid and r->>'id' = any (pa.ramos)
       and ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and public.seccion_calza(r, v_seccion)
   ) then
     return null;
   end if;
@@ -420,7 +442,14 @@ begin
     from public.curso_notas cn
     where cn.tenant = v_tenant and cn.ramo_sigla = v_sigla and cn.updated_at > now() - interval '30 days'
       and not exists (select 1 from public.user_ramos ur
-                      where ur.user_id = cn.user_id and ur.data->>'tipoCuenta' = 'profesor');
+                      where ur.user_id = cn.user_id and ur.data->>'tipoCuenta' = 'profesor')
+      -- curso_notas no guarda la sección: se mira en el ramo que esa persona guardó.
+      and (v_seccion is null or exists (
+            select 1 from public.user_ramos ur,
+                   jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
+            where ur.user_id = cn.user_id and ur.data->>'tenant' = v_tenant
+              and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+              and public.seccion_calza(r, v_seccion)));
 
   with notas as (
     select ur.user_id,
@@ -431,6 +460,7 @@ begin
          jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
          jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
     where ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and public.seccion_calza(r, v_seccion)
       and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and jsonb_typeof(n->'valor') = 'number'
       and (n->>'valor')::numeric between 1 and 7
@@ -465,6 +495,7 @@ begin
          jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
          jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
     where ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and public.seccion_calza(r, v_seccion)
       and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and jsonb_typeof(n->'valor') = 'number'
       and (n->>'valor')::numeric between 1 and 7
@@ -504,7 +535,7 @@ revoke all on function public.mis_alumnos() from public, anon;
 revoke all on function public.quitar_alumno(uuid) from public, anon;
 revoke all on function public.fijar_inicio_alumno(uuid, date) from public, anon;
 revoke all on function public.fijar_inicio_ramo_alumno(uuid, text, date) from public, anon;
-revoke all on function public.comparacion_ramo_profesor(text, text) from public, anon;
+revoke all on function public.comparacion_ramo_profesor(text, text, integer) from public, anon;
 grant execute on function public.clave_evaluacion(text) to authenticated;
 grant execute on function public.codigo_alumnos_profesor(boolean) to authenticated;
 grant execute on function public.profesor_por_codigo(text) to authenticated;
@@ -516,4 +547,4 @@ grant execute on function public.mis_alumnos() to authenticated;
 grant execute on function public.quitar_alumno(uuid) to authenticated;
 grant execute on function public.fijar_inicio_alumno(uuid, date) to authenticated;
 grant execute on function public.fijar_inicio_ramo_alumno(uuid, text, date) to authenticated;
-grant execute on function public.comparacion_ramo_profesor(text, text) to authenticated;
+grant execute on function public.comparacion_ramo_profesor(text, text, integer) to authenticated;

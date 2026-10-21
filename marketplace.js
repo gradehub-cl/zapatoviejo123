@@ -3445,9 +3445,23 @@ function proximaEvaluacionPanelHTML(p){
     :p.inalcanzable?'con esta sola no alcanza el 4':'';
   return `<p class="panel-alumnos-proxima"><span>Próxima: <b>${esc(p.evaluacion)}</b> · ${cuando}</span>${meta?`<span>${meta}</span>`:''}</p>`;
 }
+// `etiqueta`: true dice "GradeHub"; un texto ("Sección 3") dice ese texto.
 function comparacionTexto(prom,personas,etiqueta=false){
-  if(prom==null)return `<span class="panel-alumnos-sin">${etiqueta?'GradeHub: aún pocos datos':'Aún pocos datos'}</span>`;
-  return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${etiqueta?'GradeHub · ':''}${personas} personas</small></span>`;
+  const nombre=etiqueta===true?'GradeHub':etiqueta?esc(etiqueta):'';
+  if(prom==null)return `<span class="panel-alumnos-sin">${nombre?nombre+': aún pocos datos':'Aún pocos datos'}</span>`;
+  return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${nombre?nombre+' · ':''}${personas} personas</small></span>`;
+}
+// POR SECCIÓN (2026-10-20, pedido de Salva Ramos): el profesor elige comparar
+// con todo GradeHub o con la sección de cada alumno, la que escribió en Editar
+// ramo. Sin sección declarada no hay con qué comparar y se dice. La elección
+// se recuerda en este navegador; si no se puede, parte en GradeHub.
+const SIN_SECCION_PANEL=Object.freeze({sinSeccion:true,ramo:null,evaluaciones:[],categorias:[]});
+const CLAVE_COMPARA_PANEL='gh_panel_compara';
+function comparaSeccionGuardado(){try{return localStorage.getItem(CLAVE_COMPARA_PANEL)==='seccion';}catch(e){return false;}}
+function guardarComparaSeccion(v){try{localStorage.setItem(CLAVE_COMPARA_PANEL,v?'seccion':'gradehub');}catch(e){}}
+function comparaPanelHTML(seccion){
+  const op=(v,t)=>`<button type="button" data-compara="${v}" aria-pressed="${(v==='seccion')===seccion}">${t}</button>`;
+  return `<div class="panel-alumnos-compara" role="group" aria-label="Comparar con">${op('gradehub','Todo GradeHub')}${op('seccion','Su sección')}</div>`;
 }
 // `extra` va bajo la cabeza del ramo (en el panel, cuándo empezó en él).
 function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra=''){
@@ -3460,8 +3474,10 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra=''){
   const categorias=categoriasDeRamoPanel(ramo);
   // Una nota cuyo nombre no calza con nadie no repite "aún pocos datos": la
   // comparación útil está en su categoría.
-  const deNota=n=>{const e=porNota.get(n.clave);return e?comparacionTexto(e.promedio,e.personas):'<span class="panel-alumnos-sin">—</span>';};
-  const deCategoria=c=>{const e=porCategoria.get(c.clave);return comparacionTexto(e?e.promedio:null,e?e.personas:0);};
+  const sinSeccion=!!(comp&&comp.sinSeccion),guion='<span class="panel-alumnos-sin">—</span>';
+  const nombreComp=comp&&Number.isInteger(comp.seccion)?`Sección ${comp.seccion}`:'GradeHub';
+  const deNota=n=>{const e=!sinSeccion&&porNota.get(n.clave);return e?comparacionTexto(e.promedio,e.personas):guion;};
+  const deCategoria=c=>{if(sinSeccion)return guion;const e=porCategoria.get(c.clave);return comparacionTexto(e?e.promedio:null,e?e.personas:0);};
   const filas=categorias.map(c=>{
     // Una categoría de una sola nota es una sola fila.
     if(c.notas.length===1)return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}</td><td>${esc(fmt(c.notas[0].valor))}</td><td>${deCategoria(c)}</td></tr></tbody>`;
@@ -3472,11 +3488,12 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra=''){
     <div class="panel-alumnos-ramo-cabeza">
       <span><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
       <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
-      ${comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,true)}
+      ${sinSeccion?'<span class="panel-alumnos-gh">No disponible<small>sin sección</small></span>'
+        :comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,nombreComp==='GradeHub'?true:nombreComp)}
     </div>
     ${extra}
     ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
-    ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>GradeHub</th></tr></thead>${filas}</table>`
+    ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>${comp&&(sinSeccion||Number.isInteger(comp.seccion))?'Su sección':'GradeHub'}</th></tr></thead>${filas}</table>`
       :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
   </div>`;
 }
@@ -3693,15 +3710,18 @@ function frenteAlCursoPanel(d){
   if(d===null)return 'sin comparación';
   return Math.abs(d)<0.05?'igual que el curso':`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} el curso`;
 }
-function antesAhoraGrupoHTML(g){
+// `seccion`: la comparación es con la sección de cada alumno; `sinSeccion`,
+// cuántos alumnos no la declararon en algún ramo.
+function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   if(!g||!g.alumnos.length)return '';
+  const respecto=seccion?'Respecto de su sección':'Respecto del curso';
   const conFecha=g.antes.n+g.ahora.n;
   const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
   const pocos='Aún pocos datos';
   const cifras=[
-    g.cambioMediana===null?cifra('—','Respecto del curso',pocos)
-      :cifra(esc(conSignoPanel(g.cambioMediana)),'Respecto del curso',`mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
-    g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron','respecto del curso'):cifra('—','Mejoraron',pocos),
+    g.cambioMediana===null?cifra('—',respecto,pocos)
+      :cifra(esc(conSignoPanel(g.cambioMediana)),respecto,`mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
+    g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron',respecto.toLowerCase()):cifra('—','Mejoraron',pocos),
     cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Aprobación','de sus evaluaciones')
   ].join('');
   const prom=v=>v===null?'—':esc(fmt(v));
@@ -3709,7 +3729,7 @@ function antesAhoraGrupoHTML(g){
     <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Cómo van tus alumnos</h2></div>
     <div class="ah-cifras">${cifras}</div>
     <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
-    <p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “Respecto del curso” compara cada nota con el promedio de GradeHub en esa misma prueba, antes y después de que empezaran contigo. El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
+    <p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
   </section>`;
 }
 // Una serie: la diferencia con el curso en cada evaluación comparable, en el
@@ -3732,9 +3752,10 @@ function graficoAntesAhoraSVG(m){
   return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}<path class="ah-linea" d="${linea}"/>${puntos}</svg>
     <p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.${unCorte?'':' Empezó cada ramo en otra fecha: los puntos huecos son de antes.'}</p>`;
 }
-function antesAhoraAlumnoHTML(m){
+function antesAhoraAlumnoHTML(m,{sinSeccion=false}={}){
   if(!m||!m.evaluaciones.length)return '';
-  const resumen=m.cambio===null?'Aún pocos datos para comparar antes y ahora'
+  const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'
+    :m.cambio===null?'Aún pocos datos para comparar antes y ahora'
     :Math.abs(m.cambio)<0.05?'Igual que antes, respecto del curso'
     :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} respecto del curso`;
   const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
@@ -3863,11 +3884,11 @@ function alumnosPanelHTML(lista,compDe,ahora=new Date()){
     .sort((a,b)=>b.prioridad-a.prioridad||b.exigencia-a.exigencia||
       (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
       String(a.al.nombre_visible||'').localeCompare(String(b.al.nombre_visible||''),'es'));
-  return ordenados.map(({al,nivel,estados,proxima,exigente})=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno"${abierto}>
+  return ordenados.map(({al,nivel,estados,proxima,exigente})=>conUniversidadPanel(al.tenant,()=>`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
       <summary><span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
         <span class="panel-alumnos-fila-estado panel-resumen-sem ${nivel==='neutral'?'':`panel-resumen-${nivel}`}" aria-label="Estado: ${nivel==='bad'?'reprobando':nivel==='warn'?'al borde':nivel==='good'?'aprobando':'sin notas'}">${nivel==='bad'?'Reprobando':nivel==='warn'?'Al borde':nivel==='good'?'Aprobando':'Sin notas'}${nivel!=='neutral'&&estados[nivel]>1?` · ${estados[nivel]} ramos`:''}</span>
         ${proximaFilaAlumnoHTML(proxima,exigente)}</span></summary>
-      ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe))}
+      ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
       ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r))).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`)).join('');
@@ -3884,18 +3905,24 @@ function celdaCsvPanel(v){
   if(/^[=+\-@\t\r]/.test(s)&&!/^-\d+(,\d+)?$/.test(s))s="'"+s;
   return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
-function csvAlumnosPanel(alumnos,compDe){
+// `compSeccionDe` da la comparación con la sección de cada alumno: va en las
+// cuatro columnas del final, para no mover las que ya existían.
+function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
   const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
   const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
   // Las de "antes y ahora" (#697) y cuándo empezó en el ramo (2026-10-20) van
   // al final para no mover las columnas que alguien ya usa en su planilla.
-  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso','Empezó contigo en este ramo']];
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo']];
   alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
     const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
     const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
       return [e.fecha,e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
     (al.ramos||[]).forEach(r=>{
     const empezo=inicioRamoPanel(al,r).dia||'';
+    const seccion=Number.isInteger(r.seccion)?r.seccion:'no declarada';
+    const compSec=(compSeccionDe&&compSeccionDe(al,r))||{};
+    const secNota=new Map((compSec.evaluaciones||[]).map(e=>[e.clave,e]));
+    const secCategoria=new Map((compSec.categorias||[]).map(e=>[e.clave,e]));
     const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
     const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
     const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
@@ -3905,17 +3932,18 @@ function csvAlumnosPanel(alumnos,compDe){
     const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
     const categorias=categoriasDeRamoPanel(ramo);
     // Un ramo sin notas igual sale, para que el archivo tenga a todos.
-    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo]);return;}
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo,seccion,'','',gh(compSec.ramo)]);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
-      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id),empezo])));
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id),empezo,
+      seccion,gh(secNota.get(n.clave)),gh(secCategoria.get(c.clave)),gh(compSec.ramo)])));
   });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
-async function exportarAlumnosPanel(lista,compDe){
+async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null){
   const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
   const nombre=`gradehub-alumnos-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
   // La marca BOM hace que Excel lea bien las tildes.
-  const blob=new Blob(['\ufeff'+csvAlumnosPanel(lista,compDe)],{type:'text/csv;charset=utf-8'});
+  const blob=new Blob(['\ufeff'+csvAlumnosPanel(lista,compDe,compSeccionDe)],{type:'text/csv;charset=utf-8'});
   track('panel_alumnos_exportado',{alumnos:lista.length});
   // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
   try{
@@ -3976,7 +4004,28 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     const separador=k.indexOf('|'),tenant=k.slice(0,separador),sigla=k.slice(separador+1);
     try{const {data,error}=await supabaseClient.rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
   }));
-  const compDe=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
+  const compGeneral=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
+  // Por sección se consulta solo al pedirlo (el control o el Excel), una vez
+  // por ramo y sección distintos, de a cuatro para no cargar la base.
+  const secciones=new Map();
+  const claveSeccion=(al,r)=>{const c=al.tenant&&claveRamoCurso(r,al.tenant);return c&&Number.isInteger(r.seccion)?claveCurso(al.tenant,c)+'|'+r.seccion:null;};
+  const compSeccion=(al,r)=>{const k=claveSeccion(al,r);if(!k)return SIN_SECCION_PANEL;
+    return secciones.get(k)||{seccion:r.seccion,ramo:null,evaluaciones:[],categorias:[]};};
+  let cargandoSecciones=null;
+  const cargarSecciones=()=>cargandoSecciones||(cargandoSecciones=(async()=>{
+    const pendientes=[...new Set(alumnos.flatMap(al=>(al.ramos||[]).map(r=>claveSeccion(al,r)).filter(Boolean)))];
+    const una=async k=>{
+      const [tenant,sigla,seccion]=k.split('|');
+      try{const {data,error}=await supabaseClient.rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla,p_seccion:Number(seccion)});
+        if(!error&&data)secciones.set(k,{...data,seccion:Number(seccion)});}catch(e){}
+    };
+    for(let i=0;i<pendientes.length;i+=4)await Promise.all(pendientes.slice(i,i+4).map(una));
+  })());
+  let porSeccion=alumnos.length>0&&comparaSeccionGuardado();
+  if(porSeccion)await cargarSecciones();
+  const compDe=(al,r)=>porSeccion?compSeccion(al,r):compGeneral(al,r);
+  const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
+  const grupoHTML=lista=>lista.length?antesAhoraGrupoHTML(metricasGrupoPanel(lista,compDe),{seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(lista):0}):'';
   const link=linkAlumnosProfesor(codigo);
   const mensaje=mensajeInvitacionAlumnos();
   // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
@@ -3999,11 +4048,13 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
       aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+
     (alumnos.length?'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>':'')+
+    (alumnos.length?comparaPanelHTML(porSeccion):'')+
     `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
       :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
-    (alumnos.length?antesAhoraGrupoHTML(metricasGrupoPanel(alumnos,compDe)):'')+
-    (alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compDe)):'')+
-    '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas. Nunca ves quiénes son.</p>'+
+    `<div id="alumnos-grupo">${grupoHTML(alumnos)}</div>`+
+    // El resumen junta alumnos de distintas secciones: siempre contra todo GradeHub.
+    (alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral)):'')+
+    '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>'+
     (alumnos.length?seccionLink:'')+
     (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
   const botonVolver=raiz.querySelector('#alumnos-volver');
@@ -4054,15 +4105,34 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
     enlazarQuitar();enlazarInicio();
   });
+  // Cambiar la comparación vuelve a pintar los alumnos y el grupo con lo ya bajado.
+  const compara=raiz.querySelector('.panel-alumnos-compara');
+  const botones=compara?[...compara.querySelectorAll('[data-compara]')]:[];
+  botones.forEach(b=>b.addEventListener('click',async()=>{
+    const quiere=b.dataset.compara==='seccion';if(quiere===porSeccion)return;
+    botones.forEach(x=>{x.disabled=true;});
+    if(quiere)await cargarSecciones();
+    porSeccion=quiere;guardarComparaSeccion(quiere);
+    botones.forEach(x=>{x.disabled=false;x.setAttribute('aria-pressed',String((x.dataset.compara==='seccion')===porSeccion));});
+    // Las fichas abiertas siguen abiertas: cambiar la comparación no saca al profesor de donde estaba.
+    const abiertos=new Set([...lista.querySelectorAll('details[data-alumno][open]')].map(d=>d.dataset.alumno));
+    if(vista.length){lista.innerHTML=alumnosPanelHTML(vista,compDe);enlazarQuitar();enlazarInicio();
+      lista.querySelectorAll('details[data-alumno]').forEach(d=>{if(abiertos.has(d.dataset.alumno))d.open=true;});}
+    const grupo=raiz.querySelector('#alumnos-grupo');if(grupo)grupo.innerHTML=grupoHTML(alumnos);
+    track('panel_alumnos_compara',{seccion:quiere});
+  }));
   // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
   // recordatorio de lo que el profesor aceptó en los términos.
   const exportar=raiz.querySelector('#alumnos-exportar');
-  if(exportar)exportar.addEventListener('click',()=>{
+  if(exportar)exportar.addEventListener('click',async()=>{
     if(!vista.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
+    // Las columnas de sección van siempre. Se bajan antes del diálogo: el toque
+    // en «Exportar» es el que deja abrir la hoja de compartir del iPhone.
+    exportar.disabled=true;await cargarSecciones();exportar.disabled=false;
     const n=vista.length;
     showConfirm('Exportar notas',
       `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
-      ()=>exportarAlumnosPanel(vista,compDe),{label:'Exportar',danger:false});
+      ()=>exportarAlumnosPanel(vista,compGeneral,compSeccion),{label:'Exportar',danger:false});
   });
   track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
