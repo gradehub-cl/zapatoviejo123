@@ -3236,6 +3236,21 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-buscar{margin-top:8px;}
 .panel-alumnos-buscar input{min-height:44px;}
 .panel-alumnos-exportar{min-height:44px;margin-top:4px;}
+.panel-alumnos-vistas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:2px;margin:8px 0 10px;border-radius:10px;background:rgba(118,118,128,.12);}
+.panel-alumnos-vistas.dos-vistas{grid-template-columns:repeat(2,minmax(0,1fr));}
+.panel-alumnos-vistas button{min-width:0;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;line-height:1.25;overflow-wrap:anywhere;cursor:pointer;}
+.panel-alumnos-vistas button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
+.panel-alumnos-ir-invitar,.panel-alumnos-mas,.panel-alumnos-regresar{min-height:44px;}
+.panel-alumnos-ir-invitar{margin-bottom:8px;}
+.panel-alumnos-mas{margin-top:12px;width:100%;}
+.panel-alumnos-regresar{margin:4px 0 14px;}
+.panel-alumnos-vista[hidden],.panel-alumnos-vistas[hidden],.panel-alumnos-ir-invitar[hidden],.panel-alumnos-mas[hidden],#alumnos-compara-wrap[hidden],#alumnos-privacidad[hidden]{display:none;}
+.panel-alumnos-ficha h2{margin:0 0 12px;font-size:1.25rem;color:var(--fg);overflow-wrap:anywhere;}
+.panel-alumnos-ficha #alumnos-ficha-contenido{padding:4px 14px 14px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
+.panel-alumnos-ficha .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}
+.panel-alumnos-ficha details>summary::after{content:'›';margin-left:auto;color:var(--fg3);font-size:1.375rem;line-height:1;transition:transform var(--motion-fast) var(--ease-out);}
+.panel-alumnos-ficha details[open]>summary::after{transform:rotate(90deg);}
+.panel-alumnos-invitacion .panel-alumnos-link.al-final{margin-top:0;}
 /* Control segmentado (HIG: Segmented controls): dos opciones de una misma vista. */
 .panel-alumnos-compara{display:flex;gap:2px;padding:2px;margin:4px 0 8px;border-radius:10px;background:rgba(118,118,128,.12);}
 .panel-alumnos-compara button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
@@ -3316,6 +3331,11 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-fila-proxima b{color:var(--fg);font-weight:600;}
 .panel-alumnos-fila-meta{font-variant-numeric:tabular-nums;}
 .panel-alumnos-alumno .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}
+.panel-alumnos-fila-boton{display:flex;align-items:flex-start;gap:10px;width:100%;min-height:44px;padding:12px 14px;text-align:left;font-family:var(--font-ui);cursor:pointer;}
+.panel-alumnos-fila-boton .panel-alumnos-fila{flex:1;}
+.panel-alumnos-fila-boton .panel-alumnos-fila-cabeza b{font-size:1rem;color:var(--fg);}
+.panel-alumnos-fila-boton .panel-alumnos-fila-cabeza small{font-size:.75rem;color:var(--fg3);}
+.panel-alumnos-abrir{margin-left:auto;color:var(--fg3);font-size:1.375rem;line-height:1;}
 .panel-alumnos-ramo{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
 .panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;}
 /* Plegable: la regla de la fila del alumno (.panel-alumnos-alumno summary) es

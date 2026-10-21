@@ -50,7 +50,9 @@ ctx.uai=uai;ctx.uandes=uandes;
 
   // El profesor puede pertenecer a otra universidad. La consulta usa siempre
   // el tenant y la clave del alumno, y el panel pinta solo los agregados.
-  ctx.raiz=elemento();ctx.alumnos=[{id:'al-uai',nombre_visible:'Alumno UAI',tenant:'uai',ramos:[uai]},
+  ctx.raiz=elemento();const nodos=new Map();ctx.raiz.querySelector=sel=>{
+    if(!nodos.has(sel))nodos.set(sel,elemento());return nodos.get(sel);
+  };ctx.alumnos=[{id:'al-uai',nombre_visible:'Alumno UAI',tenant:'uai',ramos:[uai]},
     {id:'al-uandes',nombre_visible:'Alumno UAndes',tenant:'uandes',ramos:[uandes]}];
   run(`S.tenant='uc';S.tipoCuenta='profesor';currentUser={id:'profe'};
     __llamadas=[];__uandesPersonas=4;
@@ -69,10 +71,13 @@ ctx.uai=uai;ctx.uandes=uandes;
   assert.equal(comparaciones.length,2);
   assert(comparaciones.some(x=>x.p_tenant==='uai'&&x.p_sigla==='CURSO SINTETICO DE ALGEBRA'));
   assert(comparaciones.some(x=>x.p_tenant==='uandes'&&x.p_sigla==='CURSO SINTETICO DE HISTORIA'));
-  assert.match(ctx.raiz.innerHTML,/GradeHub · 5 personas/);
-  assert.match(ctx.raiz.innerHTML,/GradeHub: aún pocos datos/);
+  assert.match(ctx.raiz.innerHTML,/data-ver-alumno="al-uai"/);
+  await run("renderAlumnosProfesor(raiz,{alumnoId:'al-uai'})");
+  assert.match(nodos.get('#alumnos-ficha-contenido').innerHTML,/GradeHub · 5 personas/);
+  await run("renderAlumnosProfesor(raiz,{alumnoId:'al-uandes'})");
+  assert.match(nodos.get('#alumnos-ficha-contenido').innerHTML,/GradeHub: aún pocos datos/);
   run('__uandesPersonas=5');
-  await run('renderAlumnosProfesor(raiz)');
-  assert.equal((ctx.raiz.innerHTML.match(/GradeHub · 5 personas/g)||[]).length>=2,true);
+  await run("renderAlumnosProfesor(raiz,{alumnoId:'al-uandes'})");
+  assert.match(nodos.get('#alumnos-ficha-contenido').innerHTML,/GradeHub · 5 personas/);
   console.log('OK UAI/UAndes: suben ramoAvg por nombre normalizado y el panel respeta el piso de cinco');
 })().catch(e=>{console.error(e);process.exit(1)});
