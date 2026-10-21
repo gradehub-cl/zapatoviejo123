@@ -28,7 +28,7 @@ function chk(n,c){if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('
 (async()=>{
   console.log('\n=== Un horario pegado se reconoce sin alterar el semestre ===');
   chk('Agregar ramo ofrece pegar un horario solo para UC',
-    /function openAddRamoModal\(\)[\s\S]*?S\.tenant==='uc'[\s\S]*?abrirImportarHorarioBuscacursos/.test(fs.readFileSync(appPath,'utf8')));
+    /function openAddRamoModal\([^)]*\)[\s\S]*?S\.tenant==='uc'[\s\S]*?abrirImportarHorarioBuscacursos/.test(fs.readFileSync(appPath,'utf8')));
   chk('existe extracción y confirmación separadas',
     run('typeof extraerCodigosHorarioBuscacursos')==='function'&&
     run('typeof reconocerHorarioBuscacursos')==='function'&&
@@ -61,11 +61,13 @@ function chk(n,c){if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('
 
   ctx.document.querySelectorAll=sel=>sel==='.horario-ramo-check'?
     [{checked:true,dataset:{i:'0'}},{checked:false,dataset:{i:'1'}}]:[];
+  run('alAgregarRamo=()=>{globalThis.__retornoInvitacion=true}');
   run('aplicarHorarioBuscacursos()');
   chk('agrega solo los marcados con sección y créditos del catálogo',
     run("S.ramos.length===1 && S.ramos[0].seccion===1 && S.ramos[0].creditos===10 && S.ramos[0].origen.ramoKey==='MAT1610'"));
   chk('un ramo con preset llega con su pauta oficial',run('S.ramos[0].categorias.length>0'));
   chk('guarda una sola vez al confirmar',run('__guardados===1'));
+  chk('desde la invitación, el horario también devuelve a elegir qué compartir',run('__retornoInvitacion===true'));
 
   console.log('\n=== Secciones contradictorias y errores de descarga ===');
   run('cargarCursosUC=async()=>true');
