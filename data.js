@@ -2767,7 +2767,7 @@ const PRESETS_UAI={
       ['Tareas',15,{lista:true}],
     ],
     reglasDelCurso:[
-      'Programa MGT103 UAI 2026-2, sección 2, Santiago. No contempla examen final',
+      'Programa MGT103 UAI 2026-2, sección 2, Santiago. Revisa que corresponda a tu sección',
       'Al terminar los controles se eliminan las dos notas más bajas. Mientras agregas notas, el descarte y el promedio que muestra la app son una estimación parcial',
       'Para aprobar, el promedio de Controles debe ser al menos 4,0; si la final era aprobatoria y no cumples, queda en 3,9',
       'También se exige 75% de asistencia: si no la cumples, una final aprobatoria queda en 3,9. La app no conoce tu asistencia',
@@ -2796,7 +2796,7 @@ const PRESETS_UAI={
     reglasDelCurso:[
       'Programa ECO123 UAI 2026-2, sección 03, Santiago. Revisa que corresponda a tu sección',
       'Ingresa el promedio consolidado de Controles y otras evaluaciones del curso: contempla al menos ocho evaluaciones y elimina dos o tres notas, sin fijar cuántas. Puede incluir participación con 50% de ese bloque a criterio del profesor',
-      'Las notas y promedios se redondean a un decimal: 3,94 queda en 3,9 y 3,95 en 4,0. El examen final es obligatorio',
+      'El examen final es obligatorio',
     ],
   },
   // Syllabus oficial UAI 2026-2.
@@ -2867,9 +2867,6 @@ const PRESETS_UAI={
     ],
     noCalcula:[
       'Te eximes del examen si la nota de presentación es al menos 5,0 y las notas teórica y práctica son ambas al menos 4,0. No se declara como eximición porque el examen son dos evaluaciones separadas y el modelo exime de una',
-    ],
-    reglasDelCurso:[
-      'Una inasistencia justificada a prueba o laboratorio se reemplaza con la parte correspondiente del examen',
     ],
   },
   // Programa oficial UAI 2026-2, CORE.
