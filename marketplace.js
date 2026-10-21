@@ -3275,7 +3275,7 @@ function hojaInvitacionProfesorHTML(profe,ramos,nombre,compartido=null){
   }).join('');
   return `<div class="compartir-profe">
     <div class="modal-title" id="modal-titulo">${compartido?'Edita lo que compartes con '+esc(profe.nombre_publico):esc(profe.nombre_publico)+' quiere ver tus notas'}</div>
-    <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
+    <p class="compartir-explica">Elige los ramos en que tomas clases con ${esc(profe.nombre_publico)}. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
     ${ramos.length?`<div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas}</div>`:'<p class="compartir-explica">Primero agrega un ramo para elegir qué compartir.</p>'}
     ${ramos.length?`
     <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
@@ -3463,8 +3463,10 @@ function comparaPanelHTML(seccion){
   const op=(v,t)=>`<button type="button" data-compara="${v}" aria-pressed="${(v==='seccion')===seccion}">${t}</button>`;
   return `<div class="panel-alumnos-compara" role="group" aria-label="Comparar con">${op('gradehub','Todo GradeHub')}${op('seccion','Su sección')}</div>`;
 }
-// `extra` va bajo la cabeza del ramo (en el panel, cuándo empezó en él).
-function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra=''){
+// `extra` va bajo la cabeza del ramo (en el panel, cuándo empezó en él). El
+// ramo se pliega con la misma flecha que la fila del alumno; `abierto` dice
+// cómo parte.
+function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
   const ramo=ramoParaPanel(r);
   contexto=contexto||[ramo];
   const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
@@ -3484,18 +3486,18 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra=''){
     return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${c.notas.length} notas</small></td><td>${c.promedio===null?'·':esc(fmtPromedio(c.promedio))}</td><td>${deCategoria(c)}</td></tr>
       ${c.notas.map(n=>`<tr class="panel-alumnos-nota"><td>${esc(n.nombre)}</td><td>${esc(fmt(n.valor))}</td><td>${deNota(n)}</td></tr>`).join('')}</tbody>`;
   }).join('');
-  return `<div class="panel-alumnos-ramo">
-    <div class="panel-alumnos-ramo-cabeza">
+  return `<details class="panel-alumnos-ramo" data-ramo="${esc(ramo.id)}"${abierto?' open':''}>
+    <summary class="panel-alumnos-ramo-cabeza">
       <span><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
       <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
       ${sinSeccion?'<span class="panel-alumnos-gh">No disponible<small>sin sección</small></span>'
         :comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,nombreComp==='GradeHub'?true:nombreComp)}
-    </div>
+    </summary>
     ${extra}
     ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
     ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>${comp&&(sinSeccion||Number.isInteger(comp.seccion))?'Su sección':'GradeHub'}</th></tr></thead>${filas}</table>`
       :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
-  </div>`;
+  </details>`;
 }
 
 // Resumen del grupo (#667): por ramo, cuántos alumnos, su promedio (ramoAvg de
@@ -3627,7 +3629,7 @@ function evaluacionesConFechaPanel(ramo,comp){
     const nombre=(n.nombre||'').trim()||e.cat.nombre;
     const unica=!(Number.isInteger(e.cat.slots)&&e.cat.slots>1)&&(e.cat.notas||[]).length<=1;
     const ref=porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null);
-    out.push({id:n.id,ramo:ramo.nombre,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
+    out.push({id:n.id,ramo:ramo.nombre,ramoId:ramo.id,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
       curso:ref&&ref.promedio!=null&&isFinite(Number(ref.promedio))?Number(ref.promedio):null,
       aprobada:typeof notaAprobada==='function'?notaAprobada(n.valor):n.valor>=4});
   }));
@@ -3741,16 +3743,29 @@ function graficoAntesAhoraSVG(m){
   if(pts.length<2)return '';
   const W=320,H=96,P=14;
   const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
-  const x=i=>P+i*(W-2*P)/(pts.length-1),y=d=>H/2-(d/lim)*(H/2-P);
+  // Una línea por ramo, cada una de su color, con su nombre en la leyenda (el
+  // color solo no basta). Con un ramo los puntos van parejos; con varios, por
+  // fecha, para que las líneas calcen en el tiempo.
+  const ramos=[...new Set(pts.map(e=>e.ramoId??e.ramo))];
+  const varios=ramos.length>1;
+  const t=f=>Date.parse(f+'T12:00:00Z'),t0=t(pts[0].fecha),t1=t(pts[pts.length-1].fecha);
+  const xs=pts.map((e,i)=>varios&&t1>t0?P+(t(e.fecha)-t0)/(t1-t0)*(W-2*P):P+i*(W-2*P)/(pts.length-1));
+  const y=d=>H/2-(d/lim)*(H/2-P);
   const corte=pts.findIndex(e=>e.lado==='ahora');
   const unCorte=corte<0||pts.slice(corte).every(e=>e.lado==='ahora');
-  const linea=pts.map((e,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(e.nota-e.curso).toFixed(1)}`).join(' ');
-  const xc=unCorte&&corte>0?((x(corte-1)+x(corte))/2).toFixed(1):null;
+  const xc=unCorte&&corte>0?((xs[corte-1]+xs[corte])/2).toFixed(1):null;
   const marca=xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
-  const puntos=pts.map((e,i)=>`<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${x(i).toFixed(1)}" cy="${y(e.nota-e.curso).toFixed(1)}" r="4"/></g>`).join('');
-  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}`;
-  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}<path class="ah-linea" d="${linea}"/>${puntos}</svg>
-    <p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.${unCorte?'':' Empezó cada ramo en otra fecha: los puntos huecos son de antes.'}</p>`;
+  const series=ramos.map((clave,k)=>{
+    const idx=pts.map((e,i)=>(e.ramoId??e.ramo)===clave?i:-1).filter(i=>i>=0);
+    const linea=idx.map((i,j)=>`${j?'L':'M'}${xs[i].toFixed(1)} ${y(pts[i].nota-pts[i].curso).toFixed(1)}`).join(' ');
+    const puntos=idx.map(i=>{const e=pts[i],cx=xs[i].toFixed(1),cy=y(e.nota-e.curso).toFixed(1);
+      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
+    return `<g class="ah-serie-${k%4}">${idx.length>1?`<path class="ah-linea" d="${linea}"/>`:''}${puntos}</g>`;
+  }).join('');
+  const leyenda=varios?`<p class="ah-leyenda">${ramos.map((clave,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(pts.find(e=>(e.ramoId??e.ramo)===clave).ramo)}</span>`).join('')}</p>`:'';
+  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}${series}</svg>
+    ${leyenda}<p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.${unCorte?'':' Empezó cada ramo en otra fecha: los puntos huecos son de antes.'}</p>`;
 }
 function antesAhoraAlumnoHTML(m,{sinSeccion=false}={}){
   if(!m||!m.evaluaciones.length)return '';
@@ -3854,7 +3869,7 @@ function datosFilaAlumnoPanel(al,ahora=new Date()){
           pesaPoco:peso===null||!(pendiente>0)||peso/100<pendiente/3-1e-9};
       }
     }catch(e){}
-    return {al,nivel,estados,prioridad,exigencia,exigente,proxima};
+    return {al,nivel,estados,prioridad,exigencia,exigente,proxima,porRamo:datos.map(d=>({nombre:d.ramo.nombre,nivel:d.nivel}))};
   });
 }
 function proximaFilaAlumnoHTML(p,exigente){
@@ -3884,12 +3899,19 @@ function alumnosPanelHTML(lista,compDe,ahora=new Date()){
     .sort((a,b)=>b.prioridad-a.prioridad||b.exigencia-a.exigencia||
       (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
       String(a.al.nombre_visible||'').localeCompare(String(b.al.nombre_visible||''),'es'));
-  return ordenados.map(({al,nivel,estados,proxima,exigente})=>conUniversidadPanel(al.tenant,()=>`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
+  // Con varios ramos, el estado de cada uno: el peor solo escondía que en el
+  // otro va bien (o al revés).
+  const texto=n=>n==='bad'?'Reprobando':n==='warn'?'Al borde':n==='good'?'Aprobando':'Sin notas';
+  const chip=(n,contenido,aria)=>`<span class="panel-alumnos-fila-estado panel-resumen-sem ${n==='neutral'?'':`panel-resumen-${n}`}" aria-label="${aria}">${contenido}</span>`;
+  const estadoHTML=(nivel,porRamo)=>porRamo.length>1
+    ?`<span class="panel-alumnos-fila-estados">${porRamo.map(d=>chip(d.nivel,`${esc(d.nombre)} · ${texto(d.nivel)}`,`${esc(d.nombre)}: ${texto(d.nivel).toLowerCase()}`)).join('')}</span>`
+    :chip(nivel,texto(nivel),`Estado: ${texto(nivel).toLowerCase()}`);
+  return ordenados.map(({al,nivel,estados,proxima,exigente,porRamo})=>conUniversidadPanel(al.tenant,()=>`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
       <summary><span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
-        <span class="panel-alumnos-fila-estado panel-resumen-sem ${nivel==='neutral'?'':`panel-resumen-${nivel}`}" aria-label="Estado: ${nivel==='bad'?'reprobando':nivel==='warn'?'al borde':nivel==='good'?'aprobando':'sin notas'}">${nivel==='bad'?'Reprobando':nivel==='warn'?'Al borde':nivel==='good'?'Aprobando':'Sin notas'}${nivel!=='neutral'&&estados[nivel]>1?` · ${estados[nivel]} ramos`:''}</span>
+        ${estadoHTML(nivel,porRamo)}
         ${proximaFilaAlumnoHTML(proxima,exigente)}</span></summary>
       ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
-      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r))).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`)).join('');
 }
@@ -4116,8 +4138,11 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     botones.forEach(x=>{x.disabled=false;x.setAttribute('aria-pressed',String((x.dataset.compara==='seccion')===porSeccion));});
     // Las fichas abiertas siguen abiertas: cambiar la comparación no saca al profesor de donde estaba.
     const abiertos=new Set([...lista.querySelectorAll('details[data-alumno][open]')].map(d=>d.dataset.alumno));
+    const deRamo=d=>(d.closest('[data-alumno]')||{dataset:{}}).dataset.alumno+'|'+d.dataset.ramo;
+    const ramos=new Map([...lista.querySelectorAll('details[data-ramo]')].map(d=>[deRamo(d),d.open]));
     if(vista.length){lista.innerHTML=alumnosPanelHTML(vista,compDe);enlazarQuitar();enlazarInicio();
-      lista.querySelectorAll('details[data-alumno]').forEach(d=>{if(abiertos.has(d.dataset.alumno))d.open=true;});}
+      lista.querySelectorAll('details[data-alumno]').forEach(d=>{if(abiertos.has(d.dataset.alumno))d.open=true;});
+      lista.querySelectorAll('details[data-ramo]').forEach(d=>{const k=deRamo(d);if(ramos.has(k))d.open=ramos.get(k);});}
     const grupo=raiz.querySelector('#alumnos-grupo');if(grupo)grupo.innerHTML=grupoHTML(alumnos);
     track('panel_alumnos_compara',{seccion:quiere});
   }));

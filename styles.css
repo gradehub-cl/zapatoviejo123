@@ -3275,9 +3275,18 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .ah-cero{stroke:var(--border);stroke-width:1;}
 .ah-inicio{stroke:var(--fg3);stroke-width:1;stroke-dasharray:3 3;}
 .ah-eje{fill:var(--fg3);font-size:11px;}
-.ah-linea{fill:none;stroke:var(--fg);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
-.ah-punto{fill:var(--fg);stroke:var(--card);stroke-width:2;}
-.ah-punto.ah-antes{fill:var(--card);stroke:var(--fg);stroke-width:1.5;}
+.ah-linea{fill:none;stroke:var(--serie,var(--fg));stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.ah-punto{fill:var(--serie,var(--fg));stroke:var(--card);stroke-width:2;}
+.ah-punto.ah-antes{fill:var(--card);stroke:var(--serie,var(--fg));stroke-width:1.5;}
+/* Una serie por ramo. Tonos que no son del semáforo (verde, ámbar, rojo) ni
+   del acento, con contraste ≥ 3:1 sobre fondo claro y oscuro. */
+.ah-serie-0{--serie:var(--fg);}
+.ah-serie-1{--serie:#3d7be6;}
+.ah-serie-2{--serie:#9461e0;}
+.ah-serie-3{--serie:var(--fg3);}
+.ah-leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;margin:4px 0 0;font-size:0.75rem;color:var(--fg2);}
+.ah-leyenda span{display:inline-flex;align-items:center;gap:6px;}
+.ah-leyenda i{width:14px;height:3px;border-radius:2px;background:var(--serie);}
 .ah-zona{fill:transparent;}
 .ah-pie{margin:2px 0 0;font-size:0.75rem;color:var(--fg3);}
 .ah-detalle{margin-top:6px;}
@@ -3292,7 +3301,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-alumno summary{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:12px 0;cursor:pointer;list-style:none;}
 .panel-alumnos-alumno summary::-webkit-details-marker{display:none;}
 .panel-alumnos-alumno summary::after{content:'›';margin-left:auto;color:var(--fg3);font-size:1.375rem;line-height:1;}
-.panel-alumnos-alumno[open] summary::after{transform:rotate(90deg);}
+/* Solo gira la flecha de lo que está abierto: con un selector descendiente,
+   abrir al alumno giraba también las de sus ramos y "Ver sus evaluaciones". */
+.panel-alumnos-alumno summary::after{transition:transform var(--motion-fast) var(--ease-out);}
+.panel-alumnos-alumno[open]>summary::after,.panel-alumnos-alumno details[open]>summary::after{transform:rotate(90deg);}
 .panel-alumnos-alumno summary b{font-size:1rem;color:var(--fg);}
 .panel-alumnos-alumno summary small{font-size:0.75rem;color:var(--fg3);}
 .panel-alumnos-fila{display:flex;flex:1;min-width:0;flex-direction:column;align-items:flex-start;gap:6px;}
@@ -3305,6 +3317,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-alumno .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}
 .panel-alumnos-ramo{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
 .panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;}
+/* Plegable: la regla de la fila del alumno (.panel-alumnos-alumno summary) es
+   más específica que la clase sola, así que esta la nombra entera. */
+.panel-alumnos-ramo>summary.panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:8px;min-height:44px;padding:0;cursor:pointer;list-style:none;}
+.panel-alumnos-fila-estados{display:flex;flex-wrap:wrap;gap:6px;}
 .panel-alumnos-ramo-cabeza > span:first-child{display:flex;flex-direction:column;min-width:0;}
 .panel-alumnos-ramo-cabeza b{font-size:0.9375rem;color:var(--fg);}
 .panel-alumnos-ramo-cabeza small{font-size:0.75rem;color:var(--fg3);}
