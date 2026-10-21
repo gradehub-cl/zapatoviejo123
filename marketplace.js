@@ -3276,14 +3276,15 @@ function hojaInvitacionProfesorHTML(profe,ramos,nombre,compartido=null){
   return `<div class="compartir-profe">
     <div class="modal-title" id="modal-titulo">${compartido?'Edita lo que compartes con '+esc(profe.nombre_publico):esc(profe.nombre_publico)+' quiere ver tus notas'}</div>
     <p class="compartir-explica">Elige qué ramos compartir. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
-    <div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas||'<p class="compartir-explica">Todavía no tienes ramos para compartir.</p>'}</div>
+    ${ramos.length?`<div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas}</div>`:'<p class="compartir-explica">Primero agrega un ramo para elegir qué compartir.</p>'}
+    ${ramos.length?`
     <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
     <div class="modal-input"><input type="text" id="compartir-nombre" maxlength="60" autocomplete="off" value="${esc(nombre)}"></div>
     <p class="compartir-explica">Puedes dejar de compartir cuando quieras en Ajustes → Datos y cuenta.</p>
-    <p class="compartir-error" id="compartir-error" role="alert" hidden></p>
+    <p class="compartir-error" id="compartir-error" role="alert" hidden></p>`:''}
     <div class="modal-btns">
       <button type="button" class="btn-cancel" id="compartir-no">${compartido?'Cancelar':'Ahora no'}</button>
-      <button type="button" class="btn-confirm" id="compartir-si" disabled>${compartido?'Guardar cambios':'Compartir'}</button>
+      ${ramos.length?`<button type="button" class="btn-confirm" id="compartir-si" disabled>${compartido?'Guardar cambios':'Compartir'}</button>`:'<button type="button" class="btn-confirm" id="compartir-agregar">Agregar ramo</button>'}
     </div>
   </div>`;
 }
@@ -3294,15 +3295,26 @@ function abrirHojaInvitacionProfesor(codigo,profe,compartido=null){
   openModal();
   track('panel_alumnos_invitacion_mostrada');
   try{if(typeof ORIGEN_ENTRADA_KEY==='string'&&sessionStorage.getItem(ORIGEN_ENTRADA_KEY)==='profesor')sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);}catch(e){}
-  const si=caja.querySelector('#compartir-si'),nombre=caja.querySelector('#compartir-nombre'),aviso=caja.querySelector('#compartir-error');
   const cancelar=caja.querySelector('#compartir-no');
+  cancelar.addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
+  const agregar=caja.querySelector('#compartir-agregar');
+  if(agregar){
+    agregar.addEventListener('click',()=>{
+      const usuario=currentUser?.id;
+      const retomar=()=>{
+        if(currentUser?.id===usuario&&profePendiente()===codigo)revisarInvitacionProfesor();
+      };
+      openAddRamoModal(retomar,retomar);
+    });
+    return;
+  }
+  const si=caja.querySelector('#compartir-si'),nombre=caja.querySelector('#compartir-nombre'),aviso=caja.querySelector('#compartir-error');
   const casillas=[...caja.querySelectorAll('[data-compartir-ramo]')];
   const elegidos=()=>casillas.filter(c=>c.checked).map(c=>c.value);
   const actualizar=()=>{si.disabled=!elegidos().length||!nombre.value.trim();};
   casillas.forEach(c=>c.addEventListener('change',actualizar));
   nombre.addEventListener('input',actualizar);
   actualizar();
-  cancelar.addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
   si.addEventListener('click',async()=>{
     if(si.disabled)return;
     const ramos=elegidos(),nombreVisible=nombre.value.trim(),uid=currentUser?.id;

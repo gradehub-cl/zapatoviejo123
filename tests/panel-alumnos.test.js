@@ -116,6 +116,44 @@ function contexto({search='',sesion=false}={}){
   chk('el botón Compartir parte deshabilitado',/id="compartir-si" disabled/.test(hoja));
   chk('dice qué ve el profesor y dónde dejar de compartir',/cada nota de esos ramos/.test(hoja)&&/Ajustes → Datos y cuenta/.test(hoja));
   chk('el nombre del profesor va escapado',/Academia &lt;b&gt;X&lt;\/b&gt;/.test(hoja));
+  const sinRamos=a.run(`hojaInvitacionProfesorHTML({nombre_publico:'Profe de prueba'},[],'Cami')`);
+  chk('sin ramos la hoja ofrece una sola acción para continuar',
+    /Primero agrega un ramo/.test(sinRamos)&&/id="compartir-agregar">Agregar ramo/.test(sinRamos)&&
+    !/id="compartir-si"|id="compartir-nombre"/.test(sinRamos));
+  const nuevo=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  nuevo.run(`S.onboardingDone=true;S.ramos=[];currentUser={id:'alumno-sintetico'};
+    globalThis.__botones={};globalThis.__caja={innerHTML:'',querySelector(s){return __botones[s]||null}};
+    for(const s of ['#compartir-no','#compartir-agregar'])__botones[s]={addEventListener(tipo,fn){this[tipo]=fn}};
+    document.getElementById=()=>__caja;openModal=()=>{};track=()=>{};
+    openAddRamoModal=(fn,cancel)=>{globalThis.__alGuardar=fn;globalThis.__alCancelar=cancel};
+    revisarInvitacionProfesor=()=>{globalThis.__vuelta=(globalThis.__vuelta||0)+1};
+    abrirHojaInvitacionProfesor('AB3CDEFG',{nombre_publico:'Profe de prueba'});
+    __botones['#compartir-agregar'].click();`);
+  chk('Agregar ramo abre el editor y retoma la invitación tras guardarlo',
+    nuevo.run('typeof __alGuardar')==='function'&&
+    (nuevo.run('__alGuardar()'),nuevo.run('__vuelta'))===1);
+  nuevo.run('__alCancelar()');
+  chk('Cancelar el editor vuelve a la selección, sin compartir nada',nuevo.run('__vuelta')===2);
+  nuevo.run(`currentUser={id:'otra-cuenta'};__alGuardar()`);
+  chk('un cambio de cuenta impide reabrir la invitación anterior',nuevo.run('__vuelta')===2);
+  const agregar=contexto();
+  agregar.run(`S.ramos=[];save=()=>{};track=()=>{};renderHome=()=>{};showToast=()=>{};
+    crearRamoDesdeCatalogo=()=>({nombre:'Ramo sintético',categorias:[]});
+    alAgregarRamo=()=>{globalThis.__catalogoVolvio=true};
+    alCancelarAgregarRamo=()=>{globalThis.__cierreInesperado=true};
+    addFromCatalog('Ramo sintético',null);
+    globalThis.__callbackConsumido=alAgregarRamo===null;
+    alAgregarRamo=()=>{globalThis.__manualVolvio=true};
+    alCancelarAgregarRamo=()=>{globalThis.__cierreInesperado=true};
+    document.getElementById=id=>id==='m-ramo-search'?{value:'Ramo sintético'}:
+      ({classList:{remove(){}},querySelector(){return null}});
+    findPresetName=()=>null;creditosDe=()=>null;uid=()=> 'ramo-sintetico';
+    nextRamoColor=()=> '#777777';consensoAlAgregar=()=>{};
+    confirmAddRamo();`);
+  chk('agregar desde catálogo o a mano ejecuta el regreso una sola vez',
+    agregar.run('__catalogoVolvio&&__manualVolvio&&__callbackConsumido&&alAgregarRamo===null&&!globalThis.__cierreInesperado'));
+  agregar.run(`alCancelarAgregarRamo=()=>{globalThis.__cancelado=(globalThis.__cancelado||0)+1};closeModal();closeModal()`);
+  chk('cerrar el editor llama la vuelta una sola vez',agregar.run('__cancelado')===1);
   const editada=a.run(`hojaInvitacionProfesorHTML({nombre_publico:'Academia X'},
     [{id:'r1',nombre:'Cálculo II'},{id:'r2',nombre:'Física'}],'Cami',
     {nombre_visible:'Cami',ramos:['r2']})`);

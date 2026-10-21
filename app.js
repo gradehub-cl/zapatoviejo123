@@ -3808,7 +3808,10 @@ function confirmAddMalla(){
 // malla y el nombre del ramo si no está ahí. Créditos y color se editan
 // después en la ficha del ramo — pedirlos acá era pedir una decisión en el
 // peor momento, cuando todavía no tiene el ramo.
-function openAddRamoModal(){
+let alAgregarRamo=null,alCancelarAgregarRamo=null;
+function openAddRamoModal(despuesDeAgregar,despuesDeCancelar){
+  alAgregarRamo=typeof despuesDeAgregar==='function'?despuesDeAgregar:null;
+  alCancelarAgregarRamo=typeof despuesDeCancelar==='function'?despuesDeCancelar:null;
   // Una malla diferida todavía no está en `catalogRamos`, pero justamente se
   // carga al abrir este camino. Ocultar los resultados hasta que exista haría
   // imposible iniciar esa carga para toda la UAI.
@@ -3911,8 +3914,11 @@ function crearRamoDesdeCatalogo(nombre,sigla){
 function addFromCatalog(nombre,sigla){
   const ramo=crearRamoDesdeCatalogo(nombre,sigla);
   save();track('add_ramo_catalogo',{preset:!!(ramo.categorias||[]).length});
+  const despues=alAgregarRamo;
+  alCancelarAgregarRamo=null;
   closeModal();renderHome();
   showToast((ramo.categorias||[]).length?'Agregado con sus ponderaciones':'Ramo agregado');
+  if(despues)despues();
 }
 
 // BuscaCursos repite SIGLA-SECCIÓN en cada bloque del horario. Extraer no
@@ -4300,11 +4306,14 @@ function aplicarHorarioBuscacursos(){
   if(puestos)track('ramos_horario_agregados',{cantidad:puestos});
   if(actualizados)track('secciones_horario_puestas',{cantidad:actualizados});
   _horarioUCReconocido=null;_horarioSeccionesUC=[];_horarioTextoPegado='';
+  const despues=puestos?alAgregarRamo:null;
+  alCancelarAgregarRamo=null;
   closeModal();renderHome();
   const partes=[];
   if(puestos)partes.push(puestos===1?'1 ramo agregado':`${puestos} ramos agregados`);
   if(actualizados)partes.push(actualizados===1?'1 sección puesta':`${actualizados} secciones puestas`);
   showToast(partes.join(' y ')+' desde tu horario');
+  if(despues)despues();
   return true;
 }
 function renderModalColors(){
@@ -6048,8 +6057,11 @@ function confirmAddRamo(){
   const cr=creditosDe(presetName||name,S.tenant,preset);
   S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
   consensoAlAgregar(S.ramos[S.ramos.length-1]);
+  const despues=alAgregarRamo;
+  alCancelarAgregarRamo=null;
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
   showToast(preset?'Pauta cargada':'Ramo agregado');
+  if(despues)despues();
 }
 
 // Fecha y hora van juntas en la interfaz porque así se piensan ("la I1 es el
@@ -8886,6 +8898,9 @@ function enfocarEnHoja(el,despues){
   setTimeout(ir,subiendo?Math.max(100,dura):100);
 }
 function closeModal(){
+  const despuesDeCancelar=alCancelarAgregarRamo;
+  alAgregarRamo=null;
+  alCancelarAgregarRamo=null;
   document.getElementById('modal').classList.remove('open');
   // En el carrusel de pestañas el documento nunca se desplaza: cada pantalla
   // tiene su propio `.scroll`. Si el teclado de iPhone dejó la página corrida
@@ -8903,6 +8918,7 @@ function closeModal(){
   if(volver&&volver.isConnected&&typeof volver.focus==='function'&&volver!==document.body){
     try{volver.focus({preventScroll:true});}catch(e){volver.focus();}
   }
+  if(despuesDeCancelar)despuesDeCancelar();
 }
 // En computador, hacer clic en el fondo cierra la ventana. Con mouse es el
 // gesto que todo el mundo espera —la confirmación ya lo hacía— y no compite
