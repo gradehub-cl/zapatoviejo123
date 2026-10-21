@@ -185,6 +185,40 @@ try{
       (await q('select clave_curso_comparacion($1,$2::jsonb) c',[tenant,JSON.stringify(sinOrigen)]))[0].c===clave.toUpperCase());
   }
 
+  console.log('\n=== Por sección (Salva Ramos, 2026-10-20) ===');
+  // MAT1630 sintético: cinco en la sección 2 (uno de ellos comparte con el
+  // profesor), tres en la 3 y uno sin sección. Una nota por persona.
+  const conSeccion=(id,seccion,valor)=>({...ramo(id,'MAT1630',[['Interrogación 1',valor]]),...(seccion?{seccion}:{})});
+  const sec=[[60,2,3.0],[61,2,4.0],[62,2,5.0],[63,2,6.0],[64,2,7.0],[65,3,1.0],[66,3,1.0],[67,3,1.0],[68,null,1.0]];
+  for(const [i,seccion,valor] of sec){
+    await db.query('insert into auth.users(id) values($1)',[u(i)]);
+    if(i!==64)await guardar(u(i),[conSeccion('s'+i,seccion,valor)]);
+    await db.query(`insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,'uc','MAT1630',$2)`,[u(i),valor]);
+  }
+  await soy(u(60));
+  await q('select compartir_con_profesor($1,$2,$3)',[nuevo,'Alumno Sección',['s60']]);
+  await soy(PROFE);
+  const deSeccion=async s2=>(await q(`select comparacion_ramo_profesor('uc','MAT1630',$1) c`,[s2]))[0].c;
+  const cuatroSec=await deSeccion(2);
+  check('con cuatro en la sección no hay promedio de sección',cuatroSec.ramo===null&&cuatroSec.evaluaciones.length===0&&cuatroSec.categorias.length===0);
+  await guardar(u(64),[conSeccion('s64',2,7.0)]);
+  const s2=await deSeccion(2);
+  check('con cinco en la sección: su promedio de ramo, desde la sección guardada en cada ramo',
+    s2.ramo&&s2.ramo.personas===5&&Number(s2.ramo.promedio)===5.0);
+  check('y el de cada prueba, solo con su sección',s2.evaluaciones.length===1&&s2.evaluaciones[0].personas===5&&Number(s2.evaluaciones[0].promedio)===5.0);
+  const todo=(await q(`select comparacion_ramo_profesor('uc','MAT1630') c`))[0].c;
+  check('sin sección, la de siempre: los nueve',todo.ramo.personas===9&&todo.evaluaciones[0].personas===9);
+  check('una sección que no declara ninguno de sus alumnos no se puede consultar',(await deSeccion(3))===null);
+  check('una sección fuera de rango tampoco',(await deSeccion(0))===null&&(await deSeccion(1000))===null);
+  check('la app vieja llama con dos argumentos por nombre y recibe lo de siempre',
+    (await q(`select comparacion_ramo_profesor(p_tenant=>'uc',p_sigla=>'MAT1630') c`))[0].c.ramo.personas===9);
+  check('queda una sola función con ese nombre: la llamada no es ambigua',
+    (await q(`select count(*)::int n from pg_proc where proname='comparacion_ramo_profesor'`))[0].n===1);
+  check('el filtro de sección no se puede llamar desde el cliente',
+    !(await q(`select has_function_privilege('authenticated','public.seccion_calza(jsonb,integer)','execute') p`))[0].p);
+  await soy(OTRO);
+  check('otra cuenta no puede consultar por sección',(await q(`select comparacion_ramo_profesor('uc','MAT1630',2) c`))[0].c===null);
+
   console.log('\n=== Dejar de compartir y borrar cuentas ===');
   await soy(ALUMNA);
   const mios=await q('select * from mis_profesores()');

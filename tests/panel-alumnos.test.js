@@ -397,6 +397,38 @@ function contexto({search='',sesion=false}={}){
     &&csvDos.find(f=>f[1]==='Física')[13]==='2026-10-05'&&csvDos.find(f=>f[1]==='Cálculo II')[13]==='2026-09-15'
     &&csvDos.find(f=>f[1]==='Física'&&f[4]==='Control 1')[11]==='antes');
 
+  console.log('\n=== Por sección (Salva Ramos, 2026-10-20) ===');
+  a.run(`globalThis.__sec3={seccion:3,ramo:{promedio:5.2,personas:6},evaluaciones:[{clave:'interrogacion 1',promedio:3.5,personas:6}],categorias:[{clave:'interrogacion 1',promedio:3.5,personas:6}]}`);
+  const fichaSec=a.run(`ramoPanelHTML({...__antesAhora.ramos[0],seccion:3},__sec3)`);
+  chk('con su sección: el promedio de la sección y la columna dice "Su sección"',
+    /5\.2<small>Sección 3 · 6 personas<\/small>/.test(fichaSec)&&/<th>Su sección<\/th>/.test(fichaSec)&&/3\.5<small>6 personas/.test(fichaSec));
+  const fichaSin=a.run(`ramoPanelHTML(__antesAhora.ramos[0],SIN_SECCION_PANEL)`);
+  chk('sin sección declarada: "no disponible", sin cifras ni "aún pocos datos"',
+    /No disponible<small>sin sección<\/small>/.test(fichaSin)&&!/pocos datos|personas<\/small>/.test(fichaSin)&&/<th>Su sección<\/th>/.test(fichaSin));
+  chk('la comparación con todo GradeHub queda como estaba',
+    /4\.5<small>GradeHub · 30 personas/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`))&&/<th>GradeHub<\/th>/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`)));
+  const fichaSinAl=a.run(`alumnosPanelHTML([__antesAhora],()=>SIN_SECCION_PANEL)`);
+  chk('un alumno sin sección en ningún ramo: el antes y ahora lo dice',/Por sección: no disponible, no declaró su sección/.test(fichaSinAl));
+  chk('y sin sección no hay diferencia que inventar',a.run('metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL).ahora.nComparadas')===0);
+  const grupoSec=a.run(`antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA),{seccion:true,sinSeccion:1})`);
+  chk('el grupo dice "Respecto de su sección" y cuántos no la declararon',
+    /Respecto de su sección/.test(grupoSec)&&/su misma sección en GradeHub/.test(grupoSec)&&/1 alumno no declaró su sección en algún ramo/.test(grupoSec)&&!/Respecto del curso/.test(grupoSec));
+  const control=a.run('comparaPanelHTML(true)');
+  chk('el control: dos opciones, la elegida marcada para VoiceOver',/role="group" aria-label="Comparar con"/.test(control)
+    &&/data-compara="seccion" aria-pressed="true">Su sección/.test(control)&&/data-compara="gradehub" aria-pressed="false">Todo GradeHub/.test(control));
+  chk('si el navegador no deja guardar la elección, parte en todo GradeHub',
+    a.run(`(()=>{const g=globalThis.localStorage;Object.defineProperty(globalThis,'localStorage',{configurable:true,get(){throw new Error('bloqueado')}});
+      const r=comparaSeccionGuardado();guardarComparaSeccion(true);Object.defineProperty(globalThis,'localStorage',{configurable:true,value:g,writable:true});return r;})()`)===false);
+  const csvSec=a.run(`csvAlumnosPanel([{...__antesAhora,ramos:[{...__antesAhora.ramos[0],seccion:3}]},{...__poco,ramos:[{...__poco.ramos[0],id:'rp'}]}],__cursoAA,
+    (al,r)=>Number.isInteger(r.seccion)?__sec3:SIN_SECCION_PANEL)`).split('\r\n').map(l=>l.split(';'));
+  const filaSec=csvSec.find(f=>f[0]==='Ana'&&f[4]==='Interrogación 1'),filaSin=csvSec.find(f=>f[0]==='Beto');
+  chk('el Excel suma la sección y sus promedios al final',filaSec[14]==='3'&&filaSec[15]==='3,5'&&filaSec[17]==='5,2'&&filaSec[7]==='4,0');
+  chk('y dice "no declarada" cuando falta',filaSin[14]==='no declarada'&&filaSin[15]===''&&filaSin[17]==='');
+  const mkSec=leer('marketplace.js');
+  chk('por sección consulta con p_seccion y el resumen por ramo sigue contra todo GradeHub',
+    /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
+    &&/exportarAlumnosPanel\(vista,compGeneral,compSeccion\)/.test(mkSec));
+
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
@@ -548,7 +580,7 @@ function contexto({search='',sesion=false}={}){
   const lineas=csv.split('\r\n');
   chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso;Empezó contigo en este ramo');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
@@ -558,7 +590,7 @@ function contexto({search='',sesion=false}={}){
   chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;'));
   const mk=leer('marketplace.js');
   chk('exportar pide confirmar con el recordatorio de los términos',
     /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
