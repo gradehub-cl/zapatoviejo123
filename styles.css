@@ -3283,12 +3283,19 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-resumen-ramo .panel-alumnos-notas td .panel-alumnos-gh{flex-direction:column;align-items:flex-end;gap:0;}
 .panel-alumnos-resumen + .profesor-hig-lista-cabeza{margin-top:22px;}
 .panel-alumnos-alumno{border:1px solid var(--border);border-radius:14px;padding:4px 14px 14px;margin-top:10px;background:var(--card);}
-.panel-alumnos-alumno summary{display:flex;align-items:baseline;gap:10px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
+.panel-alumnos-alumno summary{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:12px 0;cursor:pointer;list-style:none;}
 .panel-alumnos-alumno summary::-webkit-details-marker{display:none;}
 .panel-alumnos-alumno summary::after{content:'›';margin-left:auto;color:var(--fg3);font-size:1.375rem;line-height:1;}
 .panel-alumnos-alumno[open] summary::after{transform:rotate(90deg);}
 .panel-alumnos-alumno summary b{font-size:1rem;color:var(--fg);}
 .panel-alumnos-alumno summary small{font-size:0.75rem;color:var(--fg3);}
+.panel-alumnos-fila{display:flex;flex:1;min-width:0;flex-direction:column;align-items:flex-start;gap:6px;}
+.panel-alumnos-fila-cabeza{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;min-width:0;}
+.panel-alumnos-fila-cabeza b{overflow-wrap:anywhere;}
+.panel-alumnos-fila-estado{font-variant-numeric:tabular-nums;}
+.panel-alumnos-fila-proxima,.panel-alumnos-fila-meta{font-size:0.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+.panel-alumnos-fila-proxima b{color:var(--fg);font-weight:600;}
+.panel-alumnos-fila-meta{font-variant-numeric:tabular-nums;}
 .panel-alumnos-alumno .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}
 .panel-alumnos-ramo{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
 .panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;}
