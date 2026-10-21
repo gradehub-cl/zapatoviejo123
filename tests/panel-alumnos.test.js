@@ -385,12 +385,28 @@ function contexto({search='',sesion=false}={}){
   const fichaDos=a.run('alumnosPanelHTML([__dos],()=>null)');
   chk('la ficha muestra la fecha de cada ramo con su botón',/data-inicio-ramo="ra"/.test(fichaDos)&&/data-inicio-ramo="rf"/.test(fichaDos)
     &&/Empezó contigo el <b>5 oct<\/b><\/span>/.test(fichaDos)&&/aria-label="Cambiar cuándo empezó en Física"/.test(fichaDos));
-  // Con cortes distintos, una sola marca de "empezó" mentiría: las de antes van huecas.
+  // Cada ramo conserva su fecha: una sola marca de "empezó" mentiría.
   const curso2=`()=>({evaluaciones:[{clave:'interrogacion 1',promedio:4.0,personas:9},{clave:'control 1',promedio:4.5,personas:9},
     {clave:'interrogacion 2',promedio:4.6,personas:9},{clave:'control 2',promedio:4.5,personas:9}],categorias:[]})`;
   const grafDos=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__dos,${curso2}))`);
-  chk('con fechas distintas por ramo, sin marca única y con los puntos de antes huecos',
-    !/class="ah-inicio"/.test(grafDos)&&(grafDos.match(/ah-punto ah-antes/g)||[]).length===3&&/los puntos huecos son de antes/.test(grafDos));
+  chk('con fechas distintas, hay una marca de cada serie, fechas en la leyenda y puntos de antes huecos',
+    !/class="ah-inicio"/.test(grafDos)&&(grafDos.match(/class="ah-marca-ramo ah-serie-/g)||[]).length===2
+    &&/Cálculo II · desde el 15 sep/.test(grafDos)&&/Física · desde el 5 oct/.test(grafDos)
+    &&(grafDos.match(/ah-punto ah-antes/g)||[]).length===3&&/Los puntos huecos son de antes/.test(grafDos));
+  chk('la descripción accesible incluye el inicio de ambos ramos',
+    /aria-label="[^"]*Cálculo II · desde el 15 sep; Física · desde el 5 oct/.test(grafDos));
+  const mismoInicio=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel({...__dos,inicio_ramos:{rf:'2026-09-15'}},${curso2}))`);
+  chk('con todos los ramos iniciados el mismo día conserva la marca única',
+    /class="ah-inicio"/.test(mismoInicio)&&!/class="ah-marca-ramo/.test(mismoInicio));
+  const grafTres=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel({...__dos,ramos:[...__dos.ramos,
+    {id:'rt',nombre:'Taller',gates:[],categorias:[__ev(7,'Interrogación 1','2026-09-03',3),__ev(8,'Interrogación 2','2026-09-17',5)]}],
+    inicio_ramos:{rf:'2026-10-05',rt:'2026-09-15'}},${curso2}))`);
+  const marcasTres=grafTres.match(/<line class="ah-marca-ramo[^>]+>/g)||[];
+  chk('dos ramos que empiezan el mismo día conservan marcas distinguibles y la fecha en la leyenda',
+    marcasTres.length===3&&marcasTres[0].match(/x1="([^"]+)/)[1]!==marcasTres[2].match(/x1="([^"]+)/)[1]
+    &&/Cálculo II · desde el 15 sep/.test(grafTres)&&/Taller · desde el 15 sep/.test(grafTres));
+  chk('con un ramo, la descripción accesible usa la fecha corregida de ese ramo',
+    /aria-label="[^"]*empezó el 5 sep/.test(a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel({...__antesAhora,inicio_ramos:{ra:'2026-09-05'}},__cursoAA))`)));
   chk('con un solo corte, la marca de siempre y ningún punto hueco',/class="ah-inicio"/.test(ah0())&&!/ah-antes/.test(ah0()));
   const csvDos=a.run('csvAlumnosPanel([__dos],()=>null)').split('\r\n').map(l=>l.split(';'));
   chk('el Excel dice cuándo empezó en cada ramo, en una columna al final',csvDos[0][13]==='Empezó contigo en este ramo'
@@ -433,17 +449,22 @@ function contexto({search='',sesion=false}={}){
   const fichaVarios=a.run(`alumnosPanelHTML([__dos],()=>null)`);
   chk('la fila muestra el estado de cada ramo, con su nombre',
     /panel-alumnos-fila-estados/.test(fichaVarios)&&/aria-label="Cálculo II: [a-z ]+">Cálculo II · /.test(fichaVarios)&&/aria-label="Física: [a-z ]+">Física · /.test(fichaVarios));
-  chk('con un ramo, el estado de siempre',/aria-label="Estado: [a-z ]+">(Aprobando|Al borde|Reprobando|Sin notas)</.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`))
-    &&!/panel-alumnos-fila-estados/.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`)));
+  chk('con un ramo, la fila dice ramo y estado con el mismo semáforo',
+    /panel-alumnos-fila-estados/.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`))
+    &&/aria-label="Cálculo II: [a-z ]+">Cálculo II · (Aprobando|Al borde|Reprobando|Sin notas)</.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`)));
   chk('con varios ramos, cada uno parte plegado y se abre con su flecha',
     (fichaVarios.match(/<details class="panel-alumnos-ramo" data-ramo="r[af]">/g)||[]).length===2&&/<summary class="panel-alumnos-ramo-cabeza">/.test(fichaVarios));
   chk('con un solo ramo, parte abierto',/<details class="panel-alumnos-ramo" data-ramo="ra" open>/.test(a.run(`alumnosPanelHTML([__antesAhora],()=>null)`)));
   const graf2=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__dos,${curso2}))`);
   chk('el gráfico dibuja una línea por ramo, cada una con su serie',
     /<g class="ah-serie-0"><path class="ah-linea"/.test(graf2)&&/<g class="ah-serie-1">/.test(graf2)&&(graf2.match(/class="ah-linea"/g)||[]).length>=1);
-  chk('y una leyenda con el nombre de cada ramo: el color solo no basta',
-    /<p class="ah-leyenda"><span class="ah-serie-0"><i aria-hidden="true"><\/i>Cálculo II<\/span><span class="ah-serie-1"><i aria-hidden="true"><\/i>Física<\/span>/.test(graf2)
+  chk('y una leyenda con nombre y fecha de cada ramo: el color solo no basta',
+    /<p class="ah-leyenda"><span class="ah-serie-0"><i aria-hidden="true"><\/i>Cálculo II · desde el 15 sep<\/span><span class="ah-serie-1"><i aria-hidden="true"><\/i>Física · desde el 5 oct<\/span>/.test(graf2)
     &&/aria-label="Diferencia con el curso en \d+ evaluaciones de 2 ramos/.test(graf2));
+  const nombreLargo=a.run(`ramoPanelHTML({...__antesAhora.ramos[0],nombre:'Introducción a la Programación'},__cursoAA())`);
+  chk('el ramo largo no se trunca y sus cifras quedan antes de la flecha',
+    /panel-alumnos-ramo-resumen/.test(nombreLargo)&&/Introducción a la Programación/.test(nombreLargo)
+    &&nombreLargo.indexOf('Introducción a la Programación')<nombreLargo.indexOf('panel-alumnos-ramo-cifras'));
   chk('con un ramo no hay leyenda',!/ah-leyenda/.test(ah0()));
   const css=leer('styles.css');
   chk('las series no usan los colores del semáforo',!/\.ah-serie-\d\{--serie:var\(--(green|yellow|red|primary)/.test(css));
@@ -547,9 +568,9 @@ function contexto({search='',sesion=false}={}){
     ['Reprobando','Al borde','Aprobado','Sin notas'].map(n=>filasRiesgo.indexOf(`<b>${n}</b>`))
       .every((p,i,ps)=>p>=0&&(i===0||ps[i-1]<p)));
   chk('cada fila trae estado semántico, próxima prueba y cuánto necesita',
-    /panel-resumen-bad[^>]*>Reprobando/.test(filasRiesgo)&&
-    /panel-resumen-warn[^>]*>Al borde/.test(filasRiesgo)&&
-    /panel-resumen-good[^>]*>Aprobando/.test(filasRiesgo)&&
+    /panel-resumen-bad[^>]*>Cálculo sintético · Reprobando/.test(filasRiesgo)&&
+    /panel-resumen-warn[^>]*>Cálculo sintético · Al borde/.test(filasRiesgo)&&
+    /panel-resumen-good[^>]*>Cálculo sintético · Aprobando/.test(filasRiesgo)&&
     (filasRiesgo.match(/class="panel-alumnos-fila-proxima">Próxima: <b>Prueba 2<\/b>/g)||[]).length===4&&
     /Para aprobar: 5,9 en lo pendiente/.test(filasRiesgo));
   chk('sin notas no se inventa una exigencia personal',
