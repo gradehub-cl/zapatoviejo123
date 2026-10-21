@@ -36,8 +36,9 @@ const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUs
  document:{getElementById:()=>root},renderPuertaDosPasos:async(_r,{alPasar})=>{if(pasar)await alPasar();},
  showToast:(text,error)=>toasts.push({text,error}),showConfirm:(_t,_d,fn)=>{confirmacion=fn();},
  supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(modo==='throw')throw Error('red caída');if(modo==='denegado')return {error:{code:'42501',message:'sin acceso'}};
+  if(modo==='missing-report'&&n==='admin_reportes_programa')return {error:{code:'PGRST202',message:'no existe'}};
   if(n==='admin_encuestas'&&modo==='encuestas-sin-sql')return {error:{code:'PGRST202'}};
-  const datos={admin_panel_clases:panelActual,admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
+  const datos={admin_panel_clases:panelActual,admin_reportes_programa:[{id:'rep-1',tenant:'uc',carrera:'Derecho',ramo:'Curso sintético',evaluacion:'Prueba 1',descripcion:'El programa dice <40 %>',created_at:fecha}],admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
    totales_metricas_anuncio:[{vista:'total',clave:'',tipo:'impresion',eventos:18}]};
   return {data:modo==='false'?false:n in datos?datos[n]:true,error:null};}}};
@@ -45,6 +46,8 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
 (async()=>{
  await run('renderAdmin()');assert.equal(calls.length,0,'Sin MFA no pide el panel');assert.equal(root.querySelectorAll('[data-admin-area]').length,0);
  pasar=true;await run('renderAdmin()');assert.match(root.innerHTML,/admin-hig-fila/);assert.match(root.innerHTML,/Clase &lt;sintética&gt;/);
+ assert(calls.some(c=>c.n==='admin_reportes_programa'),'la bandeja se consulta después de MFA');
+ assert.match(root.querySelector('#admin-reportes-programa').innerHTML,/El programa dice &lt;40 %&gt;/);
  assert.doesNotMatch(root.innerHTML,/piloto|lo que costaría|data-aprobar|bin\//);
  const areas=root.querySelectorAll('[data-admin-area]');
  assert.deepEqual(areas.map(b=>b.dataset.adminArea),['profesores','anuncios','estadisticas','usuarios']);
@@ -82,6 +85,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert(area('estadisticas').querySelector('#admin-crecimiento-titulo'),'muestra el crecimiento real de la página');
  areas[3].listeners.click();
  assert.equal(area('usuarios').hidden,false);
+ assert(area('usuarios').querySelector('#admin-reportes-programa'),'los reportes viven en Usuarios sin alterar Anuncios ni Profesores');
  await new Promise(setImmediate);
  assert(area('usuarios').querySelector('.encuesta-crear'),'Usuarios permite crear encuestas');
  assert.deepEqual(calls.slice(rpcsAntesDeNavegar).map(c=>c.n),['admin_encuestas'],'solo Usuarios consulta sus datos al abrir');
@@ -163,10 +167,13 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  panelActual=[{...profesores[0],anuncios:[{...anuncio,estado:'pausado',publicado_at:'2026-09-30T00:00:00Z'},...profesores[0].anuncios.slice(1)]}];
  const previas=calls.length;
  await root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1').listeners.click();
- assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='crecimiento_semanal_admin'&&n!=='admin_alcance_diario'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'&&n!=='admin_editar_anuncio'),['admin_panel_clases','admin_panel_clases'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
+ assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='crecimiento_semanal_admin'&&n!=='admin_alcance_diario'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'&&n!=='admin_editar_anuncio'),['admin_panel_clases','admin_panel_clases','admin_reportes_programa'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
  assert(calls.slice(previas).filter(c=>c.n==='admin_descuento_anuncio').every(c=>c.p.p_anuncio_id===null&&c.p.p_pct===null),'la comprobación de descuento no edita anuncios');
  assert(calls.slice(previas).filter(c=>c.n==='admin_editar_anuncio').every(c=>c.p.p_anuncio_id===null&&JSON.stringify(c.p.p_datos)==='{}'),'la comprobación de edición no escribe anuncios');
  assert.match(toasts.at(-1).text,/Actualicé el panel/);
+ modo='missing-report';await run('pintarPanelAdmin(root)');await new Promise(setImmediate);
+ assert.match(root.innerHTML,/admin-hig-fila/,'sin el SQL nuevo sigue disponible el panel de clases');
+ assert.match(root.querySelector('#admin-reportes-programa').innerHTML,/disponible cuando se aplique su SQL/);
  modo='denegado';await run('pintarPanelAdmin(root)');assert.match(root.innerHTML,/no tiene acceso/);assert.doesNotMatch(root.innerHTML,/admin-hig-fila/);
  console.log('OK admin HIG: MFA, acceso denegado, filtros, cobro por fecha histórica, RPC reales y errores sin falso éxito');
 })().catch(e=>{console.error(e);process.exitCode=1;});

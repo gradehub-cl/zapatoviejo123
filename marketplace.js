@@ -3892,7 +3892,8 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
       ${crecimientoAdminHTML(crecimiento,ahora)||'<p class="admin-hig-nota" role="status">No pudimos cargar las cifras de la página por ahora.</p>'}
       ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}`)}
     ${panel('usuarios',`<h2>Usuarios</h2>
-      <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>`)}
+      <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>
+      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa"><h3>Programas reportados</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
   </div>`;
 }
 
@@ -3900,6 +3901,28 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
 // panel, y quien publicaba desde "Por revisar" caía de vuelta en "Campañas"
 // con la búsqueda y el filtro borrados.
 let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
+// Esta bandeja se crea solo después de renderPuertaDosPasos. El RPC vuelve a
+// exigir en el servidor una cuenta administradora con el segundo factor (aal2).
+async function pintarReportesProgramaAdmin(raiz){
+  const caja=raiz.querySelector('#admin-reportes-programa');
+  if(!caja)return;
+  try{
+    const {data,error}=await supabaseClient.rpc('admin_reportes_programa');
+    if(!caja.isConnected)return;
+    if(error){
+      caja.innerHTML='<h3>Programas reportados</h3><p class="profesor-info" role="alert">'+
+        (sqlClasesDesactualizado(error)?'La bandeja estará disponible cuando se aplique su SQL.':'No pudimos cargar los reportes. Actualiza para intentar de nuevo.')+'</p>';
+      return;
+    }
+    const filas=Array.isArray(data)?data:[];
+    caja.innerHTML=`<h3>Programas reportados · ${filas.length}</h3>`+
+      (filas.length?`<div class="admin-hig-lista">${filas.map(f=>`<article class="admin-revision">
+        <h4>${esc(f.ramo||'Ramo sin nombre')}</h4>
+        <p class="clase-card-meta">${esc(String(f.tenant||'').toUpperCase())}${f.carrera?' · '+esc(f.carrera):''}${f.evaluacion?' · '+esc(f.evaluacion):''} · ${esc(new Date(f.created_at).toLocaleDateString('es-CL'))}</p>
+        <p class="admin-revision-descripcion">${esc(f.descripcion||'')}</p>
+      </article>`).join('')}</div>`:'<p class="admin-hig-vacio">Todavía no hay diferencias reportadas.</p>');
+  }catch(e){if(caja.isConnected)caja.innerHTML='<h3>Programas reportados</h3><p class="profesor-info" role="alert">No pudimos cargar los reportes. Actualiza para intentar de nuevo.</p>';}
+}
 async function pintarPanelAdmin(raiz){
   raiz.innerHTML='<p class="profesor-info" role="status">Cargando…</p>';
   let profesores;
@@ -3924,6 +3947,7 @@ async function pintarPanelAdmin(raiz){
   if(vistaAdmin.profesores===undefined)vistaAdmin.profesores='aprobado';
   marcarPendientesNavAdmin(pendientes);
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance);
+  pintarReportesProgramaAdmin(raiz);
   enlazarGraficosAdmin(raiz);
   const lista=raiz.querySelector('#admin-lista-profesores');
   if(lista&&typeof lista.querySelectorAll==='function'){

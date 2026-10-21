@@ -730,6 +730,13 @@ function renderRamo(){
   // Va sin await: es una lectura de red y la ficha ya está pintada.
   pintarConsensoDisponible(r);
 
+  const avisoPrograma=document.getElementById('ramo-programa-report');
+  if(avisoPrograma){
+    const conPautaCatalogo=!!infoPeriodoPauta(r);
+    avisoPrograma.style.display=conPautaCatalogo?'flex':'none';
+    avisoPrograma.onclick=conPautaCatalogo?()=>abrirReportePrograma(r.id):null;
+  }
+
   const rep=document.getElementById('ramo-report');
   if(rep){
     // Reportar catálogo corrige una pauta oficial. Las pautas que la persona
