@@ -90,7 +90,7 @@ try{
   console.log('\n=== Lo que ve el profesor ===');
   const alumnos=await q('select * from mis_alumnos()');
   check('ve a su alumna con el nombre que ella eligió',alumnos.length===1&&alumnos[0].nombre_visible==='Cami');
-  check('no recibe su user_id ni su correo',Object.keys(alumnos[0]).sort().join()==='desde,id,inicio,nombre_visible,ramos,tenant');
+  check('no recibe su user_id ni su correo',Object.keys(alumnos[0]).sort().join()==='desde,id,inicio,inicio_ramos,nombre_visible,ramos,tenant');
 
   console.log('\n=== Cuándo empezó contigo (#697) ===');
   check('por omisión no hay fecha de inicio: se usa cuándo compartió',alumnos[0].inicio===null);
@@ -99,7 +99,27 @@ try{
   check('no puede ser futura',/futura/.test(await falla("select fijar_inicio_alumno($1,current_date+1)",[alumnos[0].id])));
   check('null vuelve a cuándo compartió',(await q('select fijar_inicio_alumno($1,null) ok',[alumnos[0].id]))[0].ok===true
     &&(await q('select inicio from mis_alumnos()'))[0].inicio===null);
+
+  console.log('\n=== Cuándo empezó en cada ramo (Salva Ramos, 2026-10-20) ===');
+  const inicioRamos=async()=>(await q('select inicio_ramos from mis_alumnos()'))[0].inicio_ramos;
+  check('una fila que ya existía no trae fechas por ramo',JSON.stringify(alumnos[0].inicio_ramos)==='{}');
+  check('el profesor fija cuándo empezó en un ramo compartido',
+    (await q("select fijar_inicio_ramo_alumno($1,'r1','2026-09-01') ok",[alumnos[0].id]))[0].ok===true
+    &&(await inicioRamos()).r1==='2026-09-01');
+  check('la fecha por ramo no toca la general',(await q('select inicio from mis_alumnos()'))[0].inicio===null);
+  check('un ramo que no le comparte no se puede fijar',
+    (await q("select fijar_inicio_ramo_alumno($1,'r2','2026-09-01') ok",[alumnos[0].id]))[0].ok===false
+    &&!('r2' in await inicioRamos()));
+  check('por ramo tampoco puede ser futura',/futura/.test(await falla("select fijar_inicio_ramo_alumno($1,'r1',current_date+1)",[alumnos[0].id])));
+  check('null le quita la fecha propia al ramo',
+    (await q("select fijar_inicio_ramo_alumno($1,'r1',null) ok",[alumnos[0].id]))[0].ok===true
+    &&JSON.stringify(await inicioRamos())==='{}');
+  // Una fecha que quedó guardada de un ramo que ya no comparte no se entrega.
+  await db.query(`update profesor_alumnos set inicio_ramos='{"r1":"2026-09-02","viejo":"2026-03-01"}' where id=$1`,[alumnos[0].id]);
+  check('solo entrega fechas de ramos que sigue compartiendo',Object.keys(await inicioRamos()).join()==='r1'&&(await inicioRamos()).r1==='2026-09-02');
+  await db.query(`update profesor_alumnos set inicio_ramos='{}' where id=$1`,[alumnos[0].id]);
   await soy(OTRO);
+  check('otra cuenta no puede fijar la fecha de un ramo ajeno',!!(await falla("select fijar_inicio_ramo_alumno($1,'r1','2026-08-01')",[alumnos[0].id])));
   check('otra cuenta no puede leer lo que comparte la alumna',
     (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('otra cuenta no puede tocarla',!!(await falla("select fijar_inicio_alumno($1,'2026-08-01')",[alumnos[0].id])));
@@ -190,12 +210,12 @@ try{
   console.log('\n=== Seguridad de las funciones ===');
   const funciones=await q(`select proname, prosecdef, proconfig from pg_proc
     where proname in ('codigo_alumnos_profesor','profesor_por_codigo','mi_compartido_profesor','compartir_con_profesor','dejar_de_compartir',
-                      'mis_profesores','mis_alumnos','quitar_alumno','comparacion_ramo_profesor')`);
-  check('las nueve son security definer con search_path fijo',
-    funciones.length===9&&funciones.every(f=>f.prosecdef&&(f.proconfig||[]).some(c=>c==='search_path=public')));
+                      'mis_profesores','mis_alumnos','quitar_alumno','fijar_inicio_ramo_alumno','comparacion_ramo_profesor')`);
+  check('las diez son security definer con search_path fijo',
+    funciones.length===10&&funciones.every(f=>f.prosecdef&&(f.proconfig||[]).some(c=>c==='search_path=public')));
   check('anon no puede llamar ninguna',
     !(await q(`select bool_or(has_function_privilege('anon',p.oid,'execute')) a from pg_proc p
-      where proname in ('mis_alumnos','mi_compartido_profesor','compartir_con_profesor','comparacion_ramo_profesor')`))[0].a);
+      where proname in ('mis_alumnos','mi_compartido_profesor','compartir_con_profesor','fijar_inicio_ramo_alumno','comparacion_ramo_profesor')`))[0].a);
 
   console.log(`\nPASS: ${pruebas}   FAIL: 0`);
 }catch(e){console.error('  FAIL',e.message);process.exit(1);}

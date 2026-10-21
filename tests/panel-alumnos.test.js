@@ -364,8 +364,38 @@ function contexto({search='',sesion=false}={}){
     &&/Empezó contigo el <b>1 sep<\/b>/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-01'}],()=>null)`))
     &&a.run(`metricasAlumnoPanel({...__antesAhora,inicio:'2026-09-08'},__cursoAA).antes.n`)===1);
   const linea=a.run(`alumnosPanelHTML([{...__antesAhora,inicio:null}],()=>null)`);
-  chk('cada alumno dice desde cuándo, y se puede cambiar',/Empezó contigo el <b>15 sep<\/b> · el día que compartió/.test(linea)&&/data-inicio-alumno="aa"/.test(linea));
+  chk('cada ramo dice desde cuándo, y se puede cambiar',/Empezó contigo el <b>15 sep<\/b> · el día que compartió/.test(linea)&&/data-inicio-alumno="aa" data-inicio-ramo="ra"/.test(linea));
   chk('si el profesor la corrigió, no dice "el día que compartió"',!/el día que compartió/.test(a.run(`alumnosPanelHTML([{...__antesAhora,inicio:'2026-09-05'}],()=>null)`)));
+
+  const ah0=()=>a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))');
+  console.log('\n=== Cuándo empezó, ramo por ramo (Salva Ramos, 2026-10-20) ===');
+  // Ana empezó Cálculo II el 15 de septiembre (el día que compartió) y Física
+  // recién el 5 de octubre. Física: control 1 el 1 de octubre, control 2 el 10.
+  a.run(`globalThis.__dos={...__antesAhora,ramos:[__antesAhora.ramos[0],{id:'rf',nombre:'Física',sigla:'FIS1514',gates:[],categorias:[
+      __ev(5,'Control 1','2026-10-01',4.0),__ev(6,'Control 2','2026-10-10',6.0)]}],inicio_ramos:{rf:'2026-10-05'}}`);
+  const md=a.run('metricasAlumnoPanel(__dos,()=>null)');
+  const ladoDe=(nombre,ramo)=>md.evaluaciones.find(e=>e.evaluacion===nombre&&e.ramo===ramo).lado;
+  chk('cada ramo corta en su propia fecha',ladoDe('Control 1','Física')==='antes'&&ladoDe('Control 2','Física')==='ahora'
+    &&ladoDe('Interrogación 2','Cálculo II')==='ahora'&&ladoDe('Control 1','Cálculo II')==='antes');
+  chk('sin fecha por ramo, se lee igual que antes',a.run(`metricasAlumnoPanel({...__antesAhora,inicio_ramos:{}},__cursoAA).antes.n`)===2);
+  chk('la fecha general que ya existía sigue valiendo para un ramo sin fecha propia',
+    a.run(`metricasAlumnoPanel({...__dos,inicio:'2026-09-05'},()=>null).evaluaciones.filter(e=>e.ramo==='Cálculo II'&&e.lado==='antes').length`)===1
+    &&a.run(`metricasAlumnoPanel({...__dos,inicio:'2026-09-05'},()=>null).evaluaciones.find(e=>e.evaluacion==='Control 1'&&e.ramo==='Física').lado`)==='antes');
+  chk('una fecha guardada de un ramo que no está no rompe nada',a.run(`metricasAlumnoPanel({...__antesAhora,inicio_ramos:{otro:'2026-01-01'}},__cursoAA).antes.n`)===2);
+  const fichaDos=a.run('alumnosPanelHTML([__dos],()=>null)');
+  chk('la ficha muestra la fecha de cada ramo con su botón',/data-inicio-ramo="ra"/.test(fichaDos)&&/data-inicio-ramo="rf"/.test(fichaDos)
+    &&/Empezó contigo el <b>5 oct<\/b><\/span>/.test(fichaDos)&&/aria-label="Cambiar cuándo empezó en Física"/.test(fichaDos));
+  // Con cortes distintos, una sola marca de "empezó" mentiría: las de antes van huecas.
+  const curso2=`()=>({evaluaciones:[{clave:'interrogacion 1',promedio:4.0,personas:9},{clave:'control 1',promedio:4.5,personas:9},
+    {clave:'interrogacion 2',promedio:4.6,personas:9},{clave:'control 2',promedio:4.5,personas:9}],categorias:[]})`;
+  const grafDos=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__dos,${curso2}))`);
+  chk('con fechas distintas por ramo, sin marca única y con los puntos de antes huecos',
+    !/class="ah-inicio"/.test(grafDos)&&(grafDos.match(/ah-punto ah-antes/g)||[]).length===3&&/los puntos huecos son de antes/.test(grafDos));
+  chk('con un solo corte, la marca de siempre y ningún punto hueco',/class="ah-inicio"/.test(ah0())&&!/ah-antes/.test(ah0()));
+  const csvDos=a.run('csvAlumnosPanel([__dos],()=>null)').split('\r\n').map(l=>l.split(';'));
+  chk('el Excel dice cuándo empezó en cada ramo, en una columna al final',csvDos[0][13]==='Empezó contigo en este ramo'
+    &&csvDos.find(f=>f[1]==='Física')[13]==='2026-10-05'&&csvDos.find(f=>f[1]==='Cálculo II')[13]==='2026-09-15'
+    &&csvDos.find(f=>f[1]==='Física'&&f[4]==='Control 1')[11]==='antes');
 
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
@@ -375,7 +405,7 @@ function contexto({search='',sesion=false}={}){
   const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
   chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
   chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
-  const ah=a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))');
+  const ah=ah0();
   chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
     /Subió 1\.7 respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
   chk('el gráfico es una imagen con su resumen y un punto por evaluación comparable',
@@ -518,7 +548,7 @@ function contexto({search='',sesion=false}={}){
   const lineas=csv.split('\r\n');
   chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso;Empezó contigo en este ramo');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
@@ -528,7 +558,7 @@ function contexto({search='',sesion=false}={}){
   chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(10)));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)));
   const mk=leer('marketplace.js');
   chk('exportar pide confirmar con el recordatorio de los términos',
     /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
