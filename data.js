@@ -933,18 +933,17 @@ const PRESETS_UC={
   'Métodos de Optimización':{
     periodo:'2026-2',
     creditos:10,
+    reemplazosOptativos:[{tipo:'mezcla',fuente:'Control optativo',destinos:['Interrogación 2'],fraccion:0.3}],
     evals:[
       ['Interrogación 1',20,{fecha:'2026-09-07'}],
       ['Interrogación 2',28,{fecha:'2026-11-09'}],
       ['Examen',32,{fecha:'2026-12-02'}],
       ['Tarea 1',6],['Tarea 2',6],['Tarea 3',8],
+      ['Control optativo',0,{optativa:true,fecha:'2026-10-09'}],
     ],
     grupos:[
       {nombre:'Pruebas',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9},
       {nombre:'Tareas',evals:['Tarea 1','Tarea 2','Tarea 3'],min:4.0,cap:3.9},
-    ],
-    noCalcula:[
-      'El Control optativo del 9 de octubre puede mejorar la Interrogación 2: si su nota es mayor, aporta un 30% y la Interrogación 2 conserva el 70%',
     ],
     reglasDelCurso:[
       'Las actividades de taller pueden bonificar una nota final aprobada; la regla de acumulación se informa durante el semestre en Canvas',
@@ -957,6 +956,7 @@ const PRESETS_UC={
   'Ingeniería de Sistemas de Transporte':{
     periodo:'2026-2',
     creditos:10,
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Controles']}],
     evals:[
       ['Controles',45,{slots:5,dropLowest:{count:1}}],
       ['Meme 1',5,{fecha:'2026-08-24'}],
@@ -975,7 +975,6 @@ const PRESETS_UC={
     // la fórmula ya repondera Controles y Memes correctamente sobre el 65%.
     eximicion:{evaluacion:'Examen',segun:['Controles'],min:5.5,ignoraDescartes:true},
     noCalcula:[
-      'Si rindes el Examen, puedes usar su nota para reemplazar la nota de un Control',
       'Si no cumples el mínimo de Memes o de los cuatro mejores Controles, no tienes derecho a rendir el Examen',
     ],
   },
@@ -2732,6 +2731,8 @@ const PRESETS_UAI={
   // recuperativo 3,6–3,9 de FEN. El número/reparto de controles no está fijado.
   'Introducción a la Microeconomía':{
     periodo:'2026-2',creditos:6,
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Prueba 1','Prueba 2'],
+      rendidas:['Prueba 1','Prueba 2'],minFuente:4.8}],
     // ECO122 2026-2: una prueba justificada pasa su peso al examen. El
     // programa no define dos; el motor deja ese caso pendiente. El bloque
     // consolidado de controles y tareas sigue sin detalle por instancia.
@@ -2747,7 +2748,6 @@ const PRESETS_UAI={
     ],
     noCalcula:[
       'Una ausencia justificada en un control o tarea se reemplaza por el examen, pero el bloque está consolidado y el programa no fija el peso de cada instancia. Con dos pruebas justificadas, el programa no define el destino de la segunda',
-      'Con examen de al menos 4,8 y todas las pruebas rendidas, el examen reemplaza la peor prueba solo si mejora la final',
     ],
     reglasDelCurso:[
       'Programa ECO122 UAI 2026-2, sección 1, Viña del Mar. Revisa que corresponda a tu sección',
@@ -2813,6 +2813,8 @@ const PRESETS_UAI={
   'Matemáticas Avanzadas II':{
     periodo:'2026-2',
     recuperativo:{min:3.5,max:3.9,nota:4.0},
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Pruebas'],
+      rendidas:['Pruebas','Controles'],minFuente:4.0}],
     // `ignoraDescartes:true` es lo que hace que el motor la aplique: sin él
     // `estadoEximicion` devuelve null y el examen seguía pesando 30% aunque la
     // presentación pasara el 5,0 (reporte de un estudiante, 2026-09-25). Esta
@@ -2831,9 +2833,6 @@ const PRESETS_UAI={
       ['Pruebas',49,{slots:3}],
       ['Controles',21,{slots:3}],
       ['Examen',30],
-    ],
-    noCalcula:[
-      'Si rendiste todas las pruebas y controles puedes reemplazar la nota de UNA prueba por la del examen, siempre que el examen sea al menos 4,0',
     ],
     reglasDelCurso:[
       'La eximición pide además haber rendido todas las evaluaciones; la app no sabe si una casilla vacía es una que no rendiste o una que no has ingresado',

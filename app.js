@@ -214,6 +214,26 @@ function copiarRecuperativo(regla){
   if(!regla||!Number.isFinite(regla.min)||!Number.isFinite(regla.max)||!Number.isFinite(regla.nota)||regla.min>regla.max)return null;
   return {min:regla.min,max:regla.max,nota:regla.nota};
 }
+function copiarReemplazosOptativos(lista){
+  const reglas=(Array.isArray(lista)?lista:[]).filter(r=>r&&['mezcla','reemplazo'].includes(r.tipo)&&
+    typeof r.fuenteId==='string'&&Array.isArray(r.destinosIds)&&r.destinosIds.length&&
+    r.destinosIds.every(id=>typeof id==='string')&&
+    (!r.rendidasIds||Array.isArray(r.rendidasIds)&&r.rendidasIds.every(id=>typeof id==='string'))&&
+    (r.tipo!=='mezcla'||Number.isFinite(r.fraccion)&&r.fraccion>0&&r.fraccion<=1))
+    .map(r=>({tipo:r.tipo,fuenteId:r.fuenteId,destinosIds:r.destinosIds.slice(),
+      rendidasIds:(r.rendidasIds||[]).slice(),...(Number.isFinite(r.minFuente)?{minFuente:r.minFuente}:{}),
+      ...(r.cantidad==='todas'?{cantidad:'todas'}:{}),
+      ...(r.tipo==='mezcla'?{fraccion:r.fraccion}:{})}));
+  return reglas.length?reglas:null;
+}
+function resolverReemplazosOptativos(def,categorias){
+  const lista=!Array.isArray(def)&&def&&def.reemplazosOptativos;
+  if(!Array.isArray(lista))return null;
+  const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c&&c.id;};
+  return copiarReemplazosOptativos(lista.map(r=>({tipo:r.tipo,fuenteId:idDe(r.fuente),
+    destinosIds:(r.destinos||[]).map(idDe),rendidasIds:(r.rendidas||[]).map(idDe),
+    minFuente:r.minFuente,fraccion:r.fraccion,cantidad:r.cantidad})).filter(r=>r.fuenteId&&r.destinosIds.every(Boolean)&&r.rendidasIds.every(Boolean)));
+}
 function copiarReglasAusenciaIds(regla){
   if(!regla)return null;
   const copiar=lista=>(Array.isArray(lista)?lista:[]).filter(x=>x&&typeof x.desdeId==='string'&&typeof x.haciaId==='string').map(x=>({desdeId:x.desdeId,haciaId:x.haciaId}));
@@ -329,6 +349,7 @@ function normalize(data) {
     // La regla oficial y lo que el estudiante declaró son distintos: la regla
     // se puede actualizar desde catálogo; la declaración nunca se inventa.
     recuperativo: copiarRecuperativo(r.recuperativo),
+    reemplazosOptativos: copiarReemplazosOptativos(r.reemplazosOptativos),
     recuperativoRendido: ['aprobado','reprobado'].includes(r.recuperativoRendido) ? r.recuperativoRendido : null,
     // La regla viene del programa; la declaración solo dice qué ausencia fue
     // aprobada. Sin declaración, una cuenta anterior calcula exactamente igual.
@@ -443,7 +464,7 @@ function normalize(data) {
     migrarOrigenesFecha(r);
     repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
-    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
+    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
     // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
     // deja su promedio calculando con nuestro error. Se reconoce por la pauta
@@ -487,6 +508,19 @@ function normalize(data) {
     const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
     if(bonusOficial)r.bonus=bonusOficial;
     else delete r.bonus;
+    // La regla usa los ids actuales. Una pauta editada no hereda reglas de otra.
+    const defOptativo=definicionPresetDelRamo(r);
+    const oficialOptativo=defOptativo&&huellaPauta(catsDePauta(r.categorias))===
+      huellaPauta((defOptativo.evals||[]).map(([nombre,peso])=>({nombre,peso})))
+      ?resolverReemplazosOptativos(defOptativo,r.categorias):null;
+    if(oficialOptativo){
+      r.reemplazosOptativos=oficialOptativo;
+      (defOptativo.evals||[]).filter(([,peso,extra])=>peso===0&&extra?.optativa===true).forEach(([nombre])=>{
+        const c=r.categorias.find(x=>normName(x.nombre)===normName(nombre));
+        if(c&&c.peso===0)c.optativa=true;
+      });
+    }
+    else delete r.reemplazosOptativos;
     // Igual que el recuperativo, la regla llega a los ramos oficiales creados
     // antes de publicarla, sin activar nada por sí sola.
     if(!r.reglasAusenciaJustificada){
@@ -2325,7 +2359,7 @@ function completeOnboarding(){
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
-    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
@@ -3565,6 +3599,7 @@ function aplicarCambioDePauta(r,cambio){
   r.aporta=cambio.preset.aporta||null;
   r.promedioParcial=cambio.preset.promedioParcial||null;
   r.recuperativo=cambio.preset.recuperativo||null;
+  r.reemplazosOptativos=traducirIdsCategoria(cambio.preset.reemplazosOptativos||null,ids);
   r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
@@ -3689,7 +3724,7 @@ function repararEvaluacionesRepetidas(r){
   r.categorias=r.categorias.filter(c=>!fuera.has(c&&c.id));
   Object.keys(mapa).forEach(desde=>{r.gates=unificarCategoriaEnReglas(r.gates,desde,mapa[desde]);});
   if(Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[...new Set(traducirIdsCategoria(r.ausenciasJustificadas,mapa))];
-  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
+  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus','reemplazosOptativos'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
   return true;
 }
 // Una evaluación absorbe a otra: sus reglas apuntan a la que queda y las que
@@ -3736,6 +3771,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
     const id=uid();
     const cat={id,nombre:nom,peso,ponderaNotas:false,directNota:true,notas:[]};
     if(extra&&extra.slots)cat.slots=extra.slots;
+    if(extra&&extra.optativa===true&&peso===0)cat.optativa=true;
     if(extra&&typeof extra.slotLabel==='string')cat.slotLabel=extra.slotLabel;
     if(extra&&Number.isInteger(extra.slotStart))cat.slotStart=extra.slotStart;
     if(extra&&Array.isArray(extra.nombresCasillas))cat.nombresCasillas=extra.nombresCasillas.slice();
@@ -3774,9 +3810,10 @@ function presetRamo(nombre,tenant,carrera,ahora){
     traspasos:limite.desde.map(n=>({desdeId:porNombre[n],haciaId:porNombre[limite.hacia]}))});
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
+  const reemplazosOptativos=resolverReemplazosOptativos(def,categorias);
   const bonus=resolverBonus(def,categorias);
   const promedioParcial=!Array.isArray(def)&&def.promedioParcial==='por-casilla'?'por-casilla':null;
-  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,bonus,promedioParcial,periodo,estadoPeriodo,
+  return {categorias,gates,aporta,recuperativo,reemplazosOptativos,reglasAusenciaJustificada,bonus,promedioParcial,periodo,estadoPeriodo,
     creditos:(!Array.isArray(def)&&typeof def.creditos==='number')?def.creditos:null};
 }
 
@@ -3795,7 +3832,7 @@ function confirmAddMalla(){
     // estrella de "pauta oficial" al lado, porque el selector SÍ normaliza.
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
@@ -3905,7 +3942,7 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const ramo={
     id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
     creditos,origen:origenActual(presetName||nombre,sigla),
-    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
+    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
   consensoAlAgregar(ramo);
@@ -5844,8 +5881,10 @@ function reglasNoCalculadas(ramo){
   const calculadas=reglasCalculoVigentes(ramo);
   const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
   const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
+  const optativos=!Array.isArray(def)&&def&&(def.reemplazosOptativos||[]).length;
   if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
   if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
+  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a su pauta. Si la personalizaste, tu versión se conserva');
   const ausencias=estadoAusenciasJustificadas(ramo);
   if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
   return pendientes;
@@ -5861,6 +5900,15 @@ function reglasCalculadas(ramo){
   const calculo=calculoRamoConCompuertas(ramo);
   const formulas=calculo.res.formulas||[];
   const notas=formulas.map(f=>`${f.nombre}: ${f.ambigua?'el programa contradice el límite; confirma con el profesor':f.pendiente?'se resolverá al completar las evaluaciones que deciden la condición':f.activa?'se aplica al promedio':'no se activa con tus notas'}`);
+  if((ramo.reemplazosOptativos||[]).length){
+    const aplicados=calculo.reemplazosOptativosAplicados||[];
+    if(!aplicados.length)notas.push('Reemplazo optativo: todavía no mejora la nota o falta cumplir sus condiciones');
+    aplicados.forEach(a=>{
+      const origen=ramo.categorias.find(c=>c.id===a.fuenteId);
+      const destino=ramo.categorias.find(c=>hojasCategoria(c).some(h=>h.id===a.destinoId));
+      notas.push(`Reemplazo optativo: ${origen?.nombre||'la nota nueva'} mejora ${destino?.nombre||'una evaluación'} sin cambiar la nota que ingresaste`);
+    });
+  }
   const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
   if(limite)notas.push(`${limite.nombre}. Solo se mueve el peso de una prueba que declares justificada; el máximo del examen es ${limite.max}%`);
   return notas;
@@ -6055,7 +6103,7 @@ function confirmAddRamo(){
   const presetName=findPresetName(name,S.tenant,S.carrera);
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
-  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
   consensoAlAgregar(S.ramos[S.ramos.length-1]);
   const despues=alAgregarRamo;
   alCancelarAgregarRamo=null;
