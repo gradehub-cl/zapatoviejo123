@@ -3498,6 +3498,15 @@ function conUniversidadPanel(tenant,fn){
   S.tenant=tenant;
   try{return fn();}finally{S.tenant=propia;}
 }
+// El motor busca los ramos vinculados en S.ramos. Durante este cálculo
+// sincrónico deben ser los del alumno, nunca los del profesor que mira.
+function conRamosAlumnoPanel(al,fn){
+  return conUniversidadPanel(al.tenant,()=>{
+    const propios=S.ramos,contexto=ramosDelAlumnoPanel(al);
+    S.ramos=contexto;
+    try{return fn(contexto);}finally{S.ramos=propios;}
+  });
+}
 function resumenAlumnosPanel(alumnos,compDe){
   const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
   const grupos=new Map();
@@ -3766,13 +3775,82 @@ function abrirInicioAlumno(al,alGuardar){
   });
   const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
 }
-function alumnosPanelHTML(lista,compDe){
+function datosFilaAlumnoPanel(al,ahora=new Date()){
+  return conRamosAlumnoPanel(al,contexto=>{
+    const visibles=(al.ramos||[]).map(ramoParaPanel);
+    const estados={good:0,warn:0,bad:0,neutral:0};
+    const datos=visibles.map(ramo=>{
+      let avg=null,necesita=null,pendiente=0,nivel='neutral';
+      try{
+        avg=ramoAvg(ramo,undefined,contexto);
+        if(Number.isFinite(avg)){
+          nivel=nivelRamo(ramo,avg);
+          pendiente=estadoParaNotaNecesaria(ramo).pendiente;
+          if(pendiente>0){
+            necesita=notaNecesaria(ramo);
+            if(!Number.isFinite(necesita))necesita=null;
+          }
+        }
+      }catch(e){}
+      estados[nivel]++;
+      return {ramo,avg,nivel,necesita,pendiente};
+    });
+    const nivel=estados.bad?'bad':estados.warn?'warn':estados.good?'good':'neutral';
+    const prioridad=Math.max(0,...datos.map(d=>d.avg===null?0:d.necesita!==null&&d.necesita>7.05?5
+      :d.necesita!==null&&d.necesita>5?4:d.nivel==='bad'?3:d.nivel==='warn'?2:1));
+    const exigencia=Math.max(0,...datos.map(d=>Number.isFinite(d.necesita)?d.necesita:0));
+    const exigente=datos.filter(d=>Number.isFinite(d.necesita)).sort((a,b)=>b.necesita-a.necesita)[0]||null;
+    const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+    let proxima=null;
+    try{
+      const evento=agendaEvents(visibles).find(e=>e.pending&&e.fecha>=hoy);
+      if(evento){
+        const d=datos.find(x=>x.ramo===evento.ramo);
+        const cuatro=notaParaIrConCuatro(evento,contexto)||{};
+        const pendiente=d?d.pendiente:0;
+        const peso=pesoEventoAgenda(evento);
+        proxima={ramo:evento.ramo.nombre,evaluacion:(evento.nota&&evento.nota.nombre)||evento.cat.nombre,
+          fecha:evento.fecha,hora:evento.hora||null,avg:d?d.avg:null,necesita:d?d.necesita:null,cuatro,
+          pesaPoco:peso===null||!(pendiente>0)||peso/100<pendiente/3-1e-9};
+      }
+    }catch(e){}
+    return {al,nivel,estados,prioridad,exigencia,exigente,proxima};
+  });
+}
+function proximaFilaAlumnoHTML(p,exigente){
+  if(!p)return `<span class="panel-alumnos-fila-proxima">Sin próxima evaluación con fecha</span>
+    <span class="panel-alumnos-fila-meta">${exigente
+      ?exigente.necesita>7.05?`Con lo pendiente no alcanza para aprobar ${esc(exigente.ramo.nombre)}`
+        :`Para aprobar ${esc(exigente.ramo.nombre)}: ${esc(nfNecesaria(exigente.necesita).replace('.',','))} en lo pendiente`
+      :'Aún no se puede calcular cuánto necesita'}</span>`;
+  const cuando=fechaCorta(p.fecha)+(p.hora?' · '+p.hora:'');
+  let meta='Aún sin notas para calcular cuánto necesita';
+  if(p.avg!==null){
+    if(p.necesita!==null&&p.necesita>7.05)meta='Con lo pendiente no alcanza para aprobar';
+    else if(p.necesita!==null){
+      meta=`Para aprobar: ${nfNecesaria(p.necesita).replace('.',',')} en lo pendiente`;
+      if(p.cuatro.nota)meta+=p.pesaPoco
+        ?` · esta evaluación pesa poco`:` · ${p.cuatro.nota.replace('.',',')} en esta para ir con 4`;
+      else if(p.cuatro.inalcanzable)meta+=' · con esta sola no alcanza';
+    }else if(p.cuatro.nota)meta=`${p.cuatro.nota.replace('.',',')} en esta evaluación para ir con 4`;
+    else meta='Aún no se puede calcular cuánto necesita';
+  }
+  return `<span class="panel-alumnos-fila-proxima">Próxima: <b>${esc(p.evaluacion)}</b> · ${esc(p.ramo)} · ${esc(cuando)}</span>
+    <span class="panel-alumnos-fila-meta">${esc(meta)}</span>`;
+}
+function alumnosPanelHTML(lista,compDe,ahora=new Date()){
   const abierto=lista.length===1?' open':'';
-  return lista.map(al=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno"${abierto}>
-      <summary><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></summary>
+  const ordenados=lista.map(al=>datosFilaAlumnoPanel(al,ahora))
+    .sort((a,b)=>b.prioridad-a.prioridad||b.exigencia-a.exigencia||
+      (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
+      String(a.al.nombre_visible||'').localeCompare(String(b.al.nombre_visible||''),'es'));
+  return ordenados.map(({al,nivel,estados,proxima,exigente})=>conUniversidadPanel(al.tenant,()=>`<details class="panel-alumnos-alumno"${abierto}>
+      <summary><span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
+        <span class="panel-alumnos-fila-estado panel-resumen-sem ${nivel==='neutral'?'':`panel-resumen-${nivel}`}" aria-label="Estado: ${nivel==='bad'?'reprobando':nivel==='warn'?'al borde':nivel==='good'?'aprobando':'sin notas'}">${nivel==='bad'?'Reprobando':nivel==='warn'?'Al borde':nivel==='good'?'Aprobando':'Sin notas'}${nivel!=='neutral'&&estados[nivel]>1?` · ${estados[nivel]} ramos`:''}</span>
+        ${proximaFilaAlumnoHTML(proxima,exigente)}</span></summary>
       ${lineaInicioAlumnoHTML(al)}
       ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe))}
-      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),new Date(),ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
       <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
     </details>`)).join('');
 }
@@ -3845,7 +3923,7 @@ async function renderAlumnosTab(){
   if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
     if(perfilProfesorConocido()===undefined)await cargarPerfilProfesor().catch(()=>{});
     if(!esProfesorAprobado()){
-      raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
+      raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','')+
         '<p class="profesor-info" role="status">Cuando aprobemos tu postulación, acá vas a ver las notas que tus alumnos decidan compartirte.</p></div>';
       return;
     }
@@ -3853,7 +3931,7 @@ async function renderAlumnosTab(){
   renderAlumnosProfesor(raiz);
 }
 async function renderAlumnosProfesor(raiz,{volver}={}){
-  raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
+  raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
   let codigo,alumnos;
   try{
@@ -3861,7 +3939,7 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     if(c.error||a.error)throw (c.error||a.error);
     codigo=c.data;alumnos=Array.isArray(a.data)?a.data:[];
   }catch(e){
-    raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Tus alumnos','')+
+    raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','')+
       '<p class="profesor-info" role="alert">No pudimos cargar tus alumnos. Vuelve a intentarlo en un rato.</p>'+
       `<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
     // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
@@ -3895,9 +3973,9 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
   raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Tus alumnos','Las notas que tus alumnos decidieron compartirte.')+
+    cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
     `${alumnos.length?'':seccionLink}
-    <div class="profesor-hig-lista-cabeza"><h2>Alumnos</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
+    <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
     // Con uno solo no hay nada que buscar.
     (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
       aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+

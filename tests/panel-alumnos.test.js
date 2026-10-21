@@ -296,6 +296,13 @@ function contexto({search='',sesion=false}={}){
     a.run(`alumnosPanelHTML(filtrarAlumnosPanel([__alDin],'dinámica'),()=>null)`).includes(`${a.run(`fmtPromedio(${propio})`)}<small>promedio`));
   chk('sin laboratorio compartido, no toma el del profesor',
     Math.abs(a.run(`resumenAlumnosPanel([{...__alDin,ramos:[__din]}],()=>null)[0].promedio`)-a.run(`ramoAvg(ramoParaPanel(__din),undefined,[ramoParaPanel(__din)])`))<1e-9);
+  const dinamicaPendiente=a.run(`datosFilaAlumnoPanel({...__alDin,ramos:[{
+    ...__din,categorias:[
+      {id:'d1',nombre:'Prueba 1',peso:50,notas:[{id:'dn1',nombre:'Prueba 1',valor:5.0}]},
+      {id:'d2',nombre:'Prueba 2',peso:50,fecha:'2026-10-15',notas:[]}]},__lab(6.0)]},new Date(2026,9,12))`);
+  chk('la exigencia de Dinámica usa el laboratorio del alumno, no el del profesor',
+    dinamicaPendiente.proxima&&dinamicaPendiente.proxima.necesita<7.05&&
+    a.run("S.ramos[0].id==='l1'"));
   a.run('S.ramos=[]');
 
   console.log('\n=== Cada alumno con las reglas de nota de su universidad ===');
@@ -437,7 +444,57 @@ function contexto({search='',sesion=false}={}){
     !/class="panel-alumnos-alumno" open/.test(a.run(`alumnosPanelHTML(__al,()=>null)`)));
   chk('la lista compacta indica visualmente qué fila se despliega',
     /\.panel-alumnos-alumno summary::after\{content:'›'/.test(leer('styles.css')));
+  console.log('\n=== Estado y prioridad visibles sin abrir al alumno ===');
+  const riesgo=contexto();
+  riesgo.run(`globalThis.__hoyRiesgo=new Date(2026,9,12,10);
+    globalThis.__ramoRiesgo=(id,nota)=>({id,nombre:'Cálculo sintético',sigla:'TST100',gates:[],categorias:[
+      {id:id+'-i1',nombre:'Prueba 1',peso:50,notas:nota===null?[]:[{id:id+'-n1',nombre:'Prueba 1',valor:nota}]},
+      {id:id+'-i2',nombre:'Prueba 2',peso:50,fecha:'2026-10-15',notas:[]}]});
+    globalThis.__grupoRiesgo=[
+      {id:'ap',nombre_visible:'Aprobado',tenant:'uc',ramos:[__ramoRiesgo('ap',6.0)]},
+      {id:'sn',nombre_visible:'Sin notas',tenant:'uc',ramos:[__ramoRiesgo('sn',null)]},
+      {id:'ab',nombre_visible:'Al borde',tenant:'uc',ramos:[__ramoRiesgo('ab',4.5)]},
+      {id:'rp',nombre_visible:'Reprobando',tenant:'uc',ramos:[__ramoRiesgo('rp',2.0)]}];
+    S.tenant='uc';S.ramos=[__ramoRiesgo('profesor',7.0)];globalThis.__ramosProfesor=S.ramos;`);
+  const filasRiesgo=riesgo.run('alumnosPanelHTML(__grupoRiesgo,()=>null,__hoyRiesgo)');
+  chk('ordena por necesidad real: reprobando, al borde, aprobando, sin notas',
+    ['Reprobando','Al borde','Aprobado','Sin notas'].map(n=>filasRiesgo.indexOf(`<b>${n}</b>`))
+      .every((p,i,ps)=>p>=0&&(i===0||ps[i-1]<p)));
+  chk('cada fila trae estado semántico, próxima prueba y cuánto necesita',
+    /panel-resumen-bad[^>]*>Reprobando/.test(filasRiesgo)&&
+    /panel-resumen-warn[^>]*>Al borde/.test(filasRiesgo)&&
+    /panel-resumen-good[^>]*>Aprobando/.test(filasRiesgo)&&
+    (filasRiesgo.match(/class="panel-alumnos-fila-proxima">Próxima: <b>Prueba 2<\/b>/g)||[]).length===4&&
+    /Para aprobar: 5,9 en lo pendiente/.test(filasRiesgo));
+  chk('sin notas no se inventa una exigencia personal',
+    /Aún sin notas para calcular cuánto necesita/.test(filasRiesgo));
+  const sinFecha=riesgo.run(`alumnosPanelHTML([{id:'sf',nombre_visible:'Sin fecha',tenant:'uc',ramos:[
+    {id:'sf-r',nombre:'Ramo sin fecha',gates:[],categorias:[
+      {id:'sf-i1',nombre:'Prueba 1',peso:50,notas:[{id:'sf-n1',nombre:'Prueba 1',valor:3.0}]},
+      {id:'sf-i2',nombre:'Talleres',peso:50,slots:2,notas:[]}]}]}],()=>null,__hoyRiesgo)`);
+  chk('sin fecha futura, la fila conserva cuánto necesita en lo pendiente',
+    /Sin próxima evaluación con fecha/.test(sinFecha)&&/Para aprobar Ramo sin fecha: [\d,]+ en lo pendiente/.test(sinFecha));
+  chk('el cálculo no deja los ramos del alumno en la cuenta del profesor',
+    riesgo.run('S.ramos===__ramosProfesor&&S.tenant===\'uc\''));
+  const quizLiviano=riesgo.run(`(globalThis.__quizAlumno={id:'quiz',nombre_visible:'Quiz liviano',tenant:'uc',ramos:[
+    {id:'q',nombre:'Ramo sintético',gates:[],categorias:[
+      {id:'conocido',nombre:'Prueba 1',peso:75,notas:[{id:'c',nombre:'Prueba 1',valor:3.8}]},
+      {id:'quiz',nombre:'Quiz',peso:5,fecha:'2026-10-15',notas:[]},
+      {id:'final',nombre:'Examen',peso:20,slots:2,notas:[]}]}]},datosFilaAlumnoPanel(__quizAlumno,__hoyRiesgo))`);
+  const urgente=riesgo.run('datosFilaAlumnoPanel(__grupoRiesgo[3],__hoyRiesgo)');
+  chk('un quiz liviano no parece más grave por pedir mucho en esa sola nota',
+    quizLiviano.proxima.pesaPoco&&Number(quizLiviano.proxima.cuatro.nota)>6&&
+    quizLiviano.proxima.necesita<5&&quizLiviano.prioridad<urgente.prioridad);
+  const uniRiesgo=riesgo.run(`(S.tenant='uc',datosFilaAlumnoPanel({id:'ua',nombre_visible:'UAndes',tenant:'uandes',ramos:[
+    {id:'ua1',nombre:'Ramo sintético',gates:[],categorias:[
+      {id:'u1',nombre:'Prueba 1',peso:50,notas:[{id:'un1',nombre:'Prueba 1',valor:3.892}]},
+      {id:'u2',nombre:'Prueba 2',peso:50,notas:[{id:'un2',nombre:'Prueba 2',valor:4.0}]}]}]},__hoyRiesgo))`);
+  chk('el semáforo aplica el redondeo del alumno UAndes',uniRiesgo.nivel==='warn'&&riesgo.run('S.tenant')==='uc');
   console.log('\n=== Jerarquía del panel a 1, 4 y 6 alumnos ===');
+  const pantallaAlumnos=leer('index.html').split('id="screen-alumnos"')[1].split('id="screen-admin"')[0];
+  chk('la barra lleva la marca y deja Alumnos como único título principal',
+    /class="brand-word"[^>]*>GradeHub<\/span>/.test(pantallaAlumnos)&&
+    !/class="brand-word"[^>]*>Alumnos<\/span>/.test(pantallaAlumnos));
   for(const n of [1,4,6]){
     a.run(`globalThis.__alumnosVista=Array.from({length:${n}},(_,i)=>({id:'a'+i,nombre_visible:'Alumno '+(i+1),tenant:'uc',ramos:[]}));
       globalThis.__raizVista={innerHTML:'',querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
@@ -445,8 +502,11 @@ function contexto({search='',sesion=false}={}){
     await a.run('renderAlumnosProfesor(__raizVista)');
     const vista=a.run('__raizVista.innerHTML');
     chk(`${n} alumnos: la lista y sus nombres aparecen antes de las cifras`,
-      vista.indexOf('<h2>Alumnos</h2>')<vista.indexOf('Cómo van tus alumnos')&&
+      vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Cómo van tus alumnos')&&
       vista.indexOf('Alumno 1')<vista.indexOf('Cómo van tus alumnos'));
+    chk(`${n} alumnos: un solo título Alumnos`,
+      (vista.match(/<h1[^>]*>Alumnos<\/h1>/g)||[]).length===1&&
+      !/<h2>Alumnos<\/h2>|Tus alumnos<\/h1>/.test(vista));
   }
 
   console.log('\n=== Exportar a Excel ===');
