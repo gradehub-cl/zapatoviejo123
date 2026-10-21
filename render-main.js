@@ -351,6 +351,7 @@ function renderRamo(){
   const calculo=calculoRamoConCompuertas(r);
   const recuperativo=estadoRecuperativo(r,calculo);
   const eximicion=estadoEximicion(r);
+  const segundaFecha=estadoSegundaFecha(r);
   const descartes=calculo.res.drops||[];
   const avgEl=document.getElementById('ramo-hero-avg');
   if(avg!==null){
@@ -374,7 +375,7 @@ function renderRamo(){
   pintarSoloCatedra();
   if(soloEl)soloEl.onclick=()=>{alternarPromedioExacto();pintarPromedioExacto('ramo-hero-exacto',avg);pintarSoloCatedra();};
   const tp=r.categorias.reduce((a,c)=>a+c.peso,0);
-  const categoriasVisibles=r.categorias.filter(c=>!(eximicion&&eximicion.activa&&eximicion.regla.ocultaEvaluacion===true&&eximicion.examenId===c.id));
+  const categoriasVisibles=r.categorias.filter(c=>!(eximicion&&eximicion.activa&&eximicion.regla.ocultaEvaluacion===true&&eximicion.examenIds.includes(c.id)));
   const crTxt=(r.seccion?` · Sección ${r.seccion}`:'')+(r.creditos?` · ${r.creditos} créditos`:'');
   document.getElementById('ramo-hero-sub').textContent=categoriasVisibles.length===0
     ?('Agrega evaluaciones para comenzar'+crTxt)
@@ -479,7 +480,9 @@ function renderRamo(){
     if(eximicion&&eximicion.activa){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip';
-      chipEl.textContent=`Te eximiste del ${eximicion.regla.evaluacion}`;
+      chipEl.textContent=eximicion.regla.etiqueta
+        ?`Te eximiste de ${eximicion.regla.etiqueta}`
+        :`Te eximiste del ${eximicion.regla.evaluacion}`;
     } else if(gateHit){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip bad';
@@ -595,27 +598,34 @@ function renderRamo(){
   const ew=document.getElementById('eximicion-warning');
   if(ew&&eximicion&&eximicion.regla.requiereConfirmacion===true){
     let texto='',accion='';
+    const examenes=eximicion.regla.etiqueta?`de ${esc(eximicion.regla.etiqueta)}`:`del ${esc(eximicion.regla.evaluacion)}`;
+    const varios=eximicion.examenIds.length>1;
     if(eximicion.puedeConfirmar){
-      texto=`<b>Por tus notas, puedes eximirte del ${esc(eximicion.regla.evaluacion)}.</b><br>Confirma que ingresaste todas tus notas previas al examen${eximicion.regla.confirmar?` y que ${esc(eximicion.regla.confirmar)}`:''}.`;
-      accion='<button type="button" onclick="confirmarEximicionActual()">Confirmar eximición</button>';
+      texto=`<b>Por tus notas, puedes eximirte ${examenes}.</b><br>Confirma que ingresaste todas tus notas previas al examen${eximicion.regla.confirmar?` y que ${esc(eximicion.regla.confirmar)}`:''}.`;
+      accion='<button type="button" style="display:inline-flex;align-items:center;min-height:44px" onclick="confirmarEximicionActual()">Confirmar eximición</button>';
     }else if(eximicion.activa){
-      texto=`<b>Te eximiste del ${esc(eximicion.regla.evaluacion)}.</b><br>Ya no aparece entre tus evaluaciones pendientes y tu nota de presentación queda como nota final.`;
-      accion='<button type="button" onclick="corregirEximicionActual()">Corregir confirmación</button>';
+      texto=`<b>Te eximiste ${examenes}.</b><br>Ya no ${varios?'aparecen':'aparece'} entre tus evaluaciones pendientes y tu nota de presentación queda como nota final.`;
+      accion='<button type="button" style="display:inline-flex;align-items:center;min-height:44px" onclick="corregirEximicionActual()">Corregir confirmación</button>';
     }else if(eximicion.confirmada){
       const causa=eximicion.razon==='incompleto'
         ? 'Todavía faltan notas previas al examen.'
         : eximicion.razon==='minimo_categoria'
-          ? `Ya no se cumple el mínimo de ${nf(eximicion.minimoFallido.min)} en ${esc(eximicion.minimoFallido.evaluacion)}.`
+          ? `Ya no se cumple el mínimo de ${nf(eximicion.minimoFallido.min)} en ${esc((eximicion.minimoFallido.evaluaciones||[eximicion.minimoFallido.evaluacion]).join(' y '))}.`
           : eximicion.razon==='examen_rendido'
-            ? `El ${esc(eximicion.regla.evaluacion)} tiene una nota ingresada y vuelve a formar parte del cálculo.`
+            ? `Ya hay una nota de examen ingresada y vuelve a formar parte del cálculo.`
+            : eximicion.razon==='ausencia_justificada'
+              ? 'Declaraste una ausencia justificada que exige rendir el examen.'
             : `Tu nota de presentación quedó bajo ${nf(eximicion.regla.min)}.`;
       texto=`<b>Tu confirmación se conserva, pero ya no se aplica.</b><br>${causa} Si vuelves a cumplir las condiciones, la eximición se activa sola.`;
-      accion='<button type="button" onclick="corregirEximicionActual()">Corregir confirmación</button>';
+      accion='<button type="button" style="display:inline-flex;align-items:center;min-height:44px" onclick="corregirEximicionActual()">Corregir confirmación</button>';
     }
     if(texto){
       ew.style.display='flex';ew.className='weight-setup-nudge eximicion-note';
       ew.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div>${texto}<div style="margin-top:8px;">${accion}</div></div>`;
     }else{ew.style.display='none';ew.innerHTML='';}
+  }else if(ew&&segundaFecha?.aviso){
+    ew.style.display='flex';ew.className='weight-setup-nudge eximicion-note';
+    ew.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>Podrías rendir un segundo examen.</b><br>${esc(segundaFecha.regla.aviso)}</div>`;
   }else if(ew){ew.style.display='none';ew.innerHTML='';}
 
   // Contador de faltas: solo si el estudiante lo encendió en Editar ramo. Es

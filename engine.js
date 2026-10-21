@@ -512,42 +512,82 @@ function gh_crearCalculoRamo(deps){
     if(rendidas<objetivo)return null;
     return avgPond(vigentes);
   }
+  function promedioCompletoParaEximicion(cat,ignoraDescartes){
+    const promedio=promedioCompletoSinDescarte(cat);
+    if(promedio===null||ignoraDescartes)return promedio;
+    const descarte=cat.dropLowest;
+    const cantidad=Number.isInteger(descarte?.count)?descarte.count:0;
+    if(cantidad<=0)return promedio;
+    const notas=notasVigentesSinDescarte(cat).map(n=>n.valor).sort((a,b)=>a-b).slice(cantidad);
+    return notas.length?notas.reduce((s,n)=>s+n,0)/notas.length:null;
+  }
   function estadoEximicion(ramo){
     const def=definicionPresetDelRamo(ramo);
     const regla=!Array.isArray(def)&&def&&def.eximicion;
-    if(!regla||!Array.isArray(regla.segun)||regla.ignoraDescartes!==true)return null;
+    if(!regla||!Array.isArray(regla.segun)||typeof regla.ignoraDescartes!=='boolean')return null;
     const categorias=ramo.categorias||[];
-    const examen=categorias.find(c=>normName(c.nombre)===normName(regla.evaluacion));
-    if(!examen)return null;
+    if(regla.requierePautaOriginal===true){
+      const evals=def.evals||[];
+      if(categorias.length!==evals.length||evals.some(([nombre,peso,extra])=>{
+        const cat=categorias.find(c=>normName(c.nombre)===normName(nombre));
+        const slots=extra?.slots||1,descartes=extra?.dropLowest?.count||0;
+        return !cat||Math.abs((Number(cat.peso)||0)-peso)>0.001
+          ||(cat.slots||1)!==slots||(cat.dropLowest?.count||0)!==descartes;
+      }))return null;
+    }
+    const nombresExamen=Array.isArray(regla.evaluaciones)?regla.evaluaciones:[regla.evaluacion];
+    if(!nombresExamen.length||nombresExamen.some(n=>typeof n!=='string'))return null;
+    const examenes=nombresExamen.map(nombre=>categorias.find(c=>normName(c.nombre)===normName(nombre)));
+    if(examenes.some(c=>!c)||new Set(examenes.map(c=>c.id)).size!==examenes.length)return null;
     const confirmada=ramo.eximicionConfirmada===true;
-    const base={activa:false,pendiente:false,examenId:examen.id,regla,confirmada};
-    if(avgPond(examen.notas)!==null)return {...base,razon:'examen_rendido'};
+    const base={activa:false,pendiente:false,examenId:examenes[0].id,examenIds:examenes.map(c=>c.id),regla,confirmada};
+    if(examenes.some(c=>avgPond(c.notas)!==null))return {...base,razon:'examen_rendido'};
+    if(regla.sinAusenciasJustificadas===true&&(ramo.ausenciasJustificadas||[]).length)
+      return {...base,razon:'ausencia_justificada'};
     const fuentes=regla.segun.map(nombre=>categorias.find(c=>normName(c.nombre)===normName(nombre))).filter(Boolean);
     if(fuentes.length!==regla.segun.length)return null;
-    const promedios=fuentes.map(promedioCompletoSinDescarte);
+    const promedios=fuentes.map(c=>promedioCompletoParaEximicion(c,regla.ignoraDescartes));
     if(promedios.some(p=>p===null))return {...base,pendiente:true,razon:'incompleto'};
     const pesoTotal=fuentes.reduce((s,c)=>s+(Number(c.peso)||0),0);
     const promedio=pesoTotal>0?fuentes.reduce((s,c,i)=>s+promedios[i]*(Number(c.peso)||0),0)/pesoTotal:null;
+    const cumple=valor=>regla.comparaNotaOficial===true
+      ? gh_notaOficial(valor,reglasNota())>=regla.min
+      : valor>=regla.min;
     const minimoFallido=(Array.isArray(regla.minimos)?regla.minimos:[]).find(condicion=>{
-      const cat=categorias.find(c=>normName(c.nombre)===normName(condicion.evaluacion));
-      if(!cat||!Number.isFinite(condicion.min))return true;
+      const nombres=Array.isArray(condicion.evaluaciones)?condicion.evaluaciones:[condicion.evaluacion];
+      const cats=nombres.map(nombre=>categorias.find(c=>normName(c.nombre)===normName(nombre)));
+      if(!nombres.length||cats.some(c=>!c)||!Number.isFinite(condicion.min))return true;
       if(condicion.cadaNota===true){
-        const notas=notasVigentesSinDescarte(cat);
-        return !notas.length||notas.some(n=>n.valor<condicion.min);
+        const notas=cats.flatMap(notasVigentesSinDescarte);
+        return !notas.length||notas.some(n=>regla.comparaNotaOficial===true
+          ?gh_notaOficial(n.valor,reglasNota())<condicion.min:n.valor<condicion.min);
       }
-      const valor=promedioCompletoSinDescarte(cat);
-      return valor===null||valor<condicion.min;
+      const valores=cats.map(c=>promedioCompletoParaEximicion(c,regla.ignoraDescartes));
+      const peso=cats.reduce((s,c)=>s+(Number(c.peso)||0),0);
+      const valor=valores.some(v=>v===null)||peso<=0?null
+        :cats.reduce((s,c,i)=>s+valores[i]*(Number(c.peso)||0),0)/peso;
+      return valor===null||(regla.comparaNotaOficial===true
+        ?gh_notaOficial(valor,reglasNota())<condicion.min:valor<condicion.min);
     });
     if(minimoFallido)return {...base,promedio,razon:'minimo_categoria',minimoFallido};
-    const elegible=promedio!==null&&promedio>=regla.min;
+    const elegible=promedio!==null&&cumple(promedio);
     const requiereConfirmacion=regla.requiereConfirmacion===true;
     const activa=elegible&&(!requiereConfirmacion||confirmada);
     return {...base,activa,elegible,promedio,
       puedeConfirmar:elegible&&requiereConfirmacion&&!confirmada,
       razon:!elegible?'promedio':activa?'cumple':'falta_confirmacion'};
   }
-  function categoriaEximida(ramo,cat){const estado=estadoEximicion(ramo);return !!(estado&&estado.activa&&estado.examenId===cat.id);}
+  function categoriaEximida(ramo,cat){const estado=estadoEximicion(ramo);return !!(estado&&estado.activa&&estado.examenIds.includes(cat.id));}
   function categoriasVigentes(ramo){return (ramo&&ramo.categorias||[]).filter(c=>!categoriaEximida(ramo,c));}
+  function estadoSegundaFecha(ramo){
+    const def=definicionPresetDelRamo(ramo);
+    const regla=!Array.isArray(def)&&def&&def.segundaFecha;
+    if(!regla||!Number.isFinite(regla.finalMin)||!Number.isFinite(regla.finalMax))return null;
+    const examen=(ramo.categorias||[]).find(c=>normName(c.nombre)===normName(regla.evaluacion));
+    if(!examen||avgPond(examen.notas)===null)return {aviso:false,regla};
+    const final=gh_notaOficial(ramoAvg(ramo),reglasNota());
+    return {aviso:final!==null&&final>=regla.finalMin&&final<=regla.finalMax,final,regla};
+  }
   function reglasAusenciaOficiales(ramo){
     const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
     return ramo&&ramo.reglasAusenciaJustificada||(limite&&{traspasos:limite.traspasos})||null;
@@ -906,7 +946,7 @@ function gh_crearCalculoRamo(deps){
     // diciendo cuál está incumplida hoy.
     return conCompuertas(resolver(estructura,objetivo));
   }
-  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje};
