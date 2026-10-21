@@ -3237,6 +3237,11 @@ let invitacionProfeAbierta=false;
 async function revisarInvitacionProfesor(){
   const codigo=profePendiente();
   if(!codigo||invitacionProfeAbierta||!supabaseClient||!currentUser||!S.onboardingDone)return false;
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    olvidarProfePendiente();
+    showToast('Este link es para alumnos. Ábrelo con una cuenta de estudiante.',true);
+    return false;
+  }
   const uid=currentUser.id;
   invitacionProfeAbierta=true;
   try{
@@ -3341,6 +3346,8 @@ function abrirHojaInvitacionProfesor(codigo,profe,compartido=null){
 }
 
 async function compartirConProfesor(codigo,nombre,ramos){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())
+    return {ok:false,error:'Este link es para alumnos. Ábrelo con una cuenta de estudiante.'};
   const pedir=()=>supabaseClient.rpc('compartir_con_profesor',{p_codigo:codigo,p_nombre:String(nombre||'').trim(),p_ramos:ramos});
   try{
     let {error}=await pedir();

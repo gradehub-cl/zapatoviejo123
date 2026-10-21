@@ -7,7 +7,7 @@ const {PGlite}=require('@electric-sql/pglite');
 const raiz=path.join(__dirname,'..'),leer=f=>fs.readFileSync(path.join(raiz,f),'utf8');
 const db=new PGlite();
 const u=i=>`00000000-0000-0000-0000-0000000000${String(i).padStart(2,'0')}`;
-const PROFE=u(1),PENDIENTE=u(2),ALUMNA=u(10),OTRO=u(11);
+const PROFE=u(1),PENDIENTE=u(2),ALUMNA=u(10),OTRO=u(11),CONVERTIDO=u(90),MIXTO=u(91);
 let pruebas=0;
 const check=(nombre,cond)=>{assert.ok(cond,nombre);pruebas++;console.log('  OK   '+nombre);};
 const q=async(text,params=[])=>(await db.query(text,params)).rows;
@@ -16,9 +16,9 @@ const falla=async(text,params=[])=>{try{await db.query(text,params);return null;
 // Un ramo sintético con una nota por evaluación.
 const ramo=(id,sigla,notas)=>({id,nombre:'Ramo '+sigla,sigla,color:'#7F77DD',gates:[],
   categorias:[{id:'c-'+id,nombre:'Pruebas',peso:100,notas:notas.map(([nombre,valor],i)=>({id:`n-${id}-${i}`,nombre,valor}))}]});
-const guardar=(id,ramos,tenant='uc')=>db.query(
+const guardar=(id,ramos,tenant='uc',tipoCuenta)=>db.query(
   'insert into public.user_ramos(user_id,data) values($1,$2) on conflict(user_id) do update set data=excluded.data',
-  [id,JSON.stringify({tenant,ramos})]);
+  [id,JSON.stringify({tenant,ramos,...(tipoCuenta?{tipoCuenta}:{})})]);
 (async()=>{
 try{
   await db.exec(leer('bin/supabase-stubs.sql'));
@@ -218,6 +218,37 @@ try{
     !(await q(`select has_function_privilege('authenticated','public.seccion_calza(jsonb,integer)','execute') p`))[0].p);
   await soy(OTRO);
   check('otra cuenta no puede consultar por sección',(await q(`select comparacion_ramo_profesor('uc','MAT1630',2) c`))[0].c===null);
+
+  console.log('\n=== Una cuenta convertida a solo profesor conserva sus notas sin compartirlas ===');
+  for(const id of [CONVERTIDO,MIXTO])await db.query('insert into auth.users(id) values($1)',[id]);
+  await guardar(CONVERTIDO,[ramo('antiguo','MAT9999',[['Prueba antigua',5.5]])],'uc','estudiante');
+  await soy(CONVERTIDO);
+  const idAntiguo=(await q('select compartir_con_profesor($1,$2,$3) id',[nuevo,'Cuenta sintética',['antiguo']]))[0].id;
+  await db.query(`update public.user_ramos set data=jsonb_set(data,'{tipoCuenta}','"profesor"'::jsonb) where user_id=$1`,[CONVERTIDO]);
+  check('sus ramos y notas siguen guardados tras cambiar el tipo de cuenta',
+    (await q("select data->>'tipoCuenta' tipo, data->'ramos' ramos from user_ramos where user_id=$1",[CONVERTIDO]))
+      .some(x=>x.tipo==='profesor'&&x.ramos[0].categorias[0].notas[0].valor===5.5));
+  check('una cuenta solo profesor no puede renovar un compartido antiguo',
+    /cuenta de profesor/.test(await falla('select compartir_con_profesor($1,$2,$3)',[nuevo,'Cuenta sintética',['antiguo']])));
+  await soy(PROFE);
+  check('el compartido antiguo queda guardado, pero ya no aparece en Alumnos',
+    (await q('select count(*)::int n from profesor_alumnos where id=$1',[idAntiguo]))[0].n===1&&
+    !(await q('select * from mis_alumnos()')).some(x=>x.id===idAntiguo));
+  check('ese compartido antiguo tampoco abre la comparación de un ramo',
+    (await q("select comparacion_ramo_profesor('uc','MAT9999') c"))[0].c===null);
+  await guardar(MIXTO,[ramo('mixto','MAT9998',[['Prueba',4.5]])],'uc','estudiante');
+  await db.query(`insert into tutor_perfiles(user_id,nombre_publico,presentacion,estado,revisado_at)
+    values($1,'Docente mixto sintético','Presentación ficticia para probar cuenta mixta','aprobado',now())`,[MIXTO]);
+  await soy(MIXTO);
+  const idMixto=(await q('select compartir_con_profesor($1,$2,$3) id',[nuevo,'Cuenta mixta',['mixto']]))[0].id;
+  await soy(PROFE);
+  check('una cuenta estudiante y profesor aprobado sigue pudiendo compartir',
+    (await q('select * from mis_alumnos()')).some(x=>x.id===idMixto)&&
+    (await q("select comparacion_ramo_profesor('uc','MAT9998') c"))[0].c!==null);
+  await db.exec(leer('supabase/profesor_alumnos.sql'));
+  check('reaplicar el SQL conserva compartidos y mantiene oculta la cuenta convertida',
+    (await q('select count(*)::int n from profesor_alumnos where id=$1',[idAntiguo]))[0].n===1&&
+    !(await q('select * from mis_alumnos()')).some(x=>x.id===idAntiguo));
 
   console.log('\n=== Dejar de compartir y borrar cuentas ===');
   await soy(ALUMNA);

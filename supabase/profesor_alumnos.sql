@@ -183,6 +183,12 @@ begin
   if uid is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
+  -- Una cuenta convertida a solo profesor conserva sus ramos antiguos, pero
+  -- no puede volver a ofrecerlos como si siguiera siendo estudiante.
+  if exists (select 1 from public.user_ramos ur
+             where ur.user_id = uid and ur.data->>'tipoCuenta' = 'profesor') then
+    raise exception 'una cuenta de profesor no comparte notas como alumno';
+  end if;
   select user_id into v_tutor from public.tutor_perfiles
     where codigo_alumnos = upper(btrim(p_codigo)) and estado = 'aprobado';
   if v_tutor is null then
@@ -280,7 +286,7 @@ begin
                    where e.key = any (pa.ramos)), '{}'::jsonb)
   from public.profesor_alumnos pa
   left join public.user_ramos ur on ur.user_id = pa.alumno_id
-  where pa.tutor_id = uid
+  where pa.tutor_id = uid and ur.data->>'tipoCuenta' is distinct from 'profesor'
   order by lower(pa.nombre_visible);
 end;
 $$;
@@ -430,6 +436,7 @@ begin
     join public.user_ramos ur on ur.user_id = pa.alumno_id,
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
     where pa.tutor_id = uid and r->>'id' = any (pa.ramos)
+      and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
       and public.seccion_calza(r, v_seccion)
   ) then
