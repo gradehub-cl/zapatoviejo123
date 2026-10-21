@@ -1,0 +1,3 @@
+-- Reportes de diferencias entre el programa de un curso y su pauta del catálogo.
+-- Lucas aplica este archivo a mano en Supabase antes del deploy de la app.
+-- Implementación en preparación en el PR de #632.
