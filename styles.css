@@ -3272,6 +3272,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .ah-eje{fill:var(--fg3);font-size:11px;}
 .ah-linea{fill:none;stroke:var(--fg);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
 .ah-punto{fill:var(--fg);stroke:var(--card);stroke-width:2;}
+.ah-punto.ah-antes{fill:var(--card);stroke:var(--fg);stroke-width:1.5;}
 .ah-zona{fill:transparent;}
 .ah-pie{margin:2px 0 0;font-size:0.75rem;color:var(--fg3);}
 .ah-detalle{margin-top:6px;}

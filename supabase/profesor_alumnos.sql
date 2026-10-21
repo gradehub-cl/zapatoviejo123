@@ -60,6 +60,15 @@ alter table public.profesor_alumnos
   add column if not exists inicio_clases date
   check (inicio_clases between date '2000-01-01' and date '2100-12-31');
 
+-- Cuándo empezó en CADA ramo (2026-10-20, pedido de Salva Ramos): la mitad de
+-- sus alumnos toma más de una clase, y quien empezó Cálculo en marzo y Física
+-- en septiembre quedaba medido con un solo corte. Llave: el id del ramo
+-- compartido; valor: 'AAAA-MM-DD'. Un ramo sin fecha propia usa inicio_clases
+-- y, si tampoco hay, cuándo compartió: las filas que ya existen se leen igual.
+alter table public.profesor_alumnos
+  add column if not exists inicio_ramos jsonb not null default '{}'::jsonb
+  check (jsonb_typeof(inicio_ramos) = 'object');
+
 alter table public.profesor_alumnos enable row level security;
 revoke all on public.profesor_alumnos from public, anon, authenticated;
 
@@ -240,12 +249,14 @@ $$;
 -- ─── PROFESOR: sus alumnos ──────────────────────────────────────────────────
 -- Devuelve, de cada alumno, SOLO los ramos que compartió, tal como los guardó.
 -- Un ramo que el alumno borró desaparece solo.
--- Devolver `inicio` cambia el tipo de retorno: Postgres no lo deja con
--- create or replace, así que se borra y se vuelve a crear (los permisos se
--- vuelven a dar al final del archivo).
+-- Devolver `inicio` (y después `inicio_ramos`) cambia el tipo de retorno:
+-- Postgres no lo deja con create or replace, así que se borra y se vuelve a
+-- crear (los permisos se vuelven a dar al final del archivo). Una app vieja
+-- en caché lee las columnas por nombre e ignora la nueva.
+-- `inicio_ramos` trae solo las fechas de ramos que sigue compartiendo.
 drop function if exists public.mis_alumnos();
 create function public.mis_alumnos()
-returns table (id uuid, nombre_visible text, tenant text, ramos jsonb, desde timestamptz, inicio date)
+returns table (id uuid, nombre_visible text, tenant text, ramos jsonb, desde timestamptz, inicio date, inicio_ramos jsonb)
 language plpgsql
 stable
 security definer
@@ -264,7 +275,9 @@ begin
   select pa.id, pa.nombre_visible, ur.data->>'tenant',
          coalesce((select jsonb_agg(r) from jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
                    where r->>'id' = any (pa.ramos)), '[]'::jsonb),
-         pa.created_at, pa.inicio_clases
+         pa.created_at, pa.inicio_clases,
+         coalesce((select jsonb_object_agg(e.key, e.value) from jsonb_each(pa.inicio_ramos) e
+                   where e.key = any (pa.ramos)), '{}'::jsonb)
   from public.profesor_alumnos pa
   left join public.user_ramos ur on ur.user_id = pa.alumno_id
   where pa.tutor_id = uid
@@ -307,6 +320,33 @@ begin
   end if;
   update public.profesor_alumnos set inicio_clases = p_inicio, updated_at = now()
    where id = p_id and tutor_id = auth.uid();
+  return found;
+end;
+$$;
+
+-- Lo mismo, para un solo ramo. null le quita su fecha propia: vuelve a usar
+-- inicio_clases o cuándo compartió. Solo un ramo que el alumno le comparte.
+create or replace function public.fijar_inicio_ramo_alumno(p_id uuid, p_ramo text, p_inicio date)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'hay que haber iniciado sesión';
+  end if;
+  if not public.tutor_aprobado(auth.uid()) then
+    raise exception 'solo un profesor aprobado ve a sus alumnos';
+  end if;
+  if p_inicio is not null and (p_inicio < date '2000-01-01' or p_inicio > current_date) then
+    raise exception 'la fecha de inicio no puede ser futura';
+  end if;
+  update public.profesor_alumnos
+     set inicio_ramos = case when p_inicio is null then inicio_ramos - p_ramo
+                             else inicio_ramos || jsonb_build_object(p_ramo, p_inicio::text) end,
+         updated_at = now()
+   where id = p_id and tutor_id = auth.uid() and p_ramo = any (ramos);
   return found;
 end;
 $$;
@@ -463,6 +503,7 @@ revoke all on function public.mis_profesores() from public, anon;
 revoke all on function public.mis_alumnos() from public, anon;
 revoke all on function public.quitar_alumno(uuid) from public, anon;
 revoke all on function public.fijar_inicio_alumno(uuid, date) from public, anon;
+revoke all on function public.fijar_inicio_ramo_alumno(uuid, text, date) from public, anon;
 revoke all on function public.comparacion_ramo_profesor(text, text) from public, anon;
 grant execute on function public.clave_evaluacion(text) to authenticated;
 grant execute on function public.codigo_alumnos_profesor(boolean) to authenticated;
@@ -474,4 +515,5 @@ grant execute on function public.mis_profesores() to authenticated;
 grant execute on function public.mis_alumnos() to authenticated;
 grant execute on function public.quitar_alumno(uuid) to authenticated;
 grant execute on function public.fijar_inicio_alumno(uuid, date) to authenticated;
+grant execute on function public.fijar_inicio_ramo_alumno(uuid, text, date) to authenticated;
 grant execute on function public.comparacion_ramo_profesor(text, text) to authenticated;
