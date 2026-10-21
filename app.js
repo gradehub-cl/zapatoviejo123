@@ -11108,9 +11108,68 @@ function coincidenciaIcs(evento,targets){
   });
   return matches.length===1?claveDestinoIcs(matches[0]):null;
 }
+// Lógica compartida por el calendario web y el conector iOS de Canvas UC.
+// Recibe respuestas sintéticas o del GET de Canvas; no toca el token, notas,
+// ponderaciones ni fechas guardadas. Todo resultado pasa por renderRevisionIcs.
+function siglaRamoCanvas(r){
+  return String((typeof siglaDeRamo==='function'?siglaDeRamo(r,S.tenant):null)||r.sigla||'').toUpperCase();
+}
+function fechaChileCanvas(dueAt){
+  const d=new Date(dueAt);if(Number.isNaN(d.getTime()))return null;
+  const piezas=new Intl.DateTimeFormat('en-US',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+  const v=Object.fromEntries(piezas.map(p=>[p.type,p.value]));
+  return v.year+'-'+v.month+'-'+v.day;
+}
+function tipoEvaluacionCanvas(nombre){
+  const n=normName(nombre).replace(/[^a-z0-9 ]/g,' ').trim();
+  const m=/^(interrogacion|solemne|prueba|control|tarea|quiz|laboratorio|examen|evaluacion|i\s*\d|s\s*\d|p\s*\d|c\s*\d|t\s*\d|q\s*\d|ex\s*\d)/.exec(n);
+  if(!m)return null;
+  const v=m[1];
+  return /^i\s*\d/.test(v)?'interrogacion':/^s\s*\d/.test(v)?'solemne':/^p\s*\d/.test(v)?'prueba':/^c\s*\d/.test(v)?'control':/^t\s*\d/.test(v)?'tarea':/^q\s*\d/.test(v)?'quiz':/^ex\s*\d/.test(v)?'examen':v;
+}
+function resumenFechasCanvas(tareas,ramo,ahora,grupos=[]){
+  const hoy=fechaChileCanvas(ahora||new Date());
+  const porGrupo=new Map((grupos||[]).map(g=>[String(g.id),String(g.name||'')]));
+  const entrada=Array.isArray(tareas)&&tareas.length?tareas:(grupos||[]).flatMap(g=>(g.assignments||[]).map(t=>({...t,assignment_group_id:g.id})));
+  const destinos=destinosIcs().filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
+  const usados=new Set(),vistas=new Set(),propuestas=[];
+  const conteos={total:entrada.length,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0};
+  for(const tarea of entrada){
+    if(!tarea||!tarea.due_at){conteos.sinFecha++;continue;}
+    const fecha=fechaChileCanvas(tarea.due_at);
+    if(!fecha){conteos.sinFecha++;continue;}
+    if(fecha<hoy){conteos.pasadas++;continue;}
+    const nombre=String(tarea.name||'').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
+    if(!nombre){conteos.sinDestino++;continue;}
+    const grupo=String(tarea.assignment_group?.name||porGrupo.get(String(tarea.assignment_group_id))||'').trim();
+    const clave=normName(nombre)+'|'+fecha+'|'+normName(grupo);
+    if(vistas.has(clave)){conteos.duplicadas++;continue;}
+    vistas.add(clave);
+    const puntuar=(t)=>{
+      const nombres=t.nota?[t.nota.nombre,nombreNotaCasilla(t.ramo,t.cat,t.nota)]:[t.cat.nombre];
+      const prefijos=nombres.flatMap(prefijosEvaluacionIcs);
+      const exacta=(pista)=>prefijosEvaluacionIcs(pista).some(p=>p.length>=2&&prefijos.includes(p));
+      if(exacta(nombre))return 3;
+      if(grupo&&exacta(grupo))return 2;
+      const tipos=nombres.map(tipoEvaluacionCanvas);
+      return tipos.includes(tipoEvaluacionCanvas(nombre))&&tipoEvaluacionCanvas(nombre)?1
+        :grupo&&tipos.includes(tipoEvaluacionCanvas(grupo))&&tipoEvaluacionCanvas(grupo)?1:0;
+    };
+    const candidatos=destinos.filter(t=>!usados.has(claveDestinoIcs(t))).map(t=>({t,p:puntuar(t)})).filter(x=>x.p>0)
+      .sort((a,b)=>b.p-a.p);
+    const target=candidatos.length?claveDestinoIcs(candidatos[0].t):null;
+    if(target)usados.add(target);else conteos.sinDestino++;
+    propuestas.push({titulo:nombre+' · '+ramo.nombre,fecha,ramoId:ramo.id,target,origen:'canvas'});
+  }
+  return {propuestas,conteos};
+}
+function fechasCanvas(tareas,ramo,ahora,grupos){return resumenFechasCanvas(tareas,ramo,ahora,grupos).propuestas;}
 function prepararImportacionIcs(text){
   const targets=destinosIcs();
-  return parseIcsCalendario(text).map(evento=>({...evento,target:coincidenciaIcs(evento,targets)}));
+  return parseIcsCalendario(text).map(evento=>{
+    const target=coincidenciaIcs(evento,targets);
+    return {...evento,target,ramoId:target?targets.find(t=>claveDestinoIcs(t)===target).ramo.id:null};
+  });
 }
 function aplicarPropuestasIcs(propuestas){
   const targets=new Map(destinosIcs().map(target=>[claveDestinoIcs(target),target]));
@@ -11154,21 +11213,27 @@ function leerArchivoIcs(event){
     renderRevisionIcs();
   }).catch(()=>showToast('No pudimos leer ese archivo',true));
 }
-function opcionesDestinoIcs(selected,used){
-  return ['<option value="">No importar</option>'].concat(destinosIcs().map(target=>{
+function opcionesRamoIcs(selected){
+  return '<option value="">Elegir ramo</option>'+(S.ramos||[]).map(r=>
+    '<option value="'+esc(r.id)+'"'+(r.id===selected?' selected':'')+'>'+esc(r.nombre)+'</option>').join('');
+}
+function opcionesDestinoIcs(selected,used,ramoId){
+  return ['<option value="">No importar</option>'].concat(destinosIcs().filter(t=>t.ramo.id===ramoId).map(target=>{
     const key=claveDestinoIcs(target);
     const disabled=used.has(key)&&key!==selected?' disabled':'';
-    return '<option value="'+esc(key)+'"'+(key===selected?' selected':'')+disabled+'>'+esc(etiquetaDestinoIcs(target))+'</option>';
+    return '<option value="'+esc(key)+'"'+(key===selected?' selected':'')+disabled+'>'+esc(target.nota?nombreNotaCasilla(target.ramo,target.cat,target.nota):target.cat.nombre)+'</option>';
   })).join('');
 }
 function renderRevisionIcs(){
   const used=new Set(icsImportDraft.map(item=>item.target).filter(Boolean));
   const rows=icsImportDraft.map((item,index)=>{
-    const estado=item.target?'Coincidencia propuesta':'Sin asignar';
+    const ramoId=item.ramoId||((destinosIcs().find(t=>claveDestinoIcs(t)===item.target)||{}).ramo||{}).id||null;
+    const estado=item.target?(item.origen==='canvas'?'Sugerencia de Canvas':'Coincidencia propuesta'):'Sin asignar';
     return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
       +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(fechaCorta(item.fecha))+'</span></div>'
       +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+estado+'</div>'
-      +'<div class="modal-input"><select aria-label="Asignar '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)">'+opcionesDestinoIcs(item.target,used)+'</select></div>'
+      +'<div class="modal-input"><label class="modal-label" for="ics-ramo-'+index+'">Ramo</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-ramo-'+index+'" data-ics-ramo aria-label="Ramo de '+esc(item.titulo)+'" onchange="asignarRamoIcs('+index+',this.value)">'+opcionesRamoIcs(ramoId)+'</select></div>'
+      +'<div class="modal-input"><label class="modal-label" for="ics-evaluacion-'+index+'">Evaluación</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-evaluacion-'+index+'" data-ics-evaluacion aria-label="Evaluación de '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)"'+(ramoId?'':' disabled')+'>'+opcionesDestinoIcs(item.target,used,ramoId)+'</select></div>'
       +'</div>';
   }).join('');
   document.getElementById('modal-content').innerHTML=[
@@ -11178,9 +11243,23 @@ function renderRevisionIcs(){
     '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">Agregar fechas elegidas</button></div>'
   ].join('');
 }
+function asignarRamoIcs(index,ramoId){
+  if(!Number.isInteger(index)||!icsImportDraft[index])return;
+  icsImportDraft[index].ramoId=(S.ramos||[]).some(r=>r.id===ramoId)?ramoId:null;
+  icsImportDraft[index].target=null;
+  const lista=document.getElementById('ics-revision-lista');const arriba=lista?lista.scrollTop:0;
+  renderRevisionIcs();
+  const nueva=document.getElementById('ics-revision-lista');if(nueva)nueva.scrollTop=arriba;
+  const select=nueva&&nueva.querySelectorAll('[data-ics-evaluacion]')[index];
+  if(select)select.focus({preventScroll:true});
+}
 function asignarDestinoIcs(index,target){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
-  icsImportDraft[index].target=target||null;
+  const encontrado=destinosIcs().find(t=>claveDestinoIcs(t)===target);
+  const ramoId=icsImportDraft[index].ramoId;
+  const valido=encontrado&&(!ramoId||encontrado.ramo.id===ramoId);
+  icsImportDraft[index].target=valido?target:null;
+  if(valido)icsImportDraft[index].ramoId=encontrado.ramo.id;
   // Se redibuja para deshabilitar el destino recién tomado en las demás filas;
   // sin esto la lista volvía arriba y el foco se perdía en cada elección.
   const lista=document.getElementById('ics-revision-lista');
@@ -11188,7 +11267,7 @@ function asignarDestinoIcs(index,target){
   renderRevisionIcs();
   const nueva=document.getElementById('ics-revision-lista');
   if(nueva)nueva.scrollTop=arriba;
-  const select=nueva&&nueva.querySelectorAll('select')[index];
+  const select=nueva&&nueva.querySelectorAll('[data-ics-evaluacion]')[index];
   if(select)select.focus({preventScroll:true});
 }
 function confirmarImportarCalendario(){

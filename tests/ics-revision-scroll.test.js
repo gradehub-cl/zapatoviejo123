@@ -9,8 +9,8 @@ function elemento(){return {innerHTML:'',textContent:'',value:'',dataset:{},styl
 const modal=elemento();
 Object.defineProperty(modal,'innerHTML',{set(){
   // Cada render crea una lista nueva arriba del todo, como el navegador.
-  const selects=Array.from({length:12},(_,i)=>({focus(o){enfocado={i,o};}}));
-  lista={scrollTop:0,querySelectorAll:()=>selects};
+  const selects=Array.from({length:12},(_,i)=>({focus(o){enfocado={i,tipo:'evaluacion',o};}}));
+  lista={scrollTop:0,querySelectorAll:selector=>selector==='[data-ics-evaluacion]'?selects:[]};
 },get(){return '';}});
 const ctx={console,window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})},
   document:{getElementById:id=>id==='modal-content'?modal:id==='ics-revision-lista'?lista:elemento(),
@@ -31,7 +31,7 @@ run(`S.ramos=[{id:'r1',nombre:'Ramo de prueba',categorias:[{id:'c1',nombre:'Prue
 lista.scrollTop=640;
 run(`asignarDestinoIcs(10,claveDestinoIcs(destinosIcs()[0]))`);
 chk('la lista queda donde estaba',lista.scrollTop===640);
-chk('el foco vuelve al mismo selector sin desplazar',!!enfocado&&enfocado.i===10&&enfocado.o&&enfocado.o.preventScroll===true);
+chk('el foco vuelve a la evaluación de la misma fila sin desplazar',!!enfocado&&enfocado.i===10&&enfocado.tipo==='evaluacion'&&enfocado.o&&enfocado.o.preventScroll===true);
 chk('la elección quedó guardada',run('icsImportDraft[10].target')===run('claveDestinoIcs(destinosIcs()[0])'));
 
 console.log(fallos?`\nFAIL: ${fallos}`:'\nRevisión de calendario OK');
