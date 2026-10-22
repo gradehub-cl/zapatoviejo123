@@ -3488,10 +3488,10 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
   }).join('');
   return `<details class="panel-alumnos-ramo" data-ramo="${esc(ramo.id)}"${abierto?' open':''}>
     <summary class="panel-alumnos-ramo-cabeza">
-      <span><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
-      <span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
-      ${sinSeccion?'<span class="panel-alumnos-gh">No disponible<small>sin sección</small></span>'
-        :comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,nombreComp==='GradeHub'?true:nombreComp)}
+      <span class="panel-alumnos-ramo-resumen"><span class="panel-alumnos-ramo-nombre"><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
+        <span class="panel-alumnos-ramo-cifras"><span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
+        ${sinSeccion?'<span class="panel-alumnos-gh">No disponible<small>sin sección</small></span>'
+          :comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,nombreComp==='GradeHub'?true:nombreComp)}</span></span>
     </summary>
     ${extra}
     ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
@@ -3734,10 +3734,10 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
     <p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
   </section>`;
 }
-// Una serie: la diferencia con el curso en cada evaluación comparable, en el
-// orden en que fueron. La línea del curso (0) va tenue y una marca dice cuándo
-// empezó. Si cada ramo empezó en otra fecha, una sola marca mentiría: las de
-// antes van huecas. Cada punto tiene un área de 12 px para mostrar su detalle.
+// Una serie: la diferencia con el curso en cada evaluación comparable. La
+// línea del curso (0) va tenue. Si los ramos empezaron en días distintos, cada
+// uno lleva su marca y su fecha en la leyenda; los puntos anteriores van huecos.
+// Cada punto tiene un área de 12 px para mostrar su detalle.
 function graficoAntesAhoraSVG(m){
   const pts=m.evaluaciones.filter(e=>e.curso!==null);
   if(pts.length<2)return '';
@@ -3748,13 +3748,23 @@ function graficoAntesAhoraSVG(m){
   // fecha, para que las líneas calcen en el tiempo.
   const ramos=[...new Set(pts.map(e=>e.ramoId??e.ramo))];
   const varios=ramos.length>1;
-  const t=f=>Date.parse(f+'T12:00:00Z'),t0=t(pts[0].fecha),t1=t(pts[pts.length-1].fecha);
-  const xs=pts.map((e,i)=>varios&&t1>t0?P+(t(e.fecha)-t0)/(t1-t0)*(W-2*P):P+i*(W-2*P)/(pts.length-1));
+  const inicios=ramos.map(clave=>{const e=pts.find(p=>(p.ramoId??p.ramo)===clave);return {nombre:e.ramo,fecha:e.inicio};});
+  const variosInicios=varios&&new Set(inicios.map(e=>e.fecha).filter(Boolean)).size>1;
+  const t=f=>Date.parse(f+'T12:00:00Z');
+  const fechasEje=variosInicios?pts.map(e=>e.fecha).concat(inicios.map(e=>e.fecha).filter(Boolean)):pts.map(e=>e.fecha);
+  const t0=Math.min(...fechasEje.map(t)),t1=Math.max(...fechasEje.map(t));
+  const xFecha=f=>P+(t(f)-t0)/(t1-t0)*(W-2*P);
+  const xs=pts.map((e,i)=>varios&&t1>t0?xFecha(e.fecha):P+i*(W-2*P)/(pts.length-1));
   const y=d=>H/2-(d/lim)*(H/2-P);
   const corte=pts.findIndex(e=>e.lado==='ahora');
-  const unCorte=corte<0||pts.slice(corte).every(e=>e.lado==='ahora');
+  const unCorte=!variosInicios&&(corte<0||pts.slice(corte).every(e=>e.lado==='ahora'));
   const xc=unCorte&&corte>0?((xs[corte-1]+xs[corte])/2).toFixed(1):null;
-  const marca=xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
+  const marcas=variosInicios?inicios.map((e,k)=>{
+    if(!e.fecha)return '';
+    const iguales=inicios.slice(0,k).filter(p=>p.fecha===e.fecha).length;
+    const x=Math.min(W-P,Math.max(P,xFecha(e.fecha)+iguales*3)).toFixed(1);
+    return `<line class="ah-marca-ramo ah-serie-${k%4}" x1="${x}" y1="4" x2="${x}" y2="${H-4}"/>`;
+  }).join(''):xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
   const series=ramos.map((clave,k)=>{
     const idx=pts.map((e,i)=>(e.ramoId??e.ramo)===clave?i:-1).filter(i=>i>=0);
     const linea=idx.map((i,j)=>`${j?'L':'M'}${xs[i].toFixed(1)} ${y(pts[i].nota-pts[i].curso).toFixed(1)}`).join(' ');
@@ -3762,10 +3772,11 @@ function graficoAntesAhoraSVG(m){
       return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
     return `<g class="ah-serie-${k%4}">${idx.length>1?`<path class="ah-linea" d="${linea}"/>`:''}${puntos}</g>`;
   }).join('');
-  const leyenda=varios?`<p class="ah-leyenda">${ramos.map((clave,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(pts.find(e=>(e.ramoId??e.ramo)===clave).ramo)}</span>`).join('')}</p>`:'';
-  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}`;
-  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marca}${series}</svg>
-    ${leyenda}<p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.${unCorte?'':' Empezó cada ramo en otra fecha: los puntos huecos son de antes.'}</p>`;
+  const inicioTexto=e=>e.fecha?` · desde el ${fechaCorta(e.fecha)}`:' · sin fecha de inicio';
+  const leyenda=varios?`<p class="ah-leyenda">${inicios.map((e,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(e.nombre)}${esc(inicioTexto(e))}</span>`).join('')}</p>`:'';
+  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}${varios?'; '+inicios.map(e=>e.nombre+inicioTexto(e)).join('; '):inicios[0].fecha?`; empezó el ${fechaCorta(inicios[0].fecha)}`:''}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${P}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/>${marcas}${series}</svg>
+    ${leyenda}<p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.${unCorte?'':' Los puntos huecos son de antes de empezar cada ramo.'}</p>`;
 }
 function antesAhoraAlumnoHTML(m,{sinSeccion=false}={}){
   if(!m||!m.evaluaciones.length)return '';
@@ -3903,7 +3914,7 @@ function alumnosPanelHTML(lista,compDe,ahora=new Date()){
   // otro va bien (o al revés).
   const texto=n=>n==='bad'?'Reprobando':n==='warn'?'Al borde':n==='good'?'Aprobando':'Sin notas';
   const chip=(n,contenido,aria)=>`<span class="panel-alumnos-fila-estado panel-resumen-sem ${n==='neutral'?'':`panel-resumen-${n}`}" aria-label="${aria}">${contenido}</span>`;
-  const estadoHTML=(nivel,porRamo)=>porRamo.length>1
+  const estadoHTML=(nivel,porRamo)=>porRamo.length
     ?`<span class="panel-alumnos-fila-estados">${porRamo.map(d=>chip(d.nivel,`${esc(d.nombre)} · ${texto(d.nivel)}`,`${esc(d.nombre)}: ${texto(d.nivel).toLowerCase()}`)).join('')}</span>`
     :chip(nivel,texto(nivel),`Estado: ${texto(nivel).toLowerCase()}`);
   return ordenados.map(({al,nivel,estados,proxima,exigente,porRamo})=>conUniversidadPanel(al.tenant,()=>`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>

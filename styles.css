@@ -3274,6 +3274,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .ah-grafico{display:block;width:100%;height:auto;margin-top:8px;overflow:visible;}
 .ah-cero{stroke:var(--border);stroke-width:1;}
 .ah-inicio{stroke:var(--fg3);stroke-width:1;stroke-dasharray:3 3;}
+.ah-marca-ramo{stroke:var(--serie,var(--fg));stroke-width:2;stroke-dasharray:3 3;}
 .ah-eje{fill:var(--fg3);font-size:11px;}
 .ah-linea{fill:none;stroke:var(--serie,var(--fg));stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
 .ah-punto{fill:var(--serie,var(--fg));stroke:var(--card);stroke-width:2;}
@@ -3319,9 +3320,12 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;}
 /* Plegable: la regla de la fila del alumno (.panel-alumnos-alumno summary) es
    más específica que la clase sola, así que esta la nombra entera. */
-.panel-alumnos-ramo>summary.panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:8px;min-height:44px;padding:0;cursor:pointer;list-style:none;}
+.panel-alumnos-ramo>summary.panel-alumnos-ramo-cabeza{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px;padding:0;cursor:pointer;list-style:none;}
 .panel-alumnos-fila-estados{display:flex;flex-wrap:wrap;gap:6px;}
-.panel-alumnos-ramo-cabeza > span:first-child{display:flex;flex-direction:column;min-width:0;}
+.panel-alumnos-ramo-resumen{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;min-width:0;}
+.panel-alumnos-ramo-nombre{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere;}
+.panel-alumnos-ramo-cifras{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;min-width:0;}
+.panel-alumnos-ramo-cifras .panel-alumnos-prom,.panel-alumnos-ramo-cifras .panel-alumnos-gh{align-items:flex-start;}
 .panel-alumnos-ramo-cabeza b{font-size:0.9375rem;color:var(--fg);}
 .panel-alumnos-ramo-cabeza small{font-size:0.75rem;color:var(--fg3);}
 .panel-alumnos-prom,.panel-alumnos-gh{display:flex;flex-direction:column;align-items:flex-end;font-variant-numeric:tabular-nums;font-weight:650;color:var(--fg);}
