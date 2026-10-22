@@ -443,7 +443,7 @@ function contexto({search='',sesion=false}={}){
   const mkSec=leer('marketplace.js');
   chk('por sección consulta con p_seccion y el resumen por ramo sigue contra todo GradeHub',
     /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
-    &&/exportarAlumnosPanel\(vista,compGeneral,compSeccion\)/.test(mkSec));
+    &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion\)/.test(mkSec));
 
   console.log('\n=== Un alumno con varios ramos (2026-10-21) ===');
   const fichaVarios=a.run(`alumnosPanelHTML([__dos],()=>null)`);
@@ -608,13 +608,86 @@ function contexto({search='',sesion=false}={}){
       supabaseClient={rpc:async nombre=>nombre==='codigo_alumnos_profesor'?{data:'AB3CDEFG',error:null}:{data:__alumnosVista,error:null}};`);
     await a.run('renderAlumnosProfesor(__raizVista)');
     const vista=a.run('__raizVista.innerHTML');
-    chk(`${n} alumnos: la lista y sus nombres aparecen antes de las cifras`,
-      vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Cómo van tus alumnos')&&
-      vista.indexOf('Alumno 1')<vista.indexOf('Cómo van tus alumnos'));
+    chk(`${n} alumnos: la lista compacta aparece primero y las cifras se cargan al abrir su vista`,
+      vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Alumno 1')&&
+      /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Cómo van tus alumnos/.test(vista));
+    chk(`${n} alumnos: vistas relacionadas sin poner Invitar en el control segmentado`,
+      /data-panel-vista="lista"/.test(vista)&&/data-panel-vista="grupo"/.test(vista)&&
+      (n>1)===/data-panel-vista="ramos"/.test(vista)&&
+      /id="alumnos-ir-invitar"/.test(vista)&&!/data-panel-vista="invitar"/.test(vista));
     chk(`${n} alumnos: un solo título Alumnos`,
       (vista.match(/<h1[^>]*>Alumnos<\/h1>/g)||[]).length===1&&
       !/<h2>Alumnos<\/h2>|Tus alumnos<\/h1>/.test(vista));
   }
+  const compacta=a.run(`alumnosPanelHTML([__antesAhora],__cursoAA,new Date(),{soloFilas:true})`);
+  chk('la fila compacta conserva estado y próxima evaluación sin construir tablas ni gráfico',
+    /data-ver-alumno="aa"/.test(compacta)&&/Cálculo II · /.test(compacta)
+    &&!/panel-alumnos-notas|ah-grafico|data-quitar-alumno|<details/.test(compacta));
+  a.run(`globalThis.__panelNodos={};
+    globalThis.__nodoPanel=()=>({hidden:false,innerHTML:'',textContent:'',value:'',dataset:{},handlers:{},
+      addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},
+      setAttribute(nombre,valor){this[nombre]=valor},focus(){this.enfocado=true}});
+    globalThis.__tabsPanel=['lista','grupo','ramos'].map(v=>({...__nodoPanel(),dataset:{panelVista:v}}));
+    globalThis.__compPanel=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
+    globalThis.__raizPanel={innerHTML:'',scrollIntoView(){},querySelector(sel){
+      if(!__panelNodos[sel])__panelNodos[sel]=__nodoPanel();
+      if(sel==='.panel-alumnos-vistas')__panelNodos[sel].querySelectorAll=()=>__tabsPanel;
+      if(sel==='.panel-alumnos-compara')__panelNodos[sel].querySelectorAll=()=>__compPanel;
+      return __panelNodos[sel];}};
+    globalThis.__muchos=Array.from({length:51},(_,i)=>({id:'p'+i,nombre_visible:'Persona '+(i+1),tenant:'uc',ramos:[]}));
+    supabaseClient={rpc:async nombre=>nombre==='codigo_alumnos_profesor'?{data:'AB3CDEFG',error:null}:{data:__muchos,error:null}};`);
+  await a.run('renderAlumnosProfesor(__raizPanel)');
+  const inicial51=a.run('__raizPanel.innerHTML');
+  chk('con 51 alumnos muestra 50 filas compactas y no precarga fichas ni resúmenes',
+    (inicial51.match(/data-ver-alumno="p\d+"/g)||[]).length===50
+    &&!/data-alumno="p\d+"|Cómo van tus alumnos|Resumen por ramo/.test(inicial51)
+    &&/id="alumnos-mas"/.test(inicial51));
+  a.run(`__panelNodos['#alumnos-mas'].handlers.click()`);
+  chk('Mostrar 50 más añade la fila 51 y luego se esconde',
+    (a.run(`__panelNodos['#alumnos-lista'].innerHTML`).match(/data-ver-alumno="p\d+"/g)||[]).length===51
+    &&a.run(`__panelNodos['#alumnos-mas'].hidden`)===true);
+  a.run(`__panelNodos['#alumnos-lista'].handlers.click({target:{closest:()=>({dataset:{verAlumno:'p50'},focus(){}})}})`);
+  chk('al abrir un alumno, la lista se oculta y solo se construye su ficha',
+    a.run(`__panelNodos['#alumnos-vista-lista'].hidden`)===true&&
+    a.run(`__panelNodos['#alumnos-vista-ficha'].hidden`)===false&&
+    a.run(`__panelNodos['#alumnos-ficha-titulo'].textContent`)==='Persona 51'&&
+    /data-quitar-alumno="p50"/.test(a.run(`__panelNodos['#alumnos-ficha-contenido'].innerHTML`)));
+  a.run(`__panelNodos['#alumnos-ficha-volver'].handlers.click()`);
+  chk('volver restaura la lista sin perder el tramo mostrado',
+    a.run(`__panelNodos['#alumnos-vista-lista'].hidden`)===false&&
+    (a.run(`__panelNodos['#alumnos-lista'].innerHTML`).match(/data-ver-alumno="p\d+"/g)||[]).length===51);
+  a.run(`__tabsPanel[1].handlers.click()`);
+  chk('Cómo van se carga solo al abrir su vista',
+    a.run(`__panelNodos['#alumnos-vista-grupo'].hidden`)===false&&
+    /Cómo van tus alumnos/.test(a.run(`__panelNodos['#alumnos-vista-grupo'].innerHTML`)));
+  a.run(`__tabsPanel[2].handlers.click()`);
+  chk('Por ramo muestra su resumen sin cambiar la comparación del grupo',
+    a.run(`__panelNodos['#alumnos-vista-ramos'].hidden`)===false&&
+    /Resumen por ramo/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
+    a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true);
+  a.run(`__panelNodos['#alumnos-ir-invitar'].handlers.click()`);
+  chk('Invitar abre el link en su propia vista y ofrece volver',
+    a.run(`__panelNodos['#alumnos-vista-invitar'].hidden`)===false&&
+    a.run(`__panelNodos['.panel-alumnos-vistas'].hidden`)===true&&
+    /id="alumnos-compartir"/.test(inicial51));
+  a.run(`__panelNodos['#alumnos-invitacion-volver'].handlers.click()`);
+  a.run(`__panelNodos['#alumnos-buscar'].value='Persona 51';__panelNodos['#alumnos-buscar'].handlers.input()`);
+  chk('buscar filtra entre los 51 en el navegador y reinicia la paginación',
+    /data-ver-alumno="p50"/.test(a.run(`__panelNodos['#alumnos-lista'].innerHTML`))&&
+    (a.run(`__panelNodos['#alumnos-lista'].innerHTML`).match(/data-ver-alumno=/g)||[]).length===1&&
+    a.run(`__panelNodos['#alumnos-cuenta'].textContent`)==='1 de 51');
+  a.run(`__panelNodos['#alumnos-buscar'].value='';__panelNodos['#alumnos-buscar'].handlers.input();
+    showConfirm=(titulo,mensaje,accion)=>{globalThis.__mensajeExportar=mensaje;globalThis.__accionExportar=accion};
+    exportarAlumnosPanel=lista=>{globalThis.__exportados=lista.map(al=>al.id)};`);
+  const visiblesExportar=[...a.run(`__panelNodos['#alumnos-lista'].innerHTML`).matchAll(/data-ver-alumno="([^"]+)"/g)].map(x=>x[1]);
+  await a.run(`__panelNodos['#alumnos-exportar'].handlers.click()`);
+  a.run(`__accionExportar()`);
+  chk('el Excel contiene exactamente las 50 filas mostradas, en el mismo orden de prioridad',
+    visiblesExportar.length===50&&a.run('__exportados.join(",")')===visiblesExportar.join(',')&&
+    /50 alumnos/.test(a.run('__mensajeExportar')));
+  const pagina300=a.run(`alumnosPanelHTML(Array.from({length:300},(_,i)=>({id:'m'+i,nombre_visible:'Alumno '+i,tenant:'uc',ramos:[]})),()=>null,new Date(),{soloFilas:true,limite:50})`);
+  chk('con 300 alumnos el HTML inicial sigue limitado a 50 filas sin fichas completas',
+    (pagina300.match(/data-ver-alumno=/g)||[]).length===50&&!/<details|data-quitar-alumno/.test(pagina300));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[

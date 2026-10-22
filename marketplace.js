@@ -3904,12 +3904,22 @@ function proximaFilaAlumnoHTML(p,exigente){
   return `<span class="panel-alumnos-fila-proxima">Próxima: <b>${esc(p.evaluacion)}</b> · ${esc(p.ramo)} · ${esc(cuando)}</span>
     <span class="panel-alumnos-fila-meta">${esc(meta)}</span>`;
 }
-function alumnosPanelHTML(lista,compDe,ahora=new Date()){
-  const abierto=lista.length===1?' open':'';
-  const ordenados=lista.map(al=>datosFilaAlumnoPanel(al,ahora))
+function contenidoAlumnoPanelHTML(al,compDe,ahora){
+  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
+    ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+    <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>`;
+}
+function alumnosOrdenadosPanel(lista,ahora=new Date()){
+  return lista.map(al=>datosFilaAlumnoPanel(al,ahora))
     .sort((a,b)=>b.prioridad-a.prioridad||b.exigencia-a.exigencia||
       (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
       String(a.al.nombre_visible||'').localeCompare(String(b.al.nombre_visible||''),'es'));
+}
+// En la pantalla principal solo se generan filas compactas. La ficha completa
+// se construye para un alumno cuando el profesor la abre.
+function alumnosPanelHTML(lista,compDe,ahora=new Date(),{soloFilas=false,limite=Infinity}={}){
+  const abierto=lista.length===1?' open':'';
+  const ordenados=alumnosOrdenadosPanel(lista,ahora);
   // Con varios ramos, el estado de cada uno: el peor solo escondía que en el
   // otro va bien (o al revés).
   const texto=n=>n==='bad'?'Reprobando':n==='warn'?'Al borde':n==='good'?'Aprobando':'Sin notas';
@@ -3917,14 +3927,14 @@ function alumnosPanelHTML(lista,compDe,ahora=new Date()){
   const estadoHTML=(nivel,porRamo)=>porRamo.length
     ?`<span class="panel-alumnos-fila-estados">${porRamo.map(d=>chip(d.nivel,`${esc(d.nombre)} · ${texto(d.nivel)}`,`${esc(d.nombre)}: ${texto(d.nivel).toLowerCase()}`)).join('')}</span>`
     :chip(nivel,texto(nivel),`Estado: ${texto(nivel).toLowerCase()}`);
-  return ordenados.map(({al,nivel,estados,proxima,exigente,porRamo})=>conUniversidadPanel(al.tenant,()=>`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
-      <summary><span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
+  return ordenados.slice(0,limite).map(({al,nivel,proxima,exigente,porRamo})=>conUniversidadPanel(al.tenant,()=>{
+    const fila=`<span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
         ${estadoHTML(nivel,porRamo)}
-        ${proximaFilaAlumnoHTML(proxima,exigente)}</span></summary>
-      ${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
-      ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
-      <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>
-    </details>`)).join('');
+        ${proximaFilaAlumnoHTML(proxima,exigente)}</span>`;
+    return soloFilas?`<button type="button" data-ver-alumno="${esc(al.id)}" class="panel-alumnos-alumno panel-alumnos-fila-boton">${fila}<span class="panel-alumnos-abrir" aria-hidden="true">›</span></button>`
+      :`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
+      <summary>${fila}</summary>${contenidoAlumnoPanelHTML(al,compDe,ahora)}</details>`;
+  })).join('');
 }
 
 // Exportar: una fila por alumno, ramo y evaluación, armada en el navegador con
@@ -4010,7 +4020,8 @@ async function renderAlumnosTab(){
   }
   renderAlumnosProfesor(raiz);
 }
-async function renderAlumnosProfesor(raiz,{volver}={}){
+const ALUMNOS_POR_PAGINA=50;
+async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='lista'}={}){
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
   let codigo,alumnos;
@@ -4073,22 +4084,35 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
       <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
+  const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
+  const privacidad='<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>';
   raiz.innerHTML='<div class="profesor-hig">'+
     cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
-    `${alumnos.length?'':seccionLink}
-    <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>`+
-    // Con uno solo no hay nada que buscar.
-    (alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
-      aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:'')+
-    (alumnos.length?'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>':'')+
-    (alumnos.length?comparaPanelHTML(porSeccion):'')+
-    `<div id="alumnos-lista">${alumnos.length?alumnosPanelHTML(alumnos,compDe)
-      :'<p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>'}</div>`+
-    `<div id="alumnos-grupo">${grupoHTML(alumnos)}</div>`+
-    // El resumen junta alumnos de distintas secciones: siempre contra todo GradeHub.
-    (alumnos.length>1?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral)):'')+
-    '<p class="clase-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>'+
-    (alumnos.length?seccionLink:'')+
+    (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' dos-vistas'}" aria-label="Vistas de Alumnos">
+      <button type="button" data-panel-vista="lista" aria-pressed="true">Lista</button>
+      <button type="button" data-panel-vista="grupo" aria-pressed="false">Cómo van</button>
+      ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Por ramo</button>':''}
+    </nav><button type="button" class="agent-refresh panel-alumnos-ir-invitar" id="alumnos-ir-invitar">Invitar alumno</button>
+    <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
+    <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos">
+      <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
+      ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
+        aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
+      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar visibles a Excel</button>
+      <div id="alumnos-lista">${listaInicial}</div>
+      <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
+    </section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-grupo" hidden></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-ramos" hidden></section>
+    <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
+      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver">‹ Lista</button>
+      <h2 id="alumnos-ficha-titulo"></h2><div id="alumnos-ficha-contenido"></div>
+    </section>
+    <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
+      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver">‹ Lista</button>${seccionLink}
+    </section>${privacidad}`
+      :`${seccionLink}<div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta">0</span></div>
+        <p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>`)+
     (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
   const botonVolver=raiz.querySelector('#alumnos-volver');
   if(botonVolver)botonVolver.addEventListener('click',()=>volver());
@@ -4110,33 +4134,88 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     'El link actual deja de funcionar y tendrás que mandar el nuevo. Los alumnos que ya comparten contigo siguen igual.',async()=>{
       renovar.disabled=true;
       try{const {error}=await supabaseClient.rpc('codigo_alumnos_profesor',{p_renovar:true});if(error)throw error;
-        showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver});}
+        showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver,vistaInicial:alumnos.length?'invitar':'lista'});}
       catch(e){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}
     },{label:'Cambiar link',focusCancel:true}));
+  if(!alumnos.length){track('panel_alumnos_abierto',{alumnos:0});return;}
   const lista=raiz.querySelector('#alumnos-lista');
-  const enlazarQuitar=()=>lista.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
+  const ficha=raiz.querySelector('#alumnos-vista-ficha');
+  const fichaContenido=raiz.querySelector('#alumnos-ficha-contenido');
+  const paneles={lista:raiz.querySelector('#alumnos-vista-lista'),grupo:raiz.querySelector('#alumnos-vista-grupo'),
+    ramos:raiz.querySelector('#alumnos-vista-ramos'),ficha,invitar:raiz.querySelector('#alumnos-vista-invitar')};
+  const nav=raiz.querySelector('.panel-alumnos-vistas');
+  const invitar=raiz.querySelector('#alumnos-ir-invitar');
+  const comparaWrap=raiz.querySelector('#alumnos-compara-wrap');
+  const avisoPrivacidad=raiz.querySelector('#alumnos-privacidad');
+  let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='lista',seleccionado=null,botonOrigen=null;
+  const mas=raiz.querySelector('#alumnos-mas');
+  const pintarLista=()=>{
+    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe,new Date(),{soloFilas:true,limite:visibles})
+      :`<p class="profesor-hig-vacio">Nadie calza con «${esc(raiz.querySelector('#alumnos-buscar')?.value.trim()||'')}».</p>`;
+    mas.hidden=vista.length<=visibles;
+  };
+  const enlazarQuitar=()=>fichaContenido.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>showConfirm(`Quitar a ${b.dataset.nombre}`,
     'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
       b.disabled=true;
       try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
         showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
       catch(e){b.disabled=false;showToast('No pudimos quitarlo.',true);}
     },{label:'Quitar',focusCancel:true})));
-  enlazarQuitar();
-  const enlazarInicio=()=>lista.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
+  const enlazarInicio=()=>fichaContenido.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
     const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
     const r=al&&(al.ramos||[]).find(x=>x.id===b.dataset.inicioRamo);
-    if(r)abrirInicioRamo(al,r,()=>renderAlumnosProfesor(raiz,{volver}));
+    if(r)abrirInicioRamo(al,r,()=>renderAlumnosProfesor(raiz,{volver,alumnoId:al.id}));
   }));
-  enlazarInicio();
+  const pintarFicha=()=>{
+    if(!seleccionado)return;
+    raiz.querySelector('#alumnos-ficha-titulo').textContent=seleccionado.nombre_visible||'Alumno';
+    fichaContenido.innerHTML=conUniversidadPanel(seleccionado.tenant,()=>contenidoAlumnoPanelHTML(seleccionado,compDe,new Date()));
+    enlazarQuitar();enlazarInicio();
+  };
+  const activarVista=nombre=>{
+    vistaActiva=nombre;
+    Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
+    nav.hidden=nombre==='ficha'||nombre==='invitar';
+    invitar.hidden=nombre==='ficha'||nombre==='invitar';
+    comparaWrap.hidden=!['lista','grupo','ficha'].includes(nombre);
+    avisoPrivacidad.hidden=nombre==='invitar';
+    nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre)));
+    if(nombre==='grupo')paneles.grupo.innerHTML=grupoHTML(alumnos);
+    if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
+  };
+  const abrirFicha=(al,origen)=>{
+    seleccionado=al;botonOrigen=origen||null;pintarFicha();activarVista('ficha');
+    const regresar=raiz.querySelector('#alumnos-ficha-volver');
+    if(typeof regresar.focus==='function')regresar.focus();
+    if(typeof raiz.scrollIntoView==='function')raiz.scrollIntoView({block:'start'});
+  };
+  nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.addEventListener('click',()=>activarVista(b.dataset.panelVista)));
+  invitar.addEventListener('click',()=>{
+    activarVista('invitar');const compartir=raiz.querySelector('#alumnos-compartir');
+    if(typeof compartir.focus==='function')compartir.focus();
+  });
+  raiz.querySelector('#alumnos-invitacion-volver').addEventListener('click',()=>{
+    activarVista('lista');if(typeof invitar.focus==='function')invitar.focus();
+  });
+  raiz.querySelector('#alumnos-ficha-volver').addEventListener('click',()=>{
+    const id=seleccionado&&String(seleccionado.id);
+    activarVista('lista');seleccionado=null;
+    const fila=[...lista.querySelectorAll('[data-ver-alumno]')].find(b=>b.dataset.verAlumno===id);
+    const foco=fila||(botonOrigen?.isConnected!==false?botonOrigen:null)||raiz.querySelector('#alumnos-buscar')||invitar;
+    if(typeof foco.focus==='function')foco.focus();
+  });
+  lista.addEventListener('click',e=>{
+    const b=e.target.closest('[data-ver-alumno]');if(!b)return;
+    const al=vista.find(x=>String(x.id)===b.dataset.verAlumno);
+    if(al)abrirFicha(al,b);
+  });
+  mas.addEventListener('click',()=>{visibles+=ALUMNOS_POR_PAGINA;pintarLista();});
   // Se filtra en el navegador, con lo que el panel ya bajó.
   const buscar=raiz.querySelector('#alumnos-buscar');
-  let vista=alumnos;
   if(buscar)buscar.addEventListener('input',()=>{
-    const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);
+    const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);visibles=ALUMNOS_POR_PAGINA;
     raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
-    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe)
-      :`<p class="profesor-hig-vacio">Nadie calza con «${esc(texto.trim())}».</p>`;
-    enlazarQuitar();enlazarInicio();
+    pintarLista();
   });
   // Cambiar la comparación vuelve a pintar los alumnos y el grupo con lo ya bajado.
   const compara=raiz.querySelector('.panel-alumnos-compara');
@@ -4147,28 +4226,31 @@ async function renderAlumnosProfesor(raiz,{volver}={}){
     if(quiere)await cargarSecciones();
     porSeccion=quiere;guardarComparaSeccion(quiere);
     botones.forEach(x=>{x.disabled=false;x.setAttribute('aria-pressed',String((x.dataset.compara==='seccion')===porSeccion));});
-    // Las fichas abiertas siguen abiertas: cambiar la comparación no saca al profesor de donde estaba.
-    const abiertos=new Set([...lista.querySelectorAll('details[data-alumno][open]')].map(d=>d.dataset.alumno));
-    const deRamo=d=>(d.closest('[data-alumno]')||{dataset:{}}).dataset.alumno+'|'+d.dataset.ramo;
-    const ramos=new Map([...lista.querySelectorAll('details[data-ramo]')].map(d=>[deRamo(d),d.open]));
-    if(vista.length){lista.innerHTML=alumnosPanelHTML(vista,compDe);enlazarQuitar();enlazarInicio();
-      lista.querySelectorAll('details[data-alumno]').forEach(d=>{if(abiertos.has(d.dataset.alumno))d.open=true;});
-      lista.querySelectorAll('details[data-ramo]').forEach(d=>{const k=deRamo(d);if(ramos.has(k))d.open=ramos.get(k);});}
-    const grupo=raiz.querySelector('#alumnos-grupo');if(grupo)grupo.innerHTML=grupoHTML(alumnos);
+    pintarLista();
+    if(vistaActiva==='ficha'){
+      const abiertos=new Map([...fichaContenido.querySelectorAll('details[data-ramo]')].map(d=>[d.dataset.ramo,d.open]));
+      pintarFicha();fichaContenido.querySelectorAll('details[data-ramo]').forEach(d=>{
+        if(abiertos.has(d.dataset.ramo))d.open=abiertos.get(d.dataset.ramo);
+      });
+    }
+    if(vistaActiva==='grupo')paneles.grupo.innerHTML=grupoHTML(alumnos);
     track('panel_alumnos_compara',{seccion:quiere});
   }));
-  // Exporta lo que se ve: con una búsqueda escrita, solo esos. Antes, el
-  // recordatorio de lo que el profesor aceptó en los términos.
+  if(alumnoId){const al=alumnos.find(x=>String(x.id)===String(alumnoId));if(al)abrirFicha(al);}
+  else if(vistaInicial==='invitar')activarVista('invitar');
+  // Exporta solo las filas visibles, respetando la búsqueda y la paginación.
+  // Antes de crear el archivo, recuerda lo que el profesor aceptó en los términos.
   const exportar=raiz.querySelector('#alumnos-exportar');
   if(exportar)exportar.addEventListener('click',async()=>{
-    if(!vista.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
+    const paraExportar=alumnosOrdenadosPanel(vista).slice(0,visibles).map(({al})=>al);
+    if(!paraExportar.length){showToast('No hay alumnos visibles para exportar.',true);return;}
     // Las columnas de sección van siempre. Se bajan antes del diálogo: el toque
     // en «Exportar» es el que deja abrir la hoja de compartir del iPhone.
     exportar.disabled=true;await cargarSecciones();exportar.disabled=false;
-    const n=vista.length;
+    const n=paraExportar.length;
     showConfirm('Exportar notas',
       `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
-      ()=>exportarAlumnosPanel(vista,compGeneral,compSeccion),{label:'Exportar',danger:false});
+      ()=>exportarAlumnosPanel(paraExportar,compGeneral,compSeccion),{label:'Exportar',danger:false});
   });
   track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
