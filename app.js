@@ -2635,6 +2635,28 @@ function recalcularNavTabs(){
 let currentTab='home';
 let currentTabIdx=1;
 
+// ─── VISTAS DE CLASES Y ALUMNOS EN LA BARRA (Lucas, 2026-10-22) ──────────────
+// En pantalla ancha, Clases y Alumnos son grupos de la barra lateral, como en
+// Supabase: tocar el grupo abre su Resumen y despliega sus secciones; tocar una
+// sección abre esa vista. En el celular la barra de abajo no se despliega
+// (HIG: Tab bars) y las mismas vistas están en el control de cada pantalla.
+// Cada panel, al pintarse, deja acá cómo cambiar de vista sin recargar.
+const vistasPanelNav={};
+const vistaPendienteNav={};
+// La vista que pidió la barra, una sola vez: el panel la toma al pintarse.
+function tomarVistaNav(tab){const v=vistaPendienteNav[tab];delete vistaPendienteNav[tab];return v||null;}
+function marcarVistaNav(tab,vista){
+  if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
+  document.querySelectorAll(`[data-nav-vista^="${tab}:"]`).forEach(b=>{
+    if(b.dataset.navVista===`${tab}:${vista}`)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+  });
+}
+function irAVistaNav(tab,vista='resumen'){
+  if(currentTab===tab&&typeof vistasPanelNav[tab]==='function'){vistasPanelNav[tab](vista);return;}
+  vistaPendienteNav[tab]=vista;
+  showTab(tab);
+}
+
 function setTabTransforms(idx, dragPx){
   const drag=dragPx||0;
   NAV_TABS.forEach((tab,i)=>{
@@ -2657,6 +2679,13 @@ function showTab(tab,skipAnim){
     currentTab=tab;currentTabIdx=NAV_TABS.indexOf(tab);
     setTabTransforms(currentTabIdx,0);
     const nb=document.getElementById('nav-'+tab);if(nb){nb.classList.add('active');nb.setAttribute('aria-current','page');}
+    // aria-expanded solo con barra lateral: abajo no hay nada que desplegar.
+    const conRiel=typeof matchMedia==='function'&&matchMedia('(min-width:1024px)').matches;
+    if(typeof document.querySelectorAll==='function')document.querySelectorAll('[data-nav-grupo]').forEach(g=>{
+      const abierto=g.dataset.navGrupo===tab;g.hidden=!abierto;
+      const dueño=document.getElementById('nav-'+g.dataset.navGrupo);
+      if(dueño){if(conRiel)dueño.setAttribute('aria-expanded',String(abierto));else dueño.removeAttribute('aria-expanded');}
+    });
     // Refresca la tab visible (por si cambiaron datos)
     if(tab==='home')renderHome();
     else if(tab==='stats')renderStats();

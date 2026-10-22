@@ -1861,6 +1861,9 @@ function seccionPanelClases(titulo,lista,pesos,ahora,vacio){
     ${lista.length?`<div class="clase-lista">${lista.map(a=>filaProfesorClaseHTML(a,pesos,ahora)).join('')}</div>`:`<p class="clase-sin-datos">${vacio}</p>`}</section>`;
 }
 
+// La vista de Clases que estaba abierta: repintar tras pausar o retomar un
+// anuncio no devuelve al Resumen.
+let vistaClasesActual=null;
 async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const pesos=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
   anuncios=await Promise.all(anuncios.map(async a=>{
@@ -1887,12 +1890,40 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   // grande, la acción principal queda arriba. Abierto como hoja, conserva su
   // título, que la hoja necesita.
   const crearAnuncio='<button type="button" class="btn-confirm" id="clase-nueva">Crear anuncio</button>';
+  // Resumen, Anuncios y Perfil (Lucas, 2026-10-22). En pantalla ancha están en
+  // la barra lateral y el control de abajo se oculta. El Resumen dice primero
+  // lo que pide algo del profesor.
+  const enHoja=raiz.id==='modal-content';
+  const enDias=f=>f?Math.ceil((new Date(f).getTime()-ahora)/86400000):null;
+  const porVencer=g.activos.filter(a=>{const d=enDias(a.vence_at);return d!==null&&d>=0&&d<=3;});
+  const devueltos=g.borradores.filter(a=>a.comentario_revision);
+  const pendientesHTML=[
+    ...devueltos.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Te lo devolvimos con un comentario</small></span><button type="button" class="agent-refresh" data-editar="${esc(a.id)}">Revisar</button></li>`),
+    ...g.revision.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>En revisión: te avisamos cuando se publique</small></span></li>`),
+    ...porVencer.map(a=>{const d=enDias(a.vence_at);return `<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Su campaña termina ${d===0?'hoy':d===1?'mañana':`en ${d} días`}</small></span></li>`;}),
+  ].join('');
   raiz.innerHTML='<div class="profesor-hig">'+
-    (raiz.id==='modal-content'
+    (enHoja
       ?cabeceraProfesorHTML('Tu conocimiento puede ayudar.','Este es tu espacio para publicar clases y ver cómo les va.',crearAnuncio,'modal-titulo')
       :`<div class="profesor-hig-accion">${crearAnuncio}</div>`)+
-    `<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
-      <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>
+    `<nav class="panel-alumnos-vistas tres-vistas" aria-label="Vistas de Clases">
+      <button type="button" data-clases-vista="resumen" aria-pressed="true">Resumen</button>
+      <button type="button" data-clases-vista="anuncios" aria-pressed="false">Anuncios</button>
+      <button type="button" data-clases-vista="perfil" aria-pressed="false">Perfil</button>
+    </nav>
+    <section class="panel-alumnos-vista" data-clases-panel="resumen" aria-label="Resumen de tus clases">
+      <div class="profesor-hig-lista-cabeza"><h2>Pendiente</h2></div>
+      ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:'<p class="profesor-hig-vacio">Nada pendiente de tu parte.</p>'}`+
+    (anuncios.length?'':`<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
+      <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>`)+
+    `<details class="clases-resumen profesor-hig-resumen" open><summary id="clases-resumen-titulo">Tus clases activas</summary>
+       <div id="clases-kpis">${g.activos.length?'<p class="clase-sin-datos">Cargando números…</p>'
+         :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'
+           :g.revision.length?'Cuando aprobemos tu clase, acá vas a ver a cuántas personas llega, cuántas te contactan y cuánto va costando.'
+           :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
+       <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
+     </details></section>
+    <section class="panel-alumnos-vista" data-clases-panel="anuncios" aria-label="Tus anuncios" hidden>
     <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
     (anuncios.length?'':'<p class="profesor-hig-vacio">Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.</p>')+
     seccionPanelClases('Publicadas',g.activos,pesos,ahora)+
@@ -1902,15 +1933,19 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     (g.borradores.some(a=>a.comentario_revision_error)?'<p class="clase-sin-datos" role="alert">No pudimos cargar los comentarios de revisión. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>':'')+
     seccionPanelClases('Pausadas y terminadas',g.cerrados,pesos,ahora)+
     seccionPanelClases('Estado sin confirmar',g.sinConfirmar,pesos,ahora)+
-    `<details class="clases-resumen profesor-hig-resumen"><summary id="clases-resumen-titulo">Resumen de tus clases activas</summary>
-       <div id="clases-kpis">${g.activos.length?'<p class="clase-sin-datos">Cargando números…</p>'
-         :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'
-           :g.revision.length?'Cuando aprobemos tu clase, acá vas a ver a cuántas personas llega, cuántas te contactan y cuánto va costando.'
-           :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
-       <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
-     </details>`+
-    '<section class="clases-seccion"><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
+    '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
     salida()+'</div>';
+  // Cambiar de vista no vuelve a pedir nada: las tres ya están pintadas.
+  const activarVistaClases=v=>{
+    if(!['resumen','anuncios','perfil'].includes(v))v='resumen';
+    vistaClasesActual=v;
+    raiz.querySelectorAll('[data-clases-panel]').forEach(p=>{p.hidden=p.dataset.clasesPanel!==v;});
+    raiz.querySelectorAll('[data-clases-vista]').forEach(b=>{if(typeof b.setAttribute==='function')b.setAttribute('aria-pressed',String(b.dataset.clasesVista===v));});
+    if(!enHoja&&typeof marcarVistaNav==='function')marcarVistaNav('profesor',v);
+  };
+  raiz.querySelectorAll('[data-clases-vista]').forEach(b=>b.addEventListener('click',()=>activarVistaClases(b.dataset.clasesVista)));
+  if(!enHoja&&typeof vistasPanelNav!=='undefined')vistasPanelNav.profesor=v=>{if(raiz.isConnected!==false)activarVistaClases(v);};
+  activarVistaClases(enHoja?'resumen':((typeof tomarVistaNav==='function'&&tomarVistaNav('profesor'))||vistaClasesActual||'resumen'));
   // Al cambiar el estado se vuelve a pedir la lista: el estado, los números y
   // los botones de cada tarjeta dependen de él, y repintar a mano lo que uno
   // cree que cambió es la forma de que una tarjeta quede mintiendo.
@@ -3608,7 +3643,7 @@ function resumenAlumnosPanelHTML(resumen){
     </details>`;
   })).join('');
   return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Resumen por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
+    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Tus alumnos por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
     ${ramos}
     <p class="clase-privacidad">“Tus alumnos” es el promedio simple entre los alumnos con nota. Si van sobre o bajo GradeHub no dice por qué: también cuentan el profesor de cátedra, la sección y lo que cada uno estudia.</p>
   </section>`;
@@ -3749,7 +3784,7 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   ].join('');
   const prom=v=>v===null?'—':esc(fmt(v));
   return `<section class="ah-grupo" aria-labelledby="ah-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Cómo van tus alumnos</h2></div>
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Antes y desde que empezaron contigo</h2></div>
     <div class="ah-cifras">${cifras}</div>
     <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
     <p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p>
@@ -3924,6 +3959,46 @@ function proximaFilaAlumnoHTML(p,exigente){
   }
   return `<span class="panel-alumnos-fila-proxima">Próxima: <b>${esc(p.evaluacion)}</b> · ${esc(p.ramo)} · ${esc(cuando)}</span>
     <span class="panel-alumnos-fila-meta">${esc(meta)}</span>`;
+}
+// ─── RESUMEN DE ALUMNOS (Lucas, 2026-10-22) ──────────────────────────────────
+// La vista con la que abre Alumnos: a quién atender y quién rinde esta semana.
+// Sale de lo que el panel ya bajó; no consulta nada nuevo.
+const DIAS_SEMANA_PANEL=7,MAX_FILAS_RESUMEN_PANEL=10;
+function resumenInicioAlumnosPanel(alumnos,ahora=new Date()){
+  const dia=d=>{const x=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+d);return isoOf(x.getFullYear(),x.getMonth(),x.getDate());};
+  const hoy=dia(0),limite=dia(DIAS_SEMANA_PANEL);
+  const diasA=f=>Math.round((new Date(f+'T12:00:00')-new Date(hoy+'T12:00:00'))/86400000);
+  const semana=[];
+  (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,()=>{
+    let eventos=[];try{eventos=agendaEvents((al.ramos||[]).map(ramoParaPanel));}catch(e){}
+    eventos.filter(e=>e.pending&&e.fecha>=hoy&&e.fecha<=limite).forEach(e=>semana.push({al,fecha:e.fecha,hora:e.hora||null,
+      dias:diasA(e.fecha),evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,ramo:e.ramo.nombre}));
+  }));
+  // Hoy y mañana primero, como en la Agenda (#814); después por fecha y hora.
+  const cuando=x=>`${x.fecha}T${x.hora||''}`;
+  semana.sort((a,b)=>cuando(a).localeCompare(cuando(b))||String(a.al.nombre_visible).localeCompare(String(b.al.nombre_visible),'es'));
+  const filas=alumnosOrdenadosPanel(alumnos||[],ahora);
+  const atencion=filas.map(f=>({al:f.al,ramos:(f.porRamo||[]).filter(d=>d.nivel==='bad'||d.nivel==='warn'),exigente:f.exigente}))
+    .filter(f=>f.ramos.length);
+  const contar=n=>filas.filter(f=>(f.porRamo||[]).some(d=>d.nivel===n)).length;
+  return {semana,atencion,conectados:(alumnos||[]).length,reprobando:contar('bad'),alBorde:contar('warn')};
+}
+function resumenInicioAlumnosHTML(r){
+  const texto=n=>n==='bad'?'Reprobando':'Al borde';
+  const cifra=(valor,etiqueta)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span></div>`;
+  const cuando=x=>(typeof cuandoTexto==='function'?cuandoTexto(x.dias):fechaCorta(x.fecha))+(x.dias>1?` · ${fechaCorta(x.fecha)}`:'')+(x.hora?` · ${x.hora}`:'');
+  const mas=(n,vista)=>n>MAX_FILAS_RESUMEN_PANEL?`<button type="button" class="agent-refresh" data-ir-vista="${vista}">Ver ${n-MAX_FILAS_RESUMEN_PANEL} más en la lista</button>`:'';
+  const semana=r.semana.length?`<ul class="panel-resumen-filas">${r.semana.slice(0,MAX_FILAS_RESUMEN_PANEL).map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
+      <span><b>${esc(x.al.nombre_visible)}</b><small>${esc(x.evaluacion)} · ${esc(x.ramo)}</small></span>
+      <span class="panel-resumen-cuando${x.dias<=1?' pronto':''}">${esc(cuando(x))}</span></button></li>`).join('')}</ul>${mas(r.semana.length,'lista')}`
+    :'<p class="profesor-hig-vacio">Nadie de tus alumnos tiene evaluaciones en los próximos 7 días.</p>';
+  const atencion=r.atencion.length?`<ul class="panel-resumen-filas">${r.atencion.slice(0,MAX_FILAS_RESUMEN_PANEL).map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
+      <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>`).join('')}</span></span>
+      ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando">${x.exigente.necesita>7.05?'No alcanza':'Necesita '+esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
+    :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
+  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Conectados')}${cifra(r.semana.length,'Evaluaciones esta semana')}${cifra(r.reprobando,'Reprobando algún ramo')}${cifra(r.alBorde,'Al borde en algún ramo')}</div>
+    <section aria-labelledby="resumen-semana"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>${semana}</section>
+    <section aria-labelledby="resumen-atencion"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>${atencion}</section>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
   return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
@@ -4152,7 +4227,9 @@ async function ejemploAlumnosDeCuenta(){
 }
 const ALUMNOS_POR_PAGINA=50;
 let versionPanelAlumnos=0;
-async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='lista'}={}){
+async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=null}={}){
+  // La vista que pidió la barra lateral manda; si no, la que se indicó; si no, el Resumen.
+  vistaInicial=(typeof tomarVistaNav==='function'&&tomarVistaNav('alumnos'))||vistaInicial||'resumen';
   const usuario=currentUser,cliente=supabaseClient,version=++versionPanelAlumnos;
   const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAlumnos&&raiz.isConnected!==false;
   raiz.innerHTML='<div class="profesor-hig">'+
@@ -4237,25 +4314,30 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No son reales y nada de esto se guarda.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig">'+
     franjaEjemplo+
-    (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' dos-vistas'}" aria-label="Vistas de Alumnos">
-      <button type="button" data-panel-vista="lista" aria-pressed="true">Lista</button>
-      <button type="button" data-panel-vista="grupo" aria-pressed="false">Cómo van</button>
-      ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Por ramo</button>':''}
-    </nav><button type="button" class="agent-refresh panel-alumnos-ir-invitar" id="alumnos-ir-invitar">Invitar alumno</button>
-    <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
-    <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos">
+    // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla
+    // ancha las mismas vistas están en la barra lateral y este control se oculta.
+    (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' tres-vistas'}" aria-label="Vistas de Alumnos">
+      <button type="button" data-panel-vista="resumen" aria-pressed="true">Resumen</button>
+      <button type="button" data-panel-vista="lista" aria-pressed="false">Lista</button>
+      <button type="button" data-panel-vista="estadisticas" aria-pressed="false">Estadísticas</button>
+      ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Ramos</button>':''}
+    </nav>
+    <div id="alumnos-compara-ancla"><div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div></div>
+    <section class="panel-alumnos-vista" id="alumnos-vista-resumen" aria-label="Resumen de tus alumnos"></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos" hidden>
       <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
+      <button type="button" class="panel-alumnos-invitar" id="alumnos-ir-invitar">Invitar alumno</button>
       ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
       ${ejemplo?'':'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>'}
       <div id="alumnos-lista">${listaInicial}</div>
       <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
     </section>
-    <section class="panel-alumnos-vista" id="alumnos-vista-grupo" hidden></section>
-    <section class="panel-alumnos-vista" id="alumnos-vista-ramos" hidden></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-estadisticas" aria-label="Estadísticas de tus alumnos" hidden></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-ramos" aria-label="Ramos de tus alumnos" hidden></section>
     <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver">‹ Lista</button>
-      <h2 id="alumnos-ficha-titulo"></h2><div id="alumnos-ficha-contenido"></div>
+      <h2 id="alumnos-ficha-titulo"></h2><div id="alumnos-ficha-compara"></div><div id="alumnos-ficha-contenido"></div>
     </section>
     <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver">‹ Lista</button>${seccionLink}
@@ -4295,13 +4377,14 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   const lista=raiz.querySelector('#alumnos-lista');
   const ficha=raiz.querySelector('#alumnos-vista-ficha');
   const fichaContenido=raiz.querySelector('#alumnos-ficha-contenido');
-  const paneles={lista:raiz.querySelector('#alumnos-vista-lista'),grupo:raiz.querySelector('#alumnos-vista-grupo'),
+  const paneles={resumen:raiz.querySelector('#alumnos-vista-resumen'),lista:raiz.querySelector('#alumnos-vista-lista'),
+    estadisticas:raiz.querySelector('#alumnos-vista-estadisticas'),
     ramos:raiz.querySelector('#alumnos-vista-ramos'),ficha,invitar:raiz.querySelector('#alumnos-vista-invitar')};
   const nav=raiz.querySelector('.panel-alumnos-vistas');
   const invitar=raiz.querySelector('#alumnos-ir-invitar');
   const comparaWrap=raiz.querySelector('#alumnos-compara-wrap');
   const avisoPrivacidad=raiz.querySelector('#alumnos-privacidad');
-  let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='lista',seleccionado=null,botonOrigen=null;
+  let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
   const pintarLista=()=>{
     lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe,new Date(),{soloFilas:true,limite:visibles})
@@ -4314,7 +4397,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
       b.disabled=true;
       try{const {error}=await rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
         if(!vigente())return;
-        showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
+        showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver,vistaInicial:'lista'});}
       catch(e){if(vigente()){b.disabled=false;showToast('No pudimos quitarlo.',true);}}
     },{label:'Quitar',focusCancel:true});}));
   const enlazarInicio=()=>fichaContenido.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
@@ -4329,18 +4412,26 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     fichaContenido.innerHTML=conUniversidadPanel(seleccionado.tenant,()=>contenidoAlumnoPanelHTML(seleccionado,compDe,new Date()));
     enlazarQuitar();enlazarInicio();
   };
+  const anclaCompara=raiz.querySelector('#alumnos-compara-ancla'),fichaCompara=raiz.querySelector('#alumnos-ficha-compara');
   const activarVista=nombre=>{
     if(!vigente())return;
+    if(!paneles[nombre]||(nombre==='ramos'&&alumnos.length<2))nombre='resumen';
     vistaActiva=nombre;
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
-    invitar.hidden=nombre==='ficha'||nombre==='invitar';
-    comparaWrap.hidden=!['lista','grupo','ficha'].includes(nombre);
-    avisoPrivacidad.hidden=nombre==='invitar';
+    // La comparación solo cambia las cifras de Estadísticas y de la ficha. En
+    // la ficha va bajo «‹ Lista» y el nombre: el regreso, arriba y primero.
+    comparaWrap.hidden=!['estadisticas','ficha'].includes(nombre);
+    const destino=nombre==='ficha'?fichaCompara:anclaCompara;
+    if(destino&&typeof destino.appendChild==='function'&&comparaWrap.parentNode&&comparaWrap.parentNode!==destino)destino.appendChild(comparaWrap);
+    avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre)));
-    if(nombre==='grupo')paneles.grupo.innerHTML=grupoHTML(alumnos);
+    if(nombre==='resumen')paneles.resumen.innerHTML=resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(alumnos));
+    if(nombre==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
     if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
+    if(typeof marcarVistaNav==='function')marcarVistaNav('alumnos',nombre==='ficha'||nombre==='invitar'?'lista':nombre);
   };
+  if(typeof vistasPanelNav!=='undefined')vistasPanelNav.alumnos=v=>{if(vigente())activarVista(v);};
   const abrirFicha=(al,origen)=>{
     if(!vigente())return;
     seleccionado=al;botonOrigen=origen||null;pintarFicha();activarVista('ficha');
@@ -4365,6 +4456,14 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     const fila=[...lista.querySelectorAll('[data-ver-alumno]')].find(b=>b.dataset.verAlumno===id);
     const foco=fila||(botonOrigen?.isConnected!==false?botonOrigen:null)||raiz.querySelector('#alumnos-buscar')||invitar;
     if(typeof foco.focus==='function')foco.focus();
+  });
+  // El Resumen abre la ficha de quien se toque, o lleva a la lista completa.
+  paneles.resumen.addEventListener('click',e=>{
+    if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
+    const ir=e.target.closest('[data-ir-vista]');if(ir){activarVista(ir.dataset.irVista);return;}
+    const b=e.target.closest('[data-ver-alumno]');if(!b)return;
+    const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
+    if(al)abrirFicha(al,b);
   });
   lista.addEventListener('click',e=>{
     if(!vigente())return;
@@ -4399,11 +4498,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
         if(abiertos.has(d.dataset.ramo))d.open=abiertos.get(d.dataset.ramo);
       });
     }
-    if(vistaActiva==='grupo')paneles.grupo.innerHTML=grupoHTML(alumnos);
+    if(vistaActiva==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
     track('panel_alumnos_compara',{seccion:quiere});
   }));
-  if(alumnoId){const al=alumnos.find(x=>String(x.id)===String(alumnoId));if(al)abrirFicha(al);}
-  else if(vistaInicial==='invitar')activarVista('invitar');
+  const fichaInicial=alumnoId&&alumnos.find(x=>String(x.id)===String(alumnoId));
+  if(fichaInicial)abrirFicha(fichaInicial);else activarVista(vistaInicial);
   // Exporta todos los que calzan con la búsqueda, en el orden de la lista: el
   // "Mostrar 50 más" es para no pintar 300 filas, no para recortar la planilla
   // (Salva Ramos pidió el desglose de todos sus alumnos). Antes de crear el

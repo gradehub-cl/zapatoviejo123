@@ -14,6 +14,10 @@ ctx.root=root();
 (async()=>{
  await run("renderPanelProfesor(root,anuncios,{cabecera:()=>'',salida:()=>''})");
  assert.match(ctx.root.innerHTML,/profesor-hig-fila/);assert.match(ctx.root.innerHTML,/Crear anuncio/);
+ // Resumen, Anuncios y Perfil (Lucas, 2026-10-22): el Resumen dice primero lo pendiente.
+ for(const v of ['resumen','anuncios','perfil'])assert.match(ctx.root.innerHTML,new RegExp(`data-clases-vista="${v}"`));
+ assert(ctx.root.innerHTML.indexOf('data-clases-panel="resumen"')<ctx.root.innerHTML.indexOf('data-clases-panel="anuncios"'));
+ assert.match(ctx.root.innerHTML,/<h2>Pendiente<\/h2>/);
  assert.match(ctx.root.innerHTML,/Clase &lt;sintética&gt;/);assert.doesNotMatch(ctx.root.innerHTML,/<sintética>|piloto|no se cobra|bin\//);
  assert.match(ctx.root.innerHTML,/data-pausar="aaaaaaaa/);assert.match(ctx.root.innerHTML,/data-retomar="bbbbbbbb/);assert.match(ctx.root.innerHTML,/data-editar="cccccccc/);
  assert.match(ctx.root.innerHTML,/data-retomar="dddddddd/);assert.doesNotMatch(ctx.root.innerHTML,/data-pausar="dddddddd/);
