@@ -682,12 +682,70 @@ function contexto({search='',sesion=false}={}){
   const visiblesExportar=[...a.run(`__panelNodos['#alumnos-lista'].innerHTML`).matchAll(/data-ver-alumno="([^"]+)"/g)].map(x=>x[1]);
   await a.run(`__panelNodos['#alumnos-exportar'].handlers.click()`);
   a.run(`__accionExportar()`);
-  chk('el Excel contiene exactamente las 50 filas mostradas, en el mismo orden de prioridad',
-    visiblesExportar.length===50&&a.run('__exportados.join(",")')===visiblesExportar.join(',')&&
-    /50 alumnos/.test(a.run('__mensajeExportar')));
+  // La paginación es de la pantalla, no del archivo: con 51 alumnos y 50
+  // filas pintadas, el Excel trae a los 51, partiendo en el orden de la lista.
+  chk('el Excel trae a todos los que calzan con la búsqueda, en el orden de la lista',
+    visiblesExportar.length===50&&a.run('__exportados.length')===51&&
+    a.run('__exportados.slice(0,50).join(",")')===visiblesExportar.join(',')&&
+    /51 alumnos/.test(a.run('__mensajeExportar')));
+  a.run(`__panelNodos['#alumnos-buscar'].value='Persona 51';__panelNodos['#alumnos-buscar'].handlers.input()`);
+  await a.run(`__panelNodos['#alumnos-exportar'].handlers.click()`);
+  a.run(`__accionExportar()`);
+  chk('con una búsqueda escrita, solo los que calzan',a.run('__exportados.join(",")')==='p50'&&/1 alumno/.test(a.run('__mensajeExportar')));
+  a.run(`__panelNodos['#alumnos-buscar'].value='';__panelNodos['#alumnos-buscar'].handlers.input()`);
   const pagina300=a.run(`alumnosPanelHTML(Array.from({length:300},(_,i)=>({id:'m'+i,nombre_visible:'Alumno '+i,tenant:'uc',ramos:[]})),()=>null,new Date(),{soloFilas:true,limite:50})`);
   chk('con 300 alumnos el HTML inicial sigue limitado a 50 filas sin fichas completas',
     (pagina300.match(/data-ver-alumno=/g)||[]).length===50&&!/<details|data-quitar-alumno/.test(pagina300));
+
+  console.log('\n=== Cambio de cuenta durante la carga del panel ===');
+  const cambio=contexto({sesion:true});
+  cambio.run(`S.tipoCuenta='profesor';S.onboardingDone=true;
+    globalThis.__raizSesion={innerHTML:'',isConnected:true,querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
+    globalThis.__resolverAlumnos=null;
+    supabaseClient={rpc:nombre=>nombre==='codigo_alumnos_profesor'
+      ?Promise.resolve({data:'AB3CDEFG',error:null})
+      :new Promise(resolve=>{__resolverAlumnos=resolve})};
+    currentUser={id:'profesor-uno'};
+    globalThis.__cargaSesion=renderAlumnosProfesor(__raizSesion);`);
+  cambio.run(`currentUser={id:'profesor-dos'};
+    __raizSesion.innerHTML='<p>Panel de la cuenta nueva</p>';
+    __resolverAlumnos({data:[{id:'alumno-anterior',nombre_visible:'Alumno anterior',tenant:'uc',ramos:[]}],error:null});`);
+  await cambio.run('__cargaSesion');
+  chk('una respuesta del profesor anterior no pinta sus alumnos en la cuenta nueva',
+    cambio.run('__raizSesion.innerHTML')==='<p>Panel de la cuenta nueva</p>');
+  const comparacion=contexto({sesion:true});
+  comparacion.run(`S.tipoCuenta='profesor';S.onboardingDone=true;
+    globalThis.__raizComparacion={innerHTML:'',isConnected:true,querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
+    globalThis.__resolverComparacion=null;
+    currentUser={id:'profesor-uno'};
+    supabaseClient={rpc:nombre=>nombre==='codigo_alumnos_profesor'
+      ?Promise.resolve({data:'AB3CDEFG',error:null})
+      :nombre==='mis_alumnos'
+        ?Promise.resolve({data:[{id:'alumno-anterior',nombre_visible:'Alumno anterior',tenant:'uc',
+          ramos:[{id:'ramo',nombre:'Cálculo',sigla:'MAT100',categorias:[]}]}],error:null})
+        :new Promise(resolve=>{__resolverComparacion=resolve})};
+    globalThis.__cargaComparacion=renderAlumnosProfesor(__raizComparacion);`);
+  await Promise.resolve();await Promise.resolve();
+  chk('el panel pide la comparación solo tras recibir los ramos',
+    comparacion.run('typeof __resolverComparacion')==='function');
+  comparacion.run(`currentUser={id:'profesor-dos'};
+    __raizComparacion.innerHTML='<p>Panel de la cuenta nueva</p>';
+    __resolverComparacion({data:null,error:null});`);
+  await comparacion.run('__cargaComparacion');
+  chk('una comparación tardía tampoco restaura alumnos de otra sesión',
+    comparacion.run('__raizComparacion.innerHTML')==='<p>Panel de la cuenta nueva</p>');
+  const perfil=contexto({sesion:true});
+  perfil.run(`S.tipoCuenta='profesor';currentUser={id:'profesor-uno'};
+    globalThis.__resolverPerfil=null;globalThis.__panelAbierto=0;
+    perfilProfesorConocido=()=>undefined;
+    cargarPerfilProfesor=()=>new Promise(resolve=>{__resolverPerfil=resolve});
+    esProfesorAprobado=()=>true;
+    renderAlumnosProfesor=()=>{__panelAbierto++};
+    globalThis.__cargaPerfil=renderAlumnosTab();
+    currentUser={id:'profesor-dos'};__resolverPerfil();`);
+  await perfil.run('__cargaPerfil');
+  chk('una ficha de profesor tardía no abre Alumnos después de cambiar de cuenta',
+    perfil.run('__panelAbierto')===0);
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
