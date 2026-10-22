@@ -4108,7 +4108,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
       <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
       ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
-      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar visibles a Excel</button>
+      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
       <div id="alumnos-lista">${listaInicial}</div>
       <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
     </section>
@@ -4265,13 +4265,15 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   }));
   if(alumnoId){const al=alumnos.find(x=>String(x.id)===String(alumnoId));if(al)abrirFicha(al);}
   else if(vistaInicial==='invitar')activarVista('invitar');
-  // Exporta solo las filas visibles, respetando la búsqueda y la paginación.
-  // Antes de crear el archivo, recuerda lo que el profesor aceptó en los términos.
+  // Exporta todos los que calzan con la búsqueda, en el orden de la lista: el
+  // "Mostrar 50 más" es para no pintar 300 filas, no para recortar la planilla
+  // (Salva Ramos pidió el desglose de todos sus alumnos). Antes de crear el
+  // archivo, recuerda lo que el profesor aceptó en los términos.
   const exportar=raiz.querySelector('#alumnos-exportar');
   if(exportar)exportar.addEventListener('click',async()=>{
     if(!vigente())return;
-    const paraExportar=alumnosOrdenadosPanel(vista).slice(0,visibles).map(({al})=>al);
-    if(!paraExportar.length){showToast('No hay alumnos visibles para exportar.',true);return;}
+    const paraExportar=alumnosOrdenadosPanel(vista).map(({al})=>al);
+    if(!paraExportar.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
     // Las columnas de sección van siempre. Se bajan antes del diálogo: el toque
     // en «Exportar» es el que deja abrir la hoja de compartir del iPhone.
     exportar.disabled=true;await cargarSecciones();
