@@ -11288,6 +11288,8 @@ function cuandoTexto(dias){
 // pinta UNA vez por ramo, en su primera aparición (ver renderAgenda): antes
 // solo lo tenían las filas, y un ramo en riesgo que estaba en prioridades lo
 // decía en gris mientras otro lo decía en rojo.
+// Bajo este porcentaje del ramo, una evaluación «pesa poco» (Lucas, 2026-10-22).
+const EVALUACION_PESA_POCO=10;
 function alertaRamoAgendaHTML(e){
   const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>';
   const caja=(tono,texto)=>`<div class="ag-alert ${tono}">${icono}${texto}</div>`;
@@ -11311,17 +11313,23 @@ function alertaRamoAgendaHTML(e){
   if(peso===null||!(pendiente>0))return caja(tono,urgente
     ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
     :`Es importante: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
-  const pesaMucho=peso/100>=pendiente/3-1e-9;
-  if(!pesaMucho)return caja(tono,urgente
-    ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
-    :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+  // Reglas de Lucas (2026-10-22), con el ramo bajo 4,0:
+  // 1. Si esta evaluación sola te puede dejar en 4,0, se dice la nota X que
+  //    lo logra, pese lo que pese.
+  // 2. Si no, y vale menos del 10% del RAMO, «pesa poco» y se habla de N.
+  //    Antes se comparaba con un tercio de lo que quedaba por rendir, y a un
+  //    20% con 70% por rendir le decía «pesa poco» (reporte de un usuario).
   const ir=notaParaIrConCuatro(e);
   if(ir&&ir.nota)return caja(tono,urgente
     ?`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`
     :`Es importante: si sacas un ${ir.nota}, estarás aprobando el ramo.`);
+  if(peso<EVALUACION_PESA_POCO)return caja(tono,urgente
+    ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+  // 3. Vale 10% o más y sola no alcanza: lo mismo que «pesa poco», sin decirlo (Lucas, 2026-10-22).
   return caja(tono,urgente
-    ?`Es urgente: con esta evaluación sola no alcanzas a quedar aprobando; necesitas un ${N} en lo pendiente para aprobar el ramo.`
-    :`Es importante: con esta evaluación sola no alcanzas a quedar aprobando, pero con un ${N} en lo pendiente apruebas el ramo.`);
+    ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Una buena nota en esta evaluación te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
 }
 function agendaItemHTML(e){
   const f=formatEventDate(e.fecha);
