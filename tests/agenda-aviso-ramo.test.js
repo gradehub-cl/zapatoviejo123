@@ -70,7 +70,10 @@ assert.match(h,/Es urgente: necesitas un 5\.9 para ir aprobando el ramo\./,'sobr
 // eso no es urgencia: se dice que pesa poco y cuánto necesita en lo pendiente.
 const bloque=n=>(new RegExp(`ag-(?:priority|row)-name">${n}<([\\s\\S]*?)(?=ag-(?:priority|row)-name"|$)`).exec(h)||[])[1]||'';
 assert.equal(de('Quiz F').aviso,'warn','importante, no urgente');
-assert.match(bloque('Quiz F'),/Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un 4\.3 en lo pendiente para aprobar el ramo\./);
+assert.match(bloque('Quiz F'),/Esta evaluación vale 5% y aún queda 50% por rendir: con un 4\.3 en lo pendiente apruebas el ramo\./);
+// Reporte de un usuario (2026-10-22): «pesa poco» en algo de 20%. Es relativo a
+// lo pendiente, así que se dicen los números y nunca «pesa poco».
+assert.doesNotMatch(h,/pesa poco/,'nunca dice «pesa poco»: depende de cuánto queda');
 // G2 pesa 15 de 40 pendientes (≥ un tercio), pero quedar en 4,0 tras ella pide
 // 7,75: no alcanza sola. N = (3,95 − 1,8) / 0,4 = 5,4: urgente.
 assert.equal(de('Prueba G2').aviso,'bad');
@@ -83,4 +86,13 @@ run('agendaOrdenActual="recomendado";renderAgenda()');
 const tarjetas=[...stub.innerHTML.matchAll(/ag-priority-name">([^<]*)</g)].map(x=>x[1]);
 assert.ok(!tarjetas.includes('Control D'),'el control de mañana del ramo imposible no es prioridad: '+tarjetas.join(', '));
 assert.match(stub.innerHTML,/Control D/,'pero sigue en la Agenda');
+// El caso reportado: una prueba de 20% con 70% por rendir (20 < 70/3), en un
+// ramo que va con 3,7 en el 30% rendido. Antes decía «pesa poco».
+const aviso20=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso,fecha,notas});
+  const ramo={id:'r20',nombre:'Ramo sintético',sigla:'TST200',gates:[],categorias:[
+    cat('k1','Prueba 1',30,[{id:'n1',nombre:'Prueba 1',valor:3.7}],'2026-09-20'),
+    cat('k2','Prueba 2',20,[],'2026-10-22'),cat('k3','Examen',50,[],'2026-11-28')]};
+  const e=withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2'));return alertaRamoAgendaHTML(e);})()`);
+assert.match(aviso20,/Esta evaluación vale 20% y aún queda 70% por rendir: con un 4\.1 en lo pendiente apruebas el ramo\./);
+assert.doesNotMatch(aviso20,/pesa poco/);
 console.log('OK: avisos con urgencia sin alarma, una vez por ramo, y Recomendado no prioriza lo imposible');

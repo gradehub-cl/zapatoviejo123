@@ -3971,7 +3971,7 @@ function datosFilaAlumnoPanel(al,ahora=new Date()){
         const peso=pesoEventoAgenda(evento);
         proxima={ramo:evento.ramo.nombre,evaluacion:(evento.nota&&evento.nota.nombre)||evento.cat.nombre,
           fecha:evento.fecha,hora:evento.hora||null,avg:d?d.avg:null,necesita:d?d.necesita:null,cuatro,
-          pesaPoco:peso===null||!(pendiente>0)||peso/100<pendiente/3-1e-9};
+          pesaPoco:peso===null||!(pendiente>0)||peso/100<pendiente/3-1e-9,peso,pendiente};
       }
     }catch(e){}
     return {al,nivel,estados,prioridad,exigencia,exigente,proxima,porRamo:datos.map(d=>({nombre:d.ramo.nombre,nivel:d.nivel}))};
@@ -3989,8 +3989,11 @@ function proximaFilaAlumnoHTML(p,exigente){
     if(p.necesita!==null&&p.necesita>7.05)meta='Con lo pendiente no alcanza para aprobar';
     else if(p.necesita!==null){
       meta=`Para aprobar: ${nfNecesaria(p.necesita).replace('.',',')} en lo pendiente`;
+      // Igual que la Agenda: no «pesa poco», sino cuánto vale y cuánto queda.
+      const valeYQueda=p.peso!=null&&p.pendiente>0
+        ?` · esta vale ${String(r2(p.peso)).replace('.',',')}% y quedan ${String(r2(p.pendiente*100)).replace('.',',')}% por rendir`:'';
       if(p.cuatro.nota)meta+=p.pesaPoco
-        ?` · esta evaluación pesa poco`:` · ${p.cuatro.nota.replace('.',',')} en esta para ir con 4`;
+        ?valeYQueda:` · ${p.cuatro.nota.replace('.',',')} en esta para ir con 4`;
       else if(p.cuatro.inalcanzable)meta+=' · con esta sola no alcanza';
     }else if(p.cuatro.nota)meta=`${p.cuatro.nota.replace('.',',')} en esta evaluación para ir con 4`;
     else meta='Aún no se puede calcular cuánto necesita';

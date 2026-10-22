@@ -592,6 +592,9 @@ function contexto({search='',sesion=false}={}){
   chk('un quiz liviano no parece más grave por pedir mucho en esa sola nota',
     quizLiviano.proxima.pesaPoco&&Number(quizLiviano.proxima.cuatro.nota)>6&&
     quizLiviano.proxima.necesita<5&&quizLiviano.prioridad<urgente.prioridad);
+  // Como en la Agenda: no «pesa poco» (es relativo a lo que queda), sino cuánto vale y cuánto queda.
+  const metaQuiz=riesgo.run(`proximaFilaAlumnoHTML(datosFilaAlumnoPanel(__quizAlumno,__hoyRiesgo).proxima,null)`);
+  chk('la fila dice cuánto vale y cuánto queda, nunca «pesa poco»',/esta vale 5% y quedan 25% por rendir/.test(metaQuiz)&&!/pesa poco/.test(metaQuiz));
   const uniRiesgo=riesgo.run(`(S.tenant='uc',datosFilaAlumnoPanel({id:'ua',nombre_visible:'UAndes',tenant:'uandes',ramos:[
     {id:'ua1',nombre:'Ramo sintético',gates:[],categorias:[
       {id:'u1',nombre:'Prueba 1',peso:50,notas:[{id:'un1',nombre:'Prueba 1',valor:3.892}]},

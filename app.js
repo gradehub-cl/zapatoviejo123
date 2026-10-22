@@ -11312,9 +11312,14 @@ function alertaRamoAgendaHTML(e){
     ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
     :`Es importante: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
   const pesaMucho=peso/100>=pendiente/3-1e-9;
+  // Bajo un tercio de lo pendiente se habla de N, no de la nota en esta. Pero
+  // no se dice «pesa poco»: es relativo, y un 20% con 70% por rendir lo leía
+  // como que el 20% no importa (reporte de un usuario, 2026-10-22). Se dicen
+  // los dos números.
+  const vale=`${r2(peso)}%`,queda=`${r2(pendiente*100)}%`;
   if(!pesaMucho)return caja(tono,urgente
-    ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
-    :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+    ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo. Esta evaluación vale ${vale} y aún queda ${queda} por rendir.`
+    :`Esta evaluación vale ${vale} y aún queda ${queda} por rendir: con un ${N} en lo pendiente apruebas el ramo.`);
   const ir=notaParaIrConCuatro(e);
   if(ir&&ir.nota)return caja(tono,urgente
     ?`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`
