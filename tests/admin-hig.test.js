@@ -2,9 +2,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 // DOM mínimo para ejecutar handlers sobre el HTML generado.
 class Nodo{
   constructor(tag='div',attrs={},parent=null){this.tag=tag;this.attrs=attrs;this.parent=parent;this.children=[];this.listeners={};this.value=attrs.value||'';this.checked=false;this.validity={badInput:false};this.hidden='hidden'in attrs;this.isConnected=true;this.dataset={};for(const[k,v]of Object.entries(attrs))if(k.startsWith('data-'))this.dataset[k.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=v;}
-  matches(s){if(s[0]==='['){const m=s.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/);return !!m&&m[1]in this.attrs&&(m[2]===undefined||this.attrs[m[1]]===m[2]);}return s[0]==='#'?this.attrs.id===s.slice(1):s[0]==='.'?(this.attrs.class||'').split(' ').includes(s.slice(1)):this.tag===s;}
-  querySelectorAll(s){return this.children.flatMap(c=>[...(c.matches(s)?[c]:[]),...c.querySelectorAll(s)]);}
+  matches(s){if(s[0]==='['){const m=s.match(/^\[([^=\]]+)(?:=(?:"([^"]*)"|([^\]]+)))?\]$/);return !!m&&m[1]in this.attrs&&(m[2]===undefined&&m[3]===undefined||this.attrs[m[1]]===(m[2]??m[3]));}return s[0]==='#'?this.attrs.id===s.slice(1):s[0]==='.'?(this.attrs.class||'').split(' ').includes(s.slice(1)):this.tag===s;}
+  querySelectorAll(s){const partes=s.trim().split(/\s+/);if(partes.length>1)return this.querySelectorAll(partes[0]).flatMap(n=>n.querySelectorAll(partes.slice(1).join(' ')));return this.children.flatMap(c=>[...(c.matches(s)?[c]:[]),...c.querySelectorAll(s)]);}
   querySelector(s){return this.querySelectorAll(s)[0]||null;}
+  get elements(){const campos={};for(const n of [...this.querySelectorAll('input'),...this.querySelectorAll('select'),...this.querySelectorAll('textarea')])if(n.attrs.name)campos[n.attrs.name]=n;return campos;}
   closest(s){return this.matches(s)?this:this.parent?.closest(s);}
   setAttribute(k,v){this.attrs[k]=v;}
   addEventListener(k,f){this.listeners[k]=f;}
@@ -27,18 +28,19 @@ const profesores=[{user_id:'p1',nombre:'Docente sintético',estado:'aprobado',an
   descripcion:'Apoyo <concreto> en el ramo',tenant:'uc',contacto_tipo:'whatsapp',contacto_valor:'+56 9 1234 5678',
   configuracion_campana:{dias:10,inicio:null,tope_clp:12000},criterios:{promedioMenorA:5,avanceMinimo:20}}]}];
 let panelActual=profesores;
-const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},profesores,root,
+const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUser:{id:'admin-sintetico'},TENANTS:{uc:{label:'UC'}},profesores,root,
  esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])),
  document:{getElementById:()=>root},renderPuertaDosPasos:async(_r,{alPasar})=>{if(pasar)await alPasar();},
  showToast:(text,error)=>toasts.push({text,error}),showConfirm:(_t,_d,fn)=>{confirmacion=fn();},
  supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(modo==='throw')throw Error('red caída');if(modo==='denegado')return {error:{code:'42501',message:'sin acceso'}};
-  const datos={admin_panel_clases:panelActual,crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
+  if(n==='admin_encuestas'&&modo==='encuestas-sin-sql')return {error:{code:'PGRST202'}};
+  const datos={admin_panel_clases:panelActual,admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
    totales_metricas_anuncio:[{vista:'total',clave:'',tipo:'impresion',eventos:18}]};
   return {data:modo==='false'?false:n in datos?datos[n]:true,error:null};}}};
 vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'));
 (async()=>{
- await run('renderAdmin()');assert.equal(calls.length,0,'Sin MFA no pide el panel');
+ await run('renderAdmin()');assert.equal(calls.length,0,'Sin MFA no pide el panel');assert.equal(root.querySelectorAll('[data-admin-area]').length,0);
  pasar=true;await run('renderAdmin()');assert.match(root.innerHTML,/admin-hig-fila/);assert.match(root.innerHTML,/Clase &lt;sintética&gt;/);
  assert.doesNotMatch(root.innerHTML,/piloto|lo que costaría|data-aprobar|bin\//);
  const areas=root.querySelectorAll('[data-admin-area]');
@@ -63,8 +65,13 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert(area('estadisticas').querySelector('#admin-crecimiento-titulo'),'muestra el crecimiento real de la página');
  areas[3].listeners.click();
  assert.equal(area('usuarios').hidden,false);
- assert.match(root.innerHTML,/Las encuestas todavía no están disponibles/);
- assert.equal(calls.length,rpcsAntesDeNavegar,'cambiar subpestañas no consulta ni escribe datos');
+ await new Promise(setImmediate);
+ assert(area('usuarios').querySelector('.encuesta-crear'),'Usuarios permite crear encuestas');
+ assert.deepEqual(calls.slice(rpcsAntesDeNavegar).map(c=>c.n),['admin_encuestas'],'solo Usuarios consulta sus datos al abrir');
+ modo='encuestas-sin-sql';area('usuarios').querySelector('[data-encuestas-actualizar]').listeners.click();
+ await new Promise(setImmediate);
+ assert.match(root.querySelector('#admin-encuestas-contenido').html,/Encuestas todavía no disponibles/,'sin SQL la sección explica el estado');
+ modo='ok';
  areas[1].listeners.click();
  assert.equal(root.querySelectorAll('[data-admin-estadisticas]').length,3);
  const ver=root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1');

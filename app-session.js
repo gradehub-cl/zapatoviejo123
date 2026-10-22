@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-10-18';
+const LEGAL_ACCEPTANCE_VERSION = '2026-10-22';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -368,6 +368,7 @@ function enterApp(){
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.remove('active');
   showMainApp();
+  if(typeof consultarEncuestaAlEntrar==='function')consultarEncuestaAlEntrar().catch(()=>{});
 }
 
 function traduceAuthError(e,contexto){
@@ -887,6 +888,7 @@ async function importarCacheSinDueno(uid){
 async function afterSignup(){
   track('signup',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
   const uid=currentUser?.id;
+  if(typeof marcarPrimeraSesionEncuesta==='function')marcarPrimeraSesionEncuesta(uid);
   const aislamiento=uid&&aislarCacheEnRegistro(uid);
   if(!aislamiento){
     try{await supabaseClient.auth.signOut();}catch(e){}
@@ -1537,6 +1539,7 @@ async function boot(){
     // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
     // el usuario abre el link del correo de "olvidé mi contraseña".
     supabaseClient.auth.onAuthStateChange((event, session)=>{
+      if(typeof sesionEncuestasCambio==='function')sesionEncuestasCambio(event,session?.user?.id);
       // Otra pestaña puede salir o cambiar de cuenta, y una sesión puede vencer.
       // Se reinicia la visita para cancelar también las lecturas de la cuenta
       // anterior. La copia local se conserva; no se borra una edición sin subir.
