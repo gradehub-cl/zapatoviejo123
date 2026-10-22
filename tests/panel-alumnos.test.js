@@ -599,9 +599,10 @@ function contexto({search='',sesion=false}={}){
   chk('el semáforo aplica el redondeo del alumno UAndes',uniRiesgo.nivel==='warn'&&riesgo.run('S.tenant')==='uc');
   console.log('\n=== Jerarquía del panel a 1, 4 y 6 alumnos ===');
   const pantallaAlumnos=leer('index.html').split('id="screen-alumnos"')[1].split('id="screen-admin"')[0];
-  chk('la barra lleva la marca y deja Alumnos como único título principal',
-    /class="brand-word"[^>]*>GradeHub<\/span>/.test(pantallaAlumnos)&&
-    !/class="brand-word"[^>]*>Alumnos<\/span>/.test(pantallaAlumnos));
+  // El título de la pantalla va en la barra, como en iOS, y es el encabezado
+  // de la página (Lucas, 2026-10-22: el título grande no iba con nada).
+  chk('la barra dice Alumnos y es el único título principal',
+    /<h1 class="brand-word"[^>]*>Alumnos<\/h1>/.test(pantallaAlumnos)&&!/>GradeHub</.test(pantallaAlumnos));
   for(const n of [1,4,6]){
     a.run(`globalThis.__alumnosVista=Array.from({length:${n}},(_,i)=>({id:'a'+i,nombre_visible:'Alumno '+(i+1),tenant:'uc',ramos:[]}));
       globalThis.__raizVista={innerHTML:'',querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
@@ -615,9 +616,8 @@ function contexto({search='',sesion=false}={}){
       /data-panel-vista="lista"/.test(vista)&&/data-panel-vista="grupo"/.test(vista)&&
       (n>1)===/data-panel-vista="ramos"/.test(vista)&&
       /id="alumnos-ir-invitar"/.test(vista)&&!/data-panel-vista="invitar"/.test(vista));
-    chk(`${n} alumnos: un solo título Alumnos`,
-      (vista.match(/<h1[^>]*>Alumnos<\/h1>/g)||[]).length===1&&
-      !/<h2>Alumnos<\/h2>|Tus alumnos<\/h1>/.test(vista));
+    chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
+      !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));
   }
   const compacta=a.run(`alumnosPanelHTML([__antesAhora],__cursoAA,new Date(),{soloFilas:true})`);
   chk('la fila compacta conserva estado y próxima evaluación sin construir tablas ni gráfico',

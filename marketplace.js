@@ -3001,7 +3001,9 @@ function crecimientoAdminHTML(semanas){
 function panelAdminHigHTML(profesores,ahora,crecimiento=[]){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
-  return `<div class="admin-hig"><header class="admin-hig-cabecera"><p class="admin-hig-ceja">ADMINISTRACIÓN · CLASES PARTICULARES</p><h1>Todo en orden.</h1><p>Revisa anuncios, acompaña a los profesores y lleva los cobros al día.</p></header>
+  // Sin cabecera propia: «Administración» va en la barra (Lucas, 2026-10-22).
+  // Decía «Todo en orden.» aunque hubiera anuncios esperando revisión.
+  return `<div class="admin-hig">
     <div class="admin-hig-resumen" aria-label="Resumen de administración">
     ${kpi('Visibles ahora',filas.filter(f=>f.estado[1]==='publicado').length,'Publicadas y bajo su tope')}
     ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
@@ -4030,7 +4032,7 @@ async function renderAlumnosTab(){
     if(perfilProfesorConocido()===undefined)await cargarPerfilProfesor().catch(()=>{});
     if(currentUser!==usuario||version!==versionTabAlumnos)return;
     if(!esProfesorAprobado()){
-      raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','')+
+      raiz.innerHTML='<div class="profesor-hig">'+
         '<p class="profesor-info" role="status">Cuando aprobemos tu postulación, acá vas a ver las notas que tus alumnos decidan compartirte.</p></div>';
       return;
     }
@@ -4148,7 +4150,7 @@ let versionPanelAlumnos=0;
 async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='lista'}={}){
   const usuario=currentUser,cliente=supabaseClient,version=++versionPanelAlumnos;
   const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAlumnos&&raiz.isConnected!==false;
-  raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
+  raiz.innerHTML='<div class="profesor-hig">'+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
   // Con alumnos de ejemplo, lo de los alumnos se responde en memoria. El link
   // de invitación y su renovación siguen siendo los reales del profesor.
@@ -4167,7 +4169,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     codigo=c.data;alumnos=Array.isArray(a.data)?a.data:[];
   }catch(e){
     if(!vigente())return;
-    raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','')+
+    raiz.innerHTML='<div class="profesor-hig">'+
       '<p class="profesor-info" role="alert">No pudimos cargar tus alumnos. Vuelve a intentarlo en un rato.</p>'+
       `<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
     // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
@@ -4229,7 +4231,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   // alumnos con los suyos.
   const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No son reales y nada de esto se guarda.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+franjaEjemplo+
+    franjaEjemplo+
     (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' dos-vistas'}" aria-label="Vistas de Alumnos">
       <button type="button" data-panel-vista="lista" aria-pressed="true">Lista</button>
       <button type="button" data-panel-vista="grupo" aria-pressed="false">Cómo van</button>
