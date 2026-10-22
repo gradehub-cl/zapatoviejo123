@@ -603,6 +603,7 @@ function contexto({search='',sesion=false}={}){
   // de la página (Lucas, 2026-10-22: el título grande no iba con nada).
   chk('la barra dice Alumnos y es el único título principal',
     /<h1 class="brand-word"[^>]*>Alumnos<\/h1>/.test(pantallaAlumnos)&&!/>GradeHub</.test(pantallaAlumnos));
+  a.run('globalThis.__matchMediaPanel=window.matchMedia;window.matchMedia=()=>({matches:false,addEventListener(){},addListener(){}})');
   for(const n of [1,4,6]){
     a.run(`globalThis.__alumnosVista=Array.from({length:${n}},(_,i)=>({id:'a'+i,nombre_visible:'Alumno '+(i+1),tenant:'uc',ramos:[]}));
       globalThis.__raizVista={innerHTML:'',querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
@@ -612,13 +613,16 @@ function contexto({search='',sesion=false}={}){
     chk(`${n} alumnos: la lista compacta aparece primero y las cifras se cargan al abrir su vista`,
       vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Alumno 1')&&
       /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Cómo van tus alumnos/.test(vista));
-    chk(`${n} alumnos: vistas relacionadas sin poner Invitar en el control segmentado`,
+    chk(`${n} alumnos: Lista y Cómo van siguen en el control segmentado`,
       /data-panel-vista="lista"/.test(vista)&&/data-panel-vista="grupo"/.test(vista)&&
-      (n>1)===/data-panel-vista="ramos"/.test(vista)&&
+      !/data-panel-vista="ramos"/.test(vista)&&
       /id="alumnos-ir-invitar"/.test(vista)&&!/data-panel-vista="invitar"/.test(vista));
+    chk(`${n} alumnos: móvil explica el resumen que vive en computador`,
+      (n>1)===/Resumen por ramo: disponible en el computador\./.test(vista));
     chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
       !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));
   }
+  a.run('window.matchMedia=__matchMediaPanel');
   const compacta=a.run(`alumnosPanelHTML([__antesAhora],__cursoAA,new Date(),{soloFilas:true})`);
   chk('la fila compacta conserva estado y próxima evaluación sin construir tablas ni gráfico',
     /data-ver-alumno="aa"/.test(compacta)&&/Cálculo II · /.test(compacta)
@@ -719,6 +723,13 @@ function contexto({search='',sesion=false}={}){
   const pagina300=a.run(`alumnosPanelHTML(Array.from({length:300},(_,i)=>({id:'m'+i,nombre_visible:'Alumno '+i,tenant:'uc',ramos:[]})),()=>null,new Date(),{soloFilas:true,limite:50})`);
   chk('con 300 alumnos el HTML inicial sigue limitado a 50 filas sin fichas completas',
     (pagina300.match(/data-ver-alumno=/g)||[]).length===50&&!/<details|data-quitar-alumno/.test(pagina300));
+  await a.run("renderAlumnosProfesor(__raizPanel,{vistaInicial:'grupo'})");
+  chk('el subítem Cómo van abre directamente su vista',
+    a.run("__panelNodos['#alumnos-vista-grupo'].hidden")===false);
+  await a.run("renderAlumnosProfesor(__raizPanel,{vistaInicial:'ramos'})");
+  chk('el subítem Por ramo abre directamente su resumen con varios alumnos',
+    a.run("__panelNodos['#alumnos-vista-ramos'].hidden")===false&&
+    /Resumen por ramo/.test(a.run("__panelNodos['#alumnos-vista-ramos'].innerHTML")));
 
   console.log('\n=== Cambio de cuenta durante la carga del panel ===');
   const cambio=contexto({sesion:true});
@@ -902,7 +913,7 @@ function contexto({search='',sesion=false}={}){
 
   console.log('\n=== El panel en su propia pestaña (#697) ===');
   const appSrc=leer('app.js'),htmlSrc=leer('index.html'),mkSrc=leer('marketplace.js');
-  chk('un profesor aprobado tiene Clases y Alumnos',/conProfesor\?\['profesor','alumnos'\]/.test(appSrc)&&/tab==='alumnos'[^\n]*renderAlumnosTab\(\)/.test(appSrc));
+  chk('un profesor aprobado tiene Clases y Alumnos',/conProfesor\?\['profesor','alumnos'\]/.test(appSrc)&&/tab==='alumnos'[^\n]*renderAlumnosTab\(/.test(appSrc));
   chk('la pestaña y su botón existen, ocultos hasta que corresponda',/id="screen-alumnos" class="screen" hidden/.test(htmlSrc)&&/id="nav-alumnos"[^>]*aria-label="Alumnos" hidden/.test(htmlSrc));
   chk('Clases ya no lleva la sección de alumnos',!/Ver mis alumnos/.test(mkSrc)&&!/clase-alumnos/.test(mkSrc));
   chk('en la pestaña no hay "Volver": si falla, se ofrece reintentar',/volver\?'Volver':'Reintentar'/.test(mkSrc));
