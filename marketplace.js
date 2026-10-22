@@ -4723,7 +4723,7 @@ function abrirHojaEncuesta(e){
     if(JSON.stringify(respuesta())===inicial){cerrarHojaEncuesta();return;}
     form.hidden=true;hoja.querySelector('.encuesta-confirmar').hidden=false;hoja.querySelector('[data-encuesta-seguir]').focus();
   };
-  hoja.querySelector('[data-encuesta-cerrar]').addEventListener('click',()=>cerrarHojaEncuesta());
+  hoja.querySelector('[data-encuesta-cerrar]').addEventListener('click',pedirCierre);
   hoja.querySelector('[data-encuesta-descartar]').addEventListener('click',()=>cerrarHojaEncuesta());
   hoja.querySelector('[data-encuesta-seguir]').addEventListener('click',()=>{form.hidden=false;hoja.querySelector('.encuesta-confirmar').hidden=true;enviar.focus();});
   encuestaCerrarTecla=event=>{

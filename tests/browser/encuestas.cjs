@@ -52,7 +52,8 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  await page.evaluate(()=>abrirMiEncuesta());await page.waitForSelector('#encuesta-hoja');
  await page.locator('[name=opcion][value="1"]').check();await page.keyboard.press('Escape');assert(await page.locator('.encuesta-confirmar').isVisible());
  await page.getByRole('button',{name:'Seguir respondiendo'}).click();assert(await page.locator('[name=opcion][value="1"]').isChecked());
- await page.getByRole('button',{name:'Ahora no',exact:true}).click();await page.waitForSelector('#encuesta-hoja',{state:'detached'});
+ await page.getByRole('button',{name:'Ahora no',exact:true}).click();assert(await page.locator('.encuesta-confirmar').isVisible());
+ await page.getByRole('button',{name:'Cerrar sin enviar'}).click();await page.waitForSelector('#encuesta-hoja',{state:'detached'});
  await page.evaluate(()=>abrirHojaEncuesta({...encuestaQA,tipo:'varias',respuesta:null}));
  await page.locator('[name=opcion][value="1"]').check();await page.locator('[name=opcion][value="2"]').check();
  await page.getByRole('button',{name:'Enviar',exact:true}).click();await page.waitForSelector('#encuesta-hoja',{state:'detached'});assert.deepEqual(await page.evaluate(()=>encuestaQA.respuesta.opciones),[1,2]);
