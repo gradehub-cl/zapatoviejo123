@@ -4116,7 +4116,9 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     <section class="panel-alumnos-vista" id="alumnos-vista-ramos" hidden></section>
     <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver">‹ Lista</button>
-      <h2 id="alumnos-ficha-titulo"></h2><div id="alumnos-ficha-contenido"></div>
+      <h2 id="alumnos-ficha-titulo"></h2>
+      <div id="alumnos-ficha-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
+      <div id="alumnos-ficha-contenido"></div>
     </section>
     <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver">‹ Lista</button>${seccionLink}
@@ -4196,7 +4198,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
     invitar.hidden=nombre==='ficha'||nombre==='invitar';
-    comparaWrap.hidden=!['lista','grupo','ficha'].includes(nombre);
+    comparaWrap.hidden=!['lista','grupo'].includes(nombre);
     avisoPrivacidad.hidden=nombre==='invitar';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre)));
     if(nombre==='grupo')paneles.grupo.innerHTML=grupoHTML(alumnos);
@@ -4243,8 +4245,9 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     pintarLista();
   });
   // Cambiar la comparación vuelve a pintar los alumnos y el grupo con lo ya bajado.
-  const compara=raiz.querySelector('.panel-alumnos-compara');
-  const botones=compara?[...compara.querySelectorAll('[data-compara]')]:[];
+  const controles=['#alumnos-compara-wrap','#alumnos-ficha-compara-wrap']
+    .map(sel=>raiz.querySelector(`${sel} .panel-alumnos-compara`)).filter(Boolean);
+  const botones=controles.flatMap(c=>[...c.querySelectorAll('[data-compara]')]);
   botones.forEach(b=>b.addEventListener('click',async()=>{
     if(!vigente())return;
     const quiere=b.dataset.compara==='seccion';if(quiere===porSeccion)return;
