@@ -1883,9 +1883,14 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   }
   const ahora=Date.now(),g=gruposPanelClases(anuncios,ahora);
   const conNumeros=[...g.activos,...g.cerrados,...g.sinConfirmar];
+  // En su pestaña, «Clases» va en la barra (Lucas, 2026-10-22): sin título
+  // grande, la acción principal queda arriba. Abierto como hoja, conserva su
+  // título, que la hoja necesita.
+  const crearAnuncio='<button type="button" class="btn-confirm" id="clase-nueva">Crear anuncio</button>';
   raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Tu conocimiento puede ayudar.','Este es tu espacio para publicar clases y ver cómo les va.',
-      '<button type="button" class="btn-confirm" id="clase-nueva">Crear anuncio</button>',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+
+    (raiz.id==='modal-content'
+      ?cabeceraProfesorHTML('Tu conocimiento puede ayudar.','Este es tu espacio para publicar clases y ver cómo les va.',crearAnuncio,'modal-titulo')
+      :`<div class="profesor-hig-accion">${crearAnuncio}</div>`)+
     `<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
       <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>
     <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+

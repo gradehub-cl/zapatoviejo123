@@ -3011,6 +3011,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .profesor-hig-cabecera h1{font-size:clamp(1.875rem,4vw,2.75rem);line-height:1.12;letter-spacing:-.045em;font-weight:680;margin:0;}
 .profesor-hig-cabecera p:not(.profesor-hig-ceja){color:var(--fg2);font-size:1rem;margin:12px 0 0;max-width:590px;}
 .profesor-hig-cabecera>.btn-confirm{flex:none;width:auto;}
+/* Sin cabecera, la acción principal de Clases encabeza la pantalla. */
+.profesor-hig-accion{display:flex;margin:0 0 24px;}
+.profesor-hig-accion>.btn-confirm{flex:none;width:auto;min-height:44px;}
 .profesor-hig-intro{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:28px;border:1px solid var(--border);border-radius:16px;background:var(--card);margin-bottom:32px;}
 .profesor-hig-intro h2{font-size:1.625rem;line-height:1.2;letter-spacing:-.03em;margin:0 0 12px;}
 .profesor-hig-intro p,.profesor-hig-intro li{color:var(--fg2);font-size:.9375rem;}
