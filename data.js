@@ -2191,6 +2191,14 @@ const SIGLAS_UC={
 // Al transcribir un programa, la pregunta para decidir dónde va una regla es:
 // ¿con la información que el estudiante puede darnos, esto se podría calcular
 // algún día? Si sí, `noCalcula`. Si no, `reglasDelCurso`.
+//
+// Regla de la U para TODO ramo con trabajo en grupo, lo diga o no su programa:
+// si el promedio de las evaluaciones individuales queda bajo 4,0, repruebas. El
+// trabajo en grupo sube el promedio, pero no te ayuda a pasar. No hay documento
+// que la escriba; la confirmó Martín el 2026-10-19 como práctica de todos los
+// ramos. Se modela con un grupo 'Evaluaciones individuales' (min 4,0, cap
+// 'self'): el veredicto es exacto, y el número bajo 4,0 es aproximado porque la
+// regla solo dice que repruebas. Un preset nuevo con evaluación grupal lo lleva.
 const PRESETS_FEN={
   'Métodos Matemáticos II':{
     // Fechas del calendario 2026-2 entregado por Martín el 2026-09-18. El
@@ -2290,12 +2298,10 @@ const PRESETS_FEN={
     periodo:'2026-2',
     creditos:2,
     // El programa dice que sin 4,0 en lo individual las notas grupales "no son
-    // válidas" Y que el estudiante reprueba, pero nunca dice con qué nota queda.
-    // No es la regla "la final es la más baja entre los dos requisitos": esa sí
-    // se modela; esta cambia QUÉ evaluaciones entran en el promedio, y el motor
-    // no sabe expresarlo. Se declara en vez de forzarla.
-    noCalcula:['Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que este promedio no lo refleja'],
+    // válidas" y que el estudiante reprueba, sin decir con qué nota. Es la regla
+    // general de la cabecera; el número bajo 4,0 queda aproximado y se avisa abajo.
     reglasDelCurso:[
+      'Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que la app te deja en tu promedio individual',
       'Necesitas al menos 6 de las 11 actividades hechas en clases para aprobar',
       'Las notas grupales se ajustan según cómo te evalúan tus compañeros, y pueden moverse hasta un 100%',
       'Faltar sin justificar al pitch inicial, a las clases de expertos, a la solemne o al examen se evalúa con 1,0',
@@ -2314,6 +2320,10 @@ const PRESETS_FEN={
       ['Participación y trabajo en clases',20,{min:4.0,cap:3.8}],
       ['Examen: presentación grupal',20],
       ['Examen: video storytelling',10],
+    ],
+    // Grupal es solo la presentación del examen (confirmado por Martín el 2026-10-19).
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Pitch inicial individual','Columna de opinión','Solemne: elevator pitch','Participación y trabajo en clases','Examen: video storytelling'],min:4.0,cap:'self'},
     ],
   },
   'Contabilidad':{
@@ -2396,9 +2406,9 @@ const PRESETS_FEN={
   'Tecnología y Sistemas de Información':{
     periodo:'2026-2',
     creditos:6,
-    // Ninguna evaluación tiene nota mínima propia ni hay eximición: el único
-    // requisito que da el programa es el 4,0 de aprobación, que la app ya sabe.
-    // Sin `noCalcula`: no queda nada pendiente de implementar.
+    // Ninguna evaluación tiene nota mínima propia ni hay eximición. El programa
+    // no lo dice, pero el Trabajo Final es grupal y aplica la regla general de
+    // la cabecera (confirmado por Martín el 2026-10-19).
     reglasDelCurso:[
       'Las dos solemnes y el examen comparten una única recuperativa, que se rinde después del examen y a la que solo accede quien justificó su inasistencia',
       'La asistencia a las ayudantías es obligatoria, y los controles se rinden en ese horario',
@@ -2409,6 +2419,9 @@ const PRESETS_FEN={
       ['Solemne 1',20,{fecha:'2026-09-25'}],
       ['Solemne 2',20],
       ['Examen',30],
+    ],
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Controles','Solemne 1','Solemne 2','Examen'],min:4.0,cap:'self'},
     ],
   },
   // Marketing · ENMKT205 · programa oficial Primavera 2026 (Ing. Comercial).
@@ -2481,6 +2494,10 @@ const PRESETS_FEN={
       ['Tarea Grupal',10],
       ['Examen',32],
     ],
+    // Regla general de la cabecera: el programa no la menciona.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Control 1','Control 2','Solemne','Control 3','Control 4','Examen'],min:4.0,cap:'self'},
+    ],
   },
   // Métodos Matemáticos I · ENMEM1005 · común a las nueve secciones.
   // Tres solemnes de 20% y examen de 40%. Confirmado por Martín el 2026-08-31,
@@ -2537,19 +2554,21 @@ const PRESETS_FEN={
     noCalcula:[
       'Toda ausencia a una exigencia del curso se califica con 1,0',
     ],
-    // El propio programa no da el número, y ese es justamente el motivo por el
-    // que esta no se puede calcular nunca — no es que falte implementarla.
     reglasDelCurso:[
       'La Solemne y el Examen tienen fecha única. Avisando por escrito dentro de 24 horas por razones médicas, solo se puede recuperar una de las dos',
       'Los controles parciales y el Plan de Negocios no son recuperables por ninguna causa',
       'El aporte en clases suma décimas según tu participación',
-      'Para aprobar, el promedio de las evaluaciones individuales tiene que ser 4,0 o más. El programa no dice en cuánto queda tu nota final si no se cumple, así que la app no lo aplica',
     ],
     evals:[
       ['Solemne',25],
       ['Controles de Lectura',20,{lista:true,dropLowest:{count:1}}],
       ['Proyecto Empresa',25,{min:3.0,cap:3.9}],
       ['Examen Final',30,{min:3.0,cap:3.9}],
+    ],
+    // "Para aprobar, el promedio de las evaluaciones individuales tiene que ser
+    // 4,0 o más", sin decir la nota: regla general de la cabecera.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Solemne','Controles de Lectura','Examen Final'],min:4.0,cap:'self'},
     ],
   },
   // Inglés IV · sección IC 3506 · calendario oficial 2026. Los nombres quedan en
