@@ -160,6 +160,30 @@ chk('las dos destacadas salen del criterio completo de fecha, peso y nota necesa
   !!destacadasAgenda && destacadasAgenda(pendientes).length === 2 &&
   nombres(destacadasAgenda(pendientes)) === nombres([...pendientes].sort((a,b)=>b.score-a.score).slice(0,2)));
 
+console.log('\n=== Hoy y mañana van primero, aunque el ramo vaya con 7 (2026-10-22) ===');
+// Un control de 5% mañana en un ramo con 7, contra una prueba de 30% en cinco
+// días de un ramo que va reprobando.
+const mananaCon7 = { ...evento('mañana con 7', 1, 5, 7.0), hora: '10:00' };
+const riesgoEn5 = evento('riesgo en 5 días', 5, 30, 3.5);
+chk('el puntaje solo la dejaba abajo (por eso hace falta la regla)', !gana(mananaCon7, riesgoEn5));
+const conManana = [riesgoEn5, mananaCon7].map(withPriority);
+chk('en Recomendado, lo de mañana va primero',
+  !!ordenarAgenda && nombres(ordenarAgenda(conManana, 'recomendado')) === 'mañana con 7,riesgo en 5 días');
+chk('y es "Tu foco ahora"', !!destacadasAgenda && destacadasAgenda(conManana)[0].cat.nombre === 'mañana con 7');
+const hoy = { ...evento('hoy', 0, 5, 7.0), hora: '18:00' };
+const mananaTemprano = { ...evento('mañana temprano', 1, 5, 7.0), hora: '08:30' };
+const variasCercanas = [mananaCon7, riesgoEn5, mananaTemprano, hoy].map(withPriority);
+chk('hoy antes que mañana, y mañana por hora',
+  nombres(ordenarAgenda(variasCercanas, 'recomendado')) === 'hoy,mañana temprano,mañana con 7,riesgo en 5 días');
+chk('Fecha y Peso no cambian: los eligió el estudiante',
+  nombres(ordenarAgenda(conManana, 'peso')) === 'riesgo en 5 días,mañana con 7');
+const imposibleManana = evento('mañana en ramo perdido', 1, 30, 1.0);
+chk('salvo un ramo que ya no se puede aprobar: ese no compite por el foco (2026-10-20)',
+  nombres(ordenarAgenda([imposibleManana, riesgoEn5].map(withPriority), 'recomendado')) === 'riesgo en 5 días,mañana en ramo perdido');
+const pasadoManana = [evento('pasado mañana con 7', 2, 5, 7.0), riesgoEn5].map(withPriority);
+chk('desde pasado mañana manda el puntaje de siempre',
+  nombres(ordenarAgenda(pasadoManana, 'recomendado')) === nombres([...pasadoManana].sort((a,b)=>b.score-a.score)));
+
 const controles = agendaOrdenHTML ? agendaOrdenHTML('recomendado') : '';
 chk('el selector ofrece Recomendado, Fecha y Peso',
   /Recomendado/.test(controles) && />Fecha</.test(controles) && />Peso</.test(controles));
