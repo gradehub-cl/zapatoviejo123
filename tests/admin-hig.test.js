@@ -32,7 +32,7 @@ const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},profesore
  document:{getElementById:()=>root},renderPuertaDosPasos:async(_r,{alPasar})=>{if(pasar)await alPasar();},
  showToast:(text,error)=>toasts.push({text,error}),showConfirm:(_t,_d,fn)=>{confirmacion=fn();},
  supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(modo==='throw')throw Error('red caída');if(modo==='denegado')return {error:{code:'42501',message:'sin acceso'}};
-  const datos={admin_panel_clases:panelActual,campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
+  const datos={admin_panel_clases:panelActual,crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
    totales_metricas_anuncio:[{vista:'total',clave:'',tipo:'impresion',eventos:18}]};
   return {data:modo==='false'?false:n in datos?datos[n]:true,error:null};}}};
@@ -41,6 +41,31 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  await run('renderAdmin()');assert.equal(calls.length,0,'Sin MFA no pide el panel');
  pasar=true;await run('renderAdmin()');assert.match(root.innerHTML,/admin-hig-fila/);assert.match(root.innerHTML,/Clase &lt;sintética&gt;/);
  assert.doesNotMatch(root.innerHTML,/piloto|lo que costaría|data-aprobar|bin\//);
+ const areas=root.querySelectorAll('[data-admin-area]');
+ assert.deepEqual(areas.map(b=>b.dataset.adminArea),['profesores','anuncios','estadisticas','usuarios']);
+ const area=n=>root.querySelector(`[data-admin-panel="${n}"]`);
+ assert.equal(area('anuncios').hidden,false,'los anuncios siguen siendo la vista inicial');
+ assert.equal(area('profesores').hidden,true);
+ assert.equal(root.querySelector('[data-admin-area="anuncios"]').attrs['aria-selected'],'true');
+ const rpcsAntesDeNavegar=calls.length;
+ areas[0].listeners.click();
+ assert.equal(area('profesores').hidden,false);
+ assert.equal(area('anuncios').hidden,true);
+ assert(area('profesores').querySelector('h3'),'el listado sintético está en la pestaña visible');
+ assert(area('profesores').querySelector('[data-admin-profesor]'),'las acciones actuales del profesor siguen en su pestaña');
+ assert.equal(areas[0].attrs['aria-selected'],'true');
+ let prevenido=false;
+ areas[0].listeners.keydown({key:'ArrowRight',preventDefault(){prevenido=true;}});
+ assert.equal(prevenido,true);assert.equal(areas[1].focused,true);
+ assert.equal(area('anuncios').hidden,false);
+ areas[2].listeners.click();
+ assert.equal(area('estadisticas').hidden,false);
+ assert(area('estadisticas').querySelector('#admin-crecimiento-titulo'),'muestra el crecimiento real de la página');
+ areas[3].listeners.click();
+ assert.equal(area('usuarios').hidden,false);
+ assert.match(root.innerHTML,/Las encuestas todavía no están disponibles/);
+ assert.equal(calls.length,rpcsAntesDeNavegar,'cambiar subpestañas no consulta ni escribe datos');
+ areas[1].listeners.click();
  assert.equal(root.querySelectorAll('[data-admin-estadisticas]').length,3);
  const ver=root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1');
  const panel=root.querySelector('#admin-estadisticas-a1');
@@ -67,6 +92,11 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert.match(run("filaAdminAnuncio({...profesores[0].anuncios[0],estado:'pausado',publicado_at:'2099-01-01T00:00:00Z'},Date.now())"),/data-admin-terminar/,'una campaña pausada antes de iniciar también se puede cerrar con costo cero');
  root.querySelectorAll('[data-admin-seccion]').find(b=>b.dataset.adminSeccion==='revision').listeners.click();
  assert.equal(root.querySelectorAll('[data-admin-fila]').filter(n=>!n.hidden).length,1);
+ root.querySelector('[data-admin-area="profesores"]').listeners.click();
+ await run('pintarPanelAdmin(root)');
+ assert.equal(area('profesores').hidden,false,'una acción que repinta conserva la subpestaña');
+ root.querySelector('[data-admin-area="anuncios"]').listeners.click();
+ assert.equal(root.querySelectorAll('[data-admin-fila]').filter(n=>!n.hidden).length,1,'conserva el filtro de anuncios');
  root.querySelector('[data-admin-publicar]').listeners.click();await confirmacion;
  assert(calls.some(c=>c.n==='admin_publicar_anuncio'&&c.p.p_anuncio_id==='a3'));
  let comentario=root.querySelector('[data-admin-comentario]');
