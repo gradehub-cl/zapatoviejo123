@@ -704,6 +704,7 @@ function contexto({search='',sesion=false}={}){
     globalThis.__resolverAlumnos=null;
     supabaseClient={rpc:nombre=>nombre==='codigo_alumnos_profesor'
       ?Promise.resolve({data:'AB3CDEFG',error:null})
+      :nombre==='mis_alumnos_ejemplo'?Promise.resolve({data:false,error:null})
       :new Promise(resolve=>{__resolverAlumnos=resolve})};
     currentUser={id:'profesor-uno'};
     globalThis.__cargaSesion=renderAlumnosProfesor(__raizSesion);`);
@@ -720,12 +721,14 @@ function contexto({search='',sesion=false}={}){
     currentUser={id:'profesor-uno'};
     supabaseClient={rpc:nombre=>nombre==='codigo_alumnos_profesor'
       ?Promise.resolve({data:'AB3CDEFG',error:null})
+      :nombre==='mis_alumnos_ejemplo'?Promise.resolve({data:false,error:null})
       :nombre==='mis_alumnos'
         ?Promise.resolve({data:[{id:'alumno-anterior',nombre_visible:'Alumno anterior',tenant:'uc',
           ramos:[{id:'ramo',nombre:'Cálculo',sigla:'MAT100',categorias:[]}]}],error:null})
         :new Promise(resolve=>{__resolverComparacion=resolve})};
     globalThis.__cargaComparacion=renderAlumnosProfesor(__raizComparacion);`);
-  await Promise.resolve();await Promise.resolve();
+  // Unas vueltas de promesas: la carga también pregunta por alumnos_ejemplo.
+  for(let i=0;i<10;i++)await Promise.resolve();
   chk('el panel pide la comparación solo tras recibir los ramos',
     comparacion.run('typeof __resolverComparacion')==='function');
   comparacion.run(`currentUser={id:'profesor-dos'};
@@ -746,6 +749,53 @@ function contexto({search='',sesion=false}={}){
   await perfil.run('__cargaPerfil');
   chk('una ficha de profesor tardía no abre Alumnos después de cambiar de cuenta',
     perfil.run('__panelAbierto')===0);
+
+  console.log('\n=== Alumnos de ejemplo (2026-10-22) ===');
+  const ej=contexto({sesion:true});
+  ej.run(`S.tipoCuenta='profesor';S.onboardingDone=true;currentUser={id:'profesor-ejemplo'};
+    globalThis.__llamadasEj=[];globalThis.__activoEj=true;
+    globalThis.__raizEj={innerHTML:'',isConnected:true,querySelector:()=>({addEventListener(){},querySelectorAll(){return []},hidden:false,innerHTML:''})};
+    supabaseClient={rpc:(nombre,args)=>{__llamadasEj.push(nombre);
+      if(nombre==='codigo_alumnos_profesor')return Promise.resolve({data:'AB3CDEFG',error:null});
+      if(nombre==='mis_alumnos_ejemplo')return Promise.resolve({data:__activoEj,error:null});
+      if(nombre==='mis_alumnos')return Promise.resolve({data:[],error:null});
+      return Promise.resolve({data:null,error:{message:'no debería llamarse'}});}};`);
+  const datosEj=ej.run('datosEjemploAlumnosPanel(new Date(2026,9,22))');
+  chk('arma alumnos sintéticos, marcados como ejemplo, con ramos y notas',
+    datosEj.alumnos.length>0&&datosEj.alumnos.every(al=>/\(ejemplo\)$/.test(al.nombre_visible)&&al.tenant==='uc')
+    &&datosEj.alumnos.some(al=>al.ramos.some(r=>(r.categorias||[]).some(c=>(c.notas||[]).length))));
+  chk('las notas inventadas son de 1 a 7 y ninguna es del futuro',
+    datosEj.alumnos.flatMap(al=>al.ramos).flatMap(r=>r.categorias||[]).flatMap(c=>c.notas||[])
+      .every(n=>n.valor>=1&&n.valor<=7&&n.fecha<='2026-10-22'));
+  chk('las fechas van relativas a hoy: un año después siguen sin ser futuras',
+    ej.run(`datosEjemploAlumnosPanel(new Date(2027,9,22)).alumnos.flatMap(al=>al.ramos).flatMap(r=>r.categorias||[]).flatMap(c=>c.notas||[]).every(n=>n.fecha<='2027-10-22'&&n.fecha>='2027-08-01')`));
+  chk('la comparación de ejemplo respeta el piso de cinco',
+    ej.run(`(()=>{const d=datosEjemploAlumnosPanel(new Date(2026,9,22));const sig=claveRamoCurso(d.alumnos[0].ramos[0],'uc');
+      const c=comparacionEjemploPanel(d,sig),s=comparacionEjemploPanel(d,sig,999);
+      return !!c.ramo&&c.ramo.personas>=5&&c.evaluaciones.every(e=>e.personas>=5)&&s.ramo===null&&s.evaluaciones.length===0;})()`));
+  await ej.run('renderAlumnosProfesor(__raizEj)');
+  const vistaEj=ej.run('__raizEj.innerHTML');
+  chk('con el modo activo, el panel muestra a los alumnos de ejemplo con la franja',
+    /class="panel-alumnos-ejemplo" role="note"><b>Ejemplo<\/b>/.test(vistaEj)&&/\(ejemplo\)/.test(vistaEj));
+  chk('sin exportar: un Excel de mentira no tiene para qué salir',!/id="alumnos-exportar"/.test(vistaEj));
+  chk('el link de invitación sigue siendo el real',/AB3CDEFG/.test(vistaEj));
+  chk('nada de los alumnos de ejemplo se pide ni se escribe en la base',
+    ej.run('__llamadasEj').every(n=>['codigo_alumnos_profesor','mis_alumnos','mis_alumnos_ejemplo'].includes(n)));
+  chk('cambiar una fecha o quitar a un alumno queda en memoria',
+    ej.run(`(()=>{const d=ejemploAlumnosPanel.datos,al=d.alumnos[0],r=al.ramos[0];let ok=true;
+      return rpcEjemploPanel(d,'fijar_inicio_ramo_alumno',{p_id:al.id,p_ramo:r.id,p_inicio:'2026-09-01'}).then(x=>{ok=ok&&x.data===true&&al.inicio_ramos[r.id]==='2026-09-01';
+        return rpcEjemploPanel(d,'quitar_alumno',{p_id:al.id});}).then(x=>ok&&x.data===true&&!d.alumnos.some(y=>y.id===al.id));})()`));
+  ej.run(`__activoEj=false;__llamadasEj=[];`);
+  await ej.run('renderAlumnosProfesor(__raizEj)');
+  chk('si el administrador lo apaga, al volver a la pestaña está el panel real',
+    !/panel-alumnos-ejemplo|\(ejemplo\)/.test(ej.run('__raizEj.innerHTML')));
+  ej.run(`supabaseClient.rpc=(nombre)=>nombre==='mis_alumnos_ejemplo'?Promise.resolve({data:null,error:{message:'function does not exist'}})
+    :nombre==='codigo_alumnos_profesor'?Promise.resolve({data:'AB3CDEFG',error:null}):Promise.resolve({data:[],error:null});`);
+  await ej.run('renderAlumnosProfesor(__raizEj)');
+  chk('sin el SQL aplicado, el panel sigue siendo el real',!/panel-alumnos-ejemplo/.test(ej.run('__raizEj.innerHTML')));
+  const mkEj=leer('marketplace.js');
+  chk('el administrador lo activa por profesor aprobado, desde su ficha',
+    /data-admin-ejemplo="\$\{esc\(p\.user_id\)\}"/.test(mkEj)&&/llamar\('admin_fijar_alumnos_ejemplo',\{p_user_id:id,p_activo:!activo\}/.test(mkEj));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
