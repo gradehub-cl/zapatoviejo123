@@ -3131,13 +3131,18 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 
 /* Administración de clases: vistas de #522, acciones de producción. */
 .admin-hig{font:1rem/1.5 var(--font-ui);color:var(--fg);min-width:0;}
+.admin-hig-areas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 24px;}
+.admin-hig-areas button{min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg2);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer;}
+.admin-hig-areas button[aria-selected=true]{border-color:var(--primary);background:var(--muted);color:var(--fg);}
+.admin-hig-panel[hidden]{display:none;}
+.admin-hig-panel>h2{font-size:1.25rem;line-height:1.3;letter-spacing:-.025em;margin:0 0 16px;}
 .admin-hig-resumen{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:24px;}
 .admin-hig-resumen>div+div{border-left:1px solid var(--border);padding-left:24px;}
 .admin-hig-resumen span,.admin-hig-resumen p{font-size:.8125rem;color:var(--fg2);margin:0;}
 .admin-hig-resumen strong{display:block;font-size:1.875rem;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:7px 0;overflow-wrap:anywhere;}
 .admin-hig-nota{font-size:.8125rem;color:var(--fg2);margin:16px 0;}
 .admin-crecimiento{border-bottom:1px solid var(--border);padding:0 0 24px;margin-bottom:24px;}
-.admin-crecimiento h2{font-size:1.125rem;margin:0;}
+.admin-crecimiento h3{font-size:1.125rem;margin:0;}
 .admin-crecimiento>p{color:var(--fg2);font-size:.8125rem;margin:4px 0 16px;}
 .admin-crecimiento-actual{border:1px solid var(--border);border-radius:12px;padding:16px;}
 .admin-crecimiento-historial{margin-top:8px;}
@@ -3184,8 +3189,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig .admin-anuncio-estadisticas h4{margin:0;font-size:1rem;color:var(--fg);}
 .admin-hig .admin-anuncio-estadisticas :is(.clase-sin-datos,.clase-privacidad){font-size:.875rem;}
 .admin-hig .admin-anuncio details>summary{padding:10px 0;cursor:pointer;}
-.admin-hig-profesores{margin-top:28px;border-top:1px solid var(--border);}
-.admin-hig-profesores>summary{font-weight:600;cursor:pointer;padding:16px 0;}
+.admin-hig-profesores{border-top:1px solid var(--border);}
 .admin-hig-persona{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 0;border-bottom:1px solid var(--border);}
 .admin-hig-persona>div{min-width:0;overflow-wrap:anywhere;}
 .admin-hig-persona h3{font-size:1rem;margin:0;}
@@ -3208,6 +3212,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .clase-comentario-revision p{margin:6px 0 0;white-space:pre-wrap;}
 @media(min-width:1000px){#admin-body:has(.admin-hig){max-width:1100px;margin:0 auto;}}
 @media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-buscar{flex-basis:100%;}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
+@media(max-width:600px){.admin-hig-areas{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(prefers-reduced-motion:reduce){.admin-hig *{animation:none;transition:none;}}
 
 /* ─── Panel de alumnos (profesor) y compartir notas (alumno) ─────────────── */
