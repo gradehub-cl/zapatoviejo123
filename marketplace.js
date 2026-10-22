@@ -2942,7 +2942,7 @@ function tarjetaAdminProfesor(p,ahora=Date.now()){
     <div class="admin-profesor-top"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p class="clase-card-meta">${esc(p.correo||'')}</p></div>
       <span class="clase-estado clase-estado-${esc(p.estado)}">${esc(estados[p.estado]||p.estado)}</span></div>
     <p class="clase-card-meta">${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'} · lleva ${pesosClase(gastado)}</p>
-    ${accion}
+    ${accion}${p.estado==='aprobado'?`<span data-admin-ejemplo="${esc(p.user_id)}"></span>`:''}
     ${anuncios.length?`<div class="admin-anuncios">${anuncios.map(a=>filaAdminAnuncio(a,ahora)).join('')}</div>`:''}
   </section>`;
 }
@@ -2987,7 +2987,7 @@ function filaAdminHigHTML({p,a,costo,estado},ahora){
 }
 function personaAdminHigHTML(p){
   return `<section class="admin-hig-persona"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[p.estado]||p.estado)} · ${(p.anuncios||[]).length} anuncios</p></div>
-    ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}</section>`;
+    ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}${p.estado==='aprobado'?`<span data-admin-ejemplo="${esc(p.user_id)}"></span>`:''}</section>`;
 }
 function crecimientoAdminHTML(semanas){
   if(!Array.isArray(semanas)||!semanas.length)return '';
@@ -3111,6 +3111,20 @@ async function pintarPanelAdmin(raiz){
       showToast(ok);await repintar();
     }catch(e){showToast('No pudimos completar la acción. Revisa tu conexión e intenta de nuevo.',true);}
   };
+  // Alumnos de ejemplo (alumnos_ejemplo.sql): el botón aparece cuando se sabe
+  // a quién ya se le activó. Sin el SQL aplicado la consulta falla y no se muestra.
+  const cajasEjemplo=[...raiz.querySelectorAll('[data-admin-ejemplo]')];
+  if(cajasEjemplo.length)Promise.resolve().then(()=>supabaseClient.rpc('admin_alumnos_ejemplo')).then(r=>{
+    if(!r||r.error)return;
+    const activos=new Set((r.data||[]).map(String));
+    cajasEjemplo.forEach(caja=>{
+      if(caja.isConnected===false)return;
+      const id=caja.dataset.adminEjemplo,activo=activos.has(id);
+      caja.innerHTML=`<button type="button" class="clase-accion">${activo?'Quitar alumnos de ejemplo':'Mostrarle alumnos de ejemplo'}</button>`;
+      caja.querySelector('button').addEventListener('click',()=>llamar('admin_fijar_alumnos_ejemplo',{p_user_id:id,p_activo:!activo},
+        activo?'Vuelve a ver su panel real':'Verá su panel con alumnos de ejemplo'));
+    });
+  }).catch(()=>{});
   raiz.querySelectorAll('[data-admin-publicar]').forEach(b=>b.addEventListener('click',()=>
     showConfirm('¿Publicar este anuncio?','Se mostrará según los días, la fecha y el tope de su campaña. Las vistas, aperturas y contactos se cobran con las tarifas actuales.',
       ()=>llamar('admin_publicar_anuncio',{p_anuncio_id:b.dataset.adminPublicar},'Anuncio publicado'),{label:'Publicar',danger:false})));
@@ -3806,7 +3820,7 @@ function lineaInicioRamoHTML(al,r){
 }
 // Hoja con el selector de fecha del sistema (HIG: Date pickers). La fecha no
 // puede ser futura: no se compara contra lo que todavía no pasa.
-function abrirInicioRamo(al,r,alGuardar){
+function abrirInicioRamo(al,r,alGuardar,rpc=(nombre,args)=>supabaseClient.rpc(nombre,args)){
   const caja=document.getElementById('modal-content');if(!caja)return;
   const hoy=diaLocalPanel(new Date()),actual=inicioRamoPanel(al,r);
   // Quitar la fecha propia vuelve a la que el profesor puso para todo (#697)
@@ -3825,7 +3839,7 @@ function abrirInicioRamo(al,r,alGuardar){
   const guardar=async valor=>{
     boton.disabled=true;avisar('');
     try{
-      const {data,error:e}=await supabaseClient.rpc('fijar_inicio_ramo_alumno',{p_id:al.id,p_ramo:r.id,p_inicio:valor});
+      const {data,error:e}=await rpc('fijar_inicio_ramo_alumno',{p_id:al.id,p_ramo:r.id,p_inicio:valor});
       if(e)throw e;
       // false: el alumno dejó de compartir ese ramo mientras la hoja estaba abierta.
       if(data===false){boton.disabled=false;avisar('Ya no te comparte este ramo.');return;}
@@ -4023,6 +4037,112 @@ async function renderAlumnosTab(){
   }
   renderAlumnosProfesor(raiz);
 }
+// ─── ALUMNOS DE EJEMPLO (2026-10-22, decisión de Lucas) ──────────────────────
+// Un administrador lo activa para el profesor que elija (alumnos_ejemplo.sql).
+// Ese profesor ve su panel con alumnos SINTÉTICOS de Ingeniería UC: las pautas
+// salen de los presets; las notas, los compañeros de curso y las secciones se
+// inventan acá, en su navegador. Nada se manda a la base ni entra a ningún
+// promedio, y el panel lo dice con una franja. Las fechas van relativas a hoy
+// para que el ejemplo no envejezca.
+function datosEjemploAlumnosPanel(hoy=new Date()){
+  let semilla=20261022;
+  const azar=()=>{semilla|=0;semilla=semilla+0x6D2B79F5|0;let t=Math.imul(semilla^semilla>>>15,1|semilla);
+    t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  const base=new Date(Date.UTC(hoy.getFullYear(),hoy.getMonth(),hoy.getDate())-70*86400000);
+  const dia=n=>new Date(base.getTime()+n*86400000).toISOString().slice(0,10);
+  const HOY=dia(70);
+  const nota=v=>Math.round(Math.min(7,Math.max(1,v+(azar()-.5)*1.4))*10)/10;
+  let uid=0;
+  const ramoCon=(nombre,seccion,nivel)=>{
+    let r=null;try{r=presetRamo(nombre,'uc','ING-PC');}catch(e){}
+    if(!r)return null;
+    r.id='ejemplo-'+(++uid);r.nombre=r.nombre||nombre;r.color=r.color||'#0d7a6b';
+    if(seccion)r.seccion=seccion;
+    const cats=r.categorias||[];
+    const total=cats.reduce((n,c)=>n+(Number.isInteger(c.slots)&&c.slots>1?c.slots:1),0)||1;
+    let k=0;
+    cats.forEach(c=>{
+      const n=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
+      c.notas=[];delete c.fecha;
+      for(let i=0;i<n;i++,k++){
+        const fecha=/examen/i.test(c.nombre)?dia(108):dia(Math.round(4+k*(100/total)));
+        if(fecha<=HOY)c.notas.push({id:r.id+'-n'+k,nombre:n>1?`${c.nombre} ${i+1}`:c.nombre,valor:nota(nivel(fecha)),fecha});
+        else if(!c.fecha)c.fecha=fecha;
+      }
+    });
+    return r;
+  };
+  // Seis alumnos que suben desde que empiezan; dos sin sección declarada y
+  // dos con ramos empezados en fechas distintas.
+  const plan=[
+    ['Sofía (ejemplo)',3.6,[['Cálculo II',3,28],['Dinámica',2,50]]],
+    ['Matías (ejemplo)',3.3,[['Cálculo II',3,35]]],
+    ['Valentina (ejemplo)',4.2,[['Dinámica',2,22],['Laboratorio de Dinámica',2,null]]],
+    ['Benjamín (ejemplo)',3.8,[['Introducción a la Programación',null,40]]],
+    ['Isidora (ejemplo)',4.6,[['Cálculo II',1,15],['Introducción a la Programación',4,45]]],
+    ['Tomás (ejemplo)',3.0,[['Cálculo II',null,30]]],
+  ];
+  const alumnos=plan.map(([nombre,nivelBase,ramos],i)=>{
+    const inicio_ramos={};
+    const propios=ramos.map(([ramo,seccion,desde])=>{
+      const inicio=desde===null?null:dia(desde);
+      const r=ramoCon(ramo,seccion,f=>inicio&&f>=inicio?nivelBase+1.1:nivelBase);
+      if(r&&inicio)inicio_ramos[r.id]=inicio;
+      return r;
+    }).filter(Boolean);
+    return {id:'ejemplo-alumno-'+i,nombre_visible:nombre,tenant:'uc',desde:dia(32)+'T15:00:00Z',inicio:null,inicio_ramos,ramos:propios};
+  }).filter(al=>al.ramos.length);
+  // Compañeros de curso: 40 por ramo, secciones 1 a 4 y algunos sin sección.
+  const curso=[];
+  ['Cálculo II','Dinámica','Laboratorio de Dinámica','Introducción a la Programación'].forEach(nombre=>{
+    for(let i=0;i<40;i++){const nivel=3.2+azar()*2.6,r=ramoCon(nombre,i%9===0?null:1+(i%4),()=>nivel);if(r)curso.push(r);}
+  });
+  return {alumnos,curso};
+}
+// La misma forma que comparacion_ramo_profesor, con el mismo piso de cinco
+// personas. Acá se aplica en el navegador porque los datos también son de acá.
+const PISO_PERSONAS_EJEMPLO=5;
+function comparacionEjemploPanel(datos,sigla,seccion=null){
+  const media=xs=>xs.reduce((a,b)=>a+b,0)/xs.length,red=v=>Math.round(v*10)/10;
+  const todos=[...datos.curso,...datos.alumnos.flatMap(a=>a.ramos)]
+    .filter(r=>String(claveRamoCurso(r,'uc')||'').toUpperCase()===String(sigla||'').toUpperCase())
+    .filter(r=>seccion==null||r.seccion===seccion);
+  const porClave=fn=>{const m=new Map();todos.forEach(r=>fn(r).forEach(([k,nombre,v])=>{
+    if(!k)return;if(!m.has(k))m.set(k,{nombre,vals:[]});m.get(k).vals.push(v);}));
+    return [...m].filter(([,x])=>x.vals.length>=PISO_PERSONAS_EJEMPLO).map(([clave,x])=>({clave,nombre:x.nombre,promedio:red(media(x.vals)),personas:x.vals.length}));};
+  const proms=todos.map(r=>{try{return ramoAvg(r,undefined,[r]);}catch(e){return null;}}).filter(Number.isFinite);
+  return {ramo:proms.length>=PISO_PERSONAS_EJEMPLO?{promedio:red(media(proms)),personas:proms.length}:null,
+    evaluaciones:porClave(r=>(r.categorias||[]).flatMap(c=>(c.notas||[]).map(n=>[claveEvaluacionPanel(n.nombre),n.nombre,n.valor]))),
+    categorias:porClave(r=>(r.categorias||[]).filter(c=>(c.notas||[]).length).map(c=>[claveEvaluacionPanel(c.nombre),c.nombre,media(c.notas.map(n=>n.valor))]))};
+}
+// Las llamadas del panel, respondidas en memoria. Cambiar una fecha o quitar
+// a un alumno dura hasta recargar.
+function rpcEjemploPanel(datos,nombre,a={}){
+  const ok=data=>Promise.resolve({data,error:null});
+  if(nombre==='mis_alumnos')return ok(JSON.parse(JSON.stringify(datos.alumnos)));
+  if(nombre==='comparacion_ramo_profesor')return ok(comparacionEjemploPanel(datos,a.p_sigla,a.p_seccion??null));
+  if(nombre==='fijar_inicio_ramo_alumno'){
+    const al=datos.alumnos.find(x=>x.id===a.p_id);if(!al||!al.ramos.some(r=>r.id===a.p_ramo))return ok(false);
+    if(a.p_inicio)al.inicio_ramos[a.p_ramo]=a.p_inicio;else delete al.inicio_ramos[a.p_ramo];
+    return ok(true);
+  }
+  if(nombre==='quitar_alumno'){const n=datos.alumnos.length;datos.alumnos=datos.alumnos.filter(x=>x.id!==a.p_id);return ok(datos.alumnos.length<n);}
+  return Promise.resolve({data:null,error:{message:'sin respuesta en el ejemplo'}});
+}
+// Se pregunta en cada carga, así un administrador lo prende o lo apaga y se
+// nota al volver a la pestaña. Los alumnos inventados se guardan por cuenta
+// para que una fecha cambiada dure hasta recargar. Sin el SQL aplicado la
+// consulta falla y el panel sigue siendo el real.
+let ejemploAlumnosPanel={usuario:undefined,datos:null};
+async function ejemploAlumnosDeCuenta(){
+  const usuario=currentUser&&currentUser.id;
+  let activo=false;
+  try{const {data,error}=await supabaseClient.rpc('mis_alumnos_ejemplo');activo=!error&&data===true;}catch(e){}
+  if(!activo||(currentUser&&currentUser.id)!==usuario)return null;
+  if(ejemploAlumnosPanel.usuario!==usuario||!ejemploAlumnosPanel.datos)
+    ejemploAlumnosPanel={usuario,datos:datosEjemploAlumnosPanel()};
+  return ejemploAlumnosPanel.datos;
+}
 const ALUMNOS_POR_PAGINA=50;
 let versionPanelAlumnos=0;
 async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='lista'}={}){
@@ -4030,9 +4150,18 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAlumnos&&raiz.isConnected!==false;
   raiz.innerHTML='<div class="profesor-hig">'+cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
     '<p class="profesor-info" role="status">Cargando…</p></div>';
+  // Con alumnos de ejemplo, lo de los alumnos se responde en memoria. El link
+  // de invitación y su renovación siguen siendo los reales del profesor.
+  // Se pregunta en paralelo con la carga real, para no sumar una espera.
+  let ejemplo=null;
+  const rpc=(nombre,args)=>ejemplo?rpcEjemploPanel(ejemplo,nombre,args):supabaseClient.rpc(nombre,args);
   let codigo,alumnos;
   try{
-    const [c,a]=await Promise.all([supabaseClient.rpc('codigo_alumnos_profesor'),supabaseClient.rpc('mis_alumnos')]);
+    const [c,reales,datosEjemplo]=await Promise.all([supabaseClient.rpc('codigo_alumnos_profesor'),
+      supabaseClient.rpc('mis_alumnos'),ejemploAlumnosDeCuenta()]);
+    if(!vigente())return;
+    ejemplo=datosEjemplo;
+    const a=ejemplo?await rpc('mis_alumnos'):reales;
     if(!vigente())return;
     if(c.error||a.error)throw (c.error||a.error);
     codigo=c.data;alumnos=Array.isArray(a.data)?a.data:[];
@@ -4054,7 +4183,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   }));
   await Promise.all([...cursos.keys()].map(async k=>{
     const separador=k.indexOf('|'),tenant=k.slice(0,separador),sigla=k.slice(separador+1);
-    try{const {data,error}=await supabaseClient.rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
+    try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
   }));
   if(!vigente())return;
   const compGeneral=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
@@ -4069,7 +4198,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     const pendientes=[...new Set(alumnos.flatMap(al=>(al.ramos||[]).map(r=>claveSeccion(al,r)).filter(Boolean)))];
     const una=async k=>{
       const [tenant,sigla,seccion]=k.split('|');
-      try{const {data,error}=await supabaseClient.rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla,p_seccion:Number(seccion)});
+      try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla,p_seccion:Number(seccion)});
         if(!error&&data)secciones.set(k,{...data,seccion:Number(seccion)});}catch(e){}
     };
     for(let i=0;i<pendientes.length;i+=4)await Promise.all(pendientes.slice(i,i+4).map(una));
@@ -4096,8 +4225,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     </section>`;
   const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
   const privacidad='<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>';
+  // La franja va siempre arriba y no se cierra: nadie puede confundir estos
+  // alumnos con los suyos.
+  const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No son reales y nada de esto se guarda.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+
+    cabeceraProfesorHTML('Alumnos','Las notas que decidieron compartirte.')+franjaEjemplo+
     (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' dos-vistas'}" aria-label="Vistas de Alumnos">
       <button type="button" data-panel-vista="lista" aria-pressed="true">Lista</button>
       <button type="button" data-panel-vista="grupo" aria-pressed="false">Cómo van</button>
@@ -4108,7 +4240,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
       <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
       ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
-      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
+      ${ejemplo?'':'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>'}
       <div id="alumnos-lista">${listaInicial}</div>
       <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
     </section>
@@ -4173,7 +4305,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
       if(!vigente())return;
       b.disabled=true;
-      try{const {error}=await supabaseClient.rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
+      try{const {error}=await rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
         if(!vigente())return;
         showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver});}
       catch(e){if(vigente()){b.disabled=false;showToast('No pudimos quitarlo.',true);}}
@@ -4182,7 +4314,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     if(!vigente())return;
     const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
     const r=al&&(al.ramos||[]).find(x=>x.id===b.dataset.inicioRamo);
-    if(r)abrirInicioRamo(al,r,()=>{if(vigente())renderAlumnosProfesor(raiz,{volver,alumnoId:al.id});});
+    if(r)abrirInicioRamo(al,r,()=>{if(vigente())renderAlumnosProfesor(raiz,{volver,alumnoId:al.id});},rpc);
   }));
   const pintarFicha=()=>{
     if(!seleccionado)return;
@@ -4284,7 +4416,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
       `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
       ()=>{if(vigente())exportarAlumnosPanel(paraExportar,compGeneral,compSeccion);},{label:'Exportar',danger:false});
   });
-  track('panel_alumnos_abierto',{alumnos:alumnos.length});
+  if(ejemplo)track('panel_alumnos_ejemplo');
+  else track('panel_alumnos_abierto',{alumnos:alumnos.length});
 }
 
 // El link del profesor puede llegar antes de que haya sesión: se guarda el

@@ -3252,6 +3252,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-ficha details[open]>summary::after{transform:rotate(90deg);}
 .panel-alumnos-invitacion .panel-alumnos-link.al-final{margin-top:0;}
 /* Control segmentado (HIG: Segmented controls): dos opciones de una misma vista. */
+/* Alumnos de ejemplo: aviso neutro (no es del semáforo) que no se cierra. */
+.panel-alumnos-ejemplo{margin:4px 0 12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;font-size:0.8125rem;line-height:1.45;color:var(--fg2);background:var(--bg2);}
+.panel-alumnos-ejemplo b{display:block;margin-bottom:2px;font-size:0.6875rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg);}
 .panel-alumnos-compara{display:flex;gap:2px;padding:2px;margin:4px 0 8px;border-radius:10px;background:rgba(118,118,128,.12);}
 .panel-alumnos-compara button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
 .panel-alumnos-compara button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
