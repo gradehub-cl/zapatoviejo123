@@ -3481,6 +3481,15 @@ function firmaReglasCalculo(r){
     traspasos:(g.traspasos||[]).map(e=>({desde:nombres.get(e.desdeId),hacia:nombres.get(e.haciaId)})),
   })));
 }
+// Un requisito de grupo (`group_min`) que el catálogo agrega o saca también es
+// un cambio de pauta: sin esto, quien ya tenía el ramo seguía viendo su nota sin
+// el tope. Se compara por lo que calcula —mínimo, tope y evaluaciones por
+// nombre— y no por `nombre`, que es solo la etiqueta y no mueve ninguna nota.
+function requisitosDeGrupo(r){
+  const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
+  return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,
+    clave:JSON.stringify([g.min,g.cap,(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
+}
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
   const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
@@ -3491,11 +3500,18 @@ function cambioDePauta(r){
   if(actual!==r.pautaHuella)return null;      // la editó: no se opina
   const oficial=huellaPauta(p.categorias);
   const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
-  if(oficial===actual&&!reglasCambian)return null; // al día
+  const reqAntes=requisitosDeGrupo(r),reqDespues=requisitosDeGrupo(p);
+  const claves=lista=>new Set(lista.map(g=>g.clave));
+  const reqLlegan=reqDespues.filter(g=>!claves(reqAntes).has(g.clave));
+  const reqSeVan=reqAntes.filter(g=>!claves(reqDespues).has(g.clave));
+  if(oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
+  const minimo=g=>simConComa(nf(g.min));
+  reqLlegan.forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más`}));
+  reqSeVan.forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
