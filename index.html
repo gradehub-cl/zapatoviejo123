@@ -638,20 +638,35 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     Agenda
   </button>
   <!-- Aparece solo para quien está aprobado como profesor particular. -->
-  <button class="nav-item" id="nav-profesor" onclick="showTab('profesor')" aria-label="Clases" hidden>
+  <div class="nav-grupo-profesor" id="nav-grupo-profesor" hidden>
+  <button class="nav-item" id="nav-profesor" onclick="tocarGrupoProfesor('profesor')" aria-label="Clases" hidden>
     <span class="nav-icon">
       <svg class="ic ic-line" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h7"/></svg>
       <svg class="ic ic-fill" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 5v2h10V9H7zm0 4v2h7v-2H7z"/></svg>
     </span>
-    Clases
+    Clases <span class="nav-grupo-flecha" aria-hidden="true"></span>
   </button>
-  <button class="nav-item" id="nav-alumnos" onclick="showTab('alumnos')" aria-label="Alumnos" hidden>
+  <div class="nav-subitems" id="nav-subitems-profesor" hidden>
+    <button type="button" data-subnav-profesor="anuncios" onclick="showTab('profesor',false,{vista:'anuncios'})">Tus anuncios</button>
+    <button type="button" data-subnav-profesor="perfil" onclick="showTab('profesor',false,{vista:'perfil'})">Tu perfil</button>
+    <button type="button" class="nav-subitem-accion" data-subnav-profesor="crear" onclick="showTab('profesor',false,{vista:'crear'})">Crear anuncio</button>
+  </div>
+  </div>
+  <div class="nav-grupo-profesor" id="nav-grupo-alumnos" hidden>
+  <button class="nav-item" id="nav-alumnos" onclick="tocarGrupoProfesor('alumnos')" aria-label="Alumnos" hidden>
     <span class="nav-icon">
       <svg class="ic ic-line" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.4A6.5 6.5 0 0 1 21.5 20"/></svg>
       <svg class="ic ic-fill" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 20.5a7 7 0 0 1 14 0V21H2z"/><path d="M16 4a4 4 0 0 1 0 8z"/><path d="M17.5 13.6A7 7 0 0 1 22 20.5V21h-4.5v-.5a8.4 8.4 0 0 0-2.2-5.7z"/></svg>
     </span>
-    Alumnos
+    Alumnos <span class="nav-grupo-flecha" aria-hidden="true"></span>
   </button>
+  <div class="nav-subitems" id="nav-subitems-alumnos" hidden>
+    <button type="button" data-subnav-alumnos="lista" onclick="showTab('alumnos',false,{vista:'lista'})">Lista</button>
+    <button type="button" data-subnav-alumnos="grupo" onclick="showTab('alumnos',false,{vista:'grupo'})">Cómo van</button>
+    <button type="button" data-subnav-alumnos="ramos" onclick="showTab('alumnos',false,{vista:'ramos'})" hidden>Por ramo</button>
+    <button type="button" data-subnav-alumnos="invitar" onclick="showTab('alumnos',false,{vista:'invitar'})">Invitar alumno</button>
+  </div>
+  </div>
   <button class="nav-item" id="nav-admin" onclick="showTab('admin')" aria-label="Administración" hidden>
     <span class="nav-icon">
       <svg class="ic ic-line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>

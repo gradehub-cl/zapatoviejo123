@@ -1351,10 +1351,18 @@ async function alcanceAnuncio(anuncioId){
 // anuncio con su público y su cotización es una tarea de varios pasos y no cabe
 // en una ventana. El cuerpo se separa del modal para que las dos entradas —la
 // pestaña y el menú, mientras exista— pinten exactamente lo mismo.
-async function renderProfesor(){
+let versionRenderProfesor=0;
+async function renderProfesor(destino=null){
   const raiz=document.getElementById('profesor-body');
   if(!raiz)return;
+  const version=++versionRenderProfesor,usuario=currentUser,cliente=supabaseClient;
   await renderEspacioProfesor(raiz,{titulo:false});
+  if(version!==versionRenderProfesor||currentUser!==usuario||supabaseClient!==cliente||
+    (typeof currentTab!=='undefined'&&currentTab!=='profesor'))return;
+  if(typeof marcarSubitemProfesor==='function')marcarSubitemProfesor('profesor',destino||'anuncios');
+  if(destino==='crear')raiz.querySelector('#clase-nueva')?.click();
+  else if(destino==='perfil'||destino==='anuncios')
+    raiz.querySelector(destino==='perfil'?'#clases-perfil':'#clases-anuncios')?.scrollIntoView?.({block:'start'});
 }
 async function openEspacioProfesor(){
   const raiz=document.getElementById('modal-content');
@@ -1888,7 +1896,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
       '<button type="button" class="btn-confirm" id="clase-nueva">Crear anuncio</button>',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+
     `<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
       <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>
-    <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
+    <div class="profesor-hig-lista-cabeza" id="clases-anuncios"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
     (anuncios.length?'':'<p class="profesor-hig-vacio">Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.</p>')+
     seccionPanelClases('Publicadas',g.activos,pesos,ahora)+
     seccionPanelClases('Programadas',g.programados,pesos,ahora)+
@@ -1904,7 +1912,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
            :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
        <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
      </details>`+
-    '<section class="clases-seccion"><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
+    '<section class="clases-seccion" id="clases-perfil"><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
     salida()+'</div>';
   // Al cambiar el estado se vuelve a pedir la lista: el estado, los números y
   // los botones de cada tarjeta dependen de él, y repintar a mano lo que uno
@@ -4066,9 +4074,10 @@ function elegirArchivoAlumnosPanel(alElegir){
 
 // La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
 let versionTabAlumnos=0;
-async function renderAlumnosTab(){
+async function renderAlumnosTab(vistaInicial='lista'){
   const raiz=document.getElementById('alumnos-body');
   if(!raiz)return;
+  if(typeof mostrarPorRamoEnRiel==='function')mostrarPorRamoEnRiel(0);
   const usuario=currentUser,version=++versionTabAlumnos;
   // Una cuenta de profesor tiene esta pestaña desde el primer día (#697), pero
   // sus consultas exigen estar aprobado: mientras no lo esté, se dice por qué
@@ -4082,7 +4091,7 @@ async function renderAlumnosTab(){
       return;
     }
   }
-  renderAlumnosProfesor(raiz);
+  renderAlumnosProfesor(raiz,{vistaInicial});
 }
 // ─── ALUMNOS DE EJEMPLO (2026-10-22, decisión de Lucas) ──────────────────────
 // Un administrador lo activa para el profesor que elija (alumnos_ejemplo.sql).
@@ -4253,6 +4262,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
   let porSeccion=alumnos.length>0&&comparaSeccionGuardado();
   if(porSeccion)await cargarSecciones();
   if(!vigente())return;
+  if(raiz.id==='alumnos-body'&&typeof mostrarPorRamoEnRiel==='function')mostrarPorRamoEnRiel(alumnos.length);
   const compDe=(al,r)=>porSeccion?compSeccion(al,r):compGeneral(al,r);
   const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
   const grupoHTML=lista=>lista.length?antesAhoraGrupoHTML(metricasGrupoPanel(lista,compDe),{seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(lista):0}):'';
@@ -4271,16 +4281,16 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
   const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
+  const rielAncho=typeof rielProfesorActivo==='function'&&rielProfesorActivo();
   const privacidad='<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>';
   // La franja va siempre arriba y no se cierra: nadie puede confundir estos
   // alumnos con los suyos.
   const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No son reales y nada de esto se guarda.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig">'+
     franjaEjemplo+
-    (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' dos-vistas'}" aria-label="Vistas de Alumnos">
+    (alumnos.length?`<nav class="panel-alumnos-vistas dos-vistas" aria-label="Vistas de Alumnos">
       <button type="button" data-panel-vista="lista" aria-pressed="true">Lista</button>
       <button type="button" data-panel-vista="grupo" aria-pressed="false">Cómo van</button>
-      ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Por ramo</button>':''}
     </nav><button type="button" class="agent-refresh panel-alumnos-ir-invitar" id="alumnos-ir-invitar">Invitar alumno</button>
     <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
     <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos">
@@ -4288,6 +4298,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
       ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
       ${ejemplo?'':'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>'}
+      ${alumnos.length>1&&!rielAncho?'<p class="clase-sin-datos">Resumen por ramo: disponible en el computador.</p>':''}
       <div id="alumnos-lista">${listaInicial}</div>
       <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
     </section>
@@ -4333,7 +4344,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
         showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver,vistaInicial:alumnos.length?'invitar':'lista'});}
       catch(e){if(vigente()){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}}
     },{label:'Cambiar link',focusCancel:true});});
-  if(!alumnos.length){track('panel_alumnos_abierto',{alumnos:0});return;}
+  if(!alumnos.length){
+    if(raiz.id==='alumnos-body'&&typeof marcarSubitemProfesor==='function')
+      marcarSubitemProfesor('alumnos','invitar');
+    track('panel_alumnos_abierto',{alumnos:0});return;
+  }
   const lista=raiz.querySelector('#alumnos-lista');
   const ficha=raiz.querySelector('#alumnos-vista-ficha');
   const fichaContenido=raiz.querySelector('#alumnos-ficha-contenido');
@@ -4381,7 +4396,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     avisoPrivacidad.hidden=nombre==='invitar';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre)));
     if(nombre==='grupo')paneles.grupo.innerHTML=grupoHTML(alumnos);
-    if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
+    if(nombre==='ramos')paneles.ramos.innerHTML=rielAncho
+      ?resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral))
+      :'<p class="clase-sin-datos">Resumen por ramo: disponible en el computador.</p>';
+    if(raiz.id==='alumnos-body'&&typeof marcarSubitemProfesor==='function')
+      marcarSubitemProfesor('alumnos',nombre);
   };
   const abrirFicha=(al,origen)=>{
     if(!vigente())return;
@@ -4446,7 +4465,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     track('panel_alumnos_compara',{seccion:quiere});
   }));
   if(alumnoId){const al=alumnos.find(x=>String(x.id)===String(alumnoId));if(al)abrirFicha(al);}
-  else if(vistaInicial==='invitar')activarVista('invitar');
+  else if(vistaInicial==='invitar'||vistaInicial==='grupo'||vistaInicial==='ramos'&&alumnos.length>1)
+    activarVista(vistaInicial);
+  else if(raiz.id==='alumnos-body'&&typeof marcarSubitemProfesor==='function')
+    marcarSubitemProfesor('alumnos','lista');
   // Exporta todos los que calzan con la búsqueda, en el orden de la lista: el
   // "Mostrar 50 más" es para no pintar 300 filas, no para recortar la planilla
   // (Salva Ramos pidió el desglose de todos sus alumnos). Antes de crear el
