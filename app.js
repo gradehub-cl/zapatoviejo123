@@ -2604,77 +2604,6 @@ let NAV_TABS=NAV_TABS_BASE.slice();
 // Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
 // (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
 const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
-// El riel ancho ofrece navegación de trabajo; en la barra inferior estos dos
-// botones siguen siendo pestañas normales. Solo se guarda qué grupos abrió la
-// persona: no se guarda ningún dato de alumnos ni anuncios.
-const RIEL_PROFESOR_KEY='gh_riel_profesor_grupos';
-let subnavProfesorActual={profesor:'anuncios',alumnos:'lista'};
-function rielProfesorActivo(){
-  try{return window.matchMedia('(min-width: 1024px)').matches&&
-    !document.documentElement.classList.contains('app-nativa');}catch(e){return false;}
-}
-function gruposRielProfesor(){
-  try{const v=JSON.parse(localStorage.getItem(RIEL_PROFESOR_KEY)||'{}');return v&&typeof v==='object'?v:{};}
-  catch(e){return {};}
-}
-function abrirGrupoRielProfesor(grupo,abierto,guardar=false){
-  const boton=document.getElementById('nav-'+grupo),lista=document.getElementById('nav-subitems-'+grupo);
-  if(!boton||!lista)return;
-  const disponible=rielProfesorActivo()&&typeof esProfesorAprobado==='function'&&esProfesorAprobado();
-  lista.hidden=!disponible||!abierto;
-  if(disponible)boton.setAttribute('aria-expanded',String(!!abierto));
-  else boton.removeAttribute('aria-expanded');
-  if(guardar&&disponible){
-    try{localStorage.setItem(RIEL_PROFESOR_KEY,JSON.stringify({...gruposRielProfesor(),[grupo]:!!abierto}));}catch(e){}
-  }
-}
-function marcarSubitemProfesor(grupo,vista){
-  if(grupo!=='profesor'&&grupo!=='alumnos')return;
-  // La ficha pertenece a Lista; Crear anuncio es una acción, no un destino.
-  const elegido=vista==='ficha'?'lista':vista==='crear'?null:vista;
-  if(elegido)subnavProfesorActual[grupo]=elegido;
-  const lista=document.getElementById('nav-subitems-'+grupo);
-  if(!lista)return;
-  lista.querySelectorAll('[data-subnav-'+grupo+']').forEach(b=>{
-    if(rielProfesorActivo()&&typeof esProfesorAprobado==='function'&&esProfesorAprobado()&&
-      currentTab===grupo&&elegido&&
-      (b.dataset||{})['subnav'+(grupo==='profesor'?'Profesor':'Alumnos')]===elegido)
-      b.setAttribute('aria-current','page');
-    else b.removeAttribute('aria-current');
-  });
-}
-function mostrarPorRamoEnRiel(cantidad){
-  const boton=document.querySelector('[data-subnav-alumnos="ramos"]');
-  if(boton)boton.hidden=!(cantidad>=2);
-}
-function actualizarModoRielProfesor(tab=currentTab){
-  const preferencias=gruposRielProfesor(),ancho=rielProfesorActivo();
-  ['profesor','alumnos'].forEach(grupo=>{
-    const boton=document.getElementById('nav-'+grupo);
-    if(!boton)return;
-    abrirGrupoRielProfesor(grupo,preferencias[grupo]===true||grupo===tab&&!Object.hasOwn(preferencias,grupo));
-    if(ancho&&typeof esProfesorAprobado==='function'&&esProfesorAprobado())boton.removeAttribute('aria-current');
-    else if(grupo===tab)boton.setAttribute('aria-current','page');
-    marcarSubitemProfesor(grupo,subnavProfesorActual[grupo]);
-  });
-}
-function tocarGrupoProfesor(grupo){
-  if(!rielProfesorActivo()||typeof esProfesorAprobado!=='function'||!esProfesorAprobado()){
-    showTab(grupo);return;
-  }
-  const boton=document.getElementById('nav-'+grupo);
-  abrirGrupoRielProfesor(grupo,boton?.getAttribute('aria-expanded')!=='true',true);
-}
-let ultimoModoRielProfesor=rielProfesorActivo();
-if(typeof window!=='undefined'&&window.addEventListener)
-  window.addEventListener('resize',()=>{
-    const nuevo=rielProfesorActivo(),cambio=nuevo!==ultimoModoRielProfesor;
-    ultimoModoRielProfesor=nuevo;
-    actualizarModoRielProfesor();
-    // El resumen por ramo pasa entre escritorio y móvil sin dejar una vista
-    // vieja pintada cuando se cambia el ancho de la ventana.
-    if(cambio&&currentTab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
-  });
 // Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
 // Inicio para todas las demás, incluidas las de estudiante que además dan clases.
 function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
@@ -2693,12 +2622,8 @@ function recalcularNavTabs(){
   const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
   [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
-    if(t==='profesor'||t==='alumnos'){
-      const grupo=document.getElementById('nav-grupo-'+t);if(grupo)grupo.hidden=!ver;
-    }
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
-  actualizarModoRielProfesor();
   if(nuevas.join()===NAV_TABS.join())return false;
   NAV_TABS=nuevas;
   // Si a alguien le quitan el acceso estando en su pestaña, no se le deja la
@@ -2710,6 +2635,28 @@ function recalcularNavTabs(){
 let currentTab='home';
 let currentTabIdx=1;
 
+// ─── VISTAS DE CLASES Y ALUMNOS EN LA BARRA (Lucas, 2026-10-22) ──────────────
+// En pantalla ancha, Clases y Alumnos son grupos de la barra lateral, como en
+// Supabase: tocar el grupo abre su Resumen y despliega sus secciones; tocar una
+// sección abre esa vista. En el celular la barra de abajo no se despliega
+// (HIG: Tab bars) y las mismas vistas están en el control de cada pantalla.
+// Cada panel, al pintarse, deja acá cómo cambiar de vista sin recargar.
+const vistasPanelNav={};
+const vistaPendienteNav={};
+// La vista que pidió la barra, una sola vez: el panel la toma al pintarse.
+function tomarVistaNav(tab){const v=vistaPendienteNav[tab];delete vistaPendienteNav[tab];return v||null;}
+function marcarVistaNav(tab,vista){
+  if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
+  document.querySelectorAll(`[data-nav-vista^="${tab}:"]`).forEach(b=>{
+    if(b.dataset.navVista===`${tab}:${vista}`)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+  });
+}
+function irAVistaNav(tab,vista='resumen'){
+  if(currentTab===tab&&typeof vistasPanelNav[tab]==='function'){vistasPanelNav[tab](vista);return;}
+  vistaPendienteNav[tab]=vista;
+  showTab(tab);
+}
+
 function setTabTransforms(idx, dragPx){
   const drag=dragPx||0;
   NAV_TABS.forEach((tab,i)=>{
@@ -2719,7 +2666,7 @@ function setTabTransforms(idx, dragPx){
   });
 }
 
-function showTab(tab,skipAnim,destinoRiel){
+function showTab(tab,skipAnim){
   if(PESTANAS.includes(tab)&&!NAV_TABS.includes(tab)){
     // La lista puede venir atrasada (recién terminó el onboarding de profesor).
     recalcularNavTabs();
@@ -2732,20 +2679,20 @@ function showTab(tab,skipAnim,destinoRiel){
     currentTab=tab;currentTabIdx=NAV_TABS.indexOf(tab);
     setTabTransforms(currentTabIdx,0);
     const nb=document.getElementById('nav-'+tab);if(nb){nb.classList.add('active');nb.setAttribute('aria-current','page');}
+    // aria-expanded solo con barra lateral: abajo no hay nada que desplegar.
+    const conRiel=typeof matchMedia==='function'&&matchMedia('(min-width:1024px)').matches;
+    if(typeof document.querySelectorAll==='function')document.querySelectorAll('[data-nav-grupo]').forEach(g=>{
+      const abierto=g.dataset.navGrupo===tab;g.hidden=!abierto;
+      const dueño=document.getElementById('nav-'+g.dataset.navGrupo);
+      if(dueño){if(conRiel)dueño.setAttribute('aria-expanded',String(abierto));else dueño.removeAttribute('aria-expanded');}
+    });
     // Refresca la tab visible (por si cambiaron datos)
     if(tab==='home')renderHome();
     else if(tab==='stats')renderStats();
     else if(tab==='agenda')renderAgenda();
-    else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor(destinoRiel?.vista||null);
-    else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab(destinoRiel?.vista||'lista');
+    else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
+    else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
-    if(tab==='profesor'||tab==='alumnos'){
-      // Al entrar desde otra pestaña, el grupo activo se abre incluso si antes
-      // estaba plegado. Después, el usuario puede volver a plegarlo.
-      abrirGrupoRielProfesor(tab,true,true);
-      marcarSubitemProfesor(tab,destinoRiel?.vista|| (tab==='profesor'?'anuncios':'lista'));
-    }
-    actualizarModoRielProfesor(tab);
     track('screen_view',{screen_name:tab});
   } else {
     // Modo overlay (ramo, auth, etc.)

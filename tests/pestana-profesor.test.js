@@ -49,7 +49,7 @@ for(const t of ['profesor','admin']){
 }
 chk('al abrirla se pinta el espacio de profesor',
   /tab==='profesor'&&typeof renderProfesor==='function'/.test(app) &&
-  /async function renderProfesor\(/.test(mk));
+  /async function renderProfesor\(\)/.test(mk));
 
 console.log('\n=== Y si te suspenden estando ahí, no te deja en blanco ===');
 // Inicio para una cuenta de estudiante; Clases para una de profesor (#697).

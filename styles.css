@@ -1400,9 +1400,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
    cualquier regla de clase le gana. La pestaña de profesor se esconde con
    hidden y sin esto seguía a la vista para todo el mundo. */
 .nav-item[hidden],.screen[hidden]{display:none;}
-.nav-grupo-profesor{display:contents;}
-.nav-grupo-profesor[hidden],.nav-subitems{display:none!important;}
-.nav-grupo-flecha{display:none;}
+.nav-sub{display:none;}
 .nav-item{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 0 6px;cursor:pointer;border:none;background:none;font-family:var(--font-ui);font-size:0.65625rem;font-weight:600;color:var(--fg3);transition:color var(--motion-base);letter-spacing:-.01em;border-radius:12px;}
 .nav-item .nav-icon{display:flex;align-items:center;justify-content:center;width:auto;height:26px;border-radius:0;background:none;transition:transform var(--motion-base);}
 .nav-item .nav-icon .ic-fill{display:none;}
@@ -2019,7 +2017,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .bottom-nav{
     top:0;bottom:0;left:0;transform:none;
     width:var(--rail);max-width:none;height:100vh;height:100dvh;
-    flex-direction:column;justify-content:flex-start;gap:4px;overflow-y:auto;
+    flex-direction:column;justify-content:flex-start;gap:4px;
     padding:24px 12px;
     border-top:none;border-right:1px solid var(--border);
   }
@@ -2031,20 +2029,15 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .nav-item.active{color:var(--primary);background:color-mix(in srgb,var(--primary),transparent 90%);}
   .nav-item .nav-icon{height:22px;}
   .nav-item.active .nav-icon{transform:none;}
-  html:not(.app-nativa) .nav-grupo-profesor{display:block;flex:none;}
-  html:not(.app-nativa) .nav-grupo-profesor[hidden]{display:none;}
-  html:not(.app-nativa) .nav-grupo-profesor>.nav-item{width:100%;min-height:44px;}
-  html:not(.app-nativa) .nav-grupo-flecha{display:block;width:8px;height:8px;margin-left:auto;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform var(--motion-fast);}
-  html:not(.app-nativa) .nav-item[aria-expanded="true"] .nav-grupo-flecha{transform:rotate(45deg);}
-  html:not(.app-nativa) .nav-subitems:not([hidden]){display:flex!important;flex-direction:column;padding:2px 0 6px 35px;}
-  html:not(.app-nativa) .nav-subitems button{display:block;width:100%;min-height:44px;padding:10px 8px;border:0;border-radius:8px;background:transparent;color:var(--fg2);font:500 0.8125rem var(--font-ui);text-align:left;cursor:pointer;}
-  html:not(.app-nativa) .nav-subitems button[hidden]{display:none;}
-  html:not(.app-nativa) .nav-subitems button:hover,html:not(.app-nativa) .nav-subitems button[aria-current="page"]{background:var(--muted);color:var(--fg);}
-  html:not(.app-nativa) .nav-subitems .nav-subitem-accion{color:var(--primary);font-weight:650;}
-  html:not(.app-nativa) .nav-subitems button:focus-visible,html:not(.app-nativa) .nav-grupo-profesor>.nav-item:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
-  html:not(.app-nativa) #screen-alumnos .panel-alumnos-vistas{display:none;}
-  html:not(.app-nativa) #screen-alumnos .panel-alumnos-ir-invitar,
-  html:not(.app-nativa) #screen-profesor #clase-nueva{display:none;}
+  /* Clases y Alumnos como grupos (Lucas, 2026-10-22): la flecha gira con el grupo abierto. */
+  .nav-grupo::after{content:'›';margin-left:auto;color:var(--fg3);font-size:1.125rem;line-height:1;transition:transform var(--motion-fast) var(--ease-out);}
+  .nav-grupo[aria-expanded="true"]::after{transform:rotate(90deg);}
+  .nav-sub:not([hidden]){display:flex;flex-direction:column;gap:2px;margin:-2px 0 6px;padding-left:34px;}
+  .nav-sub-item{min-height:44px;padding:8px 14px;border:0;border-radius:10px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.8125rem;text-align:left;cursor:pointer;}
+  .nav-sub-item:hover{color:var(--fg);background:var(--muted);}
+  .nav-sub-item[aria-current="page"]{color:var(--primary);font-weight:650;}
+  /* Con las secciones en la barra, el control dentro de la pantalla sobra. */
+  .profesor-hig .panel-alumnos-vistas{display:none;}
 
   /* Con el rail al lado ya no hay que reservar el alto de la barra */
   .scroll{padding-bottom:32px;}
@@ -2056,7 +2049,6 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   /* El toast se centra sobre el contenido, no sobre la ventana */
   .toast{left:calc(50% + (var(--rail) / 2));bottom:28px;}
 }
-@media(prefers-reduced-motion:reduce){.nav-grupo-flecha{transition:none;}}
 
 /* ═══ CARGA FLEXIBLE DE RAMOS ════════════════════════════════════════════
    El semestre de la malla es una SUGERENCIA, no una restricción: hay gente
@@ -3029,6 +3021,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .profesor-hig-cabecera h1{font-size:clamp(1.875rem,4vw,2.75rem);line-height:1.12;letter-spacing:-.045em;font-weight:680;margin:0;}
 .profesor-hig-cabecera p:not(.profesor-hig-ceja){color:var(--fg2);font-size:1rem;margin:12px 0 0;max-width:590px;}
 .profesor-hig-cabecera>.btn-confirm{flex:none;width:auto;}
+/* Sin cabecera, la acción principal de Clases encabeza la pantalla. */
+.profesor-hig-accion{display:flex;margin:0 0 24px;}
+.profesor-hig-accion>.btn-confirm{flex:none;width:auto;min-height:44px;}
 .profesor-hig-intro{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:28px;border:1px solid var(--border);border-radius:16px;background:var(--card);margin-bottom:32px;}
 .profesor-hig-intro h2{font-size:1.625rem;line-height:1.2;letter-spacing:-.03em;margin:0 0 12px;}
 .profesor-hig-intro p,.profesor-hig-intro li{color:var(--fg2);font-size:.9375rem;}
@@ -3254,15 +3249,37 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-exportar-opciones button{display:grid;gap:4px;min-height:56px;padding:12px 14px;text-align:left;font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;}
 .panel-alumnos-exportar-opciones button span{font-size:.875rem;color:var(--fg2);line-height:1.35;}
 .panel-alumnos-exportar-opciones button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
-.panel-alumnos-vistas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:2px;margin:8px 0 10px;border-radius:10px;background:rgba(118,118,128,.12);}
-.panel-alumnos-vistas.dos-vistas{grid-template-columns:repeat(2,minmax(0,1fr));}
+.panel-alumnos-vistas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:2px;margin:8px 0 10px;border-radius:10px;background:rgba(118,118,128,.12);}
+.panel-alumnos-vistas.tres-vistas{grid-template-columns:repeat(3,minmax(0,1fr));}
 .panel-alumnos-vistas button{min-width:0;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;line-height:1.25;overflow-wrap:anywhere;cursor:pointer;}
 .panel-alumnos-vistas button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
-.panel-alumnos-ir-invitar,.panel-alumnos-mas,.panel-alumnos-regresar{min-height:44px;}
-.panel-alumnos-ir-invitar{margin-bottom:8px;}
+.panel-alumnos-mas,.panel-alumnos-regresar{min-height:44px;}
+/* «Invitar alumno» es la acción principal de la Lista: botón con el acento. */
+.panel-alumnos-invitar{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:0 0 10px;padding:10px 18px;border:0;border-radius:10px;background:var(--primary);color:var(--primary-fg);font-family:var(--font-ui);font-size:.9375rem;font-weight:650;cursor:pointer;}
+/* Resumen de Alumnos: filas que abren la ficha. */
+.panel-resumen-cifras{margin-bottom:8px;}
+/* Cuatro cifras: 2×2 en el teléfono y una fila en pantalla ancha. */
+.panel-resumen-cifras .ah-cifra:nth-child(3){grid-column:auto;}
+@media (min-width:560px){.ah-cifras.panel-resumen-cifras{grid-template-columns:repeat(4,minmax(0,1fr));}}
+/* Cuatro vistas en 375 pt: «Estadísticas» cabe en una línea. */
+.panel-alumnos-vistas:not(.tres-vistas) button{padding:8px 0;font-size:.8125rem;white-space:nowrap;letter-spacing:-.01em;}
+.panel-resumen-filas{list-style:none;margin:0 0 8px;padding:0;}
+.panel-resumen-filas li+li{border-top:1px solid var(--border);}
+.panel-resumen-filas button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;padding:10px 2px;border:0;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
+.panel-resumen-filas button>span:first-child{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.panel-resumen-filas small{font-size:.8125rem;color:var(--fg2);overflow-wrap:anywhere;}
+.panel-resumen-cuando{flex:none;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;text-align:right;}
+.panel-resumen-cuando.pronto{color:var(--fg);font-weight:650;}
+/* Resumen de Clases: lo que pide algo del profesor. */
+.clases-pendientes{list-style:none;margin:0 0 16px;padding:0;}
+.clases-pendientes li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:8px 2px;}
+.clases-pendientes li+li{border-top:1px solid var(--border);}
+.clases-pendientes li>span{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.clases-pendientes small{font-size:.8125rem;color:var(--fg2);}
+.clases-pendientes .agent-refresh{flex:none;min-height:44px;margin:0;}
 .panel-alumnos-mas{margin-top:12px;width:100%;}
 .panel-alumnos-regresar{margin:4px 0 14px;}
-.panel-alumnos-vista[hidden],.panel-alumnos-vistas[hidden],.panel-alumnos-ir-invitar[hidden],.panel-alumnos-mas[hidden],#alumnos-compara-wrap[hidden],#alumnos-privacidad[hidden]{display:none;}
+.panel-alumnos-vista[hidden],.panel-alumnos-vistas[hidden],.panel-alumnos-mas[hidden],#alumnos-compara-wrap[hidden],#alumnos-privacidad[hidden]{display:none;}
 .panel-alumnos-ficha h2{margin:0 0 12px;font-size:1.25rem;color:var(--fg);overflow-wrap:anywhere;}
 .panel-alumnos-ficha #alumnos-ficha-contenido{padding:4px 14px 14px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
 .panel-alumnos-ficha .settings-danger-btn{margin-top:12px;min-height:44px;width:auto;}

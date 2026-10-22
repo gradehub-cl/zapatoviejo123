@@ -603,7 +603,6 @@ function contexto({search='',sesion=false}={}){
   // de la página (Lucas, 2026-10-22: el título grande no iba con nada).
   chk('la barra dice Alumnos y es el único título principal',
     /<h1 class="brand-word"[^>]*>Alumnos<\/h1>/.test(pantallaAlumnos)&&!/>GradeHub</.test(pantallaAlumnos));
-  a.run('globalThis.__matchMediaPanel=window.matchMedia;window.matchMedia=()=>({matches:false,addEventListener(){},addListener(){}})');
   for(const n of [1,4,6]){
     a.run(`globalThis.__alumnosVista=Array.from({length:${n}},(_,i)=>({id:'a'+i,nombre_visible:'Alumno '+(i+1),tenant:'uc',ramos:[]}));
       globalThis.__raizVista={innerHTML:'',querySelector:()=>({addEventListener(){},querySelectorAll(){return []}})};
@@ -612,17 +611,17 @@ function contexto({search='',sesion=false}={}){
     const vista=a.run('__raizVista.innerHTML');
     chk(`${n} alumnos: la lista compacta aparece primero y las cifras se cargan al abrir su vista`,
       vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Alumno 1')&&
-      /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Cómo van tus alumnos/.test(vista));
-    chk(`${n} alumnos: Lista y Cómo van siguen en el control segmentado`,
-      /data-panel-vista="lista"/.test(vista)&&/data-panel-vista="grupo"/.test(vista)&&
-      !/data-panel-vista="ramos"/.test(vista)&&
-      /id="alumnos-ir-invitar"/.test(vista)&&!/data-panel-vista="invitar"/.test(vista));
-    chk(`${n} alumnos: móvil explica el resumen que vive en computador`,
-      (n>1)===/Resumen por ramo: disponible en el computador\./.test(vista));
+      /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Antes y desde que empezaron contigo/.test(vista));
+    // Resumen · Lista · Estadísticas · Ramos (Lucas, 2026-10-22). Invitar es la
+    // acción principal de la Lista, con el acento, no una vista más.
+    chk(`${n} alumnos: Resumen, Lista, Estadísticas y Ramos, con Invitar dentro de la Lista`,
+      />Resumen</.test(vista)&&/data-panel-vista="lista"[^>]*>Lista</.test(vista)&&/data-panel-vista="estadisticas"[^>]*>Estadísticas</.test(vista)&&
+      (n>1)===/data-panel-vista="ramos"[^>]*>Ramos</.test(vista)&&!/Cómo van<|Por ramo</.test(vista)&&
+      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="panel-alumnos-invitar" id="alumnos-ir-invitar"')&&
+      !/data-panel-vista="invitar"/.test(vista));
     chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
       !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));
   }
-  a.run('window.matchMedia=__matchMediaPanel');
   const compacta=a.run(`alumnosPanelHTML([__antesAhora],__cursoAA,new Date(),{soloFilas:true})`);
   chk('la fila compacta conserva estado y próxima evaluación sin construir tablas ni gráfico',
     /data-ver-alumno="aa"/.test(compacta)&&/Cálculo II · /.test(compacta)
@@ -631,7 +630,7 @@ function contexto({search='',sesion=false}={}){
     globalThis.__nodoPanel=()=>({hidden:false,innerHTML:'',textContent:'',value:'',dataset:{},handlers:{},
       addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},
       setAttribute(nombre,valor){this[nombre]=valor},focus(){this.enfocado=true}});
-    globalThis.__tabsPanel=['lista','grupo','ramos'].map(v=>({...__nodoPanel(),dataset:{panelVista:v}}));
+    globalThis.__tabsPanel=['resumen','lista','estadisticas','ramos'].map(v=>({...__nodoPanel(),dataset:{panelVista:v}}));
     globalThis.__compPanel=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
     globalThis.__compPanelFicha=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
     globalThis.__raizPanel={innerHTML:'',scrollIntoView(){},querySelector(sel){
@@ -650,13 +649,17 @@ function contexto({search='',sesion=false}={}){
     /Todo GradeHub/.test(htmlFicha)&&/Su sección/.test(htmlFicha)&&
     htmlFicha.indexOf('id="alumnos-ficha-volver"')<htmlFicha.indexOf('id="alumnos-ficha-titulo"')&&
     htmlFicha.indexOf('id="alumnos-ficha-titulo"')<htmlFicha.indexOf('Todo GradeHub'));
-  chk('Lista y Cómo van conservan el control sobre sus vistas',
-    inicial51.indexOf('id="alumnos-compara-wrap"')<inicial51.indexOf('id="alumnos-vista-lista"')&&
-    inicial51.indexOf('id="alumnos-compara-wrap"')<inicial51.indexOf('id="alumnos-vista-grupo"'));
+  chk('Estadísticas conserva el control sobre su vista',
+    inicial51.indexOf('id="alumnos-compara-wrap"')<inicial51.indexOf('id="alumnos-vista-estadisticas"'));
   chk('con 51 alumnos muestra 50 filas compactas y no precarga fichas ni resúmenes',
     (inicial51.match(/data-ver-alumno="p\d+"/g)||[]).length===50
-    &&!/data-alumno="p\d+"|Cómo van tus alumnos|Resumen por ramo/.test(inicial51)
+    &&!/data-alumno="p\d+"|Antes y desde que empezaron contigo|Tus alumnos por ramo/.test(inicial51)
     &&/id="alumnos-mas"/.test(inicial51));
+  chk('abre en el Resumen, con esta semana y a quién atender, sin la comparación',
+    a.run(`__panelNodos['#alumnos-vista-resumen'].hidden`)===false&&a.run(`__panelNodos['#alumnos-vista-lista'].hidden`)===true&&
+    /Esta semana/.test(a.run(`__panelNodos['#alumnos-vista-resumen'].innerHTML`))&&/Necesitan atención/.test(a.run(`__panelNodos['#alumnos-vista-resumen'].innerHTML`))&&
+    a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true);
+  a.run(`__tabsPanel[1].handlers.click()`);
   a.run(`__panelNodos['#alumnos-mas'].handlers.click()`);
   chk('Mostrar 50 más añade la fila 51 y luego se esconde',
     (a.run(`__panelNodos['#alumnos-lista'].innerHTML`).match(/data-ver-alumno="p\d+"/g)||[]).length===51
@@ -676,16 +679,17 @@ function contexto({search='',sesion=false}={}){
   a.run(`__panelNodos['#alumnos-ficha-volver'].handlers.click()`);
   chk('volver restaura la lista sin perder el tramo mostrado',
     a.run(`__panelNodos['#alumnos-vista-lista'].hidden`)===false&&
-    a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===false&&
     (a.run(`__panelNodos['#alumnos-lista'].innerHTML`).match(/data-ver-alumno="p\d+"/g)||[]).length===51);
-  a.run(`__tabsPanel[1].handlers.click()`);
-  chk('Cómo van se carga solo al abrir su vista',
-    a.run(`__panelNodos['#alumnos-vista-grupo'].hidden`)===false&&
-    /Cómo van tus alumnos/.test(a.run(`__panelNodos['#alumnos-vista-grupo'].innerHTML`)));
+  chk('en la Lista tampoco va la comparación: no cambia nada ahí',a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true);
   a.run(`__tabsPanel[2].handlers.click()`);
-  chk('Por ramo muestra su resumen sin cambiar la comparación del grupo',
+  chk('Estadísticas se carga solo al abrir su vista, con la comparación',
+    a.run(`__panelNodos['#alumnos-vista-estadisticas'].hidden`)===false&&
+    /Antes y desde que empezaron contigo/.test(a.run(`__panelNodos['#alumnos-vista-estadisticas'].innerHTML`))&&
+    a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===false);
+  a.run(`__tabsPanel[3].handlers.click()`);
+  chk('Ramos muestra su resumen sin cambiar la comparación del grupo',
     a.run(`__panelNodos['#alumnos-vista-ramos'].hidden`)===false&&
-    /Resumen por ramo/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
+    /Tus alumnos por ramo/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
     a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true);
   a.run(`__panelNodos['#alumnos-ir-invitar'].handlers.click()`);
   chk('Invitar abre el link en su propia vista y ofrece volver',
@@ -723,13 +727,6 @@ function contexto({search='',sesion=false}={}){
   const pagina300=a.run(`alumnosPanelHTML(Array.from({length:300},(_,i)=>({id:'m'+i,nombre_visible:'Alumno '+i,tenant:'uc',ramos:[]})),()=>null,new Date(),{soloFilas:true,limite:50})`);
   chk('con 300 alumnos el HTML inicial sigue limitado a 50 filas sin fichas completas',
     (pagina300.match(/data-ver-alumno=/g)||[]).length===50&&!/<details|data-quitar-alumno/.test(pagina300));
-  await a.run("renderAlumnosProfesor(__raizPanel,{vistaInicial:'grupo'})");
-  chk('el subítem Cómo van abre directamente su vista',
-    a.run("__panelNodos['#alumnos-vista-grupo'].hidden")===false);
-  await a.run("renderAlumnosProfesor(__raizPanel,{vistaInicial:'ramos'})");
-  chk('el subítem Por ramo abre directamente su resumen con varios alumnos',
-    a.run("__panelNodos['#alumnos-vista-ramos'].hidden")===false&&
-    /Resumen por ramo/.test(a.run("__panelNodos['#alumnos-vista-ramos'].innerHTML")));
 
   console.log('\n=== Cambio de cuenta durante la carga del panel ===');
   const cambio=contexto({sesion:true});
@@ -831,6 +828,29 @@ function contexto({search='',sesion=false}={}){
   chk('el administrador lo activa por profesor aprobado, desde su ficha',
     /data-admin-ejemplo="\$\{esc\(p\.user_id\)\}"/.test(mkEj)&&/llamar\('admin_fijar_alumnos_ejemplo',\{p_user_id:id,p_activo:!activo\}/.test(mkEj));
 
+  console.log('\n=== Resumen de Alumnos y barra lateral (2026-10-22) ===');
+  // A va con 7 y rinde mañana; B va reprobando y rinde en 5 días; C rinde en 9.
+  a.run(`globalThis.__evR=(id,nombre,fecha,valor)=>({id:'c'+id,nombre,peso:50,fecha,notas:valor==null?[]:[{id:'n'+id,nombre,valor}]});
+    globalThis.__alR=(id,nombre,previa,fecha)=>({id,nombre_visible:nombre,tenant:'uc',ramos:[{id:'r'+id,nombre:'Ramo '+id,sigla:'TST'+id,gates:[],
+      categorias:[__evR(id+'1','Prueba 1','2026-10-01',previa),__evR(id+'2','Prueba 2',fecha,null)]}]});
+    globalThis.__grupoR=[__alR('c','C sintético',5.0,'2026-10-31'),__alR('b','B sintético',2.0,'2026-10-27'),__alR('a','A sintético',7.0,'2026-10-23')];`);
+  const resR=a.run(`resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10))`);
+  chk('esta semana: lo de mañana primero aunque vaya con 7, y nada más allá de 7 días',
+    resR.semana.map(x=>x.al.id).join()==='a,b'&&resR.semana[0].dias===1);
+  chk('necesitan atención: solo quien va reprobando o al borde',resR.atencion.map(x=>x.al.id).join()==='b'&&resR.reprobando===1&&resR.conectados===3);
+  const htmlR=a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10)))`);
+  chk('cada fila abre la ficha y lo de mañana se destaca',/data-ver-alumno="a"/.test(htmlR)&&/panel-resumen-cuando pronto">Mañana/.test(htmlR));
+  chk('sin nada esta semana lo dice',/Nadie de tus alumnos tiene evaluaciones/.test(a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel([__grupoR[0]],new Date(2026,9,22,10)))`)));
+  const idx=leer('index.html'),cssN=leer('styles.css');
+  chk('la barra lateral lleva Clases y Alumnos con sus secciones',
+    ['profesor:resumen','profesor:anuncios','profesor:perfil','alumnos:resumen','alumnos:lista','alumnos:estadisticas','alumnos:ramos']
+      .every(v=>idx.includes(`data-nav-vista="${v}"`))&&/id="nav-alumnos" onclick="irAVistaNav\('alumnos','resumen'\)"/.test(idx));
+  chk('abajo (celular) las secciones no se despliegan; en el riel sí',
+    /\n\.nav-sub\{display:none;\}/.test(cssN)&&/\.nav-sub:not\(\[hidden\]\)\{display:flex;/.test(cssN));
+  chk('una sección de la pestaña abierta cambia la vista sin recargar',
+    a.run(`(()=>{currentTab='alumnos';let v=null;vistasPanelNav.alumnos=x=>{v=x};irAVistaNav('alumnos','ramos');delete vistasPanelNav.alumnos;return v;})()`)==='ramos');
+  chk('la vista pedida se toma una sola vez',a.run(`(vistaPendienteNav.alumnos='lista',[tomarVistaNav('alumnos'),tomarVistaNav('alumnos')].join())`)==='lista,');
+
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
     {id:'e1',nombre_visible:'Pérez, "Cami"',tenant:'uc',ramos:[__r]},
@@ -913,7 +933,7 @@ function contexto({search='',sesion=false}={}){
 
   console.log('\n=== El panel en su propia pestaña (#697) ===');
   const appSrc=leer('app.js'),htmlSrc=leer('index.html'),mkSrc=leer('marketplace.js');
-  chk('un profesor aprobado tiene Clases y Alumnos',/conProfesor\?\['profesor','alumnos'\]/.test(appSrc)&&/tab==='alumnos'[^\n]*renderAlumnosTab\(/.test(appSrc));
+  chk('un profesor aprobado tiene Clases y Alumnos',/conProfesor\?\['profesor','alumnos'\]/.test(appSrc)&&/tab==='alumnos'[^\n]*renderAlumnosTab\(\)/.test(appSrc));
   chk('la pestaña y su botón existen, ocultos hasta que corresponda',/id="screen-alumnos" class="screen" hidden/.test(htmlSrc)&&/id="nav-alumnos"[^>]*aria-label="Alumnos" hidden/.test(htmlSrc));
   chk('Clases ya no lleva la sección de alumnos',!/Ver mis alumnos/.test(mkSrc)&&!/clase-alumnos/.test(mkSrc));
   chk('en la pestaña no hay "Volver": si falla, se ofrece reintentar',/volver\?'Volver':'Reintentar'/.test(mkSrc));
