@@ -3245,6 +3245,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-buscar{margin-top:8px;}
 .panel-alumnos-buscar input{min-height:44px;}
 .panel-alumnos-exportar{min-height:44px;margin-top:4px;}
+.panel-alumnos-exportar-opciones{display:grid;gap:8px;margin:16px 0;}
+.panel-alumnos-exportar-opciones button{display:grid;gap:4px;min-height:56px;padding:12px 14px;text-align:left;font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;}
+.panel-alumnos-exportar-opciones button span{font-size:.875rem;color:var(--fg2);line-height:1.35;}
+.panel-alumnos-exportar-opciones button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 .panel-alumnos-vistas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:2px;margin:8px 0 10px;border-radius:10px;background:rgba(118,118,128,.12);}
 .panel-alumnos-vistas.tres-vistas{grid-template-columns:repeat(3,minmax(0,1fr));}
 .panel-alumnos-vistas button{min-width:0;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;line-height:1.25;overflow-wrap:anywhere;cursor:pointer;}

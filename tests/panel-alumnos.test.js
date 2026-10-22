@@ -443,7 +443,7 @@ function contexto({search='',sesion=false}={}){
   const mkSec=leer('marketplace.js');
   chk('por sección consulta con p_seccion y el resumen por ramo sigue contra todo GradeHub',
     /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
-    &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion\)/.test(mkSec));
+    &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion,formato\)/.test(mkSec));
 
   console.log('\n=== Un alumno con varios ramos (2026-10-21) ===');
   const fichaVarios=a.run(`alumnosPanelHTML([__dos],()=>null)`);
@@ -632,15 +632,25 @@ function contexto({search='',sesion=false}={}){
       setAttribute(nombre,valor){this[nombre]=valor},focus(){this.enfocado=true}});
     globalThis.__tabsPanel=['resumen','lista','estadisticas','ramos'].map(v=>({...__nodoPanel(),dataset:{panelVista:v}}));
     globalThis.__compPanel=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
+    globalThis.__compPanelFicha=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
     globalThis.__raizPanel={innerHTML:'',scrollIntoView(){},querySelector(sel){
       if(!__panelNodos[sel])__panelNodos[sel]=__nodoPanel();
       if(sel==='.panel-alumnos-vistas')__panelNodos[sel].querySelectorAll=()=>__tabsPanel;
-      if(sel==='.panel-alumnos-compara')__panelNodos[sel].querySelectorAll=()=>__compPanel;
+      if(sel==='#alumnos-compara-wrap .panel-alumnos-compara')__panelNodos[sel].querySelectorAll=()=>__compPanel;
+      if(sel==='#alumnos-ficha-compara-wrap .panel-alumnos-compara')__panelNodos[sel].querySelectorAll=()=>__compPanelFicha;
       return __panelNodos[sel];}};
     globalThis.__muchos=Array.from({length:51},(_,i)=>({id:'p'+i,nombre_visible:'Persona '+(i+1),tenant:'uc',ramos:[]}));
     supabaseClient={rpc:async nombre=>nombre==='codigo_alumnos_profesor'?{data:'AB3CDEFG',error:null}:{data:__muchos,error:null}};`);
   await a.run('renderAlumnosProfesor(__raizPanel)');
   const inicial51=a.run('__raizPanel.innerHTML');
+  const htmlFicha=inicial51.match(/<section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>([\s\S]*?)<\/section>/)?.[1]||'';
+  chk('la ficha pone ‹ Lista, nombre sintético y comparación en ese orden',
+    /id="alumnos-ficha-volver"/.test(htmlFicha)&&/id="alumnos-ficha-titulo"/.test(htmlFicha)&&
+    /Todo GradeHub/.test(htmlFicha)&&/Su sección/.test(htmlFicha)&&
+    htmlFicha.indexOf('id="alumnos-ficha-volver"')<htmlFicha.indexOf('id="alumnos-ficha-titulo"')&&
+    htmlFicha.indexOf('id="alumnos-ficha-titulo"')<htmlFicha.indexOf('Todo GradeHub'));
+  chk('Estadísticas conserva el control sobre su vista',
+    inicial51.indexOf('id="alumnos-compara-wrap"')<inicial51.indexOf('id="alumnos-vista-estadisticas"'));
   chk('con 51 alumnos muestra 50 filas compactas y no precarga fichas ni resúmenes',
     (inicial51.match(/data-ver-alumno="p\d+"/g)||[]).length===50
     &&!/data-alumno="p\d+"|Antes y desde que empezaron contigo|Tus alumnos por ramo/.test(inicial51)
@@ -658,8 +668,14 @@ function contexto({search='',sesion=false}={}){
   chk('al abrir un alumno, la lista se oculta y solo se construye su ficha',
     a.run(`__panelNodos['#alumnos-vista-lista'].hidden`)===true&&
     a.run(`__panelNodos['#alumnos-vista-ficha'].hidden`)===false&&
+    a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true&&
     a.run(`__panelNodos['#alumnos-ficha-titulo'].textContent`)==='Persona 51'&&
     /data-quitar-alumno="p50"/.test(a.run(`__panelNodos['#alumnos-ficha-contenido'].innerHTML`)));
+  await a.run(`__compPanelFicha[1].handlers.click()`);
+  chk('la comparación de la ficha actualiza también el control de Lista',
+    a.run(`__compPanelFicha[1]['aria-pressed']`)==='true'&&
+    a.run(`__compPanel[1]['aria-pressed']`)==='true'&&
+    a.almacen.get('gh_panel_compara')==='seccion');
   a.run(`__panelNodos['#alumnos-ficha-volver'].handlers.click()`);
   chk('volver restaura la lista sin perder el tramo mostrado',
     a.run(`__panelNodos['#alumnos-vista-lista'].hidden`)===false&&
@@ -688,20 +704,25 @@ function contexto({search='',sesion=false}={}){
     a.run(`__panelNodos['#alumnos-cuenta'].textContent`)==='1 de 51');
   a.run(`__panelNodos['#alumnos-buscar'].value='';__panelNodos['#alumnos-buscar'].handlers.input();
     showConfirm=(titulo,mensaje,accion)=>{globalThis.__mensajeExportar=mensaje;globalThis.__accionExportar=accion};
-    exportarAlumnosPanel=lista=>{globalThis.__exportados=lista.map(al=>al.id)};`);
+    globalThis.__elegirArchivoReal=elegirArchivoAlumnosPanel;
+    elegirArchivoAlumnosPanel=accion=>{globalThis.__elegirArchivo=accion};
+    exportarAlumnosPanel=(lista,comp,sec,formato)=>{globalThis.__exportados=lista.map(al=>al.id);globalThis.__formatoExportado=formato};`);
   const visiblesExportar=[...a.run(`__panelNodos['#alumnos-lista'].innerHTML`).matchAll(/data-ver-alumno="([^"]+)"/g)].map(x=>x[1]);
   await a.run(`__panelNodos['#alumnos-exportar'].handlers.click()`);
+  a.run(`__elegirArchivo('detalle')`);
   a.run(`__accionExportar()`);
   // La paginación es de la pantalla, no del archivo: con 51 alumnos y 50
   // filas pintadas, el Excel trae a los 51, partiendo en el orden de la lista.
   chk('el Excel trae a todos los que calzan con la búsqueda, en el orden de la lista',
     visiblesExportar.length===50&&a.run('__exportados.length')===51&&
     a.run('__exportados.slice(0,50).join(",")')===visiblesExportar.join(',')&&
-    /51 alumnos/.test(a.run('__mensajeExportar')));
+    /51 alumnos/.test(a.run('__mensajeExportar'))&&a.run('__formatoExportado')==='detalle');
   a.run(`__panelNodos['#alumnos-buscar'].value='Persona 51';__panelNodos['#alumnos-buscar'].handlers.input()`);
   await a.run(`__panelNodos['#alumnos-exportar'].handlers.click()`);
+  a.run(`__elegirArchivo('resumen')`);
   a.run(`__accionExportar()`);
-  chk('con una búsqueda escrita, solo los que calzan',a.run('__exportados.join(",")')==='p50'&&/1 alumno/.test(a.run('__mensajeExportar')));
+  chk('con una búsqueda escrita, el resumen solo trae los que calzan',a.run('__exportados.join(",")')==='p50'&&/1 alumno/.test(a.run('__mensajeExportar'))&&a.run('__formatoExportado')==='resumen');
+  a.run(`elegirArchivoAlumnosPanel=__elegirArchivoReal`);
   a.run(`__panelNodos['#alumnos-buscar'].value='';__panelNodos['#alumnos-buscar'].handlers.input()`);
   const pagina300=a.run(`alumnosPanelHTML(Array.from({length:300},(_,i)=>({id:'m'+i,nombre_visible:'Alumno '+i,tenant:'uc',ramos:[]})),()=>null,new Date(),{soloFilas:true,limite:50})`);
   chk('con 300 alumnos el HTML inicial sigue limitado a 50 filas sin fichas completas',
@@ -850,9 +871,65 @@ function contexto({search='',sesion=false}={}){
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
   chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;'));
+  const resumen=a.run(`csvResumenAlumnosPanel([{...__dos,nombre_visible:'=Ana',ramos:[
+    __dos.ramos[0],{...__dos.ramos[1],seccion:undefined,categorias:[...__dos.ramos[1].categorias,
+      {id:'pendiente',nombre:'Control 3',peso:20,fecha:'2026-11-01',notas:[{id:'sin-nota',nombre:'Control 3',valor:null}]}]}]}],
+    (al,r)=>r.id==='ra'?__cursoAA():{ramo:{promedio:4.8,personas:4},evaluaciones:[],categorias:[]},
+    (al,r)=>r.id==='ra'?{ramo:{promedio:4.9,personas:6}}:{ramo:{promedio:5.2,personas:4}},
+    new Date('2026-10-22T12:00:00Z'))`);
+  const filasResumen=resumen.split('\r\n').map(l=>l.split(';'));
+  chk('resumen tiene una fila por alumno y ramo, con todas las columnas pedidas',
+    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el curso antes;Diferencia con el curso desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar');
+  chk('dos ramos del mismo alumno conservan fechas y comparaciones propias',
+    filasResumen[1][4]==='2026-09-15'&&filasResumen[2][4]==='2026-10-05'&&
+    filasResumen[1][8]==='-1,0'&&filasResumen[1][9]==='0,7'&&filasResumen[1][10]==='1,7'&&
+    filasResumen[2][10]===''&&filasResumen[2][3]==='no declarada');
+  chk('promedio usa ramoAvg; con cuatro personas no aparece comparación',
+    filasResumen[1][5]===a.run('fmtPromedio(ramoAvg(ramoParaPanel(__dos.ramos[0])))').replace('.',',')&&
+    filasResumen[1][6]==='4,5'&&filasResumen[1][7]==='4,9'&&filasResumen[2][6]===''&&filasResumen[2][7]==='');
+  chk('nombre parecido a fórmula queda inerte y próxima evaluación se incluye',
+    filasResumen[1][0]==="'=Ana"&&filasResumen[2][12]==='Control 3');
+  const sinNotas=a.run(`csvResumenAlumnosPanel([{id:'vacio',nombre_visible:'Sin notas',tenant:'uc',desde:'2026-09-01',ramos:[
+    {id:'rv',nombre:'Ramo vacío',gates:[],categorias:[]}]}],()=>null)`);
+  const filaVacia=sinNotas.split('\r\n')[1].split(';');
+  chk('un ramo sin notas también aparece, sin inventar promedio ni cambio',
+    sinNotas.split('\r\n').length===2&&filaVacia.length===14&&filaVacia[3]==='no declarada'&&
+    filaVacia[4]==='2026-09-01'&&filaVacia[5]===''&&filaVacia[10]===''&&filaVacia[11]==='Sin notas');
+  a.run(`globalThis.__getElementOriginal=document.getElementById;
+    globalThis.__opciones=['detalle','resumen'].map(formato=>({dataset:{exportarPanel:formato},handlers:{},addEventListener(t,fn){this.handlers[t]=fn}}));
+    globalThis.__cancelarOpcion={handlers:{},addEventListener(t,fn){this.handlers[t]=fn}};
+    globalThis.__cajaOpcion={innerHTML:'',querySelector:s=>s==='#alumnos-exportar-cancelar'?__cancelarOpcion:null,
+      querySelectorAll:()=>__opciones};
+    document.getElementById=id=>id==='modal-content'?__cajaOpcion:null;
+    openModal=()=>{globalThis.__hojaAbierta=true};closeModal=()=>{globalThis.__hojaAbierta=false};
+    elegirArchivoAlumnosPanel(formato=>{globalThis.__opcionElegida=formato});`);
+  chk('hoja ofrece dos archivos relacionados y se puede cancelar',
+    /Detalle por evaluación/.test(a.run('__cajaOpcion.innerHTML'))&&
+    /Resumen por alumno/.test(a.run('__cajaOpcion.innerHTML'))&&
+    a.run('__hojaAbierta')===true);
+  a.run(`__opciones[1].handlers.click()`);
+  chk('elegir resumen cierra la hoja antes de confirmar',a.run('__opcionElegida')==='resumen'&&a.run('__hojaAbierta')===false);
+  a.run(`document.getElementById=__getElementOriginal`);
   const mk=leer('marketplace.js');
   chk('exportar pide confirmar con el recordatorio de los términos',
     /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
+  chk('ambos archivos llevan BOM y protegen cada celda',/new Blob\(\['\\ufeff'\+csv\]/.test(mk)&&/filas\.map\(f=>f\.map\(celdaCsvPanel\)/.test(mk));
+  const salida=contexto();
+  salida.run(`globalThis.Blob=class {constructor(parts,opts){this.parts=parts;this.type=opts.type;globalThis.__blobCsv=this}};
+    globalThis.URL={createObjectURL:()=>'/archivo',revokeObjectURL(){}};
+    document.createElement=()=>({click(){globalThis.__descargado=this.download},remove(){}});
+    document.body.appendChild=()=>{};track=()=>{};showToast=()=>{};
+    globalThis.__alExportable=[{id:'x',nombre_visible:'Persona sintética',tenant:'uc',desde:'2026-09-01',ramos:[
+      {id:'r',nombre:'Ramo sintético',gates:[],categorias:[]}]}];`);
+  await salida.run(`exportarAlumnosPanel(__alExportable,()=>null,null,'resumen')`);
+  chk('la descarga del resumen lleva BOM, tipo CSV y nombre propio',
+    salida.run('__blobCsv.parts[0]').startsWith('\ufeffAlumno;Ramo;')&&
+    salida.run('__blobCsv.type')==='text/csv;charset=utf-8'&&
+    /gradehub-alumnos-resumen-\d{4}-\d{2}-\d{2}\.csv/.test(salida.run('__descargado')));
+  await salida.run(`exportarAlumnosPanel(__alExportable,()=>null)`);
+  chk('el archivo de detalle conserva su nombre y encabezado',
+    salida.run('__blobCsv.parts[0]').startsWith('\ufeffAlumno;Ramo;Sigla;Categoría;Evaluación;Nota;')&&
+    /^gradehub-alumnos-\d{4}-\d{2}-\d{2}\.csv$/.test(salida.run('__descargado')));
 
   console.log('\n=== El panel en su propia pestaña (#697) ===');
   const appSrc=leer('app.js'),htmlSrc=leer('index.html'),mkSrc=leer('marketplace.js');
