@@ -3996,11 +3996,40 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
   });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
-async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null){
+// Una fila por ramo compartido. Las diferencias usan exactamente el corte y
+// las comparaciones del panel; sin muestra suficiente la celda queda vacía.
+function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date()){
+  const num=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'':String(v).replace('.',',');
+  const prom=v=>v===null||v===undefined?'':num(fmtPromedio(Number(v)));
+  const comparable=x=>x&&x.personas>=5?prom(x.promedio):'';
+  const diferencia=v=>v===null||v===undefined?'':num(v.toFixed(1));
+  const estado={good:'Aprobando',warn:'Al borde',bad:'Reprobando',neutral:'Sin notas'};
+  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el curso antes','Diferencia con el curso desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar']];
+  (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,ctx=>{
+    (al.ramos||[]).forEach(r=>{
+      const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
+      const sec=(compSeccionDe&&compSeccionDe(al,r))||{};
+      const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+      const nivel=avg===null?'neutral':nivelRamo(ramo,avg);
+      const met=metricasAlumnoPanel({...al,ramos:[r]},compDe);
+      const proxima=proximaEvaluacionPanel(ramo,ahora,ctx);
+      filas.push([al.nombre_visible,ramo.nombre,
+        (typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'',
+        Number.isInteger(r.seccion)?r.seccion:'no declarada',
+        inicioRamoPanel(al,r).dia||'',prom(avg),comparable(comp.ramo),comparable(sec.ramo),
+        diferencia(met.antes.diferencia),diferencia(met.ahora.diferencia),
+        diferencia(met.cambio),estado[nivel]||'Sin notas',
+        proxima?proxima.evaluacion:'',proxima&&proxima.necesita?num(proxima.necesita):'']);
+    });
+  }));
+  return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
+}
+async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null,formato='detalle'){
   const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
-  const nombre=`gradehub-alumnos-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
+  const nombre=`gradehub-alumnos${formato==='resumen'?'-resumen':''}-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
   // La marca BOM hace que Excel lea bien las tildes.
-  const blob=new Blob(['\ufeff'+csvAlumnosPanel(lista,compDe,compSeccionDe)],{type:'text/csv;charset=utf-8'});
+  const csv=formato==='resumen'?csvResumenAlumnosPanel(lista,compDe,compSeccionDe,hoy):csvAlumnosPanel(lista,compDe,compSeccionDe);
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
   track('panel_alumnos_exportado',{alumnos:lista.length});
   // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
   try{
@@ -4015,6 +4044,22 @@ async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
   showToast('Archivo descargado.');
+}
+function elegirArchivoAlumnosPanel(alElegir){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  caja.innerHTML=`<div class="modal-title" id="modal-titulo">Exportar a Excel</div>
+    <p class="compartir-explica">Elige el archivo que necesitas.</p>
+    <div class="panel-alumnos-exportar-opciones">
+      <button type="button" data-exportar-panel="detalle"><b>Detalle por evaluación</b><span>Una fila por evaluación, para tablas dinámicas</span></button>
+      <button type="button" data-exportar-panel="resumen"><b>Resumen por alumno</b><span>Una fila por alumno y ramo, para gráficos</span></button>
+    </div>
+    <div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-exportar-cancelar">Cancelar</button></div>`;
+  openModal();
+  caja.querySelector('#alumnos-exportar-cancelar').addEventListener('click',closeModal);
+  caja.querySelectorAll('[data-exportar-panel]').forEach(b=>b.addEventListener('click',()=>{
+    const formato=b.dataset.exportarPanel;
+    closeModal();alElegir(formato);
+  }));
 }
 
 // La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
@@ -4414,10 +4459,12 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial='li
     exportar.disabled=true;await cargarSecciones();
     if(!vigente())return;
     exportar.disabled=false;
-    const n=paraExportar.length;
-    showConfirm('Exportar notas',
-      `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
-      ()=>{if(vigente())exportarAlumnosPanel(paraExportar,compGeneral,compSeccion);},{label:'Exportar',danger:false});
+    elegirArchivoAlumnosPanel(formato=>{
+      const n=paraExportar.length;
+      showConfirm('Exportar notas',
+        `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
+        ()=>{if(vigente())exportarAlumnosPanel(paraExportar,compGeneral,compSeccion,formato);},{label:'Exportar',danger:false});
+    });
   });
   if(ejemplo)track('panel_alumnos_ejemplo');
   else track('panel_alumnos_abierto',{alumnos:alumnos.length});
