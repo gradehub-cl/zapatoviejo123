@@ -118,8 +118,14 @@ function ordenarAgenda(pendientes,orden='recomendado'){
       const porPeso=(pesoEventoAgenda(b)??-1)-(pesoEventoAgenda(a)??-1);
       return porPeso||cuando(a).localeCompare(cuando(b))||b.score-a.score;
     }
-    // Es exactamente el comparador que usaba renderAgenda antes de ofrecer
-    // alternativas. "Recomendado" nombra el comportamiento, no lo reescribe.
+    // Hoy y mañana van primero, en orden de hora (Lucas, 2026-10-22): mañana
+    // se rinde igual aunque en el ramo tengas un 7, y el puntaje la dejaba bajo
+    // una de un ramo en riesgo que es en cinco días. Salvo un ramo que ya no
+    // se puede aprobar: ese no compite por el foco (Lucas, 2026-10-20). Desde
+    // pasado mañana manda el puntaje de siempre: cercanía × peso × riesgo.
+    const inmediata=e=>e.dias>=0&&e.dias<=1&&!(e.necesita!=null&&e.necesita>7.05);
+    if(inmediata(a)!==inmediata(b))return inmediata(a)?-1:1;
+    if(inmediata(a))return cuando(a).localeCompare(cuando(b))||b.score-a.score;
     return b.score-a.score;
   });
 }
