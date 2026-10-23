@@ -9802,7 +9802,7 @@ function openSimuladorModal(){
   document.getElementById('modal-content').innerHTML=`
     <p class="sim-kicker">Simulador</p>
     <div class="modal-title sim-ramo">${esc(r.nombre)}${r.seccion?` · Sección ${r.seccion}`:''}</div>
-    <p class="sim-intro">Agrega notas hipotéticas y mira cómo quedaría tu promedio. No se guardan hasta que confirmes.</p>
+    <p class="sim-intro">Escribe notas hipotéticas y mira cómo quedaría tu promedio. No se guardan hasta que confirmes.</p>
     <div class="sim-proj">
       <div class="sim-proj-label">Promedio proyectado</div>
       <div class="sim-proj-nums">
@@ -9967,8 +9967,7 @@ function simNotaNecesaria(proyectado,meta=simMeta){
     :`Para el ${m} necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
 }
 
-function renderSimulador(){
-  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+function renderSimuladorResumen(r){
   const real=ramoAvg(r);
   const proyectado=simProjectedRamo(r);
   const proj=ramoAvg(proyectado);
@@ -10014,6 +10013,11 @@ function renderSimulador(){
   }
 
   const cb=document.getElementById('sim-commit-btn');if(cb)cb.disabled=!hasSim;
+}
+
+function renderSimulador(){
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+  renderSimuladorResumen(r);
 
   document.getElementById('sim-cats').innerHTML=r.categorias.map(c=>{
     const catAvg=simCatAvg(c);
@@ -10029,14 +10033,14 @@ function renderSimulador(){
     // se colaban como una etiqueta vacía ("Laboratorio 1: ").
     const realChips=notasReales.filter(n=>n&&n.valor!==null&&n.valor!==undefined)
       .map(n=>`<span class="sim-chip real">${esc(nombreNotaCasilla(r,c,n))}: ${simConComa(textoCalificacionNota(n))}</span>`).join('');
-    const hypChips=(simState[c.id]||[]).map(s=>`<span class="sim-chip hyp">${Number.isInteger(s.slot)?esc(etiquetaCasilla(r,c,s.slot))+': ':c.directNota&&!(c.slots>1)?esc(c.nombre)+': ':''}${simConComa(textoCalificacionNota(s))}<button class="sim-chip-x" onclick="simRemoveNota('${c.id}','${s.id}')" aria-label="Quitar nota hipotética">✕</button></span>`).join('');
+    const campos=simCamposNotaHTML(r,c);
     return `
       <div class="sim-cat">
         <div class="sim-cat-head">
           <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${r2(c.peso)}% del ramo</div></div>
-          <div class="sim-cat-avg" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
+          <div class="sim-cat-avg" id="sim-cat-avg-${esc(c.id)}" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
         </div>
-        ${(realChips||hypChips)?`<div class="sim-chips">${realChips}${hypChips}</div>`:''}
+        ${realChips?`<div class="sim-chips">${realChips}</div>`:''}
         ${falta?`<div class="sim-falta activa">
           <div class="sim-falta-hd"><b>Ausencia simulada</b><button type="button" class="sim-falta-x" onclick="simToggleFalta('${c.id}')" aria-label="Ya no faltar a ${esc(c.nombre)}">✕</button></div>
           <label class="sim-falta-label" for="sim-falta-${c.id}">¿Qué pasa con su ${r2(c.peso)}%?</label>
@@ -10047,11 +10051,8 @@ function renderSimulador(){
                      `<option value="reemplazo|${esc(o.id)}"${falta.tipo==='reemplazo'&&falta.hacia===o.id?' selected':''}>Me ponen la nota de ${t}</option>`;
             }).join('')}</select>
           ${falta.tipo==='reemplazo'?'':'<small class="sim-falta-hint">La acumulación tiene un máximo de 75%. El excedente cuenta con nota 1,0.</small>'}
-        </div>`:(simPuedeFaltar(c)?`<button type="button" class="sim-falta-btn" onclick="simToggleFalta('${c.id}')">Falto con justificativo</button>`:'')}
-        ${(simCatLlena(c)||falta)?'':`<div class="sim-add">
-          <input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="sim-in-${c.id}" placeholder="${conceptosNota().length?'Nota hipotética (1,0–7,0, D/A/R)':'Nota hipotética (1,0–7,0)'}" onkeydown="if(event.key==='Enter')simAddNota('${c.id}')"/>
-          <button onclick="simAddNota('${c.id}')">+ Agregar</button>
-        </div>`}
+        </div>`:''}
+        ${falta?'':`<div class="sim-fields" id="sim-fields-${esc(c.id)}">${campos}</div>`}
       </div>`;
   }).join('');
 }
@@ -10063,6 +10064,92 @@ function renderSimulador(){
 function simCatLlena(cat){
   if(!cat.directNota||(Number.isInteger(cat.slots)&&cat.slots>1))return false;
   return (cat.notas||[]).some(n=>n.valor!=null)||((simState[cat.id]||[]).length>0);
+}
+function simCampoNotaHTML(r,c,slot,indice,nota,ofreceFalta){
+  const id=`sim-in-${c.id}${indice?'-'+indice:''}`;
+  const etiqueta=Number.isInteger(slot)?etiquetaCasilla(r,c,slot)
+    :c.directNota?'Nota hipotética':`Nota ${indice+1}`;
+  const sugerencia=conceptosNota().length?'1,0–7,0 o D/A/R':'1,0–7,0';
+  return `<div class="sim-field-row">
+    <label for="${esc(id)}">${esc(etiqueta)}</label>
+    <div class="sim-field-control">
+      <input type="text" inputmode="${inputModeNota()}" autocapitalize="characters"
+        id="${esc(id)}" data-sim-id="${esc(nota?.id||'')}" value="${nota?esc(simConComa(textoCalificacionNota(nota))):''}"
+        placeholder="${sugerencia}" aria-label="Nota hipotética de ${esc(etiqueta)}"
+        oninput="simNotaAlEscribir(${esc(JSON.stringify(c.id))},${Number.isInteger(slot)?slot:'null'},this)"
+        onblur="simNotaAlSalir(${esc(JSON.stringify(c.id))},${Number.isInteger(slot)?slot:'null'},this)"/>
+      ${ofreceFalta?`<button type="button" class="sim-falta-btn" id="sim-falta-btn-${esc(c.id)}"
+        onclick="simToggleFalta(${esc(JSON.stringify(c.id))})">Falté</button>`:''}
+    </div>
+  </div>`;
+}
+function simCamposNotaHTML(r,c){
+  const notas=simState[c.id]||[];
+  if(Number.isInteger(c.slots)&&c.slots>1){
+    const ocupadas=new Set((c.notas||[]).filter(n=>n&&n.valor!=null&&Number.isInteger(n.slot)).map(n=>n.slot));
+    return Array.from({length:c.slots},(_,slot)=>slot).filter(slot=>!ocupadas.has(slot))
+      .map((slot,i)=>simCampoNotaHTML(r,c,slot,i,notas.find(n=>n.slot===slot),i===0&&simPuedeFaltar(c))).join('');
+  }
+  if(c.directNota){
+    if((c.notas||[]).some(n=>n&&n.valor!=null))return '';
+    return simCampoNotaHTML(r,c,null,0,notas[0],simPuedeFaltar(c));
+  }
+  return [...notas.map((n,i)=>simCampoNotaHTML(r,c,null,i,n,false)),
+    simCampoNotaHTML(r,c,null,notas.length,null,simPuedeFaltar(c))].join('');
+}
+// La nota entra al estado temporal en cada tecla. El resumen se repinta sin
+// reconstruir los campos: hacerlo aquí le quitaría el foco al teclado del iPhone.
+function simNotaAlEscribir(catId,slot,input){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const c=r&&(r.categorias||[]).find(x=>x.id===catId);if(!c||!input)return;
+  const raw=input.value,val=parseNota(raw);
+  // Primero la traducción habitual de notas (55 → 5,5; D/A/R). Una cifra
+  // realmente fuera de escala, como 9, se acerca al borde como en el stepper.
+  const fuera=/^\s*[+-]?\d(?:[.,]\d{0,2})?\s*$/.test(raw)?parseFloat(raw.replace(',','.')):NaN;
+  const nota=!isNaN(val)?val:Number.isFinite(fuera)?Math.min(7,Math.max(1,fuera)):NaN;
+  const lista=simState[catId]||(simState[catId]=[]);
+  const fija=Number.isInteger(slot);
+  const id=input.dataset?.simId||'';
+  const indice=fija?lista.findIndex(n=>n.slot===slot):c.directNota?0:lista.findIndex(n=>n.id===id);
+  const anterior=indice>=0?lista[indice]:null;
+  if(isNaN(nota)){
+    if(anterior)lista.splice(indice,1);
+    if(input.dataset)input.dataset.simId='';
+    // Al borrar la última nota de un grupo abierto, sobra el campo vacío que
+    // había aparecido a continuación. Quitarlo no mueve el foco actual.
+    if(anterior&&!fija&&!c.directNota&&input.closest){
+      const siguiente=input.closest('.sim-field-row')?.nextElementSibling;
+      if(siguiente&&!siguiente.nextElementSibling&&!siguiente.querySelector('input')?.value)siguiente.remove();
+    }
+  }else if(anterior){
+    asignarCalificacionNota(anterior,raw,nota);
+  }else{
+    const nueva=asignarCalificacionNota({id:uid(),...(fija?{slot}:{})},raw,nota);
+    const fila=!fija&&!c.directNota&&input.closest?input.closest('.sim-field-row'):null;
+    const posicion=fila?.parentElement?Array.from(fila.parentElement.children).indexOf(fila):-1;
+    if(posicion>=0)lista.splice(Math.min(posicion,lista.length),0,nueva);
+    else lista.push(nueva);
+    if(input.dataset)input.dataset.simId=nueva.id;
+    // Una categoría sin cantidad declarada siempre deja una casilla vacía al
+    // final. Se añade sin reemplazar el input que la persona está editando.
+    if(!fija&&!c.directNota&&fila){
+      const contenedor=fila.parentElement;
+      if(contenedor&&!fila.nextElementSibling&&contenedor.insertAdjacentHTML)
+        contenedor.insertAdjacentHTML('beforeend',simCampoNotaHTML(r,c,null,lista.length,null,false));
+    }
+  }
+  if(!lista.length)delete simState[catId];
+  renderSimuladorResumen(r);
+  const avg=document.getElementById('sim-cat-avg-'+catId);
+  if(avg){const n=simCatAvg(c);avg.textContent=simConComa(fmtPromedio(n));avg.style.color=getColor(n);}
+  const falta=document.getElementById('sim-falta-btn-'+catId);
+  if(falta)falta.hidden=!simPuedeFaltar(c);
+}
+function simNotaAlSalir(catId,slot,input){
+  const lista=simState[catId]||[];
+  const nota=Number.isInteger(slot)?lista.find(n=>n.slot===slot)
+    :lista.find(n=>n.id===input.dataset?.simId);
+  input.value=nota?simConComa(textoCalificacionNota(nota)):'';
 }
 function simAddNota(catId){
   const inp=document.getElementById('sim-in-'+catId);if(!inp)return;
@@ -10086,11 +10173,6 @@ function simAddNota(catId){
   simState[catId].push(asignarCalificacionNota({id:uid(),...(slot===undefined?{}:{slot})},rawNota,val));
   renderSimulador();
   setTimeout(()=>{const i=document.getElementById('sim-in-'+catId);if(i)i.focus();},30);
-}
-function simRemoveNota(catId,id){
-  if(!simState[catId])return;
-  simState[catId]=simState[catId].filter(s=>s.id!==id);
-  renderSimulador();
 }
 function simCommit(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
