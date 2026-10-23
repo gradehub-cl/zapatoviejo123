@@ -273,10 +273,13 @@ async function perfilProfesorActual(){
   const uid=sesionProfesorClase();
   if(!uid)return {ok:false,error:'Inicia sesión para entrar al espacio de profesor.'};
   try{
-    // El logo llegó después: sin su SQL aplicado se pide la ficha de siempre.
+    // El logo llegó después, y el perfil completo después (2026-10-23): sin
+    // su SQL aplicado se pide la ficha que el servidor sí tiene.
     const pedir=campos=>supabaseClient.from('tutor_perfiles').select(campos).eq('user_id',uid).maybeSingle();
-    let {data,error}=await pedir('nombre_publico,presentacion,estado,solicitado_at,revisado_at,logo_id,logo_path,logo_aprobado_path');
-    if(faltaColumnaClase(error))({data,error}=await pedir('nombre_publico,presentacion,estado,solicitado_at,revisado_at'));
+    const base='nombre_publico,presentacion,estado,solicitado_at,revisado_at',logo=',logo_id,logo_path,logo_aprobado_path';
+    let {data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR);
+    if(faltaColumnaClase(error))({data,error}=await pedir(base+logo));
+    if(faltaColumnaClase(error))({data,error}=await pedir(base));
     // El motivo real queda en la consola. El 2026-09-25 un SQL pegado a medias
     // dejó sin permiso de lectura la ficha, y la pantalla solo decía "todavía
     // no está disponible": un "permission denied" acá lo habría dicho al tiro.
@@ -284,6 +287,47 @@ async function perfilProfesorActual(){
       return {ok:false,error:'El espacio de profesor todavía no está disponible. Tus notas no se han tocado.'};}
     return {ok:true,perfil:data||null};
   }catch(e){console.warn('No se pudo leer la ficha de profesor:',e);return {ok:false,error:'El espacio de profesor todavía no está disponible. Tus notas no se han tocado.'};}
+}
+
+// ─── PERFIL DE PROFESOR O EMPRESA (2026-10-23, base de #643) ─────────────────
+// El profesor elige si es profesor o academia, sus redes, ramos y
+// universidades, y si el perfil se muestra en sus anuncios. Nada es público
+// hasta que lo activa (supabase/perfil_profesor.sql).
+const CAMPOS_PERFIL_PROFESOR=',tipo_perfil,instagram,sitio_web,universidades,ramos_siglas,perfil_publico';
+const UNIVERSIDADES_PERFIL=[['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes']];
+const TIPOS_PERFIL=[['profesor','Profesor'],['empresa','Academia o empresa']];
+function tienePerfilCompleto(perfil){return !!perfil&&Object.prototype.hasOwnProperty.call(perfil,'perfil_publico');}
+function validarPerfilProfesor(e){
+  const nombre=String(e.nombre_publico||'').trim(),presentacion=String(e.presentacion||'').trim();
+  if(nombre.length<2||nombre.length>100)return {ok:false,campo:'nombre',error:'Escribe un nombre público de 2 a 100 caracteres.'};
+  if(presentacion.length<20||presentacion.length>1500)return {ok:false,campo:'presentacion',error:'Escribe una descripción de 20 a 1500 caracteres.'};
+  const tipo=e.tipo_perfil==='empresa'?'empresa':e.tipo_perfil==='profesor'?'profesor':null;
+  const insta=String(e.instagram||'').trim().replace(/^@/,'');
+  if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))return {ok:false,campo:'instagram',error:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.'};
+  const web=String(e.sitio_web||'').trim();
+  if(web){
+    let u;try{u=new URL(web);}catch(err){return {ok:false,campo:'web',error:'Pega el link completo de tu sitio, que empiece con https://.'};}
+    if(u.protocol!=='https:'||u.username||u.password||!u.hostname.includes('.')||u.href.length>160)
+      return {ok:false,campo:'web',error:'Pega el link completo de tu sitio, que empiece con https://.'};
+  }
+  const universidades=[...new Set((e.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)))];
+  const ramos=[...new Set(String(e.ramos||'').split(/[,\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean))];
+  if(ramos.length>20)return {ok:false,campo:'ramos',error:'Puedes poner hasta 20 ramos.'};
+  if(ramos.some(r=>!/^[A-Z0-9-]{2,24}$/.test(r)))return {ok:false,campo:'ramos',error:'Escribe las siglas de los ramos separadas por coma, por ejemplo MAT1620, FIS1514.'};
+  return {ok:true,datos:{nombre_publico:nombre,presentacion,tipo_perfil:tipo,instagram:insta||null,sitio_web:web?new URL(web).href:null,
+    universidades:universidades.length?universidades:null,ramos_siglas:ramos.length?ramos:null,perfil_publico:!!e.perfil_publico}};
+}
+async function guardarPerfilProfesor(entrada){
+  const valido=validarPerfilProfesor(entrada);if(!valido.ok)return valido;
+  const uid=sesionProfesorClase();if(!uid)return {ok:false,error:'Inicia sesión para guardar tu perfil.'};
+  try{
+    const {data,error}=await supabaseClient.from('tutor_perfiles').update(valido.datos).eq('user_id',uid)
+      .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR).maybeSingle();
+    if(faltaColumnaClase(error))return {ok:false,error:'Todavía no podemos guardar el perfil completo. Vuelve a intentarlo en un rato.'};
+    if(error||!data){if(error)console.warn('No se guardó el perfil:',error.code||'',error.message||error);return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}
+    perfilProfesorCache=perfilProfesorCache?{...perfilProfesorCache,...data}:perfilProfesorCache;
+    return {ok:true,perfil:data};
+  }catch(e){return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}
 }
 
 async function postularProfesor(nombre,presentacion){
@@ -1007,9 +1051,59 @@ function tarjetaCatalogoClase(a,{sigla,abierta=false}={}){
         ${detallesClase(a).length?`<dl class="catalogo-clase-detalles">${detallesClase(a).map(d=>`<div><dt>${esc(d.etiqueta)}</dt><dd>${esc(d.valor)}</dd></div>`).join('')}</dl>`:''}
         ${contacto?`<a class="catalogo-clase-contacto" href="${esc(contacto)}" ${a.contacto_tipo==='email'?'':'target="_blank" rel="noopener noreferrer"'} data-contactar="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}">${esc(textoContactoClase(a.contacto_tipo))}</a>`
           :'<p class="catalogo-clase-sin-contacto">El contacto de esta clase necesita revisión.</p>'}
+        <div class="catalogo-clase-perfil" data-perfil="${esc(a.id)}"></div>
         </div>
       </div>
     </article>${a.flyer_path?`<figure class="catalogo-clase-flyer" data-flyer="${esc(a.flyer_path)}"${abierta?'':' hidden'}><span>Cargando flyer…</span></figure>`:''}</div>`;
+}
+
+// «Ver perfil» en una clase abierta. Solo existe si el profesor activó su
+// perfil; si no, o si falla, la tarjeta queda igual que antes. Se despliega en
+// la misma tarjeta: un modal encima reemplazaría el catálogo.
+const perfilesDeAnuncio=new Map();
+function perfilDeAnuncio(id){
+  if(!perfilesDeAnuncio.has(id))perfilesDeAnuncio.set(id,(async()=>{
+    try{
+      const {data,error}=await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
+      return error?null:(Array.isArray(data)?data[0]:data)||null;
+    }catch(e){return null;}
+  })());
+  return perfilesDeAnuncio.get(id);
+}
+function perfilPublicoHTML(p,anuncioId){
+  const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
+  const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
+  const insta=enlaceContactoClase('instagram',p.instagram),web=enlaceContactoClase('enlace',p.sitio_web);
+  const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
+  const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
+  return `<div class="perfil-publico-cabeza">${p.logo_path?`<div class="catalogo-clase-logo" data-logo="${esc(p.logo_path)}"></div>`:''}
+      <div><h4>${esc(p.nombre_publico)}</h4>${tipo?`<span>${esc(tipo)}</span>`:''}</div></div>
+    <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
+    ${unis.length||(p.ramos_siglas||[]).length?`<dl class="catalogo-clase-detalles">${unis.length?`<div><dt>Universidades</dt><dd>${esc(unis.join(', '))}</dd></div>`:''}${(p.ramos_siglas||[]).length?`<div><dt>Ramos</dt><dd>${esc(p.ramos_siglas.join(', '))}</dd></div>`:''}</dl>`:''}
+    ${insta||web?`<p class="perfil-publico-links">${insta?`<a href="${esc(insta)}" target="_blank" rel="noopener noreferrer" data-fuera>Instagram</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener noreferrer" data-fuera>Sitio web</a>`:''}</p>`:''}
+    ${otros.length||sinTitulo>0?`<div class="perfil-publico-otros"><strong>Sus otras clases</strong><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></div>`:''}`;
+}
+async function mostrarPerfilEnClase(caja){
+  if(caja.dataset.cargado)return;caja.dataset.cargado='1';
+  const p=await perfilDeAnuncio(caja.dataset.perfil);
+  if(!p||!caja.isConnected)return;
+  caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-expanded="false">Ver perfil de ${esc(p.nombre_publico)}</button>
+    <section class="perfil-publico" aria-label="Perfil de ${esc(p.nombre_publico)}" hidden>${perfilPublicoHTML(p,caja.dataset.perfil)}</section>`;
+  const boton=caja.querySelector('.perfil-publico-abrir'),seccion=caja.querySelector('.perfil-publico');
+  boton.addEventListener('click',()=>{
+    const abrir=seccion.hidden;seccion.hidden=!abrir;boton.setAttribute('aria-expanded',String(abrir));
+    boton.textContent=abrir?'Ocultar perfil':'Ver perfil de '+p.nombre_publico;
+    if(abrir&&typeof track==='function')track('perfil_profesor_abierto');
+  });
+  seccion.querySelectorAll('[data-logo]').forEach(async c=>{const url=await urlFlyerClase(c.dataset.logo);if(!c.isConnected)return;if(url)c.innerHTML=imgLogoClase(url,' loading="lazy"');else c.remove();});
+  seccion.querySelectorAll('[data-fuera]').forEach(a=>a.addEventListener('click',e=>{
+    if(typeof enAppNativa==='function'&&enAppNativa()&&abrirFuera(a.href))e.preventDefault();
+  }));
+  seccion.querySelectorAll('[data-ir-anuncio]').forEach(b=>b.addEventListener('click',()=>{
+    const destino=document.querySelector(`[data-catalogo-anuncio="${CSS.escape(b.dataset.irAnuncio)}"]`);
+    if(destino){destino.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+      const ver=destino.querySelector('[data-abrir]');(ver||destino).focus&&(ver||destino).focus({preventScroll:true});}
+  }));
 }
 
 // Filtros locales sobre el catálogo público; no modifican campañas ni medición.
@@ -1105,7 +1199,9 @@ function activarTarjetasClases(raiz){
     if(flyer)flyer.hidden=false;
     registrarInteraccionMedida(boton.dataset.abrir,'apertura',boton.dataset.sigla);
     const contacto=mas.querySelector('.catalogo-clase-contacto');if(contacto)contacto.focus();
+    const perfil=mas.querySelector('[data-perfil]');if(perfil)mostrarPerfilEnClase(perfil);
   }));
+  raiz.querySelectorAll('.catalogo-clase-mas:not([hidden]) [data-perfil]').forEach(mostrarPerfilEnClase);
   raiz.querySelectorAll('[data-logo]').forEach(async caja=>{
     const url=await urlFlyerClase(caja.dataset.logo);
     if(!caja.isConnected)return;
@@ -1934,7 +2030,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     (g.borradores.some(a=>a.comentario_revision_error)?'<p class="clase-sin-datos" role="alert">No pudimos cargar los comentarios de revisión. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>':'')+
     seccionPanelClases('Pausadas y terminadas',g.cerrados,pesos,ahora)+
     seccionPanelClases('Estado sin confirmar',g.sinConfirmar,pesos,ahora)+
-    '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
+    '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-perfil"></div><div id="clases-logo"></div></section>'+
     salida()+'</div>';
   // Cambiar de vista no vuelve a pedir nada: las tres ya están pintadas.
   const activarVistaClases=v=>{
@@ -1955,6 +2051,8 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null));
   const cajaLogo=raiz.querySelector('#clases-logo');
   if(cajaLogo&&cajaLogo.isConnected&&typeof cajaLogo.addEventListener==='function')renderLogoProfesor(cajaLogo);
+  const cajaPerfil=raiz.querySelector('#clases-perfil');
+  if(cajaPerfil&&cajaPerfil.isConnected&&typeof cajaPerfil.addEventListener==='function')renderPerfilProfesor(cajaPerfil);
   raiz.querySelectorAll('[data-editar]').forEach(b=>
     b.addEventListener('click',()=>renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null)));
   raiz.querySelectorAll('[data-pausar]').forEach(b=>
@@ -2106,6 +2204,53 @@ function activarBuscadorRamosClase(form,campo){
   // enriquece cuando termina de bajar.
   if((tenantSel?tenantSel.value:S.tenant)==='uc'&&typeof cargarCursosUC==='function')
     cargarCursosUC().then(ok=>{if(ok&&form.isConnected)reindexar();}).catch(()=>{});
+}
+
+// Clases › Perfil. Lo mismo que ve el estudiante al tocar «Ver perfil» en un
+// anuncio, pero solo si el profesor lo activó: parte apagado.
+async function renderPerfilProfesor(caja){
+  if(!caja)return;
+  const ficha=await perfilProfesorActual();
+  if(!caja.isConnected)return;
+  const p=ficha.ok?ficha.perfil:null;
+  if(!p){caja.innerHTML='';return;}
+  if(!tienePerfilCompleto(p)){caja.innerHTML='<p class="profesor-info">Muy pronto vas a poder armar tu perfil público acá.</p>';return;}
+  const v=c=>esc(p[c]==null?'':p[c]);
+  const tipo=p.tipo_perfil||'profesor',unis=p.universidades||[];
+  caja.innerHTML=`<form class="profesor-form profesor-perfil" novalidate>
+      <fieldset class="profesor-linea"><legend class="modal-label">Eres</legend><div class="profesor-linea-opciones">
+        ${TIPOS_PERFIL.map(([val,txt])=>`<label class="profesor-linea-opcion"><input type="radio" name="pf-tipo" value="${val}"${tipo===val?' checked':''}><span>${txt}</span></label>`).join('')}
+      </div></fieldset>
+      <label class="modal-label" for="pf-nombre">Nombre público</label><input id="pf-nombre" type="text" maxlength="100" autocomplete="organization" value="${v('nombre_publico')}">
+      <label class="modal-label" for="pf-descripcion">Descripción</label><textarea id="pf-descripcion" maxlength="1500" placeholder="Quién eres, cómo haces tus clases y qué experiencia tienes.">${v('presentacion')}</textarea>
+      <label class="modal-label" for="pf-instagram">Instagram · opcional</label><input id="pf-instagram" type="text" maxlength="31" autocomplete="off" autocapitalize="none" placeholder="@salvaramos" value="${p.instagram?'@'+v('instagram'):''}">
+      <label class="modal-label" for="pf-web">Sitio web · opcional</label><input id="pf-web" type="url" maxlength="160" autocomplete="url" autocapitalize="none" placeholder="https://" value="${v('sitio_web')}">
+      <fieldset class="profesor-linea"><legend class="modal-label">Universidades donde enseñas · opcional</legend><div class="profesor-linea-opciones">
+        ${UNIVERSIDADES_PERFIL.map(([val,txt])=>`<label class="profesor-linea-opcion"><input type="checkbox" name="pf-uni" value="${val}"${unis.includes(val)?' checked':''}><span>${txt}</span></label>`).join('')}
+      </div></fieldset>
+      <label class="modal-label" for="pf-ramos">Ramos que enseñas · opcional</label><input id="pf-ramos" type="text" maxlength="500" autocomplete="off" autocapitalize="characters" placeholder="MAT1620, FIS1514" aria-describedby="pf-ramos-ayuda" value="${esc((p.ramos_siglas||[]).join(', '))}">
+      <p class="profesor-info" id="pf-ramos-ayuda">Las siglas separadas por coma, hasta 20.</p>
+      <label class="profesor-perfil-publico"><input id="pf-publico" type="checkbox"${p.perfil_publico?' checked':''}><span><b>Mostrar mi perfil en mis anuncios</b>Los estudiantes verán «Ver perfil» en cada anuncio publicado, con esto y tus otros anuncios. Nunca tu correo.</span></label>
+      <button class="accion-principal" type="submit">Guardar perfil</button>
+      <p class="profesor-estado" role="status" aria-live="polite"></p>
+    </form>`;
+  const form=caja.querySelector('form'),estado=form.querySelector('.profesor-estado'),campo=id=>form.querySelector('#pf-'+id);
+  campo('instagram').addEventListener('input',e=>{e.target.value=textoInstagramEscrito(e.target.value);});
+  let guardando=false;
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(guardando)return;
+    const entrada={tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,nombre_publico:campo('nombre').value,
+      presentacion:campo('descripcion').value,instagram:campo('instagram').value,sitio_web:campo('web').value,
+      universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),ramos:campo('ramos').value,perfil_publico:campo('publico').checked};
+    const valido=validarPerfilProfesor(entrada);
+    if(!valido.ok){estado.textContent=valido.error;const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos'}[valido.campo]);if(c)c.focus();return;}
+    guardando=true;const boton=form.querySelector('button[type=submit]');boton.disabled=true;estado.textContent='Guardando…';
+    const r=await guardarPerfilProfesor(entrada);
+    guardando=false;boton.disabled=false;
+    if(!caja.isConnected)return;
+    estado.textContent=r.ok?(r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
+  });
 }
 
 // El logo es de la ficha, no del anuncio: el mismo bloque aparece en el

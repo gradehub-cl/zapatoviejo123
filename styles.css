@@ -1388,6 +1388,27 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .profesor-logo-texto strong{font-size:.875rem;color:var(--fg);}
 .profesor-logo-texto span{font-size:.75rem;line-height:1.4;color:var(--fg3);}
 .profesor-logo-acciones{display:flex;gap:8px;margin-top:10px;}
+/* Clases › Perfil (2026-10-23): opciones y el interruptor a 44 pt (HIG). */
+.profesor-perfil .profesor-linea-opcion{min-height:44px;}
+.profesor-perfil-publico{display:flex;align-items:flex-start;gap:10px;margin:14px 0 6px;padding:12px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;}
+.profesor-form .profesor-perfil-publico input{flex:none;width:20px;height:20px;margin:2px 0 0;padding:0;accent-color:var(--primary);}
+.profesor-perfil-publico span{display:flex;flex-direction:column;gap:2px;font-size:.8125rem;line-height:1.4;color:var(--fg3);}
+.profesor-perfil-publico b{font-size:.9375rem;font-weight:600;color:var(--fg);}
+.profesor-perfil .accion-principal{justify-self:start;margin-top:6px;}
+/* «Ver perfil» del profesor dentro de una clase abierta. */
+.catalogo-clase-perfil:empty{display:none;}
+.catalogo-clase-perfil{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.catalogo-clase-perfil .perfil-publico-abrir{min-height:44px;}
+.perfil-publico{display:grid;gap:10px;margin-top:10px;}
+.perfil-publico-cabeza{display:flex;align-items:center;gap:12px;}
+.perfil-publico-cabeza h4{margin:0;font-size:1rem;color:var(--fg);}
+.perfil-publico-cabeza span{font-size:.8125rem;color:var(--fg3);}
+.perfil-publico-texto{margin:0;font-size:.875rem;line-height:1.5;color:var(--fg2);white-space:pre-line;}
+.perfil-publico-links{display:flex;flex-wrap:wrap;gap:8px;margin:0;}
+.perfil-publico-links a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--border2);border-radius:10px;color:var(--fg);font-size:.875rem;font-weight:600;text-decoration:none;}
+.perfil-publico-otros strong{font-size:.8125rem;color:var(--fg2);}
+.perfil-publico-otros ul{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:2px;font-size:.8125rem;color:var(--fg3);}
+.perfil-publico-otros button{min-height:44px;padding:0;border:0;background:none;color:var(--primary);font:inherit;font-size:.875rem;text-align:left;cursor:pointer;}
 .profesor-logo-acciones>*{flex:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
 .profesor-estado{min-height:20px;color:var(--fg2);font-size:.75rem;line-height:1.45;margin:8px 0 0;}
 .btn-cancel{flex:1;min-height:44px;padding:12px;background:var(--muted);color:var(--fg2);border:none;border-radius:10px;font-size:0.875rem;font-weight:600;cursor:pointer;}

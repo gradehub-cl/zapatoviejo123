@@ -626,6 +626,71 @@ revoke all on function public.quitar_mi_logo() from public, anon;
 revoke all on function public.logo_profesor_propio(text, uuid) from public;
 revoke all on function public.logo_profesor_editable(text, uuid) from public;
 revoke all on function public.logo_profesor_visible(text) from public;
+-- PERFIL DE PROFESOR O EMPRESA (2026-10-23, pedido de Lucas; base de #643).
+-- Aditivo: todo parte vacío y el perfil NO es público hasta que el profesor lo
+-- activa (consentimiento explícito, #643 punto 1). Mismas sentencias que
+-- perfil_profesor.sql, que sirve como delta. Los archivos de material gratis y
+-- los testimonios de #643 no van acá.
+alter table public.tutor_perfiles add column if not exists tipo_perfil text
+  check (tipo_perfil is null or tipo_perfil in ('profesor', 'empresa'));
+alter table public.tutor_perfiles add column if not exists instagram text
+  check (instagram is null or instagram ~ '^[A-Za-z0-9._]{1,30}$');
+alter table public.tutor_perfiles add column if not exists sitio_web text
+  check (sitio_web is null or (sitio_web ~ '^https://[^[:space:]/@]+[.][^[:space:]@]+$' and char_length(sitio_web) <= 160));
+alter table public.tutor_perfiles add column if not exists universidades text[]
+  check (universidades is null or (cardinality(universidades) <= 4 and universidades <@ array['fen', 'uc', 'uai', 'uandes']));
+alter table public.tutor_perfiles add column if not exists ramos_siglas text[];
+alter table public.tutor_perfiles add column if not exists perfil_publico boolean not null default false;
+
+-- Las siglas, como en los anuncios: hasta 20, cada una de 2 a 24 caracteres.
+create or replace function public.siglas_perfil_validas(p text[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p is null or (cardinality(p) <= 20 and not exists (
+    select 1 from unnest(p) s where s !~ '^[A-Z0-9-]{2,24}$'));
+$$;
+alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_ramos_siglas_check;
+alter table public.tutor_perfiles add constraint tutor_perfiles_ramos_siglas_check
+  check (public.siglas_perfil_validas(ramos_siglas));
+
+-- El profesor lee y edita lo suyo (las políticas propias ya lo limitan).
+grant select (tipo_perfil, instagram, sitio_web, universidades, ramos_siglas, perfil_publico)
+  on public.tutor_perfiles to authenticated;
+grant update (tipo_perfil, instagram, sitio_web, universidades, ramos_siglas, perfil_publico)
+  on public.tutor_perfiles to authenticated;
+
+-- Lo que ve el estudiante desde un anuncio. El catálogo no conoce al autor, así
+-- que se pide por anuncio, como el logo. Solo de un anuncio publicado y vigente,
+-- de un profesor aprobado que activó su perfil. Nunca el user_id ni el correo:
+-- los otros anuncios van por su id.
+create or replace function public.perfil_publico_de_anuncio(p_anuncio_id uuid)
+returns table (nombre_publico text, presentacion text, tipo_perfil text, instagram text, sitio_web text,
+               universidades text[], ramos_siglas text[], logo_path text, anuncios uuid[])
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.nombre_publico, p.presentacion, p.tipo_perfil, p.instagram, p.sitio_web,
+         p.universidades, p.ramos_siglas, p.logo_aprobado_path,
+         array(select b.id from public.tutor_anuncios b
+               where b.autor_id = p.user_id and b.estado = 'publicado'
+                 and (b.vence_at is null or b.vence_at > now())
+               order by b.publicado_at desc)
+  from public.tutor_anuncios a
+  join public.tutor_perfiles p on p.user_id = a.autor_id
+  where a.id = p_anuncio_id
+    and a.estado = 'publicado'
+    and (a.vence_at is null or a.vence_at > now())
+    and p.estado = 'aprobado'
+    and p.perfil_publico;
+$$;
+revoke all on function public.perfil_publico_de_anuncio(uuid) from public;
+grant execute on function public.perfil_publico_de_anuncio(uuid) to anon, authenticated;
+
 revoke all on function public.logos_de_anuncios(uuid[]) from public;
 grant execute on function public.quitar_mi_logo() to authenticated;
 grant execute on function public.logo_profesor_propio(text, uuid) to anon, authenticated;
