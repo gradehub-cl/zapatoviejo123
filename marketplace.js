@@ -19,7 +19,8 @@ const CAMPOS_BORRADOR_CLASE = 'id,tenant,ramos_siglas,criterios,modalidad,ubicac
 // recuerda para no pedirlas de nuevo en cada consulta.
 // La tercera capa (2026-09-30): pack de clases, que escribe el profesor, y el
 // descuento por venir de GradeHub, que solo fija GradeHub al aprobar.
-const CAPAS_CAMPOS_CLASE=[',modalidad_otra,ubicacion_otra,detalles',',linea_datos',',pack_clases,descuento_gradehub_pct'];
+// La cuarta (2026-10-23): si el anuncio es una clase o material de apoyo.
+const CAPAS_CAMPOS_CLASE=[',modalidad_otra,ubicacion_otra,detalles',',linea_datos',',pack_clases,descuento_gradehub_pct',',tipo'];
 let capasColumnasClase=CAPAS_CAMPOS_CLASE.length;
 function faltaColumnaClase(error){
   return !!error&&(error.code==='42703'||error.code==='PGRST204'||/column|columna/i.test(String(error.message||'')));
@@ -42,6 +43,13 @@ const MIN_PACK_CLASES=2,MAX_PACK_CLASES=20;
 // hasta tres. Sin elección son los de siempre.
 const MAX_LINEA_CLASE=3,LINEA_CLASE_POR_OMISION=['modalidad','ubicacion','precio'];
 const MODALIDADES_CLASE=[['individual','Individual'],['grupal','Grupal']];
+// Qué se publica (Lucas, 2026-10-23): una clase o material de apoyo (guías,
+// apuntes, ejercicios resueltos). Un anuncio sin tipo es una clase, como todos
+// los que existían antes.
+const TIPOS_ANUNCIO=[['clase','Clase particular'],['material','Material de apoyo']];
+const TEXTO_TIPO_ANUNCIO={clase:'Clases que das tú, online o presencial.',material:'Guías, apuntes o ejercicios resueltos que el estudiante consigue por WhatsApp o un link.'};
+function esMaterialClase(a){return !!a&&a.tipo==='material';}
+function etiquetaTipoClase(a){return esMaterialClase(a)?'Material de apoyo':'Clase particular';}
 const UBICACIONES_CLASE=[['online','Online'],['presencial','Presencial'],['hibrido','Híbrida']];
 
 // Un borrador en Supabase es una clase COMPLETA, todavía no un formulario a
@@ -61,7 +69,8 @@ function validarBorradorClase(entrada,nombresPorSigla){
   const titulo=String(entrada.titulo||'').trim();
   if(titulo.length<5||titulo.length>90)return {ok:false,campo:'titulo',error:'Ponle un título de 5 a 90 caracteres.'};
   const descripcion=String(entrada.descripcion||'').trim();
-  if(descripcion.length<20||descripcion.length>1500)return {ok:false,campo:'descripcion',error:'Cuenta qué harás en la clase (20 a 1500 caracteres).'};
+  if(descripcion.length<20||descripcion.length>1500)return {ok:false,campo:'descripcion',error:entrada.tipo==='material'
+    ?'Cuenta qué trae el material (20 a 1500 caracteres).':'Cuenta qué harás en la clase (20 a 1500 caracteres).'};
   const siglas=Array.isArray(entrada.ramos_siglas)?entrada.ramos_siglas.map(s=>String(s||'').trim().toUpperCase()):[];
   // Un ramo por anuncio (decisión de Lucas del 2026-09-25), con una
   // excepción desde el 2026-09-26: dos siglas del MISMO ramo, como Dinámica
@@ -77,6 +86,9 @@ function validarBorradorClase(entrada,nombresPorSigla){
     if(!mismoRamoClase(nombres[siglas[0]],nombres[siglas[1]]))return {ok:false,campo:'ramos_siglas',error:ERROR_DOS_RAMOS_CLASE};
   }
   if(!criteriosClaseValidos(entrada.criterios))return {ok:false,campo:'criterios',error:'Revisa el promedio y el avance elegidos para tu público.'};
+  const tipo=entrada.tipo==='material'?'material':'clase';
+  // Un material no tiene formato, lugar ni pack: lo que venga se ignora.
+  if(tipo==='material')entrada={...entrada,modalidad:'',ubicacion:'',modalidad_otra:'',ubicacion_otra:'',pack_clases:''};
   // Formato y lugar son opcionales. "Otra" exige escribirla: una opción
   // elegida sin texto se mostraría como nada.
   const opcion=(valor,validas,texto,campo,nombre)=>{
@@ -124,16 +136,16 @@ function validarBorradorClase(entrada,nombresPorSigla){
   // $0 es una clase gratis (pedido de Lucas del 2026-09-25). Entre $1 y $999
   // no hay clase que valga eso: casi siempre es un precio a medio escribir.
   if(!Number.isSafeInteger(entrada.precio_clp)||!(entrada.precio_clp===0||(entrada.precio_clp>=1000&&entrada.precio_clp<=500000)))
-    return {ok:false,campo:'precio_clp',error:'Indica el precio de la clase entre $1.000 y $500.000, o $0 si es gratis.'};
+    return {ok:false,campo:'precio_clp',error:`Indica el precio ${tipo==='material'?'del material':'de la clase'} entre $1.000 y $500.000, o $0 si es gratis.`};
   const contacto_tipo=String(entrada.contacto_tipo||''),contacto_valor=String(entrada.contacto_valor||'').trim();
   // WhatsApp desde el 2026-09-25 (decisión de Lucas): es el canal que usan
   // todos y el único que abre con el mensaje escrito. El número no se muestra;
   // el estudiante llega por el botón y así el contacto se mide. Una clase
   // GRATIS puede, además, llevar a un Instagram o a un link de inscripción.
-  if(!contactosPermitidosClase(entrada.precio_clp).includes(contacto_tipo))
+  if(!contactosPermitidosClase(entrada.precio_clp,tipo).includes(contacto_tipo))
     return {ok:false,campo:'contacto_valor',error:entrada.precio_clp===0
-      ?'Elige cómo te contactarán: WhatsApp, Instagram o un link de inscripción.'
-      :'Las clases pagadas se contactan por WhatsApp. Escribe tu número.'};
+      ?`Elige cómo te contactarán: WhatsApp, Instagram o un link${tipo==='material'?'':' de inscripción'}.`
+      :tipo==='material'?'Elige cómo lo consiguen: tu WhatsApp o un link.':'Las clases pagadas se contactan por WhatsApp. Escribe tu número.'};
   if(contacto_valor.length<3||contacto_valor.length>160)return {ok:false,campo:'contacto_valor',error:'Revisa el dato de contacto.'};
   // El formulario rellena "+56 " o "@" solo: sin esta comprobación el prefijo
   // solo, sin número ni usuario, pasaba como contacto válido y el anuncio
@@ -141,7 +153,7 @@ function validarBorradorClase(entrada,nombresPorSigla){
   if(!enlaceContactoClase(contacto_tipo,contacto_valor))return {ok:false,campo:'contacto_valor',error:ERROR_CONTACTO_CLASE[contacto_tipo]};
   // Lista blanca: nunca aceptar un estado de publicación, marcas de pago ni
   // datos académicos del estudiante enviados junto con el formulario.
-  return {ok:true,datos:{tenant,ramos_siglas:siglas,
+  return {ok:true,datos:{tipo,tenant,ramos_siglas:siglas,
     criterios:{promedioMenorA:entrada.criterios.promedioMenorA,avanceMinimo:entrada.criterios.avanceMinimo},
     modalidad,ubicacion,modalidad_otra:mod.otra,ubicacion_otra:ubi.otra,detalles:detalles.length?detalles:null,linea_datos,
     precio_clp:entrada.precio_clp,pack_clases,titulo,descripcion,contacto_tipo,contacto_valor}};
@@ -152,9 +164,19 @@ const ERROR_CONTACTO_CLASE={
   instagram:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.',
   enlace:'Pega el link de inscripción completo, que empiece con https://.',
 };
-// Qué contactos admite una clase según su precio. El servidor exige lo mismo.
+// Qué contactos admite un anuncio según su precio y su tipo. El servidor exige
+// lo mismo: una clase pagada, solo WhatsApp; un material pagado, WhatsApp o un
+// link para conseguirlo; gratis, cualquiera de los tres.
 const CONTACTOS_CLASE=[['whatsapp','WhatsApp'],['instagram','Instagram'],['enlace','Link de inscripción']];
-function contactosPermitidosClase(precio){return precio===0?['whatsapp','instagram','enlace']:['whatsapp'];}
+function contactosPermitidosClase(precio,tipo='clase'){
+  if(precio===0)return ['whatsapp','instagram','enlace'];
+  return tipo==='material'?['whatsapp','enlace']:['whatsapp'];
+}
+function opcionesContactoClase(precio,tipo='clase'){
+  const permitidos=contactosPermitidosClase(precio,tipo);
+  return CONTACTOS_CLASE.filter(([clave])=>permitidos.includes(clave))
+    .map(([clave,texto])=>[clave,clave==='enlace'&&tipo==='material'?'Link para conseguirlo':texto]);
+}
 
 // ─── CAMPOS QUE SE ESCRIBEN CON FORMATO ─────────────────────────────────────
 //
@@ -327,6 +349,12 @@ async function guardarBorradorClase(entrada,id){
   try{
     const escribir=async campos=>{
       const datos={...valido.datos};
+      // Sin el SQL del tipo, una clase se guarda como siempre; un material no
+      // se puede guardar como clase: se avisa.
+      if(!campos.includes('tipo')){
+        if(datos.tipo==='material')return {data:null,error:{message:'sin-material'}};
+        delete datos.tipo;
+      }
       if(!campos.includes('pack_clases')){
         if(datos.pack_clases)return {data:null,error:{message:'sin-pack'}};
         delete datos.pack_clases;
@@ -351,6 +379,7 @@ async function guardarBorradorClase(entrada,id){
     // Sin el SQL que acepta $0, el servidor rechaza la clase gratis por su
     // restricción de precio: se dice eso y no "revisa tu conexión".
     if(error&&error.code==='23514'&&valido.datos.precio_clp===0)return {ok:false,campo:'precio_clp',error:'Todavía no podemos guardar clases gratis. Pon un precio por ahora.'};
+    if(error&&error.message==='sin-material')return {ok:false,campo:'tipo',error:'Todavía no podemos guardar material de apoyo. Vuelve a intentarlo en un rato.'};
     if(error&&error.message==='sin-pack')return {ok:false,campo:'pack_clases',error:'Todavía no podemos guardar packs. Deja vacío el pack y pon el precio por clase por ahora.'};
     if(error&&error.message==='sin-linea-datos')return {ok:false,campo:'linea_datos',error:'Todavía no podemos guardar qué datos van bajo el título. Deja formato, dónde y precio por ahora.'};
     if(error&&error.message==='sin-columnas-nuevas')return {ok:false,campo:'detalles',error:'Todavía no podemos guardar "Otra", un formato vacío ni detalles a medida. Usa las opciones de la lista por ahora.'};
@@ -964,6 +993,8 @@ function precioCatalogoHTML(a){
   if(p.porClase==null)return '';
   const antes=x=>p.descuento?`<del><span class="sr-precio">antes </span>${pesosClase(x)}</del> `:'';
   const chip=p.descuento?`<span class="catalogo-clase-descuento">−${p.descuento}% por venir de GradeHub</span>`:'';
+  // Un material se compra una vez: sin «por clase» ni pack.
+  if(esMaterialClase(a))return `<div class="catalogo-clase-precio"><strong>${antes(p.porClase)}${pesosClase(p.porClaseFinal)}</strong>${chip}</div>`;
   if(p.pack)return `<div class="catalogo-clase-precio"><strong>${antes(p.packTotal)}${pesosClase(p.packFinal)} <small>pack de ${p.pack}</small></strong>${chip}<span class="catalogo-clase-por-clase">${antes(p.porClase)}${pesosClase(p.porClaseFinal)} por clase</span></div>`;
   return `<div class="catalogo-clase-precio"><strong>${antes(p.porClase)}${pesosClase(p.porClaseFinal)} <small>por clase</small></strong>${chip}</div>`;
 }
@@ -979,9 +1010,13 @@ function pesosClase(valor){
 // dice nada de las notas de quien escribe.
 function mensajeContactoClase(anuncio){
   const titulo=String(anuncio&&anuncio.titulo||'').trim();
-  return (titulo?`Hola, vi tu clase «${titulo}» en GradeHub.`:'Hola, vi tu clase en GradeHub.')+' ¿Me puedes dar más información?';
+  const que=esMaterialClase(anuncio)?'tu material':'tu clase';
+  return (titulo?`Hola, vi ${que} «${titulo}» en GradeHub.`:`Hola, vi ${que} en GradeHub.`)+' ¿Me puedes dar más información?';
 }
-function textoContactoClase(tipo){return {whatsapp:'Hablar por WhatsApp',instagram:'Ver Instagram',enlace:'Inscribirme',email:'Enviar correo'}[tipo]||'Contactar';}
+function textoContactoClase(tipo,anuncio){
+  if(tipo==='enlace'&&esMaterialClase(anuncio))return 'Conseguir el material';
+  return {whatsapp:'Hablar por WhatsApp',instagram:'Ver Instagram',enlace:'Inscribirme',email:'Enviar correo'}[tipo]||'Contactar';
+}
 
 let catalogoClasesActual=[],nombresCatalogoClasesActual={};
 // Una clase como la ve el estudiante. `sigla` es el ramo por el que se la
@@ -997,15 +1032,15 @@ function tarjetaCatalogoClase(a,{sigla,abierta=false}={}){
     // clase, así el catálogo cerrado no se alarga.
     return `<div class="catalogo-clase-bloque"><article class="catalogo-clase-card" data-catalogo-anuncio="${esc(a.id)}">
       <div class="catalogo-clase-contenido">
-        <div class="catalogo-clase-cabeza"><div><small>Publicidad · Clase particular</small>
-        <h3>${esc(a.titulo||'Clase particular')}</h3></div>${logosCatalogoClases.get(a.id)?`<div class="catalogo-clase-logo" data-logo="${esc(logosCatalogoClases.get(a.id))}"></div>`:''}</div>
+        <div class="catalogo-clase-cabeza"><div><small>Publicidad · ${etiquetaTipoClase(a)}</small>
+        <h3>${esc(a.titulo||etiquetaTipoClase(a))}</h3></div>${logosCatalogoClases.get(a.id)?`<div class="catalogo-clase-logo" data-logo="${esc(logosCatalogoClases.get(a.id))}"></div>`:''}</div>
         <p class="catalogo-clase-ramos"><strong>${esc(siglas)}</strong>${nombres?`<span>${esc(nombres)}</span>`:''}</p>
         <p class="catalogo-clase-descripcion">${esc(a.descripcion||'')}</p>
         <div class="catalogo-clase-datos"><span>${esc(formatoClase(a))}</span>${precioCatalogoHTML(a)}</div>
-        ${abierta?'':`<button type="button" class="catalogo-clase-ver" data-abrir="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}" aria-expanded="false">Ver clase</button>`}
+        ${abierta?'':`<button type="button" class="catalogo-clase-ver" data-abrir="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}" aria-expanded="false">${esMaterialClase(a)?'Ver material':'Ver clase'}</button>`}
         <div class="catalogo-clase-mas"${abierta?'':' hidden'}>
         ${detallesClase(a).length?`<dl class="catalogo-clase-detalles">${detallesClase(a).map(d=>`<div><dt>${esc(d.etiqueta)}</dt><dd>${esc(d.valor)}</dd></div>`).join('')}</dl>`:''}
-        ${contacto?`<a class="catalogo-clase-contacto" href="${esc(contacto)}" ${a.contacto_tipo==='email'?'':'target="_blank" rel="noopener noreferrer"'} data-contactar="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}">${esc(textoContactoClase(a.contacto_tipo))}</a>`
+        ${contacto?`<a class="catalogo-clase-contacto" href="${esc(contacto)}" ${a.contacto_tipo==='email'?'':'target="_blank" rel="noopener noreferrer"'} data-contactar="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}">${esc(textoContactoClase(a.contacto_tipo,a))}</a>`
           :'<p class="catalogo-clase-sin-contacto">El contacto de esta clase necesita revisión.</p>'}
         </div>
       </div>
@@ -1013,11 +1048,13 @@ function tarjetaCatalogoClase(a,{sigla,abierta=false}={}){
 }
 
 // Filtros locales sobre el catálogo público; no modifican campañas ni medición.
-function filtrarPrecioCatalogoClases(anuncios,{desde='',hasta='',gratis=false,ubicacion='',invalido=false}={}){
+function filtrarPrecioCatalogoClases(anuncios,{desde='',hasta='',gratis=false,ubicacion='',tipo='',invalido=false}={}){
   const minimo=desde===''?0:Number(desde),maximo=hasta===''?Infinity:Number(hasta);
   const error=!gratis&&(invalido||!Number.isSafeInteger(minimo)||minimo<0||
     !(maximo===Infinity||Number.isSafeInteger(maximo))||maximo<minimo);
   return {error,anuncios:error?[]:anuncios.filter(a=>{
+    // Clase o material (2026-10-23). Un anuncio sin tipo es una clase.
+    if(tipo&&(esMaterialClase(a)?'material':'clase')!==tipo)return false;
     // Una clase híbrida se dicta online y presencial: calza con los dos filtros.
     if(ubicacion&&a.ubicacion!==ubicacion&&a.ubicacion!=='hibrido')return false;
     if(gratis)return esClaseGratis(a);
@@ -1030,13 +1067,15 @@ function filtrarPrecioCatalogoClases(anuncios,{desde='',hasta='',gratis=false,ub
 function filtrosCatalogoClases(){
   const desde=document.getElementById('catalogo-desde'),hasta=document.getElementById('catalogo-hasta');
   return {desde:desde.value,hasta:hasta.value,gratis:document.getElementById('catalogo-gratis').checked,
-    ubicacion:document.getElementById('catalogo-ubicacion').value,invalido:desde.validity.badInput||hasta.validity.badInput};
+    ubicacion:document.getElementById('catalogo-ubicacion').value,tipo:(document.getElementById('catalogo-tipo')||{}).value||'',
+    invalido:desde.validity.badInput||hasta.validity.badInput};
 }
 function cabeceraCatalogoClasesHTML(){
   return `<div class="catalogo-clases catalogo-redisenado">
     <header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
     <div class="catalogo-herramientas"><div class="catalogo-buscador"><label for="catalogo-clases-buscar">Buscar clases</label>
     <div class="catalogo-clases-busqueda"><input id="catalogo-clases-buscar" type="search" autocomplete="off" placeholder="Busca por ramo o sigla" aria-describedby="catalogo-clases-estado"></div></div>
+    <label class="catalogo-filtro">Qué buscas<select id="catalogo-tipo"><option value="">Todo</option>${TIPOS_ANUNCIO.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
     <label class="catalogo-filtro">Modalidad<select id="catalogo-ubicacion"><option value="">Todas</option><option value="online">Online</option><option value="presencial">Presencial</option></select></label>
     <div class="catalogo-precios" role="group" aria-label="Precio por clase en pesos">
       <label class="catalogo-filtro">Desde $<input id="catalogo-desde" type="number" min="0" step="1" inputmode="numeric" placeholder="Sin mínimo" aria-describedby="catalogo-precio-error"></label>
@@ -1066,8 +1105,9 @@ function renderCatalogoClases(busqueda=''){
     return;
   }
   if(estado)estado.textContent=anuncios.length
-    ?`${anuncios.length} ${anuncios.length===1?'clase encontrada':'clases encontradas'}`
-    :(busqueda||filtros.desde||filtros.hasta||filtros.gratis||filtros.ubicacion?'No encontramos clases con esos filtros. Prueba ampliarlos.':'Todavía no hay clases publicadas en tu universidad.');
+    ?`${anuncios.length} ${(filtros.tipo==='material'?['material encontrado','materiales encontrados']
+      :anuncios.some(esMaterialClase)?['resultado','resultados']:['clase encontrada','clases encontradas'])[anuncios.length===1?0:1]}`
+    :(busqueda||filtros.desde||filtros.hasta||filtros.gratis||filtros.ubicacion||filtros.tipo?'No encontramos nada con esos filtros. Prueba ampliarlos.':'Todavía no hay clases publicadas en tu universidad.');
   raiz.innerHTML=anuncios.map(a=>tarjetaCatalogoClase(a)).join('');
   activarTarjetasClases(raiz);
   observarImpresionesClases(raiz,anuncios,busqueda);
@@ -1194,9 +1234,9 @@ async function openCatalogoClases(){
     document.getElementById('modal').classList.contains('open');
   input.addEventListener('input',()=>renderCatalogoClases(input.value));
   ['catalogo-desde','catalogo-hasta'].forEach(id=>raiz.querySelector('#'+id).addEventListener('input',()=>renderCatalogoClases(input.value)));
-  ['catalogo-gratis','catalogo-ubicacion'].forEach(id=>raiz.querySelector('#'+id).addEventListener('change',()=>renderCatalogoClases(input.value)));
+  ['catalogo-gratis','catalogo-ubicacion','catalogo-tipo'].forEach(id=>{const el=raiz.querySelector('#'+id);if(el)el.addEventListener('change',()=>renderCatalogoClases(input.value));});
   raiz.querySelector('#catalogo-limpiar').addEventListener('click',()=>{
-    ['catalogo-desde','catalogo-hasta','catalogo-ubicacion'].forEach(id=>{raiz.querySelector('#'+id).value='';});
+    ['catalogo-desde','catalogo-hasta','catalogo-ubicacion','catalogo-tipo'].forEach(id=>{const el=raiz.querySelector('#'+id);if(el)el.value='';});
     raiz.querySelector('#catalogo-gratis').checked=false;input.value='';renderCatalogoClases();input.focus();
   });
   const tenant=S.tenant;
@@ -2218,15 +2258,20 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
            computador, se detenga donde termina esta fila y no baje a los botones. -->
       <div class="profesor-form-cuerpo">
       <div class="profesor-form-campos">
-      <details class="profesor-seccion" open><summary><h3>1. Tu clase</h3></summary><div class="profesor-seccion-cuerpo">
+      <details class="profesor-seccion" open><summary><h3 id="pr-seccion-titulo">${esMaterialClase(anuncio)?'1. Tu material':'1. Tu clase'}</h3></summary><div class="profesor-seccion-cuerpo">
+      ${capasColumnasClase>=4||esMaterialClase(anuncio)?`<fieldset class="profesor-tipo" id="pr-tipo-caja"><legend class="modal-label">Qué publicas</legend>
+        <div class="profesor-tipo-opciones">${TIPOS_ANUNCIO.map(([v,t])=>`<label><input type="radio" name="pr-tipo" value="${v}"${(esMaterialClase(anuncio)?'material':'clase')===v?' checked':''}><span>${t}</span></label>`).join('')}</div>
+        <p class="profesor-info" id="pr-tipo-ayuda">${esMaterialClase(anuncio)?TEXTO_TIPO_ANUNCIO.material:TEXTO_TIPO_ANUNCIO.clase}</p></fieldset>`:''}
       <label class="modal-label" for="pr-titulo">Título del anuncio</label><input id="pr-titulo" type="text" minlength="5" maxlength="90" required value="${valor('titulo')}">
       <label class="modal-label" for="pr-descripcion">Descripción</label><textarea id="pr-descripcion" minlength="20" maxlength="1500" required placeholder="Qué van a trabajar, cómo son tus clases y tu experiencia con el ramo.">${valor('descripcion')}</textarea>
-      <label class="modal-label" for="pr-precio">Precio por clase</label><input id="pr-precio" type="text" inputmode="numeric" autocomplete="off" required placeholder="$15.000" aria-describedby="pr-precio-ayuda" value="${esc(textoPesosEscrito(anuncio&&anuncio.precio_clp))}"><p class="profesor-info" id="pr-precio-ayuda">Si la clase es gratis, pon $0: se mostrará como "Gratis".</p>
+      <label class="modal-label" for="pr-precio" id="pr-precio-etiqueta">${esMaterialClase(anuncio)?'Precio del material':'Precio por clase'}</label><input id="pr-precio" type="text" inputmode="numeric" autocomplete="off" required placeholder="$15.000" aria-describedby="pr-precio-ayuda" value="${esc(textoPesosEscrito(anuncio&&anuncio.precio_clp))}"><p class="profesor-info" id="pr-precio-ayuda">${esMaterialClase(anuncio)?'Si el material es gratis':'Si la clase es gratis'}, pon $0: se mostrará como "Gratis".</p>
+      <div class="profesor-solo-clase" id="pr-solo-clase"${esMaterialClase(anuncio)?' hidden':''}>
       <label class="modal-label" for="pr-pack">Clases por pack · opcional</label><input id="pr-pack" type="number" inputmode="numeric" min="${MIN_PACK_CLASES}" max="${MAX_PACK_CLASES}" step="1" placeholder="Ej. 4" aria-describedby="pr-pack-ayuda" value="${valor('pack_clases')}"><p class="profesor-info" id="pr-pack-ayuda">Si vendes un pack, pon cuántas clases trae. El precio de arriba sigue siendo por clase: mostramos el total del pack.</p>
       <label class="modal-label" for="pr-modalidad">Formato · opcional</label><select id="pr-modalidad">${elegir([['','No indicar'],...MODALIDADES_CLASE,['otra','Otra…']],anuncio&&anuncio.modalidad||'')}</select>
       <input id="pr-modalidad-otra" type="text" maxlength="40" aria-label="Escribe el formato" placeholder="Ej. grupos de hasta 3" value="${valor('modalidad_otra')}" ${anuncio&&anuncio.modalidad==='otra'?'':'hidden'}>
       <label class="modal-label" for="pr-ubicacion">Dónde · opcional</label><select id="pr-ubicacion">${elegir([['','No indicar'],...UBICACIONES_CLASE,['otra','Otra…']],anuncio&&anuncio.ubicacion||'')}</select>
       <input id="pr-ubicacion-otra" type="text" maxlength="40" aria-label="Escribe dónde es la clase" placeholder="Ej. en tu casa o en la biblioteca" value="${valor('ubicacion_otra')}" ${anuncio&&anuncio.ubicacion==='otra'?'':'hidden'}>
+      </div>
       <div class="profesor-detalles" id="pr-detalles-caja">
         <span class="modal-label">Detalles · opcional</span>
         <p class="profesor-info">Lo que quieras destacar, como "Duración: 90 minutos" o "Incluye: guía de ejercicios". Hasta ${MAX_DETALLES_CLASE}.</p>
@@ -2304,12 +2349,14 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   const vista=form.querySelector('#pr-vista');
   let logoVista='';
   const valorCampo=id=>{const el=campo(id);return el?String(el.value||''):'';};
+  // Clase o material (2026-10-23). Sin el selector (SQL sin aplicar), clase.
+  const tipoElegido=()=>{const r=typeof form.querySelector==='function'&&form.querySelector('input[name="pr-tipo"]:checked');return r&&r.value==='material'?'material':'clase';};
   // Qué datos van bajo el título. Se guarda como claves, en el orden en que se
   // muestran; si coincide con lo de siempre se guarda null, como los anuncios
   // que ya existían.
   const lineaElegida=new Set(Array.isArray(anuncio&&anuncio.linea_datos)?anuncio.linea_datos:LINEA_CLASE_POR_OMISION);
   const cajaLinea=campo('linea');let firmaLinea='';
-  const borradorEnVivo=()=>({titulo:valorCampo('titulo').trim(),precio_clp:pesosDeTexto(valorCampo('precio')),pack_clases:valorCampo('pack').trim(),
+  const borradorEnVivo=()=>({tipo:tipoElegido(),titulo:valorCampo('titulo').trim(),precio_clp:pesosDeTexto(valorCampo('precio')),pack_clases:valorCampo('pack').trim(),
     modalidad:valorCampo('modalidad'),modalidad_otra:valorCampo('modalidad-otra').trim(),
     ubicacion:valorCampo('ubicacion'),ubicacion_otra:valorCampo('ubicacion-otra').trim(),
     detalles:leerDetalles(),linea_datos:[...lineaElegida]});
@@ -2360,7 +2407,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
     const nombres=siglasVista.map(sg=>nombresRamosParaClases(valorCampo('tenant')||S.tenant)[sg]).filter(Boolean);
     caja.innerHTML=tarjetaCatalogoClase({...borrador,id:'vista-previa',titulo:borrador.titulo||'Tu clase',
       descripcion:valorCampo('descripcion').trim()||'Acá va la descripción de tu clase.',ramos_siglas:siglasVista,nombres_ramos:nombres,
-      ...(t=>({contacto_tipo:t,contacto_valor:(v=>v&&v!==PREFIJO_CONTACTO_CLASE[t].trim()?v:EJEMPLO_CONTACTO_CLASE[t])(valorCampo('contacto').trim())}))(contactosPermitidosClase(pesosDeTexto(valorCampo('precio'))).includes(valorCampo('contacto-tipo'))?valorCampo('contacto-tipo'):'whatsapp'),flyer_path:flyerVista?'vista-previa':null},{abierta:true});
+      ...(t=>({contacto_tipo:t,contacto_valor:(v=>v&&v!==PREFIJO_CONTACTO_CLASE[t].trim()?v:EJEMPLO_CONTACTO_CLASE[t])(valorCampo('contacto').trim())}))(contactosPermitidosClase(pesosDeTexto(valorCampo('precio')),tipoElegido()).includes(valorCampo('contacto-tipo'))?valorCampo('contacto-tipo'):'whatsapp'),flyer_path:flyerVista?'vista-previa':null},{abierta:true});
     const flyer=caja.querySelector('.catalogo-clase-flyer');
     if(flyer){flyer.removeAttribute('data-flyer');flyer.hidden=false;flyer.innerHTML=`<img src="${esc(flyerVista)}" alt="">`;}
     if(logoVista){const cabeza=caja.querySelector('.catalogo-clase-cabeza');if(cabeza)cabeza.insertAdjacentHTML('beforeend',`<div class="catalogo-clase-logo">${imgLogoClase(logoVista)}</div>`);}
@@ -2450,16 +2497,32 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   // clase es gratis aparece el selector con Instagram y link de inscripción;
   // si deja de ser gratis, vuelve a WhatsApp.
   const contacto=campo('contacto'),tipoContacto=campo('contacto-tipo'),cajaTipo=campo('contacto-tipo-caja');
-  const tipoActual=()=>{const t=tipoContacto?tipoContacto.value:'whatsapp';return contactosPermitidosClase(pesosDeTexto(valorCampo('precio'))).includes(t)?t:'whatsapp';};
+  const tipoActual=()=>{const t=tipoContacto?tipoContacto.value:'whatsapp';return contactosPermitidosClase(pesosDeTexto(valorCampo('precio')),tipoElegido()).includes(t)?t:'whatsapp';};
   formatearAlEscribir(contacto,texto=>{const t=tipoActual();return t==='whatsapp'?textoWhatsappEscrito(texto):t==='instagram'?textoInstagramEscrito(texto):texto;});
   const ayudaContacto={whatsapp:'Tu número no aparece en el anuncio. El estudiante te escribe con un botón y el chat parte con «Hola, vi tu clase … en GradeHub. ¿Me puedes dar más información?».',
     instagram:'El botón del anuncio abre tu perfil de Instagram.',enlace:'El botón «Inscribirme» abre este link en una pestaña nueva.'};
   const etiquetaContacto={whatsapp:'Tu WhatsApp',instagram:'Tu Instagram',enlace:'Link de inscripción'};
   let tipoMostrado=null;const escritoPorCanal={};
+  let firmaOpciones='';
   const refrescarContacto=()=>{
-    const gratis=pesosDeTexto(valorCampo('precio'))===0;
-    if(cajaTipo)cajaTipo.hidden=!gratis;
+    // El selector aparece cuando hay más de un canal: clase gratis o material.
+    const opciones=opcionesContactoClase(pesosDeTexto(valorCampo('precio')),tipoElegido());
+    if(cajaTipo)cajaTipo.hidden=opciones.length<2;
+    const firma=opciones.map(o=>o.join(':')).join();
+    if(tipoContacto&&firma!==firmaOpciones){
+      const elegido=tipoContacto.value;firmaOpciones=firma;
+      tipoContacto.innerHTML=opciones.map(([clave,texto])=>`<option value="${clave}"${clave===elegido?' selected':''}>${texto}</option>`).join('');
+      if(!opciones.some(o=>o[0]===elegido))tipoContacto.value='whatsapp';
+    }
     const t=tipoActual();
+    const material=tipoElegido()==='material';
+    etiquetaContacto.enlace=material?'Link para conseguirlo':'Link de inscripción';
+    ayudaContacto.enlace=material?'El botón «Conseguir el material» abre este link en una pestaña nueva.':'El botón «Inscribirme» abre este link en una pestaña nueva.';
+    if(t===tipoMostrado){
+      const etiqueta=campo('contacto-etiqueta');if(etiqueta)etiqueta.textContent=etiquetaContacto[t];
+      const ayuda=campo('contacto-ayuda');if(ayuda)ayuda.textContent=ayudaContacto[t];
+      return;
+    }
     if(t===tipoMostrado)return;
     // Cada canal guarda lo suyo: al pasar de WhatsApp a Instagram el número
     // no queda bajo "Tu Instagram", y al volver reaparece tal como estaba.
@@ -2475,6 +2538,22 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   if(tipoContacto&&typeof tipoContacto.addEventListener==='function')tipoContacto.addEventListener('change',refrescarContacto);
   if(campo('precio')&&typeof campo('precio').addEventListener==='function')campo('precio').addEventListener('input',refrescarContacto);
   refrescarContacto();
+  // Clase o material: un material no tiene formato, lugar ni pack, y su precio
+  // es uno solo. Lo escondido no se borra: si vuelve a clase, sigue ahí.
+  const aplicarTipo=()=>{
+    const material=tipoElegido()==='material';
+    const soloClase=campo('solo-clase');if(soloClase)soloClase.hidden=material;
+    const titulo=campo('seccion-titulo');if(titulo)titulo.textContent=material?'1. Tu material':'1. Tu clase';
+    const precio=campo('precio-etiqueta');if(precio)precio.textContent=material?'Precio del material':'Precio por clase';
+    const ayudaPrecio=campo('precio-ayuda');if(ayudaPrecio)ayudaPrecio.textContent=`${material?'Si el material es gratis':'Si la clase es gratis'}, pon $0: se mostrará como "Gratis".`;
+    const ayudaTipo=campo('tipo-ayuda');if(ayudaTipo)ayudaTipo.textContent=TEXTO_TIPO_ANUNCIO[material?'material':'clase'];
+    const desc=campo('descripcion');if(desc)desc.placeholder=material
+      ?'Qué trae (guías, apuntes, ejercicios resueltos), para qué parte del ramo y cómo se entrega.'
+      :'Qué van a trabajar, cómo son tus clases y tu experiencia con el ramo.';
+    refrescarContacto();actualizarVista();
+  };
+  if(typeof form.querySelectorAll==='function')form.querySelectorAll('input[name="pr-tipo"]').forEach(r=>r.addEventListener('change',aplicarTipo));
+  aplicarTipo();
   const preview=form.querySelector('.profesor-flyer-preview');
   if(flyerActual)urlFlyerClase(flyerActual).then(url=>{if(url&&preview.isConnected){preview.querySelector('img').src=url;preview.hidden=false;flyerVista=url;actualizarVista();}});
   campo('flyer').addEventListener('change',()=>{
@@ -2522,7 +2601,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
     if(!validacion.ok){estado.textContent=validacion.error;campo('flyer').focus();return;}
     const campana=validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))});
     if(!campana.ok){estado.textContent=campana.error;enfocar(campo(campana.campo));return;}
-    const datos={tenant:campo('tenant').value,ramos_siglas:campo('siglas').value.split(',').map(s=>s.trim()),
+    const datos={tipo:tipoElegido(),tenant:campo('tenant').value,ramos_siglas:campo('siglas').value.split(',').map(s=>s.trim()),
       criterios:{promedioMenorA:Number(campo('promedio').value),avanceMinimo:Number(campo('avance').value)},
       titulo:campo('titulo').value,descripcion:campo('descripcion').value,precio_clp:pesosDeTexto(campo('precio').value),
       pack_clases:campo('pack')?campo('pack').value.trim():'',
@@ -2714,8 +2793,8 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
   const a=anuncio||{},linea=lineaDatosClase(a);
   return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia?' tabindex="-1" aria-hidden="true"':''}>
       <span class="clase-apoyo-texto">
-        <span class="ca-cabeza"><small>Publicidad · Clase particular</small><strong>${esc(a.titulo||'Tu clase')}</strong></span>
-        <span class="ca-pie"><span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar · Precio')}</span><span class="clase-apoyo-ver">Ver clase ›</span></span>
+        <span class="ca-cabeza"><small>Publicidad · ${etiquetaTipoClase(a)}</small><strong>${esc(a.titulo||(esMaterialClase(a)?'Tu material':'Tu clase'))}</strong></span>
+        <span class="ca-pie"><span class="clase-apoyo-datos">${esc(linea||(esMaterialClase(a)?'Precio':'Formato · Lugar · Precio'))}</span><span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>

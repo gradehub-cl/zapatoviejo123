@@ -3353,6 +3353,17 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 /* Alumnos de ejemplo: aviso neutro (no es del semáforo) que no se cierra. */
 .panel-alumnos-ejemplo{margin:4px 0 12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;font-size:0.8125rem;line-height:1.45;color:var(--fg2);background:var(--bg2);}
 .panel-alumnos-ejemplo b{display:block;margin-bottom:2px;font-size:0.6875rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg);}
+/* Qué se publica: clase particular o material de apoyo (2026-10-23). Radios
+   con el aspecto de un control segmentado (HIG: Segmented controls). */
+.profesor-tipo{margin:0 0 14px;padding:0;border:0;min-width:0;}
+.profesor-tipo legend{padding:0;}
+.profesor-tipo-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:2px;margin:6px 0 6px;border-radius:10px;background:rgba(118,118,128,.12);}
+.profesor-tipo-opciones label{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;color:var(--fg2);font-size:.875rem;font-weight:600;text-align:center;cursor:pointer;}
+.profesor-tipo-opciones input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none;}
+.profesor-tipo-opciones label:has(input:checked){background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
+.profesor-tipo-opciones label:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px;}
+.profesor-solo-clase:not([hidden]){display:contents;}
+.profesor-solo-clase[hidden]{display:none;}
 .panel-alumnos-compara{display:flex;gap:2px;padding:2px;margin:4px 0 8px;border-radius:10px;background:rgba(118,118,128,.12);}
 .panel-alumnos-compara button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
 .panel-alumnos-compara button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
