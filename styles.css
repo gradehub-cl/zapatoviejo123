@@ -1913,6 +1913,14 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .sim-needed{margin-top:14px;padding-top:13px;border-top:1px solid var(--border);color:var(--fg);
   font-size:0.9375rem;font-weight:600;line-height:1.45;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
 .sim-needed[hidden]{display:none;}
+/* La meta del simulador (antes «Nota mínima», 2026-10-23): stepper de iOS,
+   de a 0,1, con botones de 44 pt. */
+.sim-meta{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);}
+.sim-meta>span{flex:1;font-size:.875rem;font-weight:600;color:var(--fg);}
+.sim-meta output{min-width:3ch;text-align:center;font-size:1.125rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--fg);}
+.sim-meta-btn{width:44px;height:44px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);color:var(--fg);font-family:var(--font-ui);font-size:1.25rem;font-weight:600;line-height:1;cursor:pointer;}
+.sim-meta-btn:disabled{opacity:.4;cursor:default;}
+.sim-meta+.sim-needed{margin-top:10px;padding-top:0;border-top:0;}
 .sim-section-label{margin:0 0 8px 2px;}
 .sim-cats{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin-bottom:12px;
   background:var(--card);border:1px solid var(--border);border-radius:14px;}
