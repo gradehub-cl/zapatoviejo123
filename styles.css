@@ -311,6 +311,17 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .topbar-link{background:var(--card);border:1.5px solid var(--border2);color:var(--fg2);font-size:0.84375rem;font-weight:600;cursor:pointer;padding:7px 12px;border-radius:9px;letter-spacing:-.01em;transition:color var(--motion-fast),background var(--motion-fast),border-color var(--motion-fast);}
 .topbar-link:hover{color:var(--primary);border-color:var(--primary);background:var(--card);}
 .scroll{flex:1;overflow-y:auto;padding-bottom:calc(80px + env(safe-area-inset-bottom,0px));}
+/* El rebote de cada pantalla se queda en su `.scroll` (reporte de un usuario,
+   2026-10-23: en la app agregada al inicio, la lista se quedaba pegada arriba).
+   En iOS, al tirar hacia abajo estando arriba del todo, el rebote pasaba al
+   documento; mientras duraba, el siguiente gesto lo tomaba el documento, que no
+   tiene nada que desplazar, y la lista no se movía. Con `contain` el rebote se
+   ve igual, pero no se encadena. */
+.app.tab-mode .scroll{overscroll-behavior-y:contain;}
+/* Y el documento no rebota por su cuenta en la app instalada (no hay "tirar
+   para recargar" ahí): así no hay otro contenedor que se lleve el dedo. */
+@media (display-mode:standalone){html,body{overscroll-behavior-y:none;}}
+html.app-nativa,html.app-nativa body{overscroll-behavior-y:none;}
 /* ONBOARDING */
 /* El alto de la pantalla menos el margen de la isla dinámica, que ya ocupa
    el padding-top de .app. Con 100dvh solo, en la app iOS (y en la PWA
