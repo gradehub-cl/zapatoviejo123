@@ -852,6 +852,10 @@ function contexto({search='',sesion=false}={}){
   chk('la barra lateral lleva Clases y Alumnos con sus secciones',
     ['profesor:resumen','profesor:anuncios','profesor:perfil','alumnos:resumen','alumnos:lista','alumnos:estadisticas','alumnos:ramos']
       .every(v=>idx.includes(`data-nav-vista="${v}"`))&&/id="nav-alumnos" onclick="irAVistaNav\('alumnos','resumen'\)"/.test(idx));
+  chk('Administración también es un grupo, con sus cuatro secciones (2026-10-23)',
+    ['admin:profesores','admin:anuncios','admin:estadisticas','admin:usuarios'].every(v=>idx.includes(`data-nav-vista="${v}"`))
+    &&/id="nav-admin" onclick="irAVistaNav\('admin','anuncios'\)"/.test(idx)
+    &&/vistasPanelNav\.admin=/.test(leer('marketplace.js'))&&/\.admin-hig \.admin-hig-areas\{display:none;\}/.test(cssN));
   chk('abajo (celular) las secciones no se despliegan; en el riel sí',
     /\n\.nav-sub\{display:none;\}/.test(cssN)&&/\.nav-sub:not\(\[hidden\]\)\{display:flex;/.test(cssN));
   chk('una sección de la pestaña abierta cambia la vista sin recargar',

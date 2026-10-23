@@ -2000,9 +2000,11 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     ...porVencer.map(a=>{const d=enDias(a.vence_at);return `<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Su campaña termina ${d===0?'hoy':d===1?'mañana':`en ${d} días`}</small></span></li>`;}),
   ].join('');
   raiz.innerHTML='<div class="profesor-hig">'+
+    // «Crear anuncio» vive en Anuncios, donde están los anuncios (Lucas,
+    // 2026-10-23). Abierto como hoja, el panel conserva su cabecera con él.
     (enHoja
       ?cabeceraProfesorHTML('Tu conocimiento puede ayudar.','Este es tu espacio para publicar clases y ver cómo les va.',crearAnuncio,'modal-titulo')
-      :`<div class="profesor-hig-accion">${crearAnuncio}</div>`)+
+      :'')+
     `<nav class="panel-alumnos-vistas tres-vistas" aria-label="Vistas de Clases">
       <button type="button" data-clases-vista="resumen" aria-pressed="true">Resumen</button>
       <button type="button" data-clases-vista="anuncios" aria-pressed="false">Anuncios</button>
@@ -2021,6 +2023,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
        <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
      </details></section>
     <section class="panel-alumnos-vista" data-clases-panel="anuncios" aria-label="Tus anuncios" hidden>
+    ${enHoja?'':`<div class="profesor-hig-accion">${crearAnuncio}</div>`}
     <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
     (anuncios.length?'':'<p class="profesor-hig-vacio">Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.</p>')+
     seccionPanelClases('Publicadas',g.activos,pesos,ahora)+
@@ -3240,6 +3243,9 @@ async function pintarPanelAdmin(raiz){
     if(!error&&Array.isArray(data))crecimiento=data;
   }catch(e){}
   const ahora=Date.now();
+  // La sección que pidió la barra lateral manda (2026-10-23).
+  const pedida=typeof tomarVistaNav==='function'&&tomarVistaNav('admin');
+  if(pedida&&AREAS_ADMIN.includes(pedida))vistaAdmin.area=pedida;
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area);
   const mostrarArea=nombre=>{
     if(!AREAS_ADMIN.includes(nombre))return;
@@ -3249,6 +3255,7 @@ async function pintarPanelAdmin(raiz){
       b.setAttribute('aria-selected',String(activa));b.tabIndex=activa?0:-1;
     });
     raiz.querySelectorAll('[data-admin-panel]').forEach(p=>{p.hidden=p.dataset.adminPanel!==nombre;});
+    if(typeof marcarVistaNav==='function')marcarVistaNav('admin',nombre);
     if(nombre==='usuarios'){
       const caja=raiz.querySelector('#admin-encuestas-contenido');
       if(caja&&!caja.querySelector('.encuestas-admin'))renderAdminEncuestas(caja);
@@ -3265,6 +3272,7 @@ async function pintarPanelAdmin(raiz){
     });
   });
   mostrarArea(vistaAdmin.area);
+  if(typeof vistasPanelNav!=='undefined')vistasPanelNav.admin=v=>{if(raiz.isConnected!==false)mostrarArea(v);};
   let seccion=vistaAdmin.seccion;
   const buscar=raiz.querySelector('#admin-hig-buscar'),filtro=raiz.querySelector('#admin-hig-estado');
   buscar.value=vistaAdmin.busqueda;filtro.value=vistaAdmin.estado;

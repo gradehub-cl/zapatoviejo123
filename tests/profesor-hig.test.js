@@ -42,7 +42,10 @@ ctx.root=root();
  ctx.root=root();await run("renderPanelProfesor(root,[],{cabecera:()=>'',salida:()=>''})");assert.match(ctx.root.innerHTML,/Todavía no tienes anuncios/);assert(ctx.root.querySelector('#clase-nueva').click);
  // En su pestaña, el título va en la barra (Lucas, 2026-10-22): sin cabecera grande y con Crear anuncio arriba.
  assert.doesNotMatch(ctx.root.innerHTML,/profesor-hig-cabecera|<h1|Tu conocimiento puede ayudar/);
- assert.match(ctx.root.innerHTML,/^<div class="profesor-hig"><div class="profesor-hig-accion"><button type="button" class="accion-principal" id="clase-nueva">Crear anuncio/);
+ // «Crear anuncio» va dentro de Anuncios, no arriba de todas las vistas (Lucas, 2026-10-23).
+ const htmlClases=ctx.root.innerHTML,enAnuncios=htmlClases.indexOf('data-clases-panel="anuncios"');
+ assert.equal((htmlClases.match(/id="clase-nueva"/g)||[]).length,1,'un solo «Crear anuncio»');
+ assert.ok(enAnuncios>0&&htmlClases.indexOf('id="clase-nueva"')>enAnuncios&&htmlClases.indexOf('id="clase-nueva"')<htmlClases.indexOf('data-clases-panel="perfil"'),'y está en la vista Anuncios');
  ctx.root=root();ctx.root.id='modal-content';await run("renderPanelProfesor(root,[],{cabecera:()=>'',salida:()=>''})");
  assert.match(ctx.root.innerHTML,/id="modal-titulo">Tu conocimiento puede ayudar/,'abierto como hoja conserva su título');
  assert.match(require('fs').readFileSync(__dirname+'/../index.html','utf8'),/<h1 class="brand-word"[^>]*>Clases<\/h1>/);
