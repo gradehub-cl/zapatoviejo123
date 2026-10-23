@@ -5,7 +5,7 @@ const fs = require('fs'), path = require('path');
 const vm = require('vm');
 const raiz = path.join(__dirname, '..');
 const leer = f => fs.readFileSync(path.join(raiz, f), 'utf8');
-const { gh_notaDesdePuntaje } = require('../engine.js');
+const { gh_notaDesdePuntaje, gh_tablaPuntaje } = require('../engine.js');
 
 let ok = 0, fail = 0;
 const chk = (n, c) => { if (c) { ok++; console.log('  OK   ' + n); } else { fail++; console.log('  FAIL ' + n); } };
@@ -96,7 +96,7 @@ function escenarioCalculadora({profesor=false,exigenciaGuardada}={}){
   for(const [id,value] of Object.entries({puntaje:'',total:'',exigencia:'50',nmin:'1',naprob:'4',nmax:'7',ramo:'',destino:''}))el('calc-app-'+id).value=value;
   const llamadas=[];
   const ctx=vm.createContext({
-    S:{ramos:[ramo]},document:{getElementById:el},gh_notaDesdePuntaje,
+    S:{ramos:[ramo]},document:{getElementById:el,querySelectorAll:()=>[]},gh_notaDesdePuntaje,gh_tablaPuntaje,
     esCuentaProfesor:()=>profesor,ausenciaDeEvaluacion:()=>null,categoriaEximida:()=>false,
     etiquetaCasilla:(_r,c,i)=>`${c.nombre} ${i+1}`,esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;'),
     openModal:()=>llamadas.push('abrir'),closeModal:()=>llamadas.push('cerrar'),
@@ -148,6 +148,31 @@ caso.el('calc-app-puntaje').value='51';caso.ctx.calcularNotaApp();
 chk('puntaje mayor al total bloquea el guardado',caso.el('calc-app-guardar').disabled&&caso.el('calc-app-error').textContent.includes('superar'));
 caso=escenarioCalculadora({profesor:true});
 chk('una cuenta solo profesor no abre la herramienta de estudiante',!caso.llamadas.includes('abrir'));
+
+console.log('\n=== Tabla de puntaje a nota: incremento a elección ===');
+{
+  const t=gh_tablaPuntaje(10,1);
+  chk('de a 1 punto: 0, 1, …, 10',t.filas.join()==='0,1,2,3,4,5,6,7,8,9,10'&&!t.ajustado);
+  chk('de a 0,5: el doble de filas, sin error de decimales',gh_tablaPuntaje(10,0.5).filas.length===21&&gh_tablaPuntaje(3,0.1).filas.join()==='0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3');
+  chk('el total va siempre al final, aunque el paso no caiga justo',gh_tablaPuntaje(10,3).filas.join()==='0,3,6,9,10');
+  chk('con un total con decimales también',gh_tablaPuntaje(7.5,1).filas.at(-1)===7.5);
+  const grande=gh_tablaPuntaje(10000,1);
+  chk(`una prueba de 10.000 puntos no arma 10.000 filas: va de a ${grande.paso} y lo avisa`,grande.ajustado&&grande.filas.length<=2001);
+  chk('un incremento inválido vuelve a 1',gh_tablaPuntaje(5,0).paso===1&&gh_tablaPuntaje(5,'x').paso===1);
+}
+caso=escenarioCalculadora();
+caso.el('calc-app-total').value='4';caso.ctx.calcularNotaApp();
+const filas=()=>(caso.el('calc-app-tabla').innerHTML.match(/<tr/g)||[]).length;
+chk('la tabla sale con solo el total, sin esperar el puntaje',filas()===5);
+caso.ctx.elegirPasoCalculadoraApp(0.5);
+chk('de a 0,5 muestra el doble',filas()===9);
+caso.el('calc-app-puntaje').value='2,5';caso.ctx.calcularNotaApp();
+chk('la fila del puntaje queda marcada',/<tr class="calc-fila-actual" aria-current="true"><td>2,5<\/td>/.test(caso.el('calc-app-tabla').innerHTML));
+const otro=caso.el('calc-app-paso');otro.value='2';caso.ctx.escribirPasoCalculadoraApp(otro);
+chk('otro incremento escrito a mano',filas()===3);
+otro.value='abc';caso.ctx.escribirPasoCalculadoraApp(otro);
+chk('uno inválido se marca y vuelve a 1',otro.attributes['aria-invalid']==='true'&&filas()===5);
+chk('la tabla parte abierta en la hoja',/<details id="calc-app-tabla-det" class="calc-tabla" open>/.test(app));
 
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if (fail) process.exit(1);
