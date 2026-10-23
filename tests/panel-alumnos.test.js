@@ -443,7 +443,7 @@ function contexto({search='',sesion=false}={}){
   const mkSec=leer('marketplace.js');
   chk('por sección consulta con p_seccion y el resumen por ramo sigue contra todo GradeHub',
     /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
-    &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion,formato\)/.test(mkSec));
+    &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion,formato,!!ejemplo\)/.test(mkSec));
 
   console.log('\n=== Un alumno con varios ramos (2026-10-21) ===');
   const fichaVarios=a.run(`alumnosPanelHTML([__dos],()=>null)`);
@@ -789,7 +789,11 @@ function contexto({search='',sesion=false}={}){
   const ej=contexto({sesion:true});
   ej.run(`S.tipoCuenta='profesor';S.onboardingDone=true;currentUser={id:'profesor-ejemplo'};
     globalThis.__llamadasEj=[];globalThis.__activoEj=true;
-    globalThis.__raizEj={innerHTML:'',isConnected:true,querySelector:()=>({addEventListener(){},querySelectorAll(){return []},hidden:false,innerHTML:''})};
+    globalThis.__ejNodos={};
+    globalThis.__raizEj={innerHTML:'',isConnected:true,querySelector(sel){
+      if(!__ejNodos[sel])__ejNodos[sel]={handlers:{},hidden:false,innerHTML:'',dataset:{},
+        addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},setAttribute(){},focus(){}};
+      return __ejNodos[sel]}};
     supabaseClient={rpc:(nombre,args)=>{__llamadasEj.push(nombre);
       if(nombre==='codigo_alumnos_profesor')return Promise.resolve({data:'AB3CDEFG',error:null});
       if(nombre==='mis_alumnos_ejemplo')return Promise.resolve({data:__activoEj,error:null});
@@ -812,7 +816,18 @@ function contexto({search='',sesion=false}={}){
   const vistaEj=ej.run('__raizEj.innerHTML');
   chk('con el modo activo, el panel muestra a los alumnos de ejemplo con la franja',
     /class="panel-alumnos-ejemplo" role="note"><b>Ejemplo<\/b>/.test(vistaEj)&&/\(ejemplo\)/.test(vistaEj));
-  chk('sin exportar: un Excel de mentira no tiene para qué salir',!/id="alumnos-exportar"/.test(vistaEj));
+  chk('el ejemplo ofrece exportar junto a las demás funciones y avisa que el archivo es sintético',
+    /id="alumnos-exportar"/.test(vistaEj)&&/No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo»/.test(vistaEj));
+  ej.run(`showConfirm=(titulo,mensaje,accion)=>{globalThis.__confirmarEj={titulo,mensaje,accion}};
+    elegirArchivoAlumnosPanel=accion=>{globalThis.__elegirEj=accion};
+    exportarAlumnosPanel=(lista,comp,sec,formato,ejemplo)=>{globalThis.__archivoEj={ids:lista.map(al=>al.id),formato,ejemplo}};`);
+  await ej.run(`__ejNodos['#alumnos-exportar'].handlers.click()`);
+  ej.run(`__elegirEj('resumen');__confirmarEj.accion()`);
+  chk('exportar el resumen de ejemplo confirma y usa solo alumnos inventados',
+    ej.run('__confirmarEj.titulo')==='Exportar ejemplo'&&
+    /alumnos inventados/.test(ej.run('__confirmarEj.mensaje'))&&
+    ej.run('__archivoEj.ejemplo')===true&&ej.run('__archivoEj.formato')==='resumen'&&
+    ej.run('__archivoEj.ids.every(id=>id.startsWith("ejemplo-alumno-"))'));
   chk('el link de invitación sigue siendo el real',/AB3CDEFG/.test(vistaEj));
   chk('nada de los alumnos de ejemplo se pide ni se escribe en la base',
     ej.run('__llamadasEj').every(n=>['codigo_alumnos_profesor','mis_alumnos','mis_alumnos_ejemplo'].includes(n)));
@@ -938,13 +953,14 @@ function contexto({search='',sesion=false}={}){
   a.run(`document.getElementById=__getElementOriginal`);
   const mk=leer('marketplace.js');
   chk('exportar pide confirmar con el recordatorio de los términos',
-    /showConfirm\('Exportar notas'/.test(mk)&&/no lo publiques ni se lo pases a nadie/.test(mk));
+    /showConfirm\(ejemplo\?'Exportar ejemplo':'Exportar notas'/.test(mk)&&
+    /no lo publiques ni se lo pases a nadie/.test(mk));
   chk('ambos archivos llevan BOM y protegen cada celda',/new Blob\(\['\\ufeff'\+csv\]/.test(mk)&&/filas\.map\(f=>f\.map\(celdaCsvPanel\)/.test(mk));
   const salida=contexto();
   salida.run(`globalThis.Blob=class {constructor(parts,opts){this.parts=parts;this.type=opts.type;globalThis.__blobCsv=this}};
     globalThis.URL={createObjectURL:()=>'/archivo',revokeObjectURL(){}};
     document.createElement=()=>({click(){globalThis.__descargado=this.download},remove(){}});
-    document.body.appendChild=()=>{};track=()=>{};showToast=()=>{};
+    document.body.appendChild=()=>{};globalThis.__tracksExport=[];track=nombre=>__tracksExport.push(nombre);showToast=()=>{};
     globalThis.__alExportable=[{id:'x',nombre_visible:'Persona sintética',tenant:'uc',desde:'2026-09-01',ramos:[
       {id:'r',nombre:'Ramo sintético',gates:[],categorias:[]}]}];`);
   await salida.run(`exportarAlumnosPanel(__alExportable,()=>null,null,'resumen')`);
@@ -956,6 +972,14 @@ function contexto({search='',sesion=false}={}){
   chk('el archivo de detalle conserva su nombre y encabezado',
     salida.run('__blobCsv.parts[0]').startsWith('\ufeffAlumno;Ramo;Sigla;Categoría;Evaluación;Nota;')&&
     /^gradehub-alumnos-\d{4}-\d{2}-\d{2}\.csv$/.test(salida.run('__descargado')));
+  await salida.run(`exportarAlumnosPanel(__alExportable,()=>null,null,'resumen',true)`);
+  chk('el resumen de ejemplo conserva el CSV y se distingue por el nombre del archivo',
+    salida.run('__blobCsv.parts[0]').startsWith('\ufeffAlumno;Ramo;')&&
+    /^gradehub-alumnos-ejemplo-resumen-\d{4}-\d{2}-\d{2}\.csv$/.test(salida.run('__descargado')));
+  await salida.run(`exportarAlumnosPanel(__alExportable,()=>null,null,'detalle',true)`);
+  chk('el detalle de ejemplo también se identifica sin contaminar la métrica de exportaciones reales',
+    /^gradehub-alumnos-ejemplo-\d{4}-\d{2}-\d{2}\.csv$/.test(salida.run('__descargado'))&&
+    salida.run('__tracksExport.length')===2);
 
   console.log('\n=== El panel en su propia pestaña (#697) ===');
   const appSrc=leer('app.js'),htmlSrc=leer('index.html'),mkSrc=leer('marketplace.js');
