@@ -3023,7 +3023,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .profesor-hig-cabecera>.btn-confirm{flex:none;width:auto;}
 /* Sin cabecera, la acción principal de Clases encabeza la pantalla. */
 .profesor-hig-accion{display:flex;margin:0 0 24px;}
-.profesor-hig-accion>.btn-confirm{flex:none;width:auto;min-height:44px;}
+.profesor-hig-accion>.accion-principal{margin:0;}
 .profesor-hig-intro{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:28px;border:1px solid var(--border);border-radius:16px;background:var(--card);margin-bottom:32px;}
 .profesor-hig-intro h2{font-size:1.625rem;line-height:1.2;letter-spacing:-.03em;margin:0 0 12px;}
 .profesor-hig-intro p,.profesor-hig-intro li{color:var(--fg2);font-size:.9375rem;}
@@ -3064,6 +3064,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .profesor-hig-presupuesto progress::-moz-progress-bar{background:var(--primary);}
 .profesor-hig-presupuesto p{font-size:.8125rem;color:var(--fg2);margin:12px 0 0;}
 .profesor-hig-estadisticas>summary,.profesor-hig-resumen>summary{font-size:.9375rem;font-weight:600;cursor:pointer;padding:10px 0;}
+.profesor-hig-resumen>summary,.ah-metodo>summary{display:flex;align-items:center;min-height:44px;list-style:none;}
+.profesor-hig-resumen>summary::-webkit-details-marker,.ah-metodo>summary::-webkit-details-marker{display:none;}
+.profesor-hig-resumen>summary::after,.ah-metodo>summary::after{content:'›';margin-left:auto;color:var(--fg3);font-size:1.25rem;line-height:1;transition:transform var(--motion-fast) var(--ease-out);}
+.profesor-hig-resumen[open]>summary::after,.ah-metodo[open]>summary::after{transform:rotate(90deg);}
 .profesor-hig-resumen{margin-top:28px;}
 .profesor-hig-vacio{padding:30px;border:1px dashed var(--border2);border-radius:14px;color:var(--fg2);}
 .profesor-hig :is(button,summary,select,input:not([type=checkbox]):not([type=hidden]),.profesor-linea-opcion,.profesor-logo-subir){min-height:44px;min-width:44px;}
@@ -3259,8 +3263,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-vistas button{min-width:0;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;line-height:1.25;overflow-wrap:anywhere;cursor:pointer;}
 .panel-alumnos-vistas button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
 .panel-alumnos-mas,.panel-alumnos-regresar{min-height:44px;}
-/* «Invitar alumno» es la acción principal de la Lista: botón con el acento. */
-.panel-alumnos-invitar{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:0 0 10px;padding:10px 18px;border:0;border-radius:10px;background:var(--primary);color:var(--primary-fg);font-family:var(--font-ui);font-size:.9375rem;font-weight:650;cursor:pointer;}
+/* La acción principal de cada pantalla de profesor (Invitar alumno, Crear
+   anuncio): botón con el acento, igual en las dos (2026-10-23). */
+.accion-principal{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:0 0 10px;padding:10px 18px;border:0;border-radius:10px;background:var(--primary);color:var(--primary-fg);font-family:var(--font-ui);font-size:.9375rem;font-weight:650;cursor:pointer;}
+.accion-principal:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 /* Resumen de Alumnos: filas que abren la ficha. */
 .panel-resumen-cifras{margin-bottom:8px;}
 /* Cuatro cifras: 2×2 en el teléfono y una fila en pantalla ancha. */
@@ -3282,6 +3288,39 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .clases-pendientes li>span{display:flex;flex-direction:column;gap:3px;min-width:0;}
 .clases-pendientes small{font-size:.8125rem;color:var(--fg2);}
 .clases-pendientes .agent-refresh{flex:none;min-height:44px;margin:0;}
+/* Texto solo para lectores de pantalla. */
+.sr-solo{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+/* Resumen: la semana agrupada por día. */
+.panel-resumen-dia{display:flex;align-items:baseline;gap:8px;margin:14px 0 2px;font-size:.875rem;font-weight:650;color:var(--fg2);}
+.panel-resumen-dia.pronto{color:var(--fg);}
+.panel-resumen-dia small{font-size:.75rem;font-weight:500;color:var(--fg3);}
+.panel-resumen-cuando b{display:block;font-size:.9375rem;color:var(--fg);}
+.panel-resumen-cuando small{display:block;font-size:.75rem;color:var(--fg3);}
+/* Ramos: cuánto sobre o bajo GradeHub y el atajo a sus alumnos. */
+.panel-resumen-dif{margin:10px 0 0;font-size:.875rem;color:var(--fg2);}
+.panel-resumen-dif b{color:var(--fg);font-weight:650;font-variant-numeric:tabular-nums;}
+.panel-resumen-ver{min-height:44px;margin:8px 0 0;}
+/* Estadísticas: cada alumno, antes (hueco) y ahora (lleno), con el curso al centro.
+   No usa el semáforo: subir respecto del curso no es aprobar. */
+.ah-alumnos{margin-top:22px;--ah-nombre:minmax(6.5rem,28%);--ah-cambio:3.25rem;}
+.ah-leyenda-fila{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 8px;font-size:.75rem;color:var(--fg2);}
+.ah-leyenda-fila span{display:inline-flex;align-items:center;gap:6px;}
+.ah-leyenda-fila .ah-dot{position:static;transform:none;}
+.ah-escala{display:grid;grid-template-columns:var(--ah-nombre) 1fr var(--ah-cambio);gap:10px;font-size:.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.ah-escala-ejes{display:flex;justify-content:space-between;}
+.ah-filas{list-style:none;margin:2px 0 0;padding:0;}
+.ah-filas li+li{border-top:1px solid var(--border);}
+.ah-filas button{display:grid;grid-template-columns:var(--ah-nombre) 1fr var(--ah-cambio);align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 0;border:0;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
+.ah-fila-nombre{font-size:.875rem;font-weight:600;overflow-wrap:anywhere;}
+.ah-fila-cambio{font-size:.875rem;font-weight:650;text-align:right;font-variant-numeric:tabular-nums;}
+.ah-pista{position:relative;height:24px;}
+.ah-centro{position:absolute;left:50%;top:2px;bottom:2px;width:1px;background:var(--border2);}
+.ah-tramo{position:absolute;top:50%;height:2px;margin-top:-1px;background:var(--fg);opacity:.35;}
+.ah-dot{position:absolute;top:50%;display:inline-block;width:10px;height:10px;border-radius:50%;transform:translate(-50%,-50%);box-sizing:border-box;}
+.ah-dot-antes{background:var(--card);border:2px solid var(--fg);}
+.ah-dot-ahora{background:var(--fg);}
+.ah-metodo{margin-top:16px;}
+.ah-metodo>summary{font-size:.875rem;font-weight:600;color:var(--fg2);cursor:pointer;}
 .panel-alumnos-mas{margin-top:12px;width:100%;}
 .panel-alumnos-regresar{margin:4px 0 14px;}
 .panel-alumnos-vista[hidden],.panel-alumnos-vistas[hidden],.panel-alumnos-mas[hidden],#alumnos-compara-wrap[hidden],#alumnos-privacidad[hidden]{display:none;}
@@ -3329,7 +3368,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .ah-alumno{margin-top:10px;}
 .ah-alumno-resumen{margin:0;font-size:0.9375rem;font-weight:600;color:var(--fg);}
 .ah-alumno-lados{display:flex;flex-wrap:wrap;gap:4px 14px;margin:4px 0 0;font-size:0.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
-.ah-grafico{display:block;width:100%;height:auto;margin-top:8px;overflow:visible;}
+.ah-grafico{display:block;width:100%;max-width:560px;height:auto;margin-top:8px;overflow:visible;}
 .ah-cero{stroke:var(--border);stroke-width:1;}
 .ah-inicio{stroke:var(--fg3);stroke-width:1;stroke-dasharray:3 3;}
 .ah-marca-ramo{stroke:var(--serie,var(--fg));stroke-width:2;stroke-dasharray:3 3;}

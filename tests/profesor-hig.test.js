@@ -42,7 +42,7 @@ ctx.root=root();
  ctx.root=root();await run("renderPanelProfesor(root,[],{cabecera:()=>'',salida:()=>''})");assert.match(ctx.root.innerHTML,/Todavía no tienes anuncios/);assert(ctx.root.querySelector('#clase-nueva').click);
  // En su pestaña, el título va en la barra (Lucas, 2026-10-22): sin cabecera grande y con Crear anuncio arriba.
  assert.doesNotMatch(ctx.root.innerHTML,/profesor-hig-cabecera|<h1|Tu conocimiento puede ayudar/);
- assert.match(ctx.root.innerHTML,/^<div class="profesor-hig"><div class="profesor-hig-accion"><button type="button" class="btn-confirm" id="clase-nueva">Crear anuncio/);
+ assert.match(ctx.root.innerHTML,/^<div class="profesor-hig"><div class="profesor-hig-accion"><button type="button" class="accion-principal" id="clase-nueva">Crear anuncio/);
  ctx.root=root();ctx.root.id='modal-content';await run("renderPanelProfesor(root,[],{cabecera:()=>'',salida:()=>''})");
  assert.match(ctx.root.innerHTML,/id="modal-titulo">Tu conocimiento puede ayudar/,'abierto como hoja conserva su título');
  assert.match(require('fs').readFileSync(__dirname+'/../index.html','utf8'),/<h1 class="brand-word"[^>]*>Clases<\/h1>/);

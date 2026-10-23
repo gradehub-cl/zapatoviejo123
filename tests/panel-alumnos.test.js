@@ -621,7 +621,7 @@ function contexto({search='',sesion=false}={}){
     chk(`${n} alumnos: Resumen, Lista, Estadísticas y Ramos, con Invitar dentro de la Lista`,
       />Resumen</.test(vista)&&/data-panel-vista="lista"[^>]*>Lista</.test(vista)&&/data-panel-vista="estadisticas"[^>]*>Estadísticas</.test(vista)&&
       (n>1)===/data-panel-vista="ramos"[^>]*>Ramos</.test(vista)&&!/Cómo van<|Por ramo</.test(vista)&&
-      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="panel-alumnos-invitar" id="alumnos-ir-invitar"')&&
+      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')&&
       !/data-panel-vista="invitar"/.test(vista));
     chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
       !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));
@@ -843,7 +843,10 @@ function contexto({search='',sesion=false}={}){
     resR.semana.map(x=>x.al.id).join()==='a,b'&&resR.semana[0].dias===1);
   chk('necesitan atención: solo quien va reprobando o al borde',resR.atencion.map(x=>x.al.id).join()==='b'&&resR.reprobando===1&&resR.conectados===3);
   const htmlR=a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10)))`);
-  chk('cada fila abre la ficha y lo de mañana se destaca',/data-ver-alumno="a"/.test(htmlR)&&/panel-resumen-cuando pronto">Mañana/.test(htmlR));
+  chk('cada fila abre la ficha; la semana va agrupada por día y mañana se destaca',
+    /data-ver-alumno="a"/.test(htmlR)&&/class="panel-resumen-dia pronto">Mañana<small>1 evaluación/.test(htmlR)
+    &&/class="panel-resumen-dia">Martes 27 oct<small>1 evaluación/.test(htmlR));
+  chk('quien necesita atención dice el ramo junto a la nota',/<b>[\d,]+<\/b><small>en lo pendiente de Ramo b<\/small>/.test(htmlR));
   chk('sin nada esta semana lo dice',/Nadie de tus alumnos tiene evaluaciones/.test(a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel([__grupoR[0]],new Date(2026,9,22,10)))`)));
   const idx=leer('index.html'),cssN=leer('styles.css');
   chk('la barra lateral lleva Clases y Alumnos con sus secciones',
@@ -854,6 +857,21 @@ function contexto({search='',sesion=false}={}){
   chk('una sección de la pestaña abierta cambia la vista sin recargar',
     a.run(`(()=>{currentTab='alumnos';let v=null;vistasPanelNav.alumnos=x=>{v=x};irAVistaNav('alumnos','ramos');delete vistasPanelNav.alumnos;return v;})()`)==='ramos');
   chk('la vista pedida se toma una sola vez',a.run(`(vistaPendienteNav.alumnos='lista',[tomarVistaNav('alumnos'),tomarVistaNav('alumnos')].join())`)==='lista,');
+
+  console.log('\n=== Estadísticas y Ramos con algo que leer de un vistazo (2026-10-23) ===');
+  const grafG=a.run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([__poco,__antesAhora],__cursoAA))');
+  chk('una fila por alumno con datos, ordenada por cuánto cambió, y cada una abre su ficha',
+    (grafG.match(/<li><button type="button" data-ver-alumno=/g)||[]).length===2
+    &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
+  chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
+    /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el curso\. Ahora: 0\.7 sobre el curso\./.test(grafG));
+  chk('sin el semáforo: subir respecto del curso no es aprobar',!/panel-resumen-(good|warn|bad)|--green|--red/.test(grafG));
+  chk('la explicación queda en un desplegable',/<details class="ah-metodo"><summary>Cómo se calcula<\/summary>/.test(a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora],__cursoAA))')));
+  const ramosG=a.run(`resumenAlumnosPanelHTML(resumenAlumnosPanel([__antesAhora],__cursoAA))`);
+  chk('cada ramo dice cuánto van sobre o bajo GradeHub y lleva a sus alumnos',
+    /Tus alumnos van <b>[^<]+<\/b> el promedio de GradeHub/.test(ramosG)&&/data-ver-ramo="MAT1620">Ver 1 alumno de este ramo/.test(ramosG));
+  chk('la ficha no se estira en el computador y su gráfico trae escala',
+    /\.ah-grafico\{[^}]*max-width:560px/.test(leer('styles.css'))&&/class="ah-eje" x="0"[^>]*>curso</.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))')));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
