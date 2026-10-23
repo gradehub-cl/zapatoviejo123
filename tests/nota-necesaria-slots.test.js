@@ -35,8 +35,8 @@ const calculoConUno=calcular(ramoToStructure(conInforme0),gradesOf(conInforme0))
 chk('las dieciséis casillas que faltan llegan al motor',calculoConUno.emptyLeaves.length===16);
 chk('las casillas pendientes se derivan sin agregarse al ramo guardado',conInforme0.categorias.find(c=>c.nombre==='Informes').notas.length===1);
 const appSrc=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
-chk('la calculadora reutiliza la meta por casillas, no una cuenta por categoría',
-  /const needed=notaNecesaria\(r,target\)/.test(appSrc));
+chk('el simulador (con la meta que era «Nota mínima») reutiliza la meta por casillas, no una cuenta por categoría',
+  /const necesaria=notaNecesaria\(proyectado,meta,/.test(appSrc));
 
 console.log('\n=== Una corrección no inventa otra casilla rendida ===');
 const corregido=laboratorio([

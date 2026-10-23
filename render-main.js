@@ -528,9 +528,8 @@ function renderRamo(){
     } else {chipEl.style.display='none';}
   } else {chipEl.style.display='none';}
 
-  // Mostrar botones calculadora y simulador si hay secciones
+  // El simulador, con la meta adentro («Nota mínima» se juntó con él, 2026-10-23)
   const hayCats=r.categorias.length>0;
-  document.getElementById('calc-btn').style.display=hayCats?'inline-flex':'none';
   document.getElementById('sim-btn').style.display=hayCats?'inline-flex':'none';
 
   // Advertencia de ponderación

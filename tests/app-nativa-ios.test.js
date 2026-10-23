@@ -89,7 +89,7 @@ console.log('\n=== Hojas y alertas se mueven como en iOS ===');
 chk('las hojas suben con la curva y la duración de la navegación', /\.app-nativa \.modal-sheet\{transition-duration:var\(--motion-navegar\);transition-timing-function:var\(--ease-navegar\);\}/.test(css)
   && /\.app-nativa \.modal-overlay\{[^}]*display var\(--motion-navegar\) allow-discrete/.test(css));
 chk('la alerta entra con fundido y un leve acercamiento', /@starting-style\{\s*\.app-nativa \.confirm-overlay\.open\{opacity:0;\}\s*\.app-nativa \.confirm-overlay\.open \.confirm-box\{transform:scale\(1\.08\);\}/.test(css));
-chk('las hojas enfocan su campo con enfocarEnHoja, no con un focus a los 100 ms', !/setTimeout\(\(\)=>(document\.getElementById\('[^']+'\)|\{?inp)\.focus\(\)/.test(app) && (app.match(/enfocarEnHoja\(/g) || []).length >= 7);
+chk('las hojas enfocan su campo con enfocarEnHoja, no con un focus a los 100 ms', !/setTimeout\(\(\)=>(document\.getElementById\('[^']+'\)|\{?inp)\.focus\(\)/.test(app) && (app.match(/enfocarEnHoja\(/g) || []).length >= 6); // la hoja de «Nota mínima» se juntó con el simulador (2026-10-23)
 chk('en la app el foco no desplaza la página y espera a que la hoja termine de subir', /if\(enAppNativa\(\)\)\{try\{el\.focus\(\{preventScroll:true\}\)/.test(app) && /setTimeout\(ir,subiendo\?Math\.max\(100,dura\):100\)/.test(app));
 chk('con movimiento reducido la alerta solo se funde', /prefers-reduced-motion:reduce\)\{\.app-nativa \.confirm-overlay\.open \.confirm-box\{transition:none;\}\}/.test(css));
 

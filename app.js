@@ -9578,95 +9578,8 @@ function confirmEditNota(catId,notaId){
   showToast(isNaN(val)?'Guardada como pendiente':lecturaDespuesDeNota(r));
 }
 
-// ─── CALCULADORA NOTA MÍNIMA ─────────────────────────────────────────────────
-// La factibilidad se decide con el valor real, no con el número que se muestra.
-// Redondear 7,001 a 7,0 antes de comparar hacía parecer contradictorio un
-// resultado imposible. Si se pasa del máximo, mostramos el mínimo a dos
-// decimales redondeado hacia arriba: nunca una nota menor a la que calcula el
-// motor.
-function resumenMetaCalculadora(needed){
-  const eps=1e-9;
-  if(!Number.isFinite(needed))return null;
-  if(needed>7+eps){
-    const minimo=Math.ceil((needed-eps)*100)/100;
-    return {estado:'inalcanzable',texto:minimo.toFixed(2)};
-  }
-  if(needed>=7-eps)return {estado:'maxima',texto:'7.0'};
-  if(needed<1)return {estado:'margen',texto:r2(needed).toFixed(1)};
-  // Hacia arriba, igual que el caso inalcanzable de arriba y que el resto de la
-  // app: `r2(needed).toFixed(1)` redondeaba al más cercano y podía pedir menos
-  // de lo que hace falta. `numero` conserva el valor sin redondear porque lo
-  // usan comparaciones, no la pantalla.
-  return {estado:'normal',texto:nfNecesaria(needed),numero:r2(needed)};
-}
-function openCalculadoraModal(){
-  const r=S.ramos.find(x=>x.id===currentRamoId);
-
-  document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M8 7h8"/><path d="M8 12h3"/><path d="M8 16h3"/><path d="M15 12v5"/></svg> Calculadora</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:14px;">¿Qué promedio necesitas en las evaluaciones que te faltan para llegar a tu meta?</p>
-    <label class="modal-label">Promedio meta en el ramo</label>
-    <div class="modal-input"><input type="text" inputmode="decimal" id="m-calc-target" placeholder="Ej: 5.5" oninput="calcResult()"/></div>
-    <div id="calc-result" style="min-height:52px;margin-top:4px;"></div>
-    <div class="modal-btns" style="margin-top:8px;">
-      <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
-    </div>`;
-  openModal();
-  enfocarEnHoja(document.getElementById('m-calc-target'));
-
-  window.calcResult=function(){
-    const target=parseNota(document.getElementById('m-calc-target').value);
-    const el=document.getElementById('calc-result');
-    if(isNaN(target)||target<1||target>7){el.innerHTML='';return;}
-    const descarteAbierto=reglaDescarteConCantidadAbierta(r);
-    if(descarteAbierto){
-      el.innerHTML=`<span style="color:var(--fg2)">No calculamos una nota mínima exacta mientras falte saber cuántas evaluaciones de <b>${esc(descarteAbierto.nombre)}</b> habrá. El programa descarta la peor nota, así que su efecto depende de las notas que todavía no existen.</span>`;
-      return;
-    }
-    // Compuertas: si una sección con piso ya quedó bajo su mínimo, ninguna meta ≥4.0 es alcanzable.
-    const gateHit=gatesActivas(r)[0]||null;
-    if(gateHit&&target>gateHit.cap){
-      el.innerHTML=`<span style="color:var(--red)"><b>${esc(gateHit.nombre)}</b> está bajo ${gateHit.min.toFixed(1)}: la nota queda topada en ${gateHit.cap.toFixed(1)}. Para llegar a ${target.toFixed(1)} primero debes subir esa evaluación.</span>`;
-      return;
-    }
-    const estado=estadoParaNotaNecesaria(r);
-    if(estado.total===0){el.innerHTML='';return;}
-    const needed=notaNecesaria(r,target);
-    if(needed===null){
-      const avg=ramoAvg(r);
-      if(avg!==null){
-        const oficial=notaFinalOficial(avg),metaOficial=notaFinalOficial(target);
-        const ok=oficial>=metaOficial;
-        el.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'}">Tu promedio actual es <b>${fmtPromedio(avg)}</b> — ${ok?'ya lo lograste.':`te faltan ${(metaOficial-oficial).toFixed(1)} puntos y no quedan evaluaciones.`}</span>`;
-      } else {el.innerHTML=`<span style="color:var(--fg3)">${esc(motivoCalculoPendiente(r)||'No hay notas ingresadas aún.')}</span>`;}
-      return;
-    }
-    if(notaNecesariaCondicional(r)&&needed<=7){
-      el.innerHTML=`<div>Con <b>${nfNecesaria(needed)}</b> en cada evaluación pendiente llegas a ${target.toFixed(1)}.<p class="modal-desc">Cambiar una nota puede activar otra fórmula del programa. Comprueba tus escenarios en el simulador.</p></div>`;
-      return;
-    }
-    const metaCalculada=resumenMetaCalculadora(needed);
-    const pendientes=calculoRamoConCompuertas(r).res.emptyLeaves;
-    // Una categoría puede estar a medio rendir: "secciones sin notas" la
-    // omitía por completo. Las hojas pendientes sí incluyen cada Informe,
-    // Control o entrega que falte dentro del conjunto.
-    const dondeTxt=pendientes.length===1
-      ?`en <b>${esc(pendientes[0].name)}</b>`
-      :'como promedio de las evaluaciones que te faltan';
-    // Condición pendiente de piso (ej: Podcast sin nota aún)
-    const condPend=(r.gates||[]).filter(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);return c&&avgPond(c.notas)===null;}).map(g=>`<div style="font-size:0.75rem;color:var(--yellow);margin-top:8px;">Además, ${esc(g.nombre)} debe ser ≥ ${g.min.toFixed(1)} o repruebas pese al promedio.</div>`).join('');
-    if(metaCalculada.estado==='inalcanzable'){
-      el.innerHTML=`<span style="color:var(--red)">Necesitarías un <b>${metaCalculada.texto}</b> — ya no es posible llegar a ${target.toFixed(1)}.</span>`;
-    } else if(metaCalculada.estado==='maxima'){
-      el.innerHTML=`<div style="margin-top:4px;">Necesitas un promedio de<br/><b style="font-size:2rem;color:var(--yellow)">${metaCalculada.texto}</b><br/><span style="font-size:0.75rem;color:var(--fg3)">Es posible, pero casi imposible: necesitas la nota máxima en todo lo que te falta.</span>${condPend}</div>`;
-    } else if(metaCalculada.estado==='margen'){
-      el.innerHTML=`<span style="color:var(--green)">Con cualquier nota llegas a ${target.toFixed(1)}.</span>${condPend}`;
-    } else {
-      const col=metaCalculada.numero>=5.5?'var(--yellow)':'var(--green)';
-      el.innerHTML=`<div style="margin-top:4px;">Necesitas un promedio de<br/><b style="font-size:2rem;color:${col}">${metaCalculada.texto}</b><br/><span style="font-size:0.75rem;color:var(--fg3)">${dondeTxt}</span>${condPend}</div>`;
-    }
-  };
-}
+// «Nota mínima» se juntó con el simulador (Lucas, 2026-10-23): la meta se
+// ajusta en la misma hoja. Ver simNotaNecesaria y simCambiarMeta.
 
 // ─── SIMULADOR DE ESCENARIOS ──────────────────────────────────────────────────
 let simState={}; // { catId: [ {id, valor, slot?} ] } — hipotéticas, no se guardan
@@ -9854,7 +9767,7 @@ function renderSimGlobalList(){
 
 function openSimuladorModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  simState={};simAusencias={};
+  simState={};simAusencias={};simMeta=4.0;
   document.getElementById('modal-content').innerHTML=`
     <p class="sim-kicker">Simulador</p>
     <div class="modal-title sim-ramo">${esc(r.nombre)}${r.seccion?` · Sección ${r.seccion}`:''}</div>
@@ -9866,6 +9779,12 @@ function openSimuladorModal(){
         <div class="solo-parte" id="sim-solo-parte" hidden></div>
       </div>
       <div id="sim-delta"></div>
+      <div class="sim-meta" role="group" aria-labelledby="sim-meta-etiqueta">
+        <span id="sim-meta-etiqueta">Tu meta</span>
+        <button type="button" class="sim-meta-btn" id="sim-meta-menos" onclick="simCambiarMeta(-0.1)" aria-label="Bajar la meta">−</button>
+        <output id="sim-meta" aria-live="polite">4,0</output>
+        <button type="button" class="sim-meta-btn" id="sim-meta-mas" onclick="simCambiarMeta(0.1)" aria-label="Subir la meta">+</button>
+      </div>
       <div class="sim-needed" id="sim-needed" aria-live="polite" hidden></div>
     </div>
     <div class="sim-section-label">Evaluaciones</div>
@@ -9949,16 +9868,38 @@ function simSetFalta(catId,valor){
 }
 function simProjectedAvg(r){return ramoAvg(simProjectedRamo(r));}
 
-// La meta del simulador es aprobar: no depende de la calculadora ni se guarda.
+// La meta del simulador (Lucas, 2026-10-23): «Nota mínima» y «Simular» eran
+// dos botones que respondían casi lo mismo. Ahora hay uno solo, y la meta
+// parte en 4,0 (aprobar) y se ajusta de a 0,1 en la misma hoja. No se guarda.
 // El número lo resuelve el motor sobre el mismo ramo que pinta el proyectado.
-function simNotaNecesaria(proyectado){
-  const meta=4.0;
+let simMeta=4.0;
+function simCambiarMeta(d){
+  simMeta=Math.round(Math.min(7,Math.max(1,simMeta+d))*10)/10;
+  renderSimulador();
+}
+function simNotaNecesaria(proyectado,meta=simMeta){
+  const m=simConComa(meta.toFixed(1)),aprobar=Math.abs(meta-4)<1e-9;
+  // Con un descarte cuya cantidad no se conoce, el efecto depende de notas que
+  // no existen: no se inventa un número (era de la calculadora).
+  const descarteAbierto=reglaDescarteConCantidadAbierta(proyectado);
+  if(descarteAbierto)return {texto:`No calculamos una nota exacta mientras falte saber cuántas evaluaciones de ${descarteAbierto.nombre} habrá`,
+    detalle:'El programa descarta la peor nota, así que su efecto depende de las notas que todavía no existen.'};
   const peso=(proyectado.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
   if(Math.abs(peso-100)>0.05)return {texto:'Completa la pauta para calcularlo'};
   const calculo=calculoRamoConCompuertas(proyectado);
   const motivo=motivoCalculoPendiente(proyectado);
   if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
-  if(!calculo.res.emptyLeaves.length&&!notaNecesariaCondicional(proyectado))return null;
+  // Lo pendiente se mide igual que notaNecesaria: una categoría sin notas y
+  // sin cantidad declarada no siempre aparece en emptyLeaves, y el simulador
+  // daba el ramo por cerrado mientras «Nota mínima» pedía una nota.
+  const quedaPendiente=calculo.res.emptyLeaves.length>0||estadoParaNotaNecesaria(proyectado).pendiente>1e-9;
+  if(!quedaPendiente&&!notaNecesariaCondicional(proyectado)){
+    // Ramo cerrado: si llegó a la meta o no (era de la calculadora).
+    const avg=ramoAvg(proyectado);
+    if(avg===null||aprobar)return null;
+    const ok=notaFinalOficial(avg)>=notaFinalOficial(meta);
+    return {texto:ok?`Ya tienes el ${m}`:`Ya no quedan evaluaciones para llegar a ${m}`};
+  }
 
   const vinculo=partesDelVinculo(proyectado);
   // En un ramo con laboratorio, lo que falta es para la cátedra sola.
@@ -9975,10 +9916,10 @@ function simNotaNecesaria(proyectado){
     return {g,activa,pendiente};
   });
   const bloqueante=compuertas.find(x=>x.activa&&!x.pendiente);
-  if(bloqueante)return {texto:'Con esto ya no alcanzas el 4,0',
+  if(bloqueante&&meta>bloqueante.activa.cap+1e-9)return {texto:`Con esto ya no alcanzas el ${m}`,
     detalle:`${bloqueante.activa.nombre} está bajo el mínimo de ${simConComa(fmtPromedio(bloqueante.activa.min))} y topa la nota.`};
   if(necesaria===null)return null;
-  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el 4,0${deCatedra}`};
+  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el ${m}${deCatedra}`};
 
   const pendientes=compuertas.filter(x=>x.pendiente);
   const condiciones=pendientes.map(x=>{
@@ -9986,13 +9927,13 @@ function simNotaNecesaria(proyectado){
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
     return `Además, ${nombre} debe llegar a ${simConComa(fmtPromedio(x.g.min))} para cumplir su mínimo.`;
   }).join(' ');
-  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas al 4,0`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
+  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas a ${m}`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
-    ?{texto:`El promedio ponderado ya alcanza el 4,0${deCatedra}`,detalle:condiciones}
-    :{texto:`Ya tienes el 4,0${deCatedra} asegurado`};
+    ?{texto:`El promedio ponderado ya alcanza el ${m}${deCatedra}`,detalle:condiciones}
+    :{texto:`Ya tienes el ${m}${deCatedra} asegurado`};
   return {texto:vinculo
-    ?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`
-    :`Para el 4,0 necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
+    ?(aprobar?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`:`Para el ${m} de cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`)
+    :`Para el ${m} necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
 }
 
 function renderSimulador(){
@@ -10025,6 +9966,10 @@ function renderSimulador(){
     deltaEl.style.display='inline-block';
   } else {deltaEl.style.display='none';}
 
+  const metaEl=document.getElementById('sim-meta');
+  if(metaEl)metaEl.textContent=simConComa(simMeta.toFixed(1));
+  const menos=document.getElementById('sim-meta-menos'),mas=document.getElementById('sim-meta-mas');
+  if(menos)menos.disabled=simMeta<=1;if(mas)mas.disabled=simMeta>=7;
   const neededEl=document.getElementById('sim-needed');
   const necesaria=simNotaNecesaria(proyectado);
   if(neededEl){
