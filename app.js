@@ -6836,23 +6836,45 @@ function calcularNotaApp(){
   campo('guardar-aviso').textContent=elegido?.nota?.valor!=null
     ?`Guardar reemplazará la nota que ya tiene ${elegido.etiqueta}.`
     :'El puntaje obtenido y el total no se guardan.';
-  const tabla=campo('tabla');
-  if(campo('tabla-det').open&&resultado){
-    const pasos=[0.5,1,2,5,10,20,25,50,100,250,500,1000];
-    const paso=pasos.find(x=>(!Number.isInteger(t)||x>=1)&&t/x<=120)||Math.ceil(t/120/1000)*1000;
-    let filas='';
-    for(let x=0;x<t-1e-9;x+=paso){
-      const nota=gh_notaDesdePuntaje(x,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked});
-      if(nota)filas+=`<tr><td>${formatoCalculadoraApp(x,2)}</td><td>${formatoCalculadoraApp(nota.nota,1)}</td></tr>`;
-    }
-    const final=gh_notaDesdePuntaje(t,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked});
-    tabla.innerHTML=filas+`<tr><td>${formatoCalculadoraApp(t,2)}</td><td>${formatoCalculadoraApp(final.nota,1)}</td></tr>`;
-  }else tabla.textContent='';
+  pintarTablaCalculadoraApp({error,t,p:hayP?p:null,escala:{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked}});
   return resultado;
+}
+// La tabla sale abierta y aparece apenas hay un total: sirve para ver toda la
+// escala antes de saber el puntaje. El incremento lo elige la persona (de a 1 o
+// de a 0,5, u otro); la fila de su puntaje, si calza, va marcada.
+let _pasoCalculadoraApp=1;
+function pintarTablaCalculadoraApp({error,t,p,escala}){
+  const tabla=document.getElementById('calc-app-tabla'),aviso=document.getElementById('calc-app-paso-aviso');
+  if(!tabla)return;
+  if(error||!(t>0)){tabla.innerHTML='';if(aviso)aviso.textContent=t>0?'':'Escribe el puntaje total para ver la tabla.';return;}
+  const {paso,ajustado,filas}=gh_tablaPuntaje(t,_pasoCalculadoraApp);
+  if(aviso)aviso.textContent=ajustado?`Con ${puntosTablaCalculadoraApp(t)} puntos la tabla va de a ${puntosTablaCalculadoraApp(paso)}.`:'';
+  tabla.innerHTML=filas.map(x=>{
+    const r=gh_notaDesdePuntaje(x,t,escala);if(!r)return '';
+    const actual=p!==null&&Math.abs(p-x)<1e-9;
+    return `<tr${actual?' class="calc-fila-actual" aria-current="true"':''}><td>${puntosTablaCalculadoraApp(x)}</td><td>${formatoCalculadoraApp(r.nota,1)}</td></tr>`;
+  }).join('');
+}
+// Puntos como se escriben: 1, 2,5, 7,25. Nada de "1,00".
+function puntosTablaCalculadoraApp(x){return String(Math.round(x*100)/100).replace('.',',');}
+function elegirPasoCalculadoraApp(valor){
+  _pasoCalculadoraApp=valor;
+  const otro=document.getElementById('calc-app-paso');if(otro){otro.value='';otro.removeAttribute('aria-invalid');}
+  document.querySelectorAll('.calc-paso-btn').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.paso)===valor)));
+  calcularNotaApp();
+}
+function escribirPasoCalculadoraApp(input){
+  const crudo=input.value.trim();
+  const v=numeroCalculadoraApp(crudo);
+  const valido=crudo!==''&&v>0;
+  input.setAttribute('aria-invalid',String(crudo!==''&&!valido));
+  _pasoCalculadoraApp=valido?v:1;
+  document.querySelectorAll('.calc-paso-btn').forEach(b=>b.setAttribute('aria-pressed',String(!valido&&Number(b.dataset.paso)===1)));
+  calcularNotaApp();
 }
 function openCalculadoraApp(){
   if(esCuentaProfesor())return;
-  _resultadoCalculadoraApp=null;_destinosCalculadoraApp=[];_exigenciaEditadaCalculadoraApp=false;
+  _resultadoCalculadoraApp=null;_destinosCalculadoraApp=[];_exigenciaEditadaCalculadoraApp=false;_pasoCalculadoraApp=1;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Calculadora de nota</div>
     <p class="modal-desc">Convierte el puntaje de una prueba a nota. Puedes calcular sin elegir un ramo.</p>
@@ -6874,8 +6896,17 @@ function openCalculadoraApp(){
       <strong id="calc-app-nota" style="display:block;font-size:2rem;font-variant-numeric:tabular-nums;">–</strong>
       <div id="calc-app-detalle" style="font-size:.8125rem;color:var(--fg2);">Escribe tu puntaje y el total de la prueba.</div>
     </div>
-    <details id="calc-app-tabla-det" ontoggle="calcularNotaApp()" style="margin-bottom:18px;"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;">Ver tabla de puntaje a nota</summary>
-      <div style="max-height:180px;overflow:auto;"><table style="width:100%;font-variant-numeric:tabular-nums;"><thead><tr><th>Puntos</th><th>Nota</th></tr></thead><tbody id="calc-app-tabla"></tbody></table></div>
+    <details id="calc-app-tabla-det" class="calc-tabla" open>
+      <summary>Tabla de puntaje a nota</summary>
+      <div class="calc-paso" role="group" aria-label="Incremento de la tabla">
+        <span class="calc-paso-label">De a</span>
+        <button type="button" class="calc-paso-btn" data-paso="1" aria-pressed="true" onclick="elegirPasoCalculadoraApp(1)">1</button>
+        <button type="button" class="calc-paso-btn" data-paso="0.5" aria-pressed="false" onclick="elegirPasoCalculadoraApp(0.5)">0,5</button>
+        <input id="calc-app-paso" class="calc-paso-otro" type="text" inputmode="decimal" autocomplete="off" placeholder="Otro" aria-label="Otro incremento, en puntos" oninput="escribirPasoCalculadoraApp(this)">
+        <span class="calc-paso-label">puntos</span>
+      </div>
+      <p id="calc-app-paso-aviso" class="calc-paso-aviso" aria-live="polite"></p>
+      <div class="calc-tabla-scroll"><table><thead><tr><th scope="col">Puntos</th><th scope="col">Nota</th></tr></thead><tbody id="calc-app-tabla"></tbody></table></div>
     </details>
     <label class="modal-label" style="font-size:.8125rem;" for="calc-app-ramo">Guardar en un ramo</label>
     <select id="calc-app-ramo" class="feedback-select" style="min-height:44px;" onchange="seleccionarRamoCalculadoraApp()">

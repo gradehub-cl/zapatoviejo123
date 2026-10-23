@@ -67,6 +67,25 @@ function gh_reglasNota(tenant){
 // La usa la calculadora pública (calculadora.html) y la usará el ingreso de
 // notas de la app: una sola fórmula para las dos. Devuelve null si los datos
 // no forman una escala, para que nadie muestre una nota inventada.
+// Filas de la tabla puntaje → nota, con el incremento que elige la persona (de
+// a 1 o de a 0,5 punto, u otro). Solo si dejaría más de 2.000 filas se agranda
+// al paso más chico que quepa, para no trabar el teléfono con una prueba de
+// 10.000 puntos; `ajustado` lo dice. El total va siempre al final, aunque el
+// paso no caiga justo. Cada fila se calcula como i·paso para que 0,1 + 0,2 no
+// acumule error.
+function gh_tablaPuntaje(total,pedido){
+  const max=2000;
+  let paso=Number(pedido)>0?Number(pedido):1,ajustado=false;
+  if(!(total>0))return {paso,ajustado,filas:[]};
+  if(total/paso>max){
+    ajustado=true;
+    paso=[1,2,5,10,20,25,50,100,250,500,1000,2500,5000,10000].find(x=>x>=paso&&total/x<=max)||Math.ceil(total/max);
+  }
+  const filas=[];
+  for(let i=0;;i++){const x=Math.round(i*paso*100)/100;if(x>=total-1e-9)break;filas.push(x);}
+  filas.push(total);
+  return {paso,ajustado,filas};
+}
 function gh_notaDesdePuntaje(puntaje,total,o={}){
   const exigencia=o.exigencia??0.5,nmin=o.nmin??1,naprob=o.naprob??4,nmax=o.nmax??7;
   if(![puntaje,total,exigencia,nmin,naprob,nmax].every(Number.isFinite))return null;
@@ -909,4 +928,4 @@ function gh_crearCalculoRamo(deps){
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje,gh_tablaPuntaje};

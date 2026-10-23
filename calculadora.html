@@ -128,6 +128,11 @@
   .redondeo label{display:flex; align-items:center; gap:10px; min-height:44px; color:var(--fg2); cursor:pointer;}
   .redondeo input{width:20px; height:20px; min-height:0; margin:0; accent-color:var(--fg); -webkit-appearance:auto; appearance:auto;}
 
+  /* Incremento de la tabla: los mismos botones que la exigencia. */
+  .pasos{margin-bottom:8px;}
+  .pasos .otra::after{content:'pts';}
+  .aviso-paso{margin:0 0 8px; font-size:14px; color:var(--fg2);}
+  .aviso-paso:empty{display:none;}
   .tabla-wrap{max-height:360px; overflow:auto; border:1px solid var(--border); border-radius:12px; margin-bottom:14px;}
   table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:15px;}
   th, td{padding:8px 14px; text-align:right; border-bottom:1px solid var(--border);}
@@ -199,8 +204,14 @@
     <p class="detalle" id="detalle">Escribe tu puntaje y el total de la prueba.</p>
   </section>
 
-  <details id="tabla-det">
+  <details id="tabla-det" open>
     <summary>Tabla de puntajes y notas</summary>
+    <div class="exigencias pasos" role="group" aria-label="Incremento de la tabla">
+      <button type="button" data-paso="1" aria-pressed="true">De a 1</button>
+      <button type="button" data-paso="0.5" aria-pressed="false">De a 0,5</button>
+      <label class="otra"><input id="paso" type="text" inputmode="decimal" autocomplete="off" placeholder="Otro" aria-label="Otro incremento, en puntos"/></label>
+    </div>
+    <p class="aviso-paso" id="aviso-paso" aria-live="polite"></p>
     <div class="tabla-wrap"><table><thead><tr><th scope="col">Puntaje</th><th scope="col">Nota</th></tr></thead><tbody id="tabla"></tbody></table></div>
   </details>
 
@@ -315,20 +326,21 @@
     guardar();
   }
 
-  // Paso de la tabla: de a un punto si caben, si no el paso más chico que deje
-  // unas 120 filas. El total siempre va al final, aunque el paso no caiga justo.
+  // La tabla sale abierta y aparece apenas hay un total. El incremento lo elige
+  // la persona (de a 1, de a 0,5 u otro); gh_tablaPuntaje solo lo agranda si
+  // dejaría demasiadas filas, y entonces se avisa.
+  var pasoBtns=[].slice.call(document.querySelectorAll('[data-paso]'));
+  var pasoTabla=1;
+  function marcarPaso(){
+    var propio=$('paso').value.trim()!=='';
+    pasoBtns.forEach(function(b){b.setAttribute('aria-pressed',!propio&&Number(b.dataset.paso)===pasoTabla?'true':'false');});
+  }
   function tabla(t,p,escala){
     var cuerpo=$('tabla');
     cuerpo.textContent='';
-    if(!(t>0))return;
-    var pasos=[0.5,1,2,5,10,20,25,50,100,250,500,1000],paso=pasos[pasos.length-1];
-    for(var i=0;i<pasos.length;i++){
-      if(Number.isInteger(t)&&pasos[i]<1)continue;
-      if(t/pasos[i]<=120){paso=pasos[i];break;}
-    }
-    var filas=[];
-    for(var x=0;x<t-1e-9;x+=paso)filas.push(Math.round(x*100)/100);
-    filas.push(t);
+    if(!(t>0)){$('aviso-paso').textContent='';return;}
+    var armada=gh_tablaPuntaje(t,pasoTabla),filas=armada.filas;
+    $('aviso-paso').textContent=armada.ajustado?'Con '+fmt(t)+' puntos la tabla va de a '+fmt(armada.paso)+'.':'';
     var frag=document.createDocumentFragment();
     filas.forEach(function(x){
       var r=gh_notaDesdePuntaje(x,t,escala);
@@ -364,6 +376,14 @@
   Object.keys(campos).forEach(function(k){campos[k].addEventListener('input',calcular);});
   [].forEach.call(document.querySelectorAll('input[name="redondeo"]'),function(r){r.addEventListener('change',calcular);});
   $('tabla-det').addEventListener('toggle',calcular);
+  pasoBtns.forEach(function(b){
+    b.addEventListener('click',function(){pasoTabla=Number(b.dataset.paso);$('paso').value='';$('paso').removeAttribute('aria-invalid');marcarPaso();calcular();});
+  });
+  $('paso').addEventListener('input',function(){
+    var crudo=this.value.trim(),v=num(crudo),ok=crudo!==''&&v>0;
+    if(crudo!==''&&!ok)this.setAttribute('aria-invalid','true');else this.removeAttribute('aria-invalid');
+    pasoTabla=ok?v:1;marcarPaso();calcular();
+  });
   $('calc').addEventListener('submit',function(e){e.preventDefault();document.activeElement&&document.activeElement.blur();});
   campos.puntaje.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();campos.total.focus();}});
   $('abrir-gradehub').addEventListener('click',function(e){
