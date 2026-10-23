@@ -4427,13 +4427,13 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
   }));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
-async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null,formato='detalle'){
+async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null,formato='detalle',ejemplo=false){
   const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
-  const nombre=`gradehub-alumnos${formato==='resumen'?'-resumen':''}-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
+  const nombre=`gradehub-alumnos${ejemplo?'-ejemplo':''}${formato==='resumen'?'-resumen':''}-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
   // La marca BOM hace que Excel lea bien las tildes.
   const csv=formato==='resumen'?csvResumenAlumnosPanel(lista,compDe,compSeccionDe,hoy):csvAlumnosPanel(lista,compDe,compSeccionDe);
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
-  track('panel_alumnos_exportado',{alumnos:lista.length});
+  if(!ejemplo)track('panel_alumnos_exportado',{alumnos:lista.length});
   // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
   try{
     const archivo=typeof File==='function'?new File([blob],nombre,{type:blob.type}):null;
@@ -4446,7 +4446,7 @@ async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null,formato='det
   a.href=url;a.download=nombre;
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  showToast('Archivo descargado.');
+  showToast(ejemplo?'Archivo de ejemplo descargado.':'Archivo descargado.');
 }
 function elegirArchivoAlumnosPanel(alElegir){
   const caja=document.getElementById('modal-content');if(!caja)return;
@@ -4677,7 +4677,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const privacidad='<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>';
   // La franja va siempre arriba y no se cierra: nadie puede confundir estos
   // alumnos con los suyos.
-  const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No son reales y nada de esto se guarda.</p>`:'';
+  const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».</p>`:'';
   raiz.innerHTML='<div class="profesor-hig">'+
     franjaEjemplo+
     // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla
@@ -4695,7 +4695,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       <button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button>
       ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
-      ${ejemplo?'':'<button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>'}
+      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
       <div id="alumnos-lista">${listaInicial}</div>
       <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
     </section>
@@ -4893,9 +4893,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     exportar.disabled=false;
     elegirArchivoAlumnosPanel(formato=>{
       const n=paraExportar.length;
-      showConfirm('Exportar notas',
-        `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
-        ()=>{if(vigente())exportarAlumnosPanel(paraExportar,compGeneral,compSeccion,formato);},{label:'Exportar',danger:false});
+      showConfirm(ejemplo?'Exportar ejemplo':'Exportar notas',
+        ejemplo?`El archivo trae ${n===1?'1 alumno inventado':`${n} alumnos inventados`}, no notas reales. El nombre del archivo dirá «ejemplo».`:
+          `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
+        ()=>{if(vigente())exportarAlumnosPanel(paraExportar,compGeneral,compSeccion,formato,!!ejemplo);},{label:'Exportar',danger:false});
     });
   });
   if(ejemplo)track('panel_alumnos_ejemplo');
