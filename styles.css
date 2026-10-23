@@ -2056,7 +2056,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .nav-sub-item:hover{color:var(--fg);background:var(--muted);}
   .nav-sub-item[aria-current="page"]{color:var(--primary);font-weight:650;}
   /* Con las secciones en la barra, el control dentro de la pantalla sobra. */
-  .profesor-hig .panel-alumnos-vistas{display:none;}
+  .profesor-hig .panel-alumnos-vistas,.admin-hig .admin-hig-areas{display:none;}
 
   /* Con el rail al lado ya no hay que reservar el alto de la barra */
   .scroll{padding-bottom:32px;}

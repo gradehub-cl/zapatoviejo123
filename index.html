@@ -663,13 +663,20 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <button type="button" class="nav-sub-item" data-nav-vista="alumnos:estadisticas" onclick="irAVistaNav('alumnos','estadisticas')">Estadísticas</button>
     <button type="button" class="nav-sub-item" data-nav-vista="alumnos:ramos" onclick="irAVistaNav('alumnos','ramos')">Ramos</button>
   </div>
-  <button class="nav-item" id="nav-admin" onclick="showTab('admin')" aria-label="Administración" hidden>
+  <button class="nav-item nav-grupo" id="nav-admin" onclick="irAVistaNav('admin','anuncios')" aria-controls="nav-sub-admin" aria-label="Administración" hidden>
     <span class="nav-icon">
       <svg class="ic ic-line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
       <svg class="ic ic-fill" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2l9 3.4V12c0 5-3.8 9.3-9 10-5.2-.7-9-5-9-10V5.4zm-1 13.4 5.7-5.7-1.4-1.4-4.3 4.3-2.3-2.3-1.4 1.4z"/></svg>
     </span>
     Admin
   </button>
+  <!-- Secciones de Administración, como las de Clases y Alumnos (2026-10-23). -->
+  <div class="nav-sub" id="nav-sub-admin" data-nav-grupo="admin" role="group" aria-label="Secciones de Administración" hidden>
+    <button type="button" class="nav-sub-item" data-nav-vista="admin:profesores" onclick="irAVistaNav('admin','profesores')">Profesores</button>
+    <button type="button" class="nav-sub-item" data-nav-vista="admin:anuncios" onclick="irAVistaNav('admin','anuncios')">Anuncios</button>
+    <button type="button" class="nav-sub-item" data-nav-vista="admin:estadisticas" onclick="irAVistaNav('admin','estadisticas')">Estadísticas</button>
+    <button type="button" class="nav-sub-item" data-nav-vista="admin:usuarios" onclick="irAVistaNav('admin','usuarios')">Usuarios</button>
+  </div>
 </nav>
 
 <!-- MODAL -->
