@@ -174,6 +174,7 @@ begin
             'tenant', a.tenant,
             'ramos_siglas', a.ramos_siglas,
             'precio_clp', a.precio_clp,
+            'tipo', coalesce(to_jsonb(a)->>'tipo', 'clase'),
             'pack_clases', to_jsonb(a)->'pack_clases',
             'descuento_gradehub_pct', to_jsonb(a)->'descuento_gradehub_pct',
             'descripcion', a.descripcion,
