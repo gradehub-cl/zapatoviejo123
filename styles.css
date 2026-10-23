@@ -1934,22 +1934,19 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .sim-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:5px 8px;
   border-radius:8px;background:var(--muted);color:var(--fg2);font-size:0.8125rem;font-weight:600;
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
-.sim-chip.real,.sim-chip.hyp{background:var(--muted);color:var(--fg2);}
-.sim-chip.hyp{border:1px solid var(--border2);}
-.sim-chip-x{min-width:44px;min-height:44px;margin:-8px -8px -8px 0;padding:0;border:0;background:none;color:var(--fg2);
-  font-size:0.875rem;cursor:pointer;}
-.sim-add{display:flex;gap:8px;}
-.sim-add input{flex:1;min-width:0;min-height:44px;padding:9px 11px;border:1px solid var(--border2);border-radius:10px;
+.sim-chip.real{background:var(--muted);color:var(--fg2);}
+.sim-fields{display:grid;gap:10px;}
+.sim-field-row label{display:block;margin-bottom:4px;color:var(--fg2);font-size:0.8125rem;font-weight:600;}
+.sim-field-control{display:flex;align-items:center;gap:8px;}
+.sim-field-control input[type=text]{flex:1;min-width:0;min-height:44px;padding:9px 11px;border:1px solid var(--border2);border-radius:10px;
   background:var(--bg2);color:var(--fg);font:1rem var(--font-ui);outline:none;
   transition:border-color var(--motion-fast) var(--ease-standard),box-shadow var(--motion-fast) var(--ease-standard);}
-.sim-add input:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
-.sim-add button{min-height:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:10px;
-  background:var(--bg2);color:var(--fg);font:600 0.875rem var(--font-ui);cursor:pointer;}
-.sim-add button:hover,.sim-falta-btn:hover{background:var(--muted);}
+.sim-field-control input[type=text]:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
+.sim-falta-btn:hover,.sim-falta-btn:active{background:var(--muted);}
 .modal-sheet:has(.sim-cats) .modal-btns{flex:none;margin-top:0;}
 .modal-sheet:has(.sim-cats) .modal-btns button{min-height:48px;}
 .modal-sheet:has(.sim-cats) #sim-commit-btn:not(:disabled){background:var(--primary);color:var(--primary-fg);}
-.sim-chip-x:focus-visible,.sim-add button:focus-visible,.sim-falta-btn:focus-visible,.sim-falta-x:focus-visible,.sim-falta select:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.sim-falta-btn:focus-visible,.sim-falta-x:focus-visible,.sim-falta select:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 @media(min-width:768px){
   .modal-overlay:has(.sim-cats){align-items:center;}
   .modal-sheet:has(.sim-cats){height:min(760px,calc(100dvh - 48px));max-height:calc(100dvh - 48px);border-radius:16px;max-width:600px;}
@@ -2808,8 +2805,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .eval-sub-aviso{font-size:0.6875rem;color:var(--yellow);font-weight:600;}
 
 /* La ausencia es una hipótesis, no un estado académico del semáforo. */
-.sim-falta-btn{width:100%;min-height:44px;margin-top:4px;padding:9px 12px;border:1px solid var(--border2);
-  border-radius:10px;background:var(--bg2);color:var(--fg2);font:600 0.875rem var(--font-ui);cursor:pointer;}
+.sim-falta-btn{flex:none;min-width:44px;min-height:44px;padding:8px 10px;border:0;
+  border-radius:10px;background:transparent;color:var(--fg2);font:600 0.875rem var(--font-ui);cursor:pointer;}
+.sim-falta-btn[hidden]{display:none;}
 .sim-falta.activa{margin-top:4px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--muted);}
 .sim-falta-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:0.875rem;color:var(--fg);}
 .sim-falta-x{min-width:44px;min-height:44px;border:0;background:transparent;color:var(--fg2);font-size:0.875rem;line-height:1;cursor:pointer;}
