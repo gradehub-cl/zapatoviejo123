@@ -484,7 +484,7 @@ function contexto({search='',sesion=false}={}){
   chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
   const ah=ah0();
   chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
-    /Subió 1\.7 respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
+    /Subió 1\.7 puntos respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
   chk('el gráfico es una imagen con su resumen y un punto por evaluación comparable',
     /<svg class="ah-grafico"[^>]*role="img"[^>]*aria-label="Diferencia con el curso en 4 evaluaciones/.test(ah)&&(ah.match(/class="ah-punto"/g)||[]).length===4&&/empezó/.test(ah));
   chk('y la lista con las mismas cifras, para quien no ve el gráfico',/Ver sus evaluaciones/.test(ah)&&(ah.match(/<tr><td>/g)||[]).length===4);
@@ -617,11 +617,12 @@ function contexto({search='',sesion=false}={}){
       vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Alumno 1')&&
       /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Antes y desde que empezaron contigo/.test(vista));
     // Resumen · Lista · Estadísticas · Ramos (Lucas, 2026-10-22). Invitar es la
-    // acción principal de la Lista, con el acento, no una vista más.
-    chk(`${n} alumnos: Resumen, Lista, Estadísticas y Ramos, con Invitar dentro de la Lista`,
+    // acción principal de las vistas de Alumnos, no una vista más.
+    chk(`${n} alumnos: Resumen, Lista, Estadísticas y Ramos, con Invitar en la cabecera compartida`,
       />Resumen</.test(vista)&&/data-panel-vista="lista"[^>]*>Lista</.test(vista)&&/data-panel-vista="estadisticas"[^>]*>Estadísticas</.test(vista)&&
       (n>1)===/data-panel-vista="ramos"[^>]*>Ramos</.test(vista)&&!/Cómo van<|Por ramo</.test(vista)&&
-      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')&&
+      vista.indexOf('id="alumnos-cabecera"')<vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')&&
+      vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')<vista.indexOf('id="alumnos-vista-lista"')&&
       !/data-panel-vista="invitar"/.test(vista));
     chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
       !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));
@@ -688,7 +689,7 @@ function contexto({search='',sesion=false}={}){
   a.run(`__tabsPanel[2].handlers.click()`);
   chk('Estadísticas se carga solo al abrir su vista, con la comparación',
     a.run(`__panelNodos['#alumnos-vista-estadisticas'].hidden`)===false&&
-    /Antes y desde que empezaron contigo/.test(a.run(`__panelNodos['#alumnos-vista-estadisticas'].innerHTML`))&&
+    /Desde que empezaron contigo/.test(a.run(`__panelNodos['#alumnos-vista-estadisticas'].innerHTML`))&&
     a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===false);
   a.run(`__tabsPanel[3].handlers.click()`);
   chk('Ramos muestra su resumen sin cambiar la comparación del grupo',
@@ -891,6 +892,21 @@ function contexto({search='',sesion=false}={}){
     /Tus alumnos van <b>[^<]+<\/b> el promedio de GradeHub/.test(ramosG)&&/data-ver-ramo="MAT1620">Ver 1 alumno de este ramo/.test(ramosG));
   chk('la ficha no se estira en el computador y su gráfico trae escala',
     /\.ah-grafico\{[^}]*max-width:560px/.test(leer('styles.css'))&&/class="ah-eje" x="0"[^>]*>curso</.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))')));
+
+  console.log('\n=== Lectura Editorial de Alumnos ===');
+  const porSeccionTexto=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA),{seccion:true})`);
+  chk('la misma cifra se rotula por sección en el resumen, el gráfico y la tabla',
+    /Subió 1\.7 puntos respecto de su sección/.test(porSeccionTexto)&&
+    /Diferencia con su sección en 4 evaluaciones/.test(porSeccionTexto)&&
+    /<th>Sección<\/th>/.test(porSeccionTexto)&&!/respecto del curso|<th>Curso<\/th>/.test(porSeccionTexto));
+  const sinSeccionTexto=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL),{seccion:true,sinSeccion:true})`);
+  chk('sin sección sigue no disponible: no se muestra un antes y ahora de otro grupo',
+    /no disponible, no declaró su sección/.test(sinSeccionTexto)&&!/class="ah-alumno-lados"|<svg/.test(sinSeccionTexto));
+  chk('en celular la alternativa textual conserva los dos valores y el cambio con unidad',
+    /ah-fila-valores/.test(grafG)&&/Antes <b>1\.0 bajo el curso/.test(grafG)&&
+    /Ahora <b>0\.7 sobre el curso/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
+  chk('resumen explica que las cuentas por riesgo pueden superponerse y precisa el período',
+    /Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/En los próximos 7 días/.test(htmlR));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
