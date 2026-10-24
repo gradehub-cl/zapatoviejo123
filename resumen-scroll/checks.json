@@ -1,0 +1,210 @@
+[
+  {
+    "prefix": "375-claro",
+    "dimensions": [
+      {
+        "height": 390,
+        "content": 1483,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 390,
+        "content": 878,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "1px",
+      "side": "0px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "dimensions": [
+      {
+        "height": 512,
+        "content": 2157,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 512,
+        "content": 1266,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "1px",
+      "side": "0px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "dimensions": [
+      {
+        "height": 390,
+        "content": 1483,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 390,
+        "content": 878,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "1px",
+      "side": "0px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "dimensions": [
+      {
+        "height": 512,
+        "content": 2157,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 512,
+        "content": 1266,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "1px",
+      "side": "0px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "1280-claro",
+    "dimensions": [
+      {
+        "height": 432,
+        "content": 1113,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 432,
+        "content": 811,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "0px",
+      "side": "1px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "dimensions": [
+      {
+        "height": 512,
+        "content": 2069,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 512,
+        "content": 966,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "1px",
+      "side": "0px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "dimensions": [
+      {
+        "height": 432,
+        "content": 1113,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 432,
+        "content": 811,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "0px",
+      "side": "1px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "dimensions": [
+      {
+        "height": 512,
+        "content": 2069,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      },
+      {
+        "height": 512,
+        "content": 966,
+        "overflow": "auto",
+        "tabindex": 0,
+        "role": "region"
+      }
+    ],
+    "divider": {
+      "top": "1px",
+      "side": "0px"
+    },
+    "independentWheel": true,
+    "keyboard": true,
+    "inviteOnlyList": true
+  }
+]

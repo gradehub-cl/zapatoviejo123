@@ -132,3 +132,7 @@ No equivale a una prueba nativa de Dynamic Type ni a una revisión manual con Vo
 - [Matriz Alumnos](after/checks.json): ancho, contraste de texto y controles. Los segmentos desplazables se comprueban como un área propia.
 - [Interacciones](interactions/checks.json): teclado, foco, búsqueda, sección y cancelar confirmaciones.
 - [Tests completos](npm-test.log).
+
+## Seguimiento: dos scrolls y botón Invitar solo en Lista
+
+[Capturas y comprobaciones de las 8 combinaciones](resumen-scroll/) · Cambio posterior al rediseño inicial.
