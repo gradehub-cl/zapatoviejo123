@@ -3520,6 +3520,112 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-nota td{border-top:0;padding-top:4px;color:var(--fg2);}
 .panel-alumnos-nota td:first-child{padding-left:14px;}
 
+/* Alumnos: jerarquía Editorial y lectura adaptable, sin afectar Clases.
+   HIG: Typography, Accessibility, Charts, Buttons y Segmented controls. */
+.alumnos-editorial{container-type:inline-size;font-variant-numeric:tabular-nums;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+.alumnos-editorial :is(h2,h3,p,small,button,summary,code){overflow-wrap:anywhere;}
+.alumnos-editorial :is(button,summary){min-width:44px;min-height:44px;}
+.alumnos-editorial :is(button,summary,input):focus-visible{outline:2px solid var(--fg);outline-offset:3px;}
+.alumnos-editorial button:active{filter:brightness(.92);}
+.alumnos-editorial .panel-alumnos-cabecera{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:20px 0 24px;}
+.alumnos-editorial .panel-alumnos-cabecera[hidden],.alumnos-editorial .panel-alumnos-vistas[hidden]{display:none;}
+.alumnos-editorial .panel-alumnos-cabecera h2{font-size:1.75rem;line-height:1.15;letter-spacing:-.035em;margin:0;}
+.alumnos-editorial .accion-principal{margin:0;line-height:1.4;}
+.alumnos-editorial .profesor-hig-lista-cabeza{flex-wrap:wrap;gap:8px;margin:24px 0 12px;}
+.alumnos-editorial .profesor-hig-lista-cabeza h2{font-size:1.125rem;line-height:1.35;letter-spacing:-.015em;}
+.alumnos-editorial :is(.panel-alumnos-contexto,.ah-nota){font-size:.875rem;line-height:1.55;color:var(--fg2);margin:8px 0 16px;}
+.alumnos-editorial .ah-cifras{grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:0;border-top:1px solid var(--border2);border-bottom:1px solid var(--border2);}
+.alumnos-editorial .ah-cifra{grid-column:auto;min-width:0;gap:4px;padding:18px 16px 18px 0;border:0;border-radius:0;background:transparent;}
+.alumnos-editorial .ah-cifra-valor{font-size:1.875rem;line-height:1.2;letter-spacing:-.035em;}
+.alumnos-editorial .ah-cifra-etiqueta{font-size:.875rem;line-height:1.4;}
+.alumnos-editorial .ah-cifra small{font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.alumnos-editorial .panel-resumen-cifras{grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));}
+.alumnos-editorial .panel-alumnos-resumen-columnas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:32px;}
+.alumnos-editorial [aria-labelledby="resumen-atencion"]{order:-1;}
+.alumnos-editorial .panel-resumen-filas button{padding:16px 0;gap:16px;}
+.alumnos-editorial .panel-resumen-cuando{flex:0 1 10rem;min-width:0;}
+.alumnos-editorial .panel-resumen-meta{display:block;font-size:.75rem;font-weight:400;color:var(--fg2);}
+.alumnos-editorial .panel-resumen-dia{font-size:.9375rem;margin-top:20px;flex-wrap:wrap;}
+.alumnos-editorial :is(.panel-resumen-dia small,.panel-resumen-cuando small){font-size:.8125rem;color:var(--fg2);}
+.alumnos-editorial .panel-resumen-sem{border-radius:6px;font-size:.8125rem;padding:4px 8px;white-space:normal;}
+.alumnos-editorial .panel-alumnos-fila-boton{margin:0;padding:20px 0;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;align-items:center;}
+.alumnos-editorial .panel-alumnos-fila{gap:8px;}
+.alumnos-editorial :is(.panel-alumnos-fila-proxima,.panel-alumnos-fila-meta){font-size:.875rem;line-height:1.5;}
+.alumnos-editorial .panel-alumnos-fila-cabeza small{font-size:.8125rem;color:var(--fg2);}
+.alumnos-editorial .panel-alumnos-buscar{margin:16px 0 8px;}
+.alumnos-editorial .panel-alumnos-buscar input{font-family:var(--font-ui);font-size:1rem;background:var(--card);}
+.alumnos-editorial .panel-alumnos-exportar{color:var(--fg2);font-size:.875rem;text-decoration:underline;text-underline-offset:3px;}
+.alumnos-editorial .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;color:var(--fg2);font-size:.875rem;}
+.alumnos-editorial .panel-alumnos-regresar span{font-size:1.5rem;line-height:1;}
+.alumnos-editorial .panel-alumnos-compara{max-width:30rem;margin:0 0 24px;}
+.alumnos-editorial .panel-alumnos-compara button{padding:10px 12px;line-height:1.4;}
+.alumnos-editorial .panel-alumnos-ficha h2{font-size:1.5rem;letter-spacing:-.025em;line-height:1.3;}
+.alumnos-editorial .panel-alumnos-ficha #alumnos-ficha-contenido{padding:0;border:0;border-radius:0;background:transparent;}
+.alumnos-editorial :is(.panel-alumnos-ramo,.panel-resumen-ramo){padding:20px 0;margin:0;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;}
+.alumnos-editorial .panel-resumen-ramo summary{grid-template-columns:minmax(0,1fr) auto auto;padding:0;gap:12px 20px;}
+.alumnos-editorial .panel-resumen-nombre b{font-size:1rem;}
+.alumnos-editorial .panel-resumen-nombre::before{content:'Ver detalle';font-size:.75rem;font-weight:500;color:var(--fg2);}
+.alumnos-editorial .panel-alumnos-ramo-resumen{justify-content:space-between;gap:16px;}
+.alumnos-editorial :is(.panel-alumnos-prom small,.panel-alumnos-gh small,.panel-alumnos-ramo-cabeza small,.panel-resumen-nombre small,.panel-alumnos-sin){font-size:.8125rem;line-height:1.4;color:var(--fg2);}
+.alumnos-editorial .panel-alumnos-inicio{flex-wrap:wrap;font-size:.875rem;}
+.alumnos-editorial .panel-alumnos-proxima{padding:12px 0;border-radius:0;background:transparent;font-size:.875rem;}
+.alumnos-editorial .panel-alumnos-notas{table-layout:fixed;font-size:.9375rem;}
+.alumnos-editorial .panel-alumnos-notas th{font-size:.75rem;letter-spacing:0;text-transform:none;color:var(--fg2);}
+.alumnos-editorial .panel-alumnos-notas :is(th,td){padding:12px 4px;overflow-wrap:anywhere;white-space:normal;}
+.alumnos-editorial .panel-alumnos-notas :is(th,td):first-child{width:38%;padding-left:0;}
+.alumnos-editorial .panel-alumnos-notas td .panel-alumnos-gh{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.alumnos-editorial .panel-alumnos-notas td small{display:block;margin:4px 0 0;font-size:.8125rem;line-height:1.4;color:var(--fg2);}
+.alumnos-editorial .ah-detalle .panel-alumnos-notas :is(th,td):first-child{width:18%;}
+.alumnos-editorial .ah-detalle .panel-alumnos-notas :is(th,td):nth-child(2){width:42%;text-align:left;}
+.alumnos-editorial .settings-danger-btn{display:block;margin-top:24px;border-top:1px solid var(--border);padding:16px 0;}
+.alumnos-editorial .ah-grupo{margin:0;}
+.alumnos-editorial .ah-grupo>.profesor-hig-lista-cabeza{margin-top:0;}
+.alumnos-editorial .ah-alumnos{margin:32px 0;--ah-nombre:minmax(10rem,25%);--ah-cambio:6rem;}
+.alumnos-editorial .ah-escala{font-size:.8125rem;color:var(--fg2);}
+.alumnos-editorial .ah-filas button{padding:16px 0;}
+.alumnos-editorial .ah-fila-cambio small{display:block;font-size:.75rem;font-weight:400;color:var(--fg2);}
+.alumnos-editorial .ah-fila-valores{display:none;}
+.alumnos-editorial :is(.ah-leyenda-fila,.ah-leyenda,.ah-pie){font-size:.8125rem;color:var(--fg2);line-height:1.5;}
+.alumnos-editorial .ah-fechas{display:flex;justify-content:space-between;max-width:560px;margin:4px 0;font-size:.8125rem;color:var(--fg2);}
+.alumnos-editorial .ah-eje{fill:var(--fg2);}
+.alumnos-editorial .ah-alumno-resumen{font-size:1.0625rem;line-height:1.5;}
+.alumnos-editorial .ah-alumno-lados{font-size:.9375rem;gap:8px 24px;margin:12px 0;}
+.alumnos-editorial .panel-alumnos-link{max-width:42rem;gap:16px;padding:0;border:0;border-radius:0;background:transparent;}
+.alumnos-editorial .panel-alumnos-link h2{font-size:1.5rem;letter-spacing:-.025em;}
+.alumnos-editorial .panel-alumnos-link p{font-size:.9375rem;line-height:1.5;}
+.alumnos-editorial .panel-alumnos-url{font-size:.8125rem;color:var(--fg2);gap:8px;}
+.alumnos-editorial .panel-alumnos-url code{font-family:var(--font-ui);font-size:.9375rem;padding:16px;border:1px solid var(--border);}
+.alumnos-editorial .panel-alumnos-codigo strong{display:inline-block;margin-left:8px;font-size:1.125rem;letter-spacing:.06em;color:var(--fg);user-select:all;}
+.alumnos-editorial .panel-alumnos-mensaje{padding:16px;border-radius:10px;gap:8px;}
+.alumnos-editorial .panel-alumnos-mensaje strong{font-size:.875rem;}
+.alumnos-editorial .panel-alumnos-renovar{padding-top:24px;margin-top:8px;border-top:1px solid var(--border);}
+.alumnos-editorial .panel-alumnos-renovar .agent-refresh{color:var(--fg2);text-decoration:underline;text-underline-offset:3px;}
+.alumnos-editorial :is(.clase-privacidad,.profesor-hig-vacio){font-size:.875rem;line-height:1.55;color:var(--fg2);}
+.alumnos-editorial .profesor-hig-vacio{padding:20px 0;border:0;border-top:1px solid var(--border);border-radius:0;}
+.alumnos-editorial .panel-alumnos-ejemplo{font-size:.875rem;line-height:1.5;border-style:solid;border-radius:6px;padding:12px 16px;}
+.alumnos-editorial .panel-alumnos-ejemplo b{font-size:.75rem;}
+.alumnos-editorial .panel-alumnos-estado{padding:24px 0;border-top:1px solid var(--border);}
+.alumnos-editorial .panel-alumnos-estado h2{font-size:1.5rem;line-height:1.3;margin:0 0 12px;}
+.alumnos-editorial .panel-alumnos-estado p{font-size:1rem;color:var(--fg2);margin:0;}
+@container (max-width:40rem){
+  .alumnos-editorial .ah-grupo>.ah-cifras .ah-cifra:last-child{grid-column:1/-1;}
+  .alumnos-editorial .panel-alumnos-vistas{display:flex;overflow-x:auto;gap:4px;padding:4px;scroll-padding-inline:4px;}
+  .alumnos-editorial .panel-alumnos-vistas button{flex:1 0 auto;font-size:.875rem;padding:10px 12px;letter-spacing:0;white-space:nowrap;}
+  .alumnos-editorial .panel-resumen-ramo summary{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .alumnos-editorial .panel-resumen-nombre{grid-column:1/-1;}
+  .alumnos-editorial .panel-resumen-ramo :is(.panel-alumnos-prom,.panel-alumnos-gh){align-items:flex-start;}
+  .alumnos-editorial .panel-resumen-filas button{align-items:flex-start;flex-wrap:wrap;}
+  .alumnos-editorial .panel-resumen-cuando{flex:1 1 100%;text-align:left;}
+  .alumnos-editorial .ah-filas button{grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;}
+  .alumnos-editorial .ah-fila-nombre{grid-column:1/-1;font-size:1rem;}
+  .alumnos-editorial .ah-fila-valores{display:flex;flex-direction:column;gap:6px;font-size:.875rem;line-height:1.5;color:var(--fg2);}
+  .alumnos-editorial .ah-fila-valores b{color:var(--fg);font-weight:500;}
+  .alumnos-editorial :is(.ah-pista,.ah-escala,.ah-leyenda-fila,.panel-alumnos-grafico-detalle){display:none;}
+}
+@media(prefers-reduced-motion:reduce){
+  .alumnos-editorial *,.alumnos-editorial *::after{animation:none;transition:none;scroll-behavior:auto;}
+}
+
 /* ─── App iOS: navegar ────────────────────────────────────────────────────────
    Recorridos de transicionNativa() y entrarDesde() (app.js). Las reglas que
    los usan están en el bloque de la app, más abajo: la web no los usa. */

@@ -4157,9 +4157,9 @@ function filtrarAlumnosPanel(alumnos,texto){
 const unDecimalPanel=v=>Math.abs(v).toFixed(1);
 const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
 const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
-function frenteAlCursoPanel(d){
+function frenteAlCursoPanel(d,referencia='el curso'){
   if(d===null)return 'sin comparación';
-  return Math.abs(d)<0.05?'igual que el curso':`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} el curso`;
+  return Math.abs(d)<0.05?`igual que ${referencia}`:`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} ${referencia}`;
 }
 // Cada alumno en una fila (Lucas, 2026-10-23: Estadísticas necesitaba algo
 // visual): dónde estaba respecto del curso antes de empezar (punto hueco) y
@@ -4180,12 +4180,14 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
     return `<li><button type="button" data-ver-alumno="${esc(m.id)}">
       <span class="ah-fila-nombre">${esc(m.nombre)}</span>
       <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
-      <span class="ah-fila-cambio">${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}</span>
+      <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${esc(lado(a))}</b></span><span>Ahora <b>${esc(lado(b))}</b></span></span>
+      <span class="ah-fila-cambio"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>puntos</small></span>
       <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' Aún pocos datos para el cambio.':''}</span></button></li>`;
   }).join('');
   const fuera=g.alumnos.length-conDatos.length;
   return `<section class="ah-alumnos" aria-labelledby="ah-alumnos-titulo">
     <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Cada alumno, antes y ahora</h2></div>
+    <p class="panel-alumnos-contexto">Diferencia en puntos de nota frente a ${ref}. Toca un alumno para ver sus evaluaciones.</p>
     <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes de empezar contigo</span><span><i class="ah-dot ah-dot-ahora"></i>Desde que empezó</span></p>
     <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El curso'}</span><span>${lim} sobre</span></span><span></span></div>
     <ul class="ah-filas">${filas}</ul>
@@ -4197,18 +4199,20 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
 function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   if(!g||!g.alumnos.length)return '';
   const respecto=seccion?'Respecto de su sección':'Respecto del curso';
+  const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al curso';
   const conFecha=g.antes.n+g.ahora.n;
   const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
   const pocos='Aún pocos datos';
   const cifras=[
-    g.cambioMediana===null?cifra('—',respecto,pocos)
-      :cifra(esc(conSignoPanel(g.cambioMediana)),respecto,`mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
+    g.cambioMediana===null?cifra('—',tituloCambio,pocos)
+      :cifra(esc(conSignoPanel(g.cambioMediana)),tituloCambio,`puntos · mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
     g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron',respecto.toLowerCase()):cifra('—','Mejoraron',pocos),
-    cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Aprobación','de sus evaluaciones')
+    cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Evaluaciones aprobadas','Antes → desde que empezaron')
   ].join('');
   const prom=v=>v===null?'—':esc(fmt(v));
   return `<section class="ah-grupo" aria-labelledby="ah-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Antes y desde que empezaron contigo</h2></div>
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Desde que empezaron contigo</h2></div>
+    <p class="panel-alumnos-contexto">${respecto}. El cambio describe sus resultados; no demuestra que se deba a las clases.</p>
     <div class="ah-cifras">${cifras}</div>
     <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
     ${graficoAlumnosAntesAhoraHTML(g,{seccion})}
@@ -4219,7 +4223,8 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
 // línea del curso (0) va tenue. Si los ramos empezaron en días distintos, cada
 // uno lleva su marca y su fecha en la leyenda; los puntos anteriores van huecos.
 // Cada punto tiene un área de 12 px para mostrar su detalle.
-function graficoAntesAhoraSVG(m){
+function graficoAntesAhoraSVG(m,{seccion=false}={}){
+  const referencia=seccion?'su sección':'el curso',etiqueta=seccion?'sección':'curso';
   const pts=m.evaluaciones.filter(e=>e.curso!==null);
   if(pts.length<2)return '';
   // PL deja lugar a la escala de la izquierda (2026-10-23): sin ella no se leía
@@ -4252,28 +4257,30 @@ function graficoAntesAhoraSVG(m){
     const idx=pts.map((e,i)=>(e.ramoId??e.ramo)===clave?i:-1).filter(i=>i>=0);
     const linea=idx.map((i,j)=>`${j?'L':'M'}${xs[i].toFixed(1)} ${y(pts[i].nota-pts[i].curso).toFixed(1)}`).join(' ');
     const puntos=idx.map(i=>{const e=pts[i],cx=xs[i].toFixed(1),cy=y(e.nota-e.curso).toFixed(1);
-      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (curso ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
+      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (${etiqueta} ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
     return `<g class="ah-serie-${k%4}">${idx.length>1?`<path class="ah-linea" d="${linea}"/>`:''}${puntos}</g>`;
   }).join('');
   const inicioTexto=e=>e.fecha?` · desde el ${fechaCorta(e.fecha)}`:' · sin fecha de inicio';
   const leyenda=varios?`<p class="ah-leyenda">${inicios.map((e,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(e.nombre)}${esc(inicioTexto(e))}</span>`).join('')}</p>`:'';
-  const resumen=`Diferencia con el curso en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia)}${varios?'; '+inicios.map(e=>e.nombre+inicioTexto(e)).join('; '):inicios[0].fecha?`; empezó el ${fechaCorta(inicios[0].fecha)}`:''}`;
-  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${PL}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/><text class="ah-eje" x="0" y="${P+4}">+${lim}</text><text class="ah-eje" x="0" y="${H/2+4}">curso</text><text class="ah-eje" x="0" y="${H-P+4}">−${lim}</text>${marcas}${series}</svg>
-    ${leyenda}<p class="ah-pie">La línea gris es el promedio del curso: arriba, sobre el curso; abajo, bajo el curso.${unCorte?'':' Los puntos huecos son de antes de empezar cada ramo.'}</p>`;
+  const resumen=`Diferencia con ${referencia} en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia,referencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}${varios?'; '+inicios.map(e=>e.nombre+inicioTexto(e)).join('; '):inicios[0].fecha?`; empezó el ${fechaCorta(inicios[0].fecha)}`:''}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${PL}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/><text class="ah-eje" x="0" y="${P+4}">+${lim}</text><text class="ah-eje" x="0" y="${H/2+4}">${etiqueta}</text><text class="ah-eje" x="0" y="${H-P+4}">−${lim}</text>${marcas}${series}</svg>
+    <p class="ah-fechas"><span>${esc(fechaCorta(pts[0].fecha))}</span><span>${esc(fechaCorta(pts[pts.length-1].fecha))}</span></p>
+    ${leyenda}<p class="ah-pie">${varios?'Por fecha.':'Evaluaciones en orden de fecha, con igual espacio entre puntos.'} Diferencia en puntos de nota. La línea central es el promedio ${seccion?'de su sección':'del curso'}: arriba, sobre ese promedio; abajo, bajo él.${unCorte?'':' Los puntos huecos son de antes de empezar cada ramo.'}</p>`;
 }
-function antesAhoraAlumnoHTML(m,{sinSeccion=false}={}){
+function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false}={}){
+  const referencia=seccion?'su sección':'el curso';
   if(!m||!m.evaluaciones.length)return '';
   const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'
     :m.cambio===null?'Aún pocos datos para comparar antes y ahora'
-    :Math.abs(m.cambio)<0.05?'Igual que antes, respecto del curso'
-    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} respecto del curso`;
+    :Math.abs(m.cambio)<0.05?`Igual que antes, respecto ${seccion?'de su sección':'del curso'}`
+    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} puntos respecto ${seccion?'de su sección':'del curso'}`;
   const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
   return `<div class="ah-alumno">
     <p class="ah-alumno-resumen">${resumen}</p>
-    <p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia)}</span></p>
-    ${graficoAntesAhoraSVG(m)}
+    ${sinSeccion?'':`<p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia,referencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}</span></p>`}
+    <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion})}</div>
     <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
-      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>Curso</th></tr></thead><tbody>${filas}</tbody></table>
+      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>${seccion?'Sección':'Curso'}</th></tr></thead><tbody>${filas}</tbody></table>
       ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
     </details>
   </div>`;
@@ -4419,7 +4426,7 @@ function resumenInicioAlumnosPanel(alumnos,ahora=new Date()){
 }
 function resumenInicioAlumnosHTML(r){
   const texto=n=>n==='bad'?'Reprobando':'Al borde';
-  const cifra=(valor,etiqueta)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span></div>`;
+  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
   const mas=(n,vista)=>n>MAX_FILAS_RESUMEN_PANEL?`<button type="button" class="agent-refresh" data-ir-vista="${vista}">Ver ${n-MAX_FILAS_RESUMEN_PANEL} más en la lista</button>`:'';
   // Agrupada por día (2026-10-23): la fecha va una vez como encabezado y no se
   // repite en cada fila; en la fila queda solo la hora, si la hay.
@@ -4434,14 +4441,13 @@ function resumenInicioAlumnosHTML(r){
     :'<p class="profesor-hig-vacio">Nadie de tus alumnos tiene evaluaciones en los próximos 7 días.</p>';
   const atencion=r.atencion.length?`<ul class="panel-resumen-filas">${r.atencion.slice(0,MAX_FILAS_RESUMEN_PANEL).map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
       <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>`).join('')}</span></span>
-      ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
+      ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><span class="panel-resumen-meta">Para aprobar</span><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
     :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
-  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Conectados')}${cifra(r.semana.length,'Evaluaciones esta semana')}${cifra(r.reprobando,'Reprobando algún ramo')}${cifra(r.alBorde,'Al borde en algún ramo')}</div>
-    <section aria-labelledby="resumen-semana"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>${semana}</section>
-    <section aria-labelledby="resumen-atencion"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>${atencion}</section>`;
+  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`)}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`)}</div>
+    <div class="panel-alumnos-resumen-columnas"><section aria-labelledby="resumen-atencion"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div><p class="panel-alumnos-contexto">Un alumno puede estar al borde en un ramo y reprobando otro.</p>${atencion}</section><section aria-labelledby="resumen-semana"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>${semana}</section></div>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
-  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
+  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
     ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
     <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>`;
 }
@@ -4717,8 +4723,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   vistaInicial=(typeof tomarVistaNav==='function'&&tomarVistaNav('alumnos'))||vistaInicial||'resumen';
   const usuario=currentUser,cliente=supabaseClient,version=++versionPanelAlumnos;
   const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAlumnos&&raiz.isConnected!==false;
-  raiz.innerHTML='<div class="profesor-hig">'+
-    '<p class="profesor-info" role="status">Cargando…</p></div>';
+  raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
+    '<div class="panel-alumnos-estado" role="status"><h2>Cargando tus alumnos</h2><p>Estamos preparando sus ramos y evaluaciones.</p></div></div>';
   // Con alumnos de ejemplo, lo de los alumnos se responde en memoria. El link
   // de invitación y su renovación siguen siendo los reales del profesor.
   // Se pregunta en paralelo con la carga real, para no sumar una espera.
@@ -4736,9 +4742,9 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     codigo=c.data;alumnos=Array.isArray(a.data)?a.data:[];
   }catch(e){
     if(!vigente())return;
-    raiz.innerHTML='<div class="profesor-hig">'+
-      '<p class="profesor-info" role="alert">No pudimos cargar tus alumnos. Vuelve a intentarlo en un rato.</p>'+
-      `<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
+    raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
+      '<div class="panel-alumnos-estado" role="alert"><h2>No pudimos cargar tus alumnos</h2><p>Inténtalo de nuevo para ver sus ramos y evaluaciones.</p></div>'+
+      `<div class="modal-btns"><button type="button" class="accion-principal" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
     // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
     raiz.querySelector('#alumnos-volver').addEventListener('click',()=>{if(vigente())(volver?volver():renderAlumnosProfesor(raiz));});
     return;
@@ -4783,13 +4789,14 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
   // primero a quiénes están conectados y luego las cifras del grupo.
   const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
-      <h2>${alumnos.length?'Invita a otro alumno':'Invita a tu primer alumno'}</h2>
+      <h2>${alumnos.length?'Invitar alumno':'Invita a tu primer alumno'}</h2>
       <p>Mándale este link. Elegirá qué ramos te comparte y podrá dejar de hacerlo cuando quiera.</p>
-      <div class="panel-alumnos-url"><code id="alumnos-link">${esc(link)}</code></div>
-      <button type="button" class="btn-confirm" id="alumnos-compartir">Compartir invitación</button>
+      <div class="panel-alumnos-url"><span>Link de invitación</span><code id="alumnos-link">${esc(link)}</code></div>
+      <p class="panel-alumnos-codigo">Tu código <strong>${esc(codigo)}</strong></p>
+      <button type="button" class="accion-principal" id="alumnos-compartir">Compartir invitación</button>
       <button type="button" class="agent-refresh" id="alumnos-copiar">Copiar link</button>
       <p class="panel-alumnos-mensaje"><strong>Mensaje sugerido para WhatsApp</strong><span>${esc(mensaje)}</span></p>
-      <button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button>
+      <div class="panel-alumnos-renovar"><p>Al cambiar el link, el anterior deja de funcionar. Tus alumnos actuales siguen conectados.</p><button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button></div>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
   const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
@@ -4797,7 +4804,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   // La franja va siempre arriba y no se cierra: nadie puede confundir estos
   // alumnos con los suyos.
   const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».</p>`:'';
-  raiz.innerHTML='<div class="profesor-hig">'+
+  raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
     franjaEjemplo+
     // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla
     // ancha las mismas vistas están en la barra lateral y este control se oculta.
@@ -4807,12 +4814,12 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       <button type="button" data-panel-vista="estadisticas" aria-pressed="false">Estadísticas</button>
       ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Ramos</button>':''}
     </nav>
+    <header class="panel-alumnos-cabecera" id="alumnos-cabecera"><h2 id="alumnos-vista-titulo">Resumen</h2><button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button></header>
     <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
     <section class="panel-alumnos-vista" id="alumnos-vista-resumen" aria-label="Resumen de tus alumnos"></section>
     <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos" hidden>
       <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
-      <button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button>
-      ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Nombre, ramo o sigla"
+      ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Buscar alumnos"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
       <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
       <div id="alumnos-lista">${listaInicial}</div>
@@ -4821,13 +4828,13 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     <section class="panel-alumnos-vista" id="alumnos-vista-estadisticas" aria-label="Estadísticas de tus alumnos" hidden></section>
     <section class="panel-alumnos-vista" id="alumnos-vista-ramos" aria-label="Ramos de tus alumnos" hidden></section>
     <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
-      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver">‹ Lista</button>
+      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>
       <h2 id="alumnos-ficha-titulo"></h2>
       <div id="alumnos-ficha-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
       <div id="alumnos-ficha-contenido"></div>
     </section>
     <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
-      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver">‹ Lista</button>${seccionLink}
+      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>${seccionLink}
     </section>${privacidad}`
       :`${seccionLink}<div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta">0</span></div>
         <p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>`)+
@@ -4883,7 +4890,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   };
   const pintarLista=()=>{
     lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe,new Date(),{soloFilas:true,limite:visibles})
-      :`<p class="profesor-hig-vacio">Nadie calza con «${esc(raiz.querySelector('#alumnos-buscar')?.value.trim()||'')}».</p>`;
+      :`<p class="profesor-hig-vacio">No encontramos alumnos para «${esc(raiz.querySelector('#alumnos-buscar')?.value.trim()||'')}».</p>`;
     mas.hidden=vista.length<=visibles;
   };
   const enlazarQuitar=()=>fichaContenido.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>{if(!vigente())return;showConfirm(`Quitar a ${b.dataset.nombre}`,
@@ -4916,11 +4923,16 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     vistaActiva=nombre;
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
+    raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
+    raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Antes y ahora',ramos:'Por ramo'})[nombre]||'';
     // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
     // ficha tiene su propio control, bajo «‹ Lista» y el nombre (#816).
     comparaWrap.hidden=nombre!=='estadisticas';
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
-    nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre)));
+    nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
+      b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
+      if(b.dataset.panelVista===nombre&&typeof b.scrollIntoView==='function')b.scrollIntoView({block:'nearest',inline:'nearest'});
+    });
     if(nombre==='resumen')paneles.resumen.innerHTML=resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(alumnos));
     if(nombre==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
     if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
