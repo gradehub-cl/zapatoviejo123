@@ -72,9 +72,6 @@ alter table public.profesor_alumnos
 alter table public.profesor_alumnos enable row level security;
 revoke all on public.profesor_alumnos from public, anon, authenticated;
 
--- Normaliza el nombre de una evaluación para juntar la misma prueba escrita
--- distinto ("Interrogación 1", "interrogacion  1"). El cliente usa la misma
--- regla para emparejar cada nota con su promedio.
 -- Un admin puede ocultarle el panel de alumnos a un profesor (Lucas,
 -- 2026-10-23). Parte en true: hoy no cambia nada a nadie. El profesor la lee
 -- pero no la edita: la cambia admin_panel_alumnos_profesor.
@@ -91,6 +88,9 @@ $$;
 revoke all on function public.panel_alumnos_activo(uuid) from public, anon;
 grant execute on function public.panel_alumnos_activo(uuid) to authenticated;
 
+-- Normaliza el nombre de una evaluación para juntar la misma prueba escrita
+-- distinto ("Interrogación 1", "interrogacion  1"). El cliente usa la misma
+-- regla para emparejar cada nota con su promedio.
 create or replace function public.clave_evaluacion(p_nombre text)
 returns text
 language sql
