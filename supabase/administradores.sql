@@ -148,6 +148,71 @@ $$;
 
 -- Todo lo que la página muestra, en una sola lectura. El costo va bruto: la
 -- app aplica el tope con la misma cuenta que ve el profesor.
+-- Aceptar, rechazar y eliminar profesores desde el panel (Lucas, 2026-10-23).
+-- Eliminar solo quita el rol de profesor: la cuenta, sus notas y su vida de
+-- estudiante quedan intactas. Con campañas, cobros o alumnos conectados no se
+-- elimina: se pausa, para no perder el historial ni dejar alumnos colgando.
+create or replace function admin.profesor_tiene_historial(p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public, admin as $$
+  select exists (select 1 from public.tutor_anuncios a where a.autor_id = p_user_id
+                   and (a.publicado_at is not null or a.estado in ('publicado', 'pausado', 'expirado')))
+      or exists (select 1 from admin.cobros c join public.tutor_anuncios a on a.id = c.anuncio_id where a.autor_id = p_user_id)
+      or exists (select 1 from admin.anuncio_publicaciones h join public.tutor_anuncios a on a.id = h.anuncio_id where a.autor_id = p_user_id);
+$$;
+-- profesor_alumnos.sql puede no estar aplicado: entonces no hay alumnos.
+create or replace function admin.alumnos_conectados(p_user_id uuid)
+returns integer language plpgsql stable security definer set search_path = public, admin as $$
+declare n integer := 0;
+begin
+  if to_regclass('public.profesor_alumnos') is not null then
+    execute 'select count(*) from public.profesor_alumnos where tutor_id = $1' into n using p_user_id;
+  end if;
+  return n;
+end;
+$$;
+
+create or replace function public.admin_revisar_postulacion(p_user_id uuid, p_estado text)
+returns boolean language plpgsql security definer set search_path = public, admin as $$
+declare filas integer := 0;
+begin
+  perform admin.exigir_administrador();
+  if p_estado not in ('aprobado', 'rechazado') then raise exception 'estado inválido'; end if;
+  -- Se acepta una postulación pendiente o una rechazada por error; se rechaza
+  -- solo una pendiente.
+  update public.tutor_perfiles set estado = p_estado, revisado_at = now()
+   where user_id = p_user_id
+     and (estado = 'pendiente' or (estado = 'rechazado' and p_estado = 'aprobado'));
+  get diagnostics filas = row_count;
+  if filas = 1 then
+    insert into admin.acciones (admin_id, accion, objetivo, detalle)
+    values (auth.uid(), 'revisar_postulacion', p_user_id, jsonb_build_object('estado', p_estado));
+  end if;
+  return filas = 1;
+end;
+$$;
+
+create or replace function public.admin_eliminar_profesor(p_user_id uuid)
+returns boolean language plpgsql security definer set search_path = public, admin as $$
+declare nombre text;
+begin
+  perform admin.exigir_administrador();
+  select nombre_publico into nombre from public.tutor_perfiles where user_id = p_user_id for update;
+  if not found then return false; end if;
+  if admin.profesor_tiene_historial(p_user_id) then
+    raise exception 'tiene campañas con historial: páusalo en vez de eliminarlo';
+  end if;
+  if admin.alumnos_conectados(p_user_id) > 0 then
+    raise exception 'tiene alumnos conectados: páusalo en vez de eliminarlo';
+  end if;
+  -- Sus borradores y anuncios en revisión: baja lógica, como en la revisión.
+  update public.tutor_anuncios set estado = 'eliminado' where autor_id = p_user_id and estado <> 'eliminado';
+  delete from public.tutor_perfiles where user_id = p_user_id;
+  insert into admin.acciones (admin_id, accion, objetivo, detalle)
+  values (auth.uid(), 'eliminar_profesor', p_user_id, jsonb_build_object('nombre', nombre));
+  return true;
+end;
+$$;
+
 create or replace function public.admin_panel_clases()
 returns jsonb
 language plpgsql
@@ -166,6 +231,9 @@ begin
         'estado', p.estado,
         'correo', u.email,
         'solicitado_at', p.solicitado_at,
+        'presentacion', p.presentacion,
+        'tiene_historial', admin.profesor_tiene_historial(p.user_id),
+        'alumnos_conectados', admin.alumnos_conectados(p.user_id),
         'anuncios', coalesce((
           select jsonb_agg(jsonb_build_object(
             'id', a.id,
@@ -434,6 +502,12 @@ grant execute on function public.comentarios_devolucion_profesor() to authentica
 grant execute on function public.admin_terminar_anuncio_pausado(uuid, timestamptz) to authenticated;
 
 revoke all on function admin.exigir_administrador() from public, anon, authenticated;
+revoke all on function admin.profesor_tiene_historial(uuid) from public, anon, authenticated;
+revoke all on function admin.alumnos_conectados(uuid) from public, anon, authenticated;
+revoke all on function public.admin_revisar_postulacion(uuid, text) from public, anon;
+revoke all on function public.admin_eliminar_profesor(uuid) from public, anon;
+grant execute on function public.admin_revisar_postulacion(uuid, text) to authenticated;
+grant execute on function public.admin_eliminar_profesor(uuid) to authenticated;
 revoke all on function public.admin_panel_clases() from public, anon;
 revoke all on function public.admin_pausar_anuncio(uuid) from public, anon;
 revoke all on function public.admin_estado_profesor(uuid, text) from public, anon;

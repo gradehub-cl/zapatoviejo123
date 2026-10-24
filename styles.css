@@ -3236,6 +3236,13 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig-persona>div{min-width:0;overflow-wrap:anywhere;}
 .admin-hig-persona h3{font-size:1rem;margin:0;}
 .admin-hig-persona p{font-size:.8125rem;color:var(--fg2);margin:4px 0 0;}
+.admin-hig-persona .admin-hig-presentacion{max-width:60ch;color:var(--fg);line-height:1.45;white-space:pre-line;}
+.admin-hig-persona .admin-hig-motivo{color:var(--fg3);}
+.admin-hig-persona-acciones{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;flex:none;}
+.admin-hig-persona-acciones>.accion-principal{margin:0;}
+.admin-hig-persona-acciones>button{min-height:44px;}
+.admin-hig-eliminar{color:var(--red);}
+@media(max-width:640px){.admin-hig-persona{flex-direction:column;align-items:stretch;}.admin-hig-persona-acciones{justify-content:flex-start;}}
 .admin-hig-vacio{padding:30px;border:1px dashed var(--border2);border-radius:14px;color:var(--fg2);}
 .admin-revision{padding:18px 0 22px;border-bottom:1px solid var(--border);min-width:0;}
 .admin-revision h4{font-size:1.125rem;margin:0 0 12px;}

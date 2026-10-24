@@ -3254,9 +3254,26 @@ function filaAdminHigHTML({p,a,costo,estado},ahora){
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}
     ${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
+// Aceptar, rechazar y eliminar (Lucas, 2026-10-23). Eliminar solo aparece
+// si no hay historial que perder; si lo hay, se explica por qué y se pausa.
 function personaAdminHigHTML(p){
-  return `<section class="admin-hig-persona"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[p.estado]||p.estado)} · ${(p.anuncios||[]).length} anuncios</p></div>
-    ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}${p.estado==='aprobado'?`<span data-admin-ejemplo="${esc(p.user_id)}"></span>`:''}</section>`;
+  const id=esc(p.user_id),estado=p.estado;
+  const fecha=p.solicitado_at&&Number.isFinite(new Date(p.solicitado_at).getTime())
+    ?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',timeZone:'America/Santiago'}).format(new Date(p.solicitado_at)):'';
+  const alumnos=Number(p.alumnos_conectados)||0;
+  const sePuedeEliminar=p.tiene_historial===false&&alumnos===0;
+  const porQueNo=p.tiene_historial?'Tiene campañas con cobros: páusalo en vez de eliminarlo.'
+    :alumnos?`Tiene ${alumnos} ${alumnos===1?'alumno conectado':'alumnos conectados'}: páusalo en vez de eliminarlo.`:'';
+  const acciones=[
+    estado==='pendiente'?`<button type="button" class="accion-principal" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button><button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="rechazado">Rechazar</button>`:'',
+    estado==='rechazado'?`<button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button>`:'',
+    estado==='aprobado'||estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${id}" data-estado="${estado==='aprobado'?'suspendido':'aprobado'}">${estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:'',
+    estado!=='pendiente'&&sePuedeEliminar?`<button type="button" class="clase-accion admin-hig-eliminar" data-admin-eliminar="${id}" data-nombre="${esc(p.nombre||'')}">Eliminar</button>`:'',
+  ].join('');
+  return `<section class="admin-hig-persona" data-admin-persona="${id}"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[estado]||estado)} · ${(p.anuncios||[]).length} anuncios${estado==='pendiente'&&fecha?` · postuló el ${esc(fecha)}`:''}</p>
+    ${estado==='pendiente'&&p.presentacion?`<p class="admin-hig-presentacion">${esc(p.presentacion)}</p>`:''}
+    ${estado!=='pendiente'&&porQueNo?`<p class="admin-hig-motivo">${esc(porQueNo)}</p>`:''}</div>
+    <div class="admin-hig-persona-acciones">${acciones}${estado==='aprobado'?`<span data-admin-ejemplo="${id}"></span>`:''}</div></section>`;
 }
 function crecimientoAdminHTML(semanas){
   if(!Array.isArray(semanas)||!semanas.length)return '';
@@ -3280,7 +3297,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios'){
       ${tab('profesores','Profesores')}${tab('anuncios','Anuncios')}${tab('estadisticas','Estadísticas')}${tab('usuarios','Usuarios')}
     </div>
     ${panel('profesores',`<h2>Profesores</h2>
-      <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Aprobar profesores y revisar logos sigue en SQL Editor.</p>
+      <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Revisar logos sigue en SQL Editor.</p>
       <div class="admin-hig-profesores">${profesores.map(personaAdminHigHTML).join('')||'<p>Todavía no hay profesores.</p>'}</div>`)}
     ${panel('anuncios',`<h2>Anuncios</h2>
     <div class="admin-hig-resumen" aria-label="Resumen de administración">
@@ -3460,6 +3477,18 @@ async function pintarPanelAdmin(raiz){
   raiz.querySelectorAll('[data-admin-pausar]').forEach(b=>b.addEventListener('click',()=>
     showConfirm('¿Pausar este aviso?','Deja de mostrarse al tiro. Para volver, el profesor lo manda a revisión otra vez.',
       ()=>llamar('admin_pausar_anuncio',{p_anuncio_id:b.dataset.adminPausar},'Aviso pausado'),{label:'Pausar',danger:false})));
+  raiz.querySelectorAll('[data-admin-postulacion]').forEach(b=>b.addEventListener('click',()=>{
+    const aceptar=b.dataset.estado==='aprobado';
+    showConfirm(aceptar?'¿Aceptar a este profesor?':'¿Rechazar esta postulación?',
+      aceptar?'Podrá publicar anuncios (cada uno pasa por revisión) y usar el panel de alumnos.':'No podrá ofrecer clases. Su cuenta de estudiante sigue igual y puedes aceptarlo después.',
+      ()=>llamar('admin_revisar_postulacion',{p_user_id:b.dataset.adminPostulacion,p_estado:b.dataset.estado},aceptar?'Profesor aceptado':'Postulación rechazada'),
+      {label:aceptar?'Aceptar':'Rechazar',danger:!aceptar});
+  }));
+  raiz.querySelectorAll('[data-admin-eliminar]').forEach(b=>b.addEventListener('click',()=>
+    showConfirm(`¿Eliminar a ${b.dataset.nombre||'este profesor'} como profesor?`,
+      'Se borran su ficha y sus borradores. Su cuenta y sus notas de estudiante no se tocan, y puede volver a postular.',
+      ()=>llamar('admin_eliminar_profesor',{p_user_id:b.dataset.adminEliminar},'Profesor eliminado'),
+      {label:'Eliminar',danger:true})));
   raiz.querySelectorAll('[data-admin-profesor]').forEach(b=>b.addEventListener('click',()=>{
     const pausar=b.dataset.estado==='suspendido';
     showConfirm(pausar?'¿Pausar a este profesor?':'¿Reactivar a este profesor?',
