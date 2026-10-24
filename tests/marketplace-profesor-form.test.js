@@ -46,6 +46,11 @@ ctx.enviarSimulado=async()=>{enviados++;return {ok:true};};
 let campanas=0,errorCampana=null;
 ctx.campanaSimulada=async()=>{campanas++;return errorCampana||{ok:true};};
 run('guardarBorradorClase=guardarSimulado; enviarBorradorClase=enviarSimulado; guardarCampanaClase=campanaSimulada');
+// Guardar bien cierra el formulario y vuelve a Anuncios (Lucas, 2026-10-23).
+const vueltas=[],avisos=[];
+ctx.espacioSimulado=async(r,op)=>{vueltas.push({vista:run('vistaClasesAlVolver'),titulo:op.titulo});run('vistaClasesAlVolver=null');};
+ctx.showToast=t=>avisos.push(t);
+run('renderEspacioProfesor=espacioSimulado');
 let n=0;
 function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
 (async()=>{
@@ -57,8 +62,13 @@ function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
     /No se guardó/.test(elements['.profesor-estado'].textContent));
   fallar=false;
   await events['#pr-guardar:click']();
-  check('guardar no publica ni envía, y guarda la campaña',guardados===2&&enviados===0&&campanas===1&&
-    /Borrador guardado/.test(elements['.profesor-estado'].textContent));
+  check('guardar no publica ni envía, y guarda la campaña',guardados===2&&enviados===0&&campanas===1);
+  check('guardar bien cierra el formulario y vuelve a Anuncios',vueltas.length===1&&vueltas[0].vista==='anuncios'&&vueltas[0].titulo===false&&avisos.includes('Borrador guardado'));
+  check('un guardado fallido no lo cerró',vueltas.length===1);
+  errorCampana={ok:false,falta:true};
+  await events['#pr-guardar:click']();
+  check('si faltan los días y el tope, se queda abierto con el aviso',vueltas.length===1&&/días y el tope aún no se guardaron/.test(elements['.profesor-estado'].textContent));
+  errorCampana=null;guardados--;campanas--;
   ctx.subirSimulado=async()=>({ok:false,error:'No se pudo subir el flyer.'});
   run('subirFlyerClase=subirSimulado');
   elements['#pr-flyer'].files=[{type:'image/png',size:1200}];
@@ -109,7 +119,8 @@ function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
     /id="pr-flyer"[^>]*disabled/.test(raiz.innerHTML));
   await events['#pr-guardar:click']();
   check('pendiente guarda sin enviar a revisión',guardados===guardadosAntesPendiente+1&&
-    enviados===enviosAntesPendiente&&/cuando aprobemos tu postulación/.test(elements['.profesor-estado'].textContent));
+    enviados===enviosAntesPendiente);
+  check('y vuelve a la pantalla de postulación, sin forzar Anuncios',vueltas.length===2&&vueltas[1].vista===null);
   // Un borrador existente no debe reemplazar su campaña por valores por
   // omisión cuando falla la lectura. El reintento recupera el tope original.
   element('#pr-reintentar-campana');
