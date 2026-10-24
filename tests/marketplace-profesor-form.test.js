@@ -30,7 +30,7 @@ Object.assign(elements['#pr-tenant'],{value:'uc'});
 Object.assign(elements['#pr-siglas'],{value:'MAT1610'});
 Object.assign(elements['#pr-promedio'],{value:'5'});
 Object.assign(elements['#pr-avance'],{value:'20'});
-element('#pr-guardar');element('#pr-enviar');element('#pr-quitar-flyer');
+element('#pr-guardar');element('#pr-enviar');element('#pr-quitar-flyer');element('#pr-volver');
 element('.profesor-estado');element('strong');element('p');element('img');
 const preview=element('.profesor-flyer-preview');preview.querySelector=sel=>elements[sel];
 const vista=element('.profesor-vista');vista.querySelector=sel=>elements[sel];
@@ -57,6 +57,21 @@ function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
   ctx.raiz=raiz;
   run('renderBorradorProfesor(raiz,null)');
   check('el formulario tiene guardado y envío distintos',events['#pr-guardar:click']&&events['#pr-enviar:click']);
+  // Siempre hay cómo salir (Lucas, 2026-10-24): sin cambios sale al tiro;
+  // con cambios, pregunta antes y no sale hasta confirmar.
+  const confirmaciones=[];ctx.showConfirm=(t,d,fn,o)=>confirmaciones.push({t,fn,o});
+  check('el editor tiene cómo volver',/id="pr-volver"[^>]*>[\s\S]*?Tus anuncios/.test(raiz.innerHTML));
+  await events['#pr-volver:click']();
+  check('sin cambios, volver sale a Anuncios sin preguntar',confirmaciones.length===0&&vueltas.length===1&&vueltas[0].vista==='anuncios');
+  vueltas.length=0;
+  run('renderBorradorProfesor(raiz,null)');
+  events['#profesor-borrador:input']();
+  events['#pr-volver:click']();
+  check('con cambios, pregunta antes de salir',confirmaciones.length===1&&/Salir sin guardar/.test(confirmaciones[0].o.label)&&vueltas.length===0);
+  await confirmaciones[0].fn();
+  check('y sale solo al confirmar',vueltas.length===1);
+  vueltas.length=0;
+  run('renderBorradorProfesor(raiz,null)');
   await events['#pr-enviar:click']();
   check('un guardado fallido no envía ni finge éxito',guardados===1&&enviados===0&&
     /No se guardó/.test(elements['.profesor-estado'].textContent));

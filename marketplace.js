@@ -2405,7 +2405,10 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   const valor=(campo,defecto='')=>esc(anuncio&&anuncio[campo]!=null?anuncio[campo]:defecto);
   const tipoContactoInicial=anuncio&&PREFIJO_CONTACTO_CLASE[anuncio.contacto_tipo]!==undefined?anuncio.contacto_tipo:'whatsapp';
   const elegir=(opciones,actual)=>opciones.map(([clave,texto])=>`<option value="${clave}"${actual===clave?' selected':''}>${texto}</option>`).join('');
-  raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+cabeceraProfesorHTML(id?'Edita tu borrador.':'Prepara tu clase.',
+  // Siempre hay cómo salir sin guardar ni enviar (Lucas, 2026-10-24).
+  raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+
+    `<button type="button" class="profesor-volver" id="pr-volver"><span aria-hidden="true">‹</span> ${pendiente?'Volver':'Tus anuncios'}</button>`+
+    cabeceraProfesorHTML(id?'Edita tu borrador.':'Prepara tu clase.',
     pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
     ${anuncio&&anuncio.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(anuncio.comentario_revision)}</p></div>`:''}
     <form class="profesor-form" id="profesor-borrador">
@@ -2771,6 +2774,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
       const guardado=await guardarBorradorClase(datos,id);
       if(!guardado.ok){estado.textContent=guardado.error;if(guardado.campo==='contacto_valor'){marcarContacto(guardado.error);return;}if(guardado.campo){const mapa={ramos_siglas:'siglas-buscar',criterios:'promedio',precio_clp:'precio',pack_clases:'pack',contacto_tipo:'contacto-tipo',contacto_valor:'contacto',modalidad_otra:'modalidad-otra',ubicacion_otra:'ubicacion-otra',detalles:'agregar-detalle'};enfocar(campo(mapa[guardado.campo]||guardado.campo));}return;}
       id=guardado.anuncio.id;
+      sinGuardar=false;
       const guardadaCampana=await guardarCampanaClase(id,campana.datos);
       if(!guardadaCampana.ok&&!guardadaCampana.falta){estado.textContent='Tu clase se guardó, pero '+(guardadaCampana.error||'no se guardaron los días y el tope. No se envió a revisión.');return;}
       if(file){estado.textContent='Borrador guardado. Subiendo flyer…';const subida=await subirFlyerClase(id,file);
@@ -2793,6 +2797,22 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   };
   form.addEventListener('submit',e=>{e.preventDefault();procesar(false);});
   form.querySelector('#pr-guardar').addEventListener('click',()=>procesar(false));
+  // Volver sin guardar. Si se escribió algo, se pregunta antes: lo no
+  // guardado se pierde.
+  let sinGuardar=false;
+  form.addEventListener('input',()=>{sinGuardar=true;});
+  form.addEventListener('change',()=>{sinGuardar=true;});
+  const salir=async()=>{
+    if(!pendiente)vistaClasesAlVolver='anuncios';
+    await renderEspacioProfesor(raiz,{titulo:raiz.id==='modal-content'});
+  };
+  const volver=raiz.querySelector('#pr-volver');
+  if(volver)volver.addEventListener('click',()=>{
+    if(procesando)return;
+    if(!sinGuardar){salir();return;}
+    showConfirm('¿Salir sin guardar?',id?'Los cambios que hiciste desde que guardaste se pierden. Tu borrador queda como estaba.':'Lo que escribiste se pierde.',
+      salir,{label:'Salir sin guardar'});
+  });
   const enviarBoton=form.querySelector('#pr-enviar');
   if(enviarBoton)enviarBoton.addEventListener('click',()=>procesar(true));
 }

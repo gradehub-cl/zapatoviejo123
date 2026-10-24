@@ -3061,6 +3061,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .profesor-hig-cabecera>.btn-confirm{flex:none;width:auto;}
 /* Sin cabecera, la acción principal de Clases encabeza la pantalla. */
 .profesor-hig-accion{display:flex;margin:0 0 24px;}
+.profesor-volver{display:inline-flex;align-items:center;gap:4px;min-height:44px;margin:0 0 4px -4px;padding:0 8px 0 4px;border:0;border-radius:10px;background:none;color:var(--primary);font-family:var(--font-ui);font-size:1rem;font-weight:600;cursor:pointer;}
+.profesor-volver span{font-size:1.5rem;line-height:1;margin-top:-2px;}
+.profesor-volver:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 .profesor-hig-accion>.accion-principal{margin:0;}
 .profesor-hig-intro{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:28px;border:1px solid var(--border);border-radius:16px;background:var(--card);margin-bottom:32px;}
 .profesor-hig-intro h2{font-size:1.625rem;line-height:1.2;letter-spacing:-.03em;margin:0 0 12px;}
