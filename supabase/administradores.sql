@@ -448,6 +448,35 @@ begin
 end;
 $$;
 
+-- Descuento comercial de GradeHub, editado desde Admin (2026-10-24).
+-- Reaplicar este archivo no cambia descuentos existentes. La función del
+-- SQL Editor, admin.descuento_anuncio, conserva su contrato y sus permisos.
+create or replace function public.admin_descuento_anuncio(p_anuncio_id uuid, p_pct integer)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  antes integer;
+begin
+  perform admin.exigir_administrador();
+  if p_pct is not null and p_pct not between 1 and 50 then
+    raise exception 'el descuento va de 1 a 50 (o null para quitarlo)';
+  end if;
+  -- El bloqueo conserva el valor anterior real aun con dos admins editando.
+  select descuento_gradehub_pct into antes
+    from public.tutor_anuncios where id = p_anuncio_id for update;
+  if not found or antes is not distinct from p_pct then return false; end if;
+  update public.tutor_anuncios set descuento_gradehub_pct = p_pct where id = p_anuncio_id;
+  insert into admin.acciones (admin_id, accion, objetivo, detalle)
+  values (auth.uid(), 'descuento_anuncio', p_anuncio_id, jsonb_build_object('pct', p_pct, 'antes', antes));
+  return true;
+end;
+$$;
+revoke all on function public.admin_descuento_anuncio(uuid, integer) from public, anon;
+grant execute on function public.admin_descuento_anuncio(uuid, integer) to authenticated;
+
 -- Las decisiones del panel reutilizan las mismas transiciones del SQL Editor.
 -- Solo una cuenta de la lista con aal2 puede invocarlas; una falla no registra
 -- acción ni deja el anuncio a medio cambiar.
