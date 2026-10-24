@@ -1,0 +1,834 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "resumen",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "lista",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "estadisticas",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ramos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ficha",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "invitar",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "loading",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "example",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "busqueda-vacia",
+    "overflow": [],
+    "targets": [],
+    "primary": 1,
+    "contrast": []
+  }
+]
