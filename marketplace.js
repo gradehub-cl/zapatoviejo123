@@ -2000,6 +2000,9 @@ function seccionPanelClases(titulo,lista,pesos,ahora,vacio){
 // La vista de Clases que estaba abierta: repintar tras pausar o retomar un
 // anuncio no devuelve al Resumen.
 let vistaClasesActual=null;
+// Al guardar un borrador se vuelve a la lista de anuncios (Lucas, 2026-10-23),
+// también si el panel estaba abierto como hoja.
+let vistaClasesAlVolver=null;
 async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const pesos=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
   anuncios=await Promise.all(anuncios.map(async a=>{
@@ -2085,7 +2088,8 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   };
   raiz.querySelectorAll('[data-clases-vista]').forEach(b=>b.addEventListener('click',()=>activarVistaClases(b.dataset.clasesVista)));
   if(!enHoja&&typeof vistasPanelNav!=='undefined')vistasPanelNav.profesor=v=>{if(raiz.isConnected!==false)activarVistaClases(v);};
-  activarVistaClases(enHoja?'resumen':((typeof tomarVistaNav==='function'&&tomarVistaNav('profesor'))||vistaClasesActual||'resumen'));
+  const alVolver=vistaClasesAlVolver;vistaClasesAlVolver=null;
+  activarVistaClases(alVolver||(enHoja?'resumen':((typeof tomarVistaNav==='function'&&tomarVistaNav('profesor'))||vistaClasesActual||'resumen')));
   // Al cambiar el estado se vuelve a pedir la lista: el estado, los números y
   // los botones de cada tarjeta dependen de él, y repintar a mano lo que uno
   // cree que cambió es la forma de que una tarjeta quede mintiendo.
@@ -2774,7 +2778,13 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
         if(!respuesta.ok){estado.textContent=respuesta.error;if(respuesta.campo==='contacto_valor')marcarContacto(respuesta.error);return;}
         raiz.innerHTML='<div class="modal-title" id="modal-titulo">En revisión</div><p class="profesor-info" role="status">Recibimos tu anuncio. Nadie lo verá hasta que GradeHub lo revise y apruebe.</p>'+(guardadaCampana.falta||respuesta.sqlAnterior?'<p class="profesor-info" role="status">Los días y el tope todavía no se guardaron. GradeHub debe confirmarlos contigo antes de publicar.</p>':'');return;
       }
-      estado.textContent=(pendiente?'Borrador guardado. Podrás enviarlo a revisión cuando aprobemos tu postulación.':'Borrador guardado. Puedes volver después o enviarlo a revisión.')+(guardadaCampana.falta?' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.':'');
+      // Guardado entero: el formulario se cierra y el borrador aparece en la
+      // lista. Si faltó algo (días y tope sin su SQL), se queda abierto con
+      // el aviso, para que no se pierda de vista.
+      if(guardadaCampana.falta){estado.textContent=(pendiente?'Borrador guardado. Podrás enviarlo a revisión cuando aprobemos tu postulación.':'Borrador guardado.')+' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.';return;}
+      if(!pendiente)vistaClasesAlVolver='anuncios';
+      await renderEspacioProfesor(raiz,{titulo:raiz.id==='modal-content'});
+      if(typeof showToast==='function')showToast('Borrador guardado');
     }catch(e){estado.textContent='No pudimos completar la acción. Revisa si tu borrador quedó guardado e intenta de nuevo.';
     }finally{procesando=false;botones.forEach(b=>{if(b.isConnected)b.disabled=false;});}
   };
