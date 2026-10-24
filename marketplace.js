@@ -4536,7 +4536,17 @@ function resumenInicioAlumnosHTML(r){
       ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><span class="panel-resumen-meta">Para aprobar</span><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
     :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
   return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`)}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`)}</div>
-    <div class="panel-alumnos-resumen-columnas"><section aria-labelledby="resumen-atencion"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div><p class="panel-alumnos-contexto">Un alumno puede estar al borde en un ramo y reprobando otro.</p>${atencion}</section><section aria-labelledby="resumen-semana"><div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>${semana}</section></div>`;
+    <div class="panel-alumnos-resumen-columnas">
+      <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-atencion">
+        <div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>
+        <p class="panel-alumnos-contexto">Un alumno puede estar al borde en un ramo y reprobando otro.</p>
+        <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-atencion" tabindex="0">${atencion}</div>
+      </section>
+      <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-semana">
+        <div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>
+        <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-semana" tabindex="0">${semana}</div>
+      </section>
+    </div>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
   return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
@@ -4906,11 +4916,12 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       <button type="button" data-panel-vista="estadisticas" aria-pressed="false">Estadísticas</button>
       ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Ramos</button>':''}
     </nav>
-    <header class="panel-alumnos-cabecera" id="alumnos-cabecera"><h2 id="alumnos-vista-titulo">Resumen</h2><button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button></header>
+    <header class="panel-alumnos-cabecera" id="alumnos-cabecera"><h2 id="alumnos-vista-titulo">Resumen</h2></header>
     <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
     <section class="panel-alumnos-vista" id="alumnos-vista-resumen" aria-label="Resumen de tus alumnos"></section>
     <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos" hidden>
       <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
+      <button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button>
       ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Buscar alumnos"
         aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
       <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
