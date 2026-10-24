@@ -26,3 +26,25 @@ const viejo=fila({estado:'aprobado',tiene_historial:undefined,alumnos_conectados
 assert.doesNotMatch(viejo,/data-admin-eliminar/,'sin el SQL nuevo no se ofrece eliminar a ciegas');
 assert.match(fila({estado:'rechazado'}),/data-admin-postulacion="u1" data-estado="aprobado">Aceptar/,'una rechazada se puede aceptar');
 console.log('OK admin profesores: aceptar, rechazar, pausar y eliminar solo cuando no se pierde nada');
+
+// Ficha del profesor (PR siguiente): datos, panel de alumnos, nota e historial.
+const ficha=fila({estado:'aprobado',panel_alumnos:true,alumnos_conectados:3,nota:'<i>15%</i> comisión',
+  ultimos_30_dias:{vieron:120,abrieron:30,contactaron:7},anuncios:[{estado:'publicado'},{estado:'borrador',cobros:[{estado:'deuda'}]},{estado:'eliminado'}],
+  historial:[{accion:'panel_alumnos',detalle:{activo:false},fecha:'2026-10-22T15:00:00Z',admin:'admin@ejemplo.cl'},{accion:'algo_nuevo',fecha:'2026-10-21T15:00:00Z'}]});
+assert.match(ficha,/<summary>Ficha del profesor<\/summary>/);
+assert.match(ficha,/Lo contactaron · 30 días<\/dt><dd>7/,'cruza contactos con lo que reporta');
+assert.match(ficha,/Publicados<\/dt><dd>1<\/dd>[\s\S]*Borradores<\/dt><dd>1<\/dd>/,'un eliminado no se cuenta');
+assert.match(ficha,/Cobros en deuda<\/dt><dd>1/);
+assert.match(ficha,/role="switch" aria-checked="true" data-admin-panel-alumnos="u1" data-activo="false" data-alumnos="3">Ocultar/);
+assert.match(ficha,/&lt;i&gt;15%&lt;\/i&gt; comisión<\/textarea>/,'la nota no entra como HTML');
+assert.match(ficha,/Ocultó el panel de alumnos<\/span><small>[^<]*admin@ejemplo\.cl/);
+assert.match(ficha,/algo_nuevo/,'una acción sin texto se muestra igual, sin inventar');
+const sinSql=fila({estado:'aprobado'});
+assert.doesNotMatch(sinSql,/data-admin-panel-alumnos|data-admin-nota|Últimos cambios|30 días/,'sin el SQL nuevo, la ficha no ofrece lo que no puede guardar');
+assert.doesNotMatch(fila({estado:'pendiente'}),/Ficha del profesor/,'una postulación todavía no tiene ficha');
+ctx.__l=[{user_id:'a',nombre:'Academia Álgebra',estado:'aprobado'},{user_id:'b',nombre:'Profe Pendiente',estado:'pendiente'},{user_id:'c',nombre:'Otra academia',estado:'suspendido'}];
+const filtro=o=>vm.runInContext(`filtrarProfesoresAdmin(__l,${JSON.stringify(o)}).map(p=>p.user_id).join()`,ctx);
+assert.equal(filtro({estado:'pendiente'}),'b');
+assert.equal(filtro({estado:'',busqueda:'academia'}),'a,c','busca sin importar mayúsculas');
+assert.equal(filtro({estado:'',busqueda:'algebra'}),'a','ni tildes');
+console.log('OK ficha del profesor: datos, panel de alumnos, nota, historial y filtros');

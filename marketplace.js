@@ -267,6 +267,8 @@ function perfilProfesorConocido(){
   if(!perfilProfesorResuelto)return undefined;   // preguntando
   return perfilProfesorCache;                     // ficha, false, o null si no se pudo
 }
+// Lo decide un admin (profesor_alumnos.sql). Sin la columna, se muestra.
+function panelAlumnosOculto(){return !!(perfilProfesorCache&&perfilProfesorCache.panel_alumnos===false);}
 function esProfesorAprobado(){
   return !!(perfilProfesorCache&&perfilProfesorCache.estado==='aprobado');
 }
@@ -299,7 +301,8 @@ async function perfilProfesorActual(){
     // su SQL aplicado se pide la ficha que el servidor sí tiene.
     const pedir=campos=>supabaseClient.from('tutor_perfiles').select(campos).eq('user_id',uid).maybeSingle();
     const base='nombre_publico,presentacion,estado,solicitado_at,revisado_at',logo=',logo_id,logo_path,logo_aprobado_path';
-    let {data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR);
+    let {data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR+',panel_alumnos');
+    if(faltaColumnaClase(error))({data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR));
     if(faltaColumnaClase(error))({data,error}=await pedir(base+logo));
     if(faltaColumnaClase(error))({data,error}=await pedir(base));
     // El motivo real queda en la consola. El 2026-09-25 un SQL pegado a medias
@@ -3283,7 +3286,50 @@ function personaAdminHigHTML(p){
   return `<section class="admin-hig-persona" data-admin-persona="${id}"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[estado]||estado)} · ${(p.anuncios||[]).length} anuncios${estado==='pendiente'&&fecha?` · postuló el ${esc(fecha)}`:''}</p>
     ${estado==='pendiente'&&p.presentacion?`<p class="admin-hig-presentacion">${esc(p.presentacion)}</p>`:''}
     ${estado!=='pendiente'&&porQueNo?`<p class="admin-hig-motivo">${esc(porQueNo)}</p>`:''}</div>
-    <div class="admin-hig-persona-acciones">${acciones}${estado==='aprobado'?`<span data-admin-ejemplo="${id}"></span>`:''}</div></section>`;
+    <div class="admin-hig-persona-acciones">${acciones}${estado==='aprobado'?`<span data-admin-ejemplo="${id}"></span>`:''}</div>
+    ${estado==='pendiente'?'':fichaAdminProfesorHTML(p)}</section>`;
+}
+// La ficha de un profesor (Lucas, 2026-10-23): lo que hace falta para decidir
+// y cobrar, sin salir del panel. Sin el SQL nuevo, cada bloque se omite.
+const ACCIONES_ADMIN_TEXTO={revisar_postulacion:d=>d&&d.estado==='rechazado'?'Rechazó la postulación':'Aceptó la postulación',
+  estado_profesor:d=>d&&d.estado==='suspendido'?'Pausó al profesor':'Reactivó al profesor',panel_alumnos:d=>d&&d.activo?'Mostró el panel de alumnos':'Ocultó el panel de alumnos',
+  nota_profesor:()=>'Editó la nota interna',publicar_anuncio:()=>'Publicó un anuncio',devolver_anuncio:()=>'Devolvió un anuncio',pausar_anuncio:()=>'Pausó un anuncio',
+  borrar_anuncio_revision:()=>'Borró un anuncio en revisión',terminar_anuncio_pausado:()=>'Terminó una campaña',marcar_cobro:()=>'Registró un cobro'};
+function fichaAdminProfesorHTML(p){
+  const id=esc(p.user_id),anuncios=(p.anuncios||[]).filter(a=>a.estado!=='eliminado');
+  const cuenta=e=>anuncios.filter(a=>e.includes(a.estado)).length;
+  const deudas=anuncios.reduce((n,a)=>n+(Array.isArray(a.cobros)?a.cobros:a.cobro?[a.cobro]:[]).filter(c=>c.estado==='deuda').length,0);
+  const d30=p.ultimos_30_dias,num=v=>new Intl.NumberFormat('es-CL').format(Number(v)||0);
+  const dato=(t,v)=>`<div><dt>${t}</dt><dd>${v}</dd></div>`;
+  const alumnos=Number(p.alumnos_conectados)||0,visible=p.panel_alumnos!==false;
+  const historial=Array.isArray(p.historial)?p.historial:null;
+  const fecha=f=>Number.isFinite(new Date(f).getTime())?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'}).format(new Date(f)):'';
+  return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
+    <dl class="admin-hig-ficha-datos">
+      ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
+      ${d30?dato('Lo vieron · 30 días',num(d30.vieron))+dato('Lo abrieron · 30 días',num(d30.abrieron))+dato('Lo contactaron · 30 días',num(d30.contactaron)):''}
+      ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
+    </dl>
+    ${p.panel_alumnos!=null&&p.estado==='aprobado'?`<div class="admin-hig-ficha-fila"><span><b>Panel de alumnos</b><small>${visible?'Lo ve en su menú.':'Oculto: no ve a sus alumnos ni se conecta nadie nuevo.'}</small></span>
+      <button type="button" class="clase-accion" role="switch" aria-checked="${visible}" data-admin-panel-alumnos="${id}" data-activo="${!visible}" data-alumnos="${alumnos}">${visible?'Ocultar':'Mostrar'}</button></div>`:''}
+    ${p.nota!==undefined?`<label class="modal-label" for="admin-nota-${id}">Nota interna · solo la ven los admins</label>
+      <textarea id="admin-nota-${id}" class="admin-hig-nota-texto" maxlength="1000" data-admin-nota-texto="${id}" placeholder="Ej. Material: 15% de comisión, código GRADEHUB 5%">${esc(p.nota||'')}</textarea>
+      <button type="button" class="clase-accion" data-admin-nota="${id}">Guardar nota</button>`:''}
+    ${historial?`<h4>Últimos cambios</h4>${historial.length?`<ul class="admin-hig-historial">${historial.map(h=>`<li><span>${esc((ACCIONES_ADMIN_TEXTO[h.accion]||(()=>h.accion))(h.detalle))}</span><small>${esc(fecha(h.fecha))}${h.admin?' · '+esc(h.admin):''}</small></li>`).join('')}</ul>`:'<p class="admin-hig-motivo">Sin cambios registrados.</p>'}`:''}
+  </div></details>`;
+}
+// El número de postulaciones esperando va en el riel: «Profesores · 2».
+function marcarPendientesNavAdmin(n){
+  if(typeof document==='undefined'||typeof document.querySelector!=='function')return;
+  const b=document.querySelector('[data-nav-vista="admin:profesores"]');if(!b)return;
+  b.textContent=n?`Profesores · ${n}`:'Profesores';
+  if(n)b.setAttribute('aria-label',`Profesores, ${n} ${n===1?'postulación':'postulaciones'} por revisar`);else b.removeAttribute('aria-label');
+}
+// Filtro y búsqueda de la lista de profesores. Parte en Pendientes si hay.
+const FILTROS_PROFESORES_ADMIN=[['pendiente','Pendientes'],['aprobado','Aprobados'],['suspendido','Pausados'],['','Todos']];
+function filtrarProfesoresAdmin(profesores,{estado='',busqueda=''}={}){
+  const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
+  return (profesores||[]).filter(p=>(!estado||p.estado===estado)&&palabras.every(t=>normalizarBusquedaClase(p.nombre||'').includes(t)));
 }
 function crecimientoAdminHTML(semanas){
   if(!Array.isArray(semanas)||!semanas.length)return '';
@@ -3308,7 +3354,9 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios'){
     </div>
     ${panel('profesores',`<h2>Profesores</h2>
       <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Revisar logos sigue en SQL Editor.</p>
-      <div class="admin-hig-profesores">${profesores.map(personaAdminHigHTML).join('')||'<p>Todavía no hay profesores.</p>'}</div>`)}
+      <div class="admin-hig-filtros"><nav class="panel-alumnos-vistas" aria-label="Filtrar profesores">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<button type="button" data-admin-filtro-prof="${v}" aria-pressed="${v===vistaAdmin.profesores}">${t}</button>`).join('')}</nav>
+      <input type="search" class="admin-hig-buscar" id="admin-buscar-profesor" placeholder="Buscar por nombre" aria-label="Buscar profesor por nombre" autocomplete="off"></div>
+      <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
     ${panel('anuncios',`<h2>Anuncios</h2>
     <div class="admin-hig-resumen" aria-label="Resumen de administración">
     ${kpi('Visibles ahora',filas.filter(f=>f.estado[1]==='publicado').length,'Publicadas y bajo su tope')}
@@ -3352,7 +3400,24 @@ async function pintarPanelAdmin(raiz){
   // La sección que pidió la barra lateral manda (2026-10-23).
   const pedida=typeof tomarVistaNav==='function'&&tomarVistaNav('admin');
   if(pedida&&AREAS_ADMIN.includes(pedida))vistaAdmin.area=pedida;
+  const pendientes=profesores.filter(p=>p.estado==='pendiente').length;
+  if(vistaAdmin.profesores===undefined)vistaAdmin.profesores=pendientes?'pendiente':'';
+  marcarPendientesNavAdmin(pendientes);
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area);
+  const lista=raiz.querySelector('#admin-lista-profesores');
+  if(lista&&typeof lista.querySelectorAll==='function'){
+    lista.innerHTML=profesores.map(personaAdminHigHTML).join('')+`<p class="admin-hig-motivo" id="admin-profesores-vacio" hidden>${profesores.length?'Nadie calza con este filtro.':'Todavía no hay profesores.'}</p>`;
+    const buscar=raiz.querySelector('#admin-buscar-profesor');
+    const filtrar=()=>{
+      const visibles=new Set(filtrarProfesoresAdmin(profesores,{estado:vistaAdmin.profesores,busqueda:buscar?buscar.value:''}).map(p=>String(p.user_id)));
+      lista.querySelectorAll('[data-admin-persona]').forEach(el=>{el.hidden=!visibles.has(el.dataset.adminPersona);});
+      raiz.querySelectorAll('[data-admin-filtro-prof]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.adminFiltroProf===vistaAdmin.profesores)));
+      const vacio=lista.querySelector('#admin-profesores-vacio');if(vacio)vacio.hidden=visibles.size>0;
+    };
+    raiz.querySelectorAll('[data-admin-filtro-prof]').forEach(b=>b.addEventListener('click',()=>{vistaAdmin.profesores=b.dataset.adminFiltroProf;filtrar();}));
+    if(buscar)buscar.addEventListener('input',filtrar);
+    filtrar();
+  }
   const mostrarArea=nombre=>{
     if(!AREAS_ADMIN.includes(nombre))return;
     vistaAdmin.area=nombre;
@@ -3493,6 +3558,21 @@ async function pintarPanelAdmin(raiz){
       aceptar?'Podrá publicar anuncios (cada uno pasa por revisión) y usar el panel de alumnos.':'No podrá ofrecer clases. Su cuenta de estudiante sigue igual y puedes aceptarlo después.',
       ()=>llamar('admin_revisar_postulacion',{p_user_id:b.dataset.adminPostulacion,p_estado:b.dataset.estado},aceptar?'Profesor aceptado':'Postulación rechazada'),
       {label:aceptar?'Aceptar':'Rechazar',danger:!aceptar});
+  }));
+  raiz.querySelectorAll('[data-admin-panel-alumnos]').forEach(b=>b.addEventListener('click',()=>{
+    const mostrar=b.dataset.activo==='true',n=Number(b.dataset.alumnos)||0;
+    if(mostrar){llamar('admin_panel_alumnos_profesor',{p_user_id:b.dataset.adminPanelAlumnos,p_activo:true},'Panel de alumnos visible');return;}
+    showConfirm('¿Ocultar su panel de alumnos?',n?`Deja de ver a sus ${n} ${n===1?'alumno':'alumnos'} y nadie nuevo se puede conectar. No se borra nada: al mostrarlo de nuevo están los mismos.`:'No verá la sección Alumnos y nadie se podrá conectar con su link. Puedes mostrarla cuando quieras.',
+      ()=>llamar('admin_panel_alumnos_profesor',{p_user_id:b.dataset.adminPanelAlumnos,p_activo:false},'Panel de alumnos oculto'),{label:'Ocultar',danger:false});
+  }));
+  raiz.querySelectorAll('[data-admin-nota]').forEach(b=>b.addEventListener('click',async()=>{
+    const caja=raiz.querySelector(`[data-admin-nota-texto="${b.dataset.adminNota}"]`);
+    b.disabled=true;
+    try{
+      const {data,error}=await supabaseClient.rpc('admin_nota_profesor',{p_user_id:b.dataset.adminNota,p_texto:caja?caja.value:''});
+      showToast(error||data!==true?(error?.message||'No se guardó la nota. Actualiza el panel e intenta de nuevo.'):'Nota guardada',!!(error||data!==true));
+    }catch(e){showToast('No pudimos guardar la nota. Revisa tu conexión.',true);}
+    if(b.isConnected)b.disabled=false;
   }));
   raiz.querySelectorAll('[data-admin-eliminar]').forEach(b=>b.addEventListener('click',()=>
     showConfirm(`¿Eliminar a ${b.dataset.nombre||'este profesor'} como profesor?`,

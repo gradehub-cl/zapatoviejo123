@@ -72,6 +72,22 @@ alter table public.profesor_alumnos
 alter table public.profesor_alumnos enable row level security;
 revoke all on public.profesor_alumnos from public, anon, authenticated;
 
+-- Un admin puede ocultarle el panel de alumnos a un profesor (Lucas,
+-- 2026-10-23). Parte en true: hoy no cambia nada a nadie. El profesor la lee
+-- pero no la edita: la cambia admin_panel_alumnos_profesor.
+alter table public.tutor_perfiles add column if not exists panel_alumnos boolean not null default true;
+grant select (panel_alumnos) on public.tutor_perfiles to authenticated;
+-- Profesor aprobado y con el panel visible. Con el panel oculto no se ve a los
+-- alumnos ni se conecta nadie nuevo, pero los vínculos no se borran: al
+-- volver a mostrarlo están los mismos.
+create or replace function public.panel_alumnos_activo(p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.tutor_perfiles
+                  where user_id = p_user_id and estado = 'aprobado' and panel_alumnos);
+$$;
+revoke all on function public.panel_alumnos_activo(uuid) from public, anon;
+grant execute on function public.panel_alumnos_activo(uuid) to authenticated;
+
 -- Normaliza el nombre de una evaluación para juntar la misma prueba escrita
 -- distinto ("Interrogación 1", "interrogacion  1"). El cliente usa la misma
 -- regla para emparejar cada nota con su promedio.
@@ -102,7 +118,7 @@ begin
   if uid is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(uid) then
+  if not public.panel_alumnos_activo(uid) then
     raise exception 'solo un profesor aprobado tiene link para sus alumnos';
   end if;
   select codigo_alumnos into actual from public.tutor_perfiles where user_id = uid;
@@ -138,7 +154,7 @@ begin
   return query
   select t.nombre_publico, t.logo_aprobado_path
   from public.tutor_perfiles t
-  where t.codigo_alumnos = upper(btrim(p_codigo)) and t.estado = 'aprobado';
+  where t.codigo_alumnos = upper(btrim(p_codigo)) and t.estado = 'aprobado' and t.panel_alumnos;
 end;
 $$;
 
@@ -161,7 +177,7 @@ begin
     join public.tutor_perfiles t on t.user_id = pa.tutor_id
     where pa.alumno_id = auth.uid()
       and t.codigo_alumnos = upper(btrim(p_codigo))
-      and t.estado = 'aprobado'
+      and t.estado = 'aprobado' and t.panel_alumnos
   );
 end;
 $$;
@@ -184,7 +200,7 @@ begin
     raise exception 'hay que haber iniciado sesión';
   end if;
   select user_id into v_tutor from public.tutor_perfiles
-    where codigo_alumnos = upper(btrim(p_codigo)) and estado = 'aprobado';
+    where codigo_alumnos = upper(btrim(p_codigo)) and estado = 'aprobado' and panel_alumnos;
   if v_tutor is null then
     raise exception 'el link no corresponde a ningún profesor';
   end if;
@@ -268,7 +284,7 @@ begin
   if uid is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(uid) then
+  if not public.panel_alumnos_activo(uid) then
     raise exception 'solo un profesor aprobado ve a sus alumnos';
   end if;
   return query
@@ -312,7 +328,7 @@ begin
   if auth.uid() is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(auth.uid()) then
+  if not public.panel_alumnos_activo(auth.uid()) then
     raise exception 'solo un profesor aprobado ve a sus alumnos';
   end if;
   if p_inicio is not null and (p_inicio < date '2000-01-01' or p_inicio > current_date) then
@@ -336,7 +352,7 @@ begin
   if auth.uid() is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(auth.uid()) then
+  if not public.panel_alumnos_activo(auth.uid()) then
     raise exception 'solo un profesor aprobado ve a sus alumnos';
   end if;
   if p_inicio is not null and (p_inicio < date '2000-01-01' or p_inicio > current_date) then
@@ -424,7 +440,7 @@ begin
     return null;
   end if;
   -- Por sección, solo una que declara un alumno que le comparte ese ramo.
-  if not public.tutor_aprobado(uid) or not exists (
+  if not public.panel_alumnos_activo(uid) or not exists (
     select 1
     from public.profesor_alumnos pa
     join public.user_ramos ur on ur.user_id = pa.alumno_id,
