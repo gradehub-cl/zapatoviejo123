@@ -27,9 +27,11 @@ const base={nombre_publico:'Academia Sintética',presentacion:'Clases ficticias 
   check('pide los campos del perfil',pedidos[0].includes('perfil_publico')&&pedidos[0].includes('logo_path'));
   pedidos.length=0;faltanColumnas=1;
   const r=await run('perfilProfesorActual()');
-  check('sin las columnas nuevas, vuelve a pedir con el logo',r.ok&&pedidos.length===2&&!pedidos[1].includes('perfil_publico')&&pedidos[1].includes('logo_path'));
+  check('sin panel_alumnos, vuelve a pedir el perfil completo',r.ok&&pedidos.length===2&&!pedidos[1].includes('panel_alumnos')&&pedidos[1].includes('perfil_publico'));
   pedidos.length=0;faltanColumnas=2;
-  check('y sin el logo, la ficha de siempre',(await run('perfilProfesorActual()')).ok&&pedidos.length===3&&!pedidos[2].includes('logo'));
+  check('sin las columnas del perfil, con el logo',(await run('perfilProfesorActual()')).ok&&pedidos.length===3&&!pedidos[2].includes('perfil_publico')&&pedidos[2].includes('logo_path'));
+  pedidos.length=0;faltanColumnas=3;
+  check('y sin el logo, la ficha de siempre',(await run('perfilProfesorActual()')).ok&&pedidos.length===4&&!pedidos[3].includes('logo'));
   check('sin el campo nuevo, el formulario no se arma',!run('tienePerfilCompleto({nombre_publico:"x"})')&&run('tienePerfilCompleto({perfil_publico:false})'));
 
   console.log('\n=== Lo que se guarda tiene forma ===');

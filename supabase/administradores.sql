@@ -191,6 +191,54 @@ begin
 end;
 $$;
 
+-- Nota interna por profesor: solo la ven y la escriben los admins, por
+-- ejemplo el acuerdo de comisión. Sin grants: se usa solo por las RPC.
+create table if not exists admin.notas_profesor (
+  user_id        uuid primary key references auth.users(id) on delete cascade,
+  texto          text not null check (char_length(texto) <= 1000),
+  admin_id       uuid references auth.users(id) on delete set null,
+  actualizado_at timestamptz not null default now()
+);
+alter table admin.notas_profesor enable row level security;
+revoke all on admin.notas_profesor from public, anon, authenticated;
+
+create or replace function public.admin_nota_profesor(p_user_id uuid, p_texto text)
+returns boolean language plpgsql security definer set search_path = public, admin as $$
+declare texto text := btrim(coalesce(p_texto, ''));
+begin
+  perform admin.exigir_administrador();
+  if char_length(texto) > 1000 then raise exception 'la nota puede tener hasta 1000 caracteres'; end if;
+  if not exists (select 1 from public.tutor_perfiles where user_id = p_user_id) then return false; end if;
+  if texto = '' then
+    delete from admin.notas_profesor where user_id = p_user_id;
+  else
+    insert into admin.notas_profesor (user_id, texto, admin_id) values (p_user_id, texto, auth.uid())
+    on conflict (user_id) do update set texto = excluded.texto, admin_id = excluded.admin_id, actualizado_at = now();
+  end if;
+  insert into admin.acciones (admin_id, accion, objetivo) values (auth.uid(), 'nota_profesor', p_user_id);
+  return true;
+end;
+$$;
+
+-- Mostrar u ocultar el panel de Alumnos de un profesor. Ocultar no borra a
+-- nadie: al volver a mostrarlo están los mismos alumnos (profesor_alumnos.sql).
+create or replace function public.admin_panel_alumnos_profesor(p_user_id uuid, p_activo boolean)
+returns boolean language plpgsql security definer set search_path = public, admin as $$
+declare filas integer := 0;
+begin
+  perform admin.exigir_administrador();
+  if p_activo is null then raise exception 'falta elegir si se muestra'; end if;
+  update public.tutor_perfiles set panel_alumnos = p_activo
+   where user_id = p_user_id and panel_alumnos is distinct from p_activo;
+  get diagnostics filas = row_count;
+  if filas = 1 then
+    insert into admin.acciones (admin_id, accion, objetivo, detalle)
+    values (auth.uid(), 'panel_alumnos', p_user_id, jsonb_build_object('activo', p_activo));
+  end if;
+  return filas = 1;
+end;
+$$;
+
 create or replace function public.admin_eliminar_profesor(p_user_id uuid)
 returns boolean language plpgsql security definer set search_path = public, admin as $$
 declare nombre text;
@@ -234,6 +282,22 @@ begin
         'presentacion', p.presentacion,
         'tiene_historial', admin.profesor_tiene_historial(p.user_id),
         'alumnos_conectados', admin.alumnos_conectados(p.user_id),
+        -- to_jsonb: sin profesor_alumnos.sql aplicado la columna no existe.
+        'panel_alumnos', coalesce((to_jsonb(p)->>'panel_alumnos')::boolean, true),
+        'nota', (select n.texto from admin.notas_profesor n where n.user_id = p.user_id),
+        'ultimos_30_dias', jsonb_build_object(
+          'vieron', (select count(*) from public.anuncio_alcance x join public.tutor_anuncios a on a.id = x.anuncio_id
+                      where a.autor_id = p.user_id and x.dia >= current_date - 30),
+          'abrieron', (select count(*) from public.anuncio_interacciones x join public.tutor_anuncios a on a.id = x.anuncio_id
+                        where a.autor_id = p.user_id and x.tipo = 'apertura' and x.dia >= current_date - 30),
+          'contactaron', (select count(*) from public.anuncio_interacciones x join public.tutor_anuncios a on a.id = x.anuncio_id
+                           where a.autor_id = p.user_id and x.tipo = 'contacto' and x.dia >= current_date - 30)),
+        'historial', coalesce((select jsonb_agg(h order by h->>'fecha' desc) from (
+            select jsonb_build_object('accion', c.accion, 'fecha', c.created_at, 'admin', au.email, 'detalle', c.detalle) h
+              from admin.acciones c left join auth.users au on au.id = c.admin_id
+             where c.objetivo = p.user_id
+                or c.objetivo in (select a.id from public.tutor_anuncios a where a.autor_id = p.user_id)
+             order by c.created_at desc limit 10) z), '[]'::jsonb),
         'anuncios', coalesce((
           select jsonb_agg(jsonb_build_object(
             'id', a.id,
@@ -508,6 +572,10 @@ revoke all on function public.admin_revisar_postulacion(uuid, text) from public,
 revoke all on function public.admin_eliminar_profesor(uuid) from public, anon;
 grant execute on function public.admin_revisar_postulacion(uuid, text) to authenticated;
 grant execute on function public.admin_eliminar_profesor(uuid) to authenticated;
+revoke all on function public.admin_nota_profesor(uuid, text) from public, anon;
+revoke all on function public.admin_panel_alumnos_profesor(uuid, boolean) from public, anon;
+grant execute on function public.admin_nota_profesor(uuid, text) to authenticated;
+grant execute on function public.admin_panel_alumnos_profesor(uuid, boolean) to authenticated;
 revoke all on function public.admin_panel_clases() from public, anon;
 revoke all on function public.admin_pausar_anuncio(uuid) from public, anon;
 revoke all on function public.admin_estado_profesor(uuid, text) from public, anon;

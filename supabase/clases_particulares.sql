@@ -511,6 +511,11 @@ alter table public.tutor_perfiles add column if not exists logo_aprobado_path te
     and split_part(logo_aprobado_path, '/', 2) = logo_id::text));
 
 grant select (logo_id, logo_path, logo_aprobado_path) on public.tutor_perfiles to authenticated;
+-- Un admin puede ocultarle el panel de alumnos a un profesor (Lucas,
+-- 2026-10-23). Parte en true: hoy no cambia nada a nadie. El profesor la lee
+-- pero no la edita: la cambia admin_panel_alumnos_profesor.
+alter table public.tutor_perfiles add column if not exists panel_alumnos boolean not null default true;
+grant select (panel_alumnos) on public.tutor_perfiles to authenticated;
 -- Puede proponer uno (la política de update ya lo ata a su propia fila y el
 -- check, a su propio logo_id). No puede aprobarlo ni cambiar su logo_id.
 grant update (logo_path) on public.tutor_perfiles to authenticated;

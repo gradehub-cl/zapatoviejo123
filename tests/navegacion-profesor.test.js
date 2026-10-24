@@ -89,5 +89,14 @@ chk('el menú no ofrece la malla a un profesor', el('um-malla').style.display ==
 cuenta(null, false); run('openUserMenu()');
 chk('a un estudiante sí', el('um-malla').style.display === 'flex');
 
+console.log('\n=== Un admin le oculta Alumnos (2026-10-23) ===');
+run(`S=normalize(Object.assign(freshState(),{onboardingDone:true,tipoCuenta:'profesor'}))`);
+run(`perfilProfesorCache={estado:'aprobado',panel_alumnos:false}`);run('recalcularNavTabs()');
+chk('con el panel oculto, solo Clases', tabs() === 'profesor' && el('nav-alumnos').hidden && el('screen-alumnos').hidden);
+run(`S=normalize(Object.assign(freshState(),{onboardingDone:true}))`);run('recalcularNavTabs()');
+chk('un estudiante que es profesor sigue con sus pestañas, sin Alumnos', tabs() === 'stats,home,agenda,profesor');
+run(`perfilProfesorCache={estado:'aprobado'}`);run('recalcularNavTabs()');
+chk('sin el SQL nuevo (sin el campo), Alumnos se ve como antes', tabs() === 'stats,home,agenda,profesor,alumnos');
+
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
