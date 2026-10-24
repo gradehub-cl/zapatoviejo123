@@ -3210,6 +3210,75 @@ function revisionAdminAnuncioHTML(a,profesor){
     </div>
   </section>`;
 }
+// El descuento es de GradeHub: el profesor conserva solo lectura.
+function descuentoAdminPct(a){
+  const pct=a&&a.descuento_gradehub_pct;
+  return Number.isInteger(pct)&&pct>=1&&pct<=50?pct:null;
+}
+function editorDescuentoAdminHTML(a,estado='cargando'){
+  const pct=descuentoAdminPct(a),id=esc(a.id),campo=`admin-descuento-${id}`;
+  const aviso=estado==='sin-sql'?'Aplica administradores.sql para editar el descuento desde acá'
+    :estado==='error'?'No pudimos comprobar si se puede editar el descuento. Vuelve a abrir el panel para intentarlo de nuevo.'
+    :'Comprobando edición del descuento…';
+  return `<h4>Descuento por venir de GradeHub</h4>
+    <p class="admin-descuento-actual">Actual: <b>${pct===null?'Sin descuento':pct+'%'}</b></p>
+    ${estado!=='listo'?`<p class="profesor-info" role="status">${aviso}</p>`:
+      `<label for="${campo}">Descuento · %</label><div class="admin-descuento-controles">
+        <input id="${campo}" type="number" min="1" max="50" step="1" inputmode="numeric" data-descuento-pct value="${pct===null?'':pct}" aria-describedby="${campo}-ayuda ${campo}-error">
+        <button type="button" class="accion-principal" data-descuento-guardar>Guardar</button>
+        ${pct===null?'':'<button type="button" class="clase-accion" data-descuento-quitar>Quitar</button>'}
+      </div><p class="profesor-info" id="${campo}-ayuda">De 1 a 50%. Lo fija GradeHub, no el profesor.</p>
+      <p class="profesor-info" id="${campo}-error" data-descuento-error role="alert"></p>`}`;
+}
+async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
+  const bloques=[...raiz.querySelectorAll('[data-admin-descuento]')];
+  if(!bloques.length)return;
+  let estado='listo';
+  try{
+    // Una consulta sin anuncio siempre devuelve false: detecta la función sin
+    // editar datos ni generar acciones. Nunca probar con un anuncio real.
+    const {error}=await supabaseClient.rpc('admin_descuento_anuncio',{p_anuncio_id:null,p_pct:null});
+    if(error)estado=sqlClasesDesactualizado(error)?'sin-sql':'error';
+  }catch(e){estado='error';}
+  bloques.forEach(bloque=>{
+    if(bloque.isConnected===false)return;
+    const a=anuncios.get(bloque.dataset.adminDescuento);if(!a)return;
+    bloque.innerHTML=editorDescuentoAdminHTML(a,estado);
+    if(estado!=='listo')return;
+    const campo=bloque.querySelector('[data-descuento-pct]'),error=bloque.querySelector('[data-descuento-error]');
+    const guardar=bloque.querySelector('[data-descuento-guardar]'),quitar=bloque.querySelector('[data-descuento-quitar]');
+    let pendiente=false;
+    campo.addEventListener('input',()=>{campo.removeAttribute('aria-invalid');error.textContent='';});
+    const aplicar=async pct=>{
+      if(pendiente||bloque.isConnected===false)return;
+      pendiente=true;
+      const controles=[campo,guardar,quitar].filter(Boolean);controles.forEach(b=>{b.disabled=true;});
+      try{
+        await llamar('admin_descuento_anuncio',{p_anuncio_id:a.id,p_pct:pct},pct===null?'Descuento quitado':'Descuento guardado',e=>{
+          if(!sqlClasesDesactualizado(e))return false;
+          // También cubre que el SQL deje de estar disponible tras la consulta.
+          bloques.forEach(c=>{if(c.isConnected!==false){const anuncio=anuncios.get(c.dataset.adminDescuento);if(anuncio)c.innerHTML=editorDescuentoAdminHTML(anuncio,'sin-sql');}});
+          return true;
+        });
+      }finally{pendiente=false;controles.forEach(b=>{if(b.isConnected!==false)b.disabled=false;});}
+    };
+    const confirmar=pct=>{
+      if(a.estado!=='publicado')return aplicar(pct);
+      showConfirm(pct===null?'¿Quitar el descuento?':'¿Guardar el descuento?',
+        pct===null?'Los estudiantes verán el precio sin descuento desde ahora.':`Los estudiantes verán el precio con −${pct}% desde ahora.`,
+        ()=>aplicar(pct),{label:pct===null?'Quitar':'Guardar',danger:false});
+    };
+    guardar.addEventListener('click',()=>{
+      if(pendiente)return;
+      const texto=String(campo.value||'').trim(),pct=Number(texto);
+      if(!/^\d+$/.test(texto)||!Number.isInteger(pct)||pct<1||pct>50){
+        error.textContent='Escribe un porcentaje entero entre 1 y 50.';campo.setAttribute('aria-invalid','true');campo.focus();return;
+      }
+      return confirmar(pct);
+    });
+    if(quitar)quitar.addEventListener('click',()=>confirmar(null));
+  });
+}
 function filaAdminAnuncio(a,ahora=Date.now()){
   const costo=costoCampanaClase(a.campana),[estado,clase]=estadoAdminAnuncio(a,costo,ahora);
   const vig=vigenciaAnuncio(a,ahora),publicado=!!a.publicado_at;
@@ -3229,6 +3298,7 @@ function filaAdminAnuncio(a,ahora=Date.now()){
       ${vig==='publicado'||vig==='programado'?`<button type="button" class="clase-accion" data-admin-pausar="${esc(a.id)}">Pausar aviso</button>`:''}
       ${vig==='pausado'&&publicado?`<button type="button" class="clase-accion" data-admin-terminar="${esc(a.id)}" data-publicado-at="${esc(a.publicado_at)}">Terminar campaña y dejar lista para cobro</button>`:''}
     </div>
+    <section class="admin-descuento" data-admin-descuento="${esc(a.id)}">${editorDescuentoAdminHTML(a)}</section>
     <div class="admin-anuncio-estadisticas" id="admin-estadisticas-${esc(a.id)}" data-admin-estadisticas-panel="${esc(a.id)}" hidden></div>
     ${anteriores.length?`<details><summary>Cobros anteriores (${anteriores.length})</summary>${anteriores.map(c=>
       `<div><p class="clase-card-meta">Publicación del ${esc(new Date(c.publicado_at).toLocaleString('es-CL'))} · ${c.estado==='deuda'?'En deuda':'Cobrado'} · ${pesosClase(c.monto_clp)}</p>${editorCobroAdmin(a.id,c.publicado_at,c.estado,c.monto_clp)}</div>`).join('')}</details>`:''}
@@ -3281,7 +3351,7 @@ function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
 }
 function filaAdminHigHTML({p,a,costo,estado},ahora){
   return `<details class="admin-hig-fila" data-admin-fila="${esc(a.id)}"><summary>
-    <span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} · ${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
+    <span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} · ${esc((a.ramos_siglas||[]).join(' · '))}</small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span>
     <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span>
     <span class="admin-hig-importe"><b>${costo?pesosClase(costo.total):'—'}</b><small>Costo de campaña</small></span><span aria-hidden="true">⌄</span>
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}
@@ -3311,7 +3381,7 @@ function personaAdminHigHTML(p){
 }
 // La ficha de un profesor (Lucas, 2026-10-23): lo que hace falta para decidir
 // y cobrar, sin salir del panel. Sin el SQL nuevo, cada bloque se omite.
-const ACCIONES_ADMIN_TEXTO={revisar_postulacion:d=>d&&d.estado==='rechazado'?'Rechazó la postulación':'Aceptó la postulación',
+const ACCIONES_ADMIN_TEXTO={descuento_anuncio:d=>d&&d.pct!=null?`Fijó un descuento de ${d.pct}% GradeHub`:'Quitó el descuento GradeHub',revisar_postulacion:d=>d&&d.estado==='rechazado'?'Rechazó la postulación':'Aceptó la postulación',
   estado_profesor:d=>d&&d.estado==='suspendido'?'Pausó al profesor':'Reactivó al profesor',panel_alumnos:d=>d&&d.activo?'Mostró el panel de alumnos':'Ocultó el panel de alumnos',
   nota_profesor:()=>'Editó la nota interna',publicar_anuncio:()=>'Publicó un anuncio',devolver_anuncio:()=>'Devolvió un anuncio',pausar_anuncio:()=>'Pausó un anuncio',
   borrar_anuncio_revision:()=>'Borró un anuncio en revisión',terminar_anuncio_pausado:()=>'Terminó una campaña',marcar_cobro:()=>'Registró un cobro'};
@@ -3529,9 +3599,10 @@ async function pintarPanelAdmin(raiz){
       caja.innerHTML=url?`<img src="${esc(url)}" alt="Flyer del anuncio para revisión" loading="lazy">`:'No pudimos cargar el flyer.';
     }).catch(()=>{if(caja.isConnected)caja.textContent='No pudimos cargar el flyer.';});
   });
-  const llamar=async(fn,args,ok)=>{
+  const llamar=async(fn,args,ok,alError)=>{
     try{
       const {data,error}=await supabaseClient.rpc(fn,args);
+      if(error&&alError&&alError(error))return;
       if(error||data!==true){showToast(error?.message||'No se aplicó el cambio. Actualiza el panel e intenta de nuevo.',true);return;}
       showToast(ok);await repintar();
     }catch(e){showToast('No pudimos completar la acción. Revisa tu conexión e intenta de nuevo.',true);}
@@ -3623,6 +3694,7 @@ async function pintarPanelAdmin(raiz){
       finally{if(guardar.isConnected)guardar.disabled=false;}
     });
   });
+  await enlazarDescuentosAdmin(raiz,anunciosPorId,llamar);
 }
 
 // ─── PANEL DE ALUMNOS (decisión de Lucas, 2026-10-08) ───────────────────────
