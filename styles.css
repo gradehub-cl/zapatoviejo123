@@ -870,8 +870,8 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .clase-apoyo-logo{flex:none;align-self:center;display:flex;align-items:center;justify-content:center;height:40px;max-width:96px;}
 .clase-apoyo-logo[hidden]{display:none;}
 /* Logo cuadrado o redondo: más alto, para que se lea como uno ancho. */
-.clase-apoyo-logo.logo-cuadrado,.clase-apoyo.en-casilla .clase-apoyo-logo.logo-cuadrado{height:64px;}
-.catalogo-clase-logo.logo-cuadrado{height:64px;}
+.clase-apoyo-logo.logo-cuadrado,.clase-apoyo.en-casilla .clase-apoyo-logo.logo-cuadrado{height:50px;}
+.catalogo-clase-logo.logo-cuadrado{height:50px;}
 .clase-apoyo-logo img,.catalogo-clase-logo img{display:block;height:100%;width:auto;max-width:100%;object-fit:contain;border-radius:8px;}
 /* El contorno es una capa detrás del logo, no el logo redibujado. */
 .clase-apoyo-logo,.catalogo-clase-logo,.profesor-logo-img{position:relative;}
