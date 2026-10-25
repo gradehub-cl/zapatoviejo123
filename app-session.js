@@ -930,6 +930,21 @@ async function afterLogin(){
   // que llegue junto con las notas. Si la nube trae otra, Inicio lo vuelve a pedir.
   if(uid&&getCacheOwner()===uid&&S&&S.tenant&&typeof cargarAnunciosRecomendacion==='function')
     cargarAnunciosRecomendacion(S.tenant,()=>{});
+  // Inicio con la copia local. Si la caché es de esta cuenta y este dispositivo
+  // ya se sincronizó con «Sincronización sin pérdidas» (hay base), se entra con
+  // lo que hay en el dispositivo y la nube se reconcilia después, sin dejar a la
+  // persona esperando un viaje a Supabase detrás de la pantalla de carga. Lo
+  // que anote mientras tanto es un cambio local frente a la base y la fusión lo
+  // conserva. Sin base no: con una copia antigua sin ids reconciliarAlEntrar
+  // manda la nube e ignoraría lo anotado en esa ventana.
+  if(uid&&getCacheOwner()===uid&&leerBaseSync(uid)&&S.onboardingDone){
+    enterApp();
+    cargasAlEntrar();
+    reconciliarEnSegundoPlano(uid,vigente)
+      .then(()=>{if(vigente())tareasConEstadoAlEntrar();})
+      .catch(e=>registrarErrorArranque(e,'reconciliar'));
+    return;
+  }
   let cloud,ok=true;
   // Solo la lectura remota es recuperable: si falla, la copia local ya fue
   // normalizada al cargar y además está protegida por el dueño de la caché.
@@ -945,41 +960,9 @@ async function afterLogin(){
   // en app.js y hay tests que cargan solo este bloque.
   if(!mismaCache&&typeof PRE_IMPORT_KEY!=='undefined'){try{localStorage.removeItem(PRE_IMPORT_KEY);}catch(e){}}
   if(ok&&cloud!==null){
-    // La nube puede contener ramos creados con versiones anteriores. Pásalos
-    // siempre por normalize(): un ramo sin preset necesita categorias:[] para
-    // que el editor de pauta pueda abrirse igual que uno con pauta oficial.
-    //
-    // La nube YA NO pisa la copia local a ciegas: si este dispositivo tiene
-    // algo que no alcanzó a subir (una nota anotada sin conexión), se conserva
-    // y se sube. Ver «Sincronización sin pérdidas», más abajo.
-    const nube=normalize({...freshState(),...clonarSync(cloud)});
-    const {estado,subir}=mismaCache?reconciliarAlEntrar(uid,S,nube,cloud):{estado:nube,subir:false};
-    S=estado;
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
-    // Si normalize() corrigió la estructura de un ramo de la nube (una pauta
-    // nuestra mal publicada, evaluaciones repetidas), esa corrección también
-    // se sube. Antes solo quedaba en el dispositivo: la nube —que es lo que
-    // leen los agentes conectados— seguía con el error hasta la próxima nota.
-    // La base queda en la copia tal como estaba, así la subida sale como un
-    // cambio de este dispositivo y no como un choque.
-    const corregida=firmaEstructuraSync(nube)!==firmaEstructuraSync(cloud);
-    guardarBaseSync(uid,corregida?cloud:nube);
-    setCacheOwner(uid);
-    if(subir){
-      syncNow().then(respaldado=>{
-        if(respaldado)showToast('✓ Guardamos en la nube lo que anotaste en este dispositivo');
-      }).catch(()=>{});
-    }else if(corregida){
-      syncNow().catch(()=>{});
-    }
+    subirTrasEntrar(aplicarNubeAlEntrar(uid,cloud,mismaCache));
   }else if(ok&&mismaCache){
-    // `null` significa que la consulta no encontró una fila; NO demuestra que
-    // esta persona no tenga datos. Si la caché ya tiene el mismo dueño, es la
-    // única copia conocida: se conserva y se intenta crear el respaldo.
-    const respaldado=await syncNow();
-    showToast(respaldado
-      ? 'Recuperamos tu copia local y la respaldamos en la nube'
-      : 'Tus notas siguen en este dispositivo, pero no pudimos respaldarlas. No cierres sesión e inténtalo de nuevo con internet.',!respaldado);
+    await respaldarCopiaSinFila();
   }else if(ok){
     // Cuenta realmente nueva, o caché de otra persona en un navegador
     // compartido. Nunca se reutilizan datos cuyo dueño no coincide.
@@ -999,6 +982,92 @@ async function afterLogin(){
   }
   if(!vigente())return;
   if(S.onboardingDone)enterApp();else enterOnboarding();
+  tareasConEstadoAlEntrar();
+  cargasAlEntrar();
+}
+// Aplica la fila de la nube al entrar. Devuelve qué falta subir: 'local' si
+// este dispositivo tenía algo que la nube no, 'corregida' si normalize()
+// arregló la estructura de la nube, null si no hay nada.
+function aplicarNubeAlEntrar(uid,cloud,mismaCache){
+  // La nube puede contener ramos creados con versiones anteriores. Pásalos
+  // siempre por normalize(): un ramo sin preset necesita categorias:[] para
+  // que el editor de pauta pueda abrirse igual que uno con pauta oficial.
+  //
+  // La nube YA NO pisa la copia local a ciegas: si este dispositivo tiene
+  // algo que no alcanzó a subir (una nota anotada sin conexión), se conserva
+  // y se sube. Ver «Sincronización sin pérdidas», más abajo.
+  const nube=normalize({...freshState(),...clonarSync(cloud)});
+  const {estado,subir}=mismaCache?reconciliarAlEntrar(uid,S,nube,cloud):{estado:nube,subir:false};
+  S=estado;
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
+  // Si normalize() corrigió la estructura de un ramo de la nube (una pauta
+  // nuestra mal publicada, evaluaciones repetidas), esa corrección también
+  // se sube. Antes solo quedaba en el dispositivo: la nube —que es lo que
+  // leen los agentes conectados— seguía con el error hasta la próxima nota.
+  // La base queda en la copia tal como estaba, así la subida sale como un
+  // cambio de este dispositivo y no como un choque.
+  const corregida=firmaEstructuraSync(nube)!==firmaEstructuraSync(cloud);
+  guardarBaseSync(uid,corregida?cloud:nube);
+  setCacheOwner(uid);
+  return subir?'local':corregida?'corregida':null;
+}
+function subirTrasEntrar(motivo){
+  if(motivo==='local'){
+    syncNow().then(respaldado=>{
+      if(respaldado)showToast('✓ Guardamos en la nube lo que anotaste en este dispositivo');
+    }).catch(()=>{});
+  }else if(motivo){
+    syncNow().catch(()=>{});
+  }
+}
+// `null` significa que la consulta no encontró una fila; NO demuestra que
+// esta persona no tenga datos. Si la caché ya tiene el mismo dueño, es la
+// única copia conocida: se conserva y se intenta crear el respaldo.
+async function respaldarCopiaSinFila(){
+  const respaldado=await syncNow();
+  showToast(respaldado
+    ? 'Recuperamos tu copia local y la respaldamos en la nube'
+    : 'Tus notas siguen en este dispositivo, pero no pudimos respaldarlas. No cierres sesión e inténtalo de nuevo con internet.',!respaldado);
+}
+// La lectura de la nube cuando Inicio ya está en pantalla con la copia local.
+// Toma el candado de las subidas (_subida) mientras lee y reconcilia: una
+// subida que corriera entremedio movería la base, la lectura llegaría vieja y
+// la fusión tomaría por borrada la nota recién subida. Lo que se pide subir en
+// ese rato (save, pagehide, online) espera y sale al terminar, con la S ya
+// reconciliada.
+async function reconciliarEnSegundoPlano(uid,vigente){
+  while(_subida){try{await _subida;}catch(e){}}
+  if(!vigente())return;
+  let resultado=null,pedida=false;
+  _subida=(async()=>{
+    let cloud;
+    try{cloud=await loadFromCloud();}
+    catch(e){if(vigente())showToast('Sin conexión · usando tu copia local');return false;}
+    if(!vigente())return false;
+    // Con un modal abierto no se reemplaza S (ver fusionarConNube).
+    if(modalAbiertoSync()){resultado='modal';return false;}
+    if(cloud===null){resultado='sinFila';return false;}
+    const antes=JSON.stringify(S);
+    resultado=aplicarNubeAlEntrar(uid,cloud,true);
+    if(JSON.stringify(S)!==antes){
+      repintarTrasFusion();
+      // El servidor pudo convertir la cuenta en profesor (ver fusionarSync).
+      if(typeof recalcularNavTabs==='function')recalcularNavTabs();
+    }
+    return true;
+  })();
+  try{await _subida;}
+  finally{_subida=null;if(_otraSubida){_otraSubida=false;pedida=true;}}
+  if(resultado==='modal'){
+    if(pedida)syncToCloud();
+    await new Promise(r=>setTimeout(r,1500));
+    return reconciliarEnSegundoPlano(uid,vigente);
+  }
+  if(resultado==='sinFila')await respaldarCopiaSinFila();
+  else subirTrasEntrar(resultado||(pedida?'pedida':null));
+}
+// Lo que trabaja sobre S: va con el estado ya reconciliado con la nube.
+function tareasConEstadoAlEntrar(){
   // No bloquea la entrada: es una lectura de red y la app ya está en pantalla.
   // Si llega con algo, repinta y lo dice — una pauta no aparece en silencio.
   aplicarConsensoAuto().then(n=>{
@@ -1016,9 +1085,12 @@ async function afterLogin(){
   // sin actualizar en 30 días (para que no cuenten los ramos borrados o
   // archivados antes del arreglo), y quien usa la app sin abrir Estadísticas
   // quedaba fuera aunque su promedio fuera real. Una vez por visita: la firma
-  // de subirNotasCurso evita repetir si nada cambió. Va después de afterLogin
-  // entero para que suba el estado ya reconciliado con la nube.
+  // de subirNotasCurso evita repetir si nada cambió. Va con el estado ya
+  // reconciliado con la nube.
   if(S.onboardingDone&&typeof subirNotasCurso==='function')subirNotasCurso().catch(()=>{});
+}
+// Lo que se lee de la red al entrar y no depende de S. No bloquea nada.
+function cargasAlEntrar(){
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL
   // del marketplace todavía no está aplicado, la consulta falla en silencio y
@@ -1337,9 +1409,12 @@ async function subirConVersion(uid){
 // objetos que ya no están en el estado y esa edición se perdería al guardar.
 // Se reintenta en un rato; la base no cambia, así que el choque se repite y se
 // resuelve cuando el modal se cierre.
-function fusionarConNube(uid,base,cloud){
+function modalAbiertoSync(){
   const modal=typeof document!=='undefined'&&document.getElementById&&document.getElementById('modal');
-  if(modal&&modal.classList&&modal.classList.contains('open')){setTimeout(syncToCloud,1500);return false;}
+  return !!(modal&&modal.classList&&modal.classList.contains('open'));
+}
+function fusionarConNube(uid,base,cloud){
+  if(modalAbiertoSync()){setTimeout(syncToCloud,1500);return false;}
   const nube=normalize({...freshState(),...clonarSync(cloud)});
   S=normalize({...freshState(),...fusionarSync(base,S,nube)});
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
@@ -1353,7 +1428,14 @@ function repintarTrasFusion(){
     const activa=typeof document!=='undefined'&&document.querySelector&&document.querySelector('.screen.active');
     const id=activa&&activa.id;
     if(typeof renderHome==='function')renderHome();
-    if(id==='screen-ramo'){
+    // Las notas de la ficha se escriben en campos que guardan al soltarlos
+    // (onchange): repintar ahora borraría lo que se está tecleando. Se repinta
+    // al salir del campo; el dato no corre riesgo, porque se guarda buscando la
+    // categoría por id en la S nueva.
+    const foco=id==='screen-ramo'&&document.activeElement;
+    if(foco&&activa.contains&&activa.contains(foco)&&/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName||'')){
+      foco.addEventListener('focusout',()=>setTimeout(repintarTrasFusion,0),{once:true});
+    }else if(id==='screen-ramo'){
       if(S.ramos.some(r=>r.id===currentRamoId)&&typeof renderRamo==='function')renderRamo();
       else if(typeof goHome==='function')goHome();
     }
