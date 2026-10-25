@@ -1496,7 +1496,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -3111,8 +3111,10 @@ function confirmarEximicionActual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estado=estadoEximicion(r);
   if(!estado||!estado.puedeConfirmar){showToast('La eximición todavía no se puede confirmar',true);return;}
+  const examenes=estado.regla.etiqueta?`de ${estado.regla.etiqueta}`:`del ${estado.regla.evaluacion}`;
+  const requisito=estado.regla.confirmar?` y que ${estado.regla.confirmar}`:'';
   showConfirm('¿Confirmar tu eximición?',
-    `Tu nota de presentación es ${nf(estado.promedio)}. Confirma que ya ingresaste todas tus notas previas al examen y que cumples la asistencia de Taller exigida por tu sección. El examen dejará de aparecer y tu presentación quedará como nota final.`,()=>{
+    `Tu nota de presentación es ${nf(estado.promedio)}. Confirma que ya ingresaste todas tus notas previas al examen${requisito}. Te eximirás ${examenes} y tu presentación quedará como nota final.`,()=>{
       r.eximicionConfirmada=true;save();track('confirmar_eximicion');renderRamo();
     },{label:'Confirmar eximición',danger:false});
 }
@@ -5926,6 +5928,8 @@ function reglasNoCalculadas(ramo){
   const pendientes=reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
   const def=definicionPresetDelRamo(ramo);
   const calculadas=reglasCalculoVigentes(ramo);
+  if(def?.eximicion?.requierePautaOriginal===true&&!estadoEximicion(ramo))
+    pendientes.push('La eximición necesita la pauta del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
   const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
   const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
   const optativos=!Array.isArray(def)&&def&&(def.reemplazosOptativos||[]).length;

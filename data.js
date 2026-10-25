@@ -2266,7 +2266,8 @@ const PRESETS_FEN={
     // (3 dic) no es una evaluación aparte, así que no va como fila.
     periodo:'2026-2',
     creditos:6,
-    noCalcula:['Examen de Segunda Fecha para quien saque bajo 3,0 en el examen pero tenga promedio ≥ 3,95'],
+    segundaFecha:{evaluacion:'Examen Final',examenMenorQue:3,promedioPonderadoMin:3.95,
+      requiereTodas:true,aviso:'Confirma con la Escuela los requisitos y la fecha. La app no calcula el resultado'},
     // El programa lista los tres solemnes por separado: van como filas propias,
     // y así cada uno lleva su fecha a la agenda.
     //
@@ -2570,10 +2571,12 @@ const PRESETS_FEN={
   'Métodos Matemáticos I':{
     creditos:6,
     periodo:'2026-2',
+    segundaFecha:{evaluacion:'Examen',examenMenorQue:3,promedioPonderadoMin:3.95,
+      requiereTodas:true,aviso:'Confirma con la Escuela los requisitos y la fecha. La app no calcula el resultado'},
     noCalcula:[
       'Cada evaluación que no rindas se califica con 1,0',
-      'Hay Examen de Segunda Fecha en dos casos: si la Secretaría de Estudios te justificó la inasistencia a una solemne o al examen, o si sacaste bajo 3,0 en el examen pero tu promedio ponderado quedó en 3,95 o más',
     ],
+    reglasDelCurso:['Una inasistencia a una solemne o al examen justificada por la Secretaría también puede dar derecho al Examen de Segunda Fecha. La app no conoce esa resolución'],
     evals:[
       ['Solemne 1',20],
       ['Solemne 2',20],
@@ -2747,6 +2750,11 @@ const PRESETS_UAI={
   // requiere haber rendido el primer examen en la fecha indicada.
   'Matemáticas Avanzadas I':{
     periodo:'2026-2',creditos:6,
+    eximicion:{evaluacion:'Examen',segun:['Talleres','Controles','Pruebas'],min:5,
+      ignoraDescartes:true,comparaNotaOficial:true,sinAusenciasJustificadas:true,
+      requierePautaOriginal:true},
+    segundaFecha:{evaluacion:'Examen',finalMin:3.5,finalMax:3.9,requiereTodas:true,
+      aviso:'Si rendiste el examen en la fecha indicada, consulta por el segundo examen. La app no calcula su resultado'},
     ausenciasJustificadas:{reemplazosCasilla:[
       {desde:'Talleres',desdeSlot:0,hacia:'Pruebas',haciaSlot:0},
       {desde:'Talleres',desdeSlot:1,hacia:'Pruebas',haciaSlot:1},
@@ -2765,8 +2773,7 @@ const PRESETS_UAI={
       ['Examen',30],
     ],
     noCalcula:[
-      'Con presentación de al menos 5,0 puedes eximirte: la final queda en la presentación. Si rindes el examen voluntariamente, su nota cuenta aunque baje el promedio',
-      'Solo si rendiste el examen en la fecha indicada y la final queda entre 3,5 y 3,9, puedes rendir un segundo examen: aprobarlo deja la final en 4,0; reprobarlo conserva la final anterior',
+      'Si apruebas el segundo examen, la final queda en 4,0; si lo repruebas, conservas la final anterior. La app solo avisa cuándo podrías rendirlo',
     ],
     reglasDelCurso:[
       'Programa MAT124 UAI 2026-2, sección 2, Santiago. Esta pauta calcula el camino con examen',
@@ -2779,6 +2786,13 @@ const PRESETS_UAI={
   // redondean sus pesos internos 2,625/6,125 ni se los confunde con 30/70 final.
   'Razonamiento Cuantitativo con Datos I':{
     periodo:'2026-2',
+    eximicion:{evaluaciones:['Examen teórico','Examen práctico'],etiqueta:'los exámenes teórico y práctico',
+      segun:['Pruebas teóricas','Controles','Trabajo aplicado'],min:5,
+      minimos:[{evaluaciones:['Pruebas teóricas'],min:4},
+        {evaluaciones:['Controles','Trabajo aplicado'],min:4}],
+      ignoraDescartes:true,comparaNotaOficial:true,sinAusenciasJustificadas:true,
+      requierePautaOriginal:true,
+      ocultaEvaluacion:true},
     ausenciasJustificadas:{reemplazosCasilla:[
       {desde:'Pruebas teóricas',desdeSlot:0,hacia:'Examen teórico'},
       {desde:'Pruebas teóricas',desdeSlot:1,hacia:'Examen teórico'},
@@ -2796,14 +2810,13 @@ const PRESETS_UAI={
       ['Examen práctico',15],
     ],
     noCalcula:[
-      'Puedes eximirte con presentación de al menos 5,0 y con ET y EP de al menos 4,0 cada una. Sin examen la final es 50% ET y 50% EP',
       'Tras rendir el examen, ET y EP deben ser al menos 4,0. Si no se cumple, el curso se reprueba con la menor de ET y EP; este promedio no aplica esa sustitución',
-      'Con una ausencia justificada debes rendir ambos exámenes; no puedes eximirte. La app aún no calcula esa eximición en este ramo',
     ],
     reglasDelCurso:[
       'Programa MAT125 UAI 2026-2, cátedra de Macarena Larrain. Esta pauta calcula el camino con examen',
       'ET es el promedio de dos pruebas; EP es 75% promedio de cinco controles y 25% Trabajo aplicado',
       'En Trabajo aplicado ingresa su nota consolidada: 30% informe y 70% archivo Excel. Los trabajos no son justificables',
+      'Si declaraste una ausencia justificada, tienes que rendir ambos exámenes y no puedes eximirte',
     ],
   },
   // Fuente: Syllabus Intro a la Microeconomía 2026_02.pdf, ECO122, pp.1,5–6.
@@ -2935,6 +2948,14 @@ const PRESETS_UAI={
   // laboratorios sí —cinco, y cuentan los cuatro mejores.
   'Razonamiento Cuantitativo con Datos II':{
     periodo:'2026-2',
+    eximicion:{evaluaciones:['Examen teórico','Examen práctico'],etiqueta:'los exámenes teórico y práctico',
+      segun:['Pruebas','Laboratorios','Trabajo grupal'],min:5,
+      minimos:[{evaluaciones:['Pruebas'],min:4},
+        {evaluaciones:['Laboratorios','Trabajo grupal'],min:4}],
+      ignoraDescartes:false,comparaNotaOficial:true,sinAusenciasJustificadas:true,
+      requierePautaOriginal:true,
+      requiereConfirmacion:true,confirmar:'rendiste todas las pruebas de la pauta',
+      ocultaEvaluacion:true},
     evals:[
       ['Pruebas',35],
       ['Laboratorios',26.25,{slots:5,dropLowest:{count:1}}],
@@ -2946,11 +2967,9 @@ const PRESETS_UAI={
       {nombre:'Nota teórica',evals:['Pruebas','Examen teórico'],min:4.0,cap:'self'},
       {nombre:'Nota práctica',evals:['Laboratorios','Trabajo grupal','Examen práctico'],min:4.0,cap:'self'},
     ],
-    noCalcula:[
-      'Te eximes del examen si la nota de presentación es al menos 5,0 y las notas teórica y práctica son ambas al menos 4,0. No se declara como eximición porque el examen son dos evaluaciones separadas y el modelo exime de una',
-    ],
     reglasDelCurso:[
       'Una inasistencia justificada a prueba o laboratorio se reemplaza con la parte correspondiente del examen',
+      'Si declaraste una inasistencia justificada, tienes que rendir los exámenes y no puedes eximirte',
     ],
   },
   // Programa oficial UAI 2026-2, CORE.
