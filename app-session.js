@@ -926,6 +926,10 @@ async function afterLogin(){
   if(typeof propuestasRamosAgente!=='undefined')propuestasRamosAgente=[];
   if(typeof renderPropuestasPautaHome==='function')renderPropuestasPautaHome();
   if(uid)restaurarCacheApartada(uid);
+  // El aviso de Inicio se pide ya, con la universidad de la copia local, para
+  // que llegue junto con las notas. Si la nube trae otra, Inicio lo vuelve a pedir.
+  if(uid&&getCacheOwner()===uid&&S&&S.tenant&&typeof cargarAnunciosRecomendacion==='function')
+    cargarAnunciosRecomendacion(S.tenant,()=>{});
   let cloud,ok=true;
   // Solo la lectura remota es recuperable: si falla, la copia local ya fue
   // normalizada al cargar y además está protegida por el dueño de la caché.
