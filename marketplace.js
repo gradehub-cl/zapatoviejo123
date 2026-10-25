@@ -586,7 +586,11 @@ function fondoDetrasClase(el){
 }
 function revisarLogoClase(img){
   const caja=img.parentElement;
-  if(!caja||!img.naturalWidth||img.dataset.contorno==='1')return;
+  if(!caja||!img.naturalWidth)return;
+  // Primero el margen transparente: si se recorta, el logo vuelve a cargar y
+  // esta función corre de nuevo con la imagen ya recortada.
+  try{if(recortarMargenLogoClase(img))return;}catch(e){}
+  if(img.dataset.contorno==='1')return;
   // Un logo casi cuadrado o redondo, a la misma altura que uno ancho, queda
   // chico y su texto ilegible (TuApunte, 2026-10-25): se le da más alto.
   if(caja.classList)caja.classList.toggle('logo-cuadrado',img.naturalWidth/img.naturalHeight<1.4);
@@ -606,17 +610,71 @@ function revisarLogoClase(img){
   const logo=suma/visibles,fondo=fondoDetrasClase(caja);
   if((Math.max(logo,fondo)+.05)/(Math.min(logo,fondo)+.05)<2)dibujarContornoLogoClase(img,caja);
 }
-// El contorno se dibuja en un canvas y el logo pasa a ser esa imagen. Antes
-// era un `filter: drop-shadow` de 0,8px encadenado: Chrome lo dibujaba nítido
-// y Safari (Mac y iPhone) como un halo borroso que dejaba el logo casi
-// ilegible (2026-09-26, logo de SalvaRamos). Pintado a mano se ve igual en
-// todos los navegadores: un borde fino del color del texto y un halo suave.
-// Safari achica una imagen grande en un canvas de una sola vez y sin
-// suavizado: en un logo de 1000 px llevado a 190 las letras finas desaparecen
-// (TuApunte en iPhone, 2026-10-25). Bajando de a la mitad cada paso promedia
-// bien, y en Chrome se ve igual que antes.
+// Se prepara una vez, a la resolución original (sin achicar nada; después el
+// navegador escala la imagen como cualquier otra). Dos arreglos (TuApunte,
+// 2026-10-25: un círculo dentro de un PNG de 1080×1350, con las letras
+// caladas):
+// - El margen transparente se recorta: si no, el logo ocupa dos tercios de su
+//   espacio y se ve chico.
+// - Si el logo es una insignia (un círculo o un cuadrado lleno), sus huecos se
+//   rellenan de blanco. Las letras caladas se diseñaron sobre blanco: en el
+//   tema oscuro dejaban ver el fondo y desaparecían. Un logo de solo letras no
+//   se toca: el interior de su «o» no es un hueco de insignia.
+function recortarMargenLogoClase(img){
+  if(img.dataset.recorte)return false;
+  img.dataset.recorte='1';
+  const W=img.naturalWidth,H=img.naturalHeight,esc=128/Math.max(W,H);
+  const sw=Math.max(1,Math.round(W*esc)),sh=Math.max(1,Math.round(H*esc));
+  const c=document.createElement('canvas');c.width=sw;c.height=sh;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,sw,sh);
+  const d=x.getImageData(0,0,sw,sh).data;
+  let x0=sw,y0=sh,x1=-1,y1=-1;
+  for(let y=0;y<sh;y++)for(let i=0;i<sw;i++)if(d[(y*sw+i)*4+3]>8){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y;}
+  if(x1<0)return false;
+  // A píxeles originales, con un píxel de muestra de holgura por lado.
+  const ox=Math.max(0,Math.floor((x0-1)/esc)),oy=Math.max(0,Math.floor((y0-1)/esc));
+  let ow=Math.min(W,Math.ceil((x1+2)/esc))-ox,oh=Math.min(H,Math.ceil((y1+2)/esc))-oy;
+  const recorta=ow*oh<=W*H*.85;
+  // Un logo enorme se trabaja a 1200 px como máximo, bajando de a la mitad.
+  const tope=Math.min(1,1200/Math.max(ow,oh)),fw=Math.max(1,Math.round(ow*tope)),fh=Math.max(1,Math.round(oh*tope));
+  const recorte=document.createElement('canvas');recorte.width=ow;recorte.height=oh;
+  recorte.getContext('2d').drawImage(img,ox,oy,ow,oh,0,0,ow,oh);
+  const r=tope<1?reducirImagenClase({naturalWidth:ow,naturalHeight:oh,_c:recorte},fw,fh):recorte;
+  const rellena=rellenarHuecosInsigniaClase(r);
+  if(!recorta&&!rellena)return false;
+  img.src=r.toDataURL('image/png');
+  return true;
+}
+// Lo transparente que toca el borde es el exterior; lo transparente encerrado
+// es un hueco. Solo si lo encerrado por la silueta ocupa al menos el 60% del
+// recuadro (un círculo ocupa el 78%) es una insignia y se rellena.
+function rellenarHuecosInsigniaClase(canvas){
+  const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const im=ctx.getImageData(0,0,w,h),d=im.data,n=w*h;
+  const fuera=new Uint8Array(n),cola=new Int32Array(n);let ini=0,fin=0;
+  const mirar=p=>{if(!fuera[p]&&d[p*4+3]<250){fuera[p]=1;cola[fin++]=p;}};
+  for(let i=0;i<w;i++){mirar(i);mirar((h-1)*w+i);}
+  for(let y=0;y<h;y++){mirar(y*w);mirar(y*w+w-1);}
+  while(ini<fin){
+    const p=cola[ini++],px=p%w;
+    if(px>0)mirar(p-1);if(px<w-1)mirar(p+1);if(p>=w)mirar(p-w);if(p<n-w)mirar(p+w);
+  }
+  let dentro=0,huecos=0;
+  for(let p=0;p<n;p++)if(!fuera[p]){dentro++;if(d[p*4+3]<250)huecos++;}
+  if(!huecos||dentro<n*.6)return false;
+  for(let p=0;p<n;p++){
+    if(fuera[p])continue;
+    const k=p*4,a=d[k+3]/255;
+    if(a>=1)continue;
+    d[k]=Math.round(d[k]*a+255*(1-a));d[k+1]=Math.round(d[k+1]*a+255*(1-a));d[k+2]=Math.round(d[k+2]*a+255*(1-a));d[k+3]=255;
+  }
+  ctx.putImageData(im,0,0);
+  return true;
+}
+// Safari achica una imagen grande en un canvas de una vez y sin suavizado;
+// bajando de a la mitad cada paso promedia bien. Se usa para la silueta.
 function reducirImagenClase(img,w,h){
-  let fuente=img,fw=img.naturalWidth,fh=img.naturalHeight;
+  let fuente=img._c||img,fw=img.naturalWidth,fh=img.naturalHeight;
   while(fw/2>=w*1.5&&fh/2>=h*1.5){
     const paso=document.createElement('canvas');paso.width=Math.round(fw/2);paso.height=Math.round(fh/2);
     const cp=paso.getContext('2d');cp.imageSmoothingEnabled=true;cp.imageSmoothingQuality='high';
@@ -627,31 +685,43 @@ function reducirImagenClase(img,w,h){
   co.drawImage(fuente,0,0,w,h);
   return out;
 }
+// El contorno va en una capa aparte, detrás del logo. Antes el logo se
+// redibujaba dentro del canvas del contorno, y Safari al achicarlo borraba
+// las letras finas (TuApunte en iPhone, 2026-10-25). Ahora el logo es la
+// imagen original, que el navegador escala bien, y el canvas solo lleva el
+// borde fino del color del texto y un halo suave. Antes era un `filter:
+// drop-shadow`, que Safari dibujaba como un halo borroso (2026-09-26).
 function dibujarContornoLogoClase(img,caja){
-  if(img.dataset.contorno==='1')return;
   try{
+    caja.querySelectorAll('.logo-clase-borde').forEach(b=>b.remove());
     const dpr=Math.min(3,Math.max(1,(typeof devicePixelRatio==='number'&&devicePixelRatio)||1));
-    const alto=Math.max(24,caja.clientHeight||44)*dpr;
-    const esc=alto/img.naturalHeight,w=Math.max(1,Math.round(img.naturalWidth*esc)),h=Math.max(1,Math.round(alto));
+    // El tamaño con que se ve el logo: object-fit: contain dentro de su caja.
+    const bw=img.clientWidth||caja.clientWidth||44,bh=img.clientHeight||caja.clientHeight||44;
+    const k=Math.min(bw/img.naturalWidth,bh/img.naturalHeight);
+    const w=Math.max(1,Math.round(img.naturalWidth*k*dpr)),h=Math.max(1,Math.round(img.naturalHeight*k*dpr));
     const borde=1.2*dpr,halo=3.5*dpr,pad=Math.ceil(halo+1);
     const color=String(getComputedStyle(caja).getPropertyValue('--fg')||'').trim()||'#f1f1f3';
-    // El logo ya achicado con cuidado: de él salen la silueta y la imagen final.
-    const chico=reducirImagenClase(img,w,h);
     // La silueta del logo en el color del texto.
     const sil=document.createElement('canvas');sil.width=w;sil.height=h;
-    const cs=sil.getContext('2d');cs.drawImage(chico,0,0);
+    const cs=sil.getContext('2d');cs.drawImage(reducirImagenClase(img,w,h),0,0);
     cs.globalCompositeOperation='source-in';cs.fillStyle=color;cs.fillRect(0,0,w,h);
     const out=document.createElement('canvas');out.width=w+2*pad;out.height=h+2*pad;
     const co=out.getContext('2d');
     // Halo suave: la silueta corrida en un anillo ancho, casi transparente.
     co.globalAlpha=.07;
-    for(let k=0;k<24;k++){const a=k/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*halo,pad+Math.sin(a)*halo);}
+    for(let n=0;n<24;n++){const a=n/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*halo,pad+Math.sin(a)*halo);}
     // Borde fino y opaco.
     co.globalAlpha=1;
-    for(let k=0;k<16;k++){const a=k/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
-    co.drawImage(chico,pad,pad);
+    for(let n=0;n<16;n++){const a=n/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
+    // Debajo del logo no queda nada: solo el anillo de afuera.
+    co.globalCompositeOperation='destination-out';co.drawImage(sil,pad,pad);
+    const capa=document.createElement('img');
+    capa.className='logo-clase-borde';capa.alt='';capa.setAttribute('aria-hidden','true');
+    capa.src=out.toDataURL('image/png');
+    capa.style.width=out.width/dpr+'px';capa.style.height=out.height/dpr+'px';
+    capa.style.left=img.offsetLeft+img.offsetWidth/2+'px';capa.style.top=img.offsetTop+img.offsetHeight/2+'px';
+    caja.insertBefore(capa,img);
     img.dataset.contorno='1';
-    img.src=out.toDataURL('image/png');
     caja.classList.add('logo-contorno');
   }catch(e){}
 }
