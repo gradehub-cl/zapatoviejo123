@@ -200,6 +200,18 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     chk('y no se escribe nada de vuelta',nube.escrituras===antes);
   }
   {
+    // La copia del disco y la de la nube traen las mismas claves en otro
+    // orden (normalize sobre lo leído vs. sobre freshState + la nube). Antes
+    // cada apertura subía una copia idéntica y movía `_rev`.
+    const nube=createNubeYa();
+    const pc=await preparar(nube);await pc.subir();
+    const antes=nube.escrituras,rev=nube.filas.get('u1')._rev;
+    for(let i=0;i<2;i++){const d=dispositivo(nube,pc.almacen);await d.entrar('u1');await esperar(30);}
+    chk('reabrir sin cambios no escribe en la nube',nube.escrituras===antes&&nube.filas.get('u1')._rev===rev);
+    chk('igualSync no mira el orden de las claves',pc.run(`igualSync({a:1,b:{c:2,d:[{x:1,y:2}]}},{b:{d:[{y:2,x:1}],c:2},a:1})`));
+    chk('pero sí el de las listas',!pc.run(`igualSync([1,2],[2,1])`)&&!pc.run(`igualSync({a:1},{a:1,b:2})`));
+  }
+  {
     // Caché de otra cuenta en un navegador compartido: nunca se mezcla.
     const nube=createNubeYa();
     nube.filas.set('u2',estadoInicial());

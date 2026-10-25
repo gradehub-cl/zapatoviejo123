@@ -214,6 +214,26 @@ function copiarRecuperativo(regla){
   if(!regla||!Number.isFinite(regla.min)||!Number.isFinite(regla.max)||!Number.isFinite(regla.nota)||regla.min>regla.max)return null;
   return {min:regla.min,max:regla.max,nota:regla.nota};
 }
+function copiarReemplazosOptativos(lista){
+  const reglas=(Array.isArray(lista)?lista:[]).filter(r=>r&&['mezcla','reemplazo'].includes(r.tipo)&&
+    typeof r.fuenteId==='string'&&Array.isArray(r.destinosIds)&&r.destinosIds.length&&
+    r.destinosIds.every(id=>typeof id==='string')&&
+    (!r.rendidasIds||Array.isArray(r.rendidasIds)&&r.rendidasIds.every(id=>typeof id==='string'))&&
+    (r.tipo!=='mezcla'||Number.isFinite(r.fraccion)&&r.fraccion>0&&r.fraccion<=1))
+    .map(r=>({tipo:r.tipo,fuenteId:r.fuenteId,destinosIds:r.destinosIds.slice(),
+      rendidasIds:(r.rendidasIds||[]).slice(),...(Number.isFinite(r.minFuente)?{minFuente:r.minFuente}:{}),
+      ...(r.cantidad==='todas'?{cantidad:'todas'}:{}),
+      ...(r.tipo==='mezcla'?{fraccion:r.fraccion}:{})}));
+  return reglas.length?reglas:null;
+}
+function resolverReemplazosOptativos(def,categorias){
+  const lista=!Array.isArray(def)&&def&&def.reemplazosOptativos;
+  if(!Array.isArray(lista))return null;
+  const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c&&c.id;};
+  return copiarReemplazosOptativos(lista.map(r=>({tipo:r.tipo,fuenteId:idDe(r.fuente),
+    destinosIds:(r.destinos||[]).map(idDe),rendidasIds:(r.rendidas||[]).map(idDe),
+    minFuente:r.minFuente,fraccion:r.fraccion,cantidad:r.cantidad})).filter(r=>r.fuenteId&&r.destinosIds.every(Boolean)&&r.rendidasIds.every(Boolean)));
+}
 function copiarReglasAusenciaIds(regla){
   if(!regla)return null;
   const copiar=lista=>(Array.isArray(lista)?lista:[]).filter(x=>x&&typeof x.desdeId==='string'&&typeof x.haciaId==='string').map(x=>({desdeId:x.desdeId,haciaId:x.haciaId}));
@@ -329,6 +349,7 @@ function normalize(data) {
     // La regla oficial y lo que el estudiante declaró son distintos: la regla
     // se puede actualizar desde catálogo; la declaración nunca se inventa.
     recuperativo: copiarRecuperativo(r.recuperativo),
+    reemplazosOptativos: copiarReemplazosOptativos(r.reemplazosOptativos),
     recuperativoRendido: ['aprobado','reprobado'].includes(r.recuperativoRendido) ? r.recuperativoRendido : null,
     // La regla viene del programa; la declaración solo dice qué ausencia fue
     // aprobada. Sin declaración, una cuenta anterior calcula exactamente igual.
@@ -443,7 +464,7 @@ function normalize(data) {
     migrarOrigenesFecha(r);
     repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
-    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
+    if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
     // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón
     // deja su promedio calculando con nuestro error. Se reconoce por la pauta
@@ -487,6 +508,19 @@ function normalize(data) {
     const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
     if(bonusOficial)r.bonus=bonusOficial;
     else delete r.bonus;
+    // La regla usa los ids actuales. Una pauta editada no hereda reglas de otra.
+    const defOptativo=definicionPresetDelRamo(r);
+    const oficialOptativo=defOptativo&&huellaPauta(catsDePauta(r.categorias))===
+      huellaPauta((defOptativo.evals||[]).map(([nombre,peso])=>({nombre,peso})))
+      ?resolverReemplazosOptativos(defOptativo,r.categorias):null;
+    if(oficialOptativo){
+      r.reemplazosOptativos=oficialOptativo;
+      (defOptativo.evals||[]).filter(([,peso,extra])=>peso===0&&extra?.optativa===true).forEach(([nombre])=>{
+        const c=r.categorias.find(x=>normName(x.nombre)===normName(nombre));
+        if(c&&c.peso===0)c.optativa=true;
+      });
+    }
+    else delete r.reemplazosOptativos;
     // Igual que el recuperativo, la regla llega a los ramos oficiales creados
     // antes de publicarla, sin activar nada por sí sola.
     if(!r.reglasAusenciaJustificada){
@@ -1462,7 +1496,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -2325,7 +2359,7 @@ function completeOnboarding(){
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
-    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:item.nombre,color:nextRamoColor(item.nombre),origen:item.manual?null:origenActual(item.nombre,item.sigla),creditos,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   S.onboardingDone=true;save();
@@ -2619,8 +2653,10 @@ function recalcularNavTabs(){
   const conAdmin=typeof esAdministrador==='function'&&esAdministrador();
   // Un profesor aprobado tiene Clases (sus anuncios) y Alumnos (el panel), en
   // pestañas separadas (#697).
-  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor','alumnos']:[]),...(conAdmin?['admin']:[])];
-  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conProfesor],['admin',conAdmin]].forEach(([t,ver])=>{
+  // Un admin puede ocultarle Alumnos a un profesor (2026-10-23).
+  const conAlumnos=conProfesor&&!(typeof panelAlumnosOculto==='function'&&panelAlumnosOculto());
+  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[])];
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
@@ -2634,6 +2670,28 @@ function recalcularNavTabs(){
 }
 let currentTab='home';
 let currentTabIdx=1;
+
+// ─── VISTAS DE CLASES Y ALUMNOS EN LA BARRA (Lucas, 2026-10-22) ──────────────
+// En pantalla ancha, Clases y Alumnos son grupos de la barra lateral, como en
+// Supabase: tocar el grupo abre su Resumen y despliega sus secciones; tocar una
+// sección abre esa vista. En el celular la barra de abajo no se despliega
+// (HIG: Tab bars) y las mismas vistas están en el control de cada pantalla.
+// Cada panel, al pintarse, deja acá cómo cambiar de vista sin recargar.
+const vistasPanelNav={};
+const vistaPendienteNav={};
+// La vista que pidió la barra, una sola vez: el panel la toma al pintarse.
+function tomarVistaNav(tab){const v=vistaPendienteNav[tab];delete vistaPendienteNav[tab];return v||null;}
+function marcarVistaNav(tab,vista){
+  if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
+  document.querySelectorAll(`[data-nav-vista^="${tab}:"]`).forEach(b=>{
+    if(b.dataset.navVista===`${tab}:${vista}`)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+  });
+}
+function irAVistaNav(tab,vista='resumen'){
+  if(currentTab===tab&&typeof vistasPanelNav[tab]==='function'){vistasPanelNav[tab](vista);return;}
+  vistaPendienteNav[tab]=vista;
+  showTab(tab);
+}
 
 function setTabTransforms(idx, dragPx){
   const drag=dragPx||0;
@@ -2657,6 +2715,13 @@ function showTab(tab,skipAnim){
     currentTab=tab;currentTabIdx=NAV_TABS.indexOf(tab);
     setTabTransforms(currentTabIdx,0);
     const nb=document.getElementById('nav-'+tab);if(nb){nb.classList.add('active');nb.setAttribute('aria-current','page');}
+    // aria-expanded solo con barra lateral: abajo no hay nada que desplegar.
+    const conRiel=typeof matchMedia==='function'&&matchMedia('(min-width:1024px)').matches;
+    if(typeof document.querySelectorAll==='function')document.querySelectorAll('[data-nav-grupo]').forEach(g=>{
+      const abierto=g.dataset.navGrupo===tab;g.hidden=!abierto;
+      const dueño=document.getElementById('nav-'+g.dataset.navGrupo);
+      if(dueño){if(conRiel)dueño.setAttribute('aria-expanded',String(abierto));else dueño.removeAttribute('aria-expanded');}
+    });
     // Refresca la tab visible (por si cambiaron datos)
     if(tab==='home')renderHome();
     else if(tab==='stats')renderStats();
@@ -3046,8 +3111,10 @@ function confirmarEximicionActual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estado=estadoEximicion(r);
   if(!estado||!estado.puedeConfirmar){showToast('La eximición todavía no se puede confirmar',true);return;}
+  const examenes=estado.regla.etiqueta?`de ${estado.regla.etiqueta}`:`del ${estado.regla.evaluacion}`;
+  const requisito=estado.regla.confirmar?` y que ${estado.regla.confirmar}`:'';
   showConfirm('¿Confirmar tu eximición?',
-    `Tu nota de presentación es ${nf(estado.promedio)}. Confirma que ya ingresaste todas tus notas previas al examen y que cumples la asistencia de Taller exigida por tu sección. El examen dejará de aparecer y tu presentación quedará como nota final.`,()=>{
+    `Tu nota de presentación es ${nf(estado.promedio)}. Confirma que ya ingresaste todas tus notas previas al examen${requisito}. Te eximirás ${examenes} y tu presentación quedará como nota final.`,()=>{
       r.eximicionConfirmada=true;save();track('confirmar_eximicion');renderRamo();
     },{label:'Confirmar eximición',danger:false});
 }
@@ -3481,6 +3548,15 @@ function firmaReglasCalculo(r){
     traspasos:(g.traspasos||[]).map(e=>({desde:nombres.get(e.desdeId),hacia:nombres.get(e.haciaId)})),
   })));
 }
+// Un requisito de grupo (`group_min`) que el catálogo agrega o saca también es
+// un cambio de pauta: sin esto, quien ya tenía el ramo seguía viendo su nota sin
+// el tope. Se compara por lo que calcula —mínimo, tope y evaluaciones por
+// nombre— y no por `nombre`, que es solo la etiqueta y no mueve ninguna nota.
+function requisitosDeGrupo(r){
+  const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
+  return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,
+    clave:JSON.stringify([g.min,g.cap,(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
+}
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
   const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
@@ -3491,11 +3567,18 @@ function cambioDePauta(r){
   if(actual!==r.pautaHuella)return null;      // la editó: no se opina
   const oficial=huellaPauta(p.categorias);
   const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
-  if(oficial===actual&&!reglasCambian)return null; // al día
+  const reqAntes=requisitosDeGrupo(r),reqDespues=requisitosDeGrupo(p);
+  const claves=lista=>new Set(lista.map(g=>g.clave));
+  const reqLlegan=reqDespues.filter(g=>!claves(reqAntes).has(g.clave));
+  const reqSeVan=reqAntes.filter(g=>!claves(reqDespues).has(g.clave));
+  if(oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
+  const minimo=g=>simConComa(nf(g.min));
+  reqLlegan.forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más`}));
+  reqSeVan.forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
@@ -3565,6 +3648,7 @@ function aplicarCambioDePauta(r,cambio){
   r.aporta=cambio.preset.aporta||null;
   r.promedioParcial=cambio.preset.promedioParcial||null;
   r.recuperativo=cambio.preset.recuperativo||null;
+  r.reemplazosOptativos=traducirIdsCategoria(cambio.preset.reemplazosOptativos||null,ids);
   r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
@@ -3689,7 +3773,7 @@ function repararEvaluacionesRepetidas(r){
   r.categorias=r.categorias.filter(c=>!fuera.has(c&&c.id));
   Object.keys(mapa).forEach(desde=>{r.gates=unificarCategoriaEnReglas(r.gates,desde,mapa[desde]);});
   if(Array.isArray(r.ausenciasJustificadas))r.ausenciasJustificadas=[...new Set(traducirIdsCategoria(r.ausenciasJustificadas,mapa))];
-  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
+  ['reglasAusenciaJustificada','reglasAusenciaJustificadaUsuario','bonus','reemplazosOptativos'].forEach(k=>{if(r[k])r[k]=traducirIdsCategoria(r[k],mapa);});
   return true;
 }
 // Una evaluación absorbe a otra: sus reglas apuntan a la que queda y las que
@@ -3736,6 +3820,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
     const id=uid();
     const cat={id,nombre:nom,peso,ponderaNotas:false,directNota:true,notas:[]};
     if(extra&&extra.slots)cat.slots=extra.slots;
+    if(extra&&extra.optativa===true&&peso===0)cat.optativa=true;
     if(extra&&typeof extra.slotLabel==='string')cat.slotLabel=extra.slotLabel;
     if(extra&&Number.isInteger(extra.slotStart))cat.slotStart=extra.slotStart;
     if(extra&&Array.isArray(extra.nombresCasillas))cat.nombresCasillas=extra.nombresCasillas.slice();
@@ -3774,9 +3859,10 @@ function presetRamo(nombre,tenant,carrera,ahora){
     traspasos:limite.desde.map(n=>({desdeId:porNombre[n],haciaId:porNombre[limite.hacia]}))});
   const recuperativo=!Array.isArray(def)?copiarRecuperativo(def.recuperativo):null;
   const reglasAusenciaJustificada=resolverReglasAusencia(def,categorias);
+  const reemplazosOptativos=resolverReemplazosOptativos(def,categorias);
   const bonus=resolverBonus(def,categorias);
   const promedioParcial=!Array.isArray(def)&&def.promedioParcial==='por-casilla'?'por-casilla':null;
-  return {categorias,gates,aporta,recuperativo,reglasAusenciaJustificada,bonus,promedioParcial,periodo,estadoPeriodo,
+  return {categorias,gates,aporta,recuperativo,reemplazosOptativos,reglasAusenciaJustificada,bonus,promedioParcial,periodo,estadoPeriodo,
     creditos:(!Array.isArray(def)&&typeof def.creditos==='number')?def.creditos:null};
 }
 
@@ -3795,7 +3881,7 @@ function confirmAddMalla(){
     // estrella de "pauta oficial" al lado, porque el selector SÍ normaliza.
     const presetName=findPresetName(n,S.tenant,S.carrera);
     const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+    S.ramos.push({id:uid(),nombre:n,color:nextRamoColor(n),origen:origenActual(n),categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
     consensoAlAgregar(S.ramos[S.ramos.length-1]);
   });
   save();track('add_malla_ramos',{count:elegidos.length,carrera:S.carrera,sem:S.careerSemestre});
@@ -3905,7 +3991,7 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const ramo={
     id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
     creditos,origen:origenActual(presetName||nombre,sigla),
-    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
+    categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
   consensoAlAgregar(ramo);
@@ -5842,10 +5928,14 @@ function reglasNoCalculadas(ramo){
   const pendientes=reglasDelPreset(ramo,'noCalcula').concat(sinCargar);
   const def=definicionPresetDelRamo(ramo);
   const calculadas=reglasCalculoVigentes(ramo);
+  if(def?.eximicion?.requierePautaOriginal===true&&!estadoEximicion(ramo))
+    pendientes.push('La eximición necesita la pauta del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
   const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
   const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
+  const optativos=!Array.isArray(def)&&def&&(def.reemplazosOptativos||[]).length;
   if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
   if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
+  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a su pauta. Si la personalizaste, tu versión se conserva');
   const ausencias=estadoAusenciasJustificadas(ramo);
   if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
   return pendientes;
@@ -5861,6 +5951,15 @@ function reglasCalculadas(ramo){
   const calculo=calculoRamoConCompuertas(ramo);
   const formulas=calculo.res.formulas||[];
   const notas=formulas.map(f=>`${f.nombre}: ${f.ambigua?'el programa contradice el límite; confirma con el profesor':f.pendiente?'se resolverá al completar las evaluaciones que deciden la condición':f.activa?'se aplica al promedio':'no se activa con tus notas'}`);
+  if((ramo.reemplazosOptativos||[]).length){
+    const aplicados=calculo.reemplazosOptativosAplicados||[];
+    if(!aplicados.length)notas.push('Reemplazo optativo: todavía no mejora la nota o falta cumplir sus condiciones');
+    aplicados.forEach(a=>{
+      const origen=ramo.categorias.find(c=>c.id===a.fuenteId);
+      const destino=ramo.categorias.find(c=>hojasCategoria(c).some(h=>h.id===a.destinoId));
+      notas.push(`Reemplazo optativo: ${origen?.nombre||'la nota nueva'} mejora ${destino?.nombre||'una evaluación'} sin cambiar la nota que ingresaste`);
+    });
+  }
   const limite=reglasCalculoVigentes(ramo).find(g=>g.type==='absence_limit');
   if(limite)notas.push(`${limite.nombre}. Solo se mueve el peso de una prueba que declares justificada; el máximo del examen es ${limite.max}%`);
   return notas;
@@ -6055,7 +6154,7 @@ function confirmAddRamo(){
   const presetName=findPresetName(name,S.tenant,S.carrera);
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
   const cr=creditosDe(presetName||name,S.tenant,preset);
-  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
+  S.ramos.push({id:uid(),nombre:presetName||name,color:nextRamoColor(presetName||name),creditos:cr,origen:presetName?origenActual(presetName):null,categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null});
   consensoAlAgregar(S.ramos[S.ramos.length-1]);
   const despues=alAgregarRamo;
   alCancelarAgregarRamo=null;
@@ -6791,23 +6890,45 @@ function calcularNotaApp(){
   campo('guardar-aviso').textContent=elegido?.nota?.valor!=null
     ?`Guardar reemplazará la nota que ya tiene ${elegido.etiqueta}.`
     :'El puntaje obtenido y el total no se guardan.';
-  const tabla=campo('tabla');
-  if(campo('tabla-det').open&&resultado){
-    const pasos=[0.5,1,2,5,10,20,25,50,100,250,500,1000];
-    const paso=pasos.find(x=>(!Number.isInteger(t)||x>=1)&&t/x<=120)||Math.ceil(t/120/1000)*1000;
-    let filas='';
-    for(let x=0;x<t-1e-9;x+=paso){
-      const nota=gh_notaDesdePuntaje(x,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked});
-      if(nota)filas+=`<tr><td>${formatoCalculadoraApp(x,2)}</td><td>${formatoCalculadoraApp(nota.nota,1)}</td></tr>`;
-    }
-    const final=gh_notaDesdePuntaje(t,t,{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked});
-    tabla.innerHTML=filas+`<tr><td>${formatoCalculadoraApp(t,2)}</td><td>${formatoCalculadoraApp(final.nota,1)}</td></tr>`;
-  }else tabla.textContent='';
+  pintarTablaCalculadoraApp({error,t,p:hayP?p:null,escala:{exigencia:e/100,nmin,naprob,nmax,truncar:campo('truncar').checked}});
   return resultado;
+}
+// La tabla sale abierta y aparece apenas hay un total: sirve para ver toda la
+// escala antes de saber el puntaje. El incremento lo elige la persona (de a 1 o
+// de a 0,5, u otro); la fila de su puntaje, si calza, va marcada.
+let _pasoCalculadoraApp=1;
+function pintarTablaCalculadoraApp({error,t,p,escala}){
+  const tabla=document.getElementById('calc-app-tabla'),aviso=document.getElementById('calc-app-paso-aviso');
+  if(!tabla)return;
+  if(error||!(t>0)){tabla.innerHTML='';if(aviso)aviso.textContent=t>0?'':'Escribe el puntaje total para ver la tabla.';return;}
+  const {paso,ajustado,filas}=gh_tablaPuntaje(t,_pasoCalculadoraApp);
+  if(aviso)aviso.textContent=ajustado?`Con ${puntosTablaCalculadoraApp(t)} puntos la tabla va de a ${puntosTablaCalculadoraApp(paso)}.`:'';
+  tabla.innerHTML=filas.map(x=>{
+    const r=gh_notaDesdePuntaje(x,t,escala);if(!r)return '';
+    const actual=p!==null&&Math.abs(p-x)<1e-9;
+    return `<tr${actual?' class="calc-fila-actual" aria-current="true"':''}><td>${puntosTablaCalculadoraApp(x)}</td><td>${formatoCalculadoraApp(r.nota,1)}</td></tr>`;
+  }).join('');
+}
+// Puntos como se escriben: 1, 2,5, 7,25. Nada de "1,00".
+function puntosTablaCalculadoraApp(x){return String(Math.round(x*100)/100).replace('.',',');}
+function elegirPasoCalculadoraApp(valor){
+  _pasoCalculadoraApp=valor;
+  const otro=document.getElementById('calc-app-paso');if(otro){otro.value='';otro.removeAttribute('aria-invalid');}
+  document.querySelectorAll('.calc-paso-btn').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.paso)===valor)));
+  calcularNotaApp();
+}
+function escribirPasoCalculadoraApp(input){
+  const crudo=input.value.trim();
+  const v=numeroCalculadoraApp(crudo);
+  const valido=crudo!==''&&v>0;
+  input.setAttribute('aria-invalid',String(crudo!==''&&!valido));
+  _pasoCalculadoraApp=valido?v:1;
+  document.querySelectorAll('.calc-paso-btn').forEach(b=>b.setAttribute('aria-pressed',String(!valido&&Number(b.dataset.paso)===1)));
+  calcularNotaApp();
 }
 function openCalculadoraApp(){
   if(esCuentaProfesor())return;
-  _resultadoCalculadoraApp=null;_destinosCalculadoraApp=[];_exigenciaEditadaCalculadoraApp=false;
+  _resultadoCalculadoraApp=null;_destinosCalculadoraApp=[];_exigenciaEditadaCalculadoraApp=false;_pasoCalculadoraApp=1;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Calculadora de nota</div>
     <p class="modal-desc">Convierte el puntaje de una prueba a nota. Puedes calcular sin elegir un ramo.</p>
@@ -6829,8 +6950,17 @@ function openCalculadoraApp(){
       <strong id="calc-app-nota" style="display:block;font-size:2rem;font-variant-numeric:tabular-nums;">–</strong>
       <div id="calc-app-detalle" style="font-size:.8125rem;color:var(--fg2);">Escribe tu puntaje y el total de la prueba.</div>
     </div>
-    <details id="calc-app-tabla-det" ontoggle="calcularNotaApp()" style="margin-bottom:18px;"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;">Ver tabla de puntaje a nota</summary>
-      <div style="max-height:180px;overflow:auto;"><table style="width:100%;font-variant-numeric:tabular-nums;"><thead><tr><th>Puntos</th><th>Nota</th></tr></thead><tbody id="calc-app-tabla"></tbody></table></div>
+    <details id="calc-app-tabla-det" class="calc-tabla" open>
+      <summary>Tabla de puntaje a nota</summary>
+      <div class="calc-paso" role="group" aria-label="Incremento de la tabla">
+        <span class="calc-paso-label">De a</span>
+        <button type="button" class="calc-paso-btn" data-paso="1" aria-pressed="true" onclick="elegirPasoCalculadoraApp(1)">1</button>
+        <button type="button" class="calc-paso-btn" data-paso="0.5" aria-pressed="false" onclick="elegirPasoCalculadoraApp(0.5)">0,5</button>
+        <input id="calc-app-paso" class="calc-paso-otro" type="text" inputmode="decimal" autocomplete="off" placeholder="Otro" aria-label="Otro incremento, en puntos" oninput="escribirPasoCalculadoraApp(this)">
+        <span class="calc-paso-label">puntos</span>
+      </div>
+      <p id="calc-app-paso-aviso" class="calc-paso-aviso" aria-live="polite"></p>
+      <div class="calc-tabla-scroll"><table><thead><tr><th scope="col">Puntos</th><th scope="col">Nota</th></tr></thead><tbody id="calc-app-tabla"></tbody></table></div>
     </details>
     <label class="modal-label" style="font-size:.8125rem;" for="calc-app-ramo">Guardar en un ramo</label>
     <select id="calc-app-ramo" class="feedback-select" style="min-height:44px;" onchange="seleccionarRamoCalculadoraApp()">
@@ -7907,6 +8037,7 @@ function openSettings(){
       const contacto=`<p class="feedback-contact">¿Prefieres escribirnos por correo? <a id="feedback-contact" href="${esc(correoSugerenciaHref())}" onclick="actualizarCorreoSugerencia()">gradehub.app@gmail.com</a></p>`;
       return currentUser?`
       <p class="settings-help settings-help-top">¿Algo no se entiende, está fallando o podría ser mejor? Lo leemos nosotros.</p>
+      ${typeof entradaEncuestaHTML==='function'?entradaEncuestaHTML():''}
       <label class="modal-label" for="s-feedback-type">Tipo de comentario</label>
       <select class="feedback-select" id="s-feedback-type" onchange="actualizarCorreoSugerencia()">
         <option value="sugerencia">Tengo una sugerencia</option>
@@ -9532,95 +9663,8 @@ function confirmEditNota(catId,notaId){
   showToast(isNaN(val)?'Guardada como pendiente':lecturaDespuesDeNota(r));
 }
 
-// ─── CALCULADORA NOTA MÍNIMA ─────────────────────────────────────────────────
-// La factibilidad se decide con el valor real, no con el número que se muestra.
-// Redondear 7,001 a 7,0 antes de comparar hacía parecer contradictorio un
-// resultado imposible. Si se pasa del máximo, mostramos el mínimo a dos
-// decimales redondeado hacia arriba: nunca una nota menor a la que calcula el
-// motor.
-function resumenMetaCalculadora(needed){
-  const eps=1e-9;
-  if(!Number.isFinite(needed))return null;
-  if(needed>7+eps){
-    const minimo=Math.ceil((needed-eps)*100)/100;
-    return {estado:'inalcanzable',texto:minimo.toFixed(2)};
-  }
-  if(needed>=7-eps)return {estado:'maxima',texto:'7.0'};
-  if(needed<1)return {estado:'margen',texto:r2(needed).toFixed(1)};
-  // Hacia arriba, igual que el caso inalcanzable de arriba y que el resto de la
-  // app: `r2(needed).toFixed(1)` redondeaba al más cercano y podía pedir menos
-  // de lo que hace falta. `numero` conserva el valor sin redondear porque lo
-  // usan comparaciones, no la pantalla.
-  return {estado:'normal',texto:nfNecesaria(needed),numero:r2(needed)};
-}
-function openCalculadoraModal(){
-  const r=S.ramos.find(x=>x.id===currentRamoId);
-
-  document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M8 7h8"/><path d="M8 12h3"/><path d="M8 16h3"/><path d="M15 12v5"/></svg> Calculadora</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:14px;">¿Qué promedio necesitas en las evaluaciones que te faltan para llegar a tu meta?</p>
-    <label class="modal-label">Promedio meta en el ramo</label>
-    <div class="modal-input"><input type="text" inputmode="decimal" id="m-calc-target" placeholder="Ej: 5.5" oninput="calcResult()"/></div>
-    <div id="calc-result" style="min-height:52px;margin-top:4px;"></div>
-    <div class="modal-btns" style="margin-top:8px;">
-      <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
-    </div>`;
-  openModal();
-  enfocarEnHoja(document.getElementById('m-calc-target'));
-
-  window.calcResult=function(){
-    const target=parseNota(document.getElementById('m-calc-target').value);
-    const el=document.getElementById('calc-result');
-    if(isNaN(target)||target<1||target>7){el.innerHTML='';return;}
-    const descarteAbierto=reglaDescarteConCantidadAbierta(r);
-    if(descarteAbierto){
-      el.innerHTML=`<span style="color:var(--fg2)">No calculamos una nota mínima exacta mientras falte saber cuántas evaluaciones de <b>${esc(descarteAbierto.nombre)}</b> habrá. El programa descarta la peor nota, así que su efecto depende de las notas que todavía no existen.</span>`;
-      return;
-    }
-    // Compuertas: si una sección con piso ya quedó bajo su mínimo, ninguna meta ≥4.0 es alcanzable.
-    const gateHit=gatesActivas(r)[0]||null;
-    if(gateHit&&target>gateHit.cap){
-      el.innerHTML=`<span style="color:var(--red)"><b>${esc(gateHit.nombre)}</b> está bajo ${gateHit.min.toFixed(1)}: la nota queda topada en ${gateHit.cap.toFixed(1)}. Para llegar a ${target.toFixed(1)} primero debes subir esa evaluación.</span>`;
-      return;
-    }
-    const estado=estadoParaNotaNecesaria(r);
-    if(estado.total===0){el.innerHTML='';return;}
-    const needed=notaNecesaria(r,target);
-    if(needed===null){
-      const avg=ramoAvg(r);
-      if(avg!==null){
-        const oficial=notaFinalOficial(avg),metaOficial=notaFinalOficial(target);
-        const ok=oficial>=metaOficial;
-        el.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'}">Tu promedio actual es <b>${fmtPromedio(avg)}</b> — ${ok?'ya lo lograste.':`te faltan ${(metaOficial-oficial).toFixed(1)} puntos y no quedan evaluaciones.`}</span>`;
-      } else {el.innerHTML=`<span style="color:var(--fg3)">${esc(motivoCalculoPendiente(r)||'No hay notas ingresadas aún.')}</span>`;}
-      return;
-    }
-    if(notaNecesariaCondicional(r)&&needed<=7){
-      el.innerHTML=`<div>Con <b>${nfNecesaria(needed)}</b> en cada evaluación pendiente llegas a ${target.toFixed(1)}.<p class="modal-desc">Cambiar una nota puede activar otra fórmula del programa. Comprueba tus escenarios en el simulador.</p></div>`;
-      return;
-    }
-    const metaCalculada=resumenMetaCalculadora(needed);
-    const pendientes=calculoRamoConCompuertas(r).res.emptyLeaves;
-    // Una categoría puede estar a medio rendir: "secciones sin notas" la
-    // omitía por completo. Las hojas pendientes sí incluyen cada Informe,
-    // Control o entrega que falte dentro del conjunto.
-    const dondeTxt=pendientes.length===1
-      ?`en <b>${esc(pendientes[0].name)}</b>`
-      :'como promedio de las evaluaciones que te faltan';
-    // Condición pendiente de piso (ej: Podcast sin nota aún)
-    const condPend=(r.gates||[]).filter(g=>{if(g.type!=='min_grade_required')return false;const c=r.categorias.find(x=>x.id===g.catId);return c&&avgPond(c.notas)===null;}).map(g=>`<div style="font-size:0.75rem;color:var(--yellow);margin-top:8px;">Además, ${esc(g.nombre)} debe ser ≥ ${g.min.toFixed(1)} o repruebas pese al promedio.</div>`).join('');
-    if(metaCalculada.estado==='inalcanzable'){
-      el.innerHTML=`<span style="color:var(--red)">Necesitarías un <b>${metaCalculada.texto}</b> — ya no es posible llegar a ${target.toFixed(1)}.</span>`;
-    } else if(metaCalculada.estado==='maxima'){
-      el.innerHTML=`<div style="margin-top:4px;">Necesitas un promedio de<br/><b style="font-size:2rem;color:var(--yellow)">${metaCalculada.texto}</b><br/><span style="font-size:0.75rem;color:var(--fg3)">Es posible, pero casi imposible: necesitas la nota máxima en todo lo que te falta.</span>${condPend}</div>`;
-    } else if(metaCalculada.estado==='margen'){
-      el.innerHTML=`<span style="color:var(--green)">Con cualquier nota llegas a ${target.toFixed(1)}.</span>${condPend}`;
-    } else {
-      const col=metaCalculada.numero>=5.5?'var(--yellow)':'var(--green)';
-      el.innerHTML=`<div style="margin-top:4px;">Necesitas un promedio de<br/><b style="font-size:2rem;color:${col}">${metaCalculada.texto}</b><br/><span style="font-size:0.75rem;color:var(--fg3)">${dondeTxt}</span>${condPend}</div>`;
-    }
-  };
-}
+// «Nota mínima» se juntó con el simulador (Lucas, 2026-10-23): la meta se
+// ajusta en la misma hoja. Ver simNotaNecesaria y simCambiarMeta.
 
 // ─── SIMULADOR DE ESCENARIOS ──────────────────────────────────────────────────
 let simState={}; // { catId: [ {id, valor, slot?} ] } — hipotéticas, no se guardan
@@ -9808,11 +9852,11 @@ function renderSimGlobalList(){
 
 function openSimuladorModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  simState={};simAusencias={};
+  simState={};simAusencias={};simMeta=4.0;
   document.getElementById('modal-content').innerHTML=`
     <p class="sim-kicker">Simulador</p>
     <div class="modal-title sim-ramo">${esc(r.nombre)}${r.seccion?` · Sección ${r.seccion}`:''}</div>
-    <p class="sim-intro">Agrega notas hipotéticas y mira cómo quedaría tu promedio. No se guardan hasta que confirmes.</p>
+    <p class="sim-intro">Escribe notas hipotéticas y mira cómo quedaría tu promedio. No se guardan hasta que confirmes.</p>
     <div class="sim-proj">
       <div class="sim-proj-label">Promedio proyectado</div>
       <div class="sim-proj-nums">
@@ -9820,6 +9864,12 @@ function openSimuladorModal(){
         <div class="solo-parte" id="sim-solo-parte" hidden></div>
       </div>
       <div id="sim-delta"></div>
+      <div class="sim-meta" role="group" aria-labelledby="sim-meta-etiqueta">
+        <span id="sim-meta-etiqueta">Tu meta</span>
+        <button type="button" class="sim-meta-btn" id="sim-meta-menos" onclick="simCambiarMeta(-0.1)" aria-label="Bajar la meta">−</button>
+        <output id="sim-meta" aria-live="polite">4,0</output>
+        <button type="button" class="sim-meta-btn" id="sim-meta-mas" onclick="simCambiarMeta(0.1)" aria-label="Subir la meta">+</button>
+      </div>
       <div class="sim-needed" id="sim-needed" aria-live="polite" hidden></div>
     </div>
     <div class="sim-section-label">Evaluaciones</div>
@@ -9903,16 +9953,38 @@ function simSetFalta(catId,valor){
 }
 function simProjectedAvg(r){return ramoAvg(simProjectedRamo(r));}
 
-// La meta del simulador es aprobar: no depende de la calculadora ni se guarda.
+// La meta del simulador (Lucas, 2026-10-23): «Nota mínima» y «Simular» eran
+// dos botones que respondían casi lo mismo. Ahora hay uno solo, y la meta
+// parte en 4,0 (aprobar) y se ajusta de a 0,1 en la misma hoja. No se guarda.
 // El número lo resuelve el motor sobre el mismo ramo que pinta el proyectado.
-function simNotaNecesaria(proyectado){
-  const meta=4.0;
+let simMeta=4.0;
+function simCambiarMeta(d){
+  simMeta=Math.round(Math.min(7,Math.max(1,simMeta+d))*10)/10;
+  renderSimulador();
+}
+function simNotaNecesaria(proyectado,meta=simMeta){
+  const m=simConComa(meta.toFixed(1)),aprobar=Math.abs(meta-4)<1e-9;
+  // Con un descarte cuya cantidad no se conoce, el efecto depende de notas que
+  // no existen: no se inventa un número (era de la calculadora).
+  const descarteAbierto=reglaDescarteConCantidadAbierta(proyectado);
+  if(descarteAbierto)return {texto:`No calculamos una nota exacta mientras falte saber cuántas evaluaciones de ${descarteAbierto.nombre} habrá`,
+    detalle:'El programa descarta la peor nota, así que su efecto depende de las notas que todavía no existen.'};
   const peso=(proyectado.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
   if(Math.abs(peso-100)>0.05)return {texto:'Completa la pauta para calcularlo'};
   const calculo=calculoRamoConCompuertas(proyectado);
   const motivo=motivoCalculoPendiente(proyectado);
   if(motivo)return {texto:'Resultado pendiente de confirmar con el curso',detalle:motivo};
-  if(!calculo.res.emptyLeaves.length&&!notaNecesariaCondicional(proyectado))return null;
+  // Lo pendiente se mide igual que notaNecesaria: una categoría sin notas y
+  // sin cantidad declarada no siempre aparece en emptyLeaves, y el simulador
+  // daba el ramo por cerrado mientras «Nota mínima» pedía una nota.
+  const quedaPendiente=calculo.res.emptyLeaves.length>0||estadoParaNotaNecesaria(proyectado).pendiente>1e-9;
+  if(!quedaPendiente&&!notaNecesariaCondicional(proyectado)){
+    // Ramo cerrado: si llegó a la meta o no (era de la calculadora).
+    const avg=ramoAvg(proyectado);
+    if(avg===null||aprobar)return null;
+    const ok=notaFinalOficial(avg)>=notaFinalOficial(meta);
+    return {texto:ok?`Ya tienes el ${m}`:`Ya no quedan evaluaciones para llegar a ${m}`};
+  }
 
   const vinculo=partesDelVinculo(proyectado);
   // En un ramo con laboratorio, lo que falta es para la cátedra sola.
@@ -9929,10 +10001,10 @@ function simNotaNecesaria(proyectado){
     return {g,activa,pendiente};
   });
   const bloqueante=compuertas.find(x=>x.activa&&!x.pendiente);
-  if(bloqueante)return {texto:'Con esto ya no alcanzas el 4,0',
+  if(bloqueante&&meta>bloqueante.activa.cap+1e-9)return {texto:`Con esto ya no alcanzas el ${m}`,
     detalle:`${bloqueante.activa.nombre} está bajo el mínimo de ${simConComa(fmtPromedio(bloqueante.activa.min))} y topa la nota.`};
   if(necesaria===null)return null;
-  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el 4,0${deCatedra}`};
+  if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el ${m}${deCatedra}`};
 
   const pendientes=compuertas.filter(x=>x.pendiente);
   const condiciones=pendientes.map(x=>{
@@ -9940,17 +10012,16 @@ function simNotaNecesaria(proyectado){
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
     return `Además, ${nombre} debe llegar a ${simConComa(fmtPromedio(x.g.min))} para cumplir su mínimo.`;
   }).join(' ');
-  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas al 4,0`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
+  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas a ${m}`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
-    ?{texto:`El promedio ponderado ya alcanza el 4,0${deCatedra}`,detalle:condiciones}
-    :{texto:`Ya tienes el 4,0${deCatedra} asegurado`};
+    ?{texto:`El promedio ponderado ya alcanza el ${m}${deCatedra}`,detalle:condiciones}
+    :{texto:`Ya tienes el ${m}${deCatedra} asegurado`};
   return {texto:vinculo
-    ?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`
-    :`Para el 4,0 necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
+    ?(aprobar?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`:`Para el ${m} de cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`)
+    :`Para el ${m} necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
 }
 
-function renderSimulador(){
-  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+function renderSimuladorResumen(r){
   const real=ramoAvg(r);
   const proyectado=simProjectedRamo(r);
   const proj=ramoAvg(proyectado);
@@ -9979,6 +10050,10 @@ function renderSimulador(){
     deltaEl.style.display='inline-block';
   } else {deltaEl.style.display='none';}
 
+  const metaEl=document.getElementById('sim-meta');
+  if(metaEl)metaEl.textContent=simConComa(simMeta.toFixed(1));
+  const menos=document.getElementById('sim-meta-menos'),mas=document.getElementById('sim-meta-mas');
+  if(menos)menos.disabled=simMeta<=1;if(mas)mas.disabled=simMeta>=7;
   const neededEl=document.getElementById('sim-needed');
   const necesaria=simNotaNecesaria(proyectado);
   if(neededEl){
@@ -9992,6 +10067,11 @@ function renderSimulador(){
   }
 
   const cb=document.getElementById('sim-commit-btn');if(cb)cb.disabled=!hasSim;
+}
+
+function renderSimulador(){
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
+  renderSimuladorResumen(r);
 
   document.getElementById('sim-cats').innerHTML=r.categorias.map(c=>{
     const catAvg=simCatAvg(c);
@@ -10007,14 +10087,14 @@ function renderSimulador(){
     // se colaban como una etiqueta vacía ("Laboratorio 1: ").
     const realChips=notasReales.filter(n=>n&&n.valor!==null&&n.valor!==undefined)
       .map(n=>`<span class="sim-chip real">${esc(nombreNotaCasilla(r,c,n))}: ${simConComa(textoCalificacionNota(n))}</span>`).join('');
-    const hypChips=(simState[c.id]||[]).map(s=>`<span class="sim-chip hyp">${Number.isInteger(s.slot)?esc(etiquetaCasilla(r,c,s.slot))+': ':c.directNota&&!(c.slots>1)?esc(c.nombre)+': ':''}${simConComa(textoCalificacionNota(s))}<button class="sim-chip-x" onclick="simRemoveNota('${c.id}','${s.id}')" aria-label="Quitar nota hipotética">✕</button></span>`).join('');
+    const campos=simCamposNotaHTML(r,c);
     return `
       <div class="sim-cat">
         <div class="sim-cat-head">
           <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${r2(c.peso)}% del ramo</div></div>
-          <div class="sim-cat-avg" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
+          <div class="sim-cat-avg" id="sim-cat-avg-${esc(c.id)}" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
         </div>
-        ${(realChips||hypChips)?`<div class="sim-chips">${realChips}${hypChips}</div>`:''}
+        ${realChips?`<div class="sim-chips">${realChips}</div>`:''}
         ${falta?`<div class="sim-falta activa">
           <div class="sim-falta-hd"><b>Ausencia simulada</b><button type="button" class="sim-falta-x" onclick="simToggleFalta('${c.id}')" aria-label="Ya no faltar a ${esc(c.nombre)}">✕</button></div>
           <label class="sim-falta-label" for="sim-falta-${c.id}">¿Qué pasa con su ${r2(c.peso)}%?</label>
@@ -10025,11 +10105,8 @@ function renderSimulador(){
                      `<option value="reemplazo|${esc(o.id)}"${falta.tipo==='reemplazo'&&falta.hacia===o.id?' selected':''}>Me ponen la nota de ${t}</option>`;
             }).join('')}</select>
           ${falta.tipo==='reemplazo'?'':'<small class="sim-falta-hint">La acumulación tiene un máximo de 75%. El excedente cuenta con nota 1,0.</small>'}
-        </div>`:(simPuedeFaltar(c)?`<button type="button" class="sim-falta-btn" onclick="simToggleFalta('${c.id}')">Falto con justificativo</button>`:'')}
-        ${(simCatLlena(c)||falta)?'':`<div class="sim-add">
-          <input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="sim-in-${c.id}" placeholder="${conceptosNota().length?'Nota hipotética (1,0–7,0, D/A/R)':'Nota hipotética (1,0–7,0)'}" onkeydown="if(event.key==='Enter')simAddNota('${c.id}')"/>
-          <button onclick="simAddNota('${c.id}')">+ Agregar</button>
-        </div>`}
+        </div>`:''}
+        ${falta?'':`<div class="sim-fields" id="sim-fields-${esc(c.id)}">${campos}</div>`}
       </div>`;
   }).join('');
 }
@@ -10041,6 +10118,92 @@ function renderSimulador(){
 function simCatLlena(cat){
   if(!cat.directNota||(Number.isInteger(cat.slots)&&cat.slots>1))return false;
   return (cat.notas||[]).some(n=>n.valor!=null)||((simState[cat.id]||[]).length>0);
+}
+function simCampoNotaHTML(r,c,slot,indice,nota,ofreceFalta){
+  const id=`sim-in-${c.id}${indice?'-'+indice:''}`;
+  const etiqueta=Number.isInteger(slot)?etiquetaCasilla(r,c,slot)
+    :c.directNota?'Nota hipotética':`Nota ${indice+1}`;
+  const sugerencia=conceptosNota().length?'1,0–7,0 o D/A/R':'1,0–7,0';
+  return `<div class="sim-field-row">
+    <label for="${esc(id)}">${esc(etiqueta)}</label>
+    <div class="sim-field-control">
+      <input type="text" inputmode="${inputModeNota()}" autocapitalize="characters"
+        id="${esc(id)}" data-sim-id="${esc(nota?.id||'')}" value="${nota?esc(simConComa(textoCalificacionNota(nota))):''}"
+        placeholder="${sugerencia}" aria-label="Nota hipotética de ${esc(etiqueta)}"
+        oninput="simNotaAlEscribir(${esc(JSON.stringify(c.id))},${Number.isInteger(slot)?slot:'null'},this)"
+        onblur="simNotaAlSalir(${esc(JSON.stringify(c.id))},${Number.isInteger(slot)?slot:'null'},this)"/>
+      ${ofreceFalta?`<button type="button" class="sim-falta-btn" id="sim-falta-btn-${esc(c.id)}"
+        onclick="simToggleFalta(${esc(JSON.stringify(c.id))})">Falté</button>`:''}
+    </div>
+  </div>`;
+}
+function simCamposNotaHTML(r,c){
+  const notas=simState[c.id]||[];
+  if(Number.isInteger(c.slots)&&c.slots>1){
+    const ocupadas=new Set((c.notas||[]).filter(n=>n&&n.valor!=null&&Number.isInteger(n.slot)).map(n=>n.slot));
+    return Array.from({length:c.slots},(_,slot)=>slot).filter(slot=>!ocupadas.has(slot))
+      .map((slot,i)=>simCampoNotaHTML(r,c,slot,i,notas.find(n=>n.slot===slot),i===0&&simPuedeFaltar(c))).join('');
+  }
+  if(c.directNota){
+    if((c.notas||[]).some(n=>n&&n.valor!=null))return '';
+    return simCampoNotaHTML(r,c,null,0,notas[0],simPuedeFaltar(c));
+  }
+  return [...notas.map((n,i)=>simCampoNotaHTML(r,c,null,i,n,false)),
+    simCampoNotaHTML(r,c,null,notas.length,null,simPuedeFaltar(c))].join('');
+}
+// La nota entra al estado temporal en cada tecla. El resumen se repinta sin
+// reconstruir los campos: hacerlo aquí le quitaría el foco al teclado del iPhone.
+function simNotaAlEscribir(catId,slot,input){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const c=r&&(r.categorias||[]).find(x=>x.id===catId);if(!c||!input)return;
+  const raw=input.value,val=parseNota(raw);
+  // Primero la traducción habitual de notas (55 → 5,5; D/A/R). Una cifra
+  // realmente fuera de escala, como 9, se acerca al borde como en el stepper.
+  const fuera=/^\s*[+-]?\d(?:[.,]\d{0,2})?\s*$/.test(raw)?parseFloat(raw.replace(',','.')):NaN;
+  const nota=!isNaN(val)?val:Number.isFinite(fuera)?Math.min(7,Math.max(1,fuera)):NaN;
+  const lista=simState[catId]||(simState[catId]=[]);
+  const fija=Number.isInteger(slot);
+  const id=input.dataset?.simId||'';
+  const indice=fija?lista.findIndex(n=>n.slot===slot):c.directNota?0:lista.findIndex(n=>n.id===id);
+  const anterior=indice>=0?lista[indice]:null;
+  if(isNaN(nota)){
+    if(anterior)lista.splice(indice,1);
+    if(input.dataset)input.dataset.simId='';
+    // Al borrar la última nota de un grupo abierto, sobra el campo vacío que
+    // había aparecido a continuación. Quitarlo no mueve el foco actual.
+    if(anterior&&!fija&&!c.directNota&&input.closest){
+      const siguiente=input.closest('.sim-field-row')?.nextElementSibling;
+      if(siguiente&&!siguiente.nextElementSibling&&!siguiente.querySelector('input')?.value)siguiente.remove();
+    }
+  }else if(anterior){
+    asignarCalificacionNota(anterior,raw,nota);
+  }else{
+    const nueva=asignarCalificacionNota({id:uid(),...(fija?{slot}:{})},raw,nota);
+    const fila=!fija&&!c.directNota&&input.closest?input.closest('.sim-field-row'):null;
+    const posicion=fila?.parentElement?Array.from(fila.parentElement.children).indexOf(fila):-1;
+    if(posicion>=0)lista.splice(Math.min(posicion,lista.length),0,nueva);
+    else lista.push(nueva);
+    if(input.dataset)input.dataset.simId=nueva.id;
+    // Una categoría sin cantidad declarada siempre deja una casilla vacía al
+    // final. Se añade sin reemplazar el input que la persona está editando.
+    if(!fija&&!c.directNota&&fila){
+      const contenedor=fila.parentElement;
+      if(contenedor&&!fila.nextElementSibling&&contenedor.insertAdjacentHTML)
+        contenedor.insertAdjacentHTML('beforeend',simCampoNotaHTML(r,c,null,lista.length,null,false));
+    }
+  }
+  if(!lista.length)delete simState[catId];
+  renderSimuladorResumen(r);
+  const avg=document.getElementById('sim-cat-avg-'+catId);
+  if(avg){const n=simCatAvg(c);avg.textContent=simConComa(fmtPromedio(n));avg.style.color=getColor(n);}
+  const falta=document.getElementById('sim-falta-btn-'+catId);
+  if(falta)falta.hidden=!simPuedeFaltar(c);
+}
+function simNotaAlSalir(catId,slot,input){
+  const lista=simState[catId]||[];
+  const nota=Number.isInteger(slot)?lista.find(n=>n.slot===slot)
+    :lista.find(n=>n.id===input.dataset?.simId);
+  input.value=nota?simConComa(textoCalificacionNota(nota)):'';
 }
 function simAddNota(catId){
   const inp=document.getElementById('sim-in-'+catId);if(!inp)return;
@@ -10064,11 +10227,6 @@ function simAddNota(catId){
   simState[catId].push(asignarCalificacionNota({id:uid(),...(slot===undefined?{}:{slot})},rawNota,val));
   renderSimulador();
   setTimeout(()=>{const i=document.getElementById('sim-in-'+catId);if(i)i.focus();},30);
-}
-function simRemoveNota(catId,id){
-  if(!simState[catId])return;
-  simState[catId]=simState[catId].filter(s=>s.id!==id);
-  renderSimulador();
 }
 function simCommit(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
@@ -11242,6 +11400,8 @@ function cuandoTexto(dias){
 // pinta UNA vez por ramo, en su primera aparición (ver renderAgenda): antes
 // solo lo tenían las filas, y un ramo en riesgo que estaba en prioridades lo
 // decía en gris mientras otro lo decía en rojo.
+// Bajo este porcentaje del ramo, una evaluación «pesa poco» (Lucas, 2026-10-22).
+const EVALUACION_PESA_POCO=10;
 function alertaRamoAgendaHTML(e){
   const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg>';
   const caja=(tono,texto)=>`<div class="ag-alert ${tono}">${icono}${texto}</div>`;
@@ -11265,17 +11425,23 @@ function alertaRamoAgendaHTML(e){
   if(peso===null||!(pendiente>0))return caja(tono,urgente
     ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
     :`Es importante: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
-  const pesaMucho=peso/100>=pendiente/3-1e-9;
-  if(!pesaMucho)return caja(tono,urgente
-    ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
-    :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+  // Reglas de Lucas (2026-10-22), con el ramo bajo 4,0:
+  // 1. Si esta evaluación sola te puede dejar en 4,0, se dice la nota X que
+  //    lo logra, pese lo que pese.
+  // 2. Si no, y vale menos del 10% del RAMO, «pesa poco» y se habla de N.
+  //    Antes se comparaba con un tercio de lo que quedaba por rendir, y a un
+  //    20% con 70% por rendir le decía «pesa poco» (reporte de un usuario).
   const ir=notaParaIrConCuatro(e);
   if(ir&&ir.nota)return caja(tono,urgente
     ?`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`
     :`Es importante: si sacas un ${ir.nota}, estarás aprobando el ramo.`);
+  if(peso<EVALUACION_PESA_POCO)return caja(tono,urgente
+    ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
+  // 3. Vale 10% o más y sola no alcanza: lo mismo que «pesa poco», sin decirlo (Lucas, 2026-10-22).
   return caja(tono,urgente
-    ?`Es urgente: con esta evaluación sola no alcanzas a quedar aprobando; necesitas un ${N} en lo pendiente para aprobar el ramo.`
-    :`Es importante: con esta evaluación sola no alcanzas a quedar aprobando, pero con un ${N} en lo pendiente apruebas el ramo.`);
+    ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
+    :`Una buena nota en esta evaluación te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
 }
 function agendaItemHTML(e){
   const f=formatEventDate(e.fecha);

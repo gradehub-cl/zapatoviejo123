@@ -70,11 +70,12 @@ assert.match(h,/Es urgente: necesitas un 5\.9 para ir aprobando el ramo\./,'sobr
 // eso no es urgencia: se dice que pesa poco y cuánto necesita en lo pendiente.
 const bloque=n=>(new RegExp(`ag-(?:priority|row)-name">${n}<([\\s\\S]*?)(?=ag-(?:priority|row)-name"|$)`).exec(h)||[])[1]||'';
 assert.equal(de('Quiz F').aviso,'warn','importante, no urgente');
+// Vale 5% (< 10% del ramo) y sola no lo deja en 4,0: «pesa poco» (Lucas, 2026-10-22).
 assert.match(bloque('Quiz F'),/Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un 4\.3 en lo pendiente para aprobar el ramo\./);
 // G2 pesa 15 de 40 pendientes (≥ un tercio), pero quedar en 4,0 tras ella pide
 // 7,75: no alcanza sola. N = (3,95 − 1,8) / 0,4 = 5,4: urgente.
 assert.equal(de('Prueba G2').aviso,'bad');
-assert.match(bloque('Prueba G2'),/Es urgente: con esta evaluación sola no alcanzas a quedar aprobando; necesitas un 5\.4 en lo pendiente para aprobar el ramo\./);
+assert.match(bloque('Prueba G2'),/Es urgente: necesitas un 5\.4 en lo pendiente para aprobar el ramo\./);
 assert.equal(de('Control D').aviso,'bad','imposible: rojo');
 assert.match(h,/No es posible que apruebes este ramo, pero da lo mejor de ti\./);
 
@@ -83,4 +84,31 @@ run('agendaOrdenActual="recomendado";renderAgenda()');
 const tarjetas=[...stub.innerHTML.matchAll(/ag-priority-name">([^<]*)</g)].map(x=>x[1]);
 assert.ok(!tarjetas.includes('Control D'),'el control de mañana del ramo imposible no es prioridad: '+tarjetas.join(', '));
 assert.match(stub.innerHTML,/Control D/,'pero sigue en la Agenda');
+// El caso reportado (2026-10-22): una prueba de 20% con 70% por rendir, en un
+// ramo que va con 3,7 en el 30% rendido. Antes decía «pesa poco» porque 20 <
+// 70/3. Regla de Lucas: si esta sola lo deja en 4,0, se dice la nota, pese lo
+// que pese; «pesa poco» es solo bajo el 10% del ramo.
+const aviso20=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso,fecha,notas});
+  const ramo={id:'r20',nombre:'Ramo sintético',sigla:'TST200',gates:[],categorias:[
+    cat('k1','Prueba 1',30,[{id:'n1',nombre:'Prueba 1',valor:3.7}],'2026-09-20'),
+    cat('k2','Prueba 2',20,[],'2026-10-22'),cat('k3','Examen',50,[],'2026-11-28')]};
+  const e=withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2'));return alertaRamoAgendaHTML(e);})()`);
+assert.match(aviso20,/Es importante: si sacas un 4\.\d, estarás aprobando el ramo\./);
+assert.doesNotMatch(aviso20,/pesa poco/);
+// Una de 8% que sí lo deja en 4,0 dice la nota, aunque pese poco: la regla 1 manda.
+const aviso8=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso,fecha,notas});
+  const ramo={id:'r8',nombre:'Ramo sintético',sigla:'TST208',gates:[],categorias:[
+    cat('k1','Prueba 1',30,[{id:'n1',nombre:'Prueba 1',valor:3.9}],'2026-09-20'),
+    cat('k2','Quiz',8,[],'2026-10-22'),cat('k3','Examen',62,[],'2026-11-28')]};
+  return alertaRamoAgendaHTML(withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2')));})()`);
+assert.match(aviso8,/Es importante: si sacas un \d\.\d, estarás aprobando el ramo\./,'si la deja en 4,0, se dice la nota aunque pese poco');
+// Una de 15% que sola no alcanza no es «pesa poco» (vale 10% o más): sigue el caso general.
+const aviso15=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,peso,fecha,notas});
+  const ramo={id:'r15',nombre:'Ramo sintético',sigla:'TST215',gates:[],categorias:[
+    cat('k1','Prueba 1',40,[{id:'n1',nombre:'Prueba 1',valor:2.5}],'2026-09-20'),
+    cat('k2','Control',15,[],'2026-10-22'),cat('k3','Examen',45,[],'2026-11-28')]};
+  return alertaRamoAgendaHTML(withPriority(agendaEvents([ramo]).find(x=>x.cat.id==='k2')));})()`);
+assert.doesNotMatch(aviso15,/pesa poco/,'15% del ramo no pesa poco');
+assert.match(aviso15,/Una buena nota en esta evaluación te ayudará: necesitas un \d\.\d en lo pendiente para aprobar el ramo\./);
+assert.doesNotMatch(h+aviso15,/no alcanzas a quedar aprobando/,'ya no se explica que sola no alcanza (Lucas, 2026-10-22)');
 console.log('OK: avisos con urgencia sin alarma, una vez por ramo, y Recomendado no prioriza lo imposible');

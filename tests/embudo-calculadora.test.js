@@ -12,7 +12,7 @@ function calculadora(){
       dataset:{},listeners:{},textContent:'',hidden:false,open:false,
       setAttribute(){},removeAttribute(){},addEventListener(tipo,fn){this.listeners[tipo]=fn;}};
   }
-  const ids=Object.fromEntries(['puntaje','total','exigencia','nmin','naprob','nmax','error','nota','etiqueta','detalle','tabla-det','tabla','ayuda','explicacion','calc','abrir-gradehub'].map(id=>[id,el(id)]));
+  const ids=Object.fromEntries(['puntaje','total','exigencia','nmin','naprob','nmax','error','nota','etiqueta','detalle','tabla-det','tabla','paso','aviso-paso','ayuda','explicacion','calc','abrir-gradehub'].map(id=>[id,el(id)]));
   ids.nmin.value='1,0';ids.naprob.value='4,0';ids.nmax.value='7,0';
   const botones=[el('50'),el('60')];botones[0].dataset.exigencia='50';botones[1].dataset.exigencia='60';
   const radio=el('aproximar');radio.value='aproximar';
@@ -23,7 +23,7 @@ function calculadora(){
   const location={href:'https://gradehub.cl/calculadora'};
   const ctx={document,location,localStorage:{getItem:()=>null,setItem(){}},
     gtag:(...args)=>eventos.push(args),setTimeout:fn=>timers.push(fn),
-    gh_notaDesdePuntaje:(p,t)=>p<=t?{nota:4}:null};
+    gh_notaDesdePuntaje:(p,t)=>p<=t?{nota:4}:null,gh_tablaPuntaje:()=>({paso:1,ajustado:false,filas:[]})};
   const script=html.match(/<script>\s*(\(function\(\)\{[\s\S]*?\}\)\(\);)\s*<\/script>/);
   if(!script)throw Error('No se encontró el script de la calculadora');
   vm.runInNewContext(script[1],ctx);

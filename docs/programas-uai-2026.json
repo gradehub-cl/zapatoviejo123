@@ -115,7 +115,77 @@
         ]
       ],
       "suma_ponderaciones": 100,
-      "verificado": null
+      "verificado": null,
+      "reglas_modeladas": {
+        "eximicion": {
+          "evaluacion": "Examen",
+          "segun": [
+            "Talleres",
+            "Controles",
+            "Pruebas"
+          ],
+          "min": 5,
+          "ignoraDescartes": true,
+          "comparaNotaOficial": true,
+          "sinAusenciasJustificadas": true,
+          "requierePautaOriginal": true
+        },
+        "ausenciasJustificadas": {
+          "reemplazosCasilla": [
+            {
+              "desde": "Talleres",
+              "desdeSlot": 0,
+              "hacia": "Pruebas",
+              "haciaSlot": 0
+            },
+            {
+              "desde": "Talleres",
+              "desdeSlot": 1,
+              "hacia": "Pruebas",
+              "haciaSlot": 1
+            },
+            {
+              "desde": "Talleres",
+              "desdeSlot": 2,
+              "hacia": "Pruebas",
+              "haciaSlot": 2
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 0,
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 1,
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 2,
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Pruebas",
+              "desdeSlot": 0,
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Pruebas",
+              "desdeSlot": 1,
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Pruebas",
+              "desdeSlot": 2,
+              "hacia": "Examen"
+            }
+          ]
+        }
+      },
+      "reglas_no_calculadas": [
+        "Si apruebas el segundo examen, la final queda en 4,0; si lo repruebas, conservas la final anterior. La app solo avisa cuándo podrías rendirlo"
+      ]
     },
     {
       "nombre_catalogo": "Razonamiento Cuantitativo con Datos I",
@@ -159,7 +229,84 @@
         ]
       ],
       "suma_ponderaciones": 100,
-      "verificado": null
+      "verificado": null,
+      "reglas_modeladas": {
+        "eximicion": {
+          "evaluaciones": [
+            "Examen teórico",
+            "Examen práctico"
+          ],
+          "etiqueta": "los exámenes teórico y práctico",
+          "segun": [
+            "Pruebas teóricas",
+            "Controles",
+            "Trabajo aplicado"
+          ],
+          "min": 5,
+          "minimos": [
+            {
+              "evaluaciones": [
+                "Pruebas teóricas"
+              ],
+              "min": 4
+            },
+            {
+              "evaluaciones": [
+                "Controles",
+                "Trabajo aplicado"
+              ],
+              "min": 4
+            }
+          ],
+          "ignoraDescartes": true,
+          "comparaNotaOficial": true,
+          "sinAusenciasJustificadas": true,
+          "requierePautaOriginal": true,
+          "ocultaEvaluacion": true
+        },
+        "ausenciasJustificadas": {
+          "reemplazosCasilla": [
+            {
+              "desde": "Pruebas teóricas",
+              "desdeSlot": 0,
+              "hacia": "Examen teórico"
+            },
+            {
+              "desde": "Pruebas teóricas",
+              "desdeSlot": 1,
+              "hacia": "Examen teórico"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 0,
+              "hacia": "Examen práctico"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 1,
+              "hacia": "Examen práctico"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 2,
+              "hacia": "Examen práctico"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 3,
+              "hacia": "Examen práctico"
+            },
+            {
+              "desde": "Controles",
+              "desdeSlot": 4,
+              "hacia": "Examen práctico"
+            }
+          ]
+        }
+      },
+      "reglas_no_calculadas": [
+        "Tras rendir el examen, ET y EP deben ser al menos 4,0. Si no se cumple, el curso se reprueba con la menor de ET y EP; este promedio no aplica esa sustitución"
+      ]
     },
     {
       "nombre_catalogo": "Introducción a la Microeconomía",
@@ -191,7 +338,25 @@
         ]
       ],
       "suma_ponderaciones": 100,
-      "verificado": null
+      "verificado": null,
+      "reglas_modeladas": {
+        "ausenciasJustificadas": {
+          "maxTraspasos": 1,
+          "traspasos": [
+            {
+              "desde": "Prueba 1",
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Prueba 2",
+              "hacia": "Examen"
+            }
+          ]
+        }
+      },
+      "reglas_no_calculadas": [
+        "Una ausencia justificada en un control o tarea se reemplaza por el examen, pero el bloque está consolidado y el programa no fija el peso de cada instancia. Con dos pruebas justificadas, el programa no define el destino de la segunda"
+      ]
     },
     {
       "nombre_catalogo": "Management",
@@ -393,9 +558,7 @@
           ]
         }
       },
-      "reglas_no_calculadas": [
-        "Si rendiste todas las pruebas y controles puedes reemplazar la nota de UNA prueba por la del examen, siempre que el examen sea al menos 4,0"
-      ]
+      "reglas_no_calculadas": []
     },
     {
       "nombre_catalogo": "Razonamiento Cuantitativo con Datos II",
@@ -448,6 +611,41 @@
       "suma_ponderaciones": 100,
       "verificado": "2026-10-21",
       "reglas_modeladas": {
+        "eximicion": {
+          "evaluaciones": [
+            "Examen teórico",
+            "Examen práctico"
+          ],
+          "etiqueta": "los exámenes teórico y práctico",
+          "segun": [
+            "Pruebas",
+            "Laboratorios",
+            "Trabajo grupal"
+          ],
+          "min": 5,
+          "minimos": [
+            {
+              "evaluaciones": [
+                "Pruebas"
+              ],
+              "min": 4
+            },
+            {
+              "evaluaciones": [
+                "Laboratorios",
+                "Trabajo grupal"
+              ],
+              "min": 4
+            }
+          ],
+          "ignoraDescartes": false,
+          "comparaNotaOficial": true,
+          "sinAusenciasJustificadas": true,
+          "requierePautaOriginal": true,
+          "requiereConfirmacion": true,
+          "confirmar": "rendiste todas las pruebas de la pauta",
+          "ocultaEvaluacion": true
+        },
         "grupos": [
           {
             "nombre": "Nota teórica",
@@ -470,9 +668,7 @@
           }
         ]
       },
-      "reglas_no_calculadas": [
-        "Te eximes del examen si la nota de presentación es al menos 5,0 y las notas teórica y práctica son ambas al menos 4,0. No se declara como eximición porque el examen son dos evaluaciones separadas y el modelo exime de una"
-      ]
+      "reglas_no_calculadas": []
     },
     {
       "nombre_catalogo": "Civilización Contemporánea II",

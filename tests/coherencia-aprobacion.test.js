@@ -53,15 +53,12 @@ for(const [valor,texto,nivel,aprueba] of bordes){
   assert.equal(ctx.run('notaAprobada(valor)'),aprueba,`${valor} decide aprobación con el mismo valor`);
 }
 
-// La calculadora de un ramo ya cerrado debe repetir el mismo veredicto.
-ctx.run('S={...freshState(),ramos:[exacto]};currentRamoId=exacto.id;openModal=()=>{};');
-ctx.openCalculadoraModal();
-ctx.document.getElementById('m-calc-target').value='4';
-ctx.window.calcResult();
-const calculadora=ctx.document.getElementById('calc-result').innerHTML;
-assert.match(calculadora,/<b>4\.0<\/b>/,'Nota mínima muestra la nota oficial');
-assert.match(calculadora,/ya lo lograste/,'Nota mínima también lo declara aprobado');
-assert.doesNotMatch(calculadora,/te faltan/,'Nota mínima no exige puntos inexistentes');
+// El simulador (con la meta que antes era «Nota mínima») repite el veredicto de
+// un ramo ya cerrado: con 3,98 tiene el 4,0 y no le pide nada.
+ctx.run('S={...freshState(),ramos:[exacto]};currentRamoId=exacto.id;openModal=()=>{};simState={};simAusencias={};');
+assert.equal(ctx.run('simNotaNecesaria(simProjectedRamo(exacto),4)'),null,'con la meta en 4,0 no exige nada a un ramo aprobado y cerrado');
+assert.equal(ctx.run('simNotaNecesaria(simProjectedRamo(exacto),4.5)').texto,'Ya no quedan evaluaciones para llegar a 4,5');
+assert.equal(ctx.run('simNotaNecesaria(simProjectedRamo(exacto),3.5)').texto,'Ya tienes el 3,5');
 
 const parcial=ramo('parcial',[categoria('mitad',50,4),{id:'pendiente',nombre:'pendiente',peso:50,directNota:true,notas:[]}]);
 ctx.parcial=parcial;
