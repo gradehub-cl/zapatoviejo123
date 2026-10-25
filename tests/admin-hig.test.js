@@ -138,7 +138,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  panelActual=[{...profesores[0],anuncios:[{...anuncio,estado:'pausado',publicado_at:'2026-09-30T00:00:00Z'},...profesores[0].anuncios.slice(1)]}];
  const previas=calls.length;
  await root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1').listeners.click();
- assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='crecimiento_semanal_admin'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'),['admin_panel_clases','admin_panel_clases'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
+ assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='crecimiento_semanal_admin'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'),['admin_panel_clases','admin_panel_clases'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
  assert(calls.slice(previas).filter(c=>c.n==='admin_descuento_anuncio').every(c=>c.p.p_anuncio_id===null&&c.p.p_pct===null),'la comprobación de descuento no edita anuncios');
  assert.match(toasts.at(-1).text,/Actualicé el panel/);
  modo='denegado';await run('pintarPanelAdmin(root)');assert.match(root.innerHTML,/no tiene acceso/);assert.doesNotMatch(root.innerHTML,/admin-hig-fila/);

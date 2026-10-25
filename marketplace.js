@@ -20,7 +20,7 @@ const CAMPOS_BORRADOR_CLASE = 'id,tenant,ramos_siglas,criterios,modalidad,ubicac
 // La tercera capa (2026-09-30): pack de clases, que escribe el profesor, y el
 // descuento por venir de GradeHub, que solo fija GradeHub al aprobar.
 // La cuarta (2026-10-23): si el anuncio es una clase o material de apoyo.
-const CAPAS_CAMPOS_CLASE=[',modalidad_otra,ubicacion_otra,detalles',',linea_datos',',pack_clases,descuento_gradehub_pct',',tipo'];
+const CAPAS_CAMPOS_CLASE=[',modalidad_otra,ubicacion_otra,detalles',',linea_datos',',pack_clases,descuento_gradehub_pct',',tipo',',codigo_descuento'];
 let capasColumnasClase=CAPAS_CAMPOS_CLASE.length;
 function faltaColumnaClase(error){
   return !!error&&(error.code==='42703'||error.code==='PGRST204'||/column|columna/i.test(String(error.message||'')));
@@ -1018,8 +1018,17 @@ function preciosClase(a){
   const n=Number.isInteger(a.pack_clases)&&a.pack_clases>=MIN_PACK_CLASES&&a.pack_clases<=MAX_PACK_CLASES?a.pack_clases:null;
   const d=Number.isInteger(a.descuento_gradehub_pct)&&a.descuento_gradehub_pct>=1&&a.descuento_gradehub_pct<=50?a.descuento_gradehub_pct:null;
   const conDescuento=x=>d?Math.round(x*(100-d)/100):x;
-  return {gratis:false,pack:n,descuento:d,porClase:base,porClaseFinal:conDescuento(base),
+  return {gratis:false,pack:n,descuento:d,codigo:d?codigoDescuentoClase(a):null,porClase:base,porClaseFinal:conDescuento(base),
     packTotal:n?base*n:null,packFinal:n?conDescuento(base*n):null};
+}
+// El código que acompaña al descuento (2026-10-25). Lo fija un admin; acá
+// se vuelve a validar porque termina en el texto del anuncio y del WhatsApp.
+function codigoDescuentoClase(a){
+  const c=a&&typeof a.codigo_descuento==='string'?a.codigo_descuento.trim().toUpperCase():'';
+  return /^[A-Z0-9][A-Z0-9_-]{2,19}$/.test(c)?c:null;
+}
+function textoDescuentoClase(p){
+  return p.codigo?`−${p.descuento}% con el código ${p.codigo}`:`−${p.descuento}% por venir de GradeHub`;
 }
 // Corto, para la línea bajo el título: "4 clases · $11.250 c/u" o "$11.250".
 // En un pack se lee el precio por clase y no el total (#664): en la primera
@@ -1039,7 +1048,7 @@ function precioCatalogoHTML(a){
   if(p.gratis)return '<strong>Gratis</strong>';
   if(p.porClase==null)return '';
   const antes=x=>p.descuento?`<del><span class="sr-precio">antes </span>${pesosClase(x)}</del> `:'';
-  const chip=p.descuento?`<span class="catalogo-clase-descuento">−${p.descuento}% por venir de GradeHub</span>`:'';
+  const chip=p.descuento?`<span class="catalogo-clase-descuento">${esc(textoDescuentoClase(p))}</span>`:'';
   // Un material se compra una vez: sin «por clase» ni pack.
   if(esMaterialClase(a))return `<div class="catalogo-clase-precio"><strong>${antes(p.porClase)}${pesosClase(p.porClaseFinal)}</strong>${chip}</div>`;
   if(p.pack)return `<div class="catalogo-clase-precio"><strong>${antes(p.packTotal)}${pesosClase(p.packFinal)} <small>pack de ${p.pack}</small></strong>${chip}<span class="catalogo-clase-por-clase">${antes(p.porClase)}${pesosClase(p.porClaseFinal)} por clase</span></div>`;
@@ -1058,6 +1067,7 @@ function pesosClase(valor){
 function mensajeContactoClase(anuncio){
   const titulo=String(anuncio&&anuncio.titulo||'').trim();
   const que=esMaterialClase(anuncio)?'tu material':'tu clase';
+  // El código de descuento no va acá (Lucas, 2026-10-25): lo da el estudiante.
   return (titulo?`Hola, vi ${que} «${titulo}» en GradeHub.`:`Hola, vi ${que} en GradeHub.`)+' ¿Me puedes dar más información?';
 }
 function textoContactoClase(tipo,anuncio){
@@ -3215,19 +3225,23 @@ function descuentoAdminPct(a){
   const pct=a&&a.descuento_gradehub_pct;
   return Number.isInteger(pct)&&pct>=1&&pct<=50?pct:null;
 }
-function editorDescuentoAdminHTML(a,estado='cargando'){
-  const pct=descuentoAdminPct(a),id=esc(a.id),campo=`admin-descuento-${id}`;
+function editorDescuentoAdminHTML(a,estado='cargando',conCodigo=false){
+  const pct=descuentoAdminPct(a),id=esc(a.id),campo=`admin-descuento-${id}`,codigo=pct===null?null:codigoDescuentoClase(a);
   const aviso=estado==='sin-sql'?'Aplica administradores.sql para editar el descuento desde acá'
     :estado==='error'?'No pudimos comprobar si se puede editar el descuento. Vuelve a abrir el panel para intentarlo de nuevo.'
     :'Comprobando edición del descuento…';
   return `<h4>Descuento por venir de GradeHub</h4>
-    <p class="admin-descuento-actual">Actual: <b>${pct===null?'Sin descuento':pct+'%'}</b></p>
+    <p class="admin-descuento-actual">Actual: <b>${pct===null?'Sin descuento':esc(textoDescuentoClase({descuento:pct,codigo}).replace(/^−/,''))}</b></p>
     ${estado!=='listo'?`<p class="profesor-info" role="status">${aviso}</p>`:
-      `<label for="${campo}">Descuento · %</label><div class="admin-descuento-controles">
-        <input id="${campo}" type="number" min="1" max="50" step="1" inputmode="numeric" data-descuento-pct value="${pct===null?'':pct}" aria-describedby="${campo}-ayuda ${campo}-error">
+      `<label for="${campo}">Descuento · %</label>
+      <input id="${campo}" type="number" min="1" max="50" step="1" inputmode="numeric" data-descuento-pct value="${pct===null?'':pct}" aria-describedby="${campo}-ayuda ${campo}-error">
+      <p class="profesor-info" id="${campo}-ayuda">De 1 a 50%. Lo fija GradeHub, no el profesor.</p>
+      ${conCodigo?`<label for="${campo}-codigo">Código · opcional</label><input id="${campo}-codigo" class="admin-descuento-codigo" type="text" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej. GRADEHUB" data-descuento-codigo value="${esc(codigo||'')}" aria-describedby="${campo}-codigo-ayuda ${campo}-error">
+      <p class="profesor-info" id="${campo}-codigo-ayuda">El anuncio dirá «−N% con el código …». De 3 a 20 letras o números.</p>`:''}
+      <div class="admin-descuento-controles">
         <button type="button" class="accion-principal" data-descuento-guardar>Guardar</button>
         ${pct===null?'':'<button type="button" class="clase-accion" data-descuento-quitar>Quitar</button>'}
-      </div><p class="profesor-info" id="${campo}-ayuda">De 1 a 50%. Lo fija GradeHub, no el profesor.</p>
+      </div>
       <p class="profesor-info" id="${campo}-error" data-descuento-error role="alert"></p>`}`;
 }
 async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
@@ -3240,21 +3254,30 @@ async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
     const {error}=await supabaseClient.rpc('admin_descuento_anuncio',{p_anuncio_id:null,p_pct:null});
     if(error)estado=sqlClasesDesactualizado(error)?'sin-sql':'error';
   }catch(e){estado='error';}
+  // El código llegó después (2026-10-25): sin su SQL, el bloque sigue igual.
+  let conCodigo=false;
+  if(estado==='listo')try{
+    const {error}=await supabaseClient.rpc('admin_descuento_codigo_anuncio',{p_anuncio_id:null,p_pct:null,p_codigo:null});
+    conCodigo=!error;
+  }catch(e){}
   bloques.forEach(bloque=>{
     if(bloque.isConnected===false)return;
     const a=anuncios.get(bloque.dataset.adminDescuento);if(!a)return;
-    bloque.innerHTML=editorDescuentoAdminHTML(a,estado);
+    bloque.innerHTML=editorDescuentoAdminHTML(a,estado,conCodigo);
     if(estado!=='listo')return;
     const campo=bloque.querySelector('[data-descuento-pct]'),error=bloque.querySelector('[data-descuento-error]');
+    const campoCodigo=bloque.querySelector('[data-descuento-codigo]');
+    if(campoCodigo)campoCodigo.addEventListener('input',()=>{campoCodigo.value=campoCodigo.value.toUpperCase().replace(/\s+/g,'');campoCodigo.removeAttribute('aria-invalid');error.textContent='';});
     const guardar=bloque.querySelector('[data-descuento-guardar]'),quitar=bloque.querySelector('[data-descuento-quitar]');
     let pendiente=false;
     campo.addEventListener('input',()=>{campo.removeAttribute('aria-invalid');error.textContent='';});
-    const aplicar=async pct=>{
+    const aplicar=async(pct,codigo=null)=>{
       if(pendiente||bloque.isConnected===false)return;
       pendiente=true;
-      const controles=[campo,guardar,quitar].filter(Boolean);controles.forEach(b=>{b.disabled=true;});
+      const controles=[campo,campoCodigo,guardar,quitar].filter(Boolean);controles.forEach(b=>{b.disabled=true;});
       try{
-        await llamar('admin_descuento_anuncio',{p_anuncio_id:a.id,p_pct:pct},pct===null?'Descuento quitado':'Descuento guardado',e=>{
+        await llamar(campoCodigo?'admin_descuento_codigo_anuncio':'admin_descuento_anuncio',
+          campoCodigo?{p_anuncio_id:a.id,p_pct:pct,p_codigo:pct===null?null:codigo}:{p_anuncio_id:a.id,p_pct:pct},pct===null?'Descuento quitado':'Descuento guardado',e=>{
           if(!sqlClasesDesactualizado(e))return false;
           // También cubre que el SQL deje de estar disponible tras la consulta.
           bloques.forEach(c=>{if(c.isConnected!==false){const anuncio=anuncios.get(c.dataset.adminDescuento);if(anuncio)c.innerHTML=editorDescuentoAdminHTML(anuncio,'sin-sql');}});
@@ -3262,11 +3285,11 @@ async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
         });
       }finally{pendiente=false;controles.forEach(b=>{if(b.isConnected!==false)b.disabled=false;});}
     };
-    const confirmar=pct=>{
-      if(a.estado!=='publicado')return aplicar(pct);
+    const confirmar=(pct,codigo=null)=>{
+      if(a.estado!=='publicado')return aplicar(pct,codigo);
       showConfirm(pct===null?'¿Quitar el descuento?':'¿Guardar el descuento?',
-        pct===null?'Los estudiantes verán el precio sin descuento desde ahora.':`Los estudiantes verán el precio con −${pct}% desde ahora.`,
-        ()=>aplicar(pct),{label:pct===null?'Quitar':'Guardar',danger:false});
+        pct===null?'Los estudiantes verán el precio sin descuento desde ahora.':`Los estudiantes verán el precio con −${pct}%${codigo?` con el código ${codigo}`:''} desde ahora.`,
+        ()=>aplicar(pct,codigo),{label:pct===null?'Quitar':'Guardar',danger:false});
     };
     guardar.addEventListener('click',()=>{
       if(pendiente)return;
@@ -3274,7 +3297,11 @@ async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
       if(!/^\d+$/.test(texto)||!Number.isInteger(pct)||pct<1||pct>50){
         error.textContent='Escribe un porcentaje entero entre 1 y 50.';campo.setAttribute('aria-invalid','true');campo.focus();return;
       }
-      return confirmar(pct);
+      const codigo=campoCodigo?campoCodigo.value.trim().toUpperCase()||null:null;
+      if(codigo&&!/^[A-Z0-9][A-Z0-9_-]{2,19}$/.test(codigo)){
+        error.textContent='El código va de 3 a 20 letras o números, sin espacios.';campoCodigo.setAttribute('aria-invalid','true');campoCodigo.focus();return;
+      }
+      return confirmar(pct,codigo);
     });
     if(quitar)quitar.addEventListener('click',()=>confirmar(null));
   });

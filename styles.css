@@ -3235,7 +3235,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-descuento-controles{display:flex;align-items:center;flex-wrap:wrap;gap:10px;}
 .admin-descuento input[type=number]{width:6rem;min-width:44px;min-height:44px;padding:10px 12px;border:1px solid var(--border2);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;}
 .admin-descuento .accion-principal{min-width:44px;min-height:44px;margin:0;}
-.admin-descuento .clase-accion{min-width:44px;min-height:44px;}
+.admin-descuento input.admin-descuento-codigo{width:14rem;max-width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border2);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;text-transform:uppercase;letter-spacing:.04em;}
+.admin-descuento input.admin-descuento-codigo::placeholder{text-transform:none;letter-spacing:0;}
+.admin-descuento .clase-accion{min-width:44px;min-height:44px;width:auto;margin:0;}
 .admin-descuento :is(input,button):focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 .admin-descuento [aria-invalid=true]{border-color:var(--fg);}
 .admin-descuento-etiqueta{align-self:flex-start;padding:3px 8px;border-radius:6px;background:var(--primary-light);color:var(--primary);font-size:.75rem;font-weight:600;font-variant-numeric:tabular-nums;}

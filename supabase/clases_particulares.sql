@@ -369,6 +369,11 @@ grant update (linea_datos) on public.tutor_anuncios to authenticated;
 grant select (pack_clases, descuento_gradehub_pct) on public.tutor_anuncios to anon, authenticated;
 grant insert (pack_clases) on public.tutor_anuncios to authenticated;
 grant update (pack_clases) on public.tutor_anuncios to authenticated;
+-- Código de descuento (Lucas, 2026-10-25): «−10% con el código XXX». Solo
+-- con descuento; lo fija un admin, el cliente lo lee y nunca lo escribe.
+alter table public.tutor_anuncios add column if not exists codigo_descuento text
+  check (codigo_descuento is null or codigo_descuento ~ '^[A-Z0-9][A-Z0-9_-]{2,19}$');
+grant select (codigo_descuento) on public.tutor_anuncios to anon, authenticated;
 -- El tipo (clase o material) se lee como lo demás público y lo escribe el profesor.
 grant select (tipo) on public.tutor_anuncios to anon, authenticated;
 grant insert (tipo) on public.tutor_anuncios to authenticated;
