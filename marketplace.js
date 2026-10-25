@@ -3291,7 +3291,7 @@ async function abrirClaseRecomendada(anuncio,ramo,sigla){
   if(!raiz)return;
   logosCatalogoClases=await logosDeAnuncios([anuncio.id]);
   raiz.innerHTML=`<div class="catalogo-clases">
-      <div class="catalogo-clases-head"><div><div class="modal-title" id="modal-titulo">Clase particular</div></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></div>
+      <div class="catalogo-clases-head"><div><div class="modal-title" id="modal-titulo">${esc(etiquetaTipoClase(anuncio))}</div></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></div>
       <div class="catalogo-clases-resultados">${tarjetaCatalogoClase(anuncio,{sigla,abierta:true})}</div>
       <button type="button" class="btn-cancel clase-apoyo-mas" onclick="openCatalogoClases()">Ver todas las clases</button>
     </div>`;
