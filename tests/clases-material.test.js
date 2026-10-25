@@ -42,7 +42,7 @@ chk('el filtro aparece en el catálogo',/id="catalogo-tipo"[\s\S]*Clase particul
 
 console.log('\n=== En el formulario ===');
 const mk=fs.readFileSync(raiz+'marketplace.js','utf8');
-chk('el selector «Qué publicas» solo aparece si el servidor ya guarda el tipo',/capasColumnasClase>=4\|\|esMaterialClase\(anuncio\)\?`<fieldset class="profesor-tipo"/.test(mk));
+chk('el selector «Qué publicas» solo aparece para el profesor si el servidor ya guarda el tipo',/!admin&&\(capasColumnasClase>=4\|\|esMaterialClase\(anuncio\)\)\?`<fieldset class="profesor-tipo"/.test(mk));
 chk('formato, dónde y pack van en un bloque que se esconde con material',/<div class="profesor-solo-clase" id="pr-solo-clase"/.test(mk)&&/soloClase\.hidden=material/.test(mk));
 chk('sin el SQL, un material no se guarda como clase: se avisa',/sin-material/.test(mk));
 

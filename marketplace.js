@@ -1986,12 +1986,12 @@ function tarjetaPanelClase(a,pesos,ahora){
 
 // Presentación pura de la propuesta #522. Las acciones y los números siguen
 // conectados al flujo de producción; no se importan adaptadores de bin/.
-function cabeceraProfesorHTML(titulo,bajada,accion='',idTitulo='profesor-titulo'){
-  return `<header class="profesor-hig-cabecera"><div><p class="profesor-hig-ceja">TU ESPACIO DE PROFESOR</p><h1 class="modal-title" id="${esc(idTitulo)}">${esc(titulo)}</h1><p>${esc(bajada)}</p></div>${accion}</header>`;
+function cabeceraProfesorHTML(titulo,bajada,accion='',idTitulo='profesor-titulo',ceja='TU ESPACIO DE PROFESOR'){
+  return `<header class="profesor-hig-cabecera"><div><p class="profesor-hig-ceja">${esc(ceja)}</p><h1 class="modal-title" id="${esc(idTitulo)}">${esc(titulo)}</h1><p>${esc(bajada)}</p></div>${accion}</header>`;
 }
 function filaProfesorClaseHTML(a,pesos,ahora){
   const vig=vigenciaAnuncio(a,ahora),etiqueta=(ESTADOS_ANUNCIO[vig]||[vig])[0];
-  return `<details class="profesor-hig-fila"><summary>
+  return `<details class="profesor-hig-fila" data-profesor-anuncio="${esc(a.id)}"><summary>
     <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
     <span class="clase-estado clase-estado-${esc(vig)}" data-estado-campana="${esc(a.id)}">${esc(etiqueta)}</span>
     <span class="profesor-hig-importe"><b data-costo-campana="${esc(a.id)}">${['publicado','pausado','expirado','agotado','sin_confirmar'].includes(vig)?'Cargando…':'—'}</b><small>Costo de campaña</small></span>
@@ -2036,6 +2036,11 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
       anuncios=anuncios.map(a=>a.estado==='borrador'?{...a,comentario_revision_error:true}:a);
     }
   }
+  let ediciones=[];
+  try{
+    const {data,error}=await supabaseClient.rpc('mis_anuncios_editados_gradehub');
+    if(!error&&Array.isArray(data))ediciones=data.filter(e=>anuncios.some(a=>a.id===e.anuncio_id));
+  }catch(e){}
   const ahora=Date.now(),g=gruposPanelClases(anuncios,ahora);
   const conNumeros=[...g.activos,...g.cerrados,...g.sinConfirmar];
   // En su pestaña, «Clases» va en la barra (Lucas, 2026-10-22): sin título
@@ -2051,6 +2056,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const porVencer=g.activos.filter(a=>{const d=enDias(a.vence_at);return d!==null&&d>=0&&d<=3;});
   const devueltos=g.borradores.filter(a=>a.comentario_revision);
   const pendientesHTML=[
+    ...ediciones.map(e=>{const a=anuncios.find(a=>a.id===e.anuncio_id);const fecha=new Date(e.editado_at).toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'});return `<li data-aviso-edicion="${esc(a.id)}"><span><b>${esc(a.titulo||'Sin título')}</b><small>GradeHub editó tu anuncio · ${esc(fecha)}</small></span><button type="button" class="agent-refresh" data-ver-edicion="${esc(a.id)}">Ver anuncio</button></li>`;}),
     ...devueltos.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Te lo devolvimos con un comentario</small></span><button type="button" class="agent-refresh" data-editar="${esc(a.id)}">Revisar</button></li>`),
     ...g.revision.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>En revisión: te avisamos cuando se publique</small></span></li>`),
     ...porVencer.map(a=>{const d=enDias(a.vence_at);return `<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Su campaña termina ${d===0?'hoy':d===1?'mañana':`en ${d} días`}</small></span></li>`;}),
@@ -2113,8 +2119,41 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   if(cajaLogo&&cajaLogo.isConnected&&typeof cajaLogo.addEventListener==='function')renderLogoProfesor(cajaLogo);
   const cajaPerfil=raiz.querySelector('#clases-perfil');
   if(cajaPerfil&&cajaPerfil.isConnected&&typeof cajaPerfil.addEventListener==='function')renderPerfilProfesor(cajaPerfil);
+  const porVer=new Map(ediciones.map(e=>[e.anuncio_id,e])),abriendoEdicion=new Set();
+  const mostrarEdicion=async id=>{
+    const edicion=porVer.get(id),a=anuncios.find(a=>a.id===id);
+    if(!edicion||!a||abriendoEdicion.has(id))return;
+    const fila=[...raiz.querySelectorAll('[data-profesor-anuncio]')].find(f=>f.dataset.profesorAnuncio===id);
+    const detalle=fila&&fila.querySelector('.profesor-hig-detalle');
+    if(!detalle)return;
+    let preview=detalle.querySelector('[data-edicion-preview]');
+    if(!preview){
+      // La misma tarjeta abierta del catálogo, sin contacto ni medición.
+      preview=document.createElement('section');preview.className='vista-catalogo';preview.setAttribute('data-edicion-preview','');
+      preview.innerHTML='<h3>Anuncio actualizado por GradeHub</h3>'+tarjetaCatalogoClase(a,{abierta:true});
+      preview.querySelectorAll('a').forEach(a=>{a.removeAttribute('href');a.setAttribute('aria-disabled','true');a.setAttribute('tabindex','-1');});
+      detalle.prepend(preview);
+      if(a.flyer_path)urlFlyerClase(a.flyer_path).then(url=>{const caja=preview.querySelector('[data-flyer]');if(url&&caja&&caja.isConnected){caja.hidden=false;caja.innerHTML=`<img src="${esc(url)}" alt="Flyer del anuncio">`;}});
+    }
+    abriendoEdicion.add(id);
+    try{
+      const {data,error}=await supabaseClient.rpc('marcar_edicion_anuncio_vista',{p_anuncio_id:id,p_accion_id:edicion.accion_id});
+      if(error||data!==true)return;
+      porVer.delete(id);
+      const aviso=[...raiz.querySelectorAll('[data-aviso-edicion]')].find(e=>e.dataset.avisoEdicion===id);
+      if(aviso)aviso.remove();
+      const pendientes=raiz.querySelector('.clases-pendientes');
+      if(pendientes&&!pendientes.children.length)pendientes.innerHTML='<li>Nada pendiente de tu parte.</li>';
+    }catch(e){}finally{abriendoEdicion.delete(id);}
+  };
+  raiz.querySelectorAll('[data-profesor-anuncio]').forEach(f=>f.addEventListener('toggle',()=>{if(f.open)mostrarEdicion(f.dataset.profesorAnuncio);}));
+  raiz.querySelectorAll('[data-ver-edicion]').forEach(b=>b.addEventListener('click',()=>{
+    activarVistaClases('anuncios');
+    const fila=[...raiz.querySelectorAll('[data-profesor-anuncio]')].find(f=>f.dataset.profesorAnuncio===b.dataset.verEdicion);
+    if(fila){fila.open=true;mostrarEdicion(b.dataset.verEdicion);const summary=fila.querySelector('summary');if(summary){summary.focus();summary.scrollIntoView({block:'start'});}}
+  }));
   raiz.querySelectorAll('[data-editar]').forEach(b=>
-    b.addEventListener('click',()=>renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null)));
+    b.addEventListener('click',async()=>{await mostrarEdicion(b.dataset.editar);renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null);}));
   raiz.querySelectorAll('[data-pausar]').forEach(b=>
     b.addEventListener('click',()=>pausarAnuncioClase(b.dataset.pausar,repintar)));
   // Volver a publicar = volver a borrador y abrirlo: el anuncio pasa por
@@ -2410,16 +2449,16 @@ async function guardarCampanaClase(anuncioId,datos){
   }catch(e){return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};}
 }
 
-function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
+function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profesor=null,volverAdmin=null}={}){
   let id=anuncio&&anuncio.id||null,flyerActual=anuncio&&anuncio.flyer_path||null;
   const valor=(campo,defecto='')=>esc(anuncio&&anuncio[campo]!=null?anuncio[campo]:defecto);
   const tipoContactoInicial=anuncio&&PREFIJO_CONTACTO_CLASE[anuncio.contacto_tipo]!==undefined?anuncio.contacto_tipo:'whatsapp';
   const elegir=(opciones,actual)=>opciones.map(([clave,texto])=>`<option value="${clave}"${actual===clave?' selected':''}>${texto}</option>`).join('');
   // Siempre hay cómo salir sin guardar ni enviar (Lucas, 2026-10-24).
   raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+
-    `<button type="button" class="profesor-volver" id="pr-volver"><span aria-hidden="true">‹</span> ${pendiente?'Volver':'Tus anuncios'}</button>`+
-    cabeceraProfesorHTML(id?'Edita tu borrador.':'Prepara tu clase.',
-    pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
+    `<button type="button" class="profesor-volver" id="pr-volver"><span aria-hidden="true">‹</span> ${admin?'Anuncios':pendiente?'Volver':'Tus anuncios'}</button>`+
+    cabeceraProfesorHTML(admin?`Editando el anuncio de ${profesor&&profesor.nombre||'este profesor'}`:id?'Edita tu borrador.':'Prepara tu clase.',
+    admin?'Corrige el anuncio y revisa cómo se verá. El profesor recibirá un aviso al guardar.':pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo',admin?'ADMINISTRACIÓN':undefined)+`
     ${anuncio&&anuncio.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(anuncio.comentario_revision)}</p></div>`:''}
     <form class="profesor-form" id="profesor-borrador">
       <!-- Campos y vista previa van juntos para que la vista previa, sticky en
@@ -2427,7 +2466,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
       <div class="profesor-form-cuerpo">
       <div class="profesor-form-campos">
       <details class="profesor-seccion" open><summary><h3 id="pr-seccion-titulo">${esMaterialClase(anuncio)?'1. Tu material':'1. Tu clase'}</h3></summary><div class="profesor-seccion-cuerpo">
-      ${capasColumnasClase>=4||esMaterialClase(anuncio)?`<fieldset class="profesor-tipo" id="pr-tipo-caja"><legend class="modal-label">Qué publicas</legend>
+      ${!admin&&(capasColumnasClase>=4||esMaterialClase(anuncio))?`<fieldset class="profesor-tipo" id="pr-tipo-caja"><legend class="modal-label">Qué publicas</legend>
         <div class="profesor-tipo-opciones">${TIPOS_ANUNCIO.map(([v,t])=>`<label><input type="radio" name="pr-tipo" value="${v}"${(esMaterialClase(anuncio)?'material':'clase')===v?' checked':''}><span>${t}</span></label>`).join('')}</div>
         <p class="profesor-info" id="pr-tipo-ayuda">${esMaterialClase(anuncio)?TEXTO_TIPO_ANUNCIO.material:TEXTO_TIPO_ANUNCIO.clase}</p></fieldset>`:''}
       <label class="modal-label" for="pr-titulo">Título del anuncio</label><input id="pr-titulo" type="text" minlength="5" maxlength="90" required value="${valor('titulo')}">
@@ -2458,10 +2497,10 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
       <label class="modal-label" for="pr-contacto" id="pr-contacto-etiqueta">Tu WhatsApp</label><input id="pr-contacto" type="text" minlength="3" maxlength="160" required autocomplete="off" aria-describedby="pr-contacto-error pr-contacto-ayuda" placeholder="${esc(EJEMPLO_CONTACTO_CLASE[tipoContactoInicial])}" value="${esc(anuncio&&anuncio.contacto_valor!=null?anuncio.contacto_valor:PREFIJO_CONTACTO_CLASE[tipoContactoInicial])}">
       <p id="pr-contacto-error" role="alert" hidden style="margin:6px 0 0;font-size:0.8125rem;color:var(--red);"></p>
       <p class="profesor-info" id="pr-contacto-ayuda"></p>
-      <label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp" ${pendiente?'disabled':''}><p class="profesor-info">${pendiente?'Podrás subir el flyer cuando aprobemos tu postulación.':'JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.'}</p>
-      <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
+      ${admin?'<p class="profesor-info">El flyer y el logo se muestran en la vista previa. Desde acá no se cambian.</p><p class="profesor-info" id="pr-imagenes-aviso" role="status"></p>':`<label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp" ${pendiente?'disabled':''}><p class="profesor-info">${pendiente?'Podrás subir el flyer cuando aprobemos tu postulación.':'JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.'}</p>
       <button class="btn-cancel" id="pr-quitar-flyer" type="button" ${flyerActual?'':'hidden'}>Quitar flyer guardado</button>
-      <div id="pr-logo"></div>
+      <div id="pr-logo"></div>`}
+      <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
       </div></details>
       <details class="profesor-seccion" open><summary><h3>2. Público</h3></summary><div class="profesor-seccion-cuerpo">
       <label class="modal-label" for="pr-tenant">Universidad</label><select id="pr-tenant">${elegir([['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes']],anuncio&&anuncio.tenant||S.tenant)}</select>
@@ -2473,11 +2512,12 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
       </div>
       <p class="profesor-info" id="pr-siglas-ayuda">Si tu ramo tiene dos siglas, como Dinámica ICE1514 y FIS1514, puedes elegir las dos. Otro ramo va en otro anuncio. Si no aparece, escribe su sigla completa.</p>
       <input id="pr-siglas" type="hidden" value="${esc(anuncio&&Array.isArray(anuncio.ramos_siglas)?anuncio.ramos_siglas.join(', '):'')}">
+      ${admin&&anuncio&&!anuncio.criterios?'<p class="profesor-info">Este anuncio tiene público general. Se conserva mientras no cambies el promedio o el mínimo evaluado.</p>':''}
       <label class="modal-label" for="pr-promedio">Promedio menor a</label><input id="pr-promedio" type="number" min="1.1" max="7" step="0.1" required value="${esc(anuncio&&anuncio.criterios?anuncio.criterios.promedioMenorA:5)}">
       <label class="modal-label" for="pr-avance">Mínimo evaluado · %</label><input id="pr-avance" type="number" min="0" max="99" step="1" required value="${esc(anuncio&&anuncio.criterios?anuncio.criterios.avanceMinimo:20)}">
       <p class="profesor-info">GradeHub calcula el público sin mostrarte notas ni identidades.</p>
       </div></details>
-      <details class="profesor-seccion" open><summary><h3>3. Tu campaña</h3></summary><div class="profesor-seccion-cuerpo">
+      ${admin?'':`<details class="profesor-seccion" open><summary><h3>3. Tu campaña</h3></summary><div class="profesor-seccion-cuerpo">
       <div class="profesor-campana">
         <div class="profesor-campana-fechas">
           <div><label class="modal-label" for="pr-inicio">Empieza · opcional</label><input id="pr-inicio" type="date" min="${hoyChileClase()}"></div>
@@ -2489,10 +2529,10 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
         <p class="profesor-info">Cuesta ${pesosClase(TARIFA_CAMPANA.dia)} por día publicada y, por persona, ${pesosClase(TARIFA_CAMPANA.vista)} si la ve, ${pesosClase(TARIFA_CAMPANA.apertura)} si la abre y ${pesosClase(TARIFA_CAMPANA.contacto)} si te contacta. Cada persona cuenta una vez. Al llegar al tope deja de mostrarse: nunca pagas más que eso. El pago se coordina con GradeHub antes de publicar.</p>
         <p class="profesor-campana-resumen" id="pr-campana-resumen" aria-live="polite"></p><button type="button" class="btn-cancel" id="pr-reintentar-campana" hidden>Reintentar carga de campaña</button>
       </div>
-      </div></details>
+      </div></details>`}
       </div>
       <section class="profesor-form-vista" aria-labelledby="pr-vista-titulo">
-      <div class="vista-cabeza"><h3 id="pr-vista-titulo">4. Así la van a ver</h3></div>
+      <div class="vista-cabeza"><h3 id="pr-vista-titulo">${admin?'3':'4'}. Así la van a ver</h3></div>
       <!-- Solo la vista de celular. La de computador era la pantalla entera de
            Inicio achicada a la columna del formulario, y quedaba ilegible; el
            banner dice lo mismo en los dos, y la mayoría entra desde el iPhone. -->
@@ -2506,25 +2546,25 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
       </section>
       </div>
       <div class="profesor-form-acciones">
-      <div class="modal-btns"><button class="${pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">Guardar borrador</button>${pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
-      <p class="profesor-estado" role="status" aria-live="polite">${id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
+      <div class="modal-btns"><button class="${admin?'accion-principal':pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">${admin?'Guardar cambios':'Guardar borrador'}</button>${admin||pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
+      <p class="profesor-estado" role="status" aria-live="polite">${admin?'Los cambios se guardan en este anuncio, sin cambiar su publicación ni su campaña.':id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
       </div>
     </form></div>`;
   const form=raiz.querySelector('#profesor-borrador'),campo=id=>form.querySelector('#pr-'+id),estado=form.querySelector('.profesor-estado');
-  let procesando=false,campanaLista=!id;
+  let procesando=false,campanaLista=admin||!id;
   // Vista previa en vivo: el mismo contenido que verá el estudiante en Inicio,
   // armado con lo que el profesor lleva escrito y su logo.
   const vista=form.querySelector('#pr-vista');
   let logoVista='';
   const valorCampo=id=>{const el=campo(id);return el?String(el.value||''):'';};
   // Clase o material (2026-10-23). Sin el selector (SQL sin aplicar), clase.
-  const tipoElegido=()=>{const r=typeof form.querySelector==='function'&&form.querySelector('input[name="pr-tipo"]:checked');return r&&r.value==='material'?'material':'clase';};
+  const tipoElegido=()=>{if(admin)return esMaterialClase(anuncio)?'material':'clase';const r=typeof form.querySelector==='function'&&form.querySelector('input[name="pr-tipo"]:checked');return r&&r.value==='material'?'material':'clase';};
   // Qué datos van bajo el título. Se guarda como claves, en el orden en que se
   // muestran; si coincide con lo de siempre se guarda null, como los anuncios
   // que ya existían.
   const lineaElegida=new Set(Array.isArray(anuncio&&anuncio.linea_datos)?anuncio.linea_datos:LINEA_CLASE_POR_OMISION);
   const cajaLinea=campo('linea');let firmaLinea='';
-  const borradorEnVivo=()=>({tipo:tipoElegido(),titulo:valorCampo('titulo').trim(),precio_clp:pesosDeTexto(valorCampo('precio')),pack_clases:valorCampo('pack').trim(),
+  const borradorEnVivo=()=>({...(admin?{descuento_gradehub_pct:anuncio.descuento_gradehub_pct,codigo_descuento:anuncio.codigo_descuento}:{}),tipo:tipoElegido(),titulo:valorCampo('titulo').trim(),precio_clp:pesosDeTexto(valorCampo('precio')),pack_clases:valorCampo('pack').trim()===''?null:Number(valorCampo('pack')),
     modalidad:valorCampo('modalidad'),modalidad_otra:valorCampo('modalidad-otra').trim(),
     ubicacion:valorCampo('ubicacion'),ubicacion_otra:valorCampo('ubicacion-otra').trim(),
     detalles:leerDetalles(),linea_datos:[...lineaElegida]});
@@ -2583,7 +2623,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   };
   form.addEventListener('input',actualizarVista);form.addEventListener('change',actualizarVista);
   // El logo vive en la ficha: se pide una vez y se actualiza cuando lo cambian.
-  if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('gradehub:logo-profesor',e=>{
+  if(!admin&&typeof document!=='undefined'&&document.addEventListener)document.addEventListener('gradehub:logo-profesor',e=>{
     if(!form.isConnected)return;logoVista=e.detail||'';actualizarVista();
   });
   campoPesos(campo('precio'));
@@ -2635,7 +2675,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
     }
   };
   if(reintentarCampana)reintentarCampana.addEventListener('click',cargarCampanaGuardada);
-  if(id)cargarCampanaGuardada();
+  if(id&&!admin)cargarCampanaGuardada();
   // "Otra…" abre su casilla de texto; cualquier otra opción la esconde.
   [['modalidad','modalidad-otra'],['ubicacion','ubicacion-otra']].forEach(([sel,texto])=>{
     const selector=campo(sel),caja=campo(texto);
@@ -2660,7 +2700,9 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   actualizarVista();
   activarBuscadorRamosClase(form,campo);
   const cajaLogo=campo('logo');
-  if(cajaLogo&&!pendiente)renderLogoProfesor(cajaLogo);
+  if(cajaLogo&&!pendiente&&!admin)renderLogoProfesor(cajaLogo);
+  const avisarImagen=texto=>{const aviso=campo('imagenes-aviso');if(aviso&&aviso.isConnected)aviso.textContent+=(aviso.textContent?' ':'')+texto;};
+  if(admin&&profesor&&profesor.logo_aprobado_path)urlFlyerClase(profesor.logo_aprobado_path).then(url=>{if(form.isConnected){logoVista=url||'';actualizarVista();if(!url)avisarImagen('El logo guardado no está disponible en esta vista. Se conserva en el anuncio.');}}).catch(()=>avisarImagen('No pudimos cargar el logo guardado. Se conserva en el anuncio.'));
   // WhatsApp parte con "+56 9 " escrito y se ordena con sus espacios. Si la
   // clase es gratis aparece el selector con Instagram y link de inscripción;
   // si deja de ser gratis, vuelve a WhatsApp.
@@ -2723,8 +2765,8 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   if(typeof form.querySelectorAll==='function')form.querySelectorAll('input[name="pr-tipo"]').forEach(r=>r.addEventListener('change',aplicarTipo));
   aplicarTipo();
   const preview=form.querySelector('.profesor-flyer-preview');
-  if(flyerActual)urlFlyerClase(flyerActual).then(url=>{if(url&&preview.isConnected){preview.querySelector('img').src=url;preview.hidden=false;flyerVista=url;actualizarVista();}});
-  campo('flyer').addEventListener('change',()=>{
+  if(flyerActual)urlFlyerClase(flyerActual).then(url=>{if(url&&preview&&preview.isConnected){preview.querySelector('img').src=url;preview.hidden=false;flyerVista=url;actualizarVista();}else if(admin)avisarImagen('El flyer guardado no está disponible en esta vista. Se conserva en el anuncio.');}).catch(()=>{if(admin)avisarImagen('No pudimos cargar el flyer guardado. Se conserva en el anuncio.');});
+  if(!admin)campo('flyer').addEventListener('change',()=>{
     const file=campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
     if(!validacion.ok){campo('flyer').value='';estado.textContent=validacion.error;return;}
     if(!file)return;
@@ -2733,7 +2775,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
     reader.onerror=()=>{estado.textContent='No pudimos leer ese flyer. Elige otra imagen.';};
     reader.readAsDataURL(file);
   });
-  form.querySelector('#pr-quitar-flyer').addEventListener('click',async()=>{
+  if(!admin)form.querySelector('#pr-quitar-flyer').addEventListener('click',async()=>{
     if(!id||procesando)return;
     procesando=true;
     estado.textContent='Quitando flyer…';
@@ -2760,23 +2802,55 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
     const input=campo('contacto');if(input&&typeof input.removeAttribute==='function')input.removeAttribute('aria-invalid');
   };
   if(contacto&&typeof contacto.addEventListener==='function')contacto.addEventListener('input',limpiarContacto);
-  const procesar=async enviar=>{
-    if(enviar&&pendiente)return;
-    if(procesando||!campanaLista)return;
-    if(typeof form.querySelectorAll==='function')[...form.querySelectorAll(':invalid')].forEach(abrirSeccionDe);
-    if(!form.reportValidity())return;
-    const file=campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
-    if(!validacion.ok){estado.textContent=validacion.error;campo('flyer').focus();return;}
-    const campana=validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))});
-    if(!campana.ok){estado.textContent=campana.error;enfocar(campo(campana.campo));return;}
-    const datos={tipo:tipoElegido(),tenant:campo('tenant').value,ramos_siglas:campo('siglas').value.split(',').map(s=>s.trim()),
+  const datosDelEditor=()=>({tipo:tipoElegido(),tenant:campo('tenant').value,ramos_siglas:campo('siglas').value.split(',').map(s=>s.trim()),
       criterios:{promedioMenorA:Number(campo('promedio').value),avanceMinimo:Number(campo('avance').value)},
       titulo:campo('titulo').value,descripcion:campo('descripcion').value,precio_clp:pesosDeTexto(campo('precio').value),
       pack_clases:campo('pack')?campo('pack').value.trim():'',
       modalidad:campo('modalidad').value,ubicacion:campo('ubicacion').value,
       modalidad_otra:campo('modalidad-otra')?campo('modalidad-otra').value:'',ubicacion_otra:campo('ubicacion-otra')?campo('ubicacion-otra').value:'',
       detalles:leerDetalles(),linea_datos:lineaParaGuardar(borradorEnVivo()),
-      contacto_tipo:tipoActual(),contacto_valor:campo('contacto').value};
+      contacto_tipo:tipoActual(),contacto_valor:campo('contacto').value});
+  const inicialesAdmin=admin?datosDelEditor():null;
+  const procesar=async enviar=>{
+    if(enviar&&(pendiente||admin))return;
+    if(procesando||!campanaLista)return;
+    if(typeof form.querySelectorAll==='function')[...form.querySelectorAll(':invalid')].forEach(abrirSeccionDe);
+    if(!form.reportValidity())return;
+    const file=!admin&&campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
+    if(!validacion.ok){estado.textContent=validacion.error;campo('flyer').focus();return;}
+    const campana=admin?{ok:true}:validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))});
+    if(!campana.ok){estado.textContent=campana.error;enfocar(campo(campana.campo));return;}
+    const datos=datosDelEditor();
+    if(admin){
+      const validado=validarBorradorClase(datos);
+      if(!validado.ok){
+        estado.textContent=validado.error;
+        if(validado.campo==='contacto_valor')marcarContacto(validado.error);
+        else {const mapa={ramos_siglas:'siglas-buscar',criterios:'promedio',precio_clp:'precio',pack_clases:'pack',contacto_tipo:'contacto-tipo',detalles:'agregar-detalle'};enfocar(campo(mapa[validado.campo]||validado.campo));}
+        return;
+      }
+      // Mandar solo lo que se editó conserva valores heredados (por ejemplo,
+      // criterios null = público general) aunque el formulario muestre defaults.
+      const cambios=Object.fromEntries(Object.entries(validado.datos).filter(([k])=>JSON.stringify(datos[k])!==JSON.stringify(inicialesAdmin[k])));
+      for(const [opcion,otra] of [['modalidad','modalidad_otra'],['ubicacion','ubicacion_otra']]){if(opcion in cambios||otra in cambios){cambios[opcion]=validado.datos[opcion];cambios[otra]=validado.datos[otra];}}
+      if(!Object.keys(cambios).length){estado.textContent='No hay cambios para guardar.';return;}
+      const guardar=async()=>{
+        if(procesando||form.isConnected===false)return;
+        procesando=true;campo('guardar').disabled=true;estado.textContent='Guardando cambios…';
+        try{
+          const {data,error}=await supabaseClient.rpc('admin_editar_anuncio',{p_anuncio_id:id,p_datos:cambios});
+          if(error){estado.textContent=sqlClasesDesactualizado(error)?'Aplica administradores.sql para editar anuncios desde acá.':'No pudimos guardar los cambios. Revisa los datos e intenta de nuevo.';return;}
+          if(data!==true){estado.textContent='No hubo cambios. Si esperabas guardar algo, vuelve a Anuncios y abre el anuncio de nuevo.';return;}
+          sinGuardar=false;
+          await volverAdmin();
+          if(typeof showToast==='function')showToast('Anuncio actualizado');
+        }catch(e){estado.textContent='No pudimos guardar los cambios. Revisa tu conexión e intenta de nuevo.';}
+        finally{procesando=false;if(campo('guardar')&&campo('guardar').isConnected)campo('guardar').disabled=false;}
+      };
+      if(anuncio.estado==='publicado')showConfirm('¿Guardar los cambios?','Los estudiantes verán los cambios al tiro.',guardar,{label:'Guardar cambios',danger:false});
+      else await guardar();
+      return;
+    }
     procesando=true;
     const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')].filter(Boolean);botones.forEach(b=>b.disabled=true);
     estado.textContent='Guardando borrador…';
@@ -2813,6 +2887,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   form.addEventListener('input',()=>{sinGuardar=true;});
   form.addEventListener('change',()=>{sinGuardar=true;});
   const salir=async()=>{
+    if(admin){await volverAdmin();return;}
     if(!pendiente)vistaClasesAlVolver='anuncios';
     await renderEspacioProfesor(raiz,{titulo:raiz.id==='modal-content'});
   };
@@ -2820,7 +2895,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   if(volver)volver.addEventListener('click',()=>{
     if(procesando)return;
     if(!sinGuardar){salir();return;}
-    showConfirm('¿Salir sin guardar?',id?'Los cambios que hiciste desde que guardaste se pierden. Tu borrador queda como estaba.':'Lo que escribiste se pierde.',
+    showConfirm('¿Salir sin guardar?',admin?'Los cambios que hiciste se pierden. El anuncio queda como estaba.':id?'Los cambios que hiciste desde que guardaste se pierden. Tu borrador queda como estaba.':'Lo que escribiste se pierde.',
       salir,{label:'Salir sin guardar'});
   });
   const enviarBoton=form.querySelector('#pr-enviar');
@@ -3306,6 +3381,31 @@ async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
     if(quitar)quitar.addEventListener('click',()=>confirmar(null));
   });
 }
+// La consulta sin anuncio es un no-op con MFA: nunca prueba con datos reales.
+async function enlazarEdicionAdmin(raiz,profesores,volver){
+  const cajas=[...raiz.querySelectorAll('[data-admin-edicion]')];
+  if(!cajas.length)return;
+  try{
+    const {error}=await supabaseClient.rpc('admin_editar_anuncio',{p_anuncio_id:null,p_datos:{}});
+    if(error)return;
+    cajas.forEach(caja=>{
+      if(caja.isConnected===false)return;
+      const profesor=profesores.find(p=>(p.anuncios||[]).some(a=>a.id===caja.dataset.adminEdicion));
+      const anuncio=profesor&&(profesor.anuncios||[]).find(a=>a.id===caja.dataset.adminEdicion);
+      if(!anuncio)return;
+      caja.innerHTML='<button type="button" class="clase-accion">Editar anuncio</button>';
+      caja.querySelector('button').addEventListener('click',()=>{
+        renderBorradorProfesor(raiz,anuncio,{admin:true,profesor,volverAdmin:async()=>{
+          await volver();
+          const caja=[...raiz.querySelectorAll('[data-admin-edicion]')].find(c=>c.dataset.adminEdicion===anuncio.id);
+          if(caja){const fila=caja.closest('details');if(fila)fila.open=true;const boton=caja.querySelector('button');if(boton)boton.focus();}
+        }});
+        const titulo=raiz.querySelector('#profesor-titulo');
+        if(titulo){titulo.setAttribute('tabindex','-1');titulo.focus();}
+      });
+    });
+  }catch(e){}
+}
 function filaAdminAnuncio(a,ahora=Date.now()){
   const costo=costoCampanaClase(a.campana),[estado,clase]=estadoAdminAnuncio(a,costo,ahora);
   const vig=vigenciaAnuncio(a,ahora),publicado=!!a.publicado_at;
@@ -3320,6 +3420,7 @@ function filaAdminAnuncio(a,ahora=Date.now()){
     ${vig==='expirado'?'<p class="admin-lista-cobro">Campaña terminada · lista para revisar y registrar el cobro.</p>':''}
     ${vig==='eliminado'&&publicado?'<p class="admin-lista-cobro">Anuncio borrado de la revisión. Esta publicación anterior se conserva para el cobro.</p>':''}
     <div class="admin-anuncio-acciones">
+      ${['borrador','en_revision','publicado','pausado'].includes(a.estado)?`<span data-admin-edicion="${esc(a.id)}"></span>`:''}
       <button type="button" class="clase-accion" data-admin-estadisticas="${esc(a.id)}" aria-controls="admin-estadisticas-${esc(a.id)}" aria-expanded="false">Ver estadísticas</button>
       ${publicado?editorCobroAdmin(a.id,a.publicado_at,cobro,monto):''}
       ${vig==='publicado'||vig==='programado'?`<button type="button" class="clase-accion" data-admin-pausar="${esc(a.id)}">Pausar aviso</button>`:''}
@@ -3722,6 +3823,7 @@ async function pintarPanelAdmin(raiz){
     });
   });
   await enlazarDescuentosAdmin(raiz,anunciosPorId,llamar);
+  await enlazarEdicionAdmin(raiz,profesores,async()=>{vistaAdmin.area='anuncios';await repintar();});
 }
 
 // ─── PANEL DE ALUMNOS (decisión de Lucas, 2026-10-08) ───────────────────────

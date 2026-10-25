@@ -280,6 +280,7 @@ begin
         'correo', u.email,
         'solicitado_at', p.solicitado_at,
         'presentacion', p.presentacion,
+        'logo_aprobado_path', to_jsonb(p)->>'logo_aprobado_path',
         'tiene_historial', admin.profesor_tiene_historial(p.user_id),
         'alumnos_conectados', admin.alumnos_conectados(p.user_id),
         -- to_jsonb: sin profesor_alumnos.sql aplicado la columna no existe.
@@ -316,6 +317,7 @@ begin
             'ubicacion', a.ubicacion,
             'ubicacion_otra', a.ubicacion_otra,
             'detalles', a.detalles,
+            'linea_datos', a.linea_datos,
             'contacto_tipo', a.contacto_tipo,
             'contacto_valor', a.contacto_valor,
             'flyer_path', a.flyer_path,
@@ -448,6 +450,93 @@ begin
   return public.admin_marcar_cobro_publicacion(p_anuncio_id, desde, p_estado, p_monto_clp);
 end;
 $$;
+
+-- Edición comercial del anuncio. Estado, campañas, medición, cobros,
+-- descuento, código y autor conservan sus caminos y permisos actuales.
+create or replace function public.admin_editar_anuncio(p_anuncio_id uuid, p_datos jsonb)
+returns boolean language plpgsql security definer set search_path = '' as $$
+declare
+  anterior public.tutor_anuncios%rowtype;
+  nuevo public.tutor_anuncios%rowtype;
+  campos text[] := array['titulo','descripcion','precio_clp','pack_clases','modalidad','modalidad_otra',
+    'ubicacion','ubicacion_otra','detalles','linea_datos','contacto_tipo','contacto_valor',
+    'ramos_siglas','tenant','criterios','tipo'];
+  cambios jsonb;
+begin
+  perform admin.exigir_administrador();
+  if p_datos is null or jsonb_typeof(p_datos) <> 'object' then
+    raise exception 'los datos deben ser un objeto';
+  end if;
+  if exists (select 1 from jsonb_object_keys(p_datos) k where not (k = any(campos))) then
+    raise exception 'campo no permitido';
+  end if;
+  select * into anterior from public.tutor_anuncios where id = p_anuncio_id for update;
+  if not found then return false; end if;
+  if anterior.estado not in ('borrador','en_revision','publicado','pausado') then
+    raise exception 'este anuncio ya no se puede editar';
+  end if;
+  -- Coerción a los tipos reales de la tabla, sin reemplazar sus checks.
+  nuevo := jsonb_populate_record(anterior, p_datos);
+  select jsonb_object_agg(k, jsonb_build_object('antes', to_jsonb(anterior)->k, 'despues', to_jsonb(nuevo)->k))
+    into cambios from unnest(campos) k
+    where (to_jsonb(anterior)->k) is distinct from (to_jsonb(nuevo)->k);
+  if cambios is null then return false; end if;
+  update public.tutor_anuncios set
+    titulo = nuevo.titulo, descripcion = nuevo.descripcion, precio_clp = nuevo.precio_clp,
+    pack_clases = nuevo.pack_clases, modalidad = nuevo.modalidad, modalidad_otra = nuevo.modalidad_otra,
+    ubicacion = nuevo.ubicacion, ubicacion_otra = nuevo.ubicacion_otra, detalles = nuevo.detalles,
+    linea_datos = nuevo.linea_datos, contacto_tipo = nuevo.contacto_tipo, contacto_valor = nuevo.contacto_valor,
+    ramos_siglas = nuevo.ramos_siglas, tenant = nuevo.tenant, criterios = nuevo.criterios, tipo = nuevo.tipo
+  where id = p_anuncio_id;
+  insert into admin.acciones (admin_id, accion, objetivo, detalle)
+  values (auth.uid(), 'editar_anuncio', p_anuncio_id, cambios);
+  return true;
+end;
+$$;
+revoke all on function public.admin_editar_anuncio(uuid, jsonb) from public, anon;
+grant execute on function public.admin_editar_anuncio(uuid, jsonb) to authenticated;
+
+create index if not exists acciones_ediciones_anuncio on admin.acciones (objetivo, id desc)
+  where accion = 'editar_anuncio';
+
+-- Un acuse por anuncio: no altera ni expone la auditoría. Al abrir una edición
+-- antigua no se da por vista una corrección que haya llegado después.
+create table if not exists admin.ediciones_anuncio_vistas (
+  anuncio_id uuid primary key references public.tutor_anuncios(id) on delete cascade,
+  autor_id uuid not null references auth.users(id) on delete cascade,
+  ultima_accion_id bigint not null references admin.acciones(id) on delete cascade
+);
+alter table admin.ediciones_anuncio_vistas enable row level security;
+revoke all on admin.ediciones_anuncio_vistas from public, anon, authenticated;
+
+create or replace function public.mis_anuncios_editados_gradehub()
+returns table(anuncio_id uuid, accion_id bigint, editado_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select distinct on (a.id) a.id, h.id, h.created_at
+    from public.tutor_anuncios a join admin.acciones h on h.objetivo = a.id and h.accion = 'editar_anuncio'
+    left join admin.ediciones_anuncio_vistas v on v.anuncio_id = a.id and v.autor_id = a.autor_id
+    where a.autor_id = auth.uid() and a.estado <> 'eliminado'
+      and h.id > coalesce(v.ultima_accion_id, 0)
+    order by a.id, h.id desc;
+$$;
+revoke all on function public.mis_anuncios_editados_gradehub() from public, anon;
+grant execute on function public.mis_anuncios_editados_gradehub() to authenticated;
+
+create or replace function public.marcar_edicion_anuncio_vista(p_anuncio_id uuid, p_accion_id bigint)
+returns boolean language plpgsql security definer set search_path = '' as $$
+begin
+  if not exists (select 1 from public.tutor_anuncios a join admin.acciones h on h.objetivo = a.id
+      where a.id = p_anuncio_id and a.autor_id = auth.uid() and h.id = p_accion_id and h.accion = 'editar_anuncio') then
+    return false;
+  end if;
+  insert into admin.ediciones_anuncio_vistas (anuncio_id, autor_id, ultima_accion_id)
+    values (p_anuncio_id, auth.uid(), p_accion_id)
+    on conflict (anuncio_id) do update set ultima_accion_id = greatest(admin.ediciones_anuncio_vistas.ultima_accion_id, excluded.ultima_accion_id);
+  return true;
+end;
+$$;
+revoke all on function public.marcar_edicion_anuncio_vista(uuid, bigint) from public, anon;
+grant execute on function public.marcar_edicion_anuncio_vista(uuid, bigint) to authenticated;
 
 -- Descuento comercial de GradeHub, editado desde Admin (2026-10-24).
 -- Reaplicar este archivo no cambia descuentos existentes. La función del
