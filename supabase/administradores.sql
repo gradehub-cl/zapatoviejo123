@@ -309,6 +309,7 @@ begin
             'tipo', coalesce(to_jsonb(a)->>'tipo', 'clase'),
             'pack_clases', to_jsonb(a)->'pack_clases',
             'descuento_gradehub_pct', to_jsonb(a)->'descuento_gradehub_pct',
+            'codigo_descuento', to_jsonb(a)->'codigo_descuento',
             'descripcion', a.descripcion,
             'modalidad', a.modalidad,
             'modalidad_otra', a.modalidad_otra,
@@ -468,7 +469,10 @@ begin
   select descuento_gradehub_pct into antes
     from public.tutor_anuncios where id = p_anuncio_id for update;
   if not found or antes is not distinct from p_pct then return false; end if;
-  update public.tutor_anuncios set descuento_gradehub_pct = p_pct where id = p_anuncio_id;
+  -- Sin descuento no hay código: quitarlo quita los dos.
+  update public.tutor_anuncios set descuento_gradehub_pct = p_pct,
+         codigo_descuento = case when p_pct is null then null else codigo_descuento end
+   where id = p_anuncio_id;
   insert into admin.acciones (admin_id, accion, objetivo, detalle)
   values (auth.uid(), 'descuento_anuncio', p_anuncio_id, jsonb_build_object('pct', p_pct, 'antes', antes));
   return true;
@@ -476,6 +480,50 @@ end;
 $$;
 revoke all on function public.admin_descuento_anuncio(uuid, integer) from public, anon;
 grant execute on function public.admin_descuento_anuncio(uuid, integer) to authenticated;
+
+-- Descuento y código juntos, en una sola transición (2026-10-25). El código
+-- se guarda en mayúsculas; vacío = sin código. Un código sin descuento no
+-- tiene sentido y se rechaza.
+-- Código de descuento (Lucas, 2026-10-25): «−10% con el código XXX». Solo
+-- con descuento; lo fija un admin, el cliente lo lee y nunca lo escribe.
+alter table public.tutor_anuncios add column if not exists codigo_descuento text
+  check (codigo_descuento is null or codigo_descuento ~ '^[A-Z0-9][A-Z0-9_-]{2,19}$');
+grant select (codigo_descuento) on public.tutor_anuncios to anon, authenticated;
+create or replace function public.admin_descuento_codigo_anuncio(p_anuncio_id uuid, p_pct integer, p_codigo text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  antes_pct integer;
+  antes_codigo text;
+  codigo text := nullif(upper(btrim(coalesce(p_codigo, ''))), '');
+begin
+  perform admin.exigir_administrador();
+  if p_pct is not null and p_pct not between 1 and 50 then
+    raise exception 'el descuento va de 1 a 50 (o null para quitarlo)';
+  end if;
+  if codigo is not null and p_pct is null then
+    raise exception 'un código necesita un descuento';
+  end if;
+  if codigo is not null and codigo !~ '^[A-Z0-9][A-Z0-9_-]{2,19}$' then
+    raise exception 'el código va de 3 a 20 letras o números, sin espacios';
+  end if;
+  select descuento_gradehub_pct, codigo_descuento into antes_pct, antes_codigo
+    from public.tutor_anuncios where id = p_anuncio_id for update;
+  if not found or (antes_pct is not distinct from p_pct and antes_codigo is not distinct from codigo) then
+    return false;
+  end if;
+  update public.tutor_anuncios set descuento_gradehub_pct = p_pct, codigo_descuento = codigo where id = p_anuncio_id;
+  insert into admin.acciones (admin_id, accion, objetivo, detalle)
+  values (auth.uid(), 'descuento_anuncio', p_anuncio_id,
+          jsonb_build_object('pct', p_pct, 'codigo', codigo, 'antes', antes_pct, 'codigo_antes', antes_codigo));
+  return true;
+end;
+$$;
+revoke all on function public.admin_descuento_codigo_anuncio(uuid, integer, text) from public, anon;
+grant execute on function public.admin_descuento_codigo_anuncio(uuid, integer, text) to authenticated;
 
 -- Las decisiones del panel reutilizan las mismas transiciones del SQL Editor.
 -- Solo una cuenta de la lista con aal2 puede invocarlas; una falla no registra

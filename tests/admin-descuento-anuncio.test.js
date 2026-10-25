@@ -34,6 +34,8 @@ const ctx={console,Intl,root,Promise,S:{ramos:[]},currentUser:{id:'admin-fictici
  supabaseClient:{rpc:async(n,p)=>{
   calls.push({n,p});
   if(n==='admin_panel_clases')return {data:profesores};
+  // Este test es del descuento solo: el SQL del código (2026-10-25) no está.
+  if(n==='admin_descuento_codigo_anuncio')return {error:{code:'PGRST202',message:'function missing'}};
   if(n!=='admin_descuento_anuncio')return {data:[]};
   if(modo==='sin-sql'||modo==='sin-sql-42883')return {error:{code:modo==='sin-sql'?'PGRST202':'42883',message:'function missing'}};
   if(modo==='sin-red')throw Error('red caída');
