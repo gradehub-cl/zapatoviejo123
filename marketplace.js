@@ -5584,15 +5584,16 @@ function cerrarHojaEncuesta(volverFoco=true){
   if(volverFoco&&focoDentro&&encuestaFocoAnterior?.isConnected)encuestaFocoAnterior.focus();
   encuestaFocoAnterior=null;
 }
-function abrirHojaEncuesta(e){
+function abrirHojaEncuesta(e,{vistaPrevia=false}={}){
   cerrarHojaEncuesta(false);
   const uid=currentUser?.id,version=encuestaVersion;
-  if(!uid||!encuestaConexion())return;
+  if(!vistaPrevia&&(!uid||!encuestaConexion()))return;
   encuestaFocoAnterior=document.activeElement;
   const hoja=document.createElement('aside');hoja.id='encuesta-hoja';hoja.className='encuesta-hoja';
   hoja.setAttribute('role','dialog');hoja.setAttribute('aria-modal','false');hoja.setAttribute('aria-labelledby','encuesta-pregunta');
   const seleccion=new Set(e.respuesta?.opciones||[]);
   hoja.innerHTML=`<div class="encuesta-agarre" aria-hidden="true"><span></span></div>
+    ${vistaPrevia?'<p class="encuesta-nota">Vista previa · Puedes probarla. No se guardan respuestas.</p>':''}
     <header><p>ENCUESTA DEL EQUIPO</p><button type="button" class="encuesta-secundario" data-encuesta-cerrar>Ahora no</button></header>
     <h2 id="encuesta-pregunta" tabindex="-1">${esc(e.pregunta)}</h2>
     <form class="encuesta-form"><p>${e.tipo==='una'?'Elige una opción.':e.tipo==='varias'?'Puedes elegir varias opciones.':'Hasta 280 caracteres. No incluyas datos personales.'}</p>
@@ -5629,6 +5630,7 @@ function abrirHojaEncuesta(e){
   form.addEventListener('input',actualizar);form.addEventListener('change',actualizar);actualizar();
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(enviando||enviar.disabled)return;
+    if(vistaPrevia){estado.textContent='Vista previa: tu respuesta no se envió.';return;}
     enviando=true;actualizar();estado.textContent='Enviando…';
     try{
       const r=respuesta();
@@ -5681,11 +5683,19 @@ async function renderAdminEncuestas(raiz){
     <label>Público<select name="publico">${publicos.map(([id,n])=>`<option value="${id}">${esc(n)}</option>`).join('')}</select></label>
     <div class="encuesta-fechas"><label>Inicio<input type="date" name="inicio" value="${hoy}" required></label><label>Término<input type="date" name="termino" value="${hoy}" required></label></div>
     <p>Fechas completas de Chile, incluido el día de término. Una encuesta simultánea por público.</p>
-    <p role="status" data-crear-estado></p><button type="submit" class="encuesta-enviar">Crear encuesta</button>
+    <p role="status" data-crear-estado></p><button type="button" data-encuesta-preview>Vista previa</button><button type="submit" class="encuesta-enviar">Crear encuesta</button>
     </form></details><div class="encuestas-lista">${lista.map(e=>`<section data-encuesta-admin="${esc(e.id)}"><h2>${esc(e.pregunta)}</h2><p>${esc(publicos.find(([id])=>id===e.publico)?.[1]||e.publico)} · ${esc(e.inicio)} a ${esc(e.termino)} · ${e.termino<hoy?'Terminada por fecha':esc(e.estado)}</p>
     <div class="encuesta-acciones">${e.estado!=='terminada'&&e.termino>=hoy?`<button type="button" data-encuesta-cambiar="${e.estado==='activa'?'pausada':'activa'}">${e.estado==='activa'?'Pausar':'Reanudar'}</button><button type="button" data-encuesta-cambiar="terminada">Terminar</button>`:''}<button type="button" data-encuesta-resultados>Ver resultados</button></div><div data-encuesta-totales aria-live="polite"></div></section>`).join('')||'<p>Todavía no hay encuestas.</p>'}</div>`);
   const form=raiz.querySelector('.encuesta-crear form'),f=form.elements,estado=raiz.querySelector('[data-crear-estado]');
   f.tipo.addEventListener('change',()=>{const texto=f.tipo.value==='texto';raiz.querySelector('[data-opciones-admin]').hidden=texto;f.opciones.required=!texto;});
+  form.querySelector('[data-encuesta-preview]').addEventListener('click',()=>{
+    const pregunta=f.pregunta.value.trim(),tipo=f.tipo.value;
+    const opciones=tipo==='texto'?[]:f.opciones.value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(!pregunta){estado.textContent='Escribe la pregunta para ver la vista previa.';f.pregunta.focus();return;}
+    if(tipo!=='texto'&&(opciones.length<2||opciones.length>6)){estado.textContent='Escribe entre 2 y 6 opciones, una por línea.';f.opciones.focus();return;}
+    estado.textContent='';
+    abrirHojaEncuesta({pregunta,tipo,opciones},{vistaPrevia:true});
+  });
   form.addEventListener('submit',async event=>{
     event.preventDefault();const boton=form.querySelector('[type=submit]');if(boton.disabled)return;
     const opciones=f.tipo.value==='texto'?[]:f.opciones.value.split('\n').map(x=>x.trim()).filter(Boolean);
