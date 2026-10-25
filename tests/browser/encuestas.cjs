@@ -6,7 +6,7 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
 (async()=>{
  const browser=await chromium.launch({...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{}),headless:true});
  try{
- const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce',serviceWorkers:'block'});
  await page.route('**/*',route=>{
   const u=new URL(route.request().url());if(u.hostname!=='encuestas.test')return route.abort();
   const p=path.join(repo,u.pathname==='/'?'index.html':u.pathname);
@@ -97,11 +97,63 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  const r=await page.locator('.encuesta-agarre').boundingBox();await page.mouse.move(r.x+r.width/2,r.y+10);await page.mouse.down();await page.mouse.move(r.x+r.width/2,r.y+80);await page.mouse.up();await page.waitForSelector('#encuesta-hoja',{state:'detached'});
  await page.evaluate(()=>{abrirHojaEncuesta({...encuestaQA,tipo:'una',respuesta:null});showConfirm('Prueba','Prueba sintética',()=>{},{});});
  await page.keyboard.press('Escape');assert(await page.locator('#encuesta-hoja').isVisible());await page.evaluate(()=>{closeModal();closeConfirm();cerrarHojaEncuesta();});
+ // En computador las secciones viven en el riel; este recorrido usa las pestañas de celular.
+ await page.setViewportSize({width:375,height:900});
  // Entrada existente a admin y segundo factor antes de abrir encuestas.
  await page.evaluate(async()=>{nivel='aal1';await cargarSoyAdministrador();recalcularNavTabs();showTab('admin',true);await renderAdmin();});
  assert.equal(await page.locator('[data-admin-area="usuarios"]').count(),0);
- await page.evaluate(async()=>{nivel='aal2';await renderAdmin();});await page.locator('[data-admin-area="usuarios"]').click();await page.waitForSelector('.encuestas-admin');
+ await page.evaluate(async()=>{nivel='aal2';await renderAdmin();document.querySelectorAll('.screen').forEach(s=>{s.hidden=s.id!=='screen-admin';s.classList.toggle('active',s.id==='screen-admin');});});await page.locator('[data-admin-area="usuarios"]').click();await page.waitForSelector('.encuestas-admin');
  await page.getByText('Crear encuesta',{exact:true}).first().click();
+ // Vista previa: usa el borrador y la hoja real; jamás crea ni responde por RPC.
+ const preview=page.locator('[data-encuesta-preview]');
+ await preview.click();assert(await page.locator('[name=pregunta]').evaluate(e=>e===document.activeElement));
+ await page.locator('[name=pregunta]').fill('¿Qué herramienta te sirve?');
+ await page.locator('[name=opciones]').fill('Solo una');await preview.click();
+ assert(await page.locator('[name=opciones]').evaluate(e=>e===document.activeElement));
+ const llamadasAntesPreview=await page.evaluate(()=>calls.length);
+ for(const tipo of ['una','varias','texto']){
+  await page.locator('[name=tipo]').selectOption(tipo);
+  if(tipo!=='texto')await page.locator('[name=opciones]').fill('Recordatorios\nVista del semestre');
+  // La vista previa no depende de fechas válidas ni de estar conectado.
+  await page.locator('[name=inicio]').fill('');
+  await page.context().setOffline(true);await preview.click();
+  assert.equal(await page.locator('#encuesta-pregunta').innerText(),'¿Qué herramienta te sirve?');
+  assert.match(await page.locator('#encuesta-hoja').innerText(),/Vista previa.*No se guardan respuestas/s);
+  assert(await page.getByRole('button',{name:'Enviar',exact:true}).isDisabled());
+  if(tipo==='texto'){
+   await page.locator('[name=texto]').fill('a'.repeat(281));assert(await page.getByRole('button',{name:'Enviar',exact:true}).isDisabled());
+   await page.locator('[name=texto]').fill('Respuesta de prueba');
+  }else{
+   await page.locator('[name=opcion][value="1"]').check();
+   await page.locator('[name=opcion][value="2"]').check();
+   assert.equal(await page.locator('[name=opcion]:checked').count(),tipo==='una'?1:2);
+  }
+  await page.getByRole('button',{name:'Enviar',exact:true}).click();
+  assert.match(await page.locator('[data-encuesta-estado]').innerText(),/no se envió/);
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'Cerrar sin enviar'}).click();
+  assert(await preview.evaluate(e=>e===document.activeElement));
+  assert.equal(await page.locator('[name=pregunta]').inputValue(),'¿Qué herramienta te sirve?');
+  await page.context().setOffline(false);
+ }
+ assert.equal(await page.evaluate(()=>calls.length),llamadasAntesPreview,'probar no genera ninguna RPC');
+ await page.locator('[name=tipo]').selectOption('una');
+ await page.locator('[name=pregunta]').fill('¿Qué prefieres? <img src=x onerror=alert(1)>');
+ await page.locator('[name=opciones]').fill('Repasar contenidos\nPracticar con ejercicios');
+ await preview.click();assert.equal(await page.locator('#encuesta-hoja img').count(),0);await page.keyboard.press('Escape');
+ await page.locator('[name=pregunta]').fill('¿Qué te ayudaría a preparar tu próxima prueba?');
+ await page.evaluate(()=>{const t=document.getElementById('toast');t.classList.remove('show');t.style.visibility='hidden';});
+ for(const width of [375,1280])for(const modo of ['claro','oscuro'])for(const grande of [false,true]){
+  await page.setViewportSize({width,height:900});
+  await page.evaluate(({modo,grande})=>{S.modo=modo;S.fondo='neutro';applyTheme();document.documentElement.style.fontSize=grande?'200%':'';},{modo,grande});
+  await preview.click();assert.equal(await page.locator('#encuesta-hoja img').count(),0);
+  await qa('#encuesta-hoja');
+  await page.screenshot({path:`${salida}/preview-${width}-${modo}-${grande?'200':'100'}.png`});
+  await page.keyboard.press('Escape');assert(await preview.evaluate(e=>e===document.activeElement));
+  await page.keyboard.press('Tab');await preview.focus();
+  assert(parseFloat(await preview.evaluate(e=>getComputedStyle(e).outlineWidth))>=2);
+ }
+ await page.evaluate(()=>{document.documentElement.style.fontSize='';document.getElementById('toast').style.visibility='';});
+ await page.locator('[name=inicio]').fill(await page.evaluate(()=>diaChileEncuesta()));
  await page.locator('[name=pregunta]').fill('¿Qué herramienta te sirve?');await page.locator('[name=opciones]').fill('Una sola');
  await page.getByRole('button',{name:'Crear encuesta',exact:true}).click();assert.match(await page.locator('[data-crear-estado]').textContent(),/2 y 6/);
  await page.locator('[name=tipo]').selectOption('texto');assert(await page.locator('[data-opciones-admin]').isHidden());
@@ -125,6 +177,6 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  await card.getByRole('button',{name:'Terminar',exact:true}).click();assert(await page.locator('#confirm-overlay').isVisible());
  await page.locator('#confirm-action').click();await page.waitForFunction(()=>listaQA[0].estado==='terminada');
  await page.evaluate(()=>{currentUser={id:'otra-cuenta'};sesionEncuestasCambio('SIGNED_IN','otra-cuenta');});assert.equal(await page.locator('.encuestas-admin').count(),0);
- console.log('Chrome OK: hoja no modal, envío/edición, 280 caracteres Unicode, cierre/Escape/arrastre, controles 44 pt, 4.5:1 en seis fondos, reduced-motion, admin MFA, crear/pausar/terminar, CSV y aislamiento de cuenta.');
+ console.log('Chrome OK: vista previa sin RPC, tres tipos, offline, borrador/foco, 375/1280 claro/oscuro y texto 200%; hoja no modal, envío/edición, 280 caracteres Unicode, cierre/Escape/arrastre, controles 44 pt, 4.5:1 en seis fondos, reduced-motion, admin MFA, crear/pausar/terminar, CSV y aislamiento de cuenta.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
