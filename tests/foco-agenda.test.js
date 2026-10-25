@@ -67,8 +67,13 @@ chk('el Control 1 de 10% de mañana le gana al Lab 1 de 5% de hace cuatro días'
 chk('esperar una nota no compra prioridad aunque la evaluación fuera pesada',
   gana(evento('proxima', 30, 1), evento('pasada', -1, 100, 2.0)));
 chk('a igual fecha, más peso sube', gana(evento('pesada', 7, 30), evento('liviana', 7, 10)));
+// En riesgo pero recuperable: 3,8 en el 80% rendido pide 4,6 en lo que queda.
 chk('a igual fecha y peso, el ramo en riesgo sube',
-  gana(evento('riesgo', 7, 20, 2.0), evento('sana', 7, 20, 6.5)));
+  gana(evento('riesgo', 7, 20, 3.8), evento('sana', 7, 20, 6.5)));
+// Con 2,0 en el 80% ya no alcanza: un ramo imposible no compite por el foco
+// (Lucas, 2026-10-20). Sigue en la Agenda, pero detrás.
+chk('un ramo que ya no se puede aprobar no sube: baja',
+  gana(evento('sana', 7, 20, 6.5), evento('imposible', 7, 20, 2.0)));
 
 console.log('\n=== El riesgo avisa, pero no convierte diciembre en "ahora" ===');
 chk('un ramo reprobado no trae al frente su evaluación a cuatro meses',
@@ -154,6 +159,30 @@ chk('Peso pone primero el porcentaje más alto',
 chk('las dos destacadas salen del criterio completo de fecha, peso y nota necesaria',
   !!destacadasAgenda && destacadasAgenda(pendientes).length === 2 &&
   nombres(destacadasAgenda(pendientes)) === nombres([...pendientes].sort((a,b)=>b.score-a.score).slice(0,2)));
+
+console.log('\n=== Hoy y mañana van primero, aunque el ramo vaya con 7 (2026-10-22) ===');
+// Un control de 5% mañana en un ramo con 7, contra una prueba de 30% en cinco
+// días de un ramo que va reprobando.
+const mananaCon7 = { ...evento('mañana con 7', 1, 5, 7.0), hora: '10:00' };
+const riesgoEn5 = evento('riesgo en 5 días', 5, 30, 3.5);
+chk('el puntaje solo la dejaba abajo (por eso hace falta la regla)', !gana(mananaCon7, riesgoEn5));
+const conManana = [riesgoEn5, mananaCon7].map(withPriority);
+chk('en Recomendado, lo de mañana va primero',
+  !!ordenarAgenda && nombres(ordenarAgenda(conManana, 'recomendado')) === 'mañana con 7,riesgo en 5 días');
+chk('y es "Tu foco ahora"', !!destacadasAgenda && destacadasAgenda(conManana)[0].cat.nombre === 'mañana con 7');
+const hoy = { ...evento('hoy', 0, 5, 7.0), hora: '18:00' };
+const mananaTemprano = { ...evento('mañana temprano', 1, 5, 7.0), hora: '08:30' };
+const variasCercanas = [mananaCon7, riesgoEn5, mananaTemprano, hoy].map(withPriority);
+chk('hoy antes que mañana, y mañana por hora',
+  nombres(ordenarAgenda(variasCercanas, 'recomendado')) === 'hoy,mañana temprano,mañana con 7,riesgo en 5 días');
+chk('Fecha y Peso no cambian: los eligió el estudiante',
+  nombres(ordenarAgenda(conManana, 'peso')) === 'riesgo en 5 días,mañana con 7');
+const imposibleManana = evento('mañana en ramo perdido', 1, 30, 1.0);
+chk('salvo un ramo que ya no se puede aprobar: ese no compite por el foco (2026-10-20)',
+  nombres(ordenarAgenda([imposibleManana, riesgoEn5].map(withPriority), 'recomendado')) === 'riesgo en 5 días,mañana en ramo perdido');
+const pasadoManana = [evento('pasado mañana con 7', 2, 5, 7.0), riesgoEn5].map(withPriority);
+chk('desde pasado mañana manda el puntaje de siempre',
+  nombres(ordenarAgenda(pasadoManana, 'recomendado')) === nombres([...pasadoManana].sort((a,b)=>b.score-a.score)));
 
 const controles = agendaOrdenHTML ? agendaOrdenHTML('recomendado') : '';
 chk('el selector ofrece Recomendado, Fecha y Peso',

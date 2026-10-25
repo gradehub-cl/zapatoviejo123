@@ -11,7 +11,8 @@ console.log('=== El servidor ===');
 const sql=leer('supabase/administradores.sql').split('\n').map(l=>l.replace(/--.*$/,'')).join('\n');
 const funciones=[...sql.matchAll(/create or replace function public\.(admin_\w+)\s*\([\s\S]*?\$\$;/g)];
 const esperadas=['admin_panel_clases','admin_pausar_anuncio','admin_estado_profesor','admin_marcar_cobro','admin_marcar_cobro_publicacion',
-  'admin_publicar_anuncio','admin_devolver_anuncio','admin_borrar_anuncio_revision','admin_terminar_anuncio_pausado'];
+  'admin_publicar_anuncio','admin_devolver_anuncio','admin_borrar_anuncio_revision','admin_terminar_anuncio_pausado',
+  'admin_revisar_postulacion','admin_eliminar_profesor','admin_nota_profesor','admin_panel_alumnos_profesor','admin_descuento_anuncio','admin_descuento_codigo_anuncio','admin_editar_anuncio'];
 chk('existen las funciones de la página',esperadas
   .every(f=>funciones.some(m=>m[1]===f)));
 chk('cada una exige administración verificada antes de hacer nada',funciones.length===esperadas.length&&

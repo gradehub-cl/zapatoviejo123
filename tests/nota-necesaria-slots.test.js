@@ -27,14 +27,16 @@ function laboratorio(notasInformes){
 console.log('\n=== Laboratorio de Dinámica · casillas que aún faltan ===');
 const conInforme0=laboratorio([{id:'informe-0',nombre:'Informe 0',valor:6.5,peso:1,slot:0}]);
 eq('una nota de seis informes conserva el promedio parcial',ramoAvg(conInforme0),6.5);
-eq('con cinco informes y dos categorías pendientes necesita 3,61',notaNecesaria(conInforme0),3.61);
+// El ponderado pedía 3,61, pero con 3,61 en todo lo pendiente la evaluación de
+// pares (mínimo 4,0, tope 3,9) quedaba en 3,61 y la final en 3,9: reprobado.
+eq('con cinco informes y dos categorías pendientes necesita 3,95 por la evaluación de pares',notaNecesaria(conInforme0),3.95);
 eq('para meta 5, la calculadora cuenta los cinco Informes que faltan',notaNecesaria(conInforme0,5),4.75);
 const calculoConUno=calcular(ramoToStructure(conInforme0),gradesOf(conInforme0));
 chk('las dieciséis casillas que faltan llegan al motor',calculoConUno.emptyLeaves.length===16);
 chk('las casillas pendientes se derivan sin agregarse al ramo guardado',conInforme0.categorias.find(c=>c.nombre==='Informes').notas.length===1);
 const appSrc=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
-chk('la calculadora reutiliza la meta por casillas, no una cuenta por categoría',
-  /const needed=notaNecesaria\(r,target\)/.test(appSrc));
+chk('el simulador (con la meta que era «Nota mínima») reutiliza la meta por casillas, no una cuenta por categoría',
+  /const necesaria=notaNecesaria\(proyectado,meta,/.test(appSrc));
 
 console.log('\n=== Una corrección no inventa otra casilla rendida ===');
 const corregido=laboratorio([

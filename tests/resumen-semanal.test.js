@@ -60,11 +60,13 @@ let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)
     insert into public.catalog_reports (user_id, tenant, ramo, ramo_norm, huella, nota, updated_at) values
       ('${u[0]}','fen','Marketing','marketing','h1',null, now() - interval '20 days'),
       ('${u[1]}','fen','Marketing','marketing','h1',null, now() - interval '20 days'),
-      ('${u[2]}','fen','Marketing','marketing','h1','El examen pesa 30', now() - interval '1 day');
+      ('${u[2]}','fen','Marketing','marketing','h1','El examen pesa 30 <b>ojo</b>', now() - interval '1 day');
   `);
 
   const texto=(await db.query(`select admin.resumen_semanal_texto() as t`)).rows[0].t;
   if(process.env.VER)console.log(texto);
+  const html=(await db.query(`select admin.resumen_html(admin.resumen_semanal_datos()) as h`)).rows[0].h;
+  if(process.env.VER){const f=path.join(require('os').tmpdir(),'resumen-semanal.html');fs.writeFileSync(f,html);console.log('HTML en '+f);}
 
   console.log('\n=== Uso ===');
   chk('cuentas nuevas de la semana y total', /Cuentas nuevas: 2 \(total 4\)/.test(texto));
@@ -95,6 +97,22 @@ let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)
     /Ramos con evaluaciones que no suman 100%: 1/.test(texto)&&/Ramos con ñ en lugar de ¿ o \?: 1/.test(texto)&&/Ramos UC del catálogo sin créditos: 1/.test(texto));
   chk('nunca correos ni nombres de personas', !/@ejemplo\.test/.test(texto));
 
+  console.log('\n=== HTML ===');
+  chk('es un documento completo en español', /^<!doctype html><html lang="es">/.test(html)&&/<\/html>$/.test(html));
+  chk('la semana con el mes escrito', /\d{1,2}( de [a-z]+)? al \d{1,2} de [a-z]+ de \d{4}/.test(html));
+  chk('los cuatro números arriba', /Cuentas nuevas<\/div><div[^>]*>2<\/div><div[^>]*>de 4 en total/.test(html)
+    &&/Entraron<\/div><div[^>]*>2<\/div><div[^>]*>1 más que la anterior/.test(html)
+    &&/Errores<\/div><div[^>]*>3<\/div><div[^>]*>en 2 cuentas/.test(html));
+  chk('para revisar: los chequeos con bug y el error nuevo', /Datos guardados que la app no debería guardar nunca<\/td><td[^>]*>6 chequeos/.test(html)
+    &&/Errores que no habían pasado antes<\/td><td[^>]*>1</.test(html)&&/Pautas que llegaron a 3 o 5 personas<\/td><td[^>]*>1</.test(html));
+  chk('marca el error nuevo y no el viejo', (html.match(/>NUEVO</g)||[]).length===1);
+  chk('lo que escribió una persona va escapado', /El examen pesa 30 &lt;b&gt;ojo&lt;\/b&gt;/.test(html)&&!/<b>ojo/.test(html));
+  chk('lo que está en cero va en una línea', /Sin casos: Ramos sin lista de evaluaciones\./.test(html));
+  chk('universidades con su nombre', /FEN 1/.test(html)&&/UC 1/.test(html));
+  chk('nunca correos', !/@ejemplo\.test/.test(html));
+  chk('sin nada pendiente, semana tranquila', /Semana tranquila/.test((await db.query(
+    `select admin.resumen_html(admin.resumen_semanal_datos(now() - interval '60 days') - 'salud') as h`)).rows[0].h));
+
   console.log('\n=== Envío ===');
   let id=(await db.query(`select admin.enviar_resumen_semanal() as id`)).rows[0].id;
   chk('sin API key no manda nada', id===null&&(await db.query('select count(*)::int c from net.llamadas')).rows[0].c===0);
@@ -107,12 +125,14 @@ let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)
   chk('con las dos, manda a Resend', id===7&&llamada.url==='https://api.resend.com/emails'&&llamada.headers.Authorization==='Bearer re_prueba');
   chk('a los administradores, desde hola@gradehub.cl', JSON.stringify(llamada.body&&llamada.body.to)==='["admin@ejemplo.test"]'&&/hola@gradehub\.cl/.test(llamada.body.from));
   chk('con el resumen como texto', /SALUD DE LOS DATOS/.test(llamada.body&&llamada.body.text||''));
+  chk('y como HTML, con la semana en el asunto', /Resumen de la semana/.test(llamada.body&&llamada.body.html||'')&&/^GradeHub · semana del \d/.test(llamada.body&&llamada.body.subject||''));
 
   console.log('\n=== Permisos ===');
   const priv=async(rol,fn)=>(await db.query(`select has_function_privilege('${rol}','${fn}','execute') as p`)).rows[0].p;
   chk('anon y authenticated no pueden ejecutarlas',
     !(await priv('anon','admin.enviar_resumen_semanal()'))&&!(await priv('authenticated','admin.enviar_resumen_semanal()'))
-    &&!(await priv('anon','admin.resumen_semanal_texto(timestamptz)')));
+    &&!(await priv('anon','admin.resumen_semanal_texto(timestamptz)'))&&!(await priv('anon','admin.resumen_html(jsonb)'))
+    &&!(await priv('authenticated','admin.resumen_semanal_datos(timestamptz)')));
   chk('se programa los lunes con pg_cron', /cron\.schedule\('gradehub-resumen-semanal', '0 12 \* \* 1'/.test(leer('supabase/resumen_semanal.sql')));
   chk('la API key nunca está en el repo', !/re_[A-Za-z0-9]{10,}/.test(leer('supabase/resumen_semanal.sql')));
 

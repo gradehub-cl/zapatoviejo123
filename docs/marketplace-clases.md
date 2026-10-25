@@ -406,6 +406,13 @@ igual: los avisos no reciben datos académicos y nadie ve quién recibió un avi
   cinco personas, y solo para un profesor con un alumno que le comparta ese ramo.
 - Ninguno de los dos recibe el `user_id` ni el correo del otro.
 - Piloto gratis, mostrando lo que costaría.
+- Cuándo empezó el alumno con el profesor se fija **ramo por ramo**
+  (2026-10-20, pedido de Salva Ramos: la mitad de sus alumnos toma más de una
+  clase). Un ramo sin fecha propia usa la general de antes o el día que compartió.
+- El profesor elige comparar con **todo GradeHub o con la sección** de cada
+  alumno (la de Editar ramo), con el mismo piso de cinco. Sin sección
+  declarada dice «No disponible». El resumen por ramo, que junta secciones,
+  sigue contra todo GradeHub; el Excel trae las dos.
 
 Esquema y funciones: `supabase/profesor_alumnos.sql`, probado en
 `tests/profesor-alumnos-sql.test.js`. Términos y privacidad lo explican desde

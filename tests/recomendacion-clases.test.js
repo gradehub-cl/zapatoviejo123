@@ -114,7 +114,8 @@ const mk=fs.readFileSync(path.join(raiz,'marketplace.js'),'utf8'),rm=fs.readFile
 const bloque=mk.slice(mk.indexOf('function pintarRecomendacionClase'),mk.indexOf('async function abrirClaseRecomendada'));
 const contenido=mk.slice(mk.indexOf('function contenidoRecomendacionClase'),mk.indexOf('function pintarRecomendacionClase'));
 chk('el banner dice publicidad, igual que la vista previa del profesor',
-  /Publicidad · Clase particular/.test(contenido)&&/contenidoRecomendacionClase\(anuncio\)/.test(bloque));
+  /Publicidad · \$\{etiquetaTipoClase\(a\)\}/.test(contenido)&&/'Clase particular'/.test(mk.slice(mk.indexOf('function etiquetaTipoClase'),mk.indexOf('function etiquetaTipoClase')+120))
+  &&/contenidoRecomendacionClase\(anuncio\)/.test(bloque));
 chk('y no diagnostica',!/reprob|riesgo|mal en|te va mal/i.test(bloque+contenido));
 chk('solo Inicio lo pinta',/pintarRecomendacionClase\(c\)/.test(rm.slice(rm.indexOf('function renderHome'),rm.indexOf('function renderRamo')))&&
   !/pintarRecomendacionClase/.test(rm.slice(rm.indexOf('function renderRamo'))));

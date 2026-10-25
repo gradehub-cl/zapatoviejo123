@@ -333,7 +333,7 @@ const FONDOS={
     },
     oscuro:{
       bg:'#0e141b',bg2:'#141c25',card:'#1b2632',border:'#2b3b4c',border2:'#3b5166',muted:'#202c38',
-      fg:'#edf4f8',fg2:'#aab8c4',fg3:'#8293a2',
+      fg:'#edf4f8',fg2:'#aab8c4',fg3:'#8394a3',
     },
   },
   papel:{
@@ -344,7 +344,7 @@ const FONDOS={
     },
     oscuro:{
       bg:'#1b1510',bg2:'#251d15',card:'#30261d',border:'#44372a',border2:'#5c4c3c',muted:'#352a20',
-      fg:'#f8f0e4',fg2:'#c6b8a7',fg3:'#9e8f7c',
+      fg:'#f8f0e4',fg2:'#c6b8a7',fg3:'#a0917e',
     },
   },
 };
@@ -657,7 +657,16 @@ const PORTAL=[
 // ese período siga vigente. Si un programa no declara el período, se omite el
 // campo y la app conserva los pesos sin presentar sus fechas como actuales.
 const PRESETS_UC={
-  'Cálculo I':[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
+  // MAT1610, programa 2026-1: la primera interrogación justificada toma la
+  // nota del examen; las siguientes se recuperan con pruebas especiales (P).
+  'Cálculo I':{
+    evals:[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
+    ausenciasJustificadas:{maxReemplazos:1,excesoReemplazos:'rezago',reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+      {desde:'Interrogación 3',hacia:'Examen'},
+    ]},
+  },
   'Álgebra Lineal':[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
   // Ingeniería Comercial · 2° semestre. Transcripción de la pauta 2026-2
   // confirmada por Lucas el 17-08-2026. La regla de aprobación de Álgebra
@@ -711,7 +720,15 @@ const PRESETS_UC={
     ]}],
     ['Examen',25],
   ],
-  'Química para Ingeniería':[['Pruebas',44.1],['Ev. de Taller',4.9],['Examen',21],['Informes',18],['Controles',12]],
+  // Los pesos son del programa (QIM100E V2); las cantidades no las dice. Son 2
+  // interrogaciones —la planilla oficial de notas trae I1 e I2 al 45% de
+  // Pruebas— y 5 informes, 5 controles y 5 talleres según dos reportes de
+  // estudiantes con esta misma pauta (2026-10-13). Decisión de Lucas: un
+  // reporte que coincide en pesos completa las cantidades.
+  'Química para Ingeniería':[
+    ['Pruebas',44.1,{slots:2,slotLabel:'Interrogación'}],['Ev. de Taller',4.9,{slots:5,slotLabel:'Taller'}],['Examen',21],
+    ['Informes',18,{slots:5,slotLabel:'Informe'}],['Controles',12,{slots:5,slotLabel:'Control'}],
+  ],
   // Programa FIL2001 (Primer Semestre 2026): 30/20/30/20 y el Podcast bajo 4,0
   // es "causal de reprobación del curso, independientemente del promedio";
   // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
@@ -924,6 +941,13 @@ const PRESETS_UC={
   // ninguna pasa el filtro de arriba.
   'Cálculo II':{
     periodo:'2026-2',
+    // Normativa MAT1620 2026-2, punto 9: una justificada toma el examen;
+    // con dos o tres, solo la primera y las demás quedan en nota P pendiente.
+    ausenciasJustificadas:{maxReemplazos:1,excesoReemplazos:'rezago',reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+      {desde:'Interrogación 3',hacia:'Examen'},
+    ]},
     evals:[
       ['Interrogación 1',20,{fecha:'2026-08-31'}],
       ['Interrogación 2',20,{fecha:'2026-10-05'}],
@@ -1155,6 +1179,17 @@ const PRESETS_UC={
   // ICE. Si una sección tiene otra, la edita y el consenso de reportes lo dirá.
   'Dinámica (ICE1514)':{
     periodo:'2026-2',
+    // Programa del 5-ago-2026: una justificada en control o interrogación
+    // toma el promedio ponderado de las otras sumativas, sin talleres;
+    // la segunda inasistencia cuenta como 1,0. El examen sí es sumativo.
+    // El orden declara cuál fue la primera ausencia según las fechas del preset.
+    ausenciasJustificadas:{maxPromedios:1,notaExceso:1,promedios:[
+      {desde:'Control 1',de:['Control 2','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Interrogación 1',de:['Control 1','Control 2','Control 3','Interrogación 2','Examen']},
+      {desde:'Control 2',de:['Control 1','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Control 3',de:['Control 1','Control 2','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Interrogación 2',de:['Control 1','Control 2','Control 3','Interrogación 1','Examen']},
+    ]},
     evals:[
       ['Control 1',10,{fecha:'2026-09-04'}],
       ['Control 2',10,{fecha:'2026-10-16'}],
@@ -1166,7 +1201,6 @@ const PRESETS_UC={
     ],
     aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
     noCalcula:[
-      'Si faltas con justificación a un control o interrogación, esa nota se reemplaza por el promedio ponderado de tus otras evaluaciones sumativas, sin contar los talleres; una segunda inasistencia es un 1,0',
       'Faltar a un taller, con o sin justificación, es un 1,0 en ese taller',
       'Si repruebas la cátedra o el laboratorio, repruebas Dinámica: el programa no dice con qué nota quedas, así que mostramos la más baja de las dos',
     ],
@@ -1196,10 +1230,15 @@ const PRESETS_UC={
       ['Examen final escrito',30],
     ],
   },
+  // El catálogo no dice cuántos controles ni cuántas pruebas. Las cantidades
+  // salen de un reporte de estudiante con los mismos totales (2026-10-13):
+  // Control 1 y 2 al 10%, controles sorpresa y tarea al 10%, e Interrogación 1
+  // y 2 al 20%. Decisión de Lucas: un reporte que coincide en pesos completa
+  // las cantidades. Otra sección puede tener otras; edita su pauta.
   'Contabilidad':{
     evals:[
-      ['Controles',30,{lista:true}],
-      ['Pruebas',40,{lista:true}],
+      ['Controles',30,{slots:3,nombresCasillas:['Control 1','Control 2','Controles sorpresa y tarea']}],
+      ['Pruebas',40,{slots:2,slotLabel:'Interrogación'}],
       ['Examen',30],
     ],
   },
@@ -2213,6 +2252,14 @@ const SIGLAS_UC={
 // Al transcribir un programa, la pregunta para decidir dónde va una regla es:
 // ¿con la información que el estudiante puede darnos, esto se podría calcular
 // algún día? Si sí, `noCalcula`. Si no, `reglasDelCurso`.
+//
+// Regla de la U para TODO ramo con trabajo en grupo, lo diga o no su programa:
+// si el promedio de las evaluaciones individuales queda bajo 4,0, repruebas. El
+// trabajo en grupo sube el promedio, pero no te ayuda a pasar. No hay documento
+// que la escriba; la confirmó Martín el 2026-10-19 como práctica de todos los
+// ramos. Se modela con un grupo 'Evaluaciones individuales' (min 4,0, cap
+// 'self'): el veredicto es exacto, y el número bajo 4,0 es aproximado porque la
+// regla solo dice que repruebas. Un preset nuevo con evaluación grupal lo lleva.
 const PRESETS_FEN={
   'Métodos Matemáticos II':{
     // Fechas del calendario 2026-2 entregado por Martín el 2026-09-18. El
@@ -2312,12 +2359,10 @@ const PRESETS_FEN={
     periodo:'2026-2',
     creditos:2,
     // El programa dice que sin 4,0 en lo individual las notas grupales "no son
-    // válidas" Y que el estudiante reprueba, pero nunca dice con qué nota queda.
-    // No es la regla "la final es la más baja entre los dos requisitos": esa sí
-    // se modela; esta cambia QUÉ evaluaciones entran en el promedio, y el motor
-    // no sabe expresarlo. Se declara en vez de forzarla.
-    noCalcula:['Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que este promedio no lo refleja'],
+    // válidas" y que el estudiante reprueba, sin decir con qué nota. Es la regla
+    // general de la cabecera; el número bajo 4,0 queda aproximado y se avisa abajo.
     reglasDelCurso:[
+      'Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que la app te deja en tu promedio individual',
       'Necesitas al menos 6 de las 11 actividades hechas en clases para aprobar',
       'Las notas grupales se ajustan según cómo te evalúan tus compañeros, y pueden moverse hasta un 100%',
       'Faltar sin justificar al pitch inicial, a las clases de expertos, a la solemne o al examen se evalúa con 1,0',
@@ -2336,6 +2381,10 @@ const PRESETS_FEN={
       ['Participación y trabajo en clases',20,{min:4.0,cap:3.8}],
       ['Examen: presentación grupal',20],
       ['Examen: video storytelling',10],
+    ],
+    // Grupal es solo la presentación del examen (confirmado por Martín el 2026-10-19).
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Pitch inicial individual','Columna de opinión','Solemne: elevator pitch','Participación y trabajo en clases','Examen: video storytelling'],min:4.0,cap:'self'},
     ],
   },
   'Contabilidad':{
@@ -2397,6 +2446,11 @@ const PRESETS_FEN={
   // El programa da la fórmula cerrada y suma 100 exacto:
   //   NF = 20% NS1 + 20% NS2 + 5% JITT + 10% NC + 15% NTF + 30% NE
   //
+  // PERO en la práctica no hay JITT: el consenso de los reportes (3 estudiantes,
+  // catalog_consensus('fen') al 2026-10-19) trae Controles 15% con dos casillas
+  // y nada más distinto. Martín lo dio por oficial ese día. Si un programa
+  // posterior vuelve a separar el JITT, se revierte acá.
+  //
   // Las dos solemnes van en filas propias porque el programa les da peso propio
   // (20% cada una, no un bloque de 40%), igual que en Métodos Matemáticos II: si
   // falta una y el examen ya está puesto, filas separadas reponderan sobre lo
@@ -2413,20 +2467,22 @@ const PRESETS_FEN={
   'Tecnología y Sistemas de Información':{
     periodo:'2026-2',
     creditos:6,
-    // Ninguna evaluación tiene nota mínima propia ni hay eximición: el único
-    // requisito que da el programa es el 4,0 de aprobación, que la app ya sabe.
-    // Sin `noCalcula`: no queda nada pendiente de implementar.
+    // Ninguna evaluación tiene nota mínima propia ni hay eximición. El programa
+    // no lo dice, pero el Trabajo Final es grupal y aplica la regla general de
+    // la cabecera (confirmado por Martín el 2026-10-19).
     reglasDelCurso:[
       'Las dos solemnes y el examen comparten una única recuperativa, que se rinde después del examen y a la que solo accede quien justificó su inasistencia',
       'La asistencia a las ayudantías es obligatoria, y los controles se rinden en ese horario',
     ],
     evals:[
-      ['Just in Time Teaching',5],
-      ['Controles',10,{slots:2}],
+      ['Controles',15,{slots:2}],
       ['Trabajo Final',15],
       ['Solemne 1',20,{fecha:'2026-09-25'}],
       ['Solemne 2',20],
       ['Examen',30],
+    ],
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Controles','Solemne 1','Solemne 2','Examen'],min:4.0,cap:'self'},
     ],
   },
   // Marketing · ENMKT205 · programa oficial Primavera 2026 (Ing. Comercial).
@@ -2499,6 +2555,10 @@ const PRESETS_FEN={
       ['Tarea Grupal',10],
       ['Examen',32],
     ],
+    // Regla general de la cabecera: el programa no la menciona.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Control 1','Control 2','Solemne','Control 3','Control 4','Examen'],min:4.0,cap:'self'},
+    ],
   },
   // Métodos Matemáticos I · ENMEM1005 · común a las nueve secciones.
   // Tres solemnes de 20% y examen de 40%. Confirmado por Martín el 2026-08-31,
@@ -2555,19 +2615,21 @@ const PRESETS_FEN={
     noCalcula:[
       'Toda ausencia a una exigencia del curso se califica con 1,0',
     ],
-    // El propio programa no da el número, y ese es justamente el motivo por el
-    // que esta no se puede calcular nunca — no es que falte implementarla.
     reglasDelCurso:[
       'La Solemne y el Examen tienen fecha única. Avisando por escrito dentro de 24 horas por razones médicas, solo se puede recuperar una de las dos',
       'Los controles parciales y el Plan de Negocios no son recuperables por ninguna causa',
       'El aporte en clases suma décimas según tu participación',
-      'Para aprobar, el promedio de las evaluaciones individuales tiene que ser 4,0 o más. El programa no dice en cuánto queda tu nota final si no se cumple, así que la app no lo aplica',
     ],
     evals:[
       ['Solemne',25],
       ['Controles de Lectura',20,{lista:true,dropLowest:{count:1}}],
       ['Proyecto Empresa',25,{min:3.0,cap:3.9}],
       ['Examen Final',30,{min:3.0,cap:3.9}],
+    ],
+    // "Para aprobar, el promedio de las evaluaciones individuales tiene que ser
+    // 4,0 o más", sin decir la nota: regla general de la cabecera.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Solemne','Controles de Lectura','Examen Final'],min:4.0,cap:'self'},
     ],
   },
   // Inglés IV · sección IC 3506 · calendario oficial 2026. Los nombres quedan en
@@ -2599,6 +2661,54 @@ const PRESETS_FEN={
       ['Business Pitch',9],
       ['Midterm',15,{fecha:'2026-09-21'}],
       ['Final Exam',30],
+    ],
+  },
+  // ─── Pautas del consenso de reportes ─────────────────────────────────────
+  // Estos tres ramos no tienen programa transcrito: la pauta es la que
+  // coincidieron en reportar los estudiantes (catalog_consensus('fen') al
+  // 2026-10-19) y Martín la dejó como oficial ese día. Si aparece el programa,
+  // se reemplaza.
+  //
+  // Nombres, mayúsculas y ORDEN son los del consenso a propósito, aunque no sea
+  // el orden del semestre. Quien ya tenía la pauta del consenso puesta sola
+  // guardó `pautaHuella` con ese orden y esos nombres exactos, y huellaPauta()
+  // compara las dos cosas: cualquier diferencia le mostraría "La pauta de este
+  // ramo cambió" sin ningún cambio real que mostrar.
+  //
+  // Inglés II · 9 estudiantes.
+  'Inglés II':{
+    periodo:'2026-2',
+    creditos:2,
+    evals:[
+      ['busuu',15],
+      ['Final Exam',40],
+      ['Midterm test',15],
+      ['Oral quiz',20],
+      ['written quiz',10],
+    ],
+  },
+  // Introducción al Pensamiento Económico y Político · 3 estudiantes. Es una
+  // sola solemne aunque se llame "Solemne 1": así la reportaron.
+  'Introducción al Pensamiento Económico y Político':{
+    periodo:'2026-2',
+    creditos:4,
+    evals:[
+      ['Control 1',15],
+      ['Control 2',15],
+      ['Examen',40],
+      ['Solemne 1',30],
+    ],
+  },
+  // Métodos Matemáticos IV · 3 estudiantes. Nadie reportó mínimo en el examen
+  // (Métodos Matemáticos I sí lo tiene); no se copia de allá.
+  'Métodos Matemáticos IV':{
+    periodo:'2026-2',
+    creditos:6,
+    evals:[
+      ['Examen',40],
+      ['Solemne 1',20],
+      ['Solemne 2',20],
+      ['Solemne 3',20],
     ],
   },
 };
@@ -2638,6 +2748,17 @@ const PRESETS_UAI={
   // requiere haber rendido el primer examen en la fecha indicada.
   'Matemáticas Avanzadas I':{
     periodo:'2026-2',creditos:6,
+    ausenciasJustificadas:{reemplazosCasilla:[
+      {desde:'Talleres',desdeSlot:0,hacia:'Pruebas',haciaSlot:0},
+      {desde:'Talleres',desdeSlot:1,hacia:'Pruebas',haciaSlot:1},
+      {desde:'Talleres',desdeSlot:2,hacia:'Pruebas',haciaSlot:2},
+      {desde:'Controles',desdeSlot:0,hacia:'Examen'},
+      {desde:'Controles',desdeSlot:1,hacia:'Examen'},
+      {desde:'Controles',desdeSlot:2,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:0,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:1,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:2,hacia:'Examen'},
+    ]},
     evals:[
       ['Talleres',7,{slots:3,slotLabel:'Taller'}],
       ['Controles',14,{slots:3,slotLabel:'Control'}],
@@ -2647,7 +2768,6 @@ const PRESETS_UAI={
     noCalcula:[
       'Con presentación de al menos 5,0 puedes eximirte: la final queda en la presentación. Si rindes el examen voluntariamente, su nota cuenta aunque baje el promedio',
       'Solo si rendiste el examen en la fecha indicada y la final queda entre 3,5 y 3,9, puedes rendir un segundo examen: aprobarlo deja la final en 4,0; reprobarlo conserva la final anterior',
-      'Con justificativo aceptado, un taller se reemplaza por su prueba correspondiente y un control o prueba por el examen',
     ],
     reglasDelCurso:[
       'Programa MAT124 UAI 2026-2, sección 2, Santiago. Esta pauta calcula el camino con examen',
@@ -2660,6 +2780,15 @@ const PRESETS_UAI={
   // redondean sus pesos internos 2,625/6,125 ni se los confunde con 30/70 final.
   'Razonamiento Cuantitativo con Datos I':{
     periodo:'2026-2',
+    ausenciasJustificadas:{reemplazosCasilla:[
+      {desde:'Pruebas teóricas',desdeSlot:0,hacia:'Examen teórico'},
+      {desde:'Pruebas teóricas',desdeSlot:1,hacia:'Examen teórico'},
+      {desde:'Controles',desdeSlot:0,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:1,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:2,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:3,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:4,hacia:'Examen práctico'},
+    ]},
     evals:[
       ['Pruebas teóricas',35,{slots:2,slotLabel:'Prueba'}],
       ['Controles',26.25,{slots:5,slotLabel:'Control'}],
@@ -2670,7 +2799,7 @@ const PRESETS_UAI={
     noCalcula:[
       'Puedes eximirte con presentación de al menos 5,0 y con ET y EP de al menos 4,0 cada una. Sin examen la final es 50% ET y 50% EP',
       'Tras rendir el examen, ET y EP deben ser al menos 4,0. Si no se cumple, el curso se reprueba con la menor de ET y EP; este promedio no aplica esa sustitución',
-      'Una prueba con ausencia justificada se reemplaza por el examen teórico; un control recuperado se reemplaza por el examen práctico. En ambos casos debes rendir el examen y no puedes eximirte',
+      'Con una ausencia justificada debes rendir ambos exámenes; no puedes eximirte. La app aún no calcula esa eximición en este ramo',
     ],
     reglasDelCurso:[
       'Programa MAT125 UAI 2026-2, cátedra de Macarena Larrain. Esta pauta calcula el camino con examen',
@@ -2683,6 +2812,13 @@ const PRESETS_UAI={
   // recuperativo 3,6–3,9 de FEN. El número/reparto de controles no está fijado.
   'Introducción a la Microeconomía':{
     periodo:'2026-2',creditos:6,
+    // ECO122 2026-2: una prueba justificada pasa su peso al examen. El
+    // programa no define dos; el motor deja ese caso pendiente. El bloque
+    // consolidado de controles y tareas sigue sin detalle por instancia.
+    ausenciasJustificadas:{maxTraspasos:1,traspasos:[
+      {desde:'Prueba 1',hacia:'Examen'},
+      {desde:'Prueba 2',hacia:'Examen'},
+    ]},
     evals:[
       ['Controles y tareas',20],
       ['Prueba 1',25],
@@ -2690,7 +2826,7 @@ const PRESETS_UAI={
       ['Examen',30],
     ],
     noCalcula:[
-      'Con inasistencia justificada a una prueba, su ponderación pasa al examen. Si la ausencia justificada es a un control o tarea, su nota se reemplaza por la del examen',
+      'Una ausencia justificada en un control o tarea se reemplaza por el examen, pero el bloque está consolidado y el programa no fija el peso de cada instancia. Con dos pruebas justificadas, el programa no define el destino de la segunda',
       'Con examen de al menos 4,8 y todas las pruebas rendidas, el examen reemplaza la peor prueba solo si mejora la final',
     ],
     reglasDelCurso:[
@@ -2723,6 +2859,13 @@ const PRESETS_UAI={
   // "dos o tres" descartes no autoriza elegir una cantidad en dropLowest.
   'Introducción a la Macroeconomía':{
     periodo:'2026-2',creditos:6,
+    // ECO123 2026-2: el examen reemplaza una prueba justificada. Una segunda
+    // queda pendiente hasta que el curso confirme su tratamiento.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Prueba oficial 1',hacia:'Examen final'},
+      {desde:'Prueba oficial 2',hacia:'Examen final'},
+      {desde:'Prueba oficial 3',hacia:'Examen final'},
+    ]},
     evals:[
       ['Controles y otras evaluaciones',15],
       ['Prueba oficial 1',20],
@@ -2730,9 +2873,7 @@ const PRESETS_UAI={
       ['Prueba oficial 3',20],
       ['Examen final',25],
     ],
-    noCalcula:[
-      'La nota del examen reemplaza una prueba con inasistencia justificada',
-    ],
+    noCalcula:['Con más de una prueba justificada, el programa no define cómo resolver las siguientes ausencias'],
     reglasDelCurso:[
       'Programa ECO123 UAI 2026-2, sección 03, Santiago. Revisa que corresponda a tu sección',
       'Ingresa el promedio consolidado de Controles y otras evaluaciones del curso: contempla al menos ocho evaluaciones y elimina dos o tres notas, sin fijar cuántas. Puede incluir participación con 50% de ese bloque a criterio del profesor',

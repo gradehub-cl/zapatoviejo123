@@ -61,6 +61,8 @@ try{
   const perfil=await q('select * from profesor_por_codigo($1)',[nuevo.toLowerCase()+' ']);
   check('el nuevo muestra solo nombre y logo, sin la cuenta del profesor',
     perfil.length===1&&perfil[0].nombre_publico==='Academia Sintética'&&Object.keys(perfil[0]).sort().join()==='logo_path,nombre_publico');
+  check('antes de compartir, consultar su selección devuelve vacío',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('nadie puede leer los códigos de la tabla',
     !(await q(`select has_column_privilege('authenticated','public.tutor_perfiles','codigo_alumnos','select') p`))[0].p);
 
@@ -71,7 +73,15 @@ try{
   const idCompartido=(await q('select compartir_con_profesor($1,$2,$3) id',[nuevo,'Cami',['r1','ramo-ajeno']]))[0].id;
   check('comparte solo sus propios ramos (el ajeno se descarta)',
     (await q('select ramos from profesor_alumnos where id=$1',[idCompartido]))[0].ramos.join()==='r1');
+  const propia=(await q('select mi_compartido_profesor($1) c',[nuevo.toLowerCase()]))[0].c;
+  check('al reabrir el link recupera su nombre y solo los ramos compartidos',
+    propia.nombre_visible==='Cami'&&propia.ramos.join()==='r1'&&
+    Object.keys(propia).sort().join()==='nombre_visible,ramos');
+  check('otro código no revela esa selección',
+    (await q('select mi_compartido_profesor($1) c',[codigo]))[0].c===null);
   await soy(PROFE);
+  check('el profesor tampoco puede leer la selección privada del alumno',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('el profesor no puede compartirse a sí mismo',/contigo mismo/.test(await falla('select compartir_con_profesor($1,$2,$3)',[nuevo,'Yo',['r1']])));
   check('la tabla no se lee ni se escribe desde el cliente',
     !(await q(`select has_table_privilege('authenticated','public.profesor_alumnos','select') s,
@@ -80,7 +90,7 @@ try{
   console.log('\n=== Lo que ve el profesor ===');
   const alumnos=await q('select * from mis_alumnos()');
   check('ve a su alumna con el nombre que ella eligió',alumnos.length===1&&alumnos[0].nombre_visible==='Cami');
-  check('no recibe su user_id ni su correo',Object.keys(alumnos[0]).sort().join()==='desde,id,inicio,nombre_visible,ramos,tenant');
+  check('no recibe su user_id ni su correo',Object.keys(alumnos[0]).sort().join()==='desde,id,inicio,inicio_ramos,nombre_visible,ramos,tenant');
 
   console.log('\n=== Cuándo empezó contigo (#697) ===');
   check('por omisión no hay fecha de inicio: se usa cuándo compartió',alumnos[0].inicio===null);
@@ -89,7 +99,29 @@ try{
   check('no puede ser futura',/futura/.test(await falla("select fijar_inicio_alumno($1,current_date+1)",[alumnos[0].id])));
   check('null vuelve a cuándo compartió',(await q('select fijar_inicio_alumno($1,null) ok',[alumnos[0].id]))[0].ok===true
     &&(await q('select inicio from mis_alumnos()'))[0].inicio===null);
+
+  console.log('\n=== Cuándo empezó en cada ramo (Salva Ramos, 2026-10-20) ===');
+  const inicioRamos=async()=>(await q('select inicio_ramos from mis_alumnos()'))[0].inicio_ramos;
+  check('una fila que ya existía no trae fechas por ramo',JSON.stringify(alumnos[0].inicio_ramos)==='{}');
+  check('el profesor fija cuándo empezó en un ramo compartido',
+    (await q("select fijar_inicio_ramo_alumno($1,'r1','2026-09-01') ok",[alumnos[0].id]))[0].ok===true
+    &&(await inicioRamos()).r1==='2026-09-01');
+  check('la fecha por ramo no toca la general',(await q('select inicio from mis_alumnos()'))[0].inicio===null);
+  check('un ramo que no le comparte no se puede fijar',
+    (await q("select fijar_inicio_ramo_alumno($1,'r2','2026-09-01') ok",[alumnos[0].id]))[0].ok===false
+    &&!('r2' in await inicioRamos()));
+  check('por ramo tampoco puede ser futura',/futura/.test(await falla("select fijar_inicio_ramo_alumno($1,'r1',current_date+1)",[alumnos[0].id])));
+  check('null le quita la fecha propia al ramo',
+    (await q("select fijar_inicio_ramo_alumno($1,'r1',null) ok",[alumnos[0].id]))[0].ok===true
+    &&JSON.stringify(await inicioRamos())==='{}');
+  // Una fecha que quedó guardada de un ramo que ya no comparte no se entrega.
+  await db.query(`update profesor_alumnos set inicio_ramos='{"r1":"2026-09-02","viejo":"2026-03-01"}' where id=$1`,[alumnos[0].id]);
+  check('solo entrega fechas de ramos que sigue compartiendo',Object.keys(await inicioRamos()).join()==='r1'&&(await inicioRamos()).r1==='2026-09-02');
+  await db.query(`update profesor_alumnos set inicio_ramos='{}' where id=$1`,[alumnos[0].id]);
   await soy(OTRO);
+  check('otra cuenta no puede fijar la fecha de un ramo ajeno',!!(await falla("select fijar_inicio_ramo_alumno($1,'r1','2026-08-01')",[alumnos[0].id])));
+  check('otra cuenta no puede leer lo que comparte la alumna',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   check('otra cuenta no puede tocarla',!!(await falla("select fijar_inicio_alumno($1,'2026-08-01')",[alumnos[0].id])));
   await soy(PROFE);
   check('recibe solo el ramo compartido, completo para calcular con ramoAvg',
@@ -117,6 +149,76 @@ try{
   await soy(OTRO);
   check('otra cuenta no puede consultar comparaciones',(await q(`select comparacion_ramo_profesor('uc','MAT1620') c`))[0].c===null);
 
+  console.log('\n=== UAI y UAndes sin sigla: nombre normalizado y piso de cinco ===');
+  for(const [tenant,nombre,base] of [
+    ['uai','Curso Sintético de Álgebra',30],['uandes','Curso Sintético de Historia',40],
+  ]){
+    const clave=nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    const curso=i=>({id:`${tenant}-${i}`,nombre,sigla:null,origen:{tenant,ramoKey:clave},gates:[],
+      categorias:[{id:`c-${i}`,nombre:'Prueba',peso:100,notas:[{id:`n-${i}`,nombre:'Prueba',valor:4+i%3}]}]});
+    for(let i=0;i<4;i++){
+      const id=u(base+i);
+      await db.query('insert into auth.users(id) values($1)',[id]);
+      await guardar(id,[curso(i)],tenant);
+      if(i===0){await soy(id);await q('select compartir_con_profesor($1,$2,$3)',[nuevo,'Alumno Sintético',[`${tenant}-${i}`]]);}
+      await db.query('insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,$2,$3,$4)',[id,tenant,clave.toUpperCase(),4+i/2]);
+    }
+    // Una fila antigua de una cuenta solo profesor no suma al agregado.
+    await db.query('insert into user_ramos(user_id,data) values($1,$2) on conflict(user_id) do update set data=excluded.data',
+      [PROFE,JSON.stringify({tenant,tipoCuenta:'profesor',ramos:[curso(9)]})]);
+    await db.query('insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,$2,$3,7)',[PROFE,tenant,clave.toUpperCase()]);
+    await soy(PROFE);
+    const consulta=()=>q('select comparacion_ramo_profesor($1,$2) c',[tenant,clave]);
+    const cuatro=(await consulta())[0].c;
+    check(`${tenant}: cuatro estudiantes y un profesor no revelan promedio`,cuatro?.ramo===null&&cuatro?.evaluaciones?.length===0);
+    await db.query('insert into auth.users(id) values($1)',[u(base+4)]);
+    await guardar(u(base+4),[curso(4)],tenant);
+    await db.query('insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,$2,$3,6)',[u(base+4),tenant,clave.toUpperCase()]);
+    const cinco=(await consulta())[0].c;
+    check(`${tenant}: cinco estudiantes sin sigla muestran solo agregados`,
+      cinco?.ramo?.personas===5&&Number(cinco.ramo.promedio)===5.0&&
+      cinco.evaluaciones?.[0]?.personas===5&&cinco.categorias?.[0]?.personas===5);
+    check(`${tenant}: la clave SQL coincide con nombre y ramoKey guardado`,
+      (await q('select clave_curso_comparacion($1,$2::jsonb) c',[tenant,JSON.stringify(curso(1))]))[0].c===clave.toUpperCase());
+    const sinOrigen=curso(1);delete sinOrigen.origen;
+    check(`${tenant}: una cuenta anterior sin ramoKey usa su nombre`,
+      (await q('select clave_curso_comparacion($1,$2::jsonb) c',[tenant,JSON.stringify(sinOrigen)]))[0].c===clave.toUpperCase());
+  }
+
+  console.log('\n=== Por sección (Salva Ramos, 2026-10-20) ===');
+  // MAT1630 sintético: cinco en la sección 2 (uno de ellos comparte con el
+  // profesor), tres en la 3 y uno sin sección. Una nota por persona.
+  const conSeccion=(id,seccion,valor)=>({...ramo(id,'MAT1630',[['Interrogación 1',valor]]),...(seccion?{seccion}:{})});
+  const sec=[[60,2,3.0],[61,2,4.0],[62,2,5.0],[63,2,6.0],[64,2,7.0],[65,3,1.0],[66,3,1.0],[67,3,1.0],[68,null,1.0]];
+  for(const [i,seccion,valor] of sec){
+    await db.query('insert into auth.users(id) values($1)',[u(i)]);
+    if(i!==64)await guardar(u(i),[conSeccion('s'+i,seccion,valor)]);
+    await db.query(`insert into curso_notas(user_id,tenant,ramo_sigla,promedio) values($1,'uc','MAT1630',$2)`,[u(i),valor]);
+  }
+  await soy(u(60));
+  await q('select compartir_con_profesor($1,$2,$3)',[nuevo,'Alumno Sección',['s60']]);
+  await soy(PROFE);
+  const deSeccion=async s2=>(await q(`select comparacion_ramo_profesor('uc','MAT1630',$1) c`,[s2]))[0].c;
+  const cuatroSec=await deSeccion(2);
+  check('con cuatro en la sección no hay promedio de sección',cuatroSec.ramo===null&&cuatroSec.evaluaciones.length===0&&cuatroSec.categorias.length===0);
+  await guardar(u(64),[conSeccion('s64',2,7.0)]);
+  const s2=await deSeccion(2);
+  check('con cinco en la sección: su promedio de ramo, desde la sección guardada en cada ramo',
+    s2.ramo&&s2.ramo.personas===5&&Number(s2.ramo.promedio)===5.0);
+  check('y el de cada prueba, solo con su sección',s2.evaluaciones.length===1&&s2.evaluaciones[0].personas===5&&Number(s2.evaluaciones[0].promedio)===5.0);
+  const todo=(await q(`select comparacion_ramo_profesor('uc','MAT1630') c`))[0].c;
+  check('sin sección, la de siempre: los nueve',todo.ramo.personas===9&&todo.evaluaciones[0].personas===9);
+  check('una sección que no declara ninguno de sus alumnos no se puede consultar',(await deSeccion(3))===null);
+  check('una sección fuera de rango tampoco',(await deSeccion(0))===null&&(await deSeccion(1000))===null);
+  check('la app vieja llama con dos argumentos por nombre y recibe lo de siempre',
+    (await q(`select comparacion_ramo_profesor(p_tenant=>'uc',p_sigla=>'MAT1630') c`))[0].c.ramo.personas===9);
+  check('queda una sola función con ese nombre: la llamada no es ambigua',
+    (await q(`select count(*)::int n from pg_proc where proname='comparacion_ramo_profesor'`))[0].n===1);
+  check('el filtro de sección no se puede llamar desde el cliente',
+    !(await q(`select has_function_privilege('authenticated','public.seccion_calza(jsonb,integer)','execute') p`))[0].p);
+  await soy(OTRO);
+  check('otra cuenta no puede consultar por sección',(await q(`select comparacion_ramo_profesor('uc','MAT1630',2) c`))[0].c===null);
+
   console.log('\n=== Dejar de compartir y borrar cuentas ===');
   await soy(ALUMNA);
   const mios=await q('select * from mis_profesores()');
@@ -126,8 +228,10 @@ try{
   check('otra cuenta no puede borrar el compartido ajeno',(await q('select dejar_de_compartir($1) b',[idCompartido]))[0].b===false);
   await soy(ALUMNA);
   check('la alumna deja de compartir con un toque',(await q('select dejar_de_compartir($1) b',[idCompartido]))[0].b===true);
+  check('al revocar ya no hay selección que recuperar con el link',
+    (await q('select mi_compartido_profesor($1) c',[nuevo]))[0].c===null);
   await soy(PROFE);
-  check('y el profesor deja de verla al tiro',(await q('select * from mis_alumnos()')).length===0);
+  check('y el profesor deja de verla al tiro',!(await q('select * from mis_alumnos()')).some(x=>x.id===idCompartido));
   await soy(ALUMNA);
   const otraVez=(await q('select compartir_con_profesor($1,$2,$3) id',[nuevo,'Cami',['r1','r2']]))[0].id;
   await soy(PROFE);
@@ -135,17 +239,17 @@ try{
   await soy(ALUMNA);
   await q('select compartir_con_profesor($1,$2,$3)',[nuevo,'Cami',['r1']]);
   await db.query('delete from auth.users where id=$1',[ALUMNA]);
-  check('borrar la cuenta del alumno borra lo compartido',(await q('select count(*)::int n from profesor_alumnos'))[0].n===0);
+  check('borrar la cuenta del alumno borra lo compartido',(await q('select count(*)::int n from profesor_alumnos where alumno_id=$1',[ALUMNA]))[0].n===0);
 
   console.log('\n=== Seguridad de las funciones ===');
   const funciones=await q(`select proname, prosecdef, proconfig from pg_proc
-    where proname in ('codigo_alumnos_profesor','profesor_por_codigo','compartir_con_profesor','dejar_de_compartir',
-                      'mis_profesores','mis_alumnos','quitar_alumno','comparacion_ramo_profesor')`);
-  check('las ocho son security definer con search_path fijo',
-    funciones.length===8&&funciones.every(f=>f.prosecdef&&(f.proconfig||[]).some(c=>c==='search_path=public')));
+    where proname in ('codigo_alumnos_profesor','profesor_por_codigo','mi_compartido_profesor','compartir_con_profesor','dejar_de_compartir',
+                      'mis_profesores','mis_alumnos','quitar_alumno','fijar_inicio_ramo_alumno','comparacion_ramo_profesor')`);
+  check('las diez son security definer con search_path fijo',
+    funciones.length===10&&funciones.every(f=>f.prosecdef&&(f.proconfig||[]).some(c=>c==='search_path=public')));
   check('anon no puede llamar ninguna',
     !(await q(`select bool_or(has_function_privilege('anon',p.oid,'execute')) a from pg_proc p
-      where proname in ('mis_alumnos','compartir_con_profesor','comparacion_ramo_profesor')`))[0].a);
+      where proname in ('mis_alumnos','mi_compartido_profesor','compartir_con_profesor','fijar_inicio_ramo_alumno','comparacion_ramo_profesor')`))[0].a);
 
   console.log(`\nPASS: ${pruebas}   FAIL: 0`);
 }catch(e){console.error('  FAIL',e.message);process.exit(1);}

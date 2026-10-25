@@ -274,7 +274,9 @@ function renderHome(){
     // La lista ya se vació. Si una integración dejó una categoría sin el
     // arreglo `notas`, ese ramo sigue siendo parte del semestre: se muestra
     // como sin notas en vez de borrar visualmente todos los ramos.
-    const nn=r.categorias.reduce((a,cat)=>a+(Array.isArray(cat.notas)?cat.notas.length:0),0);
+    // Notas puestas, no casillas: una casilla creada solo para ponerle fecha
+    // dejaba el ramo en "0% evaluado" en vez de decir cuántas evaluaciones tiene.
+    const nn=r.categorias.reduce((a,cat)=>a+(Array.isArray(cat.notas)?cat.notas.filter(n=>n&&n.valor!=null).length:0),0);
     const prog=ramoProgress(r);
     const completo=prog.pct===100;
     const recienCerrado=ramoRecienCerrado(progresosAnteriores.get(r.id),prog.pct);
@@ -526,9 +528,8 @@ function renderRamo(){
     } else {chipEl.style.display='none';}
   } else {chipEl.style.display='none';}
 
-  // Mostrar botones calculadora y simulador si hay secciones
+  // El simulador, con la meta adentro («Nota mínima» se juntó con él, 2026-10-23)
   const hayCats=r.categorias.length>0;
-  document.getElementById('calc-btn').style.display=hayCats?'inline-flex':'none';
   document.getElementById('sim-btn').style.display=hayCats?'inline-flex':'none';
 
   // Advertencia de ponderación
@@ -545,7 +546,7 @@ function renderRamo(){
     if(cambio){
       const cuantos=cambio.cambios.length;
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
-      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${cuantos} ${cuantos===1?'evaluación distinta':'evaluaciones distintas'} a lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
+      pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${cuantos} ${cuantos===1?'cambio':'cambios'} respecto de lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
     }else if(r.consensoRespaldos){
       // Esta pauta la reportaron estudiantes, no sale de un programa oficial.
       // Decirlo es la diferencia entre una pauta y una ponderación inventada.

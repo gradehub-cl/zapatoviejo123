@@ -81,7 +81,7 @@ const cuerpo = nombre => {
   do { if (app[j] === '{') prof++; else if (app[j] === '}') prof--; j++; } while (j < app.length && prof > 0);
   return app.slice(ini, j);
 };
-const camposDeNota = ['setSlotNota', 'setDirectNota', 'simAddNota', 'simGlobalDesdeTexto', 'calcResult'];
+const camposDeNota = ['setSlotNota', 'setDirectNota', 'simAddNota', 'simGlobalDesdeTexto'];
 // Lo que importa no es que no exista parseFloat, es que no vaya PRIMERO. El
 // simulador tiene uno legítimo de respaldo para lo que sigue fuera de escala
 // después de traducir; ese orden es justamente el arreglo, y al revés es el bug.

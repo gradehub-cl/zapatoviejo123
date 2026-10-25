@@ -60,8 +60,33 @@ alter table public.profesor_alumnos
   add column if not exists inicio_clases date
   check (inicio_clases between date '2000-01-01' and date '2100-12-31');
 
+-- Cuándo empezó en CADA ramo (2026-10-20, pedido de Salva Ramos): la mitad de
+-- sus alumnos toma más de una clase, y quien empezó Cálculo en marzo y Física
+-- en septiembre quedaba medido con un solo corte. Llave: el id del ramo
+-- compartido; valor: 'AAAA-MM-DD'. Un ramo sin fecha propia usa inicio_clases
+-- y, si tampoco hay, cuándo compartió: las filas que ya existen se leen igual.
+alter table public.profesor_alumnos
+  add column if not exists inicio_ramos jsonb not null default '{}'::jsonb
+  check (jsonb_typeof(inicio_ramos) = 'object');
+
 alter table public.profesor_alumnos enable row level security;
 revoke all on public.profesor_alumnos from public, anon, authenticated;
+
+-- Un admin puede ocultarle el panel de alumnos a un profesor (Lucas,
+-- 2026-10-23). Parte en true: hoy no cambia nada a nadie. El profesor la lee
+-- pero no la edita: la cambia admin_panel_alumnos_profesor.
+alter table public.tutor_perfiles add column if not exists panel_alumnos boolean not null default true;
+grant select (panel_alumnos) on public.tutor_perfiles to authenticated;
+-- Profesor aprobado y con el panel visible. Con el panel oculto no se ve a los
+-- alumnos ni se conecta nadie nuevo, pero los vínculos no se borran: al
+-- volver a mostrarlo están los mismos.
+create or replace function public.panel_alumnos_activo(p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.tutor_perfiles
+                  where user_id = p_user_id and estado = 'aprobado' and panel_alumnos);
+$$;
+revoke all on function public.panel_alumnos_activo(uuid) from public, anon;
+grant execute on function public.panel_alumnos_activo(uuid) to authenticated;
 
 -- Normaliza el nombre de una evaluación para juntar la misma prueba escrita
 -- distinto ("Interrogación 1", "interrogacion  1"). El cliente usa la misma
@@ -93,7 +118,7 @@ begin
   if uid is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(uid) then
+  if not public.panel_alumnos_activo(uid) then
     raise exception 'solo un profesor aprobado tiene link para sus alumnos';
   end if;
   select codigo_alumnos into actual from public.tutor_perfiles where user_id = uid;
@@ -129,7 +154,31 @@ begin
   return query
   select t.nombre_publico, t.logo_aprobado_path
   from public.tutor_perfiles t
-  where t.codigo_alumnos = upper(btrim(p_codigo)) and t.estado = 'aprobado';
+  where t.codigo_alumnos = upper(btrim(p_codigo)) and t.estado = 'aprobado' and t.panel_alumnos;
+end;
+$$;
+
+-- La persona que ya comparte con este código puede recuperar SU selección.
+-- No entrega el id de ninguna cuenta ni permite leer compartidos ajenos.
+create or replace function public.mi_compartido_profesor(p_codigo text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'hay que haber iniciado sesión';
+  end if;
+  return (
+    select jsonb_build_object('nombre_visible', pa.nombre_visible, 'ramos', pa.ramos)
+    from public.profesor_alumnos pa
+    join public.tutor_perfiles t on t.user_id = pa.tutor_id
+    where pa.alumno_id = auth.uid()
+      and t.codigo_alumnos = upper(btrim(p_codigo))
+      and t.estado = 'aprobado' and t.panel_alumnos
+  );
 end;
 $$;
 
@@ -151,7 +200,7 @@ begin
     raise exception 'hay que haber iniciado sesión';
   end if;
   select user_id into v_tutor from public.tutor_perfiles
-    where codigo_alumnos = upper(btrim(p_codigo)) and estado = 'aprobado';
+    where codigo_alumnos = upper(btrim(p_codigo)) and estado = 'aprobado' and panel_alumnos;
   if v_tutor is null then
     raise exception 'el link no corresponde a ningún profesor';
   end if;
@@ -216,12 +265,14 @@ $$;
 -- ─── PROFESOR: sus alumnos ──────────────────────────────────────────────────
 -- Devuelve, de cada alumno, SOLO los ramos que compartió, tal como los guardó.
 -- Un ramo que el alumno borró desaparece solo.
--- Devolver `inicio` cambia el tipo de retorno: Postgres no lo deja con
--- create or replace, así que se borra y se vuelve a crear (los permisos se
--- vuelven a dar al final del archivo).
+-- Devolver `inicio` (y después `inicio_ramos`) cambia el tipo de retorno:
+-- Postgres no lo deja con create or replace, así que se borra y se vuelve a
+-- crear (los permisos se vuelven a dar al final del archivo). Una app vieja
+-- en caché lee las columnas por nombre e ignora la nueva.
+-- `inicio_ramos` trae solo las fechas de ramos que sigue compartiendo.
 drop function if exists public.mis_alumnos();
 create function public.mis_alumnos()
-returns table (id uuid, nombre_visible text, tenant text, ramos jsonb, desde timestamptz, inicio date)
+returns table (id uuid, nombre_visible text, tenant text, ramos jsonb, desde timestamptz, inicio date, inicio_ramos jsonb)
 language plpgsql
 stable
 security definer
@@ -233,14 +284,16 @@ begin
   if uid is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(uid) then
+  if not public.panel_alumnos_activo(uid) then
     raise exception 'solo un profesor aprobado ve a sus alumnos';
   end if;
   return query
   select pa.id, pa.nombre_visible, ur.data->>'tenant',
          coalesce((select jsonb_agg(r) from jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
                    where r->>'id' = any (pa.ramos)), '[]'::jsonb),
-         pa.created_at, pa.inicio_clases
+         pa.created_at, pa.inicio_clases,
+         coalesce((select jsonb_object_agg(e.key, e.value) from jsonb_each(pa.inicio_ramos) e
+                   where e.key = any (pa.ramos)), '{}'::jsonb)
   from public.profesor_alumnos pa
   left join public.user_ramos ur on ur.user_id = pa.alumno_id
   where pa.tutor_id = uid
@@ -275,7 +328,7 @@ begin
   if auth.uid() is null then
     raise exception 'hay que haber iniciado sesión';
   end if;
-  if not public.tutor_aprobado(auth.uid()) then
+  if not public.panel_alumnos_activo(auth.uid()) then
     raise exception 'solo un profesor aprobado ve a sus alumnos';
   end if;
   if p_inicio is not null and (p_inicio < date '2000-01-01' or p_inicio > current_date) then
@@ -283,6 +336,33 @@ begin
   end if;
   update public.profesor_alumnos set inicio_clases = p_inicio, updated_at = now()
    where id = p_id and tutor_id = auth.uid();
+  return found;
+end;
+$$;
+
+-- Lo mismo, para un solo ramo. null le quita su fecha propia: vuelve a usar
+-- inicio_clases o cuándo compartió. Solo un ramo que el alumno le comparte.
+create or replace function public.fijar_inicio_ramo_alumno(p_id uuid, p_ramo text, p_inicio date)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'hay que haber iniciado sesión';
+  end if;
+  if not public.panel_alumnos_activo(auth.uid()) then
+    raise exception 'solo un profesor aprobado ve a sus alumnos';
+  end if;
+  if p_inicio is not null and (p_inicio < date '2000-01-01' or p_inicio > current_date) then
+    raise exception 'la fecha de inicio no puede ser futura';
+  end if;
+  update public.profesor_alumnos
+     set inicio_ramos = case when p_inicio is null then inicio_ramos - p_ramo
+                             else inicio_ramos || jsonb_build_object(p_ramo, p_inicio::text) end,
+         updated_at = now()
+   where id = p_id and tutor_id = auth.uid() and p_ramo = any (ramos);
   return found;
 end;
 $$;
@@ -302,7 +382,44 @@ $$;
 -- promedio de una categoría acá es el ponderado de sus notas por su peso, SIN
 -- descartes ni reglas: es una referencia de cómo le va al resto, no la nota de
 -- nadie. La del alumno la calcula el navegador con el motor de siempre.
-create or replace function public.comparacion_ramo_profesor(p_tenant text, p_sigla text)
+-- UC/FEN se identifican por sigla. UAI/UAndes, si no la tienen, usan el
+-- nombre normalizado guardado en origen.ramoKey, como el consenso de pautas.
+-- La función solo construye la clave: no calcula promedios ni expone filas.
+create or replace function public.clave_curso_comparacion(p_tenant text, p_ramo jsonb)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(
+    nullif(upper(btrim(p_ramo->>'sigla')), ''),
+    case when lower(p_tenant) in ('uai', 'uandes') then
+      nullif(upper(btrim(regexp_replace(
+        normalize(lower(coalesce(nullif(p_ramo#>>'{origen,ramoKey}', ''), p_ramo->>'nombre', '')), NFD),
+        '[\u0300-\u036f]', '', 'g'))), '')
+    end);
+$$;
+revoke all on function public.clave_curso_comparacion(text, jsonb) from public, anon, authenticated;
+
+-- POR SECCIÓN (2026-10-20, pedido de Salva Ramos): comparar a cada alumno con
+-- los de su misma sección, no solo con todo GradeHub. La sección es la que el
+-- estudiante escribe en Editar ramo (entero 1–999 en el ramo guardado). Sin
+-- p_seccion, la comparación de siempre. Mismo piso de cinco personas.
+create or replace function public.seccion_calza(p_ramo jsonb, p_seccion integer)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_seccion is null or p_ramo->'seccion' = to_jsonb(p_seccion);
+$$;
+revoke all on function public.seccion_calza(jsonb, integer) from public, anon, authenticated;
+
+-- La firma de 2 argumentos se reemplaza por una de 3 (p_seccion opcional). Sin
+-- el drop quedarían las dos y una llamada con p_tenant y p_sigla sería ambigua;
+-- con p_seccion por omisión, la app vieja en caché sigue llamando igual.
+drop function if exists public.comparacion_ramo_profesor(text, text);
+create or replace function public.comparacion_ramo_profesor(p_tenant text, p_sigla text, p_seccion integer default null)
 returns jsonb
 language plpgsql
 stable
@@ -313,20 +430,24 @@ declare
   uid uuid := auth.uid();
   v_tenant text := nullif(lower(btrim(p_tenant)), '');
   v_sigla text := nullif(upper(btrim(p_sigla)), '');
+  v_seccion integer := p_seccion;
   v_ramo jsonb;
   v_evaluaciones jsonb;
   v_categorias jsonb;
 begin
-  if uid is null or v_tenant is null or v_sigla is null then
+  if uid is null or v_tenant is null or v_sigla is null
+     or (v_seccion is not null and v_seccion not between 1 and 999) then
     return null;
   end if;
-  if not public.tutor_aprobado(uid) or not exists (
+  -- Por sección, solo una que declara un alumno que le comparte ese ramo.
+  if not public.panel_alumnos_activo(uid) or not exists (
     select 1
     from public.profesor_alumnos pa
     join public.user_ramos ur on ur.user_id = pa.alumno_id,
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
     where pa.tutor_id = uid and r->>'id' = any (pa.ramos)
-      and ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+      and ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and public.seccion_calza(r, v_seccion)
   ) then
     return null;
   end if;
@@ -334,8 +455,17 @@ begin
   select case when count(*) >= 5
               then jsonb_build_object('promedio', round(avg(promedio), 1), 'personas', count(*)) end
     into v_ramo
-    from public.curso_notas
-    where tenant = v_tenant and ramo_sigla = v_sigla and updated_at > now() - interval '30 days';
+    from public.curso_notas cn
+    where cn.tenant = v_tenant and cn.ramo_sigla = v_sigla and cn.updated_at > now() - interval '30 days'
+      and not exists (select 1 from public.user_ramos ur
+                      where ur.user_id = cn.user_id and ur.data->>'tipoCuenta' = 'profesor')
+      -- curso_notas no guarda la sección: se mira en el ramo que esa persona guardó.
+      and (v_seccion is null or exists (
+            select 1 from public.user_ramos ur,
+                   jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r
+            where ur.user_id = cn.user_id and ur.data->>'tenant' = v_tenant
+              and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+              and public.seccion_calza(r, v_seccion)));
 
   with notas as (
     select ur.user_id,
@@ -345,7 +475,9 @@ begin
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r,
          jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
          jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
-    where ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+    where ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and public.seccion_calza(r, v_seccion)
+      and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and jsonb_typeof(n->'valor') = 'number'
       and (n->>'valor')::numeric between 1 and 7
   ),
@@ -378,7 +510,9 @@ begin
          jsonb_array_elements(coalesce(ur.data->'ramos', '[]'::jsonb)) r,
          jsonb_array_elements(coalesce(r->'categorias', '[]'::jsonb)) c,
          jsonb_array_elements(coalesce(c->'notas', '[]'::jsonb)) n
-    where ur.data->>'tenant' = v_tenant and upper(r->>'sigla') = v_sigla
+    where ur.data->>'tenant' = v_tenant and public.clave_curso_comparacion(v_tenant, r) = v_sigla
+      and public.seccion_calza(r, v_seccion)
+      and ur.data->>'tipoCuenta' is distinct from 'profesor'
       and jsonb_typeof(n->'valor') = 'number'
       and (n->>'valor')::numeric between 1 and 7
   ),
@@ -409,20 +543,24 @@ $$;
 revoke all on function public.clave_evaluacion(text) from public;
 revoke all on function public.codigo_alumnos_profesor(boolean) from public, anon;
 revoke all on function public.profesor_por_codigo(text) from public, anon;
+revoke all on function public.mi_compartido_profesor(text) from public, anon;
 revoke all on function public.compartir_con_profesor(text, text, text[]) from public, anon;
 revoke all on function public.dejar_de_compartir(uuid) from public, anon;
 revoke all on function public.mis_profesores() from public, anon;
 revoke all on function public.mis_alumnos() from public, anon;
 revoke all on function public.quitar_alumno(uuid) from public, anon;
 revoke all on function public.fijar_inicio_alumno(uuid, date) from public, anon;
-revoke all on function public.comparacion_ramo_profesor(text, text) from public, anon;
+revoke all on function public.fijar_inicio_ramo_alumno(uuid, text, date) from public, anon;
+revoke all on function public.comparacion_ramo_profesor(text, text, integer) from public, anon;
 grant execute on function public.clave_evaluacion(text) to authenticated;
 grant execute on function public.codigo_alumnos_profesor(boolean) to authenticated;
 grant execute on function public.profesor_por_codigo(text) to authenticated;
+grant execute on function public.mi_compartido_profesor(text) to authenticated;
 grant execute on function public.compartir_con_profesor(text, text, text[]) to authenticated;
 grant execute on function public.dejar_de_compartir(uuid) to authenticated;
 grant execute on function public.mis_profesores() to authenticated;
 grant execute on function public.mis_alumnos() to authenticated;
 grant execute on function public.quitar_alumno(uuid) to authenticated;
 grant execute on function public.fijar_inicio_alumno(uuid, date) to authenticated;
-grant execute on function public.comparacion_ramo_profesor(text, text) to authenticated;
+grant execute on function public.fijar_inicio_ramo_alumno(uuid, text, date) to authenticated;
+grant execute on function public.comparacion_ramo_profesor(text, text, integer) to authenticated;

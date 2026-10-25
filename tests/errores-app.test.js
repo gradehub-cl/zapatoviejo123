@@ -40,6 +40,8 @@ const tope = arnes(); tope.run('for(let i=0;i<9;i++)reportarError(new Error("fal
 chk('máximo 5 por visita', tope.enviados.length === 5);
 const cruz = arnes(); cruz.run('reportarError({message:"Script error."},"?")');
 chk('"Script error." no dice nada y no se guarda', cruz.enviados.length === 0);
+const gcr = arnes(); gcr.run(`reportarError(new ReferenceError("Can't find variable: __gCrWeb"),"?:1:9")`);
+chk('lo que inyecta Chrome para iPhone (__gCrWeb) no se guarda', gcr.enviados.length === 0);
 
 console.log('\n=== Escucha lo que nadie atrapó ===');
 chk('errores y promesas rechazadas', /addEventListener\('error'/.test(sesion) && /addEventListener\('unhandledrejection'/.test(sesion));

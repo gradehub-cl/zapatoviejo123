@@ -7,7 +7,7 @@ function chk(nombre,ok){
 }
 
 const app=fs.readFileSync('app.js','utf8');
-const modal=app.match(/function openAddRamoModal\(\)\{([\s\S]*?)\n\}/);
+const modal=app.match(/function openAddRamoModal\([^)]*\)\{([\s\S]*?)\n\}/);
 
 console.log('\n=== Agregar ramo también descubre las siglas UC ===');
 chk('el modal conserva la búsqueda de catálogo',!!modal&&/renderCatalogResults\(input\.value\)/.test(modal[1]));

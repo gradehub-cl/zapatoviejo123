@@ -67,6 +67,25 @@ function gh_reglasNota(tenant){
 // La usa la calculadora pública (calculadora.html) y la usará el ingreso de
 // notas de la app: una sola fórmula para las dos. Devuelve null si los datos
 // no forman una escala, para que nadie muestre una nota inventada.
+// Filas de la tabla puntaje → nota, con el incremento que elige la persona (de
+// a 1 o de a 0,5 punto, u otro). Solo si dejaría más de 2.000 filas se agranda
+// al paso más chico que quepa, para no trabar el teléfono con una prueba de
+// 10.000 puntos; `ajustado` lo dice. El total va siempre al final, aunque el
+// paso no caiga justo. Cada fila se calcula como i·paso para que 0,1 + 0,2 no
+// acumule error.
+function gh_tablaPuntaje(total,pedido){
+  const max=2000;
+  let paso=Number(pedido)>0?Number(pedido):1,ajustado=false;
+  if(!(total>0))return {paso,ajustado,filas:[]};
+  if(total/paso>max){
+    ajustado=true;
+    paso=[1,2,5,10,20,25,50,100,250,500,1000,2500,5000,10000].find(x=>x>=paso&&total/x<=max)||Math.ceil(total/max);
+  }
+  const filas=[];
+  for(let i=0;;i++){const x=Math.round(i*paso*100)/100;if(x>=total-1e-9)break;filas.push(x);}
+  filas.push(total);
+  return {paso,ajustado,filas};
+}
 function gh_notaDesdePuntaje(puntaje,total,o={}){
   const exigencia=o.exigencia??0.5,nmin=o.nmin??1,naprob=o.naprob??4,nmax=o.nmax??7;
   if(![puntaje,total,exigencia,nmin,naprob,nmax].every(Number.isFinite))return null;
@@ -135,6 +154,7 @@ function gh_applyDrop(node,known){
 // nombre del ramo que está calculando.
 function gh_clonarArbol(node){return {...node,children:(node.children||[]).map(gh_clonarArbol)};}
 function gh_nodosPorId(node,map=new Map()){map.set(node.id,node);(node.children||[]).forEach(hijo=>gh_nodosPorId(hijo,map));return map;}
+function gh_claveAusenciaCasilla(catId,slot){return `__gh_ausencia_${catId}_${slot}`;}
 function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,norma){
   const declaradas=new Set(Array.isArray(declaraciones)?declaraciones:[]);
   const vacio={estructura:structure,notas:grades,activas:[],pendientes:[],inactivas:[]};
@@ -143,6 +163,9 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
   const valores=new Map(base.breakdown.map(n=>[n.id,n.value]));
   const copia=gh_clonarArbol(structure),nodos=gh_nodosPorId(copia),notas={...grades};
   const activas=[],pendientes=[],inactivas=[],bloqueadas=[],vistas=new Set();
+  const maxReemplazos=Number.isInteger(regla.maxReemplazos)&&regla.maxReemplazos>=1?regla.maxReemplazos:null;
+  const maxTraspasos=Number.isInteger(regla.maxTraspasos)&&regla.maxTraspasos>=1?regla.maxTraspasos:null;
+  let reemplazosDeclarados=0,traspasosDeclarados=0;
   const topePesoDestino=Number.isFinite(norma&&norma.topePesoDestino)?norma.topePesoDestino:null;
   const notaExceso=Number.isFinite(norma&&norma.notaExceso)?norma.notaExceso:1;
   const agregarExceso=(hacia,peso)=>{
@@ -165,7 +188,22 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
     if(!desde||(tipo!=='rezago'&&!hacia)||desde===hacia){inactivas.push({...entrada,tipo,motivo:'pauta_cambio'});return;}
     if(valores.get(entrada.desdeId)!==null){inactivas.push({...entrada,tipo,motivo:'tiene_nota'});return;}
     if(tipo==='rezago'){pendientes.push({...entrada,tipo,motivo:'espera_rezago'});return;}
+    // Algunos programas solo reemplazan la primera ausencia por el examen;
+    // las siguientes se rinden aparte. Cuenta las ausencias sin nota en el
+    // orden de las evaluaciones declarado por el preset, incluso si aún no
+    // llega la nota del examen: una ausencia posterior no puede ocupar su lugar.
+    if(tipo==='reemplazo'&&maxReemplazos!==null){
+      reemplazosDeclarados++;
+      if(reemplazosDeclarados>maxReemplazos){
+        if(regla.excesoReemplazos==='rezago')pendientes.push({...entrada,tipo:'rezago',motivo:'espera_rezago'});
+        else bloqueadas.push({...entrada,tipo,motivo:'sin_regla_para_exceso'});
+        return;
+      }
+    }
     if(tipo==='reemplazo'&&valores.get(entrada.haciaId)==null){pendientes.push({...entrada,tipo,motivo:'falta_destino'});return;}
+    if(tipo==='traspaso'&&maxTraspasos!==null&&++traspasosDeclarados>maxTraspasos){
+      bloqueadas.push({...entrada,tipo,motivo:'sin_regla_para_exceso'});return;
+    }
     if(tipo==='reemplazo'){
       const id=`ausencia-${entrada.desdeId}`;
       desde.children=[{id,name:'Nota reemplazada',weight:1,type:'leaf'}];
@@ -191,6 +229,71 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
   (regla.rezagos||[]).forEach(entrada=>revisar('rezago',entrada));
   (regla.reemplazos||[]).forEach(entrada=>revisar('reemplazo',entrada));
   (regla.traspasos||[]).forEach(entrada=>revisar('traspaso',entrada));
+  // Reemplazo por promedio ponderado de otras evaluaciones sumativas. Se
+  // resuelve por ids y pesos del árbol, nunca por nombre de ramo. Si el
+  // programa limita las justificaciones, las posteriores reciben su nota
+  // declarada antes de calcular el promedio de la primera.
+  const promedios=[];
+  (regla.promedios||[]).forEach(entrada=>{
+    if(!entrada||!declaradas.has(entrada.desdeId)||vistas.has(entrada.desdeId))return;
+    vistas.add(entrada.desdeId);
+    const desde=nodos.get(entrada.desdeId);
+    const otros=Array.isArray(entrada.deIds)?entrada.deIds.map(id=>nodos.get(id)):[];
+    if(!desde||!otros.length||otros.some(n=>!n||n===desde)){
+      inactivas.push({...entrada,tipo:'promedio',motivo:'pauta_cambio'});return;
+    }
+    if(valores.get(entrada.desdeId)!==null){
+      inactivas.push({...entrada,tipo:'promedio',motivo:'tiene_nota'});return;
+    }
+    promedios.push({entrada,desde,otros});
+  });
+  const maxPromedios=Number.isInteger(regla.maxPromedios)&&regla.maxPromedios>=1?regla.maxPromedios:promedios.length;
+  const fijarPromedio=(desde,valor)=>{
+    const id=`ausencia-${desde.id}`;
+    desde.children=[{id,name:'Nota por inasistencia',weight:1,type:'leaf'}];
+    desde.drop_lowest=null;notas[id]=valor;valores.set(desde.id,valor);
+  };
+  promedios.slice(maxPromedios).forEach(({entrada,desde})=>{
+    if(Number.isFinite(regla.notaExceso)){
+      fijarPromedio(desde,regla.notaExceso);
+      activas.push({...entrada,tipo:'nota_exceso',notaExceso:regla.notaExceso});
+    }else bloqueadas.push({...entrada,tipo:'promedio',motivo:'sin_regla_para_exceso'});
+  });
+  promedios.slice(0,maxPromedios).forEach(({entrada,desde,otros})=>{
+    const conocidos=otros.map(n=>({valor:valores.get(n.id),peso:Number(n.weight)||0}));
+    const total=conocidos.reduce((s,n)=>s+n.peso,0);
+    if(!(total>0)||conocidos.some(n=>n.valor==null)){
+      pendientes.push({...entrada,tipo:'promedio',motivo:'faltan_sumativas'});return;
+    }
+    const valor=conocidos.reduce((s,n)=>s+n.valor*n.peso,0)/total;
+    fijarPromedio(desde,valor);
+    activas.push({...entrada,tipo:'promedio',valor});
+  });
+  // Una casilla fija tiene su propio peso dentro del grupo. El programa puede
+  // reemplazarla por la casilla correspondiente de otro grupo o por el examen.
+  // La declaración identifica categoría + número, nunca el id temporal de la
+  // nota, que cambia al editarla o al ponerle fecha.
+  (regla.reemplazosCasilla||[]).forEach(entrada=>{
+    const desdeId=gh_claveAusenciaCasilla(entrada.desdeId,entrada.desdeSlot);
+    if(!declaradas.has(desdeId)||vistas.has(desdeId))return;
+    vistas.add(desdeId);
+    const desde=nodos.get(entrada.desdeId),hacia=nodos.get(entrada.haciaId);
+    const hojaDesde=(desde?.children||[]).find(n=>n.slot===entrada.desdeSlot);
+    const hojaHacia=Number.isInteger(entrada.haciaSlot)
+      ?(hacia?.children||[]).find(n=>n.slot===entrada.haciaSlot):null;
+    if(!hojaDesde||!hacia||(Number.isInteger(entrada.haciaSlot)&&!hojaHacia)){
+      inactivas.push({...entrada,desdeId,tipo:'reemplazo_casilla',motivo:'pauta_cambio'});return;
+    }
+    if(typeof notas[hojaDesde.id]==='number'){
+      inactivas.push({...entrada,desdeId,tipo:'reemplazo_casilla',motivo:'tiene_nota'});return;
+    }
+    const valor=hojaHacia?notas[hojaHacia.id]:valores.get(entrada.haciaId);
+    if(typeof valor!=='number'){
+      pendientes.push({...entrada,desdeId,tipo:'reemplazo_casilla',motivo:'falta_destino'});return;
+    }
+    notas[hojaDesde.id]=valor;
+    activas.push({...entrada,desdeId,tipo:'reemplazo_casilla',valor});
+  });
   declaradas.forEach(desdeId=>{if(!vistas.has(desdeId))inactivas.push({desdeId,tipo:'desconocida',motivo:'pauta_cambio'});});
   return {estructura:copia,notas,activas,pendientes,inactivas,bloqueadas};
 }
@@ -382,13 +485,13 @@ function gh_crearCalculoRamo(deps){
     });
     const reales=[...porSlot.values(),...sinSlot];
     const ids=new Set(reales.map(n=>n.id));
-    const hojas=reales.map(n=>({id:n.id,name:n.nombre,weight:(n.peso||1)*(Number.isInteger(n.slot)&&porSlot.get(n.slot)===n?pesoCasilla(c,n.slot):1),type:'leaf'}));
+    const hojas=reales.map(n=>({id:n.id,name:n.nombre,weight:(n.peso||1)*(Number.isInteger(n.slot)&&porSlot.get(n.slot)===n?pesoCasilla(c,n.slot):1),type:'leaf',slot:n.slot}));
     for(let slot=0;slot<slots;slot++){
       if(porSlot.has(slot))continue;
       let id=`__gh_pendiente_slot__${c.id}__${slot}`;
       while(ids.has(id))id+='_';
       ids.add(id);
-      hojas.push({id,name:`${c.nombre} pendiente ${slot+1}`,weight:pesoCasilla(c,slot),type:'leaf'});
+      hojas.push({id,name:`${c.nombre} pendiente ${slot+1}`,weight:pesoCasilla(c,slot),type:'leaf',slot});
     }
     return hojas;
   }
@@ -671,6 +774,70 @@ function gh_crearCalculoRamo(deps){
       externo:{ramo:otro,valor:otro?ramoAvg(otro,new Set([r.id]),ramosContexto):null},
     };
   }
+  // Lo mínimo que hay que sacar en cada evaluación pendiente para que ninguna
+  // compuerta tope la final bajo la meta, o null si ninguna la topa.
+  //
+  // El solver resuelve el promedio ponderado y las compuertas se aplican
+  // después (calculoRamoConCompuertas), así que la nota necesaria las ignoraba:
+  // con "presentación a examen ≥ 3,0" decía "necesitas 2,9", y con 2,9 en todo
+  // lo pendiente la presentación quedaba en 2,9 y topaba la final ahí.
+  //
+  // Se proyecta la misma nota en todas las pendientes, como el solver, y se
+  // miden las compuertas con sus propias reglas. Subir esa nota nunca baja el
+  // promedio de una evaluación ni de un grupo, así que basta una bisección. Si
+  // ninguna nota alcanza —la compuerta ya cerró bajo la meta—, se devuelve
+  // fuera de escala para que la interfaz diga "ya no es posible".
+  function exigenciaDeCompuertas(ramo,raiz,notas,objetivo,base){
+    const compuertas=(ramo.gates||[]).filter(g=>g&&(g.type==='min_grade_required'||g.type==='group_min'));
+    if(!compuertas.length)return null;
+    const pendientes=calculateFinalGrade(raiz,notas).emptyLeaves;
+    if(!pendientes.length)return null;
+    const meta=gh_meta(raiz),borde=gh_bordeOficial(objetivo,meta);
+    const escalaMin=meta?.grade_scale?.min??1,escalaMax=meta?.grade_scale?.max??7;
+    const nodos=new Map((raiz.children||[]).map(n=>[n.id.slice('propio:'.length),n]));
+    const tope=x=>{
+      const proyectadas=gh_projectGrades(notas,pendientes,x);
+      const res=calculateFinalGrade(raiz,proyectadas);
+      const valores=new Map(res.breakdown.map(b=>[b.id,b.value]));
+      const valorDe=id=>{const v=valores.get('propio:'+id);return typeof v==='number'?v:null;};
+      // Con pesos por casilla el mínimo es sobre el promedio simple de las
+      // casillas (valorParaCompuerta), no sobre el ponderado de la categoría.
+      const valorEvaluacion=id=>{
+        const c=(ramo.categorias||[]).find(x=>x.id===id);
+        if(!(c&&Array.isArray(c.pesosCasillas)))return valorDe(id);
+        const nodo=nodos.get(id);
+        if(!(nodo&&nodo.children))return valorParaCompuerta(ramo,base.res,id);
+        const hojas=nodo.children.map(h=>proyectadas[h.id]).filter(v=>typeof v==='number');
+        return hojas.length?hojas.reduce((a,b)=>a+b,0)/hojas.length:null;
+      };
+      let t=Infinity;
+      for(const g of compuertas){
+        if(g.type==='min_grade_required'){
+          const v=valorEvaluacion(g.catId);
+          if(v!==null&&!gh_cumpleCompuerta(v,g))t=Math.min(t,g.cap);
+        }else{
+          let num=0,den=0;
+          (g.catIds||[]).forEach(id=>{
+            const nodo=nodos.get(id),v=valorDe(id);
+            const w=nodo?gh_weightOf(nodo,res.weightOverrides):0;
+            if(w>0&&v!==null){num+=v*w;den+=w;}
+          });
+          if(den>0){const ga=num/den;if(!gh_cumpleCompuerta(ga,g))t=Math.min(t,g.cap==='self'?ga:g.cap);}
+        }
+      }
+      return t;
+    };
+    const alcanza=x=>tope(x)>=borde;
+    if(alcanza(escalaMin))return null;
+    let lo=escalaMin,hi=escalaMax;
+    while(!alcanza(hi)){
+      // Más allá de 64 ninguna nota cambia nada: la compuerta ya cerró.
+      if(hi>=64)return escalaMax+1;
+      hi*=2;
+    }
+    for(let i=0;i<48;i++){const mid=(lo+hi)/2;if(alcanza(mid))hi=mid;else lo=mid;}
+    return hi;
+  }
   // `soloPropio` pregunta por la parte propia sin el ramo que le aporta: cuánto
   // necesita la cátedra para llegar sola a la meta.
   function notaNecesaria(ramo,meta,opciones){
@@ -712,7 +879,10 @@ function gh_crearCalculoRamo(deps){
     let estructura=propio;
     const link=ramo.aporta;
     const resolver=(est,meta)=>solveForTarget(est,notas,meta,{}, {precision:null,extrapolate:true}).requiredAverage;
-    if(opciones&&opciones.soloPropio)return resolver(propio,objetivo);
+    // Las compuertas son del ramo propio: pesan igual con o sin vinculado.
+    const porCompuertas=exigenciaDeCompuertas(ramo,propio,notas,objetivo,baseInicial);
+    const conCompuertas=v=>v===null||porCompuertas===null?v:Math.max(v,porCompuertas);
+    if(opciones&&opciones.soloPropio)return conCompuertas(resolver(propio,objetivo));
     if(link&&link.peso){
       const p=link.peso/100;
       const otro=ramoVinculado(ramo);
@@ -745,16 +915,17 @@ function gh_crearCalculoRamo(deps){
         const ponderado=resolver(estructura,objetivo);
         // La parte propia tiene que llegar al mínimo por su cuenta.
         const porSuCuenta=resolver(propio,link.min);
-        if(ponderado===null)return porSuCuenta;
-        if(porSuCuenta===null)return ponderado;
-        return Math.max(ponderado,porSuCuenta);
+        if(ponderado===null)return conCompuertas(porSuCuenta);
+        if(porSuCuenta===null)return conCompuertas(ponderado);
+        return conCompuertas(Math.max(ponderado,porSuCuenta));
       }
     }
-    // Las compuertas se siguen comunicando por gatesActivas; acá se obtiene la
-    // exigencia ponderada. Solo el solver decide cómo cambia el descarte al rendir.
-    return resolver(estructura,objetivo);
+    // Solo el solver decide cómo cambia el descarte al rendir; las compuertas
+    // suben la exigencia cuando topan la final bajo la meta. gatesActivas sigue
+    // diciendo cuál está incumplida hoy.
+    return conCompuertas(resolver(estructura,objetivo));
   }
   return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
-if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje};
+if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje,gh_tablaPuntaje};
