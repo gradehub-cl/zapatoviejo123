@@ -1,0 +1,658 @@
+[
+  {
+    "file": "375-claro",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 96.671875,
+        "h": 44
+      },
+      {
+        "id": "pr-titulo",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-precio",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-pack",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 301,
+        "h": 44
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 301,
+        "h": 44
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 44
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 44
+      },
+      {
+        "id": "pr-contacto",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-tenant",
+        "w": 301,
+        "h": 44
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-promedio",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-avance",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-guardar",
+        "w": 159.671875,
+        "h": 44
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "375-claro-texto200",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 172.6875,
+        "h": 46
+      },
+      {
+        "id": "pr-titulo",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-precio",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-pack",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 301,
+        "h": 62
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 301,
+        "h": 62
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 68
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 68
+      },
+      {
+        "id": "pr-contacto",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-tenant",
+        "w": 301,
+        "h": 62
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-promedio",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-avance",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-guardar",
+        "w": 272.203125,
+        "h": 55
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "375-oscuro",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 96.671875,
+        "h": 44
+      },
+      {
+        "id": "pr-titulo",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-precio",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-pack",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 301,
+        "h": 44
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 301,
+        "h": 44
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 44
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 44
+      },
+      {
+        "id": "pr-contacto",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-tenant",
+        "w": 301,
+        "h": 44
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-promedio",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-avance",
+        "w": 301,
+        "h": 46
+      },
+      {
+        "id": "pr-guardar",
+        "w": 159.671875,
+        "h": 44
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "375-oscuro-texto200",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 172.6875,
+        "h": 46
+      },
+      {
+        "id": "pr-titulo",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-precio",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-pack",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 301,
+        "h": 62
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 301,
+        "h": 62
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 68
+      },
+      {
+        "id": "",
+        "w": 147.5,
+        "h": 68
+      },
+      {
+        "id": "pr-contacto",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-tenant",
+        "w": 301,
+        "h": 62
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-promedio",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-avance",
+        "w": 301,
+        "h": 70
+      },
+      {
+        "id": "pr-guardar",
+        "w": 272.203125,
+        "h": 55
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "1280-claro",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 107.109375,
+        "h": 44
+      },
+      {
+        "id": "pr-titulo",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-precio",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-pack",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 482.171875,
+        "h": 46
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 482.171875,
+        "h": 46
+      },
+      {
+        "id": "",
+        "w": 162.796875,
+        "h": 47.421875
+      },
+      {
+        "id": "",
+        "w": 244.203125,
+        "h": 47.421875
+      },
+      {
+        "id": "pr-contacto",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-tenant",
+        "w": 482.171875,
+        "h": 46
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-promedio",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-avance",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-guardar",
+        "w": 174.765625,
+        "h": 44
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "1280-claro-texto200",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 172.6875,
+        "h": 46
+      },
+      {
+        "id": "pr-titulo",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-precio",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-pack",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 482.171875,
+        "h": 62
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 482.171875,
+        "h": 62
+      },
+      {
+        "id": "",
+        "w": 152.21875,
+        "h": 68
+      },
+      {
+        "id": "",
+        "w": 228.328125,
+        "h": 68
+      },
+      {
+        "id": "pr-contacto",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-tenant",
+        "w": 482.171875,
+        "h": 62
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-promedio",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-avance",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-guardar",
+        "w": 272.203125,
+        "h": 55
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "1280-oscuro",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 107.109375,
+        "h": 44
+      },
+      {
+        "id": "pr-titulo",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-precio",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-pack",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 482.171875,
+        "h": 46
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 482.171875,
+        "h": 46
+      },
+      {
+        "id": "",
+        "w": 162.796875,
+        "h": 47.421875
+      },
+      {
+        "id": "",
+        "w": 244.203125,
+        "h": 47.421875
+      },
+      {
+        "id": "pr-contacto",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-tenant",
+        "w": 482.171875,
+        "h": 46
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-promedio",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-avance",
+        "w": 482.171875,
+        "h": 49.421875
+      },
+      {
+        "id": "pr-guardar",
+        "w": 174.765625,
+        "h": 44
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  },
+  {
+    "file": "1280-oscuro-texto200",
+    "dimensions": [
+      {
+        "id": "pr-volver",
+        "w": 172.6875,
+        "h": 46
+      },
+      {
+        "id": "pr-titulo",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-precio",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-pack",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-modalidad",
+        "w": 482.171875,
+        "h": 62
+      },
+      {
+        "id": "pr-ubicacion",
+        "w": 482.171875,
+        "h": 62
+      },
+      {
+        "id": "",
+        "w": 152.21875,
+        "h": 68
+      },
+      {
+        "id": "",
+        "w": 228.328125,
+        "h": 68
+      },
+      {
+        "id": "pr-contacto",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-tenant",
+        "w": 482.171875,
+        "h": 62
+      },
+      {
+        "id": "pr-siglas-buscar",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-promedio",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-avance",
+        "w": 482.171875,
+        "h": 70
+      },
+      {
+        "id": "pr-guardar",
+        "w": 272.203125,
+        "h": 55
+      }
+    ],
+    "overflow": false,
+    "saveOnlyChangedField": true,
+    "missingSQL": true,
+    "noticeAndAck": true,
+    "focusVisible": true,
+    "packTotal": true,
+    "noStateCostOverlap": true
+  }
+]
