@@ -3015,15 +3015,21 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
 }
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
+// afterLogin la llama antes de que Inicio exista, en paralelo con la lectura de
+// las notas: así el aviso suele estar listo en el primer pintado y no aparece
+// después empujando los ramos de abajo (eso es lo que mide el CLS). Quien la
+// llama mientras el pedido sigue en vuelo queda esperando el mismo resultado.
 function cargarAnunciosRecomendacion(tenant,alTerminar){
   if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
-  if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant)return;
-  const pedido={tenant,lista:null,pidiendo:true};
+  if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant){
+    anunciosRecomendacion.esperan.push(alTerminar);return;
+  }
+  const pedido={tenant,lista:null,pidiendo:true,esperan:[alTerminar]};
   anunciosRecomendacion=pedido;
   cargarAnunciosClases(tenant,{propagarError:true}).then(lista=>{
     if(anunciosRecomendacion!==pedido)return;
     anunciosRecomendacion={tenant,lista:Array.isArray(lista)?lista:[],pidiendo:false};
-    alTerminar();
+    pedido.esperan.forEach(fn=>fn());
   }).catch(()=>{
     if(anunciosRecomendacion===pedido)anunciosRecomendacion={tenant,lista:null,pidiendo:false};
     // Sin resultado confirmado no se cachea una lista vacía. La siguiente

@@ -31,6 +31,11 @@
 <meta name="twitter:description" content="Toma el control de tu semestre con todas tus notas en un solo lugar."/>
 <meta name="twitter:image" content="https://gradehub.cl/og-v3.png"/>
 <link rel="canonical" href="https://gradehub.cl/"/>
+<!-- Con sesión, Inicio espera la lectura de las notas en Supabase. La conexión
+     (DNS + TLS) se abre ahora, mientras bajan los scripts, y no recién cuando
+     terminan de ejecutarse: eso es tiempo directo del LCP en el celular. -->
+<link rel="preconnect" href="https://lsulsnswzesyekpsvlql.supabase.co" crossorigin/>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="manifest" href="manifest.json"/>
 <link rel="icon" type="image/svg+xml" href="icon.svg?v=__ASSET_VERSION__"/>
 <link rel="apple-touch-icon" href="icon-192.png?v=__ASSET_VERSION__"/>
