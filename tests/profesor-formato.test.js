@@ -100,25 +100,26 @@ chk('$0 pasa como clase gratis',conCampos({precio_clp:0}).ok&&conCampos({precio_
 chk('entre $1 y $999 no pasa',!conCampos({precio_clp:500}).ok&&!conCampos({precio_clp:1}).ok);
 chk('un campo vacío no es gratis',!conCampos({precio_clp:NaN}).ok);
 ctx.__gratis={precio_clp:0,modalidad:'grupal'};
-chk('el estudiante lee "Gratis"',run('precioClase(__gratis)')==='Gratis'&&run('lineaDatosClase(__gratis)')==='Grupal · Gratis');
+chk('el estudiante lee "Gratis" al abrirla, no en la línea de Inicio (2026-10-25)',run('precioClase(__gratis)')==='Gratis'&&run('lineaDatosClase(__gratis)')==='Grupal');
 ctx.__sin={precio_clp:null};
 chk('sin precio no dice "Gratis"',run('esClaseGratis(__sin)')===false&&run("esClaseGratis({precio_clp:''})")===false);
 
 console.log('\n=== Qué va bajo el título ===');
 const conDetalle={detalles:[{etiqueta:'Duración',valor:'90 minutos'}]};
 chk('sin elegir nada queda null: lo de siempre',conCampos(conDetalle).datos.linea_datos===null);
-chk('se puede elegir un detalle',JSON.stringify(conCampos({...conDetalle,linea_datos:['precio','detalle:Duración']}).datos.linea_datos)==='["precio","detalle:Duración"]');
+chk('se puede elegir un detalle; un precio elegido antes se descarta sin error',JSON.stringify(conCampos({...conDetalle,linea_datos:['precio','detalle:Duración']}).datos.linea_datos)==='["detalle:Duración"]');
+chk('si solo había elegido el precio, vuelve a lo de siempre',conCampos({...conDetalle,linea_datos:['precio']}).datos.linea_datos===null);
 chk('un detalle que no existe no pasa',!conCampos({...conDetalle,linea_datos:['detalle:Incluye']}).ok);
 chk('ninguno no pasa',!conCampos({linea_datos:[]}).ok);
 chk('más de tres no pasa',!conCampos({...conDetalle,modalidad:'grupal',ubicacion:'online',linea_datos:['modalidad','ubicacion','precio','detalle:Duración']}).ok);
 chk('una clave inventada no pasa',!conCampos({linea_datos:['href']}).ok);
 const aviso={modalidad:'grupal',ubicacion:'online',precio_clp:15000,detalles:[{etiqueta:'Duración',valor:'90 minutos'}]};
 ctx.__aviso=aviso;
-chk('un anuncio viejo muestra formato, lugar y precio',run('lineaDatosClase(__aviso)')==='Grupal · Online · $15.000');
+chk('un anuncio viejo muestra formato y lugar, sin precio',run('lineaDatosClase(__aviso)')==='Grupal · Online');
 ctx.__aviso={...aviso,linea_datos:['detalle:Duración','precio']};
-chk('lo elegido sale en el orden del formulario',run('lineaDatosClase(__aviso)')==='$15.000 · 90 minutos');
+chk('un precio elegido antes se omite, y sale lo demás',run('lineaDatosClase(__aviso)')==='90 minutos');
 ctx.__aviso={...aviso,linea_datos:['detalle:Borrado','precio']};
-chk('un detalle que ya no está se salta',run('lineaDatosClase(__aviso)')==='$15.000');
+chk('un detalle que ya no está se salta',run('lineaDatosClase(__aviso)')==='');
 
 console.log('\n=== Si el servidor todavía no tiene las columnas nuevas ===');
 (async()=>{

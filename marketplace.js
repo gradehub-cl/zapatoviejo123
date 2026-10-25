@@ -41,7 +41,9 @@ const MAX_DETALLES_CLASE=4,MAX_ETIQUETA_DETALLE=30,MAX_VALOR_DETALLE=80;
 const MIN_PACK_CLASES=2,MAX_PACK_CLASES=20;
 // Bajo el título de la recomendación caben pocos datos: el profesor elige
 // hasta tres. Sin elección son los de siempre.
-const MAX_LINEA_CLASE=3,LINEA_CLASE_POR_OMISION=['modalidad','ubicacion','precio'];
+// El precio no va bajo el título en Inicio (Lucas, 2026-10-25): se ve al
+// abrir la clase. Un `linea_datos` guardado con 'precio' simplemente lo omite.
+const MAX_LINEA_CLASE=3,LINEA_CLASE_POR_OMISION=['modalidad','ubicacion'];
 const MODALIDADES_CLASE=[['individual','Individual'],['grupal','Grupal']];
 // Qué se publica (Lucas, 2026-10-23): una clase o material de apoyo (guías,
 // apuntes, ejercicios resueltos). Un anuncio sin tipo es una clase, como todos
@@ -117,11 +119,14 @@ function validarBorradorClase(entrada,nombresPorSigla){
   const modalidad=mod.valor,ubicacion=ubi.valor;
   let linea_datos=null;
   if(entrada.linea_datos!=null){
-    const validas=new Set([...LINEA_CLASE_POR_OMISION,...detalles.map(d=>'detalle:'+d.etiqueta)]);
+    // 'precio' se sigue aceptando (borradores de antes del 2026-10-25) pero
+    // ya no se guarda: no va bajo el título.
+    const validas=new Set([...LINEA_CLASE_POR_OMISION,'precio',...detalles.map(d=>'detalle:'+d.etiqueta)]);
     const claves=Array.isArray(entrada.linea_datos)?[...new Set(entrada.linea_datos.map(x=>String(x||'').trim()))]:[];
     if(claves.length<1||claves.length>MAX_LINEA_CLASE||claves.some(c=>!validas.has(c)))
       return {ok:false,campo:'linea_datos',error:`Elige de 1 a ${MAX_LINEA_CLASE} datos para mostrar bajo el título.`};
-    linea_datos=claves;
+    const sinPrecio=claves.filter(c=>c!=='precio');
+    linea_datos=sinPrecio.length?sinPrecio:null;
   }
   // Pack: el precio sigue siendo POR CLASE y el pack solo dice cuántas trae.
   // Vacío = sin pack. Una clase gratis no se vende en pack.
@@ -582,6 +587,9 @@ function fondoDetrasClase(el){
 function revisarLogoClase(img){
   const caja=img.parentElement;
   if(!caja||!img.naturalWidth||img.dataset.contorno==='1')return;
+  // Un logo casi cuadrado o redondo, a la misma altura que uno ancho, queda
+  // chico y su texto ilegible (TuApunte, 2026-10-25): se le da más alto.
+  if(caja.classList)caja.classList.toggle('logo-cuadrado',img.naturalWidth/img.naturalHeight<1.4);
   let px;
   try{
     const lado=24,canvas=document.createElement('canvas');canvas.width=canvas.height=lado;
@@ -2536,6 +2544,8 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false}={}){
   const pintarLinea=b=>{
     if(!cajaLinea||typeof cajaLinea.querySelectorAll!=='function')return;
     const ops=opcionesLineaClase(b),firma=JSON.stringify(ops.map(o=>[o.clave,o.nombre,o.texto]));
+    // Sin nada que elegir (un material sin detalles), no se muestra la pregunta.
+    const cajaPregunta=campo('linea-caja');if(cajaPregunta)cajaPregunta.hidden=!ops.length;
     // Solo se rehace si cambiaron las opciones: marcar una casilla no le quita
     // el foco.
     if(firma!==firmaLinea){
@@ -2970,7 +2980,6 @@ function opcionesLineaClase(anuncio){
   if(mod)out.push({clave:'modalidad',nombre:'Formato',texto:mod});
   const ubi=textoOpcionClase(UBICACIONES_CLASE,a.ubicacion,a.ubicacion_otra);
   if(ubi)out.push({clave:'ubicacion',nombre:'Dónde',texto:ubi});
-  if(Number(a.precio_clp)>0||esClaseGratis(a))out.push({clave:'precio',nombre:'Precio',texto:precioClase(a)});
   detallesClase(a).forEach(d=>out.push({clave:'detalle:'+d.etiqueta.trim(),nombre:d.etiqueta.trim(),texto:d.valor.trim()}));
   return out;
 }
@@ -2985,7 +2994,7 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
   return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia?' tabindex="-1" aria-hidden="true"':''}>
       <span class="clase-apoyo-texto">
         <span class="ca-cabeza"><small>Publicidad · ${etiquetaTipoClase(a)}</small><strong>${esc(a.titulo||(esMaterialClase(a)?'Tu material':'Tu clase'))}</strong></span>
-        <span class="ca-pie"><span class="clase-apoyo-datos">${esc(linea||(esMaterialClase(a)?'Precio':'Formato · Lugar · Precio'))}</span><span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
+        <span class="ca-pie">${linea||(vistaPrevia&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>

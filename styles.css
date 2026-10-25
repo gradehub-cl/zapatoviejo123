@@ -869,6 +869,9 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
    el drop-shadow como un halo borroso. */
 .clase-apoyo-logo{flex:none;align-self:center;display:flex;align-items:center;justify-content:center;height:40px;max-width:96px;}
 .clase-apoyo-logo[hidden]{display:none;}
+/* Logo cuadrado o redondo: más alto, para que se lea como uno ancho. */
+.clase-apoyo-logo.logo-cuadrado,.clase-apoyo.en-casilla .clase-apoyo-logo.logo-cuadrado{height:64px;}
+.catalogo-clase-logo.logo-cuadrado{height:64px;}
 .clase-apoyo-logo img,.catalogo-clase-logo img{display:block;height:100%;width:auto;max-width:100%;object-fit:contain;border-radius:8px;}
 .clase-apoyo-cerrar{flex:none;display:flex;align-items:center;justify-content:center;width:44px;border:0;background:none;color:var(--fg3);cursor:pointer;}
 .clase-apoyo-cerrar .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
