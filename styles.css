@@ -3209,6 +3209,38 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-crecimiento dd strong,.admin-crecimiento dd span{display:block;}
 .admin-crecimiento dd span{font-size:.8125rem;color:var(--fg2);}
 @media(max-width:600px){.admin-crecimiento dl{grid-template-columns:1fr;}}
+/* Gráficos de Estadísticas (HIG, Charts): una serie con el acento, la columna
+   elegida llena y el resto en un tono del mismo acento. Nunca el semáforo. Las
+   etiquetas del eje van al lado final, para no correr el borde de inicio. */
+.admin-clases-estadisticas{padding:0 0 24px;}
+.admin-clases-estadisticas>h3{font-size:1.125rem;margin:0;}
+.admin-clases-estadisticas>p{color:var(--fg2);font-size:.8125rem;margin:4px 0 16px;}
+.admin-graficos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:16px;margin:0 0 24px;}
+.admin-grafico{margin:0;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--card);min-width:0;}
+.admin-grafico figcaption{margin:0;text-transform:none;letter-spacing:0;font-weight:400;font-size:.8125rem;color:var(--fg2);}
+.admin-grafico figcaption b{display:block;font-size:.9375rem;font-weight:650;color:var(--fg);letter-spacing:-.01em;}
+.admin-grafico figcaption span{display:block;margin-top:2px;line-height:1.45;}
+.admin-grafico-lectura{margin:12px 0 10px;min-height:3em;font-size:.8125rem;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums;}
+.admin-grafico-area{position:relative;height:9rem;touch-action:pan-y;-webkit-user-select:none;user-select:none;}
+.admin-grafico-guias{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;}
+.admin-grafico-guias span{position:relative;height:0;border-top:1px solid var(--border);}
+.admin-grafico-guias i{position:absolute;right:0;top:0;transform:translateY(-50%);padding-left:6px;background:var(--card);font-style:normal;font-size:.6875rem;line-height:1;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.admin-grafico-columnas{position:absolute;inset:0 3.5rem 0 0;display:flex;gap:2px;}
+.admin-grafico-columnas span{flex:1;min-width:0;display:flex;align-items:flex-end;justify-content:center;}
+.admin-grafico-columnas i{display:block;width:100%;max-width:24px;min-height:2px;border-radius:4px 4px 0 0;background:color-mix(in srgb,var(--primary) 60%,var(--card));transition:background-color var(--motion-fast) var(--ease-out);}
+.admin-grafico-columnas [data-tenue] i{background:color-mix(in srgb,var(--primary) 30%,var(--card));}
+.admin-grafico-columnas [data-elegida] i{background:var(--primary);}
+.admin-grafico-eje{margin-right:3.5rem;}
+.admin-grafico-tabla{margin-top:12px;border-top:1px solid var(--border);}
+.admin-grafico-tabla>summary{padding:12px 0;min-height:44px;box-sizing:border-box;cursor:pointer;font-size:.875rem;font-weight:600;color:var(--primary);}
+.admin-grafico-tabla>div{overflow-x:auto;}
+.admin-grafico-tabla table{width:100%;border-collapse:collapse;font-size:.8125rem;}
+.admin-grafico-tabla th,.admin-grafico-tabla td{padding:8px 0;border-bottom:1px solid var(--border);text-align:left;font-weight:400;white-space:nowrap;}
+.admin-grafico-tabla thead th{color:var(--fg2);font-weight:600;}
+.admin-grafico-tabla .num{text-align:right;padding-left:16px;font-variant-numeric:tabular-nums;}
+.admin-grafico-barras{display:grid;gap:12px;margin-top:16px;}
+.admin-grafico-barras .clase-embudo-fila{grid-template-columns:minmax(0,8.5rem) 1fr auto;font-size:.8125rem;}
+@media(prefers-reduced-motion:reduce){.admin-grafico-columnas i{transition:none;}}
 .admin-hig-pestanas{display:flex;gap:6px;border-bottom:1px solid var(--border);margin:24px 0;flex-wrap:wrap;}
 .admin-hig-pestanas button{padding:10px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--fg2);font:inherit;font-size:.875rem;cursor:pointer;}
 .admin-hig-pestanas button[aria-pressed=true]{border-color:var(--primary);color:var(--primary);}
