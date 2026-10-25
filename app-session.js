@@ -1047,9 +1047,9 @@ async function reconciliarEnSegundoPlano(uid,vigente){
     // Con un modal abierto no se reemplaza S (ver fusionarConNube).
     if(modalAbiertoSync()){resultado='modal';return false;}
     if(cloud===null){resultado='sinFila';return false;}
-    const antes=JSON.stringify(S);
+    const antes=clonarSync(S);
     resultado=aplicarNubeAlEntrar(uid,cloud,true);
-    if(JSON.stringify(S)!==antes){
+    if(!igualSync(antes,S)){
       repintarTrasFusion();
       // El servidor pudo convertir la cuenta en profesor (ver fusionarSync).
       if(typeof recalcularNavTabs==='function')recalcularNavTabs();
