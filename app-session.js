@@ -1162,7 +1162,14 @@ async function syncNow(){
 // que es lo que la persona tiene en pantalla.
 const SYNC_BASE_KEY='gradehub_v1_base';
 const clonarSync=x=>x==null?x:JSON.parse(JSON.stringify(x));
-const igualSync=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// El orden de las claves no cuenta: la copia del disco se carga con
+// normalize(JSON.parse(...)) y la nube con normalize({...freshState(),...}), así
+// que traen las mismas claves en otro orden. Compararlas como texto las veía
+// distintas y cada apertura subía una copia idéntica. El de las listas sí
+// cuenta (el orden de los ramos lo elige la persona).
+const ordenSync=v=>Array.isArray(v)?v.map(ordenSync)
+  :v&&typeof v==='object'?Object.keys(v).sort().reduce((o,k)=>(o[k]=ordenSync(v[k]),o),{}):v;
+const igualSync=(a,b)=>JSON.stringify(ordenSync(a))===JSON.stringify(ordenSync(b));
 // Qué evaluaciones tiene cada ramo y cuánto pesan: lo que cambia cuando
 // normalize() corrige una pauta. No mira notas ni campos que normalize()
 // completa por defecto, así un ramo antiguo no se sube en cada arranque.
