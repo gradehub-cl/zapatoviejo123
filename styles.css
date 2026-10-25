@@ -3095,6 +3095,11 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .profesor-hig-flecha{font-size:1.25rem;color:var(--fg2);}
 .profesor-hig-fila[open] .profesor-hig-flecha{transform:rotate(180deg);}
 .profesor-hig-detalle{padding:0 24px 24px;}
+/* El anuncio recién editado se abre desde Pendiente: con texto grande, el
+   estado y el costo necesitan filas propias junto a su vista previa. */
+.profesor-hig-fila:has([data-edicion-preview])>summary{grid-template-columns:minmax(0,1fr);gap:12px;}
+.profesor-hig-fila:has([data-edicion-preview])>summary>.profesor-hig-importe{grid-column:1;grid-row:auto;text-align:left;}
+.profesor-hig-fila:has([data-edicion-preview])>summary>.profesor-hig-flecha{display:none;}
 .profesor-hig-detalle .clase-card{border:0;background:transparent;padding:0;}
 .profesor-hig-detalle .clase-card-top{display:none;}
 .profesor-hig-detalle .clase-card-meta{margin:0 0 16px;}
