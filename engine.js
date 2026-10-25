@@ -297,6 +297,51 @@ function gh_prepararAusenciasJustificadas(structure,grades,regla,declaraciones,n
   declaradas.forEach(desdeId=>{if(!vistas.has(desdeId))inactivas.push({desdeId,tipo:'desconocida',motivo:'pauta_cambio'});});
   return {estructura:copia,notas,activas,pendientes,inactivas,bloqueadas};
 }
+// Reemplazos voluntarios del programa. Cada candidato se mide con el cálculo
+// completo del ramo (descartes y compuertas incluidos); si no mejora, la nota
+// original queda intacta. Las notas derivadas viven solo en esta copia.
+function gh_reemplazosOptativos(structure,grades,reglas,calcular,originales=grades){
+  if(!Array.isArray(reglas)||!reglas.length)return {notas:grades,aplicados:[]};
+  const nodos=gh_nodosPorId(structure),actual={...grades},aplicados=[];
+  const hojas=id=>{
+    const nodo=nodos.get(id);
+    return nodo&&nodo.type==='group'?(nodo.children||[]).filter(n=>n.type==='leaf'):[];
+  };
+  const completo=id=>{const lista=hojas(id);return lista.length>0&&lista.every(n=>Number.isFinite(originales[n.id]));};
+  const valoresOriginales=new Map(calculateFinalGrade(structure,originales).breakdown.map(n=>[n.id,n.value]));
+  for(const regla of reglas){
+    if(!regla||typeof regla.fuenteId!=='string'||!Array.isArray(regla.destinosIds)||
+       !Array.isArray(regla.rendidasIds)||!completo(regla.fuenteId)||
+       regla.rendidasIds.some(id=>!completo(id)))continue;
+    const fuente=valoresOriginales.get(regla.fuenteId);
+    if(!Number.isFinite(fuente)||Number.isFinite(regla.minFuente)&&fuente+1e-9<regla.minFuente)continue;
+    const destinos=regla.destinosIds.flatMap(hojas).filter(n=>Number.isFinite(originales[n.id]));
+    const usados=new Set();
+    while(true){
+      const origen=calcular(actual).valor;
+      if(!Number.isFinite(origen))break;
+      let mejor=origen,candidato=null;
+      for(const hoja of destinos){
+        if(usados.has(hoja.id))continue;
+        const previo=actual[hoja.id];
+        if(regla.tipo==='mezcla'){
+          if(!(regla.fraccion>0&&regla.fraccion<=1))continue;
+          actual[hoja.id]=previo*(1-regla.fraccion)+fuente*regla.fraccion;
+        }else if(regla.tipo==='reemplazo')actual[hoja.id]=fuente;
+        else continue;
+        const nuevo=calcular(actual).valor;
+        if(Number.isFinite(nuevo)&&nuevo>mejor+1e-9){mejor=nuevo;candidato={id:hoja.id,valor:actual[hoja.id]};}
+        actual[hoja.id]=previo;
+      }
+      if(!candidato)break;
+      actual[candidato.id]=candidato.valor;
+      aplicados.push({tipo:regla.tipo,fuenteId:regla.fuenteId,destinoId:candidato.id});
+      usados.add(candidato.id);
+      if(regla.cantidad!=='todas')break;
+    }
+  }
+  return {notas:actual,aplicados};
+}
 // Décimas y bonus que ingresa el estudiante (#631). La regla va en el preset
 // del ramo (`bonus` en data.js, que presetRamo copia al ramo) y lo que ganó, en
 // `ramo.bonusIngresado[id]`. Sin un valor ingresado no se suma nada: nadie
@@ -509,7 +554,7 @@ function gh_crearCalculoRamo(deps){
     return conBonus({__meta:reglasNota(),
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
       formulas_condicionales:reglasCalculoVigentes(r).filter(g=>g.type==='conditional_weights'),
-      children:categoriasVigentes(r).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
+      children:categoriasVigentes(r).filter(c=>c.peso>0||(c.optativa===true&&(c.notas||[]).some(n=>Number.isFinite(n.valor)))).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
         drop_lowest:c.dropLowest||null,
         children:hojasCategoria(c)},bonus.porCategoria[c.id]))},bonus.final);
   }
@@ -624,37 +669,42 @@ function gh_crearCalculoRamo(deps){
     const ausencias=estadoAusenciasJustificadas(r);
     const estructura=ausencias?ausencias.estructura:ramoToStructure(r);
     const notas=ausencias?ausencias.notas:gradesOf(r);
-    const res=calculateFinalGrade(estructura,notas);
-    // Los pesos efectivos solo viven en la copia de cálculo; jamás en las notas.
-    Object.entries(res.weightOverrides).forEach(([id,extra])=>{const node=estructura.children.find(n=>n.id===id);if(node)node.weight=extra.weight;});
-    let v=ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length?null:res.raw,limitadoPorCompuerta=false;
-    // Con el semestre a medias, el promedio de siempre pondera cada evaluación
-    // con lo que lleva. Un ramo cuya pauta declara `promedioParcial:'por-casilla'`
-    // pondera cada nota con su peso efectivo en el ramo: así el Laboratorio de
-    // Dinámica da el promedio de los laboratorios que ya hiciste, igual que la
-    // planilla oficial. Con todo rendido, las dos cuentas son la misma.
-    if(v!==null&&r.promedioParcial==='por-casilla'&&res.emptyLeaves.length){
-      const pesos=gh_effWeights(estructura);let suma=0,peso=0;
-      Object.entries(notas).forEach(([id,valor])=>{const w=pesos[id];if(typeof valor==='number'&&w>0){suma+=valor*w;peso+=w;}});
-      if(peso>0)v=suma/peso;
-    }
-    if(v!==null && Array.isArray(r.gates)){
-      for(const g of r.gates){
-        if(g.type==='min_grade_required'){
-          const valor=valorParaCompuerta(r,res,g.catId);
-          if(valor!==null && !gh_cumpleCompuerta(valor,g)){
-            const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
-          }
-        } else if(g.type==='group_min'){
-          const ga=avgDeGrupoCalculado(res,estructura,g.catIds);
-          if(ga!==null && !gh_cumpleCompuerta(ga,g)){
-            const tope=(g.cap==='self')?ga:g.cap;
-            const siguiente=Math.min(v,tope);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
+    function calcular(notasEvaluadas){
+      const arbol=gh_clonarArbol(estructura);
+      const res=calculateFinalGrade(arbol,notasEvaluadas);
+      // Los pesos efectivos solo viven en la copia de cálculo; jamás en las notas.
+      Object.entries(res.weightOverrides).forEach(([id,extra])=>{const node=arbol.children.find(n=>n.id===id);if(node)node.weight=extra.weight;});
+      let v=ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length?null:res.raw,limitadoPorCompuerta=false;
+      // Con el semestre a medias, el promedio de siempre pondera cada evaluación
+      // con lo que lleva. Un ramo cuya pauta declara `promedioParcial:'por-casilla'`
+      // pondera cada nota con su peso efectivo en el ramo: así el Laboratorio de
+      // Dinámica da el promedio de los laboratorios que ya hiciste, igual que la
+      // planilla oficial. Con todo rendido, las dos cuentas son la misma.
+      if(v!==null&&r.promedioParcial==='por-casilla'&&res.emptyLeaves.length){
+        const pesos=gh_effWeights(arbol);let suma=0,peso=0;
+        Object.entries(notasEvaluadas).forEach(([id,valor])=>{const w=pesos[id];if(typeof valor==='number'&&w>0){suma+=valor*w;peso+=w;}});
+        if(peso>0)v=suma/peso;
+      }
+      if(v!==null && Array.isArray(r.gates)){
+        for(const g of r.gates){
+          if(g.type==='min_grade_required'){
+            const valor=valorParaCompuerta(r,res,g.catId);
+            if(valor!==null && !gh_cumpleCompuerta(valor,g)){
+              const siguiente=Math.min(v,g.cap);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
+            }
+          } else if(g.type==='group_min'){
+            const ga=avgDeGrupoCalculado(res,arbol,g.catIds);
+            if(ga!==null && !gh_cumpleCompuerta(ga,g)){
+              const tope=(g.cap==='self')?ga:g.cap;
+              const siguiente=Math.min(v,tope);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
+            }
           }
         }
       }
+      return {res,valor:v,limitadoPorCompuerta,estructura:arbol,notas:notasEvaluadas,ausencias};
     }
-    return {res,valor:v,limitadoPorCompuerta,estructura,notas,ausencias};
+    const elegidas=gh_reemplazosOptativos(estructura,notas,r.reemplazosOptativos,calcular,gradesOf(r));
+    return {...calcular(elegidas.notas),reemplazosOptativosAplicados:elegidas.aplicados};
   }
   function ramoCompletamenteEvaluado(r,calculo){
     // Tener nota en todo lo declarado no cierra un ramo cuya pauta aún omite
@@ -665,6 +715,7 @@ function gh_crearCalculoRamo(deps){
     const cubiertas=new Set((calculo&&calculo.ausencias&&calculo.ausencias.activas||[]).map(x=>x.desdeId));
     const categorias=categoriasVigentes(r);
     return categorias.length>0&&categorias.every(c=>{
+      if(c.optativa===true&&c.peso===0)return true;
       if(cubiertas.has(c.id))return true;
       const objetivo=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
       return (c.notas||[]).filter(n=>typeof n.valor==='number').length>=objetivo;
@@ -844,6 +895,40 @@ function gh_crearCalculoRamo(deps){
     const objetivo=Number.isFinite(meta)?meta:4.0;
     const baseInicial=calculoRamoConCompuertas(ramo);
     if(baseInicial.ausencias&&baseInicial.ausencias.bloqueadas&&baseInicial.ausencias.bloqueadas.length)return null;
+    // El solver de estructura no conoce los reemplazos voluntarios: proyecta
+    // la misma nota en lo pendiente y vuelve a pasar por el cálculo del ramo.
+    if(Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length&&
+       !ramo.aporta&&!reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights')){
+      const pendientes=[];
+      categoriasVigentes(ramo).filter(c=>c.peso>0).forEach(c=>{
+        const hojas=hojasCategoria(c);
+        if(!hojas.length&&c.directNota!==false)
+          hojas.push({id:`__gh_pendiente_direct__${c.id}`,name:c.nombre,weight:1,type:'leaf'});
+        hojas.forEach(h=>{if(!Number.isFinite(baseInicial.notas[h.id]))pendientes.push({catId:c.id,hoja:h});});
+      });
+      if(!pendientes.length)return null;
+      const borde=gh_bordeOficial(objetivo,gh_meta(baseInicial.estructura));
+      const proyectar=nota=>{
+        const copia={...ramo,categorias:ramo.categorias.map(c=>({...c,notas:(c.notas||[]).slice()}))};
+        pendientes.forEach(({catId,hoja})=>{
+          const c=copia.categorias.find(x=>x.id===catId);
+          if(!c)return;
+          const i=c.notas.findIndex(n=>n.id===hoja.id);
+          if(i>=0)c.notas[i]={...c.notas[i],valor:nota};
+          else c.notas.push({id:hoja.id,nombre:hoja.name,valor:nota,peso:1,slot:hoja.slot});
+        });
+        return calculoRamoConCompuertas(copia).valor;
+      };
+      const minimo=gh_meta(baseInicial.estructura)?.grade_scale?.min??1;
+      const maximo=gh_meta(baseInicial.estructura)?.grade_scale?.max??7;
+      const alcanza=x=>{const v=proyectar(x);return v!==null&&v+1e-9>=borde;};
+      if(alcanza(minimo))return minimo;
+      let alto=maximo;
+      while(!alcanza(alto)){if(alto>=64)return maximo+1;alto*=2;}
+      let bajo=minimo;
+      for(let i=0;i<48;i++){const medio=(bajo+alto)/2;if(alcanza(medio))alto=medio;else bajo=medio;}
+      return alto;
+    }
     const notas={};
     function preparar(r,prefijo){
       const base=calculoRamoConCompuertas(r);

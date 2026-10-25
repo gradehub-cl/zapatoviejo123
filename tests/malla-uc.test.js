@@ -138,7 +138,8 @@ chk('Econometría Aplicada conserva sus dos requisitos de aprobación',
 
 const metodos=presetRamo('Métodos de Optimización','uc','ING-PC');
 chk('Métodos de Optimización aplana exactamente NP 80% y NT 20%',
-  metodos&&metodos.categorias.map(c=>c.nombre+':'+c.peso).join('|')==='Interrogación 1:20|Interrogación 2:28|Examen:32|Tarea 1:6|Tarea 2:6|Tarea 3:8');
+  metodos&&metodos.categorias.map(c=>c.nombre+':'+c.peso).join('|')==='Interrogación 1:20|Interrogación 2:28|Examen:32|Tarea 1:6|Tarea 2:6|Tarea 3:8|Control optativo:0'&&
+  metodos.categorias.at(-1).optativa===true);
 chk('Métodos de Optimización conserva sus dos compuertas de 4,0',
   metodos&&metodos.gates.length===2&&metodos.gates.every(g=>g.type==='group_min'&&g.min===4&&g.cap===3.9));
 chk('Métodos de Optimización lleva sus fechas fijas a la Agenda',
