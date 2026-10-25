@@ -611,6 +611,22 @@ function revisarLogoClase(img){
 // y Safari (Mac y iPhone) como un halo borroso que dejaba el logo casi
 // ilegible (2026-09-26, logo de SalvaRamos). Pintado a mano se ve igual en
 // todos los navegadores: un borde fino del color del texto y un halo suave.
+// Safari achica una imagen grande en un canvas de una sola vez y sin
+// suavizado: en un logo de 1000 px llevado a 190 las letras finas desaparecen
+// (TuApunte en iPhone, 2026-10-25). Bajando de a la mitad cada paso promedia
+// bien, y en Chrome se ve igual que antes.
+function reducirImagenClase(img,w,h){
+  let fuente=img,fw=img.naturalWidth,fh=img.naturalHeight;
+  while(fw/2>=w*1.5&&fh/2>=h*1.5){
+    const paso=document.createElement('canvas');paso.width=Math.round(fw/2);paso.height=Math.round(fh/2);
+    const cp=paso.getContext('2d');cp.imageSmoothingEnabled=true;cp.imageSmoothingQuality='high';
+    cp.drawImage(fuente,0,0,paso.width,paso.height);fuente=paso;fw=paso.width;fh=paso.height;
+  }
+  const out=document.createElement('canvas');out.width=w;out.height=h;
+  const co=out.getContext('2d');co.imageSmoothingEnabled=true;co.imageSmoothingQuality='high';
+  co.drawImage(fuente,0,0,w,h);
+  return out;
+}
 function dibujarContornoLogoClase(img,caja){
   if(img.dataset.contorno==='1')return;
   try{
@@ -619,9 +635,11 @@ function dibujarContornoLogoClase(img,caja){
     const esc=alto/img.naturalHeight,w=Math.max(1,Math.round(img.naturalWidth*esc)),h=Math.max(1,Math.round(alto));
     const borde=1.2*dpr,halo=3.5*dpr,pad=Math.ceil(halo+1);
     const color=String(getComputedStyle(caja).getPropertyValue('--fg')||'').trim()||'#f1f1f3';
+    // El logo ya achicado con cuidado: de él salen la silueta y la imagen final.
+    const chico=reducirImagenClase(img,w,h);
     // La silueta del logo en el color del texto.
     const sil=document.createElement('canvas');sil.width=w;sil.height=h;
-    const cs=sil.getContext('2d');cs.drawImage(img,0,0,w,h);
+    const cs=sil.getContext('2d');cs.drawImage(chico,0,0);
     cs.globalCompositeOperation='source-in';cs.fillStyle=color;cs.fillRect(0,0,w,h);
     const out=document.createElement('canvas');out.width=w+2*pad;out.height=h+2*pad;
     const co=out.getContext('2d');
@@ -631,7 +649,7 @@ function dibujarContornoLogoClase(img,caja){
     // Borde fino y opaco.
     co.globalAlpha=1;
     for(let k=0;k<16;k++){const a=k/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
-    co.drawImage(img,pad,pad,w,h);
+    co.drawImage(chico,pad,pad);
     img.dataset.contorno='1';
     img.src=out.toDataURL('image/png');
     caja.classList.add('logo-contorno');
