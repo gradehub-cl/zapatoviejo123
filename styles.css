@@ -1314,6 +1314,9 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .catalogo-clase-ramos strong{color:var(--fg);font-variant-numeric:tabular-nums;}
 .catalogo-clase-ramos span{color:var(--fg3);}
 .catalogo-clase-descripcion{display:-webkit-box;margin:11px 0 13px;color:var(--fg2);font-size:.8125rem;line-height:1.48;white-space:pre-line;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:4;}
+/* Abierta, la descripción se lee entera: también en la hoja que se abre
+   desde Inicio, que no lleva el estilo del catálogo (2026-10-25). */
+.catalogo-clase-card:has(.catalogo-clase-mas:not([hidden])) .catalogo-clase-descripcion{display:block;overflow:visible;-webkit-line-clamp:unset;}
 /* Logo del profesor a la derecha del título, y detalles como pares cortos. */
 .catalogo-clase-cabeza{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
 .catalogo-clase-cabeza>div:first-child{display:flex;flex-direction:column;min-width:0;}
