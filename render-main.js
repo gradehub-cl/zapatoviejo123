@@ -1064,7 +1064,8 @@ function renderStats(){
     </div>
     `;
     // Qué mueve el promedio: cada ramo suma o resta según cuánto se aleja del
-    // promedio y cuánto pesa. Sin semáforo: alejarse del promedio no es aprobar.
+    // promedio y cuánto pesa. Verde lo que suma y rojo lo que resta (Lucas,
+    // 2026-10-26): acá el color dice hacia dónde empuja, no si se aprueba.
     const aportes=aporteAlPromedio(S.ramos);
     if(aportes.length>1&&g!==null){
       const max=Math.max(0.05,...aportes.map(a=>Math.abs(a.aporte)));
@@ -1076,9 +1077,9 @@ function renderStats(){
         ${aportes.map(a=>{
           const igual=Math.abs(a.aporte)<0.005;
           const texto=igual?'0.00':(a.aporte>0?'+':'−')+nf(Math.abs(a.aporte),2);
-          const color=a.aporte>=0?'var(--primary)':'var(--fg2)';
+          const color=igual?'var(--fg3)':a.aporte>0?'var(--green)':'var(--red)';
           return `<button type="button" class="stats-mueven-fila" onclick="openRamo('${esc(a.ramo.id)}')">
-            <span class="stats-mueven-cabeza"><span class="stats-mueven-nombre">${esc(a.ramo.nombre)}</span><b class="stats-mueven-delta">${texto}</b></span>
+            <span class="stats-mueven-cabeza"><span class="stats-mueven-nombre">${esc(a.ramo.nombre)}</span><b class="stats-mueven-delta" style="color:${color}">${texto}</b></span>
             ${htmlBarraCentrada(a.aporte,max,color)}
             <span class="sr-solo">${igual?'No mueve tu promedio':`${a.aporte>0?'Sube':'Baja'} tu promedio en ${nf(Math.abs(a.aporte),2)}`}</span>
           </button>`;

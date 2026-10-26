@@ -76,7 +76,8 @@ estudiante, del profesor y de administración. Llevan un brillo suave que se
 apaga con movimiento reducido. El color sigue diciendo algo: el semáforo solo
 donde hay riesgo de reprobar (la nota necesaria); el promedio del semestre va en
 el acento y sin palabra —un semestre no se aprueba ni se reprueba—; el avance
-va neutro; en profesor y admin no hay semáforo.
+va neutro; en "Qué mueve tu promedio" y en las variaciones, verde es lo que
+suma y rojo lo que resta (Lucas, 2026-10-26).
 
 **Seguir las Human Interface Guidelines de Apple es obligatorio**
 (https://developer.apple.com/design/human-interface-guidelines). Decisión de
