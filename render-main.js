@@ -975,7 +975,7 @@ async function pintarPosicionesCurso(){
     return `<div class="stats-curso-row">
       <span class="stats-curso-color" style="background:${esc(r.color)}"></span>
       <span class="stats-curso-main"><strong>${esc(r.nombre)}</strong><small class="stats-curso-frase">${frasePosicionCurso(p.mejorQue,p.total)}</small>
-        <span class="stats-curso-pista" aria-hidden="true"><b class="stats-curso-mitad"><small>mitad del curso</small></b><i style="left:${Math.max(0,Math.min(100,Number(p.mejorQue)||0))}%"></i></span></span>
+        <span class="stats-curso-pista" aria-hidden="true"><b class="stats-curso-mitad"></b><i style="left:${Math.max(0,Math.min(100,Number(p.mejorQue)||0))}%"></i></span></span>
     </div>`;
   }).join('');
 }
