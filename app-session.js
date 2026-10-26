@@ -247,9 +247,17 @@ function detalleErrorSeguro(error){
   };
   recopilar(currentUser,0);
   if(typeof S!=='undefined')recopilar(S,0);
+  // Se reemplaza la palabra completa, no un pedazo: con la carrera "COM" en el
+  // estado, "loop completed" quedaba "loop [dato]pleted", y el mismo error del
+  // navegador se partía en dos grupos (errores_app, 2026-10-26). Un dato
+  // privado sigue saliendo entero; lo que no se toca es el interior de otra palabra.
   privados.filter(v=>typeof v==='string'&&v.trim().length>1)
     .sort((a,b)=>b.length-a.length)
-    .forEach(v=>{detalle=detalle.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'[dato]');});
+    .forEach(v=>{
+      const literal=v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      try{detalle=detalle.replace(new RegExp('(^|[^\\p{L}\\p{N}])'+literal+'(?=$|[^\\p{L}\\p{N}])','giu'),'$1[dato]');}
+      catch(e){detalle=detalle.replace(new RegExp(literal,'gi'),'[dato]');}
+    });
   return detalle
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[correo]')
     .replace(/https?:\/\/\S+/gi,'[url]')
@@ -276,6 +284,16 @@ function versionDeLaApp(){
 function reportarError(error,donde){
   try{
     if(!supabaseClient||!currentUser||_erroresEnviados.size>=MAX_ERRORES_POR_VISITA)return false;
+    // Sin app.js, todo lo que corre después falla en cadena ("Can't find
+    // variable: S" desde visibilitychange, render-main…). La causa ya se guarda
+    // una vez como "app.js no cargó"; lo demás solo la repite con otro nombre.
+    // `track` es una declaración de función de app.js: existe si el archivo se leyó.
+    if(typeof track!=='function'&&donde!=='arranque:cargar_app')return false;
+    const original=String((error&&error.message)||'');
+    // Avisos del navegador y código que inyectan extensiones: no son nuestros.
+    // ResizeObserver avisa que difirió un ciclo de medición, sin romper nada; una
+    // billetera de criptomonedas escribe window.ethereum en cada página.
+    if(/^ResizeObserver loop /.test(original)||/window\.ethereum\b/.test(original))return false;
     const mensaje=detalleErrorSeguro(error);
     // "Script error." es lo único que deja un script de otro origen: no dice nada.
     if(/^Script error\.?$/i.test(mensaje))return false;
