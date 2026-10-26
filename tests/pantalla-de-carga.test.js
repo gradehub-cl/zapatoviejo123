@@ -28,7 +28,9 @@ chk('en la web no se muestra', /(^|\n)#arranque\{display:none;\}/.test(css));
 chk('se va sola si boot() se cuelga', /\.app-nativa #arranque\{[^}]*animation:arranqueTope [^}]*forwards/.test(css));
 chk('sin animación con movimiento reducido', /prefers-reduced-motion:reduce\)\{#arranque\.vivo \.arr-capa\{animation:none;\}\}/.test(css));
 const boot = (sesion.match(/async function boot\(\)\{[\s\S]*?\n\}\n/) || [''])[0];
-chk('boot() la saca por cualquier camino (finally)', /\}finally\{quitarArranque\(\);\}\n\}\n$/.test(boot));
+// Al reintentar app.js la página se recarga y la pantalla de carga se queda,
+// pero con plazo: si la recarga no llega, se va igual.
+chk('boot() la saca por cualquier camino (finally)', /\}finally\{[^}]*if\(recargando\)setTimeout\(quitarArranque,\d+\);else quitarArranque\(\);\s*\}\n\}\n$/.test(boot));
 
 const clases = new Set(); let quitado = false;
 const ctx = { setTimeout: f => f(), document: { getElementById: id => id === 'arranque'

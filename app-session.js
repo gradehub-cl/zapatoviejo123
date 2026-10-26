@@ -1639,7 +1639,33 @@ function despegar(a,svg,destino){
   setTimeout(()=>{destino.style.opacity='';a.remove();},VIAJE_ARRANQUE_MS+20);
   return true;
 }
+// app.js pesa ~600 KB y es lo que más se corta con una conexión mala: "app.js no
+// cargó" llegó 13 veces en una semana, de 11 cuentas, casi todas una sola vez y
+// que al día siguiente entraron bien (errores_app, 2026-10-26). Antes de mostrar
+// el aviso se pide de nuevo; si llega entero, se recarga la página, que con el
+// archivo ya en caché arranca desde cero y no a medias (los scripts que corrieron
+// sin app.js quedaron incompletos). Una vez por pestaña y versión: si vuelve a
+// fallar, sale el aviso de recargar en vez de una recarga sin fin.
+const REINTENTO_APP_JS='gradehub_reintento_app_js';
+async function reintentarAppJs(){
+  const version=versionDeLaApp();
+  try{if(sessionStorage.getItem(REINTENTO_APP_JS)===version)return false;}catch(e){return false;}
+  const script=document.querySelector('script[src*="app.js?v="]');
+  if(!script||!script.src||typeof fetch!=='function')return false;
+  const control=typeof AbortController==='function'?new AbortController():null;
+  const plazo=setTimeout(()=>{if(control)control.abort();},15000);
+  try{
+    const r=await fetch(script.src,control?{cache:'reload',signal:control.signal}:{cache:'reload'});
+    if(!r||!r.ok)return false;
+    await r.text();
+  }catch(e){return false;}
+  finally{clearTimeout(plazo);}
+  try{sessionStorage.setItem(REINTENTO_APP_JS,version);}catch(e){return false;}
+  location.reload();
+  return true;
+}
 async function boot(){
+  let recargando=false;
   try{
     if(!supabaseClient){
       // Sin configurar Supabase → funciona en modo local (fallback)
@@ -1690,10 +1716,21 @@ async function boot(){
     // `track` es una declaración de función de app.js: existe apenas el archivo
     // se leyó, aunque algo falle más abajo.
     if(typeof track!=='function'){
+      const aviso=document.getElementById('carga-inicial-detalle');
+      if(aviso)aviso.textContent='Terminando de descargar GradeHub…';
+      if(await reintentarAppJs()){recargando=true;return;}
       registrarErrorArranque(new Error('app.js no cargó'),'cargar_app');
       showAppErrorScreen('abrir_app');
       return;
     }
+    // Llegó tras un reintento: se anota para saber cuántas veces el reintento
+    // evitó el aviso, y la pestaña queda libre para reintentar otra vez.
+    try{
+      if(sessionStorage.getItem(REINTENTO_APP_JS)){
+        sessionStorage.removeItem(REINTENTO_APP_JS);
+        reportarError(new Error('app.js cargó al reintentar'),'arranque:reintento');
+      }
+    }catch(e){}
     const detalle=document.getElementById('carga-inicial-detalle');
     if(detalle)detalle.textContent='Preparando tu semestre…';
     try{
@@ -1702,7 +1739,11 @@ async function boot(){
       registrarErrorArranque(e,'abrir_app');
       showAppErrorScreen('abrir_app');
     }
-  }finally{quitarArranque();}
+  }finally{
+    // Mientras recarga tras el reintento, la pantalla de carga se queda: sacarla
+    // mostraba un instante el login. Si la recarga no llega, se va igual.
+    if(recargando)setTimeout(quitarArranque,8000);else quitarArranque();
+  }
 }
 // ─── VERIFICACIÓN EN DOS PASOS ──────────────────────────────────────────────
 //
