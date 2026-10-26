@@ -1461,29 +1461,73 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .stat-label{font-size:0.6875rem;color:var(--fg3);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
 .stat-val{font-family:var(--font-ui);font-size:1.75rem;font-weight:800;letter-spacing:-.035em;color:var(--fg);line-height:1;font-variant-numeric:tabular-nums;}
 .stat-sub{font-size:0.75rem;color:var(--fg3);margin-top:6px;line-height:1.35;letter-spacing:-.005em;overflow-wrap:anywhere;}
-/* El avance vive en el fondo de su propia tarjeta: no es una barra separada.
-   El gradiente se desvanece en el borde para que un avance bajo no parezca un
-   bloque y uno al 99% se vea casi completo. */
-.stats-progress-card{position:relative;isolation:isolate;overflow:hidden;}
-/* El tramo recorrido lleva color parejo y se apaga al llegar al porcentaje. La
-   versión anterior ponía el punto MÁS brillante justo en el avance y caía a cero
-   enseguida: en una tarjeta angosta se leía como un barrido, pero al ensancharse
-   a 1200px quedaba una mancha en medio con vacío a los dos lados. */
-.stats-progress-card::before{content:'';position:absolute;z-index:0;inset:0;border-radius:inherit;background:linear-gradient(90deg,color-mix(in srgb,var(--primary),transparent 84%) 0%,color-mix(in srgb,var(--accent),transparent 80%) calc(var(--stats-progress) - 6%),color-mix(in srgb,var(--accent),transparent 88%) var(--stats-progress),transparent var(--stats-progress-end));pointer-events:none;}
-.stats-progress-card>*{position:relative;z-index:1;}
-/* Igual que el ramo: completar evaluaciones cierra el período, no lo aprueba. */
-.stats-progress-card.is-complete{background:linear-gradient(125deg,color-mix(in srgb,var(--primary),var(--card) 89%),color-mix(in srgb,var(--accent),var(--card) 82%));border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 86%),var(--shadow);}
-.stats-progress-card.is-complete::before{opacity:0;}
+/* ─── Piezas de Estadísticas: cada número en su escala ─────────────────────
+   Anillo, medidor, escala de 1 a 7 y barra centrada (htmlAnillo y compañía en
+   app.js). Inspiradas en Whoop (Lucas, 2026-10-26): brillo suave, que se apaga
+   con movimiento reducido. El color lo pone quien las usa, con significado. */
+.anillo{position:relative;display:grid;place-items:center;width:min(150px,100%);aspect-ratio:1;flex:none;}
+.anillo-chico{width:112px;}
+.anillo svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
+.anillo-pista{fill:none;stroke:var(--muted);stroke-width:13;}
+.anillo-arco{fill:none;stroke:var(--anillo-color);stroke-width:13;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:var(--anillo-fin);
+  filter:drop-shadow(0 0 4px color-mix(in srgb,var(--anillo-color),transparent 55%));animation:anillo-llena 1s var(--ease-out) both;}
+.anillo-neutro .anillo-arco{filter:none;}
+.anillo-marca{stroke:var(--fg);stroke-width:4;stroke-linecap:round;}
+@keyframes anillo-llena{from{stroke-dashoffset:100;}}
+.anillo-centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.anillo-valor{font-size:2.25rem;font-weight:800;line-height:1;letter-spacing:-.045em;font-variant-numeric:tabular-nums;color:var(--fg);}
+.anillo-chico .anillo-valor{font-size:1.5rem;}
+.anillo-texto{margin-top:5px;font-size:.6875rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--fg2);}
+.stats-anillos-fila{display:flex;justify-content:space-around;gap:12px;}
+.stats-anillos-fila .anillo{flex:1 1 0;min-width:0;max-width:150px;width:auto;}
+.stats-anillos-pie{display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:.8125rem;color:var(--fg2);}
+.stats-anillos-pie b{color:var(--fg);font-variant-numeric:tabular-nums;}
+/* Medidor de la nota necesaria: de 1 a 7, de verde a rojo, porque mide riesgo. */
+.medidor-nota{width:84px;height:48px;overflow:visible;display:block;}
+.medidor-pista,.medidor-arco{fill:none;stroke-width:7;stroke-linecap:round;}
+.medidor-pista{stroke:var(--muted);}
+.medidor-arco{stroke:url(#medidor-degradado);opacity:.9;}
+.medidor-raya{stroke:var(--fg);stroke-width:3.5;stroke-linecap:round;}
+.stats-priority-medidor{display:flex;flex-direction:column;align-items:center;flex:none;min-width:84px;}
+.stats-priority-num{margin-top:-20px;font-size:1.25rem;font-weight:800;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;}
+.stats-priority-medidor small{margin-top:4px;font-size:.625rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;}
+/* Escala de 1 a 7 con la banda posible, el 4,0 y dónde vas. */
+.escala-notas{position:relative;height:50px;margin-top:14px;}
+.escala-pista{position:absolute;left:0;right:0;top:18px;height:9px;border-radius:5px;background:var(--muted);}
+.escala-banda{position:absolute;top:18px;height:9px;border-radius:5px;background:var(--escala-color);
+  box-shadow:0 0 4px color-mix(in srgb,var(--escala-color),transparent 55%);}
+.escala-hoy{position:absolute;top:11px;width:4px;height:23px;margin-left:-2px;border-radius:2px;background:var(--fg);}
+.escala-hoy-txt{position:absolute;top:-6px;transform:translateX(-50%);font-size:.75rem;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.escala-cuatro,.escala-ext{position:absolute;top:33px;font-size:.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.escala-cuatro{transform:translateX(-50%);}
+.escala-cuatro::before{content:'';position:absolute;left:50%;top:-15px;width:1px;height:12px;background:var(--border2);}
+.escala-ext{left:0;}
+.escala-ext-fin{left:auto;right:0;}
+/* Barra que sale del centro: hacia la derecha suma, hacia la izquierda resta. */
+.barra-centrada{position:relative;display:block;height:6px;margin-top:8px;border-radius:3px;
+  background:repeating-linear-gradient(-45deg,var(--muted) 0 4px,transparent 4px 8px);}
+.barra-centrada i{position:absolute;top:0;height:6px;border-radius:3px;background:var(--barra-color);box-shadow:0 0 3px color-mix(in srgb,var(--barra-color),transparent 50%);}
+.barra-centrada b{position:absolute;left:50%;top:-3px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--fg);}
+.stats-mueven{padding:8px 18px 14px;}
+.stats-mueven-fila{display:block;width:100%;min-height:52px;padding:10px 0;border:0;border-bottom:1px solid var(--border);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;}
+.stats-mueven-fila:last-of-type{border-bottom:0;}
+.stats-mueven-cabeza{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+.stats-mueven-nombre{font-size:.875rem;font-weight:600;min-width:0;overflow-wrap:anywhere;}
+.stats-mueven-delta{font-size:.9375rem;font-weight:800;font-variant-numeric:tabular-nums;}
+/* Dónde estás dentro del curso: un punto de 0 a 100%. */
+.stats-curso-pista{position:relative;display:block;height:4px;margin-top:9px;border-radius:2px;background:var(--muted);}
+.stats-curso-pista i{position:absolute;top:-4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--primary);box-shadow:0 0 4px color-mix(in srgb,var(--primary),transparent 45%);}
+/* Historial: una columna por semestre, el actual en el acento. */
+.stats-hist-cols{display:flex;align-items:flex-end;gap:8px;height:130px;margin:4px 20px 14px;padding-top:18px;}
+.stats-hist-cols span{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;}
+.stats-hist-cols i{display:block;width:100%;max-width:44px;border-radius:7px 7px 3px 3px;background:var(--muted);}
+.stats-hist-cols .es-actual i{background:var(--primary);box-shadow:0 0 5px color-mix(in srgb,var(--primary),transparent 55%);}
+.stats-hist-cols b{font-size:.8125rem;font-weight:700;font-variant-numeric:tabular-nums;}
+.stats-hist-cols small{font-size:.6875rem;color:var(--fg3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@media (prefers-reduced-motion:reduce){.anillo-arco{animation:none;}.anillo-arco,.escala-banda,.barra-centrada i,.stats-curso-pista i,.stats-hist-cols .es-actual i{filter:none;box-shadow:none;}}
 .stats-situation-card{padding:18px 18px 16px;}
-.stats-situation-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;}
-.stats-situation-value{font-size:2.25rem;line-height:.98;letter-spacing:-.055em;margin-top:5px;color:var(--primary);font-variant-numeric:tabular-nums;}
-.stats-situation-progress{display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding-top:3px;font-variant-numeric:tabular-nums;}
-.stats-situation-progress span{font-size:1.25rem;line-height:1;font-weight:800;color:var(--primary);letter-spacing:-.04em;}
-.stats-situation-progress small{font-size:.6875rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--fg3);white-space:nowrap;}
 .stats-situation-reading{margin-top:17px;font-size:.9375rem;font-weight:650;line-height:1.35;color:var(--fg);letter-spacing:-.015em;}
 .stats-priority-row{margin-bottom:8px;min-height:72px;}
-.stats-priority-value{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:66px;font-size:1.375rem;line-height:1;font-weight:800;letter-spacing:-.045em;font-variant-numeric:tabular-nums;}
-.stats-priority-value small{font-size:0.6875rem;font-weight:700;letter-spacing:.035em;text-transform:uppercase;color:var(--fg3);}
 .stats-range-card{padding:17px 18px 16px;}
 .stats-olfato-card{padding:17px 18px 14px;}
 .stats-olfato-titular{font-size:1.02rem;font-weight:650;line-height:1.35;margin-bottom:10px;}
@@ -1491,7 +1535,6 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .stats-olfato-nota{font-variant-numeric:tabular-nums;font-weight:650;}
 .stats-olfato-nota small{margin-left:6px;font-weight:400;color:var(--fg3);font-size:0.75rem;}
 .stats-olfato-nota-pie{margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--fg3);}
-@media(max-width:380px){.stats-situation-value{font-size:2rem;}}
 /* AGENDA */
 
 .ag-day{font-family:var(--font-ui);font-size:1.25rem;font-weight:800;color:var(--fg);letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
@@ -2601,8 +2644,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
    El llenado de avance sigue usando sus paradas funcionales exactas. */
 .stat-card{border-radius:8px;box-shadow:none;}
 .stat-label{font-weight:550;}
-.stat-val,.stats-situation-value,.stats-priority-value{font-weight:500;}
-.stats-situation-value,.stats-situation-progress span{color:var(--fg);}
+.stat-val{font-weight:500;}
 .stats-situation-reading{font-weight:550;}
 .simg-hero{background:var(--card);box-shadow:none;border-radius:8px;}
 .bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;}
@@ -2612,7 +2654,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 
 @media(hover:hover) and (pointer:fine){
   .section-hd-add:hover{transform:none;background:var(--muted);box-shadow:none;}
-  .eval-row:hover,.eval-group:hover,.cat-card:hover,.stat-card:not(.stats-progress-card):hover,.insight-card:hover,.ag-row:hover,.ag-priority-card:hover{transform:none;border-color:var(--border2);box-shadow:none;background:var(--muted);}
+  .eval-row:hover,.eval-group:hover,.cat-card:hover,.stat-card:hover,.insight-card:hover,.ag-row:hover,.ag-priority-card:hover{transform:none;border-color:var(--border2);box-shadow:none;background:var(--muted);}
 }
 @media(min-width:768px){
   #home-ramos{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;}

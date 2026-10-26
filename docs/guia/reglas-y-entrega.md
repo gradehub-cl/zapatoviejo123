@@ -67,6 +67,17 @@ su nota; el avance de Inicio es un riel neutro con `scaleX`, no un fondo relleno
 Las superficies de Neutro son blancas/casi negras; Papel y Pizarra siguen siendo
 preferencias válidas. No cambies el semáforo para armonizar la interfaz.
 
+**Estadísticas pone cada número en su escala** (Lucas, 2026-10-26, a partir de
+cómo lo hace Whoop): un anillo de 1 a 7 con el 4,0 marcado, un medidor para la
+nota necesaria, una escala con el rango posible, barras que salen del centro.
+Las piezas viven en `app.js` (`htmlAnillo`, `htmlMedidorNota`,
+`htmlEscalaNotas`, `htmlBarraCentrada`) y sirven para las Estadísticas del
+estudiante, del profesor y de administración. Llevan un brillo suave que se
+apaga con movimiento reducido. El color sigue diciendo algo: el semáforo solo
+donde hay riesgo de reprobar (la nota necesaria); el promedio del semestre va en
+el acento y sin palabra —un semestre no se aprueba ni se reprueba—; el avance
+va neutro; en profesor y admin no hay semáforo.
+
 **Seguir las Human Interface Guidelines de Apple es obligatorio**
 (https://developer.apple.com/design/human-interface-guidelines). Decisión de
 Lucas del 2026-09-28: la mayoría usa GradeHub desde el iPhone, y las HIG son la

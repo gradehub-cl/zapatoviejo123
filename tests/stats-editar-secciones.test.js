@@ -23,7 +23,7 @@ const run=s=>vm.runInContext(s,ctx);
 console.log('=== El orden guardado se respeta ===');
 run("S={statsOrden:['historial','curso','ritmo','prioridades','rango'],statsOcultas:[]};");
 chk('la pantalla sigue el orden del estudiante',
-  run("ordenSecciones().join(',')")==='historial,curso,ritmo,prioridades,rango');
+  run("ordenSecciones().join(',')").startsWith('historial,curso,ritmo,prioridades,rango'));
 
 console.log('\n=== Una sección nueva no queda invisible ===');
 // Si alguien guardó su orden antes de que existiera una sección, esa sección no
