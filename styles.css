@@ -1515,7 +1515,10 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .stats-mueven-nombre{font-size:.875rem;font-weight:600;min-width:0;overflow-wrap:anywhere;}
 .stats-mueven-delta{font-size:.9375rem;font-weight:800;font-variant-numeric:tabular-nums;}
 /* Dónde estás dentro del curso: un punto de 0 a 100%. */
-.stats-curso-pista{position:relative;display:block;height:4px;margin-top:9px;border-radius:2px;background:var(--muted);}
+.stats-curso-pista{position:relative;display:block;height:4px;margin:9px 0 14px;border-radius:2px;background:var(--muted);}
+/* La línea de la mitad del curso: a su derecha vas mejor que la mitad. */
+.stats-curso-mitad{position:absolute;left:50%;top:-5px;width:2px;height:14px;margin-left:-1px;border-radius:1px;background:var(--fg2);}
+.stats-curso-mitad small{position:absolute;top:15px;left:50%;transform:translateX(-50%);font-size:.625rem;font-weight:600;color:var(--fg3);white-space:nowrap;}
 .stats-curso-pista i{position:absolute;top:-4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--primary);box-shadow:0 0 4px color-mix(in srgb,var(--primary),transparent 45%);}
 /* Historial: una columna por semestre, el actual en el acento. */
 .stats-hist-cols{display:flex;align-items:flex-end;gap:8px;height:130px;margin:4px 20px 14px;padding-top:18px;}
