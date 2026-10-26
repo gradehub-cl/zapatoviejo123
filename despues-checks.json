@@ -1,0 +1,562 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "encuesta",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "admin-sin-datos",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "zero",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "unknown",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "error",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "empty",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  }
+]
