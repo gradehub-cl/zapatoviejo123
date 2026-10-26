@@ -4665,13 +4665,9 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
     etiqueta:`${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'} mejoraron`,
     centro:`<span class="anillo-valor">${g.mejoraron}</span><span class="anillo-texto">de ${g.conCambio}</span>`}):'<strong>—</strong>';
   const prom=v=>v===null?'—':esc(fmt(v));
-  // Aprobadas antes (gris) y ahora (acento), cada una en su anillo. Sin datos
-  // no se dibuja un anillo vacío que parezca un 0%.
-  const aprobacion=(lado,nombre,ahora)=>`<div class="ah-aprobacion-lado">${lado.aprobacion===null
-    ?`<span class="ah-aprobacion-vacia" aria-hidden="true">—</span><span class="sr-solo">${nombre}: sin datos</span>`
-    :htmlAnillo({fraccion:lado.aprobacion,color:ahora?'var(--ah-acento)':'var(--fg3)',neutro:!ahora,chico:true,
-      etiqueta:`${nombre}: ${porcentajePanel(lado.aprobacion)} de evaluaciones aprobadas`,
-      centro:`<span class="anillo-valor">${porcentajePanel(lado.aprobacion)}</span>`})}<span class="ah-aprobacion-nombre">${nombre}</span></div>`;
+  // Antes y ahora es una comparación: dos barras paralelas en la misma escala
+  // se comparan de un vistazo, dos anillos no (Lucas, 2026-10-26).
+  const aprobacion=(lado,nombre)=>`<div class="ah-aprobacion-fila"><span>${nombre}</span><span class="ah-aprobacion-pista" aria-hidden="true">${lado.aprobacion===null?'':`<i style="width:${Math.round(lado.aprobacion*100)}%"></i>`}</span><b>${porcentajePanel(lado.aprobacion)}</b></div>`;
   return `<section class="ah-grupo ah-visual" aria-labelledby="ah-titulo">
     <div class="ah-panorama">
       <div class="ah-balance">
@@ -4683,7 +4679,7 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
       </div>
       <div class="ah-resultados">
         <h3>Evaluaciones aprobadas</h3>
-        <div class="ah-aprobacion">${aprobacion(g.antes,'Antes',false)}<span class="ah-aprobacion-flecha" aria-hidden="true">→</span>${aprobacion(g.ahora,'Ahora',true)}</div>
+        <div class="ah-aprobacion">${aprobacion(g.antes,'Antes')}${aprobacion(g.ahora,'Ahora')}</div>
         <div class="ah-promedios"><span>Promedio de evaluaciones</span><span>Antes <b>${prom(g.antes.promedio)}</b><span aria-hidden="true"> → </span><span class="sr-solo">. </span>Ahora <b>${prom(g.ahora.promedio)}</b></span></div>
       </div>
     </div>

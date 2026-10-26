@@ -477,15 +477,14 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
-    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="1 de 1 alumno mejoraron"/.test(gh)&&
-    /aria-label="Antes: 0% de evaluaciones aprobadas"/.test(gh)&&/aria-label="Ahora: 100% de evaluaciones aprobadas"/.test(gh));
+    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="1 de 1 alumno mejoraron"/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
   chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
   const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
   chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
-  chk('sin datos la aprobación no dibuja un anillo cero ni inventa un porcentaje',
-    /ah-aprobacion-vacia" aria-hidden="true">—<\/span><span class="sr-solo">Antes: sin datos/.test(unaFecha)&&!/Antes: 0%/.test(unaFecha));
-  chk('los anillos de aprobación comparten escala y conservan su período: antes gris, ahora el acento',
-    /--anillo-color:var\(--fg3\);--anillo-fin:100\.00"[^>]*aria-label="Antes: 0%/.test(gh)&&/--anillo-color:var\(--ah-acento\);--anillo-fin:0\.00"[^>]*aria-label="Ahora: 100%/.test(gh));
+  chk('sin datos la aprobación no dibuja una barra cero ni inventa un porcentaje',
+    /<span>Antes<\/span><span class="ah-aprobacion-pista" aria-hidden="true"><\/span><b>—<\/b>/.test(unaFecha));
+  chk('las barras comparten escala porcentual y conservan su período',
+    /<span>Antes<\/span>.*?width:0%.*?>0%<\/b>/.test(gh)&&/<span>Ahora<\/span>.*?width:100%.*?>100%<\/b>/.test(gh));
   chk('el anillo de mejoraron cuenta alumnos, no evaluaciones aprobadas',/--anillo-fin:0\.00"[^>]*aria-label="1 de 1 alumno mejoraron"/.test(gh));
   chk('el anillo distingue cero, proporción parcial y falta de comparación',a.run(`(()=>{
     const g=metricasGrupoPanel([__antesAhora,__poco],__cursoAA);

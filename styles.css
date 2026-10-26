@@ -3766,11 +3766,16 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .ah-mejoraron{text-align:center;}
 .alumnos-editorial .ah-mejoraron strong{font-size:2rem;line-height:1.5;font-weight:600;}
 .alumnos-editorial .ah-mejoraron small{font-size:1rem;font-weight:400;color:var(--fg2);white-space:nowrap;}
-.alumnos-editorial .ah-aprobacion{display:flex;align-items:center;justify-content:space-around;gap:12px;}
-.alumnos-editorial .ah-aprobacion-lado{display:flex;flex-direction:column;align-items:center;gap:6px;}
-.alumnos-editorial .ah-aprobacion-nombre{font-size:.6875rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);}
-.alumnos-editorial .ah-aprobacion-flecha{color:var(--fg3);font-size:1.25rem;}
-.alumnos-editorial .ah-aprobacion-vacia{display:grid;place-items:center;width:112px;aspect-ratio:1;border-radius:50%;border:13px solid var(--muted);color:var(--fg3);font-size:1.25rem;}
+.alumnos-editorial .ah-aprobacion{display:grid;gap:10px;}
+.alumnos-editorial .ah-aprobacion-fila{display:grid;grid-template-columns:3rem minmax(0,1fr) 3rem;align-items:center;gap:12px;font-size:.875rem;line-height:1.4;}
+.alumnos-editorial .ah-aprobacion-fila b{text-align:right;font-weight:600;}
+.alumnos-editorial .ah-aprobacion-pista{height:10px;background:var(--muted);border-radius:2px;overflow:hidden;}
+.alumnos-editorial .ah-aprobacion-pista i{display:block;height:100%;background:var(--ah-acento);}
+.alumnos-editorial .ah-aprobacion-fila:first-child i{background:var(--fg2);}
+.alumnos-editorial .ah-aprobacion-pista{overflow:visible;}
+.alumnos-editorial .ah-aprobacion-pista i{border-radius:2px;}
+.alumnos-editorial .ah-aprobacion-fila:last-child i{box-shadow:0 0 5px color-mix(in srgb,var(--ah-acento),transparent 50%);}
+@media (prefers-reduced-motion:reduce){.alumnos-editorial .ah-aprobacion-fila:last-child i{box-shadow:none;}}
 .alumnos-editorial .ah-promedios{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin-top:16px;font-size:.8125rem;line-height:1.5;color:var(--fg2);}
 .alumnos-editorial .ah-promedios b{color:var(--fg);font-weight:600;}
 .alumnos-editorial .ah-panorama{font-variant-numeric:tabular-nums;}
