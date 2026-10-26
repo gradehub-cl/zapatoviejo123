@@ -1,0 +1,66 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  }
+]

@@ -1,0 +1,450 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "despues",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "sin-notas",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "solo-antes",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "sin-seccion",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "muchos",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ejemplo",
+    "overflow": [],
+    "targets": [],
+    "primary": 0,
+    "contrast": []
+  }
+]
