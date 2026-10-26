@@ -1894,7 +1894,7 @@ function avanceCampanaAnuncio(a,ahora=Date.now()){
 // en la tarde). Separados en tarjetas sueltas no se entendía qué medía cada
 // uno. Solo se pinta lo que se sabe: el servidor no devuelve cortes con menos
 // de quince eventos, y "0 veces" ahí sería inventarlo.
-function cifrasClase({alcance,totales,hayCortes,campana,costo},pesos,etiquetaPersonas='personas distintas'){
+function cifrasClase({alcance,totales,hayCortes,campana,costo},pesos,etiquetaPersonas='personas distintas',conPresupuesto=false){
   const miles=n=>new Intl.NumberFormat('es-CL').format(n);
   const veces=n=>hayCortes&&n?n:null;
   // Con la campaña medida, las personas vienen de ahí: son exactas y son lo
@@ -1904,15 +1904,16 @@ function cifrasClase({alcance,totales,hayCortes,campana,costo},pesos,etiquetaPer
     ['Se mostró',campana?campana.vistas:alcance,veces(totales.impresion),true],
     ['La abrieron',campana?campana.aperturas:null,veces(totales.clic),false],
     ['Te contactaron',campana?campana.contactos:null,veces(totales.contacto),false]];
+  const maxPersonas=Math.max(1,...etapas.map(([,p])=>Number(p)||0));
   const mitad=(v,d)=>`<div><b>${v}</b><small>${d}</small></div>`;
   const html=etapas.filter(([,p,v,siempre])=>siempre||p!==null&&p!==undefined||v!==null).map(([t,p,v])=>
-    `<div class="clase-etapa"><span>${t}</span><div class="clase-par">${
+    `<div class="clase-etapa${t==='Te contactaron'?' clase-etapa-contactos':''}"><span>${t}</span><div class="clase-par">${
       [p!==null&&p!==undefined?mitad(miles(p),etiquetaPersonas):campana||!v?mitad('—',etiquetaPersonas):'',
-       v!==null?mitad(miles(v),'veces en total'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div></div>`).join('');
+       v!==null?mitad(miles(v),'veces en total'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
   const f=[];
-  if(costo)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
+  if(costo&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
   if(costo&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
-  return `<div class="clase-etapas">${html}</div>`+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
+  return `<div class="clase-etapas">${html}</div>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');
 }
 
@@ -2047,10 +2048,10 @@ function prepararMetricasClase(a,m){
     error:m.error||a.campanaError,hayCortes:Object.values(totales).some(n=>n>0),costo:costoCampanaClase(m.campana)};
 }
 function detalleMetricasClaseHTML(d,pesos,ahora){
-  return presupuestoProfesorHTML(d.costo)+(d.costo&&d.costo.agotada?'<p class="clase-aviso-tope">Llegó a tu tope: dejó de mostrarse y no suma más costo.</p>':'')+
-    cifrasClase(d,pesos)+'<details class="profesor-hig-estadisticas"><summary>Más estadísticas</summary>'+graficosClase(d,pesos,ahora)+'</details>'+
+  return (d.costo&&d.costo.agotada?'<p class="clase-aviso-tope">Llegó a tu tope: dejó de mostrarse y no suma más costo.</p>':'')+
+    cifrasClase(d,pesos,'personas distintas',true)+'<details class="profesor-hig-estadisticas"><summary>Más estadísticas</summary>'+graficosClase(d,pesos,ahora)+
     (d.hayCortes?'':'<p class="clase-sin-datos">Las veces que se mostró por día aparecen cuando hay suficientes datos para que nadie quede identificado.</p>')+
-    (d.costo?`<p class="clase-sin-datos">${esc(lineaCostoCampanaClase(d.costo))}.</p>`:'');
+    (d.costo?`<p class="clase-sin-datos">${esc(lineaCostoCampanaClase(d.costo))}.</p>`:'')+'</details>';
 }
 
 function tarjetaPanelClase(a,pesos,ahora){
@@ -2094,10 +2095,17 @@ function filaProfesorClaseHTML(a,pesos,ahora){
     <span class="profesor-hig-flecha" aria-hidden="true">⌄</span>
     </summary><div class="profesor-hig-detalle">${tarjetaPanelClase(a,pesos,ahora)}</div></details>`;
 }
+// Usa el mismo anillo que Estadísticas. Sin proporción válida queda solo
+// la cifra: no dibujamos un 0% cuando falta el denominador.
+function datoCircularHTML(porcentaje,valor,etiqueta){
+  if(porcentaje===null||porcentaje===undefined||!Number.isFinite(Number(porcentaje))||porcentaje<0||porcentaje>100||typeof htmlAnillo!=='function')return `<strong>${esc(valor)}</strong>`;
+  return htmlAnillo({fraccion:porcentaje/100,color:'var(--dato-acento)',chico:true,etiqueta,
+    centro:`<span class="anillo-valor">${esc(valor)}</span>`});
+}
 function presupuestoProfesorHTML(costo){
   if(!costo)return '<p class="clase-sin-datos">No pudimos cargar el costo de la campaña. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>';
   const porcentaje=costo.tope?Math.min(100,Math.round(costo.total/costo.tope*100)):0;
-  return `<section class="profesor-hig-presupuesto"><span>Costo · publicación actual</span><strong>${pesosClase(costo.total)} <small>de ${pesosClase(costo.tope)}</small></strong><progress max="100" value="${porcentaje}" aria-label="Presupuesto utilizado"></progress><p>${porcentaje}% del tope. La campaña deja de mostrarse al alcanzarlo.</p></section>`;
+  return `<section class="profesor-hig-presupuesto presupuesto-visual"><div class="dato-circular">${datoCircularHTML(costo.tope?porcentaje:null,costo.tope?porcentaje+'%':'—',`Presupuesto utilizado: ${porcentaje}%`)}</div><div><span>Presupuesto utilizado</span><strong>${pesosClase(costo.total)}</strong><p>${costo.tope!==null?`de tu tope de ${pesosClase(costo.tope)}`:'Sin tope disponible'}</p><small>Publicación actual</small></div></section>`;
 }
 
 function seccionPanelClases(titulo,lista,pesos,ahora,vacio){
@@ -2170,7 +2178,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     </nav>
     <section class="panel-alumnos-vista" data-clases-panel="resumen" aria-label="Resumen de tus clases">
       <div class="profesor-hig-lista-cabeza"><h2>Pendiente</h2></div>
-      ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:'<p class="profesor-hig-vacio">Nada pendiente de tu parte.</p>'}`+
+      ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:'<p class="clases-pendiente-vacio">Nada pendiente de tu parte.</p>'}`+
     (anuncios.length?'':`<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
       <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>`)+
     `<details class="clases-resumen profesor-hig-resumen" open><summary id="clases-resumen-titulo">Tus clases activas</summary>
@@ -2178,7 +2186,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
          :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'
            :g.revision.length?'Cuando aprobemos tu clase, acá vas a ver a cuántas personas llega, cuántas te contactan y cuánto va costando.'
            :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
-       <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
+       <details class="datos-definiciones"><summary>Cómo se cuentan</summary><p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p></details>
      </details></section>
     <section class="panel-alumnos-vista" data-clases-panel="anuncios" aria-label="Tus anuncios" hidden>
     ${enHoja?'':`<div class="profesor-hig-accion">${crearAnuncio}</div>`}
@@ -2304,8 +2312,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     const alcanceTotal=conAlcance.length?conAlcance.reduce((n,d)=>n+d.alcance,0):null;
     kpis.innerHTML=cifrasClase({alcance:alcanceTotal,totales,hayCortes:activas.some(d=>d.hayCortes),campana,costo},pesos,'personas por anuncio')
       .replace('class="clase-etapas"','class="clase-etapas clases-kpis-etapas"').replace('class="clase-nums"','class="clase-nums clases-kpis"')+
-      `<div class="viz-fila">${donaCanalesClase(porCanal,'alcances')}${costoApiladoClase(costo,pesos)}</div>`+
-      embudoClase(totales);
+      `<details class="profesor-hig-estadisticas"><summary>Detalle de alcance y costo</summary><div class="viz-fila">${donaCanalesClase(porCanal,'alcances')}${costoApiladoClase(costo,pesos)}</div>${embudoClase(totales)}</details>`;
   }
 }
 
@@ -3672,7 +3679,10 @@ function variacionAdmin(actual,anterior,contra){
   const d=actual-anterior,pct=Math.round(100*d/anterior);
   return d?`${d>0?'+':'−'}${milesViz(Math.abs(d))} (${d>0?'+':'−'}${Math.abs(pct)}%) vs. ${contra}`:`Igual que ${contra}`;
 }
-function kpiAdminHTML(titulo,valor,detalle){return `<div><span>${esc(titulo)}</span><strong>${esc(valor)}</strong><p>${esc(detalle||'')}</p></div>`;}
+function kpiAdminHTML(titulo,valor,detalle,porcentaje=null){
+  const circular=porcentaje!==null&&porcentaje!==undefined&&Number.isFinite(Number(porcentaje))&&porcentaje>=0&&porcentaje<=100;
+  return `<div class="dato-kpi${circular?' dato-kpi-circular':''}"><span>${esc(titulo)}</span>${circular?datoCircularHTML(porcentaje,valor,`${titulo}: ${valor}. ${detalle||''}`):`<strong>${esc(valor)}</strong>`}<p>${esc(detalle||'')}</p></div>`;
+}
 // puntos: [{eje, lectura, valor, tenue}] de lo antiguo a lo nuevo. La columna
 // elegida va con el acento lleno y su lectura arriba; tocar o pasar el dedo
 // por el área entera elige otra (enlazarGraficosAdmin).
@@ -3709,12 +3719,12 @@ function graficosCrecimientoAdminHTML(semanas,ahora){
   const kpis=cerrada?[
     kpiAdminHTML('Activas',milesViz(cifra(cerrada.activas)),`Semana del ${fechaCortaAdmin(cerrada.semana)}${anterior?' · '+variacionAdmin(cifra(cerrada.activas),cifra(anterior.activas),contra):''}`),
     kpiAdminHTML('Nuevas',milesViz(cifra(cerrada.nuevas)),anterior?variacionAdmin(cifra(cerrada.nuevas),cifra(anterior.nuevas),contra)||'Cuentas creadas esa semana':'Cuentas creadas esa semana'),
-    kpiAdminHTML('Volvieron',cerrada.pct_vuelven!=null?`${Number(cerrada.pct_vuelven).toLocaleString('es-CL')}%`:'—',anterior?`${milesViz(cifra(cerrada.vuelven))} de ${milesViz(cifra(anterior.activas))} activas la semana anterior`:'Sin semana anterior para comparar'),
+    kpiAdminHTML('Volvieron',cerrada.pct_vuelven!=null?`${Number(cerrada.pct_vuelven).toLocaleString('es-CL')}%`:'—',anterior?`${milesViz(cifra(cerrada.vuelven))} de ${milesViz(cifra(anterior.activas))} activas la semana anterior`:'Sin semana anterior para comparar',cerrada.pct_vuelven),
     enCurso?kpiAdminHTML('Esta semana',milesViz(cifra(enCurso.activas)),'Activas hasta hoy · semana en curso'):''].join(''):'';
   const serie=clave=>semanas.slice().reverse().map(f=>({eje:fechaCortaAdmin(f.semana),valor:cifra(f[clave]),tenue:semanaEnCursoAdmin(f,ahora),
     lectura:`Semana del ${fechaLargaAdmin(f.semana)}${semanaEnCursoAdmin(f,ahora)?' (en curso)':''} · ${milesViz(cifra(f[clave]))} ${clave==='activas'?'activas':'nuevas'}`}));
   const elegido=Math.max(0,semanas.length-1-Math.max(i,0));
-  return `${kpis?`<div class="admin-hig-resumen" aria-label="Resumen de la última semana cerrada">${kpis}</div>`:''}
+  return `${kpis?`<div class="admin-hig-resumen admin-pulso" aria-label="Resumen de la última semana cerrada">${kpis}</div>`:''}
     <div class="admin-graficos">
       ${columnasAdminHTML({titulo:'Cuentas activas por semana',resumen:'Abrieron la app al menos un día de la semana.',vacio:'Todavía no hay visitas registradas.',puntos:serie('activas'),elegido,dondeValores:'en el detalle por semana'})}
       ${columnasAdminHTML({titulo:'Cuentas nuevas por semana',resumen:'Se crearon esa semana, estudiantes y profesores.',vacio:'Todavía no hay cuentas nuevas en estas semanas.',puntos:serie('nuevas'),elegido,dondeValores:'en el detalle por semana'})}
@@ -3732,7 +3742,7 @@ function clasesEstadisticasAdminHTML(profesores,alcance,ahora=Date.now()){
     kpis=[kpiAdminHTML('Vieron un anuncio',milesViz(vieron),'Cuentas distintas por campaña · 30 días'),
       kpiAdminHTML('Lo abrieron',milesViz(abrieron),`${pctViz(abrieron,vieron)} de las que lo vieron`),
       kpiAdminHTML('Contactaron',milesViz(contactaron),`${pctViz(contactaron,vieron)} de las que lo vieron`),
-      kpiAdminHTML('De abrir a contactar',pctViz(contactaron,abrieron),'Contactaron de las que lo abrieron')].join('');
+      kpiAdminHTML('De abrir a contactar',pctViz(contactaron,abrieron),'Contactaron de las que lo abrieron',abrieron?100*contactaron/abrieron:null)].join('');
     const mejor=alcance.reduce((m,d)=>n(d.vieron)>n(m.vieron)?d:m,alcance[0]);
     partes.push(columnasAdminHTML({titulo:'Alcance por día',vacio:'Ningún anuncio se ha mostrado en los últimos 30 días.',
       resumen:vieron?`${milesViz(vieron)} en 30 días; el día con más fue el ${fechaLargaAdmin(mejor.dia)}, con ${milesViz(n(mejor.vieron))}.`:'',
@@ -3762,8 +3772,8 @@ function clasesEstadisticasAdminHTML(profesores,alcance,ahora=Date.now()){
   if(total)partes.push(barrasAdminHTML({titulo:'Anuncios por estado',resumen:`${milesViz(total)} ${total===1?'anuncio':'anuncios'} en total.`,
     filas:[...porEstado].sort((x,y)=>y[1]-x[1]).map(([nombre,valor])=>({nombre,valor}))}));
   return `<section class="admin-clases-estadisticas" aria-labelledby="admin-clases-estadisticas-titulo"><h3 id="admin-clases-estadisticas-titulo">Clases particulares</h3>
-    <p>Alcance de los anuncios, lo cobrado y en qué está cada anuncio.</p>
-    ${kpis?`<div class="admin-hig-resumen" aria-label="Resumen de los últimos 30 días">${kpis}</div>`:''}
+    <p>Últimos 30 días · cuentas por campaña</p>
+    ${kpis?`<div class="admin-hig-resumen admin-pulso admin-pulso-alcance" aria-label="Resumen de los últimos 30 días">${kpis}</div>`:''}
     ${Array.isArray(alcance)?'':'<p class="admin-hig-nota" role="status">El alcance por día aparece al aplicar supabase/admin_estadisticas.sql.</p>'}
     <div class="admin-graficos">${partes.join('')}</div></section>`;
 }
@@ -3788,8 +3798,8 @@ function crecimientoAdminHTML(semanas,ahora=Date.now()){
   const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
   const semana=f=>`<h3>Semana del ${esc(f.semana?fechaLargaAdmin(f.semana):'')}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
   return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h3 id="admin-crecimiento-titulo">Crecimiento semanal</h3>
-    <p>Cuentas nuevas, activas y que volvieron cada semana.</p>${graficosCrecimientoAdminHTML(semanas,ahora)}
-    <div class="admin-crecimiento-actual">${semana(semanas[0])}</div>
+    <p>Última semana cerrada y actividad en curso</p>${graficosCrecimientoAdminHTML(semanas,ahora)}
+    ${semanas.length>1?`<details class="datos-definiciones"><summary>Detalle de la semana del ${esc(fechaCortaAdmin(semanas[0].semana))}</summary>`:''}<div class="admin-crecimiento-actual">${semana(semanas[0])}</div>${semanas.length>1?'</details>':''}
     ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
 }
 const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios'];
@@ -3815,7 +3825,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
     ${kpi('Deuda registrada',pesosClase(r.deuda),'Incluye publicaciones anteriores')}
     ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
-    <p class="admin-hig-nota">Revisa y decide los anuncios desde acá. Cada acción queda registrada.</p>
+
     <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
     <div class="admin-hig-herramientas"><label class="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label>Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label></div>
     <p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
@@ -5673,6 +5683,10 @@ function descargarResultadosEncuesta(e,r){
   const url=URL.createObjectURL(new Blob([csvResultadosEncuesta(e,r)],{type:'text/csv;charset=utf-8'}));
   const a=document.createElement('a');a.href=url;a.download='encuesta-'+e.id+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+function resultadosEncuestaAdminHTML(r){
+  const opciones=r.opciones||[],textos=r.textos||[];
+  return `<div class="encuesta-resultados"><p class="encuesta-resultados-total"><b>${Number(r.total)||0}</b> respuestas</p>${opciones.length?barrasAdminHTML({titulo:'Respuestas por opción',resumen:'Cantidad de personas que eligieron cada opción.',filas:opciones.map(x=>({nombre:x.opcion,valor:Number(x.total)||0}))}):''}${textos.map(x=>`<blockquote>${esc(x.texto)} <span>(${Number(x.total)||0})</span></blockquote>`).join('')}<button type="button" data-encuesta-csv>Descargar CSV</button></div>`;
+}
 async function renderAdminEncuestas(raiz){
   const uid=currentUser?.id,version=encuestaVersion;
   const cabecera='<div class="encuestas-admin"><div class="encuestas-admin-cabecera"><h3>Encuestas</h3><button type="button" data-encuestas-actualizar>Actualizar</button></div>';
@@ -5739,7 +5753,7 @@ async function renderAdminEncuestas(raiz){
         const {data:r,error}=await supabaseClient.rpc('admin_resultados_encuesta',{p_encuesta:e.id});
         if(!encuestaSigue(uid,version)||!caja.isConnected)return;
         if(error||!r){totales.textContent='No pudimos leer los resultados. Verifica tu segundo factor e intenta de nuevo.';return;}
-        totales.innerHTML=`<p><b>${Number(r.total)||0}</b> respuestas</p>${(r.opciones||[]).map(x=>`<p>${esc(x.opcion)}: ${Number(x.total)||0}</p>`).join('')}${(r.textos||[]).map(x=>`<blockquote>${esc(x.texto)} <span>(${Number(x.total)||0})</span></blockquote>`).join('')}<button type="button" data-encuesta-csv>Descargar CSV</button>`;
+        totales.innerHTML=resultadosEncuestaAdminHTML(r);
         totales.querySelector('[data-encuesta-csv]').addEventListener('click',async event=>{
           const exportar=event.currentTarget;if(exportar.disabled)return;exportar.disabled=true;
           try{

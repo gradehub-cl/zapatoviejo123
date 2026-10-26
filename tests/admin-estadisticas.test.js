@@ -58,3 +58,48 @@ assert.match(vacio,/Ningún anuncio se ha mostrado en los últimos 30 días\./);
 assert.match(vacio,/Todavía no hay cobros registrados/);
 assert.doesNotMatch(vacio,/data-admin-col/,'sin datos no hay columnas');
 console.log('PASS admin estadísticas: ejes, semana en curso, alcance, cobros por mes, estados, VoiceOver y estados vacíos');
+
+// Cargamos la misma pieza compartida de app.js, no una copia ni un stub.
+const anilloCompartido=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8').match(/function htmlAnillo\([\s\S]*?\n\}/)[0];
+run(anilloCompartido);
+// Los anillos solo dibujan porcentajes válidos; el dato sigue como texto HTML.
+for(const n of [0,12.5,100])assert.match(run(`datoCircularHTML(${n})`),new RegExp(`--anillo-fin:${(100-n).toFixed(2)}`));
+for(const n of ['null','undefined','NaN','Infinity','-1','101'])assert.doesNotMatch(run(`datoCircularHTML(${n},'—','Sin dato')`),/anillo-arco/);
+assert.match(run('crecimientoAdminHTML(__semanas,__ahora)'),/--anillo-fin:20.00/,'retención usa el porcentaje del servidor');
+assert.match(run('clasesEstadisticasAdminHTML(__profesores,__alcance,__ahora)'),/--anillo-fin:94\.12/,'contactos sobre aperturas, con su denominador escrito');
+const antes=JSON.stringify(ctx.__semanas);
+run('crecimientoAdminHTML(__semanas,__ahora)');assert.equal(JSON.stringify(ctx.__semanas),antes);
+for(const pct of [0,100,null]){
+ ctx.__pct=pct;const html=run('graficosCrecimientoAdminHTML([{...__semanas[1],pct_vuelven:__pct},__semanas[2]],__ahora)');
+ assert.match(html,new RegExp(`>${pct===null?'—':pct+'%'}<`));
+ assert.equal(html.includes('class="anillo'),pct!==null);
+}
+// No confundir eventos con personas: las barras comparan solo personas,
+// conservando aparte los eventos y la ausencia de datos.
+ctx.__medida={alcance:70,totales:{impresion:150,clic:40,contacto:20},hayCortes:true,campana:{vistas:100,aperturas:25,contactos:5},costo:null};
+const medidaAntes=JSON.stringify(ctx.__medida);
+const etapas=run('cifrasClase(__medida,pesosClase)');
+assert.deepEqual([...etapas.matchAll(/scaleX\(([\d.]+)\)/g)].map(m=>m[1]),['1.0000','0.2500','0.0500']);
+assert.match(etapas,/>150<\/b><small>veces en total/);
+assert.equal(JSON.stringify(ctx.__medida),medidaAntes);
+const cero=run('cifrasClase({...__medida,campana:{vistas:0,aperturas:0,contactos:0}},pesosClase)');
+assert.equal((cero.match(/scaleX\(0\.0000\)/g)||[]).length,3);
+const desconocido=run('cifrasClase({...__medida,alcance:null,campana:null,hayCortes:false},pesosClase)');
+assert.doesNotMatch(desconocido,/clase-etapa-riel|scaleX/);assert.match(desconocido,/>—<\/b>/);
+// El coste y el tope son los mismos; sin tope no se dibuja un falso 0%.
+assert.match(run('presupuestoProfesorHTML({total:2500,tope:10000})'),/--anillo-fin:75.00/);
+assert.doesNotMatch(run('presupuestoProfesorHTML({total:2500,tope:null})'),/anillo-arco|0%/);
+console.log('PASS datos visuales: proporciones, cero, sin datos, eventos separados e inmutabilidad');
+
+ctx.__encuesta={total:12,opciones:[{opcion:'Mañana <temprano>',total:6},{opcion:'Tarde',total:12},{opcion:'Noche',total:0}],textos:[]};
+const encuesta=run('resultadosEncuestaAdminHTML(__encuesta)');
+assert.match(encuesta,/>12<\/b> respuestas/);
+assert.match(encuesta,/Mañana &lt;temprano>/);
+assert.deepEqual([...encuesta.matchAll(/scaleX\(([\d.]+)\)/g)].map(m=>m[1]),['0.500','1.000','0.000'],'opción múltiple: son cantidades, no partes excluyentes de un total');
+assert.doesNotMatch(encuesta,/%|anillo/);
+assert.match(run("resultadosEncuestaAdminHTML({total:2,textos:[{texto:'<ejemplo>',total:2}]})"),/&lt;ejemplo>/);
+assert.match(run('resultadosEncuestaAdminHTML({total:0})'),/>0<\/b> respuestas/);
+
+const conPresupuesto=run("cifrasClase({...__medida,costo:{total:2500,tope:10000}},pesosClase,'personas distintas',true)");
+assert.equal((conPresupuesto.match(/\$2\.500/g)||[]).length,1,'en el detalle el costo se muestra una sola vez');
+assert.match(conPresupuesto,/Por contacto/);
