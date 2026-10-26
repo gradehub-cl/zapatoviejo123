@@ -477,21 +477,22 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
-    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/<b>1<\/b><small>de 1<\/small>/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
+    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="1 de 1 alumno mejoraron"/.test(gh)&&
+    /aria-label="Antes: 0% de evaluaciones aprobadas"/.test(gh)&&/aria-label="Ahora: 100% de evaluaciones aprobadas"/.test(gh));
   chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
   const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
   chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
-  chk('sin datos la aprobación no dibuja una barra cero ni inventa un porcentaje',
-    /<span>Antes<\/span><span class="ah-aprobacion-pista" aria-hidden="true"><\/span><b>—<\/b>/.test(unaFecha));
-  chk('las barras comparten escala porcentual y conservan su período',
-    /<span>Antes<\/span>.*?width:0%.*?>0%<\/b>/.test(gh)&&/<span>Ahora<\/span>.*?width:100%.*?>100%<\/b>/.test(gh));
-  chk('el anillo representa alumnos que mejoraron, no evaluaciones aprobadas',/stroke-dasharray="100 100"/.test(gh)&&/1 de 1 alumno<\/span>/.test(gh));
+  chk('sin datos la aprobación no dibuja un anillo cero ni inventa un porcentaje',
+    /ah-aprobacion-vacia" aria-hidden="true">—<\/span><span class="sr-solo">Antes: sin datos/.test(unaFecha)&&!/Antes: 0%/.test(unaFecha));
+  chk('los anillos de aprobación comparten escala y conservan su período: antes gris, ahora el acento',
+    /--anillo-color:var\(--fg3\);--anillo-fin:100\.00"[^>]*aria-label="Antes: 0%/.test(gh)&&/--anillo-color:var\(--ah-acento\);--anillo-fin:0\.00"[^>]*aria-label="Ahora: 100%/.test(gh));
+  chk('el anillo de mejoraron cuenta alumnos, no evaluaciones aprobadas',/--anillo-fin:0\.00"[^>]*aria-label="1 de 1 alumno mejoraron"/.test(gh));
   chk('el anillo distingue cero, proporción parcial y falta de comparación',a.run(`(()=>{
     const g=metricasGrupoPanel([__antesAhora,__poco],__cursoAA);
     const cero=antesAhoraGrupoHTML({...g,conCambio:4,mejoraron:0});
     const parcial=antesAhoraGrupoHTML({...g,conCambio:4,mejoraron:1});
     const sin=antesAhoraGrupoHTML({...g,conCambio:0,mejoraron:0,cambioMediana:null});
-    return cero.includes('stroke-dasharray="0 100"')&&parcial.includes('stroke-dasharray="25 100"')&&!sin.includes('ah-anillo-valor');
+    return /--anillo-fin:100\.00"[^>]*mejoraron/.test(cero)&&/--anillo-fin:75\.00"[^>]*mejoraron/.test(parcial)&&!/aria-label="[^"]*alumnos? mejoraron"/.test(sin);
   })()`));
 
   chk('las cifras se leen antes que el método y no se tiñen de aprobación',
@@ -905,7 +906,10 @@ function contexto({search='',sesion=false}={}){
     &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
   chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
     /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el curso\. Ahora: 0\.7 sobre el curso\./.test(grafG));
-  chk('sin el semáforo: subir respecto del curso no es aprobar',!/panel-resumen-(good|warn|bad)|--green|--red/.test(grafG));
+  chk('sin el semáforo de aprobación: el resumen no se tiñe de aprobado',!/panel-resumen-(good|warn|bad)|--green|--red/.test(grafG));
+  // Desde el 2026-10-26 el cambio de cada alumno dice hacia dónde se movió:
+  // verde si subió frente al curso y rojo si bajó (Lucas).
+  chk('el cambio de quien subió va marcado como subida',/ah-fila-cambio ah-sube"><small>Cambio<\/small>\+/.test(grafG));
   chk('la explicación queda en un desplegable',/<details class="ah-metodo"><summary>Cómo se calcula<\/summary>/.test(a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora],__cursoAA))')));
   const ramosG=a.run(`resumenAlumnosPanelHTML(resumenAlumnosPanel([__antesAhora],__cursoAA))`);
   chk('cada ramo dice cuánto van sobre o bajo GradeHub y lleva a sus alumnos',
