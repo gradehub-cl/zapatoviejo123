@@ -40,7 +40,7 @@ chk('el mapa ya no duplica la lista de ramos de Inicio',
 chk('y el estado por ramo sigue disponible en las prioridades',
   stats.includes('stats-priority-row')&&stats.includes('htmlMedidorNota(')&&stats.includes('exigenciaNotaNecesaria('));
 chk('la barra frente al curso marca la mitad del curso',
-  /stats-curso-mitad"><small>mitad del curso<\/small>/.test(render)&&/\.stats-curso-mitad\{[^}]*left:50%/.test(require('fs').readFileSync(require('path').join(__dirname,'..','styles.css'),'utf8')));
+  /<b class="stats-curso-mitad"><\/b>/.test(render)&&/\.stats-curso-mitad\{[^}]*left:50%/.test(require('fs').readFileSync(require('path').join(__dirname,'..','styles.css'),'utf8')));
 chk('las prioridades van sin texto explicativo (Lucas, 2026-10-26)',
   !stats.includes('que más nota te exigen en lo pendiente'));
 chk('se elimina el resumen genérico de cuatro tarjetas',
