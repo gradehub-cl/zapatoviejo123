@@ -4608,9 +4608,9 @@ function filtrarAlumnosPanel(alumnos,texto){
   }).filter(Boolean);
 }
 // ─── La pantalla de "antes y ahora" ──────────────────────────────────────────
-// Tres cifras del grupo (cifras destacadas, no gráficos) y, en cada alumno, su
-// cambio, un gráfico de una sola serie y la lista con las mismas cifras. Nada
-// lleva los colores del semáforo: subir respecto del curso no es "aprobar".
+// Cambio del grupo y aprobación antes/ahora; debajo, cada alumno.
+// Las explicaciones del método se consultan al final, después de los datos.
+// Sin colores del semáforo: subir respecto del curso no es "aprobar".
 const unDecimalPanel=v=>Math.abs(v).toFixed(1);
 const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
 const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
@@ -4637,15 +4637,15 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
     return `<li><button type="button" data-ver-alumno="${esc(m.id)}">
       <span class="ah-fila-nombre">${esc(m.nombre)}</span>
       <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
-      <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${esc(lado(a))}</b></span><span>Ahora <b>${esc(lado(b))}</b></span></span>
-      <span class="ah-fila-cambio"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>puntos</small></span>
+      <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${a===null?'—':esc(conSignoPanel(a))}</b></span><span>Ahora <b>${b===null?'—':esc(conSignoPanel(b))}</b></span></span>
+      <span class="ah-fila-cambio"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?'Sin comparación':'puntos'}</small></span>
       <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' Aún pocos datos para el cambio.':''}</span></button></li>`;
   }).join('');
   const fuera=g.alumnos.length-conDatos.length;
   return `<section class="ah-alumnos" aria-labelledby="ah-alumnos-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Cada alumno, antes y ahora</h2></div>
-    <p class="panel-alumnos-contexto">Diferencia en puntos de nota frente a ${ref}. Toca un alumno para ver sus evaluaciones.</p>
-    <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes de empezar contigo</span><span><i class="ah-dot ah-dot-ahora"></i>Desde que empezó</span></p>
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Por alumno</h2></div>
+    <p class="ah-referencia">Puntos frente a ${ref} · 0 = su promedio</p>
+    <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes</span><span><i class="ah-dot ah-dot-ahora"></i>Ahora</span></p>
     <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El curso'}</span><span>${lim} sobre</span></span><span></span></div>
     <ul class="ah-filas">${filas}</ul>
     ${fuera?`<p class="clase-sin-datos">${fuera} ${fuera===1?'alumno no tiene':'alumnos no tienen'} evaluaciones comparables con fecha todavía.</p>`:''}
@@ -4658,21 +4658,27 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   const respecto=seccion?'Respecto de su sección':'Respecto del curso';
   const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al curso';
   const conFecha=g.antes.n+g.ahora.n;
-  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
-  const pocos='Aún pocos datos';
-  const cifras=[
-    g.cambioMediana===null?cifra('—',tituloCambio,pocos)
-      :cifra(esc(conSignoPanel(g.cambioMediana)),tituloCambio,`puntos · mediana de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`),
-    g.conCambio?cifra(`${g.mejoraron} de ${g.conCambio}`,'Mejoraron',respecto.toLowerCase()):cifra('—','Mejoraron',pocos),
-    cifra(`${porcentajePanel(g.antes.aprobacion)} → ${porcentajePanel(g.ahora.aprobacion)}`,'Evaluaciones aprobadas','Antes → desde que empezaron')
-  ].join('');
+  // Proporción de alumnos comparables; no es una nota ni un porcentaje de aprobación.
+  const anillo=g.conCambio?`<span class="ah-anillo" aria-hidden="true"><svg viewBox="0 0 100 100"><circle class="ah-anillo-base" cx="50" cy="50" r="44"/><circle class="ah-anillo-valor" cx="50" cy="50" r="44" pathLength="100" stroke-dasharray="${g.mejoraron/g.conCambio*100} 100" transform="rotate(-90 50 50)"/></svg><span><b>${g.mejoraron}</b><small>de ${g.conCambio}</small></span></span><span class="sr-solo">${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}</span>`:'<strong>—</strong>';
   const prom=v=>v===null?'—':esc(fmt(v));
-  return `<section class="ah-grupo" aria-labelledby="ah-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="ah-titulo">Desde que empezaron contigo</h2></div>
-    <p class="panel-alumnos-contexto">${respecto}. El cambio describe sus resultados; no demuestra que se deba a las clases.</p>
-    <div class="ah-cifras">${cifras}</div>
-    <p class="ah-nota">Promedio de sus evaluaciones: ${prom(g.antes.promedio)} antes · ${prom(g.ahora.promedio)} desde que empezaron contigo.</p>
+  const aprobacion=(lado,nombre)=>`<div class="ah-aprobacion-fila"><span>${nombre}</span><span class="ah-aprobacion-pista" aria-hidden="true">${lado.aprobacion===null?'':`<i style="width:${Math.round(lado.aprobacion*100)}%"></i>`}</span><b>${porcentajePanel(lado.aprobacion)}</b></div>`;
+  return `<section class="ah-grupo ah-visual" aria-labelledby="ah-titulo">
+    <div class="ah-panorama">
+      <div class="ah-balance">
+        <h2 id="ah-titulo">${tituloCambio}</h2>
+        <div class="ah-balance-cifras">
+          <div><strong class="ah-dato-principal">${g.cambioMediana===null?'—':esc(conSignoPanel(g.cambioMediana))}<small>puntos</small></strong><span class="ah-dato-contexto">${g.cambioMediana===null?'Aún pocos datos':`Mediana · ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`}</span></div>
+          <div class="ah-mejoraron">${anillo}<span class="ah-dato-contexto">Mejoraron</span></div>
+        </div>
+      </div>
+      <div class="ah-resultados">
+        <h3>Evaluaciones aprobadas</h3>
+        <div class="ah-aprobacion">${aprobacion(g.antes,'Antes')}${aprobacion(g.ahora,'Ahora')}</div>
+        <div class="ah-promedios"><span>Promedio de evaluaciones</span><span>Antes <b>${prom(g.antes.promedio)}</b><span aria-hidden="true"> → </span><span class="sr-solo">. </span>Ahora <b>${prom(g.ahora.promedio)}</b></span></div>
+      </div>
+    </div>
     ${graficoAlumnosAntesAhoraHTML(g,{seccion})}
+    <p class="ah-alcance">Desde que empezaron contigo. El cambio no demuestra el efecto de las clases.</p>
     <details class="ah-metodo"><summary>Cómo se calcula</summary><p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p></details>
   </section>`;
 }
@@ -5267,10 +5273,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
   const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
-  const privacidad='<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.</p>';
+  const privacidad=`<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.${ejemplo?' Datos de ejemplo: no corresponden a personas reales. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».':''}</p>`;
   // La franja va siempre arriba y no se cierra: nadie puede confundir estos
   // alumnos con los suyos.
-  const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas inventados para que veas cómo funciona el panel. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».</p>`:'';
+  const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas ficticios.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
     franjaEjemplo+
     // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla

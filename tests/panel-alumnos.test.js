@@ -477,10 +477,30 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
-    /ah-cifra-valor">\+1\.7</.test(gh)&&/ah-cifra-valor">1 de 1</.test(gh)&&/0% → 100%/.test(gh));
+    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/<b>1<\/b><small>de 1<\/small>/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
   chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
   const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
   chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
+  chk('sin datos la aprobación no dibuja una barra cero ni inventa un porcentaje',
+    /<span>Antes<\/span><span class="ah-aprobacion-pista" aria-hidden="true"><\/span><b>—<\/b>/.test(unaFecha));
+  chk('las barras comparten escala porcentual y conservan su período',
+    /<span>Antes<\/span>.*?width:0%.*?>0%<\/b>/.test(gh)&&/<span>Ahora<\/span>.*?width:100%.*?>100%<\/b>/.test(gh));
+  chk('el anillo representa alumnos que mejoraron, no evaluaciones aprobadas',/stroke-dasharray="100 100"/.test(gh)&&/1 de 1 alumno<\/span>/.test(gh));
+  chk('el anillo distingue cero, proporción parcial y falta de comparación',a.run(`(()=>{
+    const g=metricasGrupoPanel([__antesAhora,__poco],__cursoAA);
+    const cero=antesAhoraGrupoHTML({...g,conCambio:4,mejoraron:0});
+    const parcial=antesAhoraGrupoHTML({...g,conCambio:4,mejoraron:1});
+    const sin=antesAhoraGrupoHTML({...g,conCambio:0,mejoraron:0,cambioMediana:null});
+    return cero.includes('stroke-dasharray="0 100"')&&parcial.includes('stroke-dasharray="25 100"')&&!sin.includes('ah-anillo-valor');
+  })()`));
+
+  chk('las cifras se leen antes que el método y no se tiñen de aprobación',
+    gh.indexOf('ah-dato-principal')<gh.indexOf('ah-metodo')&&!/panel-resumen-(good|warn|bad)|--green|--red/.test(gh));
+  chk('la presentación no modifica las métricas ni sus evaluaciones',a.run(`(()=>{
+    const g=metricasGrupoPanel([__antesAhora,__poco],__cursoAA),antes=JSON.stringify(g);
+    antesAhoraGrupoHTML(g);return JSON.stringify(g)===antes;
+  })()`));
+
   chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
   const ah=ah0();
   chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
@@ -903,8 +923,8 @@ function contexto({search='',sesion=false}={}){
   chk('sin sección sigue no disponible: no se muestra un antes y ahora de otro grupo',
     /no disponible, no declaró su sección/.test(sinSeccionTexto)&&!/class="ah-alumno-lados"|<svg/.test(sinSeccionTexto));
   chk('en celular la alternativa textual conserva los dos valores y el cambio con unidad',
-    /ah-fila-valores/.test(grafG)&&/Antes <b>1\.0 bajo el curso/.test(grafG)&&
-    /Ahora <b>0\.7 sobre el curso/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
+    /ah-fila-valores/.test(grafG)&&/Antes <b>−1\.0/.test(grafG)&&
+    /Ahora <b>\+0\.7/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
   chk('resumen explica que las cuentas por riesgo pueden superponerse y precisa el período',
     /Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/En los próximos 7 días/.test(htmlR));
 
