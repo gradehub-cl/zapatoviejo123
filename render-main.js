@@ -975,7 +975,7 @@ async function pintarPosicionesCurso(){
     return `<div class="stats-curso-row">
       <span class="stats-curso-color" style="background:${esc(r.color)}"></span>
       <span class="stats-curso-main"><strong>${esc(r.nombre)}</strong><small class="stats-curso-frase">${frasePosicionCurso(p.mejorQue,p.total)}</small>
-        <span class="stats-curso-pista" aria-hidden="true"><i style="left:${Math.max(0,Math.min(100,Number(p.mejorQue)||0))}%"></i></span></span>
+        <span class="stats-curso-pista" aria-hidden="true"><b class="stats-curso-mitad"><small>mitad del curso</small></b><i style="left:${Math.max(0,Math.min(100,Number(p.mejorQue)||0))}%"></i></span></span>
     </div>`;
   }).join('');
 }
@@ -1089,21 +1089,15 @@ function renderStats(){
     }
     {
       const proy=proyeccionSemestre(S.ramos);
-      // Se muestran solo 3, ordenados por lo que exigen. Es a propósito —una
-      // lista de ocho ramos deja de ser una prioridad— pero hay que DECIRLO:
-      // un estudiante que no encuentra su ramo acá concluye que la app se lo
-      // olvidó, no que está cuarto en la fila.
+      // Se muestran solo 3, ordenados por lo que exigen: una lista de ocho ramos
+      // deja de ser una prioridad. El texto que lo explicaba se sacó el
+      // 2026-10-26 (Lucas): el medidor de cada ramo ya dice cuánto exige.
       if(falta.length){
         piezas.prioridades=`
         <div class="section-hd" style="padding:0 20px 8px;">
           <span class="section-hd-title">Tus prioridades hoy</span>
         </div>
         <div style="padding:0 20px;">
-          <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.45;margin:0 0 10px;">${
-            falta.length>3
-              ? `Los 3 de tus ${falta.length} ramos que más nota te exigen en lo pendiente. Los demás te piden menos. Tócalos para revisar su pauta.`
-              : 'Lo que te exige cada ramo en lo pendiente. Tócalos para revisar su pauta.'
-          }</p>
           ${falta.slice(0,3).map(filaNecesidad).join('')}
         </div>`;
       }
