@@ -104,7 +104,9 @@ modelado.
 - **El semáforo es semántico** (aprobado / al borde / reprobado) y no se tiñe por
   tema. El 100% de avance es cierre, nunca celebración verde.
 - **Dirección visual Editorial con tipografía del sistema (`--font-ui`)**; no se
-  descargan fuentes; números con `tabular-nums`.
+  descargan fuentes; números con `tabular-nums`. **Estadísticas** (estudiante,
+  profesor, admin) pone cada número en su escala con las piezas de `htmlAnillo`
+  y compañía, con brillo suave (Lucas, 2026-10-26); detalle en `docs/guia/reglas-y-entrega.md`.
 - **Las HIG de Apple son obligatorias** en todo cambio de diseño o interacción:
   léelas para ese caso antes de escribir y di en la PR cuál seguiste. 44×44 pt,
   contraste 4,5:1 también en oscuro, áreas seguras, `prefers-reduced-motion`, una

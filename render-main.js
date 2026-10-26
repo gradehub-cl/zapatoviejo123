@@ -974,7 +974,8 @@ async function pintarPosicionesCurso(){
     const p=pos[r.id];
     return `<div class="stats-curso-row">
       <span class="stats-curso-color" style="background:${esc(r.color)}"></span>
-      <span class="stats-curso-main"><strong>${esc(r.nombre)}</strong><small class="stats-curso-frase">${frasePosicionCurso(p.mejorQue,p.total)}</small></span>
+      <span class="stats-curso-main"><strong>${esc(r.nombre)}</strong><small class="stats-curso-frase">${frasePosicionCurso(p.mejorQue,p.total)}</small>
+        <span class="stats-curso-pista" aria-hidden="true"><i style="left:${Math.max(0,Math.min(100,Number(p.mejorQue)||0))}%"></i></span></span>
     </div>`;
   }).join('');
 }
@@ -1023,10 +1024,10 @@ function renderStats(){
         ? 'Tu semestre archivado todavía no tiene notas para compararlo.'
         : 'Todavía no tienes un semestre archivado con el que compararte.'
       : Math.abs(diff)<0.05?`Vas igual que en ${esc(previo.label||'el semestre anterior')}.`:`Vas ${nf(Math.abs(diff),2)} puntos ${tendencia} ${esc(previo.label||'el semestre anterior')}.`;
-    const avanceTail=Math.min(14,100-avance.pct);
     const falta=loQueFaltaPorRamo(S.ramos);
     const filaNecesidad=x=>{
       const imposible=x.necesita>7.05;
+      const ex=exigenciaNotaNecesaria(x.necesita);
       const valor=imposible?'—':nfNecesaria(Math.max(1,x.necesita));
       const color=imposible?'var(--red)':'var(--fg)';
       const sub=imposible
@@ -1040,21 +1041,52 @@ function renderStats(){
           <div class="ag-row-name">${esc(x.ramo.nombre)}</div>
           <div class="ag-row-sub">${sub}</div>
         </div>
-        <div class="stats-priority-value"><span style="color:${color};">${valor}</span><small>${imposible?'sin salida':'necesitas'}</small></div>
+        <div class="stats-priority-medidor">${htmlMedidorNota(imposible?7:x.necesita)}<span class="stats-priority-num" style="color:${color};"><span class="sr-solo">Necesitas </span>${valor}</span><small style="color:${ex.color}">${ex.palabra}</small></div>
       </button>`;
     };
+    // El promedio del semestre va en el acento y sin palabra: un semestre no se
+    // aprueba ni se reprueba (Lucas, 2026-10-26). La raya blanca es el 4,0. El
+    // avance va neutro: llegar al 100% es cierre, no aprobación.
+    const anilloPromedio=g===null?'':htmlAnillo({fraccion:(g-1)/6,color:'var(--primary)',marca:0.5,
+      etiqueta:`Promedio del semestre: ${fmtPromedio(g)}, en una escala de 1 a 7`,
+      centro:`<span class="anillo-valor">${fmtPromedio(g)}</span><span class="anillo-texto">Promedio</span>`});
+    const anilloAvance=htmlAnillo({fraccion:avance.pct/100,neutro:true,color:'var(--fg2)',
+      etiqueta:`${avance.pct}% de las evaluaciones evaluado`,
+      centro:`<span class="anillo-valor">${avance.pct}%</span><span class="anillo-texto">Evaluado</span>`});
     piezas.ritmo=`
     <div class="section-hd" style="padding:6px 20px 8px;">
       <span class="section-hd-title">Avance del semestre</span>
     </div>
-    <div class="stat-card stats-progress-card${avance.pct===100?' is-complete':''} stats-situation-card" role="progressbar" aria-label="${avance.pct}% de las evaluaciones evaluado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${avance.pct}" style="--stats-progress:${avance.pct}%;--stats-progress-end:${Math.min(100,avance.pct+avanceTail)}%;margin:0 20px 16px;">
-      <div class="stats-situation-top">
-        <div><div class="stat-val stats-situation-value">${avance.pct}%</div><div class="stat-sub">del peso evaluable ya tiene nota</div></div>
-        <div class="stats-situation-progress"><span>${totalNotas}</span><small>nota${totalNotas!==1?'s':''} ingresada${totalNotas!==1?'s':''}</small></div>
-      </div>
+    <div class="stat-card stats-situation-card stats-anillos${avance.pct===100?' is-complete':''}" style="margin:0 20px 16px;">
+      <div class="stats-anillos-fila">${anilloPromedio}${anilloAvance}</div>
+      <div class="stats-anillos-pie"><span><b>${totalNotas}</b> nota${totalNotas!==1?'s':''} ingresada${totalNotas!==1?'s':''}</span><span>del peso evaluable</span></div>
       <div class="stats-situation-reading">${lectura}</div>
     </div>
     `;
+    // Qué mueve el promedio: cada ramo suma o resta según cuánto se aleja del
+    // promedio y cuánto pesa. Verde lo que suma y rojo lo que resta (Lucas,
+    // 2026-10-26): acá el color dice hacia dónde empuja, no si se aprueba.
+    const aportes=aporteAlPromedio(S.ramos);
+    if(aportes.length>1&&g!==null){
+      const max=Math.max(0.05,...aportes.map(a=>Math.abs(a.aporte)));
+      piezas.mueven=`
+      <div class="section-hd" style="padding:0 20px 8px;">
+        <span class="section-hd-title">Qué mueve tu promedio</span>
+      </div>
+      <div class="stat-card stats-mueven" style="margin:0 20px 16px;">
+        ${aportes.map(a=>{
+          const igual=Math.abs(a.aporte)<0.005;
+          const texto=igual?'0.00':(a.aporte>0?'+':'−')+nf(Math.abs(a.aporte),2);
+          const color=igual?'var(--fg3)':a.aporte>0?'var(--green)':'var(--red)';
+          return `<button type="button" class="stats-mueven-fila" onclick="openRamo('${esc(a.ramo.id)}')">
+            <span class="stats-mueven-cabeza"><span class="stats-mueven-nombre">${esc(a.ramo.nombre)}</span><b class="stats-mueven-delta" style="color:${color}">${texto}</b></span>
+            ${htmlBarraCentrada(a.aporte,max,color)}
+            <span class="sr-solo">${igual?'No mueve tu promedio':`${a.aporte>0?'Sube':'Baja'} tu promedio en ${nf(Math.abs(a.aporte),2)}`}</span>
+          </button>`;
+        }).join('')}
+        <div class="stat-sub" style="margin-top:8px;">Cuánto sube o baja cada ramo tu ${fmtPromedio(g)}${gpaMode(S.ramos)==='creditos'?', según sus créditos':''}.</div>
+      </div>`;
+    }
     {
       const proy=proyeccionSemestre(S.ramos);
       // Se muestran solo 3, ordenados por lo que exigen. Es a propósito —una
@@ -1093,10 +1125,11 @@ function renderStats(){
         <div class="stat-card stats-range-card" style="margin:0 20px 16px;">
           <div class="stat-label">Tu promedio final puede quedar entre</div>
           <div class="stat-val" style="margin-top:4px;">
-            <span style="color:${getColor(proy.piso)}">${nf(proy.piso)}</span>
+            <span>${nf(proy.piso)}</span>
             <span style="color:var(--fg3);font-weight:600;"> y </span>
-            <span style="color:${getColor(proy.techo)}">${nf(proy.techo)}</span>
+            <span>${nf(proy.techo)}</span>
           </div>
+          ${htmlEscalaNotas({piso:proy.piso,techo:proy.techo,actual:g})}
           <div class="stat-sub" style="margin-top:6px;">El rango considera sacar entre 1,0 y 7,0 en todo lo pendiente, incluidas las reglas que pueden topar una nota.</div>
         </div>`;
       }
@@ -1115,6 +1148,15 @@ function renderStats(){
     </div>`;
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
+    }
+    // Una columna por semestre, el actual en el acento. La altura es la nota en
+    // la escala de 1 a 7. Con uno solo no hay nada que comparar.
+    {
+      const serie=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h)})).filter(x=>x.v!==null);
+      if(g!==null)serie.push({label:'Ahora',v:g,actual:true});
+      if(serie.length>=2)hist+=`<div class="stats-hist-cols" role="img" aria-label="${esc('Promedio por semestre: '+serie.map(x=>`${x.label} ${fmtPromedio(x.v)}`).join(', '))}">${
+        serie.map(x=>`<span class="${x.actual?'es-actual':''}" aria-hidden="true"><b>${fmtPromedio(x.v)}</b><i style="height:${(Math.max(0,(x.v-1)/6)*100).toFixed(1)}%"></i><small>${esc(x.label)}</small></span>`).join('')
+      }</div>`;
     }
     if(validos.length>0){
       validos.forEach(h=>{

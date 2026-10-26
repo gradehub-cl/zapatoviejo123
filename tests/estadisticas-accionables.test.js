@@ -14,11 +14,16 @@ const stats=render.slice(inicio,fin);
 console.log('\n=== Estadísticas guía decisiones, no cuenta tarjetas ===');
 chk('el estado temprano reconoce el semestre sin notas y lo que ya está configurado',
   stats.includes('Parte con tu primera nota')&&stats.includes('evaluaciones configuradas'));
-chk('la situación parte por el avance y deja el promedio general en Inicio',
-  /stats-situation-card[^>]*aria-label="\$\{avance\.pct\}% de las evaluaciones evaluado"/.test(stats)&&
-  /section-hd-title">Avance del semestre<\/span>[\s\S]{0,500}stats-situation-top[\s\S]{0,300}\$\{avance\.pct\}%/.test(stats)&&
-  !/class="stat-label">Avance del semestre<\/div>/.test(stats)&&
-  !/stats-situation-top[\s\S]{0,700}Promedio actual/.test(stats));
+// Desde el 2026-10-26 la situación va en dos anillos (Lucas, a partir de
+// Whoop): el promedio del semestre en el acento y SIN palabra —un semestre no
+// se aprueba ni se reprueba— y el avance neutro, que VoiceOver lee como antes.
+chk('la situación muestra el avance en un anillo neutro con su lectura para VoiceOver',
+  /neutro:true[\s\S]{0,120}etiqueta:`\$\{avance\.pct\}% de las evaluaciones evaluado`/.test(stats)&&
+  /section-hd-title">Avance del semestre<\/span>[\s\S]{0,300}stats-situation-card/.test(stats)&&
+  !/class="stat-label">Avance del semestre<\/div>/.test(stats));
+chk('el promedio del semestre no dice si aprueba: va en el acento y sin palabra',
+  /anilloPromedio=[\s\S]{0,120}color:'var\(--primary\)'/.test(stats)&&
+  !/anilloPromedio[\s\S]{0,400}(Aprobando|Reprobando|Al borde)/.test(stats));
 chk('la prioridad usa la misma cuenta de nota necesaria',
   stats.includes('const falta=loQueFaltaPorRamo(S.ramos);')&&stats.includes('Tus prioridades hoy')&&
   /falta\.slice\(0,3\)/.test(stats));
