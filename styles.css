@@ -1468,7 +1468,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .anillo{position:relative;display:grid;place-items:center;width:min(150px,100%);aspect-ratio:1;flex:none;}
 .anillo-chico{width:112px;}
 .anillo svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
-.anillo-pista{fill:none;stroke:var(--muted);stroke-width:13;}
+.anillo-pista{fill:none;stroke:color-mix(in srgb,var(--fg),transparent 88%);stroke-width:13;}
 .anillo-arco{fill:none;stroke:var(--anillo-color);stroke-width:13;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:var(--anillo-fin);
   filter:drop-shadow(0 0 4px color-mix(in srgb,var(--anillo-color),transparent 55%));animation:anillo-llena 1s var(--ease-out) both;}
 .anillo-neutro .anillo-arco{filter:none;}
@@ -3751,16 +3751,19 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .ah-panorama :is(h2,h3){margin:0 0 12px;font-size:.9375rem;line-height:1.4;font-weight:600;}
 .alumnos-editorial .ah-balance-cifras{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;}
 .alumnos-editorial .ah-dato-principal{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:3.5rem;font-weight:650;letter-spacing:-.04em;line-height:1.1;}
+.alumnos-editorial .ah-dato-principal{color:var(--ah-acento);}
+.alumnos-editorial .ah-mejoraron{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.ah-dot-ahora{background:var(--ah-acento,var(--fg));box-shadow:0 0 4px color-mix(in srgb,var(--ah-acento,var(--fg)),transparent 45%);}
+.ah-dot-antes{border-color:var(--ah-acento,var(--fg));}
+.ah-tramo{background:var(--ah-acento,var(--fg));}
+/* Verde lo que subió y rojo lo que bajó (Lucas, 2026-10-26): dice hacia dónde
+   se movió frente al curso, no si aprobó. */
+.ah-fila-cambio.ah-sube{color:var(--green);}
+.ah-fila-cambio.ah-baja{color:var(--red);}
+@media (prefers-reduced-motion:reduce){.ah-dot-ahora{box-shadow:none;}}
 .alumnos-editorial .ah-dato-principal small{font-size:.875rem;font-weight:400;letter-spacing:0;color:var(--fg2);}
 .alumnos-editorial .ah-dato-contexto{display:block;font-size:.8125rem;line-height:1.5;color:var(--fg2);margin-top:6px;}
 .alumnos-editorial .ah-mejoraron{text-align:center;}
-.alumnos-editorial .ah-anillo{display:grid;place-items:center;width:6rem;height:6rem;position:relative;}
-.alumnos-editorial .ah-anillo svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke-width:7;}
-.alumnos-editorial .ah-anillo-base{stroke:var(--border);}
-.alumnos-editorial .ah-anillo-valor{stroke:var(--ah-acento);}
-.alumnos-editorial .ah-anillo>span{display:flex;flex-direction:column;line-height:1.1;}
-.alumnos-editorial .ah-anillo b{font-size:1.75rem;font-weight:650;}
-.alumnos-editorial .ah-mejoraron .ah-anillo small{font-size:.75rem;margin-top:2px;}
 .alumnos-editorial .ah-mejoraron strong{font-size:2rem;line-height:1.5;font-weight:600;}
 .alumnos-editorial .ah-mejoraron small{font-size:1rem;font-weight:400;color:var(--fg2);white-space:nowrap;}
 .alumnos-editorial .ah-aprobacion{display:grid;gap:10px;}
@@ -3769,6 +3772,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .ah-aprobacion-pista{height:10px;background:var(--muted);border-radius:2px;overflow:hidden;}
 .alumnos-editorial .ah-aprobacion-pista i{display:block;height:100%;background:var(--ah-acento);}
 .alumnos-editorial .ah-aprobacion-fila:first-child i{background:var(--fg2);}
+.alumnos-editorial .ah-aprobacion-pista{overflow:visible;}
+.alumnos-editorial .ah-aprobacion-pista i{border-radius:2px;}
+.alumnos-editorial .ah-aprobacion-fila:last-child i{box-shadow:0 0 5px color-mix(in srgb,var(--ah-acento),transparent 50%);}
+@media (prefers-reduced-motion:reduce){.alumnos-editorial .ah-aprobacion-fila:last-child i{box-shadow:none;}}
 .alumnos-editorial .ah-promedios{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin-top:16px;font-size:.8125rem;line-height:1.5;color:var(--fg2);}
 .alumnos-editorial .ah-promedios b{color:var(--fg);font-weight:600;}
 .alumnos-editorial .ah-panorama{font-variant-numeric:tabular-nums;}
@@ -3788,7 +3795,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
   .alumnos-editorial .ah-panorama{grid-template-columns:minmax(0,1fr);gap:20px;padding-bottom:20px;}
   .alumnos-editorial .ah-dato-principal{font-size:3rem;}
   .alumnos-editorial .ah-balance{padding:16px;}
-  .alumnos-editorial .ah-anillo{width:5rem;height:5rem;}
   .alumnos-editorial .ah-visual .ah-filas button{grid-template-areas:"nombre cambio" "valores cambio";}
 }
 

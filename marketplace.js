@@ -4638,7 +4638,7 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
       <span class="ah-fila-nombre">${esc(m.nombre)}</span>
       <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
       <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${a===null?'—':esc(conSignoPanel(a))}</b></span><span>Ahora <b>${b===null?'—':esc(conSignoPanel(b))}</b></span></span>
-      <span class="ah-fila-cambio"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?'Sin comparación':'puntos'}</small></span>
+      <span class="ah-fila-cambio${m.cambio===null||Math.abs(m.cambio)<0.05?'':m.cambio>0?' ah-sube':' ah-baja'}"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?'Sin comparación':'puntos'}</small></span>
       <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' Aún pocos datos para el cambio.':''}</span></button></li>`;
   }).join('');
   const fuera=g.alumnos.length-conDatos.length;
@@ -4659,8 +4659,14 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al curso';
   const conFecha=g.antes.n+g.ahora.n;
   // Proporción de alumnos comparables; no es una nota ni un porcentaje de aprobación.
-  const anillo=g.conCambio?`<span class="ah-anillo" aria-hidden="true"><svg viewBox="0 0 100 100"><circle class="ah-anillo-base" cx="50" cy="50" r="44"/><circle class="ah-anillo-valor" cx="50" cy="50" r="44" pathLength="100" stroke-dasharray="${g.mejoraron/g.conCambio*100} 100" transform="rotate(-90 50 50)"/></svg><span><b>${g.mejoraron}</b><small>de ${g.conCambio}</small></span></span><span class="sr-solo">${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}</span>`:'<strong>—</strong>';
+  // Las mismas piezas que Estadísticas del estudiante (htmlAnillo, 2026-10-26),
+  // en el acento y nunca en el semáforo: mejorar frente al curso no es aprobar.
+  const anillo=g.conCambio?htmlAnillo({fraccion:g.mejoraron/g.conCambio,color:'var(--ah-acento)',chico:true,
+    etiqueta:`${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'} mejoraron`,
+    centro:`<span class="anillo-valor">${g.mejoraron}</span><span class="anillo-texto">de ${g.conCambio}</span>`}):'<strong>—</strong>';
   const prom=v=>v===null?'—':esc(fmt(v));
+  // Antes y ahora es una comparación: dos barras paralelas en la misma escala
+  // se comparan de un vistazo, dos anillos no (Lucas, 2026-10-26).
   const aprobacion=(lado,nombre)=>`<div class="ah-aprobacion-fila"><span>${nombre}</span><span class="ah-aprobacion-pista" aria-hidden="true">${lado.aprobacion===null?'':`<i style="width:${Math.round(lado.aprobacion*100)}%"></i>`}</span><b>${porcentajePanel(lado.aprobacion)}</b></div>`;
   return `<section class="ah-grupo ah-visual" aria-labelledby="ah-titulo">
     <div class="ah-panorama">
