@@ -3024,7 +3024,6 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
 // sin tocar el catálogo, que es la puerta abierta a todos.
 const RECOMENDACIONES_CLASES_ACTIVAS=true;
 const CLAVE_MARKETPLACE='gradehub_marketplace_v1';
-const MAX_DESCARTADOS_CLASES=200;
 
 function leerEstadoMarketplace(){
   try{
@@ -3057,31 +3056,35 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
   // Misma apertura: la misma clase, si sigue calzando. Si subiste una nota y
   // dejó de calzar, desaparece en vez de quedarse pegada.
   if(e.visita===visita&&e.anuncioId){
-    const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{descartados:definitivasClases(e),ahora});
+    const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{descartados:ocultasHoyClases(e,ahora),ahora});
     return {sel,estado:e};
   }
   // Apertura nueva: la siguiente en la rotación. `aperturas` cuenta las que ya
   // mostraron algo, así que la primera vez sale la primera.
   const aperturas=Number.isSafeInteger(e.aperturas)&&e.aperturas>=0?e.aperturas:0;
-  const sel=seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados:definitivasClases(e),ahora,turno:aperturas});
+  const sel=seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados:ocultasHoyClases(e,ahora),ahora,turno:aperturas});
   // Si no calza ninguna, no se anota nada: una clase publicada más tarde tiene
   // que poder aparecer.
   if(!sel)return {sel:null,estado:e};
   return {sel,estado:{...e,franja,visita,anuncioId:sel.anuncio.id,cerrada:false,aperturas:aperturas+1}};
 }
 
-// Las clases cerradas dos veces. La lista `descartados` de la versión anterior
-// se ignora: ahí bastaba cerrarla una vez, y con la regla nueva eso no alcanza.
-function definitivasClases(e){return Array.isArray(e&&e.descartadasDefinitivas)?e.descartadasDefinitivas:[];}
-// Devuelve true si con este cierre la clase queda descartada para siempre.
+// Cerrar dos veces la misma clase en un día la esconde hasta el día siguiente
+// (Lucas, 2026-10-25). Antes la segunda vez la descartaba para siempre; esas
+// listas viejas (`descartadasDefinitivas`, `descartados`) ya no se leen.
+function ocultasHoyClases(e,ahora=Date.now()){
+  const h=e&&e.hoyClases;
+  if(!h||h.dia!==diaLocalClases(ahora)||!h.cierres||typeof h.cierres!=='object')return [];
+  return Object.keys(h.cierres).filter(id=>Number(h.cierres[id])>=2);
+}
+// Devuelve true si con este cierre la clase queda escondida hasta mañana.
 function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
-  const estado=leerEstadoMarketplace();
-  const cierres={...(estado.cierres&&typeof estado.cierres==='object'?estado.cierres:{})};
-  cierres[anuncioId]=(Number(cierres[anuncioId])||0)+1;
-  const definitiva=cierres[anuncioId]>=2;
-  const descartadasDefinitivas=definitiva?[...new Set([...definitivasClases(estado),anuncioId])].slice(-MAX_DESCARTADOS_CLASES):definitivasClases(estado);
-  guardarEstadoMarketplace({...estado,cierres,descartadasDefinitivas,franja:franjaClases(ahora),anuncioId:null,cerrada:true});
-  return definitiva;
+  const {descartadasDefinitivas,cierres,...estado}=leerEstadoMarketplace();
+  const hoy=diaLocalClases(ahora),previo=estado.hoyClases;
+  const delDia=previo&&previo.dia===hoy&&previo.cierres&&typeof previo.cierres==='object'?{...previo.cierres}:{};
+  delDia[anuncioId]=(Number(delDia[anuncioId])||0)+1;
+  guardarEstadoMarketplace({...estado,hoyClases:{dia:hoy,cierres:delDia},franja:franjaClases(ahora),anuncioId:null,cerrada:true});
+  return delDia[anuncioId]>=2;
 }
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
@@ -3200,10 +3203,10 @@ function pintarRecomendacionClase(contenedor){
     abrirClaseRecomendada(anuncio,ramo,sigla);
   });
   banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',()=>{
-    const definitiva=descartarRecomendacionClase(anuncio.id);
+    const hastaManana=descartarRecomendacionClase(anuncio.id);
     fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
     banner.remove();
-    if(definitiva&&typeof showToast==='function')showToast('Listo, no te la volvemos a mostrar');
+    if(hastaManana&&typeof showToast==='function')showToast('Listo, no te la mostramos más por hoy');
   });
   // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
   // espera a Storage para aparecer, y sin logo simplemente no se muestra.

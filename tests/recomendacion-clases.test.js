@@ -98,13 +98,24 @@ chk('ni al volver a abrir en esa misma franja',dia(complicado,tras,lunes+3600e3,
 chk('en la tarde vuelve a aparecer',dia(complicado,tras,lunesTarde,'v2').sel!==null);
 chk('pero no la descarta para siempre',dia(complicado,tras,martes,'v2').sel?.anuncio.id==='a1');
 chk('y al día siguiente también',dia(complicado,tras,martes,'v3').sel?.anuncio.id==='a1');
-chk('la primera vez no dice "no te la volvemos a mostrar"',run(`descartarRecomendacionClase('a2',${lunes},'v1')`)===false);
-chk('la segunda vez sí, y la descarta para siempre',run(`descartarRecomendacionClase('a1',${lunesTarde},'v2')`)===true);
+chk('la primera vez no avisa nada',run(`descartarRecomendacionClase('a2',${lunes},'v1')`)===false);
+// La segunda vez en el mismo día la esconde hasta mañana (Lucas, 2026-10-25);
+// antes la descartaba para siempre.
+chk('la segunda vez el mismo día, sí: hasta mañana',run(`descartarRecomendacionClase('a1',${lunesTarde},'v2')`)===true);
 const dos=JSON.parse(guardado.gradehub_marketplace_v1);
-chk('esa clase ya no vuelve, ni otro día',(r=>r.sel&&r.sel.anuncio.id==='a2')(dia(complicado,dos,martes,'v4')));
 ctx.__avisos=[aviso('a1')];
-chk('si era la única que calzaba, no hay nada',dia(complicado,dos,martes,'v5').sel===null);
+chk('ese día no vuelve, ni en otra franja ni en otra apertura',dia(complicado,dos,lunesTarde+3600e3,'v9').sel===null);
+chk('al día siguiente vuelve',dia(complicado,dos,martes,'v5').sel?.anuncio.id==='a1');
 ctx.__avisos=[aviso('a1'),aviso('a2')];
+chk('ese mismo día, otra clase del ramo sí puede salir en la tarde',dia(complicado,{...dos,cerrada:false},lunesTarde+3600e3,'v9').sel?.anuncio.id==='a2');
+chk('cerrarla una vez cada día no la esconde hasta mañana',(()=>{
+  run(`guardarEstadoMarketplace({})`);run(`descartarRecomendacionClase('a1',${lunes},'v1')`);
+  return run(`descartarRecomendacionClase('a1',${martes},'v2')`)===false;})());
+chk('una clase descartada para siempre con la regla anterior vuelve a salir',
+  dia(complicado,{descartadasDefinitivas:['a1'],cierres:{a1:2}},martes,'v7').sel?.anuncio.id==='a1');
+chk('y cerrar limpia esas listas viejas',(()=>{
+  run(`guardarEstadoMarketplace({descartadasDefinitivas:['a1'],cierres:{a1:2}})`);run(`descartarRecomendacionClase('a2',${martes},'v1')`);
+  const e=JSON.parse(guardado.gradehub_marketplace_v1);return !('descartadasDefinitivas' in e)&&!('cierres' in e);})());
 
 console.log('\n=== Dónde vive ===');
 chk('se guarda en su propia clave, no en gradehub_v1',!('gradehub_v1' in guardado)&&'gradehub_marketplace_v1' in guardado);
