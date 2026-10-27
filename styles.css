@@ -3995,7 +3995,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 :is(.profesor-hig,.admin-hig) .campana-tiempo figcaption,
 :is(.profesor-hig,.admin-hig) .clase-serie figcaption{font-size:.875rem;letter-spacing:0;text-transform:none;color:var(--fg);}
 :is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila{grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;margin-top:16px;font-size:.875rem;line-height:1.4;}
-:is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila>span{overflow-wrap:anywhere;}
+:is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila>span{overflow-wrap:break-word;}
 :is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila>b{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:4px 8px;}
 :is(.profesor-hig,.admin-hig) .detalle-barras b small{font-size:.75rem;color:var(--fg2);font-weight:400;}
 :is(.profesor-hig,.admin-hig) .detalle-barras .clase-barra{grid-column:1/-1;height:6px;}
@@ -4037,18 +4037,16 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .alumnos-editorial .panel-curso-leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;}
 .alumnos-editorial .panel-curso-leyenda .panel-resumen-sem{background:transparent;padding:0;color:var(--fg2);}
 .alumnos-editorial .panel-curso-comparacion{margin:24px 0;font-variant-numeric:tabular-nums;}
-.alumnos-editorial .panel-curso-media{display:grid;grid-template-columns:6.5rem minmax(0,1fr) 2.5rem;gap:12px;align-items:center;font-size:.875rem;color:var(--fg2);margin:12px 0;}
-.alumnos-editorial .panel-curso-media b{text-align:right;color:var(--fg);}
-.alumnos-editorial .panel-curso-escala{display:block;position:relative;height:4px;background:var(--border2);border-radius:4px;}
+/* Una regla con marcas en cada nota y dos puntos: se lee como escala, no como control. */
+.alumnos-editorial .panel-curso-escala{display:block;position:relative;height:2px;margin:18px 6px 10px;background:var(--border2);}
+.alumnos-editorial .panel-curso-escala b{position:absolute;top:50%;width:1px;height:8px;background:var(--border2);transform:translate(-50%,-50%);}
 .alumnos-editorial .panel-curso-escala i{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translate(-50%,-50%);background:var(--primary);box-shadow:0 0 10px color-mix(in srgb,var(--primary),transparent 75%);}
-.alumnos-editorial .panel-curso-escala .panel-curso-referencia{background:var(--card);border:2px solid var(--fg2);box-shadow:none;}
-.alumnos-editorial .panel-curso-extremos{display:flex;justify-content:space-between;margin-left:calc(6.5rem + 12px);margin-right:calc(2.5rem + 12px);font-size:.75rem;color:var(--fg2);}
-@container(max-width:32rem){
-  :is(.profesor-hig,.admin-hig) .viz-fila{grid-template-columns:minmax(0,1fr);gap:4px;}
-  .alumnos-editorial .panel-curso-media{grid-template-columns:minmax(0,1fr) auto;gap:12px;}
-  .alumnos-editorial .panel-curso-escala{grid-column:1/-1;grid-row:2;margin-inline:6px;}
-  .alumnos-editorial .panel-curso-extremos{margin:0 6px;}
-}
+.alumnos-editorial .panel-curso-extremos{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 6px;font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.alumnos-editorial .panel-curso-claves{display:flex;gap:14px;}
+.alumnos-editorial .panel-curso-claves>span{display:inline-flex;align-items:center;gap:6px;}
+.alumnos-editorial .panel-curso-claves i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--primary);}
+.alumnos-editorial .panel-curso-escala i.panel-curso-referencia,.alumnos-editorial .panel-curso-claves i.panel-curso-referencia{background:var(--card);border:2px solid var(--fg2);box-shadow:none;}
+@media(max-width:600px){:is(.profesor-hig,.admin-hig) .viz-fila{grid-template-columns:minmax(0,1fr);gap:4px;}}
 @media(prefers-reduced-motion:reduce){.alumnos-editorial .panel-curso-escala i{box-shadow:none;}}
 
 .alumnos-editorial .panel-riesgo-riel{display:block;height:6px;border-radius:6px;overflow:hidden;background:var(--border);margin-top:8px;}

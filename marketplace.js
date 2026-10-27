@@ -2005,7 +2005,7 @@ function barrasDiasClase(a,agregados,ahora){
       <div class="clase-serie-eje" aria-hidden="true">${[max,max/2,0].map(n=>`<span>${milesViz(n)}</span>`).join('')}</div>
       <div class="clase-serie-columnas" aria-hidden="true">${serie.map(x=>`<span>${x.n?`<i style="transform:scaleY(${(x.n/max).toFixed(4)})"></i>`:'<b class="clase-dia-sin">—</b>'}</span>`).join('')}</div></div>
       <div class="campana-tiempo-fechas" aria-hidden="true"><span>${esc(fecha(dias[0]))}</span><span>${esc(fecha(dias[dias.length-1]))}</span></div>`:'<p class="clase-sin-datos">Aún no hay días con datos publicables.</p>'}
-    ${serie.some(x=>!x.n)?'<p class="detalle-barras-nota">— Menos de 15 eventos; no es cero.</p>':''}
+    ${serie.some(x=>!x.n)?'<p class="detalle-barras-nota">— Menos de 15 eventos</p>':''}
     <details class="clase-serie-tabla"><summary>Ver días</summary><div><table><thead><tr><th scope="col">Día</th><th scope="col">Veces que se mostró</th><th scope="col">Contactos</th></tr></thead>
       <tbody>${serie.map(x=>`<tr><th scope="row">${esc(fecha(x.d))}</th><td>${x.n?milesViz(x.n):'Menos de 15 eventos'}</td><td>${x.c?milesViz(x.c):'Menos de 15 eventos'}</td></tr>`).join('')}</tbody></table></div></details>
   </figure>`;
@@ -2018,7 +2018,7 @@ function barrasRamosClase(a,agregados){
   const filas=siglas.map(sg=>({nombre:sg,valor:(agregados.ramos[sg]||{}).impresion||0}));
   if(!filas.some(f=>f.valor))return '';
   return barrasDetalleClaseHTML({titulo:'Veces que se mostró por ramo',
-    detalle:filas.some(f=>!f.valor)?'— Menos de 15 eventos; no es cero.':'',
+    detalle:filas.some(f=>!f.valor)?'— Menos de 15 eventos':'',
     filas:filas.sort((p,q)=>q.valor-p.valor).map(f=>({...f,valor:f.valor||null}))});
 }
 
@@ -4470,8 +4470,9 @@ function comparacionPromediosPanelHTML(propio,referencia,tenant){
   const {min,max}=gh_reglasNota(tenant).grade_scale;
   const posicion=n=>(100*(Math.max(min,Math.min(max,n))-min)/(max-min)).toFixed(2);
   return `<div class="panel-curso-comparacion" role="img" aria-label="${esc(`Escala de ${fmtPromedio(min)} a ${fmtPromedio(max)}. Tus alumnos: ${Number.isFinite(propio)?fmtPromedio(propio):'sin notas'}. GradeHub: ${Number.isFinite(referencia)?fmtPromedio(referencia):'aún pocos datos'}.`)}">
-    <div aria-hidden="true">${[['Tus alumnos',propio,'propio'],['GradeHub',referencia,'referencia']].map(([t,n,k])=>`<span class="panel-curso-media"><span>${t}</span><span class="panel-curso-escala">${Number.isFinite(n)?`<i class="panel-curso-${k}" style="left:${posicion(n)}%"></i>`:''}</span><b>${Number.isFinite(n)?esc(fmtPromedio(n)):'—'}</b></span>`).join('')}
-    <span class="panel-curso-extremos"><span>${esc(fmtPromedio(min))}</span><span>${esc(fmtPromedio(max))}</span></span></div>
+    <div aria-hidden="true">
+      <span class="panel-curso-escala">${Array.from({length:Math.floor(max)-Math.ceil(min)+1},(_,i)=>`<b style="left:${posicion(Math.ceil(min)+i)}%"></b>`).join('')}${[['propio',propio],['referencia',referencia]].map(([k,n])=>Number.isFinite(n)?`<i class="panel-curso-${k}" style="left:${posicion(n)}%"></i>`:'').join('')}</span>
+      <span class="panel-curso-extremos"><span>${esc(fmtPromedio(min))}</span><span class="panel-curso-claves">${Number.isFinite(propio)?'<span><i class="panel-curso-propio"></i>Tus alumnos</span>':''}${Number.isFinite(referencia)?'<span><i class="panel-curso-referencia"></i>GradeHub</span>':''}</span><span>${esc(fmtPromedio(max))}</span></span></div>
   </div>`;
 }
 
@@ -4501,7 +4502,7 @@ function resumenAlumnosPanelHTML(resumen){
       ${comparacionPromediosPanelHTML(g.promedio,comp.ramo?comp.ramo.promedio:null,g.tenant)}
       ${dif===null?'':`<p class="panel-resumen-dif">Tus alumnos van <b>${Math.abs(dif)<0.05?'igual que':`${esc(unDecimalPanel(dif))} ${dif>0?'sobre':'bajo'}`}</b> el promedio de GradeHub en este ramo.</p>`}
       ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
-        :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
+        :`<p class="clase-sin-datos">${g.promedio===null?'Todavía no hay notas en este ramo.':'Sin detalle por evaluación.'}</p>`}
       <button type="button" class="agent-refresh panel-resumen-ver" data-ver-ramo="${esc(g.sigla||g.nombre)}">Ver ${n(g.alumnos,'alumno','alumnos')} de este ramo</button>
     </details>`;
   })).join('');
@@ -4929,7 +4930,6 @@ function resumenInicioAlumnosHTML(r){
     <div class="panel-alumnos-resumen-columnas">
       <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-atencion">
         <div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>
-        <p class="panel-alumnos-contexto">Un alumno puede estar al borde en un ramo y reprobando otro.</p>
         <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-atencion" tabindex="0">${atencion}</div>
       </section>
       <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-semana">
