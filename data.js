@@ -3528,6 +3528,9 @@ const PROFESOR_ETIQUETAS=[
 // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIS1514
 // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIS0154
 // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=IIC1103
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO141C
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO143M
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF012
 // Cuando figuran varios, se propone el primero listado y se pide confirmar.
 // Solo se invierte «Apellido Nombre»; se conserva la grafía de la fuente.
 // No se aplica a otro período ni se infiere la sección por nombre de ramo.
@@ -3606,6 +3609,28 @@ const PROFESORES_PROPUESTOS={
       14:'Sebastián Burgos',
       15:'Ricardo Urvina',
       16:'Yadran Eterovic',
+    },
+    BIO141C:{
+      1:'Gonzalo Cancino',
+      2:'Gonzalo Cancino',
+      3:'Gonzalo Cancino',
+      4:'Veronica Eisner',
+      5:'Veronica Eisner',
+      6:'Alicia Nogueras',
+      7:'Alicia Nogueras',
+      8:'Alicia Nogueras',
+      9:'Carlos Oliva',
+      10:'Carlos Oliva',
+    },
+    BIO143M:{
+      1:'Jose Farina',
+      2:'Martin Carmona',
+    },
+    TTF012:{
+      1:'Juan Espinosa',
+      2:'Juan Espinosa',
+      3:'Juan Sepulveda',
+      4:'Juan Sepulveda',
     },
   }},
 };
