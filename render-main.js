@@ -1771,7 +1771,9 @@ function errorDocente(error){
   return 'No pudimos conectar con el registro. Revisa tu conexión y reintenta.';
 }
 // Calificar queda oculto hasta que el panel sugiera etiquetas según las
-// estrellas (Lucas, 2026-10-27). El docente y el promedio se siguen viendo.
+// estrellas (Lucas, 2026-10-27). Mientras tanto la ficha solo muestra al docente
+// confirmado y su promedio: sin «¿Quién te hace clases?», aportes propios,
+// carga ni errores de algo que no se puede usar.
 const CALIFICAR_PROFESOR_VISIBLE=false;
 async function renderDocenteRamo(r){
   const raiz=document.getElementById('ramo-docente');if(!raiz)return;
@@ -1779,12 +1781,13 @@ async function renderDocenteRamo(r){
   raiz.innerHTML='';
   if(!currentUser)return;
   if(!contexto){
+    if(!CALIFICAR_PROFESOR_VISIBLE)return;
     raiz.innerHTML='<p>¿Quién te hace clases?</p><button type="button" class="docente-link">Agregar sección para calificar</button>';
     raiz.querySelector('button').onclick=()=>openEditRamoModal();return;
   }
   const vigente=()=>solicitud===profesorSolicitud&&currentUser&&currentUser.id===cuenta&&currentRamoId===r.id
     &&JSON.stringify(contextoDocente(r))===JSON.stringify(contexto);
-  raiz.innerHTML='<p role="status">Consultando profesor…</p>';
+  if(CALIFICAR_PROFESOR_VISIBLE)raiz.innerHTML='<p role="status">Consultando profesor…</p>';
   try{
     // Las dos consultas van juntas: la ficha se pinta una vez, con todo.
     const [docente,calificacion]=await Promise.all([
@@ -1798,6 +1801,7 @@ async function renderDocenteRamo(r){
     const nombre=limpiarTextoProfesor(estado.nombre_publico,100),mio=limpiarTextoProfesor(estado.mi_nombre,100);
     // Informar sin calificar queda oculto por ahora (Lucas, 2026-10-27): el
     // nombre se pide dentro del panel de Calificar profesor.
+    if(!nombre&&!CALIFICAR_PROFESOR_VISIBLE){raiz.innerHTML='';return;}
     const titulo=nombre?'Profesor: <strong>'+esc(nombre)+'</strong>':mio?'Tu profesor: <strong>'+esc(mio)+'</strong>':'¿Quién te hace clases?';
     raiz.innerHTML=`<p>${titulo}</p>
       ${nombre?htmlResumenCalificacion(calif):''}
@@ -1808,6 +1812,7 @@ async function renderDocenteRamo(r){
     if(abrir)abrir.onclick=()=>abrirCalificarProfesor(r,contexto,{nombre,mio,calif});
   }catch(error){
     if(!vigente())return;
+    if(!CALIFICAR_PROFESOR_VISIBLE){raiz.innerHTML='';return;}
     raiz.innerHTML='<p class="docente-ayuda" role="status"></p><button type="button" class="docente-link">Reintentar</button>';
     raiz.querySelector('p').textContent=errorDocente(error);
     raiz.querySelector('button').onclick=()=>renderDocenteRamo(r);
