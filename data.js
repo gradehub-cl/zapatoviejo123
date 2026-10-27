@@ -2470,7 +2470,13 @@ const PRESETS_FEN={
     // Ninguna evaluación tiene nota mínima propia ni hay eximición. El programa
     // no lo dice, pero el Trabajo Final es grupal y aplica la regla general de
     // la cabecera (confirmado por Martín el 2026-10-19).
+    //
+    // La primera regla sale del programa: las solemnes y el examen son el
+    // "componente común" y el 30% restante es "de definición libre de la
+    // sección". Los 33 reportes de catalog_reports al 2026-10-27 lo confirman:
+    // todos traen 20/20/30 y reparten ese 30% de al menos cinco formas.
     reglasDelCurso:[
+      'Las solemnes y el examen (70%) son iguales en todas las secciones, pero el 30% restante lo reparte cada sección a su manera. Si en la tuya no son Controles 15% y Trabajo Final 15%, edita la pauta',
       'Las dos solemnes y el examen comparten una única recuperativa, que se rinde después del examen y a la que solo accede quien justificó su inasistencia',
       'La asistencia a las ayudantías es obligatoria, y los controles se rinden en ese horario',
     ],
