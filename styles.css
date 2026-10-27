@@ -3894,6 +3894,29 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .docente-guardar:disabled{opacity:.6;cursor:wait;}
 .docente-link:focus-visible,.docente-guardar:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
 .ramo-docente .docente-error{margin-top:8px;color:var(--fg);}
+/* Calificación del profesor: HIG Toggles y Buttons; 44 px, sin semáforo (no es una nota). */
+.docente-calificacion:empty{display:none;}
+.docente-calificacion{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.calif-resumen{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.calif-estrella{color:var(--fg);}
+.calif-numero{font-size:1.25rem;font-weight:650;font-variant-numeric:tabular-nums;}
+.calif-total{color:var(--fg2);font-size:.875rem;font-variant-numeric:tabular-nums;}
+.ramo-docente .calif-destacadas{margin-top:4px;color:var(--fg2);font-size:.875rem;}
+.calif-sr,.calif-opcion input,.calif-chip input{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.calif-form{margin-top:12px;}
+.calif-campo{margin:0 0 12px;padding:0;border:0;min-width:0;}
+.calif-campo legend{padding:0;margin-bottom:6px;font-weight:600;}
+.calif-opcional{margin-left:4px;color:var(--fg2);font-size:.8125rem;font-weight:400;}
+.calif-opciones{display:flex;gap:2px;}
+.calif-opcion{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;font-size:1.625rem;line-height:1;color:var(--fg3);cursor:pointer;}
+.calif-opcion.lleno{color:var(--fg);}
+.calif-opcion:has(input:focus-visible),.calif-chip:has(input:focus-visible){outline:2px solid var(--fg);outline-offset:2px;}
+.calif-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.calif-chip{position:relative;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--border2);border-radius:22px;font-size:.9375rem;color:var(--fg);cursor:pointer;}
+.calif-chip:has(input:checked){background:var(--fg);border-color:var(--fg);color:var(--bg);}
+.calif-chip:has(input:disabled){opacity:.45;cursor:default;}
+.calif-borrar{margin-right:auto;}
+.calif-opcion,.calif-chip{transition:color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard);}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
