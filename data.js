@@ -3498,3 +3498,18 @@ const PRESETS_UANDES={
   },
 };
 const PRESETS_POR_TENANT={fen:PRESETS_FEN,uc:PRESETS_UC,uai:PRESETS_UAI,uandes:PRESETS_UANDES};
+
+// Etiquetas para calificar al profesor: cómo es como profe, no la clase (Lucas,
+// 2026-10-27). Solo positivas o neutras, sin género y sin texto libre. Las
+// claves son las que acepta profesor_etiquetas_validas() en
+// supabase/profesores.sql (lo compara un test).
+const PROFESOR_ETIQUETAS=[
+  {id:'buena_onda',texto:'Buena onda'},
+  {id:'amable',texto:'Amable'},
+  {id:'paciente',texto:'Paciente'},
+  {id:'flexible',texto:'Flexible'},
+  {id:'puntual',texto:'Puntual'},
+  {id:'motiva',texto:'Motiva'},
+  {id:'escucha',texto:'Escucha'},
+  {id:'exigente',texto:'Exigente'},
+];

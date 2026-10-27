@@ -928,8 +928,9 @@ function contexto({search='',sesion=false}={}){
   chk('en celular la alternativa textual conserva los dos valores y el cambio con unidad',
     /ah-fila-valores/.test(grafG)&&/Antes <b>−1\.0/.test(grafG)&&
     /Ahora <b>\+0\.7/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
-  chk('resumen explica que las cuentas por riesgo pueden superponerse y precisa el período',
-    /Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/En los próximos 7 días/.test(htmlR));
+  // Sin textos explicativos (Lucas, 2026-10-27): cada cifra dice su total («De 12 alumnos»).
+  chk('resumen precisa el período y no explica de más',
+    !/Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/En los próximos 7 días/.test(htmlR));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[

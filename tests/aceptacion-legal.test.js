@@ -82,7 +82,7 @@ async function pruebaDeRegistro(){
   vm.runInContext('afterSignup=async()=>{}',contexto);
   await vm.runInContext('submitAuth()',contexto);
   chk('la cuenta nueva guarda su aceptación antes del onboarding',
-    intentos===1&&perfil?.id==='cuenta-nueva'&&typeof perfil?.terminos_aceptados_en==='string'&&perfil?.terminos_version==='2026-10-22');
+    intentos===1&&perfil?.id==='cuenta-nueva'&&typeof perfil?.terminos_aceptados_en==='string'&&perfil?.terminos_version===sesion.match(/const LEGAL_ACCEPTANCE_VERSION\s*=\s*'([\d-]+)'/)[1]);
 }
 
 // #666: la tabla de visitas diarias empieza a llenarse al mergear #687.
