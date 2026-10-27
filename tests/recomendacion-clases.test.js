@@ -90,24 +90,35 @@ ctx.__uno=[aviso('solo')];
 chk('con una sola clase, sale en todas las aperturas',
   [0,1,2].every(n=>run(`seleccionarClaseApoyo(__uno,[__r0],'uc',{ahora:${lunes},turno:${n}})?.anuncio.id`)==='solo'));
 
-console.log('\n=== Cerrarla ===');
-run(`descartarRecomendacionClase('a1',${lunes},'v1')`);
-const tras=JSON.parse(guardado.gradehub_marketplace_v1);
-chk('cerrarla la esconde por esta franja, aun en la misma visita',dia(complicado,tras,lunes).sel===null);
-chk('ni al volver a abrir en esa misma franja',dia(complicado,tras,lunes+3600e3,'v2').sel===null);
-chk('en la tarde vuelve a aparecer',dia(complicado,tras,lunesTarde,'v2').sel!==null);
-chk('pero no la descarta para siempre',dia(complicado,tras,martes,'v2').sel?.anuncio.id==='a1');
-chk('y al día siguiente también',dia(complicado,tras,martes,'v3').sel?.anuncio.id==='a1');
-chk('la primera vez no dice "no te la volvemos a mostrar"',run(`descartarRecomendacionClase('a2',${lunes},'v1')`)===false);
-chk('la segunda vez sí, y la descarta para siempre',run(`descartarRecomendacionClase('a1',${lunesTarde},'v2')`)===true);
-chk('al cerrar en la mañana dice que vuelve en la tarde',run(`textoCierreClase(false,${lunes})`)==='Listo, no te la mostramos hasta la tarde');
-chk('en la tarde, que no se muestra más por hoy',run(`textoCierreClase(false,${lunesTarde})`)==='Listo, no te la mostramos más por hoy');
-chk('y la segunda vez habla de esa clase, no de todas',run(`textoCierreClase(true,${lunes})`)==='Listo, no te volvemos a mostrar esta clase');
-const dos=JSON.parse(guardado.gradehub_marketplace_v1);
-chk('esa clase ya no vuelve, ni otro día',(r=>r.sel&&r.sel.anuncio.id==='a2')(dia(complicado,dos,martes,'v4')));
-ctx.__avisos=[aviso('a1')];
-chk('si era la única que calzaba, no hay nada',dia(complicado,dos,martes,'v5').sel===null);
-ctx.__avisos=[aviso('a1'),aviso('a2')];
+console.log('\n=== Cerrarla: al menos una vez al día, nunca para siempre (2026-10-27) ===');
+// El escenario que pidió Lucas, día por día. El primer día es el del primer
+// cierre de esa campaña: verla antes sin cerrarla no cuenta.
+const cerrar=t=>run(`textoCierreClase(descartarRecomendacionClase('a1',${t}))`);
+const estadoGuardado=()=>JSON.parse(guardado.gradehub_marketplace_v1);
+delete guardado.gradehub_marketplace_v1;
+const domingo=Date.parse('2026-09-27T10:00:00');
+let e1=dia(complicado,{},domingo).estado;guardado.gradehub_marketplace_v1=JSON.stringify(e1);
+chk('verla un día sin cerrarla no empieza la cuenta',!e1.primerCierre);
+chk('primer día que la cierra, en la mañana: se muestra',dia(complicado,e1,lunes).sel!==null);
+chk('al cerrarla en la mañana dice que vuelve en la tarde',cerrar(lunes)==='Listo, no te la mostramos hasta la tarde');
+let e2=estadoGuardado();
+chk('y no vuelve en lo que queda de mañana, aunque se abra de nuevo',dia(complicado,e2,lunes+3600e3,'v2').sel===null);
+chk('en la tarde vuelve a aparecer',dia(complicado,e2,lunesTarde,'v3').sel!==null);
+chk('al cerrarla en la tarde dice que no más por hoy',cerrar(lunesTarde)==='Listo, no te la mostramos más por hoy');
+let e3=estadoGuardado();
+chk('y no vuelve en lo que queda del día',dia(complicado,e3,lunesTarde+3*3600e3,'v4').sel===null);
+chk('al día siguiente en la mañana vuelve',dia(complicado,e3,martes,'v5').sel!==null);
+chk('desde el segundo día, cerrarla en la mañana ya es por todo el día',cerrar(martes)==='Listo, no te la mostramos más por hoy');
+let e4=estadoGuardado();
+const martesTarde=Date.parse('2026-09-29T16:00:00'),miercoles=Date.parse('2026-09-30T09:00:00');
+chk('y no vuelve en la tarde de ese día',dia(complicado,e4,martesTarde,'v6').sel===null);
+chk('al otro día vuelve: nunca se esconde para siempre',dia(complicado,e4,miercoles,'v7').sel!==null);
+chk('cerrar la misma clase muchas veces no la descarta',(()=>{cerrar(miercoles);return dia(complicado,estadoGuardado(),Date.parse('2026-10-01T09:00:00'),'v8').sel?.anuncio.id;})()!==undefined);
+chk('otra campaña tiene su propio primer día: su primer cierre en la mañana vuelve en la tarde',
+  run(`textoCierreClase(descartarRecomendacionClase('a2',${Date.parse('2026-10-01T10:00:00')}))`)==='Listo, no te la mostramos hasta la tarde');
+chk('un cierre guardado con la versión anterior sigue valiendo en su franja',
+  dia(complicado,{franja:'2026-09-28-manana',cerrada:true,descartadasDefinitivas:['a1']},lunes,'v9').sel===null&&
+  dia(complicado,{franja:'2026-09-28-manana',cerrada:true,descartadasDefinitivas:['a1']},martes,'v9').sel?.anuncio.id==='a1');
 
 console.log('\n=== Dónde vive ===');
 chk('se guarda en su propia clave, no en gradehub_v1',!('gradehub_v1' in guardado)&&'gradehub_marketplace_v1' in guardado);
