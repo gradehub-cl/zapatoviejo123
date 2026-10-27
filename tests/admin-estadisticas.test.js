@@ -103,3 +103,54 @@ assert.match(run('resultadosEncuestaAdminHTML({total:0})'),/>0<\/b> respuestas/)
 const conPresupuesto=run("cifrasClase({...__medida,costo:{total:2500,tope:10000}},pesosClase,'personas distintas',true)");
 assert.equal((conPresupuesto.match(/\$2\.500/g)||[]).length,1,'en el detalle el costo se muestra una sola vez');
 assert.match(conPresupuesto,/Por contacto/);
+
+// Detalle de Profesor/Admin: categorías comparables y eventos repetidos.
+const eventos=run('embudoClase({impresion:40,clic:60,contacto:15})');
+assert.match(eventos,/Interacciones/);assert.match(eventos,/veces/);
+assert.doesNotMatch(eventos,/quienes|personas|scaleX\(1\.[1-9]/);
+assert.deepEqual([...eventos.matchAll(/scaleX\(([\d.]+)\)/g)].map(m=>Number(m[1])),[.6667,1,.25],
+  'eventos repetidos: misma escala, ninguna barra excede el gráfico');
+const canales=run("donaCanalesClase({recomendacion:20,busqueda:20,lista:0})");
+assert.match(canales,/Recomendado en Inicio/);assert.match(canales,/Buscaron el ramo/);
+assert.doesNotMatch(canales,/anillo|svg|%/,'comparación directa por canal');
+assert.match(canales,/40 personas en total/,'conserva el total de cuentas atribuidas por el servidor');
+assert.match(canales,/scaleX\(0.0000\)/,'cero conocido se conserva');
+assert.doesNotMatch(run('donaCanalesClase(null)'),/figure/);
+const ausente=run("barrasDetalleClaseHTML({titulo:'Prueba',filas:[{nombre:'Sin dato',valor:null}]})");
+assert.match(ausente,/>—<\/b>/);assert.doesNotMatch(ausente,/scaleX/);
+ctx.__costo={total:100,tope:100,partes:[{clave:'contacto',subtotal:150},{clave:'apertura',subtotal:50}]};
+const costoAntes=JSON.stringify(ctx.__costo);
+const costo=run('costoApiladoClase(__costo,pesosClase)');
+assert.match(costo,/\$200 antes del tope · costo limitado a \$100/);
+assert.equal(JSON.stringify(ctx.__costo),costoAntes,'el desglose no cambia el cobro');
+ctx.__anuncio={publicado_at:'2026-10-01T12:00:00Z',vence_at:'2026-10-05T12:00:00Z',ramos_siglas:['MAT1620','MAT1610']};
+const tiempo=run("anilloCampanaClase(__anuncio,Date.parse('2026-10-02T12:00:00Z'))");
+assert.match(tiempo,/>3<\/b><span>días restantes/);assert.match(tiempo,/scaleX\(0.2500\)/);
+assert.match(tiempo,/del plazo transcurrido/);assert.match(tiempo,/Inicio ·/);assert.match(tiempo,/Fin ·/);
+assert.equal(run('anilloCampanaClase({},__ahora)'),'');
+ctx.__agregados={dias:{'2026-10-01':{impresion:20},'2026-10-03':{impresion:40,contacto:15}},ramos:{MAT1620:{impresion:60}}};
+const agregadosAntes=JSON.stringify(ctx.__agregados);
+const diario=run("barrasDiasClase(__anuncio,__agregados,Date.parse('2026-10-03T12:00:00Z'))");
+assert.match(diario,/Escala de 0 a 40/);assert.match(diario,/scaleY\(0.5000\)/);assert.match(diario,/scaleY\(1.0000\)/);
+assert.equal((diario.match(/class="clase-dia-sin"/g)||[]).length,1,'día oculto sin columna de cero');
+assert.match(diario,/Menos de 15 eventos; no es cero/);assert.match(diario,/<th scope="row">2 oct<\/th><td>Menos de 15 eventos<\/td>/);
+assert.match(diario,/<summary>Ver días<\/summary>/);assert.match(diario,/<td>15<\/td>/,'solo los contactos publicables');
+assert.match(run('barrasRamosClase(__anuncio,__agregados)'),/>—<\/b>/);
+assert.equal(JSON.stringify(ctx.__agregados),agregadosAntes);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../engine.js'),'utf8'),ctx);
+ctx.fmtPromedio=n=>Number(n).toFixed(1);
+const escala=run("comparacionPromediosPanelHTML(4,5,'uc')");
+assert.match(escala,/left:50.00%/);assert.match(escala,/left:66.67%/);assert.match(escala,/Escala de 1.0 a 7.0/);
+const sinReferencia=run("comparacionPromediosPanelHTML(4,null,'uc')");
+assert.match(sinReferencia,/GradeHub: aún pocos datos/);assert.doesNotMatch(sinReferencia,/class="panel-curso-referencia"/);
+assert.equal(run("comparacionPromediosPanelHTML(null,null,'uc')"),'');
+console.log('PASS detalle visual: escala de eventos, canales, tope, tiempo, privacidad diaria, tablas y comparación de notas');
+
+// Los riesgos de distintos ramos se pueden superponer. Son dos proporciones
+// independientes sobre todos los conectados; nunca partes apiladas de un total.
+ctx.__inicio={conectados:10,semana:[],atencion:[],reprobando:4,alBorde:7};
+const inicio=run('resumenInicioAlumnosHTML(__inicio)');
+assert.match(inicio,/panel-riesgo-bad[\s\S]*?scaleX\(0.4000\)/);
+assert.match(inicio,/panel-riesgo-warn[\s\S]*?scaleX\(0.7000\)/);
+assert.match(inicio,/Un alumno puede estar al borde en un ramo y reprobando otro/);
+assert.doesNotMatch(run('resumenInicioAlumnosHTML({...__inicio,conectados:0,reprobando:0,alBorde:0})'),/panel-riesgo-riel/);

@@ -3989,6 +3989,73 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .encuesta-resultados-total b{font-size:2.5rem;line-height:1.1;letter-spacing:-.04em;font-weight:650;color:var(--fg);font-variant-numeric:tabular-nums;}
 .encuesta-resultados blockquote{margin:12px 0;padding:8px 12px;border-left:2px solid var(--border2);overflow-wrap:anywhere;}
 
+/* Comparaciones en Profesor/Admin: cifras junto al dato, sin depender del color. */
+:is(.profesor-hig,.admin-hig) .detalle-barras{margin-top:24px;}
+:is(.profesor-hig,.admin-hig) .detalle-barras figcaption,
+:is(.profesor-hig,.admin-hig) .campana-tiempo figcaption,
+:is(.profesor-hig,.admin-hig) .clase-serie figcaption{font-size:.875rem;letter-spacing:0;text-transform:none;color:var(--fg);}
+:is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila{grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;margin-top:16px;font-size:.875rem;line-height:1.4;}
+:is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila>span{overflow-wrap:anywhere;}
+:is(.profesor-hig,.admin-hig) .detalle-barras .clase-embudo-fila>b{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:4px 8px;}
+:is(.profesor-hig,.admin-hig) .detalle-barras b small{font-size:.75rem;color:var(--fg2);font-weight:400;}
+:is(.profesor-hig,.admin-hig) .detalle-barras .clase-barra{grid-column:1/-1;height:6px;}
+:is(.profesor-hig,.admin-hig) .detalle-barras-nota{font-size:.8125rem;line-height:1.5;color:var(--fg2);margin:8px 0;}
+:is(.profesor-hig,.admin-hig) .viz-fila{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;}
+:is(.profesor-hig,.admin-hig) .campana-tiempo{margin-top:24px;}
+.campana-tiempo p{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin:16px 0;color:var(--fg2);font-size:.875rem;}
+.campana-tiempo p b{color:var(--fg);font-size:2.75rem;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;}
+.campana-tiempo-riel{height:8px;border-radius:8px;background:var(--border);overflow:hidden;}
+.campana-tiempo-riel i{display:block;height:100%;background:var(--fg2);transform-origin:left;}
+.campana-tiempo-fechas{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 20px;font-size:.75rem;line-height:1.4;color:var(--fg2);font-variant-numeric:tabular-nums;margin-top:8px;}
+.clase-serie{margin-top:28px;}
+.clase-serie-pico{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px;color:var(--fg2);font-size:.8125rem;margin:12px 0 20px;}
+.clase-serie-pico b{font-size:2rem;line-height:1;color:var(--fg);font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums;}
+.clase-serie-area{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;height:9rem;}
+.clase-serie-eje{display:flex;flex-direction:column;justify-content:space-between;font-size:.75rem;line-height:1;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.clase-serie-columnas{position:relative;display:flex;gap:3px;border-bottom:1px solid var(--border2);}
+.clase-serie-columnas::before{content:"";position:absolute;inset:0 0 50%;border-top:1px solid var(--border);border-bottom:1px solid var(--border);pointer-events:none;}
+.clase-serie-columnas>span{position:relative;display:flex;align-items:flex-end;justify-content:center;flex:1;min-width:0;}
+.clase-serie-columnas i{display:block;width:100%;height:100%;max-width:32px;background:var(--primary);border-radius:3px 3px 0 0;transform-origin:bottom;}
+.clase-serie-columnas .clase-dia-sin{position:absolute;bottom:0;color:var(--fg2);font-size:.75rem;font-weight:400;}
+.clase-serie-tabla{margin:12px 0;}
+.clase-serie-tabla>summary{display:flex;align-items:center;min-height:44px;min-width:44px;cursor:pointer;font-size:.875rem;color:var(--fg);gap:8px;}
+.clase-serie-tabla>summary::before{content:'›';font-size:1.25rem;}
+.clase-serie-tabla[open]>summary::before{transform:rotate(90deg);}
+.clase-serie-tabla>summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:4px;}
+.clase-serie-tabla>div{overflow-x:auto;}
+.clase-serie-tabla table{width:100%;border-collapse:collapse;font-size:.8125rem;line-height:1.4;font-variant-numeric:tabular-nums;}
+.clase-serie-tabla th,.clase-serie-tabla td{padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;color:var(--fg);overflow-wrap:anywhere;}
+.clase-serie-tabla th:first-child{text-align:left;}
+.clase-serie-tabla thead th{font-weight:500;color:var(--fg2);}
+.alumnos-editorial .panel-resumen-semaforo{display:block;}
+.alumnos-editorial .panel-curso-distribucion{display:flex;height:8px;border-radius:8px;overflow:hidden;margin:4px 0 12px;background:var(--border);}
+.alumnos-editorial .panel-curso-distribucion i{display:block;flex-basis:0;}
+.alumnos-editorial .panel-curso-good{background:var(--green);}
+.alumnos-editorial .panel-curso-warn{background:var(--yellow);}
+.alumnos-editorial .panel-curso-bad{background:var(--red);}
+.alumnos-editorial .panel-curso-neutral{background:var(--fg3);}
+.alumnos-editorial .panel-curso-leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;}
+.alumnos-editorial .panel-curso-leyenda .panel-resumen-sem{background:transparent;padding:0;color:var(--fg2);}
+.alumnos-editorial .panel-curso-comparacion{margin:24px 0;font-variant-numeric:tabular-nums;}
+.alumnos-editorial .panel-curso-media{display:grid;grid-template-columns:6.5rem minmax(0,1fr) 2.5rem;gap:12px;align-items:center;font-size:.875rem;color:var(--fg2);margin:12px 0;}
+.alumnos-editorial .panel-curso-media b{text-align:right;color:var(--fg);}
+.alumnos-editorial .panel-curso-escala{display:block;position:relative;height:4px;background:var(--border2);border-radius:4px;}
+.alumnos-editorial .panel-curso-escala i{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translate(-50%,-50%);background:var(--primary);box-shadow:0 0 10px color-mix(in srgb,var(--primary),transparent 75%);}
+.alumnos-editorial .panel-curso-escala .panel-curso-referencia{background:var(--card);border:2px solid var(--fg2);box-shadow:none;}
+.alumnos-editorial .panel-curso-extremos{display:flex;justify-content:space-between;margin-left:calc(6.5rem + 12px);margin-right:calc(2.5rem + 12px);font-size:.75rem;color:var(--fg2);}
+@container(max-width:32rem){
+  :is(.profesor-hig,.admin-hig) .viz-fila{grid-template-columns:minmax(0,1fr);gap:4px;}
+  .alumnos-editorial .panel-curso-media{grid-template-columns:minmax(0,1fr) auto;gap:12px;}
+  .alumnos-editorial .panel-curso-escala{grid-column:1/-1;grid-row:2;margin-inline:6px;}
+  .alumnos-editorial .panel-curso-extremos{margin:0 6px;}
+}
+@media(prefers-reduced-motion:reduce){.alumnos-editorial .panel-curso-escala i{box-shadow:none;}}
+
+.alumnos-editorial .panel-riesgo-riel{display:block;height:6px;border-radius:6px;overflow:hidden;background:var(--border);margin-top:8px;}
+.alumnos-editorial .panel-riesgo-riel i{display:block;height:100%;transform-origin:left;}
+.alumnos-editorial .panel-riesgo-bad i{background:var(--red);}
+.alumnos-editorial .panel-riesgo-warn i{background:var(--yellow);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

@@ -1917,42 +1917,40 @@ function cifrasClase({alcance,totales,hayCortes,campana,costo},pesos,etiquetaPer
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');
 }
 
-// De quienes la vieron, cuántos tocaron algo. Barras relativas a las
-// impresiones y dibujadas con scaleX, no con width.
+// Son eventos, no personas ni pasos necesariamente consecutivos. Todas las
+// barras comparten escala aunque una interacción se repita más que otra.
 function embudoClase(totales){
   if(!totales.impresion)return '';
   const filas=[['Se mostró',totales.impresion],['La abrieron',totales.clic],['Te contactaron',totales.contacto]].filter(([,n])=>n>0);
   if(filas.length<2)return '';
-  return `<div class="clase-embudo" aria-label="De quienes vieron tu clase, cuántos avanzaron">${filas.map(([t,n])=>
-    `<div class="clase-embudo-fila"><span>${t}</span><div class="clase-barra"><i style="transform:scaleX(${(n/totales.impresion).toFixed(3)})"></i></div><b>${n}</b></div>`).join('')}</div>`;
+  return barrasDetalleClaseHTML({titulo:'Interacciones',filas:filas.map(([nombre,valor])=>({nombre,valor})),unidad:'veces'});
 }
 
 // ─── GRÁFICOS DEL PANEL ─────────────────────────────────────────────────────
 //
-// SVG a mano, sin librerías. Los tres caminos van en tonos de un mismo turquesa,
-// del más oscuro al más claro, del más dirigido al más casual. Nada usa el
-// semáforo: esto no es una nota. Cada marca lleva su número escrito o en su
-// <title>, así el color nunca es lo único que dice algo.
+// Barras para comparar categorías; el valor se lee junto a su etiqueta.
+// El acento informa, el semáforo queda reservado para riesgo académico.
 const CANALES_VIZ=[['recomendacion','Recomendado en Inicio','viz-c1'],['busqueda','Buscaron el ramo','viz-c2'],['lista','Vieron el catálogo','viz-c3']];
 const milesViz=n=>new Intl.NumberFormat('es-CL').format(n);
 const pctViz=(n,t)=>t?new Intl.NumberFormat('es-CL',{style:'percent',maximumFractionDigits:0}).format(n/t):'—';
 
+// Solo se usa en Profesor/Admin. Un dato ausente no recibe una barra de cero.
+function barrasDetalleClaseHTML({titulo,filas,unidad='',detalle=''}){
+  const max=Math.max(1,...filas.map(f=>Number(f.valor)||0));
+  return `<figure class="viz detalle-barras"><figcaption>${esc(titulo)}</figcaption>
+    ${detalle?`<p class="detalle-barras-nota">${esc(detalle)}</p>`:''}
+    ${filas.map(f=>`<div class="clase-embudo-fila"><span>${esc(f.nombre)}</span><b>${f.valor==null?'—':esc(f.texto??milesViz(f.valor))}${unidad?`<small>${esc(unidad)}</small>`:''}</b>
+      ${f.valor==null?'':`<div class="clase-barra" aria-hidden="true"><i style="transform:scaleX(${(f.valor/max).toFixed(4)})"></i></div>`}</div>`).join('')}
+  </figure>`;
+}
+
 function donaCanalesClase(porCanal,etiqueta='personas'){
   if(!porCanal)return '';
+  // El servidor atribuye cada cuenta a un canal. Conservamos su total y
+  // comparamos las categorías sobre una misma escala, con etiquetas directas.
   const total=porCanal.recomendacion+porCanal.busqueda+porCanal.lista;
-  const R=34,C=2*Math.PI*R,GAP=total&&CANALES_VIZ.filter(([k])=>porCanal[k]>0).length>1?2:0;
-  let off=0;
-  const arcos=total?CANALES_VIZ.filter(([k])=>porCanal[k]>0).map(([k,t,cls])=>{
-    const largo=Math.max(C*porCanal[k]/total-GAP,0.5);
-    const arco=`<circle class="${cls}" r="${R}" cx="45" cy="45" fill="none" stroke-width="12" stroke-dasharray="${largo.toFixed(2)} ${(C-largo).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 45 45)"><title>${t}: ${milesViz(porCanal[k])} (${pctViz(porCanal[k],total)})</title></circle>`;
-    off+=C*porCanal[k]/total;return arco;
-  }).join(''):`<circle r="${R}" cx="45" cy="45" fill="none" stroke-width="12" class="viz-vacio"/>`;
-  return `<figure class="viz viz-dona" aria-label="Cómo llegaron: ${CANALES_VIZ.map(([k,t])=>t+' '+porCanal[k]).join(', ')}">
-    <figcaption>Cómo llegaron</figcaption>
-    <div class="viz-dona-cuerpo">
-      <svg viewBox="0 0 90 90" role="img" aria-hidden="true">${arcos}<text x="45" y="44" text-anchor="middle" class="viz-dona-num">${milesViz(total)}</text><text x="45" y="57" text-anchor="middle" class="viz-dona-sub">${etiqueta}</text></svg>
-      <ul class="viz-leyenda">${CANALES_VIZ.map(([k,t,cls])=>`<li><i class="${cls}"></i><span>${t}</span><b>${milesViz(porCanal[k])}</b><small>${pctViz(porCanal[k],total)}</small></li>`).join('')}</ul>
-    </div></figure>`;
+  return barrasDetalleClaseHTML({titulo:'Cómo llegaron',unidad:etiqueta,detalle:`${milesViz(total)} ${etiqueta} en total`,
+    filas:CANALES_VIZ.map(([k,nombre])=>({nombre,valor:porCanal[k]}))});
 }
 
 // Varias campañas en una sola cuenta, para el resumen de arriba.
@@ -1964,32 +1962,28 @@ function sumarCostosCampana(costos){
   return {partes,bruto:c.reduce((n,x)=>n+x.bruto,0),total:c.reduce((n,x)=>n+x.total,0),
     tope:c.every(x=>x.tope!==null)?c.reduce((n,x)=>n+x.tope,0):null,agotada:false};
 }
-// En qué se va la plata: una barra apilada con cada concepto.
+// Importes por concepto, con escala común y sin segmentos mínimos inventados.
 const PARTES_COSTO_VIZ={contacto:['Contactos','viz-c1'],apertura:['Aperturas','viz-c2'],vista:['Vistas','viz-c3'],dia:['Días publicada','viz-fijo']};
 function costoApiladoClase(costo,pesos){
   if(!costo)return '';
-  const partes=['contacto','apertura','vista','dia'].map(k=>{const p=costo.partes.find(x=>x.clave===k);return [PARTES_COSTO_VIZ[k][0],p?p.subtotal:0,PARTES_COSTO_VIZ[k][1]];}).filter(([,v])=>v>0);
-  const total=partes.reduce((n,[,v])=>n+v,0);
+  const partes=['contacto','apertura','vista','dia'].map(k=>{const p=costo.partes.find(x=>x.clave===k);return {nombre:PARTES_COSTO_VIZ[k][0],valor:p?p.subtotal:0};}).filter(p=>p.valor>0);
+  const total=partes.reduce((n,p)=>n+p.valor,0);
   if(!total)return '';
-  return `<figure class="viz viz-costo" aria-label="En qué se va el costo">
-    <figcaption>En qué se va · ${pesos(costo.total)}${costo.tope!==null?` de ${pesos(costo.tope)}`:''}</figcaption>
-    <div class="viz-apilada">${partes.map(([t,v,cls])=>`<span class="${cls}" style="flex-grow:${v}" title="${t}: ${pesos(v)}"></span>`).join('')}</div>
-    <ul class="viz-leyenda">${partes.map(([t,v,cls])=>`<li><i class="${cls}"></i><span>${t}</span><b>${pesos(v)}</b><small>${pctViz(v,total)}</small></li>`).join('')}</ul>
-  </figure>`;
+  return barrasDetalleClaseHTML({titulo:'Costo por concepto',
+    detalle:total>costo.total?`${pesos(total)} antes del tope · costo limitado a ${pesos(costo.total)}`:'',
+    filas:partes.map(p=>({...p,texto:pesos(p.valor)}))});
 }
 
-// Cuánto de la campaña ya pasó, como anillo, con los días que quedan al centro.
+// Tiempo en una línea de inicio a fin; los días restantes tienen su unidad.
 function anilloCampanaClase(a,ahora){
   const avance=avanceCampanaAnuncio(a,ahora),dias=diasRestantesAnuncio(a,ahora);
   if(avance===null||dias===null)return '';
-  const R=34,C=2*Math.PI*R;
-  return `<figure class="viz viz-anillo" aria-label="Campaña: quedan ${dias} días">
-    <figcaption>Campaña</figcaption>
-    <svg viewBox="0 0 90 90" role="img" aria-hidden="true">
-      <circle r="${R}" cx="45" cy="45" fill="none" stroke-width="8" class="viz-vacio"/>
-      <circle r="${R}" cx="45" cy="45" fill="none" stroke-width="8" class="viz-avance" stroke-linecap="round" stroke-dasharray="${(C*avance).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 45 45)"><title>${pctViz(avance,1)} de la campaña</title></circle>
-      <text x="45" y="47" text-anchor="middle" class="viz-dona-num">${dias}</text><text x="45" y="60" text-anchor="middle" class="viz-dona-sub">${dias===1?'día queda':'días quedan'}</text>
-    </svg></figure>`;
+  const fecha=f=>new Date(f).toLocaleDateString('es-CL',{day:'numeric',month:'short'});
+  return `<figure class="viz campana-tiempo"><figcaption>Plazo de campaña</figcaption>
+    <p><b>${dias}</b><span>${dias===1?'día restante':'días restantes'}</span></p>
+    <div class="campana-tiempo-riel" role="img" aria-label="${esc(pctViz(avance,1)+' del plazo transcurrido; quedan '+dias+' días')}"><i style="transform:scaleX(${avance.toFixed(4)})"></i></div>
+    <div class="campana-tiempo-fechas"><span>Inicio · ${esc(fecha(a.publicado_at))}</span><span>Fin · ${esc(fecha(a.vence_at))}</span></div>
+  </figure>`;
 }
 
 // Veces que se mostró por día desde que se publicó. Un día sin barra no es un
@@ -2002,21 +1996,18 @@ function barrasDiasClase(a,agregados,ahora){
   for(let t=desde;t<=hasta&&dias.length<31;t+=864e5)dias.push(new Date(t).toISOString().slice(0,10));
   if(!dias.length)return '';
   const serie=dias.map(d=>({d,n:(agregados.dias[d]||{}).impresion||0,c:(agregados.dias[d]||{}).contacto||0}));
-  const max=Math.max(...serie.map(x=>x.n),1),W=Math.max(dias.length*12,120),H=64;
-  const ancho=Math.min(8,W/dias.length-3);
-  const barras=serie.map((x,i)=>{
-    const cx=i*(W/dias.length)+(W/dias.length-ancho)/2,fecha=new Date(x.d+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'});
-    if(!x.n)return `<rect x="${cx.toFixed(1)}" y="${H-2}" width="${ancho.toFixed(1)}" height="2" rx="1" class="viz-vacio-marca"><title>${fecha}: menos de 15 eventos</title></rect>`;
-    const h=Math.max(3,(H-6)*x.n/max);
-    return `<rect x="${cx.toFixed(1)}" y="${(H-h).toFixed(1)}" width="${ancho.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="viz-c1"><title>${fecha}: se mostró ${milesViz(x.n)} veces${x.c?`, ${milesViz(x.c)} contactos`:''}</title></rect>`;
-  }).join('');
-  const conDatos=serie.filter(x=>x.n);
-  const mejor=conDatos.sort((p,q)=>q.n-p.n)[0];
-  return `<figure class="viz viz-dias" aria-label="Veces que se mostró por día">
-    <figcaption>Veces que se mostró por día${mejor?` · mejor día ${new Date(mejor.d+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long'})}`:''}</figcaption>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-hidden="true"><line x1="0" x2="${W}" y1="${H-0.5}" y2="${H-0.5}" class="viz-base"/>${barras}</svg>
-    <div class="viz-eje"><span>${new Date(dias[0]+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'})}</span><span>${new Date(dias[dias.length-1]+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'})}</span></div>
-    ${conDatos.length?'':'<p class="clase-sin-datos">Cada día aparece cuando junta al menos quince eventos.</p>'}
+  const conDatos=serie.filter(x=>x.n),max=topeEjeAdmin(Math.max(0,...serie.map(x=>x.n)));
+  const mejor=conDatos.slice().sort((p,q)=>q.n-p.n)[0];
+  const fecha=d=>new Date(d+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'});
+  return `<figure class="viz clase-serie"><figcaption>Veces que se mostró por día</figcaption>
+    ${mejor?`<p class="clase-serie-pico"><b>${milesViz(mejor.n)}</b><span>máximo diario · ${esc(fecha(mejor.d))}</span></p>`:''}
+    ${max?`<div class="clase-serie-area" role="img" aria-label="Veces que se mostró por día. Escala de 0 a ${max}. Los días sin dato publicable se marcan con una raya; valores en Ver días.">
+      <div class="clase-serie-eje" aria-hidden="true">${[max,max/2,0].map(n=>`<span>${milesViz(n)}</span>`).join('')}</div>
+      <div class="clase-serie-columnas" aria-hidden="true">${serie.map(x=>`<span>${x.n?`<i style="transform:scaleY(${(x.n/max).toFixed(4)})"></i>`:'<b class="clase-dia-sin">—</b>'}</span>`).join('')}</div></div>
+      <div class="campana-tiempo-fechas" aria-hidden="true"><span>${esc(fecha(dias[0]))}</span><span>${esc(fecha(dias[dias.length-1]))}</span></div>`:'<p class="clase-sin-datos">Aún no hay días con datos publicables.</p>'}
+    ${serie.some(x=>!x.n)?'<p class="detalle-barras-nota">— Menos de 15 eventos; no es cero.</p>':''}
+    <details class="clase-serie-tabla"><summary>Ver días</summary><div><table><thead><tr><th scope="col">Día</th><th scope="col">Veces que se mostró</th><th scope="col">Contactos</th></tr></thead>
+      <tbody>${serie.map(x=>`<tr><th scope="row">${esc(fecha(x.d))}</th><td>${x.n?milesViz(x.n):'Menos de 15 eventos'}</td><td>${x.c?milesViz(x.c):'Menos de 15 eventos'}</td></tr>`).join('')}</tbody></table></div></details>
   </figure>`;
 }
 
@@ -2024,13 +2015,11 @@ function barrasDiasClase(a,agregados,ahora){
 function barrasRamosClase(a,agregados){
   const siglas=Array.isArray(a.ramos_siglas)?a.ramos_siglas:[];
   if(!agregados||siglas.length<2)return '';
-  const filas=siglas.map(sg=>({sg,n:(agregados.ramos[sg]||{}).impresion||0,c:(agregados.ramos[sg]||{}).contacto||0}));
-  if(!filas.some(f=>f.n))return '';
-  const max=Math.max(...filas.map(f=>f.n),1);
-  return `<figure class="viz viz-ramos" aria-label="Veces que se mostró por ramo">
-    <figcaption>Por ramo</figcaption>
-    ${filas.sort((p,q)=>q.n-p.n).map(f=>`<div class="clase-embudo-fila"><span>${esc(f.sg)}</span><div class="clase-barra"><i style="transform:scaleX(${(f.n/max).toFixed(3)})"></i></div><b>${f.n?milesViz(f.n):'—'}</b></div>`).join('')}
-  </figure>`;
+  const filas=siglas.map(sg=>({nombre:sg,valor:(agregados.ramos[sg]||{}).impresion||0}));
+  if(!filas.some(f=>f.valor))return '';
+  return barrasDetalleClaseHTML({titulo:'Veces que se mostró por ramo',
+    detalle:filas.some(f=>!f.valor)?'— Menos de 15 eventos; no es cero.':'',
+    filas:filas.sort((p,q)=>q.valor-p.valor).map(f=>({...f,valor:f.valor||null}))});
 }
 
 function graficosClase(d,pesos,ahora){
@@ -3635,9 +3624,9 @@ function fichaAdminProfesorHTML(p){
   return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
     <dl class="admin-hig-ficha-datos">
       ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
-      ${d30?dato('Lo vieron · 30 días',num(d30.vieron))+dato('Lo abrieron · 30 días',num(d30.abrieron))+dato('Lo contactaron · 30 días',num(d30.contactaron)):''}
       ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
     </dl>
+    ${d30?barrasDetalleClaseHTML({titulo:'Alcance · últimos 30 días',filas:[{nombre:'Lo vieron',valor:d30.vieron},{nombre:'Lo abrieron',valor:d30.abrieron},{nombre:'Lo contactaron',valor:d30.contactaron}]}):''}
     ${p.panel_alumnos!=null&&p.estado==='aprobado'?`<div class="admin-hig-ficha-fila"><span><b>Panel de alumnos</b><small>${visible?'Lo ve en su menú.':'Oculto: no ve a sus alumnos ni se conecta nadie nuevo.'}</small></span>
       <button type="button" class="clase-accion" role="switch" aria-checked="${visible}" data-admin-panel-alumnos="${id}" data-activo="${!visible}" data-alumnos="${alumnos}">${visible?'Ocultar':'Mostrar'}</button></div>`:''}
     ${p.nota!==undefined?`<label class="modal-label" for="admin-nota-${id}">Nota interna · solo la ven los admins</label>
@@ -4474,6 +4463,18 @@ function resumenAlumnosPanel(alumnos,compDe){
       evaluaciones:[...c.evaluaciones.values()].map(e=>({clave:e.clave,nombre:e.nombre,alumnos:e.notas.length,promedio:media(e.notas)}))}))}))
     .sort((x,y)=>y.alumnos-x.alumnos||String(x.nombre).localeCompare(String(y.nombre),'es'));
 }
+// Dos promedios en la misma escala declarada por la universidad. Un dato
+// oculto o ausente no se convierte en nota mínima ni en cero.
+function comparacionPromediosPanelHTML(propio,referencia,tenant){
+  if(!Number.isFinite(propio)&&!Number.isFinite(referencia))return '';
+  const {min,max}=gh_reglasNota(tenant).grade_scale;
+  const posicion=n=>(100*(Math.max(min,Math.min(max,n))-min)/(max-min)).toFixed(2);
+  return `<div class="panel-curso-comparacion" role="img" aria-label="${esc(`Escala de ${fmtPromedio(min)} a ${fmtPromedio(max)}. Tus alumnos: ${Number.isFinite(propio)?fmtPromedio(propio):'sin notas'}. GradeHub: ${Number.isFinite(referencia)?fmtPromedio(referencia):'aún pocos datos'}.`)}">
+    <div aria-hidden="true">${[['Tus alumnos',propio,'propio'],['GradeHub',referencia,'referencia']].map(([t,n,k])=>`<span class="panel-curso-media"><span>${t}</span><span class="panel-curso-escala">${Number.isFinite(n)?`<i class="panel-curso-${k}" style="left:${posicion(n)}%"></i>`:''}</span><b>${Number.isFinite(n)?esc(fmtPromedio(n)):'—'}</b></span>`).join('')}
+    <span class="panel-curso-extremos"><span>${esc(fmtPromedio(min))}</span><span>${esc(fmtPromedio(max))}</span></span></div>
+  </div>`;
+}
+
 function resumenAlumnosPanelHTML(resumen){
   const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
   const prom=v=>v===null?'·':esc(fmtPromedio(v));
@@ -4484,9 +4485,10 @@ function resumenAlumnosPanelHTML(resumen){
     const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
     const dif=g.promedio!==null&&comp.ramo&&comp.ramo.promedio!=null?g.promedio-Number(comp.ramo.promedio):null;
     // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
-    const sem=[['good','aprobando'],['warn','al borde'],['bad','reprobando']].filter(([k])=>g.semaforo[k])
-      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('')+
-      (g.semaforo.neutral?`<span class="panel-resumen-sem">${g.semaforo.neutral} sin notas</span>`:'');
+    const estados=[['good','aprobando'],['warn','al borde'],['bad','reprobando'],['neutral','sin notas']];
+    const sem=estados.filter(([k])=>g.semaforo[k])
+      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('');
+    const distribucion=g.alumnos>0?`<span class="panel-curso-distribucion" aria-hidden="true">${estados.filter(([k])=>g.semaforo[k]).map(([k])=>`<i class="panel-curso-${k}" style="flex-grow:${g.semaforo[k]}"></i>`).join('')}</span>`:'';
     const filas=g.categorias.map(c=>`<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${n(c.alumnos,'alumno','alumnos')}</small></td><td>${prom(c.promedio)}</td><td>${gh(porCategoria.get(c.clave))}</td></tr>
       ${c.evaluaciones.length>1?c.evaluaciones.map(e=>`<tr class="panel-alumnos-nota"><td>${esc(e.nombre)}<small>${n(e.alumnos,'nota','notas')}</small></td><td>${prom(e.promedio)}</td><td>${porNota.has(e.clave)?gh(porNota.get(e.clave)):'<span class="panel-alumnos-sin">—</span>'}</td></tr>`).join(''):''}</tbody>`).join('');
     return `<details class="panel-resumen-ramo">
@@ -4494,8 +4496,9 @@ function resumenAlumnosPanelHTML(resumen){
         <span class="panel-resumen-nombre"><b>${esc(g.nombre)}</b><small>${g.sigla?esc(g.sigla)+' · ':''}${n(g.alumnos,'alumno','alumnos')}</small></span>
         <span class="panel-alumnos-prom">${g.promedio===null?'Sin notas':prom(g.promedio)}<small>tus alumnos</small></span>
         ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
-        <span class="panel-resumen-semaforo">${sem}</span>
+        <span class="panel-resumen-semaforo">${distribucion}<span class="panel-curso-leyenda">${sem}</span></span>
       </summary>
+      ${comparacionPromediosPanelHTML(g.promedio,comp.ramo?comp.ramo.promedio:null,g.tenant)}
       ${dif===null?'':`<p class="panel-resumen-dif">Tus alumnos van <b>${Math.abs(dif)<0.05?'igual que':`${esc(unDecimalPanel(dif))} ${dif>0?'sobre':'bajo'}`}</b> el promedio de GradeHub en este ramo.</p>`}
       ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
         :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
@@ -4905,7 +4908,7 @@ function resumenInicioAlumnosPanel(alumnos,ahora=new Date()){
 }
 function resumenInicioAlumnosHTML(r){
   const texto=n=>n==='bad'?'Reprobando':'Al borde';
-  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
+  const cifra=(valor,etiqueta,detalle,nivel=null)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small>${nivel&&r.conectados>0?`<span class="panel-riesgo-riel panel-riesgo-${nivel}" aria-hidden="true"><i style="transform:scaleX(${Math.min(1,valor/r.conectados).toFixed(4)})"></i></span>`:''}</div>`;
   const mas=(n,vista)=>n>MAX_FILAS_RESUMEN_PANEL?`<button type="button" class="agent-refresh" data-ir-vista="${vista}">Ver ${n-MAX_FILAS_RESUMEN_PANEL} más en la lista</button>`:'';
   // Agrupada por día (2026-10-23): la fecha va una vez como encabezado y no se
   // repite en cada fila; en la fila queda solo la hora, si la hay.
@@ -4922,7 +4925,7 @@ function resumenInicioAlumnosHTML(r){
       <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>`).join('')}</span></span>
       ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><span class="panel-resumen-meta">Para aprobar</span><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
     :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
-  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`)}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`)}</div>
+  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`,'bad')}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`,'warn')}</div>
     <div class="panel-alumnos-resumen-columnas">
       <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-atencion">
         <div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>
