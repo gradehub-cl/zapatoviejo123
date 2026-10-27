@@ -45,29 +45,32 @@ autenticado localmente es otra cosa y se hace aparte.
 
 ## El SQL de Supabase
 
-Hasta el 2026-10-27 cada archivo de `supabase/` se copiaba a mano al SQL Editor, y a
-veces quedaba sin aplicar sin que nadie lo notara (`errores_app` estuvo días así).
-Ahora lo aplica el workflow `sql-produccion`, con permiso:
+Ningún deploy aplica `supabase/*.sql`. Hasta el 2026-10-27 cada archivo se copiaba
+a mano al SQL Editor, y a veces quedaba sin aplicar sin que nadie lo notara
+(`errores_app` estuvo días así). Ahora hay un atajo desde el Mac de Martín:
 
-1. Un PR cambia o agrega `supabase/<tema>.sql` y se mergea a `main`.
-2. El job **revisar** lista qué archivos se van a aplicar, en qué orden y con su
-   diff, en el resumen de la corrida. No tiene acceso a la base.
-3. El job **aplicar** espera la aprobación de Martín (environment `produccion-sql`,
-   *Required reviewers*). GitHub le avisa; aprueba en *Review deployments*.
-4. Cada archivo corre entero o no corre: sin `begin;` propio va en una sola
-   transacción, y con `begin;`/`commit;` se respeta el suyo
-   (`bin/sql-produccion.js`). Si uno falla, los siguientes no se aplican y la
-   corrida queda en rojo con el error de Postgres.
+```bash
+node bin/sql-produccion.js aplicar supabase/<tema>.sql   # pide confirmación
+node bin/sql-produccion.js consultar "select …"           # solo lectura
+```
+
+- **aplicar** muestra un diálogo de macOS por archivo ("Aplicar" / "Cancelar") que
+  tiene que apretar una persona; sin ese clic no se manda nada. Cada archivo corre
+  entero o nada: sin `begin;` propio va en una transacción, y con `begin;`/`commit;`
+  se respeta el suyo. Los marcados `-- sql-produccion: manual` no se aplican.
+- **consultar** comprueba antes que la sesión sea de solo lectura y, si no, no
+  corre. Sirve para revisar errores, comentarios o la salud de los datos sin pegar
+  resultados a mano.
+- Usa la API de administración de Supabase con un token personal guardado en el
+  Llavero (servicio `gradehub-supabase`): nunca en el repo ni en el chat.
 
 Reglas para quien escribe SQL:
 
-- **Se tiene que poder correr de nuevo.** El mismo archivo se vuelve a aplicar cada
-  vez que se edita: `create or replace function`, `create table if not exists`,
-  `drop policy if exists` antes de `create policy`.
+- **Se tiene que poder correr de nuevo**: `create or replace function`,
+  `create table if not exists`, `drop policy if exists` antes de `create policy`.
 - **Lo de una sola vez** (respaldos, limpiezas, la prueba de aislamiento) lleva
-  `-- sql-produccion: manual` en la primera línea y nunca se aplica solo.
-- Para aplicar algo que ya está en `main`: Actions → `sql-produccion` → *Run
-  workflow* con la lista de archivos. También pide aprobación.
+  `-- sql-produccion: manual` en la primera línea.
 
-La conexión (`PRODUCCION_DB_URL`, la del *Session pooler*: GitHub no tiene IPv6)
-vive solo en el environment, restringido a `main`. Ningún agente la tiene.
+Se descartó aplicarlo desde GitHub Actions con aprobación: con el repo privado en
+el plan gratis de la organización, GitHub no ofrece *Required reviewers* y la
+contraseña de la base quedaría al alcance de cualquier rama.

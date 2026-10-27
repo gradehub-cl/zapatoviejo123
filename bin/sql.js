@@ -1,7 +1,7 @@
 // Aplica uno o varios .sql de supabase/ contra un Postgres de verdad (PGlite)
 // y muestra con qué forma queda la base. Sirve para mirar un archivo ANTES de
-// mergearlo: al llegar a main lo aplica en producción el workflow
-// sql-produccion, con la aprobación de Martín (docs/guia/desplegar.md).
+// aplicarlo en producción con bin/sql-produccion.js, que pide confirmación
+// (docs/guia/desplegar.md).
 //
 //   npm run sql -- supabase/user_feedback.sql
 //   npm run sql -- supabase/agente_propuestas.sql supabase/agente_ramos_propuestas.sql
