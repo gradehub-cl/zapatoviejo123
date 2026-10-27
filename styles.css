@@ -3875,6 +3875,26 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calc-tabla-scroll td{padding:7px 12px;border-top:1px solid var(--border);}
 .calc-tabla-scroll .calc-fila-actual td{background:var(--muted);font-weight:700;}
 
+/* Docente de la sección: HIG Text fields y Buttons; controles de 44 px. */
+.ramo-docente{margin:0 20px 16px;color:var(--fg);font-size:1rem;line-height:1.5;overflow-wrap:anywhere;}
+.ramo-docente:empty{display:none;}
+.docente-resumen{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.ramo-docente p{margin:0;}
+.ramo-docente .docente-ayuda{color:var(--fg2);font-size:.875rem;}
+.docente-form{margin-top:12px;}
+.docente-form label{display:block;margin:12px 0 6px;font-weight:600;}
+.docente-campo{display:flex;gap:8px;align-items:center;}
+.docente-campo button{flex-shrink:0;white-space:nowrap;}
+.docente-campo input[type=text]{min-width:0;width:100%;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
+.docente-acciones{display:flex;justify-content:flex-end;gap:12px;margin-top:12px;flex-wrap:wrap;}
+.docente-link,.docente-guardar{min-width:44px;min-height:44px;padding:10px 12px;border:0;border-radius:10px;font:inherit;cursor:pointer;}
+.docente-link{background:transparent;color:var(--fg);text-decoration:underline;text-underline-offset:3px;}
+.docente-guardar{background:var(--fg);color:var(--bg);font-weight:600;}
+.docente-link:active,.docente-guardar:active{opacity:.7;}
+.docente-guardar:disabled{opacity:.6;cursor:wait;}
+.docente-link:focus-visible,.docente-guardar:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
+.ramo-docente .docente-error{margin-top:8px;color:var(--fg);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
@@ -3988,4 +4008,3 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 
 /* El total del editor de pauta se pega justo bajo la barra de la hoja. */
 .app-nativa .pauta-total{top:44px;}
-
