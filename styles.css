@@ -4091,9 +4091,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .ramo-hero-label>span:empty{display:none;}
 .ramo-hero-label>span:not(:empty)~span:not(:empty)::before{content:' · ';}
 .ramo-hero-label .ramo-profe button{display:inline-flex;min-width:44px;min-height:44px;vertical-align:middle;}
-.ramo-profe button:active{opacity:.7;}
-.ramo-titulo-bloque .topbar-title{white-space:normal;overflow-wrap:anywhere;}
-.ramo-subtitulo{white-space:normal;overflow:visible;overflow-wrap:anywhere;}
 .ramo-actions:has(.calif-accion:not([hidden])){flex-wrap:nowrap;align-items:stretch;gap:12px;}
 .ramo-actions .calif-accion{max-width:65%;min-width:0;white-space:normal;line-height:1.3;}
 .ramo-actions .calif-accion[hidden]{display:none;}
