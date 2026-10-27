@@ -1,3 +1,4 @@
+-- sql-produccion: manual (una sola vez, en el SQL Editor; el workflow nunca lo aplica solo)
 -- Reversión operativa de #515 con respaldo_campanas_515.sql previo.
 -- Nunca restaura cuentas, anuncios o cobros desde una foto antigua.
 -- Guarda TODO el detalle nuevo en respaldo_515.*_posterior y deja operativo

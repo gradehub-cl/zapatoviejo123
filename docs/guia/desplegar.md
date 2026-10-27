@@ -42,3 +42,35 @@ El deploy manual sigue existiendo por si el CI está caído (`npm run deploy`),
 pero necesita Wrangler autenticado en la máquina de quien lo corra. Lucas y
 Martín tienen acceso de administrador a la cuenta de Cloudflare; tener Wrangler
 autenticado localmente es otra cosa y se hace aparte.
+
+## El SQL de Supabase
+
+Ningún deploy aplica `supabase/*.sql`. Hasta el 2026-10-27 cada archivo se copiaba
+a mano al SQL Editor, y a veces quedaba sin aplicar sin que nadie lo notara
+(`errores_app` estuvo días así). Ahora hay un atajo desde el Mac de Martín:
+
+```bash
+node bin/sql-produccion.js aplicar supabase/<tema>.sql   # pide confirmación
+node bin/sql-produccion.js consultar "select …"           # solo lectura
+```
+
+- **aplicar** muestra un diálogo de macOS por archivo ("Aplicar" / "Cancelar") que
+  tiene que apretar una persona; sin ese clic no se manda nada. Cada archivo corre
+  entero o nada: sin `begin;` propio va en una transacción, y con `begin;`/`commit;`
+  se respeta el suyo. Los marcados `-- sql-produccion: manual` no se aplican.
+- **consultar** comprueba antes que la sesión sea de solo lectura y, si no, no
+  corre. Sirve para revisar errores, comentarios o la salud de los datos sin pegar
+  resultados a mano.
+- Usa la API de administración de Supabase con un token personal guardado en el
+  Llavero (servicio `gradehub-supabase`): nunca en el repo ni en el chat.
+
+Reglas para quien escribe SQL:
+
+- **Se tiene que poder correr de nuevo**: `create or replace function`,
+  `create table if not exists`, `drop policy if exists` antes de `create policy`.
+- **Lo de una sola vez** (respaldos, limpiezas, la prueba de aislamiento) lleva
+  `-- sql-produccion: manual` en la primera línea.
+
+Se descartó aplicarlo desde GitHub Actions con aprobación: con el repo privado en
+el plan gratis de la organización, GitHub no ofrece *Required reviewers* y la
+contraseña de la base quedaría al alcance de cualquier rama.

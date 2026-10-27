@@ -1,7 +1,7 @@
 // Aplica uno o varios .sql de supabase/ contra un Postgres de verdad (PGlite)
 // y muestra con qué forma queda la base. Sirve para mirar un archivo ANTES de
-// pegarlo en el panel de Supabase, que es el único camino por el que estos
-// archivos llegan a producción: ningún deploy los ejecuta.
+// aplicarlo en producción con bin/sql-produccion.js, que pide confirmación
+// (docs/guia/desplegar.md).
 //
 //   npm run sql -- supabase/user_feedback.sql
 //   npm run sql -- supabase/agente_propuestas.sql supabase/agente_ramos_propuestas.sql

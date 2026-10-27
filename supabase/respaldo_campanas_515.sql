@@ -1,3 +1,4 @@
+-- sql-produccion: manual (una sola vez, en el SQL Editor; el workflow nunca lo aplica solo)
 -- Ejecutar UNA VEZ antes de #515. Solo SQL Editor, nunca desde la app.
 -- No usar IF NOT EXISTS: un segundo intento no debe reemplazar el respaldo.
 -- Incluye definiciones reales de funciones (no una suposición sobre producción).

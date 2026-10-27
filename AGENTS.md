@@ -75,7 +75,7 @@ grandes de `.ignore` (`cursos-uc.js`, `ocr/`…); para buscar adentro, nómbralo
 | subir foto del horario (OCR) | `app.js` + `ocr/` | `rg -n "function leerFotoHorario\|function codigosDeFotoHorario"` |
 | estilos | `styles.css` | `rg -n "^\.<clase>"` |
 | herramientas para agentes (MCP) | `functions/mcp/herramientas.js` | léelo completo |
-| SQL de Supabase (se aplica a mano) | `supabase/*.sql` | un archivo por tema |
+| SQL de Supabase (se aplica con confirmación) | `supabase/*.sql` | un archivo por tema |
 | app iOS: Capacitor, widgets, Actividad en Vivo | `ios/App/` | lee `docs/guia/ios.md` |
 
 ## Arquitectura en corto
@@ -162,6 +162,14 @@ Mergear a `main` publica en gradehub.cl tras pasar los tests. Si un deploy sale
 malo, **primero se vuelve atrás** (Cloudflare Pages) **y se revierte el commit en
 `main`**, después se investiga. El `CACHE_NAME` de `sw.js` no se toca. Se publica
 `dist/`, no el repo.
+
+**El SQL no se despliega solo.** Un cambio en `supabase/*.sql` se aplica en la base
+de producción con `node bin/sql-produccion.js aplicar supabase/<tema>.sql` desde el
+Mac de Martín, que pide confirmación en un diálogo de macOS por cada archivo, o a
+mano en el SQL Editor. Cada archivo tiene que poder correrse de nuevo
+(`create or replace`, `if not exists`). Uno de una sola vez (respaldos,
+limpiezas) lleva `-- sql-produccion: manual` en su primera línea y el script no lo
+aplica. Detalle en [`docs/guia/desplegar.md`](docs/guia/desplegar.md).
 
 ## Lee antes de tocar
 
