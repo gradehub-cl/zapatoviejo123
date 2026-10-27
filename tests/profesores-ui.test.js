@@ -10,7 +10,7 @@ const ctx={S:{tenant:'uc',ramos:[r],userName:'Persona sintética'},currentUser:{
   esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   document:{getElementById:()=>raiz,createElement:()=>elemento()},
   supabaseClient:{rpc:async(nombre,args)=>{llamadas.push({nombre,args});return {data:[respuestas[nombre]||{}]};}}};
-vm.createContext(ctx);vm.runInContext(read('data.js')+'\n'+read('render-main.js'),ctx);
+vm.createContext(ctx);vm.runInContext(read('data.js')+'\n'+read('render-main.js').replace('const CALIFICAR_PROFESOR_VISIBLE=false;','const CALIFICAR_PROFESOR_VISIBLE=true;'),ctx);
 const base=JSON.stringify(ctx.S);
 const plano=x=>JSON.parse(JSON.stringify(x));
 (async()=>{
@@ -61,3 +61,16 @@ const plano=x=>JSON.parse(JSON.stringify(x));
 })().then(()=>{terminado=true;},e=>{console.error(e);process.exitCode=1;});
 // Una promesa que nunca se resuelve no puede pasar en silencio.
 let terminado=false;process.on('exit',()=>{if(!terminado&&!process.exitCode){console.error('el test no terminó');process.exitCode=1;}});
+
+// Mientras CALIFICAR_PROFESOR_VISIBLE sea false, la ficha no ofrece calificar.
+(async()=>{
+  const raiz2=elemento();
+  const ctx2={...ctx,currentUser:{id:'cuenta-1'},S:{tenant:'uc',ramos:[{id:'local-2',seccion:1}]},currentRamoId:'local-2',
+    document:{getElementById:()=>raiz2},supabaseClient:{rpc:async n=>({data:[{profesor_docente_estado:{nombre_publico:'Docente Sintético',mi_nombre:null},
+      profesor_calificacion_estado:{docente:'Docente Sintético',total:0,puede_calificar:true}}[n]]})}};
+  vm.createContext(ctx2);vm.runInContext(read('data.js')+'\n'+read('render-main.js'),ctx2);
+  await ctx2.renderDocenteRamo(ctx2.S.ramos[0]);
+  assert.match(raiz2.innerHTML,/Profesor: <strong>Docente Sintético/);
+  assert.doesNotMatch(raiz2.innerHTML,/data-calificar|Calificar profesor/);
+  console.log('OK docentes UI: Calificar profesor oculto en producción');
+})().catch(e=>{console.error(e);process.exitCode=1;});

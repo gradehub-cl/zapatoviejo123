@@ -1770,6 +1770,9 @@ function errorDocente(error){
   if(/período no vigente/.test(mensaje))return 'Cambió el semestre. Vuelve a abrir la ficha para informar al profesor.';
   return 'No pudimos conectar con el registro. Revisa tu conexión y reintenta.';
 }
+// Calificar queda oculto hasta que el panel sugiera etiquetas según las
+// estrellas (Lucas, 2026-10-27). El docente y el promedio se siguen viendo.
+const CALIFICAR_PROFESOR_VISIBLE=false;
 async function renderDocenteRamo(r){
   const raiz=document.getElementById('ramo-docente');if(!raiz)return;
   const solicitud=++profesorSolicitud,cuenta=currentUser&&currentUser.id,contexto=contextoDocente(r);
@@ -1800,7 +1803,7 @@ async function renderDocenteRamo(r){
       ${nombre?htmlResumenCalificacion(calif):''}
       ${mio&&!nombre?'<p class="docente-ayuda">Aparece para tu sección cuando lo informan 3 cuentas.</p>':''}
       ${!nombre&&Number(calif.mi_estrellas)>=1&&Number(calif.mi_estrellas)<=5?`<p class="docente-ayuda">Tu calificación: ${Number(calif.mi_estrellas)} de 5</p>`:''}
-      ${calif.puede_calificar===true?`<button type="button" class="docente-link" data-calificar>${Number(calif.mi_estrellas)?'Editar mi calificación':'Calificar profesor'}</button>`:''}`;
+      ${CALIFICAR_PROFESOR_VISIBLE&&calif.puede_calificar===true?`<button type="button" class="docente-link" data-calificar>${Number(calif.mi_estrellas)?'Editar mi calificación':'Calificar profesor'}</button>`:''}`;
     const abrir=raiz.querySelector('[data-calificar]');
     if(abrir)abrir.onclick=()=>abrirCalificarProfesor(r,contexto,{nombre,mio,calif});
   }catch(error){
