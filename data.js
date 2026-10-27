@@ -3537,6 +3537,30 @@ const PROFESOR_ETIQUETAS=[
 // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO141C
 // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO143M
 // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF012
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIL2001
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MAT1279
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EAA1510
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EAE1210
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MAT1610
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ICS1513
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO110C
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MAT1203
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF210
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=CLG0030
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF205
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EAA1210
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EAE1110
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=QIM100
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO187C
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=QIM100E
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF036
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ANT100
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=GEO103
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ICP0101
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MAT1000
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF215
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF083
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF115
 // Cuando figuran varios, se propone el primero listado y se pide confirmar.
 // Solo se invierte «Apellido Nombre»; se conserva la grafía de la fuente.
 // No se aplica a otro período ni se infiere la sección por nombre de ramo.
@@ -3637,6 +3661,210 @@ const PROFESORES_PROPUESTOS={
       2:'Juan Espinosa',
       3:'Juan Sepulveda',
       4:'Juan Sepulveda',
+    },
+    FIL2001:{
+      1:'Camila Schiavetti',
+      2:'Camila Schiavetti',
+      3:'Pamela Chávez',
+      4:'Alejandro Irusta',
+      5:'María Montecinos',
+      6:'Maria Gazmuri',
+      7:'Francisco Marambio',
+      8:'Alejandro Irusta',
+      9:'Pamela Chávez',
+      10:'Cristóbal Olivares',
+      11:'Cristóbal Olivares',
+      12:'Maria Gazmuri',
+      13:'Cristian Hernández',
+      14:'Matias Wende',
+      15:'Camila Schiavetti',
+      16:'Vicente Garcia-Huidobro',
+      17:'Matias Wende',
+      18:'Rodrigo Frias',
+      19:'Constanza Gimenez',
+      20:'Constanza Gimenez',
+      21:'Luis Carrillo',
+      22:'María Montecinos',
+      23:'Alejandro Irusta',
+      24:'Constanza Gimenez',
+      25:'María Montecinos',
+      26:'Daniel Toscano',
+      27:'Rodrigo Frias',
+      28:'Daniel Toscano',
+      29:'Cristian Hernández',
+      30:'Cristian Hernández',
+      31:'Rodolfo Aldea',
+      32:'Luis Martinic',
+      33:'Vicente Garcia-Huidobro',
+      34:'Beatriz Contreras',
+      35:'David Morales',
+      36:'David Morales',
+      37:'Matias Wende',
+      38:'Andrea Scanziani',
+      39:'Cristian Hernández',
+      40:'Daniel Toscano',
+      41:'Federico Ponzoni',
+      42:'Constanza Gimenez',
+      43:'Alejandro Irusta',
+      44:'Andrea Scanziani',
+      45:'Cristóbal Olivares',
+    },
+    MAT1279:{
+      1:'José Samper',
+      2:'José Samper',
+      3:'Francisco Barrios',
+      4:'Francisco Barrios',
+      5:'Daniel Vidal',
+      6:'Daniel Vidal',
+      7:'Nicolás Oyarce',
+      8:'Benjamín Cortés',
+    },
+    EAA1510:{
+      1:'Cristian Vasquez',
+      2:'Cristian Vasquez',
+      3:'Cristian Vasquez',
+      4:'Ricardo Olea',
+      5:'Ricardo Aravena',
+      6:'Ricardo Aravena',
+    },
+    EAE1210:{
+      1:'Juan Urquiza',
+      2:'Bernardita Piedrabuena',
+      3:'Felipe Martínez',
+      4:'Alex Nannig',
+      5:'Laura Carvajal',
+      6:'Daniel Jaar',
+      7:'Jorge Echeverria',
+    },
+    MAT1610:{
+      1:'Giancarlo Urzua',
+      2:'Giancarlo Urzua',
+      3:'Oscar Chacón',
+      4:'Oscar Chacón',
+      5:'Johanna Figueroa',
+      6:'Johanna Figueroa',
+      7:'Esteban Paduro',
+      8:'Esteban Paduro',
+      9:'Gabriela Fernandez',
+      10:'Gabriela Fernandez',
+      11:'Esteban Vásquez',
+      12:'Esteban Vásquez',
+      13:'Diego De la Vega',
+      14:'Diego De la Vega',
+      15:'Sebastián Ramírez',
+      16:'Cesar Arias',
+      17:'Yazmin Rivera',
+      18:'Angela Vargas',
+      19:'Daniel Gajardo',
+      20:'Diego De la Vega',
+    },
+    ICS1513:{
+      1:'Cristobal De la Maza',
+      2:'Patricia Galilea',
+      3:'Romy Alamo',
+      4:'Manuel Perez',
+      5:'Roberto Flores',
+    },
+    BIO110C:{
+      1:'Enrico Rezende',
+    },
+    MAT1203:{
+      1:'Constanza Del Campo',
+      2:'Constanza Del Campo',
+      3:'Luis Zegarra',
+      4:'Luis Zegarra',
+      5:'Dieter Mitsche',
+      6:'Dieter Mitsche',
+      7:'Francisco Barrios',
+      8:'Francisco Barrios',
+    },
+    TTF210:{
+      1:'Joan Mora',
+      2:'Joan Mora',
+    },
+    CLG0030:{
+      1:'Estela Blanco',
+      2:'Maria Ramirez',
+      3:'Ariel Lara',
+      4:'Gino Sturla',
+      5:'Mitchell Bosley',
+    },
+    TTF205:{
+      1:'Jaime Condori',
+      2:'Jaime Condori',
+    },
+    EAA1210:{
+      1:'Cristobal Doberti',
+      2:'Hector Godoy',
+      3:'Cristóbal Mc Intyre',
+    },
+    EAE1110:{
+      1:'Jose Sanchez',
+      2:'Francisca Silva',
+      3:'Paulina Guerra',
+      4:'Bastián Mundt',
+    },
+    QIM100:{
+      1:'Jeannette Moreno',
+    },
+    BIO187C:{
+      1:'Ricardo Moreno',
+    },
+    QIM100E:{
+      1:'Cesar Saldias',
+      2:'Daniel Díaz',
+      3:'Eduardo Leiva',
+      4:'Rodrigo Montecinos',
+      5:'Jael Reyes',
+      6:'Alan Cabrera',
+    },
+    TTF036:{
+      1:'Juan Espinosa',
+      2:'Juan Espinosa',
+    },
+    ANT100:{
+      1:'Cristian Simonetti',
+      2:'Joaquin Ossandon',
+      3:'Gonzalo Bórquez',
+      4:'Giovanna Bacchiddu',
+      5:'Felipe Cisternas',
+      6:'Alejandra Vergara',
+    },
+    GEO103:{
+      1:'Flavia Velasquez',
+      2:'Esteban Figueroa',
+      3:'Flavia Velasquez',
+      4:'Rafael Sanchez',
+      5:'Sebastian Rodríguez',
+      6:'Martin Torres',
+    },
+    ICP0101:{
+      1:'David Altman',
+      2:'Sergio Huertas',
+      3:'Andrea Neirot',
+      4:'Pedro Accorsi',
+      5:'Mariano Del Popolo',
+      6:'Carlos Perez',
+    },
+    MAT1000:{
+      1:'Hugo Maturana',
+      2:'María Valenzuela',
+      3:'Vania Ramirez',
+      4:'Olivier Bourget',
+      5:'Agustín Gilbert',
+      6:'Oscar Chacón',
+      7:'Agustín Gilbert',
+    },
+    TTF215:{
+      1:'Heriberto Cabrera',
+    },
+    TTF083:{
+      1:'Diego Miranda',
+      2:'Diego Miranda',
+    },
+    TTF115:{
+      1:'Blanca Besa',
+      2:'Blanca Besa',
     },
   }},
 };
