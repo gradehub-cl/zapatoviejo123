@@ -141,12 +141,14 @@ grant execute on function public.profesor_docente_informar(text,integer,text,tex
 -- Cuentan para el docente que esa cuenta informó, y solo en secciones donde el
 -- consenso dice lo mismo: quien dijo «es otra persona» no suma al publicado.
 
--- Etiquetas sobre cómo es el profe, no sobre la clase (Lucas, 2026-10-27).
--- Solo positivas o neutras. Mismas claves que PROFESOR_ETIQUETAS en data.js
--- (tests/profesores-calificaciones.test.js).
+-- Etiquetas sobre cómo es el profe, no sobre la clase (Lucas, 2026-10-27):
+-- positivas, una neutra y negativas sin insultos. El panel sugiere unas u otras
+-- según las estrellas; acá se acepta cualquiera de la lista. Mismas claves que
+-- PROFESOR_ETIQUETAS en data.js (tests/profesores-calificaciones.test.js).
 create or replace function public.profesor_etiquetas_validas()
 returns text[] language sql immutable set search_path = '' as $$
-  select array['buena_onda','amable','paciente','flexible','puntual','motiva','escucha','exigente']::text[];
+  select array['buena_onda','amable','paciente','flexible','puntual','motiva','escucha','exigente',
+    'cuesta_entenderle','distante','poco_paciente','inflexible','impuntual','responde_poco']::text[];
 $$;
 create table if not exists public.profesor_calificaciones (
   user_id uuid not null references auth.users(id) on delete cascade,
