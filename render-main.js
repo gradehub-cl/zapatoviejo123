@@ -1790,7 +1790,9 @@ async function renderDocenteRamo(r){
     const nombre=limpiarTextoProfesor(estado.nombre_publico,100),mio=limpiarTextoProfesor(estado.mi_nombre,100);
     raiz.innerHTML=`<div class="docente-resumen"><p>${nombre?'Profesor: <strong>'+esc(nombre)+'</strong>':'¿Quién te hace clases?'}</p>
       <button type="button" class="docente-link">${nombre?'Informar o corregir':mio?'Corregir mi aporte':'Informar profesor'}</button></div>
-      <p class="docente-ayuda">${mio&&!nombre?'Tu aporte está guardado. Falta coincidencia entre 3 cuentas de esta sección.':nombre?'Confirmado por estudiantes de esta sección.':''}</p>`;
+      <p class="docente-ayuda">${mio&&!nombre?'Tu aporte está guardado. Falta coincidencia entre 3 cuentas de esta sección.':nombre?'Confirmado por estudiantes de esta sección.':''}</p>
+      ${nombre?'<div class="docente-calificacion"></div>':''}`;
+    if(nombre)renderCalificacionProfesor(raiz.querySelector('.docente-calificacion'),contexto,vigente);
     raiz.querySelector('button').onclick=()=>{
       if(!vigente())return;
       const formulario=document.createElement('form');formulario.className='docente-form';
@@ -1829,4 +1831,105 @@ async function renderDocenteRamo(r){
     raiz.querySelector('p').textContent=errorDocente(error);
     raiz.querySelector('button').onclick=()=>renderDocenteRamo(r);
   }
+}
+
+// Calificación del profesor: estrellas y hasta 3 etiquetas de PROFESOR_ETIQUETAS,
+// sin texto libre. El promedio junta las secciones y semestres en que ese
+// docente dictó este ramo, y no se publica bajo 3 calificaciones.
+function etiquetaProfesor(id){
+  const e=(typeof PROFESOR_ETIQUETAS!=='undefined'?PROFESOR_ETIQUETAS:[]).find(x=>x.id===id);
+  return e?e.texto:'';
+}
+function htmlResumenCalificacion(estado){
+  const total=Math.max(0,Number(estado&&estado.total)||0),promedio=estado&&estado.promedio!=null?Number(estado.promedio):NaN;
+  const mia=Number(estado&&estado.mi_estrellas);
+  let html='';
+  if(total>=3&&promedio>=1&&promedio<=5){
+    const etiquetas=(Array.isArray(estado.etiquetas)?estado.etiquetas:[]).map(x=>etiquetaProfesor(x&&x.etiqueta)).filter(Boolean);
+    html+=`<p class="calif-resumen"><span class="calif-estrella" aria-hidden="true">★</span><strong class="calif-numero">${promedio.toFixed(1)}</strong><span class="calif-sr"> de 5,</span> <span class="calif-total">${total} calificaciones en este ramo</span></p>`;
+    if(etiquetas.length)html+=`<p class="calif-destacadas">${etiquetas.map(esc).join(' · ')}</p>`;
+  }else{
+    html+=`<p class="docente-ayuda">${total?'Aún hay pocas calificaciones: el promedio aparece desde 3.':'Todavía nadie lo califica en este ramo.'}</p>`;
+  }
+  if(mia>=1&&mia<=5)html+=`<p class="docente-ayuda">Tu calificación: ${mia} de 5</p>`;
+  if(estado&&estado.puede_calificar===true)html+=`<button type="button" class="docente-link" data-calificar>${mia?'Editar mi calificación':'Calificar al profesor'}</button>`;
+  return html;
+}
+function payloadCalificacion(contexto,estrellas,etiquetas){
+  const validas=new Set((typeof PROFESOR_ETIQUETAS!=='undefined'?PROFESOR_ETIQUETAS:[]).map(x=>x.id));
+  return {...contexto,p_estrellas:estrellas,p_etiquetas:[...new Set(etiquetas)].filter(x=>validas.has(x)).slice(0,3)};
+}
+function errorCalificacion(error){
+  const mensaje=String(error&&error.message||'');
+  if(/sin confirmar/.test(mensaje))return 'El profesor de esta sección dejó de estar confirmado. Vuelve a abrir la ficha.';
+  if(/etiquetas/.test(mensaje))return 'Elige hasta 3 etiquetas.';
+  return errorDocente(error);
+}
+async function renderCalificacionProfesor(cont,contexto,vigente){
+  if(!cont)return;
+  cont.innerHTML='';
+  let estado;
+  try{
+    const {data,error}=await supabaseClient.rpc('profesor_calificacion_estado',contexto);
+    if(error)throw error;
+    estado=(Array.isArray(data)?data[0]:data)||{};
+  }catch(error){
+    if(!vigente())return;
+    cont.innerHTML='<p class="docente-ayuda">No pudimos cargar las calificaciones.</p><button type="button" class="docente-link">Reintentar</button>';
+    cont.querySelector('button').onclick=()=>renderCalificacionProfesor(cont,contexto,vigente);
+    return;
+  }
+  if(!vigente())return;
+  if(!estado.docente){cont.innerHTML='';return;}
+  cont.innerHTML=htmlResumenCalificacion(estado);
+  const abrir=cont.querySelector('[data-calificar]');
+  if(abrir)abrir.onclick=()=>abrirFormCalificacion(cont,estado,contexto,vigente);
+}
+function abrirFormCalificacion(cont,estado,contexto,vigente){
+  if(!vigente()||cont.querySelector('.calif-form'))return;
+  const mia=Number(estado.mi_estrellas)||0,mias=new Set(Array.isArray(estado.mi_etiquetas)?estado.mi_etiquetas:[]);
+  const formulario=document.createElement('form');formulario.className='calif-form';
+  formulario.innerHTML=`<fieldset class="calif-campo"><legend>¿Cómo evalúas sus clases?</legend>
+      <div class="calif-opciones">${[1,2,3,4,5].map(n=>`<label class="calif-opcion"><input type="radio" name="calif-estrellas" value="${n}"${n===mia?' checked':''}><span aria-hidden="true">★</span><span class="calif-sr">${n} de 5</span></label>`).join('')}</div>
+    </fieldset>
+    <fieldset class="calif-campo"><legend>Lo que mejor lo describe <span class="calif-opcional">hasta 3, opcional</span></legend>
+      <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}</div>
+    </fieldset>
+    <p class="docente-ayuda">Es anónima: nadie ve quién calificó, y el promedio aparece desde 3 calificaciones.</p>
+    <p class="docente-error" role="alert"></p>
+    <div class="docente-acciones">${mia?'<button type="button" class="docente-link calif-borrar" data-borrar>Borrar la mía</button>':''}<button type="button" class="docente-link" data-cancelar>Cancelar</button><button type="submit" class="docente-guardar">Guardar</button></div>`;
+  const boton=cont.querySelector('[data-calificar]');if(boton)boton.hidden=true;
+  cont.appendChild(formulario);
+  const guardar=formulario.querySelector('[type=submit]'),mensaje=formulario.querySelector('[role=alert]');
+  const estrellas=()=>Number((formulario.querySelector('input[name=calif-estrellas]:checked')||{}).value)||0;
+  const marcar=()=>{
+    const v=estrellas();formulario.querySelectorAll('.calif-opcion').forEach((l,i)=>l.classList.toggle('lleno',i<v));
+    const chips=[...formulario.querySelectorAll('input[name=calif-etiqueta]')],n=chips.filter(x=>x.checked).length;
+    chips.forEach(x=>{x.disabled=!x.checked&&n>=3;});
+  };
+  formulario.addEventListener('change',marcar);marcar();
+  const cerrar=()=>{formulario.remove();if(boton){boton.hidden=false;boton.focus();}};
+  formulario.querySelector('[data-cancelar]').onclick=cerrar;
+  const enviar=async(rpc,args,aviso)=>{
+    if(guardar.disabled||!vigente())return;
+    formulario.querySelectorAll('button').forEach(b=>{b.disabled=true;});mensaje.textContent='';
+    try{
+      const {error}=await supabaseClient.rpc(rpc,args);
+      if(error)throw error;
+      if(!vigente())return;
+      showToast(aviso);await renderCalificacionProfesor(cont,contexto,vigente);
+      cont.querySelector('[data-calificar]')?.focus();
+    }catch(error){
+      if(vigente()&&formulario.isConnected){mensaje.textContent=errorCalificacion(error);formulario.querySelectorAll('button').forEach(b=>{b.disabled=false;});}
+    }
+  };
+  const borrar=formulario.querySelector('[data-borrar]');
+  if(borrar)borrar.onclick=()=>enviar('profesor_calificacion_borrar',contexto,'Borramos tu calificación');
+  formulario.onsubmit=e=>{
+    e.preventDefault();
+    if(!estrellas()){mensaje.textContent='Elige de 1 a 5 estrellas.';formulario.querySelector('input[name=calif-estrellas]').focus();return;}
+    const etiquetas=[...formulario.querySelectorAll('input[name=calif-etiqueta]:checked')].map(x=>x.value);
+    enviar('profesor_calificar',payloadCalificacion(contexto,estrellas(),etiquetas),'Tu calificación quedó guardada');
+  };
+  formulario.querySelector(mia?'input[name=calif-estrellas]:checked':'input[name=calif-estrellas]').focus();
 }
