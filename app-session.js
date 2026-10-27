@@ -247,9 +247,17 @@ function detalleErrorSeguro(error){
   };
   recopilar(currentUser,0);
   if(typeof S!=='undefined')recopilar(S,0);
+  // Se reemplaza la palabra completa, no un pedazo: con la carrera "COM" en el
+  // estado, "loop completed" quedaba "loop [dato]pleted", y el mismo error del
+  // navegador se partía en dos grupos (errores_app, 2026-10-26). Un dato
+  // privado sigue saliendo entero; lo que no se toca es el interior de otra palabra.
   privados.filter(v=>typeof v==='string'&&v.trim().length>1)
     .sort((a,b)=>b.length-a.length)
-    .forEach(v=>{detalle=detalle.replace(new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'[dato]');});
+    .forEach(v=>{
+      const literal=v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      try{detalle=detalle.replace(new RegExp('(^|[^\\p{L}\\p{N}])'+literal+'(?=$|[^\\p{L}\\p{N}])','giu'),'$1[dato]');}
+      catch(e){detalle=detalle.replace(new RegExp(literal,'gi'),'[dato]');}
+    });
   return detalle
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[correo]')
     .replace(/https?:\/\/\S+/gi,'[url]')
@@ -276,6 +284,16 @@ function versionDeLaApp(){
 function reportarError(error,donde){
   try{
     if(!supabaseClient||!currentUser||_erroresEnviados.size>=MAX_ERRORES_POR_VISITA)return false;
+    // Sin app.js, todo lo que corre después falla en cadena ("Can't find
+    // variable: S" desde visibilitychange, render-main…). La causa ya se guarda
+    // una vez como "app.js no cargó"; lo demás solo la repite con otro nombre.
+    // `track` es una declaración de función de app.js: existe si el archivo se leyó.
+    if(typeof track!=='function'&&donde!=='arranque:cargar_app')return false;
+    const original=String((error&&error.message)||'');
+    // Avisos del navegador y código que inyectan extensiones: no son nuestros.
+    // ResizeObserver avisa que difirió un ciclo de medición, sin romper nada; una
+    // billetera de criptomonedas escribe window.ethereum en cada página.
+    if(/^ResizeObserver loop /.test(original)||/window\.ethereum\b/.test(original))return false;
     const mensaje=detalleErrorSeguro(error);
     // "Script error." es lo único que deja un script de otro origen: no dice nada.
     if(/^Script error\.?$/i.test(mensaje))return false;
@@ -1621,7 +1639,33 @@ function despegar(a,svg,destino){
   setTimeout(()=>{destino.style.opacity='';a.remove();},VIAJE_ARRANQUE_MS+20);
   return true;
 }
+// app.js pesa ~600 KB y es lo que más se corta con una conexión mala: "app.js no
+// cargó" llegó 13 veces en una semana, de 11 cuentas, casi todas una sola vez y
+// que al día siguiente entraron bien (errores_app, 2026-10-26). Antes de mostrar
+// el aviso se pide de nuevo; si llega entero, se recarga la página, que con el
+// archivo ya en caché arranca desde cero y no a medias (los scripts que corrieron
+// sin app.js quedaron incompletos). Una vez por pestaña y versión: si vuelve a
+// fallar, sale el aviso de recargar en vez de una recarga sin fin.
+const REINTENTO_APP_JS='gradehub_reintento_app_js';
+async function reintentarAppJs(){
+  const version=versionDeLaApp();
+  try{if(sessionStorage.getItem(REINTENTO_APP_JS)===version)return false;}catch(e){return false;}
+  const script=document.querySelector('script[src*="app.js?v="]');
+  if(!script||!script.src||typeof fetch!=='function')return false;
+  const control=typeof AbortController==='function'?new AbortController():null;
+  const plazo=setTimeout(()=>{if(control)control.abort();},15000);
+  try{
+    const r=await fetch(script.src,control?{cache:'reload',signal:control.signal}:{cache:'reload'});
+    if(!r||!r.ok)return false;
+    await r.text();
+  }catch(e){return false;}
+  finally{clearTimeout(plazo);}
+  try{sessionStorage.setItem(REINTENTO_APP_JS,version);}catch(e){return false;}
+  location.reload();
+  return true;
+}
 async function boot(){
+  let recargando=false;
   try{
     if(!supabaseClient){
       // Sin configurar Supabase → funciona en modo local (fallback)
@@ -1672,10 +1716,21 @@ async function boot(){
     // `track` es una declaración de función de app.js: existe apenas el archivo
     // se leyó, aunque algo falle más abajo.
     if(typeof track!=='function'){
+      const aviso=document.getElementById('carga-inicial-detalle');
+      if(aviso)aviso.textContent='Terminando de descargar GradeHub…';
+      if(await reintentarAppJs()){recargando=true;return;}
       registrarErrorArranque(new Error('app.js no cargó'),'cargar_app');
       showAppErrorScreen('abrir_app');
       return;
     }
+    // Llegó tras un reintento: se anota para saber cuántas veces el reintento
+    // evitó el aviso, y la pestaña queda libre para reintentar otra vez.
+    try{
+      if(sessionStorage.getItem(REINTENTO_APP_JS)){
+        sessionStorage.removeItem(REINTENTO_APP_JS);
+        reportarError(new Error('app.js cargó al reintentar'),'arranque:reintento');
+      }
+    }catch(e){}
     const detalle=document.getElementById('carga-inicial-detalle');
     if(detalle)detalle.textContent='Preparando tu semestre…';
     try{
@@ -1684,7 +1739,11 @@ async function boot(){
       registrarErrorArranque(e,'abrir_app');
       showAppErrorScreen('abrir_app');
     }
-  }finally{quitarArranque();}
+  }finally{
+    // Mientras recarga tras el reintento, la pantalla de carga se queda: sacarla
+    // mostraba un instante el login. Si la recarga no llega, se va igual.
+    if(recargando)setTimeout(quitarArranque,8000);else quitarArranque();
+  }
 }
 // ─── VERIFICACIÓN EN DOS PASOS ──────────────────────────────────────────────
 //

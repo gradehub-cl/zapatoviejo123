@@ -8,11 +8,14 @@ let ok = 0, fail = 0;
 const chk = (n, c) => { if (c) { ok++; console.log('  OK   ' + n); } else { fail++; console.log('  FAIL ' + n); } };
 
 const bloque = sesion.slice(sesion.indexOf('function detalleErrorSeguro('), sesion.indexOf("if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){\n  window.addEventListener('error'"));
-const arnes = ({ usuario = { id: 'u1', email: 'ana@ejemplo.test' }, nativa = true } = {}) => {
+// `track` vive en app.js: el arnés representa una app que cargó entera, salvo
+// cuando el caso es justamente que app.js no llegó (`conAppJs: false`).
+const arnes = ({ usuario = { id: 'u1', email: 'ana@ejemplo.test' }, nativa = true, conAppJs = true, estado } = {}) => {
   const enviados = [];
   const ctx = {
     APP_NATIVA: nativa, currentUser: usuario, currentTab: 'home',
-    S: { userName: 'Ana Pérez', ramos: [{ nombre: 'Introducción a la Microeconomía' }] },
+    ...(conAppJs ? { track() {} } : {}),
+    S: estado || { userName: 'Ana Pérez', ramos: [{ nombre: 'Introducción a la Microeconomía' }] },
     supabaseClient: { from: t => ({ insert: fila => { enviados.push({ t, ...fila }); return Promise.resolve({}); } }) },
     document: { querySelector: s => s.startsWith('script') ? { src: 'capacitor://localhost/app-session.js?v=abc1234' } : s === '.screen.active' ? { id: 'screen-ramo' } : null },
   };
@@ -42,6 +45,35 @@ const cruz = arnes(); cruz.run('reportarError({message:"Script error."},"?")');
 chk('"Script error." no dice nada y no se guarda', cruz.enviados.length === 0);
 const gcr = arnes(); gcr.run(`reportarError(new ReferenceError("Can't find variable: __gCrWeb"),"?:1:9")`);
 chk('lo que inyecta Chrome para iPhone (__gCrWeb) no se guarda', gcr.enviados.length === 0);
+// errores_app, 2026-10-26: siete avisos de ResizeObserver y dos de una
+// billetera de criptomonedas en una semana. Ninguno rompe nada ni es nuestro.
+const ruido = arnes(); ruido.run(`
+  reportarError({message:"ResizeObserver loop completed with undelivered notifications."},"#");
+  reportarError({message:"ResizeObserver loop limit exceeded"},"?");
+  reportarError(new TypeError("undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')"),"?:1:16")`);
+chk('los avisos de ResizeObserver y la billetera cripto no se guardan', ruido.enviados.length === 0);
+
+console.log('\n=== Sin app.js, solo la causa ===');
+// La misma semana: seis "Can't find variable: S" en la pantalla de error, en el
+// mismo segundo que el "app.js no cargó" que los causó.
+const sinApp = arnes({ conAppJs: false });
+sinApp.run(`
+  reportarError(new Error("app.js no cargó"),"arranque:cargar_app");
+  reportarError(new ReferenceError("Can't find variable: S"),"app-session.js:1133:58");
+  reportarError(new ReferenceError("Can't find variable: showTab"),"?:623:8")`);
+chk('se guarda la causa', sinApp.enviados.length >= 1 && sinApp.enviados[0].donde === 'arranque:cargar_app');
+chk('y no la cascada que viene detrás', sinApp.enviados.length === 1);
+
+console.log('\n=== El saneo quita palabras, no pedazos ===');
+// Con la carrera "COM" en el estado, "completed" salía "[dato]pleted".
+const com = arnes({ estado: { carrera: 'COM', tenant: 'uc', userName: 'Ana Pérez' } });
+com.run(`reportarError(new Error("structure completed for Ana Pérez in COM"),"a.js:1")`);
+const msg = (com.enviados[0] || {}).mensaje || '';
+chk(`"completed" y "structure" quedan enteros (${msg})`, /structure completed/.test(msg));
+chk('el nombre y la carrera sueltos se siguen quitando', !/Ana|Pérez|\bCOM\b/.test(msg) && (msg.match(/\[dato\]/g) || []).length === 2);
+const acento = arnes({ estado: { userName: 'Álvaro' } });
+acento.run(`reportarError(new Error("no se pudo saludar a Álvaro."),"a.js:1")`);
+chk('un nombre con tilde al inicio también sale', /a \[dato\]\.$/.test((acento.enviados[0] || {}).mensaje || ''));
 
 console.log('\n=== Escucha lo que nadie atrapó ===');
 chk('errores y promesas rechazadas', /addEventListener\('error'/.test(sesion) && /addEventListener\('unhandledrejection'/.test(sesion));
