@@ -72,5 +72,12 @@ let terminado=false;process.on('exit',()=>{if(!terminado&&!process.exitCode){con
   await ctx2.renderDocenteRamo(ctx2.S.ramos[0]);
   assert.match(raiz2.innerHTML,/Profesor: <strong>Docente Sintético/);
   assert.doesNotMatch(raiz2.innerHTML,/data-calificar|Calificar profesor/);
-  console.log('OK docentes UI: Calificar profesor oculto en producción');
+  // Sin consenso, con aporte propio, sin sección o con error: la ficha no muestra nada.
+  ctx2.supabaseClient.rpc=async n=>({data:[{profesor_docente_estado:{nombre_publico:null,mi_nombre:'Mi Docente Sintético'},
+    profesor_calificacion_estado:{docente:null,total:0,mi_estrellas:3,puede_calificar:true}}[n]]});
+  await ctx2.renderDocenteRamo(ctx2.S.ramos[0]);assert.equal(raiz2.innerHTML,'');
+  ctx2.supabaseClient.rpc=async()=>({error:{message:'red caída'}});
+  await ctx2.renderDocenteRamo(ctx2.S.ramos[0]);assert.equal(raiz2.innerHTML,'');
+  ctx2.S.ramos[0].seccion=null;await ctx2.renderDocenteRamo(ctx2.S.ramos[0]);assert.equal(raiz2.innerHTML,'');
+  console.log('OK docentes UI: oculto en producción, solo se ve el docente confirmado');
 })().catch(e=>{console.error(e);process.exitCode=1;});
