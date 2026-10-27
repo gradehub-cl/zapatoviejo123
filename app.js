@@ -5577,8 +5577,28 @@ async function consensoParaRamo(r){
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma
   // si alguna vez las dos implementaciones difieren en un detalle.
   const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&
-    !nadaQueOfrecer(estructuraParaConsenso(c.estructura),mia));
+    !nadaQueOfrecer(estructuraParaConsenso(c.estructura),mia)&&!consensoDescartado(r,c));
   return hit||null;
+}
+
+// "Dejar la mía" es una decisión: el aviso de ESA pauta se calla hasta que la
+// reporten CONSENSO_REAVISO personas más que cuando la descartó. Otra pauta
+// distinta sí se avisa, porque es otro dato.
+const CONSENSO_REAVISO=4;
+function consensoDescartado(r,c){
+  const d=r.consensoDescartado;
+  return !!d&&d.huella===huellaEstructura(estructuraParaConsenso(c.estructura))&&
+    c.respaldos<d.respaldos+CONSENSO_REAVISO;
+}
+async function dejarLaMia(ramoId){
+  const r=(S.ramos||[]).find(x=>x.id===ramoId);
+  const hit=r&&await consensoParaRamo(r);
+  if(hit){
+    r.consensoDescartado={huella:huellaEstructura(estructuraParaConsenso(hit.estructura)),respaldos:hit.respaldos};
+    save();track('consenso_descartado');
+  }
+  closeModal();
+  if(r&&currentRamoId===r.id)pintarConsensoDisponible(r);
 }
 
 // Que la huella difiera no basta para ofrecer una pauta ajena. En Contabilidad
@@ -5650,7 +5670,7 @@ async function verConsensoDisponible(ramoId){
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${pauta.categorias.map(fila).join('')}</ul>
     ${aviso}
     <div class="modal-btns" style="margin-top:16px;">
-      <button type="button" class="btn-cancel" onclick="closeModal()">Dejar la mía</button>
+      <button type="button" class="btn-cancel" onclick="dejarLaMia('${esc(r.id)}')">Dejar la mía</button>
       <button type="button" class="btn-confirm" onclick="adoptarConsenso('${esc(r.id)}')">Usar esta</button>
     </div>`;
   openModal();
