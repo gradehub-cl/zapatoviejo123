@@ -390,7 +390,7 @@ function renderRamo(){
       const etiqueta=info.periodo?`Pauta del ${esc(info.periodo)}`:'Con pauta · período sin confirmar';
       const nota=info.estadoPeriodo==='vencido'?' · fechas no incluidas':'';
       periodoEl.className='pauta-periodo'+(info.estadoPeriodo==='vencido'?' is-vencida':'');
-      periodoEl.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z"/></svg><span>${etiqueta}${nota}</span>`;
+      periodoEl.innerHTML=`<span>${etiqueta}${nota}</span>`;
       periodoEl.style.display='inline-flex';
     }
   }
