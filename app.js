@@ -3453,15 +3453,21 @@ function deleteNota(catId,notaId){
 function mallaFaltantes(){
   if(!S.carrera) return [];
   // En TAV no hay ramos de malla que sugerir.
-  const ramos=enVerano()?[]:((mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[]);
+  const ramos=enVerano()?[]:((mallaDeCarrera(S.tenant,S.carrera)||{})[S.careerSemestre]||[]);
   return ramos.filter(n=>!S.ramos.some(r=>r.nombre.toLowerCase()===n.toLowerCase()));
 }
 let _mallaSel={}, _mallaList=[];
-function openMallaModal(){
+function openMallaModal(cargada){
   if(!S.carrera){showToast('Primero elige tu carrera en Ajustes');return;}
+  // Las mallas de UC, UAI y UAndes que no vienen en data.js se traen antes de
+  // decidir: sin esto, una carrera con malla decía que no la teníamos.
+  if(cargada!==true&&!mallaDeCarrera(S.tenant,S.carrera)&&ARCHIVO_MALLAS[S.tenant]&&!mallasExtraDe(S.tenant)){
+    cargarMallasUC(S.tenant).then(ok=>ok?openMallaModal(true):showToast('No pudimos traer tu malla. Revisa tu conexión e intenta de nuevo.'));
+    return;
+  }
   _mallaList=mallaFaltantes();
   if(!_mallaList.length){
-    const hayMalla=Object.keys((mallaFor(S.tenant)[S.carrera]||{})).length>0;
+    const hayMalla=Object.keys(mallaDeCarrera(S.tenant,S.carrera)||{}).length>0;
     showToast(hayMalla?'Ya tienes los ramos obligatorios de tu semestre':'Aún no tenemos la malla de tu carrera — agrega tus ramos con el botón +');
     return;
   }
@@ -3473,7 +3479,7 @@ function openMallaModal(){
     </label>`).join('');
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg> Ramos de tu ${S.careerSemestre}° semestre</div>
-    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:4px;">${esc(carrerasFor(S.tenant)[S.carrera]||'')}</p>
+    <p style="font-size:0.8125rem;color:var(--fg2);margin-bottom:4px;">${esc(S.carreraNombre||carrerasFor(S.tenant)[S.carrera]||'')}</p>
     <p style="font-size:0.75rem;color:var(--fg3);margin-bottom:10px;">Desmarca los que no estés tomando. Los electivos los agregas aparte.</p>
     <div style="max-height:42vh;overflow-y:auto;margin-bottom:12px;">${rows}</div>
     <p id="malla-error" role="alert" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;color:var(--red);"></p>

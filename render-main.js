@@ -88,6 +88,7 @@ function renderHome(){
     if(simGlobalBtn)simGlobalBtn.style.display='none';
     const mb=document.getElementById('gpa-malla-btn');
     if(mb)mb.style.display=mallaFaltantes().length?'inline-flex':'none';
+    if(S.carrera&&!mallaDeCarrera(S.tenant,S.carrera))repintarAlCargarMallas(S.tenant,renderHome);
     // Las insight cards se pintan más abajo; al salir acá quedaban las del
     // semestre recién archivado, apuntando a ramos que ya no existen.
     const ins=document.getElementById('home-insights');
