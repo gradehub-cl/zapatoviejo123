@@ -1896,8 +1896,20 @@ function errorCalificacion(error){
 function nombreProfesorNormal(s){
   return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
+// Solo propone para la confirmación; no publica un nombre ni fabrica consenso.
+function profesorPropuestoRamo(r,contexto){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return '';
+  if(!r||!contexto||(r.origen?.tenant&&r.origen.tenant!==S.tenant))return '';
+  const seccion=Number(contexto.p_seccion);
+  if(!Number.isInteger(seccion)||seccion<1||seccion>999||seccion!==Number(r.seccion)
+    ||contexto.p_ramo_id!==r.id||contexto.p_periodo!==semester())return '';
+  const sigla=String(r.sigla||r.origen?.ramoKey||'').trim().toUpperCase();
+  const nombre=PROFESORES_PROPUESTOS[S.tenant]?.[contexto.p_periodo]?.[sigla]?.[seccion];
+  return typeof nombre==='string'?nombre:'';
+}
 // Panel de Calificar profesor: primero quién es y después cómo es.
 function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
+  nombre=nombre||mio||profesorPropuestoRamo(r,contexto);
   const cuenta=currentUser&&currentUser.id;
   const vigente=()=>currentUser&&currentUser.id===cuenta&&S.ramos.includes(r)
     &&JSON.stringify(contextoDocente(r))===JSON.stringify(contexto);

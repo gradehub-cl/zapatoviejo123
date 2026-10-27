@@ -3521,3 +3521,91 @@ const PROFESOR_ETIQUETAS=[
   {id:'motiva',texto:'Motiva',valencia:5},
   {id:'buena_onda',texto:'Buena onda',valencia:5},
 ];
+
+// Docente propuesto al calificar: BuscaCursos UC, oferta 2026-2, consultada
+// el 2026-10-27. No son aportes ni calificaciones de estudiantes.
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MAT1620
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIS1514
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIS0154
+// https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=IIC1103
+// Cuando figuran varios, se propone el primero listado y se pide confirmar.
+// Solo se invierte «Apellido Nombre»; se conserva la grafía de la fuente.
+// No se aplica a otro período ni se infiere la sección por nombre de ramo.
+const PROFESORES_PROPUESTOS={
+  uc:{'2026-2':{
+    MAT1620:{
+      1:'Francisco Barrios',
+      2:'Francisco Barrios',
+      3:'Luis Zegarra',
+      4:'Luis Zegarra',
+      5:'Anibal Velozo',
+      6:'Anibal Velozo',
+      7:'Wolfgang Rivera',
+      8:'Wolfgang Rivera',
+      9:'Martin Chuaqui',
+      10:'Martin Chuaqui',
+      11:'Yazmin Rivera',
+      12:'Yazmin Rivera',
+      13:'Oscar Chacón',
+      14:'Oscar Chacón',
+      15:'Hugo Maturana',
+      16:'Hugo Maturana',
+      17:'Cristian González',
+      18:'Cristian González',
+      19:'Esteban Vásquez',
+      20:'Camilo Sánchez',
+    },
+    FIS1514:{
+      1:'Daniel Castillo',
+      2:'Daniel Castillo',
+      3:'Alejandro Varas',
+      4:'Alejandro Varas',
+      5:'Iván Muñoz',
+      6:'Iván Muñoz',
+      7:'Jaime Clark',
+      8:'Jaime Clark',
+      9:'Luis Gómez',
+      10:'Luis Gómez',
+      11:'Ricardo Martínez',
+      12:'Ricardo Martínez',
+      13:'Pamela Mena',
+      14:'Pamela Mena',
+    },
+    FIS0154:{
+      1:'Luis Morales',
+      2:'Luis Morales',
+      3:'Luis Morales',
+      4:'Luis Morales',
+      5:'Luis Morales',
+      6:'Luis Morales',
+      7:'Luis Morales',
+      8:'Luis Morales',
+      9:'Luis Morales',
+      10:'Luis Morales',
+      11:'Luis Morales',
+      12:'Luis Morales',
+      13:'Luis Morales',
+      14:'Luis Morales',
+      15:'Luis Morales',
+      16:'Luis Morales',
+    },
+    IIC1103:{
+      1:'José Marquinez',
+      2:'Luciano Hidalgo',
+      3:'Rodrigo López',
+      4:'Andrea Acosta',
+      5:'Kahil Rasse',
+      6:'David Leal',
+      7:'Bianca Del Solar',
+      8:'Felipe Marin',
+      9:'Valeria Herskovic',
+      10:'Ignacio Velásquez',
+      11:'Cristian Ruz',
+      12:'Andreina Cota',
+      13:'Jorge Munoz',
+      14:'Sebastián Burgos',
+      15:'Ricardo Urvina',
+      16:'Yadran Eterovic',
+    },
+  }},
+};
