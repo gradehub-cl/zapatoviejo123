@@ -163,9 +163,17 @@ revoke all on function public.profesor_docente_estado(text,integer,text) from pu
 revoke all on function public.profesor_docente_informar(text,integer,text,text) from public, anon, authenticated;
 grant execute on function public.profesor_docente_estado(text,integer,text) to authenticated;
 grant execute on function public.profesor_docente_informar(text,integer,text,text) to authenticated;
--- Calificaciones: una por cuenta, ramo, sección y período. Se guardan contra la
--- sección, no contra un nombre: el docente sale del consenso al consultar, así
--- que corregir el consenso mueve las calificaciones con él. Sin texto libre.
+-- Calificaciones: una por cuenta, ramo, sección y período, sin texto libre.
+-- Cuentan para el docente que esa cuenta informó, y solo en secciones donde el
+-- consenso dice lo mismo: quien dijo «es otra persona» no suma al publicado.
+
+-- Etiquetas sobre cómo es el profe, no sobre la clase (Lucas, 2026-10-27).
+-- Solo positivas o neutras. Mismas claves que PROFESOR_ETIQUETAS en data.js
+-- (tests/profesores-calificaciones.test.js).
+create or replace function public.profesor_etiquetas_validas()
+returns text[] language sql immutable set search_path = '' as $$
+  select array['buena_onda','amable','paciente','flexible','puntual','motiva','escucha','exigente']::text[];
+$$;
 create table if not exists public.profesor_calificaciones (
   user_id uuid not null references auth.users(id) on delete cascade,
   tenant text not null check (tenant in ('uc','fen','uai','uandes')),
@@ -173,16 +181,21 @@ create table if not exists public.profesor_calificaciones (
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
   estrellas smallint not null check (estrellas between 1 and 5),
-  -- Mismas claves que PROFESOR_ETIQUETAS en data.js (tests/profesores-calificaciones.test.js).
-  etiquetas text[] not null default '{}' check (cardinality(etiquetas) <= 3 and etiquetas <@ array[
-    'explica_claro','responde_dudas','clases_entretenidas','buen_material',
-    'evalua_justo','da_feedback','exigente','harta_carga']::text[]),
+  etiquetas text[] not null default '{}',
   actualizada timestamptz not null default now(),
   primary key (user_id, tenant, ramo_clave, seccion, periodo)
 );
 create index if not exists profesor_calificaciones_ramo
   on public.profesor_calificaciones(tenant, ramo_clave);
 alter table public.profesor_calificaciones enable row level security;
+-- Al cambiar la lista se quitan de las filas las etiquetas que ya no existen
+-- (las estrellas se conservan) y recién ahí se cambia la regla.
+update public.profesor_calificaciones k set etiquetas=array(select e from unnest(k.etiquetas) e
+  where e=any(public.profesor_etiquetas_validas()) order by e)
+  where not k.etiquetas <@ public.profesor_etiquetas_validas();
+alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_etiquetas_check;
+alter table public.profesor_calificaciones add constraint profesor_calificaciones_etiquetas_check
+  check (cardinality(etiquetas) <= 3 and etiquetas <@ public.profesor_etiquetas_validas());
 revoke all on public.profesor_calificaciones from public, anon, authenticated;
 
 -- Promedio del docente de esta sección en este ramo, juntando todas las
@@ -200,7 +213,8 @@ begin
     where k.user_id=auth.uid() and k.tenant=c.tenant and k.ramo_clave=c.ramo_clave
       and k.seccion=p_seccion and k.periodo=p_periodo;
   if d is null then
-    return query select null::text, 0, null::numeric, '[]'::jsonb, mia.estrellas::integer, mia.etiquetas, false;
+    return query select null::text, 0, null::numeric, '[]'::jsonb, mia.estrellas::integer, mia.etiquetas,
+      p_periodo=public.profesor_periodo_actual();
     return;
   end if;
   return query
@@ -213,7 +227,9 @@ begin
     ), notas as materialized (
       select k.estrellas, k.etiquetas from public.profesor_calificaciones k
       join del_docente x on x.seccion=k.seccion and x.periodo=k.periodo
-      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave
+      join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
+        and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
+      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden(a.nombre,d)
     ), conteo as (select count(*)::integer as n from notas)
     select d, conteo.n,
       case when conteo.n>=3 then (select round(avg(estrellas),1) from notas) end,
@@ -234,8 +250,10 @@ declare c record; limpias text[];
 begin
   if p_periodo is distinct from public.profesor_periodo_actual() then raise exception 'período no vigente'; end if;
   select * into strict c from public.profesor_contexto(p_ramo_id,p_seccion);
-  if public.profesor_docente_publico(c.tenant,c.ramo_clave,p_seccion,p_periodo) is null then
-    raise exception 'profesor sin confirmar';
+  -- El panel pide primero el nombre: la calificación es para ese docente.
+  if not exists(select 1 from public.profesor_aportes a where a.user_id=auth.uid() and a.tenant=c.tenant
+      and a.ramo_clave=c.ramo_clave and a.seccion=p_seccion and a.periodo=p_periodo) then
+    raise exception 'profesor sin informar';
   end if;
   if p_estrellas is null or p_estrellas not between 1 and 5 then raise exception 'calificación inválida'; end if;
   limpias := array(select distinct e from unnest(coalesce(p_etiquetas,'{}'::text[])) e where e is not null order by e);
@@ -258,6 +276,7 @@ begin
 end;
 $$;
 
+revoke all on function public.profesor_etiquetas_validas() from public, anon, authenticated;
 revoke all on function public.profesor_calificacion_estado(text,integer,text) from public, anon, authenticated;
 revoke all on function public.profesor_calificar(text,integer,text,integer,text[]) from public, anon, authenticated;
 revoke all on function public.profesor_calificacion_borrar(text,integer,text) from public, anon, authenticated;

@@ -1776,55 +1776,33 @@ async function renderDocenteRamo(r){
   raiz.innerHTML='';
   if(!currentUser)return;
   if(!contexto){
-    raiz.innerHTML='<p>¿Quién te hace clases?</p><button type="button" class="docente-link">Agregar sección para informar</button>';
+    raiz.innerHTML='<p>¿Quién te hace clases?</p><button type="button" class="docente-link">Agregar sección para calificar</button>';
     raiz.querySelector('button').onclick=()=>openEditRamoModal();return;
   }
   const vigente=()=>solicitud===profesorSolicitud&&currentUser&&currentUser.id===cuenta&&currentRamoId===r.id
     &&JSON.stringify(contextoDocente(r))===JSON.stringify(contexto);
   raiz.innerHTML='<p role="status">Consultando profesor…</p>';
   try{
-    const {data,error}=await supabaseClient.rpc('profesor_docente_estado',contexto);
-    if(error)throw error;
+    // Las dos consultas van juntas: la ficha se pinta una vez, con todo.
+    const [docente,calificacion]=await Promise.all([
+      supabaseClient.rpc('profesor_docente_estado',contexto),
+      supabaseClient.rpc('profesor_calificacion_estado',contexto)]);
+    if(docente.error)throw docente.error;
+    if(calificacion.error)throw calificacion.error;
     if(!vigente())return;
-    const estado=(Array.isArray(data)?data[0]:data)||{};
+    const fila=x=>(Array.isArray(x.data)?x.data[0]:x.data)||{};
+    const estado=fila(docente),calif=fila(calificacion);
     const nombre=limpiarTextoProfesor(estado.nombre_publico,100),mio=limpiarTextoProfesor(estado.mi_nombre,100);
-    raiz.innerHTML=`<div class="docente-resumen"><p>${nombre?'Profesor: <strong>'+esc(nombre)+'</strong>':'¿Quién te hace clases?'}</p>
-      <button type="button" class="docente-link">${nombre?'Informar o corregir':mio?'Corregir mi aporte':'Informar profesor'}</button></div>
-      <p class="docente-ayuda">${mio&&!nombre?'Tu aporte está guardado. Falta coincidencia entre 3 cuentas de esta sección.':nombre?'Confirmado por estudiantes de esta sección.':''}</p>
-      ${nombre?'<div class="docente-calificacion"></div>':''}`;
-    if(nombre)renderCalificacionProfesor(raiz.querySelector('.docente-calificacion'),contexto,vigente);
-    raiz.querySelector('button').onclick=()=>{
-      if(!vigente())return;
-      const formulario=document.createElement('form');formulario.className='docente-form';
-      formulario.innerHTML=`<p class="docente-ayuda">Sección ${contexto.p_seccion} · ${esc(contexto.p_periodo)}. El nombre se muestra cuando coinciden 3 cuentas.</p>
-        <label for="docente-nombre">Nombre del profesor</label>
-        <div class="docente-campo"><input id="docente-nombre" type="text" maxlength="100" required minlength="3" autocomplete="off" autocapitalize="words" value="${esc(mio)}" placeholder="Ej.: María José Pérez"><button type="button" class="docente-link" data-limpiar aria-label="Borrar nombre del campo">Borrar</button></div>
-        <p class="docente-error" role="alert"></p>
-        <div class="docente-acciones"><button type="button" class="docente-link" data-cancelar>Cancelar</button><button type="submit" class="docente-guardar">Guardar aporte</button></div>`;
-      raiz.querySelector('.docente-resumen button').hidden=true;
-      raiz.appendChild(formulario);
-      const input=formulario.querySelector('input'),guardar=formulario.querySelector('[type=submit]'),mensaje=formulario.querySelector('[role=alert]');
-      formulario.querySelector('[data-limpiar]').onclick=()=>{input.value='';input.focus();};
-      formulario.querySelector('[data-cancelar]').onclick=()=>{
-        formulario.remove();const abrir=raiz.querySelector('.docente-resumen button');abrir.hidden=false;abrir.focus();
-      };
-      formulario.onsubmit=async e=>{
-        e.preventDefault();if(guardar.disabled||!vigente())return;
-        const nombreAporte=limpiarTextoProfesor(input.value,100);
-        if(nombreAporte.length<3){mensaje.textContent='Escribe el nombre completo del profesor.';input.focus();return;}
-        guardar.disabled=true;guardar.textContent='Guardando…';mensaje.textContent='';
-        try{
-          const {error}=await supabaseClient.rpc('profesor_docente_informar',{...contexto,p_nombre:nombreAporte});
-          if(error)throw error;
-          if(!vigente())return;
-          showToast('Tu aporte quedó guardado');await renderDocenteRamo(r);
-          raiz.querySelector('button')?.focus();
-        }catch(error){
-          if(vigente()&&formulario.isConnected){mensaje.textContent=errorDocente(error);guardar.disabled=false;guardar.textContent='Guardar aporte';}
-        }
-      };
-      input.focus();
-    };
+    // Informar sin calificar queda oculto por ahora (Lucas, 2026-10-27): el
+    // nombre se pide dentro del panel de Calificar profesor.
+    const titulo=nombre?'Profesor: <strong>'+esc(nombre)+'</strong>':mio?'Tu profesor: <strong>'+esc(mio)+'</strong>':'¿Quién te hace clases?';
+    raiz.innerHTML=`<p>${titulo}</p>
+      ${nombre?htmlResumenCalificacion(calif):''}
+      ${mio&&!nombre?'<p class="docente-ayuda">Aparece para tu sección cuando lo informan 3 cuentas.</p>':''}
+      ${!nombre&&Number(calif.mi_estrellas)>=1&&Number(calif.mi_estrellas)<=5?`<p class="docente-ayuda">Tu calificación: ${Number(calif.mi_estrellas)} de 5</p>`:''}
+      ${calif.puede_calificar===true?`<button type="button" class="docente-link" data-calificar>${Number(calif.mi_estrellas)?'Editar mi calificación':'Calificar profesor'}</button>`:''}`;
+    const abrir=raiz.querySelector('[data-calificar]');
+    if(abrir)abrir.onclick=()=>abrirCalificarProfesor(r,contexto,{nombre,mio,calif});
   }catch(error){
     if(!vigente())return;
     raiz.innerHTML='<p class="docente-ayuda" role="status"></p><button type="button" class="docente-link">Reintentar</button>';
@@ -1833,9 +1811,9 @@ async function renderDocenteRamo(r){
   }
 }
 
-// Calificación del profesor: estrellas y hasta 3 etiquetas de PROFESOR_ETIQUETAS,
-// sin texto libre. El promedio junta las secciones y semestres en que ese
-// docente dictó este ramo, y no se publica bajo 3 calificaciones.
+// Calificación del profesor: estrellas y hasta 3 etiquetas de PROFESOR_ETIQUETAS
+// (cómo es como profe), sin texto libre. El promedio junta las secciones y
+// semestres en que ese docente dictó este ramo y no se publica bajo 3.
 function etiquetaProfesor(id){
   const e=(typeof PROFESOR_ETIQUETAS!=='undefined'?PROFESOR_ETIQUETAS:[]).find(x=>x.id===id);
   return e?e.texto:'';
@@ -1852,7 +1830,6 @@ function htmlResumenCalificacion(estado){
     html+=`<p class="docente-ayuda">${total?'Aún hay pocas calificaciones: el promedio aparece desde 3.':'Todavía nadie lo califica en este ramo.'}</p>`;
   }
   if(mia>=1&&mia<=5)html+=`<p class="docente-ayuda">Tu calificación: ${mia} de 5</p>`;
-  if(estado&&estado.puede_calificar===true)html+=`<button type="button" class="docente-link" data-calificar>${mia?'Editar mi calificación':'Calificar al profesor'}</button>`;
   return html;
 }
 function payloadCalificacion(contexto,estrellas,etiquetas){
@@ -1861,75 +1838,103 @@ function payloadCalificacion(contexto,estrellas,etiquetas){
 }
 function errorCalificacion(error){
   const mensaje=String(error&&error.message||'');
-  if(/sin confirmar/.test(mensaje))return 'El profesor de esta sección dejó de estar confirmado. Vuelve a abrir la ficha.';
+  if(/sin informar/.test(mensaje))return 'Primero dinos quién te hace clases.';
   if(/etiquetas/.test(mensaje))return 'Elige hasta 3 etiquetas.';
+  if(/nombre inválido/.test(mensaje))return 'Escribe el nombre completo del profesor.';
   return errorDocente(error);
 }
-async function renderCalificacionProfesor(cont,contexto,vigente){
-  if(!cont)return;
-  cont.innerHTML='';
-  let estado;
-  try{
-    const {data,error}=await supabaseClient.rpc('profesor_calificacion_estado',contexto);
-    if(error)throw error;
-    estado=(Array.isArray(data)?data[0]:data)||{};
-  }catch(error){
-    if(!vigente())return;
-    cont.innerHTML='<p class="docente-ayuda">No pudimos cargar las calificaciones.</p><button type="button" class="docente-link">Reintentar</button>';
-    cont.querySelector('button').onclick=()=>renderCalificacionProfesor(cont,contexto,vigente);
-    return;
-  }
-  if(!vigente())return;
-  if(!estado.docente){cont.innerHTML='';return;}
-  cont.innerHTML=htmlResumenCalificacion(estado);
-  const abrir=cont.querySelector('[data-calificar]');
-  if(abrir)abrir.onclick=()=>abrirFormCalificacion(cont,estado,contexto,vigente);
+// Mismo criterio que profesor_normalizar en SQL: sin tildes, mayúsculas ni signos.
+function nombreProfesorNormal(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
-function abrirFormCalificacion(cont,estado,contexto,vigente){
-  if(!vigente()||cont.querySelector('.calif-form'))return;
-  const mia=Number(estado.mi_estrellas)||0,mias=new Set(Array.isArray(estado.mi_etiquetas)?estado.mi_etiquetas:[]);
-  const formulario=document.createElement('form');formulario.className='calif-form';
-  formulario.innerHTML=`<fieldset class="calif-campo"><legend>¿Cómo evalúas sus clases?</legend>
-      <div class="calif-opciones">${[1,2,3,4,5].map(n=>`<label class="calif-opcion"><input type="radio" name="calif-estrellas" value="${n}"${n===mia?' checked':''}><span aria-hidden="true">★</span><span class="calif-sr">${n} de 5</span></label>`).join('')}</div>
-    </fieldset>
-    <fieldset class="calif-campo"><legend>Lo que mejor lo describe <span class="calif-opcional">hasta 3, opcional</span></legend>
-      <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}</div>
-    </fieldset>
-    <p class="docente-ayuda">Es anónima: nadie ve quién calificó, y el promedio aparece desde 3 calificaciones.</p>
-    <p class="docente-error" role="alert"></p>
-    <div class="docente-acciones">${mia?'<button type="button" class="docente-link calif-borrar" data-borrar>Borrar la mía</button>':''}<button type="button" class="docente-link" data-cancelar>Cancelar</button><button type="submit" class="docente-guardar">Guardar</button></div>`;
-  const boton=cont.querySelector('[data-calificar]');if(boton)boton.hidden=true;
-  cont.appendChild(formulario);
-  const guardar=formulario.querySelector('[type=submit]'),mensaje=formulario.querySelector('[role=alert]');
-  const estrellas=()=>Number((formulario.querySelector('input[name=calif-estrellas]:checked')||{}).value)||0;
-  const marcar=()=>{
-    const v=estrellas();formulario.querySelectorAll('.calif-opcion').forEach((l,i)=>l.classList.toggle('lleno',i<v));
-    const chips=[...formulario.querySelectorAll('input[name=calif-etiqueta]')],n=chips.filter(x=>x.checked).length;
-    chips.forEach(x=>{x.disabled=!x.checked&&n>=3;});
+// Panel de Calificar profesor: primero quién es y después cómo es.
+function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
+  const cuenta=currentUser&&currentUser.id;
+  const vigente=()=>currentUser&&currentUser.id===cuenta&&S.ramos.includes(r)
+    &&JSON.stringify(contextoDocente(r))===JSON.stringify(contexto);
+  const contenido=document.getElementById('modal-content');
+  const pasoNombre=()=>{
+    if(nombre){
+      contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
+        <p class="calif-pregunta">¿Es tu profesor <strong>${esc(nombre)}</strong>?</p>
+        <p class="calif-nota">Así lo informaron estudiantes de tu sección.</p>
+        <div class="modal-btns calif-si-no"><button type="button" class="btn-cancel" data-otro>No, es otra persona</button><button type="button" class="btn-confirm" data-si>Sí, es mi profesor</button></div>`;
+      contenido.querySelector('[data-si]').onclick=()=>pasoCalificar(nombre);
+      contenido.querySelector('[data-otro]').onclick=()=>pedirNombre(mio&&nombreProfesorNormal(mio)!==nombreProfesorNormal(nombre)?mio:'');
+      openModal();enfocarEnHoja(contenido.querySelector('[data-si]'));
+    }else{pedirNombre(mio);openModal();}
   };
-  formulario.addEventListener('change',marcar);marcar();
-  const cerrar=()=>{formulario.remove();if(boton){boton.hidden=false;boton.focus();}};
-  formulario.querySelector('[data-cancelar]').onclick=cerrar;
-  const enviar=async(rpc,args,aviso)=>{
-    if(guardar.disabled||!vigente())return;
-    formulario.querySelectorAll('button').forEach(b=>{b.disabled=true;});mensaje.textContent='';
-    try{
-      const {error}=await supabaseClient.rpc(rpc,args);
-      if(error)throw error;
-      if(!vigente())return;
-      showToast(aviso);await renderCalificacionProfesor(cont,contexto,vigente);
-      cont.querySelector('[data-calificar]')?.focus();
-    }catch(error){
-      if(vigente()&&formulario.isConnected){mensaje.textContent=errorCalificacion(error);formulario.querySelectorAll('button').forEach(b=>{b.disabled=false;});}
-    }
+  const pedirNombre=valor=>{
+    contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
+      <form class="calif-nombre" novalidate>
+        <label class="modal-label" for="calif-nombre">¿Quién te hace clases?</label>
+        <div class="modal-input"><input type="text" id="calif-nombre" class="calif-campo-texto" maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Ej.: María José Pérez" value="${esc(valor||'')}" aria-describedby="calif-nombre-error"></div>
+        <p class="calif-nota">Sección ${contexto.p_seccion} · ${esc(contexto.p_periodo)}. El nombre aparece en la ficha cuando lo informan 3 cuentas de tu sección.</p>
+        <p id="calif-nombre-error" class="calif-error" role="alert"></p>
+        <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Continuar</button></div>
+      </form>`;
+    const form=contenido.querySelector('form'),input=form.querySelector('input');
+    form.querySelector('[data-cancelar]').onclick=closeModal;
+    form.onsubmit=e=>{
+      e.preventDefault();
+      const limpio=limpiarTextoProfesor(input.value,100);
+      if(limpio.length<3){form.querySelector('[role=alert]').textContent='Escribe el nombre completo del profesor.';input.focus();return;}
+      pasoCalificar(limpio);
+    };
+    enfocarEnHoja(input);
   };
-  const borrar=formulario.querySelector('[data-borrar]');
-  if(borrar)borrar.onclick=()=>enviar('profesor_calificacion_borrar',contexto,'Borramos tu calificación');
-  formulario.onsubmit=e=>{
-    e.preventDefault();
-    if(!estrellas()){mensaje.textContent='Elige de 1 a 5 estrellas.';formulario.querySelector('input[name=calif-estrellas]').focus();return;}
-    const etiquetas=[...formulario.querySelectorAll('input[name=calif-etiqueta]:checked')].map(x=>x.value);
-    enviar('profesor_calificar',payloadCalificacion(contexto,estrellas(),etiquetas),'Tu calificación quedó guardada');
+  const pasoCalificar=elegido=>{
+    const mia=Number(calif.mi_estrellas)||0,mias=new Set(Array.isArray(calif.mi_etiquetas)?calif.mi_etiquetas:[]);
+    contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
+      <form class="calif-form" novalidate>
+        <p class="calif-quien"><span>${esc(elegido)}</span><button type="button" class="docente-link" data-cambiar>Cambiar</button></p>
+        <fieldset class="calif-campo"><legend>¿Cómo lo evalúas como profe?</legend>
+          <div class="calif-opciones">${[1,2,3,4,5].map(n=>`<label class="calif-opcion"><input type="radio" name="calif-estrellas" value="${n}"${n===mia?' checked':''}><span aria-hidden="true">★</span><span class="calif-sr">${n} de 5</span></label>`).join('')}</div>
+        </fieldset>
+        <fieldset class="calif-campo"><legend>¿Cómo es? <span class="calif-opcional">hasta 3, opcional</span></legend>
+          <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}</div>
+        </fieldset>
+        <p class="calif-nota">Es anónima: nadie ve quién calificó, y el promedio aparece desde 3 calificaciones. <a href="/privacidad.html#profesores" target="_blank" rel="noopener">Cómo funciona</a></p>
+        <p class="calif-error" role="alert"></p>
+        ${mia?'<button type="button" class="docente-link calif-borrar" data-borrar>Borrar mi calificación</button>':''}
+        <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Guardar</button></div>
+      </form>`;
+    const form=contenido.querySelector('form'),mensaje=form.querySelector('[role=alert]');
+    const estrellas=()=>Number((form.querySelector('input[name=calif-estrellas]:checked')||{}).value)||0;
+    const marcar=()=>{
+      const v=estrellas();form.querySelectorAll('.calif-opcion').forEach((l,i)=>l.classList.toggle('lleno',i<v));
+      const chips=[...form.querySelectorAll('input[name=calif-etiqueta]')],n=chips.filter(x=>x.checked).length;
+      chips.forEach(x=>{x.disabled=!x.checked&&n>=3;});
+    };
+    form.addEventListener('change',marcar);marcar();
+    form.querySelector('[data-cancelar]').onclick=closeModal;
+    form.querySelector('[data-cambiar]').onclick=()=>pedirNombre(elegido);
+    const enviar=async(pasos,aviso)=>{
+      const botones=[...form.querySelectorAll('button')];
+      if(botones.some(b=>b.disabled)||!vigente())return;
+      botones.forEach(b=>{b.disabled=true;});mensaje.textContent='';
+      try{
+        for(const [rpc,args] of pasos){const {error}=await supabaseClient.rpc(rpc,args);if(error)throw error;}
+        closeModal();showToast(aviso);
+        if(vigente()&&currentRamoId===r.id)renderDocenteRamo(r);
+      }catch(error){
+        if(form.isConnected){mensaje.textContent=errorCalificacion(error);botones.forEach(b=>{b.disabled=false;});}
+      }
+    };
+    const borrar=form.querySelector('[data-borrar]');
+    if(borrar)borrar.onclick=()=>enviar([['profesor_calificacion_borrar',contexto]],'Borramos tu calificación');
+    form.onsubmit=e=>{
+      e.preventDefault();
+      if(!estrellas()){mensaje.textContent='Elige de 1 a 5 estrellas.';form.querySelector('input[name=calif-estrellas]').focus();return;}
+      const etiquetas=[...form.querySelectorAll('input[name=calif-etiqueta]:checked')].map(x=>x.value);
+      // Primero queda dicho quién es (si cambió) y después la calificación, que es para él.
+      const pasos=nombreProfesorNormal(elegido)===nombreProfesorNormal(mio)?[]:[['profesor_docente_informar',{...contexto,p_nombre:elegido}]];
+      pasos.push(['profesor_calificar',payloadCalificacion(contexto,estrellas(),etiquetas)]);
+      enviar(pasos,'Tu calificación quedó guardada');
+    };
+    enfocarEnHoja(form.querySelector(mia?'input[name=calif-estrellas]:checked':'input[name=calif-estrellas]'));
   };
-  formulario.querySelector(mia?'input[name=calif-estrellas]:checked':'input[name=calif-estrellas]').focus();
+  // Editar una calificación propia, con su profesor ya dicho, va directo a las estrellas.
+  if(mio&&Number(calif.mi_estrellas)){pasoCalificar(mio);openModal();}
+  else pasoNombre();
 }
