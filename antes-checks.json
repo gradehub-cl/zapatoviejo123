@@ -1,0 +1,450 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "clases",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "anuncio",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "detalle-abierto",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "alumnos-ramo",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "alumnos-resumen",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ficha-profesor",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "admin",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "admin-anuncios",
+    "overflow": [],
+    "targets": [],
+    "contrast": []
+  }
+]
