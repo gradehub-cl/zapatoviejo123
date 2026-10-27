@@ -13,6 +13,7 @@ const idDe=i=>'ramo-'+i;
 const informar=(i,nombre)=>q('select profesor_docente_informar($1,$2,$3,$4)',[idDe(i),seccionDe(i),periodo,nombre]);
 const calificar=(i,estrellas,etiquetas=[],p=periodo)=>q('select profesor_calificar($1,$2,$3,$4,$5)',[idDe(i),seccionDe(i),p,estrellas,etiquetas]);
 const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2,$3)',[idDe(i),seccionDe(i),periodo]))[0];
+const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
 (async()=>{try{
   await db.exec(read('bin/supabase-stubs.sql'));
   await db.exec('create table public.user_ramos(user_id uuid primary key references auth.users(id) on delete cascade, data jsonb);');
@@ -35,6 +36,8 @@ const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2
   let e=await estado(1);
   assert.equal(e.docente,null);assert.equal(e.total,0);
   assert.equal(e.mi_estrellas,5);assert.deepEqual(e.mi_etiquetas,['buena_onda','exigente'],'etiquetas sin duplicados');
+  assert.deepEqual(await cinco(),[{tenant:'uc',ramo_clave:'test101',seccion:1,periodo,nombre:'María José Pérez'}],
+    'las cinco estrellas quedan disponibles para el propio Wrapped sin esperar consenso');
   for(const i of [2,3]){await soy(i);await informar(i,'María José Pérez');}
   for(const i of [4,5,6]){await soy(i);await informar(i,'Maria Jose Perez');}
   for(const i of [9,10,11]){await soy(i);await informar(i,'Ricardo González');}
@@ -179,5 +182,52 @@ const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2
   await db.exec(read('supabase/profesores_445_limpieza.sql'));
   assert.equal((await q("select to_regclass('public.profesores') t"))[0].t,null);
   assert.ok((await q("select to_regclass('public.profesor_calificaciones') t"))[0].t);
-  console.log('OK calificaciones SQL: consenso, umbral de 3, etiquetas, secciones y semestres, permisos, cascada y limpieza de #445');
+
+  // Wrapped: la preferencia es propia, por semestre y no depende del ramo activo.
+  await soy(1);
+  const favoritas=await cinco();
+  assert.deepEqual(favoritas,[{tenant:'uc',ramo_clave:'test101',seccion:1,periodo,nombre:'María José Pérez'}]);
+  await soy(4);assert.deepEqual(await cinco(),[],'una estrella no se selecciona ni aparecen las de otra cuenta');
+  await soy(5);assert.deepEqual(await cinco('2025-1'),[
+    {tenant:'uc',ramo_clave:'test101',seccion:1,periodo:'2025-1',nombre:'María José Pérez'}
+  ],'recupera la sección histórica aunque hoy curse otra');
+  assert.deepEqual(await cinco(),[],'no mezcla semestres');
+  await soy(8);assert.deepEqual(await cinco(),[],'sin calificaciones devuelve una lista vacía');
+  for(const p of [null,'','2026-3','2026-2\n'])await assert.rejects(cinco(p),/período inválido/);
+  await soy(0);await assert.rejects(cinco(),/sin sesión/);
+  await db.exec('reset role; set role anon');
+  await assert.rejects(cinco(),/permission denied/);
+  await db.exec('reset role');
+  const academico=await q('select * from user_ramos order by user_id');
+  await soy(1);await calificar(1,4);assert.deepEqual(await cinco(),[],'bajar a cuatro retira la preferencia');
+  await calificar(1,5);assert.deepEqual(await cinco(),favoritas,'volver a cinco la recupera sin duplicar');
+  await q('select profesor_calificacion_borrar($1,1,$2)',['ramo-1',periodo]);
+  assert.deepEqual(await cinco(),[],'borrar la calificación retira la preferencia');
+  await calificar(1,5);
+  await informar(1,'Otro Docente Real');
+  assert.equal((await cinco())[0].nombre,'Otro Docente Real','usa el nombre propio corregido, no el consenso público');
+  await db.exec('reset role');
+  await db.exec("insert into profesor_ocultos(tenant,nombre) values('uc','Otro Docente Real')");
+  await soy(1);assert.deepEqual(await cinco(),[],'respeta la oposición del docente');
+  await db.exec('reset role; delete from profesor_ocultos');
+  assert.deepEqual(await q('select * from user_ramos order by user_id'),academico,'seleccionar no cambia notas ni ramos');
+  // Tras cambiar de universidad o vaciar el semestre, conserva el contexto original.
+  await db.query('update user_ramos set data=$2 where user_id=$1',[u(5),JSON.stringify({tenant:'fen',ramos:[]})]);
+  await soy(5);assert.equal((await cinco('2025-1'))[0].tenant,'uc');
+  await db.exec('reset role');
+  await db.query("insert into profesor_aportes values($1,'uc','otro102',2,'2025-1','Camila Soto')",[u(5)]);
+  await db.query("insert into profesor_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,estrellas) values($1,'uc','otro102',2,'2025-1',5)",[u(5)]);
+  await soy(5);assert.deepEqual((await cinco('2025-1')).map(x=>[x.ramo_clave,x.nombre]),[
+    ['otro102','Camila Soto'],['test101','María José Pérez']
+  ],'devuelve todos sus profesores con cinco estrellas, con el contexto de cada ramo');
+  await db.exec('reset role');
+  const guardadas=await q('select * from profesor_calificaciones order by user_id,periodo');
+  await db.exec(read('supabase/profesores.sql'));
+  assert.deepEqual(await q('select * from profesor_calificaciones order by user_id,periodo'),guardadas,'reaplicar conserva preferencias existentes');
+  await soy(5);assert.equal((await cinco('2025-1')).length,2,'sigue consultable tras reaplicar');
+  await assert.rejects(q('select * from profesor_aportes'),/permission denied/);
+  await assert.rejects(q('select * from profesor_calificaciones'),/permission denied/);
+  await db.exec('reset role');await db.query('delete from auth.users where id=$1',[u(5)]);
+  await soy(5);assert.deepEqual(await cinco('2025-1'),[],'borrar la cuenta no deja preferencias huérfanas');
+  console.log('OK calificaciones SQL: consenso, Otro, cinco estrellas privadas para Wrapped, permisos, semestres, cascada y reaplicación');
 }finally{await db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

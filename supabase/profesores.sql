@@ -325,12 +325,39 @@ begin
 end;
 $$;
 
+-- Selección privada para el futuro video del Wrapped. La relación ya queda
+-- guardada al calificar: no se duplica ni se conserva una preferencia retirada.
+-- Lee también semestres archivados, sin depender de los ramos activos actuales.
+-- Devuelve el nombre que informó esta cuenta, no el consenso de otra sección.
+-- Una fila por ramo/sección: no identifica ni agrupa profesores por parecido.
+-- Cliente: rpc('profesores_cinco_estrellas', {p_periodo:'2026-2'}).
+create or replace function public.profesores_cinco_estrellas(p_periodo text)
+returns table(tenant text, ramo_clave text, seccion integer, periodo text, nombre text)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'sin sesión'; end if;
+  if p_periodo is null or p_periodo !~ '^20[0-9]{2}-[12]$' then
+    raise exception 'período inválido';
+  end if;
+  return query
+    select k.tenant, k.ramo_clave, k.seccion, k.periodo, a.nombre
+    from public.profesor_calificaciones k
+    join public.profesor_aportes a using (user_id, tenant, ramo_clave, seccion, periodo)
+    where k.user_id=auth.uid() and k.periodo=p_periodo and k.estrellas=5
+      and not exists(select 1 from public.profesor_ocultos o
+        where o.tenant=k.tenant and public.profesor_coinciden(o.nombre,a.nombre))
+    order by k.tenant, k.ramo_clave, k.seccion;
+end;
+$$;
+
 revoke all on function public.profesor_etiquetas_validas() from public, anon, authenticated;
 revoke all on function public.profesor_texto_permitido(text) from public, anon, authenticated;
 revoke all on function public.profesor_calificacion_estado(text,integer,text) from public, anon, authenticated;
 revoke all on function public.profesor_calificar(text,integer,text,integer,text[],text) from public, anon, authenticated;
 revoke all on function public.profesor_calificacion_borrar(text,integer,text) from public, anon, authenticated;
+revoke all on function public.profesores_cinco_estrellas(text) from public, anon, authenticated;
 grant execute on function public.profesor_calificacion_estado(text,integer,text) to authenticated;
 grant execute on function public.profesor_calificar(text,integer,text,integer,text[],text) to authenticated;
 grant execute on function public.profesor_calificacion_borrar(text,integer,text) to authenticated;
+grant execute on function public.profesores_cinco_estrellas(text) to authenticated;
 commit;
