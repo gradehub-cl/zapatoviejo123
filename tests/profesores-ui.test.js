@@ -25,7 +25,7 @@ const plano=x=>JSON.parse(JSON.stringify(x)),base=JSON.stringify(ctx.S);
   respuestas.profesor_calificacion_estado={total:12,promedio:4.3,mi_estrellas:4,mi_otro:'Amable',puede_calificar:true};
   await ctx.renderDocenteRamo(r);
   assert.match(raiz.innerHTML,/Lucas J\. Irarrázaval/);assert.match(raiz.innerHTML,/4\.3<\/strong>/);
-  assert.match(raiz.innerHTML,/aria-label="Profesor Lucas José Irarrázaval Bulnes\. Editar tu calificación"/);
+  assert.match(raiz.innerHTML,/aria-label="Profesor Lucas José Irarrázaval Bulnes\. Promedio 4\.3 de 5\. Editar tu calificación"/);
   assert.doesNotMatch(raiz.innerHTML,/Profesor:|12 calificaciones|Amable/);assert.equal(boton.hidden,true,'desaparece después de calificar');
   await ctx.pintarProfesorEditarRamo(r);
   assert.match(elements['editar-profe'].innerHTML,/Lucas J\. Irarrázaval[\s\S]*Tu calificación: 4 de 5/);
