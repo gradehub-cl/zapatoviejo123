@@ -3893,6 +3893,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 /* Panel de Calificar profesor (hoja). */
 .calif-pregunta{margin:4px 0 6px;font-size:1.0625rem;line-height:1.4;color:var(--fg);overflow-wrap:anywhere;}
 .calif-nota{margin:0 0 14px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.calif-nota a{color:var(--fg);text-underline-offset:3px;}
 .calif-error{margin:0 0 10px;font-size:.8125rem;color:var(--fg);}
 .calif-error:empty{display:none;}
 .calif-si-no .btn-cancel,.calif-si-no .btn-confirm{flex:1;}

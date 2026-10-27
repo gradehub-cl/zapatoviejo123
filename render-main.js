@@ -1894,7 +1894,7 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
         <fieldset class="calif-campo"><legend>¿Cómo es? <span class="calif-opcional">hasta 3, opcional</span></legend>
           <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}</div>
         </fieldset>
-        <p class="calif-nota">Es anónima: nadie ve quién calificó, y el promedio aparece desde 3 calificaciones.</p>
+        <p class="calif-nota">Es anónima: nadie ve quién calificó, y el promedio aparece desde 3 calificaciones. <a href="/privacidad.html#profesores" target="_blank" rel="noopener">Cómo funciona</a></p>
         <p class="calif-error" role="alert"></p>
         ${mia?'<button type="button" class="docente-link calif-borrar" data-borrar>Borrar mi calificación</button>':''}
         <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Guardar</button></div>
