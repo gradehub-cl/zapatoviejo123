@@ -3020,7 +3020,6 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
 // sin tocar el catálogo, que es la puerta abierta a todos.
 const RECOMENDACIONES_CLASES_ACTIVAS=true;
 const CLAVE_MARKETPLACE='gradehub_marketplace_v1';
-const MAX_DESCARTADOS_CLASES=200;
 
 function leerEstadoMarketplace(){
   try{
@@ -3048,36 +3047,48 @@ function franjaClases(ahora=Date.now()){
 const VISITA_CLASES=Date.now().toString(36)+Math.random().toString(36).slice(2);
 function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visita=VISITA_CLASES){
   const franja=franjaClases(ahora),e=estado||{};
-  // Cerrada con la X: hasta la próxima franja, aunque se vuelva a abrir.
-  if(e.franja===franja&&e.cerrada)return {sel:null,estado:e};
+  // Cerrada con la X: escondida hasta `ocultaHasta` (ver descartarRecomendacionClase).
+  if(Number.isFinite(e.ocultaHasta)&&ahora<e.ocultaHasta)return {sel:null,estado:e};
+  // Un cierre guardado antes del 2026-10-27 no trae `ocultaHasta`: vale para su franja.
+  if(!Number.isFinite(e.ocultaHasta)&&e.franja===franja&&e.cerrada)return {sel:null,estado:e};
   // Misma apertura: la misma clase, si sigue calzando. Si subiste una nota y
   // dejó de calzar, desaparece en vez de quedarse pegada.
   if(e.visita===visita&&e.anuncioId){
-    const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{descartados:definitivasClases(e),ahora});
+    const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{ahora});
     return {sel,estado:e};
   }
   // Apertura nueva: la siguiente en la rotación. `aperturas` cuenta las que ya
   // mostraron algo, así que la primera vez sale la primera.
   const aperturas=Number.isSafeInteger(e.aperturas)&&e.aperturas>=0?e.aperturas:0;
-  const sel=seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados:definitivasClases(e),ahora,turno:aperturas});
+  const sel=seleccionarClaseApoyo(anuncios,ramos,tenant,{ahora,turno:aperturas});
   // Si no calza ninguna, no se anota nada: una clase publicada más tarde tiene
   // que poder aparecer.
   if(!sel)return {sel:null,estado:e};
   return {sel,estado:{...e,franja,visita,anuncioId:sel.anuncio.id,cerrada:false,aperturas:aperturas+1}};
 }
 
-// Las clases cerradas dos veces. La lista `descartados` de la versión anterior
-// se ignora: ahí bastaba cerrarla una vez, y con la regla nueva eso no alcanza.
-function definitivasClases(e){return Array.isArray(e&&e.descartadasDefinitivas)?e.descartadasDefinitivas:[];}
-// Devuelve true si con este cierre la clase queda descartada para siempre.
+// Cerrar con la X (Lucas, 2026-10-27). La recomendación sale al menos una vez
+// al día hasta que se cierra; nunca se esconde para siempre:
+// - el primer día que cierras una campaña, cerrarla en la mañana la esconde
+//   hasta la tarde, y cerrarla en la tarde, hasta el día siguiente;
+// - desde el día siguiente, un cierre la esconde por el resto del día.
+// El primer día es el de tu primer cierre de ESA campaña, no el día en que
+// empezó ni el día en que la viste (`primerCierre`, por anuncio). Devuelve si
+// vuelve en la tarde, para que el aviso lo diga.
 function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
   const estado=leerEstadoMarketplace();
-  const cierres={...(estado.cierres&&typeof estado.cierres==='object'?estado.cierres:{})};
-  cierres[anuncioId]=(Number(cierres[anuncioId])||0)+1;
-  const definitiva=cierres[anuncioId]>=2;
-  const descartadasDefinitivas=definitiva?[...new Set([...definitivasClases(estado),anuncioId])].slice(-MAX_DESCARTADOS_CLASES):definitivasClases(estado);
-  guardarEstadoMarketplace({...estado,cierres,descartadasDefinitivas,franja:franjaClases(ahora),anuncioId:null,cerrada:true});
-  return definitiva;
+  const hoy=diaLocalClases(ahora),d=new Date(ahora);
+  const previos=estado.primerCierre&&typeof estado.primerCierre==='object'?estado.primerCierre:{};
+  const primerCierre={...previos,[anuncioId]:previos[anuncioId]||hoy};
+  const vuelveEnLaTarde=primerCierre[anuncioId]===hoy&&d.getHours()<HORA_TARDE_CLASES;
+  const ocultaHasta=vuelveEnLaTarde
+    ?new Date(d.getFullYear(),d.getMonth(),d.getDate(),HORA_TARDE_CLASES).getTime()
+    :new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime();
+  guardarEstadoMarketplace({...estado,primerCierre,ocultaHasta,franja:franjaClases(ahora),anuncioId:null,cerrada:true});
+  return {vuelveEnLaTarde};
+}
+function textoCierreClase(cierre){
+  return cierre&&cierre.vuelveEnLaTarde?'Listo, no te la mostramos hasta la tarde':'Listo, no te la mostramos más por hoy';
 }
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
@@ -3196,10 +3207,10 @@ function pintarRecomendacionClase(contenedor){
     abrirClaseRecomendada(anuncio,ramo,sigla);
   });
   banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',()=>{
-    const definitiva=descartarRecomendacionClase(anuncio.id);
+    const cierre=descartarRecomendacionClase(anuncio.id);
     fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
     banner.remove();
-    if(definitiva&&typeof showToast==='function')showToast('Listo, no te la volvemos a mostrar');
+    if(typeof showToast==='function')showToast(textoCierreClase(cierre));
   });
   // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
   // espera a Storage para aparecer, y sin logo simplemente no se muestra.
