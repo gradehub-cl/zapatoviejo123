@@ -28,7 +28,7 @@ const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2
 
   // Antes de decir quién es no se califica; sin consenso sí, pero no se publica.
   await soy(1);
-  assert.deepEqual({...await estado(1),etiquetas:null},{docente:null,total:0,promedio:null,etiquetas:null,mi_estrellas:null,mi_etiquetas:null,puede_calificar:true});
+  assert.deepEqual({...await estado(1),etiquetas:null},{docente:null,total:0,promedio:null,etiquetas:null,mi_estrellas:null,mi_etiquetas:null,mi_otro:null,puede_calificar:true});
   await assert.rejects(calificar(1,5),/profesor sin informar/);
   await informar(1,'María José Pérez');
   await calificar(1,5,['buena_onda','exigente','buena_onda']);
@@ -61,6 +61,39 @@ const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2
   e=await estado(3);
   assert.equal(e.total,3);assert.equal(Number(e.promedio),4);
   assert.deepEqual(e.etiquetas,[{etiqueta:'buena_onda',n:2}]);
+
+  // «Otro»: privado hasta que tres cuentas coinciden, sin tildes ni mayúsculas.
+  const otro=(i,texto,etiquetas=[])=>q('select profesor_calificar($1,$2,$3,$4,$5,$6)',[idDe(i),seccionDe(i),periodo,4,etiquetas,texto]);
+  await soy(1);await otro(1,'Transmite calma',['buena_onda']);
+  assert.equal((await estado(1)).mi_otro,'Transmite calma','la propia se guarda y solo la ve quien la escribió');
+  assert(!(await estado(1)).etiquetas.some(x=>x.texto),'con una cuenta no se publica el texto');
+  for(const texto of ['Idiota','weón','Profe 123','abcdefghijklmnopqrstu'])await assert.rejects(otro(1,texto),/texto no permitido/);
+  await assert.rejects(otro(1,'Transmite calma',['amable','puntual','paciente']),/etiquetas inválidas/,'Otro cuenta dentro del máximo de tres');
+  assert.equal((await estado(1)).mi_otro,'Transmite calma','rechazar no pisa lo guardado');
+  await otro(1,'abcdefghijklmnopqrst');assert.equal((await estado(1)).mi_otro.length,20,'el límite de 20 se acepta');
+  await otro(1,'Transmite calma');
+  // Repetir la misma etiqueta en tres semestres no equivale a tres cuentas.
+  await db.exec('reset role');
+  for(const p of ['2025-1','2025-2']){
+    for(const i of [1,2,3])await db.query("insert into profesor_aportes(user_id,tenant,ramo_clave,seccion,periodo,nombre) values($1,'uc','test101',1,$2,'María José Pérez')",[u(i),p]);
+    await db.query("insert into profesor_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,estrellas,otro) values($1,'uc','test101',1,$2,4,'Transmite calma')",[u(1),p]);
+  }
+  await soy(1);assert(!(await estado(1)).etiquetas.some(x=>x.texto),'el umbral exige cuentas distintas');
+  await db.exec("reset role; delete from profesor_calificaciones where periodo in ('2025-1','2025-2'); delete from profesor_aportes where periodo in ('2025-1','2025-2');");
+  await soy(2);await otro(2,'TRANSMITE CÁLMA');
+  assert(!(await estado(2)).etiquetas.some(x=>x.texto),'con dos cuentas todavía no se publica');
+  await soy(3);await otro(3,'transmite calma');
+  let escrito=(await estado(3)).etiquetas.find(x=>x.texto);
+  assert.equal(escrito.n,3);
+  assert.equal(escrito.texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),'transmite calma');
+  assert.equal((await estado(3)).mi_otro,'transmite calma');
+  await db.exec('reset role');await db.exec(read('supabase/profesores.sql'));
+  await soy(1);assert.equal((await estado(1)).mi_otro,'Transmite calma','reaplicar conserva Otro');
+  // La llamada antigua sin p_otro sigue funcionando y permite quitarlo.
+  await calificar(1,5,['buena_onda','exigente']);assert.equal((await estado(1)).mi_otro,null);
+  await soy(2);await calificar(2,4,['buena_onda']);
+  await soy(3);await calificar(3,3);assert.equal((await estado(3)).mi_otro,null);
+  assert(!(await estado(3)).etiquetas.some(x=>x.texto),'deja de publicarse al bajar del umbral');
 
   // Junta las secciones del mismo docente en este ramo; otro docente queda aparte.
   await soy(4);await calificar(4,1,['exigente']);

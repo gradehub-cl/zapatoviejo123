@@ -93,7 +93,7 @@ console.log('\n=== Editar el ramo ===');
 
 console.log('\n=== Ficha ===');
 const render = fs.readFileSync(raiz + 'render-main.js', 'utf8');
-chk('la ficha muestra la sección solo si hay una', /r\.seccion\?` · Sección \$\{r\.seccion\}`:''/.test(render));
+chk('la ficha muestra la sección solo si hay una', /r\.seccion\?`Sección \$\{r\.seccion\}`:''/.test(render));
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

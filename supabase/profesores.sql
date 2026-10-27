@@ -254,7 +254,7 @@ begin
       select s.seccion, s.periodo from secciones s
       where public.profesor_coinciden(public.profesor_docente_publico(c.tenant,c.ramo_clave,s.seccion,s.periodo), d)
     ), notas as materialized (
-      select k.estrellas, k.etiquetas, k.otro from public.profesor_calificaciones k
+      select k.user_id, k.estrellas, k.etiquetas, k.otro from public.profesor_calificaciones k
       join del_docente x on x.seccion=k.seccion and x.periodo=k.periodo
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
@@ -264,10 +264,10 @@ begin
       select jsonb_build_object('etiqueta',e) as j, count(*)::integer as n, e as orden
         from notas, unnest(notas.etiquetas) e group by e having count(*)>=2
       union all
-      select jsonb_build_object('texto',mode() within group (order by notas.otro)), count(*)::integer,
+      select jsonb_build_object('texto',mode() within group (order by notas.otro)), count(distinct notas.user_id)::integer,
         public.profesor_normalizar(notas.otro)
         from notas where notas.otro is not null
-        group by public.profesor_normalizar(notas.otro) having count(*)>=3
+        group by public.profesor_normalizar(notas.otro) having count(distinct notas.user_id)>=3
     )
     select d, conteo.n,
       case when conteo.n>=3 then (select round(avg(estrellas),1) from notas) end,

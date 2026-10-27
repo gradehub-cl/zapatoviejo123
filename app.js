@@ -9373,6 +9373,8 @@ function openEditRamoModal(){
     <label class="modal-label" for="m-ramo-seccion">Sección <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(opcional)</span></label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"/></div>
     <p id="m-ramo-seccion-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
+    <span class="modal-label">Profesor</span>
+    <button type="button" class="editar-profe" id="editar-profe"><span>Sin profesor<small>Sin calificar</small></span></button>
     <label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 12px;line-height:1.35;">
       <input type="checkbox" id="m-ramo-faltas" ${faltasActivas(r)?'checked':''} onchange="document.getElementById('m-ramo-faltas-limite-box').hidden=!this.checked" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Llevar la cuenta de mis faltas <span style="color:var(--fg3);">(aparece en la ficha del ramo)</span></span>
@@ -9389,6 +9391,7 @@ function openEditRamoModal(){
       <button class="btn-confirm" onclick="confirmEditRamo()">Guardar</button>
     </div>`;
   renderModalColors();openModal();
+  if(typeof pintarProfesorEditarRamo==='function')pintarProfesorEditarRamo(r);
   setTimeout(()=>{const i=document.getElementById('m-ramo-name');i.focus();i.select();},100);
   document.getElementById('m-ramo-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmEditRamo();});
   document.getElementById('m-ramo-name').addEventListener('input',()=>{if(editRamoError){editRamoError='';limpiarErrorCampo('m-ramo-name','m-ramo-error');}});

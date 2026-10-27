@@ -488,12 +488,12 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 <div id="screen-ramo" class="screen">
   <div class="topbar">
     <button class="icon-btn ghost" onclick="goHome()" aria-label="Volver"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-    <span class="topbar-title" id="ramo-title" style="flex:1;"></span>
+    <div class="ramo-titulo-bloque"><span class="topbar-title" id="ramo-title"></span><span class="ramo-subtitulo" id="ramo-subtitulo"></span></div>
     <button class="icon-btn" id="ramo-mas" onclick="abrirMenuRamo(this)" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones del ramo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>
   </div>
   <div class="scroll">
     <div class="ramo-hero">
-      <div class="ramo-hero-label" id="ramo-hero-sub">—</div>
+      <div class="ramo-hero-label" id="ramo-hero-sub"><span id="ramo-seccion"></span><span id="ramo-profe" class="ramo-profe"></span><span id="ramo-peso-contexto"></span></div>
       <div class="pauta-periodo" id="pauta-periodo" style="display:none;"></div>
       <div class="ramo-hero-num-row">
         <span class="ramo-num" id="ramo-hero-avg">—</span>
@@ -503,9 +503,9 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
       </div>
       <div class="ramo-actions">
         <button id="sim-btn" onclick="openSimuladorModal()" class="ramo-action primary" style="display:none;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg> Simular</button>
+        <button type="button" class="ramo-action calif-accion" id="calif-accion" hidden><span aria-hidden="true">★</span><span>Calificar profesor</span></button>
       </div>
     </div>
-    <section id="ramo-docente" class="ramo-docente" aria-label="Profesor de la sección"></section>
     <div id="peso-warning" class="ramo-warning" style="display:none;"></div>
     <div id="pauta-cambio" style="display:none;"></div>
     <div id="consenso-disponible" style="display:none;"></div>

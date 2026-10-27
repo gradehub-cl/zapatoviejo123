@@ -3875,20 +3875,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calc-tabla-scroll td{padding:7px 12px;border-top:1px solid var(--border);}
 .calc-tabla-scroll .calc-fila-actual td{background:var(--muted);font-weight:700;}
 
-/* Docente de la sección: HIG Buttons; controles de 44 px. */
-.ramo-docente{margin:0 20px 16px;color:var(--fg);font-size:1rem;line-height:1.5;overflow-wrap:anywhere;}
-.ramo-docente:empty{display:none;}
-.ramo-docente p{margin:0;}
-.ramo-docente .docente-ayuda{color:var(--fg2);font-size:.875rem;}
 .docente-link{min-width:44px;min-height:44px;padding:10px 12px;margin-left:-12px;border:0;border-radius:10px;background:transparent;color:var(--fg);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
 .docente-link:active{opacity:.7;}
 .docente-link:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
 /* Calificación del profesor: HIG Toggles y Buttons; 44 px, sin semáforo (no es una nota). */
-.ramo-docente .calif-resumen{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:4px;}
 .calif-estrella{color:var(--fg);}
 .calif-numero{font-size:1.25rem;font-weight:650;font-variant-numeric:tabular-nums;}
 .calif-total{color:var(--fg2);font-size:.875rem;font-variant-numeric:tabular-nums;}
-.ramo-docente .calif-destacadas{margin-top:4px;color:var(--fg2);font-size:.875rem;}
 .calif-sr,.calif-opcion input,.calif-chip input{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
 /* Panel de Calificar profesor (hoja). */
 .calif-pregunta{margin:4px 0 6px;font-size:1.0625rem;line-height:1.4;color:var(--fg);overflow-wrap:anywhere;}
@@ -4053,6 +4046,64 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .alumnos-editorial .panel-riesgo-riel i{display:block;height:100%;transform-origin:left;}
 .alumnos-editorial .panel-riesgo-bad i{background:var(--red);}
 .alumnos-editorial .panel-riesgo-warn i{background:var(--yellow);}
+
+/* Calificar profesor: ficha y panel de la maqueta aprobada. */
+:root{--estrella:#a87700;--oro-1:255,214,102;--oro-2:255,170,0;--halo-max:.45;}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]){--estrella:#f5c542;--halo-max:.9;}}
+:root[data-modo="oscuro"]{--estrella:#f5c542;--halo-max:.9;}
+.calif-estrella-ficha{color:var(--estrella);}
+.calif-opcion{border-radius:50%;}
+.calif-opciones[data-valor="1"]{--halo:.2;}
+.calif-opciones[data-valor="2"]{--halo:.4;}
+.calif-opciones[data-valor="3"]{--halo:.6;}
+.calif-opciones[data-valor="4"]{--halo:.8;}
+.calif-opciones[data-valor="5"]{--halo:1;}
+.calif-opcion.lleno span[aria-hidden]{
+  background:linear-gradient(180deg,rgb(var(--oro-1)) 20%,rgb(var(--oro-2)) 90%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 calc(1px + var(--halo,0)*3px) rgba(var(--oro-2),calc(var(--halo,0)*var(--halo-max))));
+  transition:filter var(--motion-base) var(--ease-standard);}
+.calif-chip[hidden]{display:none;}
+.calif-otro{border-style:dashed;}
+.calif-otro-campo{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.calif-otro-campo[hidden]{display:none;}
+.calif-otro-campo input.calif-otro-texto{flex:1;min-width:0;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
+.calif-otro-cuenta{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+@media(prefers-reduced-motion:reduce){.calif-opcion.lleno span[aria-hidden]{transition:none;}}
+/* Propuesta: Calificar a la derecha de Simular, en la misma línea. */
+.ramo-actions .calif-accion{margin-left:auto;}
+.ramo-actions .calif-accion[hidden]{display:none;}
+/* Variante «sección»: el profe sigue a los datos de la sección, en la misma línea gris. */
+.ramo-hero-label .ramo-profe{display:inline;font-size:inherit;margin:0;white-space:normal;}
+.ramo-hero-label .ramo-profe button{display:inline;max-width:none;}
+.ramo-titulo-bloque{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;}
+.ramo-titulo-bloque .topbar-title{line-height:1.2;}
+.ramo-subtitulo{margin-top:1px;font-size:.75rem;line-height:1.2;color:var(--fg2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ramo-profe:empty{display:none;}
+.ramo-profe button{all:unset;display:inline-flex;align-items:center;gap:4px;max-width:100%;cursor:default;-webkit-tap-highlight-color:transparent;}
+.ramo-profe button:focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:6px;}
+.ramo-profe strong{color:var(--fg2);font-weight:600;}
+.ramo-profe .calif-linea{font-variant-numeric:tabular-nums;}
+.editar-profe{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;margin:0 0 14px;padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.editar-profe small{display:block;color:var(--fg2);font-size:.8125rem;}
+.editar-profe .ic{width:18px;height:18px;color:var(--fg3);}
+
+/* El nombre conserva el aspecto aprobado; la acción sigue accesible por teclado. */
+.ramo-hero-label>span:empty{display:none;}
+.ramo-hero-label>span:not(:empty)~span:not(:empty)::before{content:' · ';}
+.ramo-hero-label .ramo-profe button{display:inline-flex;min-width:44px;min-height:44px;vertical-align:middle;}
+.ramo-profe button:active{opacity:.7;}
+.ramo-titulo-bloque .topbar-title{white-space:normal;overflow-wrap:anywhere;}
+.ramo-subtitulo{white-space:normal;overflow:visible;overflow-wrap:anywhere;}
+.ramo-actions:has(.calif-accion:not([hidden])){flex-wrap:nowrap;align-items:stretch;gap:12px;}
+.ramo-actions .calif-accion{max-width:65%;min-width:0;white-space:normal;line-height:1.3;}
+.ramo-actions .calif-accion[hidden]{display:none;}
+.ramo-actions .ramo-action{min-height:44px;}
+.editar-profe>span{min-width:0;overflow-wrap:anywhere;}
+.editar-profe:disabled{cursor:default;color:var(--fg2);}
+.editar-profe:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.calif-campo[hidden]{display:none;}
+.calif-otro-cuenta{color:var(--fg2);}
+@media(prefers-reduced-motion:reduce){.calif-opcion.lleno span[aria-hidden]{filter:none;}}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
