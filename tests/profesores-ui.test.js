@@ -1,49 +1,63 @@
-const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync(require('node:path').join(__dirname,'../render-main.js'),'utf8');
-function elemento(){return {innerHTML:'',textContent:'',hidden:false,disabled:false,isConnected:true,value:'',children:new Map(),
-  querySelector(s){if(!this.children.has(s))this.children.set(s,elemento());return this.children.get(s);},
-  replaceChildren(){this.innerHTML='';this.children.clear();},appendChild(el){this.form=el;},
-  remove(){this.isConnected=false;},focus(){this.focused=true;}};}
+// Docente en la ficha: sin botón de informar suelto, Calificar profesor, errores, XSS y cambio de cuenta. Datos sintéticos.
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
+function elemento(){return {innerHTML:'',textContent:'',hidden:false,children:new Map(),
+  querySelector(s){if(!this.children.has(s))this.children.set(s,elemento());return this.children.get(s);},focus(){}};}
 const raiz=elemento(),r={id:'local-1',seccion:2,nombre:'Ramo sintético',categorias:[{notas:[{valor:4.7}]}]};
-const llamadas=[],avisos=[];
+let llamadas=[],respuestas={};
 const ctx={S:{tenant:'uc',ramos:[r],userName:'Persona sintética'},currentUser:{id:'cuenta-1'},currentRamoId:r.id,
-  semester:()=> '2026-2',showToast:x=>avisos.push(x),openEditRamoModal:()=>{},
+  semester:()=>'2026-2',showToast:()=>{},openEditRamoModal:()=>{},
   esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   document:{getElementById:()=>raiz,createElement:()=>elemento()},
-  supabaseClient:{rpc:async(nombre,args)=>{llamadas.push({nombre,args});return {data:[{nombre_publico:null,mi_nombre:null}]};}}};
-vm.createContext(ctx);vm.runInContext(source,ctx);
+  supabaseClient:{rpc:async(nombre,args)=>{llamadas.push({nombre,args});return {data:[respuestas[nombre]||{}]};}}};
+vm.createContext(ctx);vm.runInContext(read('data.js')+'\n'+read('render-main.js'),ctx);
 const base=JSON.stringify(ctx.S);
+const plano=x=>JSON.parse(JSON.stringify(x));
 (async()=>{
-  await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/¿Quién te hace clases\?/);
-  raiz.querySelector('button').onclick();let form=raiz.form;
-  form.querySelector('input').value='María José Pérez';
-  await form.onsubmit({preventDefault(){}});
-  assert.deepEqual(JSON.parse(JSON.stringify(llamadas.find(x=>x.nombre==='profesor_docente_informar').args)),{
-    p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2',p_nombre:'María José Pérez'});
+  // Sin consenso: pregunta y ofrece calificar; informar suelto ya no aparece.
+  respuestas={profesor_docente_estado:{nombre_publico:null,mi_nombre:null},profesor_calificacion_estado:{docente:null,total:0,puede_calificar:true}};
+  await ctx.renderDocenteRamo(r);
+  assert.match(raiz.innerHTML,/¿Quién te hace clases\?/);
+  assert.match(raiz.innerHTML,/Calificar profesor/);
+  assert.doesNotMatch(raiz.innerHTML,/Informar profesor|Informar o corregir|Corregir mi aporte/);
+  assert.deepEqual(plano(llamadas.map(x=>x.args)),[{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'},{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'}]);
   assert.equal(JSON.stringify(ctx.S),base,'no toca ramo, notas ni estado persistido');
-  assert.equal(avisos.length,1);
-  // Error de escritura preserva el campo y habilita reintentar, sin éxito falso.
-  raiz.querySelector('button').onclick();form=raiz.form;form.querySelector('input').value='Otro Docente';
-  ctx.supabaseClient.rpc=async()=>({error:{message:'red caída'}});
-  await form.onsubmit({preventDefault(){}});
-  assert.match(form.querySelector('[role=alert]').textContent,/reintenta/);
-  assert.equal(form.querySelector('input').value,'Otro Docente');
-  assert.equal(form.querySelector('[type=submit]').disabled,false);assert.equal(avisos.length,1);
-  await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/Reintentar/);
-  assert.doesNotMatch(raiz.innerHTML,/¿Quién te hace clases/,'error de lectura no simula ausencia de consenso');
+
+  // Con aporte propio y sin consenso, se ve su profesor y que falta coincidencia.
+  respuestas.profesor_docente_estado={nombre_publico:null,mi_nombre:'María José Pérez'};
+  respuestas.profesor_calificacion_estado={docente:null,total:0,mi_estrellas:4,puede_calificar:true};
+  await ctx.renderDocenteRamo(r);
+  assert.match(raiz.innerHTML,/Tu profesor: <strong>María José Pérez/);assert.match(raiz.innerHTML,/3 cuentas/);
+  assert.match(raiz.innerHTML,/Editar mi calificación/);assert.match(raiz.innerHTML,/Tu calificación: 4 de 5/);
+
+  // Fuera del período vigente no se ofrece calificar.
+  respuestas.profesor_calificacion_estado={docente:null,total:0,puede_calificar:false};
+  await ctx.renderDocenteRamo(r);assert.doesNotMatch(raiz.innerHTML,/data-calificar/);
+
+  // Un error de lectura ofrece reintentar en vez de simular que no hay profesor.
+  ctx.supabaseClient.rpc=async n=>n==='profesor_calificacion_estado'?{error:{message:'red caída'}}:{data:[respuestas[n]]};
+  await ctx.renderDocenteRamo(r);
+  assert.match(raiz.innerHTML,/Reintentar/);assert.doesNotMatch(raiz.innerHTML,/¿Quién te hace clases/);
+
   // El nombre de un tercero se escapa antes de mostrarse.
-  ctx.supabaseClient.rpc=async()=>({data:[{nombre_publico:'<img src=x onerror=alert(1)>',mi_nombre:'" autofocus onfocus="alert(1)'}]});
+  ctx.supabaseClient.rpc=async n=>({data:[{profesor_docente_estado:{nombre_publico:'<img src=x onerror=alert(1)>',mi_nombre:null},
+    profesor_calificacion_estado:{docente:'x',total:0,puede_calificar:true}}[n]]});
   await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/Profesor:/);assert.doesNotMatch(raiz.innerHTML,/<img/);
-  raiz.querySelector('button').onclick();assert.match(raiz.form.innerHTML,/&quot;/);
+
   // Las respuestas de otra cuenta o de una solicitud anterior no repintan.
-  let resolver;ctx.supabaseClient.rpc=()=>new Promise(resolve=>{resolver=resolve;});
+  const resolvers=[];ctx.supabaseClient.rpc=()=>new Promise(resolve=>{resolvers.push(resolve);});
   const pendiente=ctx.renderDocenteRamo(r);ctx.currentUser={id:'cuenta-2'};
-  resolver({data:[{nombre_publico:'No debe aparecer',mi_nombre:'Privado'}]});await pendiente;
+  assert.equal(resolvers.length,2);
+  resolvers.forEach(x=>x({data:[{nombre_publico:'No debe aparecer',mi_nombre:'Privado',docente:'No debe aparecer',puede_calificar:true}]}));await pendiente;
   assert.doesNotMatch(raiz.innerHTML,/No debe aparecer|Privado/);
+
+  // Sin sesión o sin sección no se consulta nada.
   let consultas=0;ctx.supabaseClient.rpc=async()=>{consultas++;return{data:[]};};
   ctx.currentUser=null;await ctx.renderDocenteRamo(r);assert.equal(raiz.innerHTML,'');
-  ctx.currentUser={id:'cuenta-1'};r.seccion=null;await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/Agregar sección/);
+  ctx.currentUser={id:'cuenta-1'};r.seccion=null;await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/Agregar sección para calificar/);
   assert.equal(consultas,0);
   ctx.S.ramos=[];assert.equal(ctx.contextoDocente(r),null,'un ramo fuera del semestre no habilita envío');
-  console.log('OK docentes UI: payload mínimo, cuentas existentes, errores, XSS y cambio de cuenta');
-})().catch(e=>{console.error(e);process.exitCode=1;});
+  console.log('OK docentes UI: Calificar profesor sin informar suelto, aporte propio, errores, XSS y cambio de cuenta');
+})().then(()=>{terminado=true;},e=>{console.error(e);process.exitCode=1;});
+// Una promesa que nunca se resuelve no puede pasar en silencio.
+let terminado=false;process.on('exit',()=>{if(!terminado&&!process.exitCode){console.error('el test no terminó');process.exitCode=1;}});

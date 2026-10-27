@@ -3875,39 +3875,34 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calc-tabla-scroll td{padding:7px 12px;border-top:1px solid var(--border);}
 .calc-tabla-scroll .calc-fila-actual td{background:var(--muted);font-weight:700;}
 
-/* Docente de la sección: HIG Text fields y Buttons; controles de 44 px. */
+/* Docente de la sección: HIG Buttons; controles de 44 px. */
 .ramo-docente{margin:0 20px 16px;color:var(--fg);font-size:1rem;line-height:1.5;overflow-wrap:anywhere;}
 .ramo-docente:empty{display:none;}
-.docente-resumen{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .ramo-docente p{margin:0;}
 .ramo-docente .docente-ayuda{color:var(--fg2);font-size:.875rem;}
-.docente-form{margin-top:12px;}
-.docente-form label{display:block;margin:12px 0 6px;font-weight:600;}
-.docente-campo{display:flex;gap:8px;align-items:center;}
-.docente-campo button{flex-shrink:0;white-space:nowrap;}
-.docente-campo input[type=text]{min-width:0;width:100%;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
-.docente-acciones{display:flex;justify-content:flex-end;gap:12px;margin-top:12px;flex-wrap:wrap;}
-.docente-link,.docente-guardar{min-width:44px;min-height:44px;padding:10px 12px;border:0;border-radius:10px;font:inherit;cursor:pointer;}
-.docente-link{background:transparent;color:var(--fg);text-decoration:underline;text-underline-offset:3px;}
-.docente-guardar{background:var(--fg);color:var(--bg);font-weight:600;}
-.docente-link:active,.docente-guardar:active{opacity:.7;}
-.docente-guardar:disabled{opacity:.6;cursor:wait;}
-.docente-link:focus-visible,.docente-guardar:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
-.ramo-docente .docente-error{margin-top:8px;color:var(--fg);}
+.docente-link{min-width:44px;min-height:44px;padding:10px 12px;margin-left:-12px;border:0;border-radius:10px;background:transparent;color:var(--fg);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.docente-link:active{opacity:.7;}
+.docente-link:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
 /* Calificación del profesor: HIG Toggles y Buttons; 44 px, sin semáforo (no es una nota). */
-.docente-calificacion:empty{display:none;}
-.docente-calificacion{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
-.calif-resumen{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.ramo-docente .calif-resumen{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:4px;}
 .calif-estrella{color:var(--fg);}
 .calif-numero{font-size:1.25rem;font-weight:650;font-variant-numeric:tabular-nums;}
 .calif-total{color:var(--fg2);font-size:.875rem;font-variant-numeric:tabular-nums;}
 .ramo-docente .calif-destacadas{margin-top:4px;color:var(--fg2);font-size:.875rem;}
 .calif-sr,.calif-opcion input,.calif-chip input{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
-.calif-form{margin-top:12px;}
-.calif-campo{margin:0 0 12px;padding:0;border:0;min-width:0;}
-.calif-campo legend{padding:0;margin-bottom:6px;font-weight:600;}
+/* Panel de Calificar profesor (hoja). */
+.calif-pregunta{margin:4px 0 6px;font-size:1.0625rem;line-height:1.4;color:var(--fg);overflow-wrap:anywhere;}
+.calif-nota{margin:0 0 14px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.calif-nota a{color:var(--fg);text-underline-offset:3px;}
+.calif-error{margin:0 0 10px;font-size:.8125rem;color:var(--fg);}
+.calif-error:empty{display:none;}
+.calif-si-no .btn-cancel,.calif-si-no .btn-confirm{flex:1;}
+.calif-quien{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;font-size:1.0625rem;font-weight:600;color:var(--fg);overflow-wrap:anywhere;}
+.calif-quien .docente-link{margin:0 -12px 0 0;flex:none;font-weight:400;}
+.calif-campo{margin:0 0 14px;padding:0;border:0;min-width:0;}
+.calif-campo legend{padding:0;margin-bottom:6px;font-weight:600;color:var(--fg);}
 .calif-opcional{margin-left:4px;color:var(--fg2);font-size:.8125rem;font-weight:400;}
-.calif-opciones{display:flex;gap:2px;}
+.calif-opciones{display:flex;gap:2px;margin-left:-6px;}
 .calif-opcion{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;font-size:1.625rem;line-height:1;color:var(--fg3);cursor:pointer;}
 .calif-opcion.lleno{color:var(--fg);}
 .calif-opcion:has(input:focus-visible),.calif-chip:has(input:focus-visible){outline:2px solid var(--fg);outline-offset:2px;}
@@ -3915,7 +3910,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calif-chip{position:relative;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--border2);border-radius:22px;font-size:.9375rem;color:var(--fg);cursor:pointer;}
 .calif-chip:has(input:checked){background:var(--fg);border-color:var(--fg);color:var(--bg);}
 .calif-chip:has(input:disabled){opacity:.45;cursor:default;}
-.calif-borrar{margin-right:auto;}
+.calif-borrar{display:block;margin:0 0 6px -12px;color:var(--red);}
 .calif-opcion,.calif-chip{transition:color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard);}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
