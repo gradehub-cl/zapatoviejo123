@@ -69,8 +69,8 @@ chk('el canonical es la URL final, sin .html', html.includes('<link rel="canonic
 const og = fs.readFileSync(path.join(raiz, 'og-calculadora.png'));
 chk('comparte su propia tarjeta', html.includes('<meta property="og:image" content="https://gradehub.cl/og-calculadora.png"/>'));
 chk('la tarjeta mide 1200×630 y pesa menos de 200 KB', og.readUInt32BE(16) === 1200 && og.readUInt32BE(20) === 630 && og.length < 200000);
-chk('la app enlaza a la calculadora', /href="\/calculadora\.html"/.test(leer('index.html')));
-chk('las preguntas enlazan a la calculadora', /href="\/calculadora\.html"/.test(leer('preguntas.html')));
+chk('la app enlaza a la calculadora', /href="\/calculadora"/.test(leer('index.html')));
+chk('las preguntas enlazan a la calculadora', /href="\/calculadora"/.test(leer('preguntas.html')));
 
 console.log('\n=== Herramienta independiente dentro de la app ===');
 const app = leer('app.js'), inicio = app.indexOf('// Herramienta aparte del editor de evaluaciones (#735).');
