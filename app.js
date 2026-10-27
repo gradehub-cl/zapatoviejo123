@@ -6747,9 +6747,9 @@ function openUserMenu(){
   // Archivar solo tiene sentido con ramos cargados
   const arch=document.getElementById('um-archivar');
   if(arch)arch.style.display=S.ramos.length?'flex':'none';
-  // La malla es del estudiante: una cuenta de profesor no tiene carrera.
-  const malla=document.getElementById('um-malla');
-  if(malla)malla.style.display=esCuentaProfesor()?'none':'flex';
+  // El lector reconoce el catálogo UC; no es una herramienta de profesor.
+  const horario=document.getElementById('um-horario');
+  if(horario)horario.hidden=esCuentaProfesor()||S.tenant!=='uc';
   const calculadora=document.getElementById('um-calculadora');
   if(calculadora)calculadora.style.display=esCuentaProfesor()?'none':'flex';
   // Sin sesión no hay nada que cerrar
@@ -7877,7 +7877,7 @@ function openSettings(){
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
-    ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial'],
+    ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
@@ -7959,6 +7959,9 @@ function openSettings(){
            Entre Carrera y Semestre partía en dos lo que ese botón guarda, y el
            botón quedaba pegado al título siguiente (iPhone, 2026-10-06). -->
       <div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <div class="settings-data-actions">
+        <button type="button" id="s-malla">Ramos de mi malla</button>
+      </div>
       <label class="modal-label">Semestres que ya cursaste</label>
       <p class="settings-help" style="margin-top:0;">Agrega los que cursaste antes de usar GradeHub, con la nota final de cada ramo.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
@@ -8116,7 +8119,17 @@ function openSettings(){
       (option||document.getElementById('settings-search')).focus();
     };
     etiquetarCamposDelModal(document.getElementById('modal-content'));
-    if(activeSection==='academico'){renderSettingsSemGrid();renderSettingsTenantGrid();renderSettingsCarreraGrid();}
+    if(activeSection==='academico'){
+      renderSettingsSemGrid();renderSettingsTenantGrid();renderSettingsCarreraGrid();
+      const malla=document.getElementById('s-malla');
+      if(malla)malla.onclick=()=>{
+        if(settingsTenant!==S.tenant||settingsCarrera!==S.carrera||settingsSem!==S.careerSemestre
+          ||settingsCarreraNombre!==(S.carreraNombre||null)||settingsName!==S.userName){
+          showToast('Guarda tus cambios en Ajustes antes de ver tu malla.');return;
+        }
+        openMallaModal();
+      };
+    }
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
