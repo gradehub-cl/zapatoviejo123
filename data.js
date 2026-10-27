@@ -3500,16 +3500,24 @@ const PRESETS_UANDES={
 const PRESETS_POR_TENANT={fen:PRESETS_FEN,uc:PRESETS_UC,uai:PRESETS_UAI,uandes:PRESETS_UANDES};
 
 // Etiquetas para calificar al profesor: cómo es como profe, no la clase (Lucas,
-// 2026-10-27). Solo positivas o neutras, sin género y sin texto libre. Las
-// claves son las que acepta profesor_etiquetas_validas() en
-// supabase/profesores.sql (lo compara un test).
+// 2026-10-27). Sin género, sin insultos y sin texto libre (salvo «Otro», que el
+// panel agrega al final). La valencia va de 1 (más negativa) a 5 (más positiva):
+// el panel muestra las 6 más cercanas a las estrellas elegidas. Las claves son
+// las que acepta profesor_etiquetas_validas() en supabase/profesores.sql (lo
+// compara un test).
 const PROFESOR_ETIQUETAS=[
-  {id:'buena_onda',texto:'Buena onda'},
-  {id:'amable',texto:'Amable'},
-  {id:'paciente',texto:'Paciente'},
-  {id:'flexible',texto:'Flexible'},
-  {id:'puntual',texto:'Puntual'},
-  {id:'motiva',texto:'Motiva'},
-  {id:'escucha',texto:'Escucha'},
-  {id:'exigente',texto:'Exigente'},
+  {id:'cuesta_entenderle',texto:'Cuesta entenderle',valencia:1},
+  {id:'distante',texto:'Distante',valencia:1.5},
+  {id:'poco_paciente',texto:'Poco paciente',valencia:1.5},
+  {id:'inflexible',texto:'Inflexible',valencia:2},
+  {id:'impuntual',texto:'Impuntual',valencia:2},
+  {id:'responde_poco',texto:'Responde poco',valencia:2},
+  {id:'exigente',texto:'Exigente',valencia:3},
+  {id:'flexible',texto:'Flexible',valencia:3.5},
+  {id:'puntual',texto:'Puntual',valencia:3.5},
+  {id:'escucha',texto:'Escucha',valencia:4},
+  {id:'amable',texto:'Amable',valencia:4},
+  {id:'paciente',texto:'Paciente',valencia:4},
+  {id:'motiva',texto:'Motiva',valencia:5},
+  {id:'buena_onda',texto:'Buena onda',valencia:5},
 ];
