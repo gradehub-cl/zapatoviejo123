@@ -84,10 +84,14 @@ console.log('\n=== Sin Inicio, igual se llega a Ajustes ===');
 const topbar = id => (html.match(new RegExp(`<div id="screen-${id}"[\\s\\S]*?<div class="scroll">`)) || [''])[0];
 chk('Clases tiene su avatar con el menú de la cuenta', /class="avatar-btn" onclick="toggleUserMenu\(event\)"[^>]*aria-haspopup="menu"/.test(topbar('profesor')));
 chk('Alumnos también', /class="avatar-btn" onclick="toggleUserMenu\(event\)"/.test(topbar('alumnos')));
-cuenta('profesor', false); run('openUserMenu()');
-chk('el menú no ofrece la malla a un profesor', el('um-malla').style.display === 'none');
-cuenta(null, false); run('openUserMenu()');
-chk('a un estudiante sí', el('um-malla').style.display === 'flex');
+cuenta('profesor', false); run("S.tenant='uc';openUserMenu()");
+chk('el menú no ofrece importar el horario a un profesor', el('um-horario').hidden);
+cuenta(null, false); run("S.tenant='uc';openUserMenu()");
+chk('un estudiante UC antiguo sí puede importar su horario', !el('um-horario').hidden);
+run("S.tenant='fen';openUserMenu()");
+chk('otras universidades no reciben un lector del catálogo UC', el('um-horario').hidden);
+chk('el menú abre el mismo importador que Agregar ramo', /id="um-horario"[^>]*umGo\(abrirImportarHorarioBuscacursos\)/.test(html));
+chk('la malla ya no ocupa un lugar en el menú del perfil', !/id="um-malla"/.test(html));
 
 console.log('\n=== Un admin le oculta Alumnos (2026-10-23) ===');
 run(`S=normalize(Object.assign(freshState(),{onboardingDone:true,tipoCuenta:'profesor'}))`);
