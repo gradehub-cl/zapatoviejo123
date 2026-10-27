@@ -3070,6 +3070,14 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
 // se ignora: ahí bastaba cerrarla una vez, y con la regla nueva eso no alcanza.
 function definitivasClases(e){return Array.isArray(e&&e.descartadasDefinitivas)?e.descartadasDefinitivas:[];}
 // Devuelve true si con este cierre la clase queda descartada para siempre.
+// Lo que pasa de verdad al cerrar: hasta la próxima franja no se muestra
+// ninguna clase (en la mañana, hasta la tarde; en la tarde, hasta mañana). La
+// segunda vez que se cierra la misma, esa no vuelve nunca, pero otras sí:
+// decirle "no te la volvemos a mostrar" sin más hacía creer que era cualquiera.
+function textoCierreClase(definitiva,ahora=Date.now()){
+  if(definitiva)return 'Listo, no te volvemos a mostrar esta clase';
+  return franjaClases(ahora).endsWith('-manana')?'Listo, no te la mostramos hasta la tarde':'Listo, no te la mostramos más por hoy';
+}
 function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
   const estado=leerEstadoMarketplace();
   const cierres={...(estado.cierres&&typeof estado.cierres==='object'?estado.cierres:{})};
@@ -3199,7 +3207,7 @@ function pintarRecomendacionClase(contenedor){
     const definitiva=descartarRecomendacionClase(anuncio.id);
     fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
     banner.remove();
-    if(definitiva&&typeof showToast==='function')showToast('Listo, no te la volvemos a mostrar');
+    if(typeof showToast==='function')showToast(textoCierreClase(definitiva));
   });
   // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
   // espera a Storage para aparecer, y sin logo simplemente no se muestra.

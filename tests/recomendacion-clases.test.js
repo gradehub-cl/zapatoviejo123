@@ -100,6 +100,9 @@ chk('pero no la descarta para siempre',dia(complicado,tras,martes,'v2').sel?.anu
 chk('y al día siguiente también',dia(complicado,tras,martes,'v3').sel?.anuncio.id==='a1');
 chk('la primera vez no dice "no te la volvemos a mostrar"',run(`descartarRecomendacionClase('a2',${lunes},'v1')`)===false);
 chk('la segunda vez sí, y la descarta para siempre',run(`descartarRecomendacionClase('a1',${lunesTarde},'v2')`)===true);
+chk('al cerrar en la mañana dice que vuelve en la tarde',run(`textoCierreClase(false,${lunes})`)==='Listo, no te la mostramos hasta la tarde');
+chk('en la tarde, que no se muestra más por hoy',run(`textoCierreClase(false,${lunesTarde})`)==='Listo, no te la mostramos más por hoy');
+chk('y la segunda vez habla de esa clase, no de todas',run(`textoCierreClase(true,${lunes})`)==='Listo, no te volvemos a mostrar esta clase');
 const dos=JSON.parse(guardado.gradehub_marketplace_v1);
 chk('esa clase ya no vuelve, ni otro día',(r=>r.sel&&r.sel.anuncio.id==='a2')(dia(complicado,dos,martes,'v4')));
 ctx.__avisos=[aviso('a1')];
