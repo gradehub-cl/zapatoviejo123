@@ -93,7 +93,19 @@ const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2
   await soy(1);e=await estado(1);assert.equal(e.docente,null);
   await soy(3);await informar(3,'María José Pérez');
 
-  // Borrar la propia; borrar la cuenta borra en cascada.
+  // Un docente que pidió no aparecer deja de publicarse y de recibir calificaciones.
+  await db.exec('reset role');
+  await db.query("insert into profesor_ocultos(tenant,nombre) values('uc','Ricardo Gonzales')");
+  await soy(9);e=await estado(9);
+  assert.equal(e.docente,null);assert.equal(e.total,0);assert.equal(e.puede_calificar,false);
+  assert.equal((await q('select * from profesor_docente_estado($1,3,$2)',['ramo-9',periodo]))[0].nombre_publico,null);
+  await assert.rejects(calificar(9,5),/profesor sin confirmar/);
+  await informar(9,'Ricardo González');assert.equal((await estado(9)).docente,null,'volver a informarlo no lo publica');
+  await soy(1);assert.equal((await estado(1)).docente,'María José Pérez','otro docente no se ve afectado');
+  await assert.rejects(q('select * from profesor_ocultos'),/permission denied/);
+  await assert.rejects(q("insert into profesor_ocultos(tenant,nombre) values('uc','María José Pérez')"),/permission denied/);
+  await db.exec('reset role');await db.exec('delete from profesor_ocultos');
+
   await soy(3);await q('select profesor_calificacion_borrar($1,1,$2)',['ramo-3',periodo]);
   e=await estado(3);assert.equal(e.mi_estrellas,null);assert.equal(e.total,6);
   await db.exec('reset role');await db.query('delete from auth.users where id=$1',[u(2)]);
