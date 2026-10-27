@@ -1,0 +1,82 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": [
+      {
+        "t": " Simular",
+        "w": 97,
+        "h": 34
+      }
+    ]
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": [
+      {
+        "t": " Simular",
+        "w": 97,
+        "h": 34
+      }
+    ]
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": [
+      {
+        "t": " Simular",
+        "w": 105,
+        "h": 35
+      }
+    ]
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": [
+      {
+        "t": " Simular",
+        "w": 105,
+        "h": 35
+      }
+    ]
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ficha-antes",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  }
+]

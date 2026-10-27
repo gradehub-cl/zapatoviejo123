@@ -1,0 +1,450 @@
+[
+  {
+    "prefix": "375-claro",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ficha",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "panel-sin-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "panel-una-estrella",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "panel-cinco-estrellas",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "panel-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "ficha-calificada",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "error-otro",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "state": "editar-ramo",
+    "contrast": [],
+    "overflow": [],
+    "targets": []
+  }
+]
