@@ -29,7 +29,7 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
 
   // Antes de decir quién es no se califica; sin consenso sí, pero no se publica.
   await soy(1);
-  assert.deepEqual({...await estado(1),etiquetas:null},{docente:null,total:0,promedio:null,etiquetas:null,mi_estrellas:null,mi_etiquetas:null,mi_otro:null,puede_calificar:true});
+  assert.deepEqual({...await estado(1),etiquetas:null},{docente:null,total:0,promedio:null,etiquetas:null,mi_estrellas:null,mi_etiquetas:null,mi_otro:null,puede_calificar:true,mi_otros:null});
   await assert.rejects(calificar(1,5),/profesor sin informar/);
   await informar(1,'María José Pérez');
   await calificar(1,5,['buena_onda','exigente','buena_onda']);
@@ -79,7 +79,7 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   await db.exec('reset role');
   for(const p of ['2025-1','2025-2']){
     for(const i of [1,2,3])await db.query("insert into profesor_aportes(user_id,tenant,ramo_clave,seccion,periodo,nombre) values($1,'uc','test101',1,$2,'María José Pérez')",[u(i),p]);
-    await db.query("insert into profesor_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,estrellas,otro) values($1,'uc','test101',1,$2,4,'Transmite calma')",[u(1),p]);
+    await db.query("insert into profesor_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,estrellas,otro,otros) values($1,'uc','test101',1,$2,4,'Transmite calma',array['Transmite calma'])",[u(1),p]);
   }
   await soy(1);assert(!(await estado(1)).etiquetas.some(x=>x.texto),'el umbral exige cuentas distintas');
   await db.exec("reset role; delete from profesor_calificaciones where periodo in ('2025-1','2025-2'); delete from profesor_aportes where periodo in ('2025-1','2025-2');");
@@ -97,6 +97,29 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   await soy(2);await calificar(2,4,['buena_onda']);
   await soy(3);await calificar(3,3);assert.equal((await estado(3)).mi_otro,null);
   assert(!(await estado(3)).etiquetas.some(x=>x.texto),'deja de publicarse al bajar del umbral');
+
+  // Hasta tres escritas, dentro del máximo de tres etiquetas en total.
+  const otros=(i,textos,etiquetas=[])=>q('select profesor_calificar($1,$2,$3,$4,$5,null,$6)',[idDe(i),seccionDe(i),periodo,4,etiquetas,textos]);
+  await soy(1);await otros(1,['Transmite calma',' Clases  claras ','transmite cálma']);
+  e=await estado(1);
+  assert.deepEqual(e.mi_otros,['Transmite calma','Clases claras'],'sin repetidas ni espacios de más');
+  assert.equal(e.mi_otro,'Transmite calma','la app anterior ve la primera');
+  await otros(1,['Uno bueno','Dos bueno','Tres bueno']);
+  assert.equal((await estado(1)).mi_otros.length,3,'las tres pueden ser escritas');
+  await assert.rejects(otros(1,['Uno bueno','Dos bueno'],['amable','puntual']),/etiquetas inválidas/,'tres en total');
+  await assert.rejects(otros(1,['Uno bueno','Idiota']),/texto no permitido/);
+  assert.equal((await estado(1)).mi_otros.length,3,'rechazar no pisa lo guardado');
+  // Cada escrita se publica por separado, con tres cuentas que la escriben.
+  await otros(1,['Clases claras','Muy ordenado']);
+  for(const i of [2,3]){await soy(i);await otros(i,['clases claras']);}
+  assert.deepEqual((await estado(3)).etiquetas.filter(x=>x.texto).map(x=>[x.texto.toLowerCase(),x.n]),[['clases claras',3]]);
+  // Una calificación de antes de `otros` (solo `otro`) se copia al reaplicar.
+  await db.exec(`reset role; update profesor_calificaciones set otros='{}', otro='Transmite calma' where user_id='${u(2)}'`);
+  await db.exec(read('supabase/profesores.sql'));
+  await soy(2);assert.deepEqual((await estado(2)).mi_otros,['Transmite calma'],'reaplicar copia el «Otro» antiguo');
+  await soy(1);await calificar(1,5,['buena_onda','exigente']);
+  await soy(2);await calificar(2,4,['buena_onda']);
+  await soy(3);await calificar(3,3);assert.deepEqual((await estado(3)).mi_otros,[]);
 
   // Junta las secciones del mismo docente en este ramo; otro docente queda aparte.
   await soy(4);await calificar(4,1,['exigente']);

@@ -4065,6 +4065,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calif-otro{border-style:dashed;}
 .calif-otro-campo{display:flex;align-items:center;gap:8px;margin-top:10px;}
 .calif-otro-campo[hidden]{display:none;}
+.calif-otro-campo .docente-link{flex:none;margin-left:0;}
 .calif-otro-campo input.calif-otro-texto{flex:1;min-width:0;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
 .calif-otro-cuenta{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 @media(prefers-reduced-motion:reduce){.calif-opcion.lleno span[aria-hidden]{transition:none;}}
