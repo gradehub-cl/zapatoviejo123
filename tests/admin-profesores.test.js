@@ -32,7 +32,7 @@ const ficha=fila({estado:'aprobado',panel_alumnos:true,alumnos_conectados:3,nota
   ultimos_30_dias:{vieron:120,abrieron:30,contactaron:7},anuncios:[{estado:'publicado'},{estado:'borrador',cobros:[{estado:'deuda'}]},{estado:'eliminado'}],
   historial:[{accion:'panel_alumnos',detalle:{activo:false},fecha:'2026-10-22T15:00:00Z',admin:'admin@ejemplo.cl'},{accion:'algo_nuevo',fecha:'2026-10-21T15:00:00Z'}]});
 assert.match(ficha,/<summary>Ficha del profesor<\/summary>/);
-assert.match(ficha,/Lo contactaron · 30 días<\/dt><dd>7/,'cruza contactos con lo que reporta');
+assert.match(ficha,/Alcance · últimos 30 días[\s\S]*Lo contactaron<\/span><b>7<\/b>/,'cruza contactos con lo que reporta');
 assert.match(ficha,/Publicados<\/dt><dd>1<\/dd>[\s\S]*Borradores<\/dt><dd>1<\/dd>/,'un eliminado no se cuenta');
 assert.match(ficha,/Cobros en deuda<\/dt><dd>1/);
 assert.match(ficha,/role="switch" aria-checked="true" data-admin-panel-alumnos="u1" data-activo="false" data-alumnos="3">Ocultar/);

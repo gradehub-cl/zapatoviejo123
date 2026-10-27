@@ -94,10 +94,10 @@ const pintar=async(anuncios,datos)=>{
     {porCanal:[{canal:'recomendacion',cuentas:6},{canal:'lista',cuentas:2}],
      totales:[{vista:'total',clave:'',tipo:'impresion',eventos:40},{vista:'total',clave:'',tipo:'contacto',eventos:16}]});
   chk('usa el total aunque ningún día llegue a quince',/Se mostró/.test(html)&&/>40<\/b><small>veces en total/.test(html));
-  chk('dibuja la dona de cómo llegaron, con números escritos',/Cómo llegaron/.test(html)&&/Recomendado en Inicio/.test(html)&&/>6</.test(html));
-  chk('el anillo de la campaña dice cuántos días quedan',/días quedan/.test(html));
-  chk('un día sin datos suficientes no se dibuja como cero',/menos de 15 eventos/.test(html));
-  chk('los días de campaña se cuentan',/días quedan/.test(html));
+  chk('compara cómo llegaron, con números escritos',/Cómo llegaron/.test(html)&&/Recomendado en Inicio/.test(html)&&/>6</.test(html));
+  chk('el plazo de campaña dice cuántos días quedan',/días restantes/.test(html));
+  chk('un día sin datos suficientes no se dibuja como cero',/Menos de 15 eventos/.test(html));
+  chk('los días de campaña se cuentan',/<b>27<\/b><span>días restantes/.test(html));
   html=await pintar([anuncio()],{campana:{dias:10,inicio:null,tope_clp:null,dias_cobrados:2,vistas:30,aperturas:5,contactos:1,costo:1750,agotada:false},
      totales:[{vista:'total',clave:'',tipo:'impresion',eventos:90},{vista:'total',clave:'',tipo:'clic',eventos:20}]});
   chk('personas y veces de una misma etapa van juntas, separadas por una barra',/<span>Se mostró<\/span><div class="clase-par"><div><b>30<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>90<\/b><small>veces en total/.test(html)
