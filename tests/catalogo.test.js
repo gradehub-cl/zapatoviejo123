@@ -126,7 +126,7 @@ const buscarUC = (q, car) => run('searchCatalog(' + JSON.stringify(q) + ',"uc",'
 const buscarEn = (q, t, car) => run('searchCatalog(' + JSON.stringify(q) + ',' + JSON.stringify(t) + ',' + JSON.stringify(car) + ',2)');
 const mallaUc = run('MALLAS_UC_EXTRA["UC-DERECHO"]["1"][0]');
 chk('Ingeniería UC encuentra un ramo de Derecho UC', buscarEn(mallaUc, 'uc', 'ING-PC').some(r => r.nombre === mallaUc));
-const uaiCom = run('CARRERAS_DECLARABLES.uai.find(c=>c.n==="Ingeniería Comercial").malla');
+const uaiCom = run('CARRERAS_DECLARABLES.uai.find(c=>c.malla==="UAI-INGENIERIA-COMERCIAL").malla');
 const ajenoUai = run(`(()=>{const M=MALLAS_UAI_EXTRA,propios=new Set(Object.values(M[${JSON.stringify(uaiCom)}]).flat());
   for(const [car,porSem] of Object.entries(M))if(car!==${JSON.stringify(uaiCom)})for(const l of Object.values(porSem))for(const n of l)if(!propios.has(n))return n;})()`);
 const hallado = buscarEn(ajenoUai, 'uai', uaiCom).find(r => r.nombre === ajenoUai);
@@ -274,6 +274,9 @@ chk('Contabilidad · el período confirmado ofrece las fechas de los controles',
 // decida de nuevo.
 chk('Contabilidad · sin mínimos por control',
   !contaPreset.gates.some(g => g.min === 1.5));
+// Y las cuentas creadas antes de esa fecha los pierden al cargar.
+chk('Contabilidad · retira los mínimos de 1,5 de las cuentas antiguas',
+  JSON.stringify(run('PRESETS_FEN')['Contabilidad'].retiraCompuertas) === JSON.stringify([{ min: 1.5, cap: 3.9 }]));
 
 // Una cuenta antigua recibe una fecha oficial actual solo con período
 // confirmado; la que puso el estudiante sigue mandando.

@@ -19,6 +19,15 @@ alter table public.catalog_reports
 alter table public.catalog_reports
   add column if not exists updated_at timestamptz not null default now();
 
+-- La sección del estudiante (2026-10-07, pedido de Lucas): en un ramo no
+-- coordinado cada sección puede tener su propia pauta, y sin este dato no hay
+-- cómo distinguirlas. Es contexto: el consenso todavía no agrupa por sección.
+-- Los reportes anteriores quedan con null; la app los reenvía una vez con la
+-- sección cuando el ramo la tiene.
+alter table public.catalog_reports
+  add column if not exists seccion integer
+  check (seccion is null or seccion between 1 and 999);
+
 -- La huella que agrupa reportes: dos estudiantes que describen la MISMA pauta
 -- tienen que sumar al mismo grupo aunque la escriban distinto. La calcula el
 -- servidor desde `estructura`, no la que manda el cliente: así un navegador con
@@ -27,7 +36,9 @@ alter table public.catalog_reports
 -- Espeja `huellaEstructura()` de app.js. Si cambias una regla acá, cámbiala allá.
 --   · Filas en 0% fuera: no son parte de la pauta.
 --   · Nombre sin mayúsculas ni tildes, "Solemne3" = "Solemne 3", y cada palabra
---     de 4+ letras en singular ("Controles" = "Control").
+--     de 4+ letras en singular ("Controles" = "Control"). Sin conectores (de,
+--     del, la, las, el, los, y, e, en): "Controles Ejercicios" = "Control de
+--     Ejercicios" (2026-10-05). Mismo conjunto que CONECTORES_HUELLA en app.js.
 --   · 3+ evaluaciones numeradas del mismo nombre y el mismo peso, sin casillas
 --     ni compuerta propia, son una categoría con casillas: "Control 1, 2 y 3" de
 --     10% = "Controles" de 30% con 3 casillas. Con pesos distintos no se juntan.
@@ -54,7 +65,7 @@ as $$
               '([a-z])([0-9])', '\1 \2', 'g'),
             '([0-9])([a-z])', '\1 \2', 'g'),
           ' ') with ordinality as t(w, i)
-        where w <> ''
+        where w <> '' and w not in ('de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en')
       ) as clave,
       (e.valor->>'peso')::numeric as peso,
       coalesce((e.valor->>'slots')::numeric, 1) as slots,
@@ -151,6 +162,13 @@ revoke all on function public.es_sigla_uc(text) from public, anon, authenticated
 revoke all on function public.busqueda_catalogo_uc(text) from public, anon, authenticated;
 revoke all on function public.sigla_catalogo_uc(text) from public, anon, authenticated;
 
+-- El tenant y la carrera académica vienen de user_ramos.data (#719), no del
+-- nombre histórico en profiles.universidad. Esa columna sigue guardada igual.
+
+-- La firma de 8 argumentos se reemplaza por una de 9 (p_seccion). Sin el drop
+-- quedarían las dos y PostgREST no sabría cuál llamar con los argumentos de una
+-- app vieja en caché; con p_seccion opcional, esa app sigue funcionando.
+drop function if exists public.submit_catalog_report(text, text, text, text, text, jsonb, text, text);
 create or replace function public.submit_catalog_report(
   p_tenant text,
   p_carrera text,
@@ -159,7 +177,8 @@ create or replace function public.submit_catalog_report(
   p_ramo_sigla text,
   p_estructura jsonb,
   p_huella text,
-  p_nota text default null
+  p_nota text default null,
+  p_seccion integer default null
 )
 returns void
 language plpgsql
@@ -170,6 +189,9 @@ declare
   uid uuid := auth.uid();
   total numeric;
   sigla text := nullif(upper(trim(p_ramo_sigla)), '');
+  tenant_guardado text;
+  onboarding_guardado boolean;
+  carrera_guardada text;
 begin
   if uid is null then
     raise exception 'No hay sesión activa';
@@ -192,6 +214,26 @@ begin
      or length(p_huella) > 4000
      or length(coalesce(p_nota, '')) > 500 then
     raise exception 'El reporte excede el largo permitido';
+  end if;
+
+  -- El navegador puede estar en una pestaña vieja o tener una universidad por
+  -- defecto mientras termina el onboarding. El tenant enviado no autoriza su
+  -- propio reporte: se contrasta con el estado académico ya sincronizado.
+  -- Si la nube aún no tiene el onboarding, el aporte queda pendiente en la app
+  -- y se puede reintentar tras sincronizar; nunca se cuenta como FEN por defecto.
+  select u.data->>'tenant', u.data->>'onboardingDone' = 'true',
+         left(coalesce(nullif(btrim(u.data->>'carreraNombre'), ''),
+                       nullif(btrim(u.data->>'carrera'), ''), ''), 120)
+    into tenant_guardado, onboarding_guardado, carrera_guardada
+    from public.user_ramos as u
+   where u.user_id = uid;
+  if not coalesce(onboarding_guardado, false)
+     or tenant_guardado is distinct from p_tenant then
+    raise exception 'La universidad del reporte no coincide con la cuenta sincronizada';
+  end if;
+
+  if p_seccion is not null and p_seccion not between 1 and 999 then
+    raise exception 'La sección debe estar entre 1 y 999';
   end if;
 
   if jsonb_typeof(p_estructura) <> 'array'
@@ -243,18 +285,21 @@ begin
     sigla := public.sigla_catalogo_uc(p_ramo);
   end if;
 
-  -- Si el estudiante ya reportó ese ramo, actualiza su aporte. La carrera se
-  -- guarda como contexto, pero nunca decide si dos estudiantes coinciden.
+  -- Si el estudiante ya reportó ese ramo, actualiza su aporte. La carrera
+  -- declarada de la cuenta se guarda como contexto, pero nunca decide si dos
+  -- estudiantes coinciden. p_carrera sigue en la firma para apps viejas.
   -- También toma reportes antiguos sin sigla por nombre, para migrarlos al
   -- identificador canónico la próxima vez que su autor los actualice.
   update public.catalog_reports
-     set carrera = coalesce(p_carrera, ''),
+     set carrera = carrera_guardada,
          ramo = p_ramo,
          ramo_norm = p_ramo_norm,
          ramo_sigla = sigla,
          estructura = p_estructura,
          huella = public.huella_catalogo(p_estructura),
          nota = nullif(trim(p_nota), ''),
+         -- Una app vieja no manda sección: no borra la que ya estaba.
+         seccion = coalesce(p_seccion, seccion),
          updated_at = now()
    where user_id = uid
      and tenant = p_tenant
@@ -267,10 +312,10 @@ begin
 
   if not found then
     insert into public.catalog_reports
-      (user_id, tenant, carrera, ramo, ramo_norm, ramo_sigla, estructura, huella, nota)
+      (user_id, tenant, carrera, ramo, ramo_norm, ramo_sigla, estructura, huella, nota, seccion)
     values
-      (uid, p_tenant, coalesce(p_carrera, ''), p_ramo, p_ramo_norm, sigla,
-       p_estructura, public.huella_catalogo(p_estructura), nullif(trim(p_nota), ''));
+      (uid, p_tenant, carrera_guardada, p_ramo, p_ramo_norm, sigla,
+       p_estructura, public.huella_catalogo(p_estructura), nullif(trim(p_nota), ''), p_seccion);
   end if;
 end;
 $$;
@@ -291,14 +336,24 @@ as $$
   -- ("controles" o "Control 1, 2, 3") y no puede partir un grupo. Se cuentan
   -- personas distintas del grupo entero, y para mostrar se devuelve la variante
   -- que más personas escribieron; si empatan, la más reciente.
-  with grupos as (
+  -- Los reportes anteriores no se borran ni se reetiquetan. Si hoy el estado
+  -- académico contradice su tenant, no cuentan para el consenso.
+  -- Se filtra ANTES de elegir la variante para que una pauta incompatible
+  -- tampoco pueda ganar un desempate por fecha.
+  with reportes_vigentes as (
+    select cr.*
+    from public.catalog_reports as cr
+    join public.user_ramos as u on u.user_id = cr.user_id
+    where cr.tenant = p_tenant
+      and u.data->>'onboardingDone' = 'true'
+      and u.data->>'tenant' = cr.tenant
+  ), grupos as (
     select
       coalesce(nullif(cr.ramo_sigla, ''), cr.ramo_norm) as ramo_key,
       cr.huella,
       min(cr.ramo) as ramo,
       count(distinct cr.user_id)::integer as respaldos
-    from public.catalog_reports as cr
-    where cr.tenant = p_tenant
+    from reportes_vigentes as cr
     group by 1, 2
     having count(distinct cr.user_id) >= 3
   ), variantes as (
@@ -308,8 +363,7 @@ as $$
       cr.estructura,
       count(distinct cr.user_id) as personas,
       max(cr.updated_at) as ultimo
-    from public.catalog_reports as cr
-    where cr.tenant = p_tenant
+    from reportes_vigentes as cr
     group by 1, 2, 3
   )
   select
@@ -325,12 +379,15 @@ as $$
   order by g.respaldos desc, g.ramo_key;
 $$;
 
-revoke all on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text) from public, anon;
+revoke all on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text, integer) from public, anon;
 revoke all on function public.catalog_consensus(text) from public, anon;
 -- Solo la usan las dos RPC de arriba, que corren como dueño.
 revoke all on function public.huella_catalogo(jsonb) from public, anon, authenticated;
-grant execute on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text) to authenticated;
+grant execute on function public.submit_catalog_report(text, text, text, text, text, jsonb, text, text, integer) to authenticated;
 grant execute on function public.catalog_consensus(text) to authenticated;
+
+-- Ya no queda ninguna RPC que dependa del traductor del valor histórico.
+drop function if exists public.tenant_perfil_catalogo(text);
 
 -- Los reportes que ya existen se guardaron con la huella que mandó el cliente.
 -- Se recalculan una vez con la función de arriba para que sumen con los nuevos.

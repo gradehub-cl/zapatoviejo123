@@ -30,7 +30,7 @@ chk('y las dos directivas siguen existiendo', directiva('style-src').length>0 &&
 // HTML, este test lo obliga a reabrir el permiso a conciencia en vez de
 // descubrir en producción que el navegador se la bloqueó.
 console.log('\n=== Y las páginas no piden fuentes externas ===');
-const paginas=['index.html','404.html','preguntas.html','privacidad.html','terminos.html']
+const paginas=['index.html','404.html','preguntas.html','privacidad.html','terminos.html','calculadora.html']
   .filter(f=>fs.existsSync(path.join(raiz,f)));
 chk('se revisaron las páginas del sitio', paginas.length>=4);
 paginas.forEach(f=>{

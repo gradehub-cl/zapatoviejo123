@@ -75,7 +75,7 @@ console.log('\n=== El borrador del modal SÍ las muestra ===');
   const app = fs.readFileSync(raiz + 'app.js', 'utf8');
   chk('estructuraReporte no filtra', /function estructuraReporte\(r\)\{return estructuraDe\(r\)/.test(app));
   chk('el filtro se aplica al enviar', /const est=estructuraParaConsenso\(reporteRamoId/.test(app));
-  chk('y al comparar contra el consenso', /const mine=huellaEstructura\(estructuraParaConsenso\(/.test(app));
+  chk('y al comparar contra el consenso', /const mia=estructuraParaConsenso\(estructuraDe\(r\)\)/.test(app));
 }
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);

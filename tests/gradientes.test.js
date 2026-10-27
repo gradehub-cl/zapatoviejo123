@@ -23,7 +23,9 @@ const total = pintan.reduce((n, d) => n + (d.match(/linear-gradient\(/g) || []).
 const enMascaras = (css.match(/linear-gradient\(/g) || []).length - total;
 // Editorial reemplaza los tres de Home (decoración, avance y cierre) por una
 // línea de identidad y un riel neutro. El resto sigue separado de esos cambios.
-chk(`quedan los 16 gradientes que pintan, ajenos al rediseño del avance de Home (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 16);
+// 2026-10-26: Estadísticas cambió su tarjeta de avance (dos degradados) por un
+// anillo neutro, y llegó la pista rayada de la barra centrada.
+chk(`quedan los 15 gradientes que pintan, ajenos al rediseño del avance de Home (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 15);
 chk('el sistema declara una dirección para superficies y otra para acentos',
   /--gradient-surface:150deg;--gradient-accent:135deg;/.test(css));
 
@@ -38,8 +40,8 @@ console.log('\n=== Avance: misma lectura antes y después ===');
 chk('Home ya no usa un fondo degradado para medir el avance', !/--ramo-progress-end/.test(css));
 chk('el onboarding conserva su barra funcional independiente', /linear-gradient\(90deg,var\(--primary\),var\(--accent\)\)/.test(regla('.ob-progress-bar')));
 chk('el cierre de Home no usa un gradiente que pueda confundirse con aprobación', !/linear-gradient/.test(regla('.ramo-row.has-progress.is-complete')));
-chk('Estadísticas conserva su gradiente de avance independiente', /linear-gradient\(90deg,/.test(regla('.stats-progress-card::before')) && /var\(--stats-progress\)/.test(regla('.stats-progress-card::before')));
-chk('el cierre de Estadísticas conserva su dirección', /linear-gradient\(125deg,/.test(regla('.stats-progress-card.is-complete')));
+
+chk('el avance de Estadísticas ya no pinta un degradado', !/stats-progress-card/.test(css));
 
 console.log('\n=== Las notas siguen siendo semánticas ===');
 chk('los gradientes normalizados de notas mantienen 160 grados',

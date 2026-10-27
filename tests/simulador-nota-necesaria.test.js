@@ -99,7 +99,8 @@ assert.match(byId('sim-needed').textContent,/Trabajo individual.*topa/);
 console.log('=== Pendiente bajo compuerta: muestra la condición, no promete aprobación ===');
 const pisoPendiente=ramo([c('prueba','Prueba escrita',50,[n('n1',2,0)],{slots:2,directNota:false}),c('cierre','Evaluación final',50,[n('n2',7)])],{
   gates:[{type:'min_grade_required',catId:'prueba',min:4,cap:3.9,nombre:'Prueba escrita'}]});
-assert.match(pintar(pisoPendiente),/^El promedio ponderado ya alcanza el 4,0/);
+// La casilla que falta tiene que subir la prueba de 2,0 a 3,95: (2 + 5,9) / 2.
+assert.match(pintar(pisoPendiente),/^Para el 4,0 necesitas 5,9 en lo que queda/);
 assert.match(byId('sim-needed').textContent,/Además, Prueba escrita debe llegar a 4,0/);
 const pisoSimulado=ramo([c('prueba','Prueba escrita',50),c('cierre','Evaluación final',50)],{
   gates:[{type:'min_grade_required',catId:'prueba',min:4,cap:3.9,nombre:'Prueba escrita'}]});
@@ -113,7 +114,7 @@ assert.equal(pintar(ramo([c('prueba','Prueba escrita',90,[n('n1',7)]),c('cierre'
   'Ya tienes el 4,0 asegurado');
 const casiAsegurado=ramo([c('prueba','Prueba escrita',90,[n('n1',7)]),c('cierre','Evaluación final',10)],{
   gates:[{type:'min_grade_required',catId:'cierre',min:4,cap:3.9}]});
-assert.match(pintar(casiAsegurado),/^El promedio ponderado ya alcanza el 4,0/);
+assert.match(pintar(casiAsegurado),/^Para el 4,0 necesitas 4,0 en lo que queda/);
 assert.match(byId('sim-needed').textContent,/Evaluación final debe llegar a 4,0/,
   'una compuerta pendiente impide decir que el 4,0 está asegurado');
 assert.equal(pintar(ramo([c('prueba','Prueba escrita',40,[n('n1',5)]),c('cierre','Evaluación final',40)])),
@@ -132,5 +133,5 @@ byId('sim-in-cierre').value='4,5';
 run("simAddNota('cierre')");
 assert.equal(JSON.stringify(explorado),antes,'la simulación conserva intacto el ramo original');
 assert.equal(writes.length,0,'no se toca gradehub_v1 ni otra clave local al simular');
-assert.match(fs.readFileSync(path.join(root,'app.js'),'utf8'),/const necesaria=notaNecesaria\(proyectado,meta\)/);
+assert.match(fs.readFileSync(path.join(root,'app.js'),'utf8'),/const necesaria=notaNecesaria\(proyectado,meta[,)]/);
 console.log('OK: simulador, compuertas, ausencias y ficha');

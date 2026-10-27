@@ -24,6 +24,7 @@ const despues = gpa(simple);
 chk('sin SCT dice que el promedio es simple y nombra el ramo sin crédito',
   !!detalleSimple && detalleSimple.modo === 'simple' && /promedio simple/i.test(detalleSimple.texto) &&
   /Seminario sin SCT/.test(detalleSimple.texto) && /falta el crédito/i.test(detalleSimple.texto) && /ponderad/i.test(detalleSimple.texto));
+chk('dice dónde se ponen los créditos, en vez de esperar a que lleguen', /Editar ramo/.test(detalleSimple.texto) && !/Cuando estén disponibles/.test(detalleSimple.texto));
 chk('explicar el faltante no cambia el promedio ni los datos', antes === despues && fotoAntes === JSON.stringify(simple));
 
 const render = fs.readFileSync(raiz + 'render-main.js', 'utf8');

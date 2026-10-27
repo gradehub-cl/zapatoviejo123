@@ -1,6 +1,7 @@
 // El Wrapped tiene que decir los mismos números que Inicio y no aparecer antes
 // de tiempo. La pauta de ejemplo va acá adentro, no sale del catálogo.
 const fs=require('fs'),vm=require('vm');
+process.env.TZ='America/Santiago';
 const raiz=__dirname+'/../';
 const src=['data.js','engine.js','app.js','app-session.js','render-main.js','render-agenda.js']
   .map(f=>fs.readFileSync(raiz+f,'utf8')).join('\n');
@@ -40,16 +41,23 @@ chk('la tarjeta incluye la comparación con la universidad',JSON.stringify(final
 ctx.__ramos[0].nombre='<img src=x onerror=alert(1)>';
 chk('los nombres se escapan',!run('JSON.stringify(slidesWrapped(datosWrapped(__ramos),null,"x"))').includes('<img'));
 
-// El 20 y no antes: los exámenes y recuperativos tienen que estar ingresados.
-chk('no aparece el 19 de diciembre',!run('wrappedDisponible(new Date(2026,11,19))'));
-chk('aparece el 20 de diciembre',run('wrappedDisponible(new Date(2026,11,20))'));
-chk('se va en marzo',!run('wrappedDisponible(new Date(2027,2,1))'));
+// Ventana de esta campaña: diciembre y enero, según el calendario de Chile.
+chk('no aparece el 30 de noviembre',!run('wrappedDisponible(new Date(2026,10,30))'));
+chk('aparece el 1 de diciembre',run('wrappedDisponible(new Date(2026,11,1))'));
+chk('se va el 1 de febrero',!run('wrappedDisponible(new Date(2027,1,1))'));
 
 // Las piezas visuales dicen lo mismo que los números.
 ctx.__ramos[0].nombre='Micro';
 const d2=run('datosWrapped(__ramos)');
 chk('la grilla tiene un punto por nota',d2.notasColores.length===d2.nNotas);
 chk('el ranking va de mejor a peor',d2.ranking.map(x=>x.nombre).join()==='Micro,Conta');
+const rankingAccesible=run('rankingWrapped(datosWrapped(__ramos).ranking)');
+chk('los nombres y promedios del ranking se ofrecen al lector de pantalla',
+  !/<(?:ol|li|span|b)\b[^>]*aria-hidden="true"/.test(rankingAccesible)
+  && /<span>Micro<\/span><b>6\.0<\/b>/.test(rankingAccesible)
+  && /<span>Conta<\/span><b>3\.5<\/b>/.test(rankingAccesible));
+chk('el ranking accesible conserva una lista ordenada y una entrada por ramo',
+  /^<ol\b/.test(rankingAccesible) && (rankingAccesible.match(/<li\b/g)||[]).length===d2.ranking.length);
 const cifra=run('cifraWrapped("5.6",1)');
 chk('la cifra que cuenta termina en el texto que formateó la app',/data-hasta="5.6"/.test(cifra)&&/data-desde="1"/.test(cifra)&&/>5\.6<\/span>/.test(cifra));
 chk('VoiceOver lee la cifra final, no el conteo',/aria-hidden="true"/.test(cifra)&&/class="wrapped-oculto">5\.6</.test(cifra));
@@ -61,7 +69,7 @@ chk('el arco no usa colores del semáforo',!/var\(--(green|yellow|red)/.test(run
 // HIG, Accessibility: un gesto necesita una alternativa, y el texto tiene que
 // poder agrandarse al 200% sin que nada se salga de la pantalla.
 const render=fs.readFileSync(raiz+'render-main.js','utf8'),css=fs.readFileSync(raiz+'styles.css','utf8');
-chk('VoiceOver y teclado tienen Anterior y Siguiente',/data-paso="-1">Anterior</.test(render)&&/data-paso="1">Siguiente</.test(render));
+chk('VoiceOver y teclado tienen Anterior y Siguiente',/data-paso="-1"[^>]*>Anterior</.test(render)&&/data-paso="1"[^>]*>Siguiente</.test(render));
 chk('los números gigantes no crecen con el texto del sistema',/\.wrapped-big\{font-size:clamp\(\d+px,[^;]*\d+px\)/.test(css));
 chk('la pantalla se desplaza si el texto grande no cabe',/\.wrapped-slide\{[^}]*overflow-y:auto/.test(css));
 

@@ -19,7 +19,8 @@ const CAMPOS_BORRADOR_CLASE = 'id,tenant,ramos_siglas,criterios,modalidad,ubicac
 // recuerda para no pedirlas de nuevo en cada consulta.
 // La tercera capa (2026-09-30): pack de clases, que escribe el profesor, y el
 // descuento por venir de GradeHub, que solo fija GradeHub al aprobar.
-const CAPAS_CAMPOS_CLASE=[',modalidad_otra,ubicacion_otra,detalles',',linea_datos',',pack_clases,descuento_gradehub_pct'];
+// La cuarta (2026-10-23): si el anuncio es una clase o material de apoyo.
+const CAPAS_CAMPOS_CLASE=[',modalidad_otra,ubicacion_otra,detalles',',linea_datos',',pack_clases,descuento_gradehub_pct',',tipo',',codigo_descuento'];
 let capasColumnasClase=CAPAS_CAMPOS_CLASE.length;
 function faltaColumnaClase(error){
   return !!error&&(error.code==='42703'||error.code==='PGRST204'||/column|columna/i.test(String(error.message||'')));
@@ -40,8 +41,17 @@ const MAX_DETALLES_CLASE=4,MAX_ETIQUETA_DETALLE=30,MAX_VALOR_DETALLE=80;
 const MIN_PACK_CLASES=2,MAX_PACK_CLASES=20;
 // Bajo el título de la recomendación caben pocos datos: el profesor elige
 // hasta tres. Sin elección son los de siempre.
-const MAX_LINEA_CLASE=3,LINEA_CLASE_POR_OMISION=['modalidad','ubicacion','precio'];
+// El precio no va bajo el título en Inicio (Lucas, 2026-10-25): se ve al
+// abrir la clase. Un `linea_datos` guardado con 'precio' simplemente lo omite.
+const MAX_LINEA_CLASE=3,LINEA_CLASE_POR_OMISION=['modalidad','ubicacion'];
 const MODALIDADES_CLASE=[['individual','Individual'],['grupal','Grupal']];
+// Qué se publica (Lucas, 2026-10-23): una clase o material de apoyo (guías,
+// apuntes, ejercicios resueltos). Un anuncio sin tipo es una clase, como todos
+// los que existían antes.
+const TIPOS_ANUNCIO=[['clase','Clase particular'],['material','Material de apoyo']];
+const TEXTO_TIPO_ANUNCIO={clase:'Clases que das tú, online o presencial.',material:'Guías, apuntes o ejercicios resueltos que el estudiante consigue por WhatsApp o un link.'};
+function esMaterialClase(a){return !!a&&a.tipo==='material';}
+function etiquetaTipoClase(a){return esMaterialClase(a)?'Material de apoyo':'Clase particular';}
 const UBICACIONES_CLASE=[['online','Online'],['presencial','Presencial'],['hibrido','Híbrida']];
 
 // Un borrador en Supabase es una clase COMPLETA, todavía no un formulario a
@@ -61,7 +71,8 @@ function validarBorradorClase(entrada,nombresPorSigla){
   const titulo=String(entrada.titulo||'').trim();
   if(titulo.length<5||titulo.length>90)return {ok:false,campo:'titulo',error:'Ponle un título de 5 a 90 caracteres.'};
   const descripcion=String(entrada.descripcion||'').trim();
-  if(descripcion.length<20||descripcion.length>1500)return {ok:false,campo:'descripcion',error:'Cuenta qué harás en la clase (20 a 1500 caracteres).'};
+  if(descripcion.length<20||descripcion.length>1500)return {ok:false,campo:'descripcion',error:entrada.tipo==='material'
+    ?'Cuenta qué trae el material (20 a 1500 caracteres).':'Cuenta qué harás en la clase (20 a 1500 caracteres).'};
   const siglas=Array.isArray(entrada.ramos_siglas)?entrada.ramos_siglas.map(s=>String(s||'').trim().toUpperCase()):[];
   // Un ramo por anuncio (decisión de Lucas del 2026-09-25), con una
   // excepción desde el 2026-09-26: dos siglas del MISMO ramo, como Dinámica
@@ -77,6 +88,9 @@ function validarBorradorClase(entrada,nombresPorSigla){
     if(!mismoRamoClase(nombres[siglas[0]],nombres[siglas[1]]))return {ok:false,campo:'ramos_siglas',error:ERROR_DOS_RAMOS_CLASE};
   }
   if(!criteriosClaseValidos(entrada.criterios))return {ok:false,campo:'criterios',error:'Revisa el promedio y el avance elegidos para tu público.'};
+  const tipo=entrada.tipo==='material'?'material':'clase';
+  // Un material no tiene formato, lugar ni pack: lo que venga se ignora.
+  if(tipo==='material')entrada={...entrada,modalidad:'',ubicacion:'',modalidad_otra:'',ubicacion_otra:'',pack_clases:''};
   // Formato y lugar son opcionales. "Otra" exige escribirla: una opción
   // elegida sin texto se mostraría como nada.
   const opcion=(valor,validas,texto,campo,nombre)=>{
@@ -105,11 +119,14 @@ function validarBorradorClase(entrada,nombresPorSigla){
   const modalidad=mod.valor,ubicacion=ubi.valor;
   let linea_datos=null;
   if(entrada.linea_datos!=null){
-    const validas=new Set([...LINEA_CLASE_POR_OMISION,...detalles.map(d=>'detalle:'+d.etiqueta)]);
+    // 'precio' se sigue aceptando (borradores de antes del 2026-10-25) pero
+    // ya no se guarda: no va bajo el título.
+    const validas=new Set([...LINEA_CLASE_POR_OMISION,'precio',...detalles.map(d=>'detalle:'+d.etiqueta)]);
     const claves=Array.isArray(entrada.linea_datos)?[...new Set(entrada.linea_datos.map(x=>String(x||'').trim()))]:[];
     if(claves.length<1||claves.length>MAX_LINEA_CLASE||claves.some(c=>!validas.has(c)))
       return {ok:false,campo:'linea_datos',error:`Elige de 1 a ${MAX_LINEA_CLASE} datos para mostrar bajo el título.`};
-    linea_datos=claves;
+    const sinPrecio=claves.filter(c=>c!=='precio');
+    linea_datos=sinPrecio.length?sinPrecio:null;
   }
   // Pack: el precio sigue siendo POR CLASE y el pack solo dice cuántas trae.
   // Vacío = sin pack. Una clase gratis no se vende en pack.
@@ -124,16 +141,16 @@ function validarBorradorClase(entrada,nombresPorSigla){
   // $0 es una clase gratis (pedido de Lucas del 2026-09-25). Entre $1 y $999
   // no hay clase que valga eso: casi siempre es un precio a medio escribir.
   if(!Number.isSafeInteger(entrada.precio_clp)||!(entrada.precio_clp===0||(entrada.precio_clp>=1000&&entrada.precio_clp<=500000)))
-    return {ok:false,campo:'precio_clp',error:'Indica el precio de la clase entre $1.000 y $500.000, o $0 si es gratis.'};
+    return {ok:false,campo:'precio_clp',error:`Indica el precio ${tipo==='material'?'del material':'de la clase'} entre $1.000 y $500.000, o $0 si es gratis.`};
   const contacto_tipo=String(entrada.contacto_tipo||''),contacto_valor=String(entrada.contacto_valor||'').trim();
   // WhatsApp desde el 2026-09-25 (decisión de Lucas): es el canal que usan
   // todos y el único que abre con el mensaje escrito. El número no se muestra;
   // el estudiante llega por el botón y así el contacto se mide. Una clase
   // GRATIS puede, además, llevar a un Instagram o a un link de inscripción.
-  if(!contactosPermitidosClase(entrada.precio_clp).includes(contacto_tipo))
+  if(!contactosPermitidosClase(entrada.precio_clp,tipo).includes(contacto_tipo))
     return {ok:false,campo:'contacto_valor',error:entrada.precio_clp===0
-      ?'Elige cómo te contactarán: WhatsApp, Instagram o un link de inscripción.'
-      :'Las clases pagadas se contactan por WhatsApp. Escribe tu número.'};
+      ?`Elige cómo te contactarán: WhatsApp, Instagram o un link${tipo==='material'?'':' de inscripción'}.`
+      :tipo==='material'?'Elige cómo lo consiguen: tu WhatsApp o un link.':'Las clases pagadas se contactan por WhatsApp. Escribe tu número.'};
   if(contacto_valor.length<3||contacto_valor.length>160)return {ok:false,campo:'contacto_valor',error:'Revisa el dato de contacto.'};
   // El formulario rellena "+56 " o "@" solo: sin esta comprobación el prefijo
   // solo, sin número ni usuario, pasaba como contacto válido y el anuncio
@@ -141,7 +158,7 @@ function validarBorradorClase(entrada,nombresPorSigla){
   if(!enlaceContactoClase(contacto_tipo,contacto_valor))return {ok:false,campo:'contacto_valor',error:ERROR_CONTACTO_CLASE[contacto_tipo]};
   // Lista blanca: nunca aceptar un estado de publicación, marcas de pago ni
   // datos académicos del estudiante enviados junto con el formulario.
-  return {ok:true,datos:{tenant,ramos_siglas:siglas,
+  return {ok:true,datos:{tipo,tenant,ramos_siglas:siglas,
     criterios:{promedioMenorA:entrada.criterios.promedioMenorA,avanceMinimo:entrada.criterios.avanceMinimo},
     modalidad,ubicacion,modalidad_otra:mod.otra,ubicacion_otra:ubi.otra,detalles:detalles.length?detalles:null,linea_datos,
     precio_clp:entrada.precio_clp,pack_clases,titulo,descripcion,contacto_tipo,contacto_valor}};
@@ -152,9 +169,19 @@ const ERROR_CONTACTO_CLASE={
   instagram:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.',
   enlace:'Pega el link de inscripción completo, que empiece con https://.',
 };
-// Qué contactos admite una clase según su precio. El servidor exige lo mismo.
+// Qué contactos admite un anuncio según su precio y su tipo. El servidor exige
+// lo mismo: una clase pagada, solo WhatsApp; un material pagado, WhatsApp o un
+// link para conseguirlo; gratis, cualquiera de los tres.
 const CONTACTOS_CLASE=[['whatsapp','WhatsApp'],['instagram','Instagram'],['enlace','Link de inscripción']];
-function contactosPermitidosClase(precio){return precio===0?['whatsapp','instagram','enlace']:['whatsapp'];}
+function contactosPermitidosClase(precio,tipo='clase'){
+  if(precio===0)return ['whatsapp','instagram','enlace'];
+  return tipo==='material'?['whatsapp','enlace']:['whatsapp'];
+}
+function opcionesContactoClase(precio,tipo='clase'){
+  const permitidos=contactosPermitidosClase(precio,tipo);
+  return CONTACTOS_CLASE.filter(([clave])=>permitidos.includes(clave))
+    .map(([clave,texto])=>[clave,clave==='enlace'&&tipo==='material'?'Link para conseguirlo':texto]);
+}
 
 // ─── CAMPOS QUE SE ESCRIBEN CON FORMATO ─────────────────────────────────────
 //
@@ -240,11 +267,13 @@ function campoPesos(input){formatearAlEscribir(input,textoPesosEscrito);}
 // Tres estados distintos, y confundirlos deja la pantalla mintiendo: todavía no
 // se sabe, no se pudo saber (el SQL del marketplace no está aplicado), o se supo
 // —y ahí puede ser una ficha o ninguna—.
-let perfilProfesorCache=null,perfilProfesorPedido=false,perfilProfesorResuelto=false;
+let perfilProfesorCache=null,perfilProfesorPedido=false,perfilProfesorResuelto=false,perfilProfesorVersion=0;
 function perfilProfesorConocido(){
   if(!perfilProfesorResuelto)return undefined;   // preguntando
   return perfilProfesorCache;                     // ficha, false, o null si no se pudo
 }
+// Lo decide un admin (profesor_alumnos.sql). Sin la columna, se muestra.
+function panelAlumnosOculto(){return !!(perfilProfesorCache&&perfilProfesorCache.panel_alumnos===false);}
 function esProfesorAprobado(){
   return !!(perfilProfesorCache&&perfilProfesorCache.estado==='aprobado');
 }
@@ -253,15 +282,17 @@ function esProfesorAprobado(){
 // aparece ni la pestaña ni el estado en Ajustes.
 async function cargarPerfilProfesor(){
   if(perfilProfesorPedido)return perfilProfesorCache;
+  const cuenta=sesionProfesorClase(),version=perfilProfesorVersion;
   perfilProfesorPedido=true;
   const r=await perfilProfesorActual();
+  if(cuenta!==sesionProfesorClase()||version!==perfilProfesorVersion)return null;
   perfilProfesorCache=r.ok?(r.perfil||false):null;
   perfilProfesorResuelto=true;
   return perfilProfesorCache;
 }
 // Después de postular o de que cambie el estado, para no dejar la pantalla
 // mostrando lo anterior.
-function olvidarPerfilProfesor(){perfilProfesorCache=null;perfilProfesorPedido=false;perfilProfesorResuelto=false;}
+function olvidarPerfilProfesor(){perfilProfesorVersion++;perfilProfesorCache=null;perfilProfesorPedido=false;perfilProfesorResuelto=false;}
 
 function sesionProfesorClase(){
   return supabaseClient&&currentUser&&currentUser.id?String(currentUser.id):'';
@@ -271,10 +302,14 @@ async function perfilProfesorActual(){
   const uid=sesionProfesorClase();
   if(!uid)return {ok:false,error:'Inicia sesión para entrar al espacio de profesor.'};
   try{
-    // El logo llegó después: sin su SQL aplicado se pide la ficha de siempre.
+    // El logo llegó después, y el perfil completo después (2026-10-23): sin
+    // su SQL aplicado se pide la ficha que el servidor sí tiene.
     const pedir=campos=>supabaseClient.from('tutor_perfiles').select(campos).eq('user_id',uid).maybeSingle();
-    let {data,error}=await pedir('nombre_publico,presentacion,estado,solicitado_at,revisado_at,logo_id,logo_path,logo_aprobado_path');
-    if(faltaColumnaClase(error))({data,error}=await pedir('nombre_publico,presentacion,estado,solicitado_at,revisado_at'));
+    const base='nombre_publico,presentacion,estado,solicitado_at,revisado_at',logo=',logo_id,logo_path,logo_aprobado_path';
+    let {data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR+',panel_alumnos');
+    if(faltaColumnaClase(error))({data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR));
+    if(faltaColumnaClase(error))({data,error}=await pedir(base+logo));
+    if(faltaColumnaClase(error))({data,error}=await pedir(base));
     // El motivo real queda en la consola. El 2026-09-25 un SQL pegado a medias
     // dejó sin permiso de lectura la ficha, y la pantalla solo decía "todavía
     // no está disponible": un "permission denied" acá lo habría dicho al tiro.
@@ -282,6 +317,47 @@ async function perfilProfesorActual(){
       return {ok:false,error:'El espacio de profesor todavía no está disponible. Tus notas no se han tocado.'};}
     return {ok:true,perfil:data||null};
   }catch(e){console.warn('No se pudo leer la ficha de profesor:',e);return {ok:false,error:'El espacio de profesor todavía no está disponible. Tus notas no se han tocado.'};}
+}
+
+// ─── PERFIL DE PROFESOR O EMPRESA (2026-10-23, base de #643) ─────────────────
+// El profesor elige si es profesor o academia, sus redes, ramos y
+// universidades, y si el perfil se muestra en sus anuncios. Nada es público
+// hasta que lo activa (supabase/perfil_profesor.sql).
+const CAMPOS_PERFIL_PROFESOR=',tipo_perfil,instagram,sitio_web,universidades,ramos_siglas,perfil_publico';
+const UNIVERSIDADES_PERFIL=[['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes']];
+const TIPOS_PERFIL=[['profesor','Profesor'],['empresa','Academia o empresa']];
+function tienePerfilCompleto(perfil){return !!perfil&&Object.prototype.hasOwnProperty.call(perfil,'perfil_publico');}
+function validarPerfilProfesor(e){
+  const nombre=String(e.nombre_publico||'').trim(),presentacion=String(e.presentacion||'').trim();
+  if(nombre.length<2||nombre.length>100)return {ok:false,campo:'nombre',error:'Escribe un nombre público de 2 a 100 caracteres.'};
+  if(presentacion.length<20||presentacion.length>1500)return {ok:false,campo:'presentacion',error:'Escribe una descripción de 20 a 1500 caracteres.'};
+  const tipo=e.tipo_perfil==='empresa'?'empresa':e.tipo_perfil==='profesor'?'profesor':null;
+  const insta=String(e.instagram||'').trim().replace(/^@/,'');
+  if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))return {ok:false,campo:'instagram',error:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.'};
+  const web=String(e.sitio_web||'').trim();
+  if(web){
+    let u;try{u=new URL(web);}catch(err){return {ok:false,campo:'web',error:'Pega el link completo de tu sitio, que empiece con https://.'};}
+    if(u.protocol!=='https:'||u.username||u.password||!u.hostname.includes('.')||u.href.length>160)
+      return {ok:false,campo:'web',error:'Pega el link completo de tu sitio, que empiece con https://.'};
+  }
+  const universidades=[...new Set((e.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)))];
+  const ramos=[...new Set(String(e.ramos||'').split(/[,\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean))];
+  if(ramos.length>20)return {ok:false,campo:'ramos',error:'Puedes poner hasta 20 ramos.'};
+  if(ramos.some(r=>!/^[A-Z0-9-]{2,24}$/.test(r)))return {ok:false,campo:'ramos',error:'Escribe las siglas de los ramos separadas por coma, por ejemplo MAT1620, FIS1514.'};
+  return {ok:true,datos:{nombre_publico:nombre,presentacion,tipo_perfil:tipo,instagram:insta||null,sitio_web:web?new URL(web).href:null,
+    universidades:universidades.length?universidades:null,ramos_siglas:ramos.length?ramos:null,perfil_publico:!!e.perfil_publico}};
+}
+async function guardarPerfilProfesor(entrada){
+  const valido=validarPerfilProfesor(entrada);if(!valido.ok)return valido;
+  const uid=sesionProfesorClase();if(!uid)return {ok:false,error:'Inicia sesión para guardar tu perfil.'};
+  try{
+    const {data,error}=await supabaseClient.from('tutor_perfiles').update(valido.datos).eq('user_id',uid)
+      .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR).maybeSingle();
+    if(faltaColumnaClase(error))return {ok:false,error:'Todavía no podemos guardar el perfil completo. Vuelve a intentarlo en un rato.'};
+    if(error||!data){if(error)console.warn('No se guardó el perfil:',error.code||'',error.message||error);return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}
+    perfilProfesorCache=perfilProfesorCache?{...perfilProfesorCache,...data}:perfilProfesorCache;
+    return {ok:true,perfil:data};
+  }catch(e){return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}
 }
 
 async function postularProfesor(nombre,presentacion){
@@ -325,6 +401,12 @@ async function guardarBorradorClase(entrada,id){
   try{
     const escribir=async campos=>{
       const datos={...valido.datos};
+      // Sin el SQL del tipo, una clase se guarda como siempre; un material no
+      // se puede guardar como clase: se avisa.
+      if(!campos.includes('tipo')){
+        if(datos.tipo==='material')return {data:null,error:{message:'sin-material'}};
+        delete datos.tipo;
+      }
       if(!campos.includes('pack_clases')){
         if(datos.pack_clases)return {data:null,error:{message:'sin-pack'}};
         delete datos.pack_clases;
@@ -349,6 +431,7 @@ async function guardarBorradorClase(entrada,id){
     // Sin el SQL que acepta $0, el servidor rechaza la clase gratis por su
     // restricción de precio: se dice eso y no "revisa tu conexión".
     if(error&&error.code==='23514'&&valido.datos.precio_clp===0)return {ok:false,campo:'precio_clp',error:'Todavía no podemos guardar clases gratis. Pon un precio por ahora.'};
+    if(error&&error.message==='sin-material')return {ok:false,campo:'tipo',error:'Todavía no podemos guardar material de apoyo. Vuelve a intentarlo en un rato.'};
     if(error&&error.message==='sin-pack')return {ok:false,campo:'pack_clases',error:'Todavía no podemos guardar packs. Deja vacío el pack y pon el precio por clase por ahora.'};
     if(error&&error.message==='sin-linea-datos')return {ok:false,campo:'linea_datos',error:'Todavía no podemos guardar qué datos van bajo el título. Deja formato, dónde y precio por ahora.'};
     if(error&&error.message==='sin-columnas-nuevas')return {ok:false,campo:'detalles',error:'Todavía no podemos guardar "Otra", un formato vacío ni detalles a medida. Usa las opciones de la lista por ahora.'};
@@ -503,7 +586,14 @@ function fondoDetrasClase(el){
 }
 function revisarLogoClase(img){
   const caja=img.parentElement;
-  if(!caja||!img.naturalWidth||img.dataset.contorno==='1')return;
+  if(!caja||!img.naturalWidth)return;
+  // Primero el margen transparente: si se recorta, el logo vuelve a cargar y
+  // esta función corre de nuevo con la imagen ya recortada.
+  try{if(recortarMargenLogoClase(img))return;}catch(e){}
+  if(img.dataset.contorno==='1')return;
+  // Un logo casi cuadrado o redondo, a la misma altura que uno ancho, queda
+  // chico y su texto ilegible (TuApunte, 2026-10-25): se le da más alto.
+  if(caja.classList)caja.classList.toggle('logo-cuadrado',img.naturalWidth/img.naturalHeight<1.4);
   let px;
   try{
     const lado=24,canvas=document.createElement('canvas');canvas.width=canvas.height=lado;
@@ -520,34 +610,118 @@ function revisarLogoClase(img){
   const logo=suma/visibles,fondo=fondoDetrasClase(caja);
   if((Math.max(logo,fondo)+.05)/(Math.min(logo,fondo)+.05)<2)dibujarContornoLogoClase(img,caja);
 }
-// El contorno se dibuja en un canvas y el logo pasa a ser esa imagen. Antes
-// era un `filter: drop-shadow` de 0,8px encadenado: Chrome lo dibujaba nítido
-// y Safari (Mac y iPhone) como un halo borroso que dejaba el logo casi
-// ilegible (2026-09-26, logo de SalvaRamos). Pintado a mano se ve igual en
-// todos los navegadores: un borde fino del color del texto y un halo suave.
+// Se prepara una vez, a la resolución original (sin achicar nada; después el
+// navegador escala la imagen como cualquier otra). Dos arreglos (TuApunte,
+// 2026-10-25: un círculo dentro de un PNG de 1080×1350, con las letras
+// caladas):
+// - El margen transparente se recorta: si no, el logo ocupa dos tercios de su
+//   espacio y se ve chico.
+// - Si el logo es una insignia (un círculo o un cuadrado lleno), sus huecos se
+//   rellenan de blanco. Las letras caladas se diseñaron sobre blanco: en el
+//   tema oscuro dejaban ver el fondo y desaparecían. Un logo de solo letras no
+//   se toca: el interior de su «o» no es un hueco de insignia.
+function recortarMargenLogoClase(img){
+  if(img.dataset.recorte)return false;
+  img.dataset.recorte='1';
+  const W=img.naturalWidth,H=img.naturalHeight,esc=128/Math.max(W,H);
+  const sw=Math.max(1,Math.round(W*esc)),sh=Math.max(1,Math.round(H*esc));
+  const c=document.createElement('canvas');c.width=sw;c.height=sh;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,sw,sh);
+  const d=x.getImageData(0,0,sw,sh).data;
+  let x0=sw,y0=sh,x1=-1,y1=-1;
+  for(let y=0;y<sh;y++)for(let i=0;i<sw;i++)if(d[(y*sw+i)*4+3]>8){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y;}
+  if(x1<0)return false;
+  // A píxeles originales, con un píxel de muestra de holgura por lado.
+  const ox=Math.max(0,Math.floor((x0-1)/esc)),oy=Math.max(0,Math.floor((y0-1)/esc));
+  let ow=Math.min(W,Math.ceil((x1+2)/esc))-ox,oh=Math.min(H,Math.ceil((y1+2)/esc))-oy;
+  const recorta=ow*oh<=W*H*.85;
+  // Un logo enorme se trabaja a 1200 px como máximo, bajando de a la mitad.
+  const tope=Math.min(1,1200/Math.max(ow,oh)),fw=Math.max(1,Math.round(ow*tope)),fh=Math.max(1,Math.round(oh*tope));
+  const recorte=document.createElement('canvas');recorte.width=ow;recorte.height=oh;
+  recorte.getContext('2d').drawImage(img,ox,oy,ow,oh,0,0,ow,oh);
+  const r=tope<1?reducirImagenClase({naturalWidth:ow,naturalHeight:oh,_c:recorte},fw,fh):recorte;
+  const rellena=rellenarHuecosInsigniaClase(r);
+  if(!recorta&&!rellena)return false;
+  img.src=r.toDataURL('image/png');
+  return true;
+}
+// Lo transparente que toca el borde es el exterior; lo transparente encerrado
+// es un hueco. Solo si lo encerrado por la silueta ocupa al menos el 60% del
+// recuadro (un círculo ocupa el 78%) es una insignia y se rellena.
+function rellenarHuecosInsigniaClase(canvas){
+  const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const im=ctx.getImageData(0,0,w,h),d=im.data,n=w*h;
+  const fuera=new Uint8Array(n),cola=new Int32Array(n);let ini=0,fin=0;
+  const mirar=p=>{if(!fuera[p]&&d[p*4+3]<250){fuera[p]=1;cola[fin++]=p;}};
+  for(let i=0;i<w;i++){mirar(i);mirar((h-1)*w+i);}
+  for(let y=0;y<h;y++){mirar(y*w);mirar(y*w+w-1);}
+  while(ini<fin){
+    const p=cola[ini++],px=p%w;
+    if(px>0)mirar(p-1);if(px<w-1)mirar(p+1);if(p>=w)mirar(p-w);if(p<n-w)mirar(p+w);
+  }
+  let dentro=0,huecos=0;
+  for(let p=0;p<n;p++)if(!fuera[p]){dentro++;if(d[p*4+3]<250)huecos++;}
+  if(!huecos||dentro<n*.6)return false;
+  for(let p=0;p<n;p++){
+    if(fuera[p])continue;
+    const k=p*4,a=d[k+3]/255;
+    if(a>=1)continue;
+    d[k]=Math.round(d[k]*a+255*(1-a));d[k+1]=Math.round(d[k+1]*a+255*(1-a));d[k+2]=Math.round(d[k+2]*a+255*(1-a));d[k+3]=255;
+  }
+  ctx.putImageData(im,0,0);
+  return true;
+}
+// Safari achica una imagen grande en un canvas de una vez y sin suavizado;
+// bajando de a la mitad cada paso promedia bien. Se usa para la silueta.
+function reducirImagenClase(img,w,h){
+  let fuente=img._c||img,fw=img.naturalWidth,fh=img.naturalHeight;
+  while(fw/2>=w*1.5&&fh/2>=h*1.5){
+    const paso=document.createElement('canvas');paso.width=Math.round(fw/2);paso.height=Math.round(fh/2);
+    const cp=paso.getContext('2d');cp.imageSmoothingEnabled=true;cp.imageSmoothingQuality='high';
+    cp.drawImage(fuente,0,0,paso.width,paso.height);fuente=paso;fw=paso.width;fh=paso.height;
+  }
+  const out=document.createElement('canvas');out.width=w;out.height=h;
+  const co=out.getContext('2d');co.imageSmoothingEnabled=true;co.imageSmoothingQuality='high';
+  co.drawImage(fuente,0,0,w,h);
+  return out;
+}
+// El contorno va en una capa aparte, detrás del logo. Antes el logo se
+// redibujaba dentro del canvas del contorno, y Safari al achicarlo borraba
+// las letras finas (TuApunte en iPhone, 2026-10-25). Ahora el logo es la
+// imagen original, que el navegador escala bien, y el canvas solo lleva el
+// borde fino del color del texto y un halo suave. Antes era un `filter:
+// drop-shadow`, que Safari dibujaba como un halo borroso (2026-09-26).
 function dibujarContornoLogoClase(img,caja){
-  if(img.dataset.contorno==='1')return;
   try{
+    caja.querySelectorAll('.logo-clase-borde').forEach(b=>b.remove());
     const dpr=Math.min(3,Math.max(1,(typeof devicePixelRatio==='number'&&devicePixelRatio)||1));
-    const alto=Math.max(24,caja.clientHeight||44)*dpr;
-    const esc=alto/img.naturalHeight,w=Math.max(1,Math.round(img.naturalWidth*esc)),h=Math.max(1,Math.round(alto));
+    // El tamaño con que se ve el logo: object-fit: contain dentro de su caja.
+    const bw=img.clientWidth||caja.clientWidth||44,bh=img.clientHeight||caja.clientHeight||44;
+    const k=Math.min(bw/img.naturalWidth,bh/img.naturalHeight);
+    const w=Math.max(1,Math.round(img.naturalWidth*k*dpr)),h=Math.max(1,Math.round(img.naturalHeight*k*dpr));
     const borde=1.2*dpr,halo=3.5*dpr,pad=Math.ceil(halo+1);
     const color=String(getComputedStyle(caja).getPropertyValue('--fg')||'').trim()||'#f1f1f3';
     // La silueta del logo en el color del texto.
     const sil=document.createElement('canvas');sil.width=w;sil.height=h;
-    const cs=sil.getContext('2d');cs.drawImage(img,0,0,w,h);
+    const cs=sil.getContext('2d');cs.drawImage(reducirImagenClase(img,w,h),0,0);
     cs.globalCompositeOperation='source-in';cs.fillStyle=color;cs.fillRect(0,0,w,h);
     const out=document.createElement('canvas');out.width=w+2*pad;out.height=h+2*pad;
     const co=out.getContext('2d');
     // Halo suave: la silueta corrida en un anillo ancho, casi transparente.
     co.globalAlpha=.07;
-    for(let k=0;k<24;k++){const a=k/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*halo,pad+Math.sin(a)*halo);}
+    for(let n=0;n<24;n++){const a=n/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*halo,pad+Math.sin(a)*halo);}
     // Borde fino y opaco.
     co.globalAlpha=1;
-    for(let k=0;k<16;k++){const a=k/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
-    co.drawImage(img,pad,pad,w,h);
+    for(let n=0;n<16;n++){const a=n/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
+    // Debajo del logo no queda nada: solo el anillo de afuera.
+    co.globalCompositeOperation='destination-out';co.drawImage(sil,pad,pad);
+    const capa=document.createElement('img');
+    capa.className='logo-clase-borde';capa.alt='';capa.setAttribute('aria-hidden','true');
+    capa.src=out.toDataURL('image/png');
+    capa.style.width=out.width/dpr+'px';capa.style.height=out.height/dpr+'px';
+    capa.style.left=img.offsetLeft+img.offsetWidth/2+'px';capa.style.top=img.offsetTop+img.offsetHeight/2+'px';
+    caja.insertBefore(capa,img);
     img.dataset.contorno='1';
-    img.src=out.toDataURL('image/png');
     caja.classList.add('logo-contorno');
   }catch(e){}
 }
@@ -664,13 +838,40 @@ function criteriosClaseValidos(c){
     c.promedioMenorA>1&&c.promedioMenorA<=7&&Number.isFinite(c.avanceMinimo)&&
     c.avanceMinimo>=0&&c.avanceMinimo<100;
 }
+// La próxima evaluación sin nota del ramo según su Agenda, si cae entre hoy y
+// los próximos DIAS_ANTES_EVALUACION_CLASES días; si no, null. Misma regla
+// que agendaEvents: una nota con fecha propia es su propia evaluación, y la
+// fecha del grupo cuenta mientras le falten notas para sus casillas.
+const DIAS_ANTES_EVALUACION_CLASES=7;
+function proximaEvaluacionClases(ramo,ahora=Date.now()){
+  const desde=diaLocalClases(ahora),hasta=diaLocalClases(ahora+DIAS_ANTES_EVALUACION_CLASES*864e5);
+  const enVentana=f=>typeof f==='string'&&f>=desde&&f<=hasta;
+  let proxima=null;
+  const anotar=f=>{if(enVentana(f)&&(!proxima||f<proxima))proxima=f;};
+  (ramo&&ramo.categorias||[]).forEach(c=>{
+    if(typeof categoriaEximida==='function'&&categoriaEximida(ramo,c))return;
+    const notas=c.notas||[];
+    notas.forEach(n=>{if(n.fecha&&(n.valor===null||n.valor===undefined))anotar(n.fecha);});
+    if(c.fecha&&notas.filter(n=>!n.fecha).length<(c.slots||1))anotar(c.fecha);
+  });
+  return proxima;
+}
+
 function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now(),turno=0}={}){
-  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant);
+  // Primero los ramos con una evaluación en los próximos días, la más cercana
+  // antes (#664: con la prueba encima es cuando alguien escribe a un profesor).
+  // Los demás quedan detrás en el orden que eligió la persona, así que quien no
+  // tiene fechas en la Agenda ve lo mismo que antes.
+  const propios=(Array.isArray(ramos)?ramos:[]).filter(r=>r&&r.origen&&r.origen.tenant===tenant)
+    .map((r,i)=>({r,i,f:proximaEvaluacionClases(r,ahora)}))
+    .sort((x,y)=>x.f&&y.f?(x.f<y.f?-1:x.f>y.f?1:x.i-y.i):x.f?-1:y.f?1:x.i-y.i)
+    .map(x=>x.r);
   const omitidos=new Set(descartados);
   const disponibles=anunciosParaRamosLocales(anuncios,propios).filter(a=>
     a.tenant===tenant&&a.estado==='publicado'&&!omitidos.has(a.id)&&
     (a.vence_at==null||Date.parse(a.vence_at)>ahora)&&criteriosClaseValidos(a.criterios));
-  // El orden de ramos que eligió la persona manda. Si varios avisos calzan con
+  // Después de la próxima evaluación, el orden de ramos que eligió la persona
+  // manda. Si varios avisos calzan con
   // el mismo ramo, se alternan en cada apertura de la app: antes ganaba siempre
   // el publicado último, y un profesor con dos clases del mismo ramo casi no
   // veía la otra en Inicio (Salva Ramos, 2026-09-30). Se entrega como máximo
@@ -913,15 +1114,27 @@ function preciosClase(a){
   const n=Number.isInteger(a.pack_clases)&&a.pack_clases>=MIN_PACK_CLASES&&a.pack_clases<=MAX_PACK_CLASES?a.pack_clases:null;
   const d=Number.isInteger(a.descuento_gradehub_pct)&&a.descuento_gradehub_pct>=1&&a.descuento_gradehub_pct<=50?a.descuento_gradehub_pct:null;
   const conDescuento=x=>d?Math.round(x*(100-d)/100):x;
-  return {gratis:false,pack:n,descuento:d,porClase:base,porClaseFinal:conDescuento(base),
+  return {gratis:false,pack:n,descuento:d,codigo:d?codigoDescuentoClase(a):null,porClase:base,porClaseFinal:conDescuento(base),
     packTotal:n?base*n:null,packFinal:n?conDescuento(base*n):null};
 }
-// Corto, para la línea bajo el título: "$45.000 pack de 4" o "$11.250".
+// El código que acompaña al descuento (2026-10-25). Lo fija un admin; acá
+// se vuelve a validar porque termina en el texto del anuncio y del WhatsApp.
+function codigoDescuentoClase(a){
+  const c=a&&typeof a.codigo_descuento==='string'?a.codigo_descuento.trim().toUpperCase():'';
+  return /^[A-Z0-9][A-Z0-9_-]{2,19}$/.test(c)?c:null;
+}
+function textoDescuentoClase(p){
+  return p.codigo?`−${p.descuento}% con el código ${p.codigo}`:`−${p.descuento}% por venir de GradeHub`;
+}
+// Corto, para la línea bajo el título: "4 clases · $11.250 c/u" o "$11.250".
+// En un pack se lee el precio por clase y no el total (#664): en la primera
+// campaña pagada, el pack de $45.000 casi no se abrió. El total sigue en la
+// tarjeta del catálogo, con precioCatalogoHTML.
 function precioClase(anuncio){
   const p=preciosClase(anuncio);
   if(p.gratis)return 'Gratis';
   if(p.porClase==null)return pesosClase(anuncio&&anuncio.precio_clp);
-  return p.pack?`${pesosClase(p.packFinal)} pack de ${p.pack}`:pesosClase(p.porClaseFinal);
+  return p.pack?`${p.pack} clases · ${pesosClase(p.porClaseFinal)} c/u`:pesosClase(p.porClaseFinal);
 }
 // El bloque de precio de la tarjeta. El precio anterior va tachado con texto
 // oculto ("antes") para lectores de pantalla, y el descuento en el color de la
@@ -931,7 +1144,9 @@ function precioCatalogoHTML(a){
   if(p.gratis)return '<strong>Gratis</strong>';
   if(p.porClase==null)return '';
   const antes=x=>p.descuento?`<del><span class="sr-precio">antes </span>${pesosClase(x)}</del> `:'';
-  const chip=p.descuento?`<span class="catalogo-clase-descuento">−${p.descuento}% por venir de GradeHub</span>`:'';
+  const chip=p.descuento?`<span class="catalogo-clase-descuento">${esc(textoDescuentoClase(p))}</span>`:'';
+  // Un material se compra una vez: sin «por clase» ni pack.
+  if(esMaterialClase(a))return `<div class="catalogo-clase-precio"><strong>${antes(p.porClase)}${pesosClase(p.porClaseFinal)}</strong>${chip}</div>`;
   if(p.pack)return `<div class="catalogo-clase-precio"><strong>${antes(p.packTotal)}${pesosClase(p.packFinal)} <small>pack de ${p.pack}</small></strong>${chip}<span class="catalogo-clase-por-clase">${antes(p.porClase)}${pesosClase(p.porClaseFinal)} por clase</span></div>`;
   return `<div class="catalogo-clase-precio"><strong>${antes(p.porClase)}${pesosClase(p.porClaseFinal)} <small>por clase</small></strong>${chip}</div>`;
 }
@@ -947,9 +1162,14 @@ function pesosClase(valor){
 // dice nada de las notas de quien escribe.
 function mensajeContactoClase(anuncio){
   const titulo=String(anuncio&&anuncio.titulo||'').trim();
-  return (titulo?`Hola, vi tu clase «${titulo}» en GradeHub.`:'Hola, vi tu clase en GradeHub.')+' ¿Me puedes dar más información?';
+  const que=esMaterialClase(anuncio)?'tu material':'tu clase';
+  // El código de descuento no va acá (Lucas, 2026-10-25): lo da el estudiante.
+  return (titulo?`Hola, vi ${que} «${titulo}» en GradeHub.`:`Hola, vi ${que} en GradeHub.`)+' ¿Me puedes dar más información?';
 }
-function textoContactoClase(tipo){return {whatsapp:'Hablar por WhatsApp',instagram:'Ver Instagram',enlace:'Inscribirme',email:'Enviar correo'}[tipo]||'Contactar';}
+function textoContactoClase(tipo,anuncio){
+  if(tipo==='enlace'&&esMaterialClase(anuncio))return 'Conseguir el material';
+  return {whatsapp:'Hablar por WhatsApp',instagram:'Ver Instagram',enlace:'Inscribirme',email:'Enviar correo'}[tipo]||'Contactar';
+}
 
 let catalogoClasesActual=[],nombresCatalogoClasesActual={};
 // Una clase como la ve el estudiante. `sigla` es el ramo por el que se la
@@ -965,27 +1185,79 @@ function tarjetaCatalogoClase(a,{sigla,abierta=false}={}){
     // clase, así el catálogo cerrado no se alarga.
     return `<div class="catalogo-clase-bloque"><article class="catalogo-clase-card" data-catalogo-anuncio="${esc(a.id)}">
       <div class="catalogo-clase-contenido">
-        <div class="catalogo-clase-cabeza"><div><small>Publicidad · Clase particular</small>
-        <h3>${esc(a.titulo||'Clase particular')}</h3></div>${logosCatalogoClases.get(a.id)?`<div class="catalogo-clase-logo" data-logo="${esc(logosCatalogoClases.get(a.id))}"></div>`:''}</div>
+        <div class="catalogo-clase-cabeza"><div><small>Publicidad · ${etiquetaTipoClase(a)}</small>
+        <h3>${esc(a.titulo||etiquetaTipoClase(a))}</h3></div>${logosCatalogoClases.get(a.id)?`<div class="catalogo-clase-logo" data-logo="${esc(logosCatalogoClases.get(a.id))}"></div>`:''}</div>
         <p class="catalogo-clase-ramos"><strong>${esc(siglas)}</strong>${nombres?`<span>${esc(nombres)}</span>`:''}</p>
         <p class="catalogo-clase-descripcion">${esc(a.descripcion||'')}</p>
         <div class="catalogo-clase-datos"><span>${esc(formatoClase(a))}</span>${precioCatalogoHTML(a)}</div>
-        ${abierta?'':`<button type="button" class="catalogo-clase-ver" data-abrir="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}" aria-expanded="false">Ver clase</button>`}
+        ${abierta?'':`<button type="button" class="catalogo-clase-ver" data-abrir="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}" aria-expanded="false">${esMaterialClase(a)?'Ver material':'Ver clase'}</button>`}
         <div class="catalogo-clase-mas"${abierta?'':' hidden'}>
         ${detallesClase(a).length?`<dl class="catalogo-clase-detalles">${detallesClase(a).map(d=>`<div><dt>${esc(d.etiqueta)}</dt><dd>${esc(d.valor)}</dd></div>`).join('')}</dl>`:''}
-        ${contacto?`<a class="catalogo-clase-contacto" href="${esc(contacto)}" ${a.contacto_tipo==='email'?'':'target="_blank" rel="noopener noreferrer"'} data-contactar="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}">${esc(textoContactoClase(a.contacto_tipo))}</a>`
+        ${contacto?`<a class="catalogo-clase-contacto" href="${esc(contacto)}" ${a.contacto_tipo==='email'?'':'target="_blank" rel="noopener noreferrer"'} data-contactar="${esc(a.id)}" data-sigla="${esc(siglaMetrica)}">${esc(textoContactoClase(a.contacto_tipo,a))}</a>`
           :'<p class="catalogo-clase-sin-contacto">El contacto de esta clase necesita revisión.</p>'}
+        <div class="catalogo-clase-perfil" data-perfil="${esc(a.id)}"></div>
         </div>
       </div>
     </article>${a.flyer_path?`<figure class="catalogo-clase-flyer" data-flyer="${esc(a.flyer_path)}"${abierta?'':' hidden'}><span>Cargando flyer…</span></figure>`:''}</div>`;
 }
 
+// «Ver perfil» en una clase abierta. Solo existe si el profesor activó su
+// perfil; si no, o si falla, la tarjeta queda igual que antes. Se despliega en
+// la misma tarjeta: un modal encima reemplazaría el catálogo.
+const perfilesDeAnuncio=new Map();
+function perfilDeAnuncio(id){
+  if(!perfilesDeAnuncio.has(id))perfilesDeAnuncio.set(id,(async()=>{
+    try{
+      const {data,error}=await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
+      return error?null:(Array.isArray(data)?data[0]:data)||null;
+    }catch(e){return null;}
+  })());
+  return perfilesDeAnuncio.get(id);
+}
+function perfilPublicoHTML(p,anuncioId){
+  const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
+  const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
+  const insta=enlaceContactoClase('instagram',p.instagram),web=enlaceContactoClase('enlace',p.sitio_web);
+  const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
+  const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
+  return `<div class="perfil-publico-cabeza">${p.logo_path?`<div class="catalogo-clase-logo" data-logo="${esc(p.logo_path)}"></div>`:''}
+      <div><h4>${esc(p.nombre_publico)}</h4>${tipo?`<span>${esc(tipo)}</span>`:''}</div></div>
+    <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
+    ${unis.length||(p.ramos_siglas||[]).length?`<dl class="catalogo-clase-detalles">${unis.length?`<div><dt>Universidades</dt><dd>${esc(unis.join(', '))}</dd></div>`:''}${(p.ramos_siglas||[]).length?`<div><dt>Ramos</dt><dd>${esc(p.ramos_siglas.join(', '))}</dd></div>`:''}</dl>`:''}
+    ${insta||web?`<p class="perfil-publico-links">${insta?`<a href="${esc(insta)}" target="_blank" rel="noopener noreferrer" data-fuera>Instagram</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener noreferrer" data-fuera>Sitio web</a>`:''}</p>`:''}
+    ${otros.length||sinTitulo>0?`<div class="perfil-publico-otros"><strong>Sus otras clases</strong><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></div>`:''}`;
+}
+async function mostrarPerfilEnClase(caja){
+  if(caja.dataset.cargado)return;caja.dataset.cargado='1';
+  const p=await perfilDeAnuncio(caja.dataset.perfil);
+  if(!p||!caja.isConnected)return;
+  caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-expanded="false">Ver perfil de ${esc(p.nombre_publico)}</button>
+    <section class="perfil-publico" aria-label="Perfil de ${esc(p.nombre_publico)}" hidden>${perfilPublicoHTML(p,caja.dataset.perfil)}</section>`;
+  const boton=caja.querySelector('.perfil-publico-abrir'),seccion=caja.querySelector('.perfil-publico');
+  boton.addEventListener('click',()=>{
+    const abrir=seccion.hidden;seccion.hidden=!abrir;boton.setAttribute('aria-expanded',String(abrir));
+    boton.textContent=abrir?'Ocultar perfil':'Ver perfil de '+p.nombre_publico;
+    if(abrir&&typeof track==='function')track('perfil_profesor_abierto');
+  });
+  seccion.querySelectorAll('[data-logo]').forEach(async c=>{const url=await urlFlyerClase(c.dataset.logo);if(!c.isConnected)return;if(url)c.innerHTML=imgLogoClase(url,' loading="lazy"');else c.remove();});
+  seccion.querySelectorAll('[data-fuera]').forEach(a=>a.addEventListener('click',e=>{
+    if(typeof enAppNativa==='function'&&enAppNativa()&&abrirFuera(a.href))e.preventDefault();
+  }));
+  seccion.querySelectorAll('[data-ir-anuncio]').forEach(b=>b.addEventListener('click',()=>{
+    const destino=document.querySelector(`[data-catalogo-anuncio="${CSS.escape(b.dataset.irAnuncio)}"]`);
+    if(destino){destino.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+      const ver=destino.querySelector('[data-abrir]');(ver||destino).focus&&(ver||destino).focus({preventScroll:true});}
+  }));
+}
+
 // Filtros locales sobre el catálogo público; no modifican campañas ni medición.
-function filtrarPrecioCatalogoClases(anuncios,{desde='',hasta='',gratis=false,ubicacion='',invalido=false}={}){
+function filtrarPrecioCatalogoClases(anuncios,{desde='',hasta='',gratis=false,ubicacion='',tipo='',invalido=false}={}){
   const minimo=desde===''?0:Number(desde),maximo=hasta===''?Infinity:Number(hasta);
   const error=!gratis&&(invalido||!Number.isSafeInteger(minimo)||minimo<0||
     !(maximo===Infinity||Number.isSafeInteger(maximo))||maximo<minimo);
   return {error,anuncios:error?[]:anuncios.filter(a=>{
+    // Clase o material (2026-10-23). Un anuncio sin tipo es una clase.
+    if(tipo&&(esMaterialClase(a)?'material':'clase')!==tipo)return false;
     // Una clase híbrida se dicta online y presencial: calza con los dos filtros.
     if(ubicacion&&a.ubicacion!==ubicacion&&a.ubicacion!=='hibrido')return false;
     if(gratis)return esClaseGratis(a);
@@ -998,13 +1270,15 @@ function filtrarPrecioCatalogoClases(anuncios,{desde='',hasta='',gratis=false,ub
 function filtrosCatalogoClases(){
   const desde=document.getElementById('catalogo-desde'),hasta=document.getElementById('catalogo-hasta');
   return {desde:desde.value,hasta:hasta.value,gratis:document.getElementById('catalogo-gratis').checked,
-    ubicacion:document.getElementById('catalogo-ubicacion').value,invalido:desde.validity.badInput||hasta.validity.badInput};
+    ubicacion:document.getElementById('catalogo-ubicacion').value,tipo:(document.getElementById('catalogo-tipo')||{}).value||'',
+    invalido:desde.validity.badInput||hasta.validity.badInput};
 }
 function cabeceraCatalogoClasesHTML(){
   return `<div class="catalogo-clases catalogo-redisenado">
     <header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
     <div class="catalogo-herramientas"><div class="catalogo-buscador"><label for="catalogo-clases-buscar">Buscar clases</label>
     <div class="catalogo-clases-busqueda"><input id="catalogo-clases-buscar" type="search" autocomplete="off" placeholder="Busca por ramo o sigla" aria-describedby="catalogo-clases-estado"></div></div>
+    <label class="catalogo-filtro">Qué buscas<select id="catalogo-tipo"><option value="">Todo</option>${TIPOS_ANUNCIO.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
     <label class="catalogo-filtro">Modalidad<select id="catalogo-ubicacion"><option value="">Todas</option><option value="online">Online</option><option value="presencial">Presencial</option></select></label>
     <div class="catalogo-precios" role="group" aria-label="Precio por clase en pesos">
       <label class="catalogo-filtro">Desde $<input id="catalogo-desde" type="number" min="0" step="1" inputmode="numeric" placeholder="Sin mínimo" aria-describedby="catalogo-precio-error"></label>
@@ -1034,8 +1308,9 @@ function renderCatalogoClases(busqueda=''){
     return;
   }
   if(estado)estado.textContent=anuncios.length
-    ?`${anuncios.length} ${anuncios.length===1?'clase encontrada':'clases encontradas'}`
-    :(busqueda||filtros.desde||filtros.hasta||filtros.gratis||filtros.ubicacion?'No encontramos clases con esos filtros. Prueba ampliarlos.':'Todavía no hay clases publicadas en tu universidad.');
+    ?`${anuncios.length} ${(filtros.tipo==='material'?['material encontrado','materiales encontrados']
+      :anuncios.some(esMaterialClase)?['resultado','resultados']:['clase encontrada','clases encontradas'])[anuncios.length===1?0:1]}`
+    :(busqueda||filtros.desde||filtros.hasta||filtros.gratis||filtros.ubicacion||filtros.tipo?'No encontramos nada con esos filtros. Prueba ampliarlos.':'Todavía no hay clases publicadas en tu universidad.');
   raiz.innerHTML=anuncios.map(a=>tarjetaCatalogoClase(a)).join('');
   activarTarjetasClases(raiz);
   observarImpresionesClases(raiz,anuncios,busqueda);
@@ -1050,7 +1325,9 @@ function activarTarjetasClases(raiz){
     link.dataset.contactando='true';link.setAttribute('aria-busy','true');
     // Abrir una pestaña vacía dentro del gesto del usuario evita el bloqueo
     // del navegador después del await. La cerramos si no se confirmó el cobro.
-    const ventana=link.target==='_blank'&&typeof window!=='undefined'&&typeof window.open==='function'
+    // En la app iOS no hay pestaña que abrir: se abre al final con abrirFuera.
+    const nativa=typeof enAppNativa==='function'&&enAppNativa();
+    const ventana=!nativa&&link.target==='_blank'&&typeof window!=='undefined'&&typeof window.open==='function'
       ?window.open('about:blank','_blank'):null;
     if(ventana)ventana.opener=null;
     const cargo=await registrarInteraccionMedida(link.dataset.contactar,'contacto',link.dataset.sigla);
@@ -1061,7 +1338,7 @@ function activarTarjetasClases(raiz){
       return;
     }
     if(ventana&&!ventana.closed)ventana.location.href=link.href;
-    else if(typeof window!=='undefined')window.location.assign(link.href);
+    else if(!(nativa&&abrirFuera(link.href))&&typeof window!=='undefined')window.location.assign(link.href);
   }));
   raiz.querySelectorAll('[data-abrir]').forEach(boton=>boton.addEventListener('click',()=>{
     const tarjeta=boton.closest('.catalogo-clase-card'),mas=tarjeta&&tarjeta.querySelector('.catalogo-clase-mas');
@@ -1071,7 +1348,9 @@ function activarTarjetasClases(raiz){
     if(flyer)flyer.hidden=false;
     registrarInteraccionMedida(boton.dataset.abrir,'apertura',boton.dataset.sigla);
     const contacto=mas.querySelector('.catalogo-clase-contacto');if(contacto)contacto.focus();
+    const perfil=mas.querySelector('[data-perfil]');if(perfil)mostrarPerfilEnClase(perfil);
   }));
+  raiz.querySelectorAll('.catalogo-clase-mas:not([hidden]) [data-perfil]').forEach(mostrarPerfilEnClase);
   raiz.querySelectorAll('[data-logo]').forEach(async caja=>{
     const url=await urlFlyerClase(caja.dataset.logo);
     if(!caja.isConnected)return;
@@ -1094,20 +1373,21 @@ function activarTarjetasClases(raiz){
 // catálogo —lo que sí se cobraría, a un precio menor que el segmentado— espera
 // a que el servidor distinga por qué camino llegó cada cuenta.
 const IMPRESION_VISIBLE=0.5,IMPRESION_MS=1000;
-let impresionesCatalogo=new Set(),observadorCatalogo=null,logosCatalogoClases=new Map();
+let impresionesCatalogo=new Set(),observadorCatalogo=null,logosCatalogoClases=new Map(),limpiarVisibilidadCatalogo=null;
 function observarImpresionesClases(raiz,anuncios,busqueda=''){
   // Si la persona escribió algo, las tarjetas que ve son resultado de buscar.
   const canal=String(busqueda||'').trim()?'busqueda':'lista';
+  if(limpiarVisibilidadCatalogo){limpiarVisibilidadCatalogo();limpiarVisibilidadCatalogo=null;}
   if(observadorCatalogo){observadorCatalogo.disconnect();observadorCatalogo=null;}
   if(typeof IntersectionObserver!=='function'||!raiz)return;
   const sigla=new Map((anuncios||[]).map(a=>[a.id,(a.ramos_siglas||[])[0]||'']));
-  const timers=new Map(),visibles=new Set();
+  const timers=new Map(),visibles=new Set(),tarjetas=new Map();
   const programar=(card,id,demora=IMPRESION_MS)=>{
     if(timers.has(id))return;
     timers.set(id,setTimeout(async()=>{
       timers.delete(id);
       const clave=id+':'+canal;
-      if(!card.isConnected||!visibles.has(id)||impresionesCatalogo.has(clave))return;
+      if(document.visibilityState==='hidden'||!card.isConnected||!visibles.has(id)||impresionesCatalogo.has(clave))return;
       const alcance=await registrarAlcanceAnuncio(id,canal);
       if(alcance===null){
         if(card.isConnected&&visibles.has(id))programar(card,id,5000);
@@ -1127,14 +1407,24 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
       if(!id)continue;
       if(e.isIntersecting&&e.intersectionRatio>=IMPRESION_VISIBLE){
         visibles.add(id);
-        if(!impresionesCatalogo.has(id+':'+canal))programar(e.target,id);
+        if(document.visibilityState!=='hidden'&&!impresionesCatalogo.has(id+':'+canal))programar(e.target,id);
       }else{
         visibles.delete(id);
         if(timers.has(id)){clearTimeout(timers.get(id));timers.delete(id);}
       }
     }
   },{threshold:[IMPRESION_VISIBLE]});
-  raiz.querySelectorAll('[data-catalogo-anuncio]').forEach(card=>observadorCatalogo.observe(card));
+  const alCambiarVisibilidad=()=>{
+    timers.forEach(clearTimeout);timers.clear();
+    if(document.visibilityState==='hidden')return;
+    visibles.forEach(id=>{const card=tarjetas.get(id);if(card&&card.isConnected&&!impresionesCatalogo.has(id+':'+canal))programar(card,id);});
+  };
+  if(document.addEventListener)document.addEventListener('visibilitychange',alCambiarVisibilidad);
+  limpiarVisibilidadCatalogo=()=>{
+    timers.forEach(clearTimeout);timers.clear();
+    if(document.removeEventListener)document.removeEventListener('visibilitychange',alCambiarVisibilidad);
+  };
+  raiz.querySelectorAll('[data-catalogo-anuncio]').forEach(card=>{tarjetas.set(card.dataset.catalogoAnuncio,card);observadorCatalogo.observe(card);});
 }
 
 async function openCatalogoClases(){
@@ -1149,9 +1439,9 @@ async function openCatalogoClases(){
     document.getElementById('modal').classList.contains('open');
   input.addEventListener('input',()=>renderCatalogoClases(input.value));
   ['catalogo-desde','catalogo-hasta'].forEach(id=>raiz.querySelector('#'+id).addEventListener('input',()=>renderCatalogoClases(input.value)));
-  ['catalogo-gratis','catalogo-ubicacion'].forEach(id=>raiz.querySelector('#'+id).addEventListener('change',()=>renderCatalogoClases(input.value)));
+  ['catalogo-gratis','catalogo-ubicacion','catalogo-tipo'].forEach(id=>{const el=raiz.querySelector('#'+id);if(el)el.addEventListener('change',()=>renderCatalogoClases(input.value));});
   raiz.querySelector('#catalogo-limpiar').addEventListener('click',()=>{
-    ['catalogo-desde','catalogo-hasta','catalogo-ubicacion'].forEach(id=>{raiz.querySelector('#'+id).value='';});
+    ['catalogo-desde','catalogo-hasta','catalogo-ubicacion','catalogo-tipo'].forEach(id=>{const el=raiz.querySelector('#'+id);if(el)el.value='';});
     raiz.querySelector('#catalogo-gratis').checked=false;input.value='';renderCatalogoClases();input.focus();
   });
   const tenant=S.tenant;
@@ -1328,6 +1618,30 @@ async function renderEspacioProfesor(raiz,{titulo=true}={}){
   const ficha=await perfilProfesorActual();
   if(!ficha.ok){raiz.innerHTML=cabecera('Espacio de profesor')+`<p class="profesor-info" role="alert">${esc(ficha.error)}</p>`+salida();return;}
   if(!ficha.perfil){renderPostulacionProfesor(raiz);return;}
+  if(ficha.perfil.estado==='pendiente'){
+    const mios=await misAnunciosClase();
+    const fecha=new Date(ficha.perfil.solicitado_at);
+    const enviada=Number.isFinite(fecha.getTime())
+      ?`Enviada el ${new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'}).format(fecha)}.`
+      :'Fecha de envío no disponible.';
+    const borradores=mios.ok?mios.anuncios.filter(a=>a.estado==='borrador'):[];
+    raiz.innerHTML=cabecera('Espacio de profesor')+
+      `<div class="profesor-hig"><section class="clases-seccion" aria-labelledby="profesor-postulacion-titulo"><h2 id="profesor-postulacion-titulo">Tu postulación</h2><p class="profesor-info" role="status">Está pendiente de revisión. ${esc(enviada)}</p><p class="profesor-info">Te avisaremos cuando esté aprobada. Mientras tanto, puedes preparar un anuncio y guardarlo como borrador.</p></section>`+
+      `<section class="clases-seccion" aria-labelledby="profesor-borradores-titulo"><h2 id="profesor-borradores-titulo">Tu borrador</h2>`+
+      (mios.ok
+        ?borradores.length
+          ?`<div class="clase-lista">${borradores.map(a=>`<div class="clase-card"><div class="clase-card-top"><strong>${esc(a.titulo||'Sin título')}</strong><span class="clase-estado">Borrador</span></div><p class="clase-card-meta">Nadie lo ve todavía.</p><button type="button" class="clase-accion" data-borrador-pendiente="${esc(a.id)}">Seguir preparando</button></div>`).join('')}</div>`
+          :'<p class="profesor-info">Todavía no tienes un borrador.</p><button type="button" class="btn-confirm" id="clase-nueva-pendiente">Preparar anuncio</button>'
+        :`<p class="profesor-info" role="alert">${esc(mios.error)}</p>`)+
+      '</section></div>'+salida();
+    const nueva=raiz.querySelector('#clase-nueva-pendiente');
+    if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null,{pendiente:true}));
+    if(typeof raiz.querySelectorAll==='function')raiz.querySelectorAll('[data-borrador-pendiente]').forEach(b=>b.addEventListener('click',()=>{
+      const anuncio=borradores.find(a=>a.id===b.dataset.borradorPendiente);
+      if(anuncio)renderBorradorProfesor(raiz,anuncio,{pendiente:true});
+    }));
+    return;
+  }
   if(ficha.perfil.estado!=='aprobado'){
     const avisos={pendiente:'Tu postulación está esperando revisión. Todavía no puedes ofrecer clases.',rechazado:'Tu postulación no fue aprobada. Puedes escribirnos desde Sugerencias para revisar el motivo.',suspendido:'Tu acceso de profesor está suspendido. Tus notas como estudiante siguen disponibles.'};
     raiz.innerHTML=cabecera('Espacio de profesor')+`<p class="profesor-info" role="status">${esc(avisos[ficha.perfil.estado]||'Tu perfil necesita revisión.')}</p>`+salida();
@@ -1348,7 +1662,7 @@ function postularComoProfesor(){
 }
 function renderPostulacionProfesor(raiz){
   raiz.innerHTML=`<div class="modal-title" id="modal-titulo">Postula para ofrecer clases</div>
-    <p class="profesor-info">Tu cuenta de estudiante sigue igual. Un miembro de nuestro equipo revisará tu postulación antes de que puedas preparar anuncios.</p>
+    <p class="profesor-info">Tu cuenta de estudiante sigue igual. Un miembro de nuestro equipo revisará tu postulación. Mientras esperas, podrás preparar un borrador de anuncio.</p>
     <form class="profesor-form" id="profesor-postular">
       <label class="modal-label" for="profesor-nombre">Nombre público</label><input id="profesor-nombre" type="text" maxlength="100" minlength="2" required autocomplete="name">
       <label class="modal-label" for="profesor-presentacion">Qué ramos enseñas y qué experiencia tienes</label><textarea id="profesor-presentacion" minlength="20" maxlength="1500" required></textarea>
@@ -1768,12 +2082,12 @@ function tarjetaPanelClase(a,pesos,ahora){
 
 // Presentación pura de la propuesta #522. Las acciones y los números siguen
 // conectados al flujo de producción; no se importan adaptadores de bin/.
-function cabeceraProfesorHTML(titulo,bajada,accion='',idTitulo='profesor-titulo'){
-  return `<header class="profesor-hig-cabecera"><div><p class="profesor-hig-ceja">TU ESPACIO DE PROFESOR</p><h1 class="modal-title" id="${esc(idTitulo)}">${esc(titulo)}</h1><p>${esc(bajada)}</p></div>${accion}</header>`;
+function cabeceraProfesorHTML(titulo,bajada,accion='',idTitulo='profesor-titulo',ceja='TU ESPACIO DE PROFESOR'){
+  return `<header class="profesor-hig-cabecera"><div><p class="profesor-hig-ceja">${esc(ceja)}</p><h1 class="modal-title" id="${esc(idTitulo)}">${esc(titulo)}</h1><p>${esc(bajada)}</p></div>${accion}</header>`;
 }
 function filaProfesorClaseHTML(a,pesos,ahora){
   const vig=vigenciaAnuncio(a,ahora),etiqueta=(ESTADOS_ANUNCIO[vig]||[vig])[0];
-  return `<details class="profesor-hig-fila"><summary>
+  return `<details class="profesor-hig-fila" data-profesor-anuncio="${esc(a.id)}"><summary>
     <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
     <span class="clase-estado clase-estado-${esc(vig)}" data-estado-campana="${esc(a.id)}">${esc(etiqueta)}</span>
     <span class="profesor-hig-importe"><b data-costo-campana="${esc(a.id)}">${['publicado','pausado','expirado','agotado','sin_confirmar'].includes(vig)?'Cargando…':'—'}</b><small>Costo de campaña</small></span>
@@ -1792,6 +2106,12 @@ function seccionPanelClases(titulo,lista,pesos,ahora,vacio){
     ${lista.length?`<div class="clase-lista">${lista.map(a=>filaProfesorClaseHTML(a,pesos,ahora)).join('')}</div>`:`<p class="clase-sin-datos">${vacio}</p>`}</section>`;
 }
 
+// La vista de Clases que estaba abierta: repintar tras pausar o retomar un
+// anuncio no devuelve al Resumen.
+let vistaClasesActual=null;
+// Al guardar un borrador se vuelve a la lista de anuncios (Lucas, 2026-10-23),
+// también si el panel estaba abierto como hoja.
+let vistaClasesAlVolver=null;
 async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const pesos=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
   anuncios=await Promise.all(anuncios.map(async a=>{
@@ -1812,13 +2132,56 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
       anuncios=anuncios.map(a=>a.estado==='borrador'?{...a,comentario_revision_error:true}:a);
     }
   }
+  let ediciones=[];
+  try{
+    const {data,error}=await supabaseClient.rpc('mis_anuncios_editados_gradehub');
+    if(!error&&Array.isArray(data))ediciones=data.filter(e=>anuncios.some(a=>a.id===e.anuncio_id));
+  }catch(e){}
   const ahora=Date.now(),g=gruposPanelClases(anuncios,ahora);
   const conNumeros=[...g.activos,...g.cerrados,...g.sinConfirmar];
+  // En su pestaña, «Clases» va en la barra (Lucas, 2026-10-22): sin título
+  // grande, la acción principal queda arriba. Abierto como hoja, conserva su
+  // título, que la hoja necesita.
+  // Misma acción principal que «Invitar alumno» en Alumnos: botón con el acento.
+  const crearAnuncio='<button type="button" class="accion-principal" id="clase-nueva">Crear anuncio</button>';
+  // Resumen, Anuncios y Perfil (Lucas, 2026-10-22). En pantalla ancha están en
+  // la barra lateral y el control de abajo se oculta. El Resumen dice primero
+  // lo que pide algo del profesor.
+  const enHoja=raiz.id==='modal-content';
+  const enDias=f=>f?Math.ceil((new Date(f).getTime()-ahora)/86400000):null;
+  const porVencer=g.activos.filter(a=>{const d=enDias(a.vence_at);return d!==null&&d>=0&&d<=3;});
+  const devueltos=g.borradores.filter(a=>a.comentario_revision);
+  const pendientesHTML=[
+    ...ediciones.map(e=>{const a=anuncios.find(a=>a.id===e.anuncio_id);const fecha=new Date(e.editado_at).toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'});return `<li data-aviso-edicion="${esc(a.id)}"><span><b>${esc(a.titulo||'Sin título')}</b><small>GradeHub editó tu anuncio · ${esc(fecha)}</small></span><button type="button" class="agent-refresh" data-ver-edicion="${esc(a.id)}">Ver anuncio</button></li>`;}),
+    ...devueltos.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Te lo devolvimos con un comentario</small></span><button type="button" class="agent-refresh" data-editar="${esc(a.id)}">Revisar</button></li>`),
+    ...g.revision.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>En revisión: te avisamos cuando se publique</small></span></li>`),
+    ...porVencer.map(a=>{const d=enDias(a.vence_at);return `<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Su campaña termina ${d===0?'hoy':d===1?'mañana':`en ${d} días`}</small></span></li>`;}),
+  ].join('');
   raiz.innerHTML='<div class="profesor-hig">'+
-    cabeceraProfesorHTML('Tu conocimiento puede ayudar.','Este es tu espacio para publicar clases y ver cómo les va.',
-      '<button type="button" class="btn-confirm" id="clase-nueva">Crear anuncio</button>',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+
-    `<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
-      <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>
+    // «Crear anuncio» vive en Anuncios, donde están los anuncios (Lucas,
+    // 2026-10-23). Abierto como hoja, el panel conserva su cabecera con él.
+    (enHoja
+      ?cabeceraProfesorHTML('Tu conocimiento puede ayudar.','Este es tu espacio para publicar clases y ver cómo les va.',crearAnuncio,'modal-titulo')
+      :'')+
+    `<nav class="panel-alumnos-vistas tres-vistas" aria-label="Vistas de Clases">
+      <button type="button" data-clases-vista="resumen" aria-pressed="true">Resumen</button>
+      <button type="button" data-clases-vista="anuncios" aria-pressed="false">Anuncios</button>
+      <button type="button" data-clases-vista="perfil" aria-pressed="false">Perfil</button>
+    </nav>
+    <section class="panel-alumnos-vista" data-clases-panel="resumen" aria-label="Resumen de tus clases">
+      <div class="profesor-hig-lista-cabeza"><h2>Pendiente</h2></div>
+      ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:'<p class="profesor-hig-vacio">Nada pendiente de tu parte.</p>'}`+
+    (anuncios.length?'':`<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
+      <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>`)+
+    `<details class="clases-resumen profesor-hig-resumen" open><summary id="clases-resumen-titulo">Tus clases activas</summary>
+       <div id="clases-kpis">${g.activos.length?'<p class="clase-sin-datos">Cargando números…</p>'
+         :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'
+           :g.revision.length?'Cuando aprobemos tu clase, acá vas a ver a cuántas personas llega, cuántas te contactan y cuánto va costando.'
+           :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
+       <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
+     </details></section>
+    <section class="panel-alumnos-vista" data-clases-panel="anuncios" aria-label="Tus anuncios" hidden>
+    ${enHoja?'':`<div class="profesor-hig-accion">${crearAnuncio}</div>`}
     <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
     (anuncios.length?'':'<p class="profesor-hig-vacio">Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.</p>')+
     seccionPanelClases('Publicadas',g.activos,pesos,ahora)+
@@ -1828,15 +2191,20 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     (g.borradores.some(a=>a.comentario_revision_error)?'<p class="clase-sin-datos" role="alert">No pudimos cargar los comentarios de revisión. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>':'')+
     seccionPanelClases('Pausadas y terminadas',g.cerrados,pesos,ahora)+
     seccionPanelClases('Estado sin confirmar',g.sinConfirmar,pesos,ahora)+
-    `<details class="clases-resumen profesor-hig-resumen"><summary id="clases-resumen-titulo">Resumen de tus clases activas</summary>
-       <div id="clases-kpis">${g.activos.length?'<p class="clase-sin-datos">Cargando números…</p>'
-         :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'
-           :g.revision.length?'Cuando aprobemos tu clase, acá vas a ver a cuántas personas llega, cuántas te contactan y cuánto va costando.'
-           :'Arma un borrador y mándalo a revisión. Cuando se publique, acá vas a ver cómo le va.'}</p>`}</div>
-       <p class="clase-privacidad">Las personas se cuentan por anuncio; una misma cuenta puede aparecer en más de uno. “Veces en total” suma cada evento. Nunca ves nombres. El costo de cada campaña nunca pasa de su tope.</p>
-     </details>`+
-    '<section class="clases-seccion"><h3>Tu perfil</h3><div id="clases-logo"></div></section>'+
+    '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-perfil"></div><div id="clases-logo"></div></section>'+
     salida()+'</div>';
+  // Cambiar de vista no vuelve a pedir nada: las tres ya están pintadas.
+  const activarVistaClases=v=>{
+    if(!['resumen','anuncios','perfil'].includes(v))v='resumen';
+    vistaClasesActual=v;
+    raiz.querySelectorAll('[data-clases-panel]').forEach(p=>{p.hidden=p.dataset.clasesPanel!==v;});
+    raiz.querySelectorAll('[data-clases-vista]').forEach(b=>{if(typeof b.setAttribute==='function')b.setAttribute('aria-pressed',String(b.dataset.clasesVista===v));});
+    if(!enHoja&&typeof marcarVistaNav==='function')marcarVistaNav('profesor',v);
+  };
+  raiz.querySelectorAll('[data-clases-vista]').forEach(b=>b.addEventListener('click',()=>activarVistaClases(b.dataset.clasesVista)));
+  if(!enHoja&&typeof vistasPanelNav!=='undefined')vistasPanelNav.profesor=v=>{if(raiz.isConnected!==false)activarVistaClases(v);};
+  const alVolver=vistaClasesAlVolver;vistaClasesAlVolver=null;
+  activarVistaClases(alVolver||(enHoja?'resumen':((typeof tomarVistaNav==='function'&&tomarVistaNav('profesor'))||vistaClasesActual||'resumen')));
   // Al cambiar el estado se vuelve a pedir la lista: el estado, los números y
   // los botones de cada tarjeta dependen de él, y repintar a mano lo que uno
   // cree que cambió es la forma de que una tarjeta quede mintiendo.
@@ -1845,8 +2213,43 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null));
   const cajaLogo=raiz.querySelector('#clases-logo');
   if(cajaLogo&&cajaLogo.isConnected&&typeof cajaLogo.addEventListener==='function')renderLogoProfesor(cajaLogo);
+  const cajaPerfil=raiz.querySelector('#clases-perfil');
+  if(cajaPerfil&&cajaPerfil.isConnected&&typeof cajaPerfil.addEventListener==='function')renderPerfilProfesor(cajaPerfil);
+  const porVer=new Map(ediciones.map(e=>[e.anuncio_id,e])),abriendoEdicion=new Set();
+  const mostrarEdicion=async id=>{
+    const edicion=porVer.get(id),a=anuncios.find(a=>a.id===id);
+    if(!edicion||!a||abriendoEdicion.has(id))return;
+    const fila=[...raiz.querySelectorAll('[data-profesor-anuncio]')].find(f=>f.dataset.profesorAnuncio===id);
+    const detalle=fila&&fila.querySelector('.profesor-hig-detalle');
+    if(!detalle)return;
+    let preview=detalle.querySelector('[data-edicion-preview]');
+    if(!preview){
+      // La misma tarjeta abierta del catálogo, sin contacto ni medición.
+      preview=document.createElement('section');preview.className='vista-catalogo';preview.setAttribute('data-edicion-preview','');
+      preview.innerHTML='<h3>Anuncio actualizado por GradeHub</h3>'+tarjetaCatalogoClase(a,{abierta:true});
+      preview.querySelectorAll('a').forEach(a=>{a.removeAttribute('href');a.setAttribute('aria-disabled','true');a.setAttribute('tabindex','-1');});
+      detalle.prepend(preview);
+      if(a.flyer_path)urlFlyerClase(a.flyer_path).then(url=>{const caja=preview.querySelector('[data-flyer]');if(url&&caja&&caja.isConnected){caja.hidden=false;caja.innerHTML=`<img src="${esc(url)}" alt="Flyer del anuncio">`;}});
+    }
+    abriendoEdicion.add(id);
+    try{
+      const {data,error}=await supabaseClient.rpc('marcar_edicion_anuncio_vista',{p_anuncio_id:id,p_accion_id:edicion.accion_id});
+      if(error||data!==true)return;
+      porVer.delete(id);
+      const aviso=[...raiz.querySelectorAll('[data-aviso-edicion]')].find(e=>e.dataset.avisoEdicion===id);
+      if(aviso)aviso.remove();
+      const pendientes=raiz.querySelector('.clases-pendientes');
+      if(pendientes&&!pendientes.children.length)pendientes.innerHTML='<li>Nada pendiente de tu parte.</li>';
+    }catch(e){}finally{abriendoEdicion.delete(id);}
+  };
+  raiz.querySelectorAll('[data-profesor-anuncio]').forEach(f=>f.addEventListener('toggle',()=>{if(f.open)mostrarEdicion(f.dataset.profesorAnuncio);}));
+  raiz.querySelectorAll('[data-ver-edicion]').forEach(b=>b.addEventListener('click',()=>{
+    activarVistaClases('anuncios');
+    const fila=[...raiz.querySelectorAll('[data-profesor-anuncio]')].find(f=>f.dataset.profesorAnuncio===b.dataset.verEdicion);
+    if(fila){fila.open=true;mostrarEdicion(b.dataset.verEdicion);const summary=fila.querySelector('summary');if(summary){summary.focus();summary.scrollIntoView({block:'start'});}}
+  }));
   raiz.querySelectorAll('[data-editar]').forEach(b=>
-    b.addEventListener('click',()=>renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null)));
+    b.addEventListener('click',async()=>{await mostrarEdicion(b.dataset.editar);renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null);}));
   raiz.querySelectorAll('[data-pausar]').forEach(b=>
     b.addEventListener('click',()=>pausarAnuncioClase(b.dataset.pausar,repintar)));
   // Volver a publicar = volver a borrador y abrirlo: el anuncio pasa por
@@ -1998,6 +2401,53 @@ function activarBuscadorRamosClase(form,campo){
     cargarCursosUC().then(ok=>{if(ok&&form.isConnected)reindexar();}).catch(()=>{});
 }
 
+// Clases › Perfil. Lo mismo que ve el estudiante al tocar «Ver perfil» en un
+// anuncio, pero solo si el profesor lo activó: parte apagado.
+async function renderPerfilProfesor(caja){
+  if(!caja)return;
+  const ficha=await perfilProfesorActual();
+  if(!caja.isConnected)return;
+  const p=ficha.ok?ficha.perfil:null;
+  if(!p){caja.innerHTML='';return;}
+  if(!tienePerfilCompleto(p)){caja.innerHTML='<p class="profesor-info">Muy pronto vas a poder armar tu perfil público acá.</p>';return;}
+  const v=c=>esc(p[c]==null?'':p[c]);
+  const tipo=p.tipo_perfil||'profesor',unis=p.universidades||[];
+  caja.innerHTML=`<form class="profesor-form profesor-perfil" novalidate>
+      <fieldset class="profesor-linea"><legend class="modal-label">Eres</legend><div class="profesor-linea-opciones">
+        ${TIPOS_PERFIL.map(([val,txt])=>`<label class="profesor-linea-opcion"><input type="radio" name="pf-tipo" value="${val}"${tipo===val?' checked':''}><span>${txt}</span></label>`).join('')}
+      </div></fieldset>
+      <label class="modal-label" for="pf-nombre">Nombre público</label><input id="pf-nombre" type="text" maxlength="100" autocomplete="organization" value="${v('nombre_publico')}">
+      <label class="modal-label" for="pf-descripcion">Descripción</label><textarea id="pf-descripcion" maxlength="1500" placeholder="Quién eres, cómo haces tus clases y qué experiencia tienes.">${v('presentacion')}</textarea>
+      <label class="modal-label" for="pf-instagram">Instagram · opcional</label><input id="pf-instagram" type="text" maxlength="31" autocomplete="off" autocapitalize="none" placeholder="@salvaramos" value="${p.instagram?'@'+v('instagram'):''}">
+      <label class="modal-label" for="pf-web">Sitio web · opcional</label><input id="pf-web" type="url" maxlength="160" autocomplete="url" autocapitalize="none" placeholder="https://" value="${v('sitio_web')}">
+      <fieldset class="profesor-linea"><legend class="modal-label">Universidades donde enseñas · opcional</legend><div class="profesor-linea-opciones">
+        ${UNIVERSIDADES_PERFIL.map(([val,txt])=>`<label class="profesor-linea-opcion"><input type="checkbox" name="pf-uni" value="${val}"${unis.includes(val)?' checked':''}><span>${txt}</span></label>`).join('')}
+      </div></fieldset>
+      <label class="modal-label" for="pf-ramos">Ramos que enseñas · opcional</label><input id="pf-ramos" type="text" maxlength="500" autocomplete="off" autocapitalize="characters" placeholder="MAT1620, FIS1514" aria-describedby="pf-ramos-ayuda" value="${esc((p.ramos_siglas||[]).join(', '))}">
+      <p class="profesor-info" id="pf-ramos-ayuda">Las siglas separadas por coma, hasta 20.</p>
+      <label class="profesor-perfil-publico"><input id="pf-publico" type="checkbox"${p.perfil_publico?' checked':''}><span><b>Mostrar mi perfil en mis anuncios</b>Los estudiantes verán «Ver perfil» en cada anuncio publicado, con esto y tus otros anuncios. Nunca tu correo.</span></label>
+      <button class="accion-principal" type="submit">Guardar perfil</button>
+      <p class="profesor-estado" role="status" aria-live="polite"></p>
+    </form>`;
+  const form=caja.querySelector('form'),estado=form.querySelector('.profesor-estado'),campo=id=>form.querySelector('#pf-'+id);
+  campo('instagram').addEventListener('input',e=>{e.target.value=textoInstagramEscrito(e.target.value);});
+  let guardando=false;
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(guardando)return;
+    const entrada={tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,nombre_publico:campo('nombre').value,
+      presentacion:campo('descripcion').value,instagram:campo('instagram').value,sitio_web:campo('web').value,
+      universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),ramos:campo('ramos').value,perfil_publico:campo('publico').checked};
+    const valido=validarPerfilProfesor(entrada);
+    if(!valido.ok){estado.textContent=valido.error;const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos'}[valido.campo]);if(c)c.focus();return;}
+    guardando=true;const boton=form.querySelector('button[type=submit]');boton.disabled=true;estado.textContent='Guardando…';
+    const r=await guardarPerfilProfesor(entrada);
+    guardando=false;boton.disabled=false;
+    if(!caja.isConnected)return;
+    estado.textContent=r.ok?(r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
+  });
+}
+
 // El logo es de la ficha, no del anuncio: el mismo bloque aparece en el
 // formulario y en la página de Clases, y cambiarlo en uno cambia el otro.
 async function renderLogoProfesor(caja){
@@ -2095,28 +2545,36 @@ async function guardarCampanaClase(anuncioId,datos){
   }catch(e){return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};}
 }
 
-function renderBorradorProfesor(raiz,anuncio){
+function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profesor=null,volverAdmin=null}={}){
   let id=anuncio&&anuncio.id||null,flyerActual=anuncio&&anuncio.flyer_path||null;
   const valor=(campo,defecto='')=>esc(anuncio&&anuncio[campo]!=null?anuncio[campo]:defecto);
   const tipoContactoInicial=anuncio&&PREFIJO_CONTACTO_CLASE[anuncio.contacto_tipo]!==undefined?anuncio.contacto_tipo:'whatsapp';
   const elegir=(opciones,actual)=>opciones.map(([clave,texto])=>`<option value="${clave}"${actual===clave?' selected':''}>${texto}</option>`).join('');
-  raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+cabeceraProfesorHTML(id?'Edita tu borrador.':'Prepara tu clase.',
-    'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo')+`
+  // Siempre hay cómo salir sin guardar ni enviar (Lucas, 2026-10-24).
+  raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+
+    `<button type="button" class="profesor-volver" id="pr-volver"><span aria-hidden="true">‹</span> ${admin?'Anuncios':pendiente?'Volver':'Tus anuncios'}</button>`+
+    cabeceraProfesorHTML(admin?`Editando el anuncio de ${profesor&&profesor.nombre||'este profesor'}`:id?'Edita tu borrador.':'Prepara tu clase.',
+    admin?'Corrige el anuncio y revisa cómo se verá. El profesor recibirá un aviso al guardar.':pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo',admin?'ADMINISTRACIÓN':undefined)+`
     ${anuncio&&anuncio.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(anuncio.comentario_revision)}</p></div>`:''}
     <form class="profesor-form" id="profesor-borrador">
       <!-- Campos y vista previa van juntos para que la vista previa, sticky en
            computador, se detenga donde termina esta fila y no baje a los botones. -->
       <div class="profesor-form-cuerpo">
       <div class="profesor-form-campos">
-      <details class="profesor-seccion" open><summary><h3>1. Tu clase</h3></summary><div class="profesor-seccion-cuerpo">
+      <details class="profesor-seccion" open><summary><h3 id="pr-seccion-titulo">${esMaterialClase(anuncio)?'1. Tu material':'1. Tu clase'}</h3></summary><div class="profesor-seccion-cuerpo">
+      ${!admin&&(capasColumnasClase>=4||esMaterialClase(anuncio))?`<fieldset class="profesor-tipo" id="pr-tipo-caja"><legend class="modal-label">Qué publicas</legend>
+        <div class="profesor-tipo-opciones">${TIPOS_ANUNCIO.map(([v,t])=>`<label><input type="radio" name="pr-tipo" value="${v}"${(esMaterialClase(anuncio)?'material':'clase')===v?' checked':''}><span>${t}</span></label>`).join('')}</div>
+        <p class="profesor-info" id="pr-tipo-ayuda">${esMaterialClase(anuncio)?TEXTO_TIPO_ANUNCIO.material:TEXTO_TIPO_ANUNCIO.clase}</p></fieldset>`:''}
       <label class="modal-label" for="pr-titulo">Título del anuncio</label><input id="pr-titulo" type="text" minlength="5" maxlength="90" required value="${valor('titulo')}">
       <label class="modal-label" for="pr-descripcion">Descripción</label><textarea id="pr-descripcion" minlength="20" maxlength="1500" required placeholder="Qué van a trabajar, cómo son tus clases y tu experiencia con el ramo.">${valor('descripcion')}</textarea>
-      <label class="modal-label" for="pr-precio">Precio por clase</label><input id="pr-precio" type="text" inputmode="numeric" autocomplete="off" required placeholder="$15.000" aria-describedby="pr-precio-ayuda" value="${esc(textoPesosEscrito(anuncio&&anuncio.precio_clp))}"><p class="profesor-info" id="pr-precio-ayuda">Si la clase es gratis, pon $0: se mostrará como "Gratis".</p>
+      <label class="modal-label" for="pr-precio" id="pr-precio-etiqueta">${esMaterialClase(anuncio)?'Precio del material':'Precio por clase'}</label><input id="pr-precio" type="text" inputmode="numeric" autocomplete="off" required placeholder="$15.000" aria-describedby="pr-precio-ayuda" value="${esc(textoPesosEscrito(anuncio&&anuncio.precio_clp))}"><p class="profesor-info" id="pr-precio-ayuda">${esMaterialClase(anuncio)?'Si el material es gratis':'Si la clase es gratis'}, pon $0: se mostrará como "Gratis".</p>
+      <div class="profesor-solo-clase" id="pr-solo-clase"${esMaterialClase(anuncio)?' hidden':''}>
       <label class="modal-label" for="pr-pack">Clases por pack · opcional</label><input id="pr-pack" type="number" inputmode="numeric" min="${MIN_PACK_CLASES}" max="${MAX_PACK_CLASES}" step="1" placeholder="Ej. 4" aria-describedby="pr-pack-ayuda" value="${valor('pack_clases')}"><p class="profesor-info" id="pr-pack-ayuda">Si vendes un pack, pon cuántas clases trae. El precio de arriba sigue siendo por clase: mostramos el total del pack.</p>
       <label class="modal-label" for="pr-modalidad">Formato · opcional</label><select id="pr-modalidad">${elegir([['','No indicar'],...MODALIDADES_CLASE,['otra','Otra…']],anuncio&&anuncio.modalidad||'')}</select>
       <input id="pr-modalidad-otra" type="text" maxlength="40" aria-label="Escribe el formato" placeholder="Ej. grupos de hasta 3" value="${valor('modalidad_otra')}" ${anuncio&&anuncio.modalidad==='otra'?'':'hidden'}>
       <label class="modal-label" for="pr-ubicacion">Dónde · opcional</label><select id="pr-ubicacion">${elegir([['','No indicar'],...UBICACIONES_CLASE,['otra','Otra…']],anuncio&&anuncio.ubicacion||'')}</select>
       <input id="pr-ubicacion-otra" type="text" maxlength="40" aria-label="Escribe dónde es la clase" placeholder="Ej. en tu casa o en la biblioteca" value="${valor('ubicacion_otra')}" ${anuncio&&anuncio.ubicacion==='otra'?'':'hidden'}>
+      </div>
       <div class="profesor-detalles" id="pr-detalles-caja">
         <span class="modal-label">Detalles · opcional</span>
         <p class="profesor-info">Lo que quieras destacar, como "Duración: 90 minutos" o "Incluye: guía de ejercicios". Hasta ${MAX_DETALLES_CLASE}.</p>
@@ -2135,10 +2593,10 @@ function renderBorradorProfesor(raiz,anuncio){
       <label class="modal-label" for="pr-contacto" id="pr-contacto-etiqueta">Tu WhatsApp</label><input id="pr-contacto" type="text" minlength="3" maxlength="160" required autocomplete="off" aria-describedby="pr-contacto-error pr-contacto-ayuda" placeholder="${esc(EJEMPLO_CONTACTO_CLASE[tipoContactoInicial])}" value="${esc(anuncio&&anuncio.contacto_valor!=null?anuncio.contacto_valor:PREFIJO_CONTACTO_CLASE[tipoContactoInicial])}">
       <p id="pr-contacto-error" role="alert" hidden style="margin:6px 0 0;font-size:0.8125rem;color:var(--red);"></p>
       <p class="profesor-info" id="pr-contacto-ayuda"></p>
-      <label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp"><p class="profesor-info">JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.</p>
-      <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
+      ${admin?'<p class="profesor-info">El flyer y el logo se muestran en la vista previa. Desde acá no se cambian.</p><p class="profesor-info" id="pr-imagenes-aviso" role="status"></p>':`<label class="modal-label" for="pr-flyer">Flyer · opcional</label><input id="pr-flyer" type="file" accept="image/jpeg,image/png,image/webp" ${pendiente?'disabled':''}><p class="profesor-info">${pendiente?'Podrás subir el flyer cuando aprobemos tu postulación.':'JPG, PNG o WebP · máximo 5 MB. Primero se guarda el borrador y después se sube la imagen.'}</p>
       <button class="btn-cancel" id="pr-quitar-flyer" type="button" ${flyerActual?'':'hidden'}>Quitar flyer guardado</button>
-      <div id="pr-logo"></div>
+      <div id="pr-logo"></div>`}
+      <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
       </div></details>
       <details class="profesor-seccion" open><summary><h3>2. Público</h3></summary><div class="profesor-seccion-cuerpo">
       <label class="modal-label" for="pr-tenant">Universidad</label><select id="pr-tenant">${elegir([['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes']],anuncio&&anuncio.tenant||S.tenant)}</select>
@@ -2150,11 +2608,12 @@ function renderBorradorProfesor(raiz,anuncio){
       </div>
       <p class="profesor-info" id="pr-siglas-ayuda">Si tu ramo tiene dos siglas, como Dinámica ICE1514 y FIS1514, puedes elegir las dos. Otro ramo va en otro anuncio. Si no aparece, escribe su sigla completa.</p>
       <input id="pr-siglas" type="hidden" value="${esc(anuncio&&Array.isArray(anuncio.ramos_siglas)?anuncio.ramos_siglas.join(', '):'')}">
+      ${admin&&anuncio&&!anuncio.criterios?'<p class="profesor-info">Este anuncio tiene público general. Se conserva mientras no cambies el promedio o el mínimo evaluado.</p>':''}
       <label class="modal-label" for="pr-promedio">Promedio menor a</label><input id="pr-promedio" type="number" min="1.1" max="7" step="0.1" required value="${esc(anuncio&&anuncio.criterios?anuncio.criterios.promedioMenorA:5)}">
       <label class="modal-label" for="pr-avance">Mínimo evaluado · %</label><input id="pr-avance" type="number" min="0" max="99" step="1" required value="${esc(anuncio&&anuncio.criterios?anuncio.criterios.avanceMinimo:20)}">
       <p class="profesor-info">GradeHub calcula el público sin mostrarte notas ni identidades.</p>
       </div></details>
-      <details class="profesor-seccion" open><summary><h3>3. Tu campaña</h3></summary><div class="profesor-seccion-cuerpo">
+      ${admin?'':`<details class="profesor-seccion" open><summary><h3>3. Tu campaña</h3></summary><div class="profesor-seccion-cuerpo">
       <div class="profesor-campana">
         <div class="profesor-campana-fechas">
           <div><label class="modal-label" for="pr-inicio">Empieza · opcional</label><input id="pr-inicio" type="date" min="${hoyChileClase()}"></div>
@@ -2166,10 +2625,10 @@ function renderBorradorProfesor(raiz,anuncio){
         <p class="profesor-info">Cuesta ${pesosClase(TARIFA_CAMPANA.dia)} por día publicada y, por persona, ${pesosClase(TARIFA_CAMPANA.vista)} si la ve, ${pesosClase(TARIFA_CAMPANA.apertura)} si la abre y ${pesosClase(TARIFA_CAMPANA.contacto)} si te contacta. Cada persona cuenta una vez. Al llegar al tope deja de mostrarse: nunca pagas más que eso. El pago se coordina con GradeHub antes de publicar.</p>
         <p class="profesor-campana-resumen" id="pr-campana-resumen" aria-live="polite"></p><button type="button" class="btn-cancel" id="pr-reintentar-campana" hidden>Reintentar carga de campaña</button>
       </div>
-      </div></details>
+      </div></details>`}
       </div>
       <section class="profesor-form-vista" aria-labelledby="pr-vista-titulo">
-      <div class="vista-cabeza"><h3 id="pr-vista-titulo">4. Así la van a ver</h3></div>
+      <div class="vista-cabeza"><h3 id="pr-vista-titulo">${admin?'3':'4'}. Así la van a ver</h3></div>
       <!-- Solo la vista de celular. La de computador era la pantalla entera de
            Inicio achicada a la columna del formulario, y quedaba ilegible; el
            banner dice lo mismo en los dos, y la mayoría entra desde el iPhone. -->
@@ -2183,23 +2642,25 @@ function renderBorradorProfesor(raiz,anuncio){
       </section>
       </div>
       <div class="profesor-form-acciones">
-      <div class="modal-btns"><button class="btn-cancel" id="pr-guardar" type="button">Guardar borrador</button><button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button></div>
-      <p class="profesor-estado" role="status" aria-live="polite">${id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
+      <div class="modal-btns"><button class="${admin?'accion-principal':pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">${admin?'Guardar cambios':'Guardar borrador'}</button>${admin||pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
+      <p class="profesor-estado" role="status" aria-live="polite">${admin?'Los cambios se guardan en este anuncio, sin cambiar su publicación ni su campaña.':id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
       </div>
     </form></div>`;
   const form=raiz.querySelector('#profesor-borrador'),campo=id=>form.querySelector('#pr-'+id),estado=form.querySelector('.profesor-estado');
-  let procesando=false,campanaLista=!id;
+  let procesando=false,campanaLista=admin||!id;
   // Vista previa en vivo: el mismo contenido que verá el estudiante en Inicio,
   // armado con lo que el profesor lleva escrito y su logo.
   const vista=form.querySelector('#pr-vista');
   let logoVista='';
   const valorCampo=id=>{const el=campo(id);return el?String(el.value||''):'';};
+  // Clase o material (2026-10-23). Sin el selector (SQL sin aplicar), clase.
+  const tipoElegido=()=>{if(admin)return esMaterialClase(anuncio)?'material':'clase';const r=typeof form.querySelector==='function'&&form.querySelector('input[name="pr-tipo"]:checked');return r&&r.value==='material'?'material':'clase';};
   // Qué datos van bajo el título. Se guarda como claves, en el orden en que se
   // muestran; si coincide con lo de siempre se guarda null, como los anuncios
   // que ya existían.
   const lineaElegida=new Set(Array.isArray(anuncio&&anuncio.linea_datos)?anuncio.linea_datos:LINEA_CLASE_POR_OMISION);
   const cajaLinea=campo('linea');let firmaLinea='';
-  const borradorEnVivo=()=>({titulo:valorCampo('titulo').trim(),precio_clp:pesosDeTexto(valorCampo('precio')),pack_clases:valorCampo('pack').trim(),
+  const borradorEnVivo=()=>({...(admin?{descuento_gradehub_pct:anuncio.descuento_gradehub_pct,codigo_descuento:anuncio.codigo_descuento}:{}),tipo:tipoElegido(),titulo:valorCampo('titulo').trim(),precio_clp:pesosDeTexto(valorCampo('precio')),pack_clases:valorCampo('pack').trim()===''?null:Number(valorCampo('pack')),
     modalidad:valorCampo('modalidad'),modalidad_otra:valorCampo('modalidad-otra').trim(),
     ubicacion:valorCampo('ubicacion'),ubicacion_otra:valorCampo('ubicacion-otra').trim(),
     detalles:leerDetalles(),linea_datos:[...lineaElegida]});
@@ -2211,6 +2672,8 @@ function renderBorradorProfesor(raiz,anuncio){
   const pintarLinea=b=>{
     if(!cajaLinea||typeof cajaLinea.querySelectorAll!=='function')return;
     const ops=opcionesLineaClase(b),firma=JSON.stringify(ops.map(o=>[o.clave,o.nombre,o.texto]));
+    // Sin nada que elegir (un material sin detalles), no se muestra la pregunta.
+    const cajaPregunta=campo('linea-caja');if(cajaPregunta)cajaPregunta.hidden=!ops.length;
     // Solo se rehace si cambiaron las opciones: marcar una casilla no le quita
     // el foco.
     if(firma!==firmaLinea){
@@ -2250,7 +2713,7 @@ function renderBorradorProfesor(raiz,anuncio){
     const nombres=siglasVista.map(sg=>nombresRamosParaClases(valorCampo('tenant')||S.tenant)[sg]).filter(Boolean);
     caja.innerHTML=tarjetaCatalogoClase({...borrador,id:'vista-previa',titulo:borrador.titulo||'Tu clase',
       descripcion:valorCampo('descripcion').trim()||'Acá va la descripción de tu clase.',ramos_siglas:siglasVista,nombres_ramos:nombres,
-      ...(t=>({contacto_tipo:t,contacto_valor:(v=>v&&v!==PREFIJO_CONTACTO_CLASE[t].trim()?v:EJEMPLO_CONTACTO_CLASE[t])(valorCampo('contacto').trim())}))(contactosPermitidosClase(pesosDeTexto(valorCampo('precio'))).includes(valorCampo('contacto-tipo'))?valorCampo('contacto-tipo'):'whatsapp'),flyer_path:flyerVista?'vista-previa':null},{abierta:true});
+      ...(t=>({contacto_tipo:t,contacto_valor:(v=>v&&v!==PREFIJO_CONTACTO_CLASE[t].trim()?v:EJEMPLO_CONTACTO_CLASE[t])(valorCampo('contacto').trim())}))(contactosPermitidosClase(pesosDeTexto(valorCampo('precio')),tipoElegido()).includes(valorCampo('contacto-tipo'))?valorCampo('contacto-tipo'):'whatsapp'),flyer_path:flyerVista?'vista-previa':null},{abierta:true});
     const flyer=caja.querySelector('.catalogo-clase-flyer');
     if(flyer){flyer.removeAttribute('data-flyer');flyer.hidden=false;flyer.innerHTML=`<img src="${esc(flyerVista)}" alt="">`;}
     if(logoVista){const cabeza=caja.querySelector('.catalogo-clase-cabeza');if(cabeza)cabeza.insertAdjacentHTML('beforeend',`<div class="catalogo-clase-logo">${imgLogoClase(logoVista)}</div>`);}
@@ -2258,7 +2721,7 @@ function renderBorradorProfesor(raiz,anuncio){
   };
   form.addEventListener('input',actualizarVista);form.addEventListener('change',actualizarVista);
   // El logo vive en la ficha: se pide una vez y se actualiza cuando lo cambian.
-  if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('gradehub:logo-profesor',e=>{
+  if(!admin&&typeof document!=='undefined'&&document.addEventListener)document.addEventListener('gradehub:logo-profesor',e=>{
     if(!form.isConnected)return;logoVista=e.detail||'';actualizarVista();
   });
   campoPesos(campo('precio'));
@@ -2310,7 +2773,7 @@ function renderBorradorProfesor(raiz,anuncio){
     }
   };
   if(reintentarCampana)reintentarCampana.addEventListener('click',cargarCampanaGuardada);
-  if(id)cargarCampanaGuardada();
+  if(id&&!admin)cargarCampanaGuardada();
   // "Otra…" abre su casilla de texto; cualquier otra opción la esconde.
   [['modalidad','modalidad-otra'],['ubicacion','ubicacion-otra']].forEach(([sel,texto])=>{
     const selector=campo(sel),caja=campo(texto);
@@ -2335,21 +2798,39 @@ function renderBorradorProfesor(raiz,anuncio){
   actualizarVista();
   activarBuscadorRamosClase(form,campo);
   const cajaLogo=campo('logo');
-  if(cajaLogo)renderLogoProfesor(cajaLogo);
+  if(cajaLogo&&!pendiente&&!admin)renderLogoProfesor(cajaLogo);
+  const avisarImagen=texto=>{const aviso=campo('imagenes-aviso');if(aviso&&aviso.isConnected)aviso.textContent+=(aviso.textContent?' ':'')+texto;};
+  if(admin&&profesor&&profesor.logo_aprobado_path)urlFlyerClase(profesor.logo_aprobado_path).then(url=>{if(form.isConnected){logoVista=url||'';actualizarVista();if(!url)avisarImagen('El logo guardado no está disponible en esta vista. Se conserva en el anuncio.');}}).catch(()=>avisarImagen('No pudimos cargar el logo guardado. Se conserva en el anuncio.'));
   // WhatsApp parte con "+56 9 " escrito y se ordena con sus espacios. Si la
   // clase es gratis aparece el selector con Instagram y link de inscripción;
   // si deja de ser gratis, vuelve a WhatsApp.
   const contacto=campo('contacto'),tipoContacto=campo('contacto-tipo'),cajaTipo=campo('contacto-tipo-caja');
-  const tipoActual=()=>{const t=tipoContacto?tipoContacto.value:'whatsapp';return contactosPermitidosClase(pesosDeTexto(valorCampo('precio'))).includes(t)?t:'whatsapp';};
+  const tipoActual=()=>{const t=tipoContacto?tipoContacto.value:'whatsapp';return contactosPermitidosClase(pesosDeTexto(valorCampo('precio')),tipoElegido()).includes(t)?t:'whatsapp';};
   formatearAlEscribir(contacto,texto=>{const t=tipoActual();return t==='whatsapp'?textoWhatsappEscrito(texto):t==='instagram'?textoInstagramEscrito(texto):texto;});
   const ayudaContacto={whatsapp:'Tu número no aparece en el anuncio. El estudiante te escribe con un botón y el chat parte con «Hola, vi tu clase … en GradeHub. ¿Me puedes dar más información?».',
     instagram:'El botón del anuncio abre tu perfil de Instagram.',enlace:'El botón «Inscribirme» abre este link en una pestaña nueva.'};
   const etiquetaContacto={whatsapp:'Tu WhatsApp',instagram:'Tu Instagram',enlace:'Link de inscripción'};
   let tipoMostrado=null;const escritoPorCanal={};
+  let firmaOpciones='';
   const refrescarContacto=()=>{
-    const gratis=pesosDeTexto(valorCampo('precio'))===0;
-    if(cajaTipo)cajaTipo.hidden=!gratis;
+    // El selector aparece cuando hay más de un canal: clase gratis o material.
+    const opciones=opcionesContactoClase(pesosDeTexto(valorCampo('precio')),tipoElegido());
+    if(cajaTipo)cajaTipo.hidden=opciones.length<2;
+    const firma=opciones.map(o=>o.join(':')).join();
+    if(tipoContacto&&firma!==firmaOpciones){
+      const elegido=tipoContacto.value;firmaOpciones=firma;
+      tipoContacto.innerHTML=opciones.map(([clave,texto])=>`<option value="${clave}"${clave===elegido?' selected':''}>${texto}</option>`).join('');
+      if(!opciones.some(o=>o[0]===elegido))tipoContacto.value='whatsapp';
+    }
     const t=tipoActual();
+    const material=tipoElegido()==='material';
+    etiquetaContacto.enlace=material?'Link para conseguirlo':'Link de inscripción';
+    ayudaContacto.enlace=material?'El botón «Conseguir el material» abre este link en una pestaña nueva.':'El botón «Inscribirme» abre este link en una pestaña nueva.';
+    if(t===tipoMostrado){
+      const etiqueta=campo('contacto-etiqueta');if(etiqueta)etiqueta.textContent=etiquetaContacto[t];
+      const ayuda=campo('contacto-ayuda');if(ayuda)ayuda.textContent=ayudaContacto[t];
+      return;
+    }
     if(t===tipoMostrado)return;
     // Cada canal guarda lo suyo: al pasar de WhatsApp a Instagram el número
     // no queda bajo "Tu Instagram", y al volver reaparece tal como estaba.
@@ -2365,9 +2846,25 @@ function renderBorradorProfesor(raiz,anuncio){
   if(tipoContacto&&typeof tipoContacto.addEventListener==='function')tipoContacto.addEventListener('change',refrescarContacto);
   if(campo('precio')&&typeof campo('precio').addEventListener==='function')campo('precio').addEventListener('input',refrescarContacto);
   refrescarContacto();
+  // Clase o material: un material no tiene formato, lugar ni pack, y su precio
+  // es uno solo. Lo escondido no se borra: si vuelve a clase, sigue ahí.
+  const aplicarTipo=()=>{
+    const material=tipoElegido()==='material';
+    const soloClase=campo('solo-clase');if(soloClase)soloClase.hidden=material;
+    const titulo=campo('seccion-titulo');if(titulo)titulo.textContent=material?'1. Tu material':'1. Tu clase';
+    const precio=campo('precio-etiqueta');if(precio)precio.textContent=material?'Precio del material':'Precio por clase';
+    const ayudaPrecio=campo('precio-ayuda');if(ayudaPrecio)ayudaPrecio.textContent=`${material?'Si el material es gratis':'Si la clase es gratis'}, pon $0: se mostrará como "Gratis".`;
+    const ayudaTipo=campo('tipo-ayuda');if(ayudaTipo)ayudaTipo.textContent=TEXTO_TIPO_ANUNCIO[material?'material':'clase'];
+    const desc=campo('descripcion');if(desc)desc.placeholder=material
+      ?'Qué trae (guías, apuntes, ejercicios resueltos), para qué parte del ramo y cómo se entrega.'
+      :'Qué van a trabajar, cómo son tus clases y tu experiencia con el ramo.';
+    refrescarContacto();actualizarVista();
+  };
+  if(typeof form.querySelectorAll==='function')form.querySelectorAll('input[name="pr-tipo"]').forEach(r=>r.addEventListener('change',aplicarTipo));
+  aplicarTipo();
   const preview=form.querySelector('.profesor-flyer-preview');
-  if(flyerActual)urlFlyerClase(flyerActual).then(url=>{if(url&&preview.isConnected){preview.querySelector('img').src=url;preview.hidden=false;flyerVista=url;actualizarVista();}});
-  campo('flyer').addEventListener('change',()=>{
+  if(flyerActual)urlFlyerClase(flyerActual).then(url=>{if(url&&preview&&preview.isConnected){preview.querySelector('img').src=url;preview.hidden=false;flyerVista=url;actualizarVista();}else if(admin)avisarImagen('El flyer guardado no está disponible en esta vista. Se conserva en el anuncio.');}).catch(()=>{if(admin)avisarImagen('No pudimos cargar el flyer guardado. Se conserva en el anuncio.');});
+  if(!admin)campo('flyer').addEventListener('change',()=>{
     const file=campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
     if(!validacion.ok){campo('flyer').value='';estado.textContent=validacion.error;return;}
     if(!file)return;
@@ -2376,7 +2873,7 @@ function renderBorradorProfesor(raiz,anuncio){
     reader.onerror=()=>{estado.textContent='No pudimos leer ese flyer. Elige otra imagen.';};
     reader.readAsDataURL(file);
   });
-  form.querySelector('#pr-quitar-flyer').addEventListener('click',async()=>{
+  if(!admin)form.querySelector('#pr-quitar-flyer').addEventListener('click',async()=>{
     if(!id||procesando)return;
     procesando=true;
     estado.textContent='Quitando flyer…';
@@ -2403,29 +2900,63 @@ function renderBorradorProfesor(raiz,anuncio){
     const input=campo('contacto');if(input&&typeof input.removeAttribute==='function')input.removeAttribute('aria-invalid');
   };
   if(contacto&&typeof contacto.addEventListener==='function')contacto.addEventListener('input',limpiarContacto);
-  const procesar=async enviar=>{
-    if(procesando||!campanaLista)return;
-    if(typeof form.querySelectorAll==='function')[...form.querySelectorAll(':invalid')].forEach(abrirSeccionDe);
-    if(!form.reportValidity())return;
-    const file=campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
-    if(!validacion.ok){estado.textContent=validacion.error;campo('flyer').focus();return;}
-    const campana=validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))});
-    if(!campana.ok){estado.textContent=campana.error;enfocar(campo(campana.campo));return;}
-    const datos={tenant:campo('tenant').value,ramos_siglas:campo('siglas').value.split(',').map(s=>s.trim()),
+  const datosDelEditor=()=>({tipo:tipoElegido(),tenant:campo('tenant').value,ramos_siglas:campo('siglas').value.split(',').map(s=>s.trim()),
       criterios:{promedioMenorA:Number(campo('promedio').value),avanceMinimo:Number(campo('avance').value)},
       titulo:campo('titulo').value,descripcion:campo('descripcion').value,precio_clp:pesosDeTexto(campo('precio').value),
       pack_clases:campo('pack')?campo('pack').value.trim():'',
       modalidad:campo('modalidad').value,ubicacion:campo('ubicacion').value,
       modalidad_otra:campo('modalidad-otra')?campo('modalidad-otra').value:'',ubicacion_otra:campo('ubicacion-otra')?campo('ubicacion-otra').value:'',
       detalles:leerDetalles(),linea_datos:lineaParaGuardar(borradorEnVivo()),
-      contacto_tipo:tipoActual(),contacto_valor:campo('contacto').value};
+      contacto_tipo:tipoActual(),contacto_valor:campo('contacto').value});
+  const inicialesAdmin=admin?datosDelEditor():null;
+  const procesar=async enviar=>{
+    if(enviar&&(pendiente||admin))return;
+    if(procesando||!campanaLista)return;
+    if(typeof form.querySelectorAll==='function')[...form.querySelectorAll(':invalid')].forEach(abrirSeccionDe);
+    if(!form.reportValidity())return;
+    const file=!admin&&campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
+    if(!validacion.ok){estado.textContent=validacion.error;campo('flyer').focus();return;}
+    const campana=admin?{ok:true}:validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))});
+    if(!campana.ok){estado.textContent=campana.error;enfocar(campo(campana.campo));return;}
+    const datos=datosDelEditor();
+    if(admin){
+      const validado=validarBorradorClase(datos);
+      if(!validado.ok){
+        estado.textContent=validado.error;
+        if(validado.campo==='contacto_valor')marcarContacto(validado.error);
+        else {const mapa={ramos_siglas:'siglas-buscar',criterios:'promedio',precio_clp:'precio',pack_clases:'pack',contacto_tipo:'contacto-tipo',detalles:'agregar-detalle'};enfocar(campo(mapa[validado.campo]||validado.campo));}
+        return;
+      }
+      // Mandar solo lo que se editó conserva valores heredados (por ejemplo,
+      // criterios null = público general) aunque el formulario muestre defaults.
+      const cambios=Object.fromEntries(Object.entries(validado.datos).filter(([k])=>JSON.stringify(datos[k])!==JSON.stringify(inicialesAdmin[k])));
+      for(const [opcion,otra] of [['modalidad','modalidad_otra'],['ubicacion','ubicacion_otra']]){if(opcion in cambios||otra in cambios){cambios[opcion]=validado.datos[opcion];cambios[otra]=validado.datos[otra];}}
+      if(!Object.keys(cambios).length){estado.textContent='No hay cambios para guardar.';return;}
+      const guardar=async()=>{
+        if(procesando||form.isConnected===false)return;
+        procesando=true;campo('guardar').disabled=true;estado.textContent='Guardando cambios…';
+        try{
+          const {data,error}=await supabaseClient.rpc('admin_editar_anuncio',{p_anuncio_id:id,p_datos:cambios});
+          if(error){estado.textContent=sqlClasesDesactualizado(error)?'Aplica administradores.sql para editar anuncios desde acá.':'No pudimos guardar los cambios. Revisa los datos e intenta de nuevo.';return;}
+          if(data!==true){estado.textContent='No hubo cambios. Si esperabas guardar algo, vuelve a Anuncios y abre el anuncio de nuevo.';return;}
+          sinGuardar=false;
+          await volverAdmin();
+          if(typeof showToast==='function')showToast('Anuncio actualizado');
+        }catch(e){estado.textContent='No pudimos guardar los cambios. Revisa tu conexión e intenta de nuevo.';}
+        finally{procesando=false;if(campo('guardar')&&campo('guardar').isConnected)campo('guardar').disabled=false;}
+      };
+      if(anuncio.estado==='publicado')showConfirm('¿Guardar los cambios?','Los estudiantes verán los cambios al tiro.',guardar,{label:'Guardar cambios',danger:false});
+      else await guardar();
+      return;
+    }
     procesando=true;
-    const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')];botones.forEach(b=>b.disabled=true);
+    const botones=[form.querySelector('#pr-guardar'),form.querySelector('#pr-enviar')].filter(Boolean);botones.forEach(b=>b.disabled=true);
     estado.textContent='Guardando borrador…';
     try{
       const guardado=await guardarBorradorClase(datos,id);
       if(!guardado.ok){estado.textContent=guardado.error;if(guardado.campo==='contacto_valor'){marcarContacto(guardado.error);return;}if(guardado.campo){const mapa={ramos_siglas:'siglas-buscar',criterios:'promedio',precio_clp:'precio',pack_clases:'pack',contacto_tipo:'contacto-tipo',contacto_valor:'contacto',modalidad_otra:'modalidad-otra',ubicacion_otra:'ubicacion-otra',detalles:'agregar-detalle'};enfocar(campo(mapa[guardado.campo]||guardado.campo));}return;}
       id=guardado.anuncio.id;
+      sinGuardar=false;
       const guardadaCampana=await guardarCampanaClase(id,campana.datos);
       if(!guardadaCampana.ok&&!guardadaCampana.falta){estado.textContent='Tu clase se guardó, pero '+(guardadaCampana.error||'no se guardaron los días y el tope. No se envió a revisión.');return;}
       if(file){estado.textContent='Borrador guardado. Subiendo flyer…';const subida=await subirFlyerClase(id,file);
@@ -2436,13 +2967,37 @@ function renderBorradorProfesor(raiz,anuncio){
         if(!respuesta.ok){estado.textContent=respuesta.error;if(respuesta.campo==='contacto_valor')marcarContacto(respuesta.error);return;}
         raiz.innerHTML='<div class="modal-title" id="modal-titulo">En revisión</div><p class="profesor-info" role="status">Recibimos tu anuncio. Nadie lo verá hasta que GradeHub lo revise y apruebe.</p>'+(guardadaCampana.falta||respuesta.sqlAnterior?'<p class="profesor-info" role="status">Los días y el tope todavía no se guardaron. GradeHub debe confirmarlos contigo antes de publicar.</p>':'');return;
       }
-      estado.textContent='Borrador guardado. Puedes volver después o enviarlo a revisión.'+(guardadaCampana.falta?' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.':'');
+      // Guardado entero: el formulario se cierra y el borrador aparece en la
+      // lista. Si faltó algo (días y tope sin su SQL), se queda abierto con
+      // el aviso, para que no se pierda de vista.
+      if(guardadaCampana.falta){estado.textContent=(pendiente?'Borrador guardado. Podrás enviarlo a revisión cuando aprobemos tu postulación.':'Borrador guardado.')+' Los días y el tope aún no se guardaron; deben confirmarse antes de publicar.';return;}
+      if(!pendiente)vistaClasesAlVolver='anuncios';
+      await renderEspacioProfesor(raiz,{titulo:raiz.id==='modal-content'});
+      if(typeof showToast==='function')showToast('Borrador guardado');
     }catch(e){estado.textContent='No pudimos completar la acción. Revisa si tu borrador quedó guardado e intenta de nuevo.';
     }finally{procesando=false;botones.forEach(b=>{if(b.isConnected)b.disabled=false;});}
   };
   form.addEventListener('submit',e=>{e.preventDefault();procesar(false);});
   form.querySelector('#pr-guardar').addEventListener('click',()=>procesar(false));
-  form.querySelector('#pr-enviar').addEventListener('click',()=>procesar(true));
+  // Volver sin guardar. Si se escribió algo, se pregunta antes: lo no
+  // guardado se pierde.
+  let sinGuardar=false;
+  form.addEventListener('input',()=>{sinGuardar=true;});
+  form.addEventListener('change',()=>{sinGuardar=true;});
+  const salir=async()=>{
+    if(admin){await volverAdmin();return;}
+    if(!pendiente)vistaClasesAlVolver='anuncios';
+    await renderEspacioProfesor(raiz,{titulo:raiz.id==='modal-content'});
+  };
+  const volver=raiz.querySelector('#pr-volver');
+  if(volver)volver.addEventListener('click',()=>{
+    if(procesando)return;
+    if(!sinGuardar){salir();return;}
+    showConfirm('¿Salir sin guardar?',admin?'Los cambios que hiciste se pierden. El anuncio queda como estaba.':id?'Los cambios que hiciste desde que guardaste se pierden. Tu borrador queda como estaba.':'Lo que escribiste se pierde.',
+      salir,{label:'Salir sin guardar'});
+  });
+  const enviarBoton=form.querySelector('#pr-enviar');
+  if(enviarBoton)enviarBoton.addEventListener('click',()=>procesar(true));
 }
 
 // ─── RECOMENDACIÓN EN INICIO ────────────────────────────────────────────────
@@ -2530,14 +3085,21 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
 }
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
+// afterLogin la llama antes de que Inicio exista, en paralelo con la lectura de
+// las notas: así el aviso suele estar listo en el primer pintado y no aparece
+// después empujando los ramos de abajo (eso es lo que mide el CLS). Quien la
+// llama mientras el pedido sigue en vuelo queda esperando el mismo resultado.
 function cargarAnunciosRecomendacion(tenant,alTerminar){
-  if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant)return;
-  const pedido={tenant,lista:null,pidiendo:true};
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
+  if(anunciosRecomendacion.pidiendo&&anunciosRecomendacion.tenant===tenant){
+    anunciosRecomendacion.esperan.push(alTerminar);return;
+  }
+  const pedido={tenant,lista:null,pidiendo:true,esperan:[alTerminar]};
   anunciosRecomendacion=pedido;
   cargarAnunciosClases(tenant,{propagarError:true}).then(lista=>{
     if(anunciosRecomendacion!==pedido)return;
     anunciosRecomendacion={tenant,lista:Array.isArray(lista)?lista:[],pidiendo:false};
-    alTerminar();
+    pedido.esperan.forEach(fn=>fn());
   }).catch(()=>{
     if(anunciosRecomendacion===pedido)anunciosRecomendacion={tenant,lista:null,pidiendo:false};
     // Sin resultado confirmado no se cachea una lista vacía. La siguiente
@@ -2547,27 +3109,33 @@ function cargarAnunciosRecomendacion(tenant,alTerminar){
 
 const RECOMENDACIONES_VISTAS=new Set();
 function observarRecomendacionClase(banner,anuncio,sigla){
-  const clave=claveMedicionClase(anuncio.id);
+  const clave=claveMedicionClase(anuncio.id),doc=typeof document==='undefined'?null:document;
   if(typeof IntersectionObserver!=='function'||RECOMENDACIONES_VISTAS.has(clave))return;
   let timer=null,visible=false,registrando=false;
   const registrar=async()=>{
     timer=null;
-    if(!banner.isConnected||!visible||registrando||RECOMENDACIONES_VISTAS.has(clave))return;
+    if(doc&&doc.visibilityState==='hidden'||!banner.isConnected||!visible||registrando||RECOMENDACIONES_VISTAS.has(clave))return;
     registrando=true;
     const alcance=await registrarAlcanceAnuncio(anuncio.id,'recomendacion');
     const metrica=alcance===null?null:await registrarMetricaAnuncio(anuncio.id,'impresion',sigla);
     registrando=false;
     if(alcance===null||metrica===null){
       if(banner.isConnected&&visible)timer=setTimeout(registrar,5000);
-    }else{RECOMENDACIONES_VISTAS.add(clave);obs.disconnect();}
+    }else{RECOMENDACIONES_VISTAS.add(clave);obs.disconnect();if(doc&&doc.removeEventListener)doc.removeEventListener('visibilitychange',alCambiarVisibilidad);}
   };
   const obs=new IntersectionObserver(entradas=>{
     const e=entradas[entradas.length-1];
     if(e.isIntersecting&&e.intersectionRatio>=IMPRESION_VISIBLE){
       visible=true;
-      if(!timer&&!registrando)timer=setTimeout(registrar,IMPRESION_MS);
+      if((!doc||doc.visibilityState!=='hidden')&&!timer&&!registrando)timer=setTimeout(registrar,IMPRESION_MS);
     }else{visible=false;if(timer){clearTimeout(timer);timer=null;}}
   },{threshold:[IMPRESION_VISIBLE]});
+  const alCambiarVisibilidad=()=>{
+    if(timer){clearTimeout(timer);timer=null;}
+    if(!banner.isConnected){obs.disconnect();if(doc&&doc.removeEventListener)doc.removeEventListener('visibilitychange',alCambiarVisibilidad);return;}
+    if((!doc||doc.visibilityState!=='hidden')&&visible&&!registrando&&!RECOMENDACIONES_VISTAS.has(clave))timer=setTimeout(registrar,IMPRESION_MS);
+  };
+  if(doc&&doc.addEventListener)doc.addEventListener('visibilitychange',alCambiarVisibilidad);
   obs.observe(banner);
 }
 
@@ -2581,7 +3149,6 @@ function opcionesLineaClase(anuncio){
   if(mod)out.push({clave:'modalidad',nombre:'Formato',texto:mod});
   const ubi=textoOpcionClase(UBICACIONES_CLASE,a.ubicacion,a.ubicacion_otra);
   if(ubi)out.push({clave:'ubicacion',nombre:'Dónde',texto:ubi});
-  if(Number(a.precio_clp)>0||esClaseGratis(a))out.push({clave:'precio',nombre:'Precio',texto:precioClase(a)});
   detallesClase(a).forEach(d=>out.push({clave:'detalle:'+d.etiqueta.trim(),nombre:d.etiqueta.trim(),texto:d.valor.trim()}));
   return out;
 }
@@ -2595,8 +3162,8 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
   const a=anuncio||{},linea=lineaDatosClase(a);
   return `<button type="button" class="clase-apoyo-abrir"${vistaPrevia?' tabindex="-1" aria-hidden="true"':''}>
       <span class="clase-apoyo-texto">
-        <span class="ca-cabeza"><small>Publicidad · Clase particular</small><strong>${esc(a.titulo||'Tu clase')}</strong></span>
-        <span class="ca-pie"><span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar · Precio')}</span><span class="clase-apoyo-ver">Ver clase ›</span></span>
+        <span class="ca-cabeza"><small>Publicidad · ${etiquetaTipoClase(a)}</small><strong>${esc(a.titulo||(esMaterialClase(a)?'Tu material':'Tu clase'))}</strong></span>
+        <span class="ca-pie">${linea||(vistaPrevia&&!esMaterialClase(a))?`<span class="clase-apoyo-datos">${esc(linea||'Formato · Lugar')}</span>`:''}<span class="clase-apoyo-ver">${esMaterialClase(a)?'Ver material':'Ver clase'} ›</span></span>
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>
@@ -2606,6 +3173,11 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
 }
 
 function pintarRecomendacionClase(contenedor){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(contenedor)contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
+    if(contenedor)contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+    return;
+  }
   if(!RECOMENDACIONES_CLASES_ACTIVAS||!contenedor||!currentUser||!supabaseClient||!S||!S.tenant)return;
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
@@ -2719,7 +3291,7 @@ async function abrirClaseRecomendada(anuncio,ramo,sigla){
   if(!raiz)return;
   logosCatalogoClases=await logosDeAnuncios([anuncio.id]);
   raiz.innerHTML=`<div class="catalogo-clases">
-      <div class="catalogo-clases-head"><div><div class="modal-title" id="modal-titulo">Clase particular</div></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></div>
+      <div class="catalogo-clases-head"><div><div class="modal-title" id="modal-titulo">${esc(etiquetaTipoClase(anuncio))}</div></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></div>
       <div class="catalogo-clases-resultados">${tarjetaCatalogoClase(anuncio,{sigla,abierta:true})}</div>
       <button type="button" class="btn-cancel clase-apoyo-mas" onclick="openCatalogoClases()">Ver todas las clases</button>
     </div>`;
@@ -2739,13 +3311,15 @@ if(typeof document!=='undefined'){
 // acción pasa por funciones del servidor que exigen estar en la lista Y haber
 // entrado con el segundo factor (supabase/administradores.sql). Por eso la
 // página parte por renderPuertaDosPasos.
-let soyAdministradorCache=false;
+let soyAdministradorCache=false,sesionMarketplaceVersion=0;
 async function cargarSoyAdministrador(){
   if(!supabaseClient||!currentUser)return false;
+  const cuenta=sesionProfesorClase(),version=sesionMarketplaceVersion;
   try{
     const {data,error}=await supabaseClient.rpc('soy_administrador');
+    if(cuenta!==sesionProfesorClase()||version!==sesionMarketplaceVersion)return false;
     soyAdministradorCache=!error&&data===true;
-  }catch(e){soyAdministradorCache=false;}
+  }catch(e){if(cuenta===sesionProfesorClase()&&version===sesionMarketplaceVersion)soyAdministradorCache=false;}
   return soyAdministradorCache;
 }
 function esAdministrador(){return soyAdministradorCache;}
@@ -2754,8 +3328,10 @@ function esAdministrador(){return soyAdministradorCache;}
 // profesor y de administración y su ficha de profesor en pantalla (reportado
 // el 2026-09-30 al crear una cuenta nueva tras usar la de admin).
 function olvidarSesionMarketplace(){
+  sesionMarketplaceVersion++;
+  olvidarEncuestas();
   soyAdministradorCache=false;
-  vistaAdmin={seccion:'campanas',busqueda:'',estado:''};
+  vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:''};
   olvidarPerfilProfesor();
   anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 }
@@ -2822,6 +3398,117 @@ function revisionAdminAnuncioHTML(a,profesor){
     </div>
   </section>`;
 }
+// El descuento es de GradeHub: el profesor conserva solo lectura.
+function descuentoAdminPct(a){
+  const pct=a&&a.descuento_gradehub_pct;
+  return Number.isInteger(pct)&&pct>=1&&pct<=50?pct:null;
+}
+function editorDescuentoAdminHTML(a,estado='cargando',conCodigo=false){
+  const pct=descuentoAdminPct(a),id=esc(a.id),campo=`admin-descuento-${id}`,codigo=pct===null?null:codigoDescuentoClase(a);
+  const aviso=estado==='sin-sql'?'Aplica administradores.sql para editar el descuento desde acá'
+    :estado==='error'?'No pudimos comprobar si se puede editar el descuento. Vuelve a abrir el panel para intentarlo de nuevo.'
+    :'Comprobando edición del descuento…';
+  return `<h4>Descuento por venir de GradeHub</h4>
+    <p class="admin-descuento-actual">Actual: <b>${pct===null?'Sin descuento':esc(textoDescuentoClase({descuento:pct,codigo}).replace(/^−/,''))}</b></p>
+    ${estado!=='listo'?`<p class="profesor-info" role="status">${aviso}</p>`:
+      `<label for="${campo}">Descuento · %</label>
+      <input id="${campo}" type="number" min="1" max="50" step="1" inputmode="numeric" data-descuento-pct value="${pct===null?'':pct}" aria-describedby="${campo}-ayuda ${campo}-error">
+      <p class="profesor-info" id="${campo}-ayuda">De 1 a 50%. Lo fija GradeHub, no el profesor.</p>
+      ${conCodigo?`<label for="${campo}-codigo">Código · opcional</label><input id="${campo}-codigo" class="admin-descuento-codigo" type="text" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej. GRADEHUB" data-descuento-codigo value="${esc(codigo||'')}" aria-describedby="${campo}-codigo-ayuda ${campo}-error">
+      <p class="profesor-info" id="${campo}-codigo-ayuda">El anuncio dirá «−N% con el código …». De 3 a 20 letras o números.</p>`:''}
+      <div class="admin-descuento-controles">
+        <button type="button" class="accion-principal" data-descuento-guardar>Guardar</button>
+        ${pct===null?'':'<button type="button" class="clase-accion" data-descuento-quitar>Quitar</button>'}
+      </div>
+      <p class="profesor-info" id="${campo}-error" data-descuento-error role="alert"></p>`}`;
+}
+async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
+  const bloques=[...raiz.querySelectorAll('[data-admin-descuento]')];
+  if(!bloques.length)return;
+  let estado='listo';
+  try{
+    // Una consulta sin anuncio siempre devuelve false: detecta la función sin
+    // editar datos ni generar acciones. Nunca probar con un anuncio real.
+    const {error}=await supabaseClient.rpc('admin_descuento_anuncio',{p_anuncio_id:null,p_pct:null});
+    if(error)estado=sqlClasesDesactualizado(error)?'sin-sql':'error';
+  }catch(e){estado='error';}
+  // El código llegó después (2026-10-25): sin su SQL, el bloque sigue igual.
+  let conCodigo=false;
+  if(estado==='listo')try{
+    const {error}=await supabaseClient.rpc('admin_descuento_codigo_anuncio',{p_anuncio_id:null,p_pct:null,p_codigo:null});
+    conCodigo=!error;
+  }catch(e){}
+  bloques.forEach(bloque=>{
+    if(bloque.isConnected===false)return;
+    const a=anuncios.get(bloque.dataset.adminDescuento);if(!a)return;
+    bloque.innerHTML=editorDescuentoAdminHTML(a,estado,conCodigo);
+    if(estado!=='listo')return;
+    const campo=bloque.querySelector('[data-descuento-pct]'),error=bloque.querySelector('[data-descuento-error]');
+    const campoCodigo=bloque.querySelector('[data-descuento-codigo]');
+    if(campoCodigo)campoCodigo.addEventListener('input',()=>{campoCodigo.value=campoCodigo.value.toUpperCase().replace(/\s+/g,'');campoCodigo.removeAttribute('aria-invalid');error.textContent='';});
+    const guardar=bloque.querySelector('[data-descuento-guardar]'),quitar=bloque.querySelector('[data-descuento-quitar]');
+    let pendiente=false;
+    campo.addEventListener('input',()=>{campo.removeAttribute('aria-invalid');error.textContent='';});
+    const aplicar=async(pct,codigo=null)=>{
+      if(pendiente||bloque.isConnected===false)return;
+      pendiente=true;
+      const controles=[campo,campoCodigo,guardar,quitar].filter(Boolean);controles.forEach(b=>{b.disabled=true;});
+      try{
+        await llamar(campoCodigo?'admin_descuento_codigo_anuncio':'admin_descuento_anuncio',
+          campoCodigo?{p_anuncio_id:a.id,p_pct:pct,p_codigo:pct===null?null:codigo}:{p_anuncio_id:a.id,p_pct:pct},pct===null?'Descuento quitado':'Descuento guardado',e=>{
+          if(!sqlClasesDesactualizado(e))return false;
+          // También cubre que el SQL deje de estar disponible tras la consulta.
+          bloques.forEach(c=>{if(c.isConnected!==false){const anuncio=anuncios.get(c.dataset.adminDescuento);if(anuncio)c.innerHTML=editorDescuentoAdminHTML(anuncio,'sin-sql');}});
+          return true;
+        });
+      }finally{pendiente=false;controles.forEach(b=>{if(b.isConnected!==false)b.disabled=false;});}
+    };
+    const confirmar=(pct,codigo=null)=>{
+      if(a.estado!=='publicado')return aplicar(pct,codigo);
+      showConfirm(pct===null?'¿Quitar el descuento?':'¿Guardar el descuento?',
+        pct===null?'Los estudiantes verán el precio sin descuento desde ahora.':`Los estudiantes verán el precio con −${pct}%${codigo?` con el código ${codigo}`:''} desde ahora.`,
+        ()=>aplicar(pct,codigo),{label:pct===null?'Quitar':'Guardar',danger:false});
+    };
+    guardar.addEventListener('click',()=>{
+      if(pendiente)return;
+      const texto=String(campo.value||'').trim(),pct=Number(texto);
+      if(!/^\d+$/.test(texto)||!Number.isInteger(pct)||pct<1||pct>50){
+        error.textContent='Escribe un porcentaje entero entre 1 y 50.';campo.setAttribute('aria-invalid','true');campo.focus();return;
+      }
+      const codigo=campoCodigo?campoCodigo.value.trim().toUpperCase()||null:null;
+      if(codigo&&!/^[A-Z0-9][A-Z0-9_-]{2,19}$/.test(codigo)){
+        error.textContent='El código va de 3 a 20 letras o números, sin espacios.';campoCodigo.setAttribute('aria-invalid','true');campoCodigo.focus();return;
+      }
+      return confirmar(pct,codigo);
+    });
+    if(quitar)quitar.addEventListener('click',()=>confirmar(null));
+  });
+}
+// La consulta sin anuncio es un no-op con MFA: nunca prueba con datos reales.
+async function enlazarEdicionAdmin(raiz,profesores,volver){
+  const cajas=[...raiz.querySelectorAll('[data-admin-edicion]')];
+  if(!cajas.length)return;
+  try{
+    const {error}=await supabaseClient.rpc('admin_editar_anuncio',{p_anuncio_id:null,p_datos:{}});
+    if(error)return;
+    cajas.forEach(caja=>{
+      if(caja.isConnected===false)return;
+      const profesor=profesores.find(p=>(p.anuncios||[]).some(a=>a.id===caja.dataset.adminEdicion));
+      const anuncio=profesor&&(profesor.anuncios||[]).find(a=>a.id===caja.dataset.adminEdicion);
+      if(!anuncio)return;
+      caja.innerHTML='<button type="button" class="clase-accion">Editar anuncio</button>';
+      caja.querySelector('button').addEventListener('click',()=>{
+        renderBorradorProfesor(raiz,anuncio,{admin:true,profesor,volverAdmin:async()=>{
+          await volver();
+          const caja=[...raiz.querySelectorAll('[data-admin-edicion]')].find(c=>c.dataset.adminEdicion===anuncio.id);
+          if(caja){const fila=caja.closest('details');if(fila)fila.open=true;const boton=caja.querySelector('button');if(boton)boton.focus();}
+        }});
+        const titulo=raiz.querySelector('#profesor-titulo');
+        if(titulo){titulo.setAttribute('tabindex','-1');titulo.focus();}
+      });
+    });
+  }catch(e){}
+}
 function filaAdminAnuncio(a,ahora=Date.now()){
   const costo=costoCampanaClase(a.campana),[estado,clase]=estadoAdminAnuncio(a,costo,ahora);
   const vig=vigenciaAnuncio(a,ahora),publicado=!!a.publicado_at;
@@ -2836,11 +3523,13 @@ function filaAdminAnuncio(a,ahora=Date.now()){
     ${vig==='expirado'?'<p class="admin-lista-cobro">Campaña terminada · lista para revisar y registrar el cobro.</p>':''}
     ${vig==='eliminado'&&publicado?'<p class="admin-lista-cobro">Anuncio borrado de la revisión. Esta publicación anterior se conserva para el cobro.</p>':''}
     <div class="admin-anuncio-acciones">
+      ${['borrador','en_revision','publicado','pausado'].includes(a.estado)?`<span data-admin-edicion="${esc(a.id)}"></span>`:''}
       <button type="button" class="clase-accion" data-admin-estadisticas="${esc(a.id)}" aria-controls="admin-estadisticas-${esc(a.id)}" aria-expanded="false">Ver estadísticas</button>
       ${publicado?editorCobroAdmin(a.id,a.publicado_at,cobro,monto):''}
       ${vig==='publicado'||vig==='programado'?`<button type="button" class="clase-accion" data-admin-pausar="${esc(a.id)}">Pausar aviso</button>`:''}
       ${vig==='pausado'&&publicado?`<button type="button" class="clase-accion" data-admin-terminar="${esc(a.id)}" data-publicado-at="${esc(a.publicado_at)}">Terminar campaña y dejar lista para cobro</button>`:''}
     </div>
+    <section class="admin-descuento" data-admin-descuento="${esc(a.id)}">${editorDescuentoAdminHTML(a)}</section>
     <div class="admin-anuncio-estadisticas" id="admin-estadisticas-${esc(a.id)}" data-admin-estadisticas-panel="${esc(a.id)}" hidden></div>
     ${anteriores.length?`<details><summary>Cobros anteriores (${anteriores.length})</summary>${anteriores.map(c=>
       `<div><p class="clase-card-meta">Publicación del ${esc(new Date(c.publicado_at).toLocaleString('es-CL'))} · ${c.estado==='deuda'?'En deuda':'Cobrado'} · ${pesosClase(c.monto_clp)}</p>${editorCobroAdmin(a.id,c.publicado_at,c.estado,c.monto_clp)}</div>`).join('')}</details>`:''}
@@ -2856,7 +3545,7 @@ function tarjetaAdminProfesor(p,ahora=Date.now()){
     <div class="admin-profesor-top"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p class="clase-card-meta">${esc(p.correo||'')}</p></div>
       <span class="clase-estado clase-estado-${esc(p.estado)}">${esc(estados[p.estado]||p.estado)}</span></div>
     <p class="clase-card-meta">${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'} · lleva ${pesosClase(gastado)}</p>
-    ${accion}
+    ${accion}${p.estado==='aprobado'?`<span data-admin-ejemplo="${esc(p.user_id)}"></span>`:''}
     ${anuncios.length?`<div class="admin-anuncios">${anuncios.map(a=>filaAdminAnuncio(a,ahora)).join('')}</div>`:''}
   </section>`;
 }
@@ -2893,38 +3582,257 @@ function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
 }
 function filaAdminHigHTML({p,a,costo,estado},ahora){
   return `<details class="admin-hig-fila" data-admin-fila="${esc(a.id)}"><summary>
-    <span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} · ${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
+    <span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} · ${esc((a.ramos_siglas||[]).join(' · '))}</small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span>
     <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span>
     <span class="admin-hig-importe"><b>${costo?pesosClase(costo.total):'—'}</b><small>Costo de campaña</small></span><span aria-hidden="true">⌄</span>
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}
     ${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
+// Aceptar, rechazar y eliminar (Lucas, 2026-10-23). Eliminar solo aparece
+// si no hay historial que perder; si lo hay, se explica por qué y se pausa.
 function personaAdminHigHTML(p){
-  return `<section class="admin-hig-persona"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[p.estado]||p.estado)} · ${(p.anuncios||[]).length} anuncios</p></div>
-    ${p.estado==='aprobado'||p.estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${esc(p.user_id)}" data-estado="${p.estado==='aprobado'?'suspendido':'aprobado'}">${p.estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:''}</section>`;
+  const id=esc(p.user_id),estado=p.estado;
+  const fecha=p.solicitado_at&&Number.isFinite(new Date(p.solicitado_at).getTime())
+    ?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'long',timeZone:'America/Santiago'}).format(new Date(p.solicitado_at)):'';
+  const alumnos=Number(p.alumnos_conectados)||0;
+  const sePuedeEliminar=p.tiene_historial===false&&alumnos===0;
+  const porQueNo=p.tiene_historial?'Tiene campañas con cobros: páusalo en vez de eliminarlo.'
+    :alumnos?`Tiene ${alumnos} ${alumnos===1?'alumno conectado':'alumnos conectados'}: páusalo en vez de eliminarlo.`:'';
+  const acciones=[
+    estado==='pendiente'?`<button type="button" class="accion-principal" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button><button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="rechazado">Rechazar</button>`:'',
+    estado==='rechazado'?`<button type="button" class="clase-accion" data-admin-postulacion="${id}" data-estado="aprobado">Aceptar</button>`:'',
+    estado==='aprobado'||estado==='suspendido'?`<button type="button" class="clase-accion" data-admin-profesor="${id}" data-estado="${estado==='aprobado'?'suspendido':'aprobado'}">${estado==='aprobado'?'Pausar profesor':'Reactivar profesor'}</button>`:'',
+    estado!=='pendiente'&&sePuedeEliminar?`<button type="button" class="clase-accion admin-hig-eliminar" data-admin-eliminar="${id}" data-nombre="${esc(p.nombre||'')}">Eliminar</button>`:'',
+  ].join('');
+  return `<section class="admin-hig-persona" data-admin-persona="${id}"><div><h3>${esc(p.nombre||'Sin nombre')}</h3><p>${esc(p.correo||'')}</p><p>${esc({aprobado:'Aprobado',pendiente:'Esperando revisión',suspendido:'Suspendido',rechazado:'Rechazado'}[estado]||estado)} · ${(p.anuncios||[]).length} anuncios${estado==='pendiente'&&fecha?` · postuló el ${esc(fecha)}`:''}</p>
+    ${estado==='pendiente'&&p.presentacion?`<p class="admin-hig-presentacion">${esc(p.presentacion)}</p>`:''}
+    ${estado!=='pendiente'&&porQueNo?`<p class="admin-hig-motivo">${esc(porQueNo)}</p>`:''}</div>
+    <div class="admin-hig-persona-acciones">${acciones}${estado==='aprobado'?`<span data-admin-ejemplo="${id}"></span>`:''}</div>
+    ${estado==='pendiente'?'':fichaAdminProfesorHTML(p)}</section>`;
 }
-function panelAdminHigHTML(profesores,ahora){
+// La ficha de un profesor (Lucas, 2026-10-23): lo que hace falta para decidir
+// y cobrar, sin salir del panel. Sin el SQL nuevo, cada bloque se omite.
+const ACCIONES_ADMIN_TEXTO={descuento_anuncio:d=>d&&d.pct!=null?`Fijó un descuento de ${d.pct}% GradeHub`:'Quitó el descuento GradeHub',revisar_postulacion:d=>d&&d.estado==='rechazado'?'Rechazó la postulación':'Aceptó la postulación',
+  estado_profesor:d=>d&&d.estado==='suspendido'?'Pausó al profesor':'Reactivó al profesor',panel_alumnos:d=>d&&d.activo?'Mostró el panel de alumnos':'Ocultó el panel de alumnos',
+  nota_profesor:()=>'Editó la nota interna',publicar_anuncio:()=>'Publicó un anuncio',devolver_anuncio:()=>'Devolvió un anuncio',pausar_anuncio:()=>'Pausó un anuncio',
+  borrar_anuncio_revision:()=>'Borró un anuncio en revisión',terminar_anuncio_pausado:()=>'Terminó una campaña',marcar_cobro:()=>'Registró un cobro'};
+function fichaAdminProfesorHTML(p){
+  const id=esc(p.user_id),anuncios=(p.anuncios||[]).filter(a=>a.estado!=='eliminado');
+  const cuenta=e=>anuncios.filter(a=>e.includes(a.estado)).length;
+  const deudas=anuncios.reduce((n,a)=>n+(Array.isArray(a.cobros)?a.cobros:a.cobro?[a.cobro]:[]).filter(c=>c.estado==='deuda').length,0);
+  const d30=p.ultimos_30_dias,num=v=>new Intl.NumberFormat('es-CL').format(Number(v)||0);
+  const dato=(t,v)=>`<div><dt>${t}</dt><dd>${v}</dd></div>`;
+  const alumnos=Number(p.alumnos_conectados)||0,visible=p.panel_alumnos!==false;
+  const historial=Array.isArray(p.historial)?p.historial:null;
+  const fecha=f=>Number.isFinite(new Date(f).getTime())?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'}).format(new Date(f)):'';
+  return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
+    <dl class="admin-hig-ficha-datos">
+      ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
+      ${d30?dato('Lo vieron · 30 días',num(d30.vieron))+dato('Lo abrieron · 30 días',num(d30.abrieron))+dato('Lo contactaron · 30 días',num(d30.contactaron)):''}
+      ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
+    </dl>
+    ${p.panel_alumnos!=null&&p.estado==='aprobado'?`<div class="admin-hig-ficha-fila"><span><b>Panel de alumnos</b><small>${visible?'Lo ve en su menú.':'Oculto: no ve a sus alumnos ni se conecta nadie nuevo.'}</small></span>
+      <button type="button" class="clase-accion" role="switch" aria-checked="${visible}" data-admin-panel-alumnos="${id}" data-activo="${!visible}" data-alumnos="${alumnos}">${visible?'Ocultar':'Mostrar'}</button></div>`:''}
+    ${p.nota!==undefined?`<label class="modal-label" for="admin-nota-${id}">Nota interna · solo la ven los admins</label>
+      <textarea id="admin-nota-${id}" class="admin-hig-nota-texto" maxlength="1000" data-admin-nota-texto="${id}" placeholder="Ej. Material: 15% de comisión, código GRADEHUB 5%">${esc(p.nota||'')}</textarea>
+      <button type="button" class="clase-accion" data-admin-nota="${id}">Guardar nota</button>`:''}
+    ${historial?`<h4>Últimos cambios</h4>${historial.length?`<ul class="admin-hig-historial">${historial.map(h=>`<li><span>${esc((ACCIONES_ADMIN_TEXTO[h.accion]||(()=>h.accion))(h.detalle))}</span><small>${esc(fecha(h.fecha))}${h.admin?' · '+esc(h.admin):''}</small></li>`).join('')}</ul>`:'<p class="admin-hig-motivo">Sin cambios registrados.</p>'}`:''}
+  </div></details>`;
+}
+// El número de postulaciones esperando va en el riel: «Profesores · 2».
+function marcarPendientesNavAdmin(n){
+  if(typeof document==='undefined'||typeof document.querySelector!=='function')return;
+  const b=document.querySelector('[data-nav-vista="admin:profesores"]');if(!b)return;
+  b.textContent=n?`Profesores · ${n}`:'Profesores';
+  if(n)b.setAttribute('aria-label',`Profesores, ${n} ${n===1?'postulación':'postulaciones'} por revisar`);else b.removeAttribute('aria-label');
+}
+// Filtro y búsqueda de la lista de profesores. Parte en Pendientes si hay.
+const FILTROS_PROFESORES_ADMIN=[['pendiente','Pendientes'],['aprobado','Aprobados'],['suspendido','Pausados'],['','Todos']];
+function filtrarProfesoresAdmin(profesores,{estado='',busqueda=''}={}){
+  const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
+  return (profesores||[]).filter(p=>(!estado||p.estado===estado)&&palabras.every(t=>normalizarBusquedaClase(p.nombre||'').includes(t)));
+}
+// ─── Gráficos de Estadísticas ──────────────────────────────────────────────
+// HIG, Charts y Charting data: un título que dice qué se mide, un resumen con
+// la cifra que importa, una sola serie desde cero y los números también en
+// texto, para que VoiceOver no dependa del dibujo. Son HTML y no SVG para que
+// el texto crezca con el tamaño que eligió la persona. El color es el acento,
+// nunca el semáforo: nada de esto es una nota.
+const fechaCortaAdmin=d=>new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'});
+const fechaLargaAdmin=d=>new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'long'});
+// Un tope redondo para el eje y con mitad también redonda: 0 · 30 · 60.
+function topeEjeAdmin(max){
+  if(!(max>0))return 0;
+  const p=10**Math.floor(Math.log10(max));
+  return [1,2,4,6,8,10].map(m=>m*p).find(t=>t>=max&&(t/2)%1===0)||10*p;
+}
+// «+30 (+12%) vs. semana del 6 oct». Con valores, no adjetivos (HIG, Charts).
+function variacionAdmin(actual,anterior,contra){
+  if(!(anterior>0))return '';
+  const d=actual-anterior,pct=Math.round(100*d/anterior);
+  return d?`${d>0?'+':'−'}${milesViz(Math.abs(d))} (${d>0?'+':'−'}${Math.abs(pct)}%) vs. ${contra}`:`Igual que ${contra}`;
+}
+function kpiAdminHTML(titulo,valor,detalle){return `<div><span>${esc(titulo)}</span><strong>${esc(valor)}</strong><p>${esc(detalle||'')}</p></div>`;}
+// puntos: [{eje, lectura, valor, tenue}] de lo antiguo a lo nuevo. La columna
+// elegida va con el acento lleno y su lectura arriba; tocar o pasar el dedo
+// por el área entera elige otra (enlazarGraficosAdmin).
+function columnasAdminHTML({titulo,resumen,vacio,puntos,elegido=puntos.length-1,formato=milesViz,tabla=null,dondeValores='en la tabla'}){
+  const tope=topeEjeAdmin(Math.max(0,...puntos.map(p=>p.valor)));
+  const cabeza=`<figcaption><b>${esc(titulo)}</b>${resumen?`<span>${esc(resumen)}</span>`:''}</figcaption>`;
+  if(!tope)return `<figure class="viz admin-grafico">${cabeza}<p class="clase-sin-datos">${esc(vacio)}</p></figure>`;
+  return `<figure class="viz admin-grafico" data-admin-grafico>${cabeza}
+    <p class="admin-grafico-lectura" data-admin-lectura aria-hidden="true">${esc(puntos[elegido].lectura)}</p>
+    <div class="admin-grafico-area" role="img" aria-label="${esc(`${titulo}, gráfico de columnas. ${resumen||''} Los valores están ${dondeValores}.`)}">
+      <div class="admin-grafico-guias">${[tope,tope/2,0].map(m=>`<span><i>${esc(formato(m))}</i></span>`).join('')}</div>
+      <div class="admin-grafico-columnas">${puntos.map((p,i)=>`<span data-admin-col data-lectura="${esc(p.lectura)}"${i===elegido?' data-elegida':''}${p.tenue?' data-tenue':''}><i style="height:${(100*p.valor/tope).toFixed(1)}%"></i></span>`).join('')}</div>
+    </div>
+    <div class="viz-eje admin-grafico-eje" aria-hidden="true"><span>${esc(puntos[0].eje)}</span><span>${esc(puntos[puntos.length-1].eje)}</span></div>
+    ${tabla?`<details class="admin-grafico-tabla"><summary>Ver como tabla</summary><div><table>
+      <thead><tr>${tabla.columnas.map((c,i)=>`<th scope="col"${i?' class="num"':''}>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${tabla.filas.map(f=>`<tr>${f.map((c,i)=>i?`<td class="num">${esc(c)}</td>`:`<th scope="row">${esc(c)}</th>`).join('')}</tr>`).join('')}</tbody></table></div></details>`:''}
+  </figure>`;
+}
+// Partes de un total, de mayor a menor, con su número escrito al lado.
+function barrasAdminHTML({titulo,resumen,filas}){
+  const max=Math.max(1,...filas.map(f=>f.valor));
+  return `<figure class="viz admin-grafico"><figcaption><b>${esc(titulo)}</b>${resumen?`<span>${esc(resumen)}</span>`:''}</figcaption>
+    <div class="admin-grafico-barras">${filas.map(f=>`<div class="clase-embudo-fila"><span>${esc(f.nombre)}</span><div class="clase-barra" aria-hidden="true"><i style="transform:scaleX(${(f.valor/max).toFixed(3)})"></i></div><b>${esc(f.texto??milesViz(f.valor))}</b></div>`).join('')}</div>
+  </figure>`;
+}
+// La semana en curso no está cerrada: no se compara ni se destaca.
+const semanaEnCursoAdmin=(f,ahora)=>Date.parse(String(f.semana).slice(0,10)+'T00:00:00-03:00')+7*864e5>ahora;
+function graficosCrecimientoAdminHTML(semanas,ahora){
+  const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
+  const i=semanas.findIndex(f=>!semanaEnCursoAdmin(f,ahora));
+  const cerrada=semanas[i],anterior=semanas[i+1],enCurso=i>0?semanas[0]:null;
+  const contra=anterior?`semana del ${fechaCortaAdmin(anterior.semana)}`:'';
+  const kpis=cerrada?[
+    kpiAdminHTML('Activas',milesViz(cifra(cerrada.activas)),`Semana del ${fechaCortaAdmin(cerrada.semana)}${anterior?' · '+variacionAdmin(cifra(cerrada.activas),cifra(anterior.activas),contra):''}`),
+    kpiAdminHTML('Nuevas',milesViz(cifra(cerrada.nuevas)),anterior?variacionAdmin(cifra(cerrada.nuevas),cifra(anterior.nuevas),contra)||'Cuentas creadas esa semana':'Cuentas creadas esa semana'),
+    kpiAdminHTML('Volvieron',cerrada.pct_vuelven!=null?`${Number(cerrada.pct_vuelven).toLocaleString('es-CL')}%`:'—',anterior?`${milesViz(cifra(cerrada.vuelven))} de ${milesViz(cifra(anterior.activas))} activas la semana anterior`:'Sin semana anterior para comparar'),
+    enCurso?kpiAdminHTML('Esta semana',milesViz(cifra(enCurso.activas)),'Activas hasta hoy · semana en curso'):''].join(''):'';
+  const serie=clave=>semanas.slice().reverse().map(f=>({eje:fechaCortaAdmin(f.semana),valor:cifra(f[clave]),tenue:semanaEnCursoAdmin(f,ahora),
+    lectura:`Semana del ${fechaLargaAdmin(f.semana)}${semanaEnCursoAdmin(f,ahora)?' (en curso)':''} · ${milesViz(cifra(f[clave]))} ${clave==='activas'?'activas':'nuevas'}`}));
+  const elegido=Math.max(0,semanas.length-1-Math.max(i,0));
+  return `${kpis?`<div class="admin-hig-resumen" aria-label="Resumen de la última semana cerrada">${kpis}</div>`:''}
+    <div class="admin-graficos">
+      ${columnasAdminHTML({titulo:'Cuentas activas por semana',resumen:'Abrieron la app al menos un día de la semana.',vacio:'Todavía no hay visitas registradas.',puntos:serie('activas'),elegido,dondeValores:'en el detalle por semana'})}
+      ${columnasAdminHTML({titulo:'Cuentas nuevas por semana',resumen:'Se crearon esa semana, estudiantes y profesores.',vacio:'Todavía no hay cuentas nuevas en estas semanas.',puntos:serie('nuevas'),elegido,dondeValores:'en el detalle por semana'})}
+    </div>`;
+}
+// Lo de clases particulares: alcance de los anuncios (admin_estadisticas.sql),
+// cobros por mes y anuncios por estado. Sale de lo que el panel ya cargó,
+// salvo el alcance diario; sin ese SQL, se explica qué falta y lo demás sigue.
+function clasesEstadisticasAdminHTML(profesores,alcance,ahora=Date.now()){
+  const pesos=pesosClase,partes=[];
+  let kpis='';
+  if(Array.isArray(alcance)&&alcance.length){
+    const n=v=>Number(v)||0,suma=k=>alcance.reduce((t,d)=>t+n(d[k]),0);
+    const vieron=suma('vieron'),abrieron=suma('abrieron'),contactaron=suma('contactaron');
+    kpis=[kpiAdminHTML('Vieron un anuncio',milesViz(vieron),'Cuentas distintas por campaña · 30 días'),
+      kpiAdminHTML('Lo abrieron',milesViz(abrieron),`${pctViz(abrieron,vieron)} de las que lo vieron`),
+      kpiAdminHTML('Contactaron',milesViz(contactaron),`${pctViz(contactaron,vieron)} de las que lo vieron`),
+      kpiAdminHTML('De abrir a contactar',pctViz(contactaron,abrieron),'Contactaron de las que lo abrieron')].join('');
+    const mejor=alcance.reduce((m,d)=>n(d.vieron)>n(m.vieron)?d:m,alcance[0]);
+    partes.push(columnasAdminHTML({titulo:'Alcance por día',vacio:'Ningún anuncio se ha mostrado en los últimos 30 días.',
+      resumen:vieron?`${milesViz(vieron)} en 30 días; el día con más fue el ${fechaLargaAdmin(mejor.dia)}, con ${milesViz(n(mejor.vieron))}.`:'',
+      puntos:alcance.map(d=>({eje:fechaCortaAdmin(d.dia),valor:n(d.vieron),lectura:`${fechaLargaAdmin(d.dia)} · ${milesViz(n(d.vieron))} vieron · ${milesViz(n(d.abrieron))} abrieron · ${milesViz(n(d.contactaron))} contactaron`})),
+      tabla:{columnas:['Día','Vieron','Abrieron','Contactaron'],filas:alcance.slice().reverse().map(d=>[fechaLargaAdmin(d.dia),milesViz(n(d.vieron)),milesViz(n(d.abrieron)),milesViz(n(d.contactaron))])}}));
+    partes.push(barrasAdminHTML({titulo:'De ver a contactar',resumen:'Últimos 30 días, todos los anuncios.',filas:[
+      {nombre:'Vieron',valor:vieron},{nombre:'Abrieron',valor:abrieron,texto:`${milesViz(abrieron)} · ${pctViz(abrieron,vieron)}`},
+      {nombre:'Contactaron',valor:contactaron,texto:`${milesViz(contactaron)} · ${pctViz(contactaron,vieron)}`}]}));
+  }
+  // Cobros por el mes en que se publicó la campaña, los últimos seis.
+  const hoy=new Date(ahora),meses=[];
+  for(let k=5;k>=0;k--){const m=new Date(hoy.getFullYear(),hoy.getMonth()-k,1);meses.push({anio:m.getFullYear(),mes:m.getMonth(),fecha:m,cobrado:0,deuda:0});}
+  for(const p of profesores||[])for(const a of p.anuncios||[])
+    for(const c of Array.isArray(a.cobros)?a.cobros:(a.cobro?[{...a.cobro,publicado_at:a.publicado_at}]:[])){
+      const f=new Date(c.publicado_at),m=meses.find(x=>x.anio===f.getFullYear()&&x.mes===f.getMonth());
+      if(m&&(c.estado==='cobrado'||c.estado==='deuda'))m[c.estado]+=Number(c.monto_clp)||0;
+    }
+  const nombreMes=(m,o)=>{const t=m.fecha.toLocaleDateString('es-CL',o);return t.charAt(0).toUpperCase()+t.slice(1);};
+  const cobrado=meses.reduce((t,m)=>t+m.cobrado,0),deuda=meses.reduce((t,m)=>t+m.deuda,0);
+  partes.push(columnasAdminHTML({titulo:'Cobrado por mes',formato:pesos,vacio:'Todavía no hay cobros registrados en los últimos seis meses.',
+    resumen:`${pesos(cobrado)} cobrados en seis meses${deuda?` · ${pesos(deuda)} en deuda`:''}. Cuenta el mes en que se publicó cada campaña.`,
+    puntos:meses.map(m=>({eje:nombreMes(m,{month:'short'}),valor:m.cobrado,lectura:`${nombreMes(m,{month:'long',year:'numeric'})} · ${pesos(m.cobrado)} cobrado${m.deuda?` · ${pesos(m.deuda)} en deuda`:''}`})),
+    tabla:{columnas:['Mes','Cobrado','En deuda'],filas:meses.slice().reverse().map(m=>[nombreMes(m,{month:'long',year:'numeric'}),pesos(m.cobrado),pesos(m.deuda)])}}));
+  const porEstado=new Map();
+  filasAdminHig(profesores,ahora).filter(f=>f.a.estado!=='eliminado').forEach(f=>porEstado.set(f.estado[0],(porEstado.get(f.estado[0])||0)+1));
+  const total=[...porEstado.values()].reduce((t,v)=>t+v,0);
+  if(total)partes.push(barrasAdminHTML({titulo:'Anuncios por estado',resumen:`${milesViz(total)} ${total===1?'anuncio':'anuncios'} en total.`,
+    filas:[...porEstado].sort((x,y)=>y[1]-x[1]).map(([nombre,valor])=>({nombre,valor}))}));
+  return `<section class="admin-clases-estadisticas" aria-labelledby="admin-clases-estadisticas-titulo"><h3 id="admin-clases-estadisticas-titulo">Clases particulares</h3>
+    <p>Alcance de los anuncios, lo cobrado y en qué está cada anuncio.</p>
+    ${kpis?`<div class="admin-hig-resumen" aria-label="Resumen de los últimos 30 días">${kpis}</div>`:''}
+    ${Array.isArray(alcance)?'':'<p class="admin-hig-nota" role="status">El alcance por día aparece al aplicar supabase/admin_estadisticas.sql.</p>'}
+    <div class="admin-graficos">${partes.join('')}</div></section>`;
+}
+// Tocar o arrastrar por el gráfico elige la columna más cercana; con el mouse,
+// al salir vuelve a la que estaba. No hace falta para leer nada: la lectura
+// inicial y la tabla ya dicen lo importante (HIG, Charts).
+function enlazarGraficosAdmin(raiz){
+  raiz.querySelectorAll('[data-admin-grafico]').forEach(fig=>{
+    const area=fig.querySelector('.admin-grafico-area'),fila=fig.querySelector('.admin-grafico-columnas'),lectura=fig.querySelector('[data-admin-lectura]');
+    const cols=[...fig.querySelectorAll('[data-admin-col]')];
+    if(!area||!fila||!lectura||!cols.length)return;
+    const inicial=Math.max(0,cols.findIndex(c=>'elegida' in c.dataset));
+    const elegir=i=>{cols.forEach((c,j)=>{if(j===i)c.dataset.elegida='';else delete c.dataset.elegida;});lectura.textContent=cols[i].dataset.lectura;};
+    const enX=e=>{const r=fila.getBoundingClientRect();if(r.width)elegir(Math.max(0,Math.min(cols.length-1,Math.floor((e.clientX-r.left)/r.width*cols.length))));};
+    area.addEventListener('pointerdown',enX);area.addEventListener('pointermove',enX);
+    area.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')elegir(inicial);});
+  });
+}
+function crecimientoAdminHTML(semanas,ahora=Date.now()){
+  if(!Array.isArray(semanas)||!semanas.length)return '';
+  const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
+  const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
+  const semana=f=>`<h3>Semana del ${esc(f.semana?fechaLargaAdmin(f.semana):'')}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
+  return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h3 id="admin-crecimiento-titulo">Crecimiento semanal</h3>
+    <p>Cuentas nuevas, activas y que volvieron cada semana.</p>${graficosCrecimientoAdminHTML(semanas,ahora)}
+    <div class="admin-crecimiento-actual">${semana(semanas[0])}</div>
+    ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
+}
+const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios'];
+function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcance=null){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
-  return `<div class="admin-hig"><header class="admin-hig-cabecera"><p class="admin-hig-ceja">ADMINISTRACIÓN · CLASES PARTICULARES</p><h1>Todo en orden.</h1><p>Revisa anuncios, acompaña a los profesores y lleva los cobros al día.</p></header>
+  const tab=(nombre,texto)=>`<button type="button" role="tab" id="admin-tab-${nombre}" data-admin-area="${nombre}" aria-controls="admin-area-${nombre}" aria-selected="${nombre===area}" tabindex="${nombre===area?'0':'-1'}">${texto}</button>`;
+  const panel=(nombre,contenido)=>`<section class="admin-hig-panel" role="tabpanel" id="admin-area-${nombre}" data-admin-panel="${nombre}" aria-labelledby="admin-tab-${nombre}" tabindex="0"${nombre===area?'':' hidden'}>${contenido}</section>`;
+  // Sin cabecera propia: «Administración» va en la barra (Lucas, 2026-10-22).
+  // Decía «Todo en orden.» aunque hubiera anuncios esperando revisión.
+  return `<div class="admin-hig">
+    <div class="admin-hig-areas" role="tablist" aria-label="Secciones de administración">
+      ${tab('profesores','Profesores')}${tab('anuncios','Anuncios')}${tab('estadisticas','Estadísticas')}${tab('usuarios','Usuarios')}
+    </div>
+    ${panel('profesores',`<h2>Profesores</h2>
+      <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Revisar logos sigue en SQL Editor.</p>
+      <div class="admin-hig-filtros"><nav class="panel-alumnos-vistas" aria-label="Filtrar profesores">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<button type="button" data-admin-filtro-prof="${v}" aria-pressed="${v===vistaAdmin.profesores}">${t}</button>`).join('')}</nav>
+      <input type="search" class="admin-hig-buscar" id="admin-buscar-profesor" placeholder="Buscar por nombre" aria-label="Buscar profesor por nombre" autocomplete="off"></div>
+      <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
+    ${panel('anuncios',`<h2>Anuncios</h2>
     <div class="admin-hig-resumen" aria-label="Resumen de administración">
     ${kpi('Visibles ahora',filas.filter(f=>f.estado[1]==='publicado').length,'Publicadas y bajo su tope')}
     ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
     ${kpi('Deuda registrada',pesosClase(r.deuda),'Incluye publicaciones anteriores')}
     ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
-    <p class="admin-hig-nota">Revisa y decide los anuncios desde acá. Aprobar profesores y revisar logos sigue en SQL Editor. Cada acción queda registrada.</p>
+    <p class="admin-hig-nota">Revisa y decide los anuncios desde acá. Cada acción queda registrada.</p>
     <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
     <div class="admin-hig-herramientas"><label class="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label>Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label></div>
     <p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
     <div class="admin-hig-lista">${filas.map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
-    <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>
-    <details class="admin-hig-profesores"><summary>Profesores · ${profesores.length} (${r.pendientes} esperando revisión)</summary>${profesores.map(personaAdminHigHTML).join('')||'<p>Todavía no hay profesores.</p>'}</details></div>`;
+    <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>`)}
+    ${panel('estadisticas',`<h2>Estadísticas de GradeHub</h2>
+      ${crecimientoAdminHTML(crecimiento,ahora)||'<p class="admin-hig-nota" role="status">No pudimos cargar las cifras de la página por ahora.</p>'}
+      ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}`)}
+    ${panel('usuarios',`<h2>Usuarios</h2>
+      <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>`)}
+  </div>`;
 }
 
 // La vista elegida sobrevive al repintado: cada acción vuelve a pintar el
 // panel, y quien publicaba desde "Por revisar" caía de vuelta en "Campañas"
 // con la búsqueda y el filtro borrados.
-let vistaAdmin={seccion:'campanas',busqueda:'',estado:''};
+let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:''};
 async function pintarPanelAdmin(raiz){
   raiz.innerHTML='<p class="profesor-info" role="status">Cargando…</p>';
   let profesores;
@@ -2935,14 +3843,67 @@ async function pintarPanelAdmin(raiz){
     profesores=Array.isArray(data)?data:[];
     if(profesores.some(p=>(p.anuncios||[]).some(a=>!Array.isArray(a.cobros))))compatibilidadSqlClases.cobros=true;
   }catch(e){raiz.innerHTML='<p class="profesor-info" role="alert">No pudimos cargar la administración. Intenta de nuevo.</p>';return;}
+  // Si el SQL agregado aún no se aplicó, las campañas siguen disponibles.
+  // Lo mismo con el alcance diario (admin_estadisticas.sql): null = sin SQL.
+  let crecimiento=[],alcance=null;
+  const [rc,ra]=await Promise.allSettled([supabaseClient.rpc('crecimiento_semanal_admin'),supabaseClient.rpc('admin_alcance_diario',{p_dias:30})]);
+  if(rc.status==='fulfilled'&&rc.value&&!rc.value.error&&Array.isArray(rc.value.data))crecimiento=rc.value.data;
+  if(ra.status==='fulfilled'&&ra.value&&!ra.value.error&&Array.isArray(ra.value.data))alcance=ra.value.data;
   const ahora=Date.now();
-  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora);
+  // La sección que pidió la barra lateral manda (2026-10-23).
+  const pedida=typeof tomarVistaNav==='function'&&tomarVistaNav('admin');
+  if(pedida&&AREAS_ADMIN.includes(pedida))vistaAdmin.area=pedida;
+  const pendientes=profesores.filter(p=>p.estado==='pendiente').length;
+  if(vistaAdmin.profesores===undefined)vistaAdmin.profesores=pendientes?'pendiente':'';
+  marcarPendientesNavAdmin(pendientes);
+  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance);
+  enlazarGraficosAdmin(raiz);
+  const lista=raiz.querySelector('#admin-lista-profesores');
+  if(lista&&typeof lista.querySelectorAll==='function'){
+    lista.innerHTML=profesores.map(personaAdminHigHTML).join('')+`<p class="admin-hig-motivo" id="admin-profesores-vacio" hidden>${profesores.length?'Nadie calza con este filtro.':'Todavía no hay profesores.'}</p>`;
+    const buscar=raiz.querySelector('#admin-buscar-profesor');
+    const filtrar=()=>{
+      const visibles=new Set(filtrarProfesoresAdmin(profesores,{estado:vistaAdmin.profesores,busqueda:buscar?buscar.value:''}).map(p=>String(p.user_id)));
+      lista.querySelectorAll('[data-admin-persona]').forEach(el=>{el.hidden=!visibles.has(el.dataset.adminPersona);});
+      raiz.querySelectorAll('[data-admin-filtro-prof]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.adminFiltroProf===vistaAdmin.profesores)));
+      const vacio=lista.querySelector('#admin-profesores-vacio');if(vacio)vacio.hidden=visibles.size>0;
+    };
+    raiz.querySelectorAll('[data-admin-filtro-prof]').forEach(b=>b.addEventListener('click',()=>{vistaAdmin.profesores=b.dataset.adminFiltroProf;filtrar();}));
+    if(buscar)buscar.addEventListener('input',filtrar);
+    filtrar();
+  }
+  const mostrarArea=nombre=>{
+    if(!AREAS_ADMIN.includes(nombre))return;
+    vistaAdmin.area=nombre;
+    raiz.querySelectorAll('[data-admin-area]').forEach(b=>{
+      const activa=b.dataset.adminArea===nombre;
+      b.setAttribute('aria-selected',String(activa));b.tabIndex=activa?0:-1;
+    });
+    raiz.querySelectorAll('[data-admin-panel]').forEach(p=>{p.hidden=p.dataset.adminPanel!==nombre;});
+    if(typeof marcarVistaNav==='function')marcarVistaNav('admin',nombre);
+    if(nombre==='usuarios'){
+      const caja=raiz.querySelector('#admin-encuestas-contenido');
+      if(caja&&!caja.querySelector('.encuestas-admin'))renderAdminEncuestas(caja);
+    }
+  };
+  const tabs=[...raiz.querySelectorAll('[data-admin-area]')];
+  tabs.forEach((b,i)=>{
+    b.addEventListener('click',()=>mostrarArea(b.dataset.adminArea));
+    b.addEventListener('keydown',e=>{
+      const paso=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;
+      const siguiente=e.key==='Home'?0:e.key==='End'?tabs.length-1:paso?(i+paso+tabs.length)%tabs.length:-1;
+      if(siguiente<0)return;
+      e.preventDefault();mostrarArea(tabs[siguiente].dataset.adminArea);tabs[siguiente].focus();
+    });
+  });
+  mostrarArea(vistaAdmin.area);
+  if(typeof vistasPanelNav!=='undefined')vistasPanelNav.admin=v=>{if(raiz.isConnected!==false)mostrarArea(v);};
   let seccion=vistaAdmin.seccion;
   const buscar=raiz.querySelector('#admin-hig-buscar'),filtro=raiz.querySelector('#admin-hig-estado');
   buscar.value=vistaAdmin.busqueda;filtro.value=vistaAdmin.estado;
   raiz.querySelectorAll('[data-admin-seccion]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.adminSeccion===seccion)));
   const filtrar=()=>{
-    vistaAdmin={seccion,busqueda:buscar.value,estado:filtro.value};
+    vistaAdmin={...vistaAdmin,seccion,busqueda:buscar.value,estado:filtro.value};
     const filas=filtrarAdminHig(filasAdminHig(profesores,ahora),vistaAdmin),ids=new Set(filas.map(f=>f.a.id));
     raiz.querySelectorAll('[data-admin-fila]').forEach(f=>{f.hidden=!ids.has(f.dataset.adminFila);});
     raiz.querySelector('#admin-hig-cantidad').textContent=`${filas.length} ${filas.length===1?'anuncio':'anuncios'}`;
@@ -3002,13 +3963,28 @@ async function pintarPanelAdmin(raiz){
       caja.innerHTML=url?`<img src="${esc(url)}" alt="Flyer del anuncio para revisión" loading="lazy">`:'No pudimos cargar el flyer.';
     }).catch(()=>{if(caja.isConnected)caja.textContent='No pudimos cargar el flyer.';});
   });
-  const llamar=async(fn,args,ok)=>{
+  const llamar=async(fn,args,ok,alError)=>{
     try{
       const {data,error}=await supabaseClient.rpc(fn,args);
+      if(error&&alError&&alError(error))return;
       if(error||data!==true){showToast(error?.message||'No se aplicó el cambio. Actualiza el panel e intenta de nuevo.',true);return;}
       showToast(ok);await repintar();
     }catch(e){showToast('No pudimos completar la acción. Revisa tu conexión e intenta de nuevo.',true);}
   };
+  // Alumnos de ejemplo (alumnos_ejemplo.sql): el botón aparece cuando se sabe
+  // a quién ya se le activó. Sin el SQL aplicado la consulta falla y no se muestra.
+  const cajasEjemplo=[...raiz.querySelectorAll('[data-admin-ejemplo]')];
+  if(cajasEjemplo.length)Promise.resolve().then(()=>supabaseClient.rpc('admin_alumnos_ejemplo')).then(r=>{
+    if(!r||r.error)return;
+    const activos=new Set((r.data||[]).map(String));
+    cajasEjemplo.forEach(caja=>{
+      if(caja.isConnected===false)return;
+      const id=caja.dataset.adminEjemplo,activo=activos.has(id);
+      caja.innerHTML=`<button type="button" class="clase-accion">${activo?'Quitar alumnos de ejemplo':'Mostrarle alumnos de ejemplo'}</button>`;
+      caja.querySelector('button').addEventListener('click',()=>llamar('admin_fijar_alumnos_ejemplo',{p_user_id:id,p_activo:!activo},
+        activo?'Vuelve a ver su panel real':'Verá su panel con alumnos de ejemplo'));
+    });
+  }).catch(()=>{});
   raiz.querySelectorAll('[data-admin-publicar]').forEach(b=>b.addEventListener('click',()=>
     showConfirm('¿Publicar este anuncio?','Se mostrará según los días, la fecha y el tope de su campaña. Las vistas, aperturas y contactos se cobran con las tarifas actuales.',
       ()=>llamar('admin_publicar_anuncio',{p_anuncio_id:b.dataset.adminPublicar},'Anuncio publicado'),{label:'Publicar',danger:false})));
@@ -3031,6 +4007,33 @@ async function pintarPanelAdmin(raiz){
   raiz.querySelectorAll('[data-admin-pausar]').forEach(b=>b.addEventListener('click',()=>
     showConfirm('¿Pausar este aviso?','Deja de mostrarse al tiro. Para volver, el profesor lo manda a revisión otra vez.',
       ()=>llamar('admin_pausar_anuncio',{p_anuncio_id:b.dataset.adminPausar},'Aviso pausado'),{label:'Pausar',danger:false})));
+  raiz.querySelectorAll('[data-admin-postulacion]').forEach(b=>b.addEventListener('click',()=>{
+    const aceptar=b.dataset.estado==='aprobado';
+    showConfirm(aceptar?'¿Aceptar a este profesor?':'¿Rechazar esta postulación?',
+      aceptar?'Podrá publicar anuncios (cada uno pasa por revisión) y usar el panel de alumnos.':'No podrá ofrecer clases. Su cuenta de estudiante sigue igual y puedes aceptarlo después.',
+      ()=>llamar('admin_revisar_postulacion',{p_user_id:b.dataset.adminPostulacion,p_estado:b.dataset.estado},aceptar?'Profesor aceptado':'Postulación rechazada'),
+      {label:aceptar?'Aceptar':'Rechazar',danger:!aceptar});
+  }));
+  raiz.querySelectorAll('[data-admin-panel-alumnos]').forEach(b=>b.addEventListener('click',()=>{
+    const mostrar=b.dataset.activo==='true',n=Number(b.dataset.alumnos)||0;
+    if(mostrar){llamar('admin_panel_alumnos_profesor',{p_user_id:b.dataset.adminPanelAlumnos,p_activo:true},'Panel de alumnos visible');return;}
+    showConfirm('¿Ocultar su panel de alumnos?',n?`Deja de ver a sus ${n} ${n===1?'alumno':'alumnos'} y nadie nuevo se puede conectar. No se borra nada: al mostrarlo de nuevo están los mismos.`:'No verá la sección Alumnos y nadie se podrá conectar con su link. Puedes mostrarla cuando quieras.',
+      ()=>llamar('admin_panel_alumnos_profesor',{p_user_id:b.dataset.adminPanelAlumnos,p_activo:false},'Panel de alumnos oculto'),{label:'Ocultar',danger:false});
+  }));
+  raiz.querySelectorAll('[data-admin-nota]').forEach(b=>b.addEventListener('click',async()=>{
+    const caja=raiz.querySelector(`[data-admin-nota-texto="${b.dataset.adminNota}"]`);
+    b.disabled=true;
+    try{
+      const {data,error}=await supabaseClient.rpc('admin_nota_profesor',{p_user_id:b.dataset.adminNota,p_texto:caja?caja.value:''});
+      showToast(error||data!==true?(error?.message||'No se guardó la nota. Actualiza el panel e intenta de nuevo.'):'Nota guardada',!!(error||data!==true));
+    }catch(e){showToast('No pudimos guardar la nota. Revisa tu conexión.',true);}
+    if(b.isConnected)b.disabled=false;
+  }));
+  raiz.querySelectorAll('[data-admin-eliminar]').forEach(b=>b.addEventListener('click',()=>
+    showConfirm(`¿Eliminar a ${b.dataset.nombre||'este profesor'} como profesor?`,
+      'Se borran su ficha y sus borradores. Su cuenta y sus notas de estudiante no se tocan, y puede volver a postular.',
+      ()=>llamar('admin_eliminar_profesor',{p_user_id:b.dataset.adminEliminar},'Profesor eliminado'),
+      {label:'Eliminar',danger:true})));
   raiz.querySelectorAll('[data-admin-profesor]').forEach(b=>b.addEventListener('click',()=>{
     const pausar=b.dataset.estado==='suspendido';
     showConfirm(pausar?'¿Pausar a este profesor?':'¿Reactivar a este profesor?',
@@ -3053,6 +4056,1702 @@ async function pintarPanelAdmin(raiz){
         showToast('Cobro guardado'+(compatibilidadSqlClases.cobros?' con el SQL anterior':''));await repintar();
       }catch(e){showToast('No pudimos guardar el cobro. Intenta de nuevo.',true);}
       finally{if(guardar.isConnected)guardar.disabled=false;}
+    });
+  });
+  await enlazarDescuentosAdmin(raiz,anunciosPorId,llamar);
+  await enlazarEdicionAdmin(raiz,profesores,async()=>{vistaAdmin.area='anuncios';await repintar();});
+}
+
+// ─── PANEL DE ALUMNOS (decisión de Lucas, 2026-10-08) ───────────────────────
+// Un profesor ve las notas de un alumno solo si ese alumno se las comparte, ramo
+// por ramo, desde el link del profesor; y deja de verlas cuando el alumno lo
+// decide. El SQL (supabase/profesor_alumnos.sql) entrega los ramos tal como el
+// alumno los guardó: el promedio lo calcula este navegador con ramoAvg, el mismo
+// motor de la app, para que el profesor vea exactamente lo que ve el alumno.
+const CLAVE_PROFE_PENDIENTE='gradehub_profe_pendiente';
+const URL_PANEL_ALUMNOS='https://gradehub.cl/';
+
+// Misma regla que clave_evaluacion() en SQL: así cada nota encuentra su promedio.
+function claveEvaluacionPanel(nombre){
+  const s=String(nombre||'').toLowerCase()
+    .replace(/[áàäâ]/g,'a').replace(/[éèëê]/g,'e').replace(/[íìïî]/g,'i')
+    .replace(/[óòöô]/g,'o').replace(/[úùüû]/g,'u').replace(/ñ/g,'n')
+    .replace(/\s+/g,' ').trim();
+  return s||null;
+}
+function codigoProfeValido(codigo){
+  const c=String(codigo||'').trim().toUpperCase();
+  return /^[A-HJ-NP-Z2-9]{8}$/.test(c)?c:null;
+}
+function linkAlumnosProfesor(codigo){return `${URL_PANEL_ALUMNOS}?profe=${encodeURIComponent(codigo)}`;}
+function mensajeInvitacionAlumnos(){
+  return 'Hola, si quieres compartir conmigo las notas de tus ramos en GradeHub, abre este link. Tú eliges los ramos y puedes dejar de compartir cuando quieras.';
+}
+async function compartirInvitacionAlumnos(link){
+  try{
+    if(typeof navigator.share==='function'){
+      await navigator.share({text:mensajeInvitacionAlumnos(),url:link});
+      return 'compartido';
+    }
+  }catch(e){if(e&&e.name==='AbortError')return 'cancelado';}
+  try{
+    await navigator.clipboard.writeText(`${mensajeInvitacionAlumnos()}\n${link}`);
+    return 'copiado';
+  }catch(e){return 'fallo';}
+}
+function medirInvitacionCompartida(resultado){
+  if(resultado==='compartido')track('panel_alumnos_link_compartido');
+  if(resultado==='copiado')track('panel_alumnos_link_copiado');
+}
+
+// El link se abre antes de iniciar sesión: el código espera acá hasta que haya
+// una cuenta con su semestre listo. Solo el código, nunca datos del profesor.
+function guardarProfePendiente(codigo){
+  const c=codigoProfeValido(codigo);if(!c)return false;
+  try{localStorage.setItem(CLAVE_PROFE_PENDIENTE,c);}catch(e){}
+  return true;
+}
+function profePendiente(){try{return codigoProfeValido(localStorage.getItem(CLAVE_PROFE_PENDIENTE));}catch(e){return null;}}
+function mostrarContextoInvitacionProfesor(){
+  if(typeof document==='undefined')return;
+  const visible=!!profePendiente();
+  ['auth-invitacion-profesor','ob-invitacion-profesor'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.hidden=!visible;
+  });
+}
+function olvidarProfePendiente(){try{localStorage.removeItem(CLAVE_PROFE_PENDIENTE);}catch(e){}mostrarContextoInvitacionProfesor();}
+function capturarProfeDeUrl(){
+  if(typeof location==='undefined'||typeof URLSearchParams==='undefined')return null;
+  const params=new URLSearchParams(location.search||'');
+  if(!params.has('profe'))return null;
+  const c=guardarProfePendiente(params.get('profe'))?profePendiente():null;
+  if(c){
+    track('panel_alumnos_link_abierto');
+    try{if(typeof ORIGEN_ENTRADA_KEY==='string')sessionStorage.setItem(ORIGEN_ENTRADA_KEY,'profesor');}catch(e){}
+  }
+  // Fuera de la barra de direcciones: si la persona comparte la página, no
+  // reparte el link de su profesor.
+  params.delete('profe');
+  try{history.replaceState(null,'',location.pathname+(params.toString()?'?'+params:'')+location.hash);}catch(e){}
+  return c;
+}
+
+let invitacionProfeAbierta=false;
+async function revisarInvitacionProfesor(){
+  const codigo=profePendiente();
+  if(!codigo||invitacionProfeAbierta||!supabaseClient||!currentUser||!S.onboardingDone)return false;
+  const uid=currentUser.id;
+  invitacionProfeAbierta=true;
+  try{
+    const {data,error}=await supabaseClient.rpc('profesor_por_codigo',{p_codigo:codigo});
+    if(currentUser?.id!==uid)return false;
+    if(error){showToast('No pudimos abrir la invitación. Recarga GradeHub para intentarlo de nuevo.',true);return false;}
+    const profe=Array.isArray(data)?data[0]:null;
+    if(!profe){
+      olvidarProfePendiente();
+      showToast('Ese link de profesor ya no funciona. Pídele uno nuevo.',true);
+      return false;
+    }
+    // El RPC nuevo solo lee la selección de esta misma persona. Hasta que Lucas
+    // aplique el SQL, un servidor anterior sigue usando la hoja de siempre.
+    let compartido=null;
+    const previo=await supabaseClient.rpc('mi_compartido_profesor',{p_codigo:codigo});
+    if(currentUser?.id!==uid)return false;
+    if(previo.error){
+      if(!['PGRST202','42883'].includes(previo.error.code)){
+        showToast('No pudimos revisar lo que ya compartes. Intenta de nuevo.',true);
+        return false;
+      }
+    }else if(previo.data&&Array.isArray(previo.data.ramos))compartido=previo.data;
+    abrirHojaInvitacionProfesor(codigo,profe,compartido);
+    return true;
+  }catch(e){showToast('No pudimos abrir la invitación. Recarga GradeHub para intentarlo de nuevo.',true);return false;}
+  finally{invitacionProfeAbierta=false;}
+}
+
+function hojaInvitacionProfesorHTML(profe,ramos,nombre,compartido=null){
+  const marcados=new Set(compartido?.ramos||[]);
+  const filas=ramos.map(r=>{
+    const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(r):r.sigla;
+    return `<label class="compartir-ramo"><input type="checkbox" value="${esc(r.id)}" data-compartir-ramo${marcados.has(r.id)?' checked':''}>
+      <span><b>${esc(r.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span></label>`;
+  }).join('');
+  return `<div class="compartir-profe">
+    <div class="modal-title" id="modal-titulo">${compartido?'Edita lo que compartes con '+esc(profe.nombre_publico):esc(profe.nombre_publico)+' quiere ver tus notas'}</div>
+    <p class="compartir-explica">Elige los ramos en que tomas clases con ${esc(profe.nombre_publico)}. Va a ver cada nota de esos ramos y cómo vas comparado con el resto de GradeHub, y puede descargarlas para hacerte seguimiento. Nada más: ni tus otros ramos ni tu correo.</p>
+    ${ramos.length?`<div class="compartir-ramos" role="group" aria-label="Ramos que compartes">${filas}</div>`:'<p class="compartir-explica">Primero agrega un ramo para elegir qué compartir.</p>'}
+    ${ramos.length?`
+    <label class="modal-label" for="compartir-nombre">Cómo quieres aparecer</label>
+    <div class="modal-input"><input type="text" id="compartir-nombre" maxlength="60" autocomplete="off" value="${esc(nombre)}"></div>
+    <p class="compartir-explica">Puedes dejar de compartir cuando quieras en Ajustes → Datos y cuenta.</p>
+    <p class="compartir-error" id="compartir-error" role="alert" hidden></p>`:''}
+    <div class="modal-btns">
+      <button type="button" class="btn-cancel" id="compartir-no">${compartido?'Cancelar':'Ahora no'}</button>
+      ${ramos.length?`<button type="button" class="btn-confirm" id="compartir-si" disabled>${compartido?'Guardar cambios':'Compartir'}</button>`:'<button type="button" class="btn-confirm" id="compartir-agregar">Agregar ramo</button>'}
+    </div>
+  </div>`;
+}
+
+function abrirHojaInvitacionProfesor(codigo,profe,compartido=null){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  caja.innerHTML=hojaInvitacionProfesorHTML(profe,S.ramos||[],compartido?.nombre_visible||S.userName||'',compartido);
+  openModal();
+  track('panel_alumnos_invitacion_mostrada');
+  try{if(typeof ORIGEN_ENTRADA_KEY==='string'&&sessionStorage.getItem(ORIGEN_ENTRADA_KEY)==='profesor')sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);}catch(e){}
+  const cancelar=caja.querySelector('#compartir-no');
+  cancelar.addEventListener('click',()=>{olvidarProfePendiente();closeModal();});
+  const agregar=caja.querySelector('#compartir-agregar');
+  if(agregar){
+    agregar.addEventListener('click',()=>{
+      const usuario=currentUser?.id;
+      const retomar=()=>{
+        if(currentUser?.id===usuario&&profePendiente()===codigo)revisarInvitacionProfesor();
+      };
+      openAddRamoModal(retomar,retomar);
+    });
+    return;
+  }
+  const si=caja.querySelector('#compartir-si'),nombre=caja.querySelector('#compartir-nombre'),aviso=caja.querySelector('#compartir-error');
+  const casillas=[...caja.querySelectorAll('[data-compartir-ramo]')];
+  const elegidos=()=>casillas.filter(c=>c.checked).map(c=>c.value);
+  const actualizar=()=>{si.disabled=!elegidos().length||!nombre.value.trim();};
+  casillas.forEach(c=>c.addEventListener('change',actualizar));
+  nombre.addEventListener('input',actualizar);
+  actualizar();
+  si.addEventListener('click',async()=>{
+    if(si.disabled)return;
+    const ramos=elegidos(),nombreVisible=nombre.value.trim(),uid=currentUser?.id;
+    const textoBoton=si.textContent;
+    si.disabled=true;nombre.disabled=true;cancelar.disabled=true;
+    casillas.forEach(c=>{c.disabled=true;});
+    si.textContent=compartido?'Guardando…':'Compartiendo…';
+    aviso.hidden=true;
+    const r=await compartirConProfesor(codigo,nombreVisible,ramos);
+    // La hoja pudo ser reemplazada o la sesión pudo cambiar mientras esperaba.
+    if(caja.querySelector('#compartir-si')!==si||currentUser?.id!==uid)return;
+    if(r.ok){
+      olvidarProfePendiente();closeModal();
+      const n=ramos.length;
+      showToast(`Listo: ${profe.nombre_publico} ya ve tus notas de ${n} ${n===1?'ramo':'ramos'}.`);
+      track('compartir_con_profesor',{ramos:n});
+    }else{
+      nombre.disabled=false;cancelar.disabled=false;
+      casillas.forEach(c=>{c.disabled=false;});
+      si.textContent=textoBoton;
+      aviso.textContent=r.error;aviso.hidden=false;actualizar();
+    }
+  });
+}
+
+async function compartirConProfesor(codigo,nombre,ramos){
+  const pedir=()=>supabaseClient.rpc('compartir_con_profesor',{p_codigo:codigo,p_nombre:String(nombre||'').trim(),p_ramos:ramos});
+  try{
+    let {error}=await pedir();
+    // Un ramo recién agregado puede no haber subido todavía a la nube, que es
+    // donde se revisa que sea tuyo: se sube y se intenta una vez más.
+    if(error&&/al menos un ramo/.test(error.message||'')&&typeof syncNow==='function'){
+      await syncNow();({error}=await pedir());
+    }
+    if(!error)return {ok:true};
+    const m=error.message||'';
+    return {ok:false,error:/nombre/.test(m)?'Escribe con qué nombre quieres aparecer.'
+      :/al menos un ramo/.test(m)?'No pudimos guardar tus ramos en la nube. Revisa tu conexión e intenta de nuevo.'
+      :/ningún profesor/.test(m)?'Ese link ya no funciona. Pídele uno nuevo a tu profesor.'
+      :'No pudimos compartir. Intenta de nuevo.'};
+  }catch(e){return {ok:false,error:'No pudimos compartir. Revisa tu conexión e intenta de nuevo.'};}
+}
+
+// Ajustes → Datos y cuenta: con quién comparte el alumno, y cómo dejar de hacerlo.
+async function pintarCompartidosProfesor(){
+  const caja=document.getElementById('s-compartidos');
+  if(!caja||!supabaseClient||!currentUser)return;
+  let lista;
+  try{
+    const {data,error}=await supabaseClient.rpc('mis_profesores');
+    if(error)throw error;
+    lista=Array.isArray(data)?data:[];
+  }catch(e){caja.innerHTML='<p class="settings-help">No pudimos cargar con quién compartes. Vuelve a abrir esta sección.</p>';return;}
+  if(!caja.isConnected)return;
+  if(!lista.length){caja.innerHTML='<p class="settings-help">No compartes tus notas con ningún profesor.</p>';return;}
+  const nombreRamo=id=>{const r=(S.ramos||[]).find(x=>x.id===id);return r?r.nombre:null;};
+  caja.innerHTML=lista.map(p=>{
+    const ramos=(p.ramos||[]).map(nombreRamo).filter(Boolean);
+    return `<div class="compartido-fila" data-compartido="${esc(p.id)}">
+      <div><b>${esc(p.nombre_publico)}</b><small>${ramos.length?esc(ramos.join(' · ')):'Ramos que ya no tienes'} · como «${esc(p.nombre_visible)}»</small></div>
+      <button type="button" class="settings-danger-btn" data-dejar="${esc(p.id)}" data-nombre="${esc(p.nombre_publico)}">Dejar de compartir</button>
+    </div>`;
+  }).join('');
+  // Destructivo: se confirma en el diálogo de la app (HIG), con Cancelar a mano.
+  caja.querySelectorAll('[data-dejar]').forEach(b=>b.addEventListener('click',()=>{
+    showConfirm(`Dejar de compartir con ${b.dataset.nombre}`,
+      'Deja de ver tus notas en este momento. Si quieres volver a compartir, abre su link otra vez.',async()=>{
+      b.disabled=true;
+      try{
+        const {error}=await supabaseClient.rpc('dejar_de_compartir',{p_id:b.dataset.dejar});
+        if(error)throw error;
+        showToast('Dejaste de compartir tus notas.');
+        track('dejar_de_compartir_profesor');
+        pintarCompartidosProfesor();
+      }catch(e){b.disabled=false;showToast('No pudimos dejar de compartir. Intenta de nuevo.',true);}
+    },{label:'Dejar de compartir',focusCancel:true});
+  }));
+}
+
+// ─── Lado del profesor ───────────────────────────────────────────────────────
+function ramoParaPanel(r){
+  // Los ramos llegan tal como el alumno los guardó; normalize les completa lo
+  // que una versión vieja pudo no escribir, igual que al cargar la app.
+  try{const n=typeof normalize==='function'?normalize({ramos:[r]}).ramos[0]:r;return n||r;}catch(e){return r;}
+}
+// Notas agrupadas como en la ficha del ramo: cada categoría con su promedio
+// (el del motor, con descartes y reglas) y sus notas debajo.
+function categoriasDeRamoPanel(r){
+  let valores=new Map();
+  try{
+    const base=typeof calculoRamoConCompuertas==='function'?calculoRamoConCompuertas(r):null;
+    if(base&&base.res)valores=new Map((base.res.breakdown||[]).map(n=>[n.id,n.value]));
+  }catch(e){}
+  return (r.categorias||[]).map(c=>{
+    const notas=(c.notas||[]).filter(n=>typeof n.valor==='number'&&isFinite(n.valor)).map(n=>{
+      const nombre=(n.nombre||'').trim()||c.nombre;
+      return {id:n.id,nombre,valor:n.valor,clave:claveEvaluacionPanel(nombre)};
+    });
+    const v=valores.get(c.id);
+    const promedio=typeof v==='number'&&isFinite(v)?v:(typeof avgPond==='function'?avgPond(notas):null);
+    return {nombre:c.nombre,clave:claveEvaluacionPanel(c.nombre),notas,promedio};
+  }).filter(c=>c.notas.length);
+}
+// La próxima evaluación sin nota del ramo, de hoy en adelante, y cuánto
+// necesita en ella para ir con 4 después de rendirla: lo mismo que el alumno
+// ve en sus widgets (notaParaIrConCuatro), con las fechas de su Agenda.
+// Los ramos que el alumno compartió, que es donde se busca el ramo vinculado.
+// Sin esto ramoAvg buscaba en S.ramos, que en el panel son los del PROFESOR: la
+// Dinámica de un alumno se combinaba con el laboratorio del profesor. Con una
+// búsqueda escrita, igual se usan todos los que compartió, no solo los que se ven.
+function ramosDelAlumnoPanel(al){return ((al&&(al.todosLosRamos||al.ramos))||[]).map(ramoParaPanel);}
+function proximaEvaluacionPanel(ramo,ahora=new Date(),contexto=[ramo]){
+  if(typeof agendaEvents!=='function')return null;
+  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  let e=null;
+  try{e=agendaEvents([ramo]).find(x=>x.pending&&x.fecha>=hoy)||null;}catch(err){return null;}
+  if(!e)return null;
+  const cuatro=(typeof notaParaIrConCuatro==='function'?notaParaIrConCuatro(e,contexto):null)||{};
+  return {evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,fecha:e.fecha,hora:e.hora||null,
+    necesita:cuatro.nota||null,margen:!!cuatro.margen,inalcanzable:!!cuatro.inalcanzable};
+}
+function proximaEvaluacionPanelHTML(p){
+  if(!p)return '';
+  const cuando=esc(fechaCorta(p.fecha))+(p.hora?' · '+esc(p.hora):'');
+  // Sin color: el semáforo es para notas, y esto es una meta.
+  const meta=p.necesita?`necesita <b>${esc(p.necesita.replace('.',','))}</b> para ir con 4`
+    :p.margen?'va con 4 con cualquier nota'
+    :p.inalcanzable?'con esta sola no alcanza el 4':'';
+  return `<p class="panel-alumnos-proxima"><span>Próxima: <b>${esc(p.evaluacion)}</b> · ${cuando}</span>${meta?`<span>${meta}</span>`:''}</p>`;
+}
+// `etiqueta`: true dice "GradeHub"; un texto ("Sección 3") dice ese texto.
+function comparacionTexto(prom,personas,etiqueta=false){
+  const nombre=etiqueta===true?'GradeHub':etiqueta?esc(etiqueta):'';
+  if(prom==null)return `<span class="panel-alumnos-sin">${nombre?nombre+': aún pocos datos':'Aún pocos datos'}</span>`;
+  return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${nombre?nombre+' · ':''}${personas} personas</small></span>`;
+}
+// POR SECCIÓN (2026-10-20, pedido de Salva Ramos): el profesor elige comparar
+// con todo GradeHub o con la sección de cada alumno, la que escribió en Editar
+// ramo. Sin sección declarada no hay con qué comparar y se dice. La elección
+// se recuerda en este navegador; si no se puede, parte en GradeHub.
+const SIN_SECCION_PANEL=Object.freeze({sinSeccion:true,ramo:null,evaluaciones:[],categorias:[]});
+const CLAVE_COMPARA_PANEL='gh_panel_compara';
+function comparaSeccionGuardado(){try{return localStorage.getItem(CLAVE_COMPARA_PANEL)==='seccion';}catch(e){return false;}}
+function guardarComparaSeccion(v){try{localStorage.setItem(CLAVE_COMPARA_PANEL,v?'seccion':'gradehub');}catch(e){}}
+function comparaPanelHTML(seccion){
+  const op=(v,t)=>`<button type="button" data-compara="${v}" aria-pressed="${(v==='seccion')===seccion}">${t}</button>`;
+  return `<div class="panel-alumnos-compara" role="group" aria-label="Comparar con">${op('gradehub','Todo GradeHub')}${op('seccion','Su sección')}</div>`;
+}
+// `extra` va bajo la cabeza del ramo (en el panel, cuándo empezó en él). El
+// ramo se pliega con la misma flecha que la fila del alumno; `abierto` dice
+// cómo parte.
+function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
+  const ramo=ramoParaPanel(r);
+  contexto=contexto||[ramo];
+  const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
+  const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
+  const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
+  const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
+  const categorias=categoriasDeRamoPanel(ramo);
+  // Una nota cuyo nombre no calza con nadie no repite "aún pocos datos": la
+  // comparación útil está en su categoría.
+  const sinSeccion=!!(comp&&comp.sinSeccion),guion='<span class="panel-alumnos-sin">—</span>';
+  const nombreComp=comp&&Number.isInteger(comp.seccion)?`Sección ${comp.seccion}`:'GradeHub';
+  const deNota=n=>{const e=!sinSeccion&&porNota.get(n.clave);return e?comparacionTexto(e.promedio,e.personas):guion;};
+  const deCategoria=c=>{if(sinSeccion)return guion;const e=porCategoria.get(c.clave);return comparacionTexto(e?e.promedio:null,e?e.personas:0);};
+  const filas=categorias.map(c=>{
+    // Una categoría de una sola nota es una sola fila.
+    if(c.notas.length===1)return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}</td><td>${esc(fmt(c.notas[0].valor))}</td><td>${deCategoria(c)}</td></tr></tbody>`;
+    return `<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${c.notas.length} notas</small></td><td>${c.promedio===null?'·':esc(fmtPromedio(c.promedio))}</td><td>${deCategoria(c)}</td></tr>
+      ${c.notas.map(n=>`<tr class="panel-alumnos-nota"><td>${esc(n.nombre)}</td><td>${esc(fmt(n.valor))}</td><td>${deNota(n)}</td></tr>`).join('')}</tbody>`;
+  }).join('');
+  return `<details class="panel-alumnos-ramo" data-ramo="${esc(ramo.id)}"${abierto?' open':''}>
+    <summary class="panel-alumnos-ramo-cabeza">
+      <span class="panel-alumnos-ramo-resumen"><span class="panel-alumnos-ramo-nombre"><b>${esc(ramo.nombre)}</b>${sigla?`<small>${esc(sigla)}</small>`:''}</span>
+        <span class="panel-alumnos-ramo-cifras"><span class="panel-alumnos-prom">${avg===null?'Sin notas':esc(fmtPromedio(avg))}<small>promedio</small></span>
+        ${sinSeccion?'<span class="panel-alumnos-gh">No disponible<small>sin sección</small></span>'
+          :comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,nombreComp==='GradeHub'?true:nombreComp)}</span></span>
+    </summary>
+    ${extra}
+    ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
+    ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>${comp&&(sinSeccion||Number.isInteger(comp.seccion))?'Su sección':'GradeHub'}</th></tr></thead>${filas}</table>`
+      :'<p class="clase-sin-datos">Todavía no tiene notas en este ramo.</p>'}
+  </details>`;
+}
+
+// Resumen del grupo (#667): por ramo, cuántos alumnos, su promedio (ramoAvg de
+// cada uno, como en su app, y después el promedio simple entre ellos), cómo va
+// cada categoría y cada prueba, y cuántos van en cada color del semáforo. Todo
+// con lo que el panel ya bajó; la comparación con GradeHub es la misma de
+// siempre, agregada y desde 5 personas.
+// Cada alumno se calcula con las reglas de nota de SU universidad, no con las
+// del profesor que mira. La UAndes redondea a la centésima y después a la
+// décima: un 3,946 es 4,0 para un alumno UAndes y 3,9 para uno de la UC. Con
+// la universidad del profesor, uno UAndes salía reprobando siendo aprobado, y
+// uno UC aprobando siendo reprobado. El motor lee S.tenant en cada llamada:
+// acá se pone la del alumno y se restaura siempre, aunque algo falle. Todo lo
+// que corre adentro es sincrónico.
+function conUniversidadPanel(tenant,fn){
+  const conocida=typeof TENANTS==='object'&&TENANTS&&Object.prototype.hasOwnProperty.call(TENANTS,tenant);
+  if(!S||!conocida||S.tenant===tenant)return fn();
+  const propia=S.tenant;
+  S.tenant=tenant;
+  try{return fn();}finally{S.tenant=propia;}
+}
+// El motor busca los ramos vinculados en S.ramos. Durante este cálculo
+// sincrónico deben ser los del alumno, nunca los del profesor que mira.
+function conRamosAlumnoPanel(al,fn){
+  return conUniversidadPanel(al.tenant,()=>{
+    const propios=S.ramos,contexto=ramosDelAlumnoPanel(al);
+    S.ramos=contexto;
+    try{return fn(contexto);}finally{S.ramos=propios;}
+  });
+}
+function resumenAlumnosPanel(alumnos,compDe){
+  const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+  const grupos=new Map();
+  (alumnos||[]).forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
+    const ramo=ramoParaPanel(r);
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
+    // Con la universidad en la clave, un grupo nunca mezcla reglas de nota.
+    const clave=`${al.tenant}|`+(sigla?String(sigla).toUpperCase():'nombre|'+claveEvaluacionPanel(ramo.nombre));
+    if(!grupos.has(clave))grupos.set(clave,{clave,tenant:al.tenant,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
+      promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
+    const g=grupos.get(clave);
+    g.alumnos++;
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+    if(Number.isFinite(avg))g.promedios.push(avg);
+    g.semaforo[Number.isFinite(avg)&&typeof nivelRamo==='function'?nivelRamo(ramo,avg):'neutral']++;
+    categoriasDeRamoPanel(ramo).forEach(c=>{
+      if(!c.clave)return;
+      if(!g.categorias.has(c.clave))g.categorias.set(c.clave,{clave:c.clave,nombre:c.nombre,promedios:[],evaluaciones:new Map()});
+      const gc=g.categorias.get(c.clave);
+      if(Number.isFinite(c.promedio))gc.promedios.push(c.promedio);
+      c.notas.forEach(n=>{
+        if(!n.clave)return;
+        if(!gc.evaluaciones.has(n.clave))gc.evaluaciones.set(n.clave,{clave:n.clave,nombre:n.nombre,notas:[]});
+        gc.evaluaciones.get(n.clave).notas.push(n.valor);
+      });
+    });
+  });}));
+  return [...grupos.values()].map(g=>({clave:g.clave,tenant:g.tenant,nombre:g.nombre,sigla:g.sigla,comp:g.comp,alumnos:g.alumnos,
+    conNotas:g.promedios.length,promedio:media(g.promedios),semaforo:g.semaforo,
+    categorias:[...g.categorias.values()].map(c=>({clave:c.clave,nombre:c.nombre,alumnos:c.promedios.length,promedio:media(c.promedios),
+      evaluaciones:[...c.evaluaciones.values()].map(e=>({clave:e.clave,nombre:e.nombre,alumnos:e.notas.length,promedio:media(e.notas)}))}))}))
+    .sort((x,y)=>y.alumnos-x.alumnos||String(x.nombre).localeCompare(String(y.nombre),'es'));
+}
+function resumenAlumnosPanelHTML(resumen){
+  const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
+  const prom=v=>v===null?'·':esc(fmtPromedio(v));
+  const ramos=resumen.map(g=>conUniversidadPanel(g.tenant,()=>{
+    const comp=g.comp||{};
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
+    const dif=g.promedio!==null&&comp.ramo&&comp.ramo.promedio!=null?g.promedio-Number(comp.ramo.promedio):null;
+    // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
+    const sem=[['good','aprobando'],['warn','al borde'],['bad','reprobando']].filter(([k])=>g.semaforo[k])
+      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('')+
+      (g.semaforo.neutral?`<span class="panel-resumen-sem">${g.semaforo.neutral} sin notas</span>`:'');
+    const filas=g.categorias.map(c=>`<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${n(c.alumnos,'alumno','alumnos')}</small></td><td>${prom(c.promedio)}</td><td>${gh(porCategoria.get(c.clave))}</td></tr>
+      ${c.evaluaciones.length>1?c.evaluaciones.map(e=>`<tr class="panel-alumnos-nota"><td>${esc(e.nombre)}<small>${n(e.alumnos,'nota','notas')}</small></td><td>${prom(e.promedio)}</td><td>${porNota.has(e.clave)?gh(porNota.get(e.clave)):'<span class="panel-alumnos-sin">—</span>'}</td></tr>`).join(''):''}</tbody>`).join('');
+    return `<details class="panel-resumen-ramo">
+      <summary>
+        <span class="panel-resumen-nombre"><b>${esc(g.nombre)}</b><small>${g.sigla?esc(g.sigla)+' · ':''}${n(g.alumnos,'alumno','alumnos')}</small></span>
+        <span class="panel-alumnos-prom">${g.promedio===null?'Sin notas':prom(g.promedio)}<small>tus alumnos</small></span>
+        ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
+        <span class="panel-resumen-semaforo">${sem}</span>
+      </summary>
+      ${dif===null?'':`<p class="panel-resumen-dif">Tus alumnos van <b>${Math.abs(dif)<0.05?'igual que':`${esc(unDecimalPanel(dif))} ${dif>0?'sobre':'bajo'}`}</b> el promedio de GradeHub en este ramo.</p>`}
+      ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
+        :'<p class="clase-sin-datos">Todavía no hay notas en este ramo.</p>'}
+      <button type="button" class="agent-refresh panel-resumen-ver" data-ver-ramo="${esc(g.sigla||g.nombre)}">Ver ${n(g.alumnos,'alumno','alumnos')} de este ramo</button>
+    </details>`;
+  })).join('');
+  return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Tus alumnos por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
+    ${ramos}
+    <p class="clase-privacidad">“Tus alumnos” es el promedio simple entre los alumnos con nota. Si van sobre o bajo GradeHub no dice por qué: también cuentan el profesor de cátedra, la sección y lo que cada uno estudia.</p>
+  </section>`;
+}
+
+// ─── ESTADÍSTICAS DEL PROFESOR: ANTES Y AHORA (#697) ─────────────────────────
+// Cómo les iba a sus alumnos antes de empezar con el profesor y cómo les va
+// ahora. La medida principal es la DIFERENCIA CON EL CURSO: la nota menos el
+// promedio de GradeHub en esa misma evaluación (desde 5 personas), para que una
+// prueba más fácil no parezca una mejora. Una evaluación sin fecha no se puede
+// poner antes ni después: queda fuera y se cuenta. Con menos de
+// MIN_EVALS_COMPARACION evaluaciones comparables a cada lado no hay "cambio".
+// Antes y después no prueba que la mejora sea por las clases: quien busca
+// clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.
+const MIN_EVALS_COMPARACION=2;
+function diaLocalPanel(f){
+  // Una fecha sin hora ya es un día: leída con new Date sería medianoche UTC,
+  // que en Chile todavía es el día anterior (el 1 de septiembre salía 31 de agosto).
+  if(typeof f==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(f))return f;
+  const d=f instanceof Date?f:new Date(f);if(f==null||isNaN(d))return null;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+const mediaPanel=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+function medianaPanel(xs){
+  if(!xs.length)return null;const o=xs.slice().sort((a,b)=>a-b),m=o.length>>1;
+  return o.length%2?o[m]:(o[m-1]+o[m])/2;
+}
+// Cada nota con su fecha (la de la Agenda del alumno) y el promedio del curso
+// en esa evaluación. Una categoría de una sola evaluación se compara con su
+// categoría, que es la misma prueba.
+function evaluacionesConFechaPanel(ramo,comp){
+  const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
+  const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
+  const out=[],vistas=new Set();
+  let eventos=[];try{eventos=typeof agendaEvents==='function'?agendaEvents([ramo]):[];}catch(e){}
+  eventos.forEach(e=>(e.notas||[]).forEach(n=>{
+    if(typeof n.valor!=='number'||vistas.has(n.id))return;
+    vistas.add(n.id);
+    const nombre=(n.nombre||'').trim()||e.cat.nombre;
+    const unica=!(Number.isInteger(e.cat.slots)&&e.cat.slots>1)&&(e.cat.notas||[]).length<=1;
+    const ref=porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null);
+    out.push({id:n.id,ramo:ramo.nombre,ramoId:ramo.id,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
+      curso:ref&&ref.promedio!=null&&isFinite(Number(ref.promedio))?Number(ref.promedio):null,
+      aprobada:typeof notaAprobada==='function'?notaAprobada(n.valor):n.valor>=4});
+  }));
+  let sinFecha=0;
+  (ramo.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{if(typeof n.valor==='number'&&!vistas.has(n.id))sinFecha++;}));
+  return {evaluaciones:out,sinFecha};
+}
+function resumenLadoPanel(lista){
+  const comparadas=lista.filter(e=>e.curso!==null);
+  return {n:lista.length,nComparadas:comparadas.length,
+    promedio:mediaPanel(lista.map(e=>e.nota)),
+    diferencia:mediaPanel(comparadas.map(e=>e.nota-e.curso)),
+    aprobacion:lista.length?lista.filter(e=>e.aprobada).length/lista.length:null};
+}
+// Cuándo empezó con el profesor EN ESE RAMO (pedido de Salva Ramos,
+// 2026-10-20: la mitad toma más de una clase, cada una desde otra fecha). La
+// fecha propia del ramo; si no, la que el profesor puso para todo (#697); si
+// no, cuándo compartió. `fuente` dice cuál de las tres es.
+function inicioRamoPanel(al,r){
+  const propia=al&&al.inicio_ramos&&r?al.inicio_ramos[r.id]:null;
+  if(propia)return {dia:diaLocalPanel(propia),fuente:'ramo'};
+  if(al&&al.inicio)return {dia:diaLocalPanel(al.inicio),fuente:'general'};
+  return {dia:diaLocalPanel(al&&al.desde),fuente:'compartio'};
+}
+// `inicio`, si viene, manda sobre la fecha de cada ramo.
+function metricasAlumnoPanel(al,compDe,{inicio}={}){
+  return conUniversidadPanel(al.tenant,()=>{
+    const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
+    let evaluaciones=[],sinFecha=0;
+    (al.ramos||[]).forEach(r=>{
+      const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      const corte=inicio!==undefined?desde:inicioRamoPanel(al,r).dia;
+      x.evaluaciones.forEach(e=>{e.inicio=corte;e.lado=corte&&e.fecha<corte?'antes':'ahora';});
+      evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
+    });
+    evaluaciones.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
+    const antes=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='antes'));
+    const ahora=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='ahora'));
+    const suficiente=antes.nComparadas>=MIN_EVALS_COMPARACION&&ahora.nComparadas>=MIN_EVALS_COMPARACION;
+    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,
+      cambio:suficiente?ahora.diferencia-antes.diferencia:null};
+  });
+}
+// El grupo: la mediana del cambio (un alumno que subió mucho no la mueve sola),
+// cuántos mejoraron de los que tienen datos, y aprobación y promedio de todas
+// las evaluaciones juntas, antes y ahora.
+function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
+  const porAlumno=(alumnos||[]).map(al=>metricasAlumnoPanel(al,compDe,inicioDe?{inicio:inicioDe(al)}:{}));
+  const conCambio=porAlumno.filter(m=>m.cambio!==null);
+  const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
+  return {alumnos:porAlumno,conCambio:conCambio.length,
+    mejoraron:conCambio.filter(m=>m.cambio>0).length,
+    cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
+    antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),
+    sinFecha:porAlumno.reduce((s,m)=>s+m.sinFecha,0)};
+}
+
+// Buscador del panel: por el nombre con que el alumno eligió aparecer, o por
+// ramo o sigla, sin importar tildes ni mayúsculas. Si calza el nombre se ven
+// todos sus ramos; si calza un ramo, solo ese.
+function filtrarAlumnosPanel(alumnos,texto){
+  const q=claveEvaluacionPanel(texto);
+  if(!q)return alumnos;
+  const calza=s=>(claveEvaluacionPanel(s)||'').includes(q);
+  return alumnos.map(al=>{
+    if(calza(al.nombre_visible))return al;
+    const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
+      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
+    return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
+  }).filter(Boolean);
+}
+// ─── La pantalla de "antes y ahora" ──────────────────────────────────────────
+// Cambio del grupo y aprobación antes/ahora; debajo, cada alumno.
+// Las explicaciones del método se consultan al final, después de los datos.
+// Sin colores del semáforo: subir respecto del curso no es "aprobar".
+const unDecimalPanel=v=>Math.abs(v).toFixed(1);
+const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
+const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
+function frenteAlCursoPanel(d,referencia='el curso'){
+  if(d===null)return 'sin comparación';
+  return Math.abs(d)<0.05?`igual que ${referencia}`:`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} ${referencia}`;
+}
+// Cada alumno en una fila (Lucas, 2026-10-23: Estadísticas necesitaba algo
+// visual): dónde estaba respecto del curso antes de empezar (punto hueco) y
+// dónde está ahora (punto lleno), sobre una misma escala con el curso al
+// centro. Ordenados por cuánto cambiaron; tocar la fila abre su ficha. El
+// texto de cada fila dice lo mismo que el dibujo, para VoiceOver.
+function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
+  const ref=seccion?'su sección':'el curso';
+  const conDatos=(g.alumnos||[]).filter(m=>m&&m.antes&&m.ahora&&(m.antes.diferencia!==null||m.ahora.diferencia!==null));
+  if(!conDatos.length)return '';
+  const lim=Math.max(1,Math.ceil(Math.max(...conDatos.flatMap(m=>[m.antes.diferencia,m.ahora.diferencia]).filter(v=>v!==null).map(Math.abs))));
+  const pos=d=>(50+Math.max(-1,Math.min(1,d/lim))*50).toFixed(1);
+  const lado=d=>d===null?'sin datos':Math.abs(d)<0.05?`igual que ${ref}`:`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} ${ref}`;
+  const orden=[...conDatos].sort((a,b)=>(b.cambio??-99)-(a.cambio??-99)||String(a.nombre).localeCompare(String(b.nombre),'es'));
+  const filas=orden.map(m=>{
+    const a=m.antes.diferencia,b=m.ahora.diferencia;
+    const tramo=a!==null&&b!==null?`<i class="ah-tramo" style="left:${pos(Math.min(a,b))}%;width:${(pos(Math.max(a,b))-pos(Math.min(a,b))).toFixed(1)}%"></i>`:'';
+    return `<li><button type="button" data-ver-alumno="${esc(m.id)}">
+      <span class="ah-fila-nombre">${esc(m.nombre)}</span>
+      <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
+      <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${a===null?'—':esc(conSignoPanel(a))}</b></span><span>Ahora <b>${b===null?'—':esc(conSignoPanel(b))}</b></span></span>
+      <span class="ah-fila-cambio${m.cambio===null||Math.abs(m.cambio)<0.05?'':m.cambio>0?' ah-sube':' ah-baja'}"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?'Sin comparación':'puntos'}</small></span>
+      <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' Aún pocos datos para el cambio.':''}</span></button></li>`;
+  }).join('');
+  const fuera=g.alumnos.length-conDatos.length;
+  return `<section class="ah-alumnos" aria-labelledby="ah-alumnos-titulo">
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Por alumno</h2></div>
+    <p class="ah-referencia">Puntos frente a ${ref} · 0 = su promedio</p>
+    <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes</span><span><i class="ah-dot ah-dot-ahora"></i>Ahora</span></p>
+    <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El curso'}</span><span>${lim} sobre</span></span><span></span></div>
+    <ul class="ah-filas">${filas}</ul>
+    ${fuera?`<p class="clase-sin-datos">${fuera} ${fuera===1?'alumno no tiene':'alumnos no tienen'} evaluaciones comparables con fecha todavía.</p>`:''}
+  </section>`;
+}
+// `seccion`: la comparación es con la sección de cada alumno; `sinSeccion`,
+// cuántos alumnos no la declararon en algún ramo.
+function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
+  if(!g||!g.alumnos.length)return '';
+  const respecto=seccion?'Respecto de su sección':'Respecto del curso';
+  const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al curso';
+  const conFecha=g.antes.n+g.ahora.n;
+  // Proporción de alumnos comparables; no es una nota ni un porcentaje de aprobación.
+  // Las mismas piezas que Estadísticas del estudiante (htmlAnillo, 2026-10-26),
+  // en el acento y nunca en el semáforo: mejorar frente al curso no es aprobar.
+  const anillo=g.conCambio?htmlAnillo({fraccion:g.mejoraron/g.conCambio,color:'var(--ah-acento)',chico:true,
+    etiqueta:`${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'} mejoraron`,
+    centro:`<span class="anillo-valor">${g.mejoraron}</span><span class="anillo-texto">de ${g.conCambio}</span>`}):'<strong>—</strong>';
+  const prom=v=>v===null?'—':esc(fmt(v));
+  // Antes y ahora es una comparación: dos barras paralelas en la misma escala
+  // se comparan de un vistazo, dos anillos no (Lucas, 2026-10-26).
+  const aprobacion=(lado,nombre)=>`<div class="ah-aprobacion-fila"><span>${nombre}</span><span class="ah-aprobacion-pista" aria-hidden="true">${lado.aprobacion===null?'':`<i style="width:${Math.round(lado.aprobacion*100)}%"></i>`}</span><b>${porcentajePanel(lado.aprobacion)}</b></div>`;
+  return `<section class="ah-grupo ah-visual" aria-labelledby="ah-titulo">
+    <div class="ah-panorama">
+      <div class="ah-balance">
+        <h2 id="ah-titulo">${tituloCambio}</h2>
+        <div class="ah-balance-cifras">
+          <div><strong class="ah-dato-principal">${g.cambioMediana===null?'—':esc(conSignoPanel(g.cambioMediana))}<small>puntos</small></strong><span class="ah-dato-contexto">${g.cambioMediana===null?'Aún pocos datos':`Mediana · ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`}</span></div>
+          <div class="ah-mejoraron">${anillo}<span class="ah-dato-contexto">Mejoraron</span></div>
+        </div>
+      </div>
+      <div class="ah-resultados">
+        <h3>Evaluaciones aprobadas</h3>
+        <div class="ah-aprobacion">${aprobacion(g.antes,'Antes')}${aprobacion(g.ahora,'Ahora')}</div>
+        <div class="ah-promedios"><span>Promedio de evaluaciones</span><span>Antes <b>${prom(g.antes.promedio)}</b><span aria-hidden="true"> → </span><span class="sr-solo">. </span>Ahora <b>${prom(g.ahora.promedio)}</b></span></div>
+      </div>
+    </div>
+    ${graficoAlumnosAntesAhoraHTML(g,{seccion})}
+    <p class="ah-alcance">Desde que empezaron contigo. El cambio no demuestra el efecto de las clases.</p>
+    <details class="ah-metodo"><summary>Cómo se calcula</summary><p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p></details>
+  </section>`;
+}
+// Una serie: la diferencia con el curso en cada evaluación comparable. La
+// línea del curso (0) va tenue. Si los ramos empezaron en días distintos, cada
+// uno lleva su marca y su fecha en la leyenda; los puntos anteriores van huecos.
+// Cada punto tiene un área de 12 px para mostrar su detalle.
+function graficoAntesAhoraSVG(m,{seccion=false}={}){
+  const referencia=seccion?'su sección':'el curso',etiqueta=seccion?'sección':'curso';
+  const pts=m.evaluaciones.filter(e=>e.curso!==null);
+  if(pts.length<2)return '';
+  // PL deja lugar a la escala de la izquierda (2026-10-23): sin ella no se leía
+  // cuánto sobre o bajo el curso iba cada punto.
+  const W=320,H=96,P=14,PL=30;
+  const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
+  // Una línea por ramo, cada una de su color, con su nombre en la leyenda (el
+  // color solo no basta). Con un ramo los puntos van parejos; con varios, por
+  // fecha, para que las líneas calcen en el tiempo.
+  const ramos=[...new Set(pts.map(e=>e.ramoId??e.ramo))];
+  const varios=ramos.length>1;
+  const inicios=ramos.map(clave=>{const e=pts.find(p=>(p.ramoId??p.ramo)===clave);return {nombre:e.ramo,fecha:e.inicio};});
+  const variosInicios=varios&&new Set(inicios.map(e=>e.fecha).filter(Boolean)).size>1;
+  const t=f=>Date.parse(f+'T12:00:00Z');
+  const fechasEje=variosInicios?pts.map(e=>e.fecha).concat(inicios.map(e=>e.fecha).filter(Boolean)):pts.map(e=>e.fecha);
+  const t0=Math.min(...fechasEje.map(t)),t1=Math.max(...fechasEje.map(t));
+  const xFecha=f=>PL+(t(f)-t0)/(t1-t0)*(W-PL-P);
+  const xs=pts.map((e,i)=>varios&&t1>t0?xFecha(e.fecha):PL+i*(W-PL-P)/(pts.length-1));
+  const y=d=>H/2-(d/lim)*(H/2-P);
+  const corte=pts.findIndex(e=>e.lado==='ahora');
+  const unCorte=!variosInicios&&(corte<0||pts.slice(corte).every(e=>e.lado==='ahora'));
+  const xc=unCorte&&corte>0?((xs[corte-1]+xs[corte])/2).toFixed(1):null;
+  const marcas=variosInicios?inicios.map((e,k)=>{
+    if(!e.fecha)return '';
+    const iguales=inicios.slice(0,k).filter(p=>p.fecha===e.fecha).length;
+    const x=Math.min(W-P,Math.max(P,xFecha(e.fecha)+iguales*3)).toFixed(1);
+    return `<line class="ah-marca-ramo ah-serie-${k%4}" x1="${x}" y1="4" x2="${x}" y2="${H-4}"/>`;
+  }).join(''):xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
+  const series=ramos.map((clave,k)=>{
+    const idx=pts.map((e,i)=>(e.ramoId??e.ramo)===clave?i:-1).filter(i=>i>=0);
+    const linea=idx.map((i,j)=>`${j?'L':'M'}${xs[i].toFixed(1)} ${y(pts[i].nota-pts[i].curso).toFixed(1)}`).join(' ');
+    const puntos=idx.map(i=>{const e=pts[i],cx=xs[i].toFixed(1),cy=y(e.nota-e.curso).toFixed(1);
+      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (${etiqueta} ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
+    return `<g class="ah-serie-${k%4}">${idx.length>1?`<path class="ah-linea" d="${linea}"/>`:''}${puntos}</g>`;
+  }).join('');
+  const inicioTexto=e=>e.fecha?` · desde el ${fechaCorta(e.fecha)}`:' · sin fecha de inicio';
+  const leyenda=varios?`<p class="ah-leyenda">${inicios.map((e,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(e.nombre)}${esc(inicioTexto(e))}</span>`).join('')}</p>`:'';
+  const resumen=`Diferencia con ${referencia} en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia,referencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}${varios?'; '+inicios.map(e=>e.nombre+inicioTexto(e)).join('; '):inicios[0].fecha?`; empezó el ${fechaCorta(inicios[0].fecha)}`:''}`;
+  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${PL}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/><text class="ah-eje" x="0" y="${P+4}">+${lim}</text><text class="ah-eje" x="0" y="${H/2+4}">${etiqueta}</text><text class="ah-eje" x="0" y="${H-P+4}">−${lim}</text>${marcas}${series}</svg>
+    <p class="ah-fechas"><span>${esc(fechaCorta(pts[0].fecha))}</span><span>${esc(fechaCorta(pts[pts.length-1].fecha))}</span></p>
+    ${leyenda}<p class="ah-pie">${varios?'Por fecha.':'Evaluaciones en orden de fecha, con igual espacio entre puntos.'} Diferencia en puntos de nota. La línea central es el promedio ${seccion?'de su sección':'del curso'}: arriba, sobre ese promedio; abajo, bajo él.${unCorte?'':' Los puntos huecos son de antes de empezar cada ramo.'}</p>`;
+}
+function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false}={}){
+  const referencia=seccion?'su sección':'el curso';
+  if(!m||!m.evaluaciones.length)return '';
+  const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'
+    :m.cambio===null?'Aún pocos datos para comparar antes y ahora'
+    :Math.abs(m.cambio)<0.05?`Igual que antes, respecto ${seccion?'de su sección':'del curso'}`
+    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} puntos respecto ${seccion?'de su sección':'del curso'}`;
+  const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
+  return `<div class="ah-alumno">
+    <p class="ah-alumno-resumen">${resumen}</p>
+    ${sinSeccion?'':`<p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia,referencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}</span></p>`}
+    <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion})}</div>
+    <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
+      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>${seccion?'Sección':'Curso'}</th></tr></thead><tbody>${filas}</tbody></table>
+      ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
+    </details>
+  </div>`;
+}
+
+// "Empezó contigo el …", en cada ramo: por omisión el día que compartió, que
+// suele ser después de la primera clase; el profesor lo corrige ramo por ramo
+// y las estadísticas de ese ramo comparan desde ahí.
+function lineaInicioRamoHTML(al,r){
+  const {dia,fuente}=inicioRamoPanel(al,r);if(!dia)return '';
+  return `<p class="panel-alumnos-inicio"><span>Empezó contigo el <b>${esc(fechaCorta(dia))}</b>${fuente==='compartio'?' · el día que compartió':''}</span>
+    <button type="button" class="agent-refresh" data-inicio-alumno="${esc(al.id)}" data-inicio-ramo="${esc(r.id)}" aria-label="Cambiar cuándo empezó en ${esc(r.nombre||'este ramo')}">Cambiar</button></p>`;
+}
+// Hoja con el selector de fecha del sistema (HIG: Date pickers). La fecha no
+// puede ser futura: no se compara contra lo que todavía no pasa.
+function abrirInicioRamo(al,r,alGuardar,rpc=(nombre,args)=>supabaseClient.rpc(nombre,args)){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  const hoy=diaLocalPanel(new Date()),actual=inicioRamoPanel(al,r);
+  // Quitar la fecha propia vuelve a la que el profesor puso para todo (#697)
+  // o, si no hay, al día que compartió.
+  const volverA=al.inicio?`Volver al ${esc(fechaCorta(diaLocalPanel(al.inicio)))}`:'Usar el día que compartió';
+  caja.innerHTML=`<div class="modal-title" id="modal-titulo">¿Cuándo empezó ${esc(al.nombre_visible)} contigo en ${esc(r.nombre||'este ramo')}?</div>
+    <p class="compartir-explica">Las estadísticas de este ramo comparan cómo le iba antes de esa fecha y cómo le va desde ahí.</p>
+    <label class="modal-label" for="inicio-fecha">Primera clase de este ramo</label>
+    <div class="modal-input"><input type="date" id="inicio-fecha" min="2000-01-01" max="${hoy}" value="${esc(actual.dia||'')}"></div>
+    <p class="compartir-error" id="inicio-error" role="alert" hidden></p>
+    ${actual.fuente==='ramo'?`<button type="button" class="rep-link" id="inicio-reset">${volverA}</button>`:''}
+    <div class="modal-btns"><button type="button" class="btn-cancel" id="inicio-cancelar">Cancelar</button><button type="button" class="btn-confirm" id="inicio-guardar">Guardar</button></div>`;
+  openModal();
+  const error=caja.querySelector('#inicio-error'),boton=caja.querySelector('#inicio-guardar');
+  const avisar=t=>{error.textContent=t;error.hidden=!t;};
+  const guardar=async valor=>{
+    boton.disabled=true;avisar('');
+    try{
+      const {data,error:e}=await rpc('fijar_inicio_ramo_alumno',{p_id:al.id,p_ramo:r.id,p_inicio:valor});
+      if(e)throw e;
+      // false: el alumno dejó de compartir ese ramo mientras la hoja estaba abierta.
+      if(data===false){boton.disabled=false;avisar('Ya no te comparte este ramo.');return;}
+      closeModal();showToast('Fecha guardada.');alGuardar();
+    }catch(e){boton.disabled=false;avisar(/futura/.test((e&&e.message)||'')?'Elige una fecha que ya pasó.':'No pudimos guardarla. Intenta de nuevo.');}
+  };
+  caja.querySelector('#inicio-cancelar').addEventListener('click',closeModal);
+  boton.addEventListener('click',()=>{
+    const v=caja.querySelector('#inicio-fecha').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){avisar('Elige una fecha.');return;}
+    if(v>hoy){avisar('Elige una fecha que ya pasó.');return;}
+    guardar(v);
+  });
+  const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
+}
+function datosFilaAlumnoPanel(al,ahora=new Date()){
+  return conRamosAlumnoPanel(al,contexto=>{
+    const visibles=(al.ramos||[]).map(ramoParaPanel);
+    const estados={good:0,warn:0,bad:0,neutral:0};
+    const datos=visibles.map(ramo=>{
+      let avg=null,necesita=null,pendiente=0,nivel='neutral';
+      try{
+        avg=ramoAvg(ramo,undefined,contexto);
+        if(Number.isFinite(avg)){
+          nivel=nivelRamo(ramo,avg);
+          pendiente=estadoParaNotaNecesaria(ramo).pendiente;
+          if(pendiente>0){
+            necesita=notaNecesaria(ramo);
+            if(!Number.isFinite(necesita))necesita=null;
+          }
+        }
+      }catch(e){}
+      estados[nivel]++;
+      return {ramo,avg,nivel,necesita,pendiente};
+    });
+    const nivel=estados.bad?'bad':estados.warn?'warn':estados.good?'good':'neutral';
+    const prioridad=Math.max(0,...datos.map(d=>d.avg===null?0:d.necesita!==null&&d.necesita>7.05?5
+      :d.necesita!==null&&d.necesita>5?4:d.nivel==='bad'?3:d.nivel==='warn'?2:1));
+    const exigencia=Math.max(0,...datos.map(d=>Number.isFinite(d.necesita)?d.necesita:0));
+    const exigente=datos.filter(d=>Number.isFinite(d.necesita)).sort((a,b)=>b.necesita-a.necesita)[0]||null;
+    const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+    let proxima=null;
+    try{
+      const evento=agendaEvents(visibles).find(e=>e.pending&&e.fecha>=hoy);
+      if(evento){
+        const d=datos.find(x=>x.ramo===evento.ramo);
+        const cuatro=notaParaIrConCuatro(evento,contexto)||{};
+        const peso=pesoEventoAgenda(evento);
+        proxima={ramo:evento.ramo.nombre,evaluacion:(evento.nota&&evento.nota.nombre)||evento.cat.nombre,
+          fecha:evento.fecha,hora:evento.hora||null,avg:d?d.avg:null,necesita:d?d.necesita:null,cuatro,
+          // Misma regla que la Agenda: «pesa poco» es menos del 10% del ramo.
+          pesaPoco:peso!==null&&peso<EVALUACION_PESA_POCO};
+      }
+    }catch(e){}
+    return {al,nivel,estados,prioridad,exigencia,exigente,proxima,porRamo:datos.map(d=>({nombre:d.ramo.nombre,nivel:d.nivel}))};
+  });
+}
+function proximaFilaAlumnoHTML(p,exigente){
+  if(!p)return `<span class="panel-alumnos-fila-proxima">Sin próxima evaluación con fecha</span>
+    <span class="panel-alumnos-fila-meta">${exigente
+      ?exigente.necesita>7.05?`Con lo pendiente no alcanza para aprobar ${esc(exigente.ramo.nombre)}`
+        :`Para aprobar ${esc(exigente.ramo.nombre)}: ${esc(nfNecesaria(exigente.necesita).replace('.',','))} en lo pendiente`
+      :'Aún no se puede calcular cuánto necesita'}</span>`;
+  const cuando=fechaCorta(p.fecha)+(p.hora?' · '+p.hora:'');
+  let meta='Aún sin notas para calcular cuánto necesita';
+  if(p.avg!==null){
+    if(p.necesita!==null&&p.necesita>7.05)meta='Con lo pendiente no alcanza para aprobar';
+    else if(p.necesita!==null){
+      meta=`Para aprobar: ${nfNecesaria(p.necesita).replace('.',',')} en lo pendiente`;
+      // Como la Agenda (Lucas, 2026-10-22): si esta sola lo deja en 4,0, se dice
+      // la nota, pese lo que pese; si no, y vale menos del 10% del ramo, pesa poco.
+      if(p.cuatro.nota)meta+=` · ${p.cuatro.nota.replace('.',',')} en esta para ir con 4`;
+      else if(p.pesaPoco)meta+=' · esta evaluación pesa poco';
+      else if(p.cuatro.inalcanzable)meta+=' · con esta sola no alcanza';
+    }else if(p.cuatro.nota)meta=`${p.cuatro.nota.replace('.',',')} en esta evaluación para ir con 4`;
+    else meta='Aún no se puede calcular cuánto necesita';
+  }
+  return `<span class="panel-alumnos-fila-proxima">Próxima: <b>${esc(p.evaluacion)}</b> · ${esc(p.ramo)} · ${esc(cuando)}</span>
+    <span class="panel-alumnos-fila-meta">${esc(meta)}</span>`;
+}
+// ─── RESUMEN DE ALUMNOS (Lucas, 2026-10-22) ──────────────────────────────────
+// La vista con la que abre Alumnos: a quién atender y quién rinde esta semana.
+// Sale de lo que el panel ya bajó; no consulta nada nuevo.
+const DIAS_SEMANA_PANEL=7,MAX_FILAS_RESUMEN_PANEL=10;
+function fechaLargaPanel(iso){
+  const d=new Date(iso+'T12:00:00');if(isNaN(d))return iso;
+  const dia=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()];
+  return `${dia[0].toUpperCase()+dia.slice(1)} ${fechaCorta(iso)}`;
+}
+function resumenInicioAlumnosPanel(alumnos,ahora=new Date()){
+  const dia=d=>{const x=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+d);return isoOf(x.getFullYear(),x.getMonth(),x.getDate());};
+  const hoy=dia(0),limite=dia(DIAS_SEMANA_PANEL);
+  const diasA=f=>Math.round((new Date(f+'T12:00:00')-new Date(hoy+'T12:00:00'))/86400000);
+  const semana=[];
+  (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,()=>{
+    let eventos=[];try{eventos=agendaEvents((al.ramos||[]).map(ramoParaPanel));}catch(e){}
+    eventos.filter(e=>e.pending&&e.fecha>=hoy&&e.fecha<=limite).forEach(e=>semana.push({al,fecha:e.fecha,hora:e.hora||null,
+      dias:diasA(e.fecha),evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,ramo:e.ramo.nombre}));
+  }));
+  // Hoy y mañana primero, como en la Agenda (#814); después por fecha y hora.
+  const cuando=x=>`${x.fecha}T${x.hora||''}`;
+  semana.sort((a,b)=>cuando(a).localeCompare(cuando(b))||String(a.al.nombre_visible).localeCompare(String(b.al.nombre_visible),'es'));
+  const filas=alumnosOrdenadosPanel(alumnos||[],ahora);
+  const atencion=filas.map(f=>({al:f.al,ramos:(f.porRamo||[]).filter(d=>d.nivel==='bad'||d.nivel==='warn'),exigente:f.exigente}))
+    .filter(f=>f.ramos.length);
+  const contar=n=>filas.filter(f=>(f.porRamo||[]).some(d=>d.nivel===n)).length;
+  return {semana,atencion,conectados:(alumnos||[]).length,reprobando:contar('bad'),alBorde:contar('warn')};
+}
+function resumenInicioAlumnosHTML(r){
+  const texto=n=>n==='bad'?'Reprobando':'Al borde';
+  const cifra=(valor,etiqueta,detalle)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small></div>`;
+  const mas=(n,vista)=>n>MAX_FILAS_RESUMEN_PANEL?`<button type="button" class="agent-refresh" data-ir-vista="${vista}">Ver ${n-MAX_FILAS_RESUMEN_PANEL} más en la lista</button>`:'';
+  // Agrupada por día (2026-10-23): la fecha va una vez como encabezado y no se
+  // repite en cada fila; en la fila queda solo la hora, si la hay.
+  const diaTexto=x=>x.dias===0?'Hoy':x.dias===1?'Mañana':fechaLargaPanel(x.fecha);
+  const visibles=r.semana.slice(0,MAX_FILAS_RESUMEN_PANEL);
+  const dias=[...new Set(visibles.map(x=>x.fecha))];
+  const semana=r.semana.length?dias.map(f=>{const del=visibles.filter(x=>x.fecha===f);
+      return `<h3 class="panel-resumen-dia${del[0].dias<=1?' pronto':''}">${esc(diaTexto(del[0]))}<small>${del.length} ${del.length===1?'evaluación':'evaluaciones'}</small></h3>
+      <ul class="panel-resumen-filas">${del.map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
+      <span><b>${esc(x.al.nombre_visible)}</b><small>${esc(x.evaluacion)} · ${esc(x.ramo)}</small></span>
+      ${x.hora?`<span class="panel-resumen-cuando">${esc(x.hora)}</span>`:''}</button></li>`).join('')}</ul>`;}).join('')+mas(r.semana.length,'lista')
+    :'<p class="profesor-hig-vacio">Nadie de tus alumnos tiene evaluaciones en los próximos 7 días.</p>';
+  const atencion=r.atencion.length?`<ul class="panel-resumen-filas">${r.atencion.slice(0,MAX_FILAS_RESUMEN_PANEL).map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
+      <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>`).join('')}</span></span>
+      ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><span class="panel-resumen-meta">Para aprobar</span><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
+    :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
+  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`)}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`)}</div>
+    <div class="panel-alumnos-resumen-columnas">
+      <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-atencion">
+        <div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>
+        <p class="panel-alumnos-contexto">Un alumno puede estar al borde en un ramo y reprobando otro.</p>
+        <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-atencion" tabindex="0">${atencion}</div>
+      </section>
+      <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-semana">
+        <div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>
+        <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-semana" tabindex="0">${semana}</div>
+      </section>
+    </div>`;
+}
+function contenidoAlumnoPanelHTML(al,compDe,ahora){
+  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
+    ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
+    <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>`;
+}
+function alumnosOrdenadosPanel(lista,ahora=new Date()){
+  return lista.map(al=>datosFilaAlumnoPanel(al,ahora))
+    .sort((a,b)=>b.prioridad-a.prioridad||b.exigencia-a.exigencia||
+      (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
+      String(a.al.nombre_visible||'').localeCompare(String(b.al.nombre_visible||''),'es'));
+}
+// En la pantalla principal solo se generan filas compactas. La ficha completa
+// se construye para un alumno cuando el profesor la abre.
+function alumnosPanelHTML(lista,compDe,ahora=new Date(),{soloFilas=false,limite=Infinity}={}){
+  const abierto=lista.length===1?' open':'';
+  const ordenados=alumnosOrdenadosPanel(lista,ahora);
+  // Con varios ramos, el estado de cada uno: el peor solo escondía que en el
+  // otro va bien (o al revés).
+  const texto=n=>n==='bad'?'Reprobando':n==='warn'?'Al borde':n==='good'?'Aprobando':'Sin notas';
+  const chip=(n,contenido,aria)=>`<span class="panel-alumnos-fila-estado panel-resumen-sem ${n==='neutral'?'':`panel-resumen-${n}`}" aria-label="${aria}">${contenido}</span>`;
+  const estadoHTML=(nivel,porRamo)=>porRamo.length
+    ?`<span class="panel-alumnos-fila-estados">${porRamo.map(d=>chip(d.nivel,`${esc(d.nombre)} · ${texto(d.nivel)}`,`${esc(d.nombre)}: ${texto(d.nivel).toLowerCase()}`)).join('')}</span>`
+    :chip(nivel,texto(nivel),`Estado: ${texto(nivel).toLowerCase()}`);
+  return ordenados.slice(0,limite).map(({al,nivel,proxima,exigente,porRamo})=>conUniversidadPanel(al.tenant,()=>{
+    const fila=`<span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
+        ${estadoHTML(nivel,porRamo)}
+        ${proximaFilaAlumnoHTML(proxima,exigente)}</span>`;
+    return soloFilas?`<button type="button" data-ver-alumno="${esc(al.id)}" class="panel-alumnos-alumno panel-alumnos-fila-boton">${fila}<span class="panel-alumnos-abrir" aria-hidden="true">›</span></button>`
+      :`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
+      <summary>${fila}</summary>${contenidoAlumnoPanelHTML(al,compDe,ahora)}</details>`;
+  })).join('');
+}
+
+// Exportar: una fila por alumno, ramo y evaluación, armada en el navegador con
+// lo que el panel ya tiene; no pasa por ningún servidor. Punto y coma y coma
+// decimal, como lo abre Excel en Chile; Google Sheets lo detecta igual.
+function celdaCsvPanel(v){
+  if(v===null||v===undefined)return '';
+  let s=String(v);
+  // El nombre lo escribe el alumno: "=…" no puede llegar a Excel como fórmula.
+  // Un número negativo ("-1,0") no es una fórmula y tiene que llegar como número.
+  if(/^[=+\-@\t\r]/.test(s)&&!/^-\d+(,\d+)?$/.test(s))s="'"+s;
+  return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+// `compSeccionDe` da la comparación con la sección de cada alumno: va en las
+// cuatro columnas del final, para no mover las que ya existían.
+function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
+  const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
+  const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
+  // Las de "antes y ahora" (#697) y cuándo empezó en el ramo (2026-10-20) van
+  // al final para no mover las columnas que alguien ya usa en su planilla.
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo']];
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
+    const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
+    const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
+      return [e.fecha,e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
+    (al.ramos||[]).forEach(r=>{
+    const empezo=inicioRamoPanel(al,r).dia||'';
+    const seccion=Number.isInteger(r.seccion)?r.seccion:'no declarada';
+    const compSec=(compSeccionDe&&compSeccionDe(al,r))||{};
+    const secNota=new Map((compSec.evaluaciones||[]).map(e=>[e.clave,e]));
+    const secCategoria=new Map((compSec.categorias||[]).map(e=>[e.clave,e]));
+    const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
+    const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'';
+    const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
+    const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
+    const base=[al.nombre_visible,ramo.nombre,sigla];
+    const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
+    const categorias=categoriasDeRamoPanel(ramo);
+    // Un ramo sin notas igual sale, para que el archivo tenga a todos.
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo,seccion,'','',gh(compSec.ramo)]);return;}
+    categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
+      gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id),empezo,
+      seccion,gh(secNota.get(n.clave)),gh(secCategoria.get(c.clave)),gh(compSec.ramo)])));
+  });}));
+  return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
+}
+// Una fila por ramo compartido. Las diferencias usan exactamente el corte y
+// las comparaciones del panel; sin muestra suficiente la celda queda vacía.
+function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date()){
+  const num=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'':String(v).replace('.',',');
+  const prom=v=>v===null||v===undefined?'':num(fmtPromedio(Number(v)));
+  const comparable=x=>x&&x.personas>=5?prom(x.promedio):'';
+  const diferencia=v=>v===null||v===undefined?'':num(v.toFixed(1));
+  const estado={good:'Aprobando',warn:'Al borde',bad:'Reprobando',neutral:'Sin notas'};
+  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el curso antes','Diferencia con el curso desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar']];
+  (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,ctx=>{
+    (al.ramos||[]).forEach(r=>{
+      const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
+      const sec=(compSeccionDe&&compSeccionDe(al,r))||{};
+      const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
+      const nivel=avg===null?'neutral':nivelRamo(ramo,avg);
+      const met=metricasAlumnoPanel({...al,ramos:[r]},compDe);
+      const proxima=proximaEvaluacionPanel(ramo,ahora,ctx);
+      filas.push([al.nombre_visible,ramo.nombre,
+        (typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'',
+        Number.isInteger(r.seccion)?r.seccion:'no declarada',
+        inicioRamoPanel(al,r).dia||'',prom(avg),comparable(comp.ramo),comparable(sec.ramo),
+        diferencia(met.antes.diferencia),diferencia(met.ahora.diferencia),
+        diferencia(met.cambio),estado[nivel]||'Sin notas',
+        proxima?proxima.evaluacion:'',proxima&&proxima.necesita?num(proxima.necesita):'']);
+    });
+  }));
+  return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
+}
+async function exportarAlumnosPanel(lista,compDe,compSeccionDe=null,formato='detalle',ejemplo=false){
+  const hoy=new Date(),dd=n=>String(n).padStart(2,'0');
+  const nombre=`gradehub-alumnos${ejemplo?'-ejemplo':''}${formato==='resumen'?'-resumen':''}-${hoy.getFullYear()}-${dd(hoy.getMonth()+1)}-${dd(hoy.getDate())}.csv`;
+  // La marca BOM hace que Excel lea bien las tildes.
+  const csv=formato==='resumen'?csvResumenAlumnosPanel(lista,compDe,compSeccionDe,hoy):csvAlumnosPanel(lista,compDe,compSeccionDe);
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  if(!ejemplo)track('panel_alumnos_exportado',{alumnos:lista.length});
+  // En el teléfono, guardar un archivo es la hoja de compartir del sistema.
+  try{
+    const archivo=typeof File==='function'?new File([blob],nombre,{type:blob.type}):null;
+    const tactil=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
+    if(tactil&&archivo&&navigator.share&&navigator.canShare&&navigator.canShare({files:[archivo]})){
+      await navigator.share({files:[archivo]});return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=nombre;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast(ejemplo?'Archivo de ejemplo descargado.':'Archivo descargado.');
+}
+function elegirArchivoAlumnosPanel(alElegir){
+  const caja=document.getElementById('modal-content');if(!caja)return;
+  caja.innerHTML=`<div class="modal-title" id="modal-titulo">Exportar a Excel</div>
+    <p class="compartir-explica">Elige el archivo que necesitas.</p>
+    <div class="panel-alumnos-exportar-opciones">
+      <button type="button" data-exportar-panel="detalle"><b>Detalle por evaluación</b><span>Una fila por evaluación, para tablas dinámicas</span></button>
+      <button type="button" data-exportar-panel="resumen"><b>Resumen por alumno</b><span>Una fila por alumno y ramo, para gráficos</span></button>
+    </div>
+    <div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-exportar-cancelar">Cancelar</button></div>`;
+  openModal();
+  caja.querySelector('#alumnos-exportar-cancelar').addEventListener('click',closeModal);
+  caja.querySelectorAll('[data-exportar-panel]').forEach(b=>b.addEventListener('click',()=>{
+    const formato=b.dataset.exportarPanel;
+    closeModal();alElegir(formato);
+  }));
+}
+
+// La pestaña "Alumnos" (#697): el panel ya no vive dentro de Clases.
+let versionTabAlumnos=0;
+async function renderAlumnosTab(){
+  const raiz=document.getElementById('alumnos-body');
+  if(!raiz)return;
+  const usuario=currentUser,version=++versionTabAlumnos;
+  // Una cuenta de profesor tiene esta pestaña desde el primer día (#697), pero
+  // sus consultas exigen estar aprobado: mientras no lo esté, se dice por qué
+  // está vacía en vez de mostrar un error.
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    if(perfilProfesorConocido()===undefined)await cargarPerfilProfesor().catch(()=>{});
+    if(currentUser!==usuario||version!==versionTabAlumnos)return;
+    if(!esProfesorAprobado()){
+      raiz.innerHTML='<div class="profesor-hig">'+
+        '<p class="profesor-info" role="status">Cuando aprobemos tu postulación, acá vas a ver las notas que tus alumnos decidan compartirte.</p></div>';
+      return;
+    }
+  }
+  renderAlumnosProfesor(raiz);
+}
+// ─── ALUMNOS DE EJEMPLO (2026-10-22, decisión de Lucas) ──────────────────────
+// Un administrador lo activa para el profesor que elija (alumnos_ejemplo.sql).
+// Ese profesor ve su panel con alumnos SINTÉTICOS de Ingeniería UC: las pautas
+// salen de los presets; las notas, los compañeros de curso y las secciones se
+// inventan acá, en su navegador. Nada se manda a la base ni entra a ningún
+// promedio, y el panel lo dice con una franja. Las fechas van relativas a hoy
+// para que el ejemplo no envejezca.
+function datosEjemploAlumnosPanel(hoy=new Date()){
+  let semilla=20261022;
+  const azar=()=>{semilla|=0;semilla=semilla+0x6D2B79F5|0;let t=Math.imul(semilla^semilla>>>15,1|semilla);
+    t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  const base=new Date(Date.UTC(hoy.getFullYear(),hoy.getMonth(),hoy.getDate())-70*86400000);
+  const dia=n=>new Date(base.getTime()+n*86400000).toISOString().slice(0,10);
+  const HOY=dia(70);
+  const nota=v=>Math.round(Math.min(7,Math.max(1,v+(azar()-.5)*1.4))*10)/10;
+  let uid=0;
+  const ramoCon=(nombre,seccion,nivel)=>{
+    let r=null;try{r=presetRamo(nombre,'uc','ING-PC');}catch(e){}
+    if(!r)return null;
+    r.id='ejemplo-'+(++uid);r.nombre=r.nombre||nombre;r.color=r.color||'#0d7a6b';
+    if(seccion)r.seccion=seccion;
+    const cats=r.categorias||[];
+    const total=cats.reduce((n,c)=>n+(Number.isInteger(c.slots)&&c.slots>1?c.slots:1),0)||1;
+    let k=0;
+    cats.forEach(c=>{
+      const n=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
+      c.notas=[];delete c.fecha;
+      for(let i=0;i<n;i++,k++){
+        const fecha=/examen/i.test(c.nombre)?dia(108):dia(Math.round(4+k*(100/total)));
+        if(fecha<=HOY)c.notas.push({id:r.id+'-n'+k,nombre:n>1?`${c.nombre} ${i+1}`:c.nombre,valor:nota(nivel(fecha)),fecha});
+        else if(!c.fecha)c.fecha=fecha;
+      }
+    });
+    return r;
+  };
+  // Seis alumnos que suben desde que empiezan; dos sin sección declarada y
+  // dos con ramos empezados en fechas distintas.
+  const plan=[
+    ['Sofía (ejemplo)',3.6,[['Cálculo II',3,28],['Dinámica',2,50]]],
+    ['Matías (ejemplo)',3.3,[['Cálculo II',3,35]]],
+    ['Valentina (ejemplo)',4.2,[['Dinámica',2,22],['Laboratorio de Dinámica',2,null]]],
+    ['Benjamín (ejemplo)',3.8,[['Introducción a la Programación',null,40]]],
+    ['Isidora (ejemplo)',4.6,[['Cálculo II',1,15],['Introducción a la Programación',4,45]]],
+    ['Tomás (ejemplo)',3.0,[['Cálculo II',null,30]]],
+  ];
+  const alumnos=plan.map(([nombre,nivelBase,ramos],i)=>{
+    const inicio_ramos={};
+    const propios=ramos.map(([ramo,seccion,desde])=>{
+      const inicio=desde===null?null:dia(desde);
+      const r=ramoCon(ramo,seccion,f=>inicio&&f>=inicio?nivelBase+1.1:nivelBase);
+      if(r&&inicio)inicio_ramos[r.id]=inicio;
+      return r;
+    }).filter(Boolean);
+    return {id:'ejemplo-alumno-'+i,nombre_visible:nombre,tenant:'uc',desde:dia(32)+'T15:00:00Z',inicio:null,inicio_ramos,ramos:propios};
+  }).filter(al=>al.ramos.length);
+  // Compañeros de curso: 40 por ramo, secciones 1 a 4 y algunos sin sección.
+  const curso=[];
+  ['Cálculo II','Dinámica','Laboratorio de Dinámica','Introducción a la Programación'].forEach(nombre=>{
+    for(let i=0;i<40;i++){const nivel=3.2+azar()*2.6,r=ramoCon(nombre,i%9===0?null:1+(i%4),()=>nivel);if(r)curso.push(r);}
+  });
+  return {alumnos,curso};
+}
+// La misma forma que comparacion_ramo_profesor, con el mismo piso de cinco
+// personas. Acá se aplica en el navegador porque los datos también son de acá.
+const PISO_PERSONAS_EJEMPLO=5;
+function comparacionEjemploPanel(datos,sigla,seccion=null){
+  const media=xs=>xs.reduce((a,b)=>a+b,0)/xs.length,red=v=>Math.round(v*10)/10;
+  const todos=[...datos.curso,...datos.alumnos.flatMap(a=>a.ramos)]
+    .filter(r=>String(claveRamoCurso(r,'uc')||'').toUpperCase()===String(sigla||'').toUpperCase())
+    .filter(r=>seccion==null||r.seccion===seccion);
+  const porClave=fn=>{const m=new Map();todos.forEach(r=>fn(r).forEach(([k,nombre,v])=>{
+    if(!k)return;if(!m.has(k))m.set(k,{nombre,vals:[]});m.get(k).vals.push(v);}));
+    return [...m].filter(([,x])=>x.vals.length>=PISO_PERSONAS_EJEMPLO).map(([clave,x])=>({clave,nombre:x.nombre,promedio:red(media(x.vals)),personas:x.vals.length}));};
+  const proms=todos.map(r=>{try{return ramoAvg(r,undefined,[r]);}catch(e){return null;}}).filter(Number.isFinite);
+  return {ramo:proms.length>=PISO_PERSONAS_EJEMPLO?{promedio:red(media(proms)),personas:proms.length}:null,
+    evaluaciones:porClave(r=>(r.categorias||[]).flatMap(c=>(c.notas||[]).map(n=>[claveEvaluacionPanel(n.nombre),n.nombre,n.valor]))),
+    categorias:porClave(r=>(r.categorias||[]).filter(c=>(c.notas||[]).length).map(c=>[claveEvaluacionPanel(c.nombre),c.nombre,media(c.notas.map(n=>n.valor))]))};
+}
+// Las llamadas del panel, respondidas en memoria. Cambiar una fecha o quitar
+// a un alumno dura hasta recargar.
+function rpcEjemploPanel(datos,nombre,a={}){
+  const ok=data=>Promise.resolve({data,error:null});
+  if(nombre==='mis_alumnos')return ok(JSON.parse(JSON.stringify(datos.alumnos)));
+  if(nombre==='comparacion_ramo_profesor')return ok(comparacionEjemploPanel(datos,a.p_sigla,a.p_seccion??null));
+  if(nombre==='fijar_inicio_ramo_alumno'){
+    const al=datos.alumnos.find(x=>x.id===a.p_id);if(!al||!al.ramos.some(r=>r.id===a.p_ramo))return ok(false);
+    if(a.p_inicio)al.inicio_ramos[a.p_ramo]=a.p_inicio;else delete al.inicio_ramos[a.p_ramo];
+    return ok(true);
+  }
+  if(nombre==='quitar_alumno'){const n=datos.alumnos.length;datos.alumnos=datos.alumnos.filter(x=>x.id!==a.p_id);return ok(datos.alumnos.length<n);}
+  return Promise.resolve({data:null,error:{message:'sin respuesta en el ejemplo'}});
+}
+// Se pregunta en cada carga, así un administrador lo prende o lo apaga y se
+// nota al volver a la pestaña. Los alumnos inventados se guardan por cuenta
+// para que una fecha cambiada dure hasta recargar. Sin el SQL aplicado la
+// consulta falla y el panel sigue siendo el real.
+let ejemploAlumnosPanel={usuario:undefined,datos:null};
+async function ejemploAlumnosDeCuenta(){
+  const usuario=currentUser&&currentUser.id;
+  let activo=false;
+  try{const {data,error}=await supabaseClient.rpc('mis_alumnos_ejemplo');activo=!error&&data===true;}catch(e){}
+  if(!activo||(currentUser&&currentUser.id)!==usuario)return null;
+  if(ejemploAlumnosPanel.usuario!==usuario||!ejemploAlumnosPanel.datos)
+    ejemploAlumnosPanel={usuario,datos:datosEjemploAlumnosPanel()};
+  return ejemploAlumnosPanel.datos;
+}
+const ALUMNOS_POR_PAGINA=50;
+let versionPanelAlumnos=0;
+async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=null}={}){
+  // La vista que pidió la barra lateral manda; si no, la que se indicó; si no, el Resumen.
+  vistaInicial=(typeof tomarVistaNav==='function'&&tomarVistaNav('alumnos'))||vistaInicial||'resumen';
+  const usuario=currentUser,cliente=supabaseClient,version=++versionPanelAlumnos;
+  const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAlumnos&&raiz.isConnected!==false;
+  raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
+    '<div class="panel-alumnos-estado" role="status"><h2>Cargando tus alumnos</h2><p>Estamos preparando sus ramos y evaluaciones.</p></div></div>';
+  // Con alumnos de ejemplo, lo de los alumnos se responde en memoria. El link
+  // de invitación y su renovación siguen siendo los reales del profesor.
+  // Se pregunta en paralelo con la carga real, para no sumar una espera.
+  let ejemplo=null;
+  const rpc=(nombre,args)=>ejemplo?rpcEjemploPanel(ejemplo,nombre,args):supabaseClient.rpc(nombre,args);
+  let codigo,alumnos;
+  try{
+    const [c,reales,datosEjemplo]=await Promise.all([supabaseClient.rpc('codigo_alumnos_profesor'),
+      supabaseClient.rpc('mis_alumnos'),ejemploAlumnosDeCuenta()]);
+    if(!vigente())return;
+    ejemplo=datosEjemplo;
+    const a=ejemplo?await rpc('mis_alumnos'):reales;
+    if(!vigente())return;
+    if(c.error||a.error)throw (c.error||a.error);
+    codigo=c.data;alumnos=Array.isArray(a.data)?a.data:[];
+  }catch(e){
+    if(!vigente())return;
+    raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
+      '<div class="panel-alumnos-estado" role="alert"><h2>No pudimos cargar tus alumnos</h2><p>Inténtalo de nuevo para ver sus ramos y evaluaciones.</p></div>'+
+      `<div class="modal-btns"><button type="button" class="accion-principal" id="alumnos-volver">${volver?'Volver':'Reintentar'}</button></div></div>`;
+    // En su pestaña no hay a dónde volver: se ofrece intentarlo de nuevo.
+    raiz.querySelector('#alumnos-volver').addEventListener('click',()=>{if(vigente())(volver?volver():renderAlumnosProfesor(raiz));});
+    return;
+  }
+  // Una consulta por ramo distinto, no por alumno. UAI y UAndes pueden usar
+  // nombre normalizado cuando no existe sigla, igual que curso_notas.
+  const cursos=new Map();
+  alumnos.forEach(al=>(al.ramos||[]).forEach(r=>{
+    const clave=al.tenant&&claveRamoCurso(r,al.tenant);
+    if(clave)cursos.set(claveCurso(al.tenant,clave),null);
+  }));
+  await Promise.all([...cursos.keys()].map(async k=>{
+    const separador=k.indexOf('|'),tenant=k.slice(0,separador),sigla=k.slice(separador+1);
+    try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
+  }));
+  if(!vigente())return;
+  const compGeneral=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
+  // Por sección se consulta solo al pedirlo (el control o el Excel), una vez
+  // por ramo y sección distintos, de a cuatro para no cargar la base.
+  const secciones=new Map();
+  const claveSeccion=(al,r)=>{const c=al.tenant&&claveRamoCurso(r,al.tenant);return c&&Number.isInteger(r.seccion)?claveCurso(al.tenant,c)+'|'+r.seccion:null;};
+  const compSeccion=(al,r)=>{const k=claveSeccion(al,r);if(!k)return SIN_SECCION_PANEL;
+    return secciones.get(k)||{seccion:r.seccion,ramo:null,evaluaciones:[],categorias:[]};};
+  let cargandoSecciones=null;
+  const cargarSecciones=()=>cargandoSecciones||(cargandoSecciones=(async()=>{
+    const pendientes=[...new Set(alumnos.flatMap(al=>(al.ramos||[]).map(r=>claveSeccion(al,r)).filter(Boolean)))];
+    const una=async k=>{
+      const [tenant,sigla,seccion]=k.split('|');
+      try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla,p_seccion:Number(seccion)});
+        if(!error&&data)secciones.set(k,{...data,seccion:Number(seccion)});}catch(e){}
+    };
+    for(let i=0;i<pendientes.length;i+=4)await Promise.all(pendientes.slice(i,i+4).map(una));
+  })());
+  let porSeccion=alumnos.length>0&&comparaSeccionGuardado();
+  if(porSeccion)await cargarSecciones();
+  if(!vigente())return;
+  const compDe=(al,r)=>porSeccion?compSeccion(al,r):compGeneral(al,r);
+  const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
+  const grupoHTML=lista=>lista.length?antesAhoraGrupoHTML(metricasGrupoPanel(lista,compDe),{seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(lista):0}):'';
+  const link=linkAlumnosProfesor(codigo);
+  const mensaje=mensajeInvitacionAlumnos();
+  // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
+  // primero a quiénes están conectados y luego las cifras del grupo.
+  const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
+      <h2>${alumnos.length?'Invitar alumno':'Invita a tu primer alumno'}</h2>
+      <p>Mándale este link. Elegirá qué ramos te comparte y podrá dejar de hacerlo cuando quiera.</p>
+      <div class="panel-alumnos-url"><span>Link de invitación</span><code id="alumnos-link">${esc(link)}</code></div>
+      <p class="panel-alumnos-codigo">Tu código <strong>${esc(codigo)}</strong></p>
+      <button type="button" class="accion-principal" id="alumnos-compartir">Compartir invitación</button>
+      <button type="button" class="agent-refresh" id="alumnos-copiar">Copiar link</button>
+      <p class="panel-alumnos-mensaje"><strong>Mensaje sugerido para WhatsApp</strong><span>${esc(mensaje)}</span></p>
+      <div class="panel-alumnos-renovar"><p>Al cambiar el link, el anterior deja de funcionar. Tus alumnos actuales siguen conectados.</p><button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button></div>
+      <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
+    </section>`;
+  const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
+  const privacidad=`<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.${ejemplo?' Datos de ejemplo: no corresponden a personas reales. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».':''}</p>`;
+  // La franja va siempre arriba y no se cierra: nadie puede confundir estos
+  // alumnos con los suyos.
+  const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas ficticios.</p>`:'';
+  raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
+    franjaEjemplo+
+    // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla
+    // ancha las mismas vistas están en la barra lateral y este control se oculta.
+    (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' tres-vistas'}" aria-label="Vistas de Alumnos">
+      <button type="button" data-panel-vista="resumen" aria-pressed="true">Resumen</button>
+      <button type="button" data-panel-vista="lista" aria-pressed="false">Lista</button>
+      <button type="button" data-panel-vista="estadisticas" aria-pressed="false">Estadísticas</button>
+      ${alumnos.length>1?'<button type="button" data-panel-vista="ramos" aria-pressed="false">Ramos</button>':''}
+    </nav>
+    <header class="panel-alumnos-cabecera" id="alumnos-cabecera"><h2 id="alumnos-vista-titulo">Resumen</h2></header>
+    <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
+    <section class="panel-alumnos-vista" id="alumnos-vista-resumen" aria-label="Resumen de tus alumnos"></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos" hidden>
+      <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
+      <button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button>
+      ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Buscar alumnos"
+        aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
+      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
+      <div id="alumnos-lista">${listaInicial}</div>
+      <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
+    </section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-estadisticas" aria-label="Estadísticas de tus alumnos" hidden></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-ramos" aria-label="Ramos de tus alumnos" hidden></section>
+    <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
+      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>
+      <h2 id="alumnos-ficha-titulo"></h2>
+      <div id="alumnos-ficha-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
+      <div id="alumnos-ficha-contenido"></div>
+    </section>
+    <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
+      <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>${seccionLink}
+    </section>${privacidad}`
+      :`${seccionLink}<div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta">0</span></div>
+        <p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>`)+
+    (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
+  const botonVolver=raiz.querySelector('#alumnos-volver');
+  if(botonVolver)botonVolver.addEventListener('click',()=>{if(vigente())volver();});
+  const seleccionarLink=()=>{const el=raiz.querySelector('#alumnos-link'),sel=window.getSelection&&window.getSelection();
+    if(sel&&el){const rango=document.createRange();rango.selectNodeContents(el);sel.removeAllRanges();sel.addRange(rango);}};
+  raiz.querySelector('#alumnos-compartir').addEventListener('click',async()=>{
+    if(!vigente())return;
+    const resultado=await compartirInvitacionAlumnos(link);
+    if(!vigente())return;
+    medirInvitacionCompartida(resultado);
+    if(resultado==='copiado')showToast('Invitación copiada. Pégala en WhatsApp.');
+    if(resultado==='fallo'){seleccionarLink();showToast('No pudimos compartir. Selecciona y copia el link.',true);}
+  });
+  raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
+    if(!vigente())return;
+    try{await navigator.clipboard.writeText(link);if(!vigente())return;track('panel_alumnos_link_copiado');showToast('Link copiado.');}
+    catch(e){if(!vigente())return;seleccionarLink();showToast('Selecciónalo y cópialo.',true);}
+  });
+  // Lo que no se deshace se confirma en el diálogo de la app (HIG), con Cancelar a mano.
+  const renovar=raiz.querySelector('#alumnos-renovar');
+  renovar.addEventListener('click',()=>{if(!vigente())return;showConfirm('Cambiar tu link',
+    'El link actual deja de funcionar y tendrás que mandar el nuevo. Los alumnos que ya comparten contigo siguen igual.',async()=>{
+      if(!vigente())return;
+      renovar.disabled=true;
+      try{const {error}=await supabaseClient.rpc('codigo_alumnos_profesor',{p_renovar:true});if(error)throw error;
+        if(!vigente())return;
+        showToast('Link cambiado.');renderAlumnosProfesor(raiz,{volver,vistaInicial:alumnos.length?'invitar':'lista'});}
+      catch(e){if(vigente()){renovar.disabled=false;showToast('No pudimos cambiar el link.',true);}}
+    },{label:'Cambiar link',focusCancel:true});});
+  if(!alumnos.length){track('panel_alumnos_abierto',{alumnos:0});return;}
+  const lista=raiz.querySelector('#alumnos-lista');
+  const ficha=raiz.querySelector('#alumnos-vista-ficha');
+  const fichaContenido=raiz.querySelector('#alumnos-ficha-contenido');
+  const paneles={resumen:raiz.querySelector('#alumnos-vista-resumen'),lista:raiz.querySelector('#alumnos-vista-lista'),
+    estadisticas:raiz.querySelector('#alumnos-vista-estadisticas'),
+    ramos:raiz.querySelector('#alumnos-vista-ramos'),ficha,invitar:raiz.querySelector('#alumnos-vista-invitar')};
+  const nav=raiz.querySelector('.panel-alumnos-vistas');
+  const invitar=raiz.querySelector('#alumnos-ir-invitar');
+  const comparaWrap=raiz.querySelector('#alumnos-compara-wrap');
+  const avisoPrivacidad=raiz.querySelector('#alumnos-privacidad');
+  let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
+  const mas=raiz.querySelector('#alumnos-mas');
+  // Se filtra en el navegador, con lo que el panel ya bajó.
+  const buscar=raiz.querySelector('#alumnos-buscar');
+  const filtrar=()=>{
+    if(!vigente()||!buscar)return;
+    const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);visibles=ALUMNOS_POR_PAGINA;
+    raiz.querySelector('#alumnos-cuenta').textContent=claveEvaluacionPanel(texto)?`${vista.length} de ${alumnos.length}`:String(alumnos.length);
+    pintarLista();
+  };
+  const pintarLista=()=>{
+    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe,new Date(),{soloFilas:true,limite:visibles})
+      :`<p class="profesor-hig-vacio">No encontramos alumnos para «${esc(raiz.querySelector('#alumnos-buscar')?.value.trim()||'')}».</p>`;
+    mas.hidden=vista.length<=visibles;
+  };
+  const enlazarQuitar=()=>fichaContenido.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>{if(!vigente())return;showConfirm(`Quitar a ${b.dataset.nombre}`,
+    'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
+      if(!vigente())return;
+      b.disabled=true;
+      try{const {error}=await rpc('quitar_alumno',{p_id:b.dataset.quitarAlumno});if(error)throw error;
+        if(!vigente())return;
+        showToast('Lo quitaste de tu lista.');renderAlumnosProfesor(raiz,{volver,vistaInicial:'lista'});}
+      catch(e){if(vigente()){b.disabled=false;showToast('No pudimos quitarlo.',true);}}
+    },{label:'Quitar',focusCancel:true});}));
+  const enlazarInicio=()=>fichaContenido.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
+    if(!vigente())return;
+    const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
+    const r=al&&(al.ramos||[]).find(x=>x.id===b.dataset.inicioRamo);
+    if(r)abrirInicioRamo(al,r,()=>{if(vigente())renderAlumnosProfesor(raiz,{volver,alumnoId:al.id});},rpc);
+  }));
+  const pintarFicha=()=>{
+    if(!seleccionado)return;
+    raiz.querySelector('#alumnos-ficha-titulo').textContent=seleccionado.nombre_visible||'Alumno';
+    fichaContenido.innerHTML=conUniversidadPanel(seleccionado.tenant,()=>contenidoAlumnoPanelHTML(seleccionado,compDe,new Date()));
+    enlazarQuitar();enlazarInicio();
+  };
+  const activarVista=nombre=>{
+    if(!vigente())return;
+    if(!paneles[nombre]||(nombre==='ramos'&&alumnos.length<2))nombre='resumen';
+    // Otra vista parte arriba: la barra lateral la cambiaba y la página quedaba
+    // a media altura, mostrando el medio de algo nuevo.
+    if(nombre!==vistaActiva){const caja=typeof raiz.closest==='function'&&raiz.closest('.scroll');if(caja)caja.scrollTop=0;}
+    vistaActiva=nombre;
+    Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
+    nav.hidden=nombre==='ficha'||nombre==='invitar';
+    raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
+    raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Antes y ahora',ramos:'Por ramo'})[nombre]||'';
+    // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
+    // ficha tiene su propio control, bajo «‹ Lista» y el nombre (#816).
+    comparaWrap.hidden=nombre!=='estadisticas';
+    avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
+    nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
+      b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
+      if(b.dataset.panelVista===nombre&&typeof b.scrollIntoView==='function')b.scrollIntoView({block:'nearest',inline:'nearest'});
+    });
+    if(nombre==='resumen')paneles.resumen.innerHTML=resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(alumnos));
+    if(nombre==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
+    if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
+    if(typeof marcarVistaNav==='function')marcarVistaNav('alumnos',nombre==='ficha'||nombre==='invitar'?'lista':nombre);
+  };
+  if(typeof vistasPanelNav!=='undefined')vistasPanelNav.alumnos=v=>{if(vigente())activarVista(v);};
+  const abrirFicha=(al,origen)=>{
+    if(!vigente())return;
+    seleccionado=al;botonOrigen=origen||null;pintarFicha();activarVista('ficha');
+    const regresar=raiz.querySelector('#alumnos-ficha-volver');
+    if(typeof regresar.focus==='function')regresar.focus();
+    if(typeof raiz.scrollIntoView==='function')raiz.scrollIntoView({block:'start'});
+  };
+  nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.addEventListener('click',()=>activarVista(b.dataset.panelVista)));
+  invitar.addEventListener('click',()=>{
+    if(!vigente())return;
+    activarVista('invitar');const compartir=raiz.querySelector('#alumnos-compartir');
+    if(typeof compartir.focus==='function')compartir.focus();
+  });
+  raiz.querySelector('#alumnos-invitacion-volver').addEventListener('click',()=>{
+    if(!vigente())return;
+    activarVista('lista');if(typeof invitar.focus==='function')invitar.focus();
+  });
+  raiz.querySelector('#alumnos-ficha-volver').addEventListener('click',()=>{
+    if(!vigente())return;
+    const id=seleccionado&&String(seleccionado.id);
+    activarVista('lista');seleccionado=null;
+    const fila=[...lista.querySelectorAll('[data-ver-alumno]')].find(b=>b.dataset.verAlumno===id);
+    const foco=fila||(botonOrigen?.isConnected!==false?botonOrigen:null)||raiz.querySelector('#alumnos-buscar')||invitar;
+    if(typeof foco.focus==='function')foco.focus();
+  });
+  // El Resumen y Estadísticas abren la ficha de quien se toque; Ramos lleva a
+  // la Lista filtrada por ese ramo.
+  const alTocar=e=>{
+    if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
+    const ir=e.target.closest('[data-ir-vista]');if(ir){activarVista(ir.dataset.irVista);return;}
+    const ramo=e.target.closest('[data-ver-ramo]');
+    if(ramo&&buscar){buscar.value=ramo.dataset.verRamo;filtrar();activarVista('lista');return;}
+    const b=e.target.closest('[data-ver-alumno]');if(!b)return;
+    const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
+    if(al)abrirFicha(al,b);
+  };
+  ['resumen','estadisticas','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
+  lista.addEventListener('click',e=>{
+    if(!vigente())return;
+    const b=e.target.closest('[data-ver-alumno]');if(!b)return;
+    const al=vista.find(x=>String(x.id)===b.dataset.verAlumno);
+    if(al)abrirFicha(al,b);
+  });
+  mas.addEventListener('click',()=>{if(!vigente())return;visibles+=ALUMNOS_POR_PAGINA;pintarLista();});
+  if(buscar)buscar.addEventListener('input',filtrar);
+  // Cambiar la comparación vuelve a pintar los alumnos y el grupo con lo ya bajado.
+  const controles=['#alumnos-compara-wrap','#alumnos-ficha-compara-wrap']
+    .map(sel=>raiz.querySelector(`${sel} .panel-alumnos-compara`)).filter(Boolean);
+  const botones=controles.flatMap(c=>[...c.querySelectorAll('[data-compara]')]);
+  botones.forEach(b=>b.addEventListener('click',async()=>{
+    if(!vigente())return;
+    const quiere=b.dataset.compara==='seccion';if(quiere===porSeccion)return;
+    botones.forEach(x=>{x.disabled=true;});
+    if(quiere)await cargarSecciones();
+    if(!vigente())return;
+    porSeccion=quiere;guardarComparaSeccion(quiere);
+    botones.forEach(x=>{x.disabled=false;x.setAttribute('aria-pressed',String((x.dataset.compara==='seccion')===porSeccion));});
+    pintarLista();
+    if(vistaActiva==='ficha'){
+      const abiertos=new Map([...fichaContenido.querySelectorAll('details[data-ramo]')].map(d=>[d.dataset.ramo,d.open]));
+      pintarFicha();fichaContenido.querySelectorAll('details[data-ramo]').forEach(d=>{
+        if(abiertos.has(d.dataset.ramo))d.open=abiertos.get(d.dataset.ramo);
+      });
+    }
+    if(vistaActiva==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
+    track('panel_alumnos_compara',{seccion:quiere});
+  }));
+  const fichaInicial=alumnoId&&alumnos.find(x=>String(x.id)===String(alumnoId));
+  if(fichaInicial)abrirFicha(fichaInicial);else activarVista(vistaInicial);
+  // Exporta todos los que calzan con la búsqueda, en el orden de la lista: el
+  // "Mostrar 50 más" es para no pintar 300 filas, no para recortar la planilla
+  // (Salva Ramos pidió el desglose de todos sus alumnos). Antes de crear el
+  // archivo, recuerda lo que el profesor aceptó en los términos.
+  const exportar=raiz.querySelector('#alumnos-exportar');
+  if(exportar)exportar.addEventListener('click',async()=>{
+    if(!vigente())return;
+    const paraExportar=alumnosOrdenadosPanel(vista).map(({al})=>al);
+    if(!paraExportar.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
+    // Las columnas de sección van siempre. Se bajan antes del diálogo: el toque
+    // en «Exportar» es el que deja abrir la hoja de compartir del iPhone.
+    exportar.disabled=true;await cargarSecciones();
+    if(!vigente())return;
+    exportar.disabled=false;
+    elegirArchivoAlumnosPanel(formato=>{
+      const n=paraExportar.length;
+      showConfirm(ejemplo?'Exportar ejemplo':'Exportar notas',
+        ejemplo?`El archivo trae ${n===1?'1 alumno inventado':`${n} alumnos inventados`}, no notas reales. El nombre del archivo dirá «ejemplo».`:
+          `El archivo trae las notas que ${n===1?'te compartió 1 alumno':`te compartieron ${n} alumnos`}. Úsalo solo para apoyarlos: no lo publiques ni se lo pases a nadie, y si alguno deja de compartir, borra sus notas del archivo.`,
+        ()=>{if(vigente())exportarAlumnosPanel(paraExportar,compGeneral,compSeccion,formato,!!ejemplo);},{label:'Exportar',danger:false});
+    });
+  });
+  if(ejemplo)track('panel_alumnos_ejemplo');
+  else track('panel_alumnos_abierto',{alumnos:alumnos.length});
+}
+
+// El link del profesor puede llegar antes de que haya sesión: se guarda el
+// código y se ofrece compartir apenas la persona entra con su semestre listo.
+capturarProfeDeUrl();
+mostrarContextoInvitacionProfesor();
+
+// ─── ENCUESTAS DEL EQUIPO ──────────────────────────────────────────────────
+// Datos independientes del semestre. Solo RPC de encuestas: nunca notas/ramos.
+let encuestaCuenta=null,encuestaVisita=null,encuestaIntentada=false,encuestaActiva=null,encuestaVersion=0,encuestaCuentaNueva=null;
+function olvidarEncuestas(){
+  encuestaVersion++;encuestaCuenta=null;encuestaVisita=null;encuestaIntentada=false;encuestaActiva=null;encuestaCuentaNueva=null;
+  cerrarHojaEncuesta(false);
+  if(typeof document!=='undefined')document.querySelector?.('.encuestas-admin')?.remove?.();
+}
+function marcarPrimeraSesionEncuesta(uid){
+  olvidarEncuestas();encuestaCuenta=uid;encuestaCuentaNueva=uid;
+  if(!uid||!globalThis.crypto?.randomUUID)return;
+  encuestaVisita=visitaEncuesta(uid);
+  try{sessionStorage.setItem('gradehub_encuesta_primera_'+uid,encuestaVisita);}catch(e){}
+}
+function primeraVisitaEncuesta(uid){
+  if(encuestaCuentaNueva===uid)return true;
+  try{return sessionStorage.getItem('gradehub_encuesta_primera_'+uid)===encuestaVisita;}catch(e){return false;}
+}
+function sesionEncuestasCambio(event,uid){
+  if(event==='SIGNED_OUT'||(event==='SIGNED_IN'&&encuestaCuenta&&encuestaCuenta!==uid))olvidarEncuestas();
+}
+function visitaEncuesta(uid){
+  if(encuestaVisita)return encuestaVisita;
+  const clave='gradehub_encuesta_visita_'+uid;
+  try{const guardada=sessionStorage.getItem(clave);if(/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(guardada||''))return guardada;}catch(e){}
+  const visita=crypto.randomUUID();
+  try{sessionStorage.setItem(clave,visita);}catch(e){}
+  return visita;
+}
+function encuestaConexion(){return typeof navigator==='undefined'||navigator.onLine!==false;}
+function encuestaSigue(uid,version){return currentUser?.id===uid&&encuestaVersion===version;}
+function sqlEncuestasAusente(error){return ['PGRST202','42883','42P01'].includes(error?.code);}
+async function consultarEncuestaAlEntrar(){
+  const uid=currentUser?.id;
+  if(!uid||!S.onboardingDone||!supabaseClient||!encuestaConexion()||document.visibilityState==='hidden')return;
+  if(encuestaCuenta!==uid){olvidarEncuestas();encuestaCuenta=uid;}
+  if(encuestaIntentada)return;
+  if(document.getElementById('modal')?.classList.contains('open'))return;
+  encuestaIntentada=true;
+  if(!globalThis.crypto?.randomUUID)return;
+  encuestaVisita=visitaEncuesta(uid);
+  const version=encuestaVersion;
+  try{
+    const {data,error}=await supabaseClient.rpc('encuesta_al_entrar',{p_visita:encuestaVisita});
+    if(!encuestaSigue(uid,version)||!encuestaConexion())return;
+    if(error||!data?.encuesta)return; // SQL opcional: nada de esto bloquea entrar.
+    if(primeraVisitaEncuesta(uid))return;
+    encuestaActiva=data.encuesta;
+    if(typeof renderSettingsSiAbierto==='function')renderSettingsSiAbierto();
+    if(data.mostrar&&document.visibilityState!=='hidden'&&!document.getElementById('modal')?.classList.contains('open'))abrirHojaEncuesta(encuestaActiva);
+  }catch(e){} // Sin red o SQL ausente: sin encuesta y sin aviso.
+}
+function entradaEncuestaHTML(){
+  return currentUser?.id===encuestaCuenta&&encuestaActiva
+    ?`<div class="agent-proposal-entry"><div><b>Encuesta del equipo</b><span>${encuestaActiva.respuesta?'Puedes editar tu respuesta mientras siga activa.':'Puedes responder cuando quieras.'}</span></div><button type="button" class="agent-refresh" onclick="abrirMiEncuesta()">${encuestaActiva.respuesta?'Editar respuesta':'Responder'}</button></div>`:'';
+}
+async function abrirMiEncuesta(){
+  const uid=currentUser?.id,version=encuestaVersion;
+  if(!uid||!encuestaConexion())return;
+  try{
+    const {data,error}=await supabaseClient.rpc('mi_encuesta_activa');
+    if(!encuestaSigue(uid,version))return;
+    if(error||!data){encuestaActiva=null;if(!sqlEncuestasAusente(error))showToast('La encuesta ya no está disponible.');return;}
+    encuestaActiva=data;closeModal();abrirHojaEncuesta(data);
+  }catch(e){if(encuestaSigue(uid,version))showToast('No pudimos abrir la encuesta. Intenta con conexión.',true);}
+}
+let encuestaCerrarTecla=null,encuestaFocoAnterior=null;
+function cerrarHojaEncuesta(volverFoco=true){
+  if(typeof document==='undefined')return;
+  const hoja=document.getElementById('encuesta-hoja');
+  const focoDentro=hoja?.contains?.(document.activeElement);
+  hoja?.remove?.();
+  if(encuestaCerrarTecla)document.removeEventListener('keydown',encuestaCerrarTecla,true);
+  encuestaCerrarTecla=null;
+  if(volverFoco&&focoDentro&&encuestaFocoAnterior?.isConnected)encuestaFocoAnterior.focus();
+  encuestaFocoAnterior=null;
+}
+function abrirHojaEncuesta(e,{vistaPrevia=false}={}){
+  cerrarHojaEncuesta(false);
+  const uid=currentUser?.id,version=encuestaVersion;
+  if(!vistaPrevia&&(!uid||!encuestaConexion()))return;
+  encuestaFocoAnterior=document.activeElement;
+  const hoja=document.createElement('aside');hoja.id='encuesta-hoja';hoja.className='encuesta-hoja';
+  hoja.setAttribute('role','dialog');hoja.setAttribute('aria-modal','false');hoja.setAttribute('aria-labelledby','encuesta-pregunta');
+  const seleccion=new Set(e.respuesta?.opciones||[]);
+  hoja.innerHTML=`<div class="encuesta-agarre" aria-hidden="true"><span></span></div>
+    ${vistaPrevia?'<p class="encuesta-nota">Vista previa · Puedes probarla. No se guardan respuestas.</p>':''}
+    <header><p>ENCUESTA DEL EQUIPO</p><button type="button" class="encuesta-secundario" data-encuesta-cerrar>Ahora no</button></header>
+    <h2 id="encuesta-pregunta" tabindex="-1">${esc(e.pregunta)}</h2>
+    <form class="encuesta-form"><p>${e.tipo==='una'?'Elige una opción.':e.tipo==='varias'?'Puedes elegir varias opciones.':'Hasta 280 caracteres. No incluyas datos personales.'}</p>
+      ${e.tipo==='texto'?`<label class="encuesta-texto">Tu respuesta<textarea maxlength="560" rows="3" name="texto">${esc(e.respuesta?.texto||'')}</textarea></label><p data-encuesta-cuenta aria-live="polite"></p>`:
+        `<fieldset><legend class="sr-only">${esc(e.pregunta)}</legend>${(e.opciones||[]).map((o,i)=>`<label class="encuesta-opcion"><input type="${e.tipo==='una'?'radio':'checkbox'}" name="opcion" value="${i+1}" ${seleccion.has(i+1)?'checked':''}><span>${esc(o)}</span></label>`).join('')}</fieldset>`}
+      <p class="encuesta-nota">Es opcional. El equipo ve resultados y textos sin identidad; no se cruzan con tus notas.</p>
+      <p data-encuesta-estado role="status" aria-live="polite"></p><button type="submit" class="encuesta-enviar">Enviar</button>
+    </form><div class="encuesta-confirmar" hidden><p>¿Cerrar sin enviar tu respuesta?</p><button type="button" data-encuesta-seguir>Seguir respondiendo</button><button type="button" data-encuesta-descartar>Cerrar sin enviar</button></div>`;
+  document.body.appendChild(hoja);
+  const form=hoja.querySelector('form'),estado=hoja.querySelector('[data-encuesta-estado]'),enviar=form.querySelector('[type=submit]');
+  const respuesta=()=>({p_encuesta:e.id,p_opciones:[...form.querySelectorAll('[name=opcion]:checked')].map(n=>Number(n.value)),p_texto:form.elements.texto?.value.trim()||null});
+  const inicial=JSON.stringify(respuesta());let enviando=false;
+  const actualizar=()=>{
+    const r=respuesta(),largo=Array.from(form.elements.texto?.value||'').length;
+    enviar.disabled=enviando||(e.tipo==='texto'?!r.p_texto||largo>280:!r.p_opciones.length);
+    const cuenta=hoja.querySelector('[data-encuesta-cuenta]');if(cuenta)cuenta.textContent=`${largo} / 280`;
+  };
+  const pedirCierre=()=>{
+    if(JSON.stringify(respuesta())===inicial){cerrarHojaEncuesta();return;}
+    form.hidden=true;hoja.querySelector('.encuesta-confirmar').hidden=false;hoja.querySelector('[data-encuesta-seguir]').focus();
+  };
+  hoja.querySelector('[data-encuesta-cerrar]').addEventListener('click',pedirCierre);
+  hoja.querySelector('[data-encuesta-descartar]').addEventListener('click',()=>cerrarHojaEncuesta());
+  hoja.querySelector('[data-encuesta-seguir]').addEventListener('click',()=>{form.hidden=false;hoja.querySelector('.encuesta-confirmar').hidden=true;enviar.focus();});
+  encuestaCerrarTecla=event=>{
+    if(event.key!=='Escape'||['modal','confirm-overlay','user-menu'].some(id=>document.getElementById(id)?.classList.contains('open')))return;
+    event.preventDefault();pedirCierre();
+  };
+  document.addEventListener('keydown',encuestaCerrarTecla,true);
+  let comienzo=null;const agarre=hoja.querySelector('.encuesta-agarre');
+  agarre.addEventListener('pointerdown',event=>{comienzo=event.clientY;agarre.setPointerCapture?.(event.pointerId);});
+  agarre.addEventListener('pointerup',event=>{if(comienzo!==null&&event.clientY-comienzo>60)pedirCierre();comienzo=null;});
+  agarre.addEventListener('pointercancel',()=>{comienzo=null;});
+  form.addEventListener('input',actualizar);form.addEventListener('change',actualizar);actualizar();
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();if(enviando||enviar.disabled)return;
+    if(vistaPrevia){estado.textContent='Vista previa: tu respuesta no se envió.';return;}
+    enviando=true;actualizar();estado.textContent='Enviando…';
+    try{
+      const r=respuesta();
+      const {data,error}=await supabaseClient.rpc('responder_encuesta',r);
+      if(!encuestaSigue(uid,version)||!hoja.isConnected)return;
+      if(error||data!==true){estado.textContent=error?.code==='42501'?'La encuesta ya no está disponible.':'No se envió tu respuesta. Intenta de nuevo.';return;}
+      encuestaActiva={...e,respuesta:{opciones:r.p_opciones,texto:r.p_texto}};
+      cerrarHojaEncuesta();showToast('Respuesta guardada. Puedes editarla en Ajustes · Sugerencias.');
+    }catch(error){if(hoja.isConnected)estado.textContent='No se envió tu respuesta. Intenta con conexión.';}
+    finally{enviando=false;if(hoja.isConnected)actualizar();}
+  });
+  hoja.querySelector('h2').focus({preventScroll:true});
+}
+
+function diaChileEncuesta(){
+  const partes=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const p=tipo=>partes.find(x=>x.type===tipo).value;return `${p('year')}-${p('month')}-${p('day')}`;
+}
+function csvResultadosEncuesta(e,r){
+  // Evita interpretar textos libres como fórmulas en Excel/Numbers.
+  const celda=v=>'"'+String(v??'').replace(/^[\s]*[=+\-@]/,m=>"'"+m).replace(/"/g,'""')+'"';
+  const filas=[['Pregunta','Público','Tipo','Resultado','Cantidad'],[e.pregunta,e.publico,'total','Respuestas',r.total],
+    ...(r.opciones||[]).map(x=>[e.pregunta,e.publico,'opcion',x.opcion,x.total]),
+    ...(r.textos||[]).map(x=>[e.pregunta,e.publico,'texto',x.texto,x.total])];
+  return '\ufeff'+filas.map(f=>f.map(celda).join(',')).join('\r\n')+'\r\n';
+}
+function descargarResultadosEncuesta(e,r){
+  const url=URL.createObjectURL(new Blob([csvResultadosEncuesta(e,r)],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a');a.href=url;a.download='encuesta-'+e.id+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function renderAdminEncuestas(raiz){
+  const uid=currentUser?.id,version=encuestaVersion;
+  const cabecera='<div class="encuestas-admin"><div class="encuestas-admin-cabecera"><h3>Encuestas</h3><button type="button" data-encuestas-actualizar>Actualizar</button></div>';
+  const pintar=contenido=>{raiz.innerHTML=cabecera+contenido+'</div>';raiz.querySelector('[data-encuestas-actualizar]').addEventListener('click',()=>renderAdminEncuestas(raiz));};
+  pintar('<p role="status">Cargando…</p>');
+  const vista=raiz.querySelector('.encuestas-admin');
+  let lista;
+  try{
+    const {data,error}=await supabaseClient.rpc('admin_encuestas');
+    if(!encuestaSigue(uid,version)||raiz.isConnected===false||!vista.isConnected)return;
+    if(error){pintar(sqlEncuestasAusente(error)?'<p>Encuestas todavía no disponibles.</p>':'<p role="alert">No pudimos cargar las encuestas. Revisa tu acceso y conexión.</p>');return;}
+    lista=Array.isArray(data)?data:[];
+  }catch(e){if(encuestaSigue(uid,version)&&vista.isConnected)pintar('<p role="alert">No pudimos cargar las encuestas. Intenta de nuevo con conexión.</p>');return;}
+  const publicos=[['todos','Todos'],...Object.entries(TENANTS).map(([id,t])=>[id,t.label||t.short])];
+  const hoy=diaChileEncuesta();
+  pintar(`<details class="encuesta-crear"><summary>Crear encuesta</summary><form>
+    <label>Pregunta<input type="text" name="pregunta" maxlength="280" required></label>
+    <label>Tipo<select name="tipo"><option value="una">Una opción</option><option value="varias">Varias opciones</option><option value="texto">Texto corto</option></select></label>
+    <label data-opciones-admin>Opciones<textarea name="opciones" rows="3" placeholder="Una por línea, entre 2 y 6" required></textarea></label>
+    <label>Público<select name="publico">${publicos.map(([id,n])=>`<option value="${id}">${esc(n)}</option>`).join('')}</select></label>
+    <div class="encuesta-fechas"><label>Inicio<input type="date" name="inicio" value="${hoy}" required></label><label>Término<input type="date" name="termino" value="${hoy}" required></label></div>
+    <p>Fechas completas de Chile, incluido el día de término. Una encuesta simultánea por público.</p>
+    <p role="status" data-crear-estado></p><button type="button" data-encuesta-preview>Vista previa</button><button type="submit" class="encuesta-enviar">Crear encuesta</button>
+    </form></details><div class="encuestas-lista">${lista.map(e=>`<section data-encuesta-admin="${esc(e.id)}"><h2>${esc(e.pregunta)}</h2><p>${esc(publicos.find(([id])=>id===e.publico)?.[1]||e.publico)} · ${esc(e.inicio)} a ${esc(e.termino)} · ${e.termino<hoy?'Terminada por fecha':esc(e.estado)}</p>
+    <div class="encuesta-acciones">${e.estado!=='terminada'&&e.termino>=hoy?`<button type="button" data-encuesta-cambiar="${e.estado==='activa'?'pausada':'activa'}">${e.estado==='activa'?'Pausar':'Reanudar'}</button><button type="button" data-encuesta-cambiar="terminada">Terminar</button>`:''}<button type="button" data-encuesta-resultados>Ver resultados</button></div><div data-encuesta-totales aria-live="polite"></div></section>`).join('')||'<p>Todavía no hay encuestas.</p>'}</div>`);
+  const form=raiz.querySelector('.encuesta-crear form'),f=form.elements,estado=raiz.querySelector('[data-crear-estado]');
+  f.tipo.addEventListener('change',()=>{const texto=f.tipo.value==='texto';raiz.querySelector('[data-opciones-admin]').hidden=texto;f.opciones.required=!texto;});
+  form.querySelector('[data-encuesta-preview]').addEventListener('click',()=>{
+    const pregunta=f.pregunta.value.trim(),tipo=f.tipo.value;
+    const opciones=tipo==='texto'?[]:f.opciones.value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(!pregunta){estado.textContent='Escribe la pregunta para ver la vista previa.';f.pregunta.focus();return;}
+    if(tipo!=='texto'&&(opciones.length<2||opciones.length>6)){estado.textContent='Escribe entre 2 y 6 opciones, una por línea.';f.opciones.focus();return;}
+    estado.textContent='';
+    abrirHojaEncuesta({pregunta,tipo,opciones},{vistaPrevia:true});
+  });
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();const boton=form.querySelector('[type=submit]');if(boton.disabled)return;
+    const opciones=f.tipo.value==='texto'?[]:f.opciones.value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(f.tipo.value!=='texto'&&(opciones.length<2||opciones.length>6)){estado.textContent='Escribe entre 2 y 6 opciones, una por línea.';return;}
+    boton.disabled=true;estado.textContent='Creando…';
+    try{
+      const {data,error}=await supabaseClient.rpc('admin_crear_encuesta',{p_pregunta:f.pregunta.value.trim(),p_tipo:f.tipo.value,p_opciones:opciones,p_publico:f.publico.value,p_inicio:f.inicio.value,p_termino:f.termino.value});
+      if(!encuestaSigue(uid,version)||!form.isConnected)return;
+      if(error||!data){estado.textContent=error?.message||'No se creó la encuesta. Intenta de nuevo.';return;}
+      await renderAdminEncuestas(raiz);
+    }catch(e){if(form.isConnected)estado.textContent='No se creó la encuesta. Revisa tu conexión.';}finally{if(form.isConnected)boton.disabled=false;}
+  });
+  const porId=new Map(lista.map(e=>[e.id,e]));
+  raiz.querySelectorAll('[data-encuesta-admin]').forEach(caja=>{
+    const e=porId.get(caja.dataset.encuestaAdmin),totales=caja.querySelector('[data-encuesta-totales]');
+    caja.querySelectorAll('[data-encuesta-cambiar]').forEach(b=>b.addEventListener('click',()=>{
+      const aplicar=async()=>{
+        b.disabled=true;
+        try{const {data,error}=await supabaseClient.rpc('admin_estado_encuesta',{p_encuesta:e.id,p_estado:b.dataset.encuestaCambiar});
+          if(!encuestaSigue(uid,version)||!caja.isConnected)return;
+          if(error||data!==true){totales.textContent=error?.message||'No se aplicó el cambio.';return;}await renderAdminEncuestas(raiz);
+        }catch(error){if(caja.isConnected)totales.textContent='No se aplicó el cambio. Revisa tu conexión.';}finally{if(b.isConnected)b.disabled=false;}
+      };
+      if(b.dataset.encuestaCambiar==='terminada')showConfirm('¿Terminar esta encuesta?','Se dejarán de aceptar respuestas. Los resultados se conservan.',aplicar,{label:'Terminar',focusCancel:true});else aplicar();
+    }));
+    caja.querySelector('[data-encuesta-resultados]').addEventListener('click',async event=>{
+      const b=event.currentTarget;if(b.disabled)return;b.disabled=true;totales.textContent='Cargando resultados…';
+      try{
+        const {data:r,error}=await supabaseClient.rpc('admin_resultados_encuesta',{p_encuesta:e.id});
+        if(!encuestaSigue(uid,version)||!caja.isConnected)return;
+        if(error||!r){totales.textContent='No pudimos leer los resultados. Verifica tu segundo factor e intenta de nuevo.';return;}
+        totales.innerHTML=`<p><b>${Number(r.total)||0}</b> respuestas</p>${(r.opciones||[]).map(x=>`<p>${esc(x.opcion)}: ${Number(x.total)||0}</p>`).join('')}${(r.textos||[]).map(x=>`<blockquote>${esc(x.texto)} <span>(${Number(x.total)||0})</span></blockquote>`).join('')}<button type="button" data-encuesta-csv>Descargar CSV</button>`;
+        totales.querySelector('[data-encuesta-csv]').addEventListener('click',async event=>{
+          const exportar=event.currentTarget;if(exportar.disabled)return;exportar.disabled=true;
+          try{
+            // Vuelve a exigir MFA y trae los totales actuales antes de exportar.
+            const {data:actual,error}=await supabaseClient.rpc('admin_resultados_encuesta',{p_encuesta:e.id});
+            if(!encuestaSigue(uid,version)||!caja.isConnected)return;
+            if(error||!actual){showToast('No pudimos exportar. Verifica tu segundo factor e intenta de nuevo.',true);return;}
+            descargarResultadosEncuesta(e,actual);
+          }catch(error){if(encuestaSigue(uid,version))showToast('No pudimos exportar. Intenta con conexión.',true);}
+          finally{if(exportar.isConnected)exportar.disabled=false;}
+        });
+      }catch(error){if(caja.isConnected)totales.textContent='No pudimos leer los resultados. Revisa tu conexión.';}finally{if(b.isConnected)b.disabled=false;}
     });
   });
 }

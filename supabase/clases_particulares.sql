@@ -275,17 +275,36 @@ alter table public.tutor_anuncios add constraint tutor_anuncios_precio_clp_check
 -- número no se muestra y el chat parte con un mensaje escrito. Al decidirlo no
 -- había anuncios con Instagram ni correo; si apareciera uno, este ADD falla y
 -- no se aplica a medias.
-alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_contacto_tipo_check;
-alter table public.tutor_anuncios add constraint tutor_anuncios_contacto_tipo_check
-  check (contacto_tipo = 'whatsapp');
+-- (La restricción vigente está más abajo, en MATERIAL DE APOYO.)
 
 -- Una clase GRATIS puede llevar a un Instagram o a un link de inscripción
 -- (decisión de Lucas del 2026-09-25). Las pagadas siguen solo con WhatsApp.
 -- El link lo valida la app (https, sin credenciales) y lo revisa quien aprueba.
+-- (La restricción vigente está más abajo, en MATERIAL DE APOYO: se define una
+-- sola vez. Si se reaplicaban las versiones anteriores antes de la vigente, un
+-- material pagado con link ya guardado las rompía y el archivo no se aplicaba.)
+
+-- MATERIAL DE APOYO (2026-10-23, pedido de Lucas): un anuncio puede ser una
+-- clase particular o material de apoyo (guías, apuntes, ejercicios resueltos).
+-- Aditivo: toda fila existente queda como 'clase' y sigue igual. Mismas
+-- sentencias que clases_material.sql, que sirve como delta: con `if not
+-- exists`, aplicar cualquiera de los dos en cualquier orden deja lo mismo.
+alter table public.tutor_anuncios add column if not exists tipo text not null default 'clase';
+alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_tipo_check;
+alter table public.tutor_anuncios add constraint tutor_anuncios_tipo_check
+  check (tipo in ('clase', 'material'));
+-- Un material no tiene formato, lugar ni pack de clases.
+alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_material_coherente;
+alter table public.tutor_anuncios add constraint tutor_anuncios_material_coherente
+  check (tipo = 'clase' or (modalidad is null and ubicacion is null and pack_clases is null));
+-- Contacto: la clase pagada, solo WhatsApp; la gratis, además Instagram o un
+-- link. El material pagado puede llevar WhatsApp o un link para conseguirlo
+-- (Drive, tienda); gratis, también Instagram. Toda fila existente sigue válida.
 alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_contacto_tipo_check;
 alter table public.tutor_anuncios add constraint tutor_anuncios_contacto_tipo_check
   check (contacto_tipo = 'whatsapp'
-         or (precio_clp = 0 and contacto_tipo in ('instagram', 'enlace')));
+         or (precio_clp = 0 and contacto_tipo in ('instagram', 'enlace'))
+         or (tipo = 'material' and contacto_tipo = 'enlace'));
 
 -- UN RAMO POR ANUNCIO desde el 2026-09-25, HASTA DOS desde el 2026-09-26
 -- (decisiones de Lucas: la misma clase puede servir a dos siglas, como
@@ -350,6 +369,15 @@ grant update (linea_datos) on public.tutor_anuncios to authenticated;
 grant select (pack_clases, descuento_gradehub_pct) on public.tutor_anuncios to anon, authenticated;
 grant insert (pack_clases) on public.tutor_anuncios to authenticated;
 grant update (pack_clases) on public.tutor_anuncios to authenticated;
+-- Código de descuento (Lucas, 2026-10-25): «−10% con el código XXX». Solo
+-- con descuento; lo fija un admin, el cliente lo lee y nunca lo escribe.
+alter table public.tutor_anuncios add column if not exists codigo_descuento text
+  check (codigo_descuento is null or codigo_descuento ~ '^[A-Z0-9][A-Z0-9_-]{2,19}$');
+grant select (codigo_descuento) on public.tutor_anuncios to anon, authenticated;
+-- El tipo (clase o material) se lee como lo demás público y lo escribe el profesor.
+grant select (tipo) on public.tutor_anuncios to anon, authenticated;
+grant insert (tipo) on public.tutor_anuncios to authenticated;
+grant update (tipo) on public.tutor_anuncios to authenticated;
 -- El formulario manda la universidad también al editar un borrador. Sin este
 -- grant, TODA edición de un borrador ya guardado fallaba con "permission
 -- denied": Postgres rechaza el UPDATE entero por una sola columna. Encontrado
@@ -488,6 +516,11 @@ alter table public.tutor_perfiles add column if not exists logo_aprobado_path te
     and split_part(logo_aprobado_path, '/', 2) = logo_id::text));
 
 grant select (logo_id, logo_path, logo_aprobado_path) on public.tutor_perfiles to authenticated;
+-- Un admin puede ocultarle el panel de alumnos a un profesor (Lucas,
+-- 2026-10-23). Parte en true: hoy no cambia nada a nadie. El profesor la lee
+-- pero no la edita: la cambia admin_panel_alumnos_profesor.
+alter table public.tutor_perfiles add column if not exists panel_alumnos boolean not null default true;
+grant select (panel_alumnos) on public.tutor_perfiles to authenticated;
 -- Puede proponer uno (la política de update ya lo ata a su propia fila y el
 -- check, a su propio logo_id). No puede aprobarlo ni cambiar su logo_id.
 grant update (logo_path) on public.tutor_perfiles to authenticated;
@@ -626,6 +659,71 @@ revoke all on function public.quitar_mi_logo() from public, anon;
 revoke all on function public.logo_profesor_propio(text, uuid) from public;
 revoke all on function public.logo_profesor_editable(text, uuid) from public;
 revoke all on function public.logo_profesor_visible(text) from public;
+-- PERFIL DE PROFESOR O EMPRESA (2026-10-23, pedido de Lucas; base de #643).
+-- Aditivo: todo parte vacío y el perfil NO es público hasta que el profesor lo
+-- activa (consentimiento explícito, #643 punto 1). Mismas sentencias que
+-- perfil_profesor.sql, que sirve como delta. Los archivos de material gratis y
+-- los testimonios de #643 no van acá.
+alter table public.tutor_perfiles add column if not exists tipo_perfil text
+  check (tipo_perfil is null or tipo_perfil in ('profesor', 'empresa'));
+alter table public.tutor_perfiles add column if not exists instagram text
+  check (instagram is null or instagram ~ '^[A-Za-z0-9._]{1,30}$');
+alter table public.tutor_perfiles add column if not exists sitio_web text
+  check (sitio_web is null or (sitio_web ~ '^https://[^[:space:]/@]+[.][^[:space:]@]+$' and char_length(sitio_web) <= 160));
+alter table public.tutor_perfiles add column if not exists universidades text[]
+  check (universidades is null or (cardinality(universidades) <= 4 and universidades <@ array['fen', 'uc', 'uai', 'uandes']));
+alter table public.tutor_perfiles add column if not exists ramos_siglas text[];
+alter table public.tutor_perfiles add column if not exists perfil_publico boolean not null default false;
+
+-- Las siglas, como en los anuncios: hasta 20, cada una de 2 a 24 caracteres.
+create or replace function public.siglas_perfil_validas(p text[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p is null or (cardinality(p) <= 20 and not exists (
+    select 1 from unnest(p) s where s !~ '^[A-Z0-9-]{2,24}$'));
+$$;
+alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_ramos_siglas_check;
+alter table public.tutor_perfiles add constraint tutor_perfiles_ramos_siglas_check
+  check (public.siglas_perfil_validas(ramos_siglas));
+
+-- El profesor lee y edita lo suyo (las políticas propias ya lo limitan).
+grant select (tipo_perfil, instagram, sitio_web, universidades, ramos_siglas, perfil_publico)
+  on public.tutor_perfiles to authenticated;
+grant update (tipo_perfil, instagram, sitio_web, universidades, ramos_siglas, perfil_publico)
+  on public.tutor_perfiles to authenticated;
+
+-- Lo que ve el estudiante desde un anuncio. El catálogo no conoce al autor, así
+-- que se pide por anuncio, como el logo. Solo de un anuncio publicado y vigente,
+-- de un profesor aprobado que activó su perfil. Nunca el user_id ni el correo:
+-- los otros anuncios van por su id.
+create or replace function public.perfil_publico_de_anuncio(p_anuncio_id uuid)
+returns table (nombre_publico text, presentacion text, tipo_perfil text, instagram text, sitio_web text,
+               universidades text[], ramos_siglas text[], logo_path text, anuncios uuid[])
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.nombre_publico, p.presentacion, p.tipo_perfil, p.instagram, p.sitio_web,
+         p.universidades, p.ramos_siglas, p.logo_aprobado_path,
+         array(select b.id from public.tutor_anuncios b
+               where b.autor_id = p.user_id and b.estado = 'publicado'
+                 and (b.vence_at is null or b.vence_at > now())
+               order by b.publicado_at desc)
+  from public.tutor_anuncios a
+  join public.tutor_perfiles p on p.user_id = a.autor_id
+  where a.id = p_anuncio_id
+    and a.estado = 'publicado'
+    and (a.vence_at is null or a.vence_at > now())
+    and p.estado = 'aprobado'
+    and p.perfil_publico;
+$$;
+revoke all on function public.perfil_publico_de_anuncio(uuid) from public;
+grant execute on function public.perfil_publico_de_anuncio(uuid) to anon, authenticated;
+
 revoke all on function public.logos_de_anuncios(uuid[]) from public;
 grant execute on function public.quitar_mi_logo() to authenticated;
 grant execute on function public.logo_profesor_propio(text, uuid) to anon, authenticated;
@@ -1140,6 +1238,12 @@ create table if not exists public.anuncio_campanas (
   detenido_at  timestamptz,
   updated_at   timestamptz not null default now()
 );
+-- La misma marca, en el anuncio. Un anuncio publicado antes de que la campaña
+-- fuera obligatoria no tiene fila en anuncio_campanas, y una campaña creada
+-- con el anuncio ya pausado tampoco la tenía al pausarse: la pausa no quedaba
+-- en ningún lado y los días seguían sumando hasta vencer (issue #657). El
+-- anuncio siempre existe. Sin permiso de columna: lo escribe el trigger.
+alter table public.tutor_anuncios add column if not exists detenido_at timestamptz;
 alter table public.anuncio_campanas enable row level security;
 revoke all on public.anuncio_campanas from public, anon, authenticated;
 grant select (anuncio_id, dias, inicio, tope_clp, detenido_at) on public.anuncio_campanas to authenticated;
@@ -1317,7 +1421,7 @@ begin
   tope_clp := c.tope_clp;
   dias_cobrados := 0;
   if a.publicado_at is not null and a.publicado_at <= now() then
-    hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(c.detenido_at, 'infinity'));
+    hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(a.detenido_at, c.detenido_at, 'infinity'));
     select coalesce(sum(greatest(0, extract(epoch from
       (least(hasta_cobro, coalesce(s.hasta, hasta_cobro)) - greatest(a.publicado_at, s.desde))))), 0)
       into segundos_suspendidos from public.tutor_suspensiones s
@@ -1462,7 +1566,8 @@ revoke all on function public.campana_anuncio(uuid) from public, anon;
 grant execute on function public.campana_anuncio(uuid) to authenticated;
 
 -- Al dejar de estar publicado antes de tiempo, los días se dejan de contar.
--- Al volver a publicarse, se retoma.
+-- Al volver a publicarse, se retoma. La marca va en el anuncio, que siempre
+-- existe, y en la campaña si la tiene. Es BEFORE para escribir el anuncio.
 create or replace function public.anuncio_marca_detencion()
 returns trigger
 language plpgsql
@@ -1471,9 +1576,11 @@ set search_path = public
 as $$
 begin
   if old.estado = 'publicado' and new.estado <> 'publicado' then
+    new.detenido_at := now();
     update public.anuncio_campanas set detenido_at = now()
      where anuncio_id = new.id and detenido_at is null;
   elsif new.estado = 'publicado' and old.estado <> 'publicado' then
+    new.detenido_at := null;
     update public.anuncio_campanas set detenido_at = null where anuncio_id = new.id;
   end if;
   return new;
@@ -1482,7 +1589,7 @@ $$;
 revoke all on function public.anuncio_marca_detencion() from public, anon, authenticated;
 drop trigger if exists tutor_anuncios_marca_detencion on public.tutor_anuncios;
 create trigger tutor_anuncios_marca_detencion
-after update of estado on public.tutor_anuncios
+before update of estado on public.tutor_anuncios
 for each row
 execute function public.anuncio_marca_detencion();
 

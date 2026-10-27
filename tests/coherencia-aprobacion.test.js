@@ -53,15 +53,12 @@ for(const [valor,texto,nivel,aprueba] of bordes){
   assert.equal(ctx.run('notaAprobada(valor)'),aprueba,`${valor} decide aprobación con el mismo valor`);
 }
 
-// La calculadora de un ramo ya cerrado debe repetir el mismo veredicto.
-ctx.run('S={...freshState(),ramos:[exacto]};currentRamoId=exacto.id;openModal=()=>{};');
-ctx.openCalculadoraModal();
-ctx.document.getElementById('m-calc-target').value='4';
-ctx.window.calcResult();
-const calculadora=ctx.document.getElementById('calc-result').innerHTML;
-assert.match(calculadora,/<b>4\.0<\/b>/,'Nota mínima muestra la nota oficial');
-assert.match(calculadora,/ya lo lograste/,'Nota mínima también lo declara aprobado');
-assert.doesNotMatch(calculadora,/te faltan/,'Nota mínima no exige puntos inexistentes');
+// El simulador (con la meta que antes era «Nota mínima») repite el veredicto de
+// un ramo ya cerrado: con 3,98 tiene el 4,0 y no le pide nada.
+ctx.run('S={...freshState(),ramos:[exacto]};currentRamoId=exacto.id;openModal=()=>{};simState={};simAusencias={};');
+assert.equal(ctx.run('simNotaNecesaria(simProjectedRamo(exacto),4)'),null,'con la meta en 4,0 no exige nada a un ramo aprobado y cerrado');
+assert.equal(ctx.run('simNotaNecesaria(simProjectedRamo(exacto),4.5)').texto,'Ya no quedan evaluaciones para llegar a 4,5');
+assert.equal(ctx.run('simNotaNecesaria(simProjectedRamo(exacto),3.5)').texto,'Ya tienes el 3,5');
 
 const parcial=ramo('parcial',[categoria('mitad',50,4),{id:'pendiente',nombre:'pendiente',peso:50,directNota:true,notas:[]}]);
 ctx.parcial=parcial;
@@ -76,15 +73,25 @@ assert.equal(ctx.run('ramoAvg(fijo)'),3.9);
 assert.equal(ctx.run('fmtPromedio(ramoAvg(fijo))'),'3.9');
 assert.equal(ctx.run('notaAprobadaRamo(fijo,ramoAvg(fijo))'),false);
 
+// El requisito se mide redondeado, igual que la final: 3,98 es 4,0 y cumple.
 const propio=ramo('tope-propio',[categoria('individual',50,3.98),categoria('grupal',50,6)],{
   gates:[{type:'group_min',catIds:['individual'],min:4,cap:'self',nombre:'Individual'}],
 });
 ctx.propio=propio;
-assert.equal(ctx.run('r2(ramoAvg(propio))'),3.98,'cap self conserva el promedio del requisito');
-assert.equal(ctx.run('fmtPromedio(ramoAvg(propio))'),'4.0','la nota se redondea aunque exista una regla aparte');
-assert.equal(ctx.run('gatesActivas(propio).length'),1,'la compuerta sigue explícitamente activa');
-assert.equal(ctx.run('notaAprobadaRamo(propio,ramoAvg(propio))'),false,'la compuerta explícita sigue reprobando');
-assert.equal(ctx.run('colorClassRamo(propio,ramoAvg(propio))'),'bad','el semáforo refleja la excepción explícita');
+assert.equal(ctx.run('gatesActivas(propio).length'),0,'3,98 redondea a 4,0 y cumple el requisito');
+assert.equal(ctx.run('r2(ramoAvg(propio))'),4.99,'sin compuerta activa la final es el ponderado');
+assert.equal(ctx.run('notaAprobadaRamo(propio,ramoAvg(propio))'),true);
+
+// Bajo 3,95 el requisito no se cumple y la final queda en su propio promedio.
+const bajo=ramo('tope-propio-bajo',[categoria('individual',50,3.94),categoria('grupal',50,6)],{
+  gates:[{type:'group_min',catIds:['individual'],min:4,cap:'self',nombre:'Individual'}],
+});
+ctx.bajo=bajo;
+assert.equal(ctx.run('r2(ramoAvg(bajo))'),3.94,'cap self conserva el promedio del requisito');
+assert.equal(ctx.run('fmtPromedio(ramoAvg(bajo))'),'3.9');
+assert.equal(ctx.run('gatesActivas(bajo).length'),1,'la compuerta sigue explícitamente activa');
+assert.equal(ctx.run('notaAprobadaRamo(bajo,ramoAvg(bajo))'),false,'la compuerta explícita sigue reprobando');
+assert.equal(ctx.run('colorClassRamo(bajo,ramoAvg(bajo))'),'bad','el semáforo refleja la excepción explícita');
 
 // Los puntos visibles donde aparecía el promedio del ramo comparten el helper.
 const main=fs.readFileSync(path.join(root,'render-main.js'),'utf8');

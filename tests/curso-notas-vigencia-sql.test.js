@@ -22,6 +22,7 @@ const universidad=async()=>(await q(`select * from universidad_posicion('uc')`))
 (async()=>{
 try{
   await db.exec(leer('bin/supabase-stubs.sql'));
+  await db.exec('create table public.user_ramos(user_id uuid primary key, data jsonb not null)');
   await db.exec(leer('supabase/curso_posicion.sql'));
   await db.exec(leer('supabase/universidad_posicion.sql'));
   for(let i=1;i<=7;i++)await db.query('insert into auth.users(id) values($1)',[u(i)]);
@@ -66,6 +67,16 @@ try{
   const sinCongelada=await universidad();
   check('una fila congelada propia no baja el promedio de quien pregunta',
     conCongelada&&sinCongelada&&conCongelada.mejor_que===sinCongelada.mejor_que);
+
+  console.log('\n=== Cuenta convertida a profesor ===');
+  await db.query("insert into user_ramos(user_id,data) values($1,'{\"tipoCuenta\":\"profesor\"}')",[u(5)]);
+  await soy(u(5));
+  check('su fila antigua no le da posición',(await posicion('MAT1610'))===null);
+  await db.query("select curso_nota_set('uc','MAT1610',7.0)");
+  check('no puede volver a subir un promedio',Number((await q('select promedio from curso_notas where user_id=$1 and ramo_sigla=$2',[u(5),'MAT1610']))[0].promedio)===5.5);
+  await soy(u(1));
+  check('su fila antigua tampoco cuenta a sus compañeros',(await posicion('MAT1610'))===null);
+  check('ni cuenta en Wrapped',(await universidad())===null);
 
   console.log(`\nPASS: ${pruebas}   FAIL: 0`);
 }catch(e){console.error('  FAIL',e.message);process.exit(1);}

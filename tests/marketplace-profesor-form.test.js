@@ -30,11 +30,11 @@ Object.assign(elements['#pr-tenant'],{value:'uc'});
 Object.assign(elements['#pr-siglas'],{value:'MAT1610'});
 Object.assign(elements['#pr-promedio'],{value:'5'});
 Object.assign(elements['#pr-avance'],{value:'20'});
-element('#pr-guardar');element('#pr-enviar');element('#pr-quitar-flyer');
+element('#pr-guardar');element('#pr-enviar');element('#pr-quitar-flyer');element('#pr-volver');
 element('.profesor-estado');element('strong');element('p');element('img');
 const preview=element('.profesor-flyer-preview');preview.querySelector=sel=>elements[sel];
 const vista=element('.profesor-vista');vista.querySelector=sel=>elements[sel];
-form.querySelector=sel=>elements[sel];
+form.querySelector=sel=>sel==='#pr-enviar'&&!raiz.innerHTML.includes('id="pr-enviar"')?null:elements[sel];
 const raiz={innerHTML:'',querySelector(sel){return elements[sel];}};
 let guardados=0,enviados=0,fallar=true;
 ctx.guardarSimulado=async(datos,id)=>{
@@ -46,19 +46,44 @@ ctx.enviarSimulado=async()=>{enviados++;return {ok:true};};
 let campanas=0,errorCampana=null;
 ctx.campanaSimulada=async()=>{campanas++;return errorCampana||{ok:true};};
 run('guardarBorradorClase=guardarSimulado; enviarBorradorClase=enviarSimulado; guardarCampanaClase=campanaSimulada');
+// Guardar bien cierra el formulario y vuelve a Anuncios (Lucas, 2026-10-23).
+const vueltas=[],avisos=[];
+ctx.espacioSimulado=async(r,op)=>{vueltas.push({vista:run('vistaClasesAlVolver'),titulo:op.titulo});run('vistaClasesAlVolver=null');};
+ctx.showToast=t=>avisos.push(t);
+run('renderEspacioProfesor=espacioSimulado');
 let n=0;
 function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
 (async()=>{
   ctx.raiz=raiz;
   run('renderBorradorProfesor(raiz,null)');
   check('el formulario tiene guardado y envío distintos',events['#pr-guardar:click']&&events['#pr-enviar:click']);
+  // Siempre hay cómo salir (Lucas, 2026-10-24): sin cambios sale al tiro;
+  // con cambios, pregunta antes y no sale hasta confirmar.
+  const confirmaciones=[];ctx.showConfirm=(t,d,fn,o)=>confirmaciones.push({t,fn,o});
+  check('el editor tiene cómo volver',/id="pr-volver"[^>]*>[\s\S]*?Tus anuncios/.test(raiz.innerHTML));
+  await events['#pr-volver:click']();
+  check('sin cambios, volver sale a Anuncios sin preguntar',confirmaciones.length===0&&vueltas.length===1&&vueltas[0].vista==='anuncios');
+  vueltas.length=0;
+  run('renderBorradorProfesor(raiz,null)');
+  events['#profesor-borrador:input']();
+  events['#pr-volver:click']();
+  check('con cambios, pregunta antes de salir',confirmaciones.length===1&&/Salir sin guardar/.test(confirmaciones[0].o.label)&&vueltas.length===0);
+  await confirmaciones[0].fn();
+  check('y sale solo al confirmar',vueltas.length===1);
+  vueltas.length=0;
+  run('renderBorradorProfesor(raiz,null)');
   await events['#pr-enviar:click']();
   check('un guardado fallido no envía ni finge éxito',guardados===1&&enviados===0&&
     /No se guardó/.test(elements['.profesor-estado'].textContent));
   fallar=false;
   await events['#pr-guardar:click']();
-  check('guardar no publica ni envía, y guarda la campaña',guardados===2&&enviados===0&&campanas===1&&
-    /Borrador guardado/.test(elements['.profesor-estado'].textContent));
+  check('guardar no publica ni envía, y guarda la campaña',guardados===2&&enviados===0&&campanas===1);
+  check('guardar bien cierra el formulario y vuelve a Anuncios',vueltas.length===1&&vueltas[0].vista==='anuncios'&&vueltas[0].titulo===false&&avisos.includes('Borrador guardado'));
+  check('un guardado fallido no lo cerró',vueltas.length===1);
+  errorCampana={ok:false,falta:true};
+  await events['#pr-guardar:click']();
+  check('si faltan los días y el tope, se queda abierto con el aviso',vueltas.length===1&&/días y el tope aún no se guardaron/.test(elements['.profesor-estado'].textContent));
+  errorCampana=null;guardados--;campanas--;
   ctx.subirSimulado=async()=>({ok:false,error:'No se pudo subir el flyer.'});
   run('subirFlyerClase=subirSimulado');
   elements['#pr-flyer'].files=[{type:'image/png',size:1200}];
@@ -99,6 +124,18 @@ function check(nombre,condicion){if(!condicion)throw Error(nombre);n++;}
   errorCampana={ok:false,falta:true};
   await events['#pr-enviar:click']();
   check('SQL antiguo permite revisión con aviso sin fingir campaña guardada',enviados===4&&/Los días y el tope todavía no se guardaron/.test(raiz.innerHTML));
+  // Mientras la postulación está pendiente, el mismo editor solo guarda.
+  errorCampana=null;
+  elements['#pr-flyer'].files=[];
+  const enviosAntesPendiente=enviados,guardadosAntesPendiente=guardados;
+  run('renderBorradorProfesor(raiz,null,{pendiente:true})');
+  check('pendiente tiene una sola acción principal y no puede subir flyer',
+    /id="pr-guardar"/.test(raiz.innerHTML)&&!/id="pr-enviar"/.test(raiz.innerHTML)&&
+    /id="pr-flyer"[^>]*disabled/.test(raiz.innerHTML));
+  await events['#pr-guardar:click']();
+  check('pendiente guarda sin enviar a revisión',guardados===guardadosAntesPendiente+1&&
+    enviados===enviosAntesPendiente);
+  check('y vuelve a la pantalla de postulación, sin forzar Anuncios',vueltas.length===2&&vueltas[1].vista===null);
   // Un borrador existente no debe reemplazar su campaña por valores por
   // omisión cuando falla la lectura. El reintento recupera el tope original.
   element('#pr-reintentar-campana');

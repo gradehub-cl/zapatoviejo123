@@ -30,6 +30,9 @@
     font-size:13px; color:var(--fg2); text-decoration:none; margin-bottom:28px;
   }
   .volver:hover{color:var(--primary);}
+  /* 44 pt de área táctil sin mover nada (HIG Buttons), como en la app. */
+  .volver{position:relative;}
+  .volver::after{content:""; position:absolute; left:0; right:0; top:50%; height:max(100%,44px); transform:translateY(-50%);}
   h1{font-family:var(--font-ui); font-size:30px; line-height:1.2; margin:0 0 6px;}
   .sub{color:var(--fg3); font-size:13px; margin:0 0 32px;}
   h2{
@@ -66,7 +69,7 @@
 <a class="volver" href="/">&larr; Volver a GradeHub</a>
 
 <h1>Términos de uso</h1>
-<p class="sub">Última actualización: 25 de septiembre de 2026</p>
+<p class="sub">Última actualización: 14 de octubre de 2026</p>
 
 <p>Esta página explica qué hace GradeHub, de dónde sale el número que te
 entrega y cuándo te conviene desconfiar de él. Está escrita para que la
@@ -159,9 +162,40 @@ pedimos que nos avises cuando algo no cuadre.</p>
   <li><strong>Clases particulares.</strong> GradeHub muestra clases de
   profesores revisados, siempre marcadas como publicidad. Usa tus ramos y notas
   dentro de tu navegador para ordenar las recomendaciones que te muestra junto a
-  un ramo. Los profesores no ven tus notas ni saben quién eres. Lo que acuerdes con un
+  un ramo. Los profesores no ven tus notas ni saben quién eres, salvo que tú decidas
+  compartírselas (ver abajo). Lo que acuerdes con un
   profesor es entre ustedes: GradeHub no cobra ni garantiza las clases.</li>
+  <li><strong>Para dar clases, 18 años o más.</strong> Quien ofrece clases en
+  GradeHub cobra y publica a su nombre, así que tiene que ser mayor de edad. Lo
+  declara al crear su cuenta de profesor, y revisamos cada postulación antes de
+  que pueda publicar.</li>
 </ul>
+
+<h2>Compartir tus notas con un profesor</h2>
+
+<p>Un profesor particular revisado por GradeHub puede mandarte un link para
+seguir tu avance. Si lo abres, tú decides:</p>
+<ul>
+  <li><strong>Qué ramos compartes.</strong> Ninguno viene marcado. El profesor
+  ve cada nota de esos ramos y su promedio, calculado igual que en tu app, y
+  puede descargarlas en un archivo para hacerte seguimiento. No ve tus otros
+  ramos, tu correo ni tu cuenta.</li>
+  <li><strong>Con qué nombre apareces.</strong></li>
+  <li><strong>Hasta cuándo.</strong> En Ajustes → Datos y cuenta puedes dejar de
+  compartir cuando quieras, y el profesor deja de ver tus notas en GradeHub en
+  ese momento. También deja de verlas si borras tu cuenta. Si ya las había
+  descargado, tiene que borrarlas.</li>
+</ul>
+<p>Junto a tus notas, el profesor ve el promedio de todos los usuarios de
+GradeHub en ese ramo y en cada prueba. Ese promedio se muestra solo cuando hay
+al menos cinco personas y nunca dice quiénes son.</p>
+<p>Si eres profesor y usas esta función, te comprometes a usar las notas que te
+comparten solo para apoyar a ese alumno. Puedes descargarlas para tu propio
+seguimiento, pero no las publicas, no se las muestras ni se las pasas a nadie
+más, y si el alumno deja de compartir, dejas de usarlas y borras lo que hayas
+descargado.
+GradeHub puede suspender a un profesor que no lo cumpla. Durante el piloto esta
+función es gratis para el profesor; si pasa a cobrarse, lo avisaremos antes.</p>
 
 <h2>Uso responsable</h2>
 

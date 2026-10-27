@@ -23,20 +23,22 @@ const run=s=>vm.runInContext(s,ctx);
 console.log('=== El orden guardado se respeta ===');
 run("S={statsOrden:['historial','curso','ritmo','prioridades','rango'],statsOcultas:[]};");
 chk('la pantalla sigue el orden del estudiante',
-  run("ordenSecciones().join(',')")==='historial,curso,ritmo,prioridades,rango');
+  run("ordenSecciones().join(',')").startsWith('historial,curso,ritmo,prioridades,rango'));
 
 console.log('\n=== Una sección nueva no queda invisible ===');
 // Si alguien guardó su orden antes de que existiera una sección, esa sección no
 // puede desaparecer para siempre: entra al final en vez de perderse.
 run("S={statsOrden:['ritmo','historial'],statsOcultas:[]};");
 const conNuevas=run("ordenSecciones()");
-chk('las que faltaban se agregan al final', conNuevas.length===run("SECCIONES_STATS.length"));
+// Las que dependen de la app (Tu olfato) no existen en la web.
+const DISPONIBLES="SECCIONES_STATS.filter(s=>!s.disponible||s.disponible())";
+chk('las que faltaban se agregan al final', conNuevas.length===run(DISPONIBLES+".length"));
 chk('y las guardadas conservan su lugar', conNuevas[0]==='ritmo'&&conNuevas[1]==='historial');
 
 console.log('\n=== Nada se rompe con datos viejos o corruptos ===');
 run("S={};");
 chk('sin preferencia guardada salen todas en su orden natural',
-  run("ordenSecciones().join(',')")===run("SECCIONES_STATS.map(s=>s.id).join(',')"));
+  run("ordenSecciones().join(',')")===run(DISPONIBLES+".map(s=>s.id).join(',')"));
 run("S={statsOrden:['inventada','ritmo'],statsOcultas:'no-es-lista'};");
 chk('un id que ya no existe se descarta', !run("ordenSecciones().includes('inventada')"));
 chk('y una lista de ocultas malformada no esconde nada', !run("seccionOculta('ritmo')"));

@@ -67,8 +67,13 @@ chk('el Control 1 de 10% de mañana le gana al Lab 1 de 5% de hace cuatro días'
 chk('esperar una nota no compra prioridad aunque la evaluación fuera pesada',
   gana(evento('proxima', 30, 1), evento('pasada', -1, 100, 2.0)));
 chk('a igual fecha, más peso sube', gana(evento('pesada', 7, 30), evento('liviana', 7, 10)));
+// En riesgo pero recuperable: 3,8 en el 80% rendido pide 4,6 en lo que queda.
 chk('a igual fecha y peso, el ramo en riesgo sube',
-  gana(evento('riesgo', 7, 20, 2.0), evento('sana', 7, 20, 6.5)));
+  gana(evento('riesgo', 7, 20, 3.8), evento('sana', 7, 20, 6.5)));
+// Con 2,0 en el 80% ya no alcanza: un ramo imposible no compite por el foco
+// (Lucas, 2026-10-20). Sigue en la Agenda, pero detrás.
+chk('un ramo que ya no se puede aprobar no sube: baja',
+  gana(evento('sana', 7, 20, 6.5), evento('imposible', 7, 20, 2.0)));
 
 console.log('\n=== El riesgo avisa, pero no convierte diciembre en "ahora" ===');
 chk('un ramo reprobado no trae al frente su evaluación a cuatro meses',
@@ -116,17 +121,18 @@ chk('una fecha de hace tres meses queda marcada para revisión',
 stub.innerHTML='';
 vm.runInContext('renderAgenda()',ctx);
 const esperaHTML=stub.innerHTML;
-const antesDeFechasPasadas=esperaHTML.slice(0,esperaHTML.indexOf('Fechas pasadas sin nota'));
-chk('el caso real pone Control 1 en el foco y saca Lab 1 de las prioridades',
-  /Tu foco ahora[\s\S]*Control 1/.test(antesDeFechasPasadas)&&!/Lab 1/.test(antesDeFechasPasadas));
-chk('las fechas pasadas quedan visibles en un bloque secundario',
-  /Fechas pasadas sin nota/.test(esperaHTML)&&/ag-waiting/.test(esperaHTML));
+chk('Control 1 de mañana aparece antes que las fechas pasadas sin nota',
+  esperaHTML.indexOf('Control 1')>0&&esperaHTML.indexOf('Control 1')<esperaHTML.indexOf('Lab 1'));
+chk('las fechas pasadas aparecen una vez en Pendientes',
+  /aria-label="Pendientes"/.test(esperaHTML)&&!/ag-waiting/.test(esperaHTML)
+  &&(esperaHTML.match(/Lab 1/g)||[]).length===1);
 chk('el texto no afirma que la evaluación se rindió',
-  /Si ya la rendiste/.test(esperaHTML)&&/Si se movió/.test(esperaHTML));
-chk('deja a mano completar la nota o corregir la fecha',
-  /Completar nota|Poner nota/.test(esperaHTML)&&/Corregir fecha/.test(esperaHTML));
-chk('lo realmente antiguo aparece primero y pide revisar la fecha',
-  /ag-waiting-row needs-review[\s\S]*Revisar fecha[\s\S]*Evaluación antigua/.test(esperaHTML));
+  /Fecha pasada sin nota/.test(esperaHTML)&&!/ya la rendiste/i.test(esperaHTML));
+chk('cada fecha pasada abre su evaluación',
+  /data-agenda-action="completar-nota"[^>]*data-cat-id="categoria"/.test(esperaHTML)
+  &&/data-agenda-action="completar-nota"[^>]*data-cat-id="grupo"[^>]*data-nota-id="nota-propia"/.test(esperaHTML));
+chk('una fecha muy antigua pide revisar el dato',
+  /Revisar fecha[\s\S]*Evaluación antigua/.test(esperaHTML));
 chk('el resumen deja de acusarlas como vencidas',!/vencida/i.test(esperaHTML));
 const cssEspera=fs.readFileSync(__dirname+'/../styles.css','utf8');
 chk('la espera no reutiliza el rojo semántico',
@@ -153,6 +159,30 @@ chk('Peso pone primero el porcentaje más alto',
 chk('las dos destacadas salen del criterio completo de fecha, peso y nota necesaria',
   !!destacadasAgenda && destacadasAgenda(pendientes).length === 2 &&
   nombres(destacadasAgenda(pendientes)) === nombres([...pendientes].sort((a,b)=>b.score-a.score).slice(0,2)));
+
+console.log('\n=== Hoy y mañana van primero, aunque el ramo vaya con 7 (2026-10-22) ===');
+// Un control de 5% mañana en un ramo con 7, contra una prueba de 30% en cinco
+// días de un ramo que va reprobando.
+const mananaCon7 = { ...evento('mañana con 7', 1, 5, 7.0), hora: '10:00' };
+const riesgoEn5 = evento('riesgo en 5 días', 5, 30, 3.5);
+chk('el puntaje solo la dejaba abajo (por eso hace falta la regla)', !gana(mananaCon7, riesgoEn5));
+const conManana = [riesgoEn5, mananaCon7].map(withPriority);
+chk('en Recomendado, lo de mañana va primero',
+  !!ordenarAgenda && nombres(ordenarAgenda(conManana, 'recomendado')) === 'mañana con 7,riesgo en 5 días');
+chk('y es "Tu foco ahora"', !!destacadasAgenda && destacadasAgenda(conManana)[0].cat.nombre === 'mañana con 7');
+const hoy = { ...evento('hoy', 0, 5, 7.0), hora: '18:00' };
+const mananaTemprano = { ...evento('mañana temprano', 1, 5, 7.0), hora: '08:30' };
+const variasCercanas = [mananaCon7, riesgoEn5, mananaTemprano, hoy].map(withPriority);
+chk('hoy antes que mañana, y mañana por hora',
+  nombres(ordenarAgenda(variasCercanas, 'recomendado')) === 'hoy,mañana temprano,mañana con 7,riesgo en 5 días');
+chk('Fecha y Peso no cambian: los eligió el estudiante',
+  nombres(ordenarAgenda(conManana, 'peso')) === 'riesgo en 5 días,mañana con 7');
+const imposibleManana = evento('mañana en ramo perdido', 1, 30, 1.0);
+chk('salvo un ramo que ya no se puede aprobar: ese no compite por el foco (2026-10-20)',
+  nombres(ordenarAgenda([imposibleManana, riesgoEn5].map(withPriority), 'recomendado')) === 'riesgo en 5 días,mañana en ramo perdido');
+const pasadoManana = [evento('pasado mañana con 7', 2, 5, 7.0), riesgoEn5].map(withPriority);
+chk('desde pasado mañana manda el puntaje de siempre',
+  nombres(ordenarAgenda(pasadoManana, 'recomendado')) === nombres([...pasadoManana].sort((a,b)=>b.score-a.score)));
 
 const controles = agendaOrdenHTML ? agendaOrdenHTML('recomendado') : '';
 chk('el selector ofrece Recomendado, Fecha y Peso',
@@ -212,7 +242,7 @@ chk('el nivel se conserva para ordenar', withPriority(evento('x', 2, 20)).nivel 
 chk('el activo se distingue por superficie, contorno y acento',
   /background:var\(--card\)/.test(reglaActiva) && /box-shadow:/.test(reglaActiva) && /color:var\(--primary\)/.test(reglaActiva));
 
-console.log('\n=== Completar fechas sigue disponible sin competir con las prioridades ===');
+console.log('\n=== Completar fechas va en la misma lista de pendientes ===');
 vm.runInContext(`S={ramos:[{
   id:'agenda-ui',nombre:'Ramo agenda',color:'#2563eb',gates:[],categorias:[
     {id:'con-fecha',nombre:'Prueba fechada',peso:30,fecha:'${iso(3)}',notas:[]},
@@ -221,8 +251,9 @@ vm.runInContext(`S={ramos:[{
 }]};`, ctx);
 stub.innerHTML = '';
 vm.runInContext('renderAgenda()', ctx);
-chk('el bloque sin fecha se renderiza después de las evaluaciones destacadas',
-  stub.innerHTML.indexOf('ag-undated') > stub.innerHTML.indexOf('ag-priority-grid'));
+chk('la evaluación sin fecha aparece una sola vez con su destino',
+  (stub.innerHTML.match(/Prueba sin fecha/g)||[]).length===1
+  &&/data-agenda-action="agregar-fecha"[^>]*data-cat-id="sin-fecha"/.test(stub.innerHTML));
 
 console.log('\n=== Cada evaluación explica lo justo sin convertir la Agenda en otro dashboard ===');
 const siguienteEvaluacionAgenda = funcionAgenda('siguienteEvaluacionAgenda');

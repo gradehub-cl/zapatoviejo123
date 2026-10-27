@@ -64,11 +64,11 @@ function el(){let html='';const n={style:{setProperty(){},removeProperty(){}},cl
   addEventListener(){},removeEventListener(){},appendChild(h){return h;},setAttribute(){},removeAttribute(){},getAttribute(){return null;},querySelector(){return el();},querySelectorAll(){return [];},focus(){},remove(){},closest(){return null;},src:''};
   Object.defineProperty(n,'innerHTML',{get(){return html;},set(v){html=String(v);}});return n;}
 function dispositivo(nube,almacen=new Map()){
-  const ids={};let modalAbierto=false;
+  const ids={},oyentes={};let modalAbierto=false;
   const modal=el();modal.classList.contains=c=>c==='open'&&modalAbierto;ids.modal=modal;
   const avisos=[];
   const ctx={
-    window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})},
+    window:{addEventListener(t,f){(oyentes[t]=oyentes[t]||[]).push(f);},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})},
     document:{getElementById:id=>ids[id]||(ids[id]=el()),createElement:el,addEventListener(){},removeEventListener(){},documentElement:el(),querySelector(){return null;},querySelectorAll(){return [];},body:el(),head:{appendChild(){}},visibilityState:'visible'},
     localStorage:{getItem:k=>almacen.has(k)?almacen.get(k):null,setItem:(k,v)=>almacen.set(k,String(v)),removeItem:k=>almacen.delete(k)},
     navigator:{},location:{origin:'',pathname:'/',hash:'',reload(){}},history:{replaceState(){}},
@@ -79,7 +79,7 @@ function dispositivo(nube,almacen=new Map()){
   const run=c=>vm.runInContext(c,ctx);
   ctx.__avisos=avisos;
   run(`showToast=(m)=>__avisos.push(m);enterApp=()=>{};enterOnboarding=()=>{};renderHome=()=>{};aplicarConsensoAuto=async()=>0;aportarPautasAlCatalogo=async()=>0;`);
-  return {ctx,run,almacen,avisos,setModal:v=>{modalAbierto=v;},
+  return {ctx,run,almacen,avisos,setModal:v=>{modalAbierto=v;},disparar:t=>(oyentes[t]||[]).forEach(f=>f()),
     entrar:async uid=>{run(`supabaseClient=__nube;currentUser={id:${JSON.stringify(uid)}};`);await run('afterLogin()');},
     // Anotar una nota como lo hace la app: se modifica S y se guarda.
     // save() programa una subida a los 800 ms; se cancela para que el test
@@ -200,6 +200,18 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     chk('y no se escribe nada de vuelta',nube.escrituras===antes);
   }
   {
+    // La copia del disco y la de la nube traen las mismas claves en otro
+    // orden (normalize sobre lo leído vs. sobre freshState + la nube). Antes
+    // cada apertura subía una copia idéntica y movía `_rev`.
+    const nube=createNubeYa();
+    const pc=await preparar(nube);await pc.subir();
+    const antes=nube.escrituras,rev=nube.filas.get('u1')._rev;
+    for(let i=0;i<2;i++){const d=dispositivo(nube,pc.almacen);await d.entrar('u1');await esperar(30);}
+    chk('reabrir sin cambios no escribe en la nube',nube.escrituras===antes&&nube.filas.get('u1')._rev===rev);
+    chk('igualSync no mira el orden de las claves',pc.run(`igualSync({a:1,b:{c:2,d:[{x:1,y:2}]}},{b:{d:[{y:2,x:1}],c:2},a:1})`));
+    chk('pero sí el de las listas',!pc.run(`igualSync([1,2],[2,1])`)&&!pc.run(`igualSync({a:1},{a:1,b:2})`));
+  }
+  {
     // Caché de otra cuenta en un navegador compartido: nunca se mezcla.
     const nube=createNubeYa();
     nube.filas.set('u2',estadoInicial());
@@ -227,6 +239,105 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     const subio=await pc.subir();
     chk('con un modal abierto la subida espera en vez de fusionar',subio===false&&pc.run('S===window.__ref'));
     chk('y no se pisó nada en la nube',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[6.6],[]]]));
+  }
+
+  // Issue #579: las dos pestañas comparten localStorage. La de S viejo en
+  // memoria leía la base que acababa de subir la otra y su escritura
+  // condicional pasaba, borrando la nota ajena también en la nube.
+  console.log('\n=== 8. Dos pestañas del mismo navegador ===');
+  {
+    const nube=createNubeYa();nube.filas.set('u1',estadoInicial());
+    const almacen=new Map();
+    const a=dispositivo(nube,almacen);await a.entrar('u1');
+    const b=dispositivo(nube,almacen);await b.entrar('u1');
+    a.anotar(0,6.5,'a');await a.subir();
+    b.anotar(1,5,'b');await b.subir();
+    chk('la nube conserva las notas de las dos pestañas',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[6.5],[5]]]));
+    chk('y la pestaña vieja muestra las dos',JSON.stringify(b.notas())===JSON.stringify([[[6.5],[5]]]));
+  }
+  {
+    // La pestaña vieja anota sin red y se cierra todo: al reabrir, lo que
+    // subió la otra pestaña no se pierde aunque el disco quedó con su copia.
+    const nube=createNubeYa();nube.filas.set('u1',estadoInicial());
+    const almacen=new Map();
+    const a=dispositivo(nube,almacen);await a.entrar('u1');
+    const b=dispositivo(nube,almacen);await b.entrar('u1');
+    a.anotar(0,6.5,'a');await a.subir();
+    nube.red=false;b.anotar(1,5,'b');await b.subir();nube.red=true;
+    const reabierto=dispositivo(nube,almacen);await reabierto.entrar('u1');await esperar(50);
+    chk('al reabrir están las dos notas',JSON.stringify(reabierto.notas())===JSON.stringify([[[6.5],[5]]]));
+    chk('y las dos llegan a la nube',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[6.5],[5]]]));
+  }
+
+  console.log('\n=== 9. Una subida que termina después de cambiar de cuenta ===');
+  {
+    // Issue #579, punto 3: la respuesta tardía de A marcaba como suya la caché de B.
+    const nube=createNubeYa();nube.filas.set('u1',estadoInicial());
+    const d=dispositivo(nube);await d.entrar('u1');
+    d.anotar(0,6.1,'tarde');
+    const enCamino=d.subir();
+    d.run(`currentUser={id:'u2'};setCacheOwner('u2');`);
+    await enCamino;
+    chk('la nota de A igual llegó a su nube',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[6.1],[]]]));
+    chk('pero la caché sigue siendo de B',d.almacen.get('gradehub_cache_owner')==='u2');
+  }
+
+  console.log('\n=== 10. Una lectura tardía de A no se aplica en la sesión de B ===');
+  {
+    // Issue #579, punto 2.
+    const nube=createNubeYa();
+    nube.filas.set('u1',{...estadoInicial(),userName:'Nombre de A'});
+    nube.filas.set('u2',{...estadoInicial(),userName:'Nombre de B'});
+    const d=dispositivo(nube);
+    let soltar;d.ctx.__lenta=new Promise(r=>{soltar=r;});
+    d.run(`supabaseClient=__nube;currentUser={id:'u1'};globalThis.__normal=loadFromCloud;loadFromCloud=()=>__lenta.then(()=>__normal());`);
+    const deA=d.run('afterLogin()');
+    d.run(`loadFromCloud=__normal;currentUser={id:'u2'};`);
+    await d.run('afterLogin()');
+    soltar();await deA;
+    chk('en pantalla quedan los datos de B',d.run('S.userName')==='Nombre de B');
+    chk('y la caché sigue siendo de B',d.almacen.get('gradehub_cache_owner')==='u2'&&JSON.parse(d.almacen.get('gradehub_v1')).userName==='Nombre de B');
+  }
+
+  console.log('\n=== 11. Lo que no subió sin red se sube al volver la conexión ===');
+  {
+    // Issue #579, punto 13.
+    const nube=createNubeYa();
+    const d=await preparar(nube);
+    nube.red=false;d.anotar(0,6.2,'offline');await d.subir();
+    chk('sin red queda solo en el dispositivo',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[],[]]]));
+    nube.red=true;d.disparar('online');await esperar(30);
+    chk('al volver la red se sube sola',JSON.stringify(notasEnNube(nube))===JSON.stringify([[[6.2],[]]]));
+    const antes=nube.escrituras;d.disparar('online');await esperar(30);
+    chk('y sin nada pendiente no vuelve a escribir',nube.escrituras===antes);
+  }
+
+  console.log('\n=== 12. Lo que normalize() corrige al entrar también llega a la nube ===');
+  {
+    // 2026-10-15: la nube quedó con el Laboratorio de Dinámica duplicado. La
+    // app lo reparaba al cargar, pero solo en el dispositivo: la nube —lo que
+    // leen los agentes— seguía con todo dos veces hasta la próxima nota.
+    const cat=(id,nombre,peso,extra={})=>({id,nombre,peso,directNota:true,ponderaNotas:false,notas:[],...extra});
+    const pauta=s=>[cat('ctrl'+s,'Controles',25/3,{slots:5}),cat('inf'+s,'Informes',70,{slots:6,slotStart:0}),
+      cat('par'+s,'Evaluación de pares',65/3,{slots:6,slotStart:0,pesosCasillas:[1.5,1,1,1,1,1]})];
+    const duplicado=()=>({...estadoInicial(),tenant:'uc',ramos:[{id:'lab',nombre:'Laboratorio de Dinámica',color:'#a73',
+      origen:{tenant:'uc',carrera:'ING-PC'},promedioParcial:'por-casilla',categorias:[...pauta('-a'),...pauta('-b')],
+      gates:[{type:'min_grade_required',catId:'par-b',min:4,cap:3.9}]}]});
+    const enNube=nube=>nube.filas.get('u1').ramos[0].categorias.map(c=>c.nombre);
+    for(const [titulo,conCache] of [['un dispositivo nuevo',false],['el mismo teléfono de siempre',true]]){
+      const nube=createNubeYa();nube.filas.set('u1',duplicado());
+      const almacen=new Map();
+      if(conCache){almacen.set('gradehub_v1',JSON.stringify(duplicado()));almacen.set('gradehub_cache_owner','u1');}
+      const d=dispositivo(nube,almacen);await d.entrar('u1');await esperar(30);
+      chk(`${titulo}: la nube queda reparada (${enNube(nube).join(', ')})`,enNube(nube).length===3);
+      const escrituras=nube.escrituras;
+      // Desde otro dispositivo, la nube ya reparada no tiene nada que corregir.
+      const otra=dispositivo(nube);await otra.entrar('u1');await esperar(30);
+      chk(`${titulo}: la corrección no se vuelve a subir`,nube.escrituras===escrituras&&enNube(nube).length===3);
+    }
+    const nube=createNubeYa();const d=await preparar(nube);const antes=nube.escrituras;
+    const otro=dispositivo(nube);await otro.entrar('u1');await esperar(30);
+    chk('una cuenta sin nada que corregir no escribe al entrar',nube.escrituras===antes);
   }
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);

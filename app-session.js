@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-09-07';
+const LEGAL_ACCEPTANCE_VERSION = '2026-10-22';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -18,6 +18,28 @@ const LEGAL_ACCEPTANCE_VERSION = '2026-09-07';
 // casos y sigue sin distinguirlos. Si algún día se reactiva la confirmación,
 // hay que volver a redactarlo. Lo fija `tests/seguridad.test.js`.
 const MSG_VERIFICA = 'Ya puedes entrar con ese correo y tu contraseña.';
+
+// El enlace de la calculadora solo atribuye la entrada en esta pestaña. No se
+// mezcla con gradehub_v1 ni se guarda puntaje, nota o identidad en la URL.
+const ORIGEN_ENTRADA_KEY='gradehub_origen_entrada';
+try{
+  if(new URLSearchParams(location.search).get('desde')==='calculadora'){
+    sessionStorage.setItem(ORIGEN_ENTRADA_KEY,'calculadora');
+    // Limpiar solo este parámetro: si queda en la barra, una recarga lo vuelve
+    // a atribuir. Conservar parámetros y fragmentos de OAuth o recuperación.
+    const url=new URL(location.href);
+    url.searchParams.delete('desde');
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }
+}catch(e){}
+function consumirOrigenEntrada(){
+  try{
+    const origen=sessionStorage.getItem(ORIGEN_ENTRADA_KEY);
+    sessionStorage.removeItem(ORIGEN_ENTRADA_KEY);
+    if(origen==='calculadora'||origen==='profesor')return {origen};
+  }catch(e){}
+  return undefined;
+}
 
 function passwordPolicyError(password){
   if(password.length<PASS_MIN)return 'La contraseña debe tener al menos '+PASS_MIN+' caracteres.';
@@ -57,13 +79,26 @@ const SUPABASE_ANON_KEY = 'sb_publishable_JwBMAOR7iHW-gcRdLMGrYw_eCOISwqA';
 const LLEGA_DE_RECUPERACION=typeof location!=='undefined'&&/(?:^|[#&])type=recovery(?:&|$)/.test(location.hash||'');
 let enRecuperacion=LLEGA_DE_RECUPERACION;
 let supabaseClient=null, currentUser=null, authMode='login';
+let _cerrandoSesion=false;
+// En la app iOS (Capacitor) la página no puede irse a Google. Capacitor manda
+// esa navegación a Safari y la vista web quedaba congelada: cancelar el login
+// obligaba a cerrar la app. Y la vuelta a `capacitor://localhost` no llega a
+// ninguna parte. Ahí Google se abre en una hoja de Safari dentro de la app y
+// vuelve por el esquema propio, que tiene que estar en las Redirect URLs de
+// Supabase (Authentication → URL Configuration).
+//
+// Con PKCE: otra app podría reclamar el mismo esquema, así que lo que vuelve es
+// un código que solo sirve con el verificador guardado en este dispositivo, no
+// la sesión. La web sigue con el flujo de siempre.
+const APP_NATIVA=typeof window!=='undefined'&&!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+const VUELTA_NATIVA='cl.gradehub.app://login-callback';
 try{
   if(window.supabase && SUPABASE_URL.startsWith('http')){
-    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,APP_NATIVA?{auth:{flowType:'pkce'}}:undefined);
   }
 }catch(e){console.warn('Supabase no inicializado:',e);}
 
-function freshState(){return{ramos:[],userName:'',careerSemestre:1,carrera:null,tenant:'fen',onboardingDone:false,historial:[],sortMode:'manual',modo:'sistema',acento:'turquesa',fondo:'neutro',carreraNombre:null};}
+function freshState(){return{ramos:[],userName:'',careerSemestre:1,carrera:null,tenant:'fen',onboardingDone:false,tipoCuenta:'estudiante',generacion:null,verano:null,historial:[],sortMode:'manual',modo:'sistema',acento:'turquesa',fondo:'neutro',carreraNombre:null};}
 
 function authError(msg,kind){
   // kind: 'error' (default, rojo) | 'info' (neutro, para mensajes tipo "revisa tu correo")
@@ -94,11 +129,38 @@ function toggleAuthMode(){
   document.getElementById('auth-fp').style.display=authMode==='login'?'block':'none';
   authError('');
 }
+let temporizadorCargaInicial=null;
+function ocultarCargaInicial(){
+  if(temporizadorCargaInicial!==null){clearTimeout(temporizadorCargaInicial);temporizadorCargaInicial=null;}
+  const pantalla=document.getElementById('screen-loading');
+  if(pantalla)pantalla.classList.remove('active');
+}
+function prepararCargaInicial(){
+  const boton=document.getElementById('carga-inicial-reintentar');
+  if(!boton||typeof boton.addEventListener!=='function')return;
+  boton.addEventListener('click',()=>location.reload());
+  temporizadorCargaInicial=setTimeout(()=>{
+    const pantalla=document.getElementById('screen-loading');
+    if(!pantalla||!pantalla.classList.contains('active'))return;
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Está tardando más de lo esperado. Revisa tu conexión y recarga.';
+    boton.hidden=false;
+  },12000);
+}
 function showAuthScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
+  // Al cerrar sesión la app viene del carrusel de pestañas. Con `tab-mode` el
+  // login se dibuja como capa superpuesta y quedaba corrido hacia abajo; al
+  // abrir de cero esa clase no existe y se veía bien (visto en iPhone,
+  // 2026-10-06). Se sale del carrusel igual que en showAppErrorScreen.
+  const app=document.querySelector('.app');
+  if(app)app.classList.remove('tab-mode','dragging');
+  try{window.scrollTo(0,0);}catch(e){}
   document.getElementById('screen-auth').classList.add('active');
   marcarUltimoLogin();
+  if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();
   // El esqueleto se pinta YA, con el alto definitivo: la RPC tarda cerca de un
   // segundo en producción y, sin esto, los números entraban empujando el botón
   // de Google hacia abajo justo cuando alguien iba a tocarlo.
@@ -152,6 +214,7 @@ async function cargarEstadisticasPublicas(){
 // pantalla conserva esa distinción: no expone el stack, no cierra la sesión y
 // ofrece una acción que sí puede ayudar (cargar la app completa de nuevo).
 function showAppErrorScreen(fase){
+  ocultarCargaInicial();
   ['auth','home','stats','agenda','ramo','onboard','reset','app-error'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   const app=document.querySelector('.app');
   if(app)app.classList.remove('tab-mode','dragging');
@@ -194,16 +257,92 @@ function detalleErrorSeguro(error){
     .slice(0,100);
 }
 
+// ─── Errores: saber cuándo algo se cae ──────────────────────────────────────
+// Cada error de JavaScript que nadie atrapó (en la app y en la web) se guarda
+// en Supabase, en errores_app (supabase/errores_app.sql). Va saneado igual que
+// los del arranque: sin notas, nombres, correos, URL ni números. Solo con
+// sesión (la tabla exige user_id), máximo 5 por visita y sin repetir el mismo:
+// un error dentro de un bucle no llena la tabla. Si la tabla no existe o no hay
+// red, se pierde en silencio: reportar nunca puede romper la app.
+const MAX_ERRORES_POR_VISITA=5;
+const _erroresEnviados=new Set();
+function versionDeLaApp(){
+  try{
+    const src=(document.querySelector('script[src*="app-session.js?v="]')||{}).src||'';
+    const v=(src.match(/[?&]v=([\w-]{1,20})/)||[])[1];
+    return v&&v!=='__ASSET_VERSION__'?v:'dev';
+  }catch(e){return 'dev';}
+}
+function reportarError(error,donde){
+  try{
+    if(!supabaseClient||!currentUser||_erroresEnviados.size>=MAX_ERRORES_POR_VISITA)return false;
+    const mensaje=detalleErrorSeguro(error);
+    // "Script error." es lo único que deja un script de otro origen: no dice nada.
+    if(/^Script error\.?$/i.test(mensaje))return false;
+    // __gCrWeb es el script que Chrome para iPhone inyecta en cada página: si
+    // falla, no es nuestro (2026-10-16, "Can't find variable: __gCrWeb").
+    if(/__gCrWeb/.test(mensaje))return false;
+    const tipos=['TypeError','ReferenceError','RangeError','SyntaxError','AbortError','NotAllowedError'];
+    const tipo=error&&tipos.includes(error.name)?error.name:'Error';
+    const clave=tipo+'|'+mensaje+'|'+donde;
+    if(_erroresEnviados.has(clave))return false;
+    _erroresEnviados.add(clave);
+    const activa=document.querySelector('.screen.active');
+    const pantalla=activa&&activa.id?activa.id.replace(/^screen-/,''):(typeof currentTab==='string'?currentTab:'');
+    supabaseClient.from('errores_app').insert({
+      plataforma:typeof APP_NATIVA!=='undefined'&&APP_NATIVA?'app':'web',
+      version:versionDeLaApp(),tipo,mensaje,donde:String(donde||'').slice(0,80),pantalla:String(pantalla).slice(0,20)
+    }).then(()=>{},()=>{});
+    return true;
+  }catch(e){return false;}
+}
+// Solo el nombre del archivo y la línea: la ruta completa delata el dispositivo.
+function dondeDelError(archivo,linea,columna){
+  const nombre=String(archivo||'').split('?')[0].split('/').pop()||'?';
+  return nombre+(linea?':'+linea+(columna?':'+columna:''):'');
+}
+// Una promesa rechazada no trae archivo ni línea: se sacan del primer marco del
+// stack. Sin esto, "promesa" no distinguía un error nuestro de uno de una
+// extensión del navegador ("reading 'M_ID'", 2026-10-14, no está en el repo).
+function dondeDeLaPromesa(error){
+  const m=String(error&&error.stack||'').match(/([a-z-]+:\/\/[^\s()]+?):(\d+):(\d+)/i);
+  if(!m)return 'promesa';
+  if(/^(chrome|moz|safari-web)-extension:/i.test(m[1]))return 'promesa · extensión';
+  return 'promesa · '+dondeDelError(m[1],m[2],m[3]);
+}
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
+  window.addEventListener('error',e=>{
+    // Un <img> o un <script> que no carga también dispara "error", sin mensaje.
+    if(!e||!e.message)return;
+    if(/^(chrome|moz|safari-web)-extension:/i.test(String(e.filename||'')))return;
+    reportarError(e.error||{message:e.message},dondeDelError(e.filename,e.lineno,e.colno));
+  });
+  window.addEventListener('unhandledrejection',e=>{
+    const donde=dondeDeLaPromesa(e&&e.reason);
+    // Un error de una extensión del navegador ("reading 'M_ID'") no es nuestro:
+    // guardarlo solo ensucia errores_app (2026-10-15).
+    if(donde==='promesa · extensión')return;
+    reportarError(e&&e.reason,donde);
+  });
+}
+
 function registrarErrorArranque(error,fase){
   const tiposSeguros=['TypeError','ReferenceError','RangeError','SyntaxError'];
   const tipo=error&&tiposSeguros.includes(error.name)?error.name:'Error';
   const detalle=detalleErrorSeguro(error);
   console.error('GradeHub no pudo completar el arranque ('+fase+'): '+tipo+' · '+detalle);
-  track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
+  // `track` vive en app.js. Si app.js no alcanzó a cargar (una descarga
+  // cortada), llamarla reventaba acá: la persona quedaba en el login con la
+  // sesión abierta, sin el aviso de recargar, y errores_app solo recibía
+  // "Can't find variable: track" en vez del error de verdad (2026-10-14).
+  if(typeof track==='function')track('app_boot_error',{fase:fase,tipo:tipo,detalle:detalle});
+  reportarError(error,'arranque:'+fase);
 }
 function enterOnboarding(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
+  if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();
   // Si entró con Google, ya sabemos su nombre: no se lo preguntamos en blanco
   const nameInput=document.getElementById('ob-name');
   if(nameInput && !nameInput.value.trim() && currentUser && currentUser.user_metadata){
@@ -212,16 +351,35 @@ function enterOnboarding(){
     if(n)nameInput.value=n.split(' ')[0];
   }
   obIniciar();
+  // Con el correo institucional ya sabemos su universidad: llega marcada en el
+  // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:
+  // una cuenta que ya existe nunca cambia de universidad por su correo.
+  const porCorreo=tenantPorCorreo(currentUser&&currentUser.email);
+  if(porCorreo){selectedTenant=porCorreo;applyTheme();renderTenantPick();checkOb();}
+}
+// La universidad que corresponde al dominio del correo, o null. Compara el
+// dominio completo, no un sufijo: "x@noesmiuandes.cl" no es de la UAndes.
+function tenantPorCorreo(correo){
+  const texto=String(correo||'').trim().toLowerCase(),arroba=texto.lastIndexOf('@');
+  const dominio=arroba>0?texto.slice(arroba+1):'';
+  if(!dominio)return null;
+  const t=Object.keys(DOMINIOS_CORREO_POR_TENANT).find(k=>DOMINIOS_CORREO_POR_TENANT[k].includes(dominio));
+  return t&&TENANTS[t]&&!TENANTS[t].oculto?t:null;
 }
 function enterApp(){
+  ocultarCargaInicial();
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.remove('active');
   showMainApp();
+  if(typeof consultarEncuestaAlEntrar==='function')consultarEncuestaAlEntrar().catch(()=>{});
 }
 
 function traduceAuthError(e,contexto){
   if(e&&e.code==='CACHE_LOCAL_NO_AISLADA')return 'No pudimos proteger los ramos guardados en este dispositivo. La cuenta se creó, pero no se copiaron. Libera espacio o entra desde otro navegador.';
   const m=((e&&e.message)||'').toLowerCase();
+  const code=String((e&&e.code)||'');
+  if(code==='current_password_required')return 'Escribe tu contraseña actual para poder cambiarla.';
+  if(code==='current_password_mismatch')return 'La contraseña actual no es correcta.';
   // No confirmar si un correo ya tiene cuenta: esa diferencia permite enumerar
   // usuarios y preparar phishing o credential stuffing. Registro existente y
   // registro aceptado tienen que verse iguales hacia afuera.
@@ -231,10 +389,13 @@ function traduceAuthError(e,contexto){
   if(m.includes('invalid login')||m.includes('credentials'))return 'Usuario o contraseña incorrectos.';
   // Sin esto caían en "revisa tu internet": el correo de recuperación tiene un
   // límite por hora y quien lo pedía dos veces creía que no tenía conexión.
-  const code=String((e&&e.code)||'');
   if((e&&e.status===429)||code.includes('rate_limit')||m.includes('rate limit')||m.includes('security purposes'))
     return 'Hiciste varios intentos seguidos. Espera unos minutos y vuelve a intentarlo.';
   if(code==='same_password'||m.includes('different from the old'))return 'La nueva contraseña tiene que ser distinta de la anterior.';
+  // Con "Secure password change" encendido en Supabase, una sesión antigua no
+  // puede cambiarla. Va antes del caso genérico de 'password', que diría que
+  // la contraseña es corta.
+  if(code==='reauthentication_needed'||m.includes('reauthentication'))return 'Por seguridad, cierra sesión, vuelve a entrar y cámbiala apenas entres.';
   if(code==='email_address_invalid'||(m.includes('email')&&m.includes('invalid')))return 'Ese correo no es válido. Revísalo e intenta de nuevo.';
   if(m.includes('password'))return 'La contraseña debe tener al menos '+PASS_MIN+' caracteres e incluir letras y números.';
   return 'No se pudo conectar. Revisa tu internet e intenta de nuevo.';
@@ -270,9 +431,13 @@ async function cambiarCorreoCuenta(){
     return false;
   }
   const original=btn?btn.textContent:'';
+  const usuario=currentUser;
   if(btn){btn.disabled=true;btn.textContent='Guardando…';}
   try{
     const {data,error}=await supabaseClient.auth.updateUser({email:correo});
+    // La respuesta pertenece a la visita que pidió el cambio, incluso si se
+    // salió y se volvió a entrar con el mismo id mientras estaba en vuelo.
+    if(currentUser!==usuario)return false;
     if(error)throw error;
     const correoGuardado=String(data&&data.user&&data.user.email||'').trim().toLowerCase();
     if(correoGuardado!==correo){
@@ -283,6 +448,7 @@ async function cambiarCorreoCuenta(){
     estadoCambioCorreo('Correo actualizado. Desde ahora entra con esta dirección.',false);
     return true;
   }catch(e){
+    if(currentUser!==usuario)return false;
     estadoCambioCorreo(traduceAuthError(e,'cambio_correo'),true);
     return false;
   }finally{
@@ -290,7 +456,68 @@ async function cambiarCorreoCuenta(){
   }
 }
 
+// Cambiar la contraseña estando dentro (#714). Antes solo se llegaba desde el
+// correo de recuperación. Misma política y mismo updateUser que esa pantalla.
+// Solo para cuentas que entran con correo: las de Google no tienen contraseña.
+function cuentaConClave(u){
+  const m=u&&u.app_metadata;
+  return !!m&&(Array.isArray(m.providers)?m.providers.includes('email'):m.provider==='email');
+}
+function estadoCambioClave(mensaje,esError,campo){
+  const aviso=document.getElementById('s-account-pass-status');
+  if(aviso){aviso.textContent=mensaje||'';aviso.hidden=!mensaje;aviso.style.color=esError?'var(--red)':'var(--fg2)';}
+  ['s-account-current-pass','s-account-pass','s-account-pass2'].forEach(id=>{
+    const input=document.getElementById(id);
+    if(!input)return;
+    const invalido=esError&&(campo==='actual'?id==='s-account-current-pass':id!=='s-account-current-pass');
+    if(invalido)input.setAttribute('aria-invalid','true');
+    else input.removeAttribute('aria-invalid');
+  });
+}
+async function cambiarClaveCuenta(){
+  const btn=document.getElementById('s-account-pass-save');
+  if(btn&&btn.disabled)return false;
+  const actual=document.getElementById('s-account-current-pass');
+  const i1=document.getElementById('s-account-pass'),i2=document.getElementById('s-account-pass2');
+  const pActual=actual?actual.value:'',p1=i1?i1.value:'',p2=i2?i2.value:'';
+  estadoCambioClave('',false);
+  if(!pActual){estadoCambioClave('Escribe tu contraseña actual para poder cambiarla.',true,'actual');if(actual)actual.focus();return false;}
+  const politica=passwordPolicyError(p1);
+  if(politica){estadoCambioClave(politica,true);if(i1)i1.focus();return false;}
+  if(p1!==p2){estadoCambioClave('Las contraseñas no coinciden.',true);if(i2)i2.focus();return false;}
+  if(!supabaseClient||!supabaseClient.auth||!currentUser){
+    estadoCambioClave('Necesitas iniciar sesión para cambiar tu contraseña.',true);
+    return false;
+  }
+  const original=btn?btn.textContent:'';
+  const usuario=currentUser;
+  if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password:p1,current_password:pActual});
+    // La respuesta es de la visita que la pidió: una tardía no puede escribir
+    // en la hoja de otra cuenta (#579, punto 15).
+    if(currentUser!==usuario)return false;
+    if(error)throw error;
+    if(actual)actual.value='';
+    if(i1)i1.value='';
+    if(i2)i2.value='';
+    estadoCambioClave('Contraseña actualizada. La próxima vez entra con la nueva.',false);
+    return true;
+  }catch(e){
+    if(currentUser!==usuario)return false;
+    const errorActual=e&&(e.code==='current_password_required'||e.code==='current_password_mismatch');
+    estadoCambioClave(traduceAuthError(e),true,errorActual?'actual':'nueva');
+    if(errorActual&&actual)actual.focus();
+    return false;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=original;}
+  }
+}
+
 async function submitAuth(){
+  const btn=document.getElementById('auth-btn');
+  // Enter llama esta función desde el campo, aunque el botón esté deshabilitado.
+  if(btn.disabled)return;
   const email=(document.getElementById('auth-user').value||'').trim().toLowerCase();
   const p=document.getElementById('auth-pass').value;
   const p2=document.getElementById('auth-pass2').value;
@@ -315,13 +542,29 @@ async function submitAuth(){
   }
   if(!supabaseClient){authError('Falta configurar Supabase (URL y clave) en el código.');return;}
 
-  const btn=document.getElementById('auth-btn');const orig=btn.textContent;
+  const orig=btn.textContent;
   btn.disabled=true;btn.textContent='Cargando...';
   try{
     if(authMode==='signup'){
       const {data,error}=await supabaseClient.auth.signUp({email,password:p});
       if(error)throw error;
-      if(!data.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+      if(!data.session){
+        // Supabase no dice si el correo ya tenía cuenta: en ese caso responde
+        // sin sesión, igual que si hubiera que confirmar el correo. Se intenta
+        // entrar con lo mismo que se escribió: quien ya tenía cuenta y puso su
+        // contraseña queda adentro, que es lo que esperaba al registrarse. Si
+        // no calza, el mismo aviso de siempre, así que no se revela nada: la
+        // contraseña correcta ya bastaba para entrar.
+        const {data:entrada,error:errorEntrada}=await supabaseClient.auth.signInWithPassword({email,password:p});
+        if(errorEntrada||!entrada||!entrada.session){authError(MSG_VERIFICA,'info');btn.disabled=false;btn.textContent=orig;return;}
+        recordarMetodoLogin('correo');
+        currentUser=entrada.user;
+        // Volvió a aceptar los términos en este formulario: se anota, sin que
+        // un fallo de esa constancia le impida entrar a su propia cuenta.
+        try{await registrarAceptacionLegal();}catch(e){}
+        await afterLogin();
+        return;
+      }
       currentUser=data.user;
       await registrarAceptacionLegal();
       await afterSignup();
@@ -333,6 +576,7 @@ async function submitAuth(){
     }
   }catch(e){
     authError(traduceAuthError(e));
+  }finally{
     btn.disabled=false;btn.textContent=orig;
   }
 }
@@ -381,6 +625,17 @@ async function signInWithProvider(provider){
   const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
+    if(APP_NATIVA){
+      const {data,error}=await supabaseClient.auth.signInWithOAuth({
+        provider,
+        options:{redirectTo:VUELTA_NATIVA,skipBrowserRedirect:true}
+      });
+      if(error)throw error;
+      recordarMetodoLogin(provider);
+      // El botón vuelve con la sesión (appUrlOpen) o al cerrar la hoja.
+      await window.Capacitor.Plugins.Browser.open({url:data.url,presentationStyle:'popover'});
+      return;
+    }
     const {error}=await supabaseClient.auth.signInWithOAuth({
       provider,
       options:{redirectTo:location.origin+location.pathname}
@@ -393,6 +648,59 @@ async function signInWithProvider(provider){
     authError(traduceAuthError(e));
     if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=orig;}
   }
+}
+
+function reactivarBotonesOAuth(){
+  const b=document.getElementById('btn-google');
+  if(b){b.disabled=false;b.style.opacity='';}
+}
+// La vuelta de Google en la app nativa. Cerrar la hoja sin terminar no es un
+// error: solo reactiva el botón.
+async function volverDeOAuthNativo(url){
+  if(typeof url!=='string'||!url.startsWith(VUELTA_NATIVA))return false;
+  try{await window.Capacitor.Plugins.Browser.close();}catch(e){}
+  let code=null;
+  try{code=new URL(url).searchParams.get('code');}catch(e){}
+  if(!code){
+    authError('No pudimos iniciar sesión con Google. Intenta de nuevo.');
+    reactivarBotonesOAuth();
+    return false;
+  }
+  try{
+    const {data,error}=await supabaseClient.auth.exchangeCodeForSession(code);
+    if(error)throw error;
+    currentUser=data.user;
+    reactivarBotonesOAuth();
+    await afterLogin();
+    return true;
+  }catch(e){
+    authError(traduceAuthError(e));
+    reactivarBotonesOAuth();
+    return false;
+  }
+}
+// El typeof es porque hay tests que cargan solo este tramo del archivo.
+if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
+  const {App,Browser}=window.Capacitor.Plugins;
+  // La vuelta del login con Google y los enlaces de los widgets llegan por el
+  // mismo esquema propio; cada uno reconoce solo lo suyo.
+  // Tocar un aviso de evaluación abre el ramo o su simulador.
+  const notificaciones=window.Capacitor.Plugins.LocalNotifications;
+  if(notificaciones&&typeof notificaciones.addListener==='function')notificaciones.addListener('localNotificationActionPerformed',ev=>{
+    const extra=ev&&ev.notification&&ev.notification.extra;
+    if(extra&&extra.gradehub==='prueba'&&typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(extra.url);
+  });
+  if(App)App.addListener('appUrlOpen',ev=>{
+    const url=ev&&ev.url;
+    if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
+    else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
+  });
+  // Lo que se respondió en la Actividad en Vivo con la app cerrada.
+  if(typeof recogerSensaciones==='function'){
+    setTimeout(recogerSensaciones,0);
+    if(App)App.addListener('resume',()=>recogerSensaciones());
+  }
+  if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 
 // Recuperar contraseña
@@ -416,6 +724,8 @@ async function forgotPassword(){
 // Al volver del correo, Supabase dispara PASSWORD_RECOVERY (ver boot()).
 // Esta función recibe la nueva contraseña y la guarda.
 async function submitNewPassword(){
+  const btn=document.getElementById('reset-btn');
+  if(btn.disabled)return;
   const p1=document.getElementById('reset-pass').value;
   const p2=document.getElementById('reset-pass2').value;
   const err=document.getElementById('reset-error');
@@ -424,10 +734,12 @@ async function submitNewPassword(){
   if(policyError){err.textContent=policyError;err.style.display='block';return;}
   if(p1!==p2){err.textContent='Las contraseñas no coinciden.';err.style.display='block';return;}
   if(!supabaseClient){err.textContent='Supabase no está configurado.';err.style.display='block';return;}
-  const btn=document.getElementById('reset-btn');const orig=btn.textContent;
+  const orig=btn.textContent;
+  const usuario=currentUser;
   btn.disabled=true;btn.textContent='Guardando...';
   try{
     const {data,error}=await supabaseClient.auth.updateUser({password:p1});
+    if(currentUser!==usuario)return;
     if(error)throw error;
     currentUser=data.user;
     enRecuperacion=false;
@@ -435,13 +747,16 @@ async function submitNewPassword(){
     document.getElementById('screen-reset').classList.remove('active');
     await afterLogin();
   }catch(e){
+    if(currentUser!==usuario)return;
     // El mensaje de Supabase viene en inglés ("New password should be different…").
     err.textContent=traduceAuthError(e);err.style.display='block';
+  }finally{
     btn.disabled=false;btn.textContent=orig;
   }
 }
 
 function showResetScreen(){
+  ocultarCargaInicial();
   ['home','stats','agenda','ramo','onboard','auth'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
   document.getElementById('bottom-nav').style.display='none';
   document.getElementById('screen-reset').classList.add('active');
@@ -498,7 +813,7 @@ function aislarCacheEnRegistro(uid){
     if(owner||importable)apartarCacheLocal(owner);
     const vacia=freshState();
     localStorage.setItem(STORAGE_KEY,JSON.stringify(vacia));
-    localStorage.removeItem(SYNC_BASE_KEY);
+    localStorage.removeItem(SYNC_BASE_KEY);if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     localStorage.setItem(CACHE_OWNER_KEY,uid);
     S=vacia;
     return {propia:false,importable};
@@ -513,6 +828,7 @@ function aislarCacheEnRegistro(uid){
       if(owner)localStorage.setItem(CACHE_OWNER_KEY,owner);
       else localStorage.removeItem(CACHE_OWNER_KEY);
     }catch(_){}
+    if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     return null;
   }
 }
@@ -536,6 +852,7 @@ function restaurarCacheApartada(uid){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(restaurada));
     if(copia.base)localStorage.setItem(SYNC_BASE_KEY,copia.base);
     else localStorage.removeItem(SYNC_BASE_KEY);
+    if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     localStorage.setItem(CACHE_OWNER_KEY,uid);
     S=restaurada;
     localStorage.removeItem(key);
@@ -550,6 +867,7 @@ function restaurarCacheApartada(uid){
       if(ownerPrevio)localStorage.setItem(CACHE_OWNER_KEY,ownerPrevio);
       else localStorage.removeItem(CACHE_OWNER_KEY);
     }catch(_){}
+    if(typeof olvidarBaseSesion==='function')olvidarBaseSesion();
     return false;
   }
 }
@@ -571,8 +889,9 @@ async function importarCacheSinDueno(uid){
   }catch(e){showToast('No pudimos traer los ramos de este dispositivo. Siguen guardados aquí.',true);}
 }
 async function afterSignup(){
-  track('signup');
+  track('signup',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
   const uid=currentUser?.id;
+  if(typeof marcarPrimeraSesionEncuesta==='function')marcarPrimeraSesionEncuesta(uid);
   const aislamiento=uid&&aislarCacheEnRegistro(uid);
   if(!aislamiento){
     try{await supabaseClient.auth.signOut();}catch(e){}
@@ -597,8 +916,11 @@ async function afterSignup(){
   }
 }
 async function afterLogin(){
-  track('login');
+  track('login',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
+  registrarVisitaDiaria();
   const uid=currentUser?currentUser.id:null;
+  const visita=++_visitaSesion;
+  const vigente=()=>visita===_visitaSesion&&!!currentUser&&currentUser.id===uid;
   // Una sesión anterior pudo terminar por vencimiento, sin pasar por signOut.
   // Ninguna de sus propuestas debe asomarse en Inicio de la cuenta nueva.
   if(typeof propuestasPautaAgente!=='undefined')propuestasPautaAgente=[];
@@ -607,12 +929,32 @@ async function afterLogin(){
   if(typeof propuestasRamosAgente!=='undefined')propuestasRamosAgente=[];
   if(typeof renderPropuestasPautaHome==='function')renderPropuestasPautaHome();
   if(uid)restaurarCacheApartada(uid);
+  // El aviso de Inicio se pide ya, con la universidad de la copia local, para
+  // que llegue junto con las notas. Si la nube trae otra, Inicio lo vuelve a pedir.
+  if(uid&&getCacheOwner()===uid&&S&&S.tenant&&typeof cargarAnunciosRecomendacion==='function')
+    cargarAnunciosRecomendacion(S.tenant,()=>{});
+  // Inicio con la copia local. Si la caché es de esta cuenta y este dispositivo
+  // ya se sincronizó con «Sincronización sin pérdidas» (hay base), se entra con
+  // lo que hay en el dispositivo y la nube se reconcilia después, sin dejar a la
+  // persona esperando un viaje a Supabase detrás de la pantalla de carga. Lo
+  // que anote mientras tanto es un cambio local frente a la base y la fusión lo
+  // conserva. Sin base no: con una copia antigua sin ids reconciliarAlEntrar
+  // manda la nube e ignoraría lo anotado en esa ventana.
+  if(uid&&getCacheOwner()===uid&&leerBaseSync(uid)&&S.onboardingDone){
+    enterApp();
+    cargasAlEntrar();
+    reconciliarEnSegundoPlano(uid,vigente)
+      .then(()=>{if(vigente())tareasConEstadoAlEntrar();})
+      .catch(e=>registrarErrorArranque(e,'reconciliar'));
+    return;
+  }
   let cloud,ok=true;
   // Solo la lectura remota es recuperable: si falla, la copia local ya fue
   // normalizada al cargar y además está protegida por el dueño de la caché.
   // normalize() y enterApp() quedan fuera a propósito. Si una de ellas falla,
   // continuar con estado o DOM a medias sería peor que detenerse con un aviso.
   try{cloud=await loadFromCloud();}catch(e){ok=false;}
+  if(!vigente())return;
   const mismaCache=getCacheOwner()===uid;
   // La copia previa a importar es de quien importó. Si la caché es de otra
   // cuenta (navegador compartido, o una sesión que venció sin cerrarse), se va:
@@ -621,32 +963,9 @@ async function afterLogin(){
   // en app.js y hay tests que cargan solo este bloque.
   if(!mismaCache&&typeof PRE_IMPORT_KEY!=='undefined'){try{localStorage.removeItem(PRE_IMPORT_KEY);}catch(e){}}
   if(ok&&cloud!==null){
-    // La nube puede contener ramos creados con versiones anteriores. Pásalos
-    // siempre por normalize(): un ramo sin preset necesita categorias:[] para
-    // que el editor de pauta pueda abrirse igual que uno con pauta oficial.
-    //
-    // La nube YA NO pisa la copia local a ciegas: si este dispositivo tiene
-    // algo que no alcanzó a subir (una nota anotada sin conexión), se conserva
-    // y se sube. Ver «Sincronización sin pérdidas», más abajo.
-    const nube=normalize({...freshState(),...clonarSync(cloud)});
-    const {estado,subir}=mismaCache?reconciliarAlEntrar(uid,S,nube,cloud):{estado:nube,subir:false};
-    S=estado;
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
-    guardarBaseSync(uid,nube);
-    setCacheOwner(uid);
-    if(subir){
-      syncNow().then(respaldado=>{
-        if(respaldado)showToast('✓ Guardamos en la nube lo que anotaste en este dispositivo');
-      }).catch(()=>{});
-    }
+    subirTrasEntrar(aplicarNubeAlEntrar(uid,cloud,mismaCache));
   }else if(ok&&mismaCache){
-    // `null` significa que la consulta no encontró una fila; NO demuestra que
-    // esta persona no tenga datos. Si la caché ya tiene el mismo dueño, es la
-    // única copia conocida: se conserva y se intenta crear el respaldo.
-    const respaldado=await syncNow();
-    showToast(respaldado
-      ? 'Recuperamos tu copia local y la respaldamos en la nube'
-      : 'Tus notas siguen en este dispositivo, pero no pudimos respaldarlas. No cierres sesión e inténtalo de nuevo con internet.',!respaldado);
+    await respaldarCopiaSinFila();
   }else if(ok){
     // Cuenta realmente nueva, o caché de otra persona en un navegador
     // compartido. Nunca se reutilizan datos cuyo dueño no coincide.
@@ -664,7 +983,94 @@ async function afterLogin(){
       showToast('No pudimos cargar tus datos. Revisa tu conexión.',true);
     }
   }
+  if(!vigente())return;
   if(S.onboardingDone)enterApp();else enterOnboarding();
+  tareasConEstadoAlEntrar();
+  cargasAlEntrar();
+}
+// Aplica la fila de la nube al entrar. Devuelve qué falta subir: 'local' si
+// este dispositivo tenía algo que la nube no, 'corregida' si normalize()
+// arregló la estructura de la nube, null si no hay nada.
+function aplicarNubeAlEntrar(uid,cloud,mismaCache){
+  // La nube puede contener ramos creados con versiones anteriores. Pásalos
+  // siempre por normalize(): un ramo sin preset necesita categorias:[] para
+  // que el editor de pauta pueda abrirse igual que uno con pauta oficial.
+  //
+  // La nube YA NO pisa la copia local a ciegas: si este dispositivo tiene
+  // algo que no alcanzó a subir (una nota anotada sin conexión), se conserva
+  // y se sube. Ver «Sincronización sin pérdidas», más abajo.
+  const nube=normalize({...freshState(),...clonarSync(cloud)});
+  const {estado,subir}=mismaCache?reconciliarAlEntrar(uid,S,nube,cloud):{estado:nube,subir:false};
+  S=estado;
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
+  // Si normalize() corrigió la estructura de un ramo de la nube (una pauta
+  // nuestra mal publicada, evaluaciones repetidas), esa corrección también
+  // se sube. Antes solo quedaba en el dispositivo: la nube —que es lo que
+  // leen los agentes conectados— seguía con el error hasta la próxima nota.
+  // La base queda en la copia tal como estaba, así la subida sale como un
+  // cambio de este dispositivo y no como un choque.
+  const corregida=firmaEstructuraSync(nube)!==firmaEstructuraSync(cloud);
+  guardarBaseSync(uid,corregida?cloud:nube);
+  setCacheOwner(uid);
+  return subir?'local':corregida?'corregida':null;
+}
+function subirTrasEntrar(motivo){
+  if(motivo==='local'){
+    syncNow().then(respaldado=>{
+      if(respaldado)showToast('✓ Guardamos en la nube lo que anotaste en este dispositivo');
+    }).catch(()=>{});
+  }else if(motivo){
+    syncNow().catch(()=>{});
+  }
+}
+// `null` significa que la consulta no encontró una fila; NO demuestra que
+// esta persona no tenga datos. Si la caché ya tiene el mismo dueño, es la
+// única copia conocida: se conserva y se intenta crear el respaldo.
+async function respaldarCopiaSinFila(){
+  const respaldado=await syncNow();
+  showToast(respaldado
+    ? 'Recuperamos tu copia local y la respaldamos en la nube'
+    : 'Tus notas siguen en este dispositivo, pero no pudimos respaldarlas. No cierres sesión e inténtalo de nuevo con internet.',!respaldado);
+}
+// La lectura de la nube cuando Inicio ya está en pantalla con la copia local.
+// Toma el candado de las subidas (_subida) mientras lee y reconcilia: una
+// subida que corriera entremedio movería la base, la lectura llegaría vieja y
+// la fusión tomaría por borrada la nota recién subida. Lo que se pide subir en
+// ese rato (save, pagehide, online) espera y sale al terminar, con la S ya
+// reconciliada.
+async function reconciliarEnSegundoPlano(uid,vigente){
+  while(_subida){try{await _subida;}catch(e){}}
+  if(!vigente())return;
+  let resultado=null,pedida=false;
+  _subida=(async()=>{
+    let cloud;
+    try{cloud=await loadFromCloud();}
+    catch(e){if(vigente())showToast('Sin conexión · usando tu copia local');return false;}
+    if(!vigente())return false;
+    // Con un modal abierto no se reemplaza S (ver fusionarConNube).
+    if(modalAbiertoSync()){resultado='modal';return false;}
+    if(cloud===null){resultado='sinFila';return false;}
+    const antes=clonarSync(S);
+    resultado=aplicarNubeAlEntrar(uid,cloud,true);
+    if(!igualSync(antes,S)){
+      repintarTrasFusion();
+      // El servidor pudo convertir la cuenta en profesor (ver fusionarSync).
+      if(typeof recalcularNavTabs==='function')recalcularNavTabs();
+    }
+    return true;
+  })();
+  try{await _subida;}
+  finally{_subida=null;if(_otraSubida){_otraSubida=false;pedida=true;}}
+  if(resultado==='modal'){
+    if(pedida)syncToCloud();
+    await new Promise(r=>setTimeout(r,1500));
+    return reconciliarEnSegundoPlano(uid,vigente);
+  }
+  if(resultado==='sinFila')await respaldarCopiaSinFila();
+  else subirTrasEntrar(resultado||(pedida?'pedida':null));
+}
+// Lo que trabaja sobre S: va con el estado ya reconciliado con la nube.
+function tareasConEstadoAlEntrar(){
   // No bloquea la entrada: es una lectura de red y la app ya está en pantalla.
   // Si llega con algo, repinta y lo dice — una pauta no aparece en silencio.
   aplicarConsensoAuto().then(n=>{
@@ -682,9 +1088,12 @@ async function afterLogin(){
   // sin actualizar en 30 días (para que no cuenten los ramos borrados o
   // archivados antes del arreglo), y quien usa la app sin abrir Estadísticas
   // quedaba fuera aunque su promedio fuera real. Una vez por visita: la firma
-  // de subirNotasCurso evita repetir si nada cambió. Va después de afterLogin
-  // entero para que suba el estado ya reconciliado con la nube.
+  // de subirNotasCurso evita repetir si nada cambió. Va con el estado ya
+  // reconciliado con la nube.
   if(S.onboardingDone&&typeof subirNotasCurso==='function')subirNotasCurso().catch(()=>{});
+}
+// Lo que se lee de la red al entrar y no depende de S. No bloquea nada.
+function cargasAlEntrar(){
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL
   // del marketplace todavía no está aplicado, la consulta falla en silencio y
@@ -712,12 +1121,42 @@ async function afterLogin(){
   }
 }
 
+// Cada entrada y cada salida abren una visita nueva. Una lectura de la nube que
+// vuelve después de cambiar de cuenta, o de salir y volver a entrar, es de la
+// visita anterior: aplicarla mostraba los datos de A en la sesión de B y los
+// dejaba en su caché (issue #579, punto 2).
+let _visitaSesion=0;
+
 // La persona suele consultar al agente en otra app y volver a GradeHub. Al
 // regresar, se consulta la bandeja sin obligarla a cerrar sesión ni recargar.
 if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&currentUser&&S.onboardingDone
     &&typeof cargarPropuestasPautaAgente==='function')cargarPropuestasPautaAgente().catch(()=>{});
+  // La app instalada puede quedar abierta de un día para otro sin recargar.
+  if(document.visibilityState==='visible')registrarVisitaDiaria();
 });
+
+// Una visita por cuenta y por día (#666, supabase/visitas_diarias.sql), para
+// medir activos y quién vuelve sin depender de las sesiones de Supabase. El
+// servidor solo guarda la cuenta y la fecha. Este dispositivo anota que ya la
+// mandó hoy, fuera de gradehub_v1, para no llamar en cada apertura; si falla,
+// se vuelve a intentar la próxima vez.
+const VISITA_DIA_KEY='gradehub_visita_dia';
+function diaChileVisita(ahora=new Date()){
+  try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(ahora);}catch(e){return null;}
+}
+async function registrarVisitaDiaria(ahora=new Date()){
+  if(!supabaseClient||!currentUser)return false;
+  const dia=diaChileVisita(ahora);if(!dia)return false;
+  const marca=currentUser.id+'|'+dia;
+  try{if(localStorage.getItem(VISITA_DIA_KEY)===marca)return false;}catch(e){}
+  try{
+    const {error}=await supabaseClient.rpc('registrar_visita');
+    if(error)return false;
+    try{localStorage.setItem(VISITA_DIA_KEY,marca);}catch(e){}
+    return true;
+  }catch(e){return false;}
+}
 
 async function loadFromCloud(){
   const {data,error}=await supabaseClient.from('user_ramos').select('data').eq('user_id',currentUser.id).maybeSingle();
@@ -741,10 +1180,22 @@ function subirSyncPendiente(){
   syncNow();
   return true;
 }
+// Una subida que falló sin red no se reintentaba hasta la próxima edición: la
+// nota quedaba solo en el dispositivo aunque la conexión ya hubiera vuelto
+// (issue #579, punto 13). Se reintenta al volver la red y al volver a la
+// pestaña, por el mismo camino de siempre (subida condicional y fusión).
+function reintentarSubida(){
+  if(!_syncTimer&&!_subida&&hayCambiosSinSubir())syncNow();
+}
 if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')subirSyncPendiente();});
-if(typeof window!=='undefined'&&typeof window.addEventListener==='function')
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden')subirSyncPendiente();
+    else reintentarSubida();
+  });
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
   window.addEventListener('pagehide',subirSyncPendiente);
+  window.addEventListener('online',reintentarSubida);
+}
 // Una subida a la vez: si llega otra mientras una va en camino, se repite al
 // terminar con el estado de ese momento. Dos subidas cruzadas partirían de la
 // misma versión y la segunda chocaría con la primera.
@@ -786,25 +1237,63 @@ async function syncNow(){
 // que es lo que la persona tiene en pantalla.
 const SYNC_BASE_KEY='gradehub_v1_base';
 const clonarSync=x=>x==null?x:JSON.parse(JSON.stringify(x));
-const igualSync=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// El orden de las claves no cuenta: la copia del disco se carga con
+// normalize(JSON.parse(...)) y la nube con normalize({...freshState(),...}), así
+// que traen las mismas claves en otro orden. Compararlas como texto las veía
+// distintas y cada apertura subía una copia idéntica. El de las listas sí
+// cuenta (el orden de los ramos lo elige la persona).
+const ordenSync=v=>Array.isArray(v)?v.map(ordenSync)
+  :v&&typeof v==='object'?Object.keys(v).sort().reduce((o,k)=>(o[k]=ordenSync(v[k]),o),{}):v;
+const igualSync=(a,b)=>JSON.stringify(ordenSync(a))===JSON.stringify(ordenSync(b));
+// Qué evaluaciones tiene cada ramo y cuánto pesan: lo que cambia cuando
+// normalize() corrige una pauta. No mira notas ni campos que normalize()
+// completa por defecto, así un ramo antiguo no se sube en cada arranque.
+function firmaEstructuraSync(d){
+  const ramos=d&&Array.isArray(d.ramos)?d.ramos:[];
+  return JSON.stringify(ramos.map(r=>[r&&r.id,(r&&Array.isArray(r.categorias)?r.categorias:[]).map(c=>[c&&c.id,c&&c.peso])]));
+}
 const objetoSync=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 function sinRevSync(x){if(!objetoSync(x))return x;const {_rev,...resto}=x;return resto;}
 function revSync(x){return objetoSync(x)&&Number.isInteger(x._rev)?x._rev:null;}
 
 // La base se guarda con su dueño: en un navegador compartido, la versión que
 // vio otra cuenta no sirve para nada y no debe mezclarse.
+//
+// Y es la de ESTA pestaña. Dos pestañas del mismo navegador comparten
+// localStorage: cuando cada una leía la base de ahí, la que tenía S viejo en
+// memoria tomaba la versión que acababa de subir la otra, la escritura
+// condicional pasaba y su documento entero borraba la nota ajena, también en
+// la nube (issue #579). Ahora cada pestaña recuerda en memoria la versión de
+// la que salió su S, y el disco guarda S junto con SU base: el próximo arranque
+// compara lo que quedó escrito contra la versión de la que salió, aunque otra
+// pestaña haya subido entremedio.
+// undefined = esta pestaña todavía no la conoce y la lee del disco.
+let _baseSesion;
 function leerBaseSync(uid){
+  if(_baseSesion!==undefined)return _baseSesion&&_baseSesion.owner===uid?_baseSesion.data:null;
   try{
     const b=JSON.parse(localStorage.getItem(SYNC_BASE_KEY)||'null');
     return b&&b.owner===uid&&objetoSync(b.data)?b.data:null;
   }catch(e){return null;}
 }
 function guardarBaseSync(uid,data){
+  // Copia profunda: S suele compartir objetos con `data` (la nube recién
+  // leída, o lo que se acaba de subir) y anotar una nota cambiaría la base.
+  _baseSesion=data&&uid?{owner:uid,data:clonarSync(data)}:null;
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
+  escribirBaseEnDisco();
+}
+// La llama también save(), justo después de escribir S.
+function escribirBaseEnDisco(){
+  if(_baseSesion===undefined)return;
   try{
-    if(data&&uid)localStorage.setItem(SYNC_BASE_KEY,JSON.stringify({owner:uid,data}));
+    if(_baseSesion)localStorage.setItem(SYNC_BASE_KEY,JSON.stringify(_baseSesion));
     else localStorage.removeItem(SYNC_BASE_KEY);
   }catch(e){}
 }
+// Quien escribe la base directo en el disco (registro, restaurar una copia
+// apartada, cerrar sesión) hace que esta pestaña la vuelva a leer de ahí.
+function olvidarBaseSesion(){_baseSesion=undefined;}
 
 // Al entrar con la caché de la misma cuenta. `nube` ya viene normalizada;
 // `crudo` es la fila tal como llegó, para revisar sus ids.
@@ -838,7 +1327,11 @@ function idsCompletosSync(doc){
 // código) no se sabe quién cambió qué: se suma lo que exista en cualquiera de
 // las dos y, si un mismo dato difiere, manda la nube, como hacía la app antes.
 function fusionarSync(base,local,nube){
-  return fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  const fusion=fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  // El tipo de cuenta lo puede corregir el servidor. Una copia vieja del
+  // teléfono no debe devolver a estudiante una cuenta ya convertida.
+  if(objetoSync(fusion)&&objetoSync(nube)&&nube.tipoCuenta==='profesor')fusion.tipoCuenta='profesor';
+  return fusion;
 }
 function fusionarValorSync(b,l,n,gana){
   if(igualSync(l,n))return l;
@@ -900,13 +1393,19 @@ async function subirConVersion(uid){
         escrito=Array.isArray(filas)&&filas.length>0;
       }
       if(escrito){
+        // Si entretanto se cambió de cuenta, S y el disco ya son de la otra:
+        // la subida quedó hecha, pero no se le anota esta base ni este dueño.
+        if(!currentUser||currentUser.id!==uid)return true;
+        S._rev=enviado._rev;
         guardarBaseSync(uid,enviado);
-        if(currentUser&&currentUser.id===uid)S._rev=enviado._rev;
         setCacheOwner(uid); // la caché local quedó alineada con esta cuenta
         return true;
       }
       // Otro dispositivo escribió desde la última vez: se fusiona y se reintenta.
+      // Nunca sobre la cuenta que entró después: loadFromCloud lee la sesión actual.
+      if(!currentUser||currentUser.id!==uid)return false;
       const cloud=await loadFromCloud();
+      if(!currentUser||currentUser.id!==uid)return false;
       if(cloud===null){guardarBaseSync(uid,null);continue;}
       if(!fusionarConNube(uid,base,cloud))return false;
     }
@@ -920,9 +1419,12 @@ async function subirConVersion(uid){
 // objetos que ya no están en el estado y esa edición se perdería al guardar.
 // Se reintenta en un rato; la base no cambia, así que el choque se repite y se
 // resuelve cuando el modal se cierre.
-function fusionarConNube(uid,base,cloud){
+function modalAbiertoSync(){
   const modal=typeof document!=='undefined'&&document.getElementById&&document.getElementById('modal');
-  if(modal&&modal.classList&&modal.classList.contains('open')){setTimeout(syncToCloud,1500);return false;}
+  return !!(modal&&modal.classList&&modal.classList.contains('open'));
+}
+function fusionarConNube(uid,base,cloud){
+  if(modalAbiertoSync()){setTimeout(syncToCloud,1500);return false;}
   const nube=normalize({...freshState(),...clonarSync(cloud)});
   S=normalize({...freshState(),...fusionarSync(base,S,nube)});
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
@@ -936,7 +1438,14 @@ function repintarTrasFusion(){
     const activa=typeof document!=='undefined'&&document.querySelector&&document.querySelector('.screen.active');
     const id=activa&&activa.id;
     if(typeof renderHome==='function')renderHome();
-    if(id==='screen-ramo'){
+    // Las notas de la ficha se escriben en campos que guardan al soltarlos
+    // (onchange): repintar ahora borraría lo que se está tecleando. Se repinta
+    // al salir del campo; el dato no corre riesgo, porque se guarda buscando la
+    // categoría por id en la S nueva.
+    const foco=id==='screen-ramo'&&document.activeElement;
+    if(foco&&activa.contains&&activa.contains(foco)&&/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName||'')){
+      foco.addEventListener('focusout',()=>setTimeout(repintarTrasFusion,0),{once:true});
+    }else if(id==='screen-ramo'){
       if(S.ramos.some(r=>r.id===currentRamoId)&&typeof renderRamo==='function')renderRamo();
       else if(typeof goHome==='function')goHome();
     }
@@ -946,6 +1455,10 @@ function repintarTrasFusion(){
 }
 async function syncProfile(){
   if(!supabaseClient||!currentUser)return;
+  // Una cuenta solo profesor no eligió universidad ni carrera en el onboarding.
+  // S.tenant conserva el valor técnico por defecto ('fen'): publicarlo en
+  // profiles haría parecer que estudia en FEN y contaminaría los reportes.
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
   try{
     await supabaseClient.from('profiles').upsert({
       id:currentUser.id,
@@ -956,7 +1469,11 @@ async function syncProfile(){
       // malla— no vale para nada. Los códigos viejos siguen siendo válidos y
       // se distinguen porque están en CARRERAS_DECLARABLES.
       carrera:S.carreraNombre||S.carrera||null,
-      semestre:S.careerSemestre||null,
+      // En TAV no hay número de semestre.
+      semestre:(typeof enVerano==='function'&&enVerano())?null:(S.careerSemestre||null),
+      // Columna de #697: si todavía no existe, esta subida falla entera; por
+      // eso solo va cuando hay generación, que tienen solo las cuentas nuevas.
+      ...(S.generacion?{generacion:S.generacion}:{}),
     });
   }catch(e){}
 }
@@ -966,7 +1483,7 @@ async function syncProfile(){
 // Se llama al terminar el onboarding, que es por donde pasa toda cuenta nueva.
 // No revienta hacia afuera: la persona ya está adentro y su semestre ya está
 // guardado; un fallo de red acá no puede dejarla fuera de su propia cuenta.
-async function registrarDeclaracionEdad(){
+async function registrarDeclaracionEdad({edad=null,generacion=null}={}){
   if(!supabaseClient||!currentUser)return;
   try{
     await supabaseClient.from('profiles').upsert({
@@ -975,6 +1492,14 @@ async function registrarDeclaracionEdad(){
     });
     // Quien entró con Google nunca vio la casilla del formulario de correo.
     await registrarAceptacionLegal();
+  }catch(e){}
+  // Edad y generación (#697) van aparte: si sus columnas todavía no existen,
+  // la constancia de la declaración ya quedó guardada arriba igual.
+  try{
+    const datos={id:currentUser.id};
+    if(Number.isInteger(edad)&&edad>=14&&edad<=120)datos.edad=edad;
+    if(Number.isInteger(generacion)&&generacion>=2000&&generacion<=new Date().getFullYear())datos.generacion=generacion;
+    if(Object.keys(datos).length>1)await supabaseClient.from('profiles').upsert(datos);
   }catch(e){}
 }
 async function registrarAceptacionLegal(){
@@ -990,17 +1515,17 @@ async function registrarAceptacionLegal(){
 // la copia local: una nota anotada sin conexión se perdía sin aviso, aunque la
 // app ya hubiera dicho "No cierres sesión". Antes de salir se intenta subir y,
 // si no se puede, se pregunta.
+// ¿Tiene esta pestaña algo que la nube todavía no tiene?
+function hayCambiosSinSubir(){
+  if(!supabaseClient||!currentUser)return false;
+  const base=leerBaseSync(currentUser.id);
+  if(base)return !igualSync(sinRevSync(S),sinRevSync(base));
+  return !!(S.ramos?.length||S.historial?.length||S.onboardingDone);
+}
 async function respaldoAlDia(){
-  if(!supabaseClient||!currentUser)return true;
-  const uid=currentUser.id;
-  const alDia=()=>{
-    const base=leerBaseSync(uid);
-    if(base)return igualSync(sinRevSync(S),sinRevSync(base));
-    return !(S.ramos?.length||S.historial?.length||S.onboardingDone);
-  };
-  if(alDia())return true;
+  if(!hayCambiosSinSubir())return true;
   clearTimeout(_syncTimer);_syncTimer=null;
-  return (await syncNow())&&alDia();
+  return (await syncNow())&&!hayCambiosSinSubir();
 }
 async function signOut(){
   if(!(await respaldoAlDia())){
@@ -1012,8 +1537,12 @@ async function signOut(){
   await cerrarSesion();
 }
 async function cerrarSesion(){
-  try{await supabaseClient.auth.signOut();}catch(e){}
+  _visitaSesion++;
+  try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
+  finally{_cerrandoSesion=false;}
   currentUser=null;closeModal();
+  if(typeof borrarResumenWidgets==='function')borrarResumenWidgets();
+  if(typeof olvidarSesionAgentes==='function')olvidarSesionAgentes();
   // Las propuestas pertenecen a la cuenta que salió, no al navegador.
   if(typeof propuestasPautaAgente!=='undefined')propuestasPautaAgente=[];
   if(typeof propuestasNotasAgente!=='undefined')propuestasNotasAgente=[];
@@ -1025,6 +1554,7 @@ async function cerrarSesion(){
   // Y la copia previa a importar: la siguiente persona podía restaurarla con
   // "Deshacer importación" y quedarse con los datos de esta cuenta.
   try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(CACHE_OWNER_KEY);localStorage.removeItem(SYNC_BASE_KEY);localStorage.removeItem(CURSO_SIGLAS_KEY);localStorage.removeItem(PRE_IMPORT_KEY);}catch(e){}
+  olvidarBaseSesion();
   S=freshState();
   // Las pestañas de profesor y admin son de la cuenta que salió, no del navegador.
   if(typeof olvidarSesionMarketplace==='function')olvidarSesionMarketplace();
@@ -1035,46 +1565,126 @@ async function cerrarSesion(){
   showAuthScreen();
 }
 
-async function boot(){
-  if(!supabaseClient){
-    // Sin configurar Supabase → funciona en modo local (fallback)
-    document.getElementById('screen-auth').classList.remove('active');
-    if(S.onboardingDone)showMainApp();
-    else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
-    return;
-  }
-  // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
-  // el usuario abre el link del correo de "olvidé mi contraseña".
-  supabaseClient.auth.onAuthStateChange((event, session)=>{
-    if(event==='PASSWORD_RECOVERY'){
-      enRecuperacion=true;
-      if(session)currentUser=session.user;
-      limpiarFragmentoAuth();
-      showResetScreen();
-    }
+// La pantalla de carga de la app (#arranque en index.html) se va recién acá,
+// con la pantalla que corresponde ya puesta debajo, sea cual sea el camino.
+// Si lo que queda es el login, el logo no desaparece: vuela a su lugar en el
+// login mientras el fondo se va, y ahí se cambia por el de verdad. A la app o
+// con movimiento reducido, solo se desvanece.
+// Los mismos de la transición de #arranque svg en styles.css. Parte quieta y
+// frena largo: con una curva que arranca rápido, el logo saltaba arriba.
+const VIAJE_ARRANQUE_MS=500,VIAJE_ARRANQUE_CURVA='cubic-bezier(.45,0,.15,1)';
+const RESPIRO_MS=1600; // una respiración: el 1.6s de .arr-arriba en styles.css
+function quitarArranque(){
+  const a=typeof document!=='undefined'&&document.getElementById&&document.getElementById('arranque');
+  if(!a||!a.classList||typeof a.classList.add!=='function')return; // los tests usan elementos de mentira
+  // Cuando la app carga rápido, el splash nativo todavía tapa la vista web, que
+  // recién se está dibujando: sacarlo de una dejaba un cuadro en blanco, y con
+  // su desvanecido quedaba un segundo logo quieto al centro. Se espera a que la
+  // web esté en pantalla, se saca el splash (soltarSplash, en index.html) y
+  // después se sigue.
+  const despues=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(()=>requestAnimationFrame(f)):f();
+  despues(()=>{
+    if(typeof soltarSplash==='function')soltarSplash();
+    despues(()=>{
+      // Cualquier falla del viaje termina en desvanecer: la pantalla se va igual.
+      try{if(volarAlLogin(a))return;}catch(e){}
+      desvanecer(a);
+    });
   });
-  let session=null;
+}
+function desvanecer(a){a.classList.add('listo');setTimeout(()=>a.remove(),400);}
+function volarAlLogin(a){
+  const svg=a.querySelector('svg'),destino=document.querySelector('#screen-auth.active .ob-icon img');
+  if(!svg||!destino||matchMedia('(prefers-reduced-motion: reduce)').matches)return false;
+  // Sin sesión la app carga tan rápido que el logo subía apenas aparecía
+  // (Martín, en su iPhone): se deja terminar la primera respiración, que acaba
+  // con las capas juntas. Con sesión ya respiró mientras bajaban los datos.
+  const desde=Number(a.dataset&&a.dataset.desde)||0;
+  const falta=RESPIRO_MS-(performance.now()-desde);
+  setTimeout(()=>{try{if(despegar(a,svg,destino))return;}catch(e){}desvanecer(a);},Math.max(0,falta));
+  return true;
+}
+function despegar(a,svg,destino){
+  const r=destino.getBoundingClientRect(),o=svg.getBoundingClientRect();
+  if(!r.width||!o.width)return false;
+  // El logo del login va dentro del padding del <img>: el destino es esa caja.
+  const pad=parseFloat(getComputedStyle(destino).paddingLeft)||0;
+  const dx=r.left+r.width/2-(o.left+o.width/2),dy=r.top+r.height/2-(o.top+o.height/2);
+  // Las capas vuelven a juntarse desde donde iban, no de golpe.
+  a.querySelectorAll('.arr-capa').forEach(c=>{
+    const t=getComputedStyle(c).transform;c.style.animation='none';
+    if(t&&t!=='none'&&c.animate)c.animate([{transform:t},{transform:'none'}],{duration:VIAJE_ARRANQUE_MS,easing:VIAJE_ARRANQUE_CURVA});
+  });
+  destino.style.opacity='0';
+  a.classList.add('viaje');
+  svg.style.transform=`translate(${dx}px,${dy}px) scale(${((r.width-2*pad)/o.width).toFixed(4)})`;
+  setTimeout(()=>{destino.style.opacity='';a.remove();},VIAJE_ARRANQUE_MS+20);
+  return true;
+}
+async function boot(){
   try{
-    const result=await supabaseClient.auth.getSession();
-    session=result&&result.data?result.data.session:null;
-  }catch(e){
-    registrarErrorArranque(e,'obtener_sesion');
-    showAppErrorScreen('obtener_sesion');
-    return;
-  }
-  if(!session){showAuthScreen();return;}
+    if(!supabaseClient){
+      // Sin configurar Supabase → funciona en modo local (fallback)
+      ocultarCargaInicial();
+      document.getElementById('screen-auth').classList.remove('active');
+      if(S.onboardingDone)showMainApp();
+      else {document.getElementById('screen-onboard').classList.add('active');obIniciar();}
+      return;
+    }
+    prepararCargaInicial();
+    // Suscribirse a cambios de auth: el evento PASSWORD_RECOVERY viene cuando
+    // el usuario abre el link del correo de "olvidé mi contraseña".
+    supabaseClient.auth.onAuthStateChange((event, session)=>{
+      if(typeof sesionEncuestasCambio==='function')sesionEncuestasCambio(event,session?.user?.id);
+      // Otra pestaña puede salir o cambiar de cuenta, y una sesión puede vencer.
+      // Se reinicia la visita para cancelar también las lecturas de la cuenta
+      // anterior. La copia local se conserva; no se borra una edición sin subir.
+      if(!_cerrandoSesion&&currentUser&&(event==='SIGNED_OUT'||
+        (event==='SIGNED_IN'&&session&&session.user.id!==currentUser.id))){
+        currentUser=null;closeModal();showAuthScreen();location.reload();return;
+      }
+      if(event==='PASSWORD_RECOVERY'){
+        enRecuperacion=true;
+        if(session)currentUser=session.user;
+        limpiarFragmentoAuth();
+        showResetScreen();
+      }
+    });
+    let session=null;
+    try{
+      const result=await supabaseClient.auth.getSession();
+      session=result&&result.data?result.data.session:null;
+    }catch(e){
+      registrarErrorArranque(e,'obtener_sesion');
+      showAppErrorScreen('obtener_sesion');
+      return;
+    }
+    if(!session){showAuthScreen();return;}
 
-  currentUser=session.user;
-  // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
-  // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
-  limpiarFragmentoAuth();
-  if(enRecuperacion){showResetScreen();return;}
-  try{
-    await afterLogin();
-  }catch(e){
-    registrarErrorArranque(e,'abrir_app');
-    showAppErrorScreen('abrir_app');
-  }
+    currentUser=session.user;
+    // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
+    // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
+    limpiarFragmentoAuth();
+    if(enRecuperacion){showResetScreen();return;}
+    // app.js trae el estado y las pantallas. Si su descarga se cortó (pesa
+    // ~600 KB), no hay app que abrir: se pide recargar y se reporta con nombre,
+    // en vez de fallar adentro de afterLogin con un error que no dice qué pasó.
+    // `track` es una declaración de función de app.js: existe apenas el archivo
+    // se leyó, aunque algo falle más abajo.
+    if(typeof track!=='function'){
+      registrarErrorArranque(new Error('app.js no cargó'),'cargar_app');
+      showAppErrorScreen('abrir_app');
+      return;
+    }
+    const detalle=document.getElementById('carga-inicial-detalle');
+    if(detalle)detalle.textContent='Preparando tu semestre…';
+    try{
+      await afterLogin();
+    }catch(e){
+      registrarErrorArranque(e,'abrir_app');
+      showAppErrorScreen('abrir_app');
+    }
+  }finally{quitarArranque();}
 }
 // ─── VERIFICACIÓN EN DOS PASOS ──────────────────────────────────────────────
 //

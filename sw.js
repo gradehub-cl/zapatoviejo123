@@ -15,6 +15,7 @@ const SHELL = [
   '/',
   '/index.html',
   '/preguntas.html',
+  '/calculadora.html',
   '/privacidad.html',
   '/data.js?v=__ASSET_VERSION__',
   '/engine.js?v=__ASSET_VERSION__',

@@ -17,13 +17,13 @@ const M=ctx.MALLAS_UAI_EXTRA;
 const ramosDe=k=>Object.values(M[k]||{}).flat();
 
 console.log('=== Las tres carreras tienen malla y están enlazadas ===');
-[['UAI-INGENIERIA-COMERCIAL','Ingeniería Comercial'],
+[['UAI-INGENIERIA-COMERCIAL','Ingeniería Comercial (Economía)'],
  ['UAI-BACHILLERATO-DE-INGENIERIA-COMERCIAL','Bachillerato de Ingeniería Comercial'],
  ['UAI-INGENIERIA-CIVIL-INDUSTRIAL','Ingeniería Civil Industrial']].forEach(([k,nombre])=>{
   chk(`${nombre} tiene malla`, !!M[k] && ramosDe(k).length>10);
   // Sin el enlace en CARRERAS_DECLARABLES la malla existe pero nadie la alcanza.
   chk(`${nombre} está enlazada desde la carrera`,
-    new RegExp(`\\{n:'${nombre.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')}',malla:'${k}'\\}`).test(datos));
+    datos.includes(`{n:'${nombre}',malla:'${k}'}`));
 });
 
 console.log('\n=== Ningún casillero se coló ===');

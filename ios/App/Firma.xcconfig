@@ -1,0 +1,18 @@
+// Firma de la app y del widget.
+//
+// Acá van los valores de GradeHub. Para instalar en tu iPhone con tu propia
+// cuenta de Apple, NO cambies este archivo ni el proyecto en Xcode (Signing &
+// Capabilities escribe en project.pbxproj): crea Firma.local.xcconfig, al lado
+// de este, que git ignora. Ejemplo con una cuenta personal (Personal Team):
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   GRADEHUB_BUNDLE_ID = cl.gradehub.app.tunombre
+//   GRADEHUB_APP_GROUP = group.cl.gradehub.app.tunombre
+//
+// Con otra cuenta hay que cambiar los tres: un Bundle ID y un App Group son de
+// la cuenta que los registra primero, y el del widget tiene que partir igual
+// que el de la app (sale solo: $(GRADEHUB_BUNDLE_ID).widgets).
+GRADEHUB_BUNDLE_ID = cl.gradehub.app
+GRADEHUB_APP_GROUP = group.cl.gradehub.app
+
+#include? "Firma.local.xcconfig"

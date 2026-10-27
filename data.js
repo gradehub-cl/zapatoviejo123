@@ -168,10 +168,18 @@ const TENANTS={
   // completo (tema, carreras, presets) para quien ya lo tenga seleccionado.
   // Quitar la marca cuando se quiera lanzar.
   uai:{name:'U. Adolfo Ibáñez', short:'UAI', mono:'UAI', sub:'Todas las carreras'},
-  // UAndes ya tiene carreras declarables, aunque todavía no una malla verificada.
-  // Se ofrece igual: el onboarding deja armar el semestre con los ramos del
-  // horario, sin inventar sugerencias ni ponderaciones.
-  uandes:{name:'U. de los Andes', short:'UANDES', mono:'UA', sub:'Carreras y ramos manuales'},
+  // Las mallas de la UAndes viven en mallas-uandes.js. Pautas todavía no hay:
+  // no se inventan ponderaciones.
+  uandes:{name:'U. de los Andes', short:'UANDES', mono:'UA', sub:'Todas las carreras'},
+};
+
+// El dominio del correo institucional de los estudiantes, por universidad. Al
+// entrar por primera vez con uno de estos correos (Google o correo), el paso 2
+// del onboarding llega con esa universidad ya marcada; se puede cambiar. Solo
+// dominios de ESTUDIANTES y verificados: miuandes.cl es el dominio de Google
+// Workspace de los alumnos UAndes (su acceso al correo usa hd=miuandes.cl).
+const DOMINIOS_CORREO_POR_TENANT={
+  uandes:['miuandes.cl'],
 };
 
 // Equivalencias institucionales para calificaciones que sí participan del
@@ -325,7 +333,7 @@ const FONDOS={
     },
     oscuro:{
       bg:'#0e141b',bg2:'#141c25',card:'#1b2632',border:'#2b3b4c',border2:'#3b5166',muted:'#202c38',
-      fg:'#edf4f8',fg2:'#aab8c4',fg3:'#8293a2',
+      fg:'#edf4f8',fg2:'#aab8c4',fg3:'#8394a3',
     },
   },
   papel:{
@@ -336,7 +344,7 @@ const FONDOS={
     },
     oscuro:{
       bg:'#1b1510',bg2:'#251d15',card:'#30261d',border:'#44372a',border2:'#5c4c3c',muted:'#352a20',
-      fg:'#f8f0e4',fg2:'#c6b8a7',fg3:'#9e8f7c',
+      fg:'#f8f0e4',fg2:'#c6b8a7',fg3:'#a0917e',
     },
   },
 };
@@ -362,11 +370,10 @@ const SURFACE_KEYS=['bg','bg2','card','border','border2','muted','fg','fg2','fg3
 // nombre inventado acá no falla, se queda en la base y después manda a
 // construir la malla equivocada.
 const CARRERAS_DECLARABLES={
-  // Las 21 carreras de pregrado que la UAI publica en su página de mallas
-  // (uai.cl/admision/mallas-curriculares-y-folletos). Ninguna trae `malla`
-  // todavía: los ramos por semestre se están transcribiendo desde esos PDF y
-  // entran después sin tocar esta lista. Declararse ya funciona: quien estudia
-  // acá elige su carrera y arma sus ramos, que es el camino del 95%.
+  // Carreras y vías verificadas en las mallas oficiales UAI. Cada licenciatura
+  // o vía distinta tiene su propia opción: no se unen planes incompatibles.
+  // Los códigos existentes se conservan; solo se precisa su nombre visible.
+  // Fuentes y límites de la ampliación de octubre: docs/mallas-uai.md.
   uai:[
     {n:'Ingeniería Aeroespacial',malla:'UAI-INGENIERIA-AEROESPACIAL'},
     {n:'Periodismo',malla:'UAI-PERIODISMO'},
@@ -376,12 +383,15 @@ const CARRERAS_DECLARABLES={
     {n:'Psicología',malla:'UAI-PSICOLOGIA'},
     {n:'Derecho',malla:'UAI-DERECHO'},
     {n:'Doble Grado Derecho + Ingeniería Comercial',malla:'UAI-DOBLE-GRADO-DERECHO-E-INGENIERIA-COMERCIAL'},
-    {n:'Doble Título Ingeniería Comercial + Sociología',malla:'UAI-DOBLE-TITULO-INGENIERIA-COMERCIAL-SOCIOLOGIA'},
-    {n:'Ingeniería Comercial',malla:'UAI-INGENIERIA-COMERCIAL'},
+    {n:'Doble Título Ingeniería Comercial + Sociología (Administración de Empresas)',malla:'UAI-DOBLE-TITULO-INGENIERIA-COMERCIAL-SOCIOLOGIA'},
+    {n:'Doble Título Ingeniería Comercial + Sociología (Economía)',malla:'UAI-DOBLE-TITULO-INGENIERIA-COMERCIAL-SOCIOLOGIA-ECONOMIA'},
+    {n:'Ingeniería Comercial (Economía)',malla:'UAI-INGENIERIA-COMERCIAL'},
+    {n:'Ingeniería Comercial (Administración de Empresas)',malla:'UAI-INGENIERIA-COMERCIAL-ADMINISTRACION'},
     {n:'Bachillerato de Ingeniería Comercial',malla:'UAI-BACHILLERATO-DE-INGENIERIA-COMERCIAL'},
     {n:'International Management',malla:'UAI-INTERNATIONAL-MANAGEMENT'},
     {n:'Ingeniería en Negocios y Tecnología',malla:'UAI-INGENIERIA-EN-NEGOCIOS-Y-TECNOLOGIA'},
-    {n:'Ingeniería en Diseño',malla:'UAI-INGENIERIA-EN-DISENO'},
+    {n:'Ingeniería en Diseño (vía Ingeniería Civil)',malla:'UAI-INGENIERIA-EN-DISENO'},
+    {n:'Ingeniería en Diseño (vía Ingeniería Comercial)',malla:'UAI-INGENIERIA-EN-DISENO-VIA-COMERCIAL'},
     {n:'Ingeniería en Computer Science',malla:'UAI-INGENIERIA-EN-COMPUTER-SCIENCE'},
     {n:'Ingeniería Civil Industrial',malla:'UAI-INGENIERIA-CIVIL-INDUSTRIAL'},
     {n:'Ingeniería Civil Informática',malla:'UAI-INGENIERIA-CIVIL-INFORMATICA'},
@@ -391,6 +401,54 @@ const CARRERAS_DECLARABLES={
     {n:'Ingeniería Civil Mecánica',malla:'UAI-INGENIERIA-CIVIL-MECANICA'},
     {n:'Ingeniería Civil en Minería',malla:'UAI-INGENIERIA-CIVIL-EN-MINERIA'},
     {n:'Bachillerato de Ingeniería Civil',malla:'UAI-BACHILLERATO-DE-INGENIERIA-CIVIL'}
+  ],
+  // Las carreras y bachilleratos que la UAndes lista en admision.uandes.cl/carreras
+  // (revisada el 2026-10-03), con los nombres tal como salen ahí. Quedó fuera
+  // "Derecho e Historia": su enlace lleva a una página de respaldo, no a la de
+  // admisión. Todas menos Arquitectura, que no publica malla, la tienen en
+  // mallas-uandes.js.
+  //
+  // Los cuatro códigos `-UA` vienen de CARRERAS_UANDES, que era la lista
+  // anterior, y hay cuentas que ya los tienen guardados en S.carrera y en el
+  // origen de sus ramos. Se conservan —y sus mallas usan ese código— para que
+  // esas personas sigan viendo su carrera marcada y reciban su malla. La quinta, "Ingeniería Civil" (ING-UA), no calza con
+  // ninguna carrera oficial —la UAndes admite por especialidad— y no se ofrece
+  // más; quien la tenga la sigue viendo por su nombre en Ajustes.
+  uandes:[
+    {n:'Administración de Servicios',malla:'UA-ADMINISTRACION-DE-SERVICIOS'},
+    {n:'Arquitectura'},
+    {n:'Ciencia Política',malla:'UA-CIENCIA-POLITICA'},
+    {n:'Derecho',malla:'DER-UA'},
+    {n:'Derecho y Filosofía',malla:'UA-DERECHO-Y-FILOSOFIA'},
+    {n:'Educación de Párvulos con menciones',malla:'UA-EDUCACION-DE-PARVULOS'},
+    {n:'Enfermería',malla:'UA-ENFERMERIA'},
+    {n:'Filosofía',malla:'UA-FILOSOFIA'},
+    {n:'Historia',malla:'UA-HISTORIA'},
+    {n:'Ingeniería Civil Eléctrica',malla:'UA-INGENIERIA-CIVIL-ELECTRICA'},
+    {n:'Ingeniería Civil en Ciencias de la Computación',malla:'UA-INGENIERIA-CIVIL-EN-CIENCIAS-DE-LA-COMPUTACION'},
+    {n:'Ingeniería Civil en Obras Civiles',malla:'UA-INGENIERIA-CIVIL-EN-OBRAS-CIVILES'},
+    {n:'Ingeniería Civil Industrial',malla:'UA-INGENIERIA-CIVIL-INDUSTRIAL'},
+    {n:'Ingeniería Civil Química',malla:'UA-INGENIERIA-CIVIL-QUIMICA'},
+    {n:'Ingeniería Comercial',malla:'COM-UA'},
+    {n:'International Business',malla:'UA-INTERNATIONAL-BUSINESS'},
+    {n:'Kinesiología',malla:'UA-KINESIOLOGIA'},
+    {n:'Marketing y Publicidad',malla:'UA-MARKETING-Y-PUBLICIDAD'},
+    {n:'Medicina',malla:'MED-UA'},
+    {n:'Odontología',malla:'UA-ODONTOLOGIA'},
+    {n:'Pedagogía Básica con menciones',malla:'UA-PEDAGOGIA-BASICA'},
+    {n:'Pedagogía Básica Bilingüe Inglés Español',malla:'UA-PEDAGOGIA-BASICA-BILINGUE'},
+    {n:'Periodismo y Comunicación Estratégica',malla:'UA-PERIODISMO-Y-COMUNICACION-ESTRATEGICA'},
+    {n:'Psicología',malla:'PSI-UA'},
+    {n:'Sociología',malla:'UA-SOCIOLOGIA'},
+    {n:'Terapia Ocupacional',malla:'UA-TERAPIA-OCUPACIONAL'},
+    {n:'Bachillerato de Derecho',malla:'UA-BACHILLERATO-DE-DERECHO'},
+    {n:'Bachillerato de Enfermería',malla:'UA-BACHILLERATO-DE-ENFERMERIA'},
+    {n:'Bachillerato de Ingeniería Civil',malla:'UA-BACHILLERATO-DE-INGENIERIA-CIVIL'},
+    {n:'Bachillerato de Ingeniería Comercial',malla:'UA-BACHILLERATO-DE-INGENIERIA-COMERCIAL'},
+    {n:'Bachillerato de Medicina',malla:'UA-BACHILLERATO-DE-MEDICINA'},
+    {n:'Bachillerato de Obstetricia y Puericultura',malla:'UA-BACHILLERATO-DE-OBSTETRICIA-Y-PUERICULTURA'},
+    {n:'Bachillerato de Odontología',malla:'UA-BACHILLERATO-DE-ODONTOLOGIA'},
+    {n:'Bachillerato de Psicología',malla:'UA-BACHILLERATO-DE-PSICOLOGIA'},
   ],
   fen:[
     {n:'Ingeniería Comercial',malla:'IC'},
@@ -572,8 +630,9 @@ const PORTAL=[
 // elemento {min,cap} marca un PISO de aprobación en esa sección (regla
 // min_grade_required): si su nota < min, la final se topa en cap.
 // Caso real: el Podcast de FIL2001. El piso lo aplica ramoAvg vía r.gates.
-// ING1004 NO está aquí: su compuerta es entre GRUPOS anidados (Individual/Grupal)
-// y no cabe en el modelo plano de secciones — necesita el árbol completo (próximo brick).
+// ING1004 (Desafíos de la Ingeniería) estuvo fuera porque su requisito es por
+// bloque (Individual/Grupal). Desde que existe `grupos` con tope numérico, cabe:
+// ver su entrada más abajo.
 // QUÉ REGLA SE MUESTRA Y CUÁL NO. Transcribimos el programa completo, pero no
 // se muestra completo: una tarjeta con doce reglas no se lee, y lo que importa
 // queda enterrado entre normativa que es igual en toda la universidad.
@@ -598,7 +657,16 @@ const PORTAL=[
 // ese período siga vigente. Si un programa no declara el período, se omite el
 // campo y la app conserva los pesos sin presentar sus fechas como actuales.
 const PRESETS_UC={
-  'Cálculo I':[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
+  // MAT1610, programa 2026-1: la primera interrogación justificada toma la
+  // nota del examen; las siguientes se recuperan con pruebas especiales (P).
+  'Cálculo I':{
+    evals:[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
+    ausenciasJustificadas:{maxReemplazos:1,excesoReemplazos:'rezago',reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+      {desde:'Interrogación 3',hacia:'Examen'},
+    ]},
+  },
   'Álgebra Lineal':[['Interrogación 1',20],['Interrogación 2',20],['Interrogación 3',20],['Laboratorio',10,{slots:3}],['Examen',30]],
   // Ingeniería Comercial · 2° semestre. Transcripción de la pauta 2026-2
   // confirmada por Lucas el 17-08-2026. La regla de aprobación de Álgebra
@@ -652,8 +720,63 @@ const PRESETS_UC={
     ]}],
     ['Examen',25],
   ],
-  'Química para Ingeniería':[['Pruebas',44.1],['Ev. de Taller',4.9],['Examen',21],['Informes',18],['Controles',12]],
-  'Filosofía: ¿para qué?':[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+  // Los pesos son del programa (QIM100E V2); las cantidades no las dice. Son 2
+  // interrogaciones —la planilla oficial de notas trae I1 e I2 al 45% de
+  // Pruebas— y 5 informes, 5 controles y 5 talleres según dos reportes de
+  // estudiantes con esta misma pauta (2026-10-13). Decisión de Lucas: un
+  // reporte que coincide en pesos completa las cantidades.
+  'Química para Ingeniería':[
+    ['Pruebas',44.1,{slots:2,slotLabel:'Interrogación'}],['Ev. de Taller',4.9,{slots:5,slotLabel:'Taller'}],['Examen',21],
+    ['Informes',18,{slots:5,slotLabel:'Informe'}],['Controles',12,{slots:5,slotLabel:'Control'}],
+  ],
+  // Programa FIL2001 (Primer Semestre 2026): 30/20/30/20 y el Podcast bajo 4,0
+  // es "causal de reprobación del curso, independientemente del promedio";
+  // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
+  // el filtro de reglas visibles: el estudiante puede cumplirla y cambia su nota.
+  'Filosofía: ¿para qué?':{
+    evals:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+    reglasDelCurso:[
+      'Necesitas al menos 75% de asistencia a clases: si no, el curso queda con nota R, que equivale a 3,0. La app no registra asistencia',
+    ],
+  },
+  // Desafíos de la Ingeniería · ING1004 · programa del Primer Semestre 2026.
+  // Dos bloques de 50% que se aprueban por separado: "Para aprobar el curso es
+  // requisito poseer un promedio ponderado tanto en la evaluación individual
+  // como en la grupal superior o igual a 4,0. Si se reprueba una de las dos
+  // instancias la nota de reprobación será el mínimo entre la nota obtenida y
+  // un 3,9" → dos `grupos` con tope 3,9.
+  //   Individual 50%: Participación en talleres 15%, 4 tareas de 15% cada una
+  //     (60%) y Actividades/cuestionarios 25%.
+  //   Grupal 50%: Presentaciones 1-3 de 20% cada una (60%), Pre-Feria 15% y
+  //     Feria Tecnológica 25%.
+  // Aplanado: 7,5 / 30 (4×7,5) / 12,5 / 30 (3×10) / 7,5 / 12,5. Un reporte de
+  // 2026-2 da los mismos pesos con 3 casillas de tareas; el programa dice 4.
+  // Las actividades en clase no dicen cuántas son: van como lista.
+  'Desafíos de la Ingeniería':{
+    sigla:'ING1004',periodo:'2026-1',
+    evals:[
+      ['Participación en talleres',7.5],
+      ['Tareas',30,{slots:4,slotLabel:'Tarea'}],
+      ['Actividades y cuestionarios',12.5,{lista:true}],
+      ['Presentaciones',30,{slots:3,slotLabel:'Presentación'}],
+      ['Pre-Feria',7.5],
+      ['Feria Tecnológica',12.5],
+    ],
+    grupos:[
+      {nombre:'Evaluación individual',evals:['Participación en talleres','Tareas','Actividades y cuestionarios'],min:4.0,cap:3.9},
+      {nombre:'Evaluación grupal',evals:['Presentaciones','Pre-Feria','Feria Tecnológica'],min:4.0,cap:3.9},
+    ],
+    noCalcula:[
+      'Si en tres de las cuatro evaluaciones de pares quedas bajo el promedio de tu equipo, repruebas con el mínimo entre tu nota y 3,9',
+    ],
+    reglasDelCurso:[
+      'Las notas de las Presentaciones y de la Feria se ajustan según tu evaluación de pares: ingresa la nota ya ajustada',
+      'Si no asistes sin justificación a la Actividad de Trabajo Grupal que sigue a una tarea, esa tarea queda con nota máxima 4,0',
+      'Contestar el 90% de los cuestionarios te permite borrar una ausencia o atraso a las presentaciones',
+      'Faltar sin justificación a una presentación te deja con la mitad de la nota de tu equipo',
+      'Un grupo que no entrega su archivo presenta sin apoyo audiovisual y queda con nota máxima 4,0',
+    ],
+  },
   'Introducción a la Programación':{
     periodo:'2026-2',
     evals:[
@@ -661,8 +784,23 @@ const PRESETS_UC={
       // La agenda del curso publica inicio y fin de cada tarea. La evaluación
       // es la entrega, por eso Agenda recibe el cierre y no el hito de apertura.
       ['Tarea 1',5,{fecha:'2026-10-02'}],['Tarea 2',5,{fecha:'2026-10-27'}],['Tarea 3',5,{fecha:'2026-11-27'}],
-      ['Nota de participación',16],['Talleres de Inteligencia Artificial',4],
+      ['Nota de participación',16],
+      // "Uso responsable de IA: cómo se evalúa" (2026-2): el 4% son dos notas
+      // de 2%. Cápsulas es una sola nota sobre las 18 preguntas de los 6 videos;
+      // Talleres, una sola sobre las 6 preguntas de los 2 talleres —no hay nota
+      // por taller—. Estaba como un solo "Talleres" al 4%: quien anotaba su nota
+      // de talleres la hacía pesar el doble y las cápsulas no tenían dónde ir.
+      // Dos casillas iguales de un 4% son exactamente dos notas de 2%.
+      ['Trabajos de Inteligencia Artificial',4,{slots:2,nombresCasillas:['Cápsulas','Talleres'],
+        nombresAnteriores:[{nombre:'Talleres de Inteligencia Artificial',slot:1}]}],
     ],
+    // La pauta que publicamos mal: quien la tenga tal cual se corrige al
+    // cargar, sin preguntar (ver `corrigePautas` en normalize()). Una nota ya
+    // escrita en el Talleres de antes pasa a la casilla Talleres.
+    corrigePautas:[[
+      ['Interrogación 1',15],['Interrogación 2',20],['Examen',30],['Tarea 1',5],['Tarea 2',5],['Tarea 3',5],
+      ['Nota de participación',16],['Talleres de Inteligencia Artificial',4],
+    ]],
     grupos:[{nombre:'Evaluaciones principales',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9}],
     // Sin reglas visibles: el programa solo trae la sustitución automática por
     // inasistencia justificada y la sanción por no registrar asistencia.
@@ -681,8 +819,14 @@ const PRESETS_UC={
       ['Prueba 2',40,{fecha:'2026-11-03'}],
       ['Prueba 3',35,{fecha:'2026-12-01'}],
     ],
-    noCalcula:[
-      'Si tu promedio ponderado de las Pruebas supera 4,0, las décimas que ganes en los talleres se suman a tu nota final, con un máximo de 5 décimas',
+    // Programa 2026-2: los talleres "son instancias para sumar décimas (5
+    // décimas máximo) a la nota final, sólo para los estudiantes que tengan
+    // nota superior a 4.0 en las interrogaciones respetando la ponderación
+    // final de estas". Superior: 4,0 justo no alcanza.
+    bonus:[
+      {id:'talleres',pregunta:'Décimas de talleres',entrada:'decimas',max:5,a:'final',
+        si:{evals:['Prueba 1','Prueba 2','Prueba 3'],mayorQue:4.0},
+        ayuda:'Si tu promedio ponderado de las Pruebas supera 4,0, las décimas que ganes en los talleres se suman a tu nota final, con un máximo de 5 décimas'},
     ],
   },
   // Biología de la Célula · BIO141C · secciones 4 y 5 · programa oficial
@@ -797,6 +941,13 @@ const PRESETS_UC={
   // ninguna pasa el filtro de arriba.
   'Cálculo II':{
     periodo:'2026-2',
+    // Normativa MAT1620 2026-2, punto 9: una justificada toma el examen;
+    // con dos o tres, solo la primera y las demás quedan en nota P pendiente.
+    ausenciasJustificadas:{maxReemplazos:1,excesoReemplazos:'rezago',reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+      {desde:'Interrogación 3',hacia:'Examen'},
+    ]},
     evals:[
       ['Interrogación 1',20,{fecha:'2026-08-31'}],
       ['Interrogación 2',20,{fecha:'2026-10-05'}],
@@ -838,18 +989,17 @@ const PRESETS_UC={
   'Métodos de Optimización':{
     periodo:'2026-2',
     creditos:10,
+    reemplazosOptativos:[{tipo:'mezcla',fuente:'Control optativo',destinos:['Interrogación 2'],fraccion:0.3}],
     evals:[
       ['Interrogación 1',20,{fecha:'2026-09-07'}],
       ['Interrogación 2',28,{fecha:'2026-11-09'}],
       ['Examen',32,{fecha:'2026-12-02'}],
       ['Tarea 1',6],['Tarea 2',6],['Tarea 3',8],
+      ['Control optativo',0,{optativa:true,fecha:'2026-10-09'}],
     ],
     grupos:[
       {nombre:'Pruebas',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9},
       {nombre:'Tareas',evals:['Tarea 1','Tarea 2','Tarea 3'],min:4.0,cap:3.9},
-    ],
-    noCalcula:[
-      'El Control optativo del 9 de octubre puede mejorar la Interrogación 2: si su nota es mayor, aporta un 30% y la Interrogación 2 conserva el 70%',
     ],
     reglasDelCurso:[
       'Las actividades de taller pueden bonificar una nota final aprobada; la regla de acumulación se informa durante el semestre en Canvas',
@@ -862,6 +1012,7 @@ const PRESETS_UC={
   'Ingeniería de Sistemas de Transporte':{
     periodo:'2026-2',
     creditos:10,
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Controles']}],
     evals:[
       ['Controles',45,{slots:5,dropLowest:{count:1}}],
       ['Meme 1',5,{fecha:'2026-08-24'}],
@@ -880,7 +1031,6 @@ const PRESETS_UC={
     // la fórmula ya repondera Controles y Memes correctamente sobre el 65%.
     eximicion:{evaluacion:'Examen',segun:['Controles'],min:5.5,ignoraDescartes:true},
     noCalcula:[
-      'Si rindes el Examen, puedes usar su nota para reemplazar la nota de un Control',
       'Si no cumples el mínimo de Memes o de los cuatro mejores Controles, no tienes derecho a rendir el Examen',
     ],
   },
@@ -931,27 +1081,81 @@ const PRESETS_UC={
       ['Controles',20,{slots:3}],
       ['Examen',30,{fecha:'2026-12-01'}],
     ],
+    // Los controles se rinden en horario de taller, que no es el mismo en
+    // todas las secciones. Solo cargamos las de secciones confirmadas: la 13
+    // (Lucas, 2026-10-08) usa las fechas del programa.
+    fechasPorSeccion:{
+      13:{'Controles':['2026-08-28','2026-10-09','2026-11-06']},
+    },
     aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
+    // El programa dice que la nota de la interrogación "será reemplazada por la
+    // nota del examen"; en la práctica del curso su porcentaje pasa al examen
+    // (decisión de Lucas, 2026-10-08). Faltar a las dos es "caso a caso" y no
+    // se modela: la ficha lo dice abajo.
+    ausenciasJustificadas:{
+      traspasos:[
+        {desde:'Interrogación 1',hacia:'Examen'},
+        {desde:'Interrogación 2',hacia:'Examen'},
+      ],
+    },
+    // El programa dice "6 o más sesiones" y, en la misma frase, "como máximo
+    // podrá faltar a 2 talleres, independiente de la justificación". La
+    // profesora aclaró después que son 8. Se pregunta por las faltas, que es
+    // como el programa la opera y no depende de cuántos talleres hay en total.
+    bonus:[
+      {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
+        ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
+    ],
     noCalcula:[
-      'Si asistes a 8 o más talleres, sumas 5 décimas al promedio de los Controles; para optar a ellas puedes faltar como máximo a 2 talleres, con o sin justificación',
+      'Si faltas con justificación a un control, lo recuperas con un control recuperativo en el último taller del semestre',
+      'Si faltas con justificación a las dos interrogaciones, el equipo docente evalúa tu caso',
+      'Las inasistencias a talleres no se justifican',
     ],
   },
   // El laboratorio tiene nota propia: se aprueba o se reprueba por sí solo, y
   // la evaluación de pares bajo 4,0 lo reprueba aunque el resto vaya bien.
   // 5 experimentos presenciales con control, informe y evaluación de pares, más
   // un Lab 0 online con informe y pares: 5 controles, 6 informes, 6 pares.
+  //
+  // La nota final del laboratorio es el PROMEDIO DE LAS 6 "NOTA LAB", y el
+  // Lab 0 vale lo mismo que los otros (coordinación del laboratorio, correo a
+  // Lucas del 2026-10-14). Cada "Nota lab" sale de la planilla oficial, con la
+  // misma fórmula en todas las secciones:
+  //
+  //   Lab 0 (online, sin control):  0,7·Informe + 0,3·Pares
+  //   Labs 1–5:                     0,7·Informe + 0,1·Control + 0,2·Pares
+  //
+  // Repartido sobre el ramo: cada informe 7/60, cada control 1/60, la
+  // evaluación de pares del Lab 0 3/60 y las otras 2/60. Por eso Controles
+  // pesa 25/3 % (no 10) y Evaluación de pares 65/3 % (no 20), con la casilla
+  // del Lab 0 pesando 1,5 veces las demás (`pesosCasillas`). Antes eran 10 y
+  // 20 parejos: el lab quedaba corrido en (pares del Lab 0 − promedio de
+  // controles) ÷ 60, hasta una décima.
+  //
+  // El mínimo de 4,0 en pares es sobre el promedio simple de las seis
+  // (decisión de Lucas, 2026-10-15); 3,95 ya cuenta, y si la nota del lab ya
+  // es menor que 3,9 queda esa y no 3,9 (coordinación).
   'Laboratorio de Dinámica':{
+    // A mitad de semestre, la planilla da el promedio de los laboratorios ya
+    // hechos: cada nota pesa lo que pesa en su laboratorio, no lo que pesa su
+    // evaluación entera. Comprobado contra la planilla: 630 de 630 iguales.
+    promedioParcial:'por-casilla',
+    // La pauta de antes (10/70/20 parejos) era un error nuestro: se corrige
+    // sola al cargar, conservando las notas (ver `corrigePautas` en normalize).
+    corrigePautas:[[['Controles',10],['Informes',70],['Evaluación de pares',20]]],
     evals:[
-      ['Controles',10,{slots:5,slotLabel:'Control'}],
+      ['Controles',8.333333333333334,{slots:5,slotLabel:'Control'}],
       // El Lab 0 online también tiene informe y pares. La categoría conserva
       // el plural porque es su nombre en el programa, pero cada casilla se
       // nombra como la entrega real: Informe 0 … Informe 5.
       ['Informes',70,{slots:6,slotLabel:'Informe',slotStart:0}],
-      ['Evaluación de pares',20,{slots:6,slotStart:0,min:4.0,cap:3.9}],
+      ['Evaluación de pares',21.666666666666668,{slots:6,slotStart:0,pesosCasillas:[1.5,1,1,1,1,1],min:4.0,cap:3.9}],
     ],
     noCalcula:[
       'Si no realizas un Control, tu nota máxima en el Informe de ese experimento queda en 4,0',
       'Tu nota de evaluación de pares se calcula promediando la nota que te asignan tus compañeros y tu autoevaluación; si no respondes la autoevaluación, esa parte queda con nota 1',
+      'Si faltas a un experimento sin justificación, tu informe de ese experimento queda con nota 1',
+      'Puedes justificar una sola inasistencia en el semestre y optar al laboratorio recuperativo; una segunda inasistencia reprueba el laboratorio',
     ],
   },
   // ── Dinámica ICE1514 ──────────────────────────────────────────────────────
@@ -974,6 +1178,17 @@ const PRESETS_UC={
   // ICE. Si una sección tiene otra, la edita y el consenso de reportes lo dirá.
   'Dinámica (ICE1514)':{
     periodo:'2026-2',
+    // Programa del 5-ago-2026: una justificada en control o interrogación
+    // toma el promedio ponderado de las otras sumativas, sin talleres;
+    // la segunda inasistencia cuenta como 1,0. El examen sí es sumativo.
+    // El orden declara cuál fue la primera ausencia según las fechas del preset.
+    ausenciasJustificadas:{maxPromedios:1,notaExceso:1,promedios:[
+      {desde:'Control 1',de:['Control 2','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Interrogación 1',de:['Control 1','Control 2','Control 3','Interrogación 2','Examen']},
+      {desde:'Control 2',de:['Control 1','Control 3','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Control 3',de:['Control 1','Control 2','Interrogación 1','Interrogación 2','Examen']},
+      {desde:'Interrogación 2',de:['Control 1','Control 2','Control 3','Interrogación 1','Examen']},
+    ]},
     evals:[
       ['Control 1',10,{fecha:'2026-09-04'}],
       ['Control 2',10,{fecha:'2026-10-16'}],
@@ -985,7 +1200,6 @@ const PRESETS_UC={
     ],
     aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
     noCalcula:[
-      'Si faltas con justificación a un control o interrogación, esa nota se reemplaza por el promedio ponderado de tus otras evaluaciones sumativas, sin contar los talleres; una segunda inasistencia es un 1,0',
       'Faltar a un taller, con o sin justificación, es un 1,0 en ese taller',
       'Si repruebas la cátedra o el laboratorio, repruebas Dinámica: el programa no dice con qué nota quedas, así que mostramos la más baja de las dos',
     ],
@@ -1015,10 +1229,15 @@ const PRESETS_UC={
       ['Examen final escrito',30],
     ],
   },
+  // El catálogo no dice cuántos controles ni cuántas pruebas. Las cantidades
+  // salen de un reporte de estudiante con los mismos totales (2026-10-13):
+  // Control 1 y 2 al 10%, controles sorpresa y tarea al 10%, e Interrogación 1
+  // y 2 al 20%. Decisión de Lucas: un reporte que coincide en pesos completa
+  // las cantidades. Otra sección puede tener otras; edita su pauta.
   'Contabilidad':{
     evals:[
-      ['Controles',30,{lista:true}],
-      ['Pruebas',40,{lista:true}],
+      ['Controles',30,{slots:3,nombresCasillas:['Control 1','Control 2','Controles sorpresa y tarea']}],
+      ['Pruebas',40,{slots:2,slotLabel:'Interrogación'}],
       ['Examen',30],
     ],
   },
@@ -1048,18 +1267,47 @@ const PRESETS_UC={
   // otro. El catálogo oficial dice EAA2240 = Contabilidad Gerencial (10 cr) y
   // EAA2230 = Empresa y Legislación (5 cr); los créditos de cada nombre ya
   // calzaban, solo estaba mal el código.
+  // Programa 2026-2 de Luis Camilla, pp. 3-4 (PDF recibido por Lucas).
   'Contabilidad Gerencial':{
+    sigla:'EAA2240',periodo:'2026-2',
     evals:[
-      ['Pruebas y controles',30,{lista:true}],
-      ['Casos prácticos y trabajos',40,{lista:true}],
-      ['Examen final escrito',30],
+      ['Ejercicios, casos y tareas',20],
+      ['Prueba 1',24,{fecha:'2026-10-05'}],
+      ['Prueba 2',24,{fecha:'2026-11-09'}],
+      ['Examen',32,{fecha:'2026-12-12',nombresAnteriores:['Examen final escrito']}],
+    ],
+    formulasCondicionales:[
+      {nombre:'Tareas ≥ 4,0 y promedio de pruebas/examen < 3,8: se excluyen tareas',
+        cuando:[{tipo:'promedio_min',evals:['Ejercicios, casos y tareas'],min:4},
+          {tipo:'promedio_menor',evals:['Prueba 1','Prueba 2','Examen'],min:3.8}],
+        pesos:[{evaluacion:'Ejercicios, casos y tareas',peso:0},{evaluacion:'Prueba 1',peso:30},{evaluacion:'Prueba 2',peso:30},{evaluacion:'Examen',peso:40}]},
+      {nombre:'Tareas ≥ 4,0 y promedio de pruebas/examen exactamente 3,8',ambigua:true,
+        cuando:[{tipo:'promedio_min',evals:['Ejercicios, casos y tareas'],min:4},
+          {tipo:'promedio_igual',evals:['Prueba 1','Prueba 2','Examen'],min:3.8}]},
+    ],
+    noCalcula:[
+      'En el caso exacto de 3,8 en pruebas y examen, con tareas ≥ 4,0, el programa se contradice: texto ≥ 3,8 y fórmula > 3,8. El resultado queda pendiente hasta confirmar con el profesor',
+      'La nota de ejercicios, casos y tareas se calcula por puntos acumulados, con 7,0 al 90% del puntaje máximo y escala lineal. Ingresa la nota del bloque entregada por el profesor',
+    ],
+    reglasDelCurso:[
+      'Programa 2026-2 de Luis Camilla. Calendario tentativo: pruebas a las 17:30 y examen a las 08:20; confirma cambios con el curso',
+      'La recuperativa por una prueba justificada es el 12 de diciembre después del examen; si no la rindes, la prueba justificada queda en 1,0. El examen no puede ponderar más de 56%; sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
     ],
   },
+  // Empresa y Legislación, EAA2230, Luis Enrique Seguel, pp. 3-4.
+  // Conservamos la clave plural de la malla para no romper ramos existentes.
   'Empresas y Legislación':{
+    sigla:'EAA2230',periodo:'2026-2',
     evals:[
-      ['Controles y pruebas',50,{lista:true}],
-      ['Examen',30],
-      ['Proyecto grupal',20],
+      ['Prueba 1',30,{fecha:'2026-09-26'}],
+      ['Prueba 2',30,{fecha:'2026-11-03'}],
+      ['Examen',40,{fecha:'2026-12-02'}],
+    ],
+    limiteAusencias:{nombre:'Traspaso de pruebas justificadas al examen',desde:['Prueba 1','Prueba 2'],hacia:'Examen',max:70},
+    noCalcula:['Las preguntas bonus pueden sumar hasta 0,3 a cada prueba. La participación, tareas voluntarias y 100% de asistencia a clases y ayudantías pueden dar décimas; su asignación depende del profesor'],
+    reglasDelCurso:[
+      'Programa recibido como 2026-2 de Luis Enrique Seguel. Prueba 1: 09:40; Prueba 2: 17:30; Examen: 13:30',
+      'El examen no puede superar 70% del curso: justificar ambas pruebas trasladaría 100% y no cumple el requisito. No hay eximición',
     ],
   },
   'Fundamentos de Marketing':{
@@ -1070,12 +1318,27 @@ const PRESETS_UC={
       ['Examen final escrito',30],
     ],
   },
+  // EAA2320, programa 2026-2, pp. 8-12. El ensayo pesa 20%:
+  // sus hitos 20/30/50 internos equivalen a 4/6/10 de la nota final.
   'Marketing Analytics':{
+    sigla:'EAA2320',periodo:'2026-2',
     evals:[
-      ['Pruebas',40,{lista:true}],
-      ['Participación en clases',10],
-      ['Casos y tareas grupales',30,{lista:true}],
-      ['Examen final',20],
+      ['Tareas',40,{slots:3,slotLabel:'Tarea'}],
+      ['Prueba 1',10,{fecha:'2026-09-30'}],
+      ['Prueba 2',10,{fecha:'2026-11-05'}],
+      ['Examen',20,{fecha:'2026-12-11',nombresAnteriores:['Examen final']}],
+      ['Ensayo: primer hito',4],
+      ['Ensayo: segundo hito',6],
+      ['Ensayo: entrega final',10,{fecha:'2026-11-24'}],
+    ],
+    // El requisito usa el promedio redondeado a una décima: ≥ 4,0
+    // equivale a un promedio sin redondear ≥ 3,95. No exigimos 4,0 crudo.
+    grupos:[{nombre:'Competencias técnicas (promedio redondeado ≥ 4,0)',evals:['Prueba 1','Prueba 2','Examen'],min:3.95,cap:3.9}],
+    reglasDelCurso:[
+      'Programa 2026-2: pruebas a las 17:30; examen el 11 de diciembre a las 13:30; entrega final del ensayo el 24 de noviembre a las 17:30. Fechas de tareas e hitos intermedios por anunciar',
+      'Para aprobar, 25% Prueba 1 + 25% Prueba 2 + 50% Examen debe llegar a 4,0 redondeado a la décima; de lo contrario, la final se topa en 3,9',
+      'Para rendir examen debes haber sido evaluado en al menos 40% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba regular. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
+      'La recuperativa por una prueba justificada es el 11 de diciembre a las 17:30; si no la rindes, la prueba justificada queda en 1,0',
     ],
   },
   'Estrategia de la Organización':{
@@ -1085,11 +1348,27 @@ const PRESETS_UC={
       ['Examen final escrito',40],
     ],
   },
+  // Gastón Llanes, programa 2026-2 versión 13-08-26, pp. 1-3.
   'Estrategia Competitiva':{
+    sigla:'EAA2420',periodo:'2026-2',
     evals:[
-      ['Prueba 1',30],
-      ['Prueba 2',30],
-      ['Examen final escrito',40],
+      ['Participación',10],
+      ['Actividades',10,{slots:4,slotLabel:'Actividad',dropLowest:{count:1}}],
+      ['Prueba 1',23],
+      ['Prueba 2',23],
+      ['Examen',34,{nombresAnteriores:['Examen final escrito']}],
+    ],
+    formulasCondicionales:[{
+      nombre:'Se excluyen participación y actividades si ninguna prueba/examen llega a 4,0 o el promedio técnico está bajo 3,75 (28,75% / 28,75% / 42,5%)',
+      // Cuando falla un requisito se usa solo la fórmula de pruebas y examen.
+      cuando:[{tipo:'no_cumple_requisitos',evals:['Prueba 1','Prueba 2','Examen'],min:3.75,algunaMin:4}],
+      pesos:[{evaluacion:'Participación',peso:0},{evaluacion:'Actividades',peso:0},
+        {evaluacion:'Prueba 1',peso:28.75},{evaluacion:'Prueba 2',peso:28.75},{evaluacion:'Examen',peso:42.5}],
+    }],
+    reglasDelCurso:[
+      'Programa 2026-2 de Gastón Llanes. Hay cuatro actividades y se promedian las tres mejores; las fechas las anuncia el curso',
+      'Para rendir examen debes haber sido evaluado en al menos 33% de la ponderación final sin contar la recuperativa y haber rendido al menos una prueba. El examen no puede superar 70%: el exceso se califica con 1,0. Sin derecho a examen, la final es la presentación si está bajo 4,0, o 3,9 en caso contrario',
+      'Una prueba justificada se recupera en la fecha de Facultad; no rendir la recuperativa implica 1,0 en esa prueba. Si faltas a ambas pruebas, no puedes rendir recuperativa ni examen y ambas quedan en 1,0',
     ],
   },
   // INTRO A LA MICROECONOMÍA (EAE1110). El catálogo la publica como Guías 20 /
@@ -1167,12 +1446,20 @@ const PRESETS_UC={
       ['Presentación final Feria de proyectos',20],
     ],
   },
+  // ETI209, syllabus común 2026-2 versión 6 de agosto, pp. 7-8.
   'Ética, Economía y Empresa':{
+    sigla:'ETI209',periodo:'2026-2',
+    limiteAusencias:{nombre:'Traspaso de pruebas justificadas al examen',desde:['Prueba 1','Prueba 2'],hacia:'Examen',max:60},
+    noCalcula:['Si las pruebas justificadas hacen que el examen supere 60%, se exige una recuperativa adicional cuya ponderación define el profesor. El resultado queda pendiente hasta resolver esa evaluación'],
     evals:[
-      ['Pruebas',40,{slots:2}],
-      ['Examen',30],
-      ['Trabajo grupal',20],
-      ['Controles y trabajos en clase',10,{lista:true}],
+      ['Prueba 1',20,{fecha:'2026-09-10'}],
+      ['Prueba 2',20,{fecha:'2026-10-26'}],
+      ['Actividades participativas',25,{slots:5,slotLabel:'Actividad'}],
+      ['Examen',35,{fecha:'2026-12-14'}],
+    ],
+    reglasDelCurso:[
+      'Syllabus común 2026-2 para las tres secciones: pruebas a las 17:30 y examen a las 08:20. Las cinco actividades se anuncian por sección',
+      'Si el traspaso por pruebas justificadas hace que el examen supere 60%, habrá una recuperativa adicional definida por el profesor, que puede ser oral. En ese caso ajusta la pauta con sus instrucciones',
     ],
   },
   'Cálculo III':{
@@ -1666,7 +1953,7 @@ const CREDITOS_UC={
   'Estrategia Competitiva':[10,'EAA2420'],
   'Competencia y Mercado':[10,'EAE2130'],
   'Contabilidad de Costos':[10,'EAA2220'],
-  'Ética, Economía y Empresa':[10,'FIL209'],
+  'Ética, Economía y Empresa':[10,'ETI209'],
   'Marketing Analytics':[10,'EAA2320'],
   'Empresas y Legislación':[5,'EAA2230'],
   'Macroeconomía II':[10,'EAE2220'],
@@ -1775,7 +2062,10 @@ const CREDITOS_FEN={
   'Inglés II':[2,null],
   'Inglés III':[2,null],
   'Introducción a la Economía':[6,null],
-  'Métodos Matemáticos I':[6,null],
+  // Sigla de Docencia Web FEN (Catedra=ENMEM1005), sin el prefijo EN como el
+  // resto de CREDITOS_FEN. Verificada el 2026-10-02 contra ENMEM1505 →
+  // Métodos Matemáticos II = MEM1505.
+  'Métodos Matemáticos I':[6,'MEM1005'],
   'Programación para Analítica de Datos':[6,null],
 
   // ─── Por la regla de créditos de la FEN, no ramo por ramo ───────────────
@@ -1961,6 +2251,14 @@ const SIGLAS_UC={
 // Al transcribir un programa, la pregunta para decidir dónde va una regla es:
 // ¿con la información que el estudiante puede darnos, esto se podría calcular
 // algún día? Si sí, `noCalcula`. Si no, `reglasDelCurso`.
+//
+// Regla de la U para TODO ramo con trabajo en grupo, lo diga o no su programa:
+// si el promedio de las evaluaciones individuales queda bajo 4,0, repruebas. El
+// trabajo en grupo sube el promedio, pero no te ayuda a pasar. No hay documento
+// que la escriba; la confirmó Martín el 2026-10-19 como práctica de todos los
+// ramos. Se modela con un grupo 'Evaluaciones individuales' (min 4,0, cap
+// 'self'): el veredicto es exacto, y el número bajo 4,0 es aproximado porque la
+// regla solo dice que repruebas. Un preset nuevo con evaluación grupal lo lleva.
 const PRESETS_FEN={
   'Métodos Matemáticos II':{
     // Fechas del calendario 2026-2 entregado por Martín el 2026-09-18. El
@@ -1968,7 +2266,8 @@ const PRESETS_FEN={
     // (3 dic) no es una evaluación aparte, así que no va como fila.
     periodo:'2026-2',
     creditos:6,
-    noCalcula:['Examen de Segunda Fecha para quien saque bajo 3,0 en el examen pero tenga promedio ≥ 3,95'],
+    segundaFecha:{evaluacion:'Examen Final',examenMenorQue:3,promedioPonderadoMin:3.95,
+      requiereTodas:true,aviso:'Confirma con la Escuela los requisitos y la fecha. La app no calcula el resultado'},
     // El programa lista los tres solemnes por separado: van como filas propias,
     // y así cada uno lleva su fecha a la agenda.
     //
@@ -2060,12 +2359,10 @@ const PRESETS_FEN={
     periodo:'2026-2',
     creditos:2,
     // El programa dice que sin 4,0 en lo individual las notas grupales "no son
-    // válidas" Y que el estudiante reprueba, pero nunca dice con qué nota queda.
-    // No es la regla "la final es la más baja entre los dos requisitos": esa sí
-    // se modela; esta cambia QUÉ evaluaciones entran en el promedio, y el motor
-    // no sabe expresarlo. Se declara en vez de forzarla.
-    noCalcula:['Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que este promedio no lo refleja'],
+    // válidas" y que el estudiante reprueba, sin decir con qué nota. Es la regla
+    // general de la cabecera; el número bajo 4,0 queda aproximado y se avisa abajo.
     reglasDelCurso:[
+      'Si tu promedio en las evaluaciones individuales queda bajo 4,0, las notas grupales dejan de contar y repruebas el curso. El programa no dice con qué nota, así que la app te deja en tu promedio individual',
       'Necesitas al menos 6 de las 11 actividades hechas en clases para aprobar',
       'Las notas grupales se ajustan según cómo te evalúan tus compañeros, y pueden moverse hasta un 100%',
       'Faltar sin justificar al pitch inicial, a las clases de expertos, a la solemne o al examen se evalúa con 1,0',
@@ -2085,6 +2382,10 @@ const PRESETS_FEN={
       ['Examen: presentación grupal',20],
       ['Examen: video storytelling',10],
     ],
+    // Grupal es solo la presentación del examen (confirmado por Martín el 2026-10-19).
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Pitch inicial individual','Columna de opinión','Solemne: elevator pitch','Participación y trabajo en clases','Examen: video storytelling'],min:4.0,cap:'self'},
+    ],
   },
   'Contabilidad':{
     // El programa identifica explícitamente Primavera 2026. Sus porcentajes
@@ -2097,6 +2398,12 @@ const PRESETS_FEN={
     // existe el denominador contra el cual medir el 75%.
     // Sin noCalcula: no queda ninguna regla pendiente de implementar.
     reglasDelCurso:['Rendir menos del 75% de los controles sorpresa reprueba el curso con 3,9'],
+    // Los mínimos de 1,5 (tope 3,9) que tuvo cada control hasta el 2026-09-23
+    // se sacaron a propósito (36db509). Un ramo creado antes los trae guardados
+    // y el aviso de pauta cambiada no los ve, porque mira nombres y pesos: se
+    // quitan solos al cargar (`retiraCompuertas` en normalize()). Lo confirmó un
+    // reporte del 2026-10-12. El mínimo del Examen se queda.
+    retiraCompuertas:[{min:1.5,cap:3.9}],
     evals:[
       // Los controles de lectura y los de ejercicios van en filas propias, cada
       // una con su fecha, porque el programa da las dos cosas: cuántos son y
@@ -2139,6 +2446,11 @@ const PRESETS_FEN={
   // El programa da la fórmula cerrada y suma 100 exacto:
   //   NF = 20% NS1 + 20% NS2 + 5% JITT + 10% NC + 15% NTF + 30% NE
   //
+  // PERO en la práctica no hay JITT: el consenso de los reportes (3 estudiantes,
+  // catalog_consensus('fen') al 2026-10-19) trae Controles 15% con dos casillas
+  // y nada más distinto. Martín lo dio por oficial ese día. Si un programa
+  // posterior vuelve a separar el JITT, se revierte acá.
+  //
   // Las dos solemnes van en filas propias porque el programa les da peso propio
   // (20% cada una, no un bloque de 40%), igual que en Métodos Matemáticos II: si
   // falta una y el examen ya está puesto, filas separadas reponderan sobre lo
@@ -2155,20 +2467,22 @@ const PRESETS_FEN={
   'Tecnología y Sistemas de Información':{
     periodo:'2026-2',
     creditos:6,
-    // Ninguna evaluación tiene nota mínima propia ni hay eximición: el único
-    // requisito que da el programa es el 4,0 de aprobación, que la app ya sabe.
-    // Sin `noCalcula`: no queda nada pendiente de implementar.
+    // Ninguna evaluación tiene nota mínima propia ni hay eximición. El programa
+    // no lo dice, pero el Trabajo Final es grupal y aplica la regla general de
+    // la cabecera (confirmado por Martín el 2026-10-19).
     reglasDelCurso:[
       'Las dos solemnes y el examen comparten una única recuperativa, que se rinde después del examen y a la que solo accede quien justificó su inasistencia',
       'La asistencia a las ayudantías es obligatoria, y los controles se rinden en ese horario',
     ],
     evals:[
-      ['Just in Time Teaching',5],
-      ['Controles',10,{slots:2}],
+      ['Controles',15,{slots:2}],
       ['Trabajo Final',15],
       ['Solemne 1',20,{fecha:'2026-09-25'}],
       ['Solemne 2',20],
       ['Examen',30],
+    ],
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Controles','Solemne 1','Solemne 2','Examen'],min:4.0,cap:'self'},
     ],
   },
   // Marketing · ENMKT205 · programa oficial Primavera 2026 (Ing. Comercial).
@@ -2241,6 +2555,10 @@ const PRESETS_FEN={
       ['Tarea Grupal',10],
       ['Examen',32],
     ],
+    // Regla general de la cabecera: el programa no la menciona.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Control 1','Control 2','Solemne','Control 3','Control 4','Examen'],min:4.0,cap:'self'},
+    ],
   },
   // Métodos Matemáticos I · ENMEM1005 · común a las nueve secciones.
   // Tres solemnes de 20% y examen de 40%. Confirmado por Martín el 2026-08-31,
@@ -2253,10 +2571,12 @@ const PRESETS_FEN={
   'Métodos Matemáticos I':{
     creditos:6,
     periodo:'2026-2',
+    segundaFecha:{evaluacion:'Examen',examenMenorQue:3,promedioPonderadoMin:3.95,
+      requiereTodas:true,aviso:'Confirma con la Escuela los requisitos y la fecha. La app no calcula el resultado'},
     noCalcula:[
       'Cada evaluación que no rindas se califica con 1,0',
-      'Hay Examen de Segunda Fecha en dos casos: si la Secretaría de Estudios te justificó la inasistencia a una solemne o al examen, o si sacaste bajo 3,0 en el examen pero tu promedio ponderado quedó en 3,95 o más',
     ],
+    reglasDelCurso:['Una inasistencia a una solemne o al examen justificada por la Secretaría también puede dar derecho al Examen de Segunda Fecha. La app no conoce esa resolución'],
     evals:[
       ['Solemne 1',20],
       ['Solemne 2',20],
@@ -2297,19 +2617,21 @@ const PRESETS_FEN={
     noCalcula:[
       'Toda ausencia a una exigencia del curso se califica con 1,0',
     ],
-    // El propio programa no da el número, y ese es justamente el motivo por el
-    // que esta no se puede calcular nunca — no es que falte implementarla.
     reglasDelCurso:[
       'La Solemne y el Examen tienen fecha única. Avisando por escrito dentro de 24 horas por razones médicas, solo se puede recuperar una de las dos',
       'Los controles parciales y el Plan de Negocios no son recuperables por ninguna causa',
       'El aporte en clases suma décimas según tu participación',
-      'Para aprobar, el promedio de las evaluaciones individuales tiene que ser 4,0 o más. El programa no dice en cuánto queda tu nota final si no se cumple, así que la app no lo aplica',
     ],
     evals:[
       ['Solemne',25],
       ['Controles de Lectura',20,{lista:true,dropLowest:{count:1}}],
       ['Proyecto Empresa',25,{min:3.0,cap:3.9}],
       ['Examen Final',30,{min:3.0,cap:3.9}],
+    ],
+    // "Para aprobar, el promedio de las evaluaciones individuales tiene que ser
+    // 4,0 o más", sin decir la nota: regla general de la cabecera.
+    grupos:[
+      {nombre:'Evaluaciones individuales',evals:['Solemne','Controles de Lectura','Examen Final'],min:4.0,cap:'self'},
     ],
   },
   // Inglés IV · sección IC 3506 · calendario oficial 2026. Los nombres quedan en
@@ -2341,6 +2663,54 @@ const PRESETS_FEN={
       ['Business Pitch',9],
       ['Midterm',15,{fecha:'2026-09-21'}],
       ['Final Exam',30],
+    ],
+  },
+  // ─── Pautas del consenso de reportes ─────────────────────────────────────
+  // Estos tres ramos no tienen programa transcrito: la pauta es la que
+  // coincidieron en reportar los estudiantes (catalog_consensus('fen') al
+  // 2026-10-19) y Martín la dejó como oficial ese día. Si aparece el programa,
+  // se reemplaza.
+  //
+  // Nombres, mayúsculas y ORDEN son los del consenso a propósito, aunque no sea
+  // el orden del semestre. Quien ya tenía la pauta del consenso puesta sola
+  // guardó `pautaHuella` con ese orden y esos nombres exactos, y huellaPauta()
+  // compara las dos cosas: cualquier diferencia le mostraría "La pauta de este
+  // ramo cambió" sin ningún cambio real que mostrar.
+  //
+  // Inglés II · 9 estudiantes.
+  'Inglés II':{
+    periodo:'2026-2',
+    creditos:2,
+    evals:[
+      ['busuu',15],
+      ['Final Exam',40],
+      ['Midterm test',15],
+      ['Oral quiz',20],
+      ['written quiz',10],
+    ],
+  },
+  // Introducción al Pensamiento Económico y Político · 3 estudiantes. Es una
+  // sola solemne aunque se llame "Solemne 1": así la reportaron.
+  'Introducción al Pensamiento Económico y Político':{
+    periodo:'2026-2',
+    creditos:4,
+    evals:[
+      ['Control 1',15],
+      ['Control 2',15],
+      ['Examen',40],
+      ['Solemne 1',30],
+    ],
+  },
+  // Métodos Matemáticos IV · 3 estudiantes. Nadie reportó mínimo en el examen
+  // (Métodos Matemáticos I sí lo tiene); no se copia de allá.
+  'Métodos Matemáticos IV':{
+    periodo:'2026-2',
+    creditos:6,
+    evals:[
+      ['Examen',40],
+      ['Solemne 1',20],
+      ['Solemne 2',20],
+      ['Solemne 3',20],
     ],
   },
 };
@@ -2380,6 +2750,22 @@ const PRESETS_UAI={
   // requiere haber rendido el primer examen en la fecha indicada.
   'Matemáticas Avanzadas I':{
     periodo:'2026-2',creditos:6,
+    eximicion:{evaluacion:'Examen',segun:['Talleres','Controles','Pruebas'],min:5,
+      ignoraDescartes:true,comparaNotaOficial:true,sinAusenciasJustificadas:true,
+      requierePautaOriginal:true},
+    segundaFecha:{evaluacion:'Examen',finalMin:3.5,finalMax:3.9,requiereTodas:true,
+      aviso:'Si rendiste el examen en la fecha indicada, consulta por el segundo examen. La app no calcula su resultado'},
+    ausenciasJustificadas:{reemplazosCasilla:[
+      {desde:'Talleres',desdeSlot:0,hacia:'Pruebas',haciaSlot:0},
+      {desde:'Talleres',desdeSlot:1,hacia:'Pruebas',haciaSlot:1},
+      {desde:'Talleres',desdeSlot:2,hacia:'Pruebas',haciaSlot:2},
+      {desde:'Controles',desdeSlot:0,hacia:'Examen'},
+      {desde:'Controles',desdeSlot:1,hacia:'Examen'},
+      {desde:'Controles',desdeSlot:2,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:0,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:1,hacia:'Examen'},
+      {desde:'Pruebas',desdeSlot:2,hacia:'Examen'},
+    ]},
     evals:[
       ['Talleres',7,{slots:3,slotLabel:'Taller'}],
       ['Controles',14,{slots:3,slotLabel:'Control'}],
@@ -2387,9 +2773,7 @@ const PRESETS_UAI={
       ['Examen',30],
     ],
     noCalcula:[
-      'Con presentación de al menos 5,0 puedes eximirte: la final queda en la presentación. Si rindes el examen voluntariamente, su nota cuenta aunque baje el promedio',
-      'Solo si rendiste el examen en la fecha indicada y la final queda entre 3,5 y 3,9, puedes rendir un segundo examen: aprobarlo deja la final en 4,0; reprobarlo conserva la final anterior',
-      'Con justificativo aceptado, un taller se reemplaza por su prueba correspondiente y un control o prueba por el examen',
+      'Si apruebas el segundo examen, la final queda en 4,0; si lo repruebas, conservas la final anterior. La app solo avisa cuándo podrías rendirlo',
     ],
     reglasDelCurso:[
       'Programa MAT124 UAI 2026-2, sección 2, Santiago. Esta pauta calcula el camino con examen',
@@ -2402,6 +2786,22 @@ const PRESETS_UAI={
   // redondean sus pesos internos 2,625/6,125 ni se los confunde con 30/70 final.
   'Razonamiento Cuantitativo con Datos I':{
     periodo:'2026-2',
+    eximicion:{evaluaciones:['Examen teórico','Examen práctico'],etiqueta:'los exámenes teórico y práctico',
+      segun:['Pruebas teóricas','Controles','Trabajo aplicado'],min:5,
+      minimos:[{evaluaciones:['Pruebas teóricas'],min:4},
+        {evaluaciones:['Controles','Trabajo aplicado'],min:4}],
+      ignoraDescartes:true,comparaNotaOficial:true,sinAusenciasJustificadas:true,
+      requierePautaOriginal:true,
+      ocultaEvaluacion:true},
+    ausenciasJustificadas:{reemplazosCasilla:[
+      {desde:'Pruebas teóricas',desdeSlot:0,hacia:'Examen teórico'},
+      {desde:'Pruebas teóricas',desdeSlot:1,hacia:'Examen teórico'},
+      {desde:'Controles',desdeSlot:0,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:1,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:2,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:3,hacia:'Examen práctico'},
+      {desde:'Controles',desdeSlot:4,hacia:'Examen práctico'},
+    ]},
     evals:[
       ['Pruebas teóricas',35,{slots:2,slotLabel:'Prueba'}],
       ['Controles',26.25,{slots:5,slotLabel:'Control'}],
@@ -2410,14 +2810,13 @@ const PRESETS_UAI={
       ['Examen práctico',15],
     ],
     noCalcula:[
-      'Puedes eximirte con presentación de al menos 5,0 y con ET y EP de al menos 4,0 cada una. Sin examen la final es 50% ET y 50% EP',
       'Tras rendir el examen, ET y EP deben ser al menos 4,0. Si no se cumple, el curso se reprueba con la menor de ET y EP; este promedio no aplica esa sustitución',
-      'Una prueba con ausencia justificada se reemplaza por el examen teórico; un control recuperado se reemplaza por el examen práctico. En ambos casos debes rendir el examen y no puedes eximirte',
     ],
     reglasDelCurso:[
       'Programa MAT125 UAI 2026-2, cátedra de Macarena Larrain. Esta pauta calcula el camino con examen',
       'ET es el promedio de dos pruebas; EP es 75% promedio de cinco controles y 25% Trabajo aplicado',
       'En Trabajo aplicado ingresa su nota consolidada: 30% informe y 70% archivo Excel. Los trabajos no son justificables',
+      'Si declaraste una ausencia justificada, tienes que rendir ambos exámenes y no puedes eximirte',
     ],
   },
   // Fuente: Syllabus Intro a la Microeconomía 2026_02.pdf, ECO122, pp.1,5–6.
@@ -2425,6 +2824,15 @@ const PRESETS_UAI={
   // recuperativo 3,6–3,9 de FEN. El número/reparto de controles no está fijado.
   'Introducción a la Microeconomía':{
     periodo:'2026-2',creditos:6,
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Prueba 1','Prueba 2'],
+      rendidas:['Prueba 1','Prueba 2'],minFuente:4.8}],
+    // ECO122 2026-2: una prueba justificada pasa su peso al examen. El
+    // programa no define dos; el motor deja ese caso pendiente. El bloque
+    // consolidado de controles y tareas sigue sin detalle por instancia.
+    ausenciasJustificadas:{maxTraspasos:1,traspasos:[
+      {desde:'Prueba 1',hacia:'Examen'},
+      {desde:'Prueba 2',hacia:'Examen'},
+    ]},
     evals:[
       ['Controles y tareas',20],
       ['Prueba 1',25],
@@ -2432,8 +2840,7 @@ const PRESETS_UAI={
       ['Examen',30],
     ],
     noCalcula:[
-      'Con inasistencia justificada a una prueba, su ponderación pasa al examen. Si la ausencia justificada es a un control o tarea, su nota se reemplaza por la del examen',
-      'Con examen de al menos 4,8 y todas las pruebas rendidas, el examen reemplaza la peor prueba solo si mejora la final',
+      'Una ausencia justificada en un control o tarea se reemplaza por el examen, pero el bloque está consolidado y el programa no fija el peso de cada instancia. Con dos pruebas justificadas, el programa no define el destino de la segunda',
     ],
     reglasDelCurso:[
       'Programa ECO122 UAI 2026-2, sección 1, Viña del Mar. Revisa que corresponda a tu sección',
@@ -2453,11 +2860,10 @@ const PRESETS_UAI={
       ['Tareas',15,{lista:true}],
     ],
     reglasDelCurso:[
-      'Programa MGT103 UAI 2026-2, sección 2, Santiago. No contempla examen final',
+      'Programa MGT103 UAI 2026-2, sección 2, Santiago. Revisa que corresponda a tu sección',
       'Al terminar los controles se eliminan las dos notas más bajas. Mientras agregas notas, el descarte y el promedio que muestra la app son una estimación parcial',
       'Para aprobar, el promedio de Controles debe ser al menos 4,0; si la final era aprobatoria y no cumples, queda en 3,9',
       'También se exige 75% de asistencia: si no la cumples, una final aprobatoria queda en 3,9. La app no conoce tu asistencia',
-      'Una ausencia a solemne aceptada por Secretaría habilita la evaluación recuperativa. Sin justificación aceptada, o si faltas al recuperativo, corresponde 1,0',
     ],
   },
   // Fuente: 03_08_2026_Syllabus Introducción a la Macroeconomía para webc -
@@ -2465,6 +2871,13 @@ const PRESETS_UAI={
   // "dos o tres" descartes no autoriza elegir una cantidad en dropLowest.
   'Introducción a la Macroeconomía':{
     periodo:'2026-2',creditos:6,
+    // ECO123 2026-2: el examen reemplaza una prueba justificada. Una segunda
+    // queda pendiente hasta que el curso confirme su tratamiento.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Prueba oficial 1',hacia:'Examen final'},
+      {desde:'Prueba oficial 2',hacia:'Examen final'},
+      {desde:'Prueba oficial 3',hacia:'Examen final'},
+    ]},
     evals:[
       ['Controles y otras evaluaciones',15],
       ['Prueba oficial 1',20],
@@ -2472,13 +2885,11 @@ const PRESETS_UAI={
       ['Prueba oficial 3',20],
       ['Examen final',25],
     ],
-    noCalcula:[
-      'La nota del examen reemplaza una prueba con inasistencia justificada',
-    ],
+    noCalcula:['Con más de una prueba justificada, el programa no define cómo resolver las siguientes ausencias'],
     reglasDelCurso:[
       'Programa ECO123 UAI 2026-2, sección 03, Santiago. Revisa que corresponda a tu sección',
       'Ingresa el promedio consolidado de Controles y otras evaluaciones del curso: contempla al menos ocho evaluaciones y elimina dos o tres notas, sin fijar cuántas. Puede incluir participación con 50% de ese bloque a criterio del profesor',
-      'Las notas y promedios se redondean a un decimal: 3,94 queda en 3,9 y 3,95 en 4,0. El examen final es obligatorio',
+      'El examen final es obligatorio',
     ],
   },
   // Syllabus oficial UAI 2026-2.
@@ -2494,6 +2905,8 @@ const PRESETS_UAI={
   'Matemáticas Avanzadas II':{
     periodo:'2026-2',
     recuperativo:{min:3.5,max:3.9,nota:4.0},
+    reemplazosOptativos:[{tipo:'reemplazo',fuente:'Examen',destinos:['Pruebas'],
+      rendidas:['Pruebas','Controles'],minFuente:4.0}],
     // `ignoraDescartes:true` es lo que hace que el motor la aplique: sin él
     // `estadoEximicion` devuelve null y el examen seguía pesando 30% aunque la
     // presentación pasara el 5,0 (reporte de un estudiante, 2026-09-25). Esta
@@ -2513,12 +2926,8 @@ const PRESETS_UAI={
       ['Controles',21,{slots:3}],
       ['Examen',30],
     ],
-    noCalcula:[
-      'Si rendiste todas las pruebas y controles puedes reemplazar la nota de UNA prueba por la del examen, siempre que el examen sea al menos 4,0',
-    ],
     reglasDelCurso:[
       'La eximición pide además haber rendido todas las evaluaciones; la app no sabe si una casilla vacía es una que no rendiste o una que no has ingresado',
-      'Las evaluaciones corregidas se entregan en un máximo de 2 semanas hábiles',
     ],
   },
   // Syllabus oficial UAI 2026-2.
@@ -2537,6 +2946,14 @@ const PRESETS_UAI={
   // laboratorios sí —cinco, y cuentan los cuatro mejores.
   'Razonamiento Cuantitativo con Datos II':{
     periodo:'2026-2',
+    eximicion:{evaluaciones:['Examen teórico','Examen práctico'],etiqueta:'los exámenes teórico y práctico',
+      segun:['Pruebas','Laboratorios','Trabajo grupal'],min:5,
+      minimos:[{evaluaciones:['Pruebas'],min:4},
+        {evaluaciones:['Laboratorios','Trabajo grupal'],min:4}],
+      ignoraDescartes:false,comparaNotaOficial:true,sinAusenciasJustificadas:true,
+      requierePautaOriginal:true,
+      requiereConfirmacion:true,confirmar:'rendiste todas las pruebas de la pauta',
+      ocultaEvaluacion:true},
     evals:[
       ['Pruebas',35],
       ['Laboratorios',26.25,{slots:5,dropLowest:{count:1}}],
@@ -2548,11 +2965,9 @@ const PRESETS_UAI={
       {nombre:'Nota teórica',evals:['Pruebas','Examen teórico'],min:4.0,cap:'self'},
       {nombre:'Nota práctica',evals:['Laboratorios','Trabajo grupal','Examen práctico'],min:4.0,cap:'self'},
     ],
-    noCalcula:[
-      'Te eximes del examen si la nota de presentación es al menos 5,0 y las notas teórica y práctica son ambas al menos 4,0. No se declara como eximición porque el examen son dos evaluaciones separadas y el modelo exime de una',
-    ],
     reglasDelCurso:[
       'Una inasistencia justificada a prueba o laboratorio se reemplaza con la parte correspondiente del examen',
+      'Si declaraste una inasistencia justificada, tienes que rendir los exámenes y no puedes eximirte',
     ],
   },
   // Programa oficial UAI 2026-2, CORE.
@@ -2565,12 +2980,12 @@ const PRESETS_UAI={
   //
   // El documento se contradice sobre cuántas evaluaciones de lectura son: el
   // encabezado de la ponderación declara "cantidad: 10" y el cuerpo habla de
-  // "las once evaluaciones semestrales". Se toma el 10 declarado junto al
-  // porcentaje, que es el dato que la ponderación fija.
+  // "las once evaluaciones semestrales". No se precargan casillas hasta que
+  // la sección confirme cuál de las dos cantidades corresponde.
   'Civilización Contemporánea II':{
     periodo:'2026-2',
     evals:[
-      ['Evaluaciones de lectura',32.5,{slots:10}],
+      ['Evaluaciones de lectura',32.5],
       ['Participación en clases',32.5],
       ['Ensayo breve escrito en clases',10],
       ['Examen',25],
@@ -2579,13 +2994,507 @@ const PRESETS_UAI={
       'Te eximes del examen si tu nota de presentación te deja en el 20% superior del curso y además es al menos 5,5: la app no conoce las notas del resto del curso',
     ],
     reglasDelCurso:[
+      'En Evaluaciones de lectura ingresa el promedio consolidado de tu sección: el programa dice 10 en la ponderación y 11 en el texto, así que no precargamos casillas',
       'El curso exige 80% de asistencia: bajo eso repruebas, con 3,9 si tu promedio era 4,0 o más, o con tu promedio si era 3,9 o menos. La app no registra asistencia',
-      'Las recorrecciones se piden dentro de una semana desde que entregan la evaluación',
-      'El plagio se califica con 1,0',
     ],
   },
 };
 
 // Registro de contenido: sumar una universidad no exige replicar los cuatro
 // selectores de pautas. UC conserva su restricción por carrera en el adaptador.
-const PRESETS_POR_TENANT={fen:PRESETS_FEN,uc:PRESETS_UC,uai:PRESETS_UAI};
+// ─── PAUTAS UANDES ───────────────────────────────────────────────────────────
+// Por ahora solo los cursos PEG (Programa de Estudios Generales), que toman
+// estudiantes de todas las carreras. Fuente: la página oficial del Centro de
+// Estudios Generales, uandes.cl/universidad/centro-de-estudios-generales/
+// programas-de-estudios-generales/, "Cursos para el 2° Semestre 2026", que
+// publica las ponderaciones de cada sección (NRC). Leída el 2026-10-05. Donde
+// un curso tiene varias secciones, todas traen la misma pauta.
+//
+// Quedan fuera tres: "Aprender a Ver Cine" e "Investigación Biomédica" no
+// publican ponderaciones, y "Tomás Moro: arte y libertad" trae la misma pauta Y
+// la misma descripción que "Grandes Libros: Interioridad": parece un bloque
+// copiado en la página, y antes de cargar una pauta dudosa, no se carga.
+//
+// "2 pruebas 70%" es un grupo de dos casillas que suma 70%. Cuando el texto no
+// dice cuántas son ("Controles de lectura 45%"), va como lista abierta.
+//
+// Toda pauta con examen final lleva la compuerta del art. 27 del Reglamento del
+// Alumno: solo da examen quien tiene 3,0 de presentación "sin aproximación"
+// (`exacto:true`), y si no, reprueba con su nota de presentación (`cap:'self'`,
+// como lo explica la Facultad de Educación en sus "Consideraciones acerca de la
+// evaluación"). "Ensayo o examen final" no la lleva: con ensayo no hay examen.
+const PRESETS_UANDES={
+  // ── Teología III ──
+  'Creación y Cuidado del Mundo':{
+    periodo:'2026-2',
+    evals:[
+      ['Reseña final clase a clase',40],
+      ['Prueba 1',30],
+      ['Prueba 2',30],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 7729. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Desafíos Sociales del Cristianismo':{
+    periodo:'2026-2',
+    evals:[
+      ['Evaluación 1',25],
+      ['Evaluación 2',25],
+      ['Evaluación 3',30],
+      ['Participación y actividades en clases',20],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 4373. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'La Iglesia':{
+    periodo:'2026-2',
+    evals:[
+      ['Control 1',30],
+      ['Control 2',35],
+      ['Control 3',35],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 6375. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Los Vicios Capitales':{
+    periodo:'2026-2',
+    evals:[
+      ['Ensayos',70,{slots:2,slotLabel:'Ensayo'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Ensayos'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 2199, 7944. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Mundo: Realidad Divina':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',70,{slots:2,slotLabel:'Prueba'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 4135, 6719. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Padres de la Iglesia':{
+    periodo:'2026-2',
+    evals:[
+      ['Prueba',25],
+      ['Control de lectura',25],
+      ['Análisis de textos en clase',20],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Prueba', 'Control de lectura', 'Análisis de textos en clase'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 7818. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Mundo, Trabajo y Redención':{
+    periodo:'2026-2',
+    evals:[
+      ['Bitácoras',35,{lista:true}],
+      ['Tareas semanales',35,{lista:true}],
+      ['Ensayo o examen final',30],
+    ],
+    noCalcula:['Puedes elegir entre ensayo y examen final. Con ensayo la nota máxima del curso es 6,0; con examen, 7,0. Este promedio no aplica ese tope'],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 5440. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Actualidad y Fe':{
+    periodo:'2026-2',
+    evals:[
+      ['Asistencia y participación',35],
+      ['Ensayo',35],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Asistencia y participación', 'Ensayo'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 7728. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Lectura del Apocalipsis':{
+    periodo:'2026-2',
+    evals:[
+      ['Control de lectura 1',20],
+      ['Control de lectura 2',20],
+      ['Prueba',20],
+      ['Examen oral',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Control de lectura 1', 'Control de lectura 2', 'Prueba'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Teología III), NRC 6726. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen oral y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  // ── Arte y Literatura ──
+  'Apreciación de la Arquitectura':{
+    periodo:'2026-2',
+    evals:[
+      ['Controles',60,{slots:3,slotLabel:'Control'}],
+      ['Examen',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Controles'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 5417. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Apreciación de la Pintura Occidental':{
+    periodo:'2026-2',
+    evals:[
+      ['Control',50],
+      ['Examen',50],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Control'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 5320. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Arte y Cultura Griega':{
+    periodo:'2026-2',
+    evals:[
+      ['Seminarios socráticos',40,{slots:4,slotLabel:'Seminario socrático'}],
+      ['Prueba',30],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Seminarios socráticos', 'Prueba'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 1659. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Cuento de Fantasía y Ficción':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',70,{slots:2,slotLabel:'Prueba'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 6362. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'De Bach al Rock':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',70,{slots:2,slotLabel:'Prueba'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 1653. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Genios del Arte':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',70,{slots:3,slotLabel:'Prueba'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 6358. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Poesía y Experiencia Humana':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',70,{slots:2,slotLabel:'Prueba'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 1658. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Revolución Artística del Renacimiento':{
+    periodo:'2026-2',
+    evals:[
+      ['Seminarios socráticos',40,{slots:4,slotLabel:'Seminario socrático'}],
+      ['Prueba',30],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Seminarios socráticos', 'Prueba'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 1660. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'El Impresionismo':{
+    periodo:'2026-2',
+    evals:[
+      ['Control',50],
+      ['Examen',50],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Control'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 6702. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'La Belleza en el Arte':{
+    periodo:'2026-2',
+    evals:[
+      ['Bitácoras',40,{slots:12,slotLabel:'Bitácora'}],
+      ['Trabajo final grupal',40],
+      ['Crítica de arte',20],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 7933. Revisa que corresponda a tu sección', 'Se exige al menos 75% de asistencia'],
+  },
+  'Grandes Libros: Interioridad (EDU)':{
+    periodo:'2026-2',
+    evals:[
+      ['Cuestionarios semanales',25,{lista:true}],
+      ['Participación',25],
+      ['Prácticas para el ensayo final',20],
+      ['Examen final',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Cuestionarios semanales', 'Participación', 'Prácticas para el ensayo final'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 7738, 7740, 7739. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen final y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Vanguardias Artísticas del Siglo XX':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',70,{slots:3,slotLabel:'Prueba'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Arte y Literatura), NRC 6360. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  // ── Ciencias ──
+  'Astronomía':{
+    periodo:'2026-2',
+    evals:[
+      ['Cuestionarios',14,{lista:true}],
+      ['Controles de lectura',35,{slots:2,slotLabel:'Control de lectura'}],
+      ['Trabajo',21],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Cuestionarios', 'Controles de lectura', 'Trabajo'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 6361, 1614. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Biología Acuática':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',60,{slots:3,slotLabel:'Prueba'}],
+      ['Examen',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 1608. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  // "Chat GTP" es como lo escribe la página oficial; así se busca en Banner.
+  'De la Imprenta a Chat GTP':{
+    periodo:'2026-2',
+    evals:[
+      ['Controles',40,{slots:2,slotLabel:'Control'}],
+      ['Participación',30],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Controles', 'Participación'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 6367. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Grandes Teoremas Matemáticos':{
+    periodo:'2026-2',
+    evals:[
+      ['Controles de lectura',50,{slots:2,slotLabel:'Control de lectura'}],
+      ['Actividades semanales',20,{lista:true}],
+      ['Prueba',30],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 6441. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Hacia el Espacio':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',50,{slots:2,slotLabel:'Prueba'}],
+      ['Presentación noticia',10],
+      ['Examen final',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas', 'Presentación noticia'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 7731. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen final y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'El Mundo visto desde la Ciencia':{
+    periodo:'2026-2',
+    evals:[
+      ['Control de lectura',30],
+      ['Actividades semanales',30,{lista:true}],
+      ['Prueba',40],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 1610. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  // 70% sin cantidad de evaluaciones: pautaPresetSuficiente no la carga.
+  'Sismología y Vulcanología':{
+    periodo:'2026-2',
+    evals:[
+      ['Evaluación clase a clase',70,{lista:true}],
+      ['Trabajo final',30],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 6365. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  // 70% sin cantidad de evaluaciones: pautaPresetSuficiente no la carga.
+  'Textos de Grandes Científicos':{
+    periodo:'2026-2',
+    evals:[
+      ['Bitácoras',35,{lista:true}],
+      ['Tareas semanales',35,{lista:true}],
+      ['Ensayo o examen final',30],
+    ],
+    noCalcula:['Puedes elegir entre ensayo y examen final. Con ensayo la nota máxima del curso es 6,0; con examen, 7,0. Este promedio no aplica ese tope'],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 1606. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Zoología':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',60,{slots:3,slotLabel:'Prueba'}],
+      ['Examen',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 5392. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  // "70% (3 pruebas 90%, asistencia y participación 10%), examen 30%": 0,7×90 = 63 y 0,7×10 = 7.
+  'Cambio Climático':{
+    periodo:'2026-2',
+    evals:[
+      ['Pruebas',63,{slots:3,slotLabel:'Prueba'}],
+      ['Asistencia y participación',7],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Pruebas', 'Asistencia y participación'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 7743. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Grandes Expediciones Científicas':{
+    periodo:'2026-2',
+    evals:[
+      ['Evaluaciones',100,{slots:4,slotLabel:'Evaluación'}],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 7934. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Problemáticas Urbanas':{
+    periodo:'2026-2',
+    evals:[
+      ['Trabajos grupales',60,{slots:3,slotLabel:'Trabajo grupal'}],
+      ['Trabajos individuales',40,{lista:true}],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 6464. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  'Reconocimiento Natural de la Fertilidad':{
+    periodo:'2026-2',
+    evals:[
+      ['Trabajo: avance',20],
+      ['Entrega final de trabajo y reflexión escrita',80],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Ciencias), NRC 7747. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  // ── Historia y Actualidad ──
+  'Actualidad Internacional':{
+    periodo:'2026-2',
+    evals:[
+      ['Trabajo de investigación',70,{slots:2,slotLabel:'Entrega'}],
+      ['Controles',30,{slots:3,slotLabel:'Control'}],
+    ],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 4011. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia'],
+  },
+  // 60% sin cantidad de evaluaciones: pautaPresetSuficiente no la carga.
+  'Arte y Política':{
+    periodo:'2026-2',
+    evals:[
+      ['Tareas',50,{lista:true}],
+      ['Controles',10,{lista:true}],
+      ['Examen (trabajo)',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Tareas', 'Controles'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 5372. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen (trabajo) y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Grandeza y Decadencia de Roma':{
+    periodo:'2026-2',
+    evals:[
+      ['Trabajos',40,{slots:2,slotLabel:'Trabajo'}],
+      ['Ensayo',20],
+      ['Examen (ensayo)',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Trabajos', 'Ensayo'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 6693. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen (ensayo) y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Grandes Batallas de la Humanidad':{
+    periodo:'2026-2',
+    evals:[
+      ['Control de lectura 1',20],
+      ['Control de lectura 2',20],
+      ['Prueba de materia',30],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Control de lectura 1', 'Control de lectura 2', 'Prueba de materia'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 1672. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Grandes Exploradores':{
+    periodo:'2026-2',
+    evals:[
+      ['Controles de lectura',45,{slots:3,slotLabel:'Control de lectura'}],
+      ['Prueba',25],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Controles de lectura', 'Prueba'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 1671. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Grandes Visiones de la Historia':{
+    periodo:'2026-2',
+    evals:[
+      ['Participación',10],
+      ['Ensayos',60,{slots:2,slotLabel:'Ensayo'}],
+      ['Examen oral',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Participación', 'Ensayos'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 6366. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen oral y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'La Guerra del Pacífico':{
+    periodo:'2026-2',
+    evals:[
+      ['Control de lectura 1',20],
+      ['Control de lectura 2',20],
+      ['Prueba de materia',30],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Control de lectura 1', 'Control de lectura 2', 'Prueba de materia'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 6369. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Mitología Europea':{
+    periodo:'2026-2',
+    evals:[
+      ['Controles de lectura',45,{lista:true}],
+      ['Prueba',25],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Controles de lectura', 'Prueba'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 1676. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Historia de las Revoluciones':{
+    periodo:'2026-2',
+    evals:[
+      ['Taller',20],
+      ['Ensayos',50,{slots:2,slotLabel:'Ensayo'}],
+      ['Examen oral',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Taller', 'Ensayos'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 7734. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen oral y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Los Terremotos en Chile':{
+    periodo:'2026-2',
+    evals:[
+      ['Bitácora',20],
+      ['Control',35],
+      ['Participación',10],
+      ['Examen (trabajo final)',35],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Bitácora', 'Control', 'Participación'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 7733. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen (trabajo final) y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  // "1 evaluación 10%, 3 evaluaciones 20% y examen 30%": 20% cada una es la única lectura que suma 100.
+  'El mundo después de Roma':{
+    periodo:'2026-2',
+    evals:[
+      ['Primera evaluación',10],
+      ['Evaluaciones',60,{slots:3,slotLabel:'Evaluación'}],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Primera evaluación', 'Evaluaciones'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 7735. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'De Emperatrices a Reinas':{
+    periodo:'2026-2',
+    evals:[
+      ['Solemne 1',20],
+      ['Control de lectura 1',10],
+      ['Control de lectura 2',10],
+      ['Trabajo',20],
+      ['Examen',40],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Solemne 1', 'Control de lectura 1', 'Control de lectura 2', 'Trabajo'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 7936. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Héroes de la Historia de Chile':{
+    periodo:'2026-2',
+    evals:[
+      ['Controles de lectura',45,{slots:3,slotLabel:'Control de lectura'}],
+      ['Prueba',25],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Controles de lectura', 'Prueba'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 1674. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+  'Revelando el Nuevo Mundo':{
+    periodo:'2026-2',
+    evals:[
+      ['Taller de análisis de fuentes 1',20],
+      ['Taller de análisis de fuentes 2',20],
+      ['Actividades y participación en clase',30],
+      ['Examen',30],
+    ],
+    grupos:[{nombre:'Presentación a examen',evals:['Taller de análisis de fuentes 1', 'Taller de análisis de fuentes 2', 'Actividades y participación en clase'],min:3.0,cap:'self',exacto:true}],
+    reglasDelCurso:['PEG UAndes 2° semestre 2026 (Historia y Actualidad), NRC 6433. Revisa que corresponda a tu sección', 'Se exige al menos 60% de asistencia', 'Con presentación bajo 3,0, sin aproximación, no puedes dar examen y repruebas con esa nota (Reglamento del Alumno, art. 27)'],
+  },
+};
+const PRESETS_POR_TENANT={fen:PRESETS_FEN,uc:PRESETS_UC,uai:PRESETS_UAI,uandes:PRESETS_UANDES};

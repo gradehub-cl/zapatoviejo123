@@ -138,7 +138,8 @@ chk('Econometría Aplicada conserva sus dos requisitos de aprobación',
 
 const metodos=presetRamo('Métodos de Optimización','uc','ING-PC');
 chk('Métodos de Optimización aplana exactamente NP 80% y NT 20%',
-  metodos&&metodos.categorias.map(c=>c.nombre+':'+c.peso).join('|')==='Interrogación 1:20|Interrogación 2:28|Examen:32|Tarea 1:6|Tarea 2:6|Tarea 3:8');
+  metodos&&metodos.categorias.map(c=>c.nombre+':'+c.peso).join('|')==='Interrogación 1:20|Interrogación 2:28|Examen:32|Tarea 1:6|Tarea 2:6|Tarea 3:8|Control optativo:0'&&
+  metodos.categorias.at(-1).optativa===true);
 chk('Métodos de Optimización conserva sus dos compuertas de 4,0',
   metodos&&metodos.gates.length===2&&metodos.gates.every(g=>g.type==='group_min'&&g.min===4&&g.cap===3.9));
 chk('Métodos de Optimización lleva sus fechas fijas a la Agenda',
@@ -203,7 +204,7 @@ const renderStart=src.indexOf('function renderRamo()');
 const render=src.slice(renderStart,src.indexOf('function renderStats()',renderStart));
 chk('distingue el ramo del catálogo del creado a mano', /const delCatalogo=/.test(render));
 chk('al del catálogo le explica cómo armar la pauta en vez de decirle "Sin evaluaciones"',
-  /Todavía no tenemos la pauta de este ramo/.test(render) && /La puedes armar con tu programa/.test(render));
+  /Todavía no tenemos la pauta de este ramo/.test(render) && /Ármala con el programa del curso/.test(render));
 chk('al ramo manual le sigue diciendo Sin evaluaciones', /'Sin evaluaciones'/.test(render));
 // El mensaje vive dentro del bloque de categorías vacías: en cuanto el
 // estudiante agrega su primera evaluación, deja de renderizarse solo.

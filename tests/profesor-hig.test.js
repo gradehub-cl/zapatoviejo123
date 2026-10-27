@@ -14,6 +14,10 @@ ctx.root=root();
 (async()=>{
  await run("renderPanelProfesor(root,anuncios,{cabecera:()=>'',salida:()=>''})");
  assert.match(ctx.root.innerHTML,/profesor-hig-fila/);assert.match(ctx.root.innerHTML,/Crear anuncio/);
+ // Resumen, Anuncios y Perfil (Lucas, 2026-10-22): el Resumen dice primero lo pendiente.
+ for(const v of ['resumen','anuncios','perfil'])assert.match(ctx.root.innerHTML,new RegExp(`data-clases-vista="${v}"`));
+ assert(ctx.root.innerHTML.indexOf('data-clases-panel="resumen"')<ctx.root.innerHTML.indexOf('data-clases-panel="anuncios"'));
+ assert.match(ctx.root.innerHTML,/<h2>Pendiente<\/h2>/);
  assert.match(ctx.root.innerHTML,/Clase &lt;sintética&gt;/);assert.doesNotMatch(ctx.root.innerHTML,/<sintética>|piloto|no se cobra|bin\//);
  assert.match(ctx.root.innerHTML,/data-pausar="aaaaaaaa/);assert.match(ctx.root.innerHTML,/data-retomar="bbbbbbbb/);assert.match(ctx.root.innerHTML,/data-editar="cccccccc/);
  assert.match(ctx.root.innerHTML,/data-retomar="dddddddd/);assert.doesNotMatch(ctx.root.innerHTML,/data-pausar="dddddddd/);
@@ -36,6 +40,15 @@ ctx.root=root();
  assert.doesNotMatch(detail.innerHTML,/Costo · publicación actual/);
  falla=false;run("retomarAnuncioClase(anuncios[1].id,onDone)");await confirmacion;assert.equal(mutaciones.at(-1).estado,'borrador');
  ctx.root=root();await run("renderPanelProfesor(root,[],{cabecera:()=>'',salida:()=>''})");assert.match(ctx.root.innerHTML,/Todavía no tienes anuncios/);assert(ctx.root.querySelector('#clase-nueva').click);
+ // En su pestaña, el título va en la barra (Lucas, 2026-10-22): sin cabecera grande y con Crear anuncio arriba.
+ assert.doesNotMatch(ctx.root.innerHTML,/profesor-hig-cabecera|<h1|Tu conocimiento puede ayudar/);
+ // «Crear anuncio» va dentro de Anuncios, no arriba de todas las vistas (Lucas, 2026-10-23).
+ const htmlClases=ctx.root.innerHTML,enAnuncios=htmlClases.indexOf('data-clases-panel="anuncios"');
+ assert.equal((htmlClases.match(/id="clase-nueva"/g)||[]).length,1,'un solo «Crear anuncio»');
+ assert.ok(enAnuncios>0&&htmlClases.indexOf('id="clase-nueva"')>enAnuncios&&htmlClases.indexOf('id="clase-nueva"')<htmlClases.indexOf('data-clases-panel="perfil"'),'y está en la vista Anuncios');
+ ctx.root=root();ctx.root.id='modal-content';await run("renderPanelProfesor(root,[],{cabecera:()=>'',salida:()=>''})");
+ assert.match(ctx.root.innerHTML,/id="modal-titulo">Tu conocimiento puede ayudar/,'abierto como hoja conserva su título');
+ assert.match(require('fs').readFileSync(__dirname+'/../index.html','utf8'),/<h1 class="brand-word"[^>]*>Clases<\/h1>/);
  assert.equal(run('IMPRESION_VISIBLE'),.5);assert.equal(run('IMPRESION_MS'),1000);
  console.log('OK profesor HIG: publicado/pausado/borrador, costo real, sin identidades ni medición, pausa/retomar y fallas de red');
 })().catch(e=>{console.error(e);process.exitCode=1;});

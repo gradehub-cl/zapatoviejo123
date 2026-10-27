@@ -188,9 +188,30 @@ function rechazoPauta(codigo,fragmento){
 chk('usar el resto explica cuando ya no queda porcentaje libre',rechazoPauta(
   "pautaDraft=[{id:'a',nombre:'I1',peso:0,tieneNotas:false},{id:'b',nombre:'I2',peso:100,tieneNotas:false}];usarRestoPauta(0)",
   'No queda porcentaje libre'));
-chk('quitar una fila explica cuando ya tiene notas',rechazoPauta(
-  "pautaDraft=[{id:'a',nombre:'I1',peso:100,tieneNotas:true}];quitarPautaFila(0)",
-  'ya tiene notas'));
+// Una evaluación con notas se puede quitar: pide confirmar como destructiva y
+// dice que borra sus notas. Si hay otra con el mismo nombre (una repetida),
+// sus notas pasan a esa y no se borra nada.
+function quitarConNotas(gemela){
+  const kit=arnes(fuente());
+  vm.runInContext(`S.ramos=[{id:'r',nombre:'R',categorias:[
+    {id:'a',nombre:'Controles',peso:50,notas:[{id:'n1',valor:6,peso:1}]},
+    {id:'b',nombre:'${gemela?'Controles':'Examen'}',peso:50,notas:[{id:'n2',valor:5,peso:1}]}],
+    gates:[{type:'min_grade_required',catId:'a',min:4,cap:3.9}]}];currentRamoId='r';
+    pautaDraft=[{id:'a',nombre:'Controles',peso:50,tieneNotas:true},{id:'b',nombre:'${gemela?'Controles':'Examen'}',peso:50,tieneNotas:true}];
+    quitarPautaFila(0)`,kit.ctx);
+  const desc=kit.ids['confirm-desc'].textContent,abierta=kit.ids['confirm-overlay'].classList.contains('open');
+  vm.runInContext('renderRamo=()=>{};_confirmFn();guardarPautaManual()',kit.ctx);
+  return {abierta,desc,ramo:vm.runInContext('JSON.parse(JSON.stringify(S.ramos[0]))',kit.ctx)};
+}
+{
+  const borra=quitarConNotas(false);
+  chk('quitar una evaluación con notas pide confirmar y avisa que las borra',
+    borra.abierta&&/borra su nota/.test(borra.desc)&&borra.ramo.categorias.map(c=>c.id).join()==='b'&&borra.ramo.gates.length===0);
+  const repetida=quitarConNotas(true);
+  chk('quitar una repetida pasa sus notas y su mínimo a la otra',
+    repetida.abierta&&/no se pierde ninguna/.test(repetida.desc)&&repetida.ramo.categorias.length===1&&
+    repetida.ramo.categorias[0].notas.map(n=>n.id).join()==='n2,n1'&&repetida.ramo.gates.length===1&&repetida.ramo.gates[0].catId==='b');
+}
 function confirmacionQuitarPauta(){
   const kit=arnes(fuente());
   vm.runInContext("pautaDraft=[{id:'a',nombre:'Interrogación 1',peso:30,tieneNotas:false}];quitarPautaFila(0)",kit.ctx);
