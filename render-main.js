@@ -1847,6 +1847,7 @@ function payloadCalificacion(contexto,estrellas,etiquetas){
 function errorCalificacion(error){
   const mensaje=String(error&&error.message||'');
   if(/sin informar/.test(mensaje))return 'Primero dinos quién te hace clases.';
+  if(/profesor oculto/.test(mensaje))return 'Este profesor pidió no aparecer en GradeHub, así que no se puede calificar.';
   if(/etiquetas/.test(mensaje))return 'Elige hasta 3 etiquetas.';
   if(/nombre inválido/.test(mensaje))return 'Escribe el nombre completo del profesor.';
   return errorDocente(error);

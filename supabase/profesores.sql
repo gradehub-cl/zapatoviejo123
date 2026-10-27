@@ -80,6 +80,30 @@ begin
 end;
 $$;
 
+-- Docentes que pidieron no aparecer (privacidad.html#profesores). Solo el equipo
+-- la toca, desde el SQL Editor; ninguna RPC la lee ni la escribe hacia afuera.
+-- Ocultar es por universidad y tolera la misma errata que el consenso.
+--   Oponerse (deja de mostrarse en todos sus ramos y no se vuelve a publicar):
+--     insert into public.profesor_ocultos(tenant,nombre) values('uc','Nombre Apellido');
+--   Rectificar un nombre mal escrito:
+--     update public.profesor_aportes set nombre='Nombre Correcto'
+--       where tenant='uc' and public.profesor_coinciden(nombre,'Nombre Mal Escrito');
+--   Suprimir, en este orden (cada calificación es del docente que informó su autor):
+--     delete from public.profesor_calificaciones k using public.profesor_aportes a where a.user_id=k.user_id
+--       and a.tenant=k.tenant and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
+--       and k.tenant='uc' and public.profesor_coinciden(a.nombre,'Nombre Apellido');
+--     delete from public.profesor_aportes where tenant='uc' and public.profesor_coinciden(nombre,'Nombre Apellido');
+--     insert into public.profesor_ocultos(tenant,nombre,motivo) values('uc','Nombre Apellido','supresion');
+create table if not exists public.profesor_ocultos (
+  tenant text not null check (tenant in ('uc','fen','uai','uandes')),
+  nombre text not null check (char_length(nombre) between 3 and 100),
+  motivo text not null default 'oposicion' check (motivo in ('oposicion','supresion','abuso')),
+  creado timestamptz not null default now(),
+  primary key (tenant, nombre)
+);
+alter table public.profesor_ocultos enable row level security;
+revoke all on public.profesor_ocultos from public, anon, authenticated;
+
 -- Consenso de una sección: el nombre con al menos tres cuentas que coinciden.
 -- Interna: la usan el estado del docente y las calificaciones.
 create or replace function public.profesor_docente_publico(p_tenant text, p_ramo_clave text, p_seccion integer, p_periodo text)
@@ -98,6 +122,9 @@ returns text language sql stable security definer set search_path = '' as $$
   select g.nombre from ganadores g
     -- Un empate entre docentes distintos no publica uno por azar.
     where not exists(select 1 from ganadores otro where not public.profesor_coinciden(g.nombre,otro.nombre))
+      -- Quien pidió no aparecer no se publica, y sin docente no se califica.
+      and not exists(select 1 from public.profesor_ocultos o
+        where o.tenant=p_tenant and public.profesor_coinciden(o.nombre,g.nombre))
     order by (select count(*) from aportes a where a.nombre=g.nombre) desc, g.nombre limit 1;
 $$;
 
@@ -228,6 +255,13 @@ begin
   if not exists(select 1 from public.profesor_aportes a where a.user_id=auth.uid() and a.tenant=c.tenant
       and a.ramo_clave=c.ramo_clave and a.seccion=p_seccion and a.periodo=p_periodo) then
     raise exception 'profesor sin informar';
+  end if;
+  -- Quien pidió no aparecer tampoco recibe calificaciones nuevas.
+  if exists(select 1 from public.profesor_aportes a join public.profesor_ocultos o
+      on o.tenant=a.tenant and public.profesor_coinciden(o.nombre,a.nombre)
+      where a.user_id=auth.uid() and a.tenant=c.tenant and a.ramo_clave=c.ramo_clave
+        and a.seccion=p_seccion and a.periodo=p_periodo) then
+    raise exception 'profesor oculto';
   end if;
   if p_estrellas is null or p_estrellas not between 1 and 5 then raise exception 'calificación inválida'; end if;
   limpias := array(select distinct e from unnest(coalesce(p_etiquetas,'{}'::text[])) e where e is not null order by e);
