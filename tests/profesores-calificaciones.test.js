@@ -105,9 +105,10 @@ const estado=async i=>(await q('select * from profesor_calificacion_estado($1,$2
   await db.exec('reset role');
   await db.query("insert into profesor_ocultos(tenant,nombre) values('uc','Ricardo Gonzales')");
   await soy(9);e=await estado(9);
-  assert.equal(e.docente,null);assert.equal(e.total,0);assert.equal(e.puede_calificar,false);
+  assert.equal(e.docente,null);assert.equal(e.total,0);
   assert.equal((await q('select * from profesor_docente_estado($1,3,$2)',['ramo-9',periodo]))[0].nombre_publico,null);
-  await assert.rejects(calificar(9,5),/profesor sin confirmar/);
+  await assert.rejects(calificar(9,5),/profesor oculto/);
+  assert.equal((await estado(9)).mi_estrellas,1,'la calificación anterior no se pisa');
   await informar(9,'Ricardo González');assert.equal((await estado(9)).docente,null,'volver a informarlo no lo publica');
   await soy(1);assert.equal((await estado(1)).docente,'María José Pérez','otro docente no se ve afectado');
   await assert.rejects(q('select * from profesor_ocultos'),/permission denied/);
