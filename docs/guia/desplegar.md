@@ -42,3 +42,32 @@ El deploy manual sigue existiendo por si el CI está caído (`npm run deploy`),
 pero necesita Wrangler autenticado en la máquina de quien lo corra. Lucas y
 Martín tienen acceso de administrador a la cuenta de Cloudflare; tener Wrangler
 autenticado localmente es otra cosa y se hace aparte.
+
+## El SQL de Supabase
+
+Hasta el 2026-10-27 cada archivo de `supabase/` se copiaba a mano al SQL Editor, y a
+veces quedaba sin aplicar sin que nadie lo notara (`errores_app` estuvo días así).
+Ahora lo aplica el workflow `sql-produccion`, con permiso:
+
+1. Un PR cambia o agrega `supabase/<tema>.sql` y se mergea a `main`.
+2. El job **revisar** lista qué archivos se van a aplicar, en qué orden y con su
+   diff, en el resumen de la corrida. No tiene acceso a la base.
+3. El job **aplicar** espera la aprobación de Martín (environment `produccion-sql`,
+   *Required reviewers*). GitHub le avisa; aprueba en *Review deployments*.
+4. Cada archivo corre entero o no corre: sin `begin;` propio va en una sola
+   transacción, y con `begin;`/`commit;` se respeta el suyo
+   (`bin/sql-produccion.js`). Si uno falla, los siguientes no se aplican y la
+   corrida queda en rojo con el error de Postgres.
+
+Reglas para quien escribe SQL:
+
+- **Se tiene que poder correr de nuevo.** El mismo archivo se vuelve a aplicar cada
+  vez que se edita: `create or replace function`, `create table if not exists`,
+  `drop policy if exists` antes de `create policy`.
+- **Lo de una sola vez** (respaldos, limpiezas, la prueba de aislamiento) lleva
+  `-- sql-produccion: manual` en la primera línea y nunca se aplica solo.
+- Para aplicar algo que ya está en `main`: Actions → `sql-produccion` → *Run
+  workflow* con la lista de archivos. También pide aprobación.
+
+La conexión (`PRODUCCION_DB_URL`, la del *Session pooler*: GitHub no tiene IPv6)
+vive solo en el environment, restringido a `main`. Ningún agente la tiene.

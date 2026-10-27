@@ -1,3 +1,4 @@
+-- sql-produccion: manual (una sola vez, en el SQL Editor; el workflow nunca lo aplica solo)
 -- Prueba de aislamiento entre cuentas (RLS) — punto 3 de la auditoría (#164).
 -- Verificada en producción el 2026-08-18: las dos consultas dieron OK.
 --

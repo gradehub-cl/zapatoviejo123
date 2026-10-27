@@ -1,3 +1,4 @@
+-- sql-produccion: manual (una sola vez, en el SQL Editor; el workflow nunca lo aplica solo)
 -- Restos de #445 (pestaña Profes con reseñas), que nunca se mergeó pero cuyo SQL
 -- quedó aplicado en producción: cinco tablas vacías y funciones ejecutables
 -- incluso por anon. Nada en main las usa; las reemplazan profesor_aportes y
