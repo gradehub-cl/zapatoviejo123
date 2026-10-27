@@ -1,5 +1,5 @@
 -- Registro de docentes por sección (#569) y sus calificaciones: estrellas,
--- etiquetas de una lista y una etiqueta corta escrita, sin perfiles ni reseñas.
+-- etiquetas de una lista y etiquetas cortas escritas, sin perfiles ni reseñas.
 -- Aplicación manual: no ejecutar contra producción como parte de este PR.
 -- Reaplicable. user_ramos(user_id, data) ya existe en Supabase; solo se lee.
 -- El semestre activo es data.ramos; data.historial nunca habilita un aporte.
@@ -194,6 +194,16 @@ returns boolean language sql immutable set search_path = '' as $$
     and public.profesor_normalizar(p_texto) !~ '(weon|weona|hueon|huevon|aweona|culia|conchetu|conchesu|maric|mierd|put[ao]|chuch|verga|cul[oa]s? )';
 $$;
 
+-- Hasta tres etiquetas escritas, cada una permitida y sin repetirse (sin contar
+-- tildes ni mayúsculas).
+create or replace function public.profesor_otros_permitidos(p_otros text[])
+returns boolean language sql immutable set search_path = '' as $$
+  select cardinality(p_otros) <= 3
+    and coalesce(bool_and(public.profesor_texto_permitido(t)), true)
+    and count(distinct public.profesor_normalizar(t)) = count(t)
+  from unnest(p_otros) t;
+$$;
+
 create table if not exists public.profesor_calificaciones (
   user_id uuid not null references auth.users(id) on delete cascade,
   tenant text not null check (tenant in ('uc','fen','uai','uandes')),
@@ -206,6 +216,9 @@ create table if not exists public.profesor_calificaciones (
   primary key (user_id, tenant, ramo_clave, seccion, periodo)
 );
 alter table public.profesor_calificaciones add column if not exists otro text;
+-- Las etiquetas escritas viven en `otros`. `otro` queda como copia de la primera
+-- para la app anterior y para volver atrás; se borra en una migración aparte.
+alter table public.profesor_calificaciones add column if not exists otros text[] not null default '{}';
 create index if not exists profesor_calificaciones_ramo
   on public.profesor_calificaciones(tenant, ramo_clave);
 alter table public.profesor_calificaciones enable row level security;
@@ -216,12 +229,21 @@ update public.profesor_calificaciones k set etiquetas=array(select e from unnest
   where not k.etiquetas <@ public.profesor_etiquetas_validas();
 update public.profesor_calificaciones k set otro=null
   where k.otro is not null and not public.profesor_texto_permitido(k.otro);
+update public.profesor_calificaciones k set otros=array(select t from unnest(k.otros) with ordinality u(t,i)
+  where public.profesor_texto_permitido(t) order by i)
+  where not coalesce((select bool_and(public.profesor_texto_permitido(t)) from unnest(k.otros) t), true);
+-- Calificaciones guardadas antes de `otros`: su «Otro» pasa a ser la primera.
+update public.profesor_calificaciones k set otros=array[k.otro]
+  where k.otro is not null and k.otros='{}';
 alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_etiquetas_check;
 alter table public.profesor_calificaciones add constraint profesor_calificaciones_etiquetas_check
   check (cardinality(etiquetas) <= 3 and etiquetas <@ public.profesor_etiquetas_validas());
 alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_otro_check;
 alter table public.profesor_calificaciones add constraint profesor_calificaciones_otro_check
   check (otro is null or public.profesor_texto_permitido(otro));
+alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_otros_check;
+alter table public.profesor_calificaciones add constraint profesor_calificaciones_otros_check
+  check (public.profesor_otros_permitidos(otros) and cardinality(etiquetas) + cardinality(otros) <= 3);
 revoke all on public.profesor_calificaciones from public, anon, authenticated;
 
 -- Promedio del docente de esta sección en este ramo, juntando todas las
@@ -232,18 +254,18 @@ revoke all on public.profesor_calificaciones from public, anon, authenticated;
 drop function if exists public.profesor_calificacion_estado(text,integer,text);
 create function public.profesor_calificacion_estado(p_ramo_id text, p_seccion integer, p_periodo text)
 returns table(docente text, total integer, promedio numeric, etiquetas jsonb,
-  mi_estrellas integer, mi_etiquetas text[], mi_otro text, puede_calificar boolean)
+  mi_estrellas integer, mi_etiquetas text[], mi_otro text, puede_calificar boolean, mi_otros text[])
 language plpgsql stable security definer set search_path = '' as $$
 declare c record; d text; mia record;
 begin
   select * into strict c from public.profesor_contexto(p_ramo_id,p_seccion);
   d := public.profesor_docente_publico(c.tenant,c.ramo_clave,p_seccion,p_periodo);
-  select k.estrellas, k.etiquetas, k.otro into mia from public.profesor_calificaciones k
+  select k.estrellas, k.etiquetas, k.otros[1] as otro, k.otros into mia from public.profesor_calificaciones k
     where k.user_id=auth.uid() and k.tenant=c.tenant and k.ramo_clave=c.ramo_clave
       and k.seccion=p_seccion and k.periodo=p_periodo;
   if d is null then
     return query select null::text, 0, null::numeric, '[]'::jsonb, mia.estrellas::integer, mia.etiquetas, mia.otro,
-      p_periodo=public.profesor_periodo_actual();
+      p_periodo=public.profesor_periodo_actual(), mia.otros;
     return;
   end if;
   return query
@@ -254,7 +276,7 @@ begin
       select s.seccion, s.periodo from secciones s
       where public.profesor_coinciden(public.profesor_docente_publico(c.tenant,c.ramo_clave,s.seccion,s.periodo), d)
     ), notas as materialized (
-      select k.user_id, k.estrellas, k.etiquetas, k.otro from public.profesor_calificaciones k
+      select k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
       join del_docente x on x.seccion=k.seccion and x.periodo=k.periodo
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
@@ -264,27 +286,29 @@ begin
       select jsonb_build_object('etiqueta',e) as j, count(*)::integer as n, e as orden
         from notas, unnest(notas.etiquetas) e group by e having count(*)>=2
       union all
-      select jsonb_build_object('texto',mode() within group (order by notas.otro)), count(distinct notas.user_id)::integer,
-        public.profesor_normalizar(notas.otro)
-        from notas where notas.otro is not null
-        group by public.profesor_normalizar(notas.otro) having count(distinct notas.user_id)>=3
+      select jsonb_build_object('texto',mode() within group (order by t)), count(distinct notas.user_id)::integer,
+        public.profesor_normalizar(t)
+        from notas, unnest(notas.otros) t
+        group by public.profesor_normalizar(t) having count(distinct notas.user_id)>=3
     )
     select d, conteo.n,
       case when conteo.n>=3 then (select round(avg(estrellas),1) from notas) end,
       case when conteo.n>=3 then coalesce((select jsonb_agg(t.j||jsonb_build_object('n',t.n) order by t.n desc, t.orden)
         from (select * from destacadas order by n desc, orden limit 3) t),'[]'::jsonb)
         else '[]'::jsonb end,
-      mia.estrellas::integer, mia.etiquetas, mia.otro, p_periodo=public.profesor_periodo_actual()
+      mia.estrellas::integer, mia.etiquetas, mia.otro, p_periodo=public.profesor_periodo_actual(), mia.otros
     from conteo;
 end;
 $$;
 
--- p_otro es opcional: la app anterior llama sin él y sigue funcionando.
+-- p_otros trae las etiquetas escritas. p_otro (una sola) es de la app anterior y
+-- sigue funcionando, igual que la llamada sin ninguna de las dos.
 drop function if exists public.profesor_calificar(text,integer,text,integer,text[]);
+drop function if exists public.profesor_calificar(text,integer,text,integer,text[],text);
 create or replace function public.profesor_calificar(p_ramo_id text, p_seccion integer, p_periodo text,
-  p_estrellas integer, p_etiquetas text[], p_otro text default null)
+  p_estrellas integer, p_etiquetas text[], p_otro text default null, p_otros text[] default null)
 returns void language plpgsql security definer set search_path = '' as $$
-declare c record; limpias text[]; otro_limpio text;
+declare c record; limpias text[]; escritas text[];
 begin
   if p_periodo is distinct from public.profesor_periodo_actual() then raise exception 'período no vigente'; end if;
   select * into strict c from public.profesor_contexto(p_ramo_id,p_seccion);
@@ -302,15 +326,21 @@ begin
   end if;
   if p_estrellas is null or p_estrellas not between 1 and 5 then raise exception 'calificación inválida'; end if;
   limpias := array(select distinct e from unnest(coalesce(p_etiquetas,'{}'::text[])) e where e is not null order by e);
-  otro_limpio := nullif(btrim(regexp_replace(coalesce(p_otro,''),'[[:space:]]+',' ','g')),'');
-  if cardinality(limpias) + (otro_limpio is not null)::integer > 3 then raise exception 'etiquetas inválidas'; end if;
-  if otro_limpio is not null and not public.profesor_texto_permitido(otro_limpio) then
+  -- Espacios de más fuera; la misma etiqueta escrita dos veces cuenta una.
+  escritas := array(select t from (
+      select distinct on (public.profesor_normalizar(t)) t, i
+      from unnest(coalesce(p_otros, array[p_otro])) with ordinality u(x,i),
+        lateral (select nullif(btrim(regexp_replace(coalesce(x,''),'[[:space:]]+',' ','g')),'') as t) n
+      where t is not null order by public.profesor_normalizar(t), i) d order by i);
+  if cardinality(limpias) + cardinality(escritas) > 3 then raise exception 'etiquetas inválidas'; end if;
+  if not coalesce((select bool_and(public.profesor_texto_permitido(t)) from unnest(escritas) t), true) then
     raise exception 'texto no permitido';
   end if;
-  insert into public.profesor_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,estrellas,etiquetas,otro)
-    values(auth.uid(),c.tenant,c.ramo_clave,p_seccion,p_periodo,p_estrellas,limpias,otro_limpio)
+  insert into public.profesor_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,estrellas,etiquetas,otros,otro)
+    values(auth.uid(),c.tenant,c.ramo_clave,p_seccion,p_periodo,p_estrellas,limpias,escritas,escritas[1])
     on conflict(user_id,tenant,ramo_clave,seccion,periodo)
-    do update set estrellas=excluded.estrellas, etiquetas=excluded.etiquetas, otro=excluded.otro, actualizada=now();
+    do update set estrellas=excluded.estrellas, etiquetas=excluded.etiquetas, otros=excluded.otros,
+      otro=excluded.otro, actualizada=now();
 exception when check_violation then raise exception 'etiquetas inválidas';
 end;
 $$;
@@ -352,12 +382,13 @@ $$;
 
 revoke all on function public.profesor_etiquetas_validas() from public, anon, authenticated;
 revoke all on function public.profesor_texto_permitido(text) from public, anon, authenticated;
+revoke all on function public.profesor_otros_permitidos(text[]) from public, anon, authenticated;
 revoke all on function public.profesor_calificacion_estado(text,integer,text) from public, anon, authenticated;
-revoke all on function public.profesor_calificar(text,integer,text,integer,text[],text) from public, anon, authenticated;
+revoke all on function public.profesor_calificar(text,integer,text,integer,text[],text,text[]) from public, anon, authenticated;
 revoke all on function public.profesor_calificacion_borrar(text,integer,text) from public, anon, authenticated;
 revoke all on function public.profesores_cinco_estrellas(text) from public, anon, authenticated;
 grant execute on function public.profesor_calificacion_estado(text,integer,text) to authenticated;
-grant execute on function public.profesor_calificar(text,integer,text,integer,text[],text) to authenticated;
+grant execute on function public.profesor_calificar(text,integer,text,integer,text[],text,text[]) to authenticated;
 grant execute on function public.profesor_calificacion_borrar(text,integer,text) to authenticated;
 grant execute on function public.profesores_cinco_estrellas(text) to authenticated;
 commit;

@@ -16,8 +16,10 @@ const negativas=plano(ctx.etiquetasSugeridasProfesor(1));assert.equal(negativas.
 const positivas=plano(ctx.etiquetasSugeridasProfesor(5));assert.equal(positivas.length,6);assert(positivas.includes('motiva'));assert(!positivas.includes('cuesta_entenderle'));
 assert(plano(ctx.etiquetasSugeridasProfesor(5,['cuesta_entenderle'])).includes('cuesta_entenderle'),'las marcadas se conservan al cambiar de estrellas');
 const contexto={p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'};
-assert.deepEqual(plano(ctx.payloadCalificacion(contexto,5,['amable','amable','inexistente','paciente','puntual','escucha'])),{...contexto,p_estrellas:5,p_etiquetas:['amable','paciente','puntual'],p_otro:null});
-assert.deepEqual(plano(ctx.payloadCalificacion(contexto,3,['exigente'],'Transmite calma')),{...contexto,p_estrellas:3,p_etiquetas:['exigente'],p_otro:'Transmite calma'});
+assert.deepEqual(plano(ctx.payloadCalificacion(contexto,5,['amable','amable','inexistente','paciente','puntual','escucha'])),{...contexto,p_estrellas:5,p_etiquetas:['amable','paciente','puntual'],p_otros:[]});
+assert.deepEqual(plano(ctx.payloadCalificacion(contexto,3,['exigente'],['Transmite calma','Clases claras'])),{...contexto,p_estrellas:3,p_etiquetas:['exigente'],p_otros:['Transmite calma','Clases claras']});
+assert.deepEqual(plano(ctx.payloadCalificacion(contexto,3,['exigente','amable'],['Uno bueno','Dos bueno'])).p_otros,['Uno bueno'],'tres en total');
+assert.equal(ctx.normalEtiquetaEscrita(' Transmite  CÁLMA '),'transmite calma');
 assert.equal(ctx.nombreCorto('Lucas José Irarrázaval Bulnes'),'Lucas J. Irarrázaval');
 assert.equal(ctx.nombreCorto('María José Pérez'),'María J. Pérez');
 assert.equal(ctx.nombreCorto('Carlos Pérez González'),'Carlos Pérez');
