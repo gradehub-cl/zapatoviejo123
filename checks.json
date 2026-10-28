@@ -1,0 +1,74 @@
+[
+  {
+    "prefix": "375-claro",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "1280-claro",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "confirmacion": true,
+    "targets44": true,
+    "sinOverflow": true,
+    "sinEscrituraPrevia": true,
+    "siYNo": true,
+    "datosIntactos": true
+  }
+]

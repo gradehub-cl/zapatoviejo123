@@ -1,0 +1,994 @@
+[
+  {
+    "sigla": "ICE1514",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ICE1514",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "ICE1514",
+        "seccion": 1,
+        "curso": "Dinámica",
+        "docentes": "Zegard Tomas"
+      },
+      {
+        "sigla": "ICE1514",
+        "seccion": 2,
+        "curso": "Dinámica",
+        "docentes": "Fernández Claudio"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF222",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF222",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF222",
+        "seccion": 1,
+        "curso": "Cristianismo y Crisis Ecológica",
+        "docentes": "Guridi Roman"
+      },
+      {
+        "sigla": "TTF222",
+        "seccion": 2,
+        "curso": "Cristianismo y Crisis Ecológica",
+        "docentes": "Guridi Roman"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF208",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF208",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF208",
+        "seccion": 1,
+        "curso": "Fe y Razón: Una Perspectiva Histórica",
+        "docentes": "Sepulveda Mauricio"
+      },
+      {
+        "sigla": "TTF208",
+        "seccion": 2,
+        "curso": "Fe y Razón: Una Perspectiva Histórica",
+        "docentes": "Sepulveda Mauricio"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF218",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF218",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF218",
+        "seccion": 1,
+        "curso": "Lectura Contemporánea de la Biblia",
+        "docentes": "Greene Guillermo"
+      }
+    ]
+  },
+  {
+    "sigla": "MET101A",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MET101A",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "MET101A",
+        "seccion": 1,
+        "curso": "Integrado de Ciencias Básicas para Farmacología",
+        "docentes": "Iturra Pablo"
+      }
+    ]
+  },
+  {
+    "sigla": "MET202A",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MET202A",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "MET202A",
+        "seccion": 1,
+        "curso": "Ciclo Vital y Desarrollo Humano",
+        "docentes": "Duarte Tamara, | Paredes Paula, | Por Fijar, | Vega Valentina"
+      }
+    ]
+  },
+  {
+    "sigla": "OCU201A",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=OCU201A",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "OCU201A",
+        "seccion": 1,
+        "curso": "Desarrollo Lúdico y Destrezas Terapéuticas",
+        "docentes": "Gomez Carolina, | Aguilera Nancy, | Burgos Trinidad, | Castro Florencia, | Duarte Tamara"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF013",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF013",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF013",
+        "seccion": 1,
+        "curso": "Topicos de Etica Social Cristiana",
+        "docentes": "Sotomayor José"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF081",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF081",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF081",
+        "seccion": 1,
+        "curso": "Cristianismo y Disidencia: Una Mirada Histórica",
+        "docentes": "Cardoso Edilmar"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF213",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF213",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF213",
+        "seccion": 1,
+        "curso": "Espiritualidad Laical y Cultura Moderna",
+        "docentes": "Rio Maria"
+      },
+      {
+        "sigla": "TTF213",
+        "seccion": 2,
+        "curso": "Espiritualidad Laical y Cultura Moderna",
+        "docentes": "Cracogna Sergio"
+      },
+      {
+        "sigla": "TTF213",
+        "seccion": 3,
+        "curso": "Espiritualidad Laical y Cultura Moderna",
+        "docentes": "Cracogna Sergio"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF216",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF216",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF216",
+        "seccion": 1,
+        "curso": "¿Creer o No Creer?",
+        "docentes": "Álvarez Carlos"
+      }
+    ]
+  },
+  {
+    "sigla": "BIO135C",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO135C",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "BIO135C",
+        "seccion": 1,
+        "curso": "Fisiología",
+        "docentes": "Veliz Loreto"
+      }
+    ]
+  },
+  {
+    "sigla": "EUC5000",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EUC5000",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "EUC5000",
+        "seccion": 1,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Pino Cristian"
+      },
+      {
+        "sigla": "EUC5000",
+        "seccion": 2,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Sepulveda Esteban"
+      },
+      {
+        "sigla": "EUC5000",
+        "seccion": 3,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Yancovic Carolina"
+      },
+      {
+        "sigla": "EUC5000",
+        "seccion": 4,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Yancovic Carolina"
+      },
+      {
+        "sigla": "EUC5000",
+        "seccion": 5,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Pino Cristian"
+      },
+      {
+        "sigla": "EUC5000",
+        "seccion": 6,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Encina Benjamin"
+      },
+      {
+        "sigla": "EUC5000",
+        "seccion": 7,
+        "curso": "Upper Intermediate English I",
+        "docentes": "Encina Benjamin"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF026",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF026",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF026",
+        "seccion": 1,
+        "curso": "Introduccion a la Biblia",
+        "docentes": "Sotomayor José"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF118",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF118",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF118",
+        "seccion": 1,
+        "curso": "Esperanza Cristiana, Muerte y Más Allá",
+        "docentes": "Parra Fredy"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF217",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF217",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF217",
+        "seccion": 1,
+        "curso": "¿Es Necesaria la Iglesia?",
+        "docentes": "Rebolledo Gonzalo"
+      },
+      {
+        "sigla": "TTF217",
+        "seccion": 2,
+        "curso": "¿Es Necesaria la Iglesia?",
+        "docentes": "Rebolledo Gonzalo"
+      },
+      {
+        "sigla": "TTF217",
+        "seccion": 3,
+        "curso": "¿Es Necesaria la Iglesia?",
+        "docentes": "Muñoz Jonattan"
+      }
+    ]
+  },
+  {
+    "sigla": "VRA1221",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=VRA1221",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "VRA1221",
+        "seccion": 1,
+        "curso": "Taller de Habilidades para la Vida Universitaria II",
+        "docentes": "Hernandez Maria"
+      },
+      {
+        "sigla": "VRA1221",
+        "seccion": 2,
+        "curso": "Taller de Habilidades para la Vida Universitaria II",
+        "docentes": "Cornejo Valeska"
+      },
+      {
+        "sigla": "VRA1221",
+        "seccion": 3,
+        "curso": "Taller de Habilidades para la Vida Universitaria II",
+        "docentes": "Galleguillos Catalina"
+      },
+      {
+        "sigla": "VRA1221",
+        "seccion": 4,
+        "curso": "Taller de Habilidades para la Vida Universitaria II",
+        "docentes": "Vergara Carolina"
+      }
+    ]
+  },
+  {
+    "sigla": "DPT5502",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DPT5502",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "DPT5502",
+        "seccion": 1,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Gomez Edmundo"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 2,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Gomez Edmundo"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 3,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Lopez Eduardo"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 5,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Acevedo Sebastian"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 6,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Montoya David"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 7,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Miranda Hugo"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 8,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Gomez Edmundo"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 9,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Montoya David"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 13,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Miranda Hugo"
+      },
+      {
+        "sigla": "DPT5502",
+        "seccion": 15,
+        "curso": "Preparación Física y Recreación I",
+        "docentes": "Acevedo Sebastian"
+      }
+    ]
+  },
+  {
+    "sigla": "EAA1110",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EAA1110",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "EAA1110",
+        "seccion": 1,
+        "curso": "Comportamiento Organizacional",
+        "docentes": "Valenzuela Sergio"
+      },
+      {
+        "sigla": "EAA1110",
+        "seccion": 2,
+        "curso": "Comportamiento Organizacional",
+        "docentes": "Valenzuela Sergio"
+      }
+    ]
+  },
+  {
+    "sigla": "ENF1100",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ENF1100",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "ENF1100",
+        "seccion": 1,
+        "curso": "Sueño: ¿Cómo Mantener y Mejorar Esta Necesidad Vital?",
+        "docentes": "Masalan Maria"
+      }
+    ]
+  },
+  {
+    "sigla": "ETI188",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ETI188",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "ETI188",
+        "seccion": 1,
+        "curso": "Ética para Ingeniería",
+        "docentes": "Guajardo Constanza"
+      },
+      {
+        "sigla": "ETI188",
+        "seccion": 2,
+        "curso": "Ética para Ingeniería",
+        "docentes": "Correa Mauricio"
+      },
+      {
+        "sigla": "ETI188",
+        "seccion": 3,
+        "curso": "Ética para Ingeniería",
+        "docentes": "Waissbluth Dominique"
+      },
+      {
+        "sigla": "ETI188",
+        "seccion": 4,
+        "curso": "Ética para Ingeniería",
+        "docentes": "Guajardo Constanza"
+      }
+    ]
+  },
+  {
+    "sigla": "EUC3000",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EUC3000",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "EUC3000",
+        "seccion": 1,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Benavides Daniela"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 2,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Benavides Daniela"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 3,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gómez Félix"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 4,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Diaz Alvaro"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 5,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gonzalez Paulina"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 6,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Diaz Alvaro"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 7,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Diaz Alvaro"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 8,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Rovlich Ruth"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 9,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gonzalez Paulina"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 10,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Ramos Lissette"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 11,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gonzalez Paulina"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 12,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Rodríguez Camila"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 13,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Palma Maria"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 14,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Reyes Isaias"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 15,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Garcia Antonio"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 16,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gómez Félix"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 17,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gómez Félix"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 18,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Gonzalez Paulina"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 19,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Rovlich Ruth"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 20,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Molina Thabata"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 21,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Rovlich Ruth"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 23,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Molina Thabata"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 24,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Paredes Catalina"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 25,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Figueroa Andrea"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 26,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Ramos Lissette"
+      },
+      {
+        "sigla": "EUC3000",
+        "seccion": 27,
+        "curso": "Lower Intermediate English I",
+        "docentes": "Figueroa Andrea"
+      }
+    ]
+  },
+  {
+    "sigla": "EUC4000",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EUC4000",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "EUC4000",
+        "seccion": 1,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Díaz-Muñoz Leonor"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 2,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Díaz-Muñoz Leonor"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 3,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Rovlich Ruth"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 4,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Yancovic Carolina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 5,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Yancovic Carolina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 6,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Escobar Raul"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 7,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Liberona Octavio"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 8,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Ramos Lissette"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 9,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Donoso Karla"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 10,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Escobar Raul"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 11,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Ramos Lissette"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 12,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Pereira Gracielle"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 13,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Coloma Estefania"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 14,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Valdés Luna"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 15,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Díaz Camila"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 17,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Fenwick Patrick"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 19,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Paredes Catalina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 20,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Espinoza Verónica"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 21,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Montes Carolina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 22,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Garcia Antonio"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 23,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Espinoza Verónica"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 24,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Liberona Octavio"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 25,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Gonzalez Paulina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 26,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Escobar Raul"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 28,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Benavides Daniela"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 29,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Ramos Lissette"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 30,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Espinoza Verónica"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 31,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Molina Thabata"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 32,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Donoso Karla"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 33,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Díaz Camila"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 36,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Montes Carolina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 37,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Fenwick Patrick"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 39,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Paredes Catalina"
+      },
+      {
+        "sigla": "EUC4000",
+        "seccion": 41,
+        "curso": "Lower Intermediate English II",
+        "docentes": "Espinoza Verónica"
+      }
+    ]
+  },
+  {
+    "sigla": "FIS100N",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIS100N",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "FIS100N",
+        "seccion": 1,
+        "curso": "Herramientas para la Física",
+        "docentes": "Domínguez Macarena"
+      },
+      {
+        "sigla": "FIS100N",
+        "seccion": 2,
+        "curso": "Herramientas para la Física",
+        "docentes": "Romanque Cristian"
+      }
+    ]
+  },
+  {
+    "sigla": "ICC1001",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ICC1001",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "ICC1001",
+        "seccion": 1,
+        "curso": "Introducción a la Ingeniería Civil",
+        "docentes": "Barkokebas Beda, | Gironas Jorge, | Hube Matias, | Tiznado Juan"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF047",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF047",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF047",
+        "seccion": 1,
+        "curso": "Dios en el Siglo Xxi",
+        "docentes": "Musalem Andrea"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF068",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF068",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF068",
+        "seccion": 1,
+        "curso": "El Matrimonio Cristiano Hoy",
+        "docentes": "Verdugo Claudio"
+      },
+      {
+        "sigla": "TTF068",
+        "seccion": 2,
+        "curso": "El Matrimonio Cristiano Hoy",
+        "docentes": "Martínez Marco"
+      },
+      {
+        "sigla": "TTF068",
+        "seccion": 3,
+        "curso": "El Matrimonio Cristiano Hoy",
+        "docentes": "Martínez Marco"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF091",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF091",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF091",
+        "seccion": 1,
+        "curso": "Leer el Evangelio en el Siglo Xxi",
+        "docentes": "Carbullanca César"
+      },
+      {
+        "sigla": "TTF091",
+        "seccion": 2,
+        "curso": "Leer el Evangelio en el Siglo Xxi",
+        "docentes": "Carbullanca César"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF111",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF111",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF111",
+        "seccion": 1,
+        "curso": "Ética Teológica de la Tecnología Moderna",
+        "docentes": "Borgono Cristian"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF207",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF207",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF207",
+        "seccion": 1,
+        "curso": "Doctrina Social de la Iglesia",
+        "docentes": "Miranda Diego"
+      },
+      {
+        "sigla": "TTF207",
+        "seccion": 2,
+        "curso": "Doctrina Social de la Iglesia",
+        "docentes": "Miranda Diego"
+      },
+      {
+        "sigla": "TTF207",
+        "seccion": 3,
+        "curso": "Doctrina Social de la Iglesia",
+        "docentes": "Hodge Cristian"
+      }
+    ]
+  },
+  {
+    "sigla": "TTF232",
+    "url": "https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF232",
+    "consultado": "2026-10-28",
+    "periodo": "2026-2",
+    "filas": [
+      {
+        "sigla": "TTF232",
+        "seccion": 1,
+        "curso": "Teología Feminista: Un Signo de los Tiempos",
+        "docentes": "Yáñez Rosa"
+      }
+    ]
+  }
+]
