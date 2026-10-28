@@ -815,7 +815,7 @@ function renderRamo(){
         for(let i=0;!justificada&&i<casillas;i++){
           const sobra=i>=cat.slots;
           const nota=notas.find(n=>n.slot===i);const v=(nota&&nota.valor!=null)?nota.valor:null;
-          const etiqueta=etiquetaCasilla(r,cat,i);
+          const etiqueta=nombreCasilla(r,cat,i);
           // La fecha de la casilla, cuando la tiene. El botón abre el editor de
           // ESA casilla: hasta ahora el grupo solo dejaba escribir el número, y
           // la fecha solo existía para el grupo entero —"Controles" el mismo
