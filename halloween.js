@@ -11,7 +11,9 @@
   };
   applyTheme=function(){
     _applyTheme();
-    const p=PALETA[prefersDark()?'oscuro':'claro'];
+    const dark=prefersDark();
+    document.documentElement.classList.toggle('halloween-oscuro',dark);
+    const p=PALETA[dark?'oscuro':'claro'];
     const r=document.documentElement.style;
     r.setProperty('--primary',p.primary);
     r.setProperty('--primary-fg',p.primaryFg);
