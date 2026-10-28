@@ -1,0 +1,17 @@
+/* halloween — tema temporal. Se borra junto con halloween.js (ver ese archivo). */
+html.halloween #home-greeting::after{content:" 🎃";}
+html.halloween body::before,
+html.halloween body::after{
+  content:"🎃";position:fixed;z-index:1;pointer-events:none;
+  font-size:26px;line-height:1;opacity:.22;
+}
+html.halloween body::before{bottom:calc(env(safe-area-inset-bottom) + 110px);right:10px;}
+html.halloween body::after{bottom:calc(env(safe-area-inset-bottom) + 110px);left:10px;content:"🦇";}
+@media (prefers-reduced-motion:no-preference){
+  html.halloween body::before,
+  html.halloween body::after{animation:halloween-flota 5s ease-in-out infinite alternate;}
+}
+@keyframes halloween-flota{to{transform:translateY(-6px);}}
+/* halloween: murciélagos de fondo, muy tenues, detrás de todo */
+html.halloween body,html.halloween .app{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' fill='%236b21a8' fill-opacity='.08'><defs><path id='b' d='M18 6L19 3L20 5L21 3L22 6Q30 2 38 4Q34 6 34 9Q31 8 30 10Q27 10 26 13Q23 11 22 11L20 14L18 11Q17 11 14 13Q13 10 10 10Q9 8 6 9Q6 6 2 4Q10 2 18 6Z'/></defs><use href='%23b' transform='translate(30 40) rotate(-12) scale(1)'/><use href='%23b' transform='translate(210 90) rotate(8) scale(0.7)'/><use href='%23b' transform='translate(110 210) rotate(-4) scale(0.85)'/><use href='%23b' transform='translate(260 260) rotate(14) scale(0.6)'/></svg>");background-size:320px 320px;background-attachment:fixed;}
+html.halloween.halloween-oscuro body,html.halloween.halloween-oscuro .app{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' fill='%23c4b5fd' fill-opacity='.07'><defs><path id='b' d='M18 6L19 3L20 5L21 3L22 6Q30 2 38 4Q34 6 34 9Q31 8 30 10Q27 10 26 13Q23 11 22 11L20 14L18 11Q17 11 14 13Q13 10 10 10Q9 8 6 9Q6 6 2 4Q10 2 18 6Z'/></defs><use href='%23b' transform='translate(30 40) rotate(-12) scale(1)'/><use href='%23b' transform='translate(210 90) rotate(8) scale(0.7)'/><use href='%23b' transform='translate(110 210) rotate(-4) scale(0.85)'/><use href='%23b' transform='translate(260 260) rotate(14) scale(0.6)'/></svg>");}
