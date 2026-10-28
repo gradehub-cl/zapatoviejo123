@@ -1,0 +1,14 @@
+/* halloween — tema temporal. Se borra junto con halloween.js (ver ese archivo). */
+html.halloween #home-greeting::after{content:" 🎃";}
+html.halloween body::before,
+html.halloween body::after{
+  content:"🎃";position:fixed;z-index:1;pointer-events:none;
+  font-size:26px;line-height:1;opacity:.22;
+}
+html.halloween body::before{bottom:calc(env(safe-area-inset-bottom) + 110px);right:10px;}
+html.halloween body::after{bottom:calc(env(safe-area-inset-bottom) + 110px);left:10px;content:"🦇";}
+@media (prefers-reduced-motion:no-preference){
+  html.halloween body::before,
+  html.halloween body::after{animation:halloween-flota 5s ease-in-out infinite alternate;}
+}
+@keyframes halloween-flota{to{transform:translateY(-6px);}}
