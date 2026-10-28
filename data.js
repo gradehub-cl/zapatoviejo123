@@ -1057,6 +1057,78 @@ const PRESETS_UC={
       'Si tienes 2 o más ausencias justificadas a sesiones con ticket, el equipo docente ajustará la regla de Participación; el programa no publica la fórmula de ese ajuste',
     ],
   },
+  // Programas históricos recibidos por Lucas el 28-10-2026. El período va
+  // declarado: se ofrecen los pesos, pero nunca sus fechas como si fueran
+  // del semestre actual. Las pautas personales existentes no se reemplazan.
+  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5.
+  'Introducción a la Economía':{
+    sigla:'ICS1513',periodo:'2025-1',creditos:10,
+    evals:[
+      ['Interrogación 1',20,{fecha:'2025-04-26'}],
+      ['Interrogación 2',20,{fecha:'2025-06-06'}],
+      ['Examen',30,{fecha:'2025-07-10'}],
+      ['Controles',15,{lista:true,dropLowest:{count:3}}],
+      ['Proyecto escrito',15],
+    ],
+    // No se declara como reemplazo optativo automático: normalize lo agrega
+    // también a cuentas anteriores con los mismos nombres y pesos, aunque
+    // sean de otro semestre. Esta pauta histórica no autoriza ese cambio.
+    noCalcula:[
+      'Puedes eliminar una sola interrogación, sin justificar, y pasar su 20% al examen. Este ajuste no se aplica automáticamente',
+    ],
+    reglasDelCurso:[
+      'Programa 2025-1, sección 4. Revisa que esta pauta corresponda a tu curso',
+      'Se eliminan los tres peores controles. El programa no fija cuántos habrá; mientras agregas notas, el promedio es parcial',
+      'El proyecto tiene una etapa grupal y otra individual, pero este programa no publica sus pesos internos: ingresa la nota final del proyecto',
+      'El examen es obligatorio y no hay eximición. Si no asistes, la nota es 1,0, salvo que el curso apruebe el procedimiento de nota pendiente',
+    ],
+  },
+  // Programa_y_Reglas_FIS1523_1er_sem_2025, pp. 3-4. Los pesos de abajo
+  // son de CÁTEDRA; el laboratorio FIS0152 aporta el 30% de la nota final.
+  // El PDF superpone ≥ y ≤ en 4,0. Lucas confirmó el 28-10-2026 que 4,0
+  // cuenta como aprobado, igual que en Dinámica; se usa el vínculo existente.
+  'Termodinámica':{
+    sigla:'FIS1523',periodo:'2025-1',creditos:10,
+    evals:[
+      ['Interrogación 1',30,{fecha:'2025-04-07'}],
+      ['Interrogación 2',30,{fecha:'2025-05-19'}],
+      ['Examen',40,{fecha:'2025-06-30'}],
+    ],
+    aporta:{ramo:'Laboratorio de Termodinámica',peso:30,min:4.0},
+    noCalcula:[
+      'El examen puede reemplazar una sola interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente',
+      'Si justificas ambas interrogaciones, el programa exige reprobar el ramo. La app no aplica esa reprobación por inasistencias',
+    ],
+    reglasDelCurso:[
+      'Programa 2025-1. El documento indica los mismos criterios para todas las secciones de ese período; confirma que sigan vigentes en tu curso',
+      'La nota final combina 70% de cátedra y 30% del Laboratorio de Termodinámica. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
+      'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
+      'No hay eximición ni pruebas recuperativas. Las notas de las evaluaciones y la final se redondean a una décima',
+    ],
+  },
+  // Programa_FIS1533_2026_1, pp. 4-5. Tres controles, sin descarte general:
+  // se puede excluir uno solo si su inasistencia fue justificada.
+  // Mismo límite de 4,0 aclarado por Lucas para ambas físicas (28-10-2026).
+  'Electricidad y Magnetismo':{
+    sigla:'FIS1533',periodo:'2026-1',creditos:10,
+    evals:[
+      ['Interrogación 1',30,{fecha:'2026-04-17'}],
+      ['Interrogación 2',30,{fecha:'2026-06-05'}],
+      ['Examen',30,{fecha:'2026-07-02'}],
+      ['Controles',10,{slots:3,slotLabel:'Control'}],
+    ],
+    aporta:{ramo:'Laboratorio de Electricidad y Magnetismo',peso:30,min:4.0},
+    noCalcula:[
+      'El examen reemplaza una única interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente; con dos o más inasistencias, debes consultar a tu facultad',
+      'Puedes justificar como máximo un control y eliminarlo del promedio. La app no elimina controles por justificación ni descarta por defecto el peor',
+    ],
+    reglasDelCurso:[
+      'Programa 2026-1. Revisa que esta pauta corresponda a tu curso',
+      'La nota final combina 70% de cátedra y 30% del Laboratorio de Electricidad y Magnetismo. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
+      'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
+      'No hay eximición ni pruebas recuperativas. La nota final se redondea a una décima',
+    ],
+  },
   // ── Dinámica y su laboratorio: dos ramos, una nota ────────────────────────
   // La UC los inscribe como dos cursos (FIS1514 y FIS0154) con dos actas, y así
   // se muestran. Pero la nota final de Dinámica se calcula CON la del

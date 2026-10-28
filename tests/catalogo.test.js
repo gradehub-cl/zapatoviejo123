@@ -104,7 +104,7 @@ const manual = cargar([{ id: 'e', nombre: 'Introducción a la Programación', or
 chk('no toca un ramo creado a mano, aunque el nombre calce', manual[0].categorias.length === 0);
 
 // Y un ramo del catálogo SIN pauta publicada sigue sin inventarse una.
-const sinPauta = cargar([{ id: 'f', nombre: 'Termodinámica', origen: uc, categorias: [], gates: [] }]);
+const sinPauta = cargar([{ id: 'f', nombre: 'Ecuaciones Diferenciales', origen: uc, categorias: [], gates: [] }]);
 chk('un ramo sin programa oficial sigue sin pauta', sinPauta[0].categorias.length === 0);
 
 console.log('\n=== Una pauta que nadie puede encontrar no existe ===');
@@ -145,9 +145,12 @@ chk('los ramos de su propia malla siguen con su semestre',
   chk('Comercial UC NO recibe la pauta de Ingeniería para "' + q + '"',
     buscarUC(q, 'COM').every(r => !r.tienePreset));
 });
-// Un ramo de la malla sin programa oficial aparece, pero sin estrella de pauta.
+// Termodinámica ya tiene el programa 2025-1: debe anunciar la pauta que sí carga.
 const termo = buscarUC('Termodinámica', 'ING-PC').find(r => r.nombre === 'Termodinámica');
-chk('Termodinámica aparece por la malla, pero sin estrella de pauta', !!termo && !termo.tienePreset);
+chk('Termodinámica aparece con su pauta histórica disponible', !!termo && termo.tienePreset);
+// EDO todavía no tiene programa transcrito: no se promete una pauta por el audio.
+const edo = buscarUC('Ecuaciones Diferenciales', 'ING-PC').find(r => r.nombre === 'Ecuaciones Diferenciales');
+chk('EDO aparece por la malla, pero sin estrella de pauta', !!edo && !edo.tienePreset);
 
 console.log('\n=== Cuando la pauta oficial cambia ===');
 // Un preset se copia al ramo al crearlo y después queda congelado. Si más tarde
