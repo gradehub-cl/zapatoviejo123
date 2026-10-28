@@ -87,36 +87,63 @@ console.log('\n=== Editar el ramo ===');
   const k = arnes();
   k.val(`S=normalize({ramos:[${JSON.stringify({ ...RAMO, seccion: 5 })}]});currentRamoId='r1';openModal=()=>{};renderModalColors=()=>{};openEditRamoModal();`);
   const html = k.el('modal-content').innerHTML;
-  chk('el modal muestra la sección guardada y dice que es opcional',
-    /id="m-ramo-seccion" value="5"/.test(html) && /Sección <span[^>]*>\(opcional\)/.test(html));
+  chk('el modal muestra la sección guardada sin el texto opcional',
+    /id="m-ramo-seccion" value="5"/.test(html) && /for="m-ramo-seccion">Sección<\/label>/.test(html));
   chk('editar normalmente conserva el foco en el nombre y no marca la sección',
     k.el('m-ramo-name').focused && !/id="m-ramo-seccion"[^>]*aria-invalid/.test(html));
-}
-
-console.log('\n=== Calificar sin sección ===');
-{
-  const k = arnes();
-  k.val(`S=normalize({tenant:'uc',ramos:[${JSON.stringify(RAMO)}]});currentRamoId='r1';
-    currentUser={id:'cuenta-sintetica'};openModal=()=>{};renderModalColors=()=>{};`);
-  const antes=k.val('JSON.stringify(S)');
-  k.ctx.renderDocenteRamo(k.val('S.ramos[0]'));
-  k.el('calif-accion').onclick();
-  const html=k.el('modal-content').innerHTML;
-  chk('Calificar abre el editor con la sección marcada como inválida',/id="m-ramo-seccion"[^>]*aria-invalid="true"/.test(html));
-  chk('explica al lado del campo qué falta',/id="m-ramo-seccion-error"[^>]*role="alert"(?! hidden)[^>]*>Agrega tu sección para calificar al profesor\./.test(html));
-  chk('el foco va a sección y no lo roba el nombre',k.el('m-ramo-seccion').focused && !k.el('m-ramo-name').focused);
-  chk('abrirlo no cambia la sección ni las notas',k.val('JSON.stringify(S)')===antes);
-  k.el('m-ramo-seccion').setAttribute('aria-invalid','true');
-  k.el('m-ramo-seccion-error').hidden=false;
-  k.val("limpiarErrorCampo('m-ramo-seccion','m-ramo-seccion-error')");
-  chk('al corregir el campo desaparecen la marca y el mensaje',!k.el('m-ramo-seccion').getAttribute('aria-invalid') && k.el('m-ramo-seccion-error').hidden);
-  const css=fs.readFileSync(raiz+'styles.css','utf8');
-  chk('la marca roja tiene especificidad suficiente para el campo enfocado',/input#m-ramo-seccion\[aria-invalid="true"\]\{border-color:var\(--red\);/.test(css));
 }
 
 console.log('\n=== Ficha ===');
 const render = fs.readFileSync(raiz + 'render-main.js', 'utf8');
 chk('la ficha muestra la sección solo si hay una', /r\.seccion\?`Sección \$\{r\.seccion\}`:''/.test(render));
 
-console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
-process.exit(fail ? 1 : 0);
+// El paso de sección usa las funciones reales de validación y consulta, con
+// respuestas de red inventadas. Nunca lee ni escribe cuentas de producción.
+function flujoSeccion(){
+  const k=arnes(),form=elemento(),input=k.el('m-ramo-seccion'),mensaje=k.el('calif-seccion-error'),boton=elemento(),cancelar=elemento();
+  const eventos=[];let respaldar=async()=>true,abiertos=0;
+  const contenido=k.el('modal-content');contenido.querySelector=()=>form;contenido.contains=n=>n===form&&form.isConnected;
+  form.querySelector=s=>s==='input'?input:s==='[role=alert]'?mensaje:s==='[type=submit]'?boton:cancelar;
+  k.ctx.__rpc={rpc:async(nombre,args)=>{eventos.push(nombre);return {data:[nombre==='profesor_docente_estado'?{nombre_publico:null,mi_nombre:null}:{total:0,puede_calificar:true}]};}};
+  k.val(`S=normalize({tenant:'uc',ramos:[${JSON.stringify(RAMO)}]});currentRamoId='r1';currentUser={id:'cuenta-sintetica'};
+    supabaseClient=__rpc;openModal=()=>{};`);
+  k.ctx.closeModal=()=>{form.isConnected=false;};
+  k.ctx.save=()=>eventos.push('guardar');
+  k.ctx.respaldoAlDia=async()=>{eventos.push('respaldar');return respaldar();};
+  k.ctx.abrirCalificarProfesor=(_r,c)=>{eventos.push('calificar');abiertos++;chk('continúa con la sección elegida',c.p_seccion===3);};
+  k.ctx.renderRamo=()=>eventos.push('repintar');
+  const antes=k.val('JSON.stringify(S)');
+  k.ctx.renderDocenteRamo(k.val('S.ramos[0]'));k.el('calif-accion').onclick();
+  return {...k,form,input,mensaje,boton,cancelar,eventos,antes,enviar:()=>form.onsubmit({preventDefault(){}}),respaldar:fn=>{respaldar=fn;},abiertos:()=>abiertos};
+}
+async function probarPasoSeccion(){
+  console.log('\n=== Sección dentro de Calificar ===');
+  let f=flujoSeccion();const html=f.el('modal-content').innerHTML;
+  chk('pide solo la sección dentro de la hoja de Calificar',/Calificar profesor/.test(html)&&/¿Cuál es tu sección\?/.test(html)&&!/Editar ramo|m-ramo-name/.test(html));
+  chk('el foco va al campo numérico sin guardar ni consultar',f.input.focused&&/inputmode="numeric"/.test(html)&&f.eventos.length===0&&f.val('JSON.stringify(S)')===f.antes);
+  f.cancelar.onclick();chk('cancelar antes de continuar no cambia datos',f.val('JSON.stringify(S)')===f.antes&&f.eventos.length===0);
+  for(const invalida of ['', '0', '3A', '2.5', '1000']){
+    f=flujoSeccion();f.input.value=invalida;await f.enviar();
+    chk('rechaza sección '+JSON.stringify(invalida)+' antes de guardar',f.input.getAttribute('aria-invalid')==='true'&&/1 y 999/.test(f.mensaje.textContent)&&f.eventos.length===0&&f.val('JSON.stringify(S)')===f.antes);
+  }
+  f=flujoSeccion();f.input.value='3';await f.enviar();
+  chk('guarda y respalda antes de consultar al profesor',f.eventos.join()===['guardar','respaldar','profesor_docente_estado','profesor_calificacion_estado','repintar','calificar'].join());
+  const esperado=JSON.parse(f.antes);esperado.ramos[0].seccion=3;
+  chk('solo cambia la sección en el ramo sintético',f.val('JSON.stringify(S)')===JSON.stringify(esperado)&&f.abiertos()===1);
+  f=flujoSeccion();f.respaldar(async()=>false);f.input.value='3';f.mensaje.hidden=true;await f.enviar();
+  chk('sin conexión conserva la sección local y permite reintentar con el error visible',f.val('S.ramos[0].seccion')===3&&!f.boton.disabled&&f.abiertos()===0&&!f.mensaje.hidden&&/guardar tu sección/.test(f.mensaje.textContent)&&f.eventos.join()==='guardar,respaldar');
+  f.respaldar(async()=>true);await f.enviar();chk('el reintento continúa cuando queda respaldada',f.abiertos()===1);
+  f=flujoSeccion();let terminar;f.respaldar(()=>new Promise(resolve=>terminar=resolve));f.input.value='3';
+  const pendiente=f.enviar();await f.enviar();chk('doble envío no duplica el guardado',f.eventos.join()==='guardar,respaldar'&&f.boton.disabled);
+  f.cancelar.onclick();terminar(true);await pendiente;chk('cancelar mientras guarda impide abrir la calificación tarde',f.abiertos()===0&&!f.eventos.includes('profesor_docente_estado'));
+  f=flujoSeccion();f.respaldar(()=>new Promise(resolve=>terminar=resolve));f.input.value='3';const otra=f.enviar();
+  f.val("currentUser={id:'otra-cuenta'};S=normalize({tenant:'uc',ramos:[]});");const estadoOtra=f.val('JSON.stringify(S)');
+  terminar(true);await otra;chk('una respuesta de otra sesión no cambia ni abre nada en la cuenta nueva',f.abiertos()===0&&f.val('JSON.stringify(S)')===estadoOtra);
+  f=flujoSeccion();f.input.value='3';f.ctx.__rpc.rpc=async()=>({error:{message:'red caída'}});await f.enviar();
+  chk('un error al consultar deja la hoja con un reintento',f.abiertos()===0&&!f.boton.disabled&&/conectar/.test(f.mensaje.textContent));
+  f=flujoSeccion();f.input.value='3';f.ctx.__rpc.rpc=async()=>({data:[{puede_calificar:false}]});await f.enviar();
+  chk('la sección no omite el permiso del servidor para calificar',f.abiertos()===0&&/no puedes calificar/.test(f.mensaje.textContent));
+}
+probarPasoSeccion().then(()=>{
+  console.log('\nPASS: ' + ok + '   FAIL: ' + fail);process.exit(fail ? 1 : 0);
+}).catch(e=>{console.error(e);process.exit(1);});

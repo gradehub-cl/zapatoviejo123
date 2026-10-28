@@ -9399,9 +9399,8 @@ function toggleHist(id){openHist[id]=!openHist[id];renderStats();}
 
 // ─── EDITAR RAMO ─────────────────────────────────────────────────────────────
 let editRamoError='';
-function openEditRamoModal({pedirSeccion=false}={}){
+function openEditRamoModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);
-  const faltaSeccion=pedirSeccion&&r.seccion==null;
   editRamoError='';
   modalColor=r.color;
   document.getElementById('modal-content').innerHTML=`
@@ -9411,9 +9410,9 @@ function openEditRamoModal({pedirSeccion=false}={}){
     <p id="m-ramo-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     <label class="modal-label">Créditos <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(SCT — opcional)</span></label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-creditos" value="${r.creditos!=null?r.creditos:''}" placeholder="Ej: 10" maxlength="3" autocomplete="off"/></div>
-    <label class="modal-label" for="m-ramo-seccion">Sección <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(opcional)</span></label>
-    <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"${faltaSeccion?' aria-invalid="true"':''}/></div>
-    <p id="m-ramo-seccion-error" role="alert"${faltaSeccion?'':' hidden'} style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);">${faltaSeccion?'Agrega tu sección para calificar al profesor.':''}</p>
+    <label class="modal-label" for="m-ramo-seccion">Sección</label>
+    <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"/></div>
+    <p id="m-ramo-seccion-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     <span class="modal-label">Profesor</span>
     <button type="button" class="editar-profe" id="editar-profe"><span>Sin profesor<small>Sin calificar</small></span></button>
     <label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 12px;line-height:1.35;">
@@ -9433,8 +9432,8 @@ function openEditRamoModal({pedirSeccion=false}={}){
     </div>`;
   renderModalColors();openModal();
   if(typeof pintarProfesorEditarRamo==='function')pintarProfesorEditarRamo(r);
-  const foco=document.getElementById(faltaSeccion?'m-ramo-seccion':'m-ramo-name');
-  enfocarEnHoja(foco,faltaSeccion?undefined:()=>foco.select());
+  const foco=document.getElementById('m-ramo-name');
+  enfocarEnHoja(foco,()=>foco.select());
   document.getElementById('m-ramo-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmEditRamo();});
   document.getElementById('m-ramo-name').addEventListener('input',()=>{if(editRamoError){editRamoError='';limpiarErrorCampo('m-ramo-name','m-ramo-error');}});
   document.getElementById('m-ramo-seccion').addEventListener('keydown',e=>{if(e.key==='Enter')confirmEditRamo();});

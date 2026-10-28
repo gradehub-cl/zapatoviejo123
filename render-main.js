@@ -1813,7 +1813,7 @@ async function renderDocenteRamo(r){
   if(!currentUser)return;
   boton.innerHTML='<span aria-hidden="true">★</span><span>Calificar profesor</span>';
   if(!contexto){
-    boton.hidden=false;boton.onclick=()=>openEditRamoModal({pedirSeccion:true});return;
+    boton.hidden=false;boton.onclick=()=>abrirSeccionParaCalificar(r);return;
   }
   const vigente=()=>solicitud===profesorSolicitud&&currentUser&&currentUser.id===cuenta&&currentRamoId===r.id
     &&JSON.stringify(contextoDocente(r))===JSON.stringify(contexto);
@@ -1833,6 +1833,46 @@ async function renderDocenteRamo(r){
     boton.setAttribute('aria-label','Reintentar consultar al profesor');
     showToast(errorDocente(error));
   }
+}
+// La sección se pide dentro de Calificar, con la misma hoja del nombre. Sigue
+// siendo opcional para llevar el ramo; solo se necesita para identificar al profe.
+function abrirSeccionParaCalificar(r){
+  const cuenta=currentUser&&currentUser.id,periodo=semester(),tenant=S.tenant;
+  if(!cuenta||!S.ramos.includes(r)||currentRamoId!==r.id)return;
+  const contenido=document.getElementById('modal-content');
+  contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
+    <form class="calif-nombre" novalidate>
+      <label class="modal-label" for="m-ramo-seccion">¿Cuál es tu sección?</label>
+      <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" maxlength="3" autocomplete="off" enterkeyhint="go" placeholder="Ej.: 3" aria-describedby="calif-seccion-error"></div>
+      <p id="calif-seccion-error" class="calif-error" role="alert"></p>
+      <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Continuar</button></div>
+    </form>`;
+  const form=contenido.querySelector('form'),input=form.querySelector('input'),mensaje=form.querySelector('[role=alert]'),boton=form.querySelector('[type=submit]');
+  const vigente=()=>currentUser&&currentUser.id===cuenta&&S.tenant===tenant&&semester()===periodo
+    &&S.ramos.includes(r)&&currentRamoId===r.id&&form.isConnected&&contenido.contains(form);
+  input.addEventListener('input',()=>limpiarErrorCampo('m-ramo-seccion','calif-seccion-error'));
+  form.querySelector('[data-cancelar]').onclick=closeModal;
+  form.onsubmit=async e=>{
+    e.preventDefault();if(boton.disabled||!vigente())return;
+    const seccion=parseSeccion(input.value);
+    if(seccion==null){mostrarErrorCampo('m-ramo-seccion','calif-seccion-error','Escribe tu sección como un número entre 1 y 999.');return;}
+    boton.disabled=true;boton.textContent='Guardando…';input.disabled=true;mensaje.textContent='';mensaje.hidden=false;
+    try{
+      r.seccion=seccion;
+      completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});
+      save();
+      // El registro de profesores valida la sección contra user_ramos: no
+      // consultarlo hasta que este cambio esté respaldado en la cuenta.
+      const guardada=await respaldoAlDia();if(!vigente()||r.seccion!==seccion)return;
+      if(!guardada){mensaje.textContent='No pudimos guardar tu sección. Inténtalo de nuevo.';return;}
+      const d=await consultarDocenteRamo(r);if(!vigente()||r.seccion!==seccion)return;
+      if(!d||d.calif.puede_calificar!==true){mensaje.textContent='Por ahora no puedes calificar al profesor de esta sección.';return;}
+      renderRamo();
+      abrirCalificarProfesor(r,d.contexto,d);
+    }catch(error){if(vigente())mensaje.textContent=errorDocente(error);}
+    finally{boton.disabled=false;boton.textContent='Continuar';input.disabled=false;}
+  };
+  openModal();enfocarEnHoja(input);
 }
 // En Editar ramo el camino es visible y tiene su propio estado de carga/error.
 async function pintarProfesorEditarRamo(r){
