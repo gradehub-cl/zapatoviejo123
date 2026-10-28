@@ -1,0 +1,66 @@
+[
+  {
+    "prefix": "375-claro",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "1280-claro",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "editorFichaYSimulador": true,
+    "recargaLocal": true,
+    "nombresAutomaticos": true,
+    "notasYPromedioIntactos": true,
+    "simularNoGuarda": true
+  }
+]
