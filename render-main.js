@@ -1813,7 +1813,7 @@ async function renderDocenteRamo(r){
   if(!currentUser)return;
   boton.innerHTML='<span aria-hidden="true">★</span><span>Calificar profesor</span>';
   if(!contexto){
-    boton.hidden=false;boton.onclick=()=>{showToast('Agrega la sección para calificar al profesor');openEditRamoModal();};return;
+    boton.hidden=false;boton.onclick=()=>openEditRamoModal({pedirSeccion:true});return;
   }
   const vigente=()=>solicitud===profesorSolicitud&&currentUser&&currentUser.id===cuenta&&currentRamoId===r.id
     &&JSON.stringify(contextoDocente(r))===JSON.stringify(contexto);

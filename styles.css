@@ -1097,6 +1097,7 @@ button,[role="button"],a{touch-action:manipulation;}
 .settings-cerrar:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .modal-label{font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--fg3);margin-bottom:6px;display:block;}
 .modal-input{margin-bottom:14px;}
+input#m-ramo-seccion[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 2px color-mix(in srgb,var(--red),transparent 84%);}
 .slider-wrap{margin-bottom:14px;}
 input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 /* CONTROL DE PONDERACIÓN: número editable + slider que salta de 5 en 5 */
