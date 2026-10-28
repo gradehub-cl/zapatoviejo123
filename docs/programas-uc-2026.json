@@ -1,5 +1,5 @@
 {
-  "fuentes": "Programas UC en Escritorio/GradeHub/Programas de Ramos/UC, convertidos con markitdown y revisados contra la pauta el 2026-10-19.",
+  "fuentes": "Programas UC en Escritorio/GradeHub/Programas de Ramos/UC, convertidos con markitdown y revisados contra la pauta el 2026-10-19. Ampliado el 2026-10-28 con tres PDF recibidos por Lucas en Downloads, incluidos programas 2025-1 y 2026-1; se mantiene el período original de cada uno.",
   "alcance": "Verificación de pesos, cantidades y requisitos de las pautas UC que no estaban en docs/programas-uc-com-2026-2.json. No modifica pautas personalizadas.",
   "limitaciones": "Un programa vale para su período y sección; donde la pauta se aparta del archivo, se dice por qué.",
   "programas": [
@@ -495,6 +495,182 @@
         "Eximición, décimas y texto voluntario siguen en noCalcula (en pausa, decisión de Lucas del 2026-10-12)."
       ],
       "verificado": "2026-10-19"
+    },
+    {
+      "nombre_catalogo": "Introducción a la Economía",
+      "archivo_fuente": "ICS1513 - 01 - 2025 - sección 4 - Programa (1).pdf",
+      "sigla": "ICS1513",
+      "periodo": "2025-1",
+      "seccion": 4,
+      "paginas": [
+        4,
+        5
+      ],
+      "citas_textuales": [
+        "NF = 0,2·I1 + 0,2·I2 + 0,3·E + 0,15·NC + 0,15·NP",
+        "promedio simple de los controles, eliminando las tres (3) peores notas",
+        "cada estudiante podrá eliminar la calificación de una única interrogación"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          20,
+          {
+            "fecha": "2025-04-26"
+          }
+        ],
+        [
+          "Interrogación 2",
+          20,
+          {
+            "fecha": "2025-06-06"
+          }
+        ],
+        [
+          "Examen",
+          30,
+          {
+            "fecha": "2025-07-10"
+          }
+        ],
+        [
+          "Controles",
+          15,
+          {
+            "lista": true,
+            "dropLowest": {
+              "count": 3
+            }
+          }
+        ],
+        [
+          "Proyecto escrito",
+          15
+        ]
+      ],
+      "faltantes_y_ambiguedades": [
+        "Programa histórico 2025-1, sección 4; no se confirma que sea la pauta de 2026-2. Las fechas históricas se retienen fuera de su período.",
+        "No fija la cantidad total de controles ni los pesos internos de las etapas del proyecto: no se inventan.",
+        "Eliminar una interrogación y pasar su 20% al examen queda advertido en noCalcula. No se declara como reemplazo automático, porque el normalizador lo añadiría a cuentas anteriores con los mismos nombres y pesos, aunque su pauta fuera de otro semestre. No se cambian reglas de cálculo de pautas existentes."
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción; vigencia limitada al período y sección del documento",
+      "verificado": "2026-10-28"
+    },
+    {
+      "nombre_catalogo": "Termodinámica",
+      "archivo_fuente": "Programa_y_Reglas_FIS1523_1er_sem_2025 2.pdf",
+      "sigla": "FIS1523",
+      "periodo": "2025-1",
+      "paginas": [
+        3,
+        4
+      ],
+      "citas_textuales": [
+        "NFC = 0,3·I1 + 0,3·I2 + 0,4·NE",
+        "NF = 0,7·NFC + 0,3·NL",
+        "NF = min(NFC, NL)"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          30,
+          {
+            "fecha": "2025-04-07"
+          }
+        ],
+        [
+          "Interrogación 2",
+          30,
+          {
+            "fecha": "2025-05-19"
+          }
+        ],
+        [
+          "Examen",
+          40,
+          {
+            "fecha": "2025-06-30"
+          }
+        ]
+      ],
+      "aporte_laboratorio": {
+        "ramo": "Laboratorio de Termodinámica",
+        "peso": 30,
+        "min": 4
+      },
+      "faltantes_y_ambiguedades": [
+        "Programa histórico 2025-1. Declara los mismos criterios para todas las secciones de ese período, no para cualquier semestre.",
+        "Los porcentajes registrados son de cátedra. El laboratorio aporta 30% por el vínculo existente; no se agrega un segundo bloque de laboratorio a la cátedra.",
+        "El PDF superpone >= 4,0 y <= 4,0. Lucas decidió el 2026-10-28 tratar 4,0 como aprobado y aplicar 70/30, igual que Dinámica.",
+        "No publica las evaluaciones internas del laboratorio FIS0152. No se crea pauta para él.",
+        "El reemplazo por una interrogación justificada y la reprobación por justificar ambas quedan advertidos en noCalcula; no se automatizan en esta PR."
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción; vigencia limitada al período y sección del documento",
+      "verificado": "2026-10-28"
+    },
+    {
+      "nombre_catalogo": "Electricidad y Magnetismo",
+      "archivo_fuente": "Programa_FIS1533_2026_1.pdf",
+      "sigla": "FIS1533",
+      "periodo": "2026-1",
+      "paginas": [
+        4,
+        5
+      ],
+      "citas_textuales": [
+        "NFC = 0,3·I1 + 0,3·I2 + 0,3·NE + 0,1·C",
+        "C a la nota promedio de los tres controles",
+        "NF = 0,7·NFC + 0,3·NL",
+        "NF = min(NFC, NL)"
+      ],
+      "evaluaciones": [
+        [
+          "Interrogación 1",
+          30,
+          {
+            "fecha": "2026-04-17"
+          }
+        ],
+        [
+          "Interrogación 2",
+          30,
+          {
+            "fecha": "2026-06-05"
+          }
+        ],
+        [
+          "Examen",
+          30,
+          {
+            "fecha": "2026-07-02"
+          }
+        ],
+        [
+          "Controles",
+          10,
+          {
+            "slots": 3,
+            "slotLabel": "Control"
+          }
+        ]
+      ],
+      "aporte_laboratorio": {
+        "ramo": "Laboratorio de Electricidad y Magnetismo",
+        "peso": 30,
+        "min": 4
+      },
+      "faltantes_y_ambiguedades": [
+        "Programa histórico 2026-1; no se confirma como pauta de 2026-2. Las fechas históricas se retienen fuera de su período.",
+        "Los porcentajes registrados son de cátedra. El laboratorio aporta 30% por el vínculo existente.",
+        "El PDF superpone >= 4,0 y <= 4,0. Lucas decidió el 2026-10-28 tratar 4,0 como aprobado y aplicar 70/30, igual que Dinámica.",
+        "No publica las evaluaciones internas del laboratorio FIS0153. No se crea pauta para él.",
+        "La sustitución de una interrogación justificada y la exclusión de un control justificado quedan advertidas en noCalcula; no se automatizan ni se elimina por defecto el peor control."
+      ],
+      "suma_ponderaciones": 100,
+      "confianza": "alta en transcripción; vigencia limitada al período y sección del documento",
+      "verificado": "2026-10-28"
     }
   ]
 }
