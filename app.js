@@ -4220,10 +4220,13 @@ function codigosDeFotoHorario(lecturas,existe){
 }
 const FOTO_HORARIO_MAX=20*1024*1024;
 let _horarioLeyendoFoto=false;
-async function leerFotoHorario(input){
+// Calificar puede aprovechar la lectura sin abrir la importación de ramos.
+// Sin callback sigue el flujo de Agregar ramo y del menú del perfil.
+async function leerFotoHorario(input,alLeer=reconocerHorarioBuscacursos){
   const file=input&&input.files&&input.files[0];
   const estado=document.getElementById('m-horario-estado');
-  if(!file||!estado||_horarioLeyendoFoto)return false;
+  if(!file||!estado)return false;
+  if(_horarioLeyendoFoto){estado.textContent='Estamos terminando de leer la foto anterior. Intenta de nuevo en un momento.';input.value='';return false;}
   if(!/^image\//.test(file.type||'')){estado.textContent='Elige una imagen: un pantallazo o una foto de tu horario.';input.value='';return false;}
   if(file.size>FOTO_HORARIO_MAX){estado.textContent='Esa imagen pesa demasiado. Prueba con un pantallazo del horario.';input.value='';return false;}
   _horarioLeyendoFoto=true;input.disabled=true;
@@ -4235,13 +4238,13 @@ async function leerFotoHorario(input){
     });
   }catch(e){
     if(document.getElementById('m-horario-estado')===estado)
-      estado.textContent='No pudimos leer la foto. Revisa tu conexión e intenta de nuevo, o pega el horario como texto.';
+      estado.textContent='No pudimos leer la foto. Revisa tu conexión e intenta de nuevo.';
     return false;
   }finally{_horarioLeyendoFoto=false;input.disabled=false;input.value='';}
   // Si cerró el modal mientras se leía, lo leído no abre nada.
   if(document.getElementById('m-horario-estado')!==estado)return false;
   track('horario_foto_leida');
-  return reconocerHorarioBuscacursos(lecturas);
+  return alLeer(lecturas);
 }
 
 let _horarioUCReconocido=null,_horarioSeccionesUC=[],_horarioTextoPegado='';
