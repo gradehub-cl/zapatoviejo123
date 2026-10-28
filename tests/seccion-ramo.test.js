@@ -8,7 +8,7 @@ const appPath = process.env.GRADEHUB_APP || raiz + 'app.js';
 function elemento() {
   const atributos = {};
   return {
-    style: { setProperty() {}, removeProperty() {} }, textContent: '', innerHTML: '', value: '', className: '', hidden: true,
+    style: { setProperty() {}, removeProperty() {} }, textContent: '', innerHTML: '', value: '', className: '', hidden: true, isConnected: true,
     classList: { add() {}, remove() {}, contains() { return false } },
     addEventListener() {}, focus() { this.focused = true; }, select() {},
     setAttribute(k, v) { atributos[k] = String(v); }, removeAttribute(k) { delete atributos[k]; }, getAttribute(k) { return atributos[k] || null; },
@@ -17,7 +17,7 @@ function elemento() {
 }
 function arnes() {
   const src = ['data.js', 'engine.js'].map(f => fs.readFileSync(raiz + f, 'utf8'))
-    .concat(fs.readFileSync(appPath, 'utf8'), fs.readFileSync(raiz + 'app-session.js', 'utf8'), fs.readFileSync(raiz + 'render-agenda.js', 'utf8')).join('\n');
+    .concat(fs.readFileSync(appPath, 'utf8'), fs.readFileSync(raiz + 'app-session.js', 'utf8'), fs.readFileSync(raiz + 'render-main.js', 'utf8'), fs.readFileSync(raiz + 'render-agenda.js', 'utf8')).join('\n');
   const ids = {}; const get = id => ids[id] || (ids[id] = elemento());
   const stub = elemento();
   const ctx = {
@@ -89,6 +89,29 @@ console.log('\n=== Editar el ramo ===');
   const html = k.el('modal-content').innerHTML;
   chk('el modal muestra la sección guardada y dice que es opcional',
     /id="m-ramo-seccion" value="5"/.test(html) && /Sección <span[^>]*>\(opcional\)/.test(html));
+  chk('editar normalmente conserva el foco en el nombre y no marca la sección',
+    k.el('m-ramo-name').focused && !/id="m-ramo-seccion"[^>]*aria-invalid/.test(html));
+}
+
+console.log('\n=== Calificar sin sección ===');
+{
+  const k = arnes();
+  k.val(`S=normalize({tenant:'uc',ramos:[${JSON.stringify(RAMO)}]});currentRamoId='r1';
+    currentUser={id:'cuenta-sintetica'};openModal=()=>{};renderModalColors=()=>{};`);
+  const antes=k.val('JSON.stringify(S)');
+  k.ctx.renderDocenteRamo(k.val('S.ramos[0]'));
+  k.el('calif-accion').onclick();
+  const html=k.el('modal-content').innerHTML;
+  chk('Calificar abre el editor con la sección marcada como inválida',/id="m-ramo-seccion"[^>]*aria-invalid="true"/.test(html));
+  chk('explica al lado del campo qué falta',/id="m-ramo-seccion-error"[^>]*role="alert"(?! hidden)[^>]*>Agrega tu sección para calificar al profesor\./.test(html));
+  chk('el foco va a sección y no lo roba el nombre',k.el('m-ramo-seccion').focused && !k.el('m-ramo-name').focused);
+  chk('abrirlo no cambia la sección ni las notas',k.val('JSON.stringify(S)')===antes);
+  k.el('m-ramo-seccion').setAttribute('aria-invalid','true');
+  k.el('m-ramo-seccion-error').hidden=false;
+  k.val("limpiarErrorCampo('m-ramo-seccion','m-ramo-seccion-error')");
+  chk('al corregir el campo desaparecen la marca y el mensaje',!k.el('m-ramo-seccion').getAttribute('aria-invalid') && k.el('m-ramo-seccion-error').hidden);
+  const css=fs.readFileSync(raiz+'styles.css','utf8');
+  chk('la marca roja tiene especificidad suficiente para el campo enfocado',/input#m-ramo-seccion\[aria-invalid="true"\]\{border-color:var\(--red\);/.test(css));
 }
 
 console.log('\n=== Ficha ===');
