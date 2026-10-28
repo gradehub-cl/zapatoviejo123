@@ -3866,5 +3866,225 @@ const PROFESORES_PROPUESTOS={
       1:'Blanca Besa',
       2:'Blanca Besa',
     },
+    // Ampliación 2026-10-28: siguientes ramos UC por cuentas de estudiante
+    // con el ramo guardado. Oferta 2026-2 verificada por sigla exacta.
+    // Se conservan los saltos de sección y el primer docente listado.
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ICE1514
+    ICE1514:{
+      1:'Tomas Zegard',
+      2:'Claudio Fernández',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF222
+    TTF222:{
+      1:'Roman Guridi',
+      2:'Roman Guridi',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF208
+    TTF208:{
+      1:'Mauricio Sepulveda',
+      2:'Mauricio Sepulveda',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF218
+    TTF218:{
+      1:'Guillermo Greene',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MET101A
+    MET101A:{
+      1:'Pablo Iturra',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=MET202A
+    MET202A:{
+      1:'Tamara Duarte',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=OCU201A
+    OCU201A:{
+      1:'Carolina Gomez',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF013
+    TTF013:{
+      1:'José Sotomayor',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF081
+    TTF081:{
+      1:'Edilmar Cardoso',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF213
+    TTF213:{
+      1:'Maria Rio',
+      2:'Sergio Cracogna',
+      3:'Sergio Cracogna',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF216
+    TTF216:{
+      1:'Carlos Álvarez',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=BIO135C
+    BIO135C:{
+      1:'Loreto Veliz',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EUC5000
+    EUC5000:{
+      1:'Cristian Pino',
+      2:'Esteban Sepulveda',
+      3:'Carolina Yancovic',
+      4:'Carolina Yancovic',
+      5:'Cristian Pino',
+      6:'Benjamin Encina',
+      7:'Benjamin Encina',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF026
+    TTF026:{
+      1:'José Sotomayor',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF118
+    TTF118:{
+      1:'Fredy Parra',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF217
+    TTF217:{
+      1:'Gonzalo Rebolledo',
+      2:'Gonzalo Rebolledo',
+      3:'Jonattan Muñoz',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=VRA1221
+    VRA1221:{
+      1:'Maria Hernandez',
+      2:'Valeska Cornejo',
+      3:'Catalina Galleguillos',
+      4:'Carolina Vergara',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DPT5502
+    DPT5502:{
+      1:'Edmundo Gomez',
+      2:'Edmundo Gomez',
+      3:'Eduardo Lopez',
+      5:'Sebastian Acevedo',
+      6:'David Montoya',
+      7:'Hugo Miranda',
+      8:'Edmundo Gomez',
+      9:'David Montoya',
+      13:'Hugo Miranda',
+      15:'Sebastian Acevedo',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EAA1110
+    EAA1110:{
+      1:'Sergio Valenzuela',
+      2:'Sergio Valenzuela',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ENF1100
+    ENF1100:{
+      1:'Maria Masalan',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ETI188
+    ETI188:{
+      1:'Constanza Guajardo',
+      2:'Mauricio Correa',
+      3:'Dominique Waissbluth',
+      4:'Constanza Guajardo',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EUC3000
+    EUC3000:{
+      1:'Daniela Benavides',
+      2:'Daniela Benavides',
+      3:'Félix Gómez',
+      4:'Alvaro Diaz',
+      5:'Paulina Gonzalez',
+      6:'Alvaro Diaz',
+      7:'Alvaro Diaz',
+      8:'Ruth Rovlich',
+      9:'Paulina Gonzalez',
+      10:'Lissette Ramos',
+      11:'Paulina Gonzalez',
+      12:'Camila Rodríguez',
+      13:'Maria Palma',
+      14:'Isaias Reyes',
+      15:'Antonio Garcia',
+      16:'Félix Gómez',
+      17:'Félix Gómez',
+      18:'Paulina Gonzalez',
+      19:'Ruth Rovlich',
+      20:'Thabata Molina',
+      21:'Ruth Rovlich',
+      23:'Thabata Molina',
+      24:'Catalina Paredes',
+      25:'Andrea Figueroa',
+      26:'Lissette Ramos',
+      27:'Andrea Figueroa',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=EUC4000
+    EUC4000:{
+      1:'Leonor Díaz-Muñoz',
+      2:'Leonor Díaz-Muñoz',
+      3:'Ruth Rovlich',
+      4:'Carolina Yancovic',
+      5:'Carolina Yancovic',
+      6:'Raul Escobar',
+      7:'Octavio Liberona',
+      8:'Lissette Ramos',
+      9:'Karla Donoso',
+      10:'Raul Escobar',
+      11:'Lissette Ramos',
+      12:'Gracielle Pereira',
+      13:'Estefania Coloma',
+      14:'Luna Valdés',
+      15:'Camila Díaz',
+      17:'Patrick Fenwick',
+      19:'Catalina Paredes',
+      20:'Verónica Espinoza',
+      21:'Carolina Montes',
+      22:'Antonio Garcia',
+      23:'Verónica Espinoza',
+      24:'Octavio Liberona',
+      25:'Paulina Gonzalez',
+      26:'Raul Escobar',
+      28:'Daniela Benavides',
+      29:'Lissette Ramos',
+      30:'Verónica Espinoza',
+      31:'Thabata Molina',
+      32:'Karla Donoso',
+      33:'Camila Díaz',
+      36:'Carolina Montes',
+      37:'Patrick Fenwick',
+      39:'Catalina Paredes',
+      41:'Verónica Espinoza',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=FIS100N
+    FIS100N:{
+      1:'Macarena Domínguez',
+      2:'Cristian Romanque',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ICC1001
+    ICC1001:{
+      1:'Beda Barkokebas',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF047
+    TTF047:{
+      1:'Andrea Musalem',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF068
+    TTF068:{
+      1:'Claudio Verdugo',
+      2:'Marco Martínez',
+      3:'Marco Martínez',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF091
+    TTF091:{
+      1:'César Carbullanca',
+      2:'César Carbullanca',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF111
+    TTF111:{
+      1:'Cristian Borgono',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF207
+    TTF207:{
+      1:'Diego Miranda',
+      2:'Diego Miranda',
+      3:'Cristian Hodge',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=TTF232
+    TTF232:{
+      1:'Rosa Yáñez',
+    },
   }},
 };
