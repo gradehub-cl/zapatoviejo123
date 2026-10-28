@@ -3,7 +3,7 @@
 const fs=require('fs'),vm=require('vm'),path=require('path');
 const root=path.join(__dirname,'..');
 const appPath=process.env.GRADEHUB_APP||path.join(root,'app.js');
-const files=['data.js','engine.js',appPath,'render-agenda.js'];
+const files=['data.js','engine.js',appPath,'render-main.js','render-agenda.js'];
 const stub={style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},contains(){return false}},addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},getAttribute(){return null},querySelectorAll(){return[]},querySelector(){return null},focus(){},value:'',innerHTML:'',textContent:'',dataset:{}};
 const ctx={console,window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})},document:{getElementById(){return stub},createElement(){return stub},addEventListener(){},documentElement:stub,body:stub,querySelector(){return null},querySelectorAll(){return[]}},localStorage:{getItem(){return null},setItem(){},removeItem(){}},navigator:{},location:{origin:'',pathname:'/',hash:''},setTimeout,clearTimeout};
 vm.createContext(ctx);
@@ -40,5 +40,57 @@ const estado=normalizar({tenant:'uc',ramos:[{id:'r1',nombre:'Manual',origen:null
 const recuperada=estado.ramos[0].categorias[0].notas[0];
 check('una nota antigua sin slot conserva su casilla y su valor',recuperada.slot===0&&recuperada.nombre==='Controles 1'&&recuperada.valor===5.4);
 check('el promedio existente no cambia',run('ramoAvg')(estado.ramos[0])===5.4);
+
+// Renombrar desde el editor debe verse también fuera de él. Solo datos sintéticos.
+const ids=new Map();
+function nodo(){
+  const n={...stub,style:{setProperty(){},removeProperty(){}},children:[],remove(){},
+    appendChild(h){this.children.push(h);return h;}};
+  let html='';Object.defineProperty(n,'innerHTML',{get(){return html},set(v){html=String(v);this.children=[];}});
+  return n;
+}
+const get=id=>{if(!ids.has(id))ids.set(id,nodo());return ids.get(id);};
+ctx.document.getElementById=get;ctx.document.createElement=nodo;
+run(`S=normalize({tenant:'uc',userName:'Cuenta sintética',ramos:[{
+  id:'manual',nombre:'Curso sintético',color:'#123456',origen:null,gates:[],categorias:[{
+    id:'fisico',nombre:'Físico',peso:100,directNota:true,slots:4,
+    notas:[{id:'n-real',nombre:'Físico 1',valor:5.5,peso:1,slot:0},
+      {id:'n-pendiente',nombre:'Físico 2',valor:null,peso:1,slot:1,fecha:'2026-11-10',fechaOrigen:'usuario'}]
+  }]
+}]});currentRamoId='manual';renderDocenteRamo=()=>{};openModal=()=>{};closeModal=()=>{};
+renderAgenda=()=>{};track=()=>{};showToast=()=>{};vibrar=()=>{};simState={};simAusencias={};
+globalThis.__guardados=[];save=()=>__guardados.push(JSON.stringify(S));`);
+const promedioAntes=run('ramoAvg(S.ramos[0])'),avanceAntes=run('ramoProgress(S.ramos[0]).pct');
+function renombrar(id,nombre,valor,fecha=''){
+  get('m-nota-name').value=nombre;get('m-nota-val').value=valor;get('m-nota-fecha').value=fecha;
+  get('m-pond-toggle').checked=false;run(`confirmEditNota('fisico','${id}')`);
+}
+renombrar('n-real','Resistencia','5.5');
+renombrar('n-pendiente','Velocidad <final>','','2026-11-10');
+const ficha=()=>get('cat-list').children.map(n=>n.innerHTML).join('');
+check('la ficha usa los nombres editados de subnotas rendidas y pendientes',
+  ficha().includes('>Resistencia</span>')&&ficha().includes('>Velocidad &lt;final&gt;</span>')
+  &&!ficha().includes('>Físico 1</span>')&&!ficha().includes('>Físico 2</span>'));
+check('los controles de la ficha tienen el mismo nombre accesible',
+  ficha().includes('aria-label="Resistencia"')&&ficha().includes('aria-label="Velocidad &lt;final&gt;"'));
+check('las subnotas sin editar mantienen su nombre automático',ficha().includes('>Físico 3</span>')&&ficha().includes('>Físico 4</span>'));
+run('renderSimulador()');
+check('el simulador usa el nombre guardado de la subnota pendiente y escapa su texto',
+  get('sim-cats').innerHTML.includes('>Velocidad &lt;final&gt;</label>')&&!get('sim-cats').innerHTML.includes('>Físico 2</label>'));
+check('el simulador conserva el nombre editado de la nota que ya tiene valor',get('sim-cats').innerHTML.includes('Resistencia:'));
+check('renombrar no mueve notas, fechas, promedio ni avance',run(`
+  S.ramos[0].categorias[0].notas[0].valor===5.5&&S.ramos[0].categorias[0].notas[1].valor===null
+  &&S.ramos[0].categorias[0].notas[1].fecha==='2026-11-10'`)
+  &&run('ramoAvg(S.ramos[0])')===promedioAntes&&run('ramoProgress(S.ramos[0]).pct')===avanceAntes);
+run('S=normalize(JSON.parse(__guardados[__guardados.length-1]));renderRamo();renderSimulador();');
+check('recargar datos ya guardados conserva ambos nombres en ficha y simulador',
+  ficha().includes('>Resistencia</span>')&&ficha().includes('>Velocidad &lt;final&gt;</span>')
+  &&get('sim-cats').innerHTML.includes('>Velocidad &lt;final&gt;</label>'));
+const antesSimular=run('JSON.stringify(S)');
+ctx.simNotaAlEscribir('fisico',1,{value:'6.0',dataset:{}});
+check('simular no cambia el nombre ni el estado guardado',run('JSON.stringify(S)')===antesSimular);
+run("showConfirm=(titulo,detalle,aceptar)=>aceptar();simCommit();S=normalize(S);renderRamo();");
+check('guardar una simulación como real tampoco repone el nombre automático',
+  run("S.ramos[0].categorias[0].notas.find(n=>n.slot===1).nombre")==='Velocidad <final>');
 
 process.exit(failures?1:0);

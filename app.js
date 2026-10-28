@@ -1486,6 +1486,13 @@ function nombreNotaCasilla(ramo,cat,nota){
   return [`${cat.nombre} ${inicio+nota.slot}`,...anteriores].some(n=>normName(n)===normName(nota.nombre))
     ?etiquetaCasilla(ramo,cat,nota.slot):nota.nombre;
 }
+// Para dibujar una casilla, manda el nombre que su dueño ya guardó, incluso
+// antes de ponerle una nota. La etiqueta derivada queda solo como respaldo.
+// No se usa al recuperar slots antiguos: ahí el nombre automático es la pauta.
+function nombreCasilla(ramo,cat,slot){
+  const nota=(Array.isArray(cat.notas)?cat.notas:[]).find(n=>n&&n.slot===slot);
+  return (nota&&nombreNotaCasilla(ramo,cat,nota))||etiquetaCasilla(ramo,cat,slot);
+}
 // El navegador entrega las dependencias que el motor no puede conocer por sí
 // mismo (estado actual y catálogo). La misma fábrica queda importable desde
 // una Pages Function, sin duplicar el cálculo académico en el agente.
@@ -10223,7 +10230,7 @@ function simCatLlena(cat){
 }
 function simCampoNotaHTML(r,c,slot,indice,nota,ofreceFalta){
   const id=`sim-in-${c.id}${indice?'-'+indice:''}`;
-  const etiqueta=Number.isInteger(slot)?etiquetaCasilla(r,c,slot)
+  const etiqueta=Number.isInteger(slot)?nombreCasilla(r,c,slot)
     :c.directNota?'Nota hipotética':`Nota ${indice+1}`;
   const sugerencia=conceptosNota().length?'1,0–7,0 o D/A/R':'1,0–7,0';
   return `<div class="sim-field-row">
@@ -10339,7 +10346,7 @@ function simCommit(){
       (simState[c.id]||[]).forEach(s=>{
         const conCasilla=Number.isInteger(s.slot);
         c.notas.push({
-          id:uid(),nombre:conCasilla?etiquetaCasilla(r,c,s.slot):'Simulada '+(c.notas.length+1),
+          id:uid(),nombre:conCasilla?nombreCasilla(r,c,s.slot):'Simulada '+(c.notas.length+1),
           valor:s.valor,peso:1,...(s.calificacionConceptual?{calificacionConceptual:s.calificacionConceptual}:{}),...(conCasilla?{slot:s.slot}:{}),
         });
         openCats[c.id]=true;
