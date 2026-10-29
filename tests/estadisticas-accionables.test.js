@@ -63,8 +63,9 @@ console.log('\n=== Evolución del promedio por semestre ===');
     esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')};
   vm.createContext(contexto);
   vm.runInContext(app.match(/function parseEtiquetaSemestre\([\s\S]*?\n\}/)[0],contexto);
+  ['trazoEvolucionNotas','htmlGraficoEvolucion'].forEach(n=>vm.runInContext(render.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0],contexto));
   const dibujar=periodo=>{contexto.periodo=periodo;contexto.hist='';vm.runInContext(bloque,contexto);return contexto.hist;};
-  const puntos=html=>[...html.matchAll(/stats-hist-punto[^"<>]*" style="left:([\d.]+)%;top:([\d.]+)%/g)].map(m=>({x:Number(m[1]),y:Number(m[2])}));
+  const puntos=html=>[...html.matchAll(/evolucion-punto[^"<>]*" style="left:([\d.]+)%;top:([\d.]+)%/g)].map(m=>({x:Number(m[1]),y:Number(m[2])}));
   // Desorden deliberado: el ingreso manual no tiene por qué seguir el calendario.
   contexto.validos=[{label:'2024-2',gpa:4.8},{label:'2026-1',gpa:6},{label:'2025-2',gpa:5.2},{label:'2023-1',gpa:4.5},{label:'2025-1',gpa:5},{label:'2024-1',gpa:4.7}];
   const guardado=JSON.stringify(contexto.validos);
@@ -72,19 +73,52 @@ console.log('\n=== Evolución del promedio por semestre ===');
   chk('por defecto compara el actual con el semestre previo, aunque se agregaran fuera de orden',p.length===2&&h.includes('vs. 2026-1')&&h.includes('0.50 puntos menos'));
   chk('6,0 queda a un sexto desde arriba y 5,5 a un cuarto, en la escala 1–7',Math.abs(p[0].y-100/6)<.001&&p[1].y===25);
   chk('los extremos horizontales son el semestre más antiguo y el más reciente',p[0].x===0&&p[1].x===100);
-  chk('ambos ejes muestran solo las marcas cercanas y el 4,0 central',(h.match(/>4.0<\/span>/g)||[]).length===2&&!h.includes('>3</span>')&&!h.includes('>7</span>'));
+  chk('solo el eje izquierdo muestra las marcas cercanas y el 4,0 central',(h.match(/>4.0<\/span>/g)||[]).length===1&&!h.includes('>3</span>')&&!h.includes('>7</span>'));
   h=dibujar('5');
-  chk('Últimos 5 incluye cinco semestres en total, con el actual al final',puntos(h).length===5&&h.includes('2024-2: 4.8')&&!h.includes('2024-1: 4.7'));
+  chk('Últimos 5 incluye cinco semestres en total, con el actual al final',puntos(h).length===5&&h.includes('data-etiqueta="2024-2"')&&!h.includes('data-etiqueta="2024-1"'));
   h=dibujar('todo');
-  chk('Desde el inicio conserva todos los puntos y los ordena cronológicamente',puntos(h).length===7&&h.indexOf('2023-1: 4.5')<h.indexOf('2024-1: 4.7')&&h.indexOf('2025-2: 5.2')<h.indexOf('2026-1: 6.0'));
+  chk('Desde el inicio conserva todos los puntos y los ordena cronológicamente',puntos(h).length===7&&h.indexOf('data-etiqueta="2023-1"')<h.indexOf('data-etiqueta="2024-1"')&&h.indexOf('data-etiqueta="2025-2"')<h.indexOf('data-etiqueta="2026-1"'));
   chk('ningún filtro cambia los datos guardados',JSON.stringify(contexto.validos)===guardado);
   contexto.validos=Array.from({length:23},(_,i)=>({label:(2026-Math.floor((i+1)/2))+'-'+(i%2?2:1),gpa:4.5+Math.sin(i)}));
   h=dibujar('todo');
-  chk('con 24 semestres mantiene cada vértice y ofrece menos rótulos según el ancho',puntos(h).length===24&&(h.match(/en-amplio/g)||[]).length===6&&(h.match(/en-corto/g)||[]).length===3);
+  chk('con 24 semestres mantiene cada vértice sin etiquetas debajo y permite explorar todos',puntos(h).length===24&&!h.includes('stats-hist-periodos')&&h.includes('aria-valuemax="23"')&&h.includes('aria-label="Explorar promedio por semestre"'));
   contexto.validos=[{label:'2026-1',gpa:4}];contexto.g=4;h=dibujar('anterior');
   chk('el 4,0 se dibuja al centro y la igualdad no aparece como subida o bajada',puntos(h).every(p=>p.y===50)&&h.includes('Sin cambio'));
+  const muestras=[{x:0,y:85},{x:30,y:10},{x:60,y:60},{x:100,y:5}],curva=contexto.trazoEvolucionNotas(muestras);
+  const tramos=[...curva.matchAll(/ C([\d.eE+-]+),([\d.eE+-]+) ([\d.eE+-]+),([\d.eE+-]+) ([\d.eE+-]+),([\d.eE+-]+)/g)];
+  const sinPicos=tramos.every((m,i)=>Array.from({length:21},(_,j)=>{const t=j/20,u=1-t,a=muestras[i].y,b=muestras[i+1].y,y=u*u*u*a+3*u*u*t*Number(m[2])+3*u*t*t*Number(m[4])+t*t*t*b;return y>=Math.min(a,b)-1e-9&&y<=Math.max(a,b)+1e-9;}).every(Boolean));
+  chk('la curva suaviza sin agregar notas máximas o mínimas entre puntos',tramos.length===3&&sinPicos);
   contexto.validos=[];
   chk('sin semestre anterior no inventa una comparación',dibujar('anterior')==='');
+}
+
+console.log('\n=== Explorar cada semestre sin apuntar a círculos pequeños ===');
+{
+  const vm=require('vm');
+  const punto=(semestre,nota,x,y)=>({dataset:{etiqueta:semestre,nota},style:{left:x+'%',top:y+'%'},classList:{toggle(){},remove(){}}});
+  const puntos=[punto('2025-2','5.37',0,27.167),punto('2026-1','6.12',50,14.667),punto('Actual · 2026-2','5.50',100,25)];
+  const texto={textContent:''},valor={textContent:''},nota={hidden:true,style:{},offsetWidth:90,offsetHeight:52,querySelector:s=>s==='span'?texto:valor};
+  const cursor={hidden:true,style:{}};
+  const grafico={clientWidth:200,clientHeight:192,setAttribute(k,v){this[k]=v;},focus(){this.onfocus();},setPointerCapture(){},querySelector:s=>s==='.evolucion-notita'?nota:cursor,querySelectorAll:()=>puntos,getBoundingClientRect:()=>({left:20,width:200})};
+  const control=grafico;
+  const contexto={};vm.createContext(contexto);
+  vm.runInContext(render.match(/function enlazarGraficosEvolucion\([\s\S]*?\n\}/)[0],contexto);
+  contexto.enlazarGraficosEvolucion({querySelectorAll:()=>[grafico]});
+  control.onpointerdown({button:0,isPrimary:true,pointerId:1,pointerType:'touch',clientX:20,preventDefault(){}});
+  chk('tocar el borde selecciona el primer semestre y su promedio con dos decimales',texto.textContent==='2025-2'&&valor.textContent==='5.37'&&!nota.hidden&&control['aria-valuenow']===0);
+  chk('la nota del borde izquierdo queda dentro del gráfico',nota.style.left==='0px');
+  control.onpointermove({pointerType:'touch',clientX:115});
+  chk('al arrastrar escoge el semestre más cercano y actualiza el lector de pantalla',texto.textContent==='2026-1'&&valor.textContent==='6.12'&&control['aria-valuetext']==='2026-1, promedio 6.12');
+  control.onpointermove({pointerType:'touch',clientX:350});control.onpointerup();
+  chk('seguir fuera del extremo no inventa puntos y deja la notita visible al soltar',control['aria-valuenow']===2&&!nota.hidden&&nota.style.left==='110px');
+  control.onkeydown({key:'ArrowLeft',preventDefault(){}});
+  chk('las flechas también permiten recorrer las notas',texto.textContent==='2026-1'&&cursor.style.left==='50%');
+  control.onkeydown({key:'Escape',preventDefault(){}});
+  chk('Escape oculta la nota y el indicador',nota.hidden&&cursor.hidden);
+  control.onfocus();control.onpointercancel();
+  chk('cancelar el gesto para desplazar la página no deja una selección flotante',nota.hidden&&cursor.hidden);
+  control.onpointermove({pointerType:'mouse',clientX:20});control.onpointerleave({pointerType:'mouse'});
+  chk('mouse muestra al pasar y oculta al salir',nota.hidden&&cursor.hidden);
 }
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
