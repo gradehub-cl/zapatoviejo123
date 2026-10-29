@@ -105,7 +105,7 @@ function flujoSeccion({sigla=null,tenant='uc'}={}){
   const eventos=[];let respaldar=async()=>true,abiertos=0,abierta=true;
   k.el('modal').classList.contains=clase=>clase==='open'&&abierta;
   const contenido=k.el('modal-content');contenido.querySelector=()=>form;contenido.contains=n=>n===form&&form.isConnected;
-  form.querySelector=s=>s==='input'?input:s==='[role=alert]'?mensaje:s==='[type=submit]'?boton:s==='[data-cancelar]'?cancelar:s==='[role=status]'?estado:sigla&&tenant==='uc'?(s==='[type=file]'?foto:s==='[data-foto]'?subirFoto:null):null;
+  form.querySelector=s=>s==='input'?input:s==='[role=alert]'?mensaje:s==='[type=submit]'?boton:s==='[data-cancelar]'?cancelar:s==='[role=status]'?estado:sigla&&tenant!=='uai'?(s==='[type=file]'?foto:s==='[data-foto]'?subirFoto:null):null;
   k.ctx.__rpc={rpc:async(nombre,args)=>{eventos.push(nombre);return {data:[nombre==='profesor_docente_estado'?{nombre_publico:null,mi_nombre:null}:{total:0,puede_calificar:true}]};}};
   k.val(`S=normalize({tenant:${JSON.stringify(tenant)},ramos:[${JSON.stringify({...RAMO,sigla})}]});currentRamoId='r1';currentUser={id:'cuenta-sintetica'};
     supabaseClient=__rpc;openModal=()=>{};`);
@@ -185,7 +185,18 @@ async function probarFotoSeccion(){
   f=preparar();f.ctx.leerFotoOcr=()=>new Promise(resolve=>terminar=resolve);pendiente=f.leer();f.val("S.ramos[0].sigla='XYZ5678'");terminar([{texto:'ABC1234-3'}]);await pendiente;
   chk('si el ramo cambió de sigla, no aplica la sección del anterior',f.input.value===''&&f.eventos.length===0);
   f=flujoSeccion();chk('sin sigla no intenta reconocer por un nombre parecido',!/data-foto/.test(f.el('modal-content').innerHTML));
-  f=flujoSeccion({sigla:'ABC1234',tenant:'fen'});chk('otras universidades conservan el campo manual sin ofrecer el lector UC',!/data-foto/.test(f.el('modal-content').innerHTML));
+  f=flujoSeccion({sigla:'ABC1234',tenant:'uai'});chk('una universidad sin formato de horario conserva solo el campo manual',!/data-foto/.test(f.el('modal-content').innerHTML));
+  // El horario FEN antepone EN a la sigla y separa la sección con barra, como
+  // lo lee el lector en un pantallazo de la FEN (códigos inventados).
+  const fen=lecturas=>{const g=flujoSeccion({sigla:'ABC1234',tenant:'fen'});g.ctx.leerFotoOcr=async()=>lecturas;g.foto.files=[{type:'image/png',size:1000}];return g;};
+  f=fen([{texto:'',palabras:[{texto:'ENABC1234/06',x0:0,y0:0,x1:120,y1:12},{texto:'Sala:H-301',x0:130,y0:0,x1:200,y1:12},{texto:'ENXYZ5678/01',x0:0,y0:40,x1:120,y1:52}]}]);
+  chk('la FEN ofrece la foto al calificar',/data-foto/.test(f.el('modal-content').innerHTML));
+  await f.foto.onchange();
+  chk('lee ENABC1234/06 como la sección 6 de ABC1234',f.input.value==='6'&&/ENABC1234 · Sección 6/.test(f.estado.textContent)&&f.eventos.length===0);
+  f=fen([{texto:'MARKETING\nENABC1234/02 Sala:P-309\nENXYZ5678/01'}]);await f.foto.onchange();
+  chk('también de corrido, sin cajas',f.input.value==='2');
+  f=fen([{texto:'ABC1234/02'}]);await f.foto.onchange();
+  chk('sin el prefijo EN no es el código del horario FEN',f.input.value===''&&/No pudimos identificar la sección de ENABC1234/.test(f.estado.textContent));
 }
 probarPasoSeccion().then(probarFotoSeccion).then(()=>{
   console.log('\nPASS: ' + ok + '   FAIL: ' + fail);process.exit(fail ? 1 : 0);

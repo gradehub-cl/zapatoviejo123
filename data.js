@@ -2195,6 +2195,12 @@ const CREDITOS_FEN={
   //   Inglés V salió de la malla: la serie termina en el IV.
 };
 
+// Lo que el horario oficial le antepone a la sigla de la tabla de créditos,
+// para leer la sección desde una foto. El de la FEN dice "ENMEM1505/02":
+// MEM1505 (Métodos Matemáticos II), sección 2; es el mismo EN que se le saca
+// a las siglas de Docencia Web arriba. Sin entrada no se ofrece la foto.
+const PREFIJO_SIGLA_HORARIO={uc:'',fen:'EN'};
+
 // Siglas de TODOS los ramos UC que hoy se pueden cargar desde una malla.
 //
 // La sigla es la identidad académica de un ramo: los nombres pueden repetirse
