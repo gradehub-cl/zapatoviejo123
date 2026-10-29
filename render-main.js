@@ -1839,24 +1839,57 @@ async function renderDocenteRamo(r){
 function abrirSeccionParaCalificar(r){
   const cuenta=currentUser&&currentUser.id,periodo=semester(),tenant=S.tenant;
   if(!cuenta||!S.ramos.includes(r)||currentRamoId!==r.id)return;
+  const sigla=tenant==='uc'?String(siglaDeRamo(r,tenant)||'').toUpperCase():'';
   const contenido=document.getElementById('modal-content');
   contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
     <form class="calif-nombre" novalidate>
       <label class="modal-label" for="m-ramo-seccion">¿Cuál es tu sección?</label>
       <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" maxlength="3" autocomplete="off" enterkeyhint="go" placeholder="Ej.: 3" aria-describedby="calif-seccion-error"></div>
       <p id="calif-seccion-error" class="calif-error" role="alert"></p>
+      ${sigla?`<button type="button" class="horario-importar-link" data-foto>Sube una foto de tu horario</button>
+      <input type="file" id="m-horario-foto" accept="image/*" hidden aria-label="Foto de tu horario">
+      <p id="m-horario-estado" class="horario-importar-estado" role="status" aria-live="polite">La foto se lee en tu dispositivo.</p>`:''}
       <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Continuar</button></div>
     </form>`;
   const form=contenido.querySelector('form'),input=form.querySelector('input'),mensaje=form.querySelector('[role=alert]'),boton=form.querySelector('[type=submit]');
   const vigente=()=>currentUser&&currentUser.id===cuenta&&S.tenant===tenant&&semester()===periodo
-    &&S.ramos.includes(r)&&currentRamoId===r.id&&form.isConnected&&contenido.contains(form);
+    &&S.ramos.includes(r)&&currentRamoId===r.id&&form.isConnected&&contenido.contains(form)
+    &&document.getElementById('modal').classList.contains('open');
   input.addEventListener('input',()=>limpiarErrorCampo('m-ramo-seccion','calif-seccion-error'));
   form.querySelector('[data-cancelar]').onclick=closeModal;
+  const foto=form.querySelector('[type=file]'),subirFoto=form.querySelector('[data-foto]');
+  if(foto&&subirFoto){
+    subirFoto.onclick=()=>foto.click();
+    foto.onchange=async()=>{
+      if(!vigente()||boton.disabled)return;
+      boton.disabled=true;input.disabled=true;subirFoto.disabled=true;
+      try{
+        await leerFotoHorario(foto,lecturas=>{
+          if(!vigente()||String(siglaDeRamo(r,tenant)||'').toUpperCase()!==sigla)return false;
+          // Mismo lector y votación de secciones que al importar el horario.
+          // Solo sirve la sigla de ESTE ramo; un empate no elige sección.
+          const encontrada=codigosDeFotoHorario(lecturas).find(c=>c.sigla===sigla);
+          const estado=form.querySelector('[role=status]');
+          if(!encontrada||encontrada.seccion==null){
+            estado.textContent=`No pudimos identificar la sección de ${sigla}. Prueba con otra foto o escríbela arriba.`;
+            return false;
+          }
+          input.value=String(encontrada.seccion);
+          limpiarErrorCampo('m-ramo-seccion','calif-seccion-error');
+          estado.textContent=`${sigla} · Sección ${encontrada.seccion}. Revisa el número antes de continuar.`;
+          return true;
+        });
+      }finally{
+        boton.disabled=false;input.disabled=false;subirFoto.disabled=false;
+        if(vigente())enfocarEnHoja(input);
+      }
+    };
+  }
   form.onsubmit=async e=>{
     e.preventDefault();if(boton.disabled||!vigente())return;
     const seccion=parseSeccion(input.value);
     if(seccion==null){mostrarErrorCampo('m-ramo-seccion','calif-seccion-error','Escribe tu sección como un número entre 1 y 999.');return;}
-    boton.disabled=true;boton.textContent='Guardando…';input.disabled=true;mensaje.textContent='';mensaje.hidden=false;
+    boton.disabled=true;boton.textContent='Guardando…';input.disabled=true;if(subirFoto)subirFoto.disabled=true;mensaje.textContent='';mensaje.hidden=false;
     try{
       r.seccion=seccion;
       completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});
@@ -1870,7 +1903,7 @@ function abrirSeccionParaCalificar(r){
       renderRamo();
       abrirCalificarProfesor(r,d.contexto,d);
     }catch(error){if(vigente())mensaje.textContent=errorDocente(error);}
-    finally{boton.disabled=false;boton.textContent='Continuar';input.disabled=false;}
+    finally{boton.disabled=false;boton.textContent='Continuar';input.disabled=false;if(subirFoto)subirFoto.disabled=false;}
   };
   openModal();enfocarEnHoja(input);
 }
