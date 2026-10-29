@@ -1,0 +1,202 @@
+[
+  {
+    "prefix": "375-claro",
+    "geometria": [
+      {
+        "centroCirculo": 110.25,
+        "centroTexto": 101.078125,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 264.75,
+        "centroTexto": 279.75,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 110.25,
+        "centroTexto": 100.125,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 264.75,
+        "centroTexto": 253.28125,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "375-oscuro",
+    "geometria": [
+      {
+        "centroCirculo": 110.25,
+        "centroTexto": 101.078125,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 264.75,
+        "centroTexto": 279.75,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 110.25,
+        "centroTexto": 100.125,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 264.75,
+        "centroTexto": 253.28125,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-claro",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 340.921875,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 1168.90625,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 393.8046875,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 1121.765625,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-oscuro",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 340.921875,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 1168.90625,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 393.8046875,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 1121.765625,
+        "textoDebajo": true,
+        "alineacion": "start",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  }
+]
