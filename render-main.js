@@ -385,12 +385,10 @@ function renderRamo(){
   const periodoEl=document.getElementById('pauta-periodo');
   if(periodoEl){
     const info=infoPeriodoPauta(r);
-    if(!info){periodoEl.style.display='none';periodoEl.innerHTML='';}
+    if(!info||!info.periodo){periodoEl.style.display='none';periodoEl.innerHTML='';}
     else{
-      const etiqueta=info.periodo?`Pauta del ${esc(info.periodo)}`:'Con pauta · período sin confirmar';
-      const nota=info.estadoPeriodo==='vencido'?' · fechas no incluidas':'';
-      periodoEl.className='pauta-periodo'+(info.estadoPeriodo==='vencido'?' is-vencida':'');
-      periodoEl.innerHTML=`<span>${etiqueta}${nota}</span>`;
+      periodoEl.className='pauta-periodo';
+      periodoEl.innerHTML=`<span>Pauta del ${esc(info.periodo)}</span>`;
       periodoEl.style.display='inline-flex';
     }
   }

@@ -3476,7 +3476,7 @@ function openMallaModal(){
   const rows=_mallaList.map((n,i)=>`
     <label style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--border);cursor:pointer;">
       <input type="checkbox" checked onchange="toggleMalla(${i},this.checked)" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
-      <span style="font-size:0.875rem;color:var(--fg);">${esc(n)}${findPresetName(n,S.tenant,S.carrera)?' <svg class=\"ic\" style=\"color:var(--yellow);width:12px;height:12px;vertical-align:-1px;\" viewBox=\"0 0 24 24\" aria-label=\"Con pauta precargada\"><path d=\"M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z\" fill=\"currentColor\" stroke=\"none\"/></svg>':''}</span>
+      <span style="font-size:0.875rem;color:var(--fg);">${esc(n)}</span>
     </label>`).join('');
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg> Ramos de tu ${S.careerSemestre}° semestre</div>
@@ -3970,8 +3970,7 @@ function renderCatalogResults(q){
         <span class="cat-hit-name">${esc(r.nombre)}</span>
         <span class="cat-hit-meta">${obCatalogMeta(r)}</span>
       </span>
-      ${tengo?'<span class="cat-hit-tag">ya lo tienes</span>'
-             :(r.tienePreset?'<svg class="ic cat-hit-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z" fill="currentColor" stroke="none"/></svg>':'<span class="chevron-r">+</span>')}
+      ${tengo?'<span class="cat-hit-tag">ya lo tienes</span>':'<span class="chevron-r">+</span>'}
     </button>`;
   }).join('');
 }
