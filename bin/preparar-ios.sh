@@ -15,13 +15,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+node bin/compilar-js.js
+
 rm -rf ios-web
 mkdir -p ios-web
 rsync -a ./ ios-web/ \
   --exclude '.git' --exclude '.github' --exclude '.netlify' \
   --exclude '.wrangler' --exclude '.cache' --exclude '.claude' \
   --exclude 'node_modules' --exclude 'dist' --exclude 'docs' \
-  --exclude 'tests' --exclude 'supabase' --exclude 'bin' \
+  --exclude 'tests' --exclude 'supabase' --exclude 'bin' --exclude 'src' \
   --exclude '*.md' --exclude 'package.json' --exclude 'package-lock.json' \
   --exclude '.gitignore' --exclude '.ignore' \
   --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*'

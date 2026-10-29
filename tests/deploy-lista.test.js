@@ -17,7 +17,12 @@ const excluido=f=>{const partes=f.split('/');return exclusiones.some(e=>partes[0
 let archivos=[];
 try{archivos=execSync('git ls-files',{cwd:raiz,encoding:'utf8'}).split('\n').filter(Boolean);}catch(e){}
 if(!archivos.length){console.log('  SKIP sin git');process.exit(0);}
-const dist=archivos.filter(f=>!excluido(f));
+// Los siete scripts de raíz ya no se versionan: npm test los ensambla.
+const generados=Object.keys(require('../src/orden.json'));
+chk('los bundles no se duplican como fuentes versionadas',generados.every(f=>!archivos.includes(f)));
+const dist=[...new Set([...archivos.filter(f=>!excluido(f)),...generados])];
+chk('los scripts generados existen antes del deploy',generados.every(f=>fs.existsSync(path.join(raiz,f))));
+chk('las fuentes no se publican',excluido('src/orden.json')&&excluido('src/app/estado-y-notas.js'));
 const sobran=dist.filter(f=>!app.includes(f)),faltan=app.filter(f=>!dist.includes(f));
 chk('no se publicaría nada fuera de la lista'+(sobran.length?': '+sobran.join(', '):''),!sobran.length);
 chk('no falta ningún archivo de la app'+(faltan.length?': '+faltan.join(', '):''),!faltan.length);

@@ -20,20 +20,26 @@ GradeHub está pensado para estudiantes en Chile. Actualmente ofrece catálogos 
 
 ## Ejecutar el proyecto localmente
 
-La aplicación usa HTML, CSS y JavaScript sin framework ni paso de compilación.
+La aplicación usa HTML, CSS y JavaScript sin framework. Las fuentes por tema de
+`src/` se concatenan sin transformarlas para generar los siete scripts de raíz.
+Necesitas Node.js 22 o superior.
 
 ```bash
-git clone https://github.com/lirarrazavalbm-jpg/GradeHub.git
+git clone https://github.com/gradehub-cl/GradeHub.git
 cd GradeHub
+npm ci                 # también genera los scripts de la app
 python3 -m http.server 8080
 ```
 
 Luego abre [http://localhost:8080](http://localhost:8080).
 
-Para ejecutar las comprobaciones del proyecto necesitas Node.js 22 o superior:
+Después de editar, corre `npm run build`, o mantén `npm run js:watch` en otra
+terminal para actualizar los scripts al guardar. Para buscar sin leer archivos
+grandes y ejecutar las comprobaciones:
 
 ```bash
-npm ci
+npm run buscar -- renderAlumnosProfesor
+npm run buscar -- --ver htmlAnillo
 npm test
 ```
 
@@ -44,13 +50,13 @@ La interfaz básica puede probarse localmente sin configurar Supabase. No uses d
 | Ruta | Responsabilidad |
 | --- | --- |
 | `index.html` | Estructura principal, carga de scripts y metadatos de la PWA. |
-| `data.js` | Catálogos académicos, pautas, temas y configuración compartida. |
-| `engine.js` | Cálculos académicos puros y reglas de aprobación. |
-| `app.js` | Estado, navegación, editor y adaptadores de cálculo. |
-| `app-session.js` | Autenticación, recuperación, persistencia local y sincronización con Supabase. |
-| `marketplace.js` | Avisos, reglas locales de público y cotización; sin publicidad activada todavía. |
-| `render-main.js` | Render de Inicio, ficha del ramo y Estadísticas. |
-| `render-agenda.js` | Presentación y priorización de la Agenda. |
+| `data.js` (generado desde `src/data/`) | Catálogos académicos, pautas, temas y configuración compartida. |
+| `engine.js` (generado desde `src/engine/`) | Cálculos académicos puros y reglas de aprobación. |
+| `app.js` (generado desde `src/app/`) | Estado, navegación, editor y adaptadores de cálculo. |
+| `app-session.js` (generado desde `src/app-session/`) | Autenticación, recuperación, persistencia local y sincronización con Supabase. |
+| `marketplace.js` (generado desde `src/marketplace/`) | Avisos, reglas locales de público y cotización; sin publicidad activada todavía. |
+| `render-main.js` (generado desde `src/render-main/`) | Render de Inicio, ficha del ramo y Estadísticas. |
+| `render-agenda.js` (generado desde `src/render-agenda/`) | Presentación y priorización de la Agenda. |
 | `styles.css` | Sistema visual y adaptación para móvil y escritorio. |
 | `sw.js` | Funcionamiento offline y estrategia de caché. |
 | `tests/` | Pruebas de cálculos, datos, seguridad e interfaz. |
@@ -58,6 +64,9 @@ La interfaz básica puede probarse localmente sin configurar Supabase. No uses d
 | `.github/workflows/` | Comprobaciones automáticas y publicación en Cloudflare Pages. |
 
 El orden de carga de los scripts clásicos importa: `data.js` → `engine.js` → `app.js` → `app-session.js` → `marketplace.js` → `render-main.js` → `render-agenda.js`.
+
+Edita las fuentes, nunca los generados. El manifiesto, el buscador y los pasos
+para adaptar una rama anterior están en [Fuentes JS](docs/guia/fuentes-js.md).
 
 ## Contribuir
 

@@ -42,6 +42,11 @@ paralelo: Martín transcribe programas de FEN, Lucas arma UC. Dentro de `data.js
 cada uno toca lo suyo — `PRESETS_FEN` y las mallas FEN por un lado,
 `PRESETS_UC`, `MALLA_UC` y `CREDITOS_UC` por el otro.
 
+Los siete JS de raíz son ahora generados: cada carril se aplica a su carpeta
+`src/<nombre>/`. No edites ni resuelvas conflictos en el generado; cambia la
+fuente y corre `npm run build`. Para adaptar ramas anteriores, ver
+[fuentes-js.md](fuentes-js.md#ramas-anteriores-a-la-separacion).
+
 ### Cada universidad habla su idioma
 
 **Usa el vocabulario de la universidad y de la carrera.** En FEN las pruebas

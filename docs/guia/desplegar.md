@@ -29,7 +29,7 @@ guarda los dejó pasar a los tres porque comparaba contra la base del PR, no
 contra el `main` del momento del merge.
 
 **El deploy publica `dist/`, no el repo.** El workflow copia los archivos de la
-app a `dist/` y excluye `tests/`, `supabase/`, `bin/`, los `.md` y los
+app a `dist/` y excluye `src/`, `tests/`, `supabase/`, `bin/`, los `.md` y los
 `package*.json`. Antes se le pasaba `.` a Wrangler y gradehub.cl servía el repo
 completo: `AGENTS.md` con la lista de lo que todavía no está asegurado, el
 esquema en `supabase/*.sql` y los tests, que describen los vectores conocidos
@@ -37,6 +37,11 @@ con carga útil incluida. La lista es de exclusión y no de inclusión a propós
 — si alguien agrega un archivo y olvida esta lista, se publica igual en vez de
 desaparecer del sitio sin que nadie lo note —, y hay una comprobación que
 revienta el deploy si falta cualquier archivo de la app.
+
+Antes de copiar, `npm ci` y `npm test` ensamblan los scripts desde
+`src/orden.json`. Los nombres, el orden, el sellado y el precache se conservan.
+`npm run deploy` también ensambla antes de publicar; la preparación de iOS lo
+hace incluso si se llama directamente al shell. Ver [fuentes-js.md](fuentes-js.md).
 
 El deploy manual sigue existiendo por si el CI está caído (`npm run deploy`),
 pero necesita Wrangler autenticado en la máquina de quien lo corra. Lucas y

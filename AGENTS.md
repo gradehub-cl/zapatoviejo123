@@ -44,49 +44,50 @@ rompe la confianza del producto.
 bash bin/estado.sh
 ```
 
-Antes de leer ningún archivo: rama, trabajo a medias, PRs abiertos y si los tests
-pasan, en un tool call. Después ve directo con el mapa. **No leas `app.js` entero**
-(~40k tokens): ubica con `rg -n` y lee el trozo. `rg` salta los archivos de datos
-grandes de `.ignore` (`cursos-uc.js`, `ocr/`…); para buscar adentro, nómbralos.
+Antes de leer código: rama, trabajo a medias, PRs y tests, en un tool call.
+**Edita `src/`, no los siete JS generados de la raíz.** Busca primero:
+
+```bash
+npm run buscar -- renderAlumnosProfesor       # archivo y rango exacto
+npm run buscar -- --ver htmlAnillo           # solo esa función (máx. 48 líneas)
+npm run buscar -- "calificar profesor"       # también texto y temas
+```
+
+`--archivo ruta` desambigua; `--desde 49 --lineas 48` continúa; `--tests` incluye
+pruebas; `--json` entrega resultados estructurados. No leas bundles completos.
+`rg` ignora los generados, catálogos grandes y terceros; busca dentro de `src/`.
 
 ## Dónde está cada cosa
 
-| Vas a tocar | Archivo | Cómo llegar |
+| Vas a tocar | Fuentes | Cómo llegar |
 |---|---|---|
-| malla, carrera, preset, tema, portal | `data.js` | léelo completo |
-| promedio de un ramo | `engine.js` | `rg -n "function ramoAvg"` |
-| promedio general (GPA, créditos) | `app.js` | `rg -n "function gpa\|totalCreditos"` |
-| compuertas | `engine.js` | `rg -n "function gatesActivas\|group_min"` |
-| "¿qué nota necesito?" | `engine.js` | `rg -n "function solveForTarget"` |
-| motor de estructura/pesos | `engine.js` | `rg -n "function calculateFinalGrade"` |
-| reglas de nota de cada universidad | `engine.js` | `rg -n "GH_REGLAS_NOTA_POR_TENANT"` |
-| nota final oficial (redondeo) | `app.js` | `rg -n "function notaFinalOficial"` |
-| pantalla principal | `render-main.js` | `rg -n "function renderHome"` |
-| ficha de un ramo | `render-main.js` | `rg -n "function renderRamo"` |
-| estadísticas | `render-main.js` | `rg -n "function renderStats"` |
-| agenda | `render-agenda.js` | `rg -n "function renderAgenda"` |
-| aplicar un tema | `app.js` | `rg -n "function applyTheme"` |
-| cargar preset del catálogo | `app.js` | `rg -n "function presetRamo"` |
-| auth y sync a Supabase | `app-session.js` | `rg -n "function boot\|function afterLogin\|function syncToCloud"` |
-| onboarding (pasos, edad, generación) | `app.js` | `rg -n "function obIniciar\|function obStepValid\|function completeOnboarding"` |
-| pestañas de abajo (cuáles ve cada cuenta) | `app.js` | `rg -n "function recalcularNavTabs\|function showTab"` |
-| clases particulares (profesor, anuncios, métricas) | `marketplace.js` | `rg -n "function renderBorradorProfesor\|function recomendacionDelDia"` |
-| panel de alumnos del profesor | `marketplace.js` + `supabase/profesor_alumnos.sql` | `rg -n "function renderAlumnosProfesor"` |
-| subir foto del horario (OCR) | `app.js` + `ocr/` | `rg -n "function leerFotoHorario\|function codigosDeFotoHorario"` |
-| estilos | `styles.css` | `rg -n "^\.<clase>"` |
-| herramientas para agentes (MCP) | `functions/mcp/herramientas.js` | léelo completo |
-| SQL de Supabase (se aplica con confirmación) | `supabase/*.sql` | un archivo por tema |
-| app iOS: Capacitor, widgets, Actividad en Vivo | `ios/App/` | lee `docs/guia/ios.md` |
+| mallas, carreras, pautas, temas, profesores sugeridos | `src/data/` | busca el nombre o la constante; un archivo por tema/universidad |
+| cálculo, compuertas, nota necesaria | `src/engine/` | busca `ramoAvg`, `calculateFinalGrade`, `solveForTarget`, `gatesActivas` |
+| estado, GPA, catálogo, onboarding, navegación, editores, OCR, ajustes | `src/app/` | busca `gpa`, `normalize`, `obIniciar`, `showTab`, `openEditRamoModal` |
+| auth, recuperación, persistencia y sync | `src/app-session/` | busca `boot`, `afterLogin`, `syncToCloud` |
+| clases, anuncios, admin y alumnos del profesor | `src/marketplace/` | busca `renderBorradorProfesor`, `renderAlumnosProfesor`, `pintarPanelAdmin` |
+| Inicio, ficha, estadísticas, calificar profesor | `src/render-main/` | busca `renderHome`, `renderRamo`, `renderStats`, `abrirCalificarProfesor` |
+| agenda | `src/render-agenda/` | busca `renderAgenda` |
+| estilos | `styles.css` | `rg -n "^\.<clase>" styles.css` |
+| herramientas MCP | `functions/mcp/herramientas.js` | busca la función |
+| SQL (aplicación manual) | `supabase/*.sql` | un archivo por tema |
+| iOS: Capacitor, widgets, Actividad en Vivo | `ios/App/` | lee `docs/guia/ios.md` |
 
 ## Arquitectura en corto
 
-Sin build ni frameworks: los archivos se despliegan tal cual. Backend **Supabase**
-(auth email + Google, RLS activo); hosting **Cloudflare Pages**. El orden de carga
-en `index.html` es `data.js` → `engine.js` → `app.js` → `app-session.js` →
-`marketplace.js` → `render-main.js` → `render-agenda.js`, y no es decorativo: son
-`<script>` clásicos que comparten el ámbito global. **Contenido va en `data.js`,
-comportamiento en `app.js`**: si un dato nuevo necesita un `if` de tenant, está mal
-modelado.
+Sin frameworks. `src/orden.json` declara qué fuentes se concatenan, **sin
+transformaciones**, para producir los scripts clásicos de siempre:
+`data.js` → `engine.js` → `app.js` → `app-session.js` → `marketplace.js` → `render-main.js` → `render-agenda.js`.
+Comparten el ámbito global y conservan el hoisting: no cargues las piezas de
+`src/` como scripts separados ni cambies el orden. Datos en `src/data/`,
+comportamiento en las otras carpetas; las diferencias de universidad son datos.
+
+`npm ci`, `npm test` y la preparación de iOS generan los bundles. Tras editar:
+`npm run build`, o `npm run js:watch` mientras trabajas. El compilador se niega a
+pisar un generado editado a mano. Agregar una fuente exige anotarla en el
+manifiesto. Detalle y comandos: [fuentes-js.md](docs/guia/fuentes-js.md).
+Backend **Supabase** (auth, RLS); hosting **Cloudflare Pages**. Las fuentes y las
+herramientas de desarrollo quedan fuera del deploy.
 
 ## Reglas que no se rompen
 
@@ -126,6 +127,7 @@ modelado.
 ## Antes de entregar
 
 ```bash
+npm run build
 node -e 'const vm=require("vm"),fs=require("fs");["data.js","app.js"].forEach(f=>new vm.Script(fs.readFileSync(f,"utf8")));console.log("JS OK")'
 node -e 'const c=require("fs").readFileSync("styles.css","utf8");const o=(c.match(/\{/g)||[]).length,x=(c.match(/\}/g)||[]).length;console.log("CSS "+o+"/"+x+(o===x?" OK":" MISMATCH"))'
 npm test                     # todos; uno solo: node tests/<archivo>.test.js
@@ -141,7 +143,7 @@ npm test                     # todos; uno solo: node tests/<archivo>.test.js
 
 - **Nadie trabaja en `main`.** Rama por tarea con prefijo `li/` (Lucas), `ms/`
   (Martín) o `codex/`; PR y merge. El repo es `gradehub-cl/GradeHub`.
-- **Carriles por archivo:** `engine.js`, `app.js`, `app-session.js`,
+- **Carriles por archivo** (ahora sobre su carpeta `src/<nombre>/`, nunca el generado): `engine.js`, `app.js`, `app-session.js`,
   `render-*.js` → `codex`; workflows, `sw.js`, `styles.css`, `_headers` → `li`;
   `data.js` se reparte por universidad (UC `li`, FEN y UAndes `ms`); `ios/` → `li`
   y `ms` en la rama `ios`. Si tu tarea sale de tu carril, dilo primero.

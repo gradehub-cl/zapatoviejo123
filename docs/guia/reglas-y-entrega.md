@@ -4,7 +4,10 @@
 
 ## Arquitectura
 
-Sin build, sin frameworks. Los archivos de la app se despliegan tal cual:
+Sin frameworks. Las fuentes por tema viven en `src/`; `npm run build` las
+concatena, sin transformar sus bytes, según `src/orden.json`. La tabla describe
+los **scripts generados** que consume el navegador. Edita sus fuentes, nunca los
+generados. Comandos y mapa: [fuentes-js.md](fuentes-js.md).
 
 | Archivo | Qué tiene |
 |---|---|
@@ -110,7 +113,8 @@ que es pública por diseño y está protegida por RLS.
 ## Antes de entregar cualquier cambio
 
 ```bash
-# 1. Sintaxis
+# 1. Ensamblado y sintaxis
+npm run build
 node -e 'const vm=require("vm"),fs=require("fs");["data.js","app.js"].forEach(f=>new vm.Script(fs.readFileSync(f,"utf8")));console.log("JS OK")'
 
 # 2. CSS balanceado

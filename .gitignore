@@ -16,3 +16,12 @@ ios/App/build/
 ios/DerivedData/
 xcuserdata/
 *.xcuserstate
+
+# Generados desde src/orden.json; npm ci / npm run build los reconstruye.
+/app.js
+/marketplace.js
+/app-session.js
+/render-main.js
+/render-agenda.js
+/engine.js
+/data.js

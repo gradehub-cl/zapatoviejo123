@@ -18,6 +18,9 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+// Los tests consumen exactamente los scripts que recibirá el navegador.
+require('./compilar-js').compilar();
+
 const dir = path.join(__dirname, '..', 'tests');
 const archivos = fs.readdirSync(dir).filter(f => f.endsWith('.test.js')).sort();
 

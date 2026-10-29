@@ -11,3 +11,6 @@ supabase/catalogo_uc.csv
 docs/catalogo-uc-*.json
 docs/catalogo-uc-*.md
 docs/benchmark-pautas-uc-*
+
+# Los bundles de raíz son generados y ya los ignora .gitignore.
+# Fuentes pequeñas en src/; localiza símbolos con npm run buscar -- consulta.
