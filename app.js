@@ -7909,7 +7909,7 @@ function openSettings(){
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
     ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
-    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
+    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
   ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
@@ -8016,6 +8016,10 @@ function openSettings(){
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
       </div>
+      ${canvasDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      <label class="modal-label">Canvas UC</label>
+      <p class="settings-help" style="margin-top:0;">Trae ramos y fechas. Revisas cada propuesta antes de agregarla.</p>
+      <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`:''}
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
       <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
@@ -8163,6 +8167,7 @@ function openSettings(){
     }
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
+    if(activeSection==='calendario'&&canvasDisponible())pintarCanvasAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.
@@ -11108,9 +11113,68 @@ function coincidenciaIcs(evento,targets){
   });
   return matches.length===1?claveDestinoIcs(matches[0]):null;
 }
+// Lógica compartida por el calendario web y el conector iOS de Canvas UC.
+// Recibe respuestas sintéticas o del GET de Canvas; no toca el token, notas,
+// ponderaciones ni fechas guardadas. Todo resultado pasa por renderRevisionIcs.
+function siglaRamoCanvas(r){
+  return String((typeof siglaDeRamo==='function'?siglaDeRamo(r,S.tenant):null)||r.sigla||'').toUpperCase();
+}
+function fechaChileCanvas(dueAt){
+  const d=new Date(dueAt);if(Number.isNaN(d.getTime()))return null;
+  const piezas=new Intl.DateTimeFormat('en-US',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+  const v=Object.fromEntries(piezas.map(p=>[p.type,p.value]));
+  return v.year+'-'+v.month+'-'+v.day;
+}
+function tipoEvaluacionCanvas(nombre){
+  const n=normName(nombre).replace(/[^a-z0-9 ]/g,' ').trim();
+  const m=/^(interrogacion|solemne|prueba|control|tarea|quiz|laboratorio|examen|evaluacion|i\s*\d|s\s*\d|p\s*\d|c\s*\d|t\s*\d|q\s*\d|ex\s*\d)/.exec(n);
+  if(!m)return null;
+  const v=m[1];
+  return /^i\s*\d/.test(v)?'interrogacion':/^s\s*\d/.test(v)?'solemne':/^p\s*\d/.test(v)?'prueba':/^c\s*\d/.test(v)?'control':/^t\s*\d/.test(v)?'tarea':/^q\s*\d/.test(v)?'quiz':/^ex\s*\d/.test(v)?'examen':v;
+}
+function resumenFechasCanvas(tareas,ramo,ahora,grupos=[]){
+  const hoy=fechaChileCanvas(ahora||new Date());
+  const porGrupo=new Map((grupos||[]).map(g=>[String(g.id),String(g.name||'')]));
+  const entrada=Array.isArray(tareas)&&tareas.length?tareas:(grupos||[]).flatMap(g=>(g.assignments||[]).map(t=>({...t,assignment_group_id:g.id})));
+  const destinos=destinosIcs().filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
+  const usados=new Set(),vistas=new Set(),propuestas=[];
+  const conteos={total:entrada.length,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0};
+  for(const tarea of entrada){
+    if(!tarea||!tarea.due_at){conteos.sinFecha++;continue;}
+    const fecha=fechaChileCanvas(tarea.due_at);
+    if(!fecha){conteos.sinFecha++;continue;}
+    if(fecha<hoy){conteos.pasadas++;continue;}
+    const nombre=String(tarea.name||'').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
+    if(!nombre){conteos.sinDestino++;continue;}
+    const grupo=String(tarea.assignment_group?.name||porGrupo.get(String(tarea.assignment_group_id))||'').trim();
+    const clave=normName(nombre)+'|'+fecha+'|'+normName(grupo);
+    if(vistas.has(clave)){conteos.duplicadas++;continue;}
+    vistas.add(clave);
+    const puntuar=(t)=>{
+      const nombres=t.nota?[t.nota.nombre,nombreNotaCasilla(t.ramo,t.cat,t.nota)]:[t.cat.nombre];
+      const prefijos=nombres.flatMap(prefijosEvaluacionIcs);
+      const exacta=(pista)=>prefijosEvaluacionIcs(pista).some(p=>p.length>=2&&prefijos.includes(p));
+      if(exacta(nombre))return 3;
+      if(grupo&&exacta(grupo))return 2;
+      const tipos=nombres.map(tipoEvaluacionCanvas);
+      return tipos.includes(tipoEvaluacionCanvas(nombre))&&tipoEvaluacionCanvas(nombre)?1
+        :grupo&&tipos.includes(tipoEvaluacionCanvas(grupo))&&tipoEvaluacionCanvas(grupo)?1:0;
+    };
+    const candidatos=destinos.filter(t=>!usados.has(claveDestinoIcs(t))).map(t=>({t,p:puntuar(t)})).filter(x=>x.p>0)
+      .sort((a,b)=>b.p-a.p);
+    const target=candidatos.length?claveDestinoIcs(candidatos[0].t):null;
+    if(target)usados.add(target);else conteos.sinDestino++;
+    propuestas.push({titulo:nombre+' · '+ramo.nombre,fecha,ramoId:ramo.id,target,origen:'canvas'});
+  }
+  return {propuestas,conteos};
+}
+function fechasCanvas(tareas,ramo,ahora,grupos){return resumenFechasCanvas(tareas,ramo,ahora,grupos).propuestas;}
 function prepararImportacionIcs(text){
   const targets=destinosIcs();
-  return parseIcsCalendario(text).map(evento=>({...evento,target:coincidenciaIcs(evento,targets)}));
+  return parseIcsCalendario(text).map(evento=>{
+    const target=coincidenciaIcs(evento,targets);
+    return {...evento,target,ramoId:target?targets.find(t=>claveDestinoIcs(t)===target).ramo.id:null};
+  });
 }
 function aplicarPropuestasIcs(propuestas){
   const targets=new Map(destinosIcs().map(target=>[claveDestinoIcs(target),target]));
@@ -11154,21 +11218,27 @@ function leerArchivoIcs(event){
     renderRevisionIcs();
   }).catch(()=>showToast('No pudimos leer ese archivo',true));
 }
-function opcionesDestinoIcs(selected,used){
-  return ['<option value="">No importar</option>'].concat(destinosIcs().map(target=>{
+function opcionesRamoIcs(selected){
+  return '<option value="">Elegir ramo</option>'+(S.ramos||[]).map(r=>
+    '<option value="'+esc(r.id)+'"'+(r.id===selected?' selected':'')+'>'+esc(r.nombre)+'</option>').join('');
+}
+function opcionesDestinoIcs(selected,used,ramoId){
+  return ['<option value="">No importar</option>'].concat(destinosIcs().filter(t=>t.ramo.id===ramoId).map(target=>{
     const key=claveDestinoIcs(target);
     const disabled=used.has(key)&&key!==selected?' disabled':'';
-    return '<option value="'+esc(key)+'"'+(key===selected?' selected':'')+disabled+'>'+esc(etiquetaDestinoIcs(target))+'</option>';
+    return '<option value="'+esc(key)+'"'+(key===selected?' selected':'')+disabled+'>'+esc(target.nota?nombreNotaCasilla(target.ramo,target.cat,target.nota):target.cat.nombre)+'</option>';
   })).join('');
 }
 function renderRevisionIcs(){
   const used=new Set(icsImportDraft.map(item=>item.target).filter(Boolean));
   const rows=icsImportDraft.map((item,index)=>{
-    const estado=item.target?'Coincidencia propuesta':'Sin asignar';
+    const ramoId=item.ramoId||((destinosIcs().find(t=>claveDestinoIcs(t)===item.target)||{}).ramo||{}).id||null;
+    const estado=item.target?(item.origen==='canvas'?'Sugerencia de Canvas':'Coincidencia propuesta'):'Sin asignar';
     return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
       +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(fechaCorta(item.fecha))+'</span></div>'
       +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+estado+'</div>'
-      +'<div class="modal-input"><select aria-label="Asignar '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)">'+opcionesDestinoIcs(item.target,used)+'</select></div>'
+      +'<div class="modal-input"><label class="modal-label" for="ics-ramo-'+index+'">Ramo</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-ramo-'+index+'" data-ics-ramo aria-label="Ramo de '+esc(item.titulo)+'" onchange="asignarRamoIcs('+index+',this.value)">'+opcionesRamoIcs(ramoId)+'</select></div>'
+      +'<div class="modal-input"><label class="modal-label" for="ics-evaluacion-'+index+'">Evaluación</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-evaluacion-'+index+'" data-ics-evaluacion aria-label="Evaluación de '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)"'+(ramoId?'':' disabled')+'>'+opcionesDestinoIcs(item.target,used,ramoId)+'</select></div>'
       +'</div>';
   }).join('');
   document.getElementById('modal-content').innerHTML=[
@@ -11178,9 +11248,23 @@ function renderRevisionIcs(){
     '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">Agregar fechas elegidas</button></div>'
   ].join('');
 }
+function asignarRamoIcs(index,ramoId){
+  if(!Number.isInteger(index)||!icsImportDraft[index])return;
+  icsImportDraft[index].ramoId=(S.ramos||[]).some(r=>r.id===ramoId)?ramoId:null;
+  icsImportDraft[index].target=null;
+  const lista=document.getElementById('ics-revision-lista');const arriba=lista?lista.scrollTop:0;
+  renderRevisionIcs();
+  const nueva=document.getElementById('ics-revision-lista');if(nueva)nueva.scrollTop=arriba;
+  const select=nueva&&nueva.querySelectorAll('[data-ics-evaluacion]')[index];
+  if(select)select.focus({preventScroll:true});
+}
 function asignarDestinoIcs(index,target){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
-  icsImportDraft[index].target=target||null;
+  const encontrado=destinosIcs().find(t=>claveDestinoIcs(t)===target);
+  const ramoId=icsImportDraft[index].ramoId;
+  const valido=encontrado&&(!ramoId||encontrado.ramo.id===ramoId);
+  icsImportDraft[index].target=valido?target:null;
+  if(valido)icsImportDraft[index].ramoId=encontrado.ramo.id;
   // Se redibuja para deshabilitar el destino recién tomado en las demás filas;
   // sin esto la lista volvía arriba y el foco se perdía en cada elección.
   const lista=document.getElementById('ics-revision-lista');
@@ -11188,7 +11272,7 @@ function asignarDestinoIcs(index,target){
   renderRevisionIcs();
   const nueva=document.getElementById('ics-revision-lista');
   if(nueva)nueva.scrollTop=arriba;
-  const select=nueva&&nueva.querySelectorAll('select')[index];
+  const select=nueva&&nueva.querySelectorAll('[data-ics-evaluacion]')[index];
   if(select)select.focus({preventScroll:true});
 }
 function confirmarImportarCalendario(){
@@ -11205,6 +11289,124 @@ function confirmarImportarCalendario(){
   showToast(aplicadas+' fecha'+(aplicadas===1?' agregada':'s agregadas'));
 }
 
+// Canvas UC en iOS (#648): el token cruza el puente nativo una vez y queda en
+// el llavero. Esta capa solo recibe datos por GET y reutiliza las revisiones
+// existentes; no guarda token, notas, ponderaciones ni fechas sin confirmar.
+function pluginCanvas(){
+  const cap=typeof window!=='undefined'&&window.Capacitor;
+  return enAppNativa()&&cap&&cap.Plugins&&cap.Plugins.GradeHubCanvas||null;
+}
+function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
+const TOKEN_CANVAS_RE=/^[0-9]{1,8}~[A-Za-z0-9]{20,100}$/;
+const CODIGO_CANVAS_RE=/^([A-Z]{3,4}[0-9]{3,4}[A-Z]?)-([0-9]{1,3})$/;
+function cursosCanvasDelSemestre(cursos,ahora){
+  ahora=ahora||new Date();
+  const anio=String(ahora.getFullYear()),parte=ahora.getMonth()>=6?'segundo':'primer';
+  const conCodigo=(Array.isArray(cursos)?cursos:[]).map(c=>{
+    const m=CODIGO_CANVAS_RE.exec(String(c&&c.course_code||'').trim().toUpperCase());
+    const id=Number(c&&c.id);
+    return m&&Number.isSafeInteger(id)&&id>0
+      ?{id,sigla:m[1],seccion:Number(m[2]),nombre:c.name||'',periodo:normName((c.term&&c.term.name)||'')}:null;
+  }).filter(Boolean);
+  const actuales=conCodigo.filter(c=>c.periodo.includes(anio)&&c.periodo.includes(parte));
+  return actuales.length?actuales:conCodigo.filter(c=>c.periodo.includes(anio));
+}
+function avisoCanvas(texto,error){
+  const el=document.getElementById('s-canvas-estado');
+  if(el){el.textContent=texto;el.classList.toggle('es-error',!!error);}
+  else if(texto)showToast(texto,!!error);
+}
+async function pintarCanvasAjustes(){
+  const caja=document.getElementById('s-canvas');
+  if(!caja||!canvasDisponible())return;
+  let conectado=false;
+  try{const r=await pluginCanvas().estado();conectado=!!(r&&r.conectado);}catch(e){}
+  if(!caja.isConnected)return;
+  caja.innerHTML=conectado?`
+    <p class="settings-help" style="margin-top:0;"><b>Canvas conectado.</b> El token queda solo en el llavero de este iPhone.</p>
+    <div class="settings-data-actions" style="margin-bottom:0;">
+      <button type="button" onclick="traerRamosCanvas()">Traer mis ramos</button>
+      <button type="button" onclick="traerFechasCanvas()">Traer fechas</button>
+    </div>
+    <button type="button" class="settings-reset-btn" style="min-height:44px;margin-top:12px;" onclick="desconectarCanvas()">Desconectar Canvas</button>
+    <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite"></p>`
+  :`
+    <p class="settings-help" style="margin-top:0;">En Canvas UC abre Cuenta, entra a tu perfil y toca «Nuevo token de acceso». Cópialo y pégalo acá.</p>
+    <label class="modal-label" for="s-canvas-token">Token de Canvas</label>
+    <div class="modal-input"><input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="1234~…"/></div>
+    <button type="button" class="btn-confirm" style="min-height:44px;width:100%;" id="s-canvas-conectar" onclick="conectarCanvas()">Conectar Canvas</button>
+    <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite">Solo queda en el llavero de este iPhone. No se sube a tu cuenta de GradeHub.</p>`;
+}
+async function conectarCanvas(){
+  if(!canvasDisponible())return;
+  const campo=document.getElementById('s-canvas-token'),boton=document.getElementById('s-canvas-conectar');
+  const token=String(campo&&campo.value||'').trim();
+  if(!TOKEN_CANVAS_RE.test(token)){avisoCanvas('Copia el token completo de Canvas, incluido el número y la ~.',true);return;}
+  if(boton)boton.disabled=true;
+  avisoCanvas('Revisando con Canvas…');
+  try{
+    await pluginCanvas().conectar({token});
+    if(campo)campo.value='';
+    track('canvas_conectado');
+    await pintarCanvasAjustes();
+    avisoCanvas('Canvas conectado. Ahora puedes traer tus ramos y fechas.');
+  }catch(e){
+    if(boton)boton.disabled=false;
+    avisoCanvas('No pudimos conectar Canvas. Revisa el token e inténtalo de nuevo.',true);
+  }
+}
+function desconectarCanvas(){
+  if(!canvasDisponible())return;
+  showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
+    try{await pluginCanvas().desconectar();track('canvas_desconectado');await pintarCanvasAjustes();}
+    catch(e){avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
+  },{label:'Desconectar',focusCancel:true});
+}
+async function canvasGet(path,params){
+  if(!canvasDisponible())throw new Error('Canvas no disponible');
+  const r=await pluginCanvas().get({path,params:params||{}});
+  return r&&r.data;
+}
+async function cursosCanvas(){
+  return cursosCanvasDelSemestre(await canvasGet('courses',{enrollment_state:'active','include[]':['term'],per_page:50}));
+}
+async function traerRamosCanvas(){
+  if(!canvasDisponible())return;
+  avisoCanvas('Buscando tus ramos en Canvas…');
+  let cursos;
+  try{cursos=await cursosCanvas();}
+  catch(e){avisoCanvas('No pudimos leer Canvas. Revisa la conexión o el token.',true);return;}
+  const tienes=new Set((S.ramos||[]).map(siglaRamoCanvas).filter(Boolean));
+  const faltan=cursos.filter(c=>!tienes.has(c.sigla));
+  track('canvas_ramos',{encontrados:cursos.length,faltan:faltan.length});
+  if(!cursos.length){avisoCanvas('No encontramos ramos de este semestre en Canvas.');return;}
+  if(!faltan.length){avisoCanvas('Ya tienes todos esos ramos.');return;}
+  _horarioTextoPegado=faltan.map(c=>`${c.sigla}-${c.seccion}`).join(', ');
+  abrirImportarHorarioBuscacursos(true);
+  await reconocerHorarioBuscacursos();
+}
+async function traerFechasCanvas(){
+  if(!canvasDisponible())return;
+  avisoCanvas('Buscando fechas en Canvas…');
+  let propuestas=[],conteos={total:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0};
+  try{
+    const cursos=await cursosCanvas();
+    for(const c of cursos){
+      const ramo=(S.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla);
+      if(!ramo)continue;
+      const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
+      const r=resumenFechasCanvas(tareas,ramo);
+      propuestas=propuestas.concat(r.propuestas);
+      for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
+    }
+  }catch(e){avisoCanvas('No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
+  track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
+    duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino});
+  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos.');return;}
+  icsImportDraft=propuestas.sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,ICS_IMPORT_MAX_EVENTS);
+  renderRevisionIcs();
+  openModal();
+}
 
 
 function buildICS(){
