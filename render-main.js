@@ -1848,7 +1848,7 @@ function abrirSeccionParaCalificar(r){
       <p id="calif-seccion-error" class="calif-error" role="alert"></p>
       ${sigla?`<button type="button" class="horario-importar-link" data-foto>Sube una foto de tu horario</button>
       <input type="file" id="m-horario-foto" accept="image/*" hidden aria-label="Foto de tu horario">
-      <p id="m-horario-estado" class="horario-importar-estado" role="status" aria-live="polite">La foto se lee en tu dispositivo.</p>`:''}
+      <p id="m-horario-estado" class="horario-importar-estado" role="status" aria-live="polite">Y te agregamos las secciones automáticamente.</p>`:''}
       <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Continuar</button></div>
     </form>`;
   const form=contenido.querySelector('form'),input=form.querySelector('input'),mensaje=form.querySelector('[role=alert]'),boton=form.querySelector('[type=submit]');
