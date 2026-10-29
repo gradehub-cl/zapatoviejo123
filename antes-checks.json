@@ -1,0 +1,58 @@
+[
+  {
+    "prefix": "375-claro",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "375-oscuro",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "1280-claro",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "1280-oscuro",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "nuevo": false,
+    "sinEtiqueta": false,
+    "actualIntacto": true,
+    "recarga": false
+  }
+]
