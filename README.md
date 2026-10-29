@@ -1,1 +1,1 @@
-Capturas sintéticas del historial de Estadísticas. 375 y 1280 px, claro y oscuro, texto al 200%, filtros y 24 semestres. El antes corresponde a main tras el merge de #901 (7261ce0). No contienen cuentas ni notas reales.
+Capturas sintéticas del historial de Estadísticas. Diseño aprobado por Lucas: relleno degradado, eje solo a la izquierda, selector abajo y detalle al explorar con dedo, mouse o teclado. 375/1280 px, claro/oscuro, texto 200%, filtros y 24 semestres. El antes corresponde a main tras #901 (7261ce0). Sin cuentas ni notas reales.
