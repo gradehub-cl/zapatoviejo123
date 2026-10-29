@@ -201,5 +201,83 @@ const css=fs.readFileSync(path.join(raiz,'styles.css'),'utf8');
 chk('el logo no usa filter para su contorno',!/\.logo-contorno[^{]*\{[^}]*filter/.test(css));
 chk('lo pinta un canvas y no se vuelve a procesar',/function dibujarContornoLogoClase/.test(mk)&&/dataset\.contorno==='1'/.test(mk));
 
-console.log('\nPASS: '+ok+'   FAIL: '+fail);
-process.exit(fail?1:0);
+// La preferencia de cuenta se prueba con dos almacenes independientes y SQL
+// real en memoria: cerrar en Chrome debe ocultar en otro navegador.
+(async()=>{
+  const assert=require('node:assert/strict'),{PGlite}=require('@electric-sql/pglite');
+  const db=new PGlite(),sql=fs.readFileSync(path.join(raiz,'supabase/anuncios_cierre.sql'),'utf8');
+  try{
+    await db.exec(fs.readFileSync(path.join(raiz,'bin/supabase-stubs.sql'),'utf8'));
+    await db.exec(sql);await db.exec(sql);
+    const a='00000000-0000-0000-0000-000000000011',b='00000000-0000-0000-0000-000000000012';
+    await db.query('insert into auth.users(id) values($1),($2)',[a,b]);
+    await db.exec('set role authenticated');
+    const como=uid=>db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]);
+    const rpc=async(uid,hasta=null)=>{await como(uid);return (await db.query('select public.mi_cierre_anuncios($1) hasta',[hasta])).rows[0].hasta;};
+    chk('SQL reaplicable y una cuenta sin cierre devuelve null',await rpc(a)===null);
+    const hasta=new Date(Date.now()+3600e3).toISOString();
+    chk('la RPC guarda y lee el cierre propio',new Date(await rpc(a,hasta)).toISOString()===hasta&&new Date(await rpc(a)).toISOString()===hasta);
+    await rpc(a,new Date(Date.now()+1800e3).toISOString());
+    chk('un dispositivo atrasado no acorta el cierre',new Date(await rpc(a)).toISOString()===hasta);
+    chk('otra cuenta no hereda el cierre',await rpc(b)===null);
+    chk('RLS no deja leer el cierre de otro',(await db.query('select * from public.anuncios_cierre')).rows.length===0);
+    await assert.rejects(db.query('insert into public.anuncios_cierre values($1,$2)',[a,hasta]),/row-level security/);
+    chk('RLS impide escribir por otra cuenta',true);
+    await rpc(b,hasta);
+    await assert.rejects(db.query('update public.anuncios_cierre set user_id=$1 where user_id=$2',[a,b]),/row-level security/);
+    chk('RLS impide reasignar una preferencia',true);
+    await assert.rejects(rpc(a,new Date(Date.now()+48*3600e3).toISOString()),/día siguiente/);
+    await como('');await assert.rejects(db.query('select public.mi_cierre_anuncios()'),/inicia sesión/);
+    await db.exec('set role anon');await assert.rejects(db.query('select public.mi_cierre_anuncios()'),/permission denied/);
+    chk('sin sesión y como anon no se puede usar la RPC',true);
+    await db.exec('reset role');await db.query('delete from auth.users where id=$1',[b]);
+    chk('borrar la cuenta borra su preferencia',(await db.query('select * from public.anuncios_cierre where user_id=$1',[b])).rows.length===0);
+
+    const cliente=uid=>{
+      const disco={gradehub_v1:'{"notas":"sintéticas e intactas"}'},c={...ctx,localStorage:{getItem:k=>disco[k]||null,setItem:(k,v)=>{disco[k]=String(v);}}};
+      vm.createContext(c);vm.runInContext(src,c);vm.runInContext(`currentUser={id:'${uid}'}`,c);
+      const ejecutar=s=>vm.runInContext(s,c);
+      c.__rpc=async(nombre,args)=>({data:await rpc(uid,args?.p_hasta),error:null});
+      ejecutar('supabaseClient={rpc:(...args)=>__rpc(...args)}');
+      return {c,disco,ejecutar};
+    };
+    // Otra cuenta sintética para probar que primero no tiene nada cerrado.
+    await db.query('insert into auth.users(id) values($1)',[b]);
+    const chrome=cliente(b),safari=cliente(b);
+    await chrome.ejecutar('sincronizarCierreAnuncios()');await safari.ejecutar('sincronizarCierreAnuncios()');
+    chk('dos navegadores parten sin cierre',chrome.ejecutar('cierreAnunciosCuenta().hasta')===0&&safari.ejecutar('cierreAnunciosCuenta().hasta')===0);
+    chrome.ejecutar("descartarRecomendacionClase('anuncio-sintetico')");
+    await chrome.ejecutar('sincronizarCierreAnuncios()');await safari.ejecutar('sincronizarCierreAnuncios()');
+    chk('cerrar en uno oculta en el otro sin compartir localStorage',safari.ejecutar('Date.now()<cierreAnunciosCuenta().hasta')&& !safari.disco.gradehub_marketplace_v1);
+    chk('el cierre subido deja de estar pendiente',!JSON.parse(chrome.disco.gradehub_marketplace_v1).cierrePendiente);
+    chrome.ejecutar("supabaseClient={rpc:async()=>({error:{code:'PGRST202'}})};descartarRecomendacionClase('otro')");
+    chk('sin SQL o sin red no dice que guardó en la cuenta',await chrome.ejecutar('sincronizarCierreAnuncios()')===false);
+    chk('el cierre se conserva para reintentar',JSON.parse(chrome.disco.gradehub_marketplace_v1).cierrePendiente.uid===b);
+    chrome.ejecutar('supabaseClient={rpc:(...args)=>__rpc(...args)}');
+    chk('al volver la conexión se guarda el cierre pendiente',await chrome.ejecutar('sincronizarCierreAnuncios()')===true&&!JSON.parse(chrome.disco.gradehub_marketplace_v1).cierrePendiente);
+    chk('no altera las notas locales',chrome.disco.gradehub_v1==='{"notas":"sintéticas e intactas"}'&&safari.disco.gradehub_v1===chrome.disco.gradehub_v1);
+    let resolver,llamadas=0;
+    safari.c.__lenta=()=>{llamadas++;return new Promise(r=>{resolver=r;});};
+    safari.ejecutar('supabaseClient={rpc:__lenta}');
+    const p1=safari.ejecutar('sincronizarCierreAnuncios()'),p2=safari.ejecutar('sincronizarCierreAnuncios()');
+    await Promise.resolve();resolver({data:hasta,error:null});await Promise.all([p1,p2]);
+    chk('los repintados comparten la petición en vuelo',llamadas===1);
+    // Una respuesta de A no debe cerrar la publicidad de B al cambiar de cuenta.
+    safari.ejecutar(`currentUser={id:'${a}'};supabaseClient={rpc:__lenta}`);
+    const antigua=safari.ejecutar('sincronizarCierreAnuncios()');await Promise.resolve();
+    safari.ejecutar("currentUser={id:'otra-cuenta-sintetica'}");resolver({data:hasta,error:null});await antigua;
+    chk('una respuesta tardía queda asociada a la cuenta original',safari.ejecutar('cierreAnunciosCuenta().hasta')===0);
+    const aislado=cliente('otra-cuenta');
+    aislado.disco.gradehub_marketplace_v1=JSON.stringify({cierrePendiente:{uid:b,hasta:Date.now()+3600e3}});
+    aislado.c.__args=null;aislado.ejecutar('supabaseClient={rpc:async(n,args)=>{__args=args;return {data:null,error:null};}}');
+    await aislado.ejecutar('sincronizarCierreAnuncios()');
+    chk('no sube el cierre pendiente de otra cuenta',!aislado.c.__args.p_hasta);
+    // Aunque el navegador bloquee el disco, el cierre llega al servidor.
+    chrome.ejecutar('localStorage.setItem=()=>{throw Error("disco bloqueado")};supabaseClient={rpc:(...args)=>__rpc(...args)};descartarRecomendacionClase("a1")');
+    chk('con almacenamiento bloqueado también guarda en la cuenta',await chrome.ejecutar('sincronizarCierreAnuncios()')===true&&chrome.ejecutar('cierreAnunciosCuenta().pendiente')===0);
+    chrome.ejecutar("supabaseClient={rpc(){throw Error('sin conexión')}}");
+    await chrome.ejecutar('sincronizarCierreAnuncios()');
+    chk('un error síncrono tampoco deja una petición pegada',chrome.ejecutar('cierreAnunciosCuenta().pedido')===null);
+  }finally{await db.close();}
+  console.log('\nPASS: '+ok+'   FAIL: '+fail);process.exitCode=fail?1:0;
+})().catch(e=>{console.error(e);process.exitCode=1;});
