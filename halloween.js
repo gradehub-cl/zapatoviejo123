@@ -31,6 +31,9 @@
     'Esta noche, el examen te mira',
     'Cuidado con lo que acecha',
     'El semestre no perdona',
+    'Hay algo rojo en tu promedio, y no es sangre',
+    'Tus notas están de miedo',
+    'Que la prueba pase susto',
   ];
   fraseInicio=function(fecha=new Date()){
     const dia=Math.floor(Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate())/86400000);
