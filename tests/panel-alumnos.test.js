@@ -392,7 +392,7 @@ function contexto({search='',sesion=false}={}){
   chk('con fechas distintas, hay una marca de cada serie, fechas en la leyenda y puntos de antes huecos',
     !/class="ah-inicio"/.test(grafDos)&&(grafDos.match(/class="ah-marca-ramo ah-serie-/g)||[]).length===2
     &&/Cálculo II · desde el 15 sep/.test(grafDos)&&/Física · desde el 5 oct/.test(grafDos)
-    &&(grafDos.match(/ah-punto ah-antes/g)||[]).length===3&&/Los puntos huecos son de antes/.test(grafDos));
+    &&(grafDos.match(/ah-punto ah-antes/g)||[]).length===3&&/Antes · 3 evaluaciones/.test(grafDos));
   chk('la descripción accesible incluye el inicio de ambos ramos',
     /aria-label="[^"]*Cálculo II · desde el 15 sep; Física · desde el 5 oct/.test(grafDos));
   const mismoInicio=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel({...__dos,inicio_ramos:{rf:'2026-09-15'}},${curso2}))`);
@@ -407,7 +407,7 @@ function contexto({search='',sesion=false}={}){
     &&/Cálculo II · desde el 15 sep/.test(grafTres)&&/Taller · desde el 15 sep/.test(grafTres));
   chk('con un ramo, la descripción accesible usa la fecha corregida de ese ramo',
     /aria-label="[^"]*empezó el 5 sep/.test(a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel({...__antesAhora,inicio_ramos:{ra:'2026-09-05'}},__cursoAA))`)));
-  chk('con un solo corte, la marca de siempre y ningún punto hueco',/class="ah-inicio"/.test(ah0())&&!/ah-antes/.test(ah0()));
+  chk('un solo corte conserva la marca, pero distingue los dos puntos de antes y los dos de ahora',/class="ah-inicio"/.test(ah0())&&(ah0().match(/ah-punto ah-antes/g)||[]).length===2&&(ah0().match(/class="ah-punto"/g)||[]).length===2);
   const csvDos=a.run('csvAlumnosPanel([__dos],()=>null)').split('\r\n').map(l=>l.split(';'));
   chk('el Excel dice cuándo empezó en cada ramo, en una columna al final',csvDos[0][13]==='Empezó contigo en este ramo'
     &&csvDos.find(f=>f[1]==='Física')[13]==='2026-10-05'&&csvDos.find(f=>f[1]==='Cálculo II')[13]==='2026-09-15'
@@ -465,7 +465,7 @@ function contexto({search='',sesion=false}={}){
   chk('el ramo largo no se trunca y sus cifras quedan antes de la flecha',
     /panel-alumnos-ramo-resumen/.test(nombreLargo)&&/Introducción a la Programación/.test(nombreLargo)
     &&nombreLargo.indexOf('Introducción a la Programación')<nombreLargo.indexOf('panel-alumnos-ramo-cifras'));
-  chk('con un ramo no hay leyenda',!/ah-leyenda/.test(ah0()));
+  chk('con un ramo no hay leyenda de series, pero sí de períodos',!/class="ah-leyenda"/.test(ah0())&&/class="ah-leyenda-fila"/.test(ah0()));
   const css=leer('styles.css');
   chk('las series no usan los colores del semáforo',!/\.ah-serie-\d\{--serie:var\(--(green|yellow|red|primary)/.test(css));
   chk('solo gira la flecha de lo abierto, no la de todo lo que hay adentro',
@@ -506,10 +506,48 @@ function contexto({search='',sesion=false}={}){
   chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
     /Subió 1\.7 puntos respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
   chk('el gráfico es una imagen con su resumen y un punto por evaluación comparable',
-    /<svg class="ah-grafico"[^>]*role="img"[^>]*aria-label="Diferencia con el curso en 4 evaluaciones/.test(ah)&&(ah.match(/class="ah-punto"/g)||[]).length===4&&/empezó/.test(ah));
+    /<svg class="ah-grafico"[^>]*role="img"[^>]*aria-label="Diferencia con el curso en 4 evaluaciones/.test(ah)&&(ah.match(/class="ah-punto(?: ah-antes)?"/g)||[]).length===4&&/empezó/.test(ah));
   chk('y la lista con las mismas cifras, para quien no ve el gráfico',/Ver sus evaluaciones/.test(ah)&&(ah.match(/<tr><td>/g)||[]).length===4);
-  chk('con pocos datos lo dice, sin inventar un cambio',/Aún pocos datos para comparar/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__poco,__cursoAA))')));
+  chk('con pocos datos lo dice, sin inventar un cambio',/Falta 1 evaluación comparable desde que empezó/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__poco,__cursoAA))')));
   chk('nada de esto usa los colores del semáforo',!/panel-resumen-(good|warn|bad)|--green|--red|--yellow/.test(gh+ah));
+
+  console.log('\n=== Matías: tres evaluaciones antes y una ahora (2026-10-29) ===');
+  // Pauta sintética escrita acá: el mismo caso del ejemplo, sin depender del catálogo.
+  a.run(`globalThis.__matias={...__antesAhora,id:'matias-sintetico',nombre_visible:'Matías (prueba)',ramos:[{
+    ...__antesAhora.ramos[0],categorias:[__ev(21,'Interrogación 1','2026-09-01',3.0),
+    __ev(22,'Control 1','2026-09-08',3.2),__ev(23,'Interrogación 2','2026-09-12',3.6),
+    __ev(24,'Control 2','2026-10-08',4.4)]}]}`);
+  const matias=a.run('metricasAlumnoPanel(__matias,__cursoAA)'),fichaMatias=a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__matias,__cursoAA))');
+  chk('tiene referencias del curso a ambos lados pero le falta una evaluación para calcular cambio',
+    matias.antes.nComparadas===3&&matias.ahora.nComparadas===1&&matias.cambio===null);
+  chk('tres puntos huecos antes y uno lleno ahora, incluso con una marca de inicio única',
+    /class="ah-inicio"/.test(fichaMatias)&&(fichaMatias.match(/ah-punto ah-antes/g)||[]).length===3
+    &&(fichaMatias.match(/class="ah-punto"/g)||[]).length===1);
+  chk('la ficha y la leyenda muestran el dato que falta',/Falta 1 evaluación comparable desde que empezó/.test(fichaMatias)
+    &&/Antes · 3 evaluaciones/.test(fichaMatias)&&/Ahora · 1 evaluación/.test(fichaMatias));
+  chk('los detalles de cada punto dicen antes o ahora aunque el inicio sea único',
+    (fichaMatias.match(/ · antes:/g)||[]).length===3&&(fichaMatias.match(/ · ahora:/g)||[]).length===1);
+  const filaMatias=a.run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([__matias],__cursoAA))');
+  chk('la fila no confunde falta de muestra con falta de comparación',/Falta 1 evaluación ahora/.test(filaMatias)
+    &&/Falta 1 evaluación comparable desde que empezó/.test(filaMatias)&&!/Sin comparación/.test(filaMatias));
+  chk('si faltan evaluaciones de antes, el mensaje identifica ese período',
+    a.run('motivoSinCambioPanel({antes:{nComparadas:0},ahora:{nComparadas:3}})')==='Faltan 2 evaluaciones comparables de antes de empezar');
+  chk('sin referencias en ambos períodos se indica que faltan evaluaciones comparables',
+    a.run('motivoSinCambioPanel({antes:{nComparadas:0},ahora:{nComparadas:0}})')==='Faltan evaluaciones comparables antes y ahora (2 por período)');
+  chk('solo evaluaciones comparables entran en la leyenda y la muestra mínima',a.run(`(()=>{
+    const m=metricasAlumnoPanel(__matias,()=>({evaluaciones:__cursoAA().evaluaciones.filter(e=>e.clave!=='control 1')}));
+    const html=antesAhoraAlumnoHTML(m);return m.antes.n===3&&m.antes.nComparadas===2&&/Antes · 2 evaluaciones/.test(html);
+  })()`));
+  chk('la presentación no altera notas ni el cambio al renderizar',a.run(`(()=>{
+    const m=metricasAlumnoPanel(__matias,__cursoAA),antes=JSON.stringify(m);
+    antesAhoraAlumnoHTML(m);graficoAlumnosAntesAhoraHTML({alumnos:[m]});return JSON.stringify(m)===antes&&m.cambio===null;
+  })()`));
+  chk('si todas son anteriores se dibujan huecas, y si todas son posteriores se dibujan llenas',a.run(`(()=>{
+    const antes=graficoAntesAhoraSVG(metricasAlumnoPanel(__matias,__cursoAA,{inicio:'2026-11-01'}));
+    const ahora=graficoAntesAhoraSVG(metricasAlumnoPanel(__matias,__cursoAA,{inicio:'2026-08-01'}));
+    return (antes.match(/ah-punto ah-antes/g)||[]).length===4&&!/class="ah-punto"/.test(antes)
+      &&(ahora.match(/class="ah-punto"/g)||[]).length===4&&!/ah-punto ah-antes/.test(ahora);
+  })()`));
 
   console.log('\n=== Antes y ahora en el Excel (#697) ===');
   const csvAA=a.run('csvAlumnosPanel([__antesAhora],__cursoAA)').split('\r\n').map(l=>l.split(';'));

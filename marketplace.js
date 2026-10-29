@@ -4632,6 +4632,16 @@ function frenteAlCursoPanel(d,referencia='el curso'){
   if(d===null)return 'sin comparación';
   return Math.abs(d)<0.05?`igual que ${referencia}`:`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} ${referencia}`;
 }
+// No tener un cambio calculable no significa que no haya comparación con el
+// curso: puede faltar una sola evaluación de un período, como en Matías.
+function motivoSinCambioPanel(m,{breve=false}={}){
+  const antes=Math.max(0,MIN_EVALS_COMPARACION-m.antes.nComparadas);
+  const ahora=Math.max(0,MIN_EVALS_COMPARACION-m.ahora.nComparadas);
+  if(antes&&ahora)return breve?'Faltan evaluaciones':`Faltan evaluaciones comparables antes y ahora (${MIN_EVALS_COMPARACION} por período)`;
+  const n=antes||ahora;
+  if(!n)return 'Aún pocos datos para comparar antes y ahora';
+  return `Falta${n===1?'':'n'} ${n} evaluaci${n===1?'ón':'ones'} ${breve?(antes?'antes':'ahora'):`comparable${n===1?'':'s'} ${antes?'de antes de empezar':'desde que empezó'}`}`;
+}
 // Cada alumno en una fila (Lucas, 2026-10-23: Estadísticas necesitaba algo
 // visual): dónde estaba respecto del curso antes de empezar (punto hueco) y
 // dónde está ahora (punto lleno), sobre una misma escala con el curso al
@@ -4652,8 +4662,8 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
       <span class="ah-fila-nombre">${esc(m.nombre)}</span>
       <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
       <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${a===null?'—':esc(conSignoPanel(a))}</b></span><span>Ahora <b>${b===null?'—':esc(conSignoPanel(b))}</b></span></span>
-      <span class="ah-fila-cambio${m.cambio===null||Math.abs(m.cambio)<0.05?'':m.cambio>0?' ah-sube':' ah-baja'}"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?'Sin comparación':'puntos'}</small></span>
-      <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' Aún pocos datos para el cambio.':''}</span></button></li>`;
+      <span class="ah-fila-cambio${m.cambio===null||Math.abs(m.cambio)<0.05?'':m.cambio>0?' ah-sube':' ah-baja'}"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?esc(motivoSinCambioPanel(m,{breve:true})):'puntos'}</small></span>
+      <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' '+esc(motivoSinCambioPanel(m))+'.':''}</span></button></li>`;
   }).join('');
   const fuera=g.alumnos.length-conDatos.length;
   return `<section class="ah-alumnos" aria-labelledby="ah-alumnos-titulo">
@@ -4740,21 +4750,23 @@ function graficoAntesAhoraSVG(m,{seccion=false}={}){
     const idx=pts.map((e,i)=>(e.ramoId??e.ramo)===clave?i:-1).filter(i=>i>=0);
     const linea=idx.map((i,j)=>`${j?'L':'M'}${xs[i].toFixed(1)} ${y(pts[i].nota-pts[i].curso).toFixed(1)}`).join(' ');
     const puntos=idx.map(i=>{const e=pts[i],cx=xs[i].toFixed(1),cy=y(e.nota-e.curso).toFixed(1);
-      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${unCorte?'':e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (${etiqueta} ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${unCorte||e.lado==='ahora'?'':' ah-antes'}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
+      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (${etiqueta} ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${e.lado==='antes'?' ah-antes':''}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
     return `<g class="ah-serie-${k%4}">${idx.length>1?`<path class="ah-linea" d="${linea}"/>`:''}${puntos}</g>`;
   }).join('');
   const inicioTexto=e=>e.fecha?` · desde el ${fechaCorta(e.fecha)}`:' · sin fecha de inicio';
   const leyenda=varios?`<p class="ah-leyenda">${inicios.map((e,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(e.nombre)}${esc(inicioTexto(e))}</span>`).join('')}</p>`:'';
+  const periodo=(lado,nombre)=>{const n=pts.filter(e=>e.lado===lado).length;return `<span><i class="ah-dot ah-dot-${lado}" aria-hidden="true"></i>${nombre} · ${n} ${n===1?'evaluación':'evaluaciones'}</span>`;};
+  const periodos=`<p class="ah-leyenda-fila">${periodo('antes','Antes')}${periodo('ahora','Ahora')}</p>`;
   const resumen=`Diferencia con ${referencia} en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia,referencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}${varios?'; '+inicios.map(e=>e.nombre+inicioTexto(e)).join('; '):inicios[0].fecha?`; empezó el ${fechaCorta(inicios[0].fecha)}`:''}`;
   return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${PL}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/><text class="ah-eje" x="0" y="${P+4}">+${lim}</text><text class="ah-eje" x="0" y="${H/2+4}">${etiqueta}</text><text class="ah-eje" x="0" y="${H-P+4}">−${lim}</text>${marcas}${series}</svg>
     <p class="ah-fechas"><span>${esc(fechaCorta(pts[0].fecha))}</span><span>${esc(fechaCorta(pts[pts.length-1].fecha))}</span></p>
-    ${leyenda}<p class="ah-pie">${varios?'Por fecha.':'Evaluaciones en orden de fecha, con igual espacio entre puntos.'} Diferencia en puntos de nota. La línea central es el promedio ${seccion?'de su sección':'del curso'}: arriba, sobre ese promedio; abajo, bajo él.${unCorte?'':' Los puntos huecos son de antes de empezar cada ramo.'}</p>`;
+    ${periodos}${leyenda}<p class="ah-pie">${varios?'Por fecha.':'Evaluaciones en orden de fecha, con igual espacio entre puntos.'} Diferencia en puntos de nota. La línea central es el promedio ${seccion?'de su sección':'del curso'}: arriba, sobre ese promedio; abajo, bajo él.</p>`;
 }
 function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false}={}){
   const referencia=seccion?'su sección':'el curso';
   if(!m||!m.evaluaciones.length)return '';
   const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'
-    :m.cambio===null?'Aún pocos datos para comparar antes y ahora'
+    :m.cambio===null?esc(motivoSinCambioPanel(m))
     :Math.abs(m.cambio)<0.05?`Igual que antes, respecto ${seccion?'de su sección':'del curso'}`
     :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} puntos respecto ${seccion?'de su sección':'del curso'}`;
   const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
