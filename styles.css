@@ -898,6 +898,15 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .clase-apoyo.en-casilla .ca-pie{position:relative;margin-top:6px;transform:translateY(var(--ajuste-datos,0px));}
 .clase-apoyo.en-casilla .clase-apoyo-datos{font-size:.6875rem;line-height:1.4;}
 .clase-apoyo.en-casilla .clase-apoyo-ver{display:block;margin:0;position:absolute;left:0;top:calc(100% + 8px);font-size:.6875rem;font-weight:700;color:var(--primary);}
+/* Sin una línea de datos, el título queda al medio del espacio entre la
+   etiqueta y la acción. Las tres filas crecen con el texto, también en la
+   vista previa, sin desplazarlo para alinearlo con el nombre del ramo. */
+.clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .clase-apoyo-texto{display:grid;grid-template-rows:auto 1fr auto;flex:1;gap:8px;}
+.clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .ca-cabeza{display:contents;transform:none;}
+.clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .ca-cabeza small{position:static;margin:0;white-space:normal;}
+.clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .ca-cabeza strong{align-self:center;}
+.clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .ca-pie{margin:0;transform:none;}
+.clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .clase-apoyo-ver{position:static;}
 /* 44px = alto del título más los datos: logo y texto se leen como un bloque. */
 .clase-apoyo.en-casilla .clase-apoyo-logo{height:44px;max-width:104px;margin-right:22px;}
 .clase-apoyo.en-casilla .clase-apoyo-cerrar{position:absolute;top:4px;right:4px;width:32px;height:32px;}
