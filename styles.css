@@ -1531,14 +1531,43 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 /* La línea de la mitad del curso: a su derecha vas mejor que la mitad. */
 .stats-curso-mitad{position:absolute;left:50%;top:-5px;width:2px;height:14px;margin-left:-1px;border-radius:1px;background:var(--fg2);}
 .stats-curso-pista i{position:absolute;top:-4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--primary);box-shadow:0 0 4px color-mix(in srgb,var(--primary),transparent 45%);}
-/* Historial: una columna por semestre, el actual en el acento. */
-.stats-hist-cols{display:flex;align-items:flex-end;gap:8px;height:130px;margin:4px 20px 14px;padding-top:18px;}
-.stats-hist-cols span{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;}
-.stats-hist-cols i{display:block;width:100%;max-width:44px;border-radius:2px 2px 0 0;background:var(--muted);}
-.stats-hist-cols .es-actual i{background:var(--primary);box-shadow:0 0 2px color-mix(in srgb,var(--primary),transparent 65%);}
-.stats-hist-cols b{font-size:.8125rem;font-weight:700;font-variant-numeric:tabular-nums;}
-.stats-hist-cols small{font-size:.6875rem;color:var(--fg3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-@media (prefers-reduced-motion:reduce){.anillo-arco{animation:none;}.anillo-arco,.escala-banda,.barra-centrada i,.stats-curso-pista i,.stats-hist-cols .es-actual i{filter:none;box-shadow:none;}}
+/* Evolución: un vértice por semestre y el 4,0 en el centro de la escala 1–7. */
+.stats-hist-comparacion{margin:4px 20px 18px;padding:16px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);min-width:0;container-type:inline-size;}
+.stats-hist-periodo{display:flex;gap:2px;padding:2px;margin-bottom:18px;border-radius:6px;background:var(--muted);}
+.stats-hist-periodo button{flex:1;min-width:44px;min-height:44px;padding:6px 4px;border:0;border-radius:4px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.75rem;line-height:1.3;cursor:pointer;}
+.stats-hist-periodo button[aria-pressed="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgb(0 0 0 / .1);font-weight:650;}
+.stats-hist-periodo button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.stats-hist-titular{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px 16px;margin:0 4px 16px;}
+.stats-hist-titular>div{display:grid;gap:4px;}
+.stats-hist-titular span{font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+.stats-hist-titular strong{font-size:2rem;line-height:1;font-weight:650;letter-spacing:-.04em;color:var(--fg);font-variant-numeric:tabular-nums;}
+.stats-hist-delta b{font-size:.875rem;font-weight:550;color:var(--fg);font-variant-numeric:tabular-nums;}
+.stats-hist-marco{display:grid;grid-template-columns:1.5rem minmax(0,1fr) 1.5rem;gap:4px;padding-top:6px;}
+.stats-hist-eje{position:relative;height:12rem;font-size:.6875rem;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg2);}
+.stats-hist-eje span{position:absolute;left:0;right:0;transform:translateY(-50%);text-align:left;}
+.stats-hist-eje:last-child span{text-align:right;}
+.stats-hist-eje .es-centro{font-weight:650;color:var(--fg);}
+.stats-hist-eje span::after{content:"";position:absolute;right:0;top:50%;width:4px;border-top:1px solid var(--fg2);}
+.stats-hist-eje:last-child span::after{right:auto;left:0;}
+.stats-hist-grafico{min-width:0;}
+.stats-hist-trazado{position:relative;height:12rem;}
+.stats-hist-referencia{position:absolute;top:50%;left:0;right:0;border-top:1px dashed var(--fg2);}
+.stats-hist-trazado svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
+.stats-hist-trazado polyline{fill:none;stroke:var(--primary);stroke-width:2;stroke-linejoin:miter;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 1px color-mix(in srgb,var(--primary),transparent 65%));}
+.stats-hist-punto{position:absolute;width:7px;height:7px;transform:translate(-50%,-50%);border-radius:50%;border:1px solid var(--card);background:var(--primary);}
+.stats-hist-punto.es-actual{width:10px;height:10px;border-width:2px;}
+.stats-hist-periodos{position:relative;height:3.25rem;margin-top:16px;}
+.stats-hist-periodos>div{display:none;position:absolute;top:0;left:var(--hist-x);transform:translateX(-50%);text-align:center;color:var(--fg2);font-size:.6875rem;line-height:1.4;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.stats-hist-periodos>.es-inicio,.stats-hist-periodos>.es-final{display:grid;gap:4px;}
+.stats-hist-periodos>.es-inicio{left:0;transform:none;text-align:left;}
+.stats-hist-periodos>.es-final{left:auto;right:0;transform:none;text-align:right;}
+.stats-hist-periodos b{font-size:.8125rem;font-weight:500;}
+.stats-hist-periodos .es-actual{color:var(--fg);}
+.stats-hist-periodos .es-actual b{font-weight:650;}
+@container (max-width:18rem){.stats-hist-periodo{flex-direction:column;}}
+@container (min-width:16rem){.stats-hist-periodos>.en-corto{display:grid;gap:4px;}}
+@container (min-width:30rem){.stats-hist-periodos>.en-corto{display:none;}.stats-hist-periodos>.en-amplio{display:grid;gap:4px;}}
+@media (prefers-reduced-motion:reduce){.anillo-arco{animation:none;}.anillo-arco,.escala-banda,.barra-centrada i,.stats-curso-pista i,.stats-hist-trazado polyline{filter:none;box-shadow:none;}}
 .stats-situation-card{padding:18px 18px 16px;}
 .stats-situation-reading{margin-top:17px;font-size:.9375rem;font-weight:650;line-height:1.35;color:var(--fg);letter-spacing:-.015em;}
 .stats-priority-row{margin-bottom:8px;min-height:72px;}

@@ -987,8 +987,17 @@ async function pintarPosicionesCurso(){
   }).join('');
 }
 
+function cambiarPeriodoHistorial(periodo){
+  if(!['anterior','5','todo'].includes(periodo))return;
+  const body=document.getElementById('stats-body');
+  body.dataset.histPeriodo=periodo;
+  renderStats();
+  body.querySelector(`[data-hist-periodo="${periodo}"]`)?.focus({preventScroll:true});
+}
+
 function renderStats(){
   const body=document.getElementById('stats-body');const g=gpa(S.ramos);
+  const periodo=body.dataset.histPeriodo||'anterior';
   const heroTitle=document.getElementById('stats-hero-title');
   let totalNotas=0;
   S.ramos.forEach(r=>{
@@ -1152,14 +1161,47 @@ function renderStats(){
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
-    // Una columna por semestre, el actual en el acento. La altura es la nota en
-    // la escala de 1 a 7. Con uno solo no hay nada que comparar.
+    // Un punto por semestre, sin interpolar notas ni cambiar la escala 1–7.
     {
-      const serie=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h)})).filter(x=>x.v!==null);
-      if(g!==null)serie.push({label:'Ahora',v:g,actual:true});
-      if(serie.length>=2)hist+=`<div class="stats-hist-cols" role="img" aria-label="${esc('Promedio por semestre: '+serie.map(x=>`${x.label} ${fmtPromedio(x.v)}`).join(', '))}">${
-        serie.map(x=>`<span class="${x.actual?'es-actual':''}" aria-hidden="true"><b>${fmtPromedio(x.v)}</b><i style="height:${(Math.max(0,(x.v-1)/6)*100).toFixed(1)}%"></i><small>${esc(x.label)}</small></span>`).join('')
-      }</div>`;
+      const completa=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h),fecha:parseEtiquetaSemestre(h.label)})).filter(x=>x.v!==null);
+      // Los semestres ingresados a mano pueden haberse agregado fuera de orden.
+      const orden=x=>x.fecha?x.fecha.anio*10+(x.fecha.periodo==='v'?0:Number(x.fecha.periodo)):-Infinity;
+      completa.sort((a,b)=>orden(a)-orden(b));
+      if(g!==null)completa.push({label:semester(),v:g,actual:true});
+      if(completa.length>=2){
+        const serie=periodo==='anterior'?completa.slice(-2):periodo==='5'?completa.slice(-5):completa;
+        const ultimo=serie[serie.length-1];
+        const anterior=ultimo.actual?serie[serie.length-2]:null;
+        const diferencia=anterior?ultimo.v-anterior.v:null;
+        const igual=diferencia!==null&&Math.abs(diferencia)<0.05;
+        const lectura=diferencia===null?'':igual?`Sin cambio frente a ${anterior.label||'el semestre anterior'}`
+          :`${nf(Math.abs(diferencia),2)} puntos ${diferencia>0?'más':'menos'} que en ${anterior.label||'el semestre anterior'}`;
+        const etiqueta=x=>x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior';
+        const puntos=serie.map((x,i)=>({x:(i/(serie.length-1)*100).toFixed(3),y:((7-Math.max(1,Math.min(7,x.v)))/6*100).toFixed(3)}));
+        const minimo=Math.floor(Math.min(...serie.map(x=>x.v))),maximo=Math.ceil(Math.max(...serie.map(x=>x.v)));
+        const marcas=[7,6,5,4,3,2,1].filter(n=>n===4||(n>=minimo&&n<=maximo));
+        const rotulos=max=>new Set(Array.from({length:Math.min(max,serie.length)},(_,i)=>Math.round(i*(serie.length-1)/(Math.min(max,serie.length)-1))));
+        const corto=rotulos(3),amplio=rotulos(6);
+        const eje=()=>`<div class="stats-hist-eje" aria-hidden="true">${marcas.map(n=>`<span class="${n===4?'es-centro':''}" style="top:${(7-n)/6*100}%">${n===4?'4.0':n}</span>`).join('')}</div>`;
+        hist+=`<figure class="stats-hist-comparacion">
+          <figcaption class="stats-hist-titular"><div><span>${esc(etiqueta(ultimo))}</span><strong>${fmtPromedio(ultimo.v)}</strong></div>
+            ${anterior?`<div class="stats-hist-delta" aria-label="${esc(lectura)}"><b>${igual?'Sin cambio':(diferencia>0?'+':'−')+nf(Math.abs(diferencia),2)+' puntos'}</b><span>vs. ${esc(anterior.label||'semestre anterior')}</span></div>`:''}
+          </figcaption>
+          <div class="stats-hist-periodo" role="group" aria-label="Semestres a comparar">${[['anterior','Semestre pasado'],['5','Últimos 5'],['todo','Desde el inicio']].map(([id,texto])=>`<button type="button" data-hist-periodo="${id}" aria-pressed="${periodo===id}" onclick="cambiarPeriodoHistorial('${id}')">${texto}</button>`).join('')}</div>
+          <div class="stats-hist-marco">${eje()}
+            <div class="stats-hist-grafico">
+                <div class="stats-hist-trazado">
+                  <div class="stats-hist-referencia" aria-hidden="true"></div>
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="${esc('Promedio por semestre, escala de 1 a 7. Línea punteada: 4.0. '+serie.map(x=>`${etiqueta(x)}: ${fmtPromedio(x.v)}`).join('. '))}">
+                    <polyline points="${puntos.map(p=>p.x+','+p.y).join(' ')}"/>
+                  </svg>
+                  ${serie.map((x,i)=>`<i class="stats-hist-punto${x.actual?' es-actual':''}" style="left:${puntos[i].x}%;top:${puntos[i].y}%" aria-hidden="true"></i>`).join('')}
+                </div>
+                <div class="stats-hist-periodos" aria-hidden="true">${serie.map((x,i)=>`<div class="${x.actual?'es-actual ':''}${i===0?'es-inicio ':i===serie.length-1?'es-final ':''}${corto.has(i)?'en-corto ':''}${amplio.has(i)?'en-amplio':''}" style="--hist-x:${puntos[i].x}%"><span>${esc(x.label||'Anterior')}</span><b>${fmtPromedio(x.v)}</b></div>`).join('')}</div>
+            </div>${eje()}
+          </div>
+        </figure>`;
+      }
     }
     if(validos.length>0){
       validos.forEach(h=>{
