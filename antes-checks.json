@@ -1,0 +1,34 @@
+[
+  {
+    "prefix": "375-claro",
+    "ok": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "ok": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "ok": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "ok": true
+  },
+  {
+    "prefix": "1280-claro",
+    "ok": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "ok": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "ok": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "ok": true
+  }
+]

@@ -1,0 +1,1 @@
+Ficha de Alumnos con datos sintéticos: dos ramos, fechas propias de inicio, seis evaluaciones por ramo y referencias de curso ficticias. Antes: main 648d076. Después: gráfico compartido con el historial, fecha de inicio proporcional al calendario, detalle por dedo/mouse/teclado. Ocho variantes: 375/1280 px, claro/oscuro y texto normal/200%. Sin alumnos ni notas reales.
