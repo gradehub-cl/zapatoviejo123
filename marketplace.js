@@ -3007,7 +3007,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
 //   Nada de eso viaja para elegir.
 // - Solo en Inicio, nunca en la ficha del ramo, la Agenda ni el ingreso de notas.
 // - Se muestra mientras siga calzando, hasta cerrarla con la X. Cerrar oculta
-//   las recomendaciones de Inicio por el resto del día en este dispositivo,
+//   las recomendaciones de Inicio por el resto del día en la cuenta,
 //   desde el primer cierre (Lucas, 2026-10-28). Recargar no las trae de vuelta;
 //   al día siguiente pueden aparecer otra vez. El catálogo sigue disponible.
 // - No dice "reprobando" ni diagnostica: ofrece apoyo para el ramo.
@@ -3027,6 +3027,59 @@ function leerEstadoMarketplace(){
 }
 function guardarEstadoMarketplace(estado){
   try{localStorage.setItem(CLAVE_MARKETPLACE,JSON.stringify(estado));}catch(e){}
+}
+// Preferencia separada de las notas. Se consulta antes de mostrar publicidad
+// y al volver a la app; cada cuenta tiene su propia petición y copia en memoria.
+const cierresAnunciosCuenta=new Map();
+function cierreAnunciosCuenta(uid=currentUser&&currentUser.id){
+  if(!cierresAnunciosCuenta.has(uid))cierresAnunciosCuenta.set(uid,{leido:false,hasta:0,pendiente:0,pedido:null});
+  return cierresAnunciosCuenta.get(uid);
+}
+async function sincronizarCierreAnuncios(){
+  if(!currentUser||!supabaseClient)return false;
+  const uid=currentUser.id,cliente=supabaseClient,c=cierreAnunciosCuenta(uid);
+  if(c.pedido)return c.pedido;
+  const pendiente=leerEstadoMarketplace().cierrePendiente;
+  const hasta=Math.max(c.pendiente,pendiente&&pendiente.uid===uid?pendiente.hasta||0:0);
+  c.pedido=Promise.resolve().then(async()=>{
+    try{
+      const {data,error}=await cliente.rpc('mi_cierre_anuncios',hasta>Date.now()?{p_hasta:new Date(hasta).toISOString()}:{});
+      if(error)throw error;
+      const remoto=Date.parse(data);
+      if(Number.isFinite(remoto))c.hasta=Math.max(c.hasta,remoto);
+      if(c.pendiente===hasta)c.pendiente=0;
+      const estado=leerEstadoMarketplace();
+      if(hasta&&estado.cierrePendiente?.uid===uid&&estado.cierrePendiente.hasta===hasta){
+        delete estado.cierrePendiente;guardarEstadoMarketplace(estado);
+      }
+      return true;
+    }catch(e){return false;}
+    finally{c.leido=true;c.pedido=null;}
+  });
+  return c.pedido;
+}
+function refrescarCierreAnuncios(){
+  if(!currentUser||!supabaseClient||(typeof esCuentaProfesor==='function'&&esCuentaProfesor()))return;
+  const uid=currentUser.id,c=cierreAnunciosCuenta(uid);
+  c.leido=false;
+  const contenedor=document.getElementById('home-ramos');
+  if(contenedor)pintarRecomendacionClase(contenedor);
+}
+if(typeof window!=='undefined'&&window.addEventListener){
+  window.addEventListener('focus',refrescarCierreAnuncios);
+  window.addEventListener('pageshow',refrescarCierreAnuncios);
+  window.addEventListener('online',refrescarCierreAnuncios);
+  window.addEventListener('storage',e=>{
+    if(e.key!==CLAVE_MARKETPLACE)return;
+    try{
+      const antes=JSON.parse(e.oldValue||'{}'),despues=JSON.parse(e.newValue||'{}');
+      // La rotación también escribe esta clave: no repintar por ella o dos
+      // pestañas abiertas se pasarían el anuncio de vuelta indefinidamente.
+      if(antes?.ocultaHasta!==despues?.ocultaHasta||antes?.cerrada!==despues?.cerrada)refrescarCierreAnuncios();
+    }catch(e){}
+  });
+  if(typeof document!=='undefined'&&document.addEventListener)
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refrescarCierreAnuncios();});
 }
 function diaLocalClases(ahora=Date.now()){
   const d=new Date(ahora);
@@ -3073,7 +3126,10 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
   const estado=leerEstadoMarketplace();
   const d=new Date(ahora);
   const ocultaHasta=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime();
-  guardarEstadoMarketplace({...estado,ocultaHasta,franja:franjaClases(ahora),anuncioId:null,cerrada:true});
+  const uid=currentUser&&currentUser.id;
+  if(uid){const c=cierreAnunciosCuenta(uid);c.hasta=ocultaHasta;c.pendiente=ocultaHasta;}
+  guardarEstadoMarketplace({...estado,ocultaHasta,franja:franjaClases(ahora),anuncioId:null,cerrada:true,
+    ...(uid?{cierrePendiente:{uid,hasta:ocultaHasta}}:{})});
   return {vuelveEnLaTarde:false};
 }
 function textoCierreClase(){
@@ -3177,6 +3233,12 @@ function pintarRecomendacionClase(contenedor){
   if(!RECOMENDACIONES_CLASES_ACTIVAS||!contenedor||!currentUser||!supabaseClient||!S||!S.tenant)return;
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+  const uid=currentUser.id,cierre=cierreAnunciosCuenta(uid);
+  if(!cierre.leido){
+    sincronizarCierreAnuncios().then(()=>{if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);});
+    return;
+  }
+  if(Date.now()<cierre.hasta)return;
   if(anunciosRecomendacion.tenant!==S.tenant||anunciosRecomendacion.lista===null){
     cargarAnunciosRecomendacion(S.tenant,()=>{if(contenedor.isConnected)pintarRecomendacionClase(contenedor);});
     return;
@@ -3195,11 +3257,17 @@ function pintarRecomendacionClase(contenedor){
     registrarInteraccionMedida(anuncio.id,'apertura',sigla);
     abrirClaseRecomendada(anuncio,ramo,sigla);
   });
-  banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',()=>{
+  banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',async()=>{
     const cierre=descartarRecomendacionClase(anuncio.id);
     fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
+    fila.style.removeProperty('--info-mitad');
     banner.remove();
-    if(typeof showToast==='function')showToast(textoCierreClase(cierre));
+    // Si había una lectura en vuelo, la escritura del cierre va después.
+    const pendiente=cierreAnunciosCuenta(uid).pedido;
+    if(pendiente)await pendiente;
+    if(currentUser?.id!==uid)return;
+    const guardado=await sincronizarCierreAnuncios();
+    if(currentUser?.id===uid&&typeof showToast==='function')showToast(guardado?textoCierreClase(cierre):'Oculto aquí por hoy. No pudimos guardarlo en tus otros dispositivos.',!guardado);
   });
   // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
   // espera a Storage para aparecer, y sin logo simplemente no se muestra.
