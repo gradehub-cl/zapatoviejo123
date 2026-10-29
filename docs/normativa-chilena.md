@@ -4,6 +4,32 @@
 sobre `origin/main` a12de54 y los archivos públicos de gradehub.cl. Los cambios
 propuestos necesitan revisión y merge; esta auditoría no publica ni aplica SQL.
 
+## Integración sobre main · 29 de octubre de 2026
+
+La revisión anterior es una foto del 4 de octubre, no una certificación actual de
+producción. Al poner esta PR al día sobre `e57fc10`, se preservan la ruleta de
+edad y los mínimos de main (14 estudiante / 18 profesor), el flujo de postulación,
+la edad y generación guardadas, las visitas diarias y el consentimiento de
+compartir con un profesor. La casilla legal se exige aparte y se limpia al
+entrar otra cuenta; las cuentas que ya terminaron onboarding siguen entrando.
+La versión del texto aceptado pasa a 2026-10-29 sin rellenar aceptaciones antiguas.
+
+La calculadora incorporada en main desde la revisión original también usa la
+misma puerta de Analytics y la misma preferencia del navegador. Su cálculo y
+el enlace a GradeHub funcionan sin permiso. Se mantienen los eventos y el origen
+calculadora/profesor cuando existe autorización; los eventos previos no se envían
+al activarla. Las pruebas de estos embudos declaran explícitamente si hay permiso.
+
+No se aplicó SQL ni se revisó la configuración privada. Esta PR presupone las
+columnas y permisos de `supabase/aceptacion_legal.sql` y `supabase/edad_declarada.sql`
+que ya usa main; su instalación en producción debe verificarse antes del merge.
+Verificación de la integración anterior: 362 tests, JS/CSS y navegador sintético
+en ocho variantes (375/1280 px, claro/oscuro, texto normal/200%), con app y
+calculadora abiertas, autorización/revocación entre pestañas y datos conservados.
+
+Los demás hallazgos jurídicos de la revisión original siguen pendientes de
+verificación; no se dan por resueltos al integrar los conflictos.
+
 ## Alcance y fuentes oficiales
 
 GradeHub trata datos personales de estudiantes, aunque la app sea gratuita.

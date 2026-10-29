@@ -15,7 +15,7 @@ function pagina(search){
   const modal=el();
   const ctx={window:{addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}})},
     document:{getElementById:id=>id==='modal-content'?modal:el(),createElement:el,addEventListener(){},documentElement:el(),body:el(),querySelector:()=>null,querySelectorAll:()=>[]},
-    localStorage,sessionStorage,gtag:(...a)=>eventos.push(a),navigator:{},
+    localStorage,sessionStorage,analiticaPermitida:()=>true,gtag:(...a)=>eventos.push(a),navigator:{},
     location:{origin:'https://gradehub.cl',pathname:'/',hash:'',search},
     history:{replaceState:(_s,_t,url)=>urls.push(url)},URLSearchParams,
     setTimeout:f=>{f();return 1},clearTimeout(){},console,URL};

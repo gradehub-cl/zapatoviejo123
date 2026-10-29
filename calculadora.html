@@ -29,13 +29,45 @@
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
 <link rel="icon" href="/icon.svg?v=capas-1" type="image/svg+xml"/>
 <!-- Misma medición sin cookies que la app. Nunca se envían puntajes ni notas. -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
-  gtag('js', new Date());
-  gtag('config', 'G-TS791S6PDM');
+<script id="analytics-bootstrap">
+  // Consent mode denegado sigue enviando señales. No cargar el tercero hasta
+  // una elección explícita; no guardar eventos previos para mandarlos después.
+  const ANALITICA_KEY='gradehub_analitica_v1';
+  const ANALITICA_VERSION='2026-10-29';
+  let _analiticaConsentida=false, _analiticaCargada=false;
+  function analiticaPermitida(){return _analiticaConsentida;}
+  function gtag(){if(_analiticaConsentida)window.dataLayer.push(arguments);}
+  function consentimientoAnaliticaValido(valor){
+    try{const dato=JSON.parse(valor);return dato?.aceptada===true&&dato.version===ANALITICA_VERSION;}catch(e){return false;}
+  }
+  function cambiarConsentimientoAnalitica(permitida,guardar=true){
+    _analiticaConsentida=permitida===true;
+    if(guardar){
+      try{localStorage.setItem(ANALITICA_KEY,JSON.stringify({aceptada:_analiticaConsentida,version:ANALITICA_VERSION,fecha:new Date().toISOString()}));}catch(e){}
+    }
+    if(!_analiticaConsentida){
+      // Sacar el script no saca los listeners que ya instaló. Recargar detiene
+      // también la medición automática; el siguiente arranque no carga GA.
+      if(_analiticaCargada)location.reload();
+      return;
+    }
+    if(_analiticaCargada)return;
+    _analiticaCargada=true;
+    window.dataLayer=[];
+    // Conservamos la medición sin cookies incluso cuando se autoriza.
+    gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+    gtag('js', new Date());
+    // El retorno de auth puede traer secretos en query/hash o en el referrer.
+    gtag('set',{page_location:location.origin+location.pathname,page_referrer:''});
+    gtag('config', 'G-TS791S6PDM',{allow_google_signals:false,allow_ad_personalization_signals:false});
+    const script=document.createElement('script');script.async=true;
+    script.src='https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM';
+    document.head.appendChild(script);
+  }
+  try{cambiarConsentimientoAnalitica(consentimientoAnaliticaValido(localStorage.getItem(ANALITICA_KEY)),false);}catch(e){}
+  window.addEventListener('storage',e=>{
+    if(e.key===ANALITICA_KEY||e.key===null)cambiarConsentimientoAnalitica(consentimientoAnaliticaValido(e.newValue),false);
+  });
 </script>
 <!-- Una página suelta como preguntas.html: no carga app.js ni pide sesión, para
      que quien llega desde Google tenga su nota antes de saber qué es GradeHub.
@@ -412,7 +444,7 @@
   $('calc').addEventListener('submit',function(e){e.preventDefault();document.activeElement&&document.activeElement.blur();});
   campos.puntaje.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();campos.total.focus();}});
   $('abrir-gradehub').addEventListener('click',function(e){
-    if(typeof gtag!=='function')return;
+    if(typeof analiticaPermitida!=='function'||!analiticaPermitida()||typeof gtag!=='function')return;
     // Abrir en otra pestaña conserva el comportamiento normal del enlace.
     if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey){
       gtag('event','calculadora_abrir_gradehub');return;

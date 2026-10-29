@@ -5,7 +5,7 @@ const sesion=fs.readFileSync(__dirname+'/../app-session.js','utf8');
 let ok=0,fail=0;
 function chk(nombre,si){console.log(`  ${si?'OK  ':'FAIL'} ${nombre}`);si?ok++:fail++;}
 
-function calculadora(){
+function calculadora(permitida=true){
   const eventos=[],timers=[];
   function el(id,valor=''){
     return {id,value:valor,href:id==='abrir-gradehub'?'https://gradehub.cl/?desde=calculadora':'',
@@ -22,7 +22,7 @@ function calculadora(){
     querySelector:q=>q==='input[name="redondeo"]:checked'?radio:truncar};
   const location={href:'https://gradehub.cl/calculadora'};
   const ctx={document,location,localStorage:{getItem:()=>null,setItem(){}},
-    gtag:(...args)=>eventos.push(args),setTimeout:fn=>timers.push(fn),
+    analiticaPermitida:()=>permitida,gtag:(...args)=>{if(permitida)eventos.push(args)},setTimeout:fn=>timers.push(fn),
     gh_notaDesdePuntaje:(p,t)=>p<=t?{nota:4}:null,gh_tablaPuntaje:()=>({paso:1,ajustado:false,filas:[]})};
   const script=html.match(/<script>\s*(\(function\(\)\{[\s\S]*?\}\)\(\);)\s*<\/script>/);
   if(!script)throw Error('No se encontró el script de la calculadora');
@@ -50,8 +50,8 @@ function authDesde(query,tipo){
 
 (async()=>{
   const c=calculadora();
-  chk('GA usa el mismo ID y consentimiento denegado de la app',
-    html.includes('gtag/js?id=G-TS791S6PDM')&&html.includes("gtag('config', 'G-TS791S6PDM')")&&
+  chk('GA usa el mismo ID, autorización previa y almacenamiento denegado de la app',
+    html.includes('gtag/js?id=G-TS791S6PDM')&&html.includes("gtag('config', 'G-TS791S6PDM',")&&
     html.includes("analytics_storage: 'denied'")&&html.includes("ad_storage: 'denied'"));
   chk('sin resultado válido no hay evento de cálculo',!c.eventos.some(e=>e[1]==='calculadora_calculo'));
   c.ids.puntaje.value='25';c.ids.total.value='50';c.ids.total.listeners.input();
@@ -66,6 +66,11 @@ function authDesde(query,tipo){
   const modificado={button:0,metaKey:true,preventDefault(){this.prevented=true;}};
   c.ids['abrir-gradehub'].listeners.click.call(c.ids['abrir-gradehub'],modificado);
   chk('abrir en otra pestaña conserva el gesto normal',!modificado.prevented);
+
+  const sinPermiso=calculadora(false),normal={button:0,preventDefault(){this.prevented=true;}};
+  sinPermiso.ids.puntaje.value='25';sinPermiso.ids.total.value='50';sinPermiso.ids.total.listeners.input();
+  sinPermiso.ids['abrir-gradehub'].listeners.click.call(sinPermiso.ids['abrir-gradehub'],normal);
+  chk('sin consentimiento la calculadora funciona, no mide y el enlace no espera',sinPermiso.eventos.length===0&&!normal.prevented&&sinPermiso.timers.length===0);
 
   for(const tipo of ['afterSignup','afterLogin']){
     const h=authDesde('?desde=calculadora',tipo);

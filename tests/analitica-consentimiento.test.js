@@ -4,6 +4,9 @@ const app=fs.readFileSync(__dirname+'/../app.js','utf8');
 const bootstrap=(html.match(/<script id="analytics-bootstrap">([\s\S]*?)<\/script>/)||[])[1];
 assert(bootstrap,'la analítica necesita una puerta de consentimiento, no un script remoto al entrar');
 assert(!/<script\b[^>]*src="https:\/\/www.googletagmanager.com/.test(html),'no cargar Google antes de consentir');
+const calculadora=fs.readFileSync(__dirname+'/../calculadora.html','utf8');
+assert.equal((calculadora.match(/<script id="analytics-bootstrap">([\s\S]*?)<\/script>/)||[])[1],bootstrap,'app y calculadora comparten la misma puerta de consentimiento');
+assert(!/<script\b[^>]*src="https:\/\/www.googletagmanager.com/.test(calculadora),'calculadora tampoco carga GA antes de consentir');
 function visita(valor,falloStorage=false){
   const guardado=new Map(valor?[['gradehub_analitica_v1',valor]]:[]),scripts=[],eventos={};
   let recargas=0;

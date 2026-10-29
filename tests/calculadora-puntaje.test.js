@@ -54,7 +54,7 @@ const html = leer('calculadora.html');
 chk('carga engine.js sellado con la versión del deploy', html.includes('<script src="/engine.js?v=__ASSET_VERSION__"></script>'));
 chk('calcula con gh_notaDesdePuntaje', /gh_notaDesdePuntaje\(p,t,escala\)/.test(html));
 const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
-chk('no carga app.js ni pide sesión: solo engine.js y GA', scripts.length === 2 && scripts.includes('/engine.js?v=__ASSET_VERSION__') && scripts.some(s => s.startsWith('https://www.googletagmanager.com/gtag/js?id=')));
+chk('no carga app.js ni pide sesión: solo engine.js y GA condicionado a autorización', scripts.length === 1 && scripts.includes('/engine.js?v=__ASSET_VERSION__') && html.includes('id="analytics-bootstrap"') && html.includes('if(!_analiticaConsentida)'));
 chk('guarda en una clave propia, no en gradehub_v1', html.includes("'gradehub_calculadora_v1'") && !html.includes('gradehub_v1\''));
 chk('los campos piden teclado decimal', (html.match(/inputmode="decimal"/g) || []).length >= 6);
 // 16px o más evita que Safari en iPhone haga zoom al tocar el campo.

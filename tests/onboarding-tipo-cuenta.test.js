@@ -23,6 +23,7 @@ const ctx = {
   localStorage: { getItem() { return null }, setItem() {}, removeItem() {} },
   navigator: {}, location: { origin: '', pathname: '/', search: '', hash: '' },
   history: { replaceState() {} }, setTimeout, clearTimeout, console,
+  analiticaPermitida:()=>true,
   gtag: (tipo, evento, params) => eventos.push({ evento, params }),
   requestAnimationFrame() { return 0 }, cancelAnimationFrame() {},
   matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
@@ -47,6 +48,7 @@ function empezar() {
   for (const id of ['ob-name', 'ob-prof-nombre', 'ob-prof-presentacion']) el(id).value = '';
   el('ob-prof-error').textContent = '';
   run('obIniciar()');
+  el('ob-legal').checked=true; // Esta prueba del camino ya aceptó los términos.
 }
 const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
 
@@ -60,7 +62,7 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('en el HTML, Estudiante es el radio marcado', /value="estudiante" checked/.test(paso0) && !/value="profesor"[^>]*checked/.test(paso0));
   chk('son radios de verdad, en un radiogroup', /role="radiogroup"/.test(paso0) && (paso0.match(/type="radio"/g) || []).length === 2);
   chk('el estudiante recorre 0, 1, 2, 3, 4 y 5', JSON.stringify(run('obPasos("estudiante")')) === '[0,1,2,3,4,5]');
-  chk('con 14 años el estudiante entra', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',edad:14})`) === true);
+  chk('con 14 años el estudiante entra', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',edad:14,legal:true})`) === true);
   run('obNext()');
   chk('Continuar lleva al paso 1', run('obStep') === 1);
   el('ob-name').value = 'Ana'; run('obEdad=20'); run('obNext()');
@@ -72,8 +74,8 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('elegir Profesor cambia el tipo', run('obTipo') === 'profesor');
   chk('un valor que no es de la lista se ignora', (run(`elegirTipoCuenta('admin')`), run('obTipo')) === 'profesor');
   chk('el profesor recorre 0, 1 y su paso propio', JSON.stringify(run('obPasos()')) === '[0,1,6]');
-  chk('con 17 años no puede dar clases', run(`obStepValid(1,{tipo:'profesor',nombre:'Ana',edad:17})`) === false);
-  chk('con 18, sí', run(`obStepValid(1,{tipo:'profesor',nombre:'Ana',edad:18})`) === true);
+  chk('con 17 años no puede dar clases', run(`obStepValid(1,{tipo:'profesor',nombre:'Ana',edad:17,legal:true})`) === false);
+  chk('con 18, sí', run(`obStepValid(1,{tipo:'profesor',nombre:'Ana',edad:18,legal:true})`) === true);
   run('obEdad=17'); run('avisoEdadOnboarding()');
   chk('a los 17 le dice por qué y que puede volver a Estudiante', /18 años o más/.test(el('ob-edad-aviso').textContent) && /Estudiante/.test(el('ob-edad-aviso').textContent));
   run('obEdad=12'); run('avisoEdadOnboarding()');

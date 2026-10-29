@@ -1084,7 +1084,7 @@ function contexto({search='',sesion=false}={}){
     /Puedes descargarlas para tu propio\s+seguimiento, pero no las publicas/.test(terminos)&&/borras lo que hayas\s+descargado/.test(terminos));
   chk('el alumno sabe al compartir que el profesor puede descargarlas',
     /puede descargarlas para hacerte seguimiento/.test(hoja)&&/puede descargarlas en un\s+archivo/.test(privacidad));
-  chk('la privacidad ya no dice "con nadie" a secas',/Con nadie, salvo que tú lo decidas/.test(privacidad)&&/Con un profesor, si tú lo eliges/.test(privacidad));
+  chk('la privacidad distingue proveedores y profesores autorizados',/Usamos proveedores para operar la app/.test(privacidad)&&/Con un profesor, si tú lo eliges/.test(privacidad)&&!/Con nadie\.<\/strong>/.test(privacidad));
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
