@@ -14,14 +14,14 @@ const cargados=[...index.matchAll(/<script src="([^?\"]+)/g)].map(m=>m[1]);
 chk('index carga todos los scripts principales en orden',JSON.stringify(cargados.slice(-scripts.length))===JSON.stringify(scripts));
 
 const agents=leer('AGENTS.md');
-chk('AGENTS apunta el render principal a render-main.js',/pantalla principal\s*\|\s*`render-main\.js`/.test(agents));
-chk('AGENTS apunta auth y sync a app-session.js',/auth y sync a Supabase\s*\|\s*`app-session\.js`/.test(agents));
+chk('AGENTS apunta el render principal a sus fuentes',/Inicio, ficha, estadísticas[^\n]*`src\/render-main\/`/.test(agents));
+chk('AGENTS apunta auth y sync a sus fuentes',/auth, recuperación, persistencia y sync[^\n]*`src\/app-session\/`/.test(agents));
 const agentsPlano=agents.replace(/\s+/g,' ');
 chk('AGENTS enumera los scripts en el orden real',agentsPlano.includes('`data.js` → `engine.js` → `app.js` → `app-session.js` → `marketplace.js` → `render-main.js` → `render-agenda.js`'));
 chk('AGENTS no deja tareas ya resueltas como pendientes',!agents.includes('Nadie puede cambiar su correo')&&!agents.includes('Faltan colores de fondo elegibles.'));
 
 const readme=leer('README.md');
-chk('README documenta los cortes de sesión y render',/\| `app-session\.js` \|/.test(readme)&&/\| `render-main\.js` \|/.test(readme));
+chk('README documenta los cortes de sesión y render',/\| `app-session\.js` \(generado desde `src\/app-session\/`\) \|/.test(readme)&&/\| `render-main\.js` \(generado desde `src\/render-main\/`\) \|/.test(readme));
 chk('README conserva el orden real de los scripts',scripts.every((f,i)=>readme.indexOf('`'+f+'`')>=0&&(i===0||readme.indexOf('`'+scripts[i-1]+'`')<readme.indexOf('`'+f+'`'))));
 
 const estado=leer('bin/estado.sh');

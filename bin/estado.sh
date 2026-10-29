@@ -63,7 +63,8 @@ else
 fi
 
 echo
-echo "=== TAMAÑOS ==="
+node bin/compilar-js.js || exit 1
+echo "=== TAMAÑOS (generados; editar src/) ==="
 wc -c index.html data.js engine.js app.js app-session.js marketplace.js render-main.js render-agenda.js styles.css sw.js | sed '$d'
 
 echo
@@ -78,4 +79,4 @@ fi
 
 echo
 echo "Mapa de dónde está cada cosa: sección 'Dónde está cada cosa' de AGENTS.md."
-echo "No leas app.js entero (~40k tokens): ubica con rg y lee el trozo necesario."
+echo "Busca una función o tema: npm run buscar -- consulta (fuentes en src/)."

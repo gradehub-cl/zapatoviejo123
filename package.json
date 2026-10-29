@@ -11,12 +11,18 @@
     "sql": "node bin/sql.js",
     "ios:preparar": "bash bin/preparar-ios.sh",
     "ios:abrir": "npx --no-install cap open ios",
-    "ios:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh"
+    "ios:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh",
+    "build": "node bin/compilar-js.js",
+    "prepare": "npm run build",
+    "js:watch": "node bin/compilar-js.js --watch",
+    "buscar": "node bin/buscar-js.js",
+    "predeploy": "npm run build"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.2",
     "@electric-sql/pglite": "0.3.16",
     "@supabase/supabase-js": "2.112.2",
+    "acorn": "8.15.0",
     "wrangler": "4.123.0"
   },
   "dependencies": {
