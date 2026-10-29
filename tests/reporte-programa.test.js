@@ -47,6 +47,12 @@ async function probarSql(){
     assert.equal(bandeja[0].user_id,undefined);
     assert.ok(bandeja.some(x=>x.descripcion==='El programa dice que vale 40 %'));
     await db.exec('reset role');
+    await db.exec(leer('supabase/reporte_programa.sql'));
+    assert.equal((await q('select count(*)::int n from reportes_programa'))[0].n,2,'reaplicar SQL conserva ambos reportes');
+    await sesion(U2);
+    await db.exec('set role authenticated');
+    assert.equal((await q('select id from reportes_programa')).length,1,'reaplicar conserva el aislamiento');
+    await db.exec('reset role');
     await q('delete from auth.users where id=$1',[U1]);
     assert.equal((await q('select count(*)::int n from reportes_programa'))[0].n,1);
     console.log('OK SQL: texto, frecuencia, RLS entre dos cuentas, MFA y cascada');
