@@ -1,0 +1,218 @@
+[
+  {
+    "prefix": "intro-375-claro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-375-claro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-375-claro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "375-claro",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-375-claro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-375-claro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-375-claro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-375-oscuro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-375-oscuro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-375-oscuro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-375-oscuro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-375-oscuro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-375-oscuro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-1280-claro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-1280-claro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-1280-claro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "1280-claro",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-1280-claro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-1280-claro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-1280-claro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-1280-oscuro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-1280-oscuro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-1280-oscuro",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  },
+  {
+    "prefix": "intro-1280-oscuro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "termo-1280-oscuro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "electro-1280-oscuro-texto200",
+    "periodoVisibleArriba": true,
+    "fechasHistoricasNoIncluidas": true,
+    "sinNotasInventadas": true,
+    "sinOverflow": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "sinEstrellas": true,
+    "agregarConMas": true,
+    "sinPeriodoOculto": true
+  }
+]
