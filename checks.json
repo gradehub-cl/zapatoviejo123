@@ -1,0 +1,82 @@
+[
+  {
+    "prefix": "375-claro",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "1280-claro",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "target44": true,
+    "focoVisible": true,
+    "cierreReal": true,
+    "reloadOculto": true,
+    "tardeOculto": true,
+    "vuelveMedianoche": true,
+    "datosAcademicosIntactos": true
+  }
+]
