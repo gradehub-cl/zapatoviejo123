@@ -1,0 +1,98 @@
+[
+  {
+    "prefix": "375-claro",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "1280-claro",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "huecos": 3,
+    "rellenos": 1,
+    "metrica": {
+      "antes": 3,
+      "ahora": 1,
+      "cambio": null
+    },
+    "tablaAccesible": true,
+    "focoVisible": true
+  }
+]
