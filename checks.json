@@ -1,0 +1,74 @@
+[
+  {
+    "prefix": "375-claro",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "1280-claro",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "gaAlAutorizar": 3,
+    "gaTrasRevocar": 3,
+    "cuentaExistenteSinBarrera": true,
+    "datosPreservados": true,
+    "aceptacionSeparada": true,
+    "profesor18": true
+  }
+]
