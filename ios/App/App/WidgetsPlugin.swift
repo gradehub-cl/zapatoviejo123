@@ -67,9 +67,23 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
                 #endif
                 await a.end(nil, dismissalPolicy: .immediate)
             }
+            // Si cambió la hora de una prueba que ya está en pantalla, la clave
+            // es la misma (va con la fecha, no con la hora): se actualiza la
+            // tarjeta en vez de dejarla con la hora vieja. Una programada que
+            // todavía no aparece no se puede reprogramar: se termina y se vuelve
+            // a pedir abajo, con su nueva hora de partida.
+            let porClave = Dictionary(pedidas.map { ($0.0.clave, $0) }, uniquingKeysWith: { a, _ in a })
+            for a in Activity<ActividadPruebaAtributos>.activities where a.content.state.sensacion == nil {
+                guard let (_, estado, _) = porClave[a.attributes.clave],
+                      a.content.state.inicio != estado.inicio || a.content.state.fin != estado.fin else { continue }
+                if Self.esProgramada(a) { await a.end(nil, dismissalPolicy: .immediate) }
+                else { await a.update(Self.contenido(estado)) }
+            }
             var iniciadas = 0
             if ActivityAuthorizationInfo().areActivitiesEnabled {
-                let vigentes = Set(Activity<ActividadPruebaAtributos>.activities.map { $0.attributes.clave })
+                let vigentes = Set(Activity<ActividadPruebaAtributos>.activities
+                    .filter { $0.activityState == .active || $0.activityState == .stale || Self.esProgramada($0) }
+                    .map { $0.attributes.clave })
                 for (atributos, estado, desde) in pedidas where !vigentes.contains(atributos.clave) {
                     let contenido = Self.contenido(estado)
                     if desde <= Date() {
@@ -85,6 +99,12 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             call.resolve(["iniciadas": iniciadas])
         }
+    }
+
+    @available(iOS 16.2, *)
+    static func esProgramada(_ a: Activity<ActividadPruebaAtributos>) -> Bool {
+        if #available(iOS 26.0, *) { return a.activityState == .pending }
+        return false
     }
 
     // Lo que se respondió en "¿Cómo te fue?" con la app cerrada.
