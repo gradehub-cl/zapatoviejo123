@@ -27,6 +27,10 @@ Verificación de la integración anterior: 362 tests, JS/CSS y navegador sintét
 en ocho variantes (375/1280 px, claro/oscuro, texto normal/200%), con app y
 calculadora abiertas, autorización/revocación entre pestañas y datos conservados.
 
+Después de incorporarse #806 y #801 a main, se repitió la integración sobre
+`25e4600`: 365 tests aprobados y las ocho variantes del navegador nuevamente
+en verde. Se conservan también Canvas y los reportes de programas.
+
 Los demás hallazgos jurídicos de la revisión original siguen pendientes de
 verificación; no se dan por resueltos al integrar los conflictos.
 
