@@ -1,0 +1,1 @@
+Capturas sintéticas del historial de Estadísticas. 375 y 1280 px, claro y oscuro, texto al 200%, filtros y 24 semestres. El antes corresponde a main tras el merge de #901 (7261ce0). No contienen cuentas ni notas reales.
