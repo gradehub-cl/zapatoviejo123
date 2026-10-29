@@ -4806,57 +4806,42 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
     <details class="ah-metodo"><summary>Cómo se calcula</summary><p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p></details>
   </section>`;
 }
-// Una serie: la diferencia con el curso en cada evaluación comparable. La
-// línea del curso (0) va tenue. Si los ramos empezaron en días distintos, cada
-// uno lleva su marca y su fecha en la leyenda; los puntos anteriores van huecos.
-// Cada punto tiene un área de 12 px para mostrar su detalle.
-function graficoAntesAhoraSVG(m,{seccion=false}={}){
-  const referencia=seccion?'su sección':'el curso',etiqueta=seccion?'sección':'curso';
+// El mismo gráfico de evolución del historial. Aquí la magnitud sigue siendo
+// nota menos promedio del curso/sección: 0 es su referencia, no una nota 4,0.
+// Cada ramo tiene su propia fecha de inicio y se mantiene en una serie separada.
+function graficoAntesAhoraSVG(m,{seccion=false,inicios=null}={}){
+  const referencia=seccion?'su sección':'el curso',etiqueta=seccion?'Sección':'Curso';
   const pts=m.evaluaciones.filter(e=>e.curso!==null);
   if(pts.length<2)return '';
-  // PL deja lugar a la escala de la izquierda (2026-10-23): sin ella no se leía
-  // cuánto sobre o bajo el curso iba cada punto.
-  const W=320,H=96,P=14,PL=30;
-  const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
-  // Una línea por ramo, cada una de su color, con su nombre en la leyenda (el
-  // color solo no basta). Con un ramo los puntos van parejos; con varios, por
-  // fecha, para que las líneas calcen en el tiempo.
   const ramos=[...new Set(pts.map(e=>e.ramoId??e.ramo))];
-  const varios=ramos.length>1;
-  const inicios=ramos.map(clave=>{const e=pts.find(p=>(p.ramoId??p.ramo)===clave);return {nombre:e.ramo,fecha:e.inicio};});
-  const variosInicios=varios&&new Set(inicios.map(e=>e.fecha).filter(Boolean)).size>1;
+  const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
   const t=f=>Date.parse(f+'T12:00:00Z');
-  const fechasEje=variosInicios?pts.map(e=>e.fecha).concat(inicios.map(e=>e.fecha).filter(Boolean)):pts.map(e=>e.fecha);
-  const t0=Math.min(...fechasEje.map(t)),t1=Math.max(...fechasEje.map(t));
-  const xFecha=f=>PL+(t(f)-t0)/(t1-t0)*(W-PL-P);
-  const xs=pts.map((e,i)=>varios&&t1>t0?xFecha(e.fecha):PL+i*(W-PL-P)/(pts.length-1));
-  const y=d=>H/2-(d/lim)*(H/2-P);
-  const corte=pts.findIndex(e=>e.lado==='ahora');
-  const unCorte=!variosInicios&&(corte<0||pts.slice(corte).every(e=>e.lado==='ahora'));
-  const xc=unCorte&&corte>0?((xs[corte-1]+xs[corte])/2).toFixed(1):null;
-  const marcas=variosInicios?inicios.map((e,k)=>{
-    if(!e.fecha)return '';
-    const iguales=inicios.slice(0,k).filter(p=>p.fecha===e.fecha).length;
-    const x=Math.min(W-P,Math.max(P,xFecha(e.fecha)+iguales*3)).toFixed(1);
-    return `<line class="ah-marca-ramo ah-serie-${k%4}" x1="${x}" y1="4" x2="${x}" y2="${H-4}"/>`;
-  }).join(''):xc?`<line class="ah-inicio" x1="${xc}" y1="4" x2="${xc}" y2="${H-4}"/><text class="ah-eje" x="${(+xc+4).toFixed(1)}" y="12">empezó</text>`:'';
-  const series=ramos.map((clave,k)=>{
-    const idx=pts.map((e,i)=>(e.ramoId??e.ramo)===clave?i:-1).filter(i=>i>=0);
-    const linea=idx.map((i,j)=>`${j?'L':'M'}${xs[i].toFixed(1)} ${y(pts[i].nota-pts[i].curso).toFixed(1)}`).join(' ');
-    const puntos=idx.map(i=>{const e=pts[i],cx=xs[i].toFixed(1),cy=y(e.nota-e.curso).toFixed(1);
-      return `<g><title>${esc(e.evaluacion)} · ${esc(e.ramo)} · ${esc(fechaCorta(e.fecha))}${e.lado==='antes'?' · antes':' · ahora'}: ${esc(fmt(e.nota))} (${etiqueta} ${esc(fmt(e.curso))})</title><circle class="ah-zona" cx="${cx}" cy="${cy}" r="12"/><circle class="ah-punto${e.lado==='antes'?' ah-antes':''}" cx="${cx}" cy="${cy}" r="4"/></g>`;}).join('');
-    return `<g class="ah-serie-${k%4}">${idx.length>1?`<path class="ah-linea" d="${linea}"/>`:''}${puntos}</g>`;
+  const periodos=(lista)=>['antes','ahora'].map(lado=>{const n=lista.filter(e=>e.lado===lado).length;return `<span>${lado==='antes'?'Antes':'Ahora'} · ${n} ${n===1?'evaluación':'evaluaciones'}</span>`;}).join('');
+  return ramos.map((clave,k)=>{
+    const lista=pts.filter(e=>(e.ramoId??e.ramo)===clave),inicio=lista[0].inicio;
+    const fechaInicio=inicio&&Number.isFinite(t(inicio))?inicio:null;
+    const fechas=lista.map(e=>t(e.fecha)).concat(fechaInicio?[t(fechaInicio)]:[]);
+    const t0=Math.min(...fechas),t1=Math.max(...fechas);
+    const x=f=>t1>t0?(t(f)-t0)/(t1-t0)*100:50;
+    const titulo=lista[0].ramo,compartio=inicios?.get(clave)?.fuente==='compartio';
+    const verbo=compartio?'Compartió notas':'Empezó contigo';
+    const resumen=`Diferencia con ${referencia} en ${lista.length} evaluaciones de ${titulo}${fechaInicio?`; ${compartio?'compartió notas':'empezó'} el ${fechaCorta(fechaInicio)}`:''}. Línea central: 0, el promedio ${seccion?'de su sección':'del curso'}.`;
+    const serie=lista.map(e=>({valor:e.nota-e.curso,x:x(e.fecha),antes:e.lado==='antes',
+      etiqueta:`${e.evaluacion} · ${fechaCorta(e.fecha)}`,
+      valorTexto:(e.nota>e.curso?'+':'')+nf(e.nota-e.curso,2)+' puntos',
+      detalle:`Nota ${nf(e.nota,2)} · ${etiqueta} ${nf(e.curso,2)} · ${e.lado==='antes'?'Antes':'Ahora'}`,
+      lectura:`${e.evaluacion} · ${e.ramo} · ${fechaCorta(e.fecha)} · ${e.lado==='antes'?'antes':'ahora'}: ${nf(e.nota,2)} (${etiqueta.toLowerCase()} ${nf(e.curso,2)}). ${e.nota>e.curso?'+':''}${nf(e.nota-e.curso,2)} puntos frente ${seccion?'a su sección':'al curso'}`}));
+    const grafico=lista.length>=2?htmlGraficoEvolucion(serie,'alumno-'+m.id+'-'+k,`diferencia con ${referencia}`,{
+      piso:-lim,techo:lim,referencia:0,marcas:[lim,0,-lim],rotulo:n=>n>0?'+'+n:String(n),resumen,
+      marca:fechaInicio?{x:x(fechaInicio),etiqueta:(compartio?'Compartió':'Empezó')+' · '+fechaCorta(fechaInicio)}:null
+    }):'<p class="clase-sin-datos">Falta otra evaluación comparable para mostrar su evolución.</p>';
+    return `<section class="ah-evolucion" aria-label="${esc(resumen)}"><header><h3>${esc(titulo)}</h3><p>${fechaInicio?verbo+' el '+esc(fechaCorta(fechaInicio)):'Sin fecha de inicio'}</p></header>
+      <p class="ah-evolucion-referencia">Puntos frente ${seccion?'a su sección':'al curso'} · 0 = su promedio</p>
+      ${grafico}<p class="ah-evolucion-periodos">${periodos(lista)}</p></section>`;
   }).join('');
-  const inicioTexto=e=>e.fecha?` · desde el ${fechaCorta(e.fecha)}`:' · sin fecha de inicio';
-  const leyenda=varios?`<p class="ah-leyenda">${inicios.map((e,k)=>`<span class="ah-serie-${k%4}"><i aria-hidden="true"></i>${esc(e.nombre)}${esc(inicioTexto(e))}</span>`).join('')}</p>`:'';
-  const periodo=(lado,nombre)=>{const n=pts.filter(e=>e.lado===lado).length;return `<span><i class="ah-dot ah-dot-${lado}" aria-hidden="true"></i>${nombre} · ${n} ${n===1?'evaluación':'evaluaciones'}</span>`;};
-  const periodos=`<p class="ah-leyenda-fila">${periodo('antes','Antes')}${periodo('ahora','Ahora')}</p>`;
-  const resumen=`Diferencia con ${referencia} en ${pts.length} evaluaciones${varios?` de ${ramos.length} ramos`:''}: antes ${frenteAlCursoPanel(m.antes.diferencia,referencia)}, ahora ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}${varios?'; '+inicios.map(e=>e.nombre+inicioTexto(e)).join('; '):inicios[0].fecha?`; empezó el ${fechaCorta(inicios[0].fecha)}`:''}`;
-  return `<svg class="ah-grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(resumen)}"><line class="ah-cero" x1="${PL}" y1="${H/2}" x2="${W-P}" y2="${H/2}"/><text class="ah-eje" x="0" y="${P+4}">+${lim}</text><text class="ah-eje" x="0" y="${H/2+4}">${etiqueta}</text><text class="ah-eje" x="0" y="${H-P+4}">−${lim}</text>${marcas}${series}</svg>
-    <p class="ah-fechas"><span>${esc(fechaCorta(pts[0].fecha))}</span><span>${esc(fechaCorta(pts[pts.length-1].fecha))}</span></p>
-    ${periodos}${leyenda}<p class="ah-pie">${varios?'Por fecha.':'Evaluaciones en orden de fecha, con igual espacio entre puntos.'} Diferencia en puntos de nota. La línea central es el promedio ${seccion?'de su sección':'del curso'}: arriba, sobre ese promedio; abajo, bajo él.</p>`;
 }
-function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false}={}){
+
+function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false,inicios=null}={}){
   const referencia=seccion?'su sección':'el curso';
   if(!m||!m.evaluaciones.length)return '';
   const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'
@@ -4867,7 +4852,7 @@ function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false}={}){
   return `<div class="ah-alumno">
     <p class="ah-alumno-resumen">${resumen}</p>
     ${sinSeccion?'':`<p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia,referencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}</span></p>`}
-    <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion})}</div>
+    <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion,inicios})}</div>
     <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
       <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>${seccion?'Sección':'Curso'}</th></tr></thead><tbody>${filas}</tbody></table>
       ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
@@ -5045,7 +5030,7 @@ function resumenInicioAlumnosHTML(r){
     </div>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
-  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
+  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{inicios:new Map((al.ramos||[]).map(r=>[r.id,inicioRamoPanel(al,r)])),seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
     ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
     <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>`;
 }
@@ -5511,7 +5496,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     if(!seleccionado)return;
     raiz.querySelector('#alumnos-ficha-titulo').textContent=seleccionado.nombre_visible||'Alumno';
     fichaContenido.innerHTML=conUniversidadPanel(seleccionado.tenant,()=>contenidoAlumnoPanelHTML(seleccionado,compDe,new Date()));
-    enlazarQuitar();enlazarInicio();
+    enlazarQuitar();enlazarInicio();enlazarGraficosEvolucion(fichaContenido);
   };
   const activarVista=nombre=>{
     if(!vigente())return;
