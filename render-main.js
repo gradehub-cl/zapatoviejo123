@@ -1058,8 +1058,10 @@ function renderStats(){
       <span class="section-hd-title">Avance del semestre</span>
     </div>
     <div class="stat-card stats-situation-card stats-anillos${avance.pct===100?' is-complete':''}" style="margin:0 20px 16px;">
-      <div class="stats-anillos-fila">${anilloPromedio}${anilloAvance}</div>
-      <div class="stats-anillos-pie"><span><b>${totalNotas}</b> nota${totalNotas!==1?'s':''} ingresada${totalNotas!==1?'s':''}</span><span>del peso evaluable</span></div>
+      <div class="stats-anillos-fila">
+        <figure class="stats-anillo-dato">${anilloPromedio}<figcaption class="stats-anillo-pie"><b>${totalNotas}</b> nota${totalNotas!==1?'s':''} ingresada${totalNotas!==1?'s':''}</figcaption></figure>
+        <figure class="stats-anillo-dato">${anilloAvance}<figcaption class="stats-anillo-pie">del peso evaluable</figcaption></figure>
+      </div>
       <div class="stats-situation-reading">${lectura}</div>
     </div>
     `;
