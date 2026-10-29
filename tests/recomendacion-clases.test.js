@@ -1,6 +1,5 @@
-// La recomendación de clases en Inicio: una en la mañana y una en la tarde
-// (decisión de Lucas del 2026-09-25), elegida en el navegador, que se cierra
-// hasta la próxima franja y que nunca se guarda en gradehub_v1.
+// La recomendación de Inicio rota al abrir la app y la X la oculta hasta el
+// día siguiente, desde el primer cierre. Nunca se guarda en gradehub_v1.
 const fs=require('fs'),path=require('path'),vm=require('vm');
 const raiz=path.join(__dirname,'..');
 const src=['data.js','engine.js','app.js','app-session.js','marketplace.js'].map(f=>fs.readFileSync(path.join(raiz,f),'utf8')).join('\n');
@@ -90,35 +89,56 @@ ctx.__uno=[aviso('solo')];
 chk('con una sola clase, sale en todas las aperturas',
   [0,1,2].every(n=>run(`seleccionarClaseApoyo(__uno,[__r0],'uc',{ahora:${lunes},turno:${n}})?.anuncio.id`)==='solo'));
 
-console.log('\n=== Cerrarla: al menos una vez al día, nunca para siempre (2026-10-27) ===');
-// El escenario que pidió Lucas, día por día. El primer día es el del primer
-// cierre de esa campaña: verla antes sin cerrarla no cuenta.
+console.log('\n=== La X oculta los anuncios hasta el día siguiente (2026-10-28) ===');
 const cerrar=t=>run(`textoCierreClase(descartarRecomendacionClase('a1',${t}))`);
 const estadoGuardado=()=>JSON.parse(guardado.gradehub_marketplace_v1);
 delete guardado.gradehub_marketplace_v1;
 const domingo=Date.parse('2026-09-27T10:00:00');
 let e1=dia(complicado,{},domingo).estado;guardado.gradehub_marketplace_v1=JSON.stringify(e1);
-chk('verla un día sin cerrarla no empieza la cuenta',!e1.primerCierre);
-chk('primer día que la cierra, en la mañana: se muestra',dia(complicado,e1,lunes).sel!==null);
-chk('al cerrarla en la mañana dice que vuelve en la tarde',cerrar(lunes)==='Listo, no te la mostramos hasta la tarde');
+chk('verla sin cerrarla no la oculta',!e1.cerrada&&dia(complicado,e1,lunes).sel!==null);
+chk('el primer cierre en la mañana avisa que no habrá más anuncios hoy',cerrar(lunes)==='Listo, no te mostramos más anuncios por hoy');
 let e2=estadoGuardado();
 chk('y no vuelve en lo que queda de mañana, aunque se abra de nuevo',dia(complicado,e2,lunes+3600e3,'v2').sel===null);
-chk('en la tarde vuelve a aparecer',dia(complicado,e2,lunesTarde,'v3').sel!==null);
-chk('al cerrarla en la tarde dice que no más por hoy',cerrar(lunesTarde)==='Listo, no te la mostramos más por hoy');
-let e3=estadoGuardado();
-chk('y no vuelve en lo que queda del día',dia(complicado,e3,lunesTarde+3*3600e3,'v4').sel===null);
-chk('al día siguiente en la mañana vuelve',dia(complicado,e3,martes,'v5').sel!==null);
-chk('desde el segundo día, cerrarla en la mañana ya es por todo el día',cerrar(martes)==='Listo, no te la mostramos más por hoy');
+chk('tampoco vuelve a las 14:00 del primer día',dia(complicado,e2,Date.parse('2026-09-28T14:00:00'),'v3').sel===null);
+chk('ni en la tarde aunque se vuelva a abrir',dia(complicado,e2,lunesTarde,'v4').sel===null);
+chk('cerrarla no se reemplaza por otra campaña',dia(complicado,e2,lunesTarde,'otra-visita').sel===null);
+chk('antes de medianoche todavía está oculta',dia(complicado,e2,Date.parse('2026-09-28T23:59:59.999'),'v5').sel===null);
+const medianoche=Date.parse('2026-09-29T00:00:00');
+chk('el cierre vence exactamente a la medianoche, no 24 horas después',e2.ocultaHasta===medianoche);
+chk('en la medianoche vuelve incluso sin cambiar de visita',dia(complicado,e2,medianoche,'v5').sel!==null);
+chk('al día siguiente en la mañana vuelve',dia(complicado,e2,martes,'v6').sel!==null);
+cerrar(martes);
 let e4=estadoGuardado();
 const martesTarde=Date.parse('2026-09-29T16:00:00'),miercoles=Date.parse('2026-09-30T09:00:00');
 chk('y no vuelve en la tarde de ese día',dia(complicado,e4,martesTarde,'v6').sel===null);
 chk('al otro día vuelve: nunca se esconde para siempre',dia(complicado,e4,miercoles,'v7').sel!==null);
 chk('cerrar la misma clase muchas veces no la descarta',(()=>{cerrar(miercoles);return dia(complicado,estadoGuardado(),Date.parse('2026-10-01T09:00:00'),'v8').sel?.anuncio.id;})()!==undefined);
-chk('otra campaña tiene su propio primer día: su primer cierre en la mañana vuelve en la tarde',
-  run(`textoCierreClase(descartarRecomendacionClase('a2',${Date.parse('2026-10-01T10:00:00')}))`)==='Listo, no te la mostramos hasta la tarde');
-chk('un cierre guardado con la versión anterior sigue valiendo en su franja',
+chk('una campaña nueva también se cierra por todo el día desde la primera vez',
+  run(`textoCierreClase(descartarRecomendacionClase('a2',${Date.parse('2026-10-01T10:00:00')}))`)==='Listo, no te mostramos más anuncios por hoy'&&
+  dia(complicado,estadoGuardado(),Date.parse('2026-10-01T16:00:00'),'v9').sel===null);
+chk('un cierre antiguo sin ocultaHasta se respeta por todo el día',
   dia(complicado,{franja:'2026-09-28-manana',cerrada:true,descartadasDefinitivas:['a1']},lunes,'v9').sel===null&&
+  dia(complicado,{franja:'2026-09-28-manana',cerrada:true},lunesTarde,'v9').sel===null&&
   dia(complicado,{franja:'2026-09-28-manana',cerrada:true,descartadasDefinitivas:['a1']},martes,'v9').sel?.anuncio.id==='a1');
+const cierreAnterior={franja:'2026-09-28-manana',cerrada:true,ocultaHasta:Date.parse('2026-09-28T14:00:00'),primerCierre:{a1:'2026-09-28'},aperturas:8};
+chk('un cierre anterior que vencía a las 14:00 ahora dura hasta mañana',dia(complicado,cierreAnterior,lunesTarde,'v10').sel===null&&dia(complicado,cierreAnterior,medianoche,'v11').sel!==null);
+guardado.gradehub_marketplace_v1=JSON.stringify(cierreAnterior);cerrar(martes);
+chk('conserva campos guardados y la rotación de versiones anteriores',estadoGuardado().primerCierre.a1==='2026-09-28'&&estadoGuardado().aperturas===8);
+cerrar(Date.parse('2026-09-29T23:59:59'));
+chk('cerrar justo antes de medianoche no oculta hasta la noche siguiente',dia(complicado,estadoGuardado(),Date.parse('2026-09-30T00:00:00'),'v12').sel!==null);
+
+// La próxima fecha local es robusta a cambio de mes/año y al horario de verano.
+const zonaAnterior=process.env.TZ;process.env.TZ='America/Santiago';
+for(const [nombre,cierre,retorno] of [
+  ['fin de mes','2026-10-31T22:00:00','2026-11-01T00:00:00'],
+  ['fin de año','2026-12-31T22:00:00','2027-01-01T00:00:00'],
+  ['cambio de hora en abril','2026-04-04T10:00:00','2026-04-05T00:00:00'],
+  ['cambio de hora en septiembre','2026-09-05T10:00:00','2026-09-06T00:00:00']]){
+  const t=Date.parse(cierre),vuelve=Date.parse(retorno);cerrar(t);const e=estadoGuardado();
+  chk(nombre+': sigue oculta antes de cambiar el día',e.ocultaHasta===vuelve&&dia(complicado,e,vuelve-1,'antes').sel===null);
+  chk(nombre+': vuelve en el primer instante del día siguiente',dia(complicado,e,vuelve,'despues').sel!==null);
+}
+if(zonaAnterior===undefined)delete process.env.TZ;else process.env.TZ=zonaAnterior;
 
 console.log('\n=== Dónde vive ===');
 chk('se guarda en su propia clave, no en gradehub_v1',!('gradehub_v1' in guardado)&&'gradehub_marketplace_v1' in guardado);
@@ -127,6 +147,7 @@ chk('un valor dañado no rompe Inicio',JSON.stringify(run('leerEstadoMarketplace
 const mk=fs.readFileSync(path.join(raiz,'marketplace.js'),'utf8'),rm=fs.readFileSync(path.join(raiz,'render-main.js'),'utf8');
 const bloque=mk.slice(mk.indexOf('function pintarRecomendacionClase'),mk.indexOf('async function abrirClaseRecomendada'));
 const contenido=mk.slice(mk.indexOf('function contenidoRecomendacionClase'),mk.indexOf('function pintarRecomendacionClase'));
+chk('la X anuncia el cierre por hoy para lectores de pantalla',/aria-label="Ocultar anuncios por hoy"/.test(contenido));
 chk('el banner dice publicidad, igual que la vista previa del profesor',
   /Publicidad · \$\{etiquetaTipoClase\(a\)\}/.test(contenido)&&/'Clase particular'/.test(mk.slice(mk.indexOf('function etiquetaTipoClase'),mk.indexOf('function etiquetaTipoClase')+120))
   &&/contenidoRecomendacionClase\(anuncio\)/.test(bloque));

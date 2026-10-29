@@ -909,7 +909,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .clase-apoyo.en-casilla:not(:has(.clase-apoyo-datos)) .clase-apoyo-ver{position:static;}
 /* 44px = alto del título más los datos: logo y texto se leen como un bloque. */
 .clase-apoyo.en-casilla .clase-apoyo-logo{height:44px;max-width:104px;margin-right:22px;}
-.clase-apoyo.en-casilla .clase-apoyo-cerrar{position:absolute;top:4px;right:4px;width:32px;height:32px;}
+.clase-apoyo.en-casilla .clase-apoyo-cerrar{position:absolute;top:4px;right:4px;width:44px;height:44px;}
 /* Vista previa del profesor: una réplica mínima de Inicio, sin datos reales. */
 .profesor-vista-previa{display:grid;gap:8px;}
 .profesor-vista-previa .ramo-row{margin:0;cursor:default;pointer-events:none;}
