@@ -61,27 +61,31 @@ function repintarSelectorSemestreAnterior(){
 function setAnioSemestreAnterior(v){histManual.anio=Number(v);repintarSelectorSemestreAnterior();}
 function setPeriodoSemestreAnterior(v){histManual.periodo=v;repintarSelectorSemestreAnterior();}
 
-function renderBusquedaSemestreAnterior(q){
-  const box=document.getElementById('m-hist-resultados');if(!box)return;
+function renderBusquedaSemestreAnterior(q,{editar=false}={}){
+  const prefijo=editar?'m-hist-ren':'m-hist';
+  const box=document.getElementById(prefijo+'-resultados');if(!box)return;
   const texto=String(q||'').trim();
   // Con una sola letra el catálogo devuelve medio semestre: no ayuda a nadie.
   if(texto.length<BUSQUEDA_MIN){box.innerHTML='';return;}
   const repintar=()=>{
-    const input=document.getElementById('m-hist-buscar');
-    if(input&&input.value===q)renderBusquedaSemestreAnterior(q);
+    const input=document.getElementById(prefijo+'-buscar');
+    if(input&&input.value===q)renderBusquedaSemestreAnterior(q,{editar});
   };
   repintarAlCargarMallas(S.tenant,repintar);
   repintarAlCargarCursosUC(S.tenant,repintar,texto,S.carrera);
+  const h=editar&&S.historial.find(x=>x.id===histRename.id);
+  const elegidos=editar?[...(h?.ramos||[]),...histRename.nuevos]:histManual.ramos;
+  const agregar=editar?'agregarRamoHistRename':'agregarRamoSemestreAnterior';
   const res=searchCatalog(texto,S.tenant,S.carrera,8)
-    .filter(c=>!histManual.ramos.some(r=>normName(r.nombre)===normName(c.nombre)));
+    .filter(c=>!elegidos.some(r=>r&&normName(r.nombre)===normName(c.nombre)));
   box.innerHTML=(!res.length&&catalogoUcEnCamino(S.tenant)
       ?'<p class="course-picker-reassurance">Buscando en el catálogo de la UC…</p>':'')
     +res.map(c=>`
-    <button type="button" class="course-picker-result" onclick="agregarRamoSemestreAnterior('${obCodificarNombre(c.nombre)}','${obCodificarNombre(c.sigla||'')}')">
+    <button type="button" class="course-picker-result" onclick="${agregar}('${obCodificarNombre(c.nombre)}','${obCodificarNombre(c.sigla||'')}')">
       <span class="course-picker-result-name">${esc(c.nombre)}</span>
     </button>`).join('')
     // Un ramo de hace dos años puede no estar en el catálogo de hoy: se agrega igual.
-    +`<button type="button" class="course-picker-manual" onclick="agregarRamoSemestreAnterior('${obCodificarNombre(texto)}')">Agregar «${esc(texto)}»</button>`;
+    +`<button type="button" class="course-picker-manual" onclick="${agregar}('${obCodificarNombre(texto)}')">Agregar «${esc(texto)}»</button>`;
 }
 
 function agregarRamoSemestreAnterior(cod,siglaCod){
