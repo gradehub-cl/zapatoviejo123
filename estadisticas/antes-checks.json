@@ -1,0 +1,202 @@
+[
+  {
+    "prefix": "375-claro",
+    "geometria": [
+      {
+        "centroCirculo": 110.25,
+        "centroTexto": 110.25,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 264.75,
+        "centroTexto": 264.75,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 187.5,
+        "centroTexto": 187.4921875,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 187.5,
+        "centroTexto": 187.5,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "375-oscuro",
+    "geometria": [
+      {
+        "centroCirculo": 110.25,
+        "centroTexto": 110.25,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 264.75,
+        "centroTexto": 264.75,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 187.5,
+        "centroTexto": 187.4921875,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 187.5,
+        "centroTexto": 187.5,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-claro",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 512.421875,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 991.578125,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 512.4140625,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 991.578125,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-oscuro",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 512.421875,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 991.578125,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "geometria": [
+      {
+        "centroCirculo": 512.421875,
+        "centroTexto": 512.4140625,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 75
+      },
+      {
+        "centroCirculo": 991.578125,
+        "centroTexto": 991.578125,
+        "textoDebajo": true,
+        "alineacion": "center",
+        "relleno": 36
+      }
+    ],
+    "escala": {
+      "1": 0,
+      "4": 50,
+      "7": 100,
+      "5.5": 75
+    }
+  }
+]
