@@ -3006,12 +3006,10 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
 //   anuncios públicos de tu universidad y se comparan acá con tus ramos y notas.
 //   Nada de eso viaja para elegir.
 // - Solo en Inicio, nunca en la ficha del ramo, la Agenda ni el ingreso de notas.
-// - Una en la mañana y una en la tarde (decisión de Lucas del 2026-09-25). Lo
-//   único que gasta la franja es cerrarla con la X: recargar o volver a entrar
-//   la muestra de nuevo, la misma clase (ajuste del 2026-09-26; antes recargar
-//   la hacía desaparecer hasta la franja siguiente). La primera vez que cierras
-//   una clase, se esconde hasta la próxima franja; la segunda vez, esa clase no
-//   vuelve más en este dispositivo, y recién ahí se le dice.
+// - Se muestra mientras siga calzando, hasta cerrarla con la X. Cerrar oculta
+//   las recomendaciones de Inicio por el resto del día en este dispositivo,
+//   desde el primer cierre (Lucas, 2026-10-28). Recargar no las trae de vuelta;
+//   al día siguiente pueden aparecer otra vez. El catálogo sigue disponible.
 // - No dice "reprobando" ni diagnostica: ofrece apoyo para el ramo.
 // - El cierre y el día viven en `gradehub_marketplace_v1`, aparte de
 //   gradehub_v1: apagar esto no toca el estado académico.
@@ -3034,13 +3032,14 @@ function diaLocalClases(ahora=Date.now()){
   const d=new Date(ahora);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-// Mañana hasta las 14:00 y tarde desde ahí, en la hora del dispositivo.
+// Identificador heredado que se conserva en el estado. El cierre ya no vence
+// a las 14:00: tanto mañana como tarde quedan ocultas hasta el día siguiente.
 const HORA_TARDE_CLASES=14;
 function franjaClases(ahora=Date.now()){
   return diaLocalClases(ahora)+(new Date(ahora).getHours()<HORA_TARDE_CLASES?'-manana':'-tarde');
 }
 // Pura: recibe anuncios, ramos y el estado guardado, y devuelve la
-// recomendación de esta franja (o null) junto con el estado que hay que guardar.
+// recomendación de esta apertura (o null) junto con el estado que hay que guardar.
 // Una apertura de la app = una carga de la página. Volver a Inicio dentro de la
 // misma apertura no cambia el banner; abrir la app de nuevo muestra la
 // siguiente de las clases que calzan (pedido de Lucas del 2026-09-30).
@@ -3049,8 +3048,9 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
   const franja=franjaClases(ahora),e=estado||{};
   // Cerrada con la X: escondida hasta `ocultaHasta` (ver descartarRecomendacionClase).
   if(Number.isFinite(e.ocultaHasta)&&ahora<e.ocultaHasta)return {sel:null,estado:e};
-  // Un cierre guardado antes del 2026-10-27 no trae `ocultaHasta`: vale para su franja.
-  if(!Number.isFinite(e.ocultaHasta)&&e.franja===franja&&e.cerrada)return {sel:null,estado:e};
+  // Los cierres anteriores guardaban una franja (y podían vencer a las 14:00).
+  // Se respeta el cierre por todo ese día, también con la versión nueva.
+  if(e.cerrada&&typeof e.franja==='string'&&e.franja.slice(0,10)===diaLocalClases(ahora))return {sel:null,estado:e};
   // Misma apertura: la misma clase, si sigue calzando. Si subiste una nota y
   // dejó de calzar, desaparece en vez de quedarse pegada.
   if(e.visita===visita&&e.anuncioId){
@@ -3067,28 +3067,17 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
   return {sel,estado:{...e,franja,visita,anuncioId:sel.anuncio.id,cerrada:false,aperturas:aperturas+1}};
 }
 
-// Cerrar con la X (Lucas, 2026-10-27). La recomendación sale al menos una vez
-// al día hasta que se cierra; nunca se esconde para siempre:
-// - el primer día que cierras una campaña, cerrarla en la mañana la esconde
-//   hasta la tarde, y cerrarla en la tarde, hasta el día siguiente;
-// - desde el día siguiente, un cierre la esconde por el resto del día.
-// El primer día es el de tu primer cierre de ESA campaña, no el día en que
-// empezó ni el día en que la viste (`primerCierre`, por anuncio). Devuelve si
-// vuelve en la tarde, para que el aviso lo diga.
+// La X cierra hasta la próxima medianoche local, no durante 24 horas ni hasta
+// la tarde. Se conserva la clave y el resto del estado de versiones anteriores.
 function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
   const estado=leerEstadoMarketplace();
-  const hoy=diaLocalClases(ahora),d=new Date(ahora);
-  const previos=estado.primerCierre&&typeof estado.primerCierre==='object'?estado.primerCierre:{};
-  const primerCierre={...previos,[anuncioId]:previos[anuncioId]||hoy};
-  const vuelveEnLaTarde=primerCierre[anuncioId]===hoy&&d.getHours()<HORA_TARDE_CLASES;
-  const ocultaHasta=vuelveEnLaTarde
-    ?new Date(d.getFullYear(),d.getMonth(),d.getDate(),HORA_TARDE_CLASES).getTime()
-    :new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime();
-  guardarEstadoMarketplace({...estado,primerCierre,ocultaHasta,franja:franjaClases(ahora),anuncioId:null,cerrada:true});
-  return {vuelveEnLaTarde};
+  const d=new Date(ahora);
+  const ocultaHasta=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime();
+  guardarEstadoMarketplace({...estado,ocultaHasta,franja:franjaClases(ahora),anuncioId:null,cerrada:true});
+  return {vuelveEnLaTarde:false};
 }
-function textoCierreClase(cierre){
-  return cierre&&cierre.vuelveEnLaTarde?'Listo, no te la mostramos hasta la tarde':'Listo, no te la mostramos más por hoy';
+function textoCierreClase(){
+  return 'Listo, no te mostramos más anuncios por hoy';
 }
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
@@ -3174,7 +3163,7 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>
-    <button type="button" class="clase-apoyo-cerrar" aria-label="No mostrar esta clase"${vistaPrevia?' tabindex="-1"':''}>
+    <button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar anuncios por hoy"${vistaPrevia?' tabindex="-1"':''}>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
     </button>`;
 }
