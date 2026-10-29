@@ -13,7 +13,7 @@ const saca=n=>(app.match(new RegExp('\\nfunction '+n+'\\([\\s\\S]*?\\n\\}'))||['
 
 // Se arma el mínimo que estas funciones tocan: el estado y los avisos.
 let guardados=0,toasts=[],pedidos=[];
-const campo={value:''};
+const campo={value:'',style:{}},campos={};
 const ctx={
   S:{tenant:'uc',historial:[
     {id:'a',label:'2024-1',manual:true,ramos:[{id:'r1'},{id:'r2'}]},
@@ -23,7 +23,10 @@ const ctx={
   showToast:m=>toasts.push(m),
   showConfirm:(t,d,fn)=>{pedidos.push({t,d,fn});},
   esc:v=>String(v),
-  document:{getElementById:()=>campo},openModal:()=>{}
+  document:{getElementById:id=>campos[id]||campo},openModal:()=>{},
+  histRamoAvg:r=>typeof r.avgOverride==='number'?r.avgOverride:null,
+  nf:(n,d)=>n.toFixed(d==null?1:d),calificacionConceptual:()=>null,
+  recomputeHistGpa:h=>{const v=h.ramos.map(r=>r.avgOverride).filter(x=>typeof x==='number');h.gpa=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
 };
 vm.createContext(ctx);
 ['borrarHistorial','pedirBorrarHistorial','confirmRenombrarHist'].forEach(n=>{
@@ -64,6 +67,25 @@ chk('se abre en el semestre que la tarjeta ya tenía',
 corre("setAnioHistRename('2023')");corre("setPeriodoHistRename('1')");
 corre("confirmRenombrarHist('b')");
 chk('el semestre elegido queda con la forma de siempre', ctx.S.historial[0]?.label==='2023-1');
+
+console.log('\n=== Y "Editar" también corrige las notas finales ===');
+vm.runInContext(saca('parseNota'),ctx);
+const b=ctx.S.historial[0];
+b.ramos=[{id:'r3',nombre:'Cálculo',avgOverride:4.0},{id:'r4',nombre:'Física'}];
+corre("openRenombrarHistModal('b')");
+chk('muestra la nota que tiene cada ramo', JSON.stringify(corre('histRename.notas'))==='[{"id":"r3","txt":"4.0"},{"id":"r4","txt":""}]');
+campos['m-hist-ren-nota-0']={value:'5,5',focus(){}};
+campos['m-hist-ren-nota-1']={value:'',focus(){}};
+corre("confirmRenombrarHist('b')");
+chk('la nota cambiada queda guardada', b.ramos[0].avgOverride===5.5);
+chk('y el promedio del semestre se recalcula', b.gpa===5.5);
+// Un archivado que nadie toca sigue saliendo de sus evaluaciones.
+chk('un ramo en blanco no queda fijo a mano', !('avgOverride' in b.ramos[1]));
+campos['m-hist-ren-nota-0']={value:'9',focus(){}};
+corre("openRenombrarHistModal('b')");
+corre("confirmRenombrarHist('b')");
+chk('una nota fuera de escala no se guarda', b.ramos[0].avgOverride===5.5 && /Cálculo/.test(campo.textContent||''));
+for(const k in campos)delete campos[k];
 
 // El verano no es "1" ni "2". En la UC se llama TAV; a otra universidad no se le
 // presta ese término.

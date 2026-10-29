@@ -1182,7 +1182,7 @@ function renderStats(){
             <div class="hist-body${isOpen?' open':''}">
               ${ramosRows||'<p style="font-size:0.8125rem;color:var(--fg3);">Sin ramos</p>'}
               <div class="hist-acciones">
-                <button type="button" class="hist-accion" onclick="openRenombrarHistModal('${esc(h.id)}')">Cambiar nombre</button>
+                <button type="button" class="hist-accion" onclick="openRenombrarHistModal('${esc(h.id)}')">Editar</button>
                 <button type="button" class="hist-accion hist-accion-del" onclick="pedirBorrarHistorial('${esc(h.id)}')">Eliminar semestre</button>
               </div>
             </div>
