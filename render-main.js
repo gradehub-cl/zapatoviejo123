@@ -987,8 +987,96 @@ async function pintarPosicionesCurso(){
   }).join('');
 }
 
+function cambiarPeriodoHistorial(periodo){
+  if(!['anterior','5','todo'].includes(periodo))return;
+  const body=document.getElementById('stats-body');
+  body.dataset.histPeriodo=periodo;
+  renderStats();
+  body.querySelector(`[data-hist-periodo="${periodo}"]`)?.focus({preventScroll:true});
+}
+
+// Curva monótona: atraviesa cada valor sin inventar máximos ni mínimos.
+function trazoEvolucionNotas(puntos){
+  const delta=puntos.slice(1).map((p,i)=>(p.y-puntos[i].y)/(p.x-puntos[i].x));
+  const tangente=puntos.map((p,i)=>i===0?delta[0]:i===puntos.length-1?delta[delta.length-1]
+    :delta[i-1]*delta[i]<=0?0:2*delta[i-1]*delta[i]/(delta[i-1]+delta[i]));
+  let d=`M${puntos[0].x},${puntos[0].y}`;
+  for(let i=0;i<puntos.length-1;i++){
+    const a=puntos[i],b=puntos[i+1],tercio=(b.x-a.x)/3;
+    d+=` C${a.x+tercio},${a.y+tangente[i]*tercio} ${b.x-tercio},${b.y-tangente[i+1]*tercio} ${b.x},${b.y}`;
+  }
+  return d;
+}
+
+function htmlGraficoEvolucion(serie,id,descripcion='Promedio por semestre'){
+  if(serie.length<2)return'';
+  const puntos=serie.map((p,i)=>({x:i/(serie.length-1)*100,y:(7-Math.max(1,Math.min(7,p.valor)))/6*100}));
+  const curva=trazoEvolucionNotas(puntos),ultimo=serie[serie.length-1];
+  const minimo=Math.floor(Math.min(...serie.map(p=>p.valor))),maximo=Math.ceil(Math.max(...serie.map(p=>p.valor)));
+  const marcas=[7,6,5,4,3,2,1].filter(n=>n===4||(n>=minimo&&n<=maximo));
+  const gradiente='evolucion-'+String(id).replace(/[^a-z0-9_-]/gi,'');
+  return `<div class="evolucion-marco">
+    <div class="evolucion-eje" aria-hidden="true">${marcas.map(n=>`<span class="${n===4?'es-centro':''}" style="top:${(7-n)/6*100}%">${n===4?'4.0':n}</span>`).join('')}</div>
+    <div class="evolucion-trazado" role="slider" tabindex="0" aria-label="Explorar ${esc(descripcion.toLowerCase())}" aria-description="Gráfico de línea, escala de 1 a 7. El 4.0 queda al centro. Usa las flechas para recorrer los valores; Inicio y Fin van a los extremos. Escape cierra el detalle." aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="${serie.length-1}" aria-valuenow="${serie.length-1}" aria-valuetext="${esc(ultimo.etiqueta)}, promedio ${nf(ultimo.valor,2)}">
+      <div class="evolucion-referencia" aria-hidden="true"></div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="${gradiente}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--primary)" stop-opacity=".24"/><stop offset="60%" stop-color="var(--primary)" stop-opacity=".04"/><stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/></linearGradient></defs>
+        <path class="evolucion-area" d="${curva} L100,100 L0,100 Z" style="fill:url(#${gradiente})"/><path class="evolucion-linea" d="${curva}"/>
+      </svg>
+      ${serie.map((p,i)=>`<i class="evolucion-punto${p.actual?' es-actual':''}" style="left:${puntos[i].x.toFixed(3)}%;top:${puntos[i].y.toFixed(3)}%" data-etiqueta="${esc(p.etiqueta)}" data-nota="${nf(p.valor,2)}" aria-hidden="true"></i>`).join('')}
+      <div class="evolucion-cursor" hidden aria-hidden="true"></div>
+      <div class="evolucion-notita" hidden aria-hidden="true"><span></span><b></b></div>
+    </div>
+  </div>`;
+}
+
+// El área completa responde al dedo. El gesto vertical sigue desplazando la
+// página, y el slider permite explorar con teclado o lector de pantalla.
+function enlazarGraficosEvolucion(body){
+  body.querySelectorAll('.evolucion-trazado').forEach(grafico=>{
+    const puntos=[...grafico.querySelectorAll('.evolucion-punto')];
+    if(!puntos.length)return;
+    const nota=grafico.querySelector('.evolucion-notita'),cursor=grafico.querySelector('.evolucion-cursor');
+    let arrastrando=false,seleccionado=puntos.length-1;
+    const ocultar=()=>{nota.hidden=true;cursor.hidden=true;puntos.forEach(p=>p.classList.remove('es-elegido'));};
+    const mostrar=indice=>{
+      seleccionado=Math.max(0,Math.min(puntos.length-1,Math.round(indice)));
+      const p=puntos[seleccionado];
+      grafico.setAttribute('aria-valuenow',seleccionado);
+      grafico.setAttribute('aria-valuetext',`${p.dataset.etiqueta}, promedio ${p.dataset.nota}`);
+      nota.querySelector('span').textContent=p.dataset.etiqueta;nota.querySelector('b').textContent=p.dataset.nota;
+      nota.hidden=false;cursor.hidden=false;cursor.style.left=p.style.left;
+      puntos.forEach((p,i)=>p.classList.toggle('es-elegido',i===seleccionado));
+      const x=parseFloat(p.style.left)/100*grafico.clientWidth,y=parseFloat(p.style.top)/100*grafico.clientHeight;
+      nota.style.left=Math.max(0,Math.min(grafico.clientWidth-nota.offsetWidth,x-nota.offsetWidth/2))+'px';
+      const arriba=y-nota.offsetHeight-14;
+      nota.style.top=Math.max(0,Math.min(grafico.clientHeight-nota.offsetHeight,arriba>=0?arriba:y+14))+'px';
+    };
+    const recorrer=e=>{
+      const r=grafico.getBoundingClientRect();
+      if(r.width)mostrar((e.clientX-r.left)/r.width*(puntos.length-1));
+    };
+    grafico.onpointerdown=e=>{
+      if(e.isPrimary===false||e.button!==0)return;
+      e.preventDefault();arrastrando=true;grafico.focus({preventScroll:true});grafico.setPointerCapture(e.pointerId);recorrer(e);
+    };
+    grafico.onpointermove=e=>{if(arrastrando||e.pointerType==='mouse')recorrer(e);};
+    grafico.onpointerup=()=>{arrastrando=false;};
+    grafico.onpointercancel=()=>{arrastrando=false;ocultar();};
+    grafico.onpointerleave=e=>{if(e.pointerType==='mouse'&&!arrastrando)ocultar();};
+    grafico.onfocus=()=>mostrar(seleccionado);grafico.onblur=ocultar;
+    grafico.onkeydown=e=>{
+      const pasos={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1,PageUp:5,PageDown:-5};
+      if(e.key in pasos){e.preventDefault();mostrar(seleccionado+pasos[e.key]);}
+      else if(e.key==='Home'||e.key==='End'){e.preventDefault();mostrar(e.key==='Home'?0:puntos.length-1);}
+      else if(e.key==='Escape'){e.preventDefault();ocultar();}
+    };
+  });
+}
+
 function renderStats(){
   const body=document.getElementById('stats-body');const g=gpa(S.ramos);
+  const periodo=body.dataset.histPeriodo||'anterior';
   const heroTitle=document.getElementById('stats-hero-title');
   let totalNotas=0;
   S.ramos.forEach(r=>{
@@ -1152,14 +1240,30 @@ function renderStats(){
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
-    // Una columna por semestre, el actual en el acento. La altura es la nota en
-    // la escala de 1 a 7. Con uno solo no hay nada que comparar.
+    // Un punto por semestre, sin interpolar notas ni cambiar la escala 1–7.
     {
-      const serie=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h)})).filter(x=>x.v!==null);
-      if(g!==null)serie.push({label:'Ahora',v:g,actual:true});
-      if(serie.length>=2)hist+=`<div class="stats-hist-cols" role="img" aria-label="${esc('Promedio por semestre: '+serie.map(x=>`${x.label} ${fmtPromedio(x.v)}`).join(', '))}">${
-        serie.map(x=>`<span class="${x.actual?'es-actual':''}" aria-hidden="true"><b>${fmtPromedio(x.v)}</b><i style="height:${(Math.max(0,(x.v-1)/6)*100).toFixed(1)}%"></i><small>${esc(x.label)}</small></span>`).join('')
-      }</div>`;
+      const completa=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h),fecha:parseEtiquetaSemestre(h.label)})).filter(x=>x.v!==null);
+      // Los semestres ingresados a mano pueden haberse agregado fuera de orden.
+      const orden=x=>x.fecha?x.fecha.anio*10+(x.fecha.periodo==='v'?0:Number(x.fecha.periodo)):-Infinity;
+      completa.sort((a,b)=>orden(a)-orden(b));
+      if(g!==null)completa.push({label:semester(),v:g,actual:true});
+      if(completa.length>=2){
+        const serie=periodo==='anterior'?completa.slice(-2):periodo==='5'?completa.slice(-5):completa;
+        const ultimo=serie[serie.length-1];
+        const anterior=ultimo.actual?serie[serie.length-2]:null;
+        const diferencia=anterior?ultimo.v-anterior.v:null;
+        const igual=diferencia!==null&&Math.abs(diferencia)<0.05;
+        const lectura=diferencia===null?'':igual?`Sin cambio frente a ${anterior.label||'el semestre anterior'}`
+          :`${nf(Math.abs(diferencia),2)} puntos ${diferencia>0?'más':'menos'} que en ${anterior.label||'el semestre anterior'}`;
+        const etiqueta=x=>x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior';
+        hist+=`<figure class="stats-hist-comparacion">
+          <figcaption class="stats-hist-titular"><div><span>Promedio por semestre</span><strong>${fmtPromedio(ultimo.v)}</strong>
+            ${anterior?`<div class="stats-hist-delta" aria-label="${esc(lectura)}"><b class="${igual?'es-igual':diferencia>0?'es-sube':'es-baja'}">${igual?'Sin cambio':(diferencia>0?'↗ +':'↘ −')+nf(Math.abs(diferencia),2)+' puntos'}</b><span>vs. ${esc(anterior.label||'semestre anterior')}</span></div>`:''}
+          </div><span class="stats-hist-periodo-actual">${esc(etiqueta(ultimo))}</span></figcaption>
+          ${htmlGraficoEvolucion(serie.map(x=>({etiqueta:etiqueta(x),valor:x.v,actual:x.actual})),'historial')}
+          <div class="stats-hist-periodo" role="group" aria-label="Semestres a comparar">${[['anterior','Semestre pasado'],['5','Últimos 5'],['todo','Desde el inicio']].map(([id,texto])=>`<button type="button" data-hist-periodo="${id}" aria-pressed="${periodo===id}" onclick="cambiarPeriodoHistorial('${id}')">${texto}</button>`).join('')}</div>
+        </figure>`;
+      }
     }
     if(validos.length>0){
       validos.forEach(h=>{
@@ -1228,6 +1332,7 @@ function renderStats(){
   });
 
   body.innerHTML=html;
+  enlazarGraficosEvolucion(body);
   // El HTML ya está en pantalla; la comparación se rellena cuando el servidor
   // conteste. Sin await: Estadísticas no espera por una sección secundaria.
   if(!seccionOculta('curso'))pintarPosicionesCurso();

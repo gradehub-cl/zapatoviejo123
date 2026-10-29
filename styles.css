@@ -1531,14 +1531,41 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 /* La línea de la mitad del curso: a su derecha vas mejor que la mitad. */
 .stats-curso-mitad{position:absolute;left:50%;top:-5px;width:2px;height:14px;margin-left:-1px;border-radius:1px;background:var(--fg2);}
 .stats-curso-pista i{position:absolute;top:-4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--primary);box-shadow:0 0 4px color-mix(in srgb,var(--primary),transparent 45%);}
-/* Historial: una columna por semestre, el actual en el acento. */
-.stats-hist-cols{display:flex;align-items:flex-end;gap:8px;height:130px;margin:4px 20px 14px;padding-top:18px;}
-.stats-hist-cols span{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;}
-.stats-hist-cols i{display:block;width:100%;max-width:44px;border-radius:2px 2px 0 0;background:var(--muted);}
-.stats-hist-cols .es-actual i{background:var(--primary);box-shadow:0 0 2px color-mix(in srgb,var(--primary),transparent 65%);}
-.stats-hist-cols b{font-size:.8125rem;font-weight:700;font-variant-numeric:tabular-nums;}
-.stats-hist-cols small{font-size:.6875rem;color:var(--fg3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-@media (prefers-reduced-motion:reduce){.anillo-arco{animation:none;}.anillo-arco,.escala-banda,.barra-centrada i,.stats-curso-pista i,.stats-hist-cols .es-actual i{filter:none;box-shadow:none;}}
+/* Evolución: escala fija 1–7, detalle al recorrer y relleno suave. */
+.stats-hist-comparacion{margin:4px 20px 18px;padding:24px 22px 16px;border:1px solid var(--border);border-radius:10px;background:var(--card);min-width:0;container-type:inline-size;}
+.stats-hist-titular{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px 20px;margin-bottom:38px;}
+.stats-hist-titular>div{display:grid;gap:10px;}
+.stats-hist-titular span{font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+.stats-hist-titular strong{font-size:2.75rem;line-height:1;font-weight:650;letter-spacing:-.055em;color:var(--fg);font-variant-numeric:tabular-nums;}
+.stats-hist-titular .stats-hist-periodo-actual{font-size:.75rem;}
+.stats-hist-delta{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 10px;}
+.stats-hist-delta b{font-size:.875rem;font-weight:550;font-variant-numeric:tabular-nums;color:var(--fg);}
+.stats-hist-delta .es-sube{color:var(--green);}.stats-hist-delta .es-baja{color:var(--red);}
+.stats-hist-periodo{display:flex;justify-content:center;gap:6px;margin:24px auto 0;}
+.stats-hist-periodo button{flex:0 1 auto;min-width:44px;min-height:44px;padding:8px 16px;border:0;border-radius:22px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.8125rem;line-height:1.35;cursor:pointer;}
+.stats-hist-periodo button[aria-pressed="true"]{background:var(--muted);color:var(--fg);font-weight:550;}
+.stats-hist-periodo button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+.evolucion-marco{display:grid;grid-template-columns:1.5rem minmax(0,1fr);gap:8px;padding:8px 0;}
+.evolucion-eje{position:relative;font-size:.75rem;line-height:1;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.evolucion-eje span{position:absolute;left:0;right:0;transform:translateY(-50%);}
+.evolucion-eje span::after{content:"";position:absolute;right:0;top:50%;width:4px;border-top:1px solid var(--fg2);opacity:.65;}
+.evolucion-eje .es-centro{font-weight:650;color:var(--fg);}
+.evolucion-trazado{position:relative;height:17rem;min-height:44px;min-width:44px;touch-action:pan-y pinch-zoom;cursor:crosshair;user-select:none;-webkit-user-select:none;}
+.evolucion-trazado:focus-visible{outline:2px solid var(--primary);outline-offset:6px;border-radius:2px;}
+.evolucion-referencia{position:absolute;top:50%;left:0;right:0;border-top:1px dashed var(--fg2);opacity:.38;pointer-events:none;z-index:1;}
+.evolucion-trazado svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+.evolucion-linea{fill:none;stroke:var(--primary);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:butt;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 1px color-mix(in srgb,var(--primary),transparent 65%));}
+.evolucion-area{stroke:none;}
+.evolucion-punto{position:absolute;width:6px;height:6px;transform:translate(-50%,-50%);border:1px solid var(--card);border-radius:50%;background:var(--primary);pointer-events:none;opacity:0;}
+.evolucion-punto.es-elegido{width:10px;height:10px;border-width:2px;z-index:3;opacity:1;}
+.evolucion-cursor{position:absolute;top:0;bottom:0;width:1px;background:var(--fg2);opacity:.6;pointer-events:none;z-index:2;}
+.evolucion-notita{position:absolute;z-index:4;display:grid;gap:4px;width:max-content;max-width:min(12rem,100%);padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:var(--card);box-shadow:0 3px 12px rgb(0 0 0 / .12);pointer-events:none;color:var(--fg);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.evolucion-notita[hidden]{display:none;}
+.evolucion-notita span{font-size:.75rem;line-height:1.35;color:var(--fg2);}
+.evolucion-notita b{font-size:1.25rem;line-height:1.15;font-weight:650;}
+@container (max-width:30rem){.stats-hist-titular{margin-bottom:32px;}.stats-hist-titular strong{font-size:2.25rem;}.stats-hist-periodo{gap:2px;margin-top:22px;}.stats-hist-periodo button{flex:1;font-size:.75rem;padding:7px 6px;}.evolucion-trazado{height:14rem;}.evolucion-marco{gap:6px;}}
+@container (max-width:18rem){.stats-hist-periodo{flex-direction:column;}.stats-hist-periodo button{border-radius:6px;}}
+@media (prefers-reduced-motion:reduce){.anillo-arco{animation:none;}.anillo-arco,.escala-banda,.barra-centrada i,.stats-curso-pista i,.evolucion-linea{filter:none;box-shadow:none;}}
 .stats-situation-card{padding:18px 18px 16px;}
 .stats-situation-reading{margin-top:17px;font-size:.9375rem;font-weight:650;line-height:1.35;color:var(--fg);letter-spacing:-.015em;}
 .stats-priority-row{margin-bottom:8px;min-height:72px;}
