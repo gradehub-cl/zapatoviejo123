@@ -10641,8 +10641,15 @@ function resumenParaWidgets(ahora){
       // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
       parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
   });
+  // Las clases de cada ramo (`ramo.horario`, #640), sin notas. Qué clase toca
+  // lo decide el widget con la hora real (#641). Un bloque mal formado no va.
+  const minutos=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m&&+m[1]<24&&+m[2]<60?(+m[1])*60+(+m[2]):null;};
+  const horario=S.ramos.flatMap(r=>(Array.isArray(r.horario)?r.horario:[])
+    .filter(c=>c&&Number.isInteger(c.dia)&&c.dia>=1&&c.dia<=6&&minutos(c.inicio)!==null&&minutos(c.fin)>minutos(c.inicio))
+    .map(c=>({dia:c.dia,inicio:c.inicio,fin:c.fin,sala:c.sala||null,tipo:c.tipo||null,
+      ramoId:r.id,ramo:r.nombre,sigla:sigla(r),color:r.color||null})));
   return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
-    promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda,pendientes:tareas,estadisticas};
+    promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda,pendientes:tareas,estadisticas,horario};
 }
 let _pluginWidgets,_widgetsTimer=null;
 function pluginWidgets(){

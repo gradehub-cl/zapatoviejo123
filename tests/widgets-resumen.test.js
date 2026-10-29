@@ -83,6 +83,16 @@ const rp=p.run('resumenParaWidgets(new Date(2026,9,7,12))');
 chk('el resumen lleva los pendientes menos los de hoy, que el widget saca de la agenda',rp.pendientes.map(x=>x.tipo).join()==='recorregir,sin-fecha'&&rp.pendientes[0].ramoId==='b'&&rp.agenda[0].evaluacion==='Interrogación 2');
 chk('pendientes no guarda nada',p.run('JSON.stringify(S.ramos)')===p.run('(pendientes(new Date(2026,9,7,12)),JSON.stringify(S.ramos))'));
 
+console.log('\n=== Horario de clases (#641) ===');
+const h=contexto(false);
+chk('sin horario guardado va vacío',Array.isArray(h.run('resumenParaWidgets(new Date(2026,9,7,12)).horario'))&&h.run('resumenParaWidgets(new Date(2026,9,7,12)).horario.length')===0);
+h.run(`S.ramos[0].horario=[{dia:1,inicio:'8:20',fin:'9:30',sala:'B12',tipo:'catedra'},{dia:3,inicio:'14:50',fin:'16:00'}];
+  S.ramos[1].horario=[{dia:7,inicio:'10:00',fin:'11:10'},{dia:2,inicio:'11:00',fin:'10:00'},{dia:2,inicio:'25:00',fin:'26:00'},null];`);
+const hz=h.run('resumenParaWidgets(new Date(2026,9,7,12)).horario');
+chk('lleva cada clase con su ramo y sala',hz.length===2&&hz[0].ramoId==='a'&&hz[0].ramo==='Cálculo Sintético'&&hz[0].sala==='B12'&&hz[0].tipo==='catedra'&&hz[0].color==='#7F77DD');
+chk('sin sala ni tipo van en null',hz[1].sala===null&&hz[1].tipo===null);
+chk('un bloque mal formado no va (domingo, fin antes del inicio, hora imposible)',!hz.some(c=>c.ramoId==='b'));
+
 console.log('\n=== En la web no hay plugin ===');
 a.run('publicarResumenWidgets();borrarResumenWidgets();');
 a.correrTimers();
