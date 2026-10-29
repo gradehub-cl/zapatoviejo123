@@ -1,0 +1,530 @@
+[
+  {
+    "prefix": "375-claro",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 20,
+        "y": 707.5,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 793.390625,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-claro",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 20,
+        "y": 322.5,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 408.390625,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 20,
+        "y": 425,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 552.796875,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-claro-texto200",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 20,
+        "y": 306,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 433.796875,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 20,
+        "y": 707.5,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 793.390625,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-oscuro",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 20,
+        "y": 322.5,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 408.390625,
+        "w": 335,
+        "h": 44.390625,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 20,
+        "y": 425,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 552.796875,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "375-oscuro-texto200",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 20,
+        "y": 306,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 20,
+        "y": 433.796875,
+        "w": 335,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-claro",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 415.390625,
+        "w": 645.53125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 921.375,
+        "y": 415.390625,
+        "w": 322.78125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-claro",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 192.265625,
+        "w": 645.53125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 921.375,
+        "y": 192.265625,
+        "w": 322.78125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 604,
+        "w": 584.3125,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 860.15625,
+        "y": 604,
+        "w": 384,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-claro-texto200",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 248,
+        "w": 584.3125,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 860.15625,
+        "y": 248,
+        "w": 384,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(255, 255, 255)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 415.390625,
+        "w": 645.53125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 921.375,
+        "y": 415.390625,
+        "w": 322.78125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-oscuro",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 192.265625,
+        "w": 645.53125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 921.375,
+        "y": 192.265625,
+        "w": 322.78125,
+        "h": 47.59375,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "area": "anuncios",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 604,
+        "w": 584.3125,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 860.15625,
+        "y": 604,
+        "w": 384,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  },
+  {
+    "prefix": "1280-oscuro-texto200",
+    "area": "profesores",
+    "dims": [
+      {
+        "x": 259.84375,
+        "y": 248,
+        "w": 584.3125,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      },
+      {
+        "x": 860.15625,
+        "y": 248,
+        "w": 384,
+        "h": 66.796875,
+        "border": "1px",
+        "radius": "10px",
+        "bg": "rgb(28, 17, 41)",
+        "labelBorder": "0px",
+        "labelBg": "rgba(0, 0, 0, 0)",
+        "overflow": false
+      }
+    ],
+    "defaults": true,
+    "filtering": true,
+    "persistent": true
+  }
+]
