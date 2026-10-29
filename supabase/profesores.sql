@@ -246,8 +246,10 @@ alter table public.profesor_calificaciones add constraint profesor_calificacione
   check (public.profesor_otros_permitidos(otros) and cardinality(etiquetas) + cardinality(otros) <= 3);
 revoke all on public.profesor_calificaciones from public, anon, authenticated;
 
--- Promedio del docente de esta sección en este ramo, juntando todas las
--- secciones y períodos donde el consenso dice que lo dictó. Bajo tres
+-- Promedio del docente en este ramo. Las estrellas se juntan por el nombre que
+-- informó cada cuenta, en cualquier sección y semestre: dos votos de la 13 y uno
+-- de la 14 ya son tres (Lucas, 2026-10-28). La sección solo decide qué nombre se
+-- publica; sin consenso en la tuya, cuenta el docente que informaste. Bajo tres
 -- calificaciones no se publica nada agregado: una o dos delatan a quien calificó.
 -- Una etiqueta de la lista aparece con dos cuentas; una escrita, con tres que
 -- escriben lo mismo (sin contar tildes, mayúsculas ni espacios).
@@ -260,6 +262,13 @@ declare c record; d text; mia record;
 begin
   select * into strict c from public.profesor_contexto(p_ramo_id,p_seccion);
   d := public.profesor_docente_publico(c.tenant,c.ramo_clave,p_seccion,p_periodo);
+  if d is null then
+    select a.nombre into d from public.profesor_aportes a
+      where a.user_id=auth.uid() and a.tenant=c.tenant and a.ramo_clave=c.ramo_clave
+        and a.seccion=p_seccion and a.periodo=p_periodo
+        and not exists(select 1 from public.profesor_ocultos o
+          where o.tenant=c.tenant and public.profesor_coinciden(o.nombre,a.nombre));
+  end if;
   select k.estrellas, k.etiquetas, k.otros[1] as otro, k.otros into mia from public.profesor_calificaciones k
     where k.user_id=auth.uid() and k.tenant=c.tenant and k.ramo_clave=c.ramo_clave
       and k.seccion=p_seccion and k.periodo=p_periodo;
@@ -269,15 +278,8 @@ begin
     return;
   end if;
   return query
-    with secciones as (
-      select distinct k.seccion, k.periodo from public.profesor_calificaciones k
-      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave
-    ), del_docente as (
-      select s.seccion, s.periodo from secciones s
-      where public.profesor_coinciden(public.profesor_docente_publico(c.tenant,c.ramo_clave,s.seccion,s.periodo), d)
-    ), notas as materialized (
+    with notas as materialized (
       select k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
-      join del_docente x on x.seccion=k.seccion and x.periodo=k.periodo
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
       where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden(a.nombre,d)
