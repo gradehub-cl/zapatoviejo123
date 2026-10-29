@@ -33,6 +33,11 @@ const plano=x=>JSON.parse(JSON.stringify(x)),base=JSON.stringify(ctx.S);
   await ctx.renderDocenteRamo(r);assert.doesNotMatch(raiz.innerHTML,/4\.5/);assert.equal(boton.hidden,false);
   respuestas.profesor_calificacion_estado.puede_calificar=false;
   await ctx.renderDocenteRamo(r);assert.equal(boton.hidden,true);assert.doesNotMatch(raiz.innerHTML,/<button/);
+  // Sin nombre publicado en la sección, igual muestra las estrellas del que informaste.
+  respuestas.profesor_docente_estado={nombre_publico:null,mi_nombre:'Pamela Mena'};
+  respuestas.profesor_calificacion_estado={docente:'Pamela Mena',total:3,promedio:4,mi_estrellas:5,puede_calificar:true};
+  await ctx.renderDocenteRamo(r);assert.match(raiz.innerHTML,/Pamela Mena[\s\S]*4\.0<\/strong>/);
+  assert.match(raiz.innerHTML,/aria-label="Profesor Pamela Mena\. Promedio 4\.0 de 5\./);
   ctx.supabaseClient.rpc=async()=>({error:{message:'red caída'}});
   await ctx.renderDocenteRamo(r);assert.equal(boton.hidden,false);assert.equal(boton.textContent,'Reintentar');assert(toasts.length);
   ctx.supabaseClient.rpc=async n=>({data:[n==='profesor_docente_estado'?{nombre_publico:'<img src=x onerror=alert(1)>',mi_nombre:null}:{total:0,puede_calificar:true}]});

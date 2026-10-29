@@ -27,14 +27,14 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   }
   const snapshots=await q('select data from user_ramos order by user_id');
 
-  // Antes de decir quién es no se califica; sin consenso sí, pero no se publica.
+  // Antes de decir quién es no se califica; sin consenso sí, y cuenta para el nombre propio.
   await soy(1);
   assert.deepEqual({...await estado(1),etiquetas:null},{docente:null,total:0,promedio:null,etiquetas:null,mi_estrellas:null,mi_etiquetas:null,mi_otro:null,puede_calificar:true,mi_otros:null});
   await assert.rejects(calificar(1,5),/profesor sin informar/);
   await informar(1,'María José Pérez');
   await calificar(1,5,['buena_onda','exigente','buena_onda']);
   let e=await estado(1);
-  assert.equal(e.docente,null);assert.equal(e.total,0);
+  assert.equal(e.docente,'María José Pérez');assert.equal(e.total,1);assert.equal(e.promedio,null,'una sola no se publica');
   assert.equal(e.mi_estrellas,5);assert.deepEqual(e.mi_etiquetas,['buena_onda','exigente'],'etiquetas sin duplicados');
   assert.deepEqual(await cinco(),[{tenant:'uc',ramo_clave:'test101',seccion:1,periodo,nombre:'María José Pérez'}],
     'las cinco estrellas quedan disponibles para el propio Wrapped sin esperar consenso');
@@ -154,10 +154,13 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   await db.exec('reset role');
   assert.equal((await q("select relrowsecurity from pg_class where oid='public.profesor_calificaciones'::regclass"))[0].relrowsecurity,true);
 
-  // Si el consenso se cae, deja de publicarse; la propia se conserva y se puede seguir calificando.
+  // Si el consenso de la sección se cae, cada cuenta ve las estrellas del nombre
+  // que informó: se juntan por docente, no por sección.
   await soy(3);await informar(3,'Otra Persona Distinta');
-  e=await estado(3);assert.equal(e.docente,null);assert.equal(e.puede_calificar,true);assert.equal(e.mi_estrellas,3,'la propia se conserva');
-  await soy(1);e=await estado(1);assert.equal(e.docente,null);
+  e=await estado(3);assert.equal(e.docente,'Otra Persona Distinta');assert.equal(e.total,2);assert.equal(e.promedio,null);
+  assert.equal(e.puede_calificar,true);assert.equal(e.mi_estrellas,3,'la propia se conserva');
+  assert.equal((await q('select * from profesor_docente_estado($1,1,$2)',['ramo-3',periodo]))[0].nombre_publico,null,'la sección ya no publica el nombre');
+  await soy(1);e=await estado(1);assert.equal(e.docente,'María José Pérez');assert.equal(e.total,6);assert.notEqual(e.promedio,null);
   await soy(3);await informar(3,'María José Pérez');
 
   // Un docente que pidió no aparecer deja de publicarse y de recibir calificaciones.
@@ -252,5 +255,26 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   await assert.rejects(q('select * from profesor_calificaciones'),/permission denied/);
   await db.exec('reset role');await db.query('delete from auth.users where id=$1',[u(5)]);
   await soy(5);assert.deepEqual(await cinco('2025-1'),[],'borrar la cuenta no deja preferencias huérfanas');
-  console.log('OK calificaciones SQL: consenso, Otro, cinco estrellas privadas para Wrapped, permisos, semestres, cascada y reaplicación');
+  // La sección no parte las estrellas: dos votos de la 13 y uno de la 14 ya publican,
+  // aunque ninguna sección tenga tres para mostrar el nombre. Otro docente queda aparte.
+  const otroRamo=(i,seccion)=>({id:'otro-'+i,nombre:'Otro curso sintético',seccion,origen:{tenant:'uc',ramoKey:'TEST202'},categorias:[]});
+  const seccion202={20:13,21:13,22:14,23:14};
+  await db.exec('reset role');
+  for(const [i,s] of Object.entries(seccion202)){
+    await db.query('insert into auth.users(id,email) values($1,$2)',[u(i),`sintetico${i}@example.invalid`]);
+    await db.query('insert into user_ramos values($1,$2)',[u(i),JSON.stringify({tenant:'uc',ramos:[otroRamo(i,s)]})]);
+  }
+  const en202=async(i,fn,...args)=>{await soy(Number(i));return q(`select * from ${fn}($1,$2,$3${args.map((_,k)=>',$'+(k+4)).join('')})`,['otro-'+i,seccion202[i],periodo,...args]);};
+  await en202(20,'profesor_docente_informar','Pamela Mena');await en202(20,'profesor_calificar',5,[]);
+  await en202(21,'profesor_docente_informar','Pamela  Mena');await en202(21,'profesor_calificar',4,[]);
+  await en202(23,'profesor_docente_informar','Otro Docente Sintético');await en202(23,'profesor_calificar',1,[]);
+  assert.equal((await en202(20,'profesor_calificacion_estado'))[0].promedio,null,'con dos todavía no');
+  await en202(22,'profesor_docente_informar','Pamela Mena');await en202(22,'profesor_calificar',3,[]);
+  for(const i of [20,22]){
+    e=(await en202(i,'profesor_calificacion_estado'))[0];
+    assert.equal(e.total,3,'cuenta 13 y 14 juntas');assert.equal(Number(e.promedio),4);
+    assert.equal((await en202(i,'profesor_docente_estado'))[0].nombre_publico,null,'el nombre sigue siendo por sección');
+  }
+  e=(await en202(23,'profesor_calificacion_estado'))[0];assert.equal(e.docente,'Otro Docente Sintético');assert.equal(e.total,1);assert.equal(e.promedio,null);
+  console.log('OK calificaciones SQL: consenso, estrellas por docente sin importar la sección, Otro, cinco estrellas privadas para Wrapped, permisos, semestres, cascada y reaplicación');
 }finally{await db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

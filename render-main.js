@@ -1821,7 +1821,7 @@ async function renderDocenteRamo(r){
     const d=await consultarDocenteRamo(r);if(!d||!vigente())return;
     docenteFichaActual=d;
     const {nombre,mio,calif,contexto}=d,quien=nombre||mio,mia=Number(calif.mi_estrellas)||0;
-    const nota=nombre?htmlResumenCalificacion(calif):'',promedioAccesible=nota?`. Promedio ${Number(calif.promedio).toFixed(1)} de 5`:'';
+    const nota=quien?htmlResumenCalificacion(calif):'',promedioAccesible=nota?`. Promedio ${Number(calif.promedio).toFixed(1)} de 5`:'';
     raiz.innerHTML=quien?`${calif.puede_calificar===true?`<button type="button" aria-label="${esc(`Profesor ${quien}${promedioAccesible}. ${mia?'Editar tu calificación':'Calificar profesor'}`)}"><span>${esc(nombreCorto(quien))}${nota}</span></button>`:`<span>${esc(nombreCorto(quien))}${nota}</span>`}`:'';
     const tocar=raiz.querySelector('button');
     if(tocar)tocar.onclick=()=>{if(docenteFichaDeRamo(r)===d)abrirCalificarProfesor(r,contexto,d);};
