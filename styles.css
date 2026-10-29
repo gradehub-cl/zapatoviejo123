@@ -3313,9 +3313,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig-pestanas{display:flex;gap:6px;border-bottom:1px solid var(--border);margin:24px 0;flex-wrap:wrap;}
 .admin-hig-pestanas button{padding:10px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--fg2);font:inherit;font-size:.875rem;cursor:pointer;}
 .admin-hig-pestanas button[aria-pressed=true]{border-color:var(--primary);color:var(--primary);}
-.admin-hig-herramientas{display:flex;gap:16px;align-items:end;flex-wrap:wrap;}
-.admin-hig-herramientas label{display:grid;gap:6px;font-size:.8125rem;color:var(--fg2);}
-.admin-hig-buscar{flex:1;min-width:180px;}
+.admin-hig-herramientas{display:grid;grid-template-columns:minmax(0,2fr) minmax(12rem,1fr);gap:16px;align-items:end;}
+.admin-hig-herramientas label{display:grid;gap:6px;min-width:0;font-size:.8125rem;color:var(--fg2);}
+.admin-hig-herramientas :is(input,select){height:calc(1.4em + 22px);line-height:1.4;}
 .admin-hig :is(input,select,textarea){width:100%;min-width:0;padding:10px 12px;border:1px solid var(--border);border-radius:10px;color:var(--fg);background:var(--card);font:inherit;font-size:1rem;}
 .admin-hig :is(button,summary,input,select,textarea){min-width:44px;min-height:44px;}
 .admin-hig :is(button,summary,input,select,textarea,a):focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
@@ -3368,9 +3368,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig-eliminar{color:var(--red);}
 .admin-hig-persona{flex-wrap:wrap;}
 .admin-hig-persona[hidden]{display:none;}
-.admin-hig-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 4px;}
-.admin-hig-filtros .panel-alumnos-vistas{margin:0;flex:1 1 360px;max-width:480px;}
-.admin-hig .admin-hig-buscar{flex:1 1 200px;min-height:44px;padding:0 13px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;font-size:1rem;}
 .admin-hig-ficha{flex-basis:100%;}
 .admin-hig-ficha>summary{display:inline-flex;align-items:center;min-height:44px;cursor:pointer;font-size:.875rem;font-weight:600;color:var(--primary);}
 .admin-hig-ficha-cuerpo{display:grid;gap:10px;max-width:720px;padding:4px 0 8px;}
@@ -3404,7 +3401,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-lista-cobro,.clase-comentario-revision{border-left:3px solid var(--border2);padding:10px 14px;margin:12px 0;background:var(--muted);color:var(--fg);overflow-wrap:anywhere;}
 .clase-comentario-revision p{margin:6px 0 0;white-space:pre-wrap;}
 @media(min-width:1000px){#admin-body:has(.admin-hig){max-width:1100px;margin:0 auto;}}
-@media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-buscar{flex-basis:100%;}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
+@media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-herramientas{grid-template-columns:minmax(0,1fr);}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
 @media(max-width:600px){.admin-hig-areas{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(prefers-reduced-motion:reduce){.admin-hig *{animation:none;transition:none;}}
 

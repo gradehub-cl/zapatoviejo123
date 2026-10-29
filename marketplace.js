@@ -3327,7 +3327,7 @@ function olvidarSesionMarketplace(){
   sesionMarketplaceVersion++;
   olvidarEncuestas();
   soyAdministradorCache=false;
-  vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:''};
+  vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
   olvidarPerfilProfesor();
   anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 }
@@ -3642,8 +3642,8 @@ function marcarPendientesNavAdmin(n){
   b.textContent=n?`Profesores · ${n}`:'Profesores';
   if(n)b.setAttribute('aria-label',`Profesores, ${n} ${n===1?'postulación':'postulaciones'} por revisar`);else b.removeAttribute('aria-label');
 }
-// Filtro y búsqueda de la lista de profesores. Parte en Pendientes si hay.
-const FILTROS_PROFESORES_ADMIN=[['pendiente','Pendientes'],['aprobado','Aprobados'],['suspendido','Pausados'],['','Todos']];
+// Filtro y búsqueda de profesores, con Aprobados como estado inicial.
+const FILTROS_PROFESORES_ADMIN=[['aprobado','Aprobados'],['pendiente','Pendientes'],['suspendido','Pausados'],['rechazado','Rechazados'],['','Todos']];
 function filtrarProfesoresAdmin(profesores,{estado='',busqueda=''}={}){
   const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   return (profesores||[]).filter(p=>(!estado||p.estado===estado)&&palabras.every(t=>normalizarBusquedaClase(p.nombre||'').includes(t)));
@@ -3805,8 +3805,8 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     </div>
     ${panel('profesores',`<h2>Profesores</h2>
       <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Revisar logos sigue en SQL Editor.</p>
-      <div class="admin-hig-filtros"><nav class="panel-alumnos-vistas" aria-label="Filtrar profesores">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<button type="button" data-admin-filtro-prof="${v}" aria-pressed="${v===vistaAdmin.profesores}">${t}</button>`).join('')}</nav>
-      <input type="search" class="admin-hig-buscar" id="admin-buscar-profesor" placeholder="Buscar por nombre" aria-label="Buscar profesor por nombre" autocomplete="off"></div>
+      <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-buscar-profesor">Buscar<input type="search" id="admin-buscar-profesor" placeholder="Nombre del profesor" autocomplete="off"></label>
+      <label for="admin-estado-profesor">Estado<select id="admin-estado-profesor">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<option value="${v}"${v===vistaAdmin.profesores?' selected':''}>${t}</option>`).join('')}</select></label></div>
       <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
     ${panel('anuncios',`<h2>Anuncios</h2>
     <div class="admin-hig-resumen" aria-label="Resumen de administración">
@@ -3816,7 +3816,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
 
     <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
-    <div class="admin-hig-herramientas"><label class="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label>Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label></div>
+    <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label for="admin-hig-estado">Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}"${v===vistaAdmin.estado?' selected':''}>${t}</option>`).join('')}</select></label></div>
     <p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
     <div class="admin-hig-lista">${filas.map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
     <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>`)}
@@ -3831,7 +3831,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
 // La vista elegida sobrevive al repintado: cada acción vuelve a pintar el
 // panel, y quien publicaba desde "Por revisar" caía de vuelta en "Campañas"
 // con la búsqueda y el filtro borrados.
-let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:''};
+let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
 async function pintarPanelAdmin(raiz){
   raiz.innerHTML='<p class="profesor-info" role="status">Cargando…</p>';
   let profesores;
@@ -3853,21 +3853,22 @@ async function pintarPanelAdmin(raiz){
   const pedida=typeof tomarVistaNav==='function'&&tomarVistaNav('admin');
   if(pedida&&AREAS_ADMIN.includes(pedida))vistaAdmin.area=pedida;
   const pendientes=profesores.filter(p=>p.estado==='pendiente').length;
-  if(vistaAdmin.profesores===undefined)vistaAdmin.profesores=pendientes?'pendiente':'';
+  if(vistaAdmin.profesores===undefined)vistaAdmin.profesores='aprobado';
   marcarPendientesNavAdmin(pendientes);
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance);
   enlazarGraficosAdmin(raiz);
   const lista=raiz.querySelector('#admin-lista-profesores');
   if(lista&&typeof lista.querySelectorAll==='function'){
     lista.innerHTML=profesores.map(personaAdminHigHTML).join('')+`<p class="admin-hig-motivo" id="admin-profesores-vacio" hidden>${profesores.length?'Nadie calza con este filtro.':'Todavía no hay profesores.'}</p>`;
-    const buscar=raiz.querySelector('#admin-buscar-profesor');
+    const buscar=raiz.querySelector('#admin-buscar-profesor'),filtro=raiz.querySelector('#admin-estado-profesor');
+    buscar.value=vistaAdmin.busquedaProfesores||'';filtro.value=vistaAdmin.profesores;
     const filtrar=()=>{
+      vistaAdmin={...vistaAdmin,profesores:filtro.value,busquedaProfesores:buscar.value};
       const visibles=new Set(filtrarProfesoresAdmin(profesores,{estado:vistaAdmin.profesores,busqueda:buscar?buscar.value:''}).map(p=>String(p.user_id)));
       lista.querySelectorAll('[data-admin-persona]').forEach(el=>{el.hidden=!visibles.has(el.dataset.adminPersona);});
-      raiz.querySelectorAll('[data-admin-filtro-prof]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.adminFiltroProf===vistaAdmin.profesores)));
       const vacio=lista.querySelector('#admin-profesores-vacio');if(vacio)vacio.hidden=visibles.size>0;
     };
-    raiz.querySelectorAll('[data-admin-filtro-prof]').forEach(b=>b.addEventListener('click',()=>{vistaAdmin.profesores=b.dataset.adminFiltroProf;filtrar();}));
+    filtro.addEventListener('change',filtrar);
     if(buscar)buscar.addEventListener('input',filtrar);
     filtrar();
   }
@@ -3911,6 +3912,7 @@ async function pintarPanelAdmin(raiz){
   buscar.addEventListener('input',filtrar);filtro.addEventListener('change',filtrar);
   raiz.querySelectorAll('[data-admin-seccion]').forEach(b=>b.addEventListener('click',()=>{
     seccion=b.dataset.adminSeccion;
+    filtro.value=seccion==='revision'?'en_revision':seccion==='campanas'?'publicado':'';
     raiz.querySelectorAll('[data-admin-seccion]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
     filtrar();
   }));
