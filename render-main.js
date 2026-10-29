@@ -1839,7 +1839,9 @@ async function renderDocenteRamo(r){
 function abrirSeccionParaCalificar(r){
   const cuenta=currentUser&&currentUser.id,periodo=semester(),tenant=S.tenant;
   if(!cuenta||!S.ramos.includes(r)||currentRamoId!==r.id)return;
-  const sigla=tenant==='uc'?String(siglaDeRamo(r,tenant)||'').toUpperCase():'';
+  // El horario puede escribir la sigla con prefijo: el de la FEN dice ENMEM1505.
+  const prefijo=PREFIJO_SIGLA_HORARIO[tenant];
+  const sigla=prefijo!=null?String(siglaDeRamo(r,tenant)||'').toUpperCase():'',codigo=(prefijo||'')+sigla;
   const contenido=document.getElementById('modal-content');
   contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
     <form class="calif-nombre" novalidate>
@@ -1868,15 +1870,15 @@ function abrirSeccionParaCalificar(r){
           if(!vigente()||String(siglaDeRamo(r,tenant)||'').toUpperCase()!==sigla)return false;
           // Mismo lector y votación de secciones que al importar el horario.
           // Solo sirve la sigla de ESTE ramo; un empate no elige sección.
-          const encontrada=codigosDeFotoHorario(lecturas).find(c=>c.sigla===sigla);
+          const encontrada=codigosDeFotoHorario(lecturas).find(c=>c.sigla===codigo);
           const estado=form.querySelector('[role=status]');
           if(!encontrada||encontrada.seccion==null){
-            estado.textContent=`No pudimos identificar la sección de ${sigla}. Prueba con otra foto o escríbela arriba.`;
+            estado.textContent=`No pudimos identificar la sección de ${codigo}. Prueba con otra foto o escríbela arriba.`;
             return false;
           }
           input.value=String(encontrada.seccion);
           limpiarErrorCampo('m-ramo-seccion','calif-seccion-error');
-          estado.textContent=`${sigla} · Sección ${encontrada.seccion}. Revisa el número antes de continuar.`;
+          estado.textContent=`${codigo} · Sección ${encontrada.seccion}. Revisa el número antes de continuar.`;
           return true;
         });
       }finally{

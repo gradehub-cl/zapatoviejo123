@@ -4179,8 +4179,10 @@ function palabrasDeLectura(data){
 // Cada ramo aparece varias veces en la grilla, así que se vota: gana la
 // sección que más se repite, y con empate el ramo va SIN sección. Una sección
 // inventada es peor que una que falta.
-const SIGLA_FOTO_RE=/^([A-Z]{2,5}\d{2,4}[A-Z]{0,2}|UC_\d{4})([-‐‑‒–—](\d{1,3})?)?$/;
-const PATRON_SIGLA_FOTO=/(^|[^A-Z0-9_])([A-Z]{2,5}\d{2,4}[A-Z]{0,2}|UC_\d{4})(?:[ \t]*[-‐‑‒–—][ \t]*(\d{1,3}))?(?![A-Z0-9_])/g;
+//
+// La FEN separa la sección con barra ("ENMEM1505/02"): también vale.
+const SIGLA_FOTO_RE=/^([A-Z]{2,5}\d{2,4}[A-Z]{0,2}|UC_\d{4})([-‐‑‒–—/](\d{1,3})?)?$/;
+const PATRON_SIGLA_FOTO=/(^|[^A-Z0-9_])([A-Z]{2,5}\d{2,4}[A-Z]{0,2}|UC_\d{4})(?:[ \t]*[-‐‑‒–—/][ \t]*(\d{1,3}))?(?![A-Z0-9_])/g;
 function seccionDebajo(p,palabras){
   const alto=Math.max(1,p.y1-p.y0);
   const debajo=palabras.filter(q=>q!==p&&/^\d{1,3}$/.test(q.texto.trim())
