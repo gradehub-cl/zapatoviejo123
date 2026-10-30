@@ -22,9 +22,9 @@ function openRenombrarHistModal(histId){
   const filas=ramos.map((r,i)=>`
     <div class="rep-row" id="m-hist-ren-fila-${esc(r.id)}" data-quitar="false">
       <div class="rep-name"><span class="hist-ren-nombre">${esc(r.nombre)}</span>${r.creditos?` <span class="rep-tag">${r.creditos} cr</span>`:''}
-        <button type="button" class="rep-link" id="m-hist-ren-quitar-${esc(r.id)}" data-ramo="${esc(r.id)}" onclick="quitarRamoHistRename(this.dataset.ramo)" aria-label="Quitar ${esc(r.nombre)}">Quitar</button>
         <small class="hist-ren-estado" id="m-hist-ren-estado-${esc(r.id)}" role="status" hidden>Se quitará al guardar</small></div>
       <span class="rep-peso-field" style="width:5rem;"><input class="rep-peso-input" style="padding-right:9px;" type="text" inputmode="decimal" id="m-hist-ren-nota-${i}" value="${esc(notas[i].txt)}" maxlength="4" autocomplete="off" placeholder="—" aria-label="Nota final de ${esc(r.nombre)}" oninput="limpiarErrorHistRename()"/></span>
+      <button type="button" class="rep-link" id="m-hist-ren-quitar-${esc(r.id)}" data-ramo="${esc(r.id)}" onclick="quitarRamoHistRename(this.dataset.ramo)" aria-label="Quitar ${esc(r.nombre)}">Quitar</button>
     </div>`).join('');
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Editar ${esc(h.label)}</div>
@@ -75,9 +75,9 @@ function agregarRamoHistRename(cod,siglaCod){
   // que la persona esté corrigiendo. S.historial no cambia hasta Guardar.
   document.getElementById('m-hist-ren-ramos').insertAdjacentHTML('beforeend',`
     <div class="rep-row" id="m-hist-ren-fila-${r.id}">
-      <div class="rep-name">${esc(r.nombre)}${r.creditos?` <span class="rep-tag">${r.creditos} cr</span>`:''}
-        <button type="button" class="rep-link" onclick="quitarRamoHistRename('${r.id}')" aria-label="Quitar ${esc(r.nombre)}">Quitar</button></div>
+      <div class="rep-name"><span class="hist-ren-nombre">${esc(r.nombre)}</span>${r.creditos?` <span class="rep-tag">${r.creditos} cr</span>`:''}</div>
       <span class="rep-peso-field" style="width:5rem;"><input class="rep-peso-input" style="padding-right:9px;" type="text" inputmode="decimal" id="m-hist-ren-nueva-${r.id}" maxlength="4" autocomplete="off" placeholder="—" aria-label="Nota final de ${esc(r.nombre)}" oninput="limpiarErrorHistRename()"/></span>
+      <button type="button" class="rep-link" onclick="quitarRamoHistRename('${r.id}')" aria-label="Quitar ${esc(r.nombre)}">Quitar</button>
     </div>`);
   const buscar=document.getElementById('m-hist-ren-buscar');
   if(buscar)buscar.value='';
