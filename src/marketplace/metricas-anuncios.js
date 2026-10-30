@@ -210,7 +210,7 @@ const ANUNCIO_YA_SE_MOSTRO=new Set(['publicado','pausado','expirado']);
 // aplicar): ahí se usa el total de siempre y todo se cobra como segmentado,
 // que es como se cotizaba antes. Nunca se inventa un reparto.
 async function metricasDeAnuncio(anuncio){
-  const salida={alcance:null,porCanal:null,cortes:[],agregados:null,campana:anuncio&&anuncio.campana||null,error:false};
+  const salida={alcance:null,porCanal:null,cortes:[],agregados:null,historial:null,campana:anuncio&&anuncio.campana||null,error:false};
   if(!anuncio||!ANUNCIO_YA_SE_MOSTRO.has(anuncio.estado))return salida;
   // La campaña: personas que vieron, abrieron y contactaron, y días cobrados.
   // Sin el SQL de campañas no hay costo que mostrar, y no se inventa.
@@ -250,6 +250,10 @@ async function metricasDeAnuncio(anuncio){
     ...salida.cortes.map(c=>({vista:'dia',clave:c.dia,tipo:c.tipo,eventos:c.eventos})),
     ...salida.cortes.map(c=>({vista:'ramo',clave:c.ramo_sigla,tipo:c.tipo,eventos:c.eventos})),
     ...salida.cortes.map(c=>({vista:'total',clave:'',tipo:c.tipo,eventos:c.eventos}))]);
+  try{
+    const {data,error}=await supabaseClient.rpc('historial_anuncio',{p_anuncio_id:anuncio.id,p_dias:null});
+    if(!error&&Array.isArray(data))salida.historial=data;
+  }catch(e){} // El resumen anterior sigue disponible sin el SQL nuevo.
   return salida;
 }
 

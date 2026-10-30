@@ -66,7 +66,7 @@ function comparaSeccionGuardado(){try{return localStorage.getItem(CLAVE_COMPARA_
 function guardarComparaSeccion(v){try{localStorage.setItem(CLAVE_COMPARA_PANEL,v?'seccion':'gradehub');}catch(e){}}
 function comparaPanelHTML(seccion){
   const op=(v,t)=>`<button type="button" data-compara="${v}" aria-pressed="${(v==='seccion')===seccion}">${t}</button>`;
-  return `<div class="panel-alumnos-compara" role="group" aria-label="Comparar con">${op('gradehub','Todo GradeHub')}${op('seccion','Su sección')}</div>`;
+  return `<div class="panel-alumnos-compara" role="group" aria-label="Comparar con">${op('gradehub','Ramo')}${op('seccion','Sección')}</div>`;
 }
 // `extra` va bajo la cabeza del ramo (en el panel, cuándo empezó en él). El
 // ramo se pliega con la misma flecha que la fila del alumno; `abierto` dice

@@ -59,7 +59,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
       ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:'<p class="clases-pendiente-vacio">Nada pendiente de tu parte.</p>'}`+
     (anuncios.length?'':`<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
       <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>`)+
-    `<details class="clases-resumen profesor-hig-resumen" open><summary id="clases-resumen-titulo">Tus clases activas</summary>
+    `<details class="clases-resumen profesor-hig-resumen" open><summary id="clases-resumen-titulo">Cómo van tus anuncios</summary>
        <div id="clases-kpis">${g.activos.length?'<p class="clase-sin-datos">Cargando números…</p>'
          :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'
            :g.revision.length?'Cuando aprobemos tu clase, acá vas a ver a cuántas personas llega, cuántas te contactan y cuánto va costando.'
@@ -191,5 +191,8 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     kpis.innerHTML=cifrasClase({alcance:alcanceTotal,totales,hayCortes:activas.some(d=>d.hayCortes),campana,costo},pesos,'personas por anuncio')
       .replace('class="clase-etapas"','class="clase-etapas clases-kpis-etapas"').replace('class="clase-nums"','class="clase-nums clases-kpis"')+
       `<details class="profesor-hig-estadisticas"><summary>Detalle de alcance y costo</summary><div class="viz-fila">${donaCanalesClase(porCanal,'alcances')}${costoApiladoClase(costo,pesos)}</div>${embudoClase(totales)}</details>`;
+
   }
+  if(kpis&&kpis.isConnected&&medidas.length&&medidas.every(d=>!d.error&&Array.isArray(d.historial))&&typeof kpis.querySelectorAll==='function')
+    enlazarResumenProfesorEditorial(kpis,medidas,ahora,()=>renderBorradorProfesor(raiz,null));
 }

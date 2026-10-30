@@ -28,7 +28,7 @@ chk('pausar a un profesor solo va y vuelve entre aprobado y suspendido',/p_estad
 console.log('\n=== La página ===');
 function nodo(){const n={textContent:'',value:'',hijos:{},addEventListener(){},querySelectorAll(){return [];},querySelector(s){return this.hijos[s]||(this.hijos[s]=nodo());}};
   let html='';Object.defineProperty(n,'innerHTML',{get(){return html},set(v){html=String(v);}});return n;}
-const ctx={console,Intl,Promise,esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),
+const ctx={console,Intl,Promise,currentUser:{id:"admin-sintetico"},esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),
   document:{getElementById(){return null;},addEventListener(){}},showToast(){},showConfirm(){}};
 vm.createContext(ctx);vm.runInContext(leer('marketplace.js'),ctx);
 const run=c=>vm.runInContext(c,ctx);

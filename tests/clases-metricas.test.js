@@ -39,6 +39,7 @@ function montar({alcance=null,cortes=[],porCanal=null,totales=null,campana=null}
     n==='campana_anuncio'?(__campana?{data:[__campana],error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='alcance_anuncio_por_canal'?(__porCanal?{data:__porCanal,error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='totales_metricas_anuncio'?(__totales?{data:__totales,error:null}:{data:null,error:{code:'42883',message:'no existe'}})
+    :n==='historial_anuncio'?{data:null,error:{code:'PGRST202',message:'no existe'}}
     :n==='alcance_anuncio'?{data:__alcance,error:null}:{data:__cortes,error:null})};`);
 }
 const pintar=async(anuncios,datos)=>{

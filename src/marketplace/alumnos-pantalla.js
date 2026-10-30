@@ -189,11 +189,36 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const r=al&&(al.ramos||[]).find(x=>x.id===b.dataset.inicioRamo);
     if(r)abrirInicioRamo(al,r,()=>{if(vigente())renderAlumnosProfesor(raiz,{volver,alumnoId:al.id});},rpc);
   }));
+  let ramoFicha=null;
+  const ultimaSeccion=new Map();
   const pintarFicha=()=>{
     if(!seleccionado)return;
     raiz.querySelector('#alumnos-ficha-titulo').textContent=seleccionado.nombre_visible||'Alumno';
-    fichaContenido.innerHTML=conUniversidadPanel(seleccionado.tenant,()=>contenidoAlumnoPanelHTML(seleccionado,compDe,new Date()));
-    enlazarQuitar();enlazarInicio();enlazarGraficosEvolucion(fichaContenido);
+    fichaContenido.innerHTML=contenidoAlumnoEditorialHTML(seleccionado,compDe,compGeneral,new Date());
+    const pintarRamo=()=>{
+      const al=seleccionado,r=(al.ramos||[]).find(r=>r.id===ramoFicha)||(al.ramos||[])[0];
+      if(!r)return;ramoFicha=r.id;
+      fichaContenido.querySelectorAll('[data-pe-ramo]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.peRamo===String(r.id))));
+      const destino=fichaContenido.querySelector('[data-pe-ramo-contenido]');
+      destino.innerHTML=ramoAlumnoEditorialHTML(al,r,compDe(al,r),ultimaSeccion.get(r.id)?compSeccion(al,r):compGeneral(al,r),!!ultimaSeccion.get(r.id),new Date());
+      enlazarInicio();enlazarGraficosEvolucion(destino);
+      const barra=destino.querySelector('[data-pe-ultima-wrap]');
+      const enlazarUltima=()=>barra?.querySelector('[data-pe-ultima]')?.addEventListener('click',async()=>{
+        const quiere=!ultimaSeccion.get(r.id),boton=barra.querySelector('button');boton.disabled=true;
+        if(quiere)await cargarSecciones();
+        if(!vigente()||seleccionado!==al||ramoFicha!==r.id)return;
+        ultimaSeccion.set(r.id,quiere);
+        barra.innerHTML=barraUltimaPrivadaHTML(ramoParaPanel(r),quiere?compSeccion(al,r):compGeneral(al,r),quiere);
+        enlazarUltima();barra.querySelector('button')?.focus({preventScroll:true});
+      });
+      enlazarUltima();
+      destino.querySelector('[data-pe-comparar]')?.addEventListener('click',()=>{
+        const boton=controles.find(Boolean)?.querySelector(`[data-compara="${porSeccion?'gradehub':'seccion'}"]`);
+        if(boton&&typeof boton.click==='function')boton.click();
+      });
+    };
+    fichaContenido.querySelectorAll('[data-pe-ramo]').forEach(b=>b.addEventListener('click',()=>{ramoFicha=b.dataset.peRamo;pintarRamo();}));
+    pintarRamo();enlazarQuitar();
   };
   const activarVista=nombre=>{
     if(!vigente())return;
@@ -202,6 +227,9 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     // a media altura, mostrando el medio de algo nuevo.
     if(nombre!==vistaActiva){const caja=typeof raiz.closest==='function'&&raiz.closest('.scroll');if(caja)caja.scrollTop=0;}
     vistaActiva=nombre;
+    const cabecera=typeof raiz.closest==='function'&&raiz.closest('#screen-alumnos')?.querySelector('.topbar h1');
+    if(cabecera){cabecera.textContent=nombre==='ficha'?(seleccionado?.nombre_visible||'Alumno'):'Alumnos';raiz.querySelector('#alumnos-ficha-titulo').hidden=true;}
+
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
     raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;

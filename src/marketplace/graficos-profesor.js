@@ -61,7 +61,7 @@ function anilloCampanaClase(a,ahora){
 
 // Veces que se mostró por día desde que se publicó. Un día sin barra no es un
 // cero: es un día con menos de quince eventos, y se dice así.
-function barrasDiasClase(a,agregados,ahora){
+function barrasDiasClase(a,agregados,ahora,desdePrimerEvento=false){
   if(!agregados)return '';
   const desde=Date.parse(a.publicado_at||''),hasta=Math.min(ahora,Date.parse(a.vence_at||'')||ahora);
   if(!Number.isFinite(desde))return '';
@@ -74,13 +74,13 @@ function barrasDiasClase(a,agregados,ahora){
   const fecha=d=>new Date(d+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'});
   return `<figure class="viz clase-serie"><figcaption>Veces que se mostró por día</figcaption>
     ${mejor?`<p class="clase-serie-pico"><b>${milesViz(mejor.n)}</b><span>máximo diario · ${esc(fecha(mejor.d))}</span></p>`:''}
-    ${max?`<div class="clase-serie-area" role="img" aria-label="Veces que se mostró por día. Escala de 0 a ${max}. Los días sin dato publicable se marcan con una raya; valores en Ver días.">
+    ${max?`<div class="clase-serie-area" role="img" aria-label="Veces que se mostró por día. Escala de 0 a ${max}. ${desdePrimerEvento?'Un día sin eventos vale cero':'Los días sin dato publicable se marcan con una raya'}; valores en Ver días.">
       <div class="clase-serie-eje" aria-hidden="true">${[max,max/2,0].map(n=>`<span>${milesViz(n)}</span>`).join('')}</div>
-      <div class="clase-serie-columnas" aria-hidden="true">${serie.map(x=>`<span>${x.n?`<i style="transform:scaleY(${(x.n/max).toFixed(4)})"></i>`:'<b class="clase-dia-sin">—</b>'}</span>`).join('')}</div></div>
+      <div class="clase-serie-columnas" aria-hidden="true">${serie.map(x=>`<span>${x.n?`<i style="transform:scaleY(${(x.n/max).toFixed(4)})"></i>`:(desdePrimerEvento?'':'<b class="clase-dia-sin">—</b>')}</span>`).join('')}</div></div>
       <div class="campana-tiempo-fechas" aria-hidden="true"><span>${esc(fecha(dias[0]))}</span><span>${esc(fecha(dias[dias.length-1]))}</span></div>`:'<p class="clase-sin-datos">Aún no hay días con datos publicables.</p>'}
-    ${serie.some(x=>!x.n)?'<p class="detalle-barras-nota">— Menos de 15 eventos</p>':''}
+    ${!desdePrimerEvento&&serie.some(x=>!x.n)?'<p class="detalle-barras-nota">— Menos de 15 eventos</p>':''}
     <details class="clase-serie-tabla"><summary>Ver días</summary><div><table><thead><tr><th scope="col">Día</th><th scope="col">Veces que se mostró</th><th scope="col">Contactos</th></tr></thead>
-      <tbody>${serie.map(x=>`<tr><th scope="row">${esc(fecha(x.d))}</th><td>${x.n?milesViz(x.n):'Menos de 15 eventos'}</td><td>${x.c?milesViz(x.c):'Menos de 15 eventos'}</td></tr>`).join('')}</tbody></table></div></details>
+      <tbody>${serie.map(x=>`<tr><th scope="row">${esc(fecha(x.d))}</th><td>${desdePrimerEvento||x.n?milesViz(x.n):'Menos de 15 eventos'}</td><td>${desdePrimerEvento||x.c?milesViz(x.c):'Menos de 15 eventos'}</td></tr>`).join('')}</tbody></table></div></details>
   </figure>`;
 }
 
@@ -98,7 +98,7 @@ function barrasRamosClase(a,agregados){
 function graficosClase(d,pesos,ahora){
   const arriba=donaCanalesClase(d.porCanal)+anilloCampanaClase(d.a,ahora);
   return (arriba?`<div class="viz-fila">${arriba}</div>`:'')+
-    barrasDiasClase(d.a,d.agregados,ahora)+
+    barrasDiasClase(d.a,d.agregados,ahora,Array.isArray(d.historial))+
     costoApiladoClase(d.costo,pesos)+
     barrasRamosClase(d.a,d.agregados)+
     embudoClase(d.totales);
@@ -106,13 +106,13 @@ function graficosClase(d,pesos,ahora){
 
 function prepararMetricasClase(a,m){
   const totales=m.agregados?m.agregados.total:totalesDeCortes(m.cortes);
-  return {a,alcance:m.alcance,porCanal:m.porCanal,totales,agregados:m.agregados,campana:m.campana,
+  return {a,alcance:m.alcance,porCanal:m.porCanal,totales,agregados:m.agregados,campana:m.campana,historial:m.historial,
     error:m.error||a.campanaError,hayCortes:Object.values(totales).some(n=>n>0),costo:costoCampanaClase(m.campana)};
 }
 function detalleMetricasClaseHTML(d,pesos,ahora){
   return (d.costo&&d.costo.agotada?'<p class="clase-aviso-tope">Llegó a tu tope: dejó de mostrarse y no suma más costo.</p>':'')+
     cifrasClase(d,pesos,'personas distintas',true)+'<details class="profesor-hig-estadisticas"><summary>Más estadísticas</summary>'+graficosClase(d,pesos,ahora)+
-    (d.hayCortes?'':'<p class="clase-sin-datos">Las veces que se mostró por día aparecen cuando hay suficientes datos para que nadie quede identificado.</p>')+
+    (d.hayCortes?'':Array.isArray(d.historial)?'<p class="clase-sin-datos">El desglose por ramo aparece cuando hay suficientes datos para que nadie quede identificado.</p>':'<p class="clase-sin-datos">Las veces que se mostró por día aparecen cuando hay suficientes datos para que nadie quede identificado.</p>')+
     (d.costo?`<p class="clase-sin-datos">${esc(lineaCostoCampanaClase(d.costo))}.</p>`:'')+'</details>';
 }
 

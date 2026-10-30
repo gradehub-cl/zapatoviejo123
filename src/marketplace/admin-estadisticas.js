@@ -142,7 +142,7 @@ function crecimientoAdminHTML(semanas,ahora=Date.now()){
     ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
 }
 const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios'];
-function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcance=null){
+function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcance=null,historial=null){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
   const tab=(nombre,texto)=>`<button type="button" role="tab" id="admin-tab-${nombre}" data-admin-area="${nombre}" aria-controls="admin-area-${nombre}" aria-selected="${nombre===area}" tabindex="${nombre===area?'0':'-1'}">${texto}</button>`;
@@ -158,16 +158,10 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
       <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-buscar-profesor">Buscar<input type="search" id="admin-buscar-profesor" placeholder="Nombre del profesor" autocomplete="off"></label>
       <label for="admin-estado-profesor">Estado<select id="admin-estado-profesor">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<option value="${v}"${v===vistaAdmin.profesores?' selected':''}>${t}</option>`).join('')}</select></label></div>
       <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
-    ${panel('anuncios',`<h2>Anuncios</h2>
-    <div class="admin-hig-resumen" aria-label="Resumen de administración">
-    ${kpi('Visibles ahora',filas.filter(f=>f.estado[1]==='publicado').length,'Publicadas y bajo su tope')}
-    ${kpi('Por revisar',r.revision,'Anuncios que esperan una decisión')}
-    ${kpi('Deuda registrada',pesosClase(r.deuda),'Incluye publicaciones anteriores')}
-    ${kpi('Cobrado',pesosClase(r.cobrado),'Historial de pagos registrados')}</div>
-
-    <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar · ${r.revision}</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
+    ${panel('anuncios',`${anunciosAdminEditorialHTML(profesores,ahora,historial,alcance)}
+    <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
     <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label for="admin-hig-estado">Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}"${v===vistaAdmin.estado?' selected':''}>${t}</option>`).join('')}</select></label></div>
-    <p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
+    <p class="pe-sub" data-pe-periodo-filas>Campaña actual · acumulado</p><p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
     <div class="admin-hig-lista">${filas.map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
     <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>`)}
     ${panel('estadisticas',`<h2>Estadísticas de GradeHub</h2>
@@ -205,22 +199,28 @@ async function pintarReportesProgramaAdmin(raiz){
       </article>`).join('')}</div>`:'<p class="admin-hig-vacio">Todavía no hay diferencias reportadas.</p>');
   }catch(e){if(caja.isConnected)caja.innerHTML='<h3>Programas reportados</h3><p class="profesor-info" role="alert">No pudimos cargar los reportes. Actualiza para intentar de nuevo.</p>';}
 }
+let versionPanelAdminEditorial=0;
 async function pintarPanelAdmin(raiz){
+  const usuario=currentUser,cliente=supabaseClient,version=++versionPanelAdminEditorial;
+  const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAdminEditorial&&raiz.isConnected!==false;
   raiz.innerHTML='<p class="profesor-info" role="status">Cargando…</p>';
   let profesores;
   try{
     const {data,error}=await supabaseClient.rpc('admin_panel_clases');
+    if(!vigente())return;
     if(error){console.warn('No se pudo cargar la administración:',error.code||'',error.message||error);
       raiz.innerHTML=`<p class="profesor-info" role="alert">${error.code==='42501'?'Esta cuenta no tiene acceso de administración.':'No pudimos cargar la administración. Intenta de nuevo.'}</p>`;return;}
     profesores=Array.isArray(data)?data:[];
     if(profesores.some(p=>(p.anuncios||[]).some(a=>!Array.isArray(a.cobros))))compatibilidadSqlClases.cobros=true;
-  }catch(e){raiz.innerHTML='<p class="profesor-info" role="alert">No pudimos cargar la administración. Intenta de nuevo.</p>';return;}
+  }catch(e){if(!vigente())return;raiz.innerHTML='<p class="profesor-info" role="alert">No pudimos cargar la administración. Intenta de nuevo.</p>';return;}
   // Si el SQL agregado aún no se aplicó, las campañas siguen disponibles.
   // Lo mismo con el alcance diario (admin_estadisticas.sql): null = sin SQL.
-  let crecimiento=[],alcance=null;
-  const [rc,ra]=await Promise.allSettled([supabaseClient.rpc('crecimiento_semanal_admin'),supabaseClient.rpc('admin_alcance_diario',{p_dias:30})]);
+  let crecimiento=[],alcance=null,historial=null;
+  const [rc,ra,rh]=await Promise.allSettled([supabaseClient.rpc('crecimiento_semanal_admin'),supabaseClient.rpc('admin_alcance_diario',{p_dias:30}),supabaseClient.rpc('admin_historial_anuncios',{p_dias:null})]);
   if(rc.status==='fulfilled'&&rc.value&&!rc.value.error&&Array.isArray(rc.value.data))crecimiento=rc.value.data;
   if(ra.status==='fulfilled'&&ra.value&&!ra.value.error&&Array.isArray(ra.value.data))alcance=ra.value.data;
+  if(rh.status==='fulfilled'&&rh.value&&!rh.value.error&&Array.isArray(rh.value.data))historial=rh.value.data;
+  if(!vigente())return;
   const ahora=Date.now();
   // La sección que pidió la barra lateral manda (2026-10-23).
   const pedida=typeof tomarVistaNav==='function'&&tomarVistaNav('admin');
@@ -228,7 +228,7 @@ async function pintarPanelAdmin(raiz){
   const pendientes=profesores.filter(p=>p.estado==='pendiente').length;
   if(vistaAdmin.profesores===undefined)vistaAdmin.profesores='aprobado';
   marcarPendientesNavAdmin(pendientes);
-  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance);
+  raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance,historial);
   pintarReportesProgramaAdmin(raiz);
   enlazarGraficosAdmin(raiz);
   const lista=raiz.querySelector('#admin-lista-profesores');
@@ -288,9 +288,11 @@ async function pintarPanelAdmin(raiz){
     seccion=b.dataset.adminSeccion;
     filtro.value=seccion==='revision'?'en_revision':seccion==='campanas'?'publicado':'';
     raiz.querySelectorAll('[data-admin-seccion]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
-    filtrar();
+    if(typeof filtro.dispatchEvent==='function')filtro.dispatchEvent(new Event('change',{bubbles:true}));else filtrar();
   }));
   filtrar();
+  enlazarAdminEditorial(raiz,historial,alcance,ahora);
+  enlazarSelectoresPrivados(raiz);
   const repintar=()=>pintarPanelAdmin(raiz);
   const anunciosPorId=new Map(profesores.flatMap(p=>p.anuncios||[]).map(a=>[a.id,a]));
   raiz.querySelectorAll('[data-admin-estadisticas]').forEach(b=>b.addEventListener('click',async()=>{
