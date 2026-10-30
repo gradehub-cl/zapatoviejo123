@@ -4243,49 +4243,113 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pe-menu button i{font-style:normal;visibility:hidden;color:var(--primary);}
 .pe-menu button[aria-checked="true"] i{visibility:visible;}
 .pe-menu [data-pe-cerrar]{display:none;}
-.pe-ficha .pe-ramos{margin:4px 0 28px;}
-.pe-promedio>span{font-size:.875rem;color:var(--fg2);}
-.pe-promedio>strong{display:block;font-size:clamp(3rem,6vw,4.5rem);line-height:1.15;letter-spacing:-.055em;font-weight:650;margin:6px 0 10px;}
-.pe-promedio p,.pe-diferencia{font-size:.875rem;line-height:1.6;}
-.pe-promedio p{color:var(--fg2);}
-.pe-diferencia{display:block;margin:4px 0 28px;}
-.pe-ficha .ah-evolucion{margin:20px 0;}
+/* Ficha privada del alumno: maqueta aprobada, sin afectar Estadísticas del estudiante. */
+#screen-alumnos .pe-alumno-cabecera{align-items:center;}
+#screen-alumnos .pe-cabecera-nombre{display:block;font-size:1.5rem;font-weight:620;line-height:1.25;overflow-wrap:anywhere;}
+.pe-cabecera-sub[hidden]{display:none;}
+.pe-cabecera-sub{display:block;font-family:var(--font-ui);font-size:.75rem;font-weight:400;letter-spacing:0;line-height:1.5;color:var(--fg2);margin:5px 0 0;}
+.alumnos-editorial .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;min-width:44px;min-height:44px;padding:10px 0;border:0;background:transparent;color:var(--fg2);border-radius:4px;box-shadow:none;}
+.alumnos-editorial .panel-alumnos-regresar:hover{color:var(--fg);}
+.pe-ficha .pe-ramos{gap:24px;margin:4px 0 0;border-bottom:1px solid var(--border);}
+.pe-ficha .pe-ramos button{padding:12px 0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--fg2);font-weight:500;overflow-wrap:anywhere;text-align:left;}
+.pe-ficha .pe-ramos button[aria-pressed="true"]{color:var(--fg);border-bottom-color:var(--fg);background:transparent;font-weight:600;}
+.pe-ficha-acciones{display:flex;justify-content:flex-end;margin:8px 0 16px;}
+.pe-ficha-acciones button{min-width:44px;min-height:44px;padding:10px 18px;border:0;border-radius:24px;background:var(--muted);color:var(--fg);font-family:var(--font-ui);font-size:.8125rem;cursor:pointer;}
+.pe-ficha .pe-alumno-grilla{grid-template-columns:minmax(0,1fr) minmax(16rem,19rem);gap:30px;}
+.pe-ficha .pe-promedio{display:flex;gap:clamp(20px,4vw,42px);align-items:flex-end;margin:0 0 28px;}
+.pe-promedio>div{min-width:0;}
+.pe-promedio span{display:block;font-size:.75rem;line-height:1.5;color:var(--fg2);}
+.pe-promedio strong{display:block;font-size:1.8rem;font-weight:550;letter-spacing:-.04em;line-height:1.2;margin-top:10px;}
+.pe-promedio>div:first-child strong{font-size:3.9rem;font-weight:550;line-height:1;}
+.pe-ficha .pe-frente,.pe-ficha .pe-contexto{border:1px solid var(--border);border-radius:12px;padding:26px;background:var(--card);}
+.pe-frente-cabeza{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.pe-ficha .pe-frente-cabeza h3,.pe-ficha .pe-contexto h3{font-size:1.1rem;font-weight:590;margin:0;}
+.pe-frente-cabeza>span{color:var(--fg2);font-size:.7rem;}
+.pe-grupo{display:flex;gap:3px;margin:0 0 22px;}
+.pe-grupo button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:.75rem;min-width:64px;min-height:44px;padding:8px 16px;border-radius:22px;cursor:pointer;}
+.pe-grupo button[aria-pressed="true"]{background:var(--muted);color:var(--fg);font-weight:600;}
+.pe-ficha button:disabled{opacity:.5;cursor:wait;}
+.pe-ficha button:active,.alumnos-editorial .panel-alumnos-regresar:active{background:var(--muted);}
+.pe-ficha button:focus-visible,.alumnos-editorial .panel-alumnos-regresar:focus-visible{outline:2px solid var(--fg);outline-offset:3px;}
+.pe-ficha .pe-evolucion{--primary:var(--pe-acento);}
+.pe-ficha .pe-evolucion .evolucion-trazado{height:260px;}
+.pe-ficha .evolucion-eje{color:var(--fg2);opacity:1;}
+.pe-ficha .evolucion-referencia{opacity:1;border-top:1px dashed var(--fg2);}
 .pe-ficha .evolucion-inicio>i{border-left:1px solid var(--fg2);opacity:1;}
 .pe-ficha .evolucion-inicio>i:after{content:'';position:absolute;width:7px;height:7px;background:var(--fg2);bottom:-3px;left:-4px;}
 .pe-ficha .evolucion-inicio>span{border-radius:2px;}
-.pe-alumno-grilla>aside{border-left:1px solid var(--border);padding-left:28px;}
-.pe-ultima{display:flex;flex-direction:column;gap:8px;width:100%;min-height:44px;text-align:left;padding:0 0 24px;border:0;border-bottom:1px solid var(--border);border-radius:4px;background:transparent;color:var(--fg);cursor:pointer;}
-.pe-ultima>span{font-size:.8125rem;line-height:1.5;color:var(--fg2);}
-.pe-ultima>span:first-child{display:flex;justify-content:space-between;width:100%;}
-.pe-ultima>span i{font-style:normal;}
-.pe-ultima>strong{font-size:2.25rem;line-height:1.2;letter-spacing:-.04em;}
-.pe-ultima>small{color:var(--fg2);font-size:.75rem;line-height:1.5;}
-.pe-ultima .pe-nota-pista{position:relative;display:block;width:100%;height:6px;background:var(--muted);margin-top:14px;}
+.pe-evolucion-fechas{display:flex;justify-content:space-between;gap:12px;margin:12px 0 0 2rem;color:var(--fg2);font-size:.6875rem;}
+.pe-evolucion-leyenda{display:flex;gap:14px;flex-wrap:wrap;margin-top:22px;font-size:.625rem;line-height:1.5;color:var(--fg2);}
+.pe-evolucion-leyenda>span{display:flex;align-items:center;gap:6px;}
+.pe-evolucion-leyenda i{display:inline-block;width:16px;border-top:2px solid var(--pe-acento);}
+.pe-evolucion-leyenda .pe-leyenda-cero{border-top:1px dashed var(--fg2);}
+.pe-evolucion-leyenda .pe-leyenda-inicio{width:1px;height:12px;border-top:0;background:var(--fg2);margin:0 6px;}
+.pe-sin-grafico{min-height:220px;display:grid;place-content:center;text-align:center;color:var(--fg2);font-size:.8125rem;line-height:1.6;margin:0;}
+.pe-contexto{container-type:inline-size;}
+.pe-contexto-sub{color:var(--fg2);font-size:.75rem;line-height:1.5;margin:8px 0 26px;}
+.pe-ultima-cabeza{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.pe-ultima-cabeza>span{font-size:.8125rem;color:var(--fg2);}
+.pe-ultima-cabeza>strong{font-size:2rem;line-height:1.2;letter-spacing:-.04em;font-weight:550;}
+.pe-ultima-fecha{font-size:.625rem;line-height:1.5;margin:6px 0 0;color:var(--fg2);}
+.pe-ultima{display:flex;flex-direction:column;gap:9px;width:100%;min-height:44px;text-align:left;padding:16px 0 0;border:0;border-radius:4px;background:transparent;color:var(--fg);cursor:pointer;}
+.pe-ultima>small{color:var(--fg2);font-size:.6875rem;line-height:1.5;}
+.pe-ultima .pe-nota-pista{position:relative;display:block;width:100%;height:5px;background:var(--muted);margin-top:4px;}
 .pe-nota-pista>i{position:absolute;height:100%;background:var(--pe-acento);left:0;}
 .pe-nota-pista>b{position:absolute;width:2px;height:16px;top:-5px;background:var(--fg);}
-.pe-nota-pista>em{position:absolute;top:-3px;height:12px;border-left:1px dashed var(--fg3);}
-.pe-ultima .pe-barra-extremos{display:flex;justify-content:space-between;width:100%;font-size:.6875rem;}
-.pe-necesaria{border-bottom:1px solid var(--border);padding:24px 0;}
-.pe-necesaria>span{font-size:.8125rem;color:var(--fg2);}
-.pe-necesaria>div{display:grid;grid-template-areas:"medidor";place-items:end center;width:min(10rem,100%);margin:16px 0;}
-.pe-necesaria .medidor-nota{grid-area:medidor;width:100%;max-width:none;height:auto;}
-.pe-necesaria strong{grid-area:medidor;align-self:end;max-width:72%;margin-bottom:.25rem;text-align:center;font-size:1.5rem;line-height:1.05;}
-.pe-necesaria>b{font-size:.8125rem;}
-.pe-datos-ramo{display:grid;grid-template-columns:1fr 1fr;gap:24px 16px;padding:24px 0;}
-.pe-datos-ramo .pe-cifra>strong{font-size:1.25rem;}
-.pe-datos-ramo .pe-cifra>span{font-size:.75rem;color:var(--fg2);}
-.pe-evaluaciones{border-top:1px solid var(--border);margin-top:28px;padding-top:24px;}
-.pe-evaluaciones ul{list-style:none;padding:0;margin:0 0 28px;}
-.pe-evaluaciones li{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);font-size:.875rem;}
-.pe-evaluaciones li>span{text-align:right;}
-.pe-evaluaciones small{display:block;color:var(--fg2);font-size:.75rem;line-height:1.5;margin-top:4px;}
-.pe-pasadas-cabeza{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px;}
+.pe-nota-pista>em{position:absolute;top:-3px;height:12px;border-left:1px dashed var(--fg2);}
+.pe-barra-extremos{display:flex;justify-content:space-between;width:100%;font-size:.625rem;line-height:1.5;color:var(--fg2);}
+.pe-ficha .pe-necesaria{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;border-block:1px solid var(--border);padding:24px 0;margin-top:24px;}
+.pe-necesaria-texto b{display:block;font-size:.75rem;line-height:1.5;font-weight:500;}
+.pe-necesaria-texto small{display:block;font-size:.625rem;line-height:1.5;margin-top:5px;color:var(--fg2);}
+.pe-necesaria .pe-medidor{position:relative;width:100%;max-width:12rem;margin:0;justify-self:end;}
+.pe-necesaria .medidor-nota{display:block;width:100%;max-width:none;height:auto;}
+.pe-medidor-cifra{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3%;text-align:center;}
+.pe-medidor-cifra strong{font-size:1.25rem;font-weight:600;line-height:1.05;max-width:72%;}
+.pe-medidor-cifra small{font-size:.625rem;line-height:1.15;letter-spacing:.02em;text-transform:uppercase;margin-top:3px;max-width:78%;}
+.pe-peso{padding-top:24px;}
+.pe-peso>div:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;}
+.pe-peso span{font-size:.75rem;color:var(--fg2);}
+.pe-peso b{font-size:1.375rem;font-weight:550;}
+.pe-peso-barra{height:4px;background:var(--muted);margin-bottom:8px;}
+.pe-peso-barra i{display:block;height:100%;background:var(--fg2);}
+.pe-peso .pe-barra-extremos span{font-size:.625rem;}
+.pe-par-notas{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:26px;padding-top:20px;border-top:1px solid var(--border);}
+.pe-par-notas>span{font-size:.625rem;color:var(--fg2);}
+.pe-par-notas b{display:block;font-size:1.3rem;font-weight:520;line-height:1.4;color:var(--fg);margin-top:4px;}
+.pe-par-notas i{font-style:normal;color:var(--pe-acento);}
+.pe-evaluaciones{border-top:1px solid var(--border);margin-top:32px;padding-top:24px;}
+.pe-evaluaciones h3{font-size:1.1rem;font-weight:590;margin:0 0 22px;}
+.pe-evaluaciones ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;list-style:none;padding:0;margin:0 0 32px;}
+.pe-evaluaciones li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;border:1px solid var(--border);border-radius:9px;padding:22px;align-items:center;font-size:.875rem;}
+.pe-evaluaciones small{display:block;color:var(--fg2);font-size:.6875rem;line-height:1.5;margin-top:5px;font-weight:400;}
+.pe-evaluaciones li>div>small:first-child{margin:0 0 8px;}
+.pe-evaluaciones li>p{grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px;margin:0;color:var(--fg2);font-size:.6875rem;line-height:1.5;}
+.pe-proxima-meta{text-align:right;}
+.pe-proxima-meta strong{font-size:2rem;font-weight:540;line-height:1.2;letter-spacing:-.04em;}
+.pe-pasadas-cabeza{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:32px 0 8px;}
 .pe-pasadas-cabeza h3{margin:0;}
+.pe-pasadas-cabeza>span{color:var(--fg2);font-size:.75rem;}
+.pe-ficha .pe-evaluaciones table{table-layout:fixed;}
+.pe-ficha .pe-evaluaciones th:first-child{width:45%;}
+.pe-ficha .pe-evaluaciones th:nth-child(2){width:20%;}
+.pe-ficha .pe-evaluaciones th:last-child{width:35%;}
+.pe-ficha .pe-evaluaciones th,.pe-ficha .pe-evaluaciones td{vertical-align:top;padding:18px 0;text-align:right;overflow-wrap:anywhere;}
+.pe-ficha .pe-evaluaciones th:first-child{text-align:left;padding-right:12px;}
+.pe-ficha .pe-evaluaciones thead th{color:var(--fg2);font-weight:400;font-size:.6875rem;vertical-align:middle;}
+.pe-evaluaciones tbody th{font-weight:500;}
+.pe-evaluaciones tbody td{font-size:1rem;}
+.pe-evaluaciones tbody td b{font-weight:550;}
+.pe-evaluaciones thead button{min-width:44px;min-height:44px;padding:5px 0;border:0;background:transparent;color:var(--fg2);font:inherit;text-align:right;cursor:pointer;}
 .pe-tabla-scroll{max-width:100%;overflow-x:auto;}
 .pe-categorias{margin:20px 0;font-size:.8125rem;color:var(--fg2);}
+.pe-quitar{border-top:1px solid var(--border);padding:28px 0;margin:24px 0 32px;}
+.pe-quitar .settings-danger-btn{width:auto;min-height:44px;min-width:44px;padding:10px 0;background:transparent;box-shadow:none;border:0;color:var(--red);font-family:var(--font-ui);font-size:.8125rem;cursor:pointer;}
 @media(max-width:1100px){.admin-hig .pe-admin-fila>summary{grid-template-columns:minmax(0,1fr) 44px;gap:20px;}.pe-fila-metricas{grid-column:1/-1;grid-row:2;padding-left:58px;}.admin-hig .pe-admin-fila>summary>.pe-ver{grid-column:2;grid-row:1;}}
-@media(max-width:760px){.pe-admin-grilla,.pe-profesor-grilla,.pe-alumno-grilla{grid-template-columns:minmax(0,1fr);gap:28px;}.pe-cola,.pe-alumno-grilla>aside{border-left:0;border-top:1px solid var(--border);padding:24px 0 0;}.pe-costos{grid-template-columns:minmax(0,1fr);gap:24px;}.pe-cifras{gap:12px;}.pe-cifra>strong{font-size:1.75rem;}.pe-plot{height:200px;}.pe-fila-metricas{gap:10px;padding-left:0;}.pe-fila-metricas b{font-size:1.25rem;}.pe-fila-metricas small{font-size:.6875rem;}.pe-identidad .admin-hig-identidad{grid-column:auto;}.pe-rango-cabeza>span{display:none;}.pe-alumno-grilla>section{display:contents;}.pe-alumno-grilla .pe-promedio{grid-row:1;}.pe-alumno-grilla>aside{grid-row:2;}.pe-alumno-grilla .ah-evolucion{grid-row:3;}.pe-profesor-grilla>aside{border-top:1px solid var(--border);padding-top:24px;}.admin-hig .admin-hig-herramientas{gap:12px;}}
+@media(max-width:760px){.pe-admin-grilla,.pe-profesor-grilla,.pe-alumno-grilla{grid-template-columns:minmax(0,1fr);gap:28px;}.pe-cola,.pe-alumno-grilla>aside{border-left:0;border-top:1px solid var(--border);padding:24px 0 0;}.pe-costos{grid-template-columns:minmax(0,1fr);gap:24px;}.pe-cifras{gap:12px;}.pe-cifra>strong{font-size:1.75rem;}.pe-plot{height:200px;}.pe-fila-metricas{gap:10px;padding-left:0;}.pe-fila-metricas b{font-size:1.25rem;}.pe-fila-metricas small{font-size:.6875rem;}.pe-identidad .admin-hig-identidad{grid-column:auto;}.pe-rango-cabeza>span{display:none;}.pe-profesor-grilla>aside{border-top:1px solid var(--border);padding-top:24px;}.admin-hig .admin-hig-herramientas{gap:12px;}}
 @media(max-width:600px){.pe-menu{border-radius:20px;padding:12px 12px max(12px,env(safe-area-inset-bottom));}.pe-menu::backdrop{background:#0007;}.pe-menu [data-pe-cerrar]{display:flex;justify-content:center;border-top:1px solid var(--border);margin-top:8px;}.pe-selector{min-width:112px;max-width:100%;}.admin-hig .admin-hig-herramientas{grid-template-columns:minmax(0,1fr);}.pe-cifras{grid-template-columns:repeat(3,minmax(0,1fr));}.pe-cifra>small{font-size:.6875rem;}.pe-cifra>span{font-size:.75rem;}}
+@container(max-width:14rem){.pe-ficha .pe-necesaria{grid-template-columns:minmax(0,1fr);}.pe-necesaria .pe-medidor{width:min(12rem,100%);justify-self:center;}}
+@media(max-width:900px){.pe-ficha .pe-alumno-grilla{grid-template-columns:minmax(0,1fr);gap:28px;}.pe-ficha .pe-contexto{padding:24px;}.pe-promedio>div:first-child strong{font-size:3.1rem;}.pe-promedio strong{font-size:1.65rem;}}
+@media(max-width:600px){#screen-alumnos .pe-cabecera-nombre{font-size:1.4rem;}.pe-ficha .pe-frente,.pe-ficha .pe-contexto{padding:20px;}.pe-evaluaciones ul{grid-template-columns:minmax(0,1fr);}.pe-evaluaciones li{padding:20px;}.pe-ficha .pe-promedio{gap:20px;}.pe-promedio span{font-size:.6875rem;}.pe-ficha .pe-ramos{gap:20px;}.pe-evolucion-leyenda{font-size:.6875rem;}.pe-ficha :is(.pe-ultima-fecha,.pe-barra-extremos,.pe-necesaria-texto small,.pe-medidor-cifra small,.pe-peso .pe-barra-extremos span,.pe-par-notas>span){font-size:.6875rem;}}
 @media(prefers-reduced-motion:reduce){.pe-ficha *,.pe-dashboard *,.pe-profesor-dashboard *,.pe-menu *{scroll-behavior:auto;transition:none;animation:none;}}
 
 /* Quitar un ramo histórico es un borrador reversible hasta Guardar. */

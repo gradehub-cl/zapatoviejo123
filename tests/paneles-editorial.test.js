@@ -25,15 +25,41 @@ run(`S.tenant='uc';globalThis.__al={id:'ficticio',tenant:'uc',nombre_visible:'Al
  {id:'c2',nombre:'Prueba 2',peso:50,fecha:'2026-11-10',notas:[]}]}]};
  globalThis.__comp={ramo:{promedio:4.8,personas:6},evaluaciones:[{clave:'prueba 1',promedio:4.6,personas:6}],categorias:[]};`);
 const html=run('ramoAlumnoEditorialHTML(__al,__al.ramos[0],__comp,__comp,false,__ahora)');
-assert.match(html,/Promedio actual<\/span><strong>5\.2/,'promedio del motor al frente');
-assert.match(html,/Para aprobar · en lo pendiente/);assert.match(html,/class="medidor-nota"/,'medidor real de la app');
+assert.match(html,/Promedio actual<\/span><strong>5,2/,'promedio del motor al frente');
+assert.match(html,/Para llegar al 4,0 final/);assert.match(html,/class="medidor-nota"/,'medidor real de la app');
 assert(html.indexOf('Próximas evaluaciones')<html.indexOf('Evaluaciones pasadas'));
 assert.match(html,/Prueba 2/);assert.match(html,/Prueba 1/);
-assert.match(run('barraUltimaPrivadaHTML(__al.ramos[0],__comp)'),/Ramo 4\.6/,'última prueba, no promedio global del ramo');
+assert.match(run('barraUltimaPrivadaHTML(__al.ramos[0],__comp)'),/Ramo · última evaluación: 4,6/,'última prueba, no promedio global del ramo');
 assert.match(run('barraUltimaPrivadaHTML(__al.ramos[0],SIN_SECCION_PANEL,true)'),/Sección no disponible/);
 assert.equal(run('referenciaEvaluacionPrivada(__al.ramos[0],{id:"n1",nombre:"Prueba 1"},{...__comp,evaluaciones:[{clave:"prueba 1",personas:4,promedio:6.9}]})'),null,'no revela muestras pequeñas');
 assert.equal(run('colorDiferenciaPrivada(0)'),'var(--fg2)');assert.match(run('colorDiferenciaPrivada(-.1)'),/var\(--yellow\).*90%.*var\(--red\).*10%/);
 assert.match(run('colorDiferenciaPrivada(.1)'),/var\(--pe-verde-suave\).*90%.*var\(--green\).*10%/);
+// La ficha conserva el cálculo y sus supuestos: no imita el 4 hipotético de la maqueta.
+assert.match(html,/Necesita<\/small><strong>2,7/);
+assert.match(html,/Para ir con 4,0 después de rendirla/);
+assert.doesNotMatch(html,/si el examen|pe-datos-ramo|Antes · \d/);
+assert.match(html,/1 sep · 50% del ramo/,'peso declarado de la evaluación, junto a la fecha');
+assert.match(html,/En 11 días/);
+assert(html.indexOf('data-pe-grupo')>html.indexOf('Frente al grupo'));
+assert.match(run('ramoAlumnoEditorialHTML(__al,__al.ramos[0],{errorCarga:true},__comp,false,__ahora)'),/No pudimos cargar la comparación/);
+assert.match(run('ramoAlumnoEditorialHTML(__al,__al.ramos[0],{sinSQL:true},__comp,false,__ahora)'),/Comparación no disponible por ahora/);
+const sinNotas=run('ramoAlumnoEditorialHTML(__al,{...__al.ramos[0],categorias:[]},null,null,false,__ahora)');
+assert.match(sinNotas,/Promedio actual<\/span><strong>—/,'ausencia de notas no es cero');
+assert.match(sinNotas,/Todavía no tiene notas/);
+run(`globalThis.__evol={id:'sintetico',evaluaciones:[
+ {ramoId:'r',ramo:'Sintético',fecha:'2026-08-01',inicio:'2026-09-01',nota:3,curso:4,lado:'antes',evaluacion:'Primera'},
+ {ramoId:'r',ramo:'Sintético',fecha:'2026-10-01',inicio:'2026-09-01',nota:5,curso:4,lado:'ahora',evaluacion:'Última'}]};`);
+const graf=run('graficoAntesAhoraSVG(__evol,{ficha:true})');
+assert.match(graf,/1 ago<\/span><span>1 oct/,'extremos temporales reales');
+assert.match(graf,/0 = promedio del grupo/);
+assert.match(graf,/evolucion-inicio/,'inicio real, distinto del promedio horizontal');
+assert.doesNotMatch(graf,/ah-evolucion-periodos|Antes · \d/);
+const fuera=run(`graficoAntesAhoraSVG({...__evol,evaluaciones:__evol.evaluaciones.map(e=>({...e,inicio:'2026-07-01'}))},{ficha:true})`);
+assert.doesNotMatch(fuera,/class="evolucion-inicio"/,'no inventa una posición para un inicio fuera del rango');
+assert.match(fuera,/Inicio de clases · 1 jul/,'la fecha fuera del rango sigue disponible');
+assert.equal(run('pesoEvaluacionPrivada({cat:{peso:20,slots:2,notas:[]}})'), '20% del ramo');
+assert.equal(run('pesoEvaluacionPrivada({nota:{id:"a"},cat:{peso:20,slots:2,notas:[{id:"a",valor:4,slot:0,fecha:"2026-08-01"}]}})'), '10% del ramo');
+assert.equal(run('pesoEvaluacionPrivada({nota:{id:"a"},cat:{peso:20,slots:2,dropLowest:{count:1},notas:[]}})'), 'Peso variable');
 assert.equal(run('S.tenant'),'uc');assert.equal(run('S.ramos.length'),0,'no modifica ramos del profesor');
 const dias=run("barrasDiasClase({publicado_at:'2026-10-29T12:00:00Z',vence_at:'2026-11-01T12:00:00Z'},{dias:{'2026-10-30':{impresion:1}},total:{},ramos:{}},__ahora.getTime(),true)");
 assert.doesNotMatch(dias,/Menos de 15/,'el nuevo detalle diario no confunde cero con un corte protegido');

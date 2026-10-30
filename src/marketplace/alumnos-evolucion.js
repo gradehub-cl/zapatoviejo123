@@ -92,7 +92,7 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
 // El mismo gráfico de evolución del historial. Aquí la magnitud sigue siendo
 // nota menos promedio del ramo/sección: 0 es su referencia, no una nota 4,0.
 // Cada ramo tiene su propia fecha de inicio y se mantiene en una serie separada.
-function graficoAntesAhoraSVG(m,{seccion=false,inicios=null}={}){
+function graficoAntesAhoraSVG(m,{seccion=false,inicios=null,ficha=false}={}){
   const referencia=seccion?'su sección':'el ramo',etiqueta=seccion?'Sección':'Ramo';
   const pts=m.evaluaciones.filter(e=>e.curso!==null);
   if(pts.length<2)return '';
@@ -103,7 +103,7 @@ function graficoAntesAhoraSVG(m,{seccion=false,inicios=null}={}){
   return ramos.map((clave,k)=>{
     const lista=pts.filter(e=>(e.ramoId??e.ramo)===clave),inicio=lista[0].inicio;
     const fechaInicio=inicio&&Number.isFinite(t(inicio))?inicio:null;
-    const fechas=lista.map(e=>t(e.fecha)).concat(fechaInicio?[t(fechaInicio)]:[]);
+    const fechas=lista.map(e=>t(e.fecha)).concat(!ficha&&fechaInicio?[t(fechaInicio)]:[]);
     const t0=Math.min(...fechas),t1=Math.max(...fechas);
     const x=f=>t1>t0?(t(f)-t0)/(t1-t0)*100:50;
     const titulo=lista[0].ramo,compartio=inicios?.get(clave)?.fuente==='compartio';
@@ -116,8 +116,11 @@ function graficoAntesAhoraSVG(m,{seccion=false,inicios=null}={}){
       lectura:`${e.evaluacion} · ${e.ramo} · ${fechaCorta(e.fecha)} · ${e.lado==='antes'?'antes':'ahora'}: ${nf(e.nota,2)} (${etiqueta.toLowerCase()} ${nf(e.curso,2)}). ${e.nota>e.curso?'+':''}${nf(e.nota-e.curso,2)} puntos frente ${seccion?'a su sección':'al ramo'}`}));
     const grafico=lista.length>=2?htmlGraficoEvolucion(serie,'alumno-'+m.id+'-'+k,`diferencia con ${referencia}`,{
       piso:-lim,techo:lim,referencia:0,marcas:[lim,0,-lim],rotulo:n=>n>0?'+'+n:String(n),resumen,
-      marca:fechaInicio?{x:x(fechaInicio),etiqueta:(compartio?'Compartió':'Empezó')+' · '+fechaCorta(fechaInicio)}:null
+      marca:fechaInicio&&(!ficha||(t(fechaInicio)>=t0&&t(fechaInicio)<=t1))?{x:x(fechaInicio),etiqueta:(compartio?'Compartió':'Empezó')+' · '+fechaCorta(fechaInicio)}:null
     }):'<p class="clase-sin-datos">Falta otra evaluación comparable para mostrar su evolución.</p>';
+    if(ficha)return `<div class="pe-evolucion" aria-label="${esc(resumen)}">${grafico}
+      <div class="pe-evolucion-fechas"><span>${esc(fechaCorta(lista[0].fecha))}</span><span>${esc(fechaCorta(lista.at(-1).fecha))}</span></div>
+      <div class="pe-evolucion-leyenda"><span><i></i>Alumno frente al grupo</span><span><i class="pe-leyenda-cero"></i>0 = promedio del grupo</span><span><i class="pe-leyenda-inicio"></i>Inicio de clases${fechaInicio?' · '+esc(fechaCorta(fechaInicio))+(compartio?' (día que compartió)':''):': sin fecha'}</span></div></div>`;
     return `<section class="ah-evolucion" aria-label="${esc(resumen)}"><header><h3>${esc(titulo)}</h3><p>${fechaInicio?verbo+' el '+esc(fechaCorta(fechaInicio)):'Sin fecha de inicio'}</p></header>
       <p class="ah-evolucion-referencia">Puntos frente ${seccion?'a su sección':'al ramo'} · 0 = su promedio</p>
       ${grafico}<p class="ah-evolucion-periodos">${periodos(lista)}</p></section>`;
