@@ -13,7 +13,7 @@ const saca=n=>(app.match(new RegExp('\\nfunction '+n+'\\([\\s\\S]*?\\n\\}'))||['
 
 // Se arma el mínimo que estas funciones tocan: el estado y los avisos.
 let guardados=0,toasts=[],pedidos=[];
-const campo={value:'',style:{}},campos={};
+const campo={value:'',style:{},focus(){},setAttribute(){},insertAdjacentHTML(){},remove(){}},campos={};
 const ctx={
   S:{tenant:'uc',historial:[
     {id:'a',label:'2024-1',manual:true,ramos:[{id:'r1'},{id:'r2'}]},
@@ -22,7 +22,9 @@ const ctx={
   save:()=>{guardados++;},track:()=>{},closeModal:()=>{},renderHome:()=>{},renderStats:()=>{},
   showToast:m=>toasts.push(m),
   showConfirm:(t,d,fn)=>{pedidos.push({t,d,fn});},
-  esc:v=>String(v),
+  esc:v=>String(v),NOMBRE_MAX:80,COLORS:['#456789'],uid:()=> 'nuevo-'+(++ctx.__uid),__uid:0,
+  normName:v=>String(v||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),
+  creditosDe:nombre=>nombre==='Taller anterior'?20:null,enfocarEnHoja:el=>{if(el&&el.focus)el.focus();},
   document:{getElementById:id=>campos[id]||campo},openModal:()=>{},
   histRamoAvg:r=>typeof r.avgOverride==='number'?r.avgOverride:null,
   nf:(n,d)=>n.toFixed(d==null?1:d),calificacionConceptual:()=>null,
@@ -52,7 +54,8 @@ console.log('\n=== Y se le puede corregir de qué semestre es ===');
 // escribía lo que se le ocurría— sino que se elige año y período.
 ['nombreVerano','cortoPeriodo','etiquetaSemestre','parseEtiquetaSemestre','anioActualSemestre',
  'aniosSemestre','selectorSemestreHTML','openRenombrarHistModal','repintarSelectorHistRename',
- 'setAnioHistRename','setPeriodoHistRename','confirmRenombrarHist','semester'].forEach(n=>{
+ 'setAnioHistRename','setPeriodoHistRename','confirmRenombrarHist','semester',
+ 'alternarBuscadorHistRename','limpiarErrorHistRename','agregarRamoHistRename','quitarRamoHistRename'].forEach(n=>{
   const src=saca(n);
   if(!src){console.log('  FAIL falta la función '+n);fail++;return;}
   vm.runInContext(src,ctx);
@@ -85,6 +88,96 @@ campos['m-hist-ren-nota-0']={value:'9',focus(){}};
 corre("openRenombrarHistModal('b')");
 corre("confirmRenombrarHist('b')");
 chk('una nota fuera de escala no se guarda', b.ramos[0].avgOverride===5.5 && /Cálculo/.test(campo.textContent||''));
+for(const k in campos)delete campos[k];
+
+console.log('\n=== Agregar ramos al editar conserva lo que ya estaba ===');
+ctx.S.historial.push({id:'otro',label:'2020-2',ramos:[{id:'otro-ramo',nombre:'Otro semestre de prueba',avgOverride:6.4}]});
+ctx.S.ramos=[{id:'actual',nombre:'Ramo actual',categorias:[{notas:[{valor:6.2}]}]}];
+const actualAntes=JSON.stringify(ctx.S.ramos),otroAntes=JSON.stringify(ctx.S.historial.find(h=>h.id!=='b'));
+corre("openRenombrarHistModal('b')");
+campos['m-hist-ren-nota-0']={value:'5,8',focus(){}};
+campos['m-hist-ren-nota-1']={value:'',focus(){}};
+const antesAgregar=JSON.stringify(b);
+corre("agregarRamoHistRename(encodeURIComponent('Taller anterior'))");
+chk('agregar a la hoja todavía no modifica el semestre',JSON.stringify(b)===antesAgregar&&corre('histRename.nuevos.length')===1);
+chk('no borra una nota que se estaba corrigiendo',campos['m-hist-ren-nota-0'].value==='5,8');
+chk('conserva los créditos conocidos y no inventa evaluaciones',corre('histRename.nuevos[0].creditos')===20&&JSON.stringify(corre('histRename.nuevos[0].categorias'))==='[]');
+corre("agregarRamoHistRename(encodeURIComponent('TALLER ANTERIOR'))");
+corre("agregarRamoHistRename(encodeURIComponent('Cálculo'))");
+chk('no duplica ramos nuevos ni los que ya estaban',corre('histRename.nuevos.length')===1);
+const nuevoId=corre('histRename.nuevos[0].id');
+campos['m-hist-ren-nueva-'+nuevoId]={value:'',focus(){}};
+corre("setAnioHistRename('2022')");
+corre("confirmRenombrarHist('b')");
+chk('un ramo nuevo sin nota avisa y no guarda cambios parciales',JSON.stringify(b)===antesAgregar&&/Pon la nota final de Taller anterior/.test(campo.textContent));
+campos['m-hist-ren-nueva-'+nuevoId].value='8';
+corre("confirmRenombrarHist('b')");
+chk('una nota nueva fuera de escala tampoco guarda nada',JSON.stringify(b)===antesAgregar&&/Taller anterior/.test(campo.textContent));
+corre('limpiarErrorHistRename()');
+chk('al corregir no deja un error anterior visible',campo.textContent===''&&campo.style.display==='none');
+campos['m-hist-ren-nueva-'+nuevoId].value='6,1';
+const guardadosAntes=guardados;
+corre("confirmRenombrarHist('b')");
+chk('guarda el ramo nuevo en ese semestre con su nota final',b.ramos.length===3&&b.ramos.find(r=>r.id===nuevoId)?.avgOverride===6.1&&b.label==='2022-1');
+chk('guarda la corrección anterior en la misma operación',b.ramos[0].avgOverride===5.8&&guardados===guardadosAntes+1);
+chk('no toca el semestre actual ni otros semestres',JSON.stringify(ctx.S.ramos)===actualAntes&&JSON.stringify(ctx.S.historial.find(h=>h.id!=='b'))===otroAntes);
+
+corre("openRenombrarHistModal('b')");
+corre("agregarRamoHistRename(encodeURIComponent('Electivo sin catálogo'))");
+chk('un ramo desconocido queda sin créditos en vez de inventarlos',corre('histRename.nuevos[0].creditos')===null);
+const pendienteId=corre('histRename.nuevos[0].id'),antesQuitar=JSON.stringify(b);
+corre(`quitarRamoHistRename('${pendienteId}')`);
+chk('quitar una fila pendiente no borra ramos guardados',corre('histRename.nuevos.length')===0&&JSON.stringify(b)===antesQuitar);
+corre("agregarRamoHistRename(encodeURIComponent('Ramo cancelado'))");
+corre("openRenombrarHistModal('b')");
+chk('cancelar y volver a abrir descarta únicamente las filas pendientes',corre('histRename.nuevos.length')===0&&JSON.stringify(b)===antesQuitar);
+chk('el historial ya no presenta la etiqueta editado',!/hist-edited|Corregido a mano/.test(render));
+for(const k in campos)delete campos[k];
+
+console.log('\n=== Quitar ramos guardados se confirma al guardar, no al editar el borrador ===');
+const antesRetirar=JSON.stringify(b);
+corre("openRenombrarHistModal('b')");
+campos['m-hist-ren-nota-0']={value:'5,9',focus(){}};
+campos['m-hist-ren-nota-1']={value:'9',focus(){}};
+corre("quitarRamoHistRename('r4')");
+chk('marcar un ramo guardado todavía no lo borra ni guarda',JSON.stringify(b)===antesRetirar&&corre("histRename.quitados.includes('r4')")===true);
+chk('deshabilita solo la nota que se va a quitar y conserva las demás',campos['m-hist-ren-nota-1'].disabled===true&&campos['m-hist-ren-nota-0'].value==='5,9');
+corre("quitarRamoHistRename('r4')");
+chk('Deshacer recupera la fila y su nota escrita',campos['m-hist-ren-nota-1'].disabled===false&&campos['m-hist-ren-nota-1'].value==='9'&&corre('histRename.quitados.length')===0);
+corre("quitarRamoHistRename('r4')");
+corre("openRenombrarHistModal('b')");
+chk('cancelar y reabrir descarta también las retiradas',corre('histRename.quitados.length')===0&&JSON.stringify(b)===antesRetirar);
+corre("quitarRamoHistRename('r4')");
+corre("agregarRamoHistRename(encodeURIComponent('Electivo de prueba'))");
+const nuevoBorrador=corre('histRename.nuevos[0].id'),pedidosAntes=pedidos.length;
+campos['m-hist-ren-nueva-'+nuevoBorrador]={value:'',focus(){}};
+corre("confirmRenombrarHist('b')");
+chk('valida altas y notas antes de confirmar una baja: nunca guarda parcialmente',pedidos.length===pedidosAntes&&JSON.stringify(b)===antesRetirar);
+campos['m-hist-ren-nueva-'+nuevoBorrador].value='6,2';
+const guardadosSinConfirmar=guardados;
+corre("confirmRenombrarHist('b')");
+chk('Guardar pide confirmación explícita con el nombre y lo que se elimina',pedidos.length===pedidosAntes+1&&/Física/.test(pedidos.at(-1).d)&&/notas y evaluaciones/.test(pedidos.at(-1).d)&&JSON.stringify(b)===antesRetirar&&guardados===guardadosSinConfirmar);
+const confirmacionVieja=pedidos.at(-1);
+corre("openRenombrarHistModal('b')");
+confirmacionVieja.fn();
+chk('una confirmación vieja no puede borrar desde otra edición',JSON.stringify(b)===antesRetirar);
+corre("quitarRamoHistRename('r3')");corre("quitarRamoHistRename('r4')");
+corre("agregarRamoHistRename(encodeURIComponent('Cálculo'))");
+chk('no sustituye por accidente un ramo retirado con una copia sin sus metadatos',corre('histRename.nuevos.length')===0);
+corre("agregarRamoHistRename(encodeURIComponent('Electivo final'))");
+const nuevoFinal=corre('histRename.nuevos[0].id'),conservado=b.ramos[2],conservadoAntes=JSON.stringify(conservado);
+campos['m-hist-ren-nueva-'+nuevoFinal]={value:'6,2',focus(){}};
+const guardadosFinal=guardados;
+corre("confirmRenombrarHist('b')");pedidos.at(-1).fn();
+chk('confirmar guarda altas y bajas juntas, una sola vez',b.ramos.length===2&&!b.ramos.some(r=>r.id==='r3'||r.id==='r4')&&b.ramos.some(r=>r.id===nuevoFinal&&r.avgOverride===6.2)&&guardados===guardadosFinal+1);
+chk('un ramo conservado mantiene id, metadatos y evaluaciones',b.ramos[0]===conservado&&JSON.stringify(conservado)===conservadoAntes);
+chk('la baja recalcula el promedio y no cambia otros semestres',Math.abs(b.gpa-6.15)<1e-9&&JSON.stringify(ctx.S.ramos)===actualAntes&&JSON.stringify(ctx.S.historial.find(h=>h.id!=='b'))===otroAntes);
+pedidos.at(-1).fn();
+chk('doble confirmación no duplica ramos ni escrituras',guardados===guardadosFinal+1&&b.ramos.length===2);
+corre("openRenombrarHistModal('b')");
+for(const r of [...b.ramos])corre(`quitarRamoHistRename('${r.id}')`);
+corre("confirmRenombrarHist('b')");pedidos.at(-1).fn();
+chk('se puede dejar un semestre vacío, con promedio nulo y disponible para volver a agregar',b.ramos.length===0&&b.gpa===null&&ctx.S.historial.includes(b));
 for(const k in campos)delete campos[k];
 
 // El verano no es "1" ni "2". En la UC se llama TAV; a otra universidad no se le

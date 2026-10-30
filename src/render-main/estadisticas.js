@@ -198,9 +198,8 @@ function renderStats(){
         const ramosHistorial=h.ramos.filter(r=>r&&typeof r==='object');
         const ramosRows=ramosHistorial.map(r=>{
           const avg=histRamoAvg(r,h.ramos);
-          const editado=typeof r.avgOverride==='number';
           return `<button class="hist-ramo-row" onclick="openEditHistRamoModal('${esc(h.id)}','${esc(r.id)}')" aria-label="Editar promedio de ${esc(r.nombre)}">
-            <span class="hist-ramo-name">${esc(r.nombre)}${r.creditos?`<span class="hist-cr">${r.creditos} cr</span>`:''}${editado?'<span class="hist-edited" title="Corregido a mano">editado</span>':''}</span>
+            <span class="hist-ramo-name">${esc(r.nombre)}${r.creditos?`<span class="hist-cr">${r.creditos} cr</span>`:''}</span>
             <span class="hist-ramo-val" style="color:${getColorRamo(r,avg)}">${fmtPromedio(avg)}</span>
             <svg class="ic hist-pencil" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           </button>`;

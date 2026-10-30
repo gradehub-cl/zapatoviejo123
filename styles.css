@@ -2012,6 +2012,9 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .sem-picker-per{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
 .sem-picker-per .sem-btn{min-height:44px;padding:8px 4px;}
 .sem-picker-preview{margin:-6px 0 16px;font-size:0.75rem;color:var(--fg3);}
+#m-hist-sem-ren{flex-wrap:wrap;}
+#m-hist-sem-ren .sem-picker-anio{flex-basis:6rem;}
+#m-hist-sem-ren .sem-picker-per{min-width:min(100%,10rem);}
 .hist-acciones{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
 .hist-accion{flex:1;min-height:40px;padding:9px 10px;border:1px solid var(--border2);border-radius:10px;
   background:var(--card);color:var(--fg2);font:700 0.75rem var(--font-ui);cursor:pointer;
@@ -4284,6 +4287,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 @media(max-width:760px){.pe-admin-grilla,.pe-profesor-grilla,.pe-alumno-grilla{grid-template-columns:minmax(0,1fr);gap:28px;}.pe-cola,.pe-alumno-grilla>aside{border-left:0;border-top:1px solid var(--border);padding:24px 0 0;}.pe-costos{grid-template-columns:minmax(0,1fr);gap:24px;}.pe-cifras{gap:12px;}.pe-cifra>strong{font-size:1.75rem;}.pe-plot{height:200px;}.pe-fila-metricas{gap:10px;padding-left:0;}.pe-fila-metricas b{font-size:1.25rem;}.pe-fila-metricas small{font-size:.6875rem;}.pe-identidad .admin-hig-identidad{grid-column:auto;}.pe-rango-cabeza>span{display:none;}.pe-alumno-grilla>section{display:contents;}.pe-alumno-grilla .pe-promedio{grid-row:1;}.pe-alumno-grilla>aside{grid-row:2;}.pe-alumno-grilla .ah-evolucion{grid-row:3;}.pe-profesor-grilla>aside{border-top:1px solid var(--border);padding-top:24px;}.admin-hig .admin-hig-herramientas{gap:12px;}}
 @media(max-width:600px){.pe-menu{border-radius:20px;padding:12px 12px max(12px,env(safe-area-inset-bottom));}.pe-menu::backdrop{background:#0007;}.pe-menu [data-pe-cerrar]{display:flex;justify-content:center;border-top:1px solid var(--border);margin-top:8px;}.pe-selector{min-width:112px;max-width:100%;}.admin-hig .admin-hig-herramientas{grid-template-columns:minmax(0,1fr);}.pe-cifras{grid-template-columns:repeat(3,minmax(0,1fr));}.pe-cifra>small{font-size:.6875rem;}.pe-cifra>span{font-size:.75rem;}}
 @media(prefers-reduced-motion:reduce){.pe-ficha *,.pe-dashboard *,.pe-profesor-dashboard *,.pe-menu *{scroll-behavior:auto;transition:none;animation:none;}}
+
+/* Quitar un ramo histórico es un borrador reversible hasta Guardar. */
+#m-hist-ren-ramos .rep-link{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;margin-left:8px;}
+#m-hist-ren-ramos .hist-ren-estado{display:block;color:var(--fg2);font-size:.75rem;line-height:1.4;}
+#m-hist-ren-ramos .hist-ren-estado[hidden]{display:none;}
+#m-hist-ren-ramos [data-quitar="true"] .hist-ren-nombre{text-decoration:line-through;color:var(--fg2);}
+#m-hist-ren-ramos input:disabled{color:var(--fg2);background:var(--muted);}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
