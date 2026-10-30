@@ -63,7 +63,7 @@ console.log('\n=== Evolución del promedio por semestre ===');
     esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')};
   vm.createContext(contexto);
   vm.runInContext(app.match(/function parseEtiquetaSemestre\([\s\S]*?\n\}/)[0],contexto);
-  ['trazoEvolucionNotas','htmlGraficoEvolucion'].forEach(n=>vm.runInContext(render.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0],contexto));
+  ['serieEvolucionSemestres','trazoEvolucionNotas','htmlGraficoEvolucion'].forEach(n=>vm.runInContext(render.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0],contexto));
   const dibujar=periodo=>{contexto.periodo=periodo;contexto.hist='';vm.runInContext(bloque,contexto);return contexto.hist;};
   const puntos=html=>[...html.matchAll(/evolucion-punto[^"<>]*" style="left:([\d.]+)%;top:([\d.]+)%/g)].map(m=>({x:Number(m[1]),y:Number(m[2])}));
   // Desorden deliberado: el ingreso manual no tiene por qué seguir el calendario.
@@ -90,6 +90,25 @@ console.log('\n=== Evolución del promedio por semestre ===');
   chk('la curva suaviza sin agregar notas máximas o mínimas entre puntos',tramos.length===3&&sinPicos);
   contexto.validos=[];
   chk('sin semestre anterior no inventa una comparación',dibujar('anterior')==='');
+
+  console.log('\n=== Cambiar el período conserva el contexto de lectura ===');
+  contexto.S={ramos:[{id:'actual'}],historial:Array.from({length:8},(_,i)=>({label:(2025-Math.floor(i/2))+'-'+(i%2?1:2),gpa:4+i/10,ramos:[]}))};
+  const estado=JSON.stringify(contexto.S),botones=['anterior','5','todo'].map(id=>({dataset:{histPeriodo:id},setAttribute(k,v){this[k]=v;}}));
+  let cambios=0,enlaces=0,marco={replaceWith(nuevo){cambios++;marco=nuevo;}};
+  const panel={querySelector:()=>marco,querySelectorAll:()=>botones};
+  const body={dataset:{},scrollTop:1234,querySelector:()=>panel,set innerHTML(_){throw new Error('No se debe rehacer Estadísticas');}};
+  contexto.document={activeElement:botones[1],getElementById:()=>body,createElement:()=>({content:{get firstElementChild(){return {html:this.html,replaceWith:marco.replaceWith};}},set innerHTML(html){this.content.html=html;}})};
+  contexto.gpa=()=>5.5;
+  contexto.renderStats=()=>{throw new Error('No se debe repintar toda la pantalla ni volver a pedir datos');};
+  contexto.enlazarGraficosEvolucion=raiz=>{if(raiz!==panel)throw new Error('Solo se enlaza el gráfico actualizado');enlaces++;};
+  vm.runInContext(render.match(/function cambiarPeriodoHistorial\([\s\S]*?\n\}/)[0],contexto);
+  for(const [periodo,cantidad] of [['5',5],['todo',9],['anterior',2]]){
+    contexto.cambiarPeriodoHistorial(periodo);
+    chk(`${periodo}: actualiza solo los puntos y el estado accesible del filtro`,puntos(marco.html).length===cantidad&&botones.every(b=>b['aria-pressed']===String(b.dataset.histPeriodo===periodo)));
+  }
+  chk('conserva los botones y el foco, sin mover el contenedor ni tocar los datos',contexto.document.activeElement===botones[1]&&body.scrollTop===1234&&JSON.stringify(contexto.S)===estado&&cambios===3&&enlaces===3);
+  contexto.cambiarPeriodoHistorial('anterior');contexto.cambiarPeriodoHistorial('invalido');
+  chk('repetir la selección o recibir un período inválido no repinta nada',cambios===3&&enlaces===3);
 }
 
 console.log('\n=== Explorar cada semestre sin apuntar a círculos pequeños ===');
