@@ -37,7 +37,7 @@ const login=async(n,aal='aal1')=>{
   assert.equal(data[0].activas,3);assert.equal(data[0].activas_profesores,2);
   assert(!JSON.stringify(data).includes(uid(1)),'la RPC solo devuelve agregados');
   await db.exec('set role anon');await assert.rejects(q('select public.crecimiento_semanal_admin()'),/permission denied/);await db.exec('reset role');
-  const ctx={esc:x=>String(x).replace(/</g,'&lt;'),document:{addEventListener(){},getElementById(){return null;}}};vm.createContext(ctx);
+  const ctx={currentUser:{id:"admin-sintetico"},esc:x=>String(x).replace(/</g,'&lt;'),document:{addEventListener(){},getElementById(){return null;}}};vm.createContext(ctx);
   vm.runInContext(read('marketplace.js'),ctx);
   ctx.__rows=data;
   const html=vm.runInContext('crecimientoAdminHTML(__rows)',ctx);

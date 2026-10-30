@@ -1,11 +1,11 @@
 // ─── La pantalla de "antes y ahora" ──────────────────────────────────────────
 // Cambio del grupo y aprobación antes/ahora; debajo, cada alumno.
 // Las explicaciones del método se consultan al final, después de los datos.
-// Sin colores del semáforo: subir respecto del curso no es "aprobar".
+// Sin colores del semáforo: subir respecto del ramo no es "aprobar".
 const unDecimalPanel=v=>Math.abs(v).toFixed(1);
 const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
 const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
-function frenteAlCursoPanel(d,referencia='el curso'){
+function frenteAlCursoPanel(d,referencia='el ramo'){
   if(d===null)return 'sin comparación';
   return Math.abs(d)<0.05?`igual que ${referencia}`:`${unDecimalPanel(d)} ${d>0?'sobre':'bajo'} ${referencia}`;
 }
@@ -20,12 +20,12 @@ function motivoSinCambioPanel(m,{breve=false}={}){
   return `Falta${n===1?'':'n'} ${n} evaluaci${n===1?'ón':'ones'} ${breve?(antes?'antes':'ahora'):`comparable${n===1?'':'s'} ${antes?'de antes de empezar':'desde que empezó'}`}`;
 }
 // Cada alumno en una fila (Lucas, 2026-10-23: Estadísticas necesitaba algo
-// visual): dónde estaba respecto del curso antes de empezar (punto hueco) y
-// dónde está ahora (punto lleno), sobre una misma escala con el curso al
+// visual): dónde estaba respecto del ramo antes de empezar (punto hueco) y
+// dónde está ahora (punto lleno), sobre una misma escala con el ramo al
 // centro. Ordenados por cuánto cambiaron; tocar la fila abre su ficha. El
 // texto de cada fila dice lo mismo que el dibujo, para VoiceOver.
 function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
-  const ref=seccion?'su sección':'el curso';
+  const ref=seccion?'su sección':'el ramo';
   const conDatos=(g.alumnos||[]).filter(m=>m&&m.antes&&m.ahora&&(m.antes.diferencia!==null||m.ahora.diferencia!==null));
   if(!conDatos.length)return '';
   const lim=Math.max(1,Math.ceil(Math.max(...conDatos.flatMap(m=>[m.antes.diferencia,m.ahora.diferencia]).filter(v=>v!==null).map(Math.abs))));
@@ -47,7 +47,7 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
     <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Por alumno</h2></div>
     <p class="ah-referencia">Puntos frente a ${ref} · 0 = su promedio</p>
     <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes</span><span><i class="ah-dot ah-dot-ahora"></i>Ahora</span></p>
-    <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El curso'}</span><span>${lim} sobre</span></span><span></span></div>
+    <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El ramo'}</span><span>${lim} sobre</span></span><span></span></div>
     <ul class="ah-filas">${filas}</ul>
     ${fuera?`<p class="clase-sin-datos">${fuera} ${fuera===1?'alumno no tiene':'alumnos no tienen'} evaluaciones comparables con fecha todavía.</p>`:''}
   </section>`;
@@ -56,12 +56,12 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
 // cuántos alumnos no la declararon en algún ramo.
 function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   if(!g||!g.alumnos.length)return '';
-  const respecto=seccion?'Respecto de su sección':'Respecto del curso';
-  const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al curso';
+  const respecto=seccion?'Respecto de su sección':'Respecto del ramo';
+  const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al ramo';
   const conFecha=g.antes.n+g.ahora.n;
   // Proporción de alumnos comparables; no es una nota ni un porcentaje de aprobación.
   // Las mismas piezas que Estadísticas del estudiante (htmlAnillo, 2026-10-26),
-  // en el acento y nunca en el semáforo: mejorar frente al curso no es aprobar.
+  // en el acento y nunca en el semáforo: mejorar frente al ramo no es aprobar.
   const anillo=g.conCambio?htmlAnillo({fraccion:g.mejoraron/g.conCambio,color:'var(--ah-acento)',chico:true,
     etiqueta:`${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'} mejoraron`,
     centro:`<span class="anillo-valor">${g.mejoraron}</span><span class="anillo-texto">de ${g.conCambio}</span>`}):'<strong>—</strong>';
@@ -90,10 +90,10 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   </section>`;
 }
 // El mismo gráfico de evolución del historial. Aquí la magnitud sigue siendo
-// nota menos promedio del curso/sección: 0 es su referencia, no una nota 4,0.
+// nota menos promedio del ramo/sección: 0 es su referencia, no una nota 4,0.
 // Cada ramo tiene su propia fecha de inicio y se mantiene en una serie separada.
 function graficoAntesAhoraSVG(m,{seccion=false,inicios=null}={}){
-  const referencia=seccion?'su sección':'el curso',etiqueta=seccion?'Sección':'Curso';
+  const referencia=seccion?'su sección':'el ramo',etiqueta=seccion?'Sección':'Ramo';
   const pts=m.evaluaciones.filter(e=>e.curso!==null);
   if(pts.length<2)return '';
   const ramos=[...new Set(pts.map(e=>e.ramoId??e.ramo))];
@@ -108,36 +108,36 @@ function graficoAntesAhoraSVG(m,{seccion=false,inicios=null}={}){
     const x=f=>t1>t0?(t(f)-t0)/(t1-t0)*100:50;
     const titulo=lista[0].ramo,compartio=inicios?.get(clave)?.fuente==='compartio';
     const verbo=compartio?'Compartió notas':'Empezó contigo';
-    const resumen=`Diferencia con ${referencia} en ${lista.length} evaluaciones de ${titulo}${fechaInicio?`; ${compartio?'compartió notas':'empezó'} el ${fechaCorta(fechaInicio)}`:''}. Línea central: 0, el promedio ${seccion?'de su sección':'del curso'}.`;
+    const resumen=`Diferencia con ${referencia} en ${lista.length} evaluaciones de ${titulo}${fechaInicio?`; ${compartio?'compartió notas':'empezó'} el ${fechaCorta(fechaInicio)}`:''}. Línea central: 0, el promedio ${seccion?'de su sección':'del ramo'}.`;
     const serie=lista.map(e=>({valor:e.nota-e.curso,x:x(e.fecha),antes:e.lado==='antes',
       etiqueta:`${e.evaluacion} · ${fechaCorta(e.fecha)}`,
       valorTexto:(e.nota>e.curso?'+':'')+nf(e.nota-e.curso,2)+' puntos',
       detalle:`Nota ${nf(e.nota,2)} · ${etiqueta} ${nf(e.curso,2)} · ${e.lado==='antes'?'Antes':'Ahora'}`,
-      lectura:`${e.evaluacion} · ${e.ramo} · ${fechaCorta(e.fecha)} · ${e.lado==='antes'?'antes':'ahora'}: ${nf(e.nota,2)} (${etiqueta.toLowerCase()} ${nf(e.curso,2)}). ${e.nota>e.curso?'+':''}${nf(e.nota-e.curso,2)} puntos frente ${seccion?'a su sección':'al curso'}`}));
+      lectura:`${e.evaluacion} · ${e.ramo} · ${fechaCorta(e.fecha)} · ${e.lado==='antes'?'antes':'ahora'}: ${nf(e.nota,2)} (${etiqueta.toLowerCase()} ${nf(e.curso,2)}). ${e.nota>e.curso?'+':''}${nf(e.nota-e.curso,2)} puntos frente ${seccion?'a su sección':'al ramo'}`}));
     const grafico=lista.length>=2?htmlGraficoEvolucion(serie,'alumno-'+m.id+'-'+k,`diferencia con ${referencia}`,{
       piso:-lim,techo:lim,referencia:0,marcas:[lim,0,-lim],rotulo:n=>n>0?'+'+n:String(n),resumen,
       marca:fechaInicio?{x:x(fechaInicio),etiqueta:(compartio?'Compartió':'Empezó')+' · '+fechaCorta(fechaInicio)}:null
     }):'<p class="clase-sin-datos">Falta otra evaluación comparable para mostrar su evolución.</p>';
     return `<section class="ah-evolucion" aria-label="${esc(resumen)}"><header><h3>${esc(titulo)}</h3><p>${fechaInicio?verbo+' el '+esc(fechaCorta(fechaInicio)):'Sin fecha de inicio'}</p></header>
-      <p class="ah-evolucion-referencia">Puntos frente ${seccion?'a su sección':'al curso'} · 0 = su promedio</p>
+      <p class="ah-evolucion-referencia">Puntos frente ${seccion?'a su sección':'al ramo'} · 0 = su promedio</p>
       ${grafico}<p class="ah-evolucion-periodos">${periodos(lista)}</p></section>`;
   }).join('');
 }
 
 function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false,inicios=null}={}){
-  const referencia=seccion?'su sección':'el curso';
+  const referencia=seccion?'su sección':'el ramo';
   if(!m||!m.evaluaciones.length)return '';
   const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'
     :m.cambio===null?esc(motivoSinCambioPanel(m))
-    :Math.abs(m.cambio)<0.05?`Igual que antes, respecto ${seccion?'de su sección':'del curso'}`
-    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} puntos respecto ${seccion?'de su sección':'del curso'}`;
+    :Math.abs(m.cambio)<0.05?`Igual que antes, respecto ${seccion?'de su sección':'del ramo'}`
+    :`${m.cambio>0?'Subió':'Bajó'} ${unDecimalPanel(m.cambio)} puntos respecto ${seccion?'de su sección':'del ramo'}`;
   const filas=m.evaluaciones.map(e=>`<tr><td>${esc(fechaCorta(e.fecha))}</td><td>${esc(e.evaluacion)}<small>${esc(e.ramo)} · ${e.lado==='antes'?'antes':'ahora'}</small></td><td>${esc(fmt(e.nota))}</td><td>${e.curso===null?'—':esc(fmt(e.curso))}</td></tr>`).join('');
   return `<div class="ah-alumno">
     <p class="ah-alumno-resumen">${resumen}</p>
     ${sinSeccion?'':`<p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia,referencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}</span></p>`}
     <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion,inicios})}</div>
     <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
-      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>${seccion?'Sección':'Curso'}</th></tr></thead><tbody>${filas}</tbody></table>
+      <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>${seccion?'Sección':'Ramo'}</th></tr></thead><tbody>${filas}</tbody></table>
       ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}
     </details>
   </div>`;

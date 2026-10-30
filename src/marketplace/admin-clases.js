@@ -276,12 +276,13 @@ function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
     (!estado||f.estado[1]===estado)&&palabras.every(t=>normalizarBusquedaClase([f.p.nombre,f.a.titulo,...(f.a.ramos_siglas||[])].join(' ')).includes(t)));
 }
 function filaAdminHigHTML({p,a,costo,estado},ahora){
-  return `<details class="admin-hig-fila" data-admin-fila="${esc(a.id)}"><summary>
-    <span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} · ${esc((a.ramos_siglas||[]).join(' · '))}</small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span>
-    <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span>
-    <span class="admin-hig-importe"><b>${costo?pesosClase(costo.total):'—'}</b><small>Costo de campaña</small></span><span aria-hidden="true">⌄</span>
-    </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}
-    ${filaAdminAnuncio(a,ahora)}</div></details>`;
+  const inicial=Array.from(String(p.nombre||'P'))[0],campana=a.campana;
+  const valor=k=>campana&&Number.isFinite(Number(campana[k]))?numeroPrivado(Number(campana[k])):'—';
+  const dias=a.publicado_at&&Date.parse(a.publicado_at)<=ahora?Math.max(0,Math.floor((Math.min(ahora,Date.parse(a.vence_at)||ahora)-Date.parse(a.publicado_at))/864e5)):null;
+  return `<details class="admin-hig-fila pe-admin-fila" data-admin-fila="${esc(a.id)}"><summary>
+    <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span></small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
+    <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span></span><span class="pe-ver">Ver <i aria-hidden="true">⌄</i></span>
+    </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
 // Aceptar, rechazar y eliminar (Lucas, 2026-10-23). Eliminar solo aparece
 // si no hay historial que perder; si lo hay, se explica por qué y se pausa.

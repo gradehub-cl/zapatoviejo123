@@ -329,7 +329,7 @@ function contexto({search='',sesion=false}={}){
 
   console.log('\n=== Antes y ahora: el cálculo (#697) ===');
   // Empezó con el profesor el 15 de septiembre. Dos pruebas antes, dos después
-  // y una tarea sin fecha. El curso: I1 4,0 · C1 4,5 · I2 4,6 · C2 4,5.
+  // y una tarea sin fecha. El ramo: I1 4,0 · C1 4,5 · I2 4,6 · C2 4,5.
   a.run(`globalThis.__ev=(id,nombre,fecha,valor)=>({id:'c'+id,nombre,peso:20,fecha,notas:[{id:'n'+id,nombre,valor}]});
     globalThis.__antesAhora={id:'aa',nombre_visible:'Ana',tenant:'uc',desde:'2026-09-15T15:00:00Z',ramos:[{id:'ra',nombre:'Cálculo II',sigla:'MAT1620',gates:[],categorias:[
       __ev(1,'Interrogación 1','2026-09-01',3.0),__ev(2,'Control 1','2026-09-08',3.5),
@@ -342,15 +342,15 @@ function contexto({search='',sesion=false}={}){
   const cerca1=(x,y)=>typeof x==='number'&&Math.abs(x-y)<1e-9;
   chk('cada evaluación con fecha cae antes o después del día que empezó',m.antes.n===2&&m.ahora.n===2&&m.desde==='2026-09-15');
   chk('la sin fecha queda fuera y se cuenta',m.sinFecha===1);
-  chk('antes iba 1,0 bajo el curso; ahora 0,7 sobre el curso',cerca1(m.antes.diferencia,-1.0)&&cerca1(m.ahora.diferencia,0.7));
-  chk('subió 1,7 respecto del curso',cerca1(m.cambio,1.7));
+  chk('antes iba 1,0 bajo el ramo; ahora 0,7 sobre el ramo',cerca1(m.antes.diferencia,-1.0)&&cerca1(m.ahora.diferencia,0.7));
+  chk('subió 1,7 respecto del ramo',cerca1(m.cambio,1.7));
   chk('aprobación: 0 de 2 antes, 2 de 2 ahora',m.antes.aprobacion===0&&m.ahora.aprobacion===1);
   chk('promedio: 3,25 antes y 5,25 ahora',cerca1(m.antes.promedio,3.25)&&cerca1(m.ahora.promedio,5.25));
   chk('con la fecha de inicio corregida, cambia el corte',a.run(`metricasAlumnoPanel(__antesAhora,__cursoAA,{inicio:'2026-09-05'}).antes.n`)===1);
   // Un alumno con una sola evaluación comparable de un lado no tiene "cambio".
   a.run(`globalThis.__poco={...__antesAhora,id:'pp',nombre_visible:'Beto',ramos:[{...__antesAhora.ramos[0],categorias:__antesAhora.ramos[0].categorias.slice(0,3)}]}`);
   chk('con menos de 2 evaluaciones a un lado, no se inventa un cambio',a.run('metricasAlumnoPanel(__poco,__cursoAA).cambio')===null);
-  chk('sin promedio del curso, la evaluación cuenta para el promedio pero no para la diferencia',
+  chk('sin promedio del ramo, la evaluación cuenta para el promedio pero no para la diferencia',
     a.run('metricasAlumnoPanel(__antesAhora,()=>null)').ahora.nComparadas===0&&a.run('metricasAlumnoPanel(__antesAhora,()=>null)').ahora.n===2);
   const g=a.run('metricasGrupoPanel([__antesAhora,__poco],__cursoAA)');
   chk('el grupo: 1 de 1 con datos mejoró, mediana 1,7',g.conCambio===1&&g.mejoraron===1&&cerca1(g.cambioMediana,1.7));
@@ -394,7 +394,7 @@ function contexto({search='',sesion=false}={}){
     (grafDos.match(/class="evolucion-inicio"/g)||[]).length===2&&/Empezó contigo el 15 sep/.test(grafDos)&&/Empezó contigo el 5 oct/.test(grafDos)
     &&(grafDos.match(/evolucion-punto es-antes/g)||[]).length===3&&/Antes · 2 evaluaciones/.test(grafDos));
   chk('la descripción accesible conserva el inicio propio de cada ramo',
-    /aria-label="Diferencia con el curso en 4 evaluaciones de Cálculo II; empezó el 15 sep/.test(grafDos)&&/aria-label="Diferencia con el curso en 2 evaluaciones de Física; empezó el 5 oct/.test(grafDos));
+    /aria-label="Diferencia con el ramo en 4 evaluaciones de Cálculo II; empezó el 15 sep/.test(grafDos)&&/aria-label="Diferencia con el ramo en 2 evaluaciones de Física; empezó el 5 oct/.test(grafDos));
   const mismoInicio=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel({...__dos,inicio_ramos:{rf:'2026-09-15'}},${curso2}))`);
   chk('con la misma fecha se mantiene una marca en cada gráfico, sin juntar los ramos',
     (mismoInicio.match(/class="evolucion-inicio"/g)||[]).length===2&&(mismoInicio.match(/Empezó contigo el 15 sep/g)||[]).length===2);
@@ -430,7 +430,7 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Por sección (Salva Ramos, 2026-10-20) ===');
   a.run(`globalThis.__sec3={seccion:3,ramo:{promedio:5.2,personas:6},evaluaciones:[{clave:'interrogacion 1',promedio:3.5,personas:6}],categorias:[{clave:'interrogacion 1',promedio:3.5,personas:6}]}`);
   const fichaSec=a.run(`ramoPanelHTML({...__antesAhora.ramos[0],seccion:3},__sec3)`);
-  chk('con su sección: el promedio de la sección y la columna dice "Su sección"',
+  chk('con su sección: el promedio de la sección y la columna dice "Sección"',
     /5\.2<small>Sección 3 · 6 personas<\/small>/.test(fichaSec)&&/<th>Su sección<\/th>/.test(fichaSec)&&/3\.5<small>6 personas/.test(fichaSec));
   const fichaSin=a.run(`ramoPanelHTML(__antesAhora.ramos[0],SIN_SECCION_PANEL)`);
   chk('sin sección declarada: "no disponible", sin cifras ni "aún pocos datos"',
@@ -442,10 +442,10 @@ function contexto({search='',sesion=false}={}){
   chk('y sin sección no hay diferencia que inventar',a.run('metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL).ahora.nComparadas')===0);
   const grupoSec=a.run(`antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA),{seccion:true,sinSeccion:1})`);
   chk('el grupo dice "Respecto de su sección" y cuántos no la declararon',
-    /Respecto de su sección/.test(grupoSec)&&/su misma sección en GradeHub/.test(grupoSec)&&/1 alumno no declaró su sección en algún ramo/.test(grupoSec)&&!/Respecto del curso/.test(grupoSec));
+    /Respecto de su sección/.test(grupoSec)&&/su misma sección en GradeHub/.test(grupoSec)&&/1 alumno no declaró su sección en algún ramo/.test(grupoSec)&&!/Respecto del ramo/.test(grupoSec));
   const control=a.run('comparaPanelHTML(true)');
   chk('el control: dos opciones, la elegida marcada para VoiceOver',/role="group" aria-label="Comparar con"/.test(control)
-    &&/data-compara="seccion" aria-pressed="true">Su sección/.test(control)&&/data-compara="gradehub" aria-pressed="false">Todo GradeHub/.test(control));
+    &&/data-compara="seccion" aria-pressed="true">Sección/.test(control)&&/data-compara="gradehub" aria-pressed="false">Ramo/.test(control));
   chk('si el navegador no deja guardar la elección, parte en todo GradeHub',
     a.run(`(()=>{const g=globalThis.localStorage;Object.defineProperty(globalThis,'localStorage',{configurable:true,get(){throw new Error('bloqueado')}});
       const r=comparaSeccionGuardado();guardarComparaSeccion(true);Object.defineProperty(globalThis,'localStorage',{configurable:true,value:g,writable:true});return r;})()`)===false);
@@ -473,7 +473,7 @@ function contexto({search='',sesion=false}={}){
   chk('cada ramo usa el mismo gráfico interactivo del historial, con relleno y escala propia',
     (graf2.match(/class="evolucion-linea"/g)||[]).length===2&&(graf2.match(/role="slider"/g)||[]).length===2&&/evolucion-area/.test(graf2));
   chk('nombre, referencia y fecha se entienden sin depender de colores',
-    /<h3>Cálculo II<\/h3>/.test(graf2)&&/<h3>Física<\/h3>/.test(graf2)&&/Puntos frente al curso · 0 = su promedio/.test(graf2));
+    /<h3>Cálculo II<\/h3>/.test(graf2)&&/<h3>Física<\/h3>/.test(graf2)&&/Puntos frente al ramo · 0 = su promedio/.test(graf2));
   const nombreLargo=a.run(`ramoPanelHTML({...__antesAhora.ramos[0],nombre:'Introducción a la Programación'},__cursoAA())`);
   chk('el ramo largo no se trunca y sus cifras quedan antes de la flecha',
     /panel-alumnos-ramo-resumen/.test(nombreLargo)&&/Introducción a la Programación/.test(nombreLargo)
@@ -489,7 +489,7 @@ function contexto({search='',sesion=false}={}){
 
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
-  chk('las tres cifras del grupo: respecto del curso, mejoraron y aprobación',
+  chk('las tres cifras del grupo: respecto del ramo, mejoraron y aprobación',
     /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="1 de 1 alumno mejoraron"/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
   chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
   const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
@@ -516,10 +516,10 @@ function contexto({search='',sesion=false}={}){
 
   chk('y advierte que no prueba que sea por las clases',/No prueba que la mejora sea por tus clases/.test(gh));
   const ah=ah0();
-  chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el curso',
-    /Subió 1\.7 puntos respecto del curso/.test(ah)&&/Antes: 1\.0 bajo el curso/.test(ah)&&/Ahora: 0\.7 sobre el curso/.test(ah));
+  chk('cada alumno: subió 1.7, antes 1.0 bajo y ahora 0.7 sobre el ramo',
+    /Subió 1\.7 puntos respecto del ramo/.test(ah)&&/Antes: 1\.0 bajo el ramo/.test(ah)&&/Ahora: 0\.7 sobre el ramo/.test(ah));
   chk('el gráfico es interactivo y conserva el resumen y cada evaluación comparable',
-    /aria-label="Diferencia con el curso en 4 evaluaciones/.test(ah)&&(ah.match(/class="evolucion-punto(?: es-antes)?"/g)||[]).length===4&&/role="slider"/.test(ah)&&/Empezó/.test(ah));
+    /aria-label="Diferencia con el ramo en 4 evaluaciones/.test(ah)&&(ah.match(/class="evolucion-punto(?: es-antes)?"/g)||[]).length===4&&/role="slider"/.test(ah)&&/Empezó/.test(ah));
   chk('y la lista con las mismas cifras, para quien no ve el gráfico',/Ver sus evaluaciones/.test(ah)&&(ah.match(/<tr><td>/g)||[]).length===4);
   chk('con pocos datos lo dice, sin inventar un cambio',/Falta 1 evaluación comparable desde que empezó/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__poco,__cursoAA))')));
   chk('nada de esto usa los colores del semáforo',!/panel-resumen-(good|warn|bad)|--green|--red|--yellow/.test(gh+ah));
@@ -531,7 +531,7 @@ function contexto({search='',sesion=false}={}){
     __ev(22,'Control 1','2026-09-08',3.2),__ev(23,'Interrogación 2','2026-09-12',3.6),
     __ev(24,'Control 2','2026-10-08',4.4)]}]}`);
   const matias=a.run('metricasAlumnoPanel(__matias,__cursoAA)'),fichaMatias=a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__matias,__cursoAA))');
-  chk('tiene referencias del curso a ambos lados pero le falta una evaluación para calcular cambio',
+  chk('tiene referencias del ramo a ambos lados pero le falta una evaluación para calcular cambio',
     matias.antes.nComparadas===3&&matias.ahora.nComparadas===1&&matias.cambio===null);
   chk('tres puntos huecos antes y uno lleno ahora, incluso con una marca de inicio única',
     /class="evolucion-inicio"/.test(fichaMatias)&&(fichaMatias.match(/evolucion-punto es-antes/g)||[]).length===3
@@ -567,7 +567,7 @@ function contexto({search='',sesion=false}={}){
   const filaDe=ev=>csvAA.find(f=>f[4]===ev);
   chk('cada evaluación con su fecha y si fue antes o desde que empezó',
     filaDe('Interrogación 1')[10]==='2026-09-01'&&filaDe('Interrogación 1')[11]==='antes'&&filaDe('Interrogación 2')[11]==='desde que empezó');
-  chk('y su diferencia con el curso, con coma decimal',filaDe('Interrogación 1')[12]==='-1,0'&&filaDe('Interrogación 2')[12]==='0,4');
+  chk('y su diferencia con el ramo, con coma decimal',filaDe('Interrogación 1')[12]==='-1,0'&&filaDe('Interrogación 2')[12]==='0,4');
   chk('una nota sin fecha lo dice',filaDe('Tarea')[11]==='sin fecha'&&filaDe('Tarea')[10]==='');
   chk('las columnas de antes siguen en su lugar',filaDe('Interrogación 1')[5]==='3,0');
 
@@ -722,9 +722,9 @@ function contexto({search='',sesion=false}={}){
   const htmlFicha=inicial51.match(/<section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>([\s\S]*?)<\/section>/)?.[1]||'';
   chk('la ficha pone ‹ Lista, nombre sintético y comparación en ese orden',
     /id="alumnos-ficha-volver"/.test(htmlFicha)&&/id="alumnos-ficha-titulo"/.test(htmlFicha)&&
-    /Todo GradeHub/.test(htmlFicha)&&/Su sección/.test(htmlFicha)&&
+    /Ramo/.test(htmlFicha)&&/Sección/.test(htmlFicha)&&
     htmlFicha.indexOf('id="alumnos-ficha-volver"')<htmlFicha.indexOf('id="alumnos-ficha-titulo"')&&
-    htmlFicha.indexOf('id="alumnos-ficha-titulo"')<htmlFicha.indexOf('Todo GradeHub'));
+    htmlFicha.indexOf('id="alumnos-ficha-titulo"')<htmlFicha.indexOf('Ramo'));
   chk('Estadísticas conserva el control sobre su vista',
     inicial51.indexOf('id="alumnos-compara-wrap"')<inicial51.indexOf('id="alumnos-vista-estadisticas"'));
   chk('con 51 alumnos muestra 50 filas compactas y no precarga fichas ni resúmenes',
@@ -955,24 +955,24 @@ function contexto({search='',sesion=false}={}){
     (grafG.match(/<li><button type="button" data-ver-alumno=/g)||[]).length===2
     &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
   chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
-    /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el curso\. Ahora: 0\.7 sobre el curso\./.test(grafG));
+    /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el ramo\. Ahora: 0\.7 sobre el ramo\./.test(grafG));
   chk('sin el semáforo de aprobación: el resumen no se tiñe de aprobado',!/panel-resumen-(good|warn|bad)|--green|--red/.test(grafG));
   // Desde el 2026-10-26 el cambio de cada alumno dice hacia dónde se movió:
-  // verde si subió frente al curso y rojo si bajó (Lucas).
+  // verde si subió frente al ramo y rojo si bajó (Lucas).
   chk('el cambio de quien subió va marcado como subida',/ah-fila-cambio ah-sube"><small>Cambio<\/small>\+/.test(grafG));
   chk('la explicación queda en un desplegable',/<details class="ah-metodo"><summary>Cómo se calcula<\/summary>/.test(a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora],__cursoAA))')));
   const ramosG=a.run(`resumenAlumnosPanelHTML(resumenAlumnosPanel([__antesAhora],__cursoAA))`);
   chk('cada ramo dice cuánto van sobre o bajo GradeHub y lleva a sus alumnos',
     /Tus alumnos van <b>[^<]+<\/b> el promedio de GradeHub/.test(ramosG)&&/data-ver-ramo="MAT1620">Ver 1 alumno de este ramo/.test(ramosG));
   chk('la ficha no se estira en el computador y su gráfico trae escala',
-    /\.ah-evolucion\{[^}]*max-width:760px/.test(leer('styles.css'))&&/Puntos frente al curso · 0 = su promedio/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))')));
+    /\.ah-evolucion\{[^}]*max-width:760px/.test(leer('styles.css'))&&/Puntos frente al ramo · 0 = su promedio/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))')));
 
   console.log('\n=== Lectura Editorial de Alumnos ===');
   const porSeccionTexto=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA),{seccion:true})`);
   chk('la misma cifra se rotula por sección en el resumen, el gráfico y la tabla',
     /Subió 1\.7 puntos respecto de su sección/.test(porSeccionTexto)&&
     /Diferencia con su sección en 4 evaluaciones/.test(porSeccionTexto)&&
-    /<th>Sección<\/th>/.test(porSeccionTexto)&&!/respecto del curso|<th>Curso<\/th>/.test(porSeccionTexto));
+    /<th>Sección<\/th>/.test(porSeccionTexto)&&!/respecto del ramo|<th>Ramo<\/th>/.test(porSeccionTexto));
   const sinSeccionTexto=a.run(`antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL),{seccion:true,sinSeccion:true})`);
   chk('sin sección sigue no disponible: no se muestra un antes y ahora de otro grupo',
     /no disponible, no declaró su sección/.test(sinSeccionTexto)&&!/class="ah-alumno-lados"|<svg/.test(sinSeccionTexto));
@@ -992,7 +992,7 @@ function contexto({search='',sesion=false}={}){
   const lineas=csv.split('\r\n');
   chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el curso;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
@@ -1011,7 +1011,7 @@ function contexto({search='',sesion=false}={}){
     new Date('2026-10-22T12:00:00Z'))`);
   const filasResumen=resumen.split('\r\n').map(l=>l.split(';'));
   chk('resumen tiene una fila por alumno y ramo, con todas las columnas pedidas',
-    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el curso antes;Diferencia con el curso desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar');
+    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar');
   chk('dos ramos del mismo alumno conservan fechas y comparaciones propias',
     filasResumen[1][4]==='2026-09-15'&&filasResumen[2][4]==='2026-10-05'&&
     filasResumen[1][8]==='-1,0'&&filasResumen[1][9]==='0,7'&&filasResumen[1][10]==='1,7'&&

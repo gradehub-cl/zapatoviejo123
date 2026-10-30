@@ -108,7 +108,7 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
   const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
   // Las de "antes y ahora" (#697) y cuándo empezó en el ramo (2026-10-20) van
   // al final para no mover las columnas que alguien ya usa en su planilla.
-  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el curso','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo']];
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el ramo','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo']];
   alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
     const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
     const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
@@ -143,7 +143,7 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
   const comparable=x=>x&&x.personas>=5?prom(x.promedio):'';
   const diferencia=v=>v===null||v===undefined?'':num(v.toFixed(1));
   const estado={good:'Aprobando',warn:'Al borde',bad:'Reprobando',neutral:'Sin notas'};
-  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el curso antes','Diferencia con el curso desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar']];
+  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar']];
   (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,ctx=>{
     (al.ramos||[]).forEach(r=>{
       const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};

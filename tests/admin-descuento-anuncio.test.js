@@ -17,7 +17,7 @@ class Nodo{
     for(const m of html.matchAll(/<\/?([\w-]+)([^>]*)>/g)){
       if(m[0][1]==='/'){if(p!==this)p=p.parent;continue;}
       const attrs={};for(const a of m[2].matchAll(/([\w-]+)(?:="([^"]*)")?/g))attrs[a[1]]=a[2]??'';
-      const n=new Nodo(m[1],attrs,p);p.children.push(n);if(n.tag==='option'&&'selected'in attrs)p.value=attrs.value;if(!['input','img','br','hr'].includes(n.tag))p=n;
+      const n=new Nodo(m[1],attrs,p);p.children.push(n);if(n.tag==='option'&&'selected'in attrs)p.value=attrs.value;if(!['input','img','br','hr'].includes(n.tag)&&!m[0].endsWith('/>'))p=n;
     }
   }
   get innerHTML(){return this.html;}
