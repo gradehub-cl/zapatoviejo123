@@ -134,6 +134,52 @@ chk('cancelar y volver a abrir descarta únicamente las filas pendientes',corre(
 chk('el historial ya no presenta la etiqueta editado',!/hist-edited|Corregido a mano/.test(render));
 for(const k in campos)delete campos[k];
 
+console.log('\n=== Quitar ramos guardados se confirma al guardar, no al editar el borrador ===');
+const antesRetirar=JSON.stringify(b);
+corre("openRenombrarHistModal('b')");
+campos['m-hist-ren-nota-0']={value:'5,9',focus(){}};
+campos['m-hist-ren-nota-1']={value:'9',focus(){}};
+corre("quitarRamoHistRename('r4')");
+chk('marcar un ramo guardado todavía no lo borra ni guarda',JSON.stringify(b)===antesRetirar&&corre("histRename.quitados.includes('r4')")===true);
+chk('deshabilita solo la nota que se va a quitar y conserva las demás',campos['m-hist-ren-nota-1'].disabled===true&&campos['m-hist-ren-nota-0'].value==='5,9');
+corre("quitarRamoHistRename('r4')");
+chk('Deshacer recupera la fila y su nota escrita',campos['m-hist-ren-nota-1'].disabled===false&&campos['m-hist-ren-nota-1'].value==='9'&&corre('histRename.quitados.length')===0);
+corre("quitarRamoHistRename('r4')");
+corre("openRenombrarHistModal('b')");
+chk('cancelar y reabrir descarta también las retiradas',corre('histRename.quitados.length')===0&&JSON.stringify(b)===antesRetirar);
+corre("quitarRamoHistRename('r4')");
+corre("agregarRamoHistRename(encodeURIComponent('Electivo de prueba'))");
+const nuevoBorrador=corre('histRename.nuevos[0].id'),pedidosAntes=pedidos.length;
+campos['m-hist-ren-nueva-'+nuevoBorrador]={value:'',focus(){}};
+corre("confirmRenombrarHist('b')");
+chk('valida altas y notas antes de confirmar una baja: nunca guarda parcialmente',pedidos.length===pedidosAntes&&JSON.stringify(b)===antesRetirar);
+campos['m-hist-ren-nueva-'+nuevoBorrador].value='6,2';
+const guardadosSinConfirmar=guardados;
+corre("confirmRenombrarHist('b')");
+chk('Guardar pide confirmación explícita con el nombre y lo que se elimina',pedidos.length===pedidosAntes+1&&/Física/.test(pedidos.at(-1).d)&&/notas y evaluaciones/.test(pedidos.at(-1).d)&&JSON.stringify(b)===antesRetirar&&guardados===guardadosSinConfirmar);
+const confirmacionVieja=pedidos.at(-1);
+corre("openRenombrarHistModal('b')");
+confirmacionVieja.fn();
+chk('una confirmación vieja no puede borrar desde otra edición',JSON.stringify(b)===antesRetirar);
+corre("quitarRamoHistRename('r3')");corre("quitarRamoHistRename('r4')");
+corre("agregarRamoHistRename(encodeURIComponent('Cálculo'))");
+chk('no sustituye por accidente un ramo retirado con una copia sin sus metadatos',corre('histRename.nuevos.length')===0);
+corre("agregarRamoHistRename(encodeURIComponent('Electivo final'))");
+const nuevoFinal=corre('histRename.nuevos[0].id'),conservado=b.ramos[2],conservadoAntes=JSON.stringify(conservado);
+campos['m-hist-ren-nueva-'+nuevoFinal]={value:'6,2',focus(){}};
+const guardadosFinal=guardados;
+corre("confirmRenombrarHist('b')");pedidos.at(-1).fn();
+chk('confirmar guarda altas y bajas juntas, una sola vez',b.ramos.length===2&&!b.ramos.some(r=>r.id==='r3'||r.id==='r4')&&b.ramos.some(r=>r.id===nuevoFinal&&r.avgOverride===6.2)&&guardados===guardadosFinal+1);
+chk('un ramo conservado mantiene id, metadatos y evaluaciones',b.ramos[0]===conservado&&JSON.stringify(conservado)===conservadoAntes);
+chk('la baja recalcula el promedio y no cambia otros semestres',Math.abs(b.gpa-6.15)<1e-9&&JSON.stringify(ctx.S.ramos)===actualAntes&&JSON.stringify(ctx.S.historial.find(h=>h.id!=='b'))===otroAntes);
+pedidos.at(-1).fn();
+chk('doble confirmación no duplica ramos ni escrituras',guardados===guardadosFinal+1&&b.ramos.length===2);
+corre("openRenombrarHistModal('b')");
+for(const r of [...b.ramos])corre(`quitarRamoHistRename('${r.id}')`);
+corre("confirmRenombrarHist('b')");pedidos.at(-1).fn();
+chk('se puede dejar un semestre vacío, con promedio nulo y disponible para volver a agregar',b.ramos.length===0&&b.gpa===null&&ctx.S.historial.includes(b));
+for(const k in campos)delete campos[k];
+
 // El verano no es "1" ni "2". En la UC se llama TAV; a otra universidad no se le
 // presta ese término.
 ctx.S.tenant='uc';

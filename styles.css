@@ -4288,6 +4288,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 @media(max-width:600px){.pe-menu{border-radius:20px;padding:12px 12px max(12px,env(safe-area-inset-bottom));}.pe-menu::backdrop{background:#0007;}.pe-menu [data-pe-cerrar]{display:flex;justify-content:center;border-top:1px solid var(--border);margin-top:8px;}.pe-selector{min-width:112px;max-width:100%;}.admin-hig .admin-hig-herramientas{grid-template-columns:minmax(0,1fr);}.pe-cifras{grid-template-columns:repeat(3,minmax(0,1fr));}.pe-cifra>small{font-size:.6875rem;}.pe-cifra>span{font-size:.75rem;}}
 @media(prefers-reduced-motion:reduce){.pe-ficha *,.pe-dashboard *,.pe-profesor-dashboard *,.pe-menu *{scroll-behavior:auto;transition:none;animation:none;}}
 
+/* Quitar un ramo histórico es un borrador reversible hasta Guardar. */
+#m-hist-ren-ramos .rep-link{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;margin-left:8px;}
+#m-hist-ren-ramos .hist-ren-estado{display:block;color:var(--fg2);font-size:.75rem;line-height:1.4;}
+#m-hist-ren-ramos .hist-ren-estado[hidden]{display:none;}
+#m-hist-ren-ramos [data-quitar="true"] .hist-ren-nombre{text-decoration:line-through;color:var(--fg2);}
+#m-hist-ren-ramos input:disabled{color:var(--fg2);background:var(--muted);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
