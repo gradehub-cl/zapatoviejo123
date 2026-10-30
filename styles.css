@@ -4289,7 +4289,11 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 @media(prefers-reduced-motion:reduce){.pe-ficha *,.pe-dashboard *,.pe-profesor-dashboard *,.pe-menu *{scroll-behavior:auto;transition:none;animation:none;}}
 
 /* Quitar un ramo histórico es un borrador reversible hasta Guardar. */
-#m-hist-ren-ramos .rep-link{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;margin-left:8px;}
+/* Fila como las de Racional: el ramo a la izquierda; la nota y la acción a la
+   derecha, en la misma línea. .rep-link es de ancho completo en otras hojas. */
+#m-hist-ren-ramos .rep-link{width:auto;flex-shrink:0;min-width:5.25rem;min-height:44px;margin:0 -8px 0 -8px;padding:0 8px;justify-content:flex-end;color:var(--fg2);}
+#m-hist-ren-ramos [data-quitar="true"] .rep-link{color:var(--primary);}
+#m-hist-ren-ramos .hist-ren-nombre{color:var(--fg);}
 #m-hist-ren-ramos .hist-ren-estado{display:block;color:var(--fg2);font-size:.75rem;line-height:1.4;}
 #m-hist-ren-ramos .hist-ren-estado[hidden]{display:none;}
 #m-hist-ren-ramos [data-quitar="true"] .hist-ren-nombre{text-decoration:line-through;color:var(--fg2);}
