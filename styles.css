@@ -4267,9 +4267,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pe-ultima .pe-barra-extremos{display:flex;justify-content:space-between;width:100%;font-size:.6875rem;}
 .pe-necesaria{border-bottom:1px solid var(--border);padding:24px 0;}
 .pe-necesaria>span{font-size:.8125rem;color:var(--fg2);}
-.pe-necesaria>div{display:flex;align-items:end;gap:12px;margin:16px 0;}
-.pe-necesaria .medidor-nota{width:100px;max-width:45%;height:auto;}
-.pe-necesaria strong{font-size:1.75rem;}
+.pe-necesaria>div{display:grid;grid-template-areas:"medidor";place-items:end center;width:min(10rem,100%);margin:16px 0;}
+.pe-necesaria .medidor-nota{grid-area:medidor;width:100%;max-width:none;height:auto;}
+.pe-necesaria strong{grid-area:medidor;align-self:end;max-width:72%;margin-bottom:.25rem;text-align:center;font-size:1.5rem;line-height:1.05;}
 .pe-necesaria>b{font-size:.8125rem;}
 .pe-datos-ramo{display:grid;grid-template-columns:1fr 1fr;gap:24px 16px;padding:24px 0;}
 .pe-datos-ramo .pe-cifra>strong{font-size:1.25rem;}
