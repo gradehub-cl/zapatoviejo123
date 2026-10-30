@@ -3731,8 +3731,8 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .panel-alumnos-buscar{margin:16px 0 8px;}
 .alumnos-editorial .panel-alumnos-buscar input{font-family:var(--font-ui);font-size:1rem;background:var(--card);}
 .alumnos-editorial .panel-alumnos-exportar{color:var(--fg2);font-size:.875rem;text-decoration:underline;text-underline-offset:3px;}
-.alumnos-editorial .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;color:var(--fg2);font-size:.875rem;}
-.alumnos-editorial .panel-alumnos-regresar span{font-size:1.5rem;line-height:1;}
+.panel-alumnos-ficha .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;color:var(--fg2);font-size:.875rem;}
+.panel-alumnos-ficha .panel-alumnos-regresar span{font-size:1.5rem;line-height:1;}
 .alumnos-editorial .panel-alumnos-compara{max-width:30rem;margin:0 0 24px;}
 .alumnos-editorial .panel-alumnos-compara button{padding:10px 12px;line-height:1.4;}
 .alumnos-editorial .panel-alumnos-ficha h2{font-size:1.5rem;letter-spacing:-.025em;line-height:1.3;}
@@ -4248,8 +4248,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-alumnos .pe-cabecera-nombre{display:block;font-size:1.5rem;font-weight:620;line-height:1.25;overflow-wrap:anywhere;}
 .pe-cabecera-sub[hidden]{display:none;}
 .pe-cabecera-sub{display:block;font-family:var(--font-ui);font-size:.75rem;font-weight:400;letter-spacing:0;line-height:1.5;color:var(--fg2);margin:5px 0 0;}
-.alumnos-editorial .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;min-width:44px;min-height:44px;padding:10px 0;border:0;background:transparent;color:var(--fg2);border-radius:4px;box-shadow:none;}
-.alumnos-editorial .panel-alumnos-regresar:hover{color:var(--fg);}
+.panel-alumnos-ficha .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;min-width:44px;min-height:44px;padding:10px 0;border:0;background:transparent;color:var(--fg2);border-radius:4px;box-shadow:none;}
+.panel-alumnos-ficha .panel-alumnos-regresar:hover{color:var(--fg);}
 .pe-ficha .pe-ramos{gap:24px;margin:4px 0 0;border-bottom:1px solid var(--border);}
 .pe-ficha .pe-ramos button{padding:12px 0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--fg2);font-weight:500;overflow-wrap:anywhere;text-align:left;}
 .pe-ficha .pe-ramos button[aria-pressed="true"]{color:var(--fg);border-bottom-color:var(--fg);background:transparent;font-weight:600;}
@@ -4269,8 +4269,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pe-grupo button{border:0;background:transparent;color:var(--fg2);font:inherit;font-size:.75rem;min-width:64px;min-height:44px;padding:8px 16px;border-radius:22px;cursor:pointer;}
 .pe-grupo button[aria-pressed="true"]{background:var(--muted);color:var(--fg);font-weight:600;}
 .pe-ficha button:disabled{opacity:.5;cursor:wait;}
-.pe-ficha button:active,.alumnos-editorial .panel-alumnos-regresar:active{background:var(--muted);}
-.pe-ficha button:focus-visible,.alumnos-editorial .panel-alumnos-regresar:focus-visible{outline:2px solid var(--fg);outline-offset:3px;}
+.pe-ficha button:active,.panel-alumnos-ficha .panel-alumnos-regresar:active{background:var(--muted);}
+.pe-ficha button:focus-visible,.panel-alumnos-ficha .panel-alumnos-regresar:focus-visible{outline:2px solid var(--fg);outline-offset:3px;}
 .pe-ficha .pe-evolucion{--primary:var(--pe-acento);}
 .pe-ficha .pe-evolucion .evolucion-trazado{height:260px;}
 .pe-ficha .evolucion-eje{color:var(--fg2);opacity:1;}
@@ -4305,6 +4305,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pe-necesaria .medidor-nota{display:block;width:100%;max-width:none;height:auto;}
 .pe-medidor-cifra{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3%;text-align:center;}
 .pe-medidor-cifra strong{font-size:1.25rem;font-weight:600;line-height:1.05;max-width:72%;}
+.pe-medidor-cifra strong.pe-meta-imposible{font-size:.875rem;}
 .pe-medidor-cifra small{font-size:.625rem;line-height:1.15;letter-spacing:.02em;text-transform:uppercase;margin-top:3px;max-width:78%;}
 .pe-peso{padding-top:24px;}
 .pe-peso>div:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:14px;}

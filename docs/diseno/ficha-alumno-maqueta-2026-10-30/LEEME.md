@@ -77,4 +77,4 @@ Todas las personas, notas y pautas de estas capturas son inventadas. La app usa 
 
 ### Texto grande y estados
 
-[Texto al 200%](app-375-oscuro-texto200.png) · [Cero alumnos](estado-vacio.png) · [Comparación sin SQL](estado-sinSQL.png) · [Error de comparación](estado-errorComparacion.png) · [Error de carga](estado-error.png)
+[Texto al 200%](app-375-oscuro-texto200.png) · [Medidor: no alcanza, texto al 200%](medidor-no-alcanza-texto200.png) · [Cero alumnos](estado-vacio.png) · [Comparación sin SQL](estado-sinSQL.png) · [Error de comparación](estado-errorComparacion.png) · [Error de carga](estado-error.png)
