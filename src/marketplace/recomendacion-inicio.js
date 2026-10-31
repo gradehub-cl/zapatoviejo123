@@ -10,8 +10,8 @@
 //   Nada de eso viaja para elegir.
 // - Solo en Inicio, nunca en la ficha del ramo, la Agenda ni el ingreso de notas.
 // - Se muestra mientras siga calzando, hasta cerrarla con la X. Cerrar oculta
-//   las recomendaciones de Inicio por el resto del día en la cuenta,
-//   desde el primer cierre (Lucas, 2026-10-28). Recargar no las trae de vuelta;
+//   solo ese anuncio hasta la medianoche de Chile en todos los dispositivos
+//   de la cuenta (Lucas, 2026-10-31). Los demás siguen rotando;
 //   al día siguiente pueden aparecer otra vez. El catálogo sigue disponible.
 // - No dice "reprobando" ni diagnostica: ofrece apoyo para el ramo.
 // - El cierre y el día viven en `gradehub_marketplace_v1`, aparte de
@@ -35,7 +35,7 @@ function guardarEstadoMarketplace(estado){
 // y al volver a la app; cada cuenta tiene su propia petición y copia en memoria.
 const cierresAnunciosCuenta=new Map();
 function cierreAnunciosCuenta(uid=currentUser&&currentUser.id){
-  if(!cierresAnunciosCuenta.has(uid))cierresAnunciosCuenta.set(uid,{leido:false,hasta:0,pendiente:0,pedido:null});
+  if(!cierresAnunciosCuenta.has(uid))cierresAnunciosCuenta.set(uid,{leido:false,hasta:0,pendiente:0,pedido:null,porAnuncio:{},localPorAnuncio:{},pendientesPorAnuncio:{}});
   return cierresAnunciosCuenta.get(uid);
 }
 async function sincronizarCierreAnuncios(){
@@ -46,6 +46,7 @@ async function sincronizarCierreAnuncios(){
   const hasta=Math.max(c.pendiente,pendiente&&pendiente.uid===uid?pendiente.hasta||0:0);
   c.pedido=Promise.resolve().then(async()=>{
     try{
+      if(currentUser?.id!==uid)return false;
       const {data,error}=await cliente.rpc('mi_cierre_anuncios',hasta>Date.now()?{p_hasta:new Date(hasta).toISOString()}:{});
       if(error)throw error;
       const remoto=Date.parse(data);
@@ -55,6 +56,22 @@ async function sincronizarCierreAnuncios(){
       if(hasta&&estado.cierrePendiente?.uid===uid&&estado.cierrePendiente.hasta===hasta){
         delete estado.cierrePendiente;guardarEstadoMarketplace(estado);
       }
+      // Los cierres nuevos envían solo el id; la cuenta y el vencimiento los fija SQL.
+      const hoy=diaLocalClases();
+      if(currentUser?.id!==uid)return false;
+      const cola={...(leerEstadoMarketplace().cierresPendientesPorCuenta?.[uid]||{}),...c.pendientesPorAnuncio};
+      for(const [id,dia] of Object.entries(cola)){
+        if(dia!==hoy)continue;
+        if(currentUser?.id!==uid)return false;
+        const r=await cliente.rpc('cerrar_anuncio_hoy',{p_anuncio_id:id});if(r.error)throw r.error;
+        const vence=Date.parse(r.data);if(Number.isFinite(vence))c.porAnuncio[id]=vence;
+        if(c.pendientesPorAnuncio[id]===dia)delete c.pendientesPorAnuncio[id];
+        const e=leerEstadoMarketplace();
+        if(e.cierresPendientesPorCuenta?.[uid]?.[id]===dia){delete e.cierresPendientesPorCuenta[uid][id];guardarEstadoMarketplace(e);}
+      }
+      const r=await cliente.rpc('mis_cierres_anuncios');if(r.error)throw r.error;
+      for(const fila of Array.isArray(r.data)?r.data:[]){const vence=Date.parse(fila.oculta_hasta);if(Number.isFinite(vence))c.porAnuncio[fila.anuncio_id]=vence;}
+      const e=depurarCierresAnuncios( leerEstadoMarketplace());guardarEstadoMarketplace(e);
       return true;
     }catch(e){return false;}
     finally{c.leido=true;c.pedido=null;}
@@ -78,23 +95,34 @@ if(typeof window!=='undefined'&&window.addEventListener){
       const antes=JSON.parse(e.oldValue||'{}'),despues=JSON.parse(e.newValue||'{}');
       // La rotación también escribe esta clave: no repintar por ella o dos
       // pestañas abiertas se pasarían el anuncio de vuelta indefinidamente.
-      if(antes?.ocultaHasta!==despues?.ocultaHasta||antes?.cerrada!==despues?.cerrada)refrescarCierreAnuncios();
+      if(antes?.ocultaHasta!==despues?.ocultaHasta||antes?.cerrada!==despues?.cerrada||JSON.stringify(antes?.cierresPorCuenta)!==JSON.stringify(despues?.cierresPorCuenta))refrescarCierreAnuncios();
     }catch(e){}
   });
   if(typeof document!=='undefined'&&document.addEventListener)
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refrescarCierreAnuncios();});
 }
-function diaLocalClases(ahora=Date.now()){
-  const d=new Date(ahora);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function diaLocalClases(ahora=Date.now()){return hoyChileClase(ahora);}
+function depurarCierresAnuncios(estado,ahora=Date.now()){
+  const dia=diaLocalClases(ahora),e={...estado};
+  for(const clave of ['cierresPorCuenta','cierresPendientesPorCuenta']){
+    e[clave]=Object.fromEntries(Object.entries(e[clave]||{}).map(([uid,filas])=>[uid,Object.fromEntries(Object.entries(filas||{}).filter(([,d])=>d===dia))]).filter(([,filas])=>Object.keys(filas).length));
+  }
+  return e;
+}
+function anunciosCerradosHoy(estado,ahora=Date.now(),uid=currentUser&&currentUser.id){
+  const dia=diaLocalClases(ahora),cerrados=new Set(Object.entries(estado?.cierresPorCuenta?.[uid||'sin-cuenta']||{}).filter(([,d])=>d===dia).map(([id])=>id));
+  if(uid)Object.entries(cierreAnunciosCuenta(uid).porAnuncio).forEach(([id,hasta])=>{if(ahora<hasta)cerrados.add(id);});
+  if(uid)Object.entries(cierreAnunciosCuenta(uid).localPorAnuncio).forEach(([id,d])=>{if(d===dia)cerrados.add(id);});
+  return [...cerrados];
 }
 // Identificador heredado que se conserva en el estado. El cierre ya no vence
 // a las 14:00: tanto mañana como tarde quedan ocultas hasta el día siguiente.
 const HORA_TARDE_CLASES=14;
 function franjaClases(ahora=Date.now()){
-  return diaLocalClases(ahora)+(new Date(ahora).getHours()<HORA_TARDE_CLASES?'-manana':'-tarde');
+  return diaLocalClases(ahora)+(Number(new Intl.DateTimeFormat('en-GB',{timeZone:'America/Santiago',hour:'2-digit',hourCycle:'h23'}).format(new Date(ahora)))<HORA_TARDE_CLASES?'-manana':'-tarde');
 }
-// Pura: recibe anuncios, ramos y el estado guardado, y devuelve la
+// Recibe anuncios, ramos y el estado guardado, consulta los cierres propios
+// en memoria y devuelve la
 // recomendación de esta apertura (o null) junto con el estado que hay que guardar.
 // Una apertura de la app = una carga de la página. Volver a Inicio dentro de la
 // misma apertura no cambia el banner; abrir la app de nuevo muestra la
@@ -107,37 +135,34 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
   // Los cierres anteriores guardaban una franja (y podían vencer a las 14:00).
   // Se respeta el cierre por todo ese día, también con la versión nueva.
   if(e.cerrada&&typeof e.franja==='string'&&e.franja.slice(0,10)===diaLocalClases(ahora))return {sel:null,estado:e};
+  const descartados=anunciosCerradosHoy(e,ahora);
   // Misma apertura: la misma clase, si sigue calzando. Si subiste una nota y
   // dejó de calzar, desaparece en vez de quedarse pegada.
-  if(e.visita===visita&&e.anuncioId){
-    const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{ahora});
+  if(e.visita===visita&&e.anuncioId&&!descartados.includes(e.anuncioId)){
+    const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{ahora,descartados});
     return {sel,estado:e};
   }
   // Apertura nueva: la siguiente en la rotación. `aperturas` cuenta las que ya
   // mostraron algo, así que la primera vez sale la primera.
   const aperturas=Number.isSafeInteger(e.aperturas)&&e.aperturas>=0?e.aperturas:0;
-  const sel=seleccionarClaseApoyo(anuncios,ramos,tenant,{ahora,turno:aperturas});
+  const sel=seleccionarClaseApoyo(anuncios,ramos,tenant,{ahora,turno:aperturas,descartados});
   // Si no calza ninguna, no se anota nada: una clase publicada más tarde tiene
   // que poder aparecer.
   if(!sel)return {sel:null,estado:e};
   return {sel,estado:{...e,franja,visita,anuncioId:sel.anuncio.id,cerrada:false,aperturas:aperturas+1}};
 }
 
-// La X cierra hasta la próxima medianoche local, no durante 24 horas ni hasta
-// la tarde. Se conserva la clave y el resto del estado de versiones anteriores.
+// La X guarda solo ese id y el día chileno, por cuenta, fuera del estado académico.
 function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
-  const estado=leerEstadoMarketplace();
-  const d=new Date(ahora);
-  const ocultaHasta=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime();
-  const uid=currentUser&&currentUser.id;
-  if(uid){const c=cierreAnunciosCuenta(uid);c.hasta=ocultaHasta;c.pendiente=ocultaHasta;}
-  guardarEstadoMarketplace({...estado,ocultaHasta,franja:franjaClases(ahora),anuncioId:null,cerrada:true,
-    ...(uid?{cierrePendiente:{uid,hasta:ocultaHasta}}:{})});
+  if(!anuncioId)return {vuelveEnLaTarde:false};
+  const estado=depurarCierresAnuncios(leerEstadoMarketplace(),ahora),dia=diaLocalClases(ahora),uid=currentUser&&currentUser.id||'sin-cuenta';
+  const cierres={...(estado.cierresPorCuenta||{})};cierres[uid]={...(cierres[uid]||{}),[anuncioId]:dia};
+  const pendientes={...(estado.cierresPendientesPorCuenta||{})};
+  if(uid!=='sin-cuenta'){pendientes[uid]={...(pendientes[uid]||{}),[anuncioId]:dia};const c=cierreAnunciosCuenta(uid);c.localPorAnuncio[anuncioId]=dia;c.pendientesPorAnuncio[anuncioId]=dia;}
+  guardarEstadoMarketplace({...estado,cierresPorCuenta:cierres,cierresPendientesPorCuenta:pendientes,anuncioId:null});
   return {vuelveEnLaTarde:false};
 }
-function textoCierreClase(){
-  return 'Listo, no te mostramos más anuncios por hoy';
-}
+function textoCierreClase(){return 'Listo, no te mostramos este anuncio por hoy';}
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
 // afterLogin la llama antes de que Inicio exista, en paralelo con la lectura de
@@ -222,7 +247,7 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
       </span>
     </button>
     <span class="clase-apoyo-logo" aria-hidden="true"${logoUrl?'':' hidden'}>${logoUrl?imgLogoClase(logoUrl):''}</span>
-    <button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar anuncios por hoy"${vistaPrevia?' tabindex="-1"':''}>
+    <button type="button" class="clase-apoyo-cerrar" aria-label="Ocultar este anuncio por hoy"${vistaPrevia?' tabindex="-1"':''}>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
     </button>`;
 }
@@ -270,7 +295,8 @@ function pintarRecomendacionClase(contenedor){
     if(pendiente)await pendiente;
     if(currentUser?.id!==uid)return;
     const guardado=await sincronizarCierreAnuncios();
-    if(currentUser?.id===uid&&typeof showToast==='function')showToast(guardado?textoCierreClase(cierre):'Oculto aquí por hoy. No pudimos guardarlo en tus otros dispositivos.',!guardado);
+    if(currentUser?.id===uid&&typeof showToast==='function')showToast(guardado?textoCierreClase(cierre):'Este anuncio quedó oculto aquí por hoy. No pudimos guardarlo en tus otros dispositivos.',!guardado);
+    if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);
   });
   // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
   // espera a Storage para aparecer, y sin logo simplemente no se muestra.

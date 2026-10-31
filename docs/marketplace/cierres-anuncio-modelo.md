@@ -6,7 +6,7 @@ La tabla y RPC antiguas anuncios_cierre / mi_cierre_anuncios permanecen sin camb
 
 La copia local sigue en gradehub_marketplace_v1, con ids y día de Chile, aislados por cuenta; conserva los campos globales anteriores hasta vencer. Se descartan ids cerrados al seleccionar. La medición no cambia: cerrar no registra apertura ni contacto y no envía notas ni ramos.
 
-Retención: se depuran filas propias vencidas al consultar/escribir; además, una función de mantenimiento sin permisos de cliente elimina las vencidas de todas las cuentas. Se propone un trabajo diario de pg_cron cuando la extensión esté disponible; en su ausencia, el SQL deja una instrucción explícita para programarlo antes del merge. La limpieza nunca borra anuncios ni cierres vigentes. La auditoría incluye RLS con dos cuentas, permisos, cascadas al borrar cuenta/anuncio, vencimientos y reaplicación.
+Retención: se depuran filas propias vencidas al consultar/escribir; además, una función de mantenimiento sin permisos de cliente elimina las vencidas de todas las cuentas. Se propone un trabajo diario de pg_cron. La implementación exige habilitarlo antes de aplicar: si falta, el SQL falla dentro de su transacción, sin instalar un modelo que no tenga mantenimiento. La limpieza nunca borra anuncios ni cierres vigentes. La auditoría incluye RLS con dos cuentas, permisos, cascadas al borrar cuenta/anuncio, vencimientos y reaplicación.
 
 El SQL se escribirá después de publicar esta propuesta en la PR. No se aplica en producción; Lucas lo aplica antes del merge.
 
