@@ -1591,9 +1591,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-week-hd{flex-wrap:wrap;row-gap:8px;}
 @media(min-width:480px){.ag-priority-heading .ag-order-options{margin-left:auto;}}
 .ag-order-options{display:inline-grid;grid-template-columns:repeat(3,1fr);flex:0 0 auto;gap:2px;padding:2px;background:var(--muted);border:1px solid var(--border);border-radius:9px;}
-/* 34px y no 44: es un segmented control, el patrón que iOS usa a 32. El área
-   sigue siendo cómoda porque los tres botones están pegados —no hay nada más
-   que tocar alrededor— y equivocarse cambia una vista, no borra un dato. */
+/* El bloque de Agenda del estudiante más abajo fija controles de 44px. */
 .ag-order-option{min-width:max-content;min-height:34px;padding:4px 10px;border:0;border-radius:7px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:0.6875rem;font-weight:650;white-space:nowrap;cursor:pointer;transition:transform var(--motion-press) var(--ease-standard),background-color var(--motion-fast),color var(--motion-fast),box-shadow var(--motion-fast);}
 .ag-order-option.active{background:var(--card);color:var(--primary);font-weight:750;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary),transparent 72%),0 1px 4px rgba(15,23,42,.08);}
 .ag-order-option:active{transform:scale(.98);}
@@ -4342,6 +4340,52 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
   #screen-home .gpa-delta{flex-wrap:wrap;}
   #screen-home #home-gpa-sub{grid-column:1/-1;grid-row:3;justify-self:start;text-align:left;margin-top:16px;}
   #screen-home #home-gpa-sub span{white-space:normal;}
+}
+
+/* Agenda del estudiante: jerarquía de la maqueta aprobada, sin alterar
+   prioridades ni metas. El medidor original conserva su escala y sus colores. */
+#screen-agenda .ag-priority-heading{container:agenda-orden / inline-size;display:block;margin:0 0 20px;padding:0;}
+#screen-agenda .ag-order-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%;padding:4px;border:0;border-radius:999px;background:var(--muted);}
+#screen-agenda .ag-order-option{min-width:0;min-height:44px;padding:8px 10px;border-radius:999px;font-size:.8125rem;color:var(--fg2);white-space:normal;}
+#screen-agenda .ag-order-option.active{background:var(--primary);color:var(--primary-fg);box-shadow:none;}
+#screen-agenda .ag-order-option:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+#screen-agenda .ag-order-option::after{display:none;}
+#screen-agenda .ag-priority-stack{container:agenda-prioridades / inline-size;gap:12px;}
+#screen-agenda .ag-priority-card{width:100%;min-height:0;padding:22px;border:0;border-radius:24px;background:var(--muted);box-shadow:none;transform:none;}
+#screen-agenda .ag-event-priority-sec>.ag-priority-card{padding:18px 22px;border-radius:20px;}
+#screen-agenda .ag-priority-rank{display:block;margin:0 0 12px;color:var(--fg2);font-size:.6875rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;}
+#screen-agenda .ag-priority-name{display:block;overflow:visible;overflow-wrap:anywhere;-webkit-line-clamp:unset;margin:0;font-size:1.125rem;font-weight:650;line-height:1.3;}
+#screen-agenda .ag-priority-course{white-space:normal;overflow:visible;overflow-wrap:anywhere;margin-top:4px;font-size:.875rem;color:var(--fg2);line-height:1.4;}
+#screen-agenda .ag-priority-date{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin-top:20px;color:color-mix(in srgb,var(--primary) 85%,var(--fg));font-size:1.8rem;font-weight:650;line-height:1.3;font-variant-numeric:tabular-nums;}
+#screen-agenda .ag-priority-date>span{display:inline-block;line-height:1.4;color:var(--fg2);font-size:.875rem;font-weight:400;}
+#screen-agenda .ag-priority-weight{margin-left:0;flex-shrink:1;margin-top:4px;color:var(--fg2);font-size:.75rem;line-height:1.4;}
+#screen-agenda .ag-event-priority-sec .ag-priority-date{margin-top:12px;font-size:1.125rem;}
+#screen-agenda .ag-need{display:grid;grid-template-columns:minmax(0,1fr) 7rem;align-items:center;gap:12px;width:100%;margin-top:18px;padding:20px 14px 12px;border:0;border-radius:16px;background:var(--card);}
+#screen-agenda .ag-need-context{display:flex;flex-direction:column;gap:4px;min-width:0;color:var(--fg2);font-size:.75rem;line-height:1.4;}
+#screen-agenda .ag-need-context strong{color:var(--fg);font-size:.8125rem;font-weight:550;}
+#screen-agenda .ag-need-meter{position:relative;display:block;width:7rem;aspect-ratio:92/52;}
+#screen-agenda .ag-need-meter .medidor-nota{display:block;width:100%;max-width:none;height:auto;transform:translateY(-6px);overflow:visible;}
+#screen-agenda .ag-need-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:3%;font-variant-numeric:tabular-nums;}
+#screen-agenda .ag-need-value strong{font-size:1.4rem;font-weight:650;line-height:1;}
+#screen-agenda .ag-need-value small{margin-top:4px;font-size:.6875rem;line-height:1.2;white-space:nowrap;}
+#screen-agenda .ag-row-peso{max-width:100%;white-space:normal;}
+#screen-agenda .ag-priority-card:active{background:color-mix(in srgb,var(--fg) 7%,var(--muted));transform:none;}
+@media(hover:hover){#screen-agenda .ag-priority-card:hover{background:color-mix(in srgb,var(--fg) 4%,var(--muted));transform:none;box-shadow:none;}}
+/* En computador el medidor acompaña los datos, sin una franja vacía de
+   extremo a extremo. La consulta vuelve a apilar al aumentar el texto. */
+@container agenda-prioridades (min-width:42rem){
+  #screen-agenda .ag-priority-card{display:grid;grid-template-columns:minmax(0,1fr) 22rem;column-gap:28px;}
+  #screen-agenda .ag-priority-card>*{grid-column:1;}
+  #screen-agenda .ag-priority-card .ag-need{grid-column:2;grid-row:1/6;margin:0;align-self:center;}
+}
+/* Con texto grande las tres etiquetas no caben: conservarlas enteras y
+   accesibles importa más que mantener el selector en una sola línea. */
+@container agenda-orden (max-width:18rem){
+  #screen-agenda .ag-order-options{grid-template-columns:1fr;border-radius:24px;}
+}
+@container agenda-prioridades (max-width:18rem){
+  #screen-agenda .ag-need{grid-template-columns:1fr;justify-items:center;}
+  #screen-agenda .ag-need-context{text-align:center;}
 }
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────

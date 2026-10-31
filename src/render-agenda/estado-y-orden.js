@@ -51,7 +51,7 @@ function agendaRecorreccionesHTML(items){
 // No entra a S ni a gradehub_v1: cambiar cómo se mira la Agenda no justifica
 // una migración del estado que ya tienen los estudiantes en producción.
 const AGENDA_ORDENES=['recomendado','fecha','peso'];
-let agendaOrdenActual='recomendado';
+let agendaOrdenActual='fecha';
 let agendaDetalleAbierto=null;
 let agendaRendidasAbiertas=false;
 // "Después" muestra tres y deja la siguiente asomada detrás.
@@ -138,17 +138,9 @@ function cambiarOrdenAgenda(orden){
   if(!AGENDA_ORDENES.includes(orden)||orden===agendaOrdenActual)return;
   agendaOrdenActual=orden;
   renderAgenda();
+  // El botón anterior desapareció al pintar: conserva el foco sin desplazar la vista.
+  document.querySelector(`[data-agenda-orden="${orden}"]`)?.focus({preventScroll:true});
 }
 
-// Ordenar es un control secundario: se decide una vez y después se mira la
-// lista. Tenía una franja propia con su etiqueta, así que competía de igual a
-// igual con las evaluaciones; ahora viaja en la línea del encabezado, que es
-// donde se espera un control de vista.
-//
-// Va en "Tus prioridades" y no en "Próximos 7 días" porque ese encabezado es
-// condicional: sin nada esta semana se devuelve vacío y se llevaba el control
-// con él. Quien tenía su próxima prueba en dos semanas se quedaba sin poder
-// ordenar una lista de dieciséis evaluaciones, sin ningún error a la vista.
-// "Tus prioridades" existe siempre que haya algo por venir, que es exactamente
-// cuando ordenar significa algo. Además el orden elegido decide cuáles son las
-// dos destacadas, así que el control queda al lado de lo que cambia.
+// El control de orden permanece visible siempre que haya evaluaciones por venir,
+// aunque ninguna caiga esta semana. Solo cambia la lectura de esta sesión.

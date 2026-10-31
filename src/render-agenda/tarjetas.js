@@ -1,5 +1,5 @@
 function agendaOrdenHTML(activo=agendaOrdenActual){
-  const opciones=[['recomendado','Recomendado'],['fecha','Fecha'],['peso','Peso']];
+  const opciones=[['fecha','Fecha'],['recomendado','Recomendado'],['peso','Peso']];
   return `<div class="ag-order-options" role="group" aria-label="Ordenar evaluaciones pendientes">
       ${opciones.map(([valor,label])=>`<button type="button" class="ag-order-option${activo===valor?' active':''}" aria-pressed="${activo===valor?'true':'false'}" data-agenda-action="ordenar" data-agenda-orden="${valor}">${label}</button>`).join('')}
     </div>`;
@@ -39,24 +39,37 @@ function razonDestacadaAgenda(e,conAlerta=false){
 
 function pesoEventoAgendaTexto(e){
   const peso=pesoEventoAgenda(e);
-  return peso===null?`Peso variable · grupo ${r2(Number(e.cat.peso)||0)}%`:`${r2(peso)}%`;
+  return peso===null?`Parte del ${r2(Number(e.cat.peso)||0)}% de ${esc(e.cat.nombre)}`:`${r2(peso)}% del ramo`;
+}
+
+// La cifra es el promedio de TODO lo pendiente, no una meta de esta prueba.
+// Conserva la elegibilidad del aviso anterior y usa el medidor de la app.
+function medidorRamoAgendaHTML(e){
+  if(!Number.isFinite(e.necesita)||!alertaRamoAgendaHTML(e))return '';
+  const exigencia=exigenciaNotaNecesaria(e.necesita);
+  const imposible=e.necesita>7.05;
+  const cifra=imposible?'—':nfNecesaria(Math.max(1,e.necesita)).replace('.',',');
+  const lectura=imposible?'Lo pendiente no alcanza para aprobar el ramo':`Necesitas ${cifra} promedio en lo pendiente para aprobar el ramo`;
+  return `<div class="ag-need" role="img" aria-label="${esc(lectura)}. ${exigencia.palabra}.">
+    <span class="ag-need-context" aria-hidden="true"><strong>En lo pendiente</strong><span>Para llegar al 4,0</span></span>
+    <span class="ag-need-meter" aria-hidden="true">${htmlMedidorNota(imposible?7:e.necesita)}
+      <span class="ag-need-value" style="color:${esc(exigencia.color)}"><strong>${cifra}</strong><small>${exigencia.palabra}</small></span>
+    </span>
+  </div>`;
 }
 
 function agendaDestacadaHTML(e,posicion){
   if(!e)return '';
   const f=formatEventDate(e.fecha);
-  const alerta=e.mostrarAlerta?alertaRamoAgendaHTML(e):'';
+  const foco=agendaOrdenActual==='fecha'?'Próxima evaluación':agendaOrdenActual==='peso'?'Mayor peso':'Tu foco ahora';
+  const medidor=e.mostrarAlerta?medidorRamoAgendaHTML(e):'';
   return `<button type="button" class="ag-priority-card ${e.nivel}" style="--ag-course:${esc(e.ramo.color)}">
-    <span class="ag-priority-bar" aria-hidden="true"></span>
-    <div class="ag-priority-top">
-      <span class="ag-priority-rank ${e.nivel}">${posicion===0?'Tu foco ahora':'Siguiente'}</span>
-      <span class="ag-priority-weight">${pesoEventoAgendaTexto(e)}</span>
-    </div>
-    <div class="ag-priority-date">${cuandoTexto(e.dias)} <span>· ${f.day} ${f.mon}${e.hora?' · '+esc(e.hora):''}</span></div>
+    <span class="ag-priority-rank">${posicion===0?foco:'Siguiente'}</span>
     <div class="ag-priority-name">${esc(nombreEventoAgenda(e))}</div>
-    <div class="ag-priority-course"><span class="ag-ramo-dot" style="background:${esc(e.ramo.color)}"></span>${esc(e.ramo.nombre)}</div>
-    <div class="ag-priority-reason">${razonDestacadaAgenda(e,!!alerta)}</div>
-    ${alerta}
+    <div class="ag-priority-course"><span class="ag-ramo-dot" style="background:${esc(e.ramo.color)}" aria-hidden="true"></span>${esc(e.ramo.nombre)}</div>
+    <div class="ag-priority-date">${cuandoTexto(e.dias)} <span>· ${f.day} ${f.mon}${e.hora?' · '+esc(e.hora):''}</span></div>
+    <span class="ag-priority-weight">${pesoEventoAgendaTexto(e)}</span>
+    ${medidor}
   </button>`;
 }
 
