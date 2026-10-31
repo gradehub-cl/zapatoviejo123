@@ -49,35 +49,28 @@ run(`S=normalize({tenant:'uc',ramos:[
 ]})`);
 run('agendaOrdenActual="fecha";agendaRestantesAbiertas=true;renderAgenda()');
 const h=stub.innerHTML;
-// Cada aparición (tarjeta o fila) con su aviso, en orden de pantalla.
+// La misma elegibilidad y una sola meta por ramo, ahora como medidor.
 const apariciones=[];const re=/(ag-priority-name|ag-row-name)">([^<]*)<[\s\S]*?(?=ag-priority-name|ag-row-name|$)/g;let m;
-while((m=re.exec(h))){const a=/class="ag-alert (bad|warn)"/.exec(m[0]);apariciones.push({tipo:m[1]==='ag-priority-name'?'tarjeta':'fila',nombre:m[2],aviso:a?a[1]:null});}
+while((m=re.exec(h))){const a=/class="ag-need"[^>]*aria-label="([^"]*)"/.exec(m[0]);apariciones.push({tipo:m[1]==='ag-priority-name'?'tarjeta':'fila',nombre:m[2],aviso:a?a[1]:null});}
 const de=n=>apariciones.find(x=>x.nombre===n);
+const bloque=n=>(new RegExp(`ag-(?:priority|row)-name">${n}<([\\s\\S]*?)(?=ag-(?:priority|row)-name"|$)`).exec(h)||[])[1]||'';
 assert.equal(de('Prueba 2').tipo,'tarjeta','la prueba de mañana es una prioridad');
-assert.equal(de('Prueba 2').aviso,'warn','bajo 4,0 pero recuperable: ámbar, no rojo');
-// 30% con 3,6 + 30% con X ≥ 3,95 → X = 4,3 en esta evaluación.
-assert.match(h,/ag-priority-name">Prueba 2<[\s\S]*?Es importante: si sacas un 4\.3, estarás aprobando el ramo\./,'la nota de esta evaluación para ir aprobando');
-assert.equal(de('Examen A').aviso,null,'el aviso de un ramo no se repite en sus otras apariciones');
-assert.equal(de('Control 2').aviso,'warn','el otro ramo en riesgo también lo trae en su primera aparición');
+// El medidor representa TODO lo pendiente (4,1), no la nota específica de P2 (4,3).
+assert.match(de('Prueba 2').aviso,/Necesitas 4,1 promedio en lo pendiente.*Exigente/);
+assert.match(bloque('Prueba 2'),/ag-need-value[^]*?<strong>4,1<\/strong>/);
+assert.equal(de('Examen A').aviso,null,'el aviso no se repite en las otras evaluaciones del ramo');
+assert.match(de('Control 2').aviso,/Necesitas 4,1 promedio en lo pendiente/);
 assert.equal(de('Examen B').aviso,null,'una sola vez por ramo');
 assert.equal(de('Entrega final').aviso,null,'un ramo que va bien no lleva aviso');
-assert.doesNotMatch(h,/ag-priority-name">Prueba 2<[^]*?ag-priority-reason">Vas 3\.6/,'la razón de la tarjeta no repite el aviso');
-// 50% con 2,0 y queda solo E2: N = X = 5,9. Urgente, en rojo (Lucas).
-assert.equal(de('Prueba E2').aviso,'bad','urgente va en rojo');
-assert.match(h,/Es urgente: necesitas un 5\.9 para ir aprobando el ramo\./,'sobre 5,0 es urgente');
-// El caso de Lucas: un quiz de 5% en un ramo al que le basta 4,3 en lo
-// pendiente. Para quedar en 4,0 justo después del quiz haría falta más de 7,0;
-// eso no es urgencia: se dice que pesa poco y cuánto necesita en lo pendiente.
-const bloque=n=>(new RegExp(`ag-(?:priority|row)-name">${n}<([\\s\\S]*?)(?=ag-(?:priority|row)-name"|$)`).exec(h)||[])[1]||'';
-assert.equal(de('Quiz F').aviso,'warn','importante, no urgente');
-// Vale 5% (< 10% del ramo) y sola no lo deja en 4,0: «pesa poco» (Lucas, 2026-10-22).
-assert.match(bloque('Quiz F'),/Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un 4\.3 en lo pendiente para aprobar el ramo\./);
-// G2 pesa 15 de 40 pendientes (≥ un tercio), pero quedar en 4,0 tras ella pide
-// 7,75: no alcanza sola. N = (3,95 − 1,8) / 0,4 = 5,4: urgente.
-assert.equal(de('Prueba G2').aviso,'bad');
-assert.match(bloque('Prueba G2'),/Es urgente: necesitas un 5\.4 en lo pendiente para aprobar el ramo\./);
-assert.equal(de('Control D').aviso,'bad','imposible: rojo');
-assert.match(h,/No es posible que apruebes este ramo, pero da lo mejor de ti\./);
+assert.doesNotMatch(h,/ag-alert|ag-priority-reason/,'sin recuadros de alerta ni explicaciones repetidas');
+assert.match(de('Prueba E2').aviso,/5,9.*Muy exigente/);
+assert.match(bloque('Prueba E2'),/color:var\(--red\)/,'exigencia alta en rojo');
+assert.match(de('Quiz F').aviso,/4,3.*Exigente/,'el quiz muestra la meta del ramo');
+assert.match(de('Prueba G2').aviso,/5,4.*Exigente/);
+assert.match(bloque('Prueba G2'),/color:var\(--yellow\)/,'usa el mismo semáforo de exigencia que Estadísticas');
+assert.match(de('Control D').aviso,/Lo pendiente no alcanza.*Sin salida/);
+assert.match(bloque('Control D'),/ag-need-value[^]*?<strong>—<\/strong>/,'imposible no promete una nota alcanzable');
+assert.equal(run('medidorRamoAgendaHTML({necesita:null})'),'','sin meta calculable no inventa un medidor');
 
 console.log('\n=== Recomendado no prioriza un ramo imposible ===');
 run('agendaOrdenActual="recomendado";renderAgenda()');
@@ -111,4 +104,4 @@ const aviso15=run(`(()=>{const cat=(id,nombre,peso,notas,fecha)=>({id,nombre,pes
 assert.doesNotMatch(aviso15,/pesa poco/,'15% del ramo no pesa poco');
 assert.match(aviso15,/Una buena nota en esta evaluación te ayudará: necesitas un \d\.\d en lo pendiente para aprobar el ramo\./);
 assert.doesNotMatch(h+aviso15,/no alcanzas a quedar aprobando/,'ya no se explica que sola no alcanza (Lucas, 2026-10-22)');
-console.log('OK: avisos con urgencia sin alarma, una vez por ramo, y Recomendado no prioriza lo imposible');
+console.log('OK: medidor con meta del ramo, elegibilidad y cálculos existentes conservados');

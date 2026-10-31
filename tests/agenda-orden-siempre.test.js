@@ -39,10 +39,12 @@ chk('lo lleva el encabezado de prioridades, que se pinta con cualquier pendiente
 chk('y ese encabezado solo depende de que haya algo por venir',
   /if\(porVenir\.length>0\)\{[\s\S]{0,900}ag-priority-heading/.test(render));
 
-console.log('\n=== El control sigue siendo el mismo ===');
+console.log('\n=== Orden local y tres controles accesibles ===');
+chk('Fecha es el orden inicial, sin escribir en el estado académico', /let agendaOrdenActual='fecha'/.test(render));
 const html=corre('agendaOrdenHTML("peso")')||'';
 chk('ofrece las tres formas de ordenar',
   /Recomendado/.test(html)&&/Fecha/.test(html)&&/Peso/.test(html));
+chk('Fecha aparece primero', (corre('agendaOrdenHTML("fecha")')||'').indexOf('>Fecha<')<(corre('agendaOrdenHTML("fecha")')||'').indexOf('>Recomendado<'));
 chk('y marca la elegida', /class="ag-order-option active"[^>]*>Peso</.test(html)||/active[\s\S]{0,120}>Peso</.test(html));
 
 console.log('\n=== Y el botón Calendario se ve clickeable ===');
