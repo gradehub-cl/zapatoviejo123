@@ -285,11 +285,12 @@ function pintarRecomendacionClase(contenedor){
     registrarInteraccionMedida(anuncio.id,'apertura',sigla);
     abrirClaseRecomendada(anuncio,ramo,sigla);
   });
-  banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',async()=>{
+  banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',async e=>{
     const cierre=descartarRecomendacionClase(anuncio.id);
     fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
     fila.style.removeProperty('--info-mitad');
     banner.remove();
+    if(e.detail===0)fila.querySelector('.ramo-name')?.focus({preventScroll:true});
     // Si había una lectura en vuelo, la escritura del cierre va después.
     const pendiente=cierreAnunciosCuenta(uid).pedido;
     if(pendiente)await pendiente;

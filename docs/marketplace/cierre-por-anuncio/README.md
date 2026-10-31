@@ -2,7 +2,7 @@
 
 **Antes del merge, Lucas debe habilitar `pg_cron` y aplicar `supabase/anuncios_cierre_por_anuncio.sql` en producción, después de `supabase/anuncios_cierre.sql`. Codex no aplicó SQL.** El archivo nuevo se puede ejecutar de nuevo. Si no está disponible el programador, falla dentro de la transacción: no deja la tabla instalada sin mantenimiento.
 
-La X oculta solo ese anuncio hasta la próxima medianoche de Chile. Otro anuncio que calce puede aparecer inmediatamente; si se cierran todos, no aparece ninguno. El día siguiente vuelven a ser candidatos. El mensaje y el nombre accesible dicen «este anuncio».
+La X oculta solo ese anuncio hasta la próxima medianoche de Chile. Otro anuncio que calce puede aparecer inmediatamente; si se cierran todos, no aparece ninguno. El día siguiente vuelven a ser candidatos. El mensaje y el nombre accesible dicen «este anuncio». Con teclado, al cerrar el foco vuelve al nombre del ramo asociado sin mover la página.
 
 ## Modelo y compatibilidad
 
