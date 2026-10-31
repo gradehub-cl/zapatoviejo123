@@ -12,9 +12,11 @@ async function pintarPosicionesCurso(){
   if(!filas.length){
     // Con menos de cinco no hay comparación posible, y es el caso normal al
     // principio. Se dice por qué en vez de dejar un hueco.
-    box.innerHTML=`<p class="stats-curso-vacio">Cuando cinco personas lleven uno de tus ramos, verás acá cómo te va frente al resto. Nadie ve tu nota ni tu nombre.</p>`;
+    const titulo=document.getElementById('stats-curso-titulo');if(titulo)titulo.hidden=true;
+    box.innerHTML=`<p class="stats-curso-vacio">Aún no hay suficientes datos para compararte con los demás.</p>`;
     return;
   }
+  const titulo=document.getElementById('stats-curso-titulo');if(titulo)titulo.hidden=false;
   box.innerHTML=filas.map(r=>{
     const p=pos[r.id];
     return `<div class="stats-curso-row">
@@ -47,10 +49,10 @@ function trazoEvolucionNotas(puntos){
 }
 
 function htmlGraficoEvolucion(serie,id,descripcion='Promedio por semestre',opciones={}){
-  if(serie.length<2)return'';
+  if(!serie.length||(serie.length<2&&!opciones.unPunto))return'';
   const piso=opciones.piso??1,techo=opciones.techo??7,referencia=opciones.referencia??4;
-  const puntos=serie.map((p,i)=>({x:Number.isFinite(p.x)?p.x:i/(serie.length-1)*100,y:(techo-Math.max(piso,Math.min(techo,p.valor)))/(techo-piso)*100}));
-  const curva=trazoEvolucionNotas(puntos),ultimo=serie[serie.length-1];
+  const puntos=serie.map((p,i)=>({x:Number.isFinite(p.x)?p.x:serie.length===1?50:i/(serie.length-1)*100,y:(techo-Math.max(piso,Math.min(techo,p.valor)))/(techo-piso)*100}));
+  const curva=opciones.recto?'M'+puntos.map(p=>p.x+','+p.y).join(' L'):trazoEvolucionNotas(puntos),ultimo=serie[serie.length-1];
   const minimo=Math.floor(Math.min(...serie.map(p=>p.valor))),maximo=Math.ceil(Math.max(...serie.map(p=>p.valor)));
   const marcas=opciones.marcas||[7,6,5,4,3,2,1].filter(n=>n===4||(n>=minimo&&n<=maximo));
   const rotulo=opciones.rotulo||((n)=>n===4?'4.0':n);

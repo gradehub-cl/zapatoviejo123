@@ -82,6 +82,21 @@ el acento y sin palabra —un semestre no se aprueba ni se reprueba—; el avanc
 va neutro; en "Qué mueve tu promedio" y en las variaciones, verde es lo que
 suma y rojo lo que resta (Lucas, 2026-10-26).
 
+**Evolución del estudiante** (maqueta aprobada por Lucas, 2026-10-30): «Tu
+promedio en el tiempo» reemplaza únicamente el anillo del promedio en
+Estadísticas. Cifra protagonista en el acento; variación con la última nota en
+verde/rojo; el avance conserva su anillo neutro. Mes y Semestre reconstruyen
+un paso por nota usando `gpa` con la pauta actual, ordenando por fecha de la
+evaluación y, si falta, por `editadaEn`. Sin ambas fechas, primero y en orden
+guardado; no se inventa un día. Mes muestra el mes calendario actual. Carrera,
+solo con historial, muestra un punto por semestre archivado y el actual. La
+línea usa segmentos rectos y parte del primer promedio real, con marcas a la
+izquierda y una referencia discontinua en 4,0. Dedo, mouse y teclado consultan
+los valores exactos; una tabla ofrece los mismos datos sin depender del gesto.
+La reconstrucción usa las calificaciones guardadas hoy: no es una bitácora de
+correcciones ni recupera versiones antiguas de la pauta. No modifica `S`, el
+motor ni las preferencias guardadas de orden y visibilidad de secciones.
+
 **Seguir las Human Interface Guidelines de Apple es obligatorio**
 (https://developer.apple.com/design/human-interface-guidelines). Decisión de
 Lucas del 2026-09-28: la mayoría usa GradeHub desde el iPhone, y las HIG son la
