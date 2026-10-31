@@ -65,7 +65,7 @@ function abrirCasilla(catId,slot){
   cat.notas=Array.isArray(cat.notas)?cat.notas:[];
   let n=cat.notas.find(x=>x.slot===slot);
   if(!n){
-    n={id:uid(),nombre:etiquetaCasilla(r,cat,slot),valor:null,peso:1,slot};
+    n=asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,slot),peso:1,slot},'',null);
     cat.notas.push(n);
     save();
   }
@@ -118,8 +118,7 @@ function confirmEditNota(catId,notaId){
   const cat=r.categorias.find(c=>c.id===catId);
   const n=cat.notas.find(x=>x.id===notaId);
   n.nombre=name;n.peso=peso;
-  if(isNaN(val)){n.valor=null;delete n.calificacionConceptual;}
-  else asignarCalificacionNota(n,rawNota,val);
+  asignarCalificacionNota(n,rawNota,isNaN(val)?null:val);
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
   save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
