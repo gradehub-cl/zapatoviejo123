@@ -3,7 +3,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   anuncios=await Promise.all(anuncios.map(async a=>{
     if(a.estado!=='publicado')return a;
     try{
-      const {data,error}=await supabaseClient.rpc('campana_anuncio',{p_anuncio_id:a.id});
+      const {data,error}=await leerCostoCampanaClase(a.id);
       if(error)return sqlClasesDesactualizado(error)?{...a,campana:null}:{...a,campanaError:true};
       return {...a,campana:Array.isArray(data)?data[0]||null:null};
     }catch(e){return {...a,campanaError:true};}
@@ -58,7 +58,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
       <div class="profesor-hig-lista-cabeza"><h2>Pendiente</h2></div>
       ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:'<p class="clases-pendiente-vacio">Nada pendiente de tu parte.</p>'}`+
     (anuncios.length?'':`<section class="profesor-hig-intro"><div><h2>Enseña a tu manera.</h2><p>Elige qué ofrecer, a quién llegar y cuánto destinar a tu campaña. Tú pones el límite.</p></div>
-      <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Siempre con un tope.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>`)+
+      <ol><li><b>Prepara tu clase.</b> Cuenta qué van a trabajar.</li><li><b>Define público y presupuesto.</b> Con tope si tiene precio; gratis no tiene costo.</li><li><b>Revisa y envía.</b> Nada se publica sin aprobación.</li></ol></section>`)+
     `<details class="clases-resumen profesor-hig-resumen" open><summary id="clases-resumen-titulo">Cómo van tus anuncios</summary>
        <div id="clases-kpis">${g.activos.length?'<p class="clase-sin-datos">Cargando números…</p>'
          :`<p class="clase-sin-datos">${g.sinConfirmar.length?'No pudimos confirmar qué campañas siguen activas. Vuelve a abrir tu espacio para intentarlo de nuevo.'

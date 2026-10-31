@@ -9,6 +9,8 @@
 //
 // El servidor tiene la misma tarifa (tarifa_campana_clp) y es el que cuenta;
 // esto solo arma la cuenta para mostrarla. Un test exige que coincidan.
+// Desde 2026-10-31, precio cero al aprobar = sin costo. La instantánea
+// del servidor conserva la tarifa de campañas anteriores y de anuncios editados.
 const TARIFA_CAMPANA={dia:100,vista:10,apertura:50,contacto:1000};
 const DIAS_CAMPANA_POR_OMISION=10,MAX_DIAS_CAMPANA=60,MIN_TOPE_CAMPANA=1000,MAX_TOPE_CAMPANA=5000000;
 const TOPE_CAMPANA_POR_OMISION=10000;
@@ -28,7 +30,7 @@ function diasEntreFechasClase(desde,hasta){
 }
 
 // Días, inicio (vacío = apenas se apruebe) y tope, como los guarda la base.
-function validarCampanaClase(entrada,ahora=Date.now()){
+function validarCampanaClase(entrada,ahora=Date.now(),precio=null){
   const e=entrada||{};
   const dias=Number(e.dias),tope=Number(e.tope_clp),inicio=String(e.inicio||'').trim();
   if(!Number.isSafeInteger(dias)||dias<1||dias>MAX_DIAS_CAMPANA)
@@ -37,25 +39,31 @@ function validarCampanaClase(entrada,ahora=Date.now()){
     return {ok:false,campo:'inicio',error:'Revisa la fecha de inicio.'};
   if(inicio&&inicio<hoyChileClase(ahora))
     return {ok:false,campo:'inicio',error:'La fecha de inicio ya pasó. Déjala vacía para partir apenas la aprobemos.'};
-  if(!Number.isSafeInteger(tope)||tope<MIN_TOPE_CAMPANA||tope>MAX_TOPE_CAMPANA)
+  if(precio!==0&&(!Number.isSafeInteger(tope)||tope<MIN_TOPE_CAMPANA||tope>MAX_TOPE_CAMPANA))
     return {ok:false,campo:'tope',error:`Pon un tope entre ${pesosClase(MIN_TOPE_CAMPANA)} y ${pesosClase(MAX_TOPE_CAMPANA)}.`};
-  return {ok:true,datos:{dias,inicio:inicio||null,tope_clp:tope}};
+  return {ok:true,datos:{dias,inicio:inicio||null,tope_clp:precio===0?null:tope}};
 }
 
 // La cuenta de una campaña, con cada concepto a la vista. `total` nunca pasa
 // del tope: eso es lo que el profesor pagaría.
+function tarifaCampanaClase(concepto,sinCosto=false){return sinCosto?0:TARIFA_CAMPANA[concepto];}
+async function leerCostoCampanaClase(anuncioId){
+  const args={p_anuncio_id:anuncioId};
+  const r=await supabaseClient.rpc('campana_anuncio_con_tarifa',args);
+  return r.error&&sqlClasesDesactualizado(r.error)?supabaseClient.rpc('campana_anuncio',args):r;
+}
 function costoCampanaClase(c){
   if(!c)return null;
   const n=k=>Number.isSafeInteger(c[k])&&c[k]>0?c[k]:0;
   const partes=[
-    {clave:'vista',cantidad:n('vistas'),precio:TARIFA_CAMPANA.vista},
-    {clave:'apertura',cantidad:n('aperturas'),precio:TARIFA_CAMPANA.apertura},
-    {clave:'contacto',cantidad:n('contactos'),precio:TARIFA_CAMPANA.contacto},
-    {clave:'dia',cantidad:n('dias_cobrados'),precio:TARIFA_CAMPANA.dia},
+    {clave:'vista',cantidad:n('vistas'),precio:tarifaCampanaClase('vista',c.sin_costo===true)},
+    {clave:'apertura',cantidad:n('aperturas'),precio:tarifaCampanaClase('apertura',c.sin_costo===true)},
+    {clave:'contacto',cantidad:n('contactos'),precio:tarifaCampanaClase('contacto',c.sin_costo===true)},
+    {clave:'dia',cantidad:n('dias_cobrados'),precio:tarifaCampanaClase('dia',c.sin_costo===true)},
   ].map(p=>({...p,subtotal:p.cantidad*p.precio}));
   const bruto=partes.reduce((s,p)=>s+p.subtotal,0);
-  const tope=Number.isSafeInteger(c.tope_clp)?c.tope_clp:null;
-  return {partes,bruto,tope,total:tope===null?bruto:Math.min(bruto,tope),agotada:tope!==null&&bruto>=tope};
+  const tope=c.sin_costo===true?null:Number.isSafeInteger(c.tope_clp)?c.tope_clp:null;
+  return {sinCosto:c.sin_costo===true,partes,bruto,tope,total:tope===null?bruto:Math.min(bruto,tope),agotada:tope!==null&&bruto>=tope};
 }
 // "120 personas te vieron ($1.200) · 15 la abrieron ($750) · …"
 function lineaCostoCampanaClase(costo){

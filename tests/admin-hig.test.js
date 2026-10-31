@@ -38,7 +38,7 @@ const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUs
  supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(modo==='throw')throw Error('red caída');if(modo==='denegado')return {error:{code:'42501',message:'sin acceso'}};
   if(modo==='missing-report'&&n==='admin_reportes_programa')return {error:{code:'PGRST202',message:'no existe'}};
   if(n==='admin_encuestas'&&modo==='encuestas-sin-sql')return {error:{code:'PGRST202'}};
-  const datos={admin_panel_clases:panelActual,admin_reportes_programa:[{id:'rep-1',tenant:'uc',carrera:'Derecho',ramo:'Curso sintético',evaluacion:'Prueba 1',descripcion:'El programa dice <40 %>',created_at:fecha}],admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
+  const datos={admin_panel_clases:panelActual,admin_reportes_programa:[{id:'rep-1',tenant:'uc',carrera:'Derecho',ramo:'Curso sintético',evaluacion:'Prueba 1',descripcion:'El programa dice <40 %>',created_at:fecha}],admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio_con_tarifa:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
    totales_metricas_anuncio:[{vista:'total',clave:'',tipo:'impresion',eventos:18}]};
   return {data:modo==='false'?false:n in datos?datos[n]:true,error:null};}}};
@@ -102,7 +102,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  for(const texto of ['Estadísticas del aviso','Presupuesto utilizado','Se mostró','La abrieron','Te contactaron','Más estadísticas','Cómo llegaron'])
   assert(panel.innerHTML.includes(texto),`Falta ${texto} en las estadísticas del admin`);
  assert.match(panel.innerHTML,/Solo totales por anuncio/);
- assert.deepEqual(calls.slice(antes).map(c=>c.n),['admin_panel_clases','campana_anuncio','alcance_anuncio_por_canal','resumen_metricas_anuncio','totales_metricas_anuncio','historial_anuncio']);
+ assert.deepEqual(calls.slice(antes).map(c=>c.n),['admin_panel_clases','campana_anuncio_con_tarifa','alcance_anuncio_por_canal','resumen_metricas_anuncio','totales_metricas_anuncio','historial_anuncio']);
  assert(calls.slice(antes).filter(c=>c.p).every(c=>c.p.p_anuncio_id==='a1'));
  await ver.listeners.click();assert.equal(panel.hidden,true);
  modo='throw';await ver.listeners.click();assert.match(panel.innerHTML,/No pudimos cargar las estadísticas/);assert.equal(ver.textContent,'Reintentar estadísticas');

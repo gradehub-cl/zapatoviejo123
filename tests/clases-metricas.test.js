@@ -31,12 +31,12 @@ const anuncio=(extra)=>Object.assign({id:'a1',titulo:'Clases de Cálculo II',est
 // Sin `porCanal`, la función por camino no existe: es un servidor sin el SQL
 // nuevo, y el panel tiene que caer al total de siempre.
 // Lo mismo con `totales`: sin ella, los totales se arman desde los cortes.
-// `campana` es la fila de campana_anuncio; sin ella, el SQL de campañas no está
+// `campana` es la fila de campana_anuncio_con_tarifa; sin ella, el SQL de campañas no está
 // aplicado y no hay costo que mostrar.
 function montar({alcance=null,cortes=[],porCanal=null,totales=null,campana=null}={}){
   ctx.__alcance=alcance;ctx.__cortes=cortes;ctx.__porCanal=porCanal;ctx.__totales=totales;ctx.__campana=campana;
   run(`supabaseClient={rpc:(n)=>Promise.resolve(
-    n==='campana_anuncio'?(__campana?{data:[__campana],error:null}:{data:null,error:{code:'42883',message:'no existe'}})
+    (n==='campana_anuncio_con_tarifa'||n==='campana_anuncio')?(__campana?{data:[__campana],error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='alcance_anuncio_por_canal'?(__porCanal?{data:__porCanal,error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='totales_metricas_anuncio'?(__totales?{data:__totales,error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='historial_anuncio'?{data:null,error:{code:'PGRST202',message:'no existe'}}

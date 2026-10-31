@@ -12,7 +12,9 @@ function panelAlcancePrivadoHTML(filas,periodo,metrica,ahora,tipo='columnas'){
   return `${cifrasAlcancePrivadoHTML(s.filas,'Personas por campaña')}${graficoPrivadoHTML(s.puntos,{titulo,tipo,unidad:metrica==='contactos'?'contactos':'vistas',id:'campanas-'+tipo})}`;
 }
 function costoPanelPrivadoHTML(costos){
-  const costo=costos.every(Boolean)?sumarCostosCampana(costos):null;
+  const pagadas=costos.filter(c=>!c?.sinCosto);
+  const costo=pagadas.every(Boolean)?sumarCostosCampana(pagadas):null;
+  if(costos.length&&!pagadas.length)return '<section class="pe-costos"><p class="pe-sub">Campañas activas sin costo.</p></section>';
   if(!costos.length)return '<section class="pe-costos"><p class="pe-sub">Sin campañas activas.</p></section>';
   return `<section class="pe-costos"><div><h3>Campañas activas</h3>${presupuestoProfesorHTML(costo)}${costo&&costo.tope!==null?`<p class="pe-sub">${pesosClase(Math.max(0,costo.tope-costo.total))} disponibles del tope</p>`:''}</div><div>${costoApiladoClase(costo,pesosClase)}</div></section>`;
 }
