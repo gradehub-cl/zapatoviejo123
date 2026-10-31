@@ -114,8 +114,48 @@ function idsCompletosSync(doc){
 // Fusión de tres vías. Sin base (el primer arranque de un dispositivo con este
 // código) no se sabe quién cambió qué: se suma lo que exista en cualquiera de
 // las dos y, si un mismo dato difiere, manda la nube, como hacía la app antes.
+// La marca y la calificación son una sola edición. No se puede mezclar el valor
+// local con la fecha de otro valor remoto: falsearía su cronología.
+function conciliarNotaEditadaSync(f,b,l,n){
+  if(!objetoSync(f)||!objetoSync(l)||!objetoSync(n))return f;
+  const calificacion=x=>({valor:x?.valor,concepto:x?.calificacionConceptual??null});
+  const misma=(x,y)=>igualSync(calificacion(x),calificacion(y));
+  const tl=fechaEdicionNotaValida(l.editadaEn),tn=fechaEdicionNotaValida(n.editadaEn);
+  let elegida=null;
+  // Solo cambia la resolución de una colisión cuando AMBAS ediciones tienen
+  // una fecha conocida. Los datos antiguos siguen con la regla de tres vías.
+  if(tl&&tn&&tl!==tn&&(!b||!misma(l,b))&&(!b||!misma(n,b)))elegida=tl>tn?l:n;
+  const out={...f};
+  if(elegida){
+    out.valor=elegida.valor;
+    if('calificacionConceptual' in elegida)out.calificacionConceptual=elegida.calificacionConceptual;
+    else delete out.calificacionConceptual;
+  }
+  // Una app anterior puede omitir este campo al guardar el mismo valor: no
+  // borra la fecha conocida. Si cambió el valor sin fecharlo, no se le asigna
+  // la fecha de otra calificación. Tampoco se inventa una con la hora de sync.
+  if('calificacionConceptual' in out&&![l,n,b].some(x=>x&&misma(x,out)))delete out.calificacionConceptual;
+  const fechas=[l,n,b].filter(x=>x&&misma(x,out)).map(x=>fechaEdicionNotaValida(x.editadaEn)).filter(Boolean).sort();
+  delete out.editadaEn;
+  if(fechas.length)out.editadaEn=fechas[fechas.length-1];
+  return out;
+}
+function conciliarEdicionesNotasSync(f,b,l,n,clave=''){
+  if(clave==='nota')return conciliarNotaEditadaSync(f,b,l,n);
+  if(Array.isArray(f)){
+    const porId=a=>new Map((Array.isArray(a)?a:[]).filter(x=>objetoSync(x)&&typeof x.id==='string').map(x=>[x.id,x]));
+    const B=porId(b),L=porId(l),N=porId(n);
+    return f.map(x=>objetoSync(x)?conciliarEdicionesNotasSync(x,B.get(x.id),L.get(x.id),N.get(x.id),clave==='notas'?'nota':''):x);
+  }
+  if(!objetoSync(f))return f;
+  const out={...f};
+  for(const k of ['ramos','categorias','notas','historial'])if(k in f)out[k]=conciliarEdicionesNotasSync(f[k],b?.[k],l?.[k],n?.[k],k);
+  return out;
+}
+
 function fusionarSync(base,local,nube){
-  const fusion=fusionarValorSync(base||undefined,local,nube,base?'local':'nube');
+  const gana=base?'local':'nube';
+  const fusion=conciliarEdicionesNotasSync(fusionarValorSync(base||undefined,local,nube,gana),base,local,nube);
   // El tipo de cuenta lo puede corregir el servidor. Una copia vieja del
   // teléfono no debe devolver a estudiante una cuenta ya convertida.
   if(objetoSync(fusion)&&objetoSync(nube)&&nube.tipoCuenta==='profesor')fusion.tipoCuenta='profesor';
