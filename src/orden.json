@@ -119,6 +119,7 @@
     "src/render-main/inicio.js",
     "src/render-main/ficha-ramo.js",
     "src/render-main/curso-y-evolucion.js",
+    "src/render-main/estadisticas-evolucion.js",
     "src/render-main/estadisticas.js",
     "src/render-main/wrapped-datos.js",
     "src/render-main/wrapped-hoja.js",

@@ -239,7 +239,7 @@ chk('el avance de Estadísticas va en un anillo neutro, sin el semáforo',
 chk('el anillo se llena con el avance real y respeta movimiento reducido',
   /--anillo-fin:\$\{\(100-f\*100\)\.toFixed\(2\)\}/.test(app) && /prefers-reduced-motion:reduce\)\{\.anillo-arco\{animation:none;\}/.test(cssCodigo));
 chk('el 100% del semestre no se pinta de aprobado',
-  /stats-anillos\$\{avance\.pct===100\?' is-complete':''\}/.test(app) && !/\.stats-anillos\.is-complete\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
+  /tarjetaEvolucionStatsHTML\(g,anilloAvance,/.test(app) && !/\.stats-evolucion-avance[^}]*\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
 // Antes `.open` solo hacía display:flex — el sheet aparecía y desaparecía de
 // golpe, y por acá pasa todo flujo de la app.
 chk('el sheet parte fuera de pantalla', /\.modal-sheet\{transform:translateY\(100%\)/.test(css));
