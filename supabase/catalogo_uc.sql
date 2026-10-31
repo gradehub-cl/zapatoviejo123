@@ -31,6 +31,16 @@ create table if not exists public.catalogo_uc (
   busqueda  text not null
 );
 
+-- Buscar mientras escribes es `sigla ilike 'X%' or busqueda ilike '%x%'`, y
+-- completar créditos es `busqueda = any(...)`. Sin estos índices las dos
+-- recorrían las ~12 mil filas. Medido con el CSV (#892): 3+ letras pasa de
+-- ~10 ms a ~0,4 ms. Con 2 letras trigram no ayuda y queda en pocos ms.
+-- El trigram necesita los dos lados del OR para usar índice.
+create extension if not exists pg_trgm with schema extensions;
+create index if not exists catalogo_uc_busqueda on public.catalogo_uc (busqueda);
+create index if not exists catalogo_uc_busqueda_trgm on public.catalogo_uc using gin (busqueda extensions.gin_trgm_ops);
+create index if not exists catalogo_uc_sigla_trgm on public.catalogo_uc using gin (sigla extensions.gin_trgm_ops);
+
 alter table public.catalogo_uc enable row level security;
 revoke all on public.catalogo_uc from public, anon, authenticated;
 grant select on public.catalogo_uc to anon, authenticated;
