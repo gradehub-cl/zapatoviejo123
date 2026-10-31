@@ -99,15 +99,15 @@ function renderHome(){
   if(simGlobalBtn)simGlobalBtn.style.display=S.ramos.length>=2?'flex':'none';
 
   if(g!==null){
-    // La nota oficial, su color y la distancia al siguiente nivel parten del
-    // mismo redondeo a una décima. El decimal va atenuado con el mismo gradient.
+    // El semestre conserva su nota oficial; el acento identifica el promedio
+    // general. El semáforo queda en los ramos y en la variación, no acá.
     const rounded=fmtPromedio(g);
     const sep=rounded.indexOf('.');
     const entera=rounded.slice(0,sep);
     const decimal=rounded.slice(sep);
     gpael.innerHTML=`${entera}<span class="gpa-decimal">${decimal}</span>`;
-    gpael.className='gpa-num '+colorClass(g)+claseNotaEspecial(g);
-    gpael.style.setProperty('--grade-color',getColor(g));
+    gpael.className='gpa-num';
+    gpael.style.setProperty('--grade-color','var(--primary)');
     pintarPromedioExacto('home-gpa-exacto',g);
     gpael.onclick=()=>{
       alternarPromedioExacto();
@@ -149,7 +149,7 @@ function renderHome(){
   gpaSub.innerHTML=`<strong>${esc(periodoActual)}</strong><span>${detalleActual}</span>`;
   gpaSub.style.display=S.ramos.length?'flex':'none';
   const detalleMetodo=descripcionMetodoGpa(S.ramos);
-  if(detalleMetodo){
+  if(detalleMetodo&&detalleMetodo.modo!=='creditos'){
     gpaMethod.textContent=detalleMetodo.texto;
     gpaMethod.style.display='block';
   }else if(g===null){
@@ -196,66 +196,58 @@ function renderHome(){
     }
   }
 
-  // Insight cards (arriba de la lista de ramos): próxima prueba, riesgo, última nota
+  // Bajo el listado: las dos situaciones académicas comparten jerarquía.
   const insightsEl=document.getElementById('home-insights');
   if(insightsEl){
     const cards=[];
     const ne=nextExam();
     if(ne){
-      const daysLabel=ne.daysUntil===0?'hoy':ne.daysUntil===1?'mañana':`en ${ne.daysUntil} días`;
-      // El color del ramo va en la línea lateral y el ícono, no en el texto:
-      // un ramo violeta dejaba "en 2 días" a 3,9:1 en modo claro.
+      const daysLabel=ne.daysUntil===0?'Hoy':ne.daysUntil===1?'Mañana':`${ne.daysUntil} días`;
+      const fecha=[ne.date.getFullYear(),String(ne.date.getMonth()+1).padStart(2,'0'),String(ne.date.getDate()).padStart(2,'0')].join('-');
       cards.push(`
-        <div class="insight-card" role="button" tabindex="0" style="--insight-color:${esc(ne.ramo.color)}" onclick="openRamo('${esc(ne.ramo.id)}')">
-          <div class="insight-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg></div>
-          <div class="insight-body">
-            <div class="insight-label">Próxima evaluación</div>
-            <div class="insight-title">${esc(ne.nombre)} · ${esc(ne.ramo.nombre)}</div>
-            <div class="insight-meta"><span class="strong" style="color:var(--fg)">${daysLabel}</span></div>
-          </div>
-          <span class="chevron-r">›</span>
-        </div>`);
+        <button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(ne.ramo.id)}')">
+          <span class="insight-body">
+            <span class="insight-label">Próxima evaluación</span>
+            <span class="insight-title">${esc(ne.nombre)}</span>
+            <span class="insight-meta">${esc(ne.ramo.nombre)}</span>
+          </span>
+          <span class="home-insight-value"><strong>${daysLabel}</strong><small>${esc(fechaCorta(fecha))}</small></span>
+          <span class="chevron-r" aria-hidden="true">›</span>
+        </button>`);
     }
     const risky=mostRiskyRamo();
     if(risky){
-      // El caso sin salida no se pinta como una advertencia más: si ya no se
-      // puede aprobar con lo que queda, la etiqueta y el color tienen que
-      // decirlo, no pedir una nota que no existe en la escala.
-      // Con los tokens del semáforo y no con hex: '#ff7a8f' y '#ffcf5c' eran
-      // los del modo oscuro, y en claro el número quedaba a 2,5:1 y 1,4:1.
-      const warnColor=(risky.imposible||!notaAprobadaRamo(risky.ramo,risky.avg))?'var(--red)':'var(--yellow)';
       cards.push(`
-        <div class="insight-card" role="button" tabindex="0" style="--insight-color:${warnColor}" onclick="openRamo('${esc(risky.ramo.id)}')">
-          <div class="insight-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".8" fill="currentColor"/></svg></div>
-          <div class="insight-body">
-            <div class="insight-label">${risky.imposible?'Ya no alcanza':'Ramo en riesgo'}</div>
-            <div class="insight-title">${esc(risky.ramo.nombre)}</div>
-            <div class="insight-meta">${risky.imposible
-              ?'Con lo que queda por rendir ya no se llega a 4,0'
-              :`Necesitas <span class="strong">${nfNecesaria(risky.needed)}</span> promedio en lo pendiente para aprobar`}</div>
-          </div>
-          <span class="chevron-r">›</span>
-        </div>`);
+        <button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(risky.ramo.id)}')">
+          <span class="insight-body">
+            <span class="insight-label">${risky.imposible?'Ya no alcanza':'Ramo en riesgo'}</span>
+            <span class="insight-title">${esc(risky.ramo.nombre)}</span>
+            <span class="insight-meta">${risky.imposible
+              ?'Con lo pendiente ya no se llega a 4,0'
+              :`${nfNecesaria(risky.needed)} en lo pendiente para aprobar`}</span>
+          </span>
+          <span class="home-insight-value"><strong style="color:${getColorRamo(risky.ramo,risky.avg)}">${fmtPromedio(risky.avg)}</strong><small>Promedio</small></span>
+          <span class="chevron-r" aria-hidden="true">›</span>
+        </button>`);
     }
-    // Última nota: solo la muestro si NO hay próxima ni riesgo (para no saturar)
+    // Se conserva la última nota como respaldo si no hay próxima ni riesgo.
     if(cards.length===0){
       const lg=latestGrade();
       if(lg){
-        const noteColor=getColor(lg.nota.valor);
         cards.push(`
-          <div class="insight-card" role="button" tabindex="0" style="--insight-color:${noteColor}" onclick="openRamo('${esc(lg.ramo.id)}')">
-            <div class="insight-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-            <div class="insight-body">
-              <div class="insight-label">Última nota</div>
-              <div class="insight-title">${esc(lg.cat.nombre)} · ${esc(lg.ramo.nombre)}</div>
-              <div class="insight-meta"><span class="strong">${textoCalificacionNota(lg.nota)}</span></div>
-            </div>
-            <span class="chevron-r">›</span>
-          </div>`);
+          <button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(lg.ramo.id)}')">
+            <span class="insight-body">
+              <span class="insight-label">Última nota</span>
+              <span class="insight-title">${esc(lg.cat.nombre)}</span>
+              <span class="insight-meta">${esc(lg.ramo.nombre)}</span>
+            </span>
+            <span class="home-insight-value"><strong style="color:${getColor(lg.nota.valor)}">${textoCalificacionNota(lg.nota)}</strong><small>Nota</small></span>
+            <span class="chevron-r" aria-hidden="true">›</span>
+          </button>`);
       }
     }
     insightsEl.innerHTML=cards.join('');
-    insightsEl.style.display=cards.length?'block':'none';
+    insightsEl.style.display=cards.length?'grid':'none';
   }
 
   let ramos=[...S.ramos];

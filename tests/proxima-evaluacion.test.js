@@ -13,7 +13,7 @@ const src=['data.js','engine.js','app.js','app-session.js','render-main.js','ren
   .map(f=>fs.readFileSync(raiz+f,'utf8')).join('\n');
 function classList(){const c=new Set();return{add(...x){x.forEach(v=>c.add(v));},remove(...x){x.forEach(v=>c.delete(v));},contains(v){return c.has(v);},toggle(){}};}
 function el(){let html='';const attrs={};
-  const nodo={style:{setProperty(){},removeProperty(){}},classList:classList(),children:[],textContent:'',value:'',dataset:{},
+  const nodo={style:{setProperty(k,v){this[k]=v;},removeProperty(k){delete this[k];}},classList:classList(),children:[],textContent:'',value:'',dataset:{},
     addEventListener(){},appendChild(h){this.children.push(h);return h;},setAttribute(k,v){attrs[k]=String(v);},removeAttribute(k){delete attrs[k];},getAttribute(k){return attrs[k]||null;},
     querySelector(){return nodo;},querySelectorAll(){return [];},closest(){return null;},focus(){},select(){},click(){},remove(){},clientWidth:400};
   Object.defineProperty(nodo,'innerHTML',{get(){return html;},set(v){html=String(v);this.children=[];}});
@@ -54,14 +54,14 @@ chk('en 2 días', ne&&ne.daysUntil===2);
 chk('la misma evaluación que encabeza la Agenda', ne&&ag&&ag.nota&&ag.nota.id==='n0'&&ne.cat===ag.cat);
 chk('conserva lo que usa Inicio (ramo, cat, date, daysUntil)', ne&&ne.ramo.id==='r1'&&typeof (ne.date&&ne.date.getTime)==='function');
 let h=tarjeta();
-chk('la tarjeta dice "Control 1 · Microeconomía Sintética"', /insight-title">Control 1 · Microeconomía Sintética</.test(h));
-chk('y "en 2 días"', /Próxima evaluación[\s\S]*en 2 días/.test(h));
+chk('separa evaluación y ramo sin perder ninguno', /insight-title">Control 1</.test(h)&&/insight-meta">Microeconomía Sintética</.test(h));
+chk('el plazo destaca «2 días» y conserva su fecha', /home-insight-value"><strong>2 días<\/strong><small>/.test(h));
 
 console.log('\n=== Una casilla ya con nota no es la próxima ===');
 cargar([casilla(0,2,6.0),casilla(1,9),casilla(2,16)]);
 ne=proxima();
 chk('pasa a la Solemne 1 en 5 días', ne&&ne.cat.id==='sol1'&&ne.nombre==='Solemne 1'&&ne.daysUntil===5);
-chk('la tarjeta usa el nombre de la categoría', /insight-title">Solemne 1 · /.test(tarjeta()));
+chk('la tarjeta usa el nombre de la categoría', /insight-title">Solemne 1</.test(tarjeta()));
 
 console.log('\n=== Lo vencido y lo rendido no cuentan ===');
 cargar([casilla(0,-3),casilla(1,9),casilla(2,16)]);
@@ -90,6 +90,25 @@ ne=proxima();
 chk('sin eximición, el Examen de mañana es la próxima', ne&&ne.cat.id==='ex'&&ne.daysUntil===1);
 eximible(6.0);
 chk('eximido, el Examen desaparece', run(`categoriaEximida(S.ramos[0],S.ramos[0].categorias[1])`)===true&&proxima()===null);
+
+console.log('\n=== Presentación de Inicio con cuentas existentes ===');
+ctx.__ramos=JSON.stringify([{id:'riesgo',nombre:'Física Sintética',color:'#6d5dd3',creditos:10,gates:[],categorias:[
+  {id:'evaluado',nombre:'Interrogación 1',peso:80,slots:1,notas:[{id:'i1',nombre:'Interrogación 1',valor:1,peso:1}]},
+  {id:'pendiente',nombre:'Examen',peso:20,fecha:iso(2),notas:[]},
+]}]);
+run(`S.tenant='uc';S.ramos=JSON.parse(__ramos);S.historial=[{label:'2026-1',gpa:5,ramos:[]}];`);
+h=tarjeta();
+chk('el promedio general usa el acento aunque sea un 1,0',byId('home-gpa').style['--grade-color']==='var(--primary)'&&byId('home-gpa').className==='gpa-num');
+chk('se oculta solo la aclaración rutinaria de ponderación',byId('home-gpa-method').style.display==='none');
+chk('las notas sin fecha siguen contando y conservan el semáforo del ramo',/gpa-tag-dot bad/.test(byId('gpa-tags').innerHTML));
+chk('la comparación con el semestre anterior sigue bajando en rojo',byId('gpa-delta').className==='gpa-delta down'&&/↓/.test(byId('gpa-delta').innerHTML));
+chk('el riesgo imposible no pide una nota fuera de escala',/Ya no alcanza/.test(h)&&/Con lo pendiente ya no se llega a 4,0/.test(h)&&!/Necesitas/.test(h));
+chk('las tarjetas usan botones nativos para teclado y lector de pantalla',/button type="button" class="insight-card home-academic-row"/.test(h)&&!/role="button"/.test(h));
+run(`S.ramos[0].creditos=null;`);tarjeta();
+chk('si faltan créditos, se conserva la advertencia de promedio simple',byId('home-gpa-method').style.display==='block'&&/promedio simple/i.test(byId('home-gpa-method').textContent));
+const html=fs.readFileSync(raiz+'index.html','utf8');
+const posicion=id=>html.indexOf('id="'+id+'"');
+chk('el orden es listado, situación académica, simulación y clases',posicion('home-ramos')<posicion('home-insights')&&posicion('home-insights')<posicion('sim-global-btn')&&posicion('sim-global-btn')<posicion('home-clases'));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail?1:0);
