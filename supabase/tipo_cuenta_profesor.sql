@@ -35,10 +35,14 @@ begin
   if objetivo is null then raise exception 'No se encontró la cuenta indicada'; end if;
   select data into anterior from public.user_ramos where user_id=objetivo for update;
   if not found then raise exception 'La cuenta no tiene fila en user_ramos'; end if;
-  if anterior->>'tipoCuenta' = 'profesor' then return; end if;
+  -- onboardingDone también: sin él, en un navegador sin copia local la app lo
+  -- mandaba al onboarding en vez de a Clases (2026-10-31). Una cuenta ya
+  -- convertida a la que le falte se corrige al volver a correr esto.
+  if anterior->>'tipoCuenta' = 'profesor' and anterior->>'onboardingDone' = 'true' then return; end if;
   update public.user_ramos
-  set data=jsonb_set(
+  set data=jsonb_set(jsonb_set(
     jsonb_set(anterior,'{tipoCuenta}','"profesor"'::jsonb,true),
+    '{onboardingDone}','true'::jsonb,true),
     '{_rev}',to_jsonb(coalesce((anterior->>'_rev')::integer,0)+1),true)
   where user_id=objetivo;
 end;
