@@ -8,11 +8,14 @@ const uid=n=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`;
 
 // Ejecuta las funciones reales de fusión de app-session.js.
 const src=read('app-session.js');
-const start=src.indexOf('function fusionarSync('),end=src.indexOf('async function subirConVersion(');
+const start=src.indexOf('function conciliarNotaEditadaSync('),end=src.indexOf('async function subirConVersion(');
 assert(start>0&&end>start);
+const fechaEdicion=(read('app.js').match(/\nfunction fechaEdicionNotaValida\([\s\S]*?\n\}/)||[])[0];
+assert(fechaEdicion,'la fusión carga el validador real de la marca opcional');
 const ctx={};vm.createContext(ctx);
 vm.runInContext(`const objetoSync=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const igualSync=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+${fechaEdicion}
 ${src.slice(start,end)}`,ctx);
 const base={tipoCuenta:'estudiante',ramos:[{id:'ramo',categorias:[{id:'cat',notas:[{id:'a',valor:5.1}]}]}]};
 const local=structuredClone(base);local.ramos[0].categorias[0].notas.push({id:'b',valor:6.2});
