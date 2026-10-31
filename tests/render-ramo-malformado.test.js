@@ -42,7 +42,7 @@ const filas=byId('cat-list').children;
 chk('no cae si una categoría no trae notas',error===null);
 chk('mantiene visibles las dos categorías aunque vengan reordenadas',filas.length===2);
 chk('conserva la categoría válida que venía antes',filas[0]?.innerHTML.includes('segunda evaluación'));
-chk('dibuja la categoría sin notas como una fila vacía',filas[1]?.innerHTML.includes('primera evaluación')&&/placeholder="—"/.test(filas[1]?.innerHTML||''));
+chk('dibuja la categoría sin notas como una fila vacía',filas[1]?.innerHTML.includes('primera evaluación')&&/class="nota-en-fila"/.test(filas[1]?.innerHTML||''));
 chk('acepta nombre en minúscula, peso como texto, ramo sin gates e id ausente',
   !error&&filas[0]?.innerHTML.includes('40%')&&filas[1]?.innerHTML.includes('60%'));
 
