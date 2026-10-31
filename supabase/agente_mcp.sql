@@ -48,6 +48,7 @@ alter table public.agent_link_codes enable row level security;
 
 -- Cero políticas a propósito: nadie llega a estas tablas desde el cliente. Las
 -- funciones de abajo son la única puerta, igual que en `calendar_feeds`.
+revoke all on public.agent_links, public.agent_link_codes from public, anon, authenticated;
 
 -- Genera el código que la app muestra. Uno vivo por persona: pedir otro
 -- invalida el anterior, así un código que quedó en pantalla deja de servir.
