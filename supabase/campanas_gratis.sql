@@ -2,7 +2,9 @@
 -- Publicaciones anteriores conservan su tarifa: no se completa el precio histórico.
 begin;
 alter table public.tutor_anuncios add column if not exists precio_campana_clp integer;
+alter table public.tutor_anuncios add column if not exists configuracion_campana_aprobada jsonb;
 alter table admin.anuncio_publicaciones add column if not exists precio_campana_clp integer;
+alter table public.anuncio_campanas add column if not exists configuracion_previa jsonb;
 alter table public.anuncio_campanas alter column tope_clp drop not null;
 alter table public.anuncio_campanas drop constraint if exists anuncio_campanas_tope_clp_check;
 alter table public.anuncio_campanas add constraint anuncio_campanas_tope_clp_check
@@ -11,6 +13,18 @@ alter table public.anuncio_campanas add constraint anuncio_campanas_tope_clp_che
 create or replace function public.validar_tope_campana()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
+  -- Preparar la siguiente campaña no cambia el tope ni los días de la anterior.
+  -- Solo se captura en la primera edición explícita; no hay backfill masivo.
+  -- El respaldo queda en la misma fila: no toma un bloqueo inverso al del
+  -- publicador (que bloquea primero el anuncio y después la campaña).
+  if exists (select 1 from public.tutor_anuncios a where a.id=new.anuncio_id and a.publicado_at is not null and a.configuracion_campana_aprobada is null) then
+    if tg_op='UPDATE' and old.configuracion_previa is null then
+      new.configuracion_previa:=jsonb_build_object('dias',old.dias,'inicio',old.inicio,'tope_clp',old.tope_clp);
+    elsif tg_op='INSERT' then
+      -- Un publicado heredado sin fila de campaña era ilimitado.
+      new.configuracion_previa:=jsonb_build_object('dias',null,'inicio',null,'tope_clp',null);
+    end if;
+  end if;
   if new.tope_clp is null and not exists (select 1 from public.tutor_anuncios a where a.id=new.anuncio_id and a.precio_clp=0) then
     raise exception 'un anuncio con precio necesita un tope de campaña' using errcode='23514';
   end if;
@@ -46,6 +60,8 @@ begin
       raise exception 'un anuncio con precio necesita un tope de campaña' using errcode='23514';
     end if;
     new.precio_campana_clp := new.precio_clp;
+    select jsonb_build_object('dias',c.dias,'inicio',c.inicio,'tope_clp',c.tope_clp)
+      into new.configuracion_campana_aprobada from public.anuncio_campanas c where c.anuncio_id=new.id;
     new.medicion_desde := new.publicado_at;
   end if;
   return new;
@@ -65,15 +81,17 @@ declare
   c public.anuncio_campanas%rowtype;
   hasta_cobro timestamptz;
   segundos_suspendidos numeric := 0;
+  configuracion jsonb;
 begin
   select * into a from public.tutor_anuncios where id = p_anuncio_id;
   if not found then return; end if;
   select * into c from public.anuncio_campanas where anuncio_id = p_anuncio_id;
 
-  dias := coalesce(c.dias, case when a.publicado_at is not null and a.vence_at is not null
+  configuracion:=coalesce(a.configuracion_campana_aprobada,c.configuracion_previa);
+  dias := coalesce(case when configuracion is null then c.dias else (configuracion->>'dias')::integer end, case when a.publicado_at is not null and a.vence_at is not null
                                 then ceil(extract(epoch from (a.vence_at - a.publicado_at)) / 86400)::integer end);
-  inicio := c.inicio;
-  tope_clp := c.tope_clp;
+  inicio := case when configuracion is null then c.inicio else (configuracion->>'inicio')::date end;
+  tope_clp := case when configuracion is null then c.tope_clp else (configuracion->>'tope_clp')::integer end;
   dias_cobrados := 0;
   if a.publicado_at is not null and a.publicado_at <= now() then
     hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(a.detenido_at, c.detenido_at, 'infinity'));
@@ -252,4 +270,11 @@ begin
   return true;
 end;
 $$;
+-- Permisos explícitos también al reemplazar funciones existentes.
+revoke all on function public.preparar_publicacion_clase() from public, anon, authenticated;
+revoke all on function public.costo_campana(uuid) from public, anon, authenticated;
+revoke all on function public.admin_panel_clases() from public, anon;
+grant execute on function public.admin_panel_clases() to authenticated;
+revoke all on function public.admin_marcar_cobro_publicacion(uuid,timestamptz,text,integer) from public, anon;
+grant execute on function public.admin_marcar_cobro_publicacion(uuid,timestamptz,text,integer) to authenticated;
 commit;
