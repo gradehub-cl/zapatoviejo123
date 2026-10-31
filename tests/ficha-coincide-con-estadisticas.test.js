@@ -57,7 +57,8 @@ const pintar = cats => {
     currentRamoId='r1';
     renderRamo();
   `, ctx);
-  return byId('ramo-min-chip').textContent;
+  const chip=byId('ramo-min-chip');
+  return (chip.innerHTML.match(/aria-label="([^"]*)"/)||[])[1]||chip.textContent;
 };
 const necesariaDeEstadisticas = () => (val('loQueFaltaPorRamo(S.ramos)')[0] || {}).necesita;
 

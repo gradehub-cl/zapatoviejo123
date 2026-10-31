@@ -26,7 +26,7 @@ const enMascaras = (css.match(/linear-gradient\(/g) || []).length - total;
 // 2026-10-26: Estadísticas cambió su tarjeta de avance (dos degradados) por un
 // anillo neutro, y llegó la pista rayada de la barra centrada.
 // 2026-10-27: la maqueta aprobada de Calificar profesor suma el oro de las estrellas.
-chk(`hay 16 gradientes que pintan, incluido el oro de Calificar profesor, ajenos al rediseño del avance de Home (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 16);
+chk(`hay 17 gradientes que pintan: incluye el rayado funcional del peso pendiente de la ficha (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 17);
 chk('el sistema declara una dirección para superficies y otra para acentos',
   /--gradient-surface:150deg;--gradient-accent:135deg;/.test(css));
 
