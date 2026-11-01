@@ -56,6 +56,9 @@ assert.equal(run("presetRamo('Métodos de Investigación','udd','UDD-PSICOLOGIA'
 assert.equal(run("presetRamo('Análisis Estructural','udd','UDD-ARQUITECTURA')"),null);
 assert.equal(run("presetRamo('Procesos Psicológicos','uandes',null)"),null);
 assert.ok(run("presetsFueraDeMalla('udd','UDD-PSICOLOGIA')").includes('Neurociencia'),'lo que no está en la malla se ofrece en el buscador');
+// Arquitectura publica programa y malla del mismo plan: AAH215 ("Arquitectura
+// Moderna y Siglo XX" en su programa) calza con su ramo de 3°.
+assert.ok(run("presetRamo('Arquitectura Moderna Siglo XX','udd','UDD-ARQUITECTURA')"),'AAH215 con el nombre de la malla');
 
 // La compuerta, con una pauta sintética: parciales 70% y examen 30%.
 const nota=(id,valor)=>({id,nombre:id,valor,peso:1});

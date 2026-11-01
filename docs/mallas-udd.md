@@ -150,15 +150,18 @@ distinto. Pasaron 23: 17 de Psicología y 6 de Arquitectura.
   art. 49 pondera el promedio por "créditos" sin decir cuáles; si son créditos
   UDD, un PPA ponderado por SCT puede diferir en centésimas, porque el SCT del
   programa está redondeado (100 créditos UDD = 60 SCT, art. 18).
-- La clave es el nombre del programa. Los programas de Psicología de 2025–2026
-  no siempre calzan con la malla publicada: "Neurociencia" (SNC123, 2°
-  semestre) y "Neurociencias" (3°), "Habilidades Profesionales Interpersonales"
-  y "Taller de Habilidades Interpersonales". Si el nombre difiere, la pauta no
-  se le asigna al ramo de la malla, porque puede ser otro curso; queda en el
-  buscador de Agregar ramo. Con el mismo nombre sí, aunque cambie el semestre:
-  Teorías Psicodinámicas está en 2° en su programa y en 3° en la malla.
-  Arquitectura sí calza, salvo AAH215: el programa dice "Arquitectura Moderna
-  y Siglo XX" y la malla "Arquitectura Moderna Siglo XX".
+- La clave es el nombre del ramo en `mallas-udd.js` cuando el programa es ese
+  ramo. Arquitectura publica programas y malla del mismo plan: coinciden
+  nombres y semestres, y AAH215, que su programa titula "Arquitectura Moderna
+  y Siglo XX", va como "Arquitectura Moderna Siglo XX", su ramo de 3°.
+  Psicología no: sus programas de 2025–2026 describen otro plan que la malla
+  publicada (1° trae Fundamentos Socioculturales, Fundamentos Epistemológicos
+  y Coloquios de Actualidad, que la malla no tiene; "Neurociencia" está en 2°
+  y la malla trae "Neurociencias" en 3°). Ahí, si el nombre difiere, la pauta
+  no se le asigna al ramo de la malla, porque puede ser otro curso; queda con
+  el nombre del programa en el buscador de Agregar ramo. Con el mismo nombre
+  sí, aunque cambie el semestre: Teorías Psicodinámicas está en 2° en su
+  programa y en 3° en la malla.
 
 ### La compuerta del examen
 
@@ -208,7 +211,7 @@ salvo excepción de la Vicerrectoría; el programa lo publica así y así se car
 | Gestión del Cambio en la Institución Educativa | SGE424 | `2025/06/sge424.pdf` | 2025-06-19 |
 | Gestión e Intervención en Organizaciones | SGO426 | `2025/06/sgo426.pdf` | 2025-06-19 |
 | Componentes de la Matemática | AAM113 | `2026/07/aam113_componentes-de-la-matematica_2024.pdf` | 2026-07-06 |
-| Arquitectura Moderna y Siglo XX | AAH215 | `2026/07/aah215_arquitectura-moderna-y-siglo-xx.pdf` | 2026-07-06 |
+| Arquitectura Moderna Siglo XX | AAH215 | `2026/07/aah215_arquitectura-moderna-y-siglo-xx.pdf` | 2026-07-06 |
 | Sustentabilidad | AAS323 | `2026/06/aas323_sustentabilidad.pdf` | 2026-06-09 |
 | Diseño y Laboratorio Estructural: Sismoresistencia | ATE322 | `2026/06/ate322_diseno-y-laboratorio-estructural-sismo-resistencia.pdf` | 2026-06-09 |
 | Instalaciones Constructivas | AAI412 | `2026/06/aai412.pdf` | 2026-06-09 |
@@ -312,9 +315,6 @@ controles"), sin decir cuánto pesa cada una. Todos subidos desde 2025:
 - **Pautas por carrera.** "Métodos de Investigación" y "Análisis Estructural"
   tienen programa con porcentajes, pero el mismo nombre es otro curso en otra
   carrera. Se cargan cuando una pauta se pueda acotar a sus carreras.
-- **AAH215.** Si "Arquitectura Moderna Siglo XX" de la malla es el AAH215 del
-  programa (mismo semestre y facultad), va como sinónimo en `SINONIMOS` y la
-  malla recibe la pauta. Lo confirma una persona, como los de la FEN.
 - **Derecho.** Sus programas remiten al "Reglamento de Asistencia y Evaluación"
   de la Facultad (`derecho.udd.cl`, DR N° 08/22, plan anual). No se revisó si
   fija ponderaciones aplicables a la malla semestral.

@@ -23,8 +23,10 @@
 // promedio, más bajo. Las dos reprueban; el detalle, en docs/mallas-udd.md.
 //
 // La sigla y los créditos SCT salen del programa; si no trae SCT, no van. La
-// clave es el nombre del programa: si la malla publicada lo llama distinto, no
-// se le asigna, porque puede ser otro curso.
+// clave es el nombre de mallas-udd.js cuando el programa es ese ramo. Los
+// programas de Psicología describen otro plan que su malla publicada (otros
+// ramos por semestre): si el nombre difiere, no se le asigna, porque puede ser
+// otro curso.
 const EXAMEN_UDD={nombre:'Examen',evals:['Examen'],min:3.0,cap:'self'};
 const REGLA_EXAMEN_UDD='El examen no se exime: con menos de 3,0 repruebas y tu nota final es la del examen (Reglamento Académico, arts. 37 y 38)';
 const REGLA_ASISTENCIA_ARQ_UDD='La asistencia es obligatoria según la Dirección de Carrera: sin ella no rindes examen y la final es 1,0 (Reglamento Académico, art. 45)';
@@ -284,9 +286,11 @@ const PRESETS_UDD={
     reglasDelCurso:['Programa UDD AAM113 (Arquitectura). Revisa que corresponda a tu curso',REGLA_EXAMEN_UDD,REGLA_ASISTENCIA_ARQ_UDD],
   },
   // AAH215, https://www.udd.cl/wp-content/uploads/2026/07/aah215_arquitectura-moderna-y-siglo-xx.pdf
-  // (subido el 2026-07-06). Presentación 70% × (40, 30, 30) + examen 30%. La
-  // malla publicada lo escribe "Arquitectura Moderna Siglo XX".
-  'Arquitectura Moderna y Siglo XX':{
+  // (subido el 2026-07-06). Presentación 70% × (40, 30, 30) + examen 30%. El
+  // programa lo titula "Arquitectura Moderna y Siglo XX"; va con el nombre de
+  // la malla porque es su mismo ramo de 3°: Arquitectura publica programas y
+  // malla del mismo plan, con los mismos nombres y semestres.
+  'Arquitectura Moderna Siglo XX':{
     sigla:'AAH215',
     evals:[
       ['Tareas y entregas de lecturas',28,{lista:true}],
