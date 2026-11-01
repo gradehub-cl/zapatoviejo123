@@ -35,8 +35,16 @@ assert.deepEqual(merged.ramos[0].categorias[0].notas.map(n=>n.valor),[5.1,6.2],'
     const row=async n=>(await db.query('select data from user_ramos where user_id=$1',[uid(n)])).rows[0].data;
     assert.equal((await row(1)).tipoCuenta,'profesor');
     assert.equal((await row(1))._rev,4,'la conversión invalida la versión antigua');
+    assert.equal((await row(1)).onboardingDone,true,'entra a Clases, no al onboarding');
     assert.equal((await row(2)).tipoCuenta,'estudiante','solo cambia una cuenta');
     assert.deepEqual((await row(1)).ramos,base.ramos,'las notas se conservan');
+    // Una cuenta ya convertida sin onboardingDone se corrige al volver a correrlo.
+    await db.query(`update user_ramos set data=data-'onboardingDone' where user_id=$1`,[uid(1)]);
+    await db.exec(sql);
+    assert.equal((await row(1)).onboardingDone,true,'se corrige una conversión anterior');
+    assert.equal((await row(1))._rev,5);
+    await db.exec(sql);
+    assert.equal((await row(1))._rev,5,'correrlo de nuevo no cambia nada');
     await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid(1)]);
     await db.query('update user_ramos set data=$1 where user_id=$2',[JSON.stringify(local),uid(1)]);
     assert.equal((await row(1)).tipoCuenta,'profesor','una pestaña antigua no revierte el tipo');
