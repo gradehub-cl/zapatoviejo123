@@ -5,6 +5,7 @@
 # cambia nada para git ni para el deploy. Para buscar adentro, nómbralos:
 #   rg -n "BIO143M" cursos-uc.js
 cursos-uc.js
+/mallas-*.js
 ocr/
 package-lock.json
 supabase/catalogo_uc.csv
