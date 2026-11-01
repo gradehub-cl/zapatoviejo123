@@ -10,7 +10,7 @@ function openEditRamoModal(){
     <label class="modal-label">Nombre del ramo</label>
     <div class="modal-input"><input type="text" id="m-ramo-name" value="${esc(r.nombre)}" maxlength="${NOMBRE_MAX}" autocomplete="off" aria-describedby="m-ramo-error"/></div>
     <p id="m-ramo-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
-    <label class="modal-label">Créditos <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(SCT — opcional)</span></label>
+    <label class="modal-label">Créditos <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(SCT)</span></label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-creditos" value="${r.creditos!=null?r.creditos:''}" placeholder="Ej: 10" maxlength="3" autocomplete="off"/></div>
     <label class="modal-label" for="m-ramo-seccion">Sección</label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"/></div>
