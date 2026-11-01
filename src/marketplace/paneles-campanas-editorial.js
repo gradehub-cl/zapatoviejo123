@@ -22,7 +22,7 @@ function anunciosAdminEditorialHTML(profesores,ahora,historial=null,alcance=null
   const filas=datosAdminEditorial(historial,alcance),r=resumenAdminClases(profesores,ahora);
   const costos=filasAdminHig(profesores,ahora).filter(f=>f.estado[1]==='publicado').map(f=>f.costo);
   return `<div class="pe-dashboard" data-pe-admin>
-    <div class="pe-rango-cabeza">${periodoPrivadoHTML('7')}<span class="pe-sub">Personas por campaña</span></div>
+    <div class="pe-rango-cabeza">${periodoPrivadoHTML('7')}<span class="pe-sub">Personas por campaña · fechas en UTC</span></div>
     ${historial===null?'<p class="pe-sub" role="status">Historial completo y métricas por anuncio: aplica paneles_historial.sql. El rango usa los días disponibles.</p>':''}
     <div class="pe-admin-grilla"><div><div data-pe-admin-alcance>${panelAlcancePrivadoHTML(filas,'7','vistas',ahora)}</div><div class="pe-periodos" role="group" aria-label="Métrica del gráfico"><button type="button" data-pe-metrica="vistas" aria-pressed="true">Vistas</button><button type="button" data-pe-metrica="contactos" aria-pressed="false">Contactos</button></div></div>
       <aside class="pe-cola"><h3>Por revisar</h3><button type="button" data-pe-revisar="anuncios"><strong>${r.revision}</strong><span>Anuncios</span><i aria-hidden="true">›</i></button><button type="button" data-pe-revisar="profesores"><strong>${r.pendientes}</strong><span>Perfiles de profesor</span><i aria-hidden="true">›</i></button><button type="button" data-pe-revisar="usuarios"><span>Programas reportados</span><i aria-hidden="true">›</i></button></aside></div>
@@ -37,13 +37,8 @@ function enlazarAdminEditorial(raiz,historial,alcance,ahora){
   const pintar=()=>{
     const destino=caja.querySelector('[data-pe-admin-alcance]');if(!destino)return;
     destino.innerHTML=panelAlcancePrivadoHTML(filas,periodo,metrica,ahora);enlazarGraficosPrivados(destino);
-    const rango=intervaloPrivado(filas,periodo,ahora),porAnuncio=new Map();
-    if(Array.isArray(historial))rango.filas.forEach(d=>{const s=porAnuncio.get(d.anuncio_id)||{vistas:0,aperturas:0,contactos:0};['vistas','aperturas','contactos'].forEach(k=>s[k]+=Number(d[k]||0));porAnuncio.set(d.anuncio_id,s);});
-    raiz.querySelectorAll('[data-pe-anuncio-metricas]').forEach(dl=>{
-      const d=porAnuncio.get(dl.dataset.peAnuncioMetricas)||{vistas:0,aperturas:0,contactos:0};
-      dl.querySelectorAll('[data-pe-conteo]').forEach(b=>{if(Array.isArray(historial))b.textContent=numeroPrivado(d[b.dataset.peConteo]);});
-    });
-    const nota=raiz.querySelector('[data-pe-periodo-filas]');if(nota)nota.textContent=Array.isArray(historial)?`Métricas del ${fechaPrivada(rango.desde)} al ${fechaPrivada(rango.hasta)} · días desde la publicación`:'Campaña actual · acumulado';
+    // El rango pertenece al gráfico. Cada fila conserva la misma instantánea
+    // de la campaña actual que su detalle y cobro, incluso al republicar.
     if(!Array.isArray(historial))caja.querySelectorAll('[data-pe-periodo="inicio"]').forEach(b=>{b.disabled=true;});
   };
   caja.querySelectorAll('[data-pe-periodo]').forEach(b=>b.addEventListener('click',()=>{periodo=b.dataset.pePeriodo;caja.querySelectorAll('[data-pe-periodo]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));pintar();}));
@@ -61,7 +56,7 @@ function resumenProfesorEditorialHTML(medidas,periodo,ahora){
   const activas=medidas.filter(d=>vigenciaAnuncio(d.a,ahora)==='publicado');
   const costo=activas.every(d=>d.costo)?sumarCostosCampana(activas.map(d=>d.costo)):null;
   const canales=medidas.every(d=>d.porCanal)?medidas.reduce((s,d)=>({recomendacion:s.recomendacion+d.porCanal.recomendacion,busqueda:s.busqueda+d.porCanal.busqueda,lista:s.lista+d.porCanal.lista}),{recomendacion:0,busqueda:0,lista:0}):null;
-  return `<div class="pe-profesor-dashboard"><div class="pe-profesor-grilla"><section><div data-pe-profesor-chart>${filas?panelAlcancePrivadoHTML(filas,periodo,'vistas',ahora,'linea'):'<p class="clase-sin-datos">Aplica paneles_historial.sql para elegir períodos y ver tu historial.</p>'}</div>${periodoPrivadoHTML(periodo,false)}</section><aside><button type="button" class="accion-principal" data-pe-crear-anuncio>Crear anuncio</button><h3>Campañas activas · acumulado</h3>${activas.length?presupuestoProfesorHTML(costo):'<p class="pe-sub">Sin campañas activas.</p>'}${medidas.filter(d=>vigenciaAnuncio(d.a,ahora)==='publicado').map(d=>anilloCampanaClase(d.a,ahora)).join('')}</aside></div><div class="pe-costos">${donaCanalesClase(canales,'personas por anuncio')}${costoApiladoClase(costo,pesosClase)}</div></div>`;
+  return `<div class="pe-profesor-dashboard"><div class="pe-profesor-grilla"><section><div data-pe-profesor-chart>${filas?panelAlcancePrivadoHTML(filas,periodo,'vistas',ahora,'linea'):'<p class="clase-sin-datos">Aplica paneles_historial.sql para elegir períodos y ver tu historial.</p>'}</div>${periodoPrivadoHTML(periodo,false)}<p class="pe-sub">Fechas del registro en UTC.</p></section><aside><button type="button" class="accion-principal" data-pe-crear-anuncio>Crear anuncio</button><h3>Campañas activas · acumulado</h3>${activas.length?presupuestoProfesorHTML(costo):'<p class="pe-sub">Sin campañas activas.</p>'}${medidas.filter(d=>vigenciaAnuncio(d.a,ahora)==='publicado').map(d=>anilloCampanaClase(d.a,ahora)).join('')}</aside></div><div class="pe-costos">${donaCanalesClase(canales,'personas por anuncio')}${costoApiladoClase(costo,pesosClase)}</div></div>`;
 }
 function enlazarResumenProfesorEditorial(caja,medidas,ahora,crear){
   let periodo='7';
