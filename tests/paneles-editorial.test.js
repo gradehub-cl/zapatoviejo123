@@ -17,6 +17,35 @@ assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__filas,'inicio',__ahor
 assert.equal(run("serieHistorialPrivado(__filas,'inicio','vistas',__ahora).puntos.reduce((n,p)=>n+p.valor,0)"),114,'agrupar semanas no pierde conteos');
 assert.equal(run("serieHistorialPrivado(__filas,'7','vistas',__ahora).puntos.length"),7,'los días sin registros confirmados valen cero');
 assert.equal(JSON.stringify(ctx.__filas),antes);
+// En Chile aún es octubre, pero SQL ya registra el 1 de noviembre UTC.
+// No se puede tratar ese dato confirmado como si fuera un evento futuro.
+ctx.__noche=Date.parse('2026-10-31T22:17:00-03:00');
+ctx.__registro=[{dia:'2026-10-31',vistas:21},{dia:'2026-11-01',vistas:3},{dia:'2026-11-02',vistas:1000}];
+assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__registro,'7',__noche).filas).vistas"),24);
+assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__registro,'1',__noche).filas).vistas"),3);
+assert.equal(run("serieHistorialPrivado(__registro,'inicio','vistas',__noche).puntos.reduce((n,p)=>n+p.valor,0)"),24);
+assert.equal(run("intervaloPrivado(__registro,'1',Date.parse('2026-11-01T00:01:00+09:00')).hasta"),'2026-10-31','no depende del huso del dispositivo');
+ctx.__profesor={nombre:'Profesor sintético',estado:'aprobado',anuncios:[{id:'aviso-sintetico',titulo:'Clase de ejemplo',estado:'publicado',precio_clp:10000,
+ publicado_at:'2026-10-31T22:30:00Z',vence_at:'2026-11-02T22:30:00Z',ramos_siglas:['TEST100'],
+ campana:{vistas:3,aperturas:2,contactos:1,dias_cobrados:1,tope_clp:10000}}]};
+const fila=run('filaAdminHigHTML(filasAdminHig([__profesor],__noche)[0],__noche)');
+assert.match(fila,/data-pe-conteo="vistas">3<\/b>/);
+assert.match(fila,/<b>1<\/b><small>Días publicada/,'el mismo día iniciado que el detalle, sin floor del reloj');
+assert.match(fila,/3 personas te vieron/);
+ctx.__profesor.anuncios[0].campana.vistas=null;
+assert.match(run('filaAdminHigHTML(filasAdminHig([__profesor],__noche)[0],__noche)'),/data-pe-conteo="vistas">—<\/b>/,'ausencia no es cero');
+ctx.__profesor.anuncios[0].campana.vistas=3;
+// El rango del gráfico no pisa la instantánea actual de la fila con otro
+// período ni suma publicaciones anteriores de un anuncio republicado.
+const listeners={},destino=nodo(),boton=nodo();
+boton.dataset.pePeriodo='inicio';boton.addEventListener=(tipo,fn)=>{listeners[tipo]=fn;};
+const caja=nodo();caja.querySelector=()=>destino;caja.querySelectorAll=s=>s==='[data-pe-periodo]'?[boton]:[];
+ctx.__raiz={querySelector:()=>caja,querySelectorAll(){throw Error('El gráfico no debe sobrescribir las cifras de las filas');}};
+ctx.__historial=[{anuncio_id:'aviso-sintetico',publicacion:'anterior',dia:'2026-01-01',vistas:500},
+ {anuncio_id:'aviso-sintetico',publicacion:'actual',dia:'2026-11-01',vistas:3}];
+run('enlazarAdminEditorial(__raiz,__historial,null,__noche)');listeners.click();
+assert.match(destino.innerHTML,/503/,'el gráfico sí incluye ambas publicaciones desde el inicio');
+assert.match(run('filaAdminHigHTML(filasAdminHig([__profesor],__noche)[0],__noche)'),/data-pe-conteo="vistas">3<\/b>/);
 assert.match(run("panelAlcancePrivadoHTML(null,'7','vistas',__ahora)"),/role="status"/,'error de carga no se vuelve cero');
 assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/class="pe-notita" hidden/,'cifra puntual oculta hasta explorar');
 assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/role="slider".*aria-valuetext=/,'teclado y lector de pantalla');
