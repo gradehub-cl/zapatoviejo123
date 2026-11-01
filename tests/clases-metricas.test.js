@@ -33,12 +33,13 @@ const anuncio=(extra)=>Object.assign({id:'a1',titulo:'Clases de Cálculo II',est
 // Lo mismo con `totales`: sin ella, los totales se arman desde los cortes.
 // `campana` es la fila de campana_anuncio_con_tarifa; sin ella, el SQL de campañas no está
 // aplicado y no hay costo que mostrar.
-function montar({alcance=null,cortes=[],porCanal=null,totales=null,campana=null}={}){
-  ctx.__alcance=alcance;ctx.__cortes=cortes;ctx.__porCanal=porCanal;ctx.__totales=totales;ctx.__campana=campana;
+function montar({alcance=null,cortes=[],porCanal=null,totales=null,campana=null,eventos=null}={}){
+  ctx.__alcance=alcance;ctx.__cortes=cortes;ctx.__porCanal=porCanal;ctx.__totales=totales;ctx.__campana=campana;ctx.__eventos=eventos;
   run(`supabaseClient={rpc:(n)=>Promise.resolve(
     (n==='campana_anuncio_con_tarifa'||n==='campana_anuncio')?(__campana?{data:[__campana],error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='alcance_anuncio_por_canal'?(__porCanal?{data:__porCanal,error:null}:{data:null,error:{code:'42883',message:'no existe'}})
     :n==='totales_metricas_anuncio'?(__totales?{data:__totales,error:null}:{data:null,error:{code:'42883',message:'no existe'}})
+    :n==='resumen_eventos_anuncio'?(__eventos?{data:__eventos,error:null}:{data:null,error:{code:'PGRST202',message:'no existe'}})
     :n==='historial_anuncio'?{data:null,error:{code:'PGRST202',message:'no existe'}}
     :n==='alcance_anuncio'?{data:__alcance,error:null}:{data:__cortes,error:null})};`);
 }
@@ -78,31 +79,37 @@ const pintar=async(anuncios,datos)=>{
   html=await pintar([anuncio()],{alcance:18});
   console.log('\n=== Sin datos suficientes no se inventa un cero ===');
   chk('no dice "0 veces" cuando el servidor no devolvió cortes',
-    !/La abrieron/.test(html) && !/<small>veces en total/.test(html) && /aparecen cuando hay suficientes datos/.test(html));
+    !/La abrieron/.test(html) && !/<small>veces medidas/.test(html) && /aparecen cuando hay suficientes datos/.test(html));
 
   console.log('\n=== Con datos suficientes sí se muestran ===');
-  html=await pintar([anuncio()],{alcance:40,cortes:[
+  html=await pintar([anuncio()],{alcance:40,eventos:{desde:'2026-11-01T12:00:00Z',impresion:null,clic:37,contacto:17},cortes:[
     {dia:'2026-09-20',tipo:'clic',tenant:'uc',ramo_sigla:'MAT1620',eventos:22},
     {dia:'2026-09-20',tipo:'contacto',tenant:'uc',ramo_sigla:'MAT1620',eventos:17},
     {dia:'2026-09-19',tipo:'clic',tenant:'uc',ramo_sigla:'MAT1620',eventos:15}]});
-  chk('suma los clics de todos los días',/La abrieron/.test(html)&&/>37<\/b><small>veces en total/.test(html));
-  chk('y los contactos',/Te contactaron/.test(html)&&/>17<\/b><small>veces en total/.test(html));
-  chk('sin veces medidas, la etapa muestra solo las personas',/<span>Se mostró<\/span><div class="clase-par"><div><b>40<\/b><small>personas distintas<\/small><\/div><\/div>/.test(html));
+  chk('suma los clics de todos los días',/La abrieron/.test(html)&&/>37<\/b><small>veces medidas/.test(html));
+  chk('y los contactos',/Te contactaron/.test(html)&&/>17<\/b><small>veces medidas/.test(html));
+  chk('un total privado no se convierte en cero',/<b>—<\/b><small>veces medidas/.test(html));
 
   console.log('\n=== Con los totales del servidor ===');
   // 40 impresiones en total, aunque ningún día por separado llegue a quince.
   html=await pintar([anuncio({publicado_at:new Date(Date.now()-3*864e5).toISOString(),vence_at:new Date(Date.now()+27*864e5).toISOString()})],
-    {porCanal:[{canal:'recomendacion',cuentas:6},{canal:'lista',cuentas:2}],
+    {eventos:{desde:'2026-11-01T12:00:00Z',impresion:40,clic:null,contacto:16},porCanal:[{canal:'recomendacion',cuentas:6},{canal:'lista',cuentas:2}],
      totales:[{vista:'total',clave:'',tipo:'impresion',eventos:40},{vista:'total',clave:'',tipo:'contacto',eventos:16}]});
-  chk('usa el total aunque ningún día llegue a quince',/Se mostró/.test(html)&&/>40<\/b><small>veces en total/.test(html));
+  chk('usa el total aunque ningún día llegue a quince',/Se mostró/.test(html)&&/>40<\/b><small>veces medidas/.test(html));
   chk('compara cómo llegaron, con números escritos',/Cómo llegaron/.test(html)&&/Recomendado en Inicio/.test(html)&&/>6</.test(html));
   chk('el plazo de campaña dice cuántos días quedan',/días restantes/.test(html));
   chk('un día sin datos suficientes no se dibuja como cero',/Menos de 15 eventos/.test(html));
   chk('los días de campaña se cuentan',/<b>27<\/b><span>días restantes/.test(html));
-  html=await pintar([anuncio()],{campana:{dias:10,inicio:null,tope_clp:null,dias_cobrados:2,vistas:30,aperturas:5,contactos:1,costo:1750,agotada:false},
+  html=await pintar([anuncio()],{eventos:{desde:'2026-11-01T12:00:00Z',impresion:90,clic:20,contacto:null},campana:{dias:10,inicio:null,tope_clp:null,dias_cobrados:2,vistas:30,aperturas:5,contactos:1,costo:1750,agotada:false},
      totales:[{vista:'total',clave:'',tipo:'impresion',eventos:90},{vista:'total',clave:'',tipo:'clic',eventos:20}]});
-  chk('personas y veces de una misma etapa van juntas, separadas por una barra',/<span>Se mostró<\/span><div class="clase-par"><div><b>30<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>90<\/b><small>veces en total/.test(html)
-    &&/<span>La abrieron<\/span><div class="clase-par"><div><b>5<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>20<\/b><small>veces en total/.test(html));
+  chk('personas y veces de una misma etapa van juntas, separadas por una barra',/<span>Se mostró<\/span><div class="clase-par"><div><b>30<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>90<\/b><small>veces medidas/.test(html)
+    &&/<span>La abrieron<\/span><div class="clase-par"><div><b>5<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>20<\/b><small>veces medidas/.test(html));
+
+  chk('indica desde cuándo mide las repeticiones',/Veces medidas desde/.test(html)&&/Sin registros de repeticiones anteriores/.test(html));
+  html=await pintar([anuncio()],{alcance:18,totales:[{vista:'total',clave:'',tipo:'impresion',eventos:999}]});
+  chk('sin el SQL nuevo no presenta el agregado antiguo como repeticiones',!/veces medidas/.test(html)&&/El total de veces aún no está disponible/.test(html));
+  html=await pintar([anuncio()],{campana,eventos:{desde:'2026-11-01T12:00:00Z',impresion:0,clic:null,contacto:null}});
+  chk('un cero confirmado se distingue del total privado',/>0<\/b><small>veces medidas/.test(html)&&/Los totales menores a 15 quedan ocultos/.test(html));
 
   console.log('\n=== Lo que nadie vio todavía no tiene números ===');
   html=await pintar([anuncio({estado:'borrador',id:'b1'})],{alcance:99});

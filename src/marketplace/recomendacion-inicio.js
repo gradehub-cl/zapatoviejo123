@@ -259,16 +259,21 @@ function cargarAnunciosRecomendacion(tenant,alTerminar){
 }
 
 const RECOMENDACIONES_VISTAS=new Set();
+const EVENTOS_RECOMENDACION=new Map();
 function observarRecomendacionClase(banner,anuncio,sigla){
-  const clave=claveMedicionClase(anuncio.id),doc=typeof document==='undefined'?null:document;
+  const clave=claveMedicionClase(anuncio.id)+':'+VISITA_CLASES,doc=typeof document==='undefined'?null:document;
   if(typeof IntersectionObserver!=='function'||RECOMENDACIONES_VISTAS.has(clave))return;
+  if(!EVENTOS_RECOMENDACION.has(clave))EVENTOS_RECOMENDACION.set(clave,nuevoEventoMetricaClase());
   let timer=null,visible=false,registrando=false;
   const registrar=async()=>{
     timer=null;
     if(doc&&doc.visibilityState==='hidden'||!banner.isConnected||!visible||registrando||RECOMENDACIONES_VISTAS.has(clave))return;
     registrando=true;
+    const usuario=currentUser&&currentUser.id;
     const alcance=await registrarAlcanceAnuncio(anuncio.id,'recomendacion');
-    const metrica=alcance===null?null:await registrarMetricaAnuncio(anuncio.id,'impresion',sigla);
+    if(!currentUser||currentUser.id!==usuario){registrando=false;return;}
+    const metrica=alcance===null?null:await registrarMetricaAnuncio(anuncio.id,'impresion',sigla,
+      {eventoId:EVENTOS_RECOMENDACION.get(clave),publicacion:anuncio.publicado_at});
     registrando=false;
     if(alcance===null||metrica===null){
       if(banner.isConnected&&visible)timer=setTimeout(registrar,5000);
