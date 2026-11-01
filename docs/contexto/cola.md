@@ -61,10 +61,13 @@ Fuentes y decisiones en [`mallas-udd.md`](../mallas-udd.md). Estado:
    `profesor_alumnos.sql` en producción.
 3. **Motor** — regla común: el art. 35 del reglamento coincide; falta el
    instructivo de aproximación que cita.
-4. **Pendiente:** pautas (los programas de asignatura están en udd.cl, con sigla
-   y créditos), vocabulario de evaluaciones, dominio de correo de estudiantes,
-   clases particulares (`perfil-profesor`, `editor-anuncio` y sus checks SQL) y
-   las dobles titulaciones con PDF propio.
+4. **Pautas** — 23 en `src/data/udd-pautas.js` (17 de Psicología, 6 de
+   Arquitectura), cada una con la compuerta del examen de los arts. 37 y 38. Los
+   programas de Derecho, Ingeniería y Comercial no publican porcentajes.
+5. **Pendiente:** vocabulario de evaluaciones, dominio de correo de estudiantes,
+   clases particulares (`perfil-profesor`, `editor-anuncio` y sus checks SQL),
+   las dobles titulaciones con PDF propio y lo que queda de pautas (pendientes
+   en `mallas-udd.md`).
 
 ### Pedidas por Lucas, sin dueño todavía
 

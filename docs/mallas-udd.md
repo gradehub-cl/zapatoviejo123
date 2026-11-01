@@ -105,6 +105,199 @@ malla publicada al revisar).
   diferencias de nombre entre carreras ("Bases de Datos"/"Base de Datos",
   "bajo"/"Bajo Incertidumbre") se conservan como en cada documento.
 
+## Pautas: programas de asignatura
+
+Revisión del 2026-10-31, cargadas en `src/data/udd-pautas.js`. La UDD no tiene
+un índice de programas por carrera: los sube a
+`udd.cl/wp-content/uploads/<año>/<mes>/` con nombres como `spf115.pdf` o
+`ddcp13_lectura-critica.pdf`. Se listaron con la API pública de medios del
+sitio (`www.udd.cl/wp-json/wp/v2/media?mime_type=application/pdf`), se bajaron
+los 665 PDF subidos desde 2023 cuyo título o archivo trae una sigla o dice
+"programa" (641 son programas de asignatura) y se leyó la sección "F.
+Estrategias de Evaluación" de cada uno.
+
+Se carga un programa solo si se subió desde enero de 2025 (uno anterior puede
+estar reemplazado y no hay cómo saberlo), dice cuánto pesa cada evaluación y
+cuántas son, suma 100% y su nombre no lo usa otra carrera para un curso
+distinto. Pasaron 23: 17 de Psicología y 6 de Arquitectura.
+
+| Facultad | Programas desde 2025 | Con porcentajes | Cargados |
+|---|---|---|---|
+| Psicología | 23 | 23 | 17 |
+| Arquitectura y Arte | 11 | 11 | 6 |
+| Diseño | 40 | 37 | 0 |
+| Economía y Negocios | 66 | 11 | 0 |
+| Educación | 18 | 1 | 0 |
+| FARO | 7 | 1 | 0 |
+| Derecho | 21 | 0 | 0 |
+| Ingeniería | 56 | 0 | 0 |
+| Comunicaciones (Periodismo, Publicidad, Cine) | 59 | 0 | 0 |
+| Gobierno y electivos sin facultad | 7 | 0 | 0 |
+
+### Cómo se transcriben
+
+- Psicología y Arquitectura escriben la pauta igual: "Evaluaciones parciales:
+  70% de la nota final", con el peso de cada una dentro de ese 70%, y "Examen:
+  30%". El preset lleva el peso sobre la final: certámenes de 25% y 35% de los
+  parciales son 17,5 y 24,5.
+- Un grupo con cantidad ("2 certámenes: 60%", "Controles de lectura (4): 10%")
+  son casillas iguales; sin cantidad ("Controles de lectura y ejercicios de
+  aplicación: 25%"), lista abierta. "Trabajo y/o ejercicio" también va como
+  lista: puede ser uno o los dos. Ninguna pauta deja más de 30% en listas.
+- La sigla va siempre. Los créditos, solo el SCT que declara el programa
+  ("Créditos UDD 8 SCT 5" → 5), porque es lo que la app pide en Editar ramo.
+  Arquitectura escribe "Créditos 8", sin SCT: sus ramos no traen créditos. El
+  art. 49 pondera el promedio por "créditos" sin decir cuáles; si son créditos
+  UDD, un PPA ponderado por SCT puede diferir en centésimas, porque el SCT del
+  programa está redondeado (100 créditos UDD = 60 SCT, art. 18).
+- La clave es el nombre del programa. Los programas de Psicología de 2025–2026
+  no siempre calzan con la malla publicada: "Neurociencia" (SNC123, 2°
+  semestre) y "Neurociencias" (3°), "Habilidades Profesionales Interpersonales"
+  y "Taller de Habilidades Interpersonales". Si el nombre difiere, la pauta no
+  se le asigna al ramo de la malla, porque puede ser otro curso; queda en el
+  buscador de Agregar ramo. Con el mismo nombre sí, aunque cambie el semestre:
+  Teorías Psicodinámicas está en 2° en su programa y en 3° en la malla.
+  Arquitectura sí calza, salvo AAH215: el programa dice "Arquitectura Moderna
+  y Siglo XX" y la malla "Arquitectura Moderna Siglo XX".
+
+### La compuerta del examen
+
+Arts. 36 a 38 del Reglamento Académico del Alumno Regular de Pregrado (vigente
+desde julio de 2023, publicado en
+`medicina.udd.cl/files/2024/12/ai-p02-reglamento-academico-del-alumno-regular-de-pregrado.pdf`):
+todo ramo tiene una evaluación final de 30% a 50%, sin eximición y con nota
+mínima 3,0 (una carrera puede exigir más con autorización); con menos,
+reprueba, "debiendo registrarse como nota final la calificación obtenida en el
+examen". Los programas de Arquitectura y casi todos los de Psicología lo
+repiten.
+
+Va en cada preset como `grupos:[{nombre:'Examen',evals:['Examen'],min:3.0,cap:'self'}]`:
+el examen bajo 3,0 topa la final en su propia nota. Sin `exacto`, porque el
+reglamento no dice "sin aproximación" (el art. 27 de la UAndes sí): 2,95
+cumple, igual que en la nota final.
+
+**Límite conocido.** La compuerta topa, no reemplaza. Si el examen queda bajo
+3,0 y el resto del ramo promedia todavía menos (parciales 2,0, examen 2,8), la
+app muestra 2,2 y la UDD registra 2,8. Las dos reprueban. Para calzar exacto,
+el motor necesita una compuerta que reemplace la final (carril `codex`);
+`tests/udd-pautas.test.js` fija hoy el 2,2 para que ese cambio actualice esto.
+
+Tres programas bimestrales (SFF118, SFS111, STH129) ponen su único certamen en
+70% de los parciales: 49% de la final, más que el examen. El art. 36 lo prohíbe
+salvo excepción de la Vicerrectoría; el programa lo publica así y así se carga.
+
+### Cargadas
+
+| Pauta | Sigla | PDF en `www.udd.cl/wp-content/uploads/` | Subido |
+|---|---|---|---|
+| Procesos Psicológicos | SPF115 | `2025/06/spf115.pdf` | 2025-06-19 |
+| Fundamentos Filosóficos de la Psicología | SFF118 | `2025/11/sff118_fundamentos-filosoficos-de-la-psicologia.pdf` | 2025-11-25 |
+| Fundamentos Epistemológicos de la Psicología | SFS111 | `2025/11/sfs111_fundamentos-epistemologicos-de-la-psicologia.pdf` | 2025-11-25 |
+| Fundamentos Socioculturales de la Psicología | SCC114 | `2025/11/scc114_fundamentos-socioculturales-de-la-psicologia.pdf` | 2025-11-25 |
+| Coloquios de Actualidad en Psicología | SCA119 | `2025/11/sca119-_coloquios-de-actualidad-en-psicologia.pdf` | 2025-11-25 |
+| Teorías Psicodinámicas | STS122 | `2025/11/sts-122_teorias-psicodinamicas-semestral.pdf` | 2025-11-25 |
+| Neurociencia | SNC123 | `2026/06/snc123_neurociencia_td.pdf` | 2026-06-11 |
+| Teorías Humanistas | STH129 | `2026/06/sth129_teorias-humanistas.pdf` | 2026-06-11 |
+| Teorías Sistémicas | STS210 | `2025/11/sts210_teorias-sistemicas.pdf` | 2025-11-25 |
+| Habilidades Profesionales Interpersonales | SHI214 | `2025/11/shi214_habilidades-profesionales-interpersonales.pdf` | 2025-11-25 |
+| Psicología Educacional en Contextos Actuales | SCA312 | `2025/06/sca312.pdf` | 2025-06-19 |
+| Técnicas Cualitativas de Investigación en Psicología | STC324 | `2025/06/stc324.pdf` | 2025-06-19 |
+| Diagnóstico Neuropsicológico | SDN321 | `2026/06/sdn321_diagnostico-neuropsicologico.pdf` | 2026-06-11 |
+| Diagnóstico Psicológico en la Adultez | SDA423 | `2026/06/sda423_diagnostico-psicologico-en-la-adultez.pdf` | 2026-06-11 |
+| Políticas Públicas y Problemáticas en Contextos Psicosociales | SPP425 | `2026/06/spp425_politicas-publicas-y-problematicas-en-contextos-psicosociales.pdf` | 2026-06-11 |
+| Gestión del Cambio en la Institución Educativa | SGE424 | `2025/06/sge424.pdf` | 2025-06-19 |
+| Gestión e Intervención en Organizaciones | SGO426 | `2025/06/sgo426.pdf` | 2025-06-19 |
+| Componentes de la Matemática | AAM113 | `2026/07/aam113_componentes-de-la-matematica_2024.pdf` | 2026-07-06 |
+| Arquitectura Moderna y Siglo XX | AAH215 | `2026/07/aah215_arquitectura-moderna-y-siglo-xx.pdf` | 2026-07-06 |
+| Sustentabilidad | AAS323 | `2026/06/aas323_sustentabilidad.pdf` | 2026-06-09 |
+| Diseño y Laboratorio Estructural: Sismoresistencia | ATE322 | `2026/06/ate322_diseno-y-laboratorio-estructural-sismo-resistencia.pdf` | 2026-06-09 |
+| Instalaciones Constructivas | AAI412 | `2026/06/aai412.pdf` | 2026-06-09 |
+| Apreciación, Evaluación y Crítica Arquitectónica | AAA426 | `2026/06/aaa426_-apreciacion-evaluacion-y-critica-arquitectonica.pdf` | 2026-06-09 |
+
+### Con porcentajes, sin cargar
+
+- **Pensamiento y Actualidad Económica** (ECA119, Comercial 1°, subido en
+  2024): "Trabajos de Investigación (25%)" con entregas de 5%, 10% y 15%, que
+  suman 30.
+- **Emprender con Impacto** (ECS225, y ECS225G de GBA): no tiene examen y deja
+  70% en grupos sin cantidad.
+- **Management 101** (ECM116G, GBA 1°): certámenes y evaluaciones cortas sin
+  cantidad suman 50%, y permite eximirse del examen con 6,0.
+- **Introducción a la Programación** (EIP113D, Negocios y Ciencia de Datos 1°):
+  certámenes 60%, trabajo en grupo 40% y examen 30% suman 130.
+- Electivos de Comercial que no están en ninguna malla: Marketing B2B, Mesa de
+  Dinero, Investigación de Mercado, Retail Marketing, Seminario de Creación de
+  Negocios, Econometría para la Toma de Decisiones.
+- **Teorías Cognitivo Conductuales**: dos programas vigentes con pautas
+  distintas, SCC211 (bimestral, 4 créditos UDD) y SCC212 (semestral, 6). No hay
+  cómo saber cuál cursa cada uno.
+- **Métodos de Investigación** (SMI224, Psicología) y **Análisis Estructural**
+  (ATE223, Arquitectura): el mismo nombre es otro curso en Diseño y en
+  Ingeniería en Obras Civiles. `PRESETS_POR_TENANT` se busca por nombre, sin
+  carrera, así que esperan a que una pauta se pueda acotar a sus carreras.
+- **Técnicas Cuantitativas de Investigación en Psicología** (SIM314) y
+  **Habilidades Profesionales para el Trabajo Grupal** (SMG319): sus
+  porcentajes suman 130 sin decir que los parciales son el 70%.
+  **Integración de Competencias de Investigación** (SIC414): "35% cada uno
+  (70% total del curso)", más actividades 30% y examen 30%.
+- **Estrategia Proyectual** (AAE525): sus evaluaciones suman 95%.
+  **Elementos de la Ciudad y el Paisaje** (ADA324): da rangos ("20 a 40%").
+  **Taller 5** (ADET427): pondera por unidades del año.
+  **Arquitectura Latinoamericana Contemporánea** (AAH327, bimestral): 60% en un
+  conjunto sin cantidad y sin fila de examen.
+- **Diseño**: sus programas fijan presentación 70% y examen 30% y dejan "los
+  detalles de las evaluaciones, sus porcentajes" a la calendarización del curso.
+- **Pensamiento Crítico y Ciencias Sociales** (LFCS113): es de Filosofía,
+  Política y Economía, que no es una carrera de GradeHub.
+- **Enseñar con Materiales Curriculares** (EBC122, Pedagogía Básica): 70%
+  repartido en tres ámbitos sin porcentaje cada uno.
+- Subidos antes de 2025: Psicología (SDI122 Psicología del Desarrollo en la
+  Infancia, SNC117 Bases Neurológicas del Comportamiento, SAV227, SBS221,
+  SDC116, SSG213 y versiones anteriores de las cargadas), Arquitectura
+  2023–2024, Enfermería 2023, Pedagogía Básica 2023–2024 y Ciencia Política
+  2024. Se cargan si se vuelven a publicar.
+
+### Sin porcentajes
+
+Nombran las evaluaciones, a veces cuántas ("3 certámenes", "mínimo 5
+controles"), sin decir cuánto pesa cada una. Todos subidos desde 2025:
+
+- **Derecho** (21), incluidos todo 1° y 2°: DCC126, DCC216, DCC226, DDCP13,
+  DDF128, DDP126, DEA224, DEC118, DEG116, DEH119, DEI225, DEN121, DEN217,
+  DEO213, DEP213, DER117, DES218, DES228, DET124B, DNP212, DPP223. Remiten al
+  "Reglamento de Asistencia y Evaluación de la Facultad" (ver pendientes).
+- **Ingeniería** (56), incluidos Introducción al Cálculo, Álgebra, Cálculo
+  Diferencial, Geometría y los talleres de 1°: ICC312A, IELE745B, IIA121A,
+  IIB415A, IIB423T, IIB428T, IIC221A, IIC422A, IID111W, IID128A, IID513A,
+  IIDCP13W, IIDCP14W, IIE328A, IIE429T, IIF216A, IIF223A, IIF325A, IIF417A,
+  IIG127A, IIG212A, IIG217W, IIM117A, IIM124M, IIM125A, IIM126A, IIM214A,
+  IIM319A, IIM329A, IIM411A, IIM415A, IIP122W, IIP227A, IIP311A, IIP327A,
+  IIP412W, IIR321A, IIS414A, IIS516A, IIS526A, IIS529A, IIT118W, IIT128W,
+  IIT213W, IIT225W, IIT324A, IIT414W, IIT418A, IIT424T, IIT425A, IIT527A,
+  IPC113N, IPC213N, IPC221, IPP211A, ITH129A.
+- **Economía y Negocios** (55), incluidos todo 1° y 2° de Comercial
+  (Introducción a la Economía, Introducción al Management, Álgebra, Cálculo,
+  Contabilidad I, Macroeconomía, Business Tech): ECA214, ECA214G, ECA311G,
+  ECA312, ECA312G, ECA415, ECD115G, ECD224, ECE117, ECE117G, ECE211, ECE313,
+  ECF122, ECF215, ECG322, ECH417, ECI122D, ECI327, ECM111, ECM116, ECM123,
+  ECM223, ECM223G, ECM317, ECM321, ECM417, ECS221, ECS325, ECS328, ECT125D,
+  ECT127, ECT127G, ECT224, ECT316, EDP217, EDP226, EDT111D, EDT114D, EEE422,
+  EEF315, EEF321, EEF324, EEF411, EEL473, EEL492, EELF590, EFM216, EIB215G,
+  EME122G, EME126, EME213G, EME222, EME311, EME313, EME323.
+- **Comunicaciones** (59): CIA223, CIB229, CID221, CIF125, CIF227, CIG227,
+  CIH121, CIH128, CIH226, CILE446, CIM127, CIP122, CIT124, PAD324, PAM111,
+  PAM122, PBA212, PBA315, PBC117, PBD322, PBH116, PBI323, PBL211, PBL311,
+  PBM127, PBM215, PBS416, PDR218, PDR413, PEC085, PEC093, PED225, PEDCP13,
+  PEE322, PEF118, PEG310, PELE251, PELE252, PELE253, PELE570, PEM222, PEP317,
+  PIC223, PIC323, PLC322, POG125, PPA224, PPC115, PPR216, PPT325, PRP113,
+  PRP114, PRP124, PSI415, PTD221, PTD321, PTL111, PTL121, PUT119.
+- **Educación** (17): EBC414, EBD326, EBE212, EBF223, EBH225, EBH316, EBI126,
+  EBI328, EBI416, EBL124, EBL129, EBL315, EBM213, EBM229, EBM329, EBM413,
+  EBN221. **FARO** (6): LFHC222, LFMM123, LFPC112, LFPD122, LFPE111, LFPF212.
+  **Diseño** (3): DIAT317, DIAT417, DICT313. **Gobierno y electivos** (7):
+  LCEL460I, LCG320, TRC460, TRE164 y tres archivos de la FEN sin unidad en el
+  encabezado (Economics 101 de 2024, Brand Leadership de 2017, Mesa de Dinero).
+
 ## Pendientes que requieren otra fuente o decisión
 
 - **Reglas de nota.** El art. 35 del Reglamento Académico del Alumno Regular de
@@ -113,13 +306,22 @@ malla publicada al revisar).
   en `GH_REGLAS_NOTA_POR_TENANT`. La aproximación la remite a un instructivo de
   la Vicerrectoría de Pregrado que no está publicado; si aparece y dice algo
   distinto de redondear a la décima, se declara con su artículo.
-- **Examen mínimo.** Los arts. 36–38 exigen una evaluación final de 30–50% en
-  todo ramo, sin eximición, con nota mínima 3,0; bajo eso, la nota final es la
-  del examen. Es regla de ramo: va como compuerta en cada pauta cuando haya
-  pautas UDD, no se infiere por nombre de categoría.
-- **Pautas y créditos.** La UDD publica programas de asignatura en
-  `udd.cl/wp-content/uploads/` con sigla y créditos (DDCP13: 4 créditos UDD,
-  2 SCT). El que se revisó no trae ponderaciones; hay que mirarlos uno a uno.
+- **Examen que reemplaza la final.** El art. 38 registra la nota del examen
+  bajo 3,0; la compuerta solo topa (ver "La compuerta del examen"). Necesita
+  una compuerta nueva en el motor, carril `codex`.
+- **Pautas por carrera.** "Métodos de Investigación" y "Análisis Estructural"
+  tienen programa con porcentajes, pero el mismo nombre es otro curso en otra
+  carrera. Se cargan cuando una pauta se pueda acotar a sus carreras.
+- **AAH215.** Si "Arquitectura Moderna Siglo XX" de la malla es el AAH215 del
+  programa (mismo semestre y facultad), va como sinónimo en `SINONIMOS` y la
+  malla recibe la pauta. Lo confirma una persona, como los de la FEN.
+- **Derecho.** Sus programas remiten al "Reglamento de Asistencia y Evaluación"
+  de la Facultad (`derecho.udd.cl`, DR N° 08/22, plan anual). No se revisó si
+  fija ponderaciones aplicables a la malla semestral.
+- **Programas nuevos.** La revisión es del 2026-10-31. Para el próximo semestre,
+  volver a listar la API de medios desde esa fecha: una facultad que empiece a
+  publicar porcentajes, o un programa de 2023–2024 que se vuelva a subir, se
+  carga igual que estos.
 - **Dobles titulaciones** de Periodismo (+ Comunicación Audiovisual, + FPE, +
   Publicidad y Marketing), de Publicidad (+ Ingeniería Comercial, + Comunicación
   Audiovisual) y de Industrial (con Informática y el Programa Ingeniería con la
@@ -177,4 +379,33 @@ c0aac7a57da09917ccc5ef85d6ae7f5d2d13bed438bb406a0c74c5b3cd2f3259  publicidad.pdf
 56ffd0ac4375ce5cb2f690fa4acca17251985b9ee2b98608bb91deb0722a4bf7  tecmedica_morfofisiopatologia.pdf
 59343e7716392bc33f96bbed8e57c7362a55953518c342bf70eaf6da17e388fb  tecmedica_oftalmologia.pdf
 0022357c22f69f29bb60297267e17b62cbbabeddaa0ddb541fb20bb304d02e9a  terapiaocupacional.pdf
+```
+
+Los programas de las pautas cargadas y el Reglamento Académico:
+
+```text
+237af99b71c24c02b4f8b419d6ea9984af77080b8e74f2cdb59b9199f216281c  2025/06/spf115.pdf
+c019ee05f4d863230fec1092bb4be0433ab94622c02d70e9ae64cdbe6b0c1203  2025/11/sff118_fundamentos-filosoficos-de-la-psicologia.pdf
+1a2c4092cca830a0add263d1baae352a54f4b8e5a88dea5b176e947946b8b827  2025/11/sfs111_fundamentos-epistemologicos-de-la-psicologia.pdf
+b237e2cdd6e457b622954f4adc7d3e22862e215e419f5d508efceb1078a72c78  2025/11/scc114_fundamentos-socioculturales-de-la-psicologia.pdf
+bb0f5a1c485d242ee860775d864dce0bee354ee288a5010a30fd85980922e4af  2025/11/sca119-_coloquios-de-actualidad-en-psicologia.pdf
+97306b7fb4924b76ccb53a637d62e536ae3bfad3b640fc64be71d22d2d1439fe  2025/11/sts-122_teorias-psicodinamicas-semestral.pdf
+4a27b1eb5a61d5829f5e645851b47ddd9d6e7982ee5fc3d24e9bd6efbf11fae6  2026/06/snc123_neurociencia_td.pdf
+6d10cabc82de3be1f86889de83151fa31f3612ae304ce3eef35933a351724c4b  2026/06/sth129_teorias-humanistas.pdf
+19492438d24ad7e9cd388ea7ef66afb0d99c889bcde39445e1ec74681c6feeff  2025/11/sts210_teorias-sistemicas.pdf
+09dab897be1b20939a2b4663ac1420f9fe907d1c4bf7e60dc5992bb2a033ad00  2025/11/shi214_habilidades-profesionales-interpersonales.pdf
+31c3a3a714fefa65ed893f23911174e6fd7c05a870306c759b1bdc241470fbae  2025/06/sca312.pdf
+c800dbe7044b0c4b0001a8f2b02592214feb6a8d46394c587f558d491a0ee4ee  2025/06/stc324.pdf
+5aa3ac9387d154354d9deb89c7f52fb1e692a9db8071c3de342682768edacd39  2026/06/sdn321_diagnostico-neuropsicologico.pdf
+4e8fe8d29cf62e378f5ae301eaea8249ba068803f4d475d808fcf6d3b1d91747  2026/06/sda423_diagnostico-psicologico-en-la-adultez.pdf
+547242fde054c2c51f192774e7591135566e835ecac0020f4a77bd0c3b2e1a0e  2026/06/spp425_politicas-publicas-y-problematicas-en-contextos-psicosociales.pdf
+68a252f30388c75c71108fe33932da43af244a9fdd66325b0d9568ef168764c6  2025/06/sge424.pdf
+7831ade0f1da0109511ab38f25d352a32e5b3f5036732c2cafb75373ba54628d  2025/06/sgo426.pdf
+27df8bf2bcfd133ea6cdf44eba8dcc943b4bb076ebff41aca88b61ee13c1637c  2026/07/aam113_componentes-de-la-matematica_2024.pdf
+7ae1d44a5014f5c5b5cc3c2ef8f1e2a7d5266fafd7f6742d2aa5982745c2e062  2026/07/aah215_arquitectura-moderna-y-siglo-xx.pdf
+7b8ef64ce7fa7b584ebb590fa040852851a2656671f50c5fa820e1200d33f912  2026/06/aas323_sustentabilidad.pdf
+8b2f6622112ffce405f14f14bac00e758c0e6aa4f7f0b4aa15807362ead0727a  2026/06/ate322_diseno-y-laboratorio-estructural-sismo-resistencia.pdf
+eade86cf28c693e6f82657663d4e66f516a5dec9458f92d2cbb3c7cb0917b954  2026/06/aai412.pdf
+8d4179e18e9726328219fe3ab80c484fcf1a7948534dd1f353b7e158b5d056fb  2026/06/aaa426_-apreciacion-evaluacion-y-critica-arquitectonica.pdf
+94c02e11ddb2c918f6748e38b508a7defe115ceadee1309a6b039fa3f557664d  medicina.udd.cl/files/2024/12/ai-p02-reglamento-academico-del-alumno-regular-de-pregrado.pdf
 ```
