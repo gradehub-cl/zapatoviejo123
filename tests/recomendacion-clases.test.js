@@ -89,33 +89,19 @@ ctx.__uno=[aviso('solo')];
 chk('con una sola clase, sale en todas las aperturas',
   [0,1,2].every(n=>run(`seleccionarClaseApoyo(__uno,[__r0],'uc',{ahora:${lunes},turno:${n}})?.anuncio.id`)==='solo'));
 
-console.log('\n=== La X oculta los anuncios hasta el día siguiente (2026-10-28) ===');
+console.log('\n=== La X oculta solo ese anuncio (2026-10-31) ===');
 const cerrar=t=>run(`textoCierreClase(descartarRecomendacionClase('a1',${t}))`);
 const estadoGuardado=()=>JSON.parse(guardado.gradehub_marketplace_v1);
 delete guardado.gradehub_marketplace_v1;
-const domingo=Date.parse('2026-09-27T10:00:00');
-let e1=dia(complicado,{},domingo).estado;guardado.gradehub_marketplace_v1=JSON.stringify(e1);
-chk('verla sin cerrarla no la oculta',!e1.cerrada&&dia(complicado,e1,lunes).sel!==null);
-chk('el primer cierre en la mañana avisa que no habrá más anuncios hoy',cerrar(lunes)==='Listo, no te mostramos más anuncios por hoy');
+const medianoche=Date.parse('2026-09-29T00:00:00-03:00');
+chk('la confirmación identifica el anuncio cerrado',cerrar(lunes)==='Listo, no te mostramos este anuncio por hoy');
 let e2=estadoGuardado();
-chk('y no vuelve en lo que queda de mañana, aunque se abra de nuevo',dia(complicado,e2,lunes+3600e3,'v2').sel===null);
-chk('tampoco vuelve a las 14:00 del primer día',dia(complicado,e2,Date.parse('2026-09-28T14:00:00'),'v3').sel===null);
-chk('ni en la tarde aunque se vuelva a abrir',dia(complicado,e2,lunesTarde,'v4').sel===null);
-chk('cerrarla no se reemplaza por otra campaña',dia(complicado,e2,lunesTarde,'otra-visita').sel===null);
-chk('antes de medianoche todavía está oculta',dia(complicado,e2,Date.parse('2026-09-28T23:59:59.999'),'v5').sel===null);
-const medianoche=Date.parse('2026-09-29T00:00:00');
-chk('el cierre vence exactamente a la medianoche, no 24 horas después',e2.ocultaHasta===medianoche);
-chk('en la medianoche vuelve incluso sin cambiar de visita',dia(complicado,e2,medianoche,'v5').sel!==null);
-chk('al día siguiente en la mañana vuelve',dia(complicado,e2,martes,'v6').sel!==null);
-cerrar(martes);
-let e4=estadoGuardado();
-const martesTarde=Date.parse('2026-09-29T16:00:00'),miercoles=Date.parse('2026-09-30T09:00:00');
-chk('y no vuelve en la tarde de ese día',dia(complicado,e4,martesTarde,'v6').sel===null);
-chk('al otro día vuelve: nunca se esconde para siempre',dia(complicado,e4,miercoles,'v7').sel!==null);
-chk('cerrar la misma clase muchas veces no la descarta',(()=>{cerrar(miercoles);return dia(complicado,estadoGuardado(),Date.parse('2026-10-01T09:00:00'),'v8').sel?.anuncio.id;})()!==undefined);
-chk('una campaña nueva también se cierra por todo el día desde la primera vez',
-  run(`textoCierreClase(descartarRecomendacionClase('a2',${Date.parse('2026-10-01T10:00:00')}))`)==='Listo, no te mostramos más anuncios por hoy'&&
-  dia(complicado,estadoGuardado(),Date.parse('2026-10-01T16:00:00'),'v9').sel===null);
+chk('cerrar A deja B disponible en la misma visita',dia(complicado,e2,lunes,'v1').sel?.anuncio.id==='a2');
+chk('A sigue cerrada en la tarde',dia(complicado,e2,lunesTarde,'v2').sel?.anuncio.id==='a2');
+chk('antes de medianoche sigue cerrada',dia(complicado,e2,medianoche-1,'v2').sel?.anuncio.id==='a2');
+chk('A vuelve al día siguiente',dia(complicado,e2,medianoche,'nueva').sel?.anuncio.id==='a1');
+run(`descartarRecomendacionClase('a2',${lunes})`);
+chk('si cierra las dos no queda ninguna',dia(complicado,estadoGuardado(),lunesTarde,'v3').sel===null);
 chk('un cierre antiguo sin ocultaHasta se respeta por todo el día',
   dia(complicado,{franja:'2026-09-28-manana',cerrada:true,descartadasDefinitivas:['a1']},lunes,'v9').sel===null&&
   dia(complicado,{franja:'2026-09-28-manana',cerrada:true},lunesTarde,'v9').sel===null&&
@@ -134,9 +120,9 @@ for(const [nombre,cierre,retorno] of [
   ['fin de año','2026-12-31T22:00:00','2027-01-01T00:00:00'],
   ['cambio de hora en abril','2026-04-04T10:00:00','2026-04-05T00:00:00'],
   ['cambio de hora en septiembre','2026-09-05T10:00:00','2026-09-06T00:00:00']]){
-  const t=Date.parse(cierre),vuelve=Date.parse(retorno);cerrar(t);const e=estadoGuardado();
-  chk(nombre+': sigue oculta antes de cambiar el día',e.ocultaHasta===vuelve&&dia(complicado,e,vuelve-1,'antes').sel===null);
-  chk(nombre+': vuelve en el primer instante del día siguiente',dia(complicado,e,vuelve,'despues').sel!==null);
+  const t=Date.parse(cierre),vuelve=Date.parse(retorno);guardado.gradehub_marketplace_v1='{}';cerrar(t);const e=estadoGuardado();
+  chk(nombre+': sigue oculta antes de cambiar el día',(ctx.__estado=e,ctx.__ahora=vuelve-1,run("anunciosCerradosHoy(__estado,__ahora).includes('a1')")));
+  chk(nombre+': vuelve en el primer instante del día siguiente',(ctx.__ahora=vuelve,!run("anunciosCerradosHoy(__estado,__ahora).includes('a1')")));
 }
 if(zonaAnterior===undefined)delete process.env.TZ;else process.env.TZ=zonaAnterior;
 
@@ -147,7 +133,7 @@ chk('un valor dañado no rompe Inicio',JSON.stringify(run('leerEstadoMarketplace
 const mk=fs.readFileSync(path.join(raiz,'marketplace.js'),'utf8'),rm=fs.readFileSync(path.join(raiz,'render-main.js'),'utf8');
 const bloque=mk.slice(mk.indexOf('function pintarRecomendacionClase'),mk.indexOf('async function abrirClaseRecomendada'));
 const contenido=mk.slice(mk.indexOf('function contenidoRecomendacionClase'),mk.indexOf('function pintarRecomendacionClase'));
-chk('la X anuncia el cierre por hoy para lectores de pantalla',/aria-label="Ocultar anuncios por hoy"/.test(contenido));
+chk('la X anuncia el cierre por hoy para lectores de pantalla',/aria-label="Ocultar este anuncio por hoy"/.test(contenido));
 chk('el banner dice publicidad, igual que la vista previa del profesor',
   /Publicidad · \$\{etiquetaTipoClase\(a\)\}/.test(contenido)&&/'Clase particular'/.test(mk.slice(mk.indexOf('function etiquetaTipoClase'),mk.indexOf('function etiquetaTipoClase')+120))
   &&/contenidoRecomendacionClase\(anuncio\)/.test(bloque));
@@ -233,51 +219,8 @@ chk('lo pinta un canvas y no se vuelve a procesar',/function dibujarContornoLogo
     await db.exec('reset role');await db.query('delete from auth.users where id=$1',[b]);
     chk('borrar la cuenta borra su preferencia',(await db.query('select * from public.anuncios_cierre where user_id=$1',[b])).rows.length===0);
 
-    const cliente=uid=>{
-      const disco={gradehub_v1:'{"notas":"sintéticas e intactas"}'},c={...ctx,localStorage:{getItem:k=>disco[k]||null,setItem:(k,v)=>{disco[k]=String(v);}}};
-      vm.createContext(c);vm.runInContext(src,c);vm.runInContext(`currentUser={id:'${uid}'}`,c);
-      const ejecutar=s=>vm.runInContext(s,c);
-      c.__rpc=async(nombre,args)=>({data:await rpc(uid,args?.p_hasta),error:null});
-      ejecutar('supabaseClient={rpc:(...args)=>__rpc(...args)}');
-      return {c,disco,ejecutar};
-    };
-    // Otra cuenta sintética para probar que primero no tiene nada cerrado.
-    await db.query('insert into auth.users(id) values($1)',[b]);
-    const chrome=cliente(b),safari=cliente(b);
-    await chrome.ejecutar('sincronizarCierreAnuncios()');await safari.ejecutar('sincronizarCierreAnuncios()');
-    chk('dos navegadores parten sin cierre',chrome.ejecutar('cierreAnunciosCuenta().hasta')===0&&safari.ejecutar('cierreAnunciosCuenta().hasta')===0);
-    chrome.ejecutar("descartarRecomendacionClase('anuncio-sintetico')");
-    await chrome.ejecutar('sincronizarCierreAnuncios()');await safari.ejecutar('sincronizarCierreAnuncios()');
-    chk('cerrar en uno oculta en el otro sin compartir localStorage',safari.ejecutar('Date.now()<cierreAnunciosCuenta().hasta')&& !safari.disco.gradehub_marketplace_v1);
-    chk('el cierre subido deja de estar pendiente',!JSON.parse(chrome.disco.gradehub_marketplace_v1).cierrePendiente);
-    chrome.ejecutar("supabaseClient={rpc:async()=>({error:{code:'PGRST202'}})};descartarRecomendacionClase('otro')");
-    chk('sin SQL o sin red no dice que guardó en la cuenta',await chrome.ejecutar('sincronizarCierreAnuncios()')===false);
-    chk('el cierre se conserva para reintentar',JSON.parse(chrome.disco.gradehub_marketplace_v1).cierrePendiente.uid===b);
-    chrome.ejecutar('supabaseClient={rpc:(...args)=>__rpc(...args)}');
-    chk('al volver la conexión se guarda el cierre pendiente',await chrome.ejecutar('sincronizarCierreAnuncios()')===true&&!JSON.parse(chrome.disco.gradehub_marketplace_v1).cierrePendiente);
-    chk('no altera las notas locales',chrome.disco.gradehub_v1==='{"notas":"sintéticas e intactas"}'&&safari.disco.gradehub_v1===chrome.disco.gradehub_v1);
-    let resolver,llamadas=0;
-    safari.c.__lenta=()=>{llamadas++;return new Promise(r=>{resolver=r;});};
-    safari.ejecutar('supabaseClient={rpc:__lenta}');
-    const p1=safari.ejecutar('sincronizarCierreAnuncios()'),p2=safari.ejecutar('sincronizarCierreAnuncios()');
-    await Promise.resolve();resolver({data:hasta,error:null});await Promise.all([p1,p2]);
-    chk('los repintados comparten la petición en vuelo',llamadas===1);
-    // Una respuesta de A no debe cerrar la publicidad de B al cambiar de cuenta.
-    safari.ejecutar(`currentUser={id:'${a}'};supabaseClient={rpc:__lenta}`);
-    const antigua=safari.ejecutar('sincronizarCierreAnuncios()');await Promise.resolve();
-    safari.ejecutar("currentUser={id:'otra-cuenta-sintetica'}");resolver({data:hasta,error:null});await antigua;
-    chk('una respuesta tardía queda asociada a la cuenta original',safari.ejecutar('cierreAnunciosCuenta().hasta')===0);
-    const aislado=cliente('otra-cuenta');
-    aislado.disco.gradehub_marketplace_v1=JSON.stringify({cierrePendiente:{uid:b,hasta:Date.now()+3600e3}});
-    aislado.c.__args=null;aislado.ejecutar('supabaseClient={rpc:async(n,args)=>{__args=args;return {data:null,error:null};}}');
-    await aislado.ejecutar('sincronizarCierreAnuncios()');
-    chk('no sube el cierre pendiente de otra cuenta',!aislado.c.__args.p_hasta);
-    // Aunque el navegador bloquee el disco, el cierre llega al servidor.
-    chrome.ejecutar('localStorage.setItem=()=>{throw Error("disco bloqueado")};supabaseClient={rpc:(...args)=>__rpc(...args)};descartarRecomendacionClase("a1")');
-    chk('con almacenamiento bloqueado también guarda en la cuenta',await chrome.ejecutar('sincronizarCierreAnuncios()')===true&&chrome.ejecutar('cierreAnunciosCuenta().pendiente')===0);
-    chrome.ejecutar("supabaseClient={rpc(){throw Error('sin conexión')}}");
-    await chrome.ejecutar('sincronizarCierreAnuncios()');
-    chk('un error síncrono tampoco deja una petición pegada',chrome.ejecutar('cierreAnunciosCuenta().pedido')===null);
+    // La sincronización por anuncio (incluida la cola offline y la concurrencia)
+    // se prueba con dos navegadores y la nueva tabla en cierres-por-anuncio.test.js.
   }finally{await db.close();}
   console.log('\nPASS: '+ok+'   FAIL: '+fail);process.exitCode=fail?1:0;
 })().catch(e=>{console.error(e);process.exitCode=1;});
