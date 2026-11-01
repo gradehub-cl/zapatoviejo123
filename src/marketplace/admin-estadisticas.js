@@ -363,7 +363,7 @@ async function pintarPanelAdmin(raiz){
     });
   }).catch(()=>{});
   raiz.querySelectorAll('[data-admin-publicar]').forEach(b=>b.addEventListener('click',()=>
-    showConfirm('¿Publicar este anuncio?','Se mostrará según los días, la fecha y el tope de su campaña. Las vistas, aperturas y contactos se cobran con las tarifas actuales.',
+    showConfirm('¿Publicar este anuncio?',anunciosPorId.get(b.dataset.adminPublicar)?.precio_clp===0?'La publicación no tendrá costo. Se mostrará según los días y la fecha de su campaña.':'Se mostrará según los días, la fecha y el tope de su campaña. Las vistas, aperturas y contactos se cobran con las tarifas actuales.',
       ()=>llamar('admin_publicar_anuncio',{p_anuncio_id:b.dataset.adminPublicar},'Anuncio publicado'),{label:'Publicar',danger:false})));
   raiz.querySelectorAll('[data-admin-devolver]').forEach(b=>b.addEventListener('click',async()=>{
     const comentario=raiz.querySelector(`[data-admin-comentario="${b.dataset.adminDevolver}"]`);
@@ -378,8 +378,8 @@ async function pintarPanelAdmin(raiz){
       ()=>llamar('admin_borrar_anuncio_revision',{p_anuncio_id:b.dataset.adminBorrar},'Anuncio borrado de la revisión'),
       {label:'Borrar anuncio',danger:true})));
   raiz.querySelectorAll('[data-admin-terminar]').forEach(b=>b.addEventListener('click',()=>
-    showConfirm('¿Terminar esta campaña?','El aviso ya está pausado. El cierre conserva sus métricas y el costo acumulado; quedará listo para registrar el cobro.',
-      ()=>llamar('admin_terminar_anuncio_pausado',{p_anuncio_id:b.dataset.adminTerminar,p_publicado_at:b.dataset.publicadoAt},'Campaña terminada y lista para cobro'),
+    showConfirm('¿Terminar esta campaña?',costoCampanaClase(anunciosPorId.get(b.dataset.adminTerminar)?.campana)?.sinCosto?'El aviso ya está pausado. El cierre conserva sus métricas y no genera cobros.':'El aviso ya está pausado. El cierre conserva sus métricas y el costo acumulado; quedará listo para registrar el cobro.',
+      ()=>llamar('admin_terminar_anuncio_pausado',{p_anuncio_id:b.dataset.adminTerminar,p_publicado_at:b.dataset.publicadoAt},costoCampanaClase(anunciosPorId.get(b.dataset.adminTerminar)?.campana)?.sinCosto?'Campaña terminada sin costo':'Campaña terminada y lista para cobro'),
       {label:'Terminar campaña',danger:false})));
   raiz.querySelectorAll('[data-admin-pausar]').forEach(b=>b.addEventListener('click',()=>
     showConfirm('¿Pausar este aviso?','Deja de mostrarse al tiro. Para volver, el profesor lo manda a revisión otra vez.',

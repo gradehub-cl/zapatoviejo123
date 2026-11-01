@@ -32,7 +32,7 @@ function sumarCostosCampana(costos){
   if(!c.length)return null;
   const partes=c[0].partes.map(p=>({...p,cantidad:0,subtotal:0}));
   c.forEach(x=>x.partes.forEach((p,i)=>{partes[i].cantidad+=p.cantidad;partes[i].subtotal+=p.subtotal;}));
-  return {partes,bruto:c.reduce((n,x)=>n+x.bruto,0),total:c.reduce((n,x)=>n+x.total,0),
+  return {sinCosto:c.every(x=>x.sinCosto),partes,bruto:c.reduce((n,x)=>n+x.bruto,0),total:c.reduce((n,x)=>n+x.total,0),
     tope:c.every(x=>x.tope!==null)?c.reduce((n,x)=>n+x.tope,0):null,agotada:false};
 }
 // Importes por concepto, con escala común y sin segmentos mínimos inventados.
@@ -166,6 +166,7 @@ function datoCircularHTML(porcentaje,valor,etiqueta){
 }
 function presupuestoProfesorHTML(costo){
   if(!costo)return '<p class="clase-sin-datos">No pudimos cargar el costo de la campaña. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>';
+  if(costo.sinCosto)return '<p class="profesor-info">Publicación sin costo</p>';
   const porcentaje=costo.tope?Math.min(100,Math.round(costo.total/costo.tope*100)):0;
   return `<section class="profesor-hig-presupuesto presupuesto-visual"><div class="dato-circular">${datoCircularHTML(costo.tope?porcentaje:null,costo.tope?porcentaje+'%':'—',`Presupuesto utilizado: ${porcentaje}%`)}</div><div><span>Presupuesto utilizado</span><strong>${pesosClase(costo.total)}</strong><p>${costo.tope!==null?`de tu tope de ${pesosClase(costo.tope)}`:'Sin tope disponible'}</p><small>Publicación actual</small></div></section>`;
 }

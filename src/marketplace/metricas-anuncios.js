@@ -215,7 +215,7 @@ async function metricasDeAnuncio(anuncio){
   // La campaña: personas que vieron, abrieron y contactaron, y días cobrados.
   // Sin el SQL de campañas no hay costo que mostrar, y no se inventa.
   if(!salida.campana)try{
-    const {data,error}=await supabaseClient.rpc('campana_anuncio',{p_anuncio_id:anuncio.id});
+    const {data,error}=await leerCostoCampanaClase(anuncio.id);
     if(error&&!sqlClasesDesactualizado(error))salida.error=true;
     const fila=!error&&Array.isArray(data)?data[0]:null;
     if(fila&&['vistas','aperturas','contactos','dias_cobrados'].every(k=>Number.isInteger(fila[k])))salida.campana=fila;
@@ -371,8 +371,8 @@ function cifrasClase({alcance,totales,hayCortes,campana,costo},pesos,etiquetaPer
       [p!==null&&p!==undefined?mitad(miles(p),etiquetaPersonas):campana||!v?mitad('—',etiquetaPersonas):'',
        v!==null?mitad(miles(v),'veces en total'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
   const f=[];
-  if(costo&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
-  if(costo&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
+  if(costo&&!costo.sinCosto&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
+  if(costo&&!costo.sinCosto&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
   return `<div class="clase-etapas">${html}</div>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');
 }

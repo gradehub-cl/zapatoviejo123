@@ -375,6 +375,12 @@ franja; la segunda, no vuelve más en ese dispositivo y recién ahí se avisa "n
 te la volvemos a mostrar" (decisión de Lucas del 2026-09-25). Los anuncios también se pueden explorar en un
 catálogo general.
 
+Desde el 2026-10-31, las nuevas campañas aprobadas con precio $0 no tienen
+costo (clase o material). `campanas_gratis.sql` conserva el precio aprobado;
+las campañas anteriores mantienen su cálculo y tope, sin backfill. Al reaplicar
+los SQL principales de clases/admin, este complemento se aplica al final.
+Detalle de compatibilidad y validación: `docs/marketplace/campanas-gratis/README.md`.
+
 La tarifa cambió el 2026-09-25 (decisión de Lucas): $100 por día publicada y,
 por persona, $10 si la vio, $50 si la abrió y $1.000 si contactó. Cada persona
 cuenta una vez por anuncio. El profesor elige los días (o las fechas: puede dejar

@@ -67,7 +67,7 @@ function editorCobroAdmin(anuncioId,publicadoAt,estado,monto){
     <button type="button" class="clase-accion" data-cobro-guardar>Guardar</button></div>`;
 }
 function revisionAdminAnuncioHTML(a,profesor){
-  const c=a.configuracion_campana,listaCampana=c&&Number.isInteger(c.dias)&&Number.isInteger(c.tope_clp);
+  const c=a.configuracion_campana,listaCampana=c&&Number.isInteger(c.dias)&&(Number.isInteger(c.tope_clp)||a.precio_clp===0&&c.tope_clp===null);
   const criterios=a.criterios||{},detalles=detallesClase(a);
   const dato=(nombre,valor)=>`<div><dt>${nombre}</dt><dd>${esc(valor||'No indicado')}</dd></div>`;
   const contacto=[a.contacto_tipo,a.contacto_valor].filter(Boolean).join(' · ');
@@ -80,7 +80,7 @@ function revisionAdminAnuncioHTML(a,profesor){
       ${dato('Ramos',(a.ramos_siglas||[]).join(' · '))}${dato('Precio',precioClase(a))}
       ${dato('Formato',formatoClase(a))}${dato('Contacto',contacto)}
       ${dato('Público',criterios.promedioMenorA!=null&&criterios.avanceMinimo!=null?`Promedio menor a ${Number(criterios.promedioMenorA).toLocaleString('es-CL')} · desde ${criterios.avanceMinimo}% evaluado`:'General')}
-      ${dato('Campaña',listaCampana?`${c.dias} días · parte ${inicio} · tope ${pesosClase(c.tope_clp)}`:'Sin días ni tope configurados')}
+      ${dato('Campaña',listaCampana?`${c.dias} días · parte ${inicio} · ${c.tope_clp===null?'sin costo':'tope '+pesosClase(c.tope_clp)}`:'Sin días ni tope configurados')}
       ${detalles.map(d=>dato(d.etiqueta,d.valor)).join('')}
     </dl>
     ${a.flyer_path?`<div class="admin-revision-flyer" data-admin-flyer="${esc(a.flyer_path)}" role="status">Cargando flyer…</div>`:''}
@@ -213,16 +213,16 @@ function filaAdminAnuncio(a,ahora=Date.now()){
   return `<article class="admin-anuncio" data-admin-anuncio="${esc(a.id)}">
     <div class="admin-anuncio-top"><strong>${esc(a.titulo||'Sin título')}</strong><span class="clase-estado clase-estado-${esc(clase)}">${esc(estado)}</span></div>
     <p class="clase-card-meta">${esc((a.ramos_siglas||[]).join(' · '))} · ${esc(precioClase(a))}${publicado?` · ${fecha(a.publicado_at)} → ${fecha(a.vence_at)}`:''}</p>
-    ${costo?`<p class="admin-anuncio-costo"><b>${pesosClase(costo.total)}</b>${costo.tope!==null?` de ${pesosClase(costo.tope)}`:' · sin tope'}</p>
+    ${costo?`<p class="admin-anuncio-costo"><b>${pesosClase(costo.total)}</b>${costo.sinCosto?' · publicación sin costo':costo.tope!==null?` de ${pesosClase(costo.tope)}`:' · sin tope'}</p>
       <p class="clase-sin-datos">${esc(lineaCostoCampanaClase(costo))}</p>`:''}
-    ${vig==='expirado'?'<p class="admin-lista-cobro">Campaña terminada · lista para revisar y registrar el cobro.</p>':''}
+    ${vig==='expirado'&&!costo?.sinCosto?'<p class="admin-lista-cobro">Campaña terminada · lista para revisar y registrar el cobro.</p>':''}
     ${vig==='eliminado'&&publicado?'<p class="admin-lista-cobro">Anuncio borrado de la revisión. Esta publicación anterior se conserva para el cobro.</p>':''}
     <div class="admin-anuncio-acciones">
       ${['borrador','en_revision','publicado','pausado'].includes(a.estado)?`<span data-admin-edicion="${esc(a.id)}"></span>`:''}
       <button type="button" class="clase-accion" data-admin-estadisticas="${esc(a.id)}" aria-controls="admin-estadisticas-${esc(a.id)}" aria-expanded="false">Ver estadísticas</button>
-      ${publicado?editorCobroAdmin(a.id,a.publicado_at,cobro,monto):''}
+      ${publicado&&!costo?.sinCosto?editorCobroAdmin(a.id,a.publicado_at,cobro,monto):''}
       ${vig==='publicado'||vig==='programado'?`<button type="button" class="clase-accion" data-admin-pausar="${esc(a.id)}">Pausar aviso</button>`:''}
-      ${vig==='pausado'&&publicado?`<button type="button" class="clase-accion" data-admin-terminar="${esc(a.id)}" data-publicado-at="${esc(a.publicado_at)}">Terminar campaña y dejar lista para cobro</button>`:''}
+      ${vig==='pausado'&&publicado?`<button type="button" class="clase-accion" data-admin-terminar="${esc(a.id)}" data-publicado-at="${esc(a.publicado_at)}">${costo?.sinCosto?'Terminar campaña':'Terminar campaña y dejar lista para cobro'}</button>`:''}
     </div>
     <section class="admin-descuento" data-admin-descuento="${esc(a.id)}">${editorDescuentoAdminHTML(a)}</section>
     <div class="admin-anuncio-estadisticas" id="admin-estadisticas-${esc(a.id)}" data-admin-estadisticas-panel="${esc(a.id)}" hidden></div>

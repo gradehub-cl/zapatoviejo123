@@ -19,6 +19,11 @@ const t=run('TARIFA_CAMPANA');
 chk('la app cobra $100, $10, $50 y $1.000',t.dia===100&&t.vista===10&&t.apertura===50&&t.contacto===1000);
 chk('el servidor dice lo mismo',['dia','vista','apertura','contacto'].every(k=>new RegExp(`when '${k}' then ${t[k]}\\b`).test(tarifaSql)));
 
+const sqlGratis=fs.readFileSync(path.join(__dirname,'..','supabase','campanas_gratis.sql'),'utf8');
+chk('una campaña gratuita tiene tarifa cero en cliente y servidor',
+  ['dia','vista','apertura','contacto'].every(k=>run(`tarifaCampanaClase('${k}',true)`)==0)&&
+  /when p_precio_clp=0 then 0 else public.tarifa_campana_clp/.test(sqlGratis));
+
 console.log('\n=== La cuenta ===');
 ctx.__c={dias_cobrados:6,vistas:120,aperturas:15,contactos:4,tope_clp:10000};
 let c=run('costoCampanaClase(__c)');

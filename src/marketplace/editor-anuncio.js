@@ -75,8 +75,9 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
           <div><label class="modal-label" for="pr-fin">Termina</label><input id="pr-fin" type="date" min="${hoyChileClase()}"></div>
         </div>
         <p class="profesor-info">Sin fecha de inicio, parte apenas la aprobemos. Puedes elegir los días o la fecha de término: el otro se ajusta solo.</p>
-        <label class="modal-label" for="pr-tope">Tope · lo máximo que pagarías</label><input id="pr-tope" type="text" inputmode="numeric" autocomplete="off" required placeholder="${esc(textoPesosEscrito(TOPE_CAMPANA_POR_OMISION))}" value="${esc(textoPesosEscrito(TOPE_CAMPANA_POR_OMISION))}">
+        <div id="pr-campana-pagada"><label class="modal-label" for="pr-tope">Tope · lo máximo que pagarías</label><input id="pr-tope" type="text" inputmode="numeric" autocomplete="off" required placeholder="${esc(textoPesosEscrito(TOPE_CAMPANA_POR_OMISION))}" value="${esc(textoPesosEscrito(TOPE_CAMPANA_POR_OMISION))}">
         <p class="profesor-info">Cuesta ${pesosClase(TARIFA_CAMPANA.dia)} por día publicada y, por persona, ${pesosClase(TARIFA_CAMPANA.vista)} si la ve, ${pesosClase(TARIFA_CAMPANA.apertura)} si la abre y ${pesosClase(TARIFA_CAMPANA.contacto)} si te contacta. Cada persona cuenta una vez. Al llegar al tope deja de mostrarse: nunca pagas más que eso. El pago se coordina con GradeHub antes de publicar.</p>
+        </div><p class="profesor-info" id="pr-campana-gratis" hidden>Publicar una clase gratis no tiene costo</p>
         <p class="profesor-campana-resumen" id="pr-campana-resumen" aria-live="polite"></p><button type="button" class="btn-cancel" id="pr-reintentar-campana" hidden>Reintentar carga de campaña</button>
       </div>
       </div></details>`}
@@ -188,6 +189,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
   const ajustarDias=()=>{const n=diasEntreFechasClase(baseCampana(),valorCampo('fin'));if(diasC&&Number.isFinite(n)&&n>=0)diasC.value=String(n+1);};
   const resumirCampana=()=>{
     if(!resumenC)return;
+    if(pesosDeTexto(valorCampo('precio'))===0){resumenC.textContent='';return;}
     const d=Number(valorCampo('dias')),tope=pesosDeTexto(valorCampo('tope'));
     if(!Number.isSafeInteger(d)||d<1||!Number.isSafeInteger(tope)){resumenC.textContent='';return;}
     const porDias=d*TARIFA_CAMPANA.dia,queda=tope-porDias;
@@ -199,7 +201,16 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
   if(diasC)diasC.addEventListener('input',()=>{ajustarFin();resumirCampana();});
   if(finC)finC.addEventListener('input',()=>{ajustarDias();resumirCampana();});
   if(topeC)topeC.addEventListener('input',resumirCampana);
-  ajustarFin();resumirCampana();
+  let estabaGratis=pesosDeTexto(valorCampo('precio'))===0;
+  const ajustarCostoCampana=()=>{
+    const gratis=pesosDeTexto(valorCampo('precio'))===0;
+    if(topeC){if(estabaGratis&&!gratis)topeC.value=textoPesosEscrito(TOPE_CAMPANA_POR_OMISION);topeC.required=!gratis;topeC.disabled=gratis;}
+    if(campo('campana-pagada'))campo('campana-pagada').hidden=gratis;
+    if(campo('campana-gratis'))campo('campana-gratis').hidden=!gratis;
+    estabaGratis=gratis;resumirCampana();
+  };
+  campo('precio')?.addEventListener('input',ajustarCostoCampana);
+  ajustarFin();ajustarCostoCampana();
   // No reemplazar una campaña existente por los valores por omisión si falla
   // su lectura. El guardado se habilita solo después de recuperarla.
   const reintentarCampana=campo('reintentar-campana');
@@ -217,8 +228,8 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
         if(inicioC)inicioC.value=c.inicio&&c.inicio>=hoyChileClase()?c.inicio:'';
         if(topeC)topeC.value=textoPesosEscrito(c.tope_clp);
       }
-      ajustarFin();resumirCampana();campanaLista=true;
-      controles.forEach(c=>c.disabled=false);
+      ajustarFin();campanaLista=true;
+      controles.forEach(c=>c.disabled=false);ajustarCostoCampana();
       estado.textContent='Borrador recuperado. Puedes seguir editándolo.';
     }catch(e){
       if(!form.isConnected)return;
@@ -370,7 +381,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
     if(!form.reportValidity())return;
     const file=!admin&&campo('flyer').files&&campo('flyer').files[0],validacion=validarFlyerClase(file);
     if(!validacion.ok){estado.textContent=validacion.error;campo('flyer').focus();return;}
-    const campana=admin?{ok:true}:validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))});
+    const campana=admin?{ok:true}:validarCampanaClase({dias:Number(valorCampo('dias')),inicio:valorCampo('inicio'),tope_clp:pesosDeTexto(valorCampo('tope'))},Date.now(),pesosDeTexto(valorCampo('precio')));
     if(!campana.ok){estado.textContent=campana.error;enfocar(campo(campana.campo));return;}
     const datos=datosDelEditor();
     if(admin){
