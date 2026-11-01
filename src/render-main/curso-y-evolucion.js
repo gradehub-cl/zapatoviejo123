@@ -25,12 +25,33 @@ async function pintarPosicionesCurso(){
   }).join('');
 }
 
+function serieEvolucionSemestres(validos,promedio,periodo){
+  const completa=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h),fecha:parseEtiquetaSemestre(h.label)})).filter(x=>x.v!==null);
+  // Los semestres ingresados a mano pueden haberse agregado fuera de orden.
+  const orden=x=>x.fecha?x.fecha.anio*10+(x.fecha.periodo==='v'?0:Number(x.fecha.periodo)):-Infinity;
+  completa.sort((a,b)=>orden(a)-orden(b));
+  if(promedio!==null)completa.push({label:semester(),v:promedio,actual:true});
+  return periodo==='anterior'?completa.slice(-2):periodo==='5'?completa.slice(-5):completa;
+}
+
 function cambiarPeriodoHistorial(periodo){
   if(!['anterior','5','todo'].includes(periodo))return;
   const body=document.getElementById('stats-body');
+  if(!body||(body.dataset.histPeriodo||'anterior')===periodo)return;
+  const panel=body.querySelector('.stats-hist-comparacion');
+  const marco=panel?.querySelector('.evolucion-marco');
+  if(!marco)return;
+  const validos=(S.historial||[]).filter(h=>h&&Array.isArray(h.ramos));
+  const serie=serieEvolucionSemestres(validos,gpa(S.ramos),periodo);
+  if(serie.length<2)return;
+  const plantilla=document.createElement('template');
+  plantilla.innerHTML=htmlGraficoEvolucion(serie.map(x=>({etiqueta:x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior',valor:x.v,actual:x.actual})),'historial');
+  // Conserva los botones, su foco y el resto de Estadísticas. Rehacer stats-body
+  // alteraba el ancla de scroll y volvía a pedir la comparación con el curso.
+  marco.replaceWith(plantilla.content.firstElementChild);
   body.dataset.histPeriodo=periodo;
-  renderStats();
-  body.querySelector(`[data-hist-periodo="${periodo}"]`)?.focus({preventScroll:true});
+  panel.querySelectorAll('[data-hist-periodo]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.histPeriodo===periodo)));
+  enlazarGraficosEvolucion(panel);
 }
 
 // Curva monótona: atraviesa cada valor sin inventar máximos ni mínimos.
