@@ -24,7 +24,12 @@ alter table public.tutor_perfiles add column if not exists instagram text
 alter table public.tutor_perfiles add column if not exists sitio_web text
   check (sitio_web is null or (sitio_web ~ '^https://[^[:space:]/@]+[.][^[:space:]@]+$' and char_length(sitio_web) <= 160));
 alter table public.tutor_perfiles add column if not exists universidades text[]
-  check (universidades is null or (cardinality(universidades) <= 4 and universidades <@ array['fen', 'uc', 'uai', 'uandes']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+-- `add column if not exists` no toca el check de una columna que ya existe: se
+-- reemplaza por nombre para que una universidad nueva entre al reaplicar.
+alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_universidades_check;
+alter table public.tutor_perfiles add constraint tutor_perfiles_universidades_check
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
 alter table public.tutor_perfiles add column if not exists ramos_siglas text[];
 alter table public.tutor_perfiles add column if not exists perfil_publico boolean not null default false;
 

@@ -67,7 +67,7 @@ const ERROR_DOS_RAMOS_CLASE='Dos siglas solo se juntan si son el mismo ramo, com
 function validarBorradorClase(entrada,nombresPorSigla){
   if(!entrada||typeof entrada!=='object'||Array.isArray(entrada))return {ok:false,campo:'clase',error:'Completa los datos de tu clase.'};
   const tenant=String(entrada.tenant||'').trim();
-  if(!['uc','fen','uai','uandes'].includes(tenant))return {ok:false,campo:'tenant',error:'Elige una universidad.'};
+  if(!UNIVERSIDADES_PERFIL.some(([v])=>v===tenant))return {ok:false,campo:'tenant',error:'Elige una universidad.'};
   const titulo=String(entrada.titulo||'').trim();
   if(titulo.length<5||titulo.length>90)return {ok:false,campo:'titulo',error:'Ponle un título de 5 a 90 caracteres.'};
   const descripcion=String(entrada.descripcion||'').trim();
