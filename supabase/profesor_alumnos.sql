@@ -382,7 +382,7 @@ $$;
 -- promedio de una categoría acá es el ponderado de sus notas por su peso, SIN
 -- descartes ni reglas: es una referencia de cómo le va al resto, no la nota de
 -- nadie. La del alumno la calcula el navegador con el motor de siempre.
--- UC/FEN se identifican por sigla. UAI/UAndes, si no la tienen, usan el
+-- UC/FEN se identifican por sigla. UAI/UAndes/UDD, si no la tienen, usan el
 -- nombre normalizado guardado en origen.ramoKey, como el consenso de pautas.
 -- La función solo construye la clave: no calcula promedios ni expone filas.
 create or replace function public.clave_curso_comparacion(p_tenant text, p_ramo jsonb)
@@ -393,7 +393,7 @@ set search_path = ''
 as $$
   select coalesce(
     nullif(upper(btrim(p_ramo->>'sigla')), ''),
-    case when lower(p_tenant) in ('uai', 'uandes') then
+    case when lower(p_tenant) in ('uai', 'uandes', 'udd') then
       nullif(upper(btrim(regexp_replace(
         normalize(lower(coalesce(nullif(p_ramo#>>'{origen,ramoKey}', ''), p_ramo->>'nombre', '')), NFD),
         '[\u0300-\u036f]', '', 'g'))), '')

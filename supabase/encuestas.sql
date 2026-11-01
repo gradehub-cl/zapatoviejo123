@@ -17,7 +17,7 @@ create table if not exists public.encuestas (
   pregunta text not null check(char_length(trim(pregunta)) between 1 and 280),
   tipo text not null check(tipo in ('una','varias','texto')),
   opciones text[] not null default '{}',
-  publico text not null check(publico in ('todos','fen','uc','uai','uandes')),
+  publico text not null check(publico in ('todos','fen','uc','uai','uandes','udd')),
   inicio date not null,
   termino date not null check(termino >= inicio),
   estado text not null default 'activa' check(estado in ('activa','pausada','terminada')),
@@ -28,7 +28,7 @@ create table if not exists public.encuesta_respuestas (
   user_id uuid not null references auth.users(id) on delete cascade,
   opciones integer[] not null default '{}',
   texto text check(char_length(texto) between 1 and 280),
-  universidad text not null check(universidad in ('fen','uc','uai','uandes')),
+  universidad text not null check(universidad in ('fen','uc','uai','uandes','udd')),
   fecha timestamptz not null default now(),
   primary key(encuesta_id,user_id)
 );
@@ -45,6 +45,14 @@ create table if not exists public.encuestas_cuentas (
   primera_visita uuid not null,
   fecha timestamptz not null default now()
 );
+-- Una universidad nueva no entra con `create table if not exists`: los checks
+-- se reemplazan por nombre, así que correr el archivo de nuevo la agrega.
+alter table public.encuestas drop constraint if exists encuestas_publico_check;
+alter table public.encuestas add constraint encuestas_publico_check
+  check(publico in ('todos','fen','uc','uai','uandes','udd'));
+alter table public.encuesta_respuestas drop constraint if exists encuesta_respuestas_universidad_check;
+alter table public.encuesta_respuestas add constraint encuesta_respuestas_universidad_check
+  check(universidad in ('fen','uc','uai','uandes','udd'));
 alter table public.encuestas enable row level security;
 alter table public.encuesta_respuestas enable row level security;
 alter table public.encuesta_visitas enable row level security;
@@ -59,6 +67,7 @@ returns text language sql stable security definer set search_path=pg_catalog,pub
     when 'uc' then 'uc'
     when 'uai' then 'uai'
     when 'uandes' then 'uandes'
+    when 'udd' then 'udd'
     else null end
   from public.user_ramos u where u.user_id=auth.uid();
 $$;
@@ -156,7 +165,7 @@ begin
   perform admin.exigir_administrador();
   p_pregunta:=trim(p_pregunta); p_opciones:=coalesce(p_opciones,'{}');
   if p_pregunta is null or char_length(p_pregunta) not between 1 and 280
-    or p_tipo is null or p_tipo not in ('una','varias','texto') or p_publico is null or p_publico not in ('todos','fen','uc','uai','uandes')
+    or p_tipo is null or p_tipo not in ('una','varias','texto') or p_publico is null or p_publico not in ('todos','fen','uc','uai','uandes','udd')
     or p_inicio is null or p_termino is null or p_termino<p_inicio or p_termino<(now() at time zone 'America/Santiago')::date then raise exception 'Revisa la pregunta, el público y las fechas.'; end if;
   if (p_tipo='texto' and cardinality(p_opciones)<>0) or (p_tipo<>'texto' and cardinality(p_opciones) not between 2 and 6)
     or exists(select 1 from unnest(p_opciones) x where x is null or char_length(trim(x)) not between 1 and 160)
