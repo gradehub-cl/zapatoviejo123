@@ -109,6 +109,50 @@ function mostrar(d, r, opciones) {
   }
 }
 
+function fragmento(texto, consulta) {
+  // En HTML/CSS una línea puede tener miles de caracteres: muestra la
+  // coincidencia, no solo los primeros 160 caracteres de la línea.
+  const indice = normal(texto).indexOf(normal(consulta));
+  const inicio = Math.max(0, indice - 60);
+  const fin = Math.min(texto.length, inicio + 155);
+  return (inicio ? '… ' : '') + texto.slice(inicio, fin).trim() + (fin < texto.length ? ' …' : '');
+}
+
+function referencias(docs, consulta, { limite = 8 } = {}) {
+  const q = normal(consulta), resultados = [];
+  let total = 0;
+  for (const d of docs) {
+    const definiciones = new Set(d.simbolos.filter(s => normal(s.nombre) === q).map(s => s.linea));
+    d.lineas.forEach((texto, i) => {
+      if (!normal(texto).includes(q) || definiciones.has(i + 1)) return;
+      total++;
+      if (resultados.length < limite) resultados.push({ archivo: d.archivo, linea: i + 1,
+        fin: i + 1, tipo: 'referencia textual', nombre: fragmento(texto, consulta) });
+    });
+  }
+  return { total, resultados };
+}
+
+function seleccionarJSON(archivo, clave, { raiz = RAIZ } = {}) {
+  if (!archivo || !archivo.endsWith('.json') || path.isAbsolute(archivo)
+    || archivo.split(/[\\/]/).some(p => p.startsWith('.') || ['node_modules', 'ocr'].includes(p)))
+    throw new Error('--clave requiere --archivo con una ruta JSON del repo.');
+  if (!clave.startsWith('/') || /~(?:[^01]|$)/.test(clave))
+    throw new Error('--clave usa JSON Pointer: /scripts o /ramos/0/nombre (~1 para / y ~0 para ~).');
+  const ruta = fs.realpathSync(path.resolve(raiz, archivo));
+  const relativa = path.relative(fs.realpathSync(raiz), ruta);
+  if (relativa.startsWith('..') || path.isAbsolute(relativa)) throw new Error('El JSON está fuera del repo.');
+  let valor = JSON.parse(fs.readFileSync(ruta, 'utf8'));
+  for (const parte of clave.slice(1).split('/')) {
+    const k = parte.replace(/~1/g, '/').replace(/~0/g, '~');
+    if (valor === null || typeof valor !== 'object' || !Object.hasOwn(valor, k)
+      || Array.isArray(valor) && !/^(0|[1-9]\d*)$/.test(k)) throw new Error('No existe la clave JSON: ' + clave);
+    valor = valor[k];
+  }
+  const texto = JSON.stringify(valor, null, 2);
+  return { archivo, texto, lineas: texto.split('\n'), simbolos: [] };
+}
+
 function buscar(docs, consulta, { archivo = '', limite = 8 } = {}) {
   const q = normal(consulta), resultados = [];
   for (const d of docs.filter(d => normal(d.archivo).includes(normal(archivo)))) {
@@ -121,7 +165,7 @@ function buscar(docs, consulta, { archivo = '', limite = 8 } = {}) {
     if (!tema && !simbolos.length) {
       const indice = d.lineas.findIndex(l => normal(l).includes(q));
       if (indice >= 0) resultados.push({ archivo: d.archivo, linea: indice + 1, fin: indice + 1,
-        nombre: d.lineas[indice].trim().slice(0, 160), tipo: 'texto', rango: 20 });
+        nombre: fragmento(d.lineas[indice], consulta), tipo: 'texto', rango: 20 });
     }
   }
   return resultados.sort((a, b) => b.rango - a.rango || a.archivo.localeCompare(b.archivo) || a.linea - b.linea).slice(0, limite);
@@ -133,13 +177,15 @@ function ejecutar(args) {
     '     npm run buscar -- --archivo ruta [--desde 1] [--lineas 48]\n' +
     '     npm run buscar -- consulta --tipo js|sql|css|html|docs [--tests]\n' +
     '     npm run buscar -- --mapa [--archivo tema] [--detallado]\n' +
+    '     npm run buscar -- funcion --referencias [--tests] [--limite 8]\n' +
+    '     npm run buscar -- --archivo package.json --clave /scripts [--lineas 48]\n' +
     'Sin regex. Ignora tildes y mayúsculas. Los límites de funciones salen del AST.';
   if (!args.length || args.includes('--help')) { console.log(ayuda); return 0; }
   const opciones = { limite: 8, lineas: 48, desde: 1, archivo: '' }, consulta = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (['--tests', '--json', '--mapa', '--detallado', '--docs'].includes(a)) opciones[a.slice(2)] = true;
-    else if (['--ver', '--archivo', '--limite', '--lineas', '--desde', '--tipo'].includes(a)) {
+    if (['--tests', '--json', '--mapa', '--detallado', '--docs', '--referencias'].includes(a)) opciones[a.slice(2)] = true;
+    else if (['--ver', '--archivo', '--limite', '--lineas', '--desde', '--tipo', '--clave'].includes(a)) {
       if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error('Falta valor para ' + a);
       opciones[a.slice(2)] = args[++i];
     } else if (a.startsWith('--')) throw new Error('Opción desconocida: ' + a);
@@ -149,6 +195,14 @@ function ejecutar(args) {
     const n = Number(opciones[clave]);
     if (!Number.isInteger(n) || n < 1 || n > max) throw new Error('--' + clave + ' debe ser de 1 a ' + max);
     opciones[clave] = n;
+  }
+  if ([opciones.ver, opciones.mapa, opciones.referencias, opciones.clave].filter(Boolean).length > 1)
+    throw new Error('Elige un modo: --ver, --mapa, --referencias o --clave.');
+  if (opciones.clave) {
+    const d = seleccionarJSON(opciones.archivo, opciones.clave);
+    mostrar(d, { archivo: d.archivo, linea: 1, fin: d.lineas.length,
+      tipo: 'JSON seleccionado', nombre: opciones.clave, clave: opciones.clave }, opciones);
+    return 0;
   }
   if (opciones.tipo) {
     opciones.tipos = opciones.tipo.split(',');
@@ -166,10 +220,21 @@ function ejecutar(args) {
     return 0;
   }
   const q = opciones.ver || consulta.join(' ');
+  if (opciones.referencias && !q.trim()) throw new Error('--referencias necesita una consulta.');
   if (!q.trim() && !opciones.archivo) throw new Error(ayuda);
   // --archivo sin consulta abre solo un archivo conocido, nunca una ruta externa.
   if (!q.trim() && !opciones.tipos) opciones.tipos = Object.keys(TIPOS);
   const docs = documentos(opciones);
+  if (opciones.referencias) {
+    const r = referencias(docs, q, opciones);
+    if (opciones.json) console.log(JSON.stringify(r, null, 2));
+    else {
+      for (const x of r.resultados) console.log(`${x.archivo}:${x.linea} · ${x.nombre}`);
+      console.log(`${r.resultados.length} de ${r.total} líneas con coincidencias textuales; no es un análisis de llamadas.`);
+      if (r.total > r.resultados.length) console.log('Filtra con --archivo o amplía --limite (máx. 30).');
+    }
+    return r.total ? 0 : 1;
+  }
   if (!q.trim()) {
     const exacto = docs.find(d => d.archivo === opciones.archivo);
     const candidatos = exacto ? [exacto] : docs;
@@ -204,4 +269,4 @@ if (require.main === module) {
   try { process.exitCode = ejecutar(process.argv.slice(2)); }
   catch (e) { console.error(e.message); process.exitCode = 1; }
 }
-module.exports = { indexar, documentos, buscar, ejecutar };
+module.exports = { indexar, documentos, buscar, ejecutar, referencias, seleccionarJSON };

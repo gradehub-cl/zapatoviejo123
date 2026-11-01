@@ -25,6 +25,9 @@ npm run buscar -- --archivo styles.css --desde 200 --lineas 20
 npm run buscar -- --mapa                          # resumen de carpetas
 npm run buscar -- --mapa --archivo alumnos        # rutas de un tema
 npm run buscar -- --mapa --detallado              # inventario completo
+npm run buscar -- renderAlumnosProfesor --referencias --tests
+npm run buscar -- --archivo package.json --clave /scripts/test
+npm run buscar -- --archivo src/orden.json --clave /app.js --lineas 12
 ```
 
 Por defecto devuelve hasta 8 resultados; `--limite` admite hasta 30. Una función
@@ -42,6 +45,20 @@ los tests y la documentación se incluyen solo al pedirlos. `--archivo` filtra
 antes de leer y parsear; no hace falta indexar toda la app para abrir una función.
 Los inventarios y paquetes de revisión UC quedan fuera de la búsqueda de docs,
 pero siguen disponibles al nombrarlos con `--archivo`.
+
+`--referencias` muestra hasta 8 líneas donde aparece el texto y el total encontrado.
+Omite la línea de una definición JS conocida con ese nombre, pero incluye cadenas
+y comentarios: es una búsqueda textual, no un análisis de llamadas. Usa `--archivo`
+para acotar o `--limite` para ampliar. En líneas largas, el fragmento se centra en
+la coincidencia en vez de perderla al recortar el principio.
+
+`--clave` lee solo un valor/subárbol JSON de un archivo explícito del repo, con
+[JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901): `/scripts/test` o
+`/ramos/0/nombre`; `~1` representa `/` y `~0` representa `~`. No evalúa expresiones
+ni carga el índice JS. Conserva los límites de líneas/caracteres y admite
+`--desde`; las líneas mostradas corresponden al valor formateado, no a la ubicación
+en el archivo original. Rechaza rutas externas, carpetas ocultas y enlaces fuera
+del repo. No vuelques un inventario entero para leer uno de sus campos.
 
 El índice se guarda en `.cache/indice-js.json`, se invalida por contenido y
 versión del parser, y se reconstruye automáticamente. No se versiona. No busca
