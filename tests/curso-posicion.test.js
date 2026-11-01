@@ -38,15 +38,15 @@ chk('y no se filtra cuántos faltan para llegar',
   !/faltan/i.test(sqlCodigo) && !/5\s*-\s*n/.test(sqlCodigo));
 
 console.log('\n=== Identidad del ramo antes de subir ===');
-// UC y FEN conservan la sigla. UAI y UAndes pueden usar la clave de nombre
+// UC y FEN conservan la sigla. UAI, UAndes y UDD pueden usar la clave de nombre
 // normalizado que ya identifica sus pautas de consenso dentro del tenant.
 // Un ramo NO guarda su sigla como propiedad: la app la deriva del nombre. La
 // primera versión filtraba por `r.sigla`, que es undefined en todos, así que no
 // subía nada y la sección no aparecía nunca.
 chk('la sigla se deriva, no se asume guardada en el ramo',
   /function siglaParaCurso[\s\S]{0,200}siglaDeRamo\(r,tenant\)/.test(app));
-chk('UC/FEN sin sigla se omiten; UAI/UAndes usan nombre normalizado',
-  /if\(!\['uai','uandes'\]\.includes\(tenant\)\)return null/.test(app)&&
+chk('UC/FEN sin sigla se omiten; UAI/UAndes/UDD usan nombre normalizado',
+  /if\(!\['uai','uandes','udd'\]\.includes\(tenant\)\)return null/.test(app)&&
   /const sigla=claveRamoCurso\(r,S\.tenant\);\s*\n\s*if\(!sigla\)continue;/.test(app));
 chk('y el servidor descarta la fila sin clave de ramo', /v_sigla is null or v_tenant is null/.test(sqlCodigo));
 // Las variables se llamaban `tenant` y `sigla`, igual que las columnas, y

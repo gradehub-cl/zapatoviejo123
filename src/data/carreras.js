@@ -97,6 +97,64 @@ const CARRERAS_DECLARABLES={
     {n:'Bachillerato de Odontología',malla:'UA-BACHILLERATO-DE-ODONTOLOGIA'},
     {n:'Bachillerato de Psicología',malla:'UA-BACHILLERATO-DE-PSICOLOGIA'},
   ],
+  // Las 32 carreras, 6 bachilleratos y el Plan Común que la UDD lista en
+  // udd.cl/admision-pregrado/carreras (revisada el 2026-10-31), con los nombres
+  // tal como salen ahí. Concepción no tiene carreras propias: las doce que
+  // ofrece se llaman igual que en Santiago.
+  //
+  // Una opción por malla, no por nombre: Diseño y Tecnología Médica publican
+  // una malla por mención o especialidad, y Enfermería una por sede. Las
+  // demás que se dictan en las dos sedes publican una sola malla. Sin malla
+  // quedan Medicina (currículo por anillos, sin ramos por semestre), el Plan
+  // Común de Ingeniería y dos programas nuevos de 2027 que no la publican.
+  udd:[
+    {n:'Arquitectura',malla:'UDD-ARQUITECTURA'},
+    {n:'Bachillerato en Derecho, Ciencias Sociales y Humanidades',malla:'UDD-BACHILLERATO-EN-DERECHO-CIENCIAS-SOCIALES-Y-HUMANIDADES'},
+    {n:'Bachillerato en Diseño',malla:'UDD-BACHILLERATO-EN-DISENO'},
+    {n:'Bachillerato en Enfermería',malla:'UDD-BACHILLERATO-EN-ENFERMERIA'},
+    {n:'Bachillerato en Ingeniería Comercial',malla:'UDD-BACHILLERATO-EN-INGENIERIA-COMERCIAL'},
+    {n:'Bachillerato en Medicina'},
+    {n:'Bachillerato en Psicología',malla:'UDD-BACHILLERATO-EN-PSICOLOGIA'},
+    {n:'Ciencia Política y Políticas Públicas',malla:'UDD-CIENCIA-POLITICA-Y-POLITICAS-PUBLICAS'},
+    {n:'Cine y Comunicación Audiovisual',malla:'UDD-CINE-Y-COMUNICACION-AUDIOVISUAL'},
+    {n:'Derecho',malla:'UDD-DERECHO'},
+    {n:'Diseño (Gráfico)',malla:'UDD-DISENO-GRAFICO'},
+    {n:'Diseño (Espacios y Objetos)',malla:'UDD-DISENO-ESPACIOS-Y-OBJETOS'},
+    {n:'Diseño (Interacción Digital)',malla:'UDD-DISENO-INTERACCION-DIGITAL'},
+    {n:'Diseño (Moda y Gestión)',malla:'UDD-DISENO-MODA-Y-GESTION'},
+    {n:'Doble Grado Ingeniería Comercial + Derecho',malla:'UDD-DOBLE-GRADO-INGENIERIA-COMERCIAL-DERECHO'},
+    {n:'Doble Título Ingeniería Comercial + Diseño'},
+    {n:'Doble Título Ingeniería Comercial + Psicología',malla:'UDD-DOBLE-TITULO-INGENIERIA-COMERCIAL-PSICOLOGIA'},
+    {n:'Enfermería (Santiago)',malla:'UDD-ENFERMERIA-SANTIAGO'},
+    {n:'Enfermería (Concepción)',malla:'UDD-ENFERMERIA-CONCEPCION'},
+    {n:'Geología',malla:'UDD-GEOLOGIA'},
+    {n:'Global Business Administration',malla:'UDD-GLOBAL-BUSINESS-ADMINISTRATION'},
+    {n:'Ingeniería Civil en BioMedicina',malla:'UDD-INGENIERIA-CIVIL-EN-BIOMEDICINA'},
+    {n:'Ingeniería Civil en Informática e Innovación Tecnológica',malla:'UDD-INGENIERIA-CIVIL-EN-INFORMATICA-E-INNOVACION-TECNOLOGICA'},
+    {n:'Ingeniería Civil en Informática e Inteligencia Artificial',malla:'UDD-INGENIERIA-CIVIL-EN-INFORMATICA-E-INTELIGENCIA-ARTIFICIAL'},
+    {n:'Ingeniería Civil en Minería',malla:'UDD-INGENIERIA-CIVIL-EN-MINERIA'},
+    {n:'Ingeniería Civil en Obras Civiles',malla:'UDD-INGENIERIA-CIVIL-EN-OBRAS-CIVILES'},
+    {n:'Ingeniería Civil Industrial',malla:'UDD-INGENIERIA-CIVIL-INDUSTRIAL'},
+    {n:'Ingeniería Civil Plan Común'},
+    {n:'Ingeniería Comercial',malla:'UDD-INGENIERIA-COMERCIAL'},
+    {n:'Kinesiología',malla:'UDD-KINESIOLOGIA'},
+    {n:'Medicina'},
+    {n:'Negocios y Ciencia de Datos',malla:'UDD-NEGOCIOS-Y-CIENCIA-DE-DATOS'},
+    {n:'Nutrición y Dietética',malla:'UDD-NUTRICION-Y-DIETETICA'},
+    {n:'Obstetricia',malla:'UDD-OBSTETRICIA'},
+    {n:'Odontología',malla:'UDD-ODONTOLOGIA'},
+    {n:'Pedagogía en Educación Básica con Menciones',malla:'UDD-PEDAGOGIA-EN-EDUCACION-BASICA'},
+    {n:'Pedagogía en Educación de Párvulos',malla:'UDD-PEDAGOGIA-EN-EDUCACION-DE-PARVULOS'},
+    {n:'Periodismo y Comunicación',malla:'UDD-PERIODISMO-Y-COMUNICACION'},
+    {n:'Psicología',malla:'UDD-PSICOLOGIA'},
+    {n:'Publicidad y Marketing',malla:'UDD-PUBLICIDAD-Y-MARKETING'},
+    {n:'Química y Farmacia',malla:'UDD-QUIMICA-Y-FARMACIA'},
+    {n:'Tecnología Médica (Bioanálisis Clínico, Hematología y Medicina Transfusional)',malla:'UDD-TECNOLOGIA-MEDICA-BIOANALISIS'},
+    {n:'Tecnología Médica (Imagenología y Física Médica)',malla:'UDD-TECNOLOGIA-MEDICA-IMAGENOLOGIA'},
+    {n:'Tecnología Médica (Morfofisiopatología y Citodiagnóstico)',malla:'UDD-TECNOLOGIA-MEDICA-MORFOFISIOPATOLOGIA'},
+    {n:'Tecnología Médica (Oftalmología y Optometría)',malla:'UDD-TECNOLOGIA-MEDICA-OFTALMOLOGIA'},
+    {n:'Terapia Ocupacional',malla:'UDD-TERAPIA-OCUPACIONAL'},
+  ],
   fen:[
     {n:'Ingeniería Comercial',malla:'IC'},
     {n:'Ingeniería en Información y Control de Gestión',malla:'IICG'},

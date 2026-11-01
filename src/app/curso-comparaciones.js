@@ -21,7 +21,7 @@ function consensoCargado(tenant){return _consensoPorTenant.get(tenant)||null;}
 // posicion: "mejor que el 70%". Nunca baja una nota ajena al navegador: la
 // comparacion la hace el servidor y devuelve dos enteros.
 //
-// UC y FEN siguen usando la sigla. UAI y UAndes, cuando no la publican,
+// UC y FEN siguen usando la sigla. UAI, UAndes y UDD, cuando no la publican,
 // comparten la clave de nombre normalizado del consenso dentro de su tenant.
 
 // Se manda el mismo numero que el estudiante ve en su pantalla, no uno
@@ -37,7 +37,7 @@ function siglaParaCurso(r,tenant){
 function claveRamoCurso(r,tenant){
   const sigla=siglaParaCurso(r,tenant);
   if(sigla)return sigla;
-  if(!['uai','uandes'].includes(tenant))return null;
+  if(!['uai','uandes','udd'].includes(tenant))return null;
   const origen=r&&r.origen;
   const clave=origen&&origen.tenant===tenant&&origen.ramoKey||ramoKey(r&&r.nombre,tenant,origen&&origen.carrera);
   return typeof clave==='string'&&clave.trim()?normName(clave):null;
