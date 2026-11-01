@@ -33,6 +33,13 @@ chk('elige una clase cuando el ramo calza',r.sel&&r.sel.anuncio.id==='a1'&&r.sel
 chk('y anota la franja y cuál fue',r.estado.franja==='2026-09-28-manana'&&r.estado.anuncioId==='a1');
 const manana=r.estado;
 chk('en la misma visita se mantiene al volver a Inicio',dia(complicado,manana,lunes+3600e3).sel?.anuncio.id==='a1');
+ctx.__avisos=[{...aviso('a1'),estado:'pausado'},aviso('a2')];
+chk('si el fijado fue pausado, encuentra el otro sin recargar',dia(complicado,manana,lunes+3600e3).sel?.anuncio.id==='a2');
+ctx.__avisos=[{...aviso('a1'),vence_at:new Date(lunes+1000).toISOString()},aviso('a2')];
+chk('si el fijado expiró, no deja Inicio vacío',dia(complicado,manana,lunes+3600e3).sel?.anuncio.id==='a2');
+ctx.__avisos=[{...aviso('a1'),criterios:{promedioMenorA:2,avanceMinimo:20}},aviso('a2')];
+chk('si cambió el público del fijado, busca otro que sí calce',dia(complicado,manana,lunes+3600e3).sel?.anuncio.id==='a2');
+ctx.__avisos=[aviso('a1'),aviso('a2')];
 // Desde el 2026-09-30 (pedido de Lucas), cada vez que se abre la app sale la
 // siguiente de las clases que calzan, no una por mañana y tarde.
 chk('al volver a abrir la app, sale la otra',dia(complicado,manana,lunes+3600e3,'v2').sel?.anuncio.id==='a2');

@@ -140,7 +140,9 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
   // dejó de calzar, desaparece en vez de quedarse pegada.
   if(e.visita===visita&&e.anuncioId&&!descartados.includes(e.anuncioId)){
     const sel=seleccionarClaseApoyo((anuncios||[]).filter(a=>a&&a.id===e.anuncioId),ramos,tenant,{ahora,descartados});
-    return {sel,estado:e};
+    if(sel)return {sel,estado:e};
+    // Si expiró, lo pausaron o dejó de calzar, busca otra clase. Mantener
+    // el id inválido dejaba Inicio vacío durante el resto de la visita.
   }
   // Apertura nueva: la siguiente en la rotación. `aperturas` cuenta las que ya
   // mostraron algo, así que la primera vez sale la primera.
@@ -165,6 +167,11 @@ function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
 function textoCierreClase(){return 'Listo, no te mostramos este anuncio por hoy';}
 
 let anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
+const VIGENCIA_CATALOGO_RECOMENDACION=5*60*1000;
+function catalogoRecomendacionVencido(tenant,ahora=Date.now()){
+  return anunciosRecomendacion.tenant!==tenant||anunciosRecomendacion.lista===null||
+    !Number.isFinite(anunciosRecomendacion.cargadoAt)||ahora-anunciosRecomendacion.cargadoAt>=VIGENCIA_CATALOGO_RECOMENDACION;
+}
 // afterLogin la llama antes de que Inicio exista, en paralelo con la lectura de
 // las notas: así el aviso suele estar listo en el primer pintado y no aparece
 // después empujando los ramos de abajo (eso es lo que mide el CLS). Quien la
@@ -178,7 +185,7 @@ function cargarAnunciosRecomendacion(tenant,alTerminar){
   anunciosRecomendacion=pedido;
   cargarAnunciosClases(tenant,{propagarError:true}).then(lista=>{
     if(anunciosRecomendacion!==pedido)return;
-    anunciosRecomendacion={tenant,lista:Array.isArray(lista)?lista:[],pidiendo:false};
+    anunciosRecomendacion={tenant,lista:Array.isArray(lista)?lista:[],pidiendo:false,cargadoAt:Date.now()};
     pedido.esperan.forEach(fn=>fn());
   }).catch(()=>{
     if(anunciosRecomendacion===pedido)anunciosRecomendacion={tenant,lista:null,pidiendo:false};
@@ -267,7 +274,9 @@ function pintarRecomendacionClase(contenedor){
     return;
   }
   if(Date.now()<cierre.hasta)return;
-  if(anunciosRecomendacion.tenant!==S.tenant||anunciosRecomendacion.lista===null){
+  // También al regresar a la app (focus/visibilitychange): no conservar
+  // indefinidamente un catálogo vacío de antes de publicar la campaña.
+  if(catalogoRecomendacionVencido(S.tenant)){
     cargarAnunciosRecomendacion(S.tenant,()=>{if(contenedor.isConnected)pintarRecomendacionClase(contenedor);});
     return;
   }
