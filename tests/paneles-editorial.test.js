@@ -17,13 +17,13 @@ assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__filas,'inicio',__ahor
 assert.equal(run("serieHistorialPrivado(__filas,'inicio','vistas',__ahora).puntos.reduce((n,p)=>n+p.valor,0)"),114,'agrupar semanas no pierde conteos');
 assert.equal(run("serieHistorialPrivado(__filas,'7','vistas',__ahora).puntos.length"),7,'los días sin registros confirmados valen cero');
 assert.equal(JSON.stringify(ctx.__filas),antes);
-// En Chile aún es octubre, pero SQL ya registra el 1 de noviembre UTC.
-// No se puede tratar ese dato confirmado como si fuera un evento futuro.
+// Los registros nuevos de la noche usan el día de Chile, aunque UTC ya haya
+// cambiado. Las fechas históricas no se reinterpretan.
 ctx.__noche=Date.parse('2026-10-31T22:17:00-03:00');
 ctx.__registro=[{dia:'2026-10-31',vistas:21},{dia:'2026-11-01',vistas:3},{dia:'2026-11-02',vistas:1000}];
-assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__registro,'7',__noche).filas).vistas"),24);
-assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__registro,'1',__noche).filas).vistas"),3);
-assert.equal(run("serieHistorialPrivado(__registro,'inicio','vistas',__noche).puntos.reduce((n,p)=>n+p.valor,0)"),24);
+assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__registro,'7',__noche).filas).vistas"),21);
+assert.equal(run("sumarHistorialPrivado(intervaloPrivado(__registro,'1',__noche).filas).vistas"),21);
+assert.equal(run("serieHistorialPrivado(__registro,'inicio','vistas',__noche).puntos.reduce((n,p)=>n+p.valor,0)"),21);
 assert.equal(run("intervaloPrivado(__registro,'1',Date.parse('2026-11-01T00:01:00+09:00')).hasta"),'2026-10-31','no depende del huso del dispositivo');
 ctx.__profesor={nombre:'Profesor sintético',estado:'aprobado',anuncios:[{id:'aviso-sintetico',titulo:'Clase de ejemplo',estado:'publicado',precio_clp:10000,
  publicado_at:'2026-10-31T22:30:00Z',vence_at:'2026-11-02T22:30:00Z',ramos_siglas:['TEST100'],

@@ -35,6 +35,15 @@ No está disponible para clientes autenticados o anónimos.
   una app antigua, desconexiones o una llamada que nunca llegó no se reconstruyen.
   El servidor no puede verificar que una vista ocurrió físicamente en pantalla.
   Estos eventos adicionales nunca aumentan la facturación.
+- Cupo diario por cuenta, anuncio, publicación y tipo: **4 impresiones,
+  2 aperturas y 1 contacto**, por día de Chile (`America/Santiago`), decisión
+  de Lucas del 2026-11-02. El evento que
+  excede el cupo devuelve `false`, sin recibo ni agregado, y el cliente no lo
+  reintenta. Se compara `creado_at` con las medianoches de Chile, incluso en
+  días de 23/25 horas. El índice del cupo usa los recibos existentes; no hay otra tabla
+  de identidad. El bloqueo del anuncio evita superar el límite por concurrencia.
+  El cupo limita el abuso de una cuenta; no garantiza autenticidad física ni
+  evita abuso coordinado con muchas cuentas. No se recortan cifras anteriores.
 
 ## Cuentas y anuncios existentes
 

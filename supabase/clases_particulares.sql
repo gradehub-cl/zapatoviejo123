@@ -808,6 +808,7 @@ begin
 end;
 $$;
 
+alter table public.anuncio_metricas alter column dia set default (now() at time zone 'America/Santiago')::date;
 alter table public.anuncio_metricas enable row level security;
 revoke all on public.anuncio_metricas from public, anon, authenticated;
 
@@ -1026,7 +1027,7 @@ using ((select auth.uid()) = autor_id);
 create table if not exists public.anuncio_alcance (
   anuncio_id      uuid not null references public.tutor_anuncios(id) on delete cascade,
   user_id         uuid not null references auth.users(id) on delete cascade,
-  dia             date not null default current_date,
+  dia             date not null default (now() at time zone 'America/Santiago')::date,
   -- La llave es (aviso, cuenta): una cuenta cuenta UNA vez por campaña, aunque
   -- vea el aviso todos los días. Cobrar por día sería cobrar por frecuencia.
   primary key (anuncio_id, user_id)
@@ -1054,6 +1055,9 @@ update public.anuncio_alcance a set vence_publicacion = t.vence_at
 from public.tutor_anuncios t
 where t.id = a.anuncio_id and a.publicacion = '-infinity' and a.vence_publicacion is null and t.vence_at is not null;
 
+alter table public.anuncio_alcance alter column dia set default (now() at time zone 'America/Santiago')::date;
+alter table public.anuncio_alcance add column if not exists dia_zona text not null default 'UTC' check (dia_zona in ('UTC','America/Santiago'));
+alter table public.anuncio_alcance alter column dia_zona set default 'America/Santiago';
 alter table public.anuncio_alcance enable row level security;
 revoke all on public.anuncio_alcance from public, anon, authenticated;
 
@@ -1311,7 +1315,7 @@ create table if not exists public.anuncio_interacciones (
   anuncio_id  uuid not null references public.tutor_anuncios(id) on delete cascade,
   user_id     uuid not null references auth.users(id) on delete cascade,
   tipo        text not null check (tipo in ('apertura', 'contacto')),
-  dia         date not null default current_date,
+  dia         date not null default (now() at time zone 'America/Santiago')::date,
   primary key (anuncio_id, user_id, tipo)
 );
 -- Identidad de la publicación. -infinity conserva el conjunto heredado.
@@ -1338,6 +1342,9 @@ update public.anuncio_interacciones i set vence_publicacion = t.vence_at
 from public.tutor_anuncios t
 where t.id = i.anuncio_id and i.publicacion = '-infinity' and i.vence_publicacion is null and t.vence_at is not null;
 
+alter table public.anuncio_interacciones alter column dia set default (now() at time zone 'America/Santiago')::date;
+alter table public.anuncio_interacciones add column if not exists dia_zona text not null default 'UTC' check (dia_zona in ('UTC','America/Santiago'));
+alter table public.anuncio_interacciones alter column dia_zona set default 'America/Santiago';
 alter table public.anuncio_interacciones enable row level security;
 revoke all on public.anuncio_interacciones from public, anon, authenticated;
 

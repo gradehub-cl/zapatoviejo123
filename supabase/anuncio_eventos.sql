@@ -24,6 +24,8 @@ create table if not exists public.anuncio_eventos_recibos (
   primary key(user_id,evento_id)
 );
 create index if not exists anuncio_eventos_recibos_retencion on public.anuncio_eventos_recibos(vence_publicacion);
+create index if not exists anuncio_eventos_recibos_cupo_diario
+  on public.anuncio_eventos_recibos(user_id,anuncio_id,publicacion,tipo,creado_at);
 alter table public.anuncio_eventos_recibos enable row level security;
 revoke all on public.anuncio_eventos_recibos from public, anon, authenticated;
 
@@ -36,6 +38,7 @@ create table if not exists public.anuncio_eventos_diarios (
   eventos bigint not null check(eventos>0),
   primary key(anuncio_id,publicacion,dia,tipo)
 );
+alter table public.anuncio_eventos_diarios alter column dia set default (now() at time zone 'America/Santiago')::date;
 alter table public.anuncio_eventos_diarios enable row level security;
 revoke all on public.anuncio_eventos_diarios from public, anon, authenticated;
 
@@ -47,6 +50,10 @@ declare
   uid uuid:=auth.uid();
   pendiente boolean;
   filas integer;
+  limite integer;
+  dia_chile date := (now() at time zone 'America/Santiago')::date;
+  inicio_dia timestamptz := dia_chile::timestamp at time zone 'America/Santiago';
+  fin_dia timestamptz := (dia_chile+1)::timestamp at time zone 'America/Santiago';
 begin
   if uid is null then raise exception 'hay que haber iniciado sesión' using errcode='42501'; end if;
   if p_evento_id is null or p_publicacion is null or p_tipo is null or p_tipo not in ('impresion','clic','contacto') then
@@ -61,6 +68,17 @@ begin
     raise exception 'la sigla no corresponde al anuncio' using errcode='22023';
   end if;
   if exists(select 1 from public.anuncio_eventos_recibos where user_id=uid and evento_id=p_evento_id) then
+    return false;
+  end if;
+  -- El bloqueo del anuncio serializa también este cupo: dos llamadas en
+  -- paralelo no pueden superar el máximo. False no escribe ni deja recibo.
+  -- Límites locales equivalentes al día de creado_at en America/Santiago;
+  -- usa el índice y respeta días de 23/25 horas, sin asumir 24 horas.
+  limite:=case p_tipo when 'impresion' then 4 when 'clic' then 2 else 1 end;
+  if (select count(*) from (select 1 from public.anuncio_eventos_recibos
+      where user_id=uid and anuncio_id=a.id and publicacion=a.medicion_desde and tipo=p_tipo
+        and creado_at>=inicio_dia and creado_at<fin_dia
+      limit limite) recibos_del_dia)>=limite then
     return false;
   end if;
   -- Permite completar el primer evento que acaba de alcanzar el tope. Consume
@@ -89,7 +107,7 @@ begin
   if filas=0 then return false; end if;
   perform public.registrar_metrica_anuncio(a.id,p_tipo,p_ramo_sigla);
   insert into public.anuncio_eventos_diarios(anuncio_id,publicacion,dia,tipo,eventos)
-    values(a.id,a.medicion_desde,(now() at time zone 'UTC')::date,p_tipo,1)
+    values(a.id,a.medicion_desde,(now() at time zone 'America/Santiago')::date,p_tipo,1)
     on conflict(anuncio_id,publicacion,dia,tipo) do update
       set eventos=public.anuncio_eventos_diarios.eventos+1;
   return true;
@@ -127,15 +145,16 @@ begin
   -- cuentan una vez y se suman a lo medido desde entonces. Las repeticiones de
   -- esa época no se recuperan, así que es un mínimo, y nunca menos que las
   -- personas distintas (una app vieja en caché registra la persona sin el evento).
-  -- `dia` de esas filas es la fecha UTC de `current_date`; se compara igual.
+  -- Las fechas anteriores conservan UTC; las nuevas declaran su zona.
+  -- Se compara cada fila con el corte de su propia zona, sin reinterpretarla.
   desde_dia:=(desde at time zone 'UTC')::date;
-  select count(*) filter (where dia<desde_dia) as antes,count(*) as todas into previas
-    from public.anuncio_alcance where anuncio_id=a.id and publicacion=a.medicion_desde;
-  select count(*) filter (where tipo='apertura' and dia<desde_dia) as clic_antes,
-         count(*) filter (where tipo='contacto' and dia<desde_dia) as contacto_antes,
+  select count(*) filter (where dia<case when coalesce(to_jsonb(alc)->>'dia_zona','UTC')='America/Santiago' then (desde at time zone 'America/Santiago')::date else desde_dia end) as antes,count(*) as todas into previas
+    from public.anuncio_alcance alc where anuncio_id=a.id and publicacion=a.medicion_desde;
+  select count(*) filter (where tipo='apertura' and dia<case when coalesce(to_jsonb(it)->>'dia_zona','UTC')='America/Santiago' then (desde at time zone 'America/Santiago')::date else desde_dia end) as clic_antes,
+         count(*) filter (where tipo='contacto' and dia<case when coalesce(to_jsonb(it)->>'dia_zona','UTC')='America/Santiago' then (desde at time zone 'America/Santiago')::date else desde_dia end) as contacto_antes,
          count(*) filter (where tipo='apertura') as clic,
          count(*) filter (where tipo='contacto') as contacto into personas
-    from public.anuncio_interacciones where anuncio_id=a.id and publicacion=a.medicion_desde;
+    from public.anuncio_interacciones it where anuncio_id=a.id and publicacion=a.medicion_desde;
   anterior:=a.vence_at<=desde and n_vistas=0 and n_clics=0 and n_contactos=0;
   n_vistas:=greatest(n_vistas+previas.antes,previas.todas);
   n_clics:=greatest(n_clics+personas.clic_antes,personas.clic);
