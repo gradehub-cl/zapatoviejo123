@@ -370,11 +370,11 @@ function activarTarjetasClases(raiz){
 // la vista no cuenta. Se registra una vez por anuncio mientras el catálogo
 // está abierto: buscar y volver a pintar no la suma de nuevo.
 //
-// Va a `anuncio_metricas`, que cuenta eventos y no factura. El alcance por
-// catálogo —lo que sí se cobraría, a un precio menor que el segmentado— espera
-// a que el servidor distinga por qué camino llegó cada cuenta.
+// El alcance por cuenta se conserva para el cobro; los eventos repetidos
+// van por separado, con una clave que se reutiliza si falla la respuesta.
 const IMPRESION_VISIBLE=0.5,IMPRESION_MS=1000;
 let impresionesCatalogo=new Set(),observadorCatalogo=null,logosCatalogoClases=new Map(),limpiarVisibilidadCatalogo=null;
+let eventosCatalogo=new Map();
 function observarImpresionesClases(raiz,anuncios,busqueda=''){
   // Si la persona escribió algo, las tarjetas que ve son resultado de buscar.
   const canal=String(busqueda||'').trim()?'busqueda':'lista';
@@ -382,6 +382,7 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
   if(observadorCatalogo){observadorCatalogo.disconnect();observadorCatalogo=null;}
   if(typeof IntersectionObserver!=='function'||!raiz)return;
   const sigla=new Map((anuncios||[]).map(a=>[a.id,(a.ramos_siglas||[])[0]||'']));
+  const eventos=eventosCatalogo;
   const timers=new Map(),visibles=new Set(),tarjetas=new Map();
   const programar=(card,id,demora=IMPRESION_MS)=>{
     if(timers.has(id))return;
@@ -389,12 +390,15 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
       timers.delete(id);
       const clave=id+':'+canal;
       if(document.visibilityState==='hidden'||!card.isConnected||!visibles.has(id)||impresionesCatalogo.has(clave))return;
+      const usuario=currentUser&&currentUser.id;
       const alcance=await registrarAlcanceAnuncio(id,canal);
+      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo)return;
       if(alcance===null){
         if(card.isConnected&&visibles.has(id))programar(card,id,5000);
         return;
       }
-      const metrica=await registrarMetricaAnuncio(id,'impresion',sigla.get(id));
+      if(!eventosCatalogo.has(clave))eventosCatalogo.set(clave,nuevoEventoMetricaClase());
+      const metrica=await registrarMetricaAnuncio(id,'impresion',sigla.get(id),{eventoId:eventosCatalogo.get(clave)});
       if(metrica===null){
         if(card.isConnected&&visibles.has(id))programar(card,id,5000);
         return;
@@ -430,6 +434,7 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
 
 async function openCatalogoClases(){
   impresionesCatalogo=new Set();
+  eventosCatalogo=new Map();
   const raiz=document.getElementById('modal-content');
   if(!raiz)return;
   estadoCargaCatalogo='cargando';catalogoClasesActual=[];nombresCatalogoClasesActual={};logosCatalogoClases=new Map();
@@ -503,33 +508,49 @@ async function registrarInteraccionAnuncio(anuncioId,tipo){
   INTERACCION_EN_CURSO.set(clave,pendiente);
   return pendiente;
 }
-async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla){
+function nuevoEventoMetricaClase(){
+  if(typeof globalThis.crypto?.randomUUID==='function')return globalThis.crypto.randomUUID();
+  // Clave de idempotencia por evento, no un identificador de persona/dispositivo.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);
+  });
+}
+let eventosAnuncioDisponibles=true;
+async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null}={}){
   const payload=payloadMetricaAnuncio(anuncioId,tipo,ramoSigla);
   if(!supabaseClient||!currentUser||!payload)return false;
   try{
+    const anuncio=catalogoClasesActual.find(a=>a.id===anuncioId)||(anunciosRecomendacion.lista||[]).find(a=>a.id===anuncioId);
+    publicacion=publicacion||anuncio?.publicado_at;
+    if(eventosAnuncioDisponibles&&publicacion){
+      const r=await supabaseClient.rpc('registrar_evento_anuncio',{...payload,p_evento_id:eventoId,p_publicacion:publicacion});
+      if(!r.error)return r.data===true;
+      if(!sqlClasesDesactualizado(r.error))throw r.error;
+      eventosAnuncioDisponibles=false; // Sin SQL: conserva la medición anterior.
+    }
     const {data,error}=await supabaseClient.rpc('registrar_metrica_anuncio',payload);
     if(error)throw error;
     return data===true;
   }catch(error){console.warn('No se pudo registrar la métrica del anuncio:',error.message||error);return null;}
 }
 
-// El evento auxiliar se intenta solo después de confirmar la fila cobrable.
-// Si falla esa segunda llamada, el servidor conserva la marca pendiente y
-// este reintento no puede inflar el gráfico aunque se repita.
-async function registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos=2}={}){
+// La repetición se registra después de confirmar la interacción única.
+// Un reintento conserva su clave: una respuesta perdida no suma otro evento.
+async function registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos=2,eventoId=nuevoEventoMetricaClase()}={}){
   const usuario=currentUser&&currentUser.id;
   const cargo=await registrarInteraccionAnuncio(anuncioId,tipo);
+  if(!currentUser||currentUser.id!==usuario)return null;
   if(cargo===null){
     // La apertura ya ocurrió en pantalla y su botón desapareció: reintentarla
     // sin pedir otro clic. Contacto sí requiere un nuevo gesto para navegar.
     if(tipo==='apertura'&&reintentos>0)setTimeout(()=>{
-      if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1});
+      if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
     },5000);
     return null;
   }
-  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla);
+  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId});
   if(metrica===null&&reintentos>0)setTimeout(()=>{
-    if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1});
+    if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
   },5000);
   return cargo;
 }

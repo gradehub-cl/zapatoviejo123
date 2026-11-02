@@ -76,15 +76,15 @@ for(const pct of [0,100,null]){
 }
 // No confundir eventos con personas: las barras comparan solo personas,
 // conservando aparte los eventos y la ausencia de datos.
-ctx.__medida={alcance:70,totales:{impresion:150,clic:40,contacto:20},hayCortes:true,campana:{vistas:100,aperturas:25,contactos:5},costo:null};
+ctx.__medida={alcance:70,totales:{impresion:150,clic:40,contacto:20},hayCortes:true,eventos:{desde:"2026-11-01T12:00:00Z",impresion:150,clic:40,contacto:20},campana:{vistas:100,aperturas:25,contactos:5},costo:null};
 const medidaAntes=JSON.stringify(ctx.__medida);
 const etapas=run('cifrasClase(__medida,pesosClase)');
 assert.deepEqual([...etapas.matchAll(/scaleX\(([\d.]+)\)/g)].map(m=>m[1]),['1.0000','0.2500','0.0500']);
-assert.match(etapas,/>150<\/b><small>veces en total/);
+assert.match(etapas,/>150<\/b><small>veces medidas/);
 assert.equal(JSON.stringify(ctx.__medida),medidaAntes);
 const cero=run('cifrasClase({...__medida,campana:{vistas:0,aperturas:0,contactos:0}},pesosClase)');
 assert.equal((cero.match(/scaleX\(0\.0000\)/g)||[]).length,3);
-const desconocido=run('cifrasClase({...__medida,alcance:null,campana:null,hayCortes:false},pesosClase)');
+const desconocido=run('cifrasClase({...__medida,alcance:null,campana:null,hayCortes:false,eventos:null},pesosClase)');
 assert.doesNotMatch(desconocido,/clase-etapa-riel|scaleX/);assert.match(desconocido,/>—<\/b>/);
 // El coste y el tope son los mismos; sin tope no se dibuja un falso 0%.
 assert.match(run('presupuestoProfesorHTML({total:2500,tope:10000})'),/--anillo-fin:75.00/);
@@ -106,7 +106,7 @@ assert.match(conPresupuesto,/Por contacto/);
 
 // Detalle de Profesor/Admin: categorías comparables y eventos repetidos.
 const eventos=run('embudoClase({impresion:40,clic:60,contacto:15})');
-assert.match(eventos,/Interacciones/);assert.match(eventos,/veces/);
+assert.match(eventos,/Interacciones/);assert.match(eventos,/registros/);
 assert.doesNotMatch(eventos,/quienes|personas|scaleX\(1\.[1-9]/);
 assert.deepEqual([...eventos.matchAll(/scaleX\(([\d.]+)\)/g)].map(m=>Number(m[1])),[.6667,1,.25],
   'eventos repetidos: misma escala, ninguna barra excede el gráfico');

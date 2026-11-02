@@ -60,15 +60,17 @@ run("logosDeAnuncios=async()=>new Map(); cargarAnunciosClasesOriginal=cargarAnun
  enter(.5);for(const[id,t]of [...timers]){timers.delete(id);await t.f();}
  enter(.8);assert.equal(timers.size,0);
  assert(calls.some(c=>c.n==='registrar_alcance_anuncio'&&c.p.p_canal==='lista'));
- assert(calls.some(c=>c.n==='registrar_metrica_anuncio'&&c.p.p_tipo==='impresion'));
+ assert(calls.some(c=>c.n==='registrar_evento_anuncio'&&c.p.p_tipo==='impresion'));
+ const evento=calls.find(c=>c.n==='registrar_evento_anuncio');
+ assert.equal(evento.p.p_publicacion,base.publicado_at);assert.ok(evento.p.p_evento_id);
  const abrir=card.querySelector('[data-abrir]');abrir.listeners.click();
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(card.querySelector('.catalogo-clase-mas').hidden,false);
  await card.querySelector('[data-contactar]').listeners.click({preventDefault(){}});
  assert(calls.some(c=>c.n==='registrar_interaccion_anuncio'&&c.p.p_tipo==='apertura'));
  assert(calls.some(c=>c.n==='registrar_interaccion_anuncio'&&c.p.p_tipo==='contacto'));
- assert(calls.some(c=>c.n==='registrar_metrica_anuncio'&&c.p.p_tipo==='clic'&&c.p.p_ramo_sigla==='MAT1620'));
- assert(calls.some(c=>c.n==='registrar_metrica_anuncio'&&c.p.p_tipo==='contacto'));
+ assert(calls.some(c=>c.n==='registrar_evento_anuncio'&&c.p.p_tipo==='clic'&&c.p.p_ramo_sigla==='MAT1620'));
+ assert(calls.some(c=>c.n==='registrar_evento_anuncio'&&c.p.p_tipo==='contacto'));
  // Buscar cambia el canal; filtros de precio sin texto siguen siendo lista.
  run("renderCatalogoClases('MAT1620')");const search=observers.at(-1);
  search.cb([{target:search.nodes[0],isIntersecting:true,intersectionRatio:1}]);for(const[id,t]of [...timers]){timers.delete(id);await t.f();}
@@ -90,7 +92,7 @@ run("logosDeAnuncios=async()=>new Map(); cargarAnunciosClasesOriginal=cargarAnun
  assert([...timers.values()].some(t=>t.ms===5000));
  for(const[id,t]of [...timers]){timers.delete(id);await t.f();}
  assert.equal(calls.slice(inicio).filter(c=>c.n==='registrar_alcance_anuncio').length,2);
- assert.equal(calls.slice(inicio).filter(c=>c.n==='registrar_metrica_anuncio'&&c.p.p_tipo==='impresion').length,1);
+ assert.equal(calls.slice(inicio).filter(c=>c.n==='registrar_evento_anuncio'&&c.p.p_tipo==='impresion').length,1);
  run("cargarAnunciosClases=async()=>{throw Error('sin red')}");await run('openCatalogoClases()');
  assert.match(root.querySelector('#catalogo-clases-estado').textContent,/No pudimos cargar/);
  assert(root.querySelector('.catalogo-reintentar'));

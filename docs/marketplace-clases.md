@@ -320,8 +320,10 @@ y devuelve únicamente un total agregado. No se implementa de nuevo la aritméti
 en SQL. La regla y la tarifa aprobadas se guardan como una instantánea inmutable
 de la campaña.
 
-`anuncio_metricas` sigue sirviendo para observar impresiones, clics y contactos,
-pero **no factura**: cuenta eventos y no personas. La tabla privada de alcance,
+`anuncio_metricas` conserva el agregado auxiliar histórico de impresiones, clics
+y contactos, pero **no factura**. Desde la deduplicación de octubre no mide
+repeticiones completas: su RPC admite una marca por cuenta y publicación.
+La tabla privada de alcance,
 el saldo prepago, la fecha de última actividad y el cálculo agregado requieren
 otro SQL aditivo y un paso manual antes de activar cobros. No cambian `gradehub_v1`
 ni el significado de las notas.
@@ -355,8 +357,14 @@ datos sincronizados -> cálculo interno restringido -> total elegible
 
 Las métricas llevan únicamente `anuncio_id`, tipo de evento y sigla del aviso.
 No incluyen `user_id`, correo, carrera, semestre, promedio, nota, estado de
-consentimiento ni un indicador de riesgo. Los reportes para tutores salen solo
-agregados y desde quince eventos; cuentan eventos, no personas.
+consentimiento ni un indicador de riesgo. Los reportes para tutores separan
+personas distintas (campaña/cobro) de veces
+medidas desde la instalación de `anuncio_eventos.sql`. Los nuevos totales entre
+1 y 14 se ocultan; cero confirmado sí se muestra. No se reconstruyen repeticiones
+anteriores. El nuevo registro agrega una clave aleatoria por evento y la fecha
+de publicación, sin enviar identidad ni datos académicos en el payload.
+Detalles de acceso, retención y aplicación manual:
+[personas y repeticiones](marketplace/metricas-repeticiones.md).
 
 ## Orden de lanzamiento
 

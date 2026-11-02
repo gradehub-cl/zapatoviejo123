@@ -210,7 +210,7 @@ const ANUNCIO_YA_SE_MOSTRO=new Set(['publicado','pausado','expirado']);
 // aplicar): ahí se usa el total de siempre y todo se cobra como segmentado,
 // que es como se cotizaba antes. Nunca se inventa un reparto.
 async function metricasDeAnuncio(anuncio){
-  const salida={alcance:null,porCanal:null,cortes:[],agregados:null,historial:null,campana:anuncio&&anuncio.campana||null,error:false};
+  const salida={alcance:null,porCanal:null,cortes:[],agregados:null,historial:null,eventos:null,campana:anuncio&&anuncio.campana||null,error:false};
   if(!anuncio||!ANUNCIO_YA_SE_MOSTRO.has(anuncio.estado))return salida;
   // La campaña: personas que vieron, abrieron y contactaron, y días cobrados.
   // Sin el SQL de campañas no hay costo que mostrar, y no se inventa.
@@ -254,6 +254,14 @@ async function metricasDeAnuncio(anuncio){
     const {data,error}=await supabaseClient.rpc('historial_anuncio',{p_anuncio_id:anuncio.id,p_dias:null});
     if(!error&&Array.isArray(data))salida.historial=data;
   }catch(e){} // El resumen anterior sigue disponible sin el SQL nuevo.
+  try{
+    const {data,error}=await supabaseClient.rpc('resumen_eventos_anuncio',{p_anuncio_id:anuncio.id});
+    const tipos=['impresion','clic','contacto'];
+    const anterior=data&&data.anterior===true&&data.desde===null&&tipos.every(k=>data[k]===null);
+    const medido=data&&!data.anterior&&Number.isFinite(Date.parse(data.desde))&&
+      tipos.every(k=>data[k]===null||Number.isSafeInteger(data[k])&&data[k]>=0);
+    if(!error&&(anterior||medido))salida.eventos=data;
+  }catch(e){} // Nunca usa el agregado heredado como si midiera repeticiones.
   return salida;
 }
 
@@ -349,39 +357,42 @@ function avanceCampanaAnuncio(a,ahora=Date.now()){
   return Math.min(Math.max((ahora-desde)/(hasta-desde),0),1);
 }
 
-// Cada etapa con sus dos números juntos: cuántas personas distintas (lo que
-// se cobra) y cuántas veces en total (una persona puede verla en la mañana y
-// en la tarde). Separados en tarjetas sueltas no se entendía qué medía cada
-// uno. Solo se pinta lo que se sabe: el servidor no devuelve cortes con menos
-// de quince eventos, y "0 veces" ahí sería inventarlo.
-function cifrasClase({alcance,totales,hayCortes,campana,costo},pesos,etiquetaPersonas='personas distintas',conPresupuesto=false){
+// Las personas siguen siendo de la campaña. Las veces vienen SOLO del nuevo
+// contador idempotente y muestran su fecha de inicio; el agregado heredado no
+// mide repeticiones y nunca se usa como sustituto.
+function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas='personas distintas',conPresupuesto=false){
   const miles=n=>new Intl.NumberFormat('es-CL').format(n);
-  const veces=n=>hayCortes&&n?n:null;
+  const medido=eventos&&!eventos.anterior;
+  const veces=k=>eventos&&Number.isSafeInteger(eventos[k])&&eventos[k]>=0?eventos[k]:null;
   // Con la campaña medida, las personas vienen de ahí: son exactas y son lo
   // que se cobra. Sin ella, el alcance de siempre, y abrir o contactar solo
   // se saben como veces.
   const etapas=[
-    ['Se mostró',campana?campana.vistas:alcance,veces(totales.impresion),true],
-    ['La abrieron',campana?campana.aperturas:null,veces(totales.clic),false],
-    ['Te contactaron',campana?campana.contactos:null,veces(totales.contacto),false]];
+    ['Se mostró',campana?campana.vistas:alcance,veces('impresion'),true],
+    ['La abrieron',campana?campana.aperturas:null,veces('clic'),false],
+    ['Te contactaron',campana?campana.contactos:null,veces('contacto'),false]];
   const maxPersonas=Math.max(1,...etapas.map(([,p])=>Number(p)||0));
   const mitad=(v,d)=>`<div><b>${v}</b><small>${d}</small></div>`;
   const html=etapas.filter(([,p,v,siempre])=>siempre||p!==null&&p!==undefined||v!==null).map(([t,p,v])=>
     `<div class="clase-etapa${t==='Te contactaron'?' clase-etapa-contactos':''}"><span>${t}</span><div class="clase-par">${
       [p!==null&&p!==undefined?mitad(miles(p),etiquetaPersonas):campana||!v?mitad('—',etiquetaPersonas):'',
-       v!==null?mitad(miles(v),'veces en total'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
+       medido?mitad(v===null?'—':miles(v),'veces medidas'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
   const f=[];
   if(costo&&!costo.sinCosto&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
   if(costo&&!costo.sinCosto&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
-  return `<div class="clase-etapas">${html}</div>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
+  const nota=eventos?.anterior?'Esta campaña terminó antes de medir repeticiones. Se conservan las personas distintas.'
+    :medido?`Veces medidas desde ${new Date(eventos.desde).toLocaleString('es-CL',{timeZone:'America/Santiago'})} · Sin registros de repeticiones anteriores.`+
+    (['impresion','clic','contacto'].some(k=>eventos[k]===null)?' Los totales menores a 15 quedan ocultos.':'')
+    :'El total de veces aún no está disponible. Las cifras de personas distintas se conservan.';
+  return `<div class="clase-etapas">${html}</div><p class="clase-privacidad">${esc(nota)}</p>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');
 }
 
-// Son eventos, no personas ni pasos necesariamente consecutivos. Todas las
-// barras comparten escala aunque una interacción se repita más que otra.
+// Agregado histórico: no equivale al nuevo total de repeticiones.
+// Las barras comparten escala y conservan sus registros originales.
 function embudoClase(totales){
   if(!totales.impresion)return '';
   const filas=[['Se mostró',totales.impresion],['La abrieron',totales.clic],['Te contactaron',totales.contacto]].filter(([,n])=>n>0);
   if(filas.length<2)return '';
-  return barrasDetalleClaseHTML({titulo:'Interacciones',filas:filas.map(([nombre,valor])=>({nombre,valor})),unidad:'veces'});
+  return barrasDetalleClaseHTML({titulo:'Interacciones',filas:filas.map(([nombre,valor])=>({nombre,valor})),unidad:'registros'});
 }

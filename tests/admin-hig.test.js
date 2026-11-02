@@ -102,7 +102,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  for(const texto of ['Estadísticas del aviso','Presupuesto utilizado','Se mostró','La abrieron','Te contactaron','Más estadísticas','Cómo llegaron'])
   assert(panel.innerHTML.includes(texto),`Falta ${texto} en las estadísticas del admin`);
  assert.match(panel.innerHTML,/Solo totales por anuncio/);
- assert.deepEqual(calls.slice(antes).map(c=>c.n),['admin_panel_clases','campana_anuncio_con_tarifa','alcance_anuncio_por_canal','resumen_metricas_anuncio','totales_metricas_anuncio','historial_anuncio']);
+ assert.deepEqual(calls.slice(antes).map(c=>c.n),['admin_panel_clases','campana_anuncio_con_tarifa','alcance_anuncio_por_canal','resumen_metricas_anuncio','totales_metricas_anuncio','historial_anuncio','resumen_eventos_anuncio']);
  assert(calls.slice(antes).filter(c=>c.p).every(c=>c.p.p_anuncio_id==='a1'));
  await ver.listeners.click();assert.equal(panel.hidden,true);
  modo='throw';await ver.listeners.click();assert.match(panel.innerHTML,/No pudimos cargar las estadísticas/);assert.equal(ver.textContent,'Reintentar estadísticas');
