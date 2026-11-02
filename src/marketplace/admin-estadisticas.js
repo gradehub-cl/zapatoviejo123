@@ -141,7 +141,7 @@ function crecimientoAdminHTML(semanas,ahora=Date.now()){
     ${semanas.length>1?`<details class="datos-definiciones"><summary>Detalle de la semana del ${esc(fechaCortaAdmin(semanas[0].semana))}</summary>`:''}<div class="admin-crecimiento-actual">${semana(semanas[0])}</div>${semanas.length>1?'</details>':''}
     ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
 }
-const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios'];
+const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios','pautas'];
 function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcance=null,historial=null){
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
@@ -151,7 +151,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
   // Decía «Todo en orden.» aunque hubiera anuncios esperando revisión.
   return `<div class="admin-hig">
     <div class="admin-hig-areas" role="tablist" aria-label="Secciones de administración">
-      ${tab('profesores','Profesores')}${tab('anuncios','Anuncios')}${tab('estadisticas','Estadísticas')}${tab('usuarios','Usuarios')}
+      ${tab('profesores','Profesores')}${tab('anuncios','Anuncios')}${tab('estadisticas','Estadísticas')}${tab('usuarios','Usuarios')}${tab('pautas','Pautas')}
     </div>
     ${panel('profesores',`<h2>Profesores</h2>
       <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Revisar logos sigue en SQL Editor.</p>
@@ -167,6 +167,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     ${panel('estadisticas',`<h2>Estadísticas de GradeHub</h2>
       ${crecimientoAdminHTML(crecimiento,ahora)||'<p class="admin-hig-nota" role="status">No pudimos cargar las cifras de la página por ahora.</p>'}
       ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}`)}
+    ${panel('pautas','<div id="admin-pautas-contenido"></div>')}
     ${panel('usuarios',`<h2>Usuarios</h2>
       <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>
       <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa"><h3>Programas reportados</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
@@ -255,6 +256,7 @@ async function pintarPanelAdmin(raiz){
     });
     raiz.querySelectorAll('[data-admin-panel]').forEach(p=>{p.hidden=p.dataset.adminPanel!==nombre;});
     if(typeof marcarVistaNav==='function')marcarVistaNav('admin',nombre);
+    if(nombre==='pautas')renderAdminPautas(raiz.querySelector('#admin-pautas-contenido'));
     if(nombre==='usuarios'){
       const caja=raiz.querySelector('#admin-encuestas-contenido');
       if(caja&&!caja.querySelector('.encuestas-admin'))renderAdminEncuestas(caja);
