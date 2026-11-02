@@ -59,7 +59,10 @@ período y no retrocede a una firma que pierda ese contexto.
 
 Los presets sin período declarado protegen contra aportes automáticos, sin que
 eso los presente como programas vigentes. El registro se toma del catálogo del
-repo; para actualizarlo se revisa el preset y se regenera la semilla junto a su PR.
+repo; para actualizarlo se revisa el preset y se ejecuta
+`node bin/actualizar-registro-pautas.js` junto a su PR (no aplica SQL). El test
+coteja todas las definiciones y detecta si el catálogo avanza sin la semilla.
+La integración de main incluye las 23 pautas UDD de #940: 169 en total.
 La información incompleta sigue en las tablas para auditoría: no se borra.
 
 Consulta reproducible de la instantánea previa, con la misma semilla de presets:

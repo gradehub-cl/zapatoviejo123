@@ -169,11 +169,40 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
       ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}`)}
     ${panel('pautas','<div id="admin-pautas-contenido"></div>')}
     ${panel('usuarios',`<h2>Usuarios</h2>
+      ${temaFestivoAdminHTML()}
       <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>
       <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa"><h3>Programas reportados</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
   </div>`;
 }
 
+// Un tema a la vez y lo ven todos (festivos.js, supabase/temas_festivos.sql).
+// Navidad queda con su botón listo pero sin diseño todavía (Martín, 2026-11-02).
+const TEMAS_FESTIVOS_ADMIN=[['','Ninguno'],['halloween','Halloween'],['navidad','Navidad · sin diseño todavía',true]];
+function temaFestivoAdminHTML(){
+  const actual=typeof temaFestivo==='string'?temaFestivo:'';
+  return `<fieldset class="admin-tema-festivo" data-admin-tema-festivo><legend>Temas festivos</legend>
+    <p class="admin-hig-nota">Lo ven todos, también antes de entrar. Nadie pierde su color: vuelve solo al apagarlo.</p>
+    ${TEMAS_FESTIVOS_ADMIN.map(([v,t,off])=>`<label><input type="radio" name="admin-tema-festivo" value="${v}"${v===actual?' checked':''}${off?' disabled':''}>${t}</label>`).join('')}
+    <p class="profesor-info" role="status" data-tema-festivo-estado></p></fieldset>`;
+}
+function enlazarTemaFestivoAdmin(raiz){
+  const caja=raiz.querySelector('[data-admin-tema-festivo]');
+  if(!caja||typeof caja.querySelector!=='function')return;
+  const estado=caja.querySelector('[data-tema-festivo-estado]');
+  caja.addEventListener('change',async e=>{
+    const tema=e.target.value||null,anterior=typeof temaFestivo==='string'?temaFestivo:'';
+    caja.disabled=true;estado.textContent='Guardando…';
+    try{
+      const {error}=await supabaseClient.rpc('admin_tema_festivo',{p_tema:tema});
+      if(error)throw error;
+      if(typeof ponerTemaFestivo==='function')ponerTemaFestivo(tema);
+      estado.textContent=tema?'Listo: lo ven todos desde que abran la app.':'Listo: tema festivo apagado.';
+    }catch(err){
+      const radio=caja.querySelector(`input[value="${anterior}"]`);if(radio)radio.checked=true;
+      estado.textContent=sqlClasesDesactualizado(err)?'Aplica supabase/temas_festivos.sql para usar esto.':'No se guardó. Intenta de nuevo.';
+    }finally{caja.disabled=false;}
+  });
+}
 // La vista elegida sobrevive al repintado: cada acción vuelve a pintar el
 // panel, y quien publicaba desde "Por revisar" caía de vuelta en "Campañas"
 // con la búsqueda y el filtro borrados.
@@ -231,6 +260,7 @@ async function pintarPanelAdmin(raiz){
   marcarPendientesNavAdmin(pendientes);
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance,historial);
   pintarReportesProgramaAdmin(raiz);
+  enlazarTemaFestivoAdmin(raiz);
   enlazarGraficosAdmin(raiz);
   const lista=raiz.querySelector('#admin-lista-profesores');
   if(lista&&typeof lista.querySelectorAll==='function'){
