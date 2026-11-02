@@ -162,6 +162,8 @@ function renderStats(){
       <span class="section-hd-title">Historial</span>
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
     </div>`;
+    const academico=resumenPromedioAcademico(validos);
+    if(academico&&validos.length)hist+=`<p class="stats-hist-vacio">PPA estimado del historial: <b>${academico.nota===null?'—':fmtPromedio(academico.nota)}</b>. ${academico.faltanCreditos?'Completa los créditos para ponderarlo. ':''}Revisa las exclusiones en Editar ramo. ${academico.reprobadasExcluidas} intento${academico.reprobadasExcluidas===1?'':'s'} reprobado${academico.reprobadasExcluidas===1?'':'s'} excluido${academico.reprobadasExcluidas===1?'':'s'} por aprobación posterior.${academico.pendientes?' Hay ramos pendientes fuera del cálculo.':''}</p>`;
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }

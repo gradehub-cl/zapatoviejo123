@@ -15,7 +15,7 @@ function avanceEvaluaciones(ramos){
 // elemento del array para comparar el semestre actual.
 function gpaHistorial(h){
   if(!h||typeof h!=='object')return null;
-  if(typeof h.gpa==='number'&&Number.isFinite(h.gpa))return h.gpa;
+  if(typeof h.gpa==='number'&&Number.isFinite(h.gpa)&&!gh_reglasNota(S.tenant).promedioAcademico)return h.gpa;
   if(!Array.isArray(h.ramos))return null;
   // Un respaldo antiguo puede no traer la caché `gpa`. Recalcular al leer
   // recupera la comparación sin tocar el historial persistido ni subir una
@@ -101,4 +101,47 @@ function aporteAlPromedio(ramos){
   const total=conNota.reduce((s,x)=>s+peso(x),0);
   if(!(total>0))return [];
   return conNota.map(x=>({ramo:x.ramo,avg:x.avg,aporte:(x.avg-g)*peso(x)/total})).sort((a,b)=>b.aporte-a.aporte);
+}
+
+// UAI art. 28. Cada intento conserva su acta y su nota; la selección es una
+// vista derivada para el acumulado, nunca una migración del historial.
+function resumenPromedioAcademico(historial,tenant=S.tenant){
+  const regla=gh_reglasNota(tenant).promedioAcademico;
+  if(!regla)return null;
+  const filas=(historial||[]).flatMap(h=>{
+    const p=parseEtiquetaSemestre(h.label),periodo=p?p.anio*3+({v:0,1:1,2:2}[p.periodo]):null;
+    return (h.ramos||[]).filter(r=>!esAporteDeOtroRamo(r,h.ramos)).map(r=>{
+      const origen=r.origen||{},t=origen.tenant||tenant;
+      // No juntar homónimos: sin sigla/clave estable no se deduce recursada.
+      const codigo=r.sigla||origen.ramoKey;
+      const clave=codigo?t+'|'+String(codigo).trim().toUpperCase():null;
+      const nota=typeof notaRamoParaResumen==='function'?notaRamoParaResumen(r,h.ramos):
+        Number.isFinite(r.notaOficial)?r.notaOficial:histRamoAvg(r,h.ramos);
+      const finalDeclarada=Number.isFinite(r.notaOficial)||Number.isFinite(r.avgOverride)||r.cierre;
+      const incompleto=!finalDeclarada&&ramoProgress(r).pending>0;
+      return {r,nota,clave,periodo,incompleto};
+    });
+  });
+  const excluidas=filas.filter(x=>regla.exclusiones.includes(x.r.exclusionPromedio));
+  const candidatas=filas.filter(x=>!excluidas.includes(x)&&Number.isFinite(x.nota)&&!x.incompleto);
+  const reprobadas=candidatas.filter(x=>regla.excluirReprobadosLuegoAprobados&&x.nota<gh_reglasNota(tenant).passing_grade&&x.clave&&x.periodo!==null&&
+    candidatas.some(y=>y.clave===x.clave&&y.periodo!==null&&y.periodo>x.periodo&&y.nota>=gh_reglasNota(tenant).passing_grade));
+  const incluidas=candidatas.filter(x=>!reprobadas.includes(x));
+  const faltanCreditos=incluidas.filter(x=>!tieneCreditos(x.r));
+  const creditos=incluidas.reduce((n,x)=>n+(tieneCreditos(x.r)?x.r.creditos:0),0);
+  const nota=faltanCreditos.length||!creditos?null:gh_notaOficial(incluidas.reduce((n,x)=>n+x.nota*x.r.creditos,0)/creditos,gh_reglasNota(tenant));
+  return {nota,creditos,excluidas:excluidas.length,reprobadasExcluidas:reprobadas.length,faltanCreditos:faltanCreditos.length,
+    pendientes:filas.filter(x=>!excluidas.includes(x)&&(!Number.isFinite(x.nota)||x.incompleto)).length};
+}
+function selectorExclusionPromedio(r,id){
+  const regla=gh_reglasNota(r.origen?.tenant||S.tenant).promedioAcademico;
+  if(!regla)return '';
+  const opciones=[['','Incluido'],['educacion_fisica','Educación Física'],['extraprogramatica','Extraprogramática'],['convalidada','Convalidada']];
+  return `<label class="modal-label" for="${id}">Promedio académico</label><div class="modal-input"><select id="${id}" style="min-height:44px;width:100%">${opciones.filter(([v])=>!v||regla.exclusiones.includes(v)).map(([v,n])=>`<option value="${v}"${r.exclusionPromedio===v?' selected':''}>${n}</option>`).join('')}</select></div>`;
+}
+function guardarExclusionPromedio(r,id){
+  const campo=document.getElementById(id);if(!campo)return;
+  const regla=gh_reglasNota(r.origen?.tenant||S.tenant).promedioAcademico;
+  if(regla?.exclusiones.includes(campo.value))r.exclusionPromedio=campo.value;
+  else delete r.exclusionPromedio;
 }

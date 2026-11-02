@@ -314,6 +314,7 @@ function comoLista(x){return Array.isArray(x)?x:[];}
 function normalize(data) {
   // Rellena campos que podrían faltar (ediciones parciales, imports, etc.)
   data.ramos = comoLista(data.ramos).map(r => ({
+    ...(['educacion_fisica','extraprogramatica','convalidada'].includes(r.exclusionPromedio)?{exclusionPromedio:r.exclusionPromedio}:{}),
     ...r,
     id: idSeguro(r.id),
     color: r.color || '#2563eb',

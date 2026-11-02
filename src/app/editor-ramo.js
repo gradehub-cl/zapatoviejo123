@@ -12,6 +12,7 @@ function openEditRamoModal(){
     <p id="m-ramo-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     <label class="modal-label">Créditos <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(SCT)</span></label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-creditos" value="${r.creditos!=null?r.creditos:''}" placeholder="Ej: 10" maxlength="3" autocomplete="off"/></div>
+    ${selectorExclusionPromedio(r,'m-ramo-promedio')}
     <label class="modal-label" for="m-ramo-seccion">Sección</label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"/></div>
     <p id="m-ramo-seccion-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
@@ -55,6 +56,7 @@ function confirmEditRamo(){
   const limiteFaltas=conFaltas?parseLimiteFaltas((document.getElementById('m-ramo-faltas-limite')||{}).value):null;
   if(limiteFaltas===undefined){mostrarErrorCampo('m-ramo-faltas-limite','m-ramo-faltas-error',`El máximo es un número entre 1 y ${FALTAS_MAX}. Déjalo vacío si no lo sabes.`);return false;}
   const r=S.ramos.find(x=>x.id===currentRamoId);
+  guardarExclusionPromedio(r,'m-ramo-promedio');
   r.nombre=name;r.color=modalColor;
   r.creditos=parseCreditos((document.getElementById('m-ramo-creditos')||{}).value);
   r.seccion=seccion;

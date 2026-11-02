@@ -165,7 +165,7 @@ function esAporteDeOtroRamo(r,ramos){
   return (ramos||[]).some(x=>x!==r&&x.aporta&&x.aporta.ramo&&normName(x.aporta.ramo)===n);
 }
 function ramosDelPromedio(ramos){
-  return (ramos||[]).filter(r=>!esAporteDeOtroRamo(r,ramos));
+  return (ramos||[]).filter(r=>!esAporteDeOtroRamo(r,ramos)&&!gh_reglasNota(r.origen?.tenant||S.tenant).promedioAcademico?.exclusiones.includes(r.exclusionPromedio));
 }
 // ¿Sabemos cuántos créditos vale este ramo?
 //

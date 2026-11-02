@@ -29,8 +29,9 @@ function servidor(r,tenant){
 // examen 30%. Presentación 3,7 · 4,2 · 4,0 y examen 3,9 dan 3,94667.
 (async()=>{
   const motor=require(root+'/engine.js');
-  for(const t of [undefined,null,'fen','uc','uai','toString'])
+  for(const t of [undefined,null,'fen','uc','toString'])
     assert.deepEqual(motor.gh_reglasNota(t),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4},'sin regla propia: la común ('+t+')');
+  assert.deepEqual(motor.gh_reglasNota('uai').rounding,{decimals:1});
   assert.deepEqual(motor.gh_reglasNota('uandes').rounding,{decimals:1,previo:2});
 
   const ua=motor.gh_reglasNota('uandes'),comun=motor.gh_reglasNota('uc');
