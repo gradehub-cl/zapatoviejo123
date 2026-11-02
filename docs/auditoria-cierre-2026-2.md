@@ -104,8 +104,9 @@ aproximación se remite a un instructivo de Vicerrectoría Académica no localiz
 El examen normalmente pesa 30–50%; hay excepciones autorizadas. Sin eximición
 salvo excepción, examen mínimo 3,0; bajo ese mínimo, la final es la del examen.
 
-**Brecha reproducida:** no hay presets UDD en `PRESETS_POR_TENANT` y una pauta
-manual que no declare compuertas no incorpora automáticamente ese mínimo.
+**Brecha de pautas manuales:** una pauta manual que no declare compuertas no
+incorpora automáticamente ese mínimo. Main incorporó 23 presets UDD en #940;
+esos presets sí declaran la compuerta y no corresponden a este primer caso.
 Con pruebas 6,0 al 60% y examen 2,9 al 40%, devuelve 4,8 en vez de 2,9 según
 la regla general del art. 37. Falta representar la regla y sus excepciones con
 fuente/carrera, no un `if` por universidad dentro del cálculo.
@@ -115,11 +116,21 @@ Regresión deliberadamente fallida, fuera de la suite de entrega:
 su propia PR de motor/preset, con la norma y sus excepciones revisadas por Lucas.
 Los redondeos intermedios/descartes particulares siguen pendientes de programas.
 
+**Brecha de sustitución aun con compuerta:** #940 usa `cap:'self'`, que topa
+la final pero no la reemplaza si el promedio es todavía menor al examen. Con
+parciales 2,0 al 70% y examen 2,8 al 30%, la app entrega 2,2; el art. 37 vigente
+exige registrar 2,8. `node tests/auditoria/udd-examen-reemplazo.cjs` reproduce
+esa diferencia con pauta sintética y el mismo tipo de compuerta. La referencia
+actual es art. 37 de DR50/26; el inventario UDD cita la numeración 38 de la copia
+anterior. No se modifica aquí el preset ni su test de main que fija el límite.
+La corrección requiere una PR propia del motor: reemplazar una nota no equivale
+a aplicar un tope. Ambas notas reprueban, pero el historial debe calzar con el portal.
+
 ## Alcance y próximos controles
 
 - La suite normal prueba lo implementado: cierre pendiente, final oficial,
   escala, acumulado del historial, Wrapped, legado, sincronización y RLS/MFA.
-- Las regresiones UDD y PPA UAI son reproductores de deuda confirmada; no se ejecutan como
+- Las tres regresiones (dos UDD y PPA UAI) son reproductores de deuda confirmada; no se ejecutan como
   tests verdes ni se oculta con una aserción que espere el resultado incorrecto.
 - Una diferencia registrada no demuestra un error: puede faltar una evaluación,
   tratarse de una pauta editada o una decisión del docente. El banco muestra
