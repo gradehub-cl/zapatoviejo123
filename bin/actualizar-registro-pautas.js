@@ -18,7 +18,7 @@ function pautasCatalogo(){
 }
 if(require.main===module){
  const archivo=path.join(raiz,'supabase/consenso_periodo.sql'),sql=fs.readFileSync(archivo,'utf8');
- const filas=pautasCatalogo(),json=JSON.stringify(filas,null,2).replace(/'/g,"''");
+ const filas=pautasCatalogo(),json=('['+'\n'+filas.map(f=>JSON.stringify(f)).join(',\n')+'\n'+']').replace(/'/g,"''");
  const semilla="insert into public.pautas_catalogo_registro(tenant,clave,periodo,nombre,nombre_norm,definicion) select tenant,clave,periodo,nombre,nombre_norm,definicion from jsonb_to_recordset('"+json+"'::jsonb) as x(tenant text,clave text,periodo text,nombre text,nombre_norm text,definicion jsonb) on conflict(tenant,clave,periodo) do update set nombre=excluded.nombre,nombre_norm=excluded.nombre_norm,definicion=excluded.definicion;";
  const actualizado=sql.replace(/insert into public\.pautas_catalogo_registro\([\s\S]*?definicion=excluded\.definicion;/,semilla);
  if(!sql.includes('insert into public.pautas_catalogo_registro('))throw Error('No se encontró el bloque de la semilla');
