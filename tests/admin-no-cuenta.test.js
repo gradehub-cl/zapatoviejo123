@@ -76,6 +76,8 @@ for(const f of ['es_administrador','cuenta_para_campana','registrar_metrica_anun
   check('reaplicar el SQL conserva las vistas ya medidas',(await q("select count(*)::int as n from anuncio_alcance where anuncio_id=$1 and metrica_aux_registrada",[aviso]))[0].n===2);
   check('reaplicar el SQL no pierde la apertura pendiente',(await q("select metrica_aux_registrada as marcada from anuncio_interacciones where anuncio_id=$1 and user_id=$2 and tipo='apertura'",[aviso,otro]))[0].marcada===false);
   await db.query('update anuncio_campanas set tope_clp=1000 where anuncio_id=$1',[aviso]);
+  // La versión vigente lee el presupuesto aprobado, no el borrador de la siguiente campaña.
+  await db.query("update tutor_anuncios set configuracion_campana_aprobada=jsonb_set(configuracion_campana_aprobada,'{tope_clp}','1000') where id=$1",[aviso]);
   check('la campaña llegó al tope',(await q('select campana_visible($1) as visible',[aviso]))[0].visible===false);
   check('una métrica de apertura ya cobrada se completa tras agotar el tope',(await q('select registrar_metrica_anuncio($1,$2,$3) as ok',[aviso,'clic','TEST100']))[0].ok);
   check('esa apertura no infla dos veces el gráfico',!(await q('select registrar_metrica_anuncio($1,$2,$3) as ok',[aviso,'clic','TEST100']))[0].ok);
@@ -89,7 +91,9 @@ for(const f of ['es_administrador','cuenta_para_campana','registrar_metrica_anun
     check(`admin con segundo factor puede leer ${nombre}`,Array.isArray(await q(`select * from ${nombre}($1)`,[aviso])));
   check('admin ve las mismas dos vistas cobrables del profesor',(await q('select vistas from campana_anuncio($1)',[aviso]))[0].vistas===2&&
     (await q('select alcance_anuncio($1) as n',[aviso]))[0].n===2);
-  check('el desglose respeta el mismo corte de privacidad del profesor',(await q('select * from totales_metricas_anuncio($1)',[aviso])).length===0);
+  const desglose=await q('select * from totales_metricas_anuncio($1)',[aviso]);
+  check('el corte por ramo y el desglose fino conservan quince eventos',desglose.every(r=>r.vista!=='ramo')&&(await q('select * from resumen_metricas_anuncio($1)',[aviso])).length===0);
+  check('los totales gruesos vigentes incluyen las primeras dos vistas',desglose.some(r=>r.vista==='total'&&r.tipo==='impresion'&&r.eventos===2));
   await db.query("select set_config('request.jwt.claim.aal','aal1',false)");
   for(const nombre of lecturas){
     await assert.rejects(()=>q(`select * from ${nombre}($1)`,[aviso]),/sin acceso/);
