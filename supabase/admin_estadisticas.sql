@@ -5,7 +5,7 @@
 -- (anuncio_alcance), cuántas lo abrieron y cuántas contactaron al profesor
 -- (anuncio_interacciones). Son las mismas filas que ya cobra costo_campana(),
 -- sumadas para toda la página: no sale el anuncio, ni la cuenta, ni la
--- universidad. El día es el que guardan esas tablas (current_date).
+-- universidad. El día es el que guardan esas tablas ((now() at time zone 'America/Santiago')::date).
 --
 -- Exige administrador con segundo factor, como el resto del panel. Sin esta
 -- función el panel sigue funcionando: el gráfico de alcance no aparece.
@@ -24,7 +24,7 @@ set search_path = ''
 as $$
 declare
   dias integer := least(greatest(coalesce(p_dias, 30), 7), 90);
-  desde date := current_date - (dias - 1);
+  desde date := (now() at time zone 'America/Santiago')::date - (dias - 1);
 begin
   if not public.administrador_verificado() then
     raise exception 'administración requiere segundo factor' using errcode = '42501';

@@ -1,3 +1,9 @@
+// Día de las métricas nuevas: calendario chileno, independiente del dispositivo.
+function diaMetricasChile(instante=Date.now()){
+  const partes=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instante));
+  const valor=k=>partes.find(p=>p.type===k).value;
+  return valor('year')+'-'+valor('month')+'-'+valor('day');
+}
 // Presentación privada Profesor/Admin. No registra eventos ni calcula notas.
 const PERIODOS_PRIVADOS=[['1','Hoy'],['7','7 días'],['30','Un mes'],['inicio','Desde el inicio']];
 const numeroPrivado=n=>Number.isFinite(n)?new Intl.NumberFormat('es-CL').format(n):'—';
@@ -6,10 +12,9 @@ function periodoPrivadoHTML(valor='7',hoy=true){
   return `<div class="pe-periodos" role="group" aria-label="Período de estadísticas">${PERIODOS_PRIVADOS.filter(([v])=>hoy||v!=='1').map(([v,t])=>`<button type="button" data-pe-periodo="${v}" aria-pressed="${v===valor}">${t}</button>`).join('')}</div>`;
 }
 function intervaloPrivado(filas,periodo,ahora=Date.now()){
-  // `dia` viene del registro SQL en UTC. Usar el día local descarta las
-  // vistas de la noche en Chile como si fueran del futuro. No se refecha
-  // ningún evento: gráficos y rangos conservan el calendario del registro.
-  const hoy=new Date(ahora).toISOString().slice(0,10),fin=Date.parse(hoy+'T12:00:00Z');
+  // Las nuevas métricas usan Chile; las históricas conservan su fecha.
+  // Hoy se delimita en Chile, sin depender del dispositivo ni refechar filas.
+  const hoy=diaMetricasChile(ahora),fin=Date.parse(hoy+'T12:00:00Z');
   const disponibles=(filas||[]).map(f=>String(f.dia).slice(0,10)).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)&&d<=hoy).sort();
   const desde=periodo==='inicio'?(disponibles[0]||hoy):new Date(fin-(Number(periodo)-1)*864e5).toISOString().slice(0,10);
   return {desde,hasta:hoy,filas:(filas||[]).filter(f=>String(f.dia).slice(0,10)>=desde&&String(f.dia).slice(0,10)<=hoy)};

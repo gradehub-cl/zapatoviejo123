@@ -101,13 +101,13 @@ declare desde date;
 begin
   perform admin.exigir_administrador();
   if p_dias is not null and p_dias<1 then raise exception 'rango inválido'; end if;
-  select coalesce(min(h.dia),current_date) into desde from admin.historial_anuncios_diario() h;
-  if p_dias is not null and p_dias < current_date-desde+1 then desde:=current_date-(p_dias-1); end if;
+  select coalesce(min(h.dia),(now() at time zone 'America/Santiago')::date) into desde from admin.historial_anuncios_diario() h;
+  if p_dias is not null and p_dias < (now() at time zone 'America/Santiago')::date-desde+1 then desde:=(now() at time zone 'America/Santiago')::date-(p_dias-1); end if;
   return (with h as (select * from admin.historial_anuncios_diario())
     select coalesce(jsonb_agg(jsonb_build_object('dia',d.dia,
       'vieron',coalesce(v.vistas,0),'abrieron',coalesce(v.aperturas,0),
       'contactaron',coalesce(v.contactos,0)) order by d.dia),'[]'::jsonb)
-    from (select desde+k as dia from generate_series(0,current_date-desde) k) d
+    from (select desde+k as dia from generate_series(0,(now() at time zone 'America/Santiago')::date-desde) k) d
     left join (select h.dia,sum(h.vistas) vistas,sum(h.aperturas) aperturas,sum(h.contactos) contactos
       from h where h.dia>=desde group by h.dia) v using(dia));
 end;
@@ -123,7 +123,7 @@ begin
   if p_dias is not null and p_dias<1 then raise exception 'rango inválido'; end if;
   return (select coalesce(jsonb_agg(to_jsonb(h) order by h.dia,h.anuncio_id),'[]'::jsonb)
     from admin.historial_anuncios_diario() h
-    where p_dias is null or current_date-h.dia < p_dias);
+    where p_dias is null or (now() at time zone 'America/Santiago')::date-h.dia < p_dias);
 end;
 $$;
 revoke all on function public.admin_historial_anuncios(integer) from public, anon;
@@ -141,7 +141,7 @@ begin
   return (select coalesce(jsonb_agg(to_jsonb(d) order by d.dia),'[]'::jsonb) from
     (select h.dia,sum(h.vistas) vistas,sum(h.aperturas) aperturas,sum(h.contactos) contactos
       from admin.historial_anuncios_diario() h where h.anuncio_id=p_anuncio_id
-        and (p_dias is null or current_date-h.dia < p_dias) group by h.dia) d);
+        and (p_dias is null or (now() at time zone 'America/Santiago')::date-h.dia < p_dias) group by h.dia) d);
 end;
 $$;
 revoke all on function public.historial_anuncio(uuid,integer) from public, anon;
