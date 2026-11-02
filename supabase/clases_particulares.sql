@@ -1,3 +1,4 @@
+-- Definiciones vigentes de costo, publicación, limpieza e historial: canónicas acá.
 -- PR #515 · RESPALDO OBLIGATORIO ANTES DE APLICAR A UNA BASE EXISTENTE.
 -- 1. Ejecutar supabase/respaldo_campanas_515.sql UNA VEZ (schema privado,
 --    RLS y permisos revocados; falla si ya existe para no pisar el respaldo).
@@ -149,6 +150,8 @@ alter table public.tutor_anuncios add constraint tutor_anuncios_tenant_check
 -- NUEVA empieza otra medición; no se reparte el pasado entre fechas inventadas.
 -- El cliente no recibe permisos de lectura/escritura sobre esta columna.
 alter table public.tutor_anuncios add column if not exists medicion_desde timestamptz not null default '-infinity';
+alter table public.tutor_anuncios add column if not exists precio_campana_clp integer;
+alter table public.tutor_anuncios add column if not exists configuracion_campana_aprobada jsonb;
 
 alter table public.tutor_anuncios add column if not exists criterios jsonb
   check (
@@ -934,35 +937,22 @@ $$;
 
 -- Totales para los gráficos del profesor. `resumen_metricas_anuncio` corta por
 -- día, tipo y ramo a la vez, y con poco tráfico casi ningún corte llega a
--- quince: el panel quedaba vacío. Esto suma por UNA dimensión a la vez —tipo,
--- día o ramo— y aplica el mismo umbral de quince EVENTOS a cada total. No
--- revela más que antes: un total de quince o más no identifica a nadie, y los
--- que no llegan siguen sin salir.
+-- quince: el panel quedaba vacío. La versión vigente de producción entrega
+-- total y día desde el primer registro. El corte por ramo y el desglose fino
+-- conservan el umbral de quince; solo acceden el dueño o un admin con MFA.
 create or replace function public.totales_metricas_anuncio(p_anuncio_id uuid)
-returns table (vista text, clave text, tipo text, eventos integer)
-language plpgsql
-security definer
-set search_path = public
-as $$
+returns table (vista text,clave text,tipo text,eventos integer)
+language plpgsql security definer set search_path = '' as $$
 begin
-  if auth.uid() is null then
-    raise exception 'hay que haber iniciado sesión';
-  end if;
-  if not exists (
-    select 1 from public.tutor_anuncios
-    where id = p_anuncio_id and autor_id = auth.uid()
-  ) then
+  if auth.uid() is null then raise exception 'hay que haber iniciado sesión' using errcode='42501'; end if;
+  if not exists(select 1 from public.tutor_anuncios a where a.id=p_anuncio_id and a.autor_id=auth.uid()) then
     perform admin.exigir_administrador();
   end if;
-
-  return query
-  with m as (select * from public.anuncio_metricas where anuncio_id = p_anuncio_id
-    and publicacion = (select medicion_desde from public.tutor_anuncios where id = p_anuncio_id))
-  select 'total'::text, ''::text, m.tipo, sum(m.eventos)::integer from m group by m.tipo having sum(m.eventos) >= 15
-  union all
-  select 'dia', m.dia::text, m.tipo, sum(m.eventos)::integer from m group by m.dia, m.tipo having sum(m.eventos) >= 15
-  union all
-  select 'ramo', m.ramo_sigla, m.tipo, sum(m.eventos)::integer from m group by m.ramo_sigla, m.tipo having sum(m.eventos) >= 15;
+  return query with m as (select * from public.anuncio_metricas x where x.anuncio_id=p_anuncio_id
+    and x.publicacion=(select a.medicion_desde from public.tutor_anuncios a where a.id=p_anuncio_id))
+    select 'total'::text,''::text,m.tipo,sum(m.eventos)::integer from m group by m.tipo having sum(m.eventos)>0
+    union all select 'dia',m.dia::text,m.tipo,sum(m.eventos)::integer from m group by m.dia,m.tipo having sum(m.eventos)>0
+    union all select 'ramo',m.ramo_sigla,m.tipo,sum(m.eventos)::integer from m group by m.ramo_sigla,m.tipo having sum(m.eventos)>=15;
 end;
 $$;
 
@@ -1201,22 +1191,13 @@ $$;
 -- docs/marketplace-clases.md. La ejecuta el equipo (o pg_cron) y devuelve
 -- cuántas filas soltó. No la puede llamar un cliente.
 create or replace function public.limpiar_alcance_anuncios(p_dias integer default 90)
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  filas integer := 0;
+returns integer language plpgsql security definer set search_path = '' as $$
+declare filas integer;
 begin
-  if p_dias is null or p_dias < 30 then
-    raise exception 'el plazo mínimo de conservación es 30 días';
-  end if;
-  delete from public.anuncio_alcance as a
-   using public.tutor_anuncios as t
-   where t.id = a.anuncio_id
-     and coalesce(a.vence_publicacion, t.vence_at) < now() - make_interval(days => p_dias);
-  get diagnostics filas = row_count;
+  perform admin.archivar_historial_anuncios(p_dias);
+  delete from public.anuncio_alcance a using public.tutor_anuncios t
+    where t.id=a.anuncio_id and coalesce(a.vence_publicacion,t.vence_at)<now()-make_interval(days=>p_dias);
+  get diagnostics filas=row_count;
   return filas;
 end;
 $$;
@@ -1379,6 +1360,12 @@ as $$
   end;
 $$;
 
+create or replace function public.tarifa_campana_clp(p_concepto text, p_precio_clp integer)
+returns integer language sql immutable set search_path = '' as $$
+  select case when p_precio_clp=0 then 0 else public.tarifa_campana_clp(p_concepto) end;
+$$;
+revoke all on function public.tarifa_campana_clp(text,integer) from public, anon, authenticated;
+
 -- Intervalos no visibles por suspensión del profesor. No contienen alumnos.
 create table if not exists public.tutor_suspensiones (
   id bigint generated always as identity primary key,
@@ -1418,6 +1405,8 @@ create trigger tutor_perfiles_suspension after update of estado on public.tutor_
 for each row execute function public.registrar_suspension_profesor();
 
 -- Lo que lleva una campaña. Uso interno: no tiene grant.
+alter table public.anuncio_campanas add column if not exists configuracion_previa jsonb;
+
 create or replace function public.costo_campana(p_anuncio_id uuid)
 returns table (dias integer, inicio date, tope_clp integer, dias_cobrados integer,
                vistas integer, aperturas integer, contactos integer, costo_bruto integer)
@@ -1431,15 +1420,17 @@ declare
   c public.anuncio_campanas%rowtype;
   hasta_cobro timestamptz;
   segundos_suspendidos numeric := 0;
+  configuracion jsonb;
 begin
   select * into a from public.tutor_anuncios where id = p_anuncio_id;
   if not found then return; end if;
   select * into c from public.anuncio_campanas where anuncio_id = p_anuncio_id;
 
-  dias := coalesce(c.dias, case when a.publicado_at is not null and a.vence_at is not null
+  configuracion:=coalesce(a.configuracion_campana_aprobada,c.configuracion_previa);
+  dias := coalesce(case when configuracion is null then c.dias else (configuracion->>'dias')::integer end, case when a.publicado_at is not null and a.vence_at is not null
                                 then ceil(extract(epoch from (a.vence_at - a.publicado_at)) / 86400)::integer end);
-  inicio := c.inicio;
-  tope_clp := c.tope_clp;
+  inicio := case when configuracion is null then c.inicio else (configuracion->>'inicio')::date end;
+  tope_clp := case when configuracion is null then c.tope_clp else (configuracion->>'tope_clp')::integer end;
   dias_cobrados := 0;
   if a.publicado_at is not null and a.publicado_at <= now() then
     hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(a.detenido_at, c.detenido_at, 'infinity'));
@@ -1454,10 +1445,10 @@ begin
   select count(*) filter (where tipo = 'apertura')::integer, count(*) filter (where tipo = 'contacto')::integer
     into aperturas, contactos
     from public.anuncio_interacciones where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
-  costo_bruto := dias_cobrados * public.tarifa_campana_clp('dia')
-               + vistas * public.tarifa_campana_clp('vista')
-               + aperturas * public.tarifa_campana_clp('apertura')
-               + contactos * public.tarifa_campana_clp('contacto');
+  costo_bruto := dias_cobrados * public.tarifa_campana_clp('dia', a.precio_campana_clp)
+               + vistas * public.tarifa_campana_clp('vista', a.precio_campana_clp)
+               + aperturas * public.tarifa_campana_clp('apertura', a.precio_campana_clp)
+               + contactos * public.tarifa_campana_clp('contacto', a.precio_campana_clp);
   return next;
 end;
 $$;
@@ -1615,23 +1606,81 @@ for each row
 execute function public.anuncio_marca_detencion();
 
 -- Las interacciones se van con el mismo plazo que el alcance.
-create or replace function public.limpiar_interacciones_anuncios(p_dias integer default 90)
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  filas integer := 0;
+create schema if not exists admin;
+
+create table if not exists admin.anuncio_historial_diario (
+  anuncio_id uuid not null references public.tutor_anuncios(id) on delete cascade,
+  autor_id uuid not null references auth.users(id) on delete cascade,
+  publicacion timestamptz not null,
+  dia date not null,
+  vistas bigint not null default 0 check (vistas >= 0),
+  aperturas bigint not null default 0 check (aperturas >= 0),
+  contactos bigint not null default 0 check (contactos >= 0),
+  primary key (anuncio_id, publicacion, dia)
+);
+alter table admin.anuncio_historial_diario enable row level security;
+revoke all on admin.anuncio_historial_diario from public, anon, authenticated;
+
+-- Cada persona ya se cuenta una vez por publicación en las tablas originales.
+-- max combina una instantánea con filas aún no limpiadas; nunca las suma dos veces.
+create or replace function admin.historial_anuncios_diario()
+returns table (anuncio_id uuid, publicacion timestamptz, dia date,
+  vistas bigint, aperturas bigint, contactos bigint)
+language sql stable security definer set search_path = '' as $$
+  with fuentes as (
+    select h.anuncio_id,h.publicacion,h.dia,h.vistas,h.aperturas,h.contactos
+      from admin.anuncio_historial_diario h
+    union all
+    select a.anuncio_id,a.publicacion,a.dia,count(*)::bigint,0::bigint,0::bigint
+      from public.anuncio_alcance a group by a.anuncio_id,a.publicacion,a.dia
+    union all
+    select i.anuncio_id,i.publicacion,i.dia,0::bigint,
+      count(*) filter(where i.tipo='apertura')::bigint,
+      count(*) filter(where i.tipo='contacto')::bigint
+      from public.anuncio_interacciones i group by i.anuncio_id,i.publicacion,i.dia
+  )
+  select f.anuncio_id,f.publicacion,f.dia,max(f.vistas),max(f.aperturas),max(f.contactos)
+    from fuentes f group by f.anuncio_id,f.publicacion,f.dia;
+$$;
+revoke all on function admin.historial_anuncios_diario() from public, anon, authenticated;
+
+-- Solo se archiva lo que corresponde limpiar. Una llamada posterior no pisa
+-- lo guardado si una de las dos tablas ya se limpió.
+create or replace function admin.archivar_historial_anuncios(p_dias integer)
+returns void language plpgsql security definer set search_path = '' as $$
 begin
   if p_dias is null or p_dias < 30 then
     raise exception 'el plazo mínimo de conservación es 30 días';
   end if;
-  delete from public.anuncio_interacciones as i
-   using public.tutor_anuncios as t
-   where t.id = i.anuncio_id
-     and coalesce(i.vence_publicacion, t.vence_at) < now() - make_interval(days => p_dias);
-  get diagnostics filas = row_count;
+  insert into admin.anuncio_historial_diario as destino
+    (anuncio_id,autor_id,publicacion,dia,vistas,aperturas,contactos)
+  select h.anuncio_id,t.autor_id,h.publicacion,h.dia,h.vistas,h.aperturas,h.contactos
+    from admin.historial_anuncios_diario() h
+    join public.tutor_anuncios t on t.id=h.anuncio_id
+    where exists (select 1 from public.anuncio_alcance a
+      join public.tutor_anuncios t on t.id=a.anuncio_id
+      where a.anuncio_id=h.anuncio_id and a.publicacion=h.publicacion and a.dia=h.dia
+        and coalesce(a.vence_publicacion,t.vence_at)<now()-make_interval(days=>p_dias))
+    or exists (select 1 from public.anuncio_interacciones i
+      join public.tutor_anuncios t on t.id=i.anuncio_id
+      where i.anuncio_id=h.anuncio_id and i.publicacion=h.publicacion and i.dia=h.dia
+        and coalesce(i.vence_publicacion,t.vence_at)<now()-make_interval(days=>p_dias))
+  on conflict (anuncio_id,publicacion,dia) do update set
+    vistas=greatest(destino.vistas,excluded.vistas),
+    aperturas=greatest(destino.aperturas,excluded.aperturas),
+    contactos=greatest(destino.contactos,excluded.contactos);
+end;
+$$;
+revoke all on function admin.archivar_historial_anuncios(integer) from public, anon, authenticated;
+
+create or replace function public.limpiar_interacciones_anuncios(p_dias integer default 90)
+returns integer language plpgsql security definer set search_path = '' as $$
+declare filas integer;
+begin
+  perform admin.archivar_historial_anuncios(p_dias);
+  delete from public.anuncio_interacciones i using public.tutor_anuncios t
+    where t.id=i.anuncio_id and coalesce(i.vence_publicacion,t.vence_at)<now()-make_interval(days=>p_dias);
+  get diagnostics filas=row_count;
   return filas;
 end;
 $$;
@@ -1654,6 +1703,12 @@ begin
     if new.publicado_at is null or (tg_op = 'UPDATE' and old.publicado_at is not null and new.publicado_at = old.publicado_at) then
       raise exception 'una nueva publicación necesita su propia fecha de inicio' using errcode = '23514';
     end if;
+    if new.precio_clp > 0 and exists (select 1 from public.anuncio_campanas c where c.anuncio_id=new.id and c.tope_clp is null) then
+      raise exception 'un anuncio con precio necesita un tope de campaña' using errcode='23514';
+    end if;
+    new.precio_campana_clp := new.precio_clp;
+    select jsonb_build_object('dias',c.dias,'inicio',c.inicio,'tope_clp',c.tope_clp)
+      into new.configuracion_campana_aprobada from public.anuncio_campanas c where c.anuncio_id=new.id;
     new.medicion_desde := new.publicado_at;
   end if;
   return new;
