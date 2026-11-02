@@ -61,3 +61,7 @@ Los presets sin período declarado protegen contra aportes automáticos, sin que
 eso los presente como programas vigentes. El registro se toma del catálogo del
 repo; para actualizarlo se revisa el preset y se regenera la semilla junto a su PR.
 La información incompleta sigue en las tablas para auditoría: no se borra.
+
+Consulta reproducible de la instantánea previa, con la misma semilla de presets:
+[consenso-antes-despues.sql](../reportes/consenso-antes-despues.sql). Es SELECT
+únicamente; no depende de instalar las tablas del parche para obtener la cuenta.
