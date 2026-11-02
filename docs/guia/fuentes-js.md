@@ -19,7 +19,15 @@ npm run buscar -- --ver "PRESETS_UC.Termodinámica" # solo la pauta de ese ramo
 npm run buscar -- --ver renderRamo --archivo render-main # desambiguar
 npm run buscar -- --ver renderRamo --desde 49 --lineas 48
 npm run buscar -- renderHome --tests --json
-npm run buscar -- --mapa                         # todos los temas y su orden
+npm run buscar -- admin_reportes --tipo sql       # también css, html, docs
+npm run buscar -- "MFA" --docs                     # documentación por tema
+npm run buscar -- --archivo styles.css --desde 200 --lineas 20
+npm run buscar -- --mapa                          # resumen de carpetas
+npm run buscar -- --mapa --archivo alumnos        # rutas de un tema
+npm run buscar -- --mapa --detallado              # inventario completo
+npm run buscar -- renderAlumnosProfesor --referencias --tests
+npm run buscar -- --archivo package.json --clave /scripts/test
+npm run buscar -- --archivo src/orden.json --clave /app.js --lineas 12
 ```
 
 Por defecto devuelve hasta 8 resultados; `--limite` admite hasta 30. Una función
@@ -28,6 +36,29 @@ se muestra en hasta 48 líneas y 240 caracteres por línea; `--lineas` admite ha
 fuente editable, no del bundle. El índice distingue funciones anidadas, flechas,
 datos y llaves dentro de regex/templates. Ignora tildes y mayúsculas. Si el nombre
 no es único, pide `--archivo` en vez de elegir. `--json` permite automatizar.
+
+Sin consulta, `--archivo` muestra un solo archivo conocido en el mismo límite de
+líneas, también SQL, CSS, HTML o Markdown. Si hay ambigüedad, devuelve hasta 8
+rutas para elegir, no el listado entero. `--tipo` admite una lista (`js,sql`);
+`--docs` equivale a `--tipo docs`. La búsqueda habitual cubre JS, SQL, CSS y HTML;
+los tests y la documentación se incluyen solo al pedirlos. `--archivo` filtra
+antes de leer y parsear; no hace falta indexar toda la app para abrir una función.
+Los inventarios y paquetes de revisión UC quedan fuera de la búsqueda de docs,
+pero siguen disponibles al nombrarlos con `--archivo`.
+
+`--referencias` muestra hasta 8 líneas donde aparece el texto y el total encontrado.
+Omite la línea de una definición JS conocida con ese nombre, pero incluye cadenas
+y comentarios: es una búsqueda textual, no un análisis de llamadas. Usa `--archivo`
+para acotar o `--limite` para ampliar. En líneas largas, el fragmento se centra en
+la coincidencia en vez de perderla al recortar el principio.
+
+`--clave` lee solo un valor/subárbol JSON de un archivo explícito del repo, con
+[JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901): `/scripts/test` o
+`/ramos/0/nombre`; `~1` representa `/` y `~0` representa `~`. No evalúa expresiones
+ni carga el índice JS. Conserva los límites de líneas/caracteres y admite
+`--desde`; las líneas mostradas corresponden al valor formateado, no a la ubicación
+en el archivo original. Rechaza rutas externas, carpetas ocultas y enlaces fuera
+del repo. No vuelques un inventario entero para leer uno de sus campos.
 
 El índice se guarda en `.cache/indice-js.json`, se invalida por contenido y
 versión del parser, y se reconstruye automáticamente. No se versiona. No busca
@@ -59,6 +90,7 @@ npm run js:watch              # recompila al guardar src/; otra terminal sirve l
 npm run build                 # una sola vez, sin instalar dependencias
 npm run build -- --check      # verifica sin escribir ni regenerar
 npm test                     # ensambla ANTES de ejecutar toda la suite
+npm test -- --resumen         # mismos tests; detalle en .cache/tests.log
 node tests/mi-test.test.js    # después de build, si quieres correr solo uno
 ```
 
@@ -96,3 +128,18 @@ Los carriles por persona se conservan sobre `src/<nombre-del-script>/`; el
 contenido de `src/data/` sigue repartido por universidad. Esta reorganización no
 cambia el modelo, almacenamiento, permisos, SQL, métricas ni cálculos. Cuentas
 existentes y nuevas reciben el mismo código de la app.
+
+## Entrada de sesión sin ruido
+
+`bash bin/estado.sh` comprueba git, compila y corre la suite completa. Su salida
+resume cambios y limita PRs/commits; `--completo` amplía los listados y muestra
+tamaños. Guarda la salida del test en `.cache/estado-tests.log`, también si falla,
+y devuelve código de error: lee ese registro en vez de ejecutar otra vez.
+
+`--rapido` omite la suite y lo anuncia como **SKIP**, nunca PASS. `--sin-red`
+no llama a GitHub ni actualiza remotos y marca las referencias como no verificadas.
+Ninguna de estas opciones sustituye los chequeos de entrega de AGENTS.md.
+
+La documentación de contexto empieza en `docs/contexto.md`: abre solo el tema
+necesario. Sus antecedentes conservan decisiones y evidencias, con fechas y
+estados históricos que se contrastan con git antes de convertirlos en trabajo.

@@ -11,7 +11,7 @@
 // - Solo en Inicio, nunca en la ficha del ramo, la Agenda ni el ingreso de notas.
 // - Se muestra mientras siga calzando, hasta cerrarla con la X. Cerrar oculta
 //   solo ese anuncio hasta la medianoche de Chile en todos los dispositivos
-//   de la cuenta (Lucas, 2026-10-31). Los demás siguen rotando;
+//   de la cuenta (Lucas, 2026-10-31). Hasta dos ramos rotan por separado;
 //   al día siguiente pueden aparecer otra vez. El catálogo sigue disponible.
 // - No dice "reprobando" ni diagnostica: ofrece apoyo para el ramo.
 // - El cierre y el día viven en `gradehub_marketplace_v1`, aparte de
@@ -21,15 +21,21 @@
 // sin tocar el catálogo, que es la puerta abierta a todos.
 const RECOMENDACIONES_CLASES_ACTIVAS=true;
 const CLAVE_MARKETPLACE='gradehub_marketplace_v1';
+let estadoMarketplaceMemoria={},marketplaceSoloMemoria=false;
 
 function leerEstadoMarketplace(){
+  if(marketplaceSoloMemoria)return estadoMarketplaceMemoria;
+  let texto;
+  try{texto=localStorage.getItem(CLAVE_MARKETPLACE)||'{}';}catch(e){return estadoMarketplaceMemoria;}
   try{
-    const v=JSON.parse(localStorage.getItem(CLAVE_MARKETPLACE)||'{}');
+    const v=JSON.parse(texto);
     return v&&typeof v==='object'&&!Array.isArray(v)?v:{};
   }catch(e){return {};}
 }
 function guardarEstadoMarketplace(estado){
-  try{localStorage.setItem(CLAVE_MARKETPLACE,JSON.stringify(estado));}catch(e){}
+  estadoMarketplaceMemoria=estado;
+  try{localStorage.setItem(CLAVE_MARKETPLACE,JSON.stringify(estado));marketplaceSoloMemoria=false;}
+  catch(e){marketplaceSoloMemoria=true;}
 }
 // Preferencia separada de las notas. Se consulta antes de mostrar publicidad
 // y al volver a la app; cada cuenta tiene su propia petición y copia en memoria.
@@ -87,7 +93,7 @@ function refrescarCierreAnuncios(){
 }
 if(typeof window!=='undefined'&&window.addEventListener){
   window.addEventListener('focus',refrescarCierreAnuncios);
-  window.addEventListener('pageshow',refrescarCierreAnuncios);
+  window.addEventListener('pageshow',e=>{if(e.persisted)renovarAperturaClases();refrescarCierreAnuncios();});
   window.addEventListener('online',refrescarCierreAnuncios);
   window.addEventListener('storage',e=>{
     if(e.key!==CLAVE_MARKETPLACE)return;
@@ -99,7 +105,13 @@ if(typeof window!=='undefined'&&window.addEventListener){
     }catch(e){}
   });
   if(typeof document!=='undefined'&&document.addEventListener)
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refrescarCierreAnuncios();});
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='hidden')aplicacionClasesOculta=true;
+      if(document.visibilityState==='visible'){
+        if(aplicacionClasesOculta)renovarAperturaClases();
+        refrescarCierreAnuncios();
+      }
+    });
 }
 function diaLocalClases(ahora=Date.now()){return hoyChileClase(ahora);}
 function depurarCierresAnuncios(estado,ahora=Date.now()){
@@ -124,10 +136,17 @@ function franjaClases(ahora=Date.now()){
 // Recibe anuncios, ramos y el estado guardado, consulta los cierres propios
 // en memoria y devuelve la
 // recomendación de esta apertura (o null) junto con el estado que hay que guardar.
-// Una apertura de la app = una carga de la página. Volver a Inicio dentro de la
-// misma apertura no cambia el banner; abrir la app de nuevo muestra la
-// siguiente de las clases que calzan (pedido de Lucas del 2026-09-30).
-const VISITA_CLASES=Date.now().toString(36)+Math.random().toString(36).slice(2);
+// Una carga de página o regresar desde segundo plano cuenta como apertura.
+// Navegar dentro de la app o dar foco a la ventana conserva la misma vuelta.
+let VISITA_CLASES=Date.now().toString(36)+Math.random().toString(36).slice(2);
+let aplicacionClasesOculta=false,ultimaReaperturaClases=-Infinity;
+function renovarAperturaClases(){
+  aplicacionClasesOculta=false;
+  // pageshow y visibilitychange pueden describir el mismo regreso.
+  if(Date.now()-ultimaReaperturaClases<500)return;
+  ultimaReaperturaClases=Date.now();
+  VISITA_CLASES=Date.now().toString(36)+Math.random().toString(36).slice(2);
+}
 function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visita=VISITA_CLASES){
   const franja=franjaClases(ahora),e=estado||{};
   // Cerrada con la X: escondida hasta `ocultaHasta` (ver descartarRecomendacionClase).
@@ -154,13 +173,58 @@ function recomendacionDelDia(anuncios,ramos,tenant,estado,ahora=Date.now(),visit
   return {sel,estado:{...e,franja,visita,anuncioId:sel.anuncio.id,cerrada:false,aperturas:aperturas+1}};
 }
 
+const MAX_RAMOS_RECOMENDADOS=2,PAUSA_RECOMENDACION_MS=30000;
+function recomendacionesPorRamo(anuncios,ramos,tenant,estado,ahora=Date.now(),visita=VISITA_CLASES,uid=currentUser&&currentUser.id||'sin-cuenta'){
+  const e=estado||{},selecciones=[];
+  if(Number.isFinite(e.ocultaHasta)&&ahora<e.ocultaHasta||
+    e.cerrada&&typeof e.franja==='string'&&e.franja.slice(0,10)===diaLocalClases(ahora))return {selecciones,estado:e,esperaHasta:null};
+  const cerrados=new Set(anunciosCerradosHoy(e,ahora,uid));
+  const grupos=gruposClasesApoyo(anuncios,ramos,tenant,{ahora,descartados:[...cerrados]});
+  const dia=diaLocalClases(ahora),guardado=e.rotacionPorCuenta?.[uid];
+  const pausas=guardado?.tenant===tenant?Object.fromEntries(Object.entries(guardado.porRamo||{})
+    .filter(([,r])=>Number.isFinite(r.esperaHasta)&&r.esperaHasta>ahora).map(([k,r])=>[k,{indice:0,esperaHasta:r.esperaHasta}])):{};
+  const previo=guardado?.tenant===tenant&&guardado.dia===dia?guardado:{tenant,dia,turnoRamos:0,claves:[],porRamo:pausas};
+  const rotacion={...previo,claves:[...(previo.claves||[])],porRamo:{...(previo.porRamo||{})}};
+  if(!grupos.length)return {selecciones,estado:e,esperaHasta:null};
+  const nueva=rotacion.visita!==visita;
+  const turno=Number.isSafeInteger(rotacion.turnoRamos)&&rotacion.turnoRamos>=0?rotacion.turnoRamos:0;
+  const orden=grupos.slice(turno%grupos.length).concat(grupos.slice(0,turno%grupos.length));
+  rotacion.claves=(nueva?orden.map(g=>g.clave):rotacion.claves.filter(k=>grupos.some(g=>g.clave===k)))
+    .slice(0,MAX_RAMOS_RECOMENDADOS);
+  for(const g of orden)if(rotacion.claves.length<MAX_RAMOS_RECOMENDADOS&&!rotacion.claves.includes(g.clave))rotacion.claves.push(g.clave);
+  if(nueva){rotacion.visita=visita;rotacion.turnoRamos=turno+MAX_RAMOS_RECOMENDADOS;}
+  let esperaHasta=null;const usados=new Set();
+  for(const clave of rotacion.claves){
+    const g=grupos.find(x=>x.clave===clave),anterior=rotacion.porRamo[clave]||{};
+    // Un aviso con dos siglas equivalentes no se duplica en pantalla.
+    const candidatos=g.anuncios.filter(a=>!usados.has(a.id));
+    if(!candidatos.length)continue;
+    if(ahora<anterior.esperaHasta){esperaHasta=Math.min(esperaHasta??Infinity,anterior.esperaHasta);continue;}
+    const indice=candidatos.findIndex(a=>a.id===anterior.anuncioId);
+    // Un cierre llegado de otro dispositivo también deja respirar al ramo.
+    if(anterior.anuncioId&&indice<0&&cerrados.has(anterior.anuncioId)){
+      rotacion.porRamo[clave]={...anterior,anuncioId:null,esperaHasta:ahora+PAUSA_RECOMENDACION_MS};
+      esperaHasta=Math.min(esperaHasta??Infinity,ahora+PAUSA_RECOMENDACION_MS);continue;
+    }
+    const base=Number.isSafeInteger(anterior.indice)&&anterior.indice>=0?anterior.indice:0;
+    const elegido=indice>=0?(nueva?(indice+1)%candidatos.length:indice):base%candidatos.length;
+    rotacion.porRamo[clave]={anuncioId:candidatos[elegido].id,indice:elegido,esperaHasta:0};
+    usados.add(candidatos[elegido].id);selecciones.push({anuncio:candidatos[elegido],ramo:g.ramo});
+  }
+  return {selecciones,esperaHasta,estado:{...e,rotacionPorCuenta:{...(e.rotacionPorCuenta||{}),[uid]:rotacion}}};
+}
+
 // La X guarda solo ese id y el día chileno, por cuenta, fuera del estado académico.
-function descartarRecomendacionClase(anuncioId,ahora=Date.now()){
+function descartarRecomendacionClase(anuncioId,ahora=Date.now(),ramo=null){
   if(!anuncioId)return {vuelveEnLaTarde:false};
   const estado=depurarCierresAnuncios(leerEstadoMarketplace(),ahora),dia=diaLocalClases(ahora),uid=currentUser&&currentUser.id||'sin-cuenta';
   const cierres={...(estado.cierresPorCuenta||{})};cierres[uid]={...(cierres[uid]||{}),[anuncioId]:dia};
   const pendientes={...(estado.cierresPendientesPorCuenta||{})};
   if(uid!=='sin-cuenta'){pendientes[uid]={...(pendientes[uid]||{}),[anuncioId]:dia};const c=cierreAnunciosCuenta(uid);c.localPorAnuncio[anuncioId]=dia;c.pendientesPorAnuncio[anuncioId]=dia;}
+  const rotacion=estado.rotacionPorCuenta?.[uid],clave=ramo&&ramo.origen?.tenant+':'+siglaRamoParaClases(ramo);
+  if(rotacion&&clave){
+    rotacion.porRamo={...rotacion.porRamo,[clave]:{...rotacion.porRamo?.[clave],anuncioId:null,esperaHasta:ahora+PAUSA_RECOMENDACION_MS}};
+  }
   guardarEstadoMarketplace({...estado,cierresPorCuenta:cierres,cierresPendientesPorCuenta:pendientes,anuncioId:null});
   return {vuelveEnLaTarde:false};
 }
@@ -259,15 +323,33 @@ function contenidoRecomendacionClase(anuncio,{logoUrl='',vistaPrevia=false}={}){
     </button>`;
 }
 
+let timerRecomendacionClase=null;
+function programarRecomendacionClase(contenedor,hasta,uid){
+  if(timerRecomendacionClase!==null){clearTimeout(timerRecomendacionClase);timerRecomendacionClase=null;}
+  if(!Number.isFinite(hasta))return;
+  timerRecomendacionClase=setTimeout(()=>{
+    timerRecomendacionClase=null;
+    if(currentUser?.id===uid&&contenedor.isConnected&&document.visibilityState!=='hidden'&&
+      (typeof currentTab==='undefined'||currentTab==='home')&&
+      !document.getElementById('screen-ramo')?.classList.contains('active'))pintarRecomendacionClase(contenedor);
+  },Math.max(0,hasta-Date.now()));
+}
 function pintarRecomendacionClase(contenedor){
+  const activo=typeof document!=='undefined'&&document.activeElement;
+  const conFoco=activo&&activo.closest?.('.clase-apoyo');
+  const foco=conFoco&&conFoco.parentElement===contenedor?{id:conFoco.dataset.anuncioId,
+    control:activo.classList.contains('clase-apoyo-cerrar')?'.clase-apoyo-cerrar':'.clase-apoyo-abrir'}:null;
+  programarRecomendacionClase(contenedor,null,currentUser?.id);
   if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
     if(contenedor)contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
     if(contenedor)contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+    limpiarPosicionesRecomendaciones(contenedor);
     return;
   }
   if(!RECOMENDACIONES_CLASES_ACTIVAS||!contenedor||!currentUser||!supabaseClient||!S||!S.tenant)return;
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
+  limpiarPosicionesRecomendaciones(contenedor);
   const uid=currentUser.id,cierre=cierreAnunciosCuenta(uid);
   if(!cierre.leido){
     sincronizarCierreAnuncios().then(()=>{if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);});
@@ -280,50 +362,60 @@ function pintarRecomendacionClase(contenedor){
     cargarAnunciosRecomendacion(S.tenant,()=>{if(contenedor.isConnected)pintarRecomendacionClase(contenedor);});
     return;
   }
-  const {sel,estado}=recomendacionDelDia(anunciosRecomendacion.lista,S.ramos,S.tenant,leerEstadoMarketplace());
+  const {selecciones,estado,esperaHasta}=recomendacionesPorRamo(anunciosRecomendacion.lista,S.ramos,S.tenant,leerEstadoMarketplace());
   guardarEstadoMarketplace(estado);
-  if(!sel)return;
-  const fila=[...contenedor.querySelectorAll('.ramo-row')].find(f=>f.dataset.ramoId===String(sel.ramo.id));
-  if(!fila)return;
-  const {anuncio,ramo}=sel,sigla=siglaRamoParaClases(ramo);
-  const banner=document.createElement('aside');
-  banner.className='clase-apoyo';
-  banner.setAttribute('aria-label','Publicidad: clase particular');
-  banner.innerHTML=contenidoRecomendacionClase(anuncio);
-  banner.querySelector('.clase-apoyo-abrir').addEventListener('click',()=>{
-    registrarInteraccionMedida(anuncio.id,'apertura',sigla);
-    abrirClaseRecomendada(anuncio,ramo,sigla);
-  });
-  banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',async e=>{
-    const cierre=descartarRecomendacionClase(anuncio.id);
-    fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
-    fila.style.removeProperty('--info-mitad');
-    banner.remove();
-    if(e.detail===0)fila.querySelector('.ramo-name')?.focus({preventScroll:true});
-    // Si había una lectura en vuelo, la escritura del cierre va después.
-    const pendiente=cierreAnunciosCuenta(uid).pedido;
-    if(pendiente)await pendiente;
-    if(currentUser?.id!==uid)return;
-    const guardado=await sincronizarCierreAnuncios();
-    if(currentUser?.id===uid&&typeof showToast==='function')showToast(guardado?textoCierreClase(cierre):'Este anuncio quedó oculto aquí por hoy. No pudimos guardarlo en tus otros dispositivos.',!guardado);
-    if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);
-  });
-  // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
-  // espera a Storage para aparecer, y sin logo simplemente no se muestra.
-  logosDeAnuncios([anuncio.id]).then(async logos=>{
-    const ruta=logos.get(anuncio.id),caja=banner.querySelector('.clase-apoyo-logo');
-    if(!ruta||!caja)return;
-    const url=await urlFlyerClase(ruta);
-    if(!url||!banner.isConnected)return;
-    caja.innerHTML=imgLogoClase(url);caja.hidden=false;
-  }).catch(()=>{});
-  fila.classList.add('tiene-clase-apoyo');
-  // En el DOM el banner va siempre justo después de su ramo: así se lee en
-  // orden y en celular (una columna) queda pegado debajo. En la grilla se
-  // ubica aparte, en colocarRecomendacionEnGrilla.
-  fila.after(banner);
-  alinearRecomendacionConRamo(contenedor,fila,banner,{colocar:true});
-  observarRecomendacionClase(banner,anuncio,sigla);
+  programarRecomendacionClase(contenedor,esperaHasta,uid);
+  for(const sel of selecciones){
+    const fila=[...contenedor.querySelectorAll('.ramo-row')].find(f=>f.dataset.ramoId===String(sel.ramo.id));
+    if(!fila)continue;
+    const {anuncio,ramo}=sel,sigla=siglaRamoParaClases(ramo);
+    const banner=document.createElement('aside');
+    banner.className='clase-apoyo';
+    banner.dataset.ramoId=String(ramo.id);
+    banner.dataset.anuncioId=anuncio.id;
+    banner.setAttribute('aria-label',`Publicidad: ${ramo.nombre}`);
+    banner.innerHTML=contenidoRecomendacionClase(anuncio);
+    banner.querySelector('.clase-apoyo-cerrar').setAttribute('aria-label',`Ocultar ${anuncio.titulo||'este anuncio'} por hoy`);
+    banner.querySelector('.clase-apoyo-abrir').addEventListener('click',()=>{
+      registrarInteraccionMedida(anuncio.id,'apertura',sigla);
+      abrirClaseRecomendada(anuncio,ramo,sigla);
+    });
+    banner.querySelector('.clase-apoyo-cerrar').addEventListener('click',async e=>{
+      const cierre=descartarRecomendacionClase(anuncio.id,Date.now(),ramo);
+      fila.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');
+      fila.style.removeProperty('--info-mitad');
+      banner.remove();
+      if(e.detail===0)fila.querySelector('.ramo-name')?.focus({preventScroll:true});
+      pintarRecomendacionClase(contenedor);
+      // Si había una lectura en vuelo, la escritura del cierre va después.
+      const pendiente=cierreAnunciosCuenta(uid).pedido;
+      if(pendiente)await pendiente;
+      if(currentUser?.id!==uid)return;
+      const guardado=await sincronizarCierreAnuncios();
+      if(currentUser?.id===uid&&typeof showToast==='function')showToast(guardado?textoCierreClase(cierre):'Este anuncio quedó oculto aquí por hoy. No pudimos guardarlo en tus otros dispositivos.',!guardado);
+      if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);
+    });
+    // El logo del profesor, si tiene uno aprobado. Llega después: el banner no
+    // espera a Storage para aparecer, y sin logo simplemente no se muestra.
+    logosDeAnuncios([anuncio.id]).then(async logos=>{
+      const ruta=logos.get(anuncio.id),caja=banner.querySelector('.clase-apoyo-logo');
+      if(!ruta||!caja)return;
+      const url=await urlFlyerClase(ruta);
+      if(!url||!banner.isConnected)return;
+      caja.innerHTML=imgLogoClase(url);caja.hidden=false;
+    }).catch(()=>{});
+    fila.classList.add('tiene-clase-apoyo');
+    // En el DOM el banner va siempre justo después de su ramo: así se lee en
+    // orden y en celular (una columna) queda pegado debajo. En la grilla se
+    // ubica aparte, en colocarRecomendacionEnGrilla.
+    fila.after(banner);
+    alinearRecomendacionConRamo(contenedor,fila,banner,{colocar:true});
+    observarRecomendacionClase(banner,anuncio,sigla);
+  }
+  if(foco&&document.activeElement===document.body){
+    const banner=[...contenedor.querySelectorAll('.clase-apoyo')].find(b=>b.dataset.anuncioId===foco.id);
+    banner?.querySelector(foco.control)?.focus({preventScroll:true});
+  }
 }
 
 // En la grilla el ramo y su clase se estiran al alto de la fila. El texto de
@@ -350,9 +442,39 @@ function columnasGrillaRamos(contenedor){
     return /^[\d.]+px( [\d.]+px)*$/.test(t)?t.split(' ').length:0;
   }catch(e){return 1;}
 }
+function limpiarPosicionesRecomendaciones(contenedor){
+  if(!contenedor)return;
+  contenedor.querySelectorAll('[data-ca-posicion]').forEach(el=>{
+    el.style.removeProperty('grid-row');el.style.removeProperty('grid-column');el.removeAttribute('data-ca-posicion');
+  });
+}
+function colocarDosRecomendacionesEnGrilla(contenedor,columnas){
+  limpiarPosicionesRecomendaciones(contenedor);
+  const anuncios=[...contenedor.querySelectorAll('.clase-apoyo')];
+  const filas=[...contenedor.children].filter(el=>!el.classList.contains('clase-apoyo'));
+  if(columnas<2||contenedor.classList.contains('ramo-reordering'))return;
+  let casilla=0;
+  const colocar=(el,fila,col)=>{
+    el.style.setProperty('grid-row',String(fila));el.style.setProperty('grid-column',String(col));el.setAttribute('data-ca-posicion','');
+  };
+  for(const fila of filas){
+    const banner=anuncios.find(b=>b.dataset.ramoId===fila.dataset.ramoId);
+    if(banner&&casilla%columnas===columnas-1)casilla++;
+    const renglon=Math.floor(casilla/columnas)+1,col=casilla%columnas+1;
+    colocar(fila,renglon,col);casilla++;
+    if(!banner)continue;
+    colocar(banner,renglon,col+1);casilla++;
+    banner.classList.add('en-casilla','a-la-derecha');banner.classList.remove('a-la-izquierda');
+    fila.classList.add('junto-der');fila.classList.remove('junto-izq');
+  }
+}
 function colocarRecomendacionEnGrilla(contenedor,fila,banner){
   const columnas=columnasGrillaRamos(contenedor);
   if(!columnas)return;
+  if(contenedor.querySelectorAll&&contenedor.querySelectorAll('.clase-apoyo').length>1){
+    colocarDosRecomendacionesEnGrilla(contenedor,columnas);
+    if(columnas>1)return;
+  }
   const casillas=[...contenedor.children].filter(el=>el!==banner);
   const i=casillas.indexOf(fila);
   const derecha=columnas>1&&i>=0&&i%columnas<columnas-1;
@@ -370,9 +492,9 @@ function colocarRecomendacionEnGrilla(contenedor,fila,banner){
 }
 
 function alinearRecomendacionConRamo(contenedor,fila,banner,{colocar=false}={}){
-  let obs=null;
+  let obs=null,reorden=null;
   const medir=()=>{
-    if(!banner.isConnected||!fila.isConnected){if(obs)obs.disconnect();return;}
+    if(!banner.isConnected||!fila.isConnected){if(obs)obs.disconnect();if(reorden)reorden.disconnect();return;}
     if(colocar)colocarRecomendacionEnGrilla(contenedor,fila,banner);
     const info=fila.querySelector('.ramo-info');
     if(info)fila.style.setProperty('--info-mitad',(info.offsetHeight/2)+'px');
@@ -386,6 +508,9 @@ function alinearRecomendacionConRamo(contenedor,fila,banner,{colocar=false}={}){
     if(meta&&pie)banner.style.setProperty('--ajuste-datos',Math.round((meta.getBoundingClientRect().top-pie.getBoundingClientRect().top)/escala)+'px');
   };
   if(typeof ResizeObserver==='function'){obs=new ResizeObserver(medir);obs.observe(contenedor);}
+  if(colocar&&typeof MutationObserver==='function'){
+    reorden=new MutationObserver(medir);reorden.observe(contenedor,{attributes:true,attributeFilter:['class']});
+  }
   requestAnimationFrame(medir);
 }
 

@@ -311,7 +311,7 @@ function proximaEvaluacionClases(ramo,ahora=Date.now()){
   return proxima;
 }
 
-function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now(),turno=0}={}){
+function gruposClasesApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now()}={}){
   // Primero los ramos con una evaluación en los próximos días, la más cercana
   // antes (#664: con la prueba encima es cuando alguien escribe a un profesor).
   // Los demás quedan detrás en el orden que eligió la persona, así que quien no
@@ -324,14 +324,11 @@ function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.
   const disponibles=anunciosParaRamosLocales(anuncios,propios).filter(a=>
     a.tenant===tenant&&a.estado==='publicado'&&!omitidos.has(a.id)&&
     (a.vence_at==null||Date.parse(a.vence_at)>ahora)&&criteriosClaseValidos(a.criterios));
-  // Después de la próxima evaluación, el orden de ramos que eligió la persona
-  // manda. Si varios avisos calzan con
-  // el mismo ramo, se alternan en cada apertura de la app: antes ganaba siempre
-  // el publicado último, y un profesor con dos clases del mismo ramo casi no
-  // veía la otra en Inicio (Salva Ramos, 2026-09-30). Se entrega como máximo
-  // una tarjeta, sin escribir ninguna preferencia en S.
+  const grupos=[],incluidos=new Set();
   for(const ramo of propios){
     const sigla=siglaRamoParaClases(ramo);
+    const clave=tenant+':'+sigla;
+    if(incluidos.has(clave))continue;
     const candidatos=disponibles.filter(a=>a.siglasCoincidentes.includes(sigla));
     if(!candidatos.length)continue;
     const cats=ramo.categorias||[];
@@ -348,13 +345,20 @@ function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.
     const evaluado=100*(avance.total-avance.pending)/avance.total;
     const promedio=ramoAvg(ramo,undefined,ramos);
     if(!Number.isFinite(promedio))continue;
-    // Orden estable por id: la rotación no cambia porque llegue otro aviso a la lista.
+    // Una vuelta empieza por los avisos con precio y después sigue con los
+    // gratis. Dentro de cada grupo, id estable; el precio no compra más turnos.
     const calzan=candidatos.filter(a=>promedio<a.criterios.promedioMenorA&&evaluado+1e-9>=a.criterios.avanceMinimo)
-      .sort((x,y)=>String(x.id)<String(y.id)?-1:String(x.id)>String(y.id)?1:0);
+      .sort((x,y)=>(Number(y.precio_clp)>0?1:0)-(Number(x.precio_clp)>0?1:0)||
+        (String(x.id)<String(y.id)?-1:String(x.id)>String(y.id)?1:0));
     if(calzan.length){
-      const i=Number.isSafeInteger(turno)?((turno%calzan.length)+calzan.length)%calzan.length:0;
-      return {anuncio:calzan[i],ramo};
+      incluidos.add(clave);grupos.push({clave,ramo,anuncios:calzan});
     }
   }
-  return null;
+  return grupos;
+}
+function seleccionarClaseApoyo(anuncios,ramos,tenant,{descartados=[],ahora=Date.now(),turno=0}={}){
+  const g=gruposClasesApoyo(anuncios,ramos,tenant,{descartados,ahora})[0];
+  if(!g)return null;
+  const i=Number.isSafeInteger(turno)?((turno%g.anuncios.length)+g.anuncios.length)%g.anuncios.length:0;
+  return {anuncio:g.anuncios[i],ramo:g.ramo};
 }

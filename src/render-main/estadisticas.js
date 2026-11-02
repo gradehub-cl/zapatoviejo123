@@ -167,13 +167,8 @@ function renderStats(){
     }
     // Un punto por semestre, sin interpolar notas ni cambiar la escala 1–7.
     {
-      const completa=[...validos].reverse().map(h=>({label:h.label,v:gpaHistorial(h),fecha:parseEtiquetaSemestre(h.label)})).filter(x=>x.v!==null);
-      // Los semestres ingresados a mano pueden haberse agregado fuera de orden.
-      const orden=x=>x.fecha?x.fecha.anio*10+(x.fecha.periodo==='v'?0:Number(x.fecha.periodo)):-Infinity;
-      completa.sort((a,b)=>orden(a)-orden(b));
-      if(g!==null)completa.push({label:semester(),v:g,actual:true});
-      if(completa.length>=2){
-        const serie=periodo==='anterior'?completa.slice(-2):periodo==='5'?completa.slice(-5):completa;
+      const serie=serieEvolucionSemestres(validos,g,periodo);
+      if(serie.length>=2){
         const ultimo=serie[serie.length-1];
         const anterior=ultimo.actual?serie[serie.length-2]:null;
         const diferencia=anterior?ultimo.v-anterior.v:null;

@@ -40,7 +40,8 @@ grandes y ejecutar las comprobaciones:
 ```bash
 npm run buscar -- renderAlumnosProfesor
 npm run buscar -- --ver htmlAnillo
-npm test
+npm run buscar -- admin_reportes --tipo sql
+npm test -- --resumen   # suite completa; salida detallada en .cache/tests.log
 ```
 
 La interfaz básica puede probarse localmente sin configurar Supabase. No uses datos personales, correos reales ni notas reales durante el desarrollo. Si el navegador muestra una versión anterior, abre el proyecto en otro puerto para evitar la caché del service worker.
