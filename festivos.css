@@ -1,4 +1,4 @@
-/* halloween — tema temporal. Se borra junto con halloween.js (ver ese archivo). */
+/* Temas festivos: las clases html.halloween las pone y saca festivos.js. */
 html.halloween #home-greeting::after{content:" 🎃";}
 html.halloween body::before,
 html.halloween body::after{
@@ -15,3 +15,9 @@ html.halloween body::after{bottom:calc(env(safe-area-inset-bottom) + 110px);left
 /* halloween: murciélagos de fondo, muy tenues, detrás de todo */
 html.halloween body,html.halloween .app{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' fill='%236b21a8' fill-opacity='.08'><defs><path id='b' d='M18 6L19 3L20 5L21 3L22 6Q30 2 38 4Q34 6 34 9Q31 8 30 10Q27 10 26 13Q23 11 22 11L20 14L18 11Q17 11 14 13Q13 10 10 10Q9 8 6 9Q6 6 2 4Q10 2 18 6Z'/></defs><use href='%23b' transform='translate(30 40) rotate(-12) scale(1)'/><use href='%23b' transform='translate(210 90) rotate(8) scale(0.7)'/><use href='%23b' transform='translate(110 210) rotate(-4) scale(0.85)'/><use href='%23b' transform='translate(260 260) rotate(14) scale(0.6)'/></svg>");background-size:320px 320px;background-attachment:fixed;}
 html.halloween.halloween-oscuro body,html.halloween.halloween-oscuro .app{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' fill='%23c4b5fd' fill-opacity='.07'><defs><path id='b' d='M18 6L19 3L20 5L21 3L22 6Q30 2 38 4Q34 6 34 9Q31 8 30 10Q27 10 26 13Q23 11 22 11L20 14L18 11Q17 11 14 13Q13 10 10 10Q9 8 6 9Q6 6 2 4Q10 2 18 6Z'/></defs><use href='%23b' transform='translate(30 40) rotate(-12) scale(1)'/><use href='%23b' transform='translate(210 90) rotate(8) scale(0.7)'/><use href='%23b' transform='translate(110 210) rotate(-4) scale(0.85)'/><use href='%23b' transform='translate(260 260) rotate(14) scale(0.6)'/></svg>");}
+/* Interruptor del panel de administración (Usuarios). */
+.admin-tema-festivo{border:0;border-top:1px solid var(--border);margin:0 0 8px;padding:16px 0 0;display:grid;}
+.admin-tema-festivo legend{float:left;width:100%;font-size:1rem;font-weight:600;color:var(--fg);}
+.admin-tema-festivo label{display:flex;align-items:center;gap:12px;min-height:44px;color:var(--fg);}
+.admin-tema-festivo input{width:20px;height:20px;margin:0;accent-color:var(--primary);}
+.admin-tema-festivo label:has(input:disabled){color:var(--fg3);}

@@ -120,7 +120,7 @@ Lo que las separa no es el selector sino cuánto contenido tienen detrás:
 | FEN | 3 | 3 | 88 | 12 |
 | UAI | 23, todas con malla | 23 | 530 | 6 |
 | UAndes | 34, todas menos Arquitectura con malla | 33 | 869 | 44 (cursos PEG) |
-| UDD | 46 (una por mención o sede donde la malla cambia), 42 con malla | 42 | 1.175 | 0 |
+| UDD | 46 (una por mención o sede donde la malla cambia), 42 con malla | 42 | 1.175 | 23 (Psicología y Arquitectura) |
 
 **Una pauta que deja la mitad o más del ramo en grupos sin cantidad** (por
 ejemplo "Evaluaciones sumativas 60%" sin decir cuántas) no se carga ni se
