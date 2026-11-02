@@ -35,6 +35,13 @@ No está disponible para clientes autenticados o anónimos.
   una app antigua, desconexiones o una llamada que nunca llegó no se reconstruyen.
   El servidor no puede verificar que una vista ocurrió físicamente en pantalla.
   Estos eventos adicionales nunca aumentan la facturación.
+- Cupo diario por cuenta, anuncio, publicación y tipo: **20 impresiones,
+  10 aperturas y 5 contactos**, en UTC, como el agregado diario. El evento que
+  excede el cupo devuelve `false`, sin recibo ni agregado, y el cliente no lo
+  reintenta. El índice del cupo usa los recibos existentes; no hay otra tabla
+  de identidad. El bloqueo del anuncio evita superar el límite por concurrencia.
+  El cupo limita el abuso de una cuenta; no garantiza autenticidad física ni
+  evita abuso coordinado con muchas cuentas. No se recortan cifras anteriores.
 
 ## Cuentas y anuncios existentes
 

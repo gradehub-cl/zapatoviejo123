@@ -76,6 +76,31 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   await db.exec('reset role');
   await sesion(3);for(let n=110;n<123;n++)await evento(n);
   await sesion(2);assert.equal((await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r.impresion,15);
+  // Cupos por cuenta/anuncio/publicación/tipo/día UTC. Prueba aislada para
+  // conservar las cifras del resto de escenarios (incluido el cobro).
+  await db.exec('begin');await sesion(3);
+  const metricasAntes=await q('select * from anuncio_metricas order by tipo');
+  const cobroAntes=await costo();
+  for(const [tipo,limite,previos]of [['impresion',20,15],['clic',10,2],['contacto',5,2]]){
+    for(let n=previos;n<limite;n++)assert.equal(await evento(1000+limite*100+n,tipo),true);
+    const recibos=await q('select * from anuncio_eventos_recibos order by evento_id');
+    const diarios=await q('select * from anuncio_eventos_diarios order by tipo');
+    assert.equal(await evento(9000+limite,tipo),false,`evento ${limite+1} de ${tipo} no suma`);
+    assert.deepEqual(await q('select * from anuncio_eventos_recibos order by evento_id'),recibos,'sin recibo extra');
+    assert.deepEqual(await q('select * from anuncio_eventos_diarios order by tipo'),diarios,'sin agregado extra');
+  }
+  await sesion(4);assert.equal(await evento(9200),true,'el cupo de una cuenta no bloquea otra');await sesion(3);
+  assert.deepEqual(await costo(),cobroAntes,'los eventos admitidos y rechazados no cambian el cobro');
+  assert.deepEqual(await q('select * from anuncio_metricas order by tipo'),metricasAntes,'ni el agregado auxiliar original');
+  // Otro huso horario de la sesión no reinicia el día UTC.
+  await db.exec("set local time zone 'Pacific/Kiritimati'");
+  assert.equal(await evento(9100),false);
+  // Simula el paso al día siguiente envejeciendo los recibos del día anterior.
+  await q("update anuncio_eventos_recibos set creado_at=creado_at-interval '1 day' where user_id=$1",[id(3)]);
+  assert.equal(await evento(9101),true,'otro día vuelve a admitir impresiones');
+  assert.equal(await evento(9102,'clic'),true);assert.equal(await evento(9103,'contacto'),true);
+  assert.deepEqual(await costo(),cobroAntes);assert.deepEqual(await q('select * from anuncio_metricas order by tipo'),metricasAntes);
+  await db.exec('rollback');
   // Pausar o terminar un anuncio que sí tuvo medición no borra sus cifras.
   await sesion(1);
   for(const estado of ['pausado','expirado']){

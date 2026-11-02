@@ -24,6 +24,8 @@ create table if not exists public.anuncio_eventos_recibos (
   primary key(user_id,evento_id)
 );
 create index if not exists anuncio_eventos_recibos_retencion on public.anuncio_eventos_recibos(vence_publicacion);
+create index if not exists anuncio_eventos_recibos_cupo_diario
+  on public.anuncio_eventos_recibos(user_id,anuncio_id,publicacion,tipo,creado_at);
 alter table public.anuncio_eventos_recibos enable row level security;
 revoke all on public.anuncio_eventos_recibos from public, anon, authenticated;
 
@@ -47,6 +49,8 @@ declare
   uid uuid:=auth.uid();
   pendiente boolean;
   filas integer;
+  limite integer;
+  inicio_dia timestamptz := date_trunc('day',now() at time zone 'UTC') at time zone 'UTC';
 begin
   if uid is null then raise exception 'hay que haber iniciado sesión' using errcode='42501'; end if;
   if p_evento_id is null or p_publicacion is null or p_tipo is null or p_tipo not in ('impresion','clic','contacto') then
@@ -61,6 +65,15 @@ begin
     raise exception 'la sigla no corresponde al anuncio' using errcode='22023';
   end if;
   if exists(select 1 from public.anuncio_eventos_recibos where user_id=uid and evento_id=p_evento_id) then
+    return false;
+  end if;
+  -- El bloqueo del anuncio serializa también este cupo: dos llamadas en
+  -- paralelo no pueden superar el máximo. False no escribe ni deja recibo.
+  limite:=case p_tipo when 'impresion' then 20 when 'clic' then 10 else 5 end;
+  if (select count(*) from (select 1 from public.anuncio_eventos_recibos
+      where user_id=uid and anuncio_id=a.id and publicacion=a.medicion_desde and tipo=p_tipo
+        and creado_at>=inicio_dia and creado_at<inicio_dia+interval '24 hours'
+      limit limite) recibos_del_dia)>=limite then
     return false;
   end if;
   -- Permite completar el primer evento que acaba de alcanzar el tope. Consume
