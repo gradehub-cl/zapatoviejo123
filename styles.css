@@ -4426,6 +4426,17 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pautas-banco-fila :focus-visible,.pautas-banco-filtros :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:600px){.pautas-banco-detalle{grid-template-columns:minmax(0,1fr)}.pautas-banco-filtros label{flex:1 1 140px}.pautas-banco-filtros input{width:100%;box-sizing:border-box}}
 
+/* Cierre: un ramo por bloque, campos oficiales opcionales y pendientes explícitos. */
+.cierre-lista{display:grid;gap:16px;margin:20px 0}
+.cierre-ramo{padding:16px;background:var(--muted);border-radius:16px}
+.cierre-ramo h3{font-size:1rem;margin:0 0 8px;color:var(--fg)}
+.cierre-ramo p,.cierre-ramo label span{color:var(--fg2);font-size:.875rem}
+.cierre-ramo label{display:flex;flex-direction:column;gap:4px;margin-top:12px}
+.cierre-ramo input[type=text]{min-height:44px;width:100%;box-sizing:border-box;padding:10px 12px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--border2);border-radius:10px;font-variant-numeric:tabular-nums}
+.cierre-ramo button{min-height:44px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--border2);border-radius:10px;cursor:pointer}
+.cierre-ramo :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.cierre-incompleto{display:block;color:var(--fg2);font-size:.75rem;font-weight:400;margin-top:4px}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
