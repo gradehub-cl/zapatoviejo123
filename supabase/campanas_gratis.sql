@@ -1,4 +1,5 @@
--- Aplicar después de clases_particulares.sql, admin_clases.sql y administradores.sql.
+-- Requiere el base vigente de clases_particulares.sql (funciones canónicas),
+-- seguido de admin_clases.sql y administradores.sql.
 -- Publicaciones anteriores conservan su tarifa: no se completa el precio histórico.
 begin;
 alter table public.tutor_anuncios add column if not exists precio_campana_clp integer;
@@ -37,82 +38,12 @@ create trigger anuncio_campanas_validar_tope before insert or update of dias, in
 for each row execute function public.validar_tope_campana();
 
 -- Sobrecarga interna: la firma anterior mantiene íntegra la tarifa heredada.
-create or replace function public.tarifa_campana_clp(p_concepto text, p_precio_clp integer)
-returns integer language sql immutable set search_path = '' as $$
-  select case when p_precio_clp=0 then 0 else public.tarifa_campana_clp(p_concepto) end;
-$$;
+-- La sobrecarga de tarifa vive en clases_particulares.sql.
 revoke all on function public.tarifa_campana_clp(text,integer) from public, anon, authenticated;
 
-create or replace function public.preparar_publicacion_clase()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  if new.estado = 'en_revision' and (tg_op = 'INSERT' or old.estado <> 'en_revision') then
-    perform 1 from public.anuncio_campanas where anuncio_id = new.id for update;
-    if not found then
-      raise exception 'guarda los días y el tope de la campaña antes de enviarla o publicarla' using errcode = '23514';
-    end if;
-  end if;
-  if new.estado = 'publicado' and (tg_op = 'INSERT' or old.estado <> 'publicado' or new.publicado_at is distinct from old.publicado_at) then
-    if new.publicado_at is null or (tg_op = 'UPDATE' and old.publicado_at is not null and new.publicado_at = old.publicado_at) then
-      raise exception 'una nueva publicación necesita su propia fecha de inicio' using errcode = '23514';
-    end if;
-    if new.precio_clp > 0 and exists (select 1 from public.anuncio_campanas c where c.anuncio_id=new.id and c.tope_clp is null) then
-      raise exception 'un anuncio con precio necesita un tope de campaña' using errcode='23514';
-    end if;
-    new.precio_campana_clp := new.precio_clp;
-    select jsonb_build_object('dias',c.dias,'inicio',c.inicio,'tope_clp',c.tope_clp)
-      into new.configuracion_campana_aprobada from public.anuncio_campanas c where c.anuncio_id=new.id;
-    new.medicion_desde := new.publicado_at;
-  end if;
-  return new;
-end;
-$$;
+-- public.preparar_publicacion_clase vive en clases_particulares.sql (versión vigente).
 
-create or replace function public.costo_campana(p_anuncio_id uuid)
-returns table (dias integer, inicio date, tope_clp integer, dias_cobrados integer,
-               vistas integer, aperturas integer, contactos integer, costo_bruto integer)
-language plpgsql
-stable
-security definer
-set search_path = public
-as $$
-declare
-  a public.tutor_anuncios%rowtype;
-  c public.anuncio_campanas%rowtype;
-  hasta_cobro timestamptz;
-  segundos_suspendidos numeric := 0;
-  configuracion jsonb;
-begin
-  select * into a from public.tutor_anuncios where id = p_anuncio_id;
-  if not found then return; end if;
-  select * into c from public.anuncio_campanas where anuncio_id = p_anuncio_id;
-
-  configuracion:=coalesce(a.configuracion_campana_aprobada,c.configuracion_previa);
-  dias := coalesce(case when configuracion is null then c.dias else (configuracion->>'dias')::integer end, case when a.publicado_at is not null and a.vence_at is not null
-                                then ceil(extract(epoch from (a.vence_at - a.publicado_at)) / 86400)::integer end);
-  inicio := case when configuracion is null then c.inicio else (configuracion->>'inicio')::date end;
-  tope_clp := case when configuracion is null then c.tope_clp else (configuracion->>'tope_clp')::integer end;
-  dias_cobrados := 0;
-  if a.publicado_at is not null and a.publicado_at <= now() then
-    hasta_cobro := least(now(), coalesce(a.vence_at, 'infinity'), coalesce(a.detenido_at, c.detenido_at, 'infinity'));
-    select coalesce(sum(greatest(0, extract(epoch from
-      (least(hasta_cobro, coalesce(s.hasta, hasta_cobro)) - greatest(a.publicado_at, s.desde))))), 0)
-      into segundos_suspendidos from public.tutor_suspensiones s
-      where s.user_id = a.autor_id and s.desde < hasta_cobro and (s.hasta is null or s.hasta > a.publicado_at);
-    dias_cobrados := greatest(0, ceil((extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos) / 86400)::integer);
-    if dias is not null then dias_cobrados := least(dias_cobrados, dias); end if;
-  end if;
-  select count(*)::integer into vistas from public.anuncio_alcance where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
-  select count(*) filter (where tipo = 'apertura')::integer, count(*) filter (where tipo = 'contacto')::integer
-    into aperturas, contactos
-    from public.anuncio_interacciones where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
-  costo_bruto := dias_cobrados * public.tarifa_campana_clp('dia', a.precio_campana_clp)
-               + vistas * public.tarifa_campana_clp('vista', a.precio_campana_clp)
-               + aperturas * public.tarifa_campana_clp('apertura', a.precio_campana_clp)
-               + contactos * public.tarifa_campana_clp('contacto', a.precio_campana_clp);
-  return next;
-end;
-$$;
+-- public.costo_campana vive en clases_particulares.sql (versión vigente).
 
 -- La RPC anterior conserva firma y tipo. El cliente nuevo pide la marca explícita.
 create or replace function public.campana_anuncio_con_tarifa(p_anuncio_id uuid)

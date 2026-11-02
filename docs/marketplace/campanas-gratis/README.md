@@ -1,6 +1,6 @@
 # Campañas gratuitas · PR #915
 
-**Antes del merge, Lucas debe aplicar `supabase/campanas_gratis.sql` en producción. No se aplicó desde Codex.** Requiere las versiones vigentes de `clases_particulares.sql`, `admin_clases.sql` y `administradores.sql`. El archivo nuevo es reaplicable y va después de esos tres; si se vuelven a aplicar sus definiciones antiguas, reaplicar también este archivo al final.
+**Antes del merge, Lucas debe aplicar `supabase/campanas_gratis.sql` en producción. No se aplicó desde Codex.** Requiere las versiones vigentes de `clases_particulares.sql`, `admin_clases.sql` y `administradores.sql`. El complemento es reaplicable y va después de esos tres. Las definiciones vigentes de costo y publicación viven ahora en `clases_particulares.sql`: reaplicar ese base ya no las hace retroceder.
 
 Un profesor puede enviar una clase o material gratis con tope vacío. El precio $0 oculta el tope y las tarifas, mantiene días/inicio/término y muestra «Publicar una clase gratis no tiene costo». Volver a un precio positivo restaura el tope de $10.000. El rango de $1.000–$5.000.000 se valida al guardar/enviar, sin errores prematuros al escribir.
 

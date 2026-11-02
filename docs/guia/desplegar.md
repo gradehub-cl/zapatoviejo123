@@ -79,3 +79,29 @@ Reglas para quien escribe SQL:
 Se descartó aplicarlo desde GitHub Actions con aprobación: con el repo privado en
 el plan gratis de la organización, GitHub no ofrece *Required reviewers* y la
 contraseña de la base quedaría al alcance de cualquier rama.
+
+### Orden del SQL de Clases y sus métricas
+
+Para una instalación completa de este subsistema, aplicar en este orden. No es
+una instrucción para ejecutar automáticamente todos los SQL del repositorio:
+
+1. `supabase/clases_particulares.sql`
+2. `supabase/admin_clases.sql`
+3. `supabase/administradores.sql`
+4. `supabase/admin_no_cuenta.sql`
+5. `supabase/admin_estadisticas.sql`
+6. `supabase/campanas_gratis.sql`
+7. `supabase/paneles_historial.sql`
+8. `supabase/anuncio_eventos.sql`
+
+El archivo base conserva las definiciones vigentes de `costo_campana`,
+`preparar_publicacion_clase`, `limpiar_alcance_anuncios`,
+`limpiar_interacciones_anuncios` y `totales_metricas_anuncio`, más sus dependencias
+internas de precio aprobado e historial. Reaplicar **solo el base** no revierte
+esas cinco funciones. Los complementos de campañas gratis e historial añaden sus
+otras RPC y permisos, sin volver a definirlas. No se rellena el precio histórico
+ni se cambian campañas existentes. Si se instala en una base antigua, conserva
+las precauciones de respaldo que encabezan el SQL.
+
+`tests/clases-base-vigente.test.js` lee este orden, instala el subsistema con
+PGlite y comprueba los md5 de producción antes y después de reaplicar el base.
