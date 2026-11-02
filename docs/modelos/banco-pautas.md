@@ -27,3 +27,35 @@ Publicada en la PR antes de escribir su código.
 
 Depende del punto 4. Aplicación prevista: SQL nuevo reaplicable; ningún SQL se
 aplica desde esta PR. Lucas o Claude revisan y mergean.
+
+## Implementación y auditoría de acceso
+
+Aplicar `supabase/pautas_banco.sql` después de las dependencias. Sin barras
+invertidas; reaplicable. No se aplicó en producción. Los archivos fuente y las
+ambigüedades conocidas se toman de los tres inventarios de programas UC/UAI en
+`docs/programas-*.json`. Una referencia de archivo no implica que el PDF esté
+subido: «Abrir programa» aparece solo si hay documento privado asociado. Los
+ramos sin una referencia conservan el faltante visible.
+
+- Tabla con RLS, SELECT solo admin+MFA y mutación exclusivamente por RPC.
+- La RPC fija `revisado_por=auth.uid()`; no acepta un revisor declarado.
+- Cada RPC exige admin antes de leer/escribir; el tab no es la autorización.
+- Bucket no público, PDF y 10 MiB; políticas Storage separadas con MFA.
+- La ruta debe pertenecer a la universidad/ramo/período del registro, existir
+  en Storage y acompañarse de SHA-256 válido. El navegador calcula el hash del
+  archivo. No se afirma verificación criptográfica del contenido por Postgres:
+  Storage y el registro están bajo la responsabilidad del admin que lo sube.
+- RLS de Storage se prueba con los permisos base de Supabase en el harness,
+  para no confundir ausencia de GRANT con protección de filas.
+- Al borrar una cuenta revisora, el programa se conserva y el revisor queda null.
+- No se devuelven `user_id`, nombres ni correos al banco. Los comentarios son
+  texto de reportes y se escapan antes de mostrarlos.
+
+HIG aplicadas: [Tab views](https://developer.apple.com/design/human-interface-guidelines/tab-views)
+para cinco áreas relacionadas y navegación por teclado;
+[Text fields](https://developer.apple.com/design/human-interface-guidelines/text-fields)
+para etiquetas persistentes y texto largo en textarea;
+[Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)
+y [Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
+para acción de guardar por bloque, foco, controles de 44 pt y colores del tema.
+Sin animación nueva. No hay conflictos con semáforo o tipografía.
