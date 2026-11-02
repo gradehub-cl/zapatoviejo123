@@ -110,6 +110,28 @@ async function abrirWrapped(){
   extrasWrapped(datos,base.ramos,base.actual);
   const slides=slidesWrapped(datos,comp,base.label);
   track('wrapped_open',{pantallas:slides.length});
+  montarWrapped(slides,{foco,cuenta,tenant,ramos:base.ramos,version});
+}
+// Vista previa para administración (Lucas, 2026-11-02): un semestre sintético,
+// sin la fecha de apertura, sin el servidor y sin medir. Ninguna nota real.
+function ramosVistaPreviaWrapped(){
+  const n=(id,valor,fecha)=>({id,nombre:id,valor,fecha});
+  const r=(id,nombre,notas)=>({id:'vista-'+id,nombre,creditos:10,color:'#000',gates:[],categorias:[{id:'vista-'+id+'c',nombre:'Evaluaciones',peso:100,notas}]});
+  return [
+    r('a','Cálculo II',[n('I1',3.2,'2026-08-20'),n('I2',3.6,'2026-09-15'),n('I3',7.0,'2026-10-20'),n('Examen',5.8,'2026-11-25')]),
+    r('b','Microeconomía I',[n('P1',6.1,'2026-08-28'),n('P2',6.5,'2026-10-02'),n('P3',6.7,'2026-11-20')]),
+    r('c','Inglés IV',[n('T1',6.0,'2026-09-03'),n('T2',6.2,'2026-09-17'),n('T3',7.0,'2026-10-29')]),
+    r('d','Estadística',[n('C1',4.4,'2026-09-14'),n('C2',4.9,'2026-09-16'),n('C3',4.6,'2026-11-18')]),
+  ];
+}
+function abrirWrappedVistaPrevia(){
+  if(_wrapped||_wrappedAbriendo)return;
+  const ramos=ramosVistaPreviaWrapped(),datos=datosWrapped(ramos);
+  extrasWrapped(datos,ramos,true);
+  const slides=slidesWrapped(datos,{curso:{ramo:'Cálculo II',mejorQue:82,total:39},uni:{mejorQue:71,total:120}},WRAPPED_PERIODO);
+  montarWrapped(slides,{foco:document.activeElement,vistaPrevia:true});
+}
+function montarWrapped(slides,estado){
   const ov=document.createElement('div');
   ov.className='wrapped';
   ov.dataset.dir='adelante';
@@ -153,7 +175,7 @@ async function abrirWrapped(){
   document.body.appendChild(ov);
   const fondo=[...document.body.children].filter(el=>el!==ov).map(el=>({el,inert:el.inert}));
   fondo.forEach(({el})=>{el.inert=true;});
-  _wrapped={ov,slides,i:0,foco,fondo,cuenta,tenant,ramos:base.ramos,version,imagen:null,archivo:null,imagenTerminada:false,
+  _wrapped={...estado,ov,slides,i:0,fondo,imagen:null,archivo:null,imagenTerminada:false,
     pausa:false,timer:null,conPromedio:false};
   pintarWrapped();
   ov.querySelector('.wrapped-cerrar').focus();
@@ -200,7 +222,7 @@ function arrastreWrapped(ov){
 }
 
 function pintarWrapped(){
-  if(!wrappedDisponible()||(_wrapped?.version&&!contextoWrappedVigente(_wrapped)))return cerrarWrapped(true);
+  if(!_wrapped.vistaPrevia&&(!wrappedDisponible()||(_wrapped.version&&!contextoWrappedVigente(_wrapped))))return cerrarWrapped(true);
   const {ov,slides,i}=_wrapped,s=slides[i];
   ov.querySelector('[data-paso="-1"]').disabled=i===0;
   ov.querySelector('[data-paso="1"]').textContent=s.tipo==='umbral'?'Descubrir mi semestre':i===slides.length-1?'Terminar':'Siguiente';

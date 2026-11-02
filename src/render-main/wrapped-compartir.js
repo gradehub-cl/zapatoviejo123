@@ -117,14 +117,14 @@ function actualizarCompartirWrapped(){
   }
 }
 function descargarWrapped(){
-  if(!_wrapped||!_wrapped.archivo||!wrappedDisponible())return;
+  if(!_wrapped||!_wrapped.archivo||(!wrappedDisponible()&&!_wrapped.vistaPrevia))return;
   const archivo=_wrapped.archivo,a=document.createElement('a'),url=URL.createObjectURL(archivo);
   a.href=url;a.download=archivo.name;
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function compartirWrapped(){
-  if(!_wrapped||!_wrapped.archivo||!wrappedDisponible())return;
+  if(!_wrapped||!_wrapped.archivo||(!wrappedDisponible()&&!_wrapped.vistaPrevia))return;
   const estado=_wrapped,archivo=estado.archivo;
   track('wrapped_share',{});
   try{
@@ -145,9 +145,9 @@ function renderWrappedHome(){
   // En Node (los tests) el reloj del minuto mantenía vivo el proceso y la suite
   // no terminaba. `unref` no existe en el navegador, donde todo sigue igual.
   if(_wrappedVentanaTimer&&typeof _wrappedVentanaTimer.unref==='function')_wrappedVentanaTimer.unref();
-  if(_wrapped&&!contextoWrappedVigente(_wrapped))cerrarWrapped(true);
+  if(_wrapped&&!_wrapped.vistaPrevia&&!contextoWrappedVigente(_wrapped))cerrarWrapped(true);
   const base=wrappedDisponible()&&ramosWrapped();
-  if(!base){caja.style.display='none';caja.innerHTML='';if(_wrapped)cerrarWrapped(true);return;}
+  if(!base){caja.style.display='none';caja.innerHTML='';if(_wrapped&&!_wrapped.vistaPrevia)cerrarWrapped(true);return;}
   caja.style.display='grid';
   // Conservar el botón y su foco mientras la ventana sigue abierta. El reloj
   // no debe quitarlo bajo el dedo ni desconectar el foco de vuelta del modal.
