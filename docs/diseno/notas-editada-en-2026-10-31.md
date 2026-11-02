@@ -1,6 +1,6 @@
 # Fecha de edición de notas · etapa 4 de 5
 
-Preparada en `codex/notas-editada-en`. La PR se abre después de la ficha del ramo, respetando la secuencia acordada. No requiere SQL ni cambios de permisos.
+La entrega original se conserva en `codex/notas-editada-en`. Lucas autorizó abrir todas las etapas el 2026-11-02: esta se publica desde `codex/notas-editada-pr`, con Ficha #945 como base. Se revisa ahora y se mergea después de ella. No requiere SQL ni cambios de permisos.
 
 ## Comportamiento
 
@@ -24,7 +24,7 @@ Limitaciones: la hora procede del dispositivo, no de un reloj de servidor; un cl
 - Mismo JSON privado de `user_ramos.data`, mismas operaciones de subida y control de versión `_rev`, mismas RLS y mismo aislamiento entre cuentas.
 - Las versiones anteriores ignoran el campo nuevo. No se aplica SQL ni se cambia una tabla o RPC.
 - Se conserva la protección que impide que una copia vieja revierta una cuenta de profesor a estudiante.
-- No hay cambios visuales, de navegación o interacción en esta etapa. `index.html`, `styles.css`, los renderizadores y el motor son idénticos a `main`; no corresponden capturas ni una nueva decisión HIG. Las pruebas de la interfaz actual siguen ejecutándose.
+- No hay cambios visuales, de navegación o interacción en esta etapa. `index.html`, `styles.css`, los renderizadores y el motor son idénticos a la base de esta PR (Ficha #945); no corresponden capturas ni una nueva decisión HIG. Las pruebas de la interfaz actual siguen ejecutándose.
 
 ## Validación
 
@@ -35,3 +35,13 @@ Limitaciones: la hora procede del dispositivo, no de un reloj de servidor; un cl
 - Consulta local de PGlite sobre JSONB: una fecha nueva se conserva como texto ISO junto con el valor; una nota antigua sigue sin la clave. Base efímera, sin acceso a producción.
 
 Referencia de la guía de Supabase utilizada: [JSON y JSONB](https://supabase.com/docs/guides/database/json). La implementación conserva el contrato existente; no introduce una API ni un esquema nuevo.
+
+
+## Actualización del 2026-11-02
+
+Adaptada a main `9f1e89f` y las etapas anteriores, sin conflictos de código.
+**384 tests completos aprobados**, build, JS, CSS 3497/3497 y diff. Se repitieron
+los guardadores reales y los 49 casos de sync, incluidos dos dispositivos
+sintéticos, subida tardía y recarga. JSONB conserva la marca opcional sin agregarla
+a una nota antigua. El motor, tablas, RPC, RLS y permisos permanecen iguales.
+La validación conjunta con evolución comprueba ingreso inline → editadaEn → GPA.
