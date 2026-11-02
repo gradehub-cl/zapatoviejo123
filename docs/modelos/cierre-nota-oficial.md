@@ -85,3 +85,14 @@ QA en Chrome real: 375/1280 px, claro/oscuro y texto normal/grande (22 px), red
 externa bloqueada y solo fixtures sintéticos. Sin desborde horizontal ni errores
 de página; guardar revisión y archivar con nota del portal funcionan. Capturas
 locales en `/tmp/gradehub-pautas-cierre-qa` (no son datos de producción).
+
+QA reproducible (Playwright y Chromium disponibles, igual que los demás
+`tests/browser/*.cjs`):
+
+```bash
+PLAYWRIGHT_MODULE=/ruta/a/playwright CHROME_PATH=/ruta/a/Chrome node tests/browser/pautas-cierre.cjs
+```
+
+No forma parte de la suite Node/PGlite. Comprueba los dos tamaños/apariencias,
+texto grande, subida PDF con hash, estado actualizado sin borrar otros
+formularios, fallo de red al abrir documento y archivo con nota del portal.
