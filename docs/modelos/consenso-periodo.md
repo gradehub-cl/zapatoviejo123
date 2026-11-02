@@ -28,3 +28,36 @@ Esta propuesta se publica en la PR antes de escribir su implementación.
 
 Aplicación prevista: SQL reaplicable después del de universidades/reportes. El
 registro de presets no publica ni modifica el catálogo estudiantil.
+
+## Comparación de solo lectura (2026-11-02)
+
+| Universidad | Regla anterior, todos los períodos | Nueva, 2026-2, cualquier sección elegible |
+|---|---:|---:|
+| UC | 4 | 0 |
+| U. de Chile | 8 | 0 |
+| UAI | 1 | 0 |
+| UAndes | 2 | 2 |
+| UDD | 0 | 0 |
+
+La consulta conserva los filtros de cuenta/onboarding/tenant del consenso
+anterior. Para la nueva regla simula todos los reportes anteriores como
+`automatico`, deriva el período de creación en Chile, excluye incompletos y
+presets protegidos, toma el último aporte por persona y calcula ≥3 y ≥60%
+por ámbito (sección + aportes sin sección). Cuenta ramos distintos, no variantes.
+El cambio de universo temporal es intencional: la regla anterior mezclaba años.
+Son cifras de una instantánea; pueden variar antes de aplicar el SQL.
+
+## Aplicación y compatibilidad
+
+Aplicar `supabase/consenso_periodo.sql` después de `universidades_reportes.sql`
+y del base `catalog_consensus.sql`. No reaplicar las definiciones antiguas de
+reporte/consenso después del parche sin volver a aplicar este archivo.
+Las firmas antiguas siguen disponibles: un envío antiguo se clasifica automático,
+con período derivado de la fecha; la lectura antigua devuelve solo el período
+actual y no devuelve un genérico ambiguo. El cliente nuevo requiere las RPC por
+período y no retrocede a una firma que pierda ese contexto.
+
+Los presets sin período declarado protegen contra aportes automáticos, sin que
+eso los presente como programas vigentes. El registro se toma del catálogo del
+repo; para actualizarlo se revisa el preset y se regenera la semilla junto a su PR.
+La información incompleta sigue en las tablas para auditoría: no se borra.

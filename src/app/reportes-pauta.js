@@ -1,3 +1,4 @@
+const MIN_EVALUACIONES_REPORTE=2;
 let reporteDraft=[],reporteRamoId=null,reporteComentarioDraft='';
 function estructuraReporte(r){return estructuraDe(r).map(e=>({...e}));}
 function parsePesoReporte(raw){
@@ -23,12 +24,14 @@ function quitarFilaReporte(est,i){
 }
 function estadoReporte(est){
   const reportables=estructuraParaConsenso(est);
-  const sinNombre=reportables.some(e=>!String(e.nombre||'').trim());
+  const sinNombre=(est||[]).some(e=>!String(e.nombre||'').trim());
+  const incompleta=(est||[]).length<MIN_EVALUACIONES_REPORTE||(est||[]).some(e=>!(Number(e.peso)>0));
   const total=r2((est||[]).reduce((s,e)=>s+(Number(e.peso)||0),0));
   const diferencia=r2(100-total);
-  return {total,diferencia,sinNombre,lista:reportables.length>0&&!sinNombre&&Math.abs(diferencia)<0.05};
+  return {total,diferencia,sinNombre,lista:reportables.length>0&&!sinNombre&&!incompleta&&Math.abs(diferencia)<0.05,incompleta};
 }
 function textoEstadoReporte(estado){
+  if(estado.incompleta)return 'Agrega al menos dos evaluaciones, con nombre y porcentaje mayor que cero.';
   if(estado.sinNombre)return'Ponle nombre a cada evaluación que tenga porcentaje.';
   if(estado.lista)return'Lista para enviar.';
   return estado.diferencia>0
@@ -82,16 +85,17 @@ function seccionReporte(r){
 // Detectado una vez, no se vuelve a probar en la sesión: sin esa marca, cada
 // guardado reenviaría todos los votos con sección mientras falte el SQL.
 let _servidorSinSeccion=false;
-async function rpcReporteCatalogo(r,args){
-  const seccion=_servidorSinSeccion?null:seccionReporte(r);
-  if(seccion!==null){
-    const {error}=await supabaseClient.rpc('submit_catalog_report',{...args,p_seccion:seccion});
-    if(!error)return {error:null,conSeccion:true};
-    if(error.code!=='PGRST202')return {error,conSeccion:false};
-    _servidorSinSeccion=true;
-  }
-  const {error}=await supabaseClient.rpc('submit_catalog_report',args);
-  return {error,conSeccion:false};
+function periodoReporte(r){
+  // El período del ramo no es la antigüedad del programa que le dio su pauta.
+  return r&&/^\d{4}-[12v]$/.test(r.periodo||'')?r.periodo:semester();
+}
+async function rpcReporteCatalogo(r,args,{origen='explicito'}={}){
+  const seccion=seccionReporte(r);
+  const {error}=await supabaseClient.rpc('submit_catalog_report_periodo',{
+    ...args,p_seccion:seccion,p_periodo:periodoReporte(r),p_origen:origen,
+  });
+  // Sin SQL nuevo no se degrada a una llamada sin período/origen.
+  return {error,conSeccion:!error&&seccion!==null};
 }
 
 // La sigla de un reporte UC no puede depender solo de la malla que ya tenemos.

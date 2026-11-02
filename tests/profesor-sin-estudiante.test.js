@@ -46,13 +46,13 @@ async function exercise(tipo){
 }
 (async()=>{
   const teacher=await exercise('profesor');
-  assert(!teacher.some(c=>c==='rpc:curso_nota_set'||c==='rpc:curso_posicion'||c==='rpc:catalog_consensus'||c==='widget'||c==='notification'||c.startsWith('activity:')&&c!=='activity:0'),teacher.join(','));
+  assert(!teacher.some(c=>c==='rpc:curso_nota_set'||c==='rpc:curso_posicion'||c==='rpc:catalog_consensus_periodo'||c==='widget'||c==='notification'||c.startsWith('activity:')&&c!=='activity:0'),teacher.join(','));
   assert(teacher.includes('widget-clear'),'el iPhone limpia el widget anterior');
   for(const kind of [undefined,'estudiante']){
     const student=await exercise(kind);
     assert(student.includes('rpc:curso_nota_set'),`subida de estudiante ${kind}`);
     assert(student.includes('rpc:curso_posicion'),`posición de estudiante ${kind}`);
-    assert(student.includes('rpc:catalog_consensus'),`consenso de estudiante ${kind}`);
+    assert(student.includes('rpc:catalog_consensus_periodo'),`consenso de estudiante ${kind}`);
     assert(student.includes('widget'),`widget de estudiante ${kind}`);
     assert(student.includes('recommendation'),`recomendación de estudiante ${kind}`);
   }

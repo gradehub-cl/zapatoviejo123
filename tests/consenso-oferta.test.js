@@ -22,7 +22,7 @@ run(`S.tenant='fen';PRESETS_FEN['Ramo Sintético Conta']={evals:[
   const p=presetRamo('Ramo Sintético Conta','fen',null);
   globalThis.__r={id:'r1',nombre:'Ramo Sintético Conta',origen:{tenant:'fen',carrera:null},categorias:p.categorias,gates:p.gates};`);
 const ofrece = async estructura => {
-  run(`globalThis.__cons=[{ramo_key:claveReporte(__r),estructura:${JSON.stringify(estructura)},respaldos:3}];cargarConsenso=async()=>__cons;`);
+  run(`globalThis.__cons=[{ramo_key:claveReporte(__r),estructura:${JSON.stringify(estructura)},respaldos:3,periodo:semester(),seccion:null}];cargarConsenso=async()=>__cons;`);
   return !!(await run('consensoParaRamo(__r)'));
 };
 const reportada = [{ nombre: 'Controles de Lectura', peso: 10, slots: 3 }, { nombre: 'Controles Ejercicios', peso: 40, slots: 4 },

@@ -81,7 +81,10 @@ async function aplicarConsensoAuto(){
   const cons=await cargarConsenso();
   if(!cons||!cons.length)return 0;
   let puestas=0;
-  (S.ramos||[]).forEach(r=>{if(ponerConsensoEnRamo(r,cons))puestas++;});
+  for(const r of (S.ramos||[])){
+    const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
+    if(ponerConsensoEnRamo(r,especifico||[]))puestas++;
+  }
   if(puestas)save();
   return puestas;
 }
@@ -92,7 +95,7 @@ function ponerConsensoEnRamo(r,cons){
   if((r.categorias||[]).length||(r.gates||[]).length)return false;
   if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return false; // una oficial existente manda
   if(pautaPendiente(r))return false;                    // hay programa oficial esperando: ese manda
-  const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&c.respaldos>=CONSENSO_AUTO);
+  const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&consensoVigenteParaRamo(c,r)&&c.respaldos>=CONSENSO_AUTO);
   if(!hit)return false;
   const pauta=pautaDeConsenso(hit.estructura);
   if(!pauta.categorias.length)return false;
@@ -126,6 +129,8 @@ function yaAportada(r,est){
 // independientes. El servidor cuenta personas distintas, no envíos.
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
+  if(typeof estadoReporte==='function'&&!estadoReporte(estructuraDe(r)).lista)return false;
+  if(presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera))return false;
   if(r.consensoRespaldos){
     return !!r.consensoAportado&&!yaAportada(r,estructuraParaConsenso(estructuraDe(r)));
   }
