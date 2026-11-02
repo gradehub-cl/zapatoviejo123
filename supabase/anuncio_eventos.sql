@@ -50,7 +50,9 @@ declare
   pendiente boolean;
   filas integer;
   limite integer;
-  inicio_dia timestamptz := date_trunc('day',now() at time zone 'UTC') at time zone 'UTC';
+  dia_chile date := (now() at time zone 'America/Santiago')::date;
+  inicio_dia timestamptz := dia_chile::timestamp at time zone 'America/Santiago';
+  fin_dia timestamptz := (dia_chile+1)::timestamp at time zone 'America/Santiago';
 begin
   if uid is null then raise exception 'hay que haber iniciado sesión' using errcode='42501'; end if;
   if p_evento_id is null or p_publicacion is null or p_tipo is null or p_tipo not in ('impresion','clic','contacto') then
@@ -69,10 +71,12 @@ begin
   end if;
   -- El bloqueo del anuncio serializa también este cupo: dos llamadas en
   -- paralelo no pueden superar el máximo. False no escribe ni deja recibo.
-  limite:=case p_tipo when 'impresion' then 20 when 'clic' then 10 else 5 end;
+  -- Límites locales equivalentes al día de creado_at en America/Santiago;
+  -- usa el índice y respeta días de 23/25 horas, sin asumir 24 horas.
+  limite:=case p_tipo when 'impresion' then 4 when 'clic' then 2 else 1 end;
   if (select count(*) from (select 1 from public.anuncio_eventos_recibos
       where user_id=uid and anuncio_id=a.id and publicacion=a.medicion_desde and tipo=p_tipo
-        and creado_at>=inicio_dia and creado_at<inicio_dia+interval '24 hours'
+        and creado_at>=inicio_dia and creado_at<fin_dia
       limit limite) recibos_del_dia)>=limite then
     return false;
   end if;
@@ -120,6 +124,10 @@ declare
   n_vistas bigint;
   n_clics bigint;
   n_contactos bigint;
+  desde_dia date;
+  previas record;
+  personas record;
+  anterior boolean;
 begin
   if auth.uid() is null then raise exception 'sin acceso' using errcode='42501'; end if;
   select * into a from public.tutor_anuncios where id=p_anuncio_id;
@@ -131,13 +139,25 @@ begin
   select coalesce(sum(eventos)filter(where tipo='impresion'),0),coalesce(sum(eventos)filter(where tipo='clic'),0),
     coalesce(sum(eventos)filter(where tipo='contacto'),0) into n_vistas,n_clics,n_contactos
     from public.anuncio_eventos_diarios where anuncio_id=a.id and publicacion=a.medicion_desde;
-  -- Una campaña que terminó antes de instalar la medición nunca tuvo una
-  -- ventana medible. No convertir esa ausencia histórica en tres ceros.
-  if a.vence_at<=desde and n_vistas=0 and n_clics=0 and n_contactos=0 then
-    return jsonb_build_object('anterior',true,'desde',null,
-      'impresion',null,'clic',null,'contacto',null);
-  end if;
-  return jsonb_build_object('desde',desde,
+  -- Veces en total, para campañas pasadas y futuras (Lucas, 2026-11-02). Antes
+  -- de la medición solo se guardaba la primera vez de cada persona: esas
+  -- cuentan una vez y se suman a lo medido desde entonces. Las repeticiones de
+  -- esa época no se recuperan, así que es un mínimo, y nunca menos que las
+  -- personas distintas (una app vieja en caché registra la persona sin el evento).
+  -- `dia` de esas filas es la fecha UTC de `current_date`; se compara igual.
+  desde_dia:=(desde at time zone 'UTC')::date;
+  select count(*) filter (where dia<desde_dia) as antes,count(*) as todas into previas
+    from public.anuncio_alcance where anuncio_id=a.id and publicacion=a.medicion_desde;
+  select count(*) filter (where tipo='apertura' and dia<desde_dia) as clic_antes,
+         count(*) filter (where tipo='contacto' and dia<desde_dia) as contacto_antes,
+         count(*) filter (where tipo='apertura') as clic,
+         count(*) filter (where tipo='contacto') as contacto into personas
+    from public.anuncio_interacciones where anuncio_id=a.id and publicacion=a.medicion_desde;
+  anterior:=a.vence_at<=desde and n_vistas=0 and n_clics=0 and n_contactos=0;
+  n_vistas:=greatest(n_vistas+previas.antes,previas.todas);
+  n_clics:=greatest(n_clics+personas.clic_antes,personas.clic);
+  n_contactos:=greatest(n_contactos+personas.contacto_antes,personas.contacto);
+  return jsonb_build_object('anterior',anterior,'desde',case when anterior then null else desde end,
     'impresion',case when es_admin or n_vistas=0 or n_vistas>=15 then n_vistas else null end,
     'clic',case when es_admin or n_clics=0 or n_clics>=15 then n_clics else null end,
     'contacto',case when es_admin or n_contactos=0 or n_contactos>=15 then n_contactos else null end);

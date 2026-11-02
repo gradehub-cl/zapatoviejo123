@@ -80,7 +80,7 @@ ctx.__medida={alcance:70,totales:{impresion:150,clic:40,contacto:20},hayCortes:t
 const medidaAntes=JSON.stringify(ctx.__medida);
 const etapas=run('cifrasClase(__medida,pesosClase)');
 assert.deepEqual([...etapas.matchAll(/scaleX\(([\d.]+)\)/g)].map(m=>m[1]),['1.0000','0.2500','0.0500']);
-assert.match(etapas,/>150<\/b><small>veces medidas/);
+assert.match(etapas,/>150<\/b><small>en total/);
 assert.equal(JSON.stringify(ctx.__medida),medidaAntes);
 const cero=run('cifrasClase({...__medida,campana:{vistas:0,aperturas:0,contactos:0}},pesosClase)');
 assert.equal((cero.match(/scaleX\(0\.0000\)/g)||[]).length,3);

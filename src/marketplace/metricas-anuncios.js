@@ -257,9 +257,9 @@ async function metricasDeAnuncio(anuncio){
   try{
     const {data,error}=await supabaseClient.rpc('resumen_eventos_anuncio',{p_anuncio_id:anuncio.id});
     const tipos=['impresion','clic','contacto'];
-    const anterior=data&&data.anterior===true&&data.desde===null&&tipos.every(k=>data[k]===null);
-    const medido=data&&!data.anterior&&Number.isFinite(Date.parse(data.desde))&&
-      tipos.every(k=>data[k]===null||Number.isSafeInteger(data[k])&&data[k]>=0);
+    const cifras=data&&tipos.every(k=>data[k]===null||Number.isSafeInteger(data[k])&&data[k]>=0);
+    const anterior=cifras&&data.anterior===true&&data.desde===null;
+    const medido=cifras&&!data.anterior&&Number.isFinite(Date.parse(data.desde));
     if(!error&&(anterior||medido))salida.eventos=data;
   }catch(e){} // Nunca usa el agregado heredado como si midiera repeticiones.
   return salida;
@@ -357,12 +357,12 @@ function avanceCampanaAnuncio(a,ahora=Date.now()){
   return Math.min(Math.max((ahora-desde)/(hasta-desde),0),1);
 }
 
-// Las personas siguen siendo de la campaña. Las veces vienen SOLO del nuevo
-// contador idempotente y muestran su fecha de inicio; el agregado heredado no
-// mide repeticiones y nunca se usa como sustituto.
+// Las personas siguen siendo de la campaña. Las veces en total vienen SOLO de
+// resumen_eventos_anuncio: lo medido más una vez por cada persona de antes de
+// la medición. El agregado heredado nunca se usa como sustituto.
 function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas='personas distintas',conPresupuesto=false){
   const miles=n=>new Intl.NumberFormat('es-CL').format(n);
-  const medido=eventos&&!eventos.anterior;
+  const medido=!!eventos;
   const veces=k=>eventos&&Number.isSafeInteger(eventos[k])&&eventos[k]>=0?eventos[k]:null;
   // Con la campaña medida, las personas vienen de ahí: son exactas y son lo
   // que se cobra. Sin ella, el alcance de siempre, y abrir o contactar solo
@@ -376,13 +376,13 @@ function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas
   const html=etapas.filter(([,p,v,siempre])=>siempre||p!==null&&p!==undefined||v!==null).map(([t,p,v])=>
     `<div class="clase-etapa${t==='Te contactaron'?' clase-etapa-contactos':''}"><span>${t}</span><div class="clase-par">${
       [p!==null&&p!==undefined?mitad(miles(p),etiquetaPersonas):campana||!v?mitad('—',etiquetaPersonas):'',
-       medido?mitad(v===null?'—':miles(v),'veces medidas'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
+       medido?mitad(v===null?'—':miles(v),'en total'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
   const f=[];
   if(costo&&!costo.sinCosto&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
   if(costo&&!costo.sinCosto&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
-  const nota=eventos?.anterior?'Esta campaña terminó antes de medir repeticiones. Se conservan las personas distintas.'
-    :medido?`Veces medidas desde ${new Date(eventos.desde).toLocaleString('es-CL',{timeZone:'America/Santiago'})} · Sin registros de repeticiones anteriores.`+
-    (['impresion','clic','contacto'].some(k=>eventos[k]===null)?' Los totales menores a 15 quedan ocultos.':'')
+  const ocultos=medido&&['impresion','clic','contacto'].some(k=>eventos[k]===null)?' Los totales menores a 15 quedan ocultos.':'';
+  const nota=eventos?.anterior?'Esta campaña terminó antes de contar cada vez: el total cuenta una vez por persona.'+ocultos
+    :medido?`Desde el ${new Date(eventos.desde).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long'})} se cuenta cada vez; antes, una vez por persona.`+ocultos
     :'El total de veces aún no está disponible. Las cifras de personas distintas se conservan.';
   return `<div class="clase-etapas">${html}</div><p class="clase-privacidad">${esc(nota)}</p>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');
