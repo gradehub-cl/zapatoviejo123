@@ -208,8 +208,9 @@ vm.runInContext(`
   ['tutor_perfiles','tutor_anuncios','anuncio_metricas','anuncio_inscritos','anuncio_alcance','anuncio_campanas','anuncio_interacciones'].forEach(tabla=>{
     chk(`${tabla} tiene RLS activa`,new RegExp(`alter table public\\.${tabla} enable row level security`,'i').test(sql));
   });
+  const referenciasCuenta=[...sql.matchAll(/references auth\.users\(id\)([^,\n]*)/gi)];
   chk('las tablas con identidad borran sus filas junto con la cuenta',
-    (sql.match(/references auth\.users\(id\) on delete cascade/gi)||[]).length===6);
+    referenciasCuenta.length>0&&referenciasCuenta.every(m=>/on delete cascade/i.test(m[1])));
   chk('las aperturas y contactos por persona no se pueden leer desde el cliente',
     /revoke all on public\.anuncio_interacciones from public, anon, authenticated/i.test(sql)&&
     !/grant [^;]*on public\.anuncio_interacciones/i.test(sql));
