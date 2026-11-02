@@ -102,10 +102,10 @@ begin
   if exists (
     select 1
     from jsonb_array_elements(p_estructura) as e(valor)
-    where jsonb_typeof(e.valor) <> 'object'
-       or jsonb_typeof(e.valor->'nombre') <> 'string'
+    where jsonb_typeof(e.valor) is distinct from 'object'
+       or jsonb_typeof(e.valor->'nombre') is distinct from 'string'
        or length(trim(e.valor->>'nombre')) not between 1 and 120
-       or jsonb_typeof(e.valor->'peso') <> 'number'
+       or jsonb_typeof(e.valor->'peso') is distinct from 'number'
        or case when jsonb_typeof(e.valor->'peso') = 'number'
           then ((e.valor->>'peso')::numeric <= 0 or (e.valor->>'peso')::numeric > 100) else false end
        or (e.valor ? 'slots' and (

@@ -32,6 +32,7 @@ const assert=require('assert/strict'),fs=require('fs'),{PGlite}=require('@electr
  assert.equal((await cons()).length,0,'automático no contradice oficial');
  for(let i=1;i<=3;i++)await report(i,a);assert.equal((await cons())[0].respaldos,3,'explícito sí participa');
  await report(1,b,{origen:'automatico'});assert.equal((await cons())[0].respaldos,3,'auto no reemplaza explícito');
+ await assert.rejects(report(8,[{peso:50},{nombre:'Prueba',peso:50}]),/inválida/);
  await assert.rejects(report(8,[{nombre:'Final',peso:100}]),/entre 2 y 30/);
  await assert.rejects(report(8,[{nombre:'',peso:50},{nombre:'Prueba',peso:50}]),/inválida/);
  await assert.rejects(report(8,[{nombre:'A',peso:0},{nombre:'B',peso:100}]),/inválida/);
