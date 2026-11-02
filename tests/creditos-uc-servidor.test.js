@@ -69,6 +69,21 @@ const filas = [
   assert.strictEqual(app.run("S.ramos.find(r=>r.id==='repetido').creditos"), null, 'un nombre repetido queda pendiente');
   assert.strictEqual(app.scripts.length, 0, 'el camino exitoso no pide cursos-uc.js');
 
+  // Así están guardados los ramos UC de cuentas existentes: `ramoKey` es el
+  // nombre normalizado, no la sigla. La sigla guardada es la que identifica el
+  // curso; con el `ramoKey` como sigla no calzaba ninguna fila (#892).
+  console.log('=== Ramo con ramoKey de nombre y sigla guardada ===');
+  app = nuevaApp((campo, valores) => ({ data: filas.filter(f => valores.includes(f[campo])), error: null }));
+  app.run(`S={tenant:'uc',onboardingDone:true,carrera:'ING-PC',ramos:[
+    ${JSON.stringify(ramo('nombreKey', 'Curso Sintético con Sigla', { sigla: 'ZZZ100', origen: { tenant: 'uc', carrera: 'ING-PC', ramoKey: 'curso sintetico con sigla' } }))},
+    ${JSON.stringify(ramo('editado', 'Taller Manual Único', { sigla: 'XXX100', creditos: 7, origen: { tenant: 'uc', carrera: 'ING-PC', ramoKey: 'taller manual unico' } }))}
+  ],historial:[],sortMode:'manual'};`);
+  app.run('showMainApp()');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(app.run("S.ramos.find(r=>r.id==='nombreKey').creditos"), 10, 'completa por la sigla guardada');
+  assert.strictEqual(app.run("S.ramos.find(r=>r.id==='editado').creditos"), 7, 'no pisa créditos ya puestos');
+  assert.strictEqual(app.run("S.ramos.find(r=>r.id==='nombreKey').categorias[0].notas[0].valor"), 5, 'las notas no cambian');
+
   console.log('=== El archivo queda como respaldo ===');
   app = nuevaApp(() => ({ data: null, error: { message: 'sin red' } }));
   app.run(`S={tenant:'uc',onboardingDone:true,carrera:'ING-PC',ramos:[
