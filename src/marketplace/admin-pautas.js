@@ -1,3 +1,14 @@
+async function abrirDocumentoPautaBanco(f){
+        const nativa=typeof enAppNativa==='function'&&enAppNativa();
+        const ventana=nativa?null:window.open('about:blank','_blank');if(ventana)ventana.opener=null;
+        try{
+          const {data,error}=await supabaseClient.storage.from('pautas-programas').createSignedUrl(f.documento_path,60);
+          if(error)throw error;
+          if(typeof abrirFuera==='function'&&abrirFuera(data.signedUrl)){if(ventana)ventana.close();return;}
+          if(ventana)ventana.location.href=data.signedUrl;
+          else showToast('Permite abrir una ventana para ver el programa.');
+        }catch(error){if(ventana)ventana.close();showToast('No pudimos abrir el documento. Intenta de nuevo.');}
+}
 // Banco privado: el catálogo y las pautas de estudiantes no se editan desde acá.
 function pautaBancoEstado(estado){return ({confirmada:'Confirmada',en_disputa:'En disputa',sin_pauta:'Sin pauta'})[estado]||'Sin pauta';}
 function pautaBancoEstructuraHTML(estructura){
@@ -45,20 +56,21 @@ async function renderAdminPautas(caja){
           }
           const guardado=await supabaseClient.rpc('admin_guardar_pauta_banco',{p_tenant:tenant,p_sigla:fila.sigla,p_periodo:periodo,p_estado:form.elements.estado.value,p_nota:form.elements.nota.value,p_documento_path:ruta,p_sha256:hash});
           if(guardado.error)throw guardado.error;
-          if(ruta){fila.documento_path=ruta;fila.documento_sha256=hash;}aviso.textContent='Revisión guardada';
+          fila.estado=form.elements.estado.value;fila.nota_interna=form.elements.nota.value;
+          const detalle=form.closest('.pautas-banco-fila');detalle.querySelector('summary > span:last-child').textContent=pautaBancoEstado(fila.estado);
+          if(ruta){
+            fila.documento_path=ruta;fila.documento_sha256=hash;
+            if(!detalle.querySelector('[data-pauta-documento]')){
+              const abrir=document.createElement('button');abrir.type='button';abrir.textContent='Abrir programa';abrir.dataset.pautaDocumento=form.dataset.pautaForm;
+              abrir.addEventListener('click',()=>abrirDocumentoPautaBanco(fila));form.prepend(abrir);
+            }
+          }
+          aviso.textContent='Revisión guardada';
         }catch(error){aviso.textContent=error.message||'No pudimos guardar. Intenta de nuevo.';}finally{boton.disabled=false;}
       }));
       resultados.querySelectorAll('[data-pauta-documento]').forEach(b=>b.addEventListener('click',async()=>{
         const f=filas[Number(b.dataset.pautaDocumento)];
-        const nativa=typeof enAppNativa==='function'&&enAppNativa();
-        const ventana=nativa?null:window.open('about:blank','_blank');if(ventana)ventana.opener=null;
-        try{
-          const {data,error}=await supabaseClient.storage.from('pautas-programas').createSignedUrl(f.documento_path,60);
-          if(error)throw error;
-          if(typeof abrirFuera==='function'&&abrirFuera(data.signedUrl)){if(ventana)ventana.close();return;}
-          if(ventana)ventana.location.href=data.signedUrl;
-          else showToast('Permite abrir una ventana para ver el programa.');
-        }catch(error){if(ventana)ventana.close();showToast('No pudimos abrir el documento. Intenta de nuevo.');}
+        await abrirDocumentoPautaBanco(f);
       }));
     }catch(error){resultados.textContent=sqlClasesDesactualizado(error)?'Aplica pautas_banco.sql para consultar el banco.':'No pudimos cargar las pautas. Revisa tu sesión con segundo factor e intenta de nuevo.';}
   }
