@@ -70,9 +70,8 @@ const estructura=[{nombre:'Control',peso:40},{nombre:'Examen',peso:60}];
   await reportar(ids.derecho,'uc','Ingeniería');
   await reportar(ids.ingenieria,'uc','Derecho');
   const carreras=(await db.query("select carrera,count(*)::int n from public.catalog_reports where tenant='uc' group by carrera order by carrera")).rows;
-  chk('UC Derecho no queda contado como Ingeniería aunque su perfil diga eso',
-    carreras.length===2&&carreras[0].carrera==='Derecho'&&carreras[0].n===1&&
-    carreras[1].carrera==='Ingeniería'&&carreras[1].n===1);
+  chk('la carrera no se guarda en reportes nuevos, ni siquiera con una app vieja',
+    carreras.length===1&&carreras[0].carrera===null&&carreras[0].n===2);
   chk('los valores históricos del perfil no se reescriben',
     (await db.query('select universidad from public.profiles where id=$1',[ids.derecho])).rows[0].universidad==='U. Católica · Ingeniería');
   chk('la RPC antigua tenant_perfil_catalogo deja de existir',
