@@ -38,19 +38,13 @@ No está disponible para clientes autenticados o anónimos.
 
 ## Cuentas y anuncios existentes
 
-El cambio cubre anuncios nuevos y existentes: los que siguen publicados empiezan
-a registrar repeticiones sin republicarse, y los pausados o terminados conservan
-sus personas y cobros. Si tuvieron medición nueva, también conservan esas veces
-al pausarse o terminar. Una campaña que venció antes de instalar este SQL indica
-«Esta campaña terminó antes de medir repeticiones», sin inventar tres ceros ni
-mostrar una fecha de inicio posterior a su término.
-
-No hay backfill: el agregado antiguo también estaba deduplicado y no permite
-recuperar las repeticiones. La pantalla mantiene las personas históricas y
-muestra «veces medidas» con fecha/hora de inicio de la medición. Es normal que
-al principio ese total sea menor que las personas históricas. Los gráficos de
-desglose anteriores conservan sus registros y se identifican como históricos;
-no son un gráfico completo de las nuevas repeticiones.
+**Veces en total (Lucas, 2026-11-02).** La pantalla muestra «personas distintas /
+en total» para todas las campañas, pasadas y futuras. `resumen_eventos_anuncio`
+suma lo medido desde el inicio de la medición más una vez por cada persona
+registrada antes (antes solo se guardaba la primera vez de cada una), y nunca
+devuelve menos que las personas distintas. Las repeticiones de antes no se
+recuperan: el total es un mínimo, y la nota bajo las cifras lo dice. Una campaña
+que venció antes de la medición muestra «en total» igual a sus personas.
 
 Si falta el SQL nuevo, el cliente sigue usando el RPC anterior y conserva el
 cobro. La pantalla omite la segunda columna y explica que el total de veces
