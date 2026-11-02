@@ -6,7 +6,7 @@ La entrega original sigue en `codex/ficha-racional-estudiante`. Por instrucción
 
 - La meta numérica utiliza `htmlMedidorNota` original, con su degradado y raya. El arco sube 6 px respecto de la cifra, como en la última corrección aprobada. Conserva el valor de `notaNecesariaParaAprobar`, la condición «en cada evaluación pendiente» y la distinción de cátedra cuando corresponde.
 - Dos posiciones revisables: junto al promedio o debajo. La rama usa «al lado» de manera provisional; la clase de presentación `medidor-debajo` permite capturar la otra sin guardar preferencias ni cambiar datos.
-- «Simular» y «Editar evaluaciones» están juntos, como acciones secundarias de igual ancho. Se conserva el botón «⋯» y los accesos de detalle de cada evaluación.
+- «Simular» comparte su bloque con Faltas (solo al activarlas) y Décimas/bonus (solo si la pauta trae la regla). «Editar evaluaciones» queda al pie de la lista y en «⋯». Se conserva el botón «⋯» y los accesos de detalle de cada evaluación.
 - Una casilla pendiente dice «+ Nota». Al tocarla, esa misma casilla se convierte en un campo, recibe el foco y solicita teclado decimal. Enter o salir guarda; salir vacío devuelve «+ Nota» sin crear, borrar ni guardar nada. Escape cancela. Una entrada inválida no se persiste.
 - Se reutilizan `parseNota`, `setSlotNota` y `setDirectNota`: no hay un nuevo cálculo ni una nueva operación de persistencia. Las letras conceptuales UC siguen siendo aceptadas por el validador; los campos de notas ya ingresadas y los editores de detalle conservan su teclado anterior.
 - Las categorías son superficies grandes sin borde; las subnotas son filas con separadores, sin tarjetas anidadas. El promedio y el relleno usan los colores semánticos existentes.
@@ -69,3 +69,21 @@ ingreso real: vacío e inválido no guardan; Enter guarda valor y conserva
 id/nombre/fecha; Simular y Editar evaluaciones conservan sus acciones.
 Capturas de esta comprobación local en `/tmp/gh-ficha-pr-qa`; las capturas
 aprobadas de arriba se conservan como referencia de diseño.
+
+
+## Corrección de Lucas: Simular y contadores · 2026-11-02
+
+Los contadores existentes se movieron, sin duplicarlos ni cambiar sus
+guardadores, junto a Simular. Sin contadores, Simular ocupa todo el ancho.
+En 375 px, Simular va arriba a todo el ancho y los contadores debajo; los
+controles −/+ mantienen 44 pt. Límite/exceso de faltas, tope y condiciones
+del bonus se conservan. Abrir la ficha no inicializa bonus ni guarda nada.
+
+| Caso · 375 px | Claro | Oscuro |
+|---|---|---|
+| Sin contadores | [Ver](contadores-sin-contadores-375-claro.png) | [Ver](contadores-sin-contadores-375-oscuro.png) |
+| Faltas | [Ver](contadores-faltas-375-claro.png) | [Ver](contadores-faltas-375-oscuro.png) |
+| Faltas y décimas | [Ver](contadores-faltas-decimas-375-claro.png) | [Ver](contadores-faltas-decimas-375-oscuro.png) |
+
+Chrome: tres casos, ambos temas, texto 200%, sin desborde, nodos únicos,
+controles 44 pt y suma/resta con los guardadores reales. El cálculo no cambia.

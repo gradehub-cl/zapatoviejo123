@@ -503,7 +503,10 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
       </div>
       <div class="ramo-actions">
         <button id="sim-btn" onclick="openSimuladorModal()" class="ramo-action" style="display:none;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg> Simular</button>
-        <button type="button" class="ramo-action add-cat-btn" onclick="openPautaManualModal()">Editar evaluaciones</button>
+        <div class="ramo-contadores" hidden>
+          <div id="faltas-contador" style="display:none;"></div>
+          <div id="bonus-ramo" style="display:none;"></div>
+        </div>
         <button type="button" class="ramo-action calif-accion" id="calif-accion" hidden><span aria-hidden="true">★</span><span>Calificar profesor</span></button>
       </div>
     </div>
@@ -514,9 +517,8 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div id="no-calcula-warning" style="display:none;"></div>
     <div id="eximicion-warning" style="display:none;"></div>
     <div id="recuperativo-warning" style="display:none;"></div>
-    <div id="faltas-contador" style="display:none;"></div>
-    <div id="bonus-ramo" style="display:none;"></div>
     <div id="cat-list"></div>
+    <button type="button" class="add-cat-btn" onclick="openPautaManualModal()">Editar evaluaciones</button>
     <button class="rep-link" id="ramo-programa-report" type="button" style="display:none;">Mi programa dice otra cosa</button>
     <button class="rep-link" id="ramo-report" style="display:none;">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15V4h16l-3 4 3 4H4"/><path d="M4 21v-6"/></svg>

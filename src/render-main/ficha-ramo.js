@@ -383,10 +383,9 @@ function renderRamo(){
         :`Pasaste el máximo de ${limite} por ${-quedan}.`;
       fw.style.display='flex';
       fw.className='faltas-card'+(quedan!==null&&quedan<0?' is-excedido':quedan===0?' is-limite':'');
-      fw.innerHTML=`<div class="faltas-txt"><span class="faltas-titulo">Faltas</span><span class="faltas-detalle">${detalle}</span></div>
+      fw.innerHTML=`<div class="faltas-txt"><span class="faltas-titulo">Faltas</span><span class="faltas-num" aria-live="polite">${cantidad}${limite===null?'':`<small> de ${limite}</small>`}</span><span class="faltas-detalle">${detalle}</span></div>
         <div class="faltas-ctrl">
           <button type="button" class="faltas-btn" onclick="cambiarFaltas(-1)" aria-label="Restar una falta" ${cantidad===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
-          <span class="faltas-num" aria-live="polite">${cantidad}</span>
           <button type="button" class="faltas-btn" onclick="cambiarFaltas(1)" aria-label="Sumar una falta" ${cantidad>=FALTAS_MAX?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
         </div>`;
     }
@@ -411,7 +410,7 @@ function renderRamo(){
       const coma=n=>String(n).replace('.',',');
       const nombres=ids=>{const n=ids.map(id=>(r.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean);return n.length>1?n.slice(0,-1).join(', ')+' y '+n[n.length-1]:(n[0]||'');};
       const destino=b=>b.destino==='final'?'a tu nota final':`al promedio de ${(r.categorias||[]).find(c=>c.id===b.destino)?.nombre||'la evaluación'}`;
-      bw.style.display='block';
+      bw.style.display='contents';
       bw.innerHTML=reglas.map(b=>{
         const v=r.bonusIngresado&&Number.isInteger(r.bonusIngresado[b.id])?r.bonusIngresado[b.id]:null;
         const unidad=b.entrada==='decimas'?['décima','décimas']:['falta','faltas'];
@@ -430,14 +429,18 @@ function renderRamo(){
           ?`<button type="button" class="bonus-anotar" onclick="cambiarBonus('${esc(b.id)}',null)">Anotar</button>`
           :`<div class="faltas-ctrl">
               <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',-1)" aria-label="Restar una ${unidad[0]}" ${v===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
-              <span class="faltas-num" aria-live="polite">${v}</span>
               <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',1)" aria-label="Sumar una ${unidad[0]}" ${v>=topeBonus(b)?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
             </div>`;
-        return `<div class="faltas-card bonus-card" role="group" aria-label="${esc(b.pregunta)}">
-          <div class="faltas-txt"><span class="faltas-titulo">${esc(b.pregunta)}</span><span class="faltas-detalle">${detalle}</span></div>${control}</div>`;
+        return `<div class="faltas-card bonus-card${b.entrada==='faltas'&&v>b.hasta?' is-excedido':''}" role="group" aria-label="${esc(b.pregunta)}">
+          <div class="faltas-txt"><span class="faltas-titulo">${b.entrada==='decimas'?'Décimas':esc(b.pregunta)}</span>${v===null?'':`<span class="faltas-num" aria-live="polite">${v}<small> de ${b.entrada==='decimas'?topeBonus(b):b.hasta}</small></span>`}<span class="faltas-detalle">${detalle}</span></div>${control}</div>`;
       }).join('');
     }
   }
+
+  const acciones=document.querySelector('.ramo-actions'),contadores=document.querySelector('.ramo-contadores');
+  const cantidadContadores=(faltasActivas(r)?1:0)+(Array.isArray(r.bonus)?r.bonus.length:0);
+  if(acciones)acciones.dataset.contadores=String(cantidadContadores);
+  if(contadores)contadores.hidden=cantidadContadores===0;
 
   const rw=document.getElementById('recuperativo-warning');
   if(rw&&recuperativo){
