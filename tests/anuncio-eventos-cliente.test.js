@@ -60,5 +60,11 @@ function montar(){
  cambio.run('registrarInteraccionAnuncio=__cambio');
  assert.equal(await cambio.run("registrarInteraccionMedida('aviso-sintetico','apertura','TEST100')"),null);
  assert.equal(cambio.llamadas.length,0,'cambiar cuenta entre llamadas no atribuye el evento a la nueva');
+ const cupo=montar();cupo.ctx.supabaseClient.rpc=async(n,p)=>{cupo.llamadas.push({n,p});return {data:false,error:null};};
+ await cupo.run("registrarInteraccionMedida('aviso-sintetico','apertura','TEST100')");
+ assert.equal(cupo.timers.size,0,'false por cupo agotado no programa reintentos');
+ cupo.run("anunciosRecomendacion.lista=catalogoClasesActual;__banner={isConnected:true};observarRecomendacionClase(__banner,catalogoClasesActual[0],'TEST100')");
+ cupo.observers.at(-1).cb([{isIntersecting:true,intersectionRatio:1}]);await cupo.paso();
+ assert.equal(cupo.timers.size,0,'false por impresión agotada tampoco reintenta');
  console.log('PASS: nonce por evento, reintentos, cobro único, reapertura, visibilidad, compatibilidad y cambio de cuenta');
 })().catch(e=>{console.error(e);process.exitCode=1;});

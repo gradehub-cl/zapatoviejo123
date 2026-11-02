@@ -58,6 +58,7 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   for(const [tipo,aux]of [['clic','apertura'],['contacto','contacto']]){
    await q('select registrar_interaccion_anuncio($1,$2)',[id(10),aux]);
    const cobro=await costo();assert.equal(await evento(tipo==='clic'?103:105,tipo),true);
+   if(tipo==='contacto')await q("update anuncio_eventos_recibos set creado_at=creado_at-interval '1 day' where tipo='contacto'");
    assert.equal(await evento(tipo==='clic'?104:106,tipo),true);assert.deepEqual(await costo(),cobro);
   }
   await sesion(2);
@@ -76,8 +77,36 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   }
   await assert.rejects(q('select limpiar_eventos_anuncios()'),/permission denied/);
   await db.exec('reset role');
-  await sesion(3);for(let n=110;n<123;n++)await evento(n);
+  await sesion(3);for(let n=110;n<123;n++){
+    if((await q("select count(*)::int n from anuncio_eventos_recibos where user_id=$1 and tipo='impresion' and (creado_at at time zone 'America/Santiago')::date=(now() at time zone 'America/Santiago')::date",[id(3)]))[0].n>=4)
+      await q("update anuncio_eventos_recibos set creado_at=creado_at-interval '1 day' where user_id=$1 and tipo='impresion'",[id(3)]);
+    assert.equal(await evento(n),true);
+  }
   await sesion(2);assert.equal((await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r.impresion,16);
+  // Cupos por día chileno: 4 impresiones, 2 aperturas, 1 contacto.
+  await db.exec('begin');await sesion(3);
+  const metricasAntes=await q('select * from anuncio_metricas order by tipo'),cobroAntes=await costo();
+  for(const [tipo,limite]of [['impresion',4],['clic',2],['contacto',1]]){
+    const previos=(await q("select count(*)::int n from anuncio_eventos_recibos where user_id=$1 and tipo=$2 and (creado_at at time zone 'America/Santiago')::date=(now() at time zone 'America/Santiago')::date",[id(3),tipo]))[0].n;
+    for(let n=previos;n<limite;n++)assert.equal(await evento(1000+limite*100+n,tipo),true);
+    const recibos=await q('select * from anuncio_eventos_recibos order by evento_id'),diarios=await q('select * from anuncio_eventos_diarios order by tipo');
+    assert.equal(await evento(9000+limite,tipo),false,`evento ${limite+1} de ${tipo} no suma`);
+    assert.deepEqual(await q('select * from anuncio_eventos_recibos order by evento_id'),recibos);
+    assert.deepEqual(await q('select * from anuncio_eventos_diarios order by tipo'),diarios);
+  }
+  await sesion(4);assert.equal(await evento(9200),true,'otra cuenta tiene su cupo');await sesion(3);
+  await db.exec("set local time zone 'Pacific/Kiritimati'");assert.equal(await evento(9100),false,'la zona de sesión no evita el cupo chileno');
+  // Recibos del día chileno anterior, sin cambiar las fechas del alcance.
+  await q("update anuncio_eventos_recibos set creado_at=(((now() at time zone 'America/Santiago')::date-1)::timestamp+interval '12 hours') at time zone 'America/Santiago' where user_id=$1",[id(3)]);
+  assert.equal(await evento(9101),true,'al día siguiente de Chile vuelve a sumar');
+  assert.equal(await evento(9102,'clic'),true);assert.equal(await evento(9103,'contacto'),true);
+  assert.deepEqual(await costo(),cobroAntes);assert.deepEqual(await q('select * from anuncio_metricas order by tipo'),metricasAntes);
+  // Los límites de medianoche local incluyen días de 23 y 25 horas.
+  for(const [dia,horas]of [['2026-04-04',25],['2026-09-06',23]]){
+    const ventana=(await q("select extract(epoch from ((($1::date+1)::timestamp at time zone 'America/Santiago')-($1::date::timestamp at time zone 'America/Santiago')))/3600 horas",[dia]))[0];
+    assert.equal(Number(ventana.horas),horas);
+  }
+  await db.exec('rollback');
   // Pausar o terminar un anuncio que sí tuvo medición no borra sus cifras.
   await sesion(1);
   for(const estado of ['pausado','expirado']){
