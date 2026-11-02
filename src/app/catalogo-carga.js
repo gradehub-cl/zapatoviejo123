@@ -176,6 +176,7 @@ function creditosUCPorNombreUnico(nombre){
 // ausentes; nunca corregimos un valor ya guardado.
 function completarCreditosUCTrasCarga(){
   if(S.tenant!=='uc'||!S.onboardingDone||!(cursosUcExtra()||_cursosUcRemotos.length))return false;
+  const modoAntes=gpaMode(S.ramos||[]);
   let agregados=0;
   (S.ramos||[]).forEach(r=>{
     if(r.creditos!==null&&r.creditos!==undefined)return;
@@ -195,6 +196,11 @@ function completarCreditosUCTrasCarga(){
   // mantiene intacta la clave y el camino habitual de respaldo.
   save();
   renderHome();renderStats();
+  // Si con esto todos los ramos con nota tienen créditos, el promedio general
+  // cambia de número: se avisa una vez para que no asuste (Lucas, 2026-11-02).
+  // No se repite porque después el modo ya es 'creditos'.
+  if(modoAntes==='simple'&&gpaMode(S.ramos)==='creditos')
+    showToast('Completamos los créditos de tus ramos: tu promedio general ahora se pondera por créditos');
   return true;
 }
 // El catálogo completo de la UC son 11.853 ramos en un archivo de ~660 KB que se
