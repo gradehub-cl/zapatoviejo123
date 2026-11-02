@@ -1,8 +1,10 @@
-// halloween — tema temporal (oct–nov 2026). Para quitarlo: borra este archivo,
-// halloween.css y las dos líneas marcadas "halloween" en index.html.
-// No guarda nada: S.acento y S.fondo de cada usuario quedan intactos y vuelven solos.
+// Temas festivos: el admin prende uno en Administración → Usuarios y lo ven
+// todos (supabase/temas_festivos.sql). No guarda nada en gradehub_v1: S.acento
+// y S.fondo de cada usuario quedan intactos y vuelven solos al apagarlo.
+// Navidad ya tiene su botón en el panel, pero todavía no tiene diseño.
+let temaFestivo=null;
 {
-  const _applyTheme=applyTheme;
+  const _applyTheme=applyTheme,_fraseInicio=fraseInicio;
   const PALETA={
     claro:{primary:'#6b21a8',primaryFg:'#ffffff',primaryLight:'#f3e8ff',accent:'#fb923c',secondary:'#c2410c',
       bg:'#fbf7ff',bg2:'#fbf7ff',card:'#ffffff',border:'#e9dcf5',border2:'#bfa8d8',muted:'#f3ebfb',fg:'#1d1029',fg2:'#57466a',fg3:'#6e5c82'},
@@ -11,8 +13,10 @@
   };
   applyTheme=function(){
     _applyTheme();
-    const dark=prefersDark();
-    document.documentElement.classList.toggle('halloween-oscuro',dark);
+    const halloween=temaFestivo==='halloween',dark=prefersDark();
+    document.documentElement.classList.toggle('halloween',halloween);
+    document.documentElement.classList.toggle('halloween-oscuro',halloween&&dark);
+    if(!halloween)return;
     const p=PALETA[dark?'oscuro':'claro'];
     const r=document.documentElement.style;
     r.setProperty('--primary',p.primary);
@@ -36,9 +40,20 @@
     'Que la prueba pase susto',
   ];
   fraseInicio=function(fecha=new Date()){
+    if(temaFestivo!=='halloween')return _fraseInicio(fecha);
     const dia=Math.floor(Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate())/86400000);
     return FRASES[((dia%FRASES.length)+FRASES.length)%FRASES.length];
   };
-  document.documentElement.classList.add('halloween');
+}
+// El último tema visto se recuerda en este navegador para no parpadear al
+// abrir; el servidor manda apenas responde.
+const CLAVE_TEMA_FESTIVO='gradehub_tema_festivo';
+function ponerTemaFestivo(tema){
+  temaFestivo=tema||null;
+  try{tema?localStorage.setItem(CLAVE_TEMA_FESTIVO,tema):localStorage.removeItem(CLAVE_TEMA_FESTIVO);}catch(e){}
   applyTheme();
 }
+try{temaFestivo=localStorage.getItem(CLAVE_TEMA_FESTIVO);}catch(e){}
+applyTheme();
+// Sin conexión o sin el SQL aplicado se queda con lo que había.
+if(supabaseClient)supabaseClient.rpc('tema_festivo_activo').then(({data,error})=>{if(!error)ponerTemaFestivo(data);},()=>{});

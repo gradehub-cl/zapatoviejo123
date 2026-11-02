@@ -98,7 +98,7 @@ ctx.__ramos=JSON.stringify([{id:'riesgo',nombre:'Física Sintética',color:'#6d5
 ]}]);
 run(`S.tenant='uc';S.ramos=JSON.parse(__ramos);S.historial=[{label:'2026-1',gpa:5,ramos:[]}];`);
 h=tarjeta();
-chk('el promedio general usa el acento aunque sea un 1,0',byId('home-gpa').style['--grade-color']==='var(--primary)'&&byId('home-gpa').className==='gpa-num');
+chk('el promedio general usa el semáforo: un 1,0 va en rojo',byId('home-gpa').style['--grade-color']===run('getColor(1)')&&byId('home-gpa').className.startsWith('gpa-num '+run('colorClass(1)')));
 chk('se oculta solo la aclaración rutinaria de ponderación',byId('home-gpa-method').style.display==='none');
 chk('las notas sin fecha siguen contando y conservan el semáforo del ramo',/gpa-tag-dot bad/.test(byId('gpa-tags').innerHTML));
 chk('la comparación con el semestre anterior sigue bajando en rojo',byId('gpa-delta').className==='gpa-delta down'&&/↓/.test(byId('gpa-delta').innerHTML));
