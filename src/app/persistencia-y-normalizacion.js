@@ -332,7 +332,7 @@ function normalize(data) {
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
-    aporta: (r.aporta && r.aporta.ramo && r.aporta.peso) ? {ramo:r.aporta.ramo, peso:r.aporta.peso, min:r.aporta.min} : null,
+    aporta: (r.aporta && r.aporta.ramo && r.aporta.peso) ? {ramo:r.aporta.ramo, ...(typeof r.aporta.sigla==='string'?{sigla:r.aporta.sigla}:{}), peso:r.aporta.peso, min:r.aporta.min} : null,
     // La forma de la pauta tal como se la dimos. Si difiere de las categorías
     // actuales, el estudiante la editó y su versión manda.
     pautaHuella: typeof r.pautaHuella === 'string' ? r.pautaHuella : null,

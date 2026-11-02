@@ -533,7 +533,8 @@ const PRESETS_UC={
     fechasPorSeccion:{
       13:{'Controles':['2026-08-28','2026-10-09','2026-11-06']},
     },
-    aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
+    aporta:{ramo:'Laboratorio de Dinámica',sigla:'FIS0154',peso:30,min:4.0},
+    // Conservación de actas al repetir: no definida por los programas consultados.
     // El programa dice que la nota de la interrogación "será reemplazada por la
     // nota del examen"; en la práctica del curso su porcentaje pasa al examen
     // (decisión de Lucas, 2026-10-08). Faltar a las dos es "caso a caso" y no
@@ -639,7 +640,8 @@ const PRESETS_UC={
       ['Examen',20,{fecha:'2026-12-01'}],
       ['Talleres',10,{lista:true,dropLowest:{count:1}}],
     ],
-    aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
+    aporta:{ramo:'Laboratorio de Dinámica',sigla:'FIS0154',peso:30,min:4.0},
+    // Conservación de actas al repetir: no definida por los programas consultados.
     noCalcula:[
       'Faltar a un taller, con o sin justificación, es un 1,0 en ese taller',
       'Si repruebas la cátedra o el laboratorio, repruebas Dinámica: el programa no dice con qué nota quedas, así que mostramos la más baja de las dos',

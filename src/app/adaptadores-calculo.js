@@ -102,7 +102,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -178,8 +178,7 @@ function textoDescarte(cat,descarte){
 // solo entrega un promedio más alto o más bajo del real.
 function esAporteDeOtroRamo(r,ramos){
   if(!r)return false;
-  const n=normName(r.nombre);
-  return (ramos||[]).some(x=>x!==r&&x.aporta&&x.aporta.ramo&&normName(x.aporta.ramo)===n);
+  return (ramos||[]).some(x=>x!==r&&ramoVinculado(x,ramos)===r);
 }
 function ramosDelPromedio(ramos){
   return (ramos||[]).filter(r=>!esAporteDeOtroRamo(r,ramos));
@@ -269,4 +268,20 @@ const FRASES_INICIO=[
 function fraseInicio(fecha=new Date()){
   const dia=Math.floor(Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate())/86400000);
   return FRASES_INICIO[((dia%FRASES_INICIO.length)+FRASES_INICIO.length)%FRASES_INICIO.length];
+}
+
+// La ficha no llama final a una cátedra que todavía no incluye su laboratorio.
+function contextoVinculoRamo(r){
+  const link=referenciaRamoVinculado(r),partes=partesDelVinculo(r);
+  if(!link?.sigla||!partes)return null;
+  if(!partes.externo.ramo)return {link,soloCatedra:true,falta:true,html:`Tu nota final incluye un ${r2(link.peso)}% del ${esc(link.ramo)}. Agrégalo para verla completa`};
+  if(partes.externo.valor===null)return {link,soloCatedra:true,falta:false,html:`Agrega notas en ${esc(link.ramo)} para ver la nota combinada. Por ahora, solo cátedra`};
+  const propia=partes.propio.valor,externa=partes.externo.valor;
+  const estado=(v)=>v===null?'sin notas':notaFinalOficial(v)<partes.min?'bajo el mínimo':'cumple el mínimo';
+  return {link,soloCatedra:false,falta:false,html:`Cátedra ${fmtPromedio(propia)} (${estado(propia)}) · Laboratorio ${fmtPromedio(externa)} (${estado(externa)}). Cada ficha conserva su propia nota`};
+}
+function agregarLaboratorioVinculado(){
+  const r=S.ramos.find(x=>x.id===currentRamoId),info=contextoVinculoRamo(r);
+  if(!info?.falta)return;
+  crearRamoDesdeCatalogo(info.link.ramo,info.link.sigla);save();renderRamo();showToast('Laboratorio agregado');
 }
