@@ -3,6 +3,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   vistaInicial=(typeof tomarVistaNav==='function'&&tomarVistaNav('alumnos'))||vistaInicial||'resumen';
   const usuario=currentUser,cliente=supabaseClient,version=++versionPanelAlumnos;
   const vigente=()=>currentUser===usuario&&supabaseClient===cliente&&version===versionPanelAlumnos&&raiz.isConnected!==false;
+  const cabeceraPantalla=typeof raiz.closest==='function'&&raiz.closest('#screen-alumnos')?.querySelector('.topbar h1');
+  if(cabeceraPantalla){cabeceraPantalla.textContent='Alumnos';cabeceraPantalla.parentElement?.classList.remove('pe-alumno-cabecera');}
   raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
     '<div class="panel-alumnos-estado" role="status"><h2>Cargando tus alumnos</h2><p>Estamos preparando sus ramos y evaluaciones.</p></div></div>';
   // Con alumnos de ejemplo, lo de los alumnos se responde en memoria. El link
@@ -38,7 +40,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   }));
   await Promise.all([...cursos.keys()].map(async k=>{
     const separador=k.indexOf('|'),tenant=k.slice(0,separador),sigla=k.slice(separador+1);
-    try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});if(!error)cursos.set(k,data);}catch(e){}
+    try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla});cursos.set(k,error?{errorCarga:true,sinSQL:error.code==='42883'||error.code==='PGRST202'}:data);}catch(e){cursos.set(k,{errorCarga:true});}
   }));
   if(!vigente())return;
   const compGeneral=(al,r)=>cursos.get(claveCurso(al.tenant,claveRamoCurso(r,al.tenant)||''))||null;
@@ -54,7 +56,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const una=async k=>{
       const [tenant,sigla,seccion]=k.split('|');
       try{const {data,error}=await rpc('comparacion_ramo_profesor',{p_tenant:tenant,p_sigla:sigla,p_seccion:Number(seccion)});
-        if(!error&&data)secciones.set(k,{...data,seccion:Number(seccion)});}catch(e){}
+        secciones.set(k,{...(error?{errorCarga:true,sinSQL:error.code==='42883'||error.code==='PGRST202'}:data),seccion:Number(seccion)});}catch(e){secciones.set(k,{errorCarga:true,seccion:Number(seccion)});}
     };
     for(let i=0;i<pendientes.length;i+=4)await Promise.all(pendientes.slice(i,i+4).map(una));
   })());
@@ -110,8 +112,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     <section class="panel-alumnos-vista" id="alumnos-vista-ramos" aria-label="Ramos de tus alumnos" hidden></section>
     <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>
-      <h2 id="alumnos-ficha-titulo"></h2>
-      <div id="alumnos-ficha-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
+      <h2 id="alumnos-ficha-titulo"></h2><p class="pe-cabecera-sub" id="alumnos-ficha-subtitulo"></p>
+      <div id="alumnos-ficha-compara-wrap" hidden>${comparaPanelHTML(porSeccion)}</div>
       <div id="alumnos-ficha-contenido"></div>
     </section>
     <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
@@ -191,9 +193,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   }));
   let ramoFicha=null;
   const ultimaSeccion=new Map();
+  const subtituloFicha=al=>`Alumnos · ${TENANTS[al.tenant]?.short||al.tenant||'Universidad no declarada'} · ${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo compartido':'ramos compartidos'}`;
   const pintarFicha=()=>{
     if(!seleccionado)return;
     raiz.querySelector('#alumnos-ficha-titulo').textContent=seleccionado.nombre_visible||'Alumno';
+    raiz.querySelector('#alumnos-ficha-subtitulo').textContent=subtituloFicha(seleccionado);
     fichaContenido.innerHTML=contenidoAlumnoEditorialHTML(seleccionado,compDe,compGeneral,new Date());
     const pintarRamo=()=>{
       const al=seleccionado,r=(al.ramos||[]).find(r=>r.id===ramoFicha)||(al.ramos||[])[0];
@@ -212,10 +216,12 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
         enlazarUltima();barra.querySelector('button')?.focus({preventScroll:true});
       });
       enlazarUltima();
-      destino.querySelector('[data-pe-comparar]')?.addEventListener('click',()=>{
-        const boton=controles.find(Boolean)?.querySelector(`[data-compara="${porSeccion?'gradehub':'seccion'}"]`);
-        if(boton&&typeof boton.click==='function')boton.click();
-      });
+      destino.querySelectorAll('[data-pe-grupo], [data-pe-comparar]').forEach(b=>b.addEventListener('click',async()=>{
+        const grupo=b.dataset.peGrupo,quiere=grupo?grupo==='seccion':!porSeccion;
+        await cambiarComparacion(quiere);
+        const selector=grupo?`[data-pe-grupo="${grupo}"]`:'[data-pe-comparar]';
+        if(vigente()&&seleccionado===al)fichaContenido.querySelector(selector)?.focus({preventScroll:true});
+      }));
     };
     fichaContenido.querySelectorAll('[data-pe-ramo]').forEach(b=>b.addEventListener('click',()=>{ramoFicha=b.dataset.peRamo;pintarRamo();}));
     pintarRamo();enlazarQuitar();
@@ -227,15 +233,21 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     // a media altura, mostrando el medio de algo nuevo.
     if(nombre!==vistaActiva){const caja=typeof raiz.closest==='function'&&raiz.closest('.scroll');if(caja)caja.scrollTop=0;}
     vistaActiva=nombre;
-    const cabecera=typeof raiz.closest==='function'&&raiz.closest('#screen-alumnos')?.querySelector('.topbar h1');
-    if(cabecera){cabecera.textContent=nombre==='ficha'?(seleccionado?.nombre_visible||'Alumno'):'Alumnos';raiz.querySelector('#alumnos-ficha-titulo').hidden=true;}
+    const cabecera=cabeceraPantalla;
+    if(cabecera){
+      cabecera.textContent=nombre==='ficha'?(seleccionado?.nombre_visible||'Alumno'):'Alumnos';
+      cabecera.parentElement?.classList.toggle('pe-alumno-cabecera',nombre==='ficha');
+      if(nombre==='ficha')cabecera.innerHTML=`<span class="pe-cabecera-nombre">${esc(seleccionado?.nombre_visible||'Alumno')}</span><span class="pe-cabecera-sub">${esc(subtituloFicha(seleccionado))}</span>`;
+      raiz.querySelector('#alumnos-ficha-titulo').hidden=true;
+      raiz.querySelector('#alumnos-ficha-subtitulo').hidden=true;
+    }
 
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
     raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
     raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Antes y ahora',ramos:'Por ramo'})[nombre]||'';
     // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
-    // ficha tiene su propio control, bajo «‹ Lista» y el nombre (#816).
+    // ficha tiene su propio control dentro del gráfico.
     comparaWrap.hidden=nombre!=='estadisticas';
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
@@ -297,10 +309,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const controles=['#alumnos-compara-wrap','#alumnos-ficha-compara-wrap']
     .map(sel=>raiz.querySelector(`${sel} .panel-alumnos-compara`)).filter(Boolean);
   const botones=controles.flatMap(c=>[...c.querySelectorAll('[data-compara]')]);
-  botones.forEach(b=>b.addEventListener('click',async()=>{
-    if(!vigente())return;
-    const quiere=b.dataset.compara==='seccion';if(quiere===porSeccion)return;
+  const cambiarComparacion=async quiere=>{
+    if(!vigente()||quiere===porSeccion)return;
     botones.forEach(x=>{x.disabled=true;});
+    fichaContenido.querySelectorAll('[data-pe-grupo], [data-pe-comparar]').forEach(b=>{b.disabled=true;});
     if(quiere)await cargarSecciones();
     if(!vigente())return;
     porSeccion=quiere;guardarComparaSeccion(quiere);
@@ -314,7 +326,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     }
     if(vistaActiva==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
     track('panel_alumnos_compara',{seccion:quiere});
-  }));
+  };
+  botones.forEach(b=>b.addEventListener('click',()=>cambiarComparacion(b.dataset.compara==='seccion')));
   const fichaInicial=alumnoId&&alumnos.find(x=>String(x.id)===String(alumnoId));
   if(fichaInicial)abrirFicha(fichaInicial);else activarVista(vistaInicial);
   // Exporta todos los que calzan con la búsqueda, en el orden de la lista: el
