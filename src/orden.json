@@ -121,6 +121,7 @@
     "src/render-main/curso-y-evolucion.js",
     "src/render-main/estadisticas.js",
     "src/render-main/wrapped-datos.js",
+    "src/render-main/wrapped-hoja.js",
     "src/render-main/wrapped-presentacion.js",
     "src/render-main/wrapped-compartir.js",
     "src/render-main/profesor-ficha.js",

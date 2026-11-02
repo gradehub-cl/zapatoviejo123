@@ -1,82 +1,77 @@
-
-// ─── Piezas visuales de cada pantalla ───
-// Todo lo que llevan adentro es texto ya escapado o números que calculó la app.
-// Los gráficos son decorado con `aria-hidden`; el ranking conserva su lista
-// accesible porque contiene nombres y promedios que no se repiten en el texto.
+// ─── Las historias del Wrapped 2026-2 ───
+// El guion completo, con las frases y cuándo sale cada historia, está en
+// .claude/wrapped-concepto.md. Las piezas visuales viven en wrapped-hoja.js.
 
 // Una cifra que cuenta desde `desde` hasta su valor cuando aparece la pantalla.
-// El texto final es SIEMPRE el que ya formateó la app (`fmtPromedio`, `fmt`):
-// el conteo anima el camino y nunca redondea distinto. VoiceOver lee la copia
-// oculta, no cada número intermedio.
+// El texto final es SIEMPRE el que ya formateó la app (`fmtPromedio`, `fmt`),
+// escrito con coma: el conteo anima el camino y nunca redondea distinto.
+// VoiceOver lee la copia oculta, no cada número intermedio.
 function cifraWrapped(texto,desde){
-  const m=/^(\d+(?:\.\d+)?)(%?)$/.exec(texto);
+  const m=/^([+-]?)(\d+(?:[.,]\d+)?)(%?)$/.exec(String(texto));
   if(!m)return esc(texto);
-  const dec=(m[1].split('.')[1]||'').length;
-  return `<span class="wrapped-cifra" aria-hidden="true" data-hasta="${m[1]}" data-desde="${desde||0}" data-dec="${dec}" data-suf="${m[2]}">${texto}</span><span class="wrapped-oculto">${texto}</span>`;
-}
-// Un punto por nota, del color de su ramo: el semestre entero de un vistazo.
-function grillaWrapped(colores){
-  return `<div class="wrapped-grilla" aria-hidden="true">${colores.slice(0,80).map((c,i)=>`<span style="--c:${esc(c)};--d:${2+i*.12}"></span>`).join('')}</div>`;
-}
-// El promedio sobre la escala chilena, de 1,0 a 7,0, con la marca del 4,0. El
-// arco va en blanco: el semáforo no se usa como decorado.
-function arcoWrapped(g){
-  const t=Math.min(Math.max((g-1)/6,0),1),x=100-80*Math.cos(Math.PI*t),y=100-80*Math.sin(Math.PI*t);
-  return `<svg class="wrapped-arco" viewBox="0 0 200 118" aria-hidden="true">
-    <path class="pista" d="M20 100A80 80 0 0 1 180 100" pathLength="100"/>
-    <path class="valor" d="M20 100A80 80 0 0 1 180 100" pathLength="100" style="--v:${(t*100).toFixed(1)}"/>
-    <line x1="100" y1="12" x2="100" y2="28"/><text x="100" y="9" text-anchor="middle">4,0</text>
-    <text x="20" y="116" text-anchor="middle">1,0</text><text x="180" y="116" text-anchor="middle">7,0</text>
-    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"/>
-  </svg>`;
-}
-// Los ramos ordenados por promedio. La línea de color a la izquierda es la
-// misma que en Inicio: el color del ramo vive ahí y no tiñe la barra.
-function rankingWrapped(ranking){
-  return `<ol class="wrapped-ranking">${ranking.slice(0,5).map((x,i)=>`
-    <li class="${i===0?'top':''}" style="--c:${esc(x.color)};--d:${3+i/2};--v:${Math.max((x.avg-1)/6,.02).toFixed(3)}">
-      <span>${esc(x.nombre)}</span><b>${fmtPromedio(x.avg)}</b><i></i></li>`).join('')}</ol>`;
-}
-// Una regla de 0 a 100 con "Tú" encima. Se lee como posición, no como nota.
-function reglaWrapped(p){
-  return `<div class="wrapped-regla" aria-hidden="true" style="--p:${Math.min(Math.max(p,0),100)}">
-    <div class="pista"><i></i></div><b>Tú</b><span>0%</span><span>100%</span></div>`;
+  const num=m[2].replace(',','.'),dec=(num.split('.')[1]||'').length,final=comaWrapped(texto);
+  return `<span class="wrapped-cifra" aria-hidden="true" data-hasta="${num}" data-desde="${desde||0}" data-dec="${dec}" data-pre="${m[1]}" data-suf="${m[3]}">${final}</span><span class="wrapped-oculto">${final}</span>`;
 }
 
-// Cada pantalla es texto ya escapado. La última es la que se comparte, así que
-// lleva solo lo que uno querría mostrar: nada del ramo que más costó.
+// Cada historia es texto ya escapado. Si una no tiene datos para esta persona,
+// no se agrega: nunca un cero inventado. La última es la que se comparte, así
+// que lleva solo lo que uno querría mostrar: nada del ramo que más costó.
 function slidesWrapped(d,comp,label){
-  const s=[],pl=n=>n!==1?'s':'';
-  // `short` ("FEN", "UC"): "En toda U. de Chile · FEN" no se dice así.
+  const s=[],pl=n=>n!==1?'s':'',c=comaWrapped;
   const u=esc((TENANTS[S.tenant]&&TENANTS[S.tenant].short)||'tu universidad');
-  const nombre=esc((S.userName||'').split(' ')[0]||'');
-  s.push({tipo:'umbral',k:'Antes de seguir',titulo:'Hay algo que queremos mostrarte.',sub:'Un semestre entero. Muchas historias. Algunas quedaron acá.'});
-  s.push({tipo:'portada',k:esc(label),titulo:nombre?`${nombre}, este fue tu semestre`:'Este fue tu semestre',sub:'Tus notas, contadas de otra forma.'});
-  s.push({k:'Este semestre ingresaste',big:cifraWrapped(String(d.nNotas)),sub:`nota${pl(d.nNotas)} en ${d.nRamos} ramo${pl(d.nRamos)}`,viz:grillaWrapped(d.notasColores)});
-  if(d.gpa!==null)s.push({k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación`,viz:arcoWrapped(d.gpa)});
-  if(d.mejor)s.push({tipo:'destello',k:'Tu mejor nota',big:cifraWrapped(fmt(d.mejor.valor),1),sub:`${d.mejor.valor>=7?'Nada más que decir.<br>':''}${esc(d.mejor.evaluacion)} · ${esc(d.mejor.ramo)}`});
-  s.push({k:'Tu ramo estrella',titulo:esc(d.estrella.r.nombre),sub:`Tu mejor promedio: ${fmtPromedio(d.estrella.avg)}.`,viz:d.ranking.length>1?rankingWrapped(d.ranking):''});
+  const nombre=esc((S.userName||'').trim().split(/\s+/)[0]||'');
+  s.push({tipo:'umbral',sup:'pizarron',k:esc(label),titulo:d.completo?`Cerraste el<br>${hojaMarca('semestre.')}`:`Llegaste al final del<br>${hojaMarca('semestre.')}`,sub:'Respira. Esto es tuyo.',viz:filasUmbralWrapped()});
+  s.push({tipo:'portada',titulo:nombre?`${nombre}, este fue tu ${esc(label)}.`:`Este fue tu ${esc(label)}.`,sub:'No todo cabe en un promedio. Pero intentemos.'});
+  s.push({k:'Anotaste',antes:true,big:cifraWrapped(String(d.nNotas)),titulo:`nota${pl(d.nNotas)}.`,viz:grillaWrapped(d.nNotas),sub:'Cada una fue una noche antes, una prueba y una espera.'});
+  if(d.semana)s.push({k:`La semana del ${esc(d.semana.texto)} tuviste`,antes:true,big:cifraWrapped(String(d.semana.k)),titulo:'evaluaciones.',nota:'Y aquí estás.'});
+  if(d.primera){
+    const fin=d.mitades?d.mitades.segunda-d.mitades.primera:0;
+    s.push({k:'Todo empezó con un',big:cifraWrapped(fmt(d.primera.valor),1),sub:`${esc(d.primera.nombre)} · ${esc(d.primera.ramo)}`,
+      nota:fin>=0.3?'Mira dónde terminaste.':Math.abs(fin)<0.3?'Y lo sostuviste todo el semestre.':''});
+  }
+  if(d.gpa!==null)s.push({k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`,viz:arcoWrapped(d.gpa)});
+  if(d.mejor)s.push({tipo:'mejor',titulo:`Tu ${hojaMarca('mejor nota')}`,big:cifraWrapped(fmt(d.mejor.valor),1),timbre:true,
+    nota:`<b>${esc(d.mejor.ramo)}</b><br>${esc(d.mejor.evaluacion)}`,sub:d.mejor.valor>=7?'Nada más que decir.':''});
+  if(d.movio)s.push({k:'Una nota movió todo.',big:cifraWrapped('+'+fmt(d.movio.delta)),flecha:true,sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio.`});
+  if(d.remontada)s.push({k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${c(fmtPromedio(d.remontada.minimo))}.`,titulo:'Terminó en',big:cifraWrapped(fmtPromedio(d.remontada.final),1),nota:'Nadie lo vio venir. Tú sí.'});
+  s.push({titulo:'Tus ramos, en orden.',sub:'De mejor a peor promedio.',viz:d.ranking.length>1?rankingWrapped(d.ranking):'',
+    ...(d.ranking.length>1?{}:{titulo:`Tu ramo estrella: ${hojaMarca(esc(d.estrella.r.nombre),2)}`,sub:`Tu mejor promedio: ${c(fmtPromedio(d.estrella.avg))}.`})});
   // "Lo sacaste adelante" solo si de verdad lo aprobó: el resumen no celebra
   // lo que el semáforo pinta rojo.
   if(d.dificil)s.push({k:'El que más pelea dio',titulo:esc(d.dificil.r.nombre),big:cifraWrapped(fmtPromedio(d.dificil.avg),1),
-    sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía quedan evaluaciones por registrar.':notaAprobadaRamo(d.dificil.r,d.dificil.avg)?'Y lo sacaste adelante.':'Un semestre no define a nadie.'});
-  if(comp&&comp.curso)s.push({k:`En ${esc(comp.curso.ramo)}`,big:cifraWrapped(comp.curso.mejorQue+'%'),
-    sub:frasePosicionCurso(comp.curso.mejorQue,comp.curso.total).replace(/<\/?b>/g,'')+'.',viz:reglaWrapped(comp.curso.mejorQue)});
+    sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía quedan evaluaciones por registrar.':notaAprobadaRamo(d.dificil.r,d.dificil.avg)?'Y lo sacaste adelante.':'Un ramo no te define. El próximo va con todo lo que aprendiste.'});
+  if(d.personalidad){
+    const p=d.personalidad,m=d.mitades,dato=p.id==='remontada'&&m?`<br><small>Tu 2.ª mitad del semestre promedió <b>${c(fmt(m.segunda))}</b>; la 1.ª, <b>${c(fmt(m.primera))}</b>.</small>`:'';
+    s.push({tipo:'personalidad',k:'Tu personalidad',titulo:'¿Qué tipo de estudiante fuiste?',viz:opcionesWrapped(p),nota:`${esc(p.frase)}${dato}`});
+  }
+  if(comp&&comp.curso)s.push({k:`En ${esc(comp.curso.ramo)} quedaste sobre el`,antes:true,big:cifraWrapped(comp.curso.mejorQue+'%'),titulo:hojaMarca('de tu curso.'),
+    sub:`Comparado con ${comp.curso.total-1} personas del ramo que usan GradeHub. Nadie ve las notas de nadie.`,viz:reglaWrapped(comp.curso.mejorQue)});
   // El servidor compara el promedio simple de los ramos, no el ponderado de
   // Inicio (ver universidad_posicion.sql): por eso la frase dice "tus ramos".
   if(comp&&comp.uni)s.push({k:`En toda ${u}`,big:cifraWrapped(comp.uni.mejorQue+'%'),
     sub:`Con el promedio simple de tus ramos con sigla quedas igual o por sobre el ${comp.uni.mejorQue}% de otras ${comp.uni.total-1} personas de ${u} en GradeHub.`,viz:reglaWrapped(comp.uni.mejorQue)});
+  if(d.anterior)s.push(d.anterior.delta>=0.1?{k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),flecha:true}
+    :{titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
+  const conSeccion=(S.ramos||[]).find(r=>r.seccion&&d.ranking.some(x=>x.nombre===r.nombre));
+  if(conSeccion)s.push({k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
+  s.push({tipo:'cierre',sup:'pizarron',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
   const filas=[];
-  if(d.mejor)filas.push(['Mejor nota',fmt(d.mejor.valor)]);
+  if(d.personalidad)filas.push(['¿Qué tipo de estudiante fuiste?',esc(d.personalidad.nombre),d.personalidad.letra]);
   filas.push(['Ramo estrella',esc(d.estrella.r.nombre)]);
-  if(comp&&comp.uni)filas.push([`En ${u}`,`sobre el ${comp.uni.mejorQue}%`]);
-  s.push({tipo:'final',k:esc(label),big:d.gpa!==null?fmtPromedio(d.gpa):null,filas});
+  if(d.mejor)filas.push(['Mejor nota',c(fmt(d.mejor.valor))]);
+  s.push({tipo:'final',k:esc(label),nombre,big:d.gpa!==null?c(fmtPromedio(d.gpa)):null,filas});
   return s;
 }
 
-const ICONO_CERRAR='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICONO_CERRAR='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICONO_PAUSA='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
+const ICONO_SEGUIR='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
+const ICONO_INDICE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>';
 // El ícono de compartir de iOS: cuadrado abierto con la flecha hacia arriba.
-const ICONO_COMPARTIR='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg>';
+const ICONO_COMPARTIR='<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg>';
+// Cada historia se queda ~6 s, como las de Spotify. El umbral, la acción y la
+// tarjeta esperan a la persona; con movimiento reducido nada avanza solo.
+const WRAPPED_DURACION=6000;
 
 let _wrapped=null,_wrappedAbriendo=false,_wrappedVentanaTimer=null;
 function contextoWrappedVigente(estado){
@@ -85,7 +80,15 @@ function contextoWrappedVigente(estado){
 }
 // Reevaluar al minuto civil y al volver a la app: ni una pestaña abierta de
 // noche ni un teléfono que despierta mantienen la sorpresa fuera de fecha.
-if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')renderWrappedHome();});
+// Oculta, la historia no avanza sola.
+if(typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){renderWrappedHome();programarWrapped();}
+  else if(_wrapped)clearTimeout(_wrapped.timer);
+});
+function oscuroWrapped(){
+  const m=document.documentElement&&document.documentElement.dataset&&document.documentElement.dataset.modo;
+  return m==='oscuro'||(m!=='claro'&&!!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches));
+}
 async function abrirWrapped(){
   const base=wrappedDisponible()&&ramosWrapped();if(!base||_wrapped||_wrappedAbriendo)return;
   const cierre=cierreWrapped(base);if(!cierre.listo){revisarCierreWrapped(base,cierre);return;}
@@ -104,37 +107,54 @@ async function abrirWrapped(){
   const actual=ramosWrapped();
   if(!wrappedDisponible()||(currentUser&&currentUser.id)!==cuenta||S.tenant!==tenant||!actual||actual.ramos!==base.ramos||JSON.stringify(actual.ramos)!==version||!cierreWrapped(actual).listo)return;
   const datos=datosWrapped(base.ramos);if(!datos)return;
+  extrasWrapped(datos,base.ramos,base.actual);
   const slides=slidesWrapped(datos,comp,base.label);
   track('wrapped_open',{pantallas:slides.length});
   const ov=document.createElement('div');
   ov.className='wrapped';
   ov.dataset.dir='adelante';
   ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Tu semestre en GradeHub');
-  ov.innerHTML=`<span class="wrapped-luz a"></span><span class="wrapped-luz b"></span><span class="wrapped-luz c"></span>
-    <span class="wrapped-tinta a"></span><span class="wrapped-tinta b"></span>
-    <div class="wrapped-barras"></div>
-    <button class="wrapped-cerrar wrapped-vidrio" type="button" aria-label="Cerrar" style="flex-shrink:0;">${ICONO_CERRAR}</button>
+  ov.innerHTML=`<div class="wrapped-arriba">
+      <div class="wrapped-barras${slides.length>12?' muchas':''}" role="img"></div>
+      <button class="wrapped-ctrl wrapped-indice-btn" type="button" aria-label="Ver todas las historias" aria-expanded="false">${ICONO_INDICE}</button>
+      <button class="wrapped-ctrl wrapped-pausa" type="button" aria-label="Pausar" aria-pressed="false">${ICONO_PAUSA}</button>
+      <button class="wrapped-ctrl wrapped-cerrar" type="button" aria-label="Cerrar">${ICONO_CERRAR}</button></div>
+    <div class="wrapped-indice" hidden></div>
     <div class="wrapped-slide" aria-live="polite"></div>
-    <div class="wrapped-pasos" style="position:relative;z-index:2;display:flex;justify-content:space-between;gap:12px;flex-shrink:0;">
-      <button class="wrapped-vidrio" type="button" data-paso="-1" style="position:static;opacity:1;padding:0 14px;border-radius:999px;font:inherit;">Anterior</button>
-      <button class="wrapped-vidrio" type="button" data-paso="1" style="position:static;opacity:1;padding:0 14px;border-radius:999px;font:inherit;">Siguiente</button></div>`;
+    <div class="wrapped-pasos">
+      <button type="button" data-paso="-1">Anterior</button>
+      <button type="button" data-paso="1">Siguiente</button></div>`;
   // Tocar el tercio izquierdo vuelve, el resto avanza: igual que las historias.
-  // Los botones "Anterior" y "Siguiente" hacen lo mismo para VoiceOver y el
-  // teclado, que no tienen cómo tocar un tercio de pantalla (HIG, Accessibility:
+  // Mantener presionado pausa, y al soltar no avanza. Los botones "Anterior" y
+  // "Siguiente" hacen lo mismo para VoiceOver y el teclado (HIG, Accessibility:
   // "Offer alternatives to gestures").
+  let presion=0;
+  ov.addEventListener('pointerdown',e=>{if(e.target.closest('.wrapped-slide')){presion=Date.now();if(_wrapped)clearTimeout(_wrapped.timer);}});
+  ov.addEventListener('pointerup',()=>{if(presion&&Date.now()-presion>=350)setTimeout(programarWrapped,0);});
   ov.addEventListener('click',e=>{
+    const mantuvo=presion&&Date.now()-presion>=350;presion=0;
     if(e.target.closest('.wrapped-cerrar'))return cerrarWrapped();
+    if(e.target.closest('.wrapped-pausa'))return pausarWrapped(!_wrapped.pausa);
+    if(e.target.closest('.wrapped-indice-btn'))return indiceWrapped(ov.querySelector('.wrapped-indice').hidden);
+    const ir=e.target.closest('[data-ir]');if(ir){indiceWrapped(false);return irWrapped(Number(ir.dataset.ir));}
+    if(e.target.closest('.wrapped-indice'))return;
     if(e.target.closest('.wrapped-compartir'))return compartirWrapped();
     if(e.target.closest('.wrapped-descargar'))return descargarWrapped();
+    const accion=e.target.closest('[data-ramo]');
+    if(accion){const id=accion.dataset.ramo;cerrarWrapped(true);if(S.ramos.some(r=>r.id===id))openRamo(id);return;}
+    if(e.target.closest('.wrapped-promedio,input,label'))return;
     const b=e.target.closest('[data-paso]');
+    if(!b&&mantuvo)return;
     pasarWrapped(b?Number(b.dataset.paso):e.clientX<ov.clientWidth/3?-1:1);
   });
+  ov.addEventListener('change',e=>{if(e.target.closest('.wrapped-promedio'))cambiarPromedioWrapped(e.target.checked);});
   arrastreWrapped(ov);
   document.addEventListener('keydown',teclaWrapped);
   document.body.appendChild(ov);
   const fondo=[...document.body.children].filter(el=>el!==ov).map(el=>({el,inert:el.inert}));
   fondo.forEach(({el})=>{el.inert=true;});
-  _wrapped={ov,slides,i:0,foco,fondo,cuenta,tenant,ramos:base.ramos,version,imagen:null,archivo:null,imagenTerminada:false};
+  _wrapped={ov,slides,i:0,foco,fondo,cuenta,tenant,ramos:base.ramos,version,imagen:null,archivo:null,imagenTerminada:false,
+    pausa:false,timer:null,conPromedio:false};
   pintarWrapped();
   ov.querySelector('.wrapped-cerrar').focus();
 }
@@ -184,40 +204,77 @@ function pintarWrapped(){
   const {ov,slides,i}=_wrapped,s=slides[i];
   ov.querySelector('[data-paso="-1"]').disabled=i===0;
   ov.querySelector('[data-paso="1"]').textContent=s.tipo==='umbral'?'Descubrir mi semestre':i===slides.length-1?'Terminar':'Siguiente';
-  // Las tres luces del fondo cambian de lugar en cada pantalla: es lo que hace
-  // sentir que se avanzó, sin mover el texto de su sitio.
-  ov.dataset.tono=String(i%4);
-  ov.querySelector('.wrapped-barras').innerHTML=slides.map((_,j)=>`<span class="${j<i?'on':j===i?'ahora':''}"></span>`).join('');
+  ov.dataset.sup=s.sup==='pizarron'||oscuroWrapped()?'pizarron':'papel';
+  ov.style.setProperty('--acento',HOJA_ACENTOS[i%HOJA_ACENTOS.length]);
+  const barras=ov.querySelector('.wrapped-barras');
+  barras.setAttribute('aria-label',`Historia ${i+1} de ${slides.length}`);
+  barras.innerHTML=slides.map((_,j)=>`<span class="${j<i?'on':j===i?'ahora':''}"></span>`).join('');
   // `--d` escalona la entrada: primero de qué se habla, después el número.
   let d=0;const p=(cls,html)=>html?`<p class="${cls}" style="--d:${d++}">${html}</p>`:'';
   const caja=ov.querySelector('.wrapped-slide');
-  caja.scrollTop=0;
+  caja.scrollTop=0;caja.dataset.tipo=s.tipo||'';
   if(s.tipo==='final'){
-    caja.innerHTML=`<div class="wrapped-tarjeta" style="--d:0">
-        <div class="wrapped-tarjeta-marca"><img src="logo.svg" alt="" width="28" height="28"><span>GradeHub</span><em>${s.k}</em></div>
-        ${s.big?`<p class="wrapped-tarjeta-big">${s.big}<small>promedio del semestre</small></p>`:''}
-        <div class="wrapped-filas">${s.filas.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')}</div>
-        <p class="wrapped-marca">gradehub.cl</p>
-      </div>
-      <div class="wrapped-acciones" style="--d:2">
-        <button class="wrapped-compartir wrapped-vidrio" type="button" disabled>${ICONO_COMPARTIR}<span>Preparando imagen…</span></button>
-        <button class="wrapped-descargar wrapped-vidrio" type="button" disabled>Descargar imagen</button>
-        <p class="wrapped-pie">o saca un pantallazo</p>
-      </div>`;
+    caja.innerHTML=`${p('wrapped-titulo',`Tu hoja del ${hojaMarca('semestre.')}`)}
+      <div class="wrapped-tarjeta" style="--d:${d++}"><p class="wrapped-pie">Preparando tu hoja…</p></div>
+      <label class="wrapped-promedio" style="--d:${d++}"><input type="checkbox"${_wrapped.conPromedio?' checked':''}><span>Mostrar mi promedio</span></label>
+      <div class="wrapped-acciones" style="--d:${d++}">
+        <button class="wrapped-compartir" type="button" disabled>${ICONO_COMPARTIR}<span>Preparando imagen…</span></button>
+        <button class="wrapped-descargar" type="button" disabled>Guardar imagen</button></div>`;
     // La imagen se prepara al llegar, no al tocar: Safari exige que el menú de
     // compartir se abra en el mismo toque, y dibujarla ahí lo haría esperar.
     prepararImagenWrapped(s);
     actualizarCompartirWrapped();
+    programarWrapped();
     return;
   }
-  const portada=s.tipo==='portada';
-  caja.innerHTML=(portada?`<p class="wrapped-poster" aria-hidden="true">${s.k}</p>`:'')
-    +p('wrapped-k',s.k)+p('wrapped-titulo',s.titulo)
-    +(s.big?(s.tipo==='destello'?`<div class="wrapped-destello" style="--d:${d++}"><span class="wrapped-rayos"></span><p class="wrapped-big">${s.big}</p></div>`:p('wrapped-big',s.big)):'')
+  const grande=s.big?`<div class="wrapped-grande${s.timbre?' con-timbre':''}" style="--d:${d++}"><p class="wrapped-big">${s.big}</p>${s.timbre?hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ '):''}${s.flecha?hojaFlecha():''}</div>`:'';
+  caja.innerHTML=p('wrapped-k',s.k)
+    +(s.tipo==='umbral'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
+    +(s.antes||!s.titulo?grande:'')
+    +p('wrapped-titulo',s.titulo)
+    +(s.antes||!s.titulo?'':grande)
     +p('wrapped-sub',s.sub)
-    +(s.viz?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
-    +(portada?p('wrapped-pie','Toca para seguir'):'');
+    +(s.viz&&s.tipo!=='umbral'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
+    +(s.nota?`<div style="--d:${d++}">${hojaPostit(s.nota,i%2?3:-3)}</div>`:'')
+    +(s.accion?`<button class="wrapped-accion" type="button" data-ramo="${esc(s.accion.ramo)}" style="--d:${d++}">${esc(s.accion.texto)}</button>`:'');
   contarWrapped(caja,i);
+  programarWrapped();
+}
+
+// Avanzar solo, salvo donde se espera a la persona o ella lo pidió.
+function programarWrapped(){
+  if(!_wrapped)return;
+  clearTimeout(_wrapped.timer);
+  const s=_wrapped.slides[_wrapped.i];
+  if(_wrapped.pausa||movimientoReducido()||document.visibilityState==='hidden'
+    ||s.tipo==='umbral'||s.tipo==='final'||s.accion||!_wrapped.ov.querySelector('.wrapped-indice').hidden)return;
+  const estado=_wrapped,i=estado.i;
+  estado.timer=setTimeout(()=>{if(_wrapped===estado&&estado.i===i)pasarWrapped(1);},WRAPPED_DURACION);
+}
+function pausarWrapped(pausa){
+  if(!_wrapped)return;
+  _wrapped.pausa=pausa;
+  const b=_wrapped.ov.querySelector('.wrapped-pausa');
+  b.setAttribute('aria-pressed',String(pausa));b.setAttribute('aria-label',pausa?'Seguir':'Pausar');
+  b.innerHTML=pausa?ICONO_SEGUIR:ICONO_PAUSA;
+  programarWrapped();
+}
+// El índice: saltar a cualquier historia sin empezar de nuevo.
+function indiceWrapped(abrir){
+  if(!_wrapped)return;
+  const caja=_wrapped.ov.querySelector('.wrapped-indice'),b=_wrapped.ov.querySelector('.wrapped-indice-btn');
+  caja.hidden=!abrir;b.setAttribute('aria-expanded',String(abrir));
+  if(abrir){
+    caja.innerHTML=`<ol>${_wrapped.slides.map((s,j)=>`<li><button type="button" data-ir="${j}"${j===_wrapped.i?' aria-current="step"':''}>${hojaBurbuja(String(j+1),j<=_wrapped.i)}<span>${esc(textoPlano(s.titulo||s.k||'Tu hoja del semestre'))}</span></button></li>`).join('')}</ol>`;
+    caja.querySelector('[aria-current]')?.focus({preventScroll:true});
+  }
+  programarWrapped();
+}
+function irWrapped(j){
+  if(!_wrapped||j<0||j>=_wrapped.slides.length)return;
+  const paso=j-_wrapped.i;if(!paso)return programarWrapped();
+  _wrapped.i=j;_wrapped.ov.dataset.dir=paso>0?'adelante':'atras';
+  pintarWrapped();
 }
 
 // Las cifras cuentan cuando les llega su turno en la entrada escalonada. Si la
@@ -226,15 +283,15 @@ function pintarWrapped(){
 function contarWrapped(caja,i){
   if(movimientoReducido())return;
   caja.querySelectorAll('.wrapped-cifra').forEach(el=>{
-    const hasta=Number(el.dataset.hasta),desde=Number(el.dataset.desde),dec=Number(el.dataset.dec),suf=el.dataset.suf;
+    const hasta=Number(el.dataset.hasta),desde=Number(el.dataset.desde),dec=Number(el.dataset.dec),pre=el.dataset.pre||'',suf=el.dataset.suf;
     const final=el.textContent,retraso=(Number((el.closest('[style*="--d"]')||{style:{getPropertyValue:()=>0}}).style.getPropertyValue('--d'))||0)*80;
     const dur=650;let t0=null;
-    el.textContent=desde.toFixed(dec)+suf;
+    el.textContent=pre+comaWrapped(desde.toFixed(dec))+suf;
     const paso=t=>{
       if(!_wrapped||_wrapped.i!==i||!el.isConnected)return;
       if(t0===null)t0=t+retraso;
       const k=Math.min(Math.max((t-t0)/dur,0),1),e=1-Math.pow(1-k,3);
-      el.textContent=k<1?(desde+(hasta-desde)*e).toFixed(dec)+suf:final;
+      el.textContent=k<1?pre+comaWrapped((desde+(hasta-desde)*e).toFixed(dec))+suf:final;
       if(k<1)requestAnimationFrame(paso);
     };
     requestAnimationFrame(paso);
@@ -245,27 +302,30 @@ function pasarWrapped(paso){
   if(!_wrapped)return;
   const i=_wrapped.i+paso;
   if(i>=_wrapped.slides.length)return cerrarWrapped();
-  if(i<0)return;
+  if(i<0)return programarWrapped();
   const estado=_wrapped,focoEnHistoria=document.activeElement&&document.activeElement.closest('.wrapped-slide');
   _wrapped.i=i;
   // La entrada viene del lado hacia donde se avanzó: adelante entra desde la
   // derecha, atrás desde la izquierda (HIG: consistencia espacial).
   _wrapped.ov.dataset.dir=paso>0?'adelante':'atras';
   pintarWrapped();
-  // Compartir y Descargar pertenecen a una historia: al reemplazarla se
-  // retiran del DOM. El teclado sigue en el control persistente de ese paso.
+  // Compartir y Guardar pertenecen a una historia: al reemplazarla se retiran
+  // del DOM. El teclado sigue en el control persistente de ese paso.
   if(focoEnHistoria&&_wrapped===estado)estado.ov.querySelector(`[data-paso="${paso>0?1:-1}"]`).focus({preventScroll:true});
 }
 function teclaWrapped(e){
   if(!_wrapped)return;
   if(e.key==='Tab'){
-    const botones=[..._wrapped.ov.querySelectorAll('button:not(:disabled)')];
+    const botones=[..._wrapped.ov.querySelectorAll('button:not(:disabled),input')].filter(b=>!b.closest('[hidden]'));
     const indice=botones.indexOf(document.activeElement);
     if(botones.length&&(indice<0||(e.shiftKey?indice===0:indice===botones.length-1))){
       e.preventDefault();botones[e.shiftKey?botones.length-1:0].focus();
     }
-  }else if(e.key==='Escape')cerrarWrapped();
-  else if(e.key===' '&&e.target&&e.target.closest('button'))return; // La barra activa el botón enfocado.
+  }else if(e.key==='Escape'){
+    if(!_wrapped.ov.querySelector('.wrapped-indice').hidden){indiceWrapped(false);_wrapped.ov.querySelector('.wrapped-indice-btn').focus();}
+    else cerrarWrapped();
+  }
+  else if(e.key===' '&&e.target&&e.target.closest('button,input'))return; // La barra activa el control enfocado.
   else if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();pasarWrapped(1);}
   else if(e.key==='ArrowLeft')pasarWrapped(-1);
 }
@@ -273,7 +333,7 @@ function teclaWrapped(e){
 // `yaSalio` es para el arrastre, que ya lo sacó de la pantalla con el dedo.
 function cerrarWrapped(yaSalio){
   if(!_wrapped||_wrapped.saliendo)return;
-  _wrapped.saliendo=true;
+  _wrapped.saliendo=true;clearTimeout(_wrapped.timer);
   document.removeEventListener('keydown',teclaWrapped);
   const {ov,foco,fondo}=_wrapped;
   const fin=()=>{ov.remove();fondo.forEach(({el,inert})=>{el.inert=inert;});_wrapped=null;if(foco&&foco.isConnected&&foco.focus)foco.focus();};
