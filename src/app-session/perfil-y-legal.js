@@ -8,7 +8,7 @@ async function syncProfile(){
     await supabaseClient.from('profiles').upsert({
       id:currentUser.id,
       nombre:S.userName||null,
-      universidad:(TENANTS[S.tenant]&&TENANTS[S.tenant].name)||null,
+      universidad:TENANTS[S.tenant]?S.tenant:null,
       // Se manda lo DECLARADO, no el código: 'Derecho' vale para saber qué
       // malla construir; 'null' —que es lo que había cuando no tenemos su
       // malla— no vale para nada. Los códigos viejos siguen siendo válidos y
