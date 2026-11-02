@@ -93,6 +93,10 @@ una instrucción para ejecutar automáticamente todos los SQL del repositorio:
 6. `supabase/campanas_gratis.sql`
 7. `supabase/paneles_historial.sql`
 8. `supabase/anuncio_eventos.sql`
+9. `supabase/metricas_dia_chile.sql`
+
+El recálculo `supabase/recalcular_eventos_dia_chile.sql` es manual y separado,
+posterior al punto 9; no forma parte de la secuencia automática de instalación.
 
 El archivo base conserva las definiciones vigentes de `costo_campana`,
 `preparar_publicacion_clase`, `limpiar_alcance_anuncios`,
