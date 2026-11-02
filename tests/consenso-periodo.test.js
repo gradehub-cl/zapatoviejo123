@@ -6,6 +6,11 @@ const assert=require('assert/strict'),fs=require('fs'),{PGlite}=require('@electr
  create table catalog_reports(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),tenant text,carrera text,ramo text,ramo_norm text,estructura jsonb,huella text,nota text,created_at timestamptz default now());`);
  await db.exec(fs.readFileSync('supabase/catalog_consensus.sql','utf8'));
  const sql=fs.readFileSync('supabase/consenso_periodo.sql','utf8');await db.exec(sql);await db.exec(sql);
+ const esperadas=require('../bin/actualizar-registro-pautas').pautasCatalogo();
+ const registradas=(await db.query('select tenant,clave,nombre,nombre_norm,periodo,definicion from pautas_catalogo_registro')).rows;
+ const ordenar=filas=>filas.sort((a,b)=>JSON.stringify([a.tenant,a.clave,a.periodo]).localeCompare(JSON.stringify([b.tenant,b.clave,b.periodo])));
+ assert.deepEqual(ordenar(registradas),ordenar(esperadas),'el servidor protege todas las pautas oficiales del catálogo vigente');
+ assert.equal(registradas.filter(p=>p.tenant==='udd').length,23,'incluye las nuevas pautas UDD');
  const a=[{nombre:'Pruebas',peso:60},{nombre:'Examen',peso:40}],b=[{nombre:'Pruebas',peso:70},{nombre:'Examen',peso:30}];
  const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
  for(let i=1;i<=20;i++){await db.query('insert into auth.users(id) values($1)',[id(i)]);await db.query('insert into user_ramos values($1,$2)',[id(i),JSON.stringify({tenant:'uc',onboardingDone:true})]);}
