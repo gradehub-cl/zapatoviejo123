@@ -36,7 +36,7 @@ chk('con un ramo no se repite como "el que más costó"',run('datosWrapped(__uno
 
 const final=run('slidesWrapped(datosWrapped(__ramos),{uni:{total:11,mejorQue:70}},"2026-2")').pop();
 chk('la tarjeta para compartir no nombra el ramo que más costó',!JSON.stringify(final).includes('Conta'));
-chk('la tarjeta incluye la comparación con la universidad',JSON.stringify(final).includes('70%'));
+chk('la tarjeta es la hoja: ramo estrella y mejor nota, sin la comparación',JSON.stringify(final).includes('Micro')&&JSON.stringify(final).includes('Mejor nota')&&!JSON.stringify(final).includes('70%'));
 
 ctx.__ramos[0].nombre='<img src=x onerror=alert(1)>';
 chk('los nombres se escapan',!run('JSON.stringify(slidesWrapped(datosWrapped(__ramos),null,"x"))').includes('<img'));
@@ -53,14 +53,14 @@ chk('la grilla tiene un punto por nota',d2.notasColores.length===d2.nNotas);
 chk('el ranking va de mejor a peor',d2.ranking.map(x=>x.nombre).join()==='Micro,Conta');
 const rankingAccesible=run('rankingWrapped(datosWrapped(__ramos).ranking)');
 chk('los nombres y promedios del ranking se ofrecen al lector de pantalla',
-  !/<(?:ol|li|span|b)\b[^>]*aria-hidden="true"/.test(rankingAccesible)
-  && /<span>Micro<\/span><b>6\.0<\/b>/.test(rankingAccesible)
-  && /<span>Conta<\/span><b>3\.5<\/b>/.test(rankingAccesible));
+  !/<(?:ol|li|span)\b[^>]*aria-hidden="true"/.test(rankingAccesible)
+  && /Micro<\/span><\/span><b class="prom">6,0<\/b>/.test(rankingAccesible)
+  && /<span>Conta<\/span><b class="prom">3,5<\/b>/.test(rankingAccesible));
 chk('el ranking accesible conserva una lista ordenada y una entrada por ramo',
   /^<ol\b/.test(rankingAccesible) && (rankingAccesible.match(/<li\b/g)||[]).length===d2.ranking.length);
 const cifra=run('cifraWrapped("5.6",1)');
-chk('la cifra que cuenta termina en el texto que formateó la app',/data-hasta="5.6"/.test(cifra)&&/data-desde="1"/.test(cifra)&&/>5\.6<\/span>/.test(cifra));
-chk('VoiceOver lee la cifra final, no el conteo',/aria-hidden="true"/.test(cifra)&&/class="wrapped-oculto">5\.6</.test(cifra));
+chk('la cifra que cuenta termina en el texto que formateó la app',/data-hasta="5.6"/.test(cifra)&&/data-desde="1"/.test(cifra)&&/>5,6<\/span>/.test(cifra));
+chk('VoiceOver lee la cifra final, no el conteo',/aria-hidden="true"/.test(cifra)&&/class="wrapped-oculto">5,6</.test(cifra));
 chk('un porcentaje cuenta con su signo',/data-suf="%"/.test(run('cifraWrapped("84%")')));
 const todas=JSON.stringify(run('slidesWrapped(datosWrapped(__ramos),{curso:{ramo:"Micro",mejorQue:84,total:26},uni:{total:121,mejorQue:71}},"2026-2")'));
 chk('promedio con arco, estrella con ranking y comparaciones con regla',/wrapped-arco/.test(todas)&&/wrapped-ranking/.test(todas)&&(todas.match(/wrapped-regla/g)||[]).length===2);

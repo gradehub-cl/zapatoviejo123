@@ -204,7 +204,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  mostrar([ramo('uno')]);const final=run('slidesWrapped(datosWrapped(S.ramos),null,semester()).at(-1)');assert.doesNotMatch(JSON.stringify(final),/Nombre Privado|privado-sintetico@example\.invalid|correo|email/);
  // Exportación sin Canvas.roundRect (Safari antiguo); nunca dibuja la identidad.
  const dibujado=[],curvas=[];
- const canvasCtx={fillRect(){},beginPath(){},moveTo(){},lineTo(){},quadraticCurveTo(...x){curvas.push(x);},closePath(){},fill(){},stroke(){},clip(){},save(){},restore(){},drawImage(){},
+ const canvasCtx={fillRect(){},beginPath(){},moveTo(){},lineTo(){},quadraticCurveTo(...x){curvas.push(x);},closePath(){},fill(){},stroke(){},clip(){},save(){},restore(){},drawImage(){},arc(){},translate(){},rotate(){},
   fillText(texto){dibujado.push(texto);},measureText:texto=>({width:texto.length*20}),createRadialGradient:()=>({addColorStop(){}})};
  const crear=ctx.document.createElement;let canvas;
  ctx.document.createElement=tipo=>tipo==='canvas'?(canvas={getContext:()=>canvasCtx,toBlob:fn=>fn(new Blob(['imagen-sintetica'],{type:'image/png'}))}):crear(tipo);
@@ -214,14 +214,15 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  // Recuperar la función real, sustituida arriba solo para simular preparación lenta.
  const renderer=read('render-main.js');vm.runInContext(renderer.slice(renderer.indexOf('async function imagenWrapped('),renderer.indexOf('// Preparar fuera del gesto')),ctx);
  const image=await ctx.imagenWrapped(final);assert.equal(image.name,'mi-semestre-gradehub.png');assert.equal(canvas.width,1080);assert.equal(canvas.height,1920);
- assert.ok(curvas.length>=8);assert.doesNotMatch(dibujado.join(' '),/Nombre Privado|privado-sintetico@example\.invalid|correo|email/);assert.ok(dibujado.includes(final.big));
- console.log('  OK   imagen 1080×1920 sin identidad y fallback de roundRect para Safari');
+ assert.ok(curvas.length>=2,"el resaltador se dibuja como trazo, sin roundRect");assert.doesNotMatch(dibujado.join(' '),/Nombre Privado|Privado|privado-sintetico@example\.invalid|correo|email/);assert.ok(!dibujado.some(t=>t.includes('Promedio')),'el promedio no sale si la persona no lo pide');
+ dibujado.length=0;await ctx.imagenWrapped(final,true);assert.ok(dibujado.some(t=>t.includes('Promedio')&&t.includes(final.big)),'y sale cuando lo pide');
+ console.log('  OK   imagen 1080×1920: solo el primer nombre, sin apellido ni correo, y el promedio solo si se pide');
  assert.equal(writes.length,0,'revisar Wrapped no escribe notas ni gradehub_v1');
  // Esta regresión se complementa con getAnimations y tamaños reales en Chrome.
  check('CSS apaga toda animación y conserva controles/safe areas',()=>{
   const css=read('styles.css');assert.match(css,/\.wrapped,\.wrapped \*,\.wrapped \*::before,\.wrapped \*::after\{animation:none!important;transition:none!important;/);
   assert.match(css,/\.wrapped-pasos button\{[^}]*min-width:44px;height:44px/);
-  assert.match(css,/\.wrapped\{[^}]*background-color:#050608;/);assert.match(css,/\.home-wrapped\{[^}]*background-color:#06070a;/); // Safari sin colores modernos mantiene el texto blanco legible.
+  assert.match(css,/\.wrapped\{[^}]*background-color:#F3EFE4;/);assert.match(css,/\.home-wrapped\{[^}]*background-color:#F3EFE4;/); // El papel tiene color fijo de respaldo: sin variables modernas, la tinta grafito sigue legible.
   const regla=css.match(/\.wrapped\{[^}]*\}/)[0];
   for(const lado of ['top','right','bottom','left'])assert.ok(regla.includes('safe-area-inset-'+lado));
  });
