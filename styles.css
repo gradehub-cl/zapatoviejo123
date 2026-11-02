@@ -4326,7 +4326,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 /* Inicio del estudiante: maqueta Racional/Whoop aprobada, PR 1 de 5.
    Solo su resumen y bloques bajo el listado; las filas de ramos no cambian. */
 #screen-home .gpa-card{container:home-promedio / inline-size;min-width:0;}
-#screen-home #home-gpa:not(.empty){color:var(--primary);-webkit-text-fill-color:var(--primary);background-image:none;filter:none;}
 #home-insights{container:home-resumen / inline-size;display:grid;gap:12px;margin:24px 20px 0;}
 #home-insights .home-academic-row{display:grid;grid-template-columns:minmax(0,1fr) auto 12px;align-items:center;gap:12px;width:100%;min-height:88px;padding:22px;border:0;border-radius:24px;margin:0;background:var(--muted);color:var(--fg);font-family:var(--font-ui);text-align:left;box-shadow:none;}
 #home-insights .insight-body{display:block;}
