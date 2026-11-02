@@ -1,6 +1,6 @@
 # Ficha del ramo · maqueta aprobada, etapa 3 de 5
 
-Preparación local en `codex/ficha-racional-estudiante`. La apertura de esta PR espera los merges de Inicio (#910) y de la futura PR de Agenda. No requiere SQL.
+La entrega original sigue en `codex/ficha-racional-estudiante`. Por instrucción de Lucas del 2026-11-02, esta etapa se abre ahora en `codex/ficha-estudiante-pr`, sobre Agenda (#944); no se mergea antes de ella. Inicio (#910) ya está mergeado. No requiere SQL.
 
 ## Cambios
 
@@ -56,3 +56,16 @@ Estados: [sin evaluaciones](cuenta-sin-evaluaciones-375-oscuro.png), [sin fechas
 - La transición de la casilla usa el token corto del sistema y se elimina con `prefers-reduced-motion`.
 
 El medidor original se conserva por instrucción de Lucas. La posición es la decisión visual pendiente; las dos capturas muestran el mismo cálculo y los mismos datos.
+
+
+## Actualización del 2026-11-02
+
+Adaptada sobre main `9f1e89f` y Agenda #944. El único conflicto fue el inventario
+de gradientes: se conserva el Wrapped de main y se suma el rayado funcional de
+la ficha (21 en total). Sin cambios al motor ni al contenido de Wrapped.
+Build, JS, CSS 3497/3497, diff y **383 tests completos aprobados**. Se repitió
+Chrome a 375/1280, claro/oscuro, texto 200%, ambas posiciones del medidor e
+ingreso real: vacío e inválido no guardan; Enter guarda valor y conserva
+id/nombre/fecha; Simular y Editar evaluaciones conservan sus acciones.
+Capturas de esta comprobación local en `/tmp/gh-ficha-pr-qa`; las capturas
+aprobadas de arriba se conservan como referencia de diseño.
