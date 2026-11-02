@@ -21,6 +21,9 @@ const TENANTS={
   // Las mallas de la UAndes viven en mallas-uandes.js. Pautas todavía no hay:
   // no se inventan ponderaciones.
   uandes:{name:'U. de los Andes', short:'UANDES', mono:'UA', sub:'Todas las carreras'},
+  // Las mallas de la UDD viven en mallas-udd.js. Pautas todavía no hay: no se
+  // inventan ponderaciones.
+  udd:{name:'U. del Desarrollo', short:'UDD', mono:'UDD', sub:'Todas las carreras'},
 };
 
 // El dominio del correo institucional de los estudiantes, por universidad. Al

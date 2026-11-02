@@ -8,7 +8,7 @@ begin;
 
 create table if not exists public.profesor_aportes (
   user_id uuid not null references auth.users(id) on delete cascade,
-  tenant text not null check (tenant in ('uc','fen','uai','uandes')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
   ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -17,6 +17,11 @@ create table if not exists public.profesor_aportes (
 );
 create index if not exists profesor_aportes_curso
   on public.profesor_aportes(tenant, ramo_clave, seccion, periodo);
+-- Una universidad nueva no entra con `create table if not exists`: el check
+-- se reemplaza por nombre, así que correr el archivo de nuevo la agrega.
+alter table public.profesor_aportes drop constraint if exists profesor_aportes_tenant_check;
+alter table public.profesor_aportes add constraint profesor_aportes_tenant_check
+  check (tenant in ('uc','fen','uai','uandes','udd'));
 alter table public.profesor_aportes enable row level security;
 -- Sin acceso directo, incluso al propio aporte: las RPC proyectan solo nombres.
 revoke all on public.profesor_aportes from public, anon, authenticated;
@@ -73,7 +78,7 @@ begin
       then u.data->'ramos' else '[]'::jsonb end) r
     where u.user_id=auth.uid() and r->>'id'=p_ramo_id
       and p_seccion between 1 and 999 and r->>'seccion'=p_seccion::text
-      and u.data->>'tenant' in ('uc','fen','uai','uandes')
+      and u.data->>'tenant' in ('uc','fen','uai','uandes','udd')
       and coalesce(r->'origen'->>'tenant',u.data->>'tenant')=u.data->>'tenant'
     limit 1;
   if not found then raise exception 'ramo o sección no sincronizados en tu semestre actual'; end if;
@@ -95,12 +100,15 @@ $$;
 --     delete from public.profesor_aportes where tenant='uc' and public.profesor_coinciden(nombre,'Nombre Apellido');
 --     insert into public.profesor_ocultos(tenant,nombre,motivo) values('uc','Nombre Apellido','supresion');
 create table if not exists public.profesor_ocultos (
-  tenant text not null check (tenant in ('uc','fen','uai','uandes')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
   nombre text not null check (char_length(nombre) between 3 and 100),
   motivo text not null default 'oposicion' check (motivo in ('oposicion','supresion','abuso')),
   creado timestamptz not null default now(),
   primary key (tenant, nombre)
 );
+alter table public.profesor_ocultos drop constraint if exists profesor_ocultos_tenant_check;
+alter table public.profesor_ocultos add constraint profesor_ocultos_tenant_check
+  check (tenant in ('uc','fen','uai','uandes','udd'));
 alter table public.profesor_ocultos enable row level security;
 revoke all on public.profesor_ocultos from public, anon, authenticated;
 
@@ -206,7 +214,7 @@ $$;
 
 create table if not exists public.profesor_calificaciones (
   user_id uuid not null references auth.users(id) on delete cascade,
-  tenant text not null check (tenant in ('uc','fen','uai','uandes')),
+  tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
   ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
   seccion integer not null check (seccion between 1 and 999),
   periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -215,6 +223,9 @@ create table if not exists public.profesor_calificaciones (
   actualizada timestamptz not null default now(),
   primary key (user_id, tenant, ramo_clave, seccion, periodo)
 );
+alter table public.profesor_calificaciones drop constraint if exists profesor_calificaciones_tenant_check;
+alter table public.profesor_calificaciones add constraint profesor_calificaciones_tenant_check
+  check (tenant in ('uc','fen','uai','uandes','udd'));
 alter table public.profesor_calificaciones add column if not exists otro text;
 -- Las etiquetas escritas viven en `otros`. `otro` queda como copia de la primera
 -- para la app anterior y para volver atrás; se borra en una migración aparte.

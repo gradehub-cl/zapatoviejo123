@@ -51,6 +51,21 @@ Lo del 2026-10-12 ya está en `main` y en `ios` (#694), salvo:
 traen, y el promedio general cae a promedio simple, que es también lo que dice
 su reglamento para planes sin créditos (art. 31).
 
+**Meter a la Universidad del Desarrollo.** Pedido el 2026-10-31, carril `ms`.
+Fuentes y decisiones en [`mallas-udd.md`](../mallas-udd.md). Estado:
+
+1. **Carreras y mallas** — hecho: 46 opciones de udd.cl/admision-pregrado/carreras
+   (una por mención o sede donde la malla cambia), 42 con malla en `mallas-udd.js`.
+2. **SQL** — profesor de la sección, comparación de ramos sin sigla y encuestas
+   aceptan `udd`. Hay que aplicar `profesores.sql`, `encuestas.sql` y
+   `profesor_alumnos.sql` en producción.
+3. **Motor** — regla común: el art. 35 del reglamento coincide; falta el
+   instructivo de aproximación que cita.
+4. **Pendiente:** pautas (los programas de asignatura están en udd.cl, con sigla
+   y créditos), vocabulario de evaluaciones, dominio de correo de estudiantes,
+   clases particulares (`perfil-profesor`, `editor-anuncio` y sus checks SQL) y
+   las dobles titulaciones con PDF propio.
+
 ### Pedidas por Lucas, sin dueño todavía
 
 Están acá para que no se pierdan, no porque alguien las esté haciendo. **Las

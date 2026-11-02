@@ -15,7 +15,10 @@ function carrerasFor(t){
   if(t==='uc')return CARRERAS_UC;
   if(t==='uai')return CARRERAS_UAI;
   if(t==='uandes')return CARRERAS_UANDES;
-  return CARRERAS;
+  if(t==='fen')return CARRERAS;
+  // Una universidad sin lista heredada no recibe las carreras de la FEN: al
+  // cambiarse a ella en Ajustes, un código como 'IC' quedaba marcado.
+  return {};
 }
 // Solo devuelve una malla si la tenemos verificada para ESA universidad. El
 // default era `MALLA`, la de la FEN: cualquier universidad que no fuera UC
@@ -43,11 +46,12 @@ function mallasExtraDe(tenant){
   if(tenant==='uc'&&typeof MALLAS_UC_EXTRA!=='undefined')return MALLAS_UC_EXTRA;
   if(tenant==='uai'&&typeof MALLAS_UAI_EXTRA!=='undefined')return MALLAS_UAI_EXTRA;
   if(tenant==='uandes'&&typeof MALLAS_UANDES_EXTRA!=='undefined')return MALLAS_UANDES_EXTRA;
+  if(tenant==='udd'&&typeof MALLAS_UDD_EXTRA!=='undefined')return MALLAS_UDD_EXTRA;
   return null;
 }
 // Qué archivo trae las mallas diferidas de cada universidad. Sin entrada acá,
 // el tenant funciona igual: sin sugerencia automática y agregando ramos a mano.
-const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js'};
+const ARCHIVO_MALLAS={uc:'mallas-uc.js',uai:'mallas-uai.js',uandes:'mallas-uandes.js',udd:'mallas-udd.js'};
 
 // Las mallas extra de UC y UAI se traen cuando se necesitan y no en cada carga:
 // meterlas en data.js habría cobrado ese peso a todo el mundo, incluida la gente

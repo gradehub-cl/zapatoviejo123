@@ -30,6 +30,7 @@ tocar todo, es lo único que evita conflictos.
 | Contenido FEN | `data.js` — mallas, presets y carreras de FEN | `ms` |
 | Contenido UC | `data.js` — mallas, presets, carreras y créditos de UC | `li` |
 | Contenido UAndes | `data.js` — carreras de la UAndes; `mallas-uandes.js` | `ms` |
+| Contenido UDD | `src/data/` — carreras de la UDD; `mallas-udd.js` | `ms` |
 | Motor y experiencia | `engine.js`, `app.js`, `app-session.js`, `render-main.js`, `render-agenda.js` | `codex` |
 | Infra y seguridad | workflows, `sw.js`, `styles.css`, `_headers` | `li` |
 | App iOS | `ios/`, `capacitor.config.json`, `bin/preparar-ios.sh` | `li` y `ms`, en la rama `ios` |

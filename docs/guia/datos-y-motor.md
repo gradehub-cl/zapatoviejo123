@@ -54,8 +54,10 @@ reglas viven en dos niveles, según de quién son:
 | Universidad | Escala, nota de aprobación y cómo el promedio se vuelve nota oficial | `GH_REGLAS_NOTA_POR_TENANT` en `engine.js` | UAndes: a la centésima y después a la décima |
 | Ramo | Pesos, casillas, descartes, compuertas, eximición, recuperativo | el preset del ramo en `data.js` | "presentación ≥ 3,0 sin aproximación para dar examen" |
 
-- **Sin entrada, la regla común:** 1 a 7, aprueba con 4,0, a la décima. FEN, UC y
-  UAI la usan. Una universidad nueva hereda esa y solo declara lo que cambia,
+- **Sin entrada, la regla común:** 1 a 7, aprueba con 4,0, a la décima. FEN, UC,
+  UAI y UDD la usan (la UDD por su art. 35, que remite la aproximación a un
+  instructivo no publicado: ver `docs/mallas-udd.md`). Una universidad nueva
+  hereda esa y solo declara lo que cambia,
   **con el artículo de su reglamento al lado**. No se agrega una regla por
   parecido con otra universidad.
 - **Vive en `engine.js` y no en `data.js`** porque el servidor MCP calcula con ese
@@ -108,7 +110,7 @@ oscuro; `SEMAFORO` conserva el significado académico. No los mezcles: elegir un
 fondo o acento no puede cambiar aprobado, al borde o reprobado.
 
 `oculto:true` en `TENANTS` saca una universidad del selector sin borrar nada.
-**Hoy no hay ninguna oculta**: se ofrecen FEN, UC, UAI y UAndes. Decía lo
+**Hoy no hay ninguna oculta**: se ofrecen FEN, UC, UAI, UAndes y UDD. Decía lo
 contrario hasta el 2026-09-17 y mandó a encender algo que ya estaba encendido.
 Lo que las separa no es el selector sino cuánto contenido tienen detrás:
 
@@ -118,6 +120,7 @@ Lo que las separa no es el selector sino cuánto contenido tienen detrás:
 | FEN | 3 | 3 | 88 | 12 |
 | UAI | 23, todas con malla | 23 | 530 | 6 |
 | UAndes | 34, todas menos Arquitectura con malla | 33 | 869 | 44 (cursos PEG) |
+| UDD | 46 (una por mención o sede donde la malla cambia), 42 con malla | 42 | 1.175 | 0 |
 
 **Una pauta que deja la mitad o más del ramo en grupos sin cantidad** (por
 ejemplo "Evaluaciones sumativas 60%" sin decir cuántas) no se carga ni se
