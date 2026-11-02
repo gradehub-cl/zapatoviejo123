@@ -4,7 +4,9 @@
 // universidades, y si el perfil se muestra en sus anuncios. Nada es público
 // hasta que lo activa (supabase/perfil_profesor.sql).
 const CAMPOS_PERFIL_PROFESOR=',tipo_perfil,instagram,sitio_web,universidades,ramos_siglas,perfil_publico';
-const UNIVERSIDADES_PERFIL=[['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes']];
+// También son las de un anuncio (editor y validarBorradorClase). Calzan con
+// los checks de clases_particulares.sql y perfil_profesor.sql.
+const UNIVERSIDADES_PERFIL=[['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes'],['udd','UDD']];
 const TIPOS_PERFIL=[['profesor','Profesor'],['empresa','Academia o empresa']];
 function tienePerfilCompleto(perfil){return !!perfil&&Object.prototype.hasOwnProperty.call(perfil,'perfil_publico');}
 function validarPerfilProfesor(e){

@@ -39,7 +39,7 @@ const base={nombre_publico:'Academia Sintética',presentacion:'Clases ficticias 
     universidades:['uc','fen','harvard','uc'],ramos:'mat1620, FIS1514 mat1620',perfil_publico:true});
   check('un perfil completo pasa',ok.ok);
   check('el @ de Instagram no se guarda',ok.datos.instagram==='academia.sintetica');
-  check('universidades: solo las cuatro, sin repetir',JSON.stringify(ok.datos.universidades)==='["uc","fen"]');
+  check('universidades: solo las del marketplace, sin repetir',JSON.stringify(ok.datos.universidades)==='["uc","fen"]');
   check('siglas en mayúscula y sin repetir',JSON.stringify(ok.datos.ramos_siglas)==='["MAT1620","FIS1514"]');
   const vacio=valida(base);
   check('lo opcional vacío se guarda como nada, y el perfil parte privado',vacio.ok&&vacio.datos.instagram===null&&vacio.datos.sitio_web===null

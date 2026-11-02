@@ -53,7 +53,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
       <div class="profesor-flyer-preview" hidden><img alt="Vista previa del flyer"></div>
       </div></details>
       <details class="profesor-seccion" open><summary><h3>2. Público</h3></summary><div class="profesor-seccion-cuerpo">
-      <label class="modal-label" for="pr-tenant">Universidad</label><select id="pr-tenant">${elegir([['uc','UC'],['fen','FEN'],['uai','UAI'],['uandes','UAndes']],anuncio&&anuncio.tenant||S.tenant)}</select>
+      <label class="modal-label" for="pr-tenant">Universidad</label><select id="pr-tenant">${elegir(UNIVERSIDADES_PERFIL,anuncio&&anuncio.tenant||S.tenant)}</select>
       <label class="modal-label" for="pr-siglas-buscar">Ramo de tu clase</label>
       <div class="profesor-ramos" id="pr-ramos-elegidos" aria-live="polite"></div>
       <div class="profesor-ramos-buscar">

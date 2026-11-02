@@ -55,7 +55,7 @@ const falla=async(db,sql,params=[])=>{try{await db.query(sql,params);return null
   check('Instagram sin espacios ni @ al medio',await mal('instagram','no vale con espacios'));
   check('sitio web solo https',await mal('sitio_web','http://ejemplo.cl'));
   check('ni con usuario dentro',await mal('sitio_web','https://alguien@ejemplo.cl'));
-  check('universidades solo las cuatro',await mal('universidades',['uc','harvard']));
+  check('universidades solo las del marketplace',await mal('universidades',['uc','harvard']));
   check('siglas con forma de sigla',await mal('ramos_siglas',['mat 1620']));
   check('un tipo inventado no entra',await mal('tipo_perfil','colegio'));
 

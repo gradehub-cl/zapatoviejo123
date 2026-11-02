@@ -105,7 +105,7 @@ grant execute on function public.tutor_aprobado(uuid) to anon, authenticated;
 create table if not exists public.tutor_anuncios (
   id              uuid primary key default gen_random_uuid(),
   autor_id        uuid not null references auth.users(id) on delete cascade,
-  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes')),
+  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd')),
   ramos_siglas    text[] not null check (cardinality(ramos_siglas) between 1 and 12),
   modalidad       text not null check (modalidad in ('individual', 'grupal')),
   ubicacion       text not null check (ubicacion in ('online', 'presencial', 'hibrido')),
@@ -133,6 +133,11 @@ create table if not exists public.tutor_anuncios (
 alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_estado_check;
 alter table public.tutor_anuncios add constraint tutor_anuncios_estado_check
   check (estado in ('borrador', 'en_revision', 'publicado', 'pausado', 'expirado', 'eliminado'));
+-- Una universidad nueva no entra con `create table if not exists`: el check
+-- se reemplaza por nombre, así que correr el archivo de nuevo la agrega.
+alter table public.tutor_anuncios drop constraint if exists tutor_anuncios_tenant_check;
+alter table public.tutor_anuncios add constraint tutor_anuncios_tenant_check
+  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd'));
 
 -- Aditivo: si existía un aviso queda con criterios NULL y sigue siendo general.
 -- No reinterpreta ni rellena campañas anteriores. Sin criterios explícitos el
@@ -671,7 +676,12 @@ alter table public.tutor_perfiles add column if not exists instagram text
 alter table public.tutor_perfiles add column if not exists sitio_web text
   check (sitio_web is null or (sitio_web ~ '^https://[^[:space:]/@]+[.][^[:space:]@]+$' and char_length(sitio_web) <= 160));
 alter table public.tutor_perfiles add column if not exists universidades text[]
-  check (universidades is null or (cardinality(universidades) <= 4 and universidades <@ array['fen', 'uc', 'uai', 'uandes']));
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
+-- `add column if not exists` no toca el check de una columna que ya existe: se
+-- reemplaza por nombre para que una universidad nueva entre al reaplicar.
+alter table public.tutor_perfiles drop constraint if exists tutor_perfiles_universidades_check;
+alter table public.tutor_perfiles add constraint tutor_perfiles_universidades_check
+  check (universidades is null or (cardinality(universidades) <= 5 and universidades <@ array['fen', 'uc', 'uai', 'uandes', 'udd']));
 alter table public.tutor_perfiles add column if not exists ramos_siglas text[];
 alter table public.tutor_perfiles add column if not exists perfil_publico boolean not null default false;
 
@@ -765,12 +775,16 @@ create table if not exists public.anuncio_metricas (
   anuncio_id      uuid not null references public.tutor_anuncios(id) on delete cascade,
   dia             date not null,
   tipo            text not null check (tipo in ('impresion', 'clic', 'contacto')),
-  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes')),
+  tenant          text not null check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd')),
   ramo_sigla      text not null check (char_length(btrim(ramo_sigla)) between 2 and 24),
   eventos         integer not null default 0 check (eventos >= 0),
   updated_at      timestamptz not null default now(),
   primary key (anuncio_id, dia, tipo, tenant, ramo_sigla)
 );
+-- La métrica copia la universidad del anuncio: los dos checks van juntos.
+alter table public.anuncio_metricas drop constraint if exists anuncio_metricas_tenant_check;
+alter table public.anuncio_metricas add constraint anuncio_metricas_tenant_check
+  check (tenant in ('fen', 'uc', 'uai', 'uandes', 'udd'));
 
 -- Identidad de la publicación. -infinity conserva el conjunto heredado.
 alter table public.anuncio_metricas add column if not exists publicacion timestamptz not null default '-infinity';
