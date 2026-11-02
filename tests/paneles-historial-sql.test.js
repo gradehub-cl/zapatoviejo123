@@ -17,10 +17,10 @@ const id=n=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`;
    values($1,$2,'uc',array['TEST100'],'individual','online',12000,'Anuncio inventado','Descripción sintética suficientemente larga','whatsapp','56900000000')`,[id(10),id(2)]);
   // Dos publicaciones del mismo anuncio, una antigua y una vigente.
   for(const [n,dias] of [[3,150],[4,0]]){
-   await q(`insert into anuncio_alcance(anuncio_id,user_id,publicacion,dia,vence_publicacion) values($1,$2,date_trunc('day',now())-make_interval(days=>$3),current_date-$3,date_trunc('day',now())-make_interval(days=>$3)+interval '1 day')`,[id(10),id(n),dias]);
-   for(const tipo of ['apertura','contacto'])await q(`insert into anuncio_interacciones(anuncio_id,user_id,publicacion,dia,vence_publicacion,tipo) values($1,$2,date_trunc('day',now())-make_interval(days=>$3),current_date-$3,date_trunc('day',now())-make_interval(days=>$3)+interval '1 day',$4)`,[id(10),id(n),dias,tipo]);
+   await q(`insert into anuncio_alcance(anuncio_id,user_id,publicacion,dia,vence_publicacion) values($1,$2,date_trunc('day',now())-make_interval(days=>$3),(now() at time zone \'America/Santiago\')::date-$3,date_trunc('day',now())-make_interval(days=>$3)+interval '1 day')`,[id(10),id(n),dias]);
+   for(const tipo of ['apertura','contacto'])await q(`insert into anuncio_interacciones(anuncio_id,user_id,publicacion,dia,vence_publicacion,tipo) values($1,$2,date_trunc('day',now())-make_interval(days=>$3),(now() at time zone \'America/Santiago\')::date-$3,date_trunc('day',now())-make_interval(days=>$3)+interval '1 day',$4)`,[id(10),id(n),dias,tipo]);
   }
-  await q("insert into anuncio_metricas(anuncio_id,dia,tipo,tenant,ramo_sigla,eventos,publicacion) select id,current_date,'impresion','uc','TEST100',1,medicion_desde from tutor_anuncios where id=$1",[id(10)]);
+  await q("insert into anuncio_metricas(anuncio_id,dia,tipo,tenant,ramo_sigla,eventos,publicacion) select id,(now() at time zone \'America/Santiago\')::date,'impresion','uc','TEST100',1,medicion_desde from tutor_anuncios where id=$1",[id(10)]);
   const intacto=await q('select to_jsonb(a) a from tutor_anuncios a');
   const sql=leer('supabase/paneles_historial.sql');await db.exec(sql);await db.exec(sql);
   assert.deepEqual(await q('select to_jsonb(a) a from tutor_anuncios a'),intacto,'instalar no altera anuncios');

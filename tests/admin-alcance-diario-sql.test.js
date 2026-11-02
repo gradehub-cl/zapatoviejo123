@@ -13,16 +13,16 @@ const login=async(n,aal)=>{
 (async()=>{try{
   await db.exec(leer('bin/supabase-stubs.sql'));
   // Solo lo que la función lee: las dos tablas de medición y la llave de admin.
-  await db.exec(`create table public.anuncio_alcance(anuncio_id uuid, user_id uuid, dia date not null default current_date);
-    create table public.anuncio_interacciones(anuncio_id uuid, user_id uuid, tipo text, dia date not null default current_date);
+  await db.exec(`create table public.anuncio_alcance(anuncio_id uuid, user_id uuid, dia date not null default (now() at time zone \'America/Santiago\')::date);
+    create table public.anuncio_interacciones(anuncio_id uuid, user_id uuid, tipo text, dia date not null default (now() at time zone \'America/Santiago\')::date);
     create function public.administrador_verificado() returns boolean language sql stable as
       $$select auth.uid()='${uid(1)}'::uuid and current_setting('request.jwt.claim.aal',true)='aal2'$$;`);
   const sql=leer('supabase/admin_estadisticas.sql');await db.exec(sql);await db.exec(sql);
   const a1=uid(101),a2=uid(102);
   await db.query(`insert into anuncio_alcance(anuncio_id,user_id,dia) values
-    ($1,$3,current_date),($2,$3,current_date),($1,$4,current_date),($1,$5,current_date-2),($1,$4,current_date-40)`,[a1,a2,uid(2),uid(3),uid(4)]);
+    ($1,$3,(now() at time zone \'America/Santiago\')::date),($2,$3,(now() at time zone \'America/Santiago\')::date),($1,$4,(now() at time zone \'America/Santiago\')::date),($1,$5,(now() at time zone \'America/Santiago\')::date-2),($1,$4,(now() at time zone \'America/Santiago\')::date-40)`,[a1,a2,uid(2),uid(3),uid(4)]);
   await db.query(`insert into anuncio_interacciones(anuncio_id,user_id,tipo,dia) values
-    ($1,$2,'apertura',current_date),($1,$3,'apertura',current_date),($1,$2,'contacto',current_date),($1,$4,'apertura',current_date-2)`,[a1,uid(2),uid(3),uid(4)]);
+    ($1,$2,'apertura',(now() at time zone \'America/Santiago\')::date),($1,$3,'apertura',(now() at time zone \'America/Santiago\')::date),($1,$2,'contacto',(now() at time zone \'America/Santiago\')::date),($1,$4,'apertura',(now() at time zone \'America/Santiago\')::date-2)`,[a1,uid(2),uid(3),uid(4)]);
 
   await login(0);await assert.rejects(q('select public.admin_alcance_diario()'),/segundo factor/,'sin sesión');
   await login(1,'aal1');await assert.rejects(q('select public.admin_alcance_diario()'),/segundo factor/,'admin sin MFA');
@@ -31,7 +31,7 @@ const login=async(n,aal)=>{
 
   await login(1,'aal2');
   const filas=(await q('select public.admin_alcance_diario() as f'))[0].f;
-  const hoy=(await q('select current_date::text d'))[0].d,antier=(await q('select (current_date-2)::text d'))[0].d;
+  const hoy=(await q('select (now() at time zone \'America/Santiago\')::date::text d'))[0].d,antier=(await q('select ((now() at time zone \'America/Santiago\')::date-2)::text d'))[0].d;
   assert.equal(filas.length,30,'30 días por defecto, incluido hoy');
   assert.equal(filas[29].dia,hoy,'termina hoy y va de lo antiguo a lo nuevo');
   assert.deepEqual(filas[29],{dia:hoy,vieron:3,abrieron:2,contactaron:1},'suma todos los anuncios del día');

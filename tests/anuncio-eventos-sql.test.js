@@ -25,7 +25,7 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   await sesion(4);await q("select registrar_alcance_anuncio($1,'lista')",[id(10)]);
   await q("select registrar_metrica_anuncio($1,'impresion','TEST100')",[id(10)]);
   // Esa vista fue el día anterior a la medición: cuenta una vez en el total.
-  await q('update anuncio_alcance set dia=current_date-1 where user_id=$1',[id(4)]);
+  await q("update anuncio_alcance set dia=current_date-1,dia_zona='UTC' where user_id=$1",[id(4)]);
   const costoPrevio=await q('select * from costo_campana($1)',[id(10)]);
   const sql=leer('supabase/anuncio_eventos.sql');
   const antes=(await q('select to_jsonb(a) a from tutor_anuncios a'));

@@ -63,8 +63,10 @@ function anilloCampanaClase(a,ahora){
 // cero: es un día con menos de quince eventos, y se dice así.
 function barrasDiasClase(a,agregados,ahora,desdePrimerEvento=false){
   if(!agregados)return '';
-  const desde=Date.parse(a.publicado_at||''),hasta=Math.min(ahora,Date.parse(a.vence_at||'')||ahora);
-  if(!Number.isFinite(desde))return '';
+  const comienzo=Date.parse(a.publicado_at||'');
+  if(!Number.isFinite(comienzo))return '';
+  const desde=Date.parse(diaMetricasChile(comienzo)+'T12:00:00Z');
+  const hasta=Date.parse(diaMetricasChile(Math.min(ahora,Date.parse(a.vence_at||'')||ahora))+'T12:00:00Z');
   const dias=[];
   for(let t=desde;t<=hasta&&dias.length<31;t+=864e5)dias.push(new Date(t).toISOString().slice(0,10));
   if(!dias.length)return '';

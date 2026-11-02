@@ -101,11 +101,11 @@ begin
         'nota', (select n.texto from admin.notas_profesor n where n.user_id = p.user_id),
         'ultimos_30_dias', jsonb_build_object(
           'vieron', (select count(*) from public.anuncio_alcance x join public.tutor_anuncios a on a.id = x.anuncio_id
-                      where a.autor_id = p.user_id and x.dia >= current_date - 30),
+                      where a.autor_id = p.user_id and x.dia >= (now() at time zone 'America/Santiago')::date - 30),
           'abrieron', (select count(*) from public.anuncio_interacciones x join public.tutor_anuncios a on a.id = x.anuncio_id
-                        where a.autor_id = p.user_id and x.tipo = 'apertura' and x.dia >= current_date - 30),
+                        where a.autor_id = p.user_id and x.tipo = 'apertura' and x.dia >= (now() at time zone 'America/Santiago')::date - 30),
           'contactaron', (select count(*) from public.anuncio_interacciones x join public.tutor_anuncios a on a.id = x.anuncio_id
-                           where a.autor_id = p.user_id and x.tipo = 'contacto' and x.dia >= current_date - 30)),
+                           where a.autor_id = p.user_id and x.tipo = 'contacto' and x.dia >= (now() at time zone 'America/Santiago')::date - 30)),
         'historial', coalesce((select jsonb_agg(h order by h->>'fecha' desc) from (
             select jsonb_build_object('accion', c.accion, 'fecha', c.created_at, 'admin', au.email, 'detalle', c.detalle) h
               from admin.acciones c left join auth.users au on au.id = c.admin_id
