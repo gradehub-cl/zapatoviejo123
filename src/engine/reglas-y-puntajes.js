@@ -51,12 +51,17 @@ const GH_REGLAS_NOTA_POR_TENANT={
   // se expresa con un decimal. Para su cálculo se aproximan dos decimales."
   // Un 3,946 pasa a 3,95 y queda en 4,0: aprueba. Con la regla común sería 3,9.
   uandes:{rounding:{decimals:1,previo:2}},
+  // UDD, DR50/26 (marzo 2026), arts. 36 y 37: examen mínimo 3,0;
+  // si no se cumple, la final ES la nota del examen. Respaldo para pautas
+  // manuales sin compuerta, solo con una evaluación final inequívoca.
+  udd:{examenFinal:{nombres:['examen','examen final','evaluacion final'],min:3}},
 };
 function gh_reglasNota(tenant){
   const propia=Object.prototype.hasOwnProperty.call(GH_REGLAS_NOTA_POR_TENANT,tenant)?GH_REGLAS_NOTA_POR_TENANT[tenant]:{};
   return {grade_scale:{...GH_REGLAS_NOTA_BASE.grade_scale,...propia.grade_scale},
     rounding:{...GH_REGLAS_NOTA_BASE.rounding,...propia.rounding},
-    passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade};
+    passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade,
+    ...(propia.examenFinal?{examenFinal:propia.examenFinal}:{})};
 }
 
 // ─── PUNTAJE → NOTA ─────────────────────────────────────────────────────────
