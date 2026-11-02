@@ -33,7 +33,9 @@ aplica desde esta PR. Lucas o Claude revisan y mergean.
 Aplicar `supabase/pautas_banco.sql` después de las dependencias. Sin barras
 invertidas; reaplicable. No se aplicó en producción. Los archivos fuente y las
 ambigüedades conocidas se toman de los tres inventarios de programas UC/UAI en
-`docs/programas-*.json`. Una referencia de archivo no implica que el PDF esté
+`docs/programas-*.json`, y las 23 referencias UDD de `docs/mallas-udd.md`
+integradas desde #940. La fecha de subida de un PDF no se confunde con su
+período de vigencia, que permanece desconocido si no está declarado. Una referencia de archivo no implica que el PDF esté
 subido: «Abrir programa» aparece solo si hay documento privado asociado. Los
 ramos sin una referencia conservan el faltante visible.
 

@@ -22,6 +22,9 @@ const read=f=>fs.readFileSync(f,'utf8'),id=n=>'00000000-0000-0000-0000-'+String(
   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('pautas-programas','uc/SYN100/2026-2/prueba.pdf')"),/row-level|permission/);
  }
  await sesion(id(1),'aal2');await guardar();
+ const udd=(await db.query("select admin_pautas_banco('udd','2026-2','SPF115') filas")).rows[0].filas;
+ assert.equal(udd.length,1);assert.equal(udd[0].sigla,'SPF115');assert.match(udd[0].fuente,/udd\.cl\/wp-content\/uploads\/2025\/06\/spf115\.pdf/);assert.equal(udd[0].periodo_catalogo,null,'subida no inventa vigencia');
+ assert(udd[0].faltantes.some(t=>/período/i.test(t)));
  const filas=(await buscar()).rows[0].filas;assert.equal(filas.length,1);assert.equal(filas[0].variantes[0].personas,1);assert.deepEqual(filas[0].variantes[0].comentarios,['Comentario de prueba']);
  assert(!/user_id|email|revisado_por/.test(JSON.stringify(filas)));
  await assert.rejects(db.query("update pautas_banco set nota_interna='trampa'"),/permission denied/);
