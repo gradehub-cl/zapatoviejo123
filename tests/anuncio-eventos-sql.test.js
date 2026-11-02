@@ -24,6 +24,8 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   // Cuenta/campaña con vistas existentes ANTES de instalar el SQL nuevo.
   await sesion(4);await q("select registrar_alcance_anuncio($1,'lista')",[id(10)]);
   await q("select registrar_metrica_anuncio($1,'impresion','TEST100')",[id(10)]);
+  // Esa vista fue el día anterior a la medición: cuenta una vez en el total.
+  await q('update anuncio_alcance set dia=current_date-1 where user_id=$1',[id(4)]);
   const costoPrevio=await q('select * from costo_campana($1)',[id(10)]);
   const sql=leer('supabase/anuncio_eventos.sql');
   const antes=(await q('select to_jsonb(a) a from tutor_anuncios a'));
@@ -33,7 +35,7 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   assert.deepEqual(await q('select * from costo_campana($1)',[id(10)]),costoPrevio,'instalar conserva alcance y cobros históricos');
   await sesion(1);
   const inicial=(await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r;
-  assert.equal(inicial.impresion,0,'la campaña activa existente empieza a medir sin republicar ni atribuirse el agregado viejo');
+  assert.equal(inicial.impresion,1,'la persona que lo vio antes de medir cuenta una vez, sin atribuirse el agregado viejo');
   const evento=(n,t='impresion',pub=publicacion)=>q('select registrar_evento_anuncio($1,$2,$3,$4,$5) ok',[id(10),t,'TEST100',id(n),pub]).then(x=>x[0].ok);
   const costo=()=>q('select * from costo_campana($1)',[id(10)]).then(r=>r[0]);
   await sesion(0);await assert.rejects(evento(100),/sesión/);
@@ -65,7 +67,7 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   await sesion(4);await assert.rejects(q('select resumen_eventos_anuncio($1)',[id(10)]),/sin acceso/);
   await sesion(1,'aal1');await assert.rejects(q('select resumen_eventos_anuncio($1)',[id(10)]),/sin acceso|factor/);
   await sesion(1);resumen=(await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r;
-  assert.deepEqual([resumen.impresion,resumen.clic,resumen.contacto],[2,2,2]);
+  assert.deepEqual([resumen.impresion,resumen.clic,resumen.contacto],[3,2,2],'en total: lo medido más una vez por cada persona de antes');
   assert.ok(!('user_id'in resumen));
   await db.exec('set role authenticated');
   for(const tabla of ['anuncio_eventos_recibos','anuncio_eventos_diarios']){
@@ -75,20 +77,29 @@ const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
   await assert.rejects(q('select limpiar_eventos_anuncios()'),/permission denied/);
   await db.exec('reset role');
   await sesion(3);for(let n=110;n<123;n++)await evento(n);
-  await sesion(2);assert.equal((await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r.impresion,15);
+  await sesion(2);assert.equal((await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r.impresion,16);
   // Pausar o terminar un anuncio que sí tuvo medición no borra sus cifras.
   await sesion(1);
   for(const estado of ['pausado','expirado']){
     await db.exec('begin');
     await q('update tutor_anuncios set estado=$1 where id=$2',[estado,id(10)]);
-    assert.equal((await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r.impresion,15);
+    assert.equal((await q('select resumen_eventos_anuncio($1) r',[id(10)]))[0].r.impresion,16);
     await db.exec('rollback');
   }
-  // Otra campaña terminó antes del SQL: no se inventa un 0 histórico.
+  // Otra campaña terminó antes del SQL: su total cuenta una vez por persona.
   await q(`insert into tutor_anuncios(id,autor_id,tenant,ramos_siglas,precio_clp,titulo,descripcion,contacto_tipo,contacto_valor,estado,publicado_at,medicion_desde,vence_at)
     values($1,$2,'uc',array['TEST100'],10000,'Antiguo sintético','Descripción antigua de prueba suficiente','whatsapp','56900000000','expirado',now()-interval '30 days',now()-interval '30 days',now()-interval '20 days')`,[id(11),id(2)]);
+  await q("insert into anuncio_alcance(anuncio_id,user_id,dia,canal,publicacion) select $1,u,current_date-25,'lista',now()-interval '30 days' from unnest(array[$2,$3]::uuid[]) u",[id(11),id(3),id(4)]);
+  await q("update anuncio_alcance set publicacion=(select medicion_desde from tutor_anuncios where id=$1) where anuncio_id=$1",[id(11)]);
   const antiguo=(await q('select resumen_eventos_anuncio($1) r',[id(11)]))[0].r;
-  assert.deepEqual(antiguo,{anterior:true,desde:null,impresion:null,clic:null,contacto:null});
+  assert.deepEqual(antiguo,{anterior:true,desde:null,impresion:2,clic:0,contacto:0});
+  // Una app vieja en caché registra a la persona sin el evento: el total no baja de las personas.
+  await q(`insert into tutor_anuncios(id,autor_id,tenant,ramos_siglas,precio_clp,titulo,descripcion,contacto_tipo,contacto_valor,estado,publicado_at,medicion_desde,vence_at)
+    values($1,$2,'uc',array['TEST100'],10000,'Nuevo sintético','Descripción nueva de prueba suficiente','whatsapp','56900000000','pausado',now(),now(),now()+interval '10 days')`,[id(12),id(2)]);
+  await q("insert into anuncio_alcance(anuncio_id,user_id,dia,canal,publicacion) select $1,u,current_date,'lista',(select medicion_desde from tutor_anuncios where id=$1) from unnest(array[$2,$3,$4]::uuid[]) u",[id(12),id(1),id(3),id(4)]);
+  const sinEventos=(await q('select resumen_eventos_anuncio($1) r',[id(12)]))[0].r;
+  assert.equal(sinEventos.impresion,3,'nunca menos que las personas distintas');assert.equal(sinEventos.anterior,false);
+  await q('delete from tutor_anuncios where id=$1',[id(12)]);
   const filas=await q('select * from anuncio_eventos_diarios order by tipo');await db.exec(sql);
   assert.deepEqual(await q('select * from anuncio_eventos_diarios order by tipo'),filas,'reaplicar conserva eventos');
   // Última interacción que agota el tope: completa su evento una sola vez.
