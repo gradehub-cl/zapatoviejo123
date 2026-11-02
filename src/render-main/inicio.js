@@ -99,15 +99,15 @@ function renderHome(){
   if(simGlobalBtn)simGlobalBtn.style.display=S.ramos.length>=2?'flex':'none';
 
   if(g!==null){
-    // El semestre conserva su nota oficial; el acento identifica el promedio
-    // general. El semáforo queda en los ramos y en la variación, no acá.
+    // El promedio general va en el semáforo, como los ramos (Lucas, 2026-11-02;
+    // #910 lo había pasado al acento).
     const rounded=fmtPromedio(g);
     const sep=rounded.indexOf('.');
     const entera=rounded.slice(0,sep);
     const decimal=rounded.slice(sep);
     gpael.innerHTML=`${entera}<span class="gpa-decimal">${decimal}</span>`;
-    gpael.className='gpa-num';
-    gpael.style.setProperty('--grade-color','var(--primary)');
+    gpael.className='gpa-num '+colorClass(g)+claseNotaEspecial(g);
+    gpael.style.setProperty('--grade-color',getColor(g));
     pintarPromedioExacto('home-gpa-exacto',g);
     gpael.onclick=()=>{
       alternarPromedioExacto();
