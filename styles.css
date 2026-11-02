@@ -4426,6 +4426,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pautas-banco-fila :focus-visible,.pautas-banco-filtros :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:600px){.pautas-banco-detalle{grid-template-columns:minmax(0,1fr)}.pautas-banco-filtros label{flex:1 1 140px}.pautas-banco-filtros input{width:100%;box-sizing:border-box}}
 
+/* La evidencia completa de una pauta no debe ensanchar la ficha. */
+[data-pauta-discrepancias]{overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+
 /* Cierre: un ramo por bloque, campos oficiales opcionales y pendientes explícitos. */
 .cierre-lista{display:grid;gap:16px;margin:20px 0}
 .cierre-ramo{padding:16px;background:var(--muted);border-radius:16px}

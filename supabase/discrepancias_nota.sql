@@ -11,8 +11,16 @@ create table if not exists public.discrepancias_nota(
  oficial numeric not null check(oficial between 1 and 7),
  pauta_origen text not null check(pauta_origen in('oficial','editada')),
  created_at timestamptz not null default now(),
- unique(user_id,tenant,sigla,periodo,huella),check(abs(calculada-oficial)>=0.1)
+ check(abs(calculada-oficial)>=0.1)
 );
+-- La huella completa puede superar el máximo de una entrada btree.
+-- Se conserva como evidencia; solo la clave de deduplicación usa SHA-256.
+alter table public.discrepancias_nota add column if not exists huella_sha256 bytea;
+update public.discrepancias_nota set huella_sha256=sha256(convert_to(huella,'UTF8')) where huella_sha256 is null;
+alter table public.discrepancias_nota alter column huella_sha256 set not null;
+create unique index if not exists discrepancias_nota_unica_huella on public.discrepancias_nota(user_id,tenant,sigla,periodo,huella_sha256);
+-- Compatibilidad con la primera versión de esta PR, sin borrar discrepancias.
+alter table public.discrepancias_nota drop constraint if exists discrepancias_nota_user_id_tenant_sigla_periodo_huella_key;
 alter table public.discrepancias_nota enable row level security;
 revoke all on public.discrepancias_nota from public,anon,authenticated;
 grant select on public.discrepancias_nota to authenticated;
@@ -35,9 +43,9 @@ begin
   delete from public.discrepancias_nota where user_id=uid and tenant=p_tenant and sigla=p_sigla and periodo=p_periodo and huella=p_huella;
   return false;
  end if;
- insert into public.discrepancias_nota(user_id,tenant,sigla,periodo,huella,calculada,oficial,pauta_origen)
- values(uid,p_tenant,p_sigla,p_periodo,p_huella,p_calculada,p_oficial,p_pauta_origen)
- on conflict(user_id,tenant,sigla,periodo,huella) do update set calculada=excluded.calculada,oficial=excluded.oficial,pauta_origen=excluded.pauta_origen;
+ insert into public.discrepancias_nota(user_id,tenant,sigla,periodo,huella,huella_sha256,calculada,oficial,pauta_origen)
+ values(uid,p_tenant,p_sigla,p_periodo,p_huella,sha256(convert_to(p_huella,'UTF8')),p_calculada,p_oficial,p_pauta_origen)
+ on conflict(user_id,tenant,sigla,periodo,huella_sha256) do update set calculada=excluded.calculada,oficial=excluded.oficial,pauta_origen=excluded.pauta_origen;
  return true;
 end;
 $$;

@@ -25,8 +25,17 @@ const read=f=>fs.readFileSync(f,'utf8'),id=n=>'00000000-0000-0000-0000-'+String(
  await sesion(1,'aal1');assert.equal((await db.query('select * from discrepancias_nota')).rows.length,0);await assert.rejects(listar(),/sin acceso/);
  await sesion(1);const filas=(await listar()).rows[0].filas;assert.equal(filas.length,2);assert(!/user_id|nombre|correo|email/.test(JSON.stringify(filas)));
  await db.exec('reset role');const antes=(await db.query('select * from discrepancias_nota order by user_id')).rows;assert.equal(antes.length,2);assert.equal(antes[0].user_id,id(2));
+ // Simula la primera versión del SQL: conserva filas al sustituir su índice.
+ await db.exec('drop index discrepancias_nota_unica_huella;alter table discrepancias_nota drop column huella_sha256;alter table discrepancias_nota add unique(user_id,tenant,sigla,periodo,huella)');
  await db.exec(read('supabase/discrepancias_nota.sql'));assert.deepEqual((await db.query('select * from discrepancias_nota order by user_id')).rows,antes);
  await db.exec('set role authenticated');await sesion(2);await registrar(null);await sesion(1);assert.equal((await listar()).rows[0].filas.length,1,'quitar nota elimina solo discrepancia propia');
  await db.exec('reset role');await db.query('delete from user_ramos where user_id=$1',[id(3)]);await db.query('delete from auth.users where id=$1',[id(3)]);assert.equal((await db.query('select * from discrepancias_nota')).rows.length,0,'cascade borra datos de la cuenta');
- await db.close();console.log('PASS discrepancias: umbral, RLS, MFA, aislamiento, no-op, reaplicación y cascade');
+ const huellaLarga=Array.from({length:63},(_,i)=>require('crypto').createHash('sha256').update(String(i)).digest('hex')).join('').slice(0,4000);
+ const registrarLarga=()=>db.query("select registrar_discrepancia_nota('uc','SYN100','2026-2',$1,5,6,'editada') ok",[huellaLarga]);
+ await db.exec('set role authenticated');await sesion(2);assert.equal((await registrarLarga()).rows[0].ok,true);
+ await registrarLarga();await db.exec('reset role');
+ const larga=(await db.query('select * from discrepancias_nota')).rows;assert.equal(larga.length,1,'reintento de huella larga no duplica');assert.equal(larga[0].huella,huellaLarga,'se conserva la evidencia completa');assert.equal(larga[0].huella_sha256.length,32);
+ await db.exec(read('supabase/discrepancias_nota.sql'));assert.deepEqual((await db.query('select * from discrepancias_nota')).rows,larga,'reaplicar conserva huella larga');
+ await db.exec('set role authenticated');await sesion(2);await registrarLarga();await db.exec('reset role');assert.equal((await db.query('select * from discrepancias_nota')).rows.length,1);
+ await db.close();console.log('PASS discrepancias: umbral, RLS, MFA, aislamiento, no-op, huella larga, migración, reaplicación y cascade');
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -46,7 +46,10 @@ del merge. Lucas o Claude revisan y mergean.
 ## Implementación, compatibilidad y acceso
 
 Aplicar `supabase/discrepancias_nota.sql` después de `pautas_banco.sql`. No tiene
-barras invertidas. Es reaplicable; no se aplicó desde esta PR.
+barras invertidas. Es reaplicable; no se aplicó desde esta PR. La huella completa
+se conserva; una clave SHA-256 de 32 bytes evita exceder el límite del índice
+con pautas de hasta 4.000 caracteres. Reaplicar migra el índice de la primera
+versión sin eliminar registros.
 
 El snapshot `ramo.cierre` conserva calculada/huella/origen/tenant/sigla/período del
 instante del archivo, más el recibo local de envío. No contiene otras notas ni
