@@ -4367,6 +4367,23 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
   #screen-home #home-gpa-sub span{white-space:normal;}
 }
 
+/* Banco interno de pautas: superficies y filas, foco y controles de 44 pt. */
+.pautas-banco-filtros{display:flex;flex-wrap:wrap;align-items:end;gap:16px;margin:16px 0 24px}
+.pautas-banco-filtros label,.pautas-banco-detalle form label{display:flex;flex-direction:column;gap:8px;color:var(--fg2)}
+.pautas-banco-filtros input[type=search],.pautas-banco-filtros input[type=text],.pautas-banco-filtros select,.pautas-banco-detalle select,.pautas-banco-detalle textarea{min-height:44px;padding:10px 12px;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:12px;font:inherit}
+.pautas-banco-filtros button,.pautas-banco-detalle button{min-width:44px;min-height:44px;padding:10px 16px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);color:var(--fg);font:600 1rem var(--font-ui);cursor:pointer}
+.pautas-banco-fila{margin:12px 0;background:var(--bg2);border-radius:16px;padding:16px}
+.pautas-banco-fila>summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer;color:var(--fg)}
+.pautas-banco-detalle{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:20px;color:var(--fg2)}
+.pautas-banco-detalle h3,.pautas-banco-detalle h4{color:var(--fg);margin:0 0 12px}
+.pautas-banco-detalle article{margin:16px 0;padding:12px;background:var(--bg);border-radius:12px}
+.pautas-banco-detalle form{display:flex;flex-direction:column;gap:12px;grid-column:1/-1}
+.pautas-banco-detalle input[type=file]{min-height:44px;max-width:100%}
+.pautas-banco-pesos{list-style:none;margin:12px 0;padding:0}
+.pautas-banco-pesos li{display:flex;justify-content:space-between;gap:16px;padding:8px 0;font-variant-numeric:tabular-nums}
+.pautas-banco-fila :focus-visible,.pautas-banco-filtros :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:600px){.pautas-banco-detalle{grid-template-columns:minmax(0,1fr)}.pautas-banco-filtros label{flex:1 1 140px}.pautas-banco-filtros input{width:100%;box-sizing:border-box}}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
