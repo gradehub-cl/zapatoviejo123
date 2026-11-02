@@ -1,6 +1,6 @@
 # Tu promedio en el tiempo · etapa 5 de 5
 
-**Sin SQL. Requiere la etapa 4 (`codex/notas-editada-en`) antes del merge.** La rama contiene ese prerrequisito y este cambio; no se abre una PR hasta que hayan quedado las etapas anteriores.
+**Sin SQL. Requiere la etapa 4 (#946) antes del merge.** Lucas autorizó abrir todas las etapas el 2026-11-02: se publica desde `codex/evolucion-estudiante-pr`, con #946 como base para revisar solo esta diferencia. La rama original `codex/estadisticas-evolucion-estudiante` se conserva intacta.
 
 El promedio en un anillo mostraba una situación estática. La tarjeta aprobada muestra su evolución con una cifra protagonista, su movimiento con la última nota y una línea con área tenue. El anillo neutro de peso evaluado y las otras secciones se conservan. El título también coincide en «Editar Estadísticas»; el id persistido `ritmo` conserva el orden y la visibilidad que tenía cada cuenta.
 
@@ -49,3 +49,17 @@ Casos: [25 semestres](carrera-25-semestres-375-oscuro.png), [tabla](tabla-375-os
 - [Typography](https://developer.apple.com/design/human-interface-guidelines/typography), [Color](https://developer.apple.com/design/human-interface-guidelines/color), [Dark Mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode) y [Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility): sistema tipográfico, cifras tabulares, acento del tema, texto y signo además del color, contraste y texto ampliado.
 
 El reemplazo del anillo corresponde a la aprobación explícita de esta maqueta por Lucas. La regla general de otras métricas y sus colores se conserva; el cambio se documenta también en `docs/guia/reglas-y-entrega.md`.
+
+
+## Actualización del 2026-11-02
+
+Integrada sobre main `9f1e89f` y las etapas Agenda #944, Ficha #945 y
+fecha de edición #946. Sin conflictos de código; conservados los cambios de
+Wrapped, pautas UDD, temas festivos y semáforo de Inicio de main.
+Build, JS, CSS 3537/3537 y diff correctos; **385 tests completos aprobados**.
+Chrome real a 375/1280, claro/oscuro: las cuatro pantallas sin errores ni
+desborde, ingreso inline → editadaEn → valor del gráfico igual al GPA del motor.
+Se conservan las capturas aprobadas de arriba; comprobación actual en
+`/tmp/gh-evolucion-pr-qa`, con datos sintéticos y red externa bloqueada.
+No SQL, migración retroactiva ni cambio en el motor. Las pruebas de la etapa
+4 cubren el dato aditivo y la sincronización entre dispositivos.
