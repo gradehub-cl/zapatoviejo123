@@ -50,11 +50,15 @@ async function renderAdminPautas(caja){
       }));
       resultados.querySelectorAll('[data-pauta-documento]').forEach(b=>b.addEventListener('click',async()=>{
         const f=filas[Number(b.dataset.pautaDocumento)];
-        const ventana=window.open('about:blank','_blank');if(ventana)ventana.opener=null;
-        const {data,error}=await supabaseClient.storage.from('pautas-programas').createSignedUrl(f.documento_path,60);
-        if(error){if(ventana)ventana.close();showToast('No pudimos abrir el documento');return;}
-        if(ventana)ventana.location.href=data.signedUrl;
-        else showToast('Permite abrir una ventana para ver el programa.');
+        const nativa=typeof enAppNativa==='function'&&enAppNativa();
+        const ventana=nativa?null:window.open('about:blank','_blank');if(ventana)ventana.opener=null;
+        try{
+          const {data,error}=await supabaseClient.storage.from('pautas-programas').createSignedUrl(f.documento_path,60);
+          if(error)throw error;
+          if(typeof abrirFuera==='function'&&abrirFuera(data.signedUrl)){if(ventana)ventana.close();return;}
+          if(ventana)ventana.location.href=data.signedUrl;
+          else showToast('Permite abrir una ventana para ver el programa.');
+        }catch(error){if(ventana)ventana.close();showToast('No pudimos abrir el documento. Intenta de nuevo.');}
       }));
     }catch(error){resultados.textContent=sqlClasesDesactualizado(error)?'Aplica pautas_banco.sql para consultar el banco.':'No pudimos cargar las pautas. Revisa tu sesión con segundo factor e intenta de nuevo.';}
   }
