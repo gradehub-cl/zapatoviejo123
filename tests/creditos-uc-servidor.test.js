@@ -32,7 +32,7 @@ function nuevaApp(responder){
   };
   vm.createContext(ctx); vm.runInContext(source, ctx);
   const run = code => vm.runInContext(code, ctx);
-  run('renderHome=()=>{};renderStats=()=>{};renderAgenda=()=>{};showTab=()=>{};applyTheme=()=>{};syncToCloud=()=>{};');
+  run('renderHome=()=>{};renderStats=()=>{};renderAgenda=()=>{};showTab=()=>{};applyTheme=()=>{};syncToCloud=()=>{};var __toasts=[];showToast=m=>__toasts.push(m);');
   ctx.__responder = responder; ctx.__consultas = consultas;
   run(`var supabaseClient={from(tabla){return {select(columnas){return {in(campo,valores){
     __consultas.push({tabla,columnas,campo,valores:Array.from(valores)});
@@ -83,6 +83,9 @@ const filas = [
   assert.strictEqual(app.run("S.ramos.find(r=>r.id==='nombreKey').creditos"), 10, 'completa por la sigla guardada');
   assert.strictEqual(app.run("S.ramos.find(r=>r.id==='editado').creditos"), 7, 'no pisa créditos ya puestos');
   assert.strictEqual(app.run("S.ramos.find(r=>r.id==='nombreKey').categorias[0].notas[0].valor"), 5, 'las notas no cambian');
+  assert.deepStrictEqual(app.run('__toasts.filter(m=>/se pondera por créditos/.test(m)).length'), 1, 'avisa una vez que el promedio pasa a ponderado');
+  app.run('completarCreditosUCTrasCarga()');
+  assert.deepStrictEqual(app.run('__toasts.filter(m=>/se pondera por créditos/.test(m)).length'), 1, 'no repite el aviso');
 
   console.log('=== El archivo queda como respaldo ===');
   app = nuevaApp(() => ({ data: null, error: { message: 'sin red' } }));
