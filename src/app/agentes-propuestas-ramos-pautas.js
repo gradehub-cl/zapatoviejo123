@@ -159,14 +159,14 @@ async function resolverPropuestaPauta(id,accion){
 }
 async function aportarPropuestaAlCatalogo(r){
   const estructura=estructuraParaConsenso(estructuraDe(r));
-  const estado=estadoReporte(estructura);
+  const estado=estadoReporte(estructuraDe(r));
   if(!estructura.length||!estado.lista)return false;
   try{
     const {error,conSeccion}=await rpcReporteCatalogo(r,{
       p_tenant:S.tenant,p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
       p_ramo:r.nombre,p_ramo_norm:normName(r.nombre),p_ramo_sigla:siglaReporteUC(r),
       p_estructura:estructura,p_huella:huellaEstructura(estructura),p_nota:null,
-    });
+    },{origen:'automatico'});
     if(!error&&conSeccion)r.seccionAportada=seccionReporte(r);
     return !error;
   }catch(e){return false;}

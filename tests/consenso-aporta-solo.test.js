@@ -44,7 +44,7 @@ let n = null;
 setTimeout(() => {
   chk('una pauta completa de un ramo sin pauta oficial se aporta', enviados.length === 1);
   const a = enviados[0] && enviados[0].args;
-  chk('va por submit_catalog_report', enviados[0] && enviados[0].nombre === 'submit_catalog_report');
+  chk('va por submit_catalog_report', enviados[0] && enviados[0].nombre === 'submit_catalog_report_periodo');
   chk('sin ninguna nota adentro',
     !!a && a.p_nota === null && !JSON.stringify(a.p_estructura).includes('6.2') && !/"valor"|"notas"/.test(JSON.stringify(a.p_estructura)));
   chk('con los nombres y porcentajes de las evaluaciones',

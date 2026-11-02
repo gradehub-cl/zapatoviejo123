@@ -36,10 +36,10 @@ run(`currentUser={id:'u1'};S.ramos=[{id:'r1',nombre:'Curso de prueba',origen:{ra
   llamadas.length=0;
   ctx.track=()=>{};ctx.closeModal=()=>{};ctx.renderHome=()=>{};ctx.showToast=()=>{};
   await run('cargarPropuestasPautaAgente()');
-  check('una propuesta pendiente no se reporta',!llamadas.some(x=>x.nombre==='submit_catalog_report'));
+  check('una propuesta pendiente no se reporta',!llamadas.some(x=>x.nombre==='submit_catalog_report_periodo'));
   await run(`aplicarPropuestaPauta('${id}')`);
   check('al aceptar se guarda la pauta',run('S.ramos[0].categorias.length')===2);
-  check('al aceptar se suma al consenso una vez',llamadas.filter(x=>x.nombre==='submit_catalog_report').length===1
+  check('al aceptar se suma al consenso una vez',llamadas.filter(x=>x.nombre==='submit_catalog_report_periodo').length===1
     &&!!run('S.ramos[0].consensoAportado'));
   check('el aviso desaparece tras aceptarla',aviso.style.display==='none');
   check('el HTML monta el aviso sobre los ramos',/id="home-pautas-propuestas"[^>]*aria-live="polite"[\s\S]*id="home-ramos"/.test(leer('index.html')));

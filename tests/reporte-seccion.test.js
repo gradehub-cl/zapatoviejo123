@@ -56,10 +56,10 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};globalThi
   calls.length=0;
   run('sinSql=true;S.ramos='+J([ramo({seccion:7})]));
   await run('aportarPautasAlCatalogo()');
-  chk('el voto llega igual, sin sección',calls.length===2&&!('p_seccion' in calls[1].args)&&calls[1].args.p_ramo_sigla==='ABC1234');
+  chk('sin SQL no pierde período y origen en un fallback',calls.length===1&&calls[0].nombre==='submit_catalog_report_periodo'&&calls[0].args.p_seccion===7&&calls[0].args.p_periodo&&calls[0].args.p_origen==='automatico');
   chk('no se marca la sección como enviada',run('S.ramos[0].seccionAportada')===undefined);
   await run('aportarPautasAlCatalogo()');
-  chk('y no insiste en cada guardado',calls.length===2);
+  chk('un nuevo guardado reintenta sin degradar la firma',calls.length===2&&calls.every(c=>c.nombre==='submit_catalog_report_periodo'));
 
   console.log('\n=== El servidor la guarda ===');
   const {PGlite}=await import('@electric-sql/pglite');
