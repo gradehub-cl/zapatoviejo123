@@ -152,7 +152,7 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   await run('syncProfile()');
   chk('estudiante sigue sincronizando su perfil académico',run('_perfilesSubidos.length')===1
     &&run('_perfilesSubidos[0].tabla')==='profiles'
-    &&run('_perfilesSubidos[0].datos.universidad')===run('TENANTS.uc.name')
+    &&run('_perfilesSubidos[0].datos.universidad')==='uc'
     &&run('_perfilesSubidos[0].datos.semestre')===3);
 
   console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
