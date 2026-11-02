@@ -111,6 +111,13 @@ const pintar=async(anuncios,datos)=>{
   html=await pintar([anuncio()],{campana,eventos:{desde:'2026-11-01T12:00:00Z',impresion:0,clic:null,contacto:null}});
   chk('un cero confirmado se distingue del total privado',/>0<\/b><small>veces medidas/.test(html)&&/Los totales menores a 15 quedan ocultos/.test(html));
 
+  html=await pintar([anuncio({estado:'expirado'})],{campana,eventos:{anterior:true,desde:null,impresion:null,clic:null,contacto:null}});
+  chk('una campaña anterior conserva personas y costo sin inventar cero repeticiones',/120<\/b><small>personas distintas/.test(html)&&/6\.550/.test(html)&&/terminó antes de medir repeticiones/.test(html)&&!/veces medidas|1970|Invalid Date/.test(html));
+  for(const estado of ['publicado','pausado','expirado']){
+    html=await pintar([anuncio({estado})],{campana,eventos:{desde:'2026-11-01T12:00:00Z',impresion:240,clic:30,contacto:15}});
+    chk('conserva la medición conocida en '+estado,/>240<\/b><small>veces medidas/.test(html)&&/120<\/b><small>personas distintas/.test(html));
+  }
+
   console.log('\n=== Lo que nadie vio todavía no tiene números ===');
   html=await pintar([anuncio({estado:'borrador',id:'b1'})],{alcance:99});
   chk('un borrador lo dice en vez de mostrar números',

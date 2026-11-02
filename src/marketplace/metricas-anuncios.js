@@ -256,8 +256,11 @@ async function metricasDeAnuncio(anuncio){
   }catch(e){} // El resumen anterior sigue disponible sin el SQL nuevo.
   try{
     const {data,error}=await supabaseClient.rpc('resumen_eventos_anuncio',{p_anuncio_id:anuncio.id});
-    if(!error&&data&&Number.isFinite(Date.parse(data.desde))&&
-      ['impresion','clic','contacto'].every(k=>data[k]===null||Number.isSafeInteger(data[k])&&data[k]>=0))salida.eventos=data;
+    const tipos=['impresion','clic','contacto'];
+    const anterior=data&&data.anterior===true&&data.desde===null&&tipos.every(k=>data[k]===null);
+    const medido=data&&!data.anterior&&Number.isFinite(Date.parse(data.desde))&&
+      tipos.every(k=>data[k]===null||Number.isSafeInteger(data[k])&&data[k]>=0);
+    if(!error&&(anterior||medido))salida.eventos=data;
   }catch(e){} // Nunca usa el agregado heredado como si midiera repeticiones.
   return salida;
 }
@@ -359,6 +362,7 @@ function avanceCampanaAnuncio(a,ahora=Date.now()){
 // mide repeticiones y nunca se usa como sustituto.
 function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas='personas distintas',conPresupuesto=false){
   const miles=n=>new Intl.NumberFormat('es-CL').format(n);
+  const medido=eventos&&!eventos.anterior;
   const veces=k=>eventos&&Number.isSafeInteger(eventos[k])&&eventos[k]>=0?eventos[k]:null;
   // Con la campaña medida, las personas vienen de ahí: son exactas y son lo
   // que se cobra. Sin ella, el alcance de siempre, y abrir o contactar solo
@@ -372,11 +376,12 @@ function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas
   const html=etapas.filter(([,p,v,siempre])=>siempre||p!==null&&p!==undefined||v!==null).map(([t,p,v])=>
     `<div class="clase-etapa${t==='Te contactaron'?' clase-etapa-contactos':''}"><span>${t}</span><div class="clase-par">${
       [p!==null&&p!==undefined?mitad(miles(p),etiquetaPersonas):campana||!v?mitad('—',etiquetaPersonas):'',
-       eventos?mitad(v===null?'—':miles(v),'veces medidas'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
+       medido?mitad(v===null?'—':miles(v),'veces medidas'):''].filter(Boolean).join('<i class="clase-par-sep" aria-hidden="true">/</i>')}</div>${p!==null&&p!==undefined?`<div class="clase-etapa-riel" aria-hidden="true"><i style="transform:scaleX(${(p/maxPersonas).toFixed(4)})"></i></div>`:''}</div>`).join('');
   const f=[];
   if(costo&&!costo.sinCosto&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
   if(costo&&!costo.sinCosto&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
-  const nota=eventos?`Veces medidas desde ${new Date(eventos.desde).toLocaleString('es-CL',{timeZone:'America/Santiago'})} · Sin registros de repeticiones anteriores.`+
+  const nota=eventos?.anterior?'Esta campaña terminó antes de medir repeticiones. Se conservan las personas distintas.'
+    :medido?`Veces medidas desde ${new Date(eventos.desde).toLocaleString('es-CL',{timeZone:'America/Santiago'})} · Sin registros de repeticiones anteriores.`+
     (['impresion','clic','contacto'].some(k=>eventos[k]===null)?' Los totales menores a 15 quedan ocultos.':'')
     :'El total de veces aún no está disponible. Las cifras de personas distintas se conservan.';
   return `<div class="clase-etapas">${html}</div><p class="clase-privacidad">${esc(nota)}</p>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>

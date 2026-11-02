@@ -118,6 +118,12 @@ begin
   select coalesce(sum(eventos)filter(where tipo='impresion'),0),coalesce(sum(eventos)filter(where tipo='clic'),0),
     coalesce(sum(eventos)filter(where tipo='contacto'),0) into n_vistas,n_clics,n_contactos
     from public.anuncio_eventos_diarios where anuncio_id=a.id and publicacion=a.medicion_desde;
+  -- Una campaña que terminó antes de instalar la medición nunca tuvo una
+  -- ventana medible. No convertir esa ausencia histórica en tres ceros.
+  if a.vence_at<=desde and n_vistas=0 and n_clics=0 and n_contactos=0 then
+    return jsonb_build_object('anterior',true,'desde',null,
+      'impresion',null,'clic',null,'contacto',null);
+  end if;
   return jsonb_build_object('desde',desde,
     'impresion',case when es_admin or n_vistas=0 or n_vistas>=15 then n_vistas else null end,
     'clic',case when es_admin or n_clics=0 or n_clics>=15 then n_clics else null end,

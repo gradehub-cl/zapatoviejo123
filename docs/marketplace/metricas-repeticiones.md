@@ -38,6 +38,13 @@ No está disponible para clientes autenticados o anónimos.
 
 ## Cuentas y anuncios existentes
 
+El cambio cubre anuncios nuevos y existentes: los que siguen publicados empiezan
+a registrar repeticiones sin republicarse, y los pausados o terminados conservan
+sus personas y cobros. Si tuvieron medición nueva, también conservan esas veces
+al pausarse o terminar. Una campaña que venció antes de instalar este SQL indica
+«Esta campaña terminó antes de medir repeticiones», sin inventar tres ceros ni
+mostrar una fecha de inicio posterior a su término.
+
 No hay backfill: el agregado antiguo también estaba deduplicado y no permite
 recuperar las repeticiones. La pantalla mantiene las personas históricas y
 muestra «veces medidas» con fecha/hora de inicio de la medición. Es normal que
