@@ -97,3 +97,40 @@ y mirando que no queden filas suyas en ninguna tabla.
   `auth.users` con `ON DELETE CASCADE`. Sin eso, esos datos sobreviven al
   borrado de cuenta y la política de privacidad pasa a ser mentira sin que
   falle nada. Ver `supabase/eliminar_mi_cuenta.sql`
+
+### Notas típicas por evaluación · revisión local 2026-11-03
+
+Propuesta en `supabase/notas_tipicas.sql`, **sin aplicar en producción**. Lucas
+debe aprobar y publicar primero el texto nuevo de `privacidad.html`: las notas
+individuales privadas se conservan después de archivar para calcular referencias
+anónimas de semestres anteriores.
+
+- `evaluacion_notas` lleva RLS, sin acceso directo para `PUBLIC`, `anon` o
+  `authenticated`, y FK a `auth.users ON DELETE CASCADE`. PGlite comprueba la
+  eliminación de todas las filas, actuales e históricas, al borrar la cuenta.
+- Captura al sincronizar `user_ramos` mediante trigger, sin reescribir su JSON.
+  Reutiliza las claves del panel. Solo mira `categorias[].notas[].valor` numérico
+  dentro de escala: no promedios de categoría, sombras ni `avgOverride`.
+- Borrar notas o ramos actuales elimina sus filas. Archivar preserva la copia;
+  una actualización posterior no borra las referencias de períodos anteriores.
+  La carga inicial 2026-2 es idempotente y no borra datos históricos ausentes.
+- La única RPC para la app requiere sesión y devuelve clave de evaluación,
+  promedio, personas y períodos; nunca ids ni notas individuales. El piso es
+  cinco personas por evaluación. Excluye el período actual y futuros. Una
+  persona con varias repeticiones pesa una vez en el promedio.
+- Funciones internas de captura/reloj/agregado sin permisos de ejecución para
+  los roles del cliente; el parámetro de prueba no se expone como RPC pública.
+- Las cuentas de profesor, demo, anónimas o marcadas administrativamente en
+  `raw_app_meta_data.gradehub_datos_sinteticos=true` se excluyen. Esa marca nueva
+  queda propuesta para revisión de Lucas; no se escribe `gradehub_v1` ni se
+  deduce una cuenta de prueba por su correo/nombre. Marcar cuentas de prueba
+  antes de aplicar el SQL. Los alumnos de ejemplo del panel no se sincronizan.
+- Un cambio de marca administrativa excluye las referencias inmediatamente;
+  la siguiente sincronización o reaplicación retira su copia privada capturada.
+  Pruebas: `tests/notas-tipicas-sql.test.js`, solo fixtures sintéticos.
+- Comprobación agregada de solo lectura el 2026-11-03: no se encontraron claves
+  `demo`/`sintetico`/`test`/`prueba` en los metadatos de Auth. El esquema solo
+  mostró `tutor_perfiles.alumnos_ejemplo`, que controla ejemplos locales del
+  panel. No prueba que no existan cuentas de prueba: identificarlas y marcarlas
+  es requisito de revisión antes de activar esta captura. No se leyeron
+  nombres, correos ni notas, y no se marcó ninguna cuenta.
