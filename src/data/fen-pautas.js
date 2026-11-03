@@ -9,8 +9,8 @@
 //
 // `noCalcula` — reglas que el motor TODAVÍA no sabe representar y que sí va a
 // saber. Es una deuda nuestra con fecha de vencimiento. Cuando se implementan,
-// salen de acá (así salió "se elimina el 25% de los controles", que hoy calcula
-// `dropLowest`).
+// salen de acá (así salió "se elimina el 25% de los controles", que hoy declara
+// `dropLowest`; en la FEN la nota la borra el estudiante: `descarte_manual`).
 //
 // `reglasDelCurso` — reglas del programa que el promedio NUNCA va a incluir,
 // porque dependen de información que la app no puede tener: un dato que el
@@ -174,7 +174,8 @@ const PRESETS_FEN={
     periodo:'2026-2',
     creditos:6,
     // "Se elimina el 25% de los controles sorpresa rendidos" salió de noCalcula:
-    // el motor ya lo aplica vía `dropLowest`. El 75% de asistencia NO se puede
+    // `dropLowest` lo declara y en la FEN lo aplica cada estudiante borrando su
+    // nota (`descarte_manual`); la ficha lo avisa. El 75% de asistencia NO se puede
     // calcular y se queda: el programa dice "entre 4 y 6 controles", así que no
     // existe el denominador contra el cual medir el 75%.
     // Sin noCalcula: no queda ninguna regla pendiente de implementar.
@@ -399,7 +400,7 @@ const PRESETS_FEN={
   // — el resto de la pauta es igual para todas. Aunque aparezca el cronograma
   // completo de una sección, ese número no sirve para las demás, así que esta
   // fila se queda sin `slots` para siempre y el estudiante agrega los que le
-  // tomaron. `dropLowest` funciona igual con los que agregue.
+  // tomaron. El aviso de `dropLowest` sirve igual con los que agregue.
   'Gestión y Empresas':{
     noCalcula:[
       'Toda ausencia a una exigencia del curso se califica con 1,0',

@@ -6,6 +6,7 @@ const stub={style:{setProperty(){},removeProperty(){}},addEventListener(){},appe
 const ctx={window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})},document:{getElementById:()=>stub,createElement:()=>stub,addEventListener(){},documentElement:stub,querySelector:()=>stub,querySelectorAll:()=>[],body:stub},localStorage:{getItem(){return null},setItem(){},removeItem(){}},navigator:{},location:{origin:'',pathname:'/',search:'',hash:''},history:{replaceState(){}},setTimeout,clearTimeout,console};
 vm.createContext(ctx);vm.runInContext(['data.js','engine.js','app.js'].map(f=>fs.readFileSync(path.join(raiz,f),'utf8')).join('\n'),ctx);
 const run=s=>vm.runInContext(s,ctx);
+run("S.tenant='uc'"); // los descartes automáticos no son de la FEN, donde parte el estado
 let ok=0,fail=0;
 const chk=(n,c)=>{console.log('  '+(c?'OK  ':'FAIL')+' '+n);if(c)ok++;else fail++;};
 const cerca=(a,b)=>Number.isFinite(a)&&Math.abs(a-b)<1e-8;
