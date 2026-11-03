@@ -553,6 +553,9 @@ const PRESETS_UC={
       {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
         ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
     ],
+    noCalcula:[
+      'El programa no indica si se conserva el laboratorio al repetir la cátedra o al revés: confirma en tu Escuela',
+    ],
   },
   // El laboratorio tiene nota propia: se aprueba o se reprueba por sí solo, y
   // la evaluación de pares bajo 4,0 lo reprueba aunque el resto vaya bien.
@@ -645,6 +648,7 @@ const PRESETS_UC={
     noCalcula:[
       'Faltar a un taller, con o sin justificación, es un 1,0 en ese taller',
       'Si repruebas la cátedra o el laboratorio, repruebas Dinámica: el programa no dice con qué nota quedas, así que mostramos la más baja de las dos',
+      'El programa no indica si se conserva el laboratorio al repetir la cátedra o al revés: confirma en tu Escuela',
     ],
   },
   // ── PAUTAS DEL CATÁLOGO OFICIAL UC ────────────────────────────────────────
