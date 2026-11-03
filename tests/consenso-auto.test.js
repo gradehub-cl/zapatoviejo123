@@ -35,7 +35,7 @@ const consenso = (respaldos, estructura) => [{
   ramo_key: val(`normName(${JSON.stringify(RAMO)})`),
   estructura,
   huella: 'x',
-  respaldos,
+  respaldos,periodo:val('semester()'),seccion:null,
 }];
 const EST = [
   { nombre: 'Controles', peso: 30, slots: 3 },

@@ -165,9 +165,9 @@ function consensoSql() { return sql.slice(sql.indexOf('create or replace functio
 console.log('\n=== RPC segura y agregada ===');
 const consenso = sql.slice(sql.indexOf('create or replace function public.catalog_consensus'));
 chk('el reporte se escribe por RPC, no desde el cliente a la tabla',
-  /rpc\('submit_catalog_report'/.test(src) && !/from\('catalog_reports'\)\.upsert/.test(src));
-chk('el consenso pide solo la universidad al backend',
-  /rpc\('catalog_consensus',\{p_tenant:tenant\}\)/.test(src) && /tenant=tenant\|\|S\.tenant/.test(src));
+  /rpc\('submit_catalog_report_periodo'/.test(src) && !/from\('catalog_reports'\)\.upsert/.test(src));
+chk('el consenso incluye universidad, período y sección',
+  /rpc\('catalog_consensus_periodo'/.test(src) && /p_periodo:periodo,p_seccion:seccion/.test(src));
 chk('la función no filtra por carrera ni semestre',
   !/p_carrera|semestre/i.test(consenso));
 chk('el consenso cuenta personas distintas y exige tres',

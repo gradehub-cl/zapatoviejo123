@@ -1,13 +1,13 @@
 
 async function consensoParaRamo(r){
   if(esCuentaProfesor())return null;
-  const cons=await cargarConsenso();
+  const cons=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
   if(!cons)return null;
   const mia=estructuraParaConsenso(estructuraDe(r));
   // Las dos se comparan acá, con las mismas funciones: comparar contra
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma
   // si alguna vez las dos implementaciones difieren en un detalle.
-  const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&
+  const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&consensoVigenteParaRamo(c,r)&&
     !nadaQueOfrecer(estructuraParaConsenso(c.estructura),mia)&&!consensoDescartado(r,c));
   return hit||null;
 }

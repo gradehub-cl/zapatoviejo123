@@ -50,7 +50,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert.match(root.querySelector('#admin-reportes-programa').innerHTML,/El programa dice &lt;40 %&gt;/);
  assert.doesNotMatch(root.innerHTML,/piloto|lo que costaría|data-aprobar|bin\//);
  const areas=root.querySelectorAll('[data-admin-area]');
- assert.deepEqual(areas.map(b=>b.dataset.adminArea),['profesores','anuncios','estadisticas','usuarios']);
+ assert.deepEqual(areas.map(b=>b.dataset.adminArea),['profesores','anuncios','estadisticas','usuarios','pautas']);
  const area=n=>root.querySelector(`[data-admin-panel="${n}"]`);
  assert.equal(area('anuncios').hidden,false,'los anuncios siguen siendo la vista inicial');
  assert.equal(area('profesores').hidden,true);
