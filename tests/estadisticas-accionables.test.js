@@ -14,10 +14,9 @@ const stats=render.slice(inicio,fin);
 console.log('\n=== Estadísticas guía decisiones, no cuenta tarjetas ===');
 chk('el estado temprano reconoce el semestre sin notas y lo que ya está configurado',
   stats.includes('Parte con tu primera nota')&&stats.includes('evaluaciones configuradas'));
-// El gráfico aprobado sustituye solo el anillo del promedio; el avance sigue neutro.
-chk('la situación conserva el avance neutro y su lectura para VoiceOver',
-  /neutro:true[\s\S]{0,120}etiqueta:`\$\{avance\.pct\}% de las evaluaciones evaluado`/.test(stats)&&
-  stats.includes('tarjetaEvolucionStatsHTML(g,anilloAvance,'));
+// El avance conserva su dato y lectura; el contorno reemplaza el círculo.
+chk('la situación conserva el peso evaluado y su lectura para VoiceOver',
+  stats.includes('tarjetaEvolucionStatsHTML(g,avance.pct,')&&render.includes('Peso evaluado')&&render.includes('stats-avance-cifra'));
 chk('el promedio del semestre usa el gráfico, sin etiquetar al semestre como aprobado',
   render.includes('Tu promedio en el tiempo')&&render.includes('stats-evolucion-valor')&&
   !stats.includes('anilloPromedio='));
@@ -67,7 +66,7 @@ console.log('\n=== Evolución del promedio por semestre ===');
   contexto.validos=[{label:'2024-2',gpa:4.8},{label:'2026-1',gpa:6},{label:'2025-2',gpa:5.2},{label:'2023-1',gpa:4.5},{label:'2025-1',gpa:5},{label:'2024-1',gpa:4.7}];
   const guardado=JSON.stringify(contexto.validos);
   let h=dibujar('anterior'),p=puntos(h);
-  chk('por defecto compara el actual con el semestre previo, aunque se agregaran fuera de orden',p.length===2&&h.includes('vs. 2026-1')&&h.includes('0.50 puntos menos'));
+  chk('por defecto compara el actual con el semestre previo, aunque se agregaran fuera de orden',p.length===2&&h.includes('data-etiqueta="2026-1"')&&!h.includes('stats-hist-delta'));
   chk('6,0 queda a un sexto desde arriba y 5,5 a un cuarto, en la escala 1–7',Math.abs(p[0].y-100/6)<.001&&p[1].y===25);
   chk('los extremos horizontales son el semestre más antiguo y el más reciente',p[0].x===0&&p[1].x===100);
   chk('solo el eje izquierdo muestra las marcas cercanas y el 4,0 central',(h.match(/>4.0<\/span>/g)||[]).length===1&&!h.includes('>3</span>')&&!h.includes('>7</span>'));
@@ -80,7 +79,7 @@ console.log('\n=== Evolución del promedio por semestre ===');
   h=dibujar('todo');
   chk('con 24 semestres mantiene cada vértice sin etiquetas debajo y permite explorar todos',puntos(h).length===24&&!h.includes('stats-hist-periodos')&&h.includes('aria-valuemax="23"')&&h.includes('aria-label="Explorar promedio por semestre"'));
   contexto.validos=[{label:'2026-1',gpa:4}];contexto.g=4;h=dibujar('anterior');
-  chk('el 4,0 se dibuja al centro y la igualdad no aparece como subida o bajada',puntos(h).every(p=>p.y===50)&&h.includes('Sin cambio'));
+  chk('el 4,0 se dibuja al centro y la igualdad no aparece como subida o bajada',puntos(h).every(p=>p.y===50)&&!h.includes('stats-hist-delta'));
   const muestras=[{x:0,y:85},{x:30,y:10},{x:60,y:60},{x:100,y:5}],curva=contexto.trazoEvolucionNotas(muestras);
   const tramos=[...curva.matchAll(/ C([\d.eE+-]+),([\d.eE+-]+) ([\d.eE+-]+),([\d.eE+-]+) ([\d.eE+-]+),([\d.eE+-]+)/g)];
   const sinPicos=tramos.every((m,i)=>Array.from({length:21},(_,j)=>{const t=j/20,u=1-t,a=muestras[i].y,b=muestras[i+1].y,y=u*u*u*a+3*u*u*t*Number(m[2])+3*u*t*t*Number(m[4])+t*t*t*b;return y>=Math.min(a,b)-1e-9&&y<=Math.max(a,b)+1e-9;}).every(Boolean));

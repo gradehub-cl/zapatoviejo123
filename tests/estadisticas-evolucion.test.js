@@ -25,19 +25,25 @@ serie=calcular([ramo('Cátedra',10,[cat('Prueba',100,[nota('Cátedra',6)])],{apo
 serie=calcular([ramo('Descartes',10,[cat('Controles',100,[nota('Baja',1),nota('Alta',7),nota('Otra',5)],{dropLowest:{count:1}})])]);assert.equal(serie.at(-1).valor,6);
 serie=calcular([ramo('Compuerta',10,[cat('Trabajo',80,[nota('Trabajo',7)]),cat('Requisito',20,[nota('Requisito',2)])],{gates:[{type:'min_grade_required',catId:'Requisito',min:4,cap:3.9}]})]);assert.equal(serie.at(-1).valor,3.9);
 assert.deepEqual(calcular([]),[]);
-// Carrera: un valor por semestre, incluso con muchas notas y orden de ingreso distinto.
+// Semana calendario local: lunes a domingo, sin asignar las notas sin fecha.
+ctx.__semana=[{nombre:'Domingo anterior',tiempo:new Date(2026,10,1).getTime()},{nombre:'Lunes',tiempo:new Date(2026,10,2).getTime()},{nombre:'Domingo',tiempo:new Date(2026,10,8,23).getTime()},{nombre:'Próximo lunes',tiempo:new Date(2026,10,9).getTime()},{nombre:'Sin fecha',tiempo:null}];
+assert.deepEqual(json("puntosRangoEvolucion('semana',__semana,[],[],null,new Date(2026,10,3))").map(p=>p.nombre),['Lunes','Domingo']);
 calcular([ramo("Actual",10,[cat("Prueba",100,[nota("Actual",5)])])]);
-ctx.__hist=Array.from({length:24},(_,i)=>({label:(2014+Math.floor(i/2))+'-'+(i%2+1),gpa:4+i/20})).reverse();
-run('S.historial=__hist');let carrera=json("serieSemestresEvolucion(S.historial,S.ramos,'2026-2')");assert.equal(carrera.length,25);assert.equal(carrera[0].nombre,'2014-1');assert.equal(carrera.at(-1).nombre,'2026-2');
-ctx.__h={label:'2025-1',ramos:[ramo('Anterior',10,[cat('Prueba',100,[nota('P',6)])])]};assert.equal(run('serieSemestresEvolucion([__h],[],"2026-2")[0].valor'),6,'un archivo antiguo sin caché recupera su promedio');
+run("rangoEvolucionStats='carrera'");assert(run('contenidoEvolucionStatsHTML()').includes('data-evolucion-rango="semestre" aria-pressed')||run("rangoEvolucionStats==='semestre'"));
+assert.equal(run('rangoEvolucionStats'),'semestre','el valor anterior Carrera vuelve a Semestre sin escribir S');
+run("rangoEvolucionStats='otro-valor'");run('tarjetaEvolucionStatsHTML(5)');assert.equal(run('rangoEvolucionStats'),'semestre');
 // Segmentos rectos, no curvas; una sola nota es visible y explorable.
-const h=run("rangoEvolucionStats='semestre';contenidoEvolucionStatsHTML()");assert(h.includes(' d="M'));assert(!/class="evolucion-linea" d="[^"]* C/.test(h));assert(h.includes('Ver datos del gráfico'));assert(h.includes('scope="row"'));assert(h.includes('role="slider"'));
+const h=run("rangoEvolucionStats='semestre';contenidoEvolucionStatsHTML()");assert(h.includes(' d="M'));assert(!/class="evolucion-linea" d="[^"]* C/.test(h));assert(h.includes('Ver línea de tiempo'));assert(h.includes('<ol'));assert(h.includes('role="slider"'));
 calcular([ramo('<Inventado>',10,[cat('Prueba',100,[nota('<P1>',5)])])]);const unico=run('contenidoEvolucionStatsHTML()');assert(unico.includes('left:50.000%'));assert(unico.includes('&lt;P1&gt;'));assert(!unico.includes('<Inventado>'));assert(unico.includes('aria-valuemax="0"'));
 assert(!run('contenidoEvolucionStatsHTML()').includes('data-evolucion-rango="carrera"'),'sin archivos no ofrece Carrera');
+// La línea de tiempo parte por cinco hitos recientes y conserva todo el detalle.
+ctx.__hitos=Array.from({length:14},(_,i)=>({nombre:'Evaluación '+i,ramo:'Ramo propio',nota:4+i/10,valor:5,delta:i%2?-.1:.1,fecha:'2026-11-03',tiempo:new Date(2026,10,3).getTime(),origen:'evaluacion'}));
+const linea=run('lineaTiempoEvolucionHTML(__hitos)');assert.equal((linea.match(/<li>/g)||[]).length,5);assert(linea.indexOf('Evaluación 13')<linea.indexOf('Evaluación 12'));assert(linea.includes('↑ +0,10'));assert(linea.includes('↓ −0,10'));assert(linea.includes('Ver más'));
+const contorno=run('contornoAvanceStatsHTML(36)');assert(contorno.includes('stroke-dasharray="36 100"'));assert(contorno.includes('pathLength="100"'));assert(!contorno.includes('anillo'));assert(contorno.includes('36%'));
 // El rango no vuelve a pedir datos ni repinta otros bloques ni mueve el scroll.
 const scroll={scrollTop:411},zona={innerHTML:'',closest:()=>scroll,querySelector:()=>({focus(o){assert.equal(o.preventScroll,true)}})};
 ctx.document.getElementById=id=>{assert.equal(id,'stats-evolucion-contenido');return zona;};run('enlazarGraficosEvolucion=()=>{}');const antes=run('JSON.stringify(S)');run("cambiarRangoEvolucionStats('mes')");assert.equal(scroll.scrollTop,411);assert.equal(run('JSON.stringify(S)'),antes);
 const html=zona.innerHTML;run("cambiarRangoEvolucionStats('invalido');cambiarRangoEvolucionStats('carrera')");assert.equal(zona.innerHTML,html);
 // Cache de lectura: alternar rangos no vuelve a recorrer cientos de notas.
 calcular([ramo('Muchos',10,[cat('Pruebas',100,Array.from({length:200},(_,i)=>nota('Nota '+i,4+i%3)))])]);run('cacheEvolucionStats=null;var gpaReal=gpa,cuentasGpa=0;gpa=r=>{cuentasGpa++;return gpaReal(r)};modeloEvolucionStats()');assert.equal(run('cuentasGpa'),200);run('modeloEvolucionStats();contenidoEvolucionStatsHTML()');assert.equal(run('cuentasGpa'),200);run('S.ramos[0].categorias[0].notas[0].valor=7;modeloEvolucionStats()');assert.equal(run('cuentasGpa'),400);
-console.log('OK: evolución con motor real, fechas antiguas, SCT, vínculo, descartes, compuertas, Carrera, tabla, escape, rango y caché');
+console.log('OK: evolución con motor real, fechas antiguas, SCT, vínculo, descartes, compuertas, Semana, línea de tiempo, escape, rango y caché');

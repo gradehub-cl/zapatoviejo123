@@ -65,11 +65,8 @@ function renderStats(){
         <div class="stats-priority-medidor">${htmlMedidorNota(imposible?7:x.necesita)}<span class="stats-priority-num" style="color:${color};"><span class="sr-solo">Necesitas </span>${valor}</span><small style="color:${ex.color}">${ex.palabra}</small></div>
       </button>`;
     };
-    // La evolución reutiliza el motor; el avance conserva su anillo neutro.
-    const anilloAvance=htmlAnillo({fraccion:avance.pct/100,neutro:true,color:'var(--fg2)',
-      etiqueta:`${avance.pct}% de las evaluaciones evaluado`,
-      centro:`<span class="anillo-valor">${avance.pct}%</span><span class="anillo-texto">Evaluado</span>`});
-    if(!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g,anilloAvance,previo?lectura:'');
+    // La evolución reutiliza el motor; el contorno muestra el mismo avance.
+    if(!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g,avance.pct,previo?lectura:'');
     // Qué mueve el promedio: cada ramo suma o resta según cuánto se aleja del
     // promedio y cuánto pesa. Verde lo que suma y rojo lo que resta (Lucas,
     // 2026-10-26): acá el color dice hacia dónde empuja, no si se aprueba.
@@ -157,15 +154,10 @@ function renderStats(){
       const serie=serieEvolucionSemestres(validos,g,periodo);
       if(serie.length>=2){
         const ultimo=serie[serie.length-1];
-        const anterior=ultimo.actual?serie[serie.length-2]:null;
-        const diferencia=anterior?ultimo.v-anterior.v:null;
-        const igual=diferencia!==null&&Math.abs(diferencia)<0.05;
-        const lectura=diferencia===null?'':igual?`Sin cambio frente a ${anterior.label||'el semestre anterior'}`
-          :`${nf(Math.abs(diferencia),2)} puntos ${diferencia>0?'más':'menos'} que en ${anterior.label||'el semestre anterior'}`;
         const etiqueta=x=>x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior';
         hist+=`<figure class="stats-hist-comparacion">
           <figcaption class="stats-hist-titular"><div><span>Promedio por semestre</span><strong>${fmtPromedio(ultimo.v)}</strong>
-            ${anterior?`<div class="stats-hist-delta" aria-label="${esc(lectura)}"><b class="${igual?'es-igual':diferencia>0?'es-sube':'es-baja'}">${igual?'Sin cambio':(diferencia>0?'↗ +':'↘ −')+nf(Math.abs(diferencia),2)+' puntos'}</b><span>vs. ${esc(anterior.label||'semestre anterior')}</span></div>`:''}
+
           </div><span class="stats-hist-periodo-actual">${esc(etiqueta(ultimo))}</span></figcaption>
           ${htmlGraficoEvolucion(serie.map(x=>({etiqueta:etiqueta(x),valor:x.v,actual:x.actual})),'historial')}
           <div class="stats-hist-periodo" role="group" aria-label="Semestres a comparar">${[['anterior','Semestre pasado'],['5','Últimos 5'],['todo','Desde el inicio']].map(([id,texto])=>`<button type="button" data-hist-periodo="${id}" aria-pressed="${periodo===id}" onclick="cambiarPeriodoHistorial('${id}')">${texto}</button>`).join('')}</div>
