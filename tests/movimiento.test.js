@@ -231,15 +231,14 @@ chk('la llegada al cierre tiene una versión reducida que conserva opacidad sin 
   /\.ramo-row\.just-completed \.ramo-progress-fill\{animation-name:\s*ramo-row-close-reduce/.test(cssCodigo) &&
   /@keyframes\s+ramo-row-close-reduce\{[^}]*opacity:[^}]*\}[^}]*\}/.test(cssCodigo) &&
   !/@keyframes\s+ramo-row-close-reduce\{[^}]*transform/.test(cssCodigo));
-// Estadísticas muestra el avance en un anillo neutro (2026-10-26): ni la
-// identidad ni el semáforo, porque avanzar no es aprobar, y el 100% es cierre.
-const reglaArcoNeutro=(cssCodigo.match(/\.anillo-neutro \.anillo-arco\{([^}]*)\}/)||[])[1]||'';
-chk('el avance de Estadísticas va en un anillo neutro, sin el semáforo',
-  /htmlAnillo\(\{fraccion:avance\.pct\/100,neutro:true,color:'var\(--fg2\)'/.test(app) && /filter:none/.test(reglaArcoNeutro));
-chk('el anillo se llena con el avance real y respeta movimiento reducido',
-  /--anillo-fin:\$\{\(100-f\*100\)\.toFixed\(2\)\}/.test(app) && /prefers-reduced-motion:reduce\)\{\.anillo-arco\{animation:none;\}/.test(cssCodigo));
+// El contorno del avance es informativo: usa el acento y nunca el semáforo.
+const contorno=(cssCodigo.match(/\.stats-avance-relleno\{([^}]*)\}/)||[])[1]||'';
+chk('el avance de Estadísticas va en el contorno, sin el semáforo',
+  /stroke:var\(--primary\)/.test(contorno)&&!/var\(--(?:green|yellow|red)/.test(contorno));
+chk('el contorno se llena con el avance real sin animar con movimiento reducido',
+  /pathLength="100" stroke-dasharray="\$\{valor\} 100"/.test(app)&&!/\.stats-avance[^}]*\{[^}]*(?:animation|transition):/.test(cssCodigo));
 chk('el 100% del semestre no se pinta de aprobado',
-  /tarjetaEvolucionStatsHTML\(g,anilloAvance,/.test(app) && !/\.stats-evolucion-avance[^}]*\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
+  /tarjetaEvolucionStatsHTML\(g,avance\.pct,/.test(app)&&!/\.stats-evolucion-avance[^}]*\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
 // Antes `.open` solo hacía display:flex — el sheet aparecía y desaparecía de
 // golpe, y por acá pasa todo flujo de la app.
 chk('el sheet parte fuera de pantalla', /\.modal-sheet\{transform:translateY\(100%\)/.test(css));
