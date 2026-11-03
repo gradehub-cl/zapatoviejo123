@@ -54,7 +54,7 @@ for(const nombre of ['Prueba de hoy','Prueba pasada','Entrega sin fecha']){
 }
 assert.match(stub.innerHTML,/Prueba futura/,'la evaluación posterior a mañana sigue visible');
 const pantalla=stub.innerHTML;
-assert.ok(pantalla.indexOf('Tus prioridades')>=0&&pantalla.indexOf('Tus prioridades')<pantalla.indexOf('aria-label="Pendientes"'),'las prioridades van arriba de Pendientes');
+assert.ok(pantalla.indexOf('ag-priority-stack')>=0&&pantalla.indexOf('ag-priority-stack')<pantalla.indexOf('aria-label="Pendientes"'),'las prioridades van arriba de Pendientes');
 assert.ok(pantalla.indexOf('Prueba de hoy')<pantalla.indexOf('aria-label="Pendientes"'),'lo de hoy está en prioridades');
 assert.equal(run('JSON.stringify(S)'),antes,'renderizar Agenda no cambia datos');
 

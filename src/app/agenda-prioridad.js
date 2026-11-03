@@ -174,10 +174,10 @@ function alertaRamoAgendaHTML(e){
     ?`Es urgente: necesitas un ${N} en lo pendiente para aprobar el ramo.`
     :`Una buena nota en esta evaluación te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);
 }
-function agendaItemHTML(e){
+function agendaItemHTML(e,avisoHTML=alertaRamoAgendaHTML){
   const f=formatEventDate(e.fecha);
   const peso=pesoEventoAgenda(e);
-  const alerta=e.mostrarAlerta?alertaRamoAgendaHTML(e):'';
+  const alerta=e.mostrarAlerta?avisoHTML(e):'';
   return `<button class="ag-row ${e.nivel}" style="--ag-course:${esc(e.ramo.color)}" onclick="openRamo('${esc(e.ramo.id)}')">
     <span class="ag-row-bar" style="background:${esc(e.ramo.color)}"></span>
     <div class="ag-row-main">
