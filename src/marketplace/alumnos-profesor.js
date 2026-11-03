@@ -50,11 +50,23 @@ function proximaEvaluacionPanelHTML(p){
     :p.inalcanzable?'con esta sola no alcanza el 4':'';
   return `<p class="panel-alumnos-proxima"><span>Próxima: <b>${esc(p.evaluacion)}</b> · ${cuando}</span>${meta?`<span>${meta}</span>`:''}</p>`;
 }
+// La RPC ya entrega `personas` por agregado. Sin una muestra conocida de
+// cinco o más no se muestra ni se exporta la comparación, tampoco su tamaño.
+function datosComparacionPanel(ref){
+  if(!ref||!['number','string'].includes(typeof ref.promedio)||String(ref.promedio).trim()==='')return null;
+  const personas=Number(ref.personas),promedio=Number(ref.promedio);
+  return Number.isSafeInteger(personas)&&personas>=5&&Number.isFinite(promedio)?{promedio,personas}:null;
+}
+function textoMuestraPanel(ref){
+  const dato=datosComparacionPanel(ref);
+  return dato?`vs. ${dato.personas} estudiantes en GradeHub`:'No disponible';
+}
 // `etiqueta`: true dice "GradeHub"; un texto ("Sección 3") dice ese texto.
 function comparacionTexto(prom,personas,etiqueta=false){
   const nombre=etiqueta===true?'GradeHub':etiqueta?esc(etiqueta):'';
-  if(prom==null)return `<span class="panel-alumnos-sin">${nombre?nombre+': aún pocos datos':'Aún pocos datos'}</span>`;
-  return `<span class="panel-alumnos-gh">${esc(fmtPromedio(Number(prom)))}<small>${nombre?nombre+' · ':''}${personas} personas</small></span>`;
+  const dato=datosComparacionPanel({promedio:prom,personas});
+  if(!dato)return `<span class="panel-alumnos-sin">${nombre?nombre+': ':''}No disponible</span>`;
+  return `<span class="panel-alumnos-gh">${esc(fmtPromedio(dato.promedio))}${etiqueta&&etiqueta!==true?`<small>${nombre}</small>`:''}<small>${esc(textoMuestraPanel(dato))}</small></span>`;
 }
 // POR SECCIÓN (2026-10-20, pedido de Salva Ramos): el profesor elige comparar
 // con todo GradeHub o con la sección de cada alumno, la que escribió en Editar
@@ -187,7 +199,8 @@ function resumenAlumnosPanelHTML(resumen){
     const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
     const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
     const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
-    const dif=g.promedio!==null&&comp.ramo&&comp.ramo.promedio!=null?g.promedio-Number(comp.ramo.promedio):null;
+    const referencia=datosComparacionPanel(comp.ramo);
+    const dif=g.promedio!==null&&referencia?g.promedio-referencia.promedio:null;
     // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
     const estados=[['good','aprobando'],['warn','al borde'],['bad','reprobando'],['neutral','sin notas']];
     const sem=estados.filter(([k])=>g.semaforo[k])
@@ -202,7 +215,7 @@ function resumenAlumnosPanelHTML(resumen){
         ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
         <span class="panel-resumen-semaforo">${distribucion}<span class="panel-curso-leyenda">${sem}</span></span>
       </summary>
-      ${comparacionPromediosPanelHTML(g.promedio,comp.ramo?comp.ramo.promedio:null,g.tenant)}
+      ${comparacionPromediosPanelHTML(g.promedio,referencia?.promedio??null,g.tenant)}
       ${dif===null?'':`<p class="panel-resumen-dif">Tus alumnos van <b>${Math.abs(dif)<0.05?'igual que':`${esc(unDecimalPanel(dif))} ${dif>0?'sobre':'bajo'}`}</b> el promedio de GradeHub en este ramo.</p>`}
       ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
         :`<p class="clase-sin-datos">${g.promedio===null?'Todavía no hay notas en este ramo.':'Sin detalle por evaluación.'}</p>`}

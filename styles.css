@@ -4226,8 +4226,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pe-ficha-acciones{display:flex;justify-content:flex-end;margin:8px 0 16px;}
 .pe-ficha-acciones button{min-width:44px;min-height:44px;padding:10px 18px;border:0;border-radius:24px;background:var(--muted);color:var(--fg);font-family:var(--font-ui);font-size:.8125rem;cursor:pointer;}
 .pe-ficha .pe-alumno-grilla{grid-template-columns:minmax(0,1fr) minmax(16rem,19rem);gap:30px;}
-.pe-ficha .pe-promedio{display:flex;gap:clamp(20px,4vw,42px);align-items:flex-end;margin:0 0 28px;}
+.pe-ficha .pe-promedio{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,6rem),1fr));gap:clamp(20px,4vw,42px);align-items:end;margin:0 0 28px;}
 .pe-promedio>div{min-width:0;}
+.pe-muestra{display:block;margin-top:6px;color:var(--fg2);font-size:.6875rem;line-height:1.5;font-variant-numeric:tabular-nums;}
 .pe-promedio span{display:block;font-size:.75rem;line-height:1.5;color:var(--fg2);}
 .pe-promedio strong{display:block;font-size:1.8rem;font-weight:550;letter-spacing:-.04em;line-height:1.2;margin-top:10px;}
 .pe-promedio>div:first-child strong{font-size:3.9rem;font-weight:550;line-height:1;}

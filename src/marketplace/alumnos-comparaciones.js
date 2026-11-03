@@ -34,9 +34,9 @@ function evaluacionesConFechaPanel(ramo,comp){
     vistas.add(n.id);
     const nombre=(n.nombre||'').trim()||e.cat.nombre;
     const unica=!(Number.isInteger(e.cat.slots)&&e.cat.slots>1)&&(e.cat.notas||[]).length<=1;
-    const ref=porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null);
+    const ref=datosComparacionPanel(porNota.get(claveEvaluacionPanel(nombre))||(unica?porCategoria.get(claveEvaluacionPanel(e.cat.nombre)):null));
     out.push({id:n.id,ramo:ramo.nombre,ramoId:ramo.id,evaluacion:nombre,fecha:e.fecha,nota:n.valor,
-      curso:ref&&ref.promedio!=null&&isFinite(Number(ref.promedio))?Number(ref.promedio):null,
+      curso:ref?.promedio??null,cursoPersonas:ref?.personas??null,
       aprobada:typeof notaAprobada==='function'?notaAprobada(n.valor):n.valor>=4});
   }));
   let sinFecha=0;

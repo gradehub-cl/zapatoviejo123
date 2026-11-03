@@ -241,10 +241,10 @@ function contexto({search='',sesion=false}={}){
   chk('el promedio es el de ramoAvg, el mismo de la app del alumno',html.includes(prom+'<small>promedio</small>'));
   const catProm=a.run(`(()=>{const r=ramoParaPanel(__r);const b=calculoRamoConCompuertas(r);return fmtPromedio(b.res.breakdown.find(n=>n.id==='c1').value);})()`);
   chk('las notas van agrupadas en su categoría, con el promedio del motor',
-    new RegExp('Interrogaciones<small>2 notas</small></td><td>'+catProm.replace('.','\\.')+'</td><td><span class="panel-alumnos-gh">4\\.4<small>31 personas').test(html));
-  chk('cada nota debajo, con su comparación cuando el nombre calza',/panel-alumnos-nota"><td>Interrogación 1<\/td><td>4\.2<\/td><td><span class="panel-alumnos-gh">4\.6<small>9 personas/.test(html));
+    new RegExp('Interrogaciones<small>2 notas</small></td><td>'+catProm.replace('.','\\.')+'</td><td><span class="panel-alumnos-gh">4\\.4<small>vs. 31 estudiantes en GradeHub').test(html));
+  chk('cada nota debajo, con su comparación cuando el nombre calza',/panel-alumnos-nota"><td>Interrogación 1<\/td><td>4\.2<\/td><td><span class="panel-alumnos-gh">4\.6<small>vs. 9 estudiantes en GradeHub/.test(html));
   chk('y "—" cuando no, sin repetir "aún pocos datos"',/Interrogación 2<\/td><td>5\.6<\/td><td><span class="panel-alumnos-sin">—/.test(html));
-  chk('el ramo completo contra GradeHub, con la etiqueta',/4\.7<small>GradeHub · 23 personas/.test(html));
+  chk('el ramo completo contra GradeHub, con la etiqueta',/4\.7<small>vs. 23 estudiantes en GradeHub/.test(html));
   chk('las categorías sin notas no aparecen',!/Examen/.test(html));
   // Como Martín: notas renombradas ("1", "(Falté)"). Igual se comparan por categoría.
   const renombradas=a.run(`ramoPanelHTML({id:'r9',nombre:'Contabilidad',sigla:'EAA1210',gates:[],categorias:[
@@ -431,12 +431,12 @@ function contexto({search='',sesion=false}={}){
   a.run(`globalThis.__sec3={seccion:3,ramo:{promedio:5.2,personas:6},evaluaciones:[{clave:'interrogacion 1',promedio:3.5,personas:6}],categorias:[{clave:'interrogacion 1',promedio:3.5,personas:6}]}`);
   const fichaSec=a.run(`ramoPanelHTML({...__antesAhora.ramos[0],seccion:3},__sec3)`);
   chk('con su sección: el promedio de la sección y la columna dice "Sección"',
-    /5\.2<small>Sección 3 · 6 personas<\/small>/.test(fichaSec)&&/<th>Su sección<\/th>/.test(fichaSec)&&/3\.5<small>6 personas/.test(fichaSec));
+    /5\.2<small>Sección 3<\/small><small>vs. 6 estudiantes en GradeHub<\/small>/.test(fichaSec)&&/<th>Su sección<\/th>/.test(fichaSec)&&/3\.5<small>vs. 6 estudiantes en GradeHub/.test(fichaSec));
   const fichaSin=a.run(`ramoPanelHTML(__antesAhora.ramos[0],SIN_SECCION_PANEL)`);
   chk('sin sección declarada: "no disponible", sin cifras ni "aún pocos datos"',
     /No disponible<small>sin sección<\/small>/.test(fichaSin)&&!/pocos datos|personas<\/small>/.test(fichaSin)&&/<th>Su sección<\/th>/.test(fichaSin));
   chk('la comparación con todo GradeHub queda como estaba',
-    /4\.5<small>GradeHub · 30 personas/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`))&&/<th>GradeHub<\/th>/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`)));
+    /4\.5<small>vs. 30 estudiantes en GradeHub/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`))&&/<th>GradeHub<\/th>/.test(a.run(`ramoPanelHTML(__antesAhora.ramos[0],__cursoAA())`)));
   const fichaSinAl=a.run(`alumnosPanelHTML([__antesAhora],()=>SIN_SECCION_PANEL)`);
   chk('un alumno sin sección en ningún ramo: el antes y ahora lo dice',/Por sección: no disponible, no declaró su sección/.test(fichaSinAl));
   chk('y sin sección no hay diferencia que inventar',a.run('metricasAlumnoPanel(__antesAhora,()=>SIN_SECCION_PANEL).ahora.nComparadas')===0);
@@ -539,7 +539,7 @@ function contexto({search='',sesion=false}={}){
   chk('la ficha y la leyenda muestran el dato que falta',/Falta 1 evaluación comparable desde que empezó/.test(fichaMatias)
     &&/Antes · 3 evaluaciones/.test(fichaMatias)&&/Ahora · 1 evaluación/.test(fichaMatias));
   chk('los detalles de cada punto dicen antes o ahora aunque el inicio sea único',
-    (fichaMatias.match(/data-detalle="[^"]* · Antes"/g)||[]).length===3&&(fichaMatias.match(/data-detalle="[^"]* · Ahora"/g)||[]).length===1);
+    (fichaMatias.match(/data-detalle="[^"]* · Antes[^"]*"/g)||[]).length===3&&(fichaMatias.match(/data-detalle="[^"]* · Ahora[^"]*"/g)||[]).length===1);
   const filaMatias=a.run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([__matias],__cursoAA))');
   chk('la fila no confunde falta de muestra con falta de comparación',/Falta 1 evaluación ahora/.test(filaMatias)
     &&/Falta 1 evaluación comparable desde que empezó/.test(filaMatias)&&!/Sin comparación/.test(filaMatias));
@@ -595,7 +595,7 @@ function contexto({search='',sesion=false}={}){
   chk('la misma prueba escrita distinto se junta',i1&&i1.alumnos===2&&Math.abs(i1.promedio-4.5)<1e-9);
   chk('las categorías sin notas no aparecen',calc.categorias.length===1&&calc.categorias[0].nombre==='Interrogaciones');
   const rh=a.run('resumenAlumnosPanelHTML(__res)');
-  chk('compara el ramo, la categoría y la prueba con GradeHub',/4\.7<small>GradeHub · 23 personas/.test(rh)&&/4\.4<small>31 personas/.test(rh)&&/4\.6<small>9 personas/.test(rh));
+  chk('compara el ramo, la categoría y la prueba con GradeHub',/4\.7<small>vs. 23 estudiantes en GradeHub/.test(rh)&&/4\.4<small>vs. 31 estudiantes en GradeHub/.test(rh)&&/4\.6<small>vs. 9 estudiantes en GradeHub/.test(rh));
   const rhCalc=rh.split('Física')[0];
   chk('el semáforo dice aprobando, reprobando y sin notas, con su color',
     /panel-resumen-good">1 aprobando/.test(rhCalc)&&/panel-resumen-bad">1 reprobando/.test(rhCalc)&&/>1 sin notas</.test(rhCalc)&&!/al borde/.test(rhCalc));
@@ -992,7 +992,7 @@ function contexto({search='',sesion=false}={}){
   const lineas=csv.split('\r\n');
   chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección)');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
@@ -1002,7 +1002,7 @@ function contexto({search='',sesion=false}={}){
   chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;'));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;;;'));
   const resumen=a.run(`csvResumenAlumnosPanel([{...__dos,nombre_visible:'=Ana',ramos:[
     __dos.ramos[0],{...__dos.ramos[1],seccion:undefined,categorias:[...__dos.ramos[1].categorias,
       {id:'pendiente',nombre:'Control 3',peso:20,fecha:'2026-11-01',notas:[{id:'sin-nota',nombre:'Control 3',valor:null}]}]}]}],
@@ -1011,7 +1011,7 @@ function contexto({search='',sesion=false}={}){
     new Date('2026-10-22T12:00:00Z'))`);
   const filasResumen=resumen.split('\r\n').map(l=>l.split(';'));
   chk('resumen tiene una fila por alumno y ramo, con todas las columnas pedidas',
-    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar');
+    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección)');
   chk('dos ramos del mismo alumno conservan fechas y comparaciones propias',
     filasResumen[1][4]==='2026-09-15'&&filasResumen[2][4]==='2026-10-05'&&
     filasResumen[1][8]==='-1,0'&&filasResumen[1][9]==='0,7'&&filasResumen[1][10]==='1,7'&&
@@ -1025,7 +1025,7 @@ function contexto({search='',sesion=false}={}){
     {id:'rv',nombre:'Ramo vacío',gates:[],categorias:[]}]}],()=>null)`);
   const filaVacia=sinNotas.split('\r\n')[1].split(';');
   chk('un ramo sin notas también aparece, sin inventar promedio ni cambio',
-    sinNotas.split('\r\n').length===2&&filaVacia.length===14&&filaVacia[3]==='no declarada'&&
+    sinNotas.split('\r\n').length===2&&filaVacia.length===16&&filaVacia[3]==='no declarada'&&
     filaVacia[4]==='2026-09-01'&&filaVacia[5]===''&&filaVacia[10]===''&&filaVacia[11]==='Sin notas');
   a.run(`globalThis.__getElementOriginal=document.getElementById;
     globalThis.__opciones=['detalle','resumen'].map(formato=>({dataset:{exportarPanel:formato},handlers:{},addEventListener(t,fn){this.handlers[t]=fn}}));
