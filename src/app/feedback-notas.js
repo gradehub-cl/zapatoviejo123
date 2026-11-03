@@ -66,11 +66,28 @@ function calificacionConceptualGuardada(n,tenant){
   const conceptual=calificacionConceptual(n.calificacionConceptual,tenant);
   return conceptual&&n.valor===conceptual.valor?conceptual.concepto:null;
 }
-function asignarCalificacionNota(n,raw,valor,tenant){
+// Solo se conservan fechas ISO con zona explícita. Nunca se rellena una nota
+// antigua con la hora de carga ni con la fecha de su evaluación.
+function fechaEdicionNotaValida(valor){
+  if(typeof valor!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(valor))return null;
+  const tiempo=Date.parse(valor);
+  if(!Number.isFinite(tiempo))return null;
+  const dia=valor.slice(0,10);
+  if(new Date(dia+'T00:00:00Z').toISOString().slice(0,10)!==dia)return null;
+  return new Date(tiempo).toISOString();
+}
+function asignarValorNota(n,valor){
+  if(n.valor!==valor)n.editadaEn=new Date().toISOString();
   n.valor=valor;
+  return n;
+}
+function asignarCalificacionNota(n,raw,valor,tenant){
+  const conceptoAnterior=calificacionConceptualGuardada(n,tenant);
+  asignarValorNota(n,valor);
   const conceptual=calificacionConceptual(raw,tenant);
   if(conceptual&&conceptual.valor===valor)n.calificacionConceptual=conceptual.concepto;
   else delete n.calificacionConceptual;
+  if(conceptoAnterior!==calificacionConceptualGuardada(n,tenant))n.editadaEn=new Date().toISOString();
   return n;
 }
 function textoCalificacionNota(n,tenant){

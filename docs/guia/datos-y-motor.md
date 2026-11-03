@@ -23,6 +23,32 @@ pendientes para las casillas sin nota —nunca se guardan en `S`—, para que me
 y avance no den por cerrado un 70% con un solo informe. Sin `slots`, no se
 inventa cuántas evaluaciones faltan.
 
+### Fecha de edición de una nota
+
+`nota.editadaEn` es opcional: una fecha ISO en UTC de la última creación o
+modificación de su calificación. La fecha de la evaluación sigue siendo
+`nota.fecha`; no se reemplaza ni se usa para rellenar `editadaEn`.
+
+Las notas antiguas sin esta marca cargan igual y se quedan sin ella. Un cambio
+solo de nombre, peso o fecha no cambia la marca. Los guardadores de notas, la
+aceptación de propuestas y el guardado de una simulación como real registran la
+edición; simular no escribe en `S`. No es un historial de todas las correcciones:
+solo describe el valor que está guardado ahora.
+
+La marca viaja dentro del JSON privado existente, sin columnas ni SQL nuevos.
+En una colisión de dos calificaciones distintas, ambas fechadas y cambiadas,
+la fusión conserva la más reciente junto con su valor y su letra conceptual.
+Los cambios independientes de nombre o fecha se siguen fusionando. Sin dos
+marcas válidas se mantiene la resolución anterior de conflictos; si el valor
+resultante tiene una fecha conocida, se conserva la más reciente de ese mismo
+valor. Nunca se le atribuye la marca de otra calificación ni la hora de sync.
+
+La marca procede del reloj del dispositivo: no es una prueba de cuándo se
+rindió la evaluación ni se usa para permisos. Un cliente antiguo puede omitir
+el campo al guardar su JSON; una fusión puede recuperar la marca si aún existe
+una copia de ese mismo valor. Un valor modificado sin fecha no recibe una
+fecha inventada.
+
 ### Compuertas
 
 ```js
