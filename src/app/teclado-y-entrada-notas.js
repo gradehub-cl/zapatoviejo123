@@ -68,6 +68,20 @@ window.visualViewport&&window.visualViewport.addEventListener('resize',()=>{
   if(espacioTeclado()===0)soltarEspacioTeclado();
 });
 
+// Cuántas casillas tiene un grupo lo decide también el estudiante: el programa
+// puede decir 2 controles y su sección tomar 4. No se baja de una casilla ya
+// ocupada, para que ninguna nota quede sobrando.
+function minimoCasillas(cat){
+  return Math.max(2,...(cat.notas||[]).filter(n=>Number.isInteger(n.slot)).map(n=>n.slot+1));
+}
+function cambiarCasillas(catId,delta){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const cat=r&&r.categorias.find(c=>c.id===catId);
+  if(!cat||!(cat.slots>1))return;
+  const nuevo=cat.slots+delta;
+  if(nuevo<minimoCasillas(cat)||nuevo>100)return;
+  cat.slots=nuevo;save();renderRamo();
+}
 function setSlotNota(catId,slot,raw){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
