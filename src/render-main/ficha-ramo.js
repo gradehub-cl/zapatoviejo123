@@ -641,6 +641,13 @@ function renderRamo(){
         // al "2/3 ingresadas" sin que hubiera ninguna nota nueva.
         const notasCount=new Set(notas.filter(n=>Number.isInteger(n.slot)&&n.valor!=null).map(n=>n.slot)).size
           || notas.filter(n=>n&&n.valor!=null).length;
+        // Casillas con nombre o peso propio las fija el programa una por una.
+        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="sim-meta">
+            <span>Cantidad de notas</span>
+            <button type="button" class="sim-meta-btn" aria-label="Una nota menos en ${esc(cat.nombre)}" onclick="cambiarCasillas('${cat.id}',-1)"${cat.slots<=minimoCasillas(cat)?' disabled':''}>−</button>
+            <output>${cat.slots}</output>
+            <button type="button" class="sim-meta-btn" aria-label="Una nota más en ${esc(cat.nombre)}" onclick="cambiarCasillas('${cat.id}',1)"${cat.slots>=100?' disabled':''}>+</button>
+          </div>`;
         wrap.innerHTML=`
           <div class="eval-group-hd" role="button" tabindex="0" aria-expanded="${isOpen?'true':'false'}" onclick="toggleCat('${cat.id}')">
             <div style="flex:1;min-width:0;">
@@ -651,7 +658,7 @@ function renderRamo(){
             <span aria-hidden="true" style="color:var(--fg3);font-size:0.6875rem;margin-left:6px;">${isOpen?'▲':'▼'}</span>
           </div>
           ${barraPeso}
-          <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:rows+detalleAusencia}</div>`;
+          <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:rows+cantidad+detalleAusencia}</div>`;
         adjuntarCategoria(wrap,cat);
         return;
       }
