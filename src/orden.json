@@ -46,6 +46,7 @@
     "src/app/historial-renombrar.js",
     "src/app/cierre-semestre.js",
     "src/app/historial-agregar.js",
+    "src/app/avance-curricular.js",
     "src/app/datos-importar-exportar.js",
     "src/app/cuenta-borrado.js",
     "src/app/hojas-modales.js",

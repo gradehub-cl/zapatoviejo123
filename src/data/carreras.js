@@ -292,6 +292,10 @@ const MALLA_UC={
 const CARRERAS_UAI={'ING':'Ingeniería Civil','COM-UAI':'Ingeniería Comercial','DER-UAI':'Derecho','PSI':'Psicología','OTRA':'Otra carrera'};
 const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comercial','DER-UA':'Derecho','MED-UA':'Medicina','PSI-UA':'Psicología','OTRA':'Otra carrera'};
 
+// Dónde sacar el texto para "Pegar mi avance curricular". Una universidad sin
+// entrada acá no ofrece la opción.
+const AVANCE_CURRICULAR={uc:{portal:'Mi Portal UC',documento:'avance curricular',url:'https://portal.uc.cl'}};
+
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[
   {title:'Académico',links:[
