@@ -2347,7 +2347,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   font-family:var(--font-ui);font-size:0.8125rem;color:var(--fg);letter-spacing:-.005em;
   transition:transform var(--motion-base) var(--ease-out);}
 .update-toast.show{transform:translateX(-50%) translateY(0);}
-.update-toast button{flex-shrink:0;padding:7px 13px;border:none;border-radius:9px;
+.update-toast button{flex-shrink:0;min-width:44px;min-height:44px;padding:7px 13px;border:none;border-radius:9px;
   background:var(--primary);color:var(--primary-fg);cursor:pointer;
   font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;letter-spacing:-.005em;}
 @media(min-width:1024px){

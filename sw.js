@@ -35,6 +35,13 @@ const SHELL = [
   '/icon-512.png',
 ];
 
+// Solo informa la versión ya activada. No instala, recarga ni toca datos.
+self.addEventListener('message', event => {
+  if(event.data?.tipo === 'GH_VERSION' && event.ports?.[0]) {
+    event.ports[0].postMessage({version: CACHE_NAME.replace(/^gradehub-/, '')});
+  }
+});
+
 // ── INSTALL: precachear la app shell ─────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
