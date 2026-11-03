@@ -75,8 +75,9 @@ aprobadas de arriba se conservan como referencia de diseño.
 
 Los contadores existentes se movieron, sin duplicarlos ni cambiar sus
 guardadores, junto a Simular. Sin contadores, Simular ocupa todo el ancho.
-En 375 px, Simular va arriba a todo el ancho y los contadores debajo; los
-controles −/+ mantienen 44 pt. Límite/exceso de faltas, tope y condiciones
+En 375 px, Simular y los contadores quedan en la misma fila; sin contadores
+Simular llena el ancho. Con texto grande, pasan a filas para que sigan
+legibles. Los controles −/+ mantienen 44 pt. Límite/exceso de faltas, tope y condiciones
 del bonus se conservan. Abrir la ficha no inicializa bonus ni guarda nada.
 
 | Caso · 375 px | Claro | Oscuro |
