@@ -147,6 +147,8 @@ function renderStats(){
       <span class="section-hd-title">Historial</span>
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
     </div>`;
+    const acumulado=promedioAcumuladoCierre(validos);
+    if(acumulado!==null)hist+=`<p class="stats-hist-vacio">Promedio del historial: <strong>${fmtPromedio(acumulado)}</strong></p>`;
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
@@ -179,7 +181,7 @@ function renderStats(){
         const ramosRows=ramosHistorial.map(r=>{
           const avg=histRamoAvg(r,h.ramos);
           return `<button class="hist-ramo-row" onclick="openEditHistRamoModal('${esc(h.id)}','${esc(r.id)}')" aria-label="Editar promedio de ${esc(r.nombre)}">
-            <span class="hist-ramo-name">${esc(r.nombre)}${r.creditos?`<span class="hist-cr">${r.creditos} cr</span>`:''}</span>
+            <span class="hist-ramo-name">${esc(r.nombre)}${cierreRamoIncompleto(r,h.ramos)?'<small class="cierre-incompleto">Cierre incompleto</small>':''}${r.creditos?`<span class="hist-cr">${r.creditos} cr</span>`:''}</span>
             <span class="hist-ramo-val" style="color:${getColorRamo(r,avg)}">${fmtPromedio(avg)}</span>
             <svg class="ic hist-pencil" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           </button>`;
