@@ -4557,6 +4557,31 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 
 }
 
+/* Módulos de sección: contorno de #958, filas dentro y títulos fuera. */
+:is(#screen-home,#screen-agenda) .seccion-lista{background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:0;}
+#screen-home #home-ramos{display:block;margin:0 20px;padding:0 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;}
+#screen-home #home-ramos:empty{display:none;}
+#screen-home #home-ramos>.ramo-row{width:100%;min-height:76px;margin:0;padding:18px 12px 26px;border:0;border-radius:0;}
+#screen-home #home-ramos>.ramo-row+.ramo-row{border-top:1px solid var(--border);}
+#screen-home #home-ramos .ramo-name{min-height:44px;white-space:normal;overflow-wrap:anywhere;}
+#screen-home #home-ramos .ramo-progress-track{left:12px;right:12px;}
+#screen-home #home-ramos .ramo-band{top:16px;bottom:16px;}
+#home-insights .home-seccion-titulo{display:block;margin:4px 0 8px;font-size:.8125rem;line-height:1.4;font-weight:600;}
+#screen-agenda .ag-priority-stack{display:block;}
+#screen-agenda .seccion-lista>.ag-event{margin:0;}
+#screen-agenda .seccion-lista>.ag-event+.ag-event,#screen-agenda .seccion-lista>.ag-row+.ag-row,#screen-agenda .seccion-lista>.ag-recorreccion-row+.ag-row{border-top:1px solid var(--border);}
+#screen-agenda .seccion-lista .ag-row,#screen-agenda .seccion-lista .ag-priority-card{margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
+#screen-agenda .seccion-lista .ag-event-detail,#screen-agenda .seccion-lista .ag-need{border:0;border-radius:0;background:none;box-shadow:none;}
+#screen-agenda .seccion-lista .ag-event-detail{border-top:1px solid var(--border);}
+#screen-agenda .ag-rendidas-list{display:block;}
+#screen-agenda .ag-rendidas-list>.ag-event{padding:0 12px;}
+#screen-agenda .ag-alldone{padding:20px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+#screen-stats>.scroll>#stats-body>.ag-empty{border:1px solid var(--border);background:var(--card);}
+#screen-ramo #cat-list>.empty{border:1px solid var(--border);border-radius:8px;background:var(--card);margin-bottom:14px;}
+
+#screen-agenda .ag-pendientes-lista>.ag-recorreccion-row{margin:0;border:0;border-radius:0;background:none;}
+#screen-agenda .ag-pendientes-lista>*+*{border-top:1px solid var(--border);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
