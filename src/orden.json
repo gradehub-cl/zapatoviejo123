@@ -131,7 +131,9 @@
     "src/render-main/wrapped-presentacion.js",
     "src/render-main/wrapped-compartir.js",
     "src/render-main/profesor-ficha.js",
-    "src/render-main/profesor-calificar.js"
+    "src/render-main/profesor-calificar.js",
+    "src/render-main/ramo-calificar.js",
+    "src/render-main/ramo-resumen.js"
   ],
   "render-agenda.js": [
     "src/render-agenda/estado-y-orden.js",
@@ -164,6 +166,7 @@
     "src/data/udd-pautas.js",
     "src/data/pautas-por-universidad.js",
     "src/data/profesor-etiquetas.js",
-    "src/data/profesores-propuestos.js"
+    "src/data/profesores-propuestos.js",
+    "src/data/ramo-etiquetas.js"
   ]
 }

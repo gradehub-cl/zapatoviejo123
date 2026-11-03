@@ -97,3 +97,33 @@ y mirando que no queden filas suyas en ninguna tabla.
   `auth.users` con `ON DELETE CASCADE`. Sin eso, esos datos sobreviven al
   borrado de cuenta y la política de privacidad pasa a ser mentira sin que
   falle nada. Ver `supabase/eliminar_mi_cuenta.sql`
+
+
+### Calificaciones de ramos · auditoría preparada, 2026-11-03
+
+`supabase/ramo_calificaciones.sql` se aplica manualmente después de
+`profesores.sql`. Esta revisión y sus pruebas PGlite son locales: no certifican
+la instalación ni ejecutaron SQL en producción.
+
+- Tabla privada con RLS y sin permisos directos para `PUBLIC`, `anon` o
+  `authenticated`. Solo cuatro RPC públicas, con sesión, `search_path=''` y
+  contexto del ramo/sección/período tomado de `user_ramos`. Los auxiliares y
+  la constante del piso no tienen permisos de ejecución para clientes.
+- Las cuentas `tipoCuenta='profesor'` no califican. El historial solo habilita
+  respuestas si conserva sección, período y universidad verificable por origen
+  o cierre; no se añaden campos al estado guardado.
+- Solo el autor lee/edita/borra su respuesta por contexto. El resumen para elegir
+  ramos no requiere tener el ramo, pero sí sesión, y devuelve solo agregados:
+  cinco cuentas distintas como mínimo, tres para una etiqueta. Cada cuenta
+  aporta su semestre más reciente, sin inflar n al repetir el ramo.
+- Un docente oculto nunca aparece en el desglose. El ramo solo publica si hay
+  cinco cuentas sin ese docente; entonces sus opiniones pueden contribuir al
+  total general. La receta manual de supresión está en el SQL y debe ejecutarse
+  antes de eliminar los aportes que permiten asociar el docente.
+- FK `user_id -> auth.users ON DELETE CASCADE`. El test borra una cuenta
+  sintética y comprueba cero filas residuales, además de cerrar el agregado si
+  el borrado deja el grupo bajo el piso. No hay datos en Storage que limpiar.
+- Validación: `tests/ramo-calificaciones-sql.test.js` cubre permisos positivos y
+  negativos, contexto, privacidad, roles, docencia, edición/borrado, reaplicación
+  y cascada. `tests/ramo-calificaciones-cliente.test.js` verifica contrato de
+  etiquetas, aviso local por cuenta/ramo/período y búsqueda sin la nueva RPC.

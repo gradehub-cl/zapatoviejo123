@@ -4674,6 +4674,60 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #s-canvas-ics input[type=url]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 #s-canvas-ics button{min-width:44px;min-height:44px;}
 #s-canvas-ics .canvas-pasos{padding-left:20px;color:var(--fg2);font-size:.8125rem;line-height:1.6;}
+/* Opiniones de ramos: distribuciones neutras, sin semáforo académico. */
+.rc-nombre{margin:0 0 20px;color:var(--fg);font-weight:600;line-height:1.5;overflow-wrap:anywhere;}
+.rc-nombre small{display:block;color:var(--fg2);font-size:.8125rem;font-weight:400;}
+.rc-form fieldset{min-width:0;border:0;padding:0;margin:0 0 24px;}
+.rc-form legend{font-size:.9375rem;font-weight:600;line-height:1.5;margin-bottom:12px;}
+.rc-form legend small{display:block;font-size:.75rem;color:var(--fg2);font-weight:400;}
+.rc-cargas,.rc-escala,.rc-recomienda{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr));}
+.rc-escala{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;}
+.rc-opcion,.rc-etiqueta{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;min-width:0;cursor:pointer;}
+.rc-opcion input,.rc-etiqueta input{position:absolute;width:1px;height:1px;opacity:0;}
+.rc-opcion span,.rc-etiqueta span{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;padding:10px 8px;border:1px solid var(--border2);border-radius:8px;color:var(--fg2);font-size:.875rem;line-height:1.4;text-align:center;font-variant-numeric:tabular-nums;}
+.rc-opcion input:checked+span,.rc-etiqueta input:checked+span{color:var(--fg);border-color:var(--fg);background:var(--muted);font-weight:650;}
+.rc-opcion input:focus-visible+span,.rc-etiqueta input:focus-visible+span{outline:2px solid var(--fg);outline-offset:3px;}
+.rc-etiqueta:has(input:disabled){cursor:default;}
+.rc-extremos{display:flex;justify-content:space-between;gap:12px;font-size:.75rem;color:var(--fg2);margin-top:8px;}
+.rc-etiquetas{display:flex;flex-wrap:wrap;gap:8px;}
+.rc-etiqueta span{border-radius:22px;padding-inline:12px;font-size:.8125rem;}
+.rc-error{color:var(--red);font-size:.875rem;line-height:1.5;margin:0 0 12px;}
+.rc-error:empty{display:none;}
+.rc-form .rc-borrar{display:block;min-height:44px;color:var(--red);margin-bottom:12px;}
+.rc-cerrados{display:grid;margin:16px 0;}
+.rc-cerrados button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:12px 0;border:0;border-bottom:1px solid var(--border);background:none;color:var(--fg);font:inherit;text-align:left;}
+/* El título recibe foco de lectura, no es un control interactivo. */
+.rr-titulo:focus{outline:none;}
+.rr-participantes{color:var(--fg);font-size:.9375rem;font-variant-numeric:tabular-nums;line-height:1.5;margin:0 0 24px;}
+.rr-participantes span{display:block;font-size:.75rem;color:var(--fg2);}
+.rr-bloque{margin:0 0 24px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;}
+.rr-bloque h3,.rr-vacio h3{font-size:1rem;font-weight:650;line-height:1.5;margin:0 0 8px;}
+.rr-bloque p,.rr-vacio p{color:var(--fg2);font-size:.8125rem;line-height:1.5;margin:0 0 12px;}
+.rr-bloque .rr-cifra{font-size:2rem;line-height:1.2;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums;}
+.rr-cifra small{font-size:.875rem;font-weight:400;color:var(--fg2);}
+.rr-distribucion{list-style:none;display:grid;gap:16px;margin:16px 0 0;padding:0;}
+.rr-distribucion li>div:first-child{display:flex;justify-content:space-between;gap:12px;font-size:.8125rem;color:var(--fg);font-variant-numeric:tabular-nums;line-height:1.5;}
+.rr-distribucion small{color:var(--fg2);font-size:inherit;}
+.rr-pista{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:6px;}
+.rr-pista i{display:block;height:100%;background:var(--fg2);border-radius:3px;}
+.rr-etiquetas{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0;}
+.rr-etiquetas li{color:var(--fg);background:var(--muted);padding:8px 12px;border-radius:8px;font-size:.8125rem;line-height:1.5;}
+.rr-etiquetas small{display:block;color:var(--fg2);font-size:.75rem;}
+.rr-docentes{list-style:none;padding:0;margin:0;}
+.rr-docentes li+li{padding-top:20px;margin-top:20px;border-top:1px solid var(--border);}
+.rr-docentes h4{font-size:.9375rem;line-height:1.5;overflow-wrap:anywhere;}
+.rr-estrellas{display:block;font-size:.8125rem;font-weight:400;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.rr-vacio{padding:16px;border:1px solid var(--border);border-radius:8px;margin-bottom:20px;}
+.cat-hit-fila{border-bottom:1px solid var(--border);}
+.cat-hit-fila .cat-hit{width:100%;border-bottom:0;}
+button.ramo-catalogo-resumen{display:block;min-height:44px;margin:0 0 8px;padding:8px 12px;border:0;background:none;color:var(--fg2);font:inherit;font-size:.8125rem;text-decoration:underline;text-underline-offset:3px;text-align:left;}
+.ramo-opinion{margin-top:14px;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
+button.ramo-opinion-resumen{display:block;min-height:44px;width:100%;border:0;padding:10px 0;background:none;color:var(--fg2);font:inherit;line-height:1.5;text-align:left;font-variant-numeric:tabular-nums;}
+.ramo-opinion-invitacion{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:12px 0;border-top:1px solid var(--border);}
+.ramo-opinion-invitacion>span{flex:1 1 100%;}
+.ramo-opinion-invitacion button{min-height:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:none;color:var(--fg);font:inherit;}
+.ramo-opinion-invitacion button[data-rc-descartar]{border-color:transparent;color:var(--fg2);}
+@media(max-width:350px){.rc-cargas{grid-template-columns:minmax(0,1fr);}}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

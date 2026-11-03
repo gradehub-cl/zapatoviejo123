@@ -132,13 +132,13 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
     textoOtro.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();agregarYEnfocar();}});
     form.querySelector('[data-cancelar]').onclick=closeModal;
     form.querySelector('[data-cambiar]').onclick=()=>pedirNombre(elegido);
-    const enviar=async(pasos,aviso)=>{
+    const enviar=async(pasos,aviso,ofrecerRamo=false)=>{
       const botones=[...form.querySelectorAll('button')];
       if(botones.some(b=>b.disabled)||!vigente())return;
       botones.forEach(b=>{b.disabled=true;});mensaje.textContent='';
       try{
         for(const [rpc,args] of pasos){const {error}=await supabaseClient.rpc(rpc,args);if(error)throw error;}
-        closeModal();showToast(aviso);
+        closeModal();
         if(vigente()&&currentRamoId===r.id){
           await renderDocenteRamo(r);
           if(vigente()&&!document.getElementById('modal').classList.contains('open')){
@@ -146,6 +146,8 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
             enfocarEnHoja(volver);
           }
         }
+        const ofrecida=ofrecerRamo&&vigente()&&typeof ofrecerCalificarRamoTrasProfesor==='function'&&await ofrecerCalificarRamoTrasProfesor(r);
+        if(!ofrecida&&vigente())showToast(aviso);
       }catch(error){
         if(form.isConnected){mensaje.textContent=errorCalificacion(error);botones.forEach(b=>{b.disabled=false;});}
       }
@@ -161,7 +163,7 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
       // Primero queda dicho quién es (si cambió) y después la calificación, que es para él.
       const pasos=nombreProfesorNormal(elegido)===nombreProfesorNormal(mio)?[]:[['profesor_docente_informar',{...contexto,p_nombre:elegido}]];
       pasos.push(['profesor_calificar',payloadCalificacion(contexto,estrellas(),etiquetas,otros)]);
-      enviar(pasos,'Tu calificación quedó guardada');
+      enviar(pasos,'Tu calificación quedó guardada',true);
     };
     enfocarEnHoja(form.querySelector(mia?'input[name=calif-estrellas]:checked':'input[name=calif-estrellas]'));
   };

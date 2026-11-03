@@ -170,6 +170,7 @@ function renderRamo(){
   document.getElementById('ramo-peso-contexto').textContent=categoriasVisibles.length===0
     ?'Agrega evaluaciones para comenzar':Math.abs(tp-100)>0.001?`${r2(tp)}% ponderado`:'';
   renderDocenteRamo(r);
+  if(typeof pintarResumenRamoFicha==='function')pintarResumenRamoFicha(r);
   const periodoEl=document.getElementById('pauta-periodo');
   if(periodoEl){
     const info=infoPeriodoPauta(r);
