@@ -3501,6 +3501,8 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .ah-filas li+li{border-top:1px solid var(--border);}
 .ah-filas button{display:grid;grid-template-columns:var(--ah-nombre) 1fr var(--ah-cambio);align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 0;border:0;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
 .ah-fila-nombre{font-size:.875rem;font-weight:600;overflow-wrap:anywhere;}
+.ah-fila-ramo,.ah-fila-inicio{display:block;font-size:.75rem;line-height:1.5;color:var(--fg2);font-weight:400;margin-top:3px;}
+.ah-fila-sigla{font-variant-numeric:tabular-nums;}
 .ah-fila-cambio{font-size:.875rem;font-weight:650;text-align:right;font-variant-numeric:tabular-nums;}
 .ah-pista{position:relative;height:24px;}
 .ah-centro{position:absolute;left:50%;top:2px;bottom:2px;width:1px;background:var(--border2);}

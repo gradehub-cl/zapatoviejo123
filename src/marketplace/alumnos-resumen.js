@@ -58,7 +58,7 @@ function resumenInicioAlumnosHTML(r){
     </div>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
-  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{inicios:new Map((al.ramos||[]).map(r=>[r.id,inicioRamoPanel(al,r)])),seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
+  return `${(al.ramos||[]).map(r=>{const comp=compDe(al,r)||{};return antesAhoraAlumnoHTML(metricasAlumnoRamoPanel(al,r,compDe),{inicios:new Map([[r.id,inicioRamoPanel(al,r)]]),seccion:comp.sinSeccion||Number.isInteger(comp.seccion),sinSeccion:!!comp.sinSeccion});}).join('')}
     ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
     <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>`;
 }
@@ -151,7 +151,7 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
       const sec=(compSeccionDe&&compSeccionDe(al,r))||{};
       const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
       const nivel=avg===null?'neutral':nivelRamo(ramo,avg);
-      const met=metricasAlumnoPanel({...al,ramos:[r]},compDe);
+      const met=metricasAlumnoRamoPanel(al,r,compDe);
       const proxima=proximaEvaluacionPanel(ramo,ahora,ctx);
       filas.push([al.nombre_visible,ramo.nombre,
         (typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'',
