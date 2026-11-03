@@ -5,9 +5,9 @@
 // versión anterior hasta que el SW nuevo toma el control, y la página que ya
 // está abierta conserva el JS viejo aunque eso pase.
 //
-// Sin aviso, la única forma de ver una versión nueva es recargar DOS veces —
-// la primera instala el SW, la segunda sirve los archivos nuevos. Nadie hace
-// eso. Por eso acá se detecta el relevo y se ofrece recargar de una.
+// Un relevo del SW no implica que la página esté vieja: al abrir online el
+// HTML y sus scripts ya pueden traer la versión nueva. Se compara el ?v= del
+// script que está ejecutándose con la versión del SW que acaba de activarse.
 //
 // No recargamos solos a propósito: el estudiante puede estar escribiendo una
 // nota, y perdérsela por una actualización es peor que ver la versión vieja un
@@ -28,12 +28,40 @@ function avisarActualizacion(){
 }
 
 if('serviceWorker' in navigator){
+  // El deploy sella este ?v= y el cache del SW con el mismo SHA. Se captura
+  // mientras se ejecuta app.js: después currentScript deja de apuntar a él.
+  let versionCargada=null;
+  try{versionCargada=new URL(document.currentScript.src).searchParams.get('v');}catch(e){}
+  let revisionVersion=0;
+  const revisarVersionActivada=()=>{
+    const revision=++revisionVersion;
+    const controlador=navigator.serviceWorker.controller;
+    if(!controlador||!/^[a-f0-9]{7}$/.test(versionCargada||'')||typeof MessageChannel==='undefined')return;
+    const canal=new MessageChannel();
+    const cerrar=()=>{clearTimeout(plazo);canal.port1.close();canal.port2.close();};
+    const plazo=setTimeout(cerrar,2000);
+    canal.port1.onmessage=evento=>{
+      cerrar();
+      // Un SW anterior puede responder después de otro relevo. No debe
+      // volver a mostrar un aviso que ya dejó de corresponder.
+      if(revision!==revisionVersion||controlador!==navigator.serviceWorker.controller)return;
+      const version=evento.data?.version;
+      if(typeof version!=='string'||!/^[a-f0-9]{7}$/.test(version))return;
+      if(version===versionCargada)document.getElementById('toast-update')?.remove();
+      else avisarActualizacion();
+    };
+    try{controlador.postMessage({tipo:'GH_VERSION'},[canal.port2]);}
+    catch(e){cerrar();}
+  };
   // Guardado ANTES de registrar: si ya había un controlador, un relevo posterior
   // es una actualización de verdad. En la primera visita no hay ninguno y el
   // relevo es solo la instalación inicial — ahí no hay nada que avisar.
-  const habiaControlador = !!navigator.serviceWorker.controller;
+  let habiaControlador = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if(habiaControlador) avisarActualizacion();
+    if(habiaControlador) revisarVersionActivada();
+    // Después de la primera instalación también puede llegar otra versión
+    // sin cerrar la página: solo se omite el primer relevo, no los futuros.
+    habiaControlador = !!navigator.serviceWorker.controller;
   });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
