@@ -31,21 +31,7 @@ function ramosWrapped(){
 
 // No calcula promedios nuevos ni modifica el estado. Casillas, eximición,
 // descartes e inasistencias se resuelven en la misma estructura que usa la app.
-function cierreWrapped(base){
-  const pendientes=[];
-  for(const r of base&&base.ramos||[]){
-    // El acta importada al historial ya trae la nota final confirmada.
-    if(!base.actual&&Number.isFinite(r.avgOverride))continue;
-    const {res,estructura}=calculoRamoConCompuertas(r);
-    const faltantes=res.emptyLeaves.filter(n=>n.effectiveWeight>0).map(n=>n.name||'Evaluación sin nota');
-    for(const c of estructura.children||[]){
-      if(c.weight>0&&!c.children.length)faltantes.push(c.name||'Evaluaciones sin registrar');
-    }
-    if(!Number.isFinite(ramoAvg(r,undefined,base.ramos)))faltantes.push('Revisa la pauta y las notas de este ramo');
-    if(faltantes.length)pendientes.push({id:r.id,nombre:r.nombre,evaluaciones:[...new Set(faltantes)]});
-  }
-  return {listo:!!base&&base.ramos.length>0&&pendientes.length===0,pendientes};
-}
+function cierreWrapped(base){return revisionCierreSemestre(base);}
 
 function revisarCierreWrapped(base,cierre){
   const cuenta=currentUser&&currentUser.id,tenant=S.tenant;
@@ -67,7 +53,7 @@ function revisarCierreWrapped(base,cierre){
 // Todo sale de `ramoAvg` y `gpa`: son las únicas fórmulas de promedio que hay,
 // y el resumen tiene que decir los mismos números que Inicio.
 function datosWrapped(ramos){
-  const lista=ramosDelPromedio(ramos).map(r=>({r,avg:ramoAvg(r,undefined,ramos)})).filter(x=>x.avg!==null);
+  const lista=ramosDelPromedio(ramos).map(r=>({r,avg:notaRamoParaResumen(r,ramos)})).filter(x=>x.avg!==null);
   if(!lista.length)return null;
   let mejor=null,nNotas=0;
   lista.forEach(({r})=>(r.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{

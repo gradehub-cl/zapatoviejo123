@@ -85,7 +85,7 @@ function setSlotNota(catId,slot,raw){
   }else if(existente){
     // Vaciar la nota no borra la casilla si tiene fecha: queda pendiente, que
     // es lo que dice "esto se rinde ese día y todavía no tengo la nota".
-    if(existente.fecha){existente.valor=null;delete existente.calificacionConceptual;}
+    if(existente.fecha)asignarCalificacionNota(existente,'',null);
     else cat.notas=cat.notas.filter(n=>n.slot!==slot);
   }
   save();track('set_nota_slot');renderRamo();

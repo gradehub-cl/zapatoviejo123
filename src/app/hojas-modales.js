@@ -212,11 +212,11 @@ document.addEventListener('keydown',e=>{
   if(!el.matches||!el.matches('#screen-ramo input.eval-row-input'))return;
   if(e.key!=='Enter'&&!(e.key==='Tab'&&el.value!==el.defaultValue))return;
   e.preventDefault();
-  const casillas=()=>[...document.querySelectorAll('#screen-ramo .eval-row-input')];
+  const casillas=()=>[...document.querySelectorAll('#screen-ramo .eval-row-input,#screen-ramo .nota-en-fila')];
   const i=casillas().indexOf(el);
   el.blur(); // dispara onchange → setSlotNota/setDirectNota → renderRamo
   const sig=casillas()[i+(e.shiftKey?-1:1)];
-  if(sig){sig.focus();sig.select();}
+  if(sig){sig.focus();if(sig.select)sig.select();}
 });
 document.addEventListener('keydown',e=>{
   const conf=document.getElementById('confirm-overlay');

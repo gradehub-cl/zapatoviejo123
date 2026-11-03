@@ -22,6 +22,7 @@ function filaPautaBancoHTML(f,i){
     <p>${esc(f.fuente||'Fuente documental no registrada')}</p>${f.documento_path?`<button type="button" data-pauta-documento="${i}">Abrir programa</button>`:''}
     ${(f.faltantes||[]).length?`<ul>${f.faltantes.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}</section>
     <section><h3>Reportes · ${esc(f.periodo)}</h3>${(f.variantes||[]).length?f.variantes.map(v=>`<article><h4>${v.personas} ${v.personas===1?'persona':'personas'} · ${v.origen==='explicito'?'Explícito':'Automático'} · ${v.seccion?'Sección '+esc(v.seccion):'Sin sección'}</h4>${pautaBancoEstructuraHTML(v.estructura)}${(v.comentarios||[]).map(n=>`<p>${esc(n)}</p>`).join('')}</article>`).join(''):'<p>Sin reportes en este período.</p>'}</section>
+    <section><h3>Diferencias con el portal</h3><div data-pauta-discrepancias="${i}">Abre la ficha para consultar.</div></section>
     <form data-pauta-form="${i}"><h3>Revisión interna</h3><label>Estado<select name="estado">${['confirmada','en_disputa','sin_pauta'].map(v=>`<option value="${v}"${v===f.estado?' selected':''}>${pautaBancoEstado(v)}</option>`).join('')}</select></label>
     <label>Nota del equipo<textarea name="nota" maxlength="4000" rows="3">${esc(f.nota_interna||'')}</textarea></label>
     <label>Programa PDF<input name="documento" type="file" accept="application/pdf,.pdf"></label><p>Hasta 10 MB · privado, sin publicar cambios al catálogo.</p>
@@ -42,6 +43,15 @@ async function renderAdminPautas(caja){
       if(error)throw error;
       const filas=Array.isArray(data)?data:[];
       resultados.innerHTML=filas.length?filas.map(filaPautaBancoHTML).join(''):'No encontramos pautas para esa búsqueda.';
+      resultados.querySelectorAll('.pautas-banco-fila').forEach((detalle,i)=>detalle.addEventListener('toggle',async()=>{
+        if(!detalle.open||detalle.dataset.discrepanciasCargadas)return;
+        const f=filas[i],destino=detalle.querySelector('[data-pauta-discrepancias]');detalle.dataset.discrepanciasCargadas='1';
+        try{
+          const {data,error}=await supabaseClient.rpc('admin_discrepancias_pauta',{p_tenant:tenant,p_sigla:f.sigla,p_periodo:periodo});
+          if(error)throw error;
+          destino.innerHTML=(data||[]).length?(data||[]).map(d=>`<p><strong>${d.personas} ${d.personas===1?'persona':'personas'}</strong> · GradeHub ${esc(d.calculada)} / portal ${esc(d.oficial)} · Pauta ${d.pauta_origen==='oficial'?'oficial':'editada'}<br><small>Huella: ${esc(d.huella)}</small></p>`).join('')+'<p>Una diferencia requiere revisar la pauta y si se ingresaron todas las notas; por sí sola no demuestra un error del motor.</p>':'Sin diferencias registradas.';
+        }catch(error){destino.textContent='No pudimos consultar. Revisa que discrepancias_nota.sql esté aplicado e intenta de nuevo.';delete detalle.dataset.discrepanciasCargadas;}
+      }));
       resultados.querySelectorAll('[data-pauta-form]').forEach(form=>form.addEventListener('submit',async e=>{
         e.preventDefault();const fila=filas[Number(form.dataset.pautaForm)],aviso=form.querySelector('[data-pauta-aviso]'),boton=form.querySelector('[type=submit]');boton.disabled=true;
         try{

@@ -3,8 +3,7 @@
 // El promedio de un ramo archivado se puede corregir a mano (avgOverride) sin
 // tocar sus evaluaciones. Sirve cuando un profe cambia una nota después del cierre.
 function histRamoAvg(r,ramos){
-  if(r&&typeof r.avgOverride==='number')return r.avgOverride;
-  return ramoAvg(r,undefined,ramos);
+  return notaRamoParaResumen(r,ramos);
 }
 // Recalcula el promedio del semestre archivado respetando overrides y créditos
 function recomputeHistGpa(h){
@@ -16,6 +15,7 @@ function recomputeHistGpa(h){
 function openEditHistRamoModal(histId,ramoId){
   const h=S.historial.find(x=>x.id===histId);if(!h)return;
   const r=(h.ramos||[]).find(x=>x.id===ramoId);if(!r)return;
+  if(r.cierre||notaPortalValida(r.notaOficial)){abrirNotaOficialHistorial(histId,ramoId);return;}
   const actual=histRamoAvg(r,h.ramos);
   const calculado=ramoAvg({...r,avgOverride:undefined},undefined,h.ramos);
   const esOverride=typeof r.avgOverride==='number';
@@ -27,6 +27,7 @@ function openEditHistRamoModal(histId,ramoId){
     <label class="modal-label">Promedio final (1.0 – 7.0)</label>
     <div class="modal-input"><input type="text" inputmode="decimal" id="m-hist-avg" value="${actual!==null?nf(actual):''}" placeholder="Ej: 5.4" maxlength="4"/></div>
     ${calculado!==null?`<p style="font-size:0.75rem;color:var(--fg3);margin:-6px 0 14px;">Calculado desde sus evaluaciones: <b>${fmtPromedio(calculado)}</b></p>`:''}
+    <button type="button" class="btn-cancel" onclick="abrirNotaOficialHistorial('${esc(histId)}','${esc(ramoId)}')">Usar nota del portal</button>
     <div id="m-hist-err" style="display:none;font-size:0.75rem;color:var(--red);margin:-6px 0 12px;"></div>
     <div class="modal-btns">
       ${esOverride?`<button class="btn-cancel" onclick="resetHistRamoAvg('${esc(histId)}','${esc(ramoId)}')">Restaurar</button>`:`<button class="btn-cancel" onclick="closeModal()">Cancelar</button>`}

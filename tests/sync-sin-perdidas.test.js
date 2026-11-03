@@ -340,6 +340,30 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     chk('una cuenta sin nada que corregir no escribe al entrar',nube.escrituras===antes);
   }
 
+  console.log('\n=== 13. La fecha de edición viaja con el valor entre dispositivos ===');
+  {
+    const nube=crearNube(),inicial=estadoInicial();
+    inicial.ramos[0].categorias[0].notas=[{id:'nota-fechada',nombre:'Nota sintética',valor:5,peso:1,editadaEn:'2026-10-31T10:00:00.000Z'}];
+    nube.filas.set('u1',inicial);
+    const cel=dispositivo(nube),pc=dispositivo(nube);
+    await cel.entrar('u1');await pc.entrar('u1');
+    const editar=(d,valor,iso)=>{
+      d.ctx.__horaNota=iso;
+      d.run(`Date=class extends Date{constructor(...a){super(...(a.length?a:[__horaNota]));}};
+        asignarValorNota(S.ramos[0].categorias[0].notas[0],${valor});save();clearTimeout(_syncTimer);_syncTimer=null;`);
+    };
+    editar(cel,4,'2026-10-31T11:00:00.000Z');
+    editar(pc,6,'2026-10-31T12:00:00.000Z');
+    await pc.subir();await cel.subir();
+    let nota=nube.filas.get('u1').ramos[0].categorias[0].notas[0];
+    chk('una subida tardía no pisa una calificación más reciente y fechada',nota.valor===6&&nota.editadaEn==='2026-10-31T12:00:00.000Z');
+    const lectura=await cel.run('loadFromCloud()');
+    nota=lectura.ramos[0].categorias[0].notas[0];
+    chk('el campo sobrevive a la escritura y lectura reales del cliente de sync',nota.valor===6&&nota.editadaEn==='2026-10-31T12:00:00.000Z');
+    const recargado=dispositivo(nube,cel.almacen);await recargado.entrar('u1');
+    chk('cerrar y abrir con la caché existente conserva fecha y valor',recargado.run("S.ramos[0].categorias[0].notas[0].editadaEn==='2026-10-31T12:00:00.000Z'&&S.ramos[0].categorias[0].notas[0].valor===6"));
+  }
+
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});

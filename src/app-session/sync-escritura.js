@@ -28,6 +28,7 @@ async function subirConVersion(uid){
         if(!currentUser||currentUser.id!==uid)return true;
         S._rev=enviado._rev;
         guardarBaseSync(uid,enviado);
+        if(typeof enviarDiscrepanciasCierre==='function')enviarDiscrepanciasCierre().catch(()=>{});
         setCacheOwner(uid); // la caché local quedó alineada con esta cuenta
         return true;
       }
