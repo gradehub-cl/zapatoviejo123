@@ -4470,19 +4470,18 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-mensaje strong{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap;}
 #screen-ramo .ramo-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:stretch;}
 #screen-ramo .ramo-actions:has(.calif-accion:not([hidden])){grid-template-columns:repeat(2,minmax(0,1fr));}
-/* Contadores de la ficha: título y explicación a lo ancho y, abajo, la cifra
-   con un stepper de una pieza. Lado a lado el texto quedaba apretado contra
-   los botones (Lucas, 2026-11-03). Mismo módulo que las evaluaciones. */
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-card,#screen-ramo #faltas-contador.faltas-card{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"titulo titulo" "detalle detalle" "num ctrl";align-items:center;gap:4px 16px;margin:0 20px 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-txt{display:contents;}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-titulo{grid-area:titulo;font-size:1rem;font-weight:550;line-height:1.35;}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-detalle{grid-area:detalle;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-num{grid-area:num;margin-top:10px;text-align:left;font-size:1.5rem;font-weight:650;line-height:1;}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-num small{font-size:.875rem;font-weight:500;color:var(--fg2);}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) :is(.faltas-ctrl,.bonus-anotar){grid-area:ctrl;margin-top:10px;}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-ctrl{gap:0;border:1px solid var(--border2);border-radius:10px;overflow:hidden;}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-btn{width:52px;height:44px;border:0;border-radius:0;background:none;color:var(--fg);}
-#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-btn+.faltas-btn{border-left:1px solid var(--border2);}
+/* Contadores de la ficha: una franja del alto de Simular, con el texto a la
+   izquierda y la cifra entre − y + (Lucas, 2026-11-03). La tarjeta de antes
+   pesaba más que las evaluaciones. */
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-card,#screen-ramo #faltas-contador.faltas-card{display:flex;align-items:center;gap:12px;margin:0 20px 10px;padding:0 0 0 14px;min-height:44px;border:1px solid var(--border2);border-radius:12px;background:transparent;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-txt{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;padding:6px 0;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-titulo{font-size:.8125rem;font-weight:550;line-height:1.3;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-detalle{font-size:.75rem;line-height:1.35;color:var(--fg2);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-ctrl{display:flex;align-items:center;gap:0;flex:none;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-num{min-width:3.75rem;text-align:center;font-size:.9375rem;font-weight:650;line-height:1;white-space:nowrap;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-num small{font-size:.75rem;font-weight:500;color:var(--fg2);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-btn{width:44px;height:44px;border:0;border-radius:12px;background:none;color:var(--fg);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .bonus-anotar{flex:none;min-height:44px;margin:0;border:0;border-left:1px solid var(--border2);border-radius:0 12px 12px 0;background:none;}
 #screen-ramo :is(#faltas-contador,#bonus-ramo) :focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 #screen-ramo .ficha-serie-hd{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 #screen-ramo .ficha-serie-hd h2{margin:0;font-size:1rem;font-weight:650;}
