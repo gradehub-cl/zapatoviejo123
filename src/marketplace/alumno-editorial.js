@@ -62,6 +62,7 @@ function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora){
 function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
   return conRamosAlumnoPanel(al,contexto=>{
     const ramo=ramoParaPanel(r),prom=ramoAvg(ramo,undefined,contexto),ref=comp?.ramo&&comp.ramo.personas>=5?comp.ramo.promedio:null;
+    const motivo=motivoPromedioAlumnoPanel(ramo);
     const diferencia=prom!==null&&ref!==null?prom-Number(ref):null;
     const seccion=!!(comp?.sinSeccion||Number.isInteger(comp?.seccion)),m=metricasAlumnoPanel({...al,ramos:[r]},()=>comp);
     let necesaria=null,estado=null;try{necesaria=notaNecesaria(ramo);estado=estadoParaNotaNecesaria(ramo);}catch(e){}
@@ -75,6 +76,7 @@ function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
       <div><span>Promedio actual</span><strong>${prom===null?'—':esc(cifraNotaPrivada(fmtPromedio(prom)))}</strong></div>
       <div><span>${grupo}</span><strong>${ref===null?'—':esc(cifraNotaPrivada(fmtPromedio(Number(ref))))}</strong></div>
       <div><span>Diferencia</span><strong class="pe-diferencia" style="color:${colorDiferenciaPrivada(diferencia??0)}">${diferencia===null?'—':esc(cifraNotaPrivada(conSignoPanel(diferencia)))}</strong></div></div>
+      ${motivo?`<p class="pe-sub">${esc(motivo)}</p>`:''}
       <section class="pe-frente"><div class="pe-frente-cabeza"><h3>Frente al grupo</h3><span>Puntos de nota</span></div>
         <div class="pe-grupo" role="group" aria-label="Grupo de comparación">${[false,true].map(s=>`<button type="button" data-pe-grupo="${s?'seccion':'ramo'}" aria-pressed="${seccion===s}">${s?'Sección':'Ramo'}</button>`).join('')}</div>
         ${grafico||`<p class="pe-sin-grafico" role="status">${ref===null?esc(sinDatos):'Faltan evaluaciones comparables con fecha para mostrar la evolución.'}</p>`}

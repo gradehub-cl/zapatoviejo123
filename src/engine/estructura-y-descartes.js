@@ -1,4 +1,10 @@
-function gh_weightOf(node,ov){const o=ov?.[node.id];if(o&&typeof o.weight==='number')return o.weight;return node.weight;}
+function gh_weightOf(node,ov){
+  const numero=w=>typeof w==='number'?w:typeof w==='string'&&w.trim()&&Number.isFinite(Number(w))?Number(w):null;
+  const o=ov?.[node.id],reemplazo=numero(o?.weight);
+  // Un peso numérico serializado como texto no puede concatenarse al sumarlo.
+  // Se interpreta en el cálculo; jamás se reescriben la pauta ni las notas.
+  return reemplazo!==null?reemplazo:numero(node.weight)??node.weight;
+}
 function gh_meta(s){return s.__meta||{};}
 // El recuperativo no es una hoja de la pauta: no tiene peso ni participa en el
 // promedio. Se decide sobre la nota FINAL, una vez aplicadas las compuertas.
