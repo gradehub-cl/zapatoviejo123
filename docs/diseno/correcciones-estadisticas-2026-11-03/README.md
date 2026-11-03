@@ -1,6 +1,6 @@
 # Estadísticas
 
-Capturas con datos sintéticos. Antes: main `f3518e2` (incluye #958). Después: esta rama. No se usaron cuentas ni notas reales. La rama final se actualizó sobre main `a3f18fd` y conserva intacto el cambio de Clases particulares de #960; las capturas de referencia anteriores corresponden a `f3518e2`.
+Capturas con datos sintéticos. Antes: main `9b07f02` (incluye #958, #960 y #961). Después: esta rama. No se usaron cuentas ni notas reales. La rama final se actualizó sobre main `f8b4e3c` y conserva intacto el cambio de Clases particulares de #960; las capturas de referencia anteriores corresponden a `9b07f02`.
 
 Semana es la semana calendario local de lunes a domingo; Mes, el mes calendario; Semestre conserva las notas actuales. El historial conserva su gráfico por semestre. La línea de tiempo muestra cinco hitos recientes y suma cinco por vez; el avance rellena un contorno rectangular.
 
@@ -46,3 +46,11 @@ HIG: [Lists and tables](https://developer.apple.com/design/human-interface-guide
 ## Comprobaciones de navegador
 
 375/1280 px, claro/oscuro y texto 100/200%; Semana/Mes/Semestre sin mover la pantalla al cambiar; cinco hitos al abrir y diez tras Ver más. El estado S sigue idéntico al explorar. Historial conserva los promedios por semestre; el contorno usa exactamente el porcentaje de avance existente.
+
+## Corrección de Lucas: título fuera de la tarjeta
+
+El título «Tu promedio en el tiempo» es ahora un `section-hd` exterior, con `aria-labelledby` desde la tarjeta; «Semestre actual · 2026-2» sigue dentro. Al ocultar Ritmo en Editar, se omite la pieza completa y también su título. Las capturas se regeneraron sobre main `9b07f02`. Los módulos de Prioridades, Curso e Historial van en una PR separada; esta rama no los duplica.
+
+La expectativa de texto de `tests/stats-editar-secciones.test.js` ahora permite la clase del encabezado sin cambiar su nombre ni el comportamiento del editor.
+
+Verificación final sobre main `f8b4e3c` (incluye #948, #951 y #959): 392 tests aprobados; build, JS, CSS 3604/3604 y diff aprobados. Se mantiene la base de referencia indicada en las capturas; no se alteran los cambios nuevos de main.

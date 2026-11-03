@@ -4528,7 +4528,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 
 /* Evolución del estudiante: línea de datos, superficie amplia y controles contenidos. */
 .stats-evolucion.stat-card{margin:0 20px 20px;padding:16px;cursor:default;box-shadow:none;transform:none;}
-.stats-evolucion h2{font-size:1.125rem;line-height:1.4;font-weight:650;margin:0 0 20px;}
 .stats-evolucion-etiqueta{display:block;font-size:.75rem;line-height:1.5;color:var(--fg2);}
 .stats-evolucion-valor{font-size:3.75rem;line-height:1.1;font-weight:550;letter-spacing:-.055em;color:color-mix(in srgb,var(--primary) 85%,var(--fg));font-variant-numeric:tabular-nums;margin:8px 0;}
 .stats-evolucion-ultimo{font-size:.8125rem;line-height:1.6;color:var(--fg2);margin:0 0 28px;overflow-wrap:anywhere;}
