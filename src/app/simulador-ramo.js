@@ -387,7 +387,7 @@ function simCommit(){
         const conCasilla=Number.isInteger(s.slot);
         c.notas.push({
           id:uid(),nombre:conCasilla?nombreCasilla(r,c,s.slot):'Simulada '+(c.notas.length+1),
-          valor:s.valor,peso:1,...(s.calificacionConceptual?{calificacionConceptual:s.calificacionConceptual}:{}),...(conCasilla?{slot:s.slot}:{}),
+          valor:s.valor,peso:1,editadaEn:new Date().toISOString(),...(s.calificacionConceptual?{calificacionConceptual:s.calificacionConceptual}:{}),...(conCasilla?{slot:s.slot}:{}),
         });
         openCats[c.id]=true;
       });

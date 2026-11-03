@@ -1,5 +1,5 @@
 const SECCIONES_STATS=[
-  {id:'ritmo',      titulo:'Ritmo del semestre'},
+  {id:'ritmo',      titulo:'Tu promedio en el tiempo'},
   {id:'prioridades',titulo:'Qué mirar primero'},
   {id:'mueven',     titulo:'Qué mueve tu promedio'},
   {id:'curso',      titulo:'Cómo vas en tus ramos'},

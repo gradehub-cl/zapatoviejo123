@@ -63,7 +63,7 @@ ctx.__ramos=JSON.stringify([{id:'r1',nombre:'Ramo Sintético',color:'#6d5dd3',cr
 run('S.ramos=JSON.parse(__ramos);S.historial=[]');
 let confirmacion='';ctx.showConfirm=(t,m)=>{confirmacion=String(m);};
 run('confirmArchiveSemester()');
-chk('Archivar dice 0 notas, no 2', /con 0 notas/.test(confirmacion));
+chk('Archivar revisa las casillas vacías sin contarlas como notas', /Falta:/.test(byId('modal-content').innerHTML)&&/Control/.test(byId('modal-content').innerHTML)&&!run('revisionCierreSemestre({actual:true,ramos:S.ramos}).listo'));
 run('renderHome()');
 const lista=byId('home-ramos');
 const html=(lista.children||[]).map(c=>c.innerHTML||'').join('')+lista.innerHTML;

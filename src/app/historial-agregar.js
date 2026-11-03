@@ -172,23 +172,4 @@ function guardarSemestreAnterior(){
   showToast(`${label} agregado al historial`);
 }
 
-function confirmArchiveSemester(){
-  const label=semester();
-  const nr=S.ramos.length;
-  // Solo las notas puestas: una casilla con fecha y sin nota también se guarda.
-  const nn=S.ramos.reduce((a,r)=>a+r.categorias.reduce((b,c)=>b+c.notas.filter(n=>n&&n.valor!=null).length,0),0);
-  showConfirm(
-    `Archivar ${label}`,
-    `Se guardarán ${nr} ramo${nr!==1?'s':''} con ${nn} nota${nn!==1?'s':''} en el historial. El semestre actual quedará vacío para empezar de nuevo.`,
-    ()=>{
-      S.historial.unshift({
-        id:uid(),label,archivedAt:Date.now(),
-        careerSemestre:S.careerSemestre,
-        gpa:gpa(S.ramos),
-        ramos:JSON.parse(JSON.stringify(S.ramos))
-      });
-      S.ramos=[];save();track('archive_semester',{label});closeModal();renderHome();
-    },
-    {label:'Archivar',danger:false}
-  );
-}
+function confirmArchiveSemester(){prepararArchivoSemestre();}

@@ -15,6 +15,7 @@ function avanceEvaluaciones(ramos){
 // elemento del array para comparar el semestre actual.
 function gpaHistorial(h){
   if(!h||typeof h!=='object')return null;
+  if(Array.isArray(h.ramos)&&h.ramos.some(r=>r&&(r.cierre||r.cierreIncompleto||notaPortalValida(r.notaOficial))))return gpa(h.ramos);
   if(typeof h.gpa==='number'&&Number.isFinite(h.gpa))return h.gpa;
   if(!Array.isArray(h.ramos))return null;
   // Un respaldo antiguo puede no traer la caché `gpa`. Recalcular al leer

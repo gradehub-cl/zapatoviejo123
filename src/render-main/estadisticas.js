@@ -33,6 +33,7 @@ function renderStats(){
       <div class="ag-empty-desc">${S.ramos.length?`${S.ramos.length} ${S.ramos.length===1?'ramo':'ramos'} y ${evaluaciones} ${evaluaciones===1?'evaluación configurada':'evaluaciones configuradas'}. Ingresa una nota para ver cuánto necesitas.`:'Agrégalo desde Inicio y acá verás tu avance.'}</div>
       ${ramosConPauta<S.ramos.length?`<div class="ag-empty-desc" style="margin-top:8px;">Falta configurar las evaluaciones de ${S.ramos.length-ramosConPauta} ${S.ramos.length-ramosConPauta===1?'ramo':'ramos'}.</div>`:''}
     </div>`;
+    if((S.historial||[]).length&&!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g);
   } else {
     const avance=avanceEvaluaciones(S.ramos);
     const historialPrevio=lecturaHistorialPrevio(S.historial);
@@ -64,27 +65,11 @@ function renderStats(){
         <div class="stats-priority-medidor">${htmlMedidorNota(imposible?7:x.necesita)}<span class="stats-priority-num" style="color:${color};"><span class="sr-solo">Necesitas </span>${valor}</span><small style="color:${ex.color}">${ex.palabra}</small></div>
       </button>`;
     };
-    // El promedio del semestre va en el acento y sin palabra: un semestre no se
-    // aprueba ni se reprueba (Lucas, 2026-10-26). La raya blanca es el 4,0. El
-    // avance va neutro: llegar al 100% es cierre, no aprobación.
-    const anilloPromedio=g===null?'':htmlAnillo({fraccion:(g-1)/6,color:'var(--primary)',marca:0.5,
-      etiqueta:`Promedio del semestre: ${fmtPromedio(g)}, en una escala de 1 a 7`,
-      centro:`<span class="anillo-valor">${fmtPromedio(g)}</span><span class="anillo-texto">Promedio</span>`});
+    // La evolución reutiliza el motor; el avance conserva su anillo neutro.
     const anilloAvance=htmlAnillo({fraccion:avance.pct/100,neutro:true,color:'var(--fg2)',
       etiqueta:`${avance.pct}% de las evaluaciones evaluado`,
       centro:`<span class="anillo-valor">${avance.pct}%</span><span class="anillo-texto">Evaluado</span>`});
-    piezas.ritmo=`
-    <div class="section-hd" style="padding:6px 20px 8px;">
-      <span class="section-hd-title">Avance del semestre</span>
-    </div>
-    <div class="stat-card stats-situation-card stats-anillos${avance.pct===100?' is-complete':''}" style="margin:0 20px 16px;">
-      <div class="stats-anillos-fila">
-        <figure class="stats-anillo-dato">${anilloPromedio}<figcaption class="stats-anillo-pie"><b>${totalNotas}</b> nota${totalNotas!==1?'s':''} ingresada${totalNotas!==1?'s':''}</figcaption></figure>
-        <figure class="stats-anillo-dato">${anilloAvance}<figcaption class="stats-anillo-pie">del peso evaluable</figcaption></figure>
-      </div>
-      <div class="stats-situation-reading">${lectura}</div>
-    </div>
-    `;
+    if(!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g,anilloAvance,previo?lectura:'');
     // Qué mueve el promedio: cada ramo suma o resta según cuánto se aleja del
     // promedio y cuánto pesa. Verde lo que suma y rojo lo que resta (Lucas,
     // 2026-10-26): acá el color dice hacia dónde empuja, no si se aprueba.
@@ -129,7 +114,7 @@ function renderStats(){
       // que vuelva una comparación dejaría la pantalla en blanco por algo
       // secundario.
       piezas.curso=`
-        <div class="section-hd" style="padding:20px 20px 8px;">
+        <div class="section-hd" id="stats-curso-titulo" hidden style="padding:20px 20px 8px;">
           <span class="section-hd-title">Cómo vas respecto a los demás</span>
         </div>
         <div id="stats-curso" class="stats-curso"></div>`;
@@ -162,6 +147,8 @@ function renderStats(){
       <span class="section-hd-title">Historial</span>
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
     </div>`;
+    const acumulado=promedioAcumuladoCierre(validos);
+    if(acumulado!==null)hist+=`<p class="stats-hist-vacio">Promedio del historial: <strong>${fmtPromedio(acumulado)}</strong></p>`;
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
@@ -194,7 +181,7 @@ function renderStats(){
         const ramosRows=ramosHistorial.map(r=>{
           const avg=histRamoAvg(r,h.ramos);
           return `<button class="hist-ramo-row" onclick="openEditHistRamoModal('${esc(h.id)}','${esc(r.id)}')" aria-label="Editar promedio de ${esc(r.nombre)}">
-            <span class="hist-ramo-name">${esc(r.nombre)}${r.creditos?`<span class="hist-cr">${r.creditos} cr</span>`:''}</span>
+            <span class="hist-ramo-name">${esc(r.nombre)}${cierreRamoIncompleto(r,h.ramos)?'<small class="cierre-incompleto">Cierre incompleto</small>':''}${r.creditos?`<span class="hist-cr">${r.creditos} cr</span>`:''}</span>
             <span class="hist-ramo-val" style="color:${getColorRamo(r,avg)}">${fmtPromedio(avg)}</span>
             <svg class="ic hist-pencil" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           </button>`;

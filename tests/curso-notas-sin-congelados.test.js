@@ -85,7 +85,7 @@ const confirmar=()=>byId('confirm-action').onclick();
   console.log('\n=== Archivar el semestre manda null para todas ===');
   vm.runInContext(`S.ramos.push(${JSON.stringify(ramo('e','MAT1203',4.2))});`,ctx);
   await subir();
-  vm.runInContext(`confirmArchiveSemester();`,ctx);confirmar();
+  vm.runInContext(`confirmArchiveSemester();guardarArchivoRevisado();`,ctx);
   chk('el semestre quedó vacío', vm.runInContext('S.ramos.length',ctx)===0);
   ls=await subir();
   chk('FIS1514 y MAT1203 salen del curso', nulls(ls).join()==='FIS1514,MAT1203');
