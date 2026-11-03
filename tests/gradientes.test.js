@@ -26,9 +26,9 @@ const enMascaras = (css.match(/linear-gradient\(/g) || []).length - total;
 // 2026-10-26: Estadísticas cambió su tarjeta de avance (dos degradados) por un
 // anillo neutro, y llegó la pista rayada de la barra centrada.
 // 2026-10-27: la maqueta aprobada de Calificar profesor suma el oro de las estrellas.
-// 2026-11-02: el Wrapped 2026-2 («la hoja de respuestas») suma la cuadrícula de
-// cuaderno, dos líneas en la historia y dos en la tarjeta de Inicio.
-chk(`hay 20 gradientes que pintan, incluida la cuadrícula del Wrapped, ajenos al rediseño del avance de Home (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 20);
+// 2026-11-02: el Wrapped 2026-2 suma su cuadrícula y líneas; se conservan.
+// La ficha añade un rayado funcional para el peso todavía pendiente.
+chk(`hay 21 gradientes que pintan, incluidos Wrapped y peso pendiente de la ficha (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 21);
 chk('el sistema declara una dirección para superficies y otra para acentos',
   /--gradient-surface:150deg;--gradient-accent:135deg;/.test(css));
 

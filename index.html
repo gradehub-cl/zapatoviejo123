@@ -502,7 +502,11 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <div id="ramo-min-chip" class="ramo-chip" style="display:none;"></div>
       </div>
       <div class="ramo-actions">
-        <button id="sim-btn" onclick="openSimuladorModal()" class="ramo-action primary" style="display:none;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg> Simular</button>
+        <button id="sim-btn" onclick="openSimuladorModal()" class="ramo-action" style="display:none;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg> Simular</button>
+        <div class="ramo-contadores" hidden>
+          <div id="faltas-contador" style="display:none;"></div>
+          <div id="bonus-ramo" style="display:none;"></div>
+        </div>
         <button type="button" class="ramo-action calif-accion" id="calif-accion" hidden><span aria-hidden="true">★</span><span>Calificar profesor</span></button>
       </div>
     </div>
@@ -513,8 +517,6 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div id="no-calcula-warning" style="display:none;"></div>
     <div id="eximicion-warning" style="display:none;"></div>
     <div id="recuperativo-warning" style="display:none;"></div>
-    <div id="faltas-contador" style="display:none;"></div>
-    <div id="bonus-ramo" style="display:none;"></div>
     <div id="cat-list"></div>
     <button class="add-cat-btn" onclick="openPautaManualModal()">Editar evaluaciones</button>
     <button class="rep-link" id="ramo-report" style="display:none;">

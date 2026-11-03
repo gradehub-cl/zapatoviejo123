@@ -4427,6 +4427,78 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .pautas-banco-fila :focus-visible,.pautas-banco-filtros :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:600px){.pautas-banco-detalle{grid-template-columns:minmax(0,1fr)}.pautas-banco-filtros label{flex:1 1 140px}.pautas-banco-filtros input{width:100%;box-sizing:border-box}}
 
+/* Ficha del estudiante · maqueta aprobada. Los avisos de reglas mantienen
+   su presentación; solo la meta numérica usa el medidor original. */
+#screen-ramo .ramo-hero{container:ficha-hero / inline-size;}
+#screen-ramo .ramo-hero-num-row{align-items:center;gap:20px;}
+#screen-ramo .ramo-chip.ramo-meta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:auto;padding:12px 0 0;border:0;background:none;color:var(--fg2);white-space:normal;}
+#screen-ramo .ficha-medidor{position:relative;display:block;width:8rem;aspect-ratio:92/52;}
+#screen-ramo .ficha-medidor .medidor-nota{display:block;width:100%;max-width:none;height:auto;transform:translateY(-6px);overflow:visible;}
+#screen-ramo .ficha-medidor-cifra{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:3%;font-variant-numeric:tabular-nums;}
+#screen-ramo .ficha-medidor-cifra strong{font-size:1.75rem;line-height:1;font-weight:650;}
+#screen-ramo .ficha-medidor-cifra small{font-size:.6875rem;margin-top:4px;line-height:1.2;}
+#screen-ramo .ficha-medidor-contexto{max-width:12rem;text-align:center;font-size:.6875rem;line-height:1.4;color:var(--fg2);}
+#screen-ramo .ramo-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:stretch;}
+#screen-ramo .ramo-actions[data-contadores="1"]{grid-template-columns:minmax(8rem,1fr) minmax(12rem,1fr);}
+#screen-ramo .ramo-actions:not([data-contadores="0"]):not([data-contadores="1"]){grid-template-columns:minmax(8rem,1fr) minmax(22rem,2fr);}
+#screen-ramo .ramo-contadores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0;}
+#screen-ramo .ramo-contadores[hidden]{display:none;}
+#screen-ramo .ramo-actions[data-contadores="1"] .ramo-contadores{grid-template-columns:minmax(0,1fr);}
+#screen-ramo .ramo-contadores .faltas-card{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;margin:0;padding:10px;border-radius:12px;}
+#screen-ramo .ramo-contadores .faltas-txt{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:4px;}
+#screen-ramo .ramo-contadores .faltas-titulo{font-size:.8125rem;overflow-wrap:anywhere;}
+#screen-ramo .ramo-contadores .faltas-num{font-size:1rem;white-space:nowrap;}
+#screen-ramo .ramo-contadores .faltas-num small{font-size:.75rem;font-weight:400;color:var(--fg2);}
+#screen-ramo .ramo-contadores .faltas-detalle{grid-column:1/-1;font-size:.6875rem;color:var(--fg2);}
+#screen-ramo .ramo-contadores .faltas-ctrl{justify-content:space-between;gap:8px;}
+#screen-ramo .ramo-contadores .faltas-btn{width:44px;height:44px;}
+#screen-ramo .ramo-contadores :focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+#screen-ramo .ramo-contadores .is-excedido .faltas-detalle{color:var(--red);}
+#screen-ramo .ramo-contadores .is-limite .faltas-detalle{color:var(--yellow);}
+@container ficha-hero (max-width:36rem){
+ #screen-ramo .ramo-hero .ramo-actions[data-contadores="1"]{grid-template-columns:minmax(5rem,1fr) minmax(6.5rem,1fr);align-items:center;}
+ #screen-ramo .ramo-hero .ramo-actions[data-contadores]:not([data-contadores="0"]):not([data-contadores="1"]){grid-template-columns:minmax(5rem,1fr) minmax(13.5rem,2fr);align-items:center;}
+ #screen-ramo .ramo-contadores .faltas-card{padding:6px;}
+ #screen-ramo .ramo-hero .ramo-actions:not([data-contadores="0"]):not([data-contadores="1"]) .faltas-titulo{grid-column:1/-1;}
+ #screen-ramo .ramo-contadores .faltas-ctrl{gap:0;}
+}
+@container ficha-hero (max-width:16rem){
+ #screen-ramo .ramo-hero .ramo-actions[data-contadores="1"],#screen-ramo .ramo-hero .ramo-actions[data-contadores]:not([data-contadores="0"]):not([data-contadores="1"]){grid-template-columns:minmax(0,1fr);}
+ #screen-ramo .ramo-contadores{grid-template-columns:minmax(0,1fr);}
+}
+#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:12px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;white-space:normal;}
+#screen-ramo .ramo-actions>.calif-accion{grid-column:1/-1;}
+#screen-ramo .ramo-actions>.ramo-action[hidden]{display:none;}
+#screen-ramo #cat-list{margin:0;padding:0 20px;}
+#screen-ramo .eval-group,#screen-ramo .cat-card{margin:0 0 14px;padding:18px;border:0;border-radius:22px;background:var(--muted);box-shadow:none;}
+#screen-ramo .eval-group-hd{min-height:44px;}
+#screen-ramo .eval-group-body,#screen-ramo .cat-body{margin-top:12px;padding-top:0;border:0;}
+#screen-ramo .cat-header{padding:0;background:none;}
+#screen-ramo .eval-sub,#screen-ramo .nota-row{min-height:60px;padding:10px 0;border:0;border-top:1px solid var(--border2);border-radius:0;background:none;box-shadow:none;}
+#screen-ramo .eval-sub-open{min-width:0;overflow-wrap:anywhere;}
+#screen-ramo .eval-sub-name,#screen-ramo .nota-row-name{font-weight:550;color:var(--fg);}
+#screen-ramo .eval-sub-fecha{color:var(--fg2);font-size:.75rem;}
+#screen-ramo .eval-row{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;padding:18px;border:0;border-radius:22px;background:var(--muted);}
+#screen-ramo .eval-row-info{flex:1;min-width:0;}
+#screen-ramo .eval-row-weight,#screen-ramo .cat-peso-tag{color:var(--fg2);}
+#screen-ramo .ficha-peso{width:100%;height:6px;margin-top:14px;overflow:hidden;border-radius:999px;background:var(--border2);}
+#screen-ramo .eval-row>.ficha-peso{flex-basis:100%;margin-top:0;}
+#screen-ramo .ficha-peso-grupo{display:block;width:var(--ficha-peso);height:100%;background:repeating-linear-gradient(125deg,transparent 0,transparent 3px,var(--fg2) 3px,var(--fg2) 4px);}
+#screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
+#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:10px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
+#screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
+#screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
+#screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}
+#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+@keyframes nota-en-fila{from{opacity:.5;}to{opacity:1;}}
+@media(prefers-reduced-motion:reduce){#screen-ramo .nota-campo{animation:none;}}
+/* La segunda variante se activa solo en la copia de revisión, sin guardarla. */
+#screen-ramo.medidor-debajo .ramo-meta{flex-basis:100%;margin-left:0;}
+@container ficha-hero (max-width:18rem){
+  #screen-ramo .ramo-meta{flex-basis:100%;margin-left:0;}
+  #screen-ramo .ramo-actions{grid-template-columns:1fr;}
+}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
