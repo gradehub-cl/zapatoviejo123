@@ -4573,7 +4573,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 }
 
 /* Módulos de sección: contorno de #958, filas dentro y títulos fuera. */
-:is(#screen-home,#screen-agenda,#screen-stats) .seccion-lista{background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:0;}
+:is(#screen-home,#screen-agenda) .seccion-lista{background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:0;}
 #screen-home #home-ramos{display:block;margin:0 20px;padding:0 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;}
 #screen-home #home-ramos:empty{display:none;}
 #screen-home #home-ramos>.ramo-row{width:100%;min-height:76px;margin:0;padding:18px 12px 26px;border:0;border-radius:0;}
@@ -4591,17 +4591,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-agenda .ag-rendidas-list{display:block;}
 #screen-agenda .ag-rendidas-list>.ag-event{padding:0 12px;}
 #screen-agenda .ag-alldone{padding:20px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
-#screen-stats .stats-prioridades{margin:0 20px 16px;padding:0 16px;}
-#screen-stats .stats-prioridades .stats-priority-row{margin:0;border:0;border-radius:0;background:none;}
-#screen-stats .stats-prioridades .stats-priority-row+.stats-priority-row{border-top:1px solid var(--border);}
-#screen-stats .stats-history-module{margin:0 20px 16px;padding:16px;}
-#screen-stats .stats-history-module .hist-card{margin:0;border:0;border-radius:0;background:none;box-shadow:none;transform:none;}
-#screen-stats .stats-history-module .hist-card+.hist-card{border-top:1px solid var(--border);}
-#screen-stats .stats-history-module .stats-hist-comparacion{margin:0 0 16px;padding:0 0 16px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:none;}
-#screen-stats .stats-history-module .stats-hist-vacio{margin:0;padding:12px 0;}
-#screen-stats .stats-curso:not(:empty){margin:0 20px 16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;}
-#screen-stats .stats-curso-row:last-child{border-bottom:0;}
-#screen-stats .stats-evolucion h2{margin:0;}
 #screen-stats>.scroll>#stats-body>.ag-empty{border:1px solid var(--border);background:var(--card);}
 #screen-ramo #cat-list>.empty{border:1px solid var(--border);border-radius:8px;background:var(--card);margin-bottom:14px;}
 

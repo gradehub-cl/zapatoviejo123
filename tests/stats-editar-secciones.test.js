@@ -62,7 +62,7 @@ chk('y el interruptor suelto de Ajustes ya no existe',
 
 console.log('\n=== Los títulos explican qué entrega cada sección ===');
 chk('la evolución tiene el mismo título en la tarjeta y al editar las secciones',
-  /id="stats-evolucion-titulo"[^>]*>Tu promedio en el tiempo<\/h2>/.test(render)&&
+  render.includes('id="stats-evolucion-titulo">Tu promedio en el tiempo</h2>')&&
   run("SECCIONES_STATS.find(s=>s.id==='ritmo').titulo")==='Tu promedio en el tiempo');
 chk('la tarjeta no repite el título de avance',
   !/class="stat-label">Avance del semestre<\/div>/.test(render));

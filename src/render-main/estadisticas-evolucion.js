@@ -97,7 +97,8 @@ function tarjetaEvolucionStatsHTML(g,anilloAvance='',lectura=''){
   const notas=modeloEvolucionStats(),ultima=notas.filter(p=>p.valor!==null).at(-1);
   const delta=ultima?.delta??null;
   const color=delta===null||Math.abs(delta)<0.005?'var(--fg2)':delta>0?'var(--green)':'var(--red)';
-  return `<div class="section-hd" style="padding:0 20px 8px;"><h2 id="stats-evolucion-titulo" class="section-hd-title">Tu promedio en el tiempo</h2></div><section class="stats-evolucion stat-card" id="stats-evolucion" aria-labelledby="stats-evolucion-titulo"><span class="stats-evolucion-etiqueta">Semestre actual · ${esc(semester())}</span>
+  return `<section class="stats-evolucion stat-card" id="stats-evolucion" aria-labelledby="stats-evolucion-titulo">
+    <h2 id="stats-evolucion-titulo">Tu promedio en el tiempo</h2><span class="stats-evolucion-etiqueta">Semestre actual · ${esc(semester())}</span>
     <div class="stats-evolucion-valor">${g===null?'—':nf(g,2).replace('.',',')}</div>
     ${ultima?`<p class="stats-evolucion-ultimo"><strong style="color:${color}">${esc(textoDeltaEvolucion(delta))}</strong>${delta===null?'':` <span>con ${esc(ultima.nombre)} de ${esc(ultima.ramo)}</span>`}</p>`:''}
     <div id="stats-evolucion-contenido">${contenidoEvolucionStatsHTML()}</div>
