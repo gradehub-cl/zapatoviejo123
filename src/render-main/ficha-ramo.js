@@ -34,22 +34,60 @@ function medidorFichaHTML(needed,cual='',condicional=false){
 
 // El motor decide qué falta, incluidos descartes y pesos condicionales.
 // La pista completa es el ramo; la banda de la categoría ocupa su peso vigente.
-function barraCategoriaFichaHTML(r,cat,calculo){
+function cantidadEvaluacionesFicha(cat){
+  const notas=Array.isArray(cat.notas)?cat.notas:[];
+  return cat.directNota?Math.max(1,Number(cat.slots)||0,notas.length):notas.length;
+}
+function barraCategoriaFichaHTML(r,cat,calculo,serie=[cat]){
+  if(serie.reduce((n,c)=>n+cantidadEvaluacionesFicha(c),0)<2)return '';
+  const idsCategorias=new Set(serie.map(c=>c.id));
   const categorias=resumenCategoriasCalculadas(r,calculo);
-  const categoria=categorias.find(c=>c.id===cat.id);
-  const grupo=calculo.estructura.children.find(c=>c.id===cat.id);
-  if(!categoria||!grupo)return '';
-  const total=categorias.reduce((s,c)=>s+c.peso,0);
+  const partes=categorias.filter(c=>idsCategorias.has(c.id));
+  if(!partes.length)return '';
+  const peso=partes.reduce((n,c)=>n+c.peso,0);
+  const total=categorias.reduce((n,c)=>n+c.peso,0);
   const ids=new Set();
   const hojas=n=>{if(n.type==='leaf')ids.add(n.id);else(n.children||[]).forEach(hojas);};
-  hojas(grupo);
-  const pendientes=calculo.res.emptyLeaves.filter(n=>ids.has(n.id)).reduce((s,n)=>s+(Number(n.effectiveWeight)||0),0);
-  const fraccion=categoria.peso/total;
+  calculo.estructura.children.filter(c=>idsCategorias.has(c.id)).forEach(hojas);
+  const sinCasillas=calculo.estructura.children.filter(c=>idsCategorias.has(c.id)&&!c.children.length).reduce((n,c)=>n+(Number(c.weight)||0)/total,0);
+  const pendientes=sinCasillas+calculo.res.emptyLeaves.filter(n=>ids.has(n.id)).reduce((n,x)=>n+(Number(x.effectiveWeight)||0),0);
+  const fraccion=peso/total;
   const evaluado=fraccion>0?Math.max(0,Math.min(1,1-pendientes/fraccion)):0;
-  const ancho=Math.max(0,Math.min(100,categoria.peso));
-  const valor=cat.directNota&&cat.slots>1?avgPond(cat.notas||[]):categoria.valor;
+  const conocidas=partes.filter(c=>c.valor!==null);
+  const pesoConocido=conocidas.reduce((n,c)=>n+c.peso,0);
+  const valor=serie.length===1&&cat.directNota&&cat.slots>1?avgPond(cat.notas||[]):pesoConocido?conocidas.reduce((n,c)=>n+c.valor*c.peso,0)/pesoConocido:null;
   const color=valor==null?'var(--fg2)':getColor(valor);
-  return `<div class="ficha-peso" role="img" aria-label="${esc(cat.nombre)}: ${r2(categoria.peso)}% del ramo, ${Math.round(evaluado*100)}% de su peso evaluado" style="--ficha-peso:${ancho}%;--ficha-evaluado:${evaluado*100}%;--ficha-color:${esc(color)}"><span class="ficha-peso-grupo"><i></i></span></div>`;
+  return `<div class="ficha-peso" role="img" aria-label="${esc(cat.nombre)}: ${r2(peso)}% del ramo, ${Math.round(evaluado*100)}% de su peso evaluado" style="--ficha-peso:${Math.max(0,Math.min(100,peso))}%;--ficha-evaluado:${evaluado*100}%;--ficha-color:${esc(color)}"><span class="ficha-peso-grupo"><i></i></span></div>`;
+}
+// Un índice de presentación: nunca mezcla categorías ni modifica la pauta.
+function pluralSerieFicha(base){
+  const enlace=base.match(/^(.*?) (de|del|para|con) (.+)$/i);
+  if(enlace)return pluralSerieFicha(enlace[1])+' '+enlace[2]+' '+enlace[3];
+  const especiales={examen:'Exámenes',certamen:'Certámenes',test:'Tests'};
+  return base.split(/\s+/).map(p=>especiales[p.toLowerCase()]||(/^[A-ZÁÉÍÓÚ]{1,}$/.test(p)?p:/ión$/i.test(p)?p.slice(0,-3)+'iones':/z$/i.test(p)?p.slice(0,-1)+'ces':/[aeiouáéíóú]$/i.test(p)?p+'s':p+'es')).join(' ');
+}
+function seriesNumeradasFicha(categorias){
+  const grupos=new Map(),porCategoria=new Map();
+  const entradas=categorias.map(cat=>{
+    const m=String(cat.nombre||'').trim().match(/^(.+?)\s*(\d+)$/);
+    if(!m||Number(m[2])<1)return null;
+    const base=m[1].trim().replace(/\s+n[°º.]$/i,'');
+    return {cat,base,numero:Number(m[2]),normal:base.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()};
+  }).filter(Boolean);
+  const nombres=new Set(entradas.map(e=>e.normal));
+  const abreviaturas={i:['interrogacion'],p:['prueba','parcial'],c:['control','certamen'],s:['solemne']};
+  const plurales={interrogacion:'Interrogaciones',prueba:'Pruebas',control:'Controles',solemne:'Solemnes',certamen:'Certámenes'};
+  for(const {cat,base,numero,normal} of entradas){
+    // C puede ser Control o Certamen: solo se expande si la pauta lo aclara.
+    const opciones=(abreviaturas[normal]||[]).filter(n=>nombres.has(n));
+    const clave=opciones.length===1?opciones[0]:normal==='i'?'interrogacion':normal;
+    if(!grupos.has(clave))grupos.set(clave,{nombre:plurales[clave]||pluralSerieFicha(base),categorias:[],numeros:new Set(),ambiguo:false});
+    const grupo=grupos.get(clave);
+    if(grupo.numeros.has(numero))grupo.ambiguo=true;
+    grupo.numeros.add(numero);grupo.categorias.push(cat);
+  }
+  for(const grupo of grupos.values())if(grupo.categorias.length>1&&!grupo.ambiguo)for(const cat of grupo.categorias)porCategoria.set(cat.id,grupo);
+  return porCategoria;
 }
 
 function botonNotaEnFilaHTML(catId,slot,nombre){
@@ -437,11 +475,6 @@ function renderRamo(){
     }
   }
 
-  const acciones=document.querySelector('.ramo-actions'),contadores=document.querySelector('.ramo-contadores');
-  const cantidadContadores=(faltasActivas(r)?1:0)+(Array.isArray(r.bonus)?r.bonus.length:0);
-  if(acciones)acciones.dataset.contadores=String(cantidadContadores);
-  if(contadores)contadores.hidden=cantidadContadores===0;
-
   const rw=document.getElementById('recuperativo-warning');
   if(rw&&recuperativo){
     rw.style.display='flex';rw.className='weight-setup-nudge';rw.style.width='auto';rw.style.margin='12px 20px';
@@ -514,6 +547,20 @@ function renderRamo(){
       <div class="empty-sub">${sub}</div>
     </div>`;
   }
+  const series=seriesNumeradasFicha(r.categorias.filter(c=>!(categoriaEximida(r,c)&&eximicion&&eximicion.regla.ocultaEvaluacion===true)));
+  const listasSeries=new Map();
+  const adjuntarCategoria=(nodo,cat)=>{
+    const serie=series.get(cat.id);
+    if(!serie){cl.appendChild(nodo);return;}
+    if(!listasSeries.has(serie)){
+      const tarjeta=document.createElement('section');tarjeta.className='eval-group ficha-serie';
+      const peso=resumenCategoriasCalculadas(r,calculo).filter(c=>serie.categorias.some(x=>x.id===c.id)).reduce((n,c)=>n+c.peso,0);
+      tarjeta.innerHTML=`<header class="ficha-serie-hd"><h2>${esc(serie.nombre)}</h2><span>${r2(peso)}% del ramo</span></header>${barraCategoriaFichaHTML(r,{nombre:serie.nombre},calculo,serie.categorias)}`;
+      const lista=document.createElement('div');lista.className='ficha-serie-lista';tarjeta.appendChild(lista);
+      listasSeries.set(serie,lista);cl.appendChild(tarjeta);
+    }
+    listasSeries.get(serie).appendChild(nodo);
+  };
   r.categorias.forEach(cat=>{
     // `normalize()` repara lo que llega al abrir la app, pero una integración
     // futura puede escribir una categoría después. La ficha debe mostrar esa
@@ -597,7 +644,7 @@ function renderRamo(){
           </div>
           ${barraPeso}
           <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:rows+detalleAusencia}</div>`;
-        cl.appendChild(wrap);
+        adjuntarCategoria(wrap,cat);
         return;
       }
       const g=notas[0]?notas[0].valor:null;
@@ -613,7 +660,7 @@ function renderRamo(){
         ${justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
-      cl.appendChild(row);
+      adjuntarCategoria(row,cat);
       return;
     }
     const descarte=descartes.find(d=>d.nodeId===cat.id);
@@ -677,7 +724,7 @@ function renderRamo(){
         ${justificada?detalleAusencia:notasHTML+detalleAusencia}
         ${justificada?'':`<button class="add-nota-btn" onclick="openAddNotaModal('${cat.id}');event.stopPropagation();">+ Agregar nota</button>`}
       </div>`;
-    cl.appendChild(card);
+    adjuntarCategoria(card,cat);
   });
 }
 
