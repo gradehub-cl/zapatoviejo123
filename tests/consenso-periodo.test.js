@@ -9,7 +9,26 @@ const assert=require('assert/strict'),fs=require('fs'),{PGlite}=require('@electr
  const esperadas=require('../bin/actualizar-registro-pautas').pautasCatalogo();
  const registradas=(await db.query('select tenant,clave,nombre,nombre_norm,periodo,definicion from pautas_catalogo_registro')).rows;
  const ordenar=filas=>filas.sort((a,b)=>JSON.stringify([a.tenant,a.clave,a.periodo]).localeCompare(JSON.stringify([b.tenant,b.clave,b.periodo])));
- assert.deepEqual(ordenar(registradas),ordenar(esperadas),'el servidor protege todas las pautas oficiales del catálogo vigente');
+ // Lucas, 2026-11-03: reglas de asistencia que no cambian la nota no se muestran.
+ // La semilla histórica conserva estos cuatro avisos. Su retiro del cliente no
+ // requiere SQL: solo exceptuamos esos textos; todo lo demás (también otras
+ // reglas informativas, fuentes, fechas y reglas de cálculo) se compara igual.
+ const retirados=new Set([
+  'Una evaluación atrasada con justificación formal se rinde el último día de clases',
+  'Si faltas con justificación a un control, lo recuperas con un control recuperativo en el último taller del semestre',
+  'Si faltas con justificación a las dos interrogaciones, el equipo docente evalúa tu caso',
+  'Las inasistencias a talleres no se justifican',
+ ]);
+ const sinAvisosRetirados=filas=>filas.map(f=>{
+  if(f.tenant!=='uc'||!['Dinámica','El misterioso caso del curso de ficción policial (Edición especial Santiago Negro)'].includes(f.nombre))return f;
+  const definicion={...f.definicion};
+  for(const campo of ['reglasDelCurso','noCalcula'])if(Array.isArray(definicion[campo])){
+   definicion[campo]=definicion[campo].filter(t=>!retirados.has(t));
+   if(!definicion[campo].length)delete definicion[campo];
+  }
+  return {...f,definicion};
+ });
+ assert.deepEqual(ordenar(sinAvisosRetirados(registradas)),ordenar(sinAvisosRetirados(esperadas)),'el servidor protege todas las pautas oficiales; solo difieren los cuatro avisos retirados');
  assert.equal(registradas.filter(p=>p.tenant==='udd').length,23,'incluye las nuevas pautas UDD');
  const a=[{nombre:'Pruebas',peso:60},{nombre:'Examen',peso:40}],b=[{nombre:'Pruebas',peso:70},{nombre:'Examen',peso:30}];
  const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');

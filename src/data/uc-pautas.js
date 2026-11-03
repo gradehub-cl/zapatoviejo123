@@ -282,7 +282,6 @@ const PRESETS_UC={
     ],
     reglasDelCurso:[
       'Necesitas asistir al menos al 75% de las clases; el programa indica que no cumplirlo reprueba el curso',
-      'Una evaluación atrasada con justificación formal se rinde el último día de clases',
     ],
   },
   // Formación General UC · TSL-596 · programa oficial 2026-2. La infografía
@@ -538,7 +537,7 @@ const PRESETS_UC={
     // El programa dice que la nota de la interrogación "será reemplazada por la
     // nota del examen"; en la práctica del curso su porcentaje pasa al examen
     // (decisión de Lucas, 2026-10-08). Faltar a las dos es "caso a caso" y no
-    // se modela: la ficha lo dice abajo.
+    // se modela.
     ausenciasJustificadas:{
       traspasos:[
         {desde:'Interrogación 1',hacia:'Examen'},
@@ -552,11 +551,6 @@ const PRESETS_UC={
     bonus:[
       {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
         ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
-    ],
-    noCalcula:[
-      'Si faltas con justificación a un control, lo recuperas con un control recuperativo en el último taller del semestre',
-      'Si faltas con justificación a las dos interrogaciones, el equipo docente evalúa tu caso',
-      'Las inasistencias a talleres no se justifican',
     ],
   },
   // El laboratorio tiene nota propia: se aprueba o se reprueba por sí solo, y
