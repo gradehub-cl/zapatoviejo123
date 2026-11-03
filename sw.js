@@ -87,7 +87,14 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           return response;
         })
-        .catch(() => caches.match('/index.html'))
+        // Sin red: la app misma es la página offline (lee localStorage).
+        // Pages responde /index.html con un 308 a /, así que esa entrada del
+        // precache es una redirección, y Chrome no acepta una redirección como
+        // respuesta a una navegación: salía el dinosaurio. Se sirve la página
+        // pedida o '/', y si la copia vino redirigida se rearma sin la marca.
+        .catch(() => caches.match(request)
+          .then(r => r || caches.match('/'))
+          .then(r => r && r.redirected ? new Response(r.body, r) : r))
     );
     return;
   }

@@ -16,6 +16,11 @@ Desde la raíz del repo, en macOS (Chrome y sips):
   sips -z 512 512 "$ICON_TMP/icono-2x.png" --out icon-512.png
   sips -z 192 192 "$ICON_TMP/icono-2x.png" --out icon-192.png
 
+El maskable (Android/TWA) sale del SVG que deja preparar-icono.cjs en bin/:
+  mismo comando de Chrome con --screenshot="$ICON_TMP/maskable-2x.png" y
+  "file://$PWD/bin/icon-maskable.svg" en vez de esta página, y luego
+  sips -z 512 512 "$ICON_TMP/maskable-2x.png" --out icon-maskable-512.png
+
 Para la tarjeta social, ver bin/og-editorial.html.
 -->
 <html lang="es">
