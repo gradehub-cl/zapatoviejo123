@@ -38,15 +38,16 @@ const estadisticas=label=>{
 console.log('\n=== Etiqueta maliciosa desde un respaldo ===');
 const payload='<img src=x onerror=alert(1)>';
 let h=estadisticas(payload);
-chk('Estadísticas pinta la frase de comparación', h.includes('stats-situation-reading'));
+// 2026-11-03: Estadísticas ya no repite la comparación con el semestre
+// anterior (sale en Inicio). Lo que se sigue exigiendo es que la etiqueta no
+// llegue cruda al HTML en ninguna parte de la pantalla.
+chk('Estadísticas ya no pinta la frase de comparación', !h.includes('stats-situation-reading'));
 chk('el <img del respaldo no queda crudo en el HTML', !h.includes('<img src=x'));
 // El Historial de más abajo ya la escapaba; lo que se revisa es la frase.
-const frase=(h.match(/stats-situation-reading">([^<]*)</)||[])[1]||'';
-chk('la frase la muestra como texto escapado', frase.includes('&lt;img src=x onerror=alert(1)&gt;'));
 
 console.log('\n=== Etiqueta normal, igual que antes ===');
 h=estadisticas('2026-1');
-chk('"Vas 0,50 puntos sobre 2026-1."', /Vas 0[.,]50 puntos sobre 2026-1\./.test(h));
+chk('sin la frase "Vas 0,50 puntos sobre 2026-1."', !/Vas 0[.,]50 puntos sobre/.test(h));
 
 console.log('\n=== normalize deja la etiqueta como texto ===');
 const label=v=>{ctx.__h=v;return vm.runInContext(`normalize({ramos:[],historial:[{id:'h1',label:__h,ramos:[]}]}).historial[0].label`,ctx);};

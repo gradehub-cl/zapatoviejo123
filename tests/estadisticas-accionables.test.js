@@ -16,7 +16,7 @@ chk('el estado temprano reconoce el semestre sin notas y lo que ya está configu
   stats.includes('Parte con tu primera nota')&&stats.includes('evaluaciones configuradas'));
 // El avance conserva su dato y lectura; el contorno reemplaza el círculo.
 chk('la situación conserva el peso evaluado y su lectura para VoiceOver',
-  stats.includes('tarjetaEvolucionStatsHTML(g,avance.pct,')&&render.includes('Peso evaluado')&&render.includes('stats-avance-cifra'));
+  stats.includes('tarjetaEvolucionStatsHTML(g,avance.pct)')&&render.includes('Peso evaluado')&&render.includes('stats-avance-cifra'));
 chk('el promedio del semestre usa el gráfico, sin etiquetar al semestre como aprobado',
   render.includes('Tu promedio en el tiempo')&&render.includes('stats-evolucion-valor')&&
   !stats.includes('anilloPromedio='));

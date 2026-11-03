@@ -36,15 +36,7 @@ function renderStats(){
     if((S.historial||[]).length&&!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g);
   } else {
     const avance=avanceEvaluaciones(S.ramos);
-    const historialPrevio=lecturaHistorialPrevio(S.historial);
-    const previo=historialPrevio.previo;
-    const diff=previo&&g!==null?g-previo.gpa:null;
-    const tendencia=diff===null?'':Math.abs(diff)<0.05?'igual que':diff>0?'sobre':'bajo';
-    const lectura=diff===null
-      ? historialPrevio.estado==='sin_notas'
-        ? 'Tu semestre archivado todavía no tiene notas para compararlo.'
-        : 'Todavía no tienes un semestre archivado con el que compararte.'
-      : Math.abs(diff)<0.05?`Vas igual que en ${esc(previo.label||'el semestre anterior')}.`:`Vas ${nf(Math.abs(diff),2)} puntos ${tendencia} ${esc(previo.label||'el semestre anterior')}.`;
+    // La comparación con el semestre anterior ya sale en Inicio (Lucas, 2026-11-03).
     const falta=loQueFaltaPorRamo(S.ramos);
     const filaNecesidad=x=>{
       const imposible=x.necesita>7.05;
@@ -66,7 +58,7 @@ function renderStats(){
       </button>`;
     };
     // La evolución reutiliza el motor; el contorno muestra el mismo avance.
-    if(!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g,avance.pct,previo?lectura:'');
+    if(!seccionOculta('ritmo'))piezas.ritmo=tarjetaEvolucionStatsHTML(g,avance.pct);
     // Qué mueve el promedio: cada ramo suma o resta según cuánto se aleja del
     // promedio y cuánto pesa. Verde lo que suma y rojo lo que resta (Lucas,
     // 2026-10-26): acá el color dice hacia dónde empuja, no si se aprueba.
