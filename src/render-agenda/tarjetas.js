@@ -191,6 +191,6 @@ function agendaRendidasHTML(items,pendientes){
       <span class="ag-rendidas-hint">${agendaRendidasAbiertas?'Ver última':'Ver todas'}</span>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
     </button>
-    <div class="ag-rendidas-list">${visibles.map(e=>agendaEventoHTML(e,agendaRendidaHTML(e),pendientes,'done')).join('')}</div>
+    <div class="seccion-lista ag-rendidas-list">${visibles.map(e=>agendaEventoHTML(e,agendaRendidaHTML(e),pendientes,'done')).join('')}</div>
   </section>`;
 }

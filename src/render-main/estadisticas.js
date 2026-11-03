@@ -104,7 +104,7 @@ function renderStats(){
         <div class="section-hd" style="padding:0 20px 8px;">
           <span class="section-hd-title">Tus prioridades hoy</span>
         </div>
-        <div style="padding:0 20px;">
+        <div class="stat-card stats-prioridades seccion-lista">
           ${falta.slice(0,3).map(filaNecesidad).join('')}
         </div>`;
       }
@@ -146,7 +146,7 @@ function renderStats(){
     let hist=`<div class="section-hd stats-history-heading" style="padding:0 20px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <span class="section-hd-title">Historial</span>
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
-    </div>`;
+    </div><div class="stat-card stats-history-module seccion-lista">`;
     const acumulado=promedioAcumuladoCierre(validos);
     if(acumulado!==null)hist+=`<p class="stats-hist-vacio">Promedio del historial: <strong>${fmtPromedio(acumulado)}</strong></p>`;
     if(!validos.length){
@@ -206,7 +206,7 @@ function renderStats(){
           </div>`;
       });
     }
-    piezas.historial=hist;
+    piezas.historial=hist+'</div>';
   }
 
   // Tu olfato: cuánto te sacas de verdad cuando dices que te fue bien o mal.

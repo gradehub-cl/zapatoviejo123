@@ -205,22 +205,22 @@ function renderHome(){
       const daysLabel=ne.daysUntil===0?'Hoy':ne.daysUntil===1?'Mañana':`${ne.daysUntil} días`;
       const fecha=[ne.date.getFullYear(),String(ne.date.getMonth()+1).padStart(2,'0'),String(ne.date.getDate()).padStart(2,'0')].join('-');
       cards.push(`
-        <button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(ne.ramo.id)}')">
+        <section class="home-seccion"><h2 class="section-hd-title home-seccion-titulo">Próxima evaluación</h2><button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(ne.ramo.id)}')">
           <span class="insight-body">
-            <span class="insight-label">Próxima evaluación</span>
+
             <span class="insight-title">${esc(ne.nombre)}</span>
             <span class="insight-meta">${esc(ne.ramo.nombre)}</span>
           </span>
           <span class="home-insight-value"><strong>${daysLabel}</strong><small>${esc(fechaCorta(fecha))}</small></span>
           <span class="chevron-r" aria-hidden="true">›</span>
-        </button>`);
+        </button></section>`);
     }
     const risky=mostRiskyRamo();
     if(risky){
       cards.push(`
-        <button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(risky.ramo.id)}')">
+        <section class="home-seccion"><h2 class="section-hd-title home-seccion-titulo">${risky.imposible?'Ya no alcanza':'Ramo en riesgo'}</h2><button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(risky.ramo.id)}')">
           <span class="insight-body">
-            <span class="insight-label">${risky.imposible?'Ya no alcanza':'Ramo en riesgo'}</span>
+
             <span class="insight-title">${esc(risky.ramo.nombre)}</span>
             <span class="insight-meta">${risky.imposible
               ?'Con lo pendiente ya no se llega a 4,0'
@@ -228,22 +228,22 @@ function renderHome(){
           </span>
           <span class="home-insight-value"><strong style="color:${getColorRamo(risky.ramo,risky.avg)}">${fmtPromedio(risky.avg)}</strong><small>Promedio</small></span>
           <span class="chevron-r" aria-hidden="true">›</span>
-        </button>`);
+        </button></section>`);
     }
     // Se conserva la última nota como respaldo si no hay próxima ni riesgo.
     if(cards.length===0){
       const lg=latestGrade();
       if(lg){
         cards.push(`
-          <button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(lg.ramo.id)}')">
+          <section class="home-seccion"><h2 class="section-hd-title home-seccion-titulo">Última nota</h2><button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(lg.ramo.id)}')">
             <span class="insight-body">
-              <span class="insight-label">Última nota</span>
+
               <span class="insight-title">${esc(lg.cat.nombre)}</span>
               <span class="insight-meta">${esc(lg.ramo.nombre)}</span>
             </span>
             <span class="home-insight-value"><strong style="color:${getColor(lg.nota.valor)}">${textoCalificacionNota(lg.nota)}</strong><small>Nota</small></span>
             <span class="chevron-r" aria-hidden="true">›</span>
-          </button>`);
+          </button></section>`);
       }
     }
     insightsEl.innerHTML=cards.join('');

@@ -57,10 +57,11 @@ function agendaPendientesHTML(items,ahora=new Date()){
   return `<section aria-label="Pendientes" class="ag-pendientes">
     <div class="ag-list-hd"><span class="section-hd-title">Pendientes</span><span class="ag-count">${items.length}</span>${
       agendaPendientesAbiertas&&ocultas>0?`<button type="button" class="ag-rest-toggle" data-agenda-action="toggle-pendientes">Ver menos</button>`:''}</div>
-    ${visibles.map((p,i)=>{const fila=filaPendiente(p);return plegada&&i===AGENDA_RESTANTES_VISIBLES?fantasma(fila):fila;}).join('')}
+    <div class="seccion-lista ag-pendientes-lista">${visibles.map((p,i)=>{const fila=filaPendiente(p);return plegada&&i===AGENDA_RESTANTES_VISIBLES?fantasma(fila):fila;}).join('')}
     ${plegada?`<button type="button" class="ag-rest-ver" data-agenda-action="toggle-pendientes">Ver ${ocultas} más</button>`:''}
+    </div>
   </section>`;
-  function filaPendiente(p){return p.tipo==='recorregir'?`<article class="ag-recorreccion-row" style="margin-bottom:9px;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+  function filaPendiente(p){return p.tipo==='recorregir'?`<article class="ag-recorreccion-row">
       <span class="ag-recorreccion-mark" aria-hidden="true"></span>
       <button type="button" data-agenda-action="ver-pendiente" data-ramo-id="${esc(p.ramo.id)}" data-cat-id="${esc(p.cat.id)}" data-nota-id="${esc(p.nota.id)}"
         style="min-width:0;min-height:44px;padding:0;border:0;background:none;color:var(--fg);text-align:left;font:inherit">

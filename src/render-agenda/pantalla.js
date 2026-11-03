@@ -100,7 +100,7 @@ function renderAgenda(){
     // si las dos gritan igual, el estudiante tiene que leer las dos para saber
     // cuál es primero. Ahora la primera ocupa el ancho y la segunda va debajo,
     // más contenida — se ve cuál manda antes de leer nada.
-    html+=`<div class="ag-priority-stack">${destacadas.map((e,i)=>agendaEventoHTML(e,agendaDestacadaHTML(e,i),porVenir,i===0?'priority':'priority-sec')).join('')}</div>`;
+    html+=`<div class="ag-list-hd"><span class="section-hd-title">Tus prioridades</span></div><div class="seccion-lista ag-priority-stack">${destacadas.map((e,i)=>agendaEventoHTML(e,agendaDestacadaHTML(e,i),porVenir,i===0?'priority':'priority-sec')).join('')}</div>`;
     // La alerta de "necesitas X para aprobar" es del ramo, no de la evaluación:
     // se muestra solo en la más prioritaria de cada ramo para no repetirla.
     const ramosVistos=new Set(destacadas.map(e=>e.ramo.id));
@@ -120,7 +120,7 @@ function renderAgenda(){
         agendaRestantesAbiertas&&ocultas>0
           ? `<button type="button" class="ag-rest-toggle" data-agenda-action="toggle-restantes">Ver menos</button>`
           : ''}</div>`;
-      html+=`<div class="ag-rest-list${plegada?' plegada':''}">${
+      html+=`<div class="seccion-lista ag-rest-list${plegada?' plegada':''}">${
         visibles.map((e,i)=>{
           const fantasma=plegada&&i===AGENDA_RESTANTES_VISIBLES;
           const fila=agendaEventoHTML(e,agendaItemHTML(e,medidorRamoAgendaHTML),porVenir);

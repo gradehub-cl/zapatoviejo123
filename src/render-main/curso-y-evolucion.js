@@ -12,7 +12,7 @@ async function pintarPosicionesCurso(){
   if(!filas.length){
     // Con menos de cinco no hay comparación posible, y es el caso normal al
     // principio. Se dice por qué en vez de dejar un hueco.
-    const titulo=document.getElementById('stats-curso-titulo');if(titulo)titulo.hidden=true;
+    const titulo=document.getElementById('stats-curso-titulo');if(titulo)titulo.hidden=false;
     box.innerHTML=`<p class="stats-curso-vacio">Aún no hay suficientes datos para compararte con los demás.</p>`;
     return;
   }
