@@ -4336,11 +4336,12 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #home-insights .chevron-r{color:var(--fg2);font-size:1.4rem;font-weight:400;}
 #screen-home .sim-global-cta{justify-content:space-between;gap:12px;min-height:56px;margin-top:20px;padding:18px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font-size:.875rem;font-weight:400;text-align:left;}
 #screen-home .sim-global-cta .chevron-r{color:var(--fg2);font-size:1.4rem;}
-#screen-home .home-clases{margin:30px 20px 4px;padding-top:22px;border-top:1px solid var(--border);}
-#screen-home .home-clases-card{min-height:88px;padding:0;border:0;border-radius:0;background:transparent;overflow:visible;transform:none;}
+/* Justo bajo la lista de ramos: tarjeta con contorno fino en el acento (Lucas, 2026-11-03). */
+#screen-home .home-clases{margin:16px 20px 4px;}
+#screen-home .home-clases-card{min-height:88px;padding:18px 16px;border:1px solid var(--primary);border-radius:8px;background:var(--card);overflow:visible;transform:none;}
 #screen-home .home-clases-card::before{display:none;}
 #screen-home .home-clases-copy{gap:0;}
-#screen-home .home-clases-kicker{color:var(--fg2);font-size:.6875rem;font-weight:600;letter-spacing:.08em;margin-bottom:8px;}
+#screen-home .home-clases-kicker{color:var(--primary);font-size:.6875rem;font-weight:600;letter-spacing:.08em;margin-bottom:8px;}
 #screen-home .home-clases-description{color:var(--fg2);font-size:.75rem;line-height:1.5;margin-top:6px;}
 #screen-home .home-clases-link{color:var(--primary);font-size:.8125rem;font-weight:600;line-height:1.5;margin-top:12px;}
 #screen-home .home-clases-card .chevron-r{color:var(--fg2);}

@@ -458,10 +458,6 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div id="home-pautas-propuestas" role="status" aria-live="polite" style="display:none;"></div>
     <div id="home-recorrecciones" style="display:none;"></div>
     <div id="home-ramos"></div>
-    <div id="home-insights" style="display:none;"></div>
-    <button class="sim-global-cta" id="sim-global-btn" onclick="openSimGlobalModal()" style="display:none;">
-      <span>Simular el semestre completo</span><span class="chevron-r" aria-hidden="true">›</span>
-    </button>
     <section class="home-clases" id="home-clases" aria-labelledby="home-clases-title">
       <button type="button" class="home-clases-card" onclick="openCatalogoClases()">
         <span class="home-clases-copy">
@@ -473,6 +469,10 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <span class="chevron-r" aria-hidden="true">›</span>
       </button>
     </section>
+    <div id="home-insights" style="display:none;"></div>
+    <button class="sim-global-cta" id="sim-global-btn" onclick="openSimGlobalModal()" style="display:none;">
+      <span>Simular el semestre completo</span><span class="chevron-r" aria-hidden="true">›</span>
+    </button>
     <!-- Aviso de instalación. Va acá, al final de la lista, y no flotando:
          se lee cuando se llega, se va con el scroll y nunca tapa un botón.
          app.js decide si aparece (ver `pintarAvisoInstalar`). -->
