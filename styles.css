@@ -4529,9 +4529,12 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .stats-evolucion-clave{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:8px 0 16px;color:var(--fg2);font-size:.6875rem;line-height:1.5;}
 .stats-evolucion-clave i{width:18px;border-top:1px dashed var(--fg2);}
 .stats-evolucion-vacio{font-size:.875rem;line-height:1.5;color:var(--fg2);text-align:center;padding:24px 12px;}
-.stats-evolucion-rangos{display:flex;gap:4px;padding:4px;border-radius:28px;background:var(--muted);}
-.stats-evolucion-rangos button{flex:1;min-width:44px;min-height:44px;border:0;border-radius:24px;background:transparent;color:var(--fg2);padding:10px 12px;font:inherit;font-size:.8125rem;line-height:1.5;cursor:pointer;}
-.stats-evolucion-rangos button[aria-pressed="true"]{background:var(--primary);color:var(--primary-fg);font-weight:650;}
+/* Rango del gráfico como en Racional: texto solo, el elegido en blanco con
+   una raya corta debajo. Sin cápsula ni relleno. */
+.stats-evolucion-rangos{display:flex;justify-content:center;gap:8px;padding:0;margin-top:8px;background:none;}
+.stats-evolucion-rangos button{position:relative;min-width:44px;min-height:44px;border:0;border-radius:8px;background:transparent;color:var(--fg2);padding:10px 14px;font:inherit;font-size:.9375rem;line-height:1.4;cursor:pointer;}
+.stats-evolucion-rangos button[aria-pressed="true"]{color:var(--fg);font-weight:600;}
+.stats-evolucion-rangos button[aria-pressed="true"]::after{content:"";position:absolute;left:50%;bottom:6px;width:1.25rem;height:2px;border-radius:1px;background:currentColor;transform:translateX(-50%);}
 .stats-evolucion-rangos button:focus-visible,.stats-evolucion-tabla summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 .stats-evolucion-tabla{margin-top:12px;}
 .stats-evolucion-tabla summary{min-height:44px;display:flex;align-items:center;gap:8px;color:var(--fg2);font-size:.75rem;cursor:pointer;}
