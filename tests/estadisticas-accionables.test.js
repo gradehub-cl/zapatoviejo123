@@ -122,10 +122,15 @@ console.log('\n=== Explorar cada semestre sin apuntar a círculos pequeños ==='
   control.onpointerdown({button:0,isPrimary:true,pointerId:1,pointerType:'touch',clientX:20,preventDefault(){}});
   chk('tocar el borde selecciona el primer semestre y su promedio con dos decimales',texto.textContent==='2025-2'&&valor.textContent==='5.37'&&!nota.hidden&&control['aria-valuenow']===0);
   chk('la nota del borde izquierdo queda dentro del gráfico',nota.style.left==='0px');
+  chk('en táctil el detalle entero queda sobre el trazado, fuera del dedo',parseFloat(nota.style.top)+nota.offsetHeight<0);
   control.onpointermove({pointerType:'touch',clientX:115});
   chk('al arrastrar escoge el semestre más cercano y actualiza el lector de pantalla',texto.textContent==='2026-1'&&valor.textContent==='6.12'&&control['aria-valuetext']==='2026-1, promedio 6.12');
   control.onpointermove({pointerType:'touch',clientX:350});control.onpointerup();
   chk('seguir fuera del extremo no inventa puntos y deja la notita visible al soltar',control['aria-valuenow']===2&&!nota.hidden&&nota.style.left==='110px');
+  control.onpointerdown({button:0,isPrimary:true,pointerId:2,pointerType:'pen',clientX:115,clientY:120,preventDefault(){}});control.onpointerup();
+  chk('el lápiz también sitúa el detalle completo sobre el trazado',parseFloat(nota.style.top)+nota.offsetHeight<0);
+  control.onpointermove({pointerType:'mouse',clientX:350,clientY:120});
+  chk('con mouse vuelve a la posición anterior dentro del trazado',parseFloat(nota.style.top)>=0);
   control.onkeydown({key:'ArrowLeft',preventDefault(){}});
   chk('las flechas también permiten recorrer las notas',texto.textContent==='2026-1'&&cursor.style.left==='50%');
   control.onkeydown({key:'Escape',preventDefault(){}});

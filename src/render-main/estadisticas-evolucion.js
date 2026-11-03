@@ -58,7 +58,7 @@ function hitosEvolucionHTML(puntos,limite){
   return `<ol class="stats-evolucion-hitos" role="list" aria-label="Notas de más reciente a más antigua">${recientes.slice(0,limite).map(p=>{
     const sube=p.delta!==null&&p.delta>=0.005,baja=p.delta!==null&&p.delta<=-0.005;
     return `<li><div class="stats-hito-evaluacion"><strong>${esc(p.nombre)}</strong><span>${esc(p.ramo)}</span><span>${p.fecha?`<time datetime="${esc(p.fecha)}">${esc(textoFechaEvolucion(p))}</time>`:'Sin fecha'}</span></div>
-      <div class="stats-hito-nota"><span>Nota</span><strong>${nf(p.nota,2).replace('.',',')}</strong></div>
+      <div class="stats-hito-nota"><span>Nota</span><strong class="${colorClass(p.nota)}" style="color:${getColor(p.nota)}">${nf(p.nota,2).replace('.',',')}</strong></div>
       <p class="stats-hito-promedio">Promedio ${p.valor===null?'—':nf(p.valor,2).replace('.',',')} <span class="${sube?'es-sube':baja?'es-baja':'es-igual'}">${sube?'↑ ':baja?'↓ ':''}${esc(textoDeltaEvolucion(p.delta))}${p.delta===null||Math.abs(p.delta)<0.005?'':' puntos'}</span></p></li>`;
   }).join('')}</ol>${recientes.length>limite?`<button type="button" class="stats-linea-mas" onclick="verMasLineaTiempoStats()">Ver más</button>`:''}`;
 }

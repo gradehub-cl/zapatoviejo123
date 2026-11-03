@@ -39,6 +39,13 @@ assert(!run('contenidoEvolucionStatsHTML()').includes('data-evolucion-rango="car
 // La línea de tiempo parte por cinco hitos recientes y conserva todo el detalle.
 ctx.__hitos=Array.from({length:14},(_,i)=>({nombre:'Evaluación '+i,ramo:'Ramo propio',nota:4+i/10,valor:5,delta:i%2?-.1:.1,fecha:'2026-11-03',tiempo:new Date(2026,10,3).getTime(),origen:'evaluacion'}));
 const linea=run('lineaTiempoEvolucionHTML(__hitos)');assert.equal((linea.match(/<li>/g)||[]).length,5);assert(linea.indexOf('Evaluación 13')<linea.indexOf('Evaluación 12'));assert(linea.includes('↑ +0,10'));assert(linea.includes('↓ −0,10'));assert(linea.includes('Ver más'));
+// Lucas, 2026-11-03: la nota lleva el semáforo; promedio y variación conservan su color.
+ctx.__colores=[3,4.5,6].map(nota=>({nombre:'Prueba',ramo:'Sintético',nota,valor:5,delta:.1}));
+const colores=run('hitosEvolucionHTML(__colores,5)');
+assert(colores.includes('<strong class="bad" style="color:'+run('getColor(3)')+'">3,00</strong>'));
+assert(colores.includes('<strong class="warn" style="color:'+run('getColor(4.5)')+'">4,50</strong>'));
+assert(colores.includes('<strong class="good" style="color:'+run('getColor(6)')+'">6,00</strong>'));
+assert(colores.includes('Promedio 5,00 <span class="es-sube">↑ +0,10 puntos</span>'));
 const contorno=run('contornoAvanceStatsHTML(36)');assert(contorno.includes('stroke-dasharray="36 100"'));assert(contorno.includes('pathLength="100"'));assert(!contorno.includes('anillo'));assert(contorno.includes('36%'));
 // El rango no vuelve a pedir datos ni repinta otros bloques ni mueve el scroll.
 const scroll={scrollTop:411},zona={innerHTML:'',closest:()=>scroll,querySelector:()=>({focus(o){assert.equal(o.preventScroll,true)}})};
