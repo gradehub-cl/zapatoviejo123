@@ -123,13 +123,9 @@ function pintarMetaNotasSombra(m){
   chip.setAttribute('data-sombra-meta',m.necesaria===null?'':textoNotaSombra(m.necesaria));
   if(m.estado==='cerrado')chip.textContent=`Terminas con ${textoNotaSombra(m.final)}`;
   else if(m.estado==='ya')chip.textContent=m.fijas.size?'Con lo fijado ya alcanza':`Ya aprobaste · aunque saques ${textoNotaSombra(m.minimo)}`;
-  else{
-    chip.innerHTML=medidorFichaHTML(m.necesaria);
-    if(m.fijas.size||m.auto.size){
-      chip.querySelector('.ficha-medidor-contexto').textContent='En las otras pendientes';
-      chip.querySelector('.ficha-medidor').setAttribute('aria-label',`Necesitas ${textoNotaSombra(m.necesaria)} en las otras evaluaciones pendientes`);
-    }
-  }
+  // La ficha ya no tiene medidor (#977): buscar sus piezas lanzaba un error que
+  // cortaba el repintado del slider y, con un examen en su mínimo, la ficha.
+  else chip.innerHTML=medidorFichaHTML(m.estado==='no'?Infinity:m.necesaria,'',false,m.fijas.size||m.auto.size?'en las otras pendientes':'en lo pendiente');
 }
 function pintarValoresNotasSombra(r,m){
   pintarMetaNotasSombra(m);

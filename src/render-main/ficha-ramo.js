@@ -22,11 +22,12 @@ function toggleReglasRamo(id){
   renderRamo();
 }
 // Lucas, 2026-11-03: la ficha vuelve al mensaje; el medidor queda en Estadísticas.
-function medidorFichaHTML(needed,cual='',condicional=false){
+// `donde` cambia solo el lugar: con notas sombra fijadas es «en las otras pendientes».
+function medidorFichaHTML(needed,cual='',condicional=false,donde='en lo pendiente'){
   const cifra=needed>7?'':nfNecesaria(needed).replace('.',',');
-  const lectura=needed>7?`Ya no es posible aprobar${cual}`:condicional?`Con ${cifra} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${cifra} en lo pendiente para aprobar${cual}`;
+  const lectura=needed>7?`Ya no es posible aprobar${cual}`:condicional?`Con ${cifra} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${cifra} ${donde} para aprobar${cual}`;
   const numero=needed>7?'':`<strong style="color:${esc(exigenciaNotaNecesaria(needed).color)}">${esc(cifra)}</strong>`;
-  const mensaje=needed>7?esc(lectura):condicional?`Con ${numero} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${numero} en lo pendiente para aprobar${esc(cual)}`;
+  const mensaje=needed>7?esc(lectura):condicional?`Con ${numero} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${numero} ${esc(donde)} para aprobar${esc(cual)}`;
   return `<span class="ficha-mensaje" aria-label="${esc(lectura)}">${mensaje}</span>`;
 }
 
@@ -64,6 +65,10 @@ function pluralSerieFicha(base){
   const especiales={examen:'Exámenes',certamen:'Certámenes',test:'Tests'};
   return base.split(/\s+/).map(p=>especiales[p.toLowerCase()]||(/^[A-ZÁÉÍÓÚ]{1,}$/.test(p)?p:/ión$/i.test(p)?p.slice(0,-3)+'iones':/z$/i.test(p)?p.slice(0,-1)+'ces':/[aeiouáéíóú]$/i.test(p)?p+'s':p+'es')).join(' ');
 }
+// El examen va al final de la ficha aunque la pauta lo tenga antes (Lucas,
+// 2026-11-03). Solo cambia el orden en pantalla; r.categorias queda igual.
+const esExamenFicha=c=>/\bexamen\b/.test(String(c?.nombre||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase());
+function ordenCategoriasFicha(categorias){return [...categorias].sort((a,b)=>esExamenFicha(a)-esExamenFicha(b));}
 function seriesNumeradasFicha(categorias){
   const grupos=new Map(),porCategoria=new Map();
   const entradas=categorias.map(cat=>{
@@ -562,7 +567,7 @@ function renderRamo(){
     }
     listasSeries.get(serie).appendChild(nodo);
   };
-  r.categorias.forEach(cat=>{
+  ordenCategoriasFicha(r.categorias).forEach(cat=>{
     // `normalize()` repara lo que llega al abrir la app, pero una integración
     // futura puede escribir una categoría después. La ficha debe mostrar esa
     // evaluación vacía —no borrar visualmente toda la pauta— hasta que se
