@@ -93,14 +93,15 @@ function renderAgenda(){
     const ramosConAviso=new Set();
     destacadas.forEach(e=>{e.mostrarAlerta=!ramosConAviso.has(e.ramo.id);ramosConAviso.add(e.ramo.id);});
     const restantes=ordenadas.slice(destacadas.length);
-    html+=`<div class="ag-priority-heading">${agendaOrdenHTML(agendaOrdenActual)}</div>`;
     // Las dos iban lado a lado, en mitades iguales. En 375px esa mitad no
     // alcanzaba para el contenido: "Métodos Matemáti", "es lo que más te
     // convie…". Y sobre todo, dos cosas del mismo tamaño no son una jerarquía:
     // si las dos gritan igual, el estudiante tiene que leer las dos para saber
     // cuál es primero. Ahora la primera ocupa el ancho y la segunda va debajo,
     // más contenida — se ve cuál manda antes de leer nada.
-    html+=`<div class="ag-list-hd"><span class="section-hd-title">Tus prioridades</span></div><div class="seccion-lista ag-priority-stack">${destacadas.map((e,i)=>agendaEventoHTML(e,agendaDestacadaHTML(e,i),porVenir,i===0?'priority':'priority-sec')).join('')}</div>`;
+    // El orden va en la misma línea del título, como pestañas de texto
+    // (Lucas, 2026-11-03: la cápsula grande no calzaba con el resto).
+    html+=`<div class="ag-list-hd ag-priority-heading"><span class="section-hd-title">Tus prioridades</span>${agendaOrdenHTML(agendaOrdenActual)}</div><div class="seccion-lista ag-priority-stack">${destacadas.map((e,i)=>agendaEventoHTML(e,agendaDestacadaHTML(e,i),porVenir,i===0?'priority':'priority-sec')).join('')}</div>`;
     // La alerta de "necesitas X para aprobar" es del ramo, no de la evaluación:
     // se muestra solo en la más prioritaria de cada ramo para no repetirla.
     const ramosVistos=new Set(destacadas.map(e=>e.ramo.id));

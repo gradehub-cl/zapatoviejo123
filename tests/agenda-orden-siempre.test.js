@@ -36,8 +36,9 @@ chk('el encabezado semanal ya no lo lleva adentro',
 // significa algo. Y es el mismo lugar donde el orden decide qué se destaca.
 chk('lo lleva el encabezado de prioridades, que se pinta con cualquier pendiente',
   /ag-priority-heading[\s\S]{0,220}\$\{agendaOrdenHTML\(agendaOrdenActual\)\}/.test(render));
+// Desde el 2026-11-03 comparte línea con «Tus prioridades», más abajo en el bloque.
 chk('y ese encabezado solo depende de que haya algo por venir',
-  /if\(porVenir\.length>0\)\{[\s\S]{0,900}ag-priority-heading/.test(render));
+  /if\(porVenir\.length>0\)\{[\s\S]{0,1600}ag-priority-heading/.test(render));
 
 console.log('\n=== Orden local y tres controles accesibles ===');
 chk('Fecha es el orden inicial, sin escribir en el estado académico', /let agendaOrdenActual='fecha'/.test(render));

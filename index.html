@@ -513,9 +513,11 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div id="no-calcula-warning" style="display:none;"></div>
     <div id="eximicion-warning" style="display:none;"></div>
     <div id="recuperativo-warning" style="display:none;"></div>
-    <div id="cat-list"></div>
+    <!-- Los contadores van antes de las evaluaciones: se tocan seguido y al
+         final de la lista no se veían (Lucas, 2026-11-03). -->
     <div id="faltas-contador" style="display:none;"></div>
     <div id="bonus-ramo" style="display:none;"></div>
+    <div id="cat-list"></div>
     <button class="add-cat-btn" onclick="openPautaManualModal()">Editar evaluaciones</button>
     <button class="rep-link" id="ramo-report" style="display:none;">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15V4h16l-3 4 3 4H4"/><path d="M4 21v-6"/></svg>

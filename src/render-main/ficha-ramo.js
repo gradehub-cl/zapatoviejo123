@@ -419,7 +419,7 @@ function renderRamo(){
         :quedan===1?`Te queda 1 de ${limite}.`
         :quedan===0?`Llegaste al máximo de ${limite}.`
         :`Pasaste el máximo de ${limite} por ${-quedan}.`;
-      fw.style.display='flex';
+      fw.style.display='grid';
       fw.className='faltas-card'+(quedan!==null&&quedan<0?' is-excedido':quedan===0?' is-limite':'');
       fw.innerHTML=`<div class="faltas-txt"><span class="faltas-titulo">Faltas</span><span class="faltas-num" aria-live="polite">${cantidad}${limite===null?'':`<small> de ${limite}</small>`}</span><span class="faltas-detalle">${detalle}</span></div>
         <div class="faltas-ctrl">
