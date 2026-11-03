@@ -103,13 +103,14 @@ function celdaCsvPanel(v){
   return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
 }
 // `compSeccionDe` da la comparación con la sección de cada alumno: va en las
-// cuatro columnas del final, para no mover las que ya existían.
+// cuatro columnas que siguen al inicio de clases. Los tamaños de muestra se
+// agregan después, sin mover las columnas que ya existían.
 function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
   const num=v=>v===null||v===undefined?'':String(v).replace('.',',');
-  const gh=e=>e&&e.promedio!=null?num(fmtPromedio(Number(e.promedio))):'';
+  const gh=e=>{const dato=datosComparacionPanel(e);return dato?num(fmtPromedio(dato.promedio)):'';};
   // Las de "antes y ahora" (#697) y cuándo empezó en el ramo (2026-10-20) van
   // al final para no mover las columnas que alguien ya usa en su planilla.
-  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el ramo','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo']];
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el ramo','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']];
   alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
     const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
     const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
@@ -128,11 +129,12 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
     const base=[al.nombre_visible,ramo.nombre,sigla];
     const prom=avg===null?'':num(fmtPromedio(avg)),ghRamo=gh(comp.ramo);
     const categorias=categoriasDeRamoPanel(ramo);
+    const muestras=[datosComparacionPanel(comp.ramo)?.personas??'',datosComparacionPanel(compSec.ramo)?.personas??''];
     // Un ramo sin notas igual sale, para que el archivo tenga a todos.
-    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo,seccion,'','',gh(compSec.ramo)]);return;}
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo,seccion,'','',gh(compSec.ramo),...muestras]);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
       gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id),empezo,
-      seccion,gh(secNota.get(n.clave)),gh(secCategoria.get(c.clave)),gh(compSec.ramo)])));
+      seccion,gh(secNota.get(n.clave)),gh(secCategoria.get(c.clave)),gh(compSec.ramo),...muestras])));
   });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
@@ -141,10 +143,10 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
 function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date()){
   const num=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'':String(v).replace('.',',');
   const prom=v=>v===null||v===undefined?'':num(fmtPromedio(Number(v)));
-  const comparable=x=>x&&x.personas>=5?prom(x.promedio):'';
+  const comparable=x=>{const dato=datosComparacionPanel(x);return dato?prom(dato.promedio):'';};
   const diferencia=v=>v===null||v===undefined?'':num(v.toFixed(1));
   const estado={good:'Aprobando',warn:'Al borde',bad:'Reprobando',neutral:'Sin notas'};
-  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar']];
+  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']];
   (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,ctx=>{
     (al.ramos||[]).forEach(r=>{
       const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
@@ -159,7 +161,8 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
         inicioRamoPanel(al,r).dia||'',prom(avg),comparable(comp.ramo),comparable(sec.ramo),
         diferencia(met.antes.diferencia),diferencia(met.ahora.diferencia),
         diferencia(met.cambio),estado[nivel]||'Sin notas',
-        proxima?proxima.evaluacion:'',proxima&&proxima.necesita?num(proxima.necesita):'']);
+        proxima?proxima.evaluacion:'',proxima&&proxima.necesita?num(proxima.necesita):'',
+        datosComparacionPanel(comp.ramo)?.personas??'',datosComparacionPanel(sec.ramo)?.personas??'']);
     });
   }));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
