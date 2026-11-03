@@ -236,7 +236,11 @@ const contorno=(cssCodigo.match(/\.stats-avance-relleno\{([^}]*)\}/)||[])[1]||''
 chk('el avance de Estadísticas va en el contorno, sin el semáforo',
   /stroke:var\(--primary\)/.test(contorno)&&!/var\(--(?:green|yellow|red)/.test(contorno));
 chk('el contorno se llena con el avance real sin animar con movimiento reducido',
-  /pathLength="100" stroke-dasharray="\$\{valor\} 100"/.test(app)&&!/\.stats-avance[^}]*\{[^}]*(?:animation|transition):/.test(cssCodigo));
+  /pathLength="100" stroke-dasharray="\$\{valor\} 100"/.test(app)&&
+  // Desde el 2026-11-03 se llena al entrar y la punta late (Lucas), pero con
+  // movimiento reducido queda quieta en el avance real.
+  /@media\(prefers-reduced-motion:reduce\)\{\.stats-avance-relleno,\.stats-avance-punta,\.stats-avance-halo\{animation:none;\}\}/.test(cssCodigo)&&
+  !/\.stats-avance[^}]*\{[^}]*transition:/.test(cssCodigo));
 chk('el 100% del semestre no se pinta de aprobado',
   /tarjetaEvolucionStatsHTML\(g,avance\.pct\)/.test(app)&&!/\.stats-evolucion-avance[^}]*\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
 // Antes `.open` solo hacía display:flex — el sheet aparecía y desaparecía de

@@ -4573,8 +4573,19 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .stats-linea-mas{min-width:44px;min-height:44px;padding:8px 16px;margin:8px 0 0 32px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;cursor:pointer;}
 .stats-evolucion-avance{position:relative;isolation:isolate;display:flex;flex-direction:column;gap:6px;margin-top:24px;padding:20px;border-radius:8px;background:var(--muted);}
 .stats-avance-contorno{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;}
-.stats-avance-contorno rect{x:1px;y:1px;width:calc(100% - 2px);height:calc(100% - 2px);rx:8px;fill:none;stroke-width:2;}
-.stats-avance-pista{stroke:var(--border);}.stats-avance-relleno{stroke:var(--primary);stroke-linecap:butt;}
+.stats-avance-contorno rect{x:1.5px;y:1.5px;width:calc(100% - 3px);height:calc(100% - 3px);rx:8px;fill:none;stroke-width:3;}
+.stats-avance-pista{stroke:color-mix(in srgb,var(--primary) 22%,var(--border));}.stats-avance-relleno{stroke:var(--primary);stroke-linecap:round;}
+/* Al entrar se llena desde cero y la punta queda con un brillo suave que late,
+   para que se lea como algo que se completa (Lucas, 2026-11-03). */
+.stats-avance-contorno .stats-avance-punta{stroke:var(--primary);stroke-width:7;stroke-linecap:round;}
+.stats-avance-contorno .stats-avance-halo{stroke:var(--primary);stroke-width:12;stroke-linecap:round;opacity:.2;}
+.stats-avance-relleno{animation:avance-llenar 1s var(--ease-standard) both;}
+.stats-avance-punta{animation:avance-punta 1s var(--ease-standard) both;}
+.stats-avance-halo{animation:avance-punta 1s var(--ease-standard) both,avance-halo 2.4s ease-in-out 1s infinite;}
+@keyframes avance-llenar{from{stroke-dasharray:0 100;}}
+@keyframes avance-punta{from{stroke-dashoffset:0;}}
+@keyframes avance-halo{0%,100%{opacity:.08;stroke-width:9px;}50%{opacity:.3;stroke-width:16px;}}
+@media(prefers-reduced-motion:reduce){.stats-avance-relleno,.stats-avance-punta,.stats-avance-halo{animation:none;}}
 .stats-avance-cifra{font-size:2rem;line-height:1.2;font-weight:600;font-variant-numeric:tabular-nums;}
 .stats-evolucion-avance p{font-size:.75rem;line-height:1.5;color:var(--fg2);margin:0;}
 #stats-curso-titulo[hidden]{display:none;}

@@ -75,9 +75,12 @@ function verMasLineaTiempoStats(){
   if(foco){if(foco.tagName==='LI')foco.tabIndex=-1;foco.focus({preventScroll:true});}
   if(scroll&&Number.isFinite(posicion))scroll.scrollTop=posicion;
 }
+// La punta marca hasta dónde va el contorno: sin ella no se leía que la
+// tarjeta se llena (Lucas, 2026-11-03). Un trazo de largo 0 con borde redondo
+// es un punto; el desfase lo pone en el avance.
 function contornoAvanceStatsHTML(pct){
   const valor=Math.max(0,Math.min(100,Number(pct)||0));
-  return `<div class="stats-evolucion-avance"><svg class="stats-avance-contorno" aria-hidden="true"><rect class="stats-avance-pista" pathLength="100"/><rect class="stats-avance-relleno" pathLength="100" stroke-dasharray="${valor} 100"/></svg><span class="stats-evolucion-etiqueta">Peso evaluado</span><strong class="stats-avance-cifra">${valor}%</strong><p>Del peso evaluable de tus ramos.</p></div>`;
+  return `<div class="stats-evolucion-avance"><svg class="stats-avance-contorno" aria-hidden="true"><rect class="stats-avance-pista" pathLength="100"/><rect class="stats-avance-relleno" pathLength="100" stroke-dasharray="${valor} 100"/>${valor>0&&valor<100?`<rect class="stats-avance-halo" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="${-valor}"/><rect class="stats-avance-punta" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="${-valor}"/>`:''}</svg><span class="stats-evolucion-etiqueta">Peso evaluado</span><strong class="stats-avance-cifra">${valor}%</strong><p>Del peso evaluable de tus ramos.</p></div>`;
 }
 function contenidoEvolucionStatsHTML(){
   if(!['semana','mes','semestre'].includes(rangoEvolucionStats))rangoEvolucionStats='semestre';
