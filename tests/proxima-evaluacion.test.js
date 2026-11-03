@@ -108,7 +108,8 @@ run(`S.ramos[0].creditos=null;`);tarjeta();
 chk('si faltan créditos, se conserva la advertencia de promedio simple',byId('home-gpa-method').style.display==='block'&&/promedio simple/i.test(byId('home-gpa-method').textContent));
 const html=fs.readFileSync(raiz+'index.html','utf8');
 const posicion=id=>html.indexOf('id="'+id+'"');
-chk('el orden es listado, situación académica, simulación y clases',posicion('home-ramos')<posicion('home-insights')&&posicion('home-insights')<posicion('sim-global-btn')&&posicion('sim-global-btn')<posicion('home-clases'));
+// Clases particulares va justo bajo los ramos (Lucas, 2026-11-03).
+chk('el orden es listado, clases, situación académica y simulación',posicion('home-ramos')<posicion('home-clases')&&posicion('home-clases')<posicion('home-insights')&&posicion('home-insights')<posicion('sim-global-btn'));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail?1:0);
