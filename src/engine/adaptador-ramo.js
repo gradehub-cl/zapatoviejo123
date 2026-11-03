@@ -215,6 +215,17 @@ function gh_crearCalculoRamo(deps){
     const node=res.breakdown.find(b=>b.id===catId);
     return node?node.value:null;
   }
+  // Regla del reglamento sin escribir compuertas en los datos del estudiante.
+  // La pauta explícita sigue mandando; no adivinamos entre dos exámenes.
+  function compuertasEfectivas(r){
+    const guardadas=Array.isArray(r.gates)?r.gates:[];
+    if(guardadas.length)return guardadas;
+    const norma=gh_reglasNota(r.origen?.tenant||(typeof deps.tenant==='function'?deps.tenant():null)).examenFinal;
+    if(!norma)return guardadas;
+    const finales=categoriasVigentes(r).filter(c=>c.peso>0&&norma.nombres.includes(normName(c.nombre)));
+    if(finales.length!==1)return guardadas;
+    return [{type:'group_min',catIds:[finales[0].id],nombre:finales[0].nombre,min:norma.min,cap:'self',efecto:'reemplazar'}];
+  }
   function calculoRamoConCompuertas(r){
     const ausencias=estadoAusenciasJustificadas(r);
     const estructura=ausencias?ausencias.estructura:ramoToStructure(r);
@@ -235,8 +246,8 @@ function gh_crearCalculoRamo(deps){
         Object.entries(notasEvaluadas).forEach(([id,valor])=>{const w=pesos[id];if(typeof valor==='number'&&w>0){suma+=valor*w;peso+=w;}});
         if(peso>0)v=suma/peso;
       }
-      if(v!==null && Array.isArray(r.gates)){
-        for(const g of r.gates){
+      if(v!==null){
+        for(const g of compuertasEfectivas(r)){
           if(g.type==='min_grade_required'){
             const valor=valorParaCompuerta(r,res,g.catId);
             if(valor!==null && !gh_cumpleCompuerta(valor,g)){
@@ -246,7 +257,7 @@ function gh_crearCalculoRamo(deps){
             const ga=avgDeGrupoCalculado(res,arbol,g.catIds);
             if(ga!==null && !gh_cumpleCompuerta(ga,g)){
               const tope=(g.cap==='self')?ga:g.cap;
-              const siguiente=Math.min(v,tope);if(siguiente<v)limitadoPorCompuerta=true;v=siguiente;
+              const siguiente=g.efecto==='reemplazar'?tope:Math.min(v,tope);if(siguiente!==v)limitadoPorCompuerta=true;v=siguiente;
             }
           }
         }
@@ -314,7 +325,7 @@ function gh_crearCalculoRamo(deps){
     const calculo=calculoRamoConCompuertas(r);
     const valores=new Map((calculo.res.breakdown||[]).map(n=>[n.id,n.value]));
     const out=[];
-    (r.gates||[]).forEach(g=>{
+    compuertasEfectivas(r).forEach(g=>{
       if(g.type==='min_grade_required'){
         const c=(r.categorias||[]).find(x=>x.id===g.catId);
         if(!c)return;
@@ -323,7 +334,7 @@ function gh_crearCalculoRamo(deps){
       } else if(g.type==='group_min'){
         const ga=avgDeGrupoCalculado(calculo.res,calculo.estructura,g.catIds);
         if(ga!==null&&!gh_cumpleCompuerta(ga,g)){
-          out.push({nombre:g.nombre||'Requisito',actual:ga,min:g.min,cap:(g.cap==='self')?ga:g.cap,grupo:true});
+          out.push({nombre:g.nombre||'Requisito',actual:ga,min:g.min,cap:(g.cap==='self')?ga:g.cap,grupo:true,...(g.efecto?{efecto:g.efecto}:{})});
         }
       }
     });
@@ -389,7 +400,7 @@ function gh_crearCalculoRamo(deps){
   // ninguna nota alcanza —la compuerta ya cerró bajo la meta—, se devuelve
   // fuera de escala para que la interfaz diga "ya no es posible".
   function exigenciaDeCompuertas(ramo,raiz,notas,objetivo,base){
-    const compuertas=(ramo.gates||[]).filter(g=>g&&(g.type==='min_grade_required'||g.type==='group_min'));
+    const compuertas=compuertasEfectivas(ramo).filter(g=>g&&(g.type==='min_grade_required'||g.type==='group_min'));
     if(!compuertas.length)return null;
     const pendientes=calculateFinalGrade(raiz,notas).emptyLeaves;
     if(!pendientes.length)return null;
@@ -447,7 +458,7 @@ function gh_crearCalculoRamo(deps){
     if(baseInicial.ausencias&&baseInicial.ausencias.bloqueadas&&baseInicial.ausencias.bloqueadas.length)return null;
     // El solver de estructura no conoce los reemplazos voluntarios: proyecta
     // la misma nota en lo pendiente y vuelve a pasar por el cálculo del ramo.
-    if(Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length&&
+    if(((Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length)||compuertasEfectivas(ramo).some(g=>g.efecto==='reemplazar'))&&
        !ramo.aporta&&!reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights')){
       const pendientes=[];
       categoriasVigentes(ramo).filter(c=>c.peso>0).forEach(c=>{
