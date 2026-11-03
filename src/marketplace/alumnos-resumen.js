@@ -42,7 +42,7 @@ function resumenInicioAlumnosHTML(r){
       ${x.hora?`<span class="panel-resumen-cuando">${esc(x.hora)}</span>`:''}</button></li>`).join('')}</ul>`;}).join('')+mas(r.semana.length,'lista')
     :'<p class="profesor-hig-vacio">Nadie de tus alumnos tiene evaluaciones en los próximos 7 días.</p>';
   const atencion=r.atencion.length?`<ul class="panel-resumen-filas">${r.atencion.slice(0,MAX_FILAS_RESUMEN_PANEL).map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
-      <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>`).join('')}</span></span>
+      <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>${d.motivo?`<span class="panel-alumnos-fila-meta">${esc(d.motivo)}</span>`:''}`).join('')}</span></span>
       ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><span class="panel-resumen-meta">Para aprobar</span><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
     :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
   return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`,'bad')}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`,'warn')}</div>
@@ -58,7 +58,7 @@ function resumenInicioAlumnosHTML(r){
     </div>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
-  return `${antesAhoraAlumnoHTML(metricasAlumnoPanel(al,compDe),{inicios:new Map((al.ramos||[]).map(r=>[r.id,inicioRamoPanel(al,r)])),seccion:(al.ramos||[]).some(r=>{const c=compDe(al,r)||{};return c.sinSeccion||Number.isInteger(c.seccion);}),sinSeccion:(al.ramos||[]).length>0&&(al.ramos||[]).every(r=>(compDe(al,r)||{}).sinSeccion)})}
+  return `${(al.ramos||[]).map(r=>{const comp=compDe(al,r)||{};return antesAhoraAlumnoHTML(metricasAlumnoRamoPanel(al,r,compDe),{inicios:new Map([[r.id,inicioRamoPanel(al,r)]]),seccion:comp.sinSeccion||Number.isInteger(comp.seccion),sinSeccion:!!comp.sinSeccion});}).join('')}
     ${(al.ramos||[]).length?(ctx=>(al.ramos||[]).map(r=>ramoPanelHTML(r,compDe(al,r),ahora,ctx,lineaInicioRamoHTML(al,r),(al.ramos||[]).length===1)).join(''))(ramosDelAlumnoPanel(al)):'<p class="clase-sin-datos">Ya no tiene los ramos que te compartió.</p>'}
     <button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button>`;
 }
@@ -83,6 +83,7 @@ function alumnosPanelHTML(lista,compDe,ahora=new Date(),{soloFilas=false,limite=
   return ordenados.slice(0,limite).map(({al,nivel,proxima,exigente,porRamo})=>conUniversidadPanel(al.tenant,()=>{
     const fila=`<span class="panel-alumnos-fila"><span class="panel-alumnos-fila-cabeza"><b>${esc(al.nombre_visible)}</b><small>${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo':'ramos'}</small></span>
         ${estadoHTML(nivel,porRamo)}
+        ${porRamo.filter(d=>d.motivo).map(d=>`<span class="panel-alumnos-fila-meta">${porRamo.length>1?esc(d.nombre)+': ':''}${esc(d.motivo)}</span>`).join('')}
         ${proximaFilaAlumnoHTML(proxima,exigente)}</span>`;
     return soloFilas?`<button type="button" data-ver-alumno="${esc(al.id)}" class="panel-alumnos-alumno panel-alumnos-fila-boton">${fila}<span class="panel-alumnos-abrir" aria-hidden="true">›</span></button>`
       :`<details data-alumno="${esc(al.id)}" class="panel-alumnos-alumno"${abierto}>
@@ -152,7 +153,7 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
       const sec=(compSeccionDe&&compSeccionDe(al,r))||{};
       const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,ctx):null;
       const nivel=avg===null?'neutral':nivelRamo(ramo,avg);
-      const met=metricasAlumnoPanel({...al,ramos:[r]},compDe);
+      const met=metricasAlumnoRamoPanel(al,r,compDe);
       const proxima=proximaEvaluacionPanel(ramo,ahora,ctx);
       filas.push([al.nombre_visible,ramo.nombre,
         (typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'',

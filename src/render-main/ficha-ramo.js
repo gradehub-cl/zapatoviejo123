@@ -21,15 +21,13 @@ function toggleReglasRamo(id){
   reglasRamoAbiertas[id]=!reglasRamoAbiertas[id];
   renderRamo();
 }
-// Misma meta y semáforo de Estadísticas; el SVG original queda separado de la cifra.
+// Lucas, 2026-11-03: la ficha vuelve al mensaje; el medidor queda en Estadísticas.
 function medidorFichaHTML(needed,cual='',condicional=false){
-  const imposible=needed>7;
-  const exigencia=imposible?{palabra:'Sin salida',color:'var(--red)'}:exigenciaNotaNecesaria(needed);
-  const cifra=imposible?'—':nfNecesaria(needed).replace('.',',');
-  const lectura=imposible?`Ya no es posible aprobar${cual}`:condicional?`Con ${nfNecesaria(needed)} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${nfNecesaria(needed)} en lo pendiente para aprobar${cual}`;
-  return `<span class="ficha-medidor" role="img" aria-label="${esc(lectura)}">
-    ${htmlMedidorNota(imposible?7:needed)}<span class="ficha-medidor-cifra" style="color:${esc(exigencia.color)}"><strong>${cifra}</strong><small>${exigencia.palabra}</small></span>
-    </span><span class="ficha-medidor-contexto">${condicional?'En cada evaluación pendiente':'En lo pendiente'}${esc(cual)}</span>`;
+  const cifra=needed>7?'':nfNecesaria(needed).replace('.',',');
+  const lectura=needed>7?`Ya no es posible aprobar${cual}`:condicional?`Con ${cifra} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${cifra} en lo pendiente para aprobar${cual}`;
+  const numero=needed>7?'':`<strong style="color:${esc(exigenciaNotaNecesaria(needed).color)}">${esc(cifra)}</strong>`;
+  const mensaje=needed>7?esc(lectura):condicional?`Con ${numero} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${numero} en lo pendiente para aprobar${esc(cual)}`;
+  return `<span class="ficha-mensaje" aria-label="${esc(lectura)}">${mensaje}</span>`;
 }
 
 // El motor decide qué falta, incluidos descartes y pesos condicionales.
@@ -265,9 +263,7 @@ function renderRamo(){
     } else if(gateHit){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip bad';
-      chipEl.textContent=gateHit.grupo
-        ? `${gateHit.nombre} va ${fmtPromedio(gateHit.actual)} (mín. ${nf(gateHit.min)}): ${gateHit.efecto==='reemplazar'?'la nota final queda en '+fmtPromedio(gateHit.cap):'topa tu nota final'}`
-        : `${gateHit.nombre} bajo ${nf(gateHit.min)}: repruebas pese al promedio`;
+      chipEl.textContent=textoCompuertaActiva(gateHit);
     } else if(recuperativo&&recuperativo.motivo==='pendiente'){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip warn';chipEl.textContent='Puedes rendir examen recuperativo';

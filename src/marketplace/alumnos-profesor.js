@@ -5,6 +5,11 @@ function ramoParaPanel(r){
   // que una versión vieja pudo no escribir, igual que al cargar la app.
   try{const n=typeof normalize==='function'?normalize({ramos:[r]}).ramos[0]:r;return n||r;}catch(e){return r;}
 }
+// Solo explica una regla del motor; no aplica un tope nuevo ni guarda datos.
+function motivoPromedioAlumnoPanel(r){
+  if(estadoEximicion(r)?.activa)return '';
+  return textoCompuertaActiva(gatesActivas(r)[0]);
+}
 // Notas agrupadas como en la ficha del ramo: cada categoría con su promedio
 // (el del motor, con descartes y reglas) y sus notas debajo.
 function categoriasDeRamoPanel(r){
@@ -87,6 +92,7 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
   const ramo=ramoParaPanel(r);
   contexto=contexto||[ramo];
   const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
+  const motivo=motivoPromedioAlumnoPanel(ramo);
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
   const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
   const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
@@ -110,6 +116,7 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
         ${sinSeccion?'<span class="panel-alumnos-gh">No disponible<small>sin sección</small></span>'
           :comparacionTexto(comp&&comp.ramo?comp.ramo.promedio:null,comp&&comp.ramo?comp.ramo.personas:0,nombreComp==='GradeHub'?true:nombreComp)}</span></span>
     </summary>
+    ${motivo?`<p class="panel-alumnos-proxima">${esc(motivo)}</p>`:''}
     ${extra}
     ${proximaEvaluacionPanelHTML(proximaEvaluacionPanel(ramo,ahora,contexto))}
     ${categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Nota</th><th>${comp&&(sinSeccion||Number.isInteger(comp.seccion))?'Su sección':'GradeHub'}</th></tr></thead>${filas}</table>`

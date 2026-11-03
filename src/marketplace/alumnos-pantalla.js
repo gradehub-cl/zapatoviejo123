@@ -262,7 +262,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   if(typeof vistasPanelNav!=='undefined')vistasPanelNav.alumnos=v=>{if(vigente())activarVista(v);};
   const abrirFicha=(al,origen)=>{
     if(!vigente())return;
-    seleccionado=al;botonOrigen=origen||null;pintarFicha();activarVista('ficha');
+    seleccionado=al;botonOrigen=origen||null;ramoFicha=origen?.dataset.alumnoRamo||null;pintarFicha();activarVista('ficha');
     const regresar=raiz.querySelector('#alumnos-ficha-volver');
     if(typeof regresar.focus==='function')regresar.focus();
     if(typeof raiz.scrollIntoView==='function')raiz.scrollIntoView({block:'start'});

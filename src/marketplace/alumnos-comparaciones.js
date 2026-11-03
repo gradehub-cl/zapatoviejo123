@@ -79,14 +79,27 @@ function metricasAlumnoPanel(al,compDe,{inicio}={}){
       cambio:suficiente?ahora.diferencia-antes.diferencia:null};
   });
 }
-// El grupo: la mediana del cambio (un alumno que subió mucho no la mueve sola),
+// Unidad de comparación: una persona en un ramo, con su propio inicio.
+// La función de alumno conserva el listado completo para exportar evaluaciones;
+// las estadísticas y el CSV de resumen solo consumen este corte por ramo.
+function metricasAlumnoRamoPanel(al,r,compDe,{inicio}={}){
+  return conUniversidadPanel(al.tenant,()=>{
+    const corte=inicio!==undefined?diaLocalPanel(inicio):inicioRamoPanel(al,r).dia;
+    const m=metricasAlumnoPanel({...al,ramos:[r]},compDe,{inicio:corte});
+    return {...m,tenant:al.tenant,ramoId:r.id,ramo:r.nombre,
+      sigla:siglaDeRamo(ramoParaPanel(r))||r.sigla||''};
+  });
+}
+// El grupo: la mediana de los cambios de cada par alumno-ramo,
 // cuántos mejoraron de los que tienen datos, y aprobación y promedio de todas
 // las evaluaciones juntas, antes y ahora.
 function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
-  const porAlumno=(alumnos||[]).map(al=>metricasAlumnoPanel(al,compDe,inicioDe?{inicio:inicioDe(al)}:{}));
+  const porAlumno=(alumnos||[]).flatMap(al=>(al.ramos||[]).map(r=>metricasAlumnoRamoPanel(al,r,compDe,inicioDe?{inicio:inicioDe(al,r)}:{})));
+  const totalAlumnos=new Set(porAlumno.map(m=>m.id)).size;
+  const totalRamos=new Set(porAlumno.map(m=>`${m.tenant}|${m.sigla?String(m.sigla).toUpperCase():claveEvaluacionPanel(m.ramo)}`)).size;
   const conCambio=porAlumno.filter(m=>m.cambio!==null);
   const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
-  return {alumnos:porAlumno,conCambio:conCambio.length,
+  return {alumnos:porAlumno,totalAlumnos,totalRamos,conCambio:conCambio.length,
     mejoraron:conCambio.filter(m=>m.cambio>0).length,
     cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
     antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),

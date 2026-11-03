@@ -490,21 +490,21 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Antes y ahora: la pantalla (#697) ===');
   const gh=a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora,__poco],__cursoAA))');
   chk('las tres cifras del grupo: respecto del ramo, mejoraron y aprobación',
-    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="1 de 1 alumno mejoraron"/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
+    /ah-dato-principal">\+1\.7<small>puntos/.test(gh)&&/aria-label="Cambio positivo en 1 de 1 par alumno-ramo"/.test(gh)&&/width:0%/.test(gh)&&/width:100%/.test(gh)&&/>0%<\/b>/.test(gh)&&/>100%<\/b>/.test(gh));
   chk('dice con cuántas evaluaciones y cuántas sin fecha no cuentan',/Con 7 evaluaciones con fecha; 1 evaluación sin fecha no cuenta/.test(gh));
-  const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
+  const unaFecha=a.run(`antesAhoraGrupoHTML({alumnos:[{}],totalAlumnos:1,totalRamos:1,antes:{n:0,promedio:null,aprobacion:null},ahora:{n:1,promedio:4,aprobacion:1},sinFecha:0,cambioMediana:null,conCambio:0,mejoraron:0})`);
   chk('con una evaluación usa singular',/Con 1 evaluación con fecha/.test(unaFecha));
   chk('sin datos la aprobación no dibuja una barra cero ni inventa un porcentaje',
     /<span>Antes<\/span><span class="ah-aprobacion-pista" aria-hidden="true"><\/span><b>—<\/b>/.test(unaFecha));
   chk('las barras comparten escala porcentual y conservan su período',
     /<span>Antes<\/span>.*?width:0%.*?>0%<\/b>/.test(gh)&&/<span>Ahora<\/span>.*?width:100%.*?>100%<\/b>/.test(gh));
-  chk('el anillo de mejoraron cuenta alumnos, no evaluaciones aprobadas',/--anillo-fin:0\.00"[^>]*aria-label="1 de 1 alumno mejoraron"/.test(gh));
+  chk('el anillo de mejoraron cuenta pares alumno-ramo, no evaluaciones aprobadas',/--anillo-fin:0\.00"[^>]*aria-label="Cambio positivo en 1 de 1 par alumno-ramo"/.test(gh));
   chk('el anillo distingue cero, proporción parcial y falta de comparación',a.run(`(()=>{
     const g=metricasGrupoPanel([__antesAhora,__poco],__cursoAA);
     const cero=antesAhoraGrupoHTML({...g,conCambio:4,mejoraron:0});
     const parcial=antesAhoraGrupoHTML({...g,conCambio:4,mejoraron:1});
     const sin=antesAhoraGrupoHTML({...g,conCambio:0,mejoraron:0,cambioMediana:null});
-    return /--anillo-fin:100\.00"[^>]*mejoraron/.test(cero)&&/--anillo-fin:75\.00"[^>]*mejoraron/.test(parcial)&&!/aria-label="[^"]*alumnos? mejoraron"/.test(sin);
+    return /--anillo-fin:100\.00"[^>]*Cambio positivo/.test(cero)&&/--anillo-fin:75\.00"[^>]*Cambio positivo/.test(parcial)&&!/aria-label="Cambio positivo/.test(sin);
   })()`));
 
   chk('las cifras se leen antes que el método y no se tiñen de aprobación',
@@ -760,7 +760,7 @@ function contexto({search='',sesion=false}={}){
   a.run(`__tabsPanel[2].handlers.click()`);
   chk('Estadísticas se carga solo al abrir su vista, con la comparación',
     a.run(`__panelNodos['#alumnos-vista-estadisticas'].hidden`)===false&&
-    /Desde que empezaron contigo/.test(a.run(`__panelNodos['#alumnos-vista-estadisticas'].innerHTML`))&&
+    /Todavía no hay ramos compartidos para comparar/.test(a.run(`__panelNodos['#alumnos-vista-estadisticas'].innerHTML`))&&
     a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===false);
   a.run(`__tabsPanel[3].handlers.click()`);
   chk('Ramos muestra su resumen sin cambiar la comparación del grupo',
@@ -951,7 +951,7 @@ function contexto({search='',sesion=false}={}){
 
   console.log('\n=== Estadísticas y Ramos con algo que leer de un vistazo (2026-10-23) ===');
   const grafG=a.run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([__poco,__antesAhora],__cursoAA))');
-  chk('una fila por alumno con datos, ordenada por cuánto cambió, y cada una abre su ficha',
+  chk('una fila por alumno y ramo, ordenada por cuánto cambió, y cada una abre su ficha',
     (grafG.match(/<li><button type="button" data-ver-alumno=/g)||[]).length===2
     &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
   chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
