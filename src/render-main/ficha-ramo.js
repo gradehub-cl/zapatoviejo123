@@ -174,6 +174,7 @@ function renderRamo(){
   document.getElementById('ramo-peso-contexto').textContent=categoriasVisibles.length===0
     ?'Agrega evaluaciones para comenzar':Math.abs(tp-100)>0.001?`${r2(tp)}% ponderado`:'';
   renderDocenteRamo(r);
+  if(typeof pintarResumenRamoFicha==='function')pintarResumenRamoFicha(r);
 
   // Notas que un agente propuso para ESTE ramo. Van acá y no en una bandeja
   // aparte porque la decisión se toma mirando el ramo: qué evaluación es, qué
