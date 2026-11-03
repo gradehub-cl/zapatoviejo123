@@ -265,9 +265,7 @@ function renderRamo(){
     } else if(gateHit){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip bad';
-      chipEl.textContent=gateHit.grupo
-        ? `${gateHit.nombre} va ${fmtPromedio(gateHit.actual)} (mín. ${nf(gateHit.min)}): ${gateHit.efecto==='reemplazar'?'la nota final queda en '+fmtPromedio(gateHit.cap):'topa tu nota final'}`
-        : `${gateHit.nombre} bajo ${nf(gateHit.min)}: repruebas pese al promedio`;
+      chipEl.textContent=textoCompuertaActiva(gateHit);
     } else if(recuperativo&&recuperativo.motivo==='pendiente'){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip warn';chipEl.textContent='Puedes rendir examen recuperativo';

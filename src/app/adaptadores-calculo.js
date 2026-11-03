@@ -106,6 +106,13 @@ var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructur
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
+// Una misma explicación de la compuerta en la ficha y en el panel del profesor.
+function textoCompuertaActiva(g){
+  if(!g)return '';
+  return g.grupo
+    ? `${g.nombre} va ${fmtPromedio(g.actual)} (mín. ${nf(g.min)}): ${g.efecto==='reemplazar'?'la nota final queda en '+fmtPromedio(g.cap):'topa tu nota final'}`
+    : `${g.nombre} bajo ${nf(g.min)}: repruebas pese al promedio`;
+}
 function nivelRamo(r,n){return gatesActivas(r).length?'bad':nivelNota(n);}
 function notaAprobadaRamo(r,n){const nivel=nivelRamo(r,n);return nivel==='warn'||nivel==='good';}
 function colorClassRamo(r,n){return nivelRamo(r,n);}
