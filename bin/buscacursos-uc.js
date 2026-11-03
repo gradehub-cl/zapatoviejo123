@@ -43,7 +43,7 @@ function arbolHTML(html){
 function nodos(n,p){return typeof n==='string'?[]:[...(p(n)?[n]:[]),...n.hijos.flatMap(x=>nodos(x,p))];}
 function texto(n){return (typeof n==='string'?n:n.hijos.map(texto).join(' ')).replace(/\s+/g,' ').trim();}
 function celdas(n){return n.hijos.filter(x=>x.tag==='td');}
-function entero(s,campo){if(!/^\d+$/.test(s)||!Number.isSafeInteger(Number(s)))throw Error(`Buscacursos: ${campo} no es un entero (${s.slice(0,40)}). No se escribe nada.`);return Number(s);}
+function entero(s,campo){if(!/^\d+$/.test(s)||!Number.isSafeInteger(Number(s)))throw Error(`Buscacursos: ${campo} no es un entero. No se escribe nada.`);return Number(s);}
 function siNo(s){if(!/^(SI|SÍ|NO)$/i.test(s))throw Error('Buscacursos: cambió una columna SI/NO. No se escribe nada.');return s.toUpperCase()!=='NO';}
 function bloqueo(html){
  // El HTML normal incluye jsd/main.js de Cloudflare en segundo plano. No se
@@ -65,12 +65,12 @@ function parsearBuscacursos(html){
   const c=celdas(f);if(c.length!==18)throw Error(`Buscacursos: esperaba 18 columnas, recibió ${c.length}. No se escribe nada.`);
   const t=c.map(texto),sigla=t[1];if(!/^[A-Z][A-Z0-9_]{2,11}$/.test(sigla)||!t[9])throw Error('Buscacursos: sigla o nombre no reconocidos.');
   const profesores=nodos(c[10],n=>n.tag==='a').map(texto).filter(Boolean);
-  if(!profesores.length&&t[10]&&!/^(\(Sin Profesores\)|Sin informar|Por Fijar|Dirección Docente)$/i.test(t[10]))profesores.push(...t[10].split(/\s*[,;]\s*/));
+  if(!profesores.length&&t[10]&&!/^(\(?Sin Profesores\)?|Sin informar|Por Fijar|Dirección Docente)$/i.test(t[10]))profesores.push(...t[10].split(/\s*[,;]\s*/));
   const horario=nodos(c[16],n=>n.tag==='tr').map(fila=>{
    const h=celdas(fila).map(texto);if(h.length!==3)throw Error('Buscacursos: cambió el horario.');
    // «:», «L:» y «:8» son campos parciales reales de la fuente, no errores de
    // parseo. Se conserva lo informado y se deja null/[] en lo que falta.
-   const m=h[0].match(/^([LMWJVSD](?:-[LMWJVSD])*)?:(\d+(?:,\d+)*)?$/);if(!m)throw Error(`Buscacursos: horario no reconocido (${h[0]}).`);
+   const m=h[0].match(/^([LMWJVSD](?:-[LMWJVSD])*)?:(\d+(?:,\d+)*)?$/);if(!m)throw Error('Buscacursos: horario no reconocido.');
    return (m[2]?m[2].split(','):[null]).map(modulo=>({dias:m[1]?m[1].split('-'):[],modulo:modulo===null?null:entero(modulo,'módulo'),tipo:h[1],sala:h[2]}));
   }).flat();
   // Nunca convertir un horario no reconocido en una lista vacía silenciosa.

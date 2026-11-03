@@ -16,6 +16,7 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
  assert(parsear(fisica).secciones.some(s=>s.horario.some(h=>h.tipo==='LAB')));
  const sin=dinamica.replace(/<a href="\?cxml_semestre=2026-2&amp;cxml_profesor=[^]*?<\/a>/,'(Sin Profesores)');
  assert.deepEqual(parsear(sin).secciones[0].profesores,[]);
+ assert.deepEqual(parsear(sin.replace('(Sin Profesores)','Sin profesores')).secciones[0].profesores,[]);
  assert.equal(parsear(dinamica.replace('>2</td>\n<td style="font-size:13px;text-align:center;"><a','>0</td>\n<td style="font-size:13px;text-align:center;"><a')).secciones[0].vacantes_disponibles,0);
  assert.deepEqual(parsear(vacio).secciones,[]);
  for(const h of ['<html>Error</html>',dinamica.replace(/resultadosRowPar/g,'nuevaClase'),'<title>Just a moment...</title><script src="/cdn-cgi/challenge-platform/orchestrate"></script>',dinamica.replace('L-W:2','viernes a las dos')])assert.throws(()=>parsear(h));
@@ -23,6 +24,8 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
  assert.deepEqual(parsear(dinamica.replace('L-W:2','L-M-W-J-V-S-D:')).secciones[0].horario[0].dias,['L','M','W','J','V','S','D']);
  assert.equal(parsear(dinamica+'<script>var x="/cdn-cgi/challenge-platform/scripts/jsd/main.js";</script>').secciones.length,1,'detección pasiva no es un desafío que reemplaza resultados');
  assert.throws(()=>validarCobertura(Array(69).fill(f),100),/70%/);assert.doesNotThrow(()=>validarCobertura(Array(70).fill(f),100));assert.throws(()=>validarCobertura([],0));
+ const temporal=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'gh-buscacursos-'));
+ try{const salida=path.join(temporal,'anterior.json'),stub=path.join(temporal,'red.cjs'),anterior=JSON.stringify(conDatos());fs.writeFileSync(salida,anterior);fs.writeFileSync(stub,"global.fetch=async()=>({ok:true,status:200,text:async()=>'<html>irreconocible</html>'});");const r=require('node:child_process').spawnSync(process.execPath,['--require',stub,path.join(__dirname,'../bin/buscacursos-uc.js'),'--periodo','2026-2','--salida',salida],{encoding:'utf8'});assert.equal(r.status,1);assert.match(r.stderr,/no reconocidos/);assert.equal(fs.readFileSync(salida,'utf8'),anterior,'un HTML nuevo no pisa la corrida anterior');}finally{fs.rmSync(temporal,{recursive:true,force:true});}
  assert.equal(periodoActual(new Date('2027-01-15T12:00Z')),'2026-2');assert.equal(periodoActual(new Date('2027-03-01T12:00Z')),'2027-1');assert.equal(siguientePeriodo('2026-2'),'2027-1');
  assert.equal(new URL(urlBusqueda('2026-2','20','E_')).searchParams.get('cxml_sigla'),'E'+String.fromCharCode(92)+'_','guion bajo literal, no comodín SQL');
  assert.equal(correspondeProgramado(new Date('2026-11-03T06:17Z')) ,true);assert.equal(correspondeProgramado(new Date('2026-11-03T08:17Z')),false);
@@ -66,7 +69,9 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
   const incompleto=await preparar(diez.slice(0,7));await assert.rejects(q('select catalogo_uc_secciones_consolidar($1,$2,8)',[incompleto,'2026-2']),/incompletos/);
   const siete=await preparar(diez.slice(0,7).map((r,i)=>i? r:{...r,vacantes_disponibles:0}));r=(await q('select catalogo_uc_secciones_consolidar($1,$2,7) as r',[siete,'2026-2']))[0].r;assert.equal(r.cambiadas,1);assert.equal(r.dejaron_de_estar,3);assert.equal((await q('select count(*)::int as n from catalogo_uc_secciones'))[0].n,10,'las bajas se conservan');
   const igual=await preparar(diez.slice(0,7).map((r,i)=>i?r:{...r,vacantes_disponibles:0}));r=(await q('select catalogo_uc_secciones_consolidar($1,$2,7) as r',[igual,'2026-2']))[0].r;assert.equal(r.cambiadas,0);assert.equal(r.nuevas,0);
-  await db.exec('reset role');await db.exec(sql);await db.exec('set role anon');assert.equal((await q("select count(*)::int as n from catalogo_uc_secciones_publicas('2026-2')"))[0].n,7,'reaplicar conserva datos y filtrado');
+  const antesError=await q('select * from catalogo_uc_secciones order by nrc');const mala=await preparar(diez.slice(0,7).map((r,i)=>i?r:{...r,creditos:-1}));await assert.rejects(q('select catalogo_uc_secciones_consolidar($1,$2,7)',[mala,'2026-2']),/check constraint/);assert.deepEqual(await q('select * from catalogo_uc_secciones order by nrc'),antesError,'un error de fila revierte todo el lote final');
+  const nuevo={...f,nrc:11,sigla:'TST200',nombre:'Ramo nuevo III'},alta=await preparar([...diez.slice(0,7),nuevo]);r=(await q('select catalogo_uc_secciones_consolidar($1,$2,8) as r',[alta,'2026-2']))[0].r;assert.equal(r.cursos_nuevos,1);assert.equal((await q("select busqueda from catalogo_uc where sigla='TST200'"))[0].busqueda,busquedaDe(nuevo.nombre));
+  await db.exec('reset role');await db.exec(sql);await db.exec('set role anon');assert.equal((await q("select count(*)::int as n from catalogo_uc_secciones_publicas('2026-2')"))[0].n,8,'reaplicar conserva datos y filtrado');
  }finally{await db.close();}
  const wf=read('.github/workflows/buscacursos-uc.yml');assert(/environment: supabase/.test(wf)&&/contents: read/.test(wf)&&/cancel-in-progress: false/.test(wf));assert(wf.includes("github.ref == 'refs/heads/main'"));
  console.log('OK: parser real, horarios, vacantes, cero resultados, particiones, ritmo/bloqueos, guarda 70%, búsqueda compartida, lotes atómicos, RLS y docentes ocultos');
