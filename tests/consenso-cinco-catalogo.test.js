@@ -11,7 +11,7 @@ vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js','app-sessio
 const run=s=>vm.runInContext(s,ctx);
 
 const pauta=[{nombre:'Prueba',peso:60},{nombre:'Examen',peso:40}];
-const fila=(ramo,respaldos)=>({ramo,ramo_key:run(`normName(${JSON.stringify(ramo)})`),estructura:pauta,huella:'h-'+ramo,respaldos});
+const fila=(ramo,respaldos)=>({ramo,ramo_key:run(`normName(${JSON.stringify(ramo)})`),estructura:pauta,huella:'h-'+ramo,respaldos,periodo:run('semester()'),seccion:null});
 const porTenant={
   uandes:[fila('Taller Sintético Cinco',5),fila('Taller Sintético Tres',3),fila('Ramo Con Programa',9)],
   fen:[fila('Taller Sintético Cinco',7)],

@@ -86,6 +86,7 @@
     "src/marketplace/editor-anuncio.js",
     "src/marketplace/recomendacion-inicio.js",
     "src/marketplace/admin-clases.js",
+    "src/marketplace/admin-pautas.js",
     "src/marketplace/admin-estadisticas.js",
     "src/marketplace/alumnos-compartir.js",
     "src/marketplace/alumnos-profesor.js",

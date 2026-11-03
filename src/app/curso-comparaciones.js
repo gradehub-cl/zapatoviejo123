@@ -1,19 +1,19 @@
 const _consensoPorTenant=new Map();
-async function cargarConsenso(tenant){
+function claveCacheConsenso(tenant,periodo,seccion){return [tenant,periodo,seccion||''].join('|');}
+function consensoVigenteParaRamo(c,r){return c.periodo===periodoReporte(r)&&(c.seccion==null||c.seccion===seccionReporte(r));}
+async function cargarConsenso(tenant,periodo,seccion=null){
   if(esCuentaProfesor())return null;
-  tenant=tenant||S.tenant;
+  tenant=tenant||S.tenant;periodo=periodo||periodoReporte(null);
   if(!supabaseClient||!currentUser||!tenant)return null;
-  if(_consensoPorTenant.has(tenant))return _consensoPorTenant.get(tenant);
+  const key=claveCacheConsenso(tenant,periodo,seccion);
+  if(_consensoPorTenant.has(key))return _consensoPorTenant.get(key);
   try{
-    const {data,error}=await supabaseClient.rpc('catalog_consensus',{p_tenant:tenant});
+    const {data,error}=await supabaseClient.rpc('catalog_consensus_periodo',{p_tenant:tenant,p_periodo:periodo,p_seccion:seccion});
     if(error)throw error;
-    const filas=data||[];
-    _consensoPorTenant.set(tenant,filas);
-    return filas;
+    const filas=data||[];_consensoPorTenant.set(key,filas);return filas;
   }catch(e){return null;}
 }
-// Lo ya cargado, sin red: el buscador es síncrono y no espera a nadie.
-function consensoCargado(tenant){return _consensoPorTenant.get(tenant)||null;}
+function consensoCargado(tenant){return _consensoPorTenant.get(claveCacheConsenso(tenant,periodoReporte(null),null))||null;}
 
 // \u00bfHay una versi\u00f3n con m\u00e1s respaldo que la que tiene este ramo?
 // --- COMO VAS RESPECTO DE QUIENES CURSAN TU MISMO RAMO ---

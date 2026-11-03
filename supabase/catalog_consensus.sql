@@ -162,8 +162,8 @@ revoke all on function public.es_sigla_uc(text) from public, anon, authenticated
 revoke all on function public.busqueda_catalogo_uc(text) from public, anon, authenticated;
 revoke all on function public.sigla_catalogo_uc(text) from public, anon, authenticated;
 
--- El tenant y la carrera académica vienen de user_ramos.data (#719), no del
--- nombre histórico en profiles.universidad. Esa columna sigue guardada igual.
+-- El tenant académico viene de user_ramos.data (#719); no de profiles.
+-- Carrera no identifica una pauta ni se guarda en reportes nuevos (2026-11-02).
 
 -- La firma de 8 argumentos se reemplaza por una de 9 (p_seccion). Sin el drop
 -- quedarían las dos y PostgREST no sabría cuál llamar con los argumentos de una
@@ -191,7 +191,6 @@ declare
   sigla text := nullif(upper(trim(p_ramo_sigla)), '');
   tenant_guardado text;
   onboarding_guardado boolean;
-  carrera_guardada text;
 begin
   if uid is null then
     raise exception 'No hay sesión activa';
@@ -221,10 +220,8 @@ begin
   -- propio reporte: se contrasta con el estado académico ya sincronizado.
   -- Si la nube aún no tiene el onboarding, el aporte queda pendiente en la app
   -- y se puede reintentar tras sincronizar; nunca se cuenta como FEN por defecto.
-  select u.data->>'tenant', u.data->>'onboardingDone' = 'true',
-         left(coalesce(nullif(btrim(u.data->>'carreraNombre'), ''),
-                       nullif(btrim(u.data->>'carrera'), ''), ''), 120)
-    into tenant_guardado, onboarding_guardado, carrera_guardada
+  select u.data->>'tenant', u.data->>'onboardingDone' = 'true'
+    into tenant_guardado, onboarding_guardado
     from public.user_ramos as u
    where u.user_id = uid;
   if not coalesce(onboarding_guardado, false)
@@ -285,14 +282,13 @@ begin
     sigla := public.sigla_catalogo_uc(p_ramo);
   end if;
 
-  -- Si el estudiante ya reportó ese ramo, actualiza su aporte. La carrera
-  -- declarada de la cuenta se guarda como contexto, pero nunca decide si dos
-  -- estudiantes coinciden. p_carrera sigue en la firma para apps viejas.
+  -- Si el estudiante ya reportó ese ramo, actualiza su aporte sin reescribir
+  -- la carrera histórica. Un reporte nuevo guarda null; p_carrera se conserva
+  -- en la firma para apps viejas y no decide la identidad de la pauta.
   -- También toma reportes antiguos sin sigla por nombre, para migrarlos al
   -- identificador canónico la próxima vez que su autor los actualice.
   update public.catalog_reports
-     set carrera = carrera_guardada,
-         ramo = p_ramo,
+     set ramo = p_ramo,
          ramo_norm = p_ramo_norm,
          ramo_sigla = sigla,
          estructura = p_estructura,
@@ -314,7 +310,7 @@ begin
     insert into public.catalog_reports
       (user_id, tenant, carrera, ramo, ramo_norm, ramo_sigla, estructura, huella, nota, seccion)
     values
-      (uid, p_tenant, carrera_guardada, p_ramo, p_ramo_norm, sigla,
+      (uid, p_tenant, null, p_ramo, p_ramo_norm, sigla,
        p_estructura, public.huella_catalogo(p_estructura), nullif(trim(p_nota), ''), p_seccion);
   end if;
 end;
