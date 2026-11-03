@@ -425,11 +425,12 @@ function renderRamo(){
         :quedan===1?`Te queda 1 de ${limite}.`
         :quedan===0?`Llegaste al máximo de ${limite}.`
         :`Pasaste el máximo de ${limite} por ${-quedan}.`;
-      fw.style.display='grid';
+      fw.style.display='flex';
       fw.className='faltas-card'+(quedan!==null&&quedan<0?' is-excedido':quedan===0?' is-limite':'');
-      fw.innerHTML=`<div class="faltas-txt"><span class="faltas-titulo">Faltas</span><span class="faltas-num" aria-live="polite">${cantidad}${limite===null?'':`<small> de ${limite}</small>`}</span><span class="faltas-detalle">${detalle}</span></div>
+      fw.innerHTML=`<div class="faltas-txt"><span class="faltas-titulo">Faltas</span><span class="faltas-detalle">${detalle}</span></div>
         <div class="faltas-ctrl">
           <button type="button" class="faltas-btn" onclick="cambiarFaltas(-1)" aria-label="Restar una falta" ${cantidad===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+          <span class="faltas-num" aria-live="polite">${cantidad}${limite===null?'':`<small> de ${limite}</small>`}</span>
           <button type="button" class="faltas-btn" onclick="cambiarFaltas(1)" aria-label="Sumar una falta" ${cantidad>=FALTAS_MAX?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
         </div>`;
     }
@@ -473,10 +474,11 @@ function renderRamo(){
           ?`<button type="button" class="bonus-anotar" onclick="cambiarBonus('${esc(b.id)}',null)">Anotar</button>`
           :`<div class="faltas-ctrl">
               <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',-1)" aria-label="Restar una ${unidad[0]}" ${v===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+              <span class="faltas-num" aria-live="polite">${v}<small> de ${b.entrada==='decimas'?topeBonus(b):b.hasta}</small></span>
               <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',1)" aria-label="Sumar una ${unidad[0]}" ${v>=topeBonus(b)?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
             </div>`;
         return `<div class="faltas-card bonus-card${b.entrada==='faltas'&&v>b.hasta?' is-excedido':''}" role="group" aria-label="${esc(b.pregunta)}">
-          <div class="faltas-txt"><span class="faltas-titulo">${b.entrada==='decimas'?'Décimas':esc(b.pregunta)}</span>${v===null?'':`<span class="faltas-num" aria-live="polite">${v}<small> de ${b.entrada==='decimas'?topeBonus(b):b.hasta}</small></span>`}<span class="faltas-detalle">${detalle}</span></div>${control}</div>`;
+          <div class="faltas-txt"><span class="faltas-titulo">${b.entrada==='decimas'?'Décimas':esc(b.pregunta)}</span><span class="faltas-detalle">${detalle}</span></div>${control}</div>`;
       }).join('');
     }
   }
