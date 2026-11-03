@@ -387,7 +387,7 @@ html.app-nativa,html.app-nativa body{overscroll-behavior-y:none;}
    de ~130px— y en el celular el calendario nativo se abre anclado a esa caja
    diminuta. Poner la fecha de una prueba era pelear con un control enano.
    El font-size de 16px además evita que iOS haga zoom al enfocarlo. */
-input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search]{width:100%;min-height:44px;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;font-family:var(--font-ui);color:var(--fg);background:var(--bg2);outline:none;transition:border var(--motion-fast);}
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search],input[type=url]{width:100%;min-height:44px;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;font-family:var(--font-ui);color:var(--fg);background:var(--bg2);outline:none;transition:border var(--motion-fast);}
 /* El campo tiene que ser tocable con el pulgar: 44px es el mínimo que
    recomiendan iOS y Android para un objetivo táctil. Y el ícono del calendario
    viene de 12px en Chrome — a ese tamaño hay que apuntarle. */
@@ -4629,6 +4629,12 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 
 #screen-agenda .ag-pendientes-lista>.ag-recorreccion-row{margin:0;border:0;border-radius:0;background:none;}
 #screen-agenda .ag-pendientes-lista>*+*{border-top:1px solid var(--border);}
+
+/* Canvas web: la URL es un campo táctil como el resto de Ajustes. */
+#s-canvas-ics input[type=url]{width:100%;min-height:44px;padding:12px;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius,12px);font:inherit;font-size:1rem;box-sizing:border-box;}
+#s-canvas-ics input[type=url]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+#s-canvas-ics button{min-width:44px;min-height:44px;}
+#s-canvas-ics .canvas-pasos{padding-left:20px;color:var(--fg2);font-size:.8125rem;line-height:1.6;}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
