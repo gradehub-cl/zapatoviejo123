@@ -35,9 +35,9 @@
 // regla solo dice que repruebas. Un preset nuevo con evaluación grupal lo lleva.
 const PRESETS_FEN={
   'Métodos Matemáticos II':{
-    // Fechas del calendario 2026-2 entregado por Martín el 2026-09-18. El
-    // examen lo fija la Facultad y no tiene fecha; la segunda fecha del examen
-    // (3 dic) no es una evaluación aparte, así que no va como fila.
+    // Fechas del calendario 2026-2 entregado por Martín el 2026-09-18; la del
+    // examen, del calendario de exámenes que entregó el 2026-11-02. La segunda
+    // fecha del examen (3 dic) no es una evaluación aparte, así que no va como fila.
     periodo:'2026-2',
     creditos:6,
     segundaFecha:{evaluacion:'Examen Final',examenMenorQue:3,promedioPonderadoMin:3.95,
@@ -52,7 +52,7 @@ const PRESETS_FEN={
     // descarta y se repondera sobre lo evaluado — que es lo que hace el motor con
     // cualquier otra categoría vacía. Con un solo solemne rendido la diferencia
     // llega a más de un punto. Se eligió la forma consistente con el resto.
-    evals:[['Solemne 1',20,{fecha:'2026-08-28'}],['Solemne 2',20,{fecha:'2026-09-26'}],['Solemne 3',20,{fecha:'2026-11-06'}],['Examen Final',40,{min:3.0,cap:3.9}]],
+    evals:[['Solemne 1',20,{fecha:'2026-08-28'}],['Solemne 2',20,{fecha:'2026-09-26'}],['Solemne 3',20,{fecha:'2026-11-06'}],['Examen Final',40,{min:3.0,cap:3.9,fecha:'2026-11-21'}]],
   },
   // Introducción a la Microeconomía · ENMIC155 · programa oficial actualizado
   // julio 2026. Los tres controles van en filas propias porque el programa los
@@ -87,15 +87,15 @@ const PRESETS_FEN={
       'Si faltas al Examen tienes que dar el recuperativo',
     ],
     evals:[
-      // La solemne y los controles traen fecha del calendario; el examen lo
-      // fija la Escuela dentro de un rango (18 nov–2 dic) y un rango no es fecha.
+      // La solemne y los controles traen fecha del calendario; la del examen
+      // sale del calendario de exámenes 2026-2 (entregado el 2026-11-02).
       ['Solemne',30,{fecha:'2026-09-30'}],
       ['Control 1',10,{fecha:'2026-08-21'}],
       ['Control 2',10,{fecha:'2026-10-16'}],
       ['Control 3',10,{fecha:'2026-11-06'}],
       // Las pruebas sorpresa no llevan fecha a propósito: son sorpresa.
       ['Pruebas sorpresa',5,{slots:5}],
-      ['Examen',35],
+      ['Examen',35,{fecha:'2026-11-27'}],
     ],
   },
   // Verificado contra el programa oficial ENGEP 155/0, sección 4.2.
@@ -205,8 +205,8 @@ const PRESETS_FEN={
       // con descarte (se elimina el 25% de los rendidos).
       ['Controles Sorpresa',5,{lista:true,dropLowest:{fraction:0.25}}],
       ['Solemne',20,{fecha:'2026-09-22'}],
-      // El examen lo fija la Escuela entre el 18 nov y el 2 dic: sin fecha.
-      ['Examen',25,{min:3.0,cap:3.4}],
+      // Fecha del calendario de exámenes 2026-2 (entregado el 2026-11-02).
+      ['Examen',25,{min:3.0,cap:3.4,fecha:'2026-11-19'}],
     ],
   },
   // Tecnologías y Sistemas de Información · ENGIN1505/05 · programa oficial
@@ -259,7 +259,7 @@ const PRESETS_FEN={
       ['Trabajo Final',15],
       ['Solemne 1',20,{fecha:'2026-09-25'}],
       ['Solemne 2',20],
-      ['Examen',30],
+      ['Examen',30,{fecha:'2026-11-24'}],
     ],
     grupos:[
       {nombre:'Evaluaciones individuales',evals:['Controles','Solemne 1','Solemne 2','Examen'],min:4.0,cap:'self'},
@@ -292,7 +292,7 @@ const PRESETS_FEN={
       ['Solemne',25],
       ['Controles',25,{lista:true}],
       ['Trabajo Práctico',25],
-      ['Examen Final',25,{min:3.0,cap:3.9}],
+      ['Examen Final',25,{min:3.0,cap:3.9,fecha:'2026-12-01'}],
     ],
     // "Para aprobar se requiere un promedio ponderado ≥ 4,0 en las evaluaciones
     //  individuales. Las notas grupales sólo se consideran si se cumple eso."
@@ -442,7 +442,7 @@ const PRESETS_FEN={
       ['Business Plan',6],
       ['Business Pitch',9],
       ['Midterm',15,{fecha:'2026-09-21'}],
-      ['Final Exam',30],
+      ['Final Exam',30,{fecha:'2026-11-18'}],
     ],
   },
   // ─── Pautas del consenso de reportes ─────────────────────────────────────

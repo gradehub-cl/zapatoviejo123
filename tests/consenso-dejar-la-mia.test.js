@@ -29,8 +29,8 @@ const ramo = {
 };
 const reportada = [{ nombre: 'Prueba 1', peso: 30 }, { nombre: 'Prueba 2', peso: 30 }, { nombre: 'Examen', peso: 40 }];
 const otra = [{ nombre: 'Prueba 1', peso: 20 }, { nombre: 'Examen', peso: 80 }];
-const fila = (estructura, respaldos) => ({ ramo_key: val(`claveReporte(${J(ramo)})`), estructura, huella: 'x', respaldos });
-const consenso = filas => vm.runInContext(`_consensoPorTenant.set('fen',${J(filas)})`, ctx);
+const fila = (estructura, respaldos) => ({ ramo_key: val(`claveReporte(${J(ramo)})`), estructura, huella: 'x', respaldos,periodo:val('semester()'),seccion:null });
+const consenso = filas => vm.runInContext(`_consensoPorTenant.set(claveCacheConsenso('fen',semester(),null),${J(filas)})`, ctx);
 const ofrece = async () => { const h = await val('consensoParaRamo')(val('S.ramos[0]')); return h ? h.respaldos : null; };
 
 (async () => {
