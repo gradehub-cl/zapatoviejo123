@@ -4100,9 +4100,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calif-otro-campo input.calif-otro-texto{flex:1;min-width:0;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
 .calif-otro-cuenta{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 @media(prefers-reduced-motion:reduce){.calif-opcion.lleno span[aria-hidden]{transition:none;}}
-/* Propuesta: Calificar a la derecha de Simular, en la misma línea. */
-.ramo-actions .calif-accion{margin-left:auto;}
-.ramo-actions .calif-accion[hidden]{display:none;}
 /* Variante «sección»: el profe sigue a los datos de la sección, en la misma línea gris. */
 .ramo-hero-label .ramo-profe{display:inline;font-size:inherit;margin:0;white-space:normal;}
 .ramo-hero-label .ramo-profe button{display:inline;max-width:none;}
@@ -4124,10 +4121,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .ramo-hero-label .ramo-profe button{display:inline;position:relative;}
 /* Zona de toque de 44 pt sin mover el texto de la línea. */
 .ramo-hero-label .ramo-profe button::after{content:'';position:absolute;left:0;right:0;top:50%;min-width:44px;height:44px;transform:translateY(-50%);}
-.ramo-actions:has(.calif-accion:not([hidden])){flex-wrap:nowrap;align-items:stretch;gap:12px;}
-.ramo-actions .calif-accion{max-width:65%;min-width:0;white-space:normal;line-height:1.3;}
-.ramo-actions .calif-accion[hidden]{display:none;}
-.ramo-actions .ramo-action{min-height:44px;}
 .editar-profe>span{min-width:0;overflow-wrap:anywhere;}
 .editar-profe:disabled{cursor:default;color:var(--fg2);}
 .editar-profe:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
@@ -4467,18 +4460,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .cierre-ramo button{min-height:44px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--border2);border-radius:10px;cursor:pointer}
 .cierre-ramo :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .cierre-incompleto{display:block;color:var(--fg2);font-size:.75rem;font-weight:400;margin-top:4px}
-/* Ficha del estudiante · maqueta aprobada. Los avisos de reglas mantienen
-   su presentación; solo la meta numérica usa el medidor original. */
+/* Ficha: la meta es texto al lado del promedio; los demás estados conservan su chip. */
 #screen-ramo .ramo-hero{container:ficha-hero / inline-size;}
-#screen-ramo .ramo-hero-num-row{align-items:center;gap:28px;}
-#screen-ramo .ramo-chip.ramo-meta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:0;padding:12px 0 0;border:0;background:none;color:var(--fg2);white-space:normal;}
-#screen-ramo .ficha-medidor{position:relative;display:block;width:5.25rem;aspect-ratio:92/52;}
-#screen-ramo .ficha-medidor .medidor-nota{display:block;width:100%;max-width:none;height:auto;transform:translateY(-6px);overflow:visible;}
-#screen-ramo .ficha-medidor-cifra{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:3%;font-variant-numeric:tabular-nums;}
-#screen-ramo .ficha-medidor-cifra strong{font-size:1.15rem;line-height:1;font-weight:650;}
-#screen-ramo .ficha-medidor-cifra small{font-size:.6875rem;margin-top:4px;line-height:1.2;}
-#screen-ramo .ficha-medidor-contexto{max-width:9rem;text-align:center;font-size:.6875rem;line-height:1.4;color:var(--fg2);}
+#screen-ramo .ramo-hero-num-row{align-items:center;gap:20px 28px;}
+#screen-ramo .ramo-chip.ramo-meta{flex:1 1 12rem;min-width:0;max-width:26rem;margin:0;padding:0;border:0;border-radius:0;background:none;color:var(--fg2);font-size:.875rem;font-weight:400;line-height:1.5;white-space:normal;text-align:left;}
+#screen-ramo .ficha-mensaje strong{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap;}
 #screen-ramo .ramo-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:stretch;}
+#screen-ramo .ramo-actions:has(.calif-accion:not([hidden])){grid-template-columns:repeat(2,minmax(0,1fr));}
 /* Contadores de la ficha: título y explicación a lo ancho y, abajo, la cifra
    con un stepper de una pieza. Lado a lado el texto quedaba apretado contra
    los botones (Lucas, 2026-11-03). Mismo módulo que las evaluaciones. */
@@ -4499,8 +4487,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-serie-lista>.eval-row,#screen-ramo .ficha-serie-lista>.eval-group,#screen-ramo .ficha-serie-lista>.cat-card{margin:0;padding:14px 0;border:0;border-top:1px solid var(--border);border-radius:0;background:none;box-shadow:none;}
 #screen-ramo .ficha-serie-lista{margin-top:14px;}
 #screen-ramo .ficha-serie-lista>*>.ficha-peso{display:none;}
-#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:12px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;white-space:normal;}
-#screen-ramo .ramo-actions>.calif-accion{grid-column:1/-1;}
+#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:12px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;line-height:1.35;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;}
 #screen-ramo .ramo-actions>.ramo-action[hidden]{display:none;}
 #screen-ramo #cat-list{margin:0;padding:0 20px;}
 #screen-ramo .eval-group,#screen-ramo .cat-card{margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:none;}
@@ -4527,11 +4514,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 @keyframes nota-en-fila{from{opacity:.5;}to{opacity:1;}}
 @media(prefers-reduced-motion:reduce){#screen-ramo .nota-campo{animation:none;}}
-/* La segunda variante se activa solo en la copia de revisión, sin guardarla. */
-#screen-ramo.medidor-debajo .ramo-meta{flex-basis:100%;margin-left:0;}
 @container ficha-hero (max-width:18rem){
-  #screen-ramo .ramo-meta{flex-basis:100%;margin-left:0;}
-  #screen-ramo .ramo-actions{grid-template-columns:1fr;}
+  #screen-ramo .ramo-chip.ramo-meta{flex-basis:100%;max-width:none;}
+  #screen-ramo .ramo-actions:has(.calif-accion:not([hidden])){grid-template-columns:minmax(0,1fr);}
 }
 
 /* Notas sombra: hipótesis neutrales en las casillas reales de la ficha. */
