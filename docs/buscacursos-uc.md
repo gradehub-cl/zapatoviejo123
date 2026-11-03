@@ -112,6 +112,26 @@ permiso a la UC o corre el lector desde otro lugar.
 
 ## Pruebas y referencias
 
+Corrida completa local del script, 2026-11-03, `--periodo 2026-2`:
+
+```text
+2026-2: 7722 secciones, 53 unidades revisadas.
+{"periodos":[{"periodo":"2026-2","leidas":7722}],"consultas":202,"duracion_segundos":422}
+```
+
+Son **4.519 siglas distintas** y **7 min 2 s**: una consulta de descubrimiento,
+53 de unidades y 148 para dividir cuatro consultas recortadas. No hubo
+reintentos en esa corrida. 2027-1 todavía no figuraba en el selector público.
+No hubo diferencias de créditos respecto de las siglas presentes en el respaldo.
+Las nuevas/cambiadas/bajas contra producción no se midieron: no se aplicó el
+SQL ni se subió esta corrida. El JSON completo queda local e ignorado por git.
+
+Se intentó `gh workflow run buscacursos-uc.yml --ref codex/buscacursos-uc
+-f periodo=2026-2`: GitHub devolvió **HTTP 404, workflow not found on the
+default branch**. Esto no es un bloqueo de Cloudflare. La prueba de IP de
+Actions sigue pendiente hasta que Lucas integre el workflow; no se eludió ese
+requisito ni se tocó `main` para probar.
+
 `node tests/buscacursos-uc.test.js` no usa red: fixtures de tres búsquedas reales
 recortadas al mínimo, variantes sintéticas y PGlite. Cubre horarios múltiples,
 varios/sin profesores, cero vacantes, vacío válido, HTML desconocido, partición,
