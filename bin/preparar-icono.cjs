@@ -14,3 +14,14 @@ fs.writeFileSync(path.join(root,'icon.svg'),`<svg xmlns="http://www.w3.org/2000/
 ${framed}
 </svg>
 `);
+
+// Variante maskable (Android/TWA): fondo #0a0e14 a sangre, sin esquinas, y la
+// marca más chica para que quede dentro de la zona segura (círculo del 80%
+// central). Va en bin/ porque solo se exporta a icon-maskable-512.png.
+const maskable=logo.replace(marker,'<svg x="26" y="24.21875" width="76" height="76" viewBox="0 0 128 128" fill="none">').trim();
+fs.writeFileSync(path.join(__dirname,'icon-maskable.svg'),`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 128 128">
+  <!-- Generado desde logo.svg con node bin/preparar-icono.cjs. No editar. -->
+  <rect width="128" height="128" fill="#0a0e14"/>
+${maskable}
+</svg>
+`);
