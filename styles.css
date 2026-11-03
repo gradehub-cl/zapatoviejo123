@@ -2807,6 +2807,16 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
    destaca para poder barrer la lista con la vista, pero se lee con su contexto. */
 .stats-curso-frase b{font-weight:800;color:var(--fg);font-variant-numeric:tabular-nums;}
 
+/* Estadísticas reutiliza stat-card; sus filas no son tarjetas anidadas. */
+#screen-stats .stats-section-card{margin:0 20px 16px;padding:16px;cursor:default;transform:none;}
+#screen-stats .stats-section-card:hover{background:var(--card);border-color:var(--border);}
+#screen-stats .stats-prioridades .stats-priority-row{margin:0;border:0;border-radius:0;background:none;box-shadow:none;transform:none;}
+#screen-stats .stats-prioridades .stats-priority-row+.stats-priority-row{border-top:1px solid var(--border);}
+#screen-stats .stats-history-module .hist-card{margin:0;border:0;border-radius:0;background:none;box-shadow:none;transform:none;}
+#screen-stats .stats-history-module .hist-card+.hist-card{border-top:1px solid var(--border);}
+#screen-stats .stats-history-module .stats-hist-comparacion{margin:0 0 16px;padding:0 0 16px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:none;}
+#screen-stats .stats-history-module .stats-hist-vacio{margin:0;padding:12px 0;}
+
 /* La marca del metodo usado la vez anterior. Es una pista, no una recomendacion:
    no compite con el boton ni sugiere que ese camino sea el correcto, solo evita
    el "contrasena incorrecta" de quien en realidad habia entrado con Google. */
