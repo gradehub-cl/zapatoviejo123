@@ -4338,7 +4338,20 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-home .sim-global-cta .chevron-r{color:var(--fg2);font-size:1.4rem;}
 /* Justo bajo la lista de ramos: tarjeta con contorno fino en el acento (Lucas, 2026-11-03). */
 #screen-home .home-clases{margin:16px 20px 4px;}
-#screen-home .home-clases-card{min-height:88px;padding:18px 16px;border:1px solid var(--primary);border-radius:8px;background:var(--card);overflow:visible;transform:none;}
+/* El contorno es un degradado cónico detrás del relleno (dos fondos: el de la
+   tarjeta recortado al relleno y el cónico hasta el borde). Un brillo corto
+   lo recorre al girar el ángulo. Con movimiento reducido queda quieto. */
+@property --clases-brillo{syntax:'<angle>';inherits:false;initial-value:0deg;}
+#screen-home .home-clases-card{min-height:88px;padding:18px 16px;border:1px solid transparent;border-radius:8px;overflow:visible;transform:none;
+  --clases-borde:color-mix(in srgb,var(--primary) 40%,transparent);--clases-luz:var(--primary);
+  background:linear-gradient(var(--card),var(--card)) padding-box,
+    conic-gradient(from var(--clases-brillo),var(--clases-borde) 0 76%,var(--clases-luz) 88%,var(--clases-borde) 100%) border-box;
+  animation:clases-brillo 5s linear infinite;}
+@keyframes clases-brillo{to{--clases-brillo:360deg;}}
+/* En oscuro el brillo tira a blanco; en claro, el acento pleno sobre blanco. */
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) #screen-home .home-clases-card{--clases-borde:color-mix(in srgb,var(--primary) 50%,transparent);--clases-luz:color-mix(in srgb,var(--primary),#fff 80%);}}
+:root[data-modo="oscuro"] #screen-home .home-clases-card{--clases-borde:color-mix(in srgb,var(--primary) 50%,transparent);--clases-luz:color-mix(in srgb,var(--primary),#fff 80%);}
+@media(prefers-reduced-motion:reduce){#screen-home .home-clases-card{animation:none;}}
 #screen-home .home-clases-card::before{display:none;}
 #screen-home .home-clases-copy{gap:0;}
 #screen-home .home-clases-kicker{color:var(--primary);font-size:.6875rem;font-weight:600;letter-spacing:.08em;margin-bottom:8px;}
