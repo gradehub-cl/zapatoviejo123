@@ -4,16 +4,9 @@
 // logo ni el escudo de la universidad: es una etiqueta con iniciales en la
 // tipografía de GradeHub. Nunca reproducir marcas registradas acá.
 const TENANTS={
-  fen:{name:'U. de Chile · FEN', short:'FEN', mono:'FEN', sub:'Economía y Negocios'},
-  // `name` ya está persistido en profiles.universidad. Se conserva para no
-  // partir los conteos existentes; `sub` aclara que la opción no es solo para
-  // Ingeniería mientras se diseña una migración al código estable `uc`.
-    // `name` es el valor que se PERSISTE en `profiles` y no se cambia sin migrar
-  // las cuentas que ya lo tienen escrito; `label` es lo que ve la persona. Se
-  // separaron porque la UC en GradeHub ya no es solo Ingeniería —son 71
-  // carreras declarables— y decir "U. Católica · Ingeniería" en la pantalla
-  // donde alguien elige su universidad deja fuera a todo el resto.
-  uc :{name:'U. Católica · Ingeniería', label:'U. Católica', short:'UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
+  fen:{name:'U. de Chile', short:'FEN', mono:'FEN', sub:'Economía y Negocios'},
+  // profiles guarda el código estable del tenant; name/label son solo visibles.
+  uc :{name:'U. Católica', label:'U. Católica', short:'UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
   // oculto:true → no se ofrece al elegir universidad, pero sigue funcionando
   // completo (tema, carreras, presets) para quien ya lo tenga seleccionado.
   // Quitar la marca cuando se quiera lanzar.

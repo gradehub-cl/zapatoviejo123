@@ -61,41 +61,11 @@ async function probarSql(){
 
 async function probarCliente(){
   const app=leer('app.js'),render=leer('render-main.js'),html=leer('index.html');
-  const trozo=app.slice(app.indexOf('const REPORTE_PROGRAMA_MIN='),app.indexOf('function openReportModal('));
-  assert.ok(trozo.includes('function enviarReportePrograma('));
-  assert.ok(!/\b(save|aplicarReporteAlRamo|submit_catalog_report|track)\s*\(/.test(trozo));
-  assert.ok(html.includes('id="ramo-programa-report"'));
-  assert.ok(render.includes("avisoPrograma.style.display=conPautaCatalogo?'flex':'none'"));
-  const ramo={id:'r-1',nombre:'Ramo sintético',origen:{tenant:'uc',carrera:'Derecho'},categorias:[{nombre:'Prueba 1'}]};
-  const S={ramos:[ramo]},antes=JSON.stringify(S),usuario={id:U1};
-  const nodos={
-    'modal-content':{innerHTML:''},
-    'm-programa-descripcion':{value:'El programa dice que vale 40 %',setAttribute(){},removeAttribute(){},focus(){}},
-    'm-programa-evaluacion':{value:'Prueba 1'},
-    'm-programa-enviar':{disabled:false,textContent:'',isConnected:true},
-    'm-programa-error':{hidden:true,textContent:''}
-  };
-  const llamadas=[];let cerrado=0;
-  const f=new Function('S','document','infoPeriodoPauta','esc','openModal','closeModal','showToast','supabaseClient','currentUser',
-    `${trozo}\nreturn {abrirReportePrograma,enviarReportePrograma};`)(
-    S,{getElementById:id=>nodos[id]},()=>({periodo:'2026-2'}),s=>String(s).replaceAll('<','&lt;'),()=>{},()=>cerrado++,()=>{},
-    {rpc:async(...args)=>{llamadas.push(args);return {error:null};}},usuario);
-  f.abrirReportePrograma('r-1');
-  assert.match(nodos['modal-content'].innerHTML,/Mi programa dice otra cosa/);
-  assert.match(nodos['modal-content'].innerHTML,/Editar evaluaciones/);
-  await f.enviarReportePrograma('r-1');
-  assert.equal(llamadas.length,1);
-  assert.equal(llamadas[0][0],'enviar_reporte_programa');
-  assert.deepEqual(llamadas[0][1],{p_tenant:'uc',p_carrera:'Derecho',p_ramo:'Ramo sintético',p_evaluacion:'Prueba 1',p_descripcion:'El programa dice que vale 40 %'});
-  assert.equal(JSON.stringify(S),antes);
-  assert.equal(cerrado,1);
-  const sinSql=new Function('S','document','infoPeriodoPauta','esc','openModal','closeModal','showToast','supabaseClient','currentUser',
-    `${trozo}\nreturn {enviarReportePrograma};`)(S,{getElementById:id=>nodos[id]},()=>({periodo:'2026-2'}),s=>String(s),()=>{},()=>cerrado++,()=>{},
-    {rpc:async()=>({error:{code:'PGRST202'}})},usuario);
-  await sinSql.enviarReportePrograma('r-1');
-  assert.match(nodos['m-programa-error'].textContent,/disponible pronto/);
-  assert.equal(cerrado,1,'sin SQL no muestra éxito ni cierra la hoja');
-  console.log('OK cliente: solo catálogo, payload acotado, pauta intacta y sin analítica');
+  // Se quitó el 2026-11-02: «Repórtala» hace lo mismo y además corrige la pauta.
+  assert.ok(!html.includes('ramo-programa-report'));
+  assert.ok(!app.includes('function abrirReportePrograma('));
+  assert.ok(!render.includes('abrirReportePrograma'));
+  console.log('OK cliente: la ficha solo ofrece «Repórtala»; la bandeja de admin sigue');
 }
 
 (async()=>{await probarSql();await probarCliente();})().catch(e=>{console.error(e);process.exitCode=1;});

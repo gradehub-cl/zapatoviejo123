@@ -24,7 +24,7 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};
 (async()=>{
   run('S.ramos='+J([ramo()]));
   await run('aportarPautasAlCatalogo()');
-  check('ramo armado a mano aporta',calls.length===1&&calls[0].nombre==='submit_catalog_report');
+  check('ramo armado a mano aporta',calls.length===1&&calls[0].nombre==='submit_catalog_report_periodo');
   check('se agrupa por su sigla explícita',calls[0].args.p_ramo_sigla==='ABC1234'
     &&run('claveReporte(S.ramos[0])')==='ABC1234');
   run(`CREDITOS_UC['Curso de prueba']=[10,'ABC1234']`);
