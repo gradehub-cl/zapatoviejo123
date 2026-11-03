@@ -4394,10 +4394,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 
 /* Agenda del estudiante: jerarquía de la maqueta aprobada, sin alterar
    prioridades ni metas. El medidor original conserva su escala y sus colores. */
-#screen-agenda .ag-priority-heading{container:agenda-orden / inline-size;display:block;margin:0 0 20px;padding:0;}
-#screen-agenda .ag-order-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%;padding:4px;border:0;border-radius:999px;background:var(--muted);}
-#screen-agenda .ag-order-option{min-width:0;min-height:44px;padding:8px 10px;border-radius:999px;font-size:.8125rem;color:var(--fg2);white-space:normal;}
-#screen-agenda .ag-order-option.active{background:var(--primary);color:var(--primary-fg);box-shadow:none;}
+/* El orden va en la línea de «Tus prioridades» como pestañas de texto, igual
+   que los rangos del gráfico de Estadísticas (Lucas, 2026-11-03). Si no cabe,
+   baja entero a la línea siguiente. */
+#screen-agenda .ag-priority-heading{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;padding:2px 2px 4px;}
+#screen-agenda .ag-order-options{display:flex;gap:0;width:auto;margin-left:auto;padding:0;border:0;border-radius:0;background:none;}
+#screen-agenda .ag-order-option{min-width:44px;min-height:44px;padding:0 8px;border-radius:0;background:none;font-size:.8125rem;font-weight:500;color:var(--fg2);white-space:nowrap;}
+#screen-agenda .ag-order-option.active{background:linear-gradient(currentColor,currentColor) center bottom 8px/1.25rem 2px no-repeat;color:var(--fg);font-weight:600;box-shadow:none;}
 #screen-agenda .ag-order-option:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 #screen-agenda .ag-order-option::after{display:none;}
 #screen-agenda .ag-priority-stack{container:agenda-prioridades / inline-size;gap:12px;}
@@ -4430,9 +4433,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 }
 /* Con texto grande las tres etiquetas no caben: conservarlas enteras y
    accesibles importa más que mantener el selector en una sola línea. */
-@container agenda-orden (max-width:18rem){
-  #screen-agenda .ag-order-options{grid-template-columns:1fr;border-radius:24px;}
-}
 @container agenda-prioridades (max-width:18rem){
   #screen-agenda .ag-need{grid-template-columns:1fr;justify-items:center;}
   #screen-agenda .ag-need-context{text-align:center;}
@@ -4470,16 +4470,28 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 /* Ficha del estudiante · maqueta aprobada. Los avisos de reglas mantienen
    su presentación; solo la meta numérica usa el medidor original. */
 #screen-ramo .ramo-hero{container:ficha-hero / inline-size;}
-#screen-ramo .ramo-hero-num-row{align-items:center;gap:20px;}
-#screen-ramo .ramo-chip.ramo-meta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:auto;padding:12px 0 0;border:0;background:none;color:var(--fg2);white-space:normal;}
-#screen-ramo .ficha-medidor{position:relative;display:block;width:6rem;aspect-ratio:92/52;}
+#screen-ramo .ramo-hero-num-row{align-items:center;gap:28px;}
+#screen-ramo .ramo-chip.ramo-meta{display:flex;flex-direction:column;align-items:center;gap:6px;margin-left:0;padding:12px 0 0;border:0;background:none;color:var(--fg2);white-space:normal;}
+#screen-ramo .ficha-medidor{position:relative;display:block;width:5.25rem;aspect-ratio:92/52;}
 #screen-ramo .ficha-medidor .medidor-nota{display:block;width:100%;max-width:none;height:auto;transform:translateY(-6px);overflow:visible;}
 #screen-ramo .ficha-medidor-cifra{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:3%;font-variant-numeric:tabular-nums;}
-#screen-ramo .ficha-medidor-cifra strong{font-size:1.3rem;line-height:1;font-weight:650;}
+#screen-ramo .ficha-medidor-cifra strong{font-size:1.15rem;line-height:1;font-weight:650;}
 #screen-ramo .ficha-medidor-cifra small{font-size:.6875rem;margin-top:4px;line-height:1.2;}
-#screen-ramo .ficha-medidor-contexto{max-width:12rem;text-align:center;font-size:.6875rem;line-height:1.4;color:var(--fg2);}
+#screen-ramo .ficha-medidor-contexto{max-width:9rem;text-align:center;font-size:.6875rem;line-height:1.4;color:var(--fg2);}
 #screen-ramo .ramo-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:stretch;}
-#screen-ramo #faltas-contador .faltas-btn{width:44px;height:44px;}
+/* Contadores de la ficha: título y explicación a lo ancho y, abajo, la cifra
+   con un stepper de una pieza. Lado a lado el texto quedaba apretado contra
+   los botones (Lucas, 2026-11-03). Mismo módulo que las evaluaciones. */
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-card,#screen-ramo #faltas-contador.faltas-card{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"titulo titulo" "detalle detalle" "num ctrl";align-items:center;gap:4px 16px;margin:0 20px 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-txt{display:contents;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-titulo{grid-area:titulo;font-size:1rem;font-weight:550;line-height:1.35;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-detalle{grid-area:detalle;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-num{grid-area:num;margin-top:10px;text-align:left;font-size:1.5rem;font-weight:650;line-height:1;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-num small{font-size:.875rem;font-weight:500;color:var(--fg2);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) :is(.faltas-ctrl,.bonus-anotar){grid-area:ctrl;margin-top:10px;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-ctrl{gap:0;border:1px solid var(--border2);border-radius:10px;overflow:hidden;}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-btn{width:52px;height:44px;border:0;border-radius:0;background:none;color:var(--fg);}
+#screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-btn+.faltas-btn{border-left:1px solid var(--border2);}
 #screen-ramo :is(#faltas-contador,#bonus-ramo) :focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 #screen-ramo .ficha-serie-hd{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 #screen-ramo .ficha-serie-hd h2{margin:0;font-size:1rem;font-weight:650;}
@@ -4504,7 +4516,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .eval-row-weight,#screen-ramo .cat-peso-tag{color:var(--fg2);}
 #screen-ramo .ficha-peso{width:100%;height:6px;margin-top:14px;overflow:hidden;border-radius:999px;background:var(--border2);}
 #screen-ramo .eval-row>.ficha-peso{flex-basis:100%;margin-top:0;}
-#screen-ramo .ficha-peso-grupo{display:block;width:var(--ficha-peso);height:100%;background:repeating-linear-gradient(125deg,transparent 0,transparent 3px,var(--fg2) 3px,var(--fg2) 4px);}
+/* La barra mide solo el grupo: lo lleno es lo evaluado y la pista, lo que
+   falta. El tramo del resto del ramo no se entendía (Lucas, 2026-11-03). */
+#screen-ramo .ficha-peso-grupo{display:block;width:100%;height:100%;}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
 #screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:10px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
 #screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
@@ -4572,13 +4586,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 
 /* Módulos de sección: contorno de #958, filas dentro y títulos fuera. */
 :is(#screen-home,#screen-agenda) .seccion-lista{background:var(--card);border:1px solid var(--border);border-radius:8px;min-width:0;}
-#screen-home #home-ramos{display:block;margin:0 20px;padding:0 16px;background:var(--card);border:1px solid var(--border);border-radius:8px;}
-#screen-home #home-ramos:empty{display:none;}
-#screen-home #home-ramos>.ramo-row{width:100%;min-height:76px;margin:0;padding:18px 12px 26px;border:0;border-radius:0;}
-#screen-home #home-ramos>.ramo-row+.ramo-row{border-top:1px solid var(--border);}
-#screen-home #home-ramos .ramo-name{min-height:44px;white-space:normal;overflow-wrap:anywhere;}
-#screen-home #home-ramos .ramo-progress-track{left:12px;right:12px;}
-#screen-home #home-ramos .ramo-band{top:16px;bottom:16px;}
+/* Inicio: Mis ramos vuelve a ir suelto, como el promedio de arriba; la
+   tarjeta grande pesaba más que el contenido (Lucas, 2026-11-03). */
 #home-insights .home-seccion-titulo{display:block;margin:4px 0 8px;font-size:.8125rem;line-height:1.4;font-weight:600;}
 #screen-agenda .ag-priority-stack{display:block;}
 #screen-agenda .seccion-lista>.ag-event{margin:0;}

@@ -65,7 +65,7 @@ chk('apagado no se muestra',el.style.display==='none'&&el.innerHTML==='');
 el=ficha(null);
 chk('sin contador no se muestra',el.style.display==='none');
 el=ficha({activo:true,cantidad:2,limite:4});
-chk('muestra la cuenta y lo que queda',el.style.display==='flex'&&/faltas-num[^>]*>2</.test(el.innerHTML)&&/Te quedan 2 de 4/.test(el.innerHTML));
+chk('muestra la cuenta y lo que queda',el.style.display==='grid'&&/faltas-num[^>]*>2</.test(el.innerHTML)&&/Te quedan 2 de 4/.test(el.innerHTML));
 el=ficha({activo:true,cantidad:3,limite:4});
 chk('singular cuando queda una',/Te queda 1 de 4/.test(el.innerHTML));
 el=ficha({activo:true,cantidad:4,limite:4});
