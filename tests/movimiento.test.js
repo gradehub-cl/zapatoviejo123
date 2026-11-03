@@ -238,7 +238,7 @@ chk('el avance de Estadísticas va en el contorno, sin el semáforo',
 chk('el contorno se llena con el avance real sin animar con movimiento reducido',
   /pathLength="100" stroke-dasharray="\$\{valor\} 100"/.test(app)&&!/\.stats-avance[^}]*\{[^}]*(?:animation|transition):/.test(cssCodigo));
 chk('el 100% del semestre no se pinta de aprobado',
-  /tarjetaEvolucionStatsHTML\(g,avance\.pct,/.test(app)&&!/\.stats-evolucion-avance[^}]*\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
+  /tarjetaEvolucionStatsHTML\(g,avance\.pct\)/.test(app)&&!/\.stats-evolucion-avance[^}]*\{[^}]*(?:var\(--green|var\(--yellow|var\(--red)/.test(cssCodigo));
 // Antes `.open` solo hacía display:flex — el sheet aparecía y desaparecía de
 // golpe, y por acá pasa todo flujo de la app.
 chk('el sheet parte fuera de pantalla', /\.modal-sheet\{transform:translateY\(100%\)/.test(css));
