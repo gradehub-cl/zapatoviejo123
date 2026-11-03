@@ -103,7 +103,7 @@ function enlazarGraficosEvolucion(body){
     const nota=grafico.querySelector('.evolucion-notita'),cursor=grafico.querySelector('.evolucion-cursor');
     let arrastrando=false,seleccionado=puntos.length-1;
     const ocultar=()=>{nota.hidden=true;cursor.hidden=true;puntos.forEach(p=>p.classList.remove('es-elegido'));};
-    const mostrar=indice=>{
+    const mostrar=(indice,tactil=false)=>{
       seleccionado=Math.max(0,Math.min(puntos.length-1,Math.round(indice)));
       const p=puntos[seleccionado];
       grafico.setAttribute('aria-valuenow',seleccionado);
@@ -115,8 +115,10 @@ function enlazarGraficosEvolucion(body){
       puntos.forEach((p,i)=>p.classList.toggle('es-elegido',i===seleccionado));
       const x=parseFloat(p.style.left)/100*grafico.clientWidth,y=parseFloat(p.style.top)/100*grafico.clientHeight;
       nota.style.left=Math.max(0,Math.min(grafico.clientWidth-nota.offsetWidth,x-nota.offsetWidth/2))+'px';
+      // Dedo y lápiz cubren el punto: el detalle flota sobre el trazado, sin
+      // reservar altura. Mouse y teclado conservan la posición junto al punto.
       const arriba=y-nota.offsetHeight-14;
-      nota.style.top=Math.max(0,Math.min(grafico.clientHeight-nota.offsetHeight,arriba>=0?arriba:y+14))+'px';
+      nota.style.top=(tactil?-nota.offsetHeight-12:Math.max(0,Math.min(grafico.clientHeight-nota.offsetHeight,arriba>=0?arriba:y+14)))+'px';
     };
     const recorrer=e=>{
       const r=grafico.getBoundingClientRect();
@@ -127,7 +129,7 @@ function enlazarGraficosEvolucion(body){
         const dx=Math.abs(parseFloat(p.style.left)-x),dy=Math.abs(parseFloat(p.style.top)-y);
         if(dx<distancia-0.001||(Math.abs(dx-distancia)<0.001&&dy<vertical)){mejor=i;distancia=dx;vertical=dy;}
       });
-      mostrar(mejor);
+      mostrar(mejor,e.pointerType==='touch'||e.pointerType==='pen');
     };
     grafico.onpointerdown=e=>{
       if(e.isPrimary===false||e.button!==0)return;
