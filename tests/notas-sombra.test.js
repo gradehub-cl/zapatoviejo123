@@ -56,5 +56,21 @@ assert.equal(cargar(curso([cat('A',50),cat('B',50)],{gates:[{type:'group_min',ca
 assert.equal(cargar(curso([cat('A',100)],{aporta:{ramo:'Laboratorio',peso:30,min:4}})),null);
 assert.equal(cargar(curso([cat('A',50),cat('B',50)],{gates:[{type:'conditional_weights',pauta:[{catId:'A',nombre:'A',peso:50,slots:1},{catId:'B',nombre:'B',peso:50,slots:1}]}]})),null);
 assert.equal(cargar(curso([cat('Completa',100,5)])),null);assert.equal(cargar(curso([])),null);
+// La meta de la ficha con lo fijado o con el examen en su mínimo. La primera
+// versión buscaba piezas del medidor que #977 sacó: el error cortaba el
+// repintado del slider y la ficha (Lucas, 2026-11-03).
+{
+  const chip=el(),getById=ctx.document.getElementById;ctx.document.getElementById=id=>id==='ramo-min-chip'?chip:stub;
+  m=cargar(curso([cat('Rendida',50,5.2),cat('Trabajo',20),cat('Examen',30)],{gates:[{type:'min_grade_required',catId:'Examen',min:3.5,cap:3.9}]}));
+  ctx.__m=m;run('pintarMetaNotasSombra(__m)');
+  assert.match(chip.innerHTML,/Necesitas <strong[^>]*>1,5<\/strong> en las otras pendientes para aprobar/);
+  ctx.__m={...m,estado:'no',necesaria:null};run('pintarMetaNotasSombra(__m)');
+  assert.match(chip.innerHTML,/Ya no es posible aprobar/);
+  ctx.document.getElementById=getById;
+}
+// El examen se muestra al final sin reordenar la pauta guardada.
+ctx.__cats=[cat('Examen',30),cat('Laboratorio',20),cat('Interrogación 1',50)];
+assert.deepEqual(json('ordenCategoriasFicha(__cats).map(c=>c.nombre)'),['Laboratorio','Interrogación 1','Examen']);
+assert.equal(run('__cats[0].nombre'),'Examen');
 run("S.tipoCuenta='profesor'");assert.equal(run('modeloNotasSombra(r)'),null);
 console.log('OK: sombras con motor real, mínimos, fijaciones, estados, borde UC, casillas, cuenta existente intacta y exclusiones exactas');
