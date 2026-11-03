@@ -19,14 +19,14 @@ function motivoSinCambioPanel(m,{breve=false}={}){
   if(!n)return 'Aún pocos datos para comparar antes y ahora';
   return `Falta${n===1?'':'n'} ${n} evaluaci${n===1?'ón':'ones'} ${breve?(antes?'antes':'ahora'):`comparable${n===1?'':'s'} ${antes?'de antes de empezar':'desde que empezó'}`}`;
 }
-// Cada alumno en una fila (Lucas, 2026-10-23: Estadísticas necesitaba algo
+// Cada par alumno-ramo en una fila (Estadísticas necesitaba algo
 // visual): dónde estaba respecto del ramo antes de empezar (punto hueco) y
 // dónde está ahora (punto lleno), sobre una misma escala con el ramo al
 // centro. Ordenados por cuánto cambiaron; tocar la fila abre su ficha. El
 // texto de cada fila dice lo mismo que el dibujo, para VoiceOver.
 function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
   const ref=seccion?'su sección':'el ramo';
-  const conDatos=(g.alumnos||[]).filter(m=>m&&m.antes&&m.ahora&&(m.antes.diferencia!==null||m.ahora.diferencia!==null));
+  const conDatos=(g.alumnos||[]).filter(m=>m&&m.antes&&m.ahora);
   if(!conDatos.length)return '';
   const lim=Math.max(1,Math.ceil(Math.max(...conDatos.flatMap(m=>[m.antes.diferencia,m.ahora.diferencia]).filter(v=>v!==null).map(Math.abs))));
   const pos=d=>(50+Math.max(-1,Math.min(1,d/lim))*50).toFixed(1);
@@ -35,35 +35,34 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
   const filas=orden.map(m=>{
     const a=m.antes.diferencia,b=m.ahora.diferencia;
     const tramo=a!==null&&b!==null?`<i class="ah-tramo" style="left:${pos(Math.min(a,b))}%;width:${(pos(Math.max(a,b))-pos(Math.min(a,b))).toFixed(1)}%"></i>`:'';
-    return `<li><button type="button" data-ver-alumno="${esc(m.id)}">
-      <span class="ah-fila-nombre">${esc(m.nombre)}</span>
+    return `<li><button type="button" data-ver-alumno="${esc(m.id)}" data-alumno-ramo="${esc(m.ramoId)}">
+      <span class="ah-fila-nombre">${esc(m.nombre)}<small class="ah-fila-ramo">${esc(m.ramo)}${m.sigla?` · <span class="ah-fila-sigla">${esc(m.sigla)}</span>`:''}</small><small class="ah-fila-inicio">${m.desde?'Inicio · '+esc(fechaCorta(m.desde)):'Sin fecha de inicio'}</small></span>
       <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
       <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${a===null?'—':esc(conSignoPanel(a))}</b></span><span>Ahora <b>${b===null?'—':esc(conSignoPanel(b))}</b></span></span>
       <span class="ah-fila-cambio${m.cambio===null||Math.abs(m.cambio)<0.05?'':m.cambio>0?' ah-sube':' ah-baja'}"><small>Cambio</small>${m.cambio===null?'—':esc(conSignoPanel(m.cambio))}<small>${m.cambio===null?esc(motivoSinCambioPanel(m,{breve:true})):'puntos'}</small></span>
       <span class="sr-solo">Antes: ${lado(a)}. Ahora: ${lado(b)}.${m.cambio===null?' '+esc(motivoSinCambioPanel(m))+'.':''}</span></button></li>`;
   }).join('');
-  const fuera=g.alumnos.length-conDatos.length;
   return `<section class="ah-alumnos" aria-labelledby="ah-alumnos-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Por alumno</h2></div>
+    <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Por alumno y ramo</h2></div>
     <p class="ah-referencia">Puntos frente a ${ref} · 0 = su promedio</p>
     <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes</span><span><i class="ah-dot ah-dot-ahora"></i>Ahora</span></p>
     <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El ramo'}</span><span>${lim} sobre</span></span><span></span></div>
     <ul class="ah-filas">${filas}</ul>
-    ${fuera?`<p class="clase-sin-datos">${fuera} ${fuera===1?'alumno no tiene':'alumnos no tienen'} evaluaciones comparables con fecha todavía.</p>`:''}
   </section>`;
 }
 // `seccion`: la comparación es con la sección de cada alumno; `sinSeccion`,
 // cuántos alumnos no la declararon en algún ramo.
 function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
-  if(!g||!g.alumnos.length)return '';
+  if(!g)return '';
+  if(!g.alumnos.length)return '<p class="profesor-hig-vacio">Todavía no hay ramos compartidos para comparar.</p>';
   const respecto=seccion?'Respecto de su sección':'Respecto del ramo';
   const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al ramo';
   const conFecha=g.antes.n+g.ahora.n;
-  // Proporción de alumnos comparables; no es una nota ni un porcentaje de aprobación.
+  // Proporción de pares alumno-ramo comparables; no es una nota ni un porcentaje de aprobación.
   // Las mismas piezas que Estadísticas del estudiante (htmlAnillo, 2026-10-26),
   // en el acento y nunca en el semáforo: mejorar frente al ramo no es aprobar.
   const anillo=g.conCambio?htmlAnillo({fraccion:g.mejoraron/g.conCambio,color:'var(--ah-acento)',chico:true,
-    etiqueta:`${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'} mejoraron`,
+    etiqueta:`Cambio positivo en ${g.mejoraron} de ${g.conCambio} ${g.conCambio===1?'par alumno-ramo':'pares alumno-ramo'}`,
     centro:`<span class="anillo-valor">${g.mejoraron}</span><span class="anillo-texto">de ${g.conCambio}</span>`}):'<strong>—</strong>';
   const prom=v=>v===null?'—':esc(fmt(v));
   // Antes y ahora es una comparación: dos barras paralelas en la misma escala
@@ -74,8 +73,8 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
       <div class="ah-balance">
         <h2 id="ah-titulo">${tituloCambio}</h2>
         <div class="ah-balance-cifras">
-          <div><strong class="ah-dato-principal">${g.cambioMediana===null?'—':esc(conSignoPanel(g.cambioMediana))}<small>puntos</small></strong><span class="ah-dato-contexto">${g.cambioMediana===null?'Aún pocos datos':`Mediana · ${g.conCambio} ${g.conCambio===1?'alumno':'alumnos'}`}</span></div>
-          <div class="ah-mejoraron">${anillo}<span class="ah-dato-contexto">Mejoraron</span></div>
+          <div><strong class="ah-dato-principal">${g.cambioMediana===null?'—':esc(conSignoPanel(g.cambioMediana))}<small>puntos</small></strong><span class="ah-dato-contexto">${g.cambioMediana===null?'Aún pocos datos':`Mediana · ${g.conCambio} ${g.conCambio===1?'par alumno-ramo':'pares alumno-ramo'}`}</span></div>
+          <div class="ah-mejoraron">${anillo}<span class="ah-dato-contexto">Pares que mejoraron</span></div>
         </div>
       </div>
       <div class="ah-resultados">
@@ -85,8 +84,8 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
       </div>
     </div>
     ${graficoAlumnosAntesAhoraHTML(g,{seccion})}
-    <p class="ah-alcance">Desde que empezaron contigo. El cambio no demuestra el efecto de las clases.</p>
-    <details class="ah-metodo"><summary>Cómo se calcula</summary><p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada alumno pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p></details>
+    <p class="ah-alcance">${g.totalAlumnos} ${g.totalAlumnos===1?'alumno':'alumnos'} en ${g.totalRamos} ${g.totalRamos===1?'ramo':'ramos'}. Cada comparación usa el inicio de clases de ese ramo. El cambio no demuestra el efecto de las clases.</p>
+    <details class="ah-metodo"><summary>Cómo se calcula</summary><p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada par alumno-ramo pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p></details>
   </section>`;
 }
 // El mismo gráfico de evolución del historial. Aquí la magnitud sigue siendo
