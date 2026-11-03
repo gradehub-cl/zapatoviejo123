@@ -30,7 +30,8 @@ const enMascaras = (css.match(/linear-gradient\(/g) || []).length - total;
 // La ficha añade un rayado funcional para el peso todavía pendiente.
 // 2026-11-03: la tarjeta de clases de Inicio suma un relleno liso
 // (`linear-gradient(var(--card),var(--card))`) que recorta el brillo del contorno.
-chk(`hay 22 gradientes que pintan, incluidos Wrapped, peso pendiente de la ficha y el contorno de clases (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 22);
+// La pista sombra distingue el tramo bloqueado y el valor elegido: dos gradientes de datos.
+chk(`hay 24 gradientes que pintan, incluidos Wrapped, peso pendiente de la ficha y el contorno de clases (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 24);
 chk('el sistema declara una dirección para superficies y otra para acentos',
   /--gradient-surface:150deg;--gradient-accent:135deg;/.test(css));
 

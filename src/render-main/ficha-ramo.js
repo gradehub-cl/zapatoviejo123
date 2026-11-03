@@ -90,15 +90,19 @@ function seriesNumeradasFicha(categorias){
   return porCategoria;
 }
 
-function botonNotaEnFilaHTML(catId,slot,nombre){
+function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
+  const pendiente=sombras?.pendientes.find(p=>p.catId===catId&&p.slot===slot);
+  if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
   return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
 }
 function abrirNotaEnFila(boton){
   if(!boton||!boton.isConnected)return;
   const input=document.createElement('input');
   input.type='text';input.className='eval-row-input nota-campo';input.inputMode='decimal';
+  if(boton.dataset.sombraValor)input.placeholder=boton.dataset.sombraValor;
   input.autocapitalize='characters';input.maxLength=4;
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
+  if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);
   let terminado=false;
   const valido=()=>!input.value.trim()||!isNaN(parseNota(input.value));
   const guardar=()=>{
@@ -128,6 +132,7 @@ function renderRamo(){
   if(subtitulo)subtitulo.textContent=[siglaDeRamo(r),r.creditos!=null?`${r.creditos} créditos`:''].filter(Boolean).join(' · ');
   const avg=ramoAvg(r);
   const calculo=calculoRamoConCompuertas(r);
+  const sombras=notasSombraDelRamo(r);
   const recuperativo=estadoRecuperativo(r,calculo);
   const eximicion=estadoEximicion(r);
   const segundaFecha=estadoSegundaFecha(r);
@@ -584,7 +589,7 @@ function renderRamo(){
         // Vacío parte compacto, pero al guardar la primera nota (o dejar una
         // anotada para después) hay algo concreto que revisar. `openCats` solo
         // toma el control después de que la persona abrió o cerró a mano.
-        const isOpen=openCats[cat.id]===undefined?notas.length>0:openCats[cat.id];
+        const isOpen=openCats[cat.id]===undefined?notas.length>0||!!sombras:openCats[cat.id];
         const wrap=document.createElement('div');wrap.className='eval-group';
         if(av!=null)wrap.style.borderLeftColor=getColor(av);
         let rows='';
@@ -622,7 +627,7 @@ function renderRamo(){
               ${sobra?'<span class="eval-sub-aviso">sobra en la pauta · sigue contando</span>':`<span class="eval-sub-fecha">${v==null?'Pendiente':''}${v==null&&fSub?' · ':''}${esc(fSub)}</span>`}
               ${recorreccion?`<span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}
             </button>
-            ${v==null?botonNotaEnFilaHTML(cat.id,i,etiqueta):`<input class="eval-row-input sm" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(nota))}" style="color:${getColor(v)}" onchange="setSlotNota('${cat.id}',${i},this.value)" onclick="event.stopPropagation();" aria-label="${esc(etiqueta)}"/>`}
+            ${v==null?botonNotaEnFilaHTML(cat.id,i,etiqueta,sombras):`<input class="eval-row-input sm" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(nota))}" style="color:${getColor(v)}" onchange="setSlotNota('${cat.id}',${i},this.value)" onclick="event.stopPropagation();" aria-label="${esc(etiqueta)}"/>`}
           </div>`;
         }
         // Casillas con nota, no notas: un duplicado de la misma casilla no es
@@ -657,7 +662,7 @@ function renderRamo(){
           <div class="eval-row-name">${esc(cat.nombre)}</div>
           <div class="eval-row-weight">${g==null&&!justificada?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
       adjuntarCategoria(row,cat);
@@ -726,6 +731,7 @@ function renderRamo(){
       </div>`;
     adjuntarCategoria(card,cat);
   });
+  montarNotasSombra(r,sombras,cl);
 }
 
 // Formato corto de fecha para chips: "15 mar"
