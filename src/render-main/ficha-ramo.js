@@ -580,6 +580,7 @@ function renderRamo(){
     const detalleAusencia=ausencia?.declarada?`<button type="button" class="ausencia-estado" onclick="openDetalleAusenciaJustificada('${esc(cat.id)}');event.stopPropagation()"><strong>${ausencia.inactiva?'Declaración no aplicada':'Justificada'}</strong><span>${esc(ausencia.texto)}</span></button>`:'';
     const fechaChip=cat.fecha?`<span class="cat-fecha-chip">${esc(fechaHoraCorta(cat.fecha,cat.hora))}</span>`:'';
     const exenta=categoriaEximida(r,cat);
+    const borrables=textoNotasBorrables(r,cat);
     const barraPeso=barraCategoriaFichaHTML(r,cat,calculo);
     // La categoría sigue guardada intacta. Solo se oculta mientras la
     // confirmación esté activa, para que corregirla la haga reaparecer.
@@ -645,6 +646,7 @@ function renderRamo(){
           <div class="eval-group-hd" role="button" tabindex="0" aria-expanded="${isOpen?'true':'false'}" onclick="toggleCat('${cat.id}')">
             <div style="flex:1;min-width:0;">
               <div class="eval-row-name">${esc(cat.nombre)}</div>
+              ${borrables?`<div class="eval-row-weight">${esc(borrables)}</div>`:''}
               <div class="eval-row-weight">${r2(cat.peso)}% · promedio de ${cat.slots}${notasCount?` · ${notasCount}/${cat.slots} ingresadas`:''}${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}</div>
             </div>
             <div class="ramo-nota ${justificada?'':colorClass(av)}" style="--grade-color:${getColor(av)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(av)}</div>
@@ -720,6 +722,7 @@ function renderRamo(){
       <div class="cat-header">
         <div class="cat-info" role="button" tabindex="0" onclick="openEditCatModal('${cat.id}')" style="cursor:pointer;">
           <div class="cat-name">${esc(cat.nombre)}</div>
+          ${borrables?`<div class="cat-peso-tag">${esc(borrables)}</div>`:''}
           <div class="cat-peso-tag">${r2(cat.peso)}% del ramo · ${notas.length} nota${notas.length!==1?'s':''}${fechaChip?' · '+fechaChip:''}</div>
         </div>
         <span style="font-size:1rem;font-weight:700;color:${justificada?'var(--fg2)':getColor(catAvg)}">${justificada?'Justificada':fmtPromedio(catAvg)}</span>

@@ -15,7 +15,7 @@ const course=(id,categorias,extra={})=>({id,nombre:id,categorias,creditos:10,ori
 
 const c=sandbox();
 const r=course('transporte',[cat('Controles',45,[1,4,4,4].map((n,i)=>note('c'+i,n,i)),{slots:5,dropLowest:{count:1}}),...['Meme 1','Meme 2','Meme 3','Meme 4'].map((n,i)=>cat(n,5,[note('m'+i,4)])),cat('Examen',35,[note('ex',4)])]);
-c.r=r;c.run('S.ramos=[r]');
+c.r=r;c.run("S.tenant='uc';S.ramos=[r]");
 const needed=c.run('notaNecesaria(r)');
 const filled=structuredClone(r);filled.categorias[0].notas.push(note('c4',4,4));c.filled=filled;
 assert.equal(c.run('ramoAvg(filled)'),4);

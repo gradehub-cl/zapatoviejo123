@@ -55,7 +55,7 @@ function gh_crearCalculoRamo(deps){
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
       formulas_condicionales:reglasCalculoVigentes(r).filter(g=>g.type==='conditional_weights'),
       children:categoriasVigentes(r).filter(c=>c.peso>0||(c.optativa===true&&(c.notas||[]).some(n=>Number.isFinite(n.valor)))).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
-        drop_lowest:c.dropLowest||null,
+        drop_lowest:gh_descarteManual(r,typeof deps.tenant==='function'?deps.tenant():null)?null:c.dropLowest||null,
         children:hojasCategoria(c)},bonus.porCategoria[c.id]))},bonus.final);
   }
   function gradesOf(r){const g={};(r.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{if(n.valor!==null&&n.valor!==undefined)g[n.id]=n.valor;}));return g;}
