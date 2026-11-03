@@ -54,7 +54,7 @@ function escribirFechaPropuesta(ramo,cat,prop){
       cat.notas=Array.isArray(cat.notas)?cat.notas:[];
       let n=cat.notas.find(x=>x.slot===slot);
       if(!n){
-        n={id:uid(),nombre:etiquetaCasilla(ramo,cat,slot),valor:null,peso:1,slot};
+        n=asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(ramo,cat,slot),peso:1,slot},'',null);
         cat.notas.push(n);
       }
       marcarFechaUsuario(n,prop.fecha,prop.hora||'');
@@ -189,7 +189,7 @@ function escribirNotaPropuesta(cat,propuesta,ramo){
       :{id:uid(),nombre:ramo?etiquetaCasilla(ramo,cat,slot):cat.nombre+' '+(slot+1),valor:null,peso:1,slot};
     cat.notas.push(destino);
   }
-  destino.valor=propuesta.valor;
+  asignarValorNota(destino,propuesta.valor);
   return true;
 }
 // `valores` permite aplicar lo editado en vez de lo propuesto: es el mismo

@@ -72,7 +72,7 @@ check('la ficha usa los nombres editados de subnotas rendidas y pendientes',
   ficha().includes('>Resistencia</span>')&&ficha().includes('>Velocidad &lt;final&gt;</span>')
   &&!ficha().includes('>Físico 1</span>')&&!ficha().includes('>Físico 2</span>'));
 check('los controles de la ficha tienen el mismo nombre accesible',
-  ficha().includes('aria-label="Resistencia"')&&ficha().includes('aria-label="Velocidad &lt;final&gt;"'));
+  ficha().includes('aria-label="Resistencia"')&&ficha().includes('aria-label="Anotar nota de Velocidad &lt;final&gt;"'));
 check('las subnotas sin editar mantienen su nombre automático',ficha().includes('>Físico 3</span>')&&ficha().includes('>Físico 4</span>'));
 run('renderSimulador()');
 check('el simulador usa el nombre guardado de la subnota pendiente y escapa su texto',

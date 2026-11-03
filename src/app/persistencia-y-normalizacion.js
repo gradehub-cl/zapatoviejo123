@@ -380,6 +380,7 @@ function normalize(data) {
         nombre: n.nombre || 'Nota',
         hora: (n.fecha && HORA_RE.test(n.hora || '')) ? n.hora : null,
         valor: n.valor ?? (typeof n === 'number' ? n : null),
+        ...(fechaEdicionNotaValida(n.editadaEn)?{editadaEn:fechaEdicionNotaValida(n.editadaEn)}:{}),
         peso: n.peso || 1,
         // La equivalencia numérica alimenta el motor, pero la letra se conserva
         // para que la ficha siga diciendo lo mismo que Mi UC. Ausente significa
@@ -556,7 +557,10 @@ function normalize(data) {
       categorias: comoLista(r.categorias).map(c => ({
         ...c,
         id: idSeguro(c.id),
-        notas: comoLista(c.notas).map(n => ({...n, id: idSeguro(n.id)})),
+        notas: comoLista(c.notas).map(n => {
+          const {editadaEn,...resto}=n;
+          return {...resto,id:idSeguro(n.id),...(fechaEdicionNotaValida(editadaEn)?{editadaEn:fechaEdicionNotaValida(editadaEn)}:{})};
+        }),
       })),
     })),
   }));

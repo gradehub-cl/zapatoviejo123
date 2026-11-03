@@ -170,6 +170,9 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     ${panel('pautas','<div id="admin-pautas-contenido"></div>')}
     ${panel('usuarios',`<h2>Usuarios</h2>
       ${temaFestivoAdminHTML()}
+      <section class="admin-tema-festivo" aria-label="Wrapped"><h3>Wrapped 2026-2</h3>
+        <p class="admin-hig-nota">Vista previa con un semestre de ejemplo. Abre para todos el 1 de diciembre; nadie más ve este botón.</p>
+        <button type="button" class="clase-accion" onclick="abrirWrappedVistaPrevia()">Ver el Wrapped</button></section>
       <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>
       <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa"><h3>Programas reportados</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
   </div>`;

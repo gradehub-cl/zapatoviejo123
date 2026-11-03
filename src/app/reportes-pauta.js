@@ -147,62 +147,9 @@ function claveReporte(r){
   return siglaReporteUC(r)||(o&&o.ramoKey)||ramoKey(r&&r.nombre,S.tenant,S.carrera);
 }
 
-// #632: avisa una diferencia para revisión sin aplicarReporteAlRamo(), save()
-// ni submit_catalog_report(). Editar evaluaciones sigue siendo la vía para
-// corregir la pauta personal.
-const REPORTE_PROGRAMA_MIN=10,REPORTE_PROGRAMA_MAX=400;
-function abrirReportePrograma(ramoId){
-  const r=S.ramos.find(x=>x.id===ramoId);
-  if(!r||!infoPeriodoPauta(r))return;
-  const opciones=[...new Set((r.categorias||[]).map(c=>c.nombre).filter(Boolean))];
-  document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Mi programa dice otra cosa</div>
-    <p style="color:var(--fg2);line-height:1.5;margin:0 0 16px;">Cuéntanos qué cambió en <b>${esc(r.nombre)}</b>. Lo revisaremos; este aviso no cambia tus evaluaciones ni la pauta del catálogo.</p>
-    <label class="modal-label" for="m-programa-evaluacion">Evaluación distinta <span style="text-transform:none;letter-spacing:0;">(opcional)</span></label>
-    <select class="feedback-select" id="m-programa-evaluacion"><option value="">No sé cuál / es algo general</option>${opciones.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>
-    <label class="modal-label" for="m-programa-descripcion">¿Qué dice tu programa?</label>
-    <textarea class="feedback-message" id="m-programa-descripcion" maxlength="400" rows="3" aria-describedby="m-programa-ayuda" placeholder="Ej: el examen vale 40 %, no 30 %"></textarea>
-    <p id="m-programa-ayuda" style="font-size:0.8125rem;color:var(--fg2);margin:8px 0 14px;">Entre 10 y 400 caracteres. No envíes notas ni datos personales. Puedes enviar un reporte al día.</p>
-    <p id="m-programa-error" role="alert" hidden></p>
-    <p style="font-size:0.8125rem;color:var(--fg2);margin:0 0 14px;">Para corregir solo tu ramo, usa <b>Editar evaluaciones</b>.</p>
-    <div class="modal-btns"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" id="m-programa-enviar" type="button" onclick="enviarReportePrograma('${esc(r.id)}')">Enviar para revisión</button></div>`;
-  openModal();
-}
-async function enviarReportePrograma(ramoId){
-  const r=S.ramos.find(x=>x.id===ramoId);
-  const campo=document.getElementById('m-programa-descripcion');
-  const sel=document.getElementById('m-programa-evaluacion');
-  const boton=document.getElementById('m-programa-enviar');
-  const aviso=document.getElementById('m-programa-error');
-  if(!r||!infoPeriodoPauta(r)||!campo||!boton||!aviso)return;
-  const descripcion=campo.value.trim();
-  if(descripcion.length<REPORTE_PROGRAMA_MIN||descripcion.length>REPORTE_PROGRAMA_MAX){
-    campo.setAttribute('aria-invalid','true');aviso.hidden=false;
-    aviso.textContent='Describe la diferencia en 10 a 400 caracteres.';campo.focus();return;
-  }
-  if(!supabaseClient||!currentUser){aviso.hidden=false;aviso.textContent='Inicia sesión para enviar el reporte.';return;}
-  const usuario=currentUser;
-  const evaluacion=sel&&sel.value||null;
-  if(evaluacion&&!(r.categorias||[]).some(c=>c.nombre===evaluacion))return;
-  boton.disabled=true;boton.textContent='Enviando…';aviso.hidden=true;campo.removeAttribute('aria-invalid');
-  try{
-    const {error}=await supabaseClient.rpc('enviar_reporte_programa',{
-      p_tenant:r.origen.tenant,p_carrera:r.origen.carrera||null,
-      p_ramo:r.nombre,p_evaluacion:evaluacion,p_descripcion:descripcion
-    });
-    if(error)throw error;
-    if(currentUser!==usuario)return;
-    closeModal();showToast('Reporte enviado para revisión. Tu pauta no cambió.');
-  }catch(error){
-    if(currentUser!==usuario)return;
-    aviso.hidden=false;
-    aviso.textContent=['PGRST202','42883','42P01','PGRST205'].includes(error&&error.code)
-      ?'Esta opción estará disponible pronto.'
-      :error&&error.code==='23505'?'Ya enviaste un reporte hoy. Puedes enviar otro mañana.'
-      :'No pudimos enviar el reporte. Intenta de nuevo.';
-  }finally{if(boton.isConnected){boton.disabled=false;boton.textContent='Enviar para revisión';}}
-}
-
+// «Mi programa dice otra cosa» (#632) se quitó el 2026-11-02: hacía lo mismo
+// que «Repórtala», sin corregir la pauta. Los reportes que llegaron siguen en
+// Admin › Reportes de programa (supabase/reporte_programa.sql).
 function openReportModal(ramoId,conservarBorrador=false){
   const r=S.ramos.find(x=>x.id===(ramoId||currentRamoId));
   if(!r){showToast('No se encontr\u00f3 el ramo',true);return;}

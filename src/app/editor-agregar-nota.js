@@ -54,8 +54,7 @@ function confirmAddNota(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
   const horaNota=leerHora('m-nota');
   const nueva={id:uid(),nombre:name,peso,fecha:fechaNota,hora:horaNota,fechaOrigen:fechaNota?'usuario':null,horaOrigen:horaNota?'usuario':null};
-  if(isNaN(val))nueva.valor=null;
-  else asignarCalificacionNota(nueva,rawNota,val);
+  asignarCalificacionNota(nueva,rawNota,isNaN(val)?null:val);
   cat.notas.push(nueva);
   openCats[catId]=true;save();track('add_nota',{ponderada:usaPond,pendiente:isNaN(val)});closeModal();renderRamo();
   if(!isNaN(val))vibrar('nota');

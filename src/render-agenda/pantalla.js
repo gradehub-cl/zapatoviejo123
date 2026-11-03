@@ -3,6 +3,8 @@ function renderAgenda(){
   const body=document.getElementById("agenda-body");if(!body)return;
   activarAccionesAgenda(body);
   agendaDetalleAbierto=null;
+  const resumenInicial=document.getElementById('agenda-sub');
+  if(resumenInicial)resumenInicial.textContent='';
   const events=agendaEvents();
   const sinFecha=agendaSinFecha();
   const rendidas=agendaRendidas();
@@ -91,8 +93,7 @@ function renderAgenda(){
     const ramosConAviso=new Set();
     destacadas.forEach(e=>{e.mostrarAlerta=!ramosConAviso.has(e.ramo.id);ramosConAviso.add(e.ramo.id);});
     const restantes=ordenadas.slice(destacadas.length);
-    html+=resumenSemanaHTML(porVenir);
-    html+=`<div class="ag-priority-heading"><span class="section-hd-title">Tus prioridades</span><span class="ag-count">${destacadas.length}</span>${agendaOrdenHTML(agendaOrdenActual)}</div>`;
+    html+=`<div class="ag-priority-heading">${agendaOrdenHTML(agendaOrdenActual)}</div>`;
     // Las dos iban lado a lado, en mitades iguales. En 375px esa mitad no
     // alcanzaba para el contenido: "Métodos Matemáti", "es lo que más te
     // convie…". Y sobre todo, dos cosas del mismo tamaño no son una jerarquía:
@@ -122,7 +123,7 @@ function renderAgenda(){
       html+=`<div class="ag-rest-list${plegada?' plegada':''}">${
         visibles.map((e,i)=>{
           const fantasma=plegada&&i===AGENDA_RESTANTES_VISIBLES;
-          const fila=agendaEventoHTML(e,agendaItemHTML(e),porVenir);
+          const fila=agendaEventoHTML(e,agendaItemHTML(e,medidorRamoAgendaHTML),porVenir);
           return fantasma?fila.replace('class="ag-event ','class="ag-event ag-event-fantasma '):fila;
         }).join('')}`;
       if(plegada){

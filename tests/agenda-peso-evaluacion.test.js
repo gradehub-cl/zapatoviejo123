@@ -40,7 +40,7 @@ assert.equal(c.resumenSemanaAgenda(todos).peso,100);
 // Una lista abierta o un descarte no permite prometer un porcentaje individual.
 delete c.r.categorias[0].slots;
 assert.equal(c.pesoEventoAgenda(informe),null);
-assert.match(c.agendaDestacadaHTML(informe,0),/Peso variable · grupo 70%/);
+assert.match(c.agendaDestacadaHTML(informe,0),/Parte del 70% de Informes/);
 assert.equal(c.resumenSemanaAgenda(ev).peso,null);
 c.r.categorias[0].slots=6;c.r.categorias[0].dropLowest={count:1};
 assert.equal(c.pesoEventoAgenda(informe),null);
