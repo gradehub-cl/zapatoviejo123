@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A6E400000000000000000004 /* CanvasPolitica.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E400000000000000000003 /* CanvasPolitica.swift */; };
+		A6E400000000000000000002 /* CanvasPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E400000000000000000001 /* CanvasPlugin.swift */; };
 		A6E300000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A6E300000000000000000001 /* PrivacyInfo.xcprivacy */; };
 		A6E300000000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A6E300000000000000000003 /* PrivacyInfo.xcprivacy */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
@@ -51,6 +53,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A6E400000000000000000003 /* CanvasPolitica.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasPolitica.swift; sourceTree = "<group>"; };
+		A6E400000000000000000001 /* CanvasPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasPlugin.swift; sourceTree = "<group>"; };
 		A6E300000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A6E300000000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -121,6 +125,8 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A6E000000000000000000002 /* MainViewController.swift */,
 				A6E000000000000000000001 /* WidgetsPlugin.swift */,
+				A6E400000000000000000003 /* CanvasPolitica.swift */,
+				A6E400000000000000000001 /* CanvasPlugin.swift */,
 				A6E000000000000000000003 /* App.entitlements */,
 				A6E300000000000000000001 /* PrivacyInfo.xcprivacy */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -268,6 +274,8 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A6E000000000000000000009 /* MainViewController.swift in Sources */,
 				A6E000000000000000000008 /* WidgetsPlugin.swift in Sources */,
+				A6E400000000000000000004 /* CanvasPolitica.swift in Sources */,
+				A6E400000000000000000002 /* CanvasPlugin.swift in Sources */,
 				A6E100000000000000000002 /* ActividadPrueba.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
