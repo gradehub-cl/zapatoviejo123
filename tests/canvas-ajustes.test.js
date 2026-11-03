@@ -19,6 +19,7 @@ vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js'])vm.runInCo
 const run=s=>vm.runInContext(s,ctx);
 function chk(c,m){assert.ok(c,m)}
 (async()=>{
+  ctx.currentUser={id:'00000000-0000-0000-0000-000000000001'};
   run("S.tenant='uc';S.tipoCuenta='estudiante';S.ramos=[{id:'r',nombre:'Cálculo II',sigla:'MAT1620',categorias:[{id:'i',nombre:'Interrogación 1',peso:100,notas:[]}]}];");
   chk(run('canvasDisponible()'),'UC en iOS con plugin ve Canvas');
   ctx.window.Capacitor.isNativePlatform=()=>false;
