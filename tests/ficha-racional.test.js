@@ -15,9 +15,29 @@ const barra=run('barraCategoriaFichaHTML(S.ramos[0],S.ramos[0].categorias[0],cal
 assert.match(barra,/--ficha-peso:60%/);
 assert.match(barra,/--ficha-evaluado:33\.333333/,'una nota no da por cerrado el 60% del ramo');
 assert.equal(run('JSON.stringify(S)'),antes,'dibujar la barra no cambia la cuenta');
-assert.match(run('medidorFichaHTML(notaNecesariaParaAprobar(S.ramos[0]).valor)'),/Necesitas 4\.1 en lo pendiente/,'misma meta del motor');
-assert.match(run('medidorFichaHTML(8)'),/Sin salida/);assert.match(run('medidorFichaHTML(8)'),/<strong>—<\/strong>/);
-assert.match(run("medidorFichaHTML(4.1,'',true)"),/En cada evaluación pendiente/,'conserva la condición de las compuertas');
+// Lucas, 2026-11-03: la ficha vuelve al mensaje; el medidor queda en Estadísticas.
+const texto=html=>html.replace(/<[^>]*>/g,'');
+const mensaje=run('medidorFichaHTML(notaNecesariaParaAprobar(S.ramos[0]).valor)');
+assert.equal(texto(mensaje),'Necesitas 4,1 en lo pendiente para aprobar','misma meta del motor, con coma decimal');
+assert.match(mensaje,/aria-label="Necesitas 4,1 en lo pendiente para aprobar"/);
+assert.match(mensaje,/<strong style="color:var\(--yellow\)">4,1<\/strong>/,'semáforo de exigencia del motor');
+assert.doesNotMatch(mensaje,/<svg|role="img"|ficha-medidor/);
+const imposible=run("medidorFichaHTML(8,' cátedra')");
+assert.equal(texto(imposible),'Ya no es posible aprobar cátedra');
+assert.match(imposible,/aria-label="Ya no es posible aprobar cátedra"/);
+assert.doesNotMatch(imposible,/<strong|8|—|<svg/,'sin cifra imposible ni medidor');
+assert.equal(texto(run('medidorFichaHTML(Infinity)')),'Ya no es posible aprobar');
+assert.equal(texto(run("medidorFichaHTML(4.1,'',true)")),'Con 4,1 en cada evaluación pendiente llegas al 4,0','conserva la condición de las compuertas');
+assert.equal(texto(run("medidorFichaHTML(4.1,' cátedra')")),'Necesitas 4,1 en lo pendiente para aprobar cátedra');
+for(const [n,color] of [[3,'green'],[4.1,'yellow'],[6,'red']]){
+ assert(run('medidorFichaHTML('+n+')').includes('color:var(--'+color+')'),'misma exigencia en los tres niveles');
+}
+const css=fs.readFileSync(__dirname+'/../styles.css','utf8');
+const reglas=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+assert(!reglas.some(([,selector,cuerpo])=>selector.includes('.calif-accion')&&/grid-column\s*:\s*1\s*\/\s*-1/.test(cuerpo)),'Calificar no ocupa ambas columnas de la ficha');
+assert.match(css,/#screen-ramo \.ramo-actions:has\(\.calif-accion:not\(\[hidden\]\)\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'dos columnas iguales solo con Calificar visible');
+assert.doesNotMatch(css,/\.ficha-medidor|\.medidor-debajo/,'sin CSS del medidor de la ficha');
+assert.match(run('htmlMedidorNota(4.1)'),/<svg/,'Estadísticas conserva el medidor compartido');
 // Series: solo un índice de lectura; categorías y motor conservan su identidad.
 const directa=(id,nombre,peso,v)=>({id,nombre,peso,directNota:true,slots:1,notas:v==null?[]:[{id:'n-'+id,nombre,valor:v,peso:1}]});
 const categorias=[directa('i1','Interrogación 1',20,5),directa('i2','Interrogación 2',20,4),directa('i3','I3',20,null),directa('ex','Examen',40,null)];
@@ -50,3 +70,30 @@ assert.equal(nota.valor,5.2);assert.equal(nota.id,'pend');assert.equal(nota.nomb
 input.listeners.blur();assert.equal(run('__guardados'),1,'no guarda dos veces el mismo campo');
 ({input}=abrir(null));input.value='A';input.listeners.blur();assert.equal(run('S.ramos[0].categorias[1].notas[0].calificacionConceptual'),'A');assert.equal(run('S.ramos[0].categorias[1].notas[0].valor'),5);
 console.log('OK: barra fiel al motor; entrada inline conserva nombres, fechas, conceptos y persistencia existente');
+// Cuenta sintética existente: pauta propia y notas guardadas, sin catálogo.
+run(`globalThis.__cuentaFicha=normalize(JSON.parse(JSON.stringify({tenant:'uc',carrera:'ING-PC',onboardingDone:true,ramos:[
+ {id:'pendientes',nombre:'Ramo con pendientes',sigla:'TST101',creditos:10,seccion:2,gates:[],categorias:[
+  {id:'p',nombre:'Pruebas',peso:60,directNota:true,slots:3,notas:[{id:'n1',nombre:'Prueba 1',slot:0,valor:3.6,peso:1,fecha:'2026-10-01'}]},
+  {id:'e',nombre:'Examen',peso:40,directNota:true,notas:[]}]},
+ {id:'condicional',nombre:'Ramo condicional',sigla:'TST102',creditos:10,seccion:2,gates:[
+  {type:'conditional_weights',nombre:'Pesos de prueba sintéticos',pauta:[{catId:'cp',nombre:'Pruebas',peso:60,slots:3,dropLowest:null},{catId:'ce',nombre:'Examen',peso:40,slots:1,dropLowest:null}],cuando:[{tipo:'promedio_menor',catIds:['cp'],min:4}],pesos:[{catId:'cp',peso:70},{catId:'ce',peso:30}]}],categorias:[
+  {id:'cp',nombre:'Pruebas',peso:60,directNota:true,slots:3,notas:[{id:'cn1',nombre:'Prueba 1',slot:0,valor:3.6,peso:1,fecha:'2026-10-01'}]},
+  {id:'ce',nombre:'Examen',peso:40,directNota:true,notas:[]}]},
+ {id:'sin-salida',nombre:'Ramo sin salida',sigla:'TST103',creditos:10,seccion:2,gates:[],categorias:[
+  {id:'rendida',nombre:'Prueba',peso:90,directNota:true,notas:[{id:'b1',nombre:'Prueba',valor:1,peso:1,fecha:'2026-10-01'}]},
+  {id:'pendiente',nombre:'Examen',peso:10,directNota:true,notas:[]}]}
+]})));`);
+for(const id of ['pendientes','condicional','sin-salida']){
+ ctx.__casoId=id;
+ const guardado=run('JSON.stringify(__cuentaFicha)');
+ const meta=run('(()=>{const r=__cuentaFicha.ramos.find(r=>r.id===__casoId);return notaNecesariaParaAprobar(r).valor;})()');
+ const html=run('(()=>{const r=__cuentaFicha.ramos.find(r=>r.id===__casoId),m=notaNecesariaParaAprobar(r);return medidorFichaHTML(m.valor,m.cual,notaNecesariaCondicional(r));})()');
+ if(id==='sin-salida'){assert(meta>7);assert.equal(texto(html),'Ya no es posible aprobar');}
+ else{
+  assert(Number.isFinite(meta)&&meta<=7);
+  assert(texto(html).includes(run('nfNecesaria('+meta+').replace(".",",")')),'misma cifra del motor en cuenta existente');
+  assert.equal(texto(html).startsWith('Con '),id==='condicional');
+ }
+ assert.equal(run('JSON.stringify(__cuentaFicha)'),guardado,'no cambia pautas, ids, notas ni estado de la cuenta');
+}
+console.log('OK: mensajes normal/condicional/sin salida con cifras del motor y cuenta existente intacta');
