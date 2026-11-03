@@ -18,6 +18,27 @@ assert.equal(run('JSON.stringify(S)'),antes,'dibujar la barra no cambia la cuent
 assert.match(run('medidorFichaHTML(notaNecesariaParaAprobar(S.ramos[0]).valor)'),/Necesitas 4\.1 en lo pendiente/,'misma meta del motor');
 assert.match(run('medidorFichaHTML(8)'),/Sin salida/);assert.match(run('medidorFichaHTML(8)'),/<strong>—<\/strong>/);
 assert.match(run("medidorFichaHTML(4.1,'',true)"),/En cada evaluación pendiente/,'conserva la condición de las compuertas');
+// Series: solo un índice de lectura; categorías y motor conservan su identidad.
+const directa=(id,nombre,peso,v)=>({id,nombre,peso,directNota:true,slots:1,notas:v==null?[]:[{id:'n-'+id,nombre,valor:v,peso:1}]});
+const categorias=[directa('i1','Interrogación 1',20,5),directa('i2','Interrogación 2',20,4),directa('i3','I3',20,null),directa('ex','Examen',40,null)];
+ctx.__serie={id:'serie',nombre:'Pauta propia',creditos:10,categorias,gates:[{type:'min_grade_required',catId:'ex',min:3,cap:3.9}]};
+const modelo=run('JSON.stringify(__serie)'),promedio=run('ramoAvg(__serie)'),necesaria=run('notaNecesariaParaAprobar(__serie).valor');
+assert.equal(run('seriesNumeradasFicha(__serie.categorias).get("i1").nombre'),'Interrogaciones');
+assert.equal(run('seriesNumeradasFicha(__serie.categorias).get("i3").categorias.length'),3);
+assert.equal(run('seriesNumeradasFicha(__serie.categorias).has("ex")'),false);
+const barraSerie=run('barraCategoriaFichaHTML(__serie,{nombre:"Interrogaciones"},calculoRamoConCompuertas(__serie),seriesNumeradasFicha(__serie.categorias).get("i1").categorias)');
+assert.match(barraSerie,/--ficha-evaluado:66\.666/,'I3 sin casillas sigue pendiente en la pista del grupo');
+assert.equal(run('JSON.stringify(__serie)'),modelo,'no fusiona, renombra ni persiste categorías');
+assert.equal(run('ramoAvg(__serie)'),promedio);assert.equal(run('notaNecesariaParaAprobar(__serie).valor'),necesaria,'la misma meta, incluso con compuerta sobre una categoría');
+assert.equal(run('seriesNumeradasFicha([__serie.categorias[0]]).size'),0,'una serie con un solo integrante queda intacta');
+assert.equal(run('barraCategoriaFichaHTML(__serie,__serie.categorias[3],calculoRamoConCompuertas(__serie))'),'','Examen de una evaluación sin pista');
+for(const [singular,plural] of [['Solemne','Solemnes'],['Control','Controles'],['Prueba','Pruebas'],['Entrega','Entregas']]){
+ ctx.__nombres=[directa('a',singular+' 1',50,null),directa('b',singular+' 2',50,null)];assert.equal(run('seriesNumeradasFicha(__nombres).get("a").nombre'),plural);
+}
+ctx.__nombres=[directa('a','Prueba 1',50,null),directa('b','Prueba 1',50,null)];assert.equal(run('seriesNumeradasFicha(__nombres).size'),0,'índices repetidos no se juntan por accidente');
+ctx.__nombres=[directa('a','C1',50,null),directa('b','C2',50,null)];assert.equal(run('seriesNumeradasFicha(__nombres).get("a").nombre'),'C','no inventa Control cuando C también podría ser Certamen');
+ctx.__nombres=[directa('a','Certamen 1',50,null),directa('b','C2',50,null)];assert.equal(run('seriesNumeradasFicha(__nombres).get("a").nombre'),'Certámenes');
+assert.equal(run('pluralSerieFicha("Control de lectura")'),'Controles de lectura');assert.equal(run('pluralSerieFicha("Trabajo práctico")'),'Trabajos prácticos');
 function abrir(slot){const boton=nodo();boton.dataset={catId:slot===null?'ex':'p',...(slot===null?{}:{slot:String(slot)})};ctx.__boton=boton;run('abrirNotaEnFila(__boton)');return {boton,input:boton.reemplazo};}
 let {boton,input}=abrir(1);
 assert(input.enfocado);assert.equal(input.inputMode,'decimal','la casilla abre el teclado numérico');assert.equal(run('JSON.stringify(S)'),antes);assert.equal(run('__guardados'),0);
