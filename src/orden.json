@@ -57,6 +57,7 @@
     "src/app/editor-categoria-nota.js",
     "src/app/simulador-global.js",
     "src/app/simulador-ramo.js",
+    "src/app/notas-sombra.js",
     "src/app/agenda-datos.js",
     "src/app/ios-widgets.js",
     "src/app/ios-avisos-pruebas.js",
