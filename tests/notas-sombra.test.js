@@ -47,7 +47,7 @@ assert.equal(m.pendientes.length,3);assert.equal(porNombre(m,'Examen').slot,null
 const copia=run('JSON.stringify(S)');run('notasSombraDelRamo(r)');assert.equal(run('JSON.stringify(S)'),copia);
 // La cifra de cada libre y la que alimenta el medidor son literalmente la misma.
 ctx.__m=m;for(const p of m.libres){ctx.__p=p;assert.equal(run('valorNotaSombra(__m,__p)'),m.necesaria);}
-assert(run('medidorFichaHTML(__m.necesaria)').includes('<strong>'+m.necesaria.toFixed(1).replace('.',',')+'</strong>'));
+assert.match(run('medidorFichaHTML(__m.necesaria)'),new RegExp('<strong[^>]*>'+m.necesaria.toFixed(1).replace('.',',')+'</strong>'),'la sombra y el mensaje de la ficha dicen la misma cifra');
 // Sin respuesta exacta se vuelve a + Nota y al comportamiento anterior.
 assert.equal(cargar(curso([cat('Sin cantidad',100,null,{directNota:false})])),null);
 assert.equal(cargar(curso([cat('Con descarte',100,null,{slots:3,dropLowest:{count:1}})])),null);
