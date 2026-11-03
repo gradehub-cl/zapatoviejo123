@@ -73,8 +73,12 @@ function cambioDePauta(r){
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
   const minimo=g=>simConComa(nf(g.min));
-  reqLlegan.forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más`}));
-  reqSeVan.forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
+  // Si solo cambiaron las evaluaciones del grupo, el requisito es el mismo: esas
+  // evaluaciones ya salen en la lista, y decir "nuevo" y "deja de exigirse" del
+  // mismo requisito se lee como un error.
+  const mismoRequisito=(g,otros)=>oficial!==actual&&otros.some(x=>x.nombre===g.nombre&&x.min===g.min);
+  reqLlegan.filter(g=>!mismoRequisito(g,reqSeVan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más`}));
+  reqSeVan.filter(g=>!mismoRequisito(g,reqLlegan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
@@ -196,6 +200,9 @@ function fusionarPauta(r,nuevas){
         if(n&&n.id&&idsNotas.has(n.id))return;
         const copia={...n};
         if(c.slots>1&&Number.isInteger(f.slot)&&!Number.isInteger(copia.slot))copia.slot=f.slot;
+        // Filas con peso propio que se juntan en una: cada nota conserva su peso,
+        // así el promedio no se mueve por aceptar la pauta nueva.
+        if(Number.isFinite(f.peso))copia.peso=f.peso;
         if(copia.id)idsNotas.add(copia.id);
         notas.push(copia);
       });
@@ -203,7 +210,9 @@ function fusionarPauta(r,nuevas){
     let id=idHeredado||idCategoriaEstable(r,c.nombre);
     while(idsUsados.has(id))id+='_';
     idsUsados.add(id);idsFinales[c.id]=id;
-    return {...c,id,notas};   // `c` no trae fueraDePauta: revivir la limpia
+    // Una fila simple dibuja solo su primera nota: si llegan varias, va como lista.
+    const varias=notas.length>1&&!(c.slots>1)?{directNota:false}:{};
+    return {...c,id,notas,...varias};   // `c` no trae fueraDePauta: revivir la limpia
   });
   // Lo que la pauta nueva ya no tiene NO se borra. La pauta es nuestra; la nota
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en
