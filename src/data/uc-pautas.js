@@ -1143,6 +1143,115 @@ const PRESETS_UC={
       'Si presentas voluntariamente uno de los textos del curso cumpliendo las condiciones indicadas, obtienes un 7,0 que se promedia con tu nota más baja entre Evaluación 1, Evaluación 2 y Evaluación 3',
     ],
   },
+  // ─── Derecho UC · formularios de condiciones y evaluaciones 2026-2 ───
+  // Ramos NO coordinados (`coordinado:false`, confirmado por Lucas el
+  // 2026-11-04): cada sección arma su propia pauta. Tener varios profesores no
+  // basta para decir que un ramo no es coordinado; aquí sí lo es. La Facultad
+  // solo fija la fecha de la Solemne y del Examen y el rango del examen
+  // (50%–75%). La pauta va en `porSeccion` y no arriba: solo se carga a quien
+  // está en esa sección (profesores por sección en PROFESORES_PROPUESTOS). Las demás secciones no tienen pauta hasta que
+  // llegue su programa; nada de copiar la de otra.
+  // Formularios recibidos: los de las secciones de la carga de Lucas
+  // (2026-11-04). Ningún examen admite eximición.
+  // No se muestran: el 2,0 por no presentarse sin justificar al examen, el
+  // rezago en comisión ni que una ausencia justificada a la Solemne pase su
+  // porcentaje al examen. Son contingencias, no algo que se prepare.
+  'Derecho Penal Parte General II':{
+    sigla:'DER002P',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // Magdalena Ossandón. Asistencia libre.
+      5:{evals:[
+        ['Control 1',10,{fecha:'2026-09-10'}],
+        ['Solemne',30,{fecha:'2026-10-09'}],
+        ['Control 2',10,{fecha:'2026-11-05'}],
+        ['Examen',50,{fecha:'2026-11-26'}],
+      ]},
+    },
+  },
+  'Procedimientos Civiles I':{
+    sigla:'DER003R',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // José Domingo Ilharreborde y Gonzalo Vial. La tabla del formulario dice
+      // «Controles, 11/09/2026, 25%» y su descripción habla de «dos solemnes
+      // escritas que valen lo mismo»: es una sola evaluación de 25% además de
+      // la Solemne. Se conserva el nombre de la tabla en singular.
+      // Asistencia libre.
+      3:{evals:[
+        ['Control',25,{fecha:'2026-09-11'}],
+        ['Solemne',25,{fecha:'2026-10-02'}],
+        ['Examen',50,{fecha:'2026-12-09'}],
+      ]},
+    },
+  },
+  // El formulario titula «Fuentes de las Obligaciones I»; la clave usa el
+  // nombre del catálogo UC para que el buscador y la sigla calcen.
+  'Fuentes de Obligaciones I':{
+    sigla:'DER004C',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // Carmen Domínguez. La Simulación es una gymkana grupal de un día, sin
+      // justificación posible.
+      1:{
+        evals:[
+          ['Control de lectura',15,{fecha:'2026-09-10'}],
+          ['Solemne',25,{fecha:'2026-09-25'}],
+          ['Simulación o actividad práctica',10,{fecha:'2026-11-06'}],
+          ['Examen',50,{fecha:'2026-11-20'}],
+        ],
+        reglasDelCurso:[
+          'Necesitas al menos 60% de asistencia a clases; si no, no puedes rendir el Examen',
+        ],
+      },
+    },
+  },
+  // No está en el catálogo UC del repo, así que no se ponen créditos.
+  'Derecho Administrativo II':{
+    sigla:'DER005L',
+    periodo:'2026-2',
+    coordinado:false,
+    porSeccion:{
+      // Daniela Rivera. Cuatro talleres de 5% cada uno, uno por unidad, en
+      // semanas y no en días (1ª de septiembre, 4ª de septiembre, 3ª de
+      // octubre y 2ª de noviembre): sin fecha en Agenda.
+      7:{
+        evals:[
+          ['Talleres',20,{slots:4,slotLabel:'Taller'}],
+          ['Solemne',30,{fecha:'2026-10-23'}],
+          ['Examen',50,{fecha:'2026-12-15'}],
+        ],
+        reglasDelCurso:[
+          'Necesitas al menos 60% de asistencia a clases; si no, no puedes rendir el Examen',
+        ],
+      },
+    },
+  },
+  'Derecho de Sociedades':{
+    sigla:'DER009C',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // Miguel Ángel Nacrur y Wildo Moya.
+      1:{
+        evals:[
+          ['Control de lectura',20,{fecha:'2026-09-04'}],
+          ['Solemne',30,{fecha:'2026-10-16'}],
+          ['Examen',50,{fecha:'2026-12-02'}],
+        ],
+        reglasDelCurso:[
+          'Necesitas al menos 60% de asistencia a clases; si no la cumples, igual puedes rendir el Examen si tu promedio es 6,0 o más',
+        ],
+      },
+    },
+  },
 };
 
 // PRESETS_UC nació con la malla de Ingeniería. Comercial usa el mismo registro
