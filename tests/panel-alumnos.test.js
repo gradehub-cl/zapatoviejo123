@@ -829,13 +829,14 @@ function contexto({search='',sesion=false}={}){
     supabaseClient={rpc:nombre=>nombre==='codigo_alumnos_profesor'
       ?Promise.resolve({data:'AB3CDEFG',error:null})
       :nombre==='mis_alumnos_ejemplo'?Promise.resolve({data:false,error:null})
+      :['preparacion_alumno','percentiles_alumno'].includes(nombre)?Promise.resolve({data:null,error:{code:'PGRST202'}})
       :nombre==='mis_alumnos'
         ?Promise.resolve({data:[{id:'alumno-anterior',nombre_visible:'Alumno anterior',tenant:'uc',
           ramos:[{id:'ramo',nombre:'Cálculo',sigla:'MAT100',categorias:[]}]}],error:null})
         :new Promise(resolve=>{__resolverComparacion=resolve})};
     globalThis.__cargaComparacion=renderAlumnosProfesor(__raizComparacion);`);
   // Unas vueltas de promesas: la carga también pregunta por alumnos_ejemplo.
-  for(let i=0;i<10;i++)await Promise.resolve();
+  for(let i=0;i<25;i++)await Promise.resolve();
   chk('el panel pide la comparación solo tras recibir los ramos',
     comparacion.run('typeof __resolverComparacion')==='function');
   comparacion.run(`currentUser={id:'profesor-dos'};
