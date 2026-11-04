@@ -44,8 +44,8 @@ test('CSV agrega las muestras al final sin mover columnas previas, con sección 
  const guardado=run('JSON.stringify(al)');
  for(const fn of ['csvAlumnosPanel','csvResumenAlumnosPanel']){
   const filas=run(fn+'([al],()=>comparacion(23),()=>({...comparacion(9),seccion:2}))').split('\r\n').map(l=>l.split(';'));
-  assert.deepEqual(filas[0].slice(-2),['Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']);assert.deepEqual(filas[1].slice(-2),['23','9']);assert.equal(filas[0][0],'Alumno');assert.equal(filas[0][1],'Ramo');
-  const sin=run(fn+'([al],()=>comparacion(23),()=>comparacion(4))').split('\r\n')[1].split(';');assert.deepEqual(sin.slice(-2),['23','']);
+  const i=filas[0].indexOf('Estudiantes en GradeHub (ramo)');assert.deepEqual(filas[0].slice(i,i+2),['Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']);assert.deepEqual(filas[1].slice(i,i+2),['23','9']);assert.equal(filas[0][0],'Alumno');assert.equal(filas[0][1],'Ramo');
+  const sin=run(fn+'([al],()=>comparacion(23),()=>comparacion(4))').split('\r\n')[1].split(';');assert.deepEqual(sin.slice(i,i+2),['23','']);
  }
  assert.equal(run('JSON.stringify(al)'),guardado);
 });

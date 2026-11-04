@@ -93,6 +93,7 @@
     "src/marketplace/admin-estadisticas.js",
     "src/marketplace/alumnos-compartir.js",
     "src/marketplace/alumnos-profesor.js",
+    "src/marketplace/alumnos-preparacion.js",
     "src/marketplace/alumnos-comparaciones.js",
     "src/marketplace/alumnos-evolucion.js",
     "src/marketplace/alumnos-resumen.js",

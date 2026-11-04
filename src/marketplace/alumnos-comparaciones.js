@@ -66,17 +66,26 @@ function metricasAlumnoPanel(al,compDe,{inicio}={}){
     const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
     let evaluaciones=[],sinFecha=0;
     (al.ramos||[]).forEach(r=>{
-      const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      const comp=compDe(al,r),x=evaluacionesConFechaPanel(ramoParaPanel(r),comp),pre=preparacionRamoPanel(al,r);
       const corte=inicio!==undefined?desde:inicioRamoPanel(al,r).dia;
-      x.evaluaciones.forEach(e=>{e.inicio=corte;e.lado=corte&&e.fecha<corte?'antes':'ahora';});
+      if(pre?.manual){
+        // Sin fecha también cuenta si tiene un id crudo: no se inventa un día.
+        const ya=new Set(x.evaluaciones.map(e=>e.id));
+        for(const e of pre.evaluaciones||[]){if(!e.nota_id||ya.has(e.nota_id)||typeof e.nota!=='number'||e.ambigua)continue;
+          const ref=datosComparacionPanel((comp?.evaluaciones||[]).find(c=>c.clave===claveEvaluacionPanel(e.nombre)));
+          x.evaluaciones.push({id:e.nota_id,ramo:r.nombre,ramoId:r.id,evaluacion:e.nombre,fecha:e.fecha||null,nota:e.nota,curso:ref?.promedio??null,cursoPersonas:ref?.personas??null,aprobada:notaAprobada(e.nota)});ya.add(e.nota_id);x.sinFecha=Math.max(0,x.sinFecha-1);
+        }
+      }
+      x.evaluaciones.forEach(e=>{e.inicio=corte;e.metodo=pre?.manual?'manual':'fecha';e.lado=pre?.manual?(pre.marcas.some(m=>coincideMarcaPreparada(m,e))?'ahora':'antes'):(corte&&e.fecha<corte?'antes':'ahora');});
       evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
     });
     evaluaciones.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
     const antes=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='antes'));
     const ahora=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='ahora'));
     const suficiente=antes.nComparadas>=MIN_EVALS_COMPARACION&&ahora.nComparadas>=MIN_EVALS_COMPARACION;
-    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,
-      cambio:suficiente?ahora.diferencia-antes.diferencia:null};
+    const metodos=new Set((al.ramos||[]).map(r=>preparacionRamoPanel(al,r)?.manual?'manual':'fecha'));
+    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,metodo:metodos.size>1?'mixto':metodos.has('manual')?'manual':'fecha',
+      cambio:suficiente&&!al.preparacion?.errorCarga&&metodos.size<=1?ahora.diferencia-antes.diferencia:null};
   });
 }
 // Unidad de comparación: una persona en un ramo, con su propio inicio.
@@ -99,9 +108,11 @@ function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
   const totalRamos=new Set(porAlumno.map(m=>`${m.tenant}|${m.sigla?String(m.sigla).toUpperCase():claveEvaluacionPanel(m.ramo)}`)).size;
   const conCambio=porAlumno.filter(m=>m.cambio!==null);
   const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
-  return {alumnos:porAlumno,totalAlumnos,totalRamos,conCambio:conCambio.length,
+  const metodos=[...new Set(porAlumno.map(m=>m.metodo))];
+  return {alumnos:porAlumno,totalAlumnos,totalRamos,metodo:metodos.length>1?'mixto':metodos[0]||'fecha',
+    grupos:metodos.length>1?metodos.map(metodo=>metricasGrupoPanel((alumnos||[]).map(al=>({...al,ramos:(al.ramos||[]).filter(r=>(preparacionRamoPanel(al,r)?.manual?'manual':'fecha')===metodo)})).filter(al=>al.ramos.length),compDe,inicioDe?{inicioDe}:{})):null,conCambio:conCambio.length,
     mejoraron:conCambio.filter(m=>m.cambio>0).length,
-    cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
+    cambioMediana:metodos.length>1?null:medianaPanel(conCambio.map(m=>m.cambio)),
     antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),
     sinFecha:porAlumno.reduce((s,m)=>s+m.sinFecha,0)};
 }

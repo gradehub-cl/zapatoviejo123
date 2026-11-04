@@ -564,3 +564,125 @@ grant execute on function public.quitar_alumno(uuid) to authenticated;
 grant execute on function public.fijar_inicio_alumno(uuid, date) to authenticated;
 grant execute on function public.fijar_inicio_ramo_alumno(uuid, text, date) to authenticated;
 grant execute on function public.comparacion_ramo_profesor(text, text, integer) to authenticated;
+
+-- Preparación declarada: ausencia de fila = por fecha; [] = manual vacío.
+create unique index if not exists profesor_alumnos_propietarios_idx on public.profesor_alumnos(id,tutor_id,alumno_id);
+create table if not exists public.profesor_alumnos_preparacion(
+ conexion_id uuid not null,
+ tutor_id uuid not null references auth.users(id) on delete cascade,
+ alumno_id uuid not null references auth.users(id) on delete cascade,
+ ramo_id text not null,
+ marcas jsonb not null default '[]'::jsonb check(jsonb_typeof(marcas)='array' and jsonb_array_length(marcas)<=200),
+ updated_at timestamptz not null default now(),
+ primary key(conexion_id,ramo_id),
+ foreign key(conexion_id,tutor_id,alumno_id) references public.profesor_alumnos(id,tutor_id,alumno_id) on delete cascade
+);
+alter table public.profesor_alumnos_preparacion enable row level security;
+revoke all on public.profesor_alumnos_preparacion from public,anon,authenticated;
+
+-- Inventario del JSON CRUDO: nunca normaliza ni crea notas en user_ramos.
+create or replace function public.preparacion_evaluaciones(p_ramo jsonb)
+returns jsonb language plpgsql immutable set search_path='' as $$
+declare c jsonb;n jsonb;ns jsonb;salida jsonb='[]';cantidad int;inicio int;i int;num int;ident text;nombre text;forma jsonb;
+begin
+ for c in select value from jsonb_array_elements(case when jsonb_typeof(p_ramo->'categorias')='array' then p_ramo->'categorias' else '[]'::jsonb end) loop
+  if jsonb_typeof(c)<>'object' or nullif(c->>'id','') is null then continue;end if;
+  ns=case when jsonb_typeof(c->'notas')='array' then c->'notas' else '[]'::jsonb end;
+  cantidad=case when c->>'slots' ~ '^\d{1,3}$' and (c->>'slots')::int between 1 and 200 then (c->>'slots')::int else 1 end;
+  inicio=case when c->>'slotStart' ~ '^\d{1,3}$' then (c->>'slotStart')::int else 1 end;
+  forma=jsonb_build_object('cantidad',cantidad,'inicio',inicio);
+  if c->'directNota'='true'::jsonb then
+   for i in 0..cantidad-1 loop
+    num=inicio+i;
+    select case when count(*)=1 then jsonb_agg(value)->0 else null end into n from jsonb_array_elements(ns) where (cantidad=1 or value->'slot'=to_jsonb(i));
+    ident=case when jsonb_typeof(n->'id')='string' then nullif(n->>'id','') end;
+    nombre=coalesce(nullif(n->>'nombre',''),nullif(c->'nombresCasillas'->>i,''),case when cantidad=1 then c->>'nombre' else coalesce(c->>'slotLabel',c->>'nombre')||' '||num end);
+    salida=salida||jsonb_build_array(jsonb_build_object('cat_id',c->>'id','numero',num,'nota_id',ident,'nombre',nombre,'categoria',c->>'nombre','forma',forma,'nota',n->'valor','fecha',coalesce(n->>'fecha',c->>'fecha'),'ambigua',(select count(*)>1 from jsonb_array_elements(ns) where cantidad=1 or value->'slot'=to_jsonb(i))));
+   end loop;
+  else
+   for n in select value from jsonb_array_elements(ns) loop
+    if jsonb_typeof(n->'id')<>'string' or nullif(n->>'id','') is null then continue;end if;
+    salida=salida||jsonb_build_array(jsonb_build_object('cat_id',c->>'id','nota_id',n->>'id','nombre',coalesce(nullif(n->>'nombre',''),c->>'nombre'),'categoria',c->>'nombre','nota',n->'valor','fecha',coalesce(n->>'fecha',c->>'fecha')));
+   end loop;
+  end if;
+ end loop;
+ return salida;
+end;$$;
+revoke all on function public.preparacion_evaluaciones(jsonb) from public,anon,authenticated;
+
+-- Lectura con enlace único de futuras. Es VOLATILE: puede completar una marca,
+-- nunca el documento del alumno. Ambos participantes pueden leer esta conexión.
+create or replace function public.preparacion_alumno(p_id uuid,p_ramo text default null)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare pa public.profesor_alumnos;datos jsonb;r jsonb;ev jsonb;m jsonb;actual jsonb;v_marcas jsonb;resultado jsonb='[]';candidatas jsonb;fila public.profesor_alumnos_preparacion;manual boolean;
+begin
+ select * into pa from public.profesor_alumnos where id=p_id for update;
+ if not found or auth.uid() is null or not(auth.uid()=pa.alumno_id or (auth.uid()=pa.tutor_id and public.panel_alumnos_activo(auth.uid()))) then raise exception 'conexión no disponible';end if;
+ select data into datos from public.user_ramos where user_id=pa.alumno_id;
+ for r in select value from jsonb_array_elements(case when jsonb_typeof(datos->'ramos')='array' then datos->'ramos' else '[]'::jsonb end) where value->>'id'=any(pa.ramos) and (p_ramo is null or value->>'id'=p_ramo) loop
+  ev=public.preparacion_evaluaciones(r);
+  select * into fila from public.profesor_alumnos_preparacion where conexion_id=pa.id and ramo_id=r->>'id';manual=found;
+  v_marcas='[]';
+  for m in select value from jsonb_array_elements(coalesce(fila.marcas,'[]')) loop
+   actual=m;
+   if m->>'nota_id' is not null then
+    select coalesce(jsonb_agg(value),'[]') into candidatas from jsonb_array_elements(ev) where value->>'nota_id'=m->>'nota_id';
+    actual=m||jsonb_build_object('huerfana',jsonb_array_length(candidatas)<>1 or coalesce((candidatas->0->>'ambigua')::boolean,false));
+   elsif m->'invalida'='true'::jsonb then actual=m||'{"huerfana":true}'::jsonb;
+   else
+    select coalesce(jsonb_agg(value),'[]') into candidatas from jsonb_array_elements(ev) where value->>'cat_id'=m->>'cat_id' and value->'numero'=m->'numero' and value->'forma'=m->'forma' and not coalesce((value->>'ambigua')::boolean,false);
+    if jsonb_array_length(candidatas)<>1 then actual=m||'{"huerfana":true,"invalida":true}'::jsonb;
+    elsif candidatas->0->>'nota_id' is not null then
+     if (select count(*) from jsonb_array_elements(ev) where value->>'nota_id'=candidatas->0->>'nota_id')<>1 then actual=m||'{"huerfana":true,"invalida":true}'::jsonb;
+     else actual=m||jsonb_build_object('nota_id',candidatas->0->>'nota_id','huerfana',false);end if;
+    else actual=m||'{"huerfana":false}'::jsonb;end if;
+   end if;
+   v_marcas=v_marcas||jsonb_build_array(actual);
+  end loop;
+  if manual and v_marcas is distinct from fila.marcas then update public.profesor_alumnos_preparacion set marcas=v_marcas,updated_at=now() where conexion_id=pa.id and ramo_id=r->>'id';end if;
+  resultado=resultado||jsonb_build_array(jsonb_build_object('ramo_id',r->>'id','manual',manual,'marcas',v_marcas,'evaluaciones',ev));
+ end loop;
+ return jsonb_build_object('ramos',resultado);
+end;$$;
+
+create or replace function public.guardar_preparacion_alumno(p_id uuid,p_ramo text,p_marcas jsonb default null)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare pa public.profesor_alumnos;inventario jsonb;previo jsonb;m jsonb;e jsonb;seleccion jsonb='[]';coinciden jsonb;
+begin
+ select * into pa from public.profesor_alumnos where id=p_id for update;
+ if not found or auth.uid() is null or auth.uid()<>pa.tutor_id or not public.panel_alumnos_activo(auth.uid()) or not(p_ramo=any(pa.ramos)) then raise exception 'conexión no disponible';end if;
+ inventario=public.preparacion_alumno(p_id,p_ramo)->'ramos'->0;
+ if inventario is null then raise exception 'ramo no disponible';end if;
+ if p_marcas is null then delete from public.profesor_alumnos_preparacion where conexion_id=pa.id and ramo_id=p_ramo;return public.preparacion_alumno(p_id,p_ramo);end if;
+ if jsonb_typeof(p_marcas)<>'array' or jsonb_array_length(p_marcas)>200 then raise exception 'selección inválida';end if;
+ for m in select value from jsonb_array_elements(p_marcas) loop
+  if jsonb_typeof(m)<>'object' then raise exception 'marca inválida';end if;
+  -- Una huérfana ya guardada puede conservarse para corregirla, nunca inventarse.
+  select value into previo from jsonb_array_elements(inventario->'marcas') where value=m limit 1;
+  if previo is not null then e=previo;
+  else
+   select coalesce(jsonb_agg(value),'[]') into coinciden from jsonb_array_elements(inventario->'evaluaciones') where not coalesce((value->>'ambigua')::boolean,false) and (
+    (nullif(m->>'nota_id','') is not null and value->>'nota_id'=m->>'nota_id') or
+    (m->>'nota_id' is null and value->>'nota_id' is null and value->>'cat_id'=m->>'cat_id' and value->'numero'=m->'numero'));
+   if jsonb_array_length(coinciden)<>1 then raise exception 'evaluación no disponible o ambigua';end if;
+   e=coinciden->0;
+   if e->>'nota_id' is null and e->'numero' is null then raise exception 'sin identidad estable';end if;
+   e=jsonb_build_object('nota_id',e->>'nota_id','cat_id',e->>'cat_id','numero',e->'numero','nombre',left(e->>'nombre',160),'categoria',left(e->>'categoria',160),'forma',e->'forma','huerfana',false);
+  end if;
+  if exists(select 1 from jsonb_array_elements(seleccion) x where (e->>'nota_id' is not null and x->>'nota_id'=e->>'nota_id') or (e->>'nota_id' is null and x->>'cat_id'=e->>'cat_id' and x->'numero'=e->'numero')) then raise exception 'marca duplicada';end if;
+  seleccion=seleccion||jsonb_build_array(e);
+ end loop;
+ insert into public.profesor_alumnos_preparacion(conexion_id,tutor_id,alumno_id,ramo_id,marcas) values(pa.id,pa.tutor_id,pa.alumno_id,p_ramo,seleccion) on conflict(conexion_id,ramo_id) do update set marcas=excluded.marcas,updated_at=now();
+ return public.preparacion_alumno(p_id,p_ramo);
+end;$$;
+create or replace function public.limpiar_preparacion_compartida()
+returns trigger language plpgsql security definer set search_path='' as $$begin
+ delete from public.profesor_alumnos_preparacion where conexion_id=new.id and not(ramo_id=any(new.ramos));return new;
+end;$$;
+drop trigger if exists limpiar_preparacion_compartida on public.profesor_alumnos;
+create trigger limpiar_preparacion_compartida after update of ramos on public.profesor_alumnos for each row execute function public.limpiar_preparacion_compartida();
+revoke all on function public.limpiar_preparacion_compartida() from public,anon,authenticated;
+revoke all on function public.preparacion_alumno(uuid,text) from public,anon;
+revoke all on function public.guardar_preparacion_alumno(uuid,text,jsonb) from public,anon;
+grant execute on function public.preparacion_alumno(uuid,text) to authenticated;
+grant execute on function public.guardar_preparacion_alumno(uuid,text,jsonb) to authenticated;

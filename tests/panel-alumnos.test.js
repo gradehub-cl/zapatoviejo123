@@ -992,7 +992,7 @@ function contexto({search='',sesion=false}={}){
   const lineas=csv.split('\r\n');
   chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección)');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección);Método;Preparó con el profesor');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
@@ -1002,7 +1002,7 @@ function contexto({search='',sesion=false}={}){
   chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;;;'));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;;;;fecha;'));
   const resumen=a.run(`csvResumenAlumnosPanel([{...__dos,nombre_visible:'=Ana',ramos:[
     __dos.ramos[0],{...__dos.ramos[1],seccion:undefined,categorias:[...__dos.ramos[1].categorias,
       {id:'pendiente',nombre:'Control 3',peso:20,fecha:'2026-11-01',notas:[{id:'sin-nota',nombre:'Control 3',valor:null}]}]}]}],
@@ -1011,7 +1011,7 @@ function contexto({search='',sesion=false}={}){
     new Date('2026-10-22T12:00:00Z'))`);
   const filasResumen=resumen.split('\r\n').map(l=>l.split(';'));
   chk('resumen tiene una fila por alumno y ramo, con todas las columnas pedidas',
-    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección)');
+    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección);Método;No preparadas frente a GradeHub;Preparadas frente a GradeHub;Cambio entre grupos');
   chk('dos ramos del mismo alumno conservan fechas y comparaciones propias',
     filasResumen[1][4]==='2026-09-15'&&filasResumen[2][4]==='2026-10-05'&&
     filasResumen[1][8]==='-1,0'&&filasResumen[1][9]==='0,7'&&filasResumen[1][10]==='1,7'&&
@@ -1025,7 +1025,7 @@ function contexto({search='',sesion=false}={}){
     {id:'rv',nombre:'Ramo vacío',gates:[],categorias:[]}]}],()=>null)`);
   const filaVacia=sinNotas.split('\r\n')[1].split(';');
   chk('un ramo sin notas también aparece, sin inventar promedio ni cambio',
-    sinNotas.split('\r\n').length===2&&filaVacia.length===16&&filaVacia[3]==='no declarada'&&
+    sinNotas.split('\r\n').length===2&&filaVacia.length===20&&filaVacia[3]==='no declarada'&&
     filaVacia[4]==='2026-09-01'&&filaVacia[5]===''&&filaVacia[10]===''&&filaVacia[11]==='Sin notas');
   a.run(`globalThis.__getElementOriginal=document.getElementById;
     globalThis.__opciones=['detalle','resumen'].map(formato=>({dataset:{exportarPanel:formato},handlers:{},addEventListener(t,fn){this.handlers[t]=fn}}));

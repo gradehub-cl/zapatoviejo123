@@ -54,6 +54,8 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
 // cuántos alumnos no la declararon en algún ramo.
 function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
   if(!g)return '';
+  if(g.grupos)return g.grupos.map(grupo=>antesAhoraGrupoHTML(grupo,{seccion,sinSeccion})).join('');
+  if(g.metodo==='manual')return grupoPreparadasHTML(g);
   if(!g.alumnos.length)return '<p class="profesor-hig-vacio">Todavía no hay ramos compartidos para comparar.</p>';
   const respecto=seccion?'Respecto de su sección':'Respecto del ramo';
   const tituloCambio=seccion?'Cambio frente a su sección':'Cambio frente al ramo';
@@ -92,8 +94,9 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
 // nota menos promedio del ramo/sección: 0 es su referencia, no una nota 4,0.
 // Cada ramo tiene su propia fecha de inicio y se mantiene en una serie separada.
 function graficoAntesAhoraSVG(m,{seccion=false,inicios=null,ficha=false}={}){
+  if(m.metodo==='manual')return comparacionPreparadasHTML(m);
   const referencia=seccion?'su sección':'el ramo',etiqueta=seccion?'Sección':'Ramo';
-  const pts=m.evaluaciones.filter(e=>e.curso!==null);
+  const pts=m.evaluaciones.filter(e=>e.curso!==null&&e.fecha);
   if(pts.length<2)return '';
   const ramos=[...new Set(pts.map(e=>e.ramoId??e.ramo))];
   const lim=Math.max(1,Math.ceil(Math.max(...pts.map(e=>Math.abs(e.nota-e.curso)))));
@@ -127,6 +130,7 @@ function graficoAntesAhoraSVG(m,{seccion=false,inicios=null,ficha=false}={}){
 }
 
 function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false,inicios=null}={}){
+  if(m?.metodo==='manual')return comparacionPreparadasHTML(m);
   const referencia=seccion?'su sección':'el ramo';
   if(!m||!m.evaluaciones.length)return '';
   const resumen=sinSeccion?'Por sección: no disponible, no declaró su sección'

@@ -31,6 +31,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     raiz.querySelector('#alumnos-volver').addEventListener('click',()=>{if(vigente())(volver?volver():renderAlumnosProfesor(raiz));});
     return;
   }
+  if(!ejemplo)await Promise.all(alumnos.map(al=>cargarPreparacionPanel(al,rpc)));
+  if(!vigente())return;
   // Una consulta por ramo distinto, no por alumno. UAI y UAndes pueden usar
   // nombre normalizado cuando no existe sigla, igual que curso_notas.
   const cursos=new Map();
@@ -206,6 +208,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       const destino=fichaContenido.querySelector('[data-pe-ramo-contenido]');
       destino.innerHTML=ramoAlumnoEditorialHTML(al,r,compDe(al,r),ultimaSeccion.get(r.id)?compSeccion(al,r):compGeneral(al,r),!!ultimaSeccion.get(r.id),new Date());
       enlazarInicio();enlazarGraficosEvolucion(destino);
+      enlazarPreparacionPanel(destino,al,r,rpc,()=>{if(vigente()){pintarFicha();}},()=>vigente()&&seleccionado===al&&ramoFicha===r.id);
       const barra=destino.querySelector('[data-pe-ultima-wrap]');
       const enlazarUltima=()=>barra?.querySelector('[data-pe-ultima]')?.addEventListener('click',async()=>{
         const quiere=!ultimaSeccion.get(r.id),boton=barra.querySelector('button');boton.disabled=true;
