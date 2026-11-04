@@ -301,10 +301,21 @@ function gh_crearCalculoRamo(deps){
     const v=recuperativo?recuperativo.valor:base.valor;
     return combinarConRamoVinculado(r,v,visitados,ramosContexto);
   }
+  function referenciaRamoVinculado(r){
+    if(!r?.aporta?.ramo)return null;
+    const link=r.aporta,preset=typeof definicionPresetDelRamo==='function'?definicionPresetDelRamo(r):null;
+    const sigla=link.sigla||(preset?.aporta&&normName(preset.aporta.ramo)===normName(link.ramo)?preset.aporta.sigla:null);
+    return {...link,...(sigla?{sigla:String(sigla).trim().toUpperCase()}:{})};
+  }
   function ramoVinculado(r,ramosContexto){
-    if(!r||!r.aporta||!r.aporta.ramo)return null;
-    const objetivo=normName(r.aporta.ramo);
-    return (ramosContexto||S.ramos||[]).find(x=>x!==r&&normName(x.nombre)===objetivo)||null;
+    const link=referenciaRamoVinculado(r);if(!link)return null;
+    const lista=(ramosContexto||S.ramos||[]).filter(x=>x!==r);
+    const codigo=x=>{const v=String(x.sigla||x.origen?.ramoKey||'').trim().toUpperCase();return /^[A-Z]{2,6}[0-9]{3,5}[A-Z]?$/.test(v)?v:'';};
+    const porSigla=link.sigla&&lista.find(x=>codigo(x)===link.sigla);
+    if(porSigla)return porSigla;
+    // Compatibilidad con ramos antiguos sin sigla; un código contradictorio
+    // no se ignora solo porque el nombre coincide.
+    return lista.find(x=>(!link.sigla||!codigo(x))&&normName(x.nombre)===normName(link.ramo))||null;
   }
   function combinarConRamoVinculado(r,propio,visitados,ramosContexto){
     const link=r&&r.aporta;
@@ -571,7 +582,7 @@ function gh_crearCalculoRamo(deps){
     // diciendo cuál está incumplida hoy.
     return conCompuertas(resolver(estructura,objetivo));
   }
-  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje,gh_tablaPuntaje};

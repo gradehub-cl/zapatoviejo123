@@ -5,7 +5,7 @@ const el=()=>({style:{setProperty(){},removeProperty(){}},classList:{add(){},rem
 const stub=el(),ctx={console,setTimeout,clearTimeout,window:{addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}})},document:{getElementById:()=>stub,createElement:el,addEventListener(){},documentElement:stub,body:stub,querySelector:()=>null,querySelectorAll:()=>[]},localStorage:{getItem(){return null},setItem(){throw Error('Leer las reglas no debe guardar ni migrar datos')},removeItem(){}},navigator:{},location:{origin:'',pathname:'/',hash:''}};
 vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js'])vm.runInContext(fs.readFileSync(__dirname+'/../'+f,'utf8'),ctx);
 const run=s=>vm.runInContext(s,ctx);
-assert.equal(run("(PRESETS_UC['Dinámica'].noCalcula||[]).length"),0,'se retiran los tres avisos de Dinámica, que estaban en noCalcula');
+assert.doesNotMatch(run("(PRESETS_UC['Dinámica'].noCalcula||[]).join(' ')"),/faltas con justificación|inasistencias a talleres/i,'los tres avisos de asistencia de Dinámica siguen retirados');
 assert(!run("PRESETS_UC['El misterioso caso del curso de ficción policial (Edición especial Santiago Negro)'].reglasDelCurso.join(' ')").includes('último día de clases'));
 assert(run("PRESETS_UC['Laboratorio de Dinámica'].noCalcula.join(' ')").includes('nota 1'),'las sanciones que sí afectan la nota se conservan');
 assert(run("PRESETS_UC['Laboratorio de Dinámica'].noCalcula.join(' ')").includes('segunda inasistencia reprueba'));
@@ -18,7 +18,8 @@ S.ramos=[{...p,id:'existente',nombre:'Dinámica',origen:{tenant:'uc',carrera:'IN
 S.ramos[0].categorias[0].notas=[{id:'nota-guardada',nombre:'I1 propia',valor:5.2}];
 `);
 const antes=run('JSON.stringify(S)'),notaAntes=run('ramoAvg(S.ramos[0])');
-assert.equal(run('reglasNoCalculadas(S.ramos[0]).length'),0,'el ramo ya agregado deja de mostrar los avisos sin recargarse del preset');
+assert.doesNotMatch(run("reglasNoCalculadas(S.ramos[0]).join(' ')"),/faltas con justificación|inasistencias a talleres/i,'el ramo ya agregado deja de mostrar los avisos de asistencia sin recargarse del preset');
+assert(run("reglasNoCalculadas(S.ramos[0]).join(' ')").includes('El programa no indica si se conserva el laboratorio'),'se conserva la incertidumbre académica de #952 al repetir actas');
 assert.equal(run('S.ramos[0].bonus[0].entrada'),'faltas');
 assert.equal(run('S.ramos[0].bonus[0].suma'),0.5);
 assert.equal(run('ramoAvg(S.ramos[0])'),notaAntes);

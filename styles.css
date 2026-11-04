@@ -4653,6 +4653,12 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-agenda .ag-pendientes-lista>.ag-recorreccion-row{margin:0;border:0;border-radius:0;background:none;}
 #screen-agenda .ag-pendientes-lista>*+*{border-top:1px solid var(--border);}
 
+/* Dinámica: contexto del aporte, sin convertir un faltante en alerta modal. */
+#screen-ramo .ramo-vinculo-contexto{margin:0 20px 16px;padding:12px 0;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
+#screen-ramo .ramo-vinculo-contexto p{margin:0 0 8px;}
+#screen-ramo .ramo-vinculo-contexto button{min-height:44px;min-width:44px;}
+#screen-ramo .ramo-vinculo-contexto button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+
 /* Canvas web: la URL es un campo táctil como el resto de Ajustes. */
 #s-canvas-ics input[type=url]{width:100%;min-height:44px;padding:12px;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:var(--radius,12px);font:inherit;font-size:1rem;box-sizing:border-box;}
 #s-canvas-ics input[type=url]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}

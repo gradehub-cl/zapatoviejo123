@@ -134,6 +134,9 @@ function renderRamo(){
   const subtitulo=document.getElementById('ramo-subtitulo');
   if(subtitulo)subtitulo.textContent=[siglaDeRamo(r),r.creditos!=null?`${r.creditos} créditos`:''].filter(Boolean).join(' · ');
   const avg=ramoAvg(r);
+  const contextoVinculo=contextoVinculoRamo(r);
+  const contextoEl=document.getElementById('ramo-vinculo-contexto');
+  if(contextoEl){contextoEl.hidden=!contextoVinculo;contextoEl.innerHTML=contextoVinculo?`<p>${contextoVinculo.soloCatedra?'<b>Solo cátedra</b> · ':''}${contextoVinculo.html}</p>${contextoVinculo.falta?'<button type="button" class="btn-cancel" onclick="agregarLaboratorioVinculado()">Agregar laboratorio</button>':''}`:'';}
   const calculo=calculoRamoConCompuertas(r);
   const sombras=notasSombraDelRamo(r);
   const recuperativo=estadoRecuperativo(r,calculo);
@@ -156,7 +159,7 @@ function renderRamo(){
   const soloEl=document.getElementById('ramo-solo-parte');
   function pintarSoloCatedra(){
     if(!soloEl)return;
-    const html=htmlSoloCatedra(r,{exacto:promedioExactoVisible?fmtPromedioExacto:null});
+    const html=contextoVinculo?.soloCatedra?'':htmlSoloCatedra(r,{exacto:promedioExactoVisible?fmtPromedioExacto:null});
     soloEl.hidden=!html;soloEl.innerHTML=html;
   }
   pintarSoloCatedra();
@@ -315,6 +318,8 @@ function renderRamo(){
       }
     } else {chipEl.style.display='none';}
   } else {chipEl.style.display='none';}
+
+  if(contextoVinculo?.soloCatedra&&/^.[ ](?:Aprobado|Reprobado)$/.test(chipEl.textContent))chipEl.textContent+=' · solo cátedra';
 
   // El simulador, con la meta adentro («Nota mínima» se juntó con él, 2026-10-23)
   const hayCats=r.categorias.length>0;
