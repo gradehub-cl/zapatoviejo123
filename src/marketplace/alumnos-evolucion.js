@@ -154,7 +154,7 @@ function antesAhoraGrupoHTML(g,{seccion=false,sinSeccion=0}={}){
         <div class="ah-promedios"><span>Promedio de evaluaciones</span><span>Antes <b>${prom(g.antes.promedio)}</b><span aria-hidden="true"> → </span><span class="sr-solo">. </span>Ahora <b>${prom(g.ahora.promedio)}</b></span></div>
       </div>
     </div>
-    ${graficoAlumnosAntesAhoraHTML(g,{seccion})}
+    ${percentilesPanelHTML(g.percentiles,{grupo:true})}${graficoAlumnosAntesAhoraHTML(g,{seccion})}
     <p class="ah-alcance">${g.totalAlumnos} ${g.totalAlumnos===1?'alumno':'alumnos'} en ${g.totalRamos} ${g.totalRamos===1?'ramo':'ramos'}. Cada comparación usa el inicio de clases de ese ramo. El cambio no demuestra el efecto de las clases.</p>
     <details class="ah-metodo"><summary>Cómo se calcula</summary><p class="clase-privacidad">Con ${conFecha} ${conFecha===1?'evaluación':'evaluaciones'} con fecha${g.sinFecha?`; ${g.sinFecha} ${g.sinFecha===1?'evaluación sin fecha no cuenta':'evaluaciones sin fecha no cuentan'}`:''}. “${respecto}” compara cada nota con el promedio de ${seccion?'su misma sección en GradeHub':'GradeHub'} en esa misma prueba, antes y después de que empezaran contigo.${sinSeccion?` ${sinSeccion} ${sinSeccion===1?'alumno no declaró su sección en algún ramo: ese ramo no cuenta':'alumnos no declararon su sección en algún ramo: esos ramos no cuentan'}.`:''} El cambio de cada par alumno-ramo pide al menos ${MIN_EVALS_COMPARACION} evaluaciones comparables antes y ${MIN_EVALS_COMPARACION} después. No prueba que la mejora sea por tus clases: quien busca clases suele hacerlo en su peor momento, y desde ahí se sube algo igual.</p></details>
   </section>`;
@@ -208,7 +208,7 @@ function antesAhoraAlumnoHTML(m,{sinSeccion=false,seccion=false,inicios=null}={}
   return `<div class="ah-alumno">
     <p class="ah-alumno-resumen">${resumen}</p>
     ${sinSeccion?'':`<p class="ah-alumno-lados"><span>Antes: ${frenteAlCursoPanel(m.antes.diferencia,referencia)}</span><span>Ahora: ${frenteAlCursoPanel(m.ahora.diferencia,referencia)}</span></p>`}
-    <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion,inicios})}</div>
+    <div class="panel-alumnos-grafico-detalle">${graficoAntesAhoraSVG(m,{seccion,inicios})}${percentilesPanelHTML(resumenPercentilesPanel(m))}</div>
     <details class="ah-detalle"><summary>Ver sus evaluaciones</summary>
       <table class="panel-alumnos-notas"><thead><tr><th>Fecha</th><th>Evaluación</th><th>Nota</th><th>${seccion?'Sección':'Ramo'}</th></tr></thead><tbody>${filas}</tbody></table>
       ${m.sinFecha?`<p class="clase-sin-datos">${m.sinFecha} ${m.sinFecha===1?'nota sin fecha no cuenta':'notas sin fecha no cuentan'}.</p>`:''}

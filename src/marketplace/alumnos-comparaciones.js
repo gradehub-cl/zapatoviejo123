@@ -66,10 +66,10 @@ function metricasAlumnoPanel(al,compDe,{inicio}={}){
     const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
     let evaluaciones=[],sinFecha=0;
     (al.ramos||[]).forEach(r=>{
-      const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      const comp=compDe(al,r),x=evaluacionesConFechaPanel(ramoParaPanel(r),comp);
       if(al.soloPruebasPanel){const ids=new Set(categoriasPruebasPanel(r).flatMap(c=>(c.notas||[]).map(n=>n.id)));x.evaluaciones=x.evaluaciones.filter(e=>ids.has(e.id));x.sinFecha=categoriasPruebasPanel(r).flatMap(c=>c.notas||[]).filter(n=>Number.isFinite(n.valor)&&!x.evaluaciones.some(e=>e.id===n.id)).length;}
       const corte=inicio!==undefined?desde:inicioRamoPanel(al,r).dia;
-      x.evaluaciones.forEach(e=>{e.inicio=corte;e.lado=corte&&e.fecha<corte?'antes':'ahora';});
+      x.evaluaciones.forEach(e=>{e.percentil=percentilEvaluacionPanel(al,r,e.id,comp);e.inicio=corte;e.lado=corte&&e.fecha<corte?'antes':'ahora';});
       evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
     });
     evaluaciones.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
@@ -98,9 +98,11 @@ function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
   const porAlumno=(alumnos||[]).flatMap(al=>(al.ramos||[]).map(r=>metricasAlumnoRamoPanel(al,r,compDe,inicioDe?{inicio:inicioDe(al,r)}:{})));
   const totalAlumnos=new Set(porAlumno.map(m=>m.id)).size;
   const totalRamos=new Set(porAlumno.map(m=>`${m.tenant}|${m.sigla?String(m.sigla).toUpperCase():claveEvaluacionPanel(m.ramo)}`)).size;
+  const paresPercentiles=porAlumno.map(resumenPercentilesPanel).filter(p=>p.cambio!==null);
+  const percentiles=paresPercentiles.length?{antes:medianaPanel(paresPercentiles.map(p=>p.antes)),ahora:medianaPanel(paresPercentiles.map(p=>p.ahora)),cambio:medianaPanel(paresPercentiles.map(p=>p.cambio))}:null;
   const conCambio=porAlumno.filter(m=>m.cambio!==null);
   const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
-  return {alumnos:porAlumno,totalAlumnos,totalRamos,conCambio:conCambio.length,
+  return {alumnos:porAlumno,totalAlumnos,totalRamos,percentiles,conCambio:conCambio.length,
     mejoraron:conCambio.filter(m=>m.cambio>0).length,
     cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
     antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),
@@ -120,4 +122,22 @@ function filtrarAlumnosPanel(alumnos,texto){
       (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
     return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
+}
+
+async function cargarPercentilesPanel(al,rpc){
+ try{const {data,error}=await rpc('percentiles_alumno',{p_id:al.id});al.percentiles=!error&&Array.isArray(data)?data:[];}catch(e){al.percentiles=[];}
+}
+function percentilEvaluacionPanel(al,r,id,comp){
+ if(comp?.sinSeccion)return null;
+ const f=al.percentiles?.find(x=>x.ramo_id===r.id&&x.nota_id===id),x=f?.[Number.isInteger(comp?.seccion)?'seccion':'ramo'];
+ return x&&Number.isInteger(x.personas)&&x.personas>=5&&Number.isFinite(x.percentil)&&x.percentil>=0&&x.percentil<=100?x.percentil:null;
+}
+function resumenPercentilesPanel(m){
+ const lado=k=>{const xs=(m.evaluaciones||[]).filter(e=>e.lado===k&&Number.isFinite(e.percentil)).map(e=>e.percentil);return {n:xs.length,valor:xs.length>=MIN_EVALS_COMPARACION?mediaPanel(xs):null};};
+ const a=lado('antes'),b=lado('ahora');return {antes:a.valor,ahora:b.valor,cambio:a.valor!==null&&b.valor!==null?b.valor-a.valor:null};
+}
+function percentilesPanelHTML(p,{manual=false,grupo=false}={}){
+ if(!p||p.antes===null||p.ahora===null)return '<p class="clase-privacidad">Percentiles no disponibles: se necesitan dos evaluaciones por grupo con referencias de al menos cinco estudiantes.</p>';
+ const titulo=grupo?'Mediana de percentiles por alumno y ramo':'Posición dentro de GradeHub';
+ return `<section class="panel-percentiles"><h3>${titulo}</h3><p>Del p${Math.round(p.antes)} al p${Math.round(p.ahora)} <b class="${p.cambio>0?'ah-sube':p.cambio<0?'ah-baja':''}">${grupo?'Mediana del cambio: ':''}${p.cambio>0?'↑':p.cambio<0?'↓':'='} ${Math.abs(p.cambio).toFixed(0)} puntos percentiles</b></p>${[[manual?'No preparadas':'Antes',p.antes],[manual?'Preparadas':'Ahora',p.ahora]].map(([titulo,v])=>`<div><span>${titulo} · p${Math.round(v)}</span><progress max="100" value="${v}" aria-label="${titulo}, percentil ${Math.round(v)}"></progress></div>`).join('')}<small>Promedio de posiciones por evaluación; no es una nota ni demuestra causalidad. Empates: rango medio.</small></section>`;
 }
