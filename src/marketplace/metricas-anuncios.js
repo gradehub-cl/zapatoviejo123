@@ -396,3 +396,22 @@ function embudoClase(totales){
   if(filas.length<2)return '';
   return barrasDetalleClaseHTML({titulo:'Interacciones',filas:filas.map(([nombre,valor])=>({nombre,valor})),unidad:'registros'});
 }
+
+// Denominador agregado solo para admin MFA. Desconocido nunca equivale a cero.
+async function publicoAdminAnuncio(anuncio){
+ try{const {data,error}=await supabaseClient.rpc('admin_anuncio_publico',{p_anuncio_id:anuncio.id});return !error&&data&&['activos','activos_ramo','vieron','abrieron','contactaron'].every(k=>Number.isSafeInteger(data[k])&&data[k]>=0)?data:null;}catch(e){return null;}
+}
+function publicoAdminAnuncioHTML(a,p){
+ if(!p)return '<p class="clase-privacidad">Comparación de alcance no disponible. El resto de las métricas sigue disponible.</p>';
+ const n=p.activos_ramo,porcentaje=x=>n?(100*x/n).toFixed(1).replace('.',',')+'%':'Sin base para porcentaje';
+ const filas=[['Activos con el ramo',n],['Lo vieron',p.vieron],['Abrieron',p.abrieron],['Contactaron',p.contactaron]];
+ const bajo=n>0&&p.vieron/n<.1;
+ const causas=[];
+ if(bajo){
+  if(criteriosClaseValidos(a.criterios))causas.push(`promedio menor a ${String(a.criterios.promedioMenorA).replace('.',',')} y al menos ${a.criterios.avanceMinimo}% evaluado`);else causas.push('sin criterios válidos no se recomienda en Inicio');
+  causas.push('sin evaluación en 7 días pierde prioridad, aunque no queda excluido');
+  if(a.estado==='agotado'||a.campana&&costoCampanaClase(a.campana)?.agotada)causas.push('tope alcanzado');else causas.push('un tope alcanzado puede detener la campaña');
+  causas.push('cerrar con la X oculta ese anuncio hasta el día siguiente');
+ }
+ return `<section class="admin-publico"><h4>Alcance frente a quienes tienen el ramo</h4><p>${p.activos} personas activas en la app · ${esc(p.desde)} → ${esc(p.hasta)}</p>${filas.map(([titulo,v])=>`<div><span>${titulo} <b>${v}</b> <small>${porcentaje(v)}</small></span><progress max="${Math.max(1,n,p.vieron,p.abrieron,p.contactaron)}" value="${v}" aria-label="${titulo}: ${v}. ${porcentaje(v)}"></progress></div>`).join('')}<p class="clase-privacidad">Base: visitas registradas durante la publicación y ramos guardados actualmente. Usa siglas explícitas (o una clave de origen que coincida exactamente); un ramo sin sigla reconocida queda fuera. No reconstruye la matrícula histórica. Los porcentajes usan activos con el ramo; no son una conversión de la misma cohorte. ${p.visitas_retencion_parcial?'La campaña supera la retención de visitas: la base es parcial.':''}</p>${bajo?`<p>Alcance bajo 10%. Causas posibles, no comprobadas por persona: ${esc(causas.join('; '))}. También influyen la rotación y una pauta incompleta.</p>`:''}</section>`;
+}

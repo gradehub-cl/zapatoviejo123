@@ -4695,6 +4695,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #s-canvas-ics button{min-width:44px;min-height:44px;}
 #s-canvas-ics .canvas-pasos{padding-left:20px;color:var(--fg2);font-size:.8125rem;line-height:1.6;}
 
+/* Admin: magnitudes con una misma escala; sin anillos ni datos personales. */
+.admin-publico{margin:24px 0;}
+.admin-publico>div{margin:12px 0;}
+.admin-publico>div span{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;}
+.admin-publico b,.admin-publico small{font-variant-numeric:tabular-nums;}
+.admin-publico small,.admin-publico p{color:var(--fg2);}
+.admin-publico progress{display:block;width:100%;height:8px;accent-color:var(--primary);margin-top:8px;}
 .panel-percentiles{margin:16px 0;font-variant-numeric:tabular-nums;}
 .panel-percentiles p,.panel-percentiles small{color:var(--fg2);line-height:1.5;}
 .panel-percentiles progress{display:block;width:100%;height:8px;accent-color:var(--primary);margin:8px 0 12px;}
