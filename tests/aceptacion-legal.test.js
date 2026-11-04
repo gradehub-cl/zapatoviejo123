@@ -1,5 +1,7 @@
-// Aceptar no puede ser una frase pasiva: el registro necesita un acto visible,
-// y ese acto tiene que quedar fechado y versionado sin bloquear cuentas previas.
+// Desde el 2026-11-03 no hay casilla (decisión de Lucas, para sacar fricción):
+// el texto «Al continuar aceptas…» queda a la vista junto a los botones y
+// tocarlos es aceptar. Lo que no se negocia es la constancia: fecha y versión
+// guardadas al crear la cuenta, sin bloquear cuentas previas.
 const fs=require('fs'),path=require('path'),vm=require('vm');
 const raiz=path.join(__dirname,'..');
 const leer=(archivo,env)=>{
@@ -16,23 +18,18 @@ const preguntas=leer('preguntas.html','GRADEHUB_PREGUNTAS');
 const terminos=leer('terminos.html','GRADEHUB_TERMINOS');
 const sql=leer('supabase/aceptacion_legal.sql','GRADEHUB_SQL');
 
-console.log('\n=== Aceptación explícita al registrarse ===');
-const casillas=[...html.matchAll(/<input\b[^>]*type="checkbox"[^>]*>/g)].filter(m=>/id="auth-legal-accept"/.test(m[0]));
-chk('hay una sola casilla de aceptación en registro',casillas.length===1);
-chk('la casilla parte desmarcada',casillas.length===1&&!/\bchecked\b/.test(casillas[0][0]));
-const etiquetaLegal=(html.match(/<label[^>]*>\s*<input[^>]*id="auth-legal-accept"[\s\S]*?<\/label>/)||[])[0]||'';
-const textoEtiqueta=etiquetaLegal.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-chk('la etiqueta de aceptación se puede leer de una vez, sin el párrafo de datos',
-  textoEtiqueta.length>0&&textoEtiqueta.length<100&&!/recomendaciones/.test(textoEtiqueta));
-chk('el detalle del uso de datos acompaña la casilla como descripción accesible',
-  /aria-describedby="[^"]*auth-legal-detail/.test(casillas[0]?.[0]||'')&&
-  /id="auth-legal-detail"[^>]*>[\s\S]*?notas y ramos[\s\S]*?recomendaciones de clases[\s\S]*?<\/p>/.test(html));
-chk('la casilla enlaza términos, privacidad y el uso local para recomendaciones',
-  /auth-legal-accept[\s\S]{0,900}términos de uso[\s\S]{0,900}política de privacidad[\s\S]{0,900}notas y ramos[\s\S]{0,900}recomendaciones de clases/i.test(html));
-chk('sin marcarla el registro se detiene antes de llamar a Supabase',
-  /authMode==='signup'[\s\S]{0,900}auth-legal-accept[\s\S]{0,500}acepta los términos[\s\S]{0,1000}signUp\(/i.test(sesion));
-chk('al volver a iniciar sesión la casilla se limpia y se esconde',
-  /auth-legal-accept-wrap[\s\S]{0,400}authMode==='signup'[\s\S]{0,700}if\(authMode!=='signup'&&legalAccept\)legalAccept\.checked=false/i.test(sesion));
+console.log('\n=== Aceptación a la vista al entrar ===');
+chk('ya no hay casilla de aceptación',!/id="auth-legal-accept"/.test(html));
+const aviso=(html.match(/<p class="auth-legal" id="auth-legal">[\s\S]*?<\/p>/)||[])[0]||'';
+const textoAviso=aviso.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+chk('el aviso enlaza términos y privacidad',/href="\/terminos\.html"/.test(aviso)&&/href="\/privacidad\.html"/.test(aviso));
+chk('dice que continuar es aceptar y declara la edad mínima',/Al continuar aceptas/.test(textoAviso)&&/14 años o más/.test(textoAviso));
+chk('se lee de una vez',textoAviso.length>0&&textoAviso.length<110);
+// Visible siempre, también para quien entra con Google: no va dentro de nada
+// que se esconda según el modo, y va junto a los botones de entrar.
+chk('no está escondido ni depende del modo',!/<p class="auth-legal"[^>]*(hidden|display:none)/.test(aviso)&&!/auth-legal'\)\.style/.test(sesion));
+chk('va junto a los botones de entrar',/id="auth-btn"[\s\S]{0,900}id="auth-legal"/.test(html));
+chk('crear cuenta ya no se detiene por una casilla',!/auth-legal-accept/.test(sesion));
 
 console.log('\n=== Constancia compatible con cuentas existentes ===');
 chk('la versión legal está declarada una sola vez',
@@ -59,7 +56,6 @@ async function pruebaDeRegistro(){
   elementos['auth-user']=campo('alguien@ejemplo.cl');
   elementos['auth-pass']=campo('clave123');
   elementos['auth-pass2']=campo('clave123');
-  elementos['auth-legal-accept']={checked:false,style:{},setAttribute(){},removeAttribute(){},focus(){}};
   elementos['auth-error']=campo();
   elementos['auth-btn']=campo('Crear cuenta');
   let intentos=0,perfil=null;
@@ -75,10 +71,6 @@ async function pruebaDeRegistro(){
   vm.createContext(contexto);
   vm.runInContext(sesion,contexto);
   vm.runInContext("authMode='signup'",contexto);
-  await vm.runInContext('submitAuth()',contexto);
-  chk('la casilla desmarcada no alcanza a crear una cuenta',
-    intentos===0&&/acepta los términos/i.test(elementos['auth-error'].textContent||''));
-  elementos['auth-legal-accept'].checked=true;
   vm.runInContext('afterSignup=async()=>{}',contexto);
   await vm.runInContext('submitAuth()',contexto);
   chk('la cuenta nueva guarda su aceptación antes del onboarding',

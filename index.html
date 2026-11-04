@@ -185,17 +185,19 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
           </button>
         </div>
       </div>
-      <div id="auth-legal-accept-wrap" class="auth-consent" style="display:none;" aria-hidden="true">
-        <label><input type="checkbox" id="auth-legal-accept" aria-describedby="auth-legal-detail auth-error"/>
-          <span>Acepto los <a href="/terminos.html" target="_blank" rel="noopener">términos de uso</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</span>
-        </label>
-        <p id="auth-legal-detail">GradeHub usa tus notas y ramos para ordenar recomendaciones de clases dentro de tu navegador. Los profesores no reciben tus notas ni tu identidad.</p>
-      </div>
       <div id="auth-error" role="alert" aria-live="assertive" style="display:none;font-size:12px;color:var(--red);margin-top:10px;line-height:1.4;"></div>
     </div>
     <button class="btn-primary" id="auth-btn" onclick="submitAuth()">Iniciar sesión</button>
+    <!-- Luz del principal cuando el formulario está listo; fuera del botón porque su texto se reescribe. -->
+    <svg class="auth-laser" id="auth-laser" aria-hidden="true" focusable="false"></svg>
+    <!-- La otra opción va como botón de contorno, justo bajo la
+         principal: quien llega por primera vez tiene que encontrarla sin buscar. -->
+    <button class="btn-contorno" id="auth-toggle" onclick="toggleAuthMode()">¿No tienes cuenta? Crea una</button>
     <button class="auth-link" id="auth-fp" onclick="forgotPassword()">¿Olvidaste tu contraseña?</button>
-    <button class="auth-link auth-link-primary" id="auth-toggle" onclick="toggleAuthMode()">¿No tienes cuenta? Crea una</button>
+    <!-- Sin casilla: el texto queda a la vista bajo Google y el formulario, y
+         tocar cualquiera de los dos es aceptar. Fecha y versión se guardan
+         igual: al crear la cuenta con correo y al terminar el onboarding. -->
+    <p class="auth-legal" id="auth-legal">Al continuar aceptas los <a href="/terminos.html" target="_blank" rel="noopener">términos</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">privacidad</a>, y declaras tener 14 años o más.</p>
     <!-- Muestra de la ficha de un ramo, para que quien llega vea el producto.
          Va DEBAJO del login para no estorbar al entrar; en escritorio la
          rejilla la lleva a la columna izquierda. Es decorativa: los números están
@@ -253,6 +255,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <a href="/calculadora" target="_blank" rel="noopener">Calculadora de notas</a>
         <a href="/terminos.html" target="_blank" rel="noopener">Términos de uso</a>
         <a href="/privacidad.html" target="_blank" rel="noopener">Privacidad</a>
+        <button type="button" class="auth-footer-btn" id="auth-dar-clases" onclick="alternarEntradaProfesor()">Soy profesor particular</button>
       </nav>
     </footer>
   </div>
