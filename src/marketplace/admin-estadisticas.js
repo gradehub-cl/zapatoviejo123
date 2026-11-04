@@ -356,12 +356,12 @@ async function pintarPanelAdmin(raiz){
         caja.innerHTML=`<p class="clase-sin-datos">${vig==='programado'?'Todavía no empieza, así que no hay nada que medir ni cobrar.':actual.estado==='en_revision'?'Cuando se apruebe y empiece a mostrarse, sus estadísticas aparecerán acá.':'Todavía no se publica, así que no hay estadísticas.'}</p>`;
         b.dataset.estadisticasEstado='lista';b.textContent='Ocultar estadísticas';return;
       }
-      const m=await metricasDeAnuncio({...actual,campana:null});
+      const [m,publico]=await Promise.all([metricasDeAnuncio({...actual,campana:null}),publicoAdminAnuncio(actual)]);
       if(caja.isConnected===false)return;
       if(m.error)throw Error('No pudimos cargar las estadísticas. Revisa tu conexión e intenta de nuevo.');
       const d=prepararMetricasClase(actual,m);
       const pesos=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
-      caja.innerHTML='<h4>Estadísticas del aviso</h4>'+detalleMetricasClaseHTML(d,pesos,Date.now())+
+      caja.innerHTML='<h4>Estadísticas del aviso</h4>'+detalleMetricasClaseHTML(d,pesos,Date.now())+publicoAdminAnuncioHTML({...actual,campana:m.campana},publico)+
         '<p class="clase-privacidad">Solo totales por anuncio. Nunca nombres ni notas de estudiantes.</p>';
       b.dataset.estadisticasEstado='lista';b.textContent='Ocultar estadísticas';
     }catch(e){
