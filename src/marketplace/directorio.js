@@ -15,10 +15,10 @@ function tarjetaDirectorioHTML(p,{previa=false,logoURL=''}={}){
   const color=colorTarjetaDirectorio(p.color_tarjeta),texto=textoTarjetaDirectorio(color);
   const tag=previa?'div':'button',id=String(p.id||p.directorio_id||'');
   return `<${tag} ${previa?'':`type="button" data-directorio-perfil="${esc(id)}"`} class="directorio-tarjeta" style="--directorio-color:${color};--directorio-texto:${texto}">
-    <span class="directorio-tarjeta-cabeza"><span class="directorio-avatar" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span>${p.destacado?'<span class="directorio-destacado">Destacado</span>':''}</span>
-    <strong class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</strong>
-    <span class="directorio-nombre">${esc(p.nombre_publico||'Tu nombre público')}</span>
-    <span class="directorio-siglas">${esc((p.ramos_siglas||[]).slice(0,3).join(' · '))}</span>
+    <span class="directorio-tarjeta-cabeza"><span class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</span>${p.destacado?'<span class="directorio-destacado">Destacado</span>':''}</span>
+    <span class="directorio-identidad"><span class="directorio-textos"><strong class="directorio-nombre">${esc(p.nombre_publico||'Tu nombre público')}</strong>
+      <span class="directorio-siglas">${esc((p.ramos_siglas||[]).slice(0,3).join(' · '))}</span></span>
+      <span class="directorio-avatar" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span></span>
   </${tag}>`;
 }
 async function perfilConDirectorio(p){

@@ -17,6 +17,9 @@ for(const color of ['#ffffff','#000000','#ffff00','#00ff00','#777777']){
 const a={id:'a',titulo:'Anuncio existente',estado:'publicado',precio_clp:12000,ramos_siglas:['SYN101']};
 const antes=run(`JSON.stringify(prepararCatalogoClases([${JSON.stringify(a)}],''))`);
 assert.equal(antes,run(`JSON.stringify(prepararCatalogoClases([${JSON.stringify(a)}],''))`));
+const tarjeta=run("tarjetaDirectorioHTML({nombre_publico:'Academia de ejemplo',etiqueta:'Clases STEM'},{previa:true})");
+assert(tarjeta.indexOf('directorio-etiqueta')<tarjeta.indexOf('directorio-nombre'),'Lucas: la etiqueta pequeña va arriba');
+assert(tarjeta.indexOf('directorio-nombre')<tarjeta.indexOf('directorio-avatar'),'el logo queda a la derecha del nombre en la misma fila');
 assert(run(`tarjetaDirectorioHTML({etiqueta:'<script>',color_tarjeta:'#777777'},{previa:true})`).includes('&lt;script&gt;'));
 (async()=>{
   ctx.supabaseClient={from:()=>({select(){return this},eq(){return this},maybeSingle:async()=>({data:null,error:{code:'42703'}})})};
