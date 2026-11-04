@@ -35,7 +35,7 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
   const filas=orden.map(m=>{
     const a=m.antes.diferencia,b=m.ahora.diferencia;
     const tramo=a!==null&&b!==null?`<i class="ah-tramo" style="left:${pos(Math.min(a,b))}%;width:${(pos(Math.max(a,b))-pos(Math.min(a,b))).toFixed(1)}%"></i>`:'';
-    return `<li><button type="button" data-ver-alumno="${esc(m.id)}" data-alumno-ramo="${esc(m.ramoId)}">
+    return `<li data-ramo-clave="${esc(claveRamoFiltroPanel(m))}"><button type="button" data-ver-alumno="${esc(m.id)}" data-alumno-ramo="${esc(m.ramoId)}">
       <span class="ah-fila-nombre">${esc(m.nombre)}<small class="ah-fila-ramo">${esc(m.ramo)}${m.sigla?` · <span class="ah-fila-sigla">${esc(m.sigla)}</span>`:''}</small><small class="ah-fila-inicio">${m.desde?'Inicio · '+esc(fechaCorta(m.desde)):'Sin fecha de inicio'}</small></span>
       <span class="ah-pista" aria-hidden="true"><i class="ah-centro"></i>${tramo}${a!==null?`<i class="ah-dot ah-dot-antes" style="left:${pos(a)}%"></i>`:''}${b!==null?`<i class="ah-dot ah-dot-ahora" style="left:${pos(b)}%"></i>`:''}</span>
       <span class="ah-fila-valores" aria-hidden="true"><span>Antes <b>${a===null?'—':esc(conSignoPanel(a))}</b></span><span>Ahora <b>${b===null?'—':esc(conSignoPanel(b))}</b></span></span>
@@ -44,11 +44,82 @@ function graficoAlumnosAntesAhoraHTML(g,{seccion=false}={}){
   }).join('');
   return `<section class="ah-alumnos" aria-labelledby="ah-alumnos-titulo">
     <div class="profesor-hig-lista-cabeza"><h2 id="ah-alumnos-titulo">Por alumno y ramo</h2></div>
-    <p class="ah-referencia">Puntos frente a ${ref} · 0 = su promedio</p>
+    ${filtroRamosAntesAhoraHTML(conDatos)}
+    <p class="ah-referencia">Puntos frente ${seccion?'a su sección':'al ramo'} · 0 = su promedio</p>
     <p class="ah-leyenda-fila"><span><i class="ah-dot ah-dot-antes"></i>Antes</span><span><i class="ah-dot ah-dot-ahora"></i>Ahora</span></p>
     <div class="ah-escala" aria-hidden="true"><span></span><span class="ah-escala-ejes"><span>${lim} bajo</span><span>${seccion?'Su sección':'El ramo'}</span><span>${lim} sobre</span></span><span></span></div>
     <ul class="ah-filas">${filas}</ul>
   </section>`;
+}
+// El ramo de cada fila para el filtro: la misma clave con que el grupo cuenta
+// sus ramos (sigla si la hay, si no el nombre), así la Dinámica de dos alumnos
+// es un solo ramo.
+function claveRamoFiltroPanel(m){return `${m.tenant||''}|${m.sigla?String(m.sigla).toUpperCase():claveEvaluacionPanel(m.ramo)}`;}
+// Sobre la lista: un buscador y un botón por ramo. Se eligen los ramos que se
+// quieren ver; sin elegir ninguno se ven todos. Con un solo ramo no hace falta.
+function filtroRamosAntesAhoraHTML(filas){
+  const ramos=new Map();
+  (filas||[]).forEach(m=>{const k=claveRamoFiltroPanel(m),x=ramos.get(k)||{clave:k,nombre:m.ramo,sigla:m.sigla,n:0};x.n++;ramos.set(k,x);});
+  if(ramos.size<2)return '';
+  const lista=[...ramos.values()].sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre),'es'));
+  return `<div class="ah-filtro" data-filtro-ramos>
+      <input type="search" class="ah-filtro-buscar" placeholder="Buscar ramo" aria-label="Buscar ramo por nombre o sigla"
+        autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+      <div class="ah-filtro-ramos" role="group" aria-label="Ramos que se muestran">${lista.map(r=>`<button type="button" data-filtro-ramo="${esc(r.clave)}" data-nombre="${esc(r.nombre||'')}" data-sigla="${esc(r.sigla||'')}" aria-pressed="false">${esc(r.nombre)}${r.sigla?` <span class="ah-fila-sigla">${esc(r.sigla)}</span>`:''}<small aria-hidden="true">${r.n}</small><span class="sr-solo">, ${r.n} ${r.n===1?'alumno':'alumnos'}</span></button>`).join('')}
+        <button type="button" class="ah-filtro-todos" data-filtro-todos hidden>Ver todos</button></div>
+      <p class="ah-filtro-estado" aria-live="polite"></p>
+    </div>`;
+}
+// Aplica la elección sin volver a pintar, para no perder el foco ni lo
+// escrito: la lista muestra solo los ramos elegidos y, mientras se escribe,
+// quedan los botones que calzan. Un ramo elegido nunca se esconde. Con más de
+// RAMOS_FILTRO_A_LA_VISTA ramos los botones serían una pared: sin escribir
+// solo se ven los elegidos.
+const RAMOS_FILTRO_A_LA_VISTA=6;
+function aplicarFiltroRamosPanel(raiz,estado){
+  const caja=raiz&&typeof raiz.querySelector==='function'&&raiz.querySelector('[data-filtro-ramos]');if(!caja)return;
+  const q=claveEvaluacionPanel(estado.texto);
+  const calza=s=>!q||(claveEvaluacionPanel(s)||'').includes(q);
+  const botones=[...caja.querySelectorAll('[data-filtro-ramo]')];
+  const existen=new Set(botones.map(b=>b.dataset.filtroRamo));
+  [...estado.elegidos].forEach(k=>{if(!existen.has(k))estado.elegidos.delete(k);});
+  let calzan=0;
+  const muchos=botones.length>RAMOS_FILTRO_A_LA_VISTA;
+  botones.forEach(b=>{
+    const elegido=estado.elegidos.has(b.dataset.filtroRamo);
+    b.setAttribute('aria-pressed',String(elegido));
+    b.hidden=!elegido&&(q?!(calza(b.dataset.nombre)||calza(b.dataset.sigla)):muchos);
+    if(!b.hidden&&!elegido)calzan++;
+  });
+  const todos=caja.querySelector('[data-filtro-todos]');if(todos)todos.hidden=!estado.elegidos.size;
+  const input=caja.querySelector('.ah-filtro-buscar');if(input&&input.value!==(estado.texto||''))input.value=estado.texto||'';
+  const filas=[...raiz.querySelectorAll('.ah-filas li[data-ramo-clave]')];
+  let vistas=0;
+  filas.forEach(li=>{const ver=!estado.elegidos.size||estado.elegidos.has(li.dataset.ramoClave);li.hidden=!ver;if(ver)vistas++;});
+  const aviso=caja.querySelector('.ah-filtro-estado');
+  if(aviso)aviso.textContent=q&&!calzan?'Ningún otro ramo calza con lo que escribiste.'
+    :estado.elegidos.size?`Se ven ${vistas} de ${filas.length} filas.`
+    :muchos&&!q?`Escribe para buscar entre tus ${botones.length} ramos.`:'Toca un ramo para ver solo ese. Puedes elegir varios.';
+}
+// Un toque en un ramo lo elige o lo quita; «Ver todos» limpia la elección.
+// Enter con un solo ramo que calce lo elige y deja el buscador listo para otro.
+function tocarFiltroRamosPanel(e,raiz,estado){
+  const b=e.target&&typeof e.target.closest==='function'&&e.target.closest('[data-filtro-ramo],[data-filtro-todos]');
+  if(!b||!raiz||typeof raiz.contains!=='function'||!raiz.contains(b))return false;
+  if(b.hasAttribute('data-filtro-todos'))estado.elegidos.clear();
+  else{const k=b.dataset.filtroRamo;if(estado.elegidos.has(k))estado.elegidos.delete(k);else estado.elegidos.add(k);}
+  aplicarFiltroRamosPanel(raiz,estado);
+  return true;
+}
+function escribirFiltroRamosPanel(e,raiz,estado){
+  const input=e.target;if(!input||!input.classList||!input.classList.contains('ah-filtro-buscar'))return;
+  if(e.type==='keydown'){
+    if(e.key!=='Enter')return;
+    const calzan=[...raiz.querySelectorAll('[data-filtro-ramo]')].filter(b=>!b.hidden&&b.getAttribute('aria-pressed')!=='true');
+    if(calzan.length!==1)return;
+    e.preventDefault();estado.elegidos.add(calzan[0].dataset.filtroRamo);estado.texto='';
+  } else estado.texto=input.value;
+  aplicarFiltroRamosPanel(raiz,estado);
 }
 // `seccion`: la comparación es con la sección de cada alumno; `sinSeccion`,
 // cuántos alumnos no la declararon en algún ramo.
@@ -212,7 +283,7 @@ function datosFilaAlumnoPanel(al,ahora=new Date()){
         }
       }catch(e){}
       estados[nivel]++;
-      return {ramo,avg,nivel,necesita,pendiente,motivo:Number.isFinite(avg)?motivoPromedioAlumnoPanel(ramo):''};
+      return {ramo,avg,nivel,necesita,pendiente,motivo:Number.isFinite(avg)?motivoPromedioAlumnoPanel(ramo,contexto):''};
     });
     const nivel=estados.bad?'bad':estados.warn?'warn':estados.good?'good':'neutral';
     const prioridad=Math.max(0,...datos.map(d=>d.avg===null?0:d.necesita!==null&&d.necesita>7.05?5

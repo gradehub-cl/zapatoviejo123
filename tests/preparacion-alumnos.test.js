@@ -13,6 +13,11 @@ run('al.preparacion.ramos[0].marcas=[]');m=run('metricasAlumnoRamoPanel(al,al.ra
 run('al.preparacion=null');assert.equal(run('metricasAlumnoRamoPanel(al,al.ramos[0],comp).cambio'),normal.cambio);
 run(`var otro={...al,id:'otro',preparacion:{ramos:[{ramo_id:'r',manual:true,marcas:[{nota_id:'n1'},{nota_id:'n3'}],evaluaciones:[]}]}}`);assert.equal(run('metricasGrupoPanel([al,otro],comp).grupos.length'),2);assert.equal(run('metricasGrupoPanel([al,otro],comp).cambioMediana'),null);
 assert.equal(run('JSON.stringify(al.ramos)'),antes);
+// Solo pruebas filtra también lo que entra por una marca sin fecha.
+run(`var conLab={id:'lab',nombre_visible:'Alumno sintético',tenant:'uc',soloPruebasPanel:true,ramos:[{id:'r2',nombre:'Ramo con lab',sigla:'SYN200',categorias:[{id:'p',nombre:'Prueba',tipoEvaluacion:'prueba',peso:50,directNota:true,notas:[{id:'np',nombre:'Prueba',valor:5,peso:1}]},{id:'l',nombre:'Laboratorio',tipoEvaluacion:'laboratorio',peso:50,directNota:true,notas:[{id:'nl',nombre:'Laboratorio',valor:7,peso:1}]}]}],
+ preparacion:{ramos:[{ramo_id:'r2',manual:true,marcas:[{nota_id:'np'},{nota_id:'nl'}],evaluaciones:[{nota_id:'np',nombre:'Prueba',nota:5},{nota_id:'nl',nombre:'Laboratorio',nota:7}]}]}}`);
+assert.equal(run('metricasAlumnoRamoPanel(conLab,conLab.ramos[0],()=>null).evaluaciones.map(e=>e.id).join()'),'np','un laboratorio marcado no entra a solo pruebas');
+run('conLab.soloPruebasPanel=false');assert.equal(run('metricasAlumnoRamoPanel(conLab,conLab.ramos[0],()=>null).evaluaciones.length'),2);
 (async()=>{
  await run("cargarPreparacionPanel(al,async()=>({error:{code:'PGRST202'}}))");assert.equal(run('al.preparacion'),null);
  ctx.__datos={ramos:[{ramo_id:'r',manual:true,marcas:[],evaluaciones:[]}]};await run('cargarPreparacionPanel(al,async()=>({data:__datos}))');

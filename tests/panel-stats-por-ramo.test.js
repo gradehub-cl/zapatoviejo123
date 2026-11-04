@@ -39,3 +39,44 @@ test('CSV de resumen: dos filas y mismas columnas, incluida Ramo',()=>{
  assert.deepEqual(filas[0],['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)','Método','No preparadas frente a GradeHub','Preparadas frente a GradeHub','Cambio entre grupos','Percentil antes','Percentil ahora','Cambio percentil']);assert.equal(filas.length,3);
  assert.equal(filas[1][1],'Álgebra sintética');assert.equal(filas[2][1],'Física sintética');assert.equal(filas[1][4],'2026-09-15');assert.equal(filas[2][4],'2026-10-01');assert.equal(filas[1][10],'2,0');assert.equal(filas[2][10],'-2,0');assert(filas.every(f=>f.length===filas[0].length));
 });
+
+test('filtro de ramos sobre la lista: elegir, buscar con Enter y Ver todos',()=>{
+ run(`globalThis.otro2={...al,id:'otro2',nombre_visible:'Otra persona',ramos:[{...al.ramos[0],id:'otro2-a'}],inicio_ramos:{'otro2-a':'2026-09-15'}};`);
+ assert(!run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([otro2],comp))').includes('data-filtro-ramos'),'con un solo ramo no hay filtro');
+ const html=run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([al,otro2],comp))');
+ assert(html.includes('placeholder="Buscar ramo"'));
+ const el=(dataset,attrs={})=>({hidden:false,dataset,attrs,setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return k in this.attrs?this.attrs[k]:null;},hasAttribute(k){return k in this.attrs;}});
+ const chips=[...html.matchAll(/data-filtro-ramo="([^"]+)" data-nombre="([^"]*)" data-sigla="([^"]*)"/g)].map(m=>el({filtroRamo:m[1],nombre:m[2],sigla:m[3]}));
+ const filas=[...html.matchAll(/<li data-ramo-clave="([^"]+)"/g)].map(m=>el({ramoClave:m[1]}));
+ assert.equal(chips.length,2,'un botón por ramo, aunque dos alumnos tengan Álgebra');assert.equal(filas.length,3);
+ const todos=el({},{'data-filtro-todos':''}),input={value:'',classList:{contains:x=>x==='ah-filtro-buscar'}},aviso={textContent:''};
+ const caja={querySelector:s=>s==='[data-filtro-todos]'?todos:s==='.ah-filtro-buscar'?input:s==='.ah-filtro-estado'?aviso:null,querySelectorAll:()=>chips};
+ c.__raiz={querySelector:s=>s==='[data-filtro-ramos]'?caja:null,querySelectorAll:s=>s.startsWith('.ah-filas')?filas:chips,contains:()=>true};
+ c.__estado={elegidos:new Set(),texto:''};
+ const tocar=b=>{c.__ev={target:{closest:()=>b}};return run('tocarFiltroRamosPanel(__ev,__raiz,__estado)');};
+ run('aplicarFiltroRamosPanel(__raiz,__estado)');
+ assert(filas.every(f=>!f.hidden)&&todos.hidden,'sin elegir se ve todo');
+ const fis=chips.find(b=>b.dataset.sigla==='TST102'),alg=chips.find(b=>b.dataset.sigla==='TST101');
+ assert(tocar(fis));
+ assert.equal(filas.filter(f=>!f.hidden).length,1);assert.equal(fis.getAttribute('aria-pressed'),'true');assert(!todos.hidden);assert.equal(aviso.textContent,'Se ven 1 de 3 filas.');
+ input.value='ALGE';c.__ev={type:'input',target:input};run('escribirFiltroRamosPanel(__ev,__raiz,__estado)');
+ assert(!alg.hidden&&!fis.hidden,'lo elegido no se esconde al buscar otro');
+ input.value='quimica';run('escribirFiltroRamosPanel(__ev,__raiz,__estado)');
+ assert(alg.hidden&&!fis.hidden);assert.equal(aviso.textContent,'Ningún otro ramo calza con lo que escribiste.');
+ input.value='álge';run('escribirFiltroRamosPanel(__ev,__raiz,__estado)');
+ let evitado=false;c.__ev={type:'keydown',key:'Enter',target:input,preventDefault(){evitado=true;}};run('escribirFiltroRamosPanel(__ev,__raiz,__estado)');
+ assert(evitado);assert.equal(alg.getAttribute('aria-pressed'),'true');assert.equal(input.value,'','queda listo para buscar otro');assert(filas.every(f=>!f.hidden));
+ assert(tocar(fis));assert.equal(filas.filter(f=>!f.hidden).length,2,'quitar un ramo deja solo el otro');
+ assert(tocar(todos));assert(filas.every(f=>!f.hidden)&&todos.hidden&&chips.every(b=>b.getAttribute('aria-pressed')==='false'));
+ c.__ev={target:{closest:()=>null}};assert.equal(run('tocarFiltroRamosPanel(__ev,__raiz,__estado)'),false,'un toque fuera del filtro sigue abriendo la ficha');
+});
+test('con más de seis ramos, los botones aparecen al escribir',()=>{
+ const el=(sigla)=>({hidden:false,dataset:{filtroRamo:'uc|'+sigla,nombre:'Ramo '+sigla,sigla},attrs:{},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k]??null;}});
+ const chips=['A1','A2','A3','A4','A5','A6','B7'].map(el),aviso={textContent:''},input={value:''};
+ const caja={querySelector:s=>s==='.ah-filtro-buscar'?input:s==='.ah-filtro-estado'?aviso:null,querySelectorAll:()=>chips};
+ c.__raiz={querySelector:s=>s==='[data-filtro-ramos]'?caja:null,querySelectorAll:s=>s.startsWith('.ah-filas')?[]:chips};
+ c.__estado={elegidos:new Set(['uc|A2']),texto:''};run('aplicarFiltroRamosPanel(__raiz,__estado)');
+ assert.deepEqual(chips.filter(b=>!b.hidden).map(b=>b.dataset.sigla),['A2'],'sin escribir, solo lo elegido');
+ c.__estado.elegidos.clear();run('aplicarFiltroRamosPanel(__raiz,__estado)');assert.equal(aviso.textContent,'Escribe para buscar entre tus 7 ramos.');
+ c.__estado.texto='b7';run('aplicarFiltroRamosPanel(__raiz,__estado)');assert.deepEqual(chips.filter(b=>!b.hidden).map(b=>b.dataset.sigla),['B7']);
+});

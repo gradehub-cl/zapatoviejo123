@@ -76,6 +76,7 @@ function metricasAlumnoPanel(al,compDe,{inicio}={}){
           x.evaluaciones.push({id:e.nota_id,ramo:r.nombre,ramoId:r.id,evaluacion:e.nombre,fecha:e.fecha||null,nota:e.nota,curso:ref?.promedio??null,cursoPersonas:ref?.personas??null,aprobada:notaAprobada(e.nota)});ya.add(e.nota_id);x.sinFecha=Math.max(0,x.sinFecha-1);
         }
       }
+      if(al.soloPruebasPanel){const ids=new Set(categoriasPruebasPanel(r).flatMap(c=>(c.notas||[]).map(n=>n.id)));x.evaluaciones=x.evaluaciones.filter(e=>ids.has(e.id));x.sinFecha=categoriasPruebasPanel(r).flatMap(c=>c.notas||[]).filter(n=>Number.isFinite(n.valor)&&!x.evaluaciones.some(e=>e.id===n.id)).length;}
       x.evaluaciones.forEach(e=>{e.percentil=percentilEvaluacionPanel(al,r,e.id,comp);e.inicio=corte;e.metodo=pre?.manual?'manual':'fecha';e.lado=pre?.manual?(pre.marcas.some(m=>coincideMarcaPreparada(m,e))?'ahora':'antes'):(corte&&e.fecha<corte?'antes':'ahora');});
       evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
     });
