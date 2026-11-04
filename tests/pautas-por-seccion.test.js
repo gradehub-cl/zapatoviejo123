@@ -49,6 +49,11 @@ run(`cinco.categorias[0].notas=[];confirmarPautaSeccion(cinco.id);confirmar();`)
 assert.equal(run('cinco.categorias[0].nombre'),'Trabajo');
 run(`cinco.seccion=5;descartarPautaSeccion(cinco.id);`);
 assert.equal(run('ofertaPautaSeccion(cinco)'),null,'se descarta una vez por sección y ramo, fuera de gradehub_v1');
+// Una cuenta del catálogo que ya guardó sección recibe solo su pauta si vacía.
+run(`globalThis.catalogoAntiguo=normalize({tenant:'fen',carrera:'IC',ramos:[{id:'previo-catalogo',nombre:'Pauta sintética por sección',seccion:5,origen:{tenant:'fen',carrera:'IC'},categorias:[]}]});`);
+assert.equal(run('catalogoAntiguo.ramos[0].categorias.length'),2);
+run(`globalThis.manualAntiguoVacio=normalize({tenant:'fen',carrera:'IC',ramos:[{id:'previo-manual',nombre:'Pauta sintética por sección',seccion:5,categorias:[]}]});`);
+assert.equal(run('manualAntiguoVacio.ramos[0].categorias.length'),0);
 // Una cuenta guardada con un ramo manual no recibe origen ni un preset nuevo.
 run(`globalThis.antigua=normalize({tenant:'fen',carrera:'IC',ramos:[{id:'manual',nombre:'Pauta sintética por sección',seccion:5,categorias:[{id:'p',nombre:'Mi evaluación',peso:100,directNota:true,notas:[{id:'m',valor:5.7,peso:1}]}]}]});`);
 assert.equal(run('antigua.ramos[0].origen'),null);
@@ -67,7 +72,7 @@ run(`elegirSeccionRamo('Pauta%20sint%C3%A9tica%20por%20secci%C3%B3n','fen','IC',
 assert.equal(run('elegido.seccion'),5);assert.equal(run('elegido.categorias.length'),2);
 assert.match(run(`selectorSeccionRamoHTML('Pauta sintética por sección','fen','IC','SYN909','selector')`),/value="5" selected/);
 // Banco: cada sección ve su pauta y sus reportes; la desconocida no hereda.
-const filas=[{sigla:'SYN909-5',nombre:'Pauta sintética por sección',pauta:{sigla:'SYN909',coordinado:false,evals:[['Prueba',40],['Examen',60]]},variantes:[]},{sigla:'SYN909',nombre:'Pauta sintética por sección',pauta:null,variantes:[{seccion:5,huella:'a'},{seccion:6,huella:'b'},{seccion:null,huella:'c'}]}];
+const filas=[{sigla:'SYN909-5',nombre:'Pauta sintética por sección',pauta:{sigla:'SYN909',coordinado:false,evals:[['Prueba',40],['Examen',60]]},variantes:[]},{sigla:'SYN909',nombre:'SYN909',pauta:null,variantes:[{seccion:5,huella:'a'},{seccion:6,huella:'b'},{seccion:null,huella:'c'}]}];
 ctx.filas=filas;
 const banco=json("pautasBancoPorSeccion(filas,'fen')");
 assert.equal(banco.length,3);assert.deepEqual(banco.find(f=>f.seccion===5).variantes.map(v=>v.huella),['a']);assert.equal(banco.find(f=>f.seccion===6).pauta,null);

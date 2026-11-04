@@ -32,16 +32,18 @@ function filaPautaBancoHTML(f,i){
 // una pauta por sección. Proyectarlos por sección evita comparar grupos ajenos
 // sin cambiar el RPC ni su contrato de revisiones privadas.
 function pautasBancoPorSeccion(filas,tenant){
-  const salida=[],grupos=new Map();
+  const salida=[],grupos=new Map(),porSigla=new Map();
+  for(const [nombre,def] of Object.entries(PRESETS_POR_TENANT[tenant]||{}))if(def.coordinado===false&&def.sigla)porSigla.set(def.sigla,{...def,nombre});
+  for(const fila of filas)if(fila.pauta?.coordinado===false&&fila.pauta.sigla&&!porSigla.has(fila.pauta.sigla))porSigla.set(fila.pauta.sigla,{...fila.pauta,nombre:fila.nombre});
   for(const fila of filas){
     const base=fila.pauta?.coordinado===false?fila.pauta:
-      definicionBasePreset(fila.nombre,tenant,null);
+      porSigla.get(fila.sigla)||definicionBasePreset(fila.nombre,tenant,null);
     if(base?.coordinado!==false||!base.sigla){salida.push(fila);continue;}
     const clave=base.sigla;
-    if(!grupos.has(clave))grupos.set(clave,{base,filas:[]});
+    if(!grupos.has(clave))grupos.set(clave,{base,nombre:porSigla.get(clave)?.nombre||fila.nombre,filas:[]});
     grupos.get(clave).filas.push(fila);
   }
-  for(const [sigla,{base,filas:grupo}] of grupos){
+  for(const [sigla,{nombre,filas:grupo}] of grupos){
     const porSeccion=new Map();
     for(const f of grupo)if(f.pauta?.coordinado===false&&f.sigla.startsWith(sigla+'-')){
       const seccion=Number(f.sigla.slice(sigla.length+1));
@@ -49,7 +51,7 @@ function pautasBancoPorSeccion(filas,tenant){
     }
     for(const f of grupo)for(const variante of f.variantes||[]){
       const seccion=seccionValida(variante.seccion);
-      if(!porSeccion.has(seccion))porSeccion.set(seccion,{...f,sigla:seccion==null?sigla:sigla+'-'+seccion,nombre:base.nombre||f.nombre,seccion,sigla_ramo:sigla,noCoordinado:true,pauta:null,periodo_catalogo:null,estado:'sin_pauta',variantes:[]});
+      if(!porSeccion.has(seccion))porSeccion.set(seccion,{...f,sigla:seccion==null?sigla:sigla+'-'+seccion,nombre,seccion,sigla_ramo:sigla,noCoordinado:true,pauta:null,periodo_catalogo:null,estado:'sin_pauta',variantes:[]});
       porSeccion.get(seccion).variantes.push(variante);
     }
     salida.push(...porSeccion.values());

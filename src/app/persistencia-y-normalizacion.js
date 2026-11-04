@@ -469,7 +469,9 @@ function normalize(data) {
   data.ramos.forEach(r => {
     migrarOrigenesFecha(r);
     repararEvaluacionesRepetidas(r);
-    const p = pautaPendiente(r);
+    // Una cuenta ya vinculada al catálogo puede recibir la pauta de SU sección
+    // si sigue vacía. Un ramo manual (sin origen) conserva exactamente su pauta.
+    const p = pautaPendiente(r)||(!(r.categorias||[]).length&&!(r.gates||[]).length?datosPautaSeccion(r):null);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
     // Un cambio de pauta se ofrece y la persona decide. `corrigePautas` es la
     // excepción para una pauta que NOSOTROS publicamos mal: esperar el botón

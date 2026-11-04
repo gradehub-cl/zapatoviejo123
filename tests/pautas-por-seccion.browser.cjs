@@ -1,4 +1,4 @@
-const fs=require('fs'),path=require('path'),assert=require('assert/strict'),{chromium}=require('/tmp/gradehub-qa-browser/node_modules/playwright');
+const fs=require('fs'),path=require('path'),assert=require('assert/strict'),{chromium}=require(process.env.GRADEHUB_PLAYWRIGHT||'playwright');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
 (async()=>{const b=await chromium.launch({channel:'chrome',headless:true});try{
 const out=path.join(root,'tests/capturas/pautas-por-seccion');fs.mkdirSync(out,{recursive:true});
@@ -33,6 +33,7 @@ assert.equal(await oferta.isVisible(),false);
 // Camino de Calificar: usa completarFechasOficiales antes del respaldo, sin editar esa fuente.
 await p.evaluate(()=>{const r=S.ramos[0];r.categorias=[];r.gates=[];r.seccion=null;save();r.seccion=5;completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});save();});
 assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('gradehub_v1')).ramos[0].categorias[0].nombre),'Prueba');
+await p.evaluate(()=>{S.ramos=[];const r=crearRamoDesdeCatalogo('Ramo de ejemplo','SYN909',4);openRamo(r.id);});assert.match(await p.locator('#cat-list .empty-sub').innerText(),/De la sección 4 todavía no tenemos la pauta/);
 assert.deepEqual(errors,[]);await p.close();
 }
 console.log('PASS navegador: selector nativo 4/5/otra, guardar sección, oferta sin notas, confirmación, 44pt, contraste claro/oscuro, 200%, carga por camino compartido de calificar');

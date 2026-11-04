@@ -377,8 +377,7 @@ language sql stable security definer set search_path=public as $$
  -- aun si sus evaluaciones casualmente coinciden. Coordinadas: contrato previo.
  and (case when exists(select 1 from public.pautas_catalogo_registro p
    where p.tenant=cr.tenant and p.definicion->>'coordinado'='false'
-   and (p.definicion->>'sigla'=cr.ramo_sigla or p.nombre_norm=cr.ramo_norm)
-   and p.periodo in ('',cr.periodo))
+   and (p.definicion->>'sigla'=cr.ramo_sigla or p.nombre_norm=cr.ramo_norm))
  then p_seccion is not null and cr.seccion=p_seccion
  else p_seccion is null or cr.seccion is null or cr.seccion=p_seccion end)
  order by cr.user_id,coalesce(nullif(cr.ramo_sigla,''),cr.ramo_norm),cr.updated_at desc,cr.id desc

@@ -18,12 +18,12 @@ const {registroPautas,semillaSQL,datosCatalogo}=require('../bin/actualizar-regis
  assert.deepEqual((await db.query("select clave from pautas_catalogo_registro where clave like 'SYN909%' order by clave")).rows.map(r=>r.clave),['SYN909-5','SYN909-6'],'borra solo la clave sin sección y es reaplicable');
  const id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
  for(let i=1;i<=12;i++){await db.query('insert into auth.users(id) values($1)',[id(i)]);await db.query('insert into user_ramos values($1,$2)',[id(i),JSON.stringify({tenant:'uc',onboardingDone:true})]);}
- const report=async(i,seccion,origen='explicito')=>{
+ const report=async(i,seccion,origen='explicito',periodo='2026-2')=>{
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id(i)]);
   const estructura=seccion===6?[{nombre:'Trabajo',peso:70},{nombre:'Examen',peso:30}]:[{nombre:'Prueba',peso:40},{nombre:'Examen',peso:60}];
-  await db.query("select submit_catalog_report_periodo('uc','IC','Ramo sintético','ramo sintetico','SYN909',$1,'h',null,$2,'2026-2',$3)",[JSON.stringify(estructura),seccion,origen]);
+  await db.query("select submit_catalog_report_periodo('uc','IC','Ramo sintético','ramo sintetico','SYN909',$1,'h',null,$2,$4,$3)",[JSON.stringify(estructura),seccion,origen,periodo]);
  };
- const cons=async seccion=>(await db.query("select * from catalog_consensus_periodo('uc','2026-2',$1)",[seccion])).rows;
+ const cons=async(seccion,periodo='2026-2')=>(await db.query("select * from catalog_consensus_periodo('uc',$2,$1)",[seccion,periodo])).rows;
  for(let i=1;i<=3;i++)await report(i,5);for(let i=4;i<=6;i++)await report(i,6);for(let i=7;i<=9;i++)await report(i,null);
  assert.equal((await cons(null)).length,0,'sin sección no recibe ninguna pauta no coordinada');
  assert.equal((await cons(5))[0].respaldos,3,'no cuenta las personas sin sección');
@@ -35,6 +35,10 @@ const {registroPautas,semillaSQL,datosCatalogo}=require('../bin/actualizar-regis
  assert.equal((await cons(5)).length,0,'pauta oficial de su sección manda sobre votos automáticos');
  for(let i=4;i<=6;i++)await report(i,4,'automatico');
  assert.equal((await cons(4))[0].respaldos,3,'una sección sin pauta oficial puede formar su propio consenso');
+ await db.exec('delete from catalog_reports');
+ for(let i=1;i<=3;i++)await report(i,5,'explicito','2027-1');for(let i=4;i<=6;i++)await report(i,null,'explicito','2027-1');
+ assert.equal((await cons(null,'2027-1')).length,0,'cambiar de semestre no permite mezclar secciones');
+ assert.equal((await cons(5,'2027-1'))[0].respaldos,3);
  console.log('PASS registro y consenso por sección: dos filas, limpieza reaplicable, ninguna mezcla, fuente oficial por sección');
  }finally{await db.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

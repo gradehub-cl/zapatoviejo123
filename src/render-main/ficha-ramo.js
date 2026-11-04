@@ -557,13 +557,14 @@ function renderRamo(){
     // quedó debiendo las evaluaciones, y decírselo es más honesto que un
     // "Sin evaluaciones" que parece que él no hizo algo.
     const titulo=delCatalogo?'Todavía no tenemos la pauta de este ramo':'Sin evaluaciones';
-    const sub=delCatalogo
+    const avisoSeccion=r.origen&&avisoSinPautaSeccion(r.nombre,r.origen.tenant,r.origen.carrera,r.seccion);
+    const sub=avisoSeccion||(delCatalogo
       ? 'Ármala con el programa del curso. El promedio funciona igual y, si quieres, después la compartes con otros estudiantes.'
-      : 'Agrega tus pruebas, controles o tareas con su porcentaje del ramo. Puedes incluir la fecha para que aparezcan en la Agenda.';
+      : 'Agrega tus pruebas, controles o tareas con su porcentaje del ramo. Puedes incluir la fecha para que aparezcan en la Agenda.');
     cl.innerHTML=`<div class="empty" style="padding:32px 20px;">
       <div class="empty-icon"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
       <div class="empty-title">${titulo}</div>
-      <div class="empty-sub">${sub}</div>
+      <div class="empty-sub">${esc(sub)}</div>
     </div>`;
   }
   const series=seriesNumeradasFicha(r.categorias.filter(c=>!(categoriaEximida(r,c)&&eximicion&&eximicion.regla.ocultaEvaluacion===true)));
