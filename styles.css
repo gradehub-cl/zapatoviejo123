@@ -4675,6 +4675,12 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #s-canvas-ics button{min-width:44px;min-height:44px;}
 #s-canvas-ics .canvas-pasos{padding-left:20px;color:var(--fg2);font-size:.8125rem;line-height:1.6;}
 
+.panel-percentiles{margin:16px 0;font-variant-numeric:tabular-nums;}
+.panel-percentiles p,.panel-percentiles small{color:var(--fg2);line-height:1.5;}
+.panel-percentiles progress{display:block;width:100%;height:8px;accent-color:var(--primary);margin:8px 0 12px;}
+.panel-percentiles:has(.ah-sube) progress{accent-color:var(--green);}
+.panel-percentiles:has(.ah-baja) progress{accent-color:var(--red);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
