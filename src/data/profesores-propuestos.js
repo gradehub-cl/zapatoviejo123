@@ -520,5 +520,53 @@ const PROFESORES_PROPUESTOS={
     TTF232:{
       1:'Rosa Yáñez',
     },
+    // Derecho UC 2026-2: ramos no coordinados, la pauta depende de la sección
+    // (PRESETS_UC · porSeccion). Mismo criterio: primer docente listado.
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DER002P
+    DER002P:{
+      1:'Cristobal Izquierdo',
+      2:'Maria Santibanez',
+      3:'Juan Pina',
+      4:'Rodrigo Aldoney',
+      5:'Maria Ossandon',
+      6:'Cristian Irarrazaval',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DER003R
+    DER003R:{
+      1:'Felipe Bertin',
+      2:'Nicolas Luco',
+      3:'Jose Ilharreborde',
+      4:'Paulo Roman',
+      5:'Patricio Martinez',
+      6:'Priscila Machado',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DER004C
+    DER004C:{
+      1:'Carmen Dominguez',
+      2:'Claudio Verdugo',
+      3:'Juan Goldenberg',
+      4:'Cristian Boetsch',
+      5:'Jaime Alcalde',
+      6:'Alvaro Vives',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DER005L
+    DER005L:{
+      1:'Alejandro Vergara',
+      2:'Gabriel Bocksang',
+      3:'Sandra Ponce de Leon',
+      4:'José Lara',
+      5:'Eduardo Cordero',
+      6:'Victor Poblete',
+      7:'Daniela Rivera',
+    },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=DER009C
+    DER009C:{
+      1:'Miguel Nacrur',
+      2:'Rodrigo Alvarez',
+      3:'Rodrigo Ochagavia',
+      4:'Jorge Martin',
+      5:'Mauricio Halpern',
+      6:'Roberto Rios',
+    },
   }},
 };
