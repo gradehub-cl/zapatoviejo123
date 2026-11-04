@@ -952,7 +952,7 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Estadísticas y Ramos con algo que leer de un vistazo (2026-10-23) ===');
   const grafG=a.run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([__poco,__antesAhora],__cursoAA))');
   chk('una fila por alumno y ramo, ordenada por cuánto cambió, y cada una abre su ficha',
-    (grafG.match(/<li><button type="button" data-ver-alumno=/g)||[]).length===2
+    (grafG.match(/<li[^>]*><button type="button" data-ver-alumno=/g)||[]).length===2
     &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
   chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
     /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el ramo\. Ahora: 0\.7 sobre el ramo\./.test(grafG));
