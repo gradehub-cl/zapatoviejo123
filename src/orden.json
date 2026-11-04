@@ -65,6 +65,7 @@
     "src/app/calendario-formato.js",
     "src/app/calendario-importar.js",
     "src/app/canvas.js",
+    "src/app/canvas-calendario-web.js",
     "src/app/calendario-exportar.js",
     "src/app/calendario-suscripcion.js",
     "src/app/agenda-prioridad.js",
