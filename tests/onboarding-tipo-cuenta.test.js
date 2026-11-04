@@ -61,8 +61,11 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('el onboarding parte en el paso 1', run('obStep') === 1);
   chk('como estudiante', run('obTipo') === 'estudiante');
   chk('ya no hay paso 0 ni radios de tipo de cuenta', !/data-step="0"/.test(html) && !/name="ob-tipo"/.test(html));
-  chk('el estudiante recorre 1, 2, 3, 4 y 5', JSON.stringify(run('obPasos("estudiante")')) === '[1,2,3,4,5]');
-  chk('el paso 1 pide solo el nombre', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana'})`) === true && run(`obStepValid(1,{tipo:'estudiante',nombre:''})`) === false);
+  chk('el estudiante recorre 1, 2, 3 y 5: la generación quedó en el 1', JSON.stringify(run('obPasos("estudiante")')) === '[1,2,3,5]');
+  chk('el paso 1 pide nombre y semestre', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',semestre:2})`) === true
+    && run(`obStepValid(1,{tipo:'estudiante',nombre:'',semestre:2})`) === false && run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',semestre:2,semInvalido:true})`) === false);
+  chk('la generación y el semestre están en el paso 1', /data-step="1">[\s\S]*id="ob-estudio"[\s\S]*id="ob-generacion-ruleta"[\s\S]*id="ob-sem-calculado"[\s\S]*data-step="2"/.test(html) && !/data-step="4"/.test(html));
+  chk('el estudiante los ve', el('ob-estudio').hidden === false);
   chk('en el primer paso, el botón de la izquierda es Cerrar sesión', el('ob-back').hidden === false && el('ob-back').textContent === 'Cerrar sesión');
   run('obBack()');
   chk('y cierra sesión', run('_salidas') === 1 && run('obStep') === 1);
@@ -84,6 +87,7 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('elegir Profesor cambia el tipo', run('obTipo') === 'profesor');
   chk('un valor que no es de la lista se ignora', (run(`elegirTipoCuenta('admin')`), run('obTipo')) === 'profesor');
   chk('el profesor recorre 1 y su paso propio', JSON.stringify(run('obPasos()')) === '[1,6]');
+  chk('no ve generación ni semestre, y su paso 1 pide solo el nombre', el('ob-estudio').hidden === true && run(`obStepValid(1,{tipo:'profesor',nombre:'Ana'})`) === true);
   chk('en el primer paso también puede cerrar sesión', el('ob-back').textContent === 'Cerrar sesión');
 
   el('ob-name').value = 'Ana'; run('obNext()');
@@ -147,7 +151,7 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   console.log('\n=== «Sigue como estudiante» devuelve el camino de siempre ===');
   empezar();
   run(`elegirTipoCuenta('profesor');obStep=6;seguirComoEstudiante()`);
-  chk('los pasos vuelven a ser 1 a 5', JSON.stringify(run('obPasos()')) === '[1,2,3,4,5]');
+  chk('los pasos vuelven a ser los del estudiante', JSON.stringify(run('obPasos()')) === '[1,2,3,5]');
   chk('y sigue en la universidad, sin repetir el nombre', run('obStep') === 2 && run('obTipo') === 'estudiante');
   chk('y un estudiante nuevo no queda como profesor', run('S.tipoCuenta') === 'estudiante');
 

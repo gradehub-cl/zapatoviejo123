@@ -106,19 +106,21 @@ function enVerano(fecha=new Date()){
 function semestreSegunGeneracion(generacion,fecha=new Date()){
   return Math.max(1,(fecha.getFullYear()-generacion)*2+(fecha.getMonth()>=7?2:1));
 }
+// En el paso 1 todavía no se sabe la universidad: el verano no tiene nombre propio.
+function nombreVeranoOnboarding(){return selectedTenant?nombreVerano(selectedTenant):'Verano o TAV';}
 function actualizarSemestreCalculado(){
-  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const total=semestresOfrecidos();
   if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
   const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
   if(!caja)return;
   const editar=document.getElementById('ob-sem-editar');
   const pasaMarzo=!obSemManual&&new Date().getMonth()<2;
-  const frase=obVerano?`Estás en <b>${esc(nombreVerano(selectedTenant))}</b>.`
+  const frase=obVerano?`Estás en <b>${esc(nombreVeranoOnboarding())}</b>.`
     :`${pasaMarzo?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.`;
   caja.innerHTML=`<span>${frase}</span>`+
     (editar&&editar.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
   const boton=document.getElementById('ob-sem-verano');
-  if(boton){boton.textContent=nombreVerano(selectedTenant);boton.setAttribute('aria-pressed',obVerano?'true':'false');}
+  if(boton){boton.textContent=nombreVeranoOnboarding();boton.setAttribute('aria-pressed',obVerano?'true':'false');}
 }
 // "Cambiar" pide escribir el semestre, o marcar TAV/verano.
 function mostrarSemestreManual(){
@@ -128,7 +130,7 @@ function mostrarSemestreManual(){
   if(campo){campo.value=obVerano?'':String(selectedSem);campo.focus();campo.select&&campo.select();}
 }
 function escribirSemestreOnboarding(texto){
-  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const total=semestresOfrecidos();
   const error=document.getElementById('ob-sem-error');
   const limpio=String(texto||'').trim();
   const n=/^\d{1,2}$/.test(limpio)?Number(limpio):NaN;
@@ -177,10 +179,10 @@ function obStepValid(step,datos){
     carreraNombre:selectedCarreraNombre,
     ...datosProfesorOnboarding()
   };
-  if(step===1)return !!String(d.nombre||'').trim();
+  // El paso 1 pide el nombre y, a quien estudia, un semestre válido (o verano).
+  if(step===1)return !!String(d.nombre||'').trim()&&(d.tipo==='profesor'||(!d.semInvalido&&(!!d.semestre||!!d.verano)));
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
-  if(step===4)return !d.semInvalido&&(!!d.semestre||!!d.verano);
   if(step===5)return true;
   // Los mismos largos que exige postularProfesor: si el botón se habilita, la
   // postulación no rebota por largo. Y dar clases exige 18 años (#697).

@@ -24,7 +24,7 @@ const chk=(n,c)=>{if(c){ok++;console.log('  ok   '+n);}else{fail++;console.log('
 
 const base={nombre:'Persona Sintética',tenant:'fen',carrera:'IICG',semestre:2};
 const app=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
-chk('el paso 1 pide solo el nombre',val('obStepValid')(1,base)===true&&val('obStepValid')(1,{...base,nombre:'  '})===false);
+chk('el paso 1 pide el nombre',val('obStepValid')(1,base)===true&&val('obStepValid')(1,{...base,nombre:'  '})===false);
 chk('ya no hay ruleta ni aviso de edad',!/ob-edad-ruleta|ob-edad-aviso/.test(html)&&!/obEdad|ruletaEdad|EDAD_MINIMA/.test(app));
 const anio=new Date().getFullYear();
 chk('la de generación va de 2000 al año actual y parte en el año actual',
@@ -32,7 +32,7 @@ chk('la de generación va de 2000 al año actual y parte en el año actual',
 chk('el final del onboarding devuelve al paso 1 si falta el nombre',
   (()=>{val("selectedTenant='fen';selectedCarrera='IICG';selectedSem=2");
     return val('obPasoIncompleto')()===1;})());
-chk('la ruleta de generación está en el paso 4',/data-step="4"[\s\S]*id="ob-generacion-ruleta"[\s\S]*data-step="5"/.test(html));
+chk('la ruleta de generación está en el paso 1, bajo el nombre',/data-step="1">[\s\S]*id="ob-name"[\s\S]*id="ob-generacion-ruleta"[\s\S]*data-step="2"/.test(html));
 const paso1=(html.match(/<div class="ob-step" data-step="1">[\s\S]*?data-step="2"/)||[''])[0].replace(/<!--[\s\S]*?-->/g,'');
 chk('el paso 1 no pide fecha de nacimiento ni edad',!!paso1&&!/nacimiento|type="date"|años/i.test(paso1));
 chk('la declaración queda registrada con su fecha',/edad_declarada_en:new Date\(\)\.toISOString\(\)/.test(sesion));
@@ -56,15 +56,17 @@ chk('la generación se guarda en la cuenta; las anteriores quedan en null',
   val('normalize({ramos:[]}).generacion')===null&&val('normalize({ramos:[],generacion:2024}).generacion')===2024&&val('normalize({ramos:[],generacion:1999}).generacion')===null);
 
 // "Cambiar" pide escribir el semestre o marcar TAV (verano fuera de la UC).
+// Desde 2026-11-03 va en el paso 1, bajo el nombre.
+const paso1Valido=()=>val('obStepValid')(1,{nombre:'Ana',semestre:val('selectedSem'),verano:val('obVerano'),semInvalido:val('obSemInvalido')});
 val("selectedTenant='uc';selectedCarrera=null;obSemManual=false;obVerano=false;obSemInvalido=false;selectedSem=2");
 val("escribirSemestreOnboarding('5')");
-chk('escribir 5 deja el 5.º, elegido a mano',val('selectedSem')===5&&val('obSemManual')===true&&val('obStepValid')(4)===true);
+chk('escribir 5 deja el 5.º, elegido a mano',val('selectedSem')===5&&val('obSemManual')===true&&paso1Valido()===true);
 val("escribirSemestreOnboarding('abc')");
-chk('algo que no es un semestre no deja avanzar',val('obSemInvalido')===true&&val('obStepValid')(4)===false);
+chk('algo que no es un semestre no deja avanzar',val('obSemInvalido')===true&&paso1Valido()===false);
 val("escribirSemestreOnboarding('99')");
-chk('un número fuera de la carrera tampoco',val('obStepValid')(4)===false);
+chk('un número fuera de la carrera tampoco',paso1Valido()===false);
 val("escribirSemestreOnboarding('3');alternarVeranoOnboarding()");
-chk('marcar TAV deja avanzar y no sugiere ramos de la malla',val('obVerano')===true&&val('obStepValid')(4)===true&&val('obRamosActuales()').length===0);
+chk('marcar TAV deja avanzar y no sugiere ramos de la malla',val('obVerano')===true&&paso1Valido()===true&&val('obRamosActuales()').length===0);
 chk('la TAV es de la UC: en las otras se dice Verano',val("nombreVerano('uc')")==='TAV'&&val("nombreVerano('fen')")==='Verano'&&val("nombreVerano('uandes')")==='Verano');
 chk('la TAV vale hasta el 1 de marzo siguiente',val("finDeVerano(new Date(2027,0,10))")==='2027-03-01'&&val("finDeVerano(new Date(2026,11,20))")==='2027-03-01');
 val("S.verano={hasta:'2027-03-01'}");

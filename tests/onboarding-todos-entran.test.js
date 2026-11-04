@@ -48,7 +48,7 @@ function intentar(tenant, malla, nombreCarrera, sem) {
   // un árbol que todavía no lo tiene, y ahí reporta las carreras atrapadas en
   // vez de reventar.
   let faltaAntes = 0;
-  for (let paso = 1; paso <= run('OB_TOTAL'); paso++) if (!run(`obStepValid(${paso})`)) { faltaAntes = paso; break; }
+  for (const paso of run('obPasos()')) if (!run(`obStepValid(${paso})`)) { faltaAntes = paso; break; }
   run('completeOnboarding()');
   return { faltaAntes, entro: run('S.onboardingDone') === true };
 }

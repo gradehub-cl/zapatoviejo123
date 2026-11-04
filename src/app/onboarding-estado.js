@@ -21,11 +21,12 @@ let obEnviandoProfesor=false;
 // El profesor no estudia acá: se salta universidad, carrera, generación y ramos,
 // y en su lugar cuenta cómo se presenta. Su paso lleva un número propio para
 // que los del estudiante (1 a 5) sigan significando lo mismo en el embudo.
-// El paso 0 (elegir tipo de cuenta) ya no existe, pero su número no se reusa.
+// Desde 2026-11-03 no existen el paso 0 (tipo de cuenta) ni el 4 (generación,
+// que pasó al 1), pero sus números no se reusan.
 const OB_PASO_PROFESOR=6;
-function obPasos(tipo){return (tipo||obTipo)==='profesor'?[1,OB_PASO_PROFESOR]:[1,2,3,4,5];}
+function obPasos(tipo){return (tipo||obTipo)==='profesor'?[1,OB_PASO_PROFESOR]:[1,2,3,5];}
 function obUltimoPaso(){const p=obPasos();return p[p.length-1];}
-// Cuántos semestres ofrece el paso 4 como mínimo. Una carrera cuya malla llega
+// Cuántos semestres se ofrecen como mínimo. Una carrera cuya malla llega
 // más lejos ofrece los suyos (`semestresDeCarrera`): Medicina UAndes y UC y
 // Derecho y Filosofía tienen 12, los dobles títulos UAI 13. Antes era un 11
 // fijo y quien iba en 12° no tenía cómo decirlo. `mallaCubreTodoElPaso` compara
@@ -36,6 +37,16 @@ function semestresDeCarrera(tenant,codigo){
   const malla=codigo?mallaDeCarrera(tenant,codigo):null;
   const ultimo=malla?Math.max(0,...Object.keys(malla).map(Number).filter(Number.isInteger)):0;
   return Math.max(OB_SEMESTRES,ultimo);
+}
+// El semestre se pregunta en el paso 1, antes de saber la carrera: ahí se
+// acepta hasta 14 (los dobles títulos UAI llegan a 13, más quien se atrasa) y
+// el paso 5, ya con la carrera, lo ajusta a los que tenga.
+const OB_SEMESTRES_SIN_CARRERA=14;
+function semestresOfrecidos(){return selectedCarrera?semestresDeCarrera(selectedTenant,selectedCarrera):OB_SEMESTRES_SIN_CARRERA;}
+function ajustarSemestreACarrera(){
+  const total=semestresDeCarrera(selectedTenant,selectedCarrera);
+  if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
+  else if(selectedSem>total)selectedSem=total;
 }
 // Etiquetas fijas nuestras, de lista cerrada: no son texto del estudiante, y
 // hacen legible el embudo sin tener que traducir números mirando el código.
@@ -54,9 +65,9 @@ let obRamos=[],obRamosKey='',obManualOpen=false,obManualError='';
 document.getElementById('ob-name').addEventListener('input',checkOb);
 
 
-// "Tu malla se carga sola" se promete en el paso 3, cuando todavía no sabemos
-// en qué semestre va la persona. Si la malla no cubre TODOS los semestres que el
-// paso 4 ofrece, la promesa es falsa para parte de la gente: Ingeniería UC llega
+// "Tu malla se carga sola" se promete en el paso 3, y el semestre todavía se
+// ajusta a la carrera en el paso 5. Si la malla no cubre TODOS los semestres que el
+// onboarding ofrece, la promesa es falsa para parte de la gente: Ingeniería UC llega
 // hasta 4° —de 5° en adelante se separa por major— y Comercial hasta 8°, así que
 // quien va más arriba elegía su carrera leyendo que le cargábamos los ramos y
 // después no le cargaba ninguno. Prometemos solo donde se cumple siempre.
@@ -69,7 +80,7 @@ function mallaCubreTodoElPaso(codigo){
 }
 function initSemGrid(){
   const g=document.getElementById('sem-grid');g.innerHTML='';
-  const total=semestresDeCarrera(selectedTenant,selectedCarrera);
+  const total=semestresOfrecidos();
   if(selectedSem>total)selectedSem=total;
   for(let i=1;i<=total;i++){
     const b=document.createElement('button');

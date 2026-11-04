@@ -24,13 +24,15 @@ function obIniciar(){
 function obRender(){
   // Cuántos semestres ofrecer depende de la malla, que puede venir en un
   // archivo diferido: se pide acá y el selector se repinta cuando llega.
-  if(obStep===4){
-    if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();
-    initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4){if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();initSemGrid();}});
-  }
+  // La generación y el semestre están en el paso 1; el profesor no los ve.
+  const estudio=document.getElementById('ob-estudio');
+  if(estudio)estudio.hidden=obTipo==='profesor';
+  if(obStep===1&&obTipo!=='profesor'&&typeof actualizarSemestreCalculado==='function'){actualizarSemestreCalculado();initSemGrid();}
   const alPintar=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(f):f();
-  if(obStep===4&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
-  if(obStep===5)prepararObRamos();
+  if(obStep===1&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
+  // Con la carrera ya elegida, el semestre se ajusta a los que tenga antes de
+  // sugerir ramos. Si la malla llega después, prepararObRamos repinta y vuelve acá.
+  if(obStep===5){if(typeof ajustarSemestreACarrera==='function')ajustarSemestreACarrera();prepararObRamos();}
   // El nombre público parte en el nombre que ya escribió; lo puede cambiar.
   if(obStep===OB_PASO_PROFESOR){
     const publico=document.getElementById('ob-prof-nombre'),nombre=document.getElementById('ob-name');

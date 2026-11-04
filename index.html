@@ -308,54 +308,53 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
          estudiantes y el profesor llega por «Soy profesor particular» o
          gradehub.cl/?dar-clases. Los pasos conservan su número para el embudo. -->
     <div class="ob-step" data-step="1">
-      <div class="ob-step-num">Paso 1 de 5</div>
+      <div class="ob-step-num">Paso 1 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Cómo te llamas?</h1>
       <div class="ob-sub ob-sub-left">Puede ser tu nombre o un apodo.</div>
       <div class="ob-card">
         <label class="field-label" for="ob-name">Nombre o apodo</label>
         <input type="text" id="ob-name" placeholder="Nombre o apodo" maxlength="30" autocomplete="given-name" onkeydown="if(event.key===&apos;Enter&apos;)obNext()"/>
       </div>
+      <!-- La generación y el semestre que sale de ella van acá desde 2026-11-03
+           (antes eran el paso 4). Sin carrera todavía, el paso 5 lo ajusta a
+           los semestres que tenga. El profesor no estudia: no lo ve. -->
+      <div id="ob-estudio">
+        <div class="ob-card ob-ruleta-card">
+          <p class="field-label" id="ob-generacion-titulo">Año de ingreso a la universidad</p>
+          <div id="ob-generacion-ruleta"></div>
+        </div>
+        <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
+        <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
+        <div class="ob-sem-editar" id="ob-sem-editar" hidden>
+          <label class="field-label" for="ob-sem-input">¿En qué semestre vas?</label>
+          <div class="ob-sem-fila">
+            <input type="text" id="ob-sem-input" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="Ej. 3"
+              aria-describedby="ob-sem-error" oninput="escribirSemestreOnboarding(this.value)"/>
+            <button type="button" class="ob-sem-verano" id="ob-sem-verano" aria-pressed="false" onclick="alternarVeranoOnboarding()">TAV</button>
+          </div>
+          <p class="ob-ruleta-aviso" id="ob-sem-error" role="alert"></p>
+        </div>
+        <div class="sem-grid" id="sem-grid" hidden></div>
+      </div>
     </div>
 
     <div class="ob-step" data-step="2" style="display:none;">
-      <div class="ob-step-num">Paso 2 de 5</div>
+      <div class="ob-step-num">Paso 2 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Dónde estudias?</h1>
       <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
 
     <div class="ob-step" data-step="3" style="display:none;">
-      <div class="ob-step-num">Paso 3 de 5</div>
+      <div class="ob-step-num">Paso 3 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Qué estudias?</h1>
       <div class="ob-sub ob-sub-left">Busca tu carrera. Si no aparece, puedes escribirla.</div>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
       <div id="carrera-grid" class="ob-options"></div>
     </div>
 
-    <div class="ob-step" data-step="4" style="display:none;">
-      <div class="ob-step-num">Paso 4 de 5</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1">¿De qué generación eres?</h1>
-      <div class="ob-sub ob-sub-left">El año en que entraste a la universidad. Con eso y la fecha sabemos en qué semestre vas.</div>
-      <div class="ob-card ob-ruleta-card">
-        <p class="field-label" id="ob-generacion-titulo">Año de ingreso</p>
-        <div id="ob-generacion-ruleta"></div>
-      </div>
-      <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
-      <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
-      <div class="ob-sem-editar" id="ob-sem-editar" hidden>
-        <label class="field-label" for="ob-sem-input">¿En qué semestre vas?</label>
-        <div class="ob-sem-fila">
-          <input type="text" id="ob-sem-input" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="Ej. 3"
-            aria-describedby="ob-sem-error" oninput="escribirSemestreOnboarding(this.value)"/>
-          <button type="button" class="ob-sem-verano" id="ob-sem-verano" aria-pressed="false" onclick="alternarVeranoOnboarding()">TAV</button>
-        </div>
-        <p class="ob-ruleta-aviso" id="ob-sem-error" role="alert"></p>
-      </div>
-      <div class="sem-grid" id="sem-grid" hidden></div>
-    </div>
-
     <div class="ob-step" data-step="5" style="display:none;">
-      <div class="ob-step-num">Paso 5 de 5</div>
+      <div class="ob-step-num">Paso 4 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">Elige tus ramos</h1>
       <div id="ob-course-picker"></div>
     </div>
