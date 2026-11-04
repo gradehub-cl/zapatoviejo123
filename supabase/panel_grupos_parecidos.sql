@@ -14,6 +14,7 @@ begin
  if r is null then raise exception 'ramo no compartido';end if;
  s=public.clave_curso_comparacion(t,r);
  inv=public.preparacion_alumno(pa.id,p_ramo)->'ramos'->0;
+ if (select count(*) from jsonb_array_elements(inv->'evaluaciones') where value->>'nota_id'=p_nota_base)<>1 then raise exception 'evaluación de partida ambigua o no disponible';end if;
  select value into e from jsonb_array_elements(inv->'evaluaciones') where value->>'nota_id'=p_nota_base and jsonb_typeof(value->'nota')='number' and not coalesce((value->>'ambigua')::boolean,false);
  if e is null then raise exception 'evaluación de partida no disponible';end if;
  k=public.clave_evaluacion(e->>'nombre');
