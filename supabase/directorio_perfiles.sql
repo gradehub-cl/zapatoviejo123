@@ -75,6 +75,17 @@ $$;
 revoke all on function public.contacto_directorio_perfil(uuid,text) from public,anon;
 grant execute on function public.contacto_directorio_perfil(uuid,text) to authenticated;
 
+-- El logo también se puede firmar sin un anuncio, únicamente para perfiles
+-- que consintieron aparecer. Conserva la visibilidad histórica desde anuncios.
+create or replace function public.logo_profesor_visible(p_path text)
+returns boolean language sql stable security definer set search_path='' as $$
+  select exists(select 1 from public.tutor_perfiles p
+    where p.logo_aprobado_path=p_path and p.estado='aprobado'
+      and ((auth.uid() is not null and p.en_directorio)
+        or exists(select 1 from public.tutor_anuncios a where a.autor_id=p.user_id
+          and a.estado='publicado' and (a.vence_at is null or a.vence_at>now()))));
+$$;
+
 -- Cambios de texto: mismo flujo vigente del perfil (sin nueva revisión).
 -- Se consume solo logo_aprobado_path, respetando el flujo vigente del logo.
 create or replace function public.admin_destacado_perfil(p_user_id uuid,p_hasta timestamptz)
