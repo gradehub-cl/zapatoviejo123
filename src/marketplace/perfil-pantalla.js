@@ -3,10 +3,12 @@
 // anuncio, pero solo si el profesor lo activó: parte apagado.
 async function renderPerfilProfesor(caja){
   if(!caja)return;
+  const cuenta=sesionProfesorClase();
   const ficha=await perfilProfesorActual();
+  if(cuenta!==sesionProfesorClase())return;
   if(!caja.isConnected)return;
   const p=ficha.ok?await perfilConDirectorio(ficha.perfil):null;
-  if(!caja.isConnected)return;
+  if(!caja.isConnected||cuenta!==sesionProfesorClase())return;
   if(!p){caja.innerHTML='';return;}
   if(!tienePerfilCompleto(p)){caja.innerHTML='<p class="profesor-info">Muy pronto vas a poder armar tu perfil público acá.</p>';return;}
   const v=c=>esc(p[c]==null?'':p[c]);

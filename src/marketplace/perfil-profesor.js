@@ -37,6 +37,7 @@ async function guardarPerfilProfesor(entrada){
   try{
     const {data,error}=await supabaseClient.from('tutor_perfiles').update(valido.datos).eq('user_id',uid)
       .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR+(Object.prototype.hasOwnProperty.call(valido.datos,'en_directorio')?','+CAMPOS_DIRECTORIO:'')).maybeSingle();
+    if(uid!==sesionProfesorClase())return {ok:false,error:'La sesión cambió. Vuelve a abrir tu perfil.'};
     if(faltaColumnaClase(error))return {ok:false,error:'Todavía no podemos guardar el perfil completo. Vuelve a intentarlo en un rato.'};
     if(error||!data){if(error)console.warn('No se guardó el perfil:',error.code||'',error.message||error);return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}
     perfilProfesorCache=perfilProfesorCache?{...perfilProfesorCache,...data}:perfilProfesorCache;

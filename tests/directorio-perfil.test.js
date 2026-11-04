@@ -25,5 +25,12 @@ assert(run(`tarjetaDirectorioHTML({etiqueta:'<script>',color_tarjeta:'#777777'},
   ctx.supabaseClient={from:()=>({select(){return this},eq(){return this},maybeSingle:async()=>({data:{en_directorio:false,categorias:null},error:null})})};
   assert.equal((await run(`perfilConDirectorio(${JSON.stringify(base)})`)).en_directorio,false);
   assert(read('src/marketplace/perfil-pantalla.js').includes('gradehub:logo-profesor'));
-  console.log('PASS: validación, contraste ≥4,5, cuenta existente sin SQL y tarjeta compartida');
+  let resolver;const caja={isConnected:true,innerHTML:'sin datos ajenos'};ctx.caja=caja;
+  ctx.perfilProfesorActual=()=>new Promise(r=>resolver=r);const lectura=run('renderPerfilProfesor(caja)');
+  ctx.currentUser={id:'otra-cuenta'};resolver({ok:true,perfil:{...base,perfil_publico:true}});await lectura;assert.equal(caja.innerHTML,'sin datos ajenos','no pinta una respuesta de la cuenta anterior');
+  ctx.currentUser={id:'p'};run('perfilProfesorCache={nombre_publico:"Cuenta nueva"}');
+  ctx.supabaseClient={from:()=>({update(){return this},eq(){return this},select(){return this},maybeSingle:()=>new Promise(r=>resolver=r)})};
+  const escritura=run(`guardarPerfilProfesor(${JSON.stringify(base)})`);ctx.currentUser={id:'otra-cuenta'};resolver({data:{nombre_publico:'Cuenta anterior'},error:null});
+  assert.equal((await escritura).ok,false);assert.equal(run('perfilProfesorCache.nombre_publico'),'Cuenta nueva','no contamina caché al cambiar cuenta durante el guardado');
+  console.log('PASS: validación, contraste ≥4,5, cuenta existente sin SQL, tarjeta compartida y cambio de cuenta');
 })().catch(e=>{console.error(e);process.exitCode=1});
