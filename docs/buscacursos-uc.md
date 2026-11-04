@@ -1,5 +1,21 @@
 # Base UC desde Buscacursos
 
+## Puesta en marcha, en este orden
+
+1. Lucas pega **`supabase/catalogo_uc_secciones.sql`**, después de sus requisitos
+   `catalogo_uc.sql` y `profesores.sql`. Es reaplicable; no se aplicó aquí.
+2. Merge de esta PR. Así el cron nunca llega a main antes de la tabla.
+3. Ejecutar `gh workflow run buscacursos-uc.yml --ref codex/buscacursos-uc`.
+   Prueba el acceso público desde Actions **sin secretos ni escrituras**.
+   Si hay 403/429/desafío, detenerse y revisar con Lucas.
+4. Solo con esa prueba aprobada, dispatch en main:
+   `gh workflow run buscacursos-uc.yml --ref main`.
+
+El workflow debe existir en main para aceptar el dispatch de prueba de la rama.
+El merge habilita también el cron; la prueba manual no es un bloqueo automático
+de las ejecuciones programadas. Mantener `SUPABASE_SECRET_KEY` en el environment
+`supabase`, restringido a main. No ejecutar el paso 4 antes de verificar el 3.
+
 ## Aplicar y ejecutar
 
 Lucas aplica **`supabase/catalogo_uc_secciones.sql`**, después de
@@ -16,6 +32,11 @@ node bin/buscacursos-uc-subir.js
 El uploader lee `SUPABASE_SECRET_KEY` del entorno. Sin clave avisa y termina
 con éxito sin subir nada. Nunca se imprime ni se escribe esa clave. La URL
 pública sale del helper existente `urlDelProyecto()`.
+
+Si falta la tabla (PostgREST `PGRST205` o PostgreSQL `42P01`), el uploader
+avisa qué SQL debe aplicar Lucas, sin stack trace, respuesta remota ni secreto.
+Termina con código 1 para detener el job antes de consultar a la UC o publicar
+lotes; no escribe una referencia vacía ni informa una carga exitosa.
 
 El lector guarda `.cache/buscacursos-uc.json` solo al completar todos los
 períodos. Si ese archivo ya existe, usa sus conteos como referencia. También
@@ -93,10 +114,44 @@ rol de escritura, ocultación y reaplicación.
 
 ## Automatización y prueba de Actions
 
-El cron despierta cada hora. `buscacursos-uc-config.js` permite una corrida a
-las **03:17 de Chile** al día y cada hora durante ventanas inclusivas de toma.
-La lista está vacía: Lucas debe poner las fechas reales; 2027-1 no se inventó.
-La zona `America/Santiago` absorbe el horario de verano sin mover el cron.
+Dos crons UTC: **`17 6 * * *`** a diario y
+**`17 0-5,7-23 * 1,3,7,8,12 *`** para las demás horas de los meses de toma.
+La hora 6 se excluye del segundo para no duplicar el diario. Las 06:17 UTC son
+03:17 en verano y 02:17 en invierno en Santiago; el filtro diario usa UTC para
+que el cambio de hora no omita la actualización.
+
+`bin/buscacursos-uc-config.js` deja **enero, marzo, julio, agosto y diciembre
+como meses provisionales que Lucas debe confirmar**; no son fechas oficiales.
+GitHub no permite leer el JS desde `schedule`: al cambiarlos hay que actualizar
+el campo mes del segundo cron; el test comprueba que coincidan. Los meses son
+UTC, por lo que deben cubrir también el borde UTC si una ventana local termina
+el último día del mes. Dentro de ellos sigue el filtro fino de ventanas de
+fechas inclusivas en `America/Santiago`. Esa lista está vacía: Lucas debe poner
+las fechas reales; no se inventó ninguna toma 2027-1. Fuera de las ventanas,
+los arranques horarios solo comprueban el filtro, sin consultar a la UC.
+
+### Presupuesto de minutos de Actions
+
+Estimación para el job `horario`, **suponiendo 1 minuto por arranque**; no es
+una medición de facturación. Antes eran 24 diarios durante todo el año.
+
+| Mes de 30 días | Antes | Ahora | Ahorro |
+|---|---:|---:|---:|
+| Fuera de los meses propuestos | 720 min | 30 min | 690 min (96%) |
+| Dentro de los meses propuestos | 720 min | 720 min | 0 min |
+
+Con los cinco meses propuestos (155 días en un año de 365), los arranques pasan
+de 8.760 a 3.930 por año: **730 → 327,5 min/mes en promedio**, 55% menos para
+decidir si ejecutar. Confirmar los meses puede reducir o aumentar ese ahorro.
+Hay que sumar las corridas reales, cuyo número no cambia: como presupuesto,
+10 min por actualización × 30 diarias = 300 min más al mes. Así, fuera de toma,
+el total orientativo sería **1.020 → 330 min/mes**; en meses habilitados, 1.020
+en ambos. Cada hora adicional dentro de una ventana añade otros ~10 min; un
+segundo período, reintentos o más unidades pueden aumentar ese coste. La
+lectura local medida de un período duró 7 min 2 s; los 10 min incluyen una
+reserva para preparación/subida y no son una duración de Actions medida.
+Dispatch, pruebas y otros workflows no están incluidos. Referencia:
+[facturación de GitHub Actions](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
 El job que sube usa el environment `supabase`, que debe seguir restringido a
 `main`. Los permisos son `contents: read` y la concurrencia no cancela corridas.

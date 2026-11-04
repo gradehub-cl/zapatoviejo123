@@ -142,7 +142,9 @@ async function recolectar({lector=crearLector(),periodo=null,anteriores={},ahora
 function correspondeProgramado(ahora=new Date(),config=require('./buscacursos-uc-config.js')){
  const partes=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(ahora).map(p=>[p.type,p.value]));
  const dia=`${partes.year}-${partes.month}-${partes.day}`;
- return Number(partes.hour)===config.horaDiaria||config.ventanasToma.some(v=>/^\d{4}-\d{2}-\d{2}$/.test(v.desde)&&/^\d{4}-\d{2}-\d{2}$/.test(v.hasta)&&v.desde<=dia&&dia<=v.hasta);
+ // El diario sigue el UTC fijo del cron; no se pierde con el cambio de hora.
+ // Los meses del cron también son UTC; las ventanas finas siguen siendo Chile.
+ return ahora.getUTCHours()===config.horaDiariaUTC||(config.mesesTomaUTC.includes(ahora.getUTCMonth()+1)&&config.ventanasToma.some(v=>/^\d{4}-\d{2}-\d{2}$/.test(v.desde)&&/^\d{4}-\d{2}-\d{2}$/.test(v.hasta)&&v.desde<=dia&&dia<=v.hasta));
 }
 async function main(args=process.argv.slice(2)){
  if(args.includes('--programado')){const valor=correspondeProgramado();if(process.env.GITHUB_OUTPUT)fs.appendFileSync(process.env.GITHUB_OUTPUT,`ejecutar=${valor}\n`);console.log(valor?'Corresponde actualizar.':'Fuera de ventana; no se consulta a la UC.');return;}

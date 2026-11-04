@@ -19,7 +19,15 @@ function prepararLotes(datos,{catalogo=filas(),log=console.log}={}){
 }
 async function peticion(url,clave,ruta,{fetch:pedir=fetch,...op}={}){
  const r=await pedir(`${url}/rest/v1/${ruta}`,{...op,headers:{apikey:clave,'Content-Type':'application/json',...op.headers},signal:AbortSignal.timeout(60000)});
- if(!r.ok)throw Error(`Supabase ${r.status} en ${ruta.split('?')[0]}; no se publica la corrida.`);
+ if(!r.ok){
+  // No imprimir la respuesta remota: puede incluir datos o detalles internos.
+  const error=await r.json().catch(()=>null);
+  if(ruta.startsWith('catalogo_uc_secciones')&&['PGRST205','42P01'].includes(error?.code)){
+   const pendiente=Error('Falta la tabla de secciones de Buscacursos. Lucas debe aplicar supabase/catalogo_uc_secciones.sql antes del merge y volver a ejecutar. No se publica la corrida.');
+   pendiente.code='SQL_PENDIENTE';throw pendiente;
+  }
+  throw Error(`Supabase ${r.status} en ${ruta.split('?')[0]}; no se publica la corrida.`);
+ }
  return r;
 }
 async function conteos({url,clave,fetch}){
@@ -51,5 +59,6 @@ async function main(args=process.argv.slice(2)){
  const datos=JSON.parse(fs.readFileSync(args[0]||'.cache/buscacursos-uc.json','utf8'));
  console.log(JSON.stringify({resumen:await subir({datos,url,clave}),consultas_uc:datos.consultas,duracion_lectura_segundos:datos.duracion_segundos}));
 }
-if(require.main===module)main().catch(e=>{console.error(`::error::${e.message}`);process.exitCode=1;});
+// Con SQL pendiente se detiene el job antes de leer la UC, sin stack trace.
+if(require.main===module)main().catch(e=>{console.error(`::${e.code==='SQL_PENDIENTE'?'warning':'error'}::${e.message}`);process.exitCode=1;});
 module.exports={prepararLotes,subir,conteos};

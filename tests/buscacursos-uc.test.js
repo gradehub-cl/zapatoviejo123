@@ -29,7 +29,12 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
  assert.equal(periodoActual(new Date('2027-01-15T12:00Z')),'2026-2');assert.equal(periodoActual(new Date('2027-03-01T12:00Z')),'2027-1');assert.equal(siguientePeriodo('2026-2'),'2027-1');
  assert.equal(new URL(urlBusqueda('2026-2','20','E_')).searchParams.get('cxml_sigla'),'E'+String.fromCharCode(92)+'_','guion bajo literal, no comodín SQL');
  assert.equal(correspondeProgramado(new Date('2026-11-03T06:17Z')) ,true);assert.equal(correspondeProgramado(new Date('2026-11-03T08:17Z')),false);
- assert.equal(correspondeProgramado(new Date('2027-01-05T14:17Z'),{horaDiaria:3,ventanasToma:[{desde:'2027-01-05',hasta:'2027-01-06'}]}),true);
+ assert.equal(correspondeProgramado(new Date('2027-06-03T06:17Z')),true,'el diario también corre en invierno (02:17 Chile)');
+ assert.equal(correspondeProgramado(new Date('2027-06-03T07:17Z')),false,'no suma otro diario a las 03:17 de invierno');
+ const ventana={horaDiariaUTC:6,mesesTomaUTC:[1],ventanasToma:[{desde:'2027-01-05',hasta:'2027-01-06'}]};
+ for(const fecha of ['2027-01-05T03:17Z','2027-01-05T14:17Z','2027-01-07T02:17Z'])assert.equal(correspondeProgramado(new Date(fecha),ventana),true,'ventanas inclusivas en Chile');
+ for(const fecha of ['2027-01-05T02:17Z','2027-01-07T03:17Z'])assert.equal(correspondeProgramado(new Date(fecha),ventana),false,'mes habilitado no basta sin ventana');
+ assert.equal(correspondeProgramado(new Date('2027-02-05T14:17Z'),{...ventana,ventanasToma:[{desde:'2027-02-05',hasta:'2027-02-06'}]}),false,'fuera de los meses UTC no corre el horario');
  let reloj=0,veces=0;const instantes=[],esperas=[];
  const lector=crearLector({reloj:()=>reloj,esperar:async ms=>{reloj+=ms;esperas.push(ms)},fetch:async(url,op)=>{assert.equal(op.headers['User-Agent'],UA);instantes.push(reloj);veces++;return {ok:veces!==1,status:veces===1?503:200,text:async()=>dinamica}}});
  await lector.pedir('https://buscacursos.uc.cl/');await lector.pedir('https://buscacursos.uc.cl/');assert.equal(lector.consultas,3);assert(instantes.slice(1).every((n,i)=>n-instantes[i]>=1000));assert(esperas.includes(1000));
@@ -51,6 +56,25 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
  const antes=pedidos.length;await subir({datos:conDatos(),clave:null,log:()=>{}});assert.equal(pedidos.length,antes);
  let escrituras=0;await assert.rejects(subir({datos:conDatos(),url:'https://sintetico.invalid',clave:'k',catalogo:[],log:()=>{},fetch:async(url,op)=>{if(op.method!=='GET')escrituras++;return{ok:true,headers:new Headers({'content-range':'0-9/10'}),json:async()=>Array(10).fill({periodo:'2026-2'})}}}),/70%/);assert.equal(escrituras,0);
  let paginas=0;const paginado=await conteos({url:'https://sintetico.invalid',clave:'k',fetch:async(url,op)=>{const inicio=Number(op.headers.Range.split('-')[0]);paginas++;return{ok:true,headers:new Headers({'content-range':`${inicio}-${Math.min(inicio+99,1000)}/1001`}),json:async()=>Array(Math.min(100,1001-inicio)).fill({periodo:'2026-2'})}}});assert.equal(paginado.conteos['2026-2'],1001);assert.equal(paginas,11,'respeta un límite REST menor a 1000, sin saltar filas');
+ // API nueva sin SQL: detener antes de escribir y sin revelar respuesta/secreto.
+ for(const code of ['PGRST205','42P01']){
+  let llamadas=0;
+  await assert.rejects(subir({datos:conDatos(),url:'https://sintetico.invalid',clave:'secreto-sintetico',catalogo:[],log:()=>{},fetch:async(url,op)=>{llamadas++;assert.equal(op.method,'GET');return new Response(JSON.stringify({code,message:'DETALLE_PRIVADO'}),{status:404});}}),e=>e.code==='SQL_PENDIENTE'&&/supabase\/catalogo_uc_secciones.sql/.test(e.message)&&!e.message.includes('DETALLE_PRIVADO'));
+  assert.equal(llamadas,1);
+ }
+ await assert.rejects(conteos({url:'https://sintetico.invalid',clave:'k',fetch:async()=>new Response(JSON.stringify({code:'42501'}),{status:403})}),e=>e.code!=='SQL_PENDIENTE'&&/Supabase 403/.test(e.message),'permisos no se confunden con tabla ausente');
+ const cliTemporal=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'gh-buscacursos-sql-'));
+ try{
+  const stub=path.join(cliTemporal,'red.cjs'),salida=path.join(cliTemporal,'estado.json');
+  fs.writeFileSync(stub,"global.fetch=async()=>new Response(JSON.stringify({code:'PGRST205',message:'DETALLE_PRIVADO'}),{status:404});");
+  for(const args of [['--estado',salida],[salida]]){
+   if(args.length===1)fs.writeFileSync(salida,JSON.stringify(conDatos()));
+   const r=require('node:child_process').spawnSync(process.execPath,['--require',stub,path.join(__dirname,'../bin/buscacursos-uc-subir.js'),...args],{encoding:'utf8',env:{...process.env,SUPABASE_SECRET_KEY:'secreto-sintetico'}});
+   assert.equal(r.status,1,'SQL pendiente detiene los pasos posteriores del job');
+   assert.match(r.stderr,/::warning::Falta la tabla.*supabase\/catalogo_uc_secciones.sql/);
+   assert(!/DETALLE_PRIVADO|secreto-sintetico|\n\s+at /.test(r.stderr),'sin respuesta privada, secreto ni stack trace');
+  }
+ }finally{fs.rmSync(cliTemporal,{recursive:true,force:true});}
 
  const db=new PGlite();try{
   await db.exec(read('bin/supabase-stubs.sql'));
@@ -74,5 +98,8 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
   await db.exec('reset role');await db.exec(sql);await db.exec('set role anon');assert.equal((await q("select count(*)::int as n from catalogo_uc_secciones_publicas('2026-2')"))[0].n,8,'reaplicar conserva datos y filtrado');
  }finally{await db.close();}
  const wf=read('.github/workflows/buscacursos-uc.yml');assert(/environment: supabase/.test(wf)&&/contents: read/.test(wf)&&/cancel-in-progress: false/.test(wf));assert(wf.includes("github.ref == 'refs/heads/main'"));
+ const config=require('../bin/buscacursos-uc-config'),crons=[...wf.matchAll(/cron: '([^']+)'/g)].map(m=>m[1].split(' '));
+ assert.equal(crons.length,2);assert.deepEqual(crons[0],['17',String(config.horaDiariaUTC),'*','*','*']);
+ assert.deepEqual(crons[1],['17','0-5,7-23','*',config.mesesTomaUTC.join(','),'*'],'meses del workflow y config sincronizados, sin duplicar la hora diaria');
  console.log('OK: parser real, horarios, vacantes, cero resultados, particiones, ritmo/bloqueos, guarda 70%, búsqueda compartida, lotes atómicos, RLS y docentes ocultos');
 })().catch(e=>{console.error(e);process.exitCode=1});
