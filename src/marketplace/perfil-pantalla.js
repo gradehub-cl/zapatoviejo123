@@ -5,7 +5,8 @@ async function renderPerfilProfesor(caja){
   if(!caja)return;
   const ficha=await perfilProfesorActual();
   if(!caja.isConnected)return;
-  const p=ficha.ok?ficha.perfil:null;
+  const p=ficha.ok?await perfilConDirectorio(ficha.perfil):null;
+  if(!caja.isConnected)return;
   if(!p){caja.innerHTML='';return;}
   if(!tienePerfilCompleto(p)){caja.innerHTML='<p class="profesor-info">Muy pronto vas a poder armar tu perfil público acá.</p>';return;}
   const v=c=>esc(p[c]==null?'':p[c]);
@@ -24,11 +25,13 @@ async function renderPerfilProfesor(caja){
       <label class="modal-label" for="pf-ramos">Ramos que enseñas · opcional</label><input id="pf-ramos" type="text" maxlength="500" autocomplete="off" autocapitalize="characters" placeholder="MAT1620, FIS1514" aria-describedby="pf-ramos-ayuda" value="${esc((p.ramos_siglas||[]).join(', '))}">
       <p class="profesor-info" id="pf-ramos-ayuda">Las siglas separadas por coma, hasta 20.</p>
       <label class="profesor-perfil-publico"><input id="pf-publico" type="checkbox"${p.perfil_publico?' checked':''}><span><b>Mostrar mi perfil en mis anuncios</b>Los estudiantes verán «Ver perfil» en cada anuncio publicado, con esto y tus otros anuncios. Nunca tu correo.</span></label>
+      ${p.directorioDisponible?editorDirectorioHTML(p):'<p class="profesor-info">El directorio todavía no está disponible. Puedes guardar tu perfil y tus anuncios como siempre.</p>'}
       <button class="accion-principal" type="submit">Guardar perfil</button>
       <p class="profesor-estado" role="status" aria-live="polite"></p>
     </form>`;
   const form=caja.querySelector('form'),estado=form.querySelector('.profesor-estado'),campo=id=>form.querySelector('#pf-'+id);
   campo('instagram').addEventListener('input',e=>{e.target.value=textoInstagramEscrito(e.target.value);});
+  if(p.directorioDisponible)enlazarPreviaDirectorio(form,p);
   let guardando=false;
   form.addEventListener('submit',async e=>{
     e.preventDefault();
@@ -36,13 +39,15 @@ async function renderPerfilProfesor(caja){
     const entrada={tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,nombre_publico:campo('nombre').value,
       presentacion:campo('descripcion').value,instagram:campo('instagram').value,sitio_web:campo('web').value,
       universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),ramos:campo('ramos').value,perfil_publico:campo('publico').checked};
+    if(p.directorioDisponible)Object.assign(entrada,entradaDirectorioFormulario(form));
     const valido=validarPerfilProfesor(entrada);
-    if(!valido.ok){estado.textContent=valido.error;const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos'}[valido.campo]);if(c)c.focus();return;}
+    if(!valido.ok){estado.textContent=valido.error;mostrarErrorPerfilDirectorio(form,valido);const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos'}[valido.campo]);if(c)c.focus();return;}
+    mostrarErrorPerfilDirectorio(form,null);
     guardando=true;const boton=form.querySelector('button[type=submit]');boton.disabled=true;estado.textContent='Guardando…';
     const r=await guardarPerfilProfesor(entrada);
     guardando=false;boton.disabled=false;
     if(!caja.isConnected)return;
-    estado.textContent=r.ok?(r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
+    estado.textContent=r.ok?(entrada.en_directorio?'Perfil guardado. Aparecerás en Clases particulares mientras tu perfil esté aprobado.':r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
   });
 }
 
@@ -141,4 +146,45 @@ async function guardarCampanaClase(anuncioId,datos){
     console.warn('No se guardó la campaña:',error.code||'',error.message||error);
     return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};
   }catch(e){return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};}
+}
+
+function editorDirectorioHTML(p){
+  return `<fieldset class="directorio-editor"><legend>Tu tarjeta en Clases particulares</legend>
+    <fieldset class="profesor-linea"><legend class="modal-label">Qué ofreces</legend><div class="profesor-linea-opciones">
+      ${CATEGORIAS_DIRECTORIO.map(([v,t])=>`<label class="profesor-linea-opcion"><input type="checkbox" name="pf-categoria" value="${v}"${(p.categorias||[]).includes(v)?' checked':''}>${t}</label>`).join('')}</div><p class="directorio-error" data-error-directorio="categorias" role="alert"></p></fieldset>
+    <label for="pf-etiqueta">Etiqueta de tu tarjeta</label><input id="pf-etiqueta" type="text" maxlength="28" value="${esc(p.etiqueta||'')}" placeholder="Clases STEM" aria-describedby="pf-etiqueta-error"><p id="pf-etiqueta-error" class="directorio-error" data-error-directorio="etiqueta" role="alert"></p>
+    <label for="pf-color">Color de tu tarjeta</label><input id="pf-color" type="color" value="${colorTarjetaDirectorio(p.color_tarjeta)}"><p class="profesor-info">El texto se ajusta automáticamente para que se lea bien.</p><p class="directorio-error" data-error-directorio="color" role="alert"></p>
+    <label for="pf-contacto-tipo">Contacto público · opcional</label><select id="pf-contacto-tipo"><option value="">Sin contacto</option>${[['whatsapp','WhatsApp'],['instagram','Instagram'],['email','Email']].map(([v,t])=>`<option value="${v}"${p.contacto_tipo===v?' selected':''}>${t}</option>`).join('')}</select>
+    <label for="pf-contacto">Tu contacto</label><input id="pf-contacto" type="text" maxlength="160" autocomplete="off" value="${esc(p.contacto_valor||'')}" aria-describedby="pf-contacto-error"><p id="pf-contacto-error" class="directorio-error" data-error-directorio="contacto" role="alert"></p>
+    <label class="profesor-perfil-publico"><input id="pf-directorio" type="checkbox"${p.en_directorio?' checked':''}><span><b>Aparecer en Clases particulares</b>Comparte tu tarjeta, presentación, ramos y contacto. Es independiente de mostrar el perfil en tus anuncios.</span></label>
+    <p class="directorio-error" data-error-directorio="universidades" role="alert"></p>
+    <p class="modal-label">Vista previa</p><div class="directorio-previa" aria-label="Vista previa de tu tarjeta"></div>
+  </fieldset>`;
+}
+function entradaDirectorioFormulario(form){
+  const v=id=>form.querySelector('#pf-'+id);
+  return {categorias:[...form.querySelectorAll('[name="pf-categoria"]:checked')].map(x=>x.value),
+    etiqueta:v('etiqueta').value,color_tarjeta:v('color').value,contacto_tipo:v('contacto-tipo').value,
+    contacto_valor:v('contacto').value,en_directorio:v('directorio').checked};
+}
+function mostrarErrorPerfilDirectorio(form,valido){
+  form.querySelectorAll('[data-error-directorio]').forEach(el=>{el.textContent=valido&&el.dataset.errorDirectorio===valido.campo?valido.error:'';});
+  form.querySelectorAll('[aria-invalid="true"]').forEach(el=>el.removeAttribute('aria-invalid'));
+  if(!valido)return;
+  const id={etiqueta:'etiqueta',color:'color',contacto:'contacto',universidades:'ramos'}[valido.campo];
+  const campo=id?form.querySelector('#pf-'+id):form.querySelector('[name="pf-categoria"]');
+  if(campo){campo.setAttribute('aria-invalid','true');campo.focus();}
+}
+let quitarLogoPreviaDirectorio=null;
+function enlazarPreviaDirectorio(form,p){
+  let logo='';const caja=form.querySelector('.directorio-previa');
+  const pintar=()=>{if(!caja.isConnected)return;const e=entradaDirectorioFormulario(form);
+    caja.innerHTML=tarjetaDirectorioHTML({...p,...e,nombre_publico:form.querySelector('#pf-nombre').value,
+      ramos_siglas:form.querySelector('#pf-ramos').value.split(/[,\s]+/).filter(Boolean),logo_path:null},{previa:true,logoURL:logo});};
+  form.addEventListener('input',pintar);form.addEventListener('change',pintar);pintar();
+  if(quitarLogoPreviaDirectorio)quitarLogoPreviaDirectorio();
+  const cambio=e=>{logo=typeof e.detail==='string'?e.detail:'';pintar();};
+  document.addEventListener('gradehub:logo-profesor',cambio);
+  quitarLogoPreviaDirectorio=()=>document.removeEventListener('gradehub:logo-profesor',cambio);
+  if(p.logo_path||p.logo_aprobado_path)urlFlyerClase(p.logo_path||p.logo_aprobado_path).then(url=>{logo=url;pintar();});
 }
