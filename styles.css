@@ -4687,6 +4687,11 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .preparacion-panel button{min-width:44px;min-height:44px;padding:8px 12px;margin:4px;border:1px solid var(--border2);border-radius:8px;background:none;color:var(--fg);font:inherit;}
 .preparacion-comparacion>div{display:flex;gap:24px;flex-wrap:wrap;}
 @media(prefers-reduced-motion:reduce){.preparacion-panel *{transition:none;animation:none;}}
+.panel-percentiles{margin:16px 0;font-variant-numeric:tabular-nums;}
+.panel-percentiles p,.panel-percentiles small{color:var(--fg2);line-height:1.5;}
+.panel-percentiles progress{display:block;width:100%;height:8px;accent-color:var(--primary);margin:8px 0 12px;}
+.panel-percentiles:has(.ah-sube) progress{accent-color:var(--green);}
+.panel-percentiles:has(.ah-baja) progress{accent-color:var(--red);}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
