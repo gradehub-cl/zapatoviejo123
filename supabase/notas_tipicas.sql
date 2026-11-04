@@ -1,7 +1,8 @@
 -- Fase 1, manual y reaplicable. NO APLICAR antes de que Lucas apruebe y
 -- publique el texto de privacidad.html propuesto en esta PR: este archivo
 -- activa captura de notas individuales privadas al sincronizar user_ramos.
--- Requiere profesor_alumnos.sql (clave_curso_comparacion / clave_evaluacion).
+-- Requiere profesores.sql (profesor_periodo_actual) y profesor_alumnos.sql
+-- (clave_curso_comparacion / clave_evaluacion).
 -- No cambia el cierre, user_ramos.data, gradehub_v1, motor ni notas sombra.
 begin;
 
@@ -9,13 +10,6 @@ create or replace function public.notas_tipicas_piso()
 returns integer language sql immutable set search_path='' as $$
  -- Cinco PERSONAS distintas por evaluación, no cinco filas/semestres.
  select 5;
-$$;
-create or replace function public.notas_tipicas_periodo_actual()
-returns text language sql stable set search_path='' as $$
- select case when extract(month from d)<=2 then (extract(year from d)::int-1)::text||'-2'
- when extract(month from d)<=7 then extract(year from d)::int::text||'-1'
- else extract(year from d)::int::text||'-2' end
- from (select now() at time zone 'America/Santiago' as d) fecha;
 $$;
 create or replace function public.notas_tipicas_en_escala(p_tenant text,p_nota numeric)
 returns boolean language sql immutable set search_path='' as $$
@@ -77,7 +71,7 @@ $$;
 -- RPC que permita enviar calificaciones arbitrarias o de otra persona.
 create or replace function public.notas_tipicas_capturar(p_usuario uuid,p_datos jsonb,p_anteriores jsonb,p_periodo text,p_conservar_ausentes boolean default false)
 returns void language plpgsql security definer set search_path='' as $$
-declare archivados jsonb; fuentes jsonb; notas jsonb; viejos jsonb;
+declare archivados jsonb; fuentes jsonb; notas jsonb; viejos jsonb; activos jsonb; anterior text;
 begin
  if p_periodo is null or p_periodo !~ '^20[0-9]{2}-[12]$' then raise exception 'período inválido';end if;
  if p_datos is null then
@@ -86,6 +80,24 @@ begin
  if not public.notas_tipicas_participa(p_usuario,p_datos) then
   delete from public.evaluacion_notas where user_id=p_usuario;return;
  end if;
+ -- El reloj único cambia en marzo/agosto. Una clave que sigue activa y ya
+ -- tiene captura anterior no prueba un nuevo intento. Esperar su archivo
+ -- explícito; mantener la protección también después del primer mes evita
+ -- que reaparezca mal fechada en abril/septiembre. Sin nuevo estado del cliente.
+ anterior=case when right(p_periodo,1)='1' then (left(p_periodo,4)::integer-1)::text||'-2' else left(p_periodo,4)||'-1' end;
+ select coalesce(jsonb_agg(r),'[]'::jsonb) into activos
+ from jsonb_array_elements(case when jsonb_typeof(p_datos->'ramos')='array' then p_datos->'ramos' else '[]'::jsonb end) r
+ where p_conservar_ausentes or not exists(
+  select 1 from public.evaluacion_notas e where e.user_id=p_usuario and e.tenant=p_datos->>'tenant'
+   and e.periodo<=anterior and e.ramo_clave=public.clave_curso_comparacion(p_datos->>'tenant',r)
+   and not exists(
+    select 1 from jsonb_array_elements(case when jsonb_typeof(p_datos->'historial')='array' then p_datos->'historial' else '[]'::jsonb end) h
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(h->'ramos')='array' then h->'ramos' else '[]'::jsonb end) a
+    where h->>'label'=e.periodo and coalesce(a#>>'{cierre,tenant}',a#>>'{origen,tenant}')=p_datos->>'tenant'
+     and (a#>>'{cierre,tenant}' is null or a#>>'{origen,tenant}' is null or a#>>'{cierre,tenant}'=a#>>'{origen,tenant}')
+     and public.clave_curso_comparacion(p_datos->>'tenant',a)=e.ramo_clave
+   )
+ );
  -- Un historial sin tenant verificable NO se atribuye a la universidad actual.
  select coalesce(jsonb_agg(jsonb_build_object('tenant',coalesce(r#>>'{cierre,tenant}',r#>>'{origen,tenant}'),'ramo',r)),'[]'::jsonb)
  into archivados
@@ -93,7 +105,7 @@ begin
  cross join lateral jsonb_array_elements(case when jsonb_typeof(h->'ramos')='array' then h->'ramos' else '[]'::jsonb end) r
  where h->>'label'=p_periodo and coalesce(r#>>'{cierre,tenant}',r#>>'{origen,tenant}') is not null
   and (r#>>'{cierre,tenant}' is null or r#>>'{origen,tenant}' is null or r#>>'{cierre,tenant}'=r#>>'{origen,tenant}');
- fuentes=jsonb_build_array(jsonb_build_object('tenant',p_datos->>'tenant','ramos',p_datos->'ramos','prioridad',3));
+ fuentes=jsonb_build_array(jsonb_build_object('tenant',p_datos->>'tenant','ramos',activos,'prioridad',3));
  select fuentes||coalesce(jsonb_agg(jsonb_build_object('tenant',a->>'tenant','ramos',jsonb_build_array(a->'ramo'),'prioridad',2)),'[]'::jsonb)
  into fuentes from jsonb_array_elements(archivados) a;
  -- Si un cliente antiguo archiva sin casillas, recuperar su última copia ya
@@ -124,14 +136,25 @@ end;$$;
 
 create or replace function public.notas_tipicas_al_sincronizar()
 returns trigger language plpgsql security definer set search_path='' as $$
+declare usuario uuid;
 begin
- if tg_op='DELETE' then
-  perform public.notas_tipicas_capturar(old.user_id,null,null,public.notas_tipicas_periodo_actual());return old;
- elsif tg_op='INSERT' then
-  perform public.notas_tipicas_capturar(new.user_id,new.data,null,public.notas_tipicas_periodo_actual());
- else
-  perform public.notas_tipicas_capturar(new.user_id,new.data,old.data,public.notas_tipicas_periodo_actual());
- end if;
+ usuario=case when tg_op='DELETE' then old.user_id else new.user_id end;
+ -- Solo esta subtransacción se revierte si falla la captura. La escritura
+ -- crítica de user_ramos debe guardarse incluso ante un error inesperado.
+ begin
+  if tg_op='DELETE' then
+   perform public.notas_tipicas_capturar(usuario,null,null,public.profesor_periodo_actual());
+  elsif tg_op='INSERT' then
+   perform public.notas_tipicas_capturar(usuario,new.data,null,public.profesor_periodo_actual());
+  else
+   perform public.notas_tipicas_capturar(usuario,new.data,old.data,public.profesor_periodo_actual());
+  end if;
+ exception when others then
+  -- SQLERRM puede contener valores o JSON interpolados por una función.
+  -- Mensaje fijo: el aviso lleva solo usuario, código y diagnóstico sin datos.
+  raise warning 'user_id=% sqlstate=% mensaje=%',usuario,sqlstate,'captura de notas típicas omitida por error interno';
+ end;
+ if tg_op='DELETE' then return old;end if;
  return new;
 end;$$;
 drop trigger if exists evaluacion_notas_al_sincronizar on public.user_ramos;
@@ -156,11 +179,12 @@ returns table(evaluacion_clave text,promedio numeric,personas integer,periodos t
 language plpgsql stable security definer set search_path='' as $$
 begin
  if auth.uid() is null then raise exception 'hay que haber iniciado sesión';end if;
- return query select * from public.notas_tipicas_ramo_interno(p_tenant,p_ramo_clave,public.notas_tipicas_periodo_actual());
+ return query select * from public.notas_tipicas_ramo_interno(p_tenant,p_ramo_clave,public.profesor_periodo_actual());
 end;$$;
 
 revoke all on function public.notas_tipicas_piso() from public,anon,authenticated;
-revoke all on function public.notas_tipicas_periodo_actual() from public,anon,authenticated;
+-- Retirar la copia de versiones previas, sin CASCADE ni alterar el reloj común.
+drop function if exists public.notas_tipicas_periodo_actual();
 revoke all on function public.notas_tipicas_en_escala(text,numeric) from public,anon,authenticated;
 revoke all on function public.notas_tipicas_participa(uuid,jsonb) from public,anon,authenticated;
 revoke all on function public.notas_tipicas_extraer(text,jsonb) from public,anon,authenticated;
@@ -177,7 +201,9 @@ do $$declare u record; datos jsonb;
 begin
  for u in select user_id,data from public.user_ramos loop
   datos=u.data;
-  if public.notas_tipicas_periodo_actual()<>'2026-2' then datos=jsonb_set(datos,'{ramos}','[]'::jsonb);end if;
+  if public.profesor_periodo_actual()<>'2026-2' then
+   datos=case when jsonb_typeof(datos)='object' then jsonb_set(datos,'{ramos}','[]'::jsonb) else '{}'::jsonb end;
+  end if;
   perform public.notas_tipicas_capturar(u.user_id,datos,null,'2026-2',true);
  end loop;
 end;$$;
