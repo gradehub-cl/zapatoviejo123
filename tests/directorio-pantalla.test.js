@@ -11,6 +11,8 @@ const ahora=Date.parse('2026-11-04T12:00:00Z'),perfiles=Array.from({length:10},(
 ctx.perfiles=perfiles;ctx.ahora=ahora;const prep=op=>plain(run(`prepararDirectorio(perfiles,{ahora,...${JSON.stringify(op||{})}})`));
 assert.equal(prep().destacados.length,1);assert(prep().normales.some(p=>p.id==='p2'));
 assert.deepEqual(prep(),prep());const manana=prep({ahora:ahora+86400000});assert.notDeepEqual(prep().normales.map(p=>p.id),manana.normales.map(p=>p.id));
+ctx.normales=perfiles.filter(p=>!p.destacado_hasta);
+assert.notDeepEqual(plain(run("ordenDiarioDirectorio(normales,'2026-11-04').map(p=>p.id)")),plain(run("ordenDiarioDirectorio(normales,'2026-11-05').map(p=>p.id)")),'la semilla cambia el orden aun sin cambios de destacados');
 const invertido=plain(run('prepararDirectorio(perfiles.slice().reverse(),{ahora})'));assert.deepEqual(invertido,prep(),'orden de llegada no altera semilla');
 const copia=JSON.stringify(perfiles);prep({busqueda:'stem'});assert.equal(JSON.stringify(perfiles),copia);
 ctx.perfiles=[...perfiles,{...perfiles[0],id:'privado',en_directorio:false},{...perfiles[0],id:'suspendido',estado:'suspendido'}];
