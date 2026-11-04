@@ -1,10 +1,11 @@
-// El onboarding pregunta primero si la cuenta es de estudiante o de profesor
-// particular (#697, PR 2b).
+// Estudiante o profesor particular (#697). Desde 2026-11-03 no hay paso para
+// elegirlo: todos parten como estudiantes y el profesor llega con la intención
+// que dejó la entrada («Soy profesor particular» o gradehub.cl/?dar-clases).
 //
 // Lo que este test fija:
-// - Estudiante viene marcado y su camino es el de siempre: los pasos 1 a 5 no
-//   cambian de número ni de condición.
-// - El profesor se salta universidad, carrera, generación y ramos, tiene que
+// - El estudiante recorre los pasos 1 a 5, con su número y condición de siempre.
+// - El primer paso ofrece cerrar sesión en vez de Atrás.
+// - El profesor se salta universidad, carrera, generación y ramos, confirma
 //   tener 18 o más, y su cuenta solo queda creada si la postulación llegó.
 // La pauta y los datos son sintéticos: es un test de mecanismo.
 const fs = require('fs'), vm = require('vm');
@@ -35,7 +36,8 @@ run(`
   var _postulaciones=[],_declaraciones=[],_entro=0,_modales=0,_syncProfileReal=syncProfile,_respuestaPostular={ok:true,perfil:{estado:'pendiente'}},_perfilPrevio={ok:true,perfil:null};
   postularProfesor=async(nombre,presentacion)=>{_postulaciones.push({nombre,presentacion});return _respuestaPostular;};
   perfilProfesorActual=async()=>_perfilPrevio;
-  registrarDeclaracionEdad=d=>{_declaraciones.push(d);};
+  registrarDeclaracionEdad=d=>{_declaraciones.push(d||{});};
+  var _salidas=0;signOut=()=>{_salidas++;};
   syncProfile=()=>{};save=()=>{};enterApp=()=>{_entro++;};openModal=()=>{_modales++;};
 `);
 
@@ -47,41 +49,44 @@ function empezar() {
   for (const id of ['ob-name', 'ob-prof-nombre', 'ob-prof-presentacion']) el(id).value = '';
   el('ob-prof-error').textContent = '';
   run('obIniciar()');
+  chk('cada pasada parte sin la confirmación de edad marcada', el('ob-prof-mayor').checked === false);
+  // Las pruebas que no tratan de la edad parten de alguien que ya la confirmó.
+  el('ob-prof-mayor').checked = true;
 }
 const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
 
 (async () => {
-  console.log('\n=== Estudiante viene marcado y su camino no cambia ===');
+  console.log('\n=== Todos parten como estudiantes, en el paso 1 ===');
   empezar();
-  chk('el onboarding parte en el paso 0', run('obStep') === 0);
-  chk('con Estudiante elegido', run('obTipo') === 'estudiante');
-  chk('y el paso 0 ya deja continuar', run('obStepValid(0)') === true);
-  const paso0 = (html.match(/<div class="ob-step" data-step="0">[\s\S]*?data-step="1"/) || [''])[0];
-  chk('en el HTML, Estudiante es el radio marcado', /value="estudiante" checked/.test(paso0) && !/value="profesor"[^>]*checked/.test(paso0));
-  chk('son radios de verdad, en un radiogroup', /role="radiogroup"/.test(paso0) && (paso0.match(/type="radio"/g) || []).length === 2);
-  chk('el estudiante recorre 0, 1, 2, 3, 4 y 5', JSON.stringify(run('obPasos("estudiante")')) === '[0,1,2,3,4,5]');
-  chk('con 14 años el estudiante entra', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',edad:14})`) === true);
-  run('obNext()');
-  chk('Continuar lleva al paso 1', run('obStep') === 1);
-  el('ob-name').value = 'Ana'; run('obEdad=20'); run('obNext()');
-  chk('y del 1 a la universidad, como siempre', run('obStep') === 2);
+  chk('el onboarding parte en el paso 1', run('obStep') === 1);
+  chk('como estudiante', run('obTipo') === 'estudiante');
+  chk('ya no hay paso 0 ni radios de tipo de cuenta', !/data-step="0"/.test(html) && !/name="ob-tipo"/.test(html));
+  chk('el estudiante recorre 1, 2, 3, 4 y 5', JSON.stringify(run('obPasos("estudiante")')) === '[1,2,3,4,5]');
+  chk('el paso 1 pide solo el nombre', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana'})`) === true && run(`obStepValid(1,{tipo:'estudiante',nombre:''})`) === false);
+  chk('en el primer paso, el botón de la izquierda es Cerrar sesión', el('ob-back').hidden === false && el('ob-back').textContent === 'Cerrar sesión');
+  run('obBack()');
+  chk('y cierra sesión', run('_salidas') === 1 && run('obStep') === 1);
+  el('ob-name').value = 'Ana'; run('obNext()');
+  chk('del 1 a la universidad, como siempre', run('obStep') === 2);
+  chk('desde ahí vuelve a decir Atrás', el('ob-back').textContent === 'Atrás');
+  run('obBack()');
+  chk('y Atrás no cierra sesión', run('obStep') === 1 && run('_salidas') === 1);
+
+  console.log('\n=== La intención de la entrada lo deja como profesor ===');
+  run('var _consumir=consumirEntradaProfesor;consumirEntradaProfesor=()=>true');
+  empezar();
+  chk('entra como profesor', run('obTipo') === 'profesor' && run('obStep') === 1);
+  run('consumirEntradaProfesor=_consumir');
 
   console.log('\n=== El camino del profesor ===');
   empezar();
   run(`elegirTipoCuenta('profesor')`);
   chk('elegir Profesor cambia el tipo', run('obTipo') === 'profesor');
   chk('un valor que no es de la lista se ignora', (run(`elegirTipoCuenta('admin')`), run('obTipo')) === 'profesor');
-  chk('el profesor recorre 0, 1 y su paso propio', JSON.stringify(run('obPasos()')) === '[0,1,6]');
-  chk('con 17 años no puede dar clases', run(`obStepValid(1,{tipo:'profesor',nombre:'Ana',edad:17})`) === false);
-  chk('con 18, sí', run(`obStepValid(1,{tipo:'profesor',nombre:'Ana',edad:18})`) === true);
-  run('obEdad=17'); run('avisoEdadOnboarding()');
-  chk('a los 17 le dice por qué y que puede volver a Estudiante', /18 años o más/.test(el('ob-edad-aviso').textContent) && /Estudiante/.test(el('ob-edad-aviso').textContent));
-  run('obEdad=12'); run('avisoEdadOnboarding()');
-  chk('a los 12 le dice la edad mínima de la app', /14 años o más/.test(el('ob-edad-aviso').textContent));
-  run('obEdad=30'); run('avisoEdadOnboarding()');
-  chk('a los 30 no le dice nada', el('ob-edad-aviso').textContent === '');
+  chk('el profesor recorre 1 y su paso propio', JSON.stringify(run('obPasos()')) === '[1,6]');
+  chk('en el primer paso también puede cerrar sesión', el('ob-back').textContent === 'Cerrar sesión');
 
-  run('obNext()'); el('ob-name').value = 'Ana'; run('obNext()');
+  el('ob-name').value = 'Ana'; run('obNext()');
   chk('del paso 1 salta a su paso, sin universidad ni ramos', run('obStep') === 6);
   chk('el nombre público parte en su nombre', el('ob-prof-nombre').value === 'Ana');
   chk('Atrás vuelve al paso 1, no al 5', (run('obBack()'), run('obStep')) === 1);
@@ -91,6 +96,10 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('con menos de 20 caracteres, tampoco', run('obStepValid(6)') === false);
   el('ob-prof-presentacion').value = PRESENTACION;
   chk('con nombre y presentación, sí', run('obStepValid(6)') === true);
+  el('ob-prof-mayor').checked = false;
+  chk('sin confirmar que tiene 18 o más, no', run('obStepValid(6)') === false);
+  chk('la confirmación está en su paso y dice 18 años', /data-step="6"[\s\S]*id="ob-prof-mayor"[\s\S]*Tengo 18 años o más/.test(html));
+  el('ob-prof-mayor').checked = true;
   el('ob-prof-nombre').value = 'A';
   chk('un nombre público de una letra no basta', run('obStepValid(6)') === false);
   el('ob-prof-nombre').value = 'Ana Profe';
@@ -110,7 +119,7 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
 
   console.log('\n=== Con la postulación enviada ===');
   empezar();
-  run(`elegirTipoCuenta('profesor');obEdad=30;_respuestaPostular={ok:true,perfil:{estado:'pendiente'}};_perfilPrevio={ok:true,perfil:null};_postulaciones.length=0;_declaraciones.length=0`);
+  run(`elegirTipoCuenta('profesor');_respuestaPostular={ok:true,perfil:{estado:'pendiente'}};_perfilPrevio={ok:true,perfil:null};_postulaciones.length=0;_declaraciones.length=0`);
   el('ob-name').value = 'Ana'; el('ob-prof-nombre').value = 'Ana Profe'; el('ob-prof-presentacion').value = PRESENTACION;
   eventos.length = 0;
   run('obStep=6'); run('completeOnboarding()');
@@ -119,7 +128,7 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('la cuenta queda como profesor', run('S.tipoCuenta') === 'profesor' && run('esCuentaProfesor()') === true);
   chk('con su nombre y sin ramos', run('S.userName') === 'Ana' && run('S.ramos.length') === 0);
   chk('el onboarding queda hecho', run('S.onboardingDone') === true);
-  chk('la edad se declara y la generación no, porque no estudia acá', run('_declaraciones.length') === 1 && run('_declaraciones[0].edad') === 30 && run('_declaraciones[0].generacion') === null);
+  chk('la declaración se anota sin generación, porque no estudia acá', run('_declaraciones.length') === 1 && run('_declaraciones[0].generacion') == null && !('edad' in run('_declaraciones[0]')));
   const fin = eventos.filter(e => e.evento === 'onboarding_complete');
   chk('la analítica recibe solo el tipo, nada que escribió', fin.length === 1 && JSON.stringify(fin[0].params) === '{"tipo":"profesor"}');
   chk('el tipo sobrevive el normalize de la sincronización', run('normalize(JSON.parse(JSON.stringify(S))).tipoCuenta') === 'profesor');
@@ -128,17 +137,18 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
 
   console.log('\n=== Una postulación previa conserva su estado ===');
   empezar();
-  run(`elegirTipoCuenta('profesor');obEdad=30;_respuestaPostular={ok:false};_perfilPrevio={ok:true,perfil:{estado:'rechazado'}}`);
+  run(`elegirTipoCuenta('profesor');_respuestaPostular={ok:false};_perfilPrevio={ok:true,perfil:{estado:'rechazado'}}`);
   el('ob-name').value='Ana';el('ob-prof-nombre').value='Ana Profe';el('ob-prof-presentacion').value=PRESENTACION;
   const modalesAntes=run('_modales');
   await run('completarOnboardingProfesor("Ana")');
   chk('una postulación rechazada entra para ver su estado sin falso aviso de recepción',
     run('S.tipoCuenta')==='profesor'&&run('_modales')===modalesAntes);
 
-  console.log('\n=== Volver a Estudiante devuelve el camino de siempre ===');
+  console.log('\n=== «Sigue como estudiante» devuelve el camino de siempre ===');
   empezar();
-  run(`elegirTipoCuenta('profesor');elegirTipoCuenta('estudiante')`);
-  chk('los pasos vuelven a ser 0 a 5', JSON.stringify(run('obPasos()')) === '[0,1,2,3,4,5]');
+  run(`elegirTipoCuenta('profesor');obStep=6;seguirComoEstudiante()`);
+  chk('los pasos vuelven a ser 1 a 5', JSON.stringify(run('obPasos()')) === '[1,2,3,4,5]');
+  chk('y sigue en la universidad, sin repetir el nombre', run('obStep') === 2 && run('obTipo') === 'estudiante');
   chk('y un estudiante nuevo no queda como profesor', run('S.tipoCuenta') === 'estudiante');
 
   console.log('\n=== El perfil académico no inventa universidad para un profesor ===');

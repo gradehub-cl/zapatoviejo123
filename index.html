@@ -304,60 +304,28 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div class="ob-progress" aria-hidden="true"><div class="ob-progress-bar" id="ob-progress-bar"></div></div>
     <p class="invitacion-profesor-contexto" id="ob-invitacion-profesor" hidden>Te invitaron a compartir notas con un profesor. Al entrar, tú elegirás los ramos; no verá tus otros ramos ni tu correo.</p>
 
-    <!-- Estudiante o profesor particular (#697). Estudiante viene marcado: es
-         casi todo el que llega. Se elige una vez; para cambiarlo se nos escribe. -->
-    <div class="ob-step" data-step="0">
-      <div class="ob-step-num">Paso 1 de 6</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1" id="ob-tipo-titulo">¿Cómo vas a usar GradeHub?</h1>
-      <div class="ob-sub ob-sub-left">Se elige una vez. Si después necesitas cambiarlo, escríbenos.</div>
-      <div class="ob-options" role="radiogroup" aria-labelledby="ob-tipo-titulo">
-        <label class="tenant-opt ob-tipo-opt sel" style="--tb:var(--primary);">
-          <input type="radio" name="ob-tipo" value="estudiante" checked onchange="elegirTipoCuenta(this.value)"/>
-          <span class="tenant-opt-info">
-            <span class="tenant-opt-name">Estudiante</span>
-            <span class="tenant-opt-sub">Tus ramos, tus notas y qué necesitas para aprobar.</span>
-          </span>
-        </label>
-        <label class="tenant-opt ob-tipo-opt" style="--tb:var(--primary);">
-          <input type="radio" name="ob-tipo" value="profesor" onchange="elegirTipoCuenta(this.value)"/>
-          <span class="tenant-opt-info">
-            <span class="tenant-opt-name">Profesor particular</span>
-            <span class="tenant-opt-sub">Publicas tus clases y sigues cómo les va a tus alumnos.</span>
-          </span>
-        </label>
-      </div>
-    </div>
-
+    <!-- Sin paso de tipo de cuenta (Lucas, 2026-11-03): todos parten como
+         estudiantes y el profesor llega por «Soy profesor particular» o
+         gradehub.cl/?dar-clases. Los pasos conservan su número para el embudo. -->
     <div class="ob-step" data-step="1">
-      <div class="ob-step-num">Paso 2 de 6</div>
+      <div class="ob-step-num">Paso 1 de 5</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Cómo te llamas?</h1>
       <div class="ob-sub ob-sub-left">Puede ser tu nombre o un apodo.</div>
       <div class="ob-card">
         <label class="field-label" for="ob-name">Nombre o apodo</label>
         <input type="text" id="ob-name" placeholder="Nombre o apodo" maxlength="30" autocomplete="given-name" onkeydown="if(event.key===&apos;Enter&apos;)obNext()"/>
       </div>
-      <!-- Declaración de edad. Va acá y no en el formulario de correo porque
-           por acá pasa toda cuenta nueva, también las que entran con Google.
-           No se pide fecha de nacimiento: para saber si alguien puede usar la
-           app basta la declaración, y el dato exacto sería recolectar de más. -->
-      <!-- La edad se elige en una ruleta como la del reloj del iPhone (#697).
-           Parte en «—»: la declaración tiene que ser activa. -->
-      <div class="ob-card ob-ruleta-card">
-        <p class="field-label" id="ob-edad-titulo">¿Cuántos años tienes?</p>
-        <div id="ob-edad-ruleta"></div>
-        <p class="ob-ruleta-aviso" id="ob-edad-aviso" role="status" aria-live="polite"></p>
-      </div>
     </div>
 
     <div class="ob-step" data-step="2" style="display:none;">
-      <div class="ob-step-num">Paso 3 de 6</div>
+      <div class="ob-step-num">Paso 2 de 5</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Dónde estudias?</h1>
       <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
 
     <div class="ob-step" data-step="3" style="display:none;">
-      <div class="ob-step-num">Paso 4 de 6</div>
+      <div class="ob-step-num">Paso 3 de 5</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Qué estudias?</h1>
       <div class="ob-sub ob-sub-left">Busca tu carrera. Si no aparece, puedes escribirla.</div>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
@@ -365,7 +333,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
 
     <div class="ob-step" data-step="4" style="display:none;">
-      <div class="ob-step-num">Paso 5 de 6</div>
+      <div class="ob-step-num">Paso 4 de 5</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿De qué generación eres?</h1>
       <div class="ob-sub ob-sub-left">El año en que entraste a la universidad. Con eso y la fecha sabemos en qué semestre vas.</div>
       <div class="ob-card ob-ruleta-card">
@@ -387,15 +355,16 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
 
     <div class="ob-step" data-step="5" style="display:none;">
-      <div class="ob-step-num">Paso 6 de 6</div>
+      <div class="ob-step-num">Paso 5 de 5</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">Elige tus ramos</h1>
       <div id="ob-course-picker"></div>
     </div>
 
     <!-- Solo el profesor llega acá, después del paso 1. Crea su postulación en
-         `tutor_perfiles`, pendiente de revisión, con los mismos largos de Ajustes. -->
+         `tutor_perfiles`, pendiente de revisión, con los mismos largos de Ajustes.
+         Dar clases exige 18 años: se confirma acá, la única pantalla del profesor. -->
     <div class="ob-step" data-step="6" style="display:none;">
-      <div class="ob-step-num">Paso 3 de 3</div>
+      <div class="ob-step-num">Paso 2 de 2</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">Cuéntanos de tus clases</h1>
       <div class="ob-sub ob-sub-left">Revisamos cada postulación antes de que puedas publicar.</div>
       <div class="ob-card ob-prof-card">
@@ -404,8 +373,13 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <label class="field-label" for="ob-prof-presentacion">Qué ramos enseñas y qué experiencia tienes</label>
         <textarea id="ob-prof-presentacion" maxlength="1500" rows="5" aria-describedby="ob-prof-ayuda ob-prof-error" oninput="checkOb()"></textarea>
         <p class="ob-ruleta-aviso" id="ob-prof-ayuda">Al menos 20 caracteres.</p>
+        <label class="ob-prof-mayor" for="ob-prof-mayor">
+          <input type="checkbox" id="ob-prof-mayor" onchange="checkOb()"/>
+          <span>Tengo 18 años o más</span>
+        </label>
         <p class="ob-ruleta-aviso ob-prof-error" id="ob-prof-error" role="alert"></p>
       </div>
+      <button type="button" class="auth-link ob-ser-estudiante" onclick="seguirComoEstudiante()">¿Vienes a estudiar? Sigue como estudiante</button>
     </div>
 
     <div class="ob-nav">

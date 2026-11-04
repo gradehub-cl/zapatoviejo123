@@ -13,16 +13,17 @@
 let obStep=0;
 // El último paso del estudiante, el de los ramos. El profesor no llega ahí.
 const OB_TOTAL=5;
-// Estudiante o profesor particular, elegido en el paso 0 (#697). Parte en
-// estudiante: es casi todo el que llega, y así le basta con tocar Continuar.
+// Estudiante o profesor particular (#697). Todos parten como estudiantes; el
+// profesor llega con la intención que dejó la pantalla de entrada (2026-11-03).
 let obTipo='estudiante';
 // Mientras viaja la postulación del profesor, el botón no se puede volver a apretar.
 let obEnviandoProfesor=false;
 // El profesor no estudia acá: se salta universidad, carrera, generación y ramos,
 // y en su lugar cuenta cómo se presenta. Su paso lleva un número propio para
 // que los del estudiante (1 a 5) sigan significando lo mismo en el embudo.
+// El paso 0 (elegir tipo de cuenta) ya no existe, pero su número no se reusa.
 const OB_PASO_PROFESOR=6;
-function obPasos(tipo){return (tipo||obTipo)==='profesor'?[0,1,OB_PASO_PROFESOR]:[0,1,2,3,4,5];}
+function obPasos(tipo){return (tipo||obTipo)==='profesor'?[1,OB_PASO_PROFESOR]:[1,2,3,4,5];}
 function obUltimoPaso(){const p=obPasos();return p[p.length-1];}
 // Cuántos semestres ofrece el paso 4 como mínimo. Una carrera cuya malla llega
 // más lejos ofrece los suyos (`semestresDeCarrera`): Medicina UAndes y UC y
@@ -38,7 +39,8 @@ function semestresDeCarrera(tenant,codigo){
 }
 // Etiquetas fijas nuestras, de lista cerrada: no son texto del estudiante, y
 // hacen legible el embudo sin tener que traducir números mirando el código.
-// Se indexa por número de paso: el 0 y el 6 llegaron con el tipo de cuenta.
+// Se indexa por número de paso: el 0 y el 6 llegaron con el tipo de cuenta, y
+// el 0 ya no se emite desde 2026-11-03.
 const OB_ETAPAS=['tipo','nombre','universidad','carrera','semestre','ramos','profesor'];
 // Qué pasos alcanzó en ESTA pasada por el onboarding. El embudo cuenta
 // cuántos alcanzan cada paso, así que cada uno se emite una sola vez: si

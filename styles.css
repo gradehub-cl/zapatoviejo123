@@ -507,6 +507,9 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .ob-prof-card input{margin-bottom:16px;}
 .ob-prof-card textarea{width:100%;min-height:120px;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font:inherit;font-size:1rem;line-height:1.45;color:var(--fg);background:var(--bg2);resize:vertical;outline:none;}
 .ob-prof-card textarea:focus-visible{border-color:var(--primary);}
+.ob-prof-mayor{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:6px;font-size:0.9375rem;color:var(--fg);cursor:pointer;}
+.ob-prof-card .ob-prof-mayor input{width:20px;height:20px;margin:0;flex:0 0 auto;accent-color:var(--primary);}
+.ob-ser-estudiante{margin-top:12px;}
 .ob-prof-error{color:var(--red);}
 /* Selector de universidad en Configuración: chips de texto, sin códigos de
    color por institución. */
