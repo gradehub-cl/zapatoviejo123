@@ -36,7 +36,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
   const aporta=(!Array.isArray(def)&&def.aporta)?{...def.aporta}:null;
   (!Array.isArray(def)&&def.grupos||[]).forEach(g=>{
     const ids=g.evals.map(n=>porNombre[n]).filter(Boolean);
-    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{})});
+    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{}),...(g.efecto==='reemplazar'?{efecto:'reemplazar'}:{})});
   });
   // Las reglas nuevas usan gates; un ramo ya guardado las recibe únicamente
   // cuando su dueño acepta actualizar la pauta.

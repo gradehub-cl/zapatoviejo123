@@ -15,20 +15,19 @@
 // ("2 certámenes: 60%") son casillas iguales; sin cantidad ("Controles de
 // lectura 25%"), lista abierta.
 //
-// Toda pauta con examen lleva la compuerta de los arts. 37 y 38 del Reglamento
+// Toda pauta con examen lleva la compuerta de los arts. 36 y 37 del Reglamento
 // Académico del Alumno Regular de Pregrado: el examen no se exime, exige 3,0 y
 // bajo eso repruebas con la nota del examen. Es `cap:'self'` sobre el examen
-// solo. El art. 38 dice que la final ES la del examen; la compuerta la topa ahí,
-// así que si el resto del ramo promedia menos que ese examen, la app muestra el
-// promedio, más bajo. Las dos reprueban; el detalle, en docs/mallas-udd.md.
+// solo. El art. 37 vigente (DR50/26) indica que la final ES la del examen;
+// efecto:reemplazar también lo respeta si el promedio ponderado era menor.
 //
 // La sigla y los créditos SCT salen del programa; si no trae SCT, no van. La
 // clave es el nombre de mallas-udd.js cuando el programa es ese ramo. Los
 // programas de Psicología describen otro plan que su malla publicada (otros
 // ramos por semestre): si el nombre difiere, no se le asigna, porque puede ser
 // otro curso.
-const EXAMEN_UDD={nombre:'Examen',evals:['Examen'],min:3.0,cap:'self'};
-const REGLA_EXAMEN_UDD='El examen no se exime: con menos de 3,0 repruebas y tu nota final es la del examen (Reglamento Académico, arts. 37 y 38)';
+const EXAMEN_UDD={nombre:'Examen',evals:['Examen'],min:3.0,cap:'self',efecto:'reemplazar'};
+const REGLA_EXAMEN_UDD='El examen no se exime: con menos de 3,0 repruebas y tu nota final es la del examen (Reglamento Académico, arts. 36 y 37)';
 const REGLA_ASISTENCIA_ARQ_UDD='La asistencia es obligatoria según la Dirección de Carrera: sin ella no rindes examen y la final es 1,0 (Reglamento Académico, art. 45)';
 const PRESETS_UDD={
   // ── Psicología ──

@@ -72,5 +72,17 @@ assert.equal(cargar(curso([cat('Completa',100,5)])),null);assert.equal(cargar(cu
 ctx.__cats=[cat('Examen',30),cat('Laboratorio',20),cat('Interrogación 1',50)];
 assert.deepEqual(json('ordenCategoriasFicha(__cats).map(c=>c.nombre)'),['Laboratorio','Interrogación 1','Examen']);
 assert.equal(run('__cats[0].nombre'),'Examen');
+// Lucas, 2026-11-03: el slider solo en el examen. Tocar otra sombra abre la nota real.
+m=cargar(curso([cat('Rendida',20,3.2),cat('Prueba pendiente',40),cat('Examen',40)]));ctx.__m={...m,sesion:{abierta:null}};
+const botonPrueba=run("botonNotaSombraHTML(__m,__m.pendientes.find(p=>p.nombre==='Prueba pendiente'))"),botonExamen=run("botonNotaSombraHTML(__m,__m.pendientes.find(p=>p.nombre==='Examen'))");
+assert(!botonPrueba.includes('aria-expanded')&&!botonPrueba.includes('fijar'),'la prueba no ofrece fijar');
+assert(botonExamen.includes('aria-expanded="false"')&&botonExamen.includes('fijar o anotar'),'el examen sí');
+run("var __abiertas=[];var __renders=0;var __abrirReal=abrirNotaEnFila,__render=renderRamo;abrirNotaEnFila=b=>__abiertas.push(b.dataset.sombraClave);renderRamo=()=>__renders++;currentRamoId=r.id;");
+ctx.__clave=porNombre(m,'Prueba pendiente').clave;
+run("var __sesion=notasSombraDelRamo(r).sesion;__sesion.abierta=null;abrirSombraEnFila({dataset:{sombraClave:__clave}})");
+assert.deepEqual(json('__abiertas'),[ctx.__clave]);assert.equal(run('__renders'),0);assert.equal(run('__sesion.abierta'),null,'no abre el panel en la prueba');
+ctx.__clave=porNombre(m,'Examen').clave;run("abrirSombraEnFila({dataset:{sombraClave:__clave}})");
+assert.equal(run('__sesion.abierta'),ctx.__clave);assert.equal(run('__renders'),1);
+run('abrirNotaEnFila=__abrirReal;renderRamo=__render;');
 run("S.tipoCuenta='profesor'");assert.equal(run('modeloNotasSombra(r)'),null);
 console.log('OK: sombras con motor real, mínimos, fijaciones, estados, borde UC, casillas, cuenta existente intacta y exclusiones exactas');
