@@ -77,7 +77,7 @@ function parsearBuscacursos(html){
   if(!horario.length&&t[16]&&!/^(Por fijar|Sin horario|No informa)$/i.test(t[16]))throw Error('Buscacursos: horario sin estructura reconocida.');
   const vacantes_total=entero(t[13],'vacantes totales'),vacantes_disponibles=entero(t[14],'vacantes disponibles');
   if(vacantes_disponibles>vacantes_total)throw Error('Buscacursos: vacantes disponibles mayores al total.');
-  return {nrc:entero(t[0],'NRC'),sigla,seccion:entero(t[4],'sección'),nombre:t[9],profesores:[...new Set(profesores)],campus:t[11],formato:t[7],creditos:entero(t[12],'créditos'),vacantes_total,vacantes_disponibles,horario,retirable:siNo(t[2]),ingles:siNo(t[3]),aprobacion_especial:siNo(t[5])};
+  return {nrc:entero(t[0],'NRC'),sigla,seccion:entero(t[4],'sección'),nombre:t[9],area_fg:t[6]||null,profesores:[...new Set(profesores)],campus:t[11],formato:t[7],creditos:entero(t[12],'créditos'),vacantes_total,vacantes_disponibles,horario,retirable:siNo(t[2]),ingles:siNo(t[3]),aprobacion_especial:siNo(t[5])};
  });
  return {secciones,periodos,periodoSeleccionado,unidades,recortado:/demasiados resultados|primeros\s+\d+\s+resultados/i.test(texto(arbol))||secciones.length>=500};
 }

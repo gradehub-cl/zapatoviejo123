@@ -13,6 +13,8 @@ const conDatos=(secciones=[f])=>({version:1,periodos:[{periodo:'2026-2',seccione
  assert.deepEqual(base.horario,[{dias:['L','W'],modulo:2,tipo:'CLAS',sala:'K201'},{dias:['J'],modulo:6,tipo:'AYU',sala:'B11'},{dias:['V'],modulo:2,tipo:'TAL',sala:'B14'}]);
  assert.deepEqual(parsear(dinamica.replace('TAL\n','LAB\n')).secciones[0].horario.map(h=>h.tipo),['CLAS','AYU','LAB']);
  assert.deepEqual(parsear(fisica).secciones[0].profesores,['Caprile Paola','Sanchez Beatriz']);
+ assert.equal(parsear(fisica).secciones[0].area_fg,null,'columna oficial vacía, sin inferir por nombre');
+ assert.equal(parsear(fisica.replace('<td style="width:10px;text-align:left;">\n</td>','<td style="width:10px;text-align:left;">Ciencias Sociales</td>')).secciones[0].area_fg,'Ciencias Sociales','Área de FG sale de la columna 7');
  assert(parsear(fisica).secciones.some(s=>s.horario.some(h=>h.tipo==='LAB')));
  const sin=dinamica.replace(/<a href="\?cxml_semestre=2026-2&amp;cxml_profesor=[^]*?<\/a>/,'(Sin Profesores)');
  assert.deepEqual(parsear(sin).secciones[0].profesores,[]);
