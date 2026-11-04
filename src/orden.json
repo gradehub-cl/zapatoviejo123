@@ -93,6 +93,7 @@
     "src/marketplace/admin-estadisticas.js",
     "src/marketplace/alumnos-compartir.js",
     "src/marketplace/alumnos-profesor.js",
+    "src/marketplace/alumnos-solo-pruebas.js",
     "src/marketplace/alumnos-comparaciones.js",
     "src/marketplace/alumnos-evolucion.js",
     "src/marketplace/alumnos-resumen.js",
@@ -165,6 +166,7 @@
     "src/data/udd-pautas.js",
     "src/data/pautas-por-universidad.js",
     "src/data/profesor-etiquetas.js",
-    "src/data/profesores-propuestos.js"
+    "src/data/profesores-propuestos.js",
+    "src/data/panel-tipos-evaluacion.js"
   ]
 }

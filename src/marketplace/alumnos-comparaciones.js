@@ -67,6 +67,7 @@ function metricasAlumnoPanel(al,compDe,{inicio}={}){
     let evaluaciones=[],sinFecha=0;
     (al.ramos||[]).forEach(r=>{
       const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      if(al.soloPruebasPanel){const ids=new Set(categoriasPruebasPanel(r).flatMap(c=>(c.notas||[]).map(n=>n.id)));x.evaluaciones=x.evaluaciones.filter(e=>ids.has(e.id));x.sinFecha=categoriasPruebasPanel(r).flatMap(c=>c.notas||[]).filter(n=>Number.isFinite(n.valor)&&!x.evaluaciones.some(e=>e.id===n.id)).length;}
       const corte=inicio!==undefined?desde:inicioRamoPanel(al,r).dia;
       x.evaluaciones.forEach(e=>{e.inicio=corte;e.lado=corte&&e.fecha<corte?'antes':'ahora';});
       evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
