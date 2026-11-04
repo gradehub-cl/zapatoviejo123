@@ -54,8 +54,10 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
     if(nombre){
       contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
         <p class="calif-pregunta">¿Es tu profesor <strong>${esc(nombre)}</strong>?</p>
+        <button type="button" class="docente-link" data-completar>Completar o corregir el nombre</button>
         <div class="modal-btns calif-si-no"><button type="button" class="btn-cancel" data-otro>No, es otra persona</button><button type="button" class="btn-confirm" data-si>Sí, es mi profesor</button></div>`;
       contenido.querySelector('[data-si]').onclick=()=>pasoCalificar(nombre);
+      contenido.querySelector('[data-completar]').onclick=()=>pedirNombre(nombre);
       contenido.querySelector('[data-otro]').onclick=()=>pedirNombre(mio&&nombreProfesorNormal(mio)!==nombreProfesorNormal(nombre)?mio:'');
       openModal();enfocarEnHoja(contenido.querySelector('[data-si]'));
     }else{pedirNombre(mio);openModal();}
@@ -63,8 +65,9 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
   const pedirNombre=valor=>{
     contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
       <form class="calif-nombre" novalidate>
-        <label class="modal-label" for="calif-nombre">¿Quién te hace clases?</label>
-        <div class="modal-input"><input type="text" id="calif-nombre" class="calif-campo-texto" maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Ej.: María José Pérez" value="${esc(valor||'')}" aria-describedby="calif-nombre-error"></div>
+        <label class="modal-label" for="calif-nombre">Nombre, segundo nombre y apellido</label>
+        <div class="modal-input"><input type="text" id="calif-nombre" class="calif-campo-texto" maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Ej.: María José Pérez" value="${esc(valor||'')}" aria-describedby="calif-nombre-ayuda calif-nombre-error"></div>
+        <p id="calif-nombre-ayuda" class="calif-opcional">Puedes seguir sin el segundo nombre si no lo sabes.</p>
         <p id="calif-nombre-error" class="calif-error" role="alert"></p>
         <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Continuar</button></div>
       </form>`;

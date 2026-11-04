@@ -307,6 +307,7 @@ function renderHome(){
     c.appendChild(div);
   });
   montarRecordatoriosNotasHome(c,recordatoriosNotas);
+  actualizarRecordatoriosProfesorHome(c);
   if(S.sortMode==='manual')activarReordenRamos(c);
   // Publicidad de clases junto al ramo que calza. Vive en marketplace.js y
   // decide en el navegador; si no hay nada que mostrar, no pinta nada.

@@ -36,8 +36,11 @@ const grupo=ramo([cat('i1','Prueba 1',30,4.2),cat('i2','Prueba 2',30,4.6),cat('e
 for(const r of [examen,grupo]){
   assert(r.categorias.every(c=>c.notas.every(n=>n.valor>4)));
   const x=comparar(r);assert.equal(x.alumno.oficial,3.9);
-  ctx.__motivo=x.motivo;
-  const escapado=run('esc(__motivo)');assert(x.ficha.includes(escapado),'la ficha del profesor explica igual que la del alumno');assert(x.legado.includes(escapado),'el detalle de categorías también explica');
+  // El alumno ve su chip; el profesor, el mismo tope contado en tercera persona.
+  assert(x.motivo,'la ficha del alumno explica el tope');
+  ctx.__motivo=run('conRamosAlumnoPanel(al,c=>motivoPromedioAlumnoPanel(ramoParaPanel(al.ramos[0]),c))');
+  assert.match(ctx.__motivo,/\(mín\. 5,0\): la nota final (no pasa de|queda en) 3,9$/);assert.doesNotMatch(ctx.__motivo,/repruebas|\btu\b|\d\.\d/);
+  const escapado=run('esc(__motivo)');assert(x.ficha.includes(escapado),'la ficha del profesor explica el tope');assert(x.legado.includes(escapado),'el detalle de categorías también explica');
   assert(run('alumnosPanelHTML([al],()=>null,new Date(),{soloFilas:true})').includes(escapado),'el motivo está en la fila compacta');
   assert(run('resumenInicioAlumnosHTML(resumenInicioAlumnosPanel([al]))').includes(escapado),'el motivo está en Necesitan atención');
 }
@@ -81,5 +84,19 @@ assert(Math.abs(run('solveForTarget(__estructura,__notas,4).requiredAverage')-3.
 });
 test('5. Borde de redondeo oficial y restauración del contexto',()=>{
 for(const [valor,esperada] of [[3.949,3.9],[3.95,4],[4.049,4],[4.05,4.1]])assert.equal(comparar(ramo([cat('p','Nota',100,valor)]),{profesor:'uandes'}).alumno.oficial,esperada);
-const sinTope=comparar(ramo([cat('a','Prueba 1',50,4.3),cat('b','Prueba 2',50,4.7)]));assert.equal(sinTope.alumno.oficial,4.5);assert(!sinTope.ficha.includes('repruebas pese al promedio'));
+const sinTope=comparar(ramo([cat('a','Prueba 1',50,4.3),cat('b','Prueba 2',50,4.7)]));assert.equal(sinTope.alumno.oficial,4.5);assert.equal(run('motivoPromedioAlumnoPanel(ramoParaPanel(al.ramos[0]),al.ramos)'),'');
+});
+test('6. Un laboratorio bajo su mínimo explica la cátedra con todas sus notas sobre 4',()=>{
+const catedra=ramo([cat('i1','Interrogación 1',50,4.3),cat('i2','Interrogación 2',50,4.9)],{aporta:{ramo:'Laboratorio sintético',sigla:'LAB100',peso:30,min:4}});
+const lab=ramo([cat('in','Informes',80,4.6),cat('pa','Evaluación de pares',20,3.7)],{id:'lab-sintetico',nombre:'Laboratorio sintético',sigla:'LAB100',
+  gates:[{type:'min_grade_required',catId:'pa',min:4,cap:3.9,nombre:'Evaluación de pares'}]});
+const x=comparar(catedra,{otros:[lab]});
+assert.equal(x.alumno.oficial,3.9,'la cátedra queda en la nota del laboratorio');
+const motivos=run('conRamosAlumnoPanel(al,c=>al.ramos.map(r=>motivoPromedioAlumnoPanel(ramoParaPanel(r),c)))');
+assert.equal(motivos[0],'Laboratorio sintético va 3,9 (mín. 4,0): la nota final queda en 3,9');
+assert.equal(motivos[1],'Evaluación de pares va 3,7 (mín. 4,0): la nota final no pasa de 3,9');
+assert(x.ficha.includes(run('esc('+JSON.stringify(motivos[0])+')')),'la ficha del profesor lo dice');
+// Con el laboratorio sobre 4 no hay nada que explicar.
+const bien=comparar(catedra,{otros:[{...lab,categorias:[cat('in','Informes',80,5),cat('pa','Evaluación de pares',20,5)]}]});
+assert.equal(run('conRamosAlumnoPanel(al,c=>motivoPromedioAlumnoPanel(ramoParaPanel(al.ramos[0]),c))'),'');assert(bien.alumno.oficial>4);
 });

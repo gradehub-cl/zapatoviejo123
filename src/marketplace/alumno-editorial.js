@@ -65,21 +65,22 @@ function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora,al=null){
 }
 function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
   return conRamosAlumnoPanel(al,contexto=>{
-    const ramo=ramoParaPanel(r),prom=ramoAvg(ramo,undefined,contexto),muestra=datosComparacionPanel(comp?.ramo),ref=muestra?.promedio??null;
-    const motivo=motivoPromedioAlumnoPanel(ramo);
+    const ramo=ramoParaPanel(r),oficial=ramoAvg(ramo,undefined,contexto),prom=al.soloPruebasPanel?promedioPruebasPanel(r).promedio:oficial,muestra=datosComparacionPanel(comp?.ramo),ref=al.soloPruebasPanel?comp?.referenciaPruebas??null:muestra?.promedio??null;
+    const motivo=motivoPromedioAlumnoPanel(ramo,contexto);
     const diferencia=prom!==null&&ref!==null?prom-Number(ref):null;
     const seccion=!!(comp?.sinSeccion||Number.isInteger(comp?.seccion)),m=metricasAlumnoPanel({...al,ramos:[r]},()=>comp);
     let necesaria=null,estado=null;try{necesaria=notaNecesaria(ramo);estado=estadoParaNotaNecesaria(ramo);}catch(e){}
     const exigencia=exigenciaNotaNecesaria(necesaria),inicio=inicioRamoPanel(al,r);
     const progreso=estado&&ramo.categorias.some(c=>c.peso>0)?Math.max(0,Math.min(1,1-estado.pendiente)):null;
     const notas=m.evaluaciones.slice().sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||'')));
-    const grupo=seccion?'Sección':'Ramo',sinDatos=estadoComparacionPrivada(comp);
+    const grupo=(seccion?'Sección':'Ramo')+(al.soloPruebasPanel?' · pruebas':''),sinDatos=estadoComparacionPrivada(comp);
     const grafico=graficoAntesAhoraSVG(m,{seccion,inicios:new Map([[r.id,inicio]]),ficha:true});
     return `<div class="pe-ficha-acciones"><button type="button" data-inicio-alumno="${esc(al.id)}" data-inicio-ramo="${esc(r.id)}" aria-label="Editar inicio de clases de ${esc(r.nombre)}">Editar inicio</button></div>
     <div class="pe-alumno-grilla"><section class="pe-alumno-principal"><div class="pe-promedio">
-      <div><span>Promedio actual</span><strong>${prom===null?'—':esc(cifraNotaPrivada(fmtPromedio(prom)))}</strong></div>
-      <div><span>${grupo}</span><small class="pe-muestra">${esc(textoMuestraPanel(muestra))}</small><strong>${ref===null?'—':esc(cifraNotaPrivada(fmtPromedio(Number(ref))))}</strong></div>
+      <div><span>${al.soloPruebasPanel?'Referencia de pruebas':'Promedio actual'}</span><strong>${prom===null?'—':esc(cifraNotaPrivada(fmtPromedio(prom)))}</strong></div>
+      <div><span>${grupo}</span><small class="pe-muestra">${al.soloPruebasPanel?'Agregado por evaluación':esc(textoMuestraPanel(muestra))}</small><strong>${ref===null?'—':esc(cifraNotaPrivada(fmtPromedio(Number(ref))))}</strong></div>
       <div><span>Diferencia</span><strong class="pe-diferencia" style="color:${colorDiferenciaPrivada(diferencia??0)}">${diferencia===null?'—':esc(cifraNotaPrivada(conSignoPanel(diferencia)))}</strong></div></div>
+      ${al.soloPruebasPanel?`<p class="pe-sub">Nota oficial: ${oficial===null?'—':esc(cifraNotaPrivada(fmtPromedio(oficial)))}. ${esc(avisoPruebasPanel(r))}</p>`:''}
       ${motivo?`<p class="pe-sub">${esc(motivo)}</p>`:''}
       <section class="pe-frente"><div class="pe-frente-cabeza"><h3>Frente al grupo</h3><span>Puntos de nota</span></div>
         <div class="pe-grupo" role="group" aria-label="Grupo de comparación">${[false,true].map(s=>`<button type="button" data-pe-grupo="${s?'seccion':'ramo'}" aria-pressed="${seccion===s}">${s?'Sección':'Ramo'}</button>`).join('')}</div>

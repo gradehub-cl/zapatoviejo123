@@ -65,7 +65,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   let porSeccion=alumnos.length>0&&comparaSeccionGuardado();
   if(porSeccion)await cargarSecciones();
   if(!vigente())return;
-  const compDe=(al,r)=>porSeccion?compSeccion(al,r):compGeneral(al,r);
+  const compDe=(al,r)=>comparacionPruebasPanel(al,r,porSeccion?compSeccion(al,r):compGeneral(al,r));
   const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
   const grupoHTML=lista=>lista.length?antesAhoraGrupoHTML(metricasGrupoPanel(lista,compDe),{seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(lista):0}):'';
   const link=linkAlumnosProfesor(codigo);
@@ -90,6 +90,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas ficticios.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
     franjaEjemplo+
+    '<label class="panel-solo-pruebas"><input type="checkbox" role="switch" data-solo-pruebas>Solo pruebas</label><p class="clase-privacidad">Filtro de referencia; no cambia la nota oficial. El CSV conserva todas las notas y comparaciones originales.</p><p class="clase-privacidad" data-solo-pruebas-estado></p>'+
     // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla
     // ancha las mismas vistas están en la barra lateral y este control se oculta.
     (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' tres-vistas'}" aria-label="Vistas de Alumnos">
@@ -163,6 +164,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const invitar=raiz.querySelector('#alumnos-ir-invitar');
   const comparaWrap=raiz.querySelector('#alumnos-compara-wrap');
   const avisoPrivacidad=raiz.querySelector('#alumnos-privacidad');
+  // Los ramos elegidos en «Por alumno y ramo» duran mientras la pantalla esté
+  // abierta: cambiar de vista o de comparación vuelve a pintar y los conserva.
+  const filtroRamos={elegidos:new Set(),texto:''};
+  const pintarEstadisticas=()=>{paneles.estadisticas.innerHTML=grupoHTML(alumnos);aplicarFiltroRamosPanel(paneles.estadisticas,filtroRamos);};
   let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
   // Se filtra en el navegador, con lo que el panel ya bajó.
@@ -259,7 +264,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       if(b.dataset.panelVista===nombre&&typeof b.scrollIntoView==='function')b.scrollIntoView({block:'nearest',inline:'nearest'});
     });
     if(nombre==='resumen')paneles.resumen.innerHTML=resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(alumnos));
-    if(nombre==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
+    if(nombre==='estadisticas')pintarEstadisticas();
     if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
     if(typeof marcarVistaNav==='function')marcarVistaNav('alumnos',nombre==='ficha'||nombre==='invitar'?'lista':nombre);
   };
@@ -293,6 +298,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   // la Lista filtrada por ese ramo.
   const alTocar=e=>{
     if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
+    if(tocarFiltroRamosPanel(e,paneles.estadisticas,filtroRamos))return;
     const ir=e.target.closest('[data-ir-vista]');if(ir){activarVista(ir.dataset.irVista);return;}
     const ramo=e.target.closest('[data-ver-ramo]');
     if(ramo&&buscar){buscar.value=ramo.dataset.verRamo;filtrar();activarVista('lista');return;}
@@ -301,6 +307,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     if(al)abrirFicha(al,b);
   };
   ['resumen','estadisticas','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
+  ['input','keydown'].forEach(t=>paneles.estadisticas.addEventListener(t,e=>{if(vigente())escribirFiltroRamosPanel(e,paneles.estadisticas,filtroRamos);}));
   lista.addEventListener('click',e=>{
     if(!vigente())return;
     const b=e.target.closest('[data-ver-alumno]');if(!b)return;
@@ -328,10 +335,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
         if(abiertos.has(d.dataset.ramo))d.open=abiertos.get(d.dataset.ramo);
       });
     }
-    if(vistaActiva==='estadisticas')paneles.estadisticas.innerHTML=grupoHTML(alumnos);
+    if(vistaActiva==='estadisticas')pintarEstadisticas();
     track('panel_alumnos_compara',{seccion:quiere});
   };
   botones.forEach(b=>b.addEventListener('click',()=>cambiarComparacion(b.dataset.compara==='seccion')));
+  raiz.querySelector('[data-solo-pruebas]')?.addEventListener('change',evento=>{if(!vigente())return;alumnos.forEach(al=>{al.soloPruebasPanel=evento.target.checked;});if(seleccionado)seleccionado.soloPruebasPanel=evento.target.checked;vista=filtrarAlumnosPanel(alumnos,buscar.value);raiz.querySelector('[data-solo-pruebas-estado]').textContent=evento.target.checked?alumnos.flatMap(al=>al.ramos||[]).reduce((s,r)=>s+promedioPruebasPanel(r).sinClasificar,0)+' categorías sin clasificación quedan fuera. Se excluyen también laboratorios, tareas y otros tipos declarados.':'';pintarLista();if(vistaActiva==='ficha')pintarFicha();else activarVista(vistaActiva);});
   const fichaInicial=alumnoId&&alumnos.find(x=>String(x.id)===String(alumnoId));
   if(fichaInicial)abrirFicha(fichaInicial);else activarVista(vistaInicial);
   // Exporta todos los que calzan con la búsqueda, en el orden de la lista: el
@@ -341,7 +349,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const exportar=raiz.querySelector('#alumnos-exportar');
   if(exportar)exportar.addEventListener('click',async()=>{
     if(!vigente())return;
-    const paraExportar=alumnosOrdenadosPanel(vista).map(({al})=>al);
+    const paraExportar=alumnosOrdenadosPanel(vista).map(({al})=>({...al,soloPruebasPanel:false}));
     if(!paraExportar.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
     // Las columnas de sección van siempre. Se bajan antes del diálogo: el toque
     // en «Exportar» es el que deja abrir la hoja de compartir del iPhone.
