@@ -1,0 +1,5 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const ctx={esc:s=>String(s),preparacionRamoPanel:al=>al.preparacion,percentilesPanelHTML:()=>'<div>Percentiles</div>',conSignoPanel:n=>(n>0?'+':'')+n};vm.createContext(ctx);const s=fs.readFileSync(__dirname+'/../src/marketplace/alumnos-preparacion.js','utf8');vm.runInContext(s.slice(s.indexOf('function gruposParecidosFormularioHTML')),ctx);
+ctx.al={preparacion:{evaluaciones:[{nota_id:'n1',nota:3,fecha:'2026-09-01',nombre:'I1'},{nota_id:null,nombre:'I2'}]}};ctx.r={id:'r'};
+assert(vm.runInContext('gruposParecidosFormularioHTML(al,r)',ctx).includes('value="n1"'));assert(!vm.runInContext('gruposParecidosFormularioHTML(al,r)',ctx).includes('>I2<'));
+ctx.x={disponible:true,propios:{n:1,inicial:3,posterior:5,cambio:2},gradehub:{n:5,inicial:3,posterior:4,cambio:1},metodos:['manual']};assert(vm.runInContext('gruposParecidosResultadoHTML(x)',ctx).includes('No demuestra'));ctx.x.gradehub.n=4;assert.equal(vm.runInContext('gruposParecidosResultadoHTML(x)',ctx),'<p>No hay suficientes estudiantes para comparar.</p>');console.log('OK selección explícita y salida sin causalidad, n<5 oculto');

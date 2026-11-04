@@ -209,6 +209,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       destino.innerHTML=ramoAlumnoEditorialHTML(al,r,compDe(al,r),ultimaSeccion.get(r.id)?compSeccion(al,r):compGeneral(al,r),!!ultimaSeccion.get(r.id),new Date());
       enlazarInicio();enlazarGraficosEvolucion(destino);
       enlazarPreparacionPanel(destino,al,r,rpc,()=>{if(vigente()){pintarFicha();}},()=>vigente()&&seleccionado===al&&ramoFicha===r.id);
+      enlazarGruposParecidos(destino,al,r,rpc,()=>vigente()&&seleccionado===al&&ramoFicha===r.id);
       const barra=destino.querySelector('[data-pe-ultima-wrap]');
       const enlazarUltima=()=>barra?.querySelector('[data-pe-ultima]')?.addEventListener('click',async()=>{
         const quiere=!ultimaSeccion.get(r.id),boton=barra.querySelector('button');boton.disabled=true;
