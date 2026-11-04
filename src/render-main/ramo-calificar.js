@@ -17,6 +17,18 @@ function contextoCalificarRamo(r,periodo=semester()){
  return {p_ramo_id:r.id,p_seccion:r.seccion,p_periodo:periodo,tenant,clave:claveCalificarRamo(r)};
 }
 function argumentosCalificarRamo(c){return {p_ramo_id:c.p_ramo_id,p_seccion:c.p_seccion,p_periodo:c.p_periodo};}
+// Una promesa por dibujo de ficha, compartida por el botón y su resumen. La
+// respuesta propia vive solo en memoria; no se marca como calificado en S.
+async function consultarCalificacionRamoFicha(r){
+ const c=contextoCalificarRamo(r),cliente=typeof supabaseClient==='undefined'?null:supabaseClient,cuenta=typeof currentUser==='undefined'?null:currentUser?.id;
+ if(!c||!cliente)return null;
+ try{
+  const {data,error}=await cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c));
+  if(error||currentUser?.id!==cuenta||supabaseClient!==cliente||JSON.stringify(contextoCalificarRamo(r))!==JSON.stringify(c))return null;
+  const estado=Array.isArray(data)?data[0]:data;
+  return typeof estado?.puede_calificar==='boolean'?estado:null;
+ }catch(e){return null;} // Sin SQL/red: el botón conserva el flujo del profesor.
+}
 function payloadCalificarRamo(c,carga,facilidad,recomienda,etiquetas=[]){
  const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id));
  if(!Number.isInteger(carga)||carga<1||carga>4||!Number.isInteger(facilidad)||facilidad<1||facilidad>5||typeof recomienda!=='boolean')throw Error('Completa las tres preguntas.');
@@ -68,7 +80,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    try{
     const {error}=await cliente.rpc(rpc,args);if(error)throw error;if(!vigente()||!form.isConnected)return;
     marcarAvisoCalificarRamo(c);invalidarResumenRamo(c.tenant,c.clave);cerrar();showToast(rpc==='ramo_calificar'?'Tu opinión quedó guardada':'Borramos tu opinión');
-    if(S.ramos.includes(r)&&currentRamoId===r.id)pintarResumenRamoFicha(r);
+    if(S.ramos.includes(r)&&currentRamoId===r.id){const opinion=consultarCalificacionRamoFicha(r);renderDocenteRamo(r,opinion);pintarResumenRamoFicha(r,opinion);}
    }catch(e){if(vigente()&&form.isConnected){mensaje.textContent=errorCalificarRamo(e);botones.forEach(b=>b.disabled=false);enviando=false;}}
   };
   form.onsubmit=e=>{

@@ -38,5 +38,31 @@ run(`globalThis.catalogoOriginal=searchCatalog('calculo','uc','ING-PC',2).map(r=
  assert(run("contextoCalificarRamo(S.historial[0].ramos[0],'2025-2')"));
  run('S.historial[0].ramos[0].origen=null');assert.equal(run("contextoCalificarRamo(S.historial[0].ramos[0],'2025-2')"),null);
  ctx.__base=base;run('S=JSON.parse(__base)');
+ // El botón nombra lo que falta según las dos respuestas propias del servidor.
+ run("currentRamoId=S.ramos[0].id;globalThis.r=S.ramos[0];var __abrirProfe=abrirCalificarProfesor,__abrirRamo=abrirCalificarRamo;var __destino='';abrirCalificarProfesor=()=>__destino='profesor';abrirCalificarRamo=()=>__destino='ramo';");
+ const boton=doc.getElementById('calif-accion'),raiz=doc.getElementById('ramo-profe');
+ let estadoProfesor,estadoRamo,consultas=[];
+ ctx.supabaseClient={rpc:async(nombre,args)=>{consultas.push({nombre,args});return{data:nombre==='profesor_docente_estado'?{nombre_publico:'Docente sintético'}:nombre==='profesor_calificacion_estado'?estadoProfesor:estadoRamo};}};
+ for(const [profe,ramo,texto,oculto,destino] of [[false,false,'Calificar',false,'profesor'],[true,false,'Calificar ramo',false,'ramo'],[false,true,'Calificar profesor',false,'profesor'],[true,true,'Calificar profesor',true,null]]){
+  estadoProfesor={puede_calificar:true,mi_estrellas:profe?5:null};estadoRamo={puede_calificar:true,mia:ramo?{carga:2}:null};consultas=[];
+  const opinion=run('consultarCalificacionRamoFicha(r)');ctx.__opinion=opinion;
+  await Promise.all([run('renderDocenteRamo(r,__opinion)'),run('pintarResumenRamoFicha(r,__opinion)')]);
+  assert.equal(boton.hidden,oculto);assert.match(boton.innerHTML,new RegExp('>'+texto+'<'));
+  assert.equal(consultas.filter(x=>x.nombre==='ramo_calificacion_estado').length,1,'una consulta propia compartida por apertura');
+  if(!oculto){boton.onclick();assert.equal(run('__destino'),destino);}
+ }
+ estadoProfesor={puede_calificar:false,mi_estrellas:null};estadoRamo={puede_calificar:true,mia:null};await run('renderDocenteRamo(r)');assert.match(boton.innerHTML,/>Calificar ramo</);assert.equal(boton.hidden,false);
+ // Una cuenta existente que ya calificó al profesor ve directamente el ramo.
+ estadoProfesor={puede_calificar:true,mi_estrellas:5};await run('renderDocenteRamo(r)');assert.match(boton.innerHTML,/>Calificar ramo</);boton.onclick();assert.equal(run('__destino'),'ramo');
+ for(const fallo of ['rpc','red']){
+  ctx.supabaseClient.rpc=async(nombre)=>{if(nombre==='ramo_calificacion_estado'){if(fallo==='red')throw Error('sin red');return{error:{code:'PGRST202'}};}return{data:nombre==='profesor_docente_estado'?{}:{puede_calificar:true,mi_estrellas:null}};};
+  await run('renderDocenteRamo(r)');assert.equal(boton.hidden,false);assert.match(boton.innerHTML,/>Calificar profesor</,'sin RPC/red conserva el botón del profesor');
+ }
+ let consultasProfesor=0;ctx.supabaseClient.rpc=async()=>{consultasProfesor++;return{data:{}};};run("S.tipoCuenta='profesor'");await run('renderDocenteRamo(r)');assert.equal(boton.hidden,true);assert.equal(consultasProfesor,0);run("S.tipoCuenta='estudiante'");
+ const resolvers=[];ctx.supabaseClient.rpc=nombre=>new Promise(resolve=>resolvers.push({nombre,resolve}));
+ const tardia=run('renderDocenteRamo(r)');run("currentRamoId='otro-ramo'");
+ for(const {nombre,resolve} of resolvers)resolve({data:nombre==='profesor_docente_estado'?{nombre_publico:'No debe verse'}:{puede_calificar:true,mia:null}});
+ await tardia;assert.equal(boton.hidden,true);assert(!raiz.innerHTML.includes('No debe verse'));
+ run('currentRamoId=r.id;abrirCalificarProfesor=__abrirProfe;abrirCalificarRamo=__abrirRamo');assert.equal(run('JSON.stringify(S)'),base);
  console.log('OK: etiquetas cerradas, aviso una vez por cuenta/ramo/período, estado intacto, piso, contexto histórico y buscador sin SQL');
 })().catch(e=>{console.error(e);process.exit(1)});

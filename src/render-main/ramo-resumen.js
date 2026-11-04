@@ -63,7 +63,7 @@ function enlazarResumenesCatalogo(caja,q){
   abrirResumenRamo(r,{tenant,alVolver:volver,alAgregar:()=>{if(currentUser?.id===cuenta&&S===estado)addFromCatalog(r.nombre,r.sigla);}});
  }));
 }
-async function pintarResumenRamoFicha(r){
+async function pintarResumenRamoFicha(r,opinion=consultarCalificacionRamoFicha(r)){
  const version=++versionResumenRamoFicha,cuenta=typeof currentUser!=='undefined'&&currentUser?.id;
  const hero=document.querySelector('#screen-ramo .ramo-hero');
  const anterior=document.getElementById('ramo-opinion');if(anterior?.remove)anterior.remove();
@@ -71,8 +71,8 @@ async function pintarResumenRamoFicha(r){
  const c=contextoCalificarRamo(r),cliente=supabaseClient,tenant=S.tenant;
  const vigente=()=>version===versionResumenRamoFicha&&currentUser?.id===cuenta&&supabaseClient===cliente&&S.ramos.includes(r)&&currentRamoId===r.id&&document.getElementById('screen-ramo')?.classList.contains('active');
  try{
-  const [resumen,privado]=await Promise.all([cargarResumenRamo(tenant,claveCalificarRamo(r)),c?cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c)).catch(()=>({data:null})):Promise.resolve({data:null})]);
-  if(!vigente())return;const estado=privado.error?null:privado.data,dato=resumenRamoDisponible(resumen);
+  const [resumen,estado]=await Promise.all([cargarResumenRamo(tenant,claveCalificarRamo(r)),opinion]);
+  if(!vigente())return;const dato=resumenRamoDisponible(resumen);
   const invitacion=elegibleAvisoCalificarRamo(r,c,estado),mia=!!estado?.mia;
   if(!dato&&!invitacion&&!mia)return;
   const linea=document.createElement('div');linea.id='ramo-opinion';linea.className='ramo-opinion';
