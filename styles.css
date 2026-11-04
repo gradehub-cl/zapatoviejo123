@@ -4630,6 +4630,16 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-agenda .ag-pendientes-lista>.ag-recorreccion-row{margin:0;border:0;border-radius:0;background:none;}
 #screen-agenda .ag-pendientes-lista>*+*{border-top:1px solid var(--border);}
 
+/* Pendiente de nota en Inicio: una línea de contexto, sin semáforo ni alerta. */
+#home-ramos .ramo-row:has(>.home-nota-faltante){flex-wrap:wrap;row-gap:6px;}
+#home-ramos .home-nota-faltante{display:flex;align-items:center;flex:0 0 100%;gap:4px;min-width:0;color:var(--fg2);font-size:.8125rem;line-height:1.45;cursor:default;}
+#home-ramos .home-nota-faltante>span{flex:1;min-width:0;overflow-wrap:anywhere;}
+#home-ramos .home-nota-faltante button{flex:none;min-width:44px;min-height:44px;padding:8px;border:0;border-radius:8px;background:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;}
+#home-ramos .home-nota-faltante [data-recordatorio-descartar]{color:var(--fg2);font-size:1.125rem;font-weight:400;}
+#home-ramos .home-nota-faltante button:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
+#home-ramos:not(.ramo-reordering) .ramo-row:has(>.home-nota-faltante) .ramo-progress-track{top:auto;bottom:8px;}
+@media(prefers-reduced-motion:reduce){#home-ramos .home-nota-faltante{animation:none;transition:none;}}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
