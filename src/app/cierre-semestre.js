@@ -33,12 +33,28 @@ function notaRamoParaResumen(r,ramos){
   return r&&r.cierre?notaFinalCierreRamo(r,valor):valor;
 }
 function promedioAcumuladoCierre(historial){
-  // Resolver vínculos en cada semestre antes de reunir sus finales evita que un
-  // laboratorio de 2025 se enlace por nombre con una cátedra de 2026.
-  const finales=(historial||[]).flatMap(h=>ramosDelPromedio(h.ramos||[]).map(r=>({
-    creditos:r.creditos,avgOverride:notaRamoParaResumen(r,h.ramos),categorias:[],
-  }))).filter(r=>Number.isFinite(r.avgOverride));
-  return gpa(finales);
+  const politica=gh_reglasNota(S.tenant).promedioAcademico;
+  // Resolver vínculos dentro de su semestre evita enlazar laboratorios de años
+  // distintos. Sin política se conserva exactamente el acumulado de #937.
+  const finales=(historial||[]).flatMap(h=>{
+    const p=politica&&parseEtiquetaSemestre(h.label);
+    const periodo=p?p.anio*3+({v:0,1:1,2:2}[p.periodo]):null;
+    return ramosDelPromedio(h.ramos||[]).map(r=>{
+      const codigo=String(r.sigla||r.origen?.ramoKey||'').trim().toUpperCase();
+      return {creditos:r.creditos,avgOverride:notaRamoParaResumen(r,h.ramos),categorias:[],
+        ...(politica?{periodo,clave:codigo?(r.origen?.tenant||r.cierre?.tenant||S.tenant)+'|'+codigo:null}:{})};
+    });
+  }).filter(r=>Number.isFinite(r.avgOverride));
+  if(!politica)return gpa(finales);
+  // Una sigla y un período identificables, nunca un nombre parecido. La
+  // reprobación queda en el PPP original: esta selección es solo del PPA.
+  const minimo=gh_reglasNota(S.tenant).passing_grade;
+  const vigentes=finales.filter(r=>!politica.excluirReprobadosLuegoAprobados||r.avgOverride>=minimo||!r.clave||r.periodo===null||
+    !finales.some(x=>x.clave===r.clave&&x.periodo!==null&&x.periodo>r.periodo&&x.avgOverride>=minimo));
+  // El art. 28 exige ponderar: sin créditos no se presenta el respaldo simple
+  // de gpa como si fuera un PPA. No se cambian los datos ni sus cachés.
+  if(!vigentes.length||vigentes.some(r=>!tieneCreditos(r))||!vigentes.some(r=>r.creditos>0))return null;
+  return gh_notaOficial(gpa(vigentes),gh_reglasNota(S.tenant));
 }
 function datosCierreRamo(r,ramos,periodo){
   return {tenant:(r.origen&&r.origen.tenant)||S.tenant,sigla:claveReporte(r),periodo,
@@ -88,10 +104,11 @@ function guardarArchivoRevisado(){
 function abrirNotaOficialHistorial(histId,ramoId){
   const h=S.historial.find(x=>x.id===histId),r=h&&(h.ramos||[]).find(x=>x.id===ramoId);if(!r)return;
   const caja=document.getElementById('modal-content');
-  caja.innerHTML=`<div class="modal-title">${esc(r.nombre)}</div><p>Nota final del portal de tu universidad. No cambia tus evaluaciones.</p><label class="modal-label" for="hist-nota-oficial">Nota final oficial</label><div class="modal-input"><input id="hist-nota-oficial" type="text" inputmode="decimal" maxlength="4" value="${notaPortalValida(r.notaOficial)?esc(r.notaOficial):''}" placeholder="—"></div><p id="hist-oficial-error" role="alert"></p><div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button><button type="button" class="btn-confirm accion-principal" id="hist-oficial-guardar">Guardar</button></div>`;
+  caja.innerHTML=`<div class="modal-title">${esc(r.nombre)}</div><p>Nota final del portal de tu universidad. No cambia tus evaluaciones.</p><label class="modal-label" for="hist-nota-oficial">Nota final oficial</label><div class="modal-input"><input id="hist-nota-oficial" type="text" inputmode="decimal" maxlength="4" value="${notaPortalValida(r.notaOficial)?esc(r.notaOficial):''}" placeholder="—"></div>${selectorExclusionPromedio(r,'hist-oficial-promedio')}<p id="hist-oficial-error" role="alert"></p><div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button><button type="button" class="btn-confirm accion-principal" id="hist-oficial-guardar">Guardar</button></div>`;
   caja.querySelector('#hist-oficial-guardar').addEventListener('click',()=>{
     const campo=document.getElementById('hist-nota-oficial'),texto=campo.value.trim(),valor=texto?notaSemestreAnterior(texto):null;
     if(texto&&!notaPortalValida(valor)){document.getElementById('hist-oficial-error').textContent='Escribe una nota entre 1,0 y 7,0.';campo.focus();return;}
+    guardarExclusionPromedio(r,'hist-oficial-promedio');
     if(valor===null)delete r.notaOficial;else r.notaOficial=valor;
     if(!r.cierre)r.cierre=datosCierreRamo(r,h.ramos,h.label);
     recomputeHistGpa(h);save();closeModal();renderStats();showToast('Nota oficial actualizada');

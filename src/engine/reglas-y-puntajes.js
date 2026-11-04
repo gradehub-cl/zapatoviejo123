@@ -46,6 +46,9 @@ function gh_bordeOficial(target,meta){
 // archivo solo. Si viviera afuera, el agente redondearía distinto que la app.
 const GH_REGLAS_NOTA_BASE={grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4.0};
 const GH_REGLAS_NOTA_POR_TENANT={
+  // Reglamento UAI de pregrado 2026, art. 28 (pp. 7–8): PPP/PPA por créditos;
+  // del PPA se retiran reprobaciones anteriores a una aprobación posterior.
+  uai:{promedioAcademico:{exclusiones:['educacion_fisica','extraprogramatica','convalidada'],excluirReprobadosLuegoAprobados:true}},
   // Reglamento del Alumno de Pregrado UAndes (2022, vigente con la
   // modificación de marzo de 2026), art. 22: "La nota final de la asignatura
   // se expresa con un decimal. Para su cálculo se aproximan dos decimales."
@@ -64,6 +67,7 @@ function gh_reglasNota(tenant){
   return {grade_scale:{...GH_REGLAS_NOTA_BASE.grade_scale,...propia.grade_scale},
     rounding:{...GH_REGLAS_NOTA_BASE.rounding,...propia.rounding},
     passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade,
+    ...(propia.promedioAcademico?{promedioAcademico:propia.promedioAcademico}:{}),
     ...(propia.descarte_manual?{descarte_manual:true}:{}),
     ...(propia.examenFinal?{examenFinal:propia.examenFinal}:{})};
 }

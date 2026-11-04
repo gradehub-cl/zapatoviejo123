@@ -16,7 +16,7 @@ function avanceEvaluaciones(ramos){
 function gpaHistorial(h){
   if(!h||typeof h!=='object')return null;
   if(Array.isArray(h.ramos)&&h.ramos.some(r=>r&&(r.cierre||r.cierreIncompleto||notaPortalValida(r.notaOficial))))return gpa(h.ramos);
-  if(typeof h.gpa==='number'&&Number.isFinite(h.gpa))return h.gpa;
+  if(typeof h.gpa==='number'&&Number.isFinite(h.gpa)&&!gh_reglasNota(S.tenant).promedioAcademico)return h.gpa;
   if(!Array.isArray(h.ramos))return null;
   // Un respaldo antiguo puede no traer la caché `gpa`. Recalcular al leer
   // recupera la comparación sin tocar el historial persistido ni subir una
