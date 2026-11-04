@@ -16,7 +16,7 @@ function obIniciar(){
   obStep=0;obPasosVistos.clear();selectedTenant=null;obEnviandoProfesor=false;
   ['ob-prof-nombre','ob-prof-presentacion'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
   const error=document.getElementById('ob-prof-error');if(error)error.textContent='';
-  elegirTipoCuenta('estudiante');
+  elegirTipoCuenta(typeof consumirEntradaProfesor==='function'&&consumirEntradaProfesor()?'profesor':'estudiante');
   montarRuletasOnboarding();renderTenantPick();obRender();checkOb();
 }
 

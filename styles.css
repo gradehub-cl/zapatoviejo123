@@ -550,15 +550,38 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .auth-link:hover{color:var(--fg);background:var(--muted);}
 .auth-link-primary{color:var(--primary);font-weight:700;margin-top:2px;}
 .auth-link-primary:hover{color:var(--primary);background:color-mix(in srgb,var(--primary),transparent 88%);}
+/* La segunda opción de la entrada: contorno turquesa bajo el botón relleno.
+   Relleno > contorno es la jerarquía de botones de las HIG; el de Google, con
+   contorno gris, queda aparte. En claro --primary es el turquesa profundo. */
+.btn-contorno{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;margin-top:10px;padding:13px;background:none;border:1.5px solid var(--fg);border-radius:13px;color:var(--fg);font-family:var(--font-ui);font-size:0.9375rem;font-weight:650;letter-spacing:-.01em;cursor:pointer;transition:background var(--motion-fast),transform var(--motion-press) var(--ease-standard);}
+.btn-contorno:active{transform:scale(.98);}
+@media(hover:hover) and (pointer:fine){.btn-contorno:hover{background:color-mix(in srgb,var(--fg),transparent 92%);}}
+/* En la entrada, la acción principal va en turquesa y la otra en contorno
+   (Lucas, 2026-11-03): el color marca lo que esperamos que elija. */
+#screen-auth #auth-btn{background:var(--primary);color:var(--primary-fg);}
+/* El principal respira dos veces al llegar y se calla; al enfocar un campo se
+   detiene. Cuando el formulario queda listo se ilumina y dos puntos de luz
+   recorren su contorno, a velocidad pareja, hasta que se aprieta (al enviar
+   queda deshabilitado). revisarAuthListo mide el botón y fija el recorrido.
+   Sin movimiento: solo la luz, quieta. */
+#screen-auth #auth-btn{animation:auth-respira 2.6s ease-in-out .7s 2;transition:box-shadow var(--motion-base) var(--ease-out),transform var(--motion-press) var(--ease-standard);}
+#screen-auth:has(input:focus) #auth-btn{animation:none;}
+#screen-auth:has(input) #auth-btn.auth-listo:not(:disabled){box-shadow:0 0 0 12px color-mix(in srgb,var(--primary),transparent 100%),0 0 22px 2px color-mix(in srgb,var(--primary),transparent 50%);animation:auth-listo .9s var(--ease-out);}
+.auth-laser{position:absolute;overflow:visible;pointer-events:none;opacity:0;transition:opacity var(--motion-base) var(--ease-out);filter:blur(.5px) drop-shadow(0 0 4px var(--primary));}
+/* Cada punto son muchos trazos tenues centrados en el mismo lugar: los largos
+   son delgados y turquesa, los cortos gruesos y blancos. Sumados, el punto se
+   afina y se funde con el botón sin escalones. medirLaserAuth los crea. */
+.auth-laser rect{fill:none;stroke-linecap:round;stroke-dasharray:var(--laser-trazo) var(--laser-hueco);stroke-dashoffset:var(--laser-inicio);animation:auth-laser 9s linear infinite;}
+#screen-auth #auth-btn.auth-listo:not(:disabled)+.auth-laser{opacity:1;}
+@keyframes auth-respira{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--primary),transparent 100%);}50%{box-shadow:0 0 18px 3px color-mix(in srgb,var(--primary),transparent 65%);}}
+@keyframes auth-listo{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--primary),transparent 45%),0 0 0 0 color-mix(in srgb,var(--primary),transparent 100%);}100%{box-shadow:0 0 0 12px color-mix(in srgb,var(--primary),transparent 100%),0 0 22px 2px color-mix(in srgb,var(--primary),transparent 50%);}}
+@keyframes auth-laser{to{stroke-dashoffset:var(--laser-vuelta);}}
+@media(prefers-reduced-motion:reduce){#screen-auth #auth-btn,#screen-auth:has(input) #auth-btn.auth-listo:not(:disabled){animation:none;}.auth-laser{display:none;}}
 .auth-legal{margin:14px 0 0;text-align:center;font-size:0.71875rem;line-height:1.5;color:var(--fg3);}
-.auth-consent{margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:left;}
-.auth-consent label{display:flex;align-items:flex-start;gap:10px;cursor:pointer;color:var(--fg2);font-size:0.8125rem;line-height:1.5;}
-.auth-consent input{width:18px;height:18px;flex:0 0 auto;margin-top:3px;accent-color:var(--primary);}
-.auth-consent p{margin:10px 0 0 28px;color:var(--fg3);font-size:0.75rem;line-height:1.55;}
-.auth-consent a{color:var(--fg);text-decoration:underline;text-underline-offset:3px;}
 .auth-footer-links{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 24px;width:100%;}
-.auth-footer-links a{display:inline-flex;align-items:center;min-height:44px;color:var(--fg3);font-size:0.75rem;text-decoration:none;text-underline-offset:3px;}
-@media(hover:hover) and (pointer:fine){.auth-footer-links a:hover,.auth-consent a:hover{color:var(--fg);text-decoration:underline;}}
+.auth-footer-links a,.auth-footer-btn{display:inline-flex;align-items:center;min-height:44px;color:var(--fg3);font-size:0.75rem;text-decoration:none;text-underline-offset:3px;}
+.auth-footer-btn{padding:0;border:0;background:none;font-family:var(--font-ui);cursor:pointer;}
+@media(hover:hover) and (pointer:fine){.auth-footer-links a:hover,.auth-footer-btn:hover{color:var(--fg);text-decoration:underline;}}
 /* Tres cifras bajo el subtítulo del login: estudiantes, ramos, notas. Van en
    una banda suave, cada una con el número grande y la palabra chica, separadas
    por una línea fina. El número sube desde 0 al aparecer (ver
@@ -698,7 +721,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   #screen-auth .auth-stats{margin:0 auto 14px;padding:10px 6px;}
   #screen-auth .oauth-divider{margin-bottom:12px;}
   #screen-auth .ob-card{padding:16px 20px;margin-bottom:10px;}
-  #screen-auth .btn-primary{padding:13px;}
+  #screen-auth .btn-primary,#screen-auth .btn-contorno{padding:13px;}
   #screen-auth .auth-link{min-height:44px;padding:10px 8px;margin-top:2px;}
   #screen-auth .auth-legal-row{display:flex;grid-column:1/-1;grid-row:21;align-items:center;justify-content:center;gap:18px;width:100%;margin-top:8px;padding-top:10px;border-top:1px solid var(--border);}
   .ap-card{padding:20px 20px 8px;transform:perspective(1200px) rotateY(7deg);transition:transform .45s var(--ease-out);}

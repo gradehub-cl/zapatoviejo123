@@ -28,6 +28,9 @@ function tenantPorCorreo(correo){
 }
 function enterApp(){
   ocultarCargaInicial();
+  // Si entró por «Soy profesor particular» con una cuenta que ya existía, la
+  // intención no se usó: no puede quedar esperando a la próxima cuenta.
+  if(typeof guardarEntradaProfesor==='function')guardarEntradaProfesor(false);
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.remove('active');
   showMainApp();
