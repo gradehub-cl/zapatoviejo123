@@ -13,7 +13,8 @@ assert(!/grant update\s*\([^)]*destacado_hasta/i.test(sql));assert.match(sql,/en
   await db.query('insert into auth.users(id) values($1),($2)',[P,B]);
   await db.query(`insert into tutor_perfiles(user_id,nombre_publico,presentacion,estado,revisado_at,perfil_publico,universidades) values($1,'Profe sintética','Presentación ficticia para esta prueba','aprobado',now(),true,array['uc'])`,[P]);
   await db.query(`insert into tutor_anuncios(autor_id,tenant,ramos_siglas,modalidad,ubicacion,precio_clp,descripcion,contacto_tipo,contacto_valor,titulo) values($1,'uc',array['SYN101'],'grupal','online',12000,'Anuncio sintético existente para probar compatibilidad','whatsapp','+56912345678','Clase sintética')`,[P]);
-  const anuncioAntes=(await db.query('select * from tutor_anuncios')).rows;
+  // SQL serializa también -infinity: Node 22 y 24 discrepan al comparar Invalid Date.
+  const anuncioAntes=(await db.query('select to_jsonb(a) as documento from tutor_anuncios a order by id')).rows;
   const antes=(await db.query('select * from tutor_perfiles')).rows[0];await db.exec(sql);await db.exec(sql);
   const despues=(await db.query('select * from tutor_perfiles')).rows[0];assert.equal(despues.en_directorio,false);assert.equal(despues.perfil_publico,antes.perfil_publico);assert.notEqual(despues.directorio_id,P);
   const sesion=async(uid,rol='authenticated')=>{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]);await db.exec('set role '+rol)};
@@ -30,7 +31,7 @@ assert(!/grant update\s*\([^)]*destacado_hasta/i.test(sql));assert.match(sql,/en
   assert.equal((await db.query('select contacto_directorio_perfil($1,$2) contacto',[filas[0].id,'fen'])).rows[0].contacto,null);await reset();
   await db.exec("insert into admin.administradores(user_id) values('"+B+"');select set_config('test.aal','aal2',false)");await sesion(B);
   assert.equal((await db.query('select admin_destacado_perfil($1,now()+interval \'1 day\') ok',[P])).rows[0].ok,true);assert.equal((await db.query('select * from directorio_perfiles(\'uc\')')).rows[0].destacado,true);await reset();
-  assert.deepEqual((await db.query('select * from tutor_anuncios')).rows,anuncioAntes);
+  assert.deepEqual((await db.query('select to_jsonb(a) as documento from tutor_anuncios a order by id')).rows,anuncioAntes);
   await sesion('', 'anon');await assert.rejects(db.query("select * from directorio_perfiles('uc')"));await reset();
   await db.query('delete from auth.users where id=$1',[P]);assert.equal((await db.query('select * from tutor_perfiles')).rows.length,0);
   console.log('PASS: SQL reaplicable, checks, consentimiento, RLS propia, RPC pública sin uid/correo, admin MFA y cascade');
