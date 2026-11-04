@@ -28,12 +28,13 @@ async function renderPerfilProfesor(caja){
       <p class="profesor-info" id="pf-ramos-ayuda">Las siglas separadas por coma, hasta 20.</p>
       <label class="profesor-perfil-publico"><input id="pf-publico" type="checkbox"${p.perfil_publico?' checked':''}><span><b>Mostrar mi perfil en mis anuncios</b>Los estudiantes verán «Ver perfil» en cada anuncio publicado, con esto y tus otros anuncios. Nunca tu correo.</span></label>
       ${p.directorioDisponible?editorDirectorioHTML(p):'<p class="profesor-info">El directorio todavía no está disponible. Puedes guardar tu perfil y tus anuncios como siempre.</p>'}
+      <div data-directorio-metricas-propias></div>
       <button class="accion-principal" type="submit">Guardar perfil</button>
       <p class="profesor-estado" role="status" aria-live="polite"></p>
     </form>`;
   const form=caja.querySelector('form'),estado=form.querySelector('.profesor-estado'),campo=id=>form.querySelector('#pf-'+id);
   campo('instagram').addEventListener('input',e=>{e.target.value=textoInstagramEscrito(e.target.value);});
-  if(p.directorioDisponible)enlazarPreviaDirectorio(form,p);
+  if(p.directorioDisponible){enlazarPreviaDirectorio(form,p);mostrarMetricasDirectorio(form.querySelector('[data-directorio-metricas-propias]'));}
   let guardando=false;
   form.addEventListener('submit',async e=>{
     e.preventDefault();

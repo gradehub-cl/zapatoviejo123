@@ -4741,6 +4741,39 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-admin input,.directorio-admin button{min-height:44px;max-width:100%}
 @media(prefers-reduced-motion:reduce){button.directorio-tarjeta{transition:none}}
 
+/* Directorio público: filtros, grilla y detalle. */
+.directorio-clases{font-family:var(--font-ui);color:var(--fg)}
+.directorio-clases h1{font-size:clamp(1.6rem,4vw,2.4rem);letter-spacing:-.04em;line-height:1.1;margin:8px 0 12px}
+.directorio-clases .catalogo-clases-head p{color:var(--fg2)}
+.directorio-busqueda{display:block;color:var(--fg2);font-size:.875rem;margin:24px 0 8px}
+.directorio-busqueda input[type=search]{display:block;width:100%;box-sizing:border-box;min-height:48px;margin-top:8px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;padding:12px}
+.directorio-filtros{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px}
+.directorio-filtros button{min-height:44px;padding:8px 16px;border:1px solid var(--border);border-radius:999px;color:var(--fg);background:var(--card);font:inherit;cursor:pointer}
+.directorio-filtros button[aria-pressed=true]{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.directorio-filtros button:active{opacity:.8}
+.directorio-seccion{margin:24px 0}
+.directorio-seccion h2,.directorio-perfil-abierto h3{font-size:1.1rem;margin:20px 0 12px}
+.directorio-grilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}
+.directorio-vacio{border:1px solid var(--border);border-radius:8px;padding:20px;background:var(--card);color:var(--fg2)}
+.directorio-vacio button{white-space:normal;text-align:left}
+.directorio-publicidad{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
+.directorio-anuncio-marca{display:block;padding:12px 16px 0;color:var(--fg2);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.directorio-publicidad .catalogo-clase-card{border:0}
+.directorio-perfil-abierto{max-width:760px;margin:auto;color:var(--fg)}
+.directorio-perfil-cabecera{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px}
+.directorio-perfil-cabecera button{min-height:44px;white-space:normal}
+.directorio-perfil-abierto>.clase-accion{margin:12px 0 20px;min-height:44px}
+.directorio-perfil-abierto>.directorio-tarjeta{margin-bottom:24px}
+.directorio-perfil-abierto>.accion-principal{min-height:44px;width:100%;margin:16px 0}
+.directorio-ramos{padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:12px;font-variant-numeric:tabular-nums;color:var(--fg2)}
+.directorio-redes{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}
+.directorio-redes a{display:flex;align-items:center;min-height:44px;color:var(--fg);text-decoration:underline}
+.directorio-metricas{margin:20px 0;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
+.directorio-metricas h3{font-size:1rem;margin:0 0 16px}
+.directorio-metricas dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0}
+.directorio-metricas dt{font-size:.75rem;color:var(--fg2)}
+.directorio-metricas dd{margin:4px 0 0;font-size:1.5rem;font-weight:650;font-variant-numeric:tabular-nums;color:var(--fg)}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

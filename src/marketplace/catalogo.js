@@ -433,6 +433,7 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
 }
 
 async function openCatalogoClases(){
+  if(await abrirDirectorioClases())return;
   impresionesCatalogo=new Set();
   eventosCatalogo=new Map();
   const raiz=document.getElementById('modal-content');
