@@ -215,9 +215,11 @@ async function pintarCompartidosProfesor(){
     const ramos=(p.ramos||[]).map(nombreRamo).filter(Boolean);
     return `<div class="compartido-fila" data-compartido="${esc(p.id)}">
       <div><b>${esc(p.nombre_publico)}</b><small>${ramos.length?esc(ramos.join(' · ')):'Ramos que ya no tienes'} · como «${esc(p.nombre_visible)}»</small></div>
+      <button type="button" class="agent-refresh" data-ver-preparacion="${esc(p.id)}">Ver evaluaciones preparadas</button>
       <button type="button" class="settings-danger-btn" data-dejar="${esc(p.id)}" data-nombre="${esc(p.nombre_publico)}">Dejar de compartir</button>
     </div>`;
   }).join('');
+  caja.querySelectorAll('[data-ver-preparacion]').forEach(b=>b.addEventListener('click',()=>verPreparacionCompartida(b.dataset.verPreparacion)));
   // Destructivo: se confirma en el diálogo de la app (HIG), con Cancelar a mano.
   caja.querySelectorAll('[data-dejar]').forEach(b=>b.addEventListener('click',()=>{
     showConfirm(`Dejar de compartir con ${b.dataset.nombre}`,

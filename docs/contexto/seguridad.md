@@ -97,3 +97,21 @@ y mirando que no queden filas suyas en ninguna tabla.
   `auth.users` con `ON DELETE CASCADE`. Sin eso, esos datos sobreviven al
   borrado de cuenta y la política de privacidad pasa a ser mentira sin que
   falle nada. Ver `supabase/eliminar_mi_cuenta.sql`
+
+### Preparación declarada por el profesor · #976, 2026-11-04
+
+`profesor_alumnos_preparacion` es privada (RLS, sin grants de tabla). Sus FK
+compuesta a conexión/propietarios y directas a `auth.users` borran en cascada.
+Retirar un ramo compartido elimina también su selección. Las únicas RPC
+públicas autenticadas son `preparacion_alumno` y `guardar_preparacion_alumno`:
+lectura de ambos participantes y escritura del profesor propietario aprobado,
+con panel activo, validando cada evaluación contra `user_ramos` crudo. Helpers
+sin permisos de ejecución de cliente. Lectura enlaza futuras en esta tabla;
+no hay trigger sobre sync ni escritura en notas del alumno. PGlite cubre
+anon/terceros/alumno sin escritura, revocación y borrado/reaplicación.
+
+Límite de identidad: antes de tener `nota.id`, una futura refiere a la casilla
+lógica (categoría.id, número, cantidad e inicio). Borrar/recrear la misma casilla
+vacía sin cambiar esa forma en una sincronización no es detectable; cambios
+intermedios que nunca se leyeron tampoco se reconstruyen. Una marca ya ligada
+no pasa a un id nuevo. No se agregaron ids al documento del alumno.
