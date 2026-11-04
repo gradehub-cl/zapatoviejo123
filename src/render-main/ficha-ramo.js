@@ -102,7 +102,8 @@ function abrirNotaEnFila(boton){
   if(!boton||!boton.isConnected)return;
   const input=document.createElement('input');
   input.type='text';input.className='eval-row-input nota-campo';input.inputMode='decimal';
-  if(boton.dataset.sombraValor)input.placeholder=boton.dataset.sombraValor;
+  // Lucas, 2026-11-03: al tocar una sombra la casilla queda vacía. Si no se anota
+  // nada, guardar() devuelve el botón y la sombra vuelve a verse.
   input.autocapitalize='characters';input.maxLength=4;
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
   if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);

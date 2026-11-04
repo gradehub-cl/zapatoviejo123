@@ -151,7 +151,6 @@ function pintarValoresNotasSombra(r,m){
     panel.querySelector('[data-sombra-mas]').disabled=v>=m.maximo;
     panel.querySelector('.sombra-soltar').hidden=!m.fijas.has(p.clave);
     panel.querySelector('.sombra-lectura').textContent=textoEstadoSombra(m,p);
-    const real=panel.parentElement.querySelector('input.nota-campo');if(real)real.placeholder=valorNotaSombra(m,p)===null?'':textoNotaSombra(valorNotaSombra(m,p));
   }
   const pie=cl.querySelector('.sombra-resumen');
   if(pie){
