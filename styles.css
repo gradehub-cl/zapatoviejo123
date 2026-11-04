@@ -4559,6 +4559,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ramo-chip:has(.sombras-interruptor){flex:1 1 24rem;min-width:0;max-width:32rem;gap:16px;}
 #screen-ramo .ramo-chip:has(.sombras-interruptor) .ficha-mensaje{flex:1;min-width:0;}
 #screen-ramo .sombras-interruptor{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;min-width:44px;margin-left:auto;flex-shrink:0;color:var(--fg2);font-size:.8125rem;line-height:1.5;cursor:pointer;}
+#screen-ramo .sombras-interruptor-examen{flex:0 0 100%;width:100%;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--border);justify-content:space-between;}
+#screen-ramo .eval-group>.sombras-interruptor-examen{width:auto;margin:0 14px;padding:8px 0;}
 #screen-ramo .sombras-interruptor input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:44px;height:28px;margin:8px 0;padding:0;border:1px solid var(--fg2);border-radius:14px;background:var(--muted);cursor:pointer;}
 #screen-ramo .sombras-interruptor input[type=checkbox]::before{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--fg2);transition:transform var(--motion-fast) ease-out;}
 #screen-ramo .sombras-interruptor input[type=checkbox]:checked{background:var(--primary);border-color:var(--primary);}
