@@ -17,6 +17,10 @@ for(const color of ['#ffffff','#000000','#ffff00','#00ff00','#777777']){
 const a={id:'a',titulo:'Anuncio existente',estado:'publicado',precio_clp:12000,ramos_siglas:['SYN101']};
 const antes=run(`JSON.stringify(prepararCatalogoClases([${JSON.stringify(a)}],''))`);
 assert.equal(antes,run(`JSON.stringify(prepararCatalogoClases([${JSON.stringify(a)}],''))`));
+assert(run('valoracionDirectorioHTML({total:3,promedio:4.7})').includes('4.7 de 5 estrellas'));
+for(const estado of [null,{total:0,promedio:null},{total:2,promedio:5},{total:3,promedio:0},{total:3,promedio:8}])
+  assert(run(`valoracionDirectorioHTML(${JSON.stringify(estado)})`).includes('Sin valoraciones'));
+assert(!run("tarjetaDirectorioHTML({destacado:true},{previa:true})").includes('>Destacado<'),'el espacio superior se reserva para la valoración');
 const tarjeta=run("tarjetaDirectorioHTML({nombre_publico:'Academia de ejemplo',etiqueta:'Clases STEM'},{previa:true})");
 assert(tarjeta.indexOf('directorio-etiqueta')<tarjeta.indexOf('directorio-nombre'),'Lucas: la etiqueta pequeña va arriba');
 assert(tarjeta.indexOf('directorio-nombre')<tarjeta.indexOf('directorio-avatar'),'el logo queda a la derecha del nombre en la misma fila');

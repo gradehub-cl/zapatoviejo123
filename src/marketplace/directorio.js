@@ -11,11 +11,20 @@ function textoTarjetaDirectorio(color){
   const l=luminanciaDirectorio(color);
   return (l+.05)/.05>=1.05/(l+.05)?'#000000':'#ffffff';
 }
+// Misma escala y mínimo público que el rating de docentes universitarios.
+// Los perfiles del directorio aún no tienen esa fuente: nunca se cruza por nombre.
+function valoracionDirectorioHTML(estado){
+  const total=Math.max(0,Number(estado&&estado.total)||0),promedio=estado&&estado.promedio!=null?Number(estado.promedio):NaN;
+  if(total<3||!Number.isFinite(promedio)||promedio<1||promedio>5)
+    return '<span class="directorio-valoracion directorio-sin-valoraciones">Sin valoraciones</span>';
+  const nota=promedio.toFixed(1);
+  return `<span class="directorio-valoracion" aria-label="${nota} de 5 estrellas"><span aria-hidden="true">★</span> <strong aria-hidden="true">${nota}</strong></span>`;
+}
 function tarjetaDirectorioHTML(p,{previa=false,logoURL=''}={}){
   const color=colorTarjetaDirectorio(p.color_tarjeta),texto=textoTarjetaDirectorio(color);
   const tag=previa?'div':'button',id=String(p.id||p.directorio_id||'');
   return `<${tag} ${previa?'':`type="button" data-directorio-perfil="${esc(id)}"`} class="directorio-tarjeta" style="--directorio-color:${color};--directorio-texto:${texto}">
-    <span class="directorio-tarjeta-cabeza"><span class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</span>${p.destacado?'<span class="directorio-destacado">Destacado</span>':''}</span>
+    <span class="directorio-tarjeta-cabeza"><span class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</span>${valoracionDirectorioHTML(p.calificacion)}</span>
     <span class="directorio-identidad"><span class="directorio-textos"><strong class="directorio-nombre">${esc(p.nombre_publico||'Tu nombre público')}</strong>
       <span class="directorio-siglas">${esc((p.ramos_siglas||[]).slice(0,3).join(' · '))}</span></span>
       <span class="directorio-avatar" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span></span>

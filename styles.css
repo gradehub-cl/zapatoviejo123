@@ -4724,7 +4724,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit}
 .directorio-tarjeta .directorio-etiqueta{font-size:1rem;color:inherit}
 .directorio-tarjeta .directorio-siglas{font-size:.875rem;font-variant-numeric:tabular-nums;color:inherit}
-.directorio-destacado{font-size:.75rem;font-weight:700;border:1px solid currentColor;border-radius:4px;padding:4px 8px}
+.directorio-valoracion{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;font-size:1rem;line-height:1.25;flex-shrink:0;font-variant-numeric:tabular-nums;color:inherit}
+.directorio-valoracion strong{font-weight:650;color:inherit}
+.directorio-sin-valoraciones{font-size:.75rem;text-align:right;white-space:normal;max-width:7rem}
 .profesor-form fieldset.directorio-editor{min-width:0;margin:24px 0;padding:16px;border:1px solid var(--border);border-radius:8px}
 .directorio-editor>legend{font-weight:700}
 .directorio-editor>label{display:block;margin-top:16px;color:var(--fg2)}
