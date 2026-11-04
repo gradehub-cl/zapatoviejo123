@@ -94,7 +94,7 @@ function seriesNumeradasFicha(categorias){
 }
 
 function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
-  const pendiente=sombras?.pendientes.find(p=>p.catId===catId&&p.slot===slot);
+  const pendiente=sombrasActivadas()&&sombras?.pendientes.find(p=>p.catId===catId&&p.slot===slot);
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
   return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
 }
@@ -138,7 +138,8 @@ function renderRamo(){
   const contextoEl=document.getElementById('ramo-vinculo-contexto');
   if(contextoEl){contextoEl.hidden=!contextoVinculo;contextoEl.innerHTML=contextoVinculo?`<p>${contextoVinculo.soloCatedra?'<b>Solo cátedra</b> · ':''}${contextoVinculo.html}</p>${contextoVinculo.falta?'<button type="button" class="btn-cancel" onclick="agregarLaboratorioVinculado()">Agregar laboratorio</button>':''}`:'';}
   const calculo=calculoRamoConCompuertas(r);
-  const sombras=notasSombraDelRamo(r);
+  const modeloSombras=notasSombraDelRamo(r);
+  const sombras=sombrasActivadas()?modeloSombras:null;
   const recuperativo=estadoRecuperativo(r,calculo);
   const eximicion=estadoEximicion(r);
   const segundaFecha=estadoSegundaFecha(r);
@@ -751,6 +752,7 @@ function renderRamo(){
     adjuntarCategoria(card,cat);
   });
   montarNotasSombra(r,sombras,cl);
+  if(!sombras)pintarInterruptorSombras(modeloSombras);
 }
 
 // Formato corto de fecha para chips: "15 mar"

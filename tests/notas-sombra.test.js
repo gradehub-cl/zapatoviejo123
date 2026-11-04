@@ -84,5 +84,42 @@ assert.deepEqual(json('__abiertas'),[ctx.__clave]);assert.equal(run('__renders')
 ctx.__clave=porNombre(m,'Examen').clave;run("abrirSombraEnFila({dataset:{sombraClave:__clave}})");
 assert.equal(run('__sesion.abierta'),ctx.__clave);assert.equal(run('__renders'),1);
 run('abrirNotaEnFila=__abrirReal;renderRamo=__render;');
+// Lucas, 2026-11-03: apagar es una preferencia del dispositivo; las fijaciones
+// siguen vivas en la sesión y el modelo permanece disponible para el switch.
+m=cargar(curso([cat('Rendida',20,3.2),cat('Prueba pendiente',40),cat('Examen',40)]));
+run("currentRamoId=r.id;var __sesionSwitch=notasSombraDelRamo(r).sesion;var __examen=notasSombraDelRamo(r).pendientes.find(p=>p.nombre==='Examen');__sesionSwitch.fijas.set(__examen.clave,6);var __conFijas=notasSombraDelRamo(r);");
+const previoSwitch=run('JSON.stringify(S)'),necesariaFijada=run('__conFijas.necesaria');
+assert.equal(run('sombrasActivadas()'),true);
+assert.match(run('interruptorSombrasHTML(__conFijas)'),/for="sombras-activadas"/);
+assert.match(run('interruptorSombrasHTML(__conFijas)'),/type="checkbox" role="switch" checked/);
+assert.equal(run('interruptorSombrasHTML(null)'),'','un ramo sin modelo no ofrece interruptor');
+const storagePrevio=ctx.localStorage;const escriturasSwitch=[];
+ctx.localStorage={...storagePrevio,setItem:(k,v)=>escriturasSwitch.push([k,v])};
+run('var __renderSwitch=renderRamo;var __vecesSwitch=0;renderRamo=()=>__vecesSwitch++;cambiarSombras(false);');
+assert.equal(run('sombrasActivadas()'),false);
+assert.match(run("botonNotaEnFilaHTML('Examen',null,'Examen',__conFijas)"),/>\+ Nota<\/button>/);
+assert.doesNotMatch(run("botonNotaEnFilaHTML('Examen',null,'Examen',__conFijas)"),/nota-sombra|data-sombra/);
+assert.doesNotMatch(run('interruptorSombrasHTML(notasSombraDelRamo(r))'),/ checked/,'se puede volver a encender desde el mismo lugar');
+ctx.__clApagada={querySelectorAll(){throw Error('No montar panel ni pie apagados')},appendChild(){throw Error('No agregar pie apagado')}};
+run('montarNotasSombra(r,__conFijas,__clApagada)');
+assert.equal(run('__sesionSwitch.fijas.get(__examen.clave)'),6);
+assert.equal(run('JSON.stringify(S)'),previoSwitch);
+run('cambiarSombras(true)');
+assert.match(run("botonNotaEnFilaHTML('Examen',null,'Examen',notasSombraDelRamo(r))"),/nota-sombra sombra-fija/);
+assert.equal(run('notasSombraDelRamo(r).necesaria'),necesariaFijada);
+assert.equal(run('notasSombraDelRamo(r).sesion'),run('__sesionSwitch'));
+assert.equal(run('JSON.stringify(S)'),previoSwitch);
+assert.deepEqual(escriturasSwitch,[['gradehub_sombras','0'],['gradehub_sombras','1']],'sin gradehub_v1 ni guardado de fijaciones');
+ctx.localStorage={...storagePrevio,setItem(){throw Error('Dispositivo sin almacenamiento')}};
+assert.doesNotThrow(()=>run('cambiarSombras(false);cambiarSombras(true)'));
+assert.equal(run('JSON.stringify(S)'),previoSwitch);
+ctx.localStorage=storagePrevio;run('renderRamo=__renderSwitch');
+// Una sola preferencia alcanza todos los ramos y sobrevive la recarga; la
+// ausencia o un fallo de lectura conserva el valor predeterminado encendido.
+const fuenteSombras=fs.readFileSync(__dirname+'/../src/app/notas-sombra.js','utf8');
+for(const [getItem,esperado] of [[()=>null,true],[()=> '0',false],[()=> '1',true],[()=>{throw Error('lectura bloqueada')},true]]){
+ const otro=vm.createContext({localStorage:{getItem},Map});vm.runInContext(fuenteSombras,otro);
+ assert.equal(vm.runInContext('sombrasActivadas()',otro),esperado);
+}
 run("S.tipoCuenta='profesor'");assert.equal(run('modeloNotasSombra(r)'),null);
 console.log('OK: sombras con motor real, mínimos, fijaciones, estados, borde UC, casillas, cuenta existente intacta y exclusiones exactas');
