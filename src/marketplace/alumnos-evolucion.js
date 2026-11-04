@@ -208,7 +208,7 @@ function datosFilaAlumnoPanel(al,ahora=new Date()){
         }
       }catch(e){}
       estados[nivel]++;
-      return {ramo,avg,nivel,necesita,pendiente,motivo:Number.isFinite(avg)?motivoPromedioAlumnoPanel(ramo):''};
+      return {ramo,avg,nivel,necesita,pendiente,motivo:Number.isFinite(avg)?motivoPromedioAlumnoPanel(ramo,contexto):''};
     });
     const nivel=estados.bad?'bad':estados.warn?'warn':estados.good?'good':'neutral';
     const prioridad=Math.max(0,...datos.map(d=>d.avg===null?0:d.necesita!==null&&d.necesita>7.05?5

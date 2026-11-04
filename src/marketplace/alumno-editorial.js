@@ -65,7 +65,7 @@ function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora){
 function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
   return conRamosAlumnoPanel(al,contexto=>{
     const ramo=ramoParaPanel(r),prom=ramoAvg(ramo,undefined,contexto),muestra=datosComparacionPanel(comp?.ramo),ref=muestra?.promedio??null;
-    const motivo=motivoPromedioAlumnoPanel(ramo);
+    const motivo=motivoPromedioAlumnoPanel(ramo,contexto);
     const diferencia=prom!==null&&ref!==null?prom-Number(ref):null;
     const seccion=!!(comp?.sinSeccion||Number.isInteger(comp?.seccion)),m=metricasAlumnoPanel({...al,ramos:[r]},()=>comp);
     let necesaria=null,estado=null;try{necesaria=notaNecesaria(ramo);estado=estadoParaNotaNecesaria(ramo);}catch(e){}
