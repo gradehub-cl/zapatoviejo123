@@ -6,9 +6,28 @@ function ramoParaPanel(r){
   try{const n=typeof normalize==='function'?normalize({ramos:[r]}).ramos[0]:r;return n||r;}catch(e){return r;}
 }
 // Solo explica una regla del motor; no aplica un tope nuevo ni guarda datos.
-function motivoPromedioAlumnoPanel(r){
+// Le habla al profesor, no al alumno («repruebas» es de la ficha del alumno),
+// y con coma decimal. Si el ramo no tiene compuerta propia, mira el ramo que
+// le aporta nota: Dinámica queda en 3,9 cuando su laboratorio no llega a 4,0,
+// aunque todas las notas de la cátedra estén sobre 4.
+function motivoPromedioAlumnoPanel(r,contexto){
   if(estadoEximicion(r)?.activa)return '';
-  return textoCompuertaActiva(gatesActivas(r)[0]);
+  const coma=v=>fmtPromedio(v).replace('.',',');
+  const g=gatesActivas(r)[0];
+  if(g){
+    const final=typeof g.cap!=='number'?'reprueba aunque el promedio dé más'
+      :g.grupo&&g.efecto==='reemplazar'?`la nota final queda en ${coma(g.cap)}`:`la nota final no pasa de ${coma(g.cap)}`;
+    return `${g.nombre} va ${coma(g.actual)} (mín. ${coma(g.min)}): ${final}`;
+  }
+  let partes=null;
+  try{partes=partesDelVinculo(r,contexto);}catch(e){}
+  if(!partes||partes.propio.valor===null||partes.externo.valor===null||!partes.externo.ramo)return '';
+  const {min,propio,externo}=partes,final=Math.min(propio.valor,externo.valor);
+  if(!gh_cumpleMinimo(externo.valor,min))
+    return `${externo.ramo.nombre} va ${coma(externo.valor)} (mín. ${coma(min)}): la nota final queda en ${coma(final)}`;
+  if(!gh_cumpleMinimo(propio.valor,min))
+    return `La cátedra va ${coma(propio.valor)} (mín. ${coma(min)}): la nota final queda en ${coma(final)}`;
+  return '';
 }
 // Notas agrupadas como en la ficha del ramo: cada categoría con su promedio
 // (el del motor, con descartes y reglas) y sus notas debajo.
@@ -92,7 +111,7 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
   const ramo=ramoParaPanel(r);
   contexto=contexto||[ramo];
   const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
-  const motivo=motivoPromedioAlumnoPanel(ramo);
+  const motivo=motivoPromedioAlumnoPanel(ramo,contexto);
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
   const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
   const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));

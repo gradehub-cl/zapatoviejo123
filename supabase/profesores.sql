@@ -38,9 +38,18 @@ create or replace function public.profesor_coinciden(a text, b text)
 returns boolean language plpgsql immutable set search_path = '' as $$
 declare x text := public.profesor_normalizar(a); y text := public.profesor_normalizar(b);
   fila integer[]; arriba integer; diagonal integer; i integer; j integer;
+  tx text[] := string_to_array(x,' '); ty text[] := string_to_array(y,' ');
 begin
   if x = '' or y = '' then return false; end if;
   if x = y then return true; end if;
+  -- Un segundo nombre omitido: primer nombre y apellidos exactos. No se
+  -- borran palabras arbitrarias ni partículas de apellidos compuestos.
+  if cardinality(tx)=cardinality(ty)+1 and cardinality(ty)>=2 and tx[1]=ty[1]
+     and tx[2]<>all(array['de','del','la','las','los','san','santa'])
+     and tx[3:cardinality(tx)]=ty[2:cardinality(ty)] then return true; end if;
+  if cardinality(ty)=cardinality(tx)+1 and cardinality(tx)>=2 and tx[1]=ty[1]
+     and ty[2]<>all(array['de','del','la','las','los','san','santa'])
+     and ty[3:cardinality(ty)]=tx[2:cardinality(tx)] then return true; end if;
   if least(length(x),length(y)) < 10 or abs(length(x)-length(y)) > 1
      or left(x,1) <> left(y,1) then return false; end if;
   select array_agg(n) into fila from generate_series(0,length(y)) n;
@@ -55,6 +64,27 @@ begin
   return fila[length(y)+1] <= 1;
 end;
 $$;
+
+-- Coincidencia contextual: una abreviación ambigua no reparte sus estrellas
+-- entre dos docentes con segundos nombres distintos. Interna, sin datos públicos.
+create or replace function public.profesor_coinciden_en_ramo(p_tenant text,p_ramo text,a text,b text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  with nombres as (
+    select case when cardinality(string_to_array(public.profesor_normalizar(a),' '))
+                       <cardinality(string_to_array(public.profesor_normalizar(b),' ')) then a else b end corto,
+           case when cardinality(string_to_array(public.profesor_normalizar(a),' '))
+                       <cardinality(string_to_array(public.profesor_normalizar(b),' ')) then b else a end largo
+  )
+  select public.profesor_coinciden(a,b) and not exists (
+    select 1 from public.profesor_aportes otro,nombres n
+    where otro.tenant=p_tenant and otro.ramo_clave=p_ramo
+      and cardinality(string_to_array(public.profesor_normalizar(otro.nombre),' '))
+           >cardinality(string_to_array(public.profesor_normalizar(n.corto),' '))
+      and public.profesor_coinciden(n.corto,otro.nombre)
+      and not public.profesor_coinciden(n.largo,otro.nombre)
+  );
+$$;
+revoke all on function public.profesor_coinciden_en_ramo(text,text,text,text) from public, anon, authenticated;
 
 create or replace function public.profesor_periodo_actual()
 returns text language sql stable set search_path = '' as $$
@@ -119,10 +149,16 @@ returns text language sql stable security definer set search_path = '' as $$
   with aportes as materialized (
     select a.* from public.profesor_aportes a
     where a.tenant=p_tenant and a.ramo_clave=p_ramo_clave and a.seccion=p_seccion and a.periodo=p_periodo
+  ), candidatos as (
+    select distinct b.nombre from aportes b
+    where not exists(select 1 from aportes largo
+      where cardinality(string_to_array(public.profesor_normalizar(largo.nombre),' '))
+            >cardinality(string_to_array(public.profesor_normalizar(b.nombre),' '))
+        and public.profesor_coinciden(b.nombre,largo.nombre))
   ), grupos as (
     select b.nombre, count(distinct a.user_id) as cantidad
-    from (select distinct nombre from aportes) b join aportes a
-      on public.profesor_coinciden(b.nombre,a.nombre)
+    from candidatos b join aportes a
+      on public.profesor_coinciden_en_ramo(p_tenant,p_ramo_clave,b.nombre,a.nombre)
     group by b.nombre having count(distinct a.user_id)>=3
   ), ganadores as (
     select * from grupos where cantidad=(select max(cantidad) from grupos)
@@ -293,7 +329,7 @@ begin
       select k.user_id, k.estrellas, k.etiquetas, k.otros from public.profesor_calificaciones k
       join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant
         and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
-      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden(a.nombre,d)
+      where k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and public.profesor_coinciden_en_ramo(k.tenant,k.ramo_clave,a.nombre,d)
     ), conteo as (select count(*)::integer as n from notas),
     destacadas as (
       select jsonb_build_object('etiqueta',e) as j, count(*)::integer as n, e as orden

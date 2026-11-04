@@ -36,7 +36,7 @@ function pesoEvaluacionPrivada(e){
   const peso=pesoEventoAgenda(e);
   return peso===null?'Peso variable':cifraNotaPrivada(r2(peso))+'% del ramo';
 }
-function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora){
+function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora,al=null){
   const hoy=diaLocalPanel(ahora);let eventos=[];
   try{eventos=agendaEvents([ramo]);}catch(e){}
   const proximas=eventos.filter(e=>e.pending&&e.fecha>=hoy).sort((a,b)=>a.fecha.localeCompare(b.fecha));
@@ -57,38 +57,41 @@ function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora){
     <div class="pe-pasadas-cabeza"><h3>Evaluaciones pasadas</h3><span>${pasadas.length} ${pasadas.length===1?'nota compartida':'notas compartidas'}</span></div>
     ${pasadas.length?`<div class="pe-tabla-scroll"><table><thead><tr><th>Evaluación / fecha</th><th>Alumno</th><th><button type="button" data-pe-comparar aria-label="Comparar evaluaciones con ${seccion?'el ramo':'la sección'}">Promedio ${seccion?'de la sección':'del ramo'} ↔</button></th></tr></thead><tbody>${pasadas.map(n=>{
       const muestra=comparacionEvaluacionPrivada(ramo,n,comp),ref=muestra?.promedio??null,cat=ramo.categorias.find(c=>(c.notas||[]).some(x=>x.id===n.id));
+      const percentil=al?percentilEvaluacionPanel(al,ramo,n.id,comp):null;
       const peso=cat?pesoEvaluacionPrivada({ramo,cat,nota:n,historialRendida:true}):'';
       return `<tr><th scope="row">${esc(n.nombre)}<small>${fechas.has(n.id)?esc(fechaCorta(fechas.get(n.id))):'Sin fecha'}${peso?' · '+esc(peso):''}</small></th>
-        <td><b>${esc(cifraNotaPrivada(fmt(n.valor)))}</b><small>${notaAprobada(n.valor)?'Aprobada':'Bajo 4,0'}</small></td><td>${ref===null?'<span aria-label="Comparación no disponible">No disponible</span>':esc(cifraNotaPrivada(fmtPromedio(ref)))+`<small>${esc(textoMuestraPanel(muestra))}</small>`}</td></tr>`;
+        <td><b>${esc(cifraNotaPrivada(fmt(n.valor)))}</b><small>${notaAprobada(n.valor)?'Aprobada':'Bajo 4,0'}</small></td><td>${ref===null?'<span aria-label="Comparación no disponible">No disponible</span>':esc(cifraNotaPrivada(fmtPromedio(ref)))+`<small>${esc(textoMuestraPanel(muestra))}</small>`}${percentil===null?'':`<small>Percentil ${Math.round(percentil)} en GradeHub</small>`}</td></tr>`;
     }).join('')}</tbody></table></div>`:'<p class="pe-sub">Todavía no tiene notas.</p>'}</section>`;
 }
 function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
   return conRamosAlumnoPanel(al,contexto=>{
-    const ramo=ramoParaPanel(r),prom=ramoAvg(ramo,undefined,contexto),muestra=datosComparacionPanel(comp?.ramo),ref=muestra?.promedio??null;
-    const motivo=motivoPromedioAlumnoPanel(ramo);
+    const ramo=ramoParaPanel(r),oficial=ramoAvg(ramo,undefined,contexto),prom=al.soloPruebasPanel?promedioPruebasPanel(r).promedio:oficial,muestra=datosComparacionPanel(comp?.ramo),ref=al.soloPruebasPanel?comp?.referenciaPruebas??null:muestra?.promedio??null;
+    const motivo=motivoPromedioAlumnoPanel(ramo,contexto);
     const diferencia=prom!==null&&ref!==null?prom-Number(ref):null;
     const seccion=!!(comp?.sinSeccion||Number.isInteger(comp?.seccion)),m=metricasAlumnoPanel({...al,ramos:[r]},()=>comp);
     let necesaria=null,estado=null;try{necesaria=notaNecesaria(ramo);estado=estadoParaNotaNecesaria(ramo);}catch(e){}
     const exigencia=exigenciaNotaNecesaria(necesaria),inicio=inicioRamoPanel(al,r);
     const progreso=estado&&ramo.categorias.some(c=>c.peso>0)?Math.max(0,Math.min(1,1-estado.pendiente)):null;
     const notas=m.evaluaciones.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
-    const grupo=seccion?'Sección':'Ramo',sinDatos=estadoComparacionPrivada(comp);
+    const grupo=(seccion?'Sección':'Ramo')+(al.soloPruebasPanel?' · pruebas':''),sinDatos=estadoComparacionPrivada(comp);
     const grafico=graficoAntesAhoraSVG(m,{seccion,inicios:new Map([[r.id,inicio]]),ficha:true});
     return `<div class="pe-ficha-acciones"><button type="button" data-inicio-alumno="${esc(al.id)}" data-inicio-ramo="${esc(r.id)}" aria-label="Editar inicio de clases de ${esc(r.nombre)}">Editar inicio</button></div>
     <div class="pe-alumno-grilla"><section class="pe-alumno-principal"><div class="pe-promedio">
-      <div><span>Promedio actual</span><strong>${prom===null?'—':esc(cifraNotaPrivada(fmtPromedio(prom)))}</strong></div>
-      <div><span>${grupo}</span><small class="pe-muestra">${esc(textoMuestraPanel(muestra))}</small><strong>${ref===null?'—':esc(cifraNotaPrivada(fmtPromedio(Number(ref))))}</strong></div>
+      <div><span>${al.soloPruebasPanel?'Referencia de pruebas':'Promedio actual'}</span><strong>${prom===null?'—':esc(cifraNotaPrivada(fmtPromedio(prom)))}</strong></div>
+      <div><span>${grupo}</span><small class="pe-muestra">${al.soloPruebasPanel?'Agregado por evaluación':esc(textoMuestraPanel(muestra))}</small><strong>${ref===null?'—':esc(cifraNotaPrivada(fmtPromedio(Number(ref))))}</strong></div>
       <div><span>Diferencia</span><strong class="pe-diferencia" style="color:${colorDiferenciaPrivada(diferencia??0)}">${diferencia===null?'—':esc(cifraNotaPrivada(conSignoPanel(diferencia)))}</strong></div></div>
+      ${al.soloPruebasPanel?`<p class="pe-sub">Nota oficial: ${oficial===null?'—':esc(cifraNotaPrivada(fmtPromedio(oficial)))}. ${esc(avisoPruebasPanel(r))}</p>`:''}
       ${motivo?`<p class="pe-sub">${esc(motivo)}</p>`:''}
       <section class="pe-frente"><div class="pe-frente-cabeza"><h3>Frente al grupo</h3><span>Puntos de nota</span></div>
         <div class="pe-grupo" role="group" aria-label="Grupo de comparación">${[false,true].map(s=>`<button type="button" data-pe-grupo="${s?'seccion':'ramo'}" aria-pressed="${seccion===s}">${s?'Sección':'Ramo'}</button>`).join('')}</div>
         ${grafico||`<p class="pe-sin-grafico" role="status">${ref===null?esc(sinDatos):'Faltan evaluaciones comparables con fecha para mostrar la evolución.'}</p>`}
+        ${percentilesPanelHTML(resumenPercentilesPanel(m))}
       </section></section><aside class="pe-contexto"><h3>Este ramo</h3><p class="pe-contexto-sub">${esc(r.sigla||r.nombre)} · ${Number.isInteger(r.seccion)?'Sección '+esc(r.seccion):'Sin sección declarada'}</p>
       <div data-pe-ultima-wrap>${barraUltimaPrivadaHTML(ramo,compUltima,seccionUltima)}</div>
       <section class="pe-necesaria"><div class="pe-necesaria-texto"><b>Necesita en lo pendiente</b><small>Para llegar al 4,0 final</small></div>${exigencia?`<div class="pe-medidor" role="img" aria-label="${esc(necesaria>7.05?'Con lo pendiente no alcanza para aprobar':'Necesita '+cifraNotaPrivada(nfNecesaria(necesaria))+'. '+exigencia.palabra)}">${htmlMedidorNota(necesaria)}<div class="pe-medidor-cifra" aria-hidden="true" style="color:${exigencia.color}"><strong${necesaria>7.05?' class="pe-meta-imposible"':''}>${necesaria>7.05?'No alcanza':esc(cifraNotaPrivada(nfNecesaria(necesaria)))}</strong><small>${esc(exigencia.palabra)}</small></div></div>`:'<p class="pe-sub">'+(estado&&estado.pendiente===0?'Todas las notas ingresadas':'Aún no se puede calcular')+'</p>'}</section>
       <div class="pe-peso"><div><span>Peso evaluado</span><b>${progreso===null?'—':Math.round(progreso*100)+'%'}</b></div>${progreso===null?'':`<div class="pe-peso-barra" role="img" aria-label="${Math.round(progreso*100)}% del peso evaluable completado"><i style="width:${(progreso*100).toFixed(2)}%"></i></div><div class="pe-barra-extremos" aria-hidden="true"><span>0</span><span>50</span><span>100%</span></div>`}</div>
       <div class="pe-par-notas"><span>Primera nota<b>${notas.length?esc(cifraNotaPrivada(fmt(notas[0].nota))):'—'}</b></span><i aria-hidden="true">→</i><span>Última nota<b>${notas.length?esc(cifraNotaPrivada(fmt(notas.at(-1).nota))):'—'}</b></span></div>
-    </aside></div>${evaluacionesPrivadasHTML(ramo,comp,contexto,ahora)}
+    </aside></div>${evaluacionesPrivadasHTML(ramo,comp,contexto,ahora,al)}
     <details class="pe-categorias"><summary>Ver categorías y promedios</summary>${ramoPanelHTML(r,comp,ahora,contexto,'',true)}</details>`;
   });
 }
