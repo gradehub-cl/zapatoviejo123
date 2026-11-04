@@ -12,14 +12,16 @@ function claveRecordatorioNota(e){
 }
 function recordatoriosNotasFaltantes(ahora=new Date()){
   if(esCuentaProfesor())return [];
-  const descartadas=descartesRecordatoriosNotas(),porRamo=new Map();
+  const descartadas=descartesRecordatoriosNotas(),porRamo=new Map(),silenciadasProfesor=typeof descartesRecordatorioProfesor==='function'?descartesRecordatorioProfesor():new Set();
   // Días de calendario locales: un cambio de hora no convierte siete días en ocho.
   const hoy=Date.UTC(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
   for(const e of agendaEvents()){
     if(!e.pending||!/^\d{4}-\d{2}-\d{2}$/.test(e.fecha||''))continue;
     const [a,m,d]=e.fecha.split('-').map(Number),fecha=new Date(Date.UTC(a,m-1,d));
     if(fecha.getUTCFullYear()!==a||fecha.getUTCMonth()!==m-1||fecha.getUTCDate()!==d||(hoy-fecha.getTime())/86400000<=7)continue;
+    if(typeof clavesRecordatorioProfesor==='function'&&clavesRecordatorioProfesor(e).some(k=>silenciadasProfesor.has(k)))continue;
     const r=e.ramo;
+    if(typeof ramosRecordatorioProfesor==='function'&&ramosRecordatorioProfesor().has(r.id))continue;
     if(r.cierre||notaPortalValida(r.notaOficial)||Number.isFinite(r.avgOverride)||ramoCompletamenteEvaluado(r,calculoRamoConCompuertas(r)))continue;
     const clave=claveRecordatorioNota(e);
     if(descartadas.has(clave)||porRamo.has(r.id))continue;
@@ -32,7 +34,7 @@ function recordatorioNotaHTML(e){
   if(!e)return '';
   const nombre=nombreEventoAgenda(e),contexto=nombre+' en '+e.ramo.nombre;
   return `<div class="home-nota-faltante" data-recordatorio-nota="${esc(e.clave)}">
-    <span>${esc(nombre)} · sin nota aún</span>
+    <span>${e.profesor?'¿Ya tienes la nota de '+esc(nombre)+'? Tu profe la usa para ver cómo vas':esc(nombre)+' · sin nota aún'}</span>
     <button type="button" data-recordatorio-anotar aria-label="Anotar nota de ${esc(contexto)}">Anotar</button>
     <button type="button" data-recordatorio-descartar aria-label="Descartar recordatorio de ${esc(contexto)} en este dispositivo"><span aria-hidden="true">×</span></button>
   </div>`;
@@ -45,8 +47,9 @@ function montarRecordatoriosNotasHome(caja,items){
     fila.querySelector('[data-recordatorio-descartar]').onclick=e=>{
       e.stopPropagation();
       if(item.ambito!==ambitoRecordatoriosNotas())return;
-      recordatoriosNotasSesion.add(item.clave);
-      try{localStorage.setItem(RECORDATORIOS_NOTAS_CLAVE,JSON.stringify([...descartesRecordatoriosNotas()]));}catch(error){}
+      if(item.profesor)descartarRecordatorioProfesor(item);
+      else{recordatoriosNotasSesion.add(item.clave);
+      try{localStorage.setItem(RECORDATORIOS_NOTAS_CLAVE,JSON.stringify([...descartesRecordatoriosNotas()]));}catch(error){}}
       // No encadenar otro aviso inmediatamente después de descartarlo.
       const foco=fila.closest('.ramo-row')?.querySelector('.ramo-name');fila.remove();foco?.focus({preventScroll:true});
     };
@@ -57,7 +60,7 @@ function abrirRecordatorioNota(item){
   const r=S.ramos.find(r=>r.id===item.ramo.id),c=r?.categorias.find(c=>c.id===item.cat.id);
   if(!r||!c)return;
   // Validar de nuevo: una nota puede haber llegado por sincronización.
-  const vigente=recordatoriosNotasFaltantes().find(e=>e.clave===item.clave);if(!vigente)return;
+  const vigente=(item.profesor?recordatoriosNotasProfesor():recordatoriosNotasFaltantes()).find(e=>e.clave===item.clave);if(!vigente)return;
   openCats[c.id]=true;openRamo(r.id);
   let intentos=0;
   const enfocar=()=>{
