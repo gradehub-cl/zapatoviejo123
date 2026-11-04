@@ -17,7 +17,8 @@ manual sin metadatos queda sin clasificación, aunque se llame igual.
 
 El interruptor parte apagado y vive en la sesión del panel. Activo, muestra un
 promedio de referencia ponderado por pesos de categorías con notas, sin
-compuertas, bonus ni aportes vinculados. Mantiene visible la nota oficial,
+compuertas, bonus, descartes ni aportes vinculados. Usa la agregación del motor
+sobre un árbol de referencia sin esas reglas, no otro cálculo oficial. Mantiene visible la nota oficial,
 calculada por `ramoAvg`. Las comparaciones por evaluación excluyen tipos ajenos;
 la referencia global solo se calcula si hay agregados suficientes en todas las
 categorías incluidas, para no comparar subconjuntos distintos. El mínimo de dos
