@@ -73,7 +73,8 @@ chk('avisa al llegar al máximo',/Llegaste al máximo de 4/.test(el.innerHTML)&&
 el=ficha({activo:true,cantidad:6,limite:4});
 chk('y cuando lo pasa',/Pasaste el máximo de 4 por 2/.test(el.innerHTML)&&/is-excedido/.test(el.className));
 el=ficha({activo:true,cantidad:0,limite:null});
-chk('sin máximo no inventa uno, y en 0 no deja restar',/Anota cada clase/.test(el.innerHTML)&&/Restar una falta" disabled/.test(el.innerHTML));
+// Lucas, 2026-11-04: el máximo se edita desde el texto del contador.
+chk('sin máximo no inventa uno, y en 0 no deja restar',/Toca para poner tu máximo de faltas/.test(el.innerHTML)&&/Restar una falta" disabled/.test(el.innerHTML));
 
 console.log('\nPASS: '+ok+'   FAIL: '+fail);
 process.exit(fail?1:0);

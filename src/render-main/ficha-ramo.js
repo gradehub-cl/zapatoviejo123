@@ -422,7 +422,7 @@ function renderRamo(){
   const fw=document.getElementById('faltas-contador');
   if(fw){
     if(!faltasActivas(r)){
-      const aviso=mostrarAvisoAsistencia(r);fw.style.display=aviso?'flex':'none';
+      const aviso=mostrarAvisoAsistencia(r);fw.style.display=aviso?'grid':'none';
       fw.className=aviso?'faltas-card asistencia-aviso':'';fw.innerHTML=aviso?avisoAsistenciaHTML():'';
     }
     else{

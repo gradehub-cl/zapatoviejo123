@@ -4506,6 +4506,15 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo :is(#faltas-contador,#bonus-ramo) .faltas-btn{width:44px;height:44px;border:0;border-radius:12px;background:none;color:var(--fg);}
 #screen-ramo :is(#faltas-contador,#bonus-ramo) .bonus-anotar{flex:none;min-height:44px;margin:0;border:0;border-left:1px solid var(--border2);border-radius:0 12px 12px 0;background:none;}
 #screen-ramo :is(#faltas-contador,#bonus-ramo) :focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+#screen-ramo #faltas-contador.asistencia-aviso{grid-template-columns:minmax(0,1fr) auto 44px;grid-template-areas:'pregunta activar cerrar';gap:4px 12px;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
+#screen-ramo #faltas-contador .asistencia-pregunta{grid-area:pregunta;}
+#screen-ramo #faltas-contador .asistencia-activar{grid-area:activar;min-width:44px;min-height:44px;border:0;padding:8px 0;background:none;color:var(--fg);font:inherit;font-weight:600;text-align:left;}
+#screen-ramo #faltas-contador .asistencia-cerrar{grid-area:cerrar;width:44px;min-height:44px;align-self:stretch;border:0;background:none;color:var(--fg2);font:inherit;font-size:1.25rem;}
+#screen-ramo #faltas-contador button.faltas-editar{min-height:44px;min-width:44px;border:0;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+#screen-ramo #faltas-contador .faltas-editar .faltas-detalle{color:var(--fg2);text-decoration:underline dotted;text-underline-offset:3px;}
+#screen-ramo #faltas-contador input.faltas-limite-campo{flex:1;min-width:44px;width:6rem;min-height:44px;margin:4px 0;padding:8px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;font-size:1rem;font-variant-numeric:tabular-nums;}
+@media(max-width:36rem){#screen-ramo #faltas-contador.asistencia-aviso{grid-template-columns:minmax(0,1fr) 44px;grid-template-areas:'pregunta cerrar' 'activar cerrar';padding-top:8px;}}
+@media(prefers-reduced-motion:reduce){#screen-ramo #faltas-contador.asistencia-aviso,#screen-ramo #faltas-contador .faltas-editar{animation:none;transition:none;}}
 #screen-ramo .ficha-serie-hd{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 #screen-ramo .ficha-serie-hd h2{margin:0;font-size:1rem;font-weight:650;}
 #screen-ramo .ficha-serie-hd>span{font-size:.8125rem;color:var(--fg2);}

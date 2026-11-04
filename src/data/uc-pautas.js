@@ -109,6 +109,7 @@ const PRESETS_UC={
   // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
   // el filtro de reglas visibles: el estudiante puede cumplirla y cambia su nota.
   'Filosofía: ¿para qué?':{
+    asistenciaMinima:true,
     evals:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
     reglasDelCurso:[
       'Necesitas al menos 75% de asistencia a clases: si no, el curso queda con nota R, que equivale a 3,0. La app no registra asistencia',
@@ -289,6 +290,7 @@ const PRESETS_UC={
   // asigna una fecha individual a cada estudiante, así que no se fuerza una
   // fecha falsa en Agenda. El Ensayo personal sí tiene una entrega única.
   'Ciudadanía y Derechos humanos: Enfoques interdisciplinarios':{
+    asistenciaMinima:true,
     periodo:'2026-2',
     creditos:10,
     evals:[
@@ -581,6 +583,7 @@ const PRESETS_UC={
   // (decisión de Lucas, 2026-10-15); 3,95 ya cuenta, y si la nota del lab ya
   // es menor que 3,9 queda esa y no 3,9 (coordinación).
   'Laboratorio de Dinámica':{
+    asistenciaMinima:true,
     // A mitad de semestre, la planilla da el promedio de los laboratorios ya
     // hechos: cada nota pesa lo que pesa en su laboratorio, no lo que pesa su
     // evaluación entera. Comprobado contra la planilla: 630 de 630 iguales.
@@ -1182,6 +1185,7 @@ const PRESETS_UC={
   // usa el nombre del catálogo UC para que el buscador y la sigla calcen.
   // La Simulación es una gymkana grupal de un día, sin justificación posible.
   'Fuentes de Obligaciones I':{
+    asistenciaMinima:true,
     sigla:'DER004C',
     periodo:'2026-2',
     creditos:10,
@@ -1200,6 +1204,7 @@ const PRESETS_UC={
   // noviembre): sin fecha en Agenda. No está en el catálogo UC del repo, así
   // que no se ponen créditos.
   'Derecho Administrativo II':{
+    asistenciaMinima:true,
     sigla:'DER005L',
     periodo:'2026-2',
     evals:[
@@ -1213,6 +1218,7 @@ const PRESETS_UC={
   },
   // Sección 1.
   'Derecho de Sociedades':{
+    asistenciaMinima:true,
     sigla:'DER009C',
     periodo:'2026-2',
     creditos:10,
