@@ -250,6 +250,7 @@ function renderHome(){
     insightsEl.style.display=cards.length?'grid':'none';
   }
 
+  const recordatoriosNotas=recordatoriosNotasFaltantes();
   let ramos=[...S.ramos];
   if(S.sortMode==='avg') ramos.sort((a,b)=>{const da=ramoAvg(a)??-1,db=ramoAvg(b)??-1;return db-da;});
   else if(S.sortMode==='name') ramos.sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -301,9 +302,11 @@ function renderHome(){
       <div class="ramo-band" aria-hidden="true" style="background:${esc(r.color)}"></div>
       <div class="ramo-info"><button type="button" class="ramo-name">${esc(r.nombre)}</button><div class="ramo-meta">${sig?`<span class="ramo-sigla">${esc(sig)}</span>`:''}${metaHtml}</div></div>
       <div class="ramo-grade-action"><div class="ramo-nota ${colorClassRamo(r,avg)}" style="--grade-color:${getColorRamo(r,avg)}">${fmtPromedio(avg)}</div>${control}</div>
+      ${recordatorioNotaHTML(recordatoriosNotas.find(e=>e.ramo.id===r.id))}
       ${nc>0?'<span class="ramo-progress-track" aria-hidden="true"><span class="ramo-progress-fill"></span></span>':''}`;
     c.appendChild(div);
   });
+  montarRecordatoriosNotasHome(c,recordatoriosNotas);
   if(S.sortMode==='manual')activarReordenRamos(c);
   // Publicidad de clases junto al ramo que calza. Vive en marketplace.js y
   // decide en el navegador; si no hay nada que mostrar, no pinta nada.

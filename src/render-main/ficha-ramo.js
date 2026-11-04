@@ -563,6 +563,7 @@ function renderRamo(){
   const series=seriesNumeradasFicha(r.categorias.filter(c=>!(categoriaEximida(r,c)&&eximicion&&eximicion.regla.ocultaEvaluacion===true)));
   const listasSeries=new Map();
   const adjuntarCategoria=(nodo,cat)=>{
+    nodo.dataset.fichaCategoria=cat.id;nodo.dataset.fichaRamo=r.id;
     const serie=series.get(cat.id);
     if(!serie){cl.appendChild(nodo);return;}
     if(!listasSeries.has(serie)){
