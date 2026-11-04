@@ -3521,7 +3521,18 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .ah-escala{display:grid;grid-template-columns:var(--ah-nombre) 1fr var(--ah-cambio);gap:10px;font-size:.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .ah-escala-ejes{display:flex;justify-content:space-between;}
 .ah-filas{list-style:none;margin:2px 0 0;padding:0;}
-.ah-filas li+li{border-top:1px solid var(--border);}
+.ah-filas li[hidden]{display:none;}
+.ah-filas li:not([hidden])~li:not([hidden]){border-top:1px solid var(--border);}
+.ah-filtro{margin:0 0 14px;}
+.ah-filtro input.ah-filtro-buscar{background:var(--card);}
+.ah-filtro-ramos{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.ah-filtro-ramos button{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:1px solid var(--border2);border-radius:22px;background:transparent;color:var(--fg);font-family:var(--font-ui);font-size:.875rem;font-weight:500;cursor:pointer;}
+.ah-filtro-ramos button[hidden]{display:none;}
+.ah-filtro-ramos button small{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.ah-filtro-ramos button[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg);font-weight:600;}
+.ah-filtro-ramos button[aria-pressed="true"] small{color:inherit;}
+.ah-filtro-ramos .ah-filtro-todos{border-style:dashed;color:var(--fg2);}
+.ah-filtro-estado{margin:8px 0 0;font-size:.75rem;color:var(--fg2);}
 .ah-filas button{display:grid;grid-template-columns:var(--ah-nombre) 1fr var(--ah-cambio);align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 0;border:0;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
 .ah-fila-nombre{font-size:.875rem;font-weight:600;overflow-wrap:anywhere;}
 .ah-fila-ramo,.ah-fila-inicio{display:block;font-size:.75rem;line-height:1.5;color:var(--fg2);font-weight:400;margin-top:3px;}
