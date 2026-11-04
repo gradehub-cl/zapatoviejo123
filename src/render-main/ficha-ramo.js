@@ -421,18 +421,21 @@ function renderRamo(){
   // su registro, no una regla del programa, así que no toca el promedio.
   const fw=document.getElementById('faltas-contador');
   if(fw){
-    if(!faltasActivas(r)){fw.style.display='none';fw.innerHTML='';}
+    if(!faltasActivas(r)){
+      const aviso=mostrarAvisoAsistencia(r);fw.style.display=aviso?'flex':'none';
+      fw.className=aviso?'faltas-card asistencia-aviso':'';fw.innerHTML=aviso?avisoAsistenciaHTML():'';
+    }
     else{
       const {cantidad,limite}=r.faltas;
       const quedan=limite!=null?limite-cantidad:null;
-      const detalle=limite==null?'Anota cada clase a la que no fuiste.'
+      const detalle=limite==null?'Toca para poner tu máximo de faltas'
         :quedan>1?`Te quedan ${quedan} de ${limite}.`
         :quedan===1?`Te queda 1 de ${limite}.`
         :quedan===0?`Llegaste al máximo de ${limite}.`
         :`Pasaste el máximo de ${limite} por ${-quedan}.`;
       fw.style.display='flex';
       fw.className='faltas-card'+(quedan!==null&&quedan<0?' is-excedido':quedan===0?' is-limite':'');
-      fw.innerHTML=`<div class="faltas-txt"><span class="faltas-titulo">Faltas</span><span class="faltas-detalle">${detalle}</span></div>
+      fw.innerHTML=`<button type="button" class="faltas-txt faltas-editar" onclick="editarLimiteFaltas(this)" aria-label="${esc(detalle)}. Editar máximo de faltas"><span class="faltas-titulo">Faltas</span><span class="faltas-detalle">${detalle}</span></button>
         <div class="faltas-ctrl">
           <button type="button" class="faltas-btn" onclick="cambiarFaltas(-1)" aria-label="Restar una falta" ${cantidad===0?'disabled':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
           <span class="faltas-num" aria-live="polite">${cantidad}${limite===null?'':`<small> de ${limite}</small>`}</span>

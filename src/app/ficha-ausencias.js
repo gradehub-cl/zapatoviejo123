@@ -25,6 +25,7 @@ function entrarDesde(el,sentido){
 function openRamo(id){
   currentRamoId=id;
   const r=S.ramos.find(x=>x.id===id);
+  registrarAperturaAvisoAsistencia(r);
   track('view_ramo',{del_catalogo:!!(r&&r.origen)});
   transicionNativa('push',()=>{
     // La pestaña de donde viene queda marcada, como en iOS: dice a dónde lleva Volver.
