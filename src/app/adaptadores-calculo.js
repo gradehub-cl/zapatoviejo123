@@ -10,11 +10,9 @@ function definicionPresetDelRamo(ramo){
   if(origen.tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[origen.tenant];if(!presets)return null;
     const nombre=Object.keys(presets).find(n=>normName(n)===normName(ramo.nombre));
-    return nombre?presets[nombre]:null;
+    return definicionDeSeccion(nombre?presets[nombre]:null,ramo.seccion);
   }
-  if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera))return null;
-  const nombre=claveUc(ramo.nombre);
-  return nombre?PRESETS_UC[nombre]:null;
+  return definicionPreset(ramo.nombre,origen.tenant,origen.carrera,ramo.seccion);
 }
 // singularHuella() agrupa reportes y puede dejar palabras feas; acá el nombre
 // se muestra al estudiante. Solo flexionamos vocabulario conocido y dejamos

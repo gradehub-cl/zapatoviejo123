@@ -25,15 +25,29 @@ function estadoPeriodoPauta(periodo,ahora){
   const fin=semestre===1?`${anio}-08-01`:`${anio+1}-01-01`;
   return hoy<fin?'vigente':'vencido';
 }
-function definicionPreset(nombre,tenant,carrera){
+// Una sola puerta: sin sección nunca se heredan evaluaciones ni reglas de otra.
+// Las pautas coordinadas conservan incluso la identidad de su definición.
+function definicionDeSeccion(def,seccion){
+  if(!def||Array.isArray(def)||!def.porSeccion)return def;
+  const {porSeccion,...datos}=def;
+  const numero=Number.isInteger(seccion)&&seccion>=1&&seccion<=999?seccion:null;
+  const propia=numero!=null&&Object.prototype.hasOwnProperty.call(porSeccion,numero)?porSeccion[numero]:null;
+  if(propia&&typeof propia==='object'&&!Array.isArray(propia))return {...datos,...propia};
+  delete datos.evals;return datos;
+}
+function definicionBasePreset(nombre,tenant,carrera){
   if(tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[tenant];if(!presets)return null;
     const clave=claveCatalogo(nombre,Object.keys(presets),tenant);
     return clave?presets[clave]:null;
   }
-  if(tenant!=='uc'||!presetUcDisponible(nombre,carrera))return null;
   const clave=claveUc(nombre);
-  return clave?PRESETS_UC[clave]:null;
+  if(!clave)return null;
+  const def=PRESETS_UC[clave];
+  return presetUcDisponible(nombre,carrera)||def.coordinado===false?def:null;
+}
+function definicionPreset(nombre,tenant,carrera,seccion){
+  return definicionDeSeccion(definicionBasePreset(nombre,tenant,carrera),seccion);
 }
 // Una pauta que deja la mitad o más del ramo en grupos sin decir cuántas
 // evaluaciones llevan ("Evaluaciones sumativas 60%", sin casillas) no sirve para
@@ -52,7 +66,7 @@ function evalsDePreset(def){return Array.isArray(def)?def:(def&&def.evals||[]);}
 function periodoDePreset(def){return !Array.isArray(def)&&def&&typeof def.periodo==='string'?def.periodo:null;}
 function infoPeriodoPauta(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera);
+  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   if(!evals.length||!pautaPresetSuficiente(evals))return null;
   const periodo=periodoDePreset(def);
@@ -85,14 +99,15 @@ function pautaCalzaParaFechas(r,evals){
 function origenParaFechasOficiales(r,contexto){
   if(r&&r.origen&&r.origen.tenant)return r.origen;
   if(!r||!contexto||!contexto.tenant||!Array.isArray(r.categorias))return null;
-  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera);
+  const def=definicionPreset(r.nombre,contexto.tenant,contexto.carrera,r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   return def&&pautaCalzaParaFechas(r,evals)?contexto:null;
 }
 function completarFechasOficiales(r,contexto){
+  cargarPautaSeccionVacia(r,contexto);
   const origen=origenParaFechasOficiales(r,contexto);
   if(!origen)return;
-  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera);
+  const def=definicionPreset(r.nombre,origen.tenant,origen.carrera,r.seccion);
   if(!def||estadoPeriodoPauta(periodoDePreset(def))!=='vigente')return;
   const evals=Array.isArray(def)?def:(def.evals||[]);
   const porNombre=new Map();
@@ -162,7 +177,7 @@ function horaAportaRespaldo(item){return !!item&&item.horaOrigen==='usuario';}
 
 function fechasOficialesRamo(r){
   if(!r||!r.origen||!r.origen.tenant)return new Map();
-  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera);
+  const def=definicionPreset(r.nombre,r.origen.tenant,r.origen.carrera,r.seccion);
   const evals=Array.isArray(def)?def:(def&&def.evals||[]);
   const fechas=new Map();
   evals.forEach(([nombre,,extra])=>{if(extra&&extra.fecha)fechas.set(normName(nombre),extra.fecha);});
@@ -531,7 +546,7 @@ function normalize(data) {
     // Solo se rellena si está vacío y si el ramo vino del catálogo: un crédito
     // escrito a mano por el estudiante manda sobre la tabla.
     sellarDatosCatalogo(r, r.origen && r.origen.tenant);
-    completarFechasOficiales(r,{tenant:data.tenant,carrera:data.carrera});
+    completarFechasOficiales(r,{tenant:data.tenant,carrera:data.carrera,soloFechas:true});
   });
   data.onboardingDone = Boolean(data.onboardingDone);
   data.careerSemestre = Number(data.careerSemestre) || 1;

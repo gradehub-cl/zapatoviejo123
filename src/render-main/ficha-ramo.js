@@ -337,8 +337,12 @@ function renderRamo(){
   // que el estudiante apriete: es su ramo y su promedio va a cambiar.
   const pcw=document.getElementById('pauta-cambio');
   if(pcw){
-    const cambio=cambioDePauta(r);
-    if(cambio){
+    const oferta=ofertaPautaSeccion(r);
+    const cambio=definicionPresetDelRamo(r)?.coordinado===false?null:cambioDePauta(r);
+    if(oferta){
+      pcw.style.display='flex';pcw.className='pauta-seccion-oferta';
+      pcw.innerHTML=`<p>Hay pauta de la sección ${esc(r.seccion)}.</p><div><button type="button" class="btn-cancel" onclick="confirmarPautaSeccion('${esc(r.id)}')">Cargarla</button><button type="button" class="btn-cancel" onclick="descartarPautaSeccion('${esc(r.id)}')">Ahora no</button></div>`;
+    }else if(cambio){
       const cuantos=cambio.cambios.length;
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
       pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${cuantos} ${cuantos===1?'cambio':'cambios'} respecto de lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
@@ -776,3 +780,37 @@ function renderRamo(){
 //
 // La frase es la misma para 0 y para 100. "Todos" o "ninguno" sería categórico
 // sobre un número redondeado: 199 de 200 también llega acá como 100.
+
+function firmaPautaDeSeccion(r){
+  const nombres=new Map((r.categorias||[]).map(c=>[c.id,c.nombre]));
+  const limpiar=v=>typeof v==='string'&&nombres.has(v)?nombres.get(v):Array.isArray(v)?v.map(limpiar):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='id').map(k=>[k,limpiar(v[k])])):v;
+  return JSON.stringify({categorias:(r.categorias||[]).map(c=>[c.nombre,c.peso,c.slots||1,c.directNota!==false,c.dropLowest||null,c.fecha||null]),gates:limpiar(r.gates||[])});
+}
+
+function claveOfertaPautaSeccion(r){
+  return 'gradehub_pauta_seccion|'+[typeof currentUser!=='undefined'&&currentUser?.id||'local',r.id,r.seccion].join('|');
+}
+const ofertasPautaSeccionDescartadas=new Set();
+function ofertaPautaSeccion(r){
+  if(!r?.categorias?.length||ramoConNotasSeccion(r))return null;
+  const p=datosPautaSeccion(r);if(!p||firmaPautaDeSeccion(r)===firmaPautaDeSeccion(p))return null;
+  const clave=claveOfertaPautaSeccion(r);
+  try{if(localStorage.getItem(clave)==='descartada')return null;}catch(e){}
+  return ofertasPautaSeccionDescartadas.has(clave)?null:p;
+}
+function descartarPautaSeccion(id){
+  const r=S.ramos.find(r=>r.id===id);if(!r)return;
+  const clave=claveOfertaPautaSeccion(r);ofertasPautaSeccionDescartadas.add(clave);
+  try{localStorage.setItem(clave,'descartada');}catch(e){}
+  renderRamo();
+}
+function confirmarPautaSeccion(id){
+  const r=S.ramos.find(r=>r.id===id),p=ofertaPautaSeccion(r);
+  if(!p)return;
+  const seccion=r.seccion;
+  showConfirm(`Cargar pauta de la sección ${seccion}`, 'Reemplaza tus evaluaciones y sus porcentajes por los de esta sección. Solo se puede hacer mientras no tengas notas.',()=>{
+    // Revalidar después de confirmar: otra pantalla o una sync pudo traer notas.
+    if(!S.ramos.includes(r)||r.seccion!==seccion||!ofertaPautaSeccion(r))return;
+    ponerPautaDeSeccion(r,p);save();renderRamo();
+  },{label:'Reemplazar evaluaciones',danger:true});
+}
