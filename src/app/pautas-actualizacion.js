@@ -50,8 +50,8 @@ function firmaReglasCalculo(r){
 // nombre— y no por `nombre`, que es solo la etiqueta y no mueve ninguna nota.
 function requisitosDeGrupo(r){
   const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
-  return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,
-    clave:JSON.stringify([g.min,g.cap,(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
+  return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,efecto:g.efecto||'tope',
+    clave:JSON.stringify([g.min,g.cap,g.efecto||'tope',(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
 }
 function cambioDePauta(r){
   if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
@@ -76,8 +76,8 @@ function cambioDePauta(r){
   // Si solo cambiaron las evaluaciones del grupo, el requisito es el mismo: esas
   // evaluaciones ya salen en la lista, y decir "nuevo" y "deja de exigirse" del
   // mismo requisito se lee como un error.
-  const mismoRequisito=(g,otros)=>oficial!==actual&&otros.some(x=>x.nombre===g.nombre&&x.min===g.min);
-  reqLlegan.filter(g=>!mismoRequisito(g,reqSeVan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más`}));
+  const mismoRequisito=(g,otros)=>oficial!==actual&&otros.some(x=>x.nombre===g.nombre&&x.min===g.min&&x.efecto===g.efecto);
+  reqLlegan.filter(g=>!mismoRequisito(g,reqSeVan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más${g.efecto==='reemplazar'?'; si no lo cumples, la final es la nota de ese requisito':''}`}));
   reqSeVan.filter(g=>!mismoRequisito(g,reqLlegan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});

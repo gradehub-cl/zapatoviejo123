@@ -137,7 +137,8 @@ function renderStats(){
       <button type="button" class="stats-hist-add" onclick="openSemestreAnteriorModal()">+ Semestre anterior</button>
     </div><div class="stat-card stats-section-card stats-history-module">`;
     const acumulado=promedioAcumuladoCierre(validos);
-    if(acumulado!==null)hist+=`<p class="stats-hist-vacio">Promedio del historial: <strong>${fmtPromedio(acumulado)}</strong></p>`;
+    const politicaPromedio=gh_reglasNota(S.tenant).promedioAcademico;
+    if(acumulado!==null||(politicaPromedio&&validos.length))hist+=`<p class="stats-hist-vacio">${politicaPromedio?'PPA estimado del historial':'Promedio del historial'}: <strong>${acumulado===null?'—':fmtPromedio(acumulado)}</strong>${politicaPromedio?'. Revisa las exclusiones en Editar ramo: los ramos sin marcar se incluyen. Se requieren créditos conocidos.':''}</p>`;
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
