@@ -57,7 +57,13 @@ function pautaDeConsenso(est){
     // que un "3" no viene de un reporte legítimo y no hay por qué adivinarle.
     const slots=typeof e.slots==='number'&&Number.isInteger(e.slots)&&e.slots>1&&e.slots<=100?e.slots:0;
     const id=uid();
-    const cat={id,nombre,peso,ponderaNotas:false,directNota:!!slots,notas:[]};
+    // Sin cantidad, el reporte no distingue "una nota" de "varias sin contar":
+    // `firma` en reportes-pauta.js manda 1 en los dos casos. Se toma como una
+    // sola, igual que un preset, una evaluación creada a mano o "Reportar
+    // pauta". Antes quedaba como lista abierta, y un "Examen" reportado se
+    // dibujaba con "+ Agregar nota" en vez de su fila. Quien tenga varias lo
+    // marca en el editor ("Son varias notas"), que es el mismo camino de siempre.
+    const cat={id,nombre,peso,ponderaNotas:false,directNota:true,notas:[]};
     if(slots)cat.slots=slots;
     categorias.push(cat);
     if(enEscala(e.min))gates.push({type:'min_grade_required',catId:id,min:e.min,cap:enEscala(e.cap)?e.cap:SIM_MIN,nombre});
