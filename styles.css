@@ -4977,6 +4977,62 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 }
 @media(prefers-reduced-motion:reduce){.est-barra i{transition:none;}}
 
+/* Ficha de alumno/ramo: detalle aprobado en #1021, sobre las piezas .est. */
+.alumnos-editorial:has(#alumnos-vista-ficha:not([hidden]))>:is(.panel-solo-pruebas,.panel-solo-pruebas+.clase-privacidad,[data-solo-pruebas-estado]){display:none}
+.est.fap{container-type:inline-size;max-width:1640px;margin:0 auto;color:var(--fg);font-family:var(--font-ui);font-variant-numeric:tabular-nums}
+.fap :is(p,ul,h3,h4){margin:0}.fap [hidden]{display:none}
+.fap :is(strong,b){color:inherit}.fap :is(p,small,summary){overflow-wrap:anywhere}
+.fap-herramientas{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem}
+.fap-navegacion{display:flex;justify-content:flex-end;align-items:center;gap:.5rem;flex-wrap:wrap;margin:0;position:relative}
+.fap-navegacion .fap-paginacion{display:flex;align-items:center;flex-wrap:wrap;gap:.375rem;font-size:.75rem;color:var(--fg2)}
+.profesor-hig.alumnos-editorial .fap :is(button,summary){min-height:44px;min-width:44px;font:inherit;cursor:pointer;line-height:1.35}
+.profesor-hig.alumnos-editorial .fap button{padding:.5rem .75rem;border-radius:10px;color:var(--fg);background:var(--est-tile);white-space:normal;overflow-wrap:normal}
+.profesor-hig.alumnos-editorial .fap button:disabled{cursor:default;opacity:.55}
+.profesor-hig.alumnos-editorial .fap button:focus-visible,.fap summary:focus-visible,.fap input:focus-visible{outline:2px solid var(--est-sel);outline-offset:3px}
+.profesor-hig.alumnos-editorial .fap .fap-paginacion button{width:44px;padding:0}
+.fap-navegacion details{position:relative}.fap-navegacion summary{display:flex;align-items:center;padding:.5rem .75rem;border-radius:10px;background:var(--est-tile)}
+.fap-navegacion details[open]{padding:.5rem;background:var(--card);border:1px solid var(--est-linea);border-radius:12px;max-width:100%}
+.fap-navegacion label{display:block;color:var(--fg2);font-size:.8125rem;padding:.5rem}
+.profesor-hig.alumnos-editorial .fap input[type=search]{min-height:44px;width:100%;max-width:100%;font:inherit;color:var(--fg);background:var(--est-tile);border:1px solid var(--est-linea2);border-radius:10px;padding:.5rem}
+.fap [data-fap-resultados]{max-height:20rem;overflow-y:auto;max-width:22rem;display:grid;gap:.25rem}.fap [data-fap-resultados] button{text-align:left}.fap [data-fap-resultados] small{display:block;color:var(--fg2)}
+.fap .pe-ramos{margin:0;gap:.5rem}.fap .pe-ramos button[aria-pressed=true],.profesor-hig.alumnos-editorial .fap .est-seg button[aria-pressed=true]{background:var(--est-sel-suave);color:var(--fg);box-shadow:inset 0 0 0 1px var(--est-sel)}
+.fap-contexto{display:flex;gap:.75rem;flex-wrap:wrap;color:var(--fg2);font-size:.8125rem;margin:0 0 1.25rem}.fap-sigla{font-variant-numeric:tabular-nums}
+.fap-grilla{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,.43fr);gap:1.25rem}
+.fap .est-tarjeta-grande{min-width:0;padding:1.5rem;border-radius:24px}
+.fap-promedio{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:2rem}
+.fap-promedio>div>span{display:block;font-size:.8125rem;color:var(--fg2)}.fap-promedio strong{display:block;font-size:2.75rem;line-height:1.15;letter-spacing:-.04em;font-weight:650}.fap-promedio>span{font-size:.75rem;color:var(--fg2)}
+.fap-tope{margin:0 0 1.25rem;color:var(--fg2);font-size:.8125rem}.fap-tope summary{text-decoration:underline;text-underline-offset:3px}
+.fap .evolucion-marco{margin:1.25rem .5rem 0 0;height:15rem;overflow:visible;--evolucion-alto:15rem}
+.fap .evolucion-trazado{height:100%;overflow:visible}.fap .evolucion-linea{stroke:var(--fg2);stroke-width:2;filter:none}.fap .evolucion-area{display:none}
+.fap .evolucion-referencia{border-color:var(--est-linea)}.fap .evolucion-eje{color:var(--fg2);font-size:.75rem}.fap .evolucion-punto{width:8px;height:8px;opacity:1;background:var(--fg);border:2px solid var(--fg);box-shadow:none}.fap .evolucion-punto.es-elegido{width:11px;height:11px;background:var(--est-sel);border-color:var(--est-sel)}.fap .evolucion-punto.es-antes{background:var(--card);border-color:var(--fg2)}
+.fap-referencia{fill:none;stroke:var(--fg3);stroke-width:1.75;stroke-dasharray:5 5;vector-effect:non-scaling-stroke}
+.fap-extremos{display:flex;justify-content:space-between;margin:1rem 0 0 2rem;font-size:.75rem;color:var(--fg2)}
+.fap-leyenda{display:flex;flex-wrap:wrap;gap:.5rem 1rem;font-size:.75rem;color:var(--fg2);margin-top:1rem}
+.fap-comparacion{display:flex;flex-direction:column;gap:.75rem}.fap h3{font-size:1rem;line-height:1.4;font-weight:600;letter-spacing:-.015em}.fap-muted{font-size:.75rem;line-height:1.5;color:var(--fg2)}
+.fap .est-seg{display:flex;gap:.25rem}.profesor-hig.alumnos-editorial .fap .est-seg button{flex:1;background:transparent;font-size:.8125rem;padding:.5rem}
+.fap-metodo{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;color:var(--fg2);font-size:.75rem}
+.profesor-hig.alumnos-editorial .fap :is(.fap-metodo button,.fap-enlace){background:none;color:var(--est-sel);text-align:left;text-decoration:underline;text-underline-offset:3px;padding:0}
+.fap-lados{display:flex;justify-content:space-between;gap:1rem}.fap-lados>div:last-child{text-align:right}.fap-lados span{display:block;font-size:.75rem;color:var(--fg2)}.fap-lados strong{display:block;font-size:1.5rem;font-weight:600}
+.fap .est-punto{margin:.25rem .5rem 0}.fap .est-tramo{background:var(--fg3);opacity:1}.fap .est-b{background:var(--fg)}
+.fap-escala{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));color:var(--fg2);font-size:.6875rem;margin-top:-.75rem}.fap-escala span:nth-child(2){text-align:center}.fap-escala span:last-child{text-align:right}.fap-cambio{display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;margin-top:auto;padding-top:1rem}.fap-cambio strong{font-size:2rem;font-weight:600;letter-spacing:-.03em}.fap-cambio span{font-size:.75rem;color:var(--fg2)}
+.fap .fap-sube{color:var(--est-sube)}.fap .fap-baja{color:var(--est-baja)}
+.fap summary{display:flex;align-items:center;gap:.375rem;list-style:none}.fap summary::-webkit-details-marker{display:none}.fap-comparacion details,.fap-pie details{font-size:.8125rem;color:var(--fg2)}.fap details>p{line-height:1.6;margin:.5rem 0}.fap-insuficiente{font-size:.8125rem;color:var(--fg2);line-height:1.5;padding:1rem 0}
+.fap-evaluaciones{margin-top:1.25rem}.fap-evaluaciones>header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}.fap-evaluaciones>header p{margin-top:.25rem}
+.fap-columnas,.fap-fila{display:grid;grid-template-columns:minmax(8rem,1fr) 3rem minmax(5rem,.65fr) 5rem minmax(6.5rem,.65fr);align-items:center;gap:1rem}
+.fap-columnas{font-size:.75rem;color:var(--fg2);text-align:right;padding:.75rem 0}.fap-columnas>span:first-child{text-align:left}
+.fap h4{border-top:1px solid var(--est-linea);padding:1rem 0 .25rem;font-size:.75rem;color:var(--fg2);font-weight:600}
+.fap-lista{list-style:none;padding:0}.fap-fila{padding:.625rem 0;min-height:66px;border-bottom:1px solid var(--est-linea);font-size:.875rem}.fap-fila:last-child{border-bottom:0}
+.fap-fila b{display:block;font-weight:550}.fap-fila small{display:block;font-size:.75rem;color:var(--fg2);margin-top:.25rem;line-height:1.4}.fap-nota{font-size:1.125rem;font-weight:600;text-align:right}.fap-ref,.fap-delta{text-align:right}.fap-ref small{font-size:.6875rem}.fap-marca{display:flex;justify-content:flex-end;font-size:.75rem;color:var(--fg2)}
+.profesor-hig.alumnos-editorial .fap .fap-marca-ver{background:none;text-align:right;padding:.5rem 0;text-decoration:underline;text-decoration-color:var(--est-linea2);text-underline-offset:4px;font-size:.75rem}
+.fap-casilla{display:flex;align-items:center;justify-content:flex-end;gap:.5rem;min-height:44px;min-width:44px;cursor:pointer}.fap input[type=checkbox]{appearance:auto;width:22px;height:22px;margin:0;accent-color:var(--est-sel);flex:none}
+.fap-edicion{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.5rem 0 1rem}.fap-edicion>span{font-size:.75rem;color:var(--fg2);margin-right:auto}.fap-edicion p{width:100%;font-size:.8125rem;color:var(--fg2)}
+.profesor-hig.alumnos-editorial .fap .fap-principal{background:var(--est-sel);color:var(--card)}
+.fap-necesaria{padding:1rem 0;color:var(--fg2);font-size:.8125rem}.fap-vacio{padding:2rem 0;color:var(--fg2);font-size:.875rem;line-height:1.5}.fap-grafico>.fap-vacio{min-height:15rem;display:grid;align-content:center}
+.fap-pie{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1.25rem .25rem;color:var(--fg2);font-size:.75rem}.fap-pie details{max-width:100%}.fap .pe-quitar{margin-top:1rem}
+@container(max-width:50rem){.fap-grilla{grid-template-columns:minmax(0,1fr)}.fap-comparacion{gap:.75rem}.fap-cambio{padding-top:.5rem}.fap-columnas{display:none}.fap-fila{grid-template-columns:minmax(0,1fr) auto;gap:.5rem 1rem}.fap-ref{text-align:left;font-size:.75rem}.fap-ref::before{content:'Referencia: '}.fap-delta{text-align:right;font-size:.75rem}.fap-marca{grid-column:1/-1}.fap .est-tarjeta-grande{padding:1.25rem}}
+@media(max-width:30rem){.fap .est-tarjeta-grande{padding:1rem;border-radius:20px}.fap-promedio strong{font-size:2.5rem}.fap-navegacion{justify-content:flex-start}.fap-leyenda{font-size:.6875rem}.fap .evolucion-marco{height:12rem;--evolucion-alto:12rem}.fap-comparacion .est-seg{flex-wrap:wrap}.fap-lados strong{font-size:1.375rem}}
+@media(prefers-reduced-motion:reduce){.fap *{animation:none;transition:none;scroll-behavior:auto}}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

@@ -17,7 +17,7 @@ test('pruebas y laboratorio: referencia separada del oficial, con compuerta y pe
  const original=run('JSON.stringify(propio)'),oficial=run('ramoAvg(ramoParaPanel(propio))');assert.equal(oficial,3.9);
  assert.equal(run('promedioPruebasPanel(propio).promedio'),4);assert.equal(run('promedioPruebasPanel(propio).sinClasificar'),1);
  run('estudiante.soloPruebasPanel=true');const met=run('metricasAlumnoPanel(estudiante,()=>null)');assert.equal(met.evaluaciones.length,2);assert(!met.evaluaciones.some(e=>e.id==='nl'));assert.equal(met.cambio,null,'mínimos se aplican por fila también con filtro');
- const html=run('ramoAlumnoEditorialHTML(estudiante,propio,null,null,false,new Date(2026,10,4))');assert(html.includes('Nota oficial: 3,9'));assert(html.includes('Referencia de pruebas'));assert(html.includes('1 categorías sin clasificar'));
+ const html=run('ramoAlumnoEditorialHTML(estudiante,propio,null,null,false,new Date(2026,10,4))');assert(html.includes('Promedio actual</span><strong>3,9'));assert(!html.includes('Referencia de pruebas'));assert(html.includes('L1'),'la ficha aprobada abre el ramo completo, aunque Estadísticas filtre pruebas');
  assert.equal(run('JSON.stringify(propio)'),original);assert.equal(run('ramoAvg(ramoParaPanel(propio))'),oficial);
  run('estudiante.soloPruebasPanel=false');assert.equal(run('metricasAlumnoPanel(estudiante,()=>null).evaluaciones.length'),3);
 });
