@@ -61,7 +61,7 @@ document.addEventListener('focusin',e=>{
 document.addEventListener('focusout',()=>{
   setTimeout(()=>{
     const a=document.activeElement;
-    if(!a||!a.matches||!a.matches('input,textarea,select')){soltarEspacioTeclado();recuperarAltoPwa();}
+    if(!a||!a.matches||!a.matches('input,textarea,select')){soltarEspacioTeclado();recuperarAltoPwa();compensarAltoPwa();}
   },120);
 });
 // En la PWA de iPhone el alto de la pantalla puede quedar encogido, con un recuadro
@@ -79,7 +79,25 @@ function recuperarAltoPwa(){
   app.style.display='none';void app.offsetHeight;app.style.display='';
   scrolls.forEach(([s,top])=>{s.scrollTop=top;});
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(recuperarAltoPwa,140);});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{recuperarAltoPwa();compensarAltoPwa();},140);});
+// Si iOS sigue informando una pantalla más corta, la zona de abajo igual pertenece
+// a la página: se ve de su color y no del fondo de la ventana. Se mide el borde que
+// usa `position:fixed` y la barra, el contenido y las hojas se estiran hasta el
+// borde real. Parte solo para admins: en el simulador no se pudo reproducir, y si
+// iOS no dibujara ahí la barra quedaría cortada (Martín, 2026-11-04).
+let sondaAltoPwa=null;
+function compensarAltoPwa(){
+  if(!navigator.standalone||typeof esAdministrador!=='function'||!esAdministrador())return;
+  if(!window.matchMedia('(orientation:portrait)').matches||espacioTeclado()>0)return;
+  if(!sondaAltoPwa){
+    sondaAltoPwa=document.createElement('div');
+    sondaAltoPwa.style.cssText='position:fixed;top:0;bottom:0;width:0;visibility:hidden;pointer-events:none';
+    document.body.appendChild(sondaAltoPwa);
+  }
+  const falta=Math.round(screen.height-sondaAltoPwa.getBoundingClientRect().bottom);
+  document.documentElement.style.setProperty('--falta-pwa',(falta>4&&falta<=120?falta:0)+'px');
+}
+window.addEventListener('resize',compensarAltoPwa);
 window.visualViewport&&window.visualViewport.addEventListener('resize',()=>{
   if(espacioTeclado()===0)soltarEspacioTeclado();
 });

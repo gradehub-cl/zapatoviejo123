@@ -216,7 +216,7 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .ag-rendidas{margin-top:26px;}.ag-rendidas-toggle{display:flex;align-items:center;width:100%;min-height:44px;padding:2px 2px 12px;border:0;background:none;color:var(--fg);font:inherit;cursor:pointer;text-align:left;}.ag-rendidas-toggle .ag-count{margin-left:8px;}.ag-rendidas-hint{margin-left:auto;color:var(--fg3);font-size:0.6875rem;font-weight:600;}.ag-rendidas-toggle .ic{width:17px;height:17px;margin-left:5px;fill:none;stroke:currentColor;stroke-width:2;transition:transform var(--motion-base) var(--ease-standard);}.ag-rendidas-toggle[aria-expanded="true"] .ic{transform:rotate(180deg);}.ag-rendidas-list{display:grid;gap:8px;}
 /* Chip fecha en el header de una evaluación (ramo detail) */
 .cat-fecha-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:6px;background:color-mix(in srgb,var(--primary),transparent 85%);color:color-mix(in srgb,var(--primary) 85%,var(--fg));font-size:0.6875rem;font-weight:700;letter-spacing:-.01em;vertical-align:baseline;}
-.app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
+.app{max-width:430px;margin:0 auto;min-height:100vh;min-height:calc(100dvh + var(--falta-pwa,0px));background:var(--bg2);position:relative;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 .screen{display:none;flex:1;flex-direction:column;}
 .screen.active{display:flex;}
 #screen-loading.active{animation:none;}
@@ -1472,7 +1472,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .color-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform var(--motion-fast);}
 .color-dot.sel{border-color:var(--fg);transform:scale(1.18);}
 /* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:30;padding:6px 6px calc(env(safe-area-inset-bottom,0px) * .25 + 2px);gap:2px;}
+.bottom-nav{position:fixed;bottom:calc(var(--falta-pwa,0px) * -1);left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;z-index:30;padding:6px 6px calc(env(safe-area-inset-bottom,0px) * .25 + 2px + min(var(--falta-pwa,0px),8px));gap:2px;}
 /* La barra llega al borde y sus íconos bajan hasta justo sobre el indicador de
    inicio: con el área segura completa, en la PWA quedaba una franja vacía abajo
    (Martín, 2026-11-04). */
@@ -1943,6 +1943,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 }
 /* CONFIRM */
 .confirm-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay,.confirm-overlay{bottom:calc(var(--falta-pwa,0px) * -1);}
 .confirm-overlay.open{display:flex;}
 .confirm-box{background:var(--bg2);border-radius:18px;padding:22px 20px;width:100%;max-width:320px;max-height:88vh;overflow-y:auto;}
 .btn-prim-sm{flex:1;padding:11px;background:var(--primary);color:var(--primary-fg);border:none;border-radius:10px;font-size:0.875rem;font-weight:700;cursor:pointer;}
