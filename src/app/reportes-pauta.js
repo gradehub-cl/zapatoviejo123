@@ -146,6 +146,9 @@ function claveReporte(r){
   // misma clave con la que el servidor agrupa los reportes.
   return siglaReporteUC(r)||(o&&o.ramoKey)||ramoKey(r&&r.nombre,S.tenant,S.carrera);
 }
+// Sin sigla, el servidor agrupa por `ramo_norm`: tiene que ser la clave con que
+// se lee el consenso, o un ramo renombrado o con sinónimo vota en otro grupo.
+function ramoNormReporte(r){return siglaReporteUC(r)?normName(r.nombre):claveReporte(r);}
 
 // «Mi programa dice otra cosa» (#632) se quitó el 2026-11-02: hacía lo mismo
 // que «Repórtala», sin corregir la pauta. Los reportes que llegaron siguen en
@@ -251,7 +254,7 @@ async function enviarReporte(ramoId){
       // Se conserva como contexto del reporte, pero no participa del consenso.
       p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
       p_ramo:r.nombre,
-      p_ramo_norm:normName(r.nombre),
+      p_ramo_norm:ramoNormReporte(r),
       p_ramo_sigla:siglaReporteUC(r),
       p_estructura:est,
       p_huella:huellaEstructura(est),

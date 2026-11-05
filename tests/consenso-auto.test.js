@@ -114,6 +114,44 @@ console.log('\n=== Dónde NO se mete ===');
   chk('el programa oficial le gana al consenso', puestas === 0);
 }
 
+console.log('\n=== El consenso de una sección no depende del general ===');
+{
+  // Dos secciones con pautas distintas salen de la consulta general, y si era
+  // la única fila de la universidad, la general viene vacía.
+  const fila = { ...consenso(3, EST)[0], seccion: 1 };
+  ctx.cargarConsenso = async (_t, _p, seccion) => (seccion ? [fila] : []);
+  val(`S = ${JSON.stringify({ ...val('S'), ramos: [delCatalogo({ seccion: 1 })] })}`);
+  chk('con la general vacía, la sección igual recibe su pauta', (await ctx.aplicarConsensoAuto()) === 1);
+}
+
+console.log('\n=== Se escribe con la misma clave con que se lee ===');
+{
+  const CATS = [{ id: 'c1', nombre: 'Pruebas', peso: 60, notas: [] }, { id: 'c2', nombre: 'Examen', peso: 40, notas: [] }];
+  const llamadas = [];
+  ctx.__rpc = (nombre, args) => { llamadas.push(args); return { error: null }; };
+  val('supabaseClient={rpc:async(n,a)=>__rpc(n,a)}');
+  const enviar = async r => {
+    llamadas.length = 0;
+    chk(`se envía el reporte de "${r.nombre}"`, await ctx.aportarPropuestaAlCatalogo(r));
+    return llamadas[0] || {};
+  };
+  // El servidor agrupa por coalesce(ramo_sigla, ramo_norm).
+  const claveServidor = a => a.p_ramo_sigla || a.p_ramo_norm;
+
+  const renombrado = { id: 'e', nombre: 'Negocios I (mi sección)', origen: { tenant: 'fen', carrera: 'IC', ramoKey: val(`normName(${JSON.stringify(RAMO)})`) }, categorias: CATS, gates: [] };
+  chk('un ramo renombrado vota en la clave de su ramo', claveServidor(await enviar(renombrado)) === ctx.claveReporte(renombrado));
+
+  const alias = 'Estrategia y Presupuestos';
+  const sinonimo = { id: 'f', nombre: alias, origen: { tenant: 'fen', carrera: 'CA', ramoKey: val(`ramoKey(${JSON.stringify(alias)},'fen','CA')`) }, categorias: CATS, gates: [] };
+  chk('un sinónimo vota en la clave canónica', claveServidor(await enviar(sinonimo)) === val(`normName('Estrategia y Presupuesto')`));
+
+  const conSigla = { id: 'g', nombre: 'Ramo Sintético', origen: { tenant: 'uc', carrera: 'IC', ramoKey: 'ABC1234' }, categorias: CATS, gates: [] };
+  const uc = await enviar(conSigla);
+  chk('con sigla, ramo_norm sigue siendo el nombre', uc.p_ramo_sigla === 'ABC1234' && uc.p_ramo_norm === 'ramo sintetico');
+
+  chk('ningún reporte manda el nombre como clave', !/p_ramo_norm:normName/.test(fs.readFileSync(raiz + 'app.js', 'utf8')));
+}
+
 console.log('\n=== La ficha no la presenta como oficial ===');
 {
   const app = fs.readFileSync(raiz + 'app.js', 'utf8');

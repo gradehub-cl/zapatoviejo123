@@ -78,8 +78,9 @@ function pautaDeConsenso(est){
 // En un ramo vacío, aunque lo agregaran a mano, no hay nada que pisar.
 async function aplicarConsensoAuto(){
   if(esCuentaProfesor())return 0;
-  const cons=await cargarConsenso();
-  if(!cons||!cons.length)return 0;
+  // Vacía no corta: un ramo con secciones en disputa solo sale en la consulta
+  // de su sección. Esta llamada además deja lista la caché de consensoAlAgregar.
+  if(!await cargarConsenso())return 0;
   let puestas=0;
   for(const r of (S.ramos||[])){
     const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
