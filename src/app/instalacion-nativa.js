@@ -143,8 +143,6 @@ function showMainApp(){
   document.getElementById('screen-onboard').classList.remove('active');
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
-  // `navigator.standalone` solo existe en iOS: Android y computador no cambian.
-  if(navigator.standalone&&window.matchMedia('(max-width:600px)').matches)document.documentElement.classList.add('pwa-ios');
   renderHome();renderStats();renderAgenda(); // los 3 siempre montados
   // Una cuenta de profesor abre en Clases (#697): sus pestañas se arman antes.
   recalcularNavTabs();
