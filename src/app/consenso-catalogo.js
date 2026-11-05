@@ -131,12 +131,22 @@ function consensoAlAgregar(r){
 function yaAportada(r,est){
   return !!r.consensoAportado&&(r.consensoAportado===huellaEstructura(est)||r.consensoAportado===huellaEstructura(est,true));
 }
+function esListaSinCantidad(c){
+  return !!c&&c.directNota===false&&!(Number.isInteger(c.slots)&&c.slots>1)&&Number(c.peso)>0;
+}
 // Participan las pautas completas que alguien armó o corrigió, cualquiera sea
 // el camino: editor, ramo manual o propuesta del agente ya aceptada. Una pauta
 // oficial sin editar y una pauta recibida del propio consenso no son votos
 // independientes. El servidor cuenta personas distintas, no envíos.
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
+  // Una lista abierta ("Son varias notas", sin cantidad) no dice cuántas notas
+  // tiene: el reporte la manda como una sola, igual que un "Examen". Su voto
+  // describe otra pauta —unos "Controles" de 3 casillas quedan en otro grupo—
+  // y, si llega a consenso, a los demás les llega como evaluación de una nota.
+  // Se deja de aportar sola; el botón de reporte, donde la persona revisa lo
+  // que manda, no cambia.
+  if(catsDePauta(r.categorias).some(esListaSinCantidad))return false;
   if(typeof estadoReporte==='function'&&!estadoReporte(estructuraDe(r)).lista)return false;
   if(presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera))return false;
   if(r.consensoRespaldos){
