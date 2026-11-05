@@ -38,8 +38,6 @@ function chk(nombre, cond) { if (cond) { ok++; console.log('  ok   ' + nombre); 
 function intentar(tenant, malla, nombreCarrera, sem) {
   stub.value = 'Estudiante de prueba';
   run('S=freshState()');
-  // Desde #697 la edad se elige en una ruleta: alguien de 20 años.
-  run('obEdad=20');
   run(`selectedTenant=${JSON.stringify(tenant)}`);
   run(`selectedCarrera=${JSON.stringify(malla || null)}`);
   run(`selectedCarreraNombre=${JSON.stringify(nombreCarrera)}`);
@@ -50,7 +48,7 @@ function intentar(tenant, malla, nombreCarrera, sem) {
   // un árbol que todavía no lo tiene, y ahí reporta las carreras atrapadas en
   // vez de reventar.
   let faltaAntes = 0;
-  for (let paso = 1; paso <= run('OB_TOTAL'); paso++) if (!run(`obStepValid(${paso})`)) { faltaAntes = paso; break; }
+  for (const paso of run('obPasos()')) if (!run(`obStepValid(${paso})`)) { faltaAntes = paso; break; }
   run('completeOnboarding()');
   return { faltaAntes, entro: run('S.onboardingDone') === true };
 }
