@@ -98,6 +98,7 @@
     "src/marketplace/alumnos-solo-pruebas.js",
     "src/marketplace/alumnos-comparaciones.js",
     "src/marketplace/alumnos-evolucion.js",
+    "src/marketplace/alumnos-estadisticas.js",
     "src/marketplace/alumnos-resumen.js",
     "src/marketplace/alumnos-ejemplo.js",
     "src/marketplace/alumnos-pantalla.js",
