@@ -4787,13 +4787,14 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-apoyo-identidad .directorio-valoracion{color:var(--fg2);text-align:left;justify-content:flex-start;max-width:none}
 .perfil-apoyo-logo.catalogo-clase-logo{margin-inline-end:6px;height:56px;max-width:120px;border:0;border-radius:0;overflow:visible}
 .perfil-apoyo-logo.catalogo-clase-logo img{border-radius:0}
-.perfil-apoyo-contactos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:12px;margin:24px 0}
+.perfil-apoyo-contactos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));container-type:inline-size;gap:12px;margin:24px 0}
 .perfil-apoyo-contactos .clase-accion{margin:0;display:inline-flex;justify-content:center;align-items:center;min-height:44px;min-width:44px;box-sizing:border-box;text-decoration:none;color:var(--fg);background:var(--card);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font:inherit}
 .perfil-apoyo-contactos .clase-accion{gap:10px;font-weight:600;line-height:1.25;transition:filter var(--motion-press)}
-.perfil-apoyo-contactos .perfil-contacto-whatsapp{background:#087f45;border-color:#087f45;color:#fff}
+.perfil-apoyo-contactos .perfil-contacto-whatsapp{grid-column:1/-1;background:#087f45;border-color:#087f45;color:#fff}
 .perfil-apoyo-contactos .perfil-contacto-instagram{background:#b51267;border-color:#b51267;color:#fff}
 .perfil-apoyo-contactos .perfil-contacto-web{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
 .perfil-apoyo-contactos .perfil-contacto-email{background:#145eca;border-color:#145eca;color:#fff}
+@container(max-width:20rem){.perfil-apoyo-contactos>.clase-accion{grid-column:1/-1}}
 .perfil-contacto-icono{width:1.25em;height:1.25em;flex:none;pointer-events:none}
 .perfil-apoyo-contactos .clase-accion:active{filter:brightness(.93)}
 @media(prefers-reduced-motion:reduce){.perfil-apoyo-contactos .clase-accion{transition:none}}
