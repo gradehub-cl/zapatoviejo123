@@ -67,7 +67,6 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   if(!vigente())return;
   const compDe=(al,r)=>comparacionPruebasPanel(al,r,porSeccion?compSeccion(al,r):compGeneral(al,r));
   const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
-  const grupoHTML=lista=>lista.length?antesAhoraGrupoHTML(metricasGrupoPanel(lista,compDe),{seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(lista):0}):'';
   const link=linkAlumnosProfesor(codigo);
   const mensaje=mensajeInvitacionAlumnos();
   // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
@@ -166,8 +165,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const avisoPrivacidad=raiz.querySelector('#alumnos-privacidad');
   // Los ramos elegidos en «Por alumno y ramo» duran mientras la pantalla esté
   // abierta: cambiar de vista o de comparación vuelve a pintar y los conserva.
-  const filtroRamos={elegidos:new Set(),texto:''};
-  const pintarEstadisticas=()=>{paneles.estadisticas.innerHTML=grupoHTML(alumnos);aplicarFiltroRamosPanel(paneles.estadisticas,filtroRamos);};
+  const estadoEst=estadoEstadisticasPanel();
+  const opcionesEst=()=>({seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(alumnos):0,soloPruebas:alumnos.some(al=>al.soloPruebasPanel)});
+  const repintarEstadisticas=()=>pintarEstadisticasPanel(paneles.estadisticas,estadoEst,opcionesEst());
+  const pintarEstadisticas=()=>{estadoEst.datos=datosEstadisticasPanel(alumnos,compDe);if(!estadoEst.datos.hayPercentil)estadoEst.unidad='puntos';repintarEstadisticas();};
   let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
   // Se filtra en el navegador, con lo que el panel ya bajó.
@@ -253,10 +254,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
     raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
-    raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Antes y ahora',ramos:'Por ramo'})[nombre]||'';
+    raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Estadísticas',ramos:'Por ramo'})[nombre]||'';
     // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
     // ficha tiene su propio control dentro del gráfico.
     comparaWrap.hidden=nombre!=='estadisticas';
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function')caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
@@ -297,7 +299,6 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   // la Lista filtrada por ese ramo.
   const alTocar=e=>{
     if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
-    if(tocarFiltroRamosPanel(e,paneles.estadisticas,filtroRamos))return;
     const ir=e.target.closest('[data-ir-vista]');if(ir){activarVista(ir.dataset.irVista);return;}
     const ramo=e.target.closest('[data-ver-ramo]');
     if(ramo&&buscar){buscar.value=ramo.dataset.verRamo;filtrar();activarVista('lista');return;}
@@ -305,8 +306,24 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
     if(al)abrirFicha(al,b);
   };
-  ['resumen','estadisticas','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
-  ['input','keydown'].forEach(t=>paneles.estadisticas.addEventListener(t,e=>{if(vigente())escribirFiltroRamosPanel(e,paneles.estadisticas,filtroRamos);}));
+  ['resumen','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
+  // Sección y Solo pruebas siguen usando los controles de siempre, que en esta
+  // vista quedan ocultos detrás de Filtros.
+  paneles.estadisticas.addEventListener('click',e=>{
+    if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
+    const accion=tocarEstadisticasPanel(e,estadoEst);
+    if(accion==='pintar')return repintarEstadisticas();
+    if(accion?.startsWith('comparar:'))return cambiarComparacion(accion==='comparar:seccion');
+    if(accion?.startsWith('solo:')){const solo=raiz.querySelector('[data-solo-pruebas]'),quiere=accion==='solo:1';
+      if(solo&&solo.checked!==quiere){solo.checked=quiere;solo.dispatchEvent(new Event('change',{bubbles:true}));}return;}
+    alTocar(e);
+  });
+  paneles.estadisticas.addEventListener('input',e=>{
+    if(!vigente()||e.target?.dataset?.estBuscar===undefined)return;
+    estadoEst.texto=e.target.value;estadoEst.vistos=EST_FILAS;
+    const filas=paneles.estadisticas.querySelector('#est-filas');if(filas)filas.innerHTML=filasEstadisticasHTML(estadoEst.datos,estadoEst,opcionesEst());
+  });
+  paneles.estadisticas.addEventListener('keydown',e=>{if(vigente()&&e.key==='Escape'&&estadoEst.filtros){estadoEst.filtros=false;repintarEstadisticas();}});
   lista.addEventListener('click',e=>{
     if(!vigente())return;
     const b=e.target.closest('[data-ver-alumno]');if(!b)return;
