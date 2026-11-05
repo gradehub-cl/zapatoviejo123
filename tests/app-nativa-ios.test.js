@@ -27,7 +27,8 @@ console.log('\n=== La web no cambia ===');
 const bloque = css.slice(css.indexOf('/* ─── App iOS: aspecto nativo'));
 // Las @media (transparencia, contraste) no son selectores: se revisa lo de adentro.
 const reglas = (bloque.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g) || []).filter(r => !r.trim().startsWith('@'));
-chk('todo el bloque de la app va bajo .app-nativa', reglas.length > 10 && reglas.every(r => r.split(',').every(s => s.trim().startsWith('.app-nativa'))));
+chk('todo el bloque de la app va bajo .app-nativa o la PWA de iPhone', reglas.length > 10 && reglas.every(r => r.split(',').every(s => /^\.(app-nativa|pwa-ios)/.test(s.trim()))));
+chk('la PWA de iPhone es la única que suma la barra flotante', /navigator\.standalone&&window\.matchMedia\('\(max-width:600px\)'\)\.matches\)document\.documentElement\.classList\.add\('pwa-ios'\)/.test(fs.readFileSync(__dirname + '/../app.js', 'utf8')));
 chk('la caja de cada grupo de Ajustes no existe en la web', /\.settings-nav-card\{display:contents;\}/.test(css));
 
 console.log('\n=== Menús desplegables ===');
