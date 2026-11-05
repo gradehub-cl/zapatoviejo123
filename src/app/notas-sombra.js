@@ -9,16 +9,28 @@ function cambiarSombras(activadas){
   renderRamo();
   document.getElementById('sombras-activadas')?.focus({preventScroll:true});
 }
-function interruptorSombrasHTML(modelo){
-  return modelo?`<label class="sombras-interruptor" for="sombras-activadas"><span>Sombras</span><input id="sombras-activadas" type="checkbox" role="switch"${sombrasActivadas()?' checked':''} onchange="cambiarSombras(this.checked)"></label>`:'';
+function interruptorSombrasHTML(modelo,enExamen=false){
+  return modelo?`<label class="sombras-interruptor${enExamen?' sombras-interruptor-examen':''}" for="sombras-activadas"><span>Notas sombra</span><input id="sombras-activadas" type="checkbox" role="switch"${sombrasActivadas()?' checked':''} onchange="cambiarSombras(this.checked)"></label>`:'';
 }
 function pintarInterruptorSombras(modelo){
-  const chip=document.getElementById('ramo-min-chip');if(!chip)return;
-  chip.querySelector('.sombras-interruptor')?.remove();
+  document.querySelectorAll('.sombras-interruptor').forEach(el=>el.remove());
   if(!modelo)return;
-  chip.style.display='inline-flex';
-  chip.innerHTML+=interruptorSombrasHTML(modelo);
+  const ramo=S.ramos.find(r=>r.id===currentRamoId);
+  const examenes=new Set((ramo?.categorias||[]).filter(esExamenSombra).map(c=>c.id));
+  const examen=[...document.querySelectorAll('#cat-list [data-ficha-categoria]')].find(el=>examenes.has(el.dataset.fichaCategoria));
+  if(examen){
+    // La fila permanece aunque se apaguen las sombras o se cierre el slider.
+    // En un grupo colapsable va antes del cuerpo, nunca dentro de lo ocultable.
+    const antes=examen.querySelector('.sombra-panel,.eval-group-body');
+    const html=interruptorSombrasHTML(modelo,true);
+    if(antes)antes.insertAdjacentHTML('beforebegin',html);else examen.insertAdjacentHTML('beforeend',html);
+    return;
+  }
+  // Hay pautas sin examen: conservan el control junto a la meta.
+  const chip=document.getElementById('ramo-min-chip');if(!chip)return;
+  chip.style.display='inline-flex';chip.innerHTML+=interruptorSombrasHTML(modelo);
 }
+
 const claveNotaSombra=(catId,slot)=>JSON.stringify([catId,slot]);
 const textoNotaSombra=v=>Number(v).toFixed(1).replace('.',',');
 // Lucas, 2026-11-03: el «¿cuánto crees que sacas?» queda solo en el examen. En las
