@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="es" data-modo="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ficha de alumno · propuesta GradeHub</title>
+<!-- Propuesta para Lucas. Solo datos sintéticos; sin cuentas, red de datos o persistencia.
+     Reutiliza el módulo .est de #1019. La excepción Editorial/semáforo es solo de estos paneles.
+     Escala del gráfico 1–7: es una escala de notas, no una barra de cantidades desde cero.
+     Las frases de tope, método y causalidad son excepciones necesarias a "wordless". -->
+<link rel="stylesheet" href="../../../styles.css">
+<script src="../../../engine.js"></script>
+<style>
+:root{
+ --bg:#f4f4f2;--card:#fff;--bg2:#f4f4f2;--fg:#19191c;--fg2:#54545b;--fg3:#6c6c74;--red:#c02b3f;--border:#dedee2;--primary:#0d7a6b;--primary-fg:#fff;
+ --fd-tip:#1f1f24;--fd-tip-fg:#fff;--fd-knob:#fff;
+}
+:root[data-modo="oscuro"]{color-scheme:dark;--bg:#080809;--card:#121214;--bg2:#1b1b1f;--fg:#f4f4f6;--fg2:#b4b4bd;--fg3:#92929c;--red:#ff6b81;--border:#34343a;--primary:#2dd4bf;--primary-fg:#04231e}
+*{box-sizing:border-box}
+body.ficha-demo{margin:0;padding:0;background:var(--bg);color:var(--fg);font:.9375rem/1.45 var(--font-ui);-webkit-font-smoothing:antialiased}
+body.ficha-demo>main.profesor-hig{margin:0;padding:0;max-width:none;width:100%;position:static}
+body.ficha-demo .alumnos-editorial{margin:0;padding:0;max-width:none;width:100%}
+body.ficha-demo button,body.ficha-demo select,body.ficha-demo input{font-family:var(--font-ui);font-size:inherit}
+body.ficha-demo :focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.fd-demo-bar{border-bottom:1px solid var(--border);padding:8px max(20px,calc((100vw - 1584px)/2));font-size:0.75rem;color:var(--fg2);background:var(--card)}
+.fd-demo-bar summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer}
+.fd-demo-bar summary::after{content:"⌄";margin-left:auto}
+.fd-demo-bar summary strong{color:var(--fg);font-weight:600}
+.fd-demo-tools{display:flex;flex-wrap:wrap;gap:12px 20px;padding:12px 0 16px;align-items:center}
+.fd-demo-tools label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fd-demo-tools select,.fd-demo-tools button{min-height:44px;color:var(--fg);background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.fd-demo-tools input[type=checkbox]{width:22px;height:22px;accent-color:var(--primary)}
+.fd-shell{max-width:1640px;margin:auto;padding:24px 32px 40px}
+.fd-breadcrumb{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:0.8125rem;color:var(--fg3);margin-bottom:20px}
+.fd-breadcrumb a{display:inline-flex;align-items:center;min-height:44px;color:var(--fg2);text-decoration:none}
+.fd-header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:24px}
+.fd-persona{display:flex;align-items:center;gap:14px;min-width:0}
+.fd-persona .est-avatar{width:48px;height:48px;font-size:1rem;background:var(--card);border:1px solid var(--est-linea)}
+.fd-persona h1{font-size:clamp(1.5rem,2.7vw,2rem);line-height:1.15;letter-spacing:-.03em;font-weight:650;margin:0 0 7px;overflow-wrap:anywhere}
+.fd-persona p{color:var(--fg2);font-size:0.875rem}
+.fd-contexto{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+.fd-sigla,.fd-num{font-variant-numeric:tabular-nums}
+.fd-sigla{color:var(--fg3);font-size:0.75rem}
+.fd-nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex-shrink:0}
+.fd-nav small{font-size:0.75rem;color:var(--fg3);margin:0 6px}
+.profesor-hig .alumnos-editorial .est .fd-icon{min-width:44px;min-height:44px;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:var(--est-tile);padding:0}
+.fd-icon svg,.fd-icono{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.est .fd-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:12px;font-size:0.875rem;font-weight:550}
+.est .fd-button-strong{background:var(--fg);color:var(--bg)}
+.est .fd-button-soft{background:var(--est-tile);color:var(--fg)}
+.est .fd-button-outline{border:1px solid var(--est-linea2);color:var(--fg)}
+.est .fd-button:hover,.est .fd-icon:hover{filter:brightness(.95)}
+.fd-header .fd-search-label{display:inline}
+.fd-network{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 16px;padding:14px 16px;background:var(--est-tile);border:1px solid var(--est-linea2);border-radius:14px;color:var(--fg2);font-size:0.875rem}
+.fd-network strong{display:block;color:var(--fg);font-weight:550}
+.fd-network[hidden]{display:none}
+.fd-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px;align-items:stretch}
+.fd-grid h2,.fd-evaluaciones h2{font-size:1rem;font-weight:600;letter-spacing:-.015em}
+.fd-chart-header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:20px}
+.fd-chart-header h2{margin:2px 0 6px}
+.fd-chart-header p{font-size:0.8125rem;color:var(--fg3)}
+.fd-average{text-align:right;flex:none}
+.fd-average span{display:block;font-size:0.75rem;color:var(--fg2)}
+.fd-average strong{display:block;font-size:2.625rem;font-weight:600;line-height:1.1;letter-spacing:-.04em}
+.fd-gate{display:flex;align-items:flex-start;gap:12px;background:var(--est-tile);border-radius:14px;padding:12px 14px;margin-bottom:20px;font-size:0.8125rem;color:var(--fg2)}
+.fd-gate b{display:block;color:var(--fg);font-weight:600;margin-bottom:3px}
+.fd-gate .fd-button{flex:none;padding:0 8px;min-width:44px;align-self:center}
+.fd-gate p{line-height:1.5}
+.fd-chart-key{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--fg2);font-size:0.75rem;margin-bottom:18px}
+.fd-chart-key span{display:inline-flex;align-items:center;gap:6px}
+.fd-key-point{display:inline-block;width:9px;height:9px;border:1.5px solid var(--fg2);border-radius:50%;background:var(--card)}
+.fd-key-point.filled{background:var(--fg);border-color:var(--fg)}
+.fd-key-line{display:inline-block;width:20px;border-top:2px dashed var(--fg3)}
+.fd-plot-wrap{--fd-plot-alto:224px;position:relative;margin:12px 0 12px;padding-left:26px}
+.fd-plot{height:var(--fd-plot-alto);position:relative;touch-action:pan-y}
+.fd-plot svg{display:block;width:100%;height:100%;position:absolute;inset:0;overflow:visible}
+.fd-gridline{stroke:var(--est-linea);stroke-width:1;vector-effect:non-scaling-stroke}
+.fd-reference{fill:none;stroke:var(--fg3);stroke-dasharray:5 5;stroke-width:1.75;vector-effect:non-scaling-stroke}
+.fd-student-line{fill:none;stroke:var(--fg2);stroke-width:2;vector-effect:non-scaling-stroke}
+.fd-y{position:absolute;left:0;top:0;height:var(--fd-plot-alto);width:20px;display:flex;flex-direction:column;justify-content:space-between;color:var(--fg3);font-size:0.75rem;font-variant-numeric:tabular-nums}
+.fd-y span:first-child{transform:translateY(-50%)}.fd-y span:last-child{transform:translateY(50%)}
+.profesor-hig .alumnos-editorial .est .fd-chart-hit{position:absolute;top:0;bottom:0;height:100%;min-height:0;min-width:0;border:0;border-radius:8px;padding:0;background:none;color:var(--fg);cursor:crosshair}
+.fd-chart-hit::before{content:"";position:absolute;top:0;bottom:0;left:50%;border-left:1px solid transparent}
+.fd-chart-hit:hover::before,.fd-chart-hit:focus-visible::before,.fd-chart-hit[aria-pressed=true]::before{border-color:var(--est-linea2)}
+.fd-chart-hit>i{position:absolute;left:50%;top:var(--punto-y);margin:-5px 0 0 -5px;width:10px;height:10px;border:2px solid var(--fg2);background:var(--card);border-radius:50%}
+.fd-chart-hit[data-preparada=true]>i{background:var(--fg);border-color:var(--fg)}
+.fd-chart-hit[aria-pressed=true]>i,.fd-chart-hit:focus-visible>i{box-shadow:0 0 0 4px var(--est-sel-suave);border-color:var(--est-sel);background:var(--est-sel)}
+.fd-x{display:grid;margin-top:16px;gap:4px;font-size:0.75rem;color:var(--fg3);text-align:center}
+.fd-chart-caption{font-size:0.75rem;color:var(--fg3);padding-top:14px}
+.fd-chart-empty{min-height:224px;display:grid;place-items:center;text-align:center;color:var(--fg3);padding:30px;line-height:1.6}
+.fd-chart-empty strong{display:block;color:var(--fg2);font-size:0.9375rem;font-weight:500;margin-bottom:6px}
+.fd-comp{display:flex;flex-direction:column;min-width:0}
+.fd-comp-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.fd-comp-top h2{font-size:0.9375rem}
+.fd-comp .est-seg{display:flex;margin-bottom:16px}
+.profesor-hig .alumnos-editorial .est .fd-comp .est-seg button{flex:1;min-height:44px;font-size:0.8125rem;padding:0 8px}
+.fd-comp .fd-ref-count{font-size:0.75rem;color:var(--fg3);margin-bottom:22px}
+.fd-method{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:0.75rem;color:var(--fg2);margin-bottom:18px}
+.fd-method>span{border:1px solid var(--est-linea2);border-radius:99px;padding:4px 9px}
+.fd-method .fd-link{min-height:44px}
+.est .fd-link{padding:0;text-align:left;color:var(--est-sel);font-size:0.8125rem;font-weight:500;min-height:44px;text-decoration:underline;text-underline-offset:3px}
+.fd-endpoints{display:flex;justify-content:space-between;gap:16px}
+.fd-endpoints>div:last-child{text-align:right}
+.fd-endpoints span{display:block;font-size:0.75rem;color:var(--fg2)}
+.fd-endpoints strong{font-size:1.5rem;font-weight:600;letter-spacing:-.025em}
+.fd-comp .est-punto{margin:8px 6px 6px;height:36px}
+.fd-comp .est-tramo{background:var(--fg3);opacity:1}
+.fd-comp .est-b{background:var(--fg)}
+.fd-axis{display:flex;justify-content:space-between;color:var(--fg3);font-size:0.6875rem}
+.fd-change{margin-top:auto;padding-top:24px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.fd-change strong{font-size:2.125rem;line-height:1.1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;font-weight:600}
+.fd-change span{font-size:0.8125rem;color:var(--fg2)}
+.fd-comp .fd-counts{margin-top:8px;color:var(--fg3);font-size:0.75rem}
+.fd-comparison-empty{padding:18px 0;color:var(--fg3);font-size:0.875rem;flex:1;display:grid;align-content:center}
+.fd-comp details{margin-top:20px;padding-top:14px;border-top:1px solid var(--est-linea);font-size:0.75rem;color:var(--fg2)}
+.fd-comp summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.fd-comp summary::after{content:"+";font-size:1.125rem}
+.fd-comp details[open] summary::after{content:"−"}
+.fd-comp details p{line-height:1.6;margin:6px 0 12px}
+.fd-comp details .fd-link{display:block}
+.fd-evaluaciones{margin-top:18px;padding-bottom:10px}
+.fd-eval-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}
+.fd-eval-head p{font-size:0.75rem;color:var(--fg3);margin-top:4px}
+.fd-editor-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.fd-dirty{font-size:0.75rem;color:var(--fg2);margin-right:4px}
+.fd-eval-cols,.fd-eval-row{display:grid;grid-template-columns:minmax(160px,1fr) 70px 100px 100px 140px;gap:16px;align-items:center}
+.fd-eval-cols{font-size:0.75rem;color:var(--fg3);text-align:right;padding:14px 0 10px}
+.fd-eval-cols>span:first-child{text-align:left}
+.fd-eval-section{font-size:0.75rem;font-weight:550;color:var(--fg2);padding:14px 0 6px;border-top:1px solid var(--est-linea);margin-top:8px}
+.fd-eval-list{list-style:none;margin:0;padding:0}
+.fd-eval-row{min-height:66px;border-bottom:1px solid var(--est-linea);padding:8px 0}
+.fd-eval-row:last-child{border-bottom:0}
+.fd-eval-name{min-width:0}
+.fd-eval-name b{display:block;font-size:0.875rem;font-weight:550}
+.fd-eval-name small{display:block;font-size:0.75rem;color:var(--fg3);margin-top:3px}
+.fd-eval-grade{font-size:1.125rem;font-weight:550;text-align:right;font-variant-numeric:tabular-nums}
+.fd-eval-reference,.fd-eval-diff{text-align:right;font-size:0.875rem;font-variant-numeric:tabular-nums}
+.fd-eval-reference small{display:none}
+.fd-futura .fd-eval-grade{color:var(--fg3);font-weight:400}
+.fd-prep-cell{display:flex;justify-content:flex-end;min-width:0}
+.profesor-hig .alumnos-editorial .est .fd-prep-entry{display:inline-flex;align-items:center;justify-content:flex-end;gap:7px;min-height:44px;max-width:100%;padding:6px 8px;border-radius:9px;font-size:0.75rem;white-space:normal}
+.fd-prep-entry:hover{background:var(--est-tile)}
+.fd-prep-label{text-decoration:underline;text-decoration-color:var(--est-linea2);text-underline-offset:4px}
+.fd-prep-check{display:inline-flex;gap:8px;align-items:center;justify-content:flex-end;min-width:44px;min-height:44px;cursor:pointer;margin:0}
+.fd-prep-check input{width:22px;height:22px;accent-color:var(--est-sel);margin:0;cursor:pointer}
+.fd-prep-check span{font-size:0.75rem;color:var(--fg2)}
+.fd-list-empty{font-size:0.875rem;color:var(--fg3);padding:24px 0}
+.fd-weight{font-size:0.75rem;color:var(--fg3)}
+.fd-note-mobile{display:none}
+.fd-future-needed{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:14px 0 12px;font-size:0.8125rem;color:var(--fg2)}
+.fd-future-needed strong{font-weight:600;color:var(--fg)}
+.fd-footer{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 6px;color:var(--fg3);font-size:0.75rem}
+.fd-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 16px;border-radius:12px;background:var(--fd-tip);color:var(--fd-tip-fg);font-size:0.8125rem;box-shadow:var(--est-sombra);z-index:70;max-width:calc(100% - 32px)}
+.fd-tip{position:fixed;z-index:60;max-width:min(290px,calc(100vw - 24px));background:var(--fd-tip);color:var(--fd-tip-fg);padding:14px 16px;border-radius:14px;box-shadow:var(--est-sombra);font-size:0.8125rem;line-height:1.5;pointer-events:none}
+.fd-tip b{font-size:1.5rem;font-weight:600;display:block}
+.fd-tip small{display:block;color:#dedee4;font-size:0.75rem}
+.fd-tip[hidden],.fd-toast[hidden]{display:none}
+.fd-dialog{width:min(520px,calc(100% - 32px));max-height:80dvh;margin:auto;padding:24px;border:1px solid var(--border);border-radius:22px;background:var(--card);color:var(--fg);box-shadow:0 24px 60px rgb(0 0 0/.2)}
+.fd-dialog::backdrop{background:rgb(0 0 0/.4)}
+.fd-dialog h2{margin:0;font-size:1.25rem}
+.fd-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}
+.fd-dialog button{font:inherit;color:inherit;cursor:pointer}
+.fd-dialog .fd-close{width:44px;height:44px;border:0;border-radius:50%;background:var(--bg2);font-size:1.375rem}
+.fd-dialog input[type=search]{width:100%;min-height:44px;background:var(--bg2);border:1px solid var(--border);color:var(--fg);border-radius:12px;padding:10px 12px;font:inherit}
+.fd-search-results{margin-top:12px;display:grid;gap:2px}
+.fd-search-results button{min-height:54px;background:none;border:0;border-radius:10px;padding:10px;text-align:left}
+.fd-search-results button:hover{background:var(--bg2)}
+.fd-search-results span{display:block;font-size:0.75rem;color:var(--fg2)}
+.fd-rule p{font-size:0.875rem;color:var(--fg2);line-height:1.6}
+.fd-placeholder{height:190px;background:var(--est-tile);border-radius:14px;margin:24px 0}
+.fd-loading .fd-average strong{color:var(--fg3)}
+.fd-stale .fd-data-body .fd-student-line,.fd-stale .fd-data-body .fd-reference{opacity:.55}
+.fd-stale .fd-data-body button{pointer-events:none}
+html[data-texto="grande"]{font-size:200%}
+body[data-texto="grande"] .fd-header{flex-wrap:wrap}
+body[data-texto="grande"] .fd-eval-cols{display:none}
+body[data-texto="grande"] .fd-grid{grid-template-columns:minmax(0,1fr)}
+body[data-texto="grande"] .fd-eval-row{grid-template-columns:minmax(0,1fr) auto;gap:12px}
+body[data-texto="grande"] .fd-eval-reference,body[data-texto="grande"] .fd-eval-diff{display:none}
+@media(min-width:1800px){.alumnos-editorial .est.fd-shell{max-width:1640px;width:100%}.fd-grid{grid-template-columns:minmax(0,1fr) 380px}.fd-plot-wrap{--fd-plot-alto:300px}}
+@media(max-width:1020px){.fd-grid{grid-template-columns:minmax(0,1fr) 310px}.fd-shell{padding:20px}.fd-eval-cols,.fd-eval-row{grid-template-columns:minmax(140px,1fr) 60px 70px 80px 130px;gap:12px}.fd-grid>.est-tarjeta-grande{padding:20px}}
+@media(max-width:760px){
+ .fd-shell{padding:8px 16px max(28px,env(safe-area-inset-bottom))}
+ .fd-breadcrumb{margin-bottom:4px}
+ .fd-header{flex-wrap:wrap;gap:16px;margin-bottom:18px}
+ .fd-persona{align-items:flex-start;gap:12px;width:100%}
+ .fd-persona .est-avatar{display:none}
+ .fd-persona h1{font-size:1.625rem}
+ .fd-nav{width:100%;gap:6px}
+ .fd-nav .fd-button{margin-left:auto}
+ .fd-header .fd-search-label{display:none}
+ .fd-nav small{margin-right:auto}
+ .fd-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+ .fd-chart-header{gap:14px;margin-bottom:16px}
+ .fd-average strong{font-size:2.25rem}
+ .fd-grid>.est-tarjeta-grande{padding:18px}
+ .fd-chart-key{font-size:0.6875rem;gap:8px 12px;margin-bottom:22px}
+ .fd-plot-wrap{--fd-plot-alto:180px}
+ .fd-chart-caption{font-size:0.6875rem}
+ .fd-comp-top{margin-bottom:12px}
+ .fd-comp .est-seg{margin-bottom:14px}
+ .fd-comp .fd-ref-count{margin-bottom:14px}
+ .fd-method{margin-bottom:10px}
+ .fd-change{padding-top:18px}
+ .fd-comp details{margin-top:14px;padding-top:8px}
+ .fd-comp .est-punto{margin-top:14px}
+ .fd-evaluaciones{padding:18px 16px 6px;border-radius:20px;margin-top:14px}
+ .fd-eval-head{flex-wrap:wrap;align-items:flex-start;gap:12px;margin-bottom:8px}
+ .fd-eval-head>div:first-child{flex:1}
+ .fd-eval-head .fd-button{font-size:0.75rem;padding:8px 12px}
+ .fd-editor-actions{gap:6px}
+ .fd-dirty{width:100%;text-align:right}
+ .fd-eval-cols{grid-template-columns:minmax(0,1fr) 52px 48px;gap:8px;padding-bottom:8px}
+ .fd-eval-cols .fd-col-ref,.fd-eval-cols .fd-col-diff{display:none}
+ .fd-eval-cols .fd-col-prep{font-size:0.6875rem}
+ .fd-eval-row{grid-template-columns:minmax(0,1fr) 52px 48px;gap:8px;min-height:72px}
+ .fd-eval-reference,.fd-eval-diff{display:none}
+ .fd-eval-name b{font-size:0.8125rem}
+ .fd-eval-name small{font-size:0.6875rem}
+ .fd-note-mobile{display:block;color:var(--fg3);font-size:0.6875rem;margin-top:3px}
+ .fd-eval-grade{font-size:1.125rem}
+ .fd-prep-label,.fd-prep-check span{display:none}
+ .profesor-hig .alumnos-editorial .est .fd-prep-entry{min-width:44px;justify-content:center}
+ .fd-future-needed{font-size:0.75rem;align-items:flex-start}
+ .fd-gate{flex-wrap:wrap}
+ .fd-gate .fd-button{padding:0}
+ .fd-demo-bar{padding:6px 16px}
+ .fd-demo-tools{align-items:flex-start;flex-direction:column}
+ .fd-demo-tools label,.fd-demo-tools select{max-width:100%}
+ .fd-network{flex-wrap:wrap}
+ .fd-footer{font-size:0.6875rem}
+}
+body[data-texto="grande"] .fd-chart-header{flex-wrap:wrap}
+body[data-texto="grande"] .fd-chart-header>div:first-child{flex:1 0 100%}
+body[data-texto="grande"] .fd-average{text-align:left}
+body[data-texto="grande"] .fd-eval-head{flex-wrap:wrap}
+body[data-texto="grande"] .fd-eval-head>div:first-child{flex:1 0 100%}
+@media(prefers-reduced-motion:reduce){.ficha-demo *{animation:none;transition:none;scroll-behavior:auto}}
+@media(prefers-contrast:more){.fd-demo-bar,.est-tarjeta-grande,.fd-eval-row{border-color:var(--fg2)}.fd-chart-hit>i{border-width:3px}}
+@media(forced-colors:active){.fd-chart-hit>i,.fd-key-point{border:2px solid CanvasText}.fd-chart-hit[data-preparada=true]>i,.fd-key-point.filled{background:CanvasText}.fd-reference,.fd-student-line{stroke:CanvasText}}
+</style>
+</head>
+<body class="ficha-demo">
+<details class="fd-demo-bar"><summary><strong>Maqueta</strong><span>Datos sintéticos · sin conexión a cuentas</span></summary>
+ <div class="fd-demo-tools">
+  <label>Caso <select id="caso"><option value="0">Notas y marcas</option><option value="1">Promedio topado</option><option value="2">Por fecha de inicio</option><option value="3">Referencia no disponible</option><option value="4">Sin notas</option></select></label>
+  <label>Estado <select id="estado"><option value="ok">Actualizado</option><option value="cargando">Cargando</option><option value="actualizando">Actualizando</option><option value="error">Sin conexión</option></select></label>
+  <button type="button" id="tema">Ver en oscuro</button>
+  <label><input type="checkbox" id="texto-grande">Texto al 200%</label>
+ </div>
+</details>
+<main class="profesor-hig"><div class="alumnos-editorial"><div class="est fd-shell">
+ <nav class="fd-breadcrumb" aria-label="Ubicación"><a href="../estadisticas-alumnos-2026-11/maqueta.html">‹ Alumnos</a><span aria-hidden="true">/</span><span>Ficha de alumno y ramo</span></nav>
+ <div id="ficha"></div>
+ <footer class="fd-footer"><span>La diferencia no demuestra que se deba a las clases.</span><span>Pautas y alumnos ficticios</span></footer>
+ <div id="toast" class="fd-toast" role="status" aria-live="polite" hidden></div>
+ <div id="tip" class="fd-tip" role="tooltip" hidden></div>
+</div></div></main>
+<dialog id="buscar" class="fd-dialog" aria-labelledby="buscar-titulo"><div class="fd-dialog-head"><h2 id="buscar-titulo">Buscar alumno</h2><button type="button" class="fd-close" data-cerrar-dialog aria-label="Cerrar búsqueda">×</button></div><input id="busqueda" type="search" placeholder="Nombre o número del alumno" aria-label="Buscar entre 300 alumnos"><div id="resultados" class="fd-search-results"></div></dialog>
+<dialog id="regla" class="fd-dialog fd-rule" aria-labelledby="regla-titulo"><div class="fd-dialog-head"><h2 id="regla-titulo">Regla de la pauta</h2><button type="button" class="fd-close" data-cerrar-dialog aria-label="Cerrar regla">×</button></div><div id="regla-texto"></div></dialog>
+<script>
+const $=id=>document.getElementById(id),esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const coma=n=>n==null?'—':n.toFixed(1).replace('.',','),signo=n=>n==null?'—':(Math.abs(n)<.00001?'':n>0?'+':'−')+coma(Math.abs(n));
+const fechas=['2026-08-25','2026-09-03','2026-09-18','2026-10-01','2026-10-20','2026-11-02','2026-11-13','2026-11-26'];
+const nombres=['Control 1','Interrogación 1','Control 2','Interrogación 2','Control 3','Interrogación 3','Control 4','Examen'];
+const abrevs=['C1','I1','C2','I2','C3','I3','C4','Ex.'];
+const grados=[3.6,4.2,4,5.4,5,5.8,null,null],referencias=[4.2,4.8,4.6,4.8,4.4,5.2,null,null];
+const ejemplos=['Camila Suárez','Diego Fuentes','Sofía Rojas','Tomás Vidal','Elena Gómez'];
+const ALUMNOS=Array.from({length:300},(_,i)=>({
+ id:'ejemplo-'+String(i+1).padStart(3,'0'),nombre:ejemplos[i]||'Estudiante de ejemplo '+String(i+1).padStart(3,'0'),
+ ramo:i===1?'Física de ejemplo':'Cálculo aplicado',sigla:i===1?'SYN202':'SYN101',seccion:4,
+ manual:i!==2,corte:'2026-09-25',tipo:i===1?'tope':i===3?'chica':i===4?'vacio':'normal',
+ marcas:new Set(['ev-4','ev-5','ev-6','ev-7']),
+ evals:nombres.map((nombre,j)=>({id:'ev-'+(j+1),nombre,abreviatura:abrevs[j],fecha:fechas[j],peso:j===7?30:10,
+  nota:i===4?null:i===1?[4.2,4.6,4.4,5.4,5,4.5,null,null][j]:grados[j],referencia:referencias[j],
+  nRamo:i===3?3:96,nSeccion:i===3?3:24}))
+}));
+const st={index:0,ref:'ramo',draft:null,estado:'ok',punto:null};
+const sel=()=>ALUMNOS[st.index],esFutura=e=>e.fecha>'2026-11-04';
+const fecha=iso=>new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short'}).format(new Date(iso+'T12:00:00')).replace('.','');
+const icono=(tipo,clase='fd-icono')=>{
+ const p={buscar:'<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',izq:'<path d="m14 6-6 6 6 6"/>',der:'<path d="m10 6 6 6-6 6"/>',lapiz:'<path d="m4 16-1 5 5-1L20 8l-4-4Z"/><path d="m13 7 4 4"/>',check:'<path d="m5 12 4 4L19 6"/>',regla:'<path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/>'};
+ return '<svg class="'+clase+'" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'+(p[tipo]||'')+'</svg>';
+};
+const con=(a,e)=>a.manual?a.marcas.has(e.id):e.fecha>=a.corte;
+const ref=e=>(st.ref==='seccion'?e.nSeccion:e.nRamo)>=5&&e.referencia!=null?e.referencia+(st.ref==='seccion'?.2:0):null;
+const prom=xs=>xs.length?xs.reduce((x,y)=>x+y,0)/xs.length:null;
+const textoCambios=n=>n+' '+(n===1?'cambio':'cambios')+' sin guardar';
+function datos(a){
+ const tomadas=a.evals.filter(e=>typeof e.nota==='number'),comparables=tomadas.filter(e=>ref(e)!=null);
+ const sin=comparables.filter(e=>!con(a,e)),conClase=comparables.filter(e=>con(a,e));
+ const antes=prom(sin.map(e=>e.nota-ref(e))),despues=prom(conClase.map(e=>e.nota-ref(e)));
+ return {tomadas,comparables,sin,conClase,antes,despues,cambio:sin.length>=2&&conClase.length>=2?despues-antes:null};
+}
+function motor(a){
+ const estructura={id:'ramo-demo',type:'group',name:a.ramo,__meta:{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4},
+  children:a.evals.map(e=>({id:e.id,type:'leaf',name:e.nombre,weight:e.peso,...(a.tipo==='tope'&&e.id==='ev-6'?{min_grade_required:5,fail_cap:3.9}:{})}))};
+ const notas=Object.fromEntries(a.evals.filter(e=>typeof e.nota==='number').map(e=>[e.id,e.nota]));
+ const calculo=calculateFinalGrade(estructura,notas),necesaria=solveForTarget(estructura,notas,4,{}, {precision:null});
+ return {calculo,necesaria,oficial:gh_notaOficial(calculo.raw,estructura.__meta),peso:a.evals.filter(e=>e.nota!=null).reduce((v,e)=>v+e.peso,0)};
+}
+function cabeceraHTML(a){
+ return '<header class="fd-header"><div class="fd-persona"><span class="est-avatar" aria-hidden="true">'+esc(a.nombre.split(' ').slice(0,2).map(n=>n[0]).join(''))+'</span><div><h1>'+esc(a.nombre)+'</h1><p class="fd-contexto"><span>'+esc(a.ramo)+'</span><span class="fd-sigla">'+esc(a.sigla)+'</span><span>Sección '+a.seccion+'</span></p></div></div>'+
+ '<nav class="fd-nav" aria-label="Navegar alumnos"><button type="button" class="fd-icon" data-anterior aria-label="Alumno anterior">'+icono('izq')+'</button><small class="fd-num">'+(st.index+1)+' de '+ALUMNOS.length+'</small><button type="button" class="fd-icon" data-siguiente aria-label="Alumno siguiente">'+icono('der')+'</button><button type="button" class="fd-button fd-button-soft" data-buscar aria-label="Buscar alumno">'+icono('buscar')+'<span class="fd-search-label">Buscar alumno</span></button></nav></header>';
+}
+function avisoHTML(){
+ if(st.estado==='ok')return '';
+ const textos={cargando:['Cargando ficha','Preparando las evaluaciones compartidas.'],actualizando:['Actualizando','Se muestran los últimos datos disponibles.'],error:['Sin conexión','Se muestran los últimos datos. Las marcas aún no se pueden guardar.']};
+ const t=textos[st.estado];
+ return '<div class="fd-network" role="status"><div><strong>'+t[0]+'</strong><span>'+t[1]+'</span></div>'+(st.estado==='error'?'<button type="button" class="fd-button fd-button-outline" data-reintentar>Reintentar</button>':'')+'</div>';
+}
+function topeHTML(m){
+ const g=m.calculo.gates.find(g=>!g.ok&&!g.pending);
+ if(!g)return '';
+ const motivo=g.name+' va '+coma(g.current)+' (mín. '+coma(g.min_required)+'): la nota final no pasa de '+coma(g.fail_cap);
+ return '<div class="fd-gate" data-tope><div>'+icono('regla')+'</div><div><b>Tope activo</b><p>'+esc(motivo)+'</p></div><button type="button" class="fd-button fd-link" data-regla>Ver regla</button></div>';
+}
+function graficoHTML(a,d){
+ if(!d.comparables.length)return '<div class="fd-chart-empty"><div><strong>'+(d.tomadas.length?'Referencia no disponible':'Todavía no hay notas')+'</strong>'+(d.tomadas.length?'La comparación requiere al menos 5 estudiantes.':'Las evaluaciones futuras siguen disponibles para preparar.')+'</div></div>';
+ const lista=d.tomadas,N=lista.length,x=i=>(i+.5)/N*1000,y=n=>(7-n)/6*1000;
+ const chunks=campo=>{const grupos=[];let actual=[];lista.forEach((e,i)=>{const n=ref(e)==null?null:campo(e);if(n==null){if(actual.length)grupos.push(actual);actual=[];}else actual.push(x(i)+','+y(n));});if(actual.length)grupos.push(actual);return grupos;};
+ const lineas=(clase,grupos)=>grupos.map(ps=>'<polyline class="'+clase+'" points="'+ps.join(' ')+'"/>').join('');
+ const etiquetas=a.manual?['Sin clases','Con clases']:['Antes del inicio','Desde el inicio'];
+ return '<div class="fd-chart-key"><span><i class="fd-key-point filled"></i>'+etiquetas[1]+'</span><span><i class="fd-key-point"></i>'+etiquetas[0]+'</span><span><i class="fd-key-line"></i>'+(st.ref==='ramo'?'El ramo':'Su sección')+'</span></div>'+
+ '<div class="fd-plot-wrap"><div class="fd-y" aria-hidden="true"><span>7</span><span>4</span><span>1</span></div><div class="fd-plot" aria-label="Notas por evaluación"><svg viewBox="0 0 1000 1000" preserveAspectRatio="none" role="img" aria-label="Notas de '+esc(a.nombre)+', escala 1 a 7, sin proyección de evaluaciones futuras.">'+
+ [0,500,1000].map(v=>'<line class="fd-gridline" x1="0" x2="1000" y1="'+v+'" y2="'+v+'"/>').join('')+
+ lineas('fd-reference',chunks(e=>ref(e)))+lineas('fd-student-line',chunks(e=>e.nota))+'</svg>'+
+ lista.map((e,i)=>ref(e)==null?'':'<button type="button" class="fd-chart-hit" data-punto="'+e.id+'" data-preparada="'+con(a,e)+'" aria-pressed="'+(st.punto===e.id)+'" aria-label="'+esc(e.nombre)+', nota '+coma(e.nota)+', '+(con(a,e)?etiquetas[1]:etiquetas[0])+', '+signo(e.nota-ref(e))+' frente a '+(st.ref==='ramo'?'su ramo':'su sección')+'" style="left:'+(i/N*100)+'%;width:'+(100/N)+'%;--punto-y:'+((7-e.nota)/6*100)+'%"><i aria-hidden="true"></i></button>').join('')+
+ '</div><div class="fd-x" style="grid-template-columns:repeat('+N+',minmax(0,1fr))" aria-hidden="true">'+lista.map(e=>'<span>'+esc(e.abreviatura)+'</span>').join('')+'</div></div><p class="fd-chart-caption">Toca un punto o usa las flechas para ver la nota y su referencia.</p>';
+}
+function tarjetaNotasHTML(a,d,m){
+ return '<section class="est-tarjeta-grande fd-chart-card" aria-labelledby="notas-titulo"><header class="fd-chart-header"><div><h2 id="notas-titulo">Notas por evaluación</h2><p>'+d.tomadas.length+' de '+a.evals.length+' con nota'+(m.peso?' · '+m.peso+'% evaluado':'')+'</p></div><div class="fd-average"><span>Promedio actual</span><strong data-promedio>'+coma(m.oficial)+'</strong></div></header>'+topeHTML(m)+(st.estado==='cargando'?'<div class="fd-placeholder" aria-label="Cargando gráfico"></div>':graficoHTML(a,d))+'</section>';
+}
+function comparacionHTML(a,d){
+ const etiquetas=a.manual?['Sin clases','Con clases']:['Antes','Desde el inicio'],disponible=d.cambio!=null;
+ const n=d.comparables.length?(st.ref==='ramo'?96:24):null,clase=!disponible?'':Math.abs(d.cambio)<.05?'est-gris':d.cambio>0?'est-sube':'est-baja';
+ const pos=n=>50+Math.min(2,Math.max(-2,n))/2*48,pa=d.antes==null?50:pos(d.antes),pb=d.despues==null?50:pos(d.despues);
+ const content=disponible?'<div class="fd-endpoints fd-num"><div><span>'+etiquetas[0]+'</span><strong data-sin>'+signo(d.antes)+'</strong></div><div><span>'+etiquetas[1]+'</span><strong data-con>'+signo(d.despues)+'</strong></div></div>'+
+ '<div class="est-punto" aria-hidden="true"><i class="est-tramo" style="left:'+Math.min(pa,pb)+'%;width:'+Math.abs(pb-pa)+'%"></i><i class="est-a" style="left:'+pa+'%"></i><i class="est-b" style="left:'+pb+'%"></i></div><div class="fd-axis" aria-hidden="true"><span>2 bajo</span><span>Referencia</span><span>2 sobre</span></div>'+
+ '<div class="fd-change"><strong class="'+clase+'" data-cambio>'+(Math.abs(d.cambio)<.05?'=':d.cambio>0?'↑ ':'↓ ')+signo(d.cambio)+'</strong><span>puntos de diferencia</span></div><p class="fd-counts">'+d.sin.length+' evaluaciones '+etiquetas[0].toLowerCase()+' · '+d.conClase.length+' '+etiquetas[1].toLowerCase()+'</p>':
+ '<div class="fd-comparison-empty"><strong data-cambio>—</strong><p>'+(d.tomadas.length?(d.comparables.length?'Faltan evaluaciones comparables en ambos grupos.':'No disponible: la referencia necesita al menos 5 estudiantes.'):'Aún no hay notas para comparar.')+'</p></div>';
+ return '<section class="est-tarjeta-grande fd-comp" aria-labelledby="comp-titulo"><div class="fd-comp-top"><h2 id="comp-titulo">'+(a.manual?'Con clases y sin clases':'Antes y desde el inicio')+'</h2></div><div class="est-seg" role="group" aria-label="Referencia"><button type="button" data-ref="ramo" aria-pressed="'+(st.ref==='ramo')+'">Todo el ramo</button><button type="button" data-ref="seccion" aria-pressed="'+(st.ref==='seccion')+'">Su sección</button></div>'+
+ '<p class="fd-ref-count">'+(n?'vs. '+n+' estudiantes en GradeHub':'Referencia no disponible')+'</p><div class="fd-method"><span data-metodo>'+(a.manual?'Por evaluaciones marcadas':'Por fecha de inicio · '+fecha(a.corte))+'</span>'+(!a.manual?'<button type="button" class="fd-link" data-editar>Marcar evaluaciones</button>':'')+'</div>'+content+
+ '<details><summary>Cómo se calcula</summary><p>'+(a.manual?'La selección guardada separa las evaluaciones con y sin clases.':'Se separan las notas anteriores al '+fecha(a.corte)+' de las que tienen fecha igual o posterior. Esto no confirma que cada evaluación haya sido preparada contigo.')+' Cada nota se mide frente al promedio de esa misma evaluación. Hacen falta dos comparables por grupo y referencias de al menos cinco estudiantes. Las futuras no participan todavía.</p><p>Esta diferencia no demuestra que se deba a las clases.</p>'+(a.manual?'<button type="button" class="fd-link" data-usar-fecha>Volver a usar la fecha de inicio</button>':'')+'</details></section>';
+}
+function estadoMarcaHTML(a,e){
+ const editando=st.draft!==null,on=editando?st.draft.has(e.id):con(a,e);
+ if(editando)return '<label class="fd-prep-check"><span>'+(on?'Sí':'No')+'</span><input type="checkbox" data-marca="'+e.id+'" '+(on?'checked ':'')+'aria-label="'+esc(e.nombre)+': '+(esFutura(e)?'preparará':'preparó')+' contigo"></label>';
+ const palabra=a.manual?(on?'Con clases':'Sin clases'):(on?'Desde inicio':'Antes');
+ return '<button type="button" class="fd-prep-entry" data-editar-una="'+e.id+'" aria-label="Editar preparación de '+esc(e.nombre)+': '+palabra+'"><i class="fd-key-point'+(on?' filled':'')+'" aria-hidden="true"></i><span class="fd-prep-label">'+palabra+'</span></button>';
+}
+function filaHTML(a,e){
+ const referencia=ref(e),diferencia=e.nota==null||referencia==null?null:e.nota-referencia;
+ const tono=diferencia==null||Math.abs(diferencia)<.05?'':diferencia>0?'est-sube':'est-baja';
+ const ayuda=e.nota==null?'':referencia==null?'Referencia no disponible':(st.ref==='ramo'?'Ramo ':'Sección ')+coma(referencia)+' · '+signo(diferencia);
+ return '<li class="fd-eval-row'+(e.nota==null?' fd-futura':'')+'" data-evaluacion="'+e.id+'"><div class="fd-eval-name"><b>'+esc(e.nombre)+'</b><small>'+fecha(e.fecha)+' · '+e.peso+'% del ramo</small><span class="fd-note-mobile">'+ayuda+'</span></div>'+
+ '<span class="fd-eval-grade" aria-label="Nota '+coma(e.nota)+'">'+coma(e.nota)+'</span><span class="fd-eval-reference" aria-label="Referencia '+coma(referencia)+'">'+(e.nota==null?'—':coma(referencia))+'</span><span class="fd-eval-diff '+tono+'" aria-label="Diferencia '+signo(diferencia)+'">'+signo(diferencia)+'</span><div class="fd-prep-cell">'+estadoMarcaHTML(a,e)+'</div></li>';
+}
+function cambios(a){
+ if(st.draft===null)return 0;
+ return a.evals.filter(e=>st.draft.has(e.id)!==con(a,e)).length;
+}
+function listaHTML(a,d,m){
+ const futuras=a.evals.filter(e=>e.nota==null).sort((a,b)=>Number(esFutura(b))-Number(esFutura(a))||a.fecha.localeCompare(b.fecha)),pasadas=a.evals.filter(e=>e.nota!=null);
+ const editando=st.draft!==null,contador=cambios(a);
+ const acciones=editando?'<span class="fd-dirty" role="status">'+textoCambios(contador)+'</span><button type="button" class="fd-button fd-button-soft" data-cancelar>Cancelar</button><button type="button" class="fd-button fd-button-strong" data-guardar>Guardar marcas</button>':'<button type="button" class="fd-button fd-button-soft" data-editar>'+icono('lapiz')+'Editar preparación</button>';
+ let mensaje='';
+ if(futuras.length){
+  if(m.oficial==null)mensaje='Aún sin notas para calcular cuánto necesita';
+  else if(!m.necesaria.feasible)mensaje='Con la pauta actual no alcanza para aprobar';
+  else if(m.necesaria.requiredAverage!=null)mensaje='<strong>'+coma(Math.ceil((m.necesaria.requiredAverage-1e-7)*10)/10)+'</strong> en cada evaluación pendiente para aprobar';
+ }
+ return '<section class="est-tarjeta-grande fd-evaluaciones" aria-labelledby="eval-titulo"><div class="fd-eval-head"><div><h2 id="eval-titulo">Evaluaciones</h2><p>'+(editando?(a.manual?'Revisa tus cambios antes de guardar.':'Al guardar se usará esta selección, en lugar de la fecha de inicio.'):'Toca una marca para editar su preparación.')+'</p></div><div class="fd-editor-actions">'+acciones+'</div></div>'+
+ '<div class="fd-eval-cols" aria-hidden="true"><span>Evaluación</span><span>Nota</span><span class="fd-col-ref">'+(st.ref==='ramo'?'El ramo':'Su sección')+'</span><span class="fd-col-diff">Diferencia</span><span class="fd-col-prep">Clases</span></div>'+
+ (futuras.length?'<h3 class="fd-eval-section">'+(futuras.every(esFutura)?'Próximas':'Sin nota')+' <span class="fd-num">· '+futuras.length+'</span></h3><ol class="fd-eval-list" aria-label="Evaluaciones sin nota">'+futuras.map(e=>filaHTML(a,e)).join('')+'</ol><div class="fd-future-needed" data-necesaria><span>'+mensaje+'</span></div>':'')+
+ '<h3 class="fd-eval-section">Con nota <span class="fd-num">· '+pasadas.length+'</span></h3>'+(pasadas.length?'<ol class="fd-eval-list" aria-label="Evaluaciones con nota">'+pasadas.map(e=>filaHTML(a,e)).join('')+'</ol>':'<p class="fd-list-empty">Las notas compartidas aparecerán aquí. Puedes marcar las futuras mientras tanto.</p>')+'</section>';
+}
+function pintar({foco=null}={}){
+ ocultarTip();const a=sel(),d=datos(a),m=motor(a),cargando=st.estado==='cargando',viejo=['error','actualizando'].includes(st.estado);
+ $('ficha').className=(cargando?'fd-loading ':'')+(viejo?'fd-stale':'');
+ $('ficha').innerHTML=cabeceraHTML(a)+avisoHTML()+'<div class="fd-data-body" '+(cargando?'aria-busy="true"':'')+'><div class="fd-grid">'+tarjetaNotasHTML(a,d,m)+comparacionHTML(a,d)+'</div>'+listaHTML(a,d,m)+'</div>';
+ if(cargando){
+  $('ficha').querySelector('.fd-chart-header p').textContent='Consultando notas compartidas';
+  $('ficha').querySelector('[data-tope]')?.remove();
+  $('ficha').querySelector('[data-promedio]').textContent='—';
+  $('ficha').querySelector('.fd-comp').innerHTML='<h2>Comparación</h2><div class="fd-placeholder" aria-label="Cargando comparación"></div>';
+  $('ficha').querySelector('.fd-evaluaciones').innerHTML='<h2>Evaluaciones</h2><div class="fd-placeholder" aria-label="Cargando evaluaciones"></div>';
+ }
+ if(viejo||cargando)$('ficha').querySelectorAll('.fd-data-body button,.fd-data-body input').forEach(n=>n.disabled=true);
+ if(foco)$('ficha').querySelector(foco)?.focus({preventScroll:true});
+}
+let timerToast;
+function avisar(texto){$('toast').textContent=texto;$('toast').hidden=false;clearTimeout(timerToast);timerToast=setTimeout(()=>$('toast').hidden=true,3500);}
+function abrirEditor(eid=null){
+ if(st.estado!=='ok')return;
+ if(st.draft===null)st.draft=new Set(sel().evals.filter(e=>con(sel(),e)).map(e=>e.id));
+ pintar({foco:eid?'[data-marca="'+eid+'"]':'[data-marca]'});
+}
+function navegar(index){
+ if(st.draft!==null){avisar('Guarda o cancela tus marcas antes de cambiar de alumno.');return;}
+ st.index=(index+ALUMNOS.length)%ALUMNOS.length;st.punto=null;st.estado='ok';$('estado').value='ok';
+ if(st.index<5)$('caso').value=String(st.index);pintar();window.scrollTo({top:0,behavior:'instant'});
+}
+function buscarAlumnos(){
+ const texto=$('busqueda').value.toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'');
+ const lista=ALUMNOS.map((a,i)=>({a,i})).filter(({a,i})=>(a.nombre.toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'')+' '+(i+1)).includes(texto)).slice(0,8);
+ $('resultados').innerHTML=lista.length?lista.map(({a,i})=>'<button type="button" data-elegir="'+i+'">'+esc(a.nombre)+'<span>'+esc(a.ramo)+' · '+esc(a.sigla)+'</span></button>').join(''):'<p>No encontramos alumnos con ese nombre.</p>';
+}
+function ocultarTip(){$('tip').hidden=true;}
+function mostrarPunto(b){
+ if(!b)return;const a=sel(),e=a.evals.find(e=>e.id===b.dataset.punto);if(!e)return;
+ const n=ref(e);$('tip').innerHTML='<small>'+esc(e.nombre)+' · '+fecha(e.fecha)+'</small><b>'+coma(e.nota)+'</b><div>'+(st.ref==='ramo'?'El ramo':'Su sección')+' '+coma(n)+' · '+signo(e.nota-n)+'</div><small>'+(a.manual?(con(a,e)?'Con clases':'Sin clases'):(con(a,e)?'Desde el inicio':'Antes del inicio'))+'</small>';
+ $('tip').hidden=false;const r=b.getBoundingClientRect(),t=$('tip').getBoundingClientRect(),plot=b.closest('.fd-plot').getBoundingClientRect();
+ $('tip').style.left=Math.max(12,Math.min(innerWidth-t.width-12,r.left+r.width/2-t.width/2))+'px';
+ $('tip').style.top=Math.max(8,plot.top-t.height-12)+'px';
+}
+$('ficha').addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b||b.disabled)return;
+ if(b.hasAttribute('data-anterior'))return navegar(st.index-1);
+ if(b.hasAttribute('data-siguiente'))return navegar(st.index+1);
+ if(b.hasAttribute('data-buscar')){if(st.draft!==null)return avisar('Guarda o cancela tus marcas antes de cambiar de alumno.');$('buscar').showModal();$('busqueda').focus();buscarAlumnos();return;}
+ if(b.dataset.ref){st.ref=b.dataset.ref;pintar({foco:'[data-ref="'+st.ref+'"]'});return;}
+ if(b.hasAttribute('data-editar'))return abrirEditor();
+ if(b.dataset.editarUna)return abrirEditor(b.dataset.editarUna);
+ if(b.hasAttribute('data-cancelar')){st.draft=null;pintar({foco:'[data-editar]'});return;}
+ if(b.hasAttribute('data-guardar')){sel().marcas=new Set(st.draft);sel().manual=true;st.draft=null;pintar({foco:'[data-editar]'});avisar('Marcas guardadas en esta maqueta.');return;}
+ if(b.hasAttribute('data-regla')){$('regla-texto').innerHTML='<p>Esta pauta ficticia exige 5,0 en Interrogación 3. La nota guardada es 4,5: el motor aplica un tope de 3,9.</p><p>Las notas individuales siguen intactas. Las marcas de preparación no modifican esta regla.</p>';$('regla').showModal();return;}
+ if(b.hasAttribute('data-usar-fecha')){$('regla-texto').innerHTML='<p>Se compararán las evaluaciones anteriores y posteriores al '+fecha(sel().corte)+', en lugar de tus marcas.</p><button type="button" class="fd-button" data-confirmar-fecha>Usar fecha de inicio</button>';$('regla').showModal();return;}
+ if(b.hasAttribute('data-reintentar')){st.estado='ok';$('estado').value='ok';pintar();return;}
+ if(b.dataset.punto){st.punto=b.dataset.punto;$('ficha').querySelectorAll('[data-punto]').forEach(n=>n.setAttribute('aria-pressed',String(n===b)));mostrarPunto(b);}
+});
+$('ficha').addEventListener('change',e=>{
+ const b=e.target.closest('[data-marca]');if(!b||st.draft===null)return;
+ b.checked?st.draft.add(b.dataset.marca):st.draft.delete(b.dataset.marca);
+ const dirty=$('ficha').querySelector('.fd-dirty');if(dirty)dirty.textContent=textoCambios(cambios(sel()));
+ const etiqueta=b.parentElement.querySelector('span');if(etiqueta)etiqueta.textContent=b.checked?'Sí':'No';
+});
+$('ficha').addEventListener('pointerover',e=>{if(e.pointerType!=='touch')mostrarPunto(e.target.closest('[data-punto]'));});
+$('ficha').addEventListener('pointerout',e=>{if(e.target.closest('[data-punto]'))ocultarTip();});
+$('ficha').addEventListener('focusin',e=>mostrarPunto(e.target.closest('[data-punto]')));
+$('ficha').addEventListener('focusout',e=>{if(e.target.closest('[data-punto]'))ocultarTip();});
+$('ficha').addEventListener('keydown',e=>{
+ const b=e.target.closest('[data-punto]');if(!b)return;
+ const bs=[...$('ficha').querySelectorAll('[data-punto]')],i=bs.indexOf(b);
+ if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=bs[(i+(e.key==='ArrowRight'?1:-1)+bs.length)%bs.length];n.focus();mostrarPunto(n);}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')ocultarTip();});
+document.addEventListener('scroll',ocultarTip,true);window.addEventListener('resize',ocultarTip);
+document.querySelectorAll('[data-cerrar-dialog]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
+$('busqueda').addEventListener('input',buscarAlumnos);
+$('resultados').addEventListener('click',e=>{const b=e.target.closest('[data-elegir]');if(b){$('buscar').close();navegar(+b.dataset.elegir);}});
+$('regla').addEventListener('click',e=>{if(e.target.closest('[data-confirmar-fecha]')){sel().manual=false;st.draft=null;$('regla').close();pintar();avisar('Se usa la fecha de inicio en esta maqueta.');}});
+$('caso').addEventListener('change',e=>{st.draft=null;navegar(+e.target.value);});
+$('estado').addEventListener('change',e=>{st.estado=e.target.value;st.draft=null;pintar();});
+$('tema').addEventListener('click',()=>{const oscuro=document.documentElement.dataset.modo!=='oscuro';document.documentElement.dataset.modo=oscuro?'oscuro':'claro';$('tema').textContent=oscuro?'Ver en claro':'Ver en oscuro';ocultarTip();});
+$('texto-grande').addEventListener('change',e=>{document.documentElement.dataset.texto=e.target.checked?'grande':'';document.body.dataset.texto=e.target.checked?'grande':'';});
+pintar();
+</script>
+</body>
+</html>
