@@ -152,6 +152,69 @@ console.log('\n=== Se escribe con la misma clave con que se lee ===');
   chk('ningún reporte manda el nombre como clave', !/p_ramo_norm:normName/.test(fs.readFileSync(raiz + 'app.js', 'utf8')));
 }
 
+console.log('\n=== Un ramo UC escrito a mano calza con su sigla ===');
+{
+  // Sin cursos-uc.js cargado: el servidor resolvió la sigla por el nombre y la
+  // app tiene que llegar a la misma clave consultando catalogo_uc.
+  const consultas = [];
+  let respuesta = () => ({ data: [], error: null });
+  ctx.__catalogo = (campo, valores) => { consultas.push([campo, [...valores]]); return respuesta(valores); };
+  val(`supabaseClient={from:()=>({select:()=>({in:async(c,v)=>__catalogo(c,v)})})}`);
+  val(`S.tenant='uc'`);
+  const manual = (nombre, extra) => ({ id: 'm', nombre, categorias: [], gates: [], ...extra });
+  const fila = (nombre, clave) => [{ ...consenso(3, EST)[0], ramo: nombre, ramo_key: clave }];
+  const fijar = ramos => val(`S = ${JSON.stringify({ ...val('S'), ramos })}`);
+
+  respuesta = () => ({ data: [{ sigla: 'ZZZ1001', nombre: 'Ramo Sintético Uno', creditos: 10 }], error: null });
+  ctx.cargarConsenso = async () => fila('Ramo Sintético Uno', 'ZZZ1001');
+  fijar([manual('ramo sintetico uno')]);
+  chk('recibe el consenso de su sigla', (await ctx.aplicarConsensoAuto()) === 1);
+  chk('consulta por el nombre exacto, no baja el catálogo', consultas.length === 1 && consultas[0][0] === 'busqueda' && consultas[0][1][0] === 'ramo sintetico uno');
+
+  respuesta = () => ({ data: [{ sigla: 'ZZZ2002', nombre: 'Ramo Sintético II', creditos: 10 }], error: null });
+  ctx.cargarConsenso = async () => fila('Ramo Sintético II', 'ZZZ2002');
+  fijar([manual('Ramo Sintético 2')]);
+  chk('"2" y "II" son el mismo nombre, como en el servidor', (await ctx.aplicarConsensoAuto()) === 1);
+
+  // Nombre repetido: el servidor no elige sigla y agrupa por nombre.
+  respuesta = () => ({ data: [{ sigla: 'ZZZ3003', nombre: 'Ramo Sintético Doble', creditos: 10 }, { sigla: 'ZZZ3004', nombre: 'Ramo Sintético Doble', creditos: 10 }], error: null });
+  ctx.cargarConsenso = async () => fila('Ramo Sintético Doble', 'ramo sintetico doble');
+  fijar([manual('Ramo Sintético Doble')]);
+  chk('con el nombre repetido no adivina una sigla', (await ctx.aplicarConsensoAuto()) === 1);
+  ctx.cargarConsenso = async () => fila('Ramo Sintético Doble', 'ZZZ3003');
+  fijar([manual('Ramo Sintético Doble')]);
+  chk('ni recibe la pauta de uno de los dos', (await ctx.aplicarConsensoAuto()) === 0);
+
+  consultas.length = 0;
+  respuesta = () => { throw new Error('sin red'); };
+  ctx.cargarConsenso = async () => fila('Ramo Sintético Cuatro', 'ZZZ4004');
+  fijar([manual('Ramo Sintético Cuatro')]);
+  chk('si catalogo_uc falla, no explota ni aplica', (await ctx.aplicarConsensoAuto()) === 0);
+
+  consultas.length = 0;
+  respuesta = () => ({ data: [{ sigla: 'ZZZ4004', nombre: 'Ramo Sintético Cuatro', creditos: 10 }], error: null });
+  fijar([{ id: 'o', nombre: 'Otro', origen: { tenant: 'uc', ramoKey: 'ZZZ5005' }, categorias: [], gates: [] }]);
+  await ctx.aplicarConsensoAuto();
+  chk('sin ramos manuales no consulta nada', consultas.length === 0);
+
+  // Con pauta propia no se pisa, pero sí tiene que encontrar el aviso.
+  const propia = manual('Ramo Sintético Cuatro', { categorias: [{ id: 'c', nombre: 'Mía', peso: 100, notas: [] }] });
+  fijar([propia]);
+  chk('un ramo manual con pauta no se pisa', (await ctx.aplicarConsensoAuto()) === 0);
+  chk('pero queda con la clave del servidor', ctx.claveReporte(propia) === 'ZZZ4004');
+
+  // La malla de la carrera ya sabía la sigla, sin consultar nada.
+  val(`SIGLAS_UC.ZZ={'Ramo Sintético Seis':'ZZZ6006'};S.carrera='ZZ'`);
+  chk('la sigla de la malla se conserva', ctx.claveReporte(manual('Ramo Sintético Seis')) === 'ZZZ6006');
+
+  consultas.length = 0;
+  val(`S.tenant='fen'`);
+  fijar([manual('Ramo Sintético Cinco')]);
+  ctx.cargarConsenso = async () => [];
+  await ctx.aplicarConsensoAuto();
+  chk('fuera de la UC no consulta catalogo_uc', consultas.length === 0);
+}
+
 console.log('\n=== La ficha no la presenta como oficial ===');
 {
   const app = fs.readFileSync(raiz + 'app.js', 'utf8');

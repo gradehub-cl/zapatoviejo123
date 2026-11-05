@@ -115,6 +115,16 @@ function siglaReporteUC(r){
     const encontradas=new Set(Object.entries(CREDITOS_UC||{})
       .filter(([nombre])=>normName(nombre)===normName(r.nombre))
       .map(([,fila])=>siglaConForma(fila&&fila[1])).filter(Boolean));
+    // Mismo calce que sigla_catalogo_uc: `busqueda` exacta y una sola sigla.
+    if(!encontradas.size){
+      const malla=siglaConForma(siglaUC(r.nombre,S.carrera));
+      if(malla)return malla;
+      const busqueda=normBusqueda(normName(r.nombre));
+      (cursosUcExtra()||_cursosUcRemotos).forEach(f=>{
+        const sigla=Array.isArray(f)&&normBusqueda(normName(f[1]||''))===busqueda&&siglaConForma(f[0]);
+        if(sigla)encontradas.add(sigla);
+      });
+    }
     return encontradas.size===1?[...encontradas][0]:null;
   }
   // Solo vale algo con forma de sigla. Los ramos agregados antes de que su
@@ -144,7 +154,9 @@ function claveReporte(r){
   const o=r&&r.origen;
   // En UC manda la sigla, aunque el ramoKey guardado sea el nombre: es la
   // misma clave con la que el servidor agrupa los reportes.
-  return siglaReporteUC(r)||(o&&o.ramoKey)||ramoKey(r&&r.nombre,S.tenant,S.carrera);
+  // Un ramo UC a mano sin sigla inequívoca se agrupa por nombre en el servidor:
+  // ramoKey() tomaría la primera sigla de un nombre repetido.
+  return siglaReporteUC(r)||(o&&o.ramoKey)||(!o&&S.tenant==='uc'?normName(r&&r.nombre):ramoKey(r&&r.nombre,S.tenant,S.carrera));
 }
 // Sin sigla, el servidor agrupa por `ramo_norm`: tiene que ser la clave con que
 // se lee el consenso, o un ramo renombrado o con sinónimo vota en otro grupo.

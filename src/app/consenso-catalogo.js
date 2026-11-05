@@ -81,6 +81,7 @@ async function aplicarConsensoAuto(){
   // Vacía no corta: un ramo con secciones en disputa solo sale en la consulta
   // de su sección. Esta llamada además deja lista la caché de consensoAlAgregar.
   if(!await cargarConsenso())return 0;
+  await traerSiglasRamosManualesUC();
   let puestas=0;
   for(const r of (S.ramos||[])){
     const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
