@@ -32,5 +32,12 @@ assert(run('metricasDirectorioHTML({vistas:null,aperturas:17,contactos:null})').
 (async()=>{assert.equal(await run("registrarEventoDirectorio('p0','vista','uc')"),false);assert.equal(llamadas.length,1,'false no reintenta');
  assert.deepEqual(Object.keys(llamadas[0].p).sort(),['p_evento_id','p_perfil','p_tenant','p_tipo']);
  let resolver;ctx.supabaseClient.rpc=()=>new Promise(r=>resolver=r);const pendiente=run("registrarEventoDirectorio('p0','apertura','uc')");ctx.currentUser={id:'otra-cuenta'};resolver({data:true,error:null});assert.equal(await pendiente,false);
+ ctx.currentUser={id:'cuenta-sintetica'};const tenantAntes=ctx.S.tenant,canales=[];
+ ctx.supabaseClient.rpc=async(n,p)=>{canales.push({n,p});return {data:false,error:null}};
+ assert.equal(await run("registrarEventoDirectorio('p0','contacto','uc',{canal:'instagram',anuncioId:'a1'})"),false);
+ assert.equal(canales.length,1,'un false del canal tampoco se reintenta');assert.equal(canales[0].p.p_canal,'instagram');assert.equal(canales[0].p.p_anuncio_id,'a1');
+ canales.length=0;ctx.supabaseClient.rpc=async(n,p)=>{canales.push({n,p});return n==='registrar_evento_perfil_apoyo'?{error:{code:'PGRST202'}}:{data:true,error:null}};
+ assert.equal(await run("registrarEventoDirectorio('p0','contacto','uc',{canal:'web'})"),true);assert.deepEqual(canales.map(c=>c.n),['registrar_evento_perfil_apoyo','registrar_evento_perfil']);
+ assert.equal(ctx.S.tenant,tenantAntes,'las métricas no cambian el contexto');
  console.log('PASS: consentimiento/suspensión, vencimiento, orden diario estable, búsqueda, categorías, sin S, false terminal y sin correo precargado');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -27,7 +27,7 @@ function tarjetaDirectorioHTML(p,{previa=false,logoURL=''}={}){
     <span class="directorio-tarjeta-cabeza"><span class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</span>${valoracionDirectorioHTML(p.calificacion)}</span>
     <span class="directorio-identidad"><span class="directorio-textos"><strong class="directorio-nombre">${esc(p.nombre_publico||'Tu nombre público')}</strong>
       <span class="directorio-siglas">${esc((p.ramos_siglas||[]).slice(0,3).join(' · '))}</span></span>
-      <span class="directorio-avatar" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span></span>
+      <span class="directorio-avatar catalogo-clase-logo" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span></span>
   </${tag}>`;
 }
 async function perfilConDirectorio(p){
@@ -68,7 +68,7 @@ function anunciosDestacadosDirectorio(anuncios,busqueda,categoria,nombres,ahora=
 }
 function cabeceraDirectorioHTML(){
   return `<div class="catalogo-clases directorio-clases"><header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 id="modal-titulo">Encuentra tu apoyo</h1><p>Clases, apuntes y ayuda para tus ramos.</p></div><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></header>
-    <label class="directorio-busqueda" for="directorio-buscar">Buscar por ramo, sigla o perfil<input id="directorio-buscar" type="search" autocomplete="off" placeholder="Cálculo, MAT1620, Clases STEM…" aria-describedby="directorio-estado"></label>
+    <label class="directorio-busqueda" for="directorio-buscar">Buscar por ramo, sigla o perfil<input id="directorio-buscar" type="search" autocomplete="off" placeholder="Cálculo, MAT1620, clases particulares…" aria-describedby="directorio-estado"></label>
     <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
     <p id="directorio-estado" class="profesor-info" role="status" aria-live="polite">Buscando perfiles…</p><div id="directorio-resultados" aria-busy="true"></div>
     <p class="catalogo-privacidad">El directorio no usa tus notas ni los ramos de tu cuenta.</p></div>`;
@@ -128,55 +128,63 @@ async function cargarLogosDirectorio(raiz){
     const url=await urlFlyerClase(caja.dataset.directorioLogo);if(caja.isConnected&&url)caja.innerHTML=imgLogoClase(url,' loading="lazy"');
   });
 }
-function perfilDirectorioHTML(p,anuncios){
-  const siglas=p.ramos_siglas||[],otros=(anuncios||[]).filter(a=>(p.anuncios||[]).includes(a.id));
-  const insta=enlaceContactoClase('instagram',p.instagram),web=enlaceContactoClase('enlace',p.sitio_web);
-  return `<article class="directorio-perfil-abierto"><div class="directorio-perfil-cabecera"><button type="button" class="clase-accion" data-directorio-volver>← Volver al directorio</button><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></div>
-    ${tarjetaDirectorioHTML(p,{previa:true})}<h2>${esc(p.nombre_publico)}</h2><p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
-    <h3>Ramos</h3><ul class="directorio-ramos">${siglas.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
-    ${p.contacto_tipo?'<button type="button" class="accion-principal" data-directorio-contactar>Contactar</button>':'<p class="profesor-info">Este perfil todavía no tiene un contacto disponible.</p>'}
-    <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
-    ${insta||web?`<div class="directorio-redes">${insta?`<a href="${esc(insta)}" target="_blank" rel="noopener noreferrer" data-directorio-red>Instagram</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener noreferrer" data-directorio-red>Sitio web</a>`:''}</div>`:''}
-    <div data-directorio-ver-clases hidden></div>
-    ${otros.length?`<section class="directorio-seccion"><h3>Sus anuncios</h3>${otros.map(a=>tarjetaCatalogoClase(a)).join('')}</section>`:''}</article>`;
+function perfilDirectorioHTML(p,anuncios,anuncioId){
+  return `<article class="directorio-perfil-abierto"><div class="directorio-perfil-cabecera"><button type="button" class="clase-accion" data-directorio-volver>← Volver</button><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></div>
+    ${perfilPublicoHTML(p,anuncioId)}</article>`;
 }
-function abrirPerfilDirectorio(p,{raiz,tenant,anuncios,volver}){
-  const uid=currentUser?.id,version=vistaDirectorioVersion,resultados=raiz.querySelector('#directorio-resultados');
-  resultados.hidden=true;raiz.querySelector('.directorio-clases').hidden=true;raiz.insertAdjacentHTML('beforeend',perfilDirectorioHTML({...p,destacado:Date.parse(p.destacado_hasta)>Date.now()},anuncios));
-  const perfil=raiz.querySelector('.directorio-perfil-abierto');
-  const vigente=()=>perfil.isConnected&&currentUser?.id===uid&&S.tenant===tenant&&vistaDirectorioVersion===version&&document.getElementById('modal')?.classList.contains('open');
-  perfil.querySelector('[data-directorio-volver]').addEventListener('click',volver);
+function abrirPerfilDirectorio(p,opciones){return abrirPerfilApoyo(p,opciones);}
+function abrirPerfilApoyo(p,{raiz,tenant,anuncioId=null,volver}){
+  if(!raiz)return;
+  const uid=currentUser?.id,version=vistaDirectorioVersion,hoja=raiz.closest('.modal-sheet'),scroll=hoja?.scrollTop||0;
+  // Conserva nodos y listeners del catálogo; volver no reconstruye el formulario
+  // ni pierde filtros, foco o posición. Nunca se apilan dos modales.
+  const anteriores=[...raiz.children].map(n=>[n,n.hidden]);anteriores.forEach(([n])=>n.hidden=true);
+  raiz.insertAdjacentHTML('beforeend',perfilDirectorioHTML(p,catalogoClasesActual,anuncioId));
+  const perfil=raiz.lastElementChild;
+  const vigente=()=>perfil.isConnected&&!perfil.hidden&&currentUser?.id===uid&&S.tenant===tenant&&vistaDirectorioVersion===version&&document.getElementById('modal')?.classList.contains('open');
+  const regresar=()=>{if(!vigente())return;perfil.remove();anteriores.forEach(([n,hidden])=>n.hidden=hidden);if(hoja)hoja.scrollTop=scroll;if(volver)volver();};
+  perfil.querySelector('[data-directorio-volver]').addEventListener('click',regresar);
   perfil.querySelector('[data-directorio-cerrar]').addEventListener('click',closeModal);
-  cargarLogosDirectorio(perfil);activarTarjetasClases(perfil);
-  observarImpresionesClases(perfil,(anuncios||[]).filter(a=>(p.anuncios||[]).includes(a.id)));
-  registrarEventoDirectorio(p.id,'apertura',tenant);
-  const contacto=perfil.querySelector('[data-directorio-contactar]');if(contacto)contacto.addEventListener('click',async()=>{
-    if(contacto.disabled)return;contacto.disabled=true;
-    const aviso=perfil.querySelector('[data-directorio-contacto-estado]');
-    // La pestaña nace en el gesto. No se descarga correo antes de Contactar.
-    const nativa=typeof enAppNativa==='function'&&enAppNativa(),ventana=!nativa&&p.contacto_tipo!=='email'?window.open('about:blank','_blank'):null;if(ventana)ventana.opener=null;
+  cargarLogosDirectorio(perfil);
+  if(p.id)registrarEventoDirectorio(p.id,'apertura',tenant,{anuncioId});
+  perfil.querySelectorAll('[data-perfil-canal]').forEach(b=>b.addEventListener('click',async e=>{
+    if(!vigente()){e.preventDefault();return;}
+    const canal=b.dataset.perfilCanal;
+    if(canal!=='email'){
+      if(p.id)registrarEventoDirectorio(p.id,'contacto',tenant,{canal,anuncioId});
+      if(!e.defaultPrevented&&typeof enAppNativa==='function'&&enAppNativa()&&typeof abrirFuera==='function'&&abrirFuera(b.href))e.preventDefault();
+      return;
+    }
+    if(b.disabled)return;b.disabled=true;
+    const aviso=perfil.querySelector('[data-directorio-contacto-estado]');aviso.textContent='';
     try{
-      const r=await supabaseClient.rpc('contacto_directorio_perfil',{p_perfil:p.id,p_tenant:tenant});
-      if(!vigente()){ventana?.close();return;}
-      const enlace=!r.error&&r.data&&enlaceContactoClase(r.data.tipo,r.data.valor,'Hola, vi tu perfil en GradeHub. ¿Me das más información?');
+      let r=await supabaseClient.rpc('contacto_perfil_apoyo',{p_perfil:p.id,p_tenant:tenant,p_anuncio_id:anuncioId});
+      if(r.error&&sqlClasesDesactualizado(r.error)&&!anuncioId)r=await supabaseClient.rpc('contacto_directorio_perfil',{p_perfil:p.id,p_tenant:tenant});
+      if(!vigente())return;
+      const enlace=!r.error&&r.data?.tipo==='email'&&enlaceContactoClase('email',r.data.valor);
       if(!enlace)throw Error('sin contacto');
-      registrarEventoDirectorio(p.id,'contacto',tenant);
-      if(ventana&&!ventana.closed)ventana.location.href=enlace;
-      else if(!(nativa&&typeof abrirFuera==='function'&&abrirFuera(enlace)))window.location.assign(enlace);
-    }catch(e){ventana?.close();if(vigente())aviso.textContent='No pudimos abrir el contacto. Vuelve a intentarlo.';}
-    finally{if(vigente())contacto.disabled=false;}
-  });
-  const titulo=perfil.querySelector('h2');titulo.setAttribute('tabindex','-1');titulo.focus({preventScroll:true});const hoja=raiz.closest('.modal-sheet');if(hoja)hoja.scrollTop=0;
+      registrarEventoDirectorio(p.id,'contacto',tenant,{canal,anuncioId});
+      if(!(typeof enAppNativa==='function'&&enAppNativa()&&typeof abrirFuera==='function'&&abrirFuera(enlace)))window.location.assign(enlace);
+    }catch(e){if(vigente())aviso.textContent='No pudimos abrir el contacto. Vuelve a intentarlo.';}
+    finally{if(vigente())b.disabled=false;}
+  }));
+  perfil.querySelectorAll('[data-ir-anuncio]').forEach(b=>b.addEventListener('click',()=>{
+    regresar();const destino=[...raiz.querySelectorAll('[data-catalogo-anuncio]')].find(n=>n.dataset.catalogoAnuncio===b.dataset.irAnuncio);
+    if(destino){destino.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});destino.querySelector('[data-abrir]')?.focus({preventScroll:true});}
+  }));
+  const titulo=perfil.querySelector('h2');titulo.setAttribute('tabindex','-1');titulo.focus({preventScroll:true});if(hoja)hoja.scrollTop=0;
 }
 
 // Recibos por evento como en anuncios. False es terminal: jamás se reintenta.
 const eventosDirectorioPendientes=new Map();
-async function registrarEventoDirectorio(perfil,tipo,tenant,{eventoId=nuevoEventoMetricaClase()}={}){
+async function registrarEventoDirectorio(perfil,tipo,tenant,{eventoId=nuevoEventoMetricaClase(),canal=null,anuncioId=null}={}){
   if(!supabaseClient||!currentUser||!['vista','apertura','contacto'].includes(tipo))return false;
   const uid=currentUser.id,clave=uid+':'+eventoId;
   if(eventosDirectorioPendientes.has(clave))return eventosDirectorioPendientes.get(clave);
   const tarea=(async()=>{try{
-    const r=await supabaseClient.rpc('registrar_evento_perfil',{p_perfil:perfil,p_tenant:tenant,p_tipo:tipo,p_evento_id:eventoId});
+    const args={p_perfil:perfil,p_tenant:tenant,p_tipo:tipo,p_evento_id:eventoId};
+    let r=await supabaseClient.rpc(canal||anuncioId?'registrar_evento_perfil_apoyo':'registrar_evento_perfil',canal||anuncioId?{...args,p_canal:canal,p_anuncio_id:anuncioId}:args);
+    if(r.error&&sqlClasesDesactualizado(r.error)&&(canal||anuncioId))r=await supabaseClient.rpc('registrar_evento_perfil',args);
     if(currentUser?.id!==uid)return false;
     return r.error?null:r.data===true;
   }catch(e){return null;}finally{eventosDirectorioPendientes.delete(clave);}})();
@@ -203,7 +211,17 @@ function crearObservadorDirectorio(){
 }
 function metricasDirectorioHTML(m){
   const num=v=>v==null?'—':new Intl.NumberFormat('es-CL').format(v);
-  return `<section class="directorio-metricas"><h3>Tu perfil en el directorio</h3><dl>${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<div><dt>${t}</dt><dd>${num(m[k])}</dd></div>`).join('')}</dl>${Object.values(m).some(v=>v===null)?'<p class="profesor-info">Cada cifra aparece desde 15 eventos medidos.</p>':''}</section>`;
+  const canales=[['whatsapp','WhatsApp'],['instagram','Instagram'],['web','Sitio web'],['email','Correo']]
+    .map(([clave,nombre])=>({clave,nombre,n:m.canales?.[clave]??null}))
+    .sort((a,b)=>(b.n??-1)-(a.n??-1));
+  const maximo=Math.max(1,...canales.map(c=>c.n??0)),umbral=Number(m.umbral)||15;
+  return `<section class="directorio-metricas" aria-label="Interacción con tu perfil">
+    <header class="perfil-metricas-head"><div><p class="perfil-metricas-ceja">TU PERFIL</p><h3>Interacción con tu perfil</h3></div><span>Desde el inicio</span></header>
+    <dl class="perfil-metricas-principales">${[['vistas','Vistas de tu tarjeta','Veces que se mostró'],['aperturas','Aperturas del perfil','Veces que abrieron tu ficha'],['contactos','Contactos medidos','Una vez por cuenta y día']].map(([k,t,ayuda])=>`<div class="perfil-metrica${k==='contactos'?' perfil-metrica-principal':''}"><dt>${t}</dt><dd>${num(m[k])}</dd><span>${ayuda}</span></div>`).join('')}</dl>
+    <div class="perfil-metricas-canales"><h4>Por dónde te contactan</h4><p class="profesor-info">Clics medidos en los botones de tu perfil</p>
+      <dl>${canales.map(c=>`<div class="perfil-metrica-canal${c.n!=null&&c.n===maximo?' canal-principal':''}"><dt>${c.nombre}</dt><dd>${num(c.n)}</dd><span class="perfil-canal-pista" aria-hidden="true"><span style="--canal-avance:${c.n==null?0:c.n/maximo}"></span></span></div>`).join('')}</dl>
+    </div><details class="perfil-metricas-ayuda"><summary>Cómo se cuentan</summary><p>Vistas y aperturas cuentan eventos medidos, no personas distintas. Contactos suma una vez a cada cuenta por día, aunque use varios botones. Cada canal cuenta como máximo un clic por cuenta y día: por eso no se suman para obtener Contactos.</p><p>«—» significa que aún no hay ${umbral} eventos medidos o no hay desglose disponible. Los contactos anteriores al desglose no se atribuyen a un canal. No se cuentan tus propias visitas ni las de administradores. Estas métricas no generan cobros.</p></details>
+  </section>`;
 }
 async function mostrarMetricasDirectorio(caja){
   if(!caja||!supabaseClient||!currentUser)return;
