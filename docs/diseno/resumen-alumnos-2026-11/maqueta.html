@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es" data-modo="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Resumen de Alumnos · Maqueta GradeHub</title>
+<link rel="stylesheet" href="../../../styles.css">
+<style>
+:root{--bg:#f5f5f3;--bg2:var(--bg);color-scheme:light}
+:root[data-modo="oscuro"]{color-scheme:dark}
+body.resumen-demo{background:var(--bg);color:var(--fg);font:.9375rem/1.45 var(--font-ui);padding:0}
+.resumen-demo [hidden]{display:none}
+.rd{width:min(100%,1540px);margin:auto;padding:0 clamp(16px,3vw,40px) 32px;font-variant-numeric:tabular-nums;container-type:inline-size}
+.rd :is(button,summary,select){min-height:44px;min-width:44px;font:inherit;color:inherit;cursor:pointer}
+.rd :focus-visible{outline:2px solid var(--est-sel);outline-offset:3px}
+.rd-top{border-bottom:1px solid var(--est-linea2);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 0;margin-bottom:20px}
+.rd-top h1{font-size:1.375rem;letter-spacing:-.025em}.rd-top small,.rd-muted{color:var(--fg2);font-size:.8125rem}
+.rd-demo{font-size:.75rem;color:var(--fg2)}.rd-demo summary{display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}.rd-demo-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0}
+.rd select,.rd .rd-quiet{max-width:100%;border:1px solid var(--est-linea2);border-radius:10px;background:var(--card);padding:6px 12px;color:var(--fg)}
+.rd-filters{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin:0 0 18px}.rd-filters label,.rd-sort label{max-width:100%;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rd-filters time{color:var(--fg2);font-size:.8125rem}
+.rd-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--est-linea);border-radius:20px;background:var(--card);margin-bottom:18px}
+.rd-kpi{padding:16px 22px;min-width:0}.rd-kpi+.rd-kpi{border-left:1px solid var(--est-linea)}.rd-kpi span{display:block;font-size:.8125rem;color:var(--fg2);overflow-wrap:anywhere}.rd-kpi strong{display:block;font-size:2.25rem;font-weight:650;letter-spacing:-.04em;line-height:1.25}
+.rd-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}.rd .est-tarjeta-grande{min-width:0;padding:clamp(16px,2vw,26px);border-radius:22px}
+.rd-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}.rd-head h2{font-size:1.125rem;letter-spacing:-.02em}.rd-head .rd-muted{margin-top:4px}.rd-sort{font-size:.75rem;color:var(--fg2)}
+.rd-list{list-style:none;margin:0;padding:0}.rd-list li+li{border-top:1px solid var(--est-linea)}.rd .rd-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;min-height:65px;padding:10px 2px;text-align:left;border-radius:8px}.rd .rd-row:hover{background:var(--est-tile)}
+.rd-row strong,.rd-row small{display:block;overflow-wrap:anywhere}.rd-row strong{font-weight:600}.rd-row small{font-size:.75rem;color:var(--fg2);margin-top:3px}.rd-row .rd-reason{text-align:right;max-width:10.5rem;font-size:.8125rem}.rd-row .rd-reason small{font-size:.6875rem}
+.rd .est-avatar{width:36px;height:36px;background:var(--est-tile);color:var(--fg2);font-size:.75rem}.rd .rd-more{margin:12px 0 0;text-decoration:underline;text-underline-offset:4px;color:var(--est-sel);text-align:left;padding:0 4px;font-size:.8125rem}
+.rd-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:12px 0 16px;align-items:end}.rd .rd-day{position:relative;display:grid;grid-template-rows:6.5rem auto;gap:6px;padding:0 2px 4px;min-width:0;border-radius:8px;color:var(--fg2);font-size:.75rem;text-align:center}.rd-day>span:last-child{overflow-wrap:anywhere}.rd-bar{align-self:end;justify-self:center;display:block;width:min(28px,80%);height:var(--barra);background:color-mix(in srgb,var(--fg) 48%,var(--card));border-radius:4px 4px 0 0}.rd-day[aria-pressed=true]{background:var(--est-sel-suave);color:var(--fg);font-weight:650}.rd-day[aria-pressed=true] .rd-bar{background:var(--est-sel)}
+.rd-day .rd-num{position:absolute;left:50%;bottom:calc(1.75rem + var(--barra));transform:translateX(-50%);color:var(--fg);visibility:hidden}.rd-day:is([aria-pressed=true],:hover,:focus-visible) .rd-num{visibility:visible}
+.rd-dia-cabeza{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:12px 0 4px;border-top:1px solid var(--est-linea)}.rd-dia-cabeza h3{font-size:.875rem}
+.rd .rd-grupo{grid-template-columns:minmax(0,1fr) auto}.rd-grupo .rd-cuenta{font-size:.8125rem;white-space:normal;text-align:right;color:var(--fg2)}
+.rd-estado{padding:20px 0;color:var(--fg2);line-height:1.55}.rd-info{margin-top:14px;font-size:.8125rem;color:var(--fg2)}.rd-info summary{display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}
+.rd dialog{margin:auto;width:min(490px,calc(100% - 24px));max-height:85dvh;overflow:auto;background:var(--card);color:var(--fg);border:1px solid var(--est-linea2);border-radius:20px;padding:20px}.rd dialog::backdrop{background:rgb(0 0 0/.45)}.rd dialog h2{font-size:1.125rem}.rd dialog .rd-row{grid-template-columns:minmax(0,1fr) auto}
+@container(max-width:53rem){.rd-grid{grid-template-columns:minmax(0,1fr)}}
+@container(max-width:26rem){.rd-kpis{grid-template-columns:1fr}.rd-kpi{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px}.rd-kpi+.rd-kpi{border-left:0;border-top:1px solid var(--est-linea)}.rd-kpi strong{font-size:1.5rem}.rd .rd-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.rd-row .est-avatar{display:none}.rd-row .rd-reason{max-width:7rem}.rd-bars{gap:2px;margin-inline:-8px}.rd .rd-day{padding-inline:0}}
+.rd-fecha-select{display:none}
+@container(max-width:20rem){.rd-bars{display:none}.rd-fecha-select{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:.8125rem;color:var(--fg2)}}
+@media(prefers-reduced-motion:reduce){.rd *{animation:none;transition:none;scroll-behavior:auto}}
+</style>
+</head>
+<body class="resumen-demo">
+<main class="est rd">
+  <header class="rd-top"><div><small>GradeHub / Alumnos</small><h1>Resumen</h1></div><details class="rd-demo"><summary>Maqueta · datos ficticios</summary><div class="rd-demo-tools"><button class="rd-quiet" type="button" id="modo" aria-pressed="false">Modo oscuro</button><label><input type="checkbox" id="texto"> Texto al 200 %</label><label>Estado <select id="escenario"><option value="normal">Con datos</option><option value="vacio">Sin alumnos</option><option value="carga">Cargando</option><option value="error">Error de carga</option></select></label></div></details></header>
+  <div class="rd-filters"><label>Ramo <select id="ramo"><option value="todos">Todos los ramos</option></select></label><time datetime="2026-11-05">Jueves 5 de noviembre</time></div>
+  <div id="resumen"></div>
+  <dialog id="detalle" aria-labelledby="detalle-titulo"><div class="rd-head"><h2 id="detalle-titulo"></h2><form method="dialog"><button class="rd-quiet">Cerrar</button></form></div><div id="detalle-cuerpo"></div></dialog>
+</main>
+<script>
+// Solo maqueta. Las razones son datos de ejemplo, no reglas ni cálculos del motor.
+const ramos=[{id:'a',nombre:'Análisis numérico',sigla:'SYN301'},{id:'b',nombre:'Física aplicada',sigla:'SYN402'},{id:'c',nombre:'Álgebra lineal',sigla:'SYN220'}];
+const personas=Array.from({length:300},(_,i)=>({i,nombre:`Estudiante ${String(i+1).padStart(3,'0')}`,ramos:[ramos[i%3],...(i<30?[ramos[(i+1)%3]]:[])]}));
+const dias=['Jue 5','Vie 6','Sáb 7','Dom 8','Lun 9','Mar 10','Mié 11'];
+const cantidades=[18,24,5,12,6,15,4];
+const evaluaciones=cantidades.flatMap((n,d)=>Array.from({length:n},(_,j)=>{
+ const i=cantidades.slice(0,d).reduce((a,b)=>a+b,0)+j,al=personas[i%72];
+ return {al,ramo:al.ramos[i>=72&&al.ramos.length>1?1:0],d,nombre:['Prueba 2','Control 3','Interrogación 2'][d%3]};
+}));
+const razones=[['No alcanza','No alcanza con lo pendiente'],['Tiene un tope','Revisar regla del ramo'],['Va bajo 4,0','Necesita 5,8 en lo pendiente'],['Al borde','Necesita 4,4 en lo pendiente']];
+const casos=personas.slice(0,24).flatMap((al,i)=>al.ramos.slice(0,i<6?2:1).map((ramo,j)=>({al,ramo,orden:j?2+(i%2):i<2?0:i<5?1:2+(i%2)})));
+const $=s=>document.querySelector(s),select=$('#ramo'),escenario=$('#escenario'),resumen=$('#resumen'),detalle=$('#detalle');
+ramos.forEach(r=>select.add(new Option(r.nombre+' · '+r.sigla,r.id)));
+const compacto=matchMedia('(max-width:600px)'),pagina=()=>compacto.matches?3:6;
+let dia=0,orden='urgencia',limite=pagina(),consulta=null;
+const coincide=r=>select.value==='todos'||r.id===select.value;
+const cuantos=xs=>new Set(xs.map(x=>x.al.i)).size;
+const fechaCaso=x=>evaluaciones.find(e=>e.al===x.al&&e.ramo===x.ramo)?.d??99;
+const filaCaso=(x,i)=>`<li><button class="rd-row" type="button" data-caso="${i}"><span class="est-avatar" aria-hidden="true">${String(x.al.i+1).padStart(2,'0')}</span><span><strong>${x.al.nombre}</strong><small>${x.ramo.nombre} · ${x.ramo.sigla}</small></span><span class="rd-reason">${razones[x.orden][0]} <span aria-hidden="true">›</span><small>${fechaCaso(x)===99?'Sin evaluación esta semana':dias[fechaCaso(x)]}</small></span></button></li>`;
+const kpi=(n,t)=>`<div class="rd-kpi"><span>${t}</span><strong>${n}</strong></div>`;
+function pintar(foco){
+ const carga=escenario.value==='carga',error=escenario.value==='error',vacio=escenario.value==='vacio';
+ select.disabled=carga||error||vacio;
+ const p=select.disabled?[]:personas.filter(p=>p.ramos.some(coincide));
+ const e=select.disabled?[]:evaluaciones.filter(x=>coincide(x.ramo));
+ const a=select.disabled?[]:casos.filter(x=>coincide(x.ramo)).sort((x,y)=>(orden==='fecha'?fechaCaso(x)-fechaCaso(y):x.orden-y.orden)||x.orden-y.orden||fechaCaso(x)-fechaCaso(y)||x.al.i-y.al.i);
+ const porDia=dias.map((_,i)=>e.filter(x=>x.d===i).length),max=Math.max(1,...porDia);
+ const grupos=Object.values(Object.groupBy(e.filter(x=>x.d===dia),x=>x.ramo.id+'|'+x.nombre));
+ const estado=carga?'Cargando ramos y evaluaciones…':error?'No pudimos cargar el resumen.':vacio?'Los alumnos aparecerán cuando compartan sus ramos contigo.':null;
+ const col=n=>carga||error?'—':n;
+ consulta={a,grupos};
+ resumen.innerHTML=`<div class="rd-kpis">${kpi(col(p.length),'Alumnos conectados')}${kpi(col(cuantos(a)),'Necesitan atención')}${kpi(col(e.length),'Evaluaciones en 7 días')}</div>
+ <div class="rd-grid"><section class="est-tarjeta-grande" aria-labelledby="atencion"><header class="rd-head"><div><h2 id="atencion">Necesitan atención</h2><p class="rd-muted">${estado?'':`${a.length} casos · ${cuantos(a)} alumnos`}</p></div>${estado?'':`<div class="rd-sort"><label>Orden <select id="orden"><option value="urgencia"${orden==='urgencia'?' selected':''}>Por urgencia</option><option value="fecha"${orden==='fecha'?' selected':''}>Próxima evaluación</option></select></label></div>`}</header>
+ ${estado?`<p class="rd-estado" role="status">${estado}</p>${error?'<button class="rd-quiet" type="button" id="reintentar">Reintentar</button>':''}`:a.length?`<ul class="rd-list">${a.slice(0,limite).map(filaCaso).join('')}</ul>${a.length>limite?`<button class="rd-more" type="button" id="mas">Ver ${Math.min(pagina(),a.length-limite)} casos más</button>`:''}`:'<p class="rd-estado">Ningún alumno necesita atención en este ramo.</p>'}</section>
+ <section class="est-tarjeta-grande" aria-labelledby="semana"><header class="rd-head"><div><h2 id="semana">Esta semana</h2><p class="rd-muted">${estado?'':`${cuantos(e)} alumnos con evaluaciones · 5 al 11 nov`}</p></div></header>
+ ${estado?'<p class="rd-estado">'+(vacio?'Todavía no hay evaluaciones compartidas.':'Agenda no disponible.')+'</p>':`<div class="rd-bars" role="group" aria-label="Elegir día de la agenda">${dias.map((t,i)=>`<button class="rd-day" type="button" data-dia="${i}" aria-label="${t}: ${porDia[i]} evaluaciones" aria-pressed="${i===dia}" style="--barra:${porDia[i]/max*5}rem"><i class="rd-bar" aria-hidden="true"></i><span class="rd-num" aria-hidden="true">${porDia[i]}</span><span>${t}</span></button>`).join('')}</div>
+ <label class="rd-fecha-select">Día <select id="dia">${dias.map((t,i)=>`<option value="${i}"${i===dia?' selected':''}>${t} · ${porDia[i]} evaluaciones</option>`).join('')}</select></label><div class="rd-dia-cabeza"><h3>${dia===0?'Hoy':dias[dia]}</h3><span class="rd-muted">${porDia[dia]} ${porDia[dia]===1?'evaluación':'evaluaciones'}</span></div><ul class="rd-list">${grupos.map((g,i)=>`<li><button type="button" class="rd-row rd-grupo" data-grupo="${i}"><span><strong>${g[0].nombre}</strong><small>${g[0].ramo.nombre} · ${g[0].ramo.sigla}</small></span><span class="rd-cuenta">${cuantos(g)} alumnos <span aria-hidden="true">›</span></span></button></li>`).join('')||'<li class="rd-estado">Sin evaluaciones este día.</li>'}</ul>`}</section></div>
+ <details class="rd-info"><summary>Cómo se calcula</summary><p>Un alumno aparece una vez en los totales de personas, aunque comparta varios ramos. Un caso corresponde a un alumno en un ramo. La agenda cuenta solo evaluaciones pendientes con fecha. Este resumen no mide el efecto de las clases.</p></details>`;
+ if(foco)$(foco)?.focus({preventScroll:true});
+}
+function verCaso(x){
+ $('#detalle-titulo').textContent=x.al.nombre;
+ $('#detalle-cuerpo').innerHTML=`<p class="rd-muted">${x.ramo.nombre} · ${x.ramo.sigla}</p><p class="rd-estado">${x.orden===undefined?'Evaluación próxima: '+x.nombre+' · '+dias[x.d]:razones[x.orden][1]}</p><p class="rd-muted">Vista previa del destino. En la app abre la ficha de este alumno y ramo.</p>`;
+ if(!detalle.open)detalle.showModal();
+}
+resumen.addEventListener('change',e=>{if(e.target.id==='orden'){orden=e.target.value;limite=pagina();pintar('#orden');}if(e.target.id==='dia'){dia=Number(e.target.value);pintar('#dia');}});
+resumen.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.dia!==undefined){dia=Number(b.dataset.dia);pintar(`[data-dia="${dia}"]`);return;}
+ if(b.dataset.caso!==undefined){verCaso(consulta.a[Number(b.dataset.caso)]);return;}
+ if(b.dataset.grupo!==undefined){const g=consulta.grupos[Number(b.dataset.grupo)];$('#detalle-titulo').textContent=g[0].nombre+' · '+g[0].ramo.nombre;
+  $('#detalle-cuerpo').innerHTML=`<ul class="rd-list">${g.map((x,i)=>`<li><button class="rd-row" type="button" data-detalle="${i}"><span>${x.al.nombre}</span><span aria-hidden="true">›</span></button></li>`).join('')}</ul>`;
+  $('#detalle-cuerpo').querySelectorAll('[data-detalle]').forEach(b=>b.addEventListener('click',()=>verCaso(g[Number(b.dataset.detalle)])));detalle.showModal();return;}
+ if(b.id==='mas'){const antes=limite;limite+=pagina();pintar(`[data-caso="${antes}"]`);}
+ if(b.id==='reintentar'){escenario.value='normal';pintar('#ramo');}
+});
+select.addEventListener('change',()=>{limite=pagina();pintar();});escenario.addEventListener('change',()=>{limite=pagina();pintar();});
+$('#modo').addEventListener('click',e=>{const oscuro=document.documentElement.dataset.modo!=='oscuro';document.documentElement.dataset.modo=oscuro?'oscuro':'claro';e.target.textContent=oscuro?'Modo claro':'Modo oscuro';e.target.setAttribute('aria-pressed',oscuro);});
+compacto.addEventListener('change',()=>{limite=pagina();pintar();});
+$('#texto').addEventListener('change',e=>{document.documentElement.style.fontSize=e.target.checked?'200%':'';});
+pintar();
+</script>
+</body>
+</html>
