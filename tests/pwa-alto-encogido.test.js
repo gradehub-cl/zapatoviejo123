@@ -21,4 +21,23 @@ ctx.window.innerHeight=773;ctx.navigator.standalone=false;
 assert.deepEqual(correr(),[],'Safari y Android no cambian');
 ctx.navigator.standalone=true;ctx.document.activeElement={matches:()=>true};
 assert.deepEqual(correr(),[],'con un campo abierto espera a que se cierre');
+
+// Si iOS sigue corto, la barra llega al borde real. Parte solo para admins.
+const vars={};
+ctx.document.documentElement.style={setProperty:(k,v)=>{vars[k]=v;}};
+ctx.document.createElement=()=>({...nodo(),style:{},getBoundingClientRect:()=>({bottom:ctx.__borde})});
+ctx.document.activeElement=null;ctx.__borde=803;
+const compensar=()=>{delete vars['--falta-pwa'];vm.runInContext('compensarAltoPwa()',ctx);return vars['--falta-pwa'];};
+ctx.esAdministrador=()=>false;
+assert.equal(compensar(),undefined,'un estudiante no cambia');
+ctx.esAdministrador=()=>true;
+assert.equal(compensar(),'71px','un admin compensa lo que falta hasta la pantalla');
+ctx.__borde=874;
+assert.equal(compensar(),'0px','con el borde correcto no compensa');
+ctx.__borde=400;
+assert.equal(compensar(),'0px','una medida absurda no mueve la barra');
+ctx.__borde=803;ctx.navigator.standalone=false;
+assert.equal(compensar(),undefined,'Safari no cambia');
+const css=fs.readFileSync(raiz+'styles.css','utf8');
+assert.match(css,/\.bottom-nav\{position:fixed;bottom:calc\(var\(--falta-pwa,0px\) \* -1\)/,'sin la variable la barra queda en 0');
 console.log('OK pwa-alto-encogido');
