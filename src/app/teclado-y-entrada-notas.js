@@ -61,9 +61,25 @@ document.addEventListener('focusin',e=>{
 document.addEventListener('focusout',()=>{
   setTimeout(()=>{
     const a=document.activeElement;
-    if(!a||!a.matches||!a.matches('input,textarea,select'))soltarEspacioTeclado();
+    if(!a||!a.matches||!a.matches('input,textarea,select')){soltarEspacioTeclado();recuperarAltoPwa();}
   },120);
 });
+// En la PWA de iPhone el alto de la pantalla puede quedar encogido, con un recuadro
+// vacío bajo la barra de pestañas, hasta cerrar la app. Se ve después de abrir un
+// campo o de volver a la app. Esconder y mostrar `.app` en el mismo cuadro obliga a
+// WebKit a medir de nuevo, sin parpadeo. Se compara con la pantalla y no con el alto
+// anterior, porque ese puede partir ya encogido.
+function recuperarAltoPwa(){
+  if(!navigator.standalone||!window.matchMedia('(orientation:portrait)').matches)return;
+  if(screen.height-window.innerHeight<=4||espacioTeclado()>0)return;
+  const a=document.activeElement;
+  if(a&&a.matches&&a.matches('input,textarea,select'))return;
+  const app=document.querySelector('.app');if(!app)return;
+  const scrolls=[...app.querySelectorAll('.scroll,.modal-sheet')].map(s=>[s,s.scrollTop]);
+  app.style.display='none';void app.offsetHeight;app.style.display='';
+  scrolls.forEach(([s,top])=>{s.scrollTop=top;});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(recuperarAltoPwa,140);});
 window.visualViewport&&window.visualViewport.addEventListener('resize',()=>{
   if(espacioTeclado()===0)soltarEspacioTeclado();
 });
