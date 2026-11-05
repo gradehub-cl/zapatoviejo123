@@ -358,6 +358,7 @@ async function enlazarDirectorioAdmin(raiz){
   const cajas=[...raiz.querySelectorAll('[data-admin-directorio]')];if(!cajas.length)return;
   try{
     const {data,error}=await supabaseClient.rpc('admin_directorio_perfiles');if(error||!Array.isArray(data))return;
+    let metricas=[];try{const r=await supabaseClient.rpc('admin_metricas_directorio');if(!r.error&&Array.isArray(r.data))metricas=r.data;}catch(e){}
     for(const caja of cajas){
       if(!caja.isConnected)continue;
       const p=data.find(p=>p.user_id===caja.dataset.adminDirectorio);if(!p)continue;
@@ -366,6 +367,7 @@ async function enlazarDirectorioAdmin(raiz){
       caja.innerHTML=`<div class="directorio-admin"><p>${esc(p.etiqueta||'Sin etiqueta')} · ${p.en_directorio?'En el directorio':'Sin permiso para aparecer'}</p>
         <label for="directorio-hasta-${esc(p.user_id)}">Destacado hasta · hora local</label><input type="datetime-local" id="directorio-hasta-${esc(p.user_id)}" value="${local}">
         <button type="button" class="clase-accion" data-destacado-guardar>Guardar destacado</button><button type="button" class="clase-accion" data-destacado-quitar>Quitar destacado</button><p role="status"></p></div>`;
+      const m=metricas.find(m=>m.user_id===p.user_id);if(m)caja.insertAdjacentHTML('beforeend',metricasDirectorioHTML(m.metricas));
       const guardar=async quitar=>{
         const campo=caja.querySelector('input'),estado=caja.querySelector('[role=status]');
         if(!quitar&&(!campo.value||!Number.isFinite(new Date(campo.value).getTime()))){estado.textContent='Elige una fecha futura.';campo.focus();return;}
