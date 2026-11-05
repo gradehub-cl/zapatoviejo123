@@ -81,6 +81,7 @@
     "src/marketplace/logo-y-seleccion-apoyo.js",
     "src/marketplace/campanas-precio.js",
     "src/marketplace/catalogo.js",
+    "src/marketplace/directorio.js",
     "src/marketplace/metricas-anuncios.js",
     "src/marketplace/graficos-profesor.js",
     "src/marketplace/resumen-profesor.js",
