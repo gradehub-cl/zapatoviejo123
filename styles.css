@@ -1105,7 +1105,7 @@ button.solo-parte{min-height:44px;justify-content:flex-end;padding-top:0;padding
 /* Mientras el dedo o el resorte mandan, la transición CSS estorba: cada
    escritura de transform arrancaría una animación encima y el sheet dejaría de
    seguir al dedo. */
-.modal-sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));width:100%;max-width:430px;box-shadow:0 -4px 32px rgba(0,0,0,.2);max-height:92vh;max-height:92dvh;overflow-y:auto;
+.modal-sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:16px 20px calc(14px + env(safe-area-inset-bottom,0px) * .5);width:100%;max-width:430px;box-shadow:0 -4px 32px rgba(0,0,0,.2);max-height:92vh;max-height:92dvh;overflow-y:auto;
   touch-action:pan-y;overscroll-behavior-y:contain;}
 /* App iOS: las hojas abren enteras, el "large detent" de las HIG (Sheets). Con
    el alto según el contenido cada hoja medía distinto y Ajustes saltaba al
