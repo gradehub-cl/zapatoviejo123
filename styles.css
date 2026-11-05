@@ -4736,16 +4736,16 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-tarjeta .directorio-tarjeta-cabeza{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:0}
 .directorio-identidad{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%}
 .directorio-textos{display:flex;flex-direction:column;gap:12px;min-width:0;flex:1}
-.directorio-avatar{display:grid;place-items:center;width:56px;height:56px;flex-shrink:0;font-weight:700;border:1px solid currentColor;border-radius:50%;overflow:hidden}
-.directorio-avatar img{display:block;width:100%;height:100%;object-fit:contain}
+.directorio-avatar.catalogo-clase-logo{display:flex;align-items:center;justify-content:flex-end;width:auto;height:48px;max-width:120px;flex-shrink:0;font-weight:700;border:0;border-radius:0;overflow:visible}
+.directorio-avatar.catalogo-clase-logo img{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
 .directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit}
 .directorio-tarjeta .directorio-etiqueta{font-size:1rem;color:inherit}
 .directorio-tarjeta .directorio-siglas{font-size:.875rem;font-variant-numeric:tabular-nums;color:inherit}
 .directorio-valoracion{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;font-size:1rem;line-height:1.25;flex-shrink:0;font-variant-numeric:tabular-nums;color:inherit}
 .directorio-valoracion strong{font-weight:650;color:inherit}
 .directorio-sin-valoraciones{font-size:.75rem;text-align:right;white-space:normal;max-width:7rem}
-.profesor-form fieldset.directorio-editor{min-width:0;margin:24px 0;padding:16px;border:1px solid var(--border);border-radius:8px}
-.directorio-editor>legend{font-weight:700}
+.profesor-form .directorio-editor{min-width:0;margin:24px 0;padding:0;border:0}
+.directorio-editor>h3{font-weight:700;font-size:1rem}
 .directorio-editor>label{display:block;margin-top:16px;color:var(--fg2)}
 .directorio-editor input[type=color]{width:80px;height:48px;min-height:44px;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
 .directorio-editor input[type=text],.directorio-editor select{min-height:44px;width:100%;box-sizing:border-box}
@@ -4779,17 +4779,62 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-perfil-abierto{max-width:760px;margin:auto;color:var(--fg)}
 .directorio-perfil-cabecera{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px}
 .directorio-perfil-cabecera button{min-height:44px;white-space:normal}
-.directorio-perfil-abierto>.clase-accion{margin:12px 0 20px;min-height:44px}
-.directorio-perfil-abierto>.directorio-tarjeta{margin-bottom:24px}
-.directorio-perfil-abierto>.accion-principal{min-height:44px;width:100%;margin:16px 0}
-.directorio-ramos{padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:12px;font-variant-numeric:tabular-nums;color:var(--fg2)}
-.directorio-redes{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}
-.directorio-redes a{display:flex;align-items:center;min-height:44px;color:var(--fg);text-decoration:underline}
-.directorio-metricas{margin:20px 0;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
-.directorio-metricas h3{font-size:1rem;margin:0 0 16px}
-.directorio-metricas dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0}
-.directorio-metricas dt{font-size:.75rem;color:var(--fg2)}
-.directorio-metricas dd{margin:4px 0 0;font-size:1.5rem;font-weight:650;font-variant-numeric:tabular-nums;color:var(--fg)}
+.directorio-perfil-cabecera>.clase-accion{width:auto;margin:0;padding:8px 0;border:0;background:none;font:inherit;color:var(--fg2)}
+.perfil-apoyo-identidad{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;margin:24px 0}
+.perfil-apoyo-identidad>div:first-child{min-width:0;flex:1 1 12rem}
+.perfil-apoyo-identidad h2{font-size:clamp(1.75rem,4vw,2.5rem);line-height:1.1;letter-spacing:-.035em;margin:8px 0 12px;overflow-wrap:anywhere}
+.perfil-apoyo-etiqueta{font-size:.875rem;color:var(--fg2);margin:0}
+.perfil-apoyo-identidad .directorio-valoracion{color:var(--fg2);text-align:left;justify-content:flex-start;max-width:none}
+.perfil-apoyo-logo.catalogo-clase-logo{margin-inline-end:6px;height:56px;max-width:120px;border:0;border-radius:0;overflow:visible}
+.perfil-apoyo-logo.catalogo-clase-logo img{border-radius:0}
+.perfil-apoyo-contactos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:12px;margin:24px 0}
+.perfil-apoyo-contactos .clase-accion{margin:0;display:inline-flex;justify-content:center;align-items:center;min-height:44px;min-width:44px;box-sizing:border-box;text-decoration:none;color:var(--fg);background:var(--card);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font:inherit}
+.perfil-apoyo-contactos .clase-accion{gap:10px;font-weight:600;line-height:1.25;transition:filter var(--motion-press)}
+.perfil-apoyo-contactos .perfil-contacto-whatsapp{background:#087f45;border-color:#087f45;color:#fff}
+.perfil-apoyo-contactos .perfil-contacto-instagram{background:#b51267;border-color:#b51267;color:#fff}
+.perfil-apoyo-contactos .perfil-contacto-web{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
+.perfil-apoyo-contactos .perfil-contacto-email{background:#145eca;border-color:#145eca;color:#fff}
+.perfil-contacto-icono{width:1.25em;height:1.25em;flex:none;pointer-events:none}
+.perfil-apoyo-contactos .clase-accion:active{filter:brightness(.93)}
+@media(prefers-reduced-motion:reduce){.perfil-apoyo-contactos .clase-accion{transition:none}}
+.perfil-apoyo-contactos .clase-accion:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.perfil-apoyo-seccion{margin:24px 0}
+.perfil-apoyo-ramos,.perfil-publico-otros ul{list-style:none;padding:0;margin:0}
+.perfil-apoyo-ramos li{display:flex;align-items:baseline;gap:16px;min-height:44px;padding:12px 0;border-bottom:1px solid var(--border)}
+.perfil-apoyo-ramos strong{font-variant-numeric:tabular-nums}
+.perfil-apoyo-ramos span{color:var(--fg2)}
+.perfil-publico-otros button{min-height:44px;white-space:normal;text-align:left}
+.profesor-form.profesor-perfil select#pf-contacto-tipo{min-height:44px;width:100%;box-sizing:border-box;background:var(--card);color:var(--fg);font:inherit;border:1px solid var(--border);border-radius:8px;padding:10px}
+.profesor-perfil [data-perfil-logo]{margin:16px 0 24px}
+.profesor-perfil .profesor-logo-img{width:auto;min-width:52px;max-width:120px;height:48px;border:0;border-radius:0;overflow:visible;background:transparent}
+.profesor-perfil .profesor-logo-img img{width:auto;height:100%;max-width:100%;border-radius:0}
+@media(max-width:480px){.perfil-apoyo-identidad{gap:12px}.perfil-apoyo-logo.catalogo-clase-logo{max-width:88px;height:44px}.perfil-apoyo-ramos li{flex-wrap:wrap;gap:4px 16px}.directorio-avatar.catalogo-clase-logo{max-width:80px}}
+.directorio-metricas{margin:32px 0 24px;padding:24px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-family:var(--font-ui)}
+.perfil-metricas-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
+.directorio-metricas .perfil-metricas-ceja{font-size:.6875rem;font-weight:700;letter-spacing:.1em;color:var(--fg2);margin:0 0 8px}
+.directorio-metricas h3{font-size:1.125rem;margin:0;line-height:1.25;color:var(--fg)}
+.perfil-metricas-head>span{font-size:.75rem;color:var(--fg2);text-align:right}
+.directorio-metricas dl{margin:0}
+.perfil-metricas-principales{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding-bottom:24px}
+.directorio-metricas dt{font-size:.8125rem;color:var(--fg2)}
+.directorio-metricas .perfil-metrica dd{margin:8px 0;font-size:clamp(2rem,4vw,3rem);line-height:1;font-weight:650;font-variant-numeric:tabular-nums;color:var(--fg)}
+.directorio-metricas .perfil-metrica-principal dd{color:var(--primary)}
+.perfil-metrica>span{font-size:.75rem;line-height:1.4;color:var(--fg2)}
+.perfil-metricas-canales{padding-top:24px;border-top:1px solid var(--border)}
+.perfil-metricas-canales h4{font-size:1rem;margin:0 0 4px;color:var(--fg)}
+.perfil-metricas-canales>p{margin:0 0 16px}
+.perfil-metrica-canal{display:grid;grid-template-columns:1fr auto;gap:8px 24px;padding:12px 0}
+.directorio-metricas .perfil-metrica-canal dt{font-size:.875rem;font-weight:600;color:var(--fg)}
+.directorio-metricas .perfil-metrica-canal dd{margin:0;font-size:1rem;font-weight:650;font-variant-numeric:tabular-nums;color:var(--fg)}
+.perfil-canal-pista{display:block;grid-column:1/-1;height:4px;border-radius:2px;background:var(--border);overflow:hidden}
+.perfil-canal-pista>span{display:block;width:100%;height:100%;background:var(--fg3);transform:scaleX(var(--canal-avance));transform-origin:left;border-radius:2px}
+.canal-principal .perfil-canal-pista>span{background:var(--primary)}
+.perfil-metricas-ayuda{border-top:1px solid var(--border);margin-top:16px;padding-top:8px;color:var(--fg2);font-size:.8125rem;line-height:1.5}
+.perfil-metricas-ayuda summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-weight:600;color:var(--fg)}
+.perfil-metricas-ayuda summary::after{content:'+';margin-left:auto;font-size:1.125rem}
+.perfil-metricas-ayuda[open] summary::after{content:'−'}
+.perfil-metricas-ayuda p{margin:8px 0 16px}
+@media(max-width:480px){.directorio-metricas{padding:16px}.perfil-metricas-principales{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.perfil-metrica-principal{grid-column:1/-1;grid-row:1}.perfil-metricas-head{gap:12px}}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

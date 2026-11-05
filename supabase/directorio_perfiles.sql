@@ -142,7 +142,55 @@ create index if not exists perfil_recibos_cupo on public.perfil_eventos_recibos(
 create index if not exists perfil_recibos_retencion on public.perfil_eventos_recibos(creado_at);
 alter table public.perfil_eventos_recibos enable row level security;
 revoke all on public.perfil_eventos_recibos from public,anon,authenticated;
-create or replace function public.registrar_evento_perfil(p_perfil uuid,p_tenant text,p_tipo text,p_evento_id uuid)
+-- Aditivo: los contactos históricos no se atribuyen a una red inventada.
+alter table public.perfil_eventos_diarios add column if not exists whatsapp bigint not null default 0 check(whatsapp>=0);
+alter table public.perfil_eventos_diarios add column if not exists instagram bigint not null default 0 check(instagram>=0);
+alter table public.perfil_eventos_diarios add column if not exists web bigint not null default 0 check(web>=0);
+alter table public.perfil_eventos_diarios add column if not exists email bigint not null default 0 check(email>=0);
+alter table public.perfil_eventos_recibos add column if not exists canal text;
+alter table public.perfil_eventos_recibos drop constraint if exists perfil_recibos_canal;
+alter table public.perfil_eventos_recibos add constraint perfil_recibos_canal
+  check(canal is null or (tipo='contacto' and canal in ('whatsapp','instagram','web','email')));
+
+-- Una ficha, dos entradas. Los consentimientos siguen siendo independientes:
+-- aparecer en directorio o mostrar el perfil desde un anuncio publicado.
+create or replace function admin.perfil_apoyo_visible(p_uid uuid,p_tenant text,p_anuncio uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+  select auth.uid() is not null and exists(select 1 from public.tutor_perfiles p
+    where p.user_id=p_uid and p.estado='aprobado' and (
+      (p.en_directorio and p_tenant=any(p.universidades)) or
+      (p.perfil_publico and exists(select 1 from public.tutor_anuncios a
+        where a.id=p_anuncio and a.autor_id=p.user_id and a.tenant=p_tenant
+          and a.estado='publicado' and (a.vence_at is null or a.vence_at>now())))));
+$$;
+revoke all on function admin.perfil_apoyo_visible(uuid,text,uuid) from public,anon,authenticated;
+
+-- No modifica la firma histórica perfil_publico_de_anuncio: clientes viejos
+-- siguen funcionando. Nunca devuelve uid ni correo (tampoco el de contacto).
+create or replace function public.perfil_apoyo_de_anuncio(p_anuncio_id uuid,p_tenant text)
+returns jsonb language sql stable security definer set search_path='' as $$
+  select jsonb_build_object('id',p.directorio_id,'nombre_publico',p.nombre_publico,
+    'etiqueta',p.etiqueta,'tipo_perfil',p.tipo_perfil,'presentacion',p.presentacion,
+    'universidades',p.universidades,'ramos_siglas',p.ramos_siglas,'logo_path',p.logo_aprobado_path,
+    'instagram',p.instagram,'sitio_web',p.sitio_web,'contacto_tipo',p.contacto_tipo,
+    'contacto_valor',case when p.contacto_tipo<>'email' then p.contacto_valor end,
+    'anuncios',array(select a.id from public.tutor_anuncios a where a.autor_id=p.user_id
+      and a.tenant=p_tenant and a.estado='publicado' and (a.vence_at is null or a.vence_at>now()) order by a.id))
+  from public.tutor_perfiles p join public.tutor_anuncios a on a.autor_id=p.user_id
+  where auth.uid() is not null and a.id=p_anuncio_id and a.tenant=p_tenant
+    and p.estado='aprobado' and p.perfil_publico and a.estado='publicado' and (a.vence_at is null or a.vence_at>now());
+$$;
+create or replace function public.contacto_perfil_apoyo(p_perfil uuid,p_tenant text,p_anuncio_id uuid default null)
+returns jsonb language sql stable security definer set search_path='' as $$
+  select jsonb_build_object('tipo',p.contacto_tipo,'valor',p.contacto_valor)
+  from public.tutor_perfiles p where p.directorio_id=p_perfil
+    and admin.perfil_apoyo_visible(p.user_id,p_tenant,p_anuncio_id);
+$$;
+revoke all on function public.perfil_apoyo_de_anuncio(uuid,text),public.contacto_perfil_apoyo(uuid,text,uuid) from public,anon;
+grant execute on function public.perfil_apoyo_de_anuncio(uuid,text),public.contacto_perfil_apoyo(uuid,text,uuid) to authenticated;
+
+create or replace function public.registrar_evento_perfil_apoyo(p_perfil uuid,p_tenant text,p_tipo text,p_evento_id uuid,
+  p_canal text default null,p_anuncio_id uuid default null)
 returns boolean language plpgsql security definer set search_path='' as $$
 declare
   p public.tutor_perfiles%rowtype;
@@ -151,41 +199,58 @@ declare
   dia_chile date:=(now() at time zone 'America/Santiago')::date;
   desde timestamptz:=dia_chile::timestamp at time zone 'America/Santiago';
   hasta timestamptz:=(dia_chile+1)::timestamp at time zone 'America/Santiago';
-  filas integer;
+  filas integer; contacto_nuevo boolean;
 begin
   if uid is null then raise exception 'sin acceso' using errcode='42501'; end if;
-  if p_tipo is null or p_tipo not in ('vista','apertura','contacto') or p_evento_id is null then
+  if p_tipo is null or p_tipo not in ('vista','apertura','contacto') or p_evento_id is null
+    or (p_canal is not null and (p_tipo<>'contacto' or p_canal not in ('whatsapp','instagram','web','email'))) then
     raise exception 'evento inválido' using errcode='22023'; end if;
   select * into p from public.tutor_perfiles where directorio_id=p_perfil for update;
   if not found then return false; end if;
-  if p.estado<>'aprobado' or not p.en_directorio or not coalesce(p_tenant=any(p.universidades),false)
+  if not admin.perfil_apoyo_visible(p.user_id,p_tenant,p_anuncio_id)
     or p.user_id=uid or public.es_administrador(uid)
     or not exists(select 1 from public.user_ramos where user_id=uid) then return false; end if;
+  -- No se pueden medir botones que el perfil no ofrece.
+  if p_canal is not null and not coalesce(case p_canal
+    when 'whatsapp' then p.contacto_tipo='whatsapp' and p.contacto_valor is not null
+    when 'email' then p.contacto_tipo='email' and p.contacto_valor is not null
+    when 'instagram' then p.instagram is not null or (p.contacto_tipo='instagram' and p.contacto_valor is not null)
+    when 'web' then p.sitio_web is not null end,false) then return false; end if;
   limite:=case p_tipo when 'vista' then 4 when 'apertura' then 2 else 1 end;
   if (select count(*) from (select 1 from public.perfil_eventos_recibos
-    where user_id=uid and perfil=p.user_id and tipo=p_tipo and creado_at>=desde and creado_at<hasta limit limite) r)>=limite
-    then return false; end if;
-  insert into public.perfil_eventos_recibos(user_id,evento_id,perfil,tipo)
-    values(uid,p_evento_id,p.user_id,p_tipo) on conflict do nothing;
+    where user_id=uid and perfil=p.user_id and tipo=p_tipo and creado_at>=desde and creado_at<hasta
+      and (p_canal is null or canal=p_canal) limit limite) r)>=limite then return false; end if;
+  contacto_nuevo:=p_tipo='contacto' and not exists(select 1 from public.perfil_eventos_recibos
+    where user_id=uid and perfil=p.user_id and tipo='contacto' and creado_at>=desde and creado_at<hasta);
+  insert into public.perfil_eventos_recibos(user_id,evento_id,perfil,tipo,canal)
+    values(uid,p_evento_id,p.user_id,p_tipo,p_canal) on conflict do nothing;
   get diagnostics filas=row_count;
   if filas=0 then return false; end if;
-  insert into public.perfil_eventos_diarios(perfil,dia,vistas,aperturas,contactos)
-    values(p.user_id,dia_chile,(p_tipo='vista')::integer,(p_tipo='apertura')::integer,(p_tipo='contacto')::integer)
+  insert into public.perfil_eventos_diarios(perfil,dia,vistas,aperturas,contactos,whatsapp,instagram,web,email)
+    values(p.user_id,dia_chile,(p_tipo='vista')::integer,(p_tipo='apertura')::integer,contacto_nuevo::integer,
+      coalesce(p_canal='whatsapp',false)::integer,coalesce(p_canal='instagram',false)::integer,
+      coalesce(p_canal='web',false)::integer,coalesce(p_canal='email',false)::integer)
     on conflict(perfil,dia) do update set vistas=public.perfil_eventos_diarios.vistas+excluded.vistas,
-      aperturas=public.perfil_eventos_diarios.aperturas+excluded.aperturas,contactos=public.perfil_eventos_diarios.contactos+excluded.contactos;
-  -- Retención acotada e indexada; nunca toca los totales ni registros cobrables.
+      aperturas=public.perfil_eventos_diarios.aperturas+excluded.aperturas,contactos=public.perfil_eventos_diarios.contactos+excluded.contactos,
+      whatsapp=public.perfil_eventos_diarios.whatsapp+excluded.whatsapp,instagram=public.perfil_eventos_diarios.instagram+excluded.instagram,
+      web=public.perfil_eventos_diarios.web+excluded.web,email=public.perfil_eventos_diarios.email+excluded.email;
   delete from public.perfil_eventos_recibos where creado_at<now()-interval '90 days';
   return true;
 end;
 $$;
-revoke all on function public.registrar_evento_perfil(uuid,text,text,uuid) from public,anon;
-grant execute on function public.registrar_evento_perfil(uuid,text,text,uuid) to authenticated;
+-- Compatibilidad con la RPC que ya usan las tarjetas publicadas.
+create or replace function public.registrar_evento_perfil(p_perfil uuid,p_tenant text,p_tipo text,p_evento_id uuid)
+returns boolean language sql security definer set search_path='' as $$
+  select public.registrar_evento_perfil_apoyo(p_perfil,p_tenant,p_tipo,p_evento_id);
+$$;
+revoke all on function public.registrar_evento_perfil_apoyo(uuid,text,text,uuid,text,uuid),public.registrar_evento_perfil(uuid,text,text,uuid) from public,anon;
+grant execute on function public.registrar_evento_perfil_apoyo(uuid,text,text,uuid,text,uuid),public.registrar_evento_perfil(uuid,text,text,uuid) to authenticated;
 
 -- Igual que anuncio_metricas: quince eventos por métrica para el dueño. Un
 -- número desconocido es NULL, nunca un cero inventado. Admin con MFA ve todo.
 create or replace function public.resumen_directorio_perfil(p_perfil uuid default null)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
-declare propietario uuid; es_admin boolean; v bigint; a bigint; c bigint;
+declare propietario uuid; es_admin boolean; v bigint; a bigint; c bigint; canales jsonb;
 begin
   if auth.uid() is null then raise exception 'sin acceso' using errcode='42501'; end if;
   es_admin:=public.es_administrador(auth.uid());
@@ -196,8 +261,12 @@ begin
     raise exception 'sin acceso' using errcode='42501'; end if;
   select coalesce(sum(vistas),0),coalesce(sum(aperturas),0),coalesce(sum(contactos),0) into v,a,c
     from public.perfil_eventos_diarios where perfil=propietario;
+  select jsonb_object_agg(canal,case when es_admin or total>=15 then total end) into canales
+    from (select canal,n total from (select coalesce(sum(whatsapp),0) whatsapp,coalesce(sum(instagram),0) instagram,
+      coalesce(sum(web),0) web,coalesce(sum(email),0) email from public.perfil_eventos_diarios where perfil=propietario) d
+      cross join lateral (values ('whatsapp',d.whatsapp),('instagram',d.instagram),('web',d.web),('email',d.email)) x(canal,n)) s;
   return jsonb_build_object('vistas',case when es_admin or v>=15 then v end,
-    'aperturas',case when es_admin or a>=15 then a end,'contactos',case when es_admin or c>=15 then c end,'umbral',15);
+    'aperturas',case when es_admin or a>=15 then a end,'contactos',case when es_admin or c>=15 then c end,'umbral',15,'canales',coalesce(canales,'{}'::jsonb));
 end;
 $$;
 create or replace function public.admin_metricas_directorio()

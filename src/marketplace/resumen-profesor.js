@@ -77,7 +77,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     (g.borradores.some(a=>a.comentario_revision_error)?'<p class="clase-sin-datos" role="alert">No pudimos cargar los comentarios de revisión. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>':'')+
     seccionPanelClases('Pausadas y terminadas',g.cerrados,pesos,ahora)+
     seccionPanelClases('Estado sin confirmar',g.sinConfirmar,pesos,ahora)+
-    '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-perfil"></div><div id="clases-logo"></div></section>'+
+    '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-perfil"></div></section>'+
     salida()+'</div>';
   // Cambiar de vista no vuelve a pedir nada: las tres ya están pintadas.
   const activarVistaClases=v=>{
@@ -97,8 +97,6 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const repintar=()=>renderEspacioProfesor(raiz,{titulo:!!cabecera('x')});
   const nueva=raiz.querySelector('#clase-nueva');
   if(nueva)nueva.addEventListener('click',()=>renderBorradorProfesor(raiz,null));
-  const cajaLogo=raiz.querySelector('#clases-logo');
-  if(cajaLogo&&cajaLogo.isConnected&&typeof cajaLogo.addEventListener==='function')renderLogoProfesor(cajaLogo);
   const cajaPerfil=raiz.querySelector('#clases-perfil');
   if(cajaPerfil&&cajaPerfil.isConnected&&typeof cajaPerfil.addEventListener==='function')renderPerfilProfesor(cajaPerfil);
   const porVer=new Map(ediciones.map(e=>[e.anuncio_id,e])),abriendoEdicion=new Set();

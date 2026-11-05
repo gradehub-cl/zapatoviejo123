@@ -28,6 +28,38 @@ const P=u(1),OTRO=u(2),ADMIN=u(3),V=u(4),V2=u(5);
  await sesion(ADMIN);assert.equal(await evento(),false);await assert.rejects(db.query('select resumen_directorio_perfil($1)',[id]));
  await sesion(ADMIN,'aal2');m=(await db.query('select resumen_directorio_perfil($1) m',[id])).rows[0].m;assert.equal(m.vistas,5);assert.equal(m.contactos,1);
  const admin=(await db.query('select admin_metricas_directorio() m')).rows[0].m;assert(admin.some(p=>p.user_id===P&&p.metricas.vistas===5));
+ // Una misma cuenta puede usar cada canal sin inflar Contactos ni cobros.
+ await db.exec('reset role');await db.query("update perfil_eventos_recibos set creado_at=now() where tipo='contacto'");
+ await db.exec('reset role');await db.query("update tutor_perfiles set contacto_tipo='whatsapp',contacto_valor='+56912345678',instagram='ejemplo',sitio_web='https://example.invalid' where user_id=$1",[P]);
+ await sesion(V);
+ const canal=async(c,anuncio=null,eid=u(++i))=>(await db.query('select registrar_evento_perfil_apoyo($1,$2,$3,$4,$5,$6) ok',[id,'uc','contacto',eid,c,anuncio])).rows[0].ok;
+ for(const c of ['whatsapp','instagram','web']){assert.equal(await canal(c),true,c);assert.equal(await canal(c),false,'el cupo del canal no se reintenta');}
+ assert.equal(await canal('email'),false,'no mide un canal que no existe');
+ await assert.rejects(canal('inventado'));
+ await db.exec('reset role');let canales=(await db.query('select contactos,whatsapp,instagram,web,email from perfil_eventos_diarios')).rows[0];
+ assert.deepEqual(canales,{contactos:1,whatsapp:1,instagram:1,web:1,email:0},'el contacto histórico cuenta una sola vez; los tres canales tienen su propio contador');
+ const recibos=(await db.query('select count(*) n from perfil_eventos_recibos')).rows[0].n;
+ await sesion(V);assert.equal(await canal('web'),false);await db.exec('reset role');assert.equal((await db.query('select count(*) n from perfil_eventos_recibos')).rows[0].n,recibos,'false no escribe recibos');
+ // La ficha de un anuncio conserva su consentimiento independiente del directorio.
+ const anuncio=u(900);await db.query(`insert into tutor_anuncios(id,autor_id,tenant,ramos_siglas,precio_clp,descripcion,contacto_tipo,contacto_valor,titulo,estado,revisado_at,pagado_at,publicado_at,vence_at)
+ values($1,$2,'uc',array['SYN101'],12000,'Descripción sintética para probar un perfil','whatsapp','+56912345678','Ejemplo','publicado',now(),now(),now(),now()+interval '1 day')`,[anuncio,P]);
+ await db.query("update tutor_perfiles set en_directorio=false,perfil_publico=true,contacto_tipo='email',contacto_valor='prueba@example.invalid' where user_id=$1",[P]);
+ await sesion(V);assert.equal((await db.query('select contacto_perfil_apoyo($1,$2) p',[id,'uc'])).rows[0].p,null);
+ let publico=(await db.query('select perfil_apoyo_de_anuncio($1,$2) p',[anuncio,'uc'])).rows[0].p;
+ assert.equal(publico.id,id);assert.equal(publico.contacto_valor,null);assert(!JSON.stringify(publico).includes(P),'no devuelve uid');
+ assert.equal((await db.query('select contacto_perfil_apoyo($1,$2,$3) p',[id,'uc',anuncio])).rows[0].p.valor,'prueba@example.invalid');
+ assert.equal(await canal('email'),false,'sin consentimiento de directorio hace falta el anuncio');assert.equal(await canal('email',anuncio),true);
+ assert.equal((await db.query('select perfil_apoyo_de_anuncio($1,$2) p',[anuncio,'udd'])).rows[0].p,null,'no cruza universidades');
+ await db.exec('reset role');await db.query("update tutor_anuncios set estado='pausado' where id=$1",[anuncio]);await sesion(V);
+ assert.equal((await db.query('select perfil_apoyo_de_anuncio($1,$2) p',[anuncio,'uc'])).rows[0].p,null,'no devuelve perfiles de anuncios pausados');
+ assert.equal((await db.query('select contacto_perfil_apoyo($1,$2,$3) p',[id,'uc',anuncio])).rows[0].p,null,'el contacto se revoca también');
+ await assert.rejects(db.query('select admin.perfil_apoyo_visible($1,$2,$3)',[P,'uc',anuncio]),'helper privado');
+ await db.exec('reset role');await db.exec('set role anon');await assert.rejects(db.query('select perfil_apoyo_de_anuncio($1,$2)',[anuncio,'uc']));await db.exec('reset role');
+ await db.query('update tutor_perfiles set en_directorio=true where user_id=$1',[P]);
+ await db.exec(read('supabase/directorio_perfiles.sql'));canales=(await db.query('select contactos,whatsapp,instagram,web,email from perfil_eventos_diarios')).rows[0];
+ assert.deepEqual(canales,{contactos:1,whatsapp:1,instagram:1,web:1,email:1},'reaplicar no borra totales ni atribución');
+ await sesion(P);m=(await db.query('select resumen_directorio_perfil() m')).rows[0].m;assert.equal(m.canales.web,null,'el umbral se aplica también a cada canal');
+ await sesion(ADMIN,'aal2');m=(await db.query('select resumen_directorio_perfil($1) m',[id])).rows[0].m;assert.equal(m.canales.web,1);
  await db.exec('reset role');await db.query('update perfil_eventos_diarios set vistas=15 where perfil=$1',[P]);await sesion(P);assert.equal((await db.query('select resumen_directorio_perfil() m')).rows[0].m.vistas,15);
  await db.exec('reset role');await db.query('update tutor_perfiles set en_directorio=false where user_id=$1',[P]);await sesion(V2);assert.equal(await evento(),false);
  await db.exec('reset role');await db.query("update tutor_perfiles set en_directorio=true,estado='suspendido' where user_id=$1",[P]);await sesion(V2);assert.equal(await evento(),false);

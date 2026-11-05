@@ -15,7 +15,7 @@ function validarPerfilProfesor(e){
   if(presentacion.length<20||presentacion.length>1500)return {ok:false,campo:'presentacion',error:'Escribe una descripción de 20 a 1500 caracteres.'};
   const tipo=e.tipo_perfil==='empresa'?'empresa':e.tipo_perfil==='profesor'?'profesor':null;
   const insta=String(e.instagram||'').trim().replace(/^@/,'');
-  if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))return {ok:false,campo:'instagram',error:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.'};
+  if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))return {ok:false,campo:'instagram',error:'Escribe tu usuario de Instagram, por ejemplo @tu_usuario.'};
   const web=String(e.sitio_web||'').trim();
   if(web){
     let u;try{u=new URL(web);}catch(err){return {ok:false,campo:'web',error:'Pega el link completo de tu sitio, que empiece con https://.'};}
