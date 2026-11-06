@@ -4862,10 +4862,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @media(max-width:480px){.directorio-metricas{padding:16px}.perfil-metricas-principales{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.perfil-metrica-principal{grid-column:1/-1;grid-row:1}.perfil-metricas-head{gap:12px}}
 
 /* Estadísticas de Alumnos: el color solo dice dirección; turquesa, lo elegido. */
-.est,.adm-lista{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
+.est,.adm-lista,.ramos-panel{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
   --est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:color-mix(in srgb,var(--fg) 10%,transparent);--est-linea2:color-mix(in srgb,var(--fg) 20%,transparent);color:var(--fg);}
-:root[data-modo="oscuro"] :is(.est,.adm-lista){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
-@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
+:root[data-modo="oscuro"] :is(.est,.adm-lista,.ramos-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista,.ramos-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
 .panel-en-estadisticas #alumnos-compara-wrap,.panel-en-estadisticas>.panel-solo-pruebas,.panel-en-estadisticas>.panel-solo-pruebas+.clase-privacidad{display:none;}
 .panel-en-lista>.panel-solo-pruebas,.panel-en-lista>.panel-solo-pruebas+.clase-privacidad,.panel-en-lista>[data-solo-pruebas-estado]{display:none;}
 .est button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
@@ -5269,6 +5269,83 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .inv-principal{flex:1 0 100%;justify-content:center;}
   .inv-acciones .est-control{flex:1;justify-content:center;}
   .inv-pie-fin{margin-left:0;}
+}
+
+/* Alumnos › Ramos. Cifras de Admin y rieles de Estadísticas. */
+.panel-en-ramos>.panel-solo-pruebas,.panel-en-ramos>.panel-solo-pruebas+.clase-privacidad,.panel-en-ramos>[data-solo-pruebas-estado]{display:none;}
+.ramos-panel{container-type:inline-size;display:grid;gap:1rem;min-width:0;font-family:var(--font-ui);}
+.ramos-panel :is(h4,p,ul){margin:0;}
+.ramos-panel :is(b,strong,span,small){overflow-wrap:anywhere;}
+.ramos-panel .ramos-herramientas{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;}
+.ramos-panel .ramos-herramientas>span{font-size:.875rem;color:var(--fg2);}
+.ramos-panel :is(.ramos-filtros,.ramos-pie details) summary{display:flex;align-items:center;gap:.45rem;min-height:44px;min-width:44px;cursor:pointer;}
+.ramos-panel .ramos-filtros summary{width:fit-content;margin-left:auto;padding:0 .8rem;border-radius:12px;background:var(--est-tile);}
+.ramos-panel .ramos-filtros[open] summary{background:var(--est-sel-suave);color:var(--est-sel);}
+.ramos-panel .ramos-filtros-cuerpo{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .7rem;margin:.6rem 0 0;}
+.ramos-panel .ramos-filtros-cuerpo h3{font-size:.8125rem;color:var(--fg2);font-weight:500;}
+.profesor-hig .ramos-panel .ramos-filtros .est-seg button{min-height:44px;min-width:44px;font-size:.8125rem;white-space:normal;}
+.ramos-panel .ramos-filtros .est-seg button[aria-pressed=true]{color:var(--est-sel);}
+.ramos-panel .ramos-lista{border:1px solid var(--est-linea);border-radius:24px;background:var(--card);min-width:0;}
+.ramos-panel .ramos-fila+.ramos-fila{border-top:1px solid var(--est-linea);}
+.ramos-panel .ramos-fila-resumen{display:grid;grid-template-columns:minmax(8rem,1.5fr) minmax(0,4fr) auto;align-items:center;gap:.75rem;padding:.85rem 1rem;}
+.profesor-hig .ramos-panel .ramos-nombre{display:flex;justify-content:flex-start;align-items:center;gap:.6rem;min-width:44px;min-height:44px;padding:0;border:0;text-align:left;background:none;color:var(--fg);font:inherit;line-height:1.25;cursor:pointer;}
+.ramos-panel .ramos-nombre b{display:block;font-weight:650;}
+.ramos-panel .ramos-nombre small{display:block;color:var(--fg2);font-size:.75rem;}
+.ramos-panel .ramos-flecha{width:.45rem;height:.45rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);flex:none;margin:0 .15rem .2rem;}
+.ramos-panel .ramos-nombre[aria-expanded=true]{color:var(--est-sel);}
+.ramos-panel .ramos-nombre[aria-expanded=true] .ramos-flecha{transform:rotate(225deg);margin-bottom:-.2rem;}
+.ramos-panel .ramos-cifras{display:grid;grid-template-columns:.7fr 1fr 1.35fr .9fr 1fr;gap:.4rem .65rem;align-items:start;min-width:0;}
+.ramos-panel .adm-metrica{display:grid;grid-column:auto;gap:.12rem;font-variant-numeric:tabular-nums;min-width:0;}
+.ramos-panel .adm-metrica span,.ramos-panel .adm-metrica small{font-size:.75rem;line-height:1.3;color:var(--fg2);}
+.ramos-panel .adm-metrica small:empty{display:none;}
+.ramos-panel .adm-metrica strong{font-weight:650;font-size:1.125rem;line-height:1.15;}
+.ramos-panel .ramos-sube strong{color:var(--est-sube);}
+.ramos-panel .ramos-baja strong{color:var(--est-baja);}
+.ramos-panel .ramos-gris strong,.ramos-panel .ramos-muestra-chica .adm-metrica:nth-child(2) strong{color:var(--fg2);}
+.profesor-hig .ramos-panel .ramos-ver{min-width:44px;min-height:44px;font-size:.8125rem;margin:0;white-space:normal;color:var(--fg);}
+.ramos-panel :is(button,summary):focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
+.ramos-panel .ramos-detalle{padding:.75rem 1rem 1rem;background:var(--est-tile);}
+.ramos-panel .ramos-detalle[hidden]{display:none;}
+.ramos-panel .ramos-fila:last-child .ramos-detalle{border-radius:0 0 24px 24px;}
+.ramos-panel .ramos-detalle-grupo+.ramos-detalle-grupo{border-top:1px solid var(--est-linea2);padding-top:.8rem;margin-top:.8rem;}
+.ramos-panel .ramos-detalle-cabeza{display:flex;align-items:baseline;gap:.35rem .9rem;flex-wrap:wrap;margin-bottom:.5rem;color:var(--fg2);font-size:.8125rem;}
+.ramos-panel .ramos-detalle-cabeza h4{color:var(--fg);font-size:1rem;}
+.ramos-panel .ramos-evaluaciones{list-style:none;padding:0;}
+.ramos-panel :is(.ramos-escala,.ramos-eval small){color:var(--fg2);font-size:.75rem;}
+.ramos-panel .ramos-eval{display:grid;grid-template-columns:minmax(6rem,1fr) minmax(0,2fr) minmax(5rem,.65fr);align-items:center;gap:.3rem .8rem;padding:.55rem 0;border-top:1px solid var(--est-linea);}
+.ramos-panel .ramos-eval b{font-weight:600;}
+.ramos-panel .ramos-eval small{display:block;}
+.ramos-panel .ramos-eval-nota{padding-left:.65rem;}
+.ramos-panel .ramos-eval .est-par{grid-template-columns:minmax(5.1rem,auto) minmax(0,1fr) 2.2rem;gap:.4rem;font-size:.75rem;color:var(--fg2);margin-top:.25rem;}
+.ramos-panel .ramos-eval .est-par b{font-size:.8125rem;}
+.ramos-panel .ramos-eval .est-pista{grid-column:auto;grid-row:auto;}
+.ramos-panel .ramos-eval .est-pista i{background:color-mix(in srgb,var(--fg2) 76%,var(--est-gris));}
+.ramos-panel .ramos-eval .est-pista-ahora i{background:var(--fg2);}
+.ramos-panel .ramos-pie{display:flex;justify-content:space-between;align-items:center;gap:.3rem .75rem;flex-wrap:wrap;color:var(--fg2);font-size:.8125rem;}
+.ramos-panel .ramos-pie details[open]{width:100%;}
+@container(max-width:44rem){
+  .ramos-panel .ramos-fila-resumen{grid-template-columns:minmax(0,1fr) auto;gap:.4rem .55rem;}
+  .ramos-panel .ramos-cifras{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));}
+  .ramos-panel .ramos-ver{grid-column:2;grid-row:1;}
+  .ramos-panel .ramos-eval{grid-template-columns:minmax(0,1fr);}
+  .ramos-panel .ramos-eval .est-par{grid-template-columns:minmax(0,1fr) auto;gap:.15rem .4rem;}
+  .ramos-panel .ramos-eval .est-pista{grid-column:1/-1;grid-row:2;}
+}
+
+@container(max-width:23rem){
+  .ramos-panel .ramos-cifras{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@container(max-width:15rem){
+  .ramos-panel .ramos-fila-resumen{grid-template-columns:minmax(0,1fr);}
+  .ramos-panel .ramos-cifras>.adm-metrica:last-child{grid-column:1/-1;}
+  .ramos-panel .ramos-ver{grid-column:1;grid-row:3;justify-self:start;}
+}
+@media(max-width:1023px){
+  .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas:not([hidden]){display:flex;flex-wrap:wrap;gap:2px;overflow:visible;}
+  .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;padding:6px 7px;}
+}
+@media(min-width:1024px){
+  .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas{display:none;}
 }
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────

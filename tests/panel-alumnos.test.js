@@ -472,8 +472,8 @@ function contexto({search='',sesion=false}={}){
   chk('el Excel suma la sección y sus promedios al final',filaSec[14]==='3'&&filaSec[15]==='3,5'&&filaSec[17]==='5,2'&&filaSec[7]==='4,0');
   chk('y dice "no declarada" cuando falta',filaSin[14]==='no declarada'&&filaSin[15]===''&&filaSin[17]==='');
   const mkSec=leer('marketplace.js');
-  chk('por sección consulta con p_seccion y el resumen por ramo sigue contra todo GradeHub',
-    /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
+  chk('por sección consulta con p_seccion y Ramos usa la misma referencia que la ficha',
+    /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenRamosVistaPanel\(alumnos,compFicha,\{seccion,soloPruebas\}\)/.test(mkSec)
     &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion,formato,!!ejemplo\)/.test(mkSec));
 
   console.log('\n=== Un alumno con varios ramos (2026-10-21) ===');
@@ -612,13 +612,44 @@ function contexto({search='',sesion=false}={}){
   chk('la misma prueba escrita distinto se junta',i1&&i1.alumnos===2&&Math.abs(i1.promedio-4.5)<1e-9);
   chk('las categorías sin notas no aparecen',calc.categorias.length===1&&calc.categorias[0].nombre==='Interrogaciones');
   const rh=a.run('resumenAlumnosPanelHTML(__res)');
-  chk('compara el ramo, la categoría y la prueba con GradeHub',/4\.7<small>vs. 23 estudiantes en GradeHub/.test(rh)&&/4\.4<small>vs. 31 estudiantes en GradeHub/.test(rh)&&/4\.6<small>vs. 9 estudiantes en GradeHub/.test(rh));
-  const rhCalc=rh.split('Física')[0];
-  chk('el semáforo dice aprobando, reprobando y sin notas, con su color',
-    /panel-resumen-good">1 aprobando/.test(rhCalc)&&/panel-resumen-bad">1 reprobando/.test(rhCalc)&&/>1 sin notas</.test(rhCalc)&&!/al borde/.test(rhCalc));
-  chk('y un 4,5 va al borde',/panel-resumen-warn">1 al borde/.test(rh));
-  chk('y advierte que comparar no dice por qué',/no dice por qué/.test(rh));
-  chk('cada ramo es un desplegable de al menos 44 pt',/class="panel-resumen-ramo"/.test(rh)&&/\.panel-resumen-ramo summary\{[^}]*min-height:44px/.test(leer('styles.css')));
+  chk('compara el ramo, la categoría y la prueba con GradeHub con coma decimal',
+    /GradeHub<\/span><strong>4,7<\/strong><small>23 estudiantes/.test(rh)&&
+    /4,4<\/b><\/div><\/div>\s*<small class="ramos-eval-muestra">31 en GradeHub/.test(rh)&&
+    /4,6<\/b><\/div><\/div>\s*<small class="ramos-eval-muestra">9 en GradeHub/.test(rh));
+  chk('cada ramo tiene una sola fila y conserva la acción incluso plegado',
+    (rh.match(/data-ramos-fila/g)||[]).length===2&&
+    /aria-expanded="false"/.test(rh)&&/data-ver-ramo="MAT1620" aria-label="Ver alumnos de Cálculo II"/.test(rh));
+  chk('reprobando usa el conteo oficial, sin colorear la muestra chica',
+    /Reprobando<\/span><strong>1<\/strong><small>Reforzar/.test(rh)&&
+    /ramos-gris">[\s\S]*?Diferencia<\/span><strong>−0,2/.test(rh));
+  chk('conserva el aviso de causalidad y los blancos de 44 px',
+    /no demuestra que se deba a las clases/.test(rh)&&
+    /\.ramos-panel \.ramos-nombre\{[^}]*min-height:44px/.test(leer('styles.css')));
+  a.run(`globalThis.__ramosFiltro=[
+    {id:'s1',tenant:'uc',ramos:[{id:'r1',sigla:'SYN101',nombre:'Análisis',seccion:1,categorias:[
+      {id:'p',nombre:'Prueba 1',peso:50,tipoEvaluacion:'prueba',notas:[{id:'n',nombre:'Prueba 1',valor:3}]},
+      {id:'l',nombre:'Laboratorio',peso:50,tipoEvaluacion:'laboratorio',notas:[{id:'l1',nombre:'Laboratorio',valor:7}]}]}]},
+    {id:'s2',tenant:'uc',ramos:[{id:'r2',sigla:'SYN101',nombre:'Análisis',seccion:2,categorias:[
+      {id:'p',nombre:'Prueba 1',peso:50,tipoEvaluacion:'prueba',notas:[{id:'n',nombre:'Prueba 1',valor:5}]},
+      {id:'l',nombre:'Laboratorio',peso:50,tipoEvaluacion:'laboratorio',notas:[{id:'l2',nombre:'Laboratorio',valor:5}]}]}]}];
+    globalThis.__refRamos=(al,r)=>({ramo:{promedio:r.seccion===1?4.2:5.8,personas:r.seccion===1?8:12},
+      categorias:[{clave:'prueba 1',promedio:r.seccion===1?4:5,personas:r.seccion===1?8:12},
+        {clave:'laboratorio',promedio:6,personas:4}],evaluaciones:[]});`);
+  const filtrados=a.run('resumenRamosVistaPanel(__ramosFiltro,__refRamos,{seccion:true,soloPruebas:true})');
+  chk('una fila conserva sus alumnos, pero los promedios de prueba y referencia se separan por sección',
+    filtrados.length===1&&filtrados[0].alumnos===2&&filtrados[0].promedio===4&&filtrados[0].comp===null&&
+    filtrados[0].secciones[0].promedio===3&&filtrados[0].secciones[0].referenciaPruebas===4&&
+    filtrados[0].secciones[1].promedio===5&&filtrados[0].secciones[1].referenciaPruebas===5&&filtrados[0].semaforo.bad===0);
+  const filtradoHTML=a.run(`resumenAlumnosPanelHTML(resumenRamosVistaPanel(__ramosFiltro,__refRamos,{seccion:true,soloPruebas:true}),{seccion:true,soloPruebas:true})`);
+  chk('Solo pruebas no deja laboratorios, ni tamaños inventados o chicas',
+    /Prom. pruebas<\/span><strong>4,0/.test(filtradoHTML)&&/Sección 1/.test(filtradoHTML)&&/Sección 2/.test(filtradoHTML)&&
+    /8 en GradeHub/.test(filtradoHTML)&&/12 en GradeHub/.test(filtradoHTML)&&!/Laboratorio|4 en GradeHub/.test(filtradoHTML));
+  const porRamoHTML=a.run(`resumenAlumnosPanelHTML(resumenRamosVistaPanel(__ramosFiltro,__refRamos,{soloPruebas:true}),{soloPruebas:true})`);
+  chk('el promedio de pruebas no publica un tamaño único para referencias compuestas',
+    /GradeHub<\/span><strong>4,5<\/strong><small>Muestras por evaluación/.test(porRamoHTML));
+  const ordenRamos=a.run(`resumenAlumnosPanelHTML([__res.find(g=>g.nombre.startsWith("Física")),__res.find(g=>g.nombre==="Cálculo II")])`);
+  chk('la fila con reprobaciones se mueve arriba sin reordenar el modelo',
+    ordenRamos.indexOf('Cálculo II')<ordenRamos.indexOf('Física'));
 
   console.log('\n=== Buscador de alumnos ===');
   a.run(`globalThis.__al=[
@@ -721,7 +752,7 @@ function contexto({search='',sesion=false}={}){
     &&!/panel-alumnos-notas|ah-grafico|data-quitar-alumno|<details/.test(compacta));
   a.run(`globalThis.__panelNodos={};
     globalThis.__nodoPanel=()=>({hidden:false,innerHTML:'',textContent:'',value:'',dataset:{},handlers:{},
-      addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},
+      addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelector(){return null},querySelectorAll(){return []},
       setAttribute(nombre,valor){this[nombre]=valor},focus(){this.enfocado=true}});
     globalThis.__tabsPanel=['resumen','lista','estadisticas','ramos'].map(v=>({...__nodoPanel(),dataset:{panelVista:v}}));
     globalThis.__compPanel=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
@@ -782,7 +813,7 @@ function contexto({search='',sesion=false}={}){
   a.run(`__tabsPanel[3].handlers.click()`);
   chk('Ramos muestra su resumen sin cambiar la comparación del grupo',
     a.run(`__panelNodos['#alumnos-vista-ramos'].hidden`)===false&&
-    /Tus alumnos por ramo/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
+    /Todavía no hay ramos compartidos/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
     a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true);
   a.run(`__panelNodos['#alumnos-ir-invitar'].handlers.click()`);
   chk('Invitar abre el link en su propia vista y ofrece volver',
@@ -882,7 +913,7 @@ function contexto({search='',sesion=false}={}){
     globalThis.__ejNodos={};
     globalThis.__raizEj={innerHTML:'',isConnected:true,querySelector(sel){
       if(!__ejNodos[sel])__ejNodos[sel]={handlers:{},hidden:false,innerHTML:'',dataset:{},
-        addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},setAttribute(){},focus(){}};
+        addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelector(){return null},querySelectorAll(){return []},setAttribute(){},focus(){}};
       return __ejNodos[sel]}};
     supabaseClient={rpc:(nombre,args)=>{__llamadasEj.push(nombre);
       if(nombre==='codigo_alumnos_profesor')return Promise.resolve({data:'AB3CDEFG',error:null});
@@ -980,8 +1011,8 @@ function contexto({search='',sesion=false}={}){
   chk('el cambio de quien subió va marcado como subida',/ah-fila-cambio ah-sube"><small>Cambio<\/small>\+/.test(grafG));
   chk('la explicación queda en un desplegable',/<details class="ah-metodo"><summary>Cómo se calcula<\/summary>/.test(a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora],__cursoAA))')));
   const ramosG=a.run(`resumenAlumnosPanelHTML(resumenAlumnosPanel([__antesAhora],__cursoAA))`);
-  chk('cada ramo dice cuánto van sobre o bajo GradeHub y lleva a sus alumnos',
-    /Tus alumnos van <b>[^<]+<\/b> el promedio de GradeHub/.test(ramosG)&&/data-ver-ramo="MAT1620">Ver 1 alumno de este ramo/.test(ramosG));
+  chk('cada ramo separa la diferencia y conserva el enlace filtrado',
+    /Diferencia<\/span><strong>[+−]?\d+,\d<\/strong>/.test(ramosG)&&/data-ver-ramo="MAT1620" aria-label="Ver alumnos/.test(ramosG));
   chk('la ficha no se estira en el computador y su gráfico trae escala',
     /\.ah-evolucion\{[^}]*max-width:760px/.test(leer('styles.css'))&&/Puntos frente al ramo · 0 = su promedio/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))')));
 

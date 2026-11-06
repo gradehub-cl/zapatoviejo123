@@ -167,6 +167,13 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const opcionesEst=()=>({seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(alumnos):0,soloPruebas:alumnos.some(al=>al.soloPruebasPanel)});
   const repintarEstadisticas=()=>pintarEstadisticasPanel(paneles.estadisticas,estadoEst,opcionesEst());
   const pintarEstadisticas=()=>{estadoEst.datos=datosEstadisticasPanel(alumnos,compDe);if(!estadoEst.datos.hayPercentil)estadoEst.unidad='puntos';repintarEstadisticas();};
+  const ramosAbiertos=new Set();
+  const pintarRamos=()=>{
+    const {seccion,soloPruebas}=opcionesEst();
+    const filtros=paneles.ramos.querySelector('[data-ramos-filtros]')?.open||false;
+    paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenRamosVistaPanel(alumnos,compFicha,{seccion,soloPruebas}),
+      {seccion,soloPruebas,filtros,abiertos:ramosAbiertos});
+  };
   let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
   // Se filtra en el navegador, con lo que el panel ya bajó.
@@ -267,18 +274,18 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     nav.hidden=nombre==='ficha'||nombre==='invitar';
     raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
     raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Estadísticas',ramos:'Por ramo'})[nombre]||'';
-    // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
-    // ficha tiene su propio control dentro del gráfico.
+    // Estadísticas conserva el control general oculto. Ramos y la ficha
+    // tienen sus propios controles de comparación.
     comparaWrap.hidden=nombre!=='estadisticas';
-    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar');};
-    avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar');caja.classList.toggle('panel-en-ramos',nombre==='ramos');};
+    avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen'||nombre==='ramos';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
       if(b.dataset.panelVista===nombre&&typeof b.scrollIntoView==='function')b.scrollIntoView({block:'nearest',inline:'nearest'});
     });
     if(nombre==='resumen')paneles.resumen.innerHTML=resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(alumnos));
     if(nombre==='estadisticas')pintarEstadisticas();
-    if(nombre==='ramos')paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenAlumnosPanel(alumnos,compGeneral));
+    if(nombre==='ramos')pintarRamos();
     if(typeof marcarVistaNav==='function')marcarVistaNav('alumnos',nombre==='ficha'||nombre==='invitar'?'lista':nombre);
   };
   if(typeof vistasPanelNav!=='undefined')vistasPanelNav.alumnos=v=>{if(vigente())activarVista(v);};
@@ -320,7 +327,34 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
     if(al)abrirFicha(al,b);
   };
-  ['resumen','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
+  paneles.resumen.addEventListener('click',alTocar);
+  const aplicarSoloPruebas=quiere=>{
+    const solo=raiz.querySelector('[data-solo-pruebas]');
+    if(solo&&solo.checked!==quiere){solo.checked=quiere;solo.dispatchEvent(new Event('change',{bubbles:true}));}
+  };
+  paneles.ramos.addEventListener('click',async e=>{
+    if(!vigente()||typeof e.target?.closest!=='function')return;
+    const abrir=e.target.closest('[data-ramos-abrir]');
+    if(abrir){
+      const clave=abrir.dataset.ramosAbrir,abierto=!ramosAbiertos.has(clave);
+      if(abierto)ramosAbiertos.add(clave);else ramosAbiertos.delete(clave);
+      abrir.setAttribute('aria-expanded',String(abierto));
+      abrir.closest('[data-ramos-fila]').querySelector('.ramos-detalle').hidden=!abierto;
+      return;
+    }
+    const filtro=e.target.closest('[data-est-comparar], [data-est-solo]');
+    if(!filtro)return alTocar(e);
+    const {estComparar,estSolo}=filtro.dataset;
+    const selector=estComparar?`[data-est-comparar="${estComparar}"]`:`[data-est-solo="${estSolo}"]`;
+    if(estComparar){
+      if((estComparar==='seccion')===porSeccion)return;
+      const controles=[...paneles.ramos.querySelectorAll('[data-est-comparar], [data-est-solo]')];
+      controles.forEach(b=>b.disabled=true);
+      try{await cambiarComparacion(estComparar==='seccion');}
+      finally{controles.forEach(b=>b.disabled=false);}
+    }else aplicarSoloPruebas(estSolo==='1');
+    if(vigente()&&vistaActiva==='ramos')paneles.ramos.querySelector(selector)?.focus({preventScroll:true});
+  });
   // Sección y Solo pruebas siguen usando los controles de siempre, que en esta
   // vista quedan ocultos detrás de Filtros.
   paneles.estadisticas.addEventListener('click',e=>{
@@ -328,8 +362,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const accion=tocarEstadisticasPanel(e,estadoEst);
     if(accion==='pintar')return repintarEstadisticas();
     if(accion?.startsWith('comparar:'))return cambiarComparacion(accion==='comparar:seccion');
-    if(accion?.startsWith('solo:')){const solo=raiz.querySelector('[data-solo-pruebas]'),quiere=accion==='solo:1';
-      if(solo&&solo.checked!==quiere){solo.checked=quiere;solo.dispatchEvent(new Event('change',{bubbles:true}));}return;}
+    if(accion?.startsWith('solo:'))return aplicarSoloPruebas(accion==='solo:1');
     alTocar(e);
   });
   paneles.estadisticas.addEventListener('input',e=>{
@@ -374,6 +407,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       });
     }
     if(vistaActiva==='estadisticas')pintarEstadisticas();
+    if(vistaActiva==='ramos')pintarRamos();
     track('panel_alumnos_compara',{seccion:quiere});
   };
   botones.forEach(b=>b.addEventListener('click',()=>cambiarComparacion(b.dataset.compara==='seccion')));
