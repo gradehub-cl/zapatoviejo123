@@ -76,6 +76,19 @@ function comparacionEjemploPanel(datos,sigla,seccion=null){
     evaluaciones:porClave(r=>(r.categorias||[]).flatMap(c=>(c.notas||[]).map(n=>[claveEvaluacionPanel(n.nombre),n.nombre,n.valor]))),
     categorias:porClave(r=>(r.categorias||[]).filter(c=>(c.notas||[]).length).map(c=>[claveEvaluacionPanel(c.nombre),c.nombre,media(c.notas.map(n=>n.valor))]))};
 }
+// Marcas de los alumnos inventados, con la misma forma que preparacion_alumno.
+// Sin esto, un profesor sin alumnos reales no podía probar «Marcar».
+function preparacionEjemploPanel(datos,al,ramoId){
+  return (al?al.ramos:[]).filter(r=>!ramoId||r.id===ramoId).map(r=>{
+    const marcas=datos.marcas&&datos.marcas[al.id+'|'+r.id];
+    return {ramo_id:r.id,manual:!!marcas,marcas:marcas||[],evaluaciones:(r.categorias||[]).flatMap(c=>{
+      const cantidad=Number.isInteger(c.slots)&&c.slots>1?c.slots:1,notas=c.notas||[];
+      return Array.from({length:Math.max(cantidad,notas.length)},(_,i)=>{const n=notas[i];
+        return {cat_id:c.id,numero:i+1,nota_id:n?n.id:null,nombre:n?.nombre||(cantidad>1?`${c.nombre} ${i+1}`:c.nombre),categoria:c.nombre,
+          forma:{cantidad,inicio:1},nota:n?n.valor:null,fecha:n?.fecha||c.fecha||null};});
+    })};
+  });
+}
 // Las llamadas del panel, respondidas en memoria. Cambiar una fecha o quitar
 // a un alumno dura hasta recargar.
 function rpcEjemploPanel(datos,nombre,a={}){
@@ -88,6 +101,13 @@ function rpcEjemploPanel(datos,nombre,a={}){
     return ok(true);
   }
   if(nombre==='quitar_alumno'){const n=datos.alumnos.length;datos.alumnos=datos.alumnos.filter(x=>x.id!==a.p_id);return ok(datos.alumnos.length<n);}
+  if(nombre==='preparacion_alumno'){const al=datos.alumnos.find(x=>x.id===a.p_id);return ok({ramos:preparacionEjemploPanel(datos,al,a.p_ramo)});}
+  if(nombre==='guardar_preparacion_alumno'){
+    const al=datos.alumnos.find(x=>x.id===a.p_id);if(!al||!al.ramos.some(r=>r.id===a.p_ramo))return Promise.resolve({data:null,error:{message:'ramo no disponible'}});
+    datos.marcas=datos.marcas||{};
+    if(a.p_marcas===null)delete datos.marcas[al.id+'|'+a.p_ramo];else datos.marcas[al.id+'|'+a.p_ramo]=a.p_marcas.map(m=>({...m,huerfana:false}));
+    return ok({ramos:preparacionEjemploPanel(datos,al,a.p_ramo)});
+  }
   return Promise.resolve({data:null,error:{message:'sin respuesta en el ejemplo'}});
 }
 // Se pregunta en cada carga, así un administrador lo prende o lo apaga y se

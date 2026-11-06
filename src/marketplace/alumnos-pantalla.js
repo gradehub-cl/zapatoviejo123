@@ -31,7 +31,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     raiz.querySelector('#alumnos-volver').addEventListener('click',()=>{if(vigente())(volver?volver():renderAlumnosProfesor(raiz));});
     return;
   }
-  if(!ejemplo){for(let i=0;i<alumnos.length;i+=4)await Promise.all(alumnos.slice(i,i+4).flatMap(al=>[cargarPreparacionPanel(al,rpc),cargarPercentilesPanel(al,rpc)]));}
+  for(let i=0;i<alumnos.length;i+=4)await Promise.all(alumnos.slice(i,i+4).flatMap(al=>ejemplo?[cargarPreparacionPanel(al,rpc)]:[cargarPreparacionPanel(al,rpc),cargarPercentilesPanel(al,rpc)]));
   if(!vigente())return;
   // Una consulta por ramo distinto, no por alumno. UAI y UAndes pueden usar
   // nombre normalizado cuando no existe sigla, igual que curso_notas.
