@@ -87,9 +87,23 @@ async function imagenWrapped(s,conPromedio=false){
 function prepararImagenWrapped(s){
   if(_wrapped.imagen)return;
   const estado=_wrapped;
-  estado.imagen=imagenWrapped(s,!!estado.conPromedio).catch(()=>null).then(archivo=>{
-    if(_wrapped!==estado)return;
-    estado.archivo=archivo;estado.imagenTerminada=true;actualizarCompartirWrapped();
+  // Mostrar u ocultar el promedio pide otra imagen: la anterior ya no vale, y
+  // no puede llegar tarde y compartirse con la opción contraria.
+  const pedido=estado.imagen=imagenWrapped(s,!!estado.conPromedio).catch(()=>null).then(async archivo=>{
+    const vista=archivo?await vistaImagenWrapped(archivo):null;
+    if(_wrapped!==estado||estado.imagen!==pedido)return;
+    estado.archivo=archivo;estado.vista=vista;estado.imagenTerminada=true;actualizarCompartirWrapped();
+  });
+}
+// La vista previa va como `data:`, porque la CSP de `_headers` no permite
+// imágenes `blob:`: con un blob la tarjeta salía vacía solo en producción.
+function vistaImagenWrapped(archivo){
+  return new Promise(listo=>{
+    if(typeof FileReader==='undefined')return listo(null);
+    const lector=new FileReader();
+    lector.onload=()=>listo(lector.result);
+    lector.onerror=()=>listo(null);
+    lector.readAsDataURL(archivo);
   });
 }
 // Mostrar u ocultar el promedio vuelve a dibujar la hoja. Apagado por defecto:
@@ -110,9 +124,7 @@ function actualizarCompartirWrapped(){
   boton.querySelector('span').textContent=listo?'Compartir':_wrapped.imagenTerminada?'Imagen no disponible':'Preparando imagen…';
   // La vista previa es la misma imagen que se comparte.
   const vista=caja.querySelector('.wrapped-tarjeta'),s=_wrapped.slides&&_wrapped.slides[_wrapped.i];
-  if(vista&&listo&&s&&s.filas&&typeof URL!=='undefined'&&URL.createObjectURL){
-    if(_wrapped.vista)URL.revokeObjectURL(_wrapped.vista);
-    _wrapped.vista=URL.createObjectURL(_wrapped.archivo);
+  if(vista&&listo&&s&&s.filas&&_wrapped.vista){
     vista.innerHTML=`<img src="${_wrapped.vista}" alt="Tu hoja del semestre: ${esc(textoPlano(s.filas.map(f=>f[0]+' '+f[1]).join('. ')))}" width="1080" height="1920">`;
   }
 }

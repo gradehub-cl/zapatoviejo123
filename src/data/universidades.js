@@ -4,19 +4,19 @@
 // logo ni el escudo de la universidad: es una etiqueta con iniciales en la
 // tipografía de GradeHub. Nunca reproducir marcas registradas acá.
 const TENANTS={
-  fen:{name:'U. de Chile', short:'FEN', mono:'FEN', sub:'Economía y Negocios'},
+  fen:{name:'U. de Chile', short:'FEN', conArticulo:'la U. de Chile', mono:'FEN', sub:'Economía y Negocios'},
   // profiles guarda el código estable del tenant; name/label son solo visibles.
-  uc :{name:'U. Católica', label:'U. Católica', short:'UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
+  uc :{name:'U. Católica', label:'U. Católica', short:'UC', conArticulo:'la UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
   // oculto:true → no se ofrece al elegir universidad, pero sigue funcionando
   // completo (tema, carreras, presets) para quien ya lo tenga seleccionado.
   // Quitar la marca cuando se quiera lanzar.
-  uai:{name:'U. Adolfo Ibáñez', short:'UAI', mono:'UAI', sub:'Todas las carreras'},
+  uai:{name:'U. Adolfo Ibáñez', short:'UAI', conArticulo:'la UAI', mono:'UAI', sub:'Todas las carreras'},
   // Las mallas de la UAndes viven en mallas-uandes.js. Pautas todavía no hay:
   // no se inventan ponderaciones.
-  uandes:{name:'U. de los Andes', short:'UANDES', mono:'UA', sub:'Todas las carreras'},
+  uandes:{name:'U. de los Andes', short:'UANDES', conArticulo:'la U. de los Andes', mono:'UA', sub:'Todas las carreras'},
   // Las mallas de la UDD viven en mallas-udd.js; sus pautas, en udd-pautas.js,
   // solo de los programas que publican ponderaciones.
-  udd:{name:'U. del Desarrollo', short:'UDD', mono:'UDD', sub:'Todas las carreras'},
+  udd:{name:'U. del Desarrollo', short:'UDD', conArticulo:'la UDD', mono:'UDD', sub:'Todas las carreras'},
 };
 
 // El dominio del correo institucional de los estudiantes, por universidad. Al
