@@ -20,18 +20,48 @@ function preparacionRamoHTML(al,r){
  ${(pre.marcas||[]).filter(m=>m.huerfana).map((m,i)=>`<p class="preparacion-huerfana">Marca sin evaluación: ${esc(m.nombre)} de ${esc(m.categoria)} <button type="button" data-preparacion-huerfana="${i}">Borrar marca</button></p>`).join('')}
  <button type="button" data-preparacion-guardar>Guardar selección</button>${pre.manual?'<button type="button" data-preparacion-auto>Volver a usar la fecha de inicio</button>':''}<p role="status" data-preparacion-estado></p></section>`;
 }
-function enlazarPreparacionPanel(caja,al,r,rpc,alGuardar,vigente){
- const panel=caja.querySelector('[data-preparacion-ramo]'),pre=preparacionRamoPanel(al,r);if(!panel||!pre)return;
- let huerfanas=(pre.marcas||[]).filter(m=>m.huerfana);
- panel.querySelectorAll('[data-preparacion-huerfana]').forEach(b=>{const marca=huerfanas[Number(b.dataset.preparacionHuerfana)];b.addEventListener('click',()=>{huerfanas=huerfanas.filter(x=>x!==marca);b.closest('p').remove();});});
- const guardar=async marcas=>{
-  if(!vigente())return;const botones=[...panel.querySelectorAll('button,input')],deshabilitados=botones.map(b=>b.disabled);botones.forEach(b=>b.disabled=true);
-  try{const {data,error}=await rpc('guardar_preparacion_alumno',{p_id:al.id,p_ramo:r.id,p_marcas:marcas});if(error)throw error;if(!vigente())return;
-   const otras=(al.preparacion?.ramos||[]).filter(p=>p.ramo_id!==r.id);al.preparacion={ramos:[...otras,...data.ramos]};preparacionesPanel.set(clavePreparacionPanel(al),al.preparacion);alGuardar();
-  }catch(e){if(vigente()){panel.querySelector('[data-preparacion-estado]').textContent='No pudimos guardar. Las marcas anteriores siguen vigentes. Reintenta o vuelve a Alumnos si dejó de compartir.';botones.forEach((b,i)=>b.disabled=deshabilitados[i]);}}
+// Una sola escritura para ambas presentaciones. La respuesta vigente manda;
+// un error o una navegación no cambia las marcas ni los cálculos guardados.
+async function guardarPreparacionPanel(al,r,marcas,rpc,vigente){
+ const clave=clavePreparacionPanel(al);
+ if(!vigente())return false;
+ const {data,error}=await rpc('guardar_preparacion_alumno',{p_id:al.id,p_ramo:r.id,p_marcas:marcas});
+ if(error)throw error;
+ if(!vigente()||clave!==clavePreparacionPanel(al))return false;
+ if(!Array.isArray(data?.ramos))throw Error('Respuesta sin marcas');
+ const otras=(al.preparacion?.ramos||[]).filter(p=>p.ramo_id!==r.id);
+ al.preparacion={ramos:[...otras,...data.ramos]};preparacionesPanel.set(clave,al.preparacion);return true;
+}
+function enlazarPreparacionPanel(caja,al,r,rpc,alGuardar,vigente,{alEditar=()=>{},alCancelar=()=>{}}={}){
+ const panel=caja.querySelector('[data-preparacion-ramo]'),pre=preparacionRamoPanel(al,r);if(!panel||!pre||al.preparacion?.errorCarga)return;
+ let huerfanas=(pre.marcas||[]).filter(m=>m.huerfana),guardando=false;
+ const entradas=[...panel.querySelectorAll('[data-preparacion-eval]')],original=entradas.map(b=>b.checked);
+ const editar=()=>{
+  if(!vigente()||guardando)return;
+  panel.querySelectorAll('.fap-casilla,.fap-edicion').forEach(n=>n.hidden=false);
+  panel.querySelectorAll('.fap-marca-ver').forEach(n=>n.hidden=true);
+  alEditar();
  };
- panel.querySelector('[data-preparacion-guardar]').addEventListener('click',()=>guardar([...panel.querySelectorAll('input:checked')].map(b=>{const e=pre.evaluaciones[Number(b.dataset.preparacionEval)];return e.nota_id?{nota_id:e.nota_id}:{cat_id:e.cat_id,numero:e.numero};}).concat(huerfanas)));
- panel.querySelector('[data-preparacion-auto]')?.addEventListener('click',()=>guardar(null));
+ caja.querySelectorAll('[data-fap-editar]').forEach(b=>b.addEventListener('click',()=>{editar();panel.querySelector('input:not(:disabled)')?.focus();}));
+ const cambios=()=>{
+  const n=entradas.filter((b,i)=>b.checked!==original[i]).length+(pre.marcas||[]).filter(m=>m.huerfana).length-huerfanas.length;
+  const texto=panel.querySelector('[data-fap-cambios]');if(texto)texto.textContent=n+' '+(n===1?'cambio sin guardar':'cambios sin guardar');
+  const boton=panel.querySelector('[data-preparacion-guardar]');if(boton&&texto)boton.disabled=!n;
+ };
+ entradas.forEach(b=>b.addEventListener('change',cambios));
+ panel.querySelector('[data-fap-cancelar]')?.addEventListener('click',()=>{if(guardando)return;alCancelar();alGuardar();});
+ panel.querySelectorAll('[data-preparacion-huerfana]').forEach(b=>{const marca=huerfanas[Number(b.dataset.preparacionHuerfana)];b.addEventListener('click',()=>{editar();huerfanas=huerfanas.filter(x=>x!==marca);b.closest('p').remove();cambios();});});
+ const guardar=async marcas=>{
+  if(!vigente()||guardando)return;guardando=true;alEditar();
+  const botones=[...caja.querySelectorAll('button,input')],deshabilitados=botones.map(b=>b.disabled);botones.forEach(b=>b.disabled=true);
+  try{if(await guardarPreparacionPanel(al,r,marcas,rpc,vigente)){alCancelar();alGuardar();}}
+  catch(e){if(vigente()){
+   const estado=panel.querySelector('[data-preparacion-estado]');if(estado)estado.textContent='No pudimos guardar. Las marcas anteriores siguen vigentes. Reintenta o cancela.';
+   botones.forEach((b,i)=>b.disabled=deshabilitados[i]);
+  }}finally{guardando=false;}
+ };
+ panel.querySelector('[data-preparacion-guardar]')?.addEventListener('click',()=>guardar(entradas.filter(b=>b.checked).map(b=>{const e=pre.evaluaciones[Number(b.dataset.preparacionEval)];return e.nota_id?{nota_id:e.nota_id}:{cat_id:e.cat_id,numero:e.numero};}).concat(huerfanas)));
+ panel.querySelector('[data-preparacion-auto]')?.addEventListener('click',()=>showConfirm('Usar la fecha de inicio','Se borran las marcas de este ramo y se vuelve a comparar por fecha.',()=>guardar(null),{label:'Usar fecha',focusCancel:true}));
 }
 function comparacionPreparadasHTML(m){
  const dato=x=>x.diferencia===null?'No disponible':conSignoPanel(x.diferencia)+' puntos frente a GradeHub';
