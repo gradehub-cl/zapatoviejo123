@@ -41,8 +41,8 @@ const login=async(n,aal='aal1')=>{
   vm.runInContext(read('marketplace.js'),ctx);
   ctx.__rows=data;
   const html=vm.runInContext('crecimientoAdminHTML(__rows)',ctx);
-  assert(html.includes('3 total')&&html.includes('1 estudiantes · 2 profesores'));
-  assert(html.includes('<details class="admin-crecimiento-historial">')&&html.includes('Ver 1 semana anterior'),
+  assert(html.includes('<strong>3</strong>')&&html.includes('1 estudiantes · 2 profesores'));
+  assert(html.includes('admin-crecimiento-historial')&&html.includes(`Ver ${data.length} semanas como tabla`),
     'el historial queda disponible sin ocupar la vista principal');
   assert(!vm.runInContext('crecimientoAdminHTML(__rows.slice(0,1))',ctx).includes('<details'),
     'una sola semana no necesita historial');
@@ -53,7 +53,7 @@ const login=async(n,aal='aal1')=>{
     ?{data:[],error:null}:{data:null,error:{code:'PGRST202'}}};
   vm.runInContext('supabaseClient=__sb',ctx);
   await vm.runInContext('pintarPanelAdmin(__root)',ctx);
-  assert(ctx.__root.innerHTML.includes('Campañas')&&!ctx.__root.innerHTML.includes('Crecimiento semanal'),
+  assert(ctx.__root.innerHTML.includes('Campañas')&&!ctx.__root.innerHTML.includes('adm-metricas"'),
     'el panel actual carga aunque la nueva RPC aún no exista');
   console.log('PASS crecimiento: totales, desglose, MFA, datos agregados y panel');
 }finally{await db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

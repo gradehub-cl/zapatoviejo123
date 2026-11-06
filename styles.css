@@ -5039,6 +5039,69 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @media(max-width:30rem){.fap .est-tarjeta-grande{padding:1rem;border-radius:20px}.fap-promedio strong{font-size:2.5rem}.fap-navegacion{justify-content:flex-start}.fap-leyenda{font-size:.6875rem}.fap .evolucion-marco{height:12rem;--evolucion-alto:12rem}.fap-comparacion .est-seg{flex-wrap:wrap}.fap-lados strong{font-size:1.375rem}}
 @media(prefers-reduced-motion:reduce){.fap *{animation:none;transition:none;scroll-behavior:auto}}
 
+/* ─── Estadísticas de Admin: mismas piezas que `.est` ───────────────────────
+   Una tarjeta por pregunta: sus cifras eligen lo que dibuja el gráfico. */
+.adm{display:grid;gap:16px;min-width:0;}
+.adm .adm-oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.adm>h2{font-size:1.25rem;line-height:1.3;letter-spacing:-.025em;}
+.adm .adm-atencion{display:flex;flex-wrap:wrap;gap:8px;}
+.adm .adm-pendiente{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:99px;background:var(--est-tile);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;transition:background var(--motion-fast) var(--ease-standard);}
+.adm .adm-pendiente:hover{background:var(--est-sel-suave);}
+.adm-pendiente i{width:7px;height:7px;border-radius:50%;background:var(--est-sel);}
+.adm-pendiente-deuda i{background:var(--est-baja);}
+.adm-tarjeta{background:var(--card);border:1px solid var(--est-linea);border-radius:24px;padding:12px;min-width:0;}
+.adm-dos{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:stretch;}
+.adm-dos-sola{grid-template-columns:minmax(0,1fr);}
+.adm .admin-crecimiento{border:1px solid var(--est-linea);margin:0;padding:12px;}
+.adm .admin-clases-estadisticas{display:grid;gap:16px;padding:0;}
+.adm .adm-seccion{font-size:1.0625rem;font-weight:600;letter-spacing:-.015em;margin:8px 0 0;}
+.adm-metricas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-bottom:12px;}
+.adm-metricas-tres{grid-template-columns:repeat(3,minmax(0,1fr));}
+.adm-metricas-una{grid-template-columns:minmax(0,1fr);}
+.adm .adm-metrica{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:12px 14px;border-radius:16px;text-align:left;transition:background var(--motion-fast) var(--ease-standard);}
+.adm button.adm-metrica:hover{background:var(--est-tile);}
+.adm .adm-metrica[aria-pressed="true"]{background:var(--est-sel-suave);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--est-sel) 28%,transparent);}
+.adm-metrica>span{font-size:13px;color:var(--fg2);}
+.adm-metrica>strong{font-size:clamp(28px,3.2vw,40px);line-height:1.1;font-weight:600;letter-spacing:-.035em;font-variant-numeric:tabular-nums;}
+.adm-metrica>small{font-size:12.5px;line-height:1.35;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.adm-metrica>small b{font-weight:600;}
+.adm .adm-metrica-quieta>strong{color:var(--fg2);}
+.adm .adm-metricas-una .adm-metrica>strong{color:var(--fg);}
+.adm .admin-grafico{border:0;background:none;padding:0 14px 6px;border-radius:0;}
+.adm .admin-grafico-lectura{min-height:0;margin:0 0 12px;font-weight:500;color:var(--fg2);}
+.adm .admin-grafico-area{height:13rem;}
+.adm .admin-grafico-guias span{border-top-color:var(--est-linea);}
+.adm .admin-grafico-guias i{background:var(--card);color:var(--fg3);}
+.adm .admin-grafico-columnas{gap:4px;}
+.adm .admin-grafico-columnas i{max-width:56px;border-radius:5px 5px 1px 1px;background:var(--est-gris);}
+.adm .admin-grafico-columnas [data-tenue] i{box-sizing:border-box;background:none;border:1.5px dashed var(--est-gris);border-bottom:0;}
+.adm .admin-grafico-columnas [data-elegida] i{background:var(--est-sel);}
+.adm .admin-grafico-eje{color:var(--fg3);}
+.adm .admin-grafico-tabla{margin:12px 14px 0;border-top-color:var(--est-linea);}
+.adm .admin-grafico .admin-grafico-tabla{margin-inline:0;}
+.adm .admin-grafico-tabla>summary{display:flex;align-items:center;list-style:none;color:var(--fg2);font-weight:500;}
+.adm .admin-grafico-tabla>summary::-webkit-details-marker{display:none;}
+.adm .admin-grafico-tabla>summary::after{content:'+';margin-left:auto;}
+.adm .admin-grafico-tabla[open]>summary::after{content:'−';}
+.adm .admin-grafico-tabla th,.adm .admin-grafico-tabla td{border-bottom-color:var(--est-linea);}
+.adm-embudo{display:flex;flex-direction:column;padding:24px 26px;}
+.adm .adm-embudo .admin-grafico{flex:1;display:flex;flex-direction:column;padding:0;}
+.adm .adm-embudo .admin-grafico-barras{flex:1;align-content:space-evenly;gap:20px;}
+.adm .adm-embudo .clase-barra{height:6px;border-radius:99px;background:var(--est-tile);}
+.adm .adm-embudo .clase-barra i{background:var(--est-gris);border-radius:99px;}
+.adm .adm-conversion .clase-embudo-fila:last-child .clase-barra i{background:var(--est-sel);}
+.adm .adm-tasa{margin-top:auto;padding-top:20px;display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--fg2);}
+.adm-tasa strong{font-size:40px;line-height:1;font-weight:600;letter-spacing:-.035em;color:var(--fg);font-variant-numeric:tabular-nums;}
+@media(max-width:1100px){.adm-dos{grid-template-columns:minmax(0,1fr);}}
+@media(max-width:640px){
+  .adm-metricas{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .adm-metrica-quieta{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:8px;}
+  .adm .adm-metrica{padding:10px;}
+  .adm-metricas-una{grid-template-columns:minmax(0,1fr);}
+  .adm .admin-grafico{padding:0 8px 4px;}
+  .adm .admin-grafico-area{height:10rem;}
+  .adm .admin-grafico-columnas{gap:2px;}
+}
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
