@@ -11,12 +11,64 @@ let pautaDraftError='',pautaDraftErrorIndex=null,pautaDraftErrorTarget='';
 // Se abrió desde "Armar mi pauta" (el ramo no tenía evaluaciones): el título
 // dice eso y no "Editar evaluaciones", que es lo que dice el botón con pauta.
 let pautaArmando=false;
+// Los requisitos del programa se conservan. El editor solo escribe los suyos.
+function reglasEvaluacionEditor(r,cat){
+  const gates=(r.gates||[]).filter(g=>g.type==='min_grade_required'&&g.catId===cat.id);
+  const propia=gates.find(g=>g.origen==='editor');
+  return {descarte:cat.descarteOrigen==='editor'?String(cat.dropLowest?.count||''):'',
+    min:propia?String(propia.min).replace('.',','):'',tope:propia?String(propia.cap).replace('.',','):'',
+    descartePrograma:!!cat.dropLowest&&cat.descarteOrigen!=='editor',minimoPrograma:gates.some(g=>g.origen!=='editor')};
+}
+function validarReglasEvaluacionEditor(reglas,varias,cantidad,escala){
+  const descarte=String(reglas.descarte||'').trim();
+  const min=String(reglas.min||'').trim(),tope=String(reglas.tope||'').trim();
+  const n=Number(descarte);
+  if(descarte&&(!/^\d+$/.test(descarte)||n<1||n>99))
+    return {campo:'descarte',error:'Escribe entre 1 y 99 notas para descartar, o deja el campo vacío.'};
+  if(descarte&&(!varias||(cantidad&&n>=cantidad)))
+    return {campo:'descarte',error:'Deja al menos una nota que cuente, o quita el descarte para guardar.'};
+  if(min||tope){
+    for(const [campo,valor] of [['min',min],['tope',tope]]){
+      const nota=Number(valor.replace(',','.'));
+      if(!/^\d+(?:[.,]\d{1,2})?$/.test(valor)||nota<escala.min||nota>escala.max)
+        return {campo,error:`Escribe ${campo==='min'?'un mínimo':'un tope'} entre ${escala.min} y ${escala.max}.`};
+    }
+  }
+  return {count:descarte?n:null,min:min?Number(min.replace(',','.')):null,cap:tope?Number(tope.replace(',','.')):null};
+}
+function guardarReglasEvaluacionEditor(r,cat,reglas){
+  if(reglas.count!==null){
+    cat.dropLowest={count:reglas.count};cat.descarteOrigen='editor';
+  }else if(cat.descarteOrigen==='editor'){
+    delete cat.dropLowest;delete cat.descarteOrigen;
+  }
+  const gates=r.gates||[];
+  const anterior=gates.find(g=>g.type==='min_grade_required'&&g.origen==='editor'&&g.catId===cat.id);
+  if(!anterior?reglas.min===null:anterior.min===reglas.min&&anterior.cap===reglas.cap)return;
+  r.gates=gates.filter(g=>g!==anterior);
+  if(reglas.min!==null)r.gates.push({type:'min_grade_required',catId:cat.id,min:reglas.min,cap:reglas.cap,origen:'editor'});
+}
+function reglasEvaluacionEditorHTML({reglas={},varias,manual,abierto,id,permiteCambiarVarias=false,oninput='',invalido=()=>''}){
+  const campo=(clave,etiqueta,modo)=>`<label><span>${etiqueta}</span><input type="text" inputmode="${modo}" maxlength="5"
+    id="${id(clave)}" value="${esc(reglas[clave]||'')}"${oninput?` oninput="${oninput(clave)}"`:''}${invalido(clave)}></label>`;
+  return `<details class="editor-reglas"${abierto?' open':''}>
+    <summary>Reglas de esta evaluación</summary>
+    <div class="editor-reglas-campos">
+      ${reglas.descartePrograma?'<p>El programa ya indica el descarte.</p>':varias||reglas.descarte||permiteCambiarVarias?
+        `<div class="editor-reglas-descarte${!varias&&!reglas.descarte?' editor-reglas-al-marcar-varias':''}">`+campo('descarte','Cantidad de notas que se pueden borrar','numeric')+
+        `<small>${manual?'Tú eliges qué notas borrar.':'Se descartan las más bajas y siempre queda al menos una nota que cuenta.'}</small></div>`:''}
+      ${reglas.minimoPrograma?'<p>El programa ya indica el mínimo de esta evaluación.</p>':
+        campo('min','Nota mínima','decimal')+campo('tope','Tope de la nota final','decimal')+
+        '<small>Si quedas bajo el mínimo, tu nota final no supera este tope. Deja ambos campos vacíos si no aplica.</small>'}
+    </div>
+  </details>`;
+}
 function openPautaManualModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
-  pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
+  pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
@@ -168,6 +220,7 @@ function renderPautaManualModal(){
     <select id="m-pauta-origen" onchange="duplicarPautaDesdeRamo()"><option value="">Elegir</option>${fuentes.map(r=>`<option value="${esc(r.id)}">${esc(r.nombre)} · ${r.cantidad} evaluaci${r.cantidad===1?'ón':'ones'}</option>`).join('')}</select></label>`:'';
   // Una sola fila vacía no tiene nada que quitar ni marcar.
   const unaVacia=pautaDraft.length===1&&!pautaDraft[0].nombre.trim()&&!pautaDraft[0].peso;
+  const manual=gh_descarteManual(S.ramos.find(r=>r.id===currentRamoId),S.tenant);
   const filas=pautaDraft.map((fila,i)=>{
     // El editor nunca decide un porcentaje. Solo calcula el resto y se lo
     // ofrece a la fila vacía, que la persona elige explícitamente.
@@ -175,7 +228,7 @@ function renderPautaManualModal(){
     const invalido=t=>pautaDraftErrorIndex===i&&pautaDraftErrorTarget===t?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
     const nombre=esc(fila.nombre||'evaluación');
     const usarResto=!fila.peso&&resto>0?`<button type="button" class="pauta-resto" onclick="usarRestoPauta(${i})">Usar ${r2(resto)}%</button>`:'';
-    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3" oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
+    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3"${invalido('cantidad')} oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
     const mas=unaVacia?'':`<button type="button" class="pauta-mas" id="m-pauta-quitar-${i}" onclick="abrirMenuPautaFila(this,${i})" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de ${nombre}"${invalido('quitar')}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>`;
     return `
     <div class="pauta-fila">
@@ -185,6 +238,9 @@ function renderPautaManualModal(){
         ${mas}
       </div>${cantidad||usarResto?`
       <div class="pauta-fila-extra">${cantidad}${usarResto}</div>`:''}
+      ${reglasEvaluacionEditorHTML({reglas:fila.reglas,varias:fila.varias,manual,
+        abierto:pautaDraftErrorIndex===i&&['descarte','min','tope'].includes(pautaDraftErrorTarget),
+        id:clave=>`m-pauta-${clave}-${i}`,oninput:clave=>`actualizarReglaPauta(${i},'${clave}',this.value)`,invalido})}
     </div>`;
   }).join('');
   document.getElementById('modal-content').innerHTML=`
@@ -227,6 +283,10 @@ function mostrarErrorPauta(i,mensaje,target){
   pautaDraftError=mensaje;pautaDraftErrorIndex=i;pautaDraftErrorTarget=target;
   renderPautaManualModal();
   setTimeout(()=>{const control=document.getElementById(`m-pauta-${target}-${i}`);if(control)control.focus();},0);
+}
+function actualizarReglaPauta(i,clave,valor){
+  limpiarErrorPauta();
+  if(pautaDraft[i])(pautaDraft[i].reglas??={})[clave]=valor;
 }
 function actualizarPautaNombre(i,valor){limpiarErrorPauta();if(pautaDraft[i])pautaDraft[i].nombre=valor;}
 function actualizarPautaVarias(i,valor){
@@ -331,6 +391,24 @@ function guardarPautaManual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estabaVacia=!(r.categorias||[]).some(c=>String(c.nombre||'').trim());
   const filas=pautaDraft.filter(f=>f.nombre.trim());
+  const escala=gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale;
+  const reglas=new Map();
+  for(const fila of pautaDraft){
+    if(!fila.nombre.trim()){
+      if(['descarte','min','tope'].some(campo=>fila.reglas?.[campo]?.trim()))
+        return mostrarErrorPauta(pautaDraft.indexOf(fila),'Escribe el nombre de la evaluación que lleva la regla.','nombre');
+      continue;
+    }
+    const anterior=r.categorias.find(c=>c.id===fila.id);
+    if(anterior&&fila.cantidad&&fila.cantidad<anterior.slots&&(anterior.notas||[]).some(n=>Number.isInteger(n.slot)&&n.slot>=fila.cantidad))
+      return mostrarErrorPauta(pautaDraft.indexOf(fila),'Hay notas guardadas en las casillas que quieres quitar.','cantidad');
+    const varias=fila.varias||(anterior?.notas||[]).length>1;
+    const cambios=validarReglasEvaluacionEditor(fila.reglas||{},varias,fila.cantidad,escala);
+    if(cambios.error)return mostrarErrorPauta(pautaDraft.indexOf(fila),cambios.error,cambios.campo);
+    if(fila.reglas?.descartePrograma&&fila.cantidad&&fila.cantidad<=anterior.dropLowest.count&&fila.cantidad!==anterior.slots)
+      return mostrarErrorPauta(pautaDraft.indexOf(fila),'La cantidad de notas tiene que superar el descarte del programa.','cantidad');
+    reglas.set(fila,cambios);
+  }
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
   // Las que la persona quitó con notas: pasan a su gemela o se van.
   const quitadas=new Set();
@@ -355,6 +433,7 @@ function guardarPautaManual(){
     // menos la primera, así que ahí se respeta lo que hay. Es la misma regla
     // que aplica normalize() al abrir la app.
     if(existente){
+      guardarReglasEvaluacionEditor(r,existente,reglas.get(f));
       existente.nombre=f.nombre.trim();existente.peso=f.peso;
       if(f.varias){
         // Cantidad declarada = casillas que la ficha puede mostrar y recorrer.
@@ -371,14 +450,18 @@ function guardarPautaManual(){
       const cat={id:uid(),nombre:f.nombre.trim(),peso:f.peso,ponderaNotas:false,directNota:!f.varias||cantidadFija,notas:[]};
       if(cantidadFija)cat.slots=f.cantidad;
       r.categorias.push(cat);
+      guardarReglasEvaluacionEditor(r,cat,reglas.get(f));
       abrirGrupoVacio(cat);
     }
   });
+  const vigentes=new Set(r.categorias.map(c=>c.id));
+  if(r.gates?.some(g=>g.origen==='editor'&&!vigentes.has(g.catId)))
+    r.gates=r.gates.filter(g=>g.origen!=='editor'||vigentes.has(g.catId));
   const estado=estadoPauta(r.categorias);save();track('configurar_pauta',{evaluaciones:filas.length,total:estado.total});closeModal();renderRamo();
   showToast(estado.lista?'✓ Listo, ya suma 100%':'Guardado · puedes completar el resto después');
   // Se ofrece una sola vez, al pasar de sin pauta a pauta completa. Si la
   // persona prefiere no compartirla, el enlace de reporte queda disponible en
   // la ficha; no se le vuelve a interrumpir cada vez que corrige un porcentaje.
-  if(estabaVacia&&estado.lista&&pautaCatalogoSinOficial(r))setTimeout(()=>ofrecerCompartirPauta(r),160);
+  if(estabaVacia&&estado.lista&&!pautaConReglasNoCompartibles(r)&&pautaCatalogoSinOficial(r))setTimeout(()=>ofrecerCompartirPauta(r),160);
 }
 function abrirPautaDesdeNota(){closeModal();setTimeout(openPautaManualModal,120);}

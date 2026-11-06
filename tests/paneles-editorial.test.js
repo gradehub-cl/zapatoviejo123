@@ -140,7 +140,7 @@ assert(Math.abs(datos.metricas.ahora.diferencia-.6666666667)<1e-6);
 assert(Math.abs(datos.metricas.cambio-1.2)<1e-6);
 let ficha=run('ramoAlumnoEditorialHTML(fichaAl,fichaAl.ramos[0],fichaComp,null,false,__ahora)');
 assert.match(ficha,/Promedio actual<\/span><strong>4,5/);
-assert.match(ficha,/<strong>−5<\/strong>/);assert.match(ficha,/<strong>\+7<\/strong>/);assert.match(ficha,/<strong>\+12<\/strong><span>décimas entre grupos/);
+assert.match(ficha,/−0,5/);assert.match(ficha,/\+0,7/);assert.match(ficha,/\+1,2/);assert.match(ficha,/<span>entre grupos<\/span><details class="est-ayuda">/);assert.doesNotMatch(ficha,/puntos entre grupos|décimas/);
 assert.equal((ficha.match(/class="evolucion-punto/g)||[]).length,6,'futuras no son puntos');
 assert.equal(datos.filas.length,8);assert.equal(datos.filas.filter(e=>e.nota===null).length,2);
 assert.match(ficha,/data-preparacion-eval="6" checked/,'futura marcada se puede editar');

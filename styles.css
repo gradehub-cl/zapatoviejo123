@@ -4892,6 +4892,16 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .est-respuesta{display:flex;flex-direction:column;min-width:0;}
 .est-respuesta h2{font-size:14px;font-weight:400;color:var(--fg2);}
 .est .est-cifra{font-size:80px;line-height:1;font-weight:600;letter-spacing:-.045em;margin:auto 0 6px;padding-top:14px;font-variant-numeric:tabular-nums;}
+.est-cifra-fila{position:relative;display:flex;align-items:flex-end;gap:2px;margin:auto 0 6px;}
+.est .est-cifra-fila .est-cifra{margin:0;}
+.est-ayuda{flex:none;}
+.fap .fap-cambio{position:relative;}
+.est-ayuda>summary{display:grid;place-items:center;width:44px;height:44px;list-style:none;cursor:pointer;}
+.est-ayuda>summary::-webkit-details-marker{display:none;}
+.est-ayuda>summary span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--est-tile);color:var(--fg2);font-size:13px;font-weight:600;}
+.est-ayuda[open]>summary span{background:var(--est-sel-suave);color:var(--est-sel);}
+.est-ayuda>summary:focus-visible{outline:2px solid var(--est-sel);outline-offset:-4px;border-radius:50%;}
+.est .est-ayuda>p,.est-ayuda>p{position:absolute;z-index:20;left:0;bottom:calc(100% + 2px);width:min(280px,100%);box-sizing:border-box;margin:0;padding:12px 14px;border-radius:14px;background:var(--card);box-shadow:var(--est-sombra);color:var(--fg2);font-size:13.5px;font-weight:400;line-height:1.45;letter-spacing:0;text-align:left;}
 .est .est-cifra small{font-size:17px;font-weight:500;letter-spacing:0;color:var(--fg3);margin-left:6px;}
 .est .est-cifra-chica{color:var(--fg3);}
 .est-sub{font-size:14px;color:var(--fg2);font-variant-numeric:tabular-nums;}.est-sub b{color:var(--fg);font-weight:600;}
@@ -5406,7 +5416,17 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;}
 }
 
-/* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
+/* Reglas opcionales del editor de evaluaciones. */
+#modal-content .editor-reglas{margin:4px 0 12px;color:var(--fg2);font-size:.8125rem;}
+#modal-content .editor-reglas>summary{min-height:44px;align-content:center;cursor:pointer;}
+#modal-content .editor-reglas-campos{display:grid;gap:8px;padding:8px 12px 12px;border:1px solid var(--border);border-radius:12px;}
+#modal-content .editor-reglas-campos :is(small,p){margin:0;font-size:.8125rem;}
+#modal-content .editor-reglas-campos label{display:grid;grid-template-columns:minmax(0,1fr) minmax(44px,5rem);align-items:center;gap:8px;}
+#modal-content .editor-reglas-campos input[type=text]{width:100%;min-height:44px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
+#modal-content .editor-reglas-descarte small{display:block;margin-top:6px;}
+#modal-content:not(:has(#m-cat-varias:checked)) .editor-reglas-al-marcar-varias{display:none;}
+
+ /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
    HIG Sheets y Toolbars: cerrar arriba a la izquierda con su símbolo y no con

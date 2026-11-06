@@ -8,14 +8,20 @@
 const EST_UMBRAL={puntos:.3,percentil:6},EST_LEJOS={puntos:-1,percentil:25},EST_FILAS=30;
 const EST_BARRAS=18,EST_INICIO=-1.5,EST_PASO=.2,EST_MUESTRA_CHICA=5;
 function estadoEstadisticasPanel(){return {ramos:new Set(),tab:'todos',texto:'',unidad:'puntos',vistos:EST_FILAS,filtros:false,datos:null};}
-// 'puntos' es la unidad interna, en la escala de notas; se muestra en décimas:
-// +0,6 se lee «+6 décimas». 'nota' deja el valor con coma (+0,6).
 function signoEstPanel(v,unidad){
-  const n=unidad==='percentil'?Math.round(v):unidad==='puntos'?Math.round(+v.toFixed(1)*10):+v.toFixed(1);
-  return (n>0?'+':n<0?'−':'')+(unidad==='nota'?Math.abs(n).toFixed(1).replace('.',','):String(Math.abs(n)));
+  const n=unidad==='percentil'?Math.round(v):+v.toFixed(1);
+  return (n>0?'+':n<0?'−':'')+(unidad==='percentil'?String(Math.abs(n)):Math.abs(n).toFixed(1).replace('.',','));
 }
-const decimasEstPanel=v=>Math.abs(Math.round(+v.toFixed(1)*10))===1?'décima':'décimas';
 const comaEstPanel=v=>v.toFixed(1).replace('.',',');
+// El «?» junto a la diferencia. Es un desplegable para que funcione con toque y
+// teclado sin depender de pasar el mouse por encima.
+function ayudaDiferenciaHTML({metodo,frente,unidad='puntos',grupo=false}){
+  const manual=metodo==='manual',quien=grupo?'cada alumno':'este alumno';
+  const texto=unidad==='percentil'
+    ?`Compara en qué percentil queda ${quien} ${manual?'sin clases y con clases':'antes y después de empezar'}. Un +10 son 10 puestos más arriba de cada 100.`
+    :`Compara cómo va ${quien} ${frente} ${manual?'sin clases y con clases':'antes y después de empezar'}, en la escala de notas de 1 a 7. Si ${manual?'sin clases':'antes'} iba 0,8 bajo y ${manual?'con clases':'después'} 0,2 bajo, la diferencia es +0,6.`;
+  return `<details class="est-ayuda"><summary aria-label="Qué significa esta cifra"><span aria-hidden="true">?</span></summary><p>${esc(texto)}${grupo?' La cifra grande es la mediana de tus alumnos.':''}</p></details>`;
+}
 const ladosEstPanel=metodo=>metodo==='manual'?['Sin clases','Con clases']:['Antes','Ahora'];
 function datosEstadisticasPanel(alumnos,compDe){
   const g=metricasGrupoPanel(alumnos,compDe);
@@ -61,7 +67,7 @@ function histogramaEstHTML(r,estado){
   const x=v=>(v/k-EST_INICIO)/(EST_PASO*EST_BARRAS)*100,u=estado.unidad;
   const rango=i=>{const a=(EST_INICIO+i*EST_PASO)*k;return `${signoEstPanel(a,u)} a ${signoEstPanel(a+EST_PASO*k,u)}`;};
   const boton=(id,texto,n,c0,c1)=>`<button type="button" class="est-zona est-zona-${id}" data-est-tab="${id}" aria-pressed="${estado.tab===id}" style="grid-column:${c0}/${c1}"><b>${n}</b>${texto}</button>`;
-  const marcas=[-1,0,1,2].map(v=>`<span style="left:${x(v*k).toFixed(2)}%">${signoEstPanel(u==='percentil'?v*20:v,u)}</span>`).join('');
+  const marcas=[-1,0,1,2].map(v=>`<span style="left:${x(v*k).toFixed(2)}%">${u==='percentil'?signoEstPanel(v*20,u):signoEstPanel(v,u).replace(',0','')}</span>`).join('');
   return `<div class="est-hist${elegida?' est-hist-elegida':''}">
     <div class="est-zonas">${boton('peor','Peor',r.peor,1,7)}${boton('igual','Igual',r.igual,7,10)}${boton('mejor','Mejor',r.mejor,10,19)}</div>
     <div class="est-barras">${barras.map((n,i)=>`<button type="button" class="est-barra est-barra-${zona(i)}${zona(i)===elegida?' est-barra-on':''}" data-est-tab="${zona(i)}" aria-label="${n} con diferencia de ${rango(i)}" title="${n}: ${rango(i)}"><i style="height:${n?Math.max(3,n/max*100):0}%"></i></button>`).join('')}
@@ -102,11 +108,11 @@ function filaEstHTML(p,metodo,unidad,seccion){
   const propio=m.metodo===metodo,pa=a!==null&&propio?posEstPanel(a,unidad):null,pb=b!==null&&propio?posEstPanel(b,unidad):null;
   const iniciales=String(m.nombre||'').trim().split(/\s+/).filter(t=>/^\p{L}/u.test(t)).slice(0,2).map(t=>t[0]).join('').toUpperCase();
   const motivo=hay?'':motivoEstPanel(p,metodo,unidad),frente=seccion?'frente a su sección':'frente al ramo';
-  const detalle=hay?`${sin} ${signoEstPanel(a,unidad)}. ${con} ${signoEstPanel(b,unidad)}. Diferencia ${signoEstPanel(cambio,unidad)}${unidad==='puntos'?` ${decimasEstPanel(cambio)} ${frente}`:' percentiles'}.`:motivo+'.';
+  const detalle=hay?`${sin} ${signoEstPanel(a,unidad)}. ${con} ${signoEstPanel(b,unidad)}. Diferencia ${signoEstPanel(cambio,unidad)}${unidad==='puntos'?` ${frente}`:' percentiles'}.`:motivo+'.';
   return `<button type="button" class="est-fila" data-ver-alumno="${esc(m.id)}" data-alumno-ramo="${esc(m.ramoId)}" title="${esc(detalle)}">
     <span class="est-quien"><span class="est-avatar" aria-hidden="true">${esc(iniciales)}</span><span class="est-nombre"><b>${esc(m.nombre)}</b><small>${esc(m.ramo)}</small></span></span>
     <span class="est-punto ${hay?clase:'est-gris'}" aria-hidden="true">${hay?`<i class="est-tramo" style="left:${Math.min(pa,pb)}%;width:${Math.abs(pa-pb).toFixed(1)}%"></i>`:''}${pa!==null?`<i class="est-a" style="left:${pa}%"></i>`:''}${pb!==null?`<i class="est-b" style="left:${pb}%"></i>`:''}</span>
-    ${hay?`<span class="est-dif ${clase}">${esc(signoEstPanel(cambio,unidad))}${p.lejos?`<small>${unidad==='percentil'?'p'+Math.round(b):signoEstPanel(Math.abs(b),'puntos').replace('+','')+' bajo'}</small>`:''}</span>`:`<span class="est-falta">${esc(motivo)}</span>`}
+    ${hay?`<span class="est-dif ${clase}">${esc(signoEstPanel(cambio,unidad))}${p.lejos?`<small>${unidad==='percentil'?'p'+Math.round(b):comaEstPanel(Math.abs(b))+' bajo'}</small>`:''}</span>`:`<span class="est-falta">${esc(motivo)}</span>`}
     <span class="sr-solo">${esc(detalle)}</span><span class="est-flecha" aria-hidden="true">›</span></button>`;
 }
 function filasEstadisticasHTML(datos,estado,{seccion=false}={}){
@@ -137,10 +143,10 @@ function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPr
   const ramosHTML=ramosEstHTML(datos,estado),seg=(campo,valor,texto,activo)=>`<button type="button" data-est-${campo}="${valor}" aria-pressed="${activo}">${texto}</button>`;
   const etiquetas=[...estado.ramos].map(k=>{const m=datos.pares.find(x=>claveRamoFiltroPanel(x)===k);return m?`<button type="button" class="est-etiqueta" data-est-ramo="${esc(k)}" aria-label="Quitar ${esc(m.ramo)}">${esc(m.ramo)}<span aria-hidden="true">✕</span></button>`:'';}).join('');
   const tabs=[['todos','Todos',lista.length],['mejor','Mejor',r.mejor],['igual','Igual',r.igual],['peor','Peor',r.peor],['sin','Por completar',r.sin]];
-  const escala=u==='percentil'?['p0','p50','p100']:['20 bajo',seccion?'Su sección':'El ramo','20 sobre'],activos=(seccion?1:0)+(soloPruebas?1:0);
+  const escala=u==='percentil'?['p0','p50','p100']:['2 bajo',seccion?'Su sección':'El ramo','2 sobre'],activos=(seccion?1:0)+(soloPruebas?1:0);
   return `<div class="est">
     <div class="est-barra-herramientas">
-      ${datos.hayPercentil?`<div class="est-seg" role="group" aria-label="Medir en">${seg('unidad','puntos','Décimas',u==='puntos')}${seg('unidad','percentil','Percentil',u==='percentil')}</div>`:''}
+      ${datos.hayPercentil?`<div class="est-seg" role="group" aria-label="Medir en">${seg('unidad','puntos','Nota',u==='puntos')}${seg('unidad','percentil','Percentil',u==='percentil')}</div>`:''}
       <div class="est-filtros-caja"><button type="button" class="est-control" data-est-filtros aria-expanded="${estado.filtros}">Filtros${activos?`<span class="est-cuenta">${activos}</span>`:''}</button>
         ${estado.filtros?`<div class="est-pop">${filtrosComparacionEstHTML(seccion,soloPruebas)}</div>`:''}</div>
     </div>
@@ -151,7 +157,7 @@ function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPr
       <section class="est-tarjeta-grande" aria-label="Resumen">
         <div class="est-heroe">
           <div class="est-respuesta"><h2>${titulo}</h2>
-            <p class="est-cifra ${tono}">${r.mediana===null?'—':esc(signoEstPanel(r.mediana,u))}<small>${r.mediana===null?'':u==='percentil'?'percentiles':decimasEstPanel(r.mediana)}</small></p>
+            <div class="est-cifra-fila"><p class="est-cifra ${tono}">${r.mediana===null?'—':esc(signoEstPanel(r.mediana,u))}${r.mediana!==null&&u==='percentil'?'<small>percentiles</small>':''}</p>${ayudaDiferenciaHTML({metodo,frente,unidad:u,grupo:true})}</div>
             <p class="est-sub">${chica?`Solo ${n} con datos suficientes`:`<b>${r.mejor} de ${n}</b> ${verbo}`}</p></div>
           ${histogramaEstHTML(r,estado)}
         </div>
@@ -166,7 +172,7 @@ function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPr
       <div id="est-filas">${filasEstadisticasHTML(datos,estado,{seccion})}</div>
     </section>
     <footer class="est-pie"><span>${metodo==='manual'?'La diferencia':'El cambio'} no demuestra que se deba a las clases.</span>
-      <details><summary>Cómo se calcula</summary><p>Cada alumno cuenta una vez por ramo. ${metodo==='manual'?'Comparamos las evaluaciones marcadas como preparadas contigo con las que no.':'Comparamos antes y después de su inicio de clases en ese ramo.'} Hacen falta ${MIN_EVALS_COMPARACION} evaluaciones comparables a cada lado, y cada nota se mide frente a su evaluación para que una prueba difícil no castigue. Bajo ${Math.round(EST_UMBRAL.puntos*10)} décimas de diferencia se considera igual. Muchos toman clases justo cuando van peor, así que el resultado puede quedarse corto. La referencia sale de al menos 5 estudiantes de GradeHub y nunca ves quiénes son.</p></details></footer>
+      <details><summary>Cómo se calcula</summary><p>Cada alumno cuenta una vez por ramo. ${metodo==='manual'?'Comparamos las evaluaciones marcadas como preparadas contigo con las que no.':'Comparamos antes y después de su inicio de clases en ese ramo.'} Hacen falta ${MIN_EVALS_COMPARACION} evaluaciones comparables a cada lado, y cada nota se mide frente a su evaluación para que una prueba difícil no castigue. Bajo ${String(EST_UMBRAL.puntos).replace('.',',')} de diferencia se considera igual. Muchos toman clases justo cuando van peor, así que el resultado puede quedarse corto. La referencia sale de al menos 5 estudiantes de GradeHub y nunca ves quiénes son.</p></details></footer>
   </div>`;
 }
 // Vuelve a pintar sin perder el foco de quien usa teclado o VoiceOver.

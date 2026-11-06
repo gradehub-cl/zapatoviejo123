@@ -212,6 +212,18 @@ function leerHora(idBase){
   return HORA_RE.test(h.value||'')?h.value:null;
 }
 
+const idReglaModal=clave=>`m-cat-regla-${clave}`;
+function leerReglasEvaluacionModal(r,varias,cantidad){
+  const leer=clave=>document.getElementById(idReglaModal(clave))?.value||'';
+  const reglas=validarReglasEvaluacionEditor({descarte:leer('descarte'),min:leer('min'),tope:leer('tope')},
+    varias,cantidad,gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale);
+  if(!reglas.error)return reglas;
+  const id=idReglaModal(reglas.campo),campo=document.getElementById(id);
+  campo.closest('details').open=true;
+  campo.setAttribute('aria-describedby','m-cat-error');
+  mostrarErrorCampo(id,'m-cat-error',reglas.error);
+  return null;
+}
 let addCatError='';
 function mostrarErrorCampo(inputId,errorId,mensaje){
   const input=document.getElementById(inputId),error=document.getElementById(errorId);
@@ -225,6 +237,7 @@ function limpiarErrorCampo(inputId,errorId){
 }
 function openAddCatModal(prefillDate){
   addCatError='';
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Nueva evaluación</div>
     <label class="modal-label">Nombre</label>
@@ -236,6 +249,7 @@ function openAddCatModal(prefillDate){
       <span>Son varias notas que se promedian <span style="color:var(--fg3);">(controles, laboratorios, tareas)</span></span>
     </label>
     ${campoFechaHoraHTML('m-cat',prefillDate||'',null,false)}
+    ${reglasEvaluacionEditorHTML({manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:true})}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
@@ -262,7 +276,10 @@ function confirmAddCat(){
   // de decirlo: la casilla es el único camino que tiene el estudiante hacia la
   // tarjeta con "+ Agregar nota" que las pautas oficiales usan vía `lista:true`.
   const varias=!!(document.getElementById('m-cat-varias')||{}).checked;
+  const reglas=leerReglasEvaluacionModal(r,varias,null);if(!reglas)return false;
   const hora=leerHora('m-cat');
-  r.categorias.push({id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:!varias,notas:[]});
+  const cat={id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:!varias,notas:[]};
+  guardarReglasEvaluacionEditor(r,cat,reglas);
+  r.categorias.push(cat);
   save();track('add_categoria',{peso,tiene_fecha:!!fecha,varias_notas:varias});closeModal();renderRamo();
 }

@@ -54,11 +54,12 @@ test('lo que pide acción va primero: bajó o sigue lejos del ramo',()=>{
  run(`var as=[alumno('a','Sube mucho',[ramo('r','TST100',[3,3,5,5])]),alumno('b','Lejos',[ramo('s','TST100',[2,2,2.1,2.1])]),alumno('c','Baja',[ramo('t','TST100',[5,5,4,4])])];var e=vista(as)`);
  const h=run('filasEstadisticasHTML(e.datos,e)');
  assert(h.indexOf('Por revisar')<h.indexOf('Baja')&&h.indexOf('Baja')<h.indexOf('Lejos')&&h.indexOf('Lejos')<h.indexOf('El resto')&&h.indexOf('El resto')<h.indexOf('Sube mucho'));
- assert(h.includes('19 bajo'));
- assert.equal(run("signoEstPanel(.6,'puntos')"),'+6','la diferencia se muestra en décimas de nota');assert.equal(run("signoEstPanel(-1.24,'puntos')"),'−12');
- assert.equal(run("signoEstPanel(.1,'nota')"),'+0,1','en Ramos sigue como diferencia entre promedios');
- assert.equal(run('decimasEstPanel(.1)'),'décima');assert.equal(run('decimasEstPanel(-.6)'),'décimas');
- const pantalla=run('estadisticasAlumnosHTML(e.datos,e)');assert(!/\bpuntos\b|>Puntos</.test(pantalla.replace(/data-est-unidad="puntos"/g,'')),'la pantalla ya no dice puntos');assert(pantalla.includes('>Décimas<')||!run('e.datos.hayPercentil'));
+ assert(h.includes('1,9 bajo'));
+ const pantalla=run('estadisticasAlumnosHTML(e.datos,e)');
+ assert(!/\bpuntos\b|décimas? \w|>Puntos</.test(pantalla.replace(/<details class="est-ayuda">[\s\S]*?<\/details>/g,'').replace(/data-est-unidad="puntos"/g,'')),'la cifra va sola, sin unidad escrita');
+ assert.match(pantalla,/<details class="est-ayuda"><summary aria-label="Qué significa esta cifra">/,'el ? explica la cifra');
+ assert.match(pantalla,/escala de notas de 1 a 7.*\+0,6\./,'con un ejemplo en la misma notación');
+ assert.equal(run("signoEstPanel(.6,'puntos')"),'+0,6');
 });
 test('el ramo se ve en cada fila y el tamaño de la muestra por ramo',()=>{
  run(`var as=[alumno('a','Dos ramos',[ramo('r','TST100',[3,3,5,5]),ramo('s','TST200',[5,5,3,3])])];var e=vista(as)`);
