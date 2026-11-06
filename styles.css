@@ -5371,7 +5371,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .cr-panel .cr-alcance .adm-tarjeta-cabeza{align-items:center;flex-wrap:wrap;gap:.4rem;}
 .cr-panel .cr-alcance .adm-tarjeta-cabeza h2{margin:0;}
 .profesor-hig .cr-panel .pe-periodos button{min-height:44px;min-width:44px;white-space:normal;font-size:.75rem;}
-.cr-panel .cr-alcance .pe-periodos button[aria-pressed=true]{background:var(--est-sel-suave);color:var(--est-sel);}
+.cr-panel .cr-alcance .pe-periodos button[aria-pressed=true]{background:var(--est-sel-suave);color:color-mix(in srgb,var(--est-sel) 82%,var(--fg));}
+.cr-panel .cr-alcance .adm-metrica .est-sube{color:color-mix(in srgb,var(--est-sube) 85%,var(--fg));}
+.cr-panel .cr-alcance .adm-metrica .est-baja{color:color-mix(in srgb,var(--est-baja) 85%,var(--fg));}
 .cr-panel .cr-alcance .adm-metrica>span,.cr-panel .cr-alcance .adm-metrica>small{font-size:.75rem;overflow-wrap:anywhere;}
 .cr-panel .cr-alcance .adm-metrica>strong{font-size:1.55rem;}
 .cr-panel .cr-alcance .admin-grafico-columnas [data-tenue] i{background:none;border-color:var(--fg2);}
