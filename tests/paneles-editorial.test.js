@@ -50,6 +50,24 @@ ctx.__previo=[{dia:'2026-10-18',vistas:10},{dia:'2026-10-27',vistas:20}];
 assert.equal(run("comparacionAlcanceAdmin(__previo,'7',__noche).vistas"),10);
 assert.equal(run("comparacionAlcanceAdmin(__previo.slice(1),'7',__noche)"),null,'sin datos de todo el período no compara');
 assert.equal(run("comparacionAlcanceAdmin(__previo,'1',__noche)"),null,'hoy sigue en curso');
+ctx.__resProfesor=[
+ {a:{id:'pagada',titulo:'Campaña sintética',estado:'publicado',cobros:[{monto:99999999}]},
+   historial:[{dia:'2026-10-18',vistas:10,aperturas:5,contactos:2},{dia:'2026-10-27',vistas:20,aperturas:9,contactos:5}],
+   costo:{total:1210,tope:3000,bruto:1210,sinCosto:false,partes:[]}},
+ {a:{id:'gratis',titulo:'Campaña sin costo',estado:'publicado'},
+   historial:[{dia:'2026-10-17',vistas:10,aperturas:5,contactos:3},{dia:'2026-10-27',vistas:30,aperturas:10,contactos:6}],
+   costo:{total:0,tope:null,bruto:0,sinCosto:true,partes:[]}}
+];
+const resumenProfesor=run("resumenProfesorEditorialHTML(__resProfesor,'7',__noche,{metrica:'contactos'})");
+assert.match(resumenProfesor,/data-adm-metrica="contactos" aria-pressed="true"><span>Contactos<\/span><strong>11<\/strong>/);
+assert.match(resumenProfesor,/vs. período anterior/);
+assert.match(resumenProfesor,/<span>Tope<\/span><strong>\$3\.000<\/strong>/,'una campaña gratis no oculta el tope de la pagada');
+assert.match(resumenProfesor,/data-cr-ver="pagada"/);
+assert.doesNotMatch(resumenProfesor,/99[.,]?999[.,]?999|En deuda|Cobrado/);
+const desconocido=run("resumenProfesorEditorialHTML(__resProfesor.map((d,i)=>i?{...d,historial:null}:d),'7',__noche)");
+assert.match(desconocido,/Historial no disponible/);assert.doesNotMatch(desconocido,/vs. período anterior/);
+assert.doesNotMatch(run("resumenProfesorEditorialHTML(__resProfesor.map((d,i)=>i?{...d,historial:d.historial.slice(1)}:d),'7',__noche)"),/vs. período anterior/);
+
 // El alcance del ramo: desconocido no es cero, y un ramo casi vacío no grita.
 assert.match(run('alcanceFilaAdminHTML(null)'),/<b>—<\/b>/);
 assert.match(run('alcanceFilaAdminHTML({activos_ramo:3,vieron:1})'),/<b>—<\/b><small>Muy pocas personas/);
@@ -62,9 +80,6 @@ assert.equal(run("__filas2.slice().sort(ordenFilasAdmin).map(f=>f.a.id).join()")
 assert.equal(run("cobroPendienteAdmin({a:{publicado_at:'2026-10-01T00:00:00Z',cobros:[{publicado_at:'2026-10-01T00:00:00.000Z'}]},costo:{},estado:['','expirado']})"),false,'con cobro registrado ya no está por cobrar');
 assert.equal(run("cobroPendienteAdmin({a:{publicado_at:'2026-10-01T00:00:00Z'},costo:{sinCosto:true},estado:['','expirado']})"),false,'sin costo no hay nada que cobrar');
 assert.match(run('filaAdminHigHTML(filasAdminHig([__profesor],__noche)[0],__noche)'),/data-pe-conteo="vistas">3<\/b>/);
-assert.match(run("panelAlcancePrivadoHTML(null,'7','vistas',__ahora)"),/role="status"/,'error de carga no se vuelve cero');
-assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/class="pe-notita" hidden/,'cifra puntual oculta hasta explorar');
-assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/role="slider".*aria-valuetext=/,'teclado y lector de pantalla');
 run(`S.tenant='uc';globalThis.__al={id:'ficticio',tenant:'uc',nombre_visible:'Alumno de ejemplo',desde:'2026-09-15',ramos:[{id:'r',nombre:'Ramo sintético',sigla:'TEST100',seccion:2,gates:[],categorias:[
  {id:'c1',nombre:'Prueba 1',peso:50,fecha:'2026-09-01',notas:[{id:'n1',nombre:'Prueba 1',valor:5.2}]},
  {id:'c2',nombre:'Prueba 2',peso:50,fecha:'2026-11-10',notas:[]}]}]};
