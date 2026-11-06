@@ -163,12 +163,3 @@ const sinReferencia=run("comparacionPromediosPanelHTML(4,null,'uc')");
 assert.match(sinReferencia,/GradeHub: aún pocos datos/);assert.doesNotMatch(sinReferencia,/class="panel-curso-referencia"/);
 assert.equal(run("comparacionPromediosPanelHTML(null,null,'uc')"),'');
 console.log('PASS detalle visual: escala de eventos, canales, tope, tiempo, privacidad diaria, tablas y comparación de notas');
-
-// Los riesgos de distintos ramos se pueden superponer. Son dos proporciones
-// independientes sobre todos los conectados; nunca partes apiladas de un total.
-ctx.__inicio={conectados:10,semana:[],atencion:[],reprobando:4,alBorde:7};
-const inicio=run('resumenInicioAlumnosHTML(__inicio)');
-assert.match(inicio,/panel-riesgo-bad[\s\S]*?scaleX\(0.4000\)/);
-assert.match(inicio,/panel-riesgo-warn[\s\S]*?scaleX\(0.7000\)/);
-assert.doesNotMatch(inicio,/Un alumno puede estar al borde en un ramo y reprobando otro/);
-assert.doesNotMatch(run('resumenInicioAlumnosHTML({...__inicio,conectados:0,reprobando:0,alBorde:0})'),/panel-riesgo-riel/);

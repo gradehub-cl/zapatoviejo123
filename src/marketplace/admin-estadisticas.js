@@ -43,10 +43,15 @@ function atencionAdminHTML(profesores,ahora,conProgramas=false){
 // puntos: [{eje, lectura, valor, tenue}] de lo antiguo a lo nuevo. La columna
 // elegida va con el acento lleno y su lectura arriba; tocar o pasar el dedo
 // por el área entera elige otra (enlazarGraficosAdmin).
-function columnasAdminHTML({titulo,resumen,vacio,puntos,elegido=puntos.length-1,formato=milesViz,tabla=null,dondeValores='en la tabla',sinCabeza=false}){
-  const tope=topeEjeAdmin(Math.max(0,...puntos.map(p=>p.valor)));
+function columnasAdminHTML({titulo,resumen,vacio,puntos,elegido=puntos.length-1,formato=milesViz,tabla=null,dondeValores='en la tabla',sinCabeza=false,porDia=false}){
+  const tope=topeEjeAdmin(Math.max(porDia?2:0,...puntos.map(p=>p.valor)));
   const cabeza=`<figcaption${sinCabeza?' class="adm-oculto"':''}><b>${esc(titulo)}</b>${resumen?`<span>${esc(resumen)}</span>`:''}</figcaption>`;
   if(!tope)return `<figure class="viz admin-grafico">${cabeza}<p class="clase-sin-datos">${esc(vacio)}</p></figure>`;
+  if(porDia)return `<figure class="viz admin-grafico" aria-label="${esc(titulo)}">
+    <div class="ras-grafico" role="group" aria-label="Elegir día de la agenda">
+    ${puntos.map((p,i)=>`<button type="button" data-ras-columna="${i}" aria-label="${esc(p.lectura)}" aria-pressed="${i===elegido}"${p.tenue?' data-tenue':''}>
+      <span class="ras-barra"><i style="height:${100*p.valor/tope}%"></i></span>
+      <span>${esc(p.eje)}</span><b>${p.valor}</b></button>`).join('')}</div></figure>`;
   return `<figure class="viz admin-grafico" data-admin-grafico>${cabeza}
     <p class="admin-grafico-lectura" data-admin-lectura aria-hidden="true">${esc(puntos[elegido].lectura)}</p>
     <div class="admin-grafico-area" role="img" aria-label="${esc(`${titulo}, gráfico de columnas. ${resumen||''} Los valores están ${dondeValores}.`)}">
