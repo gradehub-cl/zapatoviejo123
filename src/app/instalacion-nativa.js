@@ -143,6 +143,8 @@ function showMainApp(){
   document.getElementById('screen-onboard').classList.remove('active');
   document.getElementById('bottom-nav').style.display='flex';
   document.querySelector('.app').classList.add('tab-mode');
+  // Al abrir, iOS tarda en dar el alto final y el rol de admin llega después.
+  [800,2500,6000].forEach(ms=>setTimeout(compensarAltoPwa,ms));
   renderHome();renderStats();renderAgenda(); // los 3 siempre montados
   // Una cuenta de profesor abre en Clases (#697): sus pestañas se arman antes.
   recalcularNavTabs();

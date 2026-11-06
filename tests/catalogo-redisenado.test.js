@@ -26,11 +26,11 @@ class Nodo{
 const modal=new Nodo(),root=new Nodo(),timers=new Map(),calls=[],observers=[];let timerId=0;
 modal.classList={contains:()=>true};
 const ctx={console,URL,Intl,S:{tenant:'uc',get ramos(){throw Error('No leer ramos');}},currentUser:{id:'estudiante-sintetico'},
- document:{getElementById:id=>id==='modal-content'?root:id==='modal'?modal:root.querySelector('#'+id)},
+ document:{addEventListener(){},removeEventListener(){},getElementById:id=>id==='modal-content'?root:id==='modal'?modal:root.querySelector('#'+id)},
  esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])),
  openModal(){},setTimeout(f,ms){const id=++timerId;timers.set(id,{f,ms});return id;},clearTimeout(id){timers.delete(id);},
  IntersectionObserver:class{constructor(cb,opts){this.cb=cb;this.opts=opts;this.nodes=[];observers.push(this);}observe(n){this.nodes.push(n);}disconnect(){}},
- supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});return {data:true,error:null};}}};
+ supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(n==='directorio_perfiles')return {data:null,error:{code:'42883'}};return {data:true,error:null};}}};
 vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fuente);
 const base={id:'pagado',estado:'publicado',titulo:'Cálculo sintético',descripcion:'Apoyo',ramos_siglas:['MAT1620'],precio_clp:15000,ubicacion:'online',contacto_tipo:'email',contacto_valor:'prueba@example.com',publicado_at:'2026-09-01T00:00:00Z',vence_at:'2099-01-01T00:00:00Z'};
 ctx.fixtures=[base,{...base,id:'gratis',precio_clp:0},{...base,id:'presencial',ubicacion:'presencial',precio_clp:20000},{...base,id:'pausado',estado:'pausado'}];
@@ -83,7 +83,7 @@ run("logosDeAnuncios=async()=>new Map(); cargarAnunciosClasesOriginal=cargarAnun
  // reintenta mientras siga en pantalla; el evento anónimo no se duplica.
  let fallaAlcance=true;
  ctx.currentUser={id:'estudiante-reintento'};
- ctx.supabaseClient.rpc=async(n,p)=>{calls.push({n,p});if(n==='registrar_alcance_anuncio'&&fallaAlcance){fallaAlcance=false;return {data:null,error:{message:'sin red'}};}return {data:true,error:null};};
+ ctx.supabaseClient.rpc=async(n,p)=>{calls.push({n,p});if(n==='directorio_perfiles')return {data:null,error:{code:'42883'}};if(n==='registrar_alcance_anuncio'&&fallaAlcance){fallaAlcance=false;return {data:null,error:{message:'sin red'}};}return {data:true,error:null};};
  await run('openCatalogoClases()');
  const reintento=observers.at(-1),visible=reintento.nodes.find(n=>n.dataset.catalogoAnuncio==='pagado');
  const inicio=calls.length;

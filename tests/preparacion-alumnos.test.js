@@ -25,5 +25,17 @@ const grupos=run('gruposParecidosResultadoHTML(__g)');assert(grupos.includes('·
  await run("cargarPreparacionPanel(al,async()=>({error:{code:'PGRST202'}}))");assert.equal(run('al.preparacion'),null);
  ctx.__datos={ramos:[{ramo_id:'r',manual:true,marcas:[],evaluaciones:[]}]};await run('cargarPreparacionPanel(al,async()=>({data:__datos}))');
  await run("cargarPreparacionPanel(al,async()=>{throw Error('red')})");assert.equal(run('al.preparacion.ramos[0].manual'),true);assert.equal(run('al.preparacion.errorCarga'),true);assert.equal(run('metricasAlumnoRamoPanel(al,al.ramos[0],comp).cambio'),null);
+ // Escritura real: respuesta vigente, error y salida a otro alumno.
+ const anterior=run('JSON.stringify(al.preparacion)');
+ await assert.rejects(()=>run("guardarPreparacionPanel(al,al.ramos[0],[{nota_id:'n1'}],async()=>({error:{code:'RED'}}),()=>true)"));
+ assert.equal(run('JSON.stringify(al.preparacion)'),anterior,'error no cambia cifras guardadas');
+ assert.equal(await run("guardarPreparacionPanel(al,al.ramos[0],[],async()=>({data:{ramos:[]}}),()=>false)"),false);
+ assert.equal(run('JSON.stringify(al.preparacion)'),anterior,'salir antes de guardar no escribe');
+ run('var escrituraVigente=true');
+ assert.equal(await run("guardarPreparacionPanel(al,al.ramos[0],[],async()=>{escrituraVigente=false;return {data:{ramos:[]}}},()=>escrituraVigente)"),false);
+ assert.equal(run('JSON.stringify(al.preparacion)'),anterior,'respuesta vieja no pinta ni cambia caché');
+ assert.equal(await run("guardarPreparacionPanel(al,al.ramos[0],[{nota_id:'n1'}],async()=>({data:{ramos:[{ramo_id:'r',manual:true,marcas:[{nota_id:'n1'}],evaluaciones:[]}]}}),()=>true)"),true);
+ assert.equal(run('al.preparacion.ramos[0].marcas[0].nota_id'),'n1');
+ assert.equal(run('JSON.stringify(al.ramos)'),antes,'guardar preparación no cambia notas');
  console.log('OK: regla previa idéntica, manual vacío, selección independiente de fecha, métodos separados, CSV sin reinterpretar, ausencia de SQL y error temporal');
 })().catch(e=>{console.error(e);process.exitCode=1});

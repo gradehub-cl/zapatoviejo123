@@ -66,8 +66,8 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   if(porSeccion)await cargarSecciones();
   if(!vigente())return;
   const compDe=(al,r)=>comparacionPruebasPanel(al,r,porSeccion?compSeccion(al,r):compGeneral(al,r));
+  const compFicha=(al,r)=>porSeccion?compSeccion(al,r):compGeneral(al,r);
   const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
-  const grupoHTML=lista=>lista.length?antesAhoraGrupoHTML(metricasGrupoPanel(lista,compDe),{seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(lista):0}):'';
   const link=linkAlumnosProfesor(codigo);
   const mensaje=mensajeInvitacionAlumnos();
   // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
@@ -166,8 +166,10 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const avisoPrivacidad=raiz.querySelector('#alumnos-privacidad');
   // Los ramos elegidos en «Por alumno y ramo» duran mientras la pantalla esté
   // abierta: cambiar de vista o de comparación vuelve a pintar y los conserva.
-  const filtroRamos={elegidos:new Set(),texto:''};
-  const pintarEstadisticas=()=>{paneles.estadisticas.innerHTML=grupoHTML(alumnos);aplicarFiltroRamosPanel(paneles.estadisticas,filtroRamos);};
+  const estadoEst=estadoEstadisticasPanel();
+  const opcionesEst=()=>({seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(alumnos):0,soloPruebas:alumnos.some(al=>al.soloPruebasPanel)});
+  const repintarEstadisticas=()=>pintarEstadisticasPanel(paneles.estadisticas,estadoEst,opcionesEst());
+  const pintarEstadisticas=()=>{estadoEst.datos=datosEstadisticasPanel(alumnos,compDe);if(!estadoEst.datos.hayPercentil)estadoEst.unidad='puntos';repintarEstadisticas();};
   let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
   // Se filtra en el navegador, con lo que el panel ya bajó.
@@ -183,7 +185,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       :`<p class="profesor-hig-vacio">No encontramos alumnos para «${esc(raiz.querySelector('#alumnos-buscar')?.value.trim()||'')}».</p>`;
     mas.hidden=vista.length<=visibles;
   };
-  const enlazarQuitar=()=>fichaContenido.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>{if(!vigente())return;showConfirm(`Quitar a ${b.dataset.nombre}`,
+  const enlazarQuitar=()=>fichaContenido.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>{if(!vigente()||!puedeSalirFicha())return;showConfirm(`Quitar a ${b.dataset.nombre}`,
     'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
       if(!vigente())return;
       b.disabled=true;
@@ -194,37 +196,34 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     },{label:'Quitar',focusCancel:true});}));
   const enlazarInicio=()=>fichaContenido.querySelectorAll('[data-inicio-alumno]').forEach(b=>b.addEventListener('click',()=>{
     if(!vigente())return;
+    if(!puedeSalirFicha())return;
     const al=alumnos.find(x=>x.id===b.dataset.inicioAlumno);
     const r=al&&(al.ramos||[]).find(x=>x.id===b.dataset.inicioRamo);
     if(r)abrirInicioRamo(al,r,()=>{if(vigente())renderAlumnosProfesor(raiz,{volver,alumnoId:al.id});},rpc);
   }));
   let ramoFicha=null;
-  const ultimaSeccion=new Map();
+  let editandoFicha=false;
+  const puedeSalirFicha=()=>{if(!editandoFicha)return true;showToast('Guarda o cancela las marcas antes de cambiar de alumno, ramo o referencia.',true);return false;};
   const subtituloFicha=al=>`Alumnos · ${TENANTS[al.tenant]?.short||al.tenant||'Universidad no declarada'} · ${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo compartido':'ramos compartidos'}`;
   const pintarFicha=()=>{
     if(!seleccionado)return;
     raiz.querySelector('#alumnos-ficha-titulo').textContent=seleccionado.nombre_visible||'Alumno';
     raiz.querySelector('#alumnos-ficha-subtitulo').textContent=subtituloFicha(seleccionado);
-    fichaContenido.innerHTML=contenidoAlumnoEditorialHTML(seleccionado,compDe,compGeneral,new Date());
-    const pintarRamo=()=>{
+    fichaContenido.innerHTML=contenidoAlumnoEditorialHTML(seleccionado,compFicha,ramoFicha,new Date());
+    const pintarRamo=(repintar=true)=>{
       const al=seleccionado,r=(al.ramos||[]).find(r=>r.id===ramoFicha)||(al.ramos||[])[0];
       if(!r)return;ramoFicha=r.id;
       fichaContenido.querySelectorAll('[data-pe-ramo]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.peRamo===String(r.id))));
       const destino=fichaContenido.querySelector('[data-pe-ramo-contenido]');
-      destino.innerHTML=ramoAlumnoEditorialHTML(al,r,compDe(al,r),ultimaSeccion.get(r.id)?compSeccion(al,r):compGeneral(al,r),!!ultimaSeccion.get(r.id),new Date());
+      if(repintar)destino.innerHTML=ramoAlumnoEditorialHTML(al,r,compFicha(al,r),null,porSeccion,new Date());
       enlazarInicio();enlazarGraficosEvolucion(destino);
-      enlazarPreparacionPanel(destino,al,r,rpc,()=>{if(vigente()){pintarFicha();}},()=>vigente()&&seleccionado===al&&ramoFicha===r.id);
-      enlazarGruposParecidos(destino,al,r,rpc,()=>vigente()&&seleccionado===al&&ramoFicha===r.id);
-      const barra=destino.querySelector('[data-pe-ultima-wrap]');
-      const enlazarUltima=()=>barra?.querySelector('[data-pe-ultima]')?.addEventListener('click',async()=>{
-        const quiere=!ultimaSeccion.get(r.id),boton=barra.querySelector('button');boton.disabled=true;
-        if(quiere)await cargarSecciones();
-        if(!vigente()||seleccionado!==al||ramoFicha!==r.id)return;
-        ultimaSeccion.set(r.id,quiere);
-        barra.innerHTML=barraUltimaPrivadaHTML(ramoParaPanel(r),quiere?compSeccion(al,r):compGeneral(al,r),quiere);
-        enlazarUltima();barra.querySelector('button')?.focus({preventScroll:true});
+      const grupos=destino.querySelector('[data-grupos-parecidos]');
+      const mismoRamo=()=>vigente()&&seleccionado===al&&ramoFicha===r.id;
+      enlazarPreparacionPanel(destino,al,r,rpc,()=>{if(vigente())pintarFicha();},mismoRamo,{
+        alEditar:()=>{editandoFicha=true;if(grupos)grupos.hidden=true;},
+        alCancelar:()=>{editandoFicha=false;},
       });
-      enlazarUltima();
+      enlazarGruposParecidos(destino,al,r,rpc,()=>mismoRamo()&&vistaActiva==='ficha'&&!editandoFicha,puedeSalirFicha);
       destino.querySelectorAll('[data-pe-grupo], [data-pe-comparar]').forEach(b=>b.addEventListener('click',async()=>{
         const grupo=b.dataset.peGrupo,quiere=grupo?grupo==='seccion':!porSeccion;
         await cambiarComparacion(quiere);
@@ -232,11 +231,24 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
         if(vigente()&&seleccionado===al)fichaContenido.querySelector(selector)?.focus({preventScroll:true});
       }));
     };
-    fichaContenido.querySelectorAll('[data-pe-ramo]').forEach(b=>b.addEventListener('click',()=>{ramoFicha=b.dataset.peRamo;pintarRamo();}));
-    pintarRamo();enlazarQuitar();
+    fichaContenido.querySelectorAll('[data-pe-ramo]').forEach(b=>b.addEventListener('click',()=>{if(!puedeSalirFicha())return;ramoFicha=b.dataset.peRamo;pintarRamo();}));
+    const navegacion=fichaContenido.querySelector?.('[data-fap-navegacion]');
+    if(navegacion){
+      const indice=alumnos.indexOf(seleccionado);
+      navegacion.innerHTML=`<div class="fap-paginacion"><span>${indice+1} de ${alumnos.length} alumnos</span><button type="button" data-fap-anterior aria-label="Alumno anterior"${indice===0?' disabled':''}>←</button><button type="button" data-fap-siguiente aria-label="Alumno siguiente"${indice===alumnos.length-1?' disabled':''}>→</button></div><details><summary>Cambiar alumno</summary><label>Buscar alumno<input type="search" data-fap-buscar placeholder="Nombre o ramo"></label><div data-fap-resultados></div></details>`;
+      const ir=al=>{if(al&&puedeSalirFicha()){seleccionado=al;ramoFicha=null;pintarFicha();activarVista('ficha');raiz.querySelector('#alumnos-ficha-volver')?.focus?.();}};
+      navegacion.querySelector('[data-fap-anterior]')?.addEventListener('click',()=>ir(alumnos[indice-1]));
+      navegacion.querySelector('[data-fap-siguiente]')?.addEventListener('click',()=>ir(alumnos[indice+1]));
+      const entrada=navegacion.querySelector('[data-fap-buscar]'),resultados=navegacion.querySelector('[data-fap-resultados]');
+      entrada?.addEventListener('input',()=>{const encontrados=filtrarAlumnosPanel(alumnos,entrada.value).slice(0,20);
+        resultados.innerHTML=encontrados.map(al=>`<button type="button" data-fap-elegir="${esc(al.id)}"><b>${esc(al.nombre_visible)}</b><small>${esc((al.ramos||[]).map(r=>r.nombre).join(' · '))}</small></button>`).join('')||'<p>No encontramos alumnos.</p>';
+        resultados.querySelectorAll('[data-fap-elegir]').forEach(b=>b.addEventListener('click',()=>ir(alumnos.find(al=>String(al.id)===b.dataset.fapElegir))));
+      });
+    }
+    pintarRamo(false);enlazarQuitar();
   };
   const activarVista=nombre=>{
-    if(!vigente())return;
+    if(!vigente()||(nombre!=='ficha'&&!puedeSalirFicha()))return;
     if(!paneles[nombre]||(nombre==='ramos'&&alumnos.length<2))nombre='resumen';
     // Otra vista parte arriba: la barra lateral la cambiaba y la página quedaba
     // a media altura, mostrando el medio de algo nuevo.
@@ -245,7 +257,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const cabecera=cabeceraPantalla;
     if(cabecera){
       cabecera.textContent=nombre==='ficha'?(seleccionado?.nombre_visible||'Alumno'):'Alumnos';
-      cabecera.parentElement?.classList.toggle('pe-alumno-cabecera',nombre==='ficha');
+      if(typeof cabecera.parentElement?.classList?.toggle==='function')cabecera.parentElement.classList.toggle('pe-alumno-cabecera',nombre==='ficha');
       if(nombre==='ficha')cabecera.innerHTML=`<span class="pe-cabecera-nombre">${esc(seleccionado?.nombre_visible||'Alumno')}</span><span class="pe-cabecera-sub">${esc(subtituloFicha(seleccionado))}</span>`;
       raiz.querySelector('#alumnos-ficha-titulo').hidden=true;
       raiz.querySelector('#alumnos-ficha-subtitulo').hidden=true;
@@ -254,10 +266,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
     nav.hidden=nombre==='ficha'||nombre==='invitar';
     raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
-    raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Antes y ahora',ramos:'Por ramo'})[nombre]||'';
+    raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Estadísticas',ramos:'Por ramo'})[nombre]||'';
     // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
     // ficha tiene su propio control dentro del gráfico.
     comparaWrap.hidden=nombre!=='estadisticas';
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function')caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
@@ -271,10 +284,11 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   if(typeof vistasPanelNav!=='undefined')vistasPanelNav.alumnos=v=>{if(vigente())activarVista(v);};
   const abrirFicha=(al,origen)=>{
     if(!vigente())return;
+    if(!puedeSalirFicha())return;
     seleccionado=al;botonOrigen=origen||null;ramoFicha=origen?.dataset.alumnoRamo||null;pintarFicha();activarVista('ficha');
     const regresar=raiz.querySelector('#alumnos-ficha-volver');
-    if(typeof regresar.focus==='function')regresar.focus();
-    if(typeof raiz.scrollIntoView==='function')raiz.scrollIntoView({block:'start'});
+    if(typeof regresar.focus==='function')regresar.focus({preventScroll:true});
+    const scroll=raiz.closest?.('.scroll');if(scroll)scroll.scrollTop=0;
   };
   nav.querySelectorAll('[data-panel-vista]').forEach(b=>b.addEventListener('click',()=>activarVista(b.dataset.panelVista)));
   invitar.addEventListener('click',()=>{
@@ -288,6 +302,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   });
   raiz.querySelector('#alumnos-ficha-volver').addEventListener('click',()=>{
     if(!vigente())return;
+    if(!puedeSalirFicha())return;
     const id=seleccionado&&String(seleccionado.id);
     activarVista('lista');seleccionado=null;
     const fila=[...lista.querySelectorAll('[data-ver-alumno]')].find(b=>b.dataset.verAlumno===id);
@@ -298,7 +313,6 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   // la Lista filtrada por ese ramo.
   const alTocar=e=>{
     if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
-    if(tocarFiltroRamosPanel(e,paneles.estadisticas,filtroRamos))return;
     const ir=e.target.closest('[data-ir-vista]');if(ir){activarVista(ir.dataset.irVista);return;}
     const ramo=e.target.closest('[data-ver-ramo]');
     if(ramo&&buscar){buscar.value=ramo.dataset.verRamo;filtrar();activarVista('lista');return;}
@@ -306,8 +320,24 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
     if(al)abrirFicha(al,b);
   };
-  ['resumen','estadisticas','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
-  ['input','keydown'].forEach(t=>paneles.estadisticas.addEventListener(t,e=>{if(vigente())escribirFiltroRamosPanel(e,paneles.estadisticas,filtroRamos);}));
+  ['resumen','ramos'].forEach(v=>paneles[v].addEventListener('click',alTocar));
+  // Sección y Solo pruebas siguen usando los controles de siempre, que en esta
+  // vista quedan ocultos detrás de Filtros.
+  paneles.estadisticas.addEventListener('click',e=>{
+    if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
+    const accion=tocarEstadisticasPanel(e,estadoEst);
+    if(accion==='pintar')return repintarEstadisticas();
+    if(accion?.startsWith('comparar:'))return cambiarComparacion(accion==='comparar:seccion');
+    if(accion?.startsWith('solo:')){const solo=raiz.querySelector('[data-solo-pruebas]'),quiere=accion==='solo:1';
+      if(solo&&solo.checked!==quiere){solo.checked=quiere;solo.dispatchEvent(new Event('change',{bubbles:true}));}return;}
+    alTocar(e);
+  });
+  paneles.estadisticas.addEventListener('input',e=>{
+    if(!vigente()||e.target?.dataset?.estBuscar===undefined)return;
+    estadoEst.texto=e.target.value;estadoEst.vistos=EST_FILAS;
+    const filas=paneles.estadisticas.querySelector('#est-filas');if(filas)filas.innerHTML=filasEstadisticasHTML(estadoEst.datos,estadoEst,opcionesEst());
+  });
+  paneles.estadisticas.addEventListener('keydown',e=>{if(vigente()&&e.key==='Escape'&&estadoEst.filtros){estadoEst.filtros=false;repintarEstadisticas();}});
   lista.addEventListener('click',e=>{
     if(!vigente())return;
     const b=e.target.closest('[data-ver-alumno]');if(!b)return;
@@ -321,11 +351,13 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     .map(sel=>raiz.querySelector(`${sel} .panel-alumnos-compara`)).filter(Boolean);
   const botones=controles.flatMap(c=>[...c.querySelectorAll('[data-compara]')]);
   const cambiarComparacion=async quiere=>{
-    if(!vigente()||quiere===porSeccion)return;
+    if(!vigente()||quiere===porSeccion||!puedeSalirFicha())return;
     botones.forEach(x=>{x.disabled=true;});
     fichaContenido.querySelectorAll('[data-pe-grupo], [data-pe-comparar]').forEach(b=>{b.disabled=true;});
+    const editar=[...fichaContenido.querySelectorAll('[data-fap-editar], [data-preparacion-auto]')];editar.forEach(b=>b.disabled=true);
     if(quiere)await cargarSecciones();
     if(!vigente())return;
+    editar.forEach(b=>b.disabled=false);
     porSeccion=quiere;guardarComparaSeccion(quiere);
     botones.forEach(x=>{x.disabled=false;x.setAttribute('aria-pressed',String((x.dataset.compara==='seccion')===porSeccion));});
     pintarLista();

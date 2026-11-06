@@ -15,7 +15,7 @@ function validarPerfilProfesor(e){
   if(presentacion.length<20||presentacion.length>1500)return {ok:false,campo:'presentacion',error:'Escribe una descripción de 20 a 1500 caracteres.'};
   const tipo=e.tipo_perfil==='empresa'?'empresa':e.tipo_perfil==='profesor'?'profesor':null;
   const insta=String(e.instagram||'').trim().replace(/^@/,'');
-  if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))return {ok:false,campo:'instagram',error:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.'};
+  if(insta&&!/^[A-Za-z0-9._]{1,30}$/.test(insta))return {ok:false,campo:'instagram',error:'Escribe tu usuario de Instagram, por ejemplo @tu_usuario.'};
   const web=String(e.sitio_web||'').trim();
   if(web){
     let u;try{u=new URL(web);}catch(err){return {ok:false,campo:'web',error:'Pega el link completo de tu sitio, que empiece con https://.'};}
@@ -26,7 +26,9 @@ function validarPerfilProfesor(e){
   const ramos=[...new Set(String(e.ramos||'').split(/[,\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean))];
   if(ramos.length>20)return {ok:false,campo:'ramos',error:'Puedes poner hasta 20 ramos.'};
   if(ramos.some(r=>!/^[A-Z0-9-]{2,24}$/.test(r)))return {ok:false,campo:'ramos',error:'Escribe las siglas de los ramos separadas por coma, por ejemplo MAT1620, FIS1514.'};
-  return {ok:true,datos:{nombre_publico:nombre,presentacion,tipo_perfil:tipo,instagram:insta||null,sitio_web:web?new URL(web).href:null,
+  const directorio=Object.prototype.hasOwnProperty.call(e,'en_directorio')?validarPerfilDirectorio(e):{ok:true,datos:{}};
+  if(!directorio.ok)return directorio;
+  return {ok:true,datos:{...directorio.datos,nombre_publico:nombre,presentacion,tipo_perfil:tipo,instagram:insta||null,sitio_web:web?new URL(web).href:null,
     universidades:universidades.length?universidades:null,ramos_siglas:ramos.length?ramos:null,perfil_publico:!!e.perfil_publico}};
 }
 async function guardarPerfilProfesor(entrada){
@@ -34,7 +36,8 @@ async function guardarPerfilProfesor(entrada){
   const uid=sesionProfesorClase();if(!uid)return {ok:false,error:'Inicia sesión para guardar tu perfil.'};
   try{
     const {data,error}=await supabaseClient.from('tutor_perfiles').update(valido.datos).eq('user_id',uid)
-      .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR).maybeSingle();
+      .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR+(Object.prototype.hasOwnProperty.call(valido.datos,'en_directorio')?','+CAMPOS_DIRECTORIO:'')).maybeSingle();
+    if(uid!==sesionProfesorClase())return {ok:false,error:'La sesión cambió. Vuelve a abrir tu perfil.'};
     if(faltaColumnaClase(error))return {ok:false,error:'Todavía no podemos guardar el perfil completo. Vuelve a intentarlo en un rato.'};
     if(error||!data){if(error)console.warn('No se guardó el perfil:',error.code||'',error.message||error);return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}
     perfilProfesorCache=perfilProfesorCache?{...perfilProfesorCache,...data}:perfilProfesorCache;
@@ -225,4 +228,27 @@ async function quitarFlyerClase(anuncioId){
       return borradoError?{ok:true,aviso:'Flyer quitado del anuncio; quedó una copia privada por limpiar.'}:{ok:true};
     }catch(e){return {ok:true,aviso:'Flyer quitado del anuncio; quedó una copia privada por limpiar.'};}
   }catch(e){return {ok:false,error:'No pudimos quitar el flyer. Intenta de nuevo.'};}
+}
+
+// El contacto es explícito del perfil; nunca se toma el correo de la cuenta.
+function validarPerfilDirectorio(e){
+  const error=(campo,error)=>({ok:false,campo,error});
+  const categorias=[...new Set(Array.isArray(e.categorias)?e.categorias:[])];
+  if(categorias.some(c=>!CATEGORIAS_DIRECTORIO.some(([v])=>v===c))||categorias.length>4)
+    return error('categorias','Elige las categorías de la lista.');
+  const etiqueta=String(e.etiqueta||'').trim(),color=String(e.color_tarjeta||'').toLowerCase();
+  if((etiqueta||e.en_directorio)&&(etiqueta.length<2||etiqueta.length>28||/[\n\r]/.test(etiqueta)))
+    return error('etiqueta','Escribe una etiqueta de 2 a 28 caracteres, en una sola línea.');
+  if(!/^#[0-9a-f]{6}$/.test(color))return error('color','Elige un color para tu tarjeta.');
+  if(e.en_directorio&&!categorias.length)return error('categorias','Elige al menos una categoría para aparecer.');
+  if(e.en_directorio&&!(e.universidades||[]).some(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)))
+    return error('universidades','Elige dónde ofreces apoyo para aparecer en el directorio.');
+  const tipo=String(e.contacto_tipo||''),valor=String(e.contacto_valor||'').trim();
+  if(tipo||valor){
+    if(!['whatsapp','instagram','email'].includes(tipo)||!valor||valor.length>160||valor.length<3||!enlaceContactoClase(tipo,valor))
+      return error('contacto','Revisa el contacto: usa WhatsApp, Instagram o email.');
+    if(tipo==='whatsapp'&&!whatsappChilenoCompleto(valor))return error('contacto',ERROR_WHATSAPP_CHILE);
+  }
+  return {ok:true,datos:{categorias:categorias.length?categorias:null,etiqueta:etiqueta||null,color_tarjeta:color,
+    en_directorio:e.en_directorio===true,contacto_tipo:tipo||null,contacto_valor:valor||null}};
 }

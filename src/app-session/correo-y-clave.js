@@ -64,10 +64,10 @@ function cuentaConClave(u){
 function estadoCambioClave(mensaje,esError,campo){
   const aviso=document.getElementById('s-account-pass-status');
   if(aviso){aviso.textContent=mensaje||'';aviso.hidden=!mensaje;aviso.style.color=esError?'var(--red)':'var(--fg2)';}
-  ['s-account-current-pass','s-account-pass','s-account-pass2'].forEach(id=>{
+  ['s-account-pass','s-account-pass2'].forEach(id=>{
     const input=document.getElementById(id);
     if(!input)return;
-    const invalido=esError&&(campo==='actual'?id==='s-account-current-pass':id!=='s-account-current-pass');
+    const invalido=esError&&campo!=='verificacion';
     if(invalido)input.setAttribute('aria-invalid','true');
     else input.removeAttribute('aria-invalid');
   });
@@ -75,11 +75,12 @@ function estadoCambioClave(mensaje,esError,campo){
 async function cambiarClaveCuenta(){
   const btn=document.getElementById('s-account-pass-save');
   if(btn&&btn.disabled)return false;
-  const actual=document.getElementById('s-account-current-pass');
+  const recuperar=document.getElementById('s-account-pass-recover');
+  if(recuperar&&recuperar.disabled)return false;
   const i1=document.getElementById('s-account-pass'),i2=document.getElementById('s-account-pass2');
-  const pActual=actual?actual.value:'',p1=i1?i1.value:'',p2=i2?i2.value:'';
+  const p1=i1?i1.value:'',p2=i2?i2.value:'';
   estadoCambioClave('',false);
-  if(!pActual){estadoCambioClave('Escribe tu contraseña actual para poder cambiarla.',true,'actual');if(actual)actual.focus();return false;}
+  if(recuperar)recuperar.hidden=true;
   const politica=passwordPolicyError(p1);
   if(politica){estadoCambioClave(politica,true);if(i1)i1.focus();return false;}
   if(p1!==p2){estadoCambioClave('Las contraseñas no coinciden.',true);if(i2)i2.focus();return false;}
@@ -91,21 +92,50 @@ async function cambiarClaveCuenta(){
   const usuario=currentUser;
   if(btn){btn.disabled=true;btn.textContent='Guardando…';}
   try{
-    const {error}=await supabaseClient.auth.updateUser({password:p1,current_password:pActual});
+    const {error}=await supabaseClient.auth.updateUser({password:p1});
     // La respuesta es de la visita que la pidió: una tardía no puede escribir
     // en la hoja de otra cuenta (#579, punto 15).
     if(currentUser!==usuario)return false;
     if(error)throw error;
-    if(actual)actual.value='';
     if(i1)i1.value='';
     if(i2)i2.value='';
     estadoCambioClave('Contraseña actualizada. La próxima vez entra con la nueva.',false);
     return true;
   }catch(e){
     if(currentUser!==usuario)return false;
-    const errorActual=e&&(e.code==='current_password_required'||e.code==='current_password_mismatch');
-    estadoCambioClave(traduceAuthError(e),true,errorActual?'actual':'nueva');
-    if(errorActual&&actual)actual.focus();
+    const requiereVerificacion=e&&['current_password_required','current_password_mismatch','reauthentication_needed'].includes(e.code);
+    if(requiereVerificacion){
+      estadoCambioClave('Verifica tu cuenta por correo para cambiar la contraseña sin la anterior.',true,'verificacion');
+      if(recuperar)recuperar.hidden=false;
+    }else estadoCambioClave(traduceAuthError(e),true);
+    return false;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=original;}
+  }
+}
+
+// Si Auth exige otra verificación, se conserva su protección: el enlace abre
+// la pantalla PASSWORD_RECOVERY existente, sin pedir la contraseña anterior.
+async function recuperarClaveCuenta(){
+  const btn=document.getElementById('s-account-pass-recover');
+  const guardar=document.getElementById('s-account-pass-save');
+  if((btn&&btn.disabled)||(guardar&&guardar.disabled))return false;
+  const usuario=currentUser;
+  if(!supabaseClient||!supabaseClient.auth||!usuario||!cuentaConClave(usuario)||!correoValido(usuario.email||'')){
+    estadoCambioClave('Necesitas iniciar sesión con correo para recuperar tu contraseña.',true,'verificacion');
+    return false;
+  }
+  const original=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Enviando…';}
+  try{
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(usuario.email,{redirectTo:location.origin+location.pathname});
+    if(currentUser!==usuario)return false;
+    if(error)throw error;
+    estadoCambioClave('Revisa el correo de acceso de tu cuenta. Desde el enlace podrás elegir una contraseña nueva.',false);
+    return true;
+  }catch(e){
+    if(currentUser!==usuario)return false;
+    estadoCambioClave(traduceAuthError(e),true,'verificacion');
     return false;
   }finally{
     if(btn){btn.disabled=false;btn.textContent=original;}

@@ -50,7 +50,7 @@ function textoInstagramEscrito(texto){
   return t&&!t.startsWith('@')?'@'+t:t;
 }
 const PREFIJO_CONTACTO_CLASE={whatsapp:'+56 ',instagram:'@',enlace:'https://'};
-const EJEMPLO_CONTACTO_CLASE={whatsapp:'+56 9 1234 5678',instagram:'@salvaramos',enlace:'https://forms.gle/…'};
+const EJEMPLO_CONTACTO_CLASE={whatsapp:'+56 9 1234 5678',instagram:'@tu_usuario',enlace:'https://example.org/contacto'};
 
 // Reescribe el campo con su formato sin mandar el cursor al final: cuenta
 // cuántos caracteres "de verdad" (dígitos, letras) había antes del cursor y lo

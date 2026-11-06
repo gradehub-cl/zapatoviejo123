@@ -63,39 +63,108 @@ function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora,al=null){
         <td><b>${esc(cifraNotaPrivada(fmt(n.valor)))}</b><small>${notaAprobada(n.valor)?'Aprobada':'Bajo 4,0'}</small></td><td>${ref===null?'<span aria-label="Comparación no disponible">No disponible</span>':esc(cifraNotaPrivada(fmtPromedio(ref)))+`<small>${esc(textoMuestraPanel(muestra))}</small>`}${percentil===null?'':`<small>Percentil ${Math.round(percentil)} en GradeHub</small>`}</td></tr>`;
     }).join('')}</tbody></table></div>`:'<p class="pe-sub">Todavía no tiene notas.</p>'}</section>`;
 }
-function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
+// Modelo de presentación: notas del ramo actual, identidades de #976 y motor compartido.
+// No guarda notas ni convierte las marcas futuras en resultados.
+function filasFichaAlumnoPanel(al,r,comp){
+  const pre=preparacionRamoPanel(al,r),fechas=new Map(evaluacionesConFechaPanel(r,comp).evaluaciones.map(e=>[e.id,e.fecha]));
+  let eventos=[];try{eventos=agendaEvents([r]);}catch(e){}
+  const filas=[],ids=new Set();
+  const agregar=(c,n,e,indice=null)=>{
+    const nota=n&&Number.isFinite(n.valor)?n.valor:null;
+    const fecha=fechas.get(n?.id)||n?.fecha||e?.fecha||c.fecha||null;
+    filas.push({id:n?.id||null,nombre:n?.nombre||e?.nombre||c.nombre,fecha,nota,
+      peso:pesoEvaluacionPrivada({ramo:r,cat:c,nota:n||null,historialRendida:nota!==null}),indice,
+      muestra:nota===null?null:comparacionEvaluacionPrivada(r,n,comp),
+      preparada:pre?.manual?!!e&&(pre.marcas||[]).some(m=>!m.huerfana&&(e.nota_id?m.nota_id===e.nota_id:!m.nota_id&&m.cat_id===e.cat_id&&m.numero===e.numero)):
+        !!fecha&&!!inicioRamoPanel(al,r).dia&&fecha>=inicioRamoPanel(al,r).dia,
+      ambigua:!!e?.ambigua});
+    if(n?.id)ids.add(n.id);
+  };
+  (pre?.evaluaciones||[]).forEach((e,i)=>{
+    const c=(r.categorias||[]).find(c=>c.id===e.cat_id);if(!c)return;
+    const n=(c.notas||[]).find(n=>n.id===e.nota_id);
+    agregar(c,n,e,i);
+  });
+  (r.categorias||[]).forEach(c=>{
+    (c.notas||[]).filter(n=>!ids.has(n.id)).forEach(n=>agregar(c,n,null));
+    if(!pre?.evaluaciones?.some(e=>e.cat_id===c.id)&&!(c.notas||[]).length){
+      eventos.filter(e=>e.cat.id===c.id&&e.pending).forEach(e=>agregar(c,null,{nombre:e.nota?.nombre||c.nombre,fecha:e.fecha}));
+    }
+  });
+  return filas;
+}
+function datosFichaAlumnoPanel(al,r,comp){
   return conRamosAlumnoPanel(al,contexto=>{
-    const ramo=ramoParaPanel(r),oficial=ramoAvg(ramo,undefined,contexto),prom=al.soloPruebasPanel?promedioPruebasPanel(r).promedio:oficial,muestra=datosComparacionPanel(comp?.ramo),ref=al.soloPruebasPanel?comp?.referenciaPruebas??null:muestra?.promedio??null;
-    const motivo=motivoPromedioAlumnoPanel(ramo,contexto);
-    const diferencia=prom!==null&&ref!==null?prom-Number(ref):null;
-    const seccion=!!(comp?.sinSeccion||Number.isInteger(comp?.seccion)),m=metricasAlumnoPanel({...al,ramos:[r]},()=>comp);
-    let necesaria=null,estado=null;try{necesaria=notaNecesaria(ramo);estado=estadoParaNotaNecesaria(ramo);}catch(e){}
-    const exigencia=exigenciaNotaNecesaria(necesaria),inicio=inicioRamoPanel(al,r);
-    const progreso=estado&&ramo.categorias.some(c=>c.peso>0)?Math.max(0,Math.min(1,1-estado.pendiente)):null;
-    const notas=m.evaluaciones.slice().sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||'')));
-    const grupo=(seccion?'Sección':'Ramo')+(al.soloPruebasPanel?' · pruebas':''),sinDatos=estadoComparacionPrivada(comp);
-    const grafico=graficoAntesAhoraSVG(m,{seccion,inicios:new Map([[r.id,inicio]]),ficha:true});
-    return `<div class="pe-ficha-acciones"><button type="button" data-inicio-alumno="${esc(al.id)}" data-inicio-ramo="${esc(r.id)}" aria-label="Editar inicio de clases de ${esc(r.nombre)}">Editar inicio</button></div>
-    <div class="pe-alumno-grilla"><section class="pe-alumno-principal"><div class="pe-promedio">
-      <div><span>${al.soloPruebasPanel?'Referencia de pruebas':'Promedio actual'}</span><strong>${prom===null?'—':esc(cifraNotaPrivada(fmtPromedio(prom)))}</strong></div>
-      <div><span>${grupo}</span><small class="pe-muestra">${al.soloPruebasPanel?'Agregado por evaluación':esc(textoMuestraPanel(muestra))}</small><strong>${ref===null?'—':esc(cifraNotaPrivada(fmtPromedio(Number(ref))))}</strong></div>
-      <div><span>Diferencia</span><strong class="pe-diferencia" style="color:${colorDiferenciaPrivada(diferencia??0)}">${diferencia===null?'—':esc(cifraNotaPrivada(conSignoPanel(diferencia)))}</strong></div></div>
-      ${al.soloPruebasPanel?`<p class="pe-sub">Nota oficial: ${oficial===null?'—':esc(cifraNotaPrivada(fmtPromedio(oficial)))}. ${esc(avisoPruebasPanel(r))}</p>`:''}
-      ${motivo?`<p class="pe-sub">${esc(motivo)}</p>`:''}
-      <section class="pe-frente"><div class="pe-frente-cabeza"><h3>Frente al grupo</h3><span>Puntos de nota</span></div>
-        <div class="pe-grupo" role="group" aria-label="Grupo de comparación">${[false,true].map(s=>`<button type="button" data-pe-grupo="${s?'seccion':'ramo'}" aria-pressed="${seccion===s}">${s?'Sección':'Ramo'}</button>`).join('')}</div>
-        ${grafico||`<p class="pe-sin-grafico" role="status">${ref===null?esc(sinDatos):'Faltan evaluaciones comparables con fecha para mostrar la evolución.'}</p>`}
-        ${m.metodo==='manual'?'':percentilesPanelHTML(resumenPercentilesPanel(m))}
-      </section></section><aside class="pe-contexto"><h3>Este ramo</h3><p class="pe-contexto-sub">${esc(r.sigla||r.nombre)} · ${Number.isInteger(r.seccion)?'Sección '+esc(r.seccion):'Sin sección declarada'}</p>
-      <div data-pe-ultima-wrap>${barraUltimaPrivadaHTML(ramo,compUltima,seccionUltima)}</div>
-      <section class="pe-necesaria"><div class="pe-necesaria-texto"><b>Necesita en lo pendiente</b><small>Para llegar al 4,0 final</small></div>${exigencia?`<div class="pe-medidor" role="img" aria-label="${esc(necesaria>7.05?'Con lo pendiente no alcanza para aprobar':'Necesita '+cifraNotaPrivada(nfNecesaria(necesaria))+'. '+exigencia.palabra)}">${htmlMedidorNota(necesaria)}<div class="pe-medidor-cifra" aria-hidden="true" style="color:${exigencia.color}"><strong${necesaria>7.05?' class="pe-meta-imposible"':''}>${necesaria>7.05?'No alcanza':esc(cifraNotaPrivada(nfNecesaria(necesaria)))}</strong><small>${esc(exigencia.palabra)}</small></div></div>`:'<p class="pe-sub">'+(estado&&estado.pendiente===0?'Todas las notas ingresadas':'Aún no se puede calcular')+'</p>'}</section>
-      <div class="pe-peso"><div><span>Peso evaluado</span><b>${progreso===null?'—':Math.round(progreso*100)+'%'}</b></div>${progreso===null?'':`<div class="pe-peso-barra" role="img" aria-label="${Math.round(progreso*100)}% del peso evaluable completado"><i style="width:${(progreso*100).toFixed(2)}%"></i></div><div class="pe-barra-extremos" aria-hidden="true"><span>0</span><span>50</span><span>100%</span></div>`}</div>
-      <div class="pe-par-notas"><span>Primera nota<b>${notas.length?esc(cifraNotaPrivada(fmt(notas[0].nota))):'—'}</b></span><i aria-hidden="true">→</i><span>Última nota<b>${notas.length?esc(cifraNotaPrivada(fmt(notas.at(-1).nota))):'—'}</b></span></div>
-    </aside></div>${evaluacionesPrivadasHTML(ramo,comp,contexto,ahora,al)}${preparacionRamoHTML(al,r)}${gruposParecidosFormularioHTML(al,r)}
-    <details class="pe-categorias"><summary>Ver categorías y promedios</summary>${ramoPanelHTML(r,comp,ahora,contexto,'',true)}</details>`;
+    const ramo=ramoParaPanel(r);
+    // La ficha siempre muestra todas las evaluaciones del ramo. Solo pruebas
+    // es un filtro de Estadísticas, no se hereda ocultamente al abrir el detalle.
+    const alumno={...al,soloPruebasPanel:false};
+    let necesaria=null;try{necesaria=notaNecesariaParaAprobar(ramo)?.valor??null;}catch(e){}
+    return {promedio:ramoAvg(ramo,undefined,contexto),motivo:motivoPromedioAlumnoPanel(ramo,contexto),necesaria,
+      filas:filasFichaAlumnoPanel(alumno,ramo,comp),metricas:metricasAlumnoRamoPanel(alumno,r,()=>comp)};
   });
 }
-function contenidoAlumnoEditorialHTML(al,compDe,compGeneral,ahora){
-  const ramos=al.ramos||[];
-  return `<div class="pe-ficha"><div class="pe-ramos" role="group" aria-label="Ramos compartidos">${ramos.map((r,i)=>`<button type="button" data-pe-ramo="${esc(r.id)}" aria-pressed="${i===0}">${esc(r.nombre)}</button>`).join('')}</div><div data-pe-ramo-contenido>${ramos.length?ramoAlumnoEditorialHTML(al,ramos[0],compDe(al,ramos[0]),compGeneral(al,ramos[0]),false,ahora):'<p class="pe-sub">Ya no tiene ramos compartidos.</p>'}</div><footer class="pe-quitar"><button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button></footer></div>`;
+function graficoFichaAlumnoHTML(m,id){
+  const notas=m.evaluaciones.filter(e=>e.fecha).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if(!notas.length)return '<div class="fap-vacio">Todavía no tiene notas con fecha. Las notas sin fecha siguen abajo.</div>';
+  const texto=e=>`${e.evaluacion} · ${fechaCorta(e.fecha)}`;
+  const serie=notas.map(e=>({valor:e.nota,etiqueta:texto(e),antes:e.lado==='antes',valorTexto:cifraNotaPrivada(fmt(e.nota)),
+    detalle:(e.curso===null?'Referencia no disponible':`Referencia ${cifraNotaPrivada(fmtPromedio(e.curso))} · vs. ${e.cursoPersonas} estudiantes en GradeHub`)+` · ${m.metodo==='manual'?(e.lado==='ahora'?'Preparada':'No preparada'):(e.lado==='ahora'?'Desde el inicio':'Antes del inicio')}`,
+    lectura:`${texto(e)}, nota ${cifraNotaPrivada(fmt(e.nota))}`}));
+  // Una referencia ausente corta la línea: no une muestras que no existen.
+  let anterior=false;const trazo=notas.map((e,i)=>{
+    if(e.curso===null){anterior=false;return '';}
+    const x=notas.length===1?50:i/(notas.length-1)*100,y=(7-e.curso)/6*100;
+    const punto=`${anterior?'L':'M'}${x},${y}`;anterior=true;return punto;
+  }).join(' ').trim();
+  return htmlGraficoEvolucion(serie,'ficha-'+id,'Notas de las evaluaciones',{recto:true,unPunto:true,marcas:[7,6,5,4,3,2,1],rotulo:n=>n,
+    resumen:'Notas de 1 a 7. Línea continua: alumno. Discontinua: referencia. Puntos rellenos: preparadas o desde el inicio.'})
+    .replace('</svg>',`<path class="fap-referencia" d="${trazo}"/></svg>`)+
+    `<div class="fap-extremos"><span>${esc(fechaCorta(notas[0].fecha))}</span><span>${esc(fechaCorta(notas.at(-1).fecha))}</span></div>`;
+}
+function comparacionFichaAlumnoHTML(m,editable=true){
+  const manual=m.metodo==='manual',a=m.antes.diferencia,b=m.ahora.diferencia,cambio=m.cambio;
+  const cifra=v=>v===null?'—':signoEstPanel(v,'puntos');
+  const limite=Math.max(2,Math.ceil(Math.abs(a)),Math.ceil(Math.abs(b))),pos=v=>posEstPanel(v*2/limite,'puntos');
+  return `<div class="fap-metodo"><span>${manual?'Por evaluaciones marcadas':'Por fecha de inicio'}</span>${editable?'<button type="button" data-fap-editar>Marcar evaluaciones</button>':''}</div>
+    <div class="fap-lados"><div><span>${manual?'Sin clases':'Antes del inicio'}</span><strong>${esc(cifra(a))}</strong></div><div><span>${manual?'Con clases':'Desde el inicio'}</span><strong>${esc(cifra(b))}</strong></div></div>
+    ${cambio===null?'<p class="fap-insuficiente">Faltan evaluaciones comparables: al menos '+MIN_EVALS_COMPARACION+' a cada lado, con referencia disponible.</p>':
+      `<div class="est-punto" role="img" aria-label="${esc((manual?'Sin clases ':'Antes del inicio ')+cifra(a)+'; '+(manual?'con clases ':'desde el inicio ')+cifra(b))}"><i class="est-tramo" style="left:${Math.min(pos(a),pos(b))}%;width:${Math.abs(pos(a)-pos(b))}%"></i><i class="est-a" style="left:${pos(a)}%"></i><i class="est-b" style="left:${pos(b)}%"></i></div><div class="fap-escala"><span>−${limite}</span><span>0</span><span>+${limite} puntos</span></div>
+      <div class="fap-cambio ${cifra(cambio).startsWith('+')?'fap-sube':cifra(cambio).startsWith('−')?'fap-baja':''}"><strong>${esc(cifra(cambio))}</strong><span>puntos entre grupos</span></div>`}
+    <p class="fap-muted">${m.antes.nComparadas} / ${m.ahora.nComparadas} evaluaciones comparables</p>
+    <details><summary>Cómo se calcula</summary><p>Nota menos promedio de GradeHub en la misma evaluación. Se requieren ${MIN_EVALS_COMPARACION} comparables por grupo y al menos 5 estudiantes por referencia. Las notas sin referencia no entran en esta diferencia.</p>${m.sinFecha?`<p>${m.sinFecha} notas sin fecha quedan fuera del corte temporal.</p>`:''}</details>`;
+}
+function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
+  return conRamosAlumnoPanel(al,()=>{
+  const d=datosFichaAlumnoPanel(al,r,comp),m=d.metricas,pre=preparacionRamoPanel(al,r),seccion=!!(comp?.sinSeccion||Number.isInteger(comp?.seccion));
+  const muestra=datosComparacionPanel(comp?.ramo),ref=seccion?'Su sección':'Todo el ramo';
+  const fila=(e)=>{
+    const diferencia=e.nota!==null&&e.muestra?e.nota-e.muestra.promedio:null;
+    const etiqueta=m.metodo==='manual'?(e.preparada?'Con clases':'Sin clases'):!e.fecha||!m.desde?'Sin corte por fecha':e.preparada?'Desde el inicio':'Antes del inicio';
+    return `<li class="fap-fila"><div><b>${esc(e.nombre)}</b><small>${e.fecha?esc(fechaCorta(e.fecha)):'Sin fecha'} · ${esc(e.peso)}</small></div><strong class="fap-nota">${e.nota===null?'—':esc(cifraNotaPrivada(fmt(e.nota)))}</strong><div class="fap-ref">${e.muestra?esc(cifraNotaPrivada(fmtPromedio(e.muestra.promedio))):'—'}<small>${e.muestra?esc(textoMuestraPanel(e.muestra)):'No disponible'}</small></div><span class="fap-delta ${diferencia!==null&&signoEstPanel(diferencia,'puntos').startsWith('+')?'fap-sube':diferencia!==null&&signoEstPanel(diferencia,'puntos').startsWith('−')?'fap-baja':''}">${diferencia===null?'—':esc(signoEstPanel(diferencia,'puntos'))}</span><div class="fap-marca">${pre&&e.indice!==null&&!al.preparacion?.errorCarga?`<button type="button" data-fap-editar class="fap-marca-ver">${esc(etiqueta)} <span aria-hidden="true">✎</span></button><label class="fap-casilla" hidden><input type="checkbox" data-preparacion-eval="${e.indice}"${m.metodo==='manual'&&e.preparada?' checked':''}${e.ambigua?' disabled':''}><span>Preparada<span class="sr-only">: ${esc(e.nombre)}</span></span></label>`:esc(etiqueta)}</div></li>`;
+  };
+  const pendientes=d.filas.filter(e=>e.nota===null).sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999'));
+  const pasadas=d.filas.filter(e=>e.nota!==null).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const necesaria=d.necesaria===null?'Aún no se puede calcular lo necesario.':d.necesaria>7?'Con lo pendiente ya no alcanza para aprobar.':`Necesita ${cifraNotaPrivada(nfNecesaria(d.necesaria))} en cada evaluación pendiente para aprobar.`;
+  return `<div class="fap-contexto"><span class="fap-sigla">${esc(r.sigla||'')}</span><span>${Number.isInteger(r.seccion)?'Sección '+esc(r.seccion):'Sin sección declarada'}</span></div>
+    <div class="fap-grilla"><section class="est-tarjeta-grande fap-grafico"><div class="fap-promedio"><div><span>Promedio actual</span><strong>${d.promedio===null?'—':esc(cifraNotaPrivada(fmtPromedio(d.promedio)))}</strong></div><span>${pasadas.length} ${pasadas.length===1?'nota compartida':'notas compartidas'}</span></div>
+    ${d.motivo?`<details class="fap-tope"><summary>${esc(d.motivo)} · Ver regla</summary>${ramoPanelHTML(r,comp,ahora,ramosDelAlumnoPanel(al),'',true)}</details>`:''}
+    ${graficoFichaAlumnoHTML(m,r.id)}<div class="fap-leyenda"><span>● Alumno</span><span>┄ ${ref}</span><span>○ ${m.metodo==='manual'?'Sin clases':'Antes del inicio'} / ● ${m.metodo==='manual'?'Con clases':'Desde el inicio'}</span></div></section>
+    <aside class="est-tarjeta-grande fap-comparacion"><h3>Frente al grupo</h3><div class="est-seg" role="group" aria-label="Referencia de toda la ficha">${[false,true].map(s=>`<button type="button" data-pe-grupo="${s?'seccion':'ramo'}" aria-pressed="${seccion===s}">${s?'Su sección':'Todo el ramo'}</button>`).join('')}</div><p class="fap-muted">${muestra?esc(textoMuestraPanel(muestra)):esc(estadoComparacionPrivada(comp))}</p>${comparacionFichaAlumnoHTML(m,!!pre&&!al.preparacion?.errorCarga)}
+    <button type="button" class="fap-enlace" data-inicio-alumno="${esc(al.id)}" data-inicio-ramo="${esc(r.id)}">Editar inicio · ${inicioRamoPanel(al,r).dia?esc(fechaCorta(inicioRamoPanel(al,r).dia)):'Sin fecha'}</button></aside></div>
+    <section class="est-tarjeta-grande fap-evaluaciones" data-preparacion-ramo="${esc(r.id)}"><header><div><h3>Evaluaciones</h3><p class="fap-muted">Preparación por evaluación, también las futuras</p></div>${pre&&!al.preparacion?.errorCarga?'<button type="button" class="est-control" data-fap-editar>Editar marcas</button>':''}</header>
+    ${al.preparacion?.errorCarga?'<p role="status">No pudimos actualizar las marcas. Reabre Alumnos para reintentar; las anteriores siguen vigentes.</p>':''}
+    <div class="fap-edicion" hidden><span data-fap-cambios role="status">Sin cambios</span><button type="button" class="fap-principal" data-preparacion-guardar disabled>Guardar marcas</button><button type="button" data-fap-cancelar>Cancelar</button><p data-preparacion-estado role="status"></p></div>
+    <div class="fap-columnas" aria-hidden="true"><span>Evaluación / fecha</span><span>Nota</span><span>${ref}</span><span>Diferencia</span><span>Preparación</span></div>
+    <h4>Próximas evaluaciones</h4><ul class="fap-lista">${pendientes.map(fila).join('')||'<li class="fap-vacio">Sin evaluaciones pendientes.</li>'}</ul>${pendientes.length?`<p class="fap-necesaria">${esc(necesaria)}</p>`:''}
+    <h4>Evaluaciones pasadas</h4><ul class="fap-lista">${pasadas.map(fila).join('')||'<li class="fap-vacio">Todavía no tiene notas.</li>'}</ul>
+    ${(pre?.marcas||[]).filter(m=>m.huerfana).map((m,i)=>`<p>Marca sin evaluación: ${esc(m.nombre)} <button type="button" data-preparacion-huerfana="${i}">Borrar marca</button></p>`).join('')}
+    ${pre?.manual?'<details><summary>Método de preparación</summary><button type="button" data-preparacion-auto>Volver a usar la fecha de inicio</button></details>':''}</section>
+    ${gruposParecidosFormularioHTML(al,r)}
+    <footer class="fap-pie"><span>La diferencia no demuestra que se deba a las clases.</span><details><summary>Ver categorías y promedios</summary>${conRamosAlumnoPanel(al,contexto=>ramoPanelHTML(r,comp,ahora,contexto,'',true))}</details></footer>`;
+  });
+}
+function contenidoAlumnoEditorialHTML(al,compDe,ramoId,ahora){
+  const ramos=al.ramos||[],r=ramos.find(r=>String(r.id)===String(ramoId))||ramos[0];
+  return `<div class="est fap"><div class="fap-herramientas"><div class="pe-ramos" role="group" aria-label="Ramos compartidos">${ramos.map(opcion=>`<button type="button" data-pe-ramo="${esc(opcion.id)}" aria-pressed="${opcion===r}">${esc(opcion.nombre)}</button>`).join('')}</div><div class="fap-navegacion" data-fap-navegacion></div></div><div data-pe-ramo-contenido>${r?ramoAlumnoEditorialHTML(al,r,compDe(al,r),null,false,ahora):'<p class="est-tarjeta-grande">Ya no tiene ramos compartidos.</p>'}</div><footer class="pe-quitar"><button type="button" class="settings-danger-btn" data-quitar-alumno="${esc(al.id)}" data-nombre="${esc(al.nombre_visible)}">Quitar de mi lista</button></footer></div>`;
 }

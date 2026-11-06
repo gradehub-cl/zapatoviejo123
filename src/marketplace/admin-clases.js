@@ -181,6 +181,7 @@ async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
 }
 // La consulta sin anuncio es un no-op con MFA: nunca prueba con datos reales.
 async function enlazarEdicionAdmin(raiz,profesores,volver){
+  await enlazarDirectorioAdmin(raiz);
   const cajas=[...raiz.querySelectorAll('[data-admin-edicion]')];
   if(!cajas.length)return;
   try{
@@ -324,6 +325,7 @@ function fichaAdminProfesorHTML(p){
   const historial=Array.isArray(p.historial)?p.historial:null;
   const fecha=f=>Number.isFinite(new Date(f).getTime())?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'}).format(new Date(f)):'';
   return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
+    <div data-admin-directorio="${id}"></div>
     <dl class="admin-hig-ficha-datos">
       ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
       ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
@@ -349,4 +351,37 @@ const FILTROS_PROFESORES_ADMIN=[['aprobado','Aprobados'],['pendiente','Pendiente
 function filtrarProfesoresAdmin(profesores,{estado='',busqueda=''}={}){
   const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   return (profesores||[]).filter(p=>(!estado||p.estado===estado)&&palabras.every(t=>normalizarBusquedaClase(p.nombre||'').includes(t)));
+}
+
+// Separado del panel antiguo: un SQL pendiente no afecta revisión ni anuncios.
+async function enlazarDirectorioAdmin(raiz){
+  const cajas=[...raiz.querySelectorAll('[data-admin-directorio]')];if(!cajas.length)return;
+  try{
+    const {data,error}=await supabaseClient.rpc('admin_directorio_perfiles');if(error||!Array.isArray(data))return;
+    let metricas=[];try{const r=await supabaseClient.rpc('admin_metricas_directorio');if(!r.error&&Array.isArray(r.data))metricas=r.data;}catch(e){}
+    for(const caja of cajas){
+      if(!caja.isConnected)continue;
+      const p=data.find(p=>p.user_id===caja.dataset.adminDirectorio);if(!p)continue;
+      const fecha=p.destacado_hasta?new Date(p.destacado_hasta):null;
+      const local=fecha&&!isNaN(fecha)?new Date(fecha.getTime()-fecha.getTimezoneOffset()*60000).toISOString().slice(0,16):'';
+      caja.innerHTML=`<div class="directorio-admin"><p>${esc(p.etiqueta||'Sin etiqueta')} · ${p.en_directorio?'En el directorio':'Sin permiso para aparecer'}</p>
+        <label for="directorio-hasta-${esc(p.user_id)}">Destacado hasta · hora local</label><input type="datetime-local" id="directorio-hasta-${esc(p.user_id)}" value="${local}">
+        <button type="button" class="clase-accion" data-destacado-guardar>Guardar destacado</button><button type="button" class="clase-accion" data-destacado-quitar>Quitar destacado</button><p role="status"></p></div>`;
+      const m=metricas.find(m=>m.user_id===p.user_id);if(m)caja.insertAdjacentHTML('beforeend',metricasDirectorioHTML(m.metricas));
+      const guardar=async quitar=>{
+        const campo=caja.querySelector('input'),estado=caja.querySelector('[role=status]');
+        if(!quitar&&(!campo.value||!Number.isFinite(new Date(campo.value).getTime()))){estado.textContent='Elige una fecha futura.';campo.focus();return;}
+        caja.querySelectorAll('button').forEach(b=>b.disabled=true);
+        try{
+          const r=await supabaseClient.rpc('admin_destacado_perfil',{p_user_id:p.user_id,p_hasta:quitar?null:new Date(campo.value).toISOString()});
+          if(!caja.isConnected)return;
+          estado.textContent=!r.error&&r.data===true?(quitar?'Destacado quitado.':'Destacado guardado.'):'No se guardó. Revisa la fecha y tu segundo factor.';
+          if(!r.error&&r.data===true&&quitar)campo.value='';
+        }catch(e){estado.textContent='No se guardó. Revisa tu conexión.';}
+        finally{caja.querySelectorAll('button').forEach(b=>b.disabled=false);}
+      };
+      caja.querySelector('[data-destacado-guardar]').addEventListener('click',()=>guardar(false));
+      caja.querySelector('[data-destacado-quitar]').addEventListener('click',()=>guardar(true));
+    }
+  }catch(e){}
 }

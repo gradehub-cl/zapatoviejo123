@@ -86,6 +86,20 @@ function completarCreditosUCPendientes(){
   })();
   return _creditosUcServidorPendiente;
 }
+// El servidor le pone sigla a un ramo escrito a mano si su nombre está en
+// catalogo_uc. Para encontrar esa pauta, la app necesita las mismas filas sin
+// bajar el archivo completo. Si falla, se reintenta en la próxima entrada.
+async function traerSiglasRamosManualesUC(){
+  const cliente=clienteCatalogoUc();
+  if(S.tenant!=='uc'||cursosUcExtra()||!cliente)return;
+  const nombres=[...new Set((S.ramos||[]).filter(r=>!r.origen)
+    .map(r=>normBusqueda(normName(r.nombre||''))).filter(Boolean))];
+  if(!nombres.length)return;
+  try{
+    const {data,error}=await cliente.from('catalogo_uc').select('sigla,nombre,creditos').in('busqueda',nombres);
+    if(!error)agregarCursosUcRemotos(data);
+  }catch(e){}
+}
 function pedirFrecuentesUc(carrera,repintar){
   const cliente=clienteCatalogoUc();
   if(!carrera||!cliente||typeof currentUser==='undefined'||!currentUser||_frecuentesUcPedidos.has(carrera))return;

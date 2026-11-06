@@ -57,7 +57,13 @@ function pautaDeConsenso(est){
     // que un "3" no viene de un reporte legítimo y no hay por qué adivinarle.
     const slots=typeof e.slots==='number'&&Number.isInteger(e.slots)&&e.slots>1&&e.slots<=100?e.slots:0;
     const id=uid();
-    const cat={id,nombre,peso,ponderaNotas:false,directNota:!!slots,notas:[]};
+    // Sin cantidad, el reporte no distingue "una nota" de "varias sin contar":
+    // `firma` en reportes-pauta.js manda 1 en los dos casos. Se toma como una
+    // sola, igual que un preset, una evaluación creada a mano o "Reportar
+    // pauta". Antes quedaba como lista abierta, y un "Examen" reportado se
+    // dibujaba con "+ Agregar nota" en vez de su fila. Quien tenga varias lo
+    // marca en el editor ("Son varias notas"), que es el mismo camino de siempre.
+    const cat={id,nombre,peso,ponderaNotas:false,directNota:true,notas:[]};
     if(slots)cat.slots=slots;
     categorias.push(cat);
     if(enEscala(e.min))gates.push({type:'min_grade_required',catId:id,min:e.min,cap:enEscala(e.cap)?e.cap:SIM_MIN,nombre});
@@ -78,8 +84,10 @@ function pautaDeConsenso(est){
 // En un ramo vacío, aunque lo agregaran a mano, no hay nada que pisar.
 async function aplicarConsensoAuto(){
   if(esCuentaProfesor())return 0;
-  const cons=await cargarConsenso();
-  if(!cons||!cons.length)return 0;
+  // Vacía no corta: un ramo con secciones en disputa solo sale en la consulta
+  // de su sección. Esta llamada además deja lista la caché de consensoAlAgregar.
+  if(!await cargarConsenso())return 0;
+  await traerSiglasRamosManualesUC();
   let puestas=0;
   for(const r of (S.ramos||[])){
     const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
@@ -123,12 +131,22 @@ function consensoAlAgregar(r){
 function yaAportada(r,est){
   return !!r.consensoAportado&&(r.consensoAportado===huellaEstructura(est)||r.consensoAportado===huellaEstructura(est,true));
 }
+function esListaSinCantidad(c){
+  return !!c&&c.directNota===false&&!(Number.isInteger(c.slots)&&c.slots>1)&&Number(c.peso)>0;
+}
 // Participan las pautas completas que alguien armó o corrigió, cualquiera sea
 // el camino: editor, ramo manual o propuesta del agente ya aceptada. Una pauta
 // oficial sin editar y una pauta recibida del propio consenso no son votos
 // independientes. El servidor cuenta personas distintas, no envíos.
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
+  // Una lista abierta ("Son varias notas", sin cantidad) no dice cuántas notas
+  // tiene: el reporte la manda como una sola, igual que un "Examen". Su voto
+  // describe otra pauta —unos "Controles" de 3 casillas quedan en otro grupo—
+  // y, si llega a consenso, a los demás les llega como evaluación de una nota.
+  // Se deja de aportar sola; el botón de reporte, donde la persona revisa lo
+  // que manda, no cambia.
+  if(catsDePauta(r.categorias).some(esListaSinCantidad))return false;
   if(typeof estadoReporte==='function'&&!estadoReporte(estructuraDe(r)).lista)return false;
   if(presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera))return false;
   if(r.consensoRespaldos){

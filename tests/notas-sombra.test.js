@@ -91,6 +91,7 @@ run("currentRamoId=r.id;var __sesionSwitch=notasSombraDelRamo(r).sesion;var __ex
 const previoSwitch=run('JSON.stringify(S)'),necesariaFijada=run('__conFijas.necesaria');
 assert.equal(run('sombrasActivadas()'),true);
 assert.match(run('interruptorSombrasHTML(__conFijas)'),/for="sombras-activadas"/);
+assert.match(run('interruptorSombrasHTML(__conFijas)'),/<span>Notas sombra<\/span>/);
 assert.match(run('interruptorSombrasHTML(__conFijas)'),/type="checkbox" role="switch" checked/);
 assert.equal(run('interruptorSombrasHTML(null)'),'','un ramo sin modelo no ofrece interruptor');
 const storagePrevio=ctx.localStorage;const escriturasSwitch=[];
@@ -121,5 +122,23 @@ for(const [getItem,esperado] of [[()=>null,true],[()=> '0',false],[()=> '1',true
  const otro=vm.createContext({localStorage:{getItem},Map});vm.runInContext(fuenteSombras,otro);
  assert.equal(vm.runInContext('sombrasActivadas()',otro),esperado);
 }
+// Lucas, 2026-11-04: el switch queda en la fila del examen y permanece apagado.
+const documentoSwitch=ctx.document,chipSwitch=el(),destinosSwitch=[];
+let retiradosSwitch=0;
+const examenSwitch={dataset:{fichaCategoria:'Examen'},querySelector:()=>null,insertAdjacentHTML:(pos,html)=>destinosSwitch.push([pos,html])};
+ctx.document={...documentoSwitch,getElementById:()=>chipSwitch,querySelectorAll:selector=>selector==='.sombras-interruptor'?[{remove(){retiradosSwitch++}}]:[examenSwitch]};
+run('pintarInterruptorSombras(notasSombraDelRamo(r))');
+assert.equal(destinosSwitch[0][0],'beforeend');assert.match(destinosSwitch[0][1],/sombras-interruptor-examen/);
+assert.equal(chipSwitch.innerHTML,'','con examen no aparece junto al promedio');
+run('mostrarNotasSombra=false;pintarInterruptorSombras(notasSombraDelRamo(r))');
+assert.doesNotMatch(destinosSwitch[1][1],/ checked/,'apagado sigue disponible en la misma fila');
+assert.equal(retiradosSwitch,2,'cada repintado retira la copia anterior');
+examenSwitch.querySelector=()=>({insertAdjacentHTML:(pos,html)=>destinosSwitch.push([pos,html])});
+run('mostrarNotasSombra=true;pintarInterruptorSombras(notasSombraDelRamo(r))');
+assert.equal(destinosSwitch[2][0],'beforebegin','fuera del panel o cuerpo colapsable');
+ctx.document.querySelectorAll=selector=>selector==='.sombras-interruptor'?[]:[];
+run('pintarInterruptorSombras(notasSombraDelRamo(r))');assert.match(chipSwitch.innerHTML,/sombras-interruptor/,'sin examen visible conserva el control');
+ctx.document=documentoSwitch;
+assert.equal(run('JSON.stringify(S)'),previoSwitch,'mover el switch no cambia notas ni pauta');
 run("S.tipoCuenta='profesor'");assert.equal(run('modeloNotasSombra(r)'),null);
 console.log('OK: sombras con motor real, mínimos, fijaciones, estados, borde UC, casillas, cuenta existente intacta y exclusiones exactas');

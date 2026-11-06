@@ -83,6 +83,11 @@ console.log('\n=== Números fuera de rango no llegan al motor ===');
   chk('slots gigante se ignora', !s.categorias[1].slots);
   chk('slots como texto se ignora', !s.categorias[2].slots);
   chk('slots legítimo entra', s.categorias[3].slots === 4);
+
+  // Sin cantidad es una sola nota: fila simple en la ficha, no lista abierta.
+  const u = pauta([{ nombre: 'Examen', peso: 30 }, { nombre: 'Controles', peso: 20, slots: 3 }]);
+  chk('una evaluación sin cantidad es de una nota', u.categorias[0].directNota === true && !u.categorias[0].slots);
+  chk('una con cantidad conserva sus casillas', u.categorias[1].directNota === true && u.categorias[1].slots === 3);
 }
 
 console.log('\n=== Lo que NO se toca, a propósito ===');
