@@ -26,6 +26,7 @@ function olvidarSesionMarketplace(){
   sesionMarketplaceVersion++;
   olvidarEncuestas();
   soyAdministradorCache=false;
+  alcanceFilasAdmin=new Map();
   vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
   olvidarPerfilProfesor();
   anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
@@ -276,6 +277,42 @@ function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
     (seccion!=='cobros'||f.a.publicado_at||(f.a.cobros||[]).length||f.a.cobro)&&
     (!estado||f.estado[1]===estado)&&palabras.every(t=>normalizarBusquedaClase([f.p.nombre,f.a.titulo,...(f.a.ramos_siglas||[])].join(' ')).includes(t)));
 }
+// Una campaña terminada que todavía no tiene cobro registrado.
+function cobroPendienteAdmin({a,costo,estado}){
+  const registrado=a.cobro||(a.cobros||[]).some(c=>Date.parse(c.publicado_at)===Date.parse(a.publicado_at));
+  return estado[1]==='expirado'&&!!a.publicado_at&&!costo?.sinCosto&&!registrado;
+}
+// Primero lo que espera una decisión; después, lo que más se está mostrando.
+function ordenFilasAdmin(x,y){
+  const prioridad=f=>f.a.estado==='en_revision'?0:cobroPendienteAdmin(f)?1:2;
+  return prioridad(x)-prioridad(y)||(Number(y.a.campana?.vistas)||0)-(Number(x.a.campana?.vistas)||0);
+}
+// Cuántas personas con el ramo vieron el anuncio. Cada consulta recorre las
+// cuentas activas, así que se pide solo para lo publicado, de a pocas, y se
+// recuerda unos minutos. Desconocido nunca equivale a cero: queda «—».
+const ALCANCE_BAJO_ADMIN=.1,MINIMO_ALCANCE_ADMIN=5,DURACION_ALCANCE_ADMIN=5*60*1000;
+let alcanceFilasAdmin=new Map();
+function alcanceFilaAdminHTML(p){
+  const n=p&&p.activos_ramo;
+  if(!p||n<MINIMO_ALCANCE_ADMIN)return `<b>—</b>${p?'<small>Muy pocas personas</small>':''}`;
+  const parte=Math.min(1,p.vieron/n),bajo=parte<ALCANCE_BAJO_ADMIN;
+  return `<b class="${bajo?'est-baja':''}">${Math.round(parte*100)}%</b><small>de ${numeroPrivado(n)}</small><i class="adm-riel${bajo?' adm-riel-bajo':''}" aria-hidden="true"><i style="transform:scaleX(${parte.toFixed(3)})"></i></i>`;
+}
+async function pintarAlcanceFilasAdmin(raiz,profesores,ahora,vigente){
+  const clave=a=>`${a.id}|${a.publicado_at}`;
+  const pendientes=filasAdminHig(profesores,ahora).filter(f=>f.estado[1]==='publicado').map(f=>f.a);
+  const pintar=(a,p)=>{const caja=raiz.querySelector(`[data-adm-alcance-fila="${a.id}"]`);if(caja&&vigente())caja.innerHTML=alcanceFilaAdminHTML(p);};
+  const siguiente=async()=>{
+    for(let a=pendientes.shift();a&&vigente();a=pendientes.shift()){
+      const guardado=alcanceFilasAdmin.get(clave(a));
+      if(guardado&&Date.now()-guardado.en<DURACION_ALCANCE_ADMIN){pintar(a,guardado.p);continue;}
+      const p=await publicoAdminAnuncio(a);
+      if(p)alcanceFilasAdmin.set(clave(a),{p,en:Date.now()});
+      pintar(a,p);
+    }
+  };
+  await Promise.all([siguiente(),siguiente(),siguiente()]);
+}
 function filaAdminHigHTML({p,a,costo,estado},ahora){
   const inicial=Array.from(String(p.nombre||'P'))[0],campana=a.campana;
   const valor=k=>campana&&Number.isSafeInteger(campana[k])?numeroPrivado(campana[k]):'—';
@@ -284,7 +321,7 @@ function filaAdminHigHTML({p,a,costo,estado},ahora){
   const dias=campana&&Number.isSafeInteger(campana.dias_cobrados)?campana.dias_cobrados:null;
   return `<details class="admin-hig-fila pe-admin-fila" data-admin-fila="${esc(a.id)}"><summary>
     <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span></small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
-    <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span></span><span class="pe-ver">Ver <i aria-hidden="true">⌄</i></span>
+    <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span><span class="adm-alcance" data-adm-alcance-fila="${esc(a.id)}">${alcanceFilaAdminHTML(null)}</span></span><span class="pe-ver"><i aria-hidden="true">⌄</i><span class="adm-oculto">Ver</span></span>
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
 // Aceptar, rechazar y eliminar (Lucas, 2026-10-23). Eliminar solo aparece

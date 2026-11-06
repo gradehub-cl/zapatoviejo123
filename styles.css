@@ -4848,10 +4848,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @media(max-width:480px){.directorio-metricas{padding:16px}.perfil-metricas-principales{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.perfil-metrica-principal{grid-column:1/-1;grid-row:1}.perfil-metricas-head{gap:12px}}
 
 /* Estadísticas de Alumnos: el color solo dice dirección; turquesa, lo elegido. */
-.est{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
+.est,.adm-lista{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
   --est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:color-mix(in srgb,var(--fg) 10%,transparent);--est-linea2:color-mix(in srgb,var(--fg) 20%,transparent);color:var(--fg);}
-:root[data-modo="oscuro"] .est{--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
-@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .est{--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
+:root[data-modo="oscuro"] :is(.est,.adm-lista){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
 .panel-en-estadisticas #alumnos-compara-wrap,.panel-en-estadisticas>.panel-solo-pruebas,.panel-en-estadisticas>.panel-solo-pruebas+.clase-privacidad{display:none;}
 .est button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .est h2,.est h3,.est p{margin:0;}
@@ -5042,7 +5042,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* ─── Estadísticas de Admin: mismas piezas que `.est` ───────────────────────
    Una tarjeta por pregunta: sus cifras eligen lo que dibuja el gráfico. */
 .adm{display:grid;gap:16px;min-width:0;}
-.adm .adm-oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+:is(.adm,.adm-lista) .adm-oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
 .adm>h2{font-size:1.25rem;line-height:1.3;letter-spacing:-.025em;}
 .adm .adm-atencion{display:flex;flex-wrap:wrap;gap:8px;}
 .adm .adm-pendiente{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:99px;background:var(--est-tile);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;transition:background var(--motion-fast) var(--ease-standard);}
@@ -5092,7 +5092,72 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .adm .adm-conversion .clase-embudo-fila:last-child .clase-barra i{background:var(--est-sel);}
 .adm .adm-tasa{margin-top:auto;padding-top:20px;display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--fg2);}
 .adm-tasa strong{font-size:40px;line-height:1;font-weight:600;letter-spacing:-.035em;color:var(--fg);font-variant-numeric:tabular-nums;}
-@media(max-width:1100px){.adm-dos{grid-template-columns:minmax(0,1fr);}}
+.adm-pendiente-quieto{color:var(--fg2);}
+.adm-tarjeta-cabeza{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:2px 2px 10px;}
+.adm .adm-tarjeta-cabeza .pe-sub{font-size:12.5px;color:var(--fg3);padding-right:12px;}
+.adm .pe-periodos{display:inline-flex;gap:0;background:var(--est-tile);border-radius:12px;padding:3px;}
+.adm .pe-periodos button{min-height:38px;padding:0 14px;border-radius:9px;color:var(--fg2);font-size:14px;}
+.adm .pe-periodos button[aria-pressed="true"]{background:var(--card);color:var(--fg);font-weight:550;box-shadow:0 1px 2px rgb(0 0 0/.12);}
+.adm .adm-metrica-plana{padding:0;}
+.adm .adm-metrica-plana>strong{color:var(--fg);}
+.adm-dinero{display:flex;flex-direction:column;gap:14px;padding:24px 26px;}
+.adm-riel{display:block;height:6px;border-radius:99px;background:var(--est-tile);overflow:hidden;}
+.adm-riel i{display:block;height:100%;background:var(--est-sel);border-radius:99px;transform-origin:left center;}
+.adm-riel-bajo i{background:var(--est-baja);}
+.adm-partes{display:grid;gap:8px;}
+.adm-parte{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.adm-parte b{font-weight:500;color:var(--fg2);}
+.adm-filas-dato{margin-top:auto;display:grid;}
+.adm-fila-dato{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--est-linea);font-size:14px;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.adm-fila-dato b{font-weight:600;color:var(--fg);}
+.adm-fila-dato b.est-baja{color:var(--est-baja);}
+.adm-lista{margin-top:16px;background:var(--card);border:1px solid var(--est-linea);border-radius:24px;padding:12px 16px 4px;min-width:0;--adm-cols:minmax(0,1fr) 72px 80px 80px 48px 150px 44px;}
+.adm-lista-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:12px;}
+.adm-seg{display:inline-flex;background:var(--est-tile);border-radius:12px;padding:3px;}
+.adm-lista .adm-seg button{min-height:38px;padding:0 14px;border:0;border-radius:9px;background:none;color:var(--fg2);font:inherit;font-size:14px;cursor:pointer;}
+.adm-lista .adm-seg button[aria-pressed="true"]{background:var(--card);color:var(--fg);font-weight:550;box-shadow:0 1px 2px rgb(0 0 0/.12);}
+.adm-lista .admin-hig-herramientas{display:flex;gap:8px;flex:1;justify-content:flex-end;min-width:min(100%,22rem);}
+.adm-lista .admin-hig-herramientas label{min-width:0;}
+.adm-lista .admin-hig-busqueda{flex:1;max-width:22rem;}
+.adm-lista .admin-hig-herramientas :is(input,select){height:44px;width:100%;margin:0;border:0;border-radius:12px;background:var(--est-tile);font-size:14px;}
+.adm-lista-cabeza{display:grid;grid-template-columns:var(--adm-cols);gap:12px;padding:8px 0;border-top:1px solid var(--est-linea);font-size:12.5px;color:var(--fg3);}
+.adm-lista-cabeza>span:not(:first-child){text-align:right;}
+.adm-lista-cabeza>span:last-child{grid-column:6/8;text-align:left;}
+.adm-lista .admin-hig-lista{border-top:1px solid var(--est-linea);}
+.adm-lista .admin-hig-fila{border-bottom-color:var(--est-linea);}
+.adm-lista .admin-hig-fila:last-child{border-bottom:0;}
+.admin-hig .adm-lista .pe-admin-fila>summary{grid-template-columns:minmax(0,1fr) calc(72px + 80px + 80px + 48px + 150px + 48px) 44px;gap:12px;padding:10px 0;min-height:64px;border-radius:12px;}
+.adm-lista .pe-admin-fila>summary:hover{background:none;}
+.adm-lista .pe-admin-fila>summary:hover b{color:var(--est-sel);}
+.adm-lista .pe-avatar{width:36px;height:36px;font-size:14px;background:var(--est-tile);}
+.adm-lista .pe-identidad b{font-size:15px;font-weight:550;}
+.adm-lista .admin-hig-identidad small{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;font-size:13px;color:var(--fg3);}
+.adm-lista .pe-identidad .clase-estado{margin:0;padding:1px 8px;border:0;border-radius:99px;background:var(--est-tile);color:var(--fg2);font-size:11.5px;font-weight:500;letter-spacing:0;text-transform:none;}
+.adm-lista .pe-identidad .clase-estado-publicado{background:var(--est-sel-suave);color:var(--est-sel);}
+.adm-lista .pe-fila-metricas{grid-template-columns:72px 80px 80px 48px 150px;gap:12px;align-items:center;}
+.adm-lista .pe-fila-metricas>span{text-align:right;}
+.adm-lista .pe-fila-metricas b{font-size:15px;font-weight:550;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.adm-lista .pe-fila-metricas>span:not(.adm-alcance)>small{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+.adm-lista .pe-fila-metricas .adm-alcance{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:2px 8px;text-align:left;}
+.adm-alcance small{margin:0;font-size:12px;line-height:1.3;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.adm-alcance .adm-riel{grid-column:1/-1;height:3px;}
+.adm-lista .admin-hig-detalle{padding:0 0 16px;}
+.adm-lista .admin-anuncio{background:var(--est-tile);border:0;border-radius:16px;}
+.adm-lista .admin-anuncio{grid-template-columns:minmax(0,1fr) 300px;column-gap:28px;}
+.adm-lista .admin-anuncio>*{grid-column:1;}
+.adm-lista .admin-anuncio>.admin-descuento{grid-column:2;grid-row:1/span 8;align-content:start;margin:0;padding:0 0 0 28px;border-top:0;border-left:1px solid var(--est-linea);}
+.adm-lista .admin-anuncio>:is(.admin-anuncio-estadisticas,details){grid-column:1/-1;}
+@media(max-width:1100px){
+  .adm-dos{grid-template-columns:minmax(0,1fr);}
+  .adm-lista-cabeza{display:flex;}.adm-lista-cabeza>span:not(:first-child){display:none;}
+  .admin-hig .adm-lista .pe-admin-fila>summary{grid-template-columns:minmax(0,1fr) 44px;}
+  .adm-lista .pe-fila-metricas{grid-column:1/-1;grid-row:2;padding-left:0;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;}
+  .adm-lista .pe-fila-metricas>span{text-align:left;}
+  .adm-lista .pe-fila-metricas>span:not(.adm-alcance)>small{position:static;width:auto;height:auto;clip-path:none;font-size:11.5px;color:var(--fg3);margin:0;display:block;}
+  .adm-lista .pe-fila-metricas .adm-alcance{grid-column:1/-1;}
+  .adm-lista .admin-anuncio{grid-template-columns:minmax(0,1fr);}
+  .adm-lista .admin-anuncio>.admin-descuento{grid-column:1;grid-row:auto;margin-top:12px;padding:16px 0 0;border-left:0;border-top:1px solid var(--est-linea);}
+}
 @media(max-width:640px){
   .adm-metricas{grid-template-columns:repeat(3,minmax(0,1fr));}
   .adm-metrica-quieta{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:8px;}
@@ -5101,6 +5166,8 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .adm .admin-grafico{padding:0 8px 4px;}
   .adm .admin-grafico-area{height:10rem;}
   .adm .admin-grafico-columnas{gap:2px;}
+  .adm-seg{display:flex;width:100%;}
+  .adm-lista .adm-seg button{flex:auto;padding:0 8px;font-size:13px;white-space:nowrap;}
 }
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

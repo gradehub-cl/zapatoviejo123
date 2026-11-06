@@ -167,7 +167,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  panelActual=[{...profesores[0],anuncios:[{...anuncio,estado:'pausado',publicado_at:'2026-09-30T00:00:00Z'},...profesores[0].anuncios.slice(1)]}];
  const previas=calls.length;
  await root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1').listeners.click();
- assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='crecimiento_semanal_admin'&&n!=='admin_alcance_diario'&&n!=='admin_historial_anuncios'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'&&n!=='admin_editar_anuncio'&&n!=='admin_directorio_perfiles'),['admin_panel_clases','admin_panel_clases','admin_reportes_programa'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
+ assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='admin_anuncio_publico'&&n!=='crecimiento_semanal_admin'&&n!=='admin_alcance_diario'&&n!=='admin_historial_anuncios'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'&&n!=='admin_editar_anuncio'&&n!=='admin_directorio_perfiles'),['admin_panel_clases','admin_panel_clases','admin_reportes_programa'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
  assert(calls.slice(previas).filter(c=>c.n==='admin_descuento_anuncio').every(c=>c.p.p_anuncio_id===null&&c.p.p_pct===null),'la comprobación de descuento no edita anuncios');
  assert(calls.slice(previas).filter(c=>c.n==='admin_editar_anuncio').every(c=>c.p.p_anuncio_id===null&&JSON.stringify(c.p.p_datos)==='{}'),'la comprobación de edición no escribe anuncios');
  assert.match(toasts.at(-1).text,/Actualicé el panel/);
