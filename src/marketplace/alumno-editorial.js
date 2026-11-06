@@ -160,6 +160,7 @@ function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
     <h4>Evaluaciones pasadas</h4><ul class="fap-lista">${pasadas.map(fila).join('')||'<li class="fap-vacio">Todavía no tiene notas.</li>'}</ul>
     ${(pre?.marcas||[]).filter(m=>m.huerfana).map((m,i)=>`<p>Marca sin evaluación: ${esc(m.nombre)} <button type="button" data-preparacion-huerfana="${i}">Borrar marca</button></p>`).join('')}
     ${pre?.manual?'<details><summary>Método de preparación</summary><button type="button" data-preparacion-auto>Volver a usar la fecha de inicio</button></details>':''}</section>
+    ${gruposParecidosFormularioHTML(al,r)}
     <footer class="fap-pie"><span>La diferencia no demuestra que se deba a las clases.</span><details><summary>Ver categorías y promedios</summary>${conRamosAlumnoPanel(al,contexto=>ramoPanelHTML(r,comp,ahora,contexto,'',true))}</details></footer>`;
   });
 }

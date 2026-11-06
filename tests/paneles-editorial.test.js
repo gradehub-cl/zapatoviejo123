@@ -131,7 +131,9 @@ assert.equal(datos.filas.length,8);assert.equal(datos.filas.filter(e=>e.nota===n
 assert.match(ficha,/data-preparacion-eval="6" checked/,'futura marcada se puede editar');
 assert.match(ficha,/data-preparacion-eval="7"/,'también la futura aún no marcada');
 assert.match(ficha,/vs. 96 estudiantes en GradeHub/);
-assert.doesNotMatch(ficha,/partieron igual|Percentil/,'cohortes fuera hasta #1001');
+assert.match(ficha,/Evaluaciones pasadas[\s\S]*<details class="est-tarjeta-grande fap-grupos" data-grupos-parecidos>[\s\S]*Alumnos que partieron igual/,
+  'la comparación queda plegada después de las evaluaciones');
+assert.doesNotMatch(ficha,/data-pe-ultima|Posición dentro de GradeHub/,'no revive la barra anterior ni muestra resultados antes de consultar');
 const pequena=run('ramoAlumnoEditorialHTML(fichaAl,fichaAl.ramos[0],{ramo:{promedio:6,personas:4},evaluaciones:fichaComp.evaluaciones.map(e=>({...e,personas:4}))},null,false,__ahora)');
 assert.doesNotMatch(pequena,/vs. 4 estudiantes|Referencia 4|class="fap-cambio /);
 assert.match(pequena,/Faltan evaluaciones comparables/);

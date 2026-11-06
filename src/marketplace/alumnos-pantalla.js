@@ -217,8 +217,13 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       const destino=fichaContenido.querySelector('[data-pe-ramo-contenido]');
       if(repintar)destino.innerHTML=ramoAlumnoEditorialHTML(al,r,compFicha(al,r),null,porSeccion,new Date());
       enlazarInicio();enlazarGraficosEvolucion(destino);
-      enlazarPreparacionPanel(destino,al,r,rpc,()=>{if(vigente())pintarFicha();},()=>vigente()&&seleccionado===al&&ramoFicha===r.id,
-        {alEditar:()=>{editandoFicha=true;},alCancelar:()=>{editandoFicha=false;}});
+      const grupos=destino.querySelector('[data-grupos-parecidos]');
+      const mismoRamo=()=>vigente()&&seleccionado===al&&ramoFicha===r.id;
+      enlazarPreparacionPanel(destino,al,r,rpc,()=>{if(vigente())pintarFicha();},mismoRamo,{
+        alEditar:()=>{editandoFicha=true;if(grupos)grupos.hidden=true;},
+        alCancelar:()=>{editandoFicha=false;},
+      });
+      enlazarGruposParecidos(destino,al,r,rpc,()=>mismoRamo()&&vistaActiva==='ficha'&&!editandoFicha,puedeSalirFicha);
       destino.querySelectorAll('[data-pe-grupo], [data-pe-comparar]').forEach(b=>b.addEventListener('click',async()=>{
         const grupo=b.dataset.peGrupo,quiere=grupo?grupo==='seccion':!porSeccion;
         await cambiarComparacion(quiere);

@@ -5054,6 +5054,27 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @media(max-width:30rem){.fap .est-tarjeta-grande{padding:1rem;border-radius:20px}.fap-promedio strong{font-size:2.5rem}.fap-navegacion{justify-content:flex-start}.fap-leyenda{font-size:.6875rem}.fap .evolucion-marco{height:12rem;--evolucion-alto:12rem}.fap-comparacion .est-seg{flex-wrap:wrap}.fap-lados strong{font-size:1.375rem}}
 @media(prefers-reduced-motion:reduce){.fap *{animation:none;transition:none;scroll-behavior:auto}}
 
+/* Comparación opcional al final de la ficha alumno–ramo. */
+.fap .fap-grupos{margin-top:1rem;}
+.fap .fap-grupos summary{display:flex;justify-content:space-between;align-items:center;gap:.75rem;min-height:44px;}
+.fap .fap-grupos summary::after{content:'';flex:none;width:.5em;height:.5em;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-right:.25rem;}
+.fap .fap-grupos[open] summary::after{transform:rotate(225deg);}
+.fap .fap-grupos p{margin:.4rem 0 .8rem;color:var(--fg2);line-height:1.45;}
+.fap .fap-grupos form,.fap .fap-grupos-rango{display:flex;flex-wrap:wrap;align-items:end;gap:.65rem;}
+.fap .fap-grupos form>label,.fap .fap-grupos-rango{flex:1 1 12rem;min-width:0;}
+.fap .fap-grupos-rango label{flex:1 1 4.75rem;min-width:0;}
+.fap .fap-grupos label{display:grid;gap:.3rem;min-width:0;}
+.fap .fap-grupos input,.fap .fap-grupos select{
+  min-width:0;min-height:44px;width:100%;max-width:100%;padding:.4rem .55rem;
+  border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;
+}
+.fap .fap-grupos button{min-width:44px;min-height:44px;max-width:100%;overflow-wrap:anywhere;}
+.fap .fap-grupos :is(summary,select,input,button):focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
+.fap .fap-grupos-resultados{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:1rem;margin-top:1rem;}
+.fap .fap-grupos-resultados>div{min-width:0;padding:.75rem;border:1px solid var(--est-linea);border-radius:12px;}
+.fap .fap-grupos-resultados h4{padding:0;border:0;color:var(--fg);font-size:1rem;font-weight:650;}
+.fap .fap-grupos .panel-percentiles{margin:0;min-width:0;}
+
 /* ─── Estadísticas de Admin: mismas piezas que `.est` ───────────────────────
    Una tarjeta por pregunta: sus cifras eligen lo que dibuja el gráfico. */
 .adm{display:grid;gap:16px;min-width:0;}

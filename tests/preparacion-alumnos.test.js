@@ -18,6 +18,9 @@ run(`var conLab={id:'lab',nombre_visible:'Alumno sintético',tenant:'uc',soloPru
  preparacion:{ramos:[{ramo_id:'r2',manual:true,marcas:[{nota_id:'np'},{nota_id:'nl'}],evaluaciones:[{nota_id:'np',nombre:'Prueba',nota:5},{nota_id:'nl',nombre:'Laboratorio',nota:7}]}]}}`);
 assert.equal(run('metricasAlumnoRamoPanel(conLab,conLab.ramos[0],()=>null).evaluaciones.map(e=>e.id).join()'),'np','un laboratorio marcado no entra a solo pruebas');
 run('conLab.soloPruebasPanel=false');assert.equal(run('metricasAlumnoRamoPanel(conLab,conLab.ramos[0],()=>null).evaluaciones.length'),2);
+// Con las funciones reales del panel: coma decimal y singular.
+ctx.__g={disponible:true,metodos:['manual'],propios:{n:1,inicial:3,posterior:5.25,cambio:2.25,percentil_inicial:30,percentil_posterior:70,cambio_percentil:40},gradehub:{n:5,inicial:3,posterior:4,cambio:1,percentil_inicial:30,percentil_posterior:50,cambio_percentil:20}};
+const grupos=run('gruposParecidosResultadoHTML(__g)');assert(grupos.includes('· 1 estudiante<'));assert(grupos.includes('· 5 estudiantes<'));assert(grupos.includes('Nota de partida 3,0 → posterior 5,3'),grupos);assert(grupos.includes('Cambio +2,3 puntos'),grupos);assert(!/\d\.\d/.test(grupos.replace(/<[^>]+>/g,'')),'sin decimales con punto');
 (async()=>{
  await run("cargarPreparacionPanel(al,async()=>({error:{code:'PGRST202'}}))");assert.equal(run('al.preparacion'),null);
  ctx.__datos={ramos:[{ramo_id:'r',manual:true,marcas:[],evaluaciones:[]}]};await run('cargarPreparacionPanel(al,async()=>({data:__datos}))');

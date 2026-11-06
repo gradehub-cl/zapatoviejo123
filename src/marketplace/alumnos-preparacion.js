@@ -75,3 +75,55 @@ async function verPreparacionCompartida(id){
   caja.querySelector('[role=status]').innerHTML=(data.ramos||[]).map(r=>`<section><h3>${esc(S.ramos.find(x=>x.id===r.ramo_id)?.nombre||'Ramo compartido')}</h3><p>${r.manual?'Selección declarada por el profesor':'Se usa la fecha de inicio'}</p><ul>${(r.marcas||[]).map(m=>`<li>${m.huerfana?'Marca sin evaluación: ':''}${esc(m.nombre)} · ${esc(m.categoria)}</li>`).join('')}</ul></section>`).join('');
  }catch(e){if(currentUser?.id===cuenta&&caja.querySelector('[role=status]'))caja.querySelector('[role=status]').textContent='No pudimos cargar las marcas. Vuelve a intentarlo; puedes dejar de compartir desde Ajustes.';}
 }
+
+function gruposParecidosFormularioHTML(al,r){
+ const pre=preparacionRamoPanel(al,r);if(!pre||al.preparacion?.errorCarga)return '';
+ const bases=(pre.evaluaciones||[]).filter(e=>e.nota_id&&Number.isFinite(e.nota)&&e.fecha&&!e.ambigua);
+ if(!bases.length)return '';
+ return `<details class="est-tarjeta-grande fap-grupos" data-grupos-parecidos>
+   <summary><strong>Alumnos que partieron igual</strong></summary>
+   <p>Elige una evaluación y un rango de nota. Se comparan evaluaciones posteriores con fecha en ambos grupos.</p>
+   <form>
+     <label>Evaluación de partida<select name="base">${bases.map(e=>`<option value="${esc(e.nota_id)}">${esc(e.nombre)}</option>`).join('')}</select></label>
+     <div class="fap-grupos-rango"><label>Nota desde<input name="minimo" type="number" min="1" max="7" step="0.1" value="2.5" required></label><label>Nota hasta<input name="maximo" type="number" min="1" max="7" step="0.1" value="3.5" required></label></div>
+     <button type="submit" class="est-control">Comparar grupo</button>
+   </form>
+   <div data-grupos-resultado role="status"></div>
+ </details>`;
+}
+function gruposParecidosResultadoHTML(x){
+ if(!x?.disponible||!Number.isInteger(x.gradehub?.n)||x.gradehub.n<5||!Number.isInteger(x.propios?.n)||x.propios.n<1)return '<p>No hay suficientes estudiantes con notas y fechas en este rango. Prueba con un rango más amplio u otra evaluación de partida.</p>';
+ const coma=t=>String(t).replace('.',',');
+ const fila=(nombre,g)=>`<div><h4>${nombre} · ${g.n} ${g.n===1?'estudiante':'estudiantes'}</h4><p>Nota de partida ${esc(coma(unDecimalPanel(g.inicial)))} → posterior ${esc(coma(unDecimalPanel(g.posterior)))}. Cambio ${esc(coma(conSignoPanel(g.cambio)))} puntos.</p>${percentilesPanelHTML({antes:g.percentil_inicial,ahora:g.percentil_posterior,cambio:g.cambio_percentil})}</div>`;
+ return `<div class="fap-grupos-resultados">${fila('Tus alumnos del rango',x.propios)}${fila('Resto de GradeHub del rango',x.gradehub)}</div>
+   <p>${x.metodos?.includes('fecha')?'Incluye preparación inferida por fecha de inicio.':'Preparación según tus marcas.'} Cada estudiante pesa una vez. Tus alumnos cuentan en las evaluaciones que prepararon. El resto de GradeHub excluye tus conexiones. No demuestra que el cambio se deba a las clases.</p>`;
+}
+function enlazarGruposParecidos(caja,al,r,rpc,vigente,puedeSalirFicha){
+ const panel=caja.querySelector('[data-grupos-parecidos]');if(!panel)return;
+ const form=panel.querySelector('form'),salida=panel.querySelector('[data-grupos-resultado]');
+ const sigue=()=>vigente()&&caja.contains(panel);
+ let consultando=false;
+ form.addEventListener('input',()=>{salida.textContent='Vuelve a comparar para aplicar la selección.';});
+ form.addEventListener('submit',async evento=>{
+  evento.preventDefault();
+  if(consultando||!puedeSalirFicha()||!sigue()||!form.reportValidity())return;
+  const {base,minimo,maximo}=form.elements,desde=Number(minimo.value),hasta=Number(maximo.value);
+  if(desde>hasta){salida.textContent='El mínimo no puede superar el máximo.';return;}
+  consultando=true;
+  const controles=[...form.querySelectorAll('input,select,button')];
+  controles.forEach(b=>b.disabled=true);
+  salida.textContent='Comparando…';
+  try{
+   const {data,error}=await rpc('grupos_parecidos_profesor',{p_id:al.id,p_ramo:r.id,p_nota_base:base.value,p_min:desde,p_max:hasta});
+   if(!sigue())return;
+   if(error)throw error;
+   salida.innerHTML=gruposParecidosResultadoHTML(data);
+  }catch(e){
+   if(sigue())salida.textContent=['PGRST202','42883'].includes(e?.code)
+     ?'Esta comparación no está disponible por ahora.':'No pudimos comparar el grupo. Vuelve a intentarlo.';
+  }finally{
+   consultando=false;
+   if(sigue())controles.forEach(b=>b.disabled=false);
+  }
+ });
+}
