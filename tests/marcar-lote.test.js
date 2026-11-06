@@ -30,6 +30,19 @@ const html=run('marcarRamoHTML(__m)');
 assert.match(html,/Lo que quede sin marcar cuenta como sin clases/);assert.match(html,/Aceptar lo sugerido en 1 alumno/);
 assert.match(html,/data-marcar-celda="0:0"/);assert.doesNotMatch(html,/Ambigua/);
 assert.match(run('estadisticasAlumnosHTML({pares:[],metodo:"fecha",hayPercentil:false},estadoEstadisticasPanel())'),/Todavía no hay|Marcar por ramo/);
+// Un profesor sin alumnos reales ve alumnos de ejemplo: también debe poder marcar.
+(async()=>{
+  ctx.__datos=run('datosEjemploAlumnosPanel()');
+  const ej=ctx.__datos.alumnos[0];ctx.__id=ej.id;ctx.__ramo=ej.ramos[0].id;
+  const leer=await run("rpcEjemploPanel(__datos,'preparacion_alumno',{p_id:__id})");
+  assert.equal(leer.error,null);assert.equal(leer.data.ramos.length,ej.ramos.length);
+  const e=leer.data.ramos[0].evaluaciones.find(x=>x.nota_id);assert.ok(e,'trae evaluaciones con nota');ctx.__nota=e.nota_id;
+  assert.equal(leer.data.ramos[0].manual,false,'parte por fecha');
+  const g=await run("rpcEjemploPanel(__datos,'guardar_preparacion_alumno',{p_id:__id,p_ramo:__ramo,p_marcas:[{nota_id:__nota}]})");
+  assert.equal(g.data.ramos[0].manual,true);assert.equal(g.data.ramos[0].marcas[0].nota_id,e.nota_id);
+  const volver=await run("rpcEjemploPanel(__datos,'guardar_preparacion_alumno',{p_id:__id,p_ramo:__ramo,p_marcas:null})");
+  assert.equal(volver.data.ramos[0].manual,false,'vuelve a fecha');
+})().catch(e=>{console.error(e);process.exitCode=1;});
 (async()=>{
   // Una fila falla, la otra se guarda, y la que falló queda pendiente.
   ctx.__llamadas=[];ctx.__rpc=async(n,a)=>{ctx.__llamadas.push(a.p_id);if(a.p_id==='a')return {data:null,error:{message:'falla sintética'}};return {data:{ramos:[{ramo_id:'r1',manual:true,marcas:a.p_marcas,evaluaciones:evs}]},error:null};};
