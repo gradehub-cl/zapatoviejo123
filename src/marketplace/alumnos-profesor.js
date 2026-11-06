@@ -259,7 +259,7 @@ function resumenRamosVistaPanel(alumnos,compDe,{seccion=false,soloPruebas=false}
     return {...g,...pruebas,comp:null,referenciaPruebas:null,secciones:vistas};
   });
 }
-function resumenAlumnosPanelHTML(resumen,{seccion=false,soloPruebas=false,filtros=false,abiertos=new Set()}={}){
+function resumenAlumnosPanelHTML(resumen,{seccion=false,soloPruebas=false,filtros=false,abiertos=new Set(),marcar=false}={}){
   if(!resumen.length)return '<p class="profesor-hig-vacio">Todavía no hay ramos compartidos.</p>';
   const nota=v=>Number.isFinite(v)?cifraNotaPrivada(fmtPromedio(v)):'—';
   const alumnos=n=>`${n} ${n===1?'alumno':'alumnos'}`;
@@ -315,7 +315,7 @@ function resumenAlumnosPanelHTML(resumen,{seccion=false,soloPruebas=false,filtro
           <div class="${direccion}">${metricaAdminHTML({titulo:'Diferencia',valor:difTexto})}</div>
           ${metricaAdminHTML({titulo:'Reprobando',valor:g.semaforo.neutral===g.alumnos?'—':String(g.semaforo.bad),pie:g.semaforo.bad?'Reforzar':''})}
         </div>
-        <button type="button" class="agent-refresh ramos-ver" data-ver-ramo="${esc(g.sigla||g.nombre)}" aria-label="Ver alumnos de ${esc(g.nombre)}">Ver alumnos</button>
+        <div class="ramos-acciones">${marcar?`<button type="button" class="agent-refresh ramos-ver" data-marcar-ramo="${esc(g.clave)}" aria-label="Marcar evaluaciones de ${esc(g.nombre)}">Marcar</button>`:''}<button type="button" class="agent-refresh ramos-ver" data-ver-ramo="${esc(g.sigla||g.nombre)}" aria-label="Ver alumnos de ${esc(g.nombre)}">Ver alumnos</button></div>
       </div>
       <div class="ramos-detalle" id="${id}"${abierto?'':' hidden'}>${g.secciones
         ?g.secciones.map(x=>detalle(x,x.seccion===null?'Sin sección declarada':`Sección ${x.seccion}`)).join('')

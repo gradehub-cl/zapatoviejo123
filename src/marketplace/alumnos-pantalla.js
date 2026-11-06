@@ -110,6 +110,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     </section>
     <section class="panel-alumnos-vista" id="alumnos-vista-estadisticas" aria-label="Estadísticas de tus alumnos" hidden></section>
     <section class="panel-alumnos-vista" id="alumnos-vista-ramos" aria-label="Ramos de tus alumnos" hidden></section>
+    <section class="panel-alumnos-vista" id="alumnos-vista-marcar" aria-label="Marcar evaluaciones" hidden></section>
     <section class="panel-alumnos-vista panel-alumnos-ficha" id="alumnos-vista-ficha" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-ficha-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>
       <h2 id="alumnos-ficha-titulo"></h2><p class="pe-cabecera-sub" id="alumnos-ficha-subtitulo"></p>
@@ -156,7 +157,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const fichaContenido=raiz.querySelector('#alumnos-ficha-contenido');
   const paneles={resumen:raiz.querySelector('#alumnos-vista-resumen'),lista:raiz.querySelector('#alumnos-vista-lista'),
     estadisticas:raiz.querySelector('#alumnos-vista-estadisticas'),
-    ramos:raiz.querySelector('#alumnos-vista-ramos'),ficha,invitar:raiz.querySelector('#alumnos-vista-invitar')};
+    ramos:raiz.querySelector('#alumnos-vista-ramos'),marcar:raiz.querySelector('#alumnos-vista-marcar'),ficha,invitar:raiz.querySelector('#alumnos-vista-invitar')};
   const nav=raiz.querySelector('.panel-alumnos-vistas');
   const invitar=raiz.querySelector('#alumnos-ir-invitar');
   const comparaWrap=raiz.querySelector('#alumnos-compara-wrap');
@@ -183,7 +184,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const {seccion,soloPruebas}=opcionesEst();
     const filtros=paneles.ramos.querySelector('[data-ramos-filtros]')?.open||false;
     paneles.ramos.innerHTML=resumenAlumnosPanelHTML(resumenRamosVistaPanel(alumnos,compFicha,{seccion,soloPruebas}),
-      {seccion,soloPruebas,filtros,abiertos:ramosAbiertos});
+      {marcar:alumnos.some(al=>al.preparacion?.ramos?.length),seccion,soloPruebas,filtros,abiertos:ramosAbiertos});
   };
   let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
@@ -219,9 +220,9 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const r=al&&(al.ramos||[]).find(x=>x.id===b.dataset.inicioRamo);
     if(r)abrirInicioRamo(al,r,()=>{if(vigente())renderAlumnosProfesor(raiz,{volver,alumnoId:al.id});},rpc);
   }));
-  let ramoFicha=null;
+  let ramoFicha=null,marcarRamo=null;
   let editandoFicha=false;
-  const puedeSalirFicha=()=>{if(!editandoFicha)return true;showToast('Guarda o cancela las marcas antes de cambiar de alumno, ramo o referencia.',true);return false;};
+  const puedeSalirFicha=()=>{if(!editandoFicha&&!(marcarRamo&&filasCambiadasMarcar(marcarRamo).length))return true;showToast('Guarda o cancela las marcas antes de cambiar de alumno, ramo o referencia.',true);return false;};
   const subtituloFicha=al=>`Alumnos · ${TENANTS[al.tenant]?.short||al.tenant||'Universidad no declarada'} · ${(al.ramos||[]).length} ${(al.ramos||[]).length===1?'ramo compartido':'ramos compartidos'}`;
   const pintarFicha=()=>{
     if(!seleccionado)return;
@@ -282,14 +283,14 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     }
 
     Object.entries(paneles).forEach(([clave,panel])=>{panel.hidden=clave!==nombre;});
-    nav.hidden=nombre==='ficha'||nombre==='invitar';
+    nav.hidden=nombre==='ficha'||nombre==='invitar'||nombre==='marcar';
     raiz.querySelector('#alumnos-cabecera').hidden=nav.hidden;
     raiz.querySelector('#alumnos-vista-titulo').textContent=({resumen:'Resumen',lista:'Tus alumnos',estadisticas:'Estadísticas',ramos:'Por ramo'})[nombre]||'';
     // Estadísticas conserva el control general oculto. Ramos y la ficha
     // tienen sus propios controles de comparación.
     comparaWrap.hidden=nombre!=='estadisticas';
-    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar');caja.classList.toggle('panel-en-ramos',nombre==='ramos');caja.classList.toggle('panel-en-resumen',nombre==='resumen');};
-    avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen'||nombre==='ramos';
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar'||nombre==='marcar');caja.classList.toggle('panel-en-ramos',nombre==='ramos');caja.classList.toggle('panel-en-resumen',nombre==='resumen');};
+    avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen'||nombre==='ramos'||nombre==='marcar';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
       if(b.dataset.panelVista===nombre&&typeof b.scrollIntoView==='function')b.scrollIntoView({block:'nearest',inline:'nearest'});
@@ -371,7 +372,19 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const solo=raiz.querySelector('[data-solo-pruebas]');
     if(solo&&solo.checked!==quiere){solo.checked=quiere;solo.dispatchEvent(new Event('change',{bubbles:true}));}
   };
+  const abrirMarcar=clave=>{
+    marcarRamo=modeloMarcarPanel(alumnos,clave);
+    paneles.marcar.innerHTML=marcarRamoHTML(marcarRamo);
+    const salir=()=>{marcarRamo=null;paneles.marcar.innerHTML='';activarVista('ramos');};
+    enlazarMarcarPanel(paneles.marcar,marcarRamo,{rpc,vigente,alGuardar:salir,alVolver:()=>{
+      if(!filasCambiadasMarcar(marcarRamo).length)return salir();
+      showConfirm('¿Salir sin guardar?','Se pierden las marcas que cambiaste en este ramo.',salir,{label:'Salir',danger:false,focusCancel:true});
+    }});
+    activarVista('marcar');
+  };
   paneles.ramos.addEventListener('click',async e=>{
+    const marcarBoton=vigente()&&e.target?.closest?.('[data-marcar-ramo]');
+    if(marcarBoton)return abrirMarcar(marcarBoton.dataset.marcarRamo);
     if(!vigente()||typeof e.target?.closest!=='function')return;
     const abrir=e.target.closest('[data-ramos-abrir]');
     if(abrir){

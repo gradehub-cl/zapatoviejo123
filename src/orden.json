@@ -102,6 +102,7 @@
     "src/marketplace/alumnos-estadisticas.js",
     "src/marketplace/alumnos-resumen.js",
     "src/marketplace/alumnos-lista.js",
+    "src/marketplace/alumnos-marcar.js",
     "src/marketplace/alumnos-ejemplo.js",
     "src/marketplace/alumnos-pantalla.js",
     "src/marketplace/encuestas.js"
