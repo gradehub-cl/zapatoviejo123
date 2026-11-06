@@ -333,6 +333,18 @@ function renderRamo(){
     pw.style.display='flex';pw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div>Las evaluaciones suman <b>${r2(tp)}%</b> — ajústalas para que sumen 100%</div>`;
   } else {pw.style.display='none';}
 
+  const fuente=document.getElementById('pauta-procedencia');
+  if(fuente){
+    const sugerida=r.pautaSugerida?.aceptada;
+    const intacta=!pautaEditada(r);
+    const consenso=r.consensoRespaldos&&(sugerida?intacta:
+      (intacta||yaAportada(r,estructuraParaConsenso(estructuraDe(r)))));
+    const oficial=pautaOficialIntacta(r);
+    fuente.textContent=consenso?`Pauta por consenso · ${consenso} estudiantes`
+      :sugerida&&intacta?textoPautaSugerida(sugerida.respaldos):oficial?'Pauta oficial':'';
+    fuente.hidden=!fuente.textContent;
+  }
+
   // La pauta oficial cambió y este ramo sigue con la vieja. No se toca nada sin
   // que el estudiante apriete: es su ramo y su promedio va a cambiar.
   const pcw=document.getElementById('pauta-cambio');
@@ -342,7 +354,7 @@ function renderRamo(){
       const cuantos=cambio.cambios.length;
       pcw.style.display='flex';pcw.className='weight-setup-nudge';
       pcw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>La pauta de este ramo cambió.</b><br>${cuantos} ${cuantos===1?'cambio':'cambios'} respecto de lo que tienes hoy. Tu promedio se calcula con lo que tienes ahora.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verCambioDePauta('${esc(r.id)}')">Ver qué cambia</button></div></div>`;
-    }else if(r.consensoRespaldos){
+    }else if(r.consensoRespaldos&&(!r.pautaSugerida?.aceptada||!pautaEditada(r))){
       // Esta pauta la reportaron estudiantes, no sale de un programa oficial.
       // Decirlo es la diferencia entre una pauta y una ponderación inventada.
       pcw.style.display='flex';pcw.className='weight-setup-nudge';

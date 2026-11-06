@@ -452,7 +452,16 @@ function normalize(data) {
   // para siempre, aunque su pauta ya estuviera publicada. No falla nada: el
   // ramo simplemente nunca se entera. Por eso se rellena al cargar.
   data.ramos.forEach(r => {
+    const sugerida=copiarPautaSugerida(r.pautaSugerida);
+    if(sugerida)r.pautaSugerida=sugerida;
+    else delete r.pautaSugerida;
     migrarOrigenesFecha(r);
+    if(sugerida?.aceptada){
+      // El programa que llegue después se ofrece en la ficha. No se injertan
+      // reglas ni fechas antes de la confirmación, aunque los pesos coincidan.
+      sellarDatosCatalogo(r,r.origen?.tenant);
+      return;
+    }
     repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
