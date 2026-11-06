@@ -138,6 +138,13 @@ function esListaSinCantidad(c){
 // el camino: editor, ramo manual o propuesta del agente ya aceptada. Una pauta
 // oficial sin editar y una pauta recibida del propio consenso no son votos
 // independientes. El servidor cuenta personas distintas, no envíos.
+// Los reportes comparten estructura y pesos. Un descarte o un tope
+// personal vigente cambiaría el significado del voto al quitarle la regla.
+function pautaConReglasNoCompartibles(r){
+  const vigentes=catsDePauta(r.categorias).filter(c=>Number(c.peso)>0);
+  return vigentes.some(c=>c.dropLowest?.count>0||c.dropLowest?.fraction>0)||
+    (r.gates||[]).some(g=>g.origen==='editor'&&vigentes.some(c=>c.id===g.catId));
+}
 function pautaPropiaParaConsenso(r){
   if(!r||!Array.isArray(r.categorias)||!r.categorias.length)return false;
   // Una lista abierta ("Son varias notas", sin cantidad) no dice cuántas notas
@@ -146,7 +153,7 @@ function pautaPropiaParaConsenso(r){
   // y, si llega a consenso, a los demás les llega como evaluación de una nota.
   // Se deja de aportar sola; el botón de reporte, donde la persona revisa lo
   // que manda, no cambia.
-  if(catsDePauta(r.categorias).some(esListaSinCantidad))return false;
+  if(pautaConReglasNoCompartibles(r)||catsDePauta(r.categorias).some(esListaSinCantidad))return false;
   const est=estructuraDe(r);
   if(typeof estadoReporte==='function'&&!estadoReporte(est).lista)return false;
   if(repiteVotoSugerido(r,estructuraParaConsenso(est)))return false;

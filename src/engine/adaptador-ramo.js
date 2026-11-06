@@ -219,12 +219,16 @@ function gh_crearCalculoRamo(deps){
   // La pauta explícita sigue mandando; no adivinamos entre dos exámenes.
   function compuertasEfectivas(r){
     const guardadas=Array.isArray(r.gates)?r.gates:[];
-    if(guardadas.length)return guardadas;
+    if(guardadas.some(g=>g?.origen!=='editor'))return guardadas;
     const norma=gh_reglasNota(r.origen?.tenant||(typeof deps.tenant==='function'?deps.tenant():null)).examenFinal;
     if(!norma)return guardadas;
     const finales=categoriasVigentes(r).filter(c=>c.peso>0&&norma.nombres.includes(normName(c.nombre)));
     if(finales.length!==1)return guardadas;
-    return [{type:'group_min',catIds:[finales[0].id],nombre:finales[0].nombre,min:norma.min,cap:'self',efecto:'reemplazar'}];
+    const examen=finales[0];
+    if(guardadas.some(g=>g.catId===examen.id||g.catIds?.includes(examen.id)))return guardadas;
+    // Primero rige el reglamento. Las reglas personales solo pueden bajar
+    // ese resultado, incluso cuando también fallan sus mínimos.
+    return [{type:'group_min',catIds:[examen.id],nombre:examen.nombre,min:norma.min,cap:'self',efecto:'reemplazar'},...guardadas];
   }
   function calculoRamoConCompuertas(r){
     const ausencias=estadoAusenciasJustificadas(r);

@@ -5348,7 +5348,17 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas{display:none;}
 }
 
-/* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
+/* Reglas opcionales del editor de evaluaciones. */
+#modal-content .editor-reglas{margin:4px 0 12px;color:var(--fg2);font-size:.8125rem;}
+#modal-content .editor-reglas>summary{min-height:44px;align-content:center;cursor:pointer;}
+#modal-content .editor-reglas-campos{display:grid;gap:8px;padding:8px 12px 12px;border:1px solid var(--border);border-radius:12px;}
+#modal-content .editor-reglas-campos :is(small,p){margin:0;font-size:.8125rem;}
+#modal-content .editor-reglas-campos label{display:grid;grid-template-columns:minmax(0,1fr) minmax(44px,5rem);align-items:center;gap:8px;}
+#modal-content .editor-reglas-campos input[type=text]{width:100%;min-height:44px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
+#modal-content .editor-reglas-descarte small{display:block;margin-top:6px;}
+#modal-content:not(:has(#m-cat-varias:checked)) .editor-reglas-al-marcar-varias{display:none;}
+
+ /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
    HIG Sheets y Toolbars: cerrar arriba a la izquierda con su símbolo y no con
