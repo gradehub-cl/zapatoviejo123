@@ -245,9 +245,9 @@ function validarPerfilDirectorio(e){
     return error('universidades','Elige dónde ofreces apoyo para aparecer en el directorio.');
   const tipo=String(e.contacto_tipo||''),valor=String(e.contacto_valor||'').trim();
   if(tipo||valor){
+    if(tipo==='whatsapp'&&!whatsappChilenoCompleto(valor))return error('contacto',ERROR_WHATSAPP_CHILE);
     if(!['whatsapp','instagram','email'].includes(tipo)||!valor||valor.length>160||valor.length<3||!enlaceContactoClase(tipo,valor))
       return error('contacto','Revisa el contacto: usa WhatsApp, Instagram o email.');
-    if(tipo==='whatsapp'&&!whatsappChilenoCompleto(valor))return error('contacto',ERROR_WHATSAPP_CHILE);
   }
   return {ok:true,datos:{categorias:categorias.length?categorias:null,etiqueta:etiqueta||null,color_tarjeta:color,
     en_directorio:e.en_directorio===true,contacto_tipo:tipo||null,contacto_valor:valor||null}};
