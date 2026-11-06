@@ -147,7 +147,9 @@ function pautaPropiaParaConsenso(r){
   // Se deja de aportar sola; el botón de reporte, donde la persona revisa lo
   // que manda, no cambia.
   if(catsDePauta(r.categorias).some(esListaSinCantidad))return false;
-  if(typeof estadoReporte==='function'&&!estadoReporte(estructuraDe(r)).lista)return false;
+  const est=estructuraDe(r);
+  if(typeof estadoReporte==='function'&&!estadoReporte(est).lista)return false;
+  if(repiteVotoSugerido(r,estructuraParaConsenso(est)))return false;
   if(presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera))return false;
   if(r.consensoRespaldos){
     return !!r.consensoAportado&&!yaAportada(r,estructuraParaConsenso(estructuraDe(r)));

@@ -5,6 +5,7 @@
 // crearon antes de que la regla existiera. Un ramo manual del mismo nombre no
 // recibe excepciones del catálogo.
 function definicionPresetDelRamo(ramo){
+  if(ramo?.pautaSugerida?.aceptada)return null; // El programa nuevo espera confirmación en la ficha.
   const origen=ramo&&ramo.origen;
   if(!origen||!origen.tenant)return null;
   if(origen.tenant!=='uc'){

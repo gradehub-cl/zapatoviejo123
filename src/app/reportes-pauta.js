@@ -249,6 +249,10 @@ async function enviarReporte(ramoId){
     const total=document.getElementById('m-rep-total');if(total)total.focus();
     showToast(est.length?textoEstadoReporte(estado):'Vuelve a abrir el reporte',true);return;
   }
+  if(repiteVotoSugerido(r,est)){
+    showToast('Esta pauta ya fue reportada por otros estudiantes.');
+    return;
+  }
   const notaEl=document.getElementById('m-rep-nota');
   _suspenderAportePautas=true;
   clearTimeout(_aportePautasTimer);

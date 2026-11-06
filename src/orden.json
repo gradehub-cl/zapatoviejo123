@@ -30,6 +30,7 @@
     "src/app/curso-comparaciones.js",
     "src/app/estadisticas-secciones.js",
     "src/app/consenso-adoptar.js",
+    "src/app/pauta-sugerida.js",
     "src/app/consenso-catalogo.js",
     "src/app/pautas-reglas.js",
     "src/app/editor-pesos-y-categorias.js",

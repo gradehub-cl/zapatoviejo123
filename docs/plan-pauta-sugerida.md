@@ -1,6 +1,6 @@
-# Pauta sugerida · plan para aprobar
+# Pauta sugerida
 
-Estado: solo diseño. Los 206 pares ramo/período con uno o dos reportantes y el 37 % de coincidencia del primer reporte con la versión más repetida son el diagnóstico de Lucas. No se consultaron ni usaron datos reales para preparar esta PR.
+Los 206 pares ramo/período con uno o dos reportantes y el 37 % de coincidencia del primer reporte con la versión más repetida son el diagnóstico de Lucas. No se consultaron ni usaron datos reales para preparar esta PR.
 
 ## Qué verá el estudiante
 
@@ -11,7 +11,7 @@ Estado: solo diseño. Los 206 pares ramo/período con uno o dos reportantes y el
 
 ## Datos y prioridad de la pauta
 
-Propuesta: un campo opcional `pautaSugerida` en el ramo. `aceptada` guarda la huella agregada, el respaldo, el contexto (tenant, período, clave y sección) y la firma de la estructura realmente aplicada. `descartada` guarda el respaldo máximo visto. No guarda reportes, notas ni la estructura duplicada. Ausencia del campo significa que el ramo conserva el comportamiento actual. Se valida en `normalize` y viaja por el JSON privado que ya usa `save` y la sincronización; `gradehub_v1` y los campos existentes conservan su significado.
+Se usa un campo opcional `pautaSugerida` en el ramo. `aceptada` guarda la huella agregada, el respaldo, el contexto (tenant, período, clave y sección) y la firma de la estructura realmente aplicada. `descartada` guarda el respaldo máximo visto. No guarda reportes, notas ni la estructura duplicada. Ausencia del campo significa que el ramo conserva el comportamiento actual. Se valida en `normalize` y viaja por el JSON privado que ya usa `save` y la sincronización; `gradehub_v1` y los campos existentes conservan su significado.
 
 Al tocar «Usar esta pauta», se vuelve a verificar cuenta, ramo, sección, período y que siga vacío sin programa ni consenso. Una respuesta atrasada de la red no puede pintar o modificar otro ramo. Se usa el conversor de consenso para las categorías y compuertas; se marca `consensoAportado` con la huella local de la estructura instalada, **sin** poner `consensoRespaldos` hasta que exista consenso real. Se bloquea el envío automático de esa estructura, incluso si luego se agrega la sección; en el reporte manual, enviar el mismo borrador tampoco cuenta como aporte independiente. Una edición de estructura sí se puede aportar por las reglas actuales; cambiar solo una nota o fecha no convierte una pauta ajena en un voto propio.
 
@@ -19,9 +19,9 @@ Si aparece un programa o consenso distinto y la estructura aceptada sigue intact
 
 El riesgo para cuentas existentes está en la carga y la fusión entre dispositivos: una sugerencia puede coincidir con una pauta o nota que acaba de llegar por sync. Se probará el campo con guardado, recarga y fusión, y se usarán IDs estables por ramo y categoría cuando se acepta la misma versión en dos dispositivos. Si dos copias eligen versiones distintas o una ya tiene una pauta propia, no se deben sumar las categorías de ambas ni descartar notas. Se delimitará la protección a ramos con el campo nuevo, respetando las decisiones de sync existentes y conservando las notas sin equivalente; no se cambia la fusión de los demás ramos. Nada se escribe ni se migra al instalar esta función.
 
-## RPC propuesta
+## RPC
 
-Archivo nuevo `supabase/pauta_sugerida.sql`, manual y reaplicable, después de `consenso_periodo.sql`. Un solo endpoint de lectura para una combinación exacta de tenant, período, clave canónica y sección. `search_path=''`, nombres calificados y `EXECUTE` revocado de `PUBLIC` y `anon`. El endpoint público será invocador y el acceso elevado para agregar reportes ajenos se aislará en una función de un esquema no expuesto. La función verifica `auth.uid()` y el estado académico sincronizado del solicitante; limita la consulta a un ramo de su estado, sin confiar en metadatos de usuario ni aceptar búsquedas globales. Sin sesión sincronizada, o si la RPC no está instalada, no hay sugerencia y la app sigue funcionando. No se añaden tablas ni acceso directo a reportes.
+Archivo nuevo `supabase/pauta_sugerida.sql`, manual y reaplicable, después de `consenso_periodo.sql`. Un solo endpoint de lectura para una combinación exacta de tenant, período, clave canónica y sección. `search_path=''`, nombres calificados y `EXECUTE` revocado de `PUBLIC` y `anon`. El único endpoint usa `SECURITY DEFINER` y permite `EXECUTE` a `authenticated`. Verifica `auth.uid()` y el tenant guardado en la cuenta. Un ramo recién agregado puede recibir sugerencia aunque todavía no aparezca en el JSON de la nube. Si la RPC no está instalada, la app sigue funcionando. No se añaden tablas ni acceso directo a reportes.
 
 Primero se filtra la combinación y se deduplica por persona con su aporte vigente, como el consenso. Luego se descartan estructuras inválidas o incompletas: nombres y pesos válidos, total cercano a 100 según el contrato actual, casillas y mínimos/topes válidos, sin arreglar pesos ni inventar reglas. Se usan la huella y las reglas de comparación vigentes, no una definición nueva de equivalencia. Se ordena por cantidad de personas distintas; en un empate de más de dos opciones se devuelven dos de forma estable, sin depender de quién llegó primero. Si hay consenso vigente se suprime la sugerencia; la consulta de consenso no se modifica.
 
@@ -35,4 +35,4 @@ Con sección declarada, una versión atribuida a otra sección nunca entra; se p
 - `track`: `pauta_sugerida_vista` al mostrarse efectivamente (sin duplicar por repintado), `pauta_sugerida_aceptada` tras aplicar y `pauta_sugerida_descartada` tras elegir «Ahora no». No se envían nombres, huellas ni estructuras en analytics.
 - Capturas a 375 y 1280 px en claro y oscuro, incluidas las opciones empatadas. [HIG Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons): blancos de 44 × 44 pt y una acción principal. [HIG Layout](https://developer.apple.com/design/human-interface-guidelines/layout): texto ampliado, reflujo y jerarquía. Contraste 4,5:1, teclado, foco tras cerrar y `prefers-reduced-motion`.
 
-La instalación futura es manual; puede esperar al término de la revisión. No se aplicará SQL ni se hará merge desde esta PR. Antes de implementar se espera el OK de Lucas para el alcance y el campo persistido.
+La instalación es manual. Después de verificar que `consenso_periodo.sql` ya esté instalado, Claude o Lucas aplican `pauta_sugerida.sql` antes del merge.

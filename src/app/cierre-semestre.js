@@ -60,7 +60,7 @@ function datosCierreRamo(r,ramos,periodo){
   return {tenant:(r.origen&&r.origen.tenant)||S.tenant,sigla:claveReporte(r),periodo,
     huella:huellaEstructura(estructuraParaConsenso(estructuraDe(r))),
     calculada:notaFinalCierreRamo(r,ramoAvg({...r,avgOverride:undefined,notaOficial:undefined},undefined,ramos)),
-    pauta_origen:r.origen&&r.pautaHuella&&!r.consensoRespaldos&&presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera)&&!pautaEditada(r)?'oficial':'editada'};
+    pauta_origen:r.origen&&r.pautaHuella&&!r.consensoRespaldos&&!r.pautaSugerida?.aceptada&&presetRamo(r.nombre,(r.origen&&r.origen.tenant)||S.tenant,(r.origen&&r.origen.carrera)||S.carrera)&&!pautaEditada(r)?'oficial':'editada'};
 }
 let archivoSemestreDraft=null,archivoSemestreNotas=null;
 function prepararArchivoSemestre(){

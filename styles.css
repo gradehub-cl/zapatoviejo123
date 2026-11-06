@@ -5033,6 +5033,43 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @media(max-width:30rem){.fap .est-tarjeta-grande{padding:1rem;border-radius:20px}.fap-promedio strong{font-size:2.5rem}.fap-navegacion{justify-content:flex-start}.fap-leyenda{font-size:.6875rem}.fap .evolucion-marco{height:12rem;--evolucion-alto:12rem}.fap-comparacion .est-seg{flex-wrap:wrap}.fap-lados strong{font-size:1.375rem}}
 @media(prefers-reduced-motion:reduce){.fap *{animation:none;transition:none;scroll-behavior:auto}}
 
+/* Pauta sugerida en la ficha de un ramo vacío. */
+#screen-ramo .pauta-procedencia{
+  width:fit-content;max-width:100%;margin:0 20px .75rem;padding:.35rem .65rem;
+  border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:.8125rem;
+}
+#screen-ramo .pauta-procedencia:not([hidden]){display:block;}
+#screen-ramo .pauta-sugerida{
+  margin:0 20px 1rem;padding:1rem;border:1px solid var(--border);border-radius:12px;
+  color:var(--fg);font:inherit;
+}
+.pauta-sugerida fieldset{min-width:0;margin:0;padding:0;border:0;}
+.pauta-sugerida legend{padding:0;font-size:1.125rem;font-weight:700;}
+.pauta-sugerida fieldset>p{margin:.35rem 0 .75rem;color:var(--fg2);font-size:.875rem;}
+.pauta-sugerida .pauta-sugerida-opciones{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.65rem;}
+.pauta-sugerida .pauta-sugerida-opcion{
+  display:block;min-width:0;padding:.7rem;border:1px solid var(--border);border-radius:8px;overflow-wrap:anywhere;
+}
+.pauta-sugerida label.pauta-sugerida-opcion{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.65rem;align-items:start;cursor:pointer;}
+.pauta-sugerida input[type=radio]{width:1.125rem;height:1.125rem;margin:.1rem 0 0;accent-color:var(--primary);}
+.pauta-sugerida .pauta-sugerida-opcion:focus-within,.pauta-sugerida button:focus-visible{
+  outline:2px solid var(--primary);outline-offset:2px;
+}
+.pauta-sugerida .pauta-sugerida-respaldo,.pauta-sugerida .pauta-sugerida-fila small{
+  display:block;color:var(--fg2);font-size:.8125rem;
+}
+.pauta-sugerida .pauta-sugerida-fila{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;align-items:start;
+  margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);font-size:.875rem;
+}
+.pauta-sugerida .pauta-sugerida-fila strong{font-variant-numeric:tabular-nums;}
+.pauta-sugerida .pauta-sugerida-acciones{flex-wrap:wrap;margin-top:.8rem;}
+.pauta-sugerida .pauta-sugerida-acciones button{flex:1 1 8rem;min-width:44px;min-height:44px;}
+.pauta-sugerida .pauta-sugerida-acciones button:disabled{opacity:1;background:var(--muted);color:var(--fg2);}
+@media(prefers-reduced-motion:reduce){
+  .pauta-sugerida .pauta-sugerida-acciones button{transition:none;}
+}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
