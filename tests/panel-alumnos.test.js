@@ -110,6 +110,23 @@ function contexto({search='',sesion=false}={}){
   chk('un código realmente inexistente sí deja de quedar pendiente',
     (await invalido.run('revisarInvitacionProfesor()'))===false&&
     !invalido.almacen.has('gradehub_profe_pendiente'));
+  const soloProfesor=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  soloProfesor.run(`S.onboardingDone=true;S.tipoCuenta='profesor';
+    S.ramos=[{id:'ramo-antiguo',nombre:'Ramo antiguo'}];
+    globalThis.__rpcProfesor=0;showToast=texto=>{globalThis.__avisoProfesor=texto};
+    supabaseClient={rpc:async()=>{__rpcProfesor++;return {data:null,error:null}}};`);
+  chk('la cuenta solo profesor no abre la invitación ni consulta sus ramos antiguos',
+    (await soloProfesor.run('revisarInvitacionProfesor()'))===false&&
+    soloProfesor.run('__rpcProfesor')===0&&
+    !soloProfesor.almacen.has('gradehub_profe_pendiente')&&
+    /cuenta de estudiante/.test(soloProfesor.run('__avisoProfesor')));
+  const rechazoProfesor=await soloProfesor.run(`compartirConProfesor('AB3CDEFG','Nombre',['ramo-antiguo'])`);
+  chk('la entrada de compartir tampoco llama al servidor desde una cuenta solo profesor',
+    rechazoProfesor.ok===false&&soloProfesor.run('__rpcProfesor')===0);
+  soloProfesor.run(`S.tipoCuenta='estudiante'`);
+  const envioMixto=await soloProfesor.run(`compartirConProfesor('AB3CDEFG','Nombre',['ramo-antiguo'])`);
+  chk('una cuenta estudiante que también es profesor aprobado mantiene el envío',
+    envioMixto.ok===true&&soloProfesor.run('__rpcProfesor')===1);
 
   console.log('\n=== Compartir parte sin nada elegido ===');
   const hoja=a.run(`hojaInvitacionProfesorHTML({nombre_publico:'Academia <b>X</b>'},[{id:'r1',nombre:'Cálculo II',sigla:'MAT1620'},{id:'r2',nombre:'Física',sigla:'FIS1514'}],'Cami')`);
