@@ -65,13 +65,15 @@ function histogramaEstHTML(r,estado){
       ${r.mediana===null?'':`<span class="est-mediana" style="left:${Math.min(100,Math.max(0,x(r.mediana))).toFixed(2)}%"></span>`}</div>
     <div class="est-eje" aria-hidden="true">${marcas}</div></div>`;
 }
+function barraParalelaEstHTML(nombre,v,texto,ahora){
+  return `<div class="est-par"><span>${nombre}</span><span class="est-pista${ahora?' est-pista-ahora':''}" aria-hidden="true"><i style="width:${v===null?0:Math.round(v*100)}%"></i></span><b>${texto}</b></div>`;
+}
 function tarjetasEstHTML(r,metodo){
   const [sin,con]=ladosEstPanel(metodo);
-  const barra=(nombre,v,texto,ahora)=>`<div class="est-par"><span>${nombre}</span><span class="est-pista${ahora?' est-pista-ahora':''}" aria-hidden="true"><i style="width:${v===null?0:Math.round(v*100)}%"></i></span><b>${texto}</b></div>`;
   const nota=v=>v===null?null:(v-1)/6,prom=v=>v===null?'—':comaEstPanel(v);
   return `<div class="est-tarjetas">
-    <div class="est-tarjeta"><h3>Evaluaciones aprobadas</h3>${barra(sin,r.antes.aprobacion,porcentajePanel(r.antes.aprobacion))}${barra(con,r.ahora.aprobacion,porcentajePanel(r.ahora.aprobacion),true)}</div>
-    <div class="est-tarjeta"><h3>Promedio de notas</h3>${barra(sin,nota(r.antes.promedio),prom(r.antes.promedio))}${barra(con,nota(r.ahora.promedio),prom(r.ahora.promedio),true)}</div>
+    <div class="est-tarjeta"><h3>Evaluaciones aprobadas</h3>${barraParalelaEstHTML(sin,r.antes.aprobacion,porcentajePanel(r.antes.aprobacion))}${barraParalelaEstHTML(con,r.ahora.aprobacion,porcentajePanel(r.ahora.aprobacion),true)}</div>
+    <div class="est-tarjeta"><h3>Promedio de notas</h3>${barraParalelaEstHTML(sin,nota(r.antes.promedio),prom(r.antes.promedio))}${barraParalelaEstHTML(con,nota(r.ahora.promedio),prom(r.ahora.promedio),true)}</div>
     <button type="button" class="est-tarjeta est-tarjeta-boton" data-est-tab="sin"><h3>Por completar</h3><span class="est-tarjeta-cifra">${r.sin}<small>de ${r.lista.length}</small></span><span class="est-tarjeta-accion">${metodo==='manual'?'Marcar evaluaciones o pedir notas':'Ver a quiénes les faltan notas'} ›</span></button>
   </div>`;
 }
@@ -118,6 +120,11 @@ function filasEstadisticasHTML(datos,estado,{seccion=false}={}){
   const quedan=lista.length-estado.vistos;
   return html+(quedan>0?`<button type="button" class="est-mas" data-est-mas>Ver ${Math.min(EST_FILAS,quedan)} más de ${quedan}</button>`:'');
 }
+function filtrosComparacionEstHTML(seccion,soloPruebas){
+  const seg=(campo,valor,texto,activo)=>`<button type="button" data-est-${campo}="${valor}" aria-pressed="${activo}">${texto}</button>`;
+  return `<h3>Comparar con</h3><div class="est-seg" role="group" aria-label="Comparar con">${seg('comparar','gradehub','Todo el ramo',!seccion)}${seg('comparar','seccion','Su sección',seccion)}</div>
+          <h3>Evaluaciones</h3><div class="est-seg" role="group" aria-label="Evaluaciones">${seg('solo','0','Todas',!soloPruebas)}${seg('solo','1','Solo pruebas',soloPruebas)}</div>`;
+}
 function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPruebas=false}={}){
   if(!datos||!datos.pares.length)return '<p class="profesor-hig-vacio">Todavía no hay ramos compartidos para comparar.</p>';
   const lista=filtradosEstPanel(datos,estado),r=resumenEstPanel(lista),{metodo}=datos,u=estado.unidad,[sin,con]=ladosEstPanel(metodo);
@@ -132,8 +139,7 @@ function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPr
     <div class="est-barra-herramientas">
       ${datos.hayPercentil?`<div class="est-seg" role="group" aria-label="Medir en">${seg('unidad','puntos','Puntos',u==='puntos')}${seg('unidad','percentil','Percentil',u==='percentil')}</div>`:''}
       <div class="est-filtros-caja"><button type="button" class="est-control" data-est-filtros aria-expanded="${estado.filtros}">Filtros${activos?`<span class="est-cuenta">${activos}</span>`:''}</button>
-        ${estado.filtros?`<div class="est-pop"><h3>Comparar con</h3><div class="est-seg" role="group" aria-label="Comparar con">${seg('comparar','gradehub','Todo el ramo',!seccion)}${seg('comparar','seccion','Su sección',seccion)}</div>
-          <h3>Evaluaciones</h3><div class="est-seg" role="group" aria-label="Evaluaciones">${seg('solo','0','Todas',!soloPruebas)}${seg('solo','1','Solo pruebas',soloPruebas)}</div></div>`:''}</div>
+        ${estado.filtros?`<div class="est-pop">${filtrosComparacionEstHTML(seccion,soloPruebas)}</div>`:''}</div>
     </div>
     ${metodo==='fecha'?'<p class="est-aviso">Aún sin marcas: se compara por fecha de inicio. Marca las evaluaciones en la ficha de cada alumno.</p>':''}
     ${seccion&&sinSeccion?`<p class="est-aviso">${sinSeccion} ${sinSeccion===1?'alumno no declaró':'alumnos no declararon'} sección.</p>`:''}
