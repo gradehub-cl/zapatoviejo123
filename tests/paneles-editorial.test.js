@@ -42,9 +42,25 @@ boton.dataset.pePeriodo='inicio';boton.addEventListener=(tipo,fn)=>{listeners[ti
 const caja=nodo();caja.querySelector=()=>destino;caja.querySelectorAll=s=>s==='[data-pe-periodo]'?[boton]:[];
 ctx.__raiz={querySelector:()=>caja,querySelectorAll(){throw Error('El gráfico no debe sobrescribir las cifras de las filas');}};
 ctx.__historial=[{anuncio_id:'aviso-sintetico',publicacion:'anterior',dia:'2026-01-01',vistas:500},
- {anuncio_id:'aviso-sintetico',publicacion:'actual',dia:'2026-11-01',vistas:3}];
+ {anuncio_id:'aviso-sintetico',publicacion:'actual',dia:'2026-10-31',vistas:3}];
 run('enlazarAdminEditorial(__raiz,__historial,null,__noche)');listeners.click();
-assert.match(destino.innerHTML,/503/,'el gráfico sí incluye ambas publicaciones desde el inicio');
+assert.match(destino.innerHTML,/<strong>503<\/strong>/,'el gráfico sí incluye ambas publicaciones desde el inicio');
+// Compara con el período anterior solo si el historial lo cubre entero.
+ctx.__previo=[{dia:'2026-10-18',vistas:10},{dia:'2026-10-27',vistas:20}];
+assert.equal(run("comparacionAlcanceAdmin(__previo,'7',__noche).vistas"),10);
+assert.equal(run("comparacionAlcanceAdmin(__previo.slice(1),'7',__noche)"),null,'sin datos de todo el período no compara');
+assert.equal(run("comparacionAlcanceAdmin(__previo,'1',__noche)"),null,'hoy sigue en curso');
+// El alcance del ramo: desconocido no es cero, y un ramo casi vacío no grita.
+assert.match(run('alcanceFilaAdminHTML(null)'),/<b>—<\/b>/);
+assert.match(run('alcanceFilaAdminHTML({activos_ramo:3,vieron:1})'),/<b>—<\/b><small>Muy pocas personas/);
+assert.match(run('alcanceFilaAdminHTML({activos_ramo:200,vieron:100})'),/<b class="">50%<\/b><small>de 200<\/small>/);
+assert.match(run('alcanceFilaAdminHTML({activos_ramo:200,vieron:10})'),/<b class="est-baja">5%<\/b>/,'bajo 10% se marca');
+// Primero lo que espera una decisión, después lo que más se muestra.
+ctx.__filas2=[{a:{id:'c',estado:'publicado',campana:{vistas:5}},costo:{},estado:['','publicado']},{a:{id:'b',estado:'publicado',campana:{vistas:9}},costo:{},estado:['','publicado']},
+ {a:{id:'p',estado:'publicado',publicado_at:'2026-10-01T00:00:00Z',campana:{vistas:1}},costo:{},estado:['','expirado']},{a:{id:'r',estado:'en_revision'},costo:null,estado:['','en_revision']}];
+assert.equal(run("__filas2.slice().sort(ordenFilasAdmin).map(f=>f.a.id).join()"),'r,p,b,c');
+assert.equal(run("cobroPendienteAdmin({a:{publicado_at:'2026-10-01T00:00:00Z',cobros:[{publicado_at:'2026-10-01T00:00:00.000Z'}]},costo:{},estado:['','expirado']})"),false,'con cobro registrado ya no está por cobrar');
+assert.equal(run("cobroPendienteAdmin({a:{publicado_at:'2026-10-01T00:00:00Z'},costo:{sinCosto:true},estado:['','expirado']})"),false,'sin costo no hay nada que cobrar');
 assert.match(run('filaAdminHigHTML(filasAdminHig([__profesor],__noche)[0],__noche)'),/data-pe-conteo="vistas">3<\/b>/);
 assert.match(run("panelAlcancePrivadoHTML(null,'7','vistas',__ahora)"),/role="status"/,'error de carga no se vuelve cero');
 assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/class="pe-notita" hidden/,'cifra puntual oculta hasta explorar');

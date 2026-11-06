@@ -30,12 +30,15 @@ function metricaAdminHTML({id,titulo,valor,variacion,pie,elegida}){
 }
 const vistaAdminHTML=(id,elegida,contenido)=>`<div data-adm-vista="${esc(id)}"${elegida?'':' hidden'}>${contenido}</div>`;
 // Lo que espera una decisión, con su salida al lado. Sin pendientes no aparece.
-function atencionAdminHTML(profesores,ahora){
+function atencionAdminHTML(profesores,ahora,conProgramas=false){
   const r=resumenAdminClases(profesores,ahora),pl=(n,uno,varios)=>`${milesViz(n)} ${n===1?uno:varios}`;
+  const porCobrar=filasAdminHig(profesores,ahora).filter(cobroPendienteAdmin).length;
   const items=[[r.pendientes,pl(r.pendientes,'postulación','postulaciones'),'profesores:pendiente'],
     [r.revision,pl(r.revision,'anuncio por revisar','anuncios por revisar'),'anuncios:revision'],
-    [r.deuda,`${pesosClase(r.deuda)} en deuda`,'anuncios:cobros']].filter(i=>i[0]>0);
-  return items.length?`<div class="adm-atencion" aria-label="Pendientes">${items.map(([,texto,ir])=>`<button type="button" class="adm-pendiente${ir.endsWith('cobros')?' adm-pendiente-deuda':''}" data-admin-ir="${ir}"><i aria-hidden="true"></i>${esc(texto)}</button>`).join('')}</div>`:'';
+    [porCobrar,pl(porCobrar,'campaña por cobrar','campañas por cobrar'),'anuncios:cobros'],
+    [r.deuda,`${pesosClase(r.deuda)} en deuda`,'anuncios:cobros','adm-pendiente-deuda']].filter(i=>i[0]>0);
+  const programas=conProgramas?'<button type="button" class="adm-pendiente adm-pendiente-quieto" data-admin-ir="usuarios">Programas reportados</button>':'';
+  return items.length||programas?`<div class="adm-atencion" aria-label="Pendientes">${items.map(([,texto,ir,clase])=>`<button type="button" class="adm-pendiente${clase?' '+clase:''}" data-admin-ir="${ir}"><i aria-hidden="true"></i>${esc(texto)}</button>`).join('')}${programas}</div>`:'';
 }
 // puntos: [{eje, lectura, valor, tenue}] de lo antiguo a lo nuevo. La columna
 // elegida va con el acento lleno y su lectura arriba; tocar o pasar el dedo
@@ -204,11 +207,15 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
       <label for="admin-estado-profesor">Estado<select id="admin-estado-profesor">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<option value="${v}"${v===vistaAdmin.profesores?' selected':''}>${t}</option>`).join('')}</select></label></div>
       <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
     ${panel('anuncios',`${anunciosAdminEditorialHTML(profesores,ahora,historial,alcance)}
-    <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
-    <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label for="admin-hig-estado">Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}"${v===vistaAdmin.estado?' selected':''}>${t}</option>`).join('')}</select></label></div>
-    <p class="pe-sub" data-pe-periodo-filas>Campaña actual · acumulado</p><p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
-    <div class="admin-hig-lista">${filas.map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
-    <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>`)}
+    <div class="adm-lista">
+      <div class="adm-lista-barra">
+        <nav class="adm-seg" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
+        <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-hig-buscar"><span class="adm-oculto">Buscar</span><input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label for="admin-hig-estado"><span class="adm-oculto">Estado</span><select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}"${v===vistaAdmin.estado?' selected':''}>${t}</option>`).join('')}</select></label></div>
+      </div>
+      <div class="adm-lista-cabeza"><span id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</span><span aria-hidden="true" title="Campaña actual, acumulado">Vistas</span><span aria-hidden="true">Aperturas</span><span aria-hidden="true">Contactos</span><span aria-hidden="true">Días</span><span aria-hidden="true" title="Vieron el anuncio, de las personas activas que tienen el ramo">Alcance del ramo</span></div>
+      <div class="admin-hig-lista">${filas.slice().sort(ordenFilasAdmin).map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
+      <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>
+    </div>`)}
     ${panel('estadisticas',`<div class="est adm"><h2>Estadísticas de GradeHub</h2>
       ${atencionAdminHTML(profesores,ahora)}
       ${crecimientoAdminHTML(crecimiento,ahora)||'<p class="est-aviso" role="status">No pudimos cargar las cifras de la página por ahora.</p>'}
@@ -373,6 +380,7 @@ async function pintarPanelAdmin(raiz){
     if(typeof filtro.dispatchEvent==='function')filtro.dispatchEvent(new Event('change',{bubbles:true}));else filtrar();
   }));
   filtrar();
+  pintarAlcanceFilasAdmin(raiz,profesores,ahora,vigente);
   // Cada pendiente lleva a donde se resuelve, con su filtro ya puesto.
   raiz.querySelectorAll('[data-admin-ir]').forEach(b=>b.addEventListener('click',()=>{
     const [area,vista]=b.dataset.adminIr.split(':');

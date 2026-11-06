@@ -18,17 +18,55 @@ function costoPanelPrivadoHTML(costos){
   if(!costos.length)return '<section class="pe-costos"><p class="pe-sub">Sin campañas activas.</p></section>';
   return `<section class="pe-costos"><div><h3>Campañas activas</h3>${presupuestoProfesorHTML(costo)}${costo&&costo.tope!==null?`<p class="pe-sub">${pesosClase(Math.max(0,costo.tope-costo.total))} disponibles del tope</p>`:''}</div><div>${costoApiladoClase(costo,pesosClase)}</div></section>`;
 }
+// Las mismas sumas del período anterior, de igual largo. Solo se compara si el
+// historial alcanza a cubrirlo y el período ya terminó: «Hoy» sigue en curso.
+function comparacionAlcanceAdmin(filas,periodo,ahora){
+  if(!['7','30'].includes(periodo))return null;
+  const n=Number(periodo),{desde}=intervaloPrivado(filas,periodo,ahora),dia=k=>new Date(Date.parse(desde+'T12:00:00Z')-k*864e5).toISOString().slice(0,10);
+  const inicio=dia(n),fin=dia(1),dias=(filas||[]).map(f=>String(f.dia).slice(0,10));
+  if(!dias.some(d=>d<=inicio))return null;
+  return sumarHistorialPrivado((filas||[]).filter(f=>{const d=String(f.dia).slice(0,10);return d>=inicio&&d<=fin;}));
+}
+function alcanceAdminHTML(filas,periodo,metrica,ahora){
+  if(!Array.isArray(filas))return '<p class="clase-sin-datos" role="status">Aplica paneles_historial.sql para ver el historial de anuncios.</p>';
+  const rango=intervaloPrivado(filas,periodo,ahora),total=sumarHistorialPrivado(rango.filas),antes=comparacionAlcanceAdmin(filas,periodo,ahora);
+  const nombres={vistas:'Vistas',aperturas:'Aperturas',contactos:'Contactos'},unidad=nombres[metrica].toLowerCase();
+  const cifra=k=>metricaAdminHTML({id:k,titulo:nombres[k],valor:numeroPrivado(total[k]),elegida:k===metrica,
+    variacion:antes&&variacionAdmin(total[k],antes[k]),pie:antes?'vs. período anterior':k==='vistas'?'personas por campaña':`${pctViz(total[k],total.vistas)} de las vistas`});
+  const s=serieHistorialPrivado(filas,periodo,metrica,ahora),nombrePaso=s.semanal?'semana':'día';
+  const puntos=s.puntos.map(p=>({eje:p.etiqueta,valor:p.valor,lectura:`${p.etiqueta} · ${numeroPrivado(p.valor)} ${unidad}`}));
+  return `<div class="adm-metricas adm-metricas-tres" role="group" aria-label="Elegir qué muestra el gráfico">${['vistas','aperturas','contactos'].map(cifra).join('')}</div>
+    ${puntos.length?columnasAdminHTML({titulo:`${nombres[metrica]} por ${nombrePaso}`,sinCabeza:true,vacio:'Aún no hay datos para este período.',puntos,
+      tabla:{columnas:[nombrePaso==='día'?'Día':'Semana',nombres[metrica]],filas:s.puntos.slice().reverse().map(p=>[p.etiqueta,numeroPrivado(p.valor)])}}):'<p class="clase-sin-datos">Aún no hay datos para este período.</p>'}`;
+}
+// Lo que están gastando las campañas activas y lo ya registrado, sin desplegar.
+const CONCEPTOS_COSTO_ADMIN={vista:'Por vistas',apertura:'Por aperturas',contacto:'Por contactos',dia:'Por días'};
+function dineroAdminHTML(costos,r){
+  const pagadas=costos.filter(c=>!c?.sinCosto),costo=pagadas.length&&pagadas.every(Boolean)?sumarCostosCampana(pagadas):null;
+  const n=costos.length,titulo=n?`${n} ${n===1?'campaña activa':'campañas activas'}`:'Sin campañas activas';
+  const valor=costo?pesosClase(costo.total):n&&!pagadas.length?'Sin costo':'—';
+  const tope=costo&&costo.tope>0?costo.tope:null;
+  const fila=(nombre,monto,clase='')=>`<div class="adm-fila-dato"><span>${nombre}</span><b class="${clase}">${esc(monto)}</b></div>`;
+  return `<section class="adm-tarjeta adm-dinero" aria-label="Costo de las campañas">
+    <div class="adm-metrica adm-metrica-plana"><span>${esc(titulo)}</span><strong>${esc(valor)}</strong>${tope?`<small>de ${esc(pesosClase(tope))} de tope</small>`:''}</div>
+    ${tope?`<div class="adm-riel" aria-hidden="true"><i style="transform:scaleX(${Math.min(1,costo.total/tope).toFixed(3)})"></i></div>`:''}
+    ${costo?`<div class="adm-partes">${costo.partes.filter(p=>p.subtotal>0).map(p=>`<div class="adm-parte"><span>${esc(CONCEPTOS_COSTO_ADMIN[p.clave]||p.clave)}</span><b>${esc(pesosClase(p.subtotal))}</b></div>`).join('')}</div>`:''}
+    <div class="adm-filas-dato" title="Incluye publicaciones anteriores">${fila('Cobrado',pesosClase(r.cobrado))}${fila('En deuda',pesosClase(r.deuda),r.deuda>0?'est-baja':'')}</div>
+  </section>`;
+}
 function anunciosAdminEditorialHTML(profesores,ahora,historial=null,alcance=null){
   const filas=datosAdminEditorial(historial,alcance),r=resumenAdminClases(profesores,ahora);
   const costos=filasAdminHig(profesores,ahora).filter(f=>f.estado[1]==='publicado').map(f=>f.costo);
-  return `<div class="pe-dashboard" data-pe-admin>
-    <div class="pe-rango-cabeza">${periodoPrivadoHTML('7')}<span class="pe-sub">Personas por campaña · fechas en UTC</span></div>
-    ${historial===null?'<p class="pe-sub" role="status">Historial completo y métricas por anuncio: aplica paneles_historial.sql. El rango usa los días disponibles.</p>':''}
-    <div class="pe-admin-grilla"><div><div data-pe-admin-alcance>${panelAlcancePrivadoHTML(filas,'7','vistas',ahora)}</div><div class="pe-periodos" role="group" aria-label="Métrica del gráfico"><button type="button" data-pe-metrica="vistas" aria-pressed="true">Vistas</button><button type="button" data-pe-metrica="contactos" aria-pressed="false">Contactos</button></div></div>
-      <aside class="pe-cola"><h3>Por revisar</h3><button type="button" data-pe-revisar="anuncios"><strong>${r.revision}</strong><span>Anuncios</span><i aria-hidden="true">›</i></button><button type="button" data-pe-revisar="profesores"><strong>${r.pendientes}</strong><span>Perfiles de profesor</span><i aria-hidden="true">›</i></button><button type="button" data-pe-revisar="usuarios"><span>Programas reportados</span><i aria-hidden="true">›</i></button></aside></div>
-    ${costoPanelPrivadoHTML(costos)}
-    <details class="datos-definiciones"><summary>Cobros registrados</summary><div class="pe-cifras">${cifraPrivadaHTML(pesosClase(r.deuda),'Deuda registrada','Incluye publicaciones anteriores')}${cifraPrivadaHTML(pesosClase(r.cobrado),'Cobrado','Historial de pagos registrados')}</div></details>
-    </div>`;
+  return `<div class="est adm" data-pe-admin>
+    ${atencionAdminHTML(profesores,ahora,true)}
+    ${historial===null?'<p class="est-aviso" role="status">Historial completo y métricas por anuncio: aplica paneles_historial.sql. El rango usa los días disponibles.</p>':''}
+    <div class="adm-dos">
+      <section class="adm-tarjeta" aria-label="Alcance de los anuncios">
+        <div class="adm-tarjeta-cabeza">${periodoPrivadoHTML('7')}<span class="pe-sub">Personas por campaña · fechas en UTC</span></div>
+        <div data-pe-admin-alcance>${alcanceAdminHTML(filas,'7','vistas',ahora)}</div>
+      </section>
+      ${dineroAdminHTML(costos,r)}
+    </div></div>`;
 }
 function enlazarAdminEditorial(raiz,historial,alcance,ahora){
   const caja=raiz.querySelector('[data-pe-admin]');
@@ -36,18 +74,13 @@ function enlazarAdminEditorial(raiz,historial,alcance,ahora){
   const filas=datosAdminEditorial(historial,alcance);let periodo='7',metrica='vistas';
   const pintar=()=>{
     const destino=caja.querySelector('[data-pe-admin-alcance]');if(!destino)return;
-    destino.innerHTML=panelAlcancePrivadoHTML(filas,periodo,metrica,ahora);enlazarGraficosPrivados(destino);
+    destino.innerHTML=alcanceAdminHTML(filas,periodo,metrica,ahora);enlazarGraficosAdmin(destino);
+    destino.querySelectorAll('[data-adm-metrica]').forEach(b=>b.addEventListener('click',()=>{metrica=b.dataset.admMetrica;pintar();}));
     // El rango pertenece al gráfico. Cada fila conserva la misma instantánea
     // de la campaña actual que su detalle y cobro, incluso al republicar.
     if(!Array.isArray(historial))caja.querySelectorAll('[data-pe-periodo="inicio"]').forEach(b=>{b.disabled=true;});
   };
   caja.querySelectorAll('[data-pe-periodo]').forEach(b=>b.addEventListener('click',()=>{periodo=b.dataset.pePeriodo;caja.querySelectorAll('[data-pe-periodo]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));pintar();}));
-  caja.querySelectorAll('[data-pe-metrica]').forEach(b=>b.addEventListener('click',()=>{metrica=b.dataset.peMetrica;caja.querySelectorAll('[data-pe-metrica]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));pintar();}));
-  caja.querySelectorAll('[data-pe-revisar]').forEach(b=>b.addEventListener('click',()=>{
-    const area=b.dataset.peRevisar;raiz.querySelector(`[data-admin-area="${area}"]`)?.click();
-    if(area==='anuncios')raiz.querySelector('[data-admin-seccion="revision"]')?.click();
-    if(area==='profesores'){const filtro=raiz.querySelector('#admin-estado-profesor');if(filtro){filtro.value='pendiente';filtro.dispatchEvent(new Event('change',{bubbles:true}));}}
-  }));
   pintar();
 }
 function resumenProfesorEditorialHTML(medidas,periodo,ahora){
