@@ -69,20 +69,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const compFicha=(al,r)=>porSeccion?compSeccion(al,r):compGeneral(al,r);
   const sinSeccionDe=lista=>lista.filter(al=>(al.ramos||[]).some(r=>!claveSeccion(al,r))).length;
   const link=linkAlumnosProfesor(codigo);
-  const mensaje=mensajeInvitacionAlumnos();
-  // Sin alumnos, el link es lo primero que se puede hacer. Con alumnos, se ve
-  // primero a quiénes están conectados y luego las cifras del grupo.
-  const seccionLink=`<section class="panel-alumnos-link${alumnos.length?' al-final':''}">
-      <h2>${alumnos.length?'Invitar alumno':'Invita a tu primer alumno'}</h2>
-      <p>Mándale este link. Elegirá qué ramos te comparte y podrá dejar de hacerlo cuando quiera.</p>
-      <div class="panel-alumnos-url"><span>Link de invitación</span><code id="alumnos-link">${esc(link)}</code></div>
-      <p class="panel-alumnos-codigo">Tu código <strong>${esc(codigo)}</strong></p>
-      <button type="button" class="accion-principal" id="alumnos-compartir">Compartir invitación</button>
-      <button type="button" class="agent-refresh" id="alumnos-copiar">Copiar link</button>
-      <p class="panel-alumnos-mensaje"><strong>Mensaje sugerido para WhatsApp</strong><span>${esc(mensaje)}</span></p>
-      <div class="panel-alumnos-renovar"><p>Al cambiar el link, el anterior deja de funcionar. Tus alumnos actuales siguen conectados.</p><button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button></div>
-      <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
-    </section>`;
+  const seccionLink=invitacionAlumnosHTML({link,codigo,alumnos});
   const estadoLista=estadoListaPanel(),filasIniciales=filasListaPanel(alumnos,new Date());
   const privacidad=`<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.${ejemplo?' Datos de ejemplo: no corresponden a personas reales. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».':''}</p>`;
   // La franja va siempre arriba y no se cierra: nadie puede confundir estos
@@ -90,7 +77,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const franjaEjemplo=ejemplo?`<p class="panel-alumnos-ejemplo" role="note"><b>Ejemplo</b> Alumnos y notas ficticios.</p>`:'';
   raiz.innerHTML='<div class="profesor-hig alumnos-editorial">'+
     franjaEjemplo+
-    '<label class="panel-solo-pruebas"><input type="checkbox" role="switch" data-solo-pruebas>Solo pruebas</label><p class="clase-privacidad">Filtro de referencia; no cambia la nota oficial. El CSV conserva todas las notas y comparaciones originales.</p><p class="clase-privacidad" data-solo-pruebas-estado></p>'+
+    (alumnos.length?'<label class="panel-solo-pruebas"><input type="checkbox" role="switch" data-solo-pruebas>Solo pruebas</label><p class="clase-privacidad">Filtro de referencia; no cambia la nota oficial. El CSV conserva todas las notas y comparaciones originales.</p><p class="clase-privacidad" data-solo-pruebas-estado></p>':'')+
     // Resumen, Lista, Estadísticas y Ramos (Lucas, 2026-10-22). En pantalla
     // ancha las mismas vistas están en la barra lateral y este control se oculta.
     (alumnos.length?`<nav class="panel-alumnos-vistas${alumnos.length>1?'':' tres-vistas'}" aria-label="Vistas de Alumnos">
@@ -132,8 +119,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     <section class="panel-alumnos-vista panel-alumnos-invitacion" id="alumnos-vista-invitar" hidden>
       <button type="button" class="agent-refresh panel-alumnos-regresar" id="alumnos-invitacion-volver"><span aria-hidden="true">‹</span> Volver a la lista</button>${seccionLink}
     </section>${privacidad}`
-      :`${seccionLink}<div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta">0</span></div>
-        <p class="profesor-hig-vacio">Cuando un alumno abra tu link y acepte, aparece acá con sus notas.</p>`)+
+      :seccionLink)+
     (volver?'<div class="modal-btns"><button type="button" class="btn-cancel" id="alumnos-volver">Volver</button></div>':'')+'</div>';
   const botonVolver=raiz.querySelector('#alumnos-volver');
   if(botonVolver)botonVolver.addEventListener('click',()=>{if(vigente())volver();});
@@ -147,6 +133,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     if(resultado==='copiado')showToast('Invitación copiada. Pégala en WhatsApp.');
     if(resultado==='fallo'){seleccionarLink();showToast('No pudimos compartir. Selecciona y copia el link.',true);}
   });
+  raiz.querySelector('#alumnos-whatsapp')?.addEventListener('click',()=>{if(vigente())track('panel_alumnos_link_compartido',{canal:'whatsapp'});});
   raiz.querySelector('#alumnos-copiar').addEventListener('click',async()=>{
     if(!vigente())return;
     try{await navigator.clipboard.writeText(link);if(!vigente())return;track('panel_alumnos_link_copiado');showToast('Link copiado.');}
@@ -278,7 +265,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
     // ficha tiene su propio control dentro del gráfico.
     comparaWrap.hidden=nombre!=='estadisticas';
-    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista');};
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar');};
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
