@@ -2,22 +2,6 @@
 function datosAdminEditorial(historial,alcance){
   return Array.isArray(historial)?historial:Array.isArray(alcance)?alcance.map(d=>({dia:d.dia,vistas:Number(d.vieron)||0,aperturas:Number(d.abrieron)||0,contactos:Number(d.contactaron)||0})):null;
 }
-function cifrasAlcancePrivadoHTML(filas,detalle){
-  const s=sumarHistorialPrivado(filas);
-  return `<div class="pe-cifras">${cifraPrivadaHTML(numeroPrivado(s.vistas),'Vistas',detalle)}${cifraPrivadaHTML(numeroPrivado(s.aperturas),'Aperturas',detalle)}${cifraPrivadaHTML(numeroPrivado(s.contactos),'Clics en contacto',detalle)}</div>`;
-}
-function panelAlcancePrivadoHTML(filas,periodo,metrica,ahora,tipo='columnas'){
-  if(!Array.isArray(filas))return '<p class="clase-sin-datos" role="status">Aplica paneles_historial.sql para ver el historial de anuncios.</p>';
-  const s=serieHistorialPrivado(filas,periodo,metrica,ahora),titulo=(metrica==='contactos'?'Clics en contacto':'Vistas')+(s.semanal?' por semana':' por día');
-  return `${cifrasAlcancePrivadoHTML(s.filas,'Personas por campaña')}${graficoPrivadoHTML(s.puntos,{titulo,tipo,unidad:metrica==='contactos'?'contactos':'vistas',id:'campanas-'+tipo})}`;
-}
-function costoPanelPrivadoHTML(costos){
-  const pagadas=costos.filter(c=>!c?.sinCosto);
-  const costo=pagadas.every(Boolean)?sumarCostosCampana(pagadas):null;
-  if(costos.length&&!pagadas.length)return '<section class="pe-costos"><p class="pe-sub">Campañas activas sin costo.</p></section>';
-  if(!costos.length)return '<section class="pe-costos"><p class="pe-sub">Sin campañas activas.</p></section>';
-  return `<section class="pe-costos"><div><h3>Campañas activas</h3>${presupuestoProfesorHTML(costo)}${costo&&costo.tope!==null?`<p class="pe-sub">${pesosClase(Math.max(0,costo.tope-costo.total))} disponibles del tope</p>`:''}</div><div>${costoApiladoClase(costo,pesosClase)}</div></section>`;
-}
 // Las mismas sumas del período anterior, de igual largo. Solo se compara si el
 // historial alcanza a cubrirlo y el período ya terminó: «Hoy» sigue en curso.
 function comparacionAlcanceAdmin(filas,periodo,ahora){
@@ -27,14 +11,14 @@ function comparacionAlcanceAdmin(filas,periodo,ahora){
   if(!dias.some(d=>d<=inicio))return null;
   return sumarHistorialPrivado((filas||[]).filter(f=>{const d=String(f.dia).slice(0,10);return d>=inicio&&d<=fin;}));
 }
-function alcanceAdminHTML(filas,periodo,metrica,ahora){
+function alcanceAdminHTML(filas,periodo,metrica,ahora,{comparar=true,enCurso=false}={}){
   if(!Array.isArray(filas))return '<p class="clase-sin-datos" role="status">Aplica paneles_historial.sql para ver el historial de anuncios.</p>';
-  const rango=intervaloPrivado(filas,periodo,ahora),total=sumarHistorialPrivado(rango.filas),antes=comparacionAlcanceAdmin(filas,periodo,ahora);
+  const rango=intervaloPrivado(filas,periodo,ahora),total=sumarHistorialPrivado(rango.filas),antes=comparar?comparacionAlcanceAdmin(filas,periodo,ahora):null;
   const nombres={vistas:'Vistas',aperturas:'Aperturas',contactos:'Contactos'},unidad=nombres[metrica].toLowerCase();
   const cifra=k=>metricaAdminHTML({id:k,titulo:nombres[k],valor:numeroPrivado(total[k]),elegida:k===metrica,
     variacion:antes&&variacionAdmin(total[k],antes[k]),pie:antes?'vs. período anterior':k==='vistas'?'personas por campaña':`${pctViz(total[k],total.vistas)} de las vistas`});
   const s=serieHistorialPrivado(filas,periodo,metrica,ahora),nombrePaso=s.semanal?'semana':'día';
-  const puntos=s.puntos.map(p=>({eje:p.etiqueta,valor:p.valor,lectura:`${p.etiqueta} · ${numeroPrivado(p.valor)} ${unidad}`}));
+  const puntos=s.puntos.map((p,i)=>({eje:p.etiqueta,valor:p.valor,tenue:enCurso&&i===s.puntos.length-1,lectura:`${p.etiqueta} · ${numeroPrivado(p.valor)} ${unidad}`}));
   return `<div class="adm-metricas adm-metricas-tres" role="group" aria-label="Elegir qué muestra el gráfico">${['vistas','aperturas','contactos'].map(cifra).join('')}</div>
     ${puntos.length?columnasAdminHTML({titulo:`${nombres[metrica]} por ${nombrePaso}`,sinCabeza:true,vacio:'Aún no hay datos para este período.',puntos,
       tabla:{columnas:[nombrePaso==='día'?'Día':'Semana',nombres[metrica]],filas:s.puntos.slice().reverse().map(p=>[p.etiqueta,numeroPrivado(p.valor)])}}):'<p class="clase-sin-datos">Aún no hay datos para este período.</p>'}`;
@@ -83,24 +67,59 @@ function enlazarAdminEditorial(raiz,historial,alcance,ahora){
   caja.querySelectorAll('[data-pe-periodo]').forEach(b=>b.addEventListener('click',()=>{periodo=b.dataset.pePeriodo;caja.querySelectorAll('[data-pe-periodo]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));pintar();}));
   pintar();
 }
-function resumenProfesorEditorialHTML(medidas,periodo,ahora){
-  const completas=medidas.every(d=>Array.isArray(d.historial));
+function resumenProfesorEditorialHTML(medidas,periodo,ahora,{anuncios=medidas.map(d=>d.a),metrica='vistas'}={}){
+  const completas=medidas.length>0&&medidas.every(d=>Array.isArray(d.historial));
   const filas=completas?medidas.flatMap(d=>d.historial):null;
+  const comparar=completas&&medidas.every(d=>comparacionAlcanceAdmin(d.historial,periodo,ahora)!==null);
   const activas=medidas.filter(d=>vigenciaAnuncio(d.a,ahora)==='publicado');
-  const costo=activas.every(d=>d.costo)?sumarCostosCampana(activas.map(d=>d.costo)):null;
-  const canales=medidas.every(d=>d.porCanal)?medidas.reduce((s,d)=>({recomendacion:s.recomendacion+d.porCanal.recomendacion,busqueda:s.busqueda+d.porCanal.busqueda,lista:s.lista+d.porCanal.lista}),{recomendacion:0,busqueda:0,lista:0}):null;
-  return `<div class="pe-profesor-dashboard"><div class="pe-profesor-grilla"><section><div data-pe-profesor-chart>${filas?panelAlcancePrivadoHTML(filas,periodo,'vistas',ahora,'linea'):'<p class="clase-sin-datos">Aplica paneles_historial.sql para elegir períodos y ver tu historial.</p>'}</div>${periodoPrivadoHTML(periodo,false)}<p class="pe-sub">Fechas del registro en UTC.</p></section><aside><button type="button" class="accion-principal" data-pe-crear-anuncio>Crear anuncio</button><h3>Campañas activas · acumulado</h3>${activas.length?presupuestoProfesorHTML(costo):'<p class="pe-sub">Sin campañas activas.</p>'}${medidas.filter(d=>vigenciaAnuncio(d.a,ahora)==='publicado').map(d=>anilloCampanaClase(d.a,ahora)).join('')}</aside></div><div class="pe-costos">${donaCanalesClase(canales,'personas por anuncio')}${costoApiladoClase(costo,pesosClase)}</div></div>`;
+  const costos=activas.map(d=>d.costo);
+  const pagadas=costos.filter(c=>c&&!c.sinCosto);
+  const costo=costos.every(Boolean)?sumarCostosCampana(pagadas.length?pagadas:costos):null;
+  const clp=n=>Number.isFinite(n)?pesosClase(n):'—';
+  const porId=new Map(medidas.map(d=>[d.a.id,d]));
+  const fila=a=>{
+    const d=porId.get(a.id),vig=vigenciaAnuncio(a,ahora);
+    const alcance=Array.isArray(d?.historial)?sumarHistorialPrivado(intervaloPrivado(d.historial,periodo,ahora).filas):null;
+    const cifra=(titulo,valor)=>`<span class="cr-cifra"><small>${titulo}</small><b>${esc(valor)}</b></span>`;
+    return `<li class="cr-fila">
+      <div class="cr-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((ESTADOS_ANUNCIO[vig]||[vig])[0])}</small></div>
+      <div class="cr-numeros">${cifra('Vistas',numeroPrivado(alcance?.vistas))}${cifra('Aperturas',numeroPrivado(alcance?.aperturas))}${cifra('Contactos',numeroPrivado(alcance?.contactos))}
+        ${cifra('Costo de campaña',d?.costo?.sinCosto?'Sin costo':clp(d?.costo?.total))}${cifra('Tope',clp(d?.costo?.tope))}</div>
+      <button type="button" class="agent-refresh cr-ver" data-cr-ver="${esc(a.id)}" aria-label="Ver anuncio ${esc(a.titulo||'Sin título')}">Ver anuncio</button></li>`;
+  };
+  const alcance=filas?alcanceAdminHTML(filas,periodo,metrica,ahora,{comparar,enCurso:true}):
+    `<div class="adm-metricas adm-metricas-tres">${['Vistas','Aperturas','Contactos'].map(titulo=>metricaAdminHTML({titulo,valor:'—'})).join('')}</div>
+    <p class="clase-sin-datos" role="status">${medidas.length?'Historial no disponible.':'El alcance aparece cuando un anuncio empieza a mostrarse.'}</p>`;
+  return `<div class="cr-resumen">
+    <div class="cr-grilla">
+      <section class="adm-tarjeta cr-costo" aria-label="Costo y tope de campañas activas">
+        <h2>Campañas activas</h2>
+        ${metricaAdminHTML({titulo:'Costo acumulado',valor:costo?.sinCosto?'Sin costo':clp(costo?.total)})}
+        ${metricaAdminHTML({titulo:'Tope',valor:clp(costo?.tope)})}
+        ${costo?.tope>0?`<div class="adm-riel" aria-hidden="true"><i style="transform:scaleX(${Math.min(1,costo.total/costo.tope).toFixed(3)})"></i></div>`:''}
+      </section>
+      <section class="est adm adm-tarjeta cr-alcance" aria-label="Alcance de tus anuncios">
+        <div class="adm-tarjeta-cabeza"><h2>Alcance</h2>${filas?periodoPrivadoHTML(periodo):''}</div>
+        ${alcance}
+        <details class="cr-metodo"><summary>Cómo se cuentan</summary><p>Vistas, aperturas y contactos cuentan personas por publicación de cada anuncio. El historial agrupa por día. Una misma cuenta puede aparecer en más de un anuncio o publicación. Un contacto indica que alguien abrió la opción de contactar. El costo es acumulado y cada campaña nunca pasa de su tope.</p></details>
+      </section>
+    </div>
+    ${anuncios.length?`<section class="cr-anuncios" aria-label="Cifras por anuncio"><h2>Por anuncio</h2><ul>${anuncios.map(fila).join('')}</ul></section>`:''}
+  </div>`;
 }
-function enlazarResumenProfesorEditorial(caja,medidas,ahora,crear){
-  let periodo='7';
-  caja.innerHTML=resumenProfesorEditorialHTML(medidas,periodo,ahora);
-  enlazarGraficosPrivados(caja);
-  caja.querySelector('[data-pe-crear-anuncio]')?.addEventListener('click',crear);
-  caja.querySelectorAll('[data-pe-periodo]').forEach(b=>b.addEventListener('click',()=>{
-    periodo=b.dataset.pePeriodo;
-    caja.querySelectorAll('[data-pe-periodo]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
-    const destino=caja.querySelector('[data-pe-profesor-chart]');
-    destino.innerHTML=panelAlcancePrivadoHTML(medidas.flatMap(d=>d.historial),periodo,'vistas',ahora,'linea');
-    enlazarGraficosPrivados(destino);
-  }));
+function enlazarResumenProfesorEditorial(caja,medidas,ahora,{anuncios,ver}){
+  let periodo='7',metrica='vistas';
+  const pintar=(foco='')=>{
+    caja.innerHTML=resumenProfesorEditorialHTML(medidas,periodo,ahora,{anuncios,metrica});
+    enlazarGraficosAdmin(caja);
+    caja.querySelectorAll('[data-pe-periodo]').forEach(b=>b.addEventListener('click',()=>{
+      periodo=b.dataset.pePeriodo;pintar(`[data-pe-periodo="${periodo}"]`);
+    }));
+    caja.querySelectorAll('[data-adm-metrica]').forEach(b=>b.addEventListener('click',()=>{
+      metrica=b.dataset.admMetrica;pintar(`[data-adm-metrica="${metrica}"]`);
+    }));
+    caja.querySelectorAll('[data-cr-ver]').forEach(b=>b.addEventListener('click',()=>ver(b.dataset.crVer)));
+    if(foco)caja.querySelector(foco)?.focus({preventScroll:true});
+  };
+  pintar();
 }

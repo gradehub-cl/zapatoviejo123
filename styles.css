@@ -4862,10 +4862,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @media(max-width:480px){.directorio-metricas{padding:16px}.perfil-metricas-principales{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.perfil-metrica-principal{grid-column:1/-1;grid-row:1}.perfil-metricas-head{gap:12px}}
 
 /* Estadísticas de Alumnos: el color solo dice dirección; turquesa, lo elegido. */
-.est,.adm-lista,.ramos-panel{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
+.est,.adm-lista,.ramos-panel,.cr-panel{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
   --est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:color-mix(in srgb,var(--fg) 10%,transparent);--est-linea2:color-mix(in srgb,var(--fg) 20%,transparent);color:var(--fg);}
-:root[data-modo="oscuro"] :is(.est,.adm-lista,.ramos-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
-@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista,.ramos-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
+:root[data-modo="oscuro"] :is(.est,.adm-lista,.ramos-panel,.cr-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista,.ramos-panel,.cr-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
 .panel-en-estadisticas #alumnos-compara-wrap,.panel-en-estadisticas>.panel-solo-pruebas,.panel-en-estadisticas>.panel-solo-pruebas+.clase-privacidad{display:none;}
 .panel-en-lista>.panel-solo-pruebas,.panel-en-lista>.panel-solo-pruebas+.clase-privacidad,.panel-en-lista>[data-solo-pruebas-estado]{display:none;}
 .est button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
@@ -5346,6 +5346,62 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 }
 @media(min-width:1024px){
   .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas{display:none;}
+}
+
+/* Clases › Resumen. El alcance usa los controles y columnas de Admin. */
+.cr-panel{container-type:inline-size;font-family:var(--font-ui);font-variant-numeric:tabular-nums;}
+.cr-panel :is(h2,p,ul){margin:0;}
+.cr-panel h2{font-size:1.125rem;line-height:1.25;}
+.cr-panel .cr-pendientes{margin-bottom:1rem;}
+.cr-pendientes>h2{margin-bottom:.45rem;}
+.cr-panel .clases-pendientes li{min-width:0;overflow-wrap:anywhere;}
+.cr-panel .clases-pendientes small{white-space:normal;}
+.cr-panel .clases-pendientes .agent-refresh{color:var(--fg);text-decoration:underline;text-underline-offset:3px;}
+.cr-panel .cr-resumen{display:grid;gap:1rem;}
+.cr-panel .cr-grilla{display:grid;grid-template-columns:minmax(0,2fr) minmax(12rem,1fr);gap:1rem;align-items:start;}
+.cr-panel :is(.cr-costo,.cr-anuncios){min-width:0;padding:1rem;border:1px solid var(--border);border-radius:20px;background:var(--card);}
+.cr-panel .cr-costo{display:grid;grid-column:2;grid-row:1;gap:.65rem;}
+.cr-panel .cr-costo .adm-metrica{display:grid;grid-column:auto;gap:.2rem;}
+.cr-panel .cr-costo .adm-metrica>span{font-size:.875rem;color:var(--fg2);}
+.cr-panel .cr-costo .adm-metrica strong{font-size:1.65rem;}
+.cr-panel .cr-costo .adm-metrica small:empty{display:none;}
+.cr-panel .cr-alcance{min-width:0;grid-column:1;grid-row:1;}
+.cr-panel .cr-alcance .admin-grafico-area{height:8rem;}
+.cr-panel .cr-alcance .admin-grafico-lectura{min-height:1.5em;}
+.cr-panel .cr-alcance .adm-tarjeta-cabeza{align-items:center;flex-wrap:wrap;gap:.4rem;}
+.cr-panel .cr-alcance .adm-tarjeta-cabeza h2{margin:0;}
+.profesor-hig .cr-panel .pe-periodos button{min-height:44px;min-width:44px;white-space:normal;font-size:.75rem;}
+.cr-panel .cr-alcance .pe-periodos button[aria-pressed=true]{background:var(--est-sel-suave);color:var(--est-sel);}
+.cr-panel .cr-alcance .adm-metrica>span,.cr-panel .cr-alcance .adm-metrica>small{font-size:.75rem;overflow-wrap:anywhere;}
+.cr-panel .cr-alcance .adm-metrica>strong{font-size:1.55rem;}
+.cr-panel .cr-alcance .admin-grafico-columnas [data-tenue] i{background:none;border-color:var(--fg2);}
+.cr-panel .cr-metodo{font-size:.8125rem;color:var(--fg2);}
+.cr-panel .cr-metodo summary{min-height:44px;width:fit-content;align-content:center;cursor:pointer;}
+.cr-panel .cr-anuncios ul{list-style:none;padding:0;margin-top:.45rem;}
+.cr-panel .cr-fila{display:grid;grid-template-columns:minmax(7rem,1.4fr) minmax(0,4fr) auto;align-items:center;gap:.65rem;padding:.6rem 0;border-top:1px solid var(--border);}
+.cr-panel .cr-numeros{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.35rem .65rem;min-width:0;}
+.cr-panel :is(.cr-identidad,.cr-cifra){display:grid;gap:.15rem;overflow-wrap:anywhere;}
+.cr-panel :is(.cr-identidad,.cr-cifra) small{color:var(--fg2);font-size:.75rem;}
+.profesor-hig .cr-panel .cr-ver{margin:0;min-height:44px;min-width:44px;color:var(--fg);font-size:.8125rem;}
+@container(max-width:49rem){
+  .cr-panel .cr-grilla{grid-template-columns:minmax(0,1fr);}
+  .cr-panel :is(.cr-costo,.cr-alcance){grid-column:auto;grid-row:auto;}
+  .cr-panel .cr-fila{grid-template-columns:minmax(0,1fr) auto;}
+  .cr-panel .cr-numeros{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));}
+  .cr-panel .cr-ver{grid-column:2;grid-row:1;}
+}
+@container(max-width:20rem){
+  .cr-panel .cr-alcance .adm-metricas{grid-template-columns:minmax(0,1fr);}
+  .cr-panel .clases-pendientes li{flex-wrap:wrap;gap:4px 10px;}
+  .cr-panel .clases-pendientes li>span{width:100%;}
+  .cr-panel .cr-fila{grid-template-columns:minmax(0,1fr);}
+  .cr-panel .cr-ver{grid-column:1;grid-row:3;justify-self:start;}
+  .cr-panel .cr-numeros{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+@media(max-width:1023px){
+  .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas{display:flex;flex-wrap:wrap;}
+  .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;}
 }
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────

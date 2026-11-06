@@ -57,7 +57,7 @@ const pintar=async(anuncios,datos)=>{
   let html=await pintar([anuncio()],{alcance:18,campana});
   chk('las personas vienen de la campaña, que es lo que se cobra',/Se mostró/.test(html)&&/>120<\/b><small>personas distintas/.test(html));
   chk('y también cuántas la abrieron y contactaron',/La abrieron/.test(html)&&/>15<\/b><small>personas distintas/.test(html)&&/Te contactaron/.test(html)&&/>4<\/b><small>personas distintas/.test(html));
-  chk('lo que va costando, contra el tope',/Va costando/.test(html)&&/6\.550/.test(html)&&/de tu tope de \$10\.000/.test(html));
+  chk('lo que va costando, contra el tope',/Costo acumulado<\/span><strong>\$6\.550/.test(html)&&/Tope<\/span><strong>\$10\.000/.test(html));
   chk('con cada concepto escrito',/120 personas te vieron \(\$1\.200\)/.test(html)&&/4 te contactaron \(\$4\.000\)/.test(html)&&/6 días publicada \(\$600\)/.test(html));
   // Desde el 2026-09-30 hay anuncios pagados: decir "en el piloto no se cobra"
   // a quien ya pagó sería falso. Lo que sí vale siempre es el tope.
@@ -66,7 +66,7 @@ const pintar=async(anuncios,datos)=>{
 
   html=await pintar([anuncio({id:'a1'}),anuncio({id:'a2'})],{alcance:18,campana});
   chk('el resumen de dos anuncios rotula el alcance por anuncio, no como personas únicas',
-    /personas por anuncio/.test(html)&&/una misma cuenta puede aparecer en más de uno/.test(html));
+    /personas por publicación de cada anuncio/.test(html)&&/una misma cuenta puede aparecer en más de un anuncio/i.test(html));
 
   html=await pintar([anuncio()],{alcance:18,campana:{...campana,vistas:900,dias_cobrados:10,contactos:9}});
   chk('al llegar al tope lo dice y no pasa del tope',/Llegó a tu tope/.test(html)&&/\$10\.000/.test(html)&&!/Va costando<\/span><b>\$15/.test(html));

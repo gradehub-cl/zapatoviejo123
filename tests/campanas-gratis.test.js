@@ -3,7 +3,7 @@ const read=f=>fs.readFileSync(__dirname+'/../'+f,'utf8');const ctx={console,Intl
 const validar=(precio,tope)=>{ctx.e={dias:10,tope_clp:tope};ctx.precio=precio;return run('validarCampanaClase(e,Date.now(),precio)')};
 assert.equal(validar(0,'').datos.tope_clp,null);assert.equal(validar(0,0).ok,true);assert.equal(validar(5000,'').ok,false);assert.equal(validar(5000,999).ok,false);assert.equal(validar(5000,5000001).ok,false);assert.equal(validar(5000,10000).ok,true);
 for(const k of ['dia','vista','apertura','contacto'])assert.equal(run(`tarifaCampanaClase('${k}',true)`),0);
-ctx.c={sin_costo:true,tope_clp:null,dias_cobrados:20,vistas:100,aperturas:40,contactos:10};let c=run('costoCampanaClase(c)');assert.equal(c.total,0);assert.equal(c.bruto,0);assert.equal(c.agotada,false);assert(!run('presupuestoProfesorHTML(costoCampanaClase(c))').includes('tope'));assert(!run('costoPanelPrivadoHTML([costoCampanaClase(c)])').includes('disponibles'));
+ctx.c={sin_costo:true,tope_clp:null,dias_cobrados:20,vistas:100,aperturas:40,contactos:10};let c=run('costoCampanaClase(c)');assert.equal(c.total,0);assert.equal(c.bruto,0);assert.equal(c.agotada,false);assert(!run('presupuestoProfesorHTML(costoCampanaClase(c))').includes('tope'));
 const db=new PGlite(),prof='00000000-0000-0000-0000-000000000011',adm='00000000-0000-0000-0000-000000000012',est='00000000-0000-0000-0000-000000000013';
 const old='00000000-0000-0000-0000-000000000021',free='00000000-0000-0000-0000-000000000022',paid='00000000-0000-0000-0000-000000000023';
 const q=async(s,p=[])=>(await db.query(s,p)).rows;const ses=async id=>q("select set_config('request.jwt.claim.sub',$1,false)",[id]);
