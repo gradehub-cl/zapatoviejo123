@@ -83,7 +83,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
       <div class="panel-alumnos-renovar"><p>Al cambiar el link, el anterior deja de funcionar. Tus alumnos actuales siguen conectados.</p><button type="button" class="agent-refresh" id="alumnos-renovar">Cambiar link</button></div>
       <p class="clase-privacidad">Piloto gratis: por ahora no se cobra.</p>
     </section>`;
-  const listaInicial=alumnosPanelHTML(alumnos,compDe,new Date(),{soloFilas:true,limite:ALUMNOS_POR_PAGINA});
+  const estadoLista=estadoListaPanel(),filasIniciales=filasListaPanel(alumnos,new Date());
   const privacidad=`<p class="clase-privacidad" id="alumnos-privacidad">“GradeHub” es el promedio de todos los usuarios con ese ramo, esa categoría o esa prueba, desde 5 personas; “Su sección”, el de los que declararon su misma sección, también desde 5. Nunca ves quiénes son.${ejemplo?' Datos de ejemplo: no corresponden a personas reales. No se guardan en GradeHub; si los exportas, el archivo dirá «ejemplo».':''}</p>`;
   // La franja va siempre arriba y no se cierra: nadie puede confundir estos
   // alumnos con los suyos.
@@ -103,13 +103,23 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     <div id="alumnos-compara-wrap">${comparaPanelHTML(porSeccion)}</div>
     <section class="panel-alumnos-vista" id="alumnos-vista-resumen" aria-label="Resumen de tus alumnos"></section>
     <section class="panel-alumnos-vista" id="alumnos-vista-lista" aria-label="Lista de alumnos" hidden>
-      <div class="profesor-hig-lista-cabeza"><h2>Conectados</h2><span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></div>
-      <button type="button" class="accion-principal" id="alumnos-ir-invitar">Invitar alumno</button>
-      ${alumnos.length>1?`<div class="panel-alumnos-buscar"><input type="search" id="alumnos-buscar" placeholder="Buscar alumnos"
-        aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>`:''}
-      <button type="button" class="agent-refresh panel-alumnos-exportar" id="alumnos-exportar">Exportar a Excel</button>
-      <div id="alumnos-lista">${listaInicial}</div>
-      <button type="button" class="agent-refresh panel-alumnos-mas" id="alumnos-mas"${alumnos.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
+      <div class="est al-lista">
+        <div class="al-barra">
+          <div class="est-tabs" id="alumnos-pestanas" role="group" aria-label="Filtrar alumnos">${pestanasListaHTML(filasIniciales,estadoLista)}</div>
+          <div class="al-acciones">
+            ${alumnos.length>1?`<select id="alumnos-ramo" aria-label="Filtrar por ramo">${ramosListaHTML(filasIniciales,estadoLista)}</select>
+            <input type="search" class="est-buscar" id="alumnos-buscar" placeholder="Buscar alumnos"
+              aria-label="Buscar alumnos por nombre, ramo o sigla" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">`:''}
+            <button type="button" class="est-control" id="alumnos-exportar">Exportar a Excel</button>
+            <button type="button" class="al-invitar" id="alumnos-ir-invitar">Invitar alumno</button>
+          </div>
+        </div>
+        <div class="est-tarjeta-grande al-tarjeta">
+          <div class="al-columnas"><span>Alumnos <span id="alumnos-cuenta" aria-live="polite">${alumnos.length}</span></span><span aria-hidden="true">Ramo</span><span aria-hidden="true">Promedio</span><span aria-hidden="true">Próxima evaluación</span><span aria-hidden="true">Necesita</span></div>
+          <div id="alumnos-lista">${filasListaHTML(filasIniciales,ALUMNOS_POR_PAGINA)}</div>
+          <button type="button" class="est-mas" id="alumnos-mas"${filasIniciales.length<=ALUMNOS_POR_PAGINA?' hidden':''}>Mostrar 50 más</button>
+        </div>
+      </div>
     </section>
     <section class="panel-alumnos-vista" id="alumnos-vista-estadisticas" aria-label="Estadísticas de tus alumnos" hidden></section>
     <section class="panel-alumnos-vista" id="alumnos-vista-ramos" aria-label="Ramos de tus alumnos" hidden></section>
@@ -173,7 +183,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   let vista=alumnos,visibles=ALUMNOS_POR_PAGINA,vistaActiva='resumen',seleccionado=null,botonOrigen=null;
   const mas=raiz.querySelector('#alumnos-mas');
   // Se filtra en el navegador, con lo que el panel ya bajó.
-  const buscar=raiz.querySelector('#alumnos-buscar');
+  const buscar=raiz.querySelector('#alumnos-buscar'),selectorRamo=raiz.querySelector('#alumnos-ramo');
   const filtrar=()=>{
     if(!vigente()||!buscar)return;
     const texto=buscar.value;vista=filtrarAlumnosPanel(alumnos,texto);visibles=ALUMNOS_POR_PAGINA;
@@ -181,9 +191,12 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     pintarLista();
   };
   const pintarLista=()=>{
-    lista.innerHTML=vista.length?alumnosPanelHTML(vista,compDe,new Date(),{soloFilas:true,limite:visibles})
-      :`<p class="profesor-hig-vacio">No encontramos alumnos para «${esc(raiz.querySelector('#alumnos-buscar')?.value.trim()||'')}».</p>`;
-    mas.hidden=vista.length<=visibles;
+    const todas=filasListaPanel(vista,new Date()),filas=filtrarListaPanel(todas,estadoLista);
+    const pestanas=raiz.querySelector('#alumnos-pestanas');if(pestanas)pestanas.innerHTML=pestanasListaHTML(todas,estadoLista);
+    const texto=raiz.querySelector('#alumnos-buscar')?.value.trim()||'';
+    lista.innerHTML=filas.length?filasListaHTML(filas,visibles)
+      :`<p class="profesor-hig-vacio">${texto?`No encontramos alumnos para «${esc(texto)}».`:'Nadie en este grupo.'}</p>`;
+    mas.hidden=filas.length<=visibles;
   };
   const enlazarQuitar=()=>fichaContenido.querySelectorAll('[data-quitar-alumno]').forEach(b=>b.addEventListener('click',()=>{if(!vigente()||!puedeSalirFicha())return;showConfirm(`Quitar a ${b.dataset.nombre}`,
     'Dejas de ver sus notas. Para volver a verlas, tendría que abrir tu link y compartir de nuevo.',async()=>{
@@ -265,7 +278,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     // La comparación solo cambia las cifras de Estadísticas y de la ficha. La
     // ficha tiene su propio control dentro del gráfico.
     comparaWrap.hidden=nombre!=='estadisticas';
-    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function')caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista');};
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
@@ -310,7 +323,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     if(!vigente()||!e.target||typeof e.target.closest!=='function')return;
     const ir=e.target.closest('[data-ir-vista]');if(ir){activarVista(ir.dataset.irVista);return;}
     const ramo=e.target.closest('[data-ver-ramo]');
-    if(ramo&&buscar){buscar.value=ramo.dataset.verRamo;filtrar();activarVista('lista');return;}
+    if(ramo&&buscar){estadoLista.tab='todos';estadoLista.ramo='';if(selectorRamo)selectorRamo.value='';buscar.value=ramo.dataset.verRamo;filtrar();activarVista('lista');return;}
     const b=e.target.closest('[data-ver-alumno]');if(!b)return;
     const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
     if(al)abrirFicha(al,b);
@@ -341,6 +354,12 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   });
   mas.addEventListener('click',()=>{if(!vigente())return;visibles+=ALUMNOS_POR_PAGINA;pintarLista();});
   if(buscar)buscar.addEventListener('input',filtrar);
+  raiz.querySelector('#alumnos-pestanas')?.addEventListener('click',e=>{
+    const b=vigente()&&e.target?.closest?.('[data-lista-tab]');if(!b)return;
+    estadoLista.tab=b.dataset.listaTab;visibles=ALUMNOS_POR_PAGINA;pintarLista();
+    raiz.querySelector(`[data-lista-tab="${estadoLista.tab}"]`)?.focus?.();
+  });
+  selectorRamo?.addEventListener('change',()=>{if(!vigente())return;estadoLista.ramo=selectorRamo.value;visibles=ALUMNOS_POR_PAGINA;pintarLista();});
   // Cambiar la comparación vuelve a pintar los alumnos y el grupo con lo ya bajado.
   const controles=['#alumnos-compara-wrap','#alumnos-ficha-compara-wrap']
     .map(sel=>raiz.querySelector(`${sel} .panel-alumnos-compara`)).filter(Boolean);
@@ -376,7 +395,7 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const exportar=raiz.querySelector('#alumnos-exportar');
   if(exportar)exportar.addEventListener('click',async()=>{
     if(!vigente())return;
-    const paraExportar=alumnosOrdenadosPanel(vista).map(({al})=>({...al,soloPruebasPanel:false}));
+    const paraExportar=alumnosDeFilasPanel(filtrarListaPanel(filasListaPanel(vista,new Date()),estadoLista)).map(al=>({...al,soloPruebasPanel:false}));
     if(!paraExportar.length){showToast('No hay alumnos que exportar con esa búsqueda.',true);return;}
     // Las columnas de sección van siempre. Se bajan antes del diálogo: el toque
     // en «Exportar» es el que deja abrir la hoja de compartir del iPhone.
