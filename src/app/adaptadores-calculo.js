@@ -158,14 +158,15 @@ function textoNotasBorrables(r,cat){
 function textoDescarte(cat,descarte){
   const notas=descarte.dropped||[];
   const cantidad=notas.length;
-  const lista=notas.map(n=>`${n.name} (${fmt(n.value)})`).join(', ');
+  const propia=cat.descarteOrigen==='editor';
+  const lista=notas.map(n=>`${n.name} (${propia?fmt(n.value).replace('.',','):fmt(n.value)})`).join(', ');
   const regla=cat.dropLowest||{};
   let redondeo='';
   if(typeof regla.fraction==='number'){
     const porcentaje=Math.round(regla.fraction*100);
     redondeo=` Con ${descarte.rendidas} evaluaciones rendidas, el ${porcentaje}% equivale a ${cantidad} ${cantidad===1?'nota':'notas'}: se redondea hacia abajo.`;
   }
-  return `El programa descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
+  return `${propia?'Tu pauta':'El programa'} descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
 }
 
 // Promedio general. En Chile el PPA se pondera por créditos (SCT), no es simple.

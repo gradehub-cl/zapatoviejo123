@@ -486,7 +486,7 @@ function normalize(data) {
     // Solo las de una evaluación con ese mínimo y ese tope exactos.
     const retiradas = definicionPresetDelRamo(r)?.retiraCompuertas;
     if (Array.isArray(retiradas) && Array.isArray(r.gates)) {
-      r.gates = r.gates.filter(gt => !(gt && gt.type === 'min_grade_required'
+      r.gates = r.gates.filter(gt => !(gt && gt.origen !== 'editor' && gt.type === 'min_grade_required'
         && retiradas.some(x => x && x.min === gt.min && x.cap === gt.cap)));
     }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así

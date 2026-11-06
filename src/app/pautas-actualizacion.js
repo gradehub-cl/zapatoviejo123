@@ -26,7 +26,12 @@ function catsDePauta(cats){return (cats||[]).filter(c=>!c.fueraDePauta);}
 // manda y no se le ofrece nada—. Pero esa persona es justo la que tiene el dato
 // que al catálogo le falta: agarró nuestra pauta oficial y la arregló. Hasta
 // acá la app se daba cuenta y no le decía nada.
+function pautaConReglasDelEditor(r){
+  return !!r&&((r.gates||[]).some(g=>g.origen==='editor')||
+    catsDePauta(r.categorias).some(c=>c.descarteOrigen==='editor'));
+}
 function pautaEditada(r){
+  if(pautaConReglasDelEditor(r))return true;
   if(r?.pautaSugerida?.aceptada)return !pautaSugeridaIntacta(r);
   if(!r||!r.pautaHuella)return false;
   const cats=catsDePauta(r.categorias);
@@ -61,7 +66,7 @@ function pautaOficialIntacta(r){
   return !!programa&&firmaPautaSugerida(r)===firmaPautaSugerida(programa);
 }
 function cambioDePauta(r){
-  if(!r?.pautaHuella)return null;
+  if(!r?.pautaHuella||pautaConReglasDelEditor(r))return null;
   const sugerida=r.pautaSugerida?.aceptada;
   const origen=r.origen||(sugerida&&{tenant:sugerida.tenant,carrera:S.carrera});
   if(!origen?.tenant||(sugerida&&!pautaSugeridaIntacta(r)))return null;

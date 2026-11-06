@@ -168,6 +168,7 @@ function ramoNormReporte(r){return siglaReporteUC(r)?normName(r.nombre):claveRep
 function openReportModal(ramoId,conservarBorrador=false){
   const r=S.ramos.find(x=>x.id===(ramoId||currentRamoId));
   if(!r){showToast('No se encontr\u00f3 el ramo',true);return;}
+  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tu pauta.',true);return;}
   const est=conservarBorrador?reporteDraft:estructuraReporte(r);
   if(!est.length&&!conservarBorrador){showToast('Agrega las evaluaciones antes de reportar',true);return;}
   if(!conservarBorrador){reporteDraft=est;reporteComentarioDraft='';}
@@ -239,6 +240,7 @@ function aplicarReporteAlRamo(r,borrador){
 
 async function enviarReporte(ramoId){
   const r=S.ramos.find(x=>x.id===ramoId);if(!r)return;
+  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tu pauta.',true);return;}
   const btn=document.getElementById('m-rep-btn');
   if(!supabaseClient||!currentUser){
     showToast('Necesitas tener sesi\u00f3n iniciada para reportar',true);return;
