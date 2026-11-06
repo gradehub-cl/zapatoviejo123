@@ -167,6 +167,17 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
   const opcionesEst=()=>({seccion:porSeccion,sinSeccion:porSeccion?sinSeccionDe(alumnos):0,soloPruebas:alumnos.some(al=>al.soloPruebasPanel)});
   const repintarEstadisticas=()=>pintarEstadisticasPanel(paneles.estadisticas,estadoEst,opcionesEst());
   const pintarEstadisticas=()=>{estadoEst.datos=datosEstadisticasPanel(alumnos,compDe);if(!estadoEst.datos.hayPercentil)estadoEst.unidad='puntos';repintarEstadisticas();};
+  const resumenEstado={ramo:'',orden:'urgencia',dia:0,limite:0};
+  const paginaResumen=()=>typeof matchMedia==='function'&&matchMedia('(max-width:600px)').matches?3:6;
+  let datosResumen=null,alcanceResumen=null;
+  const pintarResumen=(foco='',desplazar=false)=>{
+    const ahora=new Date(),hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+    if(datosResumen?.dias[0].fecha!==hoy)
+      datosResumen=datosResumenAlumnosPanel(alumnos,datosResumen?filasListaPanel(alumnos,ahora):filasIniciales,ahora);
+    alcanceResumen=alcanceResumenAlumnosPanel(datosResumen,resumenEstado);
+    paneles.resumen.innerHTML=resumenInicioAlumnosHTML(alcanceResumen,{...resumenEstado,limite:resumenEstado.limite||paginaResumen()});
+    if(foco)paneles.resumen.querySelector(foco)?.focus({preventScroll:!desplazar});
+  };
   const ramosAbiertos=new Set();
   const pintarRamos=()=>{
     const {seccion,soloPruebas}=opcionesEst();
@@ -277,13 +288,13 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     // Estadísticas conserva el control general oculto. Ramos y la ficha
     // tienen sus propios controles de comparación.
     comparaWrap.hidden=nombre!=='estadisticas';
-    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar');caja.classList.toggle('panel-en-ramos',nombre==='ramos');};
+    const caja=raiz.querySelector('.alumnos-editorial');if(typeof caja?.classList?.toggle==='function'){caja.classList.toggle('panel-en-estadisticas',nombre==='estadisticas');caja.classList.toggle('panel-en-lista',nombre==='lista'||nombre==='invitar');caja.classList.toggle('panel-en-ramos',nombre==='ramos');caja.classList.toggle('panel-en-resumen',nombre==='resumen');};
     avisoPrivacidad.hidden=nombre==='invitar'||nombre==='resumen'||nombre==='ramos';
     nav.querySelectorAll('[data-panel-vista]').forEach(b=>{
       b.setAttribute('aria-pressed',String(b.dataset.panelVista===nombre));
       if(b.dataset.panelVista===nombre&&typeof b.scrollIntoView==='function')b.scrollIntoView({block:'nearest',inline:'nearest'});
     });
-    if(nombre==='resumen')paneles.resumen.innerHTML=resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(alumnos));
+    if(nombre==='resumen')pintarResumen();
     if(nombre==='estadisticas')pintarEstadisticas();
     if(nombre==='ramos')pintarRamos();
     if(typeof marcarVistaNav==='function')marcarVistaNav('alumnos',nombre==='ficha'||nombre==='invitar'?'lista':nombre);
@@ -327,7 +338,35 @@ async function renderAlumnosProfesor(raiz,{volver,alumnoId=null,vistaInicial=nul
     const al=alumnos.find(x=>String(x.id)===b.dataset.verAlumno);
     if(al)abrirFicha(al,b);
   };
-  paneles.resumen.addEventListener('click',alTocar);
+  paneles.resumen.addEventListener('change',e=>{
+    if(!vigente())return;
+    const d=e.target.dataset;
+    if(d.rasRamo!==undefined){resumenEstado.ramo=e.target.value;resumenEstado.limite=0;pintarResumen('[data-ras-ramo]');}
+    if(d.rasOrden!==undefined){resumenEstado.orden=e.target.value;resumenEstado.limite=0;pintarResumen('[data-ras-orden]');}
+    if(d.rasDia!==undefined){resumenEstado.dia=Number(e.target.value);pintarResumen('[data-ras-dia]');}
+  });
+  paneles.resumen.addEventListener('click',e=>{
+    if(!vigente()||typeof e.target?.closest!=='function')return;
+    const b=e.target.closest('button'),d=b?.dataset||{};
+    if(d.rasColumna!==undefined){resumenEstado.dia=Number(d.rasColumna);return pintarResumen(`[data-ras-columna="${resumenEstado.dia}"]`);}
+    if(d.rasMas!==undefined){
+      const antes=resumenEstado.limite||paginaResumen();resumenEstado.limite=antes+paginaResumen();
+      return pintarResumen(`.ras-tarjeta:first-child .ras-lista li:nth-child(${antes+1}) button`,true);
+    }
+    if(d.rasGrupo!==undefined){
+      const grupo=gruposResumenAlumnosPanel(alcanceResumen.dias[resumenEstado.dia].evaluaciones)[Number(d.rasGrupo)];
+      if(!grupo)return;
+      const modal=document.getElementById('modal-content');
+      modal.innerHTML=alumnosDiaResumenHTML(grupo);openModal();
+      modal.querySelectorAll('[data-ver-alumno]').forEach(fila=>fila.addEventListener('click',()=>{
+        if(!vigente())return;
+        const al=alumnos.find(x=>String(x.id)===fila.dataset.verAlumno);
+        if(al){closeModal();abrirFicha(al,fila);}
+      }));
+      return;
+    }
+    alTocar(e);
+  });
   const aplicarSoloPruebas=quiere=>{
     const solo=raiz.querySelector('[data-solo-pruebas]');
     if(solo&&solo.checked!==quiere){solo.checked=quiere;solo.dispatchEvent(new Event('change',{bubbles:true}));}

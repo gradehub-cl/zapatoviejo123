@@ -4866,6 +4866,11 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   --est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:color-mix(in srgb,var(--fg) 10%,transparent);--est-linea2:color-mix(in srgb,var(--fg) 20%,transparent);color:var(--fg);}
 :root[data-modo="oscuro"] :is(.est,.adm-lista,.ramos-panel,.cr-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
 @media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista,.ramos-panel,.cr-panel){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
+
+.est,.adm-lista,.ramos-panel,.ras{--est-sube:#0c7f56;--est-sel:#0d7a6b;--est-sel-suave:rgb(13 122 107/.1);--est-baja:var(--red);--est-gris:#b4b4ba;--est-gris-texto:var(--fg3);--est-sombra:0 16px 40px -12px rgb(0 0 0/.25),0 0 0 1px rgb(0 0 0/.06);
+  --est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:color-mix(in srgb,var(--fg) 10%,transparent);--est-linea2:color-mix(in srgb,var(--fg) 20%,transparent);color:var(--fg);}
+:root[data-modo="oscuro"] :is(.est,.adm-lista,.ramos-panel,.ras){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista,.ramos-panel,.ras){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
 .panel-en-estadisticas #alumnos-compara-wrap,.panel-en-estadisticas>.panel-solo-pruebas,.panel-en-estadisticas>.panel-solo-pruebas+.clase-privacidad{display:none;}
 .panel-en-lista>.panel-solo-pruebas,.panel-en-lista>.panel-solo-pruebas+.clase-privacidad,.panel-en-lista>[data-solo-pruebas-estado]{display:none;}
 .est button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
@@ -5415,6 +5420,70 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas{display:flex;flex-wrap:wrap;}
   .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;}
 }
+
+/* Alumnos › Resumen. Atención junto a la agenda semanal. */
+.panel-en-resumen>.panel-solo-pruebas,.panel-en-resumen>.panel-solo-pruebas+.clase-privacidad,.panel-en-resumen>[data-solo-pruebas-estado]{display:none;}
+.ras{display:grid;gap:1rem;container-type:inline-size;font:inherit;font-family:var(--font-ui);font-variant-numeric:tabular-nums;}
+.ras :is(h2,h3,p){margin:0;}
+.ras :is(.ras-filtro,.ras-cabeza){display:flex;align-items:center;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;}
+.ras :is(time,small,label){color:var(--fg2);font-size:.8125rem;}
+.ras label{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;min-width:0;}
+.profesor-hig .ras select{max-width:100%;min-height:44px;min-width:44px;margin:0;padding:6px 10px;border:1px solid var(--est-linea2);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;}
+.ras-cifras{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--est-linea);border-radius:18px;background:var(--card);}
+.ras .ras-cifras .adm-metrica{display:grid;grid-column:auto;gap:.2rem;padding:.75rem 1rem;min-width:0;}
+.ras .ras-cifras .adm-metrica+.adm-metrica{border-left:1px solid var(--est-linea);}
+.ras-cifras span{color:var(--fg2);font-size:.8125rem;}
+.ras-cifras strong{font-size:2rem;font-weight:650;line-height:1.15;}
+.ras-cifras small:empty{display:none;}
+.ras-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);align-items:start;gap:1rem;}
+.ras-tarjeta{min-width:0;padding:clamp(.75rem,1.5vw,1.25rem);border:1px solid var(--est-linea);border-radius:22px;background:var(--card);}
+.ras-cabeza{margin-bottom:.55rem;}
+.ras-cabeza h2{font-size:1.125rem;line-height:1.25;}
+.ras-cabeza h3{font-size:.9375rem;}
+.ras-dia{padding-top:.75rem;border-top:1px solid var(--est-linea);}
+.ras-lista{list-style:none;padding:0;margin:0;}
+.ras-lista li+li{border-top:1px solid var(--border);}
+:where(.profesor-hig,#modal-content) .ras-lista .ras-fila{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) auto;align-items:center;gap:.55rem;width:100%;min-height:52px;padding:.5rem .2rem;border:0;border-radius:8px;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.ras-lista .ras-fila:hover{background:var(--muted);}
+.ras-lista .ras-fila :is(b,small){display:block;overflow-wrap:anywhere;}
+.ras-razon{text-align:right;}
+.profesor-hig .ras .ras-mas{margin:.4rem 0 0;color:var(--est-sel);font-size:.8125rem;}
+.ras .admin-grafico{padding:.45rem 0;margin:0;border:0;background:none;}
+.ras-grafico{display:grid;grid-template-columns:repeat(7,minmax(44px,1fr));}
+.profesor-hig .ras-grafico button{display:grid;grid-template-rows:4.5rem auto auto;gap:.18rem;padding:.25rem 0;border:0;border-radius:8px;background:none;color:var(--fg2);font:inherit;font-size:.6875rem;cursor:pointer;}
+.ras-grafico button[aria-pressed=true]{background:var(--est-sel-suave);color:var(--fg);}
+.ras-barra{display:flex;align-items:end;justify-content:center;box-shadow:inset 0 -1px var(--est-linea2);}
+.ras-barra i{width:48%;background:color-mix(in srgb,var(--fg2) 75%,var(--est-gris));border-radius:4px 4px 0 0;}
+.ras-grafico [aria-pressed=true] i{background:var(--est-sel);}
+.ras-grafico [data-tenue] i{background:none;outline:1.5px dashed var(--fg2);outline-offset:-1px;}
+.ras-grafico .ras-barra i[style="height:0%"]{visibility:hidden;}
+.ras .ras-selector-dia{display:none;}
+.ras-metodo{color:var(--fg2);font-size:.8125rem;}
+.ras-metodo summary{min-height:44px;width:fit-content;align-content:center;cursor:pointer;}
+.ras-metodo p{max-width:65ch;}
+.ras :is(button,summary,select):focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
+@container(max-width:52rem){.ras-grid{grid-template-columns:minmax(0,1fr);}}
+@container(max-width:28rem){
+  .ras-cifras{grid-template-columns:minmax(0,1fr);}
+  .ras .ras-cifras .adm-metrica{grid-template-columns:1fr auto;align-items:center;}
+  .ras .ras-cifras .adm-metrica+.adm-metrica{border-left:0;border-top:1px solid var(--est-linea);}
+  .ras-cifras strong{font-size:1.5rem;}
+}
+@container(max-width:16rem){
+  .profesor-hig .ras .ras-lista .ras-fila{grid-template-columns:minmax(0,1fr) auto;}
+  .ras .ras-lista .ras-fila>span:nth-child(2){grid-column:1;grid-row:2;text-align:left;}
+  .ras .ras-lista .ras-fila>span:last-child{grid-column:2;grid-row:1/span 2;}
+}
+#modal-content .ras-lista .ras-fila{grid-template-columns:minmax(0,1fr) auto auto;}
+@container(max-width:20rem){
+  .ras .admin-grafico{display:none;}
+  .ras .ras-selector-dia{display:flex;margin:.6rem 0;}
+}
+@media(max-width:1023px){
+  .alumnos-editorial.panel-en-resumen .panel-alumnos-vistas:not([hidden]){display:flex;flex-wrap:wrap;gap:2px;overflow:visible;}
+  .alumnos-editorial.panel-en-resumen .panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;padding:6px 7px;}
+}
+@media(min-width:1024px){.alumnos-editorial.panel-en-resumen .panel-alumnos-vistas{display:none;}}
 
 /* Reglas opcionales del editor de evaluaciones. */
 #modal-content .editor-reglas{margin:4px 0 12px;color:var(--fg2);font-size:.8125rem;}
