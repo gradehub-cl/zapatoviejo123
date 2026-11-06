@@ -974,16 +974,23 @@ function contexto({search='',sesion=false}={}){
     globalThis.__alR=(id,nombre,previa,fecha)=>({id,nombre_visible:nombre,tenant:'uc',ramos:[{id:'r'+id,nombre:'Ramo '+id,sigla:'TST'+id,gates:[],
       categorias:[__evR(id+'1','Prueba 1','2026-10-01',previa),__evR(id+'2','Prueba 2',fecha,null)]}]});
     globalThis.__grupoR=[__alR('c','C sintético',5.0,'2026-10-31'),__alR('b','B sintético',2.0,'2026-10-27'),__alR('a','A sintético',7.0,'2026-10-23')];`);
-  const resR=a.run(`resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10))`);
-  chk('esta semana: lo de mañana primero aunque vaya con 7, y nada más allá de 7 días',
-    resR.semana.map(x=>x.al.id).join()==='a,b'&&resR.semana[0].dias===1);
-  chk('necesitan atención: solo quien va reprobando o al borde',resR.atencion.map(x=>x.al.id).join()==='b'&&resR.reprobando===1&&resR.conectados===3);
-  const htmlR=a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10)))`);
-  chk('cada fila abre la ficha; la semana va agrupada por día y mañana se destaca',
-    /data-ver-alumno="a"/.test(htmlR)&&/class="panel-resumen-dia pronto">Mañana<small>1 evaluación/.test(htmlR)
-    &&/class="panel-resumen-dia">Martes 27 oct<small>1 evaluación/.test(htmlR));
-  chk('quien necesita atención dice el ramo junto a la nota',/<b>[\d,]+<\/b><small>en lo pendiente de Ramo b<\/small>/.test(htmlR));
-  chk('sin nada esta semana lo dice',/Nadie de tus alumnos tiene evaluaciones/.test(a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel([__grupoR[0]],new Date(2026,9,22,10)))`)));
+  a.run(`globalThis.__hoyResumen=new Date(2026,9,22,10);
+    globalThis.__datosResumen=datosResumenAlumnosPanel(__grupoR,filasListaPanel(__grupoR,__hoyResumen),__hoyResumen)`);
+  const resR=a.run('alcanceResumenAlumnosPanel(__datosResumen)');
+  chk('las siete barras cuentan solo evaluaciones pendientes dentro de la ventana',
+    resR.dias.length===7&&resR.dias.map(d=>d.evaluaciones.length).join()==='0,1,0,0,0,1,0'&&
+    resR.evaluaciones.map(x=>x.al.id).join()==='a,b');
+  chk('necesitan atención cuenta personas y conserva el ramo de cada caso',
+    resR.atencion===1&&resR.alumnos===3&&resR.casos.map(f=>f.r.id).join()==='rb');
+  const filtroR=a.run(`alcanceResumenAlumnosPanel(__datosResumen,{ramo:claveRamoResumenPanel(__grupoR[2],__grupoR[2].ramos[0])})`);
+  chk('el filtro cambia los totales, casos y barras del mismo alcance',
+    filtroR.alumnos===1&&filtroR.atencion===0&&filtroR.casos.length===0&&filtroR.evaluaciones.length===1&&
+    filtroR.dias.map(d=>d.evaluaciones.length).join()==='0,1,0,0,0,0,0');
+  const htmlR=a.run(`resumenInicioAlumnosHTML(alcanceResumenAlumnosPanel(__datosResumen),{dia:1})`);
+  chk('cada fila de atención abre el alumno en su ramo y el día muestra la evaluación',
+    /data-ver-alumno="b" data-alumno-ramo="rb"/.test(htmlR)&&/data-ras-columna="1"[^>]+aria-pressed="true"/.test(htmlR)&&
+    /data-ras-grupo="0"[^>]*>\s*<span><b>Prueba 2/.test(htmlR));
+  chk('sin nada hoy la agenda lo dice',/Sin evaluaciones este día/.test(a.run('resumenInicioAlumnosHTML(alcanceResumenAlumnosPanel(__datosResumen))')));
   const idx=leer('index.html'),cssN=leer('styles.css');
   chk('la barra lateral lleva Clases y Alumnos con sus secciones',
     ['profesor:resumen','profesor:anuncios','profesor:perfil','alumnos:resumen','alumnos:lista','alumnos:estadisticas','alumnos:ramos']
@@ -1030,7 +1037,7 @@ function contexto({search='',sesion=false}={}){
     /Ahora <b>\+0\.7/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
   // Sin textos explicativos (Lucas, 2026-10-27): cada cifra dice su total («De 12 alumnos»).
   chk('resumen precisa el período y no explica de más',
-    !/Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/En los próximos 7 días/.test(htmlR));
+    !/Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/Evaluaciones en 7 días/.test(htmlR));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
