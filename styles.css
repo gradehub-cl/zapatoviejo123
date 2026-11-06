@@ -5495,6 +5495,42 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #modal-content .editor-reglas-descarte small{display:block;margin-top:6px;}
 #modal-content:not(:has(#m-cat-varias:checked)) .editor-reglas-al-marcar-varias{display:none;}
 
+/* Marcar evaluaciones por ramo: alumnos en filas, evaluaciones en columnas. */
+.ramos-acciones{display:flex;align-items:center;gap:4px;flex:none;}
+.est .est-enlace{min-height:44px;padding:0 6px;color:var(--est-sel);font-weight:550;text-decoration:underline;text-underline-offset:3px;}
+.mr{display:grid;gap:12px;min-width:0;}
+.est .mr-volver{justify-self:start;}
+.mr-cabeza{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.mr-cabeza h2{font-size:1.375rem;font-weight:600;letter-spacing:-.025em;}
+.est .mr-cabeza p{margin-top:4px;font-size:14px;color:var(--fg2);}
+.mr-acciones{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.est .mr-acciones input.est-buscar{margin:0;}
+.est-tarjeta-grande.mr-tarjeta{padding:0;overflow:hidden;}
+.mr-tabla{overflow:auto;max-height:min(68vh,44rem);}
+.mr-tabla table{border-collapse:separate;border-spacing:0;min-width:100%;font-variant-numeric:tabular-nums;}
+.mr-tabla :is(th,td){border-bottom:1px solid var(--est-linea);background:var(--card);font-weight:400;text-align:left;}
+.mr-tabla thead th{position:sticky;top:0;z-index:2;padding:10px 12px;vertical-align:bottom;font-size:12.5px;color:var(--fg3);white-space:nowrap;}
+.mr-tabla :is(thead,tbody) th:first-child{position:sticky;left:0;z-index:1;min-width:210px;max-width:260px;padding:8px 20px;border-right:1px solid var(--est-linea);}
+.mr-tabla thead th:first-child{z-index:3;}
+.mr-tabla tbody th b{display:block;font-size:14px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-tabla tbody th small{font-size:12px;color:var(--fg3);}
+.mr-tabla tr[hidden]{display:none;}
+.mr-columna{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;}
+.mr-columna b{display:block;font-size:13px;font-weight:550;color:var(--fg);}
+.mr-columna small{font-size:12px;color:var(--fg3);}
+.mr-tabla td{padding:0;text-align:center;}
+.mr-tabla td label{display:grid;place-items:center;min-width:64px;min-height:44px;cursor:pointer;}
+.mr-tabla input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--est-sel);}
+.mr-tabla td.mr-sin{color:var(--fg3);}
+.mr-tabla tbody tr:hover :is(td,th){background:var(--est-tile);}
+.mr-pie{position:sticky;bottom:0;z-index:4;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:10px 12px;border-radius:16px;background:var(--card);box-shadow:var(--est-sombra);font-size:14px;color:var(--fg2);}
+.est .mr-guardar{min-height:44px;padding:0 20px;border-radius:12px;background:var(--primary);color:var(--primary-fg);font-weight:550;}
+.est .mr-guardar:disabled{background:var(--est-tile);color:var(--fg3);cursor:default;}
+@media(max-width:640px){
+  .mr-tabla :is(thead,tbody) th:first-child{min-width:132px;max-width:150px;padding:8px 12px;}
+  .mr-acciones,.est .mr-acciones input.est-buscar{width:100%;}
+}
+
  /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

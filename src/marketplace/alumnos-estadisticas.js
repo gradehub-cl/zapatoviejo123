@@ -150,7 +150,7 @@ function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPr
       <div class="est-filtros-caja"><button type="button" class="est-control" data-est-filtros aria-expanded="${estado.filtros}">Filtros${activos?`<span class="est-cuenta">${activos}</span>`:''}</button>
         ${estado.filtros?`<div class="est-pop">${filtrosComparacionEstHTML(seccion,soloPruebas)}</div>`:''}</div>
     </div>
-    ${metodo==='fecha'?'<p class="est-aviso">Aún sin marcas: se compara por fecha de inicio. Marca las evaluaciones en la ficha de cada alumno.</p>':''}
+    ${metodo==='fecha'?`<p class="est-aviso">Aún sin marcas: se compara por fecha de inicio.${datos.pares.length>1?' <button type="button" class="est-enlace" data-ir-vista="ramos">Marcar por ramo</button>':' Márcalas en su ficha.'}</p>`:''}
     ${seccion&&sinSeccion?`<p class="est-aviso">${sinSeccion} ${sinSeccion===1?'alumno no declaró':'alumnos no declararon'} sección.</p>`:''}
     ${etiquetas?`<div class="est-etiquetas">${etiquetas}</div>`:''}
     <div class="est-arriba${ramosHTML?'':' est-arriba-sola'}">
