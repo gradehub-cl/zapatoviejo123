@@ -702,15 +702,15 @@ function contexto({search='',sesion=false}={}){
     await a.run('renderAlumnosProfesor(__raizVista)');
     const vista=a.run('__raizVista.innerHTML');
     chk(`${n} alumnos: la lista compacta aparece primero y las cifras se cargan al abrir su vista`,
-      vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Alumno 1')&&
+      vista.indexOf('id="alumnos-cuenta"')<vista.indexOf('Alumno 1')&&
       /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Antes y desde que empezaron contigo/.test(vista));
     // Resumen · Lista · Estadísticas · Ramos (Lucas, 2026-10-22). Invitar es la
     // acción principal de Lista, no una vista más.
     chk(`${n} alumnos: Resumen, Lista, Estadísticas y Ramos, con Invitar solo dentro de Lista`,
       />Resumen</.test(vista)&&/data-panel-vista="lista"[^>]*>Lista</.test(vista)&&/data-panel-vista="estadisticas"[^>]*>Estadísticas</.test(vista)&&
       (n>1)===/data-panel-vista="ramos"[^>]*>Ramos</.test(vista)&&!/Cómo van<|Por ramo</.test(vista)&&
-      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')&&
-      vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')<vista.indexOf('id="alumnos-vista-estadisticas"')&&
+      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="al-invitar" id="alumnos-ir-invitar"')&&
+      vista.indexOf('class="al-invitar" id="alumnos-ir-invitar"')<vista.indexOf('id="alumnos-vista-estadisticas"')&&
       !/data-panel-vista="invitar"/.test(vista));
     chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
       !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));

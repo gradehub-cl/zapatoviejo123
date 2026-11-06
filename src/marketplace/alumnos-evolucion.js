@@ -265,29 +265,31 @@ function abrirInicioRamo(al,r,alGuardar,rpc=(nombre,args)=>supabaseClient.rpc(no
   });
   const reset=caja.querySelector('#inicio-reset');if(reset)reset.addEventListener('click',()=>guardar(null));
 }
+// Promedio, estado y cuánto necesita en un ramo, con las reglas del motor.
+function datosRamoFilaPanel(ramo,contexto){
+  let avg=null,necesita=null,pendiente=0,nivel='neutral';
+  try{
+    avg=ramoAvg(ramo,undefined,contexto);
+    if(Number.isFinite(avg)){
+      nivel=nivelRamo(ramo,avg);
+      pendiente=estadoParaNotaNecesaria(ramo).pendiente;
+      if(pendiente>0){
+        necesita=notaNecesaria(ramo);
+        if(!Number.isFinite(necesita))necesita=null;
+      }
+    }
+  }catch(e){}
+  if(!Number.isFinite(avg))avg=null;
+  return {ramo,avg,nivel,necesita,pendiente,motivo:avg!==null?motivoPromedioAlumnoPanel(ramo,contexto):''};
+}
+const prioridadRamoFilaPanel=d=>d.avg===null?0:d.necesita!==null&&d.necesita>7.05?5:d.necesita!==null&&d.necesita>5?4:d.nivel==='bad'?3:d.nivel==='warn'?2:1;
 function datosFilaAlumnoPanel(al,ahora=new Date()){
   return conRamosAlumnoPanel(al,contexto=>{
     const visibles=(al.ramos||[]).map(ramoParaPanel);
     const estados={good:0,warn:0,bad:0,neutral:0};
-    const datos=visibles.map(ramo=>{
-      let avg=null,necesita=null,pendiente=0,nivel='neutral';
-      try{
-        avg=ramoAvg(ramo,undefined,contexto);
-        if(Number.isFinite(avg)){
-          nivel=nivelRamo(ramo,avg);
-          pendiente=estadoParaNotaNecesaria(ramo).pendiente;
-          if(pendiente>0){
-            necesita=notaNecesaria(ramo);
-            if(!Number.isFinite(necesita))necesita=null;
-          }
-        }
-      }catch(e){}
-      estados[nivel]++;
-      return {ramo,avg,nivel,necesita,pendiente,motivo:Number.isFinite(avg)?motivoPromedioAlumnoPanel(ramo,contexto):''};
-    });
+    const datos=visibles.map(ramo=>{const d=datosRamoFilaPanel(ramo,contexto);estados[d.nivel]++;return d;});
     const nivel=estados.bad?'bad':estados.warn?'warn':estados.good?'good':'neutral';
-    const prioridad=Math.max(0,...datos.map(d=>d.avg===null?0:d.necesita!==null&&d.necesita>7.05?5
-      :d.necesita!==null&&d.necesita>5?4:d.nivel==='bad'?3:d.nivel==='warn'?2:1));
+    const prioridad=Math.max(0,...datos.map(prioridadRamoFilaPanel));
     const exigencia=Math.max(0,...datos.map(d=>Number.isFinite(d.necesita)?d.necesita:0));
     const exigente=datos.filter(d=>Number.isFinite(d.necesita)).sort((a,b)=>b.necesita-a.necesita)[0]||null;
     const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());

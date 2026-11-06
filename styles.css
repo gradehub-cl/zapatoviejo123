@@ -4853,6 +4853,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 :root[data-modo="oscuro"] :is(.est,.adm-lista){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}
 @media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) :is(.est,.adm-lista){--est-sube:#34d399;--est-sel:#2dd4bf;--est-sel-suave:rgb(45 212 191/.12);--est-gris:#4a4a52;--est-sombra:0 16px 40px -12px rgb(0 0 0/.8),0 0 0 1px rgb(255 255 255/.08);}}
 .panel-en-estadisticas #alumnos-compara-wrap,.panel-en-estadisticas>.panel-solo-pruebas,.panel-en-estadisticas>.panel-solo-pruebas+.clase-privacidad{display:none;}
+.panel-en-lista>.panel-solo-pruebas,.panel-en-lista>.panel-solo-pruebas+.clase-privacidad,.panel-en-lista>[data-solo-pruebas-estado]{display:none;}
 .est button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .est h2,.est h3,.est p{margin:0;}
 .est .est-sube{color:var(--est-sube);}.est .est-baja{color:var(--est-baja);}.est .est-gris{color:var(--est-gris-texto);}
@@ -5189,6 +5190,43 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .adm .admin-grafico-columnas{gap:2px;}
   .adm-seg{display:flex;width:100%;}
   .adm-lista .adm-seg button{flex:auto;padding:0 8px;font-size:13px;white-space:nowrap;}
+}
+/* ─── Lista de Alumnos: una fila por alumno y ramo, con los tokens `.est` ─── */
+.al-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.al-acciones{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.al-lista .al-acciones select{height:44px;width:auto;max-width:200px;margin:0;border:0;border-radius:12px;background-color:var(--est-tile);color:var(--fg);font-size:14px;}
+.est .al-acciones input.est-buscar{margin:0;}
+@media(min-width:1101px){.est .al-acciones input.est-buscar{font-size:14px;}}
+.est .al-invitar{min-height:44px;padding:0 16px;border-radius:12px;background:var(--primary);color:var(--primary-fg);font-size:14px;font-weight:550;}
+.al-tarjeta.est-tarjeta-grande{padding:6px 0 6px;}
+.al-columnas,.est .al-fila{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) 96px minmax(0,1.1fr) 112px 16px;gap:16px;align-items:center;}
+.al-columnas{padding:10px 24px;font-size:12.5px;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.al-columnas>span:nth-child(3){text-align:right;}
+.est .al-fila{width:100%;min-height:60px;padding:9px 24px;text-align:left;box-shadow:inset 0 1px 0 var(--est-linea);transition:background var(--motion-fast) var(--ease-standard);}
+.est .al-fila:hover{background:var(--est-tile);}
+.al-fila>span{min-width:0;}
+.al-fila b{display:block;font-size:14.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.al-fila small{display:block;font-size:12.5px;line-height:1.35;color:var(--fg3);}
+.al-nombre b{font-weight:550;}
+.al-promedio{text-align:right;}
+.est .al-promedio b{font-size:17px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.est .al-necesita b{font-variant-numeric:tabular-nums;}
+.al-fila small.al-motivo{color:var(--fg2);white-space:normal;}
+.al-abrir{font-style:normal;color:var(--fg3);}
+.al-tarjeta .profesor-hig-vacio{padding:24px;}
+@media(max-width:1100px){
+  .al-acciones{width:100%;}
+  .est .al-acciones input.est-buscar{flex:1;width:auto;min-width:140px;}
+  .al-columnas{display:block;}.al-columnas>span:not(:first-child){display:none;}
+  .est .al-fila{grid-template-columns:minmax(0,1fr) auto 16px;gap:2px 12px;padding:12px 16px;}
+  .al-nombre{grid-column:1;grid-row:1;}.al-ramo{grid-column:1;grid-row:2;}
+  .al-promedio{grid-column:2;grid-row:1/3;}
+  .al-proxima{grid-column:1;grid-row:3;display:flex;gap:6px;align-items:baseline;margin-top:4px;}
+  .al-necesita{grid-column:2;grid-row:3;display:flex;gap:4px;align-items:baseline;justify-content:flex-end;margin-top:4px;}
+  .al-proxima b,.al-necesita b{font-size:13px;font-weight:500;}
+  .al-necesita small{display:none;}
+  .al-abrir{grid-column:3;grid-row:1/4;align-self:center;}
+  .al-columnas{padding:8px 16px;}
 }
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
