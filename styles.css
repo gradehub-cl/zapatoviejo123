@@ -3127,6 +3127,12 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .wrapped-pasos{display:flex;justify-content:space-between;gap:12px;flex-shrink:0;}
 .wrapped-pasos button{min-width:44px;height:44px;padding:0 18px;border:1.5px solid var(--tinta);border-radius:22px;background:transparent;color:var(--tinta);font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
 .wrapped-pasos button:disabled{opacity:.35;cursor:default;}
+/* Pantalla ancha: la hoja es una columna centrada, con el tamaño de un teléfono.
+   Estirada al ancho del computador, las cifras quedaban pegadas a la izquierda. */
+@media (min-width:768px){
+  .wrapped-arriba,.wrapped-slide,.wrapped-pasos{width:100%;max-width:430px;margin-inline:auto;}
+  .wrapped-indice{left:50%;right:auto;width:min(430px,calc(100% - 32px));transform:translateX(-50%);}
+}
 @keyframes wrappedAbrir{from{opacity:0;transform:translateY(24px) scale(.98);}}
 @keyframes wrappedSalir{to{opacity:0;transform:translateY(24px) scale(.98);}}
 @keyframes wrappedEntra{from{opacity:0;transform:translateX(16px);}}

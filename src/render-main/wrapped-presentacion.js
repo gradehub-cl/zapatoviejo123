@@ -18,7 +18,7 @@ function cifraWrapped(texto,desde){
 // que lleva solo lo que uno querría mostrar: nada del ramo que más costó.
 function slidesWrapped(d,comp,label){
   const s=[],pl=n=>n!==1?'s':'',c=comaWrapped;
-  const u=esc((TENANTS[S.tenant]&&TENANTS[S.tenant].short)||'tu universidad');
+  const u=esc((TENANTS[S.tenant]&&TENANTS[S.tenant].conArticulo)||'tu universidad');
   const nombre=esc((S.userName||'').trim().split(/\s+/)[0]||'');
   s.push({tipo:'umbral',sup:'pizarron',k:esc(label),titulo:d.completo?`Cerraste el<br>${hojaMarca('semestre.')}`:`Llegaste al final del<br>${hojaMarca('semestre.')}`,sub:'Respira. Esto es tuyo.',viz:filasUmbralWrapped()});
   s.push({tipo:'portada',titulo:nombre?`${nombre}, este fue tu ${esc(label)}.`:`Este fue tu ${esc(label)}.`,sub:'No todo cabe en un promedio. Pero intentemos.'});
@@ -167,7 +167,9 @@ function montarWrapped(slides,estado){
     if(e.target.closest('.wrapped-promedio,input,label'))return;
     const b=e.target.closest('[data-paso]');
     if(!b&&mantuvo)return;
-    pasarWrapped(b?Number(b.dataset.paso):e.clientX<ov.clientWidth/3?-1:1);
+    // El tercio se mide en la columna: en pantalla ancha va centrada.
+    const hoja=ov.querySelector('.wrapped-slide').getBoundingClientRect();
+    pasarWrapped(b?Number(b.dataset.paso):e.clientX<hoja.left+hoja.width/3?-1:1);
   });
   ov.addEventListener('change',e=>{if(e.target.closest('.wrapped-promedio'))cambiarPromedioWrapped(e.target.checked);});
   arrastreWrapped(ov);
