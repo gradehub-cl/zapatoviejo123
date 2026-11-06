@@ -294,13 +294,13 @@ function resumenAlumnosPanelHTML(resumen,{seccion=false,soloPruebas=false,filtro
         ?c.evaluaciones.map(e=>evaluacion(e,datosComparacionPanel(porNota.get(e.clave)),true)).join(''):'');
     }).join('');
     return `<section class="ramos-detalle-grupo">
-      ${nombre?`<div class="ramos-detalle-cabeza"><h4>${esc(nombre)}</h4><span>${esc(alumnos(g.alumnos))}</span><span>Tus alumnos <b>${nota(g.promedio)}</b></span><span>GradeHub <b>${nota(ref?.promedio)}</b> · ${esc(pieReferencia(g,ref))}</span><span>Diferencia <b>${dif===null?'—':signoEstPanel(dif,'nota')}</b></span></div>`:''}
+      ${nombre?`<div class="ramos-detalle-cabeza"><h4>${esc(nombre)}</h4><span>${esc(alumnos(g.alumnos))}</span><span>Tus alumnos <b>${nota(g.promedio)}</b></span><span>GradeHub <b>${nota(ref?.promedio)}</b> · ${esc(pieReferencia(g,ref))}</span><span>Diferencia <b>${dif===null?'—':signoEstPanel(dif,'puntos')}</b></span></div>`:''}
       ${filas?`<small class="ramos-escala">Barras en escala común de 0 a ${esc(max)}</small><ul class="ramos-evaluaciones">${filas}</ul>`:'<p class="clase-sin-datos">Sin notas por evaluación.</p>'}
     </section>`;
   });
   const filas=[...resumen].sort((a,b)=>b.semaforo.bad-a.semaforo.bad).map((g,i)=>conUniversidadPanel(g.tenant,()=>{
     const ref=refDe(g),dif=difDe(g,ref),chica=g.conNotas<EST_MUESTRA_CHICA;
-    const difTexto=dif===null?'—':signoEstPanel(dif,'nota');
+    const difTexto=dif===null?'—':signoEstPanel(dif,'puntos');
     const direccion=!chica&&difTexto.startsWith('+')?'ramos-sube':!chica&&difTexto.startsWith('−')?'ramos-baja':'ramos-gris';
     const abierto=abiertos.has(g.clave),id=`ramos-detalle-${i}`;
     return `<article class="ramos-fila" data-ramos-fila>

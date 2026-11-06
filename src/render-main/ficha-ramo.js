@@ -54,7 +54,7 @@ function barraCategoriaFichaHTML(r,cat,calculo,serie=[cat]){
   const evaluado=fraccion>0?Math.max(0,Math.min(1,1-pendientes/fraccion)):0;
   const conocidas=partes.filter(c=>c.valor!==null);
   const pesoConocido=conocidas.reduce((n,c)=>n+c.peso,0);
-  const valor=serie.length===1&&cat.directNota&&cat.slots>1?avgPond(cat.notas||[]):pesoConocido?conocidas.reduce((n,c)=>n+c.valor*c.peso,0)/pesoConocido:null;
+  const valor=serie.length===1&&cat.directNota&&cat.slots>1&&!cat.dropLowest?avgPond(cat.notas||[]):pesoConocido?conocidas.reduce((n,c)=>n+c.valor*c.peso,0)/pesoConocido:null;
   const color=valor==null?'var(--fg2)':getColor(valor);
   return `<div class="ficha-peso" role="img" aria-label="${esc(cat.nombre)}: ${r2(peso)}% del ramo, ${Math.round(evaluado*100)}% de su peso evaluado" style="--ficha-peso:${Math.max(0,Math.min(100,peso))}%;--ficha-evaluado:${evaluado*100}%;--ficha-color:${esc(color)}"><span class="ficha-peso-grupo"><i></i></span></div>`;
 }
@@ -605,11 +605,15 @@ function renderRamo(){
     // La categoría sigue guardada intacta. Solo se oculta mientras la
     // confirmación esté activa, para que corregirla la haga reaparecer.
     if(exenta&&eximicion&&eximicion.regla.ocultaEvaluacion===true)return;
+    const descarte=descartes.find(d=>d.nodeId===cat.id);
+    const calculoCategoria=(calculo.res?.breakdown||[]).find(b=>b.id===cat.id);
+    const notasDescartadas=new Set((descarte?.dropped||[]).map(n=>n.id));
+    const explicacionDescarte=descarte?`<div class="drop-rule-note">${esc(textoDescarte(cat,descarte))}</div>`:'';
     // Sección de preset: fila directa, solo escribir la nota (estilo simulador)
     if(cat.directNota){
       // Preset con varios espacios (ej: Laboratorio = 3 notas que se promedian) — COLAPSABLE
       if(cat.slots&&cat.slots>1){
-        const av=avgPond(notas);
+        const av=cat.dropLowest?calculoCategoria?.value??avgPond(notas):avgPond(notas);
         // Vacío parte compacto, pero al guardar la primera nota (o dejar una
         // anotada para después) hay algo concreto que revisar. `openCats` solo
         // toma el control después de que la persona abrió o cerró a mano.
@@ -648,7 +652,7 @@ function renderRamo(){
           rows+=`<div class="eval-sub${sobra?' eval-sub-sobra':''}">
             <button type="button" class="eval-sub-open" onclick="event.stopPropagation();abrirCasilla('${cat.id}',${i})" title="Fecha y detalle de ${esc(etiqueta)}" aria-label="Fecha y detalle de ${esc(etiqueta)}">
               <span class="eval-sub-name">${esc(etiqueta)}</span>
-              ${sobra?'<span class="eval-sub-aviso">sobra en la pauta · sigue contando</span>':`<span class="eval-sub-fecha">${v==null?'Pendiente':''}${v==null&&fSub?' · ':''}${esc(fSub)}</span>`}
+              ${notasDescartadas.has(nota?.id)?'<span class="eval-sub-aviso">No cuenta en el promedio</span>':sobra?'<span class="eval-sub-aviso">sobra en la pauta · sigue contando</span>':`<span class="eval-sub-fecha">${v==null?'Pendiente':''}${v==null&&fSub?' · ':''}${esc(fSub)}</span>`}
               ${recorreccion?`<span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}
             </button>
             ${v==null?botonNotaEnFilaHTML(cat.id,i,etiqueta,sombras):`<input class="eval-row-input sm" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(nota))}" style="color:${getColor(v)}" onchange="setSlotNota('${cat.id}',${i},this.value)" onclick="event.stopPropagation();" aria-label="${esc(etiqueta)}"/>`}
@@ -680,7 +684,7 @@ function renderRamo(){
             <span aria-hidden="true" style="color:var(--fg3);font-size:0.6875rem;margin-left:6px;">${isOpen?'▲':'▼'}</span>
           </div>
           ${barraPeso}
-          <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:rows+cantidad+detalleAusencia}</div>`;
+          <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:explicacionDescarte+rows+cantidad+detalleAusencia}</div>`;
         adjuntarCategoria(wrap,cat);
         return;
       }
@@ -700,8 +704,6 @@ function renderRamo(){
       adjuntarCategoria(row,cat);
       return;
     }
-    const descarte=descartes.find(d=>d.nodeId===cat.id);
-    const calculoCategoria=(calculo.res?.breakdown||[]).find(b=>b.id===cat.id);
     const catAvg=calculoCategoria?.value??avgPond(notas);
     // Una lista abierta parte desplegada, y esto es un arreglo, no un gusto.
     //
@@ -726,8 +728,6 @@ function renderRamo(){
     // pauta dejó atrás también se pueden limpiar sin tocar lo oficial.
     const pautaOficialIntacta=!pautaCatalogoSinOficial(r)&&!!r.pautaHuella&&!pautaEditada(r);
     const puedeEliminar=!pautaOficialIntacta||!!cat.fueraDePauta;
-    const notasDescartadas=new Set((descarte?.dropped||[]).map(n=>n.id));
-    const explicacionDescarte=descarte?`<div class="drop-rule-note">${esc(textoDescarte(cat,descarte))}</div>`:'';
     const card=document.createElement('div');card.className='cat-card';
     const notasHTML=notas.length===0?
       `<p style="font-size:0.8125rem;color:var(--fg3);text-align:center;padding:10px 0;">Sin notas aún</p>`:

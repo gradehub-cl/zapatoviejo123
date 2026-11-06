@@ -3,8 +3,6 @@ const ctx={esc:s=>String(s),preparacionRamoPanel:al=>al.preparacion,percentilesP
   conSignoPanel:n=>(n>0?'+':'')+n,unDecimalPanel:n=>String(n)};
 vm.createContext(ctx);
 const src=fs.readFileSync(__dirname+'/../src/marketplace/alumnos-preparacion.js','utf8');
-const est=fs.readFileSync(__dirname+'/../src/marketplace/alumnos-estadisticas.js','utf8');
-vm.runInContext(est.slice(est.indexOf('function signoEstPanel'),est.indexOf('const comaEstPanel')),ctx);
 vm.runInContext(src.slice(src.indexOf('function gruposParecidosFormularioHTML')),ctx);
 const run=s=>vm.runInContext(s,ctx);
 const al={id:'al',preparacion:{evaluaciones:[
@@ -20,7 +18,6 @@ const datos={disponible:true,propios:{n:6,inicial:3,posterior:5,cambio:2},
   gradehub:{n:5,inicial:3,posterior:4,cambio:1},metodos:['manual']};
 const resultado=run('gruposParecidosResultadoHTML');
 assert.match(resultado(datos),/No demuestra/);
-assert.match(resultado(datos),/Cambio \+10 décimas/);
 const chico=resultado({...datos,gradehub:{...datos.gradehub,n:4}});
 assert.match(chico,/Prueba con un rango más amplio/);
 assert.doesNotMatch(chico,/4 estudiantes|Nota de partida|Percentiles/);

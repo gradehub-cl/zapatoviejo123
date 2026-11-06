@@ -25,7 +25,7 @@ function firmaPautaSugerida(r){
   const nombres=new Map(cats.map(c=>[c.id,c.nombre]));
   return hashPautaSugerida(JSON.stringify([
     estructuraDe(r),cats.map(c=>[c.nombre,c.peso,c.directNota===false,c.dropLowest?.count??null,c.dropLowest?.fraction??null]),
-    (r.gates||[]).map(g=>[g.type,nombres.get(g.catId),Array.isArray(g.catIds)?g.catIds.map(id=>nombres.get(id)):null,g.min,g.cap,g.exacto,g.efecto]),
+    (r.gates||[]).map(g=>[g.type,nombres.get(g.catId),Array.isArray(g.catIds)?g.catIds.map(id=>nombres.get(id)):null,g.min,g.cap,g.exacto,g.efecto,...(g.origen==='editor'?[g.origen]:[])]),
     firmaReglasCalculo(r),
   ]));
 }

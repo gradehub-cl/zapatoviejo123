@@ -106,7 +106,7 @@ window.visualViewport&&window.visualViewport.addEventListener('resize',()=>{
 // puede decir 2 controles y su sección tomar 4. No se baja de una casilla ya
 // ocupada, para que ninguna nota quede sobrando.
 function minimoCasillas(cat){
-  return Math.max(2,...(cat.notas||[]).filter(n=>Number.isInteger(n.slot)).map(n=>n.slot+1));
+  return Math.max(2,(Number(cat.dropLowest?.count)||0)+1,...(cat.notas||[]).filter(n=>Number.isInteger(n.slot)).map(n=>n.slot+1));
 }
 function cambiarCasillas(catId,delta){
   const r=S.ramos.find(x=>x.id===currentRamoId);
@@ -191,6 +191,8 @@ function confirmDeleteCat(catId){
   showConfirm(`Eliminar "${cat.nombre}"`,`Se eliminarán todas las notas de esta evaluación.`,()=>{
     const totalAntes=r.categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
     r.categorias=r.categorias.filter(c=>c.id!==catId);
+    if(r.gates?.some(g=>g.origen==='editor'&&g.catId===catId))
+      r.gates=r.gates.filter(g=>g.origen!=='editor'||g.catId!==catId);
     repartirPesoRestante(r.categorias,totalAntes);
     save();renderRamo();
   });
