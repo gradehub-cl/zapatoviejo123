@@ -232,19 +232,19 @@ function canalesPerfilApoyo(p){
 // Iconos vectoriales locales: sin fuentes, imágenes o solicitudes a terceros.
 function iconoCanalPerfil(canal){
   const trazos={
-    whatsapp:'<path d="M20.2 3.8A10 10 0 0 0 4.5 15.9L3 21l5.2-1.4A10 10 0 0 0 20.2 3.8Z"/><path d="M8.4 7.3c-.7.1-1.2.7-1.2 1.5 0 2.4 3.6 6 6.2 6.4.9.1 1.6-.3 1.9-1l.3-1-2.1-1-1 1c-1.4-.6-2.5-1.7-3.1-3.1l.8-.9-.9-1.9Z"/>',
-    instagram:'<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor" stroke="none"/>',
-    web:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6.5h14M5 17.5h14"/>',
-    email:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>'
+    whatsapp:'<path fill="currentColor" stroke="none" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.27-.2-.57-.35ZM12.05 21.79h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.89 9.89-9.89 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 7c0 5.45-4.44 9.88-9.89 9.88Zm8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.69 1.45h.01c6.55 0 11.89-5.34 11.89-11.9a11.82 11.82 0 0 0-3.49-8.41Z"/>',
+    instagram:'<rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/>',
+    web:'<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.6 2.6 4 6 4 9.5s-1.4 6.9-4 9.5c-2.6-2.6-4-6-4-9.5s1.4-6.9 4-9.5Z"/>',
+    email:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 7 9 6.5L21 7"/>'
   };
-  return `<svg class="perfil-contacto-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${trazos[canal]||''}</svg>`;
+  return `<svg class="perfil-contacto-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${trazos[canal]||''}</svg>`;
 }
-function perfilPublicoHTML(p,anuncioId){
+function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant)){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
   const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
   const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
   const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
-  const canales=canalesPerfilApoyo(p),nombres=nombresRamosParaClases(S.tenant);
+  const canales=canalesPerfilApoyo(p);
   return `<header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
       ${p.logo_path?`<div class="catalogo-clase-logo perfil-apoyo-logo" data-directorio-logo="${esc(p.logo_path)}" aria-hidden="true"></div>`:''}</header>
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
