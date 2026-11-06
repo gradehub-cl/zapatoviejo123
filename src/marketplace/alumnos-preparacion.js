@@ -94,7 +94,7 @@ function gruposParecidosFormularioHTML(al,r){
 function gruposParecidosResultadoHTML(x){
  if(!x?.disponible||!Number.isInteger(x.gradehub?.n)||x.gradehub.n<5||!Number.isInteger(x.propios?.n)||x.propios.n<1)return '<p>No hay suficientes estudiantes con notas y fechas en este rango. Prueba con un rango más amplio u otra evaluación de partida.</p>';
  const coma=t=>String(t).replace('.',',');
- const fila=(nombre,g)=>`<div><h4>${nombre} · ${g.n} ${g.n===1?'estudiante':'estudiantes'}</h4><p>Nota de partida ${esc(coma(unDecimalPanel(g.inicial)))} → posterior ${esc(coma(unDecimalPanel(g.posterior)))}. Cambio ${esc(signoEstPanel(g.cambio,'puntos'))} ${decimasEstPanel(g.cambio)}.</p>${percentilesPanelHTML({antes:g.percentil_inicial,ahora:g.percentil_posterior,cambio:g.cambio_percentil})}</div>`;
+ const fila=(nombre,g)=>`<div><h4>${nombre} · ${g.n} ${g.n===1?'estudiante':'estudiantes'}</h4><p>Nota de partida ${esc(coma(unDecimalPanel(g.inicial)))} → posterior ${esc(coma(unDecimalPanel(g.posterior)))}. Cambio ${esc(coma(conSignoPanel(g.cambio)))}.</p>${percentilesPanelHTML({antes:g.percentil_inicial,ahora:g.percentil_posterior,cambio:g.cambio_percentil})}</div>`;
  return `<div class="fap-grupos-resultados">${fila('Tus alumnos del rango',x.propios)}${fila('Resto de GradeHub del rango',x.gradehub)}</div>
    <p>${x.metodos?.includes('fecha')?'Incluye preparación inferida por fecha de inicio.':'Preparación según tus marcas.'} Cada estudiante pesa una vez. Tus alumnos cuentan en las evaluaciones que prepararon. El resto de GradeHub excluye tus conexiones. No demuestra que el cambio se deba a las clases.</p>`;
 }
