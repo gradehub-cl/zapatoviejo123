@@ -115,3 +115,80 @@ lógica (categoría.id, número, cantidad e inicio). Borrar/recrear la misma cas
 vacía sin cambiar esa forma en una sincronización no es detectable; cambios
 intermedios que nunca se leyeron tampoco se reconstruyen. Una marca ya ligada
 no pasa a un id nuevo. No se agregaron ids al documento del alumno.
+
+### Notas típicas por evaluación · revisión local 2026-11-03
+
+Propuesta en `supabase/notas_tipicas.sql`, **sin aplicar en producción**. Lucas
+debe aprobar y publicar primero el texto nuevo de `privacidad.html`: las notas
+individuales privadas se conservan después de archivar para calcular referencias
+anónimas de semestres anteriores.
+
+- `evaluacion_notas` lleva RLS, sin acceso directo para `PUBLIC`, `anon` o
+  `authenticated`, y FK a `auth.users ON DELETE CASCADE`. PGlite comprueba la
+  eliminación de todas las filas, actuales e históricas, al borrar la cuenta.
+- Captura al sincronizar `user_ramos` mediante trigger, sin reescribir su JSON.
+  Reutiliza las claves del panel. Solo mira `categorias[].notas[].valor` numérico
+  dentro de escala: no promedios de categoría, sombras ni `avgOverride`.
+- La captura es de mejor esfuerzo: `notas_tipicas_al_sincronizar` la ejecuta
+  dentro de un bloque `EXCEPTION WHEN OTHERS`. Si falla, se revierte solo esa
+  captura y se guarda el upsert de `user_ramos`. El aviso lleva `user_id`,
+  SQLSTATE y un mensaje fijo; no usa `SQLERRM`, porque puede interpolar notas
+  o JSON. No añade detalles del error ni el documento al aviso. PGlite fuerza un
+  error después de una escritura parcial y verifica INSERT/UPDATE guardados y
+  `evaluacion_notas` idéntica. Una muestra fallida queda pendiente hasta otro
+  upsert exitoso: no se reintenta desde el cliente.
+- El único reloj es `public.profesor_periodo_actual()` de `profesores.sql`.
+  `notas_tipicas.sql` requiere ese archivo y `profesor_alumnos.sql`; elimina la
+  copia antigua `notas_tipicas_periodo_actual()` sin CASCADE.
+- Cambio de período: una clave activa con captura anterior pero sin archivo
+  explícito de ese período/tenant/ramo se retiene, sin copiarla al período nuevo.
+  Cubre marzo y agosto y mantiene la retención más allá de ese primer mes,
+  incluso si se salta un semestre entero. El historial verificable permite
+  capturar una recursada nueva de la misma clave; las claves nuevas no se frenan.
+  No añade campos al estado ni una tabla de marcas.
+  **Límites:** es conservador: un intento realmente nuevo sin archivo verificable
+  puede quedar fuera de las referencias. Sin una captura anterior no hay cómo
+  detectar el arrastre; tampoco se corrige un período que el propio historial
+  declare mal. No se infiere el semestre por fechas/nombres ni se reetiquetan
+  registros. La carga inicial de 2026-2 mantiene su contrato separado.
+- Borrar notas o ramos actuales elimina sus filas. Archivar preserva la copia;
+  una actualización posterior no borra las referencias de períodos anteriores.
+  La carga inicial 2026-2 es idempotente y no borra datos históricos ausentes.
+- La única RPC para la app requiere sesión y devuelve clave de evaluación,
+  promedio, personas y períodos; nunca ids ni notas individuales. El piso es
+  cinco personas por evaluación. Excluye el período actual y futuros. Una
+  persona con varias repeticiones pesa una vez en el promedio.
+- Funciones internas de captura/reloj/agregado sin permisos de ejecución para
+  los roles del cliente; el parámetro de prueba no se expone como RPC pública.
+- Las cuentas de profesor, demo, anónimas o marcadas administrativamente en
+  `raw_app_meta_data.gradehub_datos_sinteticos=true` se excluyen. Esa marca nueva
+  queda propuesta para revisión de Lucas; no se escribe `gradehub_v1` ni se
+  deduce una cuenta de prueba por su correo/nombre. Marcar cuentas de prueba
+  antes de aplicar el SQL. Los alumnos de ejemplo del panel no se sincronizan.
+- Un cambio de marca administrativa excluye las referencias inmediatamente;
+  la siguiente sincronización o reaplicación retira su copia privada capturada.
+  Pruebas: `tests/notas-tipicas-sql.test.js`, solo fixtures sintéticos.
+- Comprobación agregada de solo lectura el 2026-11-03: no se encontraron claves
+  `demo`/`sintetico`/`test`/`prueba` en los metadatos de Auth. El esquema solo
+  mostró `tutor_perfiles.alumnos_ejemplo`, que controla ejemplos locales del
+  panel. No prueba que no existan cuentas de prueba: identificarlas y marcarlas
+  es requisito de revisión antes de activar esta captura. No se leyeron
+  nombres, correos ni notas, y no se marcó ninguna cuenta.
+
+#### Coste local del trigger de notas típicas
+
+Medición opcional reproducible: `GH_MEDIR_NOTAS_TIPICAS=1 node tests/notas-tipicas-sql.test.js`.
+PGlite 0.3.16, sin red ni datos reales: documento de 17.875 bytes, 8 ramos
+activos y 2 semestres con 8 ramos cada uno; 120 notas numéricas en total
+(40 activas y 80 históricas). Cada upsert cambia una nota. Se mide la sentencia
+con `clock_timestamp()` dentro de PostgreSQL, con resolución local de 1 ms;
+10 calentamientos y 100 muestras por condición, en 5 bloques alternados.
+
+| Condición | Media | Mediana | p95 | Máximo |
+|---|---:|---:|---:|---:|
+| Sin este trigger | 0,10 ms | 0 ms | 1 ms | 1 ms |
+| Con este trigger | 2,43 ms | 2 ms | 3 ms | 3 ms |
+
+Incremento medio observado: **2,33 ms**; no supera 20 ms en esta medición. No
+se introdujeron optimizaciones de rendimiento. Es una medición en memoria/WASM,
+no una garantía de latencia del Postgres de producción, su disco o su carga.
