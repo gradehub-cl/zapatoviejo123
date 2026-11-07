@@ -568,5 +568,12 @@ const PROFESORES_PROPUESTOS={
       5:'Mauricio Halpern',
       6:'Roberto Rios',
     },
+    // https://buscacursos.uc.cl/?cxml_semestre=2026-2&cxml_sigla=ETI188
+    ETI188:{
+      1:'Constanza Guajardo',
+      2:'Mauricio Correa',
+      3:'Dominique Waissbluth',
+      4:'Constanza Guajardo',
+    },
   }},
 };

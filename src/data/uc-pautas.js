@@ -375,6 +375,12 @@ const PRESETS_UC={
       {nombre:'Pruebas',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9},
       {nombre:'Tareas',evals:['Tarea 1','Tarea 2','Tarea 3'],min:4.0,cap:3.9},
     ],
+    // El motor pondera sin redondear NP y NT por separado: con NP 5,16 y NT 6,0
+    // el programa da 5,4 (5,2 y 6,0) y la app 5,3. Las compuertas sí calzan,
+    // porque se miden a la décima.
+    noCalcula:[
+      'El programa redondea la nota de Pruebas y la de Tareas a un decimal antes de calcular la final, así que tu nota oficial puede diferir en una décima',
+    ],
     reglasDelCurso:[
       'Las actividades de taller pueden bonificar una nota final aprobada; la regla de acumulación se informa durante el semestre en Canvas',
     ],
@@ -1248,6 +1254,47 @@ const PRESETS_UC={
         ],
         reglasDelCurso:[
           'Necesitas al menos 60% de asistencia a clases; si no la cumples, igual puedes rendir el Examen si tu promedio es 6,0 o más',
+        ],
+      },
+    },
+  },
+  // Ética para Ingeniería · ETI188 · syllabus 2026-2 de la sección 4 (Constanza
+  // Guajardo). BuscaCursos da otros profesores en las secciones 2 y 3, y la 1,
+  // aunque es de la misma profesora, no tiene syllabus recibido: por eso va en
+  // `porSeccion` y no se copia a otra. Falta que alguien confirme que el ramo
+  // no es coordinado.
+  // NP = 35% Prueba 1 + 35% Prueba 2 + 30% Trabajo final, y con examen
+  // NF = 70% NP + 30% Examen. Los pesos son ese producto exacto; al eximirse,
+  // repondera sobre el 70% y vuelve a dar 35/35/30. Trabajo final no lleva
+  // fecha: los grupos exponen sus casos entre el 26-10 y el 18-11.
+  'Ética para Ingeniería':{
+    sigla:'ETI188',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      4:{
+        evals:[
+          ['Prueba 1',24.5,{fecha:'2026-08-31'}],
+          ['Prueba 2',24.5,{fecha:'2026-10-07'}],
+          ['Trabajo final',21],
+          ['Examen',30,{fecha:'2026-11-25'}],
+        ],
+        // La app no sabe a cuántas charlas fue la persona: llegar al 5,0 solo
+        // ofrece la eximición, y ella confirma la asistencia.
+        eximicion:{
+          evaluacion:'Examen',
+          segun:['Prueba 1','Prueba 2','Trabajo final'],
+          min:5,
+          ignoraDescartes:true,
+          requiereConfirmacion:true,
+          confirmar:'asististe al menos a ¾ de las charlas del Auditorio Luksic',
+        },
+        noCalcula:[
+          'El syllabus exime «sobre 5,0» sin aclarar si un 5,0 exacto alcanza: confírmalo con tu profesora',
+        ],
+        reglasDelCurso:[
+          'La profesora puede sumar décimas al promedio final por asistencia y participación sobresalientes',
         ],
       },
     },
