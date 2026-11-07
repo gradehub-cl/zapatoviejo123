@@ -114,10 +114,23 @@ function textoCompuertaActiva(g){
     ? `${g.nombre} va ${fmtPromedio(g.actual)} (mín. ${nf(g.min)}): ${g.efecto==='reemplazar'?'la nota final queda en '+fmtPromedio(g.cap):'topa tu nota final'}`
     : `${g.nombre} bajo ${nf(g.min)}: repruebas pese al promedio`;
 }
-function nivelRamo(r,n){return gatesActivas(r).length?'bad':nivelNota(n);}
+// Con laboratorio, cada parte tiene que llegar a 4,0 por separado: si una baja,
+// la final pasa a ser la más baja de las dos. Por eso una cátedra al borde deja
+// el ramo al borde aunque el laboratorio suba el promedio combinado.
+const RANGO_NIVEL={bad:0,warn:1,good:2,neutral:3};
+function nivelRamo(r,n){
+  if(gatesActivas(r).length)return 'bad';
+  const nivel=nivelNota(n),partes=r&&r.aporta?partesDelVinculo(r):null;
+  if(nivel!=='good'||!partes||partes.propio.valor===null||partes.externo.valor===null)return nivel;
+  return [nivel,nivelNota(partes.propio.valor),nivelNota(partes.externo.valor)].reduce((a,b)=>RANGO_NIVEL[b]<RANGO_NIVEL[a]?b:a);
+}
 function notaAprobadaRamo(r,n){const nivel=nivelRamo(r,n);return nivel==='warn'||nivel==='good';}
 function colorClassRamo(r,n){return nivelRamo(r,n);}
-function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(n);}
+// El color sigue al nivel: un 5,0 combinado con la cátedra al borde no se pinta verde.
+function getColorRamo(r,n){
+  if(gatesActivas(r).length)return getColor(3.9);
+  return nivelRamo(r,n)==='warn'&&nivelNota(n)==='good'?getColor(4.9):getColor(n);
+}
 
 // ─── CÁTEDRA Y LABORATORIO ───────────────────────────────────────────────────
 // Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a

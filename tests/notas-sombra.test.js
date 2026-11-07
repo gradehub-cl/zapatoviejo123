@@ -62,10 +62,13 @@ assert.equal(cargar(curso([cat('Completa',100,5)])),null);assert.equal(cargar(cu
 {
   const chip=el(),getById=ctx.document.getElementById;ctx.document.getElementById=id=>id==='ramo-min-chip'?chip:stub;
   m=cargar(curso([cat('Rendida',50,5.2),cat('Trabajo',20),cat('Examen',30)],{gates:[{type:'min_grade_required',catId:'Examen',min:3.5,cap:3.9}]}));
+  // Lucas, 2026-11-07: con sombras el mensaje de arriba sigue hablando de las notas reales.
+  chip.innerHTML='Necesitas <strong>4,6</strong> en lo pendiente para aprobar';
   ctx.__m=m;run('pintarMetaNotasSombra(__m)');
-  assert.match(chip.innerHTML,/Necesitas <strong[^>]*>1,5<\/strong> en las otras pendientes para aprobar/);
+  assert.match(chip.innerHTML,/^Necesitas <strong>4,6<\/strong> en lo pendiente para aprobar/);
+  assert.doesNotMatch(chip.innerHTML,/1,5/);
   ctx.__m={...m,estado:'no',necesaria:null};run('pintarMetaNotasSombra(__m)');
-  assert.match(chip.innerHTML,/Ya no es posible aprobar/);
+  assert.doesNotMatch(chip.innerHTML,/Ya no es posible aprobar/);
   ctx.document.getElementById=getById;
 }
 // El examen se muestra al final sin reordenar la pauta guardada.
