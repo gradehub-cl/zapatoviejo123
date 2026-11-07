@@ -153,17 +153,9 @@ function panelNotaSombraHTML(m,p){
     <p class="sombra-lectura"></p><button type="button" class="sombra-soltar" onclick="soltarNotaSombra(this)"${m.fijas.has(p.clave)?'':' hidden'}>Volver a lo que necesito</button>
   </div>`;
 }
-function pintarMetaNotasSombra(m){
-  const chip=document.getElementById('ramo-min-chip');if(!chip)return;
-  chip.style.display='inline-flex';chip.className='ramo-chip ramo-meta';
-  chip.setAttribute('data-sombra-meta',m.necesaria===null?'':textoNotaSombra(m.necesaria));
-  if(m.estado==='cerrado')chip.textContent=`Terminas con ${textoNotaSombra(m.final)}`;
-  else if(m.estado==='ya')chip.textContent=m.fijas.size?'Con lo fijado ya alcanza':`Ya aprobaste · aunque saques ${textoNotaSombra(m.minimo)}`;
-  // La ficha ya no tiene medidor (#977): buscar sus piezas lanzaba un error que
-  // cortaba el repintado del slider y, con un examen en su mínimo, la ficha.
-  else chip.innerHTML=medidorFichaHTML(m.estado==='no'?Infinity:m.necesaria,'',false,m.fijas.size||m.auto.size?'en las otras pendientes':'en lo pendiente');
-  pintarInterruptorSombras(m);
-}
+// Lucas, 2026-11-07: el mensaje de arriba siempre habla de las notas reales.
+// Lo que cambia con las sombras se lee en su panel y en el resumen de abajo.
+function pintarMetaNotasSombra(m){pintarInterruptorSombras(m);}
 function pintarValoresNotasSombra(r,m){
   pintarMetaNotasSombra(m);
   const cl=document.getElementById('cat-list');
@@ -188,12 +180,16 @@ function pintarValoresNotasSombra(r,m){
   const pie=cl.querySelector('.sombra-resumen');
   if(pie){
     const minimos=[...m.auto].map(([clave,v])=>{const p=m.pendientes.find(p=>p.clave===clave);return `${esExamenSombra(p)?'El examen':p.nombre} queda en ${textoNotaSombra(v)} porque es su mínimo: aunque te sobre, tienes que pasarlo.`;});
-    pie.hidden=!minimos.length&&!m.fijas.size&&m.estado==='ok';
-    pie.textContent=[m.estado==='ok'&&!m.fijas.size?'':textoEstadoSombra(m),...minimos].filter(Boolean).join(' ');
+    const conSombras=m.estado==='cerrado'?`Con estas notas terminas con ${textoNotaSombra(m.final)}.`
+      :m.estado==='ya'?'Con estas notas ya alcanzas para aprobar.'
+      :m.estado==='no'?'Con estas notas ya no alcanza para aprobar.'
+      :m.fijas.size||m.auto.size?`Con estas notas necesitas ${textoNotaSombra(m.necesaria)} en las otras pendientes.`:'';
+    pie.hidden=!minimos.length&&!conSombras&&m.estado==='ok';
+    pie.textContent=[conSombras||(m.estado==='ok'?'':textoEstadoSombra(m)),...minimos].filter(Boolean).join(' ');
   }
 }
 function montarNotasSombra(r,m,cl){
-  if(!m||!sombrasActivadas()){document.getElementById('ramo-min-chip')?.removeAttribute('data-sombra-meta');return;}
+  if(!m||!sombrasActivadas())return;
   const b=[...cl.querySelectorAll('button[data-sombra-clave]')].find(b=>b.dataset.sombraClave===m.sesion.abierta);
   const p=b&&m.pendientes.find(p=>p.clave===m.sesion.abierta);
   if(p&&esExamenSombra(p)){const fila=b.closest('.eval-sub,.eval-row');fila.classList.add('sombra-abierta');fila.insertAdjacentHTML('beforeend',panelNotaSombraHTML(m,p));}
