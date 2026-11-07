@@ -86,3 +86,79 @@ function filasUmbralWrapped(){
   return `<div class="hoja-filas" aria-hidden="true">${[1,3,0,2,4].map((elegida,f)=>`<div><span class="num">${f+1}.</span>${'ABCDE'.split('').map((l,i)=>
     `<span class="hoja-burbuja${i===elegida?' llena':''}${f===4&&i===elegida?' acento':''}" style="--r:${(f*.35).toFixed(2)}">${l}</span>`).join('')}</div>`).join('')}</div>`;
 }
+
+// ─── Piezas que se tocan (Lucas, 2026-11-07: «más cosas interactivas») ───
+// Una pregunta de alternativas. Antes de responder, cada fila es un botón; al
+// responder, la correcta queda encerrada a lápiz y la elegida, rellena. La
+// respuesta vive en la historia: al volver atrás se ve igual.
+function preguntaWrapped(q,respuesta){
+  const ya=respuesta!==undefined&&respuesta!==null;
+  // Respondida, quedan solo la correcta y la elegida: el dato que viene necesita el espacio.
+  return `<ol class="hoja-opciones hoja-pregunta${ya?' ya':''}">${q.opciones.map((o,i)=>{
+    if(ya&&!o.correcta&&i!==respuesta)return '';
+    // La correcta, en el color de la historia; la elegida por error, a grafito y tachada.
+    const burbuja=ya&&o.correcta?`<span class="hoja-burbuja llena acento" aria-hidden="true">${'ABCDE'[i]}</span>`:hojaBurbuja('ABCDE'[i],ya&&i===respuesta);
+    const fila=`${burbuja}<span>${o.texto}</span>`;
+    const clase=[ya&&o.correcta?'correcta':'',ya&&i===respuesta&&!o.correcta?'errada':''].filter(Boolean).join(' ');
+    return `<li class="${clase}">${ya?(o.correcta?hojaLapiz(fila):fila):`<button type="button" class="hoja-opcion" data-op="${i}">${fila}</button>`}</li>`;}).join('')}</ol>`;
+}
+// Alternativas numéricas alrededor del valor real, siempre distintas y en un
+// orden que depende del valor: nunca la correcta en el mismo lugar.
+function alternativasWrapped(n){
+  const set=new Set([n]);
+  [0.5,1.6,2.3,0.75,1.3,3].forEach(f=>{const v=Math.max(1,Math.round(n*f));if(set.size<4&&!set.has(v))set.add(v);});
+  for(let k=1;set.size<4;k++)set.add(n+k*2);
+  const orden=[...set].sort((a,b)=>a-b),giro=n%4;
+  return orden.map((v,i)=>orden[(i+giro)%orden.length]).map(v=>({texto:String(v),correcta:v===n}));
+}
+// La goma: la cifra queda bajo un borrón de grafito que se borra con el dedo.
+// «Borrar de una» hace lo mismo con un toque, para VoiceOver y el teclado
+// (HIG, Accessibility: una alternativa a cada gesto).
+function gomaWrapped(cifra,borrada){
+  return `<div class="hoja-goma${borrada?' borrada':''}"><p class="wrapped-big"${borrada?'':' aria-hidden="true"'}>${cifra}</p>${borrada?'':'<canvas aria-hidden="true"></canvas>'}</div>
+    ${borrada?'':'<button type="button" class="hoja-goma-btn">Borrar de una</button>'}`;
+}
+// El borrón son rayas de lápiz cruzadas, con trazos fijos: el mismo en cada
+// apertura. Tapa la cifra sin ser un rectángulo negro.
+function rayarGomaWrapped(canvas){
+  const caja=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1,w=caja.width,h=caja.height;
+  canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));
+  const c=canvas.getContext('2d');if(!c)return null;
+  c.scale(dpr,dpr);c.lineCap='round';c.lineJoin='round';c.strokeStyle=getComputedStyle(canvas).color||'#1D1D1F';
+  let t=11;const r=()=>((t=(t*9301+49297)%233280)/233280);
+  // Debajo, papel: la cifra no se trasluce entre las rayas.
+  const fondo=canvas.closest('.wrapped');c.fillStyle=fondo?getComputedStyle(fondo).backgroundColor:'#F3EFE4';
+  c.beginPath();for(let a=0;a<=24;a++){const ang=a/24*Math.PI*2,k=.9+r()*.12;c.lineTo(w/2+Math.cos(ang)*w*.56*k,h/2+Math.sin(ang)*h*.6*k);}c.fill();c.clip();
+  // Tres pasadas: horizontal y las dos diagonales, cada vez más fina. Cada
+  // raya cruza toda la caja con un pulso irregular, como a mano.
+  [[0,5,11,.9],[.8,4,12,.85],[-.8,3.5,13,.8]].forEach(([pend,ancho,sep,alfa])=>{
+    c.lineWidth=ancho;c.globalAlpha=alfa;c.beginPath();
+    const largo=w+h,ux=1/Math.hypot(1,pend),uy=pend*ux,nx=-uy,ny=ux;
+    for(let k=-largo/2;k<largo/2;k+=sep*(.7+r()*.6)){
+      const cx=w/2+nx*k,cy=h/2+ny*k;
+      for(let paso=0;paso<=16;paso++){
+        const d=-largo/2+paso*largo/16,x=cx+ux*d+(r()-.5)*5,y=cy+uy*d+(r()-.5)*5;
+        paso?c.lineTo(x,y):c.moveTo(x,y);
+      }
+    }
+    c.stroke();
+  });
+  c.globalAlpha=1;c.globalCompositeOperation='destination-out';c.lineWidth=44;
+  return {c,ancho:canvas.width,alto:canvas.height};
+}
+function borradoGomaWrapped(g){
+  const datos=g.c.getImageData(0,0,g.ancho,g.alto).data;let vacios=0,total=0;
+  for(let i=3;i<datos.length;i+=4*97){total++;if(datos[i]<40)vacios++;}
+  return total?vacios/total:1;
+}
+// Un recado en video de un profe (Lucas, 2026-11-02: «va sí o sí»). Con
+// subtítulos y controles del sistema; no arranca solo ni con sonido.
+function videoWrapped(v){
+  if(!v)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Falta cargarlo en <code>WRAPPED_VIDEO</code>.</small></div></figure>`;
+  return `<figure class="hoja-video"><video src="${esc(v.src)}"${v.poster?` poster="${esc(v.poster)}"`:''} controls playsinline preload="metadata">${v.subtitulos?`<track kind="captions" src="${esc(v.subtitulos)}" srclang="es" label="Español" default>`:''}</video>
+    <figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption></figure>`;
+}
+// Un tablero de post-its: lo bueno del semestre, de a uno.
+function corchoWrapped(notas){
+  return `<div class="hoja-corcho">${notas.map((n,i)=>`<div style="--d:${i+2};--acento:${HOJA_ACENTOS[(i*2)%HOJA_ACENTOS.length]}">${hojaPostit(n,[-4,3,-2][i%3])}</div>`).join('')}</div>`;
+}
