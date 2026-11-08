@@ -152,9 +152,12 @@ function borradoGomaWrapped(g){
   return total?vacios/total:1;
 }
 // Un recado en video de un profe (Lucas, 2026-11-02: «va sí o sí»). Con
-// subtítulos y controles del sistema; no arranca solo ni con sonido.
-function videoWrapped(v){
-  if(!v)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Falta cargarlo en <code>WRAPPED_VIDEO</code>.</small></div></figure>`;
+// subtítulos y controles del sistema; no arranca solo ni con sonido. Sin
+// archivo queda el marco: vacío con un signo de pregunta si la persona no
+// calificó a nadie, o el espacio reservado en la vista previa.
+function videoWrapped(v,sinCalificar){
+  if(sinCalificar)return `<figure class="hoja-video vacio"><div><span class="hoja-video-signo" aria-hidden="true">?</span></div></figure>`;
+  if(!v||!v.src)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Se carga en el bucket <code>wrapped</code> (ver wrapped_recado.sql).</small></div>${v&&v.quien?`<figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption>`:''}</figure>`;
   return `<figure class="hoja-video"><video src="${esc(v.src)}"${v.poster?` poster="${esc(v.poster)}"`:''} controls playsinline preload="metadata">${v.subtitulos?`<track kind="captions" src="${esc(v.subtitulos)}" srclang="es" label="Español" default>`:''}</video>
     <figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption></figure>`;
 }

@@ -21,7 +21,7 @@ function cifraWrapped(texto,desde){
 // revelación, que entra de a una pieza. Las superficies se alternan (papel,
 // cuaderno, pizarrón) para que no haya dos pantallas iguales seguidas.
 // Si a alguien le fue mal, el tono cambia: menos comparación, más ánimo.
-function slidesWrapped(d,comp,label){
+function slidesWrapped(d,comp,label,recado){
   const s=[],pl=n=>n!==1?'s':'',c=comaWrapped;
   const u=esc((TENANTS[S.tenant]&&TENANTS[S.tenant].conArticulo)||'tu universidad');
   const nombre=esc((S.userName||'').trim().split(/\s+/)[0]||'');
@@ -84,15 +84,23 @@ function slidesWrapped(d,comp,label){
   else if(comp&&comp.uni&&comp.uni.mejorQue>=50)s.push({sup:'rayado',prep:{texto:`¿Y en toda ${u}?`,sub:'Nadie ve las notas de nadie.'},
     k:`En toda ${u}`,big:cifraWrapped(comp.uni.mejorQue+'%'),
     sub:`Con el promedio simple de tus ramos con sigla quedas igual o por sobre el ${comp.uni.mejorQue}% de otras ${comp.uni.total-1} personas de ${u} en GradeHub.`,viz:reglaWrapped(comp.uni.mejorQue)});
-  const video=videoParaWrapped();
-  if(video!==undefined)s.push({tipo:'video',sup:'pizarron',prep:{texto:'Alguien pasó a dejarte un recado.'},k:'Un recado para ti',video});
+  // El recado de un profe que tuvo y calificó bien (ver wrapped_recado.sql).
+  // Si no calificó a nadie, se le dice por qué no hay. Sin respuesta del
+  // servidor, o en una universidad sin videos, la historia no sale.
+  const conSeccion=(S.ramos||[]).find(r=>r.seccion&&d.ranking.some(x=>x.nombre===r.nombre));
+  const sinCalificar=!!recado&&recado.calificaciones===0&&!recado.video;
+  if(recado&&recado.video)s.push({tipo:'video',sup:'pizarron',prep:{texto:'Alguien pasó a dejarte un recado.'},
+    k:`Un recado de ${esc(recado.video.quien)}`,video:recado.video});
+  else if(sinCalificar)s.push({tipo:'video',sup:'pizarron',prep:{texto:'Alguien quería dejarte un recado.'},
+    k:'Este espacio era para un profe.',video:null,sinCalificar:true,
+    sub:'Los recados son de profes que calificaste bien. Como no calificaste a ninguno este semestre, no tenemos uno para ti.',
+    ...(conSeccion?{accion:{texto:'Calificar a mis profes',ramo:conSeccion.id},nota:'Califica y vuelve a abrir tu hoja.'}:{})});
   if(d.anterior&&d.anterior.delta>=0.1)s.push({sup:'papel',prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`},
     k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),flecha:true});
   else if(d.anterior)s.push({sup:'papel',titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
   if(d.gpa!==null)s.push({sup:'papel',prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.'}:{texto:'Y ahora, el número que lo resume todo.'},
     k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`,viz:arcoWrapped(d.gpa)});
-  const conSeccion=(S.ramos||[]).find(r=>r.seccion&&d.ranking.some(x=>x.nombre===r.nombre));
-  if(conSeccion)s.push({k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
+  if(conSeccion&&!sinCalificar)s.push({k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
   s.push({tipo:'cierre',sup:'pizarron',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
   const filas=[];
   if(d.personalidad)filas.push(['¿Qué tipo de estudiante fuiste?',esc(d.personalidad.nombre),d.personalidad.letra]);
@@ -101,14 +109,23 @@ function slidesWrapped(d,comp,label){
   s.push({tipo:'final',k:esc(label),nombre,big:d.gpa!==null?c(fmtPromedio(d.gpa)):null,filas});
   return s;
 }
-// El recado de un profe. Se carga a mano antes del 1 de diciembre: el archivo
-// va en /wrapped/, junto con sus subtítulos (.vtt). Sin video, la historia no
-// sale; en la vista previa de administración se ve el espacio vacío.
-const WRAPPED_VIDEO=null; // {src:'/wrapped/profe.mp4',poster:'/wrapped/profe.jpg',subtitulos:'/wrapped/profe.vtt',quien:'Nombre del profe',ramo:'Ramo',tenants:['uc']}
-function videoParaWrapped(){
-  const v=WRAPPED_VIDEO;
-  if(v&&(!v.tenants||v.tenants.includes(S.tenant)))return v;
-  return _wrappedVistaPreviaArmando?null:undefined;
+// Pide el recado al servidor y firma sus archivos (el bucket es privado). Ante
+// cualquier error devuelve null: mejor no mostrar la historia que decirle a
+// alguien que no calificó cuando sí lo hizo.
+async function recadoWrapped(){
+  if(typeof supabaseClient==='undefined'||!supabaseClient||!currentUser)return null;
+  try{
+    const {data,error}=await supabaseClient.rpc('wrapped_recado',{p_tenant:S.tenant,p_periodo:WRAPPED_PERIODO});
+    const r=Array.isArray(data)?data[0]:data;
+    if(error||!r||!r.hay_videos)return null;
+    if(!r.archivo)return {calificaciones:Number(r.calificaciones)||0,video:null};
+    const firmar=async ruta=>{if(!ruta)return null;const f=await supabaseClient.storage.from('wrapped').createSignedUrl(ruta,3*3600);return f.error?null:f.data.signedUrl;};
+    const [src,poster,subtitulos]=await Promise.all([firmar(r.archivo),firmar(r.poster),firmar(r.subtitulos)]);
+    if(!src)return null;
+    const clave=String(r.ramo_clave||'').toLowerCase();
+    const ramo=(S.ramos||[]).find(x=>String(x.sigla||x.origen?.ramoKey||'').toLowerCase()===clave);
+    return {calificaciones:Number(r.calificaciones)||0,video:{src,poster,subtitulos,quien:r.profesor,ramo:ramo?ramo.nombre:clave.toUpperCase()}};
+  }catch(e){return null;}
 }
 
 const ICONO_CERRAR='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -126,7 +143,7 @@ const WRAPPED_PREP=2600;
 // cuenta de a poco, no aparece de golpe. Mismo valor que `--paso` en el CSS.
 const WRAPPED_PASO=260;
 
-let _wrapped=null,_wrappedAbriendo=false,_wrappedVentanaTimer=null,_wrappedVistaPreviaArmando=false;
+let _wrapped=null,_wrappedAbriendo=false,_wrappedVentanaTimer=null;
 function contextoWrappedVigente(estado){
   const base=ramosWrapped();
   return wrappedDisponible()&&(currentUser&&currentUser.id)===estado.cuenta&&S.tenant===estado.tenant&&base&&base.ramos===estado.ramos&&JSON.stringify(base.ramos)===estado.version;
@@ -154,14 +171,15 @@ async function abrirWrapped(){
   const btn=document.getElementById('home-wrapped-btn');
   const etiqueta=btn&&btn.querySelector('span');
   if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');etiqueta.textContent='Revisando tus notas…';}
-  const comp=base.actual?await Promise.race([comparacionWrapped(),new Promise(r=>setTimeout(()=>r(null),4000))]):null;
+  const espera=p=>Promise.race([p,new Promise(r=>setTimeout(()=>r(null),4000))]);
+  const [comp,recado]=await Promise.all([base.actual?espera(comparacionWrapped()):null,base.actual?espera(recadoWrapped()):null]);
   if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');etiqueta.textContent='Semestre terminado';}
   _wrappedAbriendo=false;
   const actual=ramosWrapped();
   if(!wrappedDisponible()||(currentUser&&currentUser.id)!==cuenta||S.tenant!==tenant||!actual||actual.ramos!==base.ramos||JSON.stringify(actual.ramos)!==version||!cierreWrapped(actual).listo)return;
   const datos=datosWrapped(base.ramos);if(!datos)return;
   extrasWrapped(datos,base.ramos,base.actual);
-  const slides=slidesWrapped(datos,comp,base.label);
+  const slides=slidesWrapped(datos,comp,base.label,recado);
   track('wrapped_open',{pantallas:slides.length});
   montarWrapped(slides,{foco,cuenta,tenant,ramos:base.ramos,version});
 }
@@ -181,10 +199,9 @@ function abrirWrappedVistaPrevia(){
   if(_wrapped||_wrappedAbriendo)return;
   const ramos=ramosVistaPreviaWrapped(),datos=datosWrapped(ramos);
   extrasWrapped(datos,ramos,true);
-  _wrappedVistaPreviaArmando=true;
-  let slides;
-  try{slides=slidesWrapped(datos,{curso:{ramo:'Cálculo II',mejorQue:82,total:39},uni:{mejorQue:71,total:120}},WRAPPED_PERIODO);}
-  finally{_wrappedVistaPreviaArmando=false;}
+  // El recado de ejemplo muestra el espacio del video, sin archivo real.
+  const slides=slidesWrapped(datos,{curso:{ramo:'Cálculo II',mejorQue:82,total:39},uni:{mejorQue:71,total:120}},WRAPPED_PERIODO,
+    {calificaciones:2,video:{src:null,quien:'tu profe',ramo:'Cálculo II'}});
   montarWrapped(slides,{foco:document.activeElement,vistaPrevia:true});
 }
 function montarWrapped(slides,estado){
@@ -361,7 +378,10 @@ function pintarRevelacionWrapped(){
     return;
   }
   if(s.tipo==='video'){
-    caja.innerHTML=p('wrapped-k',s.k)+`<div style="--d:${d++}">${videoWrapped(s.video)}</div>`;
+    caja.innerHTML=p('wrapped-k',s.k)+`<div style="--d:${d++}">${videoWrapped(s.video,s.sinCalificar)}</div>`
+      +p('wrapped-sub',s.sub)
+      +(s.nota?`<div style="--d:${d++}">${hojaPostit(s.nota,i%2?3:-3)}</div>`:'')
+      +(s.accion?`<button class="wrapped-accion" type="button" data-ramo="${esc(s.accion.ramo)}" style="--d:${d++}">${esc(s.accion.texto)}</button>`:'');
     const v=caja.querySelector('video');
     if(v){
       // Mientras habla el profe, la historia espera.
@@ -432,7 +452,7 @@ function programarWrapped(){
   // a la persona.
   if(_wrapped.pausa||movimientoReducido()||document.visibilityState==='hidden'
     ||s.tipo==='umbral'||s.tipo==='final'||s.accion||!_wrapped.ov.querySelector('.wrapped-indice').hidden
-    ||(!prep&&((s.tipo==='pregunta'&&s.respuesta===undefined)||(s.tipo==='goma'&&!s.borrada)||(s.tipo==='video'&&(_wrapped.reproduciendo||!s.video)))))return;
+    ||(!prep&&((s.tipo==='pregunta'&&s.respuesta===undefined)||(s.tipo==='goma'&&!s.borrada)||(s.tipo==='video'&&(_wrapped.reproduciendo||!(s.video&&s.video.src))))))return;
   const estado=_wrapped,i=estado.i;
   estado.timer=setTimeout(()=>{if(_wrapped===estado&&estado.i===i)prep?revelarWrapped():pasarWrapped(1);},prep?WRAPPED_PREP:WRAPPED_DURACION);
 }

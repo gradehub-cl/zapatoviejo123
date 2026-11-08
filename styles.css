@@ -3234,6 +3234,8 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-video video,.hoja-video>div{display:block;width:100%;aspect-ratio:9/16;max-height:52vh;object-fit:cover;background:#1D1D1F;}
 .hoja-video>div{display:grid;place-content:center;gap:6px;padding:16px;box-sizing:border-box;text-align:center;background:transparent;border:2px dashed #B9B2A0;color:#4A4740;}
 .hoja-video>div p{margin:0;font-size:18px;font-weight:700;color:#1D1D1F;}
+.hoja-video-signo{font-size:96px;font-weight:900;line-height:1;color:#B9B2A0;}
+.wrapped-slide[data-tipo="video"] .hoja-video.vacio>div{max-height:34vh;}
 .hoja-video figcaption{margin-top:10px;font-size:17px;font-weight:700;}
 .hoja-video figcaption small{display:block;font-size:15px;font-weight:400;color:#4A4740;}
 /* Lo bueno del semestre, en post-its que llegan de a uno. */
