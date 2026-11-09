@@ -73,14 +73,24 @@ function opcionPautaSugerida(fila,r){
   if(norma&&estructura.some(e=>e.min!==undefined)&&estructura.filter(e=>norma.nombres.includes(normName(e.nombre))).length===1)return null;
   return {huella:fila.huella,respaldos:fila.respaldos,estructura:ordenarEstructuraConsenso(estructura)};
 }
-async function leerPautaSugerida(ctx,r){
+// En un ramo no coordinado el consenso no se aplica solo (coordinacion-ramo.js)
+// y la RPC no lo devuelve como sugerencia: se ofrece desde acá, con el mismo
+// texto que cualquier otra, porque describe la pauta de algún profesor.
+function opcionesDeConsensoNoCoordinado(r,cons){
+  if(!ramoNoCoordinado(r))return [];
+  const clave=claveReporte(r);
+  return (cons||[]).filter(c=>c&&c.ramo_key===clave&&consensoVigenteParaRamo(c,r)&&c.respaldos>=CONSENSO_AUTO)
+    .map(c=>opcionPautaSugerida({huella:c.huella,respaldos:c.respaldos,estructura:c.estructura},r));
+}
+async function leerPautaSugerida(ctx,r,cons){
   try{
     const {data,error}=await supabaseClient.rpc('pauta_sugerida',{
       p_tenant:ctx.tenant,p_periodo:ctx.periodo,p_ramo_key:ctx.clave,p_seccion:ctx.seccion,
     });
     if(error||!Array.isArray(data))return [];
     const vistas=new Set();
-    const opciones=data.map(f=>opcionPautaSugerida(f,r)).filter(f=>{
+    const filas=[...data.map(f=>opcionPautaSugerida(f,r)),...opcionesDeConsensoNoCoordinado(r,cons)];
+    const opciones=filas.filter(f=>{
       if(!f||vistas.has(f.huella))return false;
       vistas.add(f.huella);return true;
     });
@@ -109,7 +119,7 @@ function textoPautaSugerida(n){
 }
 function actualizarProcedenciaSugerida(r,cons){
   const a=r.pautaSugerida?.aceptada;
-  if(!a||r.consensoRespaldos||!pautaSugeridaIntacta(r))return false;
+  if(!a||r.consensoRespaldos||!pautaSugeridaIntacta(r)||!ramoCoordinado(r))return false;
   const ctx=contextoPautaSugerida(r);
   if(Object.keys(ctx).some(k=>ctx[k]!==a[k]))return false;
   const mia=estructuraParaConsenso(estructuraDe(r));
@@ -132,9 +142,10 @@ async function pintarPautaSugerida(r,el){
     S.ramos.find(x=>x.id===r.id)===r&&pautaSugeridaEnFicha(r)&&elegiblePautaSugerida(r)&&
     JSON.stringify(contextoPautaSugerida(r))===JSON.stringify(ctx);
   const cons=await cargarConsenso(ctx.tenant,ctx.periodo,ctx.seccion);
+  if(coordinacionRamo(r)===null)await asegurarMallasCoordinacion(ctx.tenant);
   if(!vigente())return;
   if(ponerConsensoEnRamo(r,cons||[])){save();renderRamo();return;}
-  const opciones=await leerPautaSugerida(ctx,r);
+  const opciones=await leerPautaSugerida(ctx,r,cons);
   if(!opciones.length||!vigente())return;
   const varias=opciones.length>1;
   const descripcion=(opcion,i)=>{
@@ -178,7 +189,7 @@ async function pintarPautaSugerida(r,el){
     aceptar.disabled=true;descartar.disabled=true;radios.forEach(i=>{i.disabled=true;});
     // La RPC vuelve a comprobar consenso, programa y sección. Si cambió el
     // respaldo o la estructura, se muestra la versión vigente antes de guardar.
-    const actuales=await leerPautaSugerida(ctx,r);
+    const actuales=await leerPautaSugerida(ctx,r,await cargarConsenso(ctx.tenant,ctx.periodo,ctx.seccion));
     if(!vigente())return;
     const actual=actuales.find(f=>f.huella===elegida.huella&&f.respaldos===elegida.respaldos&&
       JSON.stringify(f.estructura)===JSON.stringify(elegida.estructura));
