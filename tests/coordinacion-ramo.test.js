@@ -58,8 +58,9 @@ assert.equal(rMalla.consensoRespaldos, 3);
   assert.equal(run('opcionesDeConsensoNoCoordinado')(rMalla, [fila(rMalla, 4)]).length, 0);
   assert.equal(run('textoPautaSugerida')(4), 'Reportada por 4 estudiantes, sin confirmar');
 
-  // La RPC no devuelve sugerencia cuando hay consenso: igual se ofrece.
-  run("supabaseClient={rpc:async()=>({data:[],error:null})}");
+  // Con la RPC anterior (sin aplicar la nueva), el consenso no viene entre las
+  // filas: igual se ofrece.
+  run("supabaseClient={rpc:async n=>n==='pautas_sugeridas'?{error:{code:'PGRST202'}}:{data:[],error:null}}");
   const ctxFuera = run('contextoPautaSugerida')(rFuera);
   const leidas = await run('leerPautaSugerida')(ctxFuera, rFuera, [fila(rFuera, 4)]);
   assert.equal(leidas.length, 1, 'el consenso de un no coordinado llega como sugerencia');

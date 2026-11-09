@@ -9,7 +9,9 @@
 //   1. El dato explícito `coordinado` de la pauta oficial. Lo pone el programa
 //      o lo confirma Lucas; tener varios profesores no basta (Derecho UC).
 //   2. Tener pauta oficial para todo el ramo: alguien la transcribió como una.
-//   3. La malla: un ramo que aparece en alguna malla de la universidad se toma
+//   3. Los reportes: dos pautas bien respaldadas de profesores o secciones
+//      distintas (distribuciones-pauta.js) dicen que no es coordinado.
+//   4. La malla: un ramo que aparece en alguna malla de la universidad se toma
 //      como coordinado; uno que no aparece en ninguna (electivos, teológicos,
 //      formación general), como no coordinado.
 // Devuelve null mientras no se pueda saber: las mallas de UC, UAI, UAndes y
@@ -43,7 +45,7 @@ function nombresMallasCoordinacion(tenant){
   return nombres;
 }
 
-// {coordinado:boolean, fuente:'programa'|'pauta-oficial'|'malla'|'fuera-de-malla'} o null.
+// {coordinado:boolean, fuente:'programa'|'pauta-oficial'|'reportes'|'malla'|'fuera-de-malla'} o null.
 function coordinacionRamo(r){
   if(!r||!r.nombre)return null;
   const tenant=r.origen?.tenant||S.tenant;
@@ -52,6 +54,9 @@ function coordinacionRamo(r){
   if(def&&!Array.isArray(def)&&typeof def.coordinado==='boolean')
     return {coordinado:def.coordinado,fuente:'programa'};
   if(def&&pautaPresetSuficiente(evalsDePreset(def)))return {coordinado:true,fuente:'pauta-oficial'};
+  // Los reportes pueden mostrar que el ramo cambia según profesor o sección
+  // aunque esté en la malla (distribuciones-pauta.js).
+  if(evidenciaCoordinacionDe(r)===true)return {coordinado:false,fuente:'reportes'};
   const nombre=normName(r.nombre),sinonimo=sinonimoDe(r.nombre,tenant);
   const nombres=nombresMallasCoordinacion(tenant);
   if(nombres.has(nombre)||(sinonimo&&nombres.has(normName(sinonimo))))return {coordinado:true,fuente:'malla'};

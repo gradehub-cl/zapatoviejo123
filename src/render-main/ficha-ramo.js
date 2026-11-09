@@ -341,7 +341,7 @@ function renderRamo(){
       (intacta||yaAportada(r,estructuraParaConsenso(estructuraDe(r)))));
     const oficial=pautaOficialIntacta(r);
     fuente.textContent=consenso?`Pauta por consenso · ${consenso} estudiantes`
-      :sugerida&&intacta?textoPautaSugerida(sugerida.respaldos):oficial?'Pauta oficial':'';
+      :sugerida&&intacta?textoProcedenciaSugerida(sugerida):oficial?'Pauta oficial':'';
     fuente.hidden=!fuente.textContent;
   }
 

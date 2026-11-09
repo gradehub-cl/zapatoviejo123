@@ -94,6 +94,8 @@ async function aplicarConsensoAuto(){
   let puestas=0;
   for(const r of (S.ramos||[])){
     const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
+    if(!(r.categorias||[]).length&&(especifico||[]).some(c=>c.ramo_key===claveReporte(r)))
+      await prepararEvidenciaCoordinacion(r);
     if(ponerConsensoEnRamo(r,especifico||[]))puestas++;
   }
   if(puestas)save();
