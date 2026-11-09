@@ -9,7 +9,9 @@ function pautasCatalogo(){
  const datos=vm.runInContext('({presets:PRESETS_POR_TENANT,creditos:CREDITOS_UC,siglas:SIGLAS_UC})',ctx);
  const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(),filas=[];
  for(const [tenant,presets]of Object.entries(datos.presets))for(const [nombre,def]of Object.entries(presets)){
-  if(!(Array.isArray(def)?def:def.evals)?.length)continue;
+  // Los no coordinados se registran aunque no traigan `evals`: así ningún
+  // consenso automático los toma como ramos sin programa (coordinacion-ramo.js).
+  if(!(Array.isArray(def)?def:def.evals)?.length&&!(def&&def.coordinado===false))continue;
   const siglas=new Set(tenant==='uc'?[datos.creditos[nombre]?.[1],...Object.values(datos.siglas).map(x=>x[nombre])].filter(Boolean):[]);
   const clave=def.sigla||(siglas.size===1?[...siglas][0]:norm(nombre));
   filas.push({tenant,clave,nombre,nombre_norm:norm(nombre),periodo:(!Array.isArray(def)&&def.periodo)||'',definicion:def});

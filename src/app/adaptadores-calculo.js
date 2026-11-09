@@ -11,11 +11,17 @@ function definicionPresetDelRamo(ramo){
   if(origen.tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[origen.tenant];if(!presets)return null;
     const nombre=Object.keys(presets).find(n=>normName(n)===normName(ramo.nombre));
-    return nombre?presets[nombre]:null;
+    return nombre?definicionParaRamo(ramo,presets[nombre]):null;
   }
   if(origen.tenant!=='uc'||!presetUcDisponible(ramo.nombre,origen.carrera))return null;
   const nombre=claveUc(ramo.nombre);
-  return nombre?PRESETS_UC[nombre]:null;
+  return nombre?definicionParaRamo(ramo,PRESETS_UC[nombre]):null;
+}
+// Un ramo no coordinado solo recibe las reglas del programa que le corresponde
+// (su sección, o el que calza con su pauta): nunca las de otra sección.
+function definicionParaRamo(ramo,def){
+  if(!def||Array.isArray(def)||def.coordinado!==false)return def;
+  return programaQueCalza(ramo,def)?.def||null;
 }
 // singularHuella() agrupa reportes y puede dejar palabras feas; acá el nombre
 // se muestra al estudiante. Solo flexionamos vocabulario conocido y dejamos

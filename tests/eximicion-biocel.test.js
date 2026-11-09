@@ -21,6 +21,9 @@ const ctx={
 };
 vm.createContext(ctx);vm.runInContext(src,ctx);
 const run=codigo=>vm.runInContext(codigo,ctx);
+// Biología de la Célula no es coordinado (2026-11-09): su programa es el de las
+// secciones 4 y 5. Acá se prueba ESE programa, como lo cargaría a esa sección.
+run("PRESETS_UC['Biología de la Célula']={...PRESETS_UC['Biología de la Célula'],...PRESETS_UC['Biología de la Célula'].porSeccion[4],coordinado:true};");
 let ok=0,fail=0;
 function chk(nombre,cond){if(cond){ok++;console.log('  OK   '+nombre);}else{fail++;console.log('  FAIL '+nombre);}}
 function cerca(a,b){return typeof a==='number'&&Math.abs(a-b)<0.005;}

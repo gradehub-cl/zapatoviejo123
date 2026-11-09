@@ -159,5 +159,49 @@ assert.equal(evidencia([fila(A, 4)]), false);
   assert.equal(J(run('copiarPautaSugerida')(rD.pautaSugerida)).aceptada.fuente, 'programa', 'y se conserva al guardar');
   assert.equal(J(run('copiarPautaSugerida')({ aceptada: { ...J(rD.pautaSugerida.aceptada), fuente: 'inventada' } })).aceptada.fuente, undefined);
   assert.equal(rD.categorias.find(c => c.nombre === 'Examen').peso, 50);
+
+  // ─── Teológicos y Biología de la Célula: no coordinados (2026-11-09) ───
+  ctx.filasPrueba = [];
+  const ttf = { id: 't', nombre: '¿Quién Es Jesús de Nazareth?', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', categorias: [], gates: [] };
+  run(`S.ramos=${JSON.stringify([ttf])}`);
+  const rT = run('S.ramos[0]');
+  assert.deepEqual(J(run('coordinacionRamo')(rT)), { coordinado: false, fuente: 'programa' });
+  assert.equal(run('presetRamo')(rT.nombre, 'uc', 'ING-PC'), null, 'la pauta del catálogo no se carga sola');
+  assert.equal(run('elegiblePautaSugerida')(rT), true);
+  const deTtf = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rT), rT, []);
+  assert.equal(deTtf.length, 1);
+  assert.equal(deTtf[0].fuente, 'catalogo', 'sin reportes, se ofrece la del catálogo diciendo de dónde sale');
+  assert.match(run('textoReferenciaSugerida')(deTtf[0]), /Pauta publicada para este ramo; puede no ser la de tu sección/);
+  const bio = { id: 'b', nombre: 'Biología de la Célula', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', seccion: 5, categorias: [], gates: [] };
+  run(`S.ramos=${JSON.stringify([bio])}`);
+  const rB = run('S.ramos[0]');
+  const deBio = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rB), rB, []);
+  assert.equal(deBio[0].tuya, 'programa', 'sección 5: su programa primero');
+  assert.equal(run('textoReferenciaSugerida')(deBio[0]), 'Programa oficial de las secciones 4 y 5');
+  rB.seccion = 2;
+  const otraSeccion = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rB), rB, []);
+  assert.equal(otraSeccion[0].tuya, null, 'otra sección: se ofrece, pero no como la suya');
+  // Al agregarlo por nombre conserva sigla y créditos del programa, no del homónimo.
+  run("CURSOS_UC_FULL=[['TEB110','Revelación y Fe',8]];S.ramos=[]");
+  const revelacion = J(run("crearRamoDesdeCatalogo('Revelación y Fe',null)"));
+  assert.equal(revelacion.sigla, 'TTF012');
+  assert.equal(revelacion.creditos, 10);
+  assert.equal(revelacion.categorias.length, 0);
+
+  // ─── Cuentas que ya tenían cargado el programa ───
+  // 62 ramos de Biología de la Célula y 23 de Revelación y Fe tenían el
+  // programa intacto el 2026-11-09. Conservan sus reglas y la ficha dice cuál es.
+  const desdePreset = (nombre, def) => def.map(([n, p, x]) => ({ id: n, nombre: n, peso: p, notas: [], ...(x && x.slots ? { slots: x.slots } : {}) }));
+  const defBio = run("PRESETS_UC['Biología de la Célula']");
+  const conPrograma = { id: 'bp', nombre: 'Biología de la Célula', origen: { tenant: 'uc', carrera: 'ING-PC' }, categorias: desdePreset('', defBio.porSeccion[4].evals), gates: [] };
+  assert.ok(run('definicionPresetDelRamo')(conPrograma)?.eximicion, 'sin sección pero con el programa: conserva la eximición');
+  assert.equal(J(run('programaQueCalza')(conPrograma, defBio)).secciones.join(','), '4,5');
+  const otraPauta = { ...conPrograma, categorias: desdePreset('', [['Interrogaciones', 70, { slots: 3 }], ['Talleres', 30]]) };
+  assert.equal(run('definicionPresetDelRamo')(otraPauta), null, 'otra pauta: no recibe las reglas de otra sección');
+  assert.ok(run('definicionPresetDelRamo')({ ...otraPauta, seccion: 5 })?.eximicion, 'sección 5: las del programa de su sección');
+  const defRev = run("PRESETS_UC['Revelación y Fe']");
+  const rev = { id: 'rv', nombre: 'Revelación y Fe', origen: { tenant: 'uc', carrera: 'ING-PC' }, categorias: desdePreset('', defRev.evalsReferencia), gates: [] };
+  assert.ok((run('definicionPresetDelRamo')(rev)?.noCalcula || []).length > 0, 'Revelación y Fe conserva lo que no se calcula');
+  assert.equal(run('textoReferenciaSugerida')(run('programaQueCalza')(rev, defRev)), 'Pauta publicada para este ramo; puede no ser la de tu sección');
   console.log('distribuciones-pauta: OK');
 })().catch(e => { console.error(e); process.exit(1); });

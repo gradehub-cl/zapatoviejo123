@@ -6,7 +6,10 @@ const ctx = {}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(__dirname + '/../data.js', 'utf8'), ctx);
 const FEN = vm.runInContext('PRESETS_FEN', ctx);
 const UC  = vm.runInContext('PRESETS_UC', ctx);
-const evalsUC = def => Array.isArray(def) ? def : (def.evals || []);
+// Un ramo no coordinado (2026-11-09) guarda lo que publica su programa en
+// `evalsReferencia` (catálogo) o en `porSeccion`: se verifica igual.
+const evalsUC = def => Array.isArray(def) ? def : (def.evals || def.evalsReferencia ||
+  (def.porSeccion && Object.values(def.porSeccion)[0].evals) || []);
 
 let ok = 0, fail = 0;
 const chk = (n, cond) => { if (cond) ok++; else { fail++; console.log('  FAIL ' + n); } };

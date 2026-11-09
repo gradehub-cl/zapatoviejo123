@@ -133,6 +133,13 @@ function catalogRamosUniversidad(tenant,carreraPropia){
     // estudiante en el orden, porque no le corresponde a nadie en particular.
     out.push({nombre,semestre:0,propio:false,sigla,siglaPauta,tienePreset:true});
   });
+  // Un ramo no coordinado con programa publicado (los teológicos, Revelación y
+  // Fe) sigue apareciendo aunque ya no traiga una pauta para todos: sin esta
+  // fila, TTF012 —que no está en cursos-uc.js— desaparecía del buscador. No
+  // promete pauta: la ficha ofrece las que hay (distribuciones-pauta.js).
+  if(tenant==='uc')presetsNoCoordinados(tenant).forEach(nombre=>{
+    out.push({nombre,semestre:0,propio:false,sigla:siglaCatalogoUC(nombre),siglaPauta:siglaDePreset(nombre),tienePreset:false});
+  });
   // Las pautas que cinco o más estudiantes reportaron igual se ofrecen como las
   // del catálogo, diciendo de dónde salen. Si hay una de programa para ese ramo,
   // manda la del programa y esta no entra. En un ramo que no se sabe coordinado
@@ -168,6 +175,16 @@ function catalogRamosUniversidad(tenant,carreraPropia){
 // son del plan común de Ingeniería y no valen para Comercial —"Cálculo I" de
 // Comercial es otro curso—, así que listarlos sin filtrar pondría una estrella
 // de "pauta oficial" sobre un ramo que después se agregaría vacío.
+// Presets de ramos no coordinados sin una pauta para todos: solo datos del
+// ramo (sigla, créditos, programa por sección o del catálogo).
+function presetsNoCoordinados(tenant){
+  const p=PRESETS_POR_TENANT[tenant];
+  if(!p)return [];
+  return Object.keys(p).filter(n=>{
+    const def=p[n];
+    return def&&!Array.isArray(def)&&def.coordinado===false&&!pautaPresetSuficiente(evalsDePreset(def));
+  });
+}
 function presetsFueraDeMalla(tenant,carrera){
   const p=PRESETS_POR_TENANT[tenant];
   if(!p)return [];

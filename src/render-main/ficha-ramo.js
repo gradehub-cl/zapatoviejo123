@@ -340,8 +340,12 @@ function renderRamo(){
     const consenso=r.consensoRespaldos&&(sugerida?intacta:
       (intacta||yaAportada(r,estructuraParaConsenso(estructuraDe(r)))));
     const oficial=pautaOficialIntacta(r);
+    // Ramo no coordinado con la pauta de un programa publicado: se dice cuál,
+    // porque puede no ser el de la sección de la persona.
+    const def=!sugerida&&!consenso&&!oficial&&r.origen?.tenant?pautaOficialDelRamo(r.nombre,r.origen.tenant):null;
+    const publicado=def&&!pautaEditada(r)&&programaQueCalza({...r,seccion:null},def);
     fuente.textContent=consenso?`Pauta por consenso · ${consenso} estudiantes`
-      :sugerida&&intacta?textoProcedenciaSugerida(sugerida):oficial?'Pauta oficial':'';
+      :sugerida&&intacta?textoProcedenciaSugerida(sugerida):oficial?'Pauta oficial':publicado?textoReferenciaSugerida(publicado):'';
     fuente.hidden=!fuente.textContent;
   }
 
