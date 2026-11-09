@@ -41,18 +41,51 @@
 <link rel="apple-touch-icon" href="icon-192.png?v=__ASSET_VERSION__"/>
 
 
-<!-- Datos estructurados para Google -->
+<!-- Datos estructurados para Google y para los asistentes de IA, que leen esto
+     sin correr JS (el resto del HTML es la app, no una descripción). Hay otros
+     productos llamados GradeHub fuera de Chile y los buscadores nos confunden
+     con ellos: por eso la organización, la URL y el país van explícitos. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://gradehub.cl/#organizacion",
+      "name": "GradeHub",
+      "url": "https://gradehub.cl/",
+      "logo": "https://gradehub.cl/icon-512.png",
+      "description": "App chilena de notas para estudiantes universitarios, hecha por estudiantes.",
+      "disambiguatingDescription": "GradeHub de Chile (gradehub.cl). No tiene relación con otros productos llamados GradeHub fuera de Chile.",
+      "areaServed": { "@type": "Country", "name": "Chile" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://gradehub.cl/#sitio",
+      "name": "GradeHub",
+      "url": "https://gradehub.cl/",
+      "inLanguage": "es-CL",
+      "publisher": { "@id": "https://gradehub.cl/#organizacion" }
+    },
+    {
       "@type": "WebApplication",
       "name": "GradeHub",
+      "url": "https://gradehub.cl/",
       "description": "App gratis para estudiantes universitarios chilenos: registra tus ramos, ingresa tus notas, calcula tu promedio ponderado y simula qué nota necesitas para aprobar.",
       "applicationCategory": "EducationalApplication",
       "operatingSystem": "Web, iOS, Android",
       "inLanguage": "es-CL",
+      "isAccessibleForFree": true,
+      "audience": { "@type": "EducationalAudience", "educationalRole": "student" },
+      "featureList": [
+        "Promedio ponderado de cada ramo con su pauta de evaluación",
+        "Qué nota necesitas en lo que queda para aprobar",
+        "Simulador de escenarios de notas",
+        "Promedio general del semestre ponderado por créditos",
+        "Agenda de pruebas y entregas",
+        "Calculadora de nota por puntaje en escala de 1,0 a 7,0"
+      ],
+      "publisher": { "@id": "https://gradehub.cl/#organizacion" },
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CLP" }
     }
   ]
