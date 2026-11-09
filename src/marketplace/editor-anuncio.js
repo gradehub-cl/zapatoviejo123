@@ -454,13 +454,24 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
     if(!pendiente)vistaClasesAlVolver='anuncios';
     await renderEspacioProfesor(raiz,{titulo:raiz.id==='modal-content'});
   };
-  const volver=raiz.querySelector('#pr-volver');
-  if(volver)volver.addEventListener('click',()=>{
+  const pedirSalir=seguir=>{
     if(procesando)return;
-    if(!sinGuardar){salir();return;}
+    if(!sinGuardar||!form.isConnected){seguir();return;}
     showConfirm('¿Salir sin guardar?',admin?'Los cambios que hiciste se pierden. El anuncio queda como estaba.':id?'Los cambios que hiciste desde que guardaste se pierden. Tu borrador queda como estaba.':'Lo que escribiste se pierde.',
-      salir,{label:'Salir sin guardar'});
-  });
+      seguir,{label:'Salir sin guardar'});
+  };
+  const volver=raiz.querySelector('#pr-volver');
+  if(volver)volver.addEventListener('click',()=>pedirSalir(salir));
+  // En la pestaña, Resumen, Anuncios o Perfil de la barra cierran el formulario
+  // (antes quedaba encima de la vista elegida) y preguntan si hay algo sin
+  // guardar; cerrar o recargar la página también avisa (Salva Ramos, 2026-11-07).
+  if(!admin&&raiz.id!=='modal-content'){
+    if(typeof vistasPanelNav!=='undefined')vistasPanelNav.profesor=v=>pedirSalir(async()=>{
+      if(!pendiente)vistaClasesAlVolver=v;
+      await renderEspacioProfesor(raiz,{titulo:false});
+    });
+    if(typeof cambiosSinGuardarNav!=='undefined')cambiosSinGuardarNav=()=>form.isConnected&&sinGuardar;
+  }
   const enviarBoton=form.querySelector('#pr-enviar');
   if(enviarBoton)enviarBoton.addEventListener('click',()=>procesar(true));
 }

@@ -55,6 +55,13 @@ async function alcanceAnuncio(anuncioId){
 async function renderProfesor(){
   const raiz=document.getElementById('profesor-body');
   if(!raiz)return;
+  // Ir a Alumnos y volver no borra un anuncio a medias: si se pidió una vista,
+  // el formulario pregunta antes de cerrarse; si no, sigue donde quedó.
+  if(raiz.querySelector('#profesor-borrador')){
+    const vista=typeof tomarVistaNav==='function'&&tomarVistaNav('profesor');
+    if(vista&&typeof vistasPanelNav!=='undefined'&&typeof vistasPanelNav.profesor==='function')vistasPanelNav.profesor(vista);
+    return;
+  }
   await renderEspacioProfesor(raiz,{titulo:false});
 }
 async function openEspacioProfesor(){

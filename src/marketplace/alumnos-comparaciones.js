@@ -129,8 +129,10 @@ function filtrarAlumnosPanel(alumnos,texto){
   const calza=s=>(claveEvaluacionPanel(s)||'').includes(q);
   return alumnos.map(al=>{
     if(calza(al.nombre_visible))return al;
+    // La sigla sale del catálogo de la universidad del alumno, no de la del
+    // profesor: «Ver alumnos» de Ramos busca por ella (Salva Ramos, 2026-11-07).
     const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
-      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
+      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r,al.tenant))));
     return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
 }
