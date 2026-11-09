@@ -245,3 +245,42 @@ function renderObCourseResults(q){
 // Un evento por paso ALCANZADO. Sin esto solo se sabe cuántos terminaron, no
 // dónde se fue el que no terminó — y "se aburrió eligiendo carrera" y "no
 // encontró sus ramos" se arreglan distinto.
+
+// Compartido por Agregar ramo y el selector de secciones. La elección vive
+// solo durante el formulario; la sección aceptada se guarda en el ramo.
+const seccionesElegidasRamo=new Map();
+function claveEleccionSeccion(nombre,tenant,carrera,sigla){
+  return [typeof currentUser!=='undefined'&&currentUser?.id||'',tenant,carrera,sigla||nombre].join('|');
+}
+function seccionElegidaRamo(nombre,tenant,carrera,sigla){
+  const clave=claveEleccionSeccion(nombre,tenant,carrera,sigla);
+  if(seccionesElegidasRamo.has(clave))return seccionesElegidasRamo.get(clave);
+  const guardado=(S.ramos||[]).find(r=>(r.origen?.tenant||S.tenant)===tenant&&(sigla?String(r.sigla||siglaDeRamo(r,tenant))===sigla:normName(r.nombre)===normName(nombre)));
+  return seccionValida(guardado?.seccion);
+}
+function avisoSinPautaSeccion(nombre,tenant,carrera,seccion){
+  const def=definicionPreset(nombre,tenant,carrera,seccion);
+  if(def?.coordinado!==false||pautaPresetSuficiente(evalsDePreset(def)))return '';
+  return `De ${seccion!=null?'la sección '+seccion:'este ramo sin sección confirmada'} todavía no tenemos la pauta: sus evaluaciones las armas tú.`;
+}
+function selectorSeccionRamoHTML(nombre,tenant,carrera,sigla,id){
+  const def=definicionBasePreset(nombre,tenant,carrera);
+  if(def?.coordinado!==false||sigla&&def.sigla&&sigla!==def.sigla)return '';
+  const periodo=def.periodo||semester();
+  const docentes=PROFESORES_PROPUESTOS[tenant]?.[periodo]?.[sigla||def.sigla]||{};
+  const seleccion=seccionElegidaRamo(nombre,tenant,carrera,sigla);
+  const numeros=Object.keys(docentes).map(Number).filter(n=>seccionValida(n)!=null);
+  if(seleccion!=null&&!numeros.includes(seleccion))numeros.push(seleccion);
+  numeros.sort((a,b)=>a-b);
+  const args=[nombre,tenant,carrera,sigla||''].map(v=>`'${obCodificarNombre(v)}'`).join(',');
+  const opciones=numeros.map(n=>`<option value="${n}"${n===seleccion?' selected':''}>${n}${docentes[n]?' · '+esc(docentes[n]):''}</option>`).join('');
+  const aviso=avisoSinPautaSeccion(nombre,tenant,carrera,seleccion);
+  return `<div class="ramo-seccion-selector"><label for="${id}">Sección</label><select id="${id}" aria-describedby="${id}-aviso" onchange="elegirSeccionRamo(${args},this)">${opciones}<option value=""${seleccion==null?' selected':''}>Otra / no sé</option></select><p id="${id}-aviso"${aviso?'':' hidden'}>${esc(aviso)}</p></div>`;
+}
+function elegirSeccionRamo(nombre,tenant,carrera,sigla,campo){
+  [nombre,tenant,carrera,sigla]=[nombre,tenant,carrera,sigla].map(decodeURIComponent);
+  const seccion=parseSeccion(campo.value)??null;
+  seccionesElegidasRamo.set(claveEleccionSeccion(nombre,tenant,carrera,sigla),seccion);
+  const aviso=document.getElementById(campo.id+'-aviso');
+  if(aviso){aviso.textContent=avisoSinPautaSeccion(nombre,tenant,carrera,seccion);aviso.hidden=!aviso.textContent;}
+}

@@ -4756,6 +4756,15 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .panel-solo-pruebas{display:flex;align-items:center;gap:12px;min-height:44px;margin:12px 0;color:var(--fg);}
 .panel-solo-pruebas input{width:24px;height:24px;accent-color:var(--primary);}
 @media(prefers-reduced-motion:reduce){.panel-solo-pruebas input{transition:none;}}
+/* Pautas por sección: select nativo en contexto, sin selección implícita. */
+.ramo-seccion-selector{padding:0 12px 14px;display:grid;gap:6px;min-width:0;}
+.ramo-seccion-selector label{color:var(--fg2);font-size:.8125rem;}
+.ramo-seccion-selector select{min-height:44px;width:100%;max-width:100%;padding:10px 12px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--card);border:1px solid var(--border);border-radius:8px;}
+.ramo-seccion-selector p{margin:0;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
+#screen-ramo .pauta-seccion-oferta{margin:12px 0;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg2);gap:12px;flex-wrap:wrap;align-items:center;}
+.pauta-seccion-oferta p{margin:0;flex:1 1 12rem;}
+.pauta-seccion-oferta>div{display:flex;gap:8px;flex-wrap:wrap;}
+.pauta-seccion-oferta button{min-width:44px;min-height:44px;white-space:normal;}
 
 /* Directorio: contenido con color propio; controles y superficies Editorial. */
 .directorio-tarjeta{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:24px;width:100%;min-height:208px;padding:24px;border:0;border-radius:8px;background:var(--directorio-color);color:var(--directorio-texto);font-family:var(--font-ui);text-align:left;overflow-wrap:anywhere}

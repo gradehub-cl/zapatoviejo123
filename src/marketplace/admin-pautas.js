@@ -16,7 +16,7 @@ function pautaBancoEstructuraHTML(estructura){
   return `<ul class="pautas-banco-pesos">${evals.map(e=>{const nombre=Array.isArray(e)?e[0]:e.nombre,peso=Array.isArray(e)?e[1]:e.peso;return `<li><span>${esc(nombre)}</span><strong>${esc(peso)}%</strong></li>`;}).join('')}</ul>`;
 }
 function filaPautaBancoHTML(f,i){
-  return `<details class="pautas-banco-fila"><summary><span><strong>${esc(f.sigla)}</strong> ${esc(f.nombre)}</span><span>${pautaBancoEstado(f.estado)}</span></summary>
+  return `<details class="pautas-banco-fila"><summary><span><strong>${esc(f.sigla_ramo||f.sigla)}</strong> ${esc(f.nombre)}${f.noCoordinado?` · ${f.seccion==null?'Sin sección':'Sección '+esc(f.seccion)}`:''}</span><span>${pautaBancoEstado(f.estado)}</span></summary>
     <div class="pautas-banco-detalle"><section><h3>Pauta del catálogo</h3><p>${esc(f.periodo_catalogo||'Período no declarado')}</p>
     ${f.pauta?pautaBancoEstructuraHTML(f.pauta):'<p>Sin pauta en el catálogo.</p>'}
     <p>${esc(f.fuente||'Fuente documental no registrada')}</p>${f.documento_path?`<button type="button" data-pauta-documento="${i}">Abrir programa</button>`:''}
@@ -27,6 +27,36 @@ function filaPautaBancoHTML(f,i){
     <label>Nota del equipo<textarea name="nota" maxlength="4000" rows="3">${esc(f.nota_interna||'')}</textarea></label>
     <label>Programa PDF<input name="documento" type="file" accept="application/pdf,.pdf"></label><p>Hasta 10 MB · privado, sin publicar cambios al catálogo.</p>
     <button type="submit" class="accion-principal">Guardar revisión</button><p role="status" data-pauta-aviso></p></form></div></details>`;
+}
+// El RPC antiguo devuelve reportes bajo la sigla raíz y el nuevo registro trae
+// una pauta por sección. Proyectarlos por sección evita comparar grupos ajenos
+// sin cambiar el RPC ni su contrato de revisiones privadas.
+function pautasBancoPorSeccion(filas,tenant){
+  const salida=[],grupos=new Map(),porSigla=new Map();
+  for(const [nombre,def] of Object.entries(PRESETS_POR_TENANT[tenant]||{}))if(def.coordinado===false&&def.sigla)porSigla.set(def.sigla,{...def,nombre});
+  for(const fila of filas)if(fila.pauta?.coordinado===false&&fila.pauta.sigla&&!porSigla.has(fila.pauta.sigla))porSigla.set(fila.pauta.sigla,{...fila.pauta,nombre:fila.nombre});
+  for(const fila of filas){
+    const base=fila.pauta?.coordinado===false?fila.pauta:
+      porSigla.get(fila.sigla)||definicionBasePreset(fila.nombre,tenant,null);
+    if(base?.coordinado!==false||!base.sigla){salida.push(fila);continue;}
+    const clave=base.sigla;
+    if(!grupos.has(clave))grupos.set(clave,{base,nombre:porSigla.get(clave)?.nombre||fila.nombre,filas:[]});
+    grupos.get(clave).filas.push(fila);
+  }
+  for(const [sigla,{nombre,filas:grupo}] of grupos){
+    const porSeccion=new Map();
+    for(const f of grupo)if(f.pauta?.coordinado===false&&f.sigla.startsWith(sigla+'-')){
+      const seccion=Number(f.sigla.slice(sigla.length+1));
+      porSeccion.set(seccion,{...f,seccion,sigla_ramo:sigla,noCoordinado:true,variantes:[]});
+    }
+    for(const f of grupo)for(const variante of f.variantes||[]){
+      const seccion=seccionValida(variante.seccion);
+      if(!porSeccion.has(seccion))porSeccion.set(seccion,{...f,sigla:seccion==null?sigla:sigla+'-'+seccion,nombre,seccion,sigla_ramo:sigla,noCoordinado:true,pauta:null,periodo_catalogo:null,estado:'sin_pauta',variantes:[]});
+      porSeccion.get(seccion).variantes.push(variante);
+    }
+    salida.push(...porSeccion.values());
+  }
+  return salida;
 }
 async function renderAdminPautas(caja){
   if(!caja||caja.dataset.pautasLista)return;
@@ -41,11 +71,12 @@ async function renderAdminPautas(caja){
       const {data,error}=await supabaseClient.rpc('admin_pautas_banco',{p_tenant:tenant,p_periodo:periodo,p_busqueda:filtros.elements.buscar.value.trim()});
       if(esta!==peticion||caja.isConnected===false)return;
       if(error)throw error;
-      const filas=Array.isArray(data)?data:[];
+      const filas=pautasBancoPorSeccion(Array.isArray(data)?data:[],tenant);
       resultados.innerHTML=filas.length?filas.map(filaPautaBancoHTML).join(''):'No encontramos pautas para esa búsqueda.';
       resultados.querySelectorAll('.pautas-banco-fila').forEach((detalle,i)=>detalle.addEventListener('toggle',async()=>{
         if(!detalle.open||detalle.dataset.discrepanciasCargadas)return;
         const f=filas[i],destino=detalle.querySelector('[data-pauta-discrepancias]');detalle.dataset.discrepanciasCargadas='1';
+        if(f.noCoordinado){destino.textContent='Los reportes de arriba corresponden solo a esta sección. La comparación con el portal todavía no distingue secciones y no se mezcla aquí.';return;}
         try{
           const {data,error}=await supabaseClient.rpc('admin_discrepancias_pauta',{p_tenant:tenant,p_sigla:f.sigla,p_periodo:periodo});
           if(error)throw error;

@@ -135,7 +135,7 @@ function aplicarHorarioBuscacursos(){
   let puestos=0,actualizados=0;
   marcados.forEach(r=>{
     if(ramoPropuestoYaEsta(r))return;
-    const creado=crearRamoDesdeCatalogo(r.nombre,r.sigla);
+    const creado=crearRamoDesdeCatalogo(r.nombre,r.sigla,r.seccion);
     if(!creado)return;
     if(r.seccion!=null)creado.seccion=r.seccion;
     puestos++;
@@ -147,7 +147,9 @@ function aplicarHorarioBuscacursos(){
     if(!ramo||ramoConSigla(r.sigla)!==ramo)return;
     const seccion=seccionValida(r.seccion);
     if(seccion===null||ramo.seccion===seccion)return;
-    ramo.seccion=seccion;actualizados++;
+    ramo.seccion=seccion;
+    cargarPautaSeccionVacia(ramo,{tenant:S.tenant,carrera:S.carrera});
+    actualizados++;
   });
   if(!puestos&&!actualizados){showToast('Ya tienes esos ramos en tu semestre',true);return false;}
   save();

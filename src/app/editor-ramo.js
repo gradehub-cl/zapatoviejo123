@@ -59,10 +59,11 @@ function confirmEditRamo(){
   guardarExclusionPromedio(r,'m-ramo-promedio');
   r.nombre=name;r.color=modalColor;
   r.creditos=parseCreditos((document.getElementById('m-ramo-creditos')||{}).value);
+  const cambioSeccion=r.seccion!==seccion;
   r.seccion=seccion;
   // Las fechas de la sección (los controles de Dinámica, por ejemplo) se
   // ven al tiro, sin esperar a la próxima carga.
-  completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});
+  completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera,soloFechas:!cambioSeccion});
   // Apagarlo no borra la cuenta: si se vuelve a encender, sigue donde estaba.
   if(conFaltas)r.faltas={activo:true,cantidad:r.faltas?r.faltas.cantidad:0,limite:limiteFaltas};
   else if(r.faltas)r.faltas={...r.faltas,activo:false};
