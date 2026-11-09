@@ -4462,6 +4462,10 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-agenda .ag-order-option:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 #screen-agenda .ag-order-option::after{display:none;}
 #screen-agenda .ag-priority-stack{container:agenda-prioridades / inline-size;gap:12px;}
+/* Sola, la prioridad también ocupa el ancho: el tope de 306px era de cuando
+   iban dos lado a lado, y con la grilla de 42rem dejaba su columna en 0 y el
+   texto caía letra por letra (Salva Ramos, 2026-11-07). */
+#screen-agenda .ag-event-priority:only-child{max-width:none;}
 #screen-agenda .ag-priority-card{width:100%;min-height:0;padding:22px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:none;transform:none;}
 #screen-agenda .ag-event-priority-sec>.ag-priority-card{padding:18px 22px;border-radius:20px;}
 #screen-agenda .ag-priority-rank{display:block;margin:0 0 12px;color:var(--fg2);font-size:.6875rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;}
