@@ -1261,8 +1261,8 @@ const PRESETS_UC={
   // Ética para Ingeniería · ETI188 · syllabus 2026-2 de la sección 4 (Constanza
   // Guajardo). BuscaCursos da otros profesores en las secciones 2 y 3, y la 1,
   // aunque es de la misma profesora, no tiene syllabus recibido: por eso va en
-  // `porSeccion` y no se copia a otra. Falta que alguien confirme que el ramo
-  // no es coordinado.
+  // `porSeccion` y no se copia a otra. No coordinado: confirmado por Martín
+  // el 2026-11-09.
   // NP = 35% Prueba 1 + 35% Prueba 2 + 30% Trabajo final, y con examen
   // NF = 70% NP + 30% Examen. Los pesos son ese producto exacto; al eximirse,
   // repondera sobre el 70% y vuelve a dar 35/35/30. Trabajo final no lleva
