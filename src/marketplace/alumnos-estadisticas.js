@@ -83,7 +83,7 @@ function tarjetasEstHTML(r,metodo){
   return `<div class="est-tarjetas">
     <div class="est-tarjeta"><h3>Evaluaciones aprobadas</h3>${barraParalelaEstHTML(sin,r.antes.aprobacion,porcentajePanel(r.antes.aprobacion))}${barraParalelaEstHTML(con,r.ahora.aprobacion,porcentajePanel(r.ahora.aprobacion),true)}</div>
     <div class="est-tarjeta"><h3>Promedio de notas</h3>${barraParalelaEstHTML(sin,nota(r.antes.promedio),prom(r.antes.promedio))}${barraParalelaEstHTML(con,nota(r.ahora.promedio),prom(r.ahora.promedio),true)}</div>
-    <button type="button" class="est-tarjeta est-tarjeta-boton" data-est-tab="sin"><h3>Por completar</h3><span class="est-tarjeta-cifra">${r.sin}<small>de ${r.lista.length}</small></span><span class="est-tarjeta-accion">${metodo==='manual'?'Marcar evaluaciones o pedir notas':'Ver a quiénes les faltan notas'} ›</span></button>
+    <button type="button" class="est-tarjeta est-tarjeta-boton" data-est-tab="sin"><h3>Por completar</h3><span class="est-tarjeta-cifra">${r.sin}<small>de ${r.lista.length}</small></span><span class="est-tarjeta-accion">${metodo==='manual'?'Ver a quiénes les faltan marcas o notas':'Ver a quiénes les faltan notas'} ›</span></button>
   </div>`;
 }
 function ramosEstHTML(datos,estado){
@@ -167,7 +167,7 @@ function estadisticasAlumnosHTML(datos,estado,{seccion=false,sinSeccion=0,soloPr
     </div>
     <section class="est-tarjeta-grande est-lista" aria-label="Alumnos por ramo">
       <div class="est-lista-cabeza"><div class="est-tabs">${tabs.map(([id,t,c])=>`<button type="button" data-est-tab="${id}" aria-pressed="${estado.tab===id}">${t}<span>${c}</span></button>`).join('')}</div>
-        <input type="search" class="est-buscar" data-est-buscar placeholder="Buscar alumno" aria-label="Buscar alumno o ramo" value="${esc(estado.texto)}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>
+        <input type="search" class="est-buscar" data-est-buscar placeholder="Buscar alumno o ramo" aria-label="Buscar alumno o ramo" value="${esc(estado.texto)}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"></div>
       <div class="est-columnas" aria-hidden="true"><span class="est-leyenda"><span>○ ${sin}</span><span>● ${con}</span><span class="est-leyenda-ref">│ ${escala[1]}</span></span><span class="est-escala"><span>${escala[0]}</span><span>${escala[1]}</span><span>${escala[2]}</span></span><span class="est-columna-dif">${metodo==='manual'?'Diferencia':'Cambio'}</span><span></span></div>
       <div id="est-filas">${filasEstadisticasHTML(datos,estado,{seccion})}</div>
     </section>

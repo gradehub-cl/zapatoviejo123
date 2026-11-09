@@ -108,7 +108,51 @@ function rpcEjemploPanel(datos,nombre,a={}){
     if(a.p_marcas===null)delete datos.marcas[al.id+'|'+a.p_ramo];else datos.marcas[al.id+'|'+a.p_ramo]=a.p_marcas.map(m=>({...m,huerfana:false}));
     return ok({ramos:preparacionEjemploPanel(datos,al,a.p_ramo)});
   }
+  if(nombre==='grupos_parecidos_profesor'){const data=gruposParecidosEjemploPanel(datos,a);
+    return Promise.resolve(data?{data,error:null}:{data:null,error:{message:'evaluación de partida no disponible'}});}
   return Promise.resolve({data:null,error:{message:'sin respuesta en el ejemplo'}});
+}
+// «Alumnos que partieron igual» con la misma cuenta que grupos_parecidos_profesor:
+// sin esto el ejemplo respondía «No pudimos comparar el grupo» (Salva Ramos,
+// 2026-11-07). Una persona por ramo; los compañeros inventados son el control.
+function gruposParecidosEjemploPanel(datos,a){
+  const al=datos.alumnos.find(x=>x.id===a.p_id),r=al&&al.ramos.find(x=>x.id===a.p_ramo);
+  const notasDe=ramo=>(ramo.categorias||[]).flatMap(c=>c.notas||[]).filter(n=>n.fecha&&Number.isFinite(n.valor));
+  const base=r&&notasDe(r).find(n=>n.id===a.p_nota_base);if(!base)return null;
+  const sigla=claveRamoCurso(r,'uc'),k=claveEvaluacionPanel(base.nombre),dentro=v=>v>=a.p_min&&v<=a.p_max;
+  const todas=[...datos.curso.map(ramo=>({ramo,al:null})),...datos.alumnos.flatMap(x=>x.ramos.map(ramo=>({ramo,al:x})))]
+    .filter(p=>claveRamoCurso(p.ramo,'uc')===sigla)
+    .flatMap(p=>notasDe(p.ramo).map(n=>({p,n,clave:claveEvaluacionPanel(n.nombre)})));
+  // ponytail: percentil O(n²) sobre ~40 compañeros por ramo; basta para un ejemplo.
+  const percentil=x=>{const xs=todas.filter(y=>y.clave===x.clave);
+    const bajo=xs.filter(y=>y.n.valor<x.n.valor).length,igual=xs.filter(y=>y.n.valor===x.n.valor).length;
+    return 100*(bajo+igual/2)/xs.length;};
+  const bases=new Map(todas.filter(x=>x.clave===k&&dentro(x.n.valor)).map(x=>[x.p,x]));
+  const metodo=p=>datos.marcas&&datos.marcas[p.al.id+'|'+p.ramo.id]?'manual':'fecha';
+  const preparada=x=>{
+    if(!x.p.al)return false;
+    const marcas=datos.marcas&&datos.marcas[x.p.al.id+'|'+x.p.ramo.id];
+    if(marcas)return marcas.some(m=>m.nota_id===x.n.id&&!m.huerfana);
+    return x.n.fecha>=(x.p.al.inicio_ramos[x.p.ramo.id]||x.p.al.inicio||String(x.p.al.desde).slice(0,10));
+  };
+  const posteriores=todas.filter(x=>x.clave!==k&&bases.has(x.p)&&x.n.fecha>bases.get(x.p).n.fecha)
+    .map(x=>({...x,preparada:preparada(x),control:!x.p.al}));
+  const comunes=new Set(posteriores.map(x=>x.clave).filter(c=>{const xs=posteriores.filter(x=>x.clave===c);
+    const control=new Set(xs.filter(x=>x.control).map(x=>x.p));
+    return control.size>=PISO_PERSONAS_EJEMPLO&&xs.some(x=>x.preparada);}));
+  const grupos={propios:new Map(),gradehub:new Map()};
+  posteriores.filter(x=>comunes.has(x.clave)&&(x.preparada||x.control)).forEach(x=>{
+    const m=grupos[x.preparada?'propios':'gradehub'],b=bases.get(x.p);
+    if(!m.has(x.p))m.set(x.p,{inicial:b.n.valor,pInicial:percentil(b),valores:[],percentiles:[]});
+    m.get(x.p).valores.push(x.n.valor);m.get(x.p).percentiles.push(percentil(x));
+  });
+  const media=xs=>xs.reduce((s,v)=>s+v,0)/xs.length,red=(v,d)=>Math.round(v*10**d)/10**d;
+  const resumen=m=>{const fs=[...m.values()].map(f=>({...f,posterior:media(f.valores),pPosterior:media(f.percentiles)}));
+    return {n:fs.length,inicial:red(media(fs.map(f=>f.inicial)),2),posterior:red(media(fs.map(f=>f.posterior)),2),
+      cambio:red(media(fs.map(f=>f.posterior-f.inicial)),2),percentil_inicial:red(media(fs.map(f=>f.pInicial)),1),
+      percentil_posterior:red(media(fs.map(f=>f.pPosterior)),1),cambio_percentil:red(media(fs.map(f=>f.pPosterior-f.pInicial)),1)};};
+  if(!grupos.propios.size||grupos.gradehub.size<PISO_PERSONAS_EJEMPLO)return {disponible:false};
+  return {disponible:true,propios:resumen(grupos.propios),gradehub:resumen(grupos.gradehub),metodos:[...new Set([...grupos.propios.keys()].map(metodo))]};
 }
 // Se pregunta en cada carga, así un administrador lo prende o lo apaga y se
 // nota al volver a la pestaña. Los alumnos inventados se guardan por cuenta
