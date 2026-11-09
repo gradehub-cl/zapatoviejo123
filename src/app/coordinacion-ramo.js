@@ -33,8 +33,8 @@ function pautaOficialDelRamo(nombre,tenant){
 
 // Nombre, sigla y créditos de un ramo no coordinado sin pauta para todos.
 // Con sigla, solo si es la del programa: nunca los datos de un homónimo.
-function datosRamoNoCoordinado(nombre,sigla){
-  const tenant=S.tenant,presets=PRESETS_POR_TENANT[tenant];
+function datosRamoNoCoordinado(nombre,sigla,tenant=S.tenant){
+  const presets=PRESETS_POR_TENANT[tenant];
   if(!presets)return null;
   const clave=claveCatalogo(nombre,Object.keys(presets),tenant),def=clave&&presets[clave];
   if(!def||Array.isArray(def)||def.coordinado!==false||pautaPresetSuficiente(evalsDePreset(def)))return null;
