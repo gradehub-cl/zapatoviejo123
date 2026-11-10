@@ -109,3 +109,55 @@ check('el recado: video de un profe bien calificado, aviso a quien no calificó 
 check('cifraWrapped escribe con coma y conserva el signo',()=>{
   assert.match(run('cifraWrapped("+0.3")'),/>\+0,3<\/span>/);
 });
+check('volver por Anterior, flecha, toque o índice repite la introducción y la revelación',()=>{
+  const nodos=new Map(),eventos=new Map(),ov=el();
+  ov.addEventListener=(tipo,fn)=>eventos.set(tipo,fn);
+  ov.querySelector=selector=>{
+    if(!nodos.has(selector))nodos.set(selector,{...el(),hidden:true,getBoundingClientRect:()=>({left:0,width:300})});
+    return nodos.get(selector);
+  };
+  ctx.document.createElement=()=>ov;
+  ctx.document.body.children=[];
+  ctx.DOMParser=class{
+    parseFromString(html){return {body:{textContent:html.replace(/<[^>]*>/g,'')}};}
+  };
+  ctx.document.visibilityState='hidden'; // El reloj no avanza durante la prueba.
+  const click=(selector,dataset={},clientX=0)=>eventos.get('click')({
+    target:{closest:s=>s===selector?{dataset}:null},clientX
+  });
+  const boton=paso=>click('[data-paso]',{paso:String(paso)});
+  const caja=ov.querySelector('.wrapped-slide');
+  run(`montarWrapped([
+    {prep:{texto:'La introducción de prueba'},titulo:'El dato de prueba',big:'6,3'},
+    {titulo:'Otra historia'}
+  ],{vistaPrevia:true})`);
+  try{
+    const comprobarHistoria=()=>{
+      assert.equal(caja.dataset.fase,'prep');
+      assert.match(caja.innerHTML,/La introducción de prueba/);
+      assert.doesNotMatch(caja.innerHTML,/El dato de prueba/);
+      boton(1);
+      assert.equal(caja.dataset.fase,'revela');
+      assert.match(caja.innerHTML,/El dato de prueba/);
+      assert.match(caja.innerHTML,/6,3/);
+    };
+    comprobarHistoria();
+    for(const volver of [
+      ()=>boton(-1),
+      ()=>run('teclaWrapped({key:"ArrowLeft"})'),
+      ()=>click('.wrapped-slide',{},15),
+      ()=>{click('.wrapped-indice-btn');click('[data-ir]',{ir:'0'});}
+    ]){
+      boton(1);
+      assert.match(caja.innerHTML,/Otra historia/);
+      volver();
+      comprobarHistoria();
+    }
+  }finally{
+    run('cerrarWrapped(true)');
+    ctx.document.createElement=el;
+    delete ctx.document.visibilityState;
+    delete ctx.document.body.children;
+    delete ctx.DOMParser;
+  }
+});
