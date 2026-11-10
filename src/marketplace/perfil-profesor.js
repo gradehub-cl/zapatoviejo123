@@ -230,6 +230,13 @@ async function quitarFlyerClase(anuncioId){
   }catch(e){return {ok:false,error:'No pudimos quitar el flyer. Intenta de nuevo.'};}
 }
 
+function telefonoPerfilEscrito(valor){
+  return /^\s*\+?[\d\s().-]*$/.test(valor);
+}
+function whatsappValidoPerfil(valor){
+  return telefonoPerfilEscrito(valor)&&whatsappChilenoCompleto(valor);
+}
+
 // El contacto es explícito del perfil; nunca se toma el correo de la cuenta.
 function validarPerfilDirectorio(e){
   const error=(campo,error)=>({ok:false,campo,error});
@@ -245,7 +252,7 @@ function validarPerfilDirectorio(e){
     return error('universidades','Elige dónde ofreces apoyo para aparecer en el directorio.');
   const tipo=String(e.contacto_tipo||''),valor=String(e.contacto_valor||'').trim();
   if(tipo||valor){
-    if(tipo==='whatsapp'&&!whatsappChilenoCompleto(valor))return error('contacto',ERROR_WHATSAPP_CHILE);
+    if(tipo==='whatsapp'&&!whatsappValidoPerfil(valor))return error('contacto',ERROR_WHATSAPP_CHILE);
     if(!['whatsapp','instagram','email'].includes(tipo)||!valor||valor.length>160||valor.length<3||!enlaceContactoClase(tipo,valor))
       return error('contacto','Revisa el contacto: usa WhatsApp, Instagram o email.');
   }

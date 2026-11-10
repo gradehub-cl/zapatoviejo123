@@ -5604,8 +5604,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe .profesor-linea-opcion input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;}
 .pfe .profesor-linea-opcion:has(input:checked){background:color-mix(in srgb,var(--primary) 14%,var(--card));color:var(--fg);font-weight:550;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 40%,transparent);}
 .pfe .profesor-linea-opcion:has(input:focus-visible),.pfe-canal:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px;}
+.pfe-contacto{container-type:inline-size;}
 .pfe-canales{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
 .pfe-canal{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:8px 4px;border-radius:14px;background:var(--pfe-tile);color:var(--fg2);font-size:.8125rem;cursor:pointer;}
+.pfe-canal span{max-width:100%;text-align:center;overflow-wrap:anywhere;}
 .pfe-canal input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;}
 .pfe-canal .perfil-contacto-icono{width:22px;height:22px;}
 .pfe-canal:has(input:checked){background:color-mix(in srgb,var(--primary) 14%,var(--card));color:var(--fg);font-weight:550;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 40%,transparent);}
@@ -5613,7 +5615,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe-campo .perfil-contacto-icono{position:absolute;left:14px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--fg3);pointer-events:none;}
 .profesor-form .pfe-campo input{width:100%;padding-left:42px;}
 .pfe [data-pf-contacto-caja][hidden],.pfe [data-pf-instagram][hidden]{display:none;}
-.pfe .directorio-error:empty{display:none;}
+.pfe .directorio-error:empty,.pfe [data-perfil-logo] .profesor-estado:empty{display:none;}
+.pfe .profesor-ramos-resultados li{min-height:44px;align-items:center;flex-wrap:wrap;column-gap:10px;row-gap:2px;overflow-wrap:anywhere;}
+.pfe .profesor-ramos-resultados li[aria-selected="true"]{background:var(--muted);outline:2px solid var(--primary);outline-offset:-2px;}
 .pfe .profesor-logo-acciones :is(.btn-cancel,.profesor-logo-subir){flex:none;min-height:44px;padding:0 14px;border:0;border-radius:12px;background:var(--pfe-tile);color:var(--fg);font-size:.875rem;font-weight:550;}
 .pfe-colores{display:flex;flex-wrap:wrap;gap:8px;}
 .pfe .pfe-color{position:relative;box-sizing:border-box;width:44px;height:44px;min-width:44px;padding:0;border:0;border-radius:50%;background:var(--pfe-color);cursor:pointer;}
@@ -5649,6 +5653,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .pfe{grid-template-columns:minmax(0,1fr);}
   .pfe-previa{position:static;}
   .pfe-ficha{max-height:none;}
+}
+@container (max-width:20rem){
+  .pfe-canales{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 
  /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
