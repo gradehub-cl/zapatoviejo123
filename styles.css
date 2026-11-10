@@ -1180,11 +1180,6 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .pauta-total-barra{height:4px;margin-top:8px;border-radius:2px;background:color-mix(in srgb,var(--fg),transparent 88%);overflow:hidden;}
 .pauta-total-barra i{display:block;height:100%;background:var(--primary);transform-origin:left;transition:transform var(--motion-base) var(--ease-standard);}
 /* Pauta sugerida en la ficha de un ramo vacío. */
-#screen-ramo .pauta-procedencia{
-  width:fit-content;max-width:100%;margin:0 20px .75rem;padding:.35rem .65rem;
-  border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:.8125rem;
-}
-#screen-ramo .pauta-procedencia:not([hidden]){display:block;}
 #screen-ramo .pauta-sugerida{
   margin:0 20px 1rem;padding:1rem;border:1px solid var(--border);border-radius:12px;
   color:var(--fg);font:inherit;

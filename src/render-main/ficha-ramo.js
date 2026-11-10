@@ -172,16 +172,6 @@ function renderRamo(){
   document.getElementById('ramo-peso-contexto').textContent=categoriasVisibles.length===0
     ?'Agrega evaluaciones para comenzar':Math.abs(tp-100)>0.001?`${r2(tp)}% ponderado`:'';
   renderDocenteRamo(r);
-  const periodoEl=document.getElementById('pauta-periodo');
-  if(periodoEl){
-    const info=infoPeriodoPauta(r);
-    if(!info||!info.periodo){periodoEl.style.display='none';periodoEl.innerHTML='';}
-    else{
-      periodoEl.className='pauta-periodo';
-      periodoEl.innerHTML=`<span>Pauta del ${esc(info.periodo)}</span>`;
-      periodoEl.style.display='inline-flex';
-    }
-  }
 
   // Notas que un agente propuso para ESTE ramo. Van acá y no en una bandeja
   // aparte porque la decisión se toma mirando el ramo: qué evaluación es, qué
@@ -333,16 +323,25 @@ function renderRamo(){
     pw.style.display='flex';pw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div>Las evaluaciones suman <b>${r2(tp)}%</b> — ajústalas para que sumen 100%</div>`;
   } else {pw.style.display='none';}
 
-  const fuente=document.getElementById('pauta-procedencia');
-  if(fuente){
+  // El origen de la pauta se dice en un solo lugar: la etiqueta del período.
+  // Si viene de estudiantes se dice eso; si no, solo «Pauta del 2026-2», sin
+  // rotular «oficial» (Lucas, 2026-11-10).
+  const periodoEl=document.getElementById('pauta-periodo');
+  if(periodoEl){
     const sugerida=r.pautaSugerida?.aceptada;
     const intacta=!pautaEditada(r);
     const consenso=r.consensoRespaldos&&(sugerida?intacta:
       (intacta||yaAportada(r,estructuraParaConsenso(estructuraDe(r)))));
-    const oficial=pautaOficialIntacta(r);
-    fuente.textContent=consenso?`Pauta por consenso · ${consenso} estudiantes`
-      :sugerida&&intacta?textoPautaSugerida(sugerida.respaldos):oficial?'Pauta oficial':'';
-    fuente.hidden=!fuente.textContent;
+    const info=infoPeriodoPauta(r);
+    const texto=consenso?`Pauta por consenso · ${consenso} estudiantes`
+      :sugerida&&intacta?textoPautaSugerida(sugerida.respaldos)
+      :info&&info.periodo?`Pauta del ${esc(info.periodo)}`:'';
+    if(!texto){periodoEl.style.display='none';periodoEl.innerHTML='';}
+    else{
+      periodoEl.className='pauta-periodo';
+      periodoEl.innerHTML=`<span>${texto}</span>`;
+      periodoEl.style.display='inline-flex';
+    }
   }
 
   // La pauta oficial cambió y este ramo sigue con la vieja. No se toca nada sin
