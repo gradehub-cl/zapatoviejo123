@@ -63,7 +63,8 @@ chk('la cifra que cuenta termina en el texto que formateó la app',/data-hasta="
 chk('VoiceOver lee la cifra final, no el conteo',/aria-hidden="true"/.test(cifra)&&/class="wrapped-oculto">5,6</.test(cifra));
 chk('un porcentaje cuenta con su signo',/data-suf="%"/.test(run('cifraWrapped("84%")')));
 const todas=JSON.stringify(run('slidesWrapped(datosWrapped(__ramos),{curso:{ramo:"Micro",mejorQue:84,total:26},uni:{total:121,mejorQue:71}},"2026-2")'));
-chk('promedio con arco, estrella con ranking y comparaciones con regla',/wrapped-arco/.test(todas)&&/wrapped-ranking/.test(todas)&&(todas.match(/wrapped-regla/g)||[]).length===2);
+// Una sola comparación: la del curso si existe; la de la universidad si no (2026-11-07).
+chk('promedio con arco, estrella con ranking y una comparación con regla',/wrapped-arco/.test(todas)&&/wrapped-ranking/.test(todas)&&(todas.match(/wrapped-regla/g)||[]).length===1);
 chk('el arco no usa colores del semáforo',!/var\(--(green|yellow|red)/.test(run('arcoWrapped(3.2)')));
 
 // HIG, Accessibility: un gesto necesita una alternativa, y el texto tiene que
