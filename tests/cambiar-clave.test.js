@@ -43,7 +43,8 @@ const estado=kit=>kit.ids['s-account-pass-status'].textContent;
   const {ctx}=arnes(()=>({error:null}));
   chk('cuenta con correo y contraseña', ctx.cuentaConClave({app_metadata:{provider:'email',providers:['email']}}));
   chk('cuenta de Google: no tiene contraseña que cambiar', !ctx.cuentaConClave({app_metadata:{provider:'google',providers:['google']}}));
-  chk('cuenta con las dos', ctx.cuentaConClave({app_metadata:{provider:'google',providers:['google','email']}}));
+  chk('nació con Google y después sumó correo: no se ofrece', !ctx.cuentaConClave({app_metadata:{provider:'google',providers:['google','email']}}));
+  chk('nació con correo y después sumó Google: se ofrece', ctx.cuentaConClave({app_metadata:{provider:'email',providers:['email','google']}}));
   chk('sin metadatos, no se ofrece', !ctx.cuentaConClave({}));
   chk('Ajustes la muestra solo con sesión y cuenta con clave',
     /currentUser&&conClave\?`[\s\S]{0,1600}id="s-account-pass"/.test(app));
@@ -58,6 +59,10 @@ const estado=kit=>kit.ids['s-account-pass-status'].textContent;
   kit=arnes(()=>({error:null}));
   llenar(kit,'clave1234','clave12345');
   chk('las dos tienen que coincidir', await kit.ctx.cambiarClaveCuenta()===false&&kit.llamadas.length===0&&/no coinciden/.test(estado(kit)));
+  kit=arnes(()=>({error:null}));
+  kit.ctx.currentUser={id:'u3',email:'google@ejemplo.test',app_metadata:{provider:'google',providers:['google','email']}};
+  llenar(kit,'clave1234','clave1234');
+  chk('cuenta que nació con Google: no llama a Supabase aunque se invoque directo', await kit.ctx.cambiarClaveCuenta()===false&&kit.llamadas.length===0&&/Google/.test(estado(kit)));
 
   console.log('\n=== Guardar ===');
   kit=arnes(()=>({data:{user:{id:'u1'}},error:null}));
