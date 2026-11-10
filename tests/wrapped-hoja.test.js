@@ -88,15 +88,23 @@ check('un semestre con un ramo reprobado trae ánimo y no compara hacia abajo',(
   const bueno=run('slidesWrapped(extrasWrapped(datosWrapped([S.ramos[0]]),[S.ramos[0]],true),{curso:{ramo:"A",mejorQue:80,total:30}},"2026-2")');
   assert.ok(!bueno.some(x=>x.tipo==='animo'));assert.ok(bueno.some(x=>/wrapped-regla/.test(x.viz||'')));
 });
-check('el video del profe sale solo si está cargado; en la vista previa, su espacio',()=>{
+check('el recado: video de un profe bien calificado, aviso a quien no calificó y nada si no hay datos',()=>{
   datos([ramo('A',[nota('a1',5.5,'2026-09-01')])]);
-  assert.ok(!run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2")').some(x=>x.tipo==='video'));
-  run('_wrappedVistaPreviaArmando=true');
-  const v=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2")').find(x=>x.tipo==='video');
-  run('_wrappedVistaPreviaArmando=false');
-  assert.ok(v);assert.equal(v.video,null);assert.match(run('videoWrapped(null)'),/Aquí va el video del profe/);
-  assert.match(run('videoWrapped({src:"/wrapped/p.mp4",subtitulos:"/wrapped/p.vtt",quien:"Profe <b>"})'),/<track kind="captions"[^>]*>.*Profe &lt;b&gt;/s);
-  assert.doesNotMatch(run('videoWrapped({src:"/wrapped/p.mp4",quien:"P"})'),/autoplay/);
+  run("S.ramos[0].seccion=3");
+  const armar=r=>{ctx.__rec=r;return run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2",__rec)');};
+  for(const r of [null,undefined,{calificaciones:2,video:null}])assert.ok(!armar(r).some(x=>x.tipo==='video'),JSON.stringify(r));
+  const con=armar({calificaciones:1,video:{src:'https://ejemplo.invalid/v.mp4',quien:'Profe <b>',ramo:'Ramo A'}});
+  const v=con.find(x=>x.tipo==='video');assert.equal(v.k,'Un recado de Profe &lt;b&gt;');assert.ok(!v.sinCalificar);
+  assert.ok(con.some(x=>x.k==='Antes de cerrar'),'quien ya calificó igual puede calificar a otro profe');
+  const sin=armar({calificaciones:0,video:null});
+  const aviso=sin.find(x=>x.tipo==='video');
+  assert.ok(aviso.sinCalificar);assert.match(aviso.sub,/no calificaste a ninguno/);assert.equal(aviso.accion.texto,'Calificar a mis profes');
+  assert.ok(!sin.some(x=>x.k==='Antes de cerrar'),'la invitación a calificar va una sola vez');
+  assert.match(run('videoWrapped(null,true)'),/hoja-video-signo/);
+  assert.match(run('videoWrapped({src:null,quien:"tu profe"})'),/Aquí va el video del profe/);
+  assert.match(run('videoWrapped({src:"https://ejemplo.invalid/p.mp4",subtitulos:"https://ejemplo.invalid/p.vtt",quien:"Profe <b>"})'),/<track kind="captions"[^>]*>.*Profe &lt;b&gt;/s);
+  assert.doesNotMatch(run('videoWrapped({src:"https://ejemplo.invalid/p.mp4",quien:"P"})'),/autoplay/);
+  assert.match(fs.readFileSync(raiz+'_headers','utf8'),/media-src 'self' https:\/\/lsulsnswzesyekpsvlql\.supabase\.co;/);
 });
 check('cifraWrapped escribe con coma y conserva el signo',()=>{
   assert.match(run('cifraWrapped("+0.3")'),/>\+0,3<\/span>/);
