@@ -37,7 +37,7 @@ function atencionAdminHTML(profesores,ahora,conProgramas=false){
     [r.revision,pl(r.revision,'anuncio por revisar','anuncios por revisar'),'anuncios:revision'],
     [porCobrar,pl(porCobrar,'campaña por cobrar','campañas por cobrar'),'anuncios:cobros'],
     [r.deuda,`${pesosClase(r.deuda)} en deuda`,'anuncios:cobros','adm-pendiente-deuda']].filter(i=>i[0]>0);
-  const programas=conProgramas?'<button type="button" class="adm-pendiente adm-pendiente-quieto" data-admin-ir="usuarios">Programas reportados</button>':'';
+  const programas=conProgramas?'<button type="button" class="adm-pendiente adm-pendiente-quieto" data-admin-ir="usuarios">Reportes de programa anteriores</button>':'';
   return items.length||programas?`<div class="adm-atencion" aria-label="Pendientes">${items.map(([,texto,ir,clase])=>`<button type="button" class="adm-pendiente${clase?' '+clase:''}" data-admin-ir="${ir}"><i aria-hidden="true"></i>${esc(texto)}</button>`).join('')}${programas}</div>`:'';
 }
 // puntos: [{eje, lectura, valor, tenue}] de lo antiguo a lo nuevo. La columna
@@ -232,7 +232,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
         <p class="admin-hig-nota">Vista previa con un semestre de ejemplo. Abre para todos el 1 de diciembre; nadie más ve este botón.</p>
         <button type="button" class="clase-accion" onclick="abrirWrappedVistaPrevia()">Ver el Wrapped</button></section>
       <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>
-      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa"><h3>Programas reportados</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
+      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa anteriores"><h3>Reportes de programa anteriores</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
   </div>`;
 }
 
@@ -277,18 +277,18 @@ async function pintarReportesProgramaAdmin(raiz){
     const {data,error}=await supabaseClient.rpc('admin_reportes_programa');
     if(!caja.isConnected)return;
     if(error){
-      caja.innerHTML='<h3>Programas reportados</h3><p class="profesor-info" role="alert">'+
+      caja.innerHTML='<h3>Reportes de programa anteriores</h3><p class="profesor-info" role="alert">'+
         (sqlClasesDesactualizado(error)?'La bandeja estará disponible cuando se aplique su SQL.':'No pudimos cargar los reportes. Actualiza para intentar de nuevo.')+'</p>';
       return;
     }
     const filas=Array.isArray(data)?data:[];
-    caja.innerHTML=`<h3>Programas reportados · ${filas.length}</h3>`+
-      (filas.length?`<div class="admin-hig-lista">${filas.map(f=>`<article class="admin-revision">
+    caja.innerHTML=`<h3>Reportes de programa anteriores</h3>`+
+      (filas.length?`<p class="admin-hig-nota">${filas.length} ${filas.length===1?'reporte':'reportes'} del formulario anterior en esta lista</p><div class="admin-hig-lista">${filas.map(f=>`<article class="admin-revision">
         <h4>${esc(f.ramo||'Ramo sin nombre')}</h4>
         <p class="clase-card-meta">${esc(String(f.tenant||'').toUpperCase())}${f.carrera?' · '+esc(f.carrera):''}${f.evaluacion?' · '+esc(f.evaluacion):''} · ${esc(new Date(f.created_at).toLocaleDateString('es-CL'))}</p>
         <p class="admin-revision-descripcion">${esc(f.descripcion||'')}</p>
       </article>`).join('')}</div>`:'<p class="admin-hig-vacio">Todavía no hay diferencias reportadas.</p>');
-  }catch(e){if(caja.isConnected)caja.innerHTML='<h3>Programas reportados</h3><p class="profesor-info" role="alert">No pudimos cargar los reportes. Actualiza para intentar de nuevo.</p>';}
+  }catch(e){if(caja.isConnected)caja.innerHTML='<h3>Reportes de programa anteriores</h3><p class="profesor-info" role="alert">No pudimos cargar los reportes. Actualiza para intentar de nuevo.</p>';}
 }
 let versionPanelAdminEditorial=0;
 async function pintarPanelAdmin(raiz){
