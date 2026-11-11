@@ -2323,6 +2323,14 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .courses-loaded-count{font-family:var(--font-ui);font-size:1.625rem;font-weight:800;
   color:var(--fg);letter-spacing:-.03em;line-height:1.15;}
 
+/* Oferta opcional al terminar el onboarding: cargar el historial con la ficha. */
+.ob-ficha-oferta{display:flex;flex-direction:column;gap:4px;width:100%;min-height:44px;margin-top:16px;padding:14px 16px;
+  border:1px solid var(--primary);border-radius:14px;background:color-mix(in srgb,var(--primary) 9%,var(--card));
+  color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.ob-ficha-oferta strong{font-size:0.9375rem;font-weight:700;letter-spacing:-.01em;}
+.ob-ficha-oferta span{font-size:0.8125rem;color:var(--fg2);line-height:1.4;}
+.ob-ficha-oferta:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+
 /* Solo se renderiza si hay al menos una pauta oficial. Un "0 pautas oficiales"
    como titular haría ver el producto vacío justo cuando recién se llenó. */
 

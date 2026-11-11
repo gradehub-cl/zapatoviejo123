@@ -105,43 +105,57 @@ function avanceCurricularDisponible(){return !esCuentaProfesor()&&!!AVANCE_CURRI
 function openAvanceCurricular(){
   if(!avanceCurricularDisponible())return;
   const fuente=AVANCE_CURRICULAR[S.tenant];
+  // La ficha en PDF va primero: es una tabla limpia y no depende de cómo copie
+  // el celular. Pegar el avance queda como alternativa, igual que en el horario.
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Pegar tu avance curricular</div>
-    <ol style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;padding-left:20px;">
-      <li>Abre tu ${esc(fuente.documento)} en <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.portal)}</a>.</li>
-      <li>Selecciona toda la página y cópiala.</li>
-      <li>Pégala acá. Da lo mismo si viene texto de más.</li>
-    </ol>
-    <label class="modal-label" for="m-avance-texto">Texto copiado</label>
-    <textarea id="m-avance-texto" class="feedback-message" rows="6" maxlength="200000" autocomplete="off" autocapitalize="none" spellcheck="false" oninput="document.getElementById('m-avance-leer').disabled=!this.value.trim()"></textarea>
-    <p class="settings-help" id="m-avance-aviso" role="status" aria-live="polite">Solo leemos siglas, notas y semestres. El texto no se guarda, y antes de agregar nada vas a poder revisarlo.</p>
+    <div class="modal-title">Cargar tus semestres anteriores</div>
+    <p class="modal-desc">Descarga tu ${esc(fuente.ficha)} en PDF desde <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.portal)}</a> y súbela acá. La leemos en tu teléfono: <b>el archivo no sale de tu dispositivo</b>. Antes de agregar nada vas a poder revisarlo.</p>
+    <label class="btn-confirm horario-foto-btn" for="m-avance-ficha">Subir ficha en PDF</label>
+    <input type="file" id="m-avance-ficha" class="horario-foto-input" accept="application/pdf,.pdf" onchange="subirFichaAcademica(this)" aria-describedby="m-avance-aviso"/>
+    <p class="settings-help" id="m-avance-aviso" role="status" aria-live="polite">Solo leemos siglas, créditos, notas y semestres.</p>
+    <details class="horario-texto-alt">
+      <summary>¿No tienes el PDF? Pega tu ${esc(fuente.documento)}</summary>
+      <p class="settings-help">Ábrelo en ${esc(fuente.portal)}, selecciona toda la página, cópiala y pégala acá. Da lo mismo si viene texto de más.</p>
+      <textarea id="m-avance-texto" class="horario-importar-texto" rows="5" maxlength="200000" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Tu ${esc(fuente.documento)} copiado" oninput="document.getElementById('m-avance-leer').disabled=!this.value.trim()"></textarea>
+      <button type="button" class="btn-cancel" id="m-avance-leer" disabled onclick="leerAvancePegado()">Revisar texto</button>
+    </details>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="openSemestreAnteriorModal()">Atrás</button>
-      <button class="btn-confirm" id="m-avance-leer" disabled onclick="leerAvancePegado()">Leer</button>
+      <button type="button" class="btn-cancel" onclick="openSemestreAnteriorModal()">Atrás</button>
     </div>`;
   openModal();
 }
 
 async function leerAvancePegado(){
-  const campo=document.getElementById('m-avance-texto'),boton=document.getElementById('m-avance-leer');
+  const campo=document.getElementById('m-avance-texto');
   if(!campo)return;
-  const cuenta=currentUser?.id,tenant=S.tenant;
   const {filas,omitidos}=leerAvanceCurricular(campo.value);
   if(!filas.length){
     const aviso=document.getElementById('m-avance-aviso');
-    if(aviso)aviso.textContent='No encontramos ramos con nota. Copia la página completa e inténtalo de nuevo.';
+    if(aviso)aviso.textContent='No encontramos ramos con nota en el texto. Copia la página completa e inténtalo de nuevo.';
     return;
   }
+  await revisarFilasAvance(filas,omitidos,()=>document.getElementById('m-avance-texto')===campo);
+}
+
+// Lo comparten el texto pegado y la ficha académica en PDF: completa nombre y
+// créditos desde el catálogo, marca lo que no se puede importar y abre la
+// revisión. `sigueAbierto` evita pintar sobre otra pantalla si la persona
+// cerró el modal, cambió de cuenta o de universidad mientras se cargaba.
+async function revisarFilasAvance(filas,omitidos,sigueAbierto){
+  const boton=document.getElementById('m-avance-leer');
+  const cuenta=currentUser?.id,tenant=S.tenant;
   if(boton)boton.disabled=true;
   // El nombre y los créditos oficiales salen del catálogo. Sin él (sin conexión)
-  // quedan el nombre pegado y créditos en null, igual que un ramo escrito a mano.
+  // quedan el nombre leído y créditos en null, igual que un ramo escrito a mano.
   await cargarCursosUC();
-  if(currentUser?.id!==cuenta||S.tenant!==tenant||
-    document.getElementById('m-avance-texto')!==campo||!document.getElementById('modal')?.classList.contains('open'))return;
+  if(currentUser?.id!==cuenta||S.tenant!==tenant||!sigueAbierto()||
+    !document.getElementById('modal')?.classList.contains('open'))return;
   const actual=semester();
   const conDatos=filas.map(r=>{
     const fila=cursoUcCompleto(null,r.sigla),nombre=(fila&&fila[1])||r.nombre;
-    return {...r,nombre,creditos:creditosDe(nombre,S.tenant,null,r.sigla),bloqueo:bloqueoAvance(r,S.historial,actual),marcada:true};
+    // Los créditos de la ficha son los del registro de la persona: mandan.
+    const creditos=typeof r.creditos==='number'?r.creditos:(creditosDe(nombre,S.tenant,null,r.sigla)??null);
+    return {...r,nombre,creditos,bloqueo:bloqueoAvance(r,S.historial,actual),marcada:true};
   });
   avance={
     filas:conDatos.filter(r=>!r.bloqueo).sort((a,b)=>ordenSemestre(b.periodo)-ordenSemestre(a.periodo)),
@@ -157,7 +171,8 @@ function textoNoImportadosAvance(){
   const fuera=[
     cuenta('en-curso')&&`del semestre en curso (${cuenta('en-curso')})`,
     cuenta('sin-semestre')&&`sin semestre (${cuenta('sin-semestre')})`,
-    avance.omitidos&&`convalidados o retirados (${avance.omitidos})`
+    // La ficha también deja fuera notas con letra (A, R) y ramos sin créditos.
+    avance.omitidos&&`convalidados, retirados o sin nota numérica (${avance.omitidos})`
   ].filter(Boolean);
   return [
     ya.length?`Ya en tu historial, sin cambios: ${ya.join(', ')}.`:'',

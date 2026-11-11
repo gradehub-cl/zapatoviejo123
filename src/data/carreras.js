@@ -294,7 +294,7 @@ const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comerc
 
 // Dónde sacar el texto para "Pegar mi avance curricular". Una universidad sin
 // entrada acá no ofrece la opción.
-const AVANCE_CURRICULAR={uc:{portal:'Mi Portal UC',documento:'avance curricular',url:'https://portal.uc.cl'}};
+const AVANCE_CURRICULAR={uc:{portal:'Mi Portal UC',documento:'avance curricular',ficha:'ficha académica acumulada',url:'https://portal.uc.cl'}};
 
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[
