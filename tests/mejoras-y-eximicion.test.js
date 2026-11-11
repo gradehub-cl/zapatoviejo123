@@ -57,6 +57,23 @@ r=ramo([5.95,5.95,5.95,null],{eximicionConfirmada:true});assert.equal(calculo.es
 r.faltas.cantidad=6;assert.equal(calculo.estadoEximicion(r).activa,true);
 r.faltas.cantidad=7;assert.equal(calculo.estadoEximicion(r).activa,false);
 r=ramo([4,6,5.5,null],{bonusConfirmado:{texto:true}});
+// Revelación y Fe: las décimas van a la nota más baja, como dice el programa
+// (Lucas, 2026-11-11, "por si acaso"), no repartidas para subir la final.
+{
+ const def=run("JSON.stringify(PRESETS_UC['Revelación y Fe'].bonus.find(b=>b.id==='talleres'))");
+ assert.equal(JSON.parse(def).operacion,'sumar','TTF012 suma las décimas a la nota más baja');
+ const aLaMasBaja=extra=>ramo(extra.valores,{...extra.ramo,bonus:copia(mejoras).map(b=>b.id==='talleres'?{...b,operacion:'sumar'}:b)});
+ // Sin eximición (sin contador) y examen rendido 5,0: la más baja es el examen.
+ let x=aLaMasBaja({valores:[6,6.5,6.2,5],ramo:{faltas:null,bonusIngresado:{talleres:5}}});
+ cercaDe(valor(x,'e'),5.5);cercaDe(valor(x,'a'),6);
+ // Con eximición: 6,0 · 6,5 · 6,2 → E1 6,0 + 0,5 = 6,5; el examen copia la máxima, 6,5.
+ x=aLaMasBaja({valores:[6,6.5,6.2,null],ramo:{bonusIngresado:{talleres:5}}});
+ cercaDe(valor(x,'a'),6.5);cercaDe(valor(x,'e'),6.5);
+ // Tope 7,0: lo que sobra no pasa a otra nota.
+ x=aLaMasBaja({valores:[6.8,6.9,7,7],ramo:{faltas:null,bonusIngresado:{talleres:5}}});
+ cercaDe(valor(x,'a'),7);cercaDe(valor(x,'b'),6.9);
+ console.log('PASS: TTF012 suma las décimas a la nota más baja, con tope 7,0');
+}
 cercaDe(valor(r,'a'),5.5);cercaDe(calculo.estadoEximicion(r).promedio,17/3);
 assert.equal(r.categorias.find(c=>c.id==='a').notas[0].valor,4);
 r=ramo([6.8,6.9,7,7],{bonusIngresado:{talleres:5}});

@@ -1177,7 +1177,8 @@ const PRESETS_UC={
     // Programa de Juan Pablo Espinosa, 2026-2. #1056 aún está abierta:
     // al integrarla, conservar estas reglas en la pauta de referencia de él.
     // Aclaraciones de Lucas, 2026-11-11: exime desde 5,95; texto previo;
-    // décimas libres tras decidir eximición; examen eximido = máxima final;
+    // décimas a la nota más baja tras decidir la eximición, como dice el
+    // programa y por si acaso (Lucas, 2026-11-11, en vez de repartirlas); examen eximido = máxima final;
     // empates a mayor peso y notas mejoradas con tope 7,0. Contador: hasta 6 faltas.
     eximicion:{evaluacion:'Examen final',segun:['Evaluación 1','Evaluación 2','Evaluación 3'],
       min:5.95,promedio:'simple',notaExamen:'maxima',maxInasistencias:6,ignoraDescartes:true,requierePautaOriginal:true,
@@ -1187,8 +1188,8 @@ const PRESETS_UC={
         operacion:'promediar',valor:7,etapa:'previa',pregunta:'Presenté un texto',
         ayuda:'Promedia un 7,0 con la menor de E1, E2 y E3 antes de calcular la presentación.'},
       {id:'talleres',entrada:'decimas',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3','Examen final'],
-        operacion:'distribuir',etapa:'final',pregunta:'Décimas de talleres',
-        ayuda:'Solo las ganadas asistiendo al taller. Se reparten para mejorar tu final después de decidir la eximición. 5 décimas = +0,5.'},
+        operacion:'sumar',etapa:'final',pregunta:'Décimas de talleres',
+        ayuda:'Solo las ganadas asistiendo al taller. Se suman a tu nota más baja al final del semestre, con tope 7,0. 5 décimas = +0,5.'},
     ],
     reglasDelCurso:['Una evaluación no rendida sin justificación autorizada dentro de 48 horas recibe un 1,0; ingresa esa nota cuando el profesor la confirme'],
   },
