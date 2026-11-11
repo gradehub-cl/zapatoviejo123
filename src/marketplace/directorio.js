@@ -67,11 +67,11 @@ function anunciosDestacadosDirectorio(anuncios,busqueda,categoria,nombres,ahora=
     (!a.publicado_at||Date.parse(a.publicado_at)<=ahora)&&(!categoria||(categoria==='material'?esMaterialClase(a):categoria==='clases'&&!esMaterialClase(a))));
 }
 function cabeceraDirectorioHTML(){
-  return `<div class="catalogo-clases directorio-clases"><header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 id="modal-titulo">Encuentra tu apoyo</h1><p>Clases, apuntes y ayuda para tus ramos.</p></div><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></header>
+  return `<div class="catalogo-clases directorio-clases"><header class="catalogo-clases-head"><div><p class="catalogo-ceja">APOYO</p><h1 id="modal-titulo">Encuentra tu apoyo</h1><p>Profes, academias y apps para tus ramos.</p></div><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></header>
     <label class="directorio-busqueda" for="directorio-buscar">Buscar por ramo, sigla o perfil<input id="directorio-buscar" type="search" autocomplete="off" placeholder="Cálculo, MAT1620, clases particulares…" aria-describedby="directorio-estado"></label>
     <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['plataforma','Plataformas y apps'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
     <p id="directorio-estado" class="profesor-info" role="status" aria-live="polite">Buscando perfiles…</p><div id="directorio-resultados" aria-busy="true"></div>
-    <p class="catalogo-privacidad">El directorio no usa tus notas ni los ramos de tu cuenta.</p></div>`;
+    <p class="catalogo-privacidad">Esta lista no usa tus notas ni los ramos de tu cuenta.</p></div>`;
 }
 let vistaDirectorioVersion=0,limpiarDirectorioActual=null;
 // Devuelve false solo si no está instalado el SQL: conserva el catálogo anterior.
@@ -96,7 +96,7 @@ async function abrirDirectorioClases(){
     resultados.setAttribute('aria-busy','false');
     const tarjetas=p=>p.map(x=>tarjetaDirectorioHTML(x)).join('');
     resultados.innerHTML=`${pagados.length||grupos.destacados.length?`<section class="directorio-seccion"><h2>Destacados</h2><p class="profesor-info">Publicidad · espacios destacados</p><div class="directorio-grilla">${pagados.map(a=>`<div class="directorio-publicidad"><span class="directorio-anuncio-marca">Destacado · Publicidad</span>${tarjetaCatalogoClase(a)}</div>`).join('')}${tarjetas(grupos.destacados)}</div></section>`:''}
-      <section class="directorio-seccion"><h2>Directorio</h2>${grupos.normales.length?`<div class="directorio-grilla">${tarjetas(grupos.normales)}</div>`:!perfiles.length?`<div class="directorio-vacio"><p>Todavía no hay perfiles en tu universidad</p><button type="button" class="clase-accion" data-directorio-crear>¿Haces clases o vendes material? Crea tu perfil</button></div>`:grupos.destacados.length?'':'<p class="directorio-vacio">Prueba con otro ramo o tipo de apoyo.</p>'}</section>`;
+      <section class="directorio-seccion"><h2>Todos</h2>${grupos.normales.length?`<div class="directorio-grilla">${tarjetas(grupos.normales)}</div>`:!perfiles.length?`<div class="directorio-vacio"><p>Todavía no hay perfiles en tu universidad</p><button type="button" class="clase-accion" data-directorio-crear>¿Haces clases o vendes material? Crea tu perfil</button></div>`:grupos.destacados.length?'':'<p class="directorio-vacio">Prueba con otro ramo o tipo de apoyo.</p>'}</section>`;
     resultados.querySelectorAll('[data-directorio-perfil]').forEach(b=>b.addEventListener('click',()=>{
       const p=perfiles.find(p=>p.id===b.dataset.directorioPerfil),hoja=raiz.closest('.modal-sheet'),scroll=hoja?.scrollTop||0;if(p){limpiarObservacion();abrirPerfilDirectorio(p,{raiz,tenant,anuncios,volver:()=>{if(!vigente())return;raiz.querySelector('.directorio-clases').hidden=false;resultados.hidden=false;const detalle=raiz.querySelector('.directorio-perfil-abierto');if(detalle)detalle.remove();pintar();const card=[...resultados.querySelectorAll('[data-directorio-perfil]')].find(b=>b.dataset.directorioPerfil===p.id);card?.focus({preventScroll:true});if(hoja)hoja.scrollTop=scroll;}});}
     }));

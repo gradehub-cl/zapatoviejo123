@@ -40,7 +40,7 @@ function openSettings(){
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso'],
-    ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
+    ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],

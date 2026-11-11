@@ -157,7 +157,7 @@ function clasesEstadisticasAdminHTML(profesores,alcance,ahora=Date.now()){
   const total=[...porEstado.values()].reduce((t,v)=>t+v,0);
   const estados=total?`<section class="adm-tarjeta adm-embudo" aria-label="Anuncios por estado">${barrasAdminHTML({titulo:'Anuncios por estado',resumen:`${milesViz(total)} ${total===1?'anuncio':'anuncios'} en total.`,
     filas:[...porEstado].sort((x,y)=>y[1]-x[1]).map(([nombre,valor])=>({nombre,valor}))})}</section>`:'';
-  return `<section class="admin-clases-estadisticas" aria-labelledby="admin-clases-estadisticas-titulo"><h3 id="admin-clases-estadisticas-titulo" class="adm-seccion">Clases particulares</h3>
+  return `<section class="admin-clases-estadisticas" aria-labelledby="admin-clases-estadisticas-titulo"><h3 id="admin-clases-estadisticas-titulo" class="adm-seccion">Apoyo</h3>
     ${Array.isArray(alcance)?'':'<p class="est-aviso" role="status">El alcance por día aparece al aplicar supabase/admin_estadisticas.sql.</p>'}
     ${alcanceHTML}<div class="adm-dos${estados?'':' adm-dos-sola'}">${cobros}${estados}</div></section>`;
 }

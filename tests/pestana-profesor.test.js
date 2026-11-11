@@ -13,7 +13,7 @@ const app=leer('app.js'),html=leer('index.html'),css=leer('styles.css'),mk=leer(
 
 console.log('=== En Ajustes va la puerta, no el trabajo ===');
 chk('hay una sección de clases particulares',
-  /\['Tu cuenta','profesor','Clases particulares'/.test(app));
+  /\['Tu cuenta','profesor','Apoyo'/.test(app));
 chk('ofrece pedir autorización', /onclick="postularComoProfesor\(\)"/.test(app));
 chk('y NO arma anuncios ni muestra métricas ahí',
   !/panelProfesor[\s\S]{0,1500}renderBorradorProfesor/.test(app) &&
