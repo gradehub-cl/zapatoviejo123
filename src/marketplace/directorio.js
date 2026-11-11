@@ -120,7 +120,7 @@ async function abrirDirectorioClases(){
     logosCatalogoClases=await logosDeAnuncios(anuncios.map(a=>a.id));if(!vigente())return true;
     lista=true;pintar();
     if(tenant==='uc'&&typeof cargarCursosUC==='function')cargarCursosUC().then(ok=>{if(ok&&vigente()){nombres=nombresRamosParaClases(tenant);pintar();}}).catch(()=>{});
-  }catch(e){console.warn('No se pudo cargar el directorio:',e?.code||e?.message||'error');if(vigente()){estado.textContent='No pudimos cargar el directorio. Revisa tu conexión.';resultados.setAttribute('aria-busy','false');resultados.innerHTML='<button type="button" class="clase-accion" data-directorio-reintentar>Reintentar</button>';resultados.querySelector('button').addEventListener('click',()=>{limpiarObservacion();openCatalogoClases();});}}
+  }catch(e){console.warn('No se pudo cargar el directorio:',e?.code||e?.message||'error');if(vigente()){estado.textContent='No pudimos cargar la lista. Revisa tu conexión.';resultados.setAttribute('aria-busy','false');resultados.innerHTML='<button type="button" class="clase-accion" data-directorio-reintentar>Reintentar</button>';resultados.querySelector('button').addEventListener('click',()=>{limpiarObservacion();openCatalogoClases();});}}
   return true;
 }
 async function cargarLogosDirectorio(raiz){
