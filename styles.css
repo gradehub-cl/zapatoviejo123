@@ -2323,6 +2323,11 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .courses-loaded-count{font-family:var(--font-ui);font-size:1.625rem;font-weight:800;
   color:var(--fg);letter-spacing:-.03em;line-height:1.15;}
 
+/* Pasos para descargar la ficha académica, dentro del modal. */
+.avance-pasos{margin:0 0 8px;padding-left:20px;color:var(--fg2);font-size:0.8125rem;line-height:1.5;}
+.avance-pasos li+li{margin-top:4px;}
+.avance-pasos a{color:var(--primary);}
+
 /* Oferta opcional al terminar el onboarding: cargar el historial con la ficha. */
 .ob-ficha-oferta{display:flex;flex-direction:column;gap:4px;width:100%;min-height:44px;margin-top:16px;padding:14px 16px;
   border:1px solid var(--primary);border-radius:14px;background:color-mix(in srgb,var(--primary) 9%,var(--card));
@@ -4637,6 +4642,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
 #screen-ramo .casillas-btn:active{opacity:.6;}
+.btn-eliminar-nota{display:block;width:100%;min-height:44px;margin-top:14px;padding:10px;border:0;border-radius:10px;background:var(--red-bg);color:var(--red);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
+.btn-eliminar-nota:active{opacity:.6;}
 #screen-ramo .casillas-btn:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
 #screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
 #screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}

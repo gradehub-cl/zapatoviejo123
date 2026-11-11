@@ -32,7 +32,7 @@ const conDescarte=regla=>({id:'r1',nombre:'R',color:'#6d5dd3',creditos:6,origen:
 const fen=cargar('fen',conDescarte({count:1}));
 chk('en la FEN la nota baja sigue contando hasta que la borren',cerca(fen.avg,5));
 chk('no la marca como descartada',!/No cuenta/.test(fen.html));
-chk('avisa cuántas se pueden borrar bajo el título',/Controles<\/div>\s*<div class="cat-peso-tag">Según la pauta, se puede borrar 1 nota</.test(fen.html));
+chk('avisa cuántas se pueden borrar bajo el título',/Controles<\/div>\s*<div class="eval-row-weight">Según la pauta, se puede borrar 1 nota</.test(fen.html));
 run(`deleteNota('c1','c')`);
 chk('al borrarla, el promedio sube',cerca(run('ramoAvg(S.ramos[0])'),7));
 chk('la x sale de la pauta',/se pueden borrar 2 notas/.test(cargar('fen',conDescarte({count:2})).html));

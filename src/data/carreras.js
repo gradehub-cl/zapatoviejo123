@@ -294,7 +294,13 @@ const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comerc
 
 // Dónde sacar el texto para "Pegar mi avance curricular". Una universidad sin
 // entrada acá no ofrece la opción.
-const AVANCE_CURRICULAR={uc:{portal:'Mi Portal UC',documento:'avance curricular',ficha:'ficha académica acumulada',url:'https://portal.uc.cl'}};
+// Ruta verificada en el portal el 2026-11-11: el link directo abre el sistema
+// si hay sesión UC (si no, la pide); después «Consultar», la pestaña y «Descargar».
+// El link de descarga es un recurso interno que cambia: no sirve como link fijo.
+const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:'ficha académica acumulada',
+  url:'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml',sistema:'Sistema de Avance Curricular',
+  pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',archivoFicha:'FAA',
+  alternativa:'Mi UC › Información Académica › Avance curricular'}};
 
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[

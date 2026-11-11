@@ -100,17 +100,14 @@ const alto44 = r => /min-height:\s*44px/.test(r);
 });
 chk('y el ✕ reserva también 44px de ancho', /min-width:\s*44px/.test(reglaDe('.nota-row-del')));
 
-// Los dos botones de la cabecera van en estilos inline, dentro del render.
-const appSrc = fs.readFileSync(raiz + 'app.js', 'utf8') + '\n' + fs.readFileSync(raiz + 'render-main.js', 'utf8');
-const inlineDe = etiqueta => {
-  const m = appSrc.match(new RegExp('<button aria-label="' + etiqueta + '[^>]*style="([^"]*)"'));
-  return m ? m[1] : '';
-};
-[['Eliminar evaluación', 'el botón de eliminar la evaluación'],
- ["\\$\\{isOpen\\?'Colapsar'", 'el botón que abre y cierra la evaluación']].forEach(([et, que]) => {
-  const st = inlineDe(et);
-  chk(que + ' reserva 44px', /min-height:44px/.test(st) && /min-width:44px/.test(st));
+// La lista abierta se dibuja como el grupo de casillas (2026-11-11): ya no hay
+// botones con estilo inline en la cabecera. Lo que se toca ahora son los botones
+// de texto del pie y "Eliminar nota" en la hoja de la nota.
+[['.casillas-btn', 'los botones de agregar y quitar una nota'],
+ ['.btn-eliminar-nota', 'el botón de eliminar una nota en su hoja']].forEach(([sel, que]) => {
+  chk(que + ' reservan 44px de alto', alto44(reglaDe(sel)));
 });
+chk('y agregar/quitar reservan también 44px de ancho', /min-width:\s*44px/.test(reglaDe('.casillas-btn')));
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
