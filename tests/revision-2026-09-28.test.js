@@ -23,7 +23,7 @@ const run=s=>vm.runInContext(s,ctx);
   run(`S.tenant='uc';S.ramos=[{id:'r1',nombre:'Ramo Sintético',sigla:'ZZZ100',color:'#2563eb',categorias:[{id:'c1',nombre:'Prueba',peso:100,directNota:true,notas:[{id:'n1',valor:4.0}]}],gates:[]}];
     var currentUser={id:'u1'};globalThis.__sets=0;globalThis.__pos=0;globalThis.__mejor=10;
     var supabaseClient={rpc(n){if(n==='curso_nota_set'){__sets++;return Promise.resolve({error:null});}
-      __pos++;return Promise.resolve({data:[{mejor_que:__mejor,total:6}],error:null});}};`);
+      __pos++;return Promise.resolve({data:[{mejor_que:__mejor,total:11}],error:null});}};`);
   await run('subirNotasCurso()');let p=await run('cargarPosicionesCurso()');
   chk('primera vez: sube y pide la posición',run('__sets')===1&&run('__pos')===1&&p.r1.mejorQue===10);
   await run('subirNotasCurso()');p=await run('cargarPosicionesCurso()');

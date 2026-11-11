@@ -37,12 +37,12 @@ ctx.uai=uai;ctx.uandes=uandes;
   assert.equal(subidaUai.args.p_promedio,run('ramoAvg(S.ramos[0])'));
   assert.deepEqual(Object.keys(await run('cargarPosicionesCurso()')),[], 'cuatro personas no muestran comparación');
 
-  run(`currentUser={id:'estudiante-uandes'};S=normalize({tenant:'uandes',tipoCuenta:'estudiante',ramos:[uandes]});__total=5;`);
+  run(`currentUser={id:'estudiante-uandes'};S=normalize({tenant:'uandes',tipoCuenta:'estudiante',ramos:[uandes]});__total=11;`);
   await run('subirNotasCurso()');
   const subidaUandes=run(`__llamadas.filter(x=>x.nombre==='curso_nota_set').at(-1)`);
   assert.equal(subidaUandes.args.p_sigla,'curso sintetico de historia');
   assert.equal(subidaUandes.args.p_promedio,run('ramoAvg(S.ramos[0])'));
-  assert.equal((await run('cargarPosicionesCurso()'))['uandes-1'].total,5);
+  assert.equal((await run('cargarPosicionesCurso()'))['uandes-1'].total,11);
   assert.equal(run(`claveRamoCurso({...uai,nombre:'Nombre cambiado'},'uai')`),'curso sintetico de algebra',
     'una cuenta existente conserva la clave de origen al renombrar el ramo');
   assert.equal(run(`claveRamoCurso({...uai,origen:null},'uai')`),'curso sintetico de algebra',
