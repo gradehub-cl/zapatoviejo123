@@ -110,7 +110,8 @@ setTimeout(() => {
               /'Corregiste la pauta oficial · agrega un reporte'/.test(render));
             chk('la política dice que esto pasa y que las notas no viajan',
               /ramo agregado a mano/.test(leer('privacidad.html')) &&
-              /tus notas no salen de tu cuenta/.test(leer('privacidad.html')));
+              /Nunca se incluyen tus calificaciones/.test(leer('privacidad.html')) &&
+              /Compartir mis pautas en forma anónima/.test(leer('privacidad.html')));
 
             console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
             process.exit(fail ? 1 : 0);
