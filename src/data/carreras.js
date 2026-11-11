@@ -161,8 +161,9 @@ const CARRERAS_DECLARABLES={
     {n:'Contador Auditor'},
   ],
   uc:[
-    {n:'Ingeniería',malla:'ING-PC'},
-    {n:'Actuación',malla:'UC-ACTUACION'},
+    // Sinónimos de búsqueda: admision.uc.cl/carreras/ingenieria/ y /actuacion/.
+    {n:'Ingeniería',malla:'ING-PC',alias:['Ingeniería Civil','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    {n:'Actuación',malla:'UC-ACTUACION',alias:['Teatro']},
     {n:'Administración Pública',malla:'UC-ADMINISTRACION-PUBLICA'},
     {n:'Agronomía',malla:'UC-AGRONOMIA'},
     {n:'Antropología',malla:'UC-ANTROPOLOGIA'},

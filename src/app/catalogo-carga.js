@@ -11,6 +11,12 @@ function carrerasDeclarables(t){
   if(lista&&lista.length)return lista.slice().sort((a,b)=>(b.malla?1:0)-(a.malla?1:0)||a.n.localeCompare(b.n,'es'));
   return Object.entries(carrerasFor(t)).filter(([c])=>c!=='OTRA').map(([malla,n])=>({n,malla}));
 }
+// Los sinónimos solo amplían la búsqueda: elegir una opción conserva su nombre
+// y código canónicos. No crea otra carrera ni reinterpreta una cuenta existente.
+function coincideBusquedaCarrera(carrera,consulta){
+  const q=normName(consulta||'');
+  return [carrera.n,...(carrera.alias||[])].some(n=>normName(n).includes(q));
+}
 function carrerasFor(t){
   if(t==='uc')return CARRERAS_UC;
   if(t==='uai')return CARRERAS_UAI;

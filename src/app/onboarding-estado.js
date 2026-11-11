@@ -96,7 +96,7 @@ function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
   const todas=carrerasDeclarables(selectedTenant);
   const q=normName(carreraFiltro||'');
-  const vistas=q?todas.filter(c=>normName(c.n).includes(q)):todas;
+  const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas;
   // Una carrera declarable no puede quedar escondida en un paso obligatorio.
   // 71 opciones son largas, pero el buscador sigue arriba y cada una tiene que
   // existir también para quien recorre la lista con el dedo.
