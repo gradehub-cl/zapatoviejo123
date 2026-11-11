@@ -10,6 +10,9 @@ const ctx=vm.createContext({console,window:{addEventListener(){},matchMedia:()=>
   navigator:{},location:{origin:'',pathname:'/',hash:''},setTimeout(){},clearTimeout(){}});
 for(const f of ['data.js','engine.js','app.js','app-session.js'])vm.runInContext(fs.readFileSync(f,'utf8'),ctx);
 const run=s=>vm.runInContext(s,ctx);
+// Ramos sintéticos fuera de toda malla: se declaran coordinados porque esto
+// prueba la mecánica del consenso (la regla está en coordinacion-ramo.test.js).
+run("coordinacionRamo=()=>({coordinado:true,fuente:'malla'})");
 const clone=v=>JSON.parse(JSON.stringify(v));
 const vacio=()=>({id:'r',nombre:'Ramo sintético',periodo:'2026-2',categorias:[],gates:[]});
 const estructura=[{nombre:'Prueba',peso:60,slots:2},{nombre:'Examen',peso:40,min:3,cap:3.9}];
@@ -92,7 +95,10 @@ async function red(){
   };
   assert.equal((await registrar([opcion()])).length,1);
   assert.equal(r.categorias.length,0,'la lectura no aplica una pauta');
-  assert.equal((await registrar([opcion(estructura,2),opcion(otra,2),opcion(estructura,1)])).length,2);
+  assert.equal((await registrar([opcion(estructura,2),opcion(otra,2)])).length,2,'empate: dos opciones');
+  // La RPC nueva separa por sección y profe: la misma estructura se suma.
+  const sumadas=await registrar([opcion(estructura,2),opcion(otra,2),opcion(estructura,1)]);
+  assert.equal(JSON.stringify(sumadas.map(f=>f.respaldos)),'[3]','la misma estructura en dos filas suma sus respaldos');
   assert.equal((await registrar([opcion(estructura,3),opcion(otra,2)]))[0].respaldos,3);
   r.pautaSugerida={descartada:2};
   assert.equal((await registrar([opcion(otra,2)])).length,0);

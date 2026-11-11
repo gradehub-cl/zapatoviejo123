@@ -36,6 +36,7 @@ run(`
   }}:{};
   findPresetName=(nombre,tenant)=>tenant==='uc'&&normName(nombre)===normName('Fundamentos del Calculo')?nombre:null;
   presetsFueraDeMalla=(tenant)=>tenant==='uc'?['Fundamentos del Calculo']:[];
+  presetsNoCoordinados=()=>[]; // ramos no coordinados reales: fuera de este caso
 `);
 
 const catalogo=run(`catalogRamosUniversidad('uc','ING')`);

@@ -13,6 +13,10 @@ async function consensoParaRamo(r){
   if(sugerida&&actualizarProcedenciaSugerida(r,cons)){
     save();renderRamo();return null;
   }
+  // En un ramo no coordinado otra pauta con más respaldo puede ser la de otro
+  // profesor: no se ofrece como cambio sobre la que la persona ya tiene.
+  if(coordinacionRamo(r)===null)await asegurarMallasCoordinacion(r.origen?.tenant||S.tenant);
+  if(ramoNoCoordinado(r)||!puedeOfrecer())return null;
   const mia=estructuraParaConsenso(estructuraDe(r));
   // Las dos se comparan acá, con las mismas funciones: comparar contra
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma

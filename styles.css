@@ -1204,6 +1204,14 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
   margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);font-size:.875rem;
 }
 .pauta-sugerida .pauta-sugerida-fila strong{font-variant-numeric:tabular-nums;}
+.pauta-sugerida .pauta-sugerida-opcion.pauta-sugerida-opcion-tuya{border:2px solid var(--primary);background:var(--primary-light);}
+.pauta-sugerida .pauta-sugerida-tuya{
+  display:inline-block;margin:.25rem 0 .15rem;padding:.1rem .5rem;border-radius:999px;
+  background:var(--primary);color:var(--primary-fg);font-size:.75rem;font-weight:700;
+}
+.pauta-sugerida .pauta-sugerida-opcion strong+.pauta-sugerida-tuya{margin-left:.4rem;}
+.pauta-sugerida fieldset>p.pauta-sugerida-pista{display:flex;flex-wrap:wrap;align-items:center;gap:0 .25rem;margin-top:-.4rem;}
+.pauta-sugerida .pauta-sugerida-pista .docente-link{color:var(--primary);}
 .pauta-sugerida .pauta-sugerida-acciones{flex-wrap:wrap;margin-top:.8rem;}
 .pauta-sugerida .pauta-sugerida-acciones button{flex:1 1 8rem;min-width:44px;min-height:44px;}
 .pauta-sugerida .pauta-sugerida-acciones button:disabled{opacity:1;background:var(--muted);color:var(--fg2);}
