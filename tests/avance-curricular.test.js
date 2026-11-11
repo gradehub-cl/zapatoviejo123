@@ -81,6 +81,8 @@ assert.equal(leerAvance('TST1000 Ramo 10 5,5').filas[0].periodo,null);
 }
 
 assert.deepEqual(leerAvance('').filas,[]);
+// La escala de notas termina en 7,0.
+assert.deepEqual(leerAvance('202320 TST1000 Nota inválida 7,1\n202320 TST2000 Nota válida 7,0').filas.map(f=>[f.sigla,f.nota]),[['TST2000',7]]);
 
 // Cuenta existente: no se toca un semestre que ya está, ni el que va en curso.
 {
@@ -127,4 +129,20 @@ assert.deepEqual(leerAvance('').filas,[]);
 run(`S.tenant='uc';`);assert.equal(run('avanceCurricularDisponible()'),true);
 run(`S.tenant='fen';`);assert.equal(run('avanceCurricularDisponible()'),false);
 
-console.log('avance-curricular OK');
+// El catálogo puede terminar después de que la persona salió de la hoja o cambió de cuenta.
+(async()=>{
+  run("S.tenant='uc';");
+  ctx.currentUser={id:'sintetico-1'};
+  const campo={value:'202320 TST1000 Ramo sintético 10 5,5'};
+  let abierto=true,terminar;
+  ctx.document.getElementById=id=>({
+    'm-avance-texto':campo,'m-avance-leer':{},modal:{classList:{contains:()=>abierto}}
+  }[id]||null);
+  ctx.__catalogo=new Promise(resolve=>{terminar=resolve;});
+  run('cargarCursosUC=()=>__catalogo;renderRevisionAvance=()=>{throw Error("La hoja se había cerrado");};');
+  const leyendo=run('leerAvancePegado()');
+  abierto=false;
+  terminar(false);
+  await leyendo;
+  console.log('avance-curricular OK');
+})().catch(error=>{console.error(error);process.exitCode=1;});

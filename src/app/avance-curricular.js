@@ -47,7 +47,8 @@ function leerAvanceCurricular(texto){
     const finSigla=sigla.index+sigla[0].length,finNota=m.index+m[0].length;
     const tramo=t.slice(finSigla,finNota+8),codigo=sigla[0];
     sigla=null;
-    if(tramo.length>TRAMO_MAX_AVANCE)continue;
+    const nota=Number(m[0].replace(',','.'));
+    if(tramo.length>TRAMO_MAX_AVANCE||nota>7)continue;
     if(NO_CUENTA_AVANCE_RE.test(tramo)){omitidos++;continue;}
     const despues=[...t.slice(finNota).split('\n')[0].matchAll(PERIODO_AVANCE_RE)][0];
     const periodoFila=despues?periodoAvance(despues):periodo;
@@ -58,7 +59,7 @@ function leerAvanceCurricular(texto){
     filas.push({
       sigla:codigo,
       nombre:celda.split(/\s{2,}|\s\d/)[0].trim()||codigo,
-      nota:Number(m[0].replace(',','.')),
+      nota,
       periodo:periodoFila
     });
   }
@@ -124,6 +125,7 @@ function openAvanceCurricular(){
 async function leerAvancePegado(){
   const campo=document.getElementById('m-avance-texto'),boton=document.getElementById('m-avance-leer');
   if(!campo)return;
+  const cuenta=currentUser?.id,tenant=S.tenant;
   const {filas,omitidos}=leerAvanceCurricular(campo.value);
   if(!filas.length){
     const aviso=document.getElementById('m-avance-aviso');
@@ -134,6 +136,8 @@ async function leerAvancePegado(){
   // El nombre y los créditos oficiales salen del catálogo. Sin él (sin conexión)
   // quedan el nombre pegado y créditos en null, igual que un ramo escrito a mano.
   await cargarCursosUC();
+  if(currentUser?.id!==cuenta||S.tenant!==tenant||
+    document.getElementById('m-avance-texto')!==campo||!document.getElementById('modal')?.classList.contains('open'))return;
   const actual=semester();
   const conDatos=filas.map(r=>{
     const fila=cursoUcCompleto(null,r.sigla),nombre=(fila&&fila[1])||r.nombre;
@@ -186,6 +190,7 @@ function renderRevisionAvance(){
       <button class="btn-confirm" id="m-avance-guardar" onclick="guardarAvanceCurricular()"></button>
     </div>`;
   actualizarBotonAvance();
+  openModal();
 }
 
 function marcarAvance(i,marcada){
