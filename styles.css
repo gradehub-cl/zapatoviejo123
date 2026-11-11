@@ -4646,15 +4646,15 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 /* Notas sombra: hipótesis neutrales en las casillas reales de la ficha. */
 #screen-ramo .ramo-chip:has(.sombras-interruptor){flex:1 1 24rem;min-width:0;max-width:32rem;gap:16px;}
 #screen-ramo .ramo-chip:has(.sombras-interruptor) .ficha-mensaje{flex:1;min-width:0;}
-#screen-ramo .sombras-interruptor{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;min-width:44px;margin-left:auto;flex-shrink:0;color:var(--fg2);font-size:.8125rem;line-height:1.5;cursor:pointer;}
+#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor){display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;min-width:44px;margin-left:auto;flex-shrink:0;color:var(--fg2);font-size:.8125rem;line-height:1.5;cursor:pointer;}
 #screen-ramo .sombras-interruptor-examen{flex:0 0 100%;width:100%;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--border);justify-content:space-between;}
 #screen-ramo .eval-group>.sombras-interruptor-examen{width:auto;margin:0 14px;padding:8px 0;}
-#screen-ramo .sombras-interruptor input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:44px;height:28px;margin:8px 0;padding:0;border:1px solid var(--fg2);border-radius:14px;background:var(--muted);cursor:pointer;}
-#screen-ramo .sombras-interruptor input[type=checkbox]::before{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--fg2);transition:transform var(--motion-fast) ease-out;}
-#screen-ramo .sombras-interruptor input[type=checkbox]:checked{background:var(--primary);border-color:var(--primary);}
-#screen-ramo .sombras-interruptor input[type=checkbox]:checked::before{transform:translateX(16px);background:var(--primary-fg);}
-#screen-ramo .sombras-interruptor input:focus-visible{outline:2px solid var(--primary);outline-offset:4px;}
-@media(prefers-reduced-motion:reduce){#screen-ramo .sombras-interruptor input[type=checkbox]::before{transition:none;}}
+#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:44px;height:28px;margin:8px 0;padding:0;border:1px solid var(--fg2);border-radius:14px;background:var(--muted);cursor:pointer;}
+#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]::before{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--fg2);transition:transform var(--motion-fast) ease-out;}
+#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]:checked{background:var(--primary);border-color:var(--primary);}
+#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]:checked::before{transform:translateX(16px);background:var(--primary-fg);}
+#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input:focus-visible{outline:2px solid var(--primary);outline-offset:4px;}
+@media(prefers-reduced-motion:reduce){#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]::before{transition:none;}}
 #screen-ramo button.nota-sombra{color:var(--fg3);border-style:dashed;border-radius:8px;font-variant-numeric:tabular-nums;background:none;white-space:normal;}
 #screen-ramo button.nota-sombra.sombra-fija{border-style:solid;border-color:var(--fg3);}
 #screen-ramo input.nota-campo::placeholder{color:var(--fg3);opacity:1;}
@@ -5700,6 +5700,19 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .adu #admin-reportes-programa .admin-revision{padding:12px 0;}
 .adu #admin-reportes-programa .admin-revision:last-child{padding-bottom:0;border-bottom:0;}
 @media(max-width:830px){.adu-columnas{grid-template-columns:minmax(0,1fr);}}
+
+/* Beneficios del programa: controles en filas, sin alterar las notas ingresadas. */
+#screen-ramo .mejoras-programa{display:block;margin:12px 20px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--card);font-family:var(--font-ui);color:var(--fg);}
+#screen-ramo .mejoras-programa-contenido{width:100%;}
+#screen-ramo .mejoras-programa p,#screen-ramo .mejoras-programa small{display:block;margin:8px 0 0;font-size:.8125rem;line-height:1.5;color:var(--fg2);}
+#screen-ramo .mejoras-programa .mejoras-interruptor{justify-content:space-between;margin:8px 0 0;color:var(--fg);font-size:.9375rem;}
+#screen-ramo .mejoras-programa-campo{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px;font-size:.9375rem;}
+#screen-ramo .mejora-texto{position:relative;}
+#screen-ramo .mejora-texto .mejoras-interruptor{padding-right:44px;}
+#screen-ramo .mejora-ayuda summary{position:absolute;right:8px;top:16px;display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;list-style:none;cursor:pointer;color:var(--fg2);}
+#screen-ramo .mejora-ayuda summary::-webkit-details-marker{display:none;}
+#screen-ramo .mejora-ayuda summary span{display:grid;place-items:center;width:22px;height:22px;border:1px solid var(--border2);border-radius:50%;font-size:.8125rem;}
+#screen-ramo .mejora-ayuda summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
