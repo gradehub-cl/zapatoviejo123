@@ -698,11 +698,12 @@ function renderRamo(){
         const notasCount=new Set(notas.filter(n=>Number.isInteger(n.slot)&&n.valor!=null).map(n=>n.slot)).size
           || notas.filter(n=>n&&n.valor!=null).length;
         // Casillas con nombre o peso propio las fija el programa una por una.
-        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="sim-meta">
-            <span>Cantidad de notas</span>
-            <button type="button" class="sim-meta-btn" aria-label="Una nota menos en ${esc(cat.nombre)}" onclick="cambiarCasillas('${cat.id}',-1)"${cat.slots<=minimoCasillas(cat)?' disabled':''}>−</button>
-            <output>${cat.slots}</output>
-            <button type="button" class="sim-meta-btn" aria-label="Una nota más en ${esc(cat.nombre)}" onclick="cambiarCasillas('${cat.id}',1)"${cat.slots>=100?' disabled':''}>+</button>
+        // "+ Agregar nota" en vez del contador −/+ (Martín, 2026-11-11): la cantidad
+        // ya se lee arriba ("promedio de 3"). Quitar solo aparece si la última
+        // casilla está vacía, así que nunca se lleva una nota.
+        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="casillas-pie">
+            ${cat.slots<100?`<button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarCasilla('${cat.id}')">+ Agregar nota</button>`:''}
+            ${cat.slots>minimoCasillas(cat)?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="cambiarCasillas('${cat.id}',-1)">Quitar la última</button>`:''}
           </div>`;
         wrap.innerHTML=`
           <div class="eval-group-hd" role="button" tabindex="0" aria-expanded="${isOpen?'true':'false'}" onclick="toggleCat('${cat.id}')">

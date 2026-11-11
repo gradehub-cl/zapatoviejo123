@@ -4641,6 +4641,11 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
 #screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:10px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
 #screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
+#screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
+#screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
+#screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
+#screen-ramo .casillas-btn:active{opacity:.6;}
+#screen-ramo .casillas-btn:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
 #screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
 #screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}
 #screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
