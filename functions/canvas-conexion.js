@@ -1,6 +1,6 @@
 // Conexión personal a Canvas UC (#1063). No registra cuerpos ni secretos.
-// CANVAS_TOKEN_KEY: 32 bytes aleatorios en base64, distintos por entorno.
-// SUPABASE_SECRET_KEY: solo servidor; lectura cifrada por RPC, nunca al cliente.
+// CANVAS_TOKEN_KEY_<n>: 32 bytes aleatorios base64 por versión y entorno.
+// CANVAS_TOKEN_KEY_VERSION selecciona la versión de guardado (por defecto 1).
 const SUPABASE_PRODUCCION = 'https://lsulsnswzesyekpsvlql.supabase.co';
 const PUBLICABLE_PRODUCCION = 'sb_publishable_JwBMAOR7iHW-gcRdLMGrYw_eCOISwqA';
 const HOST = 'https://cursos.canvas.uc.cl';
@@ -36,25 +36,26 @@ async function leerJson(r, limite, signal) {
 }
 const base64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 const bytes64 = texto => Uint8Array.from(atob(texto), c => c.charCodeAt(0));
-async function llaveDe(env) {
-  if (!/^[A-Za-z0-9+/]{43}=$/.test(env.CANVAS_TOKEN_KEY || '')) throw new Error('configuración');
-  const bytes = bytes64(env.CANVAS_TOKEN_KEY);
+async function llaveDe(env, version) {
+  const configurada = env['CANVAS_TOKEN_KEY_' + version];
+  if (!/^[A-Za-z0-9+/]{43}=$/.test(configurada || '')) throw new Error('configuración');
+  const bytes = bytes64(configurada);
   if (bytes.byteLength !== 32) throw new Error('configuración');
   return crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 // AAD liga el cifrado a persona, origen y vencimiento; mover filas no lo valida.
-function parametros(userId, vence, iv) {
+function parametros(userId, vence, iv, version) {
   return { name: 'AES-GCM', iv, tagLength: 128,
-    additionalData: new TextEncoder().encode(JSON.stringify(['canvas-v1', userId, HOST, new Date(vence).toISOString()])) };
+    additionalData: new TextEncoder().encode(JSON.stringify(['canvas-v1', userId, HOST, version, new Date(vence).toISOString()])) };
 }
-export async function cifrarTokenCanvas(token, userId, vence, llave) {
+export async function cifrarTokenCanvas(token, userId, vence, llave, version = 1) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const cifrado = await crypto.subtle.encrypt(parametros(userId, vence, iv), llave, new TextEncoder().encode(token));
-  return { token_cifrado: base64(cifrado), iv: base64(iv) };
+  const cifrado = await crypto.subtle.encrypt(parametros(userId, vence, iv, version), llave, new TextEncoder().encode(token));
+  return { token_cifrado: base64(cifrado), iv: base64(iv), llave_version: version };
 }
 export async function descifrarTokenCanvas(fila, llave) {
-  if (fila.host !== HOST || !UUID.test(fila.user_id) || !/^[A-Za-z0-9+/]{16}$/.test(fila.iv)) throw new Error('conexión');
-  const bytes = await crypto.subtle.decrypt(parametros(fila.user_id, fila.vence, bytes64(fila.iv)), llave, bytes64(fila.token_cifrado));
+  if (!Number.isInteger(fila.llave_version) || fila.llave_version < 1 || fila.llave_version > 32767 || fila.host !== HOST || !UUID.test(fila.user_id) || !/^[A-Za-z0-9+/]{16}$/.test(fila.iv)) throw new Error('conexión');
+  const bytes = await crypto.subtle.decrypt(parametros(fila.user_id, fila.vence, bytes64(fila.iv), fila.llave_version), llave, bytes64(fila.token_cifrado));
   const token = new TextDecoder().decode(bytes);
   if (!TOKEN.test(token)) throw new Error('conexión');
   return token;
@@ -77,10 +78,8 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
     return error('La conexión con Canvas todavía no está disponible.', 503);
   }
   const corte = new AbortController(), reloj = setTimeout(() => corte.abort(), PLAZO_MS);
-  const rpc = async (nombre, cuerpo, interna = false) => {
-    const headers = { 'Content-Type': 'application/json', apikey: interna ? env.SUPABASE_SECRET_KEY : publicable };
-    // Las sb_secret_* se mandan por apikey, no como si fueran JWT.
-    if (!interna) headers.Authorization = 'Bearer ' + auth[1];
+  const rpc = async (nombre, cuerpo) => {
+    const headers = { 'Content-Type': 'application/json', apikey: publicable, Authorization: 'Bearer ' + auth[1] };
     const r = await pedir(supabase + '/rest/v1/rpc/' + nombre, {
       method: 'POST', redirect: 'manual', signal: corte.signal, headers, body: JSON.stringify(cuerpo),
     });
@@ -99,6 +98,9 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
       await rpc('borrar_canvas_conexion', {});
       return json({ conectado: false, vence: null });
     }
+    const permitido = await rpc('canvas_registrar_intento', {});
+    if (permitido === false) return error('Intenta conectar más tarde.', 429);
+    if (permitido !== true) throw new Error('conexión');
     if (!/^application\/json(?:;|$)/i.test(request.headers.get('Content-Type') || '')) return error('Pedido inválido.', 400);
     let cuerpo;
     try { cuerpo = await leerJson(request, MAX_PEDIDO, corte.signal); }
@@ -109,9 +111,10 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
     const hasta = Date.parse(cuerpo.vence), ahora = Date.now();
     if (!Number.isFinite(hasta) || hasta <= ahora || hasta > ahora + 90 * 86400000) return error('El vencimiento debe estar dentro de los próximos 90 días.', 400);
     const vence = new Date(hasta).toISOString();
-    if (!/^sb_secret_[A-Za-z0-9_-]{10,}$/.test(env.SUPABASE_SECRET_KEY || '')) return error('La conexión con Canvas todavía no está disponible.', 503);
-    const llave = await llaveDe(env);
-    const anterior = await rpc('canvas_conexion_interna', { p_user_id: cuenta.id }, true);
+    const version = Number(env.CANVAS_TOKEN_KEY_VERSION || 1);
+    if (!Number.isInteger(version) || version < 1 || version > 32767) throw new Error('configuración');
+    const llave = await llaveDe(env, version);
+    const anterior = await rpc('canvas_conexion_mia', {});
     const canvas = await pedir(HOST + '/api/v1/users/self', {
       method: 'GET', redirect: 'manual', signal: corte.signal,
       headers: { Accept: 'application/json', Authorization: 'Bearer ' + cuerpo.token },
@@ -121,8 +124,8 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
       if (canvas.status === 401) {
         // Un token nuevo inválido no borra el anterior. Si se rechazó el que ya
         // estaba guardado, borra solo esa versión (IV), nunca una renovación.
-        if (anterior && anterior.user_id === cuenta.id && await descifrarTokenCanvas(anterior, llave) === cuerpo.token) {
-          await rpc('canvas_borrar_rechazada', { p_user_id: cuenta.id, p_iv: anterior.iv }, true);
+        if (anterior && anterior.user_id === cuenta.id && await descifrarTokenCanvas(anterior, await llaveDe(env, anterior.llave_version)) === cuerpo.token) {
+          await rpc('canvas_borrar_rechazada', { p_iv: anterior.iv });
         }
         return error('Canvas rechazó ese token. Genera uno nuevo para conectar.', 401);
       }
@@ -130,8 +133,8 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
     }
     const perfil = await leerJson(canvas, MAX_RESPUESTA, corte.signal);
     if (!Number.isSafeInteger(perfil?.id) || perfil.id <= 0) return error('Canvas no respondió bien. Intenta de nuevo.', 502);
-    const cifrado = await cifrarTokenCanvas(cuerpo.token, cuenta.id, vence, llave);
-    await rpc('guardar_canvas_conexion', { p_token_cifrado: cifrado.token_cifrado, p_iv: cifrado.iv, p_vence: vence });
+    const cifrado = await cifrarTokenCanvas(cuerpo.token, cuenta.id, vence, llave, version);
+    await rpc('guardar_canvas_conexion', { p_token_cifrado: cifrado.token_cifrado, p_iv: cifrado.iv, p_vence: vence, p_llave_version: String(version) });
     return json({ conectado: true, vence });
   } catch {
     return error(corte.signal.aborted ? 'Canvas no respondió a tiempo. Intenta de nuevo.' : 'No pudimos conectar Canvas. Intenta de nuevo.', corte.signal.aborted ? 504 : 503);

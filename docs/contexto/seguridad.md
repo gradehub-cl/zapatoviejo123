@@ -245,3 +245,26 @@ la instalación ni ejecutaron SQL en producción.
   negativos, contexto, privacidad, roles, docencia, edición/borrado, reaplicación
   y cascada. `tests/ramo-calificaciones-cliente.test.js` verifica contrato de
   etiquetas, aviso local por cuenta/ramo/período y búsqueda sin la nueva RPC.
+
+### Conexión Canvas · propuesta revisada, 2026-11-11
+
+PR #1078, SQL aún sin aprobación ni aplicación. La Function usa clave publicable
+más JWT; el dueño nunca llega como argumento de una RPC. El cifrado propio se
+lee por `canvas_conexion_mia()` y el de un agente por su token vigente en
+`agent_links`. La llave AES vive solo en Pages, por versión; ni la Function ni
+los errores RPC devuelven token, cifrado o IV. Las lecturas RPC autorizadas sí
+entregan el cifrado a su propio dueño, según la revisión aprobada por Lucas.
+
+| Tabla propuesta | Acceso directo | Dueño por RPC | Borrado de cuenta |
+|---|---|---|---|
+| `canvas_conexiones` | RLS, sin políticas ni grants de cliente | JWT propio o token de agente vigente | FK a `auth.users ON DELETE CASCADE` |
+| `canvas_conexion_intentos` | RLS, sin políticas ni grants de cliente | JWT propio; 5 POST por ventana de una hora | FK a `auth.users ON DELETE CASCADE` |
+
+`tests/canvas-conexion.test.js` comprueba ambas FK en Postgres local, permisos
+reales con A/B/anon, renovación de ventana y errores sin secretos. Desconectar
+no reinicia el límite. No se modifican notas ni estados académicos existentes.
+Antes de habilitar: aprobación SQL de Lucas, instalación manual y prueba con
+cuentas sintéticas aisladas, más revisión legal/términos de #1063. La PR de
+Ajustes debe sugerir 30 días (máximo 90) y enseñar a revocar también el token en
+Canvas: Cuenta → Configuración → Integraciones aprobadas. La revocación directa
+por API queda pendiente de evaluar en esa PR, fuera de la lista GET de esta.
