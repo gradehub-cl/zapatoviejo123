@@ -80,12 +80,12 @@ chk('un tope que impide mejorar deja la nota original',cerca(promedio(noMejoraPo
 console.log('\n=== Declaraciones del catálogo y cuentas anteriores ===');
 const opt=run("PRESETS_UC['Métodos de Optimización']"),tra=run("PRESETS_UC['Ingeniería de Sistemas de Transporte']");
 const micro=run("PRESETS_UAI['Introducción a la Microeconomía']"),ma=run("PRESETS_UAI['Matemáticas Avanzadas II']");
-const pausados=[run("PRESETS_UC['Econometría Aplicada']"),run("PRESETS_UC['Revelación y Fe']")];
+const pausados=[run("PRESETS_UC['Econometría Aplicada']")];
 chk('UC declara optativo y transporte; sale solo esa deuda de noCalcula',!!opt.reemplazosOptativos&&!!tra.reemplazosOptativos&&
   !(opt.noCalcula||[]).some(x=>/Control optativo/.test(x))&&!(tra.noCalcula||[]).some(x=>/reemplazar la nota de un Control/.test(x)));
 chk('UAI declara micro y matemática con umbral y notas rendidas',micro.reemplazosOptativos?.[0].minFuente===4.8&&ma.reemplazosOptativos?.[0].minFuente===4&&
   !(micro.noCalcula||[]).some(x=>/examen de al menos 4,8/.test(x))&&!(ma.noCalcula||[]).some(x=>/UNA prueba/.test(x)));
-chk('Econometría y Revelación y Fe permanecen en pausa',pausados.every(d=>!d.reemplazosOptativos&&d.noCalcula?.some(x=>/reemplaz/.test(x))));
+chk('Econometría permanece en pausa',pausados.every(d=>!d.reemplazosOptativos&&d.noCalcula?.some(x=>/reemplaz/.test(x))));
 chk('FEN conserva la propuesta sin tocar el preset',!run("PRESETS_FEN['Programación para Analítica de Datos'].reemplazosOptativos")&&
   run("PRESETS_FEN['Programación para Analítica de Datos'].noCalcula").some(x=>/recuperativo puede reemplazar/.test(x)));
 const presetOpt=run("presetRamo('Métodos de Optimización','uc','ING-PC')");

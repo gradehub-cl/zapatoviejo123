@@ -23,6 +23,10 @@ class Nodo{
 }
 const root=new Nodo(),calls=[],toasts=[];let modo='ok',confirmacion,pasar=false;
 const fecha='2026-09-01T00:00:00Z',historica='2026-08-01T00:00:00Z';
+const reportes=[
+ {id:'rep-1',tenant:'uc',carrera:'Derecho',ramo:'Curso sintético',evaluacion:'Prueba 1',descripcion:'El programa dice <40 %>',created_at:fecha},
+ {id:'rep-2',tenant:'uc',carrera:'Derecho',ramo:'Curso sintético',evaluacion:'Examen',descripcion:'El examen figura en el programa',created_at:historica}
+];
 const anuncio={id:'a1',titulo:'Clase <sintética>',estado:'publicado',ramos_siglas:['MAT1620'],precio_clp:15000,publicado_at:fecha,vence_at:'2099-01-01T00:00:00Z',campana:{dias:14,tope_clp:15000,dias_cobrados:4,vistas:120,aperturas:12,contactos:2},cobro:{estado:'deuda',monto_clp:4200},cobros:[{publicado_at:fecha,estado:'deuda',monto_clp:4200},{publicado_at:historica,estado:'deuda',monto_clp:6000}]};
 const profesores=[{user_id:'p1',nombre:'Docente sintético',estado:'aprobado',anuncios:[anuncio,{...anuncio,id:'a2',estado:'pausado'},{...anuncio,id:'a3',estado:'en_revision',publicado_at:null,campana:null,cobro:null,cobros:[],
   descripcion:'Apoyo <concreto> en el ramo',tenant:'uc',contacto_tipo:'whatsapp',contacto_valor:'+56 9 1234 5678',
@@ -31,6 +35,11 @@ profesores.push({user_id:'p2',nombre:'Academia Pendiente',estado:'pendiente',anu
  {user_id:'p3',nombre:'Profesor Pausado',estado:'suspendido',anuncios:[]},
  {user_id:'p4',nombre:'Profesor Rechazado',estado:'rechazado',anuncios:[]});
 let panelActual=profesores;
+const encuestasAdmin=[
+ {id:'cerrada',pregunta:'Encuesta sintética anterior',publico:'uc',inicio:'2000-01-01',termino:'2000-01-05',estado:'activa'},
+ {id:'activa',pregunta:'Encuesta sintética activa',publico:'todos',inicio:'2000-02-01',termino:'2099-12-01',estado:'activa'},
+ {id:'programada',pregunta:'Encuesta sintética futura',publico:'uc',inicio:'2099-12-02',termino:'2099-12-05',estado:'activa'}
+];
 const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUser:{id:'admin-sintetico'},TENANTS:{uc:{label:'UC'}},profesores,root,
  esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])),
  document:{getElementById:()=>root},renderPuertaDosPasos:async(_r,{alPasar})=>{if(pasar)await alPasar();},
@@ -38,7 +47,8 @@ const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUs
  supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(modo==='throw')throw Error('red caída');if(modo==='denegado')return {error:{code:'42501',message:'sin acceso'}};
   if(modo==='missing-report'&&n==='admin_reportes_programa')return {error:{code:'PGRST202',message:'no existe'}};
   if(n==='admin_encuestas'&&modo==='encuestas-sin-sql')return {error:{code:'PGRST202'}};
-  const datos={admin_panel_clases:panelActual,admin_reportes_programa:[{id:'rep-1',tenant:'uc',carrera:'Derecho',ramo:'Curso sintético',evaluacion:'Prueba 1',descripcion:'El programa dice <40 %>',created_at:fecha}],admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio_con_tarifa:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
+  if(n==='admin_encuestas')return {data:encuestasAdmin};
+  const datos={admin_panel_clases:panelActual,admin_reportes_programa:reportes,admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio_con_tarifa:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
    totales_metricas_anuncio:[{vista:'total',clave:'',tipo:'impresion',eventos:18}]};
   return {data:modo==='false'?false:n in datos?datos[n]:true,error:null};}}};
@@ -47,7 +57,11 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  await run('renderAdmin()');assert.equal(calls.length,0,'Sin MFA no pide el panel');assert.equal(root.querySelectorAll('[data-admin-area]').length,0);
  pasar=true;await run('renderAdmin()');assert.match(root.innerHTML,/admin-hig-fila/);assert.match(root.innerHTML,/Clase &lt;sintética&gt;/);
  assert(calls.some(c=>c.n==='admin_reportes_programa'),'la bandeja se consulta después de MFA');
- assert.match(root.querySelector('#admin-reportes-programa').innerHTML,/El programa dice &lt;40 %&gt;/);
+ const bandeja=root.querySelector('#admin-reportes-programa');
+ assert.match(bandeja.innerHTML,/El programa dice &lt;40 %&gt;/);
+ assert.match(bandeja.innerHTML,/2 reportes del formulario anterior en esta lista/);
+ assert.equal(bandeja.querySelectorAll('article').length,2,'dos mensajes sobre el mismo ramo son dos reportes');
+ assert.doesNotMatch(root.innerHTML,/Programas reportados/i);
  assert.doesNotMatch(root.innerHTML,/piloto|lo que costaría|data-aprobar|bin\//);
  const areas=root.querySelectorAll('[data-admin-area]');
  assert.deepEqual(areas.map(b=>b.dataset.adminArea),['profesores','anuncios','estadisticas','usuarios','pautas']);
@@ -88,6 +102,10 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert(area('usuarios').querySelector('#admin-reportes-programa'),'los reportes viven en Usuarios sin alterar Anuncios ni Profesores');
  await new Promise(setImmediate);
  assert(area('usuarios').querySelector('.encuesta-crear'),'Usuarios permite crear encuestas');
+ const encuestas=area('usuarios').querySelectorAll('[data-encuesta-admin]');
+ assert.deepEqual(encuestas.map(n=>n.dataset.encuestaAdmin),['activa','programada','cerrada']);
+ assert.match(area('usuarios').querySelector('#admin-encuestas-contenido').innerHTML,/Programada/);
+ assert.equal(encuestas.at(-1).querySelectorAll('[data-encuesta-cambiar]').length,0,'la terminada solo permite ver resultados');
  assert.deepEqual(calls.slice(rpcsAntesDeNavegar).map(c=>c.n),['admin_encuestas'],'solo Usuarios consulta sus datos al abrir');
  modo='encuestas-sin-sql';area('usuarios').querySelector('[data-encuestas-actualizar]').listeners.click();
  await new Promise(setImmediate);

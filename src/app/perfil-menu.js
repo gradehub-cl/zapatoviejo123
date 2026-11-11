@@ -34,6 +34,9 @@ function openUserMenu(){
   // El lector reconoce el catálogo UC; no es una herramienta de profesor.
   const horario=document.getElementById('um-horario');
   if(horario)horario.hidden=esCuentaProfesor()||S.tenant!=='uc';
+  // Cargar el historial desde la ficha: solo donde hay lector (hoy, la UC).
+  const ficha=document.getElementById('um-ficha');
+  if(ficha)ficha.hidden=!avanceCurricularDisponible();
   const calculadora=document.getElementById('um-calculadora');
   if(calculadora)calculadora.style.display=esCuentaProfesor()?'none':'flex';
   // Sin sesión no hay nada que cerrar

@@ -273,13 +273,27 @@ function resolverReglasAusencia(def,categorias){
 // resuelven a las categorías del ramo, como las compuertas. Si una evaluación
 // nombrada ya no está (la pauta se editó), esa regla no se carga: sumarle
 // décimas a otra cosa sería inventar. Vuelve a la lista de lo no calculado.
+function eximicionParaGuardar(def){
+  const regla=def?.eximicion;
+  if(!regla)return null;
+  return JSON.parse(JSON.stringify({...regla,...(regla.notaExamen==='maxima'?{pauta:def.evals||regla.pauta}:{} )}));
+}
 function resolverBonus(def,categorias){
   const lista=!Array.isArray(def)&&def&&Array.isArray(def.bonus)?def.bonus:null;
   if(!lista||!Array.isArray(categorias))return null;
   const idDe=nombre=>{const c=categorias.find(x=>normName(x.nombre)===normName(nombre));return c?c.id:null;};
   const out=[];
   lista.forEach(b=>{
-    if(!b||typeof b.id!=='string'||!['decimas','faltas'].includes(b.entrada))return;
+    if(!b||typeof b.id!=='string'||!['decimas','faltas','confirmacion'].includes(b.entrada))return;
+    if(b.a==='grupo'){
+      const evals=def.evals||[];
+      if(evals.length!==categorias.length||evals.some(([nombre,peso])=>!categorias.some(c=>normName(c.nombre)===normName(nombre)&&c.peso===peso&&(c.slots||1)===1)))return;
+      const ids=(b.evals||[]).map(idDe);
+      if(!ids.length||ids.some(x=>!x)||!['sumar','promediar','distribuir'].includes(b.operacion))return;
+      out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino:'grupo',catIds:ids,operacion:b.operacion,valor:b.valor,etapa:b.etapa,
+        pauta:categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}))});
+      return;
+    }
     const destino=b.a==='final'?'final':idDe(b.a);
     if(!destino)return;
     let si=null;
@@ -294,13 +308,20 @@ function resolverBonus(def,categorias){
   });
   return out.length?out:null;
 }
-// Lo que el estudiante ingresó: un entero entre 0 y BONUS_MAX por regla.
+// Los contadores existentes conservan su contrato: enteros entre 0 y BONUS_MAX.
 const BONUS_MAX=60;
 function copiarBonusIngresado(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
   const out={};
   Object.keys(raw).forEach(k=>{const v=raw[k];if(/^[a-z0-9_-]{1,32}$/.test(k)&&Number.isInteger(v)&&v>=0&&v<=BONUS_MAX)out[k]=v;});
   return Object.keys(out).length?out:null;
+}
+// Confirmaciones nuevas aparte: una versión anterior conserva este campo
+// opcional sin podar booleanos dentro de los contadores ya existentes.
+function copiarBonusConfirmado(raw){
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+  const out={};Object.keys(raw).forEach(k=>{if(/^[a-z0-9_-]{1,32}$/.test(k)&&typeof raw[k]==='boolean')out[k]=raw[k];});
+  return out;
 }
 function ausenciasDeclaradas(raw){return [...new Set((Array.isArray(raw)?raw:[]).filter(id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(id)))];}
 
@@ -329,6 +350,7 @@ function normalize(data) {
     // Décimas o talleres que el estudiante anotó para una regla de `bonus`.
     // Sin ellas (cuentas anteriores) queda en null y no se suma nada.
     bonusIngresado: copiarBonusIngresado(r.bonusIngresado),
+    ...(r.bonusConfirmado!==undefined?{bonusConfirmado:copiarBonusConfirmado(r.bonusConfirmado)}:{}),
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
@@ -500,7 +522,7 @@ function normalize(data) {
     // sigue calculando con el catálogo; la copia solo viaja con los datos y se
     // renueva en cada carga, así que sigue al catálogo si este cambia.
     const eximicionOficial=definicionPresetDelRamo(r)?.eximicion;
-    if(eximicionOficial)r.eximicion=JSON.parse(JSON.stringify(eximicionOficial));
+    if(eximicionOficial)r.eximicion=eximicionParaGuardar(definicionPresetDelRamo(r));
     else delete r.eximicion;
     // Las décimas del programa (#631), igual: la regla llega también a los
     // ramos ya creados y se renueva en cada carga para seguir al catálogo. No

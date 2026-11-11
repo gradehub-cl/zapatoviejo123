@@ -69,6 +69,8 @@ function datosWrapped(ramos){
     notasColores:lista.flatMap(({r})=>(r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>typeof n.valor==='number').map(()=>r.color))),
     ranking:orden.map(x=>({nombre:x.r.nombre,color:x.r.color,avg:x.avg})),
     aprobando:lista.filter(x=>notaAprobadaRamo(x.r,x.avg)).length,
+    // Reprobado solo si ya no queda nada por registrar: un ramo abierto no se da por perdido.
+    reprobados:lista.filter(x=>ramoCompletamenteEvaluado(x.r)&&!notaAprobadaRamo(x.r,x.avg)).length,
     // «Cerraste» solo si de verdad no queda nada por registrar.
     completo:lista.every(x=>ramoCompletamenteEvaluado(x.r)),
     estrella:orden[0],

@@ -35,7 +35,7 @@ async function renderPerfilProfesor(caja){
         </div><p class="directorio-error" data-error-directorio="universidades" role="alert"></p></fieldset>
         <label class="modal-label" for="pf-ramos-buscar">Ramos</label>
         <div class="profesor-ramos" id="pf-ramos-elegidos" aria-live="polite"></div>
-        <div class="profesor-ramos-buscar"><input id="pf-ramos-buscar" type="search" autocomplete="off" autocapitalize="characters" role="combobox" aria-expanded="false" aria-controls="pf-ramos-resultados" placeholder="Busca por sigla o nombre, ej. MAT1620">
+        <div class="profesor-ramos-buscar"><input id="pf-ramos-buscar" type="search" autocomplete="off" autocapitalize="characters" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="pf-ramos-resultados" placeholder="Busca por sigla o nombre, ej. MAT1620">
           <ul class="profesor-ramos-resultados" id="pf-ramos-resultados" role="listbox" hidden></ul></div>
         <input id="pf-ramos" type="hidden" value="${esc((p.ramos_siglas||[]).join(', '))}">
         ${directorio?`<fieldset class="profesor-linea"><legend class="modal-label">Qué ofreces</legend><div class="profesor-linea-opciones">
@@ -64,7 +64,13 @@ async function renderPerfilProfesor(caja){
       universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),ramos:campo('ramos').value,perfil_publico:campo('publico').checked};
     if(p.directorioDisponible)Object.assign(entrada,entradaDirectorioFormulario(form));
     const valido=validarPerfilProfesor(entrada);
-    if(!valido.ok){estado.textContent=valido.error;mostrarErrorPerfilDirectorio(form,valido);const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos-buscar'}[valido.campo]);if(c)c.focus();return;}
+    if(!valido.ok){
+      estado.textContent=valido.campo==='contacto'?'':valido.error;
+      mostrarErrorPerfilDirectorio(form,valido);
+      const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos-buscar'}[valido.campo]);
+      if(c)c.focus();
+      return;
+    }
     mostrarErrorPerfilDirectorio(form,null);
     guardando=true;const boton=form.querySelector('button[type=submit]');boton.disabled=true;estado.textContent='Guardando…';
     const r=await guardarPerfilProfesor(entrada);
@@ -175,7 +181,7 @@ const CANALES_PERFIL=[['whatsapp','WhatsApp'],['instagram','Instagram'],['email'
 const COLORES_TARJETA_PERFIL=['#0d7a6b','#1f5fbf','#6b4fbb','#b3362e','#a8660b','#2b2b30'];
 function contactoPerfilHTML(p){
   const tipo=['whatsapp','instagram','email'].includes(p.contacto_tipo)?p.contacto_tipo:'';
-  return `<fieldset class="profesor-linea"><legend class="modal-label">Contacto directo</legend><div class="pfe-canales">
+  return `<fieldset class="profesor-linea pfe-contacto"><legend class="modal-label">Contacto directo</legend><div class="pfe-canales">
       ${CANALES_PERFIL.map(([val,txt])=>`<label class="pfe-canal"><input type="radio" name="pf-contacto-tipo" value="${val}"${tipo===val?' checked':''}>${val?iconoCanalPerfil(val):''}<span>${txt}</span></label>`).join('')}
     </div></fieldset>
     <div data-pf-contacto-caja><label class="modal-label" for="pf-contacto" id="pf-contacto-etiqueta">Contacto</label><div class="pfe-campo" data-pf-contacto-icono></div>
@@ -191,16 +197,18 @@ function tarjetaPerfilCamposHTML(p){
 }
 function entradaDirectorioFormulario(form){
   const v=id=>form.querySelector('#pf-'+id),canal=form.querySelector('[name="pf-contacto-tipo"]:checked')?.value||'';
-  const contacto=String(v('contacto')?.value||'').trim();
+  const valor=String(v('contacto')?.value||'').trim();
+  const contacto=canal==='whatsapp'?whatsappPerfilEscrito(valor).trim():valor;
   return {categorias:[...form.querySelectorAll('[name="pf-categoria"]:checked')].map(x=>x.value),
     etiqueta:v('etiqueta').value,color_tarjeta:v('color').value,contacto_tipo:canal,
     contacto_valor:canal&&contacto!==String(PREFIJO_CONTACTO_CLASE[canal]||'').trim()?contacto:'',en_directorio:v('directorio').checked};
 }
-// Un número escrito sin código de país se completa, igual que el anuncio lo
-// pide: «912345678» pasa a +56 9 1234 5678. Solo se ordena; no se corta nada.
-function whatsappPerfilEscrito(texto){
+function whatsappPerfilEscrito(texto,{completar=true}={}){
   const t=String(texto||'');
-  return textoWhatsappEscrito(/^\s*9/.test(t)?'+56 '+t:t);
+  if(!telefonoPerfilEscrito(t))return t;
+  // Agregar el código recién al salir del campo conserva el cursor mientras
+  // se escribe un celular sin prefijo. El guardado también lo completa.
+  return textoWhatsappEscrito(completar&&!t.trimStart().startsWith('+')&&/^9\d{8}$/.test(t.replace(/\D/g,''))?'+56 '+t:t);
 }
 function enlazarContactoPerfil(form,p){
   const caja=form.querySelector('[data-pf-contacto-caja]'),icono=form.querySelector('[data-pf-contacto-icono]');
@@ -220,11 +228,14 @@ function enlazarContactoPerfil(form,p){
     icono.innerHTML=`${iconoCanalPerfil(c)}<input id="pf-contacto" type="${c==='email'?'email':'text'}" inputmode="${modo}" maxlength="160" autocomplete="off" autocapitalize="none" placeholder="${esc(ejemplo)}" aria-describedby="pf-contacto-ayuda pf-contacto-error">`;
     const entrada=icono.querySelector('input');
     entrada.value=escrito[c]||PREFIJO_CONTACTO_CLASE[c]||'';
-    formatearAlEscribir(entrada,t=>c==='whatsapp'?whatsappPerfilEscrito(t):c==='instagram'?textoInstagramEscrito(t):t);
-    entrada.addEventListener('input',()=>{error.textContent='';});
+    formatearAlEscribir(entrada,t=>c==='whatsapp'?whatsappPerfilEscrito(t,{completar:false}):c==='instagram'?textoInstagramEscrito(t):t);
+    entrada.addEventListener('input',()=>{error.textContent='';entrada.removeAttribute('aria-invalid');});
     if(c==='whatsapp')entrada.addEventListener('blur',()=>{
-      const valor=entrada.value.trim();
-      error.textContent=valor&&valor!=='+56'&&!whatsappChilenoCompleto(valor)?ERROR_WHATSAPP_CHILE:'';
+      entrada.value=whatsappPerfilEscrito(entrada.value);
+      const valor=entrada.value.trim(),invalido=!!(valor&&valor!=='+56'&&!whatsappValidoPerfil(valor));
+      error.textContent=invalido?ERROR_WHATSAPP_CHILE:'';
+      if(invalido)entrada.setAttribute('aria-invalid','true');
+      else entrada.removeAttribute('aria-invalid');
     });
   };
   form.querySelectorAll('[name="pf-contacto-tipo"]').forEach(r=>r.addEventListener('change',mostrar));
@@ -251,14 +262,16 @@ function activarBuscadorRamosPerfil(form){
     buscar.placeholder=lleno?'Llegaste a 20 ramos. Quita uno para agregar otro.':'Busca por sigla o nombre, ej. MAT1620';
   };
   const escribir=siglas=>{oculto.value=siglas.join(', ');pintar();oculto.dispatchEvent(new Event('input',{bubbles:true}));};
-  const cerrar=()=>{lista.hidden=true;lista.innerHTML='';buscar.setAttribute('aria-expanded','false');};
+  let activa=-1;
+  const limpiarActiva=()=>{activa=-1;buscar.removeAttribute('aria-activedescendant');};
+  const cerrar=()=>{lista.hidden=true;lista.innerHTML='';buscar.setAttribute('aria-expanded','false');limpiarActiva();};
   const elegir=sg=>{const actuales=leer();if(sg&&!actuales.includes(sg)&&actuales.length<MAX_RAMOS_PERFIL)escribir([...actuales,sg]);buscar.value='';cerrar();buscar.focus();};
   const mostrar=()=>{
     const res=buscarRamosParaClase(indice,buscar.value,leer());
     if(!res.length){cerrar();return;}
-    lista.innerHTML=res.map(x=>`<li role="option" data-sigla="${esc(x.sigla)}"><b>${esc(x.sigla)}</b><span>${esc(x.nombre)}</span></li>`).join('');
+    limpiarActiva();
+    lista.innerHTML=res.map((x,i)=>`<li role="option" id="pf-ramo-op-${i}" aria-selected="false" data-sigla="${esc(x.sigla)}"><b>${esc(x.sigla)}</b><span>${esc(x.nombre)}</span></li>`).join('');
     lista.hidden=false;buscar.setAttribute('aria-expanded','true');
-    lista.querySelectorAll('[data-sigla]').forEach(li=>li.addEventListener('mousedown',e=>{e.preventDefault();elegir(li.dataset.sigla);}));
   };
   // Sin universidad elegida se busca en todas: el profesor todavía no la marcó.
   const reindexar=()=>{
@@ -270,10 +283,32 @@ function activarBuscadorRamosPerfil(form){
   };
   buscar.addEventListener('input',mostrar);
   buscar.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){e.preventDefault();const primera=lista.querySelector('[data-sigla]');if(primera)elegir(primera.dataset.sigla);}
-    else if(e.key==='Escape')cerrar();
+    if(e.isComposing)return;
+    if(e.key==='Enter'){
+      e.preventDefault();
+      if(!lista.hidden)elegir(lista.children[Math.max(activa,0)].dataset.sigla);
+    }else if(e.key==='Escape'&&!lista.hidden){
+      e.preventDefault();e.stopPropagation();cerrar();
+    }else if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      if(lista.hidden)mostrar();
+      if(lista.hidden)return;
+      e.preventDefault();
+      const opciones=lista.children,paso=e.key==='ArrowDown'?1:-1;
+      const anterior=opciones[activa];
+      if(anterior)anterior.setAttribute('aria-selected','false');
+      activa=(activa<0&&paso<0?opciones.length-1:Math.min(opciones.length-1,Math.max(0,activa+paso)));
+      const opcion=opciones[activa];
+      opcion.setAttribute('aria-selected','true');
+      buscar.setAttribute('aria-activedescendant',opcion.id);
+      opcion.scrollIntoView({block:'nearest'});
+    }
   });
-  buscar.addEventListener('blur',()=>setTimeout(cerrar,120));
+  lista.addEventListener('mousedown',e=>{if(e.target.closest('[data-sigla]'))e.preventDefault();});
+  lista.addEventListener('click',e=>{
+    const opcion=e.target.closest('[data-sigla]');
+    if(opcion)elegir(opcion.dataset.sigla);
+  });
+  buscar.addEventListener('blur',cerrar);
   form.querySelectorAll('[name="pf-uni"]').forEach(u=>u.addEventListener('change',reindexar));
   reindexar();
   if(typeof cargarCursosUC==='function')cargarCursosUC().then(ok=>{if(ok&&form.isConnected)reindexar();}).catch(()=>{});
@@ -305,7 +340,8 @@ function enlazarPreviaPerfil(form,p,caja,nombresRamos){
     const d=datos(),conTarjeta=!!p.directorioDisponible;
     caja.innerHTML=`<div class="pfe-previa-cabeza"><h4>Vista previa</h4>${conTarjeta?`<div class="pfe-seg" role="group" aria-label="Qué mostrar"><button type="button" data-pfe-vista="tarjeta" aria-pressed="${vista==='tarjeta'}">Tarjeta</button><button type="button" data-pfe-vista="ficha" aria-pressed="${vista==='ficha'}">Al tocarla</button></div>`:''}</div>
       ${vista==='tarjeta'?`<button type="button" class="pfe-previa-tarjeta" data-pfe-vista="ficha" aria-label="Ver lo que se abre al tocar tu tarjeta">${tarjetaDirectorioHTML({...d,logo_path:null},{previa:true,logoURL:logo})}</button><p class="pfe-previa-pista">Toca la tarjeta para ver lo que se abre.</p>`
-        :`<div class="pfe-ficha" inert>${perfilPublicoHTML(d,null,nombresRamos())}</div>`}`;
+        :`<div class="pfe-ficha" tabindex="0" role="region" aria-label="Ficha de vista previa">${perfilPublicoHTML(d,null,nombresRamos())}</div>`}`;
+    caja.querySelectorAll('.pfe-ficha a,.pfe-ficha button').forEach(accion=>{accion.inert=true;});
     const marco=caja.querySelector('[data-directorio-logo]');if(marco&&logo)marco.innerHTML=imgLogoClase(logo);
     caja.querySelectorAll('[data-pfe-vista]').forEach(b=>b.addEventListener('click',()=>{vista=b.dataset.pfeVista;pintar();caja.querySelector(`.pfe-seg [data-pfe-vista="${vista}"]`)?.focus();}));
   };

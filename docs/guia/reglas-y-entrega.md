@@ -115,6 +115,13 @@ visual que no las cumple no se mergea. Lo que más aplica a una PWA:
   destructiva pide confirmación y se ve como tal.
 - El movimiento acompaña, no decora, y respeta `prefers-reduced-motion`.
 - Jerarquía clara: una acción principal por pantalla, lenguaje directo.
+- **Interruptor (switch) cuando el cambio se aplica solo** (Lucas, 2026-11-10):
+  si al tocarlo algo se prende o se apaga al instante, sin botón «Guardar», es un
+  interruptor. No un botón que cambia de texto, ni casillas o radios.
+  [HIG — Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles).
+  Para elegir entre varias apariencias, como el tema, el fondo o un tema festivo,
+  se usan **muestras que se ven como va a quedar**, como en Ajustes → Apariencia,
+  no una lista de radios.
 
 La única excepción son las otras reglas de esta sección: el semáforo, la
 tipografía del sistema y la dirección Editorial se mantienen. Si una guía choca

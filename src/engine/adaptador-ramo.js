@@ -48,10 +48,37 @@ function gh_crearCalculoRamo(deps){
         return c&&c.peso===e.peso&&(c.slots||1)===e.slots&&normName(c.nombre)===normName(e.nombre)&&JSON.stringify(c.dropLowest||null)===JSON.stringify(e.dropLowest||null);
       }));
   }
+  function reglaDeEximicion(r){
+    const def=definicionPresetDelRamo(r),regla=def?.eximicion;
+    if(!regla)return null;
+    if(regla.requierePautaOriginal===true){
+      const evals=def.evals||regla.pauta||[],cats=r.categorias||[];
+      if(!Array.isArray(evals)||evals.length!==cats.length||evals.some(([nombre,peso,extra])=>{
+        const c=cats.find(c=>normName(c.nombre)===normName(nombre));
+        return !c||Math.abs(c.peso-peso)>0.001||(c.slots||1)!==(extra?.slots||1)||(c.dropLowest?.count||0)!==(extra?.dropLowest?.count||0);
+      }))return null;
+    }
+    return regla;
+  }
+  function reglasBonusVigentes(r){
+    const cats=r.categorias||[];
+    return (Array.isArray(r.bonus)?r.bonus:[]).filter(b=>b&&(b.destino!=='grupo'||
+      Array.isArray(b.catIds)&&b.catIds.length&&b.catIds.every(id=>cats.some(c=>c.id===id))
+      &&(!b.pauta||Array.isArray(b.pauta)&&b.pauta.length===cats.length&&b.pauta.every(e=>{
+      const c=cats.find(c=>c.id===e.catId);
+      return c&&normName(c.nombre)===normName(e.nombre)&&c.peso===e.peso&&(c.slots||1)===e.slots
+        &&JSON.stringify(c.dropLowest||null)===JSON.stringify(e.dropLowest||null);
+    }))));
+  }
   function ramoToStructure(r){
-    const bonus=gh_bonusActivos(r.bonus,r.bonusIngresado);
+    const bonus=gh_bonusActivos(reglasBonusVigentes(r),r.bonusIngresado,r.bonusConfirmado);
     const conBonus=(nodo,lista)=>lista&&lista.length?{...nodo,bonus:lista}:nodo;
-    return conBonus({__meta:reglasNota(),
+    const ex=reglaDeEximicion(r);
+    const idDe=n=>(r.categorias||[]).find(c=>normName(c.nombre)===normName(n))?.id;
+    const eximicion=ex?.notaExamen==='maxima'&&ex.segun?.every(n=>idDe(n))&&idDe(ex.evaluacion)
+      ?{catIds:ex.segun.map(idDe),examenId:idDe(ex.evaluacion),min:ex.min,promedio:ex.promedio,confirmada:ex.requiereConfirmacion!==true||r.eximicionConfirmada===true,
+        asistencia:!Number.isInteger(ex.maxInasistencias)||r.faltas?.activo===true&&Number.isInteger(r.faltas.cantidad)&&r.faltas.cantidad<=ex.maxInasistencias}:null;
+    return conBonus({__meta:reglasNota(),mejoras:bonus.mejoras,eximicion,
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
       formulas_condicionales:reglasCalculoVigentes(r).filter(g=>g.type==='conditional_weights'),
       children:categoriasVigentes(r).filter(c=>c.peso>0||(c.optativa===true&&(c.notas||[]).some(n=>Number.isFinite(n.valor)))).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
@@ -87,11 +114,11 @@ function gh_crearCalculoRamo(deps){
   }
   function estadoEximicion(ramo){
     const def=definicionPresetDelRamo(ramo);
-    const regla=!Array.isArray(def)&&def&&def.eximicion;
+    const regla=reglaDeEximicion(ramo);
     if(!regla||!Array.isArray(regla.segun)||typeof regla.ignoraDescartes!=='boolean')return null;
     const categorias=ramo.categorias||[];
     if(regla.requierePautaOriginal===true){
-      const evals=def.evals||[];
+      const evals=def.evals||regla.pauta||[];
       if(categorias.length!==evals.length||evals.some(([nombre,peso,extra])=>{
         const cat=categorias.find(c=>normName(c.nombre)===normName(nombre));
         const slots=extra?.slots||1,descartes=extra?.dropLowest?.count||0;
@@ -105,6 +132,11 @@ function gh_crearCalculoRamo(deps){
     if(examenes.some(c=>!c)||new Set(examenes.map(c=>c.id)).size!==examenes.length)return null;
     const confirmada=ramo.eximicionConfirmada===true;
     const base={activa:false,pendiente:false,examenId:examenes[0].id,examenIds:examenes.map(c=>c.id),regla,confirmada};
+    if(regla.notaExamen==='maxima'){
+      const res=calculateFinalGrade(ramoToStructure(ramo),gradesOf(ramo));
+      const estado=res.eximiciones.find(e=>e.examenId===examenes[0].id);
+      return estado?{...base,...estado}:null;
+    }
     if(examenes.some(c=>avgPond(c.notas)!==null))return {...base,razon:'examen_rendido'};
     if(regla.sinAusenciasJustificadas===true&&(ramo.ausenciasJustificadas||[]).length)
       return {...base,razon:'ausencia_justificada'};
@@ -142,7 +174,12 @@ function gh_crearCalculoRamo(deps){
       razon:!elegible?'promedio':activa?'cumple':'falta_confirmacion'};
   }
   function categoriaEximida(ramo,cat){const estado=estadoEximicion(ramo);return !!(estado&&estado.activa&&estado.examenIds.includes(cat.id));}
-  function categoriasVigentes(ramo){return (ramo&&ramo.categorias||[]).filter(c=>!categoriaEximida(ramo,c));}
+  function categoriasVigentes(ramo){
+    const regla=reglaDeEximicion(ramo);
+    // Un examen reemplazado mantiene su 30%: solo deja de estar pendiente.
+    if(regla?.notaExamen==='maxima')return (ramo.categorias||[]).filter(c=>!c.fueraDePauta);
+    return (ramo&&ramo.categorias||[]).filter(c=>!categoriaEximida(ramo,c));
+  }
   function estadoSegundaFecha(ramo){
     const def=definicionPresetDelRamo(ramo);
     const regla=!Array.isArray(def)&&def&&def.segundaFecha;
@@ -280,7 +317,7 @@ function gh_crearCalculoRamo(deps){
     const cubiertas=new Set((calculo&&calculo.ausencias&&calculo.ausencias.activas||[]).map(x=>x.desdeId));
     const categorias=categoriasVigentes(r);
     return categorias.length>0&&categorias.every(c=>{
-      if(c.optativa===true&&c.peso===0)return true;
+      if(c.optativa===true&&c.peso===0||categoriaEximida(r,c))return true;
       if(cubiertas.has(c.id))return true;
       const objetivo=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
       return (c.notas||[]).filter(n=>typeof n.valor==='number').length>=objetivo;
@@ -465,15 +502,32 @@ function gh_crearCalculoRamo(deps){
     for(let i=0;i<48;i++){const mid=(lo+hi)/2;if(alcanza(mid))hi=mid;else lo=mid;}
     return hi;
   }
+  function notaNecesariaEximicion(ramo){
+    const estado=estadoEximicion(ramo);
+    if(!estado||estado.regla.notaExamen!=='maxima'||!estado.pendiente||estado.razon==='examen_rendido'
+      ||Number.isInteger(estado.regla.maxInasistencias)&&ramo.faltas?.cantidad>estado.regla.maxInasistencias)return null;
+    const fuentes=ramo.categorias.filter(c=>estado.regla.segun.some(n=>normName(n)===normName(c.nombre)));
+    const pendientes=fuentes.filter(c=>promedioCompletoSinDescarte(c)===null);
+    if(!pendientes.length)return null;
+    const alcanza=valor=>{
+      const copia={...ramo,categorias:ramo.categorias.map(c=>pendientes.includes(c)?{...c,notas:[{id:'__gh_eximir_'+c.id,valor,peso:1}]}:c)};
+      return estadoEximicion(copia)?.elegible===true;
+    };
+    if(!alcanza(7))return 8;
+    if(alcanza(1))return 1;
+    let bajo=1,alto=7;for(let i=0;i<48;i++){const medio=(bajo+alto)/2;if(alcanza(medio))alto=medio;else bajo=medio;}
+    return alto;
+  }
   // `soloPropio` pregunta por la parte propia sin el ramo que le aporta: cuánto
   // necesita la cátedra para llegar sola a la meta.
   function notaNecesaria(ramo,meta,opciones){
     const objetivo=Number.isFinite(meta)?meta:4.0;
+    if(definicionPresetDelRamo(ramo)?.eximicion?.notaExamen==='maxima'&&ramoCompletamenteEvaluado(ramo))return null;
     const baseInicial=calculoRamoConCompuertas(ramo);
     if(baseInicial.ausencias&&baseInicial.ausencias.bloqueadas&&baseInicial.ausencias.bloqueadas.length)return null;
     // El solver de estructura no conoce los reemplazos voluntarios: proyecta
     // la misma nota en lo pendiente y vuelve a pasar por el cálculo del ramo.
-    if(((Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length)||compuertasEfectivas(ramo).some(g=>g.efecto==='reemplazar'))&&
+    if(((definicionPresetDelRamo(ramo)?.eximicion?.notaExamen==='maxima')||gh_bonusActivos(reglasBonusVigentes(ramo),ramo.bonusIngresado,ramo.bonusConfirmado).mejoras.length||(Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length)||compuertasEfectivas(ramo).some(g=>g.efecto==='reemplazar'))&&
        !ramo.aporta&&!reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights')){
       const pendientes=[];
       categoriasVigentes(ramo).filter(c=>c.peso>0).forEach(c=>{
@@ -493,7 +547,13 @@ function gh_crearCalculoRamo(deps){
           if(i>=0)c.notas[i]={...c.notas[i],valor:nota};
           else c.notas.push({id:hoja.id,nombre:hoja.name,valor:nota,peso:1,slot:hoja.slot});
         });
-        return calculoRamoConCompuertas(copia).valor;
+        const normal=calculoRamoConCompuertas(copia).valor;
+        const ex=estadoEximicion(ramo);
+        if(ex?.regla.notaExamen==='maxima'&&ex.razon!=='examen_rendido'){
+          const sinExamen={...copia,categorias:copia.categorias.map(c=>ex.examenIds.includes(c.id)?ramo.categorias.find(x=>x.id===c.id):c)};
+          if(estadoEximicion(sinExamen)?.activa){const exento=calculoRamoConCompuertas(sinExamen).valor;return normal===null?exento:Math.max(normal,exento);}
+        }
+        return normal;
       };
       const minimo=gh_meta(baseInicial.estructura)?.grade_scale?.min??1;
       const maximo=gh_meta(baseInicial.estructura)?.grade_scale?.max??7;
@@ -586,7 +646,7 @@ function gh_crearCalculoRamo(deps){
     // diciendo cuál está incumplida hoy.
     return conCompuertas(resolver(estructura,objetivo));
   }
-  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasBonusVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,notaNecesariaEximicion,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje,gh_tablaPuntaje};
