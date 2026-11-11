@@ -53,6 +53,8 @@ const base={nombre_publico:'Academia Sintética',presentacion:'Clases ficticias 
   check('un tipo inventado queda sin tipo',valida({...base,tipo_perfil:'colegio'}).datos.tipo_perfil===null);
   const g=await run(`guardarPerfilProfesor(${JSON.stringify({...base,perfil_publico:true})})`);
   check('guardar manda solo los campos del perfil',g.ok&&Object.keys(guardado).sort().join()==='instagram,nombre_publico,perfil_publico,presentacion,ramos_siglas,sitio_web,tipo_perfil,universidades');
+  const existente={...base,tipo_perfil:'profesor',perfil_publico:true};
+  check('guardar un particular conserva profesor en el respaldo',(await run(`guardarPerfilProfesor(${JSON.stringify(existente)})`)).ok&&guardado.tipo_perfil==='profesor');
   guardado=null;faltanColumnas=1;
   check('sin el SQL, guardar avisa en vez de fingir',!(await run(`guardarPerfilProfesor(${JSON.stringify(base)})`)).ok);
   faltanColumnas=0;
@@ -68,6 +70,13 @@ const base={nombre_publico:'Academia Sintética',presentacion:'Clases ficticias 
   check('sus otras clases, sin repetir la que está abierta',html.includes('data-ir-anuncio="a2"')&&!html.includes('data-ir-anuncio="a1"'));
   check('la que no está en este catálogo se cuenta, sin inventarle título',/Y 1 clase publicada más/.test(html));
   check('dice si es academia',html.includes('Academia o empresa'));
+  ctx.__p={...base,tipo_perfil:'profesor',anuncios:[]};
+  const particular=run('perfilPublicoHTML(__p,null)');
+  check('el tipo profesor se presenta como Particular',particular.includes('>Particular</p>')&&!particular.includes('>Profesor</p>'));
+  ctx.__p={...base,tipo_perfil:'empresa',categorias:['plataforma'],sitio_web:'https://plataforma.example.invalid',anuncios:[]};
+  const app=run('perfilPublicoHTML(__p,null)');
+  check('una plataforma sin anuncio ni WhatsApp muestra su sitio',app.includes('href="https://plataforma.example.invalid/"')&&app.includes('Sitio web')&&!app.includes('WhatsApp'));
+  check('el sitio conserva noopener y abre otra pestaña',/<a[^>]+target="_blank"[^>]+rel="noopener noreferrer"[^>]+data-perfil-canal="web"/.test(app));
 
   const caja={dataset:{perfil:'privado'},innerHTML:'',isConnected:true};
   ctx.supabaseClient.rpc=async(nombre,args)=>{assert.equal(nombre,'perfil_apoyo_de_anuncio');return {data:null,error:null};};
