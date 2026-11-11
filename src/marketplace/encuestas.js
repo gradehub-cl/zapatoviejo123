@@ -172,6 +172,8 @@ async function renderAdminEncuestas(raiz){
   }catch(e){if(encuestaSigue(uid,version)&&vista.isConnected)pintar('<p role="alert">No pudimos cargar las encuestas. Intenta de nuevo con conexión.</p>');return;}
   const publicos=[['todos','Todos'],...Object.entries(TENANTS).map(([id,t])=>[id,t.label||t.short])];
   const hoy=diaChileEncuesta();
+  const estadoVisible=e=>e.estado==='terminada'||e.termino<hoy?'Terminada':e.estado==='pausada'?'Pausada':e.inicio>hoy?'Programada':'Activa';
+  const vigentes=lista.filter(e=>estadoVisible(e)!=='Terminada'),terminadas=lista.filter(e=>estadoVisible(e)==='Terminada');
   pintar(`<details class="encuesta-crear"><summary>Crear encuesta</summary><form>
     <label>Pregunta<input type="text" name="pregunta" maxlength="280" required></label>
     <label>Tipo<select name="tipo"><option value="una">Una opción</option><option value="varias">Varias opciones</option><option value="texto">Texto corto</option></select></label>
@@ -180,7 +182,7 @@ async function renderAdminEncuestas(raiz){
     <div class="encuesta-fechas"><label>Inicio<input type="date" name="inicio" value="${hoy}" required></label><label>Término<input type="date" name="termino" value="${hoy}" required></label></div>
     <p>Fechas completas de Chile, incluido el día de término. Una encuesta simultánea por público.</p>
     <p role="status" data-crear-estado></p><button type="button" data-encuesta-preview>Vista previa</button><button type="submit" class="encuesta-enviar">Crear encuesta</button>
-    </form></details><div class="encuestas-lista">${lista.map(e=>`<section data-encuesta-admin="${esc(e.id)}"><h2>${esc(e.pregunta)}</h2><p>${esc(publicos.find(([id])=>id===e.publico)?.[1]||e.publico)} · ${esc(e.inicio)} a ${esc(e.termino)} · ${e.termino<hoy?'Terminada por fecha':esc(e.estado)}</p>
+    </form></details><div class="encuestas-lista">${[...vigentes,...terminadas].map(e=>`<section data-encuesta-admin="${esc(e.id)}"><div class="adu-encuesta-cabeza"><h4>${esc(e.pregunta)}</h4><span class="adu-estado">${estadoVisible(e)}</span></div><p class="adu-nota">${esc(publicos.find(([id])=>id===e.publico)?.[1]||e.publico)} · ${esc(e.inicio.split('-').reverse().join('/'))} a ${esc(e.termino.split('-').reverse().join('/'))}</p>
     <div class="encuesta-acciones">${e.estado!=='terminada'&&e.termino>=hoy?`<button type="button" data-encuesta-cambiar="${e.estado==='activa'?'pausada':'activa'}">${e.estado==='activa'?'Pausar':'Reanudar'}</button><button type="button" data-encuesta-cambiar="terminada">Terminar</button>`:''}<button type="button" data-encuesta-resultados>Ver resultados</button></div><div data-encuesta-totales aria-live="polite"></div></section>`).join('')||'<p>Todavía no hay encuestas.</p>'}</div>`);
   const form=raiz.querySelector('.encuesta-crear form'),f=form.elements,estado=raiz.querySelector('[data-crear-estado]');
   f.tipo.addEventListener('change',()=>{const texto=f.tipo.value==='texto';raiz.querySelector('[data-opciones-admin]').hidden=texto;f.opciones.required=!texto;});

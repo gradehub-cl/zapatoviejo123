@@ -199,7 +199,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
   const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
   const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
   const tab=(nombre,texto)=>`<button type="button" role="tab" id="admin-tab-${nombre}" data-admin-area="${nombre}" aria-controls="admin-area-${nombre}" aria-selected="${nombre===area}" tabindex="${nombre===area?'0':'-1'}">${texto}</button>`;
-  const panel=(nombre,contenido)=>`<section class="admin-hig-panel" role="tabpanel" id="admin-area-${nombre}" data-admin-panel="${nombre}" aria-labelledby="admin-tab-${nombre}" tabindex="0"${nombre===area?'':' hidden'}>${contenido}</section>`;
+  const panel=(nombre,contenido)=>`<section class="admin-hig-panel${nombre==='usuarios'?' adu adm-lista':''}" role="tabpanel" id="admin-area-${nombre}" data-admin-panel="${nombre}" aria-labelledby="admin-tab-${nombre}" tabindex="0"${nombre===area?'':' hidden'}>${contenido}</section>`;
   // Sin cabecera propia: «Administración» va en la barra (Lucas, 2026-10-22).
   // Decía «Todo en orden.» aunque hubiera anuncios esperando revisión.
   return `<div class="admin-hig">
@@ -227,11 +227,16 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
       ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}</div>`)}
     ${panel('pautas','<div id="admin-pautas-contenido"></div>')}
     ${panel('usuarios',`<h2>Usuarios</h2>
-      ${temaFestivoAdminHTML()}
-      <section class="admin-tema-festivo" aria-label="Wrapped"><h3>Wrapped 2026-2</h3>
-        <p class="admin-hig-nota">Vista previa con un semestre de ejemplo. Abre para todos el 1 de diciembre; nadie más ve este botón.</p>
-        <button type="button" class="clase-accion" onclick="abrirWrappedVistaPrevia()">Ver el Wrapped</button></section>
-      <div id="admin-encuestas-contenido"><p class="admin-hig-nota">Abre esta sección para gestionar encuestas.</p></div>
+      <div class="adu-columnas">
+        <section class="adm-tarjeta" id="admin-encuestas-contenido" aria-label="Encuestas"><p class="admin-hig-nota" role="status">Cargando encuestas…</p></section>
+        <div class="adu-publico">
+          <section class="adm-tarjeta" aria-labelledby="adu-wrapped">
+            <div><h3 id="adu-wrapped">Wrapped 2026-2</h3><p class="adu-nota">Apertura general el 1 de diciembre</p></div>
+            <button type="button" class="clase-accion" onclick="abrirWrappedVistaPrevia()">Ver vista previa</button>
+          </section>
+          <div class="adm-tarjeta">${temaFestivoAdminHTML()}</div>
+        </div>
+      </div>
       <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa anteriores"><h3>Reportes de programa anteriores</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
   </div>`;
 }
@@ -242,8 +247,8 @@ const TEMAS_FESTIVOS_ADMIN=[['','Ninguno'],['halloween','Halloween'],['navidad',
 function temaFestivoAdminHTML(){
   const actual=typeof temaFestivo==='string'?temaFestivo:'';
   return `<fieldset class="admin-tema-festivo" data-admin-tema-festivo><legend>Temas festivos</legend>
-    <p class="admin-hig-nota">Lo ven todos, también antes de entrar. Nadie pierde su color: vuelve solo al apagarlo.</p>
-    ${TEMAS_FESTIVOS_ADMIN.map(([v,t,off])=>`<label><input type="radio" name="admin-tema-festivo" value="${v}"${v===actual?' checked':''}${off?' disabled':''}>${t}</label>`).join('')}
+    <p class="adu-nota">Visible para todos, incluso antes de iniciar sesión.</p>
+    <div class="adu-temas">${TEMAS_FESTIVOS_ADMIN.map(([v,t,off])=>`<label><input type="radio" name="admin-tema-festivo" value="${v}"${v===actual?' checked':''}${off?' disabled':''}><span>${t}</span></label>`).join('')}</div>
     <p class="profesor-info" role="status" data-tema-festivo-estado></p></fieldset>`;
 }
 function enlazarTemaFestivoAdmin(raiz){
