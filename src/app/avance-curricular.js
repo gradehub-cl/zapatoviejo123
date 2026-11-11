@@ -115,7 +115,7 @@ function openAvanceCurricular(){
       <li>Elige la pestaña «${esc(fuente.pestanaFicha)}».</li>
       <li>Toca «Descargar». El archivo empieza con ${esc(fuente.archivoFicha)}.</li>
     </ol>
-    <p class="settings-help">También llegas desde ${esc(fuente.alternativa)}.</p>
+    <p class="settings-help">También llegas desde ${esc(fuente.alternativa)}. Si el portal muestra un error, entra de nuevo por ahí.</p>
     <label class="btn-confirm horario-foto-btn" for="m-avance-ficha">Subir ficha en PDF</label>
     <input type="file" id="m-avance-ficha" class="horario-foto-input" accept="application/pdf,.pdf" onchange="subirFichaAcademica(this)" aria-describedby="m-avance-aviso"/>
     <p class="settings-help" id="m-avance-aviso" role="status" aria-live="polite">Solo leemos siglas, créditos, notas y semestres.</p>
@@ -137,7 +137,11 @@ async function leerAvancePegado(){
   const {filas,omitidos}=leerAvanceCurricular(campo.value);
   if(!filas.length){
     const aviso=document.getElementById('m-avance-aviso');
-    if(aviso)aviso.textContent='No encontramos ramos con nota en el texto. Copia la página completa e inténtalo de nuevo.';
+    // Distingue "no hay notas" (copió solo los ramos en curso) de "no es el avance".
+    const conSiglas=(campo.value.match(SIGLA_AVANCE_RE)||[]).length>0;
+    if(aviso)aviso.textContent=conSiglas
+      ?'Encontramos ramos, pero sin notas. Copia la pestaña «Seguimiento Curricular» completa, no solo los ramos en curso.'
+      :'No reconocimos el texto. Copia toda la pestaña «Seguimiento Curricular» e inténtalo de nuevo.';
     return;
   }
   await revisarFilasAvance(filas,omitidos,()=>document.getElementById('m-avance-texto')===campo);
