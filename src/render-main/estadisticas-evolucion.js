@@ -51,7 +51,7 @@ function puntosRangoEvolucion(rango,notas,historial,ramos,actual,ahora=new Date(
 function textoDeltaEvolucion(delta){
   if(delta===null)return 'Primer promedio';
   if(Math.abs(delta)<0.005)return 'Sin cambio';
-  return (delta>0?'+':'−')+fmtPromedioGeneral(Math.abs(delta));
+  return (delta>0?'+':'−')+fmtDiferenciaPromedio(Math.abs(delta));
 }
 function hitosEvolucionHTML(puntos,limite){
   const recientes=[...puntos].reverse();
