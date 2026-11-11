@@ -123,7 +123,7 @@ function controles(count){
   return c('controles','Controles',100,[n('primero',2,0),n('segundo',3,1)],{
     slots:3,dropLowest:{count}});
 }
-for(const [count,actual,proyectado,necesaria] of [[1,'3,0','4,0','4,9'],[2,'3,0','5,0','4,0']]){
+for(const [count,actual,proyectado,necesaria] of [[1,'2,5','4,0','4,9'],[2,'2,5','5,0','4,0']]){
   const propia=ramo([controles(count)]);
   assert.equal(pintar(propia),`Para el 4,0 necesitas ${necesaria} en lo que queda`);
   assert.equal(byId('sim-avg').textContent,actual);
