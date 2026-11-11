@@ -107,4 +107,30 @@ check('el modal ofrece subir la ficha primero y pegar el avance como alternativa
   assert.match(html,/accept="application\/pdf,\.pdf"/);
 });
 
+check('la oferta del onboarding está apagada mientras Lucas la prueba',()=>{
+  run(`S.tenant='uc';S.careerSemestre=3;S.historial=[];`);
+  assert.equal(run('ofertaFichaOnboardingHTML()'),'');
+});
+
+check('al terminar el onboarding se ofrece la ficha solo a quien no va en primer semestre',()=>{
+  // Se prueba como quedará al encenderla.
+  const fuente=leer('src/app/onboarding-flujo.js').match(/function ofertaFichaOnboardingHTML\(\)\{[\s\S]*?\n\}/)[0].replace('!OFERTA_FICHA_ONBOARDING||','');
+  run(fuente);
+  const oferta=(sem,tenant='uc',historial=[])=>{ctx.__h=historial;return run(`S.tenant='${tenant}';S.careerSemestre=${sem};S.historial=__h;ofertaFichaOnboardingHTML()`);};
+  assert.equal(oferta(1),'');
+  assert.match(oferta(3),/Carga todos tus semestres pasados de una/);
+  assert.match(oferta(3),/onclick="openAvanceCurricular\(\)"/);
+  assert.equal(oferta(3,'uai'),'','solo donde hay lector');
+  assert.equal(oferta(3,'uc',[{label:'2025-1',ramos:[]}]),'','quien ya tiene historial no lo necesita');
+  run(`S.tenant='uc';S.careerSemestre=1;S.historial=[];`);
+});
+
+check('el menú del perfil tiene «Cargar semestres pasados» junto a la calculadora',()=>{
+  const html=leer('index.html');
+  const calc=html.indexOf('id="um-calculadora"'),ficha=html.indexOf('id="um-ficha"'),archivar=html.indexOf('id="um-archivar"');
+  assert.ok(calc>0&&ficha>calc&&archivar>ficha);
+  assert.match(html,/id="um-ficha" hidden[^>]*onclick="umGo\(openAvanceCurricular\)"/);
+  assert.match(leer('src/app/perfil-menu.js'),/ficha\.hidden=!avanceCurricularDisponible\(\)/);
+});
+
 console.log(`\nPASS: ${ok}   FAIL: 0`);
