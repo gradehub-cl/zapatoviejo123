@@ -14,6 +14,9 @@ function obTrackPaso(){
 // era no dárselo puesto.
 function obIniciar(){
   obStep=1;obPasosVistos.clear();selectedTenant=null;obEnviandoProfesor=false;
+  // Solo el borrador del onboarding: no modifica el semestre de S.
+  obGeneracion=null;selectedSem=1;obSemManual=false;obVerano=false;obSemInvalido=false;
+  const semestreEditar=document.getElementById('ob-sem-editar');if(semestreEditar)semestreEditar.hidden=true;
   ['ob-prof-nombre','ob-prof-presentacion'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
   const mayor=document.getElementById('ob-prof-mayor');if(mayor)mayor.checked=false;
   const error=document.getElementById('ob-prof-error');if(error)error.textContent='';

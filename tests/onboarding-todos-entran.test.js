@@ -42,7 +42,7 @@ function intentar(tenant, malla, nombreCarrera, sem) {
   run(`selectedCarrera=${JSON.stringify(malla || null)}`);
   run(`selectedCarreraNombre=${JSON.stringify(nombreCarrera)}`);
   run(`selectedSem=${sem || 1}`);
-  run('obRamos=[]'); run('obStep=5');
+  run('obGeneracion=new Date().getFullYear();obRamos=[]'); run('obStep=5');
   // La propiedad se calcula con obStepValid, que es lo que habilita cada botón.
   // A propósito NO se usa el ayudante nuevo: así este test también corre contra
   // un árbol que todavía no lo tiene, y ahí reporta las carreras atrapadas en

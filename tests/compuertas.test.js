@@ -192,7 +192,7 @@ eq('historial archivado vacío', ctx.ultimoHistorialConGpa([]), null);
 
 console.log('\n=== Onboarding · carga flexible ===');
 eq('el último paso llena la barra', ctx.obProgressPct(5), 100);
-const obDatos={nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
+const obDatos={generacion:2025,nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
 if(ctx.obStepValid(1,obDatos)&&ctx.obStepValid(2,obDatos)&&ctx.obStepValid(3,obDatos)&&ctx.obStepValid(5,obDatos)){ok++;console.log('  OK   cada paso valida su propio dato');}
 else {fail++;console.log('  FAIL validación de pasos del onboarding');}
 if(!ctx.obStepValid(1,{tenant:'fen'})&&!ctx.obStepValid(2,{nombre:'Antonia'})&&!ctx.obStepValid(3,{tenant:'fen'})&&!ctx.obStepValid(1,{nombre:'Antonia',semInvalido:true})&&ctx.obStepValid(5,{})){ok++;console.log('  OK   ramos sugeridos no son obligatorios');}

@@ -20,7 +20,7 @@ function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto
   if(!caja)return null;
   caja.setAttribute('role','spinbutton');caja.tabIndex=0;
   caja.setAttribute('aria-labelledby',etiqueta);
-  caja.setAttribute('aria-valuemin',String(valores[0]));caja.setAttribute('aria-valuemax',String(valores[valores.length-1]));
+  caja.setAttribute('aria-valuemin',String(Math.min(...valores)));caja.setAttribute('aria-valuemax',String(Math.max(...valores)));
   const lista=caja.querySelector('.ruleta-lista');
   // Sin DOM de verdad (un entorno de prueba) no hay ruleta, pero el onboarding sigue.
   if(!lista)return null;
@@ -86,10 +86,10 @@ function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto
   return {valor:()=>opciones[idx],elegir,sincronizar};
 }
 const rangoAnios=(desde,hasta)=>Array.from({length:hasta-desde+1},(_,i)=>desde+i);
-// La generación parte en el año actual y se guarda en el perfil. La edad ya no
+// La generación se elige explícitamente; una ruleta nueva no declara un año. La edad ya no
 // se pregunta (Lucas, 2026-11-03): los 14 años se declaran al aceptar en la
 // entrada, y quien da clases confirma sus 18 en su paso.
-let obGeneracion=new Date().getFullYear(),ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
+let obGeneracion=null,ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
 // Quien está en TAV lo marca a mano y queda guardado hasta el 1 de marzo
 // siguiente: desde ahí vuelve a regir el semestre calculado. Mientras dura no
 // se sugieren ramos de la malla, porque en TAV se toman ramos sueltos.
@@ -110,10 +110,11 @@ function semestreSegunGeneracion(generacion,fecha=new Date()){
 function nombreVeranoOnboarding(){return selectedTenant?nombreVerano(selectedTenant):'Verano o TAV';}
 function actualizarSemestreCalculado(){
   const total=semestresOfrecidos();
-  if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
+  if(Number.isInteger(obGeneracion)&&!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
   const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
   if(!caja)return;
   const editar=document.getElementById('ob-sem-editar');
+  if(!Number.isInteger(obGeneracion)){caja.textContent='Elige tu año de ingreso para calcular el semestre.';return;}
   const pasaMarzo=!obSemManual&&new Date().getMonth()<2;
   const frase=obVerano?`Estás en <b>${esc(nombreVeranoOnboarding())}</b>.`
     :`${pasaMarzo?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.`;
@@ -166,7 +167,7 @@ function datosProfesorOnboarding(){
   return {nombrePublico:campo('ob-prof-nombre'),presentacion:campo('ob-prof-presentacion'),mayorDeEdad:!!(document.getElementById('ob-prof-mayor')||{}).checked};
 }
 function montarRuletasOnboarding(){
-  ruletaGeneracion=montarRuleta(document.getElementById('ob-generacion-ruleta'),{valores:rangoAnios(2000,new Date().getFullYear()),
+  ruletaGeneracion=montarRuleta(document.getElementById('ob-generacion-ruleta'),{valores:rangoAnios(2000,new Date().getFullYear()).reverse(),vacio:'Elegir año',
     etiqueta:'ob-generacion-titulo',inicial:obGeneracion,alCambiar:v=>{obGeneracion=v;actualizarSemestreCalculado();if(document.getElementById('sem-grid')&&!document.getElementById('sem-grid').hidden)initSemGrid();checkOb();}});
 }
 
@@ -174,13 +175,13 @@ function obStepValid(step,datos){
   const d=datos||{
     tipo:obTipo,
     nombre:(document.getElementById('ob-name')||{}).value||'',
-    tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
+    tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,generacion:obGeneracion,
     verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre,
     ...datosProfesorOnboarding()
   };
   // El paso 1 pide el nombre y, a quien estudia, un semestre válido (o verano).
-  if(step===1)return !!String(d.nombre||'').trim()&&(d.tipo==='profesor'||(!d.semInvalido&&(!!d.semestre||!!d.verano)));
+  if(step===1)return !!String(d.nombre||'').trim()&&(d.tipo==='profesor'||(Number.isInteger(d.generacion)&&d.generacion>=2000&&d.generacion<=new Date().getFullYear()&&!d.semInvalido&&(!!d.semestre||!!d.verano)));
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
   if(step===5)return true;
