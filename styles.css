@@ -5604,8 +5604,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe .profesor-linea-opcion input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;}
 .pfe .profesor-linea-opcion:has(input:checked){background:color-mix(in srgb,var(--primary) 14%,var(--card));color:var(--fg);font-weight:550;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 40%,transparent);}
 .pfe .profesor-linea-opcion:has(input:focus-visible),.pfe-canal:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px;}
+.pfe-contacto{container-type:inline-size;}
 .pfe-canales{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
 .pfe-canal{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:8px 4px;border-radius:14px;background:var(--pfe-tile);color:var(--fg2);font-size:.8125rem;cursor:pointer;}
+.pfe-canal span{max-width:100%;text-align:center;overflow-wrap:anywhere;}
 .pfe-canal input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;}
 .pfe-canal .perfil-contacto-icono{width:22px;height:22px;}
 .pfe-canal:has(input:checked){background:color-mix(in srgb,var(--primary) 14%,var(--card));color:var(--fg);font-weight:550;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 40%,transparent);}
@@ -5613,7 +5615,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe-campo .perfil-contacto-icono{position:absolute;left:14px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--fg3);pointer-events:none;}
 .profesor-form .pfe-campo input{width:100%;padding-left:42px;}
 .pfe [data-pf-contacto-caja][hidden],.pfe [data-pf-instagram][hidden]{display:none;}
-.pfe .directorio-error:empty{display:none;}
+.pfe .directorio-error:empty,.pfe [data-perfil-logo] .profesor-estado:empty{display:none;}
+.pfe .profesor-ramos-resultados li{min-height:44px;align-items:center;flex-wrap:wrap;column-gap:10px;row-gap:2px;overflow-wrap:anywhere;}
+.pfe .profesor-ramos-resultados li[aria-selected="true"]{background:var(--muted);outline:2px solid var(--primary);outline-offset:-2px;}
 .pfe .profesor-logo-acciones :is(.btn-cancel,.profesor-logo-subir){flex:none;min-height:44px;padding:0 14px;border:0;border-radius:12px;background:var(--pfe-tile);color:var(--fg);font-size:.875rem;font-weight:550;}
 .pfe-colores{display:flex;flex-wrap:wrap;gap:8px;}
 .pfe .pfe-color{position:relative;box-sizing:border-box;width:44px;height:44px;min-width:44px;padding:0;border:0;border-radius:50%;background:var(--pfe-color);cursor:pointer;}
@@ -5650,8 +5654,46 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .pfe-previa{position:static;}
   .pfe-ficha{max-height:none;}
 }
+@container (max-width:20rem){
+  .pfe-canales{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
 
- /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
+ /* ─── Admin: Usuarios ────────────────────────────────────────────────── */
+.admin-hig .adu.adm-lista{margin:0;padding:0;border:0;background:none;}
+.adu-columnas{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;align-items:start;}
+.adu .adm-tarjeta{padding:clamp(16px,2vw,24px);}
+.adu-publico{display:grid;gap:12px;min-width:0;}
+.adu-publico>section{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;}
+.adu :is(h3,legend){margin:0;padding:0;font-size:1.0625rem;font-weight:650;letter-spacing:-.012em;}
+.adu .adu-nota{margin:4px 0 0;color:var(--fg3);font-size:.8125rem;line-height:1.45;font-variant-numeric:tabular-nums;}
+.adu .encuestas-admin{padding:0;max-width:none;}
+.adu .encuestas-admin-cabecera{flex-wrap:wrap;margin-bottom:10px;}
+.adu .encuesta-crear>summary{width:fit-content;max-width:100%;margin-bottom:6px;border-color:transparent;background:var(--primary);color:var(--primary-fg);font-weight:650;overflow-wrap:anywhere;}
+.adu .encuestas-lista>section{padding:16px 0;border-bottom:0;border-top:1px solid var(--est-linea);}
+.adu .encuestas-lista>section:last-child{padding-bottom:0;}
+.adu-encuesta-cabeza{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 10px;}
+.adu .adu-encuesta-cabeza h4{margin:0;font-size:1rem;font-weight:600;overflow-wrap:anywhere;}
+.adu-estado{border-radius:99px;padding:3px 9px;background:var(--est-tile);color:var(--fg2);font-size:.75rem;}
+.adu .encuesta-acciones{margin-top:12px;}
+.adu .encuesta-acciones button{max-width:100%;padding:8px 12px;font-size:.875rem;overflow-wrap:anywhere;}
+.adu .encuesta-acciones [data-encuesta-resultados]{border-color:transparent;background:var(--est-tile);}
+.adu .encuesta-fechas{grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));}
+.adu .encuestas-admin :is(button,summary):focus-visible,.adu .clase-accion:focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
+.adu .admin-tema-festivo{min-width:0;margin:0;padding:0;border:0;}
+.adu-temas{display:grid;gap:5px;margin-top:10px;}
+.adu-temas label{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 10px;border-radius:10px;cursor:pointer;}
+.adu-temas label:has(:checked){background:var(--est-sel-suave);}
+.adu-temas label:has(:focus-visible){outline:2px solid var(--est-sel);outline-offset:2px;}
+.adu-temas label:has(:disabled){color:var(--fg3);cursor:default;}
+.adu .adu-temas input[type="radio"]{appearance:auto;flex:none;width:18px;min-width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:var(--est-sel);}
+.adu [data-tema-festivo-estado]:empty{display:none;}
+.adu #admin-reportes-programa{margin:16px 0 0;padding:clamp(16px,2vw,24px);border:1px solid var(--est-linea);border-radius:24px;background:var(--card);}
+.adu #admin-reportes-programa .admin-hig-lista{margin-top:12px;}
+.adu #admin-reportes-programa .admin-revision{padding:12px 0;}
+.adu #admin-reportes-programa .admin-revision:last-child{padding-bottom:0;border-bottom:0;}
+@media(max-width:830px){.adu-columnas{grid-template-columns:minmax(0,1fr);}}
+
+/* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
    HIG Sheets y Toolbars: cerrar arriba a la izquierda con su símbolo y no con

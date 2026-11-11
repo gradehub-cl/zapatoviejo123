@@ -305,9 +305,8 @@ function arrastreWrapped(ov){
 function pintarWrapped(){
   if(!_wrapped.vistaPrevia&&(!wrappedDisponible()||(_wrapped.version&&!contextoWrappedVigente(_wrapped))))return cerrarWrapped(true);
   const {ov,slides,i}=_wrapped,s=slides[i];
-  // La preparación se ve una vez: al volver a una historia ya contada, se
-  // muestra directo lo que dice.
-  _wrapped.fase=s.prep&&!s.visto?'prep':'revela';
+  // Cada visita empieza con la preparación, si la historia tiene una.
+  _wrapped.fase=s.prep?'prep':'revela';
   ov.querySelector('[data-paso="-1"]').disabled=i===0;
   ov.style.setProperty('--acento',HOJA_ACENTOS[i%HOJA_ACENTOS.length]);
   const barras=ov.querySelector('.wrapped-barras');
@@ -334,7 +333,7 @@ function revelarWrapped(){
 }
 function pintarRevelacionWrapped(){
   const {ov,slides,i}=_wrapped,s=slides[i];
-  _wrapped.fase='revela';s.visto=true;
+  _wrapped.fase='revela';
   ov.querySelector('[data-paso="1"]').textContent=s.tipo==='umbral'?'Revisar mi hoja':i===slides.length-1?'Terminar':'Siguiente';
   ov.dataset.sup=oscuroWrapped()&&s.sup!=='acento'?'pizarron':s.sup||'papel';
   // `--d` escalona la entrada: primero de qué se habla, después el número.

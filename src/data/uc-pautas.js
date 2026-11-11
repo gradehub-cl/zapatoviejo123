@@ -437,10 +437,8 @@ const PRESETS_UC={
       'Si tienes 2 o más ausencias justificadas a sesiones con ticket, el equipo docente ajustará la regla de Participación; el programa no publica la fórmula de ese ajuste',
     ],
   },
-  // Programas históricos recibidos por Lucas el 28-10-2026. El período va
-  // declarado: se ofrecen los pesos, pero nunca sus fechas como si fueran
-  // del semestre actual. Las pautas personales existentes no se reemplazan.
-  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5.
+  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5. La versión de
+  // 2026-2 corresponde a otra sección y queda registrada aparte.
   'Introducción a la Economía':{
     sigla:'ICS1513',periodo:'2025-1',creditos:10,
     evals:[
@@ -462,17 +460,34 @@ const PRESETS_UC={
       'El proyecto tiene una etapa grupal y otra individual, pero este programa no publica sus pesos internos: ingresa la nota final del proyecto',
       'El examen es obligatorio y no hay eximición. Si no asistes, la nota es 1,0, salvo que el curso apruebe el procedimiento de nota pendiente',
     ],
+    // ICS1513 - 02 - 2026 - Programa sección 2, pp. 1 y 4-5.
+    // Mientras el catálogo no seleccione pautas por sección, no se ofrece esta
+    // como pauta general. Las fechas de controles son las de esta sección.
+    porSeccion:{
+      2:{
+        periodo:'2026-2',
+        evals:[
+          ['Interrogación 1',20,{fecha:'2026-09-30'}],
+          ['Interrogación 2',20,{fecha:'2026-11-12'}],
+          ['Examen',30,{fecha:'2026-12-09',min:3.0,cap:3.9,exacto:true}],
+          ['Controles',15,{slots:5,slotLabel:'Control',dropLowest:{count:1}}],
+          ['Proyecto escrito',15],
+        ],
+        fechasPorSeccion:{2:{Controles:['2026-08-27','2026-09-10','2026-10-08','2026-10-29','2026-11-26']}},
+        noCalcula:['Una inasistencia justificada a una interrogación puede transferir su peso al examen. Este ajuste no se aplica automáticamente'],
+      },
+    },
   },
-  // Programa_y_Reglas_FIS1523_1er_sem_2025, pp. 3-4. Los pesos de abajo
+  // Reglas_FIS1523_2do_sem_2026, pp. 3-5. Los pesos de abajo
   // son de CÁTEDRA; el laboratorio FIS0152 aporta el 30% de la nota final.
-  // El PDF superpone ≥ y ≤ en 4,0. Lucas confirmó el 28-10-2026 que 4,0
-  // cuenta como aprobado, igual que en Dinámica; se usa el vínculo existente.
+  // El PDF vuelve a superponer ≥ y ≤ en 4,0. Se conserva la resolución
+  // de Lucas del 28-10-2026 para ambas físicas: 4,0 cuenta como aprobado.
   'Termodinámica':{
-    sigla:'FIS1523',periodo:'2025-1',creditos:10,
+    sigla:'FIS1523',periodo:'2026-2',creditos:10,
     evals:[
-      ['Interrogación 1',30,{fecha:'2025-04-07'}],
-      ['Interrogación 2',30,{fecha:'2025-05-19'}],
-      ['Examen',40,{fecha:'2025-06-30'}],
+      ['Interrogación 1',30,{fecha:'2026-09-22'}],
+      ['Interrogación 2',30,{fecha:'2026-11-06'}],
+      ['Examen',40], // El 11 de diciembre figura por confirmar.
     ],
     aporta:{ramo:'Laboratorio de Termodinámica',peso:30,min:4.0},
     noCalcula:[
@@ -480,30 +495,28 @@ const PRESETS_UC={
       'Si justificas ambas interrogaciones, el programa exige reprobar el ramo. La app no aplica esa reprobación por inasistencias',
     ],
     reglasDelCurso:[
-      'Programa 2025-1. El documento indica los mismos criterios para todas las secciones de ese período; confirma que sigan vigentes en tu curso',
+      'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
       'La nota final combina 70% de cátedra y 30% del Laboratorio de Termodinámica. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
       'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
       'No hay eximición ni pruebas recuperativas. Las notas de las evaluaciones y la final se redondean a una décima',
     ],
   },
-  // Programa_FIS1533_2026_1, pp. 4-5. Tres controles, sin descarte general:
-  // se puede excluir uno solo si su inasistencia fue justificada.
-  // Mismo límite de 4,0 aclarado por Lucas para ambas físicas (28-10-2026).
+  // Programa FIS1533 - 2026.2, pp. 4-5. La cátedra tiene dos interrogaciones
+  // y examen; el programa de 2026-1 tenía controles. Quien ya tiene la
+  // pauta anterior puede revisar el cambio antes de aplicarlo.
   'Electricidad y Magnetismo':{
-    sigla:'FIS1533',periodo:'2026-1',creditos:10,
+    sigla:'FIS1533',periodo:'2026-2',creditos:10,
     evals:[
-      ['Interrogación 1',30,{fecha:'2026-04-17'}],
-      ['Interrogación 2',30,{fecha:'2026-06-05'}],
-      ['Examen',30,{fecha:'2026-07-02'}],
-      ['Controles',10,{slots:3,slotLabel:'Control'}],
+      ['Interrogación 1',30,{fecha:'2026-09-29'}],
+      ['Interrogación 2',30,{fecha:'2026-11-13'}],
+      ['Examen',40,{fecha:'2026-12-01'}],
     ],
     aporta:{ramo:'Laboratorio de Electricidad y Magnetismo',peso:30,min:4.0},
     noCalcula:[
       'El examen reemplaza una única interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente; con dos o más inasistencias, debes consultar a tu facultad',
-      'Puedes justificar como máximo un control y eliminarlo del promedio. La app no elimina controles por justificación ni descarta por defecto el peor',
     ],
     reglasDelCurso:[
-      'Programa 2026-1. Revisa que esta pauta corresponda a tu curso',
+      'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
       'La nota final combina 70% de cátedra y 30% del Laboratorio de Electricidad y Magnetismo. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
       'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
       'No hay eximición ni pruebas recuperativas. La nota final se redondea a una décima',
@@ -915,12 +928,31 @@ const PRESETS_UC={
       'Si el traspaso por pruebas justificadas hace que el examen supere 60%, habrá una recuperativa adicional definida por el profesor, que puede ser oral. En ese caso ajusta la pauta con sus instrucciones',
     ],
   },
+  // prospecto-mat1630-2025-1.pdf, pp. 1-2. El encabezado dice 2024-1,
+  // distinto del nombre de archivo. No se asigna un año a las fechas.
   'Cálculo III':{
+    sigla:'MAT1630',
     evals:[
-      ['Evaluaciones sumativas',60,{lista:true}],
-      ['Laboratorios',10,{lista:true}],
-      ['Examen final escrito',30],
+      ['Interrogación 1',20],
+      ['Interrogación 2',20],
+      ['Interrogación 3',20],
+      ['Laboratorio',10],
+      ['Examen',30],
     ],
+    reglasDelCurso:['Pauta de un programa anterior. Confirma que corresponda a tu semestre'],
+  },
+  // Contenidos-Normativas-MAT1640, pp. 1-2. El calendario es de abril a julio;
+  // el recuperativo se ubica al comienzo del segundo semestre de 2026.
+  'Ecuaciones Diferenciales':{
+    sigla:'MAT1640',periodo:'2026-1',
+    evals:[
+      ['Interrogación 1',20,{fecha:'2026-04-14'}],
+      ['Interrogación 2',20,{fecha:'2026-05-12'}],
+      ['Interrogación 3',20,{fecha:'2026-06-10'}],
+      ['Laboratorio',10],
+      ['Examen',30,{fecha:'2026-07-02'}],
+    ],
+    reglasDelCurso:['Programa 2026-1. El programa solo da el peso de la nota global de laboratorio'],
   },
   // ── FORMACIÓN TEOLÓGICA: LOS 24 QUE PUBLICAN SU PAUTA ─────────────────────
   // Misma fuente y mismo criterio que el bloque de arriba: catalogo.uc.cl, el

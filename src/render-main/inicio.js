@@ -215,22 +215,9 @@ function renderHome(){
           <span class="chevron-r" aria-hidden="true">›</span>
         </button></section>`);
     }
-    const risky=mostRiskyRamo();
-    if(risky){
-      cards.push(`
-        <section class="home-seccion"><h2 class="section-hd-title home-seccion-titulo">${risky.imposible?'Ya no alcanza':'Ramo en riesgo'}</h2><button type="button" class="insight-card home-academic-row" onclick="openRamo('${esc(risky.ramo.id)}')">
-          <span class="insight-body">
-
-            <span class="insight-title">${esc(risky.ramo.nombre)}</span>
-            <span class="insight-meta">${risky.imposible
-              ?'Con lo pendiente ya no se llega a 4,0'
-              :`${nfNecesaria(risky.needed)} en lo pendiente para aprobar`}</span>
-          </span>
-          <span class="home-insight-value"><strong style="color:${getColorRamo(risky.ramo,risky.avg)}">${fmtPromedio(risky.avg)}</strong><small>Promedio</small></span>
-          <span class="chevron-r" aria-hidden="true">›</span>
-        </button></section>`);
-    }
-    // Se conserva la última nota como respaldo si no hay próxima ni riesgo.
+    // Sin próxima evaluación queda la última nota. «Ramo en riesgo» se sacó
+    // (Lucas, 2026-11-10): mostraba un solo ramo aunque hubiera varios bajo 4,0
+    // y repetía lo que ya dicen los promedios de arriba.
     if(cards.length===0){
       const lg=latestGrade();
       if(lg){
