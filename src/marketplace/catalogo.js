@@ -241,7 +241,7 @@ function iconoCanalPerfil(canal){
 }
 // Ramos de un perfil (Lucas, 2026-11-11): arriba van las siglas, porque un
 // «Cálculo I» de la UC no es el de la UAI; la lista entera, con nombre cuando
-// GradeHub lo conoce y agrupada por universidad, queda cerrada hasta abrirla.
+// GradeHub lo conoce, queda cerrada hasta abrirla. Solo la universidad de quien mira.
 const MAX_RAMOS_PERFIL_VISIBLES=6;
 // Nombres por universidad del perfil: catálogo y créditos (nombresRamosParaClases)
 // más las pautas cargadas, que traen sigla y nombre (UAI, UDD, UAndes, FEN).
@@ -258,25 +258,24 @@ function nombresRamosPerfilPorUni(unis){
   }
   return out;
 }
-function ramosPerfilApoyoHTML(siglas,nombres,unis,tenants=[]){
+function ramosPerfilApoyoHTML(siglas,nombres,unis,tenants=[],visor=null){
   if(!siglas.length)return unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:'';
-  const resumen=`${siglas.length} ${siglas.length===1?'ramo':'ramos'}${unis.length?` · ${unis.join(', ')}`:''}`;
   const porUni=nombresRamosPerfilPorUni(tenants);
-  const nombreDe=s=>nombres[s]||tenants.map(t=>porUni[t][s]).find(Boolean)||'';
+  // Quien mira solo ve los ramos de su universidad (Lucas, 2026-11-11). Si el
+  // perfil enseña en varias, se muestran las siglas que su universidad conoce;
+  // si enseña solo en la suya (o no se sabe cuál es la suya), todas.
+  const varias=tenants.length>1,propia=visor&&tenants.includes(visor);
+  const nombresVisor=propia?{...porUni[visor],...nombres}:nombres;
+  const visibles=varias&&propia?siglas.filter(s=>nombresVisor[s]):siglas;
+  if(!visibles.length)return '';
+  const etiquetaUni=propia?(UNIVERSIDADES_PERFIL.find(([v])=>v===visor)||[])[1]:'';
+  const nombreDe=s=>nombresVisor[s]||tenants.map(t=>porUni[t][s]).find(Boolean)||'';
+  const resumen=`${visibles.length} ${visibles.length===1?'ramo':'ramos'}${etiquetaUni&&varias?` en la ${etiquetaUni}`:unis.length&&!varias?` · ${unis.join(', ')}`:''}`;
   const fila=s=>`<li><strong>${esc(s)}</strong>${nombreDe(s)?`<span>${esc(nombreDe(s))}</span>`:''}</li>`;
-  // Con varias universidades, cada sigla va bajo la primera que la conoce; las
-  // que ninguna conoce van al final, solo con la sigla.
-  let lista;
-  if(tenants.length>1){
-    const usadas=new Set(),grupos=[];
-    tenants.forEach((t,k)=>{const de=siglas.filter(s=>!usadas.has(s)&&porUni[t][s]);de.forEach(s=>usadas.add(s));if(de.length)grupos.push([unis[k]||t.toUpperCase(),de]);});
-    const resto=siglas.filter(s=>!usadas.has(s));
-    if(resto.length)grupos.push([grupos.length?'Otras':'',resto]);
-    lista=grupos.map(([titulo,de])=>`${titulo?`<p class="perfil-apoyo-grupo">${esc(titulo)}</p>`:''}<ul class="perfil-apoyo-ramos">${de.map(fila).join('')}</ul>`).join('');
-  }else lista=`<ul class="perfil-apoyo-ramos">${siglas.map(fila).join('')}</ul>`;
+  const mas=visibles.length>MAX_RAMOS_PERFIL_VISIBLES;
   return `<section class="perfil-apoyo-seccion perfil-apoyo-ramos-caja"><h3>Ramos</h3><p class="perfil-apoyo-ramos-resumen">${esc(resumen)}</p>
-    <ul class="perfil-apoyo-chips">${siglas.slice(0,MAX_RAMOS_PERFIL_VISIBLES).map(s=>`<li>${esc(s)}</li>`).join('')}${siglas.length>MAX_RAMOS_PERFIL_VISIBLES?`<li class="perfil-apoyo-chip-mas">+${siglas.length-MAX_RAMOS_PERFIL_VISIBLES}</li>`:''}</ul>
-    <details class="perfil-apoyo-todos"><summary>Ver los ${siglas.length} ramos</summary>${lista}</details></section>`;
+    <ul class="perfil-apoyo-chips">${visibles.slice(0,MAX_RAMOS_PERFIL_VISIBLES).map(s=>`<li>${esc(s)}</li>`).join('')}${mas?`<li class="perfil-apoyo-chip-mas">+${visibles.length-MAX_RAMOS_PERFIL_VISIBLES}</li>`:''}</ul>
+    <details class="perfil-apoyo-todos"><summary>Ver ${visibles.length===1?'el ramo':`los ${visibles.length} ramos`}</summary><ul class="perfil-apoyo-ramos">${visibles.map(fila).join('')}</ul></details></section>`;
 }
 function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant)){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
@@ -290,7 +289,7 @@ function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant))
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
     ${canales.length?`<div class="perfil-apoyo-contactos" aria-label="Contactar a ${esc(p.nombre_publico)}">${canales.map(c=>c.enlace?`<a class="clase-accion perfil-contacto-${c.canal}" href="${esc(c.enlace)}" target="_blank" rel="noopener noreferrer" data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></a>`:`<button type="button" class="clase-accion perfil-contacto-${c.canal}" data-directorio-contactar data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></button>`).join('')}</div>`:''}
     <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
-    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis,(p.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)))}
+    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis,(p.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)),typeof S!=='undefined'?S.tenant:null)}
     ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}</div>`;
 }
 async function mostrarPerfilEnClase(caja){

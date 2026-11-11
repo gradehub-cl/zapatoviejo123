@@ -4899,7 +4899,6 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   background:color-mix(in srgb,var(--directorio-color,var(--primary)) 10%,var(--card));color:var(--fg);font-size:.875rem;font-variant-numeric:tabular-nums}
 .perfil-apoyo-chips li{font-weight:600}
 .perfil-apoyo-chips .perfil-apoyo-chip-mas{font-weight:500;color:var(--fg2)}
-.perfil-apoyo-grupo{margin:16px 0 0;font-size:.8125rem;font-weight:600;color:var(--fg2)}
 .perfil-apoyo-todos summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:var(--directorio-acento,var(--primary));font-weight:600}
 .perfil-apoyo-todos summary:focus-visible{outline:2px solid var(--directorio-acento,var(--primary));outline-offset:2px;border-radius:6px}
 .perfil-apoyo-identidad>div:first-child{min-width:0;flex:1 1 12rem}
