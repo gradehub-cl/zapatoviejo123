@@ -1,4 +1,5 @@
 function frasePosicionCurso(mejorQue,total){
+  if(!posicionCursoVisible({total,mejorQue}))return '';
   const otros=Math.max(Number(total)-1,0);
   return `Igual o por sobre el <b>${Number(mejorQue)}%</b> de tus ${otros} compañeros`;
 }
@@ -8,9 +9,9 @@ async function pintarPosicionesCurso(){
   if(!box)return;
   await subirNotasCurso();
   const pos=await cargarPosicionesCurso();
-  const filas=(S.ramos||[]).filter(r=>r&&r.sigla&&pos&&pos[r.id]);
+  const filas=(S.ramos||[]).filter(r=>r&&pos&&posicionCursoVisible(pos[r.id]));
   if(!filas.length){
-    // Con menos de cinco no hay comparación posible, y es el caso normal al
+    // Con menos de diez compañeros no se muestra el porcentaje, y es el caso normal al
     // principio. Se dice por qué en vez de dejar un hueco.
     box.innerHTML=`<p class="stats-curso-vacio">Aún no hay suficientes datos para compararte con los demás.</p>`;
     return;

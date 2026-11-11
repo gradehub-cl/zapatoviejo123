@@ -80,9 +80,9 @@ function datosWrapped(ramos){
 }
 
 // Solo para el semestre en curso: es el que tiene promedios en `curso_notas`.
-// Si el servidor no contesta o no llegan a cinco, esas pantallas no aparecen.
+// Si el servidor no contesta o no llegan a diez compañeros, esas pantallas no aparecen.
 function posicionWrappedValida(f){
-  return f&&Number.isInteger(f.total)&&f.total>=5&&Number.isFinite(f.mejorQue)&&f.mejorQue>=0&&f.mejorQue<=100;
+  return posicionCursoVisible(f);
 }
 async function comparacionWrapped(){
   if(!supabaseClient||!currentUser)return null;
