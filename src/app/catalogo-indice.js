@@ -135,11 +135,14 @@ function catalogRamosUniversidad(tenant,carreraPropia){
   });
   // Las pautas que cinco o más estudiantes reportaron igual se ofrecen como las
   // del catálogo, diciendo de dónde salen. Si hay una de programa para ese ramo,
-  // manda la del programa y esta no entra.
+  // manda la del programa y esta no entra. En un ramo que no se sabe coordinado
+  // el ramo sigue apareciendo, pero sin prometer pauta: la de cinco estudiantes
+  // puede ser la de un solo profesor (coordinacion-ramo.js).
   pautasConsensoCatalogo(tenant).forEach(c=>{
     if(findPresetName(c.ramo,tenant,carreraPropia))return;
     const nombre=limpiarNombreAjeno(c.ramo);if(!nombre)return;
-    out.push({nombre,semestre:0,propio:false,sigla:tenant==='uc'?siglaCatalogoUC(nombre):null,tienePreset:true,consenso:c.respaldos});
+    const coordinado=ramoCoordinado({nombre,origen:{tenant}});
+    out.push({nombre,semestre:0,propio:false,sigla:tenant==='uc'?siglaCatalogoUC(nombre):null,tienePreset:coordinado,...(coordinado?{consenso:c.respaldos}:{})});
   });
   // Y los cursos que existen sin pertenecer a un semestre ni traer pauta: los
   // optativos y OFG. Entran por el mismo camino que los presets fuera de

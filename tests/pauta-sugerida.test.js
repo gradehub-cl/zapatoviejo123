@@ -10,6 +10,9 @@ const ctx=vm.createContext({console,window:{addEventListener(){},matchMedia:()=>
   navigator:{},location:{origin:'',pathname:'/',hash:''},setTimeout(){},clearTimeout(){}});
 for(const f of ['data.js','engine.js','app.js','app-session.js'])vm.runInContext(fs.readFileSync(f,'utf8'),ctx);
 const run=s=>vm.runInContext(s,ctx);
+// Ramos sintéticos fuera de toda malla: se declaran coordinados porque esto
+// prueba la mecánica del consenso (la regla está en coordinacion-ramo.test.js).
+run("coordinacionRamo=()=>({coordinado:true,fuente:'malla'})");
 const clone=v=>JSON.parse(JSON.stringify(v));
 const vacio=()=>({id:'r',nombre:'Ramo sintético',periodo:'2026-2',categorias:[],gates:[]});
 const estructura=[{nombre:'Prueba',peso:60,slots:2},{nombre:'Examen',peso:40,min:3,cap:3.9}];
