@@ -91,7 +91,9 @@ function recortarMargenLogoClase(img){
   // A píxeles originales, con un píxel de muestra de holgura por lado.
   const ox=Math.max(0,Math.floor((x0-1)/esc)),oy=Math.max(0,Math.floor((y0-1)/esc));
   let ow=Math.min(W,Math.ceil((x1+2)/esc))-ox,oh=Math.min(H,Math.ceil((y1+2)/esc))-oy;
-  const recorta=ow*oh<=W*H*.85;
+  // Desde un 3% de margen transparente: con más, un logo opaco con bordes
+  // transparentes quedaba como una placa dentro de un marco vacío (MentorIA).
+  const recorta=ow*oh<=W*H*.97;
   // Un logo enorme se trabaja a 1200 px como máximo, bajando de a la mitad.
   const tope=Math.min(1,1200/Math.max(ow,oh)),fw=Math.max(1,Math.round(ow*tope)),fh=Math.max(1,Math.round(oh*tope));
   const recorte=document.createElement('canvas');recorte.width=ow;recorte.height=oh;

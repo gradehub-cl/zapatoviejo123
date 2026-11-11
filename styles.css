@@ -4897,6 +4897,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-apoyo-chips{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 8px}
 .perfil-apoyo-chips li{padding:6px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--directorio-color,var(--primary)) 45%,transparent);
   background:color-mix(in srgb,var(--directorio-color,var(--primary)) 10%,var(--card));color:var(--fg);font-size:.875rem;font-variant-numeric:tabular-nums}
+.perfil-apoyo-chips li{font-weight:600}
+.perfil-apoyo-chips .perfil-apoyo-chip-mas{font-weight:500;color:var(--fg2)}
+.perfil-apoyo-grupo{margin:16px 0 0;font-size:.8125rem;font-weight:600;color:var(--fg2)}
 .perfil-apoyo-todos summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:var(--directorio-acento,var(--primary));font-weight:600}
 .perfil-apoyo-todos summary:focus-visible{outline:2px solid var(--directorio-acento,var(--primary));outline-offset:2px;border-radius:6px}
 .perfil-apoyo-identidad>div:first-child{min-width:0;flex:1 1 12rem}
@@ -4905,8 +4908,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-apoyo-identidad .directorio-valoracion{color:var(--fg2);text-align:left;justify-content:flex-start;max-width:none}
 .perfil-apoyo-logo.catalogo-clase-logo{margin-inline-end:6px;height:56px;max-width:120px;border:0;border-radius:0;overflow:visible}
 .perfil-apoyo-logo.catalogo-clase-logo img{border-radius:0}
-/* Logo sin transparencia: como un ícono, con esquinas y un borde fino. */
-.catalogo-clase-logo.logo-opaco img{border-radius:12px;box-shadow:0 0 0 1px var(--border)}
+/* Logo sin transparencia (un PNG con fondo blanco): va sobre una placa blanca
+   con esquinas y borde fino, así su fondo se ve intencional y no un recorte. */
+.catalogo-clase-logo.logo-opaco{box-sizing:border-box;padding:6px 10px;border-radius:12px;background:#fff;box-shadow:0 0 0 1px var(--border)}
+.catalogo-clase-logo.logo-opaco img{border-radius:4px}
 .perfil-apoyo-contactos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));container-type:inline-size;gap:12px;margin:24px 0}
 .perfil-apoyo-contactos .clase-accion{margin:0;display:inline-flex;justify-content:center;align-items:center;min-height:44px;min-width:44px;box-sizing:border-box;text-decoration:none;color:var(--fg);background:var(--card);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font:inherit}
 .perfil-apoyo-contactos .clase-accion{gap:10px;font-weight:600;line-height:1.25;transition:filter var(--motion-press)}

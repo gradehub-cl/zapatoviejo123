@@ -33,14 +33,18 @@ assert.match(run('contactoPerfilHTML({})'),/value="" checked/,'sin contacto part
 assert.match(run("tarjetaPerfilCamposHTML({color_tarjeta:'#1f5fbf'})"),/data-pf-color="#1f5fbf"[^>]*aria-pressed="true"/);
 assert.match(run("iconoCanalPerfil('whatsapp')"),/fill="currentColor"/);
 ctx.__p={nombre_publico:'Sintética',presentacion:'x',ramos_siglas:['TST100'],contacto_tipo:'whatsapp',contacto_valor:'+56 9 1234 5678'};
-assert.match(run("perfilPublicoHTML(__p,null,{TST100:'Ramo de prueba'})"),/<li>Ramo de prueba<\/li>/,'la vista previa usa los nombres del buscador');
-// Muchos ramos (una plataforma): cuatro con nombre a la vista y el resto al abrir.
-ctx.__p2={...ctx.__p,universidades:['uc','uai'],ramos_siglas:['TST100','TST200','TST300','TST400','TST500','TST600','XYZ999']};
+assert.match(run("perfilPublicoHTML(__p,null,{TST100:'Ramo de prueba'})"),/TST100<\/strong><span>Ramo de prueba/,'la lista entera usa los nombres del buscador');
+// Muchos ramos (una plataforma): arriba solo siglas, hasta seis y «+N»; la
+// lista entera agrupada por universidad, con los que ninguna conoce al final.
+ctx.__p2={...ctx.__p,universidades:['uc','uai'],ramos_siglas:['TST100','TST200','TST300','TST400','TST500','TST600','TST700','XYZ999']};
 {
-  const html=run("perfilPublicoHTML(__p2,null,{TST100:'Uno',TST200:'Dos',TST300:'Tres',TST400:'Cuatro',TST500:'Cinco'})");
-  assert.equal((html.match(/<ul class="perfil-apoyo-chips">([\s\S]*?)<\/ul>/)[1].match(/<li>/g)||[]).length,4,'cuatro a la vista');
-  assert.match(html,/7 ramos · UC, UAI/);
-  assert.match(html,/<details class="perfil-apoyo-todos"><summary>Ver los 7 ramos<\/summary>/);
+  const html=run("perfilPublicoHTML(__p2,null,{TST100:'Uno',TST200:'Dos'})");
+  const chips=html.match(/<ul class="perfil-apoyo-chips">([\s\S]*?)<\/ul>/)[1];
+  assert.equal((chips.match(/<li>TST/g)||[]).length,6,'seis siglas a la vista');
+  assert.match(chips,/>\+2<\/li>/);
+  assert.doesNotMatch(chips,/Uno|Dos/,'arriba no van los nombres');
+  assert.match(html,/8 ramos · UC, UAI/);
+  assert.match(html,/<summary>Ver los 8 ramos<\/summary>/);
   assert.match(html,/XYZ999<\/strong><\/li>/,'la lista entera incluye los sin nombre');
   assert.match(html,/class="perfil-apoyo" style="--directorio-color:#/,'el perfil abierto conserva su color');
 }
