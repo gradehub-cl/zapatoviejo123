@@ -116,6 +116,13 @@ function cambiarCasillas(catId,delta){
   if(nuevo<minimoCasillas(cat)||nuevo>100)return;
   cat.slots=nuevo;save();renderRamo();
 }
+// "+ Agregar nota" de un grupo: suma una casilla y la deja lista para escribir.
+function agregarCasilla(catId){
+  cambiarCasillas(catId,1);
+  const cat=S.ramos.find(x=>x.id===currentRamoId)?.categorias.find(c=>c.id===catId);
+  const boton=cat&&document.querySelector(`#cat-list .nota-en-fila[data-cat-id="${catId}"][data-slot="${cat.slots-1}"]`);
+  if(boton)abrirNotaEnFila(boton);
+}
 function setSlotNota(catId,slot,raw){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
