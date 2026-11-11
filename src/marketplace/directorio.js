@@ -1,5 +1,5 @@
 // Piezas compartidas por el editor y el directorio. Nunca dependen de notas.
-const CATEGORIAS_DIRECTORIO=[['clases','Clases particulares'],['material','Material y apuntes'],['laboratorio','Laboratorios y proyectos'],['otro','Otro']];
+const CATEGORIAS_DIRECTORIO=[['clases','Clases particulares'],['material','Material y apuntes'],['laboratorio','Laboratorios y proyectos'],['plataforma','Plataformas y apps'],['otro','Otro']];
 const CAMPOS_DIRECTORIO='directorio_id,categorias,etiqueta,color_tarjeta,en_directorio,contacto_tipo,contacto_valor,destacado_hasta';
 function colorTarjetaDirectorio(color){return /^#[0-9a-f]{6}$/.test(String(color))?color:'#126b63';}
 function luminanciaDirectorio(color){
@@ -69,7 +69,7 @@ function anunciosDestacadosDirectorio(anuncios,busqueda,categoria,nombres,ahora=
 function cabeceraDirectorioHTML(){
   return `<div class="catalogo-clases directorio-clases"><header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 id="modal-titulo">Encuentra tu apoyo</h1><p>Clases, apuntes y ayuda para tus ramos.</p></div><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></header>
     <label class="directorio-busqueda" for="directorio-buscar">Buscar por ramo, sigla o perfil<input id="directorio-buscar" type="search" autocomplete="off" placeholder="Cálculo, MAT1620, clases particulares…" aria-describedby="directorio-estado"></label>
-    <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
+    <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['plataforma','Plataformas y apps'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
     <p id="directorio-estado" class="profesor-info" role="status" aria-live="polite">Buscando perfiles…</p><div id="directorio-resultados" aria-busy="true"></div>
     <p class="catalogo-privacidad">El directorio no usa tus notas ni los ramos de tu cuenta.</p></div>`;
 }

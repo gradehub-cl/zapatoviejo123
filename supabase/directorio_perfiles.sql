@@ -15,7 +15,7 @@ alter table public.tutor_perfiles add column if not exists destacado_hasta times
 alter table public.tutor_perfiles drop constraint if exists directorio_categorias;
 alter table public.tutor_perfiles add constraint directorio_categorias check
   (categorias is null or (cardinality(categorias) between 1 and 4 and array_position(categorias,null) is null
-    and categorias <@ array['clases','material','laboratorio','otro']));
+    and categorias <@ array['clases','material','laboratorio','plataforma','otro']));
 alter table public.tutor_perfiles drop constraint if exists directorio_etiqueta;
 alter table public.tutor_perfiles add constraint directorio_etiqueta check
   (etiqueta is null or (char_length(btrim(etiqueta)) between 2 and 28 and etiqueta !~ E'[\\n\\r]'));

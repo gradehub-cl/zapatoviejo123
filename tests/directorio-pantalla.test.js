@@ -22,6 +22,10 @@ assert.equal(prep({busqueda:'Cálculo sintético',nombres:{SYN101:'Cálculo sint
 assert.deepEqual(prep({busqueda:'clases stem'}).normales.map(p=>p.id),['p0']);
 assert.deepEqual(prep({categoria:'laboratorio'}).normales.map(p=>p.id),['p0']);
 assert.equal(prep({categoria:'otro'}).normales.length,0);
+ctx.perfiles.push({...perfiles[0],id:'app',etiqueta:'Plataformas y apps',categorias:['plataforma'],sitio_web:'https://plataforma.example.invalid'});
+assert.deepEqual(prep({categoria:'plataforma'}).normales.map(p=>p.id),['app']);
+assert.match(run('cabeceraDirectorioHTML()'),/data-directorio-categoria="plataforma"[^>]*>Plataformas y apps<\/button>/);
+assert.equal(prep({categoria:'laboratorio'}).normales.length,1,'el filtro anterior sigue igual');
 const anuncios=[{id:'pagado',precio_clp:10000,estado:'publicado',ramos_siglas:['SYN101']},{id:'gratis',precio_clp:0,estado:'publicado',ramos_siglas:['SYN101']},
 {id:'vencido',precio_clp:10000,estado:'publicado',ramos_siglas:['SYN101'],vence_at:'2020-01-01'}];
 ctx.anuncios=anuncios;assert.deepEqual(plain(run("anunciosDestacadosDirectorio(anuncios,'','',{},ahora).map(a=>a.id)")),['pagado']);
