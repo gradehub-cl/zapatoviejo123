@@ -166,7 +166,7 @@ function validarBorradorClase(entrada,nombresPorSigla){
 
 const ERROR_CONTACTO_CLASE={
   whatsapp:'Escribe tu número de WhatsApp completo, por ejemplo +56 9 1234 5678.',
-  instagram:'Escribe tu usuario de Instagram, por ejemplo @salvaramos.',
+  instagram:'Escribe tu usuario de Instagram, por ejemplo @tu_usuario.',
   enlace:'Pega el link de inscripción completo, que empiece con https://.',
 };
 // Qué contactos admite un anuncio según su precio y su tipo. El servidor exige

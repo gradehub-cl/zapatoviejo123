@@ -26,7 +26,13 @@ function catsDePauta(cats){return (cats||[]).filter(c=>!c.fueraDePauta);}
 // manda y no se le ofrece nada—. Pero esa persona es justo la que tiene el dato
 // que al catálogo le falta: agarró nuestra pauta oficial y la arregló. Hasta
 // acá la app se daba cuenta y no le decía nada.
+function pautaConReglasDelEditor(r){
+  return !!r&&((r.gates||[]).some(g=>g.origen==='editor')||
+    catsDePauta(r.categorias).some(c=>c.descarteOrigen==='editor'));
+}
 function pautaEditada(r){
+  if(pautaConReglasDelEditor(r))return true;
+  if(r?.pautaSugerida?.aceptada)return !pautaSugeridaIntacta(r);
   if(!r||!r.pautaHuella)return false;
   const cats=catsDePauta(r.categorias);
   return cats.length>0&&huellaPauta(cats)!==r.pautaHuella;
@@ -50,31 +56,44 @@ function firmaReglasCalculo(r){
 // nombre— y no por `nombre`, que es solo la etiqueta y no mueve ninguna nota.
 function requisitosDeGrupo(r){
   const nombres=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
-  return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,
-    clave:JSON.stringify([g.min,g.cap,(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
+  return (r.gates||[]).filter(g=>g.type==='group_min').map(g=>({nombre:g.nombre||'Requisito',min:g.min,efecto:g.efecto||'tope',
+    clave:JSON.stringify([g.min,g.cap,g.efecto||'tope',(g.catIds||[]).map(id=>nombres.get(id)).filter(Boolean).sort()])}));
+}
+function pautaOficialIntacta(r){
+  if(!r.origen?.tenant||!r.pautaHuella||r.consensoRespaldos||r.pautaSugerida?.aceptada||pautaEditada(r))return false;
+  const {tenant,carrera}=r.origen;
+  const programa=presetRamo(r.nombre,tenant,carrera);
+  return !!programa&&firmaPautaSugerida(r)===firmaPautaSugerida(programa);
 }
 function cambioDePauta(r){
-  if(!r||!r.origen||!r.origen.tenant||!r.pautaHuella)return null;
-  const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
+  if(!r?.pautaHuella||pautaConReglasDelEditor(r))return null;
+  const sugerida=r.pautaSugerida?.aceptada;
+  const origen=r.origen||(sugerida&&{tenant:sugerida.tenant,carrera:S.carrera});
+  if(!origen?.tenant||(sugerida&&!pautaSugeridaIntacta(r)))return null;
+  const nombre=findPresetName(r.nombre,origen.tenant,origen.carrera);
   if(!nombre)return null;
-  const p=presetRamo(nombre,r.origen.tenant,r.origen.carrera);
+  const p=presetRamo(nombre,origen.tenant,origen.carrera);
   if(!p)return null;
   const actual=huellaPauta(catsDePauta(r.categorias));
-  if(actual!==r.pautaHuella)return null;      // la editó: no se opina
+  if(!sugerida&&actual!==r.pautaHuella)return null;
   const oficial=huellaPauta(p.categorias);
   const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
   const reqAntes=requisitosDeGrupo(r),reqDespues=requisitosDeGrupo(p);
   const claves=lista=>new Set(lista.map(g=>g.clave));
   const reqLlegan=reqDespues.filter(g=>!claves(reqAntes).has(g.clave));
   const reqSeVan=reqAntes.filter(g=>!claves(reqDespues).has(g.clave));
-  if(oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
+  if(!sugerida&&oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
   const minimo=g=>simConComa(nf(g.min));
-  reqLlegan.forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más`}));
-  reqSeVan.forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
+  // Si solo cambiaron las evaluaciones del grupo, el requisito es el mismo: esas
+  // evaluaciones ya salen en la lista, y decir "nuevo" y "deja de exigirse" del
+  // mismo requisito se lee como un error.
+  const mismoRequisito=(g,otros)=>oficial!==actual&&otros.some(x=>x.nombre===g.nombre&&x.min===g.min&&x.efecto===g.efecto);
+  reqLlegan.filter(g=>!mismoRequisito(g,reqSeVan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Nuevo requisito: ${g.nombre} con promedio ${minimo(g)} o más${g.efecto==='reemplazar'?'; si no lo cumples, la final es la nota de ese requisito':''}`}));
+  reqSeVan.filter(g=>!mismoRequisito(g,reqLlegan)).forEach(g=>cambios.push({tipo:'regla',nombre:`Deja de exigirse: ${g.nombre} con promedio ${minimo(g)} o más`}));
   antes.forEach((peso,nom)=>{
     if(!despues.has(nom))cambios.push({tipo:'se-va',nombre:nom,antes:peso});
     else if(r2(despues.get(nom))!==r2(peso))cambios.push({tipo:'peso',nombre:nom,antes:peso,despues:despues.get(nom)});
@@ -89,6 +108,7 @@ function cambioDePauta(r){
   const notasFueraDePauta=cambios.filter(c=>c.tipo==='se-va'&&!nombresReconocidos.has(normName(c.nombre)))
     .some(c=>((r.categorias.find(x=>x.nombre===c.nombre)||{}).notas||[])
       .some(n=>typeof n.valor==='number'));
+  if(sugerida&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar la pauta del programa del curso'});
   return {preset:p,cambios,notasFueraDePauta};
 }
 
@@ -146,6 +166,12 @@ function aplicarCambioDePauta(r,cambio){
   r.recuperativo=cambio.preset.recuperativo||null;
   r.reemplazosOptativos=traducirIdsCategoria(cambio.preset.reemplazosOptativos||null,ids);
   r.reglasAusenciaJustificada=traducirIdsCategoria(cambio.preset.reglasAusenciaJustificada||null,ids);
+  if(r.pautaSugerida?.aceptada){
+    if(!r.origen)r.origen=origenActual(r.nombre);
+    quitarProcedenciaSugerida(r);
+    delete r.consensoRespaldos;
+    delete r.consensoAportado;
+  }
   r.bonus=resolverBonus(definicionPresetDelRamo(r),r.categorias)||null;
   r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
 }
@@ -196,6 +222,9 @@ function fusionarPauta(r,nuevas){
         if(n&&n.id&&idsNotas.has(n.id))return;
         const copia={...n};
         if(c.slots>1&&Number.isInteger(f.slot)&&!Number.isInteger(copia.slot))copia.slot=f.slot;
+        // Filas con peso propio que se juntan en una: cada nota conserva su peso,
+        // así el promedio no se mueve por aceptar la pauta nueva.
+        if(Number.isFinite(f.peso))copia.peso=f.peso;
         if(copia.id)idsNotas.add(copia.id);
         notas.push(copia);
       });
@@ -203,7 +232,9 @@ function fusionarPauta(r,nuevas){
     let id=idHeredado||idCategoriaEstable(r,c.nombre);
     while(idsUsados.has(id))id+='_';
     idsUsados.add(id);idsFinales[c.id]=id;
-    return {...c,id,notas};   // `c` no trae fueraDePauta: revivir la limpia
+    // Una fila simple dibuja solo su primera nota: si llegan varias, va como lista.
+    const varias=notas.length>1&&!(c.slots>1)?{directNota:false}:{};
+    return {...c,id,notas,...varias};   // `c` no trae fueraDePauta: revivir la limpia
   });
   // Lo que la pauta nueva ya no tiene NO se borra. La pauta es nuestra; la nota
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en

@@ -31,7 +31,7 @@ for(const n of nombres){
   assert.ok(examen&&examen[1]>=30&&examen[1]<=50,n+': examen de 30% a 50%');
   const sobre=ev.filter(e=>e!==examen&&e[1]/(e[2]&&e[2].slots||1)>=examen[1]).map(e=>e[0]);
   assert.deepEqual([...sobre],CERTAMEN_SOBRE_EXAMEN.has(n)?['Certamen']:[],n+': ninguna parcial pesa lo que el examen');
-  assert.equal(JSON.stringify(P[n].grupos),JSON.stringify([{nombre:'Examen',evals:['Examen'],min:3,cap:'self'}]),n+': compuerta de los arts. 37 y 38');
+  assert.equal(JSON.stringify(P[n].grupos),JSON.stringify([{nombre:'Examen',evals:['Examen'],min:3,cap:'self',efecto:'reemplazar'}]),n+': compuerta de los arts. 37 y 38');
   assert.ok(P[n].reglasDelCurso.includes(run('REGLA_EXAMEN_UDD')),n+': avisa la regla del examen');
   assert.match(P[n].sigla,/^[A-Z]{3}\d{3}$/,n+': sigla del programa');
   // La fuente va en el comentario de cada pauta: URL del PDF y fecha de subida.
@@ -65,7 +65,7 @@ const nota=(id,valor)=>({id,nombre:id,valor,peso:1});
 const ramo=(parciales,examen)=>({id:'r',nombre:'Ramo UDD sintético',origen:{tenant:'udd'},
   categorias:[{id:'p',nombre:'Parciales',peso:70,directNota:true,notas:parciales===null?[]:[nota('a',parciales)]},
     {id:'e',nombre:'Examen',peso:30,directNota:true,notas:examen===null?[]:[nota('b',examen)]}],
-  gates:[{type:'group_min',catIds:['e'],min:3,cap:'self',nombre:'Examen'}]});
+  gates:[{type:'group_min',catIds:['e'],min:3,cap:'self',efecto:'reemplazar',nombre:'Examen'}]});
 const con=(p,e,expr)=>{ctx.r=ramo(p,e);run('S.ramos=[r]');return run(expr);};
 assert.equal(con(7,2.9,'notaFinalOficial(ramoAvg(r))'),2.9,'el examen bajo 3,0 topa la final aunque el promedio dé 5,8');
 assert.equal(con(7,2.9,'notaAprobadaRamo(r,ramoAvg(r))'),false);
@@ -75,9 +75,8 @@ assert.equal(con(5,3.0,'gatesActivas(r).length'),0);
 // El reglamento no pide el 3,0 "sin aproximación" (el art. 27 de la UAndes sí):
 // 2,95 se lee 3,0, como la nota final.
 assert.equal(con(5,2.95,'gatesActivas(r).length'),0,'2,95 cumple el mínimo');
-// Límite conocido: el art. 38 registra la nota del examen (2,8); la compuerta
-// solo topa, y el promedio ya está más abajo. Reprueba igual. docs/mallas-udd.md.
-assert.equal(con(2,2.8,'notaFinalOficial(ramoAvg(r))'),2.2);
+// Art.37 vigente: la final es la del examen aun si la ponderación era menor.
+assert.equal(con(2,2.8,'notaFinalOficial(ramoAvg(r))'),2.8);
 assert.equal(con(2,2.8,'notaAprobadaRamo(r,ramoAvg(r))'),false);
 // La nota necesaria respeta el mínimo: con 7,0 en parciales el promedio pediría
 // 1,0, pero el examen tiene que llegar a 3,0 (2,95 sin redondear).

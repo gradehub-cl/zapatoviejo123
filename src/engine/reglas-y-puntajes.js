@@ -46,11 +46,17 @@ function gh_bordeOficial(target,meta){
 // archivo solo. Si viviera afuera, el agente redondearía distinto que la app.
 const GH_REGLAS_NOTA_BASE={grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4.0};
 const GH_REGLAS_NOTA_POR_TENANT={
+  // Reglamento UAI de pregrado 2026, art. 28 (pp. 7–8): PPP/PPA por créditos;
+  // del PPA se retiran reprobaciones anteriores a una aprobación posterior.
+  uai:{promedioAcademico:{exclusiones:['educacion_fisica','extraprogramatica','convalidada'],excluirReprobadosLuegoAprobados:true}},
   // Reglamento del Alumno de Pregrado UAndes (2022, vigente con la
   // modificación de marzo de 2026), art. 22: "La nota final de la asignatura
   // se expresa con un decimal. Para su cálculo se aproximan dos decimales."
   // Un 3,946 pasa a 3,95 y queda en 4,0: aprueba. Con la regla común sería 3,9.
   uandes:{rounding:{decimals:1,previo:2}},
+  // En la FEN la nota que el programa permite eliminar la borra cada estudiante.
+  // `dropLowest` sigue guardado y solo se muestra como aviso (Martín, 2026-11-03).
+  fen:{descarte_manual:true},
   // UDD, DR50/26 (marzo 2026), arts. 36 y 37: examen mínimo 3,0;
   // si no se cumple, la final ES la nota del examen. Respaldo para pautas
   // manuales sin compuerta, solo con una evaluación final inequívoca.
@@ -61,7 +67,14 @@ function gh_reglasNota(tenant){
   return {grade_scale:{...GH_REGLAS_NOTA_BASE.grade_scale,...propia.grade_scale},
     rounding:{...GH_REGLAS_NOTA_BASE.rounding,...propia.rounding},
     passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade,
+    ...(propia.promedioAcademico?{promedioAcademico:propia.promedioAcademico}:{}),
+    ...(propia.descarte_manual?{descarte_manual:true}:{}),
     ...(propia.examenFinal?{examenFinal:propia.examenFinal}:{})};
+}
+// Manda la universidad del ramo: el estado parte en 'fen' y una cuenta puede
+// tener un ramo de otra. Sin origen, la de la cuenta.
+function gh_descarteManual(ramo,tenant){
+  return gh_reglasNota(ramo&&ramo.origen&&ramo.origen.tenant||tenant).descarte_manual===true;
 }
 
 // ─── PUNTAJE → NOTA ─────────────────────────────────────────────────────────

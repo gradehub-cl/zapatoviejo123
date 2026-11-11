@@ -3,32 +3,58 @@
 // anuncio, pero solo si el profesor lo activó: parte apagado.
 async function renderPerfilProfesor(caja){
   if(!caja)return;
+  const cuenta=sesionProfesorClase();
   const ficha=await perfilProfesorActual();
+  if(cuenta!==sesionProfesorClase())return;
   if(!caja.isConnected)return;
-  const p=ficha.ok?ficha.perfil:null;
+  const p=ficha.ok?await perfilConDirectorio(ficha.perfil):null;
+  if(!caja.isConnected||cuenta!==sesionProfesorClase())return;
   if(!p){caja.innerHTML='';return;}
   if(!tienePerfilCompleto(p)){caja.innerHTML='<p class="profesor-info">Muy pronto vas a poder armar tu perfil público acá.</p>';return;}
   const v=c=>esc(p[c]==null?'':p[c]);
-  const tipo=p.tipo_perfil||'profesor',unis=p.universidades||[];
-  caja.innerHTML=`<form class="profesor-form profesor-perfil" novalidate>
-      <fieldset class="profesor-linea"><legend class="modal-label">Eres</legend><div class="profesor-linea-opciones">
-        ${TIPOS_PERFIL.map(([val,txt])=>`<label class="profesor-linea-opcion"><input type="radio" name="pf-tipo" value="${val}"${tipo===val?' checked':''}><span>${txt}</span></label>`).join('')}
-      </div></fieldset>
-      <label class="modal-label" for="pf-nombre">Nombre público</label><input id="pf-nombre" type="text" maxlength="100" autocomplete="organization" value="${v('nombre_publico')}">
-      <label class="modal-label" for="pf-descripcion">Descripción</label><textarea id="pf-descripcion" maxlength="1500" placeholder="Quién eres, cómo haces tus clases y qué experiencia tienes.">${v('presentacion')}</textarea>
-      <label class="modal-label" for="pf-instagram">Instagram · opcional</label><input id="pf-instagram" type="text" maxlength="31" autocomplete="off" autocapitalize="none" placeholder="@salvaramos" value="${p.instagram?'@'+v('instagram'):''}">
-      <label class="modal-label" for="pf-web">Sitio web · opcional</label><input id="pf-web" type="url" maxlength="160" autocomplete="url" autocapitalize="none" placeholder="https://" value="${v('sitio_web')}">
-      <fieldset class="profesor-linea"><legend class="modal-label">Universidades donde enseñas · opcional</legend><div class="profesor-linea-opciones">
-        ${UNIVERSIDADES_PERFIL.map(([val,txt])=>`<label class="profesor-linea-opcion"><input type="checkbox" name="pf-uni" value="${val}"${unis.includes(val)?' checked':''}><span>${txt}</span></label>`).join('')}
-      </div></fieldset>
-      <label class="modal-label" for="pf-ramos">Ramos que enseñas · opcional</label><input id="pf-ramos" type="text" maxlength="500" autocomplete="off" autocapitalize="characters" placeholder="MAT1620, FIS1514" aria-describedby="pf-ramos-ayuda" value="${esc((p.ramos_siglas||[]).join(', '))}">
-      <p class="profesor-info" id="pf-ramos-ayuda">Las siglas separadas por coma, hasta 20.</p>
-      <label class="profesor-perfil-publico"><input id="pf-publico" type="checkbox"${p.perfil_publico?' checked':''}><span><b>Mostrar mi perfil en mis anuncios</b>Los estudiantes verán «Ver perfil» en cada anuncio publicado, con esto y tus otros anuncios. Nunca tu correo.</span></label>
-      <button class="accion-principal" type="submit">Guardar perfil</button>
-      <p class="profesor-estado" role="status" aria-live="polite"></p>
-    </form>`;
+  const tipo=p.tipo_perfil||'profesor',unis=p.universidades||[],directorio=!!p.directorioDisponible;
+  const opcion=(tipoInput,nombre,valor,texto,marcada)=>`<label class="profesor-linea-opcion"><input type="${tipoInput}" name="${nombre}" value="${valor}"${marcada?' checked':''}><span>${texto}</span></label>`;
+  caja.innerHTML=`<div data-directorio-metricas-propias></div><h3 class="perfil-editar-titulo">Editar perfil</h3>
+    <div class="pfe"><form class="profesor-form profesor-perfil pfe-form" novalidate>
+      <section class="pfe-seccion"><h4>Quién eres</h4>
+        <fieldset class="profesor-linea"><legend class="modal-label">Eres</legend><div class="profesor-linea-opciones">
+          ${TIPOS_PERFIL.map(([val,txt])=>opcion('radio','pf-tipo',val,txt,tipo===val)).join('')}
+        </div></fieldset>
+        <label class="modal-label" for="pf-nombre">Nombre público</label><input id="pf-nombre" type="text" maxlength="100" autocomplete="organization" value="${v('nombre_publico')}">
+        <div data-perfil-logo></div>
+        <label class="modal-label" for="pf-descripcion">Descripción</label><textarea id="pf-descripcion" maxlength="1500" placeholder="Quién eres, cómo haces tus clases y qué experiencia tienes.">${v('presentacion')}</textarea>
+      </section>
+      <section class="pfe-seccion"><h4>Cómo te contactan</h4>
+        ${directorio?contactoPerfilHTML(p):''}
+        <div data-pf-instagram><label class="modal-label" for="pf-instagram">Instagram · opcional</label><div class="pfe-campo">${iconoCanalPerfil('instagram')}<input id="pf-instagram" type="text" maxlength="31" autocomplete="off" autocapitalize="none" placeholder="@tu_usuario" value="${p.instagram?'@'+v('instagram'):''}"></div></div>
+        <label class="modal-label" for="pf-web">Sitio web · opcional</label><div class="pfe-campo">${iconoCanalPerfil('web')}<input id="pf-web" type="url" maxlength="160" autocomplete="url" autocapitalize="none" placeholder="https://" value="${v('sitio_web')}"></div>
+      </section>
+      <section class="pfe-seccion"><h4>Qué enseñas</h4>
+        <fieldset class="profesor-linea"><legend class="modal-label">Universidades</legend><div class="profesor-linea-opciones">
+          ${UNIVERSIDADES_PERFIL.map(([val,txt])=>opcion('checkbox','pf-uni',val,txt,unis.includes(val))).join('')}
+        </div><p class="directorio-error" data-error-directorio="universidades" role="alert"></p></fieldset>
+        <label class="modal-label" for="pf-ramos-buscar">Ramos</label>
+        <div class="profesor-ramos" id="pf-ramos-elegidos" aria-live="polite"></div>
+        <div class="profesor-ramos-buscar"><input id="pf-ramos-buscar" type="search" autocomplete="off" autocapitalize="characters" role="combobox" aria-expanded="false" aria-controls="pf-ramos-resultados" placeholder="Busca por sigla o nombre, ej. MAT1620">
+          <ul class="profesor-ramos-resultados" id="pf-ramos-resultados" role="listbox" hidden></ul></div>
+        <input id="pf-ramos" type="hidden" value="${esc((p.ramos_siglas||[]).join(', '))}">
+        ${directorio?`<fieldset class="profesor-linea"><legend class="modal-label">Qué ofreces</legend><div class="profesor-linea-opciones">
+          ${CATEGORIAS_DIRECTORIO.map(([val,txt])=>opcion('checkbox','pf-categoria',val,txt,(p.categorias||[]).includes(val))).join('')}</div><p class="directorio-error" data-error-directorio="categorias" role="alert"></p></fieldset>`:''}
+      </section>
+      ${directorio?`<section class="pfe-seccion"><h4>Tu tarjeta</h4>${tarjetaPerfilCamposHTML(p)}</section>`:''}
+      <section class="pfe-seccion"><h4>Dónde apareces</h4>
+        <label class="pfe-interruptor"><span><b>En mis anuncios</b><small>Los estudiantes verán «Ver perfil» en cada anuncio publicado. Tu correo de cuenta nunca se comparte.</small></span><input id="pf-publico" type="checkbox" role="switch"${p.perfil_publico?' checked':''}></label>
+        ${directorio?`<label class="pfe-interruptor"><span><b>En Clases particulares</b><small>Te encuentran por tu tarjeta. Es independiente de tus anuncios.</small></span><input id="pf-directorio" type="checkbox" role="switch"${p.en_directorio?' checked':''}></label>`:'<p class="profesor-info">El directorio todavía no está disponible. Puedes guardar tu perfil y tus anuncios como siempre.</p>'}
+      </section>
+      <div class="pfe-guardar"><p class="profesor-estado" role="status" aria-live="polite"></p><button class="accion-principal" type="submit">Guardar perfil</button></div>
+    </form>
+    <aside class="pfe-previa" aria-label="Vista previa de tu perfil"></aside></div>`;
+  renderLogoProfesor(caja.querySelector('[data-perfil-logo]'));
   const form=caja.querySelector('form'),estado=form.querySelector('.profesor-estado'),campo=id=>form.querySelector('#pf-'+id);
   campo('instagram').addEventListener('input',e=>{e.target.value=textoInstagramEscrito(e.target.value);});
+  if(directorio){enlazarContactoPerfil(form,p);enlazarColorPerfil(form);mostrarMetricasDirectorio(caja.querySelector('[data-directorio-metricas-propias]'));}
+  const nombresRamos=activarBuscadorRamosPerfil(form);
+  enlazarPreviaPerfil(form,p,caja.querySelector('.pfe-previa'),nombresRamos);
   let guardando=false;
   form.addEventListener('submit',async e=>{
     e.preventDefault();
@@ -36,13 +62,15 @@ async function renderPerfilProfesor(caja){
     const entrada={tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,nombre_publico:campo('nombre').value,
       presentacion:campo('descripcion').value,instagram:campo('instagram').value,sitio_web:campo('web').value,
       universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),ramos:campo('ramos').value,perfil_publico:campo('publico').checked};
+    if(p.directorioDisponible)Object.assign(entrada,entradaDirectorioFormulario(form));
     const valido=validarPerfilProfesor(entrada);
-    if(!valido.ok){estado.textContent=valido.error;const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos'}[valido.campo]);if(c)c.focus();return;}
+    if(!valido.ok){estado.textContent=valido.error;mostrarErrorPerfilDirectorio(form,valido);const c=campo({nombre:'nombre',presentacion:'descripcion',instagram:'instagram',web:'web',ramos:'ramos-buscar'}[valido.campo]);if(c)c.focus();return;}
+    mostrarErrorPerfilDirectorio(form,null);
     guardando=true;const boton=form.querySelector('button[type=submit]');boton.disabled=true;estado.textContent='Guardando…';
     const r=await guardarPerfilProfesor(entrada);
     guardando=false;boton.disabled=false;
     if(!caja.isConnected)return;
-    estado.textContent=r.ok?(r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
+    estado.textContent=r.ok?(entrada.en_directorio?'Perfil guardado. Aparecerás en Clases particulares mientras tu perfil esté aprobado.':r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
   });
 }
 
@@ -141,4 +169,150 @@ async function guardarCampanaClase(anuncioId,datos){
     console.warn('No se guardó la campaña:',error.code||'',error.message||error);
     return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};
   }catch(e){return {ok:false,error:'no pudimos guardar los días y el tope. Intenta de nuevo.'};}
+}
+
+const CANALES_PERFIL=[['whatsapp','WhatsApp'],['instagram','Instagram'],['email','Correo'],['','Ninguno']];
+const COLORES_TARJETA_PERFIL=['#0d7a6b','#1f5fbf','#6b4fbb','#b3362e','#a8660b','#2b2b30'];
+function contactoPerfilHTML(p){
+  const tipo=['whatsapp','instagram','email'].includes(p.contacto_tipo)?p.contacto_tipo:'';
+  return `<fieldset class="profesor-linea"><legend class="modal-label">Contacto directo</legend><div class="pfe-canales">
+      ${CANALES_PERFIL.map(([val,txt])=>`<label class="pfe-canal"><input type="radio" name="pf-contacto-tipo" value="${val}"${tipo===val?' checked':''}>${val?iconoCanalPerfil(val):''}<span>${txt}</span></label>`).join('')}
+    </div></fieldset>
+    <div data-pf-contacto-caja><label class="modal-label" for="pf-contacto" id="pf-contacto-etiqueta">Contacto</label><div class="pfe-campo" data-pf-contacto-icono></div>
+    <p class="directorio-error" id="pf-contacto-error" data-error-directorio="contacto" role="alert"></p><p class="profesor-info" id="pf-contacto-ayuda"></p></div>`;
+}
+function tarjetaPerfilCamposHTML(p){
+  const color=colorTarjetaDirectorio(p.color_tarjeta);
+  return `<label class="modal-label" for="pf-etiqueta">Etiqueta</label><input id="pf-etiqueta" type="text" maxlength="28" value="${esc(p.etiqueta||'')}" placeholder="Clases particulares" aria-describedby="pf-etiqueta-error"><p id="pf-etiqueta-error" class="directorio-error" data-error-directorio="etiqueta" role="alert"></p>
+    <p class="modal-label" id="pf-color-titulo">Color</p><div class="pfe-colores" role="group" aria-labelledby="pf-color-titulo">
+      ${COLORES_TARJETA_PERFIL.map(c=>`<button type="button" class="pfe-color" data-pf-color="${c}" style="--pfe-color:${c}" aria-label="Color ${c}" aria-pressed="${c===color}"></button>`).join('')}
+      <label class="pfe-color pfe-color-propio" title="Otro color"><span class="adm-oculto">Otro color</span><input id="pf-color" type="color" value="${color}"></label>
+    </div><p class="directorio-error" data-error-directorio="color" role="alert"></p>`;
+}
+function entradaDirectorioFormulario(form){
+  const v=id=>form.querySelector('#pf-'+id),canal=form.querySelector('[name="pf-contacto-tipo"]:checked')?.value||'';
+  const contacto=String(v('contacto')?.value||'').trim();
+  return {categorias:[...form.querySelectorAll('[name="pf-categoria"]:checked')].map(x=>x.value),
+    etiqueta:v('etiqueta').value,color_tarjeta:v('color').value,contacto_tipo:canal,
+    contacto_valor:canal&&contacto!==String(PREFIJO_CONTACTO_CLASE[canal]||'').trim()?contacto:'',en_directorio:v('directorio').checked};
+}
+// Un número escrito sin código de país se completa, igual que el anuncio lo
+// pide: «912345678» pasa a +56 9 1234 5678. Solo se ordena; no se corta nada.
+function whatsappPerfilEscrito(texto){
+  const t=String(texto||'');
+  return textoWhatsappEscrito(/^\s*9/.test(t)?'+56 '+t:t);
+}
+function enlazarContactoPerfil(form,p){
+  const caja=form.querySelector('[data-pf-contacto-caja]'),icono=form.querySelector('[data-pf-contacto-icono]');
+  const etiqueta=form.querySelector('#pf-contacto-etiqueta'),ayuda=form.querySelector('#pf-contacto-ayuda'),error=form.querySelector('#pf-contacto-error');
+  const instagram=form.querySelector('[data-pf-instagram]');
+  const textos={whatsapp:['Tu WhatsApp','+56 9 1234 5678','tel','Se abre un chat contigo desde tu perfil.'],instagram:['Tu Instagram','@tu_usuario','text','Se abre tu perfil de Instagram.'],email:['Tu correo','nombre@correo.cl','email','Solo se obtiene al tocar «Enviar correo».']};
+  const escrito={[p.contacto_tipo]:p.contacto_tipo==='whatsapp'?whatsappPerfilEscrito(p.contacto_valor):p.contacto_valor||''};
+  const canal=()=>form.querySelector('[name="pf-contacto-tipo"]:checked')?.value||'';
+  let mostrado=null;
+  const mostrar=()=>{
+    const c=canal();
+    if(mostrado&&form.querySelector('#pf-contacto'))escrito[mostrado]=form.querySelector('#pf-contacto').value;
+    mostrado=c;caja.hidden=!c;if(instagram)instagram.hidden=c==='instagram';error.textContent='';
+    if(!c){icono.innerHTML='';return;}
+    const [titulo,ejemplo,modo,texto]=textos[c];
+    etiqueta.textContent=titulo;ayuda.textContent=texto;
+    icono.innerHTML=`${iconoCanalPerfil(c)}<input id="pf-contacto" type="${c==='email'?'email':'text'}" inputmode="${modo}" maxlength="160" autocomplete="off" autocapitalize="none" placeholder="${esc(ejemplo)}" aria-describedby="pf-contacto-ayuda pf-contacto-error">`;
+    const entrada=icono.querySelector('input');
+    entrada.value=escrito[c]||PREFIJO_CONTACTO_CLASE[c]||'';
+    formatearAlEscribir(entrada,t=>c==='whatsapp'?whatsappPerfilEscrito(t):c==='instagram'?textoInstagramEscrito(t):t);
+    entrada.addEventListener('input',()=>{error.textContent='';});
+    if(c==='whatsapp')entrada.addEventListener('blur',()=>{
+      const valor=entrada.value.trim();
+      error.textContent=valor&&valor!=='+56'&&!whatsappChilenoCompleto(valor)?ERROR_WHATSAPP_CHILE:'';
+    });
+  };
+  form.querySelectorAll('[name="pf-contacto-tipo"]').forEach(r=>r.addEventListener('change',mostrar));
+  mostrar();
+}
+function enlazarColorPerfil(form){
+  const entrada=form.querySelector('#pf-color'),botones=[...form.querySelectorAll('[data-pf-color]')];
+  const marcar=()=>botones.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pfColor===entrada.value.toLowerCase())));
+  botones.forEach(b=>b.addEventListener('click',()=>{entrada.value=b.dataset.pfColor;entrada.dispatchEvent(new Event('input',{bubbles:true}));}));
+  entrada.addEventListener('input',marcar);marcar();
+}
+// Busca en el mismo índice que el anuncio. Las siglas se guardan igual que
+// antes, separadas por coma, en el campo oculto. Devuelve cómo leer los nombres.
+const MAX_RAMOS_PERFIL=20;
+function activarBuscadorRamosPerfil(form){
+  const buscar=form.querySelector('#pf-ramos-buscar'),oculto=form.querySelector('#pf-ramos'),lista=form.querySelector('#pf-ramos-resultados'),chips=form.querySelector('#pf-ramos-elegidos');
+  let indice={};
+  const leer=()=>String(oculto.value||'').split(',').map(x=>siglaAnuncio(x)).filter(Boolean);
+  const pintar=()=>{
+    const siglas=leer();
+    chips.innerHTML=siglas.map(sg=>`<span class="profesor-ramo-chip"><b>${esc(sg)}</b>${indice[sg]?`<span>${esc(indice[sg])}</span>`:''}<button type="button" data-quitar-sigla="${esc(sg)}" aria-label="Quitar ${esc(sg)}">×</button></span>`).join('');
+    chips.querySelectorAll('[data-quitar-sigla]').forEach(b=>b.addEventListener('click',()=>escribir(leer().filter(x=>x!==b.dataset.quitarSigla))));
+    const lleno=siglas.length>=MAX_RAMOS_PERFIL;buscar.disabled=lleno;
+    buscar.placeholder=lleno?'Llegaste a 20 ramos. Quita uno para agregar otro.':'Busca por sigla o nombre, ej. MAT1620';
+  };
+  const escribir=siglas=>{oculto.value=siglas.join(', ');pintar();oculto.dispatchEvent(new Event('input',{bubbles:true}));};
+  const cerrar=()=>{lista.hidden=true;lista.innerHTML='';buscar.setAttribute('aria-expanded','false');};
+  const elegir=sg=>{const actuales=leer();if(sg&&!actuales.includes(sg)&&actuales.length<MAX_RAMOS_PERFIL)escribir([...actuales,sg]);buscar.value='';cerrar();buscar.focus();};
+  const mostrar=()=>{
+    const res=buscarRamosParaClase(indice,buscar.value,leer());
+    if(!res.length){cerrar();return;}
+    lista.innerHTML=res.map(x=>`<li role="option" data-sigla="${esc(x.sigla)}"><b>${esc(x.sigla)}</b><span>${esc(x.nombre)}</span></li>`).join('');
+    lista.hidden=false;buscar.setAttribute('aria-expanded','true');
+    lista.querySelectorAll('[data-sigla]').forEach(li=>li.addEventListener('mousedown',e=>{e.preventDefault();elegir(li.dataset.sigla);}));
+  };
+  // Sin universidad elegida se busca en todas: el profesor todavía no la marcó.
+  const reindexar=()=>{
+    const elegidas=[...form.querySelectorAll('[name="pf-uni"]:checked')].map(x=>x.value);
+    const tenants=elegidas.length?elegidas:UNIVERSIDADES_PERFIL.map(([val])=>val);
+    indice=Object.assign({},...tenants.map(nombresRamosParaClases).reverse());
+    pintar();if(buscar.value)mostrar();
+    oculto.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+  buscar.addEventListener('input',mostrar);
+  buscar.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();const primera=lista.querySelector('[data-sigla]');if(primera)elegir(primera.dataset.sigla);}
+    else if(e.key==='Escape')cerrar();
+  });
+  buscar.addEventListener('blur',()=>setTimeout(cerrar,120));
+  form.querySelectorAll('[name="pf-uni"]').forEach(u=>u.addEventListener('change',reindexar));
+  reindexar();
+  if(typeof cargarCursosUC==='function')cargarCursosUC().then(ok=>{if(ok&&form.isConnected)reindexar();}).catch(()=>{});
+  return ()=>indice;
+}
+function mostrarErrorPerfilDirectorio(form,valido){
+  form.querySelectorAll('[data-error-directorio]').forEach(el=>{el.textContent=valido&&el.dataset.errorDirectorio===valido.campo?valido.error:'';});
+  form.querySelectorAll('[aria-invalid="true"]').forEach(el=>el.removeAttribute('aria-invalid'));
+  if(!valido)return;
+  const id={etiqueta:'etiqueta',color:'color',contacto:'contacto',universidades:'ramos-buscar'}[valido.campo];
+  const campo=id?form.querySelector('#pf-'+id):form.querySelector('[name="pf-categoria"]');
+  if(campo){campo.setAttribute('aria-invalid','true');campo.focus();}
+}
+let quitarLogoPreviaDirectorio=null;
+// La vista previa muestra la tarjeta y lo que se abre al tocarla, con lo que
+// está escrito aunque no se haya guardado. Va inerte: no abre contactos ni
+// registra métricas.
+function enlazarPreviaPerfil(form,p,caja,nombresRamos){
+  let logo='',vista=p.directorioDisponible?'tarjeta':'ficha';
+  const datos=()=>{
+    const q=id=>form.querySelector('#pf-'+id),insta=String(q('instagram').value||'').trim().replace(/^@/,'');
+    return {...p,...(p.directorioDisponible?entradaDirectorioFormulario(form):{}),nombre_publico:q('nombre').value,presentacion:q('descripcion').value,
+      tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,instagram:insta,sitio_web:q('web').value.trim(),
+      universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),
+      ramos_siglas:q('ramos').value.split(/[,\s]+/).filter(Boolean),logo_path:logo?'previa':null};
+  };
+  const pintar=()=>{
+    if(!caja.isConnected)return;
+    const d=datos(),conTarjeta=!!p.directorioDisponible;
+    caja.innerHTML=`<div class="pfe-previa-cabeza"><h4>Vista previa</h4>${conTarjeta?`<div class="pfe-seg" role="group" aria-label="Qué mostrar"><button type="button" data-pfe-vista="tarjeta" aria-pressed="${vista==='tarjeta'}">Tarjeta</button><button type="button" data-pfe-vista="ficha" aria-pressed="${vista==='ficha'}">Al tocarla</button></div>`:''}</div>
+      ${vista==='tarjeta'?`<button type="button" class="pfe-previa-tarjeta" data-pfe-vista="ficha" aria-label="Ver lo que se abre al tocar tu tarjeta">${tarjetaDirectorioHTML({...d,logo_path:null},{previa:true,logoURL:logo})}</button><p class="pfe-previa-pista">Toca la tarjeta para ver lo que se abre.</p>`
+        :`<div class="pfe-ficha" inert>${perfilPublicoHTML(d,null,nombresRamos())}</div>`}`;
+    const marco=caja.querySelector('[data-directorio-logo]');if(marco&&logo)marco.innerHTML=imgLogoClase(logo);
+    caja.querySelectorAll('[data-pfe-vista]').forEach(b=>b.addEventListener('click',()=>{vista=b.dataset.pfeVista;pintar();caja.querySelector(`.pfe-seg [data-pfe-vista="${vista}"]`)?.focus();}));
+  };
+  form.addEventListener('input',pintar);form.addEventListener('change',pintar);pintar();
+  if(quitarLogoPreviaDirectorio)quitarLogoPreviaDirectorio();
+  const cambio=e=>{logo=typeof e.detail==='string'?e.detail:'';pintar();};
+  document.addEventListener('gradehub:logo-profesor',cambio);
+  quitarLogoPreviaDirectorio=()=>document.removeEventListener('gradehub:logo-profesor',cambio);
+  if(p.logo_path||p.logo_aprobado_path)urlFlyerClase(p.logo_path||p.logo_aprobado_path).then(url=>{logo=url;pintar();});
 }

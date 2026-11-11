@@ -99,15 +99,14 @@ function openSettings(){
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
       </div>`:''}
       ${currentUser&&conClave?`<div class="settings-account-access">
-        <label class="modal-label" for="s-account-current-pass">Contraseña actual</label>
-        <div class="modal-input"><input type="password" id="s-account-current-pass" maxlength="72" autocomplete="current-password" aria-describedby="s-account-pass-status"/></div>
-        <label class="modal-label" for="s-account-pass" style="margin-top:10px;">Nueva contraseña</label>
+        <label class="modal-label" for="s-account-pass">Nueva contraseña</label>
         <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
         <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
         <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>
         <p class="settings-help" id="s-account-pass-help" style="margin:7px 0 10px;">Al menos ${PASS_MIN} caracteres, con letras y números.</p>
         <p id="s-account-pass-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
-        <button type="button" class="settings-reset-btn" id="s-account-pass-save" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-save" style="min-height:44px;" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-recover" style="min-height:44px;margin-top:8px;" onclick="recuperarClaveCuenta()" hidden>Enviar enlace al correo</button>
       </div>`:''}`;
     if(section==='academico')return `
       <div class="modal-label">Universidad</div>
@@ -153,6 +152,7 @@ function openSettings(){
       <label class="modal-label">Canvas UC</label>
       <p class="settings-help" style="margin-top:0;">Trae ramos y fechas. Revisas cada propuesta antes de agregarla.</p>
       <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`:''}
+      ${canvasIcsDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div><label class="modal-label">Canvas UC</label><div id="s-canvas-ics"></div>`:''}
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
       <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
@@ -301,6 +301,7 @@ function openSettings(){
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
     if(activeSection==='calendario'&&canvasDisponible())pintarCanvasAjustes();
+    if(activeSection==='calendario'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.

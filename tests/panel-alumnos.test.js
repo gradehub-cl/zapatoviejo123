@@ -110,6 +110,23 @@ function contexto({search='',sesion=false}={}){
   chk('un código realmente inexistente sí deja de quedar pendiente',
     (await invalido.run('revisarInvitacionProfesor()'))===false&&
     !invalido.almacen.has('gradehub_profe_pendiente'));
+  const soloProfesor=contexto({search:'?profe=AB3CDEFG',sesion:true});
+  soloProfesor.run(`S.onboardingDone=true;S.tipoCuenta='profesor';
+    S.ramos=[{id:'ramo-antiguo',nombre:'Ramo antiguo'}];
+    globalThis.__rpcProfesor=0;showToast=texto=>{globalThis.__avisoProfesor=texto};
+    supabaseClient={rpc:async()=>{__rpcProfesor++;return {data:null,error:null}}};`);
+  chk('la cuenta solo profesor no abre la invitación ni consulta sus ramos antiguos',
+    (await soloProfesor.run('revisarInvitacionProfesor()'))===false&&
+    soloProfesor.run('__rpcProfesor')===0&&
+    !soloProfesor.almacen.has('gradehub_profe_pendiente')&&
+    /cuenta de estudiante/.test(soloProfesor.run('__avisoProfesor')));
+  const rechazoProfesor=await soloProfesor.run(`compartirConProfesor('AB3CDEFG','Nombre',['ramo-antiguo'])`);
+  chk('la entrada de compartir tampoco llama al servidor desde una cuenta solo profesor',
+    rechazoProfesor.ok===false&&soloProfesor.run('__rpcProfesor')===0);
+  soloProfesor.run(`S.tipoCuenta='estudiante'`);
+  const envioMixto=await soloProfesor.run(`compartirConProfesor('AB3CDEFG','Nombre',['ramo-antiguo'])`);
+  chk('una cuenta estudiante que también es profesor aprobado mantiene el envío',
+    envioMixto.ok===true&&soloProfesor.run('__rpcProfesor')===1);
 
   console.log('\n=== Compartir parte sin nada elegido ===');
   const hoja=a.run(`hojaInvitacionProfesorHTML({nombre_publico:'Academia <b>X</b>'},[{id:'r1',nombre:'Cálculo II',sigla:'MAT1620'},{id:'r2',nombre:'Física',sigla:'FIS1514'}],'Cami')`);
@@ -455,8 +472,8 @@ function contexto({search='',sesion=false}={}){
   chk('el Excel suma la sección y sus promedios al final',filaSec[14]==='3'&&filaSec[15]==='3,5'&&filaSec[17]==='5,2'&&filaSec[7]==='4,0');
   chk('y dice "no declarada" cuando falta',filaSin[14]==='no declarada'&&filaSin[15]===''&&filaSin[17]==='');
   const mkSec=leer('marketplace.js');
-  chk('por sección consulta con p_seccion y el resumen por ramo sigue contra todo GradeHub',
-    /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenAlumnosPanel\(alumnos,compGeneral\)/.test(mkSec)
+  chk('por sección consulta con p_seccion y Ramos usa la misma referencia que la ficha',
+    /p_seccion:Number\(seccion\)/.test(mkSec)&&/resumenRamosVistaPanel\(alumnos,compFicha,\{seccion,soloPruebas\}\)/.test(mkSec)
     &&/exportarAlumnosPanel\(paraExportar,compGeneral,compSeccion,formato,!!ejemplo\)/.test(mkSec));
 
   console.log('\n=== Un alumno con varios ramos (2026-10-21) ===');
@@ -595,13 +612,44 @@ function contexto({search='',sesion=false}={}){
   chk('la misma prueba escrita distinto se junta',i1&&i1.alumnos===2&&Math.abs(i1.promedio-4.5)<1e-9);
   chk('las categorías sin notas no aparecen',calc.categorias.length===1&&calc.categorias[0].nombre==='Interrogaciones');
   const rh=a.run('resumenAlumnosPanelHTML(__res)');
-  chk('compara el ramo, la categoría y la prueba con GradeHub',/4\.7<small>vs. 23 estudiantes en GradeHub/.test(rh)&&/4\.4<small>vs. 31 estudiantes en GradeHub/.test(rh)&&/4\.6<small>vs. 9 estudiantes en GradeHub/.test(rh));
-  const rhCalc=rh.split('Física')[0];
-  chk('el semáforo dice aprobando, reprobando y sin notas, con su color',
-    /panel-resumen-good">1 aprobando/.test(rhCalc)&&/panel-resumen-bad">1 reprobando/.test(rhCalc)&&/>1 sin notas</.test(rhCalc)&&!/al borde/.test(rhCalc));
-  chk('y un 4,5 va al borde',/panel-resumen-warn">1 al borde/.test(rh));
-  chk('y advierte que comparar no dice por qué',/no dice por qué/.test(rh));
-  chk('cada ramo es un desplegable de al menos 44 pt',/class="panel-resumen-ramo"/.test(rh)&&/\.panel-resumen-ramo summary\{[^}]*min-height:44px/.test(leer('styles.css')));
+  chk('compara el ramo, la categoría y la prueba con GradeHub con coma decimal',
+    /GradeHub<\/span><strong>4,7<\/strong><small>23 estudiantes/.test(rh)&&
+    /4,4<\/b><\/div><\/div>\s*<small class="ramos-eval-muestra">31 en GradeHub/.test(rh)&&
+    /4,6<\/b><\/div><\/div>\s*<small class="ramos-eval-muestra">9 en GradeHub/.test(rh));
+  chk('cada ramo tiene una sola fila y conserva la acción incluso plegado',
+    (rh.match(/data-ramos-fila/g)||[]).length===2&&
+    /aria-expanded="false"/.test(rh)&&/data-ver-ramo="MAT1620" aria-label="Ver alumnos de Cálculo II"/.test(rh));
+  chk('reprobando usa el conteo oficial, sin colorear la muestra chica',
+    /Reprobando<\/span><strong>1<\/strong><small>Reforzar/.test(rh)&&
+    /ramos-gris">[\s\S]*?Diferencia<\/span><strong>−0,2/.test(rh));
+  chk('conserva el aviso de causalidad y los blancos de 44 px',
+    /no demuestra que se deba a las clases/.test(rh)&&
+    /\.ramos-panel \.ramos-nombre\{[^}]*min-height:44px/.test(leer('styles.css')));
+  a.run(`globalThis.__ramosFiltro=[
+    {id:'s1',tenant:'uc',ramos:[{id:'r1',sigla:'SYN101',nombre:'Análisis',seccion:1,categorias:[
+      {id:'p',nombre:'Prueba 1',peso:50,tipoEvaluacion:'prueba',notas:[{id:'n',nombre:'Prueba 1',valor:3}]},
+      {id:'l',nombre:'Laboratorio',peso:50,tipoEvaluacion:'laboratorio',notas:[{id:'l1',nombre:'Laboratorio',valor:7}]}]}]},
+    {id:'s2',tenant:'uc',ramos:[{id:'r2',sigla:'SYN101',nombre:'Análisis',seccion:2,categorias:[
+      {id:'p',nombre:'Prueba 1',peso:50,tipoEvaluacion:'prueba',notas:[{id:'n',nombre:'Prueba 1',valor:5}]},
+      {id:'l',nombre:'Laboratorio',peso:50,tipoEvaluacion:'laboratorio',notas:[{id:'l2',nombre:'Laboratorio',valor:5}]}]}]}];
+    globalThis.__refRamos=(al,r)=>({ramo:{promedio:r.seccion===1?4.2:5.8,personas:r.seccion===1?8:12},
+      categorias:[{clave:'prueba 1',promedio:r.seccion===1?4:5,personas:r.seccion===1?8:12},
+        {clave:'laboratorio',promedio:6,personas:4}],evaluaciones:[]});`);
+  const filtrados=a.run('resumenRamosVistaPanel(__ramosFiltro,__refRamos,{seccion:true,soloPruebas:true})');
+  chk('una fila conserva sus alumnos, pero los promedios de prueba y referencia se separan por sección',
+    filtrados.length===1&&filtrados[0].alumnos===2&&filtrados[0].promedio===4&&filtrados[0].comp===null&&
+    filtrados[0].secciones[0].promedio===3&&filtrados[0].secciones[0].referenciaPruebas===4&&
+    filtrados[0].secciones[1].promedio===5&&filtrados[0].secciones[1].referenciaPruebas===5&&filtrados[0].semaforo.bad===0);
+  const filtradoHTML=a.run(`resumenAlumnosPanelHTML(resumenRamosVistaPanel(__ramosFiltro,__refRamos,{seccion:true,soloPruebas:true}),{seccion:true,soloPruebas:true})`);
+  chk('Solo pruebas no deja laboratorios, ni tamaños inventados o chicas',
+    /Prom. pruebas<\/span><strong>4,0/.test(filtradoHTML)&&/Sección 1/.test(filtradoHTML)&&/Sección 2/.test(filtradoHTML)&&
+    /8 en GradeHub/.test(filtradoHTML)&&/12 en GradeHub/.test(filtradoHTML)&&!/Laboratorio|4 en GradeHub/.test(filtradoHTML));
+  const porRamoHTML=a.run(`resumenAlumnosPanelHTML(resumenRamosVistaPanel(__ramosFiltro,__refRamos,{soloPruebas:true}),{soloPruebas:true})`);
+  chk('el promedio de pruebas no publica un tamaño único para referencias compuestas',
+    /GradeHub<\/span><strong>4,5<\/strong><small>Muestras por evaluación/.test(porRamoHTML));
+  const ordenRamos=a.run(`resumenAlumnosPanelHTML([__res.find(g=>g.nombre.startsWith("Física")),__res.find(g=>g.nombre==="Cálculo II")])`);
+  chk('la fila con reprobaciones se mueve arriba sin reordenar el modelo',
+    ordenRamos.indexOf('Cálculo II')<ordenRamos.indexOf('Física'));
 
   console.log('\n=== Buscador de alumnos ===');
   a.run(`globalThis.__al=[
@@ -685,15 +733,15 @@ function contexto({search='',sesion=false}={}){
     await a.run('renderAlumnosProfesor(__raizVista)');
     const vista=a.run('__raizVista.innerHTML');
     chk(`${n} alumnos: la lista compacta aparece primero y las cifras se cargan al abrir su vista`,
-      vista.indexOf('<h2>Conectados</h2>')<vista.indexOf('Alumno 1')&&
+      vista.indexOf('id="alumnos-cuenta"')<vista.indexOf('Alumno 1')&&
       /data-ver-alumno="a0"/.test(vista)&&!/data-alumno="a0"|Antes y desde que empezaron contigo/.test(vista));
     // Resumen · Lista · Estadísticas · Ramos (Lucas, 2026-10-22). Invitar es la
     // acción principal de Lista, no una vista más.
     chk(`${n} alumnos: Resumen, Lista, Estadísticas y Ramos, con Invitar solo dentro de Lista`,
       />Resumen</.test(vista)&&/data-panel-vista="lista"[^>]*>Lista</.test(vista)&&/data-panel-vista="estadisticas"[^>]*>Estadísticas</.test(vista)&&
       (n>1)===/data-panel-vista="ramos"[^>]*>Ramos</.test(vista)&&!/Cómo van<|Por ramo</.test(vista)&&
-      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')&&
-      vista.indexOf('class="accion-principal" id="alumnos-ir-invitar"')<vista.indexOf('id="alumnos-vista-estadisticas"')&&
+      vista.indexOf('id="alumnos-vista-lista"')<vista.indexOf('class="al-invitar" id="alumnos-ir-invitar"')&&
+      vista.indexOf('class="al-invitar" id="alumnos-ir-invitar"')<vista.indexOf('id="alumnos-vista-estadisticas"')&&
       !/data-panel-vista="invitar"/.test(vista));
     chk(`${n} alumnos: sin título grande ni ceja dentro del panel`,
       !/<h1|TU ESPACIO DE PROFESOR|profesor-hig-cabecera/.test(vista));
@@ -704,7 +752,7 @@ function contexto({search='',sesion=false}={}){
     &&!/panel-alumnos-notas|ah-grafico|data-quitar-alumno|<details/.test(compacta));
   a.run(`globalThis.__panelNodos={};
     globalThis.__nodoPanel=()=>({hidden:false,innerHTML:'',textContent:'',value:'',dataset:{},handlers:{},
-      addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},
+      addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelector(){return null},querySelectorAll(){return []},
       setAttribute(nombre,valor){this[nombre]=valor},focus(){this.enfocado=true}});
     globalThis.__tabsPanel=['resumen','lista','estadisticas','ramos'].map(v=>({...__nodoPanel(),dataset:{panelVista:v}}));
     globalThis.__compPanel=['gradehub','seccion'].map(v=>({...__nodoPanel(),dataset:{compara:v}}));
@@ -765,7 +813,7 @@ function contexto({search='',sesion=false}={}){
   a.run(`__tabsPanel[3].handlers.click()`);
   chk('Ramos muestra su resumen sin cambiar la comparación del grupo',
     a.run(`__panelNodos['#alumnos-vista-ramos'].hidden`)===false&&
-    /Tus alumnos por ramo/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
+    /Todavía no hay ramos compartidos/.test(a.run(`__panelNodos['#alumnos-vista-ramos'].innerHTML`))&&
     a.run(`__panelNodos['#alumnos-compara-wrap'].hidden`)===true);
   a.run(`__panelNodos['#alumnos-ir-invitar'].handlers.click()`);
   chk('Invitar abre el link en su propia vista y ofrece volver',
@@ -829,13 +877,14 @@ function contexto({search='',sesion=false}={}){
     supabaseClient={rpc:nombre=>nombre==='codigo_alumnos_profesor'
       ?Promise.resolve({data:'AB3CDEFG',error:null})
       :nombre==='mis_alumnos_ejemplo'?Promise.resolve({data:false,error:null})
+      :['preparacion_alumno','percentiles_alumno'].includes(nombre)?Promise.resolve({data:null,error:{code:'PGRST202'}})
       :nombre==='mis_alumnos'
         ?Promise.resolve({data:[{id:'alumno-anterior',nombre_visible:'Alumno anterior',tenant:'uc',
           ramos:[{id:'ramo',nombre:'Cálculo',sigla:'MAT100',categorias:[]}]}],error:null})
         :new Promise(resolve=>{__resolverComparacion=resolve})};
     globalThis.__cargaComparacion=renderAlumnosProfesor(__raizComparacion);`);
   // Unas vueltas de promesas: la carga también pregunta por alumnos_ejemplo.
-  for(let i=0;i<10;i++)await Promise.resolve();
+  for(let i=0;i<25;i++)await Promise.resolve();
   chk('el panel pide la comparación solo tras recibir los ramos',
     comparacion.run('typeof __resolverComparacion')==='function');
   comparacion.run(`currentUser={id:'profesor-dos'};
@@ -864,7 +913,7 @@ function contexto({search='',sesion=false}={}){
     globalThis.__ejNodos={};
     globalThis.__raizEj={innerHTML:'',isConnected:true,querySelector(sel){
       if(!__ejNodos[sel])__ejNodos[sel]={handlers:{},hidden:false,innerHTML:'',dataset:{},
-        addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelectorAll(){return []},setAttribute(){},focus(){}};
+        addEventListener(tipo,fn){this.handlers[tipo]=fn},querySelector(){return null},querySelectorAll(){return []},setAttribute(){},focus(){}};
       return __ejNodos[sel]}};
     supabaseClient={rpc:(nombre,args)=>{__llamadasEj.push(nombre);
       if(nombre==='codigo_alumnos_profesor')return Promise.resolve({data:'AB3CDEFG',error:null});
@@ -925,16 +974,23 @@ function contexto({search='',sesion=false}={}){
     globalThis.__alR=(id,nombre,previa,fecha)=>({id,nombre_visible:nombre,tenant:'uc',ramos:[{id:'r'+id,nombre:'Ramo '+id,sigla:'TST'+id,gates:[],
       categorias:[__evR(id+'1','Prueba 1','2026-10-01',previa),__evR(id+'2','Prueba 2',fecha,null)]}]});
     globalThis.__grupoR=[__alR('c','C sintético',5.0,'2026-10-31'),__alR('b','B sintético',2.0,'2026-10-27'),__alR('a','A sintético',7.0,'2026-10-23')];`);
-  const resR=a.run(`resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10))`);
-  chk('esta semana: lo de mañana primero aunque vaya con 7, y nada más allá de 7 días',
-    resR.semana.map(x=>x.al.id).join()==='a,b'&&resR.semana[0].dias===1);
-  chk('necesitan atención: solo quien va reprobando o al borde',resR.atencion.map(x=>x.al.id).join()==='b'&&resR.reprobando===1&&resR.conectados===3);
-  const htmlR=a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel(__grupoR,new Date(2026,9,22,10)))`);
-  chk('cada fila abre la ficha; la semana va agrupada por día y mañana se destaca',
-    /data-ver-alumno="a"/.test(htmlR)&&/class="panel-resumen-dia pronto">Mañana<small>1 evaluación/.test(htmlR)
-    &&/class="panel-resumen-dia">Martes 27 oct<small>1 evaluación/.test(htmlR));
-  chk('quien necesita atención dice el ramo junto a la nota',/<b>[\d,]+<\/b><small>en lo pendiente de Ramo b<\/small>/.test(htmlR));
-  chk('sin nada esta semana lo dice',/Nadie de tus alumnos tiene evaluaciones/.test(a.run(`resumenInicioAlumnosHTML(resumenInicioAlumnosPanel([__grupoR[0]],new Date(2026,9,22,10)))`)));
+  a.run(`globalThis.__hoyResumen=new Date(2026,9,22,10);
+    globalThis.__datosResumen=datosResumenAlumnosPanel(__grupoR,filasListaPanel(__grupoR,__hoyResumen),__hoyResumen)`);
+  const resR=a.run('alcanceResumenAlumnosPanel(__datosResumen)');
+  chk('las siete barras cuentan solo evaluaciones pendientes dentro de la ventana',
+    resR.dias.length===7&&resR.dias.map(d=>d.evaluaciones.length).join()==='0,1,0,0,0,1,0'&&
+    resR.evaluaciones.map(x=>x.al.id).join()==='a,b');
+  chk('necesitan atención cuenta personas y conserva el ramo de cada caso',
+    resR.atencion===1&&resR.alumnos===3&&resR.casos.map(f=>f.r.id).join()==='rb');
+  const filtroR=a.run(`alcanceResumenAlumnosPanel(__datosResumen,{ramo:claveRamoResumenPanel(__grupoR[2],__grupoR[2].ramos[0])})`);
+  chk('el filtro cambia los totales, casos y barras del mismo alcance',
+    filtroR.alumnos===1&&filtroR.atencion===0&&filtroR.casos.length===0&&filtroR.evaluaciones.length===1&&
+    filtroR.dias.map(d=>d.evaluaciones.length).join()==='0,1,0,0,0,0,0');
+  const htmlR=a.run(`resumenInicioAlumnosHTML(alcanceResumenAlumnosPanel(__datosResumen),{dia:1})`);
+  chk('cada fila de atención abre el alumno en su ramo y el día muestra la evaluación',
+    /data-ver-alumno="b" data-alumno-ramo="rb"/.test(htmlR)&&/data-ras-columna="1"[^>]+aria-pressed="true"/.test(htmlR)&&
+    /data-ras-grupo="0"[^>]*>\s*<span><b>Prueba 2/.test(htmlR));
+  chk('sin nada hoy la agenda lo dice',/Sin evaluaciones este día/.test(a.run('resumenInicioAlumnosHTML(alcanceResumenAlumnosPanel(__datosResumen))')));
   const idx=leer('index.html'),cssN=leer('styles.css');
   chk('la barra lateral lleva Clases y Alumnos con sus secciones',
     ['profesor:resumen','profesor:anuncios','profesor:perfil','alumnos:resumen','alumnos:lista','alumnos:estadisticas','alumnos:ramos']
@@ -952,7 +1008,7 @@ function contexto({search='',sesion=false}={}){
   console.log('\n=== Estadísticas y Ramos con algo que leer de un vistazo (2026-10-23) ===');
   const grafG=a.run('graficoAlumnosAntesAhoraHTML(metricasGrupoPanel([__poco,__antesAhora],__cursoAA))');
   chk('una fila por alumno y ramo, ordenada por cuánto cambió, y cada una abre su ficha',
-    (grafG.match(/<li><button type="button" data-ver-alumno=/g)||[]).length===2
+    (grafG.match(/<li[^>]*><button type="button" data-ver-alumno=/g)||[]).length===2
     &&grafG.indexOf('data-ver-alumno="aa"')<grafG.indexOf('data-ver-alumno="pp"'));
   chk('punto hueco antes, lleno ahora, y el texto dice lo mismo para VoiceOver',
     /ah-dot ah-dot-antes/.test(grafG)&&/ah-dot ah-dot-ahora/.test(grafG)&&/class="sr-solo">Antes: 1\.0 bajo el ramo\. Ahora: 0\.7 sobre el ramo\./.test(grafG));
@@ -962,8 +1018,8 @@ function contexto({search='',sesion=false}={}){
   chk('el cambio de quien subió va marcado como subida',/ah-fila-cambio ah-sube"><small>Cambio<\/small>\+/.test(grafG));
   chk('la explicación queda en un desplegable',/<details class="ah-metodo"><summary>Cómo se calcula<\/summary>/.test(a.run('antesAhoraGrupoHTML(metricasGrupoPanel([__antesAhora],__cursoAA))')));
   const ramosG=a.run(`resumenAlumnosPanelHTML(resumenAlumnosPanel([__antesAhora],__cursoAA))`);
-  chk('cada ramo dice cuánto van sobre o bajo GradeHub y lleva a sus alumnos',
-    /Tus alumnos van <b>[^<]+<\/b> el promedio de GradeHub/.test(ramosG)&&/data-ver-ramo="MAT1620">Ver 1 alumno de este ramo/.test(ramosG));
+  chk('cada ramo separa la diferencia y conserva el enlace filtrado',
+    /Diferencia<\/span><strong>[+−]?\d+,\d<\/strong>/.test(ramosG)&&/data-ver-ramo="MAT1620" aria-label="Ver alumnos/.test(ramosG));
   chk('la ficha no se estira en el computador y su gráfico trae escala',
     /\.ah-evolucion\{[^}]*max-width:760px/.test(leer('styles.css'))&&/Puntos frente al ramo · 0 = su promedio/.test(a.run('antesAhoraAlumnoHTML(metricasAlumnoPanel(__antesAhora,__cursoAA))')));
 
@@ -981,7 +1037,7 @@ function contexto({search='',sesion=false}={}){
     /Ahora <b>\+0\.7/.test(grafG)&&/<small>Cambio<\/small>\+1\.7<small>puntos/.test(grafG));
   // Sin textos explicativos (Lucas, 2026-10-27): cada cifra dice su total («De 12 alumnos»).
   chk('resumen precisa el período y no explica de más',
-    !/Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/En los próximos 7 días/.test(htmlR));
+    !/Un alumno puede estar al borde en un ramo y reprobando otro/.test(htmlR)&&/Evaluaciones en 7 días/.test(htmlR));
 
   console.log('\n=== Exportar a Excel ===');
   a.run(`globalThis.__exp=[
@@ -992,7 +1048,7 @@ function contexto({search='',sesion=false}={}){
   const lineas=csv.split('\r\n');
   chk('un negativo puro llega como número; el resto que parece fórmula, no',a.run("celdaCsvPanel('-1,0')")==='-1,0'&&a.run("celdaCsvPanel('-1+1')")==="'-1+1"&&a.run("celdaCsvPanel('=1')")==="'=1");
   chk('una fila de títulos con las columnas acordadas',
-    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección)');
+    lineas[0]==='Alumno;Ramo;Sigla;Categoría;Evaluación;Nota;Promedio del ramo;GradeHub evaluación;GradeHub categoría;GradeHub ramo;Fecha;Antes o desde que empezó;Diferencia con el ramo;Empezó contigo en este ramo;Sección;Sección evaluación;Sección categoría;Sección ramo;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección);Método;Preparó con el profesor;Percentil evaluación;Percentil antes;Percentil ahora;Cambio percentil');
   chk('una fila por evaluación con nota, y una por ramo sin notas',lineas.length===4);
   chk('comas y comillas en el nombre van entre comillas, dobladas',
     lineas[1].startsWith('"Pérez, ""Cami""";Cálculo II;MAT1620;Interrogaciones;Interrogación 1;4,2;'));
@@ -1002,7 +1058,7 @@ function contexto({search='',sesion=false}={}){
   chk('una prueba sin comparación deja su celda vacía',/;Interrogación 2;5,6;[^;]*;;4,4;4,7;/.test(lineas[2]));
   chk('un nombre que parece fórmula no llega a Excel como fórmula',lineas[3].startsWith(`"'=HYPERLINK(""http://x"")"`));
   chk('un punto y coma en el ramo va entre comillas',lineas[3].includes(';"Física; Lab";FIS0154;'));
-  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;;;'));
+  chk('el ramo sin notas sale igual, con las celdas vacías',lineas[3].endsWith(';FIS0154'+';'.repeat(11)+';no declarada;;;;;;fecha;;;;;'));
   const resumen=a.run(`csvResumenAlumnosPanel([{...__dos,nombre_visible:'=Ana',ramos:[
     __dos.ramos[0],{...__dos.ramos[1],seccion:undefined,categorias:[...__dos.ramos[1].categorias,
       {id:'pendiente',nombre:'Control 3',peso:20,fecha:'2026-11-01',notas:[{id:'sin-nota',nombre:'Control 3',valor:null}]}]}]}],
@@ -1011,7 +1067,7 @@ function contexto({search='',sesion=false}={}){
     new Date('2026-10-22T12:00:00Z'))`);
   const filasResumen=resumen.split('\r\n').map(l=>l.split(';'));
   chk('resumen tiene una fila por alumno y ramo, con todas las columnas pedidas',
-    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección)');
+    filasResumen.length===3&&filasResumen[0].join(';')==='Alumno;Ramo;Sigla;Sección;Empezó contigo en este ramo;Promedio del ramo;GradeHub ramo;Sección ramo;Diferencia con el ramo antes;Diferencia con el ramo desde que empezó;Cambio;Estado;Próxima evaluación;Nota necesaria para aprobar;Estudiantes en GradeHub (ramo);Estudiantes en GradeHub (sección);Método;No preparadas frente a GradeHub;Preparadas frente a GradeHub;Cambio entre grupos;Percentil antes;Percentil ahora;Cambio percentil');
   chk('dos ramos del mismo alumno conservan fechas y comparaciones propias',
     filasResumen[1][4]==='2026-09-15'&&filasResumen[2][4]==='2026-10-05'&&
     filasResumen[1][8]==='-1,0'&&filasResumen[1][9]==='0,7'&&filasResumen[1][10]==='1,7'&&
@@ -1025,7 +1081,7 @@ function contexto({search='',sesion=false}={}){
     {id:'rv',nombre:'Ramo vacío',gates:[],categorias:[]}]}],()=>null)`);
   const filaVacia=sinNotas.split('\r\n')[1].split(';');
   chk('un ramo sin notas también aparece, sin inventar promedio ni cambio',
-    sinNotas.split('\r\n').length===2&&filaVacia.length===16&&filaVacia[3]==='no declarada'&&
+    sinNotas.split('\r\n').length===2&&filaVacia.length===23&&filaVacia[3]==='no declarada'&&
     filaVacia[4]==='2026-09-01'&&filaVacia[5]===''&&filaVacia[10]===''&&filaVacia[11]==='Sin notas');
   a.run(`globalThis.__getElementOriginal=document.getElementById;
     globalThis.__opciones=['detalle','resumen'].map(formato=>({dataset:{exportarPanel:formato},handlers:{},addEventListener(t,fn){this.handlers[t]=fn}}));

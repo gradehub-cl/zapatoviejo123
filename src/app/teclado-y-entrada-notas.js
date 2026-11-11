@@ -61,13 +61,61 @@ document.addEventListener('focusin',e=>{
 document.addEventListener('focusout',()=>{
   setTimeout(()=>{
     const a=document.activeElement;
-    if(!a||!a.matches||!a.matches('input,textarea,select'))soltarEspacioTeclado();
+    if(!a||!a.matches||!a.matches('input,textarea,select')){soltarEspacioTeclado();recuperarAltoPwa();compensarAltoPwa();}
   },120);
 });
+// En la PWA de iPhone el alto de la pantalla puede quedar encogido, con un recuadro
+// vacío bajo la barra de pestañas, hasta cerrar la app. Se ve después de abrir un
+// campo o de volver a la app. Esconder y mostrar `.app` en el mismo cuadro obliga a
+// WebKit a medir de nuevo, sin parpadeo. Se compara con la pantalla y no con el alto
+// anterior, porque ese puede partir ya encogido.
+function recuperarAltoPwa(){
+  if(!navigator.standalone||!window.matchMedia('(orientation:portrait)').matches)return;
+  if(screen.height-window.innerHeight<=4||espacioTeclado()>0)return;
+  const a=document.activeElement;
+  if(a&&a.matches&&a.matches('input,textarea,select'))return;
+  const app=document.querySelector('.app');if(!app)return;
+  const scrolls=[...app.querySelectorAll('.scroll,.modal-sheet')].map(s=>[s,s.scrollTop]);
+  app.style.display='none';void app.offsetHeight;app.style.display='';
+  scrolls.forEach(([s,top])=>{s.scrollTop=top;});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{recuperarAltoPwa();compensarAltoPwa();},140);});
+// Si iOS sigue informando una pantalla más corta, la zona de abajo igual pertenece
+// a la página: se ve de su color y no del fondo de la ventana. Se mide el borde que
+// usa `position:fixed` y la barra, el contenido y las hojas se estiran hasta el
+// borde real. Parte solo para admins: en el simulador no se pudo reproducir, y si
+// iOS no dibujara ahí la barra quedaría cortada (Martín, 2026-11-04).
+let sondaAltoPwa=null;
+function compensarAltoPwa(){
+  if(!navigator.standalone||typeof esAdministrador!=='function'||!esAdministrador())return;
+  if(!window.matchMedia('(orientation:portrait)').matches||espacioTeclado()>0)return;
+  if(!sondaAltoPwa){
+    sondaAltoPwa=document.createElement('div');
+    sondaAltoPwa.style.cssText='position:fixed;top:0;bottom:0;width:0;visibility:hidden;pointer-events:none';
+    document.body.appendChild(sondaAltoPwa);
+  }
+  const falta=Math.round(screen.height-sondaAltoPwa.getBoundingClientRect().bottom);
+  document.documentElement.style.setProperty('--falta-pwa',(falta>4&&falta<=120?falta:0)+'px');
+}
+window.addEventListener('resize',compensarAltoPwa);
 window.visualViewport&&window.visualViewport.addEventListener('resize',()=>{
   if(espacioTeclado()===0)soltarEspacioTeclado();
 });
 
+// Cuántas casillas tiene un grupo lo decide también el estudiante: el programa
+// puede decir 2 controles y su sección tomar 4. No se baja de una casilla ya
+// ocupada, para que ninguna nota quede sobrando.
+function minimoCasillas(cat){
+  return Math.max(2,(Number(cat.dropLowest?.count)||0)+1,...(cat.notas||[]).filter(n=>Number.isInteger(n.slot)).map(n=>n.slot+1));
+}
+function cambiarCasillas(catId,delta){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const cat=r&&r.categorias.find(c=>c.id===catId);
+  if(!cat||!(cat.slots>1))return;
+  const nuevo=cat.slots+delta;
+  if(nuevo<minimoCasillas(cat)||nuevo>100)return;
+  cat.slots=nuevo;save();renderRamo();
+}
 function setSlotNota(catId,slot,raw){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
@@ -143,6 +191,8 @@ function confirmDeleteCat(catId){
   showConfirm(`Eliminar "${cat.nombre}"`,`Se eliminarán todas las notas de esta evaluación.`,()=>{
     const totalAntes=r.categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
     r.categorias=r.categorias.filter(c=>c.id!==catId);
+    if(r.gates?.some(g=>g.origen==='editor'&&g.catId===catId))
+      r.gates=r.gates.filter(g=>g.origen!=='editor'||g.catId!==catId);
     repartirPesoRestante(r.categorias,totalAntes);
     save();renderRamo();
   });

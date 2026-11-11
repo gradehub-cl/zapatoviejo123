@@ -1,61 +1,78 @@
-// ─── RESUMEN DE ALUMNOS (Lucas, 2026-10-22) ──────────────────────────────────
-// La vista con la que abre Alumnos: a quién atender y quién rinde esta semana.
-// Sale de lo que el panel ya bajó; no consulta nada nuevo.
-const DIAS_SEMANA_PANEL=7,MAX_FILAS_RESUMEN_PANEL=10;
-function fechaLargaPanel(iso){
-  const d=new Date(iso+'T12:00:00');if(isNaN(d))return iso;
-  const dia=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()];
-  return `${dia[0].toUpperCase()+dia.slice(1)} ${fechaCorta(iso)}`;
-}
-function resumenInicioAlumnosPanel(alumnos,ahora=new Date()){
-  const dia=d=>{const x=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+d);return isoOf(x.getFullYear(),x.getMonth(),x.getDate());};
-  const hoy=dia(0),limite=dia(DIAS_SEMANA_PANEL);
-  const diasA=f=>Math.round((new Date(f+'T12:00:00')-new Date(hoy+'T12:00:00'))/86400000);
-  const semana=[];
-  (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,()=>{
-    let eventos=[];try{eventos=agendaEvents((al.ramos||[]).map(ramoParaPanel));}catch(e){}
-    eventos.filter(e=>e.pending&&e.fecha>=hoy&&e.fecha<=limite).forEach(e=>semana.push({al,fecha:e.fecha,hora:e.hora||null,
-      dias:diasA(e.fecha),evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,ramo:e.ramo.nombre}));
+// El resumen lee los mismos ramos y notas compartidos que la Lista.
+const claveRamoResumenPanel=(al,r)=>JSON.stringify([al.tenant,claveRamoListaPanel({ramo:r})]);
+const personasResumenPanel=filas=>new Set(filas.map(f=>f.al.id)).size;
+const pluralResumenPanel=(n,uno,muchos)=>n+' '+(n===1?uno:muchos);
+const fechaLargaPanel=iso=>new Date(iso+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+function datosResumenAlumnosPanel(alumnos,filas,ahora=new Date()){
+  const dias=Array.from({length:7},(_,i)=>{
+    const d=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+i);
+    return {fecha:isoOf(d.getFullYear(),d.getMonth(),d.getDate()),eje:d.toLocaleDateString('es-CL',{weekday:'short',day:'numeric'}),evaluaciones:[]};
+  });
+  const porFecha=new Map(dias.map(d=>[d.fecha,d]));
+  alumnos.forEach(al=>conRamosAlumnoPanel(al,()=>{
+    agendaEvents((al.ramos||[]).map(ramoParaPanel)).forEach(e=>{
+      const dia=porFecha.get(e.fecha);
+      if(e.pending&&dia)dia.evaluaciones.push({al,ramo:e.ramo,hora:e.hora||null,nombre:e.nota?.nombre||e.cat.nombre,categoria:e.cat.nombre});
+    });
   }));
-  // Hoy y mañana primero, como en la Agenda (#814); después por fecha y hora.
-  const cuando=x=>`${x.fecha}T${x.hora||''}`;
-  semana.sort((a,b)=>cuando(a).localeCompare(cuando(b))||String(a.al.nombre_visible).localeCompare(String(b.al.nombre_visible),'es'));
-  const filas=alumnosOrdenadosPanel(alumnos||[],ahora);
-  const atencion=filas.map(f=>({al:f.al,ramos:(f.porRamo||[]).filter(d=>d.nivel==='bad'||d.nivel==='warn'),exigente:f.exigente}))
-    .filter(f=>f.ramos.length);
-  const contar=n=>filas.filter(f=>(f.porRamo||[]).some(d=>d.nivel===n)).length;
-  return {semana,atencion,conectados:(alumnos||[]).length,reprobando:contar('bad'),alBorde:contar('warn')};
+  const ramos=new Map(filas.filter(f=>f.ramo).map(f=>[claveRamoResumenPanel(f.al,f.ramo),f.ramo]));
+  return {alumnos,filas,dias,ramos};
 }
-function resumenInicioAlumnosHTML(r){
-  const texto=n=>n==='bad'?'Reprobando':'Al borde';
-  const cifra=(valor,etiqueta,detalle,nivel=null)=>`<div class="ah-cifra"><span class="ah-cifra-valor">${valor}</span><span class="ah-cifra-etiqueta">${etiqueta}</span><small>${detalle}</small>${nivel&&r.conectados>0?`<span class="panel-riesgo-riel panel-riesgo-${nivel}" aria-hidden="true"><i style="transform:scaleX(${Math.min(1,valor/r.conectados).toFixed(4)})"></i></span>`:''}</div>`;
-  const mas=(n,vista)=>n>MAX_FILAS_RESUMEN_PANEL?`<button type="button" class="agent-refresh" data-ir-vista="${vista}">Ver ${n-MAX_FILAS_RESUMEN_PANEL} más en la lista</button>`:'';
-  // Agrupada por día (2026-10-23): la fecha va una vez como encabezado y no se
-  // repite en cada fila; en la fila queda solo la hora, si la hay.
-  const diaTexto=x=>x.dias===0?'Hoy':x.dias===1?'Mañana':fechaLargaPanel(x.fecha);
-  const visibles=r.semana.slice(0,MAX_FILAS_RESUMEN_PANEL);
-  const dias=[...new Set(visibles.map(x=>x.fecha))];
-  const semana=r.semana.length?dias.map(f=>{const del=visibles.filter(x=>x.fecha===f);
-      return `<h3 class="panel-resumen-dia${del[0].dias<=1?' pronto':''}">${esc(diaTexto(del[0]))}<small>${del.length} ${del.length===1?'evaluación':'evaluaciones'}</small></h3>
-      <ul class="panel-resumen-filas">${del.map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
-      <span><b>${esc(x.al.nombre_visible)}</b><small>${esc(x.evaluacion)} · ${esc(x.ramo)}</small></span>
-      ${x.hora?`<span class="panel-resumen-cuando">${esc(x.hora)}</span>`:''}</button></li>`).join('')}</ul>`;}).join('')+mas(r.semana.length,'lista')
-    :'<p class="profesor-hig-vacio">Nadie de tus alumnos tiene evaluaciones en los próximos 7 días.</p>';
-  const atencion=r.atencion.length?`<ul class="panel-resumen-filas">${r.atencion.slice(0,MAX_FILAS_RESUMEN_PANEL).map(x=>`<li><button type="button" data-ver-alumno="${esc(x.al.id)}">
-      <span><b>${esc(x.al.nombre_visible)}</b><span class="panel-alumnos-fila-estados">${x.ramos.map(d=>`<span class="panel-resumen-sem panel-resumen-${d.nivel}">${esc(d.nombre)} · ${texto(d.nivel)}</span>${d.motivo?`<span class="panel-alumnos-fila-meta">${esc(d.motivo)}</span>`:''}`).join('')}</span></span>
-      ${x.exigente&&Number.isFinite(x.exigente.necesita)?`<span class="panel-resumen-cuando"><span class="panel-resumen-meta">Para aprobar</span><b>${x.exigente.necesita>7.05?'No alcanza':esc(nfNecesaria(x.exigente.necesita).replace('.',','))}</b><small>${x.exigente.necesita>7.05?esc(x.exigente.ramo.nombre):`en lo pendiente de ${esc(x.exigente.ramo.nombre)}`}</small></span>`:''}</button></li>`).join('')}</ul>${mas(r.atencion.length,'lista')}`
-    :'<p class="profesor-hig-vacio">Ninguno va reprobando ni al borde.</p>';
-  return `<div class="ah-cifras panel-resumen-cifras">${cifra(r.conectados,'Alumnos conectados','Comparten sus ramos contigo')}${cifra(r.semana.length,'Evaluaciones próximas','En los próximos 7 días')}${cifra(r.reprobando,'Reprobando algún ramo',`De ${r.conectados} alumnos`,'bad')}${cifra(r.alBorde,'Al borde en algún ramo',`De ${r.conectados} alumnos`,'warn')}</div>
-    <div class="panel-alumnos-resumen-columnas">
-      <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-atencion">
-        <div class="profesor-hig-lista-cabeza"><h2 id="resumen-atencion">Necesitan atención</h2></div>
-        <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-atencion" tabindex="0">${atencion}</div>
-      </section>
-      <section class="panel-alumnos-resumen-bloque" aria-labelledby="resumen-semana">
-        <div class="profesor-hig-lista-cabeza"><h2 id="resumen-semana">Esta semana</h2></div>
-        <div class="panel-alumnos-resumen-scroll" role="region" aria-labelledby="resumen-semana" tabindex="0">${semana}</div>
-      </section>
-    </div>`;
+function alcanceResumenAlumnosPanel(datos,{ramo='',orden='urgencia'}={}){
+  const coincide=(al,r)=>!ramo||(r&&claveRamoResumenPanel(al,r)===ramo);
+  const filas=datos.filas.filter(f=>coincide(f.al,f.ramo));
+  const casos=filas.filter(f=>f.nivel==='bad'||f.nivel==='warn'||enPestanaListaPanel(f,'apoyo'));
+  if(orden==='fecha')casos.sort((a,b)=>
+    (a.proxima?.fecha||'9999').localeCompare(b.proxima?.fecha||'9999')||
+    (a.proxima?.hora||'').localeCompare(b.proxima?.hora||''));
+  const dias=datos.dias.map(d=>({...d,evaluaciones:d.evaluaciones.filter(e=>coincide(e.al,e.ramo))}));
+  return {casos,dias,evaluaciones:dias.flatMap(d=>d.evaluaciones),
+    alumnos:ramo?personasResumenPanel(filas):datos.alumnos.length,atencion:personasResumenPanel(casos),ramos:datos.ramos};
+}
+function gruposResumenAlumnosPanel(evaluaciones){
+  const grupos=new Map();
+  evaluaciones.forEach(e=>{
+    const clave=JSON.stringify([claveRamoResumenPanel(e.al,e.ramo),claveEvaluacionPanel(e.categoria),claveEvaluacionPanel(e.nombre)]);
+    if(!grupos.has(clave))grupos.set(clave,[]);
+    grupos.get(clave).push(e);
+  });
+  return [...grupos.values()];
+}
+function resumenInicioAlumnosHTML(r,{ramo='',orden='urgencia',dia=0,limite=6}={}){
+  const plural=pluralResumenPanel,elegido=r.dias[dia],grupos=gruposResumenAlumnosPanel(elegido.evaluaciones);
+  const opcion=(id,n,sel)=>`<option value="${esc(id)}"${id===sel?' selected':''}>${esc(n)}</option>`;
+  const puntos=r.dias.map((d,i)=>({eje:d.eje,valor:d.evaluaciones.length,tenue:i===0,
+    lectura:`${fechaLargaPanel(d.fecha)}, ${plural(d.evaluaciones.length,'evaluación','evaluaciones')}`}));
+  const fila=f=>conUniversidadPanel(f.al.tenant,()=>{
+    const motivo=f.necesita>7.05?'No alcanza':f.nivel==='bad'?'Reprobando':f.nivel==='warn'?'Al borde':'Meta exigente';
+    const fecha=f.proxima?fechaCorta(f.proxima.fecha):'—';
+    const meta=f.necesita!==null&&f.necesita<=7.05?' · '+nfNecesaria(f.necesita).replace('.',',')+' para aprobar':'';
+    return `<li><button type="button" class="ras-fila" data-ver-alumno="${esc(f.al.id)}" data-alumno-ramo="${esc(f.r.id)}">
+      <span><b>${esc(f.al.nombre_visible)}</b><small>${esc(f.ramo.nombre)}</small></span>
+      <span class="ras-razon"${f.motivo?` title="${esc(f.motivo)}"`:''}><b>${motivo}</b><small>${esc(fecha+meta)}</small></span><span aria-hidden="true">›</span></button></li>`;
+  });
+  return `<div class="ras">
+    <div class="ras-filtro"><label>Ramo <select data-ras-ramo>${opcion('','Todos los ramos',ramo)}${[...r.ramos].sort((a,b)=>a[1].nombre.localeCompare(b[1].nombre,'es')).map(([k,x])=>opcion(k,x.nombre,ramo)).join('')}</select></label><time datetime="${esc(r.dias[0].fecha)}">${esc(fechaLargaPanel(r.dias[0].fecha))}</time></div>
+    <div class="ras-cifras">${metricaAdminHTML({titulo:'Alumnos conectados',valor:r.alumnos})}${metricaAdminHTML({titulo:'Necesitan atención',valor:r.atencion})}${metricaAdminHTML({titulo:'Evaluaciones en 7 días',valor:r.evaluaciones.length})}</div>
+    <div class="ras-grid">
+      <section class="ras-tarjeta" aria-labelledby="ras-atencion"><header class="ras-cabeza"><div><h2 id="ras-atencion">Necesitan atención</h2><small>${plural(r.casos.length,'caso','casos')} · ${plural(r.atencion,'alumno','alumnos')}</small></div>
+      <label>Orden <select data-ras-orden>${opcion('urgencia','Por urgencia',orden)}${opcion('fecha','Próxima evaluación',orden)}</select></label></header>
+      ${r.casos.length?`<ul class="ras-lista">${r.casos.slice(0,limite).map(fila).join('')}</ul>`:'<p class="profesor-hig-vacio">Ningún alumno necesita atención en este alcance.</p>'}
+      ${r.casos.length>limite?'<button type="button" class="agent-refresh ras-mas" data-ras-mas>Ver más casos</button>':''}</section>
+      <section class="ras-tarjeta" aria-labelledby="ras-semana"><header class="ras-cabeza"><div><h2 id="ras-semana">Esta semana</h2><small>${plural(personasResumenPanel(r.evaluaciones),'alumno','alumnos')} · ${esc(fechaCorta(r.dias[0].fecha))} al ${esc(fechaCorta(r.dias.at(-1).fecha))}</small></div></header>
+      ${columnasAdminHTML({titulo:'Evaluaciones por día',puntos,elegido:dia,sinCabeza:true,porDia:true})}
+      <label class="ras-selector-dia">Día <select data-ras-dia>${puntos.map((p,i)=>opcion(String(i),p.lectura,String(dia))).join('')}</select></label>
+      <div class="ras-cabeza ras-dia"><h3>${dia===0?'Hoy':esc(fechaLargaPanel(elegido.fecha))}</h3><small>${plural(elegido.evaluaciones.length,'evaluación','evaluaciones')}</small></div>
+      ${grupos.length?`<ul class="ras-lista">${grupos.map((g,i)=>`<li><button type="button" class="ras-fila" data-ras-grupo="${i}">
+        <span><b>${esc(g[0].nombre)}</b><small>${esc(g[0].ramo.nombre)}</small></span><span>${plural(personasResumenPanel(g),'alumno','alumnos')}</span><span aria-hidden="true">›</span></button></li>`).join('')}</ul>`:'<p class="profesor-hig-vacio">Sin evaluaciones este día.</p>'}</section>
+    </div>
+    <details class="ras-metodo"><summary>Cómo se calcula</summary><p>Cada alumno cuenta una vez en los totales de personas. Un caso corresponde a un alumno en un ramo. La agenda cuenta evaluaciones pendientes con fecha. Este resumen no mide el efecto de las clases.</p></details>
+  </div>`;
+}
+function alumnosDiaResumenHTML(grupo){
+  return `<div class="modal-title">${esc(grupo[0].nombre)}</div><p class="modal-desc">${esc(grupo[0].ramo.nombre)}</p>
+    <ul class="ras-lista">${grupo.map(e=>`<li><button type="button" class="ras-fila" data-ver-alumno="${esc(e.al.id)}" data-alumno-ramo="${esc(e.ramo.id)}"><b>${esc(e.al.nombre_visible)}</b><span>${esc(e.hora||'—')}</span><span aria-hidden="true">›</span></button></li>`).join('')}</ul>
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
 }
 function contenidoAlumnoPanelHTML(al,compDe,ahora){
   return `${(al.ramos||[]).map(r=>{const comp=compDe(al,r)||{};return antesAhoraAlumnoHTML(metricasAlumnoRamoPanel(al,r,compDe),{inicios:new Map([[r.id,inicioRamoPanel(al,r)]]),seccion:comp.sinSeccion||Number.isInteger(comp.seccion),sinSeccion:!!comp.sinSeccion});}).join('')}
@@ -110,11 +127,11 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
   const gh=e=>{const dato=datosComparacionPanel(e);return dato?num(fmtPromedio(dato.promedio)):'';};
   // Las de "antes y ahora" (#697) y cuándo empezó en el ramo (2026-10-20) van
   // al final para no mover las columnas que alguien ya usa en su planilla.
-  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el ramo','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']];
+  const filas=[['Alumno','Ramo','Sigla','Categoría','Evaluación','Nota','Promedio del ramo','GradeHub evaluación','GradeHub categoría','GradeHub ramo','Fecha','Antes o desde que empezó','Diferencia con el ramo','Empezó contigo en este ramo','Sección','Sección evaluación','Sección categoría','Sección ramo','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)','Método','Preparó con el profesor','Percentil evaluación','Percentil antes','Percentil ahora','Cambio percentil']];
   alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);
     const conFecha=new Map(metricasAlumnoPanel(al,compDe).evaluaciones.map(e=>[e.id,e]));
     const tiempo=id=>{const e=conFecha.get(id);if(!e)return ['','sin fecha',''];
-      return [e.fecha,e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
+      return [e.fecha||'',e.metodo==='manual'?'':e.lado==='antes'?'antes':'desde que empezó',e.curso===null?'':num((e.nota-e.curso).toFixed(1))];};
     (al.ramos||[]).forEach(r=>{
     const empezo=inicioRamoPanel(al,r).dia||'';
     const seccion=Number.isInteger(r.seccion)?r.seccion:'no declarada';
@@ -131,10 +148,10 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
     const categorias=categoriasDeRamoPanel(ramo);
     const muestras=[datosComparacionPanel(comp.ramo)?.personas??'',datosComparacionPanel(compSec.ramo)?.personas??''];
     // Un ramo sin notas igual sale, para que el archivo tenga a todos.
-    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo,seccion,'','',gh(compSec.ramo),...muestras]);return;}
+    if(!categorias.length){filas.push([...base,'','','',prom,'','',ghRamo,'','','',empezo,seccion,'','',gh(compSec.ramo),...muestras,preparacionRamoPanel(al,r)?.manual?'manual':'fecha','','','','','']);return;}
     categorias.forEach(c=>c.notas.forEach(n=>filas.push([...base,c.nombre,n.nombre,num(fmt(n.valor)),prom,
       gh(porNota.get(n.clave)),gh(porCategoria.get(c.clave)),ghRamo,...tiempo(n.id),empezo,
-      seccion,gh(secNota.get(n.clave)),gh(secCategoria.get(c.clave)),gh(compSec.ramo),...muestras])));
+      seccion,gh(secNota.get(n.clave)),gh(secCategoria.get(c.clave)),gh(compSec.ramo),...muestras,preparacionRamoPanel(al,r)?.manual?'manual':'fecha',preparacionRamoPanel(al,r)?.manual?(conFecha.get(n.id)?.lado==='ahora'?'sí':'no'):'',num(percentilEvaluacionPanel(al,r,n.id,comp)),...['antes','ahora','cambio'].map(k=>num(resumenPercentilesPanel(metricasAlumnoRamoPanel(al,r,compDe))[k]))])));
   });}));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');
 }
@@ -146,7 +163,7 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
   const comparable=x=>{const dato=datosComparacionPanel(x);return dato?prom(dato.promedio):'';};
   const diferencia=v=>v===null||v===undefined?'':num(v.toFixed(1));
   const estado={good:'Aprobando',warn:'Al borde',bad:'Reprobando',neutral:'Sin notas'};
-  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']];
+  const filas=[['Alumno','Ramo','Sigla','Sección','Empezó contigo en este ramo','Promedio del ramo','GradeHub ramo','Sección ramo','Diferencia con el ramo antes','Diferencia con el ramo desde que empezó','Cambio','Estado','Próxima evaluación','Nota necesaria para aprobar','Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)','Método','No preparadas frente a GradeHub','Preparadas frente a GradeHub','Cambio entre grupos','Percentil antes','Percentil ahora','Cambio percentil']];
   (alumnos||[]).forEach(al=>conRamosAlumnoPanel(al,ctx=>{
     (al.ramos||[]).forEach(r=>{
       const ramo=ramoParaPanel(r),comp=compDe(al,r)||{};
@@ -159,10 +176,10 @@ function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date
         (typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||'',
         Number.isInteger(r.seccion)?r.seccion:'no declarada',
         inicioRamoPanel(al,r).dia||'',prom(avg),comparable(comp.ramo),comparable(sec.ramo),
-        diferencia(met.antes.diferencia),diferencia(met.ahora.diferencia),
-        diferencia(met.cambio),estado[nivel]||'Sin notas',
+        met.metodo==='manual'?'':diferencia(met.antes.diferencia),met.metodo==='manual'?'':diferencia(met.ahora.diferencia),
+        met.metodo==='manual'?'':diferencia(met.cambio),estado[nivel]||'Sin notas',
         proxima?proxima.evaluacion:'',proxima&&proxima.necesita?num(proxima.necesita):'',
-        datosComparacionPanel(comp.ramo)?.personas??'',datosComparacionPanel(sec.ramo)?.personas??'']);
+        datosComparacionPanel(comp.ramo)?.personas??'',datosComparacionPanel(sec.ramo)?.personas??'',met.metodo,met.metodo==='manual'?diferencia(met.antes.diferencia):'',met.metodo==='manual'?diferencia(met.ahora.diferencia):'',met.metodo==='manual'?diferencia(met.cambio):'',...['antes','ahora','cambio'].map(k=>num(resumenPercentilesPanel(met)[k]))]);
     });
   }));
   return filas.map(f=>f.map(celdaCsvPanel).join(';')).join('\r\n');

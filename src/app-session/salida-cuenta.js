@@ -38,6 +38,7 @@ async function cerrarSesion(){
   // "Deshacer importación" y quedarse con los datos de esta cuenta.
   try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(CACHE_OWNER_KEY);localStorage.removeItem(SYNC_BASE_KEY);localStorage.removeItem(CURSO_SIGLAS_KEY);localStorage.removeItem(PRE_IMPORT_KEY);}catch(e){}
   olvidarBaseSesion();
+  if(typeof olvidarUrlCanvasIcs==='function')olvidarUrlCanvasIcs();
   S=freshState();
   // Las pestañas de profesor y admin son de la cuenta que salió, no del navegador.
   if(typeof olvidarSesionMarketplace==='function')olvidarSesionMarketplace();

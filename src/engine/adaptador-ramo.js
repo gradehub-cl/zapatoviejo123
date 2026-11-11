@@ -55,7 +55,7 @@ function gh_crearCalculoRamo(deps){
       id:'final',name:r.nombre||'Ramo',type:'group',aggregation_rule:'weighted_average',
       formulas_condicionales:reglasCalculoVigentes(r).filter(g=>g.type==='conditional_weights'),
       children:categoriasVigentes(r).filter(c=>c.peso>0||(c.optativa===true&&(c.notas||[]).some(n=>Number.isFinite(n.valor)))).map(c=>conBonus({id:c.id,name:c.nombre,weight:c.peso,type:'group',aggregation_rule:'weighted_average',
-        drop_lowest:c.dropLowest||null,
+        drop_lowest:gh_descarteManual(r,typeof deps.tenant==='function'?deps.tenant():null)?null:c.dropLowest||null,
         children:hojasCategoria(c)},bonus.porCategoria[c.id]))},bonus.final);
   }
   function gradesOf(r){const g={};(r.categorias||[]).forEach(c=>(c.notas||[]).forEach(n=>{if(n.valor!==null&&n.valor!==undefined)g[n.id]=n.valor;}));return g;}
@@ -219,12 +219,16 @@ function gh_crearCalculoRamo(deps){
   // La pauta explícita sigue mandando; no adivinamos entre dos exámenes.
   function compuertasEfectivas(r){
     const guardadas=Array.isArray(r.gates)?r.gates:[];
-    if(guardadas.length)return guardadas;
+    if(guardadas.some(g=>g?.origen!=='editor'))return guardadas;
     const norma=gh_reglasNota(r.origen?.tenant||(typeof deps.tenant==='function'?deps.tenant():null)).examenFinal;
     if(!norma)return guardadas;
     const finales=categoriasVigentes(r).filter(c=>c.peso>0&&norma.nombres.includes(normName(c.nombre)));
     if(finales.length!==1)return guardadas;
-    return [{type:'group_min',catIds:[finales[0].id],nombre:finales[0].nombre,min:norma.min,cap:'self',efecto:'reemplazar'}];
+    const examen=finales[0];
+    if(guardadas.some(g=>g.catId===examen.id||g.catIds?.includes(examen.id)))return guardadas;
+    // Primero rige el reglamento. Las reglas personales solo pueden bajar
+    // ese resultado, incluso cuando también fallan sus mínimos.
+    return [{type:'group_min',catIds:[examen.id],nombre:examen.nombre,min:norma.min,cap:'self',efecto:'reemplazar'},...guardadas];
   }
   function calculoRamoConCompuertas(r){
     const ausencias=estadoAusenciasJustificadas(r);
@@ -301,10 +305,21 @@ function gh_crearCalculoRamo(deps){
     const v=recuperativo?recuperativo.valor:base.valor;
     return combinarConRamoVinculado(r,v,visitados,ramosContexto);
   }
+  function referenciaRamoVinculado(r){
+    if(!r?.aporta?.ramo)return null;
+    const link=r.aporta,preset=typeof definicionPresetDelRamo==='function'?definicionPresetDelRamo(r):null;
+    const sigla=link.sigla||(preset?.aporta&&normName(preset.aporta.ramo)===normName(link.ramo)?preset.aporta.sigla:null);
+    return {...link,...(sigla?{sigla:String(sigla).trim().toUpperCase()}:{})};
+  }
   function ramoVinculado(r,ramosContexto){
-    if(!r||!r.aporta||!r.aporta.ramo)return null;
-    const objetivo=normName(r.aporta.ramo);
-    return (ramosContexto||S.ramos||[]).find(x=>x!==r&&normName(x.nombre)===objetivo)||null;
+    const link=referenciaRamoVinculado(r);if(!link)return null;
+    const lista=(ramosContexto||S.ramos||[]).filter(x=>x!==r);
+    const codigo=x=>{const v=String(x.sigla||x.origen?.ramoKey||'').trim().toUpperCase();return /^[A-Z]{2,6}[0-9]{3,5}[A-Z]?$/.test(v)?v:'';};
+    const porSigla=link.sigla&&lista.find(x=>codigo(x)===link.sigla);
+    if(porSigla)return porSigla;
+    // Compatibilidad con ramos antiguos sin sigla; un código contradictorio
+    // no se ignora solo porque el nombre coincide.
+    return lista.find(x=>(!link.sigla||!codigo(x))&&normName(x.nombre)===normName(link.ramo))||null;
   }
   function combinarConRamoVinculado(r,propio,visitados,ramosContexto){
     const link=r&&r.aporta;
@@ -571,7 +586,7 @@ function gh_crearCalculoRamo(deps){
     // diciendo cuál está incumplida hoy.
     return conCompuertas(resolver(estructura,objetivo));
   }
-  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
+  return {notaFinalOficial:valor=>gh_notaOficial(valor,reglasNota()),reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria};
 }
 
 if(typeof module!=='undefined'&&module.exports)module.exports={gh_crearCalculoRamo,gh_reglasNota,gh_notaOficial,gh_cumpleCompuerta,gh_bonusActivos,gh_notaDesdePuntaje,gh_tablaPuntaje};

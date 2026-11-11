@@ -26,6 +26,7 @@ function olvidarSesionMarketplace(){
   sesionMarketplaceVersion++;
   olvidarEncuestas();
   soyAdministradorCache=false;
+  alcanceFilasAdmin=new Map();
   vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
   olvidarPerfilProfesor();
   anunciosRecomendacion={tenant:null,lista:null,pidiendo:false};
@@ -181,6 +182,7 @@ async function enlazarDescuentosAdmin(raiz,anuncios,llamar){
 }
 // La consulta sin anuncio es un no-op con MFA: nunca prueba con datos reales.
 async function enlazarEdicionAdmin(raiz,profesores,volver){
+  await enlazarDirectorioAdmin(raiz);
   const cajas=[...raiz.querySelectorAll('[data-admin-edicion]')];
   if(!cajas.length)return;
   try{
@@ -275,6 +277,42 @@ function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
     (seccion!=='cobros'||f.a.publicado_at||(f.a.cobros||[]).length||f.a.cobro)&&
     (!estado||f.estado[1]===estado)&&palabras.every(t=>normalizarBusquedaClase([f.p.nombre,f.a.titulo,...(f.a.ramos_siglas||[])].join(' ')).includes(t)));
 }
+// Una campaña terminada que todavía no tiene cobro registrado.
+function cobroPendienteAdmin({a,costo,estado}){
+  const registrado=a.cobro||(a.cobros||[]).some(c=>Date.parse(c.publicado_at)===Date.parse(a.publicado_at));
+  return estado[1]==='expirado'&&!!a.publicado_at&&!costo?.sinCosto&&!registrado;
+}
+// Primero lo que espera una decisión; después, lo que más se está mostrando.
+function ordenFilasAdmin(x,y){
+  const prioridad=f=>f.a.estado==='en_revision'?0:cobroPendienteAdmin(f)?1:2;
+  return prioridad(x)-prioridad(y)||(Number(y.a.campana?.vistas)||0)-(Number(x.a.campana?.vistas)||0);
+}
+// Cuántas personas con el ramo vieron el anuncio. Cada consulta recorre las
+// cuentas activas, así que se pide solo para lo publicado, de a pocas, y se
+// recuerda unos minutos. Desconocido nunca equivale a cero: queda «—».
+const ALCANCE_BAJO_ADMIN=.1,MINIMO_ALCANCE_ADMIN=5,DURACION_ALCANCE_ADMIN=5*60*1000;
+let alcanceFilasAdmin=new Map();
+function alcanceFilaAdminHTML(p){
+  const n=p&&p.activos_ramo;
+  if(!p||n<MINIMO_ALCANCE_ADMIN)return `<b>—</b>${p?'<small>Muy pocas personas</small>':''}`;
+  const parte=Math.min(1,p.vieron/n),bajo=parte<ALCANCE_BAJO_ADMIN;
+  return `<b class="${bajo?'est-baja':''}">${Math.round(parte*100)}%</b><small>de ${numeroPrivado(n)}</small><i class="adm-riel${bajo?' adm-riel-bajo':''}" aria-hidden="true"><i style="transform:scaleX(${parte.toFixed(3)})"></i></i>`;
+}
+async function pintarAlcanceFilasAdmin(raiz,profesores,ahora,vigente){
+  const clave=a=>`${a.id}|${a.publicado_at}`;
+  const pendientes=filasAdminHig(profesores,ahora).filter(f=>f.estado[1]==='publicado').map(f=>f.a);
+  const pintar=(a,p)=>{const caja=raiz.querySelector(`[data-adm-alcance-fila="${a.id}"]`);if(caja&&vigente())caja.innerHTML=alcanceFilaAdminHTML(p);};
+  const siguiente=async()=>{
+    for(let a=pendientes.shift();a&&vigente();a=pendientes.shift()){
+      const guardado=alcanceFilasAdmin.get(clave(a));
+      if(guardado&&Date.now()-guardado.en<DURACION_ALCANCE_ADMIN){pintar(a,guardado.p);continue;}
+      const p=await publicoAdminAnuncio(a);
+      if(p)alcanceFilasAdmin.set(clave(a),{p,en:Date.now()});
+      pintar(a,p);
+    }
+  };
+  await Promise.all([siguiente(),siguiente(),siguiente()]);
+}
 function filaAdminHigHTML({p,a,costo,estado},ahora){
   const inicial=Array.from(String(p.nombre||'P'))[0],campana=a.campana;
   const valor=k=>campana&&Number.isSafeInteger(campana[k])?numeroPrivado(campana[k]):'—';
@@ -283,7 +321,7 @@ function filaAdminHigHTML({p,a,costo,estado},ahora){
   const dias=campana&&Number.isSafeInteger(campana.dias_cobrados)?campana.dias_cobrados:null;
   return `<details class="admin-hig-fila pe-admin-fila" data-admin-fila="${esc(a.id)}"><summary>
     <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span></small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
-    <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span></span><span class="pe-ver">Ver <i aria-hidden="true">⌄</i></span>
+    <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span><span class="adm-alcance" data-adm-alcance-fila="${esc(a.id)}">${alcanceFilaAdminHTML(null)}</span></span><span class="pe-ver"><i aria-hidden="true">⌄</i><span class="adm-oculto">Ver</span></span>
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
 // Aceptar, rechazar y eliminar (Lucas, 2026-10-23). Eliminar solo aparece
@@ -324,6 +362,7 @@ function fichaAdminProfesorHTML(p){
   const historial=Array.isArray(p.historial)?p.historial:null;
   const fecha=f=>Number.isFinite(new Date(f).getTime())?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'}).format(new Date(f)):'';
   return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
+    <div data-admin-directorio="${id}"></div>
     <dl class="admin-hig-ficha-datos">
       ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
       ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
@@ -349,4 +388,37 @@ const FILTROS_PROFESORES_ADMIN=[['aprobado','Aprobados'],['pendiente','Pendiente
 function filtrarProfesoresAdmin(profesores,{estado='',busqueda=''}={}){
   const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   return (profesores||[]).filter(p=>(!estado||p.estado===estado)&&palabras.every(t=>normalizarBusquedaClase(p.nombre||'').includes(t)));
+}
+
+// Separado del panel antiguo: un SQL pendiente no afecta revisión ni anuncios.
+async function enlazarDirectorioAdmin(raiz){
+  const cajas=[...raiz.querySelectorAll('[data-admin-directorio]')];if(!cajas.length)return;
+  try{
+    const {data,error}=await supabaseClient.rpc('admin_directorio_perfiles');if(error||!Array.isArray(data))return;
+    let metricas=[];try{const r=await supabaseClient.rpc('admin_metricas_directorio');if(!r.error&&Array.isArray(r.data))metricas=r.data;}catch(e){}
+    for(const caja of cajas){
+      if(!caja.isConnected)continue;
+      const p=data.find(p=>p.user_id===caja.dataset.adminDirectorio);if(!p)continue;
+      const fecha=p.destacado_hasta?new Date(p.destacado_hasta):null;
+      const local=fecha&&!isNaN(fecha)?new Date(fecha.getTime()-fecha.getTimezoneOffset()*60000).toISOString().slice(0,16):'';
+      caja.innerHTML=`<div class="directorio-admin"><p>${esc(p.etiqueta||'Sin etiqueta')} · ${p.en_directorio?'En el directorio':'Sin permiso para aparecer'}</p>
+        <label for="directorio-hasta-${esc(p.user_id)}">Destacado hasta · hora local</label><input type="datetime-local" id="directorio-hasta-${esc(p.user_id)}" value="${local}">
+        <button type="button" class="clase-accion" data-destacado-guardar>Guardar destacado</button><button type="button" class="clase-accion" data-destacado-quitar>Quitar destacado</button><p role="status"></p></div>`;
+      const m=metricas.find(m=>m.user_id===p.user_id);if(m)caja.insertAdjacentHTML('beforeend',metricasDirectorioHTML(m.metricas));
+      const guardar=async quitar=>{
+        const campo=caja.querySelector('input'),estado=caja.querySelector('[role=status]');
+        if(!quitar&&(!campo.value||!Number.isFinite(new Date(campo.value).getTime()))){estado.textContent='Elige una fecha futura.';campo.focus();return;}
+        caja.querySelectorAll('button').forEach(b=>b.disabled=true);
+        try{
+          const r=await supabaseClient.rpc('admin_destacado_perfil',{p_user_id:p.user_id,p_hasta:quitar?null:new Date(campo.value).toISOString()});
+          if(!caja.isConnected)return;
+          estado.textContent=!r.error&&r.data===true?(quitar?'Destacado quitado.':'Destacado guardado.'):'No se guardó. Revisa la fecha y tu segundo factor.';
+          if(!r.error&&r.data===true&&quitar)campo.value='';
+        }catch(e){estado.textContent='No se guardó. Revisa tu conexión.';}
+        finally{caja.querySelectorAll('button').forEach(b=>b.disabled=false);}
+      };
+      caja.querySelector('[data-destacado-guardar]').addEventListener('click',()=>guardar(false));
+      caja.querySelector('[data-destacado-quitar]').addEventListener('click',()=>guardar(true));
+    }
+  }catch(e){}
 }

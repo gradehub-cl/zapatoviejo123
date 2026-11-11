@@ -27,6 +27,7 @@ function openEditHistRamoModal(histId,ramoId){
     <label class="modal-label">Promedio final (1.0 – 7.0)</label>
     <div class="modal-input"><input type="text" inputmode="decimal" id="m-hist-avg" value="${actual!==null?nf(actual):''}" placeholder="Ej: 5.4" maxlength="4"/></div>
     ${calculado!==null?`<p style="font-size:0.75rem;color:var(--fg3);margin:-6px 0 14px;">Calculado desde sus evaluaciones: <b>${fmtPromedio(calculado)}</b></p>`:''}
+    ${selectorExclusionPromedio(r,'m-hist-promedio')}
     <button type="button" class="btn-cancel" onclick="abrirNotaOficialHistorial('${esc(histId)}','${esc(ramoId)}')">Usar nota del portal</button>
     <div id="m-hist-err" style="display:none;font-size:0.75rem;color:var(--red);margin:-6px 0 12px;"></div>
     <div class="modal-btns">
@@ -47,6 +48,7 @@ function confirmEditHistRamo(histId,ramoId){
   }
   const h=S.historial.find(x=>x.id===histId);if(!h)return;
   const r=(h.ramos||[]).find(x=>x.id===ramoId);if(!r)return;
+  guardarExclusionPromedio(r,'m-hist-promedio');
   r.avgOverride=v;
   recomputeHistGpa(h);
   save();track('edit_hist_ramo');closeModal();renderStats();

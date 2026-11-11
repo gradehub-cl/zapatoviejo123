@@ -46,7 +46,10 @@ const vistasPanelNav={};
 const vistaPendienteNav={};
 // La vista que pidió la barra, una sola vez: el panel la toma al pintarse.
 function tomarVistaNav(tab){const v=vistaPendienteNav[tab];delete vistaPendienteNav[tab];return v||null;}
-function marcarVistaNav(tab,vista){
+// `historia` es lo que guarda Atrás cuando la vista lleva más que su nombre
+// (la ficha de un alumno). Por defecto, la misma vista.
+function marcarVistaNav(tab,vista,historia=vista){
+  recordarVistaNav(tab,historia);
   if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
   document.querySelectorAll(`[data-nav-vista^="${tab}:"]`).forEach(b=>{
     if(b.dataset.navVista===`${tab}:${vista}`)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
@@ -57,6 +60,29 @@ function irAVistaNav(tab,vista='resumen'){
   vistaPendienteNav[tab]=vista;
   showTab(tab);
 }
+// Atrás del navegador recorre las vistas de Clases, Alumnos y Administración
+// en vez de salir de GradeHub: todo vive en una misma URL (Salva Ramos,
+// 2026-11-07). Cada vista nueva deja una entrada; la primera reemplaza la de
+// la página, así que Atrás desde la primera vista sale como siempre.
+function recordarVistaNav(tab,vista){
+  if(typeof history==='undefined'||typeof history.pushState!=='function')return;
+  const actual=history.state;
+  if(actual&&actual.nav===tab&&actual.vista===vista)return;
+  try{history[actual&&actual.nav?'pushState':'replaceState']({nav:tab,vista},'');}catch(e){}
+}
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('popstate',e=>{
+  const s=e.state;
+  if(!s||!PESTANAS.includes(s.nav)||typeof currentUser==='undefined'||!currentUser)return;
+  // Con el acceso o el onboarding encima, Atrás no los saca de en medio.
+  if(['auth','onboard','reset'].some(p=>document.getElementById('screen-'+p)?.classList.contains('active')))return;
+  irAVistaNav(s.nav,s.vista);
+});
+// Un formulario a medias avisa antes de cerrar o recargar la página. Lo deja
+// quien lo abre: devuelve true mientras haya algo que se perdería.
+let cambiosSinGuardarNav=null;
+if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('beforeunload',e=>{
+  if(typeof cambiosSinGuardarNav==='function'&&cambiosSinGuardarNav()){e.preventDefault();e.returnValue='';}
+});
 
 function setTabTransforms(idx, dragPx){
   const drag=dragPx||0;

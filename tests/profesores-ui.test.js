@@ -21,6 +21,7 @@ const plano=x=>JSON.parse(JSON.stringify(x)),base=JSON.stringify(ctx.S);
   assert.equal(raiz.innerHTML,'');assert.equal(boton.hidden,false);assert.match(boton.innerHTML,/Calificar profesor/);
   assert.deepEqual(plano(llamadas.map(x=>x.args)),[{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'},{p_ramo_id:'local-1',p_seccion:2,p_periodo:'2026-2'}]);
   assert.equal(JSON.stringify(ctx.S),base,'no toca notas ni datos académicos');
+  assert.equal(ctx.nombreCorto('Pamela Andrea Mena'),'Pamela A. Mena','segundo nombre sigue abreviado en ficha');
   respuestas.profesor_docente_estado={nombre_publico:'Lucas José Irarrázaval Bulnes',mi_nombre:'Lucas José Irarrázaval Bulnes'};
   respuestas.profesor_calificacion_estado={total:12,promedio:4.3,mi_estrellas:4,mi_otro:'Amable',puede_calificar:true};
   await ctx.renderDocenteRamo(r);

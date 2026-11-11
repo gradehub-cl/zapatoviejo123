@@ -41,18 +41,51 @@
 <link rel="apple-touch-icon" href="icon-192.png?v=__ASSET_VERSION__"/>
 
 
-<!-- Datos estructurados para Google -->
+<!-- Datos estructurados para Google y para los asistentes de IA, que leen esto
+     sin correr JS (el resto del HTML es la app, no una descripción). Hay otros
+     productos llamados GradeHub fuera de Chile y los buscadores nos confunden
+     con ellos: por eso la organización, la URL y el país van explícitos. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://gradehub.cl/#organizacion",
+      "name": "GradeHub",
+      "url": "https://gradehub.cl/",
+      "logo": "https://gradehub.cl/icon-512.png",
+      "description": "App chilena de notas para estudiantes universitarios, hecha por estudiantes.",
+      "disambiguatingDescription": "GradeHub de Chile (gradehub.cl). No tiene relación con otros productos llamados GradeHub fuera de Chile.",
+      "areaServed": { "@type": "Country", "name": "Chile" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://gradehub.cl/#sitio",
+      "name": "GradeHub",
+      "url": "https://gradehub.cl/",
+      "inLanguage": "es-CL",
+      "publisher": { "@id": "https://gradehub.cl/#organizacion" }
+    },
+    {
       "@type": "WebApplication",
       "name": "GradeHub",
+      "url": "https://gradehub.cl/",
       "description": "App gratis para estudiantes universitarios chilenos: registra tus ramos, ingresa tus notas, calcula tu promedio ponderado y simula qué nota necesitas para aprobar.",
       "applicationCategory": "EducationalApplication",
       "operatingSystem": "Web, iOS, Android",
       "inLanguage": "es-CL",
+      "isAccessibleForFree": true,
+      "audience": { "@type": "EducationalAudience", "educationalRole": "student" },
+      "featureList": [
+        "Promedio ponderado de cada ramo con su pauta de evaluación",
+        "Qué nota necesitas en lo que queda para aprobar",
+        "Simulador de escenarios de notas",
+        "Promedio general del semestre ponderado por créditos",
+        "Agenda de pruebas y entregas",
+        "Calculadora de nota por puntaje en escala de 1,0 a 7,0"
+      ],
+      "publisher": { "@id": "https://gradehub.cl/#organizacion" },
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CLP" }
     }
   ]
@@ -185,17 +218,19 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
           </button>
         </div>
       </div>
-      <div id="auth-legal-accept-wrap" class="auth-consent" style="display:none;" aria-hidden="true">
-        <label><input type="checkbox" id="auth-legal-accept" aria-describedby="auth-legal-detail auth-error"/>
-          <span>Acepto los <a href="/terminos.html" target="_blank" rel="noopener">términos de uso</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</span>
-        </label>
-        <p id="auth-legal-detail">GradeHub usa tus notas y ramos para ordenar recomendaciones de clases dentro de tu navegador. Los profesores no reciben tus notas ni tu identidad.</p>
-      </div>
       <div id="auth-error" role="alert" aria-live="assertive" style="display:none;font-size:12px;color:var(--red);margin-top:10px;line-height:1.4;"></div>
     </div>
     <button class="btn-primary" id="auth-btn" onclick="submitAuth()">Iniciar sesión</button>
+    <!-- Luz del principal cuando el formulario está listo; fuera del botón porque su texto se reescribe. -->
+    <svg class="auth-laser" id="auth-laser" aria-hidden="true" focusable="false"></svg>
+    <!-- La otra opción va como botón de contorno, justo bajo la
+         principal: quien llega por primera vez tiene que encontrarla sin buscar. -->
+    <button class="btn-contorno" id="auth-toggle" onclick="toggleAuthMode()">¿No tienes cuenta? Crea una</button>
     <button class="auth-link" id="auth-fp" onclick="forgotPassword()">¿Olvidaste tu contraseña?</button>
-    <button class="auth-link auth-link-primary" id="auth-toggle" onclick="toggleAuthMode()">¿No tienes cuenta? Crea una</button>
+    <!-- Sin casilla: el texto queda a la vista bajo Google y el formulario, y
+         tocar cualquiera de los dos es aceptar. Fecha y versión se guardan
+         igual: al crear la cuenta con correo y al terminar el onboarding. -->
+    <p class="auth-legal" id="auth-legal">Al continuar aceptas los <a href="/terminos.html" target="_blank" rel="noopener">términos</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">privacidad</a>, y declaras tener 14 años o más.</p>
     <!-- Muestra de la ficha de un ramo, para que quien llega vea el producto.
          Va DEBAJO del login para no estorbar al entrar; en escritorio la
          rejilla la lleva a la columna izquierda. Es decorativa: los números están
@@ -253,6 +288,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <a href="/calculadora" target="_blank" rel="noopener">Calculadora de notas</a>
         <a href="/terminos.html" target="_blank" rel="noopener">Términos de uso</a>
         <a href="/privacidad.html" target="_blank" rel="noopener">Privacidad</a>
+        <button type="button" class="auth-footer-btn" id="auth-dar-clases" onclick="alternarEntradaProfesor()">Soy profesor particular</button>
       </nav>
     </footer>
   </div>
@@ -301,98 +337,66 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div class="ob-progress" aria-hidden="true"><div class="ob-progress-bar" id="ob-progress-bar"></div></div>
     <p class="invitacion-profesor-contexto" id="ob-invitacion-profesor" hidden>Te invitaron a compartir notas con un profesor. Al entrar, tú elegirás los ramos; no verá tus otros ramos ni tu correo.</p>
 
-    <!-- Estudiante o profesor particular (#697). Estudiante viene marcado: es
-         casi todo el que llega. Se elige una vez; para cambiarlo se nos escribe. -->
-    <div class="ob-step" data-step="0">
-      <div class="ob-step-num">Paso 1 de 6</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1" id="ob-tipo-titulo">¿Cómo vas a usar GradeHub?</h1>
-      <div class="ob-sub ob-sub-left">Se elige una vez. Si después necesitas cambiarlo, escríbenos.</div>
-      <div class="ob-options" role="radiogroup" aria-labelledby="ob-tipo-titulo">
-        <label class="tenant-opt ob-tipo-opt sel" style="--tb:var(--primary);">
-          <input type="radio" name="ob-tipo" value="estudiante" checked onchange="elegirTipoCuenta(this.value)"/>
-          <span class="tenant-opt-info">
-            <span class="tenant-opt-name">Estudiante</span>
-            <span class="tenant-opt-sub">Tus ramos, tus notas y qué necesitas para aprobar.</span>
-          </span>
-        </label>
-        <label class="tenant-opt ob-tipo-opt" style="--tb:var(--primary);">
-          <input type="radio" name="ob-tipo" value="profesor" onchange="elegirTipoCuenta(this.value)"/>
-          <span class="tenant-opt-info">
-            <span class="tenant-opt-name">Profesor particular</span>
-            <span class="tenant-opt-sub">Publicas tus clases y sigues cómo les va a tus alumnos.</span>
-          </span>
-        </label>
-      </div>
-    </div>
-
+    <!-- Sin paso de tipo de cuenta (Lucas, 2026-11-03): todos parten como
+         estudiantes y el profesor llega por «Soy profesor particular» o
+         gradehub.cl/?dar-clases. Los pasos conservan su número para el embudo. -->
     <div class="ob-step" data-step="1">
-      <div class="ob-step-num">Paso 2 de 6</div>
+      <div class="ob-step-num">Paso 1 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Cómo te llamas?</h1>
       <div class="ob-sub ob-sub-left">Puede ser tu nombre o un apodo.</div>
       <div class="ob-card">
         <label class="field-label" for="ob-name">Nombre o apodo</label>
         <input type="text" id="ob-name" placeholder="Nombre o apodo" maxlength="30" autocomplete="given-name" onkeydown="if(event.key===&apos;Enter&apos;)obNext()"/>
       </div>
-      <!-- Declaración de edad. Va acá y no en el formulario de correo porque
-           por acá pasa toda cuenta nueva, también las que entran con Google.
-           No se pide fecha de nacimiento: para saber si alguien puede usar la
-           app basta la declaración, y el dato exacto sería recolectar de más. -->
-      <!-- La edad se elige en una ruleta como la del reloj del iPhone (#697).
-           Parte en «—»: la declaración tiene que ser activa. -->
-      <div class="ob-card ob-ruleta-card">
-        <p class="field-label" id="ob-edad-titulo">¿Cuántos años tienes?</p>
-        <div id="ob-edad-ruleta"></div>
-        <p class="ob-ruleta-aviso" id="ob-edad-aviso" role="status" aria-live="polite"></p>
+      <!-- La generación y el semestre que sale de ella van acá desde 2026-11-03
+           (antes eran el paso 4). Sin carrera todavía, el paso 5 lo ajusta a
+           los semestres que tenga. El profesor no estudia: no lo ve. -->
+      <div id="ob-estudio">
+        <div class="ob-card ob-ruleta-card">
+          <p class="field-label" id="ob-generacion-titulo">Año de ingreso a la universidad</p>
+          <div id="ob-generacion-ruleta"></div>
+        </div>
+        <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
+        <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
+        <div class="ob-sem-editar" id="ob-sem-editar" hidden>
+          <label class="field-label" for="ob-sem-input">¿En qué semestre vas?</label>
+          <div class="ob-sem-fila">
+            <input type="text" id="ob-sem-input" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="Ej. 3"
+              aria-describedby="ob-sem-error" oninput="escribirSemestreOnboarding(this.value)"/>
+            <button type="button" class="ob-sem-verano" id="ob-sem-verano" aria-pressed="false" onclick="alternarVeranoOnboarding()">TAV</button>
+          </div>
+          <p class="ob-ruleta-aviso" id="ob-sem-error" role="alert"></p>
+        </div>
+        <div class="sem-grid" id="sem-grid" hidden></div>
       </div>
     </div>
 
     <div class="ob-step" data-step="2" style="display:none;">
-      <div class="ob-step-num">Paso 3 de 6</div>
+      <div class="ob-step-num">Paso 2 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Dónde estudias?</h1>
       <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
 
     <div class="ob-step" data-step="3" style="display:none;">
-      <div class="ob-step-num">Paso 4 de 6</div>
+      <div class="ob-step-num">Paso 3 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Qué estudias?</h1>
       <div class="ob-sub ob-sub-left">Busca tu carrera. Si no aparece, puedes escribirla.</div>
       <div class="modal-input" style="margin-bottom:10px;"><input type="text" id="ob-carrera-buscar" aria-label="Buscar carrera" placeholder="Busca tu carrera" autocomplete="off" oninput="filtrarCarreras(this.value)"/></div>
       <div id="carrera-grid" class="ob-options"></div>
     </div>
 
-    <div class="ob-step" data-step="4" style="display:none;">
-      <div class="ob-step-num">Paso 5 de 6</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1">¿De qué generación eres?</h1>
-      <div class="ob-sub ob-sub-left">El año en que entraste a la universidad. Con eso y la fecha sabemos en qué semestre vas.</div>
-      <div class="ob-card ob-ruleta-card">
-        <p class="field-label" id="ob-generacion-titulo">Año de ingreso</p>
-        <div id="ob-generacion-ruleta"></div>
-      </div>
-      <!-- El semestre se calcula y se muestra; quien va atrasado o adelantado lo cambia. -->
-      <div class="ob-sem-calculado" id="ob-sem-calculado" role="status" aria-live="polite"></div>
-      <div class="ob-sem-editar" id="ob-sem-editar" hidden>
-        <label class="field-label" for="ob-sem-input">¿En qué semestre vas?</label>
-        <div class="ob-sem-fila">
-          <input type="text" id="ob-sem-input" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="Ej. 3"
-            aria-describedby="ob-sem-error" oninput="escribirSemestreOnboarding(this.value)"/>
-          <button type="button" class="ob-sem-verano" id="ob-sem-verano" aria-pressed="false" onclick="alternarVeranoOnboarding()">TAV</button>
-        </div>
-        <p class="ob-ruleta-aviso" id="ob-sem-error" role="alert"></p>
-      </div>
-      <div class="sem-grid" id="sem-grid" hidden></div>
-    </div>
-
     <div class="ob-step" data-step="5" style="display:none;">
-      <div class="ob-step-num">Paso 6 de 6</div>
+      <div class="ob-step-num">Paso 4 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">Elige tus ramos</h1>
       <div id="ob-course-picker"></div>
     </div>
 
     <!-- Solo el profesor llega acá, después del paso 1. Crea su postulación en
-         `tutor_perfiles`, pendiente de revisión, con los mismos largos de Ajustes. -->
+         `tutor_perfiles`, pendiente de revisión, con los mismos largos de Ajustes.
+         Dar clases exige 18 años: se confirma acá, la única pantalla del profesor. -->
     <div class="ob-step" data-step="6" style="display:none;">
-      <div class="ob-step-num">Paso 3 de 3</div>
+      <div class="ob-step-num">Paso 2 de 2</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">Cuéntanos de tus clases</h1>
       <div class="ob-sub ob-sub-left">Revisamos cada postulación antes de que puedas publicar.</div>
       <div class="ob-card ob-prof-card">
@@ -401,8 +405,13 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <label class="field-label" for="ob-prof-presentacion">Qué ramos enseñas y qué experiencia tienes</label>
         <textarea id="ob-prof-presentacion" maxlength="1500" rows="5" aria-describedby="ob-prof-ayuda ob-prof-error" oninput="checkOb()"></textarea>
         <p class="ob-ruleta-aviso" id="ob-prof-ayuda">Al menos 20 caracteres.</p>
+        <label class="ob-prof-mayor" for="ob-prof-mayor">
+          <input type="checkbox" id="ob-prof-mayor" onchange="checkOb()"/>
+          <span>Tengo 18 años o más</span>
+        </label>
         <p class="ob-ruleta-aviso ob-prof-error" id="ob-prof-error" role="alert"></p>
       </div>
+      <button type="button" class="auth-link ob-ser-estudiante" onclick="seguirComoEstudiante()">¿Vienes a estudiar? Sigue como estudiante</button>
     </div>
 
     <div class="ob-nav">
@@ -506,6 +515,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
         <button type="button" class="ramo-action calif-accion" id="calif-accion" hidden><span aria-hidden="true">★</span><span>Calificar profesor</span></button>
       </div>
     </div>
+    <div id="ramo-vinculo-contexto" class="ramo-vinculo-contexto" hidden></div>
     <div id="peso-warning" class="ramo-warning" style="display:none;"></div>
     <div id="pauta-cambio" style="display:none;"></div>
     <div id="consenso-disponible" style="display:none;"></div>

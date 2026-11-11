@@ -108,6 +108,133 @@ const pisoSimulado=ramo([c('prueba','Prueba escrita',50),c('cierre','Evaluación
 assert.match(pintar(pisoSimulado,{notas:{prueba:3}}),/^Con esto ya no alcanzas el 4,0/,
   'una nota hipotética ocupa su casilla y puede dejar una compuerta definitivamente bajo el mínimo');
 
+console.log('=== Reglas explícitas en pautas propias ===');
+const tenantAnterior=S.tenant;
+S.tenant='uc';
+const examenMinimo=ramo([c('prueba','Prueba escrita',60,[n('prueba-real',7)]),c('examen','Examen',40)],{
+  gates:[{type:'min_grade_required',catId:'examen',min:3,cap:3.9,nombre:'Examen'}]});
+assert.match(pintar(examenMinimo),/^Para el 4,0 necesitas 3,0 en lo que queda/);
+pintar(examenMinimo,{notas:{examen:2.9}});
+assert.equal(byId('sim-avg').textContent,'3,9','el promedio de 5,36 queda topado');
+pintar(examenMinimo,{notas:{examen:3}});
+assert.equal(byId('sim-avg').textContent,'5,4','justo en el mínimo rige el promedio ponderado');
+
+function controles(count){
+  return c('controles','Controles',100,[n('primero',2,0),n('segundo',3,1)],{
+    slots:3,dropLowest:{count}});
+}
+for(const [count,actual,proyectado,necesaria] of [[1,'3,0','4,0','4,9'],[2,'3,0','5,0','4,0']]){
+  const propia=ramo([controles(count)]);
+  assert.equal(pintar(propia),`Para el 4,0 necesitas ${necesaria} en lo que queda`);
+  assert.equal(byId('sim-avg').textContent,actual);
+  run("simState.controles=[{slot:2,valor:5}];renderSimulador()");
+  assert.equal(byId('sim-avg').textContent,proyectado);
+  assert.equal(propia.categorias.find(c=>c.nombre==='Controles').notas.length,2);
+}
+
+const lista=ramo([c('lista','Talleres',100,[n('taller-1',2)],{
+  directNota:false,dropLowest:{count:2}})]);
+assert.match(pintar(lista),/^No calculamos una nota exacta/);
+assert.equal(byId('sim-avg').textContent,'2,0','con una nota no se descarta ninguna');
+assert.match(pintar(lista,{notas:{lista:5}}),/^No calculamos una nota exacta/);
+assert.equal(byId('sim-avg').textContent,'5,0','con dos notas se descarta solo una');
+assert.match(run("lecturaDespuesDeNota(S.ramos[0])"),/la nota mínima depende/);
+
+const controlesFijos=controles(2);
+const agenda={ramo:ramo([controlesFijos]),cat:controlesFijos,nota:controlesFijos.notas.find(n=>n.nombre==='primero')};
+assert.equal(run('pesoEventoAgenda')(agenda),null,'Agenda no atribuye un peso individual fijo');
+assert.equal(run('modeloNotasSombra')(agenda.ramo),null,'sin sombra si una nota pendiente puede cambiar el descarte');
+
+S.tenant='fen';
+const fen=ramo([controles(2)]);
+pintar(fen);
+run("simState.controles=[{slot:2,valor:5}];renderSimulador()");
+assert.equal(byId('sim-avg').textContent,'3,3','la simulación FEN incluye las tres notas');
+assert.match(run('textoNotasBorrables')(fen,fen.categorias.find(c=>c.nombre==='Controles')),/se pueden borrar 2 notas/);
+S.tenant=tenantAnterior;
+
+console.log('=== El reglamento y las reglas personales de una pauta UDD ===');
+S.tenant='udd';
+const reglaPruebas=(min,cap,editor=true)=>({type:'min_grade_required',catId:'pruebas',min,cap,...(editor?{origen:'editor'}:{})});
+const udd=(pruebas,examen,gates=[])=>ramo([
+  c('pruebas','Pruebas',60,pruebas===null?[]:[n('nota-pruebas',pruebas)]),
+  c('examen','Examen',40,[n('nota-examen',examen)])],{gates});
+for(const [examen,gates,esperada] of [
+  [2.9,[],2.9],
+  [2.9,[reglaPruebas(5,3.9)],2.9],
+  [2.9,[reglaPruebas(6.5,3.9)],2.9],
+  [2.9,[reglaPruebas(6.5,2.5)],2.5],
+  [3,[reglaPruebas(6.5,3.9)],3.9],
+  [2.9,[reglaPruebas(5,3.9,false)],4.8],
+  [2.9,[reglaPruebas(6.5,3.9,false)],3.9],
+  [2.9,[{...reglaPruebas(3,3.9),catId:'examen'}],3.9],
+]){
+  const completa=udd(6,examen,gates);
+  pintar(completa);
+  assert.equal(run('notaFinalOficial(ramoAvg(S.ramos[0]))'),esperada);
+  assert.equal(byId('sim-avg').textContent,esperada.toFixed(1).replace('.',','));
+  const pendiente=udd(null,examen,gates);
+  pintar(pendiente,{notas:{pruebas:6}});
+  assert.equal(byId('sim-avg').textContent,esperada.toFixed(1).replace('.',','),'la nota hipotética coincide con la final');
+}
+for(const gates of [[],[reglaPruebas(5,3.9)]]){
+  assert.match(pintar(udd(null,2.9,gates)),/^Con esto ya no alcanzas el 4,0/);
+  assert.ok(run('notaNecesaria(S.ramos[0],4)')>7);
+}
+assert.match(pintar(udd(null,2.9,[reglaPruebas(5,3.9,false)])),/^Para el 4,0 necesitas 5,0/);
+S.tenant=tenantAnterior;
+
+console.log('=== Persistencia de una pauta propia ===');
+const sinReglas=ramo([c('controles','Controles',60,[n('primero',2,0),n('segundo',6,1)],{slots:2}),
+  c('examen','Examen',40,[n('examen-real',2.9)])]);
+const baseSync={...S,tenant:'uc',ramos:[sinReglas]};
+const conReglas=JSON.parse(JSON.stringify(baseSync));
+const ramoLocal=conReglas.ramos.find(r=>r.nombre==='Ramo sintético');
+Object.assign(ramoLocal.categorias.find(c=>c.nombre==='Controles'),{dropLowest:{count:1},descarteOrigen:'editor'});
+ramoLocal.gates=[{type:'min_grade_required',catId:'examen',min:3,cap:3.9,origen:'editor'}];
+const nube=JSON.parse(JSON.stringify(baseSync));
+nube.ramos.find(r=>r.nombre==='Ramo sintético').categorias.find(c=>c.nombre==='Controles')
+  .notas.find(n=>n.nombre==='segundo').valor=7;
+const fusion=run('fusionarSync')(baseSync,conReglas,nube);
+const leerCopia=estado=>{
+  const getItem=ctx.localStorage.getItem;
+  ctx.localStorage.getItem=key=>key==='gradehub_v1'?JSON.stringify(estado):null;
+  try{return run('loadData().data.ramos.find(r=>r.nombre==="Ramo sintético")');}
+  finally{ctx.localStorage.getItem=getItem;}
+};
+const recargado=leerCopia(fusion);
+const guardados=recargado.categorias.find(c=>c.nombre==='Controles');
+assert.equal(guardados.dropLowest.count,1);
+assert.equal(guardados.descarteOrigen,'editor');
+assert.equal(guardados.notas.find(n=>n.nombre==='segundo').valor,7);
+assert.equal(recargado.gates.find(g=>g.catId==='examen').cap,3.9);
+assert.equal(recargado.gates.find(g=>g.catId==='examen').origen,'editor');
+const existente=leerCopia(baseSync);
+assert.equal(existente.categorias.find(c=>c.nombre==='Controles').dropLowest,undefined);
+assert.equal(existente.gates.length,0);
+assert.equal(run('notaFinalOficial')(run('ramoAvg')(existente)),3.6);
+
+console.log('=== Una regla personal cambia la procedencia de la pauta ===');
+const conHuella=JSON.parse(JSON.stringify(sinReglas));
+conHuella.pautaHuella=run('huellaPauta')(conHuella.categorias);
+assert.equal(run('pautaEditada')(conHuella),false);
+const firma=run('firmaPautaSugerida')(conHuella);
+assert.equal(run('pautaPropiaParaConsenso')(conHuella),true);
+conHuella.pautaSugerida={aceptada:{firma}};
+assert.equal(run('pautaSugeridaIntacta')(conHuella),true);
+run('guardarReglasEvaluacionEditor')(conHuella,conHuella.categorias.find(c=>c.nombre==='Examen'),{count:null,min:3,cap:3.9});
+assert.equal(run('pautaSugeridaIntacta')(conHuella),false);
+assert.equal(run('pautaEditada')(conHuella),true);
+assert.equal(run('pautaPropiaParaConsenso')(conHuella),false);
+delete conHuella.pautaSugerida;
+conHuella.gates=[];
+const controlesPropios=conHuella.categorias.find(c=>c.nombre==='Controles');
+run('guardarReglasEvaluacionEditor')(conHuella,controlesPropios,{count:1,min:null,cap:null});
+assert.equal(run('pautaEditada')(conHuella),true,'el descarte personal basta aunque nombres y pesos sean los del catálogo');
+assert.equal(run('pautaPropiaParaConsenso')(conHuella),false);
+controlesPropios.fueraDePauta=true;
+assert.equal(run('pautaConReglasNoCompartibles')(conHuella),false);
+
 console.log('=== Imposible, asegurado, pauta incompleta y ramo cerrado ===');
 assert.equal(pintar(ramo([c('prueba','Prueba escrita',80,[n('n1',1)]),c('cierre','Evaluación final',20)])),
   'Con esto ya no alcanzas el 4,0');

@@ -42,20 +42,51 @@ boton.dataset.pePeriodo='inicio';boton.addEventListener=(tipo,fn)=>{listeners[ti
 const caja=nodo();caja.querySelector=()=>destino;caja.querySelectorAll=s=>s==='[data-pe-periodo]'?[boton]:[];
 ctx.__raiz={querySelector:()=>caja,querySelectorAll(){throw Error('El gráfico no debe sobrescribir las cifras de las filas');}};
 ctx.__historial=[{anuncio_id:'aviso-sintetico',publicacion:'anterior',dia:'2026-01-01',vistas:500},
- {anuncio_id:'aviso-sintetico',publicacion:'actual',dia:'2026-11-01',vistas:3}];
+ {anuncio_id:'aviso-sintetico',publicacion:'actual',dia:'2026-10-31',vistas:3}];
 run('enlazarAdminEditorial(__raiz,__historial,null,__noche)');listeners.click();
-assert.match(destino.innerHTML,/503/,'el gráfico sí incluye ambas publicaciones desde el inicio');
+assert.match(destino.innerHTML,/<strong>503<\/strong>/,'el gráfico sí incluye ambas publicaciones desde el inicio');
+// Compara con el período anterior solo si el historial lo cubre entero.
+ctx.__previo=[{dia:'2026-10-18',vistas:10},{dia:'2026-10-27',vistas:20}];
+assert.equal(run("comparacionAlcanceAdmin(__previo,'7',__noche).vistas"),10);
+assert.equal(run("comparacionAlcanceAdmin(__previo.slice(1),'7',__noche)"),null,'sin datos de todo el período no compara');
+assert.equal(run("comparacionAlcanceAdmin(__previo,'1',__noche)"),null,'hoy sigue en curso');
+ctx.__resProfesor=[
+ {a:{id:'pagada',titulo:'Campaña sintética',estado:'publicado',cobros:[{monto:99999999}]},
+   historial:[{dia:'2026-10-18',vistas:10,aperturas:5,contactos:2},{dia:'2026-10-27',vistas:20,aperturas:9,contactos:5}],
+   costo:{total:1210,tope:3000,bruto:1210,sinCosto:false,partes:[]}},
+ {a:{id:'gratis',titulo:'Campaña sin costo',estado:'publicado'},
+   historial:[{dia:'2026-10-17',vistas:10,aperturas:5,contactos:3},{dia:'2026-10-27',vistas:30,aperturas:10,contactos:6}],
+   costo:{total:0,tope:null,bruto:0,sinCosto:true,partes:[]}}
+];
+const resumenProfesor=run("resumenProfesorEditorialHTML(__resProfesor,'7',__noche,{metrica:'contactos'})");
+assert.match(resumenProfesor,/data-adm-metrica="contactos" aria-pressed="true"><span>Contactos<\/span><strong>11<\/strong>/);
+assert.match(resumenProfesor,/vs. período anterior/);
+assert.match(resumenProfesor,/<span>Tope<\/span><strong>\$3\.000<\/strong>/,'una campaña gratis no oculta el tope de la pagada');
+assert.match(resumenProfesor,/data-cr-ver="pagada"/);
+assert.doesNotMatch(resumenProfesor,/99[.,]?999[.,]?999|En deuda|Cobrado/);
+const desconocido=run("resumenProfesorEditorialHTML(__resProfesor.map((d,i)=>i?{...d,historial:null}:d),'7',__noche)");
+assert.match(desconocido,/Historial no disponible/);assert.doesNotMatch(desconocido,/vs. período anterior/);
+assert.doesNotMatch(run("resumenProfesorEditorialHTML(__resProfesor.map((d,i)=>i?{...d,historial:d.historial.slice(1)}:d),'7',__noche)"),/vs. período anterior/);
+
+// El alcance del ramo: desconocido no es cero, y un ramo casi vacío no grita.
+assert.match(run('alcanceFilaAdminHTML(null)'),/<b>—<\/b>/);
+assert.match(run('alcanceFilaAdminHTML({activos_ramo:3,vieron:1})'),/<b>—<\/b><small>Muy pocas personas/);
+assert.match(run('alcanceFilaAdminHTML({activos_ramo:200,vieron:100})'),/<b class="">50%<\/b><small>de 200<\/small>/);
+assert.match(run('alcanceFilaAdminHTML({activos_ramo:200,vieron:10})'),/<b class="est-baja">5%<\/b>/,'bajo 10% se marca');
+// Primero lo que espera una decisión, después lo que más se muestra.
+ctx.__filas2=[{a:{id:'c',estado:'publicado',campana:{vistas:5}},costo:{},estado:['','publicado']},{a:{id:'b',estado:'publicado',campana:{vistas:9}},costo:{},estado:['','publicado']},
+ {a:{id:'p',estado:'publicado',publicado_at:'2026-10-01T00:00:00Z',campana:{vistas:1}},costo:{},estado:['','expirado']},{a:{id:'r',estado:'en_revision'},costo:null,estado:['','en_revision']}];
+assert.equal(run("__filas2.slice().sort(ordenFilasAdmin).map(f=>f.a.id).join()"),'r,p,b,c');
+assert.equal(run("cobroPendienteAdmin({a:{publicado_at:'2026-10-01T00:00:00Z',cobros:[{publicado_at:'2026-10-01T00:00:00.000Z'}]},costo:{},estado:['','expirado']})"),false,'con cobro registrado ya no está por cobrar');
+assert.equal(run("cobroPendienteAdmin({a:{publicado_at:'2026-10-01T00:00:00Z'},costo:{sinCosto:true},estado:['','expirado']})"),false,'sin costo no hay nada que cobrar');
 assert.match(run('filaAdminHigHTML(filasAdminHig([__profesor],__noche)[0],__noche)'),/data-pe-conteo="vistas">3<\/b>/);
-assert.match(run("panelAlcancePrivadoHTML(null,'7','vistas',__ahora)"),/role="status"/,'error de carga no se vuelve cero');
-assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/class="pe-notita" hidden/,'cifra puntual oculta hasta explorar');
-assert.match(run("graficoPrivadoHTML([{valor:4,etiqueta:'Prueba'}],{titulo:'Vistas'})"),/role="slider".*aria-valuetext=/,'teclado y lector de pantalla');
 run(`S.tenant='uc';globalThis.__al={id:'ficticio',tenant:'uc',nombre_visible:'Alumno de ejemplo',desde:'2026-09-15',ramos:[{id:'r',nombre:'Ramo sintético',sigla:'TEST100',seccion:2,gates:[],categorias:[
  {id:'c1',nombre:'Prueba 1',peso:50,fecha:'2026-09-01',notas:[{id:'n1',nombre:'Prueba 1',valor:5.2}]},
  {id:'c2',nombre:'Prueba 2',peso:50,fecha:'2026-11-10',notas:[]}]}]};
  globalThis.__comp={ramo:{promedio:4.8,personas:6},evaluaciones:[{clave:'prueba 1',promedio:4.6,personas:6}],categorias:[]};`);
 const html=run('ramoAlumnoEditorialHTML(__al,__al.ramos[0],__comp,__comp,false,__ahora)');
 assert.match(html,/Promedio actual<\/span><strong>5,2/,'promedio del motor al frente');
-assert.match(html,/Para llegar al 4,0 final/);assert.match(html,/class="medidor-nota"/,'medidor real de la app');
+assert.match(html,/Necesita 2,7 en cada evaluación pendiente para aprobar/);assert.doesNotMatch(html,/class="medidor-nota"/,'Lucas: ficha aprobada #1021 usa un mensaje, no medidor');
 assert(html.indexOf('Próximas evaluaciones')<html.indexOf('Evaluaciones pasadas'));
 assert.match(html,/Prueba 2/);assert.match(html,/Prueba 1/);
 assert.match(run('barraUltimaPrivadaHTML(__al.ramos[0],__comp)'),/Ramo · última evaluación: 4,6/,'última prueba, no promedio global del ramo');
@@ -64,11 +95,11 @@ assert.equal(run('referenciaEvaluacionPrivada(__al.ramos[0],{id:"n1",nombre:"Pru
 assert.equal(run('colorDiferenciaPrivada(0)'),'var(--fg2)');assert.match(run('colorDiferenciaPrivada(-.1)'),/var\(--yellow\).*90%.*var\(--red\).*10%/);
 assert.match(run('colorDiferenciaPrivada(.1)'),/var\(--pe-verde-suave\).*90%.*var\(--green\).*10%/);
 // La ficha conserva el cálculo y sus supuestos: no imita el 4 hipotético de la maqueta.
-assert.match(html,/Necesita<\/small><strong>2,7/);
-assert.match(html,/Para ir con 4,0 después de rendirla/);
+assert.match(html,/Necesita 2,7 en cada evaluación pendiente/);
+assert.match(html,/Por fecha de inicio/);
 assert.doesNotMatch(html,/si el examen|pe-datos-ramo|Antes · \d/);
 assert.match(html,/1 sep · 50% del ramo/,'peso declarado de la evaluación, junto a la fecha');
-assert.match(html,/En 11 días/);
+assert.match(html,/10 nov · 50% del ramo/);
 assert(html.indexOf('data-pe-grupo')>html.indexOf('Frente al grupo'));
 assert.match(run('ramoAlumnoEditorialHTML(__al,__al.ramos[0],{errorCarga:true},__comp,false,__ahora)'),/No pudimos cargar la comparación/);
 assert.match(run('ramoAlumnoEditorialHTML(__al,__al.ramos[0],{sinSQL:true},__comp,false,__ahora)'),/Comparación no disponible por ahora/);
@@ -94,3 +125,39 @@ const dias=run("barrasDiasClase({publicado_at:'2026-10-29T12:00:00Z',vence_at:'2
 assert.doesNotMatch(dias,/Menos de 15/,'el nuevo detalle diario no confunde cero con un corte protegido');
 assert.match(dias,/<td>1<\/td>/,'también el detalle muestra el primer evento');
 console.log('OK editorial: rangos, semanas sin pérdida, ceros vs error, gráfico accesible, promedio del motor, próximas/pasadas, medidor, comparación por evaluación y privacidad');
+
+// Ficha #1021: datos propios, funciones reales; no usa datos ni JS de la maqueta.
+run(`globalThis.fichaAl={id:'ficha-sintetica',tenant:'uc',nombre_visible:'Alumno sintético',inicio:'2026-09-25',ramos:[{id:'rf',nombre:'Análisis ficticio',sigla:'SYN501',seccion:4,gates:[],categorias:
+ [3.2,3.8,4.4,5.2,5.6,5,null,null].map((v,i)=>({id:'cf'+i,nombre:'Evaluación '+(i+1),peso:i===7?30:10,directNota:true,fecha:['2026-08-24','2026-09-04','2026-09-18','2026-10-02','2026-10-16','2026-11-02','2026-11-12','2026-11-30'][i],notas:v===null?[]:[{id:'nf'+i,nombre:'Evaluación '+(i+1),valor:v,peso:1}]}))}]};
+ fichaAl.preparacion={ramos:[{ramo_id:'rf',manual:true,marcas:[3,4,5,6].map(i=>i===6?{cat_id:'cf6',numero:1}:{nota_id:'nf'+i}),evaluaciones:fichaAl.ramos[0].categorias.map((c,i)=>({cat_id:c.id,nota_id:i<6?'nf'+i:null,numero:1,nombre:c.nombre,categoria:c.nombre,fecha:c.fecha,nota:c.notas[0]?.valor??null}))}]};
+ globalThis.fichaComp={ramo:{promedio:4.5,personas:96},categorias:[],evaluaciones:[4.2,4.6,4.2,4.8,4.6,4.4].map((v,i)=>({clave:'evaluacion '+(i+1),promedio:v,personas:96}))};`);
+const estadoAntes=run('JSON.stringify(S)'),ramoAntes=run('JSON.stringify(fichaAl.ramos)');
+const datos=json('datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp)');
+assert(Math.abs(datos.promedio-4.5333333333)<1e-6);
+assert.equal(String(run('nfNecesaria(datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp).necesaria)')),'3.1');
+assert(Math.abs(datos.metricas.antes.diferencia+.5333333333)<1e-6);
+assert(Math.abs(datos.metricas.ahora.diferencia-.6666666667)<1e-6);
+assert(Math.abs(datos.metricas.cambio-1.2)<1e-6);
+let ficha=run('ramoAlumnoEditorialHTML(fichaAl,fichaAl.ramos[0],fichaComp,null,false,__ahora)');
+assert.match(ficha,/Promedio actual<\/span><strong>4,5/);
+assert.match(ficha,/−0,5/);assert.match(ficha,/\+0,7/);assert.match(ficha,/\+1,2/);assert.match(ficha,/<span>entre grupos<\/span><details class="est-ayuda">/);assert.doesNotMatch(ficha,/puntos entre grupos|décimas/);
+assert.equal((ficha.match(/class="evolucion-punto/g)||[]).length,6,'futuras no son puntos');
+assert.equal(datos.filas.length,8);assert.equal(datos.filas.filter(e=>e.nota===null).length,2);
+assert.match(ficha,/data-preparacion-eval="6" checked/,'futura marcada se puede editar');
+assert.match(ficha,/data-preparacion-eval="7"/,'también la futura aún no marcada');
+assert.match(ficha,/vs. 96 estudiantes en GradeHub/);
+assert.match(ficha,/Evaluaciones pasadas[\s\S]*<details class="est-tarjeta-grande fap-grupos" data-grupos-parecidos>[\s\S]*Alumnos que partieron igual/,
+  'la comparación queda plegada después de las evaluaciones');
+assert.doesNotMatch(ficha,/data-pe-ultima|Posición dentro de GradeHub/,'no revive la barra anterior ni muestra resultados antes de consultar');
+const pequena=run('ramoAlumnoEditorialHTML(fichaAl,fichaAl.ramos[0],{ramo:{promedio:6,personas:4},evaluaciones:fichaComp.evaluaciones.map(e=>({...e,personas:4}))},null,false,__ahora)');
+assert.doesNotMatch(pequena,/vs. 4 estudiantes|Referencia 4|class="fap-cambio /);
+assert.match(pequena,/Faltan evaluaciones comparables/);
+assert.match(pequena,/class="fap-referencia" d=""/,'muestra chica no se dibuja');
+const porFecha=run('ramoAlumnoEditorialHTML({...fichaAl,preparacion:null},fichaAl.ramos[0],fichaComp,null,false,__ahora)');
+assert.match(porFecha,/Por fecha de inicio/);assert.doesNotMatch(porFecha,/data-fap-editar/,'sin SQL no ofrece una escritura que no puede guardar');
+run('fichaAl.preparacion.ramos[0].marcas.push({cat_id:"cf7",numero:1})');
+assert(Math.abs(run('datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp).metricas.cambio')-1.2)<1e-6,'marcar futura no cambia resumen');
+run('fichaAl.preparacion.ramos[0].marcas=fichaAl.preparacion.ramos[0].marcas.filter(m=>m.nota_id!=="nf3")');
+assert(Math.abs(run('datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp).metricas.cambio')-1.1)<1e-6,'se recalcula cada grupo con las marcas reales');
+assert.equal(run('JSON.stringify(S)'),estadoAntes);assert.equal(run('JSON.stringify(fichaAl.ramos)'),ramoAntes,'no escribe notas, pauta ni fechas');
+console.log('OK ficha real: promedio, motor, comparación, futuras, métodos, muestras protegidas y ausencia de SQL');

@@ -1,9 +1,11 @@
 // ─── Gráficos de Estadísticas ──────────────────────────────────────────────
-// HIG, Charts y Charting data: un título que dice qué se mide, un resumen con
-// la cifra que importa, una sola serie desde cero y los números también en
-// texto, para que VoiceOver no dependa del dibujo. Son HTML y no SVG para que
-// el texto crezca con el tamaño que eligió la persona. El color es el acento,
-// nunca el semáforo: nada de esto es una nota.
+// Responde dos cosas de un vistazo: si GradeHub crece y si las clases rinden.
+// Lo que espera una decisión va primero, con su salida al lado. Sigue a
+// Estadísticas de Alumnos (tokens `.est`): gris por defecto, turquesa para lo
+// elegido, verde y rojo solo para dirección. HIG, Charts y Charting data: una
+// sola serie desde cero y los números también en texto, para que VoiceOver no
+// dependa del dibujo. Son HTML y no SVG para que el texto crezca con el tamaño
+// que eligió la persona.
 const fechaCortaAdmin=d=>new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'});
 const fechaLargaAdmin=d=>new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'long'});
 // Un tope redondo para el eje y con mitad también redonda: 0 · 30 · 60.
@@ -12,23 +14,44 @@ function topeEjeAdmin(max){
   const p=10**Math.floor(Math.log10(max));
   return [1,2,4,6,8,10].map(m=>m*p).find(t=>t>=max&&(t/2)%1===0)||10*p;
 }
-// «+30 (+12%) vs. semana del 6 oct». Con valores, no adjetivos (HIG, Charts).
-function variacionAdmin(actual,anterior,contra){
-  if(!(anterior>0))return '';
-  const d=actual-anterior,pct=Math.round(100*d/anterior);
-  return d?`${d>0?'+':'−'}${milesViz(Math.abs(d))} (${d>0?'+':'−'}${Math.abs(pct)}%) vs. ${contra}`:`Igual que ${contra}`;
+// «+30 (+12%)»: valores, no adjetivos (HIG, Charts). El color solo dice hacia
+// dónde se movió, y una base menor que 5 no grita: va en gris con su valor.
+function variacionAdmin(actual,anterior){
+  if(!Number.isFinite(anterior))return {texto:'',clase:'est-gris'};
+  if(anterior<5)return {texto:`antes ${milesViz(anterior)}`,clase:'est-gris'};
+  const d=actual-anterior,pct=Math.round(100*d/anterior),signo=d>0?'+':'−';
+  return d?{texto:`${signo}${milesViz(Math.abs(d))} (${signo}${Math.abs(pct)}%)`,clase:d>0?'est-sube':'est-baja'}:{texto:'Igual',clase:'est-gris'};
 }
-function kpiAdminHTML(titulo,valor,detalle,porcentaje=null){
-  const circular=porcentaje!==null&&porcentaje!==undefined&&Number.isFinite(Number(porcentaje))&&porcentaje>=0&&porcentaje<=100;
-  return `<div class="dato-kpi${circular?' dato-kpi-circular':''}"><span>${esc(titulo)}</span>${circular?datoCircularHTML(porcentaje,valor,`${titulo}: ${valor}. ${detalle||''}`):`<strong>${esc(valor)}</strong>`}<p>${esc(detalle||'')}</p></div>`;
+// Una cifra que además elige qué dibuja el gráfico de su tarjeta. Sin `id`
+// solo informa, como la semana en curso, y no se puede tocar.
+function metricaAdminHTML({id,titulo,valor,variacion,pie,elegida}){
+  const dentro=`<span>${esc(titulo)}</span><strong>${esc(valor)}</strong><small>${variacion&&variacion.texto?`<b class="${variacion.clase}">${esc(variacion.texto)}</b> `:''}${esc(pie||'')}</small>`;
+  return id?`<button type="button" class="adm-metrica" data-adm-metrica="${esc(id)}" aria-pressed="${!!elegida}">${dentro}</button>`:`<div class="adm-metrica adm-metrica-quieta">${dentro}</div>`;
+}
+const vistaAdminHTML=(id,elegida,contenido)=>`<div data-adm-vista="${esc(id)}"${elegida?'':' hidden'}>${contenido}</div>`;
+// Lo que espera una decisión, con su salida al lado. Sin pendientes no aparece.
+function atencionAdminHTML(profesores,ahora,conProgramas=false){
+  const r=resumenAdminClases(profesores,ahora),pl=(n,uno,varios)=>`${milesViz(n)} ${n===1?uno:varios}`;
+  const porCobrar=filasAdminHig(profesores,ahora).filter(cobroPendienteAdmin).length;
+  const items=[[r.pendientes,pl(r.pendientes,'postulación','postulaciones'),'profesores:pendiente'],
+    [r.revision,pl(r.revision,'anuncio por revisar','anuncios por revisar'),'anuncios:revision'],
+    [porCobrar,pl(porCobrar,'campaña por cobrar','campañas por cobrar'),'anuncios:cobros'],
+    [r.deuda,`${pesosClase(r.deuda)} en deuda`,'anuncios:cobros','adm-pendiente-deuda']].filter(i=>i[0]>0);
+  const programas=conProgramas?'<button type="button" class="adm-pendiente adm-pendiente-quieto" data-admin-ir="usuarios">Programas reportados</button>':'';
+  return items.length||programas?`<div class="adm-atencion" aria-label="Pendientes">${items.map(([,texto,ir,clase])=>`<button type="button" class="adm-pendiente${clase?' '+clase:''}" data-admin-ir="${ir}"><i aria-hidden="true"></i>${esc(texto)}</button>`).join('')}${programas}</div>`:'';
 }
 // puntos: [{eje, lectura, valor, tenue}] de lo antiguo a lo nuevo. La columna
 // elegida va con el acento lleno y su lectura arriba; tocar o pasar el dedo
 // por el área entera elige otra (enlazarGraficosAdmin).
-function columnasAdminHTML({titulo,resumen,vacio,puntos,elegido=puntos.length-1,formato=milesViz,tabla=null,dondeValores='en la tabla'}){
-  const tope=topeEjeAdmin(Math.max(0,...puntos.map(p=>p.valor)));
-  const cabeza=`<figcaption><b>${esc(titulo)}</b>${resumen?`<span>${esc(resumen)}</span>`:''}</figcaption>`;
+function columnasAdminHTML({titulo,resumen,vacio,puntos,elegido=puntos.length-1,formato=milesViz,tabla=null,dondeValores='en la tabla',sinCabeza=false,porDia=false}){
+  const tope=topeEjeAdmin(Math.max(porDia?2:0,...puntos.map(p=>p.valor)));
+  const cabeza=`<figcaption${sinCabeza?' class="adm-oculto"':''}><b>${esc(titulo)}</b>${resumen?`<span>${esc(resumen)}</span>`:''}</figcaption>`;
   if(!tope)return `<figure class="viz admin-grafico">${cabeza}<p class="clase-sin-datos">${esc(vacio)}</p></figure>`;
+  if(porDia)return `<figure class="viz admin-grafico" aria-label="${esc(titulo)}">
+    <div class="ras-grafico" role="group" aria-label="Elegir día de la agenda">
+    ${puntos.map((p,i)=>`<button type="button" data-ras-columna="${i}" aria-label="${esc(p.lectura)}" aria-pressed="${i===elegido}"${p.tenue?' data-tenue':''}>
+      <span class="ras-barra"><i style="height:${100*p.valor/tope}%"></i></span>
+      <span>${esc(p.eje)}</span><b>${p.valor}</b></button>`).join('')}</div></figure>`;
   return `<figure class="viz admin-grafico" data-admin-grafico>${cabeza}
     <p class="admin-grafico-lectura" data-admin-lectura aria-hidden="true">${esc(puntos[elegido].lectura)}</p>
     <div class="admin-grafico-area" role="img" aria-label="${esc(`${titulo}, gráfico de columnas. ${resumen||''} Los valores están ${dondeValores}.`)}">
@@ -54,42 +77,63 @@ function graficosCrecimientoAdminHTML(semanas,ahora){
   const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
   const i=semanas.findIndex(f=>!semanaEnCursoAdmin(f,ahora));
   const cerrada=semanas[i],anterior=semanas[i+1],enCurso=i>0?semanas[0]:null;
-  const contra=anterior?`semana del ${fechaCortaAdmin(anterior.semana)}`:'';
-  const kpis=cerrada?[
-    kpiAdminHTML('Activas',milesViz(cifra(cerrada.activas)),`Semana del ${fechaCortaAdmin(cerrada.semana)}${anterior?' · '+variacionAdmin(cifra(cerrada.activas),cifra(anterior.activas),contra):''}`),
-    kpiAdminHTML('Nuevas',milesViz(cifra(cerrada.nuevas)),anterior?variacionAdmin(cifra(cerrada.nuevas),cifra(anterior.nuevas),contra)||'Cuentas creadas esa semana':'Cuentas creadas esa semana'),
-    kpiAdminHTML('Volvieron',cerrada.pct_vuelven!=null?`${Number(cerrada.pct_vuelven).toLocaleString('es-CL')}%`:'—',anterior?`${milesViz(cifra(cerrada.vuelven))} de ${milesViz(cifra(anterior.activas))} activas la semana anterior`:'Sin semana anterior para comparar',cerrada.pct_vuelven),
-    enCurso?kpiAdminHTML('Esta semana',milesViz(cifra(enCurso.activas)),'Activas hasta hoy · semana en curso'):''].join(''):'';
+  const contra=anterior?`vs. ${fechaCortaAdmin(anterior.semana)}`:'';
+  const pct=f=>f&&f.pct_vuelven!=null?Number(f.pct_vuelven):null;
+  const textoPct=v=>v===null?'—':`${v.toLocaleString('es-CL')}%`;
+  const puntosVolvieron=()=>{
+    if(pct(cerrada)===null||pct(anterior)===null)return null;
+    const d=Math.round((pct(cerrada)-pct(anterior))*10)/10;
+    return d?{texto:`${d>0?'+':'−'}${Math.abs(d).toLocaleString('es-CL')} pts`,clase:d>0?'est-sube':'est-baja'}:{texto:'Igual',clase:'est-gris'};
+  };
+  const metricas=cerrada?[
+    metricaAdminHTML({id:'activas',titulo:'Activas',valor:milesViz(cifra(cerrada.activas)),variacion:anterior&&variacionAdmin(cifra(cerrada.activas),cifra(anterior.activas)),pie:contra,elegida:true}),
+    metricaAdminHTML({id:'nuevas',titulo:'Nuevas',valor:milesViz(cifra(cerrada.nuevas)),variacion:anterior&&variacionAdmin(cifra(cerrada.nuevas),cifra(anterior.nuevas)),pie:contra}),
+    metricaAdminHTML({id:'volvieron',titulo:'Volvieron',valor:textoPct(pct(cerrada)),variacion:puntosVolvieron(),pie:contra}),
+    enCurso?metricaAdminHTML({titulo:'Esta semana',valor:milesViz(cifra(enCurso.activas)),pie:'activas hasta hoy'}):''].join(''):'';
+  const desglose=(f,clave)=>f[clave+'_estudiantes']!=null?` · ${milesViz(cifra(f[clave+'_estudiantes']))} estudiantes · ${milesViz(cifra(f[clave+'_profesores']))} profesores`:'';
+  const semanaTexto=f=>`Semana del ${fechaLargaAdmin(f.semana)}${semanaEnCursoAdmin(f,ahora)?' (en curso)':''}`;
   const serie=clave=>semanas.slice().reverse().map(f=>({eje:fechaCortaAdmin(f.semana),valor:cifra(f[clave]),tenue:semanaEnCursoAdmin(f,ahora),
-    lectura:`Semana del ${fechaLargaAdmin(f.semana)}${semanaEnCursoAdmin(f,ahora)?' (en curso)':''} · ${milesViz(cifra(f[clave]))} ${clave==='activas'?'activas':'nuevas'}`}));
+    lectura:`${semanaTexto(f)} · ${milesViz(cifra(f[clave]))} ${clave==='activas'?'activas':'nuevas'}${desglose(f,clave)}`}));
+  const serieVolvieron=semanas.slice().reverse().map((f,k,lista)=>({eje:fechaCortaAdmin(f.semana),valor:pct(f)||0,tenue:semanaEnCursoAdmin(f,ahora),
+    lectura:`${semanaTexto(f)} · ${textoPct(pct(f))}${lista[k-1]&&pct(f)!==null?` · ${milesViz(cifra(f.vuelven))} de ${milesViz(cifra(lista[k-1].activas))} activas`:''}`}));
   const elegido=Math.max(0,semanas.length-1-Math.max(i,0));
-  return `${kpis?`<div class="admin-hig-resumen admin-pulso" aria-label="Resumen de la última semana cerrada">${kpis}</div>`:''}
-    <div class="admin-graficos">
-      ${columnasAdminHTML({titulo:'Cuentas activas por semana',resumen:'Abrieron la app al menos un día de la semana.',vacio:'Todavía no hay visitas registradas.',puntos:serie('activas'),elegido,dondeValores:'en el detalle por semana'})}
-      ${columnasAdminHTML({titulo:'Cuentas nuevas por semana',resumen:'Se crearon esa semana, estudiantes y profesores.',vacio:'Todavía no hay cuentas nuevas en estas semanas.',puntos:serie('nuevas'),elegido,dondeValores:'en el detalle por semana'})}
-    </div>`;
+  const comun={elegido,dondeValores:'en la tabla por semana',sinCabeza:true};
+  return `${metricas?`<div class="adm-metricas" role="group" aria-label="Elegir qué muestra el gráfico">${metricas}</div>`:''}
+    ${vistaAdminHTML('activas',true,columnasAdminHTML({...comun,titulo:'Cuentas activas por semana',resumen:'Abrieron la app al menos un día de la semana.',vacio:'Todavía no hay visitas registradas.',puntos:serie('activas')}))}
+    ${vistaAdminHTML('nuevas',false,columnasAdminHTML({...comun,titulo:'Cuentas nuevas por semana',resumen:'Se crearon esa semana, estudiantes y profesores.',vacio:'Todavía no hay cuentas nuevas en estas semanas.',puntos:serie('nuevas')}))}
+    ${vistaAdminHTML('volvieron',false,columnasAdminHTML({...comun,titulo:'Cuentas que volvieron por semana',resumen:'De las activas la semana anterior.',vacio:'Todavía no hay dos semanas para comparar.',puntos:serieVolvieron,formato:v=>`${v}%`}))}`;
 }
 // Lo de clases particulares: alcance de los anuncios (admin_estadisticas.sql),
 // cobros por mes y anuncios por estado. Sale de lo que el panel ya cargó,
 // salvo el alcance diario; sin ese SQL, se explica qué falta y lo demás sigue.
 function clasesEstadisticasAdminHTML(profesores,alcance,ahora=Date.now()){
-  const pesos=pesosClase,partes=[];
-  let kpis='';
+  const pesos=pesosClase;
+  let alcanceHTML='';
   if(Array.isArray(alcance)&&alcance.length){
     const n=v=>Number(v)||0,suma=k=>alcance.reduce((t,d)=>t+n(d[k]),0);
     const vieron=suma('vieron'),abrieron=suma('abrieron'),contactaron=suma('contactaron');
-    kpis=[kpiAdminHTML('Vieron un anuncio',milesViz(vieron),'Cuentas distintas por campaña · 30 días'),
-      kpiAdminHTML('Lo abrieron',milesViz(abrieron),`${pctViz(abrieron,vieron)} de las que lo vieron`),
-      kpiAdminHTML('Contactaron',milesViz(contactaron),`${pctViz(contactaron,vieron)} de las que lo vieron`),
-      kpiAdminHTML('De abrir a contactar',pctViz(contactaron,abrieron),'Contactaron de las que lo abrieron',abrieron?100*contactaron/abrieron:null)].join('');
     const mejor=alcance.reduce((m,d)=>n(d.vieron)>n(m.vieron)?d:m,alcance[0]);
-    partes.push(columnasAdminHTML({titulo:'Alcance por día',vacio:'Ningún anuncio se ha mostrado en los últimos 30 días.',
-      resumen:vieron?`${milesViz(vieron)} en 30 días; el día con más fue el ${fechaLargaAdmin(mejor.dia)}, con ${milesViz(n(mejor.vieron))}.`:'',
-      puntos:alcance.map(d=>({eje:fechaCortaAdmin(d.dia),valor:n(d.vieron),lectura:`${fechaLargaAdmin(d.dia)} · ${milesViz(n(d.vieron))} vieron · ${milesViz(n(d.abrieron))} abrieron · ${milesViz(n(d.contactaron))} contactaron`})),
-      tabla:{columnas:['Día','Vieron','Abrieron','Contactaron'],filas:alcance.slice().reverse().map(d=>[fechaLargaAdmin(d.dia),milesViz(n(d.vieron)),milesViz(n(d.abrieron)),milesViz(n(d.contactaron))])}}));
-    partes.push(barrasAdminHTML({titulo:'De ver a contactar',resumen:'Últimos 30 días, todos los anuncios.',filas:[
-      {nombre:'Vieron',valor:vieron},{nombre:'Abrieron',valor:abrieron,texto:`${milesViz(abrieron)} · ${pctViz(abrieron,vieron)}`},
-      {nombre:'Contactaron',valor:contactaron,texto:`${milesViz(contactaron)} · ${pctViz(contactaron,vieron)}`}]}));
+    const lectura=d=>`${fechaLargaAdmin(d.dia)} · ${milesViz(n(d.vieron))} vieron · ${milesViz(n(d.abrieron))} abrieron · ${milesViz(n(d.contactaron))} contactaron`;
+    const puntos=clave=>alcance.map(d=>({eje:fechaCortaAdmin(d.dia),valor:n(d[clave]),lectura:lectura(d)}));
+    const tabla={columnas:['Día','Vieron','Abrieron','Contactaron'],filas:alcance.slice().reverse().map(d=>[fechaLargaAdmin(d.dia),milesViz(n(d.vieron)),milesViz(n(d.abrieron)),milesViz(n(d.contactaron))])};
+    const vista=(id,titulo,vacio,elegida,conTabla)=>vistaAdminHTML(id,elegida,columnasAdminHTML({titulo,vacio,puntos:puntos(id),sinCabeza:true,
+      resumen:id==='vieron'&&vieron?`${milesViz(vieron)} cuentas por campaña en 30 días; el día con más fue el ${fechaLargaAdmin(mejor.dia)}, con ${milesViz(n(mejor.vieron))}.`:'',tabla:conTabla?tabla:null}));
+    alcanceHTML=`<div class="adm-dos"><section class="adm-tarjeta" data-adm-grupo aria-label="Alcance de los anuncios, últimos 30 días">
+      <div class="adm-metricas adm-metricas-tres" role="group" aria-label="Elegir qué muestra el gráfico">
+        ${metricaAdminHTML({id:'vieron',titulo:'Vieron un anuncio',valor:milesViz(vieron),pie:'30 días',elegida:true})}
+        ${metricaAdminHTML({id:'abrieron',titulo:'Lo abrieron',valor:milesViz(abrieron),pie:`${pctViz(abrieron,vieron)} de las que lo vieron`})}
+        ${metricaAdminHTML({id:'contactaron',titulo:'Contactaron',valor:milesViz(contactaron),pie:`${pctViz(contactaron,vieron)} de las que lo vieron`})}
+      </div>
+      ${vista('vieron','Alcance por día','Ningún anuncio se ha mostrado en los últimos 30 días.',true,true)}
+      ${vista('abrieron','Aperturas por día','Nadie abrió un anuncio en los últimos 30 días.',false,false)}
+      ${vista('contactaron','Contactos por día','Nadie contactó en los últimos 30 días.',false,false)}
+    </section>
+    <section class="adm-tarjeta adm-embudo adm-conversion" aria-label="De ver a contactar, últimos 30 días">
+      ${barrasAdminHTML({titulo:'De ver a contactar',filas:[
+        {nombre:'Vieron',valor:vieron},{nombre:'Abrieron',valor:abrieron,texto:`${milesViz(abrieron)} · ${pctViz(abrieron,vieron)}`},
+        {nombre:'Contactaron',valor:contactaron,texto:`${milesViz(contactaron)} · ${pctViz(contactaron,vieron)}`}]})}
+      <p class="adm-tasa"><strong>${esc(pctViz(contactaron,abrieron))}</strong><span>de abrir a contactar</span></p>
+    </section></div>`;
   }
   // Cobros por el mes en que se publicó la campaña, los últimos seis.
   const hoy=new Date(ahora),meses=[];
@@ -101,20 +145,21 @@ function clasesEstadisticasAdminHTML(profesores,alcance,ahora=Date.now()){
     }
   const nombreMes=(m,o)=>{const t=m.fecha.toLocaleDateString('es-CL',o);return t.charAt(0).toUpperCase()+t.slice(1);};
   const cobrado=meses.reduce((t,m)=>t+m.cobrado,0),deuda=meses.reduce((t,m)=>t+m.deuda,0);
-  partes.push(columnasAdminHTML({titulo:'Cobrado por mes',formato:pesos,vacio:'Todavía no hay cobros registrados en los últimos seis meses.',
+  const cobros=`<section class="adm-tarjeta" aria-label="Cobrado por mes">
+    <div class="adm-metricas adm-metricas-una">${metricaAdminHTML({titulo:'Cobrado en seis meses',valor:pesos(cobrado),variacion:deuda?{texto:`${pesos(deuda)} en deuda`,clase:'est-baja'}:null})}</div>
+    ${columnasAdminHTML({titulo:'Cobrado por mes',formato:pesos,vacio:'Todavía no hay cobros registrados en los últimos seis meses.',sinCabeza:true,
     resumen:`${pesos(cobrado)} cobrados en seis meses${deuda?` · ${pesos(deuda)} en deuda`:''}. Cuenta el mes en que se publicó cada campaña.`,
     puntos:meses.map(m=>({eje:nombreMes(m,{month:'short'}),valor:m.cobrado,lectura:`${nombreMes(m,{month:'long',year:'numeric'})} · ${pesos(m.cobrado)} cobrado${m.deuda?` · ${pesos(m.deuda)} en deuda`:''}`})),
-    tabla:{columnas:['Mes','Cobrado','En deuda'],filas:meses.slice().reverse().map(m=>[nombreMes(m,{month:'long',year:'numeric'}),pesos(m.cobrado),pesos(m.deuda)])}}));
+    tabla:{columnas:['Mes','Cobrado','En deuda'],filas:meses.slice().reverse().map(m=>[nombreMes(m,{month:'long',year:'numeric'}),pesos(m.cobrado),pesos(m.deuda)])}})}
+  </section>`;
   const porEstado=new Map();
   filasAdminHig(profesores,ahora).filter(f=>f.a.estado!=='eliminado').forEach(f=>porEstado.set(f.estado[0],(porEstado.get(f.estado[0])||0)+1));
   const total=[...porEstado.values()].reduce((t,v)=>t+v,0);
-  if(total)partes.push(barrasAdminHTML({titulo:'Anuncios por estado',resumen:`${milesViz(total)} ${total===1?'anuncio':'anuncios'} en total.`,
-    filas:[...porEstado].sort((x,y)=>y[1]-x[1]).map(([nombre,valor])=>({nombre,valor}))}));
-  return `<section class="admin-clases-estadisticas" aria-labelledby="admin-clases-estadisticas-titulo"><h3 id="admin-clases-estadisticas-titulo">Clases particulares</h3>
-    <p>Últimos 30 días · cuentas por campaña</p>
-    ${kpis?`<div class="admin-hig-resumen admin-pulso admin-pulso-alcance" aria-label="Resumen de los últimos 30 días">${kpis}</div>`:''}
-    ${Array.isArray(alcance)?'':'<p class="admin-hig-nota" role="status">El alcance por día aparece al aplicar supabase/admin_estadisticas.sql.</p>'}
-    <div class="admin-graficos">${partes.join('')}</div></section>`;
+  const estados=total?`<section class="adm-tarjeta adm-embudo" aria-label="Anuncios por estado">${barrasAdminHTML({titulo:'Anuncios por estado',resumen:`${milesViz(total)} ${total===1?'anuncio':'anuncios'} en total.`,
+    filas:[...porEstado].sort((x,y)=>y[1]-x[1]).map(([nombre,valor])=>({nombre,valor}))})}</section>`:'';
+  return `<section class="admin-clases-estadisticas" aria-labelledby="admin-clases-estadisticas-titulo"><h3 id="admin-clases-estadisticas-titulo" class="adm-seccion">Clases particulares</h3>
+    ${Array.isArray(alcance)?'':'<p class="est-aviso" role="status">El alcance por día aparece al aplicar supabase/admin_estadisticas.sql.</p>'}
+    ${alcanceHTML}<div class="adm-dos${estados?'':' adm-dos-sola'}">${cobros}${estados}</div></section>`;
 }
 // Tocar o arrastrar por el gráfico elige la columna más cercana; con el mouse,
 // al salir vuelve a la que estaba. No hace falta para leer nada: la lectura
@@ -131,15 +176,23 @@ function enlazarGraficosAdmin(raiz){
     area.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')elegir(inicial);});
   });
 }
+// Tocar una cifra cambia lo que dibuja el gráfico de su tarjeta.
+function enlazarMetricasAdmin(raiz){
+  raiz.querySelectorAll('[data-adm-grupo]').forEach(grupo=>{
+    const botones=[...grupo.querySelectorAll('[data-adm-metrica]')];
+    botones.forEach(b=>b.addEventListener('click',()=>{
+      botones.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+      grupo.querySelectorAll('[data-adm-vista]').forEach(v=>{v.hidden=v.dataset.admVista!==b.dataset.admMetrica;});
+    }));
+  });
+}
 function crecimientoAdminHTML(semanas,ahora=Date.now()){
   if(!Array.isArray(semanas)||!semanas.length)return '';
-  const cifra=v=>Number.isFinite(Number(v))?Number(v):0;
-  const dato=(titulo,f,clave)=>`<div><dt>${titulo}</dt><dd><strong>${cifra(f[clave])} total</strong><span>${cifra(f[clave+'_estudiantes'])} estudiantes · ${cifra(f[clave+'_profesores'])} profesores</span></dd></div>`;
-  const semana=f=>`<h3>Semana del ${esc(f.semana?fechaLargaAdmin(f.semana):'')}</h3><dl>${dato('Nuevas',f,'nuevas')}${dato('Activas',f,'activas')}${dato('Volvieron',f,'vuelven')}</dl>`;
-  return `<section class="admin-crecimiento" aria-labelledby="admin-crecimiento-titulo"><h3 id="admin-crecimiento-titulo">Crecimiento semanal</h3>
-    <p>Última semana cerrada y actividad en curso</p>${graficosCrecimientoAdminHTML(semanas,ahora)}
-    ${semanas.length>1?`<details class="datos-definiciones"><summary>Detalle de la semana del ${esc(fechaCortaAdmin(semanas[0].semana))}</summary>`:''}<div class="admin-crecimiento-actual">${semana(semanas[0])}</div>${semanas.length>1?'</details>':''}
-    ${semanas.length>1?`<details class="admin-crecimiento-historial"><summary>Ver ${semanas.length-1} ${semanas.length===2?'semana anterior':'semanas anteriores'}</summary><ol>${semanas.slice(1).map(f=>`<li>${semana(f)}</li>`).join('')}</ol></details>`:''}</section>`;
+  const cifra=v=>milesViz(Number.isFinite(Number(v))?Number(v):0);
+  const tabla=semanas.length>1?`<details class="admin-grafico-tabla admin-crecimiento-historial"><summary>Ver ${semanas.length} semanas como tabla</summary><div><table>
+    <thead><tr>${['Semana','Activas','Estudiantes','Profesores','Nuevas','Volvieron'].map((c,i)=>`<th scope="col"${i?' class="num"':''}>${c}</th>`).join('')}</tr></thead>
+    <tbody>${semanas.map(f=>`<tr><th scope="row">${esc(fechaLargaAdmin(f.semana))}</th>${[f.activas,f.activas_estudiantes,f.activas_profesores,f.nuevas,f.vuelven].map(v=>`<td class="num">${v==null?'—':esc(cifra(v))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`:'';
+  return `<section class="adm-tarjeta admin-crecimiento" data-adm-grupo aria-labelledby="admin-crecimiento-titulo"><h3 id="admin-crecimiento-titulo" class="adm-oculto">Crecimiento semanal</h3>${graficosCrecimientoAdminHTML(semanas,ahora)}${tabla}</section>`;
 }
 const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios','pautas'];
 function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcance=null,historial=null){
@@ -159,14 +212,19 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
       <label for="admin-estado-profesor">Estado<select id="admin-estado-profesor">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<option value="${v}"${v===vistaAdmin.profesores?' selected':''}>${t}</option>`).join('')}</select></label></div>
       <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
     ${panel('anuncios',`${anunciosAdminEditorialHTML(profesores,ahora,historial,alcance)}
-    <nav class="admin-hig-pestanas" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
-    <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-hig-buscar">Buscar<input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label for="admin-hig-estado">Estado<select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}"${v===vistaAdmin.estado?' selected':''}>${t}</option>`).join('')}</select></label></div>
-    <p class="pe-sub" data-pe-periodo-filas>Campaña actual · acumulado</p><p class="admin-hig-nota" id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</p>
-    <div class="admin-hig-lista">${filas.map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
-    <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>`)}
-    ${panel('estadisticas',`<h2>Estadísticas de GradeHub</h2>
-      ${crecimientoAdminHTML(crecimiento,ahora)||'<p class="admin-hig-nota" role="status">No pudimos cargar las cifras de la página por ahora.</p>'}
-      ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}`)}
+    <div class="adm-lista">
+      <div class="adm-lista-barra">
+        <nav class="adm-seg" aria-label="Vistas de administración"><button type="button" data-admin-seccion="campanas" aria-pressed="true">Campañas</button><button type="button" data-admin-seccion="revision" aria-pressed="false">Por revisar</button><button type="button" data-admin-seccion="cobros" aria-pressed="false">Cobros e historial</button></nav>
+        <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-hig-buscar"><span class="adm-oculto">Buscar</span><input id="admin-hig-buscar" type="search" placeholder="Profesor, anuncio o ramo" autocomplete="off"></label><label for="admin-hig-estado"><span class="adm-oculto">Estado</span><select id="admin-hig-estado">${[['','Todos'],['publicado','Publicadas'],['programado','Programadas'],['en_revision','En revisión'],['pausado','Pausadas'],['expirado','Terminadas'],['borrador','Borradores'],['agotado','Tope alcanzado'],['suspendido','Profesor no habilitado'],['eliminado','Borrados con cobros anteriores']].map(([v,t])=>`<option value="${v}"${v===vistaAdmin.estado?' selected':''}>${t}</option>`).join('')}</select></label></div>
+      </div>
+      <div class="adm-lista-cabeza"><span id="admin-hig-cantidad" role="status" aria-live="polite">${filas.length} anuncios</span><span aria-hidden="true" title="Campaña actual, acumulado">Vistas</span><span aria-hidden="true">Aperturas</span><span aria-hidden="true">Contactos</span><span aria-hidden="true">Días</span><span aria-hidden="true" title="Vieron el anuncio, de las personas activas que tienen el ramo">Alcance del ramo</span></div>
+      <div class="admin-hig-lista">${filas.slice().sort(ordenFilasAdmin).map(f=>filaAdminHigHTML(f,ahora)).join('')}</div>
+      <p class="admin-hig-vacio" id="admin-hig-vacio" hidden>No encontramos anuncios. Prueba otro nombre o amplía los filtros.</p>
+    </div>`)}
+    ${panel('estadisticas',`<div class="est adm"><h2>Estadísticas de GradeHub</h2>
+      ${atencionAdminHTML(profesores,ahora)}
+      ${crecimientoAdminHTML(crecimiento,ahora)||'<p class="est-aviso" role="status">No pudimos cargar las cifras de la página por ahora.</p>'}
+      ${clasesEstadisticasAdminHTML(profesores,alcance,ahora)}</div>`)}
     ${panel('pautas','<div id="admin-pautas-contenido"></div>')}
     ${panel('usuarios',`<h2>Usuarios</h2>
       ${temaFestivoAdminHTML()}
@@ -265,6 +323,7 @@ async function pintarPanelAdmin(raiz){
   pintarReportesProgramaAdmin(raiz);
   enlazarTemaFestivoAdmin(raiz);
   enlazarGraficosAdmin(raiz);
+  enlazarMetricasAdmin(raiz);
   const lista=raiz.querySelector('#admin-lista-profesores');
   if(lista&&typeof lista.querySelectorAll==='function'){
     lista.innerHTML=profesores.map(personaAdminHigHTML).join('')+`<p class="admin-hig-motivo" id="admin-profesores-vacio" hidden>${profesores.length?'Nadie calza con este filtro.':'Todavía no hay profesores.'}</p>`;
@@ -326,6 +385,15 @@ async function pintarPanelAdmin(raiz){
     if(typeof filtro.dispatchEvent==='function')filtro.dispatchEvent(new Event('change',{bubbles:true}));else filtrar();
   }));
   filtrar();
+  pintarAlcanceFilasAdmin(raiz,profesores,ahora,vigente);
+  // Cada pendiente lleva a donde se resuelve, con su filtro ya puesto.
+  raiz.querySelectorAll('[data-admin-ir]').forEach(b=>b.addEventListener('click',()=>{
+    const [area,vista]=b.dataset.adminIr.split(':');
+    mostrarArea(area);
+    if(area==='anuncios')raiz.querySelector(`[data-admin-seccion="${vista}"]`)?.click();
+    const estado=area==='profesores'&&raiz.querySelector('#admin-estado-profesor');
+    if(estado){estado.value=vista;estado.dispatchEvent(new Event('change',{bubbles:true}));}
+  }));
   enlazarAdminEditorial(raiz,historial,alcance,ahora);
   enlazarSelectoresPrivados(raiz);
   const repintar=()=>pintarPanelAdmin(raiz);
@@ -356,12 +424,12 @@ async function pintarPanelAdmin(raiz){
         caja.innerHTML=`<p class="clase-sin-datos">${vig==='programado'?'Todavía no empieza, así que no hay nada que medir ni cobrar.':actual.estado==='en_revision'?'Cuando se apruebe y empiece a mostrarse, sus estadísticas aparecerán acá.':'Todavía no se publica, así que no hay estadísticas.'}</p>`;
         b.dataset.estadisticasEstado='lista';b.textContent='Ocultar estadísticas';return;
       }
-      const m=await metricasDeAnuncio({...actual,campana:null});
+      const [m,publico]=await Promise.all([metricasDeAnuncio({...actual,campana:null}),publicoAdminAnuncio(actual)]);
       if(caja.isConnected===false)return;
       if(m.error)throw Error('No pudimos cargar las estadísticas. Revisa tu conexión e intenta de nuevo.');
       const d=prepararMetricasClase(actual,m);
       const pesos=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
-      caja.innerHTML='<h4>Estadísticas del aviso</h4>'+detalleMetricasClaseHTML(d,pesos,Date.now())+
+      caja.innerHTML='<h4>Estadísticas del aviso</h4>'+detalleMetricasClaseHTML(d,pesos,Date.now())+publicoAdminAnuncioHTML({...actual,campana:m.campana},publico)+
         '<p class="clase-privacidad">Solo totales por anuncio. Nunca nombres ni notas de estudiantes.</p>';
       b.dataset.estadisticasEstado='lista';b.textContent='Ocultar estadísticas';
     }catch(e){

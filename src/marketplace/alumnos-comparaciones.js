@@ -66,17 +66,27 @@ function metricasAlumnoPanel(al,compDe,{inicio}={}){
     const desde=diaLocalPanel(inicio!==undefined?inicio:(al.inicio||al.desde));
     let evaluaciones=[],sinFecha=0;
     (al.ramos||[]).forEach(r=>{
-      const x=evaluacionesConFechaPanel(ramoParaPanel(r),compDe(al,r));
+      const comp=compDe(al,r),x=evaluacionesConFechaPanel(ramoParaPanel(r),comp),pre=preparacionRamoPanel(al,r);
       const corte=inicio!==undefined?desde:inicioRamoPanel(al,r).dia;
-      x.evaluaciones.forEach(e=>{e.inicio=corte;e.lado=corte&&e.fecha<corte?'antes':'ahora';});
+      if(pre?.manual){
+        // Sin fecha también cuenta si tiene un id crudo: no se inventa un día.
+        const ya=new Set(x.evaluaciones.map(e=>e.id));
+        for(const e of pre.evaluaciones||[]){if(!e.nota_id||ya.has(e.nota_id)||typeof e.nota!=='number'||e.ambigua)continue;
+          const ref=datosComparacionPanel((comp?.evaluaciones||[]).find(c=>c.clave===claveEvaluacionPanel(e.nombre)));
+          x.evaluaciones.push({id:e.nota_id,ramo:r.nombre,ramoId:r.id,evaluacion:e.nombre,fecha:e.fecha||null,nota:e.nota,curso:ref?.promedio??null,cursoPersonas:ref?.personas??null,aprobada:notaAprobada(e.nota)});ya.add(e.nota_id);x.sinFecha=Math.max(0,x.sinFecha-1);
+        }
+      }
+      if(al.soloPruebasPanel){const ids=new Set(categoriasPruebasPanel(r).flatMap(c=>(c.notas||[]).map(n=>n.id)));x.evaluaciones=x.evaluaciones.filter(e=>ids.has(e.id));x.sinFecha=categoriasPruebasPanel(r).flatMap(c=>c.notas||[]).filter(n=>Number.isFinite(n.valor)&&!x.evaluaciones.some(e=>e.id===n.id)).length;}
+      x.evaluaciones.forEach(e=>{e.percentil=percentilEvaluacionPanel(al,r,e.id,comp);e.inicio=corte;e.metodo=pre?.manual?'manual':'fecha';e.lado=pre?.manual?(pre.marcas.some(m=>coincideMarcaPreparada(m,e))?'ahora':'antes'):(corte&&e.fecha<corte?'antes':'ahora');});
       evaluaciones=evaluaciones.concat(x.evaluaciones);sinFecha+=x.sinFecha;
     });
     evaluaciones.sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0);
     const antes=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='antes'));
     const ahora=resumenLadoPanel(evaluaciones.filter(e=>e.lado==='ahora'));
     const suficiente=antes.nComparadas>=MIN_EVALS_COMPARACION&&ahora.nComparadas>=MIN_EVALS_COMPARACION;
-    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,
-      cambio:suficiente?ahora.diferencia-antes.diferencia:null};
+    const metodos=new Set((al.ramos||[]).map(r=>preparacionRamoPanel(al,r)?.manual?'manual':'fecha'));
+    return {id:al.id,nombre:al.nombre_visible,desde,antes,ahora,sinFecha,evaluaciones,metodo:metodos.size>1?'mixto':metodos.has('manual')?'manual':'fecha',
+      cambio:suficiente&&!al.preparacion?.errorCarga&&metodos.size<=1?ahora.diferencia-antes.diferencia:null};
   });
 }
 // Unidad de comparación: una persona en un ramo, con su propio inicio.
@@ -97,11 +107,15 @@ function metricasGrupoPanel(alumnos,compDe,{inicioDe}={}){
   const porAlumno=(alumnos||[]).flatMap(al=>(al.ramos||[]).map(r=>metricasAlumnoRamoPanel(al,r,compDe,inicioDe?{inicio:inicioDe(al,r)}:{})));
   const totalAlumnos=new Set(porAlumno.map(m=>m.id)).size;
   const totalRamos=new Set(porAlumno.map(m=>`${m.tenant}|${m.sigla?String(m.sigla).toUpperCase():claveEvaluacionPanel(m.ramo)}`)).size;
+  const paresPercentiles=porAlumno.map(resumenPercentilesPanel).filter(p=>p.cambio!==null);
+  const percentiles=paresPercentiles.length?{antes:medianaPanel(paresPercentiles.map(p=>p.antes)),ahora:medianaPanel(paresPercentiles.map(p=>p.ahora)),cambio:medianaPanel(paresPercentiles.map(p=>p.cambio))}:null;
   const conCambio=porAlumno.filter(m=>m.cambio!==null);
   const todas=lado=>porAlumno.flatMap(m=>m.evaluaciones.filter(e=>e.lado===lado));
-  return {alumnos:porAlumno,totalAlumnos,totalRamos,conCambio:conCambio.length,
+  const metodos=[...new Set(porAlumno.map(m=>m.metodo))];
+  return {alumnos:porAlumno,totalAlumnos,totalRamos,percentiles:metodos.length>1?null:percentiles,metodo:metodos.length>1?'mixto':metodos[0]||'fecha',
+    grupos:metodos.length>1?metodos.map(metodo=>metricasGrupoPanel((alumnos||[]).map(al=>({...al,ramos:(al.ramos||[]).filter(r=>(preparacionRamoPanel(al,r)?.manual?'manual':'fecha')===metodo)})).filter(al=>al.ramos.length),compDe,inicioDe?{inicioDe}:{})):null,conCambio:conCambio.length,
     mejoraron:conCambio.filter(m=>m.cambio>0).length,
-    cambioMediana:medianaPanel(conCambio.map(m=>m.cambio)),
+    cambioMediana:metodos.length>1?null:medianaPanel(conCambio.map(m=>m.cambio)),
     antes:resumenLadoPanel(todas('antes')),ahora:resumenLadoPanel(todas('ahora')),
     sinFecha:porAlumno.reduce((s,m)=>s+m.sinFecha,0)};
 }
@@ -115,8 +129,28 @@ function filtrarAlumnosPanel(alumnos,texto){
   const calza=s=>(claveEvaluacionPanel(s)||'').includes(q);
   return alumnos.map(al=>{
     if(calza(al.nombre_visible))return al;
+    // La sigla sale del catálogo de la universidad del alumno, no de la del
+    // profesor: «Ver alumnos» de Ramos busca por ella (Salva Ramos, 2026-11-07).
     const ramos=(al.ramos||[]).filter(r=>calza(r.nombre)||calza(r.sigla)||
-      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r))));
+      (typeof siglaDeRamo==='function'&&calza(siglaDeRamo(r,al.tenant))));
     return ramos.length?{...al,ramos,todosLosRamos:al.todosLosRamos||al.ramos}:null;
   }).filter(Boolean);
+}
+
+async function cargarPercentilesPanel(al,rpc){
+ try{const {data,error}=await rpc('percentiles_alumno',{p_id:al.id});al.percentiles=!error&&Array.isArray(data)?data:[];}catch(e){al.percentiles=[];}
+}
+function percentilEvaluacionPanel(al,r,id,comp){
+ if(comp?.sinSeccion)return null;
+ const f=al.percentiles?.find(x=>x.ramo_id===r.id&&x.nota_id===id),x=f?.[Number.isInteger(comp?.seccion)?'seccion':'ramo'];
+ return x&&Number.isInteger(x.personas)&&x.personas>=5&&Number.isFinite(x.percentil)&&x.percentil>=0&&x.percentil<=100?x.percentil:null;
+}
+function resumenPercentilesPanel(m){
+ const lado=k=>{const xs=(m.evaluaciones||[]).filter(e=>e.lado===k&&Number.isFinite(e.percentil)).map(e=>e.percentil);return {n:xs.length,valor:xs.length>=MIN_EVALS_COMPARACION?mediaPanel(xs):null};};
+ const a=lado('antes'),b=lado('ahora');return {antes:a.valor,ahora:b.valor,cambio:a.valor!==null&&b.valor!==null?b.valor-a.valor:null};
+}
+function percentilesPanelHTML(p,{manual=false,grupo=false}={}){
+ if(!p||p.antes===null||p.ahora===null)return '<p class="clase-privacidad">Percentiles no disponibles: se necesitan dos evaluaciones por grupo con referencias de al menos cinco estudiantes.</p>';
+ const titulo=grupo?'Mediana de percentiles por alumno y ramo':'Posición dentro de GradeHub';
+ return `<section class="panel-percentiles"><h3>${titulo}</h3><p>Del p${Math.round(p.antes)} al p${Math.round(p.ahora)} <b class="${p.cambio>0?'ah-sube':p.cambio<0?'ah-baja':''}">${grupo?'Mediana del cambio: ':''}${p.cambio>0?'↑':p.cambio<0?'↓':'='} ${Math.abs(p.cambio).toFixed(0)} puntos percentiles</b></p>${[[manual?'No preparadas':'Antes',p.antes],[manual?'Preparadas':'Ahora',p.ahora]].map(([titulo,v])=>`<div><span>${titulo} · p${Math.round(v)}</span><progress max="100" value="${v}" aria-label="${titulo}, percentil ${Math.round(v)}"></progress></div>`).join('')}<small>Promedio de posiciones por evaluación; no es una nota ni demuestra causalidad. Empates: rango medio.</small></section>`;
 }

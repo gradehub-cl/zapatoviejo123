@@ -17,18 +17,24 @@ ctx.__semanas=[
   {semana:'2026-10-12',activas:120,nuevas:12,vuelven:80,pct_vuelven:80,activas_estudiantes:110,activas_profesores:10},
   {semana:'2026-10-05',activas:100,nuevas:20,vuelven:70,pct_vuelven:70}];
 const uso=run('crecimientoAdminHTML(__semanas,__ahora)');
-assert.match(uso,/<span>Activas<\/span><strong>120<\/strong><p>Semana del 12 oct · \+20 \(\+20%\) vs\. semana del 5 oct<\/p>/,'compara la última semana cerrada con la anterior');
-assert.match(uso,/<span>Nuevas<\/span><strong>12<\/strong><p>−8 \(−40%\) vs\. semana del 5 oct<\/p>/);
-assert.match(uso,/<span>Volvieron<\/span><strong>80%<\/strong><p>80 de 100 activas la semana anterior<\/p>/);
-assert.match(uso,/<span>Esta semana<\/span><strong>40<\/strong>/,'la semana en curso va aparte, sin comparar');
+assert.match(uso,/<span>Activas<\/span><strong>120<\/strong><small><b class="est-sube">\+20 \(\+20%\)<\/b> vs\. 5 oct<\/small>/,'compara la última semana cerrada con la anterior');
+assert.match(uso,/<span>Nuevas<\/span><strong>12<\/strong><small><b class="est-baja">−8 \(−40%\)<\/b> vs\. 5 oct<\/small>/,'el color solo dice dirección');
+assert.match(uso,/<span>Volvieron<\/span><strong>80%<\/strong><small><b class="est-sube">\+10 pts<\/b> vs\. 5 oct<\/small>/);
+assert.match(uso,/80% · 80 de 100 activas/,'el porcentaje conserva su denominador en la lectura');
+assert.match(uso,/adm-metrica-quieta"><span>Esta semana<\/span><strong>40<\/strong>/,'la semana en curso va aparte, sin comparar ni elegir');
+assert.equal(run('variacionAdmin(9,3).texto'),'antes 3','una base chica no grita');assert.equal(run('variacionAdmin(9,3).clase'),'est-gris');
 const cols=[...uso.matchAll(/<span data-admin-col data-lectura="([^"]*)"([^>]*)><i style="height:([\d.]+)%"/g)].slice(0,3);
-assert.deepEqual(cols.map(c=>c[1]),['Semana del 5 de octubre · 100 activas','Semana del 12 de octubre · 120 activas','Semana del 19 de octubre (en curso) · 40 activas'],'de lo antiguo a lo nuevo');
+assert.deepEqual(cols.map(c=>c[1]),['Semana del 5 de octubre · 100 activas','Semana del 12 de octubre · 120 activas · 110 estudiantes · 10 profesores','Semana del 19 de octubre (en curso) · 40 activas · 35 estudiantes · 5 profesores'],'de lo antiguo a lo nuevo');
 assert.match(cols[1][2],/data-elegida/,'parte elegida la última semana cerrada');assert.match(cols[2][2],/data-tenue/);
 assert.deepEqual(cols.map(c=>c[3]),['50.0','60.0','20.0'],'alto proporcional al tope del eje: 0 · 100 · 200');
 assert.match(uso,/role="img" aria-label="Cuentas activas por semana, gráfico de columnas\./,'el gráfico se describe para VoiceOver');
-const [arriba,historial]=uso.split('admin-crecimiento-historial');
-assert(arriba.includes('35 estudiantes · 5 profesores')&&historial.includes('110 estudiantes · 10 profesores'),
-  'el detalle por semana sigue igual: la primera semana arriba, las demás en el historial');
+const historial=uso.split('admin-crecimiento-historial')[1];
+assert.match(historial,/<th scope="row">12 de octubre<\/th><td class="num">120<\/td><td class="num">110<\/td><td class="num">10<\/td><td class="num">12<\/td><td class="num">80<\/td>/,
+  'la tabla conserva el detalle de cada semana');
+assert.match(historial,/<th scope="row">5 de octubre<\/th><td class="num">100<\/td><td class="num">—<\/td>/,'sin desglose no inventa un cero');
+assert.equal((uso.match(/data-adm-vista="/g)||[]).length,3,'una vista por cifra');
+assert.equal((uso.match(/aria-pressed="true"/g)||[]).length,1,'una sola cifra elegida');
+assert.equal((uso.match(/data-adm-vista="[a-z]+" hidden/g)||[]).length,2,'parte mostrando solo la primera');
 
 // Clases particulares: alcance de 30 días, cobros por mes y anuncios por estado.
 const dia=k=>new Date(ahora-k*864e5).toISOString().slice(0,10);
@@ -42,7 +48,7 @@ ctx.__profesores=[{user_id:'p1',nombre:'Docente sintético',estado:'aprobado',an
 const clases=run('clasesEstadisticasAdminHTML(__profesores,__alcance,__ahora)');
 const vieron=50+80+28*10;
 assert.match(clases,new RegExp(`<span>Vieron un anuncio</span><strong>${run(`milesViz(${vieron})`)}</strong>`),'suma los 30 días');
-assert.match(clases,/<span>Contactaron<\/span><strong>4<\/strong><p>1 ?% de las que lo vieron<\/p>/);
+assert.match(clases,/<span>Contactaron<\/span><strong>4<\/strong><small>1 ?% de las que lo vieron<\/small>/);
 assert.match(clases,/el día con más fue el \d+ de \w+, con 80\./,'el resumen dice el mejor día con su número');
 assert.equal((clases.match(/<tr><th scope="row">/g)||[]).length,30+6,'una fila por día y por mes en las tablas');
 assert.match(clases,/\$5\.000 cobrados en seis meses · \$3\.000 en deuda/,'lo de hace ocho meses no entra');
@@ -57,6 +63,19 @@ const vacio=run('clasesEstadisticasAdminHTML([],__alcance.map(d=>({...d,vieron:0
 assert.match(vacio,/Ningún anuncio se ha mostrado en los últimos 30 días\./);
 assert.match(vacio,/Todavía no hay cobros registrados/);
 assert.doesNotMatch(vacio,/data-admin-col/,'sin datos no hay columnas');
+// Lo que espera una decisión va primero y lleva a donde se resuelve.
+ctx.__pendientes=[...ctx.__profesores,{user_id:'p2',nombre:'Postulante',estado:'pendiente',anuncios:[]}];
+const atencion=run('atencionAdminHTML(__pendientes,__ahora)');
+assert.match(atencion,/data-admin-ir="profesores:pendiente"[^>]*>.*1 postulación/);
+assert.match(atencion,/data-admin-ir="anuncios:revision"[^>]*>.*2 anuncios por revisar/);
+assert.match(atencion,/adm-pendiente-deuda" data-admin-ir="anuncios:cobros"[^>]*>.*\$3\.000 en deuda/);
+assert.equal(run('atencionAdminHTML([],__ahora)'),'','sin pendientes no aparece');
+// Tocar una cifra cambia la vista de su tarjeta, y solo la de su tarjeta.
+const boton=m=>({dataset:{admMetrica:m},attrs:{},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.click=fn;}});
+const botones=[boton('activas'),boton('nuevas')],vistas=['activas','nuevas'].map(v=>({dataset:{admVista:v},hidden:v!=='activas'}));
+ctx.__raiz={querySelectorAll:()=>[{querySelectorAll:s=>s==='[data-adm-metrica]'?botones:vistas}]};
+run('enlazarMetricasAdmin(__raiz)');botones[1].click();
+assert.deepEqual(vistas.map(v=>v.hidden),[true,false]);assert.deepEqual(botones.map(b=>b.attrs['aria-pressed']),['false','true']);
 console.log('PASS admin estadísticas: ejes, semana en curso, alcance, cobros por mes, estados, VoiceOver y estados vacíos');
 
 // Cargamos la misma pieza compartida de app.js, no una copia ni un stub.
@@ -65,15 +84,14 @@ run(anilloCompartido);
 // Los anillos solo dibujan porcentajes válidos; el dato sigue como texto HTML.
 for(const n of [0,12.5,100])assert.match(run(`datoCircularHTML(${n})`),new RegExp(`--anillo-fin:${(100-n).toFixed(2)}`));
 for(const n of ['null','undefined','NaN','Infinity','-1','101'])assert.doesNotMatch(run(`datoCircularHTML(${n},'—','Sin dato')`),/anillo-arco/);
-assert.match(run('crecimientoAdminHTML(__semanas,__ahora)'),/--anillo-fin:20.00/,'retención usa el porcentaje del servidor');
-assert.match(run('clasesEstadisticasAdminHTML(__profesores,__alcance,__ahora)'),/--anillo-fin:94\.12/,'contactos sobre aperturas, con su denominador escrito');
+assert.match(run('crecimientoAdminHTML(__semanas,__ahora)'),/<strong>80%<\/strong>/,'retención usa el porcentaje del servidor');
+assert.match(run('clasesEstadisticasAdminHTML(__profesores,__alcance,__ahora)'),/<strong>6 ?%<\/strong><span>de abrir a contactar<\/span>/,'contactos sobre aperturas');
 const antes=JSON.stringify(ctx.__semanas);
 run('crecimientoAdminHTML(__semanas,__ahora)');assert.equal(JSON.stringify(ctx.__semanas),antes);
 for(const pct of [0,100,null]){
  ctx.__pct=pct;const html=run('graficosCrecimientoAdminHTML([{...__semanas[1],pct_vuelven:__pct},__semanas[2]],__ahora)');
  assert.match(html,new RegExp(`>${pct===null?'—':pct+'%'}<`));
- assert.equal(html.includes('class="anillo'),pct!==null);
-}
+ }
 // No confundir eventos con personas: las barras comparan solo personas,
 // conservando aparte los eventos y la ausencia de datos.
 ctx.__medida={alcance:70,totales:{impresion:150,clic:40,contacto:20},hayCortes:true,eventos:{desde:"2026-11-01T12:00:00Z",impresion:150,clic:40,contacto:20},campana:{vistas:100,aperturas:25,contactos:5},costo:null};
@@ -145,12 +163,3 @@ const sinReferencia=run("comparacionPromediosPanelHTML(4,null,'uc')");
 assert.match(sinReferencia,/GradeHub: aún pocos datos/);assert.doesNotMatch(sinReferencia,/class="panel-curso-referencia"/);
 assert.equal(run("comparacionPromediosPanelHTML(null,null,'uc')"),'');
 console.log('PASS detalle visual: escala de eventos, canales, tope, tiempo, privacidad diaria, tablas y comparación de notas');
-
-// Los riesgos de distintos ramos se pueden superponer. Son dos proporciones
-// independientes sobre todos los conectados; nunca partes apiladas de un total.
-ctx.__inicio={conectados:10,semana:[],atencion:[],reprobando:4,alBorde:7};
-const inicio=run('resumenInicioAlumnosHTML(__inicio)');
-assert.match(inicio,/panel-riesgo-bad[\s\S]*?scaleX\(0.4000\)/);
-assert.match(inicio,/panel-riesgo-warn[\s\S]*?scaleX\(0.7000\)/);
-assert.doesNotMatch(inicio,/Un alumno puede estar al borde en un ramo y reprobando otro/);
-assert.doesNotMatch(run('resumenInicioAlumnosHTML({...__inicio,conectados:0,reprobando:0,alBorde:0})'),/panel-riesgo-riel/);

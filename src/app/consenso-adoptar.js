@@ -1,8 +1,18 @@
 
 async function consensoParaRamo(r){
   if(esCuentaProfesor())return null;
+  const sugerida=r.pautaSugerida?.aceptada;
+  const estado=S,usuario=typeof currentUser!=='undefined'&&currentUser?.id;
+  const ctx=sugerida?JSON.stringify(contextoPautaSugerida(r)):null;
+  const puedeOfrecer=()=>!sugerida||(S===estado&&usuario===currentUser?.id&&
+    S.ramos.includes(r)&&pautaSugeridaEnFicha(r)&&pautaSugeridaIntacta(r)&&
+    JSON.stringify(contextoPautaSugerida(r))===ctx&&!cambioDePauta(r));
+  if(!puedeOfrecer())return null;
   const cons=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
-  if(!cons)return null;
+  if(!cons||!puedeOfrecer())return null;
+  if(sugerida&&actualizarProcedenciaSugerida(r,cons)){
+    save();renderRamo();return null;
+  }
   const mia=estructuraParaConsenso(estructuraDe(r));
   // Las dos se comparan acá, con las mismas funciones: comparar contra
   // `c.huella`, que calcula el servidor, ofrecería como "otra pauta" la misma
@@ -70,7 +80,9 @@ async function pintarConsensoDisponible(r){
   const el=document.getElementById('consenso-disponible');
   if(!el)return;
   el.style.display='none';el.innerHTML='';
-  if(!r||!r.categorias||!r.categorias.length)return;
+  ++consultaPautaSugerida;
+  if(!r)return;
+  if(!r.categorias?.length)return pintarPautaSugerida(r,el);
   const hit=await consensoParaRamo(r);
   // El await deja pasar tiempo: si el estudiante ya se fue a otro ramo, no se
   // le pinta el aviso del anterior encima.
@@ -112,8 +124,13 @@ async function verConsensoDisponible(ramoId){
 function adoptarConsensoEnRamo(r,hit){
   const pauta=pautaDeConsenso(hit&&hit.estructura);
   if(!pauta.categorias.length)return false;
+  const veniaDeSugerencia=!!r.pautaSugerida?.aceptada;
   const ids=fusionarPauta(r,pauta.categorias);
   r.gates=traducirIdsCategoria(pauta.gates,ids);
+  if(veniaDeSugerencia){
+    quitarProcedenciaSugerida(r);
+    r.pautaHuella=huellaPauta(catsDePauta(r.categorias));
+  }
   // `pautaHuella` NO se actualiza, y es a propósito. Sigue apuntando a la que
   // le dimos nosotros, así que la pauta adoptada queda distinta de esa y
   // cambioDePauta() la lee como lo que es: una decisión del estudiante, que

@@ -36,6 +36,43 @@ async function compartirInvitacionAlumnos(link){
     return 'copiado';
   }catch(e){return 'fallo';}
 }
+// Invitar (Salva Ramos, 2026-11-03: «invitar cuesta»). El mensaje se ve tal como
+// le llega al alumno, se manda en un toque y al lado se ve si está funcionando.
+// Sin cuenta no se puede compartir notas: Lucas ya lo descartó.
+function whatsappInvitacionAlumnos(link){return `https://wa.me/?text=${encodeURIComponent(`${mensajeInvitacionAlumnos()}\n${link}`)}`;}
+function progresoInvitacionPanel(alumnos,ahora=Date.now()){
+  const lista=alumnos||[],desde=ahora-7*864e5;
+  return {total:lista.length,semana:lista.filter(al=>Date.parse(al.desde)>=desde).length,ramos:lista.reduce((n,al)=>n+(al.ramos||[]).length,0)};
+}
+function invitacionAlumnosHTML({link,codigo,alumnos,ahora=Date.now()}){
+  const p=progresoInvitacionPanel(alumnos,ahora),nativo=typeof navigator!=='undefined'&&typeof navigator.share==='function';
+  const pasos=['Abre tu link','Elige qué ramos compartir','Ves sus notas en Alumnos'];
+  return `<div class="est inv">
+    <div class="inv-grilla">
+      <section class="est-tarjeta-grande inv-enviar">
+        <h2>${p.total?'Invita a más alumnos':'Invita a tu primer alumno'}</h2>
+        <div class="inv-mensaje"><p>${esc(mensajeInvitacionAlumnos())}</p><code id="alumnos-link">${esc(link)}</code></div>
+        <div class="inv-acciones">
+          <a class="inv-principal" id="alumnos-whatsapp" href="${esc(whatsappInvitacionAlumnos(link))}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+          <button type="button" class="est-control" id="alumnos-compartir">${nativo?'Compartir invitación':'Copiar invitación'}</button>
+          <button type="button" class="est-control" id="alumnos-copiar">Copiar link</button>
+        </div>
+      </section>
+      <aside class="est-tarjeta-grande inv-progreso" aria-label="Alumnos conectados">
+        <span>Conectados</span><strong>${milesViz(p.total)}</strong>
+        <small>${p.total?`<b class="${p.semana?'est-sube':'est-gris'}">${p.semana?'+'+milesViz(p.semana):'Ninguno'}</b> esta semana · ${milesViz(p.ramos)} ${p.ramos===1?'ramo':'ramos'}`:'Aparecen acá cuando aceptan'}</small>
+        <h3>Qué hace tu alumno</h3>
+        <ol>${pasos.map(t=>`<li>${t}</li>`).join('')}</ol>
+        <p>Tu alumno elige qué compartir y puede dejar de hacerlo cuando quiera.</p>
+      </aside>
+    </div>
+    <div class="inv-pie">
+      <span>Tu código <strong>${esc(codigo)}</strong></span>
+      <button type="button" id="alumnos-renovar" title="El link actual deja de funcionar. Tus alumnos actuales siguen conectados.">Cambiar link</button>
+      <span class="inv-pie-fin">Piloto gratis: por ahora no se cobra.</span>
+    </div>
+  </div>`;
+}
 function medirInvitacionCompartida(resultado){
   if(resultado==='compartido')track('panel_alumnos_link_compartido');
   if(resultado==='copiado')track('panel_alumnos_link_copiado');
@@ -77,6 +114,11 @@ let invitacionProfeAbierta=false;
 async function revisarInvitacionProfesor(){
   const codigo=profePendiente();
   if(!codigo||invitacionProfeAbierta||!supabaseClient||!currentUser||!S.onboardingDone)return false;
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){
+    olvidarProfePendiente();
+    showToast('Este link es para alumnos. Ábrelo con una cuenta de estudiante.',true);
+    return false;
+  }
   const uid=currentUser.id;
   invitacionProfeAbierta=true;
   try{
@@ -181,6 +223,8 @@ function abrirHojaInvitacionProfesor(codigo,profe,compartido=null){
 }
 
 async function compartirConProfesor(codigo,nombre,ramos){
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())
+    return {ok:false,error:'Este link es para alumnos. Ábrelo con una cuenta de estudiante.'};
   const pedir=()=>supabaseClient.rpc('compartir_con_profesor',{p_codigo:codigo,p_nombre:String(nombre||'').trim(),p_ramos:ramos});
   try{
     let {error}=await pedir();
@@ -215,9 +259,11 @@ async function pintarCompartidosProfesor(){
     const ramos=(p.ramos||[]).map(nombreRamo).filter(Boolean);
     return `<div class="compartido-fila" data-compartido="${esc(p.id)}">
       <div><b>${esc(p.nombre_publico)}</b><small>${ramos.length?esc(ramos.join(' · ')):'Ramos que ya no tienes'} · como «${esc(p.nombre_visible)}»</small></div>
+      <button type="button" class="agent-refresh" data-ver-preparacion="${esc(p.id)}">Ver evaluaciones preparadas</button>
       <button type="button" class="settings-danger-btn" data-dejar="${esc(p.id)}" data-nombre="${esc(p.nombre_publico)}">Dejar de compartir</button>
     </div>`;
   }).join('');
+  caja.querySelectorAll('[data-ver-preparacion]').forEach(b=>b.addEventListener('click',()=>verPreparacionCompartida(b.dataset.verPreparacion)));
   // Destructivo: se confirma en el diálogo de la app (HIG), con Cancelar a mano.
   caja.querySelectorAll('[data-dejar]').forEach(b=>b.addEventListener('click',()=>{
     showConfirm(`Dejar de compartir con ${b.dataset.nombre}`,

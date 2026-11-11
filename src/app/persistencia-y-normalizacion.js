@@ -332,7 +332,7 @@ function normalize(data) {
     // De qué catálogo (universidad + carrera) salió este ramo. null = creado a mano.
     origen: (r.origen && r.origen.tenant) ? {tenant:r.origen.tenant, carrera:r.origen.carrera||null, ramoKey:claveCanonica(typeof r.origen.ramoKey==='string'&&r.origen.ramoKey.trim()?r.origen.ramoKey.trim():ramoKey(r.nombre,r.origen.tenant,r.origen.carrera),r.origen.tenant,r.origen.carrera)} : null,
     // Otro ramo aporta parte de esta nota (el laboratorio de Dinámica).
-    aporta: (r.aporta && r.aporta.ramo && r.aporta.peso) ? {ramo:r.aporta.ramo, peso:r.aporta.peso, min:r.aporta.min} : null,
+    aporta: (r.aporta && r.aporta.ramo && r.aporta.peso) ? {ramo:r.aporta.ramo, ...(typeof r.aporta.sigla==='string'?{sigla:r.aporta.sigla}:{}), peso:r.aporta.peso, min:r.aporta.min} : null,
     // La forma de la pauta tal como se la dimos. Si difiere de las categorías
     // actuales, el estudiante la editó y su versión manda.
     pautaHuella: typeof r.pautaHuella === 'string' ? r.pautaHuella : null,
@@ -452,7 +452,16 @@ function normalize(data) {
   // para siempre, aunque su pauta ya estuviera publicada. No falla nada: el
   // ramo simplemente nunca se entera. Por eso se rellena al cargar.
   data.ramos.forEach(r => {
+    const sugerida=copiarPautaSugerida(r.pautaSugerida);
+    if(sugerida)r.pautaSugerida=sugerida;
+    else delete r.pautaSugerida;
     migrarOrigenesFecha(r);
+    if(sugerida?.aceptada){
+      // El programa que llegue después se ofrece en la ficha. No se injertan
+      // reglas ni fechas antes de la confirmación, aunque los pesos coincidan.
+      sellarDatosCatalogo(r,r.origen?.tenant);
+      return;
+    }
     repararEvaluacionesRepetidas(r);
     const p = pautaPendiente(r);
     if (p) { r.categorias = p.categorias; r.gates = p.gates; r.aporta = p.aporta || null; r.promedioParcial = p.promedioParcial || null; r.recuperativo = p.recuperativo || null; r.reemplazosOptativos=p.reemplazosOptativos||null; r.reglasAusenciaJustificada=p.reglasAusenciaJustificada||null; r.bonus=p.bonus||null; r.pautaHuella = huellaPauta(p.categorias); }
@@ -477,7 +486,7 @@ function normalize(data) {
     // Solo las de una evaluación con ese mínimo y ese tope exactos.
     const retiradas = definicionPresetDelRamo(r)?.retiraCompuertas;
     if (Array.isArray(retiradas) && Array.isArray(r.gates)) {
-      r.gates = r.gates.filter(gt => !(gt && gt.type === 'min_grade_required'
+      r.gates = r.gates.filter(gt => !(gt && gt.origen !== 'editor' && gt.type === 'min_grade_required'
         && retiradas.some(x => x && x.min === gt.min && x.cap === gt.cap)));
     }
     // La regla es aditiva y no cambia ningún promedio sin una declaración. Así

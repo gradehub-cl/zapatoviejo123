@@ -177,7 +177,54 @@ function fusionarObjetoSync(b,l,n,gana){
     else if(k in l){if(!(k in b&&igualSync(l[k],b[k])))out[k]=l[k];}  // la nube lo quitó sin que acá se tocara: se va
     else if(!(k in b&&igualSync(n[k],b[k])))out[k]=n[k];
   }
+  if(Array.isArray(l.categorias)&&Array.isArray(n.categorias)&&(l.pautaSugerida||n.pautaSugerida||b.pautaSugerida))
+    conciliarPautaSugeridaSync(b,l,n,out,gana);
   return out;
+}
+
+// Una aceptación y otra pauta agregadas sobre la misma base vacía no son
+// evaluaciones independientes: unirlas daría dos pautas que suman 200%.
+function conciliarPautaSugeridaSync(b,l,n,out,gana){
+  const desc=Math.max(b.pautaSugerida?.descartada||0,l.pautaSugerida?.descartada||0,n.pautaSugerida?.descartada||0);
+  const firma=r=>JSON.stringify([firmaPautaSugerida(r),catsDePauta(r.categorias).map(c=>c.id)]);
+  const local=firma(l),nube=firma(n),base=firma(b);
+  const contextoCambiado=r=>{
+    const a=r.pautaSugerida?.aceptada;
+    return a&&a.firma!==b.pautaSugerida?.aceptada?.firma&&
+      (seccionReporte(out)!==a.seccion||(out.periodo&&out.periodo!==a.periodo));
+  };
+  const contextoLocal=contextoCambiado(l),contextoNube=contextoCambiado(n);
+  const conflicto=local!==nube&&local!==base&&nube!==base&&
+    (b.pautaSugerida?.aceptada||l.pautaSugerida?.aceptada||n.pautaSugerida?.aceptada);
+  if(conflicto||contextoLocal||contextoNube){
+    const sugeridaLocal=pautaSugeridaIntacta(l),sugeridaNube=pautaSugeridaIntacta(n);
+    let elegida=gana==='local'?l:n;
+    if(contextoLocal&&contextoNube)elegida=b;
+    else if(contextoLocal)elegida=n;
+    else if(contextoNube)elegida=l;
+    else if(sugeridaLocal!==sugeridaNube)elegida=sugeridaLocal?n:l;
+    const porId=new Map(out.categorias.map(c=>[c.id,c]));
+    const usadas=new Set((elegida.categorias||[]).map(c=>c.id));
+    const conservadas=(elegida.categorias||[]).map(c=>{
+      const fusionada=porId.get(c.id);
+      if(!fusionada)return c;
+      const resultado={...c,notas:fusionada.notas};
+      for(const campo of ['fecha','hora','fechaOrigen','horaOrigen','fechaQuitada','horaQuitada']){
+        if(campo in fusionada)resultado[campo]=fusionada[campo];
+        else delete resultado[campo];
+      }
+      return resultado;
+    });
+    for(const c of out.categorias){
+      if(!usadas.has(c.id)&&c.notas?.length)conservadas.push({...c,peso:0,fueraDePauta:true});
+    }
+    out.categorias=conservadas;
+    for(const campo of ['gates','pautaHuella','consensoRespaldos','consensoAportado','seccionAportada','pautaSugerida']){
+      if(campo in elegida)out[campo]=elegida[campo];
+      else delete out[campo];
+    }
+  }
+  if(desc)out.pautaSugerida={...out.pautaSugerida,descartada:desc};
 }
 // Ramos, categorías, notas y semestres archivados se emparejan por id. El
 // orden es el de este dispositivo; lo que llegó de otro va al final.

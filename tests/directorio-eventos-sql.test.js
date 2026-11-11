@@ -1,0 +1,72 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{PGlite}=require('@electric-sql/pglite');
+const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8'),u=i=>`00000000-0000-4000-8000-${String(i).padStart(12,'0')}`;
+const P=u(1),OTRO=u(2),ADMIN=u(3),V=u(4),V2=u(5);
+(async()=>{const db=new PGlite();try{
+ await db.exec(read('bin/supabase-stubs.sql'));
+ await db.exec(`create function auth.jwt() returns jsonb language sql stable as $$ select jsonb_build_object('aal',current_setting('test.aal',true)) $$;create table user_ramos(user_id uuid);`);
+ for(const f of ['clases_particulares','perfil_profesor','admin_clases','administradores','directorio_perfiles'])await db.exec(read('supabase/'+f+'.sql'));
+ await db.query('insert into auth.users(id) values($1),($2),($3),($4),($5)',[P,OTRO,ADMIN,V,V2]);
+ await db.query('insert into user_ramos values($1),($2),($3)',[V,V2,P]);await db.query('insert into admin.administradores(user_id) values($1)',[ADMIN]);
+ const crear=async id=>db.query(`insert into tutor_perfiles(user_id,nombre_publico,presentacion,estado,revisado_at,universidades,categorias,etiqueta,color_tarjeta,en_directorio) values($1,'Profe de ejemplo','Perfil sintético de una academia de ejemplo','aprobado',now(),array['uc'],array['clases'],'Clases ficticias','#777777',true) returning directorio_id`,[id]);
+ const id=(await crear(P)).rows[0].directorio_id;await crear(OTRO);
+ const sesion=async(uid,aal='aal1')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('test.aal',$2,false)",[uid,aal]);await db.exec('set role authenticated')};
+ let i=100;const evento=async(tipo='vista',eid=u(++i))=>(await db.query('select registrar_evento_perfil($1,$2,$3,$4) ok',[id,'uc',tipo,eid])).rows[0].ok;
+ const totales=async()=>{await db.exec('reset role');return (await db.query('select vistas,aperturas,contactos from perfil_eventos_diarios order by dia')).rows};
+ await sesion(V);const recibo=u(++i);assert.equal(await evento('vista',recibo),true);assert.equal(await evento('vista',recibo),false);
+ for(let n=0;n<3;n++)assert.equal(await evento(),true);assert.equal(await evento(),false,'quinta vista no suma');
+ assert.equal(await evento('apertura'),true);assert.equal(await evento('apertura'),true);assert.equal(await evento('apertura'),false);
+ assert.equal(await evento('contacto'),true);assert.equal(await evento('contacto'),false);
+ assert.deepEqual(await totales(),[{vistas:4,aperturas:2,contactos:1}]);
+ // Simula recibos del día anterior: el cupo de hoy vuelve a estar disponible.
+ await db.query("update perfil_eventos_recibos set creado_at=now()-interval '1 day'");await sesion(V);assert.equal(await evento(),true);
+ await db.exec('reset role');await db.exec(read('supabase/directorio_perfiles.sql'));assert.equal((await totales())[0].vistas,5,'reaplicar conserva métricas');
+ await sesion(P);assert.equal(await evento(),false,'no cuenta al dueño');let m=(await db.query('select resumen_directorio_perfil() m')).rows[0].m;assert.equal(m.vistas,null,'umbral 15');
+ await assert.rejects(db.query('select * from perfil_eventos_diarios'));
+ await assert.rejects(db.query('update perfil_eventos_diarios set vistas=999'));
+ await assert.rejects(db.query('insert into perfil_eventos_diarios(perfil) values($1)',[P]));await assert.rejects(db.query('select * from perfil_eventos_recibos'));
+ await sesion(OTRO);await assert.rejects(db.query('select resumen_directorio_perfil($1)',[id]));
+ await sesion(ADMIN);assert.equal(await evento(),false);await assert.rejects(db.query('select resumen_directorio_perfil($1)',[id]));
+ await sesion(ADMIN,'aal2');m=(await db.query('select resumen_directorio_perfil($1) m',[id])).rows[0].m;assert.equal(m.vistas,5);assert.equal(m.contactos,1);
+ const admin=(await db.query('select admin_metricas_directorio() m')).rows[0].m;assert(admin.some(p=>p.user_id===P&&p.metricas.vistas===5));
+ // Una misma cuenta puede usar cada canal sin inflar Contactos ni cobros.
+ await db.exec('reset role');await db.query("update perfil_eventos_recibos set creado_at=now() where tipo='contacto'");
+ await db.exec('reset role');await db.query("update tutor_perfiles set contacto_tipo='whatsapp',contacto_valor='+56912345678',instagram='ejemplo',sitio_web='https://example.invalid' where user_id=$1",[P]);
+ await sesion(V);
+ const canal=async(c,anuncio=null,eid=u(++i))=>(await db.query('select registrar_evento_perfil_apoyo($1,$2,$3,$4,$5,$6) ok',[id,'uc','contacto',eid,c,anuncio])).rows[0].ok;
+ for(const c of ['whatsapp','instagram','web']){assert.equal(await canal(c),true,c);assert.equal(await canal(c),false,'el cupo del canal no se reintenta');}
+ assert.equal(await canal('email'),false,'no mide un canal que no existe');
+ await assert.rejects(canal('inventado'));
+ await db.exec('reset role');let canales=(await db.query('select contactos,whatsapp,instagram,web,email from perfil_eventos_diarios')).rows[0];
+ assert.deepEqual(canales,{contactos:1,whatsapp:1,instagram:1,web:1,email:0},'el contacto histórico cuenta una sola vez; los tres canales tienen su propio contador');
+ const recibos=(await db.query('select count(*) n from perfil_eventos_recibos')).rows[0].n;
+ await sesion(V);assert.equal(await canal('web'),false);await db.exec('reset role');assert.equal((await db.query('select count(*) n from perfil_eventos_recibos')).rows[0].n,recibos,'false no escribe recibos');
+ // La ficha de un anuncio conserva su consentimiento independiente del directorio.
+ const anuncio=u(900);await db.query(`insert into tutor_anuncios(id,autor_id,tenant,ramos_siglas,precio_clp,descripcion,contacto_tipo,contacto_valor,titulo,estado,revisado_at,pagado_at,publicado_at,vence_at)
+ values($1,$2,'uc',array['SYN101'],12000,'Descripción sintética para probar un perfil','whatsapp','+56912345678','Ejemplo','publicado',now(),now(),now(),now()+interval '1 day')`,[anuncio,P]);
+ await db.query("update tutor_perfiles set en_directorio=false,perfil_publico=true,contacto_tipo='email',contacto_valor='prueba@example.invalid' where user_id=$1",[P]);
+ await sesion(V);assert.equal((await db.query('select contacto_perfil_apoyo($1,$2) p',[id,'uc'])).rows[0].p,null);
+ let publico=(await db.query('select perfil_apoyo_de_anuncio($1,$2) p',[anuncio,'uc'])).rows[0].p;
+ assert.equal(publico.id,id);assert.equal(publico.contacto_valor,null);assert(!JSON.stringify(publico).includes(P),'no devuelve uid');
+ assert.equal((await db.query('select contacto_perfil_apoyo($1,$2,$3) p',[id,'uc',anuncio])).rows[0].p.valor,'prueba@example.invalid');
+ assert.equal(await canal('email'),false,'sin consentimiento de directorio hace falta el anuncio');assert.equal(await canal('email',anuncio),true);
+ assert.equal((await db.query('select perfil_apoyo_de_anuncio($1,$2) p',[anuncio,'udd'])).rows[0].p,null,'no cruza universidades');
+ await db.exec('reset role');await db.query("update tutor_anuncios set estado='pausado' where id=$1",[anuncio]);await sesion(V);
+ assert.equal((await db.query('select perfil_apoyo_de_anuncio($1,$2) p',[anuncio,'uc'])).rows[0].p,null,'no devuelve perfiles de anuncios pausados');
+ assert.equal((await db.query('select contacto_perfil_apoyo($1,$2,$3) p',[id,'uc',anuncio])).rows[0].p,null,'el contacto se revoca también');
+ await assert.rejects(db.query('select admin.perfil_apoyo_visible($1,$2,$3)',[P,'uc',anuncio]),'helper privado');
+ await db.exec('reset role');await db.exec('set role anon');await assert.rejects(db.query('select perfil_apoyo_de_anuncio($1,$2)',[anuncio,'uc']));await db.exec('reset role');
+ await db.query('update tutor_perfiles set en_directorio=true where user_id=$1',[P]);
+ await db.exec(read('supabase/directorio_perfiles.sql'));canales=(await db.query('select contactos,whatsapp,instagram,web,email from perfil_eventos_diarios')).rows[0];
+ assert.deepEqual(canales,{contactos:1,whatsapp:1,instagram:1,web:1,email:1},'reaplicar no borra totales ni atribución');
+ await sesion(P);m=(await db.query('select resumen_directorio_perfil() m')).rows[0].m;assert.equal(m.canales.web,null,'el umbral se aplica también a cada canal');
+ await sesion(ADMIN,'aal2');m=(await db.query('select resumen_directorio_perfil($1) m',[id])).rows[0].m;assert.equal(m.canales.web,1);
+ await db.exec('reset role');await db.query('update perfil_eventos_diarios set vistas=15 where perfil=$1',[P]);await sesion(P);assert.equal((await db.query('select resumen_directorio_perfil() m')).rows[0].m.vistas,15);
+ await db.exec('reset role');await db.query('update tutor_perfiles set en_directorio=false where user_id=$1',[P]);await sesion(V2);assert.equal(await evento(),false);
+ await db.exec('reset role');await db.query("update tutor_perfiles set en_directorio=true,estado='suspendido' where user_id=$1",[P]);await sesion(V2);assert.equal(await evento(),false);
+ await db.exec('reset role');await db.query('delete from auth.users where id=$1',[V]);assert.equal((await db.query('select * from perfil_eventos_recibos')).rows.length,0,'cascade del visitante');assert.equal((await db.query('select * from perfil_eventos_diarios')).rows.length,1,'agregado anónimo conservado');
+ await db.query("update tutor_perfiles set estado='aprobado',en_directorio=true where user_id=$1",[P]);await sesion(V2);assert.equal(await evento(),true);await db.exec('reset role');
+ await db.query('delete from auth.users where id=$1',[P]);assert.equal((await db.query('select * from perfil_eventos_recibos')).rows.length,0,'los recibos de otro visitante también se borran con el dueño');assert.equal((await db.query('select * from perfil_eventos_diarios')).rows.length,0,'cascade del dueño');
+ const tablas=(await db.query("select relname,relrowsecurity from pg_class where relname in ('perfil_eventos_diarios','perfil_eventos_recibos')")).rows;assert(tablas.every(t=>t.relrowsecurity));
+ assert.equal((await db.query('select count(*) n from anuncio_metricas')).rows[0].n,0,'no cambia facturación ni eventos de anuncios');
+ console.log('PASS: PGlite cupos/idempotencia/día, reaplicable, umbral, aislamiento, MFA, revocación de consentimiento y dos cascadas');
+}finally{await db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

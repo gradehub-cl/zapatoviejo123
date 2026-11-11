@@ -9,8 +9,8 @@
 //
 // `noCalcula` — reglas que el motor TODAVÍA no sabe representar y que sí va a
 // saber. Es una deuda nuestra con fecha de vencimiento. Cuando se implementan,
-// salen de acá (así salió "se elimina el 25% de los controles", que hoy calcula
-// `dropLowest`).
+// salen de acá (así salió "se elimina el 25% de los controles", que hoy declara
+// `dropLowest`; en la FEN la nota la borra el estudiante: `descarte_manual`).
 //
 // `reglasDelCurso` — reglas del programa que el promedio NUNCA va a incluir,
 // porque dependen de información que la app no puede tener: un dato que el
@@ -105,25 +105,32 @@ const PRESETS_FEN={
     // El ajuste sale de cómo te evalúan tus compañeros: es un dato que solo
     // existe cuando el curso lo entrega. La app no puede anticiparlo.
     reglasDelCurso:['La nota del trabajo grupal se ajusta ±10 décimas según la evaluación entre compañeros'],
-    // El programa desglosa el 30% del trabajo en grupo y el 20% de participación
-    // en partes con nombre y peso PROPIOS (10/60/30 y 25/50/25 de su bloque). Una
-    // casilla agrupada las promediaría a partes iguales, que no es lo que dice el
-    // programa: van en filas propias con el peso ya llevado al total del ramo.
+    // El programa desglosa el 30% del trabajo en grupo en partes con nombre y peso
+    // PROPIOS (10/60/30 de su bloque). Una casilla agrupada las promediaría a
+    // partes iguales, que no es lo que dice el programa: van en filas propias con
+    // el peso ya llevado al total del ramo.
+    //
+    // El 20% de participación también viene desglosado (25/50/25), pero en la
+    // práctica es una sola nota: Martín lo confirmó el 2026-11-03 con quienes
+    // tienen el ramo. `nombresAnteriores` lleva los pesos de las filas antiguas
+    // para que aceptar esta pauta no mueva el promedio de quien ya las llenó.
     // Casos y ensayos NO lleva slots: el programa nunca dice cuántos son.
     evals:[
       ['Casos y ensayos',40],
       ['Trabajo en grupo: Propuesta',3],
       ['Trabajo en grupo: Experiencia de aprendizaje',18],
       ['Trabajo en grupo: Informe Final',9],
-      ['Participación: Asistencia a ayudantías y reuniones',5],
-      ['Participación: Contribuciones en clases',10],
-      ['Participación: Asistencia a clases',5],
+      ['Participación',20,{nombresAnteriores:[
+        {nombre:'Participación: Asistencia a ayudantías y reuniones',peso:5},
+        {nombre:'Participación: Contribuciones en clases',peso:10},
+        {nombre:'Participación: Asistencia a clases',peso:5},
+      ]}],
       ['Examen Integrativo',10],
     ],
     // "Si alguno de los requisitos no se cumple, la nota final será la más baja
     //  entre los dos" → dos compuertas de grupo con tope en su propio promedio.
     grupos:[
-      {nombre:'Trabajo individual',evals:['Casos y ensayos','Participación: Asistencia a ayudantías y reuniones','Participación: Contribuciones en clases','Participación: Asistencia a clases','Examen Integrativo'],min:4.0,cap:'self'},
+      {nombre:'Trabajo individual',evals:['Casos y ensayos','Participación','Examen Integrativo'],min:4.0,cap:'self'},
       {nombre:'Trabajo de grupo',evals:['Trabajo en grupo: Propuesta','Trabajo en grupo: Experiencia de aprendizaje','Trabajo en grupo: Informe Final'],min:4.0,cap:'self'},
     ],
   },
@@ -167,7 +174,8 @@ const PRESETS_FEN={
     periodo:'2026-2',
     creditos:6,
     // "Se elimina el 25% de los controles sorpresa rendidos" salió de noCalcula:
-    // el motor ya lo aplica vía `dropLowest`. El 75% de asistencia NO se puede
+    // `dropLowest` lo declara y en la FEN lo aplica cada estudiante borrando su
+    // nota (`descarte_manual`); la ficha lo avisa. El 75% de asistencia NO se puede
     // calcular y se queda: el programa dice "entre 4 y 6 controles", así que no
     // existe el denominador contra el cual medir el 75%.
     // Sin noCalcula: no queda ninguna regla pendiente de implementar.
@@ -392,7 +400,7 @@ const PRESETS_FEN={
   // — el resto de la pauta es igual para todas. Aunque aparezca el cronograma
   // completo de una sección, ese número no sirve para las demás, así que esta
   // fila se queda sin `slots` para siempre y el estudiante agrega los que le
-  // tomaron. `dropLowest` funciona igual con los que agregue.
+  // tomaron. El aviso de `dropLowest` sirve igual con los que agregue.
   'Gestión y Empresas':{
     noCalcula:[
       'Toda ausencia a una exigencia del curso se califica con 1,0',

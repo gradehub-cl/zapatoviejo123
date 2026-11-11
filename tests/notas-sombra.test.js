@@ -62,15 +62,86 @@ assert.equal(cargar(curso([cat('Completa',100,5)])),null);assert.equal(cargar(cu
 {
   const chip=el(),getById=ctx.document.getElementById;ctx.document.getElementById=id=>id==='ramo-min-chip'?chip:stub;
   m=cargar(curso([cat('Rendida',50,5.2),cat('Trabajo',20),cat('Examen',30)],{gates:[{type:'min_grade_required',catId:'Examen',min:3.5,cap:3.9}]}));
+  // Lucas, 2026-11-07: con sombras el mensaje de arriba sigue hablando de las notas reales.
+  chip.innerHTML='Necesitas <strong>4,6</strong> en lo pendiente para aprobar';
   ctx.__m=m;run('pintarMetaNotasSombra(__m)');
-  assert.match(chip.innerHTML,/Necesitas <strong[^>]*>1,5<\/strong> en las otras pendientes para aprobar/);
+  assert.match(chip.innerHTML,/^Necesitas <strong>4,6<\/strong> en lo pendiente para aprobar/);
+  assert.doesNotMatch(chip.innerHTML,/1,5/);
   ctx.__m={...m,estado:'no',necesaria:null};run('pintarMetaNotasSombra(__m)');
-  assert.match(chip.innerHTML,/Ya no es posible aprobar/);
+  assert.doesNotMatch(chip.innerHTML,/Ya no es posible aprobar/);
   ctx.document.getElementById=getById;
 }
 // El examen se muestra al final sin reordenar la pauta guardada.
 ctx.__cats=[cat('Examen',30),cat('Laboratorio',20),cat('Interrogación 1',50)];
 assert.deepEqual(json('ordenCategoriasFicha(__cats).map(c=>c.nombre)'),['Laboratorio','Interrogación 1','Examen']);
 assert.equal(run('__cats[0].nombre'),'Examen');
+// Lucas, 2026-11-03: el slider solo en el examen. Tocar otra sombra abre la nota real.
+m=cargar(curso([cat('Rendida',20,3.2),cat('Prueba pendiente',40),cat('Examen',40)]));ctx.__m={...m,sesion:{abierta:null}};
+const botonPrueba=run("botonNotaSombraHTML(__m,__m.pendientes.find(p=>p.nombre==='Prueba pendiente'))"),botonExamen=run("botonNotaSombraHTML(__m,__m.pendientes.find(p=>p.nombre==='Examen'))");
+assert(!botonPrueba.includes('aria-expanded')&&!botonPrueba.includes('fijar'),'la prueba no ofrece fijar');
+assert(botonExamen.includes('aria-expanded="false"')&&botonExamen.includes('fijar o anotar'),'el examen sí');
+run("var __abiertas=[];var __renders=0;var __abrirReal=abrirNotaEnFila,__render=renderRamo;abrirNotaEnFila=b=>__abiertas.push(b.dataset.sombraClave);renderRamo=()=>__renders++;currentRamoId=r.id;");
+ctx.__clave=porNombre(m,'Prueba pendiente').clave;
+run("var __sesion=notasSombraDelRamo(r).sesion;__sesion.abierta=null;abrirSombraEnFila({dataset:{sombraClave:__clave}})");
+assert.deepEqual(json('__abiertas'),[ctx.__clave]);assert.equal(run('__renders'),0);assert.equal(run('__sesion.abierta'),null,'no abre el panel en la prueba');
+ctx.__clave=porNombre(m,'Examen').clave;run("abrirSombraEnFila({dataset:{sombraClave:__clave}})");
+assert.equal(run('__sesion.abierta'),ctx.__clave);assert.equal(run('__renders'),1);
+run('abrirNotaEnFila=__abrirReal;renderRamo=__render;');
+// Lucas, 2026-11-03: apagar es una preferencia del dispositivo; las fijaciones
+// siguen vivas en la sesión y el modelo permanece disponible para el switch.
+m=cargar(curso([cat('Rendida',20,3.2),cat('Prueba pendiente',40),cat('Examen',40)]));
+run("currentRamoId=r.id;var __sesionSwitch=notasSombraDelRamo(r).sesion;var __examen=notasSombraDelRamo(r).pendientes.find(p=>p.nombre==='Examen');__sesionSwitch.fijas.set(__examen.clave,6);var __conFijas=notasSombraDelRamo(r);");
+const previoSwitch=run('JSON.stringify(S)'),necesariaFijada=run('__conFijas.necesaria');
+assert.equal(run('sombrasActivadas()'),true);
+assert.match(run('interruptorSombrasHTML(__conFijas)'),/for="sombras-activadas"/);
+assert.match(run('interruptorSombrasHTML(__conFijas)'),/<span>Notas sombra<\/span>/);
+assert.match(run('interruptorSombrasHTML(__conFijas)'),/type="checkbox" role="switch" checked/);
+assert.equal(run('interruptorSombrasHTML(null)'),'','un ramo sin modelo no ofrece interruptor');
+const storagePrevio=ctx.localStorage;const escriturasSwitch=[];
+ctx.localStorage={...storagePrevio,setItem:(k,v)=>escriturasSwitch.push([k,v])};
+run('var __renderSwitch=renderRamo;var __vecesSwitch=0;renderRamo=()=>__vecesSwitch++;cambiarSombras(false);');
+assert.equal(run('sombrasActivadas()'),false);
+assert.match(run("botonNotaEnFilaHTML('Examen',null,'Examen',__conFijas)"),/>\+ Nota<\/button>/);
+assert.doesNotMatch(run("botonNotaEnFilaHTML('Examen',null,'Examen',__conFijas)"),/nota-sombra|data-sombra/);
+assert.doesNotMatch(run('interruptorSombrasHTML(notasSombraDelRamo(r))'),/ checked/,'se puede volver a encender desde el mismo lugar');
+ctx.__clApagada={querySelectorAll(){throw Error('No montar panel ni pie apagados')},appendChild(){throw Error('No agregar pie apagado')}};
+run('montarNotasSombra(r,__conFijas,__clApagada)');
+assert.equal(run('__sesionSwitch.fijas.get(__examen.clave)'),6);
+assert.equal(run('JSON.stringify(S)'),previoSwitch);
+run('cambiarSombras(true)');
+assert.match(run("botonNotaEnFilaHTML('Examen',null,'Examen',notasSombraDelRamo(r))"),/nota-sombra sombra-fija/);
+assert.equal(run('notasSombraDelRamo(r).necesaria'),necesariaFijada);
+assert.equal(run('notasSombraDelRamo(r).sesion'),run('__sesionSwitch'));
+assert.equal(run('JSON.stringify(S)'),previoSwitch);
+assert.deepEqual(escriturasSwitch,[['gradehub_sombras','0'],['gradehub_sombras','1']],'sin gradehub_v1 ni guardado de fijaciones');
+ctx.localStorage={...storagePrevio,setItem(){throw Error('Dispositivo sin almacenamiento')}};
+assert.doesNotThrow(()=>run('cambiarSombras(false);cambiarSombras(true)'));
+assert.equal(run('JSON.stringify(S)'),previoSwitch);
+ctx.localStorage=storagePrevio;run('renderRamo=__renderSwitch');
+// Una sola preferencia alcanza todos los ramos y sobrevive la recarga; la
+// ausencia o un fallo de lectura conserva el valor predeterminado encendido.
+const fuenteSombras=fs.readFileSync(__dirname+'/../src/app/notas-sombra.js','utf8');
+for(const [getItem,esperado] of [[()=>null,true],[()=> '0',false],[()=> '1',true],[()=>{throw Error('lectura bloqueada')},true]]){
+ const otro=vm.createContext({localStorage:{getItem},Map});vm.runInContext(fuenteSombras,otro);
+ assert.equal(vm.runInContext('sombrasActivadas()',otro),esperado);
+}
+// Lucas, 2026-11-04: el switch queda en la fila del examen y permanece apagado.
+const documentoSwitch=ctx.document,chipSwitch=el(),destinosSwitch=[];
+let retiradosSwitch=0;
+const examenSwitch={dataset:{fichaCategoria:'Examen'},querySelector:()=>null,insertAdjacentHTML:(pos,html)=>destinosSwitch.push([pos,html])};
+ctx.document={...documentoSwitch,getElementById:()=>chipSwitch,querySelectorAll:selector=>selector==='.sombras-interruptor'?[{remove(){retiradosSwitch++}}]:[examenSwitch]};
+run('pintarInterruptorSombras(notasSombraDelRamo(r))');
+assert.equal(destinosSwitch[0][0],'beforeend');assert.match(destinosSwitch[0][1],/sombras-interruptor-examen/);
+assert.equal(chipSwitch.innerHTML,'','con examen no aparece junto al promedio');
+run('mostrarNotasSombra=false;pintarInterruptorSombras(notasSombraDelRamo(r))');
+assert.doesNotMatch(destinosSwitch[1][1],/ checked/,'apagado sigue disponible en la misma fila');
+assert.equal(retiradosSwitch,2,'cada repintado retira la copia anterior');
+examenSwitch.querySelector=()=>({insertAdjacentHTML:(pos,html)=>destinosSwitch.push([pos,html])});
+run('mostrarNotasSombra=true;pintarInterruptorSombras(notasSombraDelRamo(r))');
+assert.equal(destinosSwitch[2][0],'beforebegin','fuera del panel o cuerpo colapsable');
+ctx.document.querySelectorAll=selector=>selector==='.sombras-interruptor'?[]:[];
+run('pintarInterruptorSombras(notasSombraDelRamo(r))');assert.match(chipSwitch.innerHTML,/sombras-interruptor/,'sin examen visible conserva el control');
+ctx.document=documentoSwitch;
+assert.equal(run('JSON.stringify(S)'),previoSwitch,'mover el switch no cambia notas ni pauta');
 run("S.tipoCuenta='profesor'");assert.equal(run('modeloNotasSombra(r)'),null);
 console.log('OK: sombras con motor real, mínimos, fijaciones, estados, borde UC, casillas, cuenta existente intacta y exclusiones exactas');

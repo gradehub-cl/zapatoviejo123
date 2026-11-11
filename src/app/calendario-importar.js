@@ -27,7 +27,7 @@ function desescaparIcs(value){
     .replace(/\\([\\;,])/g,'$1')
     .replace(/\\\\/g,'\\');
 }
-function parseIcsCalendario(text){
+function parseIcsCalendario(text,{inicioCrudo=false}={}){
   if(typeof text!=='string'||!text.trim())throw new Error('El archivo está vacío');
   if(bytesIcs(text)>ICS_IMPORT_MAX_BYTES)throw new Error('El archivo supera el límite de 500 KB');
   if(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(text))throw new Error('El archivo contiene caracteres no válidos');
@@ -70,7 +70,7 @@ function parseIcsCalendario(text){
     const fecha=fechaDesdeIcs(start);
     if(!summary||summary.length>ICS_IMPORT_TITLE_MAX||/[\u0000-\u001F\u007F]/.test(summary))throw new Error('El evento '+(index+1)+' no trae un título válido');
     if(!fecha)throw new Error('El evento '+(index+1)+' no trae una fecha válida');
-    return {titulo:summary,fecha};
+    return {titulo:summary,fecha,...(inicioCrudo?{inicio:start}:{})};
   });
 }
 

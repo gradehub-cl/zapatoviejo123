@@ -86,14 +86,10 @@ function montarRuleta(contenedor,{valores,etiqueta,inicial=null,vacio=null,texto
   return {valor:()=>opciones[idx],elegir,sincronizar};
 }
 const rangoAnios=(desde,hasta)=>Array.from({length:hasta-desde+1},(_,i)=>desde+i);
-// La edad se declara: parte vacía y no se avanza hasta elegirla. La generación
-// parte en el año actual. Las dos se guardan en el perfil (decisión de Lucas,
-// 2026-10-12; ver supabase/edad_declarada.sql y la política de privacidad).
-const EDAD_MINIMA=14;
-// Quien ofrece clases cobra y publica: tiene que ser mayor de edad (#697).
-const EDAD_MINIMA_PROFESOR=18;
-function edadMinimaOnboarding(tipo){return tipo==='profesor'?EDAD_MINIMA_PROFESOR:EDAD_MINIMA;}
-let obEdad=null,obGeneracion=new Date().getFullYear(),ruletaEdad=null,ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
+// La generación parte en el año actual y se guarda en el perfil. La edad ya no
+// se pregunta (Lucas, 2026-11-03): los 14 años se declaran al aceptar en la
+// entrada, y quien da clases confirma sus 18 en su paso.
+let obGeneracion=new Date().getFullYear(),ruletaGeneracion=null,obSemManual=false,obVerano=false,obSemInvalido=false;
 // Quien está en TAV lo marca a mano y queda guardado hasta el 1 de marzo
 // siguiente: desde ahí vuelve a regir el semestre calculado. Mientras dura no
 // se sugieren ramos de la malla, porque en TAV se toman ramos sueltos.
@@ -110,19 +106,21 @@ function enVerano(fecha=new Date()){
 function semestreSegunGeneracion(generacion,fecha=new Date()){
   return Math.max(1,(fecha.getFullYear()-generacion)*2+(fecha.getMonth()>=7?2:1));
 }
+// En el paso 1 todavía no se sabe la universidad: el verano no tiene nombre propio.
+function nombreVeranoOnboarding(){return selectedTenant?nombreVerano(selectedTenant):'Verano o TAV';}
 function actualizarSemestreCalculado(){
-  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const total=semestresOfrecidos();
   if(!obSemManual)selectedSem=Math.min(total,semestreSegunGeneracion(obGeneracion));
   const caja=document.getElementById('ob-sem-calculado'),grilla=document.getElementById('sem-grid');
   if(!caja)return;
   const editar=document.getElementById('ob-sem-editar');
   const pasaMarzo=!obSemManual&&new Date().getMonth()<2;
-  const frase=obVerano?`Estás en <b>${esc(nombreVerano(selectedTenant))}</b>.`
+  const frase=obVerano?`Estás en <b>${esc(nombreVeranoOnboarding())}</b>.`
     :`${pasaMarzo?'En marzo empiezas':'Vas en'} tu <b>${selectedSem}.º semestre</b>.`;
   caja.innerHTML=`<span>${frase}</span>`+
     (editar&&editar.hidden?'<button type="button" class="ob-sem-cambiar" onclick="mostrarSemestreManual()">Cambiar</button>':'');
   const boton=document.getElementById('ob-sem-verano');
-  if(boton){boton.textContent=nombreVerano(selectedTenant);boton.setAttribute('aria-pressed',obVerano?'true':'false');}
+  if(boton){boton.textContent=nombreVeranoOnboarding();boton.setAttribute('aria-pressed',obVerano?'true':'false');}
 }
 // "Cambiar" pide escribir el semestre, o marcar TAV/verano.
 function mostrarSemestreManual(){
@@ -132,7 +130,7 @@ function mostrarSemestreManual(){
   if(campo){campo.value=obVerano?'':String(selectedSem);campo.focus();campo.select&&campo.select();}
 }
 function escribirSemestreOnboarding(texto){
-  const total=typeof semestresDeCarrera==='function'?semestresDeCarrera(selectedTenant,selectedCarrera):12;
+  const total=semestresOfrecidos();
   const error=document.getElementById('ob-sem-error');
   const limpio=String(texto||'').trim();
   const n=/^\d{1,2}$/.test(limpio)?Number(limpio):NaN;
@@ -150,33 +148,24 @@ function alternarVeranoOnboarding(){
   if(!obVerano&&campo)campo.value=String(selectedSem);
   actualizarSemestreCalculado();checkOb();
 }
-function avisoEdadOnboarding(){
-  const aviso=document.getElementById('ob-edad-aviso');if(!aviso)return;
-  if(obEdad===null||obEdad>=edadMinimaOnboarding(obTipo)){aviso.textContent='';return;}
-  aviso.textContent=obEdad<EDAD_MINIMA?`Para usar GradeHub tienes que tener ${EDAD_MINIMA} años o más.`
-    :`Para dar clases en GradeHub tienes que tener ${EDAD_MINIMA_PROFESOR} años o más. Si estudias, vuelve y elige Estudiante.`;
-}
-// El paso 0. Son radios de verdad: flechas, lector de pantalla y foco vienen
-// del navegador. La tarjeta marcada se pinta con la misma `.sel` de las universidades.
+// Fija el camino. Sin paso propio desde 2026-11-03: lo llama obIniciar con la
+// intención de la entrada, y «Sigue como estudiante» desde el paso del profesor.
 function elegirTipoCuenta(tipo){
   if(tipo!=='estudiante'&&tipo!=='profesor')return;
   obTipo=tipo;
-  document.querySelectorAll('.ob-tipo-opt').forEach(op=>{
-    const input=op.querySelector('input');
-    const marcado=!!input&&input.value===tipo;
-    if(input)input.checked=marcado;
-    op.classList.toggle('sel',marcado);
-  });
-  // obRender y no solo checkOb: el "Paso 1 de 6" pasa a "de 3" al elegir Profesor.
-  avisoEdadOnboarding();obRender();
+  // obRender y no solo checkOb: el «Paso 1 de 5» pasa a «de 2» para el profesor.
+  obRender();
+}
+// Quien entró por «Soy profesor particular» sin querer sigue sin cerrar sesión.
+function seguirComoEstudiante(){
+  elegirTipoCuenta('estudiante');
+  if(!obPasos().includes(obStep)){obStep=2;obRender();}
 }
 function datosProfesorOnboarding(){
   const campo=id=>(document.getElementById(id)||{}).value||'';
-  return {nombrePublico:campo('ob-prof-nombre'),presentacion:campo('ob-prof-presentacion')};
+  return {nombrePublico:campo('ob-prof-nombre'),presentacion:campo('ob-prof-presentacion'),mayorDeEdad:!!(document.getElementById('ob-prof-mayor')||{}).checked};
 }
 function montarRuletasOnboarding(){
-  ruletaEdad=montarRuleta(document.getElementById('ob-edad-ruleta'),{valores:rangoAnios(10,99),etiqueta:'ob-edad-titulo',
-    inicial:obEdad,vacio:'—',texto:v=>v+' años',alCambiar:v=>{obEdad=v;avisoEdadOnboarding();checkOb();}});
   ruletaGeneracion=montarRuleta(document.getElementById('ob-generacion-ruleta'),{valores:rangoAnios(2000,new Date().getFullYear()),
     etiqueta:'ob-generacion-titulo',inicial:obGeneracion,alCambiar:v=>{obGeneracion=v;actualizarSemestreCalculado();if(document.getElementById('sem-grid')&&!document.getElementById('sem-grid').hidden)initSemGrid();checkOb();}});
 }
@@ -185,25 +174,21 @@ function obStepValid(step,datos){
   const d=datos||{
     tipo:obTipo,
     nombre:(document.getElementById('ob-name')||{}).value||'',
-    edad:obEdad,
     tenant:selectedTenant,carrera:selectedCarrera,semestre:selectedSem,
     verano:typeof obVerano!=='undefined'&&obVerano,semInvalido:typeof obSemInvalido!=='undefined'&&obSemInvalido,
     carreraNombre:selectedCarreraNombre,
     ...datosProfesorOnboarding()
   };
-  if(step===0)return d.tipo===undefined||d.tipo==='estudiante'||d.tipo==='profesor';
-  // El paso 1 pide dos cosas: cómo te llamas y tu edad, que tiene que ser la
-  // mínima del tipo de cuenta (14 para estudiar, 18 para dar clases).
-  if(step===1)return !!String(d.nombre||'').trim()&&typeof d.edad==='number'&&d.edad>=edadMinimaOnboarding(d.tipo);
+  // El paso 1 pide el nombre y, a quien estudia, un semestre válido (o verano).
+  if(step===1)return !!String(d.nombre||'').trim()&&(d.tipo==='profesor'||(!d.semInvalido&&(!!d.semestre||!!d.verano)));
   if(step===2)return !!d.tenant;
   if(step===3)return !!(d.carrera||String(d.carreraNombre||'').trim());
-  if(step===4)return !d.semInvalido&&(!!d.semestre||!!d.verano);
   if(step===5)return true;
   // Los mismos largos que exige postularProfesor: si el botón se habilita, la
-  // postulación no rebota por largo.
+  // postulación no rebota por largo. Y dar clases exige 18 años (#697).
   if(step===OB_PASO_PROFESOR){
     const publico=String(d.nombrePublico||'').trim(),texto=String(d.presentacion||'').trim();
-    return publico.length>=2&&publico.length<=100&&texto.length>=20&&texto.length<=1500;
+    return d.mayorDeEdad===true&&publico.length>=2&&publico.length<=100&&texto.length>=20&&texto.length<=1500;
   }
   return false;
 }

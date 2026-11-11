@@ -6,9 +6,28 @@ function ramoParaPanel(r){
   try{const n=typeof normalize==='function'?normalize({ramos:[r]}).ramos[0]:r;return n||r;}catch(e){return r;}
 }
 // Solo explica una regla del motor; no aplica un tope nuevo ni guarda datos.
-function motivoPromedioAlumnoPanel(r){
+// Le habla al profesor, no al alumno («repruebas» es de la ficha del alumno),
+// y con coma decimal. Si el ramo no tiene compuerta propia, mira el ramo que
+// le aporta nota: Dinámica queda en 3,9 cuando su laboratorio no llega a 4,0,
+// aunque todas las notas de la cátedra estén sobre 4.
+function motivoPromedioAlumnoPanel(r,contexto){
   if(estadoEximicion(r)?.activa)return '';
-  return textoCompuertaActiva(gatesActivas(r)[0]);
+  const coma=v=>fmtPromedio(v).replace('.',',');
+  const g=gatesActivas(r)[0];
+  if(g){
+    const final=typeof g.cap!=='number'?'reprueba aunque el promedio dé más'
+      :g.grupo&&g.efecto==='reemplazar'?`la nota final queda en ${coma(g.cap)}`:`la nota final no pasa de ${coma(g.cap)}`;
+    return `${g.nombre} va ${coma(g.actual)} (mín. ${coma(g.min)}): ${final}`;
+  }
+  let partes=null;
+  try{partes=partesDelVinculo(r,contexto);}catch(e){}
+  if(!partes||partes.propio.valor===null||partes.externo.valor===null||!partes.externo.ramo)return '';
+  const {min,propio,externo}=partes,final=Math.min(propio.valor,externo.valor);
+  if(!gh_cumpleMinimo(externo.valor,min))
+    return `${externo.ramo.nombre} va ${coma(externo.valor)} (mín. ${coma(min)}): la nota final queda en ${coma(final)}`;
+  if(!gh_cumpleMinimo(propio.valor,min))
+    return `La cátedra va ${coma(propio.valor)} (mín. ${coma(min)}): la nota final queda en ${coma(final)}`;
+  return '';
 }
 // Notas agrupadas como en la ficha del ramo: cada categoría con su promedio
 // (el del motor, con descartes y reglas) y sus notas debajo.
@@ -92,7 +111,7 @@ function ramoPanelHTML(r,comp,ahora=new Date(),contexto,extra='',abierto=true){
   const ramo=ramoParaPanel(r);
   contexto=contexto||[ramo];
   const avg=typeof ramoAvg==='function'?ramoAvg(ramo,undefined,contexto):null;
-  const motivo=motivoPromedioAlumnoPanel(ramo);
+  const motivo=motivoPromedioAlumnoPanel(ramo,contexto);
   const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla;
   const porNota=new Map(((comp&&comp.evaluaciones)||[]).map(e=>[e.clave,e]));
   const porCategoria=new Map(((comp&&comp.categorias)||[]).map(e=>[e.clave,e]));
@@ -152,14 +171,17 @@ function conRamosAlumnoPanel(al,fn){
     try{return fn(contexto);}finally{S.ramos=propios;}
   });
 }
+function identidadResumenRamoPanel(al,ramo,r){
+  const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
+  // Con la universidad en la clave, un grupo nunca mezcla reglas de nota.
+  return {sigla,clave:`${al.tenant}|`+(sigla?String(sigla).toUpperCase():'nombre|'+claveEvaluacionPanel(ramo.nombre))};
+}
 function resumenAlumnosPanel(alumnos,compDe){
   const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
   const grupos=new Map();
   (alumnos||[]).forEach(al=>conUniversidadPanel(al.tenant,()=>{const ctx=ramosDelAlumnoPanel(al);(al.ramos||[]).forEach(r=>{
     const ramo=ramoParaPanel(r);
-    const sigla=(typeof siglaDeRamo==='function'?siglaDeRamo(ramo):ramo.sigla)||r.sigla||'';
-    // Con la universidad en la clave, un grupo nunca mezcla reglas de nota.
-    const clave=`${al.tenant}|`+(sigla?String(sigla).toUpperCase():'nombre|'+claveEvaluacionPanel(ramo.nombre));
+    const {sigla,clave}=identidadResumenRamoPanel(al,ramo,r);
     if(!grupos.has(clave))grupos.set(clave,{clave,tenant:al.tenant,nombre:ramo.nombre,sigla,comp:compDe(al,r)||null,alumnos:0,
       promedios:[],semaforo:{good:0,warn:0,bad:0,neutral:0},categorias:new Map()});
     const g=grupos.get(clave);
@@ -198,40 +220,119 @@ function comparacionPromediosPanelHTML(propio,referencia,tenant){
   </div>`;
 }
 
-function resumenAlumnosPanelHTML(resumen){
-  const n=(k,uno,varios)=>`${k} ${k===1?uno:varios}`;
-  const prom=v=>v===null?'·':esc(fmtPromedio(v));
-  const ramos=resumen.map(g=>conUniversidadPanel(g.tenant,()=>{
+// La ficha por ramo conserva la nota oficial y el conteo de quienes van
+// reprobando. Solo pruebas cambia las cifras de comparación, como en Estadísticas.
+function resumenRamosVistaPanel(alumnos,compDe,{seccion=false,soloPruebas=false}={}){
+  const base=resumenAlumnosPanel(alumnos,compDe);
+  if(!seccion&&!soloPruebas)return base;
+  const porRamo=new Map();
+  alumnos.forEach(al=>conUniversidadPanel(al.tenant,()=>{
+    for(const r of al.ramos||[]){
+      const {clave}=identidadResumenRamoPanel(al,ramoParaPanel(r),r);
+      if(!porRamo.has(clave))porRamo.set(clave,new Map());
+      const particiones=porRamo.get(clave),id=seccion&&Number.isInteger(r.seccion)?r.seccion:null;
+      if(!particiones.has(id))particiones.set(id,[]);
+      particiones.get(id).push({...al,ramos:[r],todosLosRamos:al.todosLosRamos||al.ramos});
+    }
+  }));
+  const media=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+  const porPruebas=lista=>{
+    const pares=lista.map(al=>conUniversidadPanel(al.tenant,()=>{
+      const r=al.ramos[0],comp=compDe(al,r);
+      return [promedioPruebasPanel(r).promedio,comparacionPruebasPanel({...al,soloPruebasPanel:true},r,comp)?.referenciaPruebas];
+    })).filter(([p])=>Number.isFinite(p));
+    const solo=lista.map(al=>({...al,ramos:al.ramos.map(r=>({...r,categorias:categoriasPruebasPanel(r)}))}));
+    return {promedio:media(pares.map(([p])=>p)),conNotas:pares.length,
+      referenciaPruebas:pares.every(([,r])=>Number.isFinite(r))?media(pares.map(([,r])=>r)):null,
+      categorias:resumenAlumnosPanel(solo,()=>null)[0].categorias};
+  };
+  return base.map(g=>{
+    const particiones=[...porRamo.get(g.clave)].sort(([a],[b])=>(a??Infinity)-(b??Infinity));
+    const vistas=particiones.map(([id,lista])=>{
+      const sub=resumenAlumnosPanel(lista,compDe)[0];
+      return {...sub,seccion:id,...(soloPruebas?porPruebas(lista):{})};
+    });
+    if(vistas.length===1)return vistas[0];
+    // Una referencia de sección no puede representar a alumnos de otras
+    // secciones. Mostramos cada muestra por separado, sin inventar un n común.
+    const pruebas=soloPruebas?porPruebas(particiones.flatMap(([,lista])=>lista)):{};
+    return {...g,...pruebas,comp:null,referenciaPruebas:null,secciones:vistas};
+  });
+}
+function resumenAlumnosPanelHTML(resumen,{seccion=false,soloPruebas=false,filtros=false,abiertos=new Set(),marcar=false}={}){
+  if(!resumen.length)return '<p class="profesor-hig-vacio">Todavía no hay ramos compartidos.</p>';
+  const nota=v=>Number.isFinite(v)?cifraNotaPrivada(fmtPromedio(v)):'—';
+  const alumnos=n=>`${n} ${n===1?'alumno':'alumnos'}`;
+  const refDe=g=>soloPruebas
+    ?{promedio:g.referenciaPruebas??null,personas:null}
+    :datosComparacionPanel(g.comp?.ramo);
+  const pieReferencia=(g,ref)=>{
+    if(g.secciones)return 'Ver por sección';
+    if(ref?.personas)return `${ref.personas} estudiantes`;
+    if(Number.isFinite(ref?.promedio))return 'Muestras por evaluación';
+    if(g.comp?.sinSeccion||(seccion&&g.seccion===null))return 'Sin sección declarada';
+    if(g.comp?.errorCarga)return 'Error al cargar';
+    return 'Sin referencia';
+  };
+  const difDe=(g,ref)=>Number.isFinite(g.promedio)&&Number.isFinite(ref?.promedio)?g.promedio-ref.promedio:null;
+  const detalle=(g,nombre)=>conUniversidadPanel(g.tenant,()=>{
     const comp=g.comp||{};
     const porNota=new Map((comp.evaluaciones||[]).map(e=>[e.clave,e]));
     const porCategoria=new Map((comp.categorias||[]).map(e=>[e.clave,e]));
-    const gh=e=>comparacionTexto(e?e.promedio:null,e?e.personas:0);
-    const referencia=datosComparacionPanel(comp.ramo);
-    const dif=g.promedio!==null&&referencia?g.promedio-referencia.promedio:null;
-    // El semáforo dice aprobando / al borde / reprobando, nunca decoración.
-    const estados=[['good','aprobando'],['warn','al borde'],['bad','reprobando'],['neutral','sin notas']];
-    const sem=estados.filter(([k])=>g.semaforo[k])
-      .map(([k,t])=>`<span class="panel-resumen-sem panel-resumen-${k}">${g.semaforo[k]} ${t}</span>`).join('');
-    const distribucion=g.alumnos>0?`<span class="panel-curso-distribucion" aria-hidden="true">${estados.filter(([k])=>g.semaforo[k]).map(([k])=>`<i class="panel-curso-${k}" style="flex-grow:${g.semaforo[k]}"></i>`).join('')}</span>`:'';
-    const filas=g.categorias.map(c=>`<tbody><tr class="panel-alumnos-cat"><td>${esc(c.nombre)}<small>${n(c.alumnos,'alumno','alumnos')}</small></td><td>${prom(c.promedio)}</td><td>${gh(porCategoria.get(c.clave))}</td></tr>
-      ${c.evaluaciones.length>1?c.evaluaciones.map(e=>`<tr class="panel-alumnos-nota"><td>${esc(e.nombre)}<small>${n(e.alumnos,'nota','notas')}</small></td><td>${prom(e.promedio)}</td><td>${porNota.has(e.clave)?gh(porNota.get(e.clave)):'<span class="panel-alumnos-sin">—</span>'}</td></tr>`).join(''):''}</tbody>`).join('');
-    return `<details class="panel-resumen-ramo">
-      <summary>
-        <span class="panel-resumen-nombre"><b>${esc(g.nombre)}</b><small>${g.sigla?esc(g.sigla)+' · ':''}${n(g.alumnos,'alumno','alumnos')}</small></span>
-        <span class="panel-alumnos-prom">${g.promedio===null?'Sin notas':prom(g.promedio)}<small>tus alumnos</small></span>
-        ${comparacionTexto(comp.ramo?comp.ramo.promedio:null,comp.ramo?comp.ramo.personas:0,true)}
-        <span class="panel-resumen-semaforo">${distribucion}<span class="panel-curso-leyenda">${sem}</span></span>
-      </summary>
-      ${comparacionPromediosPanelHTML(g.promedio,referencia?.promedio??null,g.tenant)}
-      ${dif===null?'':`<p class="panel-resumen-dif">Tus alumnos van <b>${Math.abs(dif)<0.05?'igual que':`${esc(unDecimalPanel(dif))} ${dif>0?'sobre':'bajo'}`}</b> el promedio de GradeHub en este ramo.</p>`}
-      ${g.categorias.length?`<table class="panel-alumnos-notas"><thead><tr><th>Evaluación</th><th>Tus alumnos</th><th>GradeHub</th></tr></thead>${filas}</table>`
-        :`<p class="clase-sin-datos">${g.promedio===null?'Todavía no hay notas en este ramo.':'Sin detalle por evaluación.'}</p>`}
-      <button type="button" class="agent-refresh panel-resumen-ver" data-ver-ramo="${esc(g.sigla||g.nombre)}">Ver ${n(g.alumnos,'alumno','alumnos')} de este ramo</button>
-    </details>`;
+    const ref=refDe(g),dif=difDe(g,ref);
+    const max=gh_reglasNota(g.tenant).grade_scale.max;
+    const barra=(label,v,principal)=>barraParalelaEstHTML(label,Number.isFinite(v)?Math.max(0,Math.min(1,v/max)):null,nota(v),principal);
+    const evaluacion=(e,muestra,sub=false)=>`<li class="ramos-eval${sub?' ramos-eval-nota':''}">
+      <div><b>${esc(e.nombre)}</b><small>${esc(sub?`${e.alumnos} ${e.alumnos===1?'nota':'notas'}`:alumnos(e.alumnos))}</small></div>
+      <div>${barra('Tus alumnos',e.promedio,true)}${barra('GradeHub',muestra?.promedio??null,false)}</div>
+      <small class="ramos-eval-muestra">${muestra?`${muestra.personas} en GradeHub`:'Sin referencia'}</small>
+    </li>`;
+    const filas=g.categorias.map(c=>{
+      const categoria=evaluacion(c,datosComparacionPanel(porCategoria.get(c.clave))||
+        (c.evaluaciones.length===1&&c.evaluaciones[0].clave===c.clave?datosComparacionPanel(porNota.get(c.clave)):null));
+      return categoria+(c.evaluaciones.length>1||c.evaluaciones.some(e=>e.clave!==c.clave)
+        ?c.evaluaciones.map(e=>evaluacion(e,datosComparacionPanel(porNota.get(e.clave)),true)).join(''):'');
+    }).join('');
+    return `<section class="ramos-detalle-grupo">
+      ${nombre?`<div class="ramos-detalle-cabeza"><h4>${esc(nombre)}</h4><span>${esc(alumnos(g.alumnos))}</span><span>Tus alumnos <b>${nota(g.promedio)}</b></span><span>GradeHub <b>${nota(ref?.promedio)}</b> · ${esc(pieReferencia(g,ref))}</span><span>Diferencia <b>${dif===null?'—':signoEstPanel(dif,'puntos')}</b></span></div>`:''}
+      ${filas?`<small class="ramos-escala">Barras en escala común de 0 a ${esc(max)}</small><ul class="ramos-evaluaciones">${filas}</ul>`:'<p class="clase-sin-datos">Sin notas por evaluación.</p>'}
+    </section>`;
+  });
+  const filas=[...resumen].sort((a,b)=>b.semaforo.bad-a.semaforo.bad).map((g,i)=>conUniversidadPanel(g.tenant,()=>{
+    const ref=refDe(g),dif=difDe(g,ref),chica=g.conNotas<EST_MUESTRA_CHICA;
+    const difTexto=dif===null?'—':signoEstPanel(dif,'puntos');
+    const direccion=!chica&&difTexto.startsWith('+')?'ramos-sube':!chica&&difTexto.startsWith('−')?'ramos-baja':'ramos-gris';
+    const abierto=abiertos.has(g.clave),id=`ramos-detalle-${i}`;
+    return `<article class="ramos-fila" data-ramos-fila>
+      <div class="ramos-fila-resumen">
+        <button type="button" class="ramos-nombre" data-ramos-abrir="${esc(g.clave)}" aria-controls="${id}" aria-expanded="${abierto}">
+          <span><b>${esc(g.nombre)}</b>${g.sigla?`<small>${esc(g.sigla)}</small>`:''}</span><span class="ramos-flecha" aria-hidden="true"></span>
+        </button>
+        <div class="ramos-cifras${chica?' ramos-muestra-chica':''}">
+          ${metricaAdminHTML({titulo:'Alumnos',valor:String(g.alumnos)})}
+          ${metricaAdminHTML({titulo:soloPruebas?'Prom. pruebas':'Prom. alumnos',valor:nota(g.promedio),pie:chica&&g.conNotas?`${g.conNotas} con nota`:''})}
+          ${metricaAdminHTML({titulo:seccion?'GradeHub · sección':'GradeHub',valor:nota(ref?.promedio),pie:pieReferencia(g,ref)})}
+          <div class="${direccion}">${metricaAdminHTML({titulo:'Diferencia',valor:difTexto})}</div>
+          ${metricaAdminHTML({titulo:'Reprobando',valor:g.semaforo.neutral===g.alumnos?'—':String(g.semaforo.bad),pie:g.semaforo.bad?'Reforzar':''})}
+        </div>
+        <div class="ramos-acciones">${marcar?`<button type="button" class="agent-refresh ramos-ver" data-marcar-ramo="${esc(g.clave)}" aria-label="Marcar evaluaciones de ${esc(g.nombre)}">Marcar</button>`:''}<button type="button" class="agent-refresh ramos-ver" data-ver-ramo="${esc(g.sigla||g.nombre)}" aria-label="Ver alumnos de ${esc(g.nombre)}">Ver alumnos</button></div>
+      </div>
+      <div class="ramos-detalle" id="${id}"${abierto?'':' hidden'}>${g.secciones
+        ?g.secciones.map(x=>detalle(x,x.seccion===null?'Sin sección declarada':`Sección ${x.seccion}`)).join('')
+        :detalle(g,'')}</div>
+    </article>`;
   })).join('');
-  return `<section class="panel-alumnos-resumen" aria-labelledby="resumen-titulo">
-    <div class="profesor-hig-lista-cabeza"><h2 id="resumen-titulo">Tus alumnos por ramo</h2><span>${n(resumen.length,'ramo','ramos')}</span></div>
-    ${ramos}
-    <p class="clase-privacidad">“Tus alumnos” es el promedio simple entre los alumnos con nota. Si van sobre o bajo GradeHub no dice por qué: también cuentan el profesor de cátedra, la sección y lo que cada uno estudia.</p>
+  const activos=Number(seccion)+Number(soloPruebas);
+  return `<section class="ramos-panel" aria-label="Tus alumnos por ramo">
+    <div class="ramos-herramientas"><span>${resumen.length} ${resumen.length===1?'ramo':'ramos'}</span>
+      <details class="ramos-filtros est" data-ramos-filtros${filtros?' open':''}>
+        <summary>Filtros${activos?` <span class="est-cuenta">${activos}</span>`:''}</summary>
+        <div class="ramos-filtros-cuerpo">${filtrosComparacionEstHTML(seccion,soloPruebas)}</div>
+      </details>
+    </div>
+    <div class="ramos-lista">${filas}</div>
+    <footer class="ramos-pie"><span>Estar sobre o bajo GradeHub no demuestra que se deba a las clases.</span>
+      <details><summary>Cómo se calcula</summary><p>El promedio reúne a tus alumnos con nota. Reprobando usa la nota oficial. Solo pruebas compara pruebas, exámenes y controles clasificados. GradeHub reúne a quienes comparten el ramo o la sección indicada. Cada referencia requiere al menos cinco estudiantes y es anónima. La diferencia usa los promedios antes de redondearlos. El promedio de pruebas puede reunir varias muestras y por eso el tamaño se indica por evaluación.</p></details>
+    </footer>
   </section>`;
 }

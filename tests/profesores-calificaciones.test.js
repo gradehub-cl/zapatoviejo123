@@ -20,6 +20,7 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   await db.exec('alter default privileges in schema public grant execute on functions to anon, authenticated;');
   await db.exec(read('supabase/profesores.sql'));
   await db.exec(read('supabase/profesores.sql'));
+  assert.equal((await q("select profesor_coinciden('Pamela Mena','Pamela Andrea Mena') c"))[0].c,true,'segundo nombre opcional conserva identidad');
   periodo=(await q('select profesor_periodo_actual() as p'))[0].p;
   for(let i=1;i<=11;i++){
     await db.query('insert into auth.users(id,email) values($1,$2)',[u(i),`sintetico${i}@example.invalid`]);
@@ -276,5 +277,21 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
     assert.equal((await en202(i,'profesor_docente_estado'))[0].nombre_publico,null,'el nombre sigue siendo por sección');
   }
   e=(await en202(23,'profesor_calificacion_estado'))[0];assert.equal(e.docente,'Otro Docente Sintético');assert.equal(e.total,1);assert.equal(e.promedio,null);
+  // #890: los aportes abreviados conservan su texto y cuentan con el completo.
+  await en202(22,'profesor_docente_informar','Pamela Andrea Mena');
+  assert.equal((await en202(20,'profesor_calificacion_estado'))[0].total,3);
+  await db.exec('reset role');await q('insert into auth.users(id) values($1)',[u(24)]);
+  seccion202[24]=13;await q('insert into user_ramos values($1,$2)',[u(24),JSON.stringify({tenant:'uc',ramos:[otroRamo(24,13)]})]);
+  await en202(24,'profesor_docente_informar','Pamela Andrea Mena');await en202(24,'profesor_calificar',5,[]);
+  assert.equal((await en202(20,'profesor_docente_estado'))[0].nombre_publico,'Pamela Andrea Mena','prefiere versión completa aunque haya más abreviadas');
+  assert.equal((await en202(20,'profesor_calificacion_estado'))[0].total,4,'mismas estrellas con o sin segundo nombre');
+  await db.exec('reset role');
+  assert.equal((await q("select profesor_coinciden('Pamela Andrea Mena','Pamela Cecilia Mena') c"))[0].c,false);
+  assert.equal((await q("select profesor_coinciden('Juan Pérez','Juan de Pérez') c"))[0].c,false,'no interpreta partícula de apellido como segundo nombre');
+  const nombresAntes=await q('select * from profesor_aportes order by user_id,periodo');
+  await db.exec(read('supabase/profesores.sql'));assert.deepEqual(await q('select * from profesor_aportes order by user_id,periodo'),nombresAntes,'sin reescribir aportes antiguos');
+  await en202(23,'profesor_docente_informar','Pamela Cecilia Mena');
+  assert.equal((await en202(22,'profesor_calificacion_estado'))[0].total,2,'abreviación ambigua no une dos docentes completos distintos');
+  assert.equal((await en202(20,'profesor_docente_estado'))[0].nombre_publico,null,'no fabrica consenso con abreviaciones ambiguas');
   console.log('OK calificaciones SQL: consenso, estrellas por docente sin importar la sección, Otro, cinco estrellas privadas para Wrapped, permisos, semestres, cascada y reaplicación');
 }finally{await db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

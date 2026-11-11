@@ -202,53 +202,70 @@ function tarjetaCatalogoClase(a,{sigla,abierta=false}={}){
     </article>${a.flyer_path?`<figure class="catalogo-clase-flyer" data-flyer="${esc(a.flyer_path)}"${abierta?'':' hidden'}><span>Cargando flyer…</span></figure>`:''}</div>`;
 }
 
-// «Ver perfil» en una clase abierta. Solo existe si el profesor activó su
-// perfil; si no, o si falla, la tarjeta queda igual que antes. Se despliega en
-// la misma tarjeta: un modal encima reemplazaría el catálogo.
+// La tarjeta del directorio y «Ver perfil» de un anuncio abren la misma ficha.
+// La caché queda acotada a la cuenta y universidad que pidió la proyección.
 const perfilesDeAnuncio=new Map();
 function perfilDeAnuncio(id){
-  if(!perfilesDeAnuncio.has(id))perfilesDeAnuncio.set(id,(async()=>{
+  const uid=typeof currentUser==='undefined'?null:currentUser?.id,tenant=S.tenant,clave=[uid,tenant,id].join(':');
+  if(!perfilesDeAnuncio.has(clave))perfilesDeAnuncio.set(clave,(async()=>{
     try{
-      const {data,error}=await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
-      return error?null:(Array.isArray(data)?data[0]:data)||null;
-    }catch(e){return null;}
+      let r=uid?await supabaseClient.rpc('perfil_apoyo_de_anuncio',{p_anuncio_id:id,p_tenant:tenant}):await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
+      if(r.error&&sqlClasesDesactualizado(r.error))r=await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
+      if((typeof currentUser==='undefined'?null:currentUser?.id)!==uid||S.tenant!==tenant)return null;
+      const p=r.error?null:(Array.isArray(r.data)?r.data[0]:r.data)||null;
+      if(!p)perfilesDeAnuncio.delete(clave);
+      return p;
+    }catch(e){perfilesDeAnuncio.delete(clave);return null;}
   })());
-  return perfilesDeAnuncio.get(id);
+  return perfilesDeAnuncio.get(clave);
 }
-function perfilPublicoHTML(p,anuncioId){
+function canalesPerfilApoyo(p){
+  const canales=[];
+  const agregar=(canal,tipo,valor,texto)=>{const enlace=enlaceContactoClase(tipo,valor,'Hola, vi tu perfil en GradeHub. ¿Me das más información?');
+    if(enlace)canales.push({canal,texto,enlace});};
+  if(p.contacto_tipo==='whatsapp')agregar('whatsapp','whatsapp',p.contacto_valor,'WhatsApp');
+  if(p.contacto_tipo==='email')canales.push({canal:'email',texto:'Enviar correo',enlace:null});
+  agregar('instagram','instagram',p.contacto_tipo==='instagram'?p.contacto_valor:p.instagram,'Instagram');
+  agregar('web','enlace',p.sitio_web,'Sitio web');
+  return canales;
+}
+// Iconos vectoriales locales: sin fuentes, imágenes o solicitudes a terceros.
+function iconoCanalPerfil(canal){
+  const trazos={
+    whatsapp:'<path fill="currentColor" stroke="none" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.27-.2-.57-.35ZM12.05 21.79h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.89 9.89-9.89 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 7c0 5.45-4.44 9.88-9.89 9.88Zm8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.69 1.45h.01c6.55 0 11.89-5.34 11.89-11.9a11.82 11.82 0 0 0-3.49-8.41Z"/>',
+    instagram:'<rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/>',
+    web:'<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.6 2.6 4 6 4 9.5s-1.4 6.9-4 9.5c-2.6-2.6-4-6-4-9.5s1.4-6.9 4-9.5Z"/>',
+    email:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 7 9 6.5L21 7"/>'
+  };
+  return `<svg class="perfil-contacto-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${trazos[canal]||''}</svg>`;
+}
+function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant)){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
   const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
-  const insta=enlaceContactoClase('instagram',p.instagram),web=enlaceContactoClase('enlace',p.sitio_web);
   const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
   const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
-  return `<div class="perfil-publico-cabeza">${p.logo_path?`<div class="catalogo-clase-logo" data-logo="${esc(p.logo_path)}"></div>`:''}
-      <div><h4>${esc(p.nombre_publico)}</h4>${tipo?`<span>${esc(tipo)}</span>`:''}</div></div>
+  const canales=canalesPerfilApoyo(p);
+  return `<header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
+      ${p.logo_path?`<div class="catalogo-clase-logo perfil-apoyo-logo" data-directorio-logo="${esc(p.logo_path)}" aria-hidden="true"></div>`:''}</header>
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
-    ${unis.length||(p.ramos_siglas||[]).length?`<dl class="catalogo-clase-detalles">${unis.length?`<div><dt>Universidades</dt><dd>${esc(unis.join(', '))}</dd></div>`:''}${(p.ramos_siglas||[]).length?`<div><dt>Ramos</dt><dd>${esc(p.ramos_siglas.join(', '))}</dd></div>`:''}</dl>`:''}
-    ${insta||web?`<p class="perfil-publico-links">${insta?`<a href="${esc(insta)}" target="_blank" rel="noopener noreferrer" data-fuera>Instagram</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener noreferrer" data-fuera>Sitio web</a>`:''}</p>`:''}
-    ${otros.length||sinTitulo>0?`<div class="perfil-publico-otros"><strong>Sus otras clases</strong><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></div>`:''}`;
+    ${canales.length?`<div class="perfil-apoyo-contactos" aria-label="Contactar a ${esc(p.nombre_publico)}">${canales.map(c=>c.enlace?`<a class="clase-accion perfil-contacto-${c.canal}" href="${esc(c.enlace)}" target="_blank" rel="noopener noreferrer" data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></a>`:`<button type="button" class="clase-accion perfil-contacto-${c.canal}" data-directorio-contactar data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></button>`).join('')}</div>`:''}
+    <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
+    ${(p.ramos_siglas||[]).length?`<section class="perfil-apoyo-seccion"><h3>Ramos que enseña</h3><ul class="perfil-apoyo-ramos">${p.ramos_siglas.map(sigla=>`<li><strong>${esc(sigla)}</strong>${nombres[sigla]?`<span>${esc(nombres[sigla])}</span>`:''}</li>`).join('')}</ul></section>`:''}
+    ${unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:''}
+    ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}`;
 }
 async function mostrarPerfilEnClase(caja){
   if(caja.dataset.cargado)return;caja.dataset.cargado='1';
+  const uid=typeof currentUser==='undefined'?null:currentUser?.id,tenant=S.tenant;
   const p=await perfilDeAnuncio(caja.dataset.perfil);
-  if(!p||!caja.isConnected)return;
-  caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-expanded="false">Ver perfil de ${esc(p.nombre_publico)}</button>
-    <section class="perfil-publico" aria-label="Perfil de ${esc(p.nombre_publico)}" hidden>${perfilPublicoHTML(p,caja.dataset.perfil)}</section>`;
-  const boton=caja.querySelector('.perfil-publico-abrir'),seccion=caja.querySelector('.perfil-publico');
+  if(!p||!caja.isConnected||(typeof currentUser==='undefined'?null:currentUser?.id)!==uid||S.tenant!==tenant)return;
+  caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-haspopup="dialog">Ver perfil de ${esc(p.nombre_publico)}</button>`;
+  const boton=caja.querySelector('.perfil-publico-abrir');
   boton.addEventListener('click',()=>{
-    const abrir=seccion.hidden;seccion.hidden=!abrir;boton.setAttribute('aria-expanded',String(abrir));
-    boton.textContent=abrir?'Ocultar perfil':'Ver perfil de '+p.nombre_publico;
-    if(abrir&&typeof track==='function')track('perfil_profesor_abierto');
+    abrirPerfilApoyo(p,{raiz:document.getElementById('modal-content'),tenant,anuncioId:caja.dataset.perfil,
+      volver:()=>boton.isConnected&&boton.focus({preventScroll:true})});
+    if(typeof track==='function')track('perfil_profesor_abierto');
   });
-  seccion.querySelectorAll('[data-logo]').forEach(async c=>{const url=await urlFlyerClase(c.dataset.logo);if(!c.isConnected)return;if(url)c.innerHTML=imgLogoClase(url,' loading="lazy"');else c.remove();});
-  seccion.querySelectorAll('[data-fuera]').forEach(a=>a.addEventListener('click',e=>{
-    if(typeof enAppNativa==='function'&&enAppNativa()&&abrirFuera(a.href))e.preventDefault();
-  }));
-  seccion.querySelectorAll('[data-ir-anuncio]').forEach(b=>b.addEventListener('click',()=>{
-    const destino=document.querySelector(`[data-catalogo-anuncio="${CSS.escape(b.dataset.irAnuncio)}"]`);
-    if(destino){destino.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-      const ver=destino.querySelector('[data-abrir]');(ver||destino).focus&&(ver||destino).focus({preventScroll:true});}
-  }));
 }
 
 // Filtros locales sobre el catálogo público; no modifican campañas ni medición.
@@ -433,6 +450,7 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
 }
 
 async function openCatalogoClases(){
+  if(await abrirDirectorioClases())return;
   impresionesCatalogo=new Set();
   eventosCatalogo=new Map();
   const raiz=document.getElementById('modal-content');

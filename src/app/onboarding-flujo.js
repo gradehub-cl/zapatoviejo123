@@ -13,24 +13,26 @@ function obTrackPaso(){
 // la malla de otra universidad. `obStepValid(2)` ya exige un tenant; lo que faltaba
 // era no dárselo puesto.
 function obIniciar(){
-  obStep=0;obPasosVistos.clear();selectedTenant=null;obEnviandoProfesor=false;
+  obStep=1;obPasosVistos.clear();selectedTenant=null;obEnviandoProfesor=false;
   ['ob-prof-nombre','ob-prof-presentacion'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
+  const mayor=document.getElementById('ob-prof-mayor');if(mayor)mayor.checked=false;
   const error=document.getElementById('ob-prof-error');if(error)error.textContent='';
-  elegirTipoCuenta('estudiante');
+  elegirTipoCuenta(typeof consumirEntradaProfesor==='function'&&consumirEntradaProfesor()?'profesor':'estudiante');
   montarRuletasOnboarding();renderTenantPick();obRender();checkOb();
 }
 
 function obRender(){
   // Cuántos semestres ofrecer depende de la malla, que puede venir en un
   // archivo diferido: se pide acá y el selector se repinta cuando llega.
-  if(obStep===4){
-    if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();
-    initSemGrid();repintarAlCargarMallas(selectedTenant,()=>{if(obStep===4){if(typeof actualizarSemestreCalculado==='function')actualizarSemestreCalculado();initSemGrid();}});
-  }
+  // La generación y el semestre están en el paso 1; el profesor no los ve.
+  const estudio=document.getElementById('ob-estudio');
+  if(estudio)estudio.hidden=obTipo==='profesor';
+  if(obStep===1&&obTipo!=='profesor'&&typeof actualizarSemestreCalculado==='function'){actualizarSemestreCalculado();initSemGrid();}
   const alPintar=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(f):f();
-  if(obStep===1&&typeof ruletaEdad!=='undefined'&&ruletaEdad)alPintar(ruletaEdad.sincronizar);
-  if(obStep===4&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
-  if(obStep===5)prepararObRamos();
+  if(obStep===1&&typeof ruletaGeneracion!=='undefined'&&ruletaGeneracion)alPintar(ruletaGeneracion.sincronizar);
+  // Con la carrera ya elegida, el semestre se ajusta a los que tenga antes de
+  // sugerir ramos. Si la malla llega después, prepararObRamos repinta y vuelve acá.
+  if(obStep===5){if(typeof ajustarSemestreACarrera==='function')ajustarSemestreACarrera();prepararObRamos();}
   // El nombre público parte en el nombre que ya escribió; lo puede cambiar.
   if(obStep===OB_PASO_PROFESOR){
     const publico=document.getElementById('ob-prof-nombre'),nombre=document.getElementById('ob-name');
@@ -46,9 +48,9 @@ function obRender(){
   const num=document.querySelector('.ob-step[data-step="'+obStep+'"] .ob-step-num');
   if(num)num.textContent=`Paso ${n} de ${total}`;
   const back=document.getElementById('ob-back');
-  // En el primer paso no hay a dónde volver: sin el botón, Continuar ocupa el
-  // ancho completo en vez de quedar corrido a la derecha junto a un hueco.
-  if(back)back.hidden=obStep<=0;
+  // En el primer paso no hay a dónde volver: el mismo botón ofrece salir, para
+  // quien entró con la cuenta equivocada o solo estaba mirando (2026-11-03).
+  if(back){back.hidden=false;back.textContent=obPasos().indexOf(obStep)>0?'Atrás':'Cerrar sesión';}
   // "tus datos y ramos" es del estudiante: el profesor no carga ramos.
   const nota=document.getElementById('ob-note');
   if(nota)nota.hidden=obTipo==='profesor';
@@ -82,6 +84,7 @@ function obBack(){
   if(obEnviandoProfesor)return;
   const pasos=obPasos(),i=pasos.indexOf(obStep);
   if(i>0){obStep=pasos[i-1];obRender();}
+  else signOut();
 }
 
 // checkOb se llama desde los grids y el input: solo refresca el estado del botón
@@ -93,10 +96,10 @@ function checkOb(){
 // Devuelve el PRIMER paso obligatorio que quedó sin responder, o 0 si están
 // todos. Es `obStepValid` recorrido entero: lo que habilita cada botón es lo
 // mismo que exige el final, por construcción y no por acuerdo.
-// Se recorren los pasos del camino elegido; el 0 siempre tiene respuesta, así
-// que nunca es el que falta (y 0 sigue significando "están todos").
+// Se recorren los pasos del camino elegido; ninguno es el 0, así que 0 sigue
+// significando "están todos".
 function obPasoIncompleto(){
-  for(const paso of obPasos())if(paso&&!obStepValid(paso))return paso;
+  for(const paso of obPasos())if(!obStepValid(paso))return paso;
   return 0;
 }
 
@@ -130,11 +133,11 @@ function completeOnboarding(){
   });
   S.onboardingDone=true;save();
   syncProfile();
-  // La declaración de edad queda anotada con su fecha. Va acá y no en el
-  // formulario de correo porque por el onboarding pasan también las cuentas de
-  // Google, que nunca vieron ese formulario — y con ellas, la aceptación de
-  // los términos, que hasta ahora solo se registraba en el camino del correo.
-  registrarDeclaracionEdad({edad:obEdad,generacion:obGeneracion});
+  // La declaración de edad (los 14 años del aviso de la entrada) queda anotada
+  // con su fecha. Va acá y no en el formulario de correo porque por el
+  // onboarding pasan también las cuentas de Google, que nunca vieron ese
+  // formulario — y con ellas, la aceptación de los términos.
+  registrarDeclaracionEdad({generacion:obGeneracion});
   // `carrera` es un código de una lista cerrada y puede viajar. El nombre
   // declarado NO: es texto escrito por el estudiante y la analítica no recibe
   // texto suyo — lo prohíbe tests/analitica.test.js y lo promete la política.
@@ -172,7 +175,7 @@ async function completarOnboardingProfesor(name){
   S.userName=name;S.tipoCuenta='profesor';
   S.onboardingDone=true;save();
   syncProfile();
-  registrarDeclaracionEdad({edad:obEdad,generacion:null});
+  registrarDeclaracionEdad();
   if(typeof olvidarPerfilProfesor==='function')olvidarPerfilProfesor();
   track('onboarding_complete',{tipo:'profesor'});
   enterApp();

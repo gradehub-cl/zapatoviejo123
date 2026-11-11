@@ -143,7 +143,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  await run('abrirWrapped()');assert.equal(fondo.inert,true);assert.equal(yaInert.inert,true);
  assert.equal(run('_wrapped.slides[0].tipo'),'umbral');
  assert.doesNotMatch(run('_wrapped.ov.querySelector(".wrapped-slide").innerHTML'),/Nombre Privado|5[.,]0|Mejor nota/);
- assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Descubrir mi semestre');
+ assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Revisar mi hoja');
  check('Tab permanece en el modal y Espacio respeta Compartir',()=>{
   const ov=run('_wrapped.ov'),a=el(),b=el();ov.querySelectorAll=()=>[a,b];ctx.document.activeElement=b;let prevenido=false;
   ctx.teclaWrapped({key:'Tab',preventDefault(){prevenido=true;}});assert.ok(prevenido);assert.equal(ctx.document.activeElement,a);
@@ -225,5 +225,35 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
   assert.match(css,/\.wrapped\{[^}]*background-color:#F3EFE4;/);assert.match(css,/\.home-wrapped\{[^}]*background-color:#F3EFE4;/); // El papel tiene color fijo de respaldo: sin variables modernas, la tinta grafito sigue legible.
   const regla=css.match(/\.wrapped\{[^}]*\}/)[0];
   for(const lado of ['top','right','bottom','left'])assert.ok(regla.includes('safe-area-inset-'+lado));
+ });
+ check('la vista previa de la hoja usa un esquema que la CSP de producción permite',()=>{
+  const imgSrc=read('_headers').match(/img-src ([^;]*)/)[1];
+  assert.match(imgSrc,/\bdata:/);assert.doesNotMatch(imgSrc,/\bblob:/);
+  const fuente=read('src/render-main/wrapped-compartir.js');
+  assert.match(fuente,/readAsDataURL/);
+  assert.doesNotMatch(fuente.slice(fuente.indexOf('function actualizarCompartirWrapped'),fuente.indexOf('function descargarWrapped')),/createObjectURL/);
+ });
+ // Alternar «Mostrar mi promedio» no puede dejar lista la imagen de la opción contraria.
+ const pendientes=[];ctx.imagenWrapped=()=>new Promise(resolve=>pendientes.push(resolve));
+ ctx.FileReader=class{readAsDataURL(a){this.result='data:image/png;base64,'+a.name;this.onload();}};
+ set('_wrapped',{ov:el(),archivo:null,imagen:null,imagenTerminada:false,slides:[{tipo:'final'}],i:0});
+ ctx.prepararImagenWrapped({});const conPromedio=run('_wrapped.imagen');
+ run('_wrapped.imagen=null');ctx.prepararImagenWrapped({});const sinPromedio=run('_wrapped.imagen');
+ pendientes[1]({name:'sin-promedio.png'});await sinPromedio;
+ pendientes[0]({name:'con-promedio.png'});await conPromedio;
+ assert.equal(run('_wrapped.archivo.name'),'sin-promedio.png');
+ assert.equal(run('_wrapped.vista'),'data:image/png;base64,sin-promedio.png');
+ console.log('  OK   una imagen atrasada no reemplaza a la última pedida');
+ check('la universidad siempre va con artículo',()=>{
+  for(const [id,t] of Object.entries(run('TENANTS')))assert.match(t.conArticulo,/^la /,id);
+  mostrar([ramo('uno')]);
+  const slides=run("slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())");
+  const uni=slides.find(x=>/^En toda/.test(x.k||''));
+  assert.equal(uni.k,'En toda la UC');assert.match(uni.sub,/personas de la UC en GradeHub/);
+ });
+ check('en pantalla ancha la hoja es una columna centrada',()=>{
+  const ancho=read('styles.css').match(/@media \(min-width:768px\)\{\s*\.wrapped-arriba[^}]*\}/);
+  assert.ok(ancho);assert.match(ancho[0],/max-width:430px/);assert.match(ancho[0],/margin-inline:auto/);
+  assert.match(read('src/render-main/wrapped-presentacion.js'),/hoja\.left\+hoja\.width\/3/);
  });
 })().catch(e=>{console.error(e);process.exitCode=1;});
