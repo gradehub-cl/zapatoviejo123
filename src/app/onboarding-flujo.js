@@ -192,11 +192,9 @@ async function completarOnboardingProfesor(name){
 // Quien ya pasó su primer semestre tiene notas anteriores: se le ofrece cargarlas
 // todas de una con la ficha académica (Lucas, 2026-11-11). Es opcional; si no
 // la sube, el historial sigue disponible desde el menú del perfil y Ajustes.
-// Apagada hasta que Lucas pruebe la ficha desde el menú del perfil (2026-11-11):
-// encenderla es cambiar esta constante a true.
-const OFERTA_FICHA_ONBOARDING=false;
+// Encendida para todo estudiante UC desde su 2.º semestre (Lucas, 2026-11-11).
 function ofertaFichaOnboardingHTML(){
-  if(!OFERTA_FICHA_ONBOARDING||!(Number(S.careerSemestre)>1)||!avanceCurricularDisponible()||(S.historial||[]).length)return '';
+  if(!(Number(S.careerSemestre)>1)||!avanceCurricularDisponible()||(S.historial||[]).length)return '';
   return `<button type="button" class="ob-ficha-oferta" onclick="openAvanceCurricular()">
       <strong>Carga todos tus semestres pasados de una</strong>
       <span>Sube tu ficha académica en PDF y armamos tu historial y tu PPA.</span>

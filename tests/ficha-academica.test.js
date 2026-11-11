@@ -107,17 +107,10 @@ check('el modal ofrece subir la ficha primero y pegar el avance como alternativa
   assert.match(html,/accept="application\/pdf,\.pdf"/);
 });
 
-check('la oferta del onboarding está apagada mientras Lucas la prueba',()=>{
-  run(`S.tenant='uc';S.careerSemestre=3;S.historial=[];`);
-  assert.equal(run('ofertaFichaOnboardingHTML()'),'');
-});
-
-check('al terminar el onboarding se ofrece la ficha solo a quien no va en primer semestre',()=>{
-  // Se prueba como quedará al encenderla.
-  const fuente=leer('src/app/onboarding-flujo.js').match(/function ofertaFichaOnboardingHTML\(\)\{[\s\S]*?\n\}/)[0].replace('!OFERTA_FICHA_ONBOARDING||','');
-  run(fuente);
+check('al terminar el onboarding se ofrece la ficha a estudiantes UC desde su 2.º semestre',()=>{
   const oferta=(sem,tenant='uc',historial=[])=>{ctx.__h=historial;return run(`S.tenant='${tenant}';S.careerSemestre=${sem};S.historial=__h;ofertaFichaOnboardingHTML()`);};
-  assert.equal(oferta(1),'');
+  assert.equal(oferta(1),'','primer semestre: no tiene semestres pasados');
+  assert.match(oferta(2),/Carga todos tus semestres pasados de una/,'desde el 2.º semestre ya hay uno pasado');
   assert.match(oferta(3),/Carga todos tus semestres pasados de una/);
   assert.match(oferta(3),/onclick="openAvanceCurricular\(\)"/);
   assert.equal(oferta(3,'uai'),'','solo donde hay lector');
