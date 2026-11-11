@@ -1174,12 +1174,24 @@ const PRESETS_UC={
     // salían del homónimo TEB110 (8) o quedaban vacíos. Reportado el 2026-10-01.
     creditos:10,
     evals:[['Evaluación 1',20,{fecha:'2026-09-07'}],['Evaluación 2',20,{fecha:'2026-10-14'}],['Evaluación 3',30,{fecha:'2026-11-16'}],['Examen final',30]],
-    noCalcula:[
-      'Si tienes más de 75% de asistencia y una nota de presentación igual o superior a 6,00, te eximes del Examen final; tu nota de presentación se calcula como el promedio simple de Evaluación 1, Evaluación 2 y Evaluación 3, sin usar sus ponderaciones',
-      'Si te eximes del Examen final, la nota del Examen final se reemplaza por la nota más alta que obtuviste entre Evaluación 1, Evaluación 2 y Evaluación 3',
-      'Si obtienes décimas en los talleres, se agregan al finalizar el semestre a tu nota más baja',
-      'Si presentas voluntariamente uno de los textos del curso cumpliendo las condiciones indicadas, obtienes un 7,0 que se promedia con tu nota más baja entre Evaluación 1, Evaluación 2 y Evaluación 3',
+    // Programa de Juan Pablo Espinosa, 2026-2. #1056 aún está abierta:
+    // al integrarla, conservar estas reglas en la pauta de referencia de él.
+    // Aclaraciones de Lucas, 2026-11-11: exime desde 5,95; texto previo;
+    // décimas a la nota más baja tras decidir la eximición, como dice el
+    // programa y por si acaso (Lucas, 2026-11-11, en vez de repartirlas); examen eximido = máxima final;
+    // empates a mayor peso y notas mejoradas con tope 7,0. Contador: hasta 6 faltas.
+    eximicion:{evaluacion:'Examen final',segun:['Evaluación 1','Evaluación 2','Evaluación 3'],
+      min:5.95,promedio:'simple',notaExamen:'maxima',maxInasistencias:6,ignoraDescartes:true,requierePautaOriginal:true,
+      requiereConfirmacion:false},
+    bonus:[
+      {id:'texto',entrada:'confirmacion',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3'],
+        operacion:'promediar',valor:7,etapa:'previa',pregunta:'Presenté un texto',
+        ayuda:'Promedia un 7,0 con la menor de E1, E2 y E3 antes de calcular la presentación.'},
+      {id:'talleres',entrada:'decimas',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3','Examen final'],
+        operacion:'sumar',etapa:'final',pregunta:'Décimas de talleres',
+        ayuda:'Solo las ganadas asistiendo al taller. Se suman a tu nota más baja al final del semestre, con tope 7,0. 5 décimas = +0,5.'},
     ],
+    reglasDelCurso:['Una evaluación no rendida sin justificación autorizada dentro de 48 horas recibe un 1,0; ingresa esa nota cuando el profesor la confirme'],
   },
   // ─── Derecho UC · formularios de condiciones y evaluaciones 2026-2 ───
   // Ramos NO coordinados (`coordinado:false`, confirmado por Lucas el

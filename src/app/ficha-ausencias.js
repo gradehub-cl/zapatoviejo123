@@ -54,6 +54,13 @@ function corregirRecuperativo(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r||!r.recuperativoRendido)return;
   r.recuperativoRendido=null;save();renderRamo();
 }
+// Declaraciones optativas: nunca escriben una nota derivada sobre la original.
+function declararMejora(id,valor){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const regla=r?.bonus?.find(b=>b.id===id&&b.destino==='grupo'&&b.entrada==='confirmacion');if(!regla)return;
+  r.eximicion=eximicionParaGuardar(definicionPresetDelRamo(r));
+  r.bonusConfirmado={...(r.bonusConfirmado||{}),[id]:valor===true};save();renderRamo();
+}
 function confirmarEximicionActual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const estado=estadoEximicion(r);
