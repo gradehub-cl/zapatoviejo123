@@ -57,9 +57,12 @@ async function cambiarCorreoCuenta(){
 // Cambiar la contraseña estando dentro (#714). Antes solo se llegaba desde el
 // correo de recuperación. Misma política y mismo updateUser que esa pantalla.
 // Solo para cuentas que entran con correo: las de Google no tienen contraseña.
+// Solo cuentas que se crearon con correo: `provider` guarda el primer método de
+// entrada. Una cuenta que nació con Google no cambia contraseña aquí aunque
+// después haya quedado también con correo (decisión de Lucas, 2026-11-09).
 function cuentaConClave(u){
   const m=u&&u.app_metadata;
-  return !!m&&(Array.isArray(m.providers)?m.providers.includes('email'):m.provider==='email');
+  return !!m&&m.provider==='email';
 }
 function estadoCambioClave(mensaje,esError,campo){
   const aviso=document.getElementById('s-account-pass-status');
@@ -86,6 +89,10 @@ async function cambiarClaveCuenta(){
   if(p1!==p2){estadoCambioClave('Las contraseñas no coinciden.',true);if(i2)i2.focus();return false;}
   if(!supabaseClient||!supabaseClient.auth||!currentUser){
     estadoCambioClave('Necesitas iniciar sesión para cambiar tu contraseña.',true);
+    return false;
+  }
+  if(!cuentaConClave(currentUser)){
+    estadoCambioClave('Tu cuenta entra con Google: la contraseña se cambia en tu cuenta de Google.',true,'verificacion');
     return false;
   }
   const original=btn?btn.textContent:'';

@@ -143,7 +143,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  await run('abrirWrapped()');assert.equal(fondo.inert,true);assert.equal(yaInert.inert,true);
  assert.equal(run('_wrapped.slides[0].tipo'),'umbral');
  assert.doesNotMatch(run('_wrapped.ov.querySelector(".wrapped-slide").innerHTML'),/Nombre Privado|5[.,]0|Mejor nota/);
- assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Descubrir mi semestre');
+ assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Revisar mi hoja');
  check('Tab permanece en el modal y Espacio respeta Compartir',()=>{
   const ov=run('_wrapped.ov'),a=el(),b=el();ov.querySelectorAll=()=>[a,b];ctx.document.activeElement=b;let prevenido=false;
   ctx.teclaWrapped({key:'Tab',preventDefault(){prevenido=true;}});assert.ok(prevenido);assert.equal(ctx.document.activeElement,a);

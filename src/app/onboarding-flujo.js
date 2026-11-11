@@ -189,6 +189,19 @@ async function completarOnboardingProfesor(name){
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Entendido</button></div>`;
   openModal();
 }
+// Quien ya pasó su primer semestre tiene notas anteriores: se le ofrece cargarlas
+// todas de una con la ficha académica (Lucas, 2026-11-11). Es opcional; si no
+// la sube, el historial sigue disponible desde el menú del perfil y Ajustes.
+// Apagada hasta que Lucas pruebe la ficha desde el menú del perfil (2026-11-11):
+// encenderla es cambiar esta constante a true.
+const OFERTA_FICHA_ONBOARDING=false;
+function ofertaFichaOnboardingHTML(){
+  if(!OFERTA_FICHA_ONBOARDING||!(Number(S.careerSemestre)>1)||!avanceCurricularDisponible()||(S.historial||[]).length)return '';
+  return `<button type="button" class="ob-ficha-oferta" onclick="openAvanceCurricular()">
+      <strong>Carga todos tus semestres pasados de una</strong>
+      <span>Sube tu ficha académica en PDF y armamos tu historial y tu PPA.</span>
+    </button>`;
+}
 function mostrarRamosCargados(cantidad,oficiales){
   const modal=document.getElementById('modal-content');
   if(!cantidad){
@@ -197,6 +210,7 @@ function mostrarRamosCargados(cantidad,oficiales){
       <div class="courses-loaded">
         <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0;">Cuando quieras, agrega tu primer ramo desde Inicio.</p>
       </div>
+      ${ofertaFichaOnboardingHTML()}
       <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Ir a Inicio</button></div>`;
     openModal();return;
   }
@@ -225,6 +239,7 @@ function mostrarRamosCargados(cantidad,oficiales){
       <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0;">${detalle}</p>
       ${oficiales?`<p style="font-size:0.75rem;color:var(--fg3);margin:2px 0 0;">${ramosTxt}</p>`:''}
     </div>
+    ${ofertaFichaOnboardingHTML()}
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Ver mis ramos</button></div>`;
   openModal();
 }

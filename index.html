@@ -517,7 +517,6 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     </div>
     <div id="ramo-vinculo-contexto" class="ramo-vinculo-contexto" hidden></div>
     <div id="peso-warning" class="ramo-warning" style="display:none;"></div>
-    <span id="pauta-procedencia" class="pauta-procedencia" hidden></span>
     <div id="pauta-cambio" style="display:none;"></div>
     <div id="consenso-disponible" style="display:none;"></div>
     <div id="notas-propuestas" style="display:none;"></div>
@@ -608,6 +607,10 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
   <button class="user-menu-item" role="menuitem" id="um-calculadora" style="min-height:44px;" onclick="umGo(openCalculadoraApp)">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M7 8h10M8 13h2m4 0h2m-8 4h2m4 0h2"/></svg>
     Calculadora de nota
+  </button>
+  <button class="user-menu-item" role="menuitem" id="um-ficha" hidden style="min-height:44px;" onclick="umGo(openAvanceCurricular)">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6m-3 3 3 3 3-3"/></svg>
+    Cargar semestres pasados
   </button>
   <button class="user-menu-item" role="menuitem" id="um-horario" hidden style="min-height:44px;" onclick="umGo(abrirImportarHorarioBuscacursos)">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="4"/></svg>

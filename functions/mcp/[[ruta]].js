@@ -140,6 +140,11 @@ function queNecesitoParaAprobar(ramos, args, tenant) {
     ...((calculo.reglasCalculoVigentes?.(ramo)||[]).some(g=>g.type==='conditional_weights')?{supuesto:'La misma nota en cada evaluación pendiente. Cambiar una nota puede activar otra fórmula; el resultado no es un mínimo monotónico.'}:{}),
     promedioActual,
     promedioNecesario,
+    ...(calculo.estadoEximicion(ramo)?.regla.notaExamen==='maxima'?{eximicion:{
+      activa:calculo.estadoEximicion(ramo).activa,presentacion:calculo.estadoEximicion(ramo).promedio,
+      notaExamen:calculo.estadoEximicion(ramo).notaExamen,
+      necesariaEnPrevias:calculo.notaNecesariaEximicion(ramo),requiereAsistencia:true,
+    }}:{}),
     factibleEnEscala: promedioNecesario === null ? alcanzaMetaOficial(calculo, ramo, promedioActual, meta) : promedioNecesario <= 7,
     estado,
     // No se esconden detrás del promedio: una compuerta puede impedir aprobar

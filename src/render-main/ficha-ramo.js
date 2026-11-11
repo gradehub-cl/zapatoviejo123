@@ -172,16 +172,6 @@ function renderRamo(){
   document.getElementById('ramo-peso-contexto').textContent=categoriasVisibles.length===0
     ?'Agrega evaluaciones para comenzar':Math.abs(tp-100)>0.001?`${r2(tp)}% ponderado`:'';
   renderDocenteRamo(r);
-  const periodoEl=document.getElementById('pauta-periodo');
-  if(periodoEl){
-    const info=infoPeriodoPauta(r);
-    if(!info||!info.periodo){periodoEl.style.display='none';periodoEl.innerHTML='';}
-    else{
-      periodoEl.className='pauta-periodo';
-      periodoEl.innerHTML=`<span>Pauta del ${esc(info.periodo)}</span>`;
-      periodoEl.style.display='inline-flex';
-    }
-  }
 
   // Notas que un agente propuso para ESTE ramo. Van acá y no en una bandeja
   // aparte porque la decisión se toma mirando el ramo: qué evaluación es, qué
@@ -269,7 +259,7 @@ function renderRamo(){
     const pendientes=(calculo.res&&calculo.res.emptyLeaves)||[];
     const pesoPendiente=pendientes.reduce((s,l)=>s+(Number(l.effectiveWeight)||0),0);
     const pctPendiente=Math.round(pesoPendiente*100);
-    if(eximicion&&eximicion.activa){
+    if(eximicion&&eximicion.activa&&(eximicion.regla.notaExamen!=='maxima'||!gateHit)){
       chipEl.style.display='inline-flex';
       chipEl.className='ramo-chip';
       chipEl.textContent=eximicion.regla.etiqueta
@@ -321,6 +311,9 @@ function renderRamo(){
     } else {chipEl.style.display='none';}
   } else {chipEl.style.display='none';}
 
+  const paraEximir=notaNecesariaEximicion(r);
+  if(paraEximir!==null&&paraEximir<=7)chipEl.innerHTML+=`<span class="ficha-mensaje">Podrías eximirte con ${esc(nfNecesaria(paraEximir).replace('.',','))} en las evaluaciones previas pendientes, si cumples la asistencia.</span>`;
+
   if(contextoVinculo?.soloCatedra&&/^.[ ](?:Aprobado|Reprobado)$/.test(chipEl.textContent))chipEl.textContent+=' · solo cátedra';
 
   // El simulador, con la meta adentro («Nota mínima» se juntó con él, 2026-10-23)
@@ -333,16 +326,26 @@ function renderRamo(){
     pw.style.display='flex';pw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div>Las evaluaciones suman <b>${r2(tp)}%</b> — ajústalas para que sumen 100%</div>`;
   } else {pw.style.display='none';}
 
-  const fuente=document.getElementById('pauta-procedencia');
-  if(fuente){
+  // El origen de la pauta se dice en un solo lugar: la etiqueta del período.
+  // Si viene de estudiantes se dice eso; si no, solo «Pauta del 2026-2», sin
+  // rotular «oficial» (Lucas, 2026-11-10).
+  const periodoEl=document.getElementById('pauta-periodo');
+  if(periodoEl){
     const sugerida=r.pautaSugerida?.aceptada;
     const intacta=!pautaEditada(r);
     const consenso=r.consensoRespaldos&&(sugerida?intacta:
       (intacta||yaAportada(r,estructuraParaConsenso(estructuraDe(r)))));
-    const oficial=pautaOficialIntacta(r);
-    fuente.textContent=consenso?`Pauta por consenso · ${consenso} estudiantes`
-      :sugerida&&intacta?textoProcedenciaSugerida(sugerida):oficial?'Pauta oficial':'';
-    fuente.hidden=!fuente.textContent;
+    const info=infoPeriodoPauta(r);
+    const texto=consenso?`Pauta por consenso · ${consenso} estudiantes`
+      :sugerida&&intacta?textoProcedenciaSugerida(sugerida).replace(/^Programa oficial/,'Programa')
+      :info&&info.periodo?`Pauta del ${esc(info.periodo)}`:'';
+    if(!texto){periodoEl.style.display='none';periodoEl.innerHTML='';}
+    else{
+      periodoEl.className='pauta-periodo';
+      periodoEl.innerHTML=`<span>${texto}</span>`;
+      periodoEl.style.display='inline-flex';
+    }
+
   }
 
   // La pauta oficial cambió y este ramo sigue con la vieja. No se toca nada sin
@@ -399,7 +402,16 @@ function renderRamo(){
   // cualquier ramo. Llegar al promedio solo habilita la confirmación: nunca
   // afirma la eximición sola.
   const ew=document.getElementById('eximicion-warning');
-  if(ew&&eximicion&&eximicion.regla.requiereConfirmacion===true){
+  if(ew&&eximicion?.regla.notaExamen==='maxima'){
+    const presentacion=eximicion.promedio===null?'Pendiente':fmtPromedioExacto(eximicion.promedio).replace('.',',');
+    ew.style.display='block';ew.className='weight-setup-nudge eximicion-note mejoras-programa';
+    ew.innerHTML=`<div class="mejoras-programa-contenido"><b>Eximición del examen</b>
+      <p>Presentación: ${esc(presentacion)} · mínimo ${esc(String(eximicion.regla.min).replace('.',','))}.</p>
+
+
+      <p>${eximicion.activa?`Te eximiste. El examen conserva su peso y vale ${nf(eximicion.notaExamen).replace('.',',')}, la mayor nota previa.`:eximicion.razon==='examen_rendido'?'La nota de examen que ingresaste se conserva.':eximicion.razon==='asistencia'?(faltasActivas(r)?`Con ${r.faltas.cantidad} inasistencias no cumples el máximo de ${eximicion.regla.maxInasistencias}.`:'Activa tu contador de inasistencias para comprobar la asistencia.'):eximicion.pendiente?'Al completar las evaluaciones previas se comprobará si puedes eximirte.':eximicion.elegible?'La eximición se calcula con tus notas y el contador de inasistencias.':'Todavía no alcanzas el mínimo para eximirte.'}</p>
+      <small>La asistencia usa tu contador de inasistencias: hasta ${eximicion.regla.maxInasistencias} para eximirte.</small>${!faltasActivas(r)?'<button type="button" onclick="openEditRamoModal()">Activar el contador en Editar ramo</button>':''}</div>`;
+  }else if(ew&&eximicion&&eximicion.regla.requiereConfirmacion===true){
     let texto='',accion='';
     const examenes=eximicion.regla.etiqueta?`de ${esc(eximicion.regla.etiqueta)}`:`del ${esc(eximicion.regla.evaluacion)}`;
     const varios=eximicion.examenIds.length>1;
@@ -437,7 +449,8 @@ function renderRamo(){
   if(fw){
     if(!faltasActivas(r)){fw.style.display='none';fw.innerHTML='';}
     else{
-      const {cantidad,limite}=r.faltas;
+      const cantidad=r.faltas.cantidad;
+      const limite=Number.isInteger(eximicion?.regla.maxInasistencias)?eximicion.regla.maxInasistencias:r.faltas.limite;
       const quedan=limite!=null?limite-cantidad:null;
       const detalle=limite==null?'Anota cada clase a la que no fuiste.'
         :quedan>1?`Te quedan ${quedan} de ${limite}.`
@@ -476,6 +489,22 @@ function renderRamo(){
       const destino=b=>b.destino==='final'?'a tu nota final':`al promedio de ${(r.categorias||[]).find(c=>c.id===b.destino)?.nombre||'la evaluación'}`;
       bw.style.display='contents';
       bw.innerHTML=reglas.map(b=>{
+        if(b.destino==='grupo'){
+          const valor=b.entrada==='confirmacion'?r.bonusConfirmado?.[b.id]:r.bonusIngresado?.[b.id];
+          const resultados=(calc.res.mejoras||[]).filter(m=>m.id===b.id);
+          const vigente=reglasBonusVigentes(r).some(x=>x.id===b.id);
+          const detalle=!vigente?'Esta regla necesita la pauta del programa. Tus evaluaciones se conservan.'
+            :resultados.some(m=>m.pendiente)?'Se aplicará cuando estén todas las notas necesarias.'
+            :resultados.filter(m=>m.destinoId).map(m=>`${r.categorias.find(c=>c.id===m.destinoId)?.nombre}: ${nf(m.antes).replace('.',',')} pasa a ${nf(m.valor).replace('.',',')}.`).join(' ');
+          if(b.entrada==='confirmacion')return `<div class="bonus-card mejoras-programa mejora-texto"><label class="mejoras-interruptor"><span>${esc(b.pregunta)}</span><input type="checkbox" role="switch"${valor===true?' checked':''} onchange="declararMejora('${esc(b.id)}',this.checked)"></label>
+            <details class="mejora-ayuda"><summary aria-label="Cómo cuenta presentar un texto"><span aria-hidden="true">?</span></summary><p>${esc(b.ayuda)} Se elige la de mayor peso si hay empate. Las notas originales se conservan.</p></details>${detalle?`<p aria-live="polite">${esc(detalle)}</p>`:''}</div>`;
+          const n=Number.isInteger(valor)?valor:0;
+          return `<div class="bonus-card mejoras-programa"><div class="mejoras-programa-campo"><span>${esc(b.pregunta)}</span><div class="faltas-ctrl">
+            <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',-1)" aria-label="Restar una décima de talleres"${n===0?' disabled':''}>−</button>
+            <span class="faltas-num" aria-live="polite">${n}<small>décimas</small></span>
+            <button type="button" class="faltas-btn" onclick="cambiarBonus('${esc(b.id)}',1)" aria-label="Sumar una décima de talleres"${n>=topeBonus(b)?' disabled':''}>+</button>
+            </div></div><p>${esc(detalle||b.ayuda)}</p></div>`;
+        }
         const v=r.bonusIngresado&&Number.isInteger(r.bonusIngresado[b.id])?r.bonusIngresado[b.id]:null;
         const unidad=b.entrada==='decimas'?['décima','décimas']:['falta','faltas'];
         let detalle;
@@ -667,11 +696,12 @@ function renderRamo(){
         const notasCount=new Set(notas.filter(n=>Number.isInteger(n.slot)&&n.valor!=null).map(n=>n.slot)).size
           || notas.filter(n=>n&&n.valor!=null).length;
         // Casillas con nombre o peso propio las fija el programa una por una.
-        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="sim-meta">
-            <span>Cantidad de notas</span>
-            <button type="button" class="sim-meta-btn" aria-label="Una nota menos en ${esc(cat.nombre)}" onclick="cambiarCasillas('${cat.id}',-1)"${cat.slots<=minimoCasillas(cat)?' disabled':''}>−</button>
-            <output>${cat.slots}</output>
-            <button type="button" class="sim-meta-btn" aria-label="Una nota más en ${esc(cat.nombre)}" onclick="cambiarCasillas('${cat.id}',1)"${cat.slots>=100?' disabled':''}>+</button>
+        // "+ Agregar nota" en vez del contador −/+ (Martín, 2026-11-11): la cantidad
+        // ya se lee arriba ("promedio de 3"). Quitar solo aparece si la última
+        // casilla está vacía, así que nunca se lleva una nota.
+        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="casillas-pie">
+            ${cat.slots<100?`<button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarCasilla('${cat.id}')">+ Agregar nota</button>`:''}
+            ${cat.slots>minimoCasillas(cat)?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="cambiarCasillas('${cat.id}',-1)">Quitar la última</button>`:''}
           </div>`;
         wrap.innerHTML=`
           <div class="eval-group-hd" role="button" tabindex="0" aria-expanded="${isOpen?'true':'false'}" onclick="toggleCat('${cat.id}')">
@@ -689,16 +719,18 @@ function renderRamo(){
         return;
       }
       const g=notas[0]?notas[0].valor:null;
+      const derivada=typeof calculoCategoria?.value==='number'&&(exenta||g!==null&&Math.abs(calculoCategoria.value-g)>1e-9)
+        ?`<div class="eval-row-weight">Cuenta como ${nf(calculoCategoria.value).replace('.',',')}${exenta?' por eximición':' con los beneficios'}</div>`:'';
       const recorreccion=notas[0]&&notas[0].recorreccionPendiente===true;
       const textoRecorreccion=recorreccion?textoPlazoRecorreccion(plazoRecorreccion(notas[0],cat,S.tenant)):'';
       const row=document.createElement('div');row.className='eval-row';
       if(g!=null)row.style.borderLeftColor=getColor(g);
       row.innerHTML=`
         <div class="eval-row-info" role="button" tabindex="0" onclick="openEditCatModal('${cat.id}')" style="cursor:pointer;">
-          <div class="eval-row-name">${esc(cat.nombre)}</div>
-          <div class="eval-row-weight">${g==null&&!justificada?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
+          <div class="eval-row-name">${esc(cat.nombre)}</div>${derivada}
+          <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value).replace('.',',')}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
       adjuntarCategoria(row,cat);

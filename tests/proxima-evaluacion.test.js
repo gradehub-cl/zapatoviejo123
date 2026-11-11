@@ -102,7 +102,7 @@ chk('el promedio general usa el semáforo: un 1,0 va en rojo',byId('home-gpa').s
 chk('se oculta solo la aclaración rutinaria de ponderación',byId('home-gpa-method').style.display==='none');
 chk('las notas sin fecha siguen contando y conservan el semáforo del ramo',/gpa-tag-dot bad/.test(byId('gpa-tags').innerHTML));
 chk('la comparación con el semestre anterior sigue bajando en rojo',byId('gpa-delta').className==='gpa-delta down'&&/↓/.test(byId('gpa-delta').innerHTML));
-chk('el riesgo imposible no pide una nota fuera de escala',/Ya no alcanza/.test(h)&&/Con lo pendiente ya no se llega a 4,0/.test(h)&&!/Necesitas/.test(h));
+chk('Inicio ya no muestra la tarjeta de ramo en riesgo',!/Ramo en riesgo|Ya no alcanza/.test(h));
 chk('las tarjetas usan botones nativos para teclado y lector de pantalla',/button type="button" class="insight-card home-academic-row"/.test(h)&&!/role="button"/.test(h));
 run(`S.ramos[0].creditos=null;`);tarjeta();
 chk('si faltan créditos, se conserva la advertencia de promedio simple',byId('home-gpa-method').style.display==='block'&&/promedio simple/i.test(byId('home-gpa-method').textContent));

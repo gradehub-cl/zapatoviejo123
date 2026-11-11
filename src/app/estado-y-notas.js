@@ -23,7 +23,14 @@ function save(){
   // cuya sigla recién se pudo resolver porque el catálogo terminó de bajarse al
   // buscar, quedan con el dato guardado en el momento en que se supo, sin
   // esperar a la próxima visita.
-  (S.ramos||[]).forEach(r=>sellarDatosCatalogo(r));
+  (S.ramos||[]).forEach(r=>{
+    sellarDatosCatalogo(r);
+    // La regla nueva debe llegar al MCP también al agregar el ramo en esta
+    // sesión. Solo metadatos del programa: no cambia notas ni contadores.
+    const def=definicionPresetDelRamo(r);
+    if(def?.eximicion?.notaExamen==='maxima')r.eximicion=eximicionParaGuardar(def);
+    else if(r.eximicion?.notaExamen==='maxima')delete r.eximicion;
+  });
   if(_storageOK){
     try{
       localStorage.setItem(STORAGE_KEY,JSON.stringify(S));
