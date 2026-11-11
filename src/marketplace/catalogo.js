@@ -293,7 +293,7 @@ function filtrosCatalogoClases(){
 }
 function cabeceraCatalogoClasesHTML(){
   return `<div class="catalogo-clases catalogo-redisenado">
-    <header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
+    <header class="catalogo-clases-head"><div><p class="catalogo-ceja">APOYO</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
     <div class="catalogo-herramientas"><div class="catalogo-buscador"><label for="catalogo-clases-buscar">Buscar clases</label>
     <div class="catalogo-clases-busqueda"><input id="catalogo-clases-buscar" type="search" autocomplete="off" placeholder="Busca por ramo o sigla" aria-describedby="catalogo-clases-estado"></div></div>
     <label class="catalogo-filtro">Qué buscas<select id="catalogo-tipo"><option value="">Todo</option>${TIPOS_ANUNCIO.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>

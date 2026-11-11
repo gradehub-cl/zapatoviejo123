@@ -44,7 +44,7 @@ async function renderPerfilProfesor(caja){
       ${directorio?`<section class="pfe-seccion"><h4>Tu tarjeta</h4>${tarjetaPerfilCamposHTML(p)}</section>`:''}
       <section class="pfe-seccion"><h4>Dónde apareces</h4>
         <label class="pfe-interruptor"><span><b>En mis anuncios</b><small>Los estudiantes verán «Ver perfil» en cada anuncio publicado. Tu correo de cuenta nunca se comparte.</small></span><input id="pf-publico" type="checkbox" role="switch"${p.perfil_publico?' checked':''}></label>
-        ${directorio?`<label class="pfe-interruptor"><span><b>En Clases particulares</b><small>Te encuentran por tu tarjeta. Es independiente de tus anuncios.</small></span><input id="pf-directorio" type="checkbox" role="switch"${p.en_directorio?' checked':''}></label>`:'<p class="profesor-info">El directorio todavía no está disponible. Puedes guardar tu perfil y tus anuncios como siempre.</p>'}
+        ${directorio?`<label class="pfe-interruptor"><span><b>En Apoyo</b><small>Te encuentran por tu tarjeta. Es independiente de tus anuncios.</small></span><input id="pf-directorio" type="checkbox" role="switch"${p.en_directorio?' checked':''}></label>`:'<p class="profesor-info">La lista de Apoyo todavía no está disponible. Puedes guardar tu perfil y tus anuncios como siempre.</p>'}
       </section>
       <div class="pfe-guardar"><p class="profesor-estado" role="status" aria-live="polite"></p><button class="accion-principal" type="submit">Guardar perfil</button></div>
     </form>
@@ -76,7 +76,7 @@ async function renderPerfilProfesor(caja){
     const r=await guardarPerfilProfesor(entrada);
     guardando=false;boton.disabled=false;
     if(!caja.isConnected)return;
-    estado.textContent=r.ok?(entrada.en_directorio?'Perfil guardado. Aparecerás en Clases particulares mientras tu perfil esté aprobado.':r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
+    estado.textContent=r.ok?(entrada.en_directorio?'Perfil guardado. Aparecerás en Apoyo mientras tu perfil esté aprobado.':r.perfil.perfil_publico?'Perfil guardado. Ya se ve en tus anuncios publicados.':'Perfil guardado. Por ahora no se muestra en tus anuncios.'):r.error;
   });
 }
 

@@ -149,7 +149,7 @@ function renderPostulacionProfesor(raiz){
       if(typeof cargarPerfilProfesor==='function')cargarPerfilProfesor().then(()=>{
         if(typeof renderSettingsSiAbierto==='function')renderSettingsSiAbierto();
       }).catch(()=>{});
-      raiz.innerHTML='<div class="modal-title" id="modal-titulo">Postulación enviada</div><p class="profesor-info" role="status">Quedó pendiente de revisión. Aún no puedes publicar clases. En Ajustes · Clases particulares puedes ver en qué va.</p><div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>';
+      raiz.innerHTML='<div class="modal-title" id="modal-titulo">Postulación enviada</div><p class="profesor-info" role="status">Quedó pendiente de revisión. Aún no puedes publicar clases. En Ajustes · Apoyo puedes ver en qué va.</p><div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>';
       return;
     }
     estado.textContent=resultado.error;boton.disabled=false;enviando=false;
