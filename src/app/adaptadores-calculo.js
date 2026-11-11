@@ -231,6 +231,12 @@ function gpa(ramos){
   }
   return simple();
 }
+// El promedio del semestre no es la nota final oficial de un ramo. Se muestra
+// a centésimas, desde el valor bruto de gpa, sin un redondeo intermedio.
+function fmtPromedioGeneral(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,2).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false});
+}
 // Total de créditos inscritos (solo cuenta los que tienen el dato)
 function totalCreditos(ramos){
   return ramos.reduce((s,r)=>s+(tieneCreditos(r)?r.creditos:0),0);
