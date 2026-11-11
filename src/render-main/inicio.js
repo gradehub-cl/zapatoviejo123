@@ -101,8 +101,8 @@ function renderHome(){
   if(g!==null){
     // El promedio general va en el semáforo, como los ramos (Lucas, 2026-11-02;
     // #910 lo había pasado al acento).
-    const rounded=fmtPromedio(g);
-    const sep=rounded.indexOf('.');
+    const rounded=fmtPromedioGeneral(g);
+    const sep=rounded.indexOf(',');
     const entera=rounded.slice(0,sep);
     const decimal=rounded.slice(sep);
     gpael.innerHTML=`${entera}<span class="gpa-decimal">${decimal}</span>`;
@@ -113,19 +113,7 @@ function renderHome(){
       alternarPromedioExacto();
       pintarPromedioExacto('home-gpa-exacto',g);
       if(!promedioExactoVisible)return;
-      const oficial=notaFinalOficial(g);
-      const umbrales=[4.0,5.0,6.0,7.0];
-      const next=umbrales.find(u=>u>oficial+0.001);
-      let msg=`Promedio redondeado: ${fmtPromedio(g)}`;
-      if(next!==undefined){
-        // El borde sale de la regla de la universidad (3,95 en la común, 3,945
-        // en la UAndes) y la distancia se redondea hacia arriba: con 3,949 decía
-        // "0.00 para redondear a 4.0".
-        const falta=Math.ceil((gh_bordeOficial(next,gh_reglasNota(S.tenant))-g)*100-1e-9)/100;
-        msg+=`  ·  ${nf(Math.max(0.01,falta),2)} para redondear a ${nf(next)}`;
-      }else{
-        msg+=`  ·  máximo`;
-      }
+      let msg=`Promedio redondeado: ${fmtPromedioGeneral(g)}`;
       // Transparencia: el modo se explica sin pedir que alguien invente SCT.
       const detalle=descripcionMetodoGpa(S.ramos);
       if(detalle)msg+='\n'+detalle.texto;

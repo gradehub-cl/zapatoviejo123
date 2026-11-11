@@ -7,13 +7,15 @@
 // El aviso vive AL PIE de Inicio, no flotando: aparece cuando alguien llega
 // hasta abajo, se va con el scroll y nunca tapa un botón ni interrumpe lo que
 // estaba haciendo. Y no en la primera visita —a quien recién llega no se le
-// pide instalar nada—, sino a partir de la segunda.
+// pide instalar nada—, sino al volver otro día y con notas guardadas.
 //
 // Dos caminos porque los navegadores son dos mundos:
 //   Android/Chrome dispara `beforeinstallprompt`; se guarda y el botón lo abre.
 //   iOS/Safari no tiene API: solo queda decir dónde está el menú Compartir.
 const INSTALAR_NO_KEY='gradehub_instalar_no';
 const VISITAS_KEY='gradehub_visitas';
+const INSTALAR_DIA_KEY='gradehub_instalar_primer_dia';
+const _visitasInstalar=new Map();
 let _promptInstalar=null;
 
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -88,10 +90,27 @@ function esSafariDeIOS(){
   const iOS=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&(navigator.maxTouchPoints||0)>1);
   return iOS&&!/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
 }
-function contarVisita(){
+function claveVisitaInstalar(){
+  const owner=typeof currentUser!=='undefined'&&currentUser&&currentUser.id||lsLeer('gradehub_cache_owner')||'local';
+  return INSTALAR_DIA_KEY+':'+owner;
+}
+function contarVisita(ahora=new Date()){
   const n=Number(lsLeer(VISITAS_KEY)||0)+1;
   lsEscribir(VISITAS_KEY,String(Math.min(n,99)));
+  const clave=claveVisitaInstalar();
+  // Una recarga el mismo día no cuenta como haber vuelto otro día. Tampoco
+  // basta con dejar la primera sesión abierta hasta pasada medianoche.
+  if(!_visitasInstalar.has(clave)){
+    const hoy=isoFechaLocal(ahora),primera=lsLeer(clave);
+    const valida=!!fechaLocalDesdeISO(primera)&&primera<=hoy;
+    _visitasInstalar.set(clave,valida&&primera<hoy);
+    if(!valida)lsEscribir(clave,hoy);
+  }
   return n;
+}
+function tieneNotasParaInstalar(){
+  const ramos=[...(S.ramos||[]),...(S.historial||[]).flatMap(h=>h.ramos||[])];
+  return ramos.some(r=>(r.categorias||[]).some(c=>(c.notas||[]).some(n=>Number.isFinite(n.valor))));
 }
 function descartarAvisoInstalar(){
   lsEscribir(INSTALAR_NO_KEY,'1');
@@ -112,8 +131,7 @@ async function instalarApp(){
 function pintarAvisoInstalar(){
   const el=document.getElementById('instalar-aviso');
   if(!el)return;
-  const visitas=Number(lsLeer(VISITAS_KEY)||0);
-  if(appYaInstalada()||lsLeer(INSTALAR_NO_KEY)==='1'||visitas<2){el.hidden=true;el.innerHTML='';return;}
+  if(appYaInstalada()||lsLeer(INSTALAR_NO_KEY)==='1'||_visitasInstalar.get(claveVisitaInstalar())!==true||!tieneNotasParaInstalar()){el.hidden=true;el.innerHTML='';return;}
   const puede=!!_promptInstalar, iOS=esSafariDeIOS();
   if(!puede&&!iOS){el.hidden=true;el.innerHTML='';return;}
   const icono='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>';

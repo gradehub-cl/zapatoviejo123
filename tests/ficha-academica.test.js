@@ -107,17 +107,37 @@ check('el modal ofrece subir la ficha primero y pegar el avance como alternativa
   assert.match(html,/accept="application\/pdf,\.pdf"/);
 });
 
-check('la oferta del onboarding está apagada mientras Lucas la prueba',()=>{
-  run(`S.tenant='uc';S.careerSemestre=3;S.historial=[];`);
-  assert.equal(run('ofertaFichaOnboardingHTML()'),'');
+check('el modal da la ruta exacta y el link directo al sistema de avance',()=>{
+  run(`S.tenant='uc';`);
+  const f=JSON.parse(run('JSON.stringify(AVANCE_CURRICULAR.uc)'));
+  assert.equal(f.url,'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml');
+  const html=leer('src/app/avance-curricular.js');
+  assert.match(html,/class="avance-pasos"/);
+  assert.match(html,/fuente\.pestanaFicha/);
 });
 
-check('al terminar el onboarding se ofrece la ficha solo a quien no va en primer semestre',()=>{
-  // Se prueba como quedará al encenderla.
-  const fuente=leer('src/app/onboarding-flujo.js').match(/function ofertaFichaOnboardingHTML\(\)\{[\s\S]*?\n\}/)[0].replace('!OFERTA_FICHA_ONBOARDING||','');
-  run(fuente);
+check('si suben el Seguimiento Curricular, se le dice cuál es la ficha',()=>{
+  assert.equal(run(`esSeguimientoCurricular([],'SC-040013-202620.pdf')`),true);
+  assert.equal(run(`esSeguimientoCurricular(['SEGUIMIENTO CURRICULAR','PONTIFICIA UNIVERSIDAD'],'archivo.pdf')`),true);
+  assert.equal(run(`esSeguimientoCurricular(['FICHA ACADÉMICA ACUMULADA'],'FAA-040013-202620.pdf')`),false);
+});
+
+check('pegar sin notas o un texto ajeno da un aviso distinto',()=>{
+  const html=leer('src/app/avance-curricular.js');
+  assert.match(html,/Encontramos ramos, pero sin notas/);
+  assert.match(html,/No reconocimos el texto/);
+  // El texto del avance real (forma del PDF, datos inventados) se sigue leyendo.
+  ctx.__t=['01\tTST1000\tRamo Sintético Uno\t10\tSí\t202620\tTST1000\tRamo Sintético Uno\t10\t5.4\t\tSí',
+    '02\tTST2000\tRamo Sintético Dos\t10\tSí\t202620\tTST2000\tRamo Sintético Dos\t10\t4.0\t\tSí',
+    'TST4000\tRamo En Curso\t202622\t10\t1\t12345\tProfesor Ficticio'].join('\n');
+  const r=JSON.parse(run('JSON.stringify(leerAvanceCurricular(__t))'));
+  assert.deepEqual(r.filas.map(f=>[f.sigla,f.nota,f.periodo]),[['TST1000',5.4,'2026-1'],['TST2000',4,'2026-1']]);
+});
+
+check('al terminar el onboarding se ofrece la ficha a estudiantes UC desde su 2.º semestre',()=>{
   const oferta=(sem,tenant='uc',historial=[])=>{ctx.__h=historial;return run(`S.tenant='${tenant}';S.careerSemestre=${sem};S.historial=__h;ofertaFichaOnboardingHTML()`);};
-  assert.equal(oferta(1),'');
+  assert.equal(oferta(1),'','primer semestre: no tiene semestres pasados');
+  assert.match(oferta(2),/Carga todos tus semestres pasados de una/,'desde el 2.º semestre ya hay uno pasado');
   assert.match(oferta(3),/Carga todos tus semestres pasados de una/);
   assert.match(oferta(3),/onclick="openAvanceCurricular\(\)"/);
   assert.equal(oferta(3,'uai'),'','solo donde hay lector');

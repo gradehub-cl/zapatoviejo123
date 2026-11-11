@@ -113,7 +113,7 @@ function metodos(s1, s2, s3, ex) {
   return {
     id: 'mm', nombre: 'Métodos Matemáticos II',
     categorias: [
-      { id: 'sol', nombre: 'Solemnes', peso: 60, slots: 3, notas: [s1, s2, s3].map((v, i) => ({ id: 's' + i, valor: v, peso: 1 })) },
+      { id: 'sol', nombre: 'Solemnes', peso: 60, slots: 3, notas: [s1, s2, s3].map((v, i) => ({ id: 's' + i, valor: v, peso: 1, slot:i })) },
       { id: 'ex', nombre: 'Examen Final', peso: 40, notas: [{ id: 'e', valor: ex, peso: 1 }] },
     ],
     gates: [{ type: 'min_grade_required', catId: 'ex', min: 3.0, cap: 3.9, nombre: 'Examen Final' }],
@@ -192,7 +192,7 @@ eq('historial archivado vacío', ctx.ultimoHistorialConGpa([]), null);
 
 console.log('\n=== Onboarding · carga flexible ===');
 eq('el último paso llena la barra', ctx.obProgressPct(5), 100);
-const obDatos={nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
+const obDatos={generacion:2025,nombre:'Antonia',edad:20,tenant:'fen',carrera:'ING',semestre:2};
 if(ctx.obStepValid(1,obDatos)&&ctx.obStepValid(2,obDatos)&&ctx.obStepValid(3,obDatos)&&ctx.obStepValid(5,obDatos)){ok++;console.log('  OK   cada paso valida su propio dato');}
 else {fail++;console.log('  FAIL validación de pasos del onboarding');}
 if(!ctx.obStepValid(1,{tenant:'fen'})&&!ctx.obStepValid(2,{nombre:'Antonia'})&&!ctx.obStepValid(3,{tenant:'fen'})&&!ctx.obStepValid(1,{nombre:'Antonia',semInvalido:true})&&ctx.obStepValid(5,{})){ok++;console.log('  OK   ramos sugeridos no son obligatorios');}

@@ -2323,6 +2323,11 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .courses-loaded-count{font-family:var(--font-ui);font-size:1.625rem;font-weight:800;
   color:var(--fg);letter-spacing:-.03em;line-height:1.15;}
 
+/* Pasos para descargar la ficha académica, dentro del modal. */
+.avance-pasos{margin:0 0 8px;padding-left:20px;color:var(--fg2);font-size:0.8125rem;line-height:1.5;}
+.avance-pasos li+li{margin-top:4px;}
+.avance-pasos a{color:var(--primary);}
+
 /* Oferta opcional al terminar el onboarding: cargar el historial con la ficha. */
 .ob-ficha-oferta{display:flex;flex-direction:column;gap:4px;width:100%;min-height:44px;margin-top:16px;padding:14px 16px;
   border:1px solid var(--primary);border-radius:14px;background:color-mix(in srgb,var(--primary) 9%,var(--card));
@@ -4633,6 +4638,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
 #screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:10px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
 #screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
+#screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
+#screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
+#screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
+#screen-ramo .casillas-btn:active{opacity:.6;}
+.btn-eliminar-nota{display:block;width:100%;min-height:44px;margin-top:14px;padding:10px;border:0;border-radius:10px;background:var(--red-bg);color:var(--red);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
+.btn-eliminar-nota:active{opacity:.6;}
+#screen-ramo .casillas-btn:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
 #screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
 #screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}
 #screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
@@ -5687,13 +5699,27 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .adu .encuesta-acciones [data-encuesta-resultados]{border-color:transparent;background:var(--est-tile);}
 .adu .encuesta-fechas{grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));}
 .adu .encuestas-admin :is(button,summary):focus-visible,.adu .clase-accion:focus-visible{outline:2px solid var(--est-sel);outline-offset:2px;}
-.adu .admin-tema-festivo{min-width:0;margin:0;padding:0;border:0;}
-.adu-temas{display:grid;gap:5px;margin-top:10px;}
-.adu-temas label{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 10px;border-radius:10px;cursor:pointer;}
-.adu-temas label:has(:checked){background:var(--est-sel-suave);}
-.adu-temas label:has(:focus-visible){outline:2px solid var(--est-sel);outline-offset:2px;}
-.adu-temas label:has(:disabled){color:var(--fg3);cursor:default;}
-.adu .adu-temas input[type="radio"]{appearance:auto;flex:none;width:18px;min-width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:var(--est-sel);}
+/* Admin: una apariencia pública se elige por su muestra, con confirmación. */
+.adu .adu-festivos{margin-top:20px;border-top:1px solid var(--est-linea);}
+.adu .adu-festivos>summary{display:flex;align-items:center;gap:12px;min-height:52px;padding:12px 0;cursor:pointer;font-size:.9375rem;font-weight:600;}
+.adu .adu-festivos>summary::before{content:'›';font-size:1.25rem;}
+.adu .adu-festivos[open]>summary::before{transform:rotate(90deg);}
+.adu .adu-festivos>summary>span{margin-left:auto;color:var(--fg3);font-size:.8125rem;font-weight:400;}
+.adu .admin-tema-festivo{min-width:0;margin:0;padding:0 0 16px;border:0;}
+.adu .adu-temas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px;margin-top:14px;max-width:660px;}
+.adu .adu-temas .adu-tema{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:0;min-height:44px;padding:7px;border:2px solid var(--est-linea);border-radius:14px;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.adu .adu-temas .adu-tema[aria-pressed="true"]{border-color:var(--est-sel);}
+.adu .adu-temas .adu-tema:disabled{cursor:default;}
+.adu .adu-tema-muestra{display:flex;flex-direction:column;gap:9px;height:126px;padding:12px;border:1px solid var(--muestra-linea,var(--border));border-radius:8px;background:var(--muestra-bg,var(--muted));color:var(--muestra-fg,var(--fg3));overflow:hidden;}
+.adu .adu-tema-cabecera{font-size:.75rem;font-weight:700;}
+.adu .adu-tema-titulo{width:50%;height:4px;border-radius:3px;background:var(--muestra-fg);opacity:.35;margin-bottom:3px;}
+.adu .adu-tema-fila{display:flex;align-items:center;gap:9px;min-height:22px;padding:5px 7px;border:1px solid var(--muestra-linea);border-radius:4px;background:var(--muestra-card);}
+.adu .adu-tema-fila i{width:3px;height:12px;background:var(--muestra-acento);}
+.adu .adu-tema-fila b{width:65%;height:3px;border-radius:3px;background:var(--muestra-fg);opacity:.25;}
+.adu .adu-tema-pendiente{justify-content:center;align-items:center;border-style:dashed;font-size:.8125rem;}
+.adu .adu-tema-nombre{padding:0 4px;font-size:.875rem;font-weight:600;}
+.adu .adu-tema-actual{min-height:18px;padding:0 4px;font-size:.75rem;color:var(--fg3);}
+.adu .adu-tema:focus-visible,.adu .adu-festivos>summary:focus-visible{outline:2px solid var(--est-sel);outline-offset:3px;}
 .adu [data-tema-festivo-estado]:empty{display:none;}
 .adu #admin-reportes-programa{margin:16px 0 0;padding:clamp(16px,2vw,24px);border:1px solid var(--est-linea);border-radius:24px;background:var(--card);}
 .adu #admin-reportes-programa .admin-hig-lista{margin-top:12px;}

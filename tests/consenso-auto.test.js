@@ -18,6 +18,9 @@ const ctx = {
   navigator: {}, location: { origin: '', pathname: '', hash: '' }, setTimeout, clearTimeout, console,
 };
 vm.createContext(ctx); vm.runInContext(src, ctx);
+// Ramos sintéticos fuera de toda malla: se declaran coordinados porque esto
+// prueba la mecánica del consenso (la regla está en coordinacion-ramo.test.js).
+vm.runInContext("coordinacionRamo=()=>({coordinado:true,fuente:'malla'})", ctx);
 const val = n => vm.runInContext(n, ctx);
 
 let ok = 0, fail = 0;

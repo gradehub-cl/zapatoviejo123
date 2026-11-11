@@ -41,8 +41,11 @@ console.log('\n=== El denominador son los compañeros, no el total ===');
 // curso_posicion divide por (total - 1): el porcentaje es contra los OTROS.
 // Escribir el total correría el denominador y el número diría otra cosa.
 chk('12 participantes son 11 compañeros', /de tus 11 compañeros/.test(plano(75, 12)));
-chk('el mínimo de cinco son 4 compañeros', /de tus 4 compañeros/.test(plano(50, 5)));
-chk('nunca dice un número negativo de compañeros', /de tus 0 compañeros/.test(plano(0, 1)));
+chk('cinco participantes no muestran un porcentaje',plano(50,5)==='');
+chk('diez participantes todavía son nueve compañeros',plano(50,10)==='');
+chk('once participantes permiten comparar con diez compañeros',/de tus 10 compañeros/.test(plano(50,11)));
+for(const total of [0,1,4,5,9,10,10.5,NaN,Infinity])chk('total insuficiente o inválido: '+total,vm.runInContext('posicionCursoVisible',ctx)({total,mejorQue:50})===false);
+chk('nunca dice un número negativo de compañeros', plano(0,1)==='');
 
 console.log('\n=== Ni 0 ni 100 se vuelven categóricos ===');
 // mejor_que viene redondeado: 199 de 200 también llega como 100, y 1 de 300
@@ -61,5 +64,21 @@ console.log('\n=== El total tiene que venir como número ===');
 chk('solo se guarda la posición si total y mejor_que son números',
   /typeof fila\.mejor_que==='number'&&typeof fila\.total==='number'/.test(leer('app.js')));
 
-console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
-process.exit(fail ? 1 : 0);
+// Receptor real, con el SQL anterior todavía devolviendo grupos de cinco.
+(async()=>{
+  const run=s=>vm.runInContext(s,ctx),box={innerHTML:''};
+  ctx.document.getElementById=id=>id==='stats-curso'?box:{...stub};
+  run(`S={...S,tenant:'uc',ramos:[{id:'sintetico',nombre:'Ramo sintético',sigla:'SYN100',categorias:[],gates:[]}]};
+    currentUser={id:'persona-sintetica'};subirNotasCurso=async()=>{};`);
+  const antes=run('JSON.stringify(S)');
+  for(const total of [4,5,10,11]){
+    ctx.totalPrueba=total;
+    run(`invalidarPosicionesCurso();supabaseClient={rpc:async()=>({data:[{total:totalPrueba,mejor_que:75}],error:null})};`);
+    await run('pintarPosicionesCurso()');
+    chk('render y receptor real con '+total+' participantes',total<11?!box.innerHTML.includes('%')&&box.innerHTML.includes('suficientes datos'):box.innerHTML.includes('75%')&&box.innerHTML.includes('10 compañeros'));
+  }
+  run(`_posCursoCache={sintetico:{total:5,mejorQue:75}}`);await run('pintarPosicionesCurso()');
+  chk('una caché vieja tampoco filtra el porcentaje',!box.innerHTML.includes('%'));
+  chk('cuenta existente conserva exactamente su JSON',run('JSON.stringify(S)')===antes);
+  console.log('\nPASS: '+ok+'   FAIL: '+fail);process.exit(fail?1:0);
+})().catch(e=>{console.error(e);process.exit(1)});

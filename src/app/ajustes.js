@@ -425,7 +425,7 @@ function openSettings(){
     // casi nadie toca dos veces. La lista completa aparece al escribir, igual que
     // el buscador de ramos, y el campo de arriba dice qué hacer para verla.
     const elegidaDe=c=>c.malla?c.malla===settingsCarrera:(!settingsCarrera&&c.n===settingsCarreraNombre);
-    const vistas=q?todas.filter(c=>normName(c.n).includes(q)):todas.filter(elegidaDe);
+    const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas.filter(elegidaDe);
     if(!q&&!vistas.length&&settingsCarreraNombre){
       // Declaró algo que no está en la lista oficial: igual tiene que verlo.
       const b=document.createElement('button');

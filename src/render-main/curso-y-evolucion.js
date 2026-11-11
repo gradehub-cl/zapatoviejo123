@@ -1,4 +1,5 @@
 function frasePosicionCurso(mejorQue,total){
+  if(!posicionCursoVisible({total,mejorQue}))return '';
   const otros=Math.max(Number(total)-1,0);
   return `Igual o por sobre el <b>${Number(mejorQue)}%</b> de tus ${otros} compañeros`;
 }
@@ -8,9 +9,9 @@ async function pintarPosicionesCurso(){
   if(!box)return;
   await subirNotasCurso();
   const pos=await cargarPosicionesCurso();
-  const filas=(S.ramos||[]).filter(r=>r&&r.sigla&&pos&&pos[r.id]);
+  const filas=(S.ramos||[]).filter(r=>r&&pos&&posicionCursoVisible(pos[r.id]));
   if(!filas.length){
-    // Con menos de cinco no hay comparación posible, y es el caso normal al
+    // Con menos de diez compañeros no se muestra el porcentaje, y es el caso normal al
     // principio. Se dice por qué en vez de dejar un hueco.
     box.innerHTML=`<p class="stats-curso-vacio">Aún no hay suficientes datos para compararte con los demás.</p>`;
     return;
@@ -45,7 +46,7 @@ function cambiarPeriodoHistorial(periodo){
   const serie=serieEvolucionSemestres(validos,gpa(S.ramos),periodo);
   if(serie.length<2)return;
   const plantilla=document.createElement('template');
-  plantilla.innerHTML=htmlGraficoEvolucion(serie.map(x=>({etiqueta:x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior',valor:x.v,actual:x.actual})),'historial');
+  plantilla.innerHTML=htmlGraficoEvolucion(serie.map(x=>({etiqueta:x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior',valor:x.v,actual:x.actual,valorTexto:fmtPromedioGeneral(x.v),lectura:`${x.label||'Semestre anterior'}, promedio ${fmtPromedioGeneral(x.v)}`})),'historial');
   // Conserva los botones, su foco y el resto de Estadísticas. Rehacer stats-body
   // alteraba el ancla de scroll y volvía a pedir la comparación con el curso.
   marco.replaceWith(plantilla.content.firstElementChild);

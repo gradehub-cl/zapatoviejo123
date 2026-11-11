@@ -61,7 +61,7 @@ console.log('\n=== Entrada de profesor ===');
   chk('y «Soy estudiante» la deshace',h.run('entradaProfesor()')===false);
 }
 chk('el botón está al pie, junto a términos y privacidad',/auth-footer-links[\s\S]{0,700}id="auth-dar-clases"[^>]*>Soy profesor particular</.test(html));
-chk('el onboarding parte como profesor si entró por ahí',/function obIniciar[\s\S]{0,600}consumirEntradaProfesor\(\)\?'profesor':'estudiante'/.test(app));
+chk('el onboarding parte como profesor si entró por ahí',/consumirEntradaProfesor\(\)\?'profesor':'estudiante'/.test((app.match(/function obIniciar\(\)\{[\s\S]*?\n\}/)||[''])[0]));
 // Una cuenta que ya existía no pasa por el onboarding: la intención no puede
 // quedar esperando y marcar como profesor a la próxima cuenta del dispositivo.
 chk('entrar a la app la olvida',/function enterApp\(\)\{[\s\S]{0,300}guardarEntradaProfesor\(false\)/.test(sesion));

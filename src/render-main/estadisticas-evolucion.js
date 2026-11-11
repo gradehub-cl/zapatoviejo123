@@ -51,7 +51,7 @@ function puntosRangoEvolucion(rango,notas,historial,ramos,actual,ahora=new Date(
 function textoDeltaEvolucion(delta){
   if(delta===null)return 'Primer promedio';
   if(Math.abs(delta)<0.005)return 'Sin cambio';
-  return (delta>0?'+':'−')+nf(Math.abs(delta),2).replace('.',',');
+  return (delta>0?'+':'−')+fmtPromedioGeneral(Math.abs(delta));
 }
 function hitosEvolucionHTML(puntos,limite){
   const recientes=[...puntos].reverse();
@@ -59,7 +59,7 @@ function hitosEvolucionHTML(puntos,limite){
     const sube=p.delta!==null&&p.delta>=0.005,baja=p.delta!==null&&p.delta<=-0.005;
     return `<li><div class="stats-hito-evaluacion"><strong>${esc(p.nombre)}</strong><span>${esc(p.ramo)}</span><span>${p.fecha?`<time datetime="${esc(p.fecha)}">${esc(textoFechaEvolucion(p))}</time>`:'Sin fecha'}</span></div>
       <div class="stats-hito-nota"><span>Nota</span><strong class="${colorClass(p.nota)}" style="color:${getColor(p.nota)}">${nf(p.nota,2).replace('.',',')}</strong></div>
-      <p class="stats-hito-promedio">Promedio ${p.valor===null?'—':nf(p.valor,2).replace('.',',')} <span class="${sube?'es-sube':baja?'es-baja':'es-igual'}">${sube?'↑ ':baja?'↓ ':''}${esc(textoDeltaEvolucion(p.delta))}${p.delta===null||Math.abs(p.delta)<0.005?'':' puntos'}</span></p></li>`;
+      <p class="stats-hito-promedio">Promedio ${p.valor===null?'—':fmtPromedioGeneral(p.valor)} <span class="${sube?'es-sube':baja?'es-baja':'es-igual'}">${sube?'↑ ':baja?'↓ ':''}${esc(textoDeltaEvolucion(p.delta))}${p.delta===null||Math.abs(p.delta)<0.005?'':' puntos'}</span></p></li>`;
   }).join('')}</ol>${recientes.length>limite?`<button type="button" class="stats-linea-mas" onclick="verMasLineaTiempoStats()">Ver más</button>`:''}`;
 }
 function lineaTiempoEvolucionHTML(puntos){
@@ -89,9 +89,9 @@ function contenidoEvolucionStatsHTML(){
   const validos=puntos.filter(p=>Number.isFinite(p.valor));
   const serie=validos.map(p=>({valor:p.valor,actual:p===validos[validos.length-1],x:validos.length===1?50:undefined,
     etiqueta:p.nombre+' · '+p.ramo,
-    valorTexto:'Promedio '+nf(p.valor,2).replace('.',','),
+    valorTexto:'Promedio '+fmtPromedioGeneral(p.valor),
     detalle:textoFechaEvolucion(p)+' · Nota '+nf(p.nota,2).replace('.',',')+' · '+textoDeltaEvolucion(p.delta)+(p.delta===null?'':' puntos'),
-    lectura:`${p.nombre} de ${p.ramo}, ${textoFechaEvolucion(p)}, nota ${nf(p.nota,2)}. Promedio ${nf(p.valor,2)}. ${textoDeltaEvolucion(p.delta)}.`}));
+    lectura:`${p.nombre} de ${p.ramo}, ${textoFechaEvolucion(p)}, nota ${nf(p.nota,2)}. Promedio ${fmtPromedioGeneral(p.valor)}. ${textoDeltaEvolucion(p.delta)}.`}));
   const piso=Math.min(4,Math.floor(Math.min(...validos.map(p=>p.valor))));
   const techo=Math.max(5,Math.ceil(Math.max(...validos.map(p=>p.valor))));
   const grafico=validos.length?htmlGraficoEvolucion(serie,'notas-estudiante','tu promedio en el tiempo',{
@@ -113,7 +113,7 @@ function tarjetaEvolucionStatsHTML(g,avance=null,lectura=''){
   return `<div class="section-hd" style="padding:0 20px 8px;"><h2 id="stats-evolucion-titulo" class="section-hd-title">Tu promedio en el tiempo</h2></div>
     <section class="stats-evolucion stat-card" id="stats-evolucion" aria-labelledby="stats-evolucion-titulo">
     <span class="stats-evolucion-etiqueta">Semestre actual · ${esc(semester())}</span>
-    <div class="stats-evolucion-valor">${g===null?'—':nf(g,2).replace('.',',')}</div>
+    <div class="stats-evolucion-valor">${g===null?'—':fmtPromedioGeneral(g)}</div>
     ${ultima?`<p class="stats-evolucion-ultimo"><strong style="color:${color}">${esc(textoDeltaEvolucion(delta))}</strong>${delta===null?'':` <span>con ${esc(ultima.nombre)} de ${esc(ultima.ramo)}</span>`}</p>`:''}
     <div id="stats-evolucion-contenido">${contenidoEvolucionStatsHTML()}</div>
     ${avance!==null?contornoAvanceStatsHTML(avance):''}

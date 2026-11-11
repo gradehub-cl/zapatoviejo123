@@ -88,6 +88,9 @@ async function aplicarConsensoAuto(){
   // de su sección. Esta llamada además deja lista la caché de consensoAlAgregar.
   if(!await cargarConsenso())return 0;
   await traerSiglasRamosManualesUC();
+  // Las mallas diferidas se traen solo si hay un ramo vacío que las necesita.
+  if((S.ramos||[]).some(r=>!(r.categorias||[]).length&&coordinacionRamo(r)===null))
+    await asegurarMallasCoordinacion(S.tenant);
   let puestas=0;
   for(const r of (S.ramos||[])){
     const especifico=await cargarConsenso(S.tenant,periodoReporte(r),seccionReporte(r));
@@ -101,6 +104,11 @@ function ponerConsensoEnRamo(r,cons){
   if(!r||!cons||!cons.length)return false;
   if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)return false;
   if((r.categorias||[]).length||(r.gates||[]).length)return false;
+  // Solo en ramos coordinados: en uno no coordinado, tres reportes iguales
+  // describen la pauta de un profesor, no la de todas las secciones. Ahí el
+  // consenso se ofrece como sugerencia (pauta-sugerida.js). Sin saberlo aún
+  // (mallas diferidas en camino) tampoco se aplica: la ficha vuelve a probar.
+  if(!ramoCoordinado(r))return false;
   if(!r.origen&&presetRamo(r.nombre,S.tenant,S.carrera))return false; // una oficial existente manda
   if(pautaPendiente(r))return false;                    // hay programa oficial esperando: ese manda
   const hit=cons.find(c=>c.ramo_key===claveReporte(r)&&consensoVigenteParaRamo(c,r)&&c.respaldos>=CONSENSO_AUTO);
