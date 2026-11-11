@@ -239,20 +239,34 @@ function iconoCanalPerfil(canal){
   };
   return `<svg class="perfil-contacto-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${trazos[canal]||''}</svg>`;
 }
+// Ramos de un perfil (Lucas, 2026-11-11): una plataforma puede tener doce y la
+// mayoría sin nombre en este catálogo. Se muestran hasta cuatro con nombre, el
+// resumen y la lista entera solo si la persona la abre.
+const MAX_RAMOS_PERFIL_VISIBLES=4;
+function ramosPerfilApoyoHTML(siglas,nombres,unis){
+  if(!siglas.length)return unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:'';
+  const conNombre=siglas.filter(s=>nombres[s]),sinNombre=siglas.filter(s=>!nombres[s]);
+  const visibles=(conNombre.length?conNombre:sinNombre).slice(0,MAX_RAMOS_PERFIL_VISIBLES);
+  const resumen=`${siglas.length} ${siglas.length===1?'ramo':'ramos'}${unis.length?` · ${unis.join(', ')}`:''}`;
+  const fila=s=>`<li><strong>${esc(s)}</strong>${nombres[s]?`<span>${esc(nombres[s])}</span>`:''}</li>`;
+  return `<section class="perfil-apoyo-seccion perfil-apoyo-ramos-caja"><h3>Ramos</h3><p class="perfil-apoyo-ramos-resumen">${esc(resumen)}</p>
+    <ul class="perfil-apoyo-chips">${visibles.map(s=>`<li>${esc(nombres[s]||s)}</li>`).join('')}</ul>
+    ${siglas.length>visibles.length?`<details class="perfil-apoyo-todos"><summary>Ver los ${siglas.length} ramos</summary><ul class="perfil-apoyo-ramos">${siglas.map(fila).join('')}</ul></details>`:''}</section>`;
+}
 function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant)){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
   const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
   const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
   const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
   const canales=canalesPerfilApoyo(p);
-  return `<header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
+  const color=typeof colorTarjetaDirectorio==='function'?colorTarjetaDirectorio(p.color_tarjeta):'#126b63';
+  return `<div class="perfil-apoyo" style="--directorio-color:${color}"><header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
       ${p.logo_path?`<div class="catalogo-clase-logo perfil-apoyo-logo" data-directorio-logo="${esc(p.logo_path)}" aria-hidden="true"></div>`:''}</header>
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
     ${canales.length?`<div class="perfil-apoyo-contactos" aria-label="Contactar a ${esc(p.nombre_publico)}">${canales.map(c=>c.enlace?`<a class="clase-accion perfil-contacto-${c.canal}" href="${esc(c.enlace)}" target="_blank" rel="noopener noreferrer" data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></a>`:`<button type="button" class="clase-accion perfil-contacto-${c.canal}" data-directorio-contactar data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></button>`).join('')}</div>`:''}
     <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
-    ${(p.ramos_siglas||[]).length?`<section class="perfil-apoyo-seccion"><h3>Ramos que enseña</h3><ul class="perfil-apoyo-ramos">${p.ramos_siglas.map(sigla=>`<li><strong>${esc(sigla)}</strong>${nombres[sigla]?`<span>${esc(nombres[sigla])}</span>`:''}</li>`).join('')}</ul></section>`:''}
-    ${unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:''}
-    ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}`;
+    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis)}
+    ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}</div>`;
 }
 async function mostrarPerfilEnClase(caja){
   if(caja.dataset.cargado)return;caja.dataset.cargado='1';

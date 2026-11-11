@@ -60,6 +60,9 @@ function revisarLogoClase(img){
     suma+=luminanciaClase(px[k],px[k+1],px[k+2]);visibles++;
   }
   caja.classList.remove('logo-contorno');
+  // Un logo sin transparencia (un PNG con fondo blanco, como MentorIA el
+  // 2026-11-11) se veía como un rectángulo pegado: se le da forma de ícono.
+  if(caja.classList)caja.classList.toggle('logo-opaco',!!visibles&&transparentes/(px.length/4)<.1);
   if(!visibles||transparentes/(px.length/4)<.1)return;
   const logo=suma/visibles,fondo=fondoDetrasClase(caja);
   if((Math.max(logo,fondo)+.05)/(Math.min(logo,fondo)+.05)<2)dibujarContornoLogoClase(img,caja);
