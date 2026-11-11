@@ -75,8 +75,12 @@ chk('Talleres oficial no muestra un botón que borra toda la evaluación',
 val('S').ramos[0].categorias.find(c=>c.nombre==='Talleres').peso=15;
 val('renderRamo')();
 const talleresCorregidos=byId('cat-list').children.find(f=>f.innerHTML.includes('Talleres'));
-chk('una pauta que la persona corrigió conserva la opción de borrar su propia fila',
-  /Eliminar evaluación Talleres/.test(talleresCorregidos?.innerHTML||''));
+// La lista se dibuja como el grupo de casillas (Martín, 2026-11-11) y ya no trae
+// el basurero en la cabecera: quitar una evaluación propia vive en "Editar
+// evaluaciones" (`quitarPautaFila`), que pregunta qué hacer con sus notas.
+chk('con la pauta corregida la ficha tampoco borra la evaluación de un toque',
+  !/Eliminar evaluación/.test(talleresCorregidos?.innerHTML||'')&&/Agregar nota/.test(talleresCorregidos?.innerHTML||''));
+chk('quitar la evaluación sigue disponible en el editor de la pauta',val('typeof quitarPautaFila')==='function');
 
 console.log('\n=== Una cantidad esperada dibuja todas sus casillas ===');
 const reparada=val('normalize')({ramos:[{
