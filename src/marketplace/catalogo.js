@@ -20,6 +20,8 @@ function nombresRamosParaClases(tenant){
   // encontrable por su código y por el texto que escribió el profesor.
   const creditos=typeof CREDITOS_POR_TENANT!=='undefined'&&CREDITOS_POR_TENANT[tenant];
   if(creditos)Object.entries(creditos).forEach(([nombre,fila])=>agregar(fila&&fila[1],nombre));
+  if(tenant==='uc'&&typeof NOMBRES_UC_SOLO_BUSCACURSOS!=='undefined')
+    Object.entries(NOMBRES_UC_SOLO_BUSCACURSOS).forEach(([sigla,nombre])=>agregar(sigla,nombre));
   if(tenant==='uc'&&typeof cursosUcDisponibles==='function')
     cursosUcDisponibles().forEach(fila=>{if(Array.isArray(fila))agregar(fila[0],fila[1]);});
   if(tenant==='uc'&&typeof SIGLAS_UC!=='undefined')

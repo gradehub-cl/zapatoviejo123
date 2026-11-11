@@ -53,6 +53,9 @@ ctx.__p2={...ctx.__p,universidades:['uc','uai'],ramos_siglas:['TST100','TST200',
   ctx.__p3={...ctx.__p,universidades:['uc'],ramos_siglas:['TST100','XYZ999']};
   const solo=run("perfilPublicoHTML(__p3,null,__todos)");
   assert.match(solo,/XYZ999/);assert.match(solo,/2 ramos · UC/);
+  // Siglas de BuscaCursos fuera del catálogo: tienen nombre en Apoyo.
+  assert.equal(run("nombresRamosParaClases('uc').MAT1100"),'Cálculo I');
+  assert.equal(run("nombresRamosParaClases('uai').MAT1100"),undefined,'solo para la UC');
 }
 assert.equal(run("buscarRamosParaClase({MAT1620:'Cálculo II',FIS1514:'Dinámica'},'mat16',[])[0].nombre"),'Cálculo II','por sigla dice el nombre');
 console.log('PASS perfil: teléfono, contacto, color, íconos, vista previa y búsqueda por sigla');
