@@ -23,7 +23,7 @@ function micro(valores={}){
   r.categorias.forEach(c=>{
     const v=valores[c.nombre];
     const cantidad=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
-    c.notas=v==null?[]:Array.from({length:cantidad},(_,i)=>({id:`${c.id}-${i}`,nombre:`${c.nombre} ${i+1}`,valor:v,peso:1}));
+    c.notas=v==null?[]:Array.from({length:cantidad},(_,i)=>({id:`${c.id}-${i}`,nombre:`${c.nombre} ${i+1}`,valor:v,peso:1,...(c.slots?{slot:i}:{})}));
   });
   return r;
 }
