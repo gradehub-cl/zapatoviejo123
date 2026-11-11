@@ -234,40 +234,61 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
             <div><h3 id="adu-wrapped">Wrapped 2026-2</h3><p class="adu-nota">Apertura general el 1 de diciembre</p></div>
             <button type="button" class="clase-accion" onclick="abrirWrappedVistaPrevia()">Ver vista previa</button>
           </section>
-          <div class="adm-tarjeta">${temaFestivoAdminHTML()}</div>
         </div>
       </div>
-      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa anteriores"><h3>Reportes de programa anteriores</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>`)}
+      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa anteriores"><h3>Reportes de programa anteriores</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>
+      ${temaFestivoAdminHTML()}`)}
   </div>`;
 }
 
-// Un tema a la vez y lo ven todos (festivos.js, supabase/temas_festivos.sql).
-// Navidad queda con su botón listo pero sin diseño todavía (Martín, 2026-11-02).
-const TEMAS_FESTIVOS_ADMIN=[['','Ninguno'],['halloween','Halloween'],['navidad','Navidad · sin diseño todavía',true]];
+// Un tema a la vez y lo ven todos. Navidad sigue pendiente de diseño: no se
+// publica una apariencia cuya muestra todavía no puede representar la app.
+const TEMAS_FESTIVOS_ADMIN=[['','Sin tema'],['halloween','Halloween'],['navidad','Navidad',true]];
+function muestraTemaFestivoAdminHTML(tema){
+  if(typeof FONDOS==='undefined'||typeof ACENTOS==='undefined'||typeof prefersDark!=='function')return '<span class="adu-tema-muestra adu-tema-pendiente" aria-hidden="true">Vista previa no disponible</span>';
+  const oscuro=prefersDark(),fondo=FONDOS[S.fondo]||FONDOS.neutro,acento=ACENTOS[S.acento]||ACENTOS.turquesa;
+  const paleta=tema?(typeof paletaTemaFestivo==='function'?paletaTemaFestivo(tema,oscuro):null)
+    :{...fondo[oscuro?'oscuro':'claro'],primary:oscuro?acento.darkPrimary:acento.primary};
+  if(!paleta)return '<span class="adu-tema-muestra adu-tema-pendiente" aria-hidden="true">—</span>';
+  const estilo=`--muestra-bg:${paleta.bg};--muestra-card:${paleta.card};--muestra-linea:${paleta.border};--muestra-fg:${paleta.fg};--muestra-acento:${paleta.primary};`;
+  return `<span class="adu-tema-muestra" style="${esc(estilo)}" aria-hidden="true"><span class="adu-tema-cabecera">GradeHub ${tema==='halloween'?'🎃':''}</span><span class="adu-tema-titulo"></span><span class="adu-tema-fila"><i></i><b></b></span><span class="adu-tema-fila"><i></i><b></b></span></span>`;
+}
 function temaFestivoAdminHTML(){
   const actual=typeof temaFestivo==='string'?temaFestivo:'';
-  return `<fieldset class="admin-tema-festivo" data-admin-tema-festivo><legend>Temas festivos</legend>
-    <p class="adu-nota">Visible para todos, incluso antes de iniciar sesión.</p>
-    <div class="adu-temas">${TEMAS_FESTIVOS_ADMIN.map(([v,t,off])=>`<label><input type="radio" name="admin-tema-festivo" value="${v}"${v===actual?' checked':''}${off?' disabled':''}><span>${t}</span></label>`).join('')}</div>
-    <p class="profesor-info" role="status" data-tema-festivo-estado></p></fieldset>`;
+  const nombre=TEMAS_FESTIVOS_ADMIN.find(([v])=>v===actual)?.[1]||'Sin tema';
+  return `<details class="adu-festivos"><summary>Temas festivos<span data-tema-festivo-actual>${esc(nombre)}</span></summary>
+    <fieldset class="admin-tema-festivo" data-admin-tema-festivo><legend class="adm-oculto">Elegir tema festivo</legend>
+    <p class="adu-nota">Lo verán todos, incluso antes de iniciar sesión.</p>
+    <div class="adu-temas" role="group" aria-label="Tema festivo">${TEMAS_FESTIVOS_ADMIN.map(([v,t,off])=>`<button type="button" class="adu-tema" data-elegir-tema="${v}" aria-pressed="${v===actual}"${off?' disabled':''}>${muestraTemaFestivoAdminHTML(v)}<span class="adu-tema-nombre">${t}</span><span class="adu-tema-actual" aria-hidden="true">${v===actual?'✓ Actual':off?'Diseño pendiente':''}</span></button>`).join('')}</div>
+    <p class="profesor-info" role="status" aria-live="polite" data-tema-festivo-estado></p></fieldset></details>`;
 }
 function enlazarTemaFestivoAdmin(raiz){
   const caja=raiz.querySelector('[data-admin-tema-festivo]');
   if(!caja||typeof caja.querySelector!=='function')return;
   const estado=caja.querySelector('[data-tema-festivo-estado]');
-  caja.addEventListener('change',async e=>{
-    const tema=e.target.value||null,anterior=typeof temaFestivo==='string'?temaFestivo:'';
-    caja.disabled=true;estado.textContent='Guardando…';
-    try{
-      const {error}=await supabaseClient.rpc('admin_tema_festivo',{p_tema:tema});
-      if(error)throw error;
-      if(typeof ponerTemaFestivo==='function')ponerTemaFestivo(tema);
-      estado.textContent=tema?'Listo: lo ven todos desde que abran la app.':'Listo: tema festivo apagado.';
-    }catch(err){
-      const radio=caja.querySelector(`input[value="${anterior}"]`);if(radio)radio.checked=true;
-      estado.textContent=sqlClasesDesactualizado(err)?'Aplica supabase/temas_festivos.sql para usar esto.':'No se guardó. Intenta de nuevo.';
-    }finally{caja.disabled=false;}
-  });
+  const botones=[...caja.querySelectorAll('[data-elegir-tema]')];
+  let guardando=false;
+  botones.forEach(b=>b.addEventListener('click',()=>{
+    const tema=b.dataset.elegirTema,opcion=TEMAS_FESTIVOS_ADMIN.find(([v,,off])=>v===tema&&!off);
+    if(!opcion||guardando||tema===(temaFestivo||''))return;
+    const cuenta=currentUser&&currentUser.id;
+    showConfirm(tema?`¿Activar ${opcion[1]} para todos?`:'¿Quitar el tema festivo?',
+      tema?'Lo verán todos, incluso antes de iniciar sesión.': 'Cada persona volverá al color y fondo que eligió.',async()=>{
+        if(guardando||!caja.isConnected||!cuenta||currentUser?.id!==cuenta)return;
+        guardando=true;caja.disabled=true;estado.textContent='Guardando…';
+        try{
+          const {error}=await supabaseClient.rpc('admin_tema_festivo',{p_tema:tema||null});
+          if(error)throw error;
+          if(currentUser?.id!==cuenta)return;
+          if(typeof ponerTemaFestivo==='function')ponerTemaFestivo(tema||null);
+          botones.forEach(x=>{const elegida=x.dataset.elegirTema===tema;x.setAttribute('aria-pressed',String(elegida));x.querySelector('.adu-tema-actual').textContent=elegida?'✓ Actual':x.disabled?'Diseño pendiente':'';});
+          const actual=raiz.querySelector('[data-tema-festivo-actual]');if(actual)actual.textContent=opcion[1];
+          estado.textContent=tema?'Listo: lo ven todos desde que abran la app.':'Listo: tema festivo apagado.';
+        }catch(err){
+          if(currentUser?.id===cuenta)estado.textContent='No se guardó el tema. Intenta de nuevo.';
+        }finally{guardando=false;caja.disabled=false;}
+      },{label:tema?'Activar tema':'Quitar tema',danger:false,focusCancel:true});
+  }));
 }
 // La vista elegida sobrevive al repintado: cada acción vuelve a pintar el
 // panel, y quien publicaba desde "Por revisar" caía de vuelta en "Campañas"
