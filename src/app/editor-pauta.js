@@ -349,11 +349,15 @@ function pautaTecla(e,i,campo){
   const siguiente=document.getElementById('m-pauta-nombre-'+(i+1));
   if(siguiente)siguiente.focus();else agregarPautaFila();
 }
-function ofrecerCompartirPauta(r){
-  showConfirm('¿Compartir esta pauta?',
-    `Vas a revisar los nombres y porcentajes de ${r.nombre} antes de enviarlos. Si otras personas coinciden, puede ayudar a quienes toman el mismo ramo. Nunca tus notas ni fechas.`,
-    ()=>openReportModal(r.id),
-    {label:'Revisar antes de enviar',danger:false,focusCancel:true});
+function informarAportePauta(){
+  if(S.avisoAportePautaVisto===true||S.aportarPautasAutomaticamente===false||esCuentaProfesor())return;
+  // Se recuerda al mostrar, también si se cierra con Escape o fuera de la hoja.
+  S.avisoAportePautaVisto=true;save();
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Tu pauta ayuda a tus compañeros</div>
+    <p class="settings-help">Tus programas se suman en forma anónima para ayudar a tus compañeros. Nunca se comparten tus notas. Puedes desactivarlo en Ajustes.</p>
+    <div class="modal-btns"><button type="button" class="btn-confirm" onclick="closeModal()">Entendido</button></div>`;
+  openModal();
 }
 // Un grupo de casillas vacío se dibuja cerrado (render-main.js), y eso está
 // bien para una pauta del catálogo con muchos grupos. Pero quien acaba de
@@ -389,7 +393,6 @@ function quitarPautaFilaConNotas(i){
 }
 function guardarPautaManual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
-  const estabaVacia=!(r.categorias||[]).some(c=>String(c.nombre||'').trim());
   const filas=pautaDraft.filter(f=>f.nombre.trim());
   const escala=gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale;
   const reglas=new Map();
@@ -459,9 +462,12 @@ function guardarPautaManual(){
     r.gates=r.gates.filter(g=>g.origen!=='editor'||vigentes.has(g.catId));
   const estado=estadoPauta(r.categorias);save();track('configurar_pauta',{evaluaciones:filas.length,total:estado.total});closeModal();renderRamo();
   showToast(estado.lista?'✓ Listo, ya suma 100%':'Guardado · puedes completar el resto después');
-  // Se ofrece una sola vez, al pasar de sin pauta a pauta completa. Si la
-  // persona prefiere no compartirla, el enlace de reporte queda disponible en
-  // la ficha; no se le vuelve a interrumpir cada vez que corrige un porcentaje.
-  if(estabaVacia&&estado.lista&&!pautaConReglasNoCompartibles(r)&&pautaCatalogoSinOficial(r))setTimeout(()=>ofrecerCompartirPauta(r),160);
+  // Aviso informativo de una sola vez por cuenta, sin pedir una decisión ni
+  // interrumpir cada edición. También informa si todavía faltan porcentajes:
+  // el aporte esperará a que la pauta cumpla sus filtros de siempre.
+  if(filas.length){
+    const estadoAviso=S;
+    setTimeout(()=>{if(S===estadoAviso)informarAportePauta();},160);
+  }
 }
 function abrirPautaDesdeNota(){closeModal();setTimeout(openPautaManualModal,120);}

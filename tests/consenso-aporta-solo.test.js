@@ -25,7 +25,7 @@ const val = c => vm.runInContext(c, ctx);
 ctx.enviados = enviados;
 val(`currentUser={id:'u1'};
 supabaseClient={rpc:(nombre,args)=>{enviados.push({nombre,args});return Promise.resolve({error:null});}};
-S.tenant='uc';S.carrera='Ingeniería';`);
+S.tenant='uc';S.carrera='Ingeniería';S.aportarPautasAutomaticamente=true;`);
 
 const ramo = (extra) => Object.assign({
   id: 'r1', nombre: 'Ramo Sintético', color: '#000', gates: [],
@@ -36,7 +36,7 @@ const ramo = (extra) => Object.assign({
   ],
 }, extra || {});
 
-console.log('=== Se aporta sin preguntar ===');
+console.log('=== Se aporta con consentimiento previo ===');
 val('S.ramos=' + JSON.stringify([ramo()]));
 let n = null;
 (async () => { n = await val('aportarPautasAlCatalogo')(); })();
@@ -110,7 +110,8 @@ setTimeout(() => {
               /'Corregiste la pauta oficial · agrega un reporte'/.test(render));
             chk('la política dice que esto pasa y que las notas no viajan',
               /ramo agregado a mano/.test(leer('privacidad.html')) &&
-              /tus notas no salen de tu cuenta/.test(leer('privacidad.html')));
+              /Nunca se incluyen tus calificaciones/.test(leer('privacidad.html')) &&
+              /Compartir mis pautas en forma anónima/.test(leer('privacidad.html')));
 
             console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
             process.exit(fail ? 1 : 0);

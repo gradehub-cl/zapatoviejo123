@@ -24,7 +24,7 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};
 (async()=>{
   run('S.ramos='+J([ramo()]));
   await run('aportarPautasAlCatalogo()');
-  check('ramo armado a mano aporta',calls.length===1&&calls[0].nombre==='submit_catalog_report_periodo');
+  check('cuenta existente sin preferencia sigue aportando',calls.length===1&&calls[0].nombre==='submit_catalog_report_periodo');
   check('se agrupa por su sigla explícita',calls[0].args.p_ramo_sigla==='ABC1234'
     &&run('claveReporte(S.ramos[0])')==='ABC1234');
   run(`CREDITOS_UC['Curso de prueba']=[10,'ABC1234']`);
@@ -61,6 +61,29 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};
   run(`supabaseClient.rpc=async(nombre,args)=>{calls.push({nombre,args});return {error:null}}`);
   await run('aportarPautasAlCatalogo()');
   check('se reintenta después del fallo',calls.length===1&&!!run('S.ramos[0].consensoAportado'));
+  calls.length=0;run('S.ramos='+J([ramo()])+';S.aportarPautasAutomaticamente=false');
+  const antesApagado=run('JSON.stringify(S)');
+  await run('aportarPautasAlCatalogo()');
+  check('apagar impide el aporte sin borrar ningún dato',calls.length===0&&run('JSON.stringify(S)')===antesApagado);
+  run('S.aportarPautasAutomaticamente=true');await run('aportarPautasAlCatalogo()');
+  check('volver a activar permite aportar',calls.length===1);
+
+  // Aviso real: se marca en el JSON privado antes de abrir, no pide decidir.
+  run('openModal=()=>{};_suspenderAportePautas=true;informarAportePauta()');
+  check('el aviso tiene Entendido y no pide compartir',run('S.avisoAportePautaVisto===true')&&nodo.innerHTML.includes('Entendido')&&!nodo.innerHTML.includes('Revisar antes'));
+  nodo.innerHTML='otra hoja';run('informarAportePauta()');
+  check('no se repite después de cerrar',nodo.innerHTML==='otra hoja');
+  const copia=run('JSON.stringify(S)');run('S=normalize('+copia+');informarAportePauta()');
+  check('la marca sobrevive recarga',nodo.innerHTML==='otra hoja');
+  vm.runInContext(fs.readFileSync(path.join(raiz,'src/app-session/sync-fusion.js'),'utf8'),ctx);
+  check('sync conserva apagado y aviso sin cambiar notas',run(`(()=>{const b={ramos:[]},l={ramos:[],aportarPautasAutomaticamente:false,avisoAportePautaVisto:true};const f=fusionarSync(b,l,{ramos:[]});return f.aportarPautasAutomaticamente===false&&f.avisoAportePautaVisto===true})()`));
+  calls.length=0;let resolver;
+  run('S.ramos='+J([ramo(),ramo({id:'r2',nombre:'Otro ramo sintético',sigla:'SYN200'})])+';delete S.aportarPautasAutomaticamente');
+  ctx.resolverPrimero=()=>new Promise(r=>{resolver=r;calls.push({nombre:'primero'})});
+  run('supabaseClient.rpc=resolverPrimero');const enCurso=run('aportarPautasAlCatalogo()');
+  run('cambiarCompartirPautas(false)');resolver({error:null});await enCurso;
+  check('apagar durante un envío impide el siguiente ramo',calls.length===1&&run('S.aportarPautasAutomaticamente')===false);
+
   const sql=fs.readFileSync(path.join(raiz,'supabase/catalog_consensus.sql'),'utf8');
   check('el servidor cuenta tres personas distintas, también para ramos manuales',
     /count\(distinct cr\.user_id\)::integer as respaldos/.test(sql)

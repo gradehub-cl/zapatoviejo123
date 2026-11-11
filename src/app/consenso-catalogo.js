@@ -180,13 +180,15 @@ function pautaPropiaParaConsenso(r){
 // guardada evita reenvíos sin cambios, y un fallo de red deja el aporte pendiente
 // para el siguiente guardado o inicio de sesión.
 async function aportarPautasAlCatalogo(){
+  // Ausente = comportamiento anterior: las cuentas existentes siguen aportando.
+  if(S.aportarPautasAutomaticamente===false)return 0;
   if(!supabaseClient||!currentUser)return 0;
   if(_aportePautasEnCurso)return _aportePautasEnCurso;
   const usuarioId=currentUser.id,estado=S;
   _aportePautasEnCurso=(async()=>{
     let n=0;
     for(const r of (estado.ramos||[])){
-      if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
+      if(!currentUser||currentUser.id!==usuarioId||S!==estado||estado.aportarPautasAutomaticamente===false)break;
       if(!pautaPropiaParaConsenso(r))continue;
       if(r.origen&&r.origen.tenant&&r.origen.tenant!==S.tenant)continue;
       const est=estructuraParaConsenso(estructuraDe(r)),huella=huellaEstructura(est);
@@ -195,7 +197,7 @@ async function aportarPautasAlCatalogo(){
       const seccion=seccionReporte(r);
       if(!huella||(yaAportada(r,est)&&(seccion===null||r.seccionAportada===seccion||_servidorSinSeccion)))continue;
       const enviado=await aportarPropuestaAlCatalogo(r);
-      if(!currentUser||currentUser.id!==usuarioId||S!==estado)break;
+      if(!currentUser||currentUser.id!==usuarioId||S!==estado||estado.aportarPautasAutomaticamente===false)break;
       if(enviado){r.consensoAportado=huella;n++;}
     }
     if(n&&currentUser&&currentUser.id===usuarioId&&S===estado)save();
@@ -220,3 +222,10 @@ async function aportarPautasAlCatalogo(){
 //
 // No sirve reusar findPresetName acá: esa exige que el preset traiga
 // ponderaciones y deja fuera a los que solo traen reglas, como Cálculo II.
+
+// Preferencia privada de la cuenta: apagar no retira reportes ya entregados.
+function cambiarCompartirPautas(activo){
+  S.aportarPautasAutomaticamente=activo===true;
+  if(!activo){clearTimeout(_aportePautasTimer);_aportePautasTimer=null;}
+  save();
+}

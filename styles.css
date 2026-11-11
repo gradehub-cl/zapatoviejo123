@@ -5740,6 +5740,12 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #screen-ramo .mejora-ayuda summary span{display:grid;place-items:center;width:22px;height:22px;border:1px solid var(--border2);border-radius:50%;font-size:.8125rem;}
 #screen-ramo .mejora-ayuda summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
 
+/* ─── Ajustes: aporte de pautas ───────────────────────────────────────── */
+.settings-pautas .toggle-row{gap:16px;cursor:pointer;}
+.settings-pautas .toggle{height:44px;}
+.settings-pautas .toggle-slider{inset:9px 0;}
+.settings-pautas .toggle input:focus-visible+.toggle-slider{outline:2px solid var(--primary);outline-offset:3px;}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".
