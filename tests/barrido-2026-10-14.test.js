@@ -33,7 +33,7 @@ ctx.__ev=JSON.stringify([
 const orden=run(`ordenarAgenda(JSON.parse(__ev),'fecha').map(e=>e.id).join(',')`);
 chk('la del día anterior, después la de la mañana y al final la de la tarde', orden==='antes,manana,tarde');
 
-console.log('\n=== Distancia a la décima del promedio general ===');
+console.log('\n=== Formato del promedio general, sin cambiar notas finales ===');
 let toast='';ctx.showToast=m=>{toast=String(m);};
 const promedio=(tenant,nota)=>{
   ctx.__ramos=JSON.stringify([{id:'r1',nombre:'Ramo Sintético',color:'#6d5dd3',creditos:null,origen:null,gates:[],
@@ -42,9 +42,9 @@ const promedio=(tenant,nota)=>{
   toast='';run(`document.getElementById('home-gpa').onclick()`);
   return toast;
 };
-chk('UAndes: con 3,94 faltan 0,01 para el 4,0 (borde 3,945)', /0\.01 para redondear a 4\.0/.test(promedio('uandes',3.94)));
-chk('regla común: con 3,94 también faltan 0,01 (borde 3,95)', /0\.01 para redondear a 4\.0/.test(promedio('fen',3.94)));
-chk('nunca "0.00"', !/0\.00 para/.test(promedio('fen',3.949)));
+chk('UAndes: el promedio general conserva centésimas',/Promedio redondeado: 3,94/.test(promedio('uandes',3.94)));
+chk('regla común: el promedio general usa las mismas centésimas',/Promedio redondeado: 3,94/.test(promedio('fen',3.94)));
+chk('3,949 se muestra 3,95 desde el valor bruto',/Promedio redondeado: 3,95/.test(promedio('fen',3.949)));
 
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if(fail)process.exit(1);

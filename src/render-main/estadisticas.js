@@ -72,15 +72,15 @@ function renderStats(){
       <div class="stat-card stats-mueven" style="margin:0 20px 16px;">
         ${aportes.map(a=>{
           const igual=Math.abs(a.aporte)<0.005;
-          const texto=igual?'0.00':(a.aporte>0?'+':'−')+nf(Math.abs(a.aporte),2);
+          const texto=igual?'0,00':(a.aporte>0?'+':'−')+fmtPromedioGeneral(Math.abs(a.aporte));
           const color=igual?'var(--fg3)':a.aporte>0?'var(--green)':'var(--red)';
           return `<button type="button" class="stats-mueven-fila" onclick="openRamo('${esc(a.ramo.id)}')">
             <span class="stats-mueven-cabeza"><span class="stats-mueven-nombre">${esc(a.ramo.nombre)}</span><b class="stats-mueven-delta" style="color:${color}">${texto}</b></span>
             ${htmlBarraCentrada(a.aporte,max,color)}
-            <span class="sr-solo">${igual?'No mueve tu promedio':`${a.aporte>0?'Sube':'Baja'} tu promedio en ${nf(Math.abs(a.aporte),2)}`}</span>
+            <span class="sr-solo">${igual?'No mueve tu promedio':`${a.aporte>0?'Sube':'Baja'} tu promedio en ${fmtPromedioGeneral(Math.abs(a.aporte))}`}</span>
           </button>`;
         }).join('')}
-        <div class="stat-sub" style="margin-top:8px;">Cuánto sube o baja cada ramo tu ${fmtPromedio(g)}${gpaMode(S.ramos)==='creditos'?', según sus créditos':''}.</div>
+        <div class="stat-sub" style="margin-top:8px;">Cuánto sube o baja cada ramo tu ${fmtPromedioGeneral(g)}${gpaMode(S.ramos)==='creditos'?', según sus créditos':''}.</div>
       </div>`;
     }
     {
@@ -115,9 +115,9 @@ function renderStats(){
         <div class="stat-card stats-range-card" style="margin:0 20px 16px;">
           <div class="stat-label">Tu promedio final puede quedar entre</div>
           <div class="stat-val" style="margin-top:4px;">
-            <span>${nf(proy.piso)}</span>
+            <span>${fmtPromedioGeneral(proy.piso)}</span>
             <span style="color:var(--fg3);font-weight:600;"> y </span>
-            <span>${nf(proy.techo)}</span>
+            <span>${fmtPromedioGeneral(proy.techo)}</span>
           </div>
           ${htmlEscalaNotas({piso:proy.piso,techo:proy.techo,actual:g})}
           <div class="stat-sub" style="margin-top:6px;">El rango considera sacar entre 1,0 y 7,0 en todo lo pendiente, incluidas las reglas que pueden topar una nota.</div>
@@ -138,7 +138,7 @@ function renderStats(){
     </div><div class="stat-card stats-section-card stats-history-module">`;
     const acumulado=promedioAcumuladoCierre(validos);
     const politicaPromedio=gh_reglasNota(S.tenant).promedioAcademico;
-    if(acumulado!==null||(politicaPromedio&&validos.length))hist+=`<p class="stats-hist-vacio">${politicaPromedio?'PPA estimado del historial':'Promedio del historial'}: <strong>${acumulado===null?'—':fmtPromedio(acumulado)}</strong>${politicaPromedio?'. Revisa las exclusiones en Editar ramo: los ramos sin marcar se incluyen. Se requieren créditos conocidos.':''}</p>`;
+    if(acumulado!==null||(politicaPromedio&&validos.length))hist+=`<p class="stats-hist-vacio">${politicaPromedio?'PPA estimado del historial':'Promedio del historial'}: <strong>${acumulado===null?'—':fmtPromedioGeneral(acumulado)}</strong>${politicaPromedio?'. Revisa las exclusiones en Editar ramo: los ramos sin marcar se incluyen. Se requieren créditos conocidos.':''}</p>`;
     if(!validos.length){
       hist+=`<p class="stats-hist-vacio">Agrega tus semestres anteriores para que cuenten en tu promedio de carrera.</p>`;
     }
@@ -149,10 +149,10 @@ function renderStats(){
         const ultimo=serie[serie.length-1];
         const etiqueta=x=>x.actual?`Actual · ${x.label}`:x.label||'Semestre anterior';
         hist+=`<figure class="stats-hist-comparacion">
-          <figcaption class="stats-hist-titular"><div><span>Promedio por semestre</span><strong>${fmtPromedio(ultimo.v)}</strong>
+          <figcaption class="stats-hist-titular"><div><span>Promedio por semestre</span><strong>${fmtPromedioGeneral(ultimo.v)}</strong>
 
           </div><span class="stats-hist-periodo-actual">${esc(etiqueta(ultimo))}</span></figcaption>
-          ${htmlGraficoEvolucion(serie.map(x=>({etiqueta:etiqueta(x),valor:x.v,actual:x.actual})),'historial')}
+          ${htmlGraficoEvolucion(serie.map(x=>({etiqueta:etiqueta(x),valor:x.v,actual:x.actual,valorTexto:fmtPromedioGeneral(x.v),lectura:`${etiqueta(x)}, promedio ${fmtPromedioGeneral(x.v)}`})),'historial')}
           <div class="stats-hist-periodo" role="group" aria-label="Semestres a comparar">${[['anterior','Semestre pasado'],['5','Últimos 5'],['todo','Desde el inicio']].map(([id,texto])=>`<button type="button" data-hist-periodo="${id}" aria-pressed="${periodo===id}" onclick="cambiarPeriodoHistorial('${id}')">${texto}</button>`).join('')}</div>
         </figure>`;
       }
@@ -178,7 +178,7 @@ function renderStats(){
                 <div style="font-size:0.96875rem;font-weight:700;color:var(--fg);letter-spacing:-.01em;">${esc(h.label)}</div>
                 <div style="font-size:0.75rem;color:var(--fg3);margin-top:3px;">${Number.isFinite(h.careerSemestre)?`Sem. ${h.careerSemestre} · `:''}${ramosHistorial.length} ramo${ramosHistorial.length!==1?'s':''}</div>
               </div>
-              <span class="hist-gpa" style="color:${gpaColor}">${historialGpa!==null?fmtPromedio(historialGpa):'—'}</span>
+              <span class="hist-gpa" style="color:${gpaColor}">${historialGpa!==null?fmtPromedioGeneral(historialGpa):'—'}</span>
               <span style="color:var(--fg3);font-size:0.6875rem;">${isOpen?'▲':'▼'}</span>
             </div>
             <div class="hist-body${isOpen?' open':''}">
