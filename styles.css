@@ -4826,7 +4826,15 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 @media(prefers-reduced-motion:reduce){.panel-solo-pruebas input{transition:none;}}
 
 /* Directorio: contenido con color propio; controles y superficies Editorial. */
-.directorio-tarjeta{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:24px;width:100%;min-height:208px;padding:24px;border:0;border-radius:8px;background:var(--directorio-color);color:var(--directorio-texto);font-family:var(--font-ui);text-align:left;overflow-wrap:anywhere}
+/* Tarjeta de perfil con el estilo de los anuncios (Lucas, 2026-11-11): el color
+   del perfil marca el borde y tiñe apenas el fondo; el texto usa los colores
+   de la app, así el contraste no depende del color que eligió el profesor. */
+.directorio-tarjeta{--directorio-tinte:8%;--directorio-borde:color-mix(in srgb,var(--directorio-color) 78%,var(--fg));--directorio-acento:color-mix(in srgb,var(--directorio-color) 55%,#000);
+  box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:24px;width:100%;min-height:208px;padding:24px;
+  border:1.5px solid var(--directorio-borde);border-radius:14px;background:color-mix(in srgb,var(--directorio-color) var(--directorio-tinte),var(--card));
+  color:var(--fg);font-family:var(--font-ui);text-align:left;overflow-wrap:anywhere}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .directorio-tarjeta{--directorio-tinte:16%;--directorio-borde:color-mix(in srgb,var(--directorio-color) 70%,#fff);--directorio-acento:color-mix(in srgb,var(--directorio-color) 50%,#fff)}}
+:root[data-modo="oscuro"] .directorio-tarjeta{--directorio-tinte:16%;--directorio-borde:color-mix(in srgb,var(--directorio-color) 70%,#fff);--directorio-acento:color-mix(in srgb,var(--directorio-color) 50%,#fff)}
 button.directorio-tarjeta{cursor:pointer;transition:filter var(--motion-press)}
 button.directorio-tarjeta:active{filter:brightness(.9)}
 button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offset:4px}
@@ -4835,9 +4843,12 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-textos{display:flex;flex-direction:column;gap:12px;min-width:0;flex:1}
 .directorio-avatar.catalogo-clase-logo{display:flex;align-items:center;justify-content:flex-end;width:auto;height:48px;max-width:120px;flex-shrink:0;font-weight:700;border:0;border-radius:0;overflow:visible}
 .directorio-avatar.catalogo-clase-logo img{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
+/* Sin logo: la inicial en un círculo teñido con el color del perfil. */
+.directorio-tarjeta .directorio-avatar.catalogo-clase-logo:not(:has(img)){justify-content:center;width:48px;border-radius:50%;
+  background:color-mix(in srgb,var(--directorio-color) 22%,var(--card));color:var(--directorio-acento);font-size:1.25rem}
 .directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit}
-.directorio-tarjeta .directorio-etiqueta{font-size:1rem;color:inherit}
-.directorio-tarjeta .directorio-siglas{font-size:.875rem;font-variant-numeric:tabular-nums;color:inherit}
+.directorio-tarjeta .directorio-etiqueta{font-size:1rem;font-weight:600;color:var(--directorio-acento)}
+.directorio-tarjeta .directorio-siglas{font-size:.875rem;font-variant-numeric:tabular-nums;color:var(--fg2)}
 .directorio-valoracion{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;font-size:1rem;line-height:1.25;flex-shrink:0;font-variant-numeric:tabular-nums;color:inherit}
 .directorio-valoracion strong{font-weight:650;color:inherit}
 .directorio-sin-valoraciones{font-size:.75rem;text-align:right;white-space:normal;max-width:7rem}
@@ -4887,10 +4898,18 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-apoyo-contactos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));container-type:inline-size;gap:12px;margin:24px 0}
 .perfil-apoyo-contactos .clase-accion{margin:0;display:inline-flex;justify-content:center;align-items:center;min-height:44px;min-width:44px;box-sizing:border-box;text-decoration:none;color:var(--fg);background:var(--card);border:1px solid var(--border);padding:10px 16px;border-radius:8px;font:inherit}
 .perfil-apoyo-contactos .clase-accion{gap:10px;font-weight:600;line-height:1.25;transition:filter var(--motion-press)}
-.perfil-apoyo-contactos .perfil-contacto-whatsapp{grid-column:1/-1;background:#087f45;border-color:#087f45;color:#fff}
-.perfil-apoyo-contactos .perfil-contacto-instagram{background:#b51267;border-color:#b51267;color:#fff}
-.perfil-apoyo-contactos .perfil-contacto-web{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
-.perfil-apoyo-contactos .perfil-contacto-email{background:#145eca;border-color:#145eca;color:#fff}
+/* Botones de contacto como los anuncios: borde del color del canal, fondo
+   apenas teñido y texto del mismo color (4,5:1 en claro; aclarado en oscuro). */
+.perfil-apoyo-contactos .perfil-contacto-whatsapp{grid-column:1/-1;--canal:#087f45}
+.perfil-apoyo-contactos .perfil-contacto-instagram{--canal:#b51267}
+.perfil-apoyo-contactos .perfil-contacto-web{--canal:var(--primary)}
+.perfil-apoyo-contactos .perfil-contacto-email{--canal:#145eca}
+.perfil-apoyo-contactos :is(.perfil-contacto-whatsapp,.perfil-contacto-instagram,.perfil-contacto-web,.perfil-contacto-email){
+  --canal-texto:var(--canal);background:color-mix(in srgb,var(--canal) 9%,var(--card));border:1.5px solid var(--canal);color:var(--canal-texto)}
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .perfil-apoyo-contactos :is(.perfil-contacto-whatsapp,.perfil-contacto-instagram,.perfil-contacto-web,.perfil-contacto-email){
+  --canal-texto:color-mix(in srgb,var(--canal) 45%,#fff);background:color-mix(in srgb,var(--canal) 18%,var(--card));border-color:color-mix(in srgb,var(--canal) 65%,#fff)}}
+:root[data-modo="oscuro"] .perfil-apoyo-contactos :is(.perfil-contacto-whatsapp,.perfil-contacto-instagram,.perfil-contacto-web,.perfil-contacto-email){
+  --canal-texto:color-mix(in srgb,var(--canal) 45%,#fff);background:color-mix(in srgb,var(--canal) 18%,var(--card));border-color:color-mix(in srgb,var(--canal) 65%,#fff)}
 @container(max-width:20rem){.perfil-apoyo-contactos>.clase-accion{grid-column:1/-1}}
 .perfil-contacto-icono{width:1.25em;height:1.25em;flex:none;pointer-events:none}
 .perfil-apoyo-contactos .clase-accion:active{filter:brightness(.93)}
