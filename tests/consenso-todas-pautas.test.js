@@ -23,6 +23,15 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};
 
 (async()=>{
   run('S.ramos='+J([ramo()]));
+  const anterior=run('JSON.stringify(S)');
+  for(const permiso of [undefined,false,null,'true']){
+    ctx.permiso=permiso;run('S.aportarPautasAutomaticamente=permiso');
+    await run('aportarPautasAlCatalogo()');
+    check('sin consentimiento booleano no se aporta: '+permiso,calls.length===0);
+  }
+  run('delete S.aportarPautasAutomaticamente');
+  check('cuenta existente conserva sus datos y pautas',run('JSON.stringify(S)')===anterior);
+  run('S.aportarPautasAutomaticamente=true');
   await run('aportarPautasAlCatalogo()');
   check('ramo armado a mano aporta',calls.length===1&&calls[0].nombre==='submit_catalog_report_periodo');
   check('se agrupa por su sigla explícita',calls[0].args.p_ramo_sigla==='ABC1234'

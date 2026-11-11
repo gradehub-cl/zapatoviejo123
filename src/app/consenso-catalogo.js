@@ -172,6 +172,9 @@ function pautaPropiaParaConsenso(r){
 // guardada evita reenvíos sin cambios, y un fallo de red deja el aporte pendiente
 // para el siguiente guardado o inicio de sesión.
 async function aportarPautasAlCatalogo(){
+  // Una cuenta antigua sin preferencia tampoco consiente un aporte nuevo.
+  // Leer consenso y enviar un reporte explícito no dependen de este permiso.
+  if(S.aportarPautasAutomaticamente!==true)return 0;
   if(!supabaseClient||!currentUser)return 0;
   if(_aportePautasEnCurso)return _aportePautasEnCurso;
   const usuarioId=currentUser.id,estado=S;
