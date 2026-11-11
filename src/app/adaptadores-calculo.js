@@ -233,7 +233,15 @@ function gpa(ramos){
 }
 // El promedio del semestre no es la nota final oficial de un ramo. Se muestra
 // a centésimas, desde el valor bruto de gpa, sin un redondeo intermedio.
+// El promedio general va con UN decimal en toda la app, como lo muestran las
+// universidades (Lucas, 2026-11-11: 5,42 se ve 5,4). Tocar el promedio en
+// Inicio muestra el valor exacto. Las diferencias (deltas y aportes) usan
+// fmtDiferenciaPromedio, con dos decimales: con uno, un +0,04 se vería +0,0.
 function fmtPromedioGeneral(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,1).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1,useGrouping:false});
+}
+function fmtDiferenciaPromedio(valor){
   if(!Number.isFinite(valor))return '—';
   return gh_excelRound(valor+1e-9,2).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false});
 }

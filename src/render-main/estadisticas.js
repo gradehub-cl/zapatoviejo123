@@ -72,12 +72,12 @@ function renderStats(){
       <div class="stat-card stats-mueven" style="margin:0 20px 16px;">
         ${aportes.map(a=>{
           const igual=Math.abs(a.aporte)<0.005;
-          const texto=igual?'0,00':(a.aporte>0?'+':'−')+fmtPromedioGeneral(Math.abs(a.aporte));
+          const texto=igual?'0,00':(a.aporte>0?'+':'−')+fmtDiferenciaPromedio(Math.abs(a.aporte));
           const color=igual?'var(--fg3)':a.aporte>0?'var(--green)':'var(--red)';
           return `<button type="button" class="stats-mueven-fila" onclick="openRamo('${esc(a.ramo.id)}')">
             <span class="stats-mueven-cabeza"><span class="stats-mueven-nombre">${esc(a.ramo.nombre)}</span><b class="stats-mueven-delta" style="color:${color}">${texto}</b></span>
             ${htmlBarraCentrada(a.aporte,max,color)}
-            <span class="sr-solo">${igual?'No mueve tu promedio':`${a.aporte>0?'Sube':'Baja'} tu promedio en ${fmtPromedioGeneral(Math.abs(a.aporte))}`}</span>
+            <span class="sr-solo">${igual?'No mueve tu promedio':`${a.aporte>0?'Sube':'Baja'} tu promedio en ${fmtDiferenciaPromedio(Math.abs(a.aporte))}`}</span>
           </button>`;
         }).join('')}
         <div class="stat-sub" style="margin-top:8px;">Cuánto sube o baja cada ramo tu ${fmtPromedioGeneral(g)}${gpaMode(S.ramos)==='creditos'?', según sus créditos':''}.</div>

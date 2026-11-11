@@ -42,9 +42,9 @@ const promedio=(tenant,nota)=>{
   toast='';run(`document.getElementById('home-gpa').onclick()`);
   return toast;
 };
-chk('UAndes: el promedio general conserva centésimas',/Promedio redondeado: 3,94/.test(promedio('uandes',3.94)));
-chk('regla común: el promedio general usa las mismas centésimas',/Promedio redondeado: 3,94/.test(promedio('fen',3.94)));
-chk('3,949 se muestra 3,95 desde el valor bruto',/Promedio redondeado: 3,95/.test(promedio('fen',3.949)));
+chk('UAndes: el promedio general va a la décima',/Promedio redondeado: 3,9/.test(promedio('uandes',3.94)));
+chk('regla común: el promedio general va a la décima',/Promedio redondeado: 3,9/.test(promedio('fen',3.94)));
+chk('3,95 se muestra 4,0 desde el valor bruto',/Promedio redondeado: 4,0/.test(promedio('fen',3.95)));
 
 console.log(`\n${ok} OK, ${fail} FAIL`);
 if(fail)process.exit(1);
