@@ -109,13 +109,19 @@ function openAvanceCurricular(){
   // el celular. Pegar el avance queda como alternativa, igual que en el horario.
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Cargar tus semestres anteriores</div>
-    <p class="modal-desc">Descarga tu ${esc(fuente.ficha)} en PDF desde <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.portal)}</a> y súbela acá. La leemos en tu teléfono: <b>el archivo no sale de tu dispositivo</b>. Antes de agregar nada vas a poder revisarlo.</p>
+    <p class="modal-desc">Sube tu ${esc(fuente.ficha)} en PDF. La leemos en tu teléfono: <b>el archivo no sale de tu dispositivo</b>, y antes de agregar nada vas a poder revisarlo.</p>
+    <ol class="avance-pasos">
+      <li>Abre el <a href="${esc(fuente.url)}" target="_blank" rel="noopener">${esc(fuente.sistema)}</a> con tu cuenta UC y toca «Consultar».</li>
+      <li>Elige la pestaña «${esc(fuente.pestanaFicha)}».</li>
+      <li>Toca «Descargar». El archivo empieza con ${esc(fuente.archivoFicha)}.</li>
+    </ol>
+    <p class="settings-help">También llegas desde ${esc(fuente.alternativa)}.</p>
     <label class="btn-confirm horario-foto-btn" for="m-avance-ficha">Subir ficha en PDF</label>
     <input type="file" id="m-avance-ficha" class="horario-foto-input" accept="application/pdf,.pdf" onchange="subirFichaAcademica(this)" aria-describedby="m-avance-aviso"/>
     <p class="settings-help" id="m-avance-aviso" role="status" aria-live="polite">Solo leemos siglas, créditos, notas y semestres.</p>
     <details class="horario-texto-alt">
       <summary>¿No tienes el PDF? Pega tu ${esc(fuente.documento)}</summary>
-      <p class="settings-help">Ábrelo en ${esc(fuente.portal)}, selecciona toda la página, cópiala y pégala acá. Da lo mismo si viene texto de más.</p>
+      <p class="settings-help">En el mismo sistema, abre la pestaña «${esc(fuente.pestanaAvance)}», selecciona toda la página, cópiala y pégala acá. Da lo mismo si viene texto de más.</p>
       <textarea id="m-avance-texto" class="horario-importar-texto" rows="5" maxlength="200000" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Tu ${esc(fuente.documento)} copiado" oninput="document.getElementById('m-avance-leer').disabled=!this.value.trim()"></textarea>
       <button type="button" class="btn-cancel" id="m-avance-leer" disabled onclick="leerAvancePegado()">Revisar texto</button>
     </details>

@@ -84,6 +84,10 @@ async function lineasDePdf(archivo,pdfjs){
   return lineas;
 }
 
+function esSeguimientoCurricular(lineas,nombre){
+  return /^SC-/i.test(String(nombre||''))||(lineas||[]).slice(0,6).some(l=>/SEGUIMIENTO CURRICULAR/i.test(l));
+}
+
 const FICHA_PDF_MAX=5*1024*1024;
 async function subirFichaAcademica(input){
   const archivo=input&&input.files&&input.files[0];
@@ -103,7 +107,11 @@ async function subirFichaAcademica(input){
   catch(e){decir('No pudimos leer ese PDF. Descarga la ficha de nuevo e inténtalo otra vez.');return;}
   const {filas,omitidos}=leerFichaAcademica(lineas);
   if(!filas.length){
-    decir('No encontramos ramos con nota. Sube la ficha académica acumulada, no el avance ni el horario.');
+    // El «Seguimiento Curricular» (SC-….pdf) se descarga desde el mismo lugar y
+    // con el mismo botón: es el error más probable, así que se nombra.
+    decir(esSeguimientoCurricular(lineas,archivo.name)
+      ?'Ese es el Seguimiento Curricular. Vuelve, elige la pestaña «Ficha Académica Acumulada» y descárgala (el archivo empieza con FAA).'
+      :'No encontramos ramos con nota. Sube la ficha académica acumulada (el archivo empieza con FAA).');
     return;
   }
   await revisarFilasAvance(filas,omitidos,()=>!!document.getElementById('m-avance-ficha'));

@@ -112,6 +112,21 @@ check('la oferta del onboarding está apagada mientras Lucas la prueba',()=>{
   assert.equal(run('ofertaFichaOnboardingHTML()'),'');
 });
 
+check('el modal da la ruta exacta y el link directo al sistema de avance',()=>{
+  run(`S.tenant='uc';`);
+  const f=JSON.parse(run('JSON.stringify(AVANCE_CURRICULAR.uc)'));
+  assert.equal(f.url,'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml');
+  const html=leer('src/app/avance-curricular.js');
+  assert.match(html,/class="avance-pasos"/);
+  assert.match(html,/fuente\.pestanaFicha/);
+});
+
+check('si suben el Seguimiento Curricular, se le dice cuál es la ficha',()=>{
+  assert.equal(run(`esSeguimientoCurricular([],'SC-040013-202620.pdf')`),true);
+  assert.equal(run(`esSeguimientoCurricular(['SEGUIMIENTO CURRICULAR','PONTIFICIA UNIVERSIDAD'],'archivo.pdf')`),true);
+  assert.equal(run(`esSeguimientoCurricular(['FICHA ACADÉMICA ACUMULADA'],'FAA-040013-202620.pdf')`),false);
+});
+
 check('al terminar el onboarding se ofrece la ficha solo a quien no va en primer semestre',()=>{
   // Se prueba como quedará al encenderla.
   const fuente=leer('src/app/onboarding-flujo.js').match(/function ofertaFichaOnboardingHTML\(\)\{[\s\S]*?\n\}/)[0].replace('!OFERTA_FICHA_ONBOARDING||','');
