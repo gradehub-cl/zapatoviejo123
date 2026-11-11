@@ -78,7 +78,7 @@ chk('Principios Ecológicos declara sus décimas a la final, con la condición d
 chk('y ya no la lleva en noCalcula',!(pe.noCalcula||[]).some(t=>/décimas/.test(t)));
 chk('Dinámica declara las 5 décimas a Controles con 2 faltas como máximo',din&&din.bonus&&din.bonus[0].a==='Controles'&&din.bonus[0].hasta===2&&din.bonus[0].suma===0.5);
 chk('y ya no la lleva en noCalcula',!(din.noCalcula||[]).some(t=>/5 décimas/.test(t)));
-chk('Revelación y Fe suma las décimas a la nota más baja, sin activarlas por omisión',run(`PRESETS_UC['Revelación y Fe']`).bonus.some(b=>b.id==='talleres'&&b.operacion==='sumar'));
+chk('Revelación y Fe suma las décimas a la nota más baja, sin activarlas por omisión',run(`PRESETS_UC['Revelación y Fe'].porSeccion[1]`).bonus.some(b=>b.id==='talleres'&&b.operacion==='sumar'));
 // Un ramo ya creado desde el catálogo recibe la regla al cargar, sin sumar nada.
 const viejo=run(`(()=>{const p=presetRamo('Principios Ecológicos y Medio Ambiente','uc','ING-PC');
   const r={id:'v',nombre:'Principios Ecológicos y Medio Ambiente',origen:{tenant:'uc',carrera:'ING-PC'},categorias:p.categorias,gates:[]};

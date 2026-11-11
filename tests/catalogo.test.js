@@ -111,12 +111,19 @@ console.log('\n=== Una pauta que nadie puede encontrar no existe ===');
 // pautas quedaban invisibles — funcionaban tecleando el nombre completo y
 // exacto, o sea solo para quien ya sabía que estaban ahí.
 const buscarUC = (q, car) => run('searchCatalog(' + JSON.stringify(q) + ',"uc",' + JSON.stringify(car) + ',2)');
-['Ecolog', 'Revelaci'].forEach(q => {
-  const r = buscarUC(q, 'ING-PC');
+{
+  const r = buscarUC('Ecolog', 'ING-PC');
   // Entre los seis que se muestran: desde que se busca en toda la UC, la
   // "Ecología" de otras carreras calza mejor por prefijo y va antes.
-  chk('Ingeniería UC encuentra "' + q + '" aunque no esté en la malla', r.slice(0, 6).some(x => x.tienePreset));
-});
+  chk('Ingeniería UC encuentra "Ecolog" aunque no esté en la malla', r.slice(0, 6).some(x => x.tienePreset));
+}
+// Revelación y Fe no es coordinado (2026-11-09): sigue apareciendo, con su
+// sigla, pero sin prometer una pauta para todos.
+{
+  const r = buscarUC('Revelaci', 'ING-PC').find(x => x.nombre === 'Revelación y Fe');
+  chk('Ingeniería UC encuentra "Revelaci" aunque no esté en la malla', !!r);
+  chk('y no promete pauta: no es coordinado', r && !r.tienePreset);
+}
 
 // Cualquier carrera busca ramos de TODA su universidad, no solo de su malla:
 // electivos, minors y ramos de otra carrera también se cursan. Antes las mallas

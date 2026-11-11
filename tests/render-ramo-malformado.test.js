@@ -23,6 +23,9 @@ const ctx={
 };
 vm.createContext(ctx);vm.runInContext(src,ctx);
 const val=n=>vm.runInContext(n,ctx);
+// Biología de la Célula no es coordinado (2026-11-09): su programa es el de las
+// secciones 4 y 5. Acá se prueba ESE programa, como lo cargaría a esa sección.
+vm.runInContext("PRESETS_UC['Biología de la Célula']={...PRESETS_UC['Biología de la Célula'],...PRESETS_UC['Biología de la Célula'].porSeccion[4],coordinado:true};",ctx);
 let ok=0,fail=0;const chk=(n,c)=>{console.log(`  ${c?'OK  ':'FAIL'} ${n}`);if(c)ok++;else fail++;};
 
 console.log('\n=== La ficha tolera una categoría malformada ===');

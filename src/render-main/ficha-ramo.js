@@ -336,8 +336,11 @@ function renderRamo(){
     const consenso=r.consensoRespaldos&&(sugerida?intacta:
       (intacta||yaAportada(r,estructuraParaConsenso(estructuraDe(r)))));
     const info=infoPeriodoPauta(r);
+    const def=!sugerida&&!consenso&&r.origen?.tenant?pautaOficialDelRamo(r.nombre,r.origen.tenant):null;
+    const publicado=def&&!pautaEditada(r)&&programaQueCalza(r,def);
     const texto=consenso?`Pauta por consenso · ${consenso} estudiantes`
-      :sugerida&&intacta?textoProcedenciaSugerida(sugerida).replace(/^Programa oficial/,'Programa')
+      :sugerida&&intacta?esc(textoProcedenciaSugerida(sugerida).replace('Programa oficial','Programa'))
+      :publicado?esc(textoReferenciaSugerida(publicado).replace('Programa oficial','Programa'))
       :info&&info.periodo?`Pauta del ${esc(info.periodo)}`:'';
     if(!texto){periodoEl.style.display='none';periodoEl.innerHTML='';}
     else{
@@ -345,7 +348,6 @@ function renderRamo(){
       periodoEl.innerHTML=`<span>${texto}</span>`;
       periodoEl.style.display='inline-flex';
     }
-
   }
 
   // La pauta oficial cambió y este ramo sigue con la vieja. No se toca nada sin

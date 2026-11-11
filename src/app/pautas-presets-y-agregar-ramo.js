@@ -177,13 +177,18 @@ function crearRamoDesdeCatalogo(nombre,sigla){
   const siglaPreset=candidato&&S.tenant==='uc'?siglaDePreset(candidato):null;
   const presetName=sigla&&siglaPreset&&normName(sigla)!==normName(siglaPreset)?null:candidato;
   const preset=presetName?presetRamo(presetName,S.tenant,S.carrera):null;
-  const fila=S.tenant==='uc'?cursoUcCompleto(nombre,sigla):null;
+  // Un ramo no coordinado (coordinacion-ramo.js) no trae pauta para todos,
+  // pero sus datos siguen valiendo: nombre, sigla y créditos del programa.
+  const referencia=!preset?datosRamoNoCoordinado(nombre,sigla):null;
+  const siglaFinal=sigla||referencia?.sigla||null,nombreFinal=presetName||referencia?.nombre||nombre;
+  const fila=S.tenant==='uc'?cursoUcCompleto(nombre,siglaFinal):null;
   // Los créditos de la pauta mandan: buscada sin sigla, la fila del catálogo
   // puede ser la del homónimo (TEB110 tiene 8; TTF012, 10).
-  const creditos=typeof preset?.creditos==='number'?preset.creditos:fila&&typeof fila[2]==='number'?fila[2]:creditosDe(nombre,S.tenant,preset,sigla);
+  const creditos=typeof preset?.creditos==='number'?preset.creditos:typeof referencia?.creditos==='number'?referencia.creditos
+    :fila&&typeof fila[2]==='number'?fila[2]:creditosDe(nombre,S.tenant,preset,siglaFinal);
   const ramo={
-    id:uid(),nombre:presetName||nombre,color:nextRamoColor(presetName||nombre),sigla:sigla||null,
-    creditos,origen:origenActual(presetName||nombre,sigla),
+    id:uid(),nombre:nombreFinal,color:nextRamoColor(nombreFinal),sigla:siglaFinal,
+    creditos,origen:origenActual(nombreFinal,siglaFinal),
     categorias:preset?preset.categorias:[],gates:preset?preset.gates:[],aporta:preset?preset.aporta:null,promedioParcial:preset?preset.promedioParcial:null,recuperativo:preset?preset.recuperativo:null,reglasAusenciaJustificada:preset?preset.reglasAusenciaJustificada:null,bonus:preset?preset.bonus:null,reemplazosOptativos:preset?preset.reemplazosOptativos:null,pautaHuella:preset?huellaPauta(preset.categorias):null,
   };
   S.ramos.push(ramo);
