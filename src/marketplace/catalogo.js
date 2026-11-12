@@ -269,9 +269,13 @@ function ramosRelevantesParaVisor(siglas,{cursando=[],historial=[],malla=null}={
   if(!codigos(malla).length)return respaldo();
   const previos=(Array.isArray(historial)?historial:[]).flatMap(h=>Array.isArray(h?.ramos)?h.ramos:[h]);
   const conocidas=new Set(codigos([...(Array.isArray(cursando)?cursando:[]),...previos]));
-  let mias=todas.filter(s=>conocidas.has(s)),criterio='ramos';
-  if(!mias.length){const deMalla=new Set(codigos(malla));mias=todas.filter(s=>deMalla.has(s));criterio='malla';}
+  // Lo cursado va primero y la malla completa el resto: un ramo de su malla que
+  // aún no toma también es de su carrera, nunca de «Otras carreras».
+  const deMalla=new Set(codigos(malla));
+  const cursadas=todas.filter(s=>conocidas.has(s));
+  const mias=[...cursadas,...todas.filter(s=>!conocidas.has(s)&&deMalla.has(s))];
   if(!mias.length)return respaldo();
+  const criterio=cursadas.length?'ramos':'malla';
   const elegidas=new Set(mias);
   return {mias,otras:todas.filter(s=>!elegidas.has(s)),criterio};
 }

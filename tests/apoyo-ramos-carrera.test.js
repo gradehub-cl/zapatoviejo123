@@ -12,8 +12,8 @@ const run=s=>vm.runInContext(s,ctx),plain=x=>JSON.parse(JSON.stringify(x));
 const pure=(siglas,op)=>{ctx.siglas=siglas;ctx.op=op;return plain(run('ramosRelevantesParaVisor(siglas,op)'));};
 const siglas=Object.freeze(['mat 1100',' MAT1610 ','SYN201','SYN202','mat1610']);
 let r=pure(siglas,{cursando:[{sigla:'mat 1610'}],historial:[],malla:['SYN201']});
-assert.deepEqual(r,{mias:['MAT1610'],otras:['MAT1100','SYN201','SYN202'],criterio:'ramos'},'cursando manda antes que la malla y normaliza sin equivalencias');
-r=pure(siglas,{cursando:[],historial:[{ramos:[{sigla:'syn 202'}]}],malla:['SYN201']});assert.deepEqual(r.mias,['SYN202'],'el historial también manda');
+assert.deepEqual(r,{mias:['MAT1610','SYN201'],otras:['MAT1100','SYN202'],criterio:'ramos'},'lo cursado va primero, la malla completa y normaliza sin equivalencias');
+r=pure(siglas,{cursando:[],historial:[{ramos:[{sigla:'syn 202'}]}],malla:['SYN201']});assert.deepEqual(r.mias,['SYN202','SYN201'],'el historial también va primero');
 r=pure(siglas,{cursando:[{sigla:'INEXISTENTE'}],malla:['syn 201']});assert.deepEqual(r,{mias:['SYN201'],otras:['MAT1100','MAT1610','SYN202'],criterio:'malla'});
 assert.deepEqual(pure(siglas,{malla:['SIN-COINCIDENCIA']}),{mias:['MAT1100','MAT1610','SYN201','SYN202'],otras:[],criterio:'universidad'},'mias vacío usa el respaldo');
 assert.equal(pure(siglas,{cursando:[{sigla:'MAT1610'}],malla:null}).criterio,'universidad','sin malla disponible conserva el respaldo');
@@ -30,7 +30,7 @@ assert.match(html,/<details class="perfil-apoyo-otras"><summary>Otras carreras \
 assert.match(tarjeta(),/MAT1610 · SYN201/);assert.doesNotMatch(tarjeta(),/MAT1100|UAI999/);
 // Las únicas propiedades de un ramo que se permiten leer son las de identidad.
 ctx.cursando={sigla:'MAT1610',nombre:'Curso sintético',get categorias(){throw Error('no leer notas')},get promedio(){throw Error('no leer promedio')}};
-run('S.ramos=[cursando]');html=perfil();assert.match(html,/1 ramo de tu carrera/);assert.doesNotMatch(chips(html),/SYN201/);assert.match(tarjeta(),/MAT1610/);assert.doesNotMatch(tarjeta(),/SYN201/);
+run('S.ramos=[cursando]');html=perfil();assert.match(html,/2 ramos de tu carrera/);assert.match(chips(html),/MAT1610[\s\S]*SYN201/,'lo cursado primero y su malla después');assert.match(tarjeta(),/MAT1610 · SYN201/);assert.doesNotMatch(tarjeta(),/MAT1100/);
 run("S.carrera=null");html=perfil();assert.match(html,/4 ramos en la UC/);assert.match(chips(html),/MAT1100/);assert.doesNotMatch(html,/UAI999/,'el respaldo sigue siendo por universidad');
 run("S.carrera='SIN-MALLA'");assert.match(perfil(),/4 ramos en la UC/);
 run("S.carrera='SYN-ING';S.ramos=[]");ctx.p.ramos_siglas=['MAT1100'];assert.match(perfil(),/1 ramo en la UC/,'nunca se vacía por no calzar con la carrera');
