@@ -482,6 +482,8 @@ function activarTarjetasClases(raiz){
 const IMPRESION_VISIBLE=0.5,IMPRESION_MS=1000;
 let impresionesCatalogo=new Set(),observadorCatalogo=null,logosCatalogoClases=new Map(),limpiarVisibilidadCatalogo=null;
 let eventosCatalogo=new Map();
+const impresionesCatalogoEnCurso=new Set();
+const vistasPorCatalogo=new WeakMap();
 function observarImpresionesClases(raiz,anuncios,busqueda=''){
   // Si la persona escribió algo, las tarjetas que ve son resultado de buscar.
   const canal=String(busqueda||'').trim()?'busqueda':'lista';
@@ -490,27 +492,33 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
   if(typeof IntersectionObserver!=='function'||!raiz)return;
   const sigla=new Map((anuncios||[]).map(a=>[a.id,(a.ramos_siglas||[])[0]||'']));
   const eventos=eventosCatalogo;
+  if(!vistasPorCatalogo.has(eventos))vistasPorCatalogo.set(eventos,new Set());
+  const vistas=vistasPorCatalogo.get(eventos);
+  const publicaciones=new Map((anuncios||[]).map(a=>[a.id,a.publicado_at]));
   const timers=new Map(),visibles=new Set(),tarjetas=new Map();
   const programar=(card,id,demora=IMPRESION_MS)=>{
     if(timers.has(id))return;
     timers.set(id,setTimeout(async()=>{
       timers.delete(id);
-      const clave=id+':'+canal;
+      const clave=id+':'+canal,claveEvento=claveMedicionClase(id);
       if(document.visibilityState==='hidden'||!card.isConnected||!visibles.has(id)||impresionesCatalogo.has(clave))return;
+      if(!eventos.has(claveEvento))eventos.set(claveEvento,nuevoEventoMetricaClase());
+      const eventoId=eventos.get(claveEvento),medidas=impresionesCatalogo;
+      if(impresionesCatalogoEnCurso.has(eventoId))return;
+      impresionesCatalogoEnCurso.add(eventoId);
       const usuario=currentUser&&currentUser.id;
+      // El alcance conserva su RPC y su cobro. Un fallo no impide el total.
       const alcance=await registrarAlcanceAnuncio(id,canal);
-      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo)return;
-      if(alcance===null){
+      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo){impresionesCatalogoEnCurso.delete(eventoId);return;}
+      const metrica=vistas.has(claveEvento)?true:await registrarMetricaAnuncio(id,'impresion',sigla.get(id),
+        {eventoId,publicacion:publicaciones.get(id),cobroConfirmado:alcance!==null});
+      impresionesCatalogoEnCurso.delete(eventoId);
+      if(alcance!==null&&metrica!==null)vistas.add(claveEvento);
+      if(alcance===null||metrica===null){
         if(card.isConnected&&visibles.has(id))programar(card,id,5000);
         return;
       }
-      if(!eventosCatalogo.has(clave))eventosCatalogo.set(clave,nuevoEventoMetricaClase());
-      const metrica=await registrarMetricaAnuncio(id,'impresion',sigla.get(id),{eventoId:eventosCatalogo.get(clave)});
-      if(metrica===null){
-        if(card.isConnected&&visibles.has(id))programar(card,id,5000);
-        return;
-      }
-      impresionesCatalogo.add(clave);
+      medidas.add(clave);
     },demora));
   };
   observadorCatalogo=new IntersectionObserver(entradas=>{
@@ -624,7 +632,7 @@ function nuevoEventoMetricaClase(){
   });
 }
 let eventosAnuncioDisponibles=true;
-async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null}={}){
+async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null,cobroConfirmado=true}={}){
   const payload=payloadMetricaAnuncio(anuncioId,tipo,ramoSigla);
   if(!supabaseClient||!currentUser||!payload)return false;
   try{
@@ -636,28 +644,22 @@ async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoE
       if(!sqlClasesDesactualizado(r.error))throw r.error;
       eventosAnuncioDisponibles=false; // Sin SQL: conserva la medición anterior.
     }
+    // Compatibilidad: la RPC antigua depende de la fila cobrable confirmada.
+    if(!cobroConfirmado)return null;
     const {data,error}=await supabaseClient.rpc('registrar_metrica_anuncio',payload);
     if(error)throw error;
     return data===true;
   }catch(error){console.warn('No se pudo registrar la métrica del anuncio:',error.message||error);return null;}
 }
 
-// La repetición se registra después de confirmar la interacción única.
+// La interacción cobrable conserva su RPC; el total es independiente de su resultado.
 // Un reintento conserva su clave: una respuesta perdida no suma otro evento.
 async function registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos=2,eventoId=nuevoEventoMetricaClase()}={}){
   const usuario=currentUser&&currentUser.id;
   const cargo=await registrarInteraccionAnuncio(anuncioId,tipo);
   if(!currentUser||currentUser.id!==usuario)return null;
-  if(cargo===null){
-    // La apertura ya ocurrió en pantalla y su botón desapareció: reintentarla
-    // sin pedir otro clic. Contacto sí requiere un nuevo gesto para navegar.
-    if(tipo==='apertura'&&reintentos>0)setTimeout(()=>{
-      if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
-    },5000);
-    return null;
-  }
-  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId});
-  if(metrica===null&&reintentos>0)setTimeout(()=>{
+  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId,cobroConfirmado:cargo!==null});
+  if((metrica===null||cargo===null&&tipo==='apertura')&&reintentos>0)setTimeout(()=>{
     if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
   },5000);
   return cargo;
