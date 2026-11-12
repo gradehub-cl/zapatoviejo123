@@ -308,25 +308,31 @@ function seleccionRamosPerfilApoyo(p,{previa=false,nombres=null,visor=typeof S!=
   const siglas=[...new Set((p.ramos_siglas||[]).filter(s=>typeof s==='string').map(s=>s.toUpperCase().replace(/\s/g,'')))].filter(Boolean);
   const tenants=p.universidades||[],porUni=nombresRamosPerfilPorUni(tenants),propia=visor&&tenants.includes(visor);
   const nombresVisor=nombres||propia&&porUni[visor]||{};
-  const visibles=tenants.length>1&&propia?siglas.filter(s=>nombresVisor[s]):siglas;
   if(previa||perfilPropioApoyo(p))return {mias:siglas,otras:[],criterio:'propio'};
+  // Con asociación declarada (#1105) manda la lista exacta de su universidad;
+  // sin ella, el límite por siglas conocidas de #1099.
+  const mapa=p.ramos_por_universidad&&typeof p.ramos_por_universidad==='object'&&!Array.isArray(p.ramos_por_universidad)?p.ramos_por_universidad:null;
+  const visibles=mapa?[...new Set((mapa[visor]||[]).filter(s=>typeof s==='string').map(s=>s.toUpperCase().replace(/\s/g,'')))].filter(Boolean)
+    :tenants.length>1&&propia?siglas.filter(s=>nombresVisor[s]):siglas;
   return ramosRelevantesParaVisor(visibles,contextoRamosVisorApoyo());
 }
-function ramosPerfilApoyoHTML(siglas,nombres,unis,tenants=[],visor=null,{previa=false,perfil={}}={}){
+function ramosPerfilApoyoHTML(siglas,nombres,unis,tenants=[],visor=null,{previa=false,perfil={},porUniversidad=null}={}){
   if(!siglas.length)return unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:'';
   const porUni=nombresRamosPerfilPorUni(tenants),propia=visor&&tenants.includes(visor);
   const nombresVisor=propia?{...porUni[visor],...nombres}:nombres;
-  const {mias:visibles,otras,criterio}=seleccionRamosPerfilApoyo({...perfil,ramos_siglas:siglas,universidades:tenants},{previa,nombres:nombresVisor,visor});
-  if(!visibles.length)return '';
+  const asociados=porUniversidad&&typeof porUniversidad==='object'&&!Array.isArray(porUniversidad);
+  const {mias:visibles,otras,criterio}=seleccionRamosPerfilApoyo({...perfil,ramos_siglas:siglas,universidades:tenants,ramos_por_universidad:asociados?porUniversidad:null},{previa,nombres:nombresVisor,visor});
+  if(!visibles.length)return asociados&&criterio!=='propio'?'<p class="profesor-info">No hay ramos asociados a tu universidad.</p>':'';
   const etiquetaUni=propia?(UNIVERSIDADES_PERFIL.find(([v])=>v===visor)||[])[1]:'';
-  const nombreDe=s=>nombresVisor[s]||tenants.map(t=>porUni[t][s]).find(Boolean)||'';
+  const nombreDe=s=>nombresVisor[s]||(!asociados&&tenants.map(t=>porUni[t][s]).find(Boolean))||'';
   const carrera=criterio==='ramos'||criterio==='malla';
   const resumen=`${visibles.length} ${visibles.length===1?'ramo':'ramos'}${carrera?' de tu carrera':etiquetaUni&&tenants.length>1?` en la ${etiquetaUni}`:unis.length&&tenants.length===1?` · ${unis.join(', ')}`:''}`;
   const fila=s=>`<li><strong>${esc(s)}</strong>${nombreDe(s)?`<span>${esc(nombreDe(s))}</span>`:''}</li>`;
   const mas=visibles.length>MAX_RAMOS_PERFIL_VISIBLES;
+  const lista=asociados&&previa?tenants.filter(t=>(porUniversidad[t]||[]).length).map(t=>`<h4>${esc((UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]||t)}</h4><ul class="perfil-apoyo-ramos">${porUniversidad[t].map(s=>`<li><strong>${esc(s)}</strong>${porUni[t]?.[s]?`<span>${esc(porUni[t][s])}</span>`:''}</li>`).join('')}</ul>`).join(''):`<ul class="perfil-apoyo-ramos">${visibles.map(fila).join('')}</ul>`;
   return `<section class="perfil-apoyo-seccion perfil-apoyo-ramos-caja"><h3>Ramos</h3><p class="perfil-apoyo-ramos-resumen">${esc(resumen)}</p>
     <ul class="perfil-apoyo-chips">${visibles.slice(0,MAX_RAMOS_PERFIL_VISIBLES).map(s=>`<li>${esc(s)}</li>`).join('')}${mas?`<li class="perfil-apoyo-chip-mas">+${visibles.length-MAX_RAMOS_PERFIL_VISIBLES}</li>`:''}</ul>
-    <details class="perfil-apoyo-todos"><summary>Ver ${visibles.length===1?'el ramo':`los ${visibles.length} ramos`}</summary><ul class="perfil-apoyo-ramos">${visibles.map(fila).join('')}</ul>${otras.length?`<details class="perfil-apoyo-otras"><summary>Otras carreras (${otras.length})</summary><ul class="perfil-apoyo-ramos">${otras.map(fila).join('')}</ul></details>`:''}</details></section>`;
+    <details class="perfil-apoyo-todos"><summary>Ver ${visibles.length===1?'el ramo':`los ${visibles.length} ramos`}</summary>${lista}${otras.length?`<details class="perfil-apoyo-otras"><summary>Otras carreras (${otras.length})</summary><ul class="perfil-apoyo-ramos">${otras.map(fila).join('')}</ul></details>`:''}</details></section>`;
 }
 function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant),{previa=false}={}){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
@@ -340,7 +346,7 @@ function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant),
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
     ${canales.length?`<div class="perfil-apoyo-contactos" aria-label="Contactar a ${esc(p.nombre_publico)}">${canales.map(c=>c.enlace?`<a class="clase-accion perfil-contacto-${c.canal}" href="${esc(c.enlace)}" target="_blank" rel="noopener noreferrer" data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></a>`:`<button type="button" class="clase-accion perfil-contacto-${c.canal}" data-directorio-contactar data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></button>`).join('')}</div>`:''}
     <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
-    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis,(p.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)),typeof S!=='undefined'?S.tenant:null,{previa,perfil:p})}
+    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis,(p.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)),typeof S!=='undefined'?S.tenant:null,{previa,perfil:p,porUniversidad:p.ramos_por_universidad})}
     ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}</div>`;
 }
 async function mostrarPerfilEnClase(caja){

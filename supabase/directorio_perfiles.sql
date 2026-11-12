@@ -41,15 +41,18 @@ grant select (directorio_id,categorias,etiqueta,color_tarjeta,en_directorio,cont
   on public.tutor_perfiles to authenticated;
 grant update (categorias,etiqueta,color_tarjeta,en_directorio,contacto_tipo,contacto_valor)
   on public.tutor_perfiles to authenticated;
+grant select (ramos_por_universidad) on public.tutor_perfiles to authenticated;
+grant update (ramos_por_universidad) on public.tutor_perfiles to authenticated;
 -- Nunca se concede INSERT/UPDATE de directorio_id ni destacado_hasta.
 revoke update (directorio_id,destacado_hasta) on public.tutor_perfiles from authenticated;
 
 -- Proyección pública explícita. El uid y el correo (incluido el contacto email)
 -- NO salen en la lista. Un UUID aleatorio distinto identifica la ficha pública.
+drop function if exists public.directorio_perfiles(text);
 create or replace function public.directorio_perfiles(p_tenant text)
 returns table(id uuid,nombre_publico text,etiqueta text,categorias text[],color_tarjeta text,
   logo_path text,ramos_siglas text[],presentacion text,contacto_tipo text,contacto_valor text,
-  instagram text,sitio_web text,destacado_hasta timestamptz,destacado boolean,anuncios uuid[])
+  instagram text,sitio_web text,destacado_hasta timestamptz,destacado boolean,anuncios uuid[],ramos_por_universidad jsonb)
 language sql stable security definer set search_path='' as $$
   select p.directorio_id,p.nombre_publico,p.etiqueta,p.categorias,p.color_tarjeta,
     p.logo_aprobado_path,p.ramos_siglas,p.presentacion,
@@ -57,7 +60,7 @@ language sql stable security definer set search_path='' as $$
     case when p.contacto_tipo<>'email' then p.contacto_valor end,
     p.instagram,p.sitio_web,p.destacado_hasta,coalesce(p.destacado_hasta>now(),false),
     array(select a.id from public.tutor_anuncios a where a.autor_id=p.user_id and a.tenant=p_tenant
-      and a.estado='publicado' and (a.vence_at is null or a.vence_at>now()) order by a.id)
+      and a.estado='publicado' and (a.vence_at is null or a.vence_at>now()) order by a.id),p.ramos_por_universidad
   from public.tutor_perfiles p
   where auth.uid() is not null and p.estado='aprobado' and p.en_directorio
     and p_tenant=any(p.universidades);
@@ -171,7 +174,7 @@ create or replace function public.perfil_apoyo_de_anuncio(p_anuncio_id uuid,p_te
 returns jsonb language sql stable security definer set search_path='' as $$
   select jsonb_build_object('id',p.directorio_id,'nombre_publico',p.nombre_publico,
     'etiqueta',p.etiqueta,'tipo_perfil',p.tipo_perfil,'presentacion',p.presentacion,
-    'universidades',p.universidades,'ramos_siglas',p.ramos_siglas,'logo_path',p.logo_aprobado_path,
+    'universidades',p.universidades,'ramos_siglas',p.ramos_siglas,'ramos_por_universidad',p.ramos_por_universidad,'logo_path',p.logo_aprobado_path,
     'instagram',p.instagram,'sitio_web',p.sitio_web,'contacto_tipo',p.contacto_tipo,
     'contacto_valor',case when p.contacto_tipo<>'email' then p.contacto_valor end,
     'anuncios',array(select a.id from public.tutor_anuncios a where a.autor_id=p.user_id

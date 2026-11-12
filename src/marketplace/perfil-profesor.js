@@ -26,17 +26,19 @@ function validarPerfilProfesor(e){
   const ramos=[...new Set(String(e.ramos||'').split(/[,\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean))];
   if(ramos.length>20)return {ok:false,campo:'ramos',error:'Puedes poner hasta 20 ramos.'};
   if(ramos.some(r=>!/^[A-Z0-9-]{2,24}$/.test(r)))return {ok:false,campo:'ramos',error:'Escribe las siglas de los ramos separadas por coma, por ejemplo MAT1620, FIS1514.'};
+  const agrupados=validarRamosUniversidadPerfil(e,universidades);
+  if(!agrupados.ok)return agrupados;
   const directorio=Object.prototype.hasOwnProperty.call(e,'en_directorio')?validarPerfilDirectorio(e):{ok:true,datos:{}};
   if(!directorio.ok)return directorio;
-  return {ok:true,datos:{...directorio.datos,nombre_publico:nombre,presentacion,tipo_perfil:tipo,instagram:insta||null,sitio_web:web?new URL(web).href:null,
-    universidades:universidades.length?universidades:null,ramos_siglas:ramos.length?ramos:null,perfil_publico:!!e.perfil_publico}};
+  return {ok:true,datos:{...directorio.datos,...agrupados.datos,nombre_publico:nombre,presentacion,tipo_perfil:tipo,instagram:insta||null,sitio_web:web?new URL(web).href:null,
+    universidades:universidades.length?universidades:null,ramos_siglas:agrupados.union|| (ramos.length?ramos:null),perfil_publico:!!e.perfil_publico}};
 }
 async function guardarPerfilProfesor(entrada){
   const valido=validarPerfilProfesor(entrada);if(!valido.ok)return valido;
   const uid=sesionProfesorClase();if(!uid)return {ok:false,error:'Inicia sesión para guardar tu perfil.'};
   try{
     const {data,error}=await supabaseClient.from('tutor_perfiles').update(valido.datos).eq('user_id',uid)
-      .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR+(Object.prototype.hasOwnProperty.call(valido.datos,'en_directorio')?','+CAMPOS_DIRECTORIO:'')).maybeSingle();
+      .select('nombre_publico'+CAMPOS_PERFIL_PROFESOR+(Object.prototype.hasOwnProperty.call(valido.datos,'ramos_por_universidad')?',ramos_por_universidad':'')+(Object.prototype.hasOwnProperty.call(valido.datos,'en_directorio')?','+CAMPOS_DIRECTORIO:'')).maybeSingle();
     if(uid!==sesionProfesorClase())return {ok:false,error:'La sesión cambió. Vuelve a abrir tu perfil.'};
     if(faltaColumnaClase(error))return {ok:false,error:'Todavía no podemos guardar el perfil completo. Vuelve a intentarlo en un rato.'};
     if(error||!data){if(error)console.warn('No se guardó el perfil:',error.code||'',error.message||error);return {ok:false,error:'No pudimos guardar tu perfil. Intenta de nuevo.'};}

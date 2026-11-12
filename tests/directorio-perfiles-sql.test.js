@@ -1,7 +1,8 @@
 // Acceso y borrado reabiertos: solo cuentas y anuncios inventados, PGlite.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
-const sql=read('supabase/directorio_perfiles.sql'),P='00000000-0000-4000-8000-000000000001',B='00000000-0000-4000-8000-000000000002';
+// El delta #1105 va siempre después del Directorio, como en producción.
+const sql=read('supabase/directorio_perfiles.sql')+'\n'+read('supabase/ramos_por_universidad.sql'),P='00000000-0000-4000-8000-000000000001',B='00000000-0000-4000-8000-000000000002';
 assert.match(sql,/cardinality\(categorias\) between 1 and 4/);assert.match(sql,/between 2 and 28/);assert.match(sql,/\^#\[0-9a-f\]\{6\}\$/);
 const salida=sql.split('create or replace function public.directorio_perfiles')[1].split('language sql')[0];assert(!/user_id|correo|email/.test(salida));
 assert(!/grant update\s*\([^)]*destacado_hasta/i.test(sql));assert.match(sql,/enable row level security/);
@@ -36,6 +37,29 @@ assert(!/grant update\s*\([^)]*destacado_hasta/i.test(sql));assert.match(sql,/en
   assert.equal((await db.query('select admin_destacado_perfil($1,now()+interval \'1 day\') ok',[P])).rows[0].ok,true);assert.equal((await db.query('select * from directorio_perfiles(\'uc\')')).rows[0].destacado,true);await reset();
   assert.deepEqual((await db.query('select to_jsonb(a) as documento from tutor_anuncios a order by id')).rows,anuncioAntes);
   await sesion('', 'anon');await assert.rejects(db.query("select * from directorio_perfiles('uc')"));await reset();
+  // Asociación nueva opcional: sin backfill; misma autorización que ramos_siglas.
+  assert.equal((await db.query('select ramos_por_universidad from tutor_perfiles where user_id=$1',[P])).rows[0].ramos_por_universidad,null);
+  await sesion(P);
+  const mapa={uc:['SYN101','REP101'],uai:['UAI101','REP101'],udd:['UDD101']};
+  await db.query("update tutor_perfiles set universidades=array['uc','uai','udd'],ramos_por_universidad=$1 where user_id=$2",[JSON.stringify(mapa),P]);
+  assert.deepEqual((await db.query('select ramos_siglas from tutor_perfiles where user_id=$1',[P])).rows[0].ramos_siglas,['SYN101','REP101','UAI101','UDD101']);
+  await db.query("update tutor_perfiles set ramos_siglas=array['NO-PISAR'] where user_id=$1",[P]);
+  assert.equal((await db.query('select ramos_siglas from tutor_perfiles where user_id=$1',[P])).rows[0].ramos_siglas.includes('NO-PISAR'),false);
+  for(const m of [[],{otra:['SYN101']},{fen:['SYN101']},{uc:['mat 1']},{uc:[null]},{uc:[42]},{uc:'SYN101'},{uc:Array.from({length:21},(_,i)=>'SYN'+i)}])
+    await assert.rejects(db.query('update tutor_perfiles set ramos_por_universidad=$1 where user_id=$2',[JSON.stringify(m),P]),e=>e.code==='23514');
+  await assert.rejects(db.query("update tutor_perfiles set universidades=array['uc'] where user_id=$1",[P]),e=>e.code==='23514');
+  await reset();await sesion(B);
+  assert.equal((await db.query('update tutor_perfiles set ramos_por_universidad=null where user_id=$1 returning nombre_publico',[P])).rows.length,0);
+  assert.equal((await db.query('select ramos_por_universidad from tutor_perfiles where user_id=$1',[P])).rows.length,0);
+  assert.deepEqual((await db.query("select * from directorio_perfiles('uc')")).rows[0].ramos_por_universidad,mapa);
+  const panel=(await db.query('select admin_panel_clases() datos')).rows[0].datos;
+  assert.deepEqual(panel.find(p=>p.user_id===P).ramos_por_universidad,mapa,'Admin recibe los grupos por su RPC con MFA');
+  await reset();await db.exec(read('supabase/clases_particulares.sql'));await db.exec(read('supabase/perfil_profesor.sql'));await db.exec(sql);await db.exec(sql);
+  assert.deepEqual((await db.query('select ramos_por_universidad from tutor_perfiles where user_id=$1',[P])).rows[0].ramos_por_universidad,mapa);
+  assert.equal((await db.query("select has_column_privilege('authenticated','tutor_perfiles','ramos_por_universidad','update') ok")).rows[0].ok,true);
+  assert.equal((await db.query("select has_column_privilege('anon','tutor_perfiles','ramos_por_universidad','select') ok")).rows[0].ok,false);
+  await sesion(P);await db.query("update tutor_perfiles set ramos_por_universidad=null,ramos_siglas=array['LEGACY1'] where user_id=$1",[P]);await reset();await db.exec(read('supabase/perfil_profesor.sql'));
+  assert.deepEqual((await db.query('select ramos_siglas,ramos_por_universidad from tutor_perfiles where user_id=$1',[P])).rows[0],{ramos_siglas:['LEGACY1'],ramos_por_universidad:null});
   await db.query('delete from auth.users where id=$1',[P]);assert.equal((await db.query('select * from tutor_perfiles')).rows.length,0);
   console.log('PASS: SQL reaplicable, checks, consentimiento, RLS propia, RPC pública sin uid/correo, admin MFA y cascade');
 }finally{await db.close()}})().catch(e=>{console.error(e);process.exitCode=1});
