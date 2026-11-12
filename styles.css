@@ -5781,6 +5781,12 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .settings-pautas .toggle-slider{inset:9px 0;}
 .settings-pautas .toggle input:focus-visible+.toggle-slider{outline:2px solid var(--primary);outline-offset:3px;}
 
+/* Ramos declarados por universidad: solo el editor del perfil. */
+.pfe [data-pf-ramos-editor]{display:grid;gap:6px;min-width:0;}
+.pfe [data-pf-ramos-editor]:has([data-pf-ramos-uni]){gap:16px;}
+.pfe [data-pf-ramos-uni]{display:grid;gap:6px;min-width:0;padding-top:12px;border-top:1px solid var(--pfe-linea);}
+.pfe [data-pf-ramos-editor] select{width:100%;max-width:100%;margin:6px 0;}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

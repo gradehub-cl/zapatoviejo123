@@ -1,0 +1,36 @@
+// Perfiles y siglas sintéticos. Compatibilidad del guardado y proyección exacta.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const read=f=>fs.readFileSync(__dirname+'/../'+f,'utf8');
+const consultas=[],ctx={console,URL,S:{tenant:'uc'},currentUser:{id:'propio'},esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))};
+vm.createContext(ctx);vm.runInContext(read('marketplace.js'),ctx);const run=s=>vm.runInContext(s,ctx),plain=x=>JSON.parse(JSON.stringify(x));
+const base={nombre_publico:'Academia de prueba',presentacion:'Descripción sintética del perfil por universidad.',tipo_perfil:'empresa',universidades:['uc','uai','udd'],ramos:'ANT101',ramos_por_universidad:{uc:['SYN101','REPETIDA1'],uai:['UAI101','REPETIDA1'],udd:['UDD101']}};
+const validar=e=>{ctx.e=e;return plain(run('validarPerfilProfesor(e)'))};
+const datos=validar(base);assert.equal(datos.ok,true);assert.deepEqual(datos.datos.ramos_siglas,['SYN101','REPETIDA1','UAI101','UDD101'],'la unión no duplica una sigla de dos universidades');
+assert.deepEqual(datos.datos.ramos_por_universidad,base.ramos_por_universidad);
+for(const mapa of [[],{uc:['x']},{uc:['mat 1']},{uc:[null]},{uc:[12]},{otra:['SYN101']},{fen:['SYN101']}])assert.equal(validar({...base,ramos_por_universidad:mapa}).ok,false,JSON.stringify(mapa));
+assert.equal(validar({...base,ramos_por_universidad:{uc:Array.from({length:11},(_,i)=>'A'+i),uai:Array.from({length:10},(_,i)=>'B'+i)}}).ok,false,'máximo de veinte asociaciones en total');
+assert.equal(validar({...base,ramos_sin_universidad:1}).ok,false,'no perder pendientes al guardar una organización parcial');
+const viejo={...base};delete viejo.ramos_por_universidad;assert.equal(validar(viejo).ok,true);assert.deepEqual(validar(viejo).datos.ramos_siglas,['ANT101']);assert.equal(Object.hasOwn(validar(viejo).datos,'ramos_por_universidad'),false);
+assert.equal(validar({...viejo,ramos_por_universidad:null}).datos.ramos_siglas.join(),'ANT101','null conserva lo antiguo');
+ctx.p={nombre_publico:'Apoyo ficticio',universidades:['uc','uai','udd'],ramos_siglas:['SYN101','UAI101','DESCONOCIDA1'],ramos_por_universidad:{uc:['SYN101','DESCONOCIDA1'],uai:['UAI101'],udd:[]},anuncios:[]};
+run("nombresRamosParaClases=t=>t==='uc'?{SYN101:'Ramo UC de prueba'}:t==='uai'?{UAI101:'Ramo UAI de prueba'}:{}");
+ctx.PRESETS_POR_TENANT={uai:{'Ramo de programa sintético':{sigla:'UAI202'}}};
+assert.equal(run("nombresRamosPerfilPorUni(['uai']).uai.UAI202"),'Ramo de programa sintético');
+const perfil=()=>run('perfilPublicoHTML(p,null)'),chips=h=>h.match(/<ul class="perfil-apoyo-chips">([\s\S]*?)<\/ul>/)?.[1]||'';
+assert.match(chips(perfil()),/SYN101/);assert.match(chips(perfil()),/DESCONOCIDA1/,'una sigla declarada no se oculta por no tener nombre');assert.doesNotMatch(perfil(),/UAI101/);
+assert.doesNotMatch(run('tarjetaDirectorioHTML(p)'),/UAI101/);assert.match(run('tarjetaDirectorioHTML(p)'),/DESCONOCIDA1/);
+run("S.tenant='uai'");assert.match(chips(perfil()),/UAI101/);assert.doesNotMatch(perfil(),/SYN101/);
+run("S.tenant='udd'");assert.match(perfil(),/No hay ramos asociados/);assert.doesNotMatch(perfil(),/SYN101|UAI101/);
+assert.match(run('perfilPublicoHTML(p,null,{}, {previa:true})'),/SYN101/);assert.match(run('perfilPublicoHTML(p,null,{}, {previa:true})'),/UAI101/);
+ctx.p.ramos_por_universidad=null;run("S.tenant='uc'");assert.match(perfil(),/SYN101/);assert.doesNotMatch(perfil(),/UAI101/,'sin asociación conserva el respaldo por catálogo de #1099');
+ctx.p.ramos_por_universidad=base.ramos_por_universidad;assert.match(run('fichaAdminProfesorHTML({...p,user_id:"propio"})'),/UC.*SYN101[\s\S]*UAI.*UAI101/);
+(async()=>{
+ let escrito;
+ ctx.supabaseClient={from:()=>({update(d){escrito=d;return this},select(c){consultas.push(c);return this},eq(){return this},async maybeSingle(){return {data:escrito||{nombre_publico:'Cuenta vieja',perfil_publico:false},error:null}}})};
+ ctx.e=base;assert.equal((await run('guardarPerfilProfesor(e)')).ok,true);assert.deepEqual(plain(escrito.ramos_siglas),datos.datos.ramos_siglas);
+ assert.ok(consultas.some(c=>c.includes('ramos_por_universidad')));
+ escrito=null;ctx.e=viejo;assert.equal((await run('guardarPerfilProfesor(e)')).ok,true);assert.equal(Object.hasOwn(escrito,'ramos_por_universidad'),false);
+ let falta=true;consultas.length=0;ctx.supabaseClient.from=()=>({select(c){consultas.push(c);return this},eq(){return this},async maybeSingle(){return falta?(falta=false,{error:{code:'42703',message:'column ramos_por_universidad does not exist'}}):{data:{nombre_publico:'Cuenta vieja',perfil_publico:false},error:null}}});
+ assert.equal((await run('perfilProfesorActual()')).ok,true);assert.equal(consultas.length,2);assert.ok(consultas[1].includes('tipo_perfil'));
+ console.log('PASS: asociación validada, unión, legado/null, proyección exacta, siglas sin nombre, previa, Admin y guardado compatible');
+})().catch(e=>{console.error(e);process.exitCode=1});

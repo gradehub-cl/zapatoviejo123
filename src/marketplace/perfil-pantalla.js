@@ -33,11 +33,7 @@ async function renderPerfilProfesor(caja){
         <fieldset class="profesor-linea"><legend class="modal-label">Universidades</legend><div class="profesor-linea-opciones">
           ${UNIVERSIDADES_PERFIL.map(([val,txt])=>opcion('checkbox','pf-uni',val,txt,unis.includes(val))).join('')}
         </div><p class="directorio-error" data-error-directorio="universidades" role="alert"></p></fieldset>
-        <label class="modal-label" for="pf-ramos-buscar">Ramos</label>
-        <div class="profesor-ramos" id="pf-ramos-elegidos" aria-live="polite"></div>
-        <div class="profesor-ramos-buscar"><input id="pf-ramos-buscar" type="search" autocomplete="off" autocapitalize="characters" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="pf-ramos-resultados" placeholder="Busca por sigla o nombre, ej. MAT1620">
-          <ul class="profesor-ramos-resultados" id="pf-ramos-resultados" role="listbox" hidden></ul></div>
-        <input id="pf-ramos" type="hidden" value="${esc((p.ramos_siglas||[]).join(', '))}">
+        ${camposRamosUniversidadHTML(p)}
         ${directorio?`<fieldset class="profesor-linea"><legend class="modal-label">Qué ofreces</legend><div class="profesor-linea-opciones">
           ${CATEGORIAS_DIRECTORIO.map(([val,txt])=>opcion('checkbox','pf-categoria',val,txt,(p.categorias||[]).includes(val))).join('')}</div><p class="directorio-error" data-error-directorio="categorias" role="alert"></p></fieldset>`:''}
       </section>
@@ -53,7 +49,7 @@ async function renderPerfilProfesor(caja){
   const form=caja.querySelector('form'),estado=form.querySelector('.profesor-estado'),campo=id=>form.querySelector('#pf-'+id);
   campo('instagram').addEventListener('input',e=>{e.target.value=textoInstagramEscrito(e.target.value);});
   if(directorio){enlazarContactoPerfil(form,p);enlazarColorPerfil(form);mostrarMetricasDirectorio(caja.querySelector('[data-directorio-metricas-propias]'));}
-  const nombresRamos=activarBuscadorRamosPerfil(form);
+  const nombresRamos=enlazarRamosUniversidadPerfil(form,p);
   enlazarPreviaPerfil(form,p,caja.querySelector('.pfe-previa'),nombresRamos);
   let guardando=false;
   form.addEventListener('submit',async e=>{
@@ -62,6 +58,7 @@ async function renderPerfilProfesor(caja){
     const entrada={tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,nombre_publico:campo('nombre').value,
       presentacion:campo('descripcion').value,instagram:campo('instagram').value,sitio_web:campo('web').value,
       universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),ramos:campo('ramos').value,perfil_publico:campo('publico').checked};
+    Object.assign(entrada,entradaRamosUniversidadFormulario(form));
     if(p.directorioDisponible)Object.assign(entrada,entradaDirectorioFormulario(form));
     const valido=validarPerfilProfesor(entrada);
     if(!valido.ok){
@@ -250,34 +247,35 @@ function enlazarColorPerfil(form){
 // Busca en el mismo índice que el anuncio. Las siglas se guardan igual que
 // antes, separadas por coma, en el campo oculto. Devuelve cómo leer los nombres.
 const MAX_RAMOS_PERFIL=20;
-function activarBuscadorRamosPerfil(form){
-  const buscar=form.querySelector('#pf-ramos-buscar'),oculto=form.querySelector('#pf-ramos'),lista=form.querySelector('#pf-ramos-resultados'),chips=form.querySelector('#pf-ramos-elegidos');
+function activarBuscadorRamosPerfil(form,{sufijo='',universidades=null,cambio=null,puedeAgregar=()=>true}={}){
+  const id='#pf-ramos'+sufijo,buscar=form.querySelector(id+'-buscar'),oculto=form.querySelector(id),lista=form.querySelector(id+'-resultados'),chips=form.querySelector(id+'-elegidos');
   let indice={};
   const leer=()=>String(oculto.value||'').split(',').map(x=>siglaAnuncio(x)).filter(Boolean);
   const pintar=()=>{
     const siglas=leer();
     chips.innerHTML=siglas.map(sg=>`<span class="profesor-ramo-chip"><b>${esc(sg)}</b>${indice[sg]?`<span>${esc(indice[sg])}</span>`:''}<button type="button" data-quitar-sigla="${esc(sg)}" aria-label="Quitar ${esc(sg)}">×</button></span>`).join('');
     chips.querySelectorAll('[data-quitar-sigla]').forEach(b=>b.addEventListener('click',()=>escribir(leer().filter(x=>x!==b.dataset.quitarSigla))));
-    const lleno=siglas.length>=MAX_RAMOS_PERFIL;buscar.disabled=lleno;
+    const lleno=siglas.length>=MAX_RAMOS_PERFIL||!puedeAgregar();buscar.disabled=lleno;
     buscar.placeholder=lleno?'Llegaste a 20 ramos. Quita uno para agregar otro.':'Busca por sigla o nombre, ej. MAT1620';
   };
-  const escribir=siglas=>{oculto.value=siglas.join(', ');pintar();oculto.dispatchEvent(new Event('input',{bubbles:true}));};
+  const escribir=siglas=>{oculto.value=siglas.join(', ');pintar();if(cambio)cambio(siglas);oculto.dispatchEvent(new Event('input',{bubbles:true}));};
   let activa=-1;
   const limpiarActiva=()=>{activa=-1;buscar.removeAttribute('aria-activedescendant');};
   const cerrar=()=>{lista.hidden=true;lista.innerHTML='';buscar.setAttribute('aria-expanded','false');limpiarActiva();};
-  const elegir=sg=>{const actuales=leer();if(sg&&!actuales.includes(sg)&&actuales.length<MAX_RAMOS_PERFIL)escribir([...actuales,sg]);buscar.value='';cerrar();buscar.focus();};
+  const elegir=sg=>{const actuales=leer();if(sg&&!actuales.includes(sg)&&actuales.length<MAX_RAMOS_PERFIL&&puedeAgregar())escribir([...actuales,sg]);buscar.value='';cerrar();buscar.focus();};
   const mostrar=()=>{
     const res=buscarRamosParaClase(indice,buscar.value,leer());
     if(!res.length){cerrar();return;}
     limpiarActiva();
-    lista.innerHTML=res.map((x,i)=>`<li role="option" id="pf-ramo-op-${i}" aria-selected="false" data-sigla="${esc(x.sigla)}"><b>${esc(x.sigla)}</b><span>${esc(x.nombre)}</span></li>`).join('');
+    lista.innerHTML=res.map((x,i)=>`<li role="option" id="pf-ramo-op${sufijo}-${i}" aria-selected="false" data-sigla="${esc(x.sigla)}"><b>${esc(x.sigla)}</b><span>${esc(x.nombre)}</span></li>`).join('');
     lista.hidden=false;buscar.setAttribute('aria-expanded','true');
   };
   // Sin universidad elegida se busca en todas: el profesor todavía no la marcó.
   const reindexar=()=>{
-    const elegidas=[...form.querySelectorAll('[name="pf-uni"]:checked')].map(x=>x.value);
+    const elegidas=universidades||[...form.querySelectorAll('[name="pf-uni"]:checked')].map(x=>x.value);
     const tenants=elegidas.length?elegidas:UNIVERSIDADES_PERFIL.map(([val])=>val);
-    indice=Object.assign({},...tenants.map(nombresRamosParaClases).reverse());
+    const porUniversidad=nombresRamosPerfilPorUni(tenants);
+    indice=Object.assign({},...tenants.map(t=>porUniversidad[t]).reverse());
     pintar();if(buscar.value)mostrar();
     oculto.dispatchEvent(new Event('input',{bubbles:true}));
   };
@@ -309,9 +307,9 @@ function activarBuscadorRamosPerfil(form){
     if(opcion)elegir(opcion.dataset.sigla);
   });
   buscar.addEventListener('blur',cerrar);
-  form.querySelectorAll('[name="pf-uni"]').forEach(u=>u.addEventListener('change',reindexar));
+  if(!universidades)form.querySelectorAll('[name="pf-uni"]').forEach(u=>u.addEventListener('change',reindexar));
   reindexar();
-  if(typeof cargarCursosUC==='function')cargarCursosUC().then(ok=>{if(ok&&form.isConnected)reindexar();}).catch(()=>{});
+  if(typeof cargarCursosUC==='function'&&(!universidades||universidades.includes('uc')))cargarCursosUC().then(ok=>{if(ok&&form.isConnected)reindexar();}).catch(()=>{});
   return ()=>indice;
 }
 function mostrarErrorPerfilDirectorio(form,valido){
@@ -319,7 +317,7 @@ function mostrarErrorPerfilDirectorio(form,valido){
   form.querySelectorAll('[aria-invalid="true"]').forEach(el=>el.removeAttribute('aria-invalid'));
   if(!valido)return;
   const id={etiqueta:'etiqueta',color:'color',contacto:'contacto',universidades:'ramos-buscar'}[valido.campo];
-  const campo=id?form.querySelector('#pf-'+id):form.querySelector('[name="pf-categoria"]');
+  const campo=valido.campo==='ramos'?(form.querySelector('[data-pf-asignar]')||form.querySelector('[data-pf-ramos-editor] input[type=search]')):id?form.querySelector('#pf-'+id):form.querySelector('[name="pf-categoria"]');
   if(campo){campo.setAttribute('aria-invalid','true');campo.focus();}
 }
 let quitarLogoPreviaDirectorio=null;
@@ -333,14 +331,14 @@ function enlazarPreviaPerfil(form,p,caja,nombresRamos){
     return {...p,...(p.directorioDisponible?entradaDirectorioFormulario(form):{}),nombre_publico:q('nombre').value,presentacion:q('descripcion').value,
       tipo_perfil:(form.querySelector('input[name=pf-tipo]:checked')||{}).value,instagram:insta,sitio_web:q('web').value.trim(),
       universidades:[...form.querySelectorAll('input[name=pf-uni]:checked')].map(x=>x.value),
-      ramos_siglas:q('ramos').value.split(/[,\s]+/).filter(Boolean),logo_path:logo?'previa':null};
+      ramos_siglas:q('ramos').value.split(/[,\s]+/).filter(Boolean),...entradaRamosUniversidadFormulario(form),logo_path:logo?'previa':null};
   };
   const pintar=()=>{
     if(!caja.isConnected)return;
     const d=datos(),conTarjeta=!!p.directorioDisponible;
     caja.innerHTML=`<div class="pfe-previa-cabeza"><h4>Vista previa</h4>${conTarjeta?`<div class="pfe-seg" role="group" aria-label="Qué mostrar"><button type="button" data-pfe-vista="tarjeta" aria-pressed="${vista==='tarjeta'}">Tarjeta</button><button type="button" data-pfe-vista="ficha" aria-pressed="${vista==='ficha'}">Al tocarla</button></div>`:''}</div>
       ${vista==='tarjeta'?`<button type="button" class="pfe-previa-tarjeta" data-pfe-vista="ficha" aria-label="Ver lo que se abre al tocar tu tarjeta">${tarjetaDirectorioHTML({...d,logo_path:null},{previa:true,logoURL:logo})}</button><p class="pfe-previa-pista">Toca la tarjeta para ver lo que se abre.</p>`
-        :`<div class="pfe-ficha" tabindex="0" role="region" aria-label="Ficha de vista previa">${perfilPublicoHTML(d,null,nombresRamos())}</div>`}`;
+        :`<div class="pfe-ficha" tabindex="0" role="region" aria-label="Ficha de vista previa">${perfilPublicoHTML(d,null,nombresRamos(),{previa:true})}</div>`}`;
     caja.querySelectorAll('.pfe-ficha a,.pfe-ficha button').forEach(accion=>{accion.inert=true;});
     const marco=caja.querySelector('[data-directorio-logo]');if(marco&&logo)marco.innerHTML=imgLogoClase(logo);
     caja.querySelectorAll('[data-pfe-vista]').forEach(b=>b.addEventListener('click',()=>{vista=b.dataset.pfeVista;pintar();caja.querySelector(`.pfe-seg [data-pfe-vista="${vista}"]`)?.focus();}));

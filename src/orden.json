@@ -90,6 +90,7 @@
     "src/marketplace/graficos-profesor.js",
     "src/marketplace/resumen-profesor.js",
     "src/marketplace/ramos-anuncio.js",
+    "src/marketplace/perfil-ramos-universidad.js",
     "src/marketplace/perfil-pantalla.js",
     "src/marketplace/editor-anuncio.js",
     "src/marketplace/recomendacion-inicio.js",
