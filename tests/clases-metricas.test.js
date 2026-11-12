@@ -105,7 +105,7 @@ const pintar=async(anuncios,datos)=>{
   chk('personas y veces de una misma etapa van juntas, separadas por una barra',/<span>Se mostró<\/span><div class="clase-par"><div><b>30<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>90<\/b><small>en total/.test(html)
     &&/<span>La abrieron<\/span><div class="clase-par"><div><b>5<\/b><small>personas distintas<\/small><\/div><i class="clase-par-sep" aria-hidden="true">\/<\/i><div><b>20<\/b><small>en total/.test(html));
 
-  chk('indica desde cuándo cuenta cada vez',/Desde el 1 de noviembre se cuenta cada vez; antes, una vez por persona/.test(html));
+  chk('indica desde cuándo cuenta cada vez',/Desde el 1 de noviembre se cuentan repeticiones limitadas; antes, una vez por persona/.test(html));
   html=await pintar([anuncio()],{alcance:18,totales:[{vista:'total',clave:'',tipo:'impresion',eventos:999}]});
   chk('sin el SQL nuevo no presenta el agregado antiguo como repeticiones',!/<small>en total/.test(html)&&/El total de veces aún no está disponible/.test(html));
   html=await pintar([anuncio()],{campana,eventos:{desde:'2026-11-01T12:00:00Z',impresion:0,clic:null,contacto:null}});

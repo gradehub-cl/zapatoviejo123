@@ -1,6 +1,6 @@
 // Los rangos solo suman conteos recibidos. Nunca se estima un dato ausente.
 function datosAdminEditorial(historial,alcance){
-  return Array.isArray(historial)?historial:Array.isArray(alcance)?alcance.map(d=>({dia:d.dia,vistas:Number(d.vieron)||0,aperturas:Number(d.abrieron)||0,contactos:Number(d.contactaron)||0})):null;
+  return Array.isArray(historial)?historial.map(d=>Object.hasOwn(d,'vistas_total')?{...d,vistas:d.vistas_total,aperturas:d.aperturas_total,contactos:d.contactos_total}:d):Array.isArray(alcance)?alcance.map(d=>({dia:d.dia,vistas:Number(d.vieron)||0,aperturas:Number(d.abrieron)||0,contactos:Number(d.contactaron)||0})):null;
 }
 // Las mismas sumas del período anterior, de igual largo. Solo se compara si el
 // historial alcanza a cubrirlo y el período ya terminó: «Hoy» sigue en curso.
@@ -16,7 +16,7 @@ function alcanceAdminHTML(filas,periodo,metrica,ahora,{comparar=true,enCurso=fal
   const rango=intervaloPrivado(filas,periodo,ahora),total=sumarHistorialPrivado(rango.filas),antes=comparar?comparacionAlcanceAdmin(filas,periodo,ahora):null;
   const nombres={vistas:'Vistas',aperturas:'Aperturas',contactos:'Contactos'},unidad=nombres[metrica].toLowerCase();
   const cifra=k=>metricaAdminHTML({id:k,titulo:nombres[k],valor:numeroPrivado(total[k]),elegida:k===metrica,
-    variacion:antes&&variacionAdmin(total[k],antes[k]),pie:antes?'vs. período anterior':k==='vistas'?'personas por campaña':`${pctViz(total[k],total.vistas)} de las vistas`});
+    variacion:antes&&variacionAdmin(total[k],antes[k]),pie:antes?'vs. período anterior':filas.some(d=>Object.hasOwn(d,'vistas_total'))?'en total':k==='vistas'?'personas por campaña':`${pctViz(total[k],total.vistas)} de las vistas`});
   const s=serieHistorialPrivado(filas,periodo,metrica,ahora),nombrePaso=s.semanal?'semana':'día';
   const puntos=s.puntos.map((p,i)=>({eje:p.etiqueta,valor:p.valor,tenue:enCurso&&i===s.puntos.length-1,lectura:`${p.etiqueta} · ${numeroPrivado(p.valor)} ${unidad}`}));
   return `<div class="adm-metricas adm-metricas-tres" role="group" aria-label="Elegir qué muestra el gráfico">${['vistas','aperturas','contactos'].map(cifra).join('')}</div>
@@ -46,7 +46,7 @@ function anunciosAdminEditorialHTML(profesores,ahora,historial=null,alcance=null
     ${historial===null?'<p class="est-aviso" role="status">Historial completo y métricas por anuncio: aplica paneles_historial.sql. El rango usa los días disponibles.</p>':''}
     <div class="adm-dos">
       <section class="adm-tarjeta" aria-label="Alcance de los anuncios">
-        <div class="adm-tarjeta-cabeza">${periodoPrivadoHTML('7')}<span class="pe-sub">Personas por campaña · fechas en UTC</span></div>
+        <div class="adm-tarjeta-cabeza">${periodoPrivadoHTML('7')}<span class="pe-sub">${filas?.some(d=>Object.hasOwn(d,'vistas_total'))?'En total · día de Chile · histórico mínimo':'Personas por campaña · historial disponible'}</span></div>
         <div data-pe-admin-alcance>${alcanceAdminHTML(filas,'7','vistas',ahora)}</div>
       </section>
       ${dineroAdminHTML(costos,r)}

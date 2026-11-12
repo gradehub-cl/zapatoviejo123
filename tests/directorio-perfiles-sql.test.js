@@ -1,7 +1,8 @@
 // Acceso y borrado reabiertos: solo cuentas y anuncios inventados, PGlite.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
-const sql=read('supabase/directorio_perfiles.sql'),P='00000000-0000-4000-8000-000000000001',B='00000000-0000-4000-8000-000000000002';
+// El delta #1105 va siempre después del Directorio, como en producción.
+const sql=read('supabase/directorio_perfiles.sql')+'\n'+read('supabase/ramos_por_universidad.sql'),P='00000000-0000-4000-8000-000000000001',B='00000000-0000-4000-8000-000000000002';
 assert.match(sql,/cardinality\(categorias\) between 1 and 4/);assert.match(sql,/between 2 and 28/);assert.match(sql,/\^#\[0-9a-f\]\{6\}\$/);
 const salida=sql.split('create or replace function public.directorio_perfiles')[1].split('language sql')[0];assert(!/user_id|correo|email/.test(salida));
 assert(!/grant update\s*\([^)]*destacado_hasta/i.test(sql));assert.match(sql,/enable row level security/);
