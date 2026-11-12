@@ -151,6 +151,16 @@ pintar(fen);
 run("simState.controles=[{slot:2,valor:5}];renderSimulador()");
 assert.equal(byId('sim-avg').textContent,'3,3','la simulación FEN incluye las tres notas');
 assert.match(run('textoNotasBorrables')(fen,fen.categorias.find(c=>c.nombre==='Controles')),/se pueden borrar 2 notas/);
+// Un porcentaje se dice en notas: en la FEN se redondea hacia arriba
+// (con 4 se borra 1 y con 5, 2: Martín, 2026-11-11).
+const sorpresa=n=>({id:'s',nombre:'Controles Sorpresa',peso:5,directNota:false,dropLowest:{fraction:0.25},
+  notas:Array.from({length:n},(_,i)=>({id:'s'+i,nombre:'C'+i,valor:5,peso:1}))});
+const textoSorpresa=n=>run('textoNotasBorrables')(fen,sorpresa(n));
+assert.match(textoSorpresa(4),/25% de las notas\. Con 4 rendidas, puedes borrar 1$/);
+assert.match(textoSorpresa(5),/Con 5 rendidas, puedes borrar 2$/);
+assert.match(textoSorpresa(6),/Con 6 rendidas, puedes borrar 2$/);
+assert.equal(textoSorpresa(0),'Según la pauta, se puede borrar el 25% de las notas','sin notas no inventa un número');
+assert.equal(textoSorpresa(1),'Según la pauta, se puede borrar el 25% de las notas','nunca se borran todas');
 S.tenant=tenantAnterior;
 
 console.log('=== El reglamento y las reglas personales de una pauta UDD ===');

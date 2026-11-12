@@ -157,11 +157,18 @@ function notaNecesariaParaAprobar(r){
   return partes?{valor:partes.propio.necesaria,cual:' cátedra'}:{valor:notaNecesaria(r),cual:''};
 }
 // Donde el descarte es manual, la app solo avisa cuántas notas permite borrar la
-// pauta. Un porcentaje depende de cuántas se rindieron, así que se dice tal cual.
+// pauta. Un porcentaje depende de cuántas se rindieron: se traduce a notas con
+// el redondeo de la universidad, y nunca a todas las rendidas.
 function textoNotasBorrables(r,cat){
   const d=cat&&cat.dropLowest;
   if(!d||!gh_descarteManual(r,S.tenant))return '';
-  if(typeof d.fraction==='number')return `Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+  if(typeof d.fraction==='number'){
+    const base=`Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+    const rendidas=(cat.notas||[]).filter(n=>typeof n.valor==='number').length;
+    const redondear=gh_reglasNota(r&&r.origen&&r.origen.tenant||S.tenant).descarte_redondeo==='arriba'?Math.ceil:Math.floor;
+    const k=Math.min(redondear(Math.round(d.fraction*rendidas*1e6)/1e6),rendidas-1);
+    return k>=1?`${base}. Con ${rendidas} rendidas, puedes borrar ${k}`:base;
+  }
   const n=Math.floor(Number(d.count))||0;
   if(n<1)return '';
   return `Según la pauta, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;

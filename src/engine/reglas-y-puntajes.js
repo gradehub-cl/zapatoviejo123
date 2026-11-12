@@ -56,7 +56,10 @@ const GH_REGLAS_NOTA_POR_TENANT={
   uandes:{rounding:{decimals:1,previo:2}},
   // En la FEN la nota que el programa permite eliminar la borra cada estudiante.
   // `dropLowest` sigue guardado y solo se muestra como aviso (Martín, 2026-11-03).
-  fen:{descarte_manual:true},
+  // Un porcentaje se cuenta hacia arriba: con 4 controles sorpresa se borra 1 y
+  // con 5, 2 (Martín, 2026-11-11). Contabilidad es el único ramo FEN con
+  // descarte por porcentaje; si otro programa dice lo contrario, va en su pauta.
+  fen:{descarte_manual:true,descarte_redondeo:'arriba'},
   // UDD, DR50/26 (marzo 2026), arts. 36 y 37: examen mínimo 3,0;
   // si no se cumple, la final ES la nota del examen. Respaldo para pautas
   // manuales sin compuerta, solo con una evaluación final inequívoca.
@@ -69,6 +72,7 @@ function gh_reglasNota(tenant){
     passing_grade:propia.passing_grade??GH_REGLAS_NOTA_BASE.passing_grade,
     ...(propia.promedioAcademico?{promedioAcademico:propia.promedioAcademico}:{}),
     ...(propia.descarte_manual?{descarte_manual:true}:{}),
+    ...(propia.descarte_redondeo?{descarte_redondeo:propia.descarte_redondeo}:{}),
     ...(propia.examenFinal?{examenFinal:propia.examenFinal}:{})};
 }
 // Manda la universidad del ramo: el estado parte en 'fen' y una cuenta puede
