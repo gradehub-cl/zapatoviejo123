@@ -33,8 +33,8 @@ function servidor(r,tenant){
     assert.deepEqual(motor.gh_reglasNota(t),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4},'sin regla propia: la común ('+t+')');
   assert.deepEqual(motor.gh_reglasNota('uai').rounding,{decimals:1});
   assert.deepEqual(motor.gh_reglasNota('uai').promedioAcademico,{exclusiones:['educacion_fisica','extraprogramatica','convalidada'],excluirReprobadosLuegoAprobados:true});
-  // La FEN solo se aparta en quién borra la nota: su escala es la común.
-  assert.deepEqual(motor.gh_reglasNota('fen'),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4,descarte_manual:true});
+  // La FEN solo se aparta en quién borra la nota y cómo cuenta un porcentaje: su escala es la común.
+  assert.deepEqual(motor.gh_reglasNota('fen'),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4,descarte_manual:true,descarte_redondeo:'arriba'});
   assert.deepEqual(motor.gh_reglasNota('uandes').rounding,{decimals:1,previo:2});
 
   const ua=motor.gh_reglasNota('uandes'),comun=motor.gh_reglasNota('uc');
