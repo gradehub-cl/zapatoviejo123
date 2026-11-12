@@ -92,7 +92,9 @@ run("logosDeAnuncios=async()=>new Map(); cargarAnunciosClasesOriginal=cargarAnun
  assert([...timers.values()].some(t=>t.ms===5000));
  for(const[id,t]of [...timers]){timers.delete(id);await t.f();}
  assert.equal(calls.slice(inicio).filter(c=>c.n==='registrar_alcance_anuncio').length,2);
- assert.equal(calls.slice(inicio).filter(c=>c.n==='registrar_evento_anuncio'&&c.p.p_tipo==='impresion').length,1);
+ const intentosEvento=calls.slice(inicio).filter(c=>c.n==='registrar_evento_anuncio'&&c.p.p_tipo==='impresion');
+ assert.equal(intentosEvento.length,2,'el total se intenta antes de confirmar el alcance y reintenta para completar el auxiliar');
+ assert.equal(new Set(intentosEvento.map(c=>c.p.p_evento_id)).size,1,'ambas llamadas son el mismo evento, no dos vistas');
  run("cargarAnunciosClases=async()=>{throw Error('sin red')}");await run('openCatalogoClases()');
  assert.match(root.querySelector('#catalogo-clases-estado').textContent,/No pudimos cargar/);
  assert(root.querySelector('.catalogo-reintentar'));

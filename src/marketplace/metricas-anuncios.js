@@ -388,8 +388,11 @@ function cifrasClase({alcance,campana,costo,eventos=null},pesos,etiquetaPersonas
   if(costo&&!costo.sinCosto&&!conPresupuesto)f.push(['Va costando',pesos(costo.total),costo.tope!==null?`de tu tope de ${pesos(costo.tope)}`:'hasta ahora']);
   if(costo&&!costo.sinCosto&&campana&&campana.contactos)f.push(['Por contacto',pesos(Math.round(costo.total/campana.contactos)),'lo que costó cada uno']);
   const ocultos=medido&&['impresion','clic','contacto'].some(k=>eventos[k]===null)?' Los totales menores a 15 quedan ocultos.':'';
-  const nota=eventos?.anterior?'Esta campaña terminó antes de contar cada vez: el total cuenta una vez por persona.'+ocultos
-    :medido?`Desde el ${new Date(eventos.desde).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long'})} se cuenta cada vez; antes, una vez por persona.`+ocultos
+  const fecha=d=>new Date(d).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long',year:'numeric'});
+  const nota=eventos?.cada_vez_desde&&!eventos.anterior?
+    `Desde el ${fecha(eventos.cada_vez_desde)} se cuenta cada vista de al menos un segundo con un 50 % visible, apertura y toque en un contacto, con límites contra abuso. Antes, el total es un mínimo: una vez por persona antes de la medición y repeticiones limitadas después. Estos totales no cambian el cobro.`+ocultos
+    :eventos?.anterior?'Esta campaña terminó antes de contar cada vez: el total cuenta una vez por persona.'+ocultos
+    :medido?`Desde el ${new Date(eventos.desde).toLocaleDateString('es-CL',{timeZone:'America/Santiago',day:'numeric',month:'long'})} se cuentan repeticiones limitadas; antes, una vez por persona. El total es un mínimo histórico.`+ocultos
     :'El total de veces aún no está disponible. Las cifras de personas distintas se conservan.';
   return `<div class="clase-etapas">${html}</div><p class="clase-privacidad">${esc(nota)}</p>`+(conPresupuesto?presupuestoProfesorHTML(costo):'')+(f.length?`<div class="clase-nums">${f.map(([t,v,d])=>
     `<div class="clase-num"><span>${t}</span><b>${v}</b><small>${d}</small></div>`).join('')}</div>`:'');

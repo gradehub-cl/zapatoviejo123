@@ -99,6 +99,7 @@ function showTab(tab,skipAnim){
     recalcularNavTabs();
     if(!NAV_TABS.includes(tab))tab=pestanaInicial();
   }
+  if(typeof cambiarPantallaMedicionAnuncios==='function')cambiarPantallaMedicionAnuncios(tab);
   if(NAV_TABS.includes(tab)){
     // Modo tab: snap del carrusel
     ['ramo','auth','onboard','reset'].forEach(s=>{const el=document.getElementById('screen-'+s);if(el)el.classList.remove('active');});
