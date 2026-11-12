@@ -23,10 +23,11 @@ function valoracionDirectorioHTML(estado){
 function tarjetaDirectorioHTML(p,{previa=false,logoURL=''}={}){
   const color=colorTarjetaDirectorio(p.color_tarjeta),texto=textoTarjetaDirectorio(color);
   const tag=previa?'div':'button',id=String(p.id||p.directorio_id||'');
+  const siglas=seleccionRamosPerfilApoyo(p,{previa}).mias;
   return `<${tag} ${previa?'':`type="button" data-directorio-perfil="${esc(id)}"`} class="directorio-tarjeta" style="--directorio-color:${color};--directorio-texto:${texto}">
     <span class="directorio-tarjeta-cabeza"><span class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</span>${valoracionDirectorioHTML(p.calificacion)}</span>
     <span class="directorio-identidad"><span class="directorio-textos"><strong class="directorio-nombre">${esc(p.nombre_publico||'Tu nombre público')}</strong>
-      <span class="directorio-siglas">${esc((p.ramos_siglas||[]).slice(0,3).join(' · '))}</span></span>
+      <span class="directorio-siglas">${esc(siglas.slice(0,3).join(' · '))}</span></span>
       <span class="directorio-avatar catalogo-clase-logo" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span></span>
   </${tag}>`;
 }
@@ -71,7 +72,7 @@ function cabeceraDirectorioHTML(){
     <label class="directorio-busqueda" for="directorio-buscar">Buscar por ramo, sigla o perfil<input id="directorio-buscar" type="search" autocomplete="off" placeholder="Cálculo, MAT1620, clases particulares…" aria-describedby="directorio-estado"></label>
     <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['plataforma','Plataformas y apps'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
     <p id="directorio-estado" class="profesor-info" role="status" aria-live="polite">Buscando perfiles…</p><div id="directorio-resultados" aria-busy="true"></div>
-    <p class="catalogo-privacidad">Esta lista no usa tus notas ni los ramos de tu cuenta.</p></div>`;
+    <p class="catalogo-privacidad">Ordenamos los ramos según tu carrera, en tu dispositivo. No usamos tus notas ni enviamos esta información.</p></div>`;
 }
 let vistaDirectorioVersion=0,limpiarDirectorioActual=null;
 // Devuelve false solo si no está instalado el SQL: conserva el catálogo anterior.
@@ -113,6 +114,8 @@ async function abrirDirectorioClases(){
     if(r.error&&sqlClasesDesactualizado(r.error)){limpiarObservacion();raiz.innerHTML=anterior;return false;}
     if(r.error||!Array.isArray(r.data))throw r.error||Error('respuesta inválida');
     perfiles=r.data;
+    await cargarMallaVisorApoyo();
+    if(!vigente())return true;
     // Los anuncios conservan exactamente su medición y costo actuales.
     try{anuncios=await cargarAnunciosClases(tenant,{propagarError:true});}catch(e){estado.textContent='Los perfiles están disponibles; no pudimos cargar los anuncios.';}
     if(!vigente())return true;

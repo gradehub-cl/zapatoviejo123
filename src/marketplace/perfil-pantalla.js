@@ -340,7 +340,7 @@ function enlazarPreviaPerfil(form,p,caja,nombresRamos){
     const d=datos(),conTarjeta=!!p.directorioDisponible;
     caja.innerHTML=`<div class="pfe-previa-cabeza"><h4>Vista previa</h4>${conTarjeta?`<div class="pfe-seg" role="group" aria-label="Qué mostrar"><button type="button" data-pfe-vista="tarjeta" aria-pressed="${vista==='tarjeta'}">Tarjeta</button><button type="button" data-pfe-vista="ficha" aria-pressed="${vista==='ficha'}">Al tocarla</button></div>`:''}</div>
       ${vista==='tarjeta'?`<button type="button" class="pfe-previa-tarjeta" data-pfe-vista="ficha" aria-label="Ver lo que se abre al tocar tu tarjeta">${tarjetaDirectorioHTML({...d,logo_path:null},{previa:true,logoURL:logo})}</button><p class="pfe-previa-pista">Toca la tarjeta para ver lo que se abre.</p>`
-        :`<div class="pfe-ficha" tabindex="0" role="region" aria-label="Ficha de vista previa">${perfilPublicoHTML(d,null,nombresRamos())}</div>`}`;
+        :`<div class="pfe-ficha" tabindex="0" role="region" aria-label="Ficha de vista previa">${perfilPublicoHTML(d,null,nombresRamos(),{previa:true})}</div>`}`;
     caja.querySelectorAll('.pfe-ficha a,.pfe-ficha button').forEach(accion=>{accion.inert=true;});
     const marco=caja.querySelector('[data-directorio-logo]');if(marco&&logo)marco.innerHTML=imgLogoClase(logo);
     caja.querySelectorAll('[data-pfe-vista]').forEach(b=>b.addEventListener('click',()=>{vista=b.dataset.pfeVista;pintar();caja.querySelector(`.pfe-seg [data-pfe-vista="${vista}"]`)?.focus();}));

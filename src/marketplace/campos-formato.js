@@ -120,7 +120,14 @@ async function perfilProfesorActual(){
   try{
     // El logo llegó después, y el perfil completo después (2026-10-23): sin
     // su SQL aplicado se pide la ficha que el servidor sí tiene.
-    const pedir=campos=>supabaseClient.from('tutor_perfiles').select(campos).eq('user_id',uid).maybeSingle();
+    // Reutiliza esta lectura propia para reconocer la tarjeta del dueño. El
+    // identificador público no agrega datos de otros perfiles ni otra RPC.
+    const pedir=async campos=>{
+      let r=await supabaseClient.from('tutor_perfiles').select(campos+',directorio_id').eq('user_id',uid).maybeSingle();
+      if(r.error?.code==='42501'||faltaColumnaClase(r.error)&&String(r.error.message||'').includes('directorio_id'))
+        r=await supabaseClient.from('tutor_perfiles').select(campos).eq('user_id',uid).maybeSingle();
+      return r;
+    };
     const base='nombre_publico,presentacion,estado,solicitado_at,revisado_at',logo=',logo_id,logo_path,logo_aprobado_path';
     let {data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR+',panel_alumnos');
     if(faltaColumnaClase(error))({data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR));
