@@ -9,6 +9,9 @@ function quitarArranque(){
   // web esté en pantalla, se saca el splash (soltarSplash, en index.html) y
   // después se sigue.
   const despues=f=>typeof requestAnimationFrame==='function'?requestAnimationFrame(()=>requestAnimationFrame(f)):f();
+  if(typeof enAppNativa==='function'&&enAppNativa()){
+    despues(()=>{a.remove();if(typeof soltarSplash==='function')soltarSplash();});return;
+  }
   despues(()=>{
     if(typeof soltarSplash==='function')soltarSplash();
     despues(()=>{
