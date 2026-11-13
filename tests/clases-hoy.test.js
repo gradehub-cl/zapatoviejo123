@@ -1,0 +1,64 @@
+// Horario recurrente, datos sintéticos y funciones de producción.
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const raiz=path.join(__dirname,'..'),disco=new Map(),elementos=new Map(),timers=[];
+const nodo=()=>({style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},contains(){return false},toggle(){}},addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},getAttribute(){return null},querySelector(){return nodo()},querySelectorAll(){return[]},focus(){},value:'',innerHTML:'',textContent:'',dataset:{}});
+const porId=id=>{if(!elementos.has(id))elementos.set(id,nodo());return elementos.get(id);};
+let exportado;
+const ctx={console,Intl,URL,window:{addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}})},
+ document:{getElementById:porId,createElement:nodo,querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){},documentElement:nodo(),body:nodo()},
+ localStorage:{getItem:k=>disco.get(k)??null,setItem:(k,v)=>disco.set(k,v),removeItem:k=>disco.delete(k)},
+ navigator:{clipboard:{writeText:s=>{exportado=s;return Promise.resolve();}}},location:{origin:'',pathname:'',hash:'',reload(){}},setTimeout:f=>{timers.push(f);return timers.length;},clearTimeout(){}};
+vm.createContext(ctx);
+for(const f of ['data.js','engine.js','app.js','app-session.js','render-main.js','render-agenda.js'])vm.runInContext(fs.readFileSync(path.join(raiz,f),'utf8'),ctx);
+const run=s=>vm.runInContext(s,ctx),js=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x)),copiar=x=>js(x);
+const bloque=(dias,inicio='08:20',fin='09:30',extra={})=>({dias,inicio,fin,sala:'K201',tipo:'CLAS',...extra});
+const ramo=(id,horario)=>({id,nombre:'Curso sintético '+id,creditos:10,categorias:[{id:'eval-'+id,nombre:'Evaluación sintética',peso:100,notas:[{id:'nota-'+id,valor:5,peso:1}]}],...(horario===undefined?{}:{horario})});
+const estado=rs=>run('normalize')({...run('freshState')(),tenant:'uc',onboardingDone:true,ramos:rs});
+const resumen=(rs,ahora)=>js(run('resumenHorarioClases')(rs,new Date(ahora)));
+const horarios=[ramo('uno',[bloque(['L','W'])]),ramo('dos',[bloque(['L'],'10:00','11:00',{tipo:'LAB',sala:''})]),ramo('sin')];
+let r=resumen(horarios,'2026-11-09T11:30:00Z'); // Lunes 08:30 Chile.
+assert.equal(r.proximaClase.ramoId,'uno');assert.equal(r.clasesHoy.length,2);assert.equal(r.proximaClase.inicioAt,'2026-11-09T11:20:00.000Z');
+assert.match(run('clasesHoyHTML')(r,new Date('2026-11-09T11:30:00Z')),/Hasta las 09:30/);
+assert.equal(resumen(horarios,'2026-11-09T12:30:00Z').proximaClase.ramoId,'dos','el fin exacto deja de ser clase actual');
+assert.equal(resumen(horarios,'2026-11-10T02:59:59Z').fechaHoy,'2026-11-09');
+assert.equal(resumen(horarios,'2026-11-10T03:00:00Z').fechaHoy,'2026-11-10');
+assert.equal(resumen(horarios,'2026-11-14T15:00:00Z').proximaClase.fecha,'2026-11-16','sábado busca lunes');
+assert.equal(resumen(horarios,'2026-11-15T15:00:00Z').proximaClase.fecha,'2026-11-16','domingo busca lunes');
+assert.equal(resumen([ramo('sin')],'2026-11-09T11:00:00Z').proximaClase,null);
+assert.equal(run('clasesHoyHTML')(resumen(horarios,'2026-11-10T12:00:00Z'),new Date('2026-11-10T12:00:00Z')),'','no tarjeta vacía ni próxima clase de otro día bajo Hoy');
+assert.equal(run('instanteHorarioChile')( '2026-08-31','08:20'),'2026-08-31T12:20:00.000Z');
+assert.equal(run('instanteHorarioChile')( '2026-09-07','08:20'),'2026-09-07T11:20:00.000Z');
+assert.equal(run('instanteHorarioChile')( '2026-09-06','00:30'),null,'hora inexistente de verano no se inventa');
+assert.equal(resumen([ramo('domingo',[bloque(['D'],'01:00','02:00')])],'2026-09-06T04:30:00Z').proximaClase.inicioAt,'2026-09-06T04:00:00.000Z');
+assert.equal(resumen([ramo('semanal',[bloque(['V'])])],'2026-11-13T18:00:00Z').proximaClase.fecha,'2026-11-20','clase semanal siguiente aunque la de hoy ya terminó');
+const convertir=run('horarioDesdeModulos');
+assert.deepEqual(js(convertir('uc',['L','W'],[2],{sala:'K201',tipo:'CLAS'})).map(({id,...b})=>b),[bloque(['L','W'],'09:40','10:50')]);
+assert.equal(convertir('uc',['L'],[0]).length,0);assert.equal(convertir('sin-tabla',['L'],[2]).length,0);
+assert.deepEqual(js(convertir('uc',['M'],[4,5])).map(b=>[b.inicio,b.fin]),[['12:20','13:30'],['14:50','16:00']],'no clase inventada durante almuerzo');
+assert.equal(run('proponerHorarioDesdeCatalogo')({tenant:'uc',sigla:'SYN100',seccion:1}),null);
+assert.deepEqual(js(run('copiarHorario')([{dias:['X'],inicio:'08:00',fin:'09:00'},bloque(['L'],'25:00','26:00'),bloque(['L'],'10:00','09:00')])),[]);
+const antiguo=estado([ramo('antiguo')]);assert.equal(Object.hasOwn(antiguo.ramos[0],'horario'),false,'estado antiguo no adquiere horario');
+const nuevo=estado(horarios),otraVez=estado(horarios);assert.deepEqual(js(nuevo),js(otraVez),'IDs deterministas al normalizar un respaldo sin IDs');
+assert.equal(run('ramoAvg')(nuevo.ramos[0]),run('ramoAvg')(estado([ramo('uno')]).ramos[0]),'no cambia promedio');
+const n=js(nuevo);n.historial=[{id:'hist',label:'2026-1',ramos:copiar(nuevo.ramos)}];assert.deepEqual(js(run('normalize')(n).historial[0].ramos[0].horario),js(nuevo.ramos[0].horario));
+const base=copiar(nuevo),local=copiar(nuevo),nube=copiar(nuevo);
+local.ramos[0].horario.push({...bloque(['V']),id:'bloque-local'});nube.ramos[0].horario.push({...bloque(['J']),id:'bloque-nube'});
+let fusion=run('fusionarSync')(base,local,nube);assert.equal(fusion.ramos[0].horario.length,3,'ambos dispositivos agregan un bloque sin perderlo');
+const editLocal=copiar(nuevo),editNube=copiar(nuevo);editLocal.ramos[0].horario[0].sala='Sala nueva';editNube.ramos[0].categorias[0].notas[0].valor=6;
+fusion=run('fusionarSync')(base,editLocal,editNube);assert.equal(fusion.ramos[0].horario[0].sala,'Sala nueva');assert.equal(fusion.ramos[0].categorias[0].notas[0].valor,6);
+const sinCampo=copiar(nuevo);delete sinCampo.ramos[0].horario;
+fusion=run('fusionarSync')(base,copiar(nuevo),sinCampo);
+assert.deepEqual(js(fusion.ramos[0].horario),js(nuevo.ramos[0].horario),'una app anterior que omite el campo no declara borrar el horario');
+const borrado=copiar(nuevo);borrado.ramos[0].horario=[];
+assert.deepEqual(js(run('fusionarSync')(base,copiar(nuevo),borrado).ramos[0].horario),[],'vacío explícito sí borra');
+run('syncToCloud=()=>{};renderHome=()=>{};renderAgenda=()=>{};renderStats=()=>{};publicarResumenWidgets=()=>{};showToast=()=>{};closeModal=()=>{};openModal=()=>{};track=()=>{};showConfirm=(_t,_d,f)=>f()');
+ctx.__estado=nuevo;run('S=__estado;save()');assert.deepEqual(JSON.parse(disco.get('gradehub_v1')).ramos[0].horario,js(nuevo.ramos[0].horario));
+run('exportarDatos()');assert.deepEqual(JSON.parse(exportado).ramos[0].horario,js(nuevo.ramos[0].horario));
+porId('import-text').value=exportado;run('S=normalize({...freshState(),ramos:[]});confirmarImportar()');assert.deepEqual(js(run('S.ramos[0].horario')),js(nuevo.ramos[0].horario));
+assert.deepEqual(js(run('loadData()').data.ramos[0].horario),js(nuevo.ramos[0].horario),'recarga desde almacenamiento');
+run('currentUser=null;prepararArchivoSemestre()');porId('cierre-oficial-0').value='';porId('cierre-oficial-1').value='';porId('cierre-oficial-2').value='';run('guardarArchivoRevisado()');
+assert.equal(run('S.ramos.length'),0);assert.deepEqual(js(run('S.historial[0].ramos[0].horario')),js(nuevo.ramos[0].horario),'cierre archiva horario sin perderlo');
+ctx.__estado=nuevo;run('S=__estado');const widgets=js(run('resumenParaWidgets(new Date("2026-11-09T11:30:00Z"))'));
+assert.equal(widgets.version,1,'Swift actual exige versión 1 e ignora claves nuevas');assert.deepEqual(widgets.clasesHoy,r.clasesHoy);assert.deepEqual(widgets.proximaClase,r.proximaClase);assert.ok(widgets.clasesProximas.some(c=>c.fecha>'2026-11-09'));
+assert.equal(widgets.clasesHoy.some(c=>'valor'in c||'userName'in c),false);
+console.log('PASS clases: actual/próxima, Chile/DST, semana, módulos oficiales, antiguo, normalización, fusión, notas, guardado/recarga, export/import, cierre/historial y widgets');

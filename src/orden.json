@@ -1,6 +1,7 @@
 {
   "app.js": [
     "src/app/analitica.js",
+    "src/app/horario-clases.js",
     "src/app/persistencia-y-normalizacion.js",
     "src/app/identidad.js",
     "src/app/catalogo-carga.js",
@@ -131,6 +132,7 @@
     "src/app-session/mfa.js"
   ],
   "render-main.js": [
+    "src/render-main/clases-hoy.js",
     "src/render-main/inicio.js",
     "src/render-main/recordatorio-notas.js",
     "src/render-main/recordatorio-notas-profesor.js",
@@ -177,6 +179,7 @@
     "src/data/pautas-por-universidad.js",
     "src/data/profesor-etiquetas.js",
     "src/data/profesores-propuestos.js",
-    "src/data/panel-tipos-evaluacion.js"
+    "src/data/panel-tipos-evaluacion.js",
+    "src/data/horarios.js"
   ]
 }

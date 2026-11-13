@@ -156,6 +156,7 @@ function renderRamo(){
   } else {
     avgEl.textContent='Sin notas';avgEl.className='ramo-num empty';avgEl.onclick=null;
   }
+  pintarHorarioRamo(r);
   pintarPromedioExacto('ramo-hero-exacto',avg);
   // La cátedra sola, al lado de la nota final. Se toca igual que el número
   // grande: los dos muestran o esconden su promedio exacto a la vez.
