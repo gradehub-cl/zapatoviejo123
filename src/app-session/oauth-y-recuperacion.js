@@ -1,10 +1,18 @@
 async function signInWithProvider(provider){
   if(!supabaseClient){authError('Falta configurar Supabase.');return;}
+  if(provider==='apple'&&intentoAppleEnCurso)return;
   authError('');
   const btn=document.getElementById('btn-'+provider);
+  if(provider==='apple'&&btn?.disabled)return;
   const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
+    if(provider==='apple'){
+      const anterior=currentUser,cliente=supabaseClient;await confirmarAppleDisponible();
+      if(currentUser!==anterior||supabaseClient!==cliente){reactivarBotonesOAuth();return;}
+    }
+    if(provider==='apple'&&APP_NATIVA){await entrarConAppleNativo();return;}
+    if(provider==='apple')guardarEntradaApple(contextoEntradaApple());
     if(APP_NATIVA){
       const {data,error}=await supabaseClient.auth.signInWithOAuth({
         provider,
@@ -25,14 +33,14 @@ async function signInWithProvider(provider){
     // vuelta a este codigo si el login sale bien.
     recordarMetodoLogin(provider);
   }catch(e){
+    if(provider==='apple')consumirEntradaApple();
     authError(traduceAuthError(e));
     if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=orig;}
   }
 }
 
 function reactivarBotonesOAuth(){
-  const b=document.getElementById('btn-google');
-  if(b){b.disabled=false;b.style.opacity='';}
+  ['google','apple'].forEach(p=>{const b=document.getElementById('btn-'+p);if(b){b.disabled=false;b.style.opacity='';}});
 }
 // La vuelta de Google en la app nativa. Cerrar la hoja sin terminar no es un
 // error: solo reactiva el botón.

@@ -5805,6 +5805,17 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @container(max-width:18rem){.horario-campos{grid-template-columns:minmax(0,1fr);}}
 @media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
 
+/* ─── Acceso con Apple: arte oficial, contraste independiente del acento ─── */
+#screen-auth .oauth-btn{min-height:48px;}
+#screen-auth #btn-apple{height:48px;padding:0;background:#000;color:#fff;border:0;margin-bottom:10px;overflow:hidden;}
+#screen-auth #btn-apple img{display:block;width:100%;height:48px;object-fit:contain;}
+#screen-auth #btn-apple .apple-blanco{display:none;}
+#screen-auth #btn-apple:focus-visible{outline:3px solid var(--fg);outline-offset:4px;}
+:root[data-modo=oscuro] #screen-auth #btn-apple{background:#fff;color:#000;border-color:#fff;}
+:root[data-modo=oscuro] #screen-auth #btn-apple .apple-negro{display:none;}
+:root[data-modo=oscuro] #screen-auth #btn-apple .apple-blanco{display:block;}
+@media(prefers-color-scheme:dark){:root:not([data-modo]) #screen-auth #btn-apple{background:#fff;color:#000;border-color:#fff;}:root:not([data-modo]) #screen-auth #btn-apple .apple-negro{display:none;}:root:not([data-modo]) #screen-auth #btn-apple .apple-blanco{display:block;}}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

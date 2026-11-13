@@ -119,6 +119,7 @@
     "src/app-session/entrada-y-traducciones.js",
     "src/app-session/correo-y-clave.js",
     "src/app-session/login-registro.js",
+    "src/app-session/apple-acceso.js",
     "src/app-session/oauth-y-recuperacion.js",
     "src/app-session/cache-aislamiento.js",
     "src/app-session/avisos-feedback.js",
