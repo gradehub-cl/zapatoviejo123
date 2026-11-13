@@ -31,7 +31,7 @@ for(const [nombre,p] of entradas){
     assert.ok(p.citas_textuales.length>=2,`${nombre}: citas del documento`);
     assert.ok(p.ubicacion,`${nombre}: sección del programa`);
     assert.ok(['alta','media'].includes(p.confianza));
-    assert.equal(p.verificado,'2026-10-21');
+    assert.ok(['2026-10-21','2026-11-12'].includes(p.verificado),`${nombre}: fecha de cotejo`);
     const modelo=Object.fromEntries(['eximicion','recuperativo','grupos','ausenciasJustificadas']
       .filter(k=>ctx.U[nombre][k]!=null).map(k=>[k,ctx.U[nombre][k]]));
     assert.equal(JSON.stringify(p.reglas_modeladas),JSON.stringify(modelo),
@@ -40,8 +40,8 @@ for(const [nombre,p] of entradas){
       `${nombre}: límites del cálculo documentados`);
   }
 }
-assert.equal(verificadas,6);
-assert.equal(pendientes,3);
+assert.equal(verificadas,10);
+assert.equal(pendientes,1);
 const civil=ctx.U['Civilización Contemporánea II'].evals.find(e=>e[0]==='Evaluaciones de lectura');
 assert.equal(civil.length,2,'el programa contradice 10 y 11; no se inventan casillas');
 assert.match(entradas.get('Civilización Contemporánea II').faltantes_y_ambiguedades.join(' '),/10.*11/);
@@ -65,4 +65,4 @@ app.__guardado=guardado;
 const despues=vm.runInContext('normalize(__guardado).ramos[0]',app);
 assert.equal(despues.categorias[0].slots,10,'una cuenta existente conserva sus casillas');
 assert.equal(despues.categorias[0].notas[0].valor,5.2,'una cuenta existente conserva su nota');
-console.log('OK: 6 programas UAI cotejados, 3 fuentes faltantes y cantidad ambigua sin casillas');
+console.log('OK: 10 programas UAI cotejados, 1 fuente faltante y cantidad ambigua sin casillas');

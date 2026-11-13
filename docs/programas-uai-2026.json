@@ -1,7 +1,7 @@
 {
-  "fuentes": "Seis archivos de Programas de Ramos/UAI entregados por Lucas, convertidos localmente con markitdown el 2026-10-21.",
-  "alcance": "Las nueve pautas PRESETS_UAI: seis cotejadas con programas disponibles y tres pendientes de fuente en esta carpeta.",
-  "limitaciones": "Los programas son de secciones y períodos concretos. Las citas documentan pesos y condiciones; no autorizan a inventar cantidad de evaluaciones cuando el texto se contradice. En las tres entradas falta_fuente, evaluaciones y suma son una foto del catálogo, no una verificación contra el programa.",
+  "fuentes": "Seis archivos de Programas de Ramos/UAI entregados por Lucas, convertidos localmente con markitdown el 2026-10-21; cuatro más (MAT124 sec. 1, MAT125 sec. 2, Introducción a la Economía y Lectura Crítica) entregados por Martín y cotejados el 2026-11-12.",
+  "alcance": "Las once pautas PRESETS_UAI: diez cotejadas con programas disponibles y una pendiente de fuente.",
+  "limitaciones": "Los programas son de secciones y períodos concretos. Las citas documentan pesos y condiciones; no autorizan a inventar cantidad de evaluaciones cuando el texto se contradice. En la entrada falta_fuente, evaluaciones y suma son una foto del catálogo, no una verificación contra el programa.",
   "programas": [
     {
       "nombre_catalogo": "Escritura Argumentativa",
@@ -75,13 +75,21 @@
     },
     {
       "nombre_catalogo": "Matemáticas Avanzadas I",
-      "archivo_fuente": null,
-      "ubicacion": null,
-      "estado": "falta_fuente",
-      "confianza": "sin_fuente",
-      "citas_textuales": [],
+      "archivo_fuente": "Programa_MatematicasAvanzadasI_UAI.pdf",
+      "ubicacion": "Procedimiento de Evaluación; Reglamento",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "El promedio de los tres talleres evaluados (T) tiene una ponderación del 10%",
+        "El promedio de los tres controles (C) tiene una ponderación del 20%",
+        "El promedio de las tres pruebas (P) tiene una ponderación del 70%",
+        "NF = 0,7 · NP + 0,3 · EX",
+        "Se eximirán todos los estudiantes cuya nota de presentación (NP) sea mayor o igual a 5,0",
+        "que su nota final (NF) sea mayor o igual que 3,5 y menor o igual que 3,9 tienen derecho a rendir un segundo examen"
+      ],
       "faltantes_y_ambiguedades": [
-        "Programa MAT124 citado en data.js, no está en la carpeta UAI entregada para esta auditoría."
+        "Sección 1 (2026-2); la pauta ya venía de la sección 2 y las reglas coinciden.",
+        "El programa no trae fechas de evaluaciones."
       ],
       "periodo": "2026-2",
       "evaluaciones": [
@@ -115,7 +123,7 @@
         ]
       ],
       "suma_ponderaciones": 100,
-      "verificado": null,
+      "verificado": "2026-11-12",
       "reglas_modeladas": {
         "eximicion": {
           "evaluacion": "Examen",
@@ -189,13 +197,21 @@
     },
     {
       "nombre_catalogo": "Razonamiento Cuantitativo con Datos I",
-      "archivo_fuente": null,
-      "ubicacion": null,
-      "estado": "falta_fuente",
-      "confianza": "sin_fuente",
-      "citas_textuales": [],
+      "archivo_fuente": "Programa_RazonamientoCuantitativoConDatosI_UAI.pdf",
+      "ubicacion": "Procedimiento de Evaluación; Reglamento",
+      "estado": "calza",
+      "confianza": "alta",
+      "citas_textuales": [
+        "El promedio de las notas obtenidas en ambas pruebas dará origen a la nota NT",
+        "Durante el semestre se realizarán 5 controles",
+        "La nota de la parte aplicada se calculará como 75% el promedio de los controles y 25% la nota del trabajo",
+        "NPE = 0,5 × NT + 0,5 × NP ≥ 5,0",
+        "el promedio de 0,7×NT+0,3×ET y 0,7×NP+0,3×EP",
+        "El trabajo NO es justificable"
+      ],
       "faltantes_y_ambiguedades": [
-        "Syllabus MAT125 citado en data.js, no está en la carpeta UAI entregada para esta auditoría."
+        "El programa no declara créditos en Procedimiento de Evaluación; la ficha dice 4 créditos y la pauta no los fija.",
+        "Si ET o EP queda bajo 4,0 tras el examen, la final es la menor de ambas: no se calcula."
       ],
       "periodo": "2026-2",
       "evaluaciones": [
@@ -229,7 +245,7 @@
         ]
       ],
       "suma_ponderaciones": 100,
-      "verificado": null,
+      "verificado": "2026-11-12",
       "reglas_modeladas": {
         "eximicion": {
           "evaluaciones": [
@@ -713,6 +729,124 @@
       "reglas_modeladas": {},
       "reglas_no_calculadas": [
         "Te eximes del examen si tu nota de presentación te deja en el 20% superior del curso y además es al menos 5,5: la app no conoce las notas del resto del curso"
+      ]
+    },
+    {
+      "nombre_catalogo": "Introducción a la Economía",
+      "archivo_fuente": "Programa_IntroduccionALaEconomia_UAI.pdf",
+      "ubicacion": "Procedimiento de Evaluación; Reglamento; Fechas evaluaciones Marcos Gómez",
+      "estado": "calza",
+      "confianza": "media",
+      "citas_textuales": [
+        "NFC = NC*0,20 + P1*0,25 + P2*0,25 + Ex*0,3",
+        "El o la estudiante aprobará el curso si obtiene un promedio ponderado mayor o igual a 3,95",
+        "En caso de inasistencia justificada a una o más pruebas, la ponderación se transferirá al examen",
+        "nota igual o superior a 4.8",
+        "el examen reemplazará la peor nota de prueba"
+      ],
+      "faltantes_y_ambiguedades": [
+        "Programa PRELIMINAR (versión al 22 de julio).",
+        "Se contradice en la cantidad de controles: 4 en un párrafo y 6 en otros; no se precargan casillas.",
+        "Un control justificado se reemplaza por el examen, pero el bloque está consolidado."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Controles",
+          20
+        ],
+        [
+          "Prueba 1",
+          25
+        ],
+        [
+          "Prueba 2",
+          25
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-11-12",
+      "reglas_modeladas": {
+        "ausenciasJustificadas": {
+          "traspasos": [
+            {
+              "desde": "Prueba 1",
+              "hacia": "Examen"
+            },
+            {
+              "desde": "Prueba 2",
+              "hacia": "Examen"
+            }
+          ]
+        }
+      },
+      "reglas_no_calculadas": [
+        "Un control justificado se reemplaza por la nota del examen, pero el bloque está consolidado y el programa no fija cuántos controles son"
+      ]
+    },
+    {
+      "nombre_catalogo": "Lectura Crítica II",
+      "archivo_fuente": "Programa_LecturaCriticaElPrincipe_UAI.docx",
+      "ubicacion": "Evaluación; Examen",
+      "estado": "calza",
+      "confianza": "media",
+      "citas_textuales": [
+        "2 comentarios de lectura compleja (escritos en clase, a mano) | 40%",
+        "3 controles de lectura (escritos en clase, a mano) | 30%",
+        "15% participación en clases + promedio de las actividades",
+        "NPE: 70% + Examen: 30%",
+        "El examen no es reprobatorio"
+      ],
+      "faltantes_y_ambiguedades": [
+        "El documento no dice si es Lectura Crítica I o II; se asigna a II por ser la de 2° semestre en la malla de Ingeniería Comercial.",
+        "Es la sección de El príncipe; otras secciones de Lectura Crítica usan otro libro y podrían evaluar distinto.",
+        "El descarte de las dos peores actividades depende de que haya 6 o más y de asistencia completa: no se aplica solo.",
+        "El 20% superior para eximir no se puede inferir de las notas del estudiante."
+      ],
+      "periodo": "2026-2",
+      "evaluaciones": [
+        [
+          "Comentarios críticos",
+          28,
+          {
+            "slots": 2,
+            "slotLabel": "Comentario crítico"
+          }
+        ],
+        [
+          "Controles de lectura",
+          21,
+          {
+            "slots": 3,
+            "slotLabel": "Control"
+          }
+        ],
+        [
+          "Participación en clases",
+          10.5
+        ],
+        [
+          "Actividades en clase",
+          10.5,
+          {
+            "lista": true
+          }
+        ],
+        [
+          "Examen",
+          30
+        ]
+      ],
+      "suma_ponderaciones": 100,
+      "verificado": "2026-11-12",
+      "reglas_modeladas": {},
+      "reglas_no_calculadas": [
+        "Te eximes del examen si tu nota de presentación te deja en el 20% superior del curso, es al menos 5,5 y no tienes evaluaciones pendientes: la app no conoce las notas del resto del curso",
+        "Si hubo 6 o más actividades y asististe a todas, se borran tus dos peores notas de actividades; la app no sabe si se cumple, así que no las descarta sola"
       ]
     }
   ]
