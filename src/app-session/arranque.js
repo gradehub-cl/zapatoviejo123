@@ -113,6 +113,14 @@ async function boot(){
     }
     if(!session){showAuthScreen();return;}
 
+    const entradaApple=consumirEntradaApple();
+    if(esEntradaApple(session.user,entradaApple)){
+      try{prepararCacheApple(session.user);}catch(e){
+        try{await supabaseClient.auth.signOut({scope:'local'});}catch(_){}
+        showAuthScreen();authError(traduceAuthError({code:'APPLE_CACHE_NO_AISLADA'}));return;
+      }
+      if(entradaApple)recordarMetodoLogin('apple');
+    }
     currentUser=session.user;
     // Si venimos de un correo de recuperación, se muestra la pantalla de nueva
     // contraseña en vez de entrar directo a la app (ver LLEGA_DE_RECUPERACION).
@@ -143,6 +151,7 @@ async function boot(){
     if(detalle)detalle.textContent='Preparando tu semestre…';
     try{
       await afterLogin();
+      if(esEntradaApple(session.user,entradaApple))mostrarAvisoCuentaApple(session.user,entradaApple);
     }catch(e){
       registrarErrorArranque(e,'abrir_app');
       showAppErrorScreen('abrir_app');

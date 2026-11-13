@@ -195,3 +195,73 @@ HIG: [Widgets](https://developer.apple.com/design/human-interface-guidelines/wid
 y [Layout](https://developer.apple.com/design/human-interface-guidelines/layout):
 contenido oportuno y breve, jerarquía de próxima clase, enlace al ramo,
 controles de 44 puntos y adaptación al tamaño de texto/pantalla.
+
+## Entrar con Apple
+
+La web usa `signInWithOAuth({provider:'apple'})`. La app usa el plugin propio
+`AppleSignInPlugin.swift` (AuthenticationServices) y `signInWithIdToken`: JS crea
+un nonce aleatorio de 256 bits, manda su SHA-256 a Apple y su valor original a
+Supabase. No se guarda el nonce, el identity token ni el código de autorización.
+Se debe **reinstalar** el binario: una actualización de la web no agrega el plugin.
+
+El entitlement de App es `com.apple.developer.applesignin = [Default]`; no se
+agrega al widget. La firma sigue en `Firma.xcconfig`/`Firma.local.xcconfig`, sin
+Team ni Bundle ID escrito en `project.pbxproj`.
+
+Antes del merge, Lucas configura con el equipo Apple Developer de la SpA:
+
+1. Sign in with Apple en el App ID de `cl.gradehub.app` y su provisioning profile.
+2. Un **Services ID para la web**, asociado al mismo App ID/grupo de Sign in with
+   Apple; dominio `gradehub.cl` y retorno de Apple al callback HTTPS de Supabase
+   (`https://lsulsnswzesyekpsvlql.supabase.co/auth/v1/callback`). Así web y nativo
+   representan el mismo servicio; comprobar la misma cuenta en ambos.
+3. Proveedor Apple en Supabase Auth: **Client IDs** de la app (`cl.gradehub.app`)
+   y del Services ID web. Configurar el secreto web generado con Team ID, Key ID
+   y la clave `.p8`, exclusivamente en Apple/Supabase: nunca en JS ni git.
+   Mantener también el retorno de la app web en la lista de redirect URLs.
+4. **Lucas renueva el secreto web antes de seis meses** (puede delegar su ejecución
+   a Martín), registra vencimiento y verifica el login web tras renovarlo. La
+   clave `.p8` y el JWT de secreto no son lo mismo: la firma genera un JWT nuevo.
+   No se programó una renovación automática ni se cambiaron credenciales aquí.
+
+Antes de abrir Apple se consulta el endpoint público `/auth/v1/settings`, sin
+sesión ni datos personales. Si el proveedor está apagado o no se puede consultar,
+la pantalla conserva sus otros métodos y explica el error en español. Esto no
+comprueba una clave web vencida ni la configuración del equipo: hay que probarlas.
+
+### Cuentas existentes y siguientes PRs
+
+El correo verificado compartido puede vincular identidades automáticamente en
+Supabase; elegir relay puede crear otra cuenta. Nunca se unen cuentas desde el
+cliente. Antes de entrar con Apple se aplica el aislamiento de caché existente:
+se aparta la copia bajo su dueño original y no se importa a la cuenta nueva.
+Volver al dueño permite restaurarla. El nombre recibido por el plugin solo se
+manda a `updateUser` si falta `full_name`.
+
+El aviso de cuenta nueva requiere relay, señales de otro acceso y creación dentro
+del intento Apple con primer acceso próximo. Supabase no entrega `is_new_user` en
+este flujo: se contrastan `created_at`, `last_sign_in_at` y el inicio guardado en
+esta pestaña (máximo 15 minutos). No se infiere creación por tener cero ramos.
+Sin contexto/fechas fiables no se muestra; un reloj local adelantado puede
+suprimirlo. Esta detección solo decide un aviso: **nunca** permisos ni mezcla de
+cuentas. Falta validarla con la respuesta real de Apple/Supabase en iPhone.
+
+**No está listo para App Store sin resolver el borrado Apple.** La guía de
+[eliminación de cuenta de Apple](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
+exige revocar autorización al borrar. Borrar Auth o cerrar sesión no llama por sí
+solo a `https://appleid.apple.com/auth/revoke`. Ese endpoint requiere access o
+refresh token de **Apple** y un secreto del servidor; el JWT de Supabase y el
+identity token de Apple no sirven como sustitutos.
+
+Recomendación para otra PR: intercambiar el authorization code en el servidor
+al autorizar, conservar cifrado el refresh token de Apple por dueño, revocarlo
+antes de borrar Auth y limpiar el registro/token con la cuenta. Necesita diseño
+de retención, SQL/RLS/FK, servidor y clave de cifrado: fuera de esta PR. Alternativa:
+pedir reautorización al borrar y canjear el código entonces, sin guardar refresh
+token a largo plazo; debe prever una autorización vencida o una cuenta solo web.
+También queda aparte «Vincular Apple» en Ajustes con `linkIdentity`, reautenticación
+y resolución explícita de dos cuentas con notas: nunca fusionarlas por correo.
+
+Referencias: [Supabase — Apple](https://supabase.com/docs/guides/auth/social-sign-in/auth-apple),
+[HIG — Sign in with Apple](https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple),
+[revocación REST](https://developer.apple.com/documentation/signinwithapplerestapi/revoke-tokens).
