@@ -6,6 +6,9 @@
     "SplashScreen": {
       "launchShowDuration": 3000,
       "launchAutoHide": true
+    },
+    "Keyboard": {
+      "resize": "native"
     }
   },
   "ios": {

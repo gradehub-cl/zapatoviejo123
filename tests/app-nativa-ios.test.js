@@ -72,7 +72,7 @@ const probarVib = (nativa, tipo) => { const h = []; const ctx = { enAppNativa: (
   vm.createContext(ctx); vm.runInContext('let _hapticaSeleccion=null;' + vib + ';vibrar(' + JSON.stringify(tipo) + ');vibrar(' + JSON.stringify(tipo) + ')', ctx);
   return new Promise(r => setTimeout(() => r(h.join(',')), 0)); };
 const vibraciones = (async () => {
-chk('al agregar una nota, un toque suave', await probarVib(true, 'nota') === 'impact:LIGHT,impact:LIGHT');
+chk('al guardar una nota, confirmación de éxito', await probarVib(true, 'nota') === 'notification:SUCCESS,notification:SUCCESS');
 chk('al borrar, la advertencia', await probarVib(true, 'borrar') === 'notification:WARNING,notification:WARNING');
 chk('la selección prepara el generador una vez y hace un tic por cambio', await probarVib(true, 'seleccion') === 'start,tic,tic');
 chk('al levantar un ramo, un golpe medio', await probarVib(true, 'levantar') === 'impact:MEDIUM,impact:MEDIUM');

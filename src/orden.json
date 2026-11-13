@@ -14,6 +14,7 @@
     "src/app/onboarding-ramos.js",
     "src/app/onboarding-flujo.js",
     "src/app/instalacion-nativa.js",
+    "src/app/experiencia-nativa.js",
     "src/app/navegacion.js",
     "src/app/orden-ramos.js",
     "src/app/ficha-ausencias.js",

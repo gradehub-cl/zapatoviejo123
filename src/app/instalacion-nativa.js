@@ -38,7 +38,8 @@ function vibrar(tipo){
   try{
     const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
     if(!H)return;
-    if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    if(tipo==='nota')H.notification({type:'SUCCESS'}).catch(()=>{});
+    else if(tipo==='borrar'||tipo==='error')H.notification({type:'WARNING'}).catch(()=>{});
     else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
     // El generador de selección se prepara una vez y queda listo para cada tic.
     else if(tipo==='seleccion'){

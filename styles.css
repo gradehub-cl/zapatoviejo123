@@ -5918,3 +5918,26 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 
 /* El total del editor de pauta se pega justo bajo la barra de la hoja. */
 .app-nativa .pauta-total{top:44px;}
+
+/* Interacción nativa: raíz inmóvil; el contenido, los campos y los textos
+   copiables conservan su comportamiento. HIG Layout, Haptics y Motion. */
+.app-nativa{height:100%;overflow:hidden;overscroll-behavior:none;}
+.app-nativa body{height:100%;min-height:0;overflow:hidden;overscroll-behavior:none;background-image:none;}
+.app-nativa .app{height:100dvh;min-height:0;}
+.app-nativa .topbar{flex-shrink:0;}
+.app-nativa .scroll{min-height:0;overscroll-behavior-y:contain;scroll-padding:16px;}
+.app-nativa #screen-auth,.app-nativa #screen-onboard,.app-nativa #screen-reset,.app-nativa #screen-app-error{overflow-y:auto;min-height:0;overscroll-behavior-y:contain;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+.app-nativa body:has(#modal.open) .app .screen>.scroll{overflow-y:hidden;}
+.app-nativa body:has(.confirm-overlay.open) .app .screen>.scroll{overflow-y:hidden;}
+.app-nativa #modal .modal-sheet{overscroll-behavior-y:contain;scroll-padding:64px 0 24px;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 12px);}
+.app-nativa.nativa-teclado .bottom-nav{visibility:hidden;pointer-events:none;}
+.app-nativa #modal input,.app-nativa #modal textarea,.app-nativa #modal select,.app-nativa #screen-auth input,.app-nativa #screen-onboard input{font-size:max(16px,1rem);}
+.app-nativa #ramo-subtitulo,.app-nativa .course-picker-sigla-fija,.app-nativa .catalogo-clase-ramos strong,.app-nativa .nativa-copiable,.app-nativa [data-copiable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+.app-nativa .nativa-conexion{margin:12px 16px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg2);font-size:.875rem;line-height:1.4;}
+.app-nativa .nativa-conexion[hidden]{display:none;}
+@media(prefers-reduced-motion:reduce){
+  .app-nativa{--motion-press:0ms;--motion-fast:0ms;--motion-base:0ms;--motion-screen:0ms;--motion-navegar:0ms;}
+  .app-nativa *,.app-nativa *::before,.app-nativa *::after{animation:none;transition:none;scroll-behavior:auto;}
+  .app-nativa button:active,.app-nativa #modal button:active,.app-nativa .confirm-overlay.open .confirm-box{transform:none;}
+  .app-nativa::view-transition-group(root),.app-nativa::view-transition-old(root),.app-nativa::view-transition-new(root){animation:none;}
+}
