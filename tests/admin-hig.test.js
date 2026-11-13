@@ -52,7 +52,7 @@ const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUs
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
    totales_metricas_anuncio:[{vista:'total',clave:'',tipo:'impresion',eventos:18}]};
   return {data:modo==='false'?false:n in datos?datos[n]:true,error:null};}}};
-vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'));
+vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../src/app/programas-pdf.js'),'utf8'),ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(path.join(__dirname,'../marketplace.js'),'utf8'));
 (async()=>{
  await run('renderAdmin()');assert.equal(calls.length,0,'Sin MFA no pide el panel');assert.equal(root.querySelectorAll('[data-admin-area]').length,0);
  pasar=true;await run('renderAdmin()');assert.match(root.innerHTML,/admin-hig-fila/);assert.match(root.innerHTML,/Clase &lt;sintética&gt;/);

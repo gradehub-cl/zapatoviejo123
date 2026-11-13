@@ -50,6 +50,7 @@
     "src/app/historial-agregar.js",
     "src/app/avance-curricular.js",
     "src/app/ficha-academica.js",
+    "src/app/programas-pdf.js",
     "src/app/datos-importar-exportar.js",
     "src/app/cuenta-borrado.js",
     "src/app/hojas-modales.js",
