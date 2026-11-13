@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "cl.gradehub.app",
       "sha256_cert_fingerprints": [
-        "F1:44:C2:04:15:CC:C7:DB:50:9A:F4:37:5C:03:0C:DC:AD:A2:E3:8A:B1:75:CA:B8:DD:E6:F0:F1:1E:FF:6E:39"
+        "F1:44:C2:04:15:CC:C7:DB:50:9A:F4:37:5C:03:0C:DC:AD:A2:E3:8A:B1:75:CA:B8:DD:E6:F0:F1:1E:FF:6E:39",
+        "1A:38:07:E3:5B:39:5F:00:23:3D:A9:00:72:63:DC:C7:F1:1D:C3:C6:03:0B:3C:DB:89:4B:66:06:E3:6F:A2:4F"
       ]
     }
   }
