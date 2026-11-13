@@ -89,7 +89,8 @@ function resumenParaWidgets(ahora){
       // una nota, no se sabe cuántas habrá), no va: no se inventa un porcentaje.
       parte:(p=>typeof p==='number'&&Number.isFinite(p)&&p>0?Math.round(p*10)/10:null)(pesoEventoAgenda(e))};
   });
-  return {version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
+  const clases=resumenHorarioClases(esCuentaProfesor()?[]:S.ramos,ahora);
+  return {...clases,version:WIDGETS_VERSION,actualizado:ahora.toISOString(),tenant:S.tenant||null,
     promedio:g===null?null:{oficial:notaFinalOficial(g),nivel:nivelNota(g)},ramos,agenda,pendientes:tareas,estadisticas};
 }
 let _pluginWidgets,_widgetsTimer=null;

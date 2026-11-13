@@ -40,6 +40,7 @@ function renderRecorreccionesHome(){
     </article>`).join('')}`;
 }
 function renderHome(){
+  renderClasesHoy();
   renderPropuestasPautaHome();
   renderRecorreccionesHome();
   renderWrappedHome();

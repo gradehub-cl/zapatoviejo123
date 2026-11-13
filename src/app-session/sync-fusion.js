@@ -149,6 +149,10 @@ function conciliarEdicionesNotasSync(f,b,l,n,clave=''){
   }
   if(!objetoSync(f))return f;
   const out={...f};
+  // Corre después de los atajos de igualdad: una app anterior puede omitir
+  // horario aun cuando la copia local sea idéntica a la base. [] sí es borrar.
+  if(Array.isArray(f.categorias)&&((l?.horario!==undefined)!==(n?.horario!==undefined)))
+    out.horario=clonarSync(l?.horario!==undefined?l.horario:n.horario);
   for(const k of ['ramos','categorias','notas','historial'])if(k in f)out[k]=conciliarEdicionesNotasSync(f[k],b?.[k],l?.[k],n?.[k],k);
   return out;
 }
