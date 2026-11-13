@@ -58,7 +58,7 @@ struct Resumen: Decodable {
 
 enum Almacen {
     // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
-    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app"
+    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app.shared"
     static let clave = "resumen.v1"
     static func leer() -> Resumen? {
         guard let texto = UserDefaults(suiteName: grupo)?.string(forKey: clave),
