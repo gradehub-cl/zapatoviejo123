@@ -82,6 +82,11 @@ Backend Supabase; hosting Cloudflare Pages. Fuentes/herramientas no se despliega
 - Carriles: `src/app/`, `src/app-session/`, `src/engine/`, `src/render-*/` → Codex;
   workflows, `sw.js`, estilos y `_headers` → Lucas; datos UC → Lucas, FEN/UAndes
   → Martín; iOS → Lucas/Martín en rama `ios`. Si sales del carril, dilo primero.
+- **Hasta el lanzamiento de la app (iOS y Android), lo nuevo va solo a la app**
+  (desde el 2026-11-13). Lo visible queda detrás de `enAppNativa()` o
+  `html.app-nativa`. En la web solo entran arreglos, seguridad, pautas y datos,
+  y el panel de profesores. Motor, sync y cálculo siguen siendo uno: nunca una
+  versión para la app y otra para la web.
 - Un PR, una cosa; refactor separado de feature. Más de ~3 archivos o archivos
   nuevos se acuerdan antes. Rebasea sobre `origin/main` antes de abrir **salvo**
   que `git log --oneline --merges origin/main..HEAD` devuelva merges: esa rama
