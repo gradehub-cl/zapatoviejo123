@@ -39,7 +39,7 @@ HIG valen igual que en la web.
 que git ignora (el ejemplo está en `Firma.xcconfig`). No elijas el Team en
 Signing & Capabilities: Xcode lo escribe en `project.pbxproj`, y si ese archivo
 aparece modificado sin que lo hayas tocado, no lo subas. Nunca registres
-`cl.gradehub.app` ni `group.cl.gradehub.app` con una cuenta personal. Si Xcode
+`cl.gradehub.app` ni `group.cl.gradehub.app.shared` con una cuenta personal. Si Xcode
 ofrece «Update to recommended settings», es Cancel.
 
 **Compilar y ver:**
