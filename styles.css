@@ -6,7 +6,7 @@
    el bloque de ritmo de más abajo. */
 button{font-family:inherit;transition:transform var(--motion-press) var(--ease-standard);}
 button:active{transform:scale(.97);}
-.ramo-row:active,.cat-header:active{transform:none;}
+.ramo-row:active{transform:none;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 /* El movimiento reducido se atiende entero al final del archivo, junto al
    bloque de ritmo. Acá había un `*{...:.01ms!important}` que apagaba todo. */
@@ -136,7 +136,7 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 .eval-row-info{flex:1;min-width:0;}
 .eval-row-name{font-size:0.9375rem;font-weight:600;color:var(--fg);}
 .eval-row-weight{font-size:0.75rem;color:var(--fg3);margin-top:2px;font-variant-numeric:tabular-nums;}
-.eval-row-weight b,.cat-peso-tag b{color:var(--secondary);font-weight:700;}
+.eval-row-weight b{color:var(--secondary);font-weight:700;}
 .eval-row-input{width:66px;min-height:44px;padding:10px 6px;border:1.5px solid var(--border2);border-radius:11px;background:var(--bg2);font-family:var(--font-ui);font-size:1.1875rem;font-weight:700;text-align:center;outline:none;transition:border var(--motion-fast) var(--ease-standard),box-shadow var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard);}
 .eval-row-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
 .eval-row-input::placeholder{color:var(--fg3);font-weight:400;}
@@ -1053,25 +1053,6 @@ button.solo-parte{min-height:44px;justify-content:flex-end;padding-top:0;padding
    pegadas al borde de la pantalla, con sus esquinas redondeadas cortadas. La
    sangría vive acá una sola vez, y los hijos ya no la repiten. */
 #cat-list{padding:0 20px;}
-.cat-card{margin:0 0 10px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
-.cat-header{display:flex;align-items:center;padding:13px 14px;cursor:pointer;gap:10px;transition:background var(--motion-press);}
-.cat-header:active{background:var(--muted);}
-.cat-info{flex:1;}
-.cat-name{font-size:0.9375rem;font-weight:600;color:var(--fg);}
-.cat-peso-tag{font-size:0.75rem;color:var(--fg3);margin-top:2px;}
-.cat-body{border-top:1px solid var(--border);padding:10px 14px 12px;display:none;}
-.cat-body.open{display:block;}
-.nota-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
-.nota-row:last-of-type{border-bottom:none;}
-.nota-row-dropped{opacity:.68;}
-.nota-row-name{flex:1;min-height:44px;display:flex;align-items:center;font-size:0.875rem;color:var(--fg2);}
-.nota-row-pond{font-size:0.6875rem;color:var(--fg3);background:var(--muted);border-radius:6px;padding:2px 7px;}
-.nota-row-drop-tag{font-size:0.6875rem;font-weight:700;color:var(--fg2);background:var(--muted);border-radius:999px;padding:3px 7px;white-space:nowrap;}
-.nota-row-val{font-size:0.875rem;font-weight:700;}
-.nota-row-del{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-width:44px;min-height:44px;background:none;border:none;cursor:pointer;color:var(--fg3);font-size:0.9375rem;padding:0;border-radius:6px;}
-.nota-row-del:hover{background:var(--red-bg);color:var(--red);}
-.add-nota-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:44px;margin-top:8px;padding:9px;border:1.5px dashed var(--border2);border-radius:10px;background:none;font-size:0.8125rem;color:var(--primary);font-weight:600;cursor:pointer;}
-.add-nota-btn:hover{background:var(--primary-light);}
 .drop-rule-note{font-size:0.75rem;line-height:1.45;color:var(--fg2);background:var(--muted);border-radius:9px;padding:9px 10px;margin:0 0 9px;}
 .add-cat-btn{display:flex;width:calc(100% - 32px);align-items:center;justify-content:center;gap:8px;margin:4px 16px 12px;padding:13px;border:1.5px dashed var(--border2);border-radius:var(--radius);background:none;font-size:0.875rem;color:var(--primary);font-weight:600;cursor:pointer;}
 .add-cat-btn:hover{background:var(--primary-light);}
@@ -2447,7 +2428,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 
 /* Todas las superficies tocables comparten una respuesta breve. En móvil el
    gesto es el feedback; el hover solo se habilita para puntero preciso. */
-.icon-btn,.avatar-btn,.topbar-link,.nav-item,.ramo-row,.insight-card,.stat-card,.ag-row,.eval-row,.eval-group,.cat-card,.cat-hit,.course-picker-result,.course-picker-manual,.tenant-opt,.s-tenant-btn,.carrera-opt,.sem-btn,.modo-opt,.btn-primary,.btn-cancel,.btn-confirm,.btn-danger,.btn-prim-sm,.ramo-action,.gpa-start-btn,.ag-empty-cta,.add-nota-btn,.add-cat-btn,.user-menu-item{
+.icon-btn,.avatar-btn,.topbar-link,.nav-item,.ramo-row,.insight-card,.stat-card,.ag-row,.eval-row,.eval-group,.cat-hit,.course-picker-result,.course-picker-manual,.tenant-opt,.s-tenant-btn,.carrera-opt,.sem-btn,.modo-opt,.btn-primary,.btn-cancel,.btn-confirm,.btn-danger,.btn-prim-sm,.ramo-action,.gpa-start-btn,.ag-empty-cta,.add-cat-btn,.user-menu-item{
   transition:transform var(--motion-press) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
@@ -2455,7 +2436,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
     color var(--motion-fast) var(--ease-standard),opacity var(--motion-fast) var(--ease-standard);
 }
 
-.icon-btn:active,.avatar-btn:active,.topbar-link:active,.nav-item:active,.ramo-row:active,.insight-card:active,.stat-card:active,.ag-row:active,.eval-row:active,.eval-group:active,.cat-card:active,.cat-hit:active,.course-picker-result:active,.course-picker-manual:active,.tenant-opt:active,.s-tenant-btn:active,.carrera-opt:active,.sem-btn:active,.modo-opt:active,.btn-primary:active,.btn-cancel:active,.btn-confirm:active,.btn-danger:active,.btn-prim-sm:active,.ramo-action:active,.gpa-start-btn:active,.ag-empty-cta:active,.add-nota-btn:active,.add-cat-btn:active,.user-menu-item:active{transform:scale(.985);}
+.icon-btn:active,.avatar-btn:active,.topbar-link:active,.nav-item:active,.ramo-row:active,.insight-card:active,.stat-card:active,.ag-row:active,.eval-row:active,.eval-group:active,.cat-hit:active,.course-picker-result:active,.course-picker-manual:active,.tenant-opt:active,.s-tenant-btn:active,.carrera-opt:active,.sem-btn:active,.modo-opt:active,.btn-primary:active,.btn-cancel:active,.btn-confirm:active,.btn-danger:active,.btn-prim-sm:active,.ramo-action:active,.gpa-start-btn:active,.ag-empty-cta:active,.add-cat-btn:active,.user-menu-item:active{transform:scale(.985);}
 
 /* Hover con desplazamiento, detrás de la barrera táctil.
    En un teléfono, tocar un elemento dispara :hover y el transform QUEDA PEGADO
@@ -2476,14 +2457,14 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 
 @media(hover:hover) and (pointer:fine){
   .insight-card:hover,.stat-card:hover,.ag-row:hover,.eval-row:hover,
-  .eval-group:hover,.cat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+  .eval-group:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
   .icon-btn:hover,.avatar-btn:hover,.topbar-link:hover,.nav-item:hover,.course-picker-result:hover,.course-picker-manual:hover,.tenant-opt:hover,.s-tenant-btn:hover,.carrera-opt:hover,.sem-btn:hover,.modo-opt:hover,.user-menu-item:hover{transform:translateY(-1px);}
-  .btn-primary:hover,.btn-cancel:hover,.btn-confirm:hover,.btn-danger:hover,.btn-prim-sm:hover,.ramo-action:hover,.gpa-start-btn:hover,.ag-empty-cta:hover,.add-nota-btn:hover,.add-cat-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
+  .btn-primary:hover,.btn-cancel:hover,.btn-confirm:hover,.btn-danger:hover,.btn-prim-sm:hover,.ramo-action:hover,.gpa-start-btn:hover,.ag-empty-cta:hover,.add-cat-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
 }
 
 /* Los bloques se leen como parte de una misma página gracias a un ritmo de
    borde y elevación, no con más gradientes ni colores decorativos. */
-.ramo-row,.insight-card,.stat-card,.ag-row,.eval-row,.eval-group,.cat-card{
+.ramo-row,.insight-card,.stat-card,.ag-row,.eval-row,.eval-group{
   will-change:transform;}
 .topbar{transition:border-color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard);}
 .bottom-nav{transition:border-color var(--motion-fast) var(--ease-standard),background-color var(--motion-fast) var(--ease-standard);}
@@ -2521,11 +2502,11 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-profesor,
   .app.tab-mode #screen-alumnos,
   .app.tab-mode #screen-admin{transition:none;will-change:auto;}
-  .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group,.cat-card{will-change:auto;}
+  .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group{will-change:auto;}
 
   /* Hundirse al tocar y levantarse al apuntar: el color y la sombra siguen
      respondiendo, el desplazamiento no. */
-  button:active,.ramo-action:active,.avatar-btn:active,.oauth-btn:active,.cat-hit:active,.tenant-opt:active,.btn-primary:active,.btn-primary:not(:disabled):active,.gpa-num:active,.gpa-start-btn:active,.sim-global-cta:active,.simg-step:active:not(:disabled),.insight-card:active,.ramo-row:active,.ag-row:active,.ag-priority-card:active,.ag-order-option:active,.ag-undated-action:active,.ag-empty-cta:active,.course-picker-result:active,.icon-btn:active,.topbar-link:active,.nav-item:active,.stat-card:active,.eval-row:active,.eval-group:active,.cat-card:active,.course-picker-manual:active,.s-tenant-btn:active,.carrera-opt:active,.sem-btn:active,.modo-opt:active,.btn-cancel:active,.btn-confirm:active,.btn-danger:active,.btn-prim-sm:active,.add-nota-btn:active,.add-cat-btn:active,.user-menu-item:active{transform:none;}
+  button:active,.ramo-action:active,.avatar-btn:active,.oauth-btn:active,.cat-hit:active,.tenant-opt:active,.btn-primary:active,.btn-primary:not(:disabled):active,.gpa-num:active,.gpa-start-btn:active,.sim-global-cta:active,.simg-step:active:not(:disabled),.insight-card:active,.ramo-row:active,.ag-row:active,.ag-priority-card:active,.ag-order-option:active,.ag-undated-action:active,.ag-empty-cta:active,.course-picker-result:active,.icon-btn:active,.topbar-link:active,.nav-item:active,.stat-card:active,.eval-row:active,.eval-group:active,.course-picker-manual:active,.s-tenant-btn:active,.carrera-opt:active,.sem-btn:active,.modo-opt:active,.btn-cancel:active,.btn-confirm:active,.btn-danger:active,.btn-prim-sm:active,.add-cat-btn:active,.user-menu-item:active{transform:none;}
 
   /* El sheet sube el 100% de su alto: es el desplazamiento más grande de la
      app. Sin transición el @starting-style deja de tener efecto y el sheet
@@ -2559,7 +2540,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
    anularlo también va detrás: fuera de ella no hay nada que anular, y una
    regla `:hover` suelta con transform es justo lo que el test prohíbe. */
 @media(prefers-reduced-motion:reduce) and (hover:hover) and (pointer:fine){
-  .insight-card:hover,.ramo-row:hover,.stat-card:hover,.ag-row:hover,.hist-card:hover,.eval-row:hover,.eval-group:hover,.cat-card:hover,.icon-btn:hover,.avatar-btn:hover,.topbar-link:hover,.nav-item:hover,.error-cta:hover,.course-picker-result:hover,.course-picker-manual:hover,.tenant-opt:hover,.s-tenant-btn:hover,.carrera-opt:hover,.sem-btn:hover,.modo-opt:hover,.user-menu-item:hover,.btn-primary:hover,.btn-cancel:hover,.btn-confirm:hover,.btn-danger:hover,.btn-prim-sm:hover,.ramo-action:hover,.gpa-start-btn:hover,.ag-empty-cta:hover,.add-nota-btn:hover,.add-cat-btn:hover,.section-hd-add:hover{transform:none;}
+  .insight-card:hover,.ramo-row:hover,.stat-card:hover,.ag-row:hover,.hist-card:hover,.eval-row:hover,.eval-group:hover,.icon-btn:hover,.avatar-btn:hover,.topbar-link:hover,.nav-item:hover,.error-cta:hover,.course-picker-result:hover,.course-picker-manual:hover,.tenant-opt:hover,.s-tenant-btn:hover,.carrera-opt:hover,.sem-btn:hover,.modo-opt:hover,.user-menu-item:hover,.btn-primary:hover,.btn-cancel:hover,.btn-confirm:hover,.btn-danger:hover,.btn-prim-sm:hover,.ramo-action:hover,.gpa-start-btn:hover,.ag-empty-cta:hover,.add-cat-btn:hover,.section-hd-add:hover{transform:none;}
 }
 
 /* ── El momento de la nota ───────────────────────────────────────────────
@@ -2630,7 +2611,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .topbar,.bottom-nav{background:var(--bg2);backdrop-filter:none;-webkit-backdrop-filter:none;}
   .modal-overlay{background:rgba(15,23,42,.9);}
   .modal-sheet{border:1px solid var(--fg3);}
-  .ramo-row,.insight-card,.stat-card,.eval-row,.eval-group,.cat-card{border-color:var(--fg3);}
+  .ramo-row,.insight-card,.stat-card,.eval-row,.eval-group{border-color:var(--fg3);}
 }
 
 /* Cargar un semestre anterior vive junto al historial porque es donde tiene
@@ -2742,11 +2723,11 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .ramo-hero{padding-top:24px;padding-bottom:24px;}
 .ramo-hero-label{color:var(--fg3);}
 .ramo-chip{border-radius:6px;font-weight:500;padding:7px 10px;line-height:1.4;}
-.eval-row,.eval-group,.cat-card{border-radius:8px;box-shadow:none;background:var(--card);}
+.eval-row,.eval-group{border-radius:8px;box-shadow:none;background:var(--card);}
 .eval-row,.eval-group{padding:14px 12px;}
-.eval-row-name,.cat-name{font-weight:550;line-height:1.35;}
+.eval-row-name{font-weight:550;line-height:1.35;}
 .eval-sub-name{line-height:1.4;}
-.eval-row-weight b,.cat-peso-tag b{color:var(--fg2);font-weight:500;}
+.eval-row-weight b{color:var(--fg2);font-weight:500;}
 input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .add-cat-btn{border:1px solid var(--border2);border-radius:8px;color:var(--fg2);margin-left:20px;margin-right:20px;width:calc(100% - 40px);}
 .empty-icon,.ag-empty-icon{background:var(--muted);color:var(--fg2);border-radius:10px;}
@@ -2783,7 +2764,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 
 @media(hover:hover) and (pointer:fine){
   .section-hd-add:hover{transform:none;background:var(--muted);box-shadow:none;}
-  .eval-row:hover,.eval-group:hover,.cat-card:hover,.stat-card:hover,.insight-card:hover,.ag-row:hover,.ag-priority-card:hover{transform:none;border-color:var(--border2);box-shadow:none;background:var(--muted);}
+  .eval-row:hover,.eval-group:hover,.stat-card:hover,.insight-card:hover,.ag-row:hover,.ag-priority-card:hover{transform:none;border-color:var(--border2);box-shadow:none;background:var(--muted);}
 }
 @media(min-width:768px){
   #home-ramos{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;}
@@ -2811,7 +2792,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
   .ramo-progress-track{background:var(--border2);}
   .ramo-progress-fill{background:var(--fg);}
   .ramo-row{outline:1px solid var(--border2);}
-  .modal-sheet,.ag-row,.ag-priority-card,.eval-row,.eval-group,.cat-card,.stat-card{border-color:var(--fg3);}
+  .modal-sheet,.ag-row,.ag-priority-card,.eval-row,.eval-group,.stat-card{border-color:var(--fg3);}
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -4613,23 +4594,22 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-serie-hd{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 #screen-ramo .ficha-serie-hd h2{margin:0;font-size:1rem;font-weight:650;}
 #screen-ramo .ficha-serie-hd>span{font-size:.8125rem;color:var(--fg2);}
-#screen-ramo .ficha-serie-lista>.eval-row,#screen-ramo .ficha-serie-lista>.eval-group,#screen-ramo .ficha-serie-lista>.cat-card{margin:0;padding:14px 0;border:0;border-top:1px solid var(--border);border-radius:0;background:none;box-shadow:none;}
+#screen-ramo .ficha-serie-lista>.eval-row,#screen-ramo .ficha-serie-lista>.eval-group{margin:0;padding:14px 0;border:0;border-top:1px solid var(--border);border-radius:0;background:none;box-shadow:none;}
 #screen-ramo .ficha-serie-lista{margin-top:14px;}
 #screen-ramo .ficha-serie-lista>*>.ficha-peso{display:none;}
 #screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:12px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;line-height:1.35;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;}
 #screen-ramo .ramo-actions>.ramo-action[hidden]{display:none;}
 #screen-ramo #cat-list{margin:0;padding:0 20px;}
-#screen-ramo .eval-group,#screen-ramo .cat-card{margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:none;}
+#screen-ramo .eval-group{margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:none;}
 #screen-ramo .eval-group-hd{min-height:44px;}
-#screen-ramo .eval-group-body,#screen-ramo .cat-body{margin-top:12px;padding-top:0;border:0;}
-#screen-ramo .cat-header{padding:0;background:none;}
-#screen-ramo .eval-sub,#screen-ramo .nota-row{min-height:60px;padding:10px 0;border:0;border-top:1px solid var(--border2);border-radius:0;background:none;box-shadow:none;}
+#screen-ramo .eval-group-body{margin-top:12px;padding-top:0;border:0;}
+#screen-ramo .eval-sub{min-height:60px;padding:10px 0;border:0;border-top:1px solid var(--border2);border-radius:0;background:none;box-shadow:none;}
 #screen-ramo .eval-sub-open{min-width:0;overflow-wrap:anywhere;}
-#screen-ramo .eval-sub-name,#screen-ramo .nota-row-name{font-weight:550;color:var(--fg);}
+#screen-ramo .eval-sub-name{font-weight:550;color:var(--fg);}
 #screen-ramo .eval-sub-fecha{color:var(--fg2);font-size:.75rem;}
 #screen-ramo .eval-row{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
 #screen-ramo .eval-row-info{flex:1;min-width:0;}
-#screen-ramo .eval-row-weight,#screen-ramo .cat-peso-tag{color:var(--fg2);}
+#screen-ramo .eval-row-weight{color:var(--fg2);}
 #screen-ramo .ficha-peso{width:100%;height:6px;margin-top:14px;overflow:hidden;border-radius:999px;background:var(--border2);}
 #screen-ramo .eval-row>.ficha-peso{flex-basis:100%;margin-top:0;}
 /* La barra mide solo el grupo: lo lleno es lo evaluado y la pista, lo que
