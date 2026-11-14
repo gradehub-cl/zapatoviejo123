@@ -141,13 +141,12 @@ function getColorRamo(r,n){
 //
 // Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
 // siempre YA es solo la cátedra, y repetir el mismo número confundiría.
-// `fmt` decide la coma decimal: el simulador la usa y la ficha no. `exacto`
-// agrega el promedio sin redondear, como el número grande al tocarlo.
-function htmlSoloCatedra(r,{fmt=x=>x,exacto=null}={}){
+// `exacto` agrega el promedio sin redondear, como el número grande al tocarlo.
+function htmlSoloCatedra(r,{exacto=null}={}){
   const partes=partesDelVinculo(r);
   if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
   const v=partes.propio.valor;
-  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
+  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmtPromedio(v)}</span>`+
     `<span class="solo-parte-label">Solo cátedra${exacto?` · ${exacto(v)}`:''}</span>`;
 }
 // Lo que falta para aprobar. En un ramo con laboratorio habla solo de la
@@ -179,7 +178,7 @@ function textoDescarte(cat,descarte){
   const notas=descarte.dropped||[];
   const cantidad=notas.length;
   const propia=cat.descarteOrigen==='editor';
-  const lista=notas.map(n=>`${n.name} (${propia?fmt(n.value).replace('.',','):fmt(n.value)})`).join(', ');
+  const lista=notas.map(n=>`${n.name} (${fmt(n.value)})`).join(', ');
   const regla=cat.dropLowest||{};
   let redondeo='';
   if(typeof regla.fraction==='number'){

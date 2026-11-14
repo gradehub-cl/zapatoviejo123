@@ -126,7 +126,7 @@ chk('y no se registra un descarte automático', !res.drops.some(d => d.nodeId ==
 const resumenDescarte=vm.runInContext('textoDescarte', ctx);
 const resumenSeis=resumenDescarte({dropLowest:{fraction:.25}},{rendidas:6,dropped:[{id:'a',name:'Control 1',value:2}]});
 chk('la explicación del descarte muestra la nota y el redondeo conservador',
-  /Control 1 \(2\.0\)/.test(resumenSeis) && /25%/.test(resumenSeis) && /6 evaluaciones rendidas/.test(resumenSeis) && /equivale a 1 nota/.test(resumenSeis) && /redondea hacia abajo/.test(resumenSeis));
+  /Control 1 \(2,0\)/.test(resumenSeis) && /25%/.test(resumenSeis) && /6 evaluaciones rendidas/.test(resumenSeis) && /equivale a 1 nota/.test(resumenSeis) && /redondea hacia abajo/.test(resumenSeis));
 
 console.log('\n=== Los ramos que no declaran la regla calculan igual que antes ===');
 const micro = vm.runInContext('presetRamo', ctx)('Introducción a la Microeconomía', 'fen', null);

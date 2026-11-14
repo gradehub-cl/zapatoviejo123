@@ -73,12 +73,13 @@ function resumenParaWidgets(ahora){
   // Lo de hoy o mañana no va: el widget lo saca de la agenda, que sabe la hora.
   const tareas=pendientes(ahora).filter(p=>p.tipo!=='hoy').slice(0,12).map(p=>({tipo:p.tipo,ramoId:p.ramo.id,ramo:p.ramo.nombre,
     sigla:sigla(p.ramo),color:p.ramo.color||null,evaluacion:p.nombre,fecha:p.fecha}));
-  // Las mismas cifras de Estadísticas (renderStats), escritas como allá.
+  // Las mismas cifras de Estadísticas (renderStats). Van con PUNTO (`…Dato`):
+  // los widgets Swift las leen con Locale en_US_POSIX; la coma es solo de pantalla.
   const proy=proyeccionSemestre(S.ramos),exige=loQueFaltaPorRamo(S.ramos)[0];
   const estadisticas={avance:avanceEvaluaciones(S.ramos).pct,
-    rango:proy&&{piso:nf(proy.piso),techo:nf(proy.techo),nivelPiso:nivelNota(proy.piso),nivelTecho:nivelNota(proy.techo)},
+    rango:proy&&{piso:nfDato(proy.piso),techo:nfDato(proy.techo),nivelPiso:nivelNota(proy.piso),nivelTecho:nivelNota(proy.techo)},
     exigente:exige?{ramoId:exige.ramo.id,ramo:exige.ramo.nombre,color:exige.ramo.color||null,
-      necesitas:exige.necesita>7.05?null:nfNecesaria(Math.max(1,exige.necesita))}:null};
+      necesitas:exige.necesita>7.05?null:nfNecesariaDato(Math.max(1,exige.necesita))}:null};
   const agenda=agendaEvents().filter(e=>e.pending&&e.fecha>=hoy).slice(0,8).map(e=>{
     const cuatro=notaParaIrConCuatro(e)||{};
     return {ramoId:e.ramo.id,ramo:e.ramo.nombre,sigla:sigla(e.ramo),color:e.ramo.color||null,

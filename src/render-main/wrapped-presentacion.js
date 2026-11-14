@@ -44,9 +44,9 @@ function slidesWrapped(d,comp,label,recado){
   if(d.movio)s.push({sup:'papel',prep:{texto:'Hubo una nota que lo cambió todo.'},
     k:'Una sola nota.',big:cifraWrapped('+'+fmt(d.movio.delta)),flecha:true,sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio.`});
   if(d.remontada)s.push({sup:'pizarron',prep:{texto:'Esta es la historia de una remontada.'},
-    k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${c(fmtPromedio(d.remontada.minimo))}.`,titulo:'Terminó en',big:cifraWrapped(fmtPromedio(d.remontada.final),1),nota:'Nadie lo vio venir. Tú sí.'});
+    k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${fmtPromedio(d.remontada.minimo)}.`,titulo:'Terminó en',big:cifraWrapped(fmtPromedio(d.remontada.final),1),nota:'Nadie lo vio venir. Tú sí.'});
   if(d.mejor)s.push({tipo:'goma',sup:'papel',prep:{texto:'Tu mejor nota quedó escondida.',sub:'Bórrala para verla.'},
-    titulo:`Tu ${hojaMarca('mejor nota')}`,cifra:c(fmt(d.mejor.valor)),
+    titulo:`Tu ${hojaMarca('mejor nota')}`,cifra:fmt(d.mejor.valor),
     nota:`<b>${esc(d.mejor.ramo)}</b><br>${esc(d.mejor.evaluacion)}`,sub:d.mejor.valor>=7?'Nada más que decir.':''});
   if(d.ranking.length>1){
     const opciones=d.ranking.slice(0,4).map(x=>({texto:esc(x.nombre),correcta:x===d.ranking[0]}));
@@ -54,7 +54,7 @@ function slidesWrapped(d,comp,label,recado){
     s.push({tipo:'pregunta',sup:'rayado',titulo:'¿Cuál fue tu mejor ramo?',
       pregunta:{opciones:opciones.map((o,i)=>opciones[(i+giro)%opciones.length]),bien:'Lo sabías.',mal:'Tus notas dicen otra cosa.'},
       viz:rankingWrapped(d.ranking)});
-  }else s.push({sup:'rayado',titulo:`Tu ramo estrella: ${hojaMarca(esc(d.estrella.r.nombre),2)}`,sub:`Tu mejor promedio: ${c(fmtPromedio(d.estrella.avg))}.`});
+  }else s.push({sup:'rayado',titulo:`Tu ramo estrella: ${hojaMarca(esc(d.estrella.r.nombre),2)}`,sub:`Tu mejor promedio: ${fmtPromedio(d.estrella.avg)}.`});
   // "Lo sacaste adelante" solo si de verdad lo aprobó: el resumen no celebra
   // lo que el semáforo pinta rojo.
   if(d.dificil)s.push({sup:'pizarron',prep:{texto:'Ahora, el que más pelea dio.'},
@@ -62,13 +62,13 @@ function slidesWrapped(d,comp,label,recado){
     sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía quedan evaluaciones por registrar.':notaAprobadaRamo(d.dificil.r,d.dificil.avg)?'Y lo sacaste adelante.':'Un ramo no te define. El próximo va con todo lo que aprendiste.'});
   if(dificil){
     const buenas=[`Anotaste <b>${d.nNotas}</b> nota${pl(d.nNotas)}. No te escondiste de ninguna.`];
-    if(d.mejor)buenas.push(`Sacaste un <b>${c(fmt(d.mejor.valor))}</b> en ${esc(d.mejor.ramo)}.`);
+    if(d.mejor)buenas.push(`Sacaste un <b>${fmt(d.mejor.valor)}</b> en ${esc(d.mejor.ramo)}.`);
     buenas.push(d.aprobando?`Sacaste adelante <b>${d.aprobando}</b> ramo${pl(d.aprobando)}.`:'Llegaste hasta el final. Eso también cuenta.');
     s.push({tipo:'animo',sup:'papel',prep:{texto:'Este semestre pesó.',sub:'Lo sabemos.'},
       titulo:'Pero no fue solo eso.',viz:corchoWrapped(buenas),sub:'El próximo empieza con todo lo que aprendiste en este.'});
   }
   if(d.personalidad){
-    const p=d.personalidad,m=d.mitades,dato=p.id==='remontada'&&m?`<br><small>Tu 2.ª mitad del semestre promedió <b>${c(fmt(m.segunda))}</b>; la 1.ª, <b>${c(fmt(m.primera))}</b>.</small>`:'';
+    const p=d.personalidad,m=d.mitades,dato=p.id==='remontada'&&m?`<br><small>Tu 2.ª mitad del semestre promedió <b>${fmt(m.segunda)}</b>; la 1.ª, <b>${fmt(m.primera)}</b>.</small>`:'';
     s.push({tipo:'pregunta',sup:'papel',prep:{texto:'Una pregunta más.',sub:'Esta es sobre ti.'},
       titulo:'¿Qué tipo de estudiante fuiste?',pregunta:{opciones:p.opciones.map(o=>({texto:esc(o.nombre),correcta:o.id===p.id})),
         bien:'Te conoces bien.',mal:'Tus notas te ven así:'},
@@ -105,8 +105,8 @@ function slidesWrapped(d,comp,label,recado){
   const filas=[];
   if(d.personalidad)filas.push(['¿Qué tipo de estudiante fuiste?',esc(d.personalidad.nombre),d.personalidad.letra]);
   filas.push(['Ramo estrella',esc(d.estrella.r.nombre)]);
-  if(d.mejor)filas.push(['Mejor nota',c(fmt(d.mejor.valor))]);
-  s.push({tipo:'final',k:esc(label),nombre,big:d.gpa!==null?c(fmtPromedio(d.gpa)):null,filas});
+  if(d.mejor)filas.push(['Mejor nota',fmt(d.mejor.valor)]);
+  s.push({tipo:'final',k:esc(label),nombre,big:d.gpa!==null?fmtPromedio(d.gpa):null,filas});
   return s;
 }
 // Pide el recado al servidor y firma sus archivos (el bucket es privado). Ante

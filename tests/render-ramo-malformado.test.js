@@ -115,7 +115,7 @@ const avance=val('ramoProgress')(labConInforme);
 error=null;try{val('renderRamo')();}catch(e){error=e;}
 const informesConNota=byId('cat-list').children[1];
 chk('la primera nota abre el grupo y deja visible su valor',
-  error===null&&/eval-group-body open/.test(informesConNota?.innerHTML||'')&&/value="5\.4"/.test(informesConNota?.innerHTML||''));
+  error===null&&/eval-group-body open/.test(informesConNota?.innerHTML||'')&&/value="5,4"/.test(informesConNota?.innerHTML||''));
 val('openCats')[informes.id]=false;val('renderRamo')();
 chk('si se cerró a mano conserva esa decisión',
   !/eval-group-body open/.test(byId('cat-list').children[1]?.innerHTML||''));
@@ -131,7 +131,7 @@ vm.runInContext(`S={...freshState(),ramos:${JSON.stringify(ramaRecargada.ramos)}
 error=null;try{val('renderRamo')();}catch(e){error=e;}
 const informesTrasRecargar=byId('cat-list').children[1];
 chk('Informe 0 sigue asociado a su casilla después de normalizar y recargar',
-  error===null&&informeRecargado.notas[0]?.slot===0&&/value="5\.4"/.test(informesTrasRecargar?.innerHTML||''));
+  error===null&&informeRecargado.notas[0]?.slot===0&&/value="5,4"/.test(informesTrasRecargar?.innerHTML||''));
 const respaldoSinSlot=JSON.parse(JSON.stringify(ramaRecargada));
 delete respaldoSinSlot.ramos[0].categorias.find(c=>c.nombre==='Informes').notas[0].slot;
 const legadoRecuperado=val('normalize')(respaldoSinSlot).ramos[0].categorias.find(c=>c.nombre==='Informes');

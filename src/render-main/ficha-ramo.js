@@ -9,7 +9,7 @@ function alternarPromedioExacto(){promedioExactoVisible=!promedioExactoVisible;}
 function fmtPromedioExacto(n){
   // El 1e-9 evita que un 3,95 guardado como 3,9499999… se trunque a 3,949.
   const t=Math.floor((Number(n)+1e-9)*1000)/1000;
-  return t.toFixed(3).replace(/0$/,'');
+  return t.toFixed(3).replace(/0$/,'').replace('.',',');
 }
 function pintarPromedioExacto(id,valor){
   const el=document.getElementById(id);if(!el)return;
@@ -24,7 +24,7 @@ function toggleReglasRamo(id){
 // Lucas, 2026-11-03: la ficha vuelve al mensaje; el medidor queda en Estadísticas.
 // `donde` cambia solo el lugar: con notas sombra fijadas es «en las otras pendientes».
 function medidorFichaHTML(needed,cual='',condicional=false,donde='en lo pendiente'){
-  const cifra=needed>7?'':nfNecesaria(needed).replace('.',',');
+  const cifra=needed>7?'':nfNecesaria(needed);
   const lectura=needed>7?`Ya no es posible aprobar${cual}`:condicional?`Con ${cifra} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${cifra} ${donde} para aprobar${cual}`;
   const numero=needed>7?'':`<strong style="color:${esc(exigenciaNotaNecesaria(needed).color)}">${esc(cifra)}</strong>`;
   const mensaje=needed>7?esc(lectura):condicional?`Con ${numero} en cada evaluación pendiente llegas al 4,0`:`Necesitas ${numero} ${esc(donde)} para aprobar${esc(cual)}`;
@@ -148,7 +148,7 @@ function renderRamo(){
   const descartes=calculo.res.drops||[];
   const avgEl=document.getElementById('ramo-hero-avg');
   if(avg!==null){
-    const s=fmtPromedio(avg);const dot=s.indexOf('.');
+    const s=fmtPromedio(avg);const dot=s.indexOf(',');
     avgEl.innerHTML=`${s.slice(0,dot)}<span class="ramo-decimal">${s.slice(dot)}</span>`;
     avgEl.className='ramo-num '+colorClassRamo(r,avg)+claseNotaEspecial(avg);
     avgEl.style.setProperty('--grade-color',getColorRamo(r,avg));
@@ -314,7 +314,7 @@ function renderRamo(){
   } else {chipEl.style.display='none';}
 
   const paraEximir=notaNecesariaEximicion(r);
-  if(paraEximir!==null&&paraEximir<=7)chipEl.innerHTML+=`<span class="ficha-mensaje">Podrías eximirte con ${esc(nfNecesaria(paraEximir).replace('.',','))} en las evaluaciones previas pendientes, si cumples la asistencia.</span>`;
+  if(paraEximir!==null&&paraEximir<=7)chipEl.innerHTML+=`<span class="ficha-mensaje">Podrías eximirte con ${esc(nfNecesaria(paraEximir))} en las evaluaciones previas pendientes, si cumples la asistencia.</span>`;
 
   if(contextoVinculo?.soloCatedra&&/^.[ ](?:Aprobado|Reprobado)$/.test(chipEl.textContent))chipEl.textContent+=' · solo cátedra';
 
@@ -404,13 +404,13 @@ function renderRamo(){
   // afirma la eximición sola.
   const ew=document.getElementById('eximicion-warning');
   if(ew&&eximicion?.regla.notaExamen==='maxima'){
-    const presentacion=eximicion.promedio===null?'Pendiente':fmtPromedioExacto(eximicion.promedio).replace('.',',');
+    const presentacion=eximicion.promedio===null?'Pendiente':fmtPromedioExacto(eximicion.promedio);
     ew.style.display='block';ew.className='weight-setup-nudge eximicion-note mejoras-programa';
     ew.innerHTML=`<div class="mejoras-programa-contenido"><b>Eximición del examen</b>
       <p>Presentación: ${esc(presentacion)} · mínimo ${esc(String(eximicion.regla.min).replace('.',','))}.</p>
 
 
-      <p>${eximicion.activa?`Te eximiste. El examen conserva su peso y vale ${nf(eximicion.notaExamen).replace('.',',')}, la mayor nota previa.`:eximicion.razon==='examen_rendido'?'La nota de examen que ingresaste se conserva.':eximicion.razon==='asistencia'?(faltasActivas(r)?`Con ${r.faltas.cantidad} inasistencias no cumples el máximo de ${eximicion.regla.maxInasistencias}.`:'Activa tu contador de inasistencias para comprobar la asistencia.'):eximicion.pendiente?'Al completar las evaluaciones previas se comprobará si puedes eximirte.':eximicion.elegible?'La eximición se calcula con tus notas y el contador de inasistencias.':'Todavía no alcanzas el mínimo para eximirte.'}</p>
+      <p>${eximicion.activa?`Te eximiste. El examen conserva su peso y vale ${nf(eximicion.notaExamen)}, la mayor nota previa.`:eximicion.razon==='examen_rendido'?'La nota de examen que ingresaste se conserva.':eximicion.razon==='asistencia'?(faltasActivas(r)?`Con ${r.faltas.cantidad} inasistencias no cumples el máximo de ${eximicion.regla.maxInasistencias}.`:'Activa tu contador de inasistencias para comprobar la asistencia.'):eximicion.pendiente?'Al completar las evaluaciones previas se comprobará si puedes eximirte.':eximicion.elegible?'La eximición se calcula con tus notas y el contador de inasistencias.':'Todavía no alcanzas el mínimo para eximirte.'}</p>
       <small>La asistencia usa tu contador de inasistencias: hasta ${eximicion.regla.maxInasistencias} para eximirte.</small>${!faltasActivas(r)?'<button type="button" onclick="openEditRamoModal()">Activar el contador en Editar ramo</button>':''}</div>`;
   }else if(ew&&eximicion&&eximicion.regla.requiereConfirmacion===true){
     let texto='',accion='';
@@ -496,7 +496,7 @@ function renderRamo(){
           const vigente=reglasBonusVigentes(r).some(x=>x.id===b.id);
           const detalle=!vigente?'Esta regla necesita la pauta del programa. Tus evaluaciones se conservan.'
             :resultados.some(m=>m.pendiente)?'Se aplicará cuando estén todas las notas necesarias.'
-            :resultados.filter(m=>m.destinoId).map(m=>`${r.categorias.find(c=>c.id===m.destinoId)?.nombre}: ${nf(m.antes).replace('.',',')} pasa a ${nf(m.valor).replace('.',',')}.`).join(' ');
+            :resultados.filter(m=>m.destinoId).map(m=>`${r.categorias.find(c=>c.id===m.destinoId)?.nombre}: ${nf(m.antes)} pasa a ${nf(m.valor)}.`).join(' ');
           if(b.entrada==='confirmacion')return `<div class="bonus-card mejoras-programa mejora-texto"><label class="mejoras-interruptor"><span>${esc(b.pregunta)}</span><input type="checkbox" role="switch"${valor===true?' checked':''} onchange="declararMejora('${esc(b.id)}',this.checked)"></label>
             <details class="mejora-ayuda"><summary aria-label="Cómo cuenta presentar un texto"><span aria-hidden="true">?</span></summary><p>${esc(b.ayuda)} Se elige la de mayor peso si hay empate. Las notas originales se conservan.</p></details>${detalle?`<p aria-live="polite">${esc(detalle)}</p>`:''}</div>`;
           const n=Number.isInteger(valor)?valor:0;
@@ -721,7 +721,7 @@ function renderRamo(){
       }
       const g=notas[0]?notas[0].valor:null;
       const derivada=typeof calculoCategoria?.value==='number'&&(exenta||g!==null&&Math.abs(calculoCategoria.value-g)>1e-9)
-        ?`<div class="eval-row-weight">Cuenta como ${nf(calculoCategoria.value).replace('.',',')}${exenta?' por eximición':' con los beneficios'}</div>`:'';
+        ?`<div class="eval-row-weight">Cuenta como ${nf(calculoCategoria.value)}${exenta?' por eximición':' con los beneficios'}</div>`:'';
       const recorreccion=notas[0]&&notas[0].recorreccionPendiente===true;
       const textoRecorreccion=recorreccion?textoPlazoRecorreccion(plazoRecorreccion(notas[0],cat,S.tenant)):'';
       const row=document.createElement('div');row.className='eval-row';
@@ -731,7 +731,7 @@ function renderRamo(){
           <div class="eval-row-name">${esc(cat.nombre)}</div>${derivada}
           <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value).replace('.',',')}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value)}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
       adjuntarCategoria(row,cat);

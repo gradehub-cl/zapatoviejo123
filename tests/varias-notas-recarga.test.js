@@ -49,11 +49,11 @@ comprobar('dos casillas guardan notas distintas',cat.notas.length===2&&cat.notas
 comprobar('el modelo conserva promedio 5,1 y avance 40%',run('ramoAvg(S.ramos[0])')===5.1&&run('ramoProgress(S.ramos[0]).pct')===40);
 recargar();
 let html=ficha();
-comprobar('al recargar aparecen ambas notas y la tercera casilla pendiente',/eval-group-body open/.test(html)&&/value="5\.0"/.test(html)&&/value="5\.2"/.test(html)&&html.includes(etiqueta(2)));
+comprobar('al recargar aparecen ambas notas y la tercera casilla pendiente',/eval-group-body open/.test(html)&&/value="5,0"/.test(html)&&/value="5,2"/.test(html)&&html.includes(etiqueta(2)));
 run('openPautaManualModal()');
 comprobar('el editor reabre la pauta como varias notas con tres casillas',run("pautaDraft.find(f=>f.nombre==='Controles')?.varias")===true&&run("pautaDraft.find(f=>f.nombre==='Controles')?.cantidad")===3);
 run('guardarPautaManual()');
-comprobar('guardar la pauta de nuevo no borra ni esconde las notas',/value="5\.0"/.test(ficha())&&/value="5\.2"/.test(ficha()));
+comprobar('guardar la pauta de nuevo no borra ni esconde las notas',/value="5,0"/.test(ficha())&&/value="5,2"/.test(ficha()));
 
 console.log('\n=== Lista abierta, cuando no se conoce cuántos controles habrá ===');
 run(`S={...freshState(),ramos:[{id:'r2',nombre:'Otro ramo',color:'#6d5dd3',categorias:[],gates:[]}]};currentRamoId='r2';
@@ -79,6 +79,6 @@ porId('m-nota-name').value='Taller 1';porId('m-nota-val').value='5.1';porId('m-n
 ctx.__talleresId=talleres.id;
 run('confirmAddNota(__talleresId)');
 recargar();run(`openCats['${talleres.id}']=true`);
-comprobar('la nota creada desde la ficha sigue visible tras recargar',/Taller 1/.test(ficha())&&/5\.1/.test(ficha()));
+comprobar('la nota creada desde la ficha sigue visible tras recargar',/Taller 1/.test(ficha())&&/5,1/.test(ficha()));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

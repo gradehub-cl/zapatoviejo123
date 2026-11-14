@@ -43,7 +43,7 @@ function htmlEscalaNotas({piso,techo,actual=null,color='var(--primary)'}){
   return `<div class="escala-notas" aria-hidden="true"><span class="escala-pista"></span>
     <span class="escala-banda" style="left:${x(piso)};width:calc(${x(techo)} - ${x(piso)});--escala-color:${color}"></span>
     ${actual===null?'':`<span class="escala-hoy" style="left:${x(actual)}"></span><span class="escala-hoy-txt" style="left:${x(actual)}">hoy ${fmtPromedio(actual)}</span>`}
-    <span class="escala-cuatro" style="left:${x(4)}">4.0</span><span class="escala-ext">1.0</span><span class="escala-ext escala-ext-fin">7.0</span></div>`;
+    <span class="escala-cuatro" style="left:${x(4)}">4,0</span><span class="escala-ext">1,0</span><span class="escala-ext escala-ext-fin">7,0</span></div>`;
 }
 // Barra que sale del centro: hacia la derecha suma, hacia la izquierda resta.
 function htmlBarraCentrada(valor,max,color){
