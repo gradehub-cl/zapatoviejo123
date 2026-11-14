@@ -6,7 +6,10 @@ function arnes(){
   const ctx={currentUser:{id:'a'},location:{origin:'https://gradehub.test'},document:{getElementById:()=>campo},
     supabaseClient:{rpc:()=>new Promise((resolve,reject)=>pendientes.push({resolve,reject}))},
     navigator:{clipboard:{writeText:async t=>{copias.push(t);}}},showToast:m=>avisos.push(m),track(){}};
-  vm.createContext(ctx);vm.runInContext(app.slice(app.indexOf('let _feedUrl=null;'),app.indexOf('\n}',app.indexOf('function revocarFeedCalendario'))+2),ctx);
+  vm.createContext(ctx);
+  // La URL pública la arma paginaPublica (en la app iOS no es location.origin).
+  vm.runInContext(app.slice(app.indexOf('function enAppNativa'),app.indexOf('// La clase html.app-nativa')),ctx);
+  vm.runInContext(app.slice(app.indexOf('let _feedUrl=null;'),app.indexOf('\n}',app.indexOf('function revocarFeedCalendario'))+2),ctx);
   return {ctx,pendientes,copias,avisos,run:c=>vm.runInContext(c,ctx),campo:()=>campo,reemplazar:()=>campo={value:'',select(){}}};
 }
 (async()=>{

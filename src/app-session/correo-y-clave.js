@@ -135,7 +135,7 @@ async function recuperarClaveCuenta(){
   const original=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Enviando…';}
   try{
-    const {error}=await supabaseClient.auth.resetPasswordForEmail(usuario.email,{redirectTo:location.origin+location.pathname});
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(usuario.email,{redirectTo:paginaPublica()});
     if(currentUser!==usuario)return false;
     if(error)throw error;
     estadoCambioClave('Revisa el correo de acceso de tu cuenta. Desde el enlace podrás elegir una contraseña nueva.',false);
