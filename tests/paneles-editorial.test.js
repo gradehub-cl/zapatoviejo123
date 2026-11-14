@@ -134,7 +134,7 @@ run(`globalThis.fichaAl={id:'ficha-sintetica',tenant:'uc',nombre_visible:'Alumno
 const estadoAntes=run('JSON.stringify(S)'),ramoAntes=run('JSON.stringify(fichaAl.ramos)');
 const datos=json('datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp)');
 assert(Math.abs(datos.promedio-4.5333333333)<1e-6);
-assert.equal(String(run('nfNecesaria(datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp).necesaria)')),'3.1');
+assert.equal(String(run('nfNecesaria(datosFichaAlumnoPanel(fichaAl,fichaAl.ramos[0],fichaComp).necesaria)')),'3,1');
 assert(Math.abs(datos.metricas.antes.diferencia+.5333333333)<1e-6);
 assert(Math.abs(datos.metricas.ahora.diferencia-.6666666667)<1e-6);
 assert(Math.abs(datos.metricas.cambio-1.2)<1e-6);

@@ -162,7 +162,7 @@ function renderHome(){
     if(good)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${good} aprobado${good!==1?'s':''}</span>`);
     if(goodEnCurso)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot good"></span>${goodEnCurso} ${goodEnCurso===1?'va':'van'} aprobando</span>`);
     if(warn)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot warn"></span>${warn} en riesgo</span>`);
-    if(bad)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot bad"></span>${bad} bajo 4.0</span>`);
+    if(bad)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot bad"></span>${bad} bajo 4,0</span>`);
     if(pend)parts.push(`<span class="gpa-tag"><span class="gpa-tag-dot neutral"></span>${pend} pendiente${pend!==1?'s':''}</span>`);
     tagsEl.innerHTML=parts.join('');
     tagsEl.style.display=parts.length?'flex':'none';

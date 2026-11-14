@@ -16,6 +16,6 @@ assert.equal((ctx.notaFinalOficial(5.2)+ctx.notaFinalOficial(5.2898))/2,5.25,'pr
 comprobar([ramo('a',5.42)],'5,4');comprobar([ramo('a',5.25)],'5,3');comprobar([ramo('a',5.2,15),ramo('b',5.2898,5)],'5,2');comprobar([ramo('a',5.2,null),ramo('b',5.2898,5)],'5,2');
 for(const [v,esperado] of [[5.42,'5,4'],[5.2449,'5,2'],[5.25,'5,3'],[3.95,'4,0'],[3.949,'3,9'],[4,'4,0'],[null,'—'],[NaN,'—'],[Infinity,'—']])assert.equal(ctx.fmtPromedioGeneral(v),esperado);
 for(const [v,esperado] of [[0.04,'0,04'],[0.105,'0,11'],[0,'0,00']])assert.equal(ctx.fmtDiferenciaPromedio(v),esperado);
-assert.equal(ctx.fmtPromedio(3.98),'4.0','el formato de nota final de ramo sigue a la décima');assert.equal(ctx.notaFinalOficial(3.98),4);
+assert.equal(ctx.fmtPromedio(3.98),'4,0','el formato de nota final de ramo sigue a la décima');assert.equal(ctx.notaFinalOficial(3.98),4);
 assert.match(run('hitosEvolucionHTML([{nombre:"P",ramo:"R",nota:5.2,valor:5.225,delta:null}],1)'),/Promedio 5,2/);
 console.log('OK promedio general a la décima: 5,42→5,4; 3,949→3,9; 3,95→4,0; Inicio y Estadísticas iguales; diferencias con dos decimales');

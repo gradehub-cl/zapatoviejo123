@@ -36,7 +36,7 @@ chk('ningún archivo formatea la nota necesaria a mano'+(hallazgos.length?'\n   
 console.log('\n=== Y el formateador existe y redondea hacia arriba ===');
 const app=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
 chk('nfNecesaria está definida', /function nfNecesaria\(/.test(app));
-chk('y usa Math.ceil, no Math.round', /function nfNecesaria\([\s\S]{0,300}?Math\.ceil/.test(app));
+chk('y usa Math.ceil, no Math.round', /function nfNecesariaDato\([\s\S]{0,300}?Math\.ceil/.test(app)&&/function nfNecesaria\(n\)\{return notaConComa\(nfNecesariaDato\(n\)\);\}/.test(app));
 
 console.log('\n=== Se usa en los tres archivos que dibujan ===');
 ARCHIVOS.forEach(f=>{

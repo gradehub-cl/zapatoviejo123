@@ -12,7 +12,7 @@ function ramoParaPanel(r){
 // aunque todas las notas de la cátedra estén sobre 4.
 function motivoPromedioAlumnoPanel(r,contexto){
   if(estadoEximicion(r)?.activa)return '';
-  const coma=v=>fmtPromedio(v).replace('.',',');
+  const coma=v=>fmtPromedio(v);
   const g=gatesActivas(r)[0];
   if(g){
     const final=typeof g.cap!=='number'?'reprueba aunque el promedio dé más'
@@ -261,7 +261,7 @@ function resumenRamosVistaPanel(alumnos,compDe,{seccion=false,soloPruebas=false}
 }
 function resumenAlumnosPanelHTML(resumen,{seccion=false,soloPruebas=false,filtros=false,abiertos=new Set(),marcar=false}={}){
   if(!resumen.length)return '<p class="profesor-hig-vacio">Todavía no hay ramos compartidos.</p>';
-  const nota=v=>Number.isFinite(v)?cifraNotaPrivada(fmtPromedio(v)):'—';
+  const nota=v=>Number.isFinite(v)?fmtPromedio(v):'—';
   const alumnos=n=>`${n} ${n===1?'alumno':'alumnos'}`;
   const refDe=g=>soloPruebas
     ?{promedio:g.referenciaPruebas??null,personas:null}

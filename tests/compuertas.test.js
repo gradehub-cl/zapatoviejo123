@@ -131,12 +131,12 @@ const lecturaRamo={id:'lectura',categorias:[
   {id:'ya',peso:50,notas:[{id:'n',valor:3.0,peso:1}]},
   {id:'falta',peso:50,notas:[]}
 ],gates:[]};
-if(ctx.lecturaDespuesDeNota(lecturaRamo).includes('necesitas 4.9')){ok++;console.log('  OK   explica la nota necesaria en lo pendiente');}
+if(ctx.lecturaDespuesDeNota(lecturaRamo).includes('necesitas 4,9')){ok++;console.log('  OK   explica la nota necesaria en lo pendiente');}
 else {fail++;console.log('  FAIL lectura post-nota → '+ctx.lecturaDespuesDeNota(lecturaRamo));}
 const lecturaConTope={id:'tope',categorias:[
   {id:'ex',nombre:'Examen',peso:100,notas:[{id:'n',valor:2.5,peso:1}]}
 ],gates:[{type:'min_grade_required',catId:'ex',min:3.0,cap:3.9,nombre:'Examen'}]};
-if(ctx.lecturaDespuesDeNota(lecturaConTope).includes('nota topada en 3.9')){ok++;console.log('  OK   explica una compuerta activa');}
+if(ctx.lecturaDespuesDeNota(lecturaConTope).includes('nota topada en 3,9')){ok++;console.log('  OK   explica una compuerta activa');}
 else {fail++;console.log('  FAIL lectura con tope → '+ctx.lecturaDespuesDeNota(lecturaConTope));}
 
 console.log('\n=== Estadísticas · avance y tendencia ===');

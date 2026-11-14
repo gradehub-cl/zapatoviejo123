@@ -199,7 +199,7 @@ function renderRevisionAvance(){
     <label style="display:flex;align-items:center;gap:11px;min-height:44px;padding:6px 2px;border-bottom:1px solid var(--border);cursor:pointer;">
       <input type="checkbox" ${r.marcada?'checked':''} onchange="marcarAvance(${i},this.checked)" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span style="flex:1;min-width:0;font-size:0.875rem;color:var(--fg);">${esc(r.nombre)} <span class="rep-tag">${esc(r.sigla)}</span></span>
-      <span style="font-size:0.875rem;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums;">${nf(r.nota,1).replace('.',',')}</span>
+      <span style="font-size:0.875rem;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums;">${nf(r.nota,1)}</span>
     </label>`;
   }).join('');
   const fuera=textoNoImportadosAvance();

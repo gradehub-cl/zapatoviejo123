@@ -9,7 +9,7 @@ const ramo=(id,valor)=>({id,nombre:id,color:'#6633aa',gates:[],categorias:[cat(i
 const bloqueado={...ramo('Requisito incumplido',6),categorias:[cat('trabajo',50,6),cat('examen',50,2.9)],gates:[{type:'min_grade_required',catId:'examen',min:3,cap:3.99}]};
 ctx.__ramos=[ramo('Otro ramo',6),bloqueado];run('S={...freshState(),ramos:__ramos};');
 const foto=run('JSON.stringify(S)'),d=run('datosWrapped(S.ramos)');
-assert.equal(run('fmtPromedio(ramoAvg(S.ramos[1]))'),'4.0');
+assert.equal(run('fmtPromedio(ramoAvg(S.ramos[1]))'),'4,0');
 assert.equal(run('notaAprobadaRamo(S.ramos[1],ramoAvg(S.ramos[1]))'),false);
 assert.equal(d.aprobando,1,'Wrapped no cuenta como aprobado un ramo que la ficha reprueba por compuerta');
 let dificil=run('slidesWrapped(datosWrapped(S.ramos),null,"2026-2")').find(x=>x.k==='El ramo que más costó');

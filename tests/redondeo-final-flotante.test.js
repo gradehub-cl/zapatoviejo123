@@ -19,7 +19,7 @@ function ramo(notas){
 ctx.r=ramo([5.1,3.3,4.9,6.7,1.3]);
 // (5,1·10 + 3,3·10 + 4,9·23 + 6,7·23 + 1,3·34) / 100 = 3,95 exacto
 assert.ok(run('ramoAvg(r)')<3.95,'el caso de prueba sigue reproduciendo el punto flotante');
-assert.equal(run('fmtPromedio(ramoAvg(r))'),'4.0','la ficha muestra 4,0');
+assert.equal(run('fmtPromedio(ramoAvg(r))'),'4,0','la ficha muestra 4,0');
 assert.equal(run('notaAprobadaRamo(r,ramoAvg(r))'),true,'y lo cuenta aprobado');
 
 // Barrido: toda combinación con final exacto en x,x5 redondea hacia arriba.
@@ -30,7 +30,7 @@ for(let a=10;a<=70;a+=3)for(let b=10;b<=70;b+=7)for(let c=10;c<=70;c+=2)for(let 
   const e=resto/34;if(e<10||e>70)continue;
   const notas=[a,b,c,d,e].map(x=>x/10);
   ctx.r=ramo(notas);probados++;
-  assert.equal(run('fmtPromedio(ramoAvg(r))'),'4.0',`${notas.join(' / ')} da 3,95 exacto`);
+  assert.equal(run('fmtPromedio(ramoAvg(r))'),'4,0',`${notas.join(' / ')} da 3,95 exacto`);
 }
 assert.ok(probados>20,'el barrido encontró casos');
 

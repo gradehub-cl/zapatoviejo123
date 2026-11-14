@@ -93,7 +93,7 @@ casos.forEach(([nombre, cats]) => {
   // arriba. Antes esto comparaba lo que dibuja la ficha contra el valor crudo
   // del motor —peras con manzanas— y pasaba de casualidad mientras los dos
   // redondeaban al más cercano.
-  const enStats = Number(val('nfNecesaria')(crudo));
+  const enStats = Number(val('nfNecesaria')(crudo).replace(',', '.'));
   chk(`${nombre} → ficha ${enLaFicha} · estadísticas ${enStats}`, enLaFicha === enStats);
   // Con el mismo margen que usa `nfNecesaria` para no inflar por ruido: el
   // motor devuelve cosas como 3.5000000000001 y eso no es una décima más.

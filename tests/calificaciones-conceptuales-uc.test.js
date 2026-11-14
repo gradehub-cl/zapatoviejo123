@@ -40,7 +40,7 @@ run(`S=normalize({tenant:'uc',ramos:[{id:'r1',nombre:'Taller',color:'#123456',cr
   {id:'grupo',nombre:'Seminarios',peso:50,directNota:true,slots:2,notas:[{id:'s1',nombre:'Seminario 1',valor:5,peso:1,slot:0,fecha:'2026-09-20',recorreccionPendiente:true}]}
 ]}]});currentRamoId='r1';`);
 chk('una nota vieja sin campo sigue sin campo',run("!Object.hasOwn(S.ramos[0].categorias[0].notas[0],'calificacionConceptual')"));
-chk('y sigue mostrando su número',run("textoCalificacionNota(S.ramos[0].categorias[0].notas[0])==='5.0'"));
+chk('y sigue mostrando su número',run("textoCalificacionNota(S.ramos[0].categorias[0].notas[0])==='5,0'"));
 const promedioNumerico=run('ramoAvg(S.ramos[0])'),gpaNumerico=run('gpa(S.ramos)');
 
 console.log('\n=== La letra se guarda sin tocar el cálculo ===');

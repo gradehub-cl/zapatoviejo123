@@ -98,19 +98,21 @@ function notaFinalOficial(n){return n===null||isNaN(n)?null:gh_notaOficial(Numbe
 // La calculadora ya lo hacía —"nunca una nota menor a la que calcula el
 // motor"— y el resto de la app no. El epsilon evita que un 3,7000000001 de
 // punto flotante se muestre como 3,8.
-function nfNecesaria(n){
+function nfNecesariaDato(n){
   if(n===null||n===undefined||isNaN(n))return '\u00b7';
   return (Math.ceil((Number(n)-1e-9)*10)/10).toFixed(1);
 }
+function nfNecesaria(n){return notaConComa(nfNecesariaDato(n));}
 function nivelNota(n){
   const v=notaFinalOficial(n);
   if(v===null)return'neutral';
   return v>=5.0?'good':v>=4.0?'warn':'bad';
 }
 function notaAprobada(n){return nivelNota(n)==='warn'||nivelNota(n)==='good';}
-function fmtPromedio(n){
+function fmtPromedioDato(n){
   const v=notaFinalOficial(n);return v===null?'·':v.toFixed(1);
 }
+function fmtPromedio(n){return notaConComa(fmtPromedioDato(n));}
 // El semáforo conserva sus categorías: una nota bajo 4,0 no puede parecerse a
 // una aprobada. Dentro de cada categoría sí graduamos el color para que 1,0 y
 // 3,9, por ejemplo, no se sientan igual de urgentes.
@@ -168,6 +170,11 @@ function luzNotaLegible(h){
   _luzNota.set(h,luz);
   return luz;
 }
-function fmt(n){return n===null?'·':n.toFixed(1);}
-// Formato numérico con 1 decimal por defecto (usa punto, no coma)
-function nf(n,dec){return n.toFixed(dec==null?1:dec);}
+// Mostrar no es calcular (Martín, 2026-11-14): toda nota que se MUESTRA va con
+// coma, «5,7». `nf`, `fmt`, `fmtPromedio`, `nfNecesaria` y `fmtNota` son de
+// presentación. Lo que es dato —el resumen de los widgets de iOS, que Swift lee
+// con punto, o un texto que vuelve a `Number()`— usa las variantes `…Dato`.
+function notaConComa(texto){return String(texto).replace('.',',');}
+function fmt(n){return n===null?'·':nf(n);}
+function nfDato(n,dec){return n.toFixed(dec==null?1:dec);}
+function nf(n,dec){return notaConComa(nfDato(n,dec));}
