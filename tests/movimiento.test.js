@@ -21,15 +21,17 @@ lineas.forEach((l, i) => {
   }
 });
 
-console.log('\n=== Ningún hover mueve nada en táctil ===');
-// En un teléfono, tocar un elemento dispara :hover y el transform queda pegado
+console.log('\n=== Ningún hover queda pegado en táctil ===');
+// En un teléfono, tocar un elemento dispara :hover y el estilo queda pegado
 // hasta que toques otra cosa. `.ramo-row` es el elemento más tocado de la app y
-// estuvo así hasta que alguien lo midió.
+// estuvo así hasta que alguien lo midió. Primero se protegieron los que movían
+// algo (transform); los de color quedaron sueltos y en la app iOS el avatar
+// seguía resaltado después de tocarlo. Ahora vale para todo :hover.
 const sueltas = lineas
   .map((l, i) => ({ n: i + 1, l }))
-  .filter(({ n, l }) => /:hover[^{]*\{[^}]*transform:/.test(l) && !gateadas.has(n - 1))
+  .filter(({ n, l }) => /:hover[^{]*\{/.test(l.replace(/\/\*.*?\*\//g, '')) && !gateadas.has(n - 1))
   .map(({ n, l }) => `${n}: ${l.split('{')[0].trim().slice(0, 40)}`);
-chk('todo :hover con transform está detrás de @media(hover:hover)', sueltas.length === 0);
+chk('todo :hover está detrás de @media(hover:hover)', sueltas.length === 0);
 if (sueltas.length) sueltas.forEach(s => console.log('     suelta → ' + s));
 
 console.log('\n=== Una sola animación por superficie ===');
