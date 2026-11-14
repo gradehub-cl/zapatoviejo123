@@ -27,6 +27,15 @@ function enAppNativa(){
   try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
   catch(e){return false;}
 }
+// Dentro de la app la página vive en capacitor://localhost. Una dirección que
+// sale de la app —el enlace de un correo, la URL que se pega en un calendario—
+// tiene que ser la de la web: con la de la app, Google Calendar no tiene qué
+// consultar y Supabase no reconoce el destino del correo.
+// ponytail: el correo vuelve a la web, no a la app; para que abra la app hacen
+// falta Universal Links (#663).
+function paginaPublica(ruta){
+  return enAppNativa()?'https://gradehub.cl'+(ruta||'/'):location.origin+(ruta||location.pathname);
+}
 // La clase html.app-nativa la pone index.html antes de pintar.
 // Vibración, solo en la app (HIG Playing haptics): un toque suave al agregar
 // una nota y la advertencia al borrar (pedido de Martín). Además, lo que en iOS
