@@ -2764,6 +2764,8 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .add-cat-btn{border:1px solid var(--border2);border-radius:8px;color:var(--fg2);margin-left:20px;margin-right:20px;width:calc(100% - 40px);}
 .empty-icon,.ag-empty-icon{background:var(--muted);color:var(--fg2);border-radius:10px;}
 .empty-title{font-weight:600;}
+.empty-accion{max-width:280px;}
+.add-cat-btn[hidden]{display:none;}
 
 /* Agenda comparte la línea de identidad y filas sobrias. Fechas, pesos y
    avisos siguen visibles, incluidas las evaluaciones pasadas sin nota. */
