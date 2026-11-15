@@ -13,6 +13,7 @@ let _avatarMenu=null;
 function avatarMenu(){return (_avatarMenu&&_avatarMenu.isConnected&&_avatarMenu)||document.getElementById('user-avatar');}
 function refreshAvatar(){
   document.querySelectorAll('.avatar-btn').forEach(av=>{av.textContent=userInitial();});
+  if(typeof renderPerfil==='function'&&typeof currentTab!=='undefined'&&currentTab==='perfil')renderPerfil();
 }
 function toggleUserMenu(ev){
   if(ev)ev.stopPropagation();

@@ -1,9 +1,9 @@
 // Inicio va primero, a la izquierda, donde lo deja cualquier app (HIG: Tab bars).
 const NAV_TABS_BASE=['home','agenda','stats'];
-let NAV_TABS=NAV_TABS_BASE.slice();
+let NAV_TABS=[...NAV_TABS_BASE,'perfil'];
 // Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
 // (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
-const PESTANAS=['stats','home','agenda','profesor','alumnos','admin'];
+const PESTANAS=['stats','home','agenda','profesor','alumnos','admin','perfil'];
 // Dónde abre la app y a dónde se vuelve: Clases para una cuenta de profesor,
 // Inicio para todas las demás, incluidas las de estudiante que además dan clases.
 function pestanaInicial(){return esCuentaProfesor()?'profesor':'home';}
@@ -21,8 +21,9 @@ function recalcularNavTabs(){
   // pestañas separadas (#697).
   // Un admin puede ocultarle Alumnos a un profesor (2026-10-23).
   const conAlumnos=conProfesor&&!(typeof panelAlumnosOculto==='function'&&panelAlumnosOculto());
-  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[])];
-  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin]].forEach(([t,ver])=>{
+  const nuevas=[...(soloProfesor?[]:NAV_TABS_BASE),...(conProfesor?['profesor']:[]),...(conAlumnos?['alumnos']:[]),...(conAdmin?['admin']:[]),'perfil'];
+  // Perfil la tiene toda cuenta y va siempre al final (HIG: Tab bars).
+  [...NAV_TABS_BASE.map(t=>[t,!soloProfesor]),['profesor',conProfesor],['alumnos',conAlumnos],['admin',conAdmin],['perfil',true]].forEach(([t,ver])=>{
     const btn=document.getElementById('nav-'+t);if(btn)btn.hidden=!ver;
     const pantalla=document.getElementById('screen-'+t);if(pantalla)pantalla.hidden=!ver;
   });
@@ -122,6 +123,7 @@ function showTab(tab,skipAnim){
     else if(tab==='profesor'&&typeof renderProfesor==='function')renderProfesor();
     else if(tab==='alumnos'&&typeof renderAlumnosTab==='function')renderAlumnosTab();
     else if(tab==='admin'&&typeof renderAdmin==='function')renderAdmin();
+    else if(tab==='perfil'&&typeof renderPerfil==='function')renderPerfil();
     track('screen_view',{screen_name:tab});
   } else {
     // Modo overlay (ramo, auth, etc.)

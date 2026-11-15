@@ -2004,6 +2004,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-agenda,
 .app.tab-mode #screen-profesor,
 .app.tab-mode #screen-alumnos,
+.app.tab-mode #screen-perfil,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -2022,13 +2023,15 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-agenda[hidden],
 .app.tab-mode #screen-profesor[hidden],
 .app.tab-mode #screen-alumnos[hidden],
-.app.tab-mode #screen-admin[hidden]{display:none!important;}
+.app.tab-mode #screen-admin[hidden],
+.app.tab-mode #screen-perfil[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
 .app.tab-mode.dragging #screen-agenda,
 .app.tab-mode.dragging #screen-profesor,
 .app.tab-mode.dragging #screen-alumnos,
-.app.tab-mode.dragging #screen-admin{transition:none;}
+.app.tab-mode.dragging #screen-admin,
+.app.tab-mode.dragging #screen-perfil{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
 .app.tab-mode #screen-onboard.active,
@@ -2508,7 +2511,8 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-agenda,
   .app.tab-mode #screen-profesor,
   .app.tab-mode #screen-alumnos,
-  .app.tab-mode #screen-admin{transition:none;will-change:auto;}
+  .app.tab-mode #screen-admin,
+  .app.tab-mode #screen-perfil{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group{will-change:auto;}
 
   /* Hundirse al tocar y levantarse al apuntar: el color y la sombra siguen
@@ -5792,6 +5796,33 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.horario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}.horario-campos label{min-width:0;display:grid;gap:6px;font-size:.875rem;}.horario-campos small{font-size:.75rem;color:var(--fg2);}.horario-editor input[type=time],.horario-editor input[type=text]{min-width:0;width:100%;min-height:44px;padding:10px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--input-bg,var(--bg2));border:1px solid var(--border2);border-radius:8px;color-scheme:light dark;}.horario-bloque-acciones{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}.horario-error{color:var(--red);font-size:.875rem;}.horario-editor .modal-title{overflow-wrap:anywhere;}
 @container(max-width:18rem){.horario-campos{grid-template-columns:minmax(0,1fr);}}
 @media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
+
+/* ─── Pestaña Perfil ───────────────────────────────────────────────────────
+   Lista agrupada (HIG: Lists and tables). Filas de 52 px, una línea fina entre
+   ellas y el mismo trazo de íconos que Ajustes. Sin color de semáforo: acá no
+   hay notas. */
+#perfil-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
+.perfil-cabecera{display:flex;align-items:center;gap:16px;width:100%;min-height:88px;padding:20px 0 12px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.perfil-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;}
+.perfil-quien{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
+.perfil-nombre{font-size:1.375rem;font-weight:650;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere;}
+.perfil-linea,.perfil-sublinea,.perfil-correo{font-size:.875rem;line-height:1.35;color:var(--fg2);overflow-wrap:anywhere;}
+.perfil-correo{color:var(--fg3);}
+.perfil-grupo{margin-top:28px;}
+.perfil-grupo h2{margin:0 0 4px;font-size:.75rem;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--fg3);}
+.perfil-grupo ul{list-style:none;margin:0;padding:0;}
+.perfil-grupo li+li{border-top:1px solid var(--border);}
+.perfil-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:52px;padding:8px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.perfil-icono{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:24px;height:24px;color:var(--fg2);}
+.perfil-icono .ic{width:21px;height:21px;}
+.perfil-fila-titulo{flex:1;min-width:0;font-size:1rem;letter-spacing:-.01em;line-height:1.3;}
+.perfil-flecha{flex-shrink:0;width:18px;height:18px;color:var(--fg3);}
+.perfil-cabecera,.perfil-fila,.perfil-salir{border-radius:10px;}
+.perfil-cabecera:active .perfil-quien,.perfil-fila:active .perfil-fila-titulo{opacity:.55;}
+@media(hover:hover) and (pointer:fine){.perfil-fila:hover .perfil-fila-titulo,.perfil-cabecera:hover .perfil-nombre{color:var(--primary);}}
+.perfil-cabecera:focus-visible,.perfil-fila:focus-visible,.perfil-salir:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.perfil-salir{display:block;width:100%;min-height:48px;margin-top:32px;border:1px solid var(--border2);background:var(--card);color:var(--red);font:600 1rem var(--font-ui);cursor:pointer;}
+.perfil-pie{margin:24px 0 0;text-align:center;font-size:.8125rem;color:var(--fg3);}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

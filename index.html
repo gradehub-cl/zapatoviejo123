@@ -429,7 +429,6 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
       <span class="brand-word">GradeHub</span>
       <span class="brand-glyph-slot" id="brand-glyph" title=""></span>
     </span>
-    <button class="avatar-btn" id="user-avatar" onclick="toggleUserMenu(event)" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded="false">?</button>
   </div>
   <div class="scroll">
     <div class="greet-hero"><div class="greet-line" id="home-greeting">Hola</div></div>
@@ -557,12 +556,17 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
   </div>
 </div>
 
+<!-- PERFIL: la cuenta, el semestre y las herramientas. Última pestaña de toda cuenta. -->
+<div id="screen-perfil" class="screen">
+  <div class="topbar"><span class="brand-word" style="flex:1;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--fg);">Perfil</span></div>
+  <div class="scroll"><div id="perfil-body"></div></div>
+</div>
+
 <!-- Solo existe para quien está aprobado como profesor particular: recalcularNavTabs()
      la muestra y la esconde, y con ella crece o se encoge el carrusel de pestañas. -->
 <div id="screen-profesor" class="screen" hidden>
   <div class="topbar">
     <h1 class="brand-word" style="flex:1;margin:0;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--fg);">Clases</h1>
-    <button class="avatar-btn" onclick="toggleUserMenu(event)" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded="false">?</button>
   </div>
   <div class="scroll">
     <div id="profesor-body" style="padding:14px 20px 20px;"></div>
@@ -573,7 +577,6 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 <div id="screen-alumnos" class="screen" hidden>
   <div class="topbar">
     <h1 class="brand-word" style="flex:1;margin:0;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--fg);">Alumnos</h1>
-    <button class="avatar-btn" onclick="toggleUserMenu(event)" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded="false">?</button>
   </div>
   <div class="scroll">
     <div id="alumnos-body" style="padding:14px 20px 20px;"></div>
@@ -700,6 +703,13 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <button type="button" class="nav-sub-item" data-nav-vista="admin:usuarios" onclick="irAVistaNav('admin','usuarios')">Usuarios</button>
     <button type="button" class="nav-sub-item" data-nav-vista="admin:pautas" onclick="irAVistaNav('admin','pautas')">Pautas</button>
   </div>
+  <button class="nav-item" id="nav-perfil" onclick="showTab('perfil')" aria-label="Perfil">
+    <span class="nav-icon">
+      <svg class="ic ic-line" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.75"/><path d="M4.5 20.5c.9-3.6 3.6-5.5 7.5-5.5s6.6 1.9 7.5 5.5"/></svg>
+      <svg class="ic ic-fill" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="12" cy="8" r="4.5"/><path d="M12 14c-4.6 0-7.7 2.3-8.5 6.2A1.5 1.5 0 0 0 5 22h14a1.5 1.5 0 0 0 1.5-1.8C19.7 16.300 16.600 14 12 14z"/></svg>
+    </span>
+    Perfil
+  </button>
 </nav>
 
 <!-- MODAL -->

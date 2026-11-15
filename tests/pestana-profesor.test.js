@@ -30,7 +30,7 @@ chk('y "no se pudo preguntar" no se confunde con "no tiene ficha"',
 
 console.log('\n=== La pestaña existe solo para quien está aprobado ===');
 chk('la barra de pestañas es una lista viva, no una constante',
-  /let NAV_TABS=NAV_TABS_BASE\.slice\(\)/.test(app) && /function recalcularNavTabs\(/.test(app));
+  /let NAV_TABS=\[\.\.\.NAV_TABS_BASE,'perfil'\]/.test(app) && /function recalcularNavTabs\(/.test(app));
 chk('la pantalla y el botón nacen escondidos',
   /id="screen-profesor" class="screen" hidden/.test(html) && /id="nav-profesor"[^>]*hidden/.test(html));
 // `hidden` es la regla de menor especificidad que existe: sin esto, .nav-item
