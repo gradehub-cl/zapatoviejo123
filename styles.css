@@ -2714,7 +2714,9 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
    diálogo. Destructivos y avisos conservan sus clases/colores semánticos. */
 .btn-primary,.btn-confirm,.ob-next,.gpa-start-btn,.ag-empty-cta,.error-cta,.ramo-action.primary{background:var(--fg);background-image:none;color:var(--bg2);border-radius:8px;box-shadow:none;font-weight:600;}
 @media(hover:hover) and (pointer:fine){.btn-primary:not(:disabled):hover,.gpa-start-btn:hover,.ag-empty-cta:hover,.error-cta:hover,.ramo-action.primary:hover{box-shadow:none;}}
-.btn-cancel,.ramo-action,.topbar-link{border-radius:8px;box-shadow:none;}
+/* Un solo radio para todo lo que se aprieta: 8 px. Los que quedaban en 10, 11
+   y 12 se veían de otra familia al lado de un botón principal. */
+.btn-cancel,.ramo-action,.topbar-link,.icon-btn,.s-tenant-btn,.simg-step,.horario-importar-link{border-radius:8px;box-shadow:none;}
 .btn-cancel{color:var(--fg);background:var(--muted);}
 .ramo-action:not(.primary){background:transparent;border:1px solid var(--border2);color:var(--fg2);font-weight:500;}
 .modal-sheet{border:1px solid var(--border);border-bottom:0;box-shadow:0 -12px 48px rgba(0,0,0,.16);border-radius:18px 18px 0 0;}
@@ -4627,7 +4629,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-serie-lista>.eval-row,#screen-ramo .ficha-serie-lista>.eval-group{margin:0;padding:14px 0;border:0;border-top:1px solid var(--border);border-radius:0;background:none;box-shadow:none;}
 #screen-ramo .ficha-serie-lista{margin-top:14px;}
 #screen-ramo .ficha-serie-lista>*>.ficha-peso{display:none;}
-#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:12px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;line-height:1.35;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;}
+#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;line-height:1.35;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;}
 #screen-ramo .ramo-actions>.ramo-action[hidden]{display:none;}
 #screen-ramo #cat-list{margin:0;padding:0 20px;}
 #screen-ramo .eval-group{margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:none;}
@@ -5791,7 +5793,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .clases-hoy-nombre,.clases-hoy li button>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere;}.clases-hoy-nombre b{font-size:1.125rem;line-height:1.35;}.clases-hoy-nombre small{margin-top:4px;}
 .clases-hoy ul,.horario-ficha ul{list-style:none;margin:0;padding:0;}.clases-hoy li{border-top:1px solid var(--border);}.clases-hoy time{font-weight:600;}.clases-hoy li b{font-size:.875rem;font-weight:500;}
 .horario-ficha{margin:24px 20px;padding:16px 0;border-top:1px solid var(--border);}.horario-ficha p{color:var(--fg2);font-size:.875rem;}.horario-ficha li{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 0;font-size:.875rem;}.horario-ficha li>span:last-child{color:var(--fg2);}
-.horario-accion{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
+.horario-accion{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
 .horario-editor{container-type:inline-size;}
 .horario-editor fieldset{min-width:0;margin:0 0 16px;padding:14px;border:1px solid var(--border);border-radius:12px;}.horario-editor legend{font-size:.875rem;font-weight:600;padding:0 6px;}.horario-bloques{margin-top:18px;}
 .horario-dias{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}.horario-dias label{position:relative;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;cursor:pointer;}.horario-dias input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}.horario-dias label>span:first-of-type{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:6px;border:1px solid var(--border2);border-radius:9px;font-size:.8125rem;}.horario-dias input:checked+span{background:var(--primary);border-color:var(--primary);color:var(--primary-fg);}.horario-dias input:focus-visible+span{outline:2px solid var(--fg);outline-offset:2px;}
