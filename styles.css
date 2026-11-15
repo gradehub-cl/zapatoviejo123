@@ -1515,6 +1515,9 @@ input[type=checkbox][role=switch]:disabled,.toggle input[type=checkbox]:disabled
 .nav-item .nav-icon .ic-fill{display:none;}
 .nav-item .nav-icon .ic-line{display:inline-block;}
 .nav-item.active .nav-icon .ic-fill{display:inline-block;}
+/* La pestaña activa usa el mismo dibujo, relleno (HIG: Tab bars). `.ic` deja
+   todo en trazo, así que sin esto el relleno se veía como otro ícono delineado. */
+.nav-item .nav-icon .ic-fill{fill:currentColor;stroke:none;}
 .nav-item.active .nav-icon .ic-line{display:none;}
 .nav-item.active .nav-icon{transform:translateY(-1px);}
 /* TOAST */
