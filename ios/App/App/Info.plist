@@ -83,6 +83,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>GradeHubAppGroup</key>
 	<string>$(GRADEHUB_APP_GROUP)</string>
 </dict>
