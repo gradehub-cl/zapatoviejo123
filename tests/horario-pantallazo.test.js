@@ -108,7 +108,92 @@ const hVotos=leerGrilla([{palabras:base},{palabras:corrido},{palabras:base}]);
 chk('con tres lecturas, el bloque que aparece en una sola no entra',texto(hVotos.TTF012)==='J 12:20-13:30 Cátedra -');
 
 // ── De la foto a la revisión y al semestre ─────────────────────────────────
+// ── Formato real de «Carga Académica»: el tipo va solo en el color ─────────
+// Píxeles sintéticos: fondo blanco, leyenda con su cuadrito de color y cada
+// celda pintada con el color de su tipo. Las celdas traen solo sigla-sección.
+const ANCHO=1350,ALTO=1500;
+function lienzo(){const datos=new Uint8ClampedArray(ANCHO*ALTO*4).fill(255);return {ancho:ANCHO,alto:ALTO,datos};}
+function pintar(px,x0,y0,x1,y1,[r,g,b]){for(let y=Math.max(0,y0);y<Math.min(ALTO,y1);y++)for(let x=Math.max(0,x0);x<Math.min(ANCHO,x1);x++){const k=(y*ANCHO+x)*4;px.datos[k]=r;px.datos[k+1]=g;px.datos[k+2]=b;}}
+const COLOR={cat:[250,197,115],ayu:[151,203,153],lab:[179,212,244],vacia:[242,244,245]};
+function celdaColor(px,dia,mod,color){pintar(px,COL[dia]-92,FILA[mod]-58,COL[dia]+92,FILA[mod]+58,color);}
+function soloSigla(dia,mod,sigla,seccion){const x=COL[dia],y=FILA[mod]-40;return [caja(sigla+'-',x,y,170),caja(String(seccion),x,y+30,22)];}
+function leyenda(px,colores=COLOR){
+  const items=[['Cátedra',colores.cat,120],['Ayudantía',colores.ayu,420],['Laboratorio',colores.lab,760]];
+  return items.map(([t,c,x])=>{pintar(px,x-40,85,x-16,109,c);return caja(t,x+60,97,140,24);});
+}
+function fotoReal({colores=COLOR,conLeyenda=true,sabado=false}={}){
+  const px=lienzo();
+  pintar(px,210,240,1160,1320,COLOR.vacia);
+  const palabras=[caja('2026',120,40,70),caja('Segundo',220,40,120),caja('Semestre',360,40,130),
+    ...(conLeyenda?leyenda(px,colores):[]),caja('Módulo',90,180,110),
+    ...encabezado(),...(sabado?[caja('Sábad',COL.S,180,80)]:[]),...filas()];
+  const poner=(dia,mod,sigla,sec,color)=>{celdaColor(px,dia,mod,color);palabras.push(...soloSigla(dia,mod,sigla,sec));};
+  poner('L',4,'MAT1620',2,colores.cat);poner('W',4,'MAT1620',2,colores.cat);poner('V',4,'MAT1620',2,colores.cat);
+  poner('J',1,'MAT1620',2,colores.lab);poner('L',5,'MAT1620',2,colores.ayu);
+  poner('M',2,'FIS1514',13,colores.cat);
+  if(sabado)poner('S',3,'IIC2233',2,colores.cat);
+  // La tabla de abajo repite los cursos fuera de la grilla: no crea bloques.
+  palabras.push(caja('IIC1103-',115,1400,150),caja('1',115,1430,20));
+  return {texto:'2026 Segundo Semestre HORARIO',palabras,pixeles:px};
+}
+console.log('\n=== Formato real: el tipo sale del color de la celda ===');
+let real=leerGrilla([fotoReal()]);
+chk('cátedra lunes, miércoles y viernes; laboratorio el jueves; ayudantía el lunes',
+  texto(real.MAT1620)==='LWV 12:20-13:30 Cátedra - | L 14:50-16:00 Ayudantía - | J 08:20-09:30 Laboratorio -');
+chk('la foto no trae sala: ningún bloque inventa una',Object.values(real).flat().every(b=>b.sala===''));
+chk('la tabla de cursos de abajo no crea bloques',!('IIC1103' in real));
+const otros={cat:[230,170,60],ayu:[120,190,110],lab:[150,190,240]};
+chk('si la foto trae su leyenda, mandan sus colores',texto(leerGrilla([fotoReal({colores:otros})]).FIS1514)==='M 09:40-10:50 Cátedra -');
+chk('sin leyenda y con un color que no calza, el bloque va sin tipo',texto(leerGrilla([fotoReal({colores:otros,conLeyenda:false})]).FIS1514)==='M 09:40-10:50 - -');
+chk('el sábado cortado («Sábad») igual cuenta',texto(leerGrilla([fotoReal({sabado:true})]).IIC2233)==='S 11:00-12:10 Cátedra -');
+chk('el semestre de la foto se lee',run(`periodoDeFotoHorario(${json([{texto:'2026 Primer Semestre'}])})`)==='2026-1'&&run('periodoDeFotoHorario([{texto:"sin fecha"}])')===null);
+const conUnos=fotoReal();conUnos.palabras=conUnos.palabras.map(p=>p.texto==='FIS1514-'?{...p,texto:'F1S1514-'}:p);
+chk('«F1S1514-» se lee como FIS1514 solo porque existe en el catálogo',texto(leerGrilla([conUnos]).FIS1514)==='M 09:40-10:50 Cátedra -');
+chk('sin píxeles (otra versión del lector) no hay tipo, pero sí horario',texto(leerGrilla([{...fotoReal(),pixeles:null}]).FIS1514)==='M 09:40-10:50 - -');
+
 (async()=>{
+  console.log('\n=== BuscaCursos pone la sala y los profesores ===');
+  run(`S.tenant='uc';_buscacursosNoDisponible=false;globalThis.__rpc=[];supabaseClient={rpc:async(fn,args)=>{__rpc.push([fn,args]);
+    if(args.p_sigla==='MAT1620')return {data:[{periodo:'2026-2',sigla:'MAT1620',seccion:2,profesores:['Persona Sintética','Sin informar'],
+      horario:[{dias:['L','W','V'],modulo:4,tipo:'CLAS',sala:'K201'},{dias:['J'],modulo:1,tipo:'LAB',sala:'LAB-3'},{dias:['L'],modulo:5,tipo:'CLAS',sala:'B12'},{dias:['S'],modulo:2,tipo:'AYUD',sala:''}]}],error:null};
+    if(args.p_sigla==='IIC2233')return {data:[{sigla:'IIC2233',seccion:2,profesores:[],horario:[{dias:['M','J'],modulo:3,tipo:'CLAS',sala:'A5'},{dias:['V'],modulo:9,tipo:'TAL',sala:null},{dias:['L'],modulo:null,tipo:'CLAS',sala:'X'}]}],error:null};
+    return {data:[],error:null};}};`);
+  ctx.__foto=[fotoReal()];
+  const codigosBC=[{sigla:'MAT1620',seccion:2},{sigla:'FIS1514',seccion:13},{sigla:'IIC2233',seccion:2}];
+  ctx.__cod=codigosBC;
+  let rev=await run(`clasesParaRevisionHorario(__foto,${existe},__cod,null)`);
+  const de=sg=>rev.clases.find(c=>c.sigla===sg);
+  chk('la consulta va a la RPC pública con período y sigla',run(`__rpc.some(([fn,a])=>fn==='catalogo_uc_secciones_publicas'&&a.p_periodo==='2026-2'&&a.p_sigla==='MAT1620')`));
+  chk('la sala sale de BuscaCursos para el bloque que calza',texto(de('MAT1620').bloques).includes('LWV 12:20-13:30 Cátedra K201')&&texto(de('MAT1620').bloques).includes('J 08:20-09:30 Laboratorio LAB-3'));
+  chk('día, módulo y tipo siguen siendo los de la foto',texto(de('MAT1620').bloques).includes('L 14:50-16:00 Ayudantía B12'));
+  chk('un tipo distinto se avisa, no se corrige en silencio',de('MAT1620').diferencias.includes('lun mód. 5 ayudantía es cátedra en BuscaCursos'));
+  chk('lo que BuscaCursos trae y la foto no, se avisa',de('MAT1620').diferencias.includes('BuscaCursos además trae sáb mód. 2 ayudantía'));
+  chk('los profesores ocultos («Sin informar») no se muestran',JSON.stringify(de('MAT1620').profesores)==='["Persona Sintética"]');
+  chk('una sección que no está en BuscaCursos queda con la foto, sin sala',texto(de('FIS1514').bloques)==='M 09:40-10:50 Cátedra -');
+  chk('un ramo sin grilla en la foto toma el horario de BuscaCursos (módulos válidos)',texto(de('IIC2233').bloques)==='MJ 11:00-12:10 Cátedra A5 | V 20:10-21:20 Taller -');
+  chk('con BuscaCursos respondiendo no hay aviso de salas',!rev.avisos.some(a=>/No pudimos traer/.test(a)));
+  run(`globalThis.__rcs=ramoConSigla;ramoConSigla=s=>null;_horarioUCReconocido=[{sigla:'MAT1620',nombre:'Cálculo II',seccion:2,marcado:true}];_horarioSeccionesUC=[];_horarioAvisosUC=[];
+    _horarioClasesUC=[{sigla:'MAT1620',nombre:'Cálculo II',bloques:[],profesores:['Persona Sintética'],diferencias:['lun mód. 5 ayudantía es cátedra en BuscaCursos'],marcado:true}];pintarRevisionHorarioUC();`);
+  chk('la revisión muestra los profesores y lo que no calza',/Profesor según BuscaCursos: Persona Sintética/.test(get('modal-content').innerHTML)&&/No calza con BuscaCursos: lun mód\. 5 ayudantía es cátedra en BuscaCursos/.test(get('modal-content').innerHTML));
+  run('ramoConSigla=__rcs');
+
+  console.log('\n=== Sin BuscaCursos la foto sigue sola ===');
+  run(`_buscacursosNoDisponible=false;__rpc=[];supabaseClient={rpc:async(fn,args)=>{__rpc.push(fn);return {data:null,error:{code:'PGRST202',message:'Could not find the function'}};}}`);
+  rev=await run(`clasesParaRevisionHorario(__foto,${existe},__cod,null)`);
+  chk('la RPC que todavía no existe no rompe nada',!!de('MAT1620')&&texto(de('MAT1620').bloques).startsWith('LWV 12:20-13:30 Cátedra -'));
+  chk('avisa que las salas quedan vacías y editables',rev.avisos.some(a=>/No pudimos traer las salas de BuscaCursos/.test(a)));
+  const preguntas=run('__rpc.length');
+  await run(`proponerHorarioDesdeCatalogo({tenant:'uc',sigla:'MAT1620',seccion:2})`);
+  chk('después de saber que no existe, no vuelve a preguntar',run('__rpc.length')===preguntas);
+  run(`_buscacursosNoDisponible=false;supabaseClient={rpc:()=>Promise.reject(new Error('sin conexión'))}`);
+  chk('sin conexión tampoco',await run(`proponerHorarioDesdeCatalogo({tenant:'uc',sigla:'MAT1620',seccion:2})`)===null);
+  run(`supabaseClient=null`);
+  chk('sin cliente, null',await run(`proponerHorarioDesdeCatalogo({tenant:'uc',sigla:'MAT1620',seccion:2})`)===null);
+  chk('fuera de la UC no consulta',await run(`proponerHorarioDesdeCatalogo({tenant:'fen',sigla:'MAT1620',seccion:2})`)===null);
+  ctx.__fotoVieja=[{...fotoReal(),texto:'2026 Primer Semestre'}];
+  rev=await run(`clasesParaRevisionHorario(__fotoVieja,${existe},[],null)`);
+  chk('una foto de otro semestre se avisa',rev.avisos.some(a=>/período 2026-1/.test(a)));
+
   console.log('\n=== La revisión: nada se guarda sin confirmar ===');
   run(`S.tenant='uc';S.carrera='ING-PC';globalThis.__g=0;save=()=>{__g++};renderHome=()=>{};openModal=()=>{};closeModal=()=>{};showToast=m=>{globalThis.__toast=m};track=()=>{};
     var CURSOS_UC_FULL=[['MAT1620','Cálculo II',10],['FIS1514','Dinámica',10],['IIC1103','Introducción a la Programación',10],['TTF012','Revelación y Fe',2]];cargarCursosUC=async()=>true;

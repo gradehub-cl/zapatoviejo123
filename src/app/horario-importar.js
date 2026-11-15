@@ -95,19 +95,26 @@ async function reconocerHorarioBuscacursos(lecturasFoto){
     .filter(Boolean);
   _horarioUCReconocido.forEach(r=>{r.marcado=true;});
   _horarioSeccionesUC.forEach(r=>{r.marcado=r.antes==null;});
-  // Del pantallazo salen también las clases de cada ramo: días, módulo, tipo
-  // y sala. Igual que la sección, al que ya tenía horario se le ofrece
-  // DESMARCADO: reemplazarlo es una decisión, no un relleno.
-  if(deFoto)clasesDeFotoHorario(lecturasFoto,x=>porSigla.has(x),'uc').forEach((bloques,sigla)=>{
-    const ramo=ramoConSigla(sigla),nuevo=_horarioUCReconocido.find(r=>r.sigla===sigla);
-    if(!ramo&&!nuevo)return;
-    const antes=ramo?copiarHorario(ramo.horario):[];
-    const igual=x=>JSON.stringify(x.map(({id,...b})=>b));
-    if(antes.length&&igual(antes)===igual(bloques))return;
-    _horarioClasesUC.push({sigla,nombre:ramo?ramo.nombre:nuevo.nombre,bloques,reemplaza:antes.length>0,
-      ramoId:ramo?ramo.id:null,horarioAntes:ramo?JSON.stringify(ramo.horario):null,marcado:!antes.length});
-  });
-  const avisos=[];
+  // Del pantallazo salen también las clases de cada ramo (días, módulo y
+  // tipo) y de BuscaCursos la sala y los profesores. Igual que la sección, al
+  // que ya tenía horario se le ofrece DESMARCADO: reemplazarlo es una
+  // decisión, no un relleno.
+  const avisosClases=[];
+  if(deFoto){
+    const resultado=await clasesParaRevisionHorario(lecturasFoto,x=>porSigla.has(x),codigos,estado);
+    if(document.getElementById('m-horario-estado')!==estado)return false;
+    avisosClases.push(...resultado.avisos);
+    resultado.clases.forEach(({sigla,bloques,profesores,diferencias})=>{
+      const ramo=ramoConSigla(sigla),nuevo=_horarioUCReconocido.find(r=>r.sigla===sigla);
+      if(!ramo&&!nuevo)return;
+      const antes=ramo?copiarHorario(ramo.horario):[];
+      const igual=x=>JSON.stringify(x.map(({id,...b})=>b));
+      if(antes.length&&igual(antes)===igual(bloques))return;
+      _horarioClasesUC.push({sigla,nombre:ramo?ramo.nombre:nuevo.nombre,bloques,profesores,diferencias,reemplaza:antes.length>0,
+        ramoId:ramo?ramo.id:null,horarioAntes:ramo?JSON.stringify(ramo.horario):null,marcado:!antes.length});
+    });
+  }
+  const avisos=[...avisosClases];
   // De una foto, lo que no calza con el catálogo suele ser ruido del lector
   // ("TTF0012"): nombrarlo solo confunde. Se dice qué hacer si falta algo.
   if(desconocidas.length&&!deFoto)avisos.push(`No reconocimos: ${desconocidas.map(esc).join(', ')}.`);
@@ -118,6 +125,48 @@ async function reconocerHorarioBuscacursos(lecturasFoto){
   _horarioAvisosUC=avisos;
   pintarRevisionHorarioUC();
   return true;
+}
+// Junta la foto con BuscaCursos. De la foto salen día, módulo y tipo (por el
+// color de la celda); de BuscaCursos, la sala y los profesores de esa sección.
+// Si los dos no calzan, se avisa en la revisión: no se corrige en silencio.
+// Sin grilla para un ramo, se usa lo de BuscaCursos; sin BuscaCursos, la foto
+// sola y sin sala.
+const DIA_CORTO_HORARIO={L:'lun',M:'mar',W:'mié',J:'jue',V:'vie',S:'sáb',D:'dom'};
+const textoCeldaHorario=c=>`${DIA_CORTO_HORARIO[c.dia]} mód. ${c.mod}${c.tipo?' '+c.tipo.toLowerCase():''}`;
+async function clasesParaRevisionHorario(lecturas,existe,codigos,estado){
+  const celdasFoto=celdasDeFotoHorario(lecturas,existe,'uc');
+  const periodoFoto=periodoDeFotoHorario(lecturas),periodo=periodoFoto||semester(),avisos=[];
+  if(periodoFoto&&periodoFoto!==semester())avisos.push(`Esta foto es del período ${esc(periodoFoto)}: revisa que sea tu horario de ahora.`);
+  const secciones=new Map((codigos||[]).filter(c=>c.seccion!=null).map(c=>[c.sigla,c.seccion]));
+  const siglas=[...new Set([...celdasFoto.keys(),...secciones.keys()])].filter(s=>existe(s));
+  const conSeccion=siglas.filter(s=>secciones.has(s));
+  if(conSeccion.length&&estado)estado.textContent='Buscando salas en BuscaCursos…';
+  const catalogo=new Map(await Promise.all(conSeccion.map(async sigla=>
+    [sigla,await proponerHorarioDesdeCatalogo({tenant:'uc',sigla,seccion:secciones.get(sigla),periodo})])));
+  if(conSeccion.length&&![...catalogo.values()].some(Boolean))
+    avisos.push('No pudimos traer las salas de BuscaCursos: quedan vacías y puedes ponerlas en Corregir.');
+  const clases=[];
+  siglas.forEach(sigla=>{
+    const foto=celdasFoto.get(sigla)||[],bc=catalogo.get(sigla)||null,diferencias=[];
+    let celdas=foto.map(c=>({...c}));
+    if(bc&&foto.length){
+      const clave=c=>c.dia+'|'+c.mod;
+      const deBC=new Map(bc.celdas.map(c=>[clave(c),c]));
+      celdas.forEach(c=>{
+        const otra=deBC.get(clave(c));
+        if(!otra){diferencias.push(`${textoCeldaHorario(c)} no está en BuscaCursos`);return;}
+        if(!c.sala&&otra.sala)c.sala=otra.sala;
+        if(c.tipo&&otra.tipo&&c.tipo!==otra.tipo)diferencias.push(`${textoCeldaHorario(c)} es ${otra.tipo.toLowerCase()} en BuscaCursos`);
+        // Un tipo que la foto no alcanzó a leer no es un desacuerdo: se completa.
+        if(!c.tipo&&otra.tipo)c.tipo=otra.tipo;
+      });
+      const enFoto=new Set(celdas.map(clave));
+      bc.celdas.filter(c=>!enFoto.has(clave(c))).forEach(c=>diferencias.push(`BuscaCursos además trae ${textoCeldaHorario(c)}`));
+    }else if(bc&&!foto.length)celdas=bc.celdas.map(c=>({...c}));
+    const bloques=bloquesDeCeldasHorario('uc',celdas);
+    if(bloques.length)clases.push({sigla,bloques,profesores:bc?bc.profesores:[],diferencias});
+  });
+  return {clases,avisos};
 }
 // Las clases leídas, en una línea por bloque: "Lun y mié · 08:20–09:30 · Cátedra · K201".
 function textoBloqueRevision(b){
@@ -145,7 +194,9 @@ function pintarRevisionHorarioUC(){
     <label class="agent-ramo-row">
       <input type="checkbox" class="agent-ramo-check horario-clases-check" data-i="${i}"${r.marcado?' checked':''}/>
       <span><b>${esc(r.nombre)}</b>${r.reemplaza?'<small>Reemplaza el horario que tenías</small>':''}
-        <ul class="horario-revision-bloques">${r.bloques.map(b=>`<li>${esc(textoBloqueRevision(b))}</li>`).join('')}</ul></span>
+        <ul class="horario-revision-bloques">${r.bloques.map(b=>`<li>${esc(textoBloqueRevision(b))}</li>`).join('')}</ul>
+        ${r.profesores&&r.profesores.length?`<small>${r.profesores.length===1?'Profesor':'Profesores'} según BuscaCursos: ${esc(r.profesores.join(', '))}</small>`:''}
+        ${r.diferencias&&r.diferencias.length?`<small class="horario-revision-diferencia">No calza con BuscaCursos: ${esc(r.diferencias.join('; '))}. Revísalo en Corregir.</small>`:''}</span>
     </label>
     <button type="button" class="horario-accion" onclick="corregirClasesRevisionHorario(${i})" aria-label="Corregir las clases de ${esc(r.nombre)}">Corregir</button>
   </div>`).join('');
@@ -160,7 +211,7 @@ function pintarRevisionHorarioUC(){
     <p class="horario-importar-estado">Solo cambia la sección. Tus notas y tu pauta quedan igual.${_horarioSeccionesUC.some(r=>r.antes!=null)?' Los que ya tenían otra sección van desmarcados: márcalos si la foto está bien.':''}</p>
     <div class="agent-ramo-list">${listaSecciones}</div>`:''}
     ${listaClases?`<p class="modal-label horario-secciones-titulo">Clases de cada ramo</p>
-    <p class="horario-importar-estado">Días y horas salen de los módulos UC. Si algo no calza, tócalo en Corregir. Solo se guarda el horario: tus notas y tu pauta quedan igual.${_horarioClasesUC.some(r=>r.reemplaza)?' Los que ya tenían horario van desmarcados.':''}</p>
+    <p class="horario-importar-estado">Días, módulos y tipo salen de tu foto; la sala, de BuscaCursos cuando está. Si algo no calza, tócalo en Corregir. Solo se guarda el horario: tus notas y tu pauta quedan igual.${_horarioClasesUC.some(r=>r.reemplaza)?' Los que ya tenían horario van desmarcados.':''}</p>
     <div class="agent-ramo-list">${listaClases}</div>`:''}
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>

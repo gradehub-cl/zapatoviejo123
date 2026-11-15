@@ -30,10 +30,41 @@ function horarioDesdeModulos(tenant,dias,modulos,{sala='',tipo=''}={}){
   if(!tabla||!Array.isArray(modulos)||!modulos.length||modulos.some(m=>!tabla[m]))return [];
   return copiarHorario([...new Set(modulos)].map(m=>({dias,inicio:tabla[m][0],fin:tabla[m][1],sala,tipo})));
 }
-// Punto de entrada futuro para catalogo_uc_secciones. Null = sin propuesta.
-// No consulta una tabla inexistente, ni escribe. Quien lo implemente debe
-// devolver bloques para REVISIÓN: nunca aplicar sin confirmación.
-function proponerHorarioDesdeCatalogo({tenant,sigla,seccion}={}){return null;}
+// BuscaCursos (#986): la RPC pública catalogo_uc_secciones_publicas devuelve
+// las secciones del período con `horario` [{dias, modulo, tipo, sala}] y los
+// profesores. Solo LEE y devuelve una propuesta para la revisión: nunca escribe.
+// Si la RPC todavía no existe (falta aplicar el SQL), no hay conexión o tarda,
+// devuelve null y la foto sigue sola, sin sala. Nunca se inventa una sala.
+const TIPOS_BUSCACURSOS={CLAS:'Cátedra',AYU:'Ayudantía',AYUD:'Ayudantía',LAB:'Laboratorio',TAL:'Taller',
+  PRA:'Práctica',TES:'Tesis',TER:'Terreno'};
+const BUSCACURSOS_ESPERA_MS=6000;
+let _buscacursosNoDisponible=false;
+async function proponerHorarioDesdeCatalogo({tenant,sigla,seccion,periodo}={}){
+  if(tenant!=='uc'||!sigla||seccion==null||_buscacursosNoDisponible)return null;
+  const cliente=typeof supabaseClient!=='undefined'?supabaseClient:null;
+  if(!cliente||typeof cliente.rpc!=='function')return null;
+  try{
+    const consulta=Promise.resolve(cliente.rpc('catalogo_uc_secciones_publicas',{p_periodo:periodo||semester(),p_sigla:String(sigla).toUpperCase()}));
+    const {data,error}=await Promise.race([consulta,new Promise(r=>setTimeout(()=>r({error:{code:'espera'}}),BUSCACURSOS_ESPERA_MS))]);
+    if(error){
+      // Función inexistente: no se vuelve a preguntar en esta visita.
+      if(error.code==='PGRST202'||error.code==='42883'||error.status===404)_buscacursosNoDisponible=true;
+      return null;
+    }
+    const fila=(Array.isArray(data)?data:[]).find(f=>f&&String(f.sigla||'').toUpperCase()===String(sigla).toUpperCase()&&Number(f.seccion)===Number(seccion));
+    if(!fila)return null;
+    const celdas=[];
+    (Array.isArray(fila.horario)?fila.horario:[]).forEach(b=>{
+      const mod=Number(b&&b.modulo);
+      if(!b||!Array.isArray(b.dias)||!MODULOS_HORARIO_POR_TENANT.uc[mod])return;
+      const tipo=TIPOS_BUSCACURSOS[String(b.tipo||'').toUpperCase()]||'';
+      const sala=typeof b.sala==='string'?b.sala.trim().slice(0,100):'';
+      b.dias.filter(d=>DIAS_HORARIO.some(([k])=>k===d)).forEach(dia=>celdas.push({dia,mod,tipo,sala}));
+    });
+    const profesores=(Array.isArray(fila.profesores)?fila.profesores:[]).filter(x=>typeof x==='string'&&x.trim()&&!/^sin informar$/i.test(x.trim())).map(x=>x.trim().slice(0,100));
+    return {celdas,profesores};
+  }catch(e){return null;}
+}
 function partesHorarioChile(instante){
   return Object.fromEntries(FORMATO_HORARIO_CHILE.formatToParts(new Date(instante)).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
 }

@@ -102,7 +102,7 @@ function renderHorarioSemana(body,ahora=new Date()){
     body.innerHTML=`<div class="ag-empty">
       <div class="ag-empty-title">${hayRamos?'Arma tu horario':'Agrega tu primer ramo'}</div>
       <div class="ag-empty-desc">${hayRamos
-        ?(fotoUC?'Sube el pantallazo de tu horario de Mi UC y armamos tu semana con días, horas y salas. Antes de guardar, lo revisas.':'Agrega los días y las horas de tus clases.')
+        ?(fotoUC?'Sube el pantallazo de «Carga Académica» de Mi UC y armamos tu semana. Antes de guardar, lo revisas.':'Agrega los días y las horas de tus clases.')
         :'Después podrás armar tu horario de clases.'}</div>
       <button type="button" class="ag-empty-cta" data-horario-accion="${hayRamos?(fotoUC?'foto':'agregar'):'ramo'}">${hayRamos?(fotoUC?'Subir foto del horario':'Agregar clase'):'Agregar mi primer ramo'}</button>
       ${hayRamos&&fotoUC?'<button type="button" class="horario-accion horario-semana-secundaria" data-horario-accion="agregar">Agregar a mano</button>':''}
