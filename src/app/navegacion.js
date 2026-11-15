@@ -1,4 +1,5 @@
-const NAV_TABS_BASE=['stats','home','agenda'];
+// Inicio va primero, a la izquierda, donde lo deja cualquier app (HIG: Tab bars).
+const NAV_TABS_BASE=['home','agenda','stats'];
 let NAV_TABS=NAV_TABS_BASE.slice();
 // Todas las pestañas que pueden existir. Pedir una que esta cuenta no tiene
 // (un widget, un enlace) lleva a su pestaña de entrada en vez de a una pantalla vacía.
@@ -34,7 +35,7 @@ function recalcularNavTabs(){
   return true;
 }
 let currentTab='home';
-let currentTabIdx=1;
+let currentTabIdx=0;
 
 // ─── VISTAS DE CLASES Y ALUMNOS EN LA BARRA (Lucas, 2026-10-22) ──────────────
 // En pantalla ancha, Clases y Alumnos son grupos de la barra lateral, como en

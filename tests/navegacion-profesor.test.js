@@ -41,7 +41,7 @@ const cuenta = (tipo, aprobado) => {
 console.log('\n=== Una cuenta de estudiante no cambia ===');
 // Una cuenta vieja no trae tipoCuenta: normalize la deja de estudiante (#698).
 cuenta(null, false);
-chk('tiene Estadísticas, Inicio y Agenda', tabs() === 'stats,home,agenda');
+chk('tiene Inicio, Agenda y Estadísticas', tabs() === 'home,agenda,stats');
 chk('abre en Inicio', run('pestanaInicial()') === 'home');
 chk('Clases y Alumnos siguen escondidas', el('nav-profesor').hidden && el('nav-alumnos').hidden && el('screen-profesor').hidden);
 chk('Inicio a la vista', !el('nav-home').hidden && !el('screen-home').hidden);
@@ -50,7 +50,7 @@ chk('pedir Clases sin tenerla lleva a Inicio', run('currentTab') === 'home');
 
 console.log('\n=== Estudiante que además es profesor aprobado (cuentas mixtas) ===');
 cuenta('estudiante', true);
-chk('tiene sus cinco pestañas, como hoy', tabs() === 'stats,home,agenda,profesor,alumnos');
+chk('tiene sus cinco pestañas, como hoy', tabs() === 'home,agenda,stats,profesor,alumnos');
 chk('y sigue abriendo en Inicio', run('pestanaInicial()') === 'home');
 
 console.log('\n=== Una cuenta de profesor ===');
@@ -78,7 +78,7 @@ chk('mostrar Clases rearma la lista y llega', run('currentTab') === 'profesor' &
 
 console.log('\n=== Al cerrar sesión vuelve todo a estudiante ===');
 run("S=freshState();perfilProfesorCache=null;recalcularNavTabs()");
-chk('tres pestañas de nuevo', tabs() === 'stats,home,agenda' && !el('nav-home').hidden && !el('screen-home').hidden);
+chk('tres pestañas de nuevo', tabs() === 'home,agenda,stats' && !el('nav-home').hidden && !el('screen-home').hidden);
 
 console.log('\n=== Sin Inicio, igual se llega a Ajustes ===');
 const topbar = id => (html.match(new RegExp(`<div id="screen-${id}"[\\s\\S]*?<div class="scroll">`)) || [''])[0];
@@ -98,9 +98,9 @@ run(`S=normalize(Object.assign(freshState(),{onboardingDone:true,tipoCuenta:'pro
 run(`perfilProfesorCache={estado:'aprobado',panel_alumnos:false}`);run('recalcularNavTabs()');
 chk('con el panel oculto, solo Clases', tabs() === 'profesor' && el('nav-alumnos').hidden && el('screen-alumnos').hidden);
 run(`S=normalize(Object.assign(freshState(),{onboardingDone:true}))`);run('recalcularNavTabs()');
-chk('un estudiante que es profesor sigue con sus pestañas, sin Alumnos', tabs() === 'stats,home,agenda,profesor');
+chk('un estudiante que es profesor sigue con sus pestañas, sin Alumnos', tabs() === 'home,agenda,stats,profesor');
 run(`perfilProfesorCache={estado:'aprobado'}`);run('recalcularNavTabs()');
-chk('sin el SQL nuevo (sin el campo), Alumnos se ve como antes', tabs() === 'stats,home,agenda,profesor,alumnos');
+chk('sin el SQL nuevo (sin el campo), Alumnos se ve como antes', tabs() === 'home,agenda,stats,profesor,alumnos');
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
