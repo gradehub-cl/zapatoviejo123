@@ -29,14 +29,14 @@ test('menos de cinco no filtra n ni el promedio en texto, aria, gráfica o CSV',
   const eventos=run('evaluacionesConFechaPanel(r,comparacion(__n)).evaluaciones');assert(eventos.every(e=>e.curso===null&&e.cursoPersonas===null));
   assert(!run('comparacionTexto(4.5,__n)').includes('4.5'));
   const filas=run('csvResumenAlumnosPanel([al],()=>comparacion(__n),()=>comparacion(__n))').split('\r\n').map(l=>l.split(';'));
-  assert.equal(filas[1][6],'');assert.equal(filas[1][7],'');assert.deepEqual(filas[1].slice(-2),['','']);
+  assert.equal(filas[1][6],'');assert.equal(filas[1][7],'');assert.deepEqual(filas[1].slice(14,16),['','']);
  }
 });
 
 test('sin SQL o con muestra desconocida no se rompe ni se inventa un cero',()=>{
  for(const ref of [null,{sinSQL:true},{errorCarga:true},{ramo:{promedio:4.5},evaluaciones:[],categorias:[]},{ramo:{promedio:4.5,personas:4.7}}]){c.__ref=ref;
   const html=run('ramoAlumnoEditorialHTML(al,r,__ref,__ref,false,new Date())');assert(!html.includes('undefined'));assert(!html.includes('NaN'));assert(!html.includes('vs. 0 estudiantes'));
-  const filas=run('csvResumenAlumnosPanel([al],()=>__ref,null)').split('\r\n').map(l=>l.split(';'));assert.deepEqual(filas[1].slice(-2),['','']);
+  const filas=run('csvResumenAlumnosPanel([al],()=>__ref,null)').split('\r\n').map(l=>l.split(';'));assert.deepEqual(filas[1].slice(14,16),['','']);
  }
 });
 
@@ -44,8 +44,8 @@ test('CSV agrega las muestras al final sin mover columnas previas, con sección 
  const guardado=run('JSON.stringify(al)');
  for(const fn of ['csvAlumnosPanel','csvResumenAlumnosPanel']){
   const filas=run(fn+'([al],()=>comparacion(23),()=>({...comparacion(9),seccion:2}))').split('\r\n').map(l=>l.split(';'));
-  assert.deepEqual(filas[0].slice(-2),['Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']);assert.deepEqual(filas[1].slice(-2),['23','9']);assert.equal(filas[0][0],'Alumno');assert.equal(filas[0][1],'Ramo');
-  const sin=run(fn+'([al],()=>comparacion(23),()=>comparacion(4))').split('\r\n')[1].split(';');assert.deepEqual(sin.slice(-2),['23','']);
+  const i=filas[0].indexOf('Estudiantes en GradeHub (ramo)');assert.deepEqual(filas[0].slice(i,i+2),['Estudiantes en GradeHub (ramo)','Estudiantes en GradeHub (sección)']);assert.deepEqual(filas[1].slice(i,i+2),['23','9']);assert.equal(filas[0][0],'Alumno');assert.equal(filas[0][1],'Ramo');
+  const sin=run(fn+'([al],()=>comparacion(23),()=>comparacion(4))').split('\r\n')[1].split(';');assert.deepEqual(sin.slice(i,i+2),['23','']);
  }
  assert.equal(run('JSON.stringify(al)'),guardado);
 });

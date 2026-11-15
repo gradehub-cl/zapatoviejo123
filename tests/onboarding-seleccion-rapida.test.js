@@ -44,7 +44,7 @@ const wrap={scrollTop:250};
 const pantalla={dataset:{},scrollTop:180,querySelector:s=>s==='.ob-wrap'?wrap:titulo};
 const generico={style:{},focus(){focoCampo++;}};
 const renderCtx={
-  obStep:1,OB_TOTAL:5,OB_PASO_PROFESOR:6,obTipo:'estudiante',obEnviandoProfesor:false,obRamos:[],prepararObRamos(){},obTrackPaso(){},obProgressPct:s=>s*20,obPosicion:s=>({n:s+1,total:6}),obStepValid:()=>true,
+  obStep:1,OB_TOTAL:5,OB_PASO_PROFESOR:6,obTipo:'estudiante',obEnviandoProfesor:false,obRamos:[],prepararObRamos(){},obTrackPaso(){},obPasos:()=>[1,2,3,4,5],obProgressPct:s=>s*20,obPosicion:s=>({n:s+1,total:6}),obStepValid:()=>true,
   setTimeout:fn=>fn(),
   document:{querySelectorAll:()=>[],querySelector:()=>null,getElementById:id=>id==='screen-onboard'?pantalla:generico},
 };

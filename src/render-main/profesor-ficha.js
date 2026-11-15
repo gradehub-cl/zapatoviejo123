@@ -18,7 +18,7 @@ function errorDocente(error){
   if(/período no vigente/.test(mensaje))return 'Cambió el semestre. Vuelve a abrir la ficha para informar al profesor.';
   return 'No pudimos conectar con el registro. Revisa tu conexión y reintenta.';
 }
-const SEGUNDOS_NOMBRES=new Set('jose josé maria maría ignacio antonio andres andrés luis paz jesus jesús francisca javiera fernanda alejandra ignacia isabel ines inés pablo tomas tomás agustin agustín ester esther del'.split(' '));
+const SEGUNDOS_NOMBRES=new Set('jose josé maria maría ignacio antonio andres andrés luis paz jesus jesús francisca javiera fernanda alejandra andrea cecilia ignacia isabel ines inés pablo tomas tomás agustin agustín ester esther del'.split(' '));
 function nombreCorto(n){
   const p=String(n||'').trim().split(/\s+/),g=[];
   for(let i=0;i<p.length;i++){

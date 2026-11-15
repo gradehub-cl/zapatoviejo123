@@ -3,7 +3,8 @@
 //
 // Esta puerta no es una recomendación: todos los estudiantes de la misma
 // universidad reciben los mismos anuncios y el filtro trabaja sobre esa lista
-// ya descargada. No lee S.ramos ni una nota para ordenar o esconder resultados.
+// ya descargada. Los anuncios no leen ramos ni notas para ordenar resultados.
+// Las siglas de un perfil de Apoyo sí se priorizan localmente por carrera (#1102).
 function normalizarBusquedaClase(texto){
   return String(texto||'').toLowerCase().normalize('NFD')
     .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
@@ -20,6 +21,8 @@ function nombresRamosParaClases(tenant){
   // encontrable por su código y por el texto que escribió el profesor.
   const creditos=typeof CREDITOS_POR_TENANT!=='undefined'&&CREDITOS_POR_TENANT[tenant];
   if(creditos)Object.entries(creditos).forEach(([nombre,fila])=>agregar(fila&&fila[1],nombre));
+  if(tenant==='uc'&&typeof NOMBRES_UC_SOLO_BUSCACURSOS!=='undefined')
+    Object.entries(NOMBRES_UC_SOLO_BUSCACURSOS).forEach(([sigla,nombre])=>agregar(sigla,nombre));
   if(tenant==='uc'&&typeof cursosUcDisponibles==='function')
     cursosUcDisponibles().forEach(fila=>{if(Array.isArray(fila))agregar(fila[0],fila[1]);});
   if(tenant==='uc'&&typeof SIGLAS_UC!=='undefined')
@@ -202,53 +205,163 @@ function tarjetaCatalogoClase(a,{sigla,abierta=false}={}){
     </article>${a.flyer_path?`<figure class="catalogo-clase-flyer" data-flyer="${esc(a.flyer_path)}"${abierta?'':' hidden'}><span>Cargando flyer…</span></figure>`:''}</div>`;
 }
 
-// «Ver perfil» en una clase abierta. Solo existe si el profesor activó su
-// perfil; si no, o si falla, la tarjeta queda igual que antes. Se despliega en
-// la misma tarjeta: un modal encima reemplazaría el catálogo.
+// La tarjeta del directorio y «Ver perfil» de un anuncio abren la misma ficha.
+// La caché queda acotada a la cuenta y universidad que pidió la proyección.
 const perfilesDeAnuncio=new Map();
 function perfilDeAnuncio(id){
-  if(!perfilesDeAnuncio.has(id))perfilesDeAnuncio.set(id,(async()=>{
+  const uid=typeof currentUser==='undefined'?null:currentUser?.id,tenant=S.tenant,clave=[uid,tenant,id].join(':');
+  if(!perfilesDeAnuncio.has(clave))perfilesDeAnuncio.set(clave,(async()=>{
     try{
-      const {data,error}=await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
-      return error?null:(Array.isArray(data)?data[0]:data)||null;
-    }catch(e){return null;}
+      let r=uid?await supabaseClient.rpc('perfil_apoyo_de_anuncio',{p_anuncio_id:id,p_tenant:tenant}):await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
+      if(r.error&&sqlClasesDesactualizado(r.error))r=await supabaseClient.rpc('perfil_publico_de_anuncio',{p_anuncio_id:id});
+      if((typeof currentUser==='undefined'?null:currentUser?.id)!==uid||S.tenant!==tenant)return null;
+      const p=r.error?null:(Array.isArray(r.data)?r.data[0]:r.data)||null;
+      if(!p)perfilesDeAnuncio.delete(clave);
+      return p;
+    }catch(e){perfilesDeAnuncio.delete(clave);return null;}
   })());
-  return perfilesDeAnuncio.get(id);
+  return perfilesDeAnuncio.get(clave);
 }
-function perfilPublicoHTML(p,anuncioId){
+function canalesPerfilApoyo(p){
+  const canales=[];
+  const agregar=(canal,tipo,valor,texto)=>{const enlace=enlaceContactoClase(tipo,valor,'Hola, vi tu perfil en GradeHub. ¿Me das más información?');
+    if(enlace)canales.push({canal,texto,enlace});};
+  if(p.contacto_tipo==='whatsapp')agregar('whatsapp','whatsapp',p.contacto_valor,'WhatsApp');
+  if(p.contacto_tipo==='email')canales.push({canal:'email',texto:'Enviar correo',enlace:null});
+  agregar('instagram','instagram',p.contacto_tipo==='instagram'?p.contacto_valor:p.instagram,'Instagram');
+  agregar('web','enlace',p.sitio_web,'Sitio web');
+  return canales;
+}
+// Iconos vectoriales locales: sin fuentes, imágenes o solicitudes a terceros.
+function iconoCanalPerfil(canal){
+  const trazos={
+    whatsapp:'<path fill="currentColor" stroke="none" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.27-.2-.57-.35ZM12.05 21.79h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.89 9.89-9.89 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 7c0 5.45-4.44 9.88-9.89 9.88Zm8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.69 1.45h.01c6.55 0 11.89-5.34 11.89-11.9a11.82 11.82 0 0 0-3.49-8.41Z"/>',
+    instagram:'<rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor" stroke="none"/>',
+    web:'<circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.6 2.6 4 6 4 9.5s-1.4 6.9-4 9.5c-2.6-2.6-4-6-4-9.5s1.4-6.9 4-9.5Z"/>',
+    email:'<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 7 9 6.5L21 7"/>'
+  };
+  return `<svg class="perfil-contacto-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${trazos[canal]||''}</svg>`;
+}
+// Ramos de un perfil (Lucas, 2026-11-11): arriba van las siglas, porque un
+// «Cálculo I» de la UC no es el de la UAI; la lista entera, con nombre cuando
+// GradeHub lo conoce, queda cerrada hasta abrirla. Solo la universidad de quien mira.
+const MAX_RAMOS_PERFIL_VISIBLES=6;
+// Nombres por universidad del perfil: catálogo y créditos (nombresRamosParaClases)
+// más las pautas cargadas, que traen sigla y nombre (UAI, UDD, UAndes, FEN).
+function nombresRamosPerfilPorUni(unis){
+  const out={};
+  for(const t of unis){
+    const nombres={...nombresRamosParaClases(t)};
+    const presets=typeof PRESETS_POR_TENANT!=='undefined'&&PRESETS_POR_TENANT[t];
+    if(presets)Object.entries(presets).forEach(([nombre,def])=>{
+      const sigla=def&&!Array.isArray(def)&&typeof def.sigla==='string'?siglaAnuncio(def.sigla):'';
+      if(sigla&&!nombres[sigla])nombres[sigla]=nombre;
+    });
+    out[t]=nombres;
+  }
+  return out;
+}
+// Solo códigos: no lee S, no mira notas y no deduce equivalencias por nombre.
+function ramosRelevantesParaVisor(siglas,{cursando=[],historial=[],malla=null}={}){
+  const normalizar=s=>typeof s==='string'?s.toUpperCase().replace(/\s/g,''):'';
+  const codigos=lista=>[...new Set((Array.isArray(lista)?lista:[]).map(x=>normalizar(typeof x==='string'?x:x?.sigla)).filter(Boolean))];
+  const todas=codigos(siglas),respaldo=()=>({mias:todas,otras:[],criterio:'universidad'});
+  if(!codigos(malla).length)return respaldo();
+  const previos=(Array.isArray(historial)?historial:[]).flatMap(h=>Array.isArray(h?.ramos)?h.ramos:[h]);
+  const conocidas=new Set(codigos([...(Array.isArray(cursando)?cursando:[]),...previos]));
+  // Lo cursado va primero y la malla completa el resto: un ramo de su malla que
+  // aún no toma también es de su carrera, nunca de «Otras carreras».
+  const deMalla=new Set(codigos(malla));
+  const cursadas=todas.filter(s=>conocidas.has(s));
+  const mias=[...cursadas,...todas.filter(s=>!conocidas.has(s)&&deMalla.has(s))];
+  if(!mias.length)return respaldo();
+  const criterio=cursadas.length?'ramos':'malla';
+  const elegidas=new Set(mias);
+  return {mias,otras:todas.filter(s=>!elegidas.has(s)),criterio};
+}
+function perfilPropioApoyo(p){
+  if(typeof currentUser==='undefined'||!currentUser?.id)return false;
+  const propio=typeof perfilProfesorCache!=='undefined'&&perfilProfesorCache;
+  return p.user_id===currentUser.id||!!(propio?.directorio_id&&(p.id||p.directorio_id)===propio.directorio_id);
+}
+// La malla guarda nombres. Se usan los códigos del catálogo ya disponible,
+// nunca el nombre de otra sigla del perfil que coincida en «Cálculo I».
+function contextoRamosVisorApoyo(){
+  if(typeof S==='undefined'||!S.carrera||typeof mallaDeCarrera!=='function')return {};
+  const malla=mallaDeCarrera(S.tenant,S.carrera);
+  if(!malla)return {};
+  const codigo=r=>r?.sigla||(typeof siglaDeRamo==='function'?siglaDeRamo(r,S.tenant):null);
+  const deSuUniversidad=r=>!r?.origen?.tenant||r.origen.tenant===S.tenant;
+  return {cursando:(S.ramos||[]).filter(deSuUniversidad).map(codigo),
+    historial:(S.historial||[]).filter(h=>!h.tenant||h.tenant===S.tenant).map(h=>({ramos:(h.ramos||[]).filter(deSuUniversidad).map(codigo)})),
+    malla:Object.values(malla).flat().map(nombre=>typeof nombre==='string'
+      ?(S.tenant==='uc'&&typeof siglaUC==='function'?siglaUC(nombre,S.carrera):null)||codigo({nombre})
+      :codigo(nombre)).filter(Boolean)};
+}
+async function cargarMallaVisorApoyo(){
+  if(typeof S!=='undefined'&&S.carrera&&typeof mallaDeCarrera==='function'&&!mallaDeCarrera(S.tenant,S.carrera)&&typeof cargarMallasUC==='function')
+    await cargarMallasUC(S.tenant).catch(()=>false); // Archivo público local; ninguna consulta de notas o perfiles.
+}
+// Misma selección para tarjeta y ficha. Primero conserva el límite por universidad
+// de #1099; la vista previa y el dueño omiten ambos filtros.
+function seleccionRamosPerfilApoyo(p,{previa=false,nombres=null,visor=typeof S!=='undefined'?S.tenant:null}={}){
+  const siglas=[...new Set((p.ramos_siglas||[]).filter(s=>typeof s==='string').map(s=>s.toUpperCase().replace(/\s/g,'')))].filter(Boolean);
+  const tenants=p.universidades||[],porUni=nombresRamosPerfilPorUni(tenants),propia=visor&&tenants.includes(visor);
+  const nombresVisor=nombres||propia&&porUni[visor]||{};
+  if(previa||perfilPropioApoyo(p))return {mias:siglas,otras:[],criterio:'propio'};
+  // Con asociación declarada (#1105) manda la lista exacta de su universidad;
+  // sin ella, el límite por siglas conocidas de #1099.
+  const mapa=p.ramos_por_universidad&&typeof p.ramos_por_universidad==='object'&&!Array.isArray(p.ramos_por_universidad)?p.ramos_por_universidad:null;
+  const visibles=mapa?[...new Set((mapa[visor]||[]).filter(s=>typeof s==='string').map(s=>s.toUpperCase().replace(/\s/g,'')))].filter(Boolean)
+    :tenants.length>1&&propia?siglas.filter(s=>nombresVisor[s]):siglas;
+  return ramosRelevantesParaVisor(visibles,contextoRamosVisorApoyo());
+}
+function ramosPerfilApoyoHTML(siglas,nombres,unis,tenants=[],visor=null,{previa=false,perfil={},porUniversidad=null}={}){
+  if(!siglas.length)return unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:'';
+  const porUni=nombresRamosPerfilPorUni(tenants),propia=visor&&tenants.includes(visor);
+  const nombresVisor=propia?{...porUni[visor],...nombres}:nombres;
+  const asociados=porUniversidad&&typeof porUniversidad==='object'&&!Array.isArray(porUniversidad);
+  const {mias:visibles,otras,criterio}=seleccionRamosPerfilApoyo({...perfil,ramos_siglas:siglas,universidades:tenants,ramos_por_universidad:asociados?porUniversidad:null},{previa,nombres:nombresVisor,visor});
+  if(!visibles.length)return asociados&&criterio!=='propio'?'<p class="profesor-info">No hay ramos asociados a tu universidad.</p>':'';
+  const etiquetaUni=propia?(UNIVERSIDADES_PERFIL.find(([v])=>v===visor)||[])[1]:'';
+  const nombreDe=s=>nombresVisor[s]||(!asociados&&tenants.map(t=>porUni[t][s]).find(Boolean))||'';
+  const carrera=criterio==='ramos'||criterio==='malla';
+  const resumen=`${visibles.length} ${visibles.length===1?'ramo':'ramos'}${carrera?' de tu carrera':etiquetaUni&&tenants.length>1?` en la ${etiquetaUni}`:unis.length&&tenants.length===1?` · ${unis.join(', ')}`:''}`;
+  const fila=s=>`<li><strong>${esc(s)}</strong>${nombreDe(s)?`<span>${esc(nombreDe(s))}</span>`:''}</li>`;
+  const mas=visibles.length>MAX_RAMOS_PERFIL_VISIBLES;
+  const lista=asociados&&previa?tenants.filter(t=>(porUniversidad[t]||[]).length).map(t=>`<h4>${esc((UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]||t)}</h4><ul class="perfil-apoyo-ramos">${porUniversidad[t].map(s=>`<li><strong>${esc(s)}</strong>${porUni[t]?.[s]?`<span>${esc(porUni[t][s])}</span>`:''}</li>`).join('')}</ul>`).join(''):`<ul class="perfil-apoyo-ramos">${visibles.map(fila).join('')}</ul>`;
+  return `<section class="perfil-apoyo-seccion perfil-apoyo-ramos-caja"><h3>Ramos</h3><p class="perfil-apoyo-ramos-resumen">${esc(resumen)}</p>
+    <ul class="perfil-apoyo-chips">${visibles.slice(0,MAX_RAMOS_PERFIL_VISIBLES).map(s=>`<li>${esc(s)}</li>`).join('')}${mas?`<li class="perfil-apoyo-chip-mas">+${visibles.length-MAX_RAMOS_PERFIL_VISIBLES}</li>`:''}</ul>
+    <details class="perfil-apoyo-todos"><summary>Ver ${visibles.length===1?'el ramo':`los ${visibles.length} ramos`}</summary>${lista}${otras.length?`<details class="perfil-apoyo-otras"><summary>Otras carreras (${otras.length})</summary><ul class="perfil-apoyo-ramos">${otras.map(fila).join('')}</ul></details>`:''}</details></section>`;
+}
+function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant),{previa=false}={}){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
   const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
-  const insta=enlaceContactoClase('instagram',p.instagram),web=enlaceContactoClase('enlace',p.sitio_web);
   const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
   const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
-  return `<div class="perfil-publico-cabeza">${p.logo_path?`<div class="catalogo-clase-logo" data-logo="${esc(p.logo_path)}"></div>`:''}
-      <div><h4>${esc(p.nombre_publico)}</h4>${tipo?`<span>${esc(tipo)}</span>`:''}</div></div>
+  const canales=canalesPerfilApoyo(p);
+  const color=typeof colorTarjetaDirectorio==='function'?colorTarjetaDirectorio(p.color_tarjeta):'#126b63';
+  return `<div class="perfil-apoyo" style="--directorio-color:${color}"><header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
+      ${p.logo_path?`<div class="catalogo-clase-logo perfil-apoyo-logo" data-directorio-logo="${esc(p.logo_path)}" aria-hidden="true"></div>`:''}</header>
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
-    ${unis.length||(p.ramos_siglas||[]).length?`<dl class="catalogo-clase-detalles">${unis.length?`<div><dt>Universidades</dt><dd>${esc(unis.join(', '))}</dd></div>`:''}${(p.ramos_siglas||[]).length?`<div><dt>Ramos</dt><dd>${esc(p.ramos_siglas.join(', '))}</dd></div>`:''}</dl>`:''}
-    ${insta||web?`<p class="perfil-publico-links">${insta?`<a href="${esc(insta)}" target="_blank" rel="noopener noreferrer" data-fuera>Instagram</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener noreferrer" data-fuera>Sitio web</a>`:''}</p>`:''}
-    ${otros.length||sinTitulo>0?`<div class="perfil-publico-otros"><strong>Sus otras clases</strong><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></div>`:''}`;
+    ${canales.length?`<div class="perfil-apoyo-contactos" aria-label="Contactar a ${esc(p.nombre_publico)}">${canales.map(c=>c.enlace?`<a class="clase-accion perfil-contacto-${c.canal}" href="${esc(c.enlace)}" target="_blank" rel="noopener noreferrer" data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></a>`:`<button type="button" class="clase-accion perfil-contacto-${c.canal}" data-directorio-contactar data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></button>`).join('')}</div>`:''}
+    <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
+    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis,(p.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)),typeof S!=='undefined'?S.tenant:null,{previa,perfil:p,porUniversidad:p.ramos_por_universidad})}
+    ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}</div>`;
 }
 async function mostrarPerfilEnClase(caja){
   if(caja.dataset.cargado)return;caja.dataset.cargado='1';
+  const uid=typeof currentUser==='undefined'?null:currentUser?.id,tenant=S.tenant;
   const p=await perfilDeAnuncio(caja.dataset.perfil);
-  if(!p||!caja.isConnected)return;
-  caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-expanded="false">Ver perfil de ${esc(p.nombre_publico)}</button>
-    <section class="perfil-publico" aria-label="Perfil de ${esc(p.nombre_publico)}" hidden>${perfilPublicoHTML(p,caja.dataset.perfil)}</section>`;
-  const boton=caja.querySelector('.perfil-publico-abrir'),seccion=caja.querySelector('.perfil-publico');
+  await cargarMallaVisorApoyo();
+  if(!p||!caja.isConnected||(typeof currentUser==='undefined'?null:currentUser?.id)!==uid||S.tenant!==tenant)return;
+  caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-haspopup="dialog">Ver perfil de ${esc(p.nombre_publico)}</button>`;
+  const boton=caja.querySelector('.perfil-publico-abrir');
   boton.addEventListener('click',()=>{
-    const abrir=seccion.hidden;seccion.hidden=!abrir;boton.setAttribute('aria-expanded',String(abrir));
-    boton.textContent=abrir?'Ocultar perfil':'Ver perfil de '+p.nombre_publico;
-    if(abrir&&typeof track==='function')track('perfil_profesor_abierto');
+    abrirPerfilApoyo(p,{raiz:document.getElementById('modal-content'),tenant,anuncioId:caja.dataset.perfil,
+      volver:()=>boton.isConnected&&boton.focus({preventScroll:true})});
+    if(typeof track==='function')track('perfil_profesor_abierto');
   });
-  seccion.querySelectorAll('[data-logo]').forEach(async c=>{const url=await urlFlyerClase(c.dataset.logo);if(!c.isConnected)return;if(url)c.innerHTML=imgLogoClase(url,' loading="lazy"');else c.remove();});
-  seccion.querySelectorAll('[data-fuera]').forEach(a=>a.addEventListener('click',e=>{
-    if(typeof enAppNativa==='function'&&enAppNativa()&&abrirFuera(a.href))e.preventDefault();
-  }));
-  seccion.querySelectorAll('[data-ir-anuncio]').forEach(b=>b.addEventListener('click',()=>{
-    const destino=document.querySelector(`[data-catalogo-anuncio="${CSS.escape(b.dataset.irAnuncio)}"]`);
-    if(destino){destino.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-      const ver=destino.querySelector('[data-abrir]');(ver||destino).focus&&(ver||destino).focus({preventScroll:true});}
-  }));
 }
 
 // Filtros locales sobre el catálogo público; no modifican campañas ni medición.
@@ -276,7 +389,7 @@ function filtrosCatalogoClases(){
 }
 function cabeceraCatalogoClasesHTML(){
   return `<div class="catalogo-clases catalogo-redisenado">
-    <header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
+    <header class="catalogo-clases-head"><div><p class="catalogo-ceja">APOYO</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
     <div class="catalogo-herramientas"><div class="catalogo-buscador"><label for="catalogo-clases-buscar">Buscar clases</label>
     <div class="catalogo-clases-busqueda"><input id="catalogo-clases-buscar" type="search" autocomplete="off" placeholder="Busca por ramo o sigla" aria-describedby="catalogo-clases-estado"></div></div>
     <label class="catalogo-filtro">Qué buscas<select id="catalogo-tipo"><option value="">Todo</option>${TIPOS_ANUNCIO.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
@@ -375,6 +488,8 @@ function activarTarjetasClases(raiz){
 const IMPRESION_VISIBLE=0.5,IMPRESION_MS=1000;
 let impresionesCatalogo=new Set(),observadorCatalogo=null,logosCatalogoClases=new Map(),limpiarVisibilidadCatalogo=null;
 let eventosCatalogo=new Map();
+const impresionesCatalogoEnCurso=new Set();
+const vistasPorCatalogo=new WeakMap();
 function observarImpresionesClases(raiz,anuncios,busqueda=''){
   // Si la persona escribió algo, las tarjetas que ve son resultado de buscar.
   const canal=String(busqueda||'').trim()?'busqueda':'lista';
@@ -383,27 +498,33 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
   if(typeof IntersectionObserver!=='function'||!raiz)return;
   const sigla=new Map((anuncios||[]).map(a=>[a.id,(a.ramos_siglas||[])[0]||'']));
   const eventos=eventosCatalogo;
+  if(!vistasPorCatalogo.has(eventos))vistasPorCatalogo.set(eventos,new Set());
+  const vistas=vistasPorCatalogo.get(eventos);
+  const publicaciones=new Map((anuncios||[]).map(a=>[a.id,a.publicado_at]));
   const timers=new Map(),visibles=new Set(),tarjetas=new Map();
   const programar=(card,id,demora=IMPRESION_MS)=>{
     if(timers.has(id))return;
     timers.set(id,setTimeout(async()=>{
       timers.delete(id);
-      const clave=id+':'+canal;
+      const clave=id+':'+canal,claveEvento=claveMedicionClase(id);
       if(document.visibilityState==='hidden'||!card.isConnected||!visibles.has(id)||impresionesCatalogo.has(clave))return;
+      if(!eventos.has(claveEvento))eventos.set(claveEvento,nuevoEventoMetricaClase());
+      const eventoId=eventos.get(claveEvento),medidas=impresionesCatalogo;
+      if(impresionesCatalogoEnCurso.has(eventoId))return;
+      impresionesCatalogoEnCurso.add(eventoId);
       const usuario=currentUser&&currentUser.id;
+      // El alcance conserva su RPC y su cobro. Un fallo no impide el total.
       const alcance=await registrarAlcanceAnuncio(id,canal);
-      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo)return;
-      if(alcance===null){
+      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo){impresionesCatalogoEnCurso.delete(eventoId);return;}
+      const metrica=vistas.has(claveEvento)?true:await registrarMetricaAnuncio(id,'impresion',sigla.get(id),
+        {eventoId,publicacion:publicaciones.get(id),cobroConfirmado:alcance!==null});
+      impresionesCatalogoEnCurso.delete(eventoId);
+      if(alcance!==null&&metrica!==null)vistas.add(claveEvento);
+      if(alcance===null||metrica===null){
         if(card.isConnected&&visibles.has(id))programar(card,id,5000);
         return;
       }
-      if(!eventosCatalogo.has(clave))eventosCatalogo.set(clave,nuevoEventoMetricaClase());
-      const metrica=await registrarMetricaAnuncio(id,'impresion',sigla.get(id),{eventoId:eventosCatalogo.get(clave)});
-      if(metrica===null){
-        if(card.isConnected&&visibles.has(id))programar(card,id,5000);
-        return;
-      }
-      impresionesCatalogo.add(clave);
+      medidas.add(clave);
     },demora));
   };
   observadorCatalogo=new IntersectionObserver(entradas=>{
@@ -433,6 +554,7 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
 }
 
 async function openCatalogoClases(){
+  if(await abrirDirectorioClases())return;
   impresionesCatalogo=new Set();
   eventosCatalogo=new Map();
   const raiz=document.getElementById('modal-content');
@@ -516,7 +638,7 @@ function nuevoEventoMetricaClase(){
   });
 }
 let eventosAnuncioDisponibles=true;
-async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null}={}){
+async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null,cobroConfirmado=true}={}){
   const payload=payloadMetricaAnuncio(anuncioId,tipo,ramoSigla);
   if(!supabaseClient||!currentUser||!payload)return false;
   try{
@@ -528,28 +650,22 @@ async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoE
       if(!sqlClasesDesactualizado(r.error))throw r.error;
       eventosAnuncioDisponibles=false; // Sin SQL: conserva la medición anterior.
     }
+    // Compatibilidad: la RPC antigua depende de la fila cobrable confirmada.
+    if(!cobroConfirmado)return null;
     const {data,error}=await supabaseClient.rpc('registrar_metrica_anuncio',payload);
     if(error)throw error;
     return data===true;
   }catch(error){console.warn('No se pudo registrar la métrica del anuncio:',error.message||error);return null;}
 }
 
-// La repetición se registra después de confirmar la interacción única.
+// La interacción cobrable conserva su RPC; el total es independiente de su resultado.
 // Un reintento conserva su clave: una respuesta perdida no suma otro evento.
 async function registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos=2,eventoId=nuevoEventoMetricaClase()}={}){
   const usuario=currentUser&&currentUser.id;
   const cargo=await registrarInteraccionAnuncio(anuncioId,tipo);
   if(!currentUser||currentUser.id!==usuario)return null;
-  if(cargo===null){
-    // La apertura ya ocurrió en pantalla y su botón desapareció: reintentarla
-    // sin pedir otro clic. Contacto sí requiere un nuevo gesto para navegar.
-    if(tipo==='apertura'&&reintentos>0)setTimeout(()=>{
-      if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
-    },5000);
-    return null;
-  }
-  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId});
-  if(metrica===null&&reintentos>0)setTimeout(()=>{
+  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId,cobroConfirmado:cargo!==null});
+  if((metrica===null||cargo===null&&tipo==='apertura')&&reintentos>0)setTimeout(()=>{
     if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
   },5000);
   return cargo;

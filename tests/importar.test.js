@@ -41,7 +41,11 @@ chk('la app llama a la función de la base, no borra desde el cliente',
 chk('la función se invoca sin parámetros (usa auth.uid del token)',
   !/rpc\(\s*['"]eliminar_mi_cuenta['"]\s*,/.test(appSrc));
 chk('lo local se limpia DESPUÉS de que la nube confirme',
-  appSrc.indexOf("rpc('eliminar_mi_cuenta')") < appSrc.indexOf('localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(CACHE_OWNER_KEY);localStorage.removeItem(PRE_IMPORT_KEY)'));
+  // La limpieza es la de cerrar sesión; el camino completo, con el fallo remoto,
+  // está en borrado-cuenta-limpieza.test.js.
+  (()=>{const f=appSrc.slice(appSrc.indexOf('async function eliminarCuenta'));
+    const nube=f.indexOf("rpc('eliminar_mi_cuenta')"),fallo=f.indexOf('if(error)throw error'),limpia=f.indexOf('await cerrarSesion()');
+    return nube>=0&&nube<fallo&&fallo<limpia;})());
 chk('hay doble confirmación', (appSrc.match(/showConfirm\(/g) || []).length >= 2 && /¿Seguro\?/.test(appSrc));
 const flujoEliminar=appSrc.slice(appSrc.indexOf('function confirmarEliminarCuenta'),appSrc.indexOf('async function eliminarCuenta'));
 chk('la tercera confirmación muestra el impacto y rompe el automatismo',

@@ -72,6 +72,9 @@ const CONFLICTOS_CONOCIDOS = {
   // El horario oficial 2026-2 la dicta como TTF012 (Formación Teológica).
   // TEB110 es un curso distinto con el mismo nombre.
   'Revelación y Fe': 'TEB110',
+  // El formulario de condiciones 2026-2 (sección 7) la declara DER005L.
+  // DEL269 es otro curso con el mismo nombre en el catálogo.
+  'Derecho Administrativo II': 'DEL269',
 };
 const catalogo = fs.readFileSync(raiz + 'cursos-uc.js', 'utf8');
 const filas = new Map();

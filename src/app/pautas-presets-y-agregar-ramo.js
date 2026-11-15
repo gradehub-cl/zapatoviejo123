@@ -23,7 +23,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
     // escribió con la versión anterior. También puede reunir categorías
     // antiguas en casillas concretas si el dato nuevo aclara que eran un grupo.
     if(extra&&Array.isArray(extra.nombresAnteriores))cat.nombresAnteriores=extra.nombresAnteriores.map(x=>
-      typeof x==='string'?x:{nombre:x.nombre,slot:x.slot});
+      typeof x==='string'?x:{nombre:x.nombre,slot:x.slot,peso:x.peso});
     if(extra&&extra.lista)cat.directNota=false;
     if(extra&&extra.dropLowest)cat.dropLowest=extra.dropLowest;
     // Una pauta de 2026-2 puede seguir siendo buena para sus porcentajes en
@@ -36,7 +36,7 @@ function presetRamo(nombre,tenant,carrera,ahora){
   const aporta=(!Array.isArray(def)&&def.aporta)?{...def.aporta}:null;
   (!Array.isArray(def)&&def.grupos||[]).forEach(g=>{
     const ids=g.evals.map(n=>porNombre[n]).filter(Boolean);
-    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{})});
+    if(ids.length)gates.push({type:'group_min',catIds:ids,min:g.min,cap:g.cap,nombre:g.nombre,...(g.exacto===true?{exacto:true}:{}),...(g.efecto==='reemplazar'?{efecto:'reemplazar'}:{})});
   });
   // Las reglas nuevas usan gates; un ramo ya guardado las recibe únicamente
   // cuando su dueño acepta actualizar la pauta.

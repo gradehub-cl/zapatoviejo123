@@ -1,23 +1,27 @@
 // ─── CONTROL DE PONDERACIÓN ──────────────────────────────────────────────────
 // Input numérico + slider que se sincronizan. El slider salta de 5 en 5 (valores
-// redondos, que es lo normal en una pauta); el input acepta cualquier entero.
+// redondos, que es lo normal en una pauta); el input acepta hasta dos decimales
+// con coma o punto (33,33%). Antes solo enteros: abrir una evaluación de 33,33%
+// y guardar la dejaba en 33 sin avisar.
 // `excluirCatId` permite calcular cuánto % queda libre sin contarse a sí misma.
+function leerPesoTexto(t){return r2(parseFloat(String(t||'').replace(',','.')));}
+function pesoTexto(v){return String(r2(v)).replace('.',',');}
 function pesoControlHTML(valor,excluirCatId){
-  const v=Math.round(valor||30);
+  const v=r2(valor||30);
   const r=S.ramos.find(x=>x.id===currentRamoId);
   let usado=0;
   if(r)r.categorias.forEach(c=>{if(c.id!==excluirCatId)usado+=(c.peso||0);});
-  const libre=Math.round((100-usado)*10)/10;
+  const libre=r2(100-usado);
   return `
     <label class="modal-label">Ponderación en el ramo</label>
     <div class="peso-control">
       <div class="peso-field">
-        <input type="text" inputmode="numeric" id="m-cat-peso-num" value="${v}" maxlength="3" aria-label="Ponderación en porcentaje"/>
+        <input type="text" inputmode="decimal" id="m-cat-peso-num" value="${pesoTexto(v)}" maxlength="6" aria-label="Ponderación en porcentaje"/>
         <span class="peso-pct">%</span>
       </div>
       <div class="peso-hint" id="m-peso-hint"></div>
     </div>
-    <input type="range" min="0" max="100" step="5" value="${v}" id="m-cat-peso" class="peso-slider" aria-label="Ajustar ponderación"/>
+    <input type="range" min="0" max="100" step="5" value="${Math.round(v/5)*5}" id="m-cat-peso" class="peso-slider" aria-label="Ajustar ponderación"/>
     <div class="peso-marks" aria-hidden="true"><span style="--p:0">0</span><span style="--p:25">25</span><span style="--p:50">50</span><span style="--p:75">75</span><span style="--p:100">100</span></div>
     <input type="hidden" id="m-peso-libre" value="${libre}"/>`;
 }
@@ -32,7 +36,7 @@ function wirePesoControl(){
 
   function refreshHint(v){
     if(!hint)return;
-    const resto=Math.round((libre-v)*10)/10;
+    const resto=r2(libre-v);
     if(Math.abs(resto)<0.05){
       hint.textContent='Las evaluaciones suman 100%';
       hint.className='peso-hint ok';
@@ -47,28 +51,28 @@ function wirePesoControl(){
   function setVal(v,fromInput){
     v=Math.max(0,Math.min(100,v));
     slider.value=String(Math.round(v/5)*5); // el slider siempre cae en múltiplo de 5
-    if(!fromInput)num.value=String(Math.round(v));
+    if(!fromInput)num.value=pesoTexto(v);
     refreshHint(v);
   }
-  // Escribir a mano: cualquier entero 0–100
+  // Escribir a mano: 0–100 con hasta dos decimales
   num.addEventListener('input',()=>{
-    const raw=num.value.replace(/[^0-9]/g,'');
+    const raw=num.value.replace(/[^0-9.,]/g,'');
     if(raw!==num.value)num.value=raw;
-    const v=parseInt(raw,10);
+    const v=leerPesoTexto(raw);
     if(!isNaN(v))setVal(v,true);
   });
   num.addEventListener('blur',()=>{
-    let v=parseInt(num.value,10);
+    let v=leerPesoTexto(num.value);
     if(isNaN(v)||v<=0)v=1;
     if(v>100)v=100;
-    num.value=String(v);setVal(v,true);
+    num.value=pesoTexto(v);setVal(v,true);
   });
   // Mover el slider: salta de 5 en 5
   slider.addEventListener('input',()=>{
     const v=parseInt(slider.value,10);
     num.value=String(v);refreshHint(v);
   });
-  refreshHint(parseInt(num.value,10)||0);
+  refreshHint(leerPesoTexto(num.value)||0);
 }
 
 // Peso actual de una categoría (fallback si el input quedó vacío al editar)
@@ -80,7 +84,7 @@ function cat0Peso(catId){
 // Lee el valor final del control (prioriza lo escrito a mano)
 function readPesoControl(fallback){
   const num=document.getElementById('m-cat-peso-num');
-  let v=num?parseInt(num.value,10):NaN;
+  let v=num?leerPesoTexto(num.value):NaN;
   if(isNaN(v)){
     const slider=document.getElementById('m-cat-peso');
     v=slider?parseInt(slider.value,10):NaN;
@@ -212,6 +216,18 @@ function leerHora(idBase){
   return HORA_RE.test(h.value||'')?h.value:null;
 }
 
+const idReglaModal=clave=>`m-cat-regla-${clave}`;
+function leerReglasEvaluacionModal(r,varias,cantidad){
+  const leer=clave=>document.getElementById(idReglaModal(clave))?.value||'';
+  const reglas=validarReglasEvaluacionEditor({descarte:leer('descarte'),min:leer('min'),tope:leer('tope')},
+    varias,cantidad,gh_reglasNota(r.origen?.tenant||S.tenant).grade_scale);
+  if(!reglas.error)return reglas;
+  const id=idReglaModal(reglas.campo),campo=document.getElementById(id);
+  campo.closest('details').open=true;
+  campo.setAttribute('aria-describedby','m-cat-error');
+  mostrarErrorCampo(id,'m-cat-error',reglas.error);
+  return null;
+}
 let addCatError='';
 function mostrarErrorCampo(inputId,errorId,mensaje){
   const input=document.getElementById(inputId),error=document.getElementById(errorId);
@@ -225,6 +241,7 @@ function limpiarErrorCampo(inputId,errorId){
 }
 function openAddCatModal(prefillDate){
   addCatError='';
+  const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Nueva evaluación</div>
     <label class="modal-label">Nombre</label>
@@ -236,6 +253,7 @@ function openAddCatModal(prefillDate){
       <span>Son varias notas que se promedian <span style="color:var(--fg3);">(controles, laboratorios, tareas)</span></span>
     </label>
     ${campoFechaHoraHTML('m-cat',prefillDate||'',null,false)}
+    ${reglasEvaluacionEditorHTML({manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:true})}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
@@ -262,7 +280,10 @@ function confirmAddCat(){
   // de decirlo: la casilla es el único camino que tiene el estudiante hacia la
   // tarjeta con "+ Agregar nota" que las pautas oficiales usan vía `lista:true`.
   const varias=!!(document.getElementById('m-cat-varias')||{}).checked;
+  const reglas=leerReglasEvaluacionModal(r,varias,null);if(!reglas)return false;
   const hora=leerHora('m-cat');
-  r.categorias.push({id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:!varias,notas:[]});
+  const cat={id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:!varias,notas:[]};
+  guardarReglasEvaluacionEditor(r,cat,reglas);
+  r.categorias.push(cat);
   save();track('add_categoria',{peso,tiene_fecha:!!fecha,varias_notas:varias});closeModal();renderRamo();
 }

@@ -39,8 +39,8 @@ function openSettings(){
   const sections=[
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir'],
-    ['Tu cuenta','profesor','Clases particulares','Ofrece clases a otros estudiantes','profesor particular clases ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso'],
+    ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
@@ -99,15 +99,14 @@ function openSettings(){
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
       </div>`:''}
       ${currentUser&&conClave?`<div class="settings-account-access">
-        <label class="modal-label" for="s-account-current-pass">Contraseña actual</label>
-        <div class="modal-input"><input type="password" id="s-account-current-pass" maxlength="72" autocomplete="current-password" aria-describedby="s-account-pass-status"/></div>
-        <label class="modal-label" for="s-account-pass" style="margin-top:10px;">Nueva contraseña</label>
+        <label class="modal-label" for="s-account-pass">Nueva contraseña</label>
         <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
         <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
         <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>
         <p class="settings-help" id="s-account-pass-help" style="margin:7px 0 10px;">Al menos ${PASS_MIN} caracteres, con letras y números.</p>
         <p id="s-account-pass-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
-        <button type="button" class="settings-reset-btn" id="s-account-pass-save" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-save" style="min-height:44px;" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
+        <button type="button" class="settings-reset-btn" id="s-account-pass-recover" style="min-height:44px;margin-top:8px;" onclick="recuperarClaveCuenta()" hidden>Enviar enlace al correo</button>
       </div>`:''}`;
     if(section==='academico')return `
       <div class="modal-label">Universidad</div>
@@ -153,6 +152,7 @@ function openSettings(){
       <label class="modal-label">Canvas UC</label>
       <p class="settings-help" style="margin-top:0;">Trae ramos y fechas. Revisas cada propuesta antes de agregarla.</p>
       <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`:''}
+      ${canvasIcsDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div><label class="modal-label">Canvas UC</label><div id="s-canvas-ics"></div>`:''}
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
       <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
@@ -229,6 +229,13 @@ function openSettings(){
         <button type="button" onclick="exportarDatos()">Exportar mis datos</button>
         <button type="button" onclick="abrirImportar()">Importar datos</button>
       </div>
+      ${!soloProfesor?`<div class="settings-pautas">
+        <label class="toggle-row" for="s-compartir-pautas">
+          <span class="toggle-label">Compartir mis pautas en forma anónima</span>
+          <span class="toggle"><input id="s-compartir-pautas" type="checkbox" role="switch" ${S.aportarPautasAutomaticamente===false?'':'checked'} onchange="cambiarCompartirPautas(this.checked)" aria-describedby="s-pautas-ayuda"/><span class="toggle-slider"></span></span>
+        </label>
+        <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas pautas; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
+      </div>`:''}
       ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
@@ -301,6 +308,7 @@ function openSettings(){
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
     if(activeSection==='calendario'&&canvasDisponible())pintarCanvasAjustes();
+    if(activeSection==='calendario'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.
@@ -417,7 +425,7 @@ function openSettings(){
     // casi nadie toca dos veces. La lista completa aparece al escribir, igual que
     // el buscador de ramos, y el campo de arriba dice qué hacer para verla.
     const elegidaDe=c=>c.malla?c.malla===settingsCarrera:(!settingsCarrera&&c.n===settingsCarreraNombre);
-    const vistas=q?todas.filter(c=>normName(c.n).includes(q)):todas.filter(elegidaDe);
+    const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas.filter(elegidaDe);
     if(!q&&!vistas.length&&settingsCarreraNombre){
       // Declaró algo que no está en la lista oficial: igual tiene que verlo.
       const b=document.createElement('button');

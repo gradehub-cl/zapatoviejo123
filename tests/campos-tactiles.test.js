@@ -84,33 +84,22 @@ chk('reserva 25px para el sufijo %', /padding:\s*9px\s+25px\s+9px\s+9px/.test(cs
 
 console.log('\n=== Los controles de una evaluación también se tocan con el dedo ===');
 // Salieron de revisar los desplegables ramo por ramo (#177) midiendo cada
-// control en 375px. Estaban todos bajo 44: la casilla de nota en 38, y el ✕ que
-// borra una nota en 23x19.
-//
-// El del ✕ es el que importa: `deleteNota` no pregunta nada, así que un toque
-// torcido al lado del nombre se lleva un dato que no vuelve. Lo que crece es el
-// área que responde al dedo, no el ícono.
+// control en 375px: la casilla de nota estaba en 38. La ✕ que borraba una nota
+// y el botón punteado de agregar se fueron con la tarjeta antigua (2026-11-14);
+// sus reemplazos se miden más abajo.
 const reglaDe = sel => (css.match(new RegExp('\\' + sel.replace('.', '.') + '\\{[^}]*\\}')) || [])[0] || '';
 const alto44 = r => /min-height:\s*44px/.test(r);
-[['.nota-row-del', 'el ✕ que borra una nota'],
- ['.eval-row-input', 'la casilla donde se escribe la nota'],
- ['.add-nota-btn', 'el botón de agregar nota'],
- ['.nota-row-name', 'el nombre de la nota, que abre su editor']].forEach(([sel, que]) => {
-  chk(que + ' reserva 44px de alto', alto44(reglaDe(sel)));
-});
-chk('y el ✕ reserva también 44px de ancho', /min-width:\s*44px/.test(reglaDe('.nota-row-del')));
+chk('la casilla donde se escribe la nota reserva 44px de alto', alto44(reglaDe('.eval-row-input')));
+chk('no quedan estilos de la tarjeta antigua', !/\.(cat-card|cat-header|cat-body|nota-row|add-nota-btn)\b/.test(css));
 
-// Los dos botones de la cabecera van en estilos inline, dentro del render.
-const appSrc = fs.readFileSync(raiz + 'app.js', 'utf8') + '\n' + fs.readFileSync(raiz + 'render-main.js', 'utf8');
-const inlineDe = etiqueta => {
-  const m = appSrc.match(new RegExp('<button aria-label="' + etiqueta + '[^>]*style="([^"]*)"'));
-  return m ? m[1] : '';
-};
-[['Eliminar evaluación', 'el botón de eliminar la evaluación'],
- ["\\$\\{isOpen\\?'Colapsar'", 'el botón que abre y cierra la evaluación']].forEach(([et, que]) => {
-  const st = inlineDe(et);
-  chk(que + ' reserva 44px', /min-height:44px/.test(st) && /min-width:44px/.test(st));
+// La lista abierta se dibuja como el grupo de casillas (2026-11-11): ya no hay
+// botones con estilo inline en la cabecera. Lo que se toca ahora son los botones
+// de texto del pie y "Eliminar nota" en la hoja de la nota.
+[['.casillas-btn', 'los botones de agregar y quitar una nota'],
+ ['.btn-eliminar-nota', 'el botón de eliminar una nota en su hoja']].forEach(([sel, que]) => {
+  chk(que + ' reservan 44px de alto', alto44(reglaDe(sel)));
 });
+chk('y agregar/quitar reservan también 44px de ancho', /min-width:\s*44px/.test(reglaDe('.casillas-btn')));
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

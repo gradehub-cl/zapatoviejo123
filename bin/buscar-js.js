@@ -135,7 +135,7 @@ function referencias(docs, consulta, { limite = 8 } = {}) {
 
 function seleccionarJSON(archivo, clave, { raiz = RAIZ } = {}) {
   if (!archivo || !archivo.endsWith('.json') || path.isAbsolute(archivo)
-    || archivo.split(/[\\/]/).some(p => p.startsWith('.') || ['node_modules', 'ocr'].includes(p)))
+    || archivo.split(/[\\/]/).some(p => p.startsWith('.') || ['node_modules', 'ocr', 'pdf'].includes(p)))
     throw new Error('--clave requiere --archivo con una ruta JSON del repo.');
   if (!clave.startsWith('/') || /~(?:[^01]|$)/.test(clave))
     throw new Error('--clave usa JSON Pointer: /scripts o /ramos/0/nombre (~1 para / y ~0 para ~).');

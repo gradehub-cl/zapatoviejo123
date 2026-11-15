@@ -102,8 +102,8 @@ const manual = cargar([{ id: 'e', nombre: 'Introducción a la Programación', or
 chk('no toca un ramo creado a mano, aunque el nombre calce', manual[0].categorias.length === 0);
 
 // Y un ramo del catálogo SIN pauta publicada sigue sin inventarse una.
-const sinPauta = cargar([{ id: 'f', nombre: 'Ecuaciones Diferenciales', origen: uc, categorias: [], gates: [] }]);
-chk('un ramo sin programa oficial sigue sin pauta', sinPauta[0].categorias.length === 0);
+const sinPauta = cargar([{ id: 'f', nombre: 'Probabilidades y Estadística', origen: uc, categorias: [], gates: [] }]);
+chk('un programa con redondeos no soportados sigue sin pauta', sinPauta[0].categorias.length === 0);
 
 console.log('\n=== Una pauta que nadie puede encontrar no existe ===');
 // Los OFG y electivos no van en la malla a propósito: son una elección, no un
@@ -143,12 +143,12 @@ chk('los ramos de su propia malla siguen con su semestre',
   chk('Comercial UC NO recibe la pauta de Ingeniería para "' + q + '"',
     buscarUC(q, 'COM').every(r => !r.tienePreset));
 });
-// Termodinámica ya tiene el programa 2025-1: debe anunciar la pauta que sí carga.
+// Termodinámica anuncia la pauta del programa 2026-2.
 const termo = buscarUC('Termodinámica', 'ING-PC').find(r => r.nombre === 'Termodinámica');
-chk('Termodinámica aparece con su pauta histórica disponible', !!termo && termo.tienePreset);
-// EDO todavía no tiene programa transcrito: no se promete una pauta por el audio.
+chk('Termodinámica aparece con su pauta disponible', !!termo && termo.tienePreset);
+// EDO ya tiene las ponderaciones del programa de 2026-1.
 const edo = buscarUC('Ecuaciones Diferenciales', 'ING-PC').find(r => r.nombre === 'Ecuaciones Diferenciales');
-chk('EDO aparece por la malla, pero sin estrella de pauta', !!edo && !edo.tienePreset);
+chk('EDO aparece con la pauta de su programa', !!edo && edo.tienePreset);
 
 console.log('\n=== Cuando la pauta oficial cambia ===');
 // Un preset se copia al ramo al crearlo y después queda congelado. Si más tarde

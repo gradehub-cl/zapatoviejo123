@@ -21,6 +21,8 @@ const expected={
   'Introducción a la Microeconomía':[20,25,25,30],
   'Management':[20,20,20,25,15],
   'Introducción a la Macroeconomía':[15,20,20,20,25],
+  'Introducción a la Economía':[20,25,25,30],
+  'Lectura Crítica II':[28,21,10.5,10.5,30],
 };
 const plain=x=>JSON.parse(JSON.stringify(x));
 const at=new Date('2026-09-08T12:00:00Z');
@@ -62,6 +64,15 @@ assert.equal(management.categorias.some(c=>/examen/i.test(c.nombre)),false,'La t
 const macro=ctx.presetRamo('Introducción a la Macroeconomía','uai','COM',at);
 assert.equal(macro.creditos,6);
 assert.ok(macro.categorias.every(c=>!c.slots&&!c.dropLowest),'Al menos ocho / dos o tres descartes no son cantidades fijas');
+const eco=ctx.presetRamo('Introducción a la Economía','uai','COM',at);
+assert.equal(eco.gates.length,0,'Sin mínimo de examen');
+assert.ok(eco.categorias.every(c=>!c.slots),'4 o 6 controles: no se precargan casillas');
+assert.equal(eco.reemplazosOptativos.length,1,'El examen ≥4,8 puede reemplazar la peor prueba');
+assert.notDeepEqual(plain(eco.categorias.map(c=>c.peso)),plain(ctx.presetRamo('Introducción a la Economía','fen','COM',at).categorias.map(c=>c.peso)),'No mezcla con la de FEN');
+const lec=ctx.presetRamo('Lectura Crítica II','uai','COM',at);
+assert.equal(lec.categorias.find(c=>c.nombre==='Comentarios críticos').slots,2);
+assert.equal(lec.categorias.find(c=>c.nombre==='Controles de lectura').slots,3);
+assert.equal(lec.categorias.find(c=>c.nombre==='Actividades en clase').dropLowest,undefined,'El descarte es condicional');
 const core=ctx.presetRamo('Escritura Argumentativa','uai','COM',at);
 assert.equal(core.categorias.find(c=>c.nombre==='Análisis de textos 1').fecha,'2026-08-20');
 assert.equal(core.categorias.find(c=>c.nombre==='Análisis de textos 2').fecha,'2026-08-27');
@@ -82,4 +93,4 @@ ctx.run('S=normalize(S)');
 const loaded=ctx.run('S.ramos[0]');
 assert.equal(JSON.stringify(loaded.categorias),before);
 assert.equal(ctx.ramoAvg(loaded),avg);
-console.log('Programas UAI: seis pautas verificadas, sin mezclar universidades ni modificar pautas personales');
+console.log('Programas UAI: ocho pautas verificadas, sin mezclar universidades ni modificar pautas personales');

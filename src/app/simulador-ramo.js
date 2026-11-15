@@ -151,7 +151,7 @@ function simNotaNecesaria(proyectado,meta=simMeta){
   });
   const bloqueante=compuertas.find(x=>x.activa&&!x.pendiente);
   if(bloqueante&&meta>bloqueante.activa.cap+1e-9)return {texto:`Con esto ya no alcanzas el ${m}`,
-    detalle:`${bloqueante.activa.nombre} está bajo el mínimo de ${simConComa(fmtPromedio(bloqueante.activa.min))} y topa la nota.`};
+    detalle:`${bloqueante.activa.nombre} está bajo el mínimo de ${fmtPromedio(bloqueante.activa.min)} y topa la nota.`};
   if(necesaria===null)return null;
   if(!Number.isFinite(necesaria)||necesaria>7)return {texto:`Con esto ya no alcanzas el ${m}${deCatedra}`};
 
@@ -159,15 +159,15 @@ function simNotaNecesaria(proyectado,meta=simMeta){
   const condiciones=pendientes.map(x=>{
     const ids=x.g.type==='group_min'?x.g.catIds:[x.g.catId];
     const nombre=x.g.nombre||(ids||[]).map(id=>(proyectado.categorias||[]).find(c=>c.id===id)?.nombre).filter(Boolean).join(' y ')||'el requisito del ramo';
-    return `Además, ${nombre} debe llegar a ${simConComa(fmtPromedio(x.g.min))} para cumplir su mínimo.`;
+    return `Además, ${nombre} debe llegar a ${fmtPromedio(x.g.min)} para cumplir su mínimo.`;
   }).join(' ');
-  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${simConComa(nfNecesaria(necesaria))} en cada evaluación pendiente llegas a ${m}`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
+  if(notaNecesariaCondicional(proyectado))return {texto:`Con ${nfNecesaria(necesaria)} en cada evaluación pendiente llegas a ${m}`,detalle:'Cambiar una nota puede activar otra fórmula. Comprueba cada escenario en el simulador.'};
   if(necesaria<=1)return pendientes.length
     ?{texto:`El promedio ponderado ya alcanza el ${m}${deCatedra}`,detalle:condiciones}
     :{texto:`Ya tienes el ${m}${deCatedra} asegurado`};
   return {texto:vinculo
-    ?(aprobar?`Para aprobar cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`:`Para el ${m} de cátedra necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`)
-    :`Para el ${m} necesitas ${simConComa(nfNecesaria(necesaria))} en lo que queda`,detalle:condiciones};
+    ?(aprobar?`Para aprobar cátedra necesitas ${nfNecesaria(necesaria)} en lo que queda`:`Para el ${m} de cátedra necesitas ${nfNecesaria(necesaria)} en lo que queda`)
+    :`Para el ${m} necesitas ${nfNecesaria(necesaria)} en lo que queda`,detalle:condiciones};
 }
 
 function renderSimuladorResumen(r){
@@ -177,7 +177,7 @@ function renderSimuladorResumen(r){
   const hasSim=Object.values(simState).some(arr=>arr&&arr.length);
 
   const avgEl=document.getElementById('sim-avg');
-  avgEl.textContent=proj!==null?simConComa(fmtPromedio(proj)):'—';
+  avgEl.textContent=proj!==null?fmtPromedio(proj):'—';
   avgEl.style.color=proj!==null?getColorRamo(proyectado,proj):'var(--fg3)';
 
   const deltaEl=document.getElementById('sim-delta');
@@ -191,11 +191,11 @@ function renderSimuladorResumen(r){
     const d=r2(notaFinalOficial(proj)-notaFinalOficial(real));
     const cls=d>0?'up':d<0?'down':'flat';
     deltaEl.className='sim-delta '+cls;
-    deltaEl.textContent=`${d>0?'+':''}${simConComa(d.toFixed(1))} vs tu ${simConComa(fmtPromedio(real))} actual`;
+    deltaEl.textContent=`${d>0?'+':''}${simConComa(d.toFixed(1))} vs tu ${fmtPromedio(real)} actual`;
     deltaEl.style.display='inline-block';
   } else if(real!==null){
     deltaEl.className='sim-delta flat';
-    deltaEl.textContent=`Tu promedio actual: ${simConComa(fmtPromedio(real))}`;
+    deltaEl.textContent=`Tu promedio actual: ${fmtPromedio(real)}`;
     deltaEl.style.display='inline-block';
   } else {deltaEl.style.display='none';}
 
@@ -211,7 +211,7 @@ function renderSimuladorResumen(r){
   }
   const soloEl=document.getElementById('sim-solo-parte');
   if(soloEl){
-    const html=htmlSoloCatedra(proyectado,{fmt:simConComa});
+    const html=htmlSoloCatedra(proyectado);
     soloEl.hidden=!html;soloEl.innerHTML=html;
   }
 
@@ -235,13 +235,13 @@ function renderSimulador(){
     // casilla puede tener su propia fecha existen notas con `valor` en null, y
     // se colaban como una etiqueta vacía ("Laboratorio 1: ").
     const realChips=notasReales.filter(n=>n&&n.valor!==null&&n.valor!==undefined)
-      .map(n=>`<span class="sim-chip real">${esc(nombreNotaCasilla(r,c,n))}: ${simConComa(textoCalificacionNota(n))}</span>`).join('');
+      .map(n=>`<span class="sim-chip real">${esc(nombreNotaCasilla(r,c,n))}: ${textoCalificacionNota(n)}</span>`).join('');
     const campos=simCamposNotaHTML(r,c);
     return `
       <div class="sim-cat">
         <div class="sim-cat-head">
           <div><div class="sim-cat-name">${esc(c.nombre)}</div><div class="sim-cat-meta">${r2(c.peso)}% del ramo</div></div>
-          <div class="sim-cat-avg" id="sim-cat-avg-${esc(c.id)}" style="color:${getColor(catAvg)}">${simConComa(fmtPromedio(catAvg))}</div>
+          <div class="sim-cat-avg" id="sim-cat-avg-${esc(c.id)}" style="color:${getColor(catAvg)}">${fmtPromedio(catAvg)}</div>
         </div>
         ${realChips?`<div class="sim-chips">${realChips}</div>`:''}
         ${falta?`<div class="sim-falta activa">
@@ -277,7 +277,7 @@ function simCampoNotaHTML(r,c,slot,indice,nota,ofreceFalta){
     <label for="${esc(id)}">${esc(etiqueta)}</label>
     <div class="sim-field-control">
       <input type="text" inputmode="${inputModeNota()}" autocapitalize="characters"
-        id="${esc(id)}" data-sim-id="${esc(nota?.id||'')}" value="${nota?esc(simConComa(textoCalificacionNota(nota))):''}"
+        id="${esc(id)}" data-sim-id="${esc(nota?.id||'')}" value="${nota?esc(textoCalificacionNota(nota)):''}"
         placeholder="${sugerencia}" aria-label="Nota hipotética de ${esc(etiqueta)}"
         oninput="simNotaAlEscribir(${esc(JSON.stringify(c.id))},${Number.isInteger(slot)?slot:'null'},this)"
         onblur="simNotaAlSalir(${esc(JSON.stringify(c.id))},${Number.isInteger(slot)?slot:'null'},this)"/>
@@ -344,7 +344,7 @@ function simNotaAlEscribir(catId,slot,input){
   if(!lista.length)delete simState[catId];
   renderSimuladorResumen(r);
   const avg=document.getElementById('sim-cat-avg-'+catId);
-  if(avg){const n=simCatAvg(c);avg.textContent=simConComa(fmtPromedio(n));avg.style.color=getColor(n);}
+  if(avg){const n=simCatAvg(c);avg.textContent=fmtPromedio(n);avg.style.color=getColor(n);}
   const falta=document.getElementById('sim-falta-btn-'+catId);
   if(falta)falta.hidden=!simPuedeFaltar(c);
 }
@@ -352,7 +352,7 @@ function simNotaAlSalir(catId,slot,input){
   const lista=simState[catId]||[];
   const nota=Number.isInteger(slot)?lista.find(n=>n.slot===slot)
     :lista.find(n=>n.id===input.dataset?.simId);
-  input.value=nota?simConComa(textoCalificacionNota(nota)):'';
+  input.value=nota?textoCalificacionNota(nota):'';
 }
 function simAddNota(catId){
   const inp=document.getElementById('sim-in-'+catId);if(!inp)return;

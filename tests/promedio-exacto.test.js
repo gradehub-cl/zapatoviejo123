@@ -9,12 +9,12 @@ vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root,'render-main.js'),'utf8'),ctx);
 const fmt=n=>vm.runInContext(`fmtPromedioExacto(${n})`,ctx);
 
-assert.equal(fmt(3.9499),'3.949','se trunca, no se redondea');
-assert.equal(fmt(3.9499999999999997),'3.95','un 3,95 que el punto flotante guarda bajo no pierde la milésima');
-assert.equal(fmt(3.95),'3.95');
-assert.equal(fmt(5.4),'5.40','al menos dos decimales');
-assert.equal(fmt(4.71666),'4.716');
-assert.equal(fmt(7),'7.00');
+assert.equal(fmt(3.9499),'3,949','se trunca, no se redondea');
+assert.equal(fmt(3.9499999999999997),'3,95','un 3,95 que el punto flotante guarda bajo no pierde la milésima');
+assert.equal(fmt(3.95),'3,95');
+assert.equal(fmt(5.4),'5,40','al menos dos decimales');
+assert.equal(fmt(4.71666),'4,716');
+assert.equal(fmt(7),'7,00');
 
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert.match(html,/<span class="promedio-exacto" id="home-gpa-exacto" hidden><\/span>/,'el general parte oculto');

@@ -2,6 +2,7 @@ function openEditCatModal(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r.categorias.find(c=>c.id===catId);
   editCatError='';
+  const reglas=reglasEvaluacionEditor(r,cat);
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Editar evaluación</div>
     <label class="modal-label">Nombre</label>
@@ -18,6 +19,7 @@ function openEditCatModal(catId){
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
       Agregar a Google Calendar
     </a>`:''}
+    ${reglasEvaluacionEditorHTML({reglas,varias:cat.directNota===false||cat.slots>1,manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:!(cat.slots>1)})}
     ${opcionAusenciaHojaHTML(r,cat)}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
@@ -37,13 +39,16 @@ function confirmEditCat(catId){
   const fecha=(fechaInput&&fechaInput.value)?fechaInput.value:null;
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r.categorias.find(c=>c.id===catId);
+  const casilla=document.getElementById('m-cat-varias');
+  const varias=cat.slots>1||(casilla&&!casilla.disabled?casilla.checked:cat.directNota===false);
+  const reglas=leerReglasEvaluacionModal(r,varias,cat.slots);if(!reglas)return false;
+  guardarReglasEvaluacionEditor(r,cat,reglas);
   cat.nombre=name;cat.peso=peso;marcarFechaUsuario(cat,fecha,leerHora('m-cat'));
   const notaDirecta=(cat.notas||[])[0];
   aplicarRecorreccion(notaDirecta);
   // La casilla no existe en las de casillas fijas (`slots`), y viene desactivada
   // cuando ya hay dos o más notas: volver a fila simple mostraría una y
   // escondería el resto sin decirlo.
-  const casilla=document.getElementById('m-cat-varias');
   if(casilla&&!casilla.disabled)cat.directNota=!casilla.checked;
   save();track('edit_categoria',{tiene_fecha:!!fecha,varias_notas:cat.directNota===false});closeModal();renderRamo();
   // La Agenda vive en otra pantalla y no se enteraba: al quitarle la fecha a una
@@ -95,6 +100,7 @@ function openEditNotaModal(catId,notaId){
       <input type="range" min="1" max="100" value="${n.peso}" id="m-nota-peso" oninput="document.getElementById('m-nota-peso-val').textContent=this.value"/>
     </div>
     ${Number.isInteger(n.slot)?opcionAusenciaHojaHTML(r,cat,{slot:n.slot}):''}
+    ${Number.isInteger(n.slot)&&cat.slots>1?'':`<button type="button" class="btn-eliminar-nota" onclick="confirmarEliminarNota('${catId}','${notaId}')">Eliminar nota</button>`}
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
@@ -102,6 +108,15 @@ function openEditNotaModal(catId,notaId){
   openModal();
   enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
+}
+// Una nota de lista se borra desde su hoja. Con número pregunta antes: es un dato
+// que no vuelve. Vacía no hay nada que perder.
+function confirmarEliminarNota(catId,notaId){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const n=r?.categorias.find(c=>c.id===catId)?.notas.find(x=>x.id===notaId);if(!n)return;
+  const borrar=()=>{closeModal();deleteNota(catId,notaId);};
+  if(n.valor==null&&!n.fecha)return borrar();
+  showConfirm(`Eliminar "${n.nombre}"`,'Se borra esta nota con su fecha. La evaluación sigue ahí.',borrar);
 }
 function confirmEditNota(catId,notaId){
   const input=document.getElementById('m-nota-name');

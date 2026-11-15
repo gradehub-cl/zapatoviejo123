@@ -13,7 +13,7 @@ function duracionMovimiento(token){
   return raw.endsWith('ms')?n:raw.endsWith('s')?n*1000:0;
 }
 function promedioMarkup(valor,tipo){
-  const s=fmtPromedio(valor);const dot=s.indexOf('.');
+  const s=fmtPromedio(valor);const dot=s.indexOf(',');
   const decimal=tipo==='ramo'?'ramo-decimal':'gpa-decimal';
   return `${s.slice(0,dot)}<span class="${decimal}">${s.slice(dot)}</span>`;
 }
@@ -93,18 +93,19 @@ function asignarCalificacionNota(n,raw,valor,tenant){
 function textoCalificacionNota(n,tenant){
   return calificacionConceptualGuardada(n,tenant)||fmtNota(n&&n.valor!=null?n.valor:null);
 }
-// Una nota se muestra como se escribió: 5.1 o 5.14. Los promedios siguen con fmt.
-function fmtNota(n){return n===null?'·':Math.round(n*100)%10?n.toFixed(2):n.toFixed(1);}
+// Una nota se muestra como se escribió: 5,1 o 5,14. Los promedios siguen con fmt.
+// También llena los campos editables; `parseNota` lee la coma de vuelta.
+function fmtNota(n){return n===null?'·':nf(n,Math.round(n*100)%10?2:1);}
 function conceptosNota(tenant){
   const tenantActual=typeof tenant==='string'?tenant:(typeof S!=='undefined'&&S?S.tenant:null);
   return Object.keys(CALIFICACIONES_CONCEPTUALES_POR_TENANT[tenantActual]||{});
 }
 function etiquetaNotaEntrada(tenant){
   const conceptos=conceptosNota(tenant);
-  return `Nota (1.0 – 7.0${conceptos.length?', '+conceptos.slice(0,-1).join(', ')+(conceptos.length>1?' o ':'')+conceptos[conceptos.length-1]:''})`;
+  return `Nota (1,0 – 7,0${conceptos.length?', '+conceptos.slice(0,-1).join(', ')+(conceptos.length>1?' o ':'')+conceptos[conceptos.length-1]:''})`;
 }
 function inputModeNota(tenant){return conceptosNota(tenant).length?'text':'decimal';}
-function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5.5 o A':'Ej: 5.5';}
+function ejemploNotaEntrada(tenant){return conceptosNota(tenant).length?'Ej: 5,5 o A':'Ej: 5,5';}
 
 // Parser de notas: acepta "6.5", "6,5", "65" (autocorrige a 6.5), "70" → 7.0.
 // En tenants que lo declaran en data.js acepta además sus conceptos oficiales.

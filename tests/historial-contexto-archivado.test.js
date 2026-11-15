@@ -23,7 +23,7 @@ c.actual=course('Laboratorio',[cat('otra',100,[note('actual',7)])],{creditos:0})
 c.run('S.ramos=[actual];openModal=()=>{}');
 assert.equal(c.histRamoAvg(dyn,c.h.ramos),before,'el laboratorio actual no influye en el archivado');
 c.openEditHistRamoModal('h','Dinamica');
-assert.match(c.document.getElementById('modal-content').innerHTML,/value="5\.4"/);
+assert.match(c.document.getElementById('modal-content').innerHTML,/value="5,4"/);
 c.resetHistRamoAvg('h','Laboratorio');
 assert.equal(c.h.gpa,before,'restaurar usa el mismo semestre que editar');
 assert.equal(JSON.stringify(c.h.ramos.map(r=>r.categorias)),notasAntes,'no se reescriben evaluaciones archivadas');

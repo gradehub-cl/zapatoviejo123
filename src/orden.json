@@ -1,6 +1,7 @@
 {
   "app.js": [
     "src/app/analitica.js",
+    "src/app/horario-clases.js",
     "src/app/persistencia-y-normalizacion.js",
     "src/app/identidad.js",
     "src/app/catalogo-carga.js",
@@ -29,7 +30,9 @@
     "src/app/reportes-pauta.js",
     "src/app/curso-comparaciones.js",
     "src/app/estadisticas-secciones.js",
+    "src/app/coordinacion-ramo.js",
     "src/app/consenso-adoptar.js",
+    "src/app/pauta-sugerida.js",
     "src/app/consenso-catalogo.js",
     "src/app/pautas-reglas.js",
     "src/app/editor-pesos-y-categorias.js",
@@ -46,6 +49,8 @@
     "src/app/historial-renombrar.js",
     "src/app/cierre-semestre.js",
     "src/app/historial-agregar.js",
+    "src/app/avance-curricular.js",
+    "src/app/ficha-academica.js",
     "src/app/datos-importar-exportar.js",
     "src/app/cuenta-borrado.js",
     "src/app/hojas-modales.js",
@@ -65,6 +70,7 @@
     "src/app/calendario-formato.js",
     "src/app/calendario-importar.js",
     "src/app/canvas.js",
+    "src/app/canvas-calendario-web.js",
     "src/app/calendario-exportar.js",
     "src/app/calendario-suscripcion.js",
     "src/app/agenda-prioridad.js",
@@ -80,10 +86,12 @@
     "src/marketplace/logo-y-seleccion-apoyo.js",
     "src/marketplace/campanas-precio.js",
     "src/marketplace/catalogo.js",
+    "src/marketplace/directorio.js",
     "src/marketplace/metricas-anuncios.js",
     "src/marketplace/graficos-profesor.js",
     "src/marketplace/resumen-profesor.js",
     "src/marketplace/ramos-anuncio.js",
+    "src/marketplace/perfil-ramos-universidad.js",
     "src/marketplace/perfil-pantalla.js",
     "src/marketplace/editor-anuncio.js",
     "src/marketplace/recomendacion-inicio.js",
@@ -92,9 +100,14 @@
     "src/marketplace/admin-estadisticas.js",
     "src/marketplace/alumnos-compartir.js",
     "src/marketplace/alumnos-profesor.js",
+    "src/marketplace/alumnos-preparacion.js",
+    "src/marketplace/alumnos-solo-pruebas.js",
     "src/marketplace/alumnos-comparaciones.js",
     "src/marketplace/alumnos-evolucion.js",
+    "src/marketplace/alumnos-estadisticas.js",
     "src/marketplace/alumnos-resumen.js",
+    "src/marketplace/alumnos-lista.js",
+    "src/marketplace/alumnos-marcar.js",
     "src/marketplace/alumnos-ejemplo.js",
     "src/marketplace/alumnos-pantalla.js",
     "src/marketplace/encuestas.js"
@@ -119,7 +132,10 @@
     "src/app-session/mfa.js"
   ],
   "render-main.js": [
+    "src/render-main/clases-hoy.js",
     "src/render-main/inicio.js",
+    "src/render-main/recordatorio-notas.js",
+    "src/render-main/recordatorio-notas-profesor.js",
     "src/render-main/ficha-ramo.js",
     "src/render-main/curso-y-evolucion.js",
     "src/render-main/estadisticas-evolucion.js",
@@ -162,6 +178,8 @@
     "src/data/udd-pautas.js",
     "src/data/pautas-por-universidad.js",
     "src/data/profesor-etiquetas.js",
-    "src/data/profesores-propuestos.js"
+    "src/data/profesores-propuestos.js",
+    "src/data/panel-tipos-evaluacion.js",
+    "src/data/horarios.js"
   ]
 }

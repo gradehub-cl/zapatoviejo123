@@ -54,6 +54,7 @@ ctx.document.getElementById=()=>contenido;ctx.openModal=()=>abiertos++;ctx.enfoc
 ctx.supabaseClient={rpc:(...args)=>llamadas.push(args)};
 ctx.abrirCalificarProfesor(r,contexto,{nombre:'',mio:'',calif:{}});
 assert.match(contenido.innerHTML,/¿Es tu profesor <strong>Tomás Prueba<\/strong>\?/);
+assert.match(contenido.innerHTML,/Completar o corregir el nombre/);
 assert.match(contenido.innerHTML,/No, es otra persona/);assert.match(contenido.innerHTML,/Sí, es mi profesor/);
 assert.equal(abiertos,1);assert.deepEqual(llamadas,[],'proponer no simula aportes ni escribe en Supabase');
 ctx.abrirCalificarProfesor(r,contexto,{nombre:'Docente del consenso',mio:'',calif:{}});

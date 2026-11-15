@@ -375,6 +375,12 @@ const PRESETS_UC={
       {nombre:'Pruebas',evals:['Interrogación 1','Interrogación 2','Examen'],min:4.0,cap:3.9},
       {nombre:'Tareas',evals:['Tarea 1','Tarea 2','Tarea 3'],min:4.0,cap:3.9},
     ],
+    // El motor pondera sin redondear NP y NT por separado: con NP 5,16 y NT 6,0
+    // el programa da 5,4 (5,2 y 6,0) y la app 5,3. Las compuertas sí calzan,
+    // porque se miden a la décima.
+    noCalcula:[
+      'El programa redondea la nota de Pruebas y la de Tareas a un decimal antes de calcular la final, así que tu nota oficial puede diferir en una décima',
+    ],
     reglasDelCurso:[
       'Las actividades de taller pueden bonificar una nota final aprobada; la regla de acumulación se informa durante el semestre en Canvas',
     ],
@@ -431,10 +437,8 @@ const PRESETS_UC={
       'Si tienes 2 o más ausencias justificadas a sesiones con ticket, el equipo docente ajustará la regla de Participación; el programa no publica la fórmula de ese ajuste',
     ],
   },
-  // Programas históricos recibidos por Lucas el 28-10-2026. El período va
-  // declarado: se ofrecen los pesos, pero nunca sus fechas como si fueran
-  // del semestre actual. Las pautas personales existentes no se reemplazan.
-  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5.
+  // ICS1513 - 01 - 2025 - sección 4 - Programa, pp. 4-5. La versión de
+  // 2026-2 corresponde a otra sección y queda registrada aparte.
   'Introducción a la Economía':{
     sigla:'ICS1513',periodo:'2025-1',creditos:10,
     evals:[
@@ -456,17 +460,34 @@ const PRESETS_UC={
       'El proyecto tiene una etapa grupal y otra individual, pero este programa no publica sus pesos internos: ingresa la nota final del proyecto',
       'El examen es obligatorio y no hay eximición. Si no asistes, la nota es 1,0, salvo que el curso apruebe el procedimiento de nota pendiente',
     ],
+    // ICS1513 - 02 - 2026 - Programa sección 2, pp. 1 y 4-5.
+    // Mientras el catálogo no seleccione pautas por sección, no se ofrece esta
+    // como pauta general. Las fechas de controles son las de esta sección.
+    porSeccion:{
+      2:{
+        periodo:'2026-2',
+        evals:[
+          ['Interrogación 1',20,{fecha:'2026-09-30'}],
+          ['Interrogación 2',20,{fecha:'2026-11-12'}],
+          ['Examen',30,{fecha:'2026-12-09',min:3.0,cap:3.9,exacto:true}],
+          ['Controles',15,{slots:5,slotLabel:'Control',dropLowest:{count:1}}],
+          ['Proyecto escrito',15],
+        ],
+        fechasPorSeccion:{2:{Controles:['2026-08-27','2026-09-10','2026-10-08','2026-10-29','2026-11-26']}},
+        noCalcula:['Una inasistencia justificada a una interrogación puede transferir su peso al examen. Este ajuste no se aplica automáticamente'],
+      },
+    },
   },
-  // Programa_y_Reglas_FIS1523_1er_sem_2025, pp. 3-4. Los pesos de abajo
+  // Reglas_FIS1523_2do_sem_2026, pp. 3-5. Los pesos de abajo
   // son de CÁTEDRA; el laboratorio FIS0152 aporta el 30% de la nota final.
-  // El PDF superpone ≥ y ≤ en 4,0. Lucas confirmó el 28-10-2026 que 4,0
-  // cuenta como aprobado, igual que en Dinámica; se usa el vínculo existente.
+  // El PDF vuelve a superponer ≥ y ≤ en 4,0. Se conserva la resolución
+  // de Lucas del 28-10-2026 para ambas físicas: 4,0 cuenta como aprobado.
   'Termodinámica':{
-    sigla:'FIS1523',periodo:'2025-1',creditos:10,
+    sigla:'FIS1523',periodo:'2026-2',creditos:10,
     evals:[
-      ['Interrogación 1',30,{fecha:'2025-04-07'}],
-      ['Interrogación 2',30,{fecha:'2025-05-19'}],
-      ['Examen',40,{fecha:'2025-06-30'}],
+      ['Interrogación 1',30,{fecha:'2026-09-22'}],
+      ['Interrogación 2',30,{fecha:'2026-11-06'}],
+      ['Examen',40], // El 11 de diciembre figura por confirmar.
     ],
     aporta:{ramo:'Laboratorio de Termodinámica',peso:30,min:4.0},
     noCalcula:[
@@ -474,30 +495,28 @@ const PRESETS_UC={
       'Si justificas ambas interrogaciones, el programa exige reprobar el ramo. La app no aplica esa reprobación por inasistencias',
     ],
     reglasDelCurso:[
-      'Programa 2025-1. El documento indica los mismos criterios para todas las secciones de ese período; confirma que sigan vigentes en tu curso',
+      'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
       'La nota final combina 70% de cátedra y 30% del Laboratorio de Termodinámica. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
       'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
       'No hay eximición ni pruebas recuperativas. Las notas de las evaluaciones y la final se redondean a una décima',
     ],
   },
-  // Programa_FIS1533_2026_1, pp. 4-5. Tres controles, sin descarte general:
-  // se puede excluir uno solo si su inasistencia fue justificada.
-  // Mismo límite de 4,0 aclarado por Lucas para ambas físicas (28-10-2026).
+  // Programa FIS1533 - 2026.2, pp. 4-5. La cátedra tiene dos interrogaciones
+  // y examen; el programa de 2026-1 tenía controles. Quien ya tiene la
+  // pauta anterior puede revisar el cambio antes de aplicarlo.
   'Electricidad y Magnetismo':{
-    sigla:'FIS1533',periodo:'2026-1',creditos:10,
+    sigla:'FIS1533',periodo:'2026-2',creditos:10,
     evals:[
-      ['Interrogación 1',30,{fecha:'2026-04-17'}],
-      ['Interrogación 2',30,{fecha:'2026-06-05'}],
-      ['Examen',30,{fecha:'2026-07-02'}],
-      ['Controles',10,{slots:3,slotLabel:'Control'}],
+      ['Interrogación 1',30,{fecha:'2026-09-29'}],
+      ['Interrogación 2',30,{fecha:'2026-11-13'}],
+      ['Examen',40,{fecha:'2026-12-01'}],
     ],
     aporta:{ramo:'Laboratorio de Electricidad y Magnetismo',peso:30,min:4.0},
     noCalcula:[
       'El examen reemplaza una única interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente; con dos o más inasistencias, debes consultar a tu facultad',
-      'Puedes justificar como máximo un control y eliminarlo del promedio. La app no elimina controles por justificación ni descarta por defecto el peor',
     ],
     reglasDelCurso:[
-      'Programa 2026-1. Revisa que esta pauta corresponda a tu curso',
+      'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',
       'La nota final combina 70% de cátedra y 30% del Laboratorio de Electricidad y Magnetismo. Si una parte reprueba, queda la menor de ambas notas; 4,0 cuenta como aprobado',
       'El programa no detalla la pauta interna del laboratorio: ingresa sus evaluaciones según las instrucciones de ese curso',
       'No hay eximición ni pruebas recuperativas. La nota final se redondea a una décima',
@@ -533,7 +552,8 @@ const PRESETS_UC={
     fechasPorSeccion:{
       13:{'Controles':['2026-08-28','2026-10-09','2026-11-06']},
     },
-    aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
+    aporta:{ramo:'Laboratorio de Dinámica',sigla:'FIS0154',peso:30,min:4.0},
+    // Conservación de actas al repetir: no definida por los programas consultados.
     // El programa dice que la nota de la interrogación "será reemplazada por la
     // nota del examen"; en la práctica del curso su porcentaje pasa al examen
     // (decisión de Lucas, 2026-10-08). Faltar a las dos es "caso a caso" y no
@@ -551,6 +571,9 @@ const PRESETS_UC={
     bonus:[
       {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
         ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
+    ],
+    noCalcula:[
+      'El programa no indica si se conserva el laboratorio al repetir la cátedra o al revés: confirma en tu Escuela',
     ],
   },
   // El laboratorio tiene nota propia: se aprueba o se reprueba por sí solo, y
@@ -639,10 +662,12 @@ const PRESETS_UC={
       ['Examen',20,{fecha:'2026-12-01'}],
       ['Talleres',10,{lista:true,dropLowest:{count:1}}],
     ],
-    aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},
+    aporta:{ramo:'Laboratorio de Dinámica',sigla:'FIS0154',peso:30,min:4.0},
+    // Conservación de actas al repetir: no definida por los programas consultados.
     noCalcula:[
       'Faltar a un taller, con o sin justificación, es un 1,0 en ese taller',
       'Si repruebas la cátedra o el laboratorio, repruebas Dinámica: el programa no dice con qué nota quedas, así que mostramos la más baja de las dos',
+      'El programa no indica si se conserva el laboratorio al repetir la cátedra o al revés: confirma en tu Escuela',
     ],
   },
   // ── PAUTAS DEL CATÁLOGO OFICIAL UC ────────────────────────────────────────
@@ -903,12 +928,31 @@ const PRESETS_UC={
       'Si el traspaso por pruebas justificadas hace que el examen supere 60%, habrá una recuperativa adicional definida por el profesor, que puede ser oral. En ese caso ajusta la pauta con sus instrucciones',
     ],
   },
+  // prospecto-mat1630-2025-1.pdf, pp. 1-2. El encabezado dice 2024-1,
+  // distinto del nombre de archivo. No se asigna un año a las fechas.
   'Cálculo III':{
+    sigla:'MAT1630',
     evals:[
-      ['Evaluaciones sumativas',60,{lista:true}],
-      ['Laboratorios',10,{lista:true}],
-      ['Examen final escrito',30],
+      ['Interrogación 1',20],
+      ['Interrogación 2',20],
+      ['Interrogación 3',20],
+      ['Laboratorio',10],
+      ['Examen',30],
     ],
+    reglasDelCurso:['Pauta de un programa anterior. Confirma que corresponda a tu semestre'],
+  },
+  // Contenidos-Normativas-MAT1640, pp. 1-2. El calendario es de abril a julio;
+  // el recuperativo se ubica al comienzo del segundo semestre de 2026.
+  'Ecuaciones Diferenciales':{
+    sigla:'MAT1640',periodo:'2026-1',
+    evals:[
+      ['Interrogación 1',20,{fecha:'2026-04-14'}],
+      ['Interrogación 2',20,{fecha:'2026-05-12'}],
+      ['Interrogación 3',20,{fecha:'2026-06-10'}],
+      ['Laboratorio',10],
+      ['Examen',30,{fecha:'2026-07-02'}],
+    ],
+    reglasDelCurso:['Programa 2026-1. El programa solo da el peso de la nota global de laboratorio'],
   },
   // ── FORMACIÓN TEOLÓGICA: LOS 24 QUE PUBLICAN SU PAUTA ─────────────────────
   // Misma fuente y mismo criterio que el bloque de arriba: catalogo.uc.cl, el
@@ -1130,12 +1174,174 @@ const PRESETS_UC={
     // salían del homónimo TEB110 (8) o quedaban vacíos. Reportado el 2026-10-01.
     creditos:10,
     evals:[['Evaluación 1',20,{fecha:'2026-09-07'}],['Evaluación 2',20,{fecha:'2026-10-14'}],['Evaluación 3',30,{fecha:'2026-11-16'}],['Examen final',30]],
-    noCalcula:[
-      'Si tienes más de 75% de asistencia y una nota de presentación igual o superior a 6,00, te eximes del Examen final; tu nota de presentación se calcula como el promedio simple de Evaluación 1, Evaluación 2 y Evaluación 3, sin usar sus ponderaciones',
-      'Si te eximes del Examen final, la nota del Examen final se reemplaza por la nota más alta que obtuviste entre Evaluación 1, Evaluación 2 y Evaluación 3',
-      'Si obtienes décimas en los talleres, se agregan al finalizar el semestre a tu nota más baja',
-      'Si presentas voluntariamente uno de los textos del curso cumpliendo las condiciones indicadas, obtienes un 7,0 que se promedia con tu nota más baja entre Evaluación 1, Evaluación 2 y Evaluación 3',
+    // Programa de Juan Pablo Espinosa, 2026-2. #1056 aún está abierta:
+    // al integrarla, conservar estas reglas en la pauta de referencia de él.
+    // Aclaraciones de Lucas, 2026-11-11: exime desde 5,95; texto previo;
+    // décimas a la nota más baja tras decidir la eximición, como dice el
+    // programa y por si acaso (Lucas, 2026-11-11, en vez de repartirlas); examen eximido = máxima final;
+    // empates a mayor peso y notas mejoradas con tope 7,0. Contador: hasta 6 faltas.
+    eximicion:{evaluacion:'Examen final',segun:['Evaluación 1','Evaluación 2','Evaluación 3'],
+      min:5.95,promedio:'simple',notaExamen:'maxima',maxInasistencias:6,ignoraDescartes:true,requierePautaOriginal:true,
+      requiereConfirmacion:false},
+    bonus:[
+      {id:'texto',entrada:'confirmacion',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3'],
+        operacion:'promediar',valor:7,etapa:'previa',pregunta:'Presenté un texto',
+        ayuda:'Promedia un 7,0 con la menor de E1, E2 y E3 antes de calcular la presentación.'},
+      {id:'talleres',entrada:'decimas',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3','Examen final'],
+        operacion:'sumar',etapa:'final',pregunta:'Décimas de talleres',
+        ayuda:'Solo las ganadas asistiendo al taller. Se suman a tu nota más baja al final del semestre, con tope 7,0. 5 décimas = +0,5.'},
     ],
+    reglasDelCurso:['Una evaluación no rendida sin justificación autorizada dentro de 48 horas recibe un 1,0; ingresa esa nota cuando el profesor la confirme'],
+  },
+  // ─── Derecho UC · formularios de condiciones y evaluaciones 2026-2 ───
+  // Ramos NO coordinados (`coordinado:false`, confirmado por Lucas el
+  // 2026-11-04): cada sección arma su propia pauta. Tener varios profesores no
+  // basta para decir que un ramo no es coordinado; aquí sí lo es. La Facultad
+  // solo fija la fecha de la Solemne y del Examen y el rango del examen
+  // (50%–75%). La pauta va en `porSeccion` y no arriba: solo se carga a quien
+  // está en esa sección (profesores por sección en PROFESORES_PROPUESTOS). Las demás secciones no tienen pauta hasta que
+  // llegue su programa; nada de copiar la de otra.
+  // Formularios recibidos: los de las secciones de la carga de Lucas
+  // (2026-11-04). Ningún examen admite eximición.
+  // No se muestran: el 2,0 por no presentarse sin justificar al examen, el
+  // rezago en comisión ni que una ausencia justificada a la Solemne pase su
+  // porcentaje al examen. Son contingencias, no algo que se prepare.
+  'Derecho Penal Parte General II':{
+    sigla:'DER002P',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // Magdalena Ossandón. Asistencia libre.
+      5:{evals:[
+        ['Control 1',10,{fecha:'2026-09-10'}],
+        ['Solemne',30,{fecha:'2026-10-09'}],
+        ['Control 2',10,{fecha:'2026-11-05'}],
+        ['Examen',50,{fecha:'2026-11-26'}],
+      ]},
+    },
+  },
+  'Procedimientos Civiles I':{
+    sigla:'DER003R',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // José Domingo Ilharreborde y Gonzalo Vial. La tabla del formulario dice
+      // «Controles, 11/09/2026, 25%» y su descripción habla de «dos solemnes
+      // escritas que valen lo mismo»: es una sola evaluación de 25% además de
+      // la Solemne. Se conserva el nombre de la tabla en singular.
+      // Asistencia libre.
+      3:{evals:[
+        ['Control',25,{fecha:'2026-09-11'}],
+        ['Solemne',25,{fecha:'2026-10-02'}],
+        ['Examen',50,{fecha:'2026-12-09'}],
+      ]},
+    },
+  },
+  // El formulario titula «Fuentes de las Obligaciones I»; la clave usa el
+  // nombre del catálogo UC para que el buscador y la sigla calcen.
+  'Fuentes de Obligaciones I':{
+    sigla:'DER004C',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // Carmen Domínguez. La Simulación es una gymkana grupal de un día, sin
+      // justificación posible.
+      1:{
+        evals:[
+          ['Control de lectura',15,{fecha:'2026-09-10'}],
+          ['Solemne',25,{fecha:'2026-09-25'}],
+          ['Simulación o actividad práctica',10,{fecha:'2026-11-06'}],
+          ['Examen',50,{fecha:'2026-11-20'}],
+        ],
+        reglasDelCurso:[
+          'Necesitas al menos 60% de asistencia a clases; si no, no puedes rendir el Examen',
+        ],
+      },
+    },
+  },
+  // No está en el catálogo UC del repo, así que no se ponen créditos.
+  'Derecho Administrativo II':{
+    sigla:'DER005L',
+    periodo:'2026-2',
+    coordinado:false,
+    porSeccion:{
+      // Daniela Rivera. Cuatro talleres de 5% cada uno, uno por unidad, en
+      // semanas y no en días (1ª de septiembre, 4ª de septiembre, 3ª de
+      // octubre y 2ª de noviembre): sin fecha en Agenda.
+      7:{
+        evals:[
+          ['Talleres',20,{slots:4,slotLabel:'Taller'}],
+          ['Solemne',30,{fecha:'2026-10-23'}],
+          ['Examen',50,{fecha:'2026-12-15'}],
+        ],
+        reglasDelCurso:[
+          'Necesitas al menos 60% de asistencia a clases; si no, no puedes rendir el Examen',
+        ],
+      },
+    },
+  },
+  'Derecho de Sociedades':{
+    sigla:'DER009C',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      // Miguel Ángel Nacrur y Wildo Moya.
+      1:{
+        evals:[
+          ['Control de lectura',20,{fecha:'2026-09-04'}],
+          ['Solemne',30,{fecha:'2026-10-16'}],
+          ['Examen',50,{fecha:'2026-12-02'}],
+        ],
+        reglasDelCurso:[
+          'Necesitas al menos 60% de asistencia a clases; si no la cumples, igual puedes rendir el Examen si tu promedio es 6,0 o más',
+        ],
+      },
+    },
+  },
+  // Ética para Ingeniería · ETI188 · syllabus 2026-2 de la sección 4 (Constanza
+  // Guajardo). BuscaCursos da otros profesores en las secciones 2 y 3, y la 1,
+  // aunque es de la misma profesora, no tiene syllabus recibido: por eso va en
+  // `porSeccion` y no se copia a otra. No coordinado: confirmado por Martín
+  // el 2026-11-09.
+  // NP = 35% Prueba 1 + 35% Prueba 2 + 30% Trabajo final, y con examen
+  // NF = 70% NP + 30% Examen. Los pesos son ese producto exacto; al eximirse,
+  // repondera sobre el 70% y vuelve a dar 35/35/30. Trabajo final no lleva
+  // fecha: los grupos exponen sus casos entre el 26-10 y el 18-11.
+  'Ética para Ingeniería':{
+    sigla:'ETI188',
+    periodo:'2026-2',
+    creditos:10,
+    coordinado:false,
+    porSeccion:{
+      4:{
+        evals:[
+          ['Prueba 1',24.5,{fecha:'2026-08-31'}],
+          ['Prueba 2',24.5,{fecha:'2026-10-07'}],
+          ['Trabajo final',21],
+          ['Examen',30,{fecha:'2026-11-25'}],
+        ],
+        // La app no sabe a cuántas charlas fue la persona: llegar al 5,0 solo
+        // ofrece la eximición, y ella confirma la asistencia.
+        eximicion:{
+          evaluacion:'Examen',
+          segun:['Prueba 1','Prueba 2','Trabajo final'],
+          min:5,
+          ignoraDescartes:true,
+          requiereConfirmacion:true,
+          confirmar:'asististe al menos a ¾ de las charlas del Auditorio Luksic',
+        },
+        noCalcula:[
+          'El syllabus exime «sobre 5,0» sin aclarar si un 5,0 exacto alcanza: confírmalo con tu profesora',
+        ],
+        reglasDelCurso:[
+          'La profesora puede sumar décimas al promedio final por asistencia y participación sobresalientes',
+        ],
+      },
+    },
   },
 };
 

@@ -74,7 +74,7 @@ console.log('\n=== Mecanismo: peso por casilla y promedio por casilla ===');
     cat('a',50,[{id:'a0',valor:7,peso:1,slot:0}],{slots:2,pesosCasillas:[3,1]}),
     cat('b',50,[{id:'b0',valor:1,peso:1,slot:0}],{slots:2})],gates:[]};
   g('S').ramos=[r];
-  chk('sin promedioParcial, cada evaluación con lo que lleva (4,0)',cerca(g('ramoAvg')(r),4));
+  chk('sin marca especial también pondera las casillas rendidas (4,6)',cerca(g('ramoAvg')(r),4.6));
   r.promedioParcial='por-casilla';
   // a0 pesa 50·3/4 = 37,5 y b0 pesa 25: (7·37,5 + 1·25)/62,5 = 4,6
   chk('por casilla, cada nota con su peso en el ramo (4,6)',cerca(g('ramoAvg')(r),4.6));

@@ -25,7 +25,7 @@ La aplicación usa HTML, CSS y JavaScript sin framework. Las fuentes por tema de
 Necesitas Node.js 22 o superior.
 
 ```bash
-git clone https://github.com/gradehub-cl/GradeHub.git
+git clone https://github.com/gradehub-cl/zapatoviejo123.git GradeHub
 cd GradeHub
 npm ci                 # también genera los scripts de la app
 python3 -m http.server 8080

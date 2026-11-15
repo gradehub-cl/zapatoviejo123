@@ -1,4 +1,30 @@
 
+// ─── ENTRADA DE PROFESOR ────────────────────────────────────────────────────
+// Casi todos los que llegan estudian, así que el onboarding ya no pregunta.
+// Quien da clases entra por «Soy profesor particular», al pie del login, o por
+// el link gradehub.cl/?dar-clases que se les manda. La intención va en su
+// propia clave de localStorage —no en gradehub_v1 ni en la pestaña— porque
+// tiene que sobrevivir el viaje a Google. La consume el onboarding.
+const CLAVE_ENTRADA_PROFESOR='gradehub_entrada_profesor';
+function entradaProfesor(){try{return localStorage.getItem(CLAVE_ENTRADA_PROFESOR)==='1';}catch(e){return false;}}
+function guardarEntradaProfesor(si){try{if(si)localStorage.setItem(CLAVE_ENTRADA_PROFESOR,'1');else localStorage.removeItem(CLAVE_ENTRADA_PROFESOR);}catch(e){}}
+function consumirEntradaProfesor(){const si=entradaProfesor();guardarEntradaProfesor(false);return si;}
+try{
+  if(new URLSearchParams(location.search).has('dar-clases')){
+    guardarEntradaProfesor(true);
+    const url=new URL(location.href);
+    url.searchParams.delete('dar-clases');
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }
+}catch(e){}
+function pintarSubtituloAuth(){
+  const sub=document.getElementById('auth-sub'),boton=document.getElementById('auth-dar-clases');
+  const profesor=entradaProfesor();
+  if(sub)sub.textContent=profesor?'Entra para publicar tus clases particulares.'
+    :authMode==='login'?'Tus notas, tu promedio y cuánto te falta para aprobar.':'Guarda tus notas y revísalas desde cualquier dispositivo.';
+  if(boton)boton.textContent=profesor?'Soy estudiante':'Soy profesor particular';
+}
+function alternarEntradaProfesor(){guardarEntradaProfesor(!entradaProfesor());pintarSubtituloAuth();}
 function authError(msg,kind){
   // kind: 'error' (default, rojo) | 'info' (neutro, para mensajes tipo "revisa tu correo")
   const el=document.getElementById('auth-error');
@@ -6,28 +32,79 @@ function authError(msg,kind){
   el.style.display=msg?'block':'none';
   el.style.color=kind==='info'?'var(--fg2)':'var(--red)';
 }
-function toggleAuthMode(){
-  authMode=authMode==='login'?'signup':'login';
-  resetPasswordVisibility();
-  document.getElementById('auth-sub').textContent=authMode==='login'?'Tus notas, tu promedio y cuánto te falta para aprobar.':'Guarda tus notas y revísalas desde cualquier dispositivo.';
-  document.getElementById('auth-btn').textContent=authMode==='login'?'Iniciar sesión':'Crear cuenta';
+function toggleAuthMode(){ponerModoAuth(authMode==='login'?'signup':'login');}
+// Un dispositivo que nunca entró casi siempre es alguien nuevo: parte en Crear
+// cuenta. Si ya se entró desde acá, en Iniciar sesión. Lo recordado es solo el
+// método (ver ultimoMetodoLogin), nunca el correo.
+function modoAuthInicial(){return typeof ultimoMetodoLogin==='function'&&ultimoMetodoLogin()?'login':'signup';}
+function ponerModoAuth(modo){
+  authMode=modo==='signup'?'signup':'login';
+  if(typeof resetPasswordVisibility==='function')resetPasswordVisibility();
+  const el=id=>document.getElementById(id);
+  if(!el('auth-btn'))return;
+  pintarSubtituloAuth();
+  el('auth-btn').textContent=authMode==='login'?'Iniciar sesión':'Crear cuenta';
   document.getElementById('auth-toggle').textContent=authMode==='login'?'¿No tienes cuenta? Crea una':'¿Ya tienes cuenta? Inicia sesión';
   document.getElementById('auth-pass').setAttribute('autocomplete',authMode==='login'?'current-password':'new-password');
   const confirmWrap=document.getElementById('auth-pass-confirm-wrap');
   confirmWrap.style.display=authMode==='signup'?'block':'none';
   confirmWrap.setAttribute('aria-hidden',authMode==='signup'?'false':'true');
   document.getElementById('auth-pass2').value='';
-  const legalWrap=document.getElementById('auth-legal-accept-wrap');
-  const legalAccept=document.getElementById('auth-legal-accept');
-  legalWrap.style.display=authMode==='signup'?'block':'none';
-  legalWrap.setAttribute('aria-hidden',authMode==='signup'?'false':'true');
-  if(authMode!=='signup'&&legalAccept)legalAccept.checked=false;
   // Al iniciar sesión no se anuncia un mínimo: sería mentirle a quien creó su
   // cuenta cuando el mínimo era otro.
   document.getElementById('auth-pass').placeholder=authMode==='login'?'Tu contraseña':PASS_MIN+'+ caracteres, letras y números';
   document.getElementById('auth-fp').style.display=authMode==='login'?'block':'none';
   authError('');
+  revisarAuthListo();
 }
+// Las mismas reglas que submitAuth, sin mostrar errores: solo dicen si tocar
+// el botón principal ya puede funcionar.
+function formularioAuthListo(){
+  const v=id=>(document.getElementById(id)||{}).value||'';
+  const p=v('auth-pass');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('auth-user').trim())||!p)return false;
+  return authMode!=='signup'||(!passwordPolicyError(p)&&p===v('auth-pass2'));
+}
+// El halo sale solo al pasar de no listo a listo, no en cada tecla.
+function revisarAuthListo(){
+  const btn=document.getElementById('auth-btn');
+  if(!btn)return;
+  // Es solo un adorno: si algo falla acá, la pantalla de entrada sigue igual.
+  try{
+    const listo=formularioAuthListo();
+    btn.classList.toggle('auth-listo',listo);
+    if(listo)medirLaserAuth();
+  }catch(e){}
+}
+// El trazo se dibuja sobre el borde del botón y se mide en píxeles, para que
+// los dos puntos avancen parejo por los lados largos y los cortos.
+function medirLaserAuth(){
+  const btn=document.getElementById('auth-btn'),svg=document.getElementById('auth-laser');
+  if(!btn||!svg||!btn.offsetWidth)return;
+  const w=btn.offsetWidth,h=btn.offsetHeight;
+  const r=Math.min(parseFloat(getComputedStyle(btn).borderTopLeftRadius)||0,h/2);
+  // El trazo va 1 px hacia adentro, para que se vea sobre el borde y no afuera.
+  const a=w-2,b=h-2,ri=Math.max(r-1,0);
+  const perimetro=2*(a+b)-8*ri+2*Math.PI*ri;
+  Object.assign(svg.style,{left:btn.offsetLeft+'px',top:btn.offsetTop+'px',width:w+'px',height:h+'px'});
+  svg.setAttribute('viewBox','0 0 '+w+' '+h);
+  // Doce capas, de la más larga y delgada a la más corta y gruesa. Cada una
+  // se repite a media vuelta (dos puntos) y parte centrada en el mismo lugar.
+  const CAPAS=12;
+  while(svg.childElementCount<CAPAS)svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg','rect'));
+  [...svg.children].forEach((rect,i)=>{
+    const t=i/(CAPAS-1);
+    [['x',1],['y',1],['width',a],['height',b],['rx',ri],['ry',ri]].forEach(([k,v])=>rect.setAttribute(k,v));
+    const largo=perimetro*(.075-.065*t);
+    Object.assign(rect.style,{stroke:'color-mix(in srgb,var(--primary),#fff '+Math.round(25+75*t)+'%)',strokeWidth:(.5+2.3*t*t)+'px',opacity:(.1+.12*t).toFixed(3)});
+    rect.style.setProperty('--laser-trazo',largo+'px');
+    rect.style.setProperty('--laser-hueco',(perimetro/2-largo)+'px');
+    rect.style.setProperty('--laser-inicio',(largo/2)+'px');
+    rect.style.setProperty('--laser-vuelta',(largo/2-perimetro)+'px');
+  });
+}
+if(typeof window.addEventListener==='function')window.addEventListener('resize',()=>{const b=document.getElementById('auth-btn');if(b&&b.classList.contains('auth-listo'))medirLaserAuth();});
+document.addEventListener('input',e=>{if(e.target&&/^auth-(user|pass2?)$/.test(e.target.id))revisarAuthListo();});
 let temporizadorCargaInicial=null;
 function ocultarCargaInicial(){
   if(temporizadorCargaInicial!==null){clearTimeout(temporizadorCargaInicial);temporizadorCargaInicial=null;}
@@ -60,6 +137,7 @@ function showAuthScreen(){
   try{window.scrollTo(0,0);}catch(e){}
   document.getElementById('screen-auth').classList.add('active');
   marcarUltimoLogin();
+  ponerModoAuth(modoAuthInicial());
   if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();
   // El esqueleto se pinta YA, con el alto definitivo: la RPC tarda cerca de un
   // segundo en producción y, sin esto, los números entraban empujando el botón

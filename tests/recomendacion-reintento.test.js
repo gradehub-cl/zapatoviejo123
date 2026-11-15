@@ -14,7 +14,8 @@ vm.runInContext('registrarAlcanceAnuncio=__alcance;registrarMetricaAnuncio=__met
   obs.cb([{isIntersecting:true,intersectionRatio:.5}]);
   let t=[...timers.values()][0];assert.equal(t.ms,1000);timers.clear();await t.fn();
   t=[...timers.values()][0];assert.equal(t.ms,5000);timers.clear();await t.fn();
-  assert.equal(alcances,2);assert.equal(metricas,1);assert.equal(obs.desconectado,true);
+  assert.equal(alcances,2);assert.equal(metricas,2);assert.equal(obs.desconectado,true);
+  // El total ya se intentó pese al error cobrable y conserva el nonce al reintentar.
   // Una caída de la métrica auxiliar también reintenta. La segunda llamada
   // de alcance puede devolver false (ya cobrada) y aun así completa el gráfico.
   ctx.__banner2={isConnected:true};ctx.__anuncio2={id:'anuncio-metrica',publicado_at:'2026-09-30T12:00:00Z'};

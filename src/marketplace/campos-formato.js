@@ -50,7 +50,7 @@ function textoInstagramEscrito(texto){
   return t&&!t.startsWith('@')?'@'+t:t;
 }
 const PREFIJO_CONTACTO_CLASE={whatsapp:'+56 ',instagram:'@',enlace:'https://'};
-const EJEMPLO_CONTACTO_CLASE={whatsapp:'+56 9 1234 5678',instagram:'@salvaramos',enlace:'https://forms.gle/…'};
+const EJEMPLO_CONTACTO_CLASE={whatsapp:'+56 9 1234 5678',instagram:'@tu_usuario',enlace:'https://example.org/contacto'};
 
 // Reescribe el campo con su formato sin mandar el cursor al final: cuenta
 // cuántos caracteres "de verdad" (dígitos, letras) había antes del cursor y lo
@@ -120,7 +120,21 @@ async function perfilProfesorActual(){
   try{
     // El logo llegó después, y el perfil completo después (2026-10-23): sin
     // su SQL aplicado se pide la ficha que el servidor sí tiene.
-    const pedir=campos=>supabaseClient.from('tutor_perfiles').select(campos).eq('user_id',uid).maybeSingle();
+    // Reutiliza esta lectura propia para reconocer la tarjeta del dueño y su
+    // asociación de ramos. Sin SQL o sin permiso, retrocede de a un campo.
+    const pedir=async campos=>{
+      const leer=extra=>supabaseClient.from('tutor_perfiles').select(campos+extra).eq('user_id',uid).maybeSingle();
+      const msg=r=>String(r.error?.message||'');
+      let r=await leer(',directorio_id,ramos_por_universidad');
+      // Falta solo el mapa (#1105 sin SQL): conserva directorio_id.
+      if(faltaColumnaClase(r.error)&&msg(r).includes('ramos_por_universidad')&&!msg(r).includes('directorio_id')){
+        r=await leer(',directorio_id');
+        if(!(r.error?.code==='42501'||faltaColumnaClase(r.error)&&msg(r).includes('directorio_id')))return r;
+        return leer('');
+      }
+      if(r.error?.code==='42501'||faltaColumnaClase(r.error)&&/directorio_id|ramos_por_universidad/.test(msg(r)))r=await leer('');
+      return r;
+    };
     const base='nombre_publico,presentacion,estado,solicitado_at,revisado_at',logo=',logo_id,logo_path,logo_aprobado_path';
     let {data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR+',panel_alumnos');
     if(faltaColumnaClase(error))({data,error}=await pedir(base+logo+CAMPOS_PERFIL_PROFESOR));

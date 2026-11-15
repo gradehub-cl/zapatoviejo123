@@ -122,3 +122,52 @@ entonces es peor que nada, porque el agente le cree.
 del PR al lado. La lista es lo primero que lee el siguiente. Pasó el
 2026-10-13: el PR 1 de #697 llevaba un día mergeado (#698), la lista seguía sin
 marcar, y a un agente le pidieron hacerlo de nuevo.
+
+### Comentarios de usuarios: del arreglo al aviso
+
+Quien escribe desde la app («Enviar comentario») queda en `public.user_feedback`.
+Cuando se arregla lo que pidió, se le avisa: la próxima vez que abre la app ve
+en Inicio «Solucionamos tu problema» con una frase nuestra, hasta que la cierra
+(`supabase/user_feedback.sql`). Avisar es parte del arreglo, no un extra
+(Lucas, 2026-11-09).
+
+1. **Al tomar el arreglo, identifica el comentario.** Si la tarea viene de una
+   queja, búscala con una consulta de solo lectura que traiga `id`, fecha y
+   mensaje, nunca correos ni otros datos de la cuenta:
+
+   ```sql
+   select id, created_at, universidad, left(mensaje, 300) as mensaje
+   from public.user_feedback
+   where solucionado_at is null and mensaje ilike '%<palabra>%'
+   order by created_at desc;
+   ```
+
+   Anota `Feedback: <id>` en la descripción de la PR. Si la queja llegó por
+   WhatsApp, Instagram u otro canal, anota de dónde (`Feedback: WhatsApp,
+   2026-11-06`): ese aviso lo manda una persona por el mismo canal.
+2. **Avisa después del deploy, no al mergear.** Primero comprueba que el arreglo
+   está en gradehub.cl, por ejemplo buscando una línea nueva en el bundle
+   publicado (`curl -s https://gradehub.cl/ | grep -o 'app.js?v=[a-z0-9]*'` y
+   después `grep` en ese archivo).
+3. **Cierra el comentario.** Solo el dueño de la base puede hacerlo, desde el
+   SQL Editor o el MCP de escritura:
+
+   ```sql
+   select admin.resolver_feedback('<id>', '<qué se solucionó>');
+   ```
+
+   `true` significa que el aviso quedó listo; `false`, que ese comentario ya
+   estaba cerrado. Si no tienes acceso de escritura, deja el SQL en el
+   portapapeles de Lucas (`LC_ALL=en_US.UTF-8 pbcopy`) y díselo.
+4. **El texto** tiene hasta 240 caracteres. Debe decir qué cambió con las
+   palabras de quien escribió, sin tecnicismos ni promesas, y terminar con un
+   agradecimiento. Ejemplo: «Arreglamos Dinámica: si la cátedra o el
+   laboratorio están al borde, el ramo ahora se marca al borde aunque el promedio
+   dé sobre 5,0. ¡Gracias por avisarnos!».
+5. **Si el arreglo es parcial o no se va a hacer, no se cierra.** La app no
+   tiene un aviso de «no lo haremos». Díselo a Lucas, que decide si responder
+   por otro canal.
+
+Al revisar issues o cerrar un grupo de PRs, mira también los comentarios
+abiertos (`solucionado_at is null`): a veces otro arreglo ya resolvió alguno y
+falta avisar.

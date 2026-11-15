@@ -17,13 +17,9 @@ async function submitAuth(){
     const policyError=passwordPolicyError(p);
     if(policyError){authError(policyError);return;}
     if(p!==p2){authError('Las contraseñas no coinciden.');return;}
-    const legalAccept=document.getElementById('auth-legal-accept');
-    if(!legalAccept||!legalAccept.checked){
-      authError('Para crear tu cuenta, acepta los términos y la política de privacidad.');
-      if(legalAccept){legalAccept.setAttribute('aria-invalid','true');legalAccept.focus();}
-      return;
-    }
-    legalAccept.removeAttribute('aria-invalid');
+    // Sin casilla (decisión de Lucas, 2026-11-03): el texto «Al continuar
+    // aceptas…» está a la vista sobre este botón, y tocarlo es aceptar. La
+    // constancia con fecha y versión se guarda igual, abajo, al crear la cuenta.
   }
   if(!supabaseClient){authError('Falta configurar Supabase (URL y clave) en el código.');return;}
 

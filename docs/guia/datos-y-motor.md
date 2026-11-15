@@ -80,6 +80,11 @@ reglas viven en dos niveles, según de quién son:
 | Universidad | Escala, nota de aprobación y cómo el promedio se vuelve nota oficial | `GH_REGLAS_NOTA_POR_TENANT` en `engine.js` | UAndes: a la centésima y después a la décima |
 | Ramo | Pesos, casillas, descartes, compuertas, eximición, recuperativo | el preset del ramo en `data.js` | "presentación ≥ 3,0 sin aproximación para dar examen" |
 
+- **Descartes en la FEN:** `descarte_manual` hace que el motor no aplique
+  `dropLowest`. La ficha avisa cuántas notas permite borrar la pauta y cada
+  estudiante borra la suya (Martín, 2026-11-03). Las demás universidades siguen
+  con descarte automático.
+
 - **Sin entrada, la regla común:** 1 a 7, aprueba con 4,0, a la décima. FEN, UC,
   UAI y UDD la usan (la UDD por su art. 35, que remite la aproximación a un
   instructivo no publicado: ver `docs/mallas-udd.md`). Una universidad nueva

@@ -161,8 +161,9 @@ const CARRERAS_DECLARABLES={
     {n:'Contador Auditor'},
   ],
   uc:[
-    {n:'Ingeniería',malla:'ING-PC'},
-    {n:'Actuación',malla:'UC-ACTUACION'},
+    // Sinónimos de búsqueda: admision.uc.cl/carreras/ingenieria/ y /actuacion/.
+    {n:'Ingeniería',malla:'ING-PC',alias:['Ingeniería Civil','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    {n:'Actuación',malla:'UC-ACTUACION',alias:['Teatro']},
     {n:'Administración Pública',malla:'UC-ADMINISTRACION-PUBLICA'},
     {n:'Agronomía',malla:'UC-AGRONOMIA'},
     {n:'Antropología',malla:'UC-ANTROPOLOGIA'},
@@ -291,6 +292,16 @@ const MALLA_UC={
 // Carreras UAI — sin mallas verificadas todavía, el estudiante arma sus ramos
 const CARRERAS_UAI={'ING':'Ingeniería Civil','COM-UAI':'Ingeniería Comercial','DER-UAI':'Derecho','PSI':'Psicología','OTRA':'Otra carrera'};
 const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comercial','DER-UA':'Derecho','MED-UA':'Medicina','PSI-UA':'Psicología','OTRA':'Otra carrera'};
+
+// Dónde sacar el texto para "Pegar mi avance curricular". Una universidad sin
+// entrada acá no ofrece la opción.
+// Ruta verificada en el portal el 2026-11-11: el link directo abre el sistema
+// si hay sesión UC (si no, la pide); después «Consultar», la pestaña y «Descargar».
+// El link de descarga es un recurso interno que cambia: no sirve como link fijo.
+const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:'ficha académica acumulada',
+  url:'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml',sistema:'Sistema de Avance Curricular',
+  pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',archivoFicha:'FAA',
+  alternativa:'Mi UC › Información Académica › Avance curricular'}};
 
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[

@@ -164,7 +164,7 @@ async function aportarPropuestaAlCatalogo(r){
   try{
     const {error,conSeccion}=await rpcReporteCatalogo(r,{
       p_tenant:S.tenant,p_carrera:(r.origen&&r.origen.carrera)||S.carrera,
-      p_ramo:r.nombre,p_ramo_norm:normName(r.nombre),p_ramo_sigla:siglaReporteUC(r),
+      p_ramo:r.nombre,p_ramo_norm:ramoNormReporte(r),p_ramo_sigla:siglaReporteUC(r),
       p_estructura:estructura,p_huella:huellaEstructura(estructura),p_nota:null,
     },{origen:'automatico'});
     if(!error&&conSeccion)r.seccionAportada=seccionReporte(r);

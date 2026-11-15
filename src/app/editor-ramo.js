@@ -12,6 +12,7 @@ function openEditRamoModal(){
     <p id="m-ramo-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     <label class="modal-label">Créditos <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(SCT)</span></label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-creditos" value="${r.creditos!=null?r.creditos:''}" placeholder="Ej: 10" maxlength="3" autocomplete="off"/></div>
+    ${selectorExclusionPromedio(r,'m-ramo-promedio')}
     <label class="modal-label" for="m-ramo-seccion">Sección</label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"/></div>
     <p id="m-ramo-seccion-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
@@ -55,6 +56,7 @@ function confirmEditRamo(){
   const limiteFaltas=conFaltas?parseLimiteFaltas((document.getElementById('m-ramo-faltas-limite')||{}).value):null;
   if(limiteFaltas===undefined){mostrarErrorCampo('m-ramo-faltas-limite','m-ramo-faltas-error',`El máximo es un número entre 1 y ${FALTAS_MAX}. Déjalo vacío si no lo sabes.`);return false;}
   const r=S.ramos.find(x=>x.id===currentRamoId);
+  guardarExclusionPromedio(r,'m-ramo-promedio');
   r.nombre=name;r.color=modalColor;
   r.creditos=parseCreditos((document.getElementById('m-ramo-creditos')||{}).value);
   r.seccion=seccion;
@@ -65,4 +67,18 @@ function confirmEditRamo(){
   if(conFaltas)r.faltas={activo:true,cantidad:r.faltas?r.faltas.cantidad:0,limite:limiteFaltas};
   else if(r.faltas)r.faltas={...r.faltas,activo:false};
   save();track('edit_ramo');closeModal();renderRamo();
+}
+
+// Clasificación explícita y opcional: no se deduce por el nombre del ramo.
+function selectorExclusionPromedio(r,id){
+  const regla=gh_reglasNota(r.origen?.tenant||r.cierre?.tenant||S.tenant).promedioAcademico;
+  if(!regla)return '';
+  const opciones=[['','Incluido'],['educacion_fisica','Educación Física'],['extraprogramatica','Extraprogramática'],['convalidada','Convalidada']];
+  return `<label class="modal-label" for="${id}">Promedio académico</label><div class="modal-input"><select id="${id}" style="min-height:44px;width:100%;padding:10px 13px;font:inherit;color:var(--fg);background:var(--bg2);border:1px solid var(--border);border-radius:10px">${opciones.filter(([v])=>!v||regla.exclusiones.includes(v)).map(([v,n])=>`<option value="${v}"${r.exclusionPromedio===v?' selected':''}>${n}</option>`).join('')}</select></div>`;
+}
+function guardarExclusionPromedio(r,id){
+  const campo=document.getElementById(id);if(!campo)return;
+  const regla=gh_reglasNota(r.origen?.tenant||r.cierre?.tenant||S.tenant).promedioAcademico;
+  if(regla?.exclusiones.includes(campo.value))r.exclusionPromedio=campo.value;
+  else delete r.exclusionPromedio;
 }

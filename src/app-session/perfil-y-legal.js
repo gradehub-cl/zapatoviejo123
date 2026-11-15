@@ -28,7 +28,7 @@ async function syncProfile(){
 // Se llama al terminar el onboarding, que es por donde pasa toda cuenta nueva.
 // No revienta hacia afuera: la persona ya está adentro y su semestre ya está
 // guardado; un fallo de red acá no puede dejarla fuera de su propia cuenta.
-async function registrarDeclaracionEdad({edad=null,generacion=null}={}){
+async function registrarDeclaracionEdad({generacion=null}={}){
   if(!supabaseClient||!currentUser)return;
   try{
     await supabaseClient.from('profiles').upsert({
@@ -38,13 +38,13 @@ async function registrarDeclaracionEdad({edad=null,generacion=null}={}){
     // Quien entró con Google nunca vio la casilla del formulario de correo.
     await registrarAceptacionLegal();
   }catch(e){}
-  // Edad y generación (#697) van aparte: si sus columnas todavía no existen,
-  // la constancia de la declaración ya quedó guardada arriba igual.
+  // La generación (#697) va aparte: si su columna todavía no existe, la
+  // constancia de la declaración ya quedó guardada arriba igual. La edad ya no
+  // se pregunta ni se sube (2026-11-03); la que guardaron cuentas anteriores
+  // queda como está y se borra con la cuenta.
   try{
-    const datos={id:currentUser.id};
-    if(Number.isInteger(edad)&&edad>=14&&edad<=120)datos.edad=edad;
-    if(Number.isInteger(generacion)&&generacion>=2000&&generacion<=new Date().getFullYear())datos.generacion=generacion;
-    if(Object.keys(datos).length>1)await supabaseClient.from('profiles').upsert(datos);
+    if(Number.isInteger(generacion)&&generacion>=2000&&generacion<=new Date().getFullYear())
+      await supabaseClient.from('profiles').upsert({id:currentUser.id,generacion});
   }catch(e){}
 }
 async function registrarAceptacionLegal(){

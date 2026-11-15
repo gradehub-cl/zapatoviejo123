@@ -179,11 +179,12 @@ el examen bajo 3,0 topa la final en su propia nota. Sin `exacto`, porque el
 reglamento no dice "sin aproximación" (el art. 27 de la UAndes sí): 2,95
 cumple, igual que en la nota final.
 
-**Límite conocido.** La compuerta topa, no reemplaza. Si el examen queda bajo
-3,0 y el resto del ramo promedia todavía menos (parciales 2,0, examen 2,8), la
-app muestra 2,2 y la UDD registra 2,8. Las dos reprueban. Para calzar exacto,
-el motor necesita una compuerta que reemplace la final (carril `codex`);
-`tests/udd-pautas.test.js` fija hoy el 2,2 para que ese cambio actualice esto.
+**Sustitución explícita.** El reglamento vigente DR50/26, marzo de 2026,
+art.37 ([PDF oficial](https://www.udd.cl/dircom/reglamentos/Reglamento-alumno-regular-de-pregrado.pdf)),
+registra la nota del examen si no cumple el mínimo. El preset declara
+`efecto:'reemplazar'`: parciales 2,0 y examen 2,8 dejan final 2,8, aunque la
+ponderación fuese 2,2. Los ramos guardados con el antiguo tope conservan sus
+notas y reciben un aviso para aceptar la pauta actualizada.
 
 Tres programas bimestrales (SFF118, SFS111, STH129) ponen su único certamen en
 70% de los parciales: 49% de la final, más que el examen. El art. 36 lo prohíbe

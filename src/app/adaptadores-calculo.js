@@ -5,6 +5,7 @@
 // crearon antes de que la regla existiera. Un ramo manual del mismo nombre no
 // recibe excepciones del catálogo.
 function definicionPresetDelRamo(ramo){
+  if(ramo?.pautaSugerida?.aceptada)return null; // El programa nuevo espera confirmación en la ficha.
   const origen=ramo&&ramo.origen;
   if(!origen||!origen.tenant)return null;
   if(origen.tenant!=='uc'){
@@ -102,7 +103,7 @@ const calculoRamo=gh_crearCalculoRamo({
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });
-var {reglasCalculoVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
+var {reglasCalculoVigentes,reglasBonusVigentes,reglasAusenciaOficiales,hojasCategoria,ramoToStructure,gradesOf,avgPond,promedioCompletoSinDescarte,notaNecesariaEximicion,estadoEximicion,categoriaEximida,categoriasVigentes,estadoSegundaFecha,estadoAusenciasJustificadas,avgDeGrupo,avgDeGrupoCalculado,calculoRamoConCompuertas,ramoCompletamenteEvaluado,estadoRecuperativo,resumenCategoriasCalculadas,ramoAvg,referenciaRamoVinculado,ramoVinculado,combinarConRamoVinculado,partesDelVinculo,gatesActivas,estadoParaNotaNecesaria,notaNecesaria}=calculoRamo;
 // Una compuerta es una excepción explícita al promedio: puede reprobar aunque
 // la nota final redondeada llegue a 4,0. Estos helpers mantienen esa excepción
 // visible sin contaminar el redondeo normal de todos los demás ramos.
@@ -113,10 +114,23 @@ function textoCompuertaActiva(g){
     ? `${g.nombre} va ${fmtPromedio(g.actual)} (mín. ${nf(g.min)}): ${g.efecto==='reemplazar'?'la nota final queda en '+fmtPromedio(g.cap):'topa tu nota final'}`
     : `${g.nombre} bajo ${nf(g.min)}: repruebas pese al promedio`;
 }
-function nivelRamo(r,n){return gatesActivas(r).length?'bad':nivelNota(n);}
+// Con laboratorio, cada parte tiene que llegar a 4,0 por separado: si una baja,
+// la final pasa a ser la más baja de las dos. Por eso una cátedra al borde deja
+// el ramo al borde aunque el laboratorio suba el promedio combinado.
+const RANGO_NIVEL={bad:0,warn:1,good:2,neutral:3};
+function nivelRamo(r,n){
+  if(gatesActivas(r).length)return 'bad';
+  const nivel=nivelNota(n),partes=r&&r.aporta?partesDelVinculo(r):null;
+  if(nivel!=='good'||!partes||partes.propio.valor===null||partes.externo.valor===null)return nivel;
+  return [nivel,nivelNota(partes.propio.valor),nivelNota(partes.externo.valor)].reduce((a,b)=>RANGO_NIVEL[b]<RANGO_NIVEL[a]?b:a);
+}
 function notaAprobadaRamo(r,n){const nivel=nivelRamo(r,n);return nivel==='warn'||nivel==='good';}
 function colorClassRamo(r,n){return nivelRamo(r,n);}
-function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(n);}
+// El color sigue al nivel: un 5,0 combinado con la cátedra al borde no se pinta verde.
+function getColorRamo(r,n){
+  if(gatesActivas(r).length)return getColor(3.9);
+  return nivelRamo(r,n)==='warn'&&nivelNota(n)==='good'?getColor(4.9):getColor(n);
+}
 
 // ─── CÁTEDRA Y LABORATORIO ───────────────────────────────────────────────────
 // Dinámica se aprueba solo si la cátedra Y el laboratorio llegan cada uno a
@@ -127,13 +141,12 @@ function getColorRamo(r,n){return gatesActivas(r).length?getColor(3.9):getColor(
 //
 // Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
 // siempre YA es solo la cátedra, y repetir el mismo número confundiría.
-// `fmt` decide la coma decimal: el simulador la usa y la ficha no. `exacto`
-// agrega el promedio sin redondear, como el número grande al tocarlo.
-function htmlSoloCatedra(r,{fmt=x=>x,exacto=null}={}){
+// `exacto` agrega el promedio sin redondear, como el número grande al tocarlo.
+function htmlSoloCatedra(r,{exacto=null}={}){
   const partes=partesDelVinculo(r);
   if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
   const v=partes.propio.valor;
-  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
+  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmtPromedio(v)}</span>`+
     `<span class="solo-parte-label">Solo cátedra${exacto?` · ${exacto(v)}`:''}</span>`;
 }
 // Lo que falta para aprobar. En un ramo con laboratorio habla solo de la
@@ -142,11 +155,29 @@ function notaNecesariaParaAprobar(r){
   const partes=partesDelVinculo(r);
   return partes?{valor:partes.propio.necesaria,cual:' cátedra'}:{valor:notaNecesaria(r),cual:''};
 }
+// Donde el descarte es manual, la app solo avisa cuántas notas permite borrar la
+// pauta. Un porcentaje depende de cuántas se rindieron: se traduce a notas con
+// el redondeo de la universidad, y nunca a todas las rendidas.
+function textoNotasBorrables(r,cat){
+  const d=cat&&cat.dropLowest;
+  if(!d||!gh_descarteManual(r,S.tenant))return '';
+  if(typeof d.fraction==='number'){
+    const base=`Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+    const rendidas=(cat.notas||[]).filter(n=>typeof n.valor==='number').length;
+    const redondear=gh_reglasNota(r&&r.origen&&r.origen.tenant||S.tenant).descarte_redondeo==='arriba'?Math.ceil:Math.floor;
+    const k=Math.min(redondear(Math.round(d.fraction*rendidas*1e6)/1e6),rendidas-1);
+    return k>=1?`${base}. Con ${rendidas} rendidas, puedes borrar ${k}`:base;
+  }
+  const n=Math.floor(Number(d.count))||0;
+  if(n<1)return '';
+  return `Según la pauta, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
+}
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
 function textoDescarte(cat,descarte){
   const notas=descarte.dropped||[];
   const cantidad=notas.length;
+  const propia=cat.descarteOrigen==='editor';
   const lista=notas.map(n=>`${n.name} (${fmt(n.value)})`).join(', ');
   const regla=cat.dropLowest||{};
   let redondeo='';
@@ -154,7 +185,7 @@ function textoDescarte(cat,descarte){
     const porcentaje=Math.round(regla.fraction*100);
     redondeo=` Con ${descarte.rendidas} evaluaciones rendidas, el ${porcentaje}% equivale a ${cantidad} ${cantidad===1?'nota':'notas'}: se redondea hacia abajo.`;
   }
-  return `El programa descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
+  return `${propia?'Tu pauta':'El programa'} descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
 }
 
 // Promedio general. En Chile el PPA se pondera por créditos (SCT), no es simple.
@@ -168,11 +199,11 @@ function textoDescarte(cat,descarte){
 // solo entrega un promedio más alto o más bajo del real.
 function esAporteDeOtroRamo(r,ramos){
   if(!r)return false;
-  const n=normName(r.nombre);
-  return (ramos||[]).some(x=>x!==r&&x.aporta&&x.aporta.ramo&&normName(x.aporta.ramo)===n);
+  return (ramos||[]).some(x=>x!==r&&ramoVinculado(x,ramos)===r);
 }
 function ramosDelPromedio(ramos){
-  return (ramos||[]).filter(r=>!esAporteDeOtroRamo(r,ramos));
+  return (ramos||[]).filter(r=>!esAporteDeOtroRamo(r,ramos)&&
+    !gh_reglasNota(r.origen?.tenant||r.cierre?.tenant||S.tenant).promedioAcademico?.exclusiones.includes(r.exclusionPromedio));
 }
 // ¿Sabemos cuántos créditos vale este ramo?
 //
@@ -205,6 +236,20 @@ function gpa(ramos){
     return den>0?num/den:simple();
   }
   return simple();
+}
+// El promedio del semestre no es la nota final oficial de un ramo. Se muestra
+// a centésimas, desde el valor bruto de gpa, sin un redondeo intermedio.
+// El promedio general va con UN decimal en toda la app, como lo muestran las
+// universidades (Lucas, 2026-11-11: 5,42 se ve 5,4). Tocar el promedio en
+// Inicio muestra el valor exacto. Las diferencias (deltas y aportes) usan
+// fmtDiferenciaPromedio, con dos decimales: con uno, un +0,04 se vería +0,0.
+function fmtPromedioGeneral(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,1).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1,useGrouping:false});
+}
+function fmtDiferenciaPromedio(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,2).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false});
 }
 // Total de créditos inscritos (solo cuenta los que tienen el dato)
 function totalCreditos(ramos){
@@ -259,4 +304,20 @@ const FRASES_INICIO=[
 function fraseInicio(fecha=new Date()){
   const dia=Math.floor(Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate())/86400000);
   return FRASES_INICIO[((dia%FRASES_INICIO.length)+FRASES_INICIO.length)%FRASES_INICIO.length];
+}
+
+// La ficha no llama final a una cátedra que todavía no incluye su laboratorio.
+function contextoVinculoRamo(r){
+  const link=referenciaRamoVinculado(r),partes=partesDelVinculo(r);
+  if(!link?.sigla||!partes)return null;
+  if(!partes.externo.ramo)return {link,soloCatedra:true,falta:true,html:`Tu nota final incluye un ${r2(link.peso)}% del ${esc(link.ramo)}. Agrégalo para verla completa`};
+  if(partes.externo.valor===null)return {link,soloCatedra:true,falta:false,html:`Agrega notas en ${esc(link.ramo)} para ver la nota combinada. Por ahora, solo cátedra`};
+  const propia=partes.propio.valor,externa=partes.externo.valor;
+  const estado=(v)=>v===null?'sin notas':notaFinalOficial(v)<partes.min?'bajo el mínimo':'cumple el mínimo';
+  return {link,soloCatedra:false,falta:false,html:`Cátedra ${fmtPromedio(propia)} (${estado(propia)}) · Laboratorio ${fmtPromedio(externa)} (${estado(externa)}). Cada ficha conserva su propia nota`};
+}
+function agregarLaboratorioVinculado(){
+  const r=S.ramos.find(x=>x.id===currentRamoId),info=contextoVinculoRamo(r);
+  if(!info?.falta)return;
+  crearRamoDesdeCatalogo(info.link.ramo,info.link.sigla);save();renderRamo();showToast('Laboratorio agregado');
 }

@@ -98,5 +98,25 @@ console.log('\n=== Lo que no tiene partes no cambia ===');
   chk('un ramo archivado con nota corregida a mano tampoco',g('partesDelVinculo')(archivado)===null);
 }
 
+// Lucas, 2026-11-07: con la cátedra en 4,2 y el lab en 7,0 el 70/30 da 5,04,
+// pero la cátedra sigue al borde de pasar a ser la final. El ramo va al borde.
+console.log('\n=== Al borde por una de las partes ===');
+{
+  const cat=v=>({id:'d',nombre:'Dinámica',color:'#3aa',creditos:10,origen:null,gates:[],
+    aporta:{ramo:'Laboratorio de Dinámica',peso:30,min:4.0},categorias:[{id:'t',nombre:'Todo',peso:100,notas:[{id:'a',valor:v,peso:1}]}]});
+  const nivel=r=>g('nivelRamo')(r,g('ramoAvg')(r));
+  let din=cat(4.2);S.ramos=[din,laboratorio(7.0)];
+  chk(`cátedra 4,2 y lab 7,0: el promedio (${g('ramoAvg')(din).toFixed(2)}) sería verde, pero va al borde`,
+    g('nivelNota')(g('ramoAvg')(din))==='good'&&nivel(din)==='warn');
+  chk('y no se pinta verde',g('getColorRamo')(din,g('ramoAvg')(din))===g('getColor')(4.9));
+  chk('sigue contando como aprobado',g('notaAprobadaRamo')(din,g('ramoAvg')(din)));
+  din=cat(6.0);S.ramos=[din,laboratorio(4.3)];
+  chk('lo mismo si el que está al borde es el lab',nivel(din)==='warn');
+  din=cat(5.5);S.ramos=[din,laboratorio(6.0)];
+  chk('con las dos partes sobre 5,0 queda bien',nivel(din)==='good'&&g('getColorRamo')(din,g('ramoAvg')(din))===g('getColor')(g('ramoAvg')(din)));
+  din=cat(5.5);S.ramos=[din,laboratorio(null)];
+  chk('sin nota de lab manda la cátedra sola',nivel(din)==='good');
+}
+
 console.log(`\n${ok} OK, ${fail} FAIL`);
 process.exit(fail?1:0);

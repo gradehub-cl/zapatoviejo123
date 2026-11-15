@@ -51,7 +51,7 @@ assert.ok(estrategia.categorias.every(c=>!c.fecha),'No inventa fechas de Estrate
 const actividades=estrategia.categorias.find(c=>c.nombre==='Actividades');
 assert.equal(actividades.slots,4);
 actividades.notas=[1,4,5,6].map((valor,slot)=>({id:'act'+slot,nombre:'Actividad',valor,peso:1,slot}));
-const est={id:'est',nombre:'Estrategia Competitiva',categorias:estrategia.categorias,gates:[]};
+const est={id:'est',nombre:'Estrategia Competitiva',origen:{tenant:'uc',carrera:'COM'},categorias:estrategia.categorias,gates:[]};
 ctx.est=est;
 assert.equal(ctx.run('calculateFinalGrade(ramoToStructure(est),gradesOf(est)).breakdown.find(b=>b.id===est.categorias[1].id).value'),5);
 assert.equal(defs['Estrategia Competitiva'].formulasCondicionales[0].cuando[0].min,3.75);
