@@ -161,9 +161,30 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     static func demoWidgets() {
         let enDosDias = Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date()
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+        // Clases inventadas alrededor de ahora, con el contrato «Próxima clase»
+        // (docs/guia/ios.md): una en curso, otra más tarde y una mañana.
+        let chile = TimeZone(identifier: "America/Santiago") ?? .current
+        let dia = DateFormatter(); dia.locale = f.locale; dia.timeZone = chile; dia.dateFormat = "yyyy-MM-dd"
+        let hm = DateFormatter(); hm.locale = f.locale; hm.timeZone = chile; hm.dateFormat = "HH:mm"
+        let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let ahora = Date()
+        let clase = { (ramoId: String, ramo: String, sigla: String, sala: String, tipo: String, enMinutos: Double, dura: Double) -> String in
+            let inicio = ahora.addingTimeInterval(enMinutos * 60), fin = inicio.addingTimeInterval(dura * 60)
+            return """
+            {"id":"\(ramoId):demo:\(Int(enMinutos))","ramoId":"\(ramoId)","ramo":"\(ramo)","sigla":"\(sigla)","fecha":"\(dia.string(from: inicio))",\
+            "inicio":"\(hm.string(from: inicio))","fin":"\(hm.string(from: fin))","inicioAt":"\(iso.string(from: inicio))","finAt":"\(iso.string(from: fin))",\
+            "sala":"\(sala)","tipo":"\(tipo)","enlace":"cl.gradehub.app://ramo/\(ramoId)"}
+            """
+        }
+        let clases = [clase("demo", "Cálculo II", "MAT1620", "K201", "CLAS", -20, 70),
+                      clase("b", "Física", "FIS1514", "Lab 3", "LAB", 80, 70),
+                      clase("c", "Programación", "IIC1103", "B12", "AYUD", 24 * 60 - 20, 70),
+                      clase("demo", "Cálculo II", "MAT1620", "K201", "CLAS", 48 * 60 - 20, 70)].joined(separator: ",")
         let json = """
         {"version":1,"actualizado":"\(ISO8601DateFormatter().string(from: Date()))","promedio":{"oficial":5.3,"nivel":"good"},
-        "ramos":[{"id":"demo","nombre":"Cálculo II","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","promedio":3.8,"nivel":"bad"}],
+        "zonaHoraria":"America/Santiago","fechaHoy":"\(dia.string(from: ahora))","clasesProximas":[\(clases)],
+        "ramos":[{"id":"demo","nombre":"Cálculo II","color":"#7F77DD","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","color":"#1D9E75","promedio":3.8,"nivel":"bad"},
+        {"id":"c","nombre":"Programación","color":"#D85A30","promedio":null,"nivel":null}],
         "agenda":[{"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Interrogación 2","fecha":"\(f.string(from: enDosDias))","hora":"17:30","necesitas":"3.7","parte":30},
         {"ramoId":"b","ramo":"Física","sigla":"FIS1514","color":"#1D9E75","evaluacion":"Control 4","fecha":"\(f.string(from: enDosDias.addingTimeInterval(86400)))"},
         {"ramoId":"c","ramo":"Programación","sigla":"IIC1103","color":"#D85A30","evaluacion":"Tarea 3","fecha":"\(f.string(from: enDosDias.addingTimeInterval(4 * 86400)))"},
