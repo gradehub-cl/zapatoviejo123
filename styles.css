@@ -350,9 +350,9 @@ html.app-nativa,html.app-nativa body{overscroll-behavior-y:none;}
 .ob-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px 20px;width:100%;box-shadow:var(--shadow-lg);margin-bottom:16px;}
 .ob-edad{width:100%;max-width:640px;margin:-4px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
 /* Ruletas del onboarding (#697): como la del reloj del iPhone, filas de 44 pt. */
-.ruleta{position:relative;height:220px;border-radius:14px;background:var(--bg2);overflow:hidden;outline:none;}
+.ruleta{position:relative;height:220px;border-radius:8px;background:var(--bg2);overflow:hidden;outline:none;}
 .ruleta:focus-visible{box-shadow:0 0 0 3px var(--primary-light);}
-.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:10px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
+.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:8px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
 .ruleta-lista{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:88px 0;box-sizing:border-box;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 .ruleta-lista::-webkit-scrollbar{display:none;}
 .ruleta-fila{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:1.0625rem;color:var(--fg3);font-variant-numeric:tabular-nums;cursor:pointer;}
@@ -481,7 +481,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   line-height:1;letter-spacing:-.02em;font-size:0.9375rem;}
 .tenant-mono[data-len="3"]{font-size:0.75rem;}
 .tenant-mono[data-len="6"]{font-size:0.53125rem;letter-spacing:0;}
-.tenant-badge.lg{width:46px;height:46px;border-radius:13px;}
+.tenant-badge.lg{width:46px;height:46px;border-radius:8px;}
 .tenant-badge.lg .tenant-mono{font-size:1.0625rem;}
 .tenant-badge.lg .tenant-mono[data-len="3"]{font-size:0.875rem;}
 /* Marca de universidad junto al wordmark de GradeHub */
@@ -495,7 +495,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .brand-tenant .tenant-glyph{width:14px;height:14px;}
 /* Opción de universidad en el onboarding: monograma + nombre + bajada */
 .tenant-opt{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
-  padding:12px 14px;border-radius:14px;cursor:pointer;
+  padding:12px 14px;border-radius:8px;cursor:pointer;
   border:1.5px solid var(--border);background:var(--muted);
   font-family:var(--font-ui);transition:border-color var(--motion-fast),background var(--motion-fast),transform var(--motion-press);}
 @media(hover:hover) and (pointer:fine){.tenant-opt:hover{border-color:color-mix(in srgb,var(--tb),transparent 55%);}}
@@ -2286,7 +2286,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* 16px en el input evita que iOS haga zoom al enfocar — a menos de eso, el
    teléfono salta y el estudiante pierde el contexto. */
 .course-picker-search{display:flex;align-items:center;gap:8px;padding:11px 13px;
-  border:1.5px solid var(--border);background:var(--bg2);border-radius:12px;
+  border:1.5px solid var(--border);background:var(--bg2);border-radius:8px;
   transition:border-color var(--motion-fast);}
 .course-picker-search:focus-within{border-color:var(--primary);}
 .course-picker-search input{flex:1;min-width:0;border:none;background:none;outline:none;
@@ -2317,7 +2317,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* Crear un ramo a mano no es el plan B escondido: hay electivos y cursos de
    formación general que no están en ninguna malla. Visible, sin competir. */
 .course-picker-manual{display:block;width:100%;margin-top:12px;padding:11px;
-  border:1px dashed var(--border2);background:none;border-radius:12px;cursor:pointer;
+  border:1px dashed var(--border2);background:none;border-radius:8px;cursor:pointer;
   font-family:var(--font-ui);font-size:0.8125rem;font-weight:600;color:var(--fg2);
   letter-spacing:-.005em;transition:border-color var(--motion-fast),color var(--motion-fast);}
 @media(hover:hover) and (pointer:fine){.course-picker-manual:hover{border-color:var(--primary);color:var(--primary);}}
@@ -2718,6 +2718,9 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 /* Un solo radio para todo lo que se aprieta: 8 px. Los que quedaban en 10, 11
    y 12 se veían de otra familia al lado de un botón principal. */
 .btn-cancel,.ramo-action,.topbar-link,.icon-btn,.s-tenant-btn,.simg-step,.horario-importar-link{border-radius:8px;box-shadow:none;}
+/* Lo mismo para los campos y las tarjetas chicas que se eligen. */
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search],input[type=url]{border-radius:8px;}
+.accent-opt,.fondo-opt,.settings-danger-btn,.cat-hit,.simg-val{border-radius:8px;}
 .btn-cancel{color:var(--fg);background:var(--muted);}
 .ramo-action:not(.primary){background:transparent;border:1px solid var(--border2);color:var(--fg2);font-weight:500;}
 .modal-sheet{border:1px solid var(--border);border-bottom:0;box-shadow:0 -12px 48px rgba(0,0,0,.16);border-radius:18px 18px 0 0;}
@@ -2738,7 +2741,7 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .settings-danger-zone{background:transparent;}
 .settings-reset-zone{background:var(--card);}
 .feedback-empty{border-radius:8px;background:var(--card);}
-.ob-card{border-radius:10px;box-shadow:none;}
+.ob-card{border-radius:8px;box-shadow:none;}
 .ob-brand{color:var(--fg);letter-spacing:-.035em;font-size:1.125rem;font-weight:650;text-transform:none;}
 .ob-title{font-weight:600;letter-spacing:-.045em;line-height:1.12;}
 .ob-title-accent{background-image:none;color:var(--fg);-webkit-text-fill-color:currentColor;}
@@ -4032,13 +4035,13 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
   color:var(--fg);font:600 .9375rem var(--font-ui);font-variant-numeric:tabular-nums;cursor:pointer;}
 .calc-paso-btn[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-light);color:var(--fg);}
 .calc-paso-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
-input.calc-paso-otro{width:80px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2);
+input.calc-paso-otro{width:80px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);
   color:var(--fg);font:1rem var(--font-ui);font-variant-numeric:tabular-nums;text-align:center;}
 input.calc-paso-otro:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
 input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calc-paso-aviso{margin:0 0 6px;color:var(--fg2);font-size:.8125rem;min-height:0;}
 .calc-paso-aviso:empty{display:none;}
-.calc-tabla-scroll{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:12px;}
+.calc-tabla-scroll{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;}
 .calc-tabla-scroll table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .calc-tabla-scroll th{position:sticky;top:0;background:var(--card);color:var(--fg2);font-size:.8125rem;font-weight:600;text-align:left;padding:8px 12px;}
 .calc-tabla-scroll td{padding:7px 12px;border-top:1px solid var(--border);}
