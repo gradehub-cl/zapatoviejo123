@@ -192,3 +192,27 @@ con `clock_timestamp()` dentro de PostgreSQL, con resolución local de 1 ms;
 Incremento medio observado: **2,33 ms**; no supera 20 ms en esta medición. No
 se introdujeron optimizaciones de rendimiento. Es una medición en memoria/WASM,
 no una garantía de latencia del Postgres de producción, su disco o su carga.
+
+### Catálogo UC de secciones · revisión local 2026-11-03
+
+`supabase/catalogo_uc_secciones.sql` prepara dos tablas con RLS: oferta pública
+de cursos y lotes temporales de importación. Lucas lo aplicó en producción el
+2026-11-15; ese día se comprobó RLS en ambas tablas, que `anon` no lee la tabla
+base ni puede consolidar, y que sí ejecuta la RPC pública. No son registros de cuentas y no llevan FK a `auth.users`.
+
+- `anon` y `authenticated` no leen ni escriben las tablas base. El secreto de
+  servidor prepara lotes y consolida una corrida completa en una transacción,
+  con cantidad esperada y guarda del 70%; una lectura fallida no vacía la base.
+- Solo la RPC `catalogo_uc_secciones_publicas` tiene lectura pública. Sustituye
+  los nombres de `profesor_ocultos` por «Sin informar», usando la coincidencia
+  existente también ante el orden apellido/nombre de Buscacursos. El filtro se
+  aplica al leer, sin depender de una nueva corrida. No expone cuentas ni notas.
+- No se suben HTML/JSON crudos como artifacts ni se imprimen nombres en los
+  logs de Actions. El workflow con secreto solo corre en `main`, bajo el
+  environment `supabase`; la prueba en otra rama no obtiene secretos.
+- Las bajas conservan la sección como no vigente. Los lotes abandonados se
+  limpian a los siete días tras una consolidación exitosa. No modifica el
+  borrado de cuenta ni las tablas de aportes/calificaciones de profesor.
+- PGlite prueba permisos como `anon`, `authenticated` y `service_role`, el
+  docente oculto, la reaplicación y el rechazo atómico de cargas incompletas.
+  Guía operativa y atribución: [Buscacursos UC](../buscacursos-uc.md).
