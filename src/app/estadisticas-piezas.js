@@ -52,3 +52,9 @@ function htmlBarraCentrada(valor,max,color){
 }
 
 function toggleHist(id){openHist[id]=!openHist[id];renderStats();}
+// La flecha de todo lo que se despliega (HIG: Disclosure controls): un solo
+// trazo, que apunta hacia abajo cerrado y gira al abrir. Reemplaza a los
+// triángulos ▲▼ de texto, que eran de otra familia que el resto de los íconos.
+function iconoDespliegue(abierto){
+  return `<svg class="ic ic-despliegue${abierto?' abierto':''}" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+}

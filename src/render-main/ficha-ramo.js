@@ -391,7 +391,7 @@ function renderRamo(){
     ncw.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div>
       <button type="button" class="reglas-toggle" aria-expanded="${abierto?'true':'false'}" onclick="toggleReglasRamo('${esc(r.id)}')">
         <span>${resumen}</span>
-        <span class="reglas-chevron" aria-hidden="true">${abierto?'▲':'▼'}</span>
+        ${iconoDespliegue(abierto)}
       </button>
       <div class="reglas-cuerpo${abierto?' open':''}">${bloques.join('<div style="height:10px;"></div>')}<span style="display:block;margin-top:6px;">Compáralo con la pauta del curso.</span></div>
     </div>`;
@@ -716,7 +716,7 @@ function renderRamo(){
               <div class="eval-row-weight">${r2(cat.peso)}% · promedio de ${cat.slots}${notasCount?` · ${notasCount}/${cat.slots} ingresadas`:''}${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}</div>
             </div>
             <div class="ramo-nota ${justificada?'':colorClass(av)}" style="--grade-color:${getColor(av)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(av)}</div>
-            <span aria-hidden="true" style="color:var(--fg3);font-size:0.6875rem;margin-left:6px;">${isOpen?'▲':'▼'}</span>
+            ${iconoDespliegue(isOpen)}
           </div>
           ${barraPeso}
           <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:explicacionDescarte+rows+cantidad+detalleAusencia}</div>`;
@@ -797,7 +797,7 @@ function renderRamo(){
           <div class="eval-row-weight">${r2(cat.peso)}% · ${notas.length} nota${notas.length!==1?'s':''}${conNota&&conNota<notas.length?` · ${conNota}/${notas.length} ingresadas`:''}${fechaChip?' · '+fechaChip:''}</div>
         </div>
         <div class="ramo-nota ${justificada?'':colorClass(catAvg)}" style="--grade-color:${getColor(catAvg)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(catAvg)}</div>
-        <span aria-hidden="true" style="color:var(--fg3);font-size:0.6875rem;margin-left:6px;">${isOpen?'▲':'▼'}</span>
+        ${iconoDespliegue(isOpen)}
       </div>
       ${barraPeso}
       <div class="eval-group-body${isOpen||justificada?' open':''}">${justificada?detalleAusencia:explicacionDescarte+rows+pie+detalleAusencia}</div>`;

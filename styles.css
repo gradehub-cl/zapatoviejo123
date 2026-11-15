@@ -1661,6 +1661,8 @@ input[type=checkbox][role=switch]:disabled,.toggle input[type=checkbox]:disabled
 .ag-order-option:active{transform:scale(.98);}
 
 .ag-list-hd{display:flex;align-items:baseline;gap:8px;padding:2px 2px 12px;}
+/* Pendientes quedaba pegada a la lista de arriba; las demás secciones ya dejan este aire. */
+.ag-pendientes{margin-top:24px;}
 .ag-count{font-size:0.75rem;font-weight:700;color:var(--fg3);background:var(--muted);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;}
 .ag-priority-heading{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;gap:8px;padding:3px 2px 10px;}
 .ag-priority-stack{display:flex;flex-direction:column;gap:9px;width:100%;max-width:620px;margin-bottom:22px;}
@@ -2768,6 +2770,9 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .empty-icon,.ag-empty-icon{background:var(--muted);color:var(--fg2);border-radius:10px;}
 .empty-title{font-weight:600;}
 .empty-accion{max-width:280px;}
+.ic-despliegue{flex-shrink:0;width:18px;height:18px;margin-left:6px;color:var(--fg3);transition:transform var(--motion-fast) var(--ease-standard);}
+.ic-despliegue.abierto{transform:rotate(180deg);}
+@media(prefers-reduced-motion:reduce){.ic-despliegue{transition:none;}}
 .add-cat-btn[hidden]{display:none;}
 
 /* Agenda comparte la línea de identidad y filas sobrias. Fechas, pesos y
