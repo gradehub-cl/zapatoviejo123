@@ -713,7 +713,7 @@ function renderRamo(){
             <div style="flex:1;min-width:0;">
               <div class="eval-row-name">${esc(cat.nombre)}</div>
               ${borrables?`<div class="eval-row-weight">${esc(borrables)}</div>`:''}
-              <div class="eval-row-weight">${r2(cat.peso)}% · promedio de ${cat.slots}${notasCount?` · ${notasCount}/${cat.slots} ingresadas`:''}${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}</div>
+              <div class="eval-row-weight">${r2(cat.peso)}% · promedio de ${cat.slots}${notasCount?` · ${notasCount}/${cat.slots} ingresadas`:''}${fechaChip?' '+fechaChip:''}${exenta?' · exento/a':''}</div>
             </div>
             <div class="ramo-nota ${justificada?'':colorClass(av)}" style="--grade-color:${getColor(av)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(av)}</div>
             ${iconoDespliegue(isOpen)}
@@ -733,7 +733,7 @@ function renderRamo(){
       row.innerHTML=`
         <div class="eval-row-info" role="button" tabindex="0" onclick="openEditCatModal('${cat.id}')" style="cursor:pointer;">
           <div class="eval-row-name">${esc(cat.nombre)}</div>${derivada}
-          <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
+          <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
         ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value)}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
@@ -794,7 +794,7 @@ function renderRamo(){
         <div style="flex:1;min-width:0;">
           <div class="eval-row-name">${esc(cat.nombre)}</div>
           ${borrables?`<div class="eval-row-weight">${esc(borrables)}</div>`:''}
-          <div class="eval-row-weight">${r2(cat.peso)}% · ${notas.length} nota${notas.length!==1?'s':''}${conNota&&conNota<notas.length?` · ${conNota}/${notas.length} ingresadas`:''}${fechaChip?' · '+fechaChip:''}</div>
+          <div class="eval-row-weight">${r2(cat.peso)}% · ${notas.length} nota${notas.length!==1?'s':''}${conNota&&conNota<notas.length?` · ${conNota}/${notas.length} ingresadas`:''}${fechaChip?' '+fechaChip:''}</div>
         </div>
         <div class="ramo-nota ${justificada?'':colorClass(catAvg)}" style="--grade-color:${getColor(catAvg)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(catAvg)}</div>
         ${iconoDespliegue(isOpen)}
