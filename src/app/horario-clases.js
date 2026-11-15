@@ -84,29 +84,31 @@ function pintarHorarioRamo(r){
     ${bloques.length?`<ul>${bloques.map(b=>`<li><span>${esc(diasBloqueHorario(b))}</span><b>${esc(b.inicio)}–${esc(b.fin)}</b><span>${esc([b.tipo,b.sala].filter(Boolean).join(' · ')||'Sin sala')}</span></li>`).join('')}</ul>`:'<p>Agrega los días y las horas de tus clases.</p>'}`;
   caja.querySelector('[data-editar-horario]').addEventListener('click',()=>abrirHorarioRamo(r.id));
 }
-function abrirHorarioRamo(ramoId){
-  const ramo=S.ramos.find(r=>r.id===ramoId);if(!ramo||esCuentaProfesor())return;
-  const inicial=JSON.stringify(ramo.horario),tenant=S.tenant,cuenta=typeof currentUser==='undefined'?null:currentUser?.id;
-  let bloques=copiarHorario(ramo.horario);
+// La hoja de edición sirve para un ramo guardado y para la revisión de la foto
+// (bloques que todavía no se guardan). `alGuardar(bloques)` decide qué hacer
+// con lo validado y devuelve un texto de error si no pudo guardarlo.
+function abrirEditorHorario({titulo,bloques:iniciales,agregar=false,alGuardar,alCancelar=closeModal,textoGuardar='Guardar horario'}){
+  let bloques=copiarHorario(iniciales);
   const nuevo=()=>({id:uid(),dias:[],inicio:'',fin:'',sala:'',tipo:''});
-  if(!bloques.length)bloques.push(nuevo());
+  if(!bloques.length||agregar)bloques.push(nuevo());
   const caja=document.getElementById('modal-content');
   const leer=()=>{bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>({id:row.dataset.horarioBloque,
     dias:[...row.querySelectorAll('[name=dia]:checked')].map(n=>n.value),
     ...Object.fromEntries(['inicio','fin','sala','tipo'].map(k=>[k,row.querySelector('[name='+k+']').value]))}));};
   const pintar=()=>{
-    caja.innerHTML=`<form class="horario-editor"><h2 class="modal-title">Horario de ${esc(ramo.nombre)}</h2>
+    caja.innerHTML=`<form class="horario-editor"><h2 class="modal-title">${esc(titulo)}</h2>
       <p class="modal-desc">Se repite cada semana. Horas de Chile.</p><div class="horario-bloques">${bloques.map((b,i)=>`
       <fieldset data-horario-bloque="${esc(b.id)}"><legend>Bloque ${i+1}</legend>
         <div class="horario-dias" role="group" aria-label="Días del bloque ${i+1}">${DIAS_HORARIO.map(([k,n])=>`<label><input type="checkbox" name="dia" value="${k}"${b.dias.includes(k)?' checked':''}><span aria-hidden="true">${esc(n.slice(0,3))}</span><span class="horario-sr">${esc(n)}</span></label>`).join('')}</div>
         <div class="horario-campos"><label>Inicio<input type="time" name="inicio" step="60" required value="${esc(b.inicio)}"></label><label>Fin<input type="time" name="fin" step="60" required value="${esc(b.fin)}"></label>
         <label>Sala <small>(opcional)</small><input type="text" name="sala" maxlength="100" value="${esc(b.sala)}" placeholder="Ej.: K201"></label>
-        <label>Tipo <small>(opcional)</small><input type="text" name="tipo" maxlength="${NOMBRE_MAX}" value="${esc(b.tipo)}" placeholder="CLAS, AYUD, LAB…"></label></div>
+        <label>Tipo <small>(opcional)</small><input type="text" name="tipo" maxlength="${NOMBRE_MAX}" value="${esc(b.tipo)}" placeholder="Cátedra, ayudantía…" list="horario-tipos"></label></div>
         <div class="horario-bloque-acciones"><button type="button" data-copiar="${i}" class="horario-accion">Copiar bloque</button><button type="button" data-quitar="${i}" class="horario-accion">Quitar</button></div>
       </fieldset>`).join('')}</div>
+      <datalist id="horario-tipos">${['Cátedra','Ayudantía','Laboratorio','Taller'].map(t=>`<option value="${t}">`).join('')}</datalist>
       <button type="button" class="horario-accion" data-agregar-bloque>+ Agregar bloque</button>
-      <p class="horario-error" role="alert" tabindex="-1"></p><div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar-horario>Cancelar</button><button type="submit" class="btn-confirm">Guardar horario</button></div></form>`;
-    caja.querySelector('[data-cancelar-horario]').addEventListener('click',closeModal);
+      <p class="horario-error" role="alert" tabindex="-1"></p><div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar-horario>Cancelar</button><button type="submit" class="btn-confirm">${esc(textoGuardar)}</button></div></form>`;
+    caja.querySelector('[data-cancelar-horario]').addEventListener('click',()=>alCancelar());
     const enfocarUltimo=()=>caja.querySelectorAll('[data-horario-bloque]')[bloques.length-1]?.querySelector('input')?.focus();
     caja.querySelector('[data-agregar-bloque]').addEventListener('click',()=>{leer();bloques.push(nuevo());pintar();enfocarUltimo();});
     caja.querySelectorAll('[data-copiar]').forEach(b=>b.addEventListener('click',()=>{leer();bloques.push({...bloques[+b.dataset.copiar],id:uid(),dias:[...bloques[+b.dataset.copiar].dias]});pintar();enfocarUltimo();}));
@@ -115,10 +117,24 @@ function abrirHorarioRamo(ramoId){
       e.preventDefault();leer();const error=caja.querySelector('.horario-error');
       const indice=bloques.findIndex(b=>!bloqueHorarioValido(b));
       if(indice!==-1){error.textContent=`Revisa el bloque ${indice+1}: elige al menos un día y una hora de fin posterior al inicio.`;error.focus();return;}
-      const actual=S.ramos.find(r=>r.id===ramoId);
-      if(!actual||tenant!==S.tenant||cuenta!==(typeof currentUser==='undefined'?null:currentUser?.id)||JSON.stringify(actual.horario)!==inicial){error.textContent='El ramo o su horario cambió. Cierra y vuelve a abrir para revisarlo.';error.focus();return;}
-      actual.horario=copiarHorario(bloques);save();closeModal();renderRamo();renderHome();showToast('Horario guardado');
+      const problema=alGuardar(copiarHorario(bloques));
+      if(problema){error.textContent=problema;error.focus();}
     });
   };
   pintar();openModal();
+}
+// `agregar` abre con un bloque nuevo al final (Agregar clase, en la Agenda).
+// `alGuardado` reemplaza el repintado de la ficha: desde la Agenda no hay ramo
+// abierto y renderRamo mandaría a Inicio.
+function abrirHorarioRamo(ramoId,{agregar=false,alGuardado=null}={}){
+  const ramo=S.ramos.find(r=>r.id===ramoId);if(!ramo||esCuentaProfesor())return;
+  const inicial=JSON.stringify(ramo.horario),tenant=S.tenant,cuenta=typeof currentUser==='undefined'?null:currentUser?.id;
+  abrirEditorHorario({titulo:`Horario de ${ramo.nombre}`,bloques:ramo.horario,agregar,alGuardar:bloques=>{
+    const actual=S.ramos.find(r=>r.id===ramoId);
+    if(!actual||tenant!==S.tenant||cuenta!==(typeof currentUser==='undefined'?null:currentUser?.id)||JSON.stringify(actual.horario)!==inicial)
+      return 'El ramo o su horario cambió. Cierra y vuelve a abrir para revisarlo.';
+    actual.horario=bloques;save();closeModal();
+    if(alGuardado)alGuardado();else{renderRamo();renderHome();}
+    showToast('Horario guardado');
+  }});
 }

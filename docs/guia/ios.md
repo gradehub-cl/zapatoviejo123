@@ -95,8 +95,24 @@ módulos conocidos: no inventa horas para otro tenant o módulo ni rellena los
 recreos entre módulos. `proponerHorarioDesdeCatalogo({tenant,sigla,seccion})`
 devuelve hoy `null`: es el punto de entrada para el futuro catálogo de secciones,
 sin consulta ni escritura actuales. Toda propuesta futura debe pasar por la
-confirmación de la persona. El OCR actual sigue agregando ramos/secciones; aún no
-reconstruye con suficiente certeza qué días/módulos/salas pertenecen a cada ramo.
+confirmación de la persona.
+
+**Horario desde la foto (UC, 2026-11-15).** `clasesDeFotoHorario(lecturas,
+existe, tenant)` (`src/app/horario-ocr.js`) usa las cajas de palabras de
+Tesseract: encabezado de días (nombre, abreviatura o letra UC), filas por número
+de módulo u hora de inicio (una recta robusta: una hora mal leída no corre las
+demás) y, en cada celda, sigla, tipo (CLAS/AYUD/LAB/TAL → Cátedra, Ayudantía,
+Laboratorio, Taller) y sala. Las horas salen solo de `horarioDesdeModulos`; sin
+grilla reconocible o fuera de la UC no propone nada. La revisión muestra las
+clases por ramo, permite **Corregir** con la misma hoja de la ficha
+(`abrirEditorHorario`) y al aplicar escribe solo `horario`; si el ramo ya tenía
+uno, va desmarcado, y si cambió mientras se revisaba, no se pisa. Fixtures
+sintéticos en `tests/horario-pantallazo.test.js`.
+
+**Semana en la Agenda (solo app).** `src/render-agenda/horario-semana.js` agrega
+«Evaluaciones | Horario» detrás de `enAppNativa()` y fuera de cuentas de
+profesor. Lunes a viernes; sábado y domingo solo si hay clases. Tocar una clase
+abre la hoja del ramo; «Agregar clase» elige ramo y abre la misma hoja.
 
 ### Payload aditivo, versión 1
 
