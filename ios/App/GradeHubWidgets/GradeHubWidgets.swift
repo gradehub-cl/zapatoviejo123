@@ -3,7 +3,7 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// Widgets de GradeHub (#634–#638). Solo muestran el resumen que calculó
+// Widgets de GradeHub (#634–#638, #641). Solo muestran el resumen que calculó
 // la app con el motor de siempre: acá no se calcula ninguna nota. Lo único que
 // depende de la hora ("hoy", "en 3 días") se resuelve en el widget.
 
@@ -54,6 +54,37 @@ struct Resumen: Decodable {
     // Opcionales: un resumen guardado por una versión anterior de la app no los trae.
     let pendientes: [Pendiente]?
     let estadisticas: Estadisticas?
+    // Una clase con su fecha: contrato «Próxima clase» de docs/guia/ios.md. Las
+    // horas `inicio`/`fin` son de Chile y se muestran tal cual; `inicioAt` y
+    // `finAt` son los instantes reales, y con ellos se arma la línea de tiempo.
+    struct Clase: Decodable {
+        let id: String
+        let ramoId: String
+        let ramo: String
+        let sigla: String?
+        let fecha: String
+        let inicio: String
+        let fin: String
+        let inicioAt: String
+        let finAt: String
+        let sala: String?
+        let tipo: String?
+        let enlace: String?
+    }
+    // Nunca falla: una clase mal escrita se salta y no bota el resumen entero,
+    // que es el mismo que leen los otros cuatro widgets.
+    struct ListaClases: Decodable {
+        private struct Suelta: Decodable {
+            let clase: Clase?
+            init(from decoder: Decoder) throws { clase = try? Clase(from: decoder) }
+        }
+        let lista: [Clase]
+        init(from decoder: Decoder) throws {
+            lista = ((try? decoder.singleValueContainer().decode([Suelta].self)) ?? []).compactMap(\.clase)
+        }
+    }
+    let fechaHoy: String?
+    let clasesProximas: ListaClases?
 }
 
 enum Almacen {
@@ -545,6 +576,245 @@ struct PendientesWidget: Widget {
     }
 }
 
+// MARK: - Próxima clase (#641)
+
+// Qué clase toca según la hora: es lo único que decide el widget. Las clases ya
+// vienen con su fecha y sus instantes desde la app (`clasesProximas`), así que
+// acá no se interpreta ninguna hora con la zona del teléfono.
+enum Clases {
+    static let zona = TimeZone(identifier: "America/Santiago") ?? .current
+    static let cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = zona
+        return c
+    }()
+    static let instante: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    static let dia: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = cal
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = zona
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+    static let nombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+
+    struct Ocurrencia {
+        let clase: Resumen.Clase
+        let inicio: Date
+        let fin: Date
+    }
+
+    static func todas(_ r: Resumen?) -> [Ocurrencia] {
+        (r?.clasesProximas?.lista ?? []).compactMap { c in
+            guard let i = instante.date(from: c.inicioAt), let f = instante.date(from: c.finAt), f > i else { return nil }
+            return Ocurrencia(clase: c, inicio: i, fin: f)
+        }
+    }
+    // Las que no han terminado, en el orden de la app: la que está en curso va primero.
+    static func vigentes(_ r: Resumen?, desde ahora: Date) -> [Ocurrencia] { todas(r).filter { $0.fin > ahora } }
+    static func enCurso(_ o: Ocurrencia, _ ahora: Date) -> Bool { o.inicio <= ahora }
+
+    // La app manda las clases de hoy y los siete días siguientes. Pasado eso el
+    // widget no sabe qué viene: lo dice y pide abrir la app, en vez de repetir
+    // la misma semana para siempre.
+    static func horizonte(_ r: Resumen?) -> Date? {
+        guard let hoy = r?.fechaHoy.flatMap({ dia.date(from: $0) }) else { return nil }
+        return cal.date(byAdding: .day, value: 8, to: hoy)
+    }
+    static func vencido(_ r: Resumen?, _ ahora: Date) -> Bool { horizonte(r).map { ahora >= $0 } ?? false }
+
+    // "Ahora", "Hoy", "Mañana" o el día de la semana, con el calendario de Chile.
+    static func cuando(_ o: Ocurrencia, _ ahora: Date) -> String {
+        if enCurso(o, ahora) { return "Ahora" }
+        guard let d = dia.date(from: o.clase.fecha),
+              let n = cal.dateComponents([.day], from: cal.startOfDay(for: ahora), to: d).day else { return o.clase.fecha }
+        switch n {
+        case 0: return "Hoy"
+        case 1: return "Mañana"
+        default: return nombres[cal.component(.weekday, from: d) - 1]
+        }
+    }
+    static func hora(_ o: Ocurrencia, _ ahora: Date) -> String {
+        enCurso(o, ahora) ? "hasta las \(o.clase.fin)" : o.clase.inicio
+    }
+    // "Sala K201 · CLAS". El tipo es texto libre de cada universidad: va tal cual.
+    static func lugar(_ c: Resumen.Clase) -> String? {
+        let partes = [c.sala.map { "Sala \($0)" }, c.tipo].compactMap { $0 }.filter { !$0.isEmpty }
+        return partes.isEmpty ? nil : partes.joined(separator: " · ")
+    }
+    static func enlace(_ c: Resumen.Clase) -> URL { c.enlace.flatMap { URL(string: $0) } ?? enlaceRamo(c.ramoId) }
+    // El color no viaja con la clase: es el de su ramo.
+    static func color(_ c: Resumen.Clase, _ r: Resumen?) -> String? { r?.ramos.first { $0.id == c.ramoId }?.color }
+}
+
+// Una entrada en cada inicio, cada fin y cada medianoche de Chile: "Mañana" pasa
+// a "Hoy" y "Hoy" a "Ahora" sin abrir la app. La última es el fin del horizonte.
+struct ProveedorClases: TimelineProvider {
+    func placeholder(in context: Context) -> Entrada { Entrada(date: .now, resumen: nil) }
+    func getSnapshot(in context: Context, completion: @escaping (Entrada) -> Void) {
+        completion(Entrada(date: .now, resumen: Almacen.leer()))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<Entrada>) -> Void) {
+        let resumen = Almacen.leer(), ahora = Date()
+        guard let fin = Clases.horizonte(resumen), fin > ahora else {
+            // Sin horario o ya vencido: nada cambia hasta que la app guarde otro resumen.
+            completion(Timeline(entries: [Entrada(date: ahora, resumen: resumen)], policy: .never))
+            return
+        }
+        var cambios = Clases.todas(resumen).flatMap { [$0.inicio, $0.fin] }
+        var noche = Clases.cal.startOfDay(for: ahora)
+        while let sigue = Clases.cal.date(byAdding: .day, value: 1, to: noche), sigue <= fin {
+            cambios.append(sigue)
+            noche = sigue
+        }
+        let fechas = Array(Set(cambios.filter { $0 > ahora && $0 <= fin } + [fin])).sorted()
+        completion(Timeline(entries: ([ahora] + fechas).map { Entrada(date: $0, resumen: resumen) }, policy: .after(fin)))
+    }
+}
+
+// 0.5 s: qué clase, a qué hora y en qué sala. Sin notas ni semáforo: no hay
+// nada que aprobar acá. El color del ramo va en su línea lateral, como en Inicio.
+struct ProximaClaseVista: View {
+    @Environment(\.widgetFamily) var familia
+    let entrada: Entrada
+
+    var body: some View {
+        let ahora = entrada.date
+        let vigentes = Clases.vencido(entrada.resumen, ahora) ? [] : Clases.vigentes(entrada.resumen, desde: ahora)
+        Group {
+            switch familia {
+            case .accessoryInline:
+                if let o = vigentes.first {
+                    Text([o.clase.sigla ?? o.clase.ramo, Clases.hora(o, ahora), o.clase.sala].compactMap { $0 }.joined(separator: " · "))
+                        .privacySensitive()
+                } else { Text(corto) }
+            case .accessoryRectangular:
+                if let o = vigentes.first {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(Clases.cuando(o, ahora)) · \(Clases.hora(o, ahora))")
+                            .font(.headline).monospacedDigit().widgetAccentable().lineLimit(1).minimumScaleFactor(0.8)
+                        Text(o.clase.ramo).font(.subheadline).lineLimit(1).privacySensitive()
+                        if let lugar = Clases.lugar(o.clase) {
+                            Text(lugar).font(.caption).foregroundStyle(.secondary).lineLimit(1).privacySensitive()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(corto).font(.subheadline)
+                }
+            case .systemMedium:
+                if let o = vigentes.first {
+                    HStack(alignment: .top, spacing: 16) {
+                        tarjeta(o).frame(maxWidth: .infinity, alignment: .leading)
+                        despues(Array(vigentes.dropFirst().prefix(3))).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                } else { vacio }
+            case .systemLarge:
+                if let o = vigentes.first {
+                    VStack(alignment: .leading, spacing: 10) {
+                        tarjeta(o).fixedSize(horizontal: false, vertical: true)
+                        Divider()
+                        despues(Array(vigentes.dropFirst().prefix(5)))
+                    }
+                } else { vacio }
+            default:
+                if let o = vigentes.first { tarjeta(o) } else { vacio }
+            }
+        }
+        .widgetURL(vigentes.first.map { Clases.enlace($0.clase) } ?? URL(string: "cl.gradehub.app://inicio"))
+    }
+
+    // Por qué no hay clase que mostrar. Sin resumen, sin horario o sin datos recientes.
+    var motivo: (titulo: String, detalle: String?) {
+        guard let r = entrada.resumen else { return ("Abre GradeHub para ver tus clases", nil) }
+        if Clases.vencido(r, entrada.date) { return ("Abre GradeHub", "Tu horario lleva más de una semana sin actualizarse.") }
+        if (r.clasesProximas?.lista ?? []).isEmpty { return ("Sin horario todavía", "Agrégalo en la ficha de cada ramo.") }
+        return ("Sin clases por venir", nil)
+    }
+    var corto: String {
+        guard let r = entrada.resumen, !Clases.vencido(r, entrada.date) else { return "Abre GradeHub" }
+        return (r.clasesProximas?.lista ?? []).isEmpty ? "Sin horario todavía" : "Sin clases por venir"
+    }
+
+    func tarjeta(_ o: Clases.Ocurrencia) -> some View {
+        let ahora = entrada.date, c = o.clase
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(Clases.cuando(o, ahora).uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            HStack(alignment: .top, spacing: 8) {
+                Rectangle().fill(Color(hexRamo: Clases.color(c, entrada.resumen))).frame(width: 3)
+                VStack(alignment: .leading, spacing: 2) {
+                    // Primero qué clase; después la hora, que es lo que se viene a mirar.
+                    Text(c.ramo).font(.headline).lineLimit(2).minimumScaleFactor(0.7).privacySensitive()
+                    Text("\(c.inicio)–\(c.fin)").font(.headline).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                        .padding(.top, 4)
+                    if let lugar = Clases.lugar(c) {
+                        Text(lugar).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                            .privacySensitive()
+                    }
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    // Las que siguen. Cada fila abre su ramo.
+    func despues(_ lista: [Clases.Ocurrencia]) -> some View {
+        let ahora = entrada.date
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("DESPUÉS").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            if lista.isEmpty {
+                Text("Nada más por ahora").font(.subheadline).foregroundStyle(.secondary)
+            }
+            ForEach(Array(lista.enumerated()), id: \.offset) { _, o in
+                Link(destination: Clases.enlace(o.clase)) {
+                    HStack(spacing: 8) {
+                        RoundedRectangle(cornerRadius: 1.5).fill(Color(hexRamo: Clases.color(o.clase, entrada.resumen))).frame(width: 3)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(o.clase.ramo).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                                .privacySensitive()
+                            Text("\(Clases.cuando(o, ahora)) · \(o.clase.inicio)\(o.clase.sala.map { " · \($0)" } ?? "")")
+                                .font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                                .privacySensitive()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    var vacio: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("PRÓXIMA CLASE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Text(motivo.titulo).font(.subheadline)
+            if let d = motivo.detalle { Text(d).font(.caption).foregroundStyle(.secondary) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct ProximaClaseWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "proxima-clase", provider: ProveedorClases()) { entrada in
+            ProximaClaseVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Próxima clase")
+        .description("Qué clase te toca, a qué hora y en qué sala.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+    }
+}
+
 // MARK: - Estadísticas configurable (#638)
 
 enum Estadistica: String, AppEnum {
@@ -861,6 +1131,7 @@ struct GradeHubWidgets: WidgetBundle {
         ProximaEvaluacionWidget()
         PromedioGeneralWidget()
         PendientesWidget()
+        ProximaClaseWidget()
         EstadisticasWidget()
         ActividadPruebaWidget()
     }
