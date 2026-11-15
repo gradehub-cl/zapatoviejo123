@@ -5808,8 +5808,48 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-editor{container-type:inline-size;}
 .horario-editor fieldset{min-width:0;margin:0 0 16px;padding:14px;border:1px solid var(--border);border-radius:12px;}.horario-editor legend{font-size:.875rem;font-weight:600;padding:0 6px;}.horario-bloques{margin-top:18px;}
 .horario-dias{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}.horario-dias label{position:relative;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;cursor:pointer;}.horario-dias input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}.horario-dias label>span:first-of-type{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:6px;border:1px solid var(--border2);border-radius:9px;font-size:.8125rem;}.horario-dias input:checked+span{background:var(--primary);border-color:var(--primary);color:var(--primary-fg);}.horario-dias input:focus-visible+span{outline:2px solid var(--fg);outline-offset:2px;}
-.horario-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.horario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}.horario-campos label{min-width:0;display:grid;gap:6px;font-size:.875rem;}.horario-campos small{font-size:.75rem;color:var(--fg2);}.horario-editor input[type=time],.horario-editor input[type=text]{min-width:0;width:100%;min-height:44px;padding:10px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--input-bg,var(--bg2));border:1px solid var(--border2);border-radius:8px;color-scheme:light dark;}.horario-bloque-acciones{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}.horario-error{color:var(--red);font-size:.875rem;}.horario-editor .modal-title{overflow-wrap:anywhere;}
+.horario-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.horario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}.horario-campos label{min-width:0;display:grid;gap:6px;font-size:.875rem;}.horario-campos small{font-size:.75rem;color:var(--fg2);}.horario-editor input[type=time],.horario-editor input[type=text]{box-sizing:border-box;display:block;-webkit-appearance:none;appearance:none;min-width:0;width:100%;min-height:44px;padding:10px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--input-bg,var(--bg2));border:1px solid var(--border2);border-radius:8px;color-scheme:light dark;}.horario-bloque-acciones{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}.horario-error{color:var(--red);font-size:.875rem;}.horario-editor .modal-title{overflow-wrap:anywhere;}
 @container(max-width:18rem){.horario-campos{grid-template-columns:minmax(0,1fr);}}
+/* Revisión de la foto: las clases leídas de cada ramo, con Corregir al lado. */
+.horario-revision-ramo{border:1px solid var(--border);border-radius:11px;background:var(--bg2);}.horario-revision-ramo>.agent-ramo-row{border:0;background:transparent;align-items:flex-start;padding-bottom:2px;}.horario-revision-ramo .agent-ramo-check{margin-top:1px;}.horario-revision-ramo>.horario-accion{display:block;margin:0 12px 10px auto;}
+.agent-ramo-row small.horario-revision-diferencia{color:var(--fg);font-weight:600;}
+.horario-revision-bloques{list-style:none;margin:4px 0 0;padding:0;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}.horario-revision-bloques li{padding:1px 0;}
+/* Agenda «Evaluaciones | Horario» (HIG: Segmented controls), solo en la app. */
+#agenda-vista{padding:4px 20px 0;}
+.agenda-vista{display:flex;gap:2px;padding:2px;border-radius:10px;background:rgba(118,118,128,.12);}
+.agenda-vista button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font:600 .875rem var(--font-ui);cursor:pointer;}
+.agenda-vista button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
+.agenda-vista button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+/* La semana: columnas por día, la altura es la duración. El color del ramo va
+   solo en la línea lateral, como en Inicio: no es una nota, no hay semáforo. */
+.horario-semana{--horario-gutter:42px;font-family:var(--font-ui);font-variant-numeric:tabular-nums;color:var(--fg);margin-top:6px;}
+.horario-semana-cabecera,.horario-semana-cuerpo{display:grid;grid-template-columns:var(--horario-gutter) repeat(var(--horario-dias),minmax(0,1fr));gap:0 3px;}
+.horario-semana-cabecera{position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 0;}
+.horario-semana-cabecera span{text-align:center;font-size:.75rem;font-weight:600;color:var(--fg2);padding:4px 0;border-radius:8px;}
+.horario-semana-cabecera span.hoy{color:var(--fg);background:color-mix(in srgb,var(--fg),transparent 91%);}
+.horario-semana-cuerpo{position:relative;height:var(--horario-alto);margin-bottom:14px;}
+.horario-semana-horas{position:relative;}
+.horario-semana-horas span{position:absolute;left:0;transform:translateY(-50%);font-size:.6875rem;color:var(--fg2);}
+.horario-semana-horas span:first-child{transform:none;}
+.horario-semana-dia{position:relative;border-left:1px solid var(--border);}
+.horario-semana-dia.hoy{background:color-mix(in srgb,var(--fg),transparent 97%);}
+.horario-semana-ahora{position:absolute;left:0;right:0;height:2px;background:var(--fg);z-index:1;pointer-events:none;}
+.horario-semana-clase{position:absolute;box-sizing:border-box;min-width:0;margin:0;padding:5px 3px 4px 5px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;
+  border:0;border-left:3px solid var(--ramo);border-radius:6px;background:color-mix(in srgb,var(--ramo),var(--card) 86%);color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+.horario-semana-clase b{display:flex;flex-wrap:wrap;column-gap:.2em;font-size:.6875rem;font-weight:700;line-height:1.2;letter-spacing:-.01em;max-width:100%;}
+.horario-semana-clase b span{white-space:nowrap;}
+.horario-semana-clase b.horario-semana-nombre{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:650;}
+.horario-semana-sala{font-size:.6875rem;line-height:1.2;color:var(--fg2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.horario-semana-clase:focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
+.horario-semana-acciones{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 18px;}
+.horario-semana-secundaria{margin-top:10px;border:0;color:var(--fg2);padding-left:0;}
+.horario-semana-faltan ul{list-style:none;margin:6px 0 0;padding:0;}
+.horario-semana-faltan button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
+.horario-semana-mas{color:var(--fg2);font-size:.8125rem;font-weight:600;}
+.horario-elegir-ramo{display:grid;gap:6px;margin:14px 0;}
+.horario-elegir-ramo button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ramo);border-radius:10px;background:var(--card);color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
+.horario-elegir-ramo small{color:var(--fg2);font-size:.75rem;font-variant-numeric:tabular-nums;}
+@media(prefers-reduced-motion:no-preference){.agenda-vista button{transition:background-color var(--motion-fast),color var(--motion-fast);}}
 @media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
 
 /* ─── Pestaña Perfil ───────────────────────────────────────────────────────

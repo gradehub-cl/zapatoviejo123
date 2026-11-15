@@ -95,8 +95,37 @@ módulos conocidos: no inventa horas para otro tenant o módulo ni rellena los
 recreos entre módulos. `proponerHorarioDesdeCatalogo({tenant,sigla,seccion})`
 devuelve hoy `null`: es el punto de entrada para el futuro catálogo de secciones,
 sin consulta ni escritura actuales. Toda propuesta futura debe pasar por la
-confirmación de la persona. El OCR actual sigue agregando ramos/secciones; aún no
-reconstruye con suficiente certeza qué días/módulos/salas pertenecen a cada ramo.
+confirmación de la persona.
+
+**Horario desde la foto (UC, 2026-11-15).** El pantallazo real es «Carga
+Académica» de Mi UC: columna Módulo (número y horas), Lunes a Sábado (el sábado
+puede salir cortado) y en cada celda solo «SIGLA-» y la sección debajo. **El tipo
+va solo en el color de fondo** según la leyenda; **no trae sala**.
+`celdasDeFotoHorario(lecturas, existe, tenant)` (`src/app/horario-ocr.js`) ubica
+días y filas con las cajas de Tesseract (recta robusta: una hora mal leída no
+corre las demás) y lee el tipo muestreando el fondo de la celda contra los
+colores de la leyenda de la misma foto, o contra `COLORES_TIPO_UC` si no se leyó.
+`leerFotoOcr` guarda una copia de los píxeles antes del blanco y negro. Las horas
+salen solo de `horarioDesdeModulos`; sin grilla o fuera de la UC no propone nada.
+
+**Sala y profesores desde BuscaCursos (#986).** `proponerHorarioDesdeCatalogo`
+(`horario-clases.js`) lee la RPC pública `catalogo_uc_secciones_publicas(p_periodo,
+p_sigla)` y devuelve celdas `{dia, mod, tipo, sala}` y profesores (sin «Sin
+informar»). La foto manda en día, módulo y tipo; BuscaCursos pone la sala, completa
+un tipo que no se leyó y lo que no calza se **avisa** en la revisión. Si la RPC no
+existe todavía (PGRST202/404), no hay conexión o tarda 6 s, devuelve `null` y la
+foto sigue sola, sin sala. Los profesores solo se muestran: no hay campo donde
+guardarlos.
+
+La revisión muestra las clases por ramo y permite **Corregir** con la misma hoja de
+la ficha (`abrirEditorHorario`). Al aplicar escribe solo `horario`; si el ramo ya
+tenía uno, va desmarcado, y si cambió mientras se revisaba, no se pisa. Fixtures
+sintéticos (cajas y píxeles) en `tests/horario-pantallazo.test.js`.
+
+**Semana en la Agenda (solo app).** `src/render-agenda/horario-semana.js` agrega
+«Evaluaciones | Horario» detrás de `enAppNativa()` y fuera de cuentas de
+profesor. Lunes a viernes; sábado y domingo solo si hay clases. Tocar una clase
+abre la hoja del ramo; «Agregar clase» elige ramo y abre la misma hoja.
 
 ### Payload aditivo, versión 1
 

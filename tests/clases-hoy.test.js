@@ -35,7 +35,8 @@ const convertir=run('horarioDesdeModulos');
 assert.deepEqual(js(convertir('uc',['L','W'],[2],{sala:'K201',tipo:'CLAS'})).map(({id,...b})=>b),[bloque(['L','W'],'09:40','10:50')]);
 assert.equal(convertir('uc',['L'],[0]).length,0);assert.equal(convertir('sin-tabla',['L'],[2]).length,0);
 assert.deepEqual(js(convertir('uc',['M'],[4,5])).map(b=>[b.inicio,b.fin]),[['12:20','13:30'],['14:50','16:00']],'no clase inventada durante almuerzo');
-assert.equal(run('proponerHorarioDesdeCatalogo')({tenant:'uc',sigla:'SYN100',seccion:1}),null);
+// Sin cliente de Supabase (o sin la RPC de BuscaCursos) no hay propuesta.
+run('proponerHorarioDesdeCatalogo')({tenant:'uc',sigla:'SYN100',seccion:1}).then(v=>assert.equal(v,null));
 assert.deepEqual(js(run('copiarHorario')([{dias:['X'],inicio:'08:00',fin:'09:00'},bloque(['L'],'25:00','26:00'),bloque(['L'],'10:00','09:00')])),[]);
 const antiguo=estado([ramo('antiguo')]);assert.equal(Object.hasOwn(antiguo.ramos[0],'horario'),false,'estado antiguo no adquiere horario');
 const nuevo=estado(horarios),otraVez=estado(horarios);assert.deepEqual(js(nuevo),js(otraVez),'IDs deterministas al normalizar un respaldo sin IDs');

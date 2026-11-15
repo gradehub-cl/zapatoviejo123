@@ -5,6 +5,10 @@ function renderAgenda(){
   agendaDetalleAbierto=null;
   const resumenInicial=document.getElementById('agenda-sub');
   if(resumenInicial)resumenInicial.textContent='';
+  // «Evaluaciones | Horario»: el horario de la semana vive en horario-semana.js.
+  if(typeof pintarVistaAgenda==='function'&&pintarVistaAgenda()==='horario'){renderHorarioSemana(body);return;}
+  const tituloAgenda=document.getElementById('agenda-title');
+  if(tituloAgenda)tituloAgenda.textContent='Qué se viene';
   const events=agendaEvents();
   const sinFecha=agendaSinFecha();
   const rendidas=agendaRendidas();
