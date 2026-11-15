@@ -5784,7 +5784,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .clases-hoy-hora{font-size:1.5rem;font-weight:650;flex-shrink:0;line-height:1.25;}.clases-hoy small{display:block;color:var(--fg2);font-size:.8125rem;font-weight:400;line-height:1.5;}.clases-hoy-hora small{margin-top:4px;}
 .clases-hoy-nombre,.clases-hoy li button>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere;}.clases-hoy-nombre b{font-size:1.125rem;line-height:1.35;}.clases-hoy-nombre small{margin-top:4px;}
 .clases-hoy ul,.horario-ficha ul{list-style:none;margin:0;padding:0;}.clases-hoy li{border-top:1px solid var(--border);}.clases-hoy time{font-weight:600;}.clases-hoy li b{font-size:.875rem;font-weight:500;}
-.horario-ficha{margin:24px 0;padding:16px 0;border-top:1px solid var(--border);}.horario-ficha p{color:var(--fg2);font-size:.875rem;}.horario-ficha li{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 0;font-size:.875rem;}.horario-ficha li>span:last-child{color:var(--fg2);}
+.horario-ficha{margin:24px 20px;padding:16px 0;border-top:1px solid var(--border);}.horario-ficha p{color:var(--fg2);font-size:.875rem;}.horario-ficha li{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 0;font-size:.875rem;}.horario-ficha li>span:last-child{color:var(--fg2);}
 .horario-accion{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
 .horario-editor{container-type:inline-size;}
 .horario-editor fieldset{min-width:0;margin:0 0 16px;padding:14px;border:1px solid var(--border);border-radius:12px;}.horario-editor legend{font-size:.875rem;font-weight:600;padding:0 6px;}.horario-bloques{margin-top:18px;}
