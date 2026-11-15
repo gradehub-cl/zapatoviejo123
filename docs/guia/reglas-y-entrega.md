@@ -118,6 +118,18 @@ visual que no las cumple no se mergea. Lo que más aplica a una PWA:
 - **Interruptor (switch) cuando el cambio se aplica solo** (Lucas, 2026-11-10):
   si al tocarlo algo se prende o se apaga al instante, sin botón «Guardar», es un
   interruptor. No un botón que cambia de texto, ni casillas o radios.
+- **Un solo interruptor** (2026-11-15): todos salen de la regla
+  `input[type=checkbox][role=switch]` de `styles.css` (riel 51×31, perilla 27,
+  encendido en el acento). Uno nuevo se escribe como
+  `<input type="checkbox" role="switch">` dentro de su `label`; no se le dan
+  medidas propias (`tests/interruptor-unico.test.js`).
+- **Un solo radio: 8 px** para botones, campos y tarjetas (2026-11-15). Las
+  hojas conservan sus esquinas superiores y los círculos siguen siendo círculos.
+- **La barra es Inicio · Agenda · Estadísticas · Perfil** (2026-11-15), con
+  Clases, Alumnos y Admin antes de Perfil para quien las tiene. Perfil es
+  siempre la última y reemplaza al avatar con menú: la cuenta, el semestre y
+  las herramientas se agregan como filas en `src/app/perfil-pestana.js`. La
+  pestaña activa rellena su mismo ícono; no usa un dibujo distinto.
   [HIG — Toggles](https://developer.apple.com/design/human-interface-guidelines/toggles).
   Para elegir entre varias apariencias, como el tema, el fondo o un tema festivo,
   se usan **muestras que se ven como va a quedar**, como en Ajustes → Apariencia,
