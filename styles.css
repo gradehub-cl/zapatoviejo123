@@ -5835,7 +5835,11 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-semana-dia.hoy{background:color-mix(in srgb,var(--fg),transparent 97%);}
 .horario-semana-ahora{position:absolute;left:0;right:0;height:2px;background:var(--fg);z-index:1;pointer-events:none;}
 .horario-semana-clase{position:absolute;box-sizing:border-box;min-width:0;margin:0;padding:5px 3px 4px 5px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;
-  border:0;border-left:3px solid var(--ramo);border-radius:6px;background:color-mix(in srgb,var(--ramo),var(--card) 86%);color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+  border:1px solid var(--horario-borde);border-radius:6px;background:color-mix(in srgb,var(--ramo) var(--horario-tinte),var(--card));color:var(--fg);text-align:left;font:inherit;cursor:pointer;
+  --horario-tinte:8%;--horario-borde:color-mix(in srgb,var(--ramo) 78%,var(--fg));}
+/* Como las tarjetas de perfil (.directorio-tarjeta): contorno del color del ramo y fondo atenuado. */
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .horario-semana-clase{--horario-tinte:16%;--horario-borde:color-mix(in srgb,var(--ramo) 70%,#fff);}}
+:root[data-modo="oscuro"] .horario-semana-clase{--horario-tinte:16%;--horario-borde:color-mix(in srgb,var(--ramo) 70%,#fff);}
 .horario-semana-clase b{display:flex;flex-wrap:wrap;column-gap:.2em;font-size:.6875rem;font-weight:700;line-height:1.2;letter-spacing:-.01em;max-width:100%;}
 .horario-semana-clase b span{white-space:nowrap;}
 .horario-semana-clase b.horario-semana-nombre{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:650;}

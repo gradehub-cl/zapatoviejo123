@@ -58,7 +58,8 @@ async function proponerHorarioDesdeCatalogo({tenant,sigla,seccion,periodo}={}){
       const mod=Number(b&&b.modulo);
       if(!b||!Array.isArray(b.dias)||!MODULOS_HORARIO_POR_TENANT.uc[mod])return;
       const tipo=TIPOS_BUSCACURSOS[String(b.tipo||'').toUpperCase()]||'';
-      const sala=typeof b.sala==='string'?b.sala.trim().slice(0,100):'';
+      // BuscaCursos escribe «SIN SALA» cuando no hay: eso no es una sala.
+      const sala=typeof b.sala==='string'&&!/^(sin sala|por asignar|por definir|-+)$/i.test(b.sala.trim())?b.sala.trim().slice(0,100):'';
       b.dias.filter(d=>DIAS_HORARIO.some(([k])=>k===d)).forEach(dia=>celdas.push({dia,mod,tipo,sala}));
     });
     const profesores=(Array.isArray(fila.profesores)?fila.profesores:[]).filter(x=>typeof x==='string'&&x.trim()&&!/^sin informar$/i.test(x.trim())).map(x=>x.trim().slice(0,100));
