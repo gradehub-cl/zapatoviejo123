@@ -57,10 +57,10 @@ function vibrar(tipo){
     else H.impact({style:'LIGHT'}).catch(()=>{});
   }catch(e){}
 }
-// Un interruptor de iOS hace tic al cambiar; los de la app (.toggle) también.
+// Un interruptor de iOS hace tic al cambiar; todos los de la app también.
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t&&t.matches&&t.matches('.toggle input[type=checkbox]'))vibrar('seleccion');
+  if(t&&t.matches&&t.matches('.toggle input[type=checkbox],input[type=checkbox][role=switch]'))vibrar('seleccion');
 });
 // Dentro de la app no hay "otra pestaña": un enlace con target=_blank no abría
 // nada (Términos, Privacidad, Preguntas, Google Calendar) y navegar la vista web

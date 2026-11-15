@@ -79,7 +79,7 @@ chk('al levantar un ramo, un golpe medio', await probarVib(true, 'levantar') ===
 chk('en la web no vibra', await probarVib(false, 'nota') === '' && await probarVib(false, 'seleccion') === '');
 })();
 chk('la ruleta hace tic cuando otra fila pasa por el centro', /if\(f!==filaAlCentro&&f>=0&&f<opciones\.length\)\{filaAlCentro=f;vibrar\('seleccion'\);\}/.test(app));
-chk('los interruptores hacen tic al cambiar', /t\.matches\('\.toggle input\[type=checkbox\]'\)\)vibrar\('seleccion'\)/.test(app));
+chk('los interruptores hacen tic al cambiar', /t\.matches\('\.toggle input\[type=checkbox\],input\[type=checkbox\]\[role=switch\]'\)\)vibrar\('seleccion'\)/.test(app));
 chk('levantar un ramo para reordenar se siente', /drag=\{ghost,[^\n]*\n[^\n]*\n\s*vibrar\('levantar'\);/.test(app));
 chk('se llama al guardar una nota válida (casillas, directa, agregar y editar)', (app.match(/vibrar\('nota'\)/g) || []).length === 4);
 chk('y al confirmar un borrado y al borrar una nota', /if\(borra&&typeof vibrar==='function'\)vibrar\('borrar'\);/.test(app) && /save\(\);renderRamo\(\);vibrar\('borrar'\);/.test(app));
