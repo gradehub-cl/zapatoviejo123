@@ -27,8 +27,10 @@ function openSimGlobalModal(){
     </div>
     <div class="simg-list" id="simg-list"></div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
-      <button class="btn-confirm" onclick="simGlobalReset()">Reiniciar todo</button>
+      <!-- Lo que más se hace acá es terminar: esa es la acción principal.
+           Reiniciar queda al lado, sin competirle (HIG: Buttons). -->
+      <button class="btn-cancel" onclick="simGlobalReset()">Reiniciar todo</button>
+      <button class="btn-confirm" onclick="closeModal()">Listo</button>
     </div>`;
   openModal();
   renderSimGlobal();
