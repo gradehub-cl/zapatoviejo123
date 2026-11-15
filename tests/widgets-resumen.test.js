@@ -125,7 +125,7 @@ chk('la extensión de widgets es un target y va embebida en la app',/productType
 // El grupo vive en Firma.xcconfig: con otra cuenta de Apple cambia, y cada uno
 // lo pone en su Firma.local.xcconfig sin tocar el proyecto ni el Swift.
 const firma=leer('ios/App/Firma.xcconfig');
-chk('app y widget comparten el mismo App Group',['ios/App/App/App.entitlements','ios/App/GradeHubWidgets/GradeHubWidgets.entitlements'].every(f=>/<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))&&/^GRADEHUB_APP_GROUP = group\.cl\.gradehub\.app$/m.test(firma));
+chk('app y widget comparten el mismo App Group',['ios/App/App/App.entitlements','ios/App/GradeHubWidgets/GradeHubWidgets.entitlements'].every(f=>/<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))&&/^GRADEHUB_APP_GROUP = group\.cl\.gradehub\.app\.shared$/m.test(firma));
 chk('el Swift lee el grupo del Info.plist de su target',['ios/App/App/Info.plist','ios/App/GradeHubWidgets/Info.plist'].every(f=>/<key>GradeHubAppGroup<\/key>\s*<string>\$\(GRADEHUB_APP_GROUP\)<\/string>/.test(leer(f)))
   &&['ios/App/App/WidgetsPlugin.swift','ios/App/GradeHubWidgets/GradeHubWidgets.swift','ios/App/Shared/ActividadPrueba.swift'].every(f=>/static let grupo = Bundle\.main\.object\(forInfoDictionaryKey: "GradeHubAppGroup"\)/.test(leer(f))));
 chk('el plugin y el widget usan la misma clave',/"resumen\.v1"/.test(leer('ios/App/App/WidgetsPlugin.swift'))&&/"resumen\.v1"/.test(leer('ios/App/GradeHubWidgets/GradeHubWidgets.swift')));

@@ -18,7 +18,7 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
-    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app"
+    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app.shared"
     static let clave = "resumen.v1"
     // Un resumen sano pesa unos pocos KB; algo mucho más grande es un error.
     static let maximoBytes = 200_000
