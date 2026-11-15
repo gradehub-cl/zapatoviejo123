@@ -177,7 +177,10 @@ function renderHome(){
       const kind=abs<0.05?'flat':diff>0?'up':'down';
       const arrow=kind==='up'?'↑':kind==='down'?'↓':'·';
       deltaEl.className='gpa-delta '+kind;
-      deltaEl.innerHTML=`<strong>${arrow} ${nf(abs,2)}</strong><span>vs. ${esc(last.label||'semestre anterior')}</span>`;
+      // Sin diferencia no hay cifra que mostrar: «· 0,00 vs.» se leía como un dato roto.
+      deltaEl.innerHTML=kind==='flat'
+        ?`<span>Igual que ${esc(last.label||'el semestre anterior')}</span>`
+        :`<strong>${arrow} ${nf(abs,2)}</strong><span>vs. ${esc(last.label||'semestre anterior')}</span>`;
       deltaEl.title=`vs ${last.label||'semestre anterior'}`;
       deltaEl.style.display='inline-flex';
     }else{

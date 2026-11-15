@@ -2650,6 +2650,11 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .greet-hero{padding:28px 20px 27px;}
 .greet-line{font-size:1.75rem;font-weight:400;letter-spacing:-.04em;line-height:1.18;color:var(--fg2);}
 .greet-line .greet-name{display:block;font-weight:600;color:var(--fg);}
+/* En Inicio la frase del día acompaña y el nombre manda: con las dos al mismo
+   tamaño, una frase larga ocupaba tres líneas y sacaba los ramos de la primera
+   pantalla (HIG: Typography, jerarquía por tamaño y peso). */
+#home-greeting{font-size:1.0625rem;letter-spacing:-.01em;line-height:1.35;}
+#home-greeting .greet-name{margin-top:2px;font-size:1.75rem;letter-spacing:-.04em;line-height:1.18;}
 .gpa-card{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:24px;margin:0 20px;padding-bottom:24px;border-bottom:1px solid var(--border);}
 .gpa-label{font-size:0.6875rem;font-weight:600;letter-spacing:.11em;margin-bottom:10px;}
 .gpa-label,.gpa-reading,#home-gpa-method,.gpa-tags,#gpa-empty-hint{grid-column:1 / -1;}
