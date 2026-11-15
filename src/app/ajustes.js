@@ -276,7 +276,7 @@ function openSettings(){
       <div class="settings-shell${activeSection?' settings-detail-open':''}">
         <nav class="settings-nav" aria-label="Secciones de Ajustes">
           <label class="settings-search-label" for="settings-search">Buscar en Ajustes</label>
-          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="Buscar" autocomplete="off" aria-controls="settings-nav-list"/>
+          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="Buscar en Ajustes" autocomplete="off" aria-controls="settings-nav-list"/>
           <span class="settings-search-status" id="settings-search-status" role="status"></span>
           <div id="settings-nav-list"></div>
         </nav>
