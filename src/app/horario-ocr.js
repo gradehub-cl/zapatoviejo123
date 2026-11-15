@@ -318,7 +318,13 @@ function colorFoto(px,x,y,r=2){
   for(let j=y-r;j<=y+r;j++)for(let i=x-r;i<=x+r;i++){const k=(j*px.ancho+i)*4;s[0]+=px.datos[k];s[1]+=px.datos[k+1];s[2]+=px.datos[k+2];n++;}
   return s.map(v=>v/n);
 }
-const distanciaColor=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+// Los colores de Mi UC son pasteles: celeste (laboratorio) y lila (taller)
+// quedan cerca en RGB y una muestra un poco desteñida los confunde. Se compara
+// el TINTE (el color menos su componente más baja), que separa bien los ocho
+// tipos, y el brillo pesa poco.
+const tinteColor=c=>{const m=Math.min(...c);return c.map(v=>v-m);};
+const distanciaTinte=(a,b)=>{const ta=tinteColor(a),tb=tinteColor(b);
+  return Math.hypot(ta[0]-tb[0],ta[1]-tb[1],ta[2]-tb[2])+Math.abs((a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]))/12;};
 const colorConTinte=c=>Math.max(...c)-Math.min(...c)>=25;
 // Los colores de la leyenda: el cuadrito a la izquierda de cada palabra, por
 // encima del encabezado de días. Con menos de tres, la paleta de respaldo.
@@ -327,8 +333,15 @@ function paletaDeFoto(palabras,px,bajoEncabezado){
   palabras.forEach(p=>{
     const tipo=LEYENDA_FOTO[textoGrillaFoto(p.texto)];
     if(!tipo||leidos.has(tipo)||(p.y0+p.y1)/2>=bajoEncabezado)return;
-    const h=Math.max(1,p.y1-p.y0),c=colorFoto(px,p.x0-h*0.75,(p.y0+p.y1)/2,Math.max(1,Math.round(h*0.15)));
-    if(c&&colorConTinte(c))leidos.set(tipo,c);
+    // El cuadrito está a la izquierda de la palabra. Su borde se mezcla con el
+    // blanco, así que se recorre y se queda el punto con más tinte: el centro.
+    const h=Math.max(1,p.y1-p.y0),y=(p.y0+p.y1)/2;
+    let c=null;
+    for(let f=0.3;f<=1.6;f+=0.1){
+      const m=colorFoto(px,p.x0-h*f,y,1);
+      if(m&&colorConTinte(m)&&(!c||Math.max(...m)-Math.min(...m)>Math.max(...c)-Math.min(...c)))c=m;
+    }
+    if(c)leidos.set(tipo,c);
   });
   return leidos.size>=3?[...leidos]:COLORES_TIPO_UC;
 }
@@ -344,7 +357,7 @@ function tipoPorColorFoto(p,px,paleta){
   puntos.forEach(([x,y])=>{
     const c=colorFoto(px,x,y,1);if(!c||!colorConTinte(c))return;
     let mejor=null;
-    paleta.forEach(([tipo,ref])=>{const d=distanciaColor(c,ref);if(d<=48&&(!mejor||d<mejor.d))mejor={tipo,d};});
+    paleta.forEach(([tipo,ref])=>{const d=distanciaTinte(c,ref);if(d<=40&&(!mejor||d<mejor.d))mejor={tipo,d};});
     if(mejor)votos.set(mejor.tipo,(votos.get(mejor.tipo)||0)+1);
   });
   const orden=[...votos].sort((a,b)=>b[1]-a[1]);
