@@ -58,6 +58,14 @@ chk('"cómo te fue" abre el simulador del ramo; el resto, el ramo',avisos[3].u==
 chk('los identificadores son estables y distintos',new Set(avisos.map(x=>x.id)).size===4&&avisos.every(x=>Number.isInteger(x.id)&&x.id>0&&x.id<2**31));
 chk('lo que ya pasó no se programa',a.run(`avisosDePrueba(pruebasConHora(${AHORA},14)[0],new Date(2026,9,7,17,16)).length`)===2);
 chk('con sala, dice cuál',a.run(`avisosDePrueba({...pruebasConHora(${AHORA},14)[0],sala:'B12'},${AHORA})[2].titulo`)==='Camina a la sala B12');
+// La prueba cae dentro de una clase del ramo: toma su sala y su término.
+a.run(`S.ramos[0].horario=copiarHorario([{dias:['W'],inicio:'17:30',fin:'18:40',tipo:'Cátedra',sala:'K201'}]);`);
+const conClase=a.run(`(p=>p.sala+'|'+p.fin.getHours()+':'+p.fin.getMinutes())(pruebasConHora(${AHORA},14)[0])`);
+chk('si la prueba cae en una clase del ramo, toma su sala y su hora de término',conClase==='K201|18:40');
+chk('y el aviso de caminar nombra esa sala',a.run(`avisosDePrueba(pruebasConHora(${AHORA},14)[0],${AHORA})[2].titulo`)==='Camina a la sala K201');
+a.run(`S.ramos[0].horario=copiarHorario([{dias:['J'],inicio:'17:30',fin:'18:40',tipo:'Cátedra',sala:'K201'}]);`);
+chk('si no calza con ninguna clase (otro día), no se adivina la sala',a.run(`pruebasConHora(${AHORA},14)[0].sala`)===null);
+a.run(`S.ramos[0].horario=[];`);
 
 console.log('\n=== Opt-in: sin activar no se programa nada ===');
 (async()=>{
