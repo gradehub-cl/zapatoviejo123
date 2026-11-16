@@ -183,6 +183,11 @@ extension Color {
 
 // El semáforo es semántico y no se tiñe por tema (AGENTS.md): los mismos tonos
 // de SEMAFORO en data.js, claro y oscuro.
+// Las notas llegan de la app como dato («3.7»); en pantalla van con coma.
+enum Nota {
+    static func coma(_ s: String) -> String { s.replacingOccurrences(of: ".", with: ",") }
+}
+
 struct Semaforo {
     static func color(_ nivel: String?, _ esquema: ColorScheme) -> Color {
         let oscuro = esquema == .dark
@@ -290,40 +295,42 @@ struct ProximaVista: View {
         Fila(ramoId: d.ramoId, color: d.color, titulo: d.evaluacion, detalle: "\(d.sigla ?? d.ramo) · \(Fechas.cuando(d, desde: entrada.date))")
     }
 
+    // Chico (Lucas, 16-11: el mensaje de abajo se cortaba). Cuatro piezas, cada
+    // una en su línea y sin achicarse hasta ilegible: qué es, de qué ramo y
+    // cuánto vale; cuándo; y lo que necesitas, grande, que es para lo que está.
     func tarjeta(_ e: Resumen.Evaluacion) -> some View {
         HStack(alignment: .top, spacing: 8) {
             // El color del ramo vive en su línea lateral, como en Inicio.
             Rectangle().fill(Color(hexRamo: e.color)).frame(width: 3)
-            // 0.5 s: qué viene arriba y, grande abajo, cuánto falta. Sin rótulo:
-            // una evaluación con fecha ya dice que es la próxima.
             VStack(alignment: .leading, spacing: 2) {
-                // Primero qué es; después cuánto falta (pedido de Lucas, 2026-10-07).
-                // Una línea: se achica antes que partirse ("Interrogación / 2").
-                Text(e.evaluacion).font(.headline).lineLimit(1).minimumScaleFactor(0.6)
+                Text(e.evaluacion).font(.headline).lineLimit(2).minimumScaleFactor(0.8)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                if let p = e.parte { ParteDelRamo(porcentaje: p).padding(.top, 6) }
-                Text(Fechas.cuando(e, desde: entrada.date)).font(.headline).lineLimit(1).minimumScaleFactor(0.7)
-                    .padding(.top, 6)
-                Text(Fechas.corta(e.fecha)).font(.caption).foregroundStyle(.secondary)
-                // Todo en un bloque, sin huecos al medio: el aire queda abajo.
-                // Lo que necesitas en ESTA evaluación para ir con 4 después de
-                // rendirla (lo calcula la app; ver notaParaIrConCuatro).
-                Group {
-                    if let n = e.necesitas {
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("Necesitas").font(.caption).foregroundStyle(.secondary)
-                            Text(n).font(.subheadline.weight(.bold)).monospacedDigit()
-                        }
-                    } else if e.inalcanzable == true {
-                        Text("Sola no alcanza para el 4").font(.caption)
-                    } else if e.margen == true {
-                        Text("Sigues con 4 aunque te vaya mal").font(.caption).lineLimit(1).minimumScaleFactor(0.8)
-                    }
-                }
-                .padding(.top, 8)
-                .privacySensitive()
+                Spacer(minLength: 6)
+                Text(Fechas.cuando(e, desde: entrada.date)).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                // «mié 18 nov · 30%»: lo que vale del ramo, corto para que quepa.
+                Text([Fechas.corta(e.fecha), e.parte.map { "\(Int($0.rounded()))%" }].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+                    .accessibilityLabel([Fechas.corta(e.fecha), e.parte.map { "vale el \(Int($0.rounded())) por ciento del ramo" }].compactMap { $0 }.joined(separator: ", "))
+                meta(e).padding(.top, 4).privacySensitive()
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    // Lo que necesitas en ESTA evaluación para ir con 4 después de rendirla
+    // (lo calcula la app; ver notaParaIrConCuatro). Textos cortos: caben enteros.
+    @ViewBuilder
+    func meta(_ e: Resumen.Evaluacion) -> some View {
+        if let n = e.necesitas {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text("Necesitas").font(.caption).foregroundStyle(.secondary)
+                Text(Nota.coma(n)).font(.title3.weight(.bold)).monospacedDigit()
+            }
+            .lineLimit(1)
+        } else if e.inalcanzable == true {
+            Text("Sola no alcanza").font(.caption.weight(.semibold)).lineLimit(1)
+        } else if e.margen == true {
+            Text("Vas aprobando").font(.caption.weight(.semibold)).lineLimit(1)
         }
     }
 
@@ -377,7 +384,8 @@ struct PromedioVista: View {
     var body: some View {
         Group {
             switch familia {
-            // Mediano y grande (#637): el promedio y, al lado o debajo, los ramos.
+            // Mediano: el promedio a la izquierda y, a la derecha, cada ramo con
+            // su barra en la escala 1–7 y la marca del 4.
             case .systemMedium:
                 HStack(alignment: .top, spacing: 16) {
                     general.frame(maxWidth: .infinity, alignment: .leading)
@@ -390,34 +398,55 @@ struct PromedioVista: View {
         .widgetURL(URL(string: "cl.gradehub.app://inicio"))
     }
 
+    // Con coma decimal y un decimal, como en toda la app.
+    static func nota(_ v: Double) -> String { String(format: "%.1f", v).replacingOccurrences(of: ".", with: ",") }
+
+    var ramosConNota: [Resumen.Ramo] { (entrada.resumen?.ramos ?? []).filter { $0.promedio != nil } }
+
     func lista(_ cuantos: Int) -> some View {
-        let ramos = entrada.resumen?.ramos ?? []
-        return VStack(alignment: .leading, spacing: 10) {
+        let ramos = ramosConNota
+        return VStack(alignment: .leading, spacing: 7) {
             ForEach(Array(ramos.prefix(cuantos).enumerated()), id: \.offset) { _, r in
-                Fila(ramoId: r.id, color: r.color, titulo: r.nombre, detalle: nil) {
-                    Text(r.promedio.map { String(format: "%.1f", $0) } ?? "—")
-                        .font(.subheadline.weight(.semibold)).monospacedDigit()
-                        .foregroundStyle(Semaforo.color(r.nivel, esquema))
-                        .privacySensitive()
+                Link(destination: enlaceRamo(r.id)) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(r.nombre).font(.caption).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(r.promedio.map(Self.nota) ?? "—").font(.caption.weight(.semibold)).monospacedDigit()
+                                .foregroundStyle(Semaforo.color(r.nivel, esquema))
+                        }
+                        BarraNota(valor: r.promedio ?? 1, color: Semaforo.color(r.nivel, esquema))
+                    }
                 }
+                .privacySensitive()
             }
             if ramos.count > cuantos {
-                Text("y \(ramos.count - cuantos) más").font(.caption).foregroundStyle(.secondary)
+                Text("y \(ramos.count - cuantos) más").font(.caption2).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
     }
 
+    // Chico: el número grande y, debajo, un punto por ramo en su color de
+    // semáforo. Se lee de un vistazo cuántos van bien y cuántos no.
     var general: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("PROMEDIO GENERAL").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Text("PROMEDIO").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             Spacer(minLength: 0)
             if let p = entrada.resumen?.promedio {
-                Text(String(format: "%.1f", p.oficial))
-                    .font(.system(size: 44, weight: .medium)).monospacedDigit()
+                Text(Self.nota(p.oficial))
+                    .font(.system(size: 52, weight: .semibold, design: .rounded)).monospacedDigit()
                     .foregroundStyle(Semaforo.color(p.nivel, esquema))
+                    .minimumScaleFactor(0.7).lineLimit(1)
                     .privacySensitive()
-                Text(conteo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 4) {
+                    ForEach(Array(ramosConNota.prefix(8).enumerated()), id: \.offset) { _, r in
+                        Capsule().fill(Semaforo.color(r.nivel, esquema)).frame(width: 14, height: 6)
+                    }
+                }
+                .accessibilityHidden(true)
+                Text(conteo).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                    .padding(.top, 2)
             } else {
                 Text(entrada.resumen == nil ? "Abre GradeHub" : "Sin notas todavía").font(.subheadline)
             }
@@ -426,10 +455,30 @@ struct PromedioVista: View {
     }
 
     var conteo: String {
-        let ramos = entrada.resumen?.ramos.filter { $0.promedio != nil } ?? []
-        let aprobados = ramos.filter { $0.nivel == "good" || $0.nivel == "warn" }.count
-        let riesgo = ramos.filter { $0.nivel == "bad" }.count
-        return riesgo > 0 ? "\(aprobados) aprobando · \(riesgo) en riesgo" : "\(aprobados) aprobando"
+        let ramos = ramosConNota
+        // Como en Inicio: verde va aprobando; ámbar y rojo, en riesgo.
+        let aprobados = ramos.filter { $0.nivel == "good" }.count
+        let riesgo = ramos.filter { $0.nivel == "warn" || $0.nivel == "bad" }.count
+        if riesgo == 0 { return aprobados == 1 ? "1 ramo aprobando" : "\(aprobados) ramos aprobando" }
+        return "\(aprobados) aprobando · \(riesgo) en riesgo"
+    }
+}
+
+// Barra de una nota en la escala 1–7, con una marca fina en el 4.
+struct BarraNota: View {
+    let valor: Double
+    let color: Color
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width, f = { (v: Double) in CGFloat((min(max(v, 1), 7) - 1) / 6) * w }
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary)
+                Capsule().fill(color).frame(width: max(4, f(valor)))
+                Rectangle().fill(.secondary).frame(width: 1, height: 8).offset(x: f(4))
+            }
+        }
+        .frame(height: 5)
+        .accessibilityHidden(true)
     }
 }
 
@@ -852,9 +901,9 @@ struct EstadisticaVista: View {
         case .rango:
             if let r = s.rango {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(r.piso).foregroundStyle(Semaforo.color(r.nivelPiso, esquema))
+                    Text(Nota.coma(r.piso)).foregroundStyle(Semaforo.color(r.nivelPiso, esquema))
                     Text("y").font(.title3.weight(.semibold)).foregroundStyle(.tertiary)
-                    Text(r.techo).foregroundStyle(Semaforo.color(r.nivelTecho, esquema))
+                    Text(Nota.coma(r.techo)).foregroundStyle(Semaforo.color(r.nivelTecho, esquema))
                 }
                 .font(.system(size: 36, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                 .privacySensitive()
@@ -870,7 +919,7 @@ struct EstadisticaVista: View {
                         Text(x.ramo).font(.subheadline.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.8)
                         Group {
                             if let n = x.necesitas {
-                                Text(n).font(.system(size: 36, weight: .medium)).monospacedDigit()
+                                Text(Nota.coma(n)).font(.system(size: 36, weight: .medium)).monospacedDigit()
                                 Text("necesitas en lo pendiente").font(.caption).foregroundStyle(.secondary)
                             } else {
                                 Text("Ya no alcanza solo con lo pendiente").font(.caption).foregroundStyle(Semaforo.color("bad", esquema))
