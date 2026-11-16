@@ -248,6 +248,7 @@ function renderPautaManualModal(){
     <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
     ${plantillas}
     ${duplicar}
+    ${typeof canvasPesosEditorHTML==='function'?canvasPesosEditorHTML():''}
     <datalist id="m-pauta-sugerencias">${sugerencias}</datalist>
     <div class="pauta-total" id="m-pauta-total">${totalPautaHTML()}</div>
     <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'}>${esc(pautaDraftError)}</p>

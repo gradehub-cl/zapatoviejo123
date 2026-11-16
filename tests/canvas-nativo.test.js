@@ -15,6 +15,8 @@ assert(swift.includes('kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly'));asser
 assert(swift.includes('completionHandler(nil)'),'nunca sigue una redirección con Authorization');
 assert(swift.includes('session.bytes(for: pedido)')&&swift.includes('bytes.task.cancel()'),'tope durante la lectura');
 assert(swift.includes('CanvasPolitica.agregarGrupos')&&swift.includes('/assignment_groups'));
+assert(swift.includes('CanvasPolitica.parametrosValidos(ruta, items)'),'los parámetros también tienen lista cerrada');
+for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
 assert(!/call\.resolve\([^\n]*"token"/.test(swift),'el puente no devuelve credenciales');
 for(const f of ['CanvasPlugin.swift','CanvasPolitica.swift'])assert(read('ios/App/App.xcodeproj/project.pbxproj').includes(f+' in Sources'));
 assert(read('ios/App/App/MainViewController.swift').includes('registerPluginInstance(GradeHubCanvasPlugin())'));
@@ -27,6 +29,26 @@ assert(CanvasPolitica.rutaValida("courses/123/assignments"))
 assert(!CanvasPolitica.rutaValida("courses/123/grades"))
 assert(!CanvasPolitica.rutaValida("courses/../users/self"))
 assert(!CanvasPolitica.rutaValida("courses\\n"))
+assert(CanvasPolitica.rutaValida("calendar_events"))
+for mala in ["courses/123/submissions", "courses/123/students/submissions", "conversations", "courses/123/files", "courses/123/users", "users/self/files", "calendar_events/9"] { assert(!CanvasPolitica.rutaValida(mala), mala) }
+func q(_ p: [(String, String)]) -> [URLQueryItem] { p.map { URLQueryItem(name: $0.0, value: $0.1) } }
+assert(CanvasPolitica.parametrosValidos("calendar_events", q([("context_codes[]","course_42"),("type","event"),("start_date","2026-11-16"),("end_date","2027-06-01"),("per_page","100")])))
+assert(!CanvasPolitica.parametrosValidos("calendar_events", q([("type","event")])), "sin curso sería el calendario personal")
+assert(!CanvasPolitica.parametrosValidos("calendar_events", q([("context_codes[]","user_7")])))
+assert(!CanvasPolitica.parametrosValidos("calendar_events", q([("context_codes[]","group_7")])))
+assert(!CanvasPolitica.parametrosValidos("calendar_events", q([("context_codes[]","course_42"),("type","assignment")])))
+assert(!CanvasPolitica.parametrosValidos("calendar_events", q([("context_codes[]","course_42"),("start_date","mañana")])))
+assert(!CanvasPolitica.parametrosValidos("calendar_events", q((0..<11).map { ("context_codes[]", "course_\\($0)") })))
+assert(CanvasPolitica.parametrosValidos("courses/42/assignments", q([("include[]","submission"),("order_by","due_at"),("per_page","100")])))
+assert(CanvasPolitica.parametrosValidos("courses/42/assignments", q([("bucket","future"),("per_page","100")])))
+assert(!CanvasPolitica.parametrosValidos("courses/42/assignments", q([("include[]","score_statistics")])), "nada de datos de otros estudiantes")
+assert(!CanvasPolitica.parametrosValidos("courses/42/assignments", q([("as_user_id","9")])))
+assert(!CanvasPolitica.parametrosValidos("courses/42/assignment_groups", q([("include[]","assignments")])))
+assert(CanvasPolitica.parametrosValidos("courses", q([("enrollment_state","active"),("include[]","term"),("per_page","50")])))
+assert(!CanvasPolitica.parametrosValidos("courses", q([("include[]","syllabus_body")])))
+assert(!CanvasPolitica.parametrosValidos("courses", q([("per_page","1000")])))
+assert(!CanvasPolitica.parametrosValidos("users/self", q([("include[]","term")])))
+assert(!CanvasPolitica.parametrosValidos("courses/123/grades", []))
 assert(CanvasPolitica.cuentaValida("00000000-0000-0000-0000-000000000001"))
 assert(!CanvasPolitica.cuentaValida("otra"))
 assert(CanvasPolitica.tokenValido("123~" + String(repeating:"A",count:24)))
@@ -39,10 +61,24 @@ for mala in ["http://cursos.canvas.uc.cl/api/v1/courses", "https://otro.cl/api/v
 let filas = CanvasPolitica.agregarGrupos([["id":1,"name":"Entrega","due_at":"2026-11-15","assignment_group_id":12,"grade":"privado"]],grupos:[["id":12,"name":"Controles"]])
 assert((filas[0]["assignment_group"] as? [String:String])?["name"] == "Controles")
 assert(filas[0]["grade"] == nil)
+let conNota = CanvasPolitica.agregarGrupos([["id":2,"name":"I1","description":"<p>enunciado</p>","points_possible":7,"grading_type":"points","due_at":NSNull(),"submission":["score":5.5,"grade":"5.5","workflow_state":"graded","submission_comments":["comentario"],"attachments":["archivo"],"user_id":99]]],grupos:[])
+assert(conNota[0]["description"] == nil && conNota[0]["due_at"] == nil)
+assert(conNota[0]["points_possible"] as? Int == 7 && conNota[0]["grading_type"] as? String == "points")
+let entrega = conNota[0]["submission"] as? [String:Any]
+assert(entrega?["score"] as? Double == 5.5 && entrega?["grade"] as? String == "5.5")
+assert(entrega?["submission_comments"] == nil && entrega?["attachments"] == nil && entrega?["user_id"] == nil)
+let eventos = CanvasPolitica.proyectarEventos([["id":1,"title":"Interrogación 2","start_at":"2099-10-25T21:30:00Z","all_day":false,"type":"event","context_code":"course_42","description":"<a href=x>zoom</a>","location_name":"Sala B12"],["id":2,"title":"Personal","type":"event","context_code":"user_7"],["id":3,"title":"Tarea","type":"assignment","context_code":"course_42"]])
+assert(eventos.count == 1 && eventos[0]["title"] as? String == "Interrogación 2")
+assert(eventos[0]["description"] == nil && eventos[0]["location_name"] == nil)
+let cursos = CanvasPolitica.proyectarCursos([["id":42,"name":"Curso","course_code":"MAT1620-2","apply_assignment_group_weights":true,"syllabus_body":"<p>x</p>","term":["name":"2026 Segundo Semestre","id":5]]])
+assert(cursos[0]["syllabus_body"] == nil && cursos[0]["apply_assignment_group_weights"] as? Bool == true)
+assert((cursos[0]["term"] as? [String:String])?["name"] == "2026 Segundo Semestre")
+let grupos = CanvasPolitica.proyectarGrupos([["id":12,"name":"Controles","group_weight":30,"rules":["drop_lowest":1],"assignments":[["id":1]]]])
+assert(Set(grupos[0].keys) == ["id","name","group_weight"])
 print("PASS política Swift real")`);
  execFileSync('xcrun',['swiftc','-module-cache-path',path.join(dir,'cache'),path.join(root,'ios/App/App/CanvasPolitica.swift'),path.join(dir,'main.swift'),'-o',path.join(dir,'prueba')],{stdio:'pipe'});
  console.log(execFileSync(path.join(dir,'prueba'),{encoding:'utf8'}).trim());
  }finally{fs.rmSync(dir,{recursive:true,force:true})}
 }
-console.log('PASS Canvas nativo: cuenta, respuesta tardía, host/ruta, llavero, grupos y registro');
+console.log('PASS Canvas nativo: cuenta, respuesta tardía, host/ruta/parámetros, llavero, recortes y registro');
 })().catch(e=>{console.error(e);process.exitCode=1});
