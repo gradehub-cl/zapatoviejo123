@@ -5898,11 +5898,15 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .agent-ramo-row small.horario-revision-diferencia{color:var(--fg);font-weight:600;}
 .horario-revision-bloques{list-style:none;margin:4px 0 0;padding:0;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}.horario-revision-bloques li{padding:1px 0;}
 /* Agenda «Evaluaciones | Horario» (HIG: Segmented controls), solo en la app. */
-#agenda-vista{padding:4px 20px 0;}
-.agenda-vista{display:flex;gap:2px;padding:2px;border-radius:10px;background:rgba(118,118,128,.12);}
-.agenda-vista button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font:600 .875rem var(--font-ui);cursor:pointer;}
-.agenda-vista button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
-.agenda-vista button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+/* Evaluaciones | Horario (Lucas, 16-11: fuera la cápsula gris tipo sistema).
+   Pestañas de texto con la raya bajo la activa, como el rango de «Tu promedio
+   en el tiempo» en Estadísticas: se leen como parte de la app. */
+#agenda-vista{padding:2px 20px 0;}
+.agenda-vista{display:flex;gap:24px;border-bottom:1px solid var(--border);}
+#agenda-vista .agenda-vista button{position:relative;min-height:44px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--fg2);font:500 .9375rem var(--font-ui);cursor:pointer;}
+#agenda-vista .agenda-vista button[aria-pressed="true"]{color:var(--fg);font-weight:650;}
+#agenda-vista .agenda-vista button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:1px;background:currentColor;}
+#agenda-vista .agenda-vista button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 /* La semana: columnas por día, la altura es la duración. El color del ramo va
    solo en la línea lateral, como en Inicio: no es una nota, no hay semáforo. */
 .horario-semana{--horario-gutter:42px;font-family:var(--font-ui);font-variant-numeric:tabular-nums;color:var(--fg);margin-top:6px;}
@@ -5936,7 +5940,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-elegir-ramo{display:grid;gap:6px;margin:14px 0;}
 .horario-elegir-ramo button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ramo);border-radius:10px;background:var(--card);color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
 .horario-elegir-ramo small{color:var(--fg2);font-size:.75rem;font-variant-numeric:tabular-nums;}
-@media(prefers-reduced-motion:no-preference){.agenda-vista button{transition:background-color var(--motion-fast),color var(--motion-fast);}}
+@media(prefers-reduced-motion:no-preference){#agenda-vista .agenda-vista button{transition:color var(--motion-fast) var(--ease-out);}}
 @media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
 
 /* ─── Pestaña Perfil ───────────────────────────────────────────────────────
