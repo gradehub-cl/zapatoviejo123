@@ -5882,6 +5882,16 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-cabecera:focus-visible,.perfil-fila:focus-visible,.perfil-salir:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 .perfil-salir{display:block;width:100%;min-height:48px;margin-top:32px;border:1px solid var(--border2);background:var(--card);color:var(--red);font:600 1rem var(--font-ui);cursor:pointer;}
 .perfil-pie{margin:24px 0 0;text-align:center;font-size:.8125rem;color:var(--fg3);}
+/* ─── Acceso con Apple: arte oficial, contraste independiente del acento ─── */
+#screen-auth .oauth-btn{min-height:48px;}
+#screen-auth #btn-apple{height:48px;padding:0;background:#000;color:#fff;border:0;margin-bottom:10px;overflow:hidden;}
+#screen-auth #btn-apple img{display:block;width:100%;height:48px;object-fit:contain;}
+#screen-auth #btn-apple .apple-blanco{display:none;}
+#screen-auth #btn-apple:focus-visible{outline:3px solid var(--fg);outline-offset:4px;}
+:root[data-modo=oscuro] #screen-auth #btn-apple{background:#fff;color:#000;border-color:#fff;}
+:root[data-modo=oscuro] #screen-auth #btn-apple .apple-negro{display:none;}
+:root[data-modo=oscuro] #screen-auth #btn-apple .apple-blanco{display:block;}
+@media(prefers-color-scheme:dark){:root:not([data-modo]) #screen-auth #btn-apple{background:#fff;color:#000;border-color:#fff;}:root:not([data-modo]) #screen-auth #btn-apple .apple-negro{display:none;}:root:not([data-modo]) #screen-auth #btn-apple .apple-blanco{display:block;}}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

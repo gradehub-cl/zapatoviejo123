@@ -6,5 +6,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(GradeHubWidgetsPlugin())
         // La raíz nunca rebota: los contenedores HTML conservan su scroll.
         webView?.scrollView.bounces = false
+        bridge?.registerPluginInstance(AppleSignInPlugin())
     }
 }

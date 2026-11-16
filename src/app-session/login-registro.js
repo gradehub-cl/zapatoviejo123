@@ -87,8 +87,8 @@ function marcarUltimoLogin(){
   // La marca va ENCIMA del metodo, no dentro. Metida en el boton de Google
   // quedaba gris sobre gris —ilegible— y ademas le partia el texto en dos
   // lineas. Arriba se lee en los dos casos y no toca el boton.
-  const destino=metodo==='google'
-    ? document.getElementById('btn-google')
+  const destino=['google','apple'].includes(metodo)
+    ? document.getElementById('btn-'+metodo)
     : document.querySelector('#screen-auth .ob-card');
   if(!destino||!destino.parentNode)return;
   const marca=document.createElement('div');

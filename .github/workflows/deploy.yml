@@ -100,6 +100,7 @@ jobs:
           .well-known/assetlinks.json
           functions/canvas-calendario.js functions/cal/[token].js functions/mcp/[[ruta]].js functions/mcp/herramientas.js
           ocr/tesseract.min.js ocr/worker.min.js ocr/tesseract-core-simd-lstm.wasm.js ocr/tesseract-core-lstm.wasm.js ocr/eng.traineddata.gz ocr/LICENSE.txt
+          apple/continuar-negro.png apple/continuar-blanco.png
           pdf/pdf.min.mjs pdf/pdf.worker.min.mjs pdf/LICENSE.txt
           festivos.js festivos.css'
           for f in $archivos_app; do
