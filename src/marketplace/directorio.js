@@ -113,7 +113,7 @@ async function abrirDirectorioClases(){
     if(!vigente())return true;
     if(r.error&&sqlClasesDesactualizado(r.error)){limpiarObservacion();raiz.innerHTML=anterior;return false;}
     if(r.error||!Array.isArray(r.data))throw r.error||Error('respuesta inválida');
-    perfiles=r.data;
+    perfiles=sinPerfilesBloqueados(r.data,await bloqueosVigentes());
     await cargarMallaVisorApoyo();
     if(!vigente())return true;
     // Los anuncios conservan exactamente su medición y costo actuales.

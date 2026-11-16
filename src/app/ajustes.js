@@ -39,12 +39,12 @@ function openSettings(){
   const sections=[
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
-    ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
+    ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte denunciar abuso']
   ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
 
   function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar</button>';}
@@ -240,6 +240,11 @@ function openSettings(){
         <label class="modal-label">Compartido con profesores</label>
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
         <div id="s-compartidos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
+      </div>
+      <div class="settings-compartidos settings-bloqueos">
+        <div class="modal-label" role="heading" aria-level="3">Profesores bloqueados</div>
+        <p class="settings-help" style="margin-top:0;">No ves sus clases, perfiles ni anuncios. Para denunciar algo, toca «Denunciar o bloquear» en el anuncio o el perfil, o escríbenos a gradehub.app@gmail.com.</p>
+        <div id="s-bloqueos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
       </div>`:''}
       <div class="settings-danger-zone">
         <div class="settings-danger-label">Zona sensible</div>
@@ -310,6 +315,7 @@ function openSettings(){
     if(activeSection==='calendario'&&canvasDisponible())pintarCanvasAjustes();
     if(activeSection==='calendario'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
+    if(activeSection==='datos'&&currentUser&&typeof pintarBloqueosAjustes==='function')pintarBloqueosAjustes();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.
     if(activeSection!=='agentes')olvidarUrlAgente();
