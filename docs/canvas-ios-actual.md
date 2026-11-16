@@ -8,6 +8,19 @@ Solo GET a `cursos.canvas.uc.cl` y rutas cerradas de cursos, tareas y grupos. Ta
 
 Las propuestas siguen los revisores actuales de ramos y fechas: no se agregan sin confirmar, no cambian ponderaciones ni notas y no pisa fechas existentes. En web no aparece el puente. Sin token conectado las cuentas anteriores siguen como estaban. Los tokens de una compilación experimental vieja que no identificaba cuenta no se adoptan: se vuelve a conectar.
 
+## Ampliación del 2026-11-16: eventos, notas y pesos
+
+Lucas pidió que la app lea todo lo útil de Canvas. Se agregó:
+
+- **Eventos del calendario del curso** (`calendar_events`, `type=event`, `context_codes[]=course_<id>`, desde hoy a 200 días). Dan fecha y **hora de Chile** de interrogaciones y exámenes. Pasan por la misma hoja de revisión que las tareas; un evento que no parece evaluación («Clase suspendida») no se propone. La hora solo viene de eventos (una entrega a las 23:59 no es la hora de una prueba) y nunca pisa una hora existente. Si no hay propuestas, Ajustes dice por qué (pasadas, sin fecha, no son evaluaciones).
+- **Notas publicadas**: misma ruta de tareas con `include[]=submission`. «Traer notas» abre una hoja propia: evaluación y nota editables, nada se escribe hasta «Guardar notas elegidas». Solo casillas **vacías**; una tarea que calza por nombre con una casilla llena se da por ya ingresada. Se vuelve a revisar la casilla justo antes de escribir. Escala 1–7 tal cual (esquema numérico o puntos sobre 7); un puntaje o porcentaje se muestra y la casilla queda vacía, porque convertirlo exige la exigencia de la prueba. Eximidas, aprobado/reprobado y no calificables no se proponen. La nota queda en memoria del teléfono y solo sube como nota propia por el sync normal.
+- **Pesos de grupos** (`group_weight`, solo si el curso tiene `apply_assignment_group_weights`): en «Editar evaluaciones», un botón «Ver pesos en Canvas» los muestra como referencia «según Canvas». No cambian la pauta ni se guardan.
+- **Política**: además de la ruta, cada parámetro tiene lista cerrada con valores acotados (`CanvasPolitica.parametrosValidos`). `context_codes[]` solo acepta cursos (máximo 10): nunca el calendario personal, de grupos o de otra persona. Cada respuesta se recorta en Swift: cursos (id, nombre, código, periodo, si usa pesos), grupos (id, nombre, peso), eventos (título, inicio, fin, día completo, curso) y entrega (puntaje, calificación, eximida, estado). Sin descripciones, lugares, comentarios, archivos ni rúbricas.
+
+Descartado, con razón: **quizzes** (los que cuentan para la nota ya llegan como tareas; la ruta de quizzes solo suma los de práctica), **anuncios y módulos** (fechas en texto libre, propuestas poco confiables), **estadísticas del curso** (`score_statistics`: son datos de otros estudiantes; la política lo rechaza) y mensajes o archivos. El **programa del curso** (`syllabus_body`) queda para una PR aparte.
+
+Por confirmar con una cuenta real: que la UC no tenga restringido `calendar_events` para estudiantes, cómo publican las notas los profes (puntos sobre 7, esquema numérico o porcentaje) y si los cursos UC usan `apply_assignment_group_weights`.
+
 ## Verificación
 
 - `npm test`: 363 tests de la base ios, incluidos puente simulado, descarte de respuesta tardía y política Swift real ejecutada con datos sintéticos en macOS.

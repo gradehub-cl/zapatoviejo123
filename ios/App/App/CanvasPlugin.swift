@@ -20,7 +20,8 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     static let api = CanvasPolitica.api
-    // Lo único que la app necesita leer: quién eres, tus cursos y sus tareas.
+    // Lo único que la app necesita leer: quién eres, tus cursos, sus tareas
+    // (con tu propia nota si la web la pide), grupos y eventos del curso.
     static let paginasMax = CanvasPolitica.paginasMax
 
     // ─── Llavero ─────────────────────────────────────────────────────────────
@@ -105,12 +106,19 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
             if let lista = valor as? [Any] { lista.forEach { items.append(URLQueryItem(name: clave, value: "\($0)")) } }
             else { items.append(URLQueryItem(name: clave, value: "\(valor)")) }
         }
+        guard CanvasPolitica.parametrosValidos(ruta, items) else {
+            call.reject("Esa consulta a Canvas no está permitida.")
+            return
+        }
+        let tipo = CanvasPolitica.tipo(ruta)
         Task {
             switch await Self.pedir(ruta, items, token: token) {
             case .success(let datos):
-                // #806 entiende el nombre del grupo. Se agrega acá sin cambiar
-                // el contrato GET de la web ni traer calificaciones.
-                if ruta.hasSuffix("/assignments"), let tareas = datos as? [[String: Any]] {
+                let filas = datos as? [[String: Any]] ?? []
+                switch tipo {
+                case .tareas:
+                    // #806 entiende el nombre del grupo; también vuelven los
+                    // grupos con su peso, como referencia para la pauta.
                     let gruposRuta = ruta.replacingOccurrences(of: "/assignments", with: "/assignment_groups")
                     var grupos: [[String: Any]] = []
                     switch await Self.pedir(gruposRuta, [URLQueryItem(name: "per_page", value: "100")], token: token) {
@@ -121,8 +129,14 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
                             call.reject(error.mensaje, String(error.codigo)); return
                         }
                     }
-                    call.resolve(["data": CanvasPolitica.agregarGrupos(tareas, grupos: grupos)])
-                } else { call.resolve(["data": datos]) }
+                    call.resolve(["data": CanvasPolitica.agregarGrupos(filas, grupos: grupos),
+                                  "grupos": CanvasPolitica.proyectarGrupos(grupos)])
+                case .cursos: call.resolve(["data": CanvasPolitica.proyectarCursos(filas)])
+                case .grupos: call.resolve(["data": CanvasPolitica.proyectarGrupos(filas)])
+                case .eventos: call.resolve(["data": CanvasPolitica.proyectarEventos(filas)])
+                // `users/self` solo sirve para validar el token al conectar.
+                case .yo, .none: call.resolve(["data": [] as [Any]])
+                }
             case .failure(let error):
                 // Un token revocado o vencido no sirve más: se borra.
                 if error.codigo == 401 && Self.leerToken(cuenta) == token { Self.borrarToken(cuenta) }

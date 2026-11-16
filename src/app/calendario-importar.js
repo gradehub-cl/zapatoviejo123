@@ -138,39 +138,64 @@ function tipoEvaluacionCanvas(nombre){
   const v=m[1];
   return /^i\s*\d/.test(v)?'interrogacion':/^s\s*\d/.test(v)?'solemne':/^p\s*\d/.test(v)?'prueba':/^c\s*\d/.test(v)?'control':/^t\s*\d/.test(v)?'tarea':/^q\s*\d/.test(v)?'quiz':/^ex\s*\d/.test(v)?'examen':v;
 }
-function resumenFechasCanvas(tareas,ramo,ahora,grupos=[]){
+// La hora de Chile ("HH:MM") de una fecha ISO de Canvas.
+function horaChileCanvas(iso){
+  const d=new Date(iso);if(Number.isNaN(d.getTime()))return null;
+  const v=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Santiago',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(p=>[p.type,p.value]));
+  const h=(v.hour==='24'?'00':v.hour)+':'+v.minute;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(h)?h:null;
+}
+// Cuánto se parece una tarea o evento de Canvas a una evaluación del ramo:
+// 3 nombre exacto ("I2" ↔ "Interrogación 2"), 2 por el grupo de Canvas, 1 solo
+// por el tipo ("Control" ↔ "Controles"), 0 nada. Lo comparten fechas y notas.
+function puntajeCanvas(nombres,nombre,grupo){
+  const prefijos=nombres.flatMap(prefijosEvaluacionIcs);
+  const exacta=(pista)=>prefijosEvaluacionIcs(pista).some(p=>p.length>=2&&prefijos.includes(p));
+  if(exacta(nombre))return 3;
+  if(grupo&&exacta(grupo))return 2;
+  const tipos=nombres.map(tipoEvaluacionCanvas);
+  return tipos.includes(tipoEvaluacionCanvas(nombre))&&tipoEvaluacionCanvas(nombre)?1
+    :grupo&&tipos.includes(tipoEvaluacionCanvas(grupo))&&tipoEvaluacionCanvas(grupo)?1:0;
+}
+// Sin el curso entre corchetes ni el sufijo de pregunta. {0,} en vez de un
+// asterisco al final: seguido de la barra parece el cierre de un comentario
+// para los tests que leen el bundle sin comentarios.
+function nombreLimpioCanvas(texto){
+  return String(texto||'').replace(/\s*\[[^\]]*\]\s{0,}/g,' ').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
+}
+// Tareas (con su fecha de entrega) y eventos del calendario del curso (con la
+// hora de inicio: así publican muchos profes UC las interrogaciones). Un
+// evento que no parece evaluación ("Clase suspendida") no se propone.
+function resumenFechasCanvas(tareas,ramo,ahora,grupos=[],eventos=[]){
   const hoy=fechaChileCanvas(ahora||new Date());
   const porGrupo=new Map((grupos||[]).map(g=>[String(g.id),String(g.name||'')]));
-  const entrada=Array.isArray(tareas)&&tareas.length?tareas:(grupos||[]).flatMap(g=>(g.assignments||[]).map(t=>({...t,assignment_group_id:g.id})));
+  const listaTareas=Array.isArray(tareas)&&tareas.length?tareas:(grupos||[]).flatMap(g=>(g.assignments||[]).map(t=>({...t,assignment_group_id:g.id})));
+  // Primero los eventos: traen la hora real de la prueba.
+  const listaEventos=(Array.isArray(eventos)?eventos:[]).filter(Boolean).map(e=>({name:e.title,due_at:e.start_at,
+    hora:e.all_day?null:horaChileCanvas(e.start_at),evento:true}));
+  const entrada=listaEventos.concat(listaTareas);
   const destinos=destinosIcs().filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
   const usados=new Set(),vistas=new Set(),propuestas=[];
-  const conteos={total:entrada.length,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0};
+  const conteos={total:entrada.length,tareas:listaTareas.length,eventos:listaEventos.length,
+    sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
   for(const tarea of entrada){
     if(!tarea||!tarea.due_at){conteos.sinFecha++;continue;}
     const fecha=fechaChileCanvas(tarea.due_at);
     if(!fecha){conteos.sinFecha++;continue;}
     if(fecha<hoy){conteos.pasadas++;continue;}
-    const nombre=String(tarea.name||'').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
+    const nombre=nombreLimpioCanvas(tarea.name);
     if(!nombre){conteos.sinDestino++;continue;}
     const grupo=String(tarea.assignment_group?.name||porGrupo.get(String(tarea.assignment_group_id))||'').trim();
     const clave=normName(nombre)+'|'+fecha+'|'+normName(grupo);
     if(vistas.has(clave)){conteos.duplicadas++;continue;}
     vistas.add(clave);
-    const puntuar=(t)=>{
-      const nombres=t.nota?[t.nota.nombre,nombreNotaCasilla(t.ramo,t.cat,t.nota)]:[t.cat.nombre];
-      const prefijos=nombres.flatMap(prefijosEvaluacionIcs);
-      const exacta=(pista)=>prefijosEvaluacionIcs(pista).some(p=>p.length>=2&&prefijos.includes(p));
-      if(exacta(nombre))return 3;
-      if(grupo&&exacta(grupo))return 2;
-      const tipos=nombres.map(tipoEvaluacionCanvas);
-      return tipos.includes(tipoEvaluacionCanvas(nombre))&&tipoEvaluacionCanvas(nombre)?1
-        :grupo&&tipos.includes(tipoEvaluacionCanvas(grupo))&&tipoEvaluacionCanvas(grupo)?1:0;
-    };
-    const candidatos=destinos.filter(t=>!usados.has(claveDestinoIcs(t))).map(t=>({t,p:puntuar(t)})).filter(x=>x.p>0)
+    const nombresDe=t=>t.nota?[t.nota.nombre,nombreNotaCasilla(t.ramo,t.cat,t.nota)]:[t.cat.nombre];
+    const candidatos=destinos.filter(t=>!usados.has(claveDestinoIcs(t))).map(t=>({t,p:puntajeCanvas(nombresDe(t),nombre,grupo)})).filter(x=>x.p>0)
       .sort((a,b)=>b.p-a.p);
+    if(tarea.evento&&!candidatos.length&&!tipoEvaluacionCanvas(nombre)){conteos.noEvaluacion++;continue;}
     const target=candidatos.length?claveDestinoIcs(candidatos[0].t):null;
     if(target)usados.add(target);else conteos.sinDestino++;
-    propuestas.push({titulo:nombre+' · '+ramo.nombre,fecha,ramoId:ramo.id,target,origen:'canvas'});
+    propuestas.push({titulo:nombre+' · '+ramo.nombre,fecha,...(tarea.hora?{hora:tarea.hora}:{}),ramoId:ramo.id,target,origen:'canvas'});
   }
   return {propuestas,conteos};
 }
@@ -197,6 +222,8 @@ function aplicarPropuestasIcs(propuestas){
     const target=targets.get(p.target);
     const item=target.nota||target.cat;
     item.fecha=p.fecha;item.fechaOrigen='calendario';item.fechaQuitada=false;
+    // La hora solo llega de un evento de Canvas y solo se pone si no había una.
+    if(p.hora&&HORA_RE.test(p.hora)&&!item.hora){item.hora=p.hora;item.horaOrigen='calendario';item.horaQuitada=false;}
   });
   return elegidas.length;
 }
@@ -241,7 +268,7 @@ function renderRevisionIcs(){
     const ramoId=item.ramoId||((destinosIcs().find(t=>claveDestinoIcs(t)===item.target)||{}).ramo||{}).id||null;
     const estado=item.target?(item.origen==='canvas'?'Sugerencia de Canvas':'Coincidencia propuesta'):'Sin asignar';
     return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
-      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(fechaCorta(item.fecha))+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(item.hora?fechaHoraCorta(item.fecha,item.hora):fechaCorta(item.fecha))+'</span></div>'
       +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+estado+'</div>'
       +'<div class="modal-input"><label class="modal-label" for="ics-ramo-'+index+'">Ramo</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-ramo-'+index+'" data-ics-ramo aria-label="Ramo de '+esc(item.titulo)+'" onchange="asignarRamoIcs('+index+',this.value)">'+opcionesRamoIcs(ramoId)+'</select></div>'
       +'<div class="modal-input"><label class="modal-label" for="ics-evaluacion-'+index+'">Evaluación</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-evaluacion-'+index+'" data-ics-evaluacion aria-label="Evaluación de '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)"'+(ramoId?'':' disabled')+'>'+opcionesDestinoIcs(item.target,used,ramoId)+'</select></div>'

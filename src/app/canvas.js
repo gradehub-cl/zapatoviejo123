@@ -23,7 +23,7 @@ function cursosCanvasDelSemestre(cursos,ahora){
     const m=CODIGO_CANVAS_RE.exec(String(c&&c.course_code||'').trim().toUpperCase());
     const id=Number(c&&c.id);
     return m&&Number.isSafeInteger(id)&&id>0
-      ?{id,sigla:m[1],seccion:Number(m[2]),nombre:c.name||'',periodo:normName((c.term&&c.term.name)||'')}:null;
+      ?{id,sigla:m[1],seccion:Number(m[2]),nombre:c.name||'',periodo:normName((c.term&&c.term.name)||''),usaPesos:c.apply_assignment_group_weights===true}:null;
   }).filter(Boolean);
   const actuales=conCodigo.filter(c=>c.periodo.includes(anio)&&c.periodo.includes(parte));
   return actuales.length?actuales:conCodigo.filter(c=>c.periodo.includes(anio));
@@ -40,10 +40,11 @@ async function pintarCanvasAjustes(){
   try{const r=await pluginCanvas().estado();conectado=!!(r&&r.conectado);}catch(e){}
   if(!caja.isConnected)return;
   caja.innerHTML=conectado?`
-    <p class="settings-help" style="margin-top:0;"><b>Canvas conectado.</b> El token queda solo en el llavero de este iPhone.</p>
+    <p class="settings-help" style="margin-top:0;"><b>Canvas conectado.</b> El token queda solo en el llavero de este iPhone. Revisas cada fecha y nota antes de guardarla.</p>
     <div class="settings-data-actions" style="margin-bottom:0;">
       <button type="button" onclick="traerRamosCanvas()">Traer mis ramos</button>
       <button type="button" onclick="traerFechasCanvas()">Traer fechas</button>
+      <button type="button" onclick="traerNotasCanvas()">Traer notas</button>
     </div>
     <button type="button" class="settings-reset-btn" style="min-height:44px;margin-top:12px;" onclick="desconectarCanvas()">Desconectar Canvas</button>
     <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite"></p>`
@@ -75,7 +76,7 @@ async function conectarCanvas(){
 function desconectarCanvas(){
   if(!canvasDisponible())return;
   showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
-    try{await pluginCanvas().desconectar();track('canvas_desconectado');await pintarCanvasAjustes();}
+    try{await pluginCanvas().desconectar();if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes();}
     catch(e){avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
   },{label:'Desconectar',focusCancel:true});
 }
@@ -102,25 +103,45 @@ async function traerRamosCanvas(){
   abrirImportarHorarioBuscacursos(true);
   await reconocerHorarioBuscacursos();
 }
+// Por qué no hubo propuestas, en palabras: así se entiende un Canvas vacío.
+function explicarConteosCanvas(c,ramos){
+  if(!ramos)return 'Ninguno de tus ramos de Canvas está en GradeHub. Agrégalos con «Traer mis ramos».';
+  if(!c.total)return 'Tus cursos en Canvas no tienen tareas ni eventos con fecha.';
+  const partes=[];
+  if(c.pasadas)partes.push(c.pasadas+(c.pasadas===1?' ya pasó':' ya pasaron'));
+  if(c.sinFecha)partes.push(c.sinFecha+' sin fecha');
+  if(c.noEvaluacion)partes.push(c.noEvaluacion+(c.noEvaluacion===1?' no es evaluación':' no son evaluaciones'));
+  return 'Revisamos '+c.tareas+' tarea'+(c.tareas===1?'':'s')+' y '+c.eventos+' evento'+(c.eventos===1?'':'s')+(partes.length?': '+partes.join(', ')+'.':', sin fechas nuevas.');
+}
+function isoMasDiasCanvas(ahora,dias){
+  const d=new Date(ahora.getTime()+dias*864e5);
+  return fechaChileCanvas(d);
+}
 async function traerFechasCanvas(){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando fechas en Canvas…');
-  let propuestas=[],conteos={total:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0};
+  let propuestas=[],ramos=0;
+  const conteos={total:0,tareas:0,eventos:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
   try{
-    const cursos=await cursosCanvas();
+    const cursos=await cursosCanvas(),ahora=new Date();
     for(const c of cursos){
       const ramo=(S.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla);
       if(!ramo)continue;
+      ramos++;
       const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
-      const r=resumenFechasCanvas(tareas,ramo);
+      // Sin fechas, Canvas devuelve solo los eventos de hoy.
+      const eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
+        start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
+      const r=resumenFechasCanvas(tareas,ramo,ahora,[],eventos);
       propuestas=propuestas.concat(r.propuestas);
       for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
     }
   }catch(e){avisoCanvas('No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
   track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
-    duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino});
-  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos.');return;}
-  icsImportDraft=propuestas.sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,ICS_IMPORT_MAX_EVENTS);
+    duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion});
+  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
+  avisoCanvas('');
+  icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
   renderRevisionIcs();
   openModal();
 }
