@@ -5976,6 +5976,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
    al final del archivo. */
 .app-nativa .bottom-nav{left:16px;right:16px;width:auto;max-width:none;transform:none;bottom:calc(env(safe-area-inset-bottom,0px) * .5 + 6px);padding:5px;gap:2px;border:1px solid color-mix(in srgb,var(--fg),transparent 90%);border-radius:999px;background:color-mix(in srgb,var(--bg2),transparent 28%);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff,transparent 82%),0 10px 30px rgba(0,0,0,.14);}
 .app-nativa .bottom-nav .nav-item{min-height:52px;padding:6px 0 5px;border-radius:999px;}
+/* Solo íconos, como Instagram (decisión de Lucas, 2026-11-15): el nombre se
+   entiende al segundo uso. VoiceOver sigue leyéndolo por el aria-label. */
+.app-nativa .bottom-nav .nav-item{font-size:0;gap:0;min-height:48px;padding:0;}
+.app-nativa .bottom-nav .nav-icon .ic{width:24px;height:24px;}
 .app-nativa .bottom-nav .nav-item.active{background:color-mix(in srgb,var(--fg),transparent 91%);}
 .app-nativa .bottom-nav{touch-action:none;}
 .app-nativa .bottom-nav .nav-item{transition:background-color var(--motion-press) var(--ease-out);}
