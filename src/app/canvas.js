@@ -1,6 +1,17 @@
+// El token vive en el llavero del iPhone, separado por cuenta de GradeHub. El
+// puente manda siempre la cuenta con sesión y descarta respuestas si la cuenta
+// o el estado cambiaron mientras Canvas respondía.
 function pluginCanvas(){
   const cap=typeof window!=='undefined'&&window.Capacitor;
-  return enAppNativa()&&cap&&cap.Plugins&&cap.Plugins.GradeHubCanvas||null;
+  const nativo=enAppNativa()&&cap?.Plugins?.GradeHubCanvas;
+  const cuenta=typeof currentUser!=='undefined'&&currentUser?.id,estado=S;
+  if(!nativo||!cuenta)return null;
+  const invocar=async(metodo,args={})=>{
+    const respuesta=await nativo[metodo]({...args,cuenta});
+    if(currentUser?.id!==cuenta||S!==estado)throw new Error('Cambió la cuenta de GradeHub.');
+    return respuesta;
+  };
+  return {estado:()=>invocar('estado'),conectar:args=>invocar('conectar',args),get:args=>invocar('get',args),desconectar:()=>invocar('desconectar')};
 }
 function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
 const TOKEN_CANVAS_RE=/^[0-9]{1,8}~[A-Za-z0-9]{20,100}$/;
