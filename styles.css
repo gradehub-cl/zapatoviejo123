@@ -4917,7 +4917,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* Sin logo: la inicial en un círculo teñido con el color del perfil. */
 .directorio-tarjeta .directorio-avatar.catalogo-clase-logo:not(:has(img)){justify-content:center;width:48px;border-radius:50%;
   background:color-mix(in srgb,var(--directorio-color) 22%,var(--card));color:var(--directorio-acento);font-size:1.25rem}
-.directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit}
+.directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit;overflow-wrap:break-word}
 .directorio-tarjeta .directorio-etiqueta{font-size:1rem;font-weight:600;color:var(--directorio-acento)}
 .directorio-tarjeta .directorio-siglas{font-size:.875rem;font-variant-numeric:tabular-nums;color:var(--fg2)}
 .directorio-valoracion{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;font-size:1rem;line-height:1.25;flex-shrink:0;font-variant-numeric:tabular-nums;color:inherit}
@@ -4949,7 +4949,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-filtros button:active{opacity:.8}
 .directorio-seccion{margin:24px 0}
 .directorio-seccion h2,.directorio-perfil-abierto h3{font-size:1.1rem;margin:20px 0 12px}
-.directorio-grilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}
+/* Dos por fila en el computador: con tres, el logo le dejaba al nombre menos
+   de 100 px y se cortaba a mitad de palabra («Ment / orIA», 2026-11-16). */
+.directorio-grilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}
 .directorio-vacio{border:1px solid var(--border);border-radius:8px;padding:20px;background:var(--card);color:var(--fg2)}
 .directorio-vacio button{white-space:normal;text-align:left}
 .directorio-publicidad{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
