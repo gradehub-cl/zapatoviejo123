@@ -45,6 +45,10 @@ function profesorPropuestoRamo(r,contexto){
 }
 // Panel de Calificar profesor: primero quién es y después cómo es.
 function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
+  // Lo publicado (nombre por consenso y promedio) se puede denunciar (App Review 1.2).
+  const publico=nombre;
+  const denunciarHTML=publico&&typeof botonDenunciaHTML==='function'?'<button type="button" class="docente-link calif-denunciar" data-calif-denunciar>Denunciar nombre o calificación</button>':'';
+  const enlazarDenuncia=raiz=>{const b=raiz.querySelector('[data-calif-denunciar]');if(b)b.onclick=()=>abrirDenuncia({tipo:'opinion',nombre:publico,contexto,origen:b});};
   nombre=nombre||mio||profesorPropuestoRamo(r,contexto);
   const cuenta=currentUser&&currentUser.id;
   const vigente=()=>currentUser&&currentUser.id===cuenta&&S.ramos.includes(r)
@@ -55,7 +59,9 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
       contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
         <p class="calif-pregunta">¿Es tu profesor <strong>${esc(nombre)}</strong>?</p>
         <button type="button" class="docente-link" data-completar>Completar o corregir el nombre</button>
-        <div class="modal-btns calif-si-no"><button type="button" class="btn-cancel" data-otro>No, es otra persona</button><button type="button" class="btn-confirm" data-si>Sí, es mi profesor</button></div>`;
+        <div class="modal-btns calif-si-no"><button type="button" class="btn-cancel" data-otro>No, es otra persona</button><button type="button" class="btn-confirm" data-si>Sí, es mi profesor</button></div>
+        ${denunciarHTML}`;
+      enlazarDenuncia(contenido);
       contenido.querySelector('[data-si]').onclick=()=>pasoCalificar(nombre);
       contenido.querySelector('[data-completar]').onclick=()=>pedirNombre(nombre);
       contenido.querySelector('[data-otro]').onclick=()=>pedirNombre(mio&&nombreProfesorNormal(mio)!==nombreProfesorNormal(nombre)?mio:'');
@@ -97,9 +103,11 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
         </fieldset>
         <p class="calif-error" role="alert"></p>
         ${mia?'<button type="button" class="docente-link calif-borrar" data-borrar>Borrar mi calificación</button>':''}
+        ${denunciarHTML}
         <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Guardar</button></div>
       </form>`;
     const form=contenido.querySelector('form'),mensaje=form.querySelector('[role=alert]');
+    enlazarDenuncia(form);
     const estrellas=()=>Number((form.querySelector('input[name=calif-estrellas]:checked')||{}).value)||0;
     const marcar=()=>{
       const v=estrellas();form.querySelectorAll('.calif-opcion').forEach((l,i)=>l.classList.toggle('lleno',i<v));
