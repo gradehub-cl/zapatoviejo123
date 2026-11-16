@@ -272,8 +272,6 @@ struct ProximaVista: View {
                 }
             case .systemMedium:
                 if let e { mediano(e) } else { vacio }
-            case .systemLarge:
-                if let e { grande(e) } else { vacio }
             default:
                 if let e { tarjeta(e) } else { vacio }
             }
@@ -348,21 +346,6 @@ struct ProximaVista: View {
         }
     }
 
-    // Grande (#635): la próxima completa y, debajo, las cuatro que siguen.
-    func grande(_ e: Resumen.Evaluacion) -> some View {
-        let despues = despues(4)
-        return VStack(alignment: .leading, spacing: 10) {
-            tarjeta(e).fixedSize(horizontal: false, vertical: true)
-            Divider()
-            Text("Después").font(.caption).foregroundStyle(.secondary)
-            if despues.isEmpty {
-                Text("Nada más por ahora").font(.subheadline).foregroundStyle(.secondary)
-            }
-            ForEach(Array(despues.enumerated()), id: \.offset) { _, d in filaDespues(d) }
-            Spacer(minLength: 0)
-        }
-    }
-
     var vacio: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("PRÓXIMA").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
@@ -380,7 +363,7 @@ struct ProximaEvaluacionWidget: Widget {
         }
         .configurationDisplayName("Próxima evaluación")
         .description("Lo que viene y qué nota necesitas.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -399,12 +382,6 @@ struct PromedioVista: View {
                 HStack(alignment: .top, spacing: 16) {
                     general.frame(maxWidth: .infinity, alignment: .leading)
                     lista(4).frame(maxWidth: .infinity, alignment: .leading)
-                }
-            case .systemLarge:
-                VStack(alignment: .leading, spacing: 12) {
-                    general.frame(height: 110)
-                    Divider()
-                    lista(8)
                 }
             default:
                 general
@@ -463,7 +440,7 @@ struct PromedioGeneralWidget: Widget {
         }
         .configurationDisplayName("Promedio general")
         .description("Tu promedio con su semáforo y cómo va cada ramo.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
@@ -572,7 +549,7 @@ struct PendientesWidget: Widget {
         }
         .configurationDisplayName("Pendientes")
         .description("Lo que tienes que hacer, lo más urgente primero.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -714,14 +691,6 @@ struct ProximaClaseVista: View {
                         despues(Array(vigentes.dropFirst().prefix(3))).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else { vacio }
-            case .systemLarge:
-                if let o = vigentes.first {
-                    VStack(alignment: .leading, spacing: 10) {
-                        tarjeta(o).fixedSize(horizontal: false, vertical: true)
-                        Divider()
-                        despues(Array(vigentes.dropFirst().prefix(5)))
-                    }
-                } else { vacio }
             default:
                 if let o = vigentes.first { tarjeta(o) } else { vacio }
             }
@@ -811,17 +780,16 @@ struct ProximaClaseWidget: Widget {
         }
         .configurationDisplayName("Próxima clase")
         .description("Qué clase te toca, a qué hora y en qué sala.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
 
 // MARK: - Estadísticas configurable (#638)
 
 enum Estadistica: String, AppEnum {
-    case avance, rango, exigente
+    case rango, exigente
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Estadística"
     static var caseDisplayRepresentations: [Estadistica: DisplayRepresentation] = [
-        .avance: "Avance del semestre",
         .rango: "Rango del semestre",
         .exigente: "Lo que más te exige",
     ]
@@ -830,7 +798,7 @@ enum Estadistica: String, AppEnum {
 struct ElegirEstadistica: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Estadística"
     static var description = IntentDescription("Elige qué estadística ver.")
-    @Parameter(title: "Mostrar", default: .avance) var estadistica: Estadistica
+    @Parameter(title: "Mostrar", default: .rango) var estadistica: Estadistica
 }
 
 struct EntradaEstadistica: TimelineEntry {
@@ -841,7 +809,7 @@ struct EntradaEstadistica: TimelineEntry {
 
 // Nada depende de la hora: cambia solo cuando la app guarda un resumen nuevo.
 struct ProveedorEstadistica: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> EntradaEstadistica { EntradaEstadistica(date: .now, resumen: nil, estadistica: .avance) }
+    func placeholder(in context: Context) -> EntradaEstadistica { EntradaEstadistica(date: .now, resumen: nil, estadistica: .rango) }
     func snapshot(for c: ElegirEstadistica, in context: Context) async -> EntradaEstadistica {
         EntradaEstadistica(date: .now, resumen: Almacen.leer(), estadistica: c.estadistica)
     }
@@ -857,7 +825,6 @@ struct EstadisticaVista: View {
 
     var titulo: String {
         switch entrada.estadistica {
-        case .avance: return "AVANCE DEL SEMESTRE"
         case .rango: return "RANGO DEL SEMESTRE"
         case .exigente: return "LO QUE MÁS TE EXIGE"
         }
@@ -882,11 +849,6 @@ struct EstadisticaVista: View {
     @ViewBuilder
     func contenido(_ s: Resumen.Estadisticas) -> some View {
         switch entrada.estadistica {
-        case .avance:
-            // Un riel neutro, como en Inicio: el 100% es "cerrado", no una celebración.
-            Text("\(s.avance)%").font(.system(size: 44, weight: .medium)).monospacedDigit()
-            ProgressView(value: Double(min(max(s.avance, 0), 100)), total: 100).progressViewStyle(.linear).tint(.primary)
-            Text(s.avance >= 100 ? "Todo evaluado" : "del semestre ya tiene nota").font(.caption).foregroundStyle(.secondary).lineLimit(2)
         case .rango:
             if let r = s.rango {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -931,7 +893,7 @@ struct EstadisticasWidget: Widget {
             EstadisticaVista(entrada: entrada).containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Estadísticas")
-        .description("Elige qué ver: avance, rango del semestre o lo que más te exige.")
+        .description("Elige qué ver: el rango de tu promedio o lo que más te exige.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -977,10 +939,9 @@ struct Fase: Identifiable {
     static func de(_ e: ActividadPruebaAtributos.ContentState) -> [Fase] {
         let m = { (min: Double) in e.inicio.addingTimeInterval(-min * 60) }
         return [
-            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(30)),
-            Fase(id: "Repaso", icono: "text.book.closed", desde: m(30), hasta: m(15)),
-            Fase(id: "Agua", icono: "drop", desde: m(15), hasta: m(10)),
-            Fase(id: "Sala", icono: "figure.walk", desde: m(10), hasta: e.inicio),
+            // Igual que los avisos (Lucas, 15-11): sin «repaso» ni «agua».
+            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(15)),
+            Fase(id: "Sala", icono: "figure.walk", desde: m(15), hasta: e.inicio),
             Fase(id: "Prueba", icono: "pencil", desde: e.inicio, hasta: e.fin),
         ]
     }
@@ -1007,7 +968,7 @@ struct RielFases: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Estudia, último repaso a las \(Hora.de(Fase.de(estado)[1].desde)), agua, sala y prueba a las \(Hora.de(estado.inicio))")
+        .accessibilityLabel("Estudia, camina a la sala a las \(Hora.de(Fase.de(estado)[1].desde)) y prueba a las \(Hora.de(estado.inicio))")
     }
 }
 

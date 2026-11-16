@@ -1,0 +1,81 @@
+name: buscacursos-uc
+on:
+  schedule:
+    # 03:17 en verano / 02:17 en invierno en Santiago (UTC fijo).
+    - cron: '17 6 * * *'
+    # Meses provisionales de config.mesesTomaUTC; el test exige que coincidan.
+    # La hora 6 ya la cubre el diario: no arrancar dos jobs a la vez.
+    - cron: '17 0-5,7-23 * 1,3,7,8,12 *'
+  workflow_dispatch:
+    inputs:
+      periodo:
+        description: 'YYYY-1 o YYYY-2; vacío = actual y siguiente si está publicado'
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: buscacursos-uc
+  cancel-in-progress: false
+jobs:
+  horario:
+    runs-on: ubuntu-latest
+    outputs:
+      ejecutar: ${{ steps.horario.outputs.ejecutar }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - id: horario
+        run: node bin/buscacursos-uc.js --programado
+  acceso:
+    # Una prueba manual desde una rama NO recibe el secreto ni toca Supabase.
+    if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Comprobar acceso público desde Actions
+        env:
+          PERIODO: ${{ inputs.periodo }}
+        run: |
+          args=(--comprobar-acceso)
+          if [[ -n "$PERIODO" ]]; then args+=(--periodo "$PERIODO"); fi
+          node bin/buscacursos-uc.js "${args[@]}"
+  actualizar:
+    needs: horario
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.horario.outputs.ejecutar == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: supabase
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Compilar fuentes para leer la URL pública del proyecto
+        run: npm run build
+      - name: Leer referencia vigente para la guarda del 70%
+        run: |
+          mkdir -p .cache
+          node bin/buscacursos-uc-subir.js --estado .cache/buscacursos-anterior.json
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      - name: Leer Buscacursos sin sesión
+        env:
+          PERIODO: ${{ inputs.periodo }}
+        run: |
+          args=(--anterior .cache/buscacursos-anterior.json)
+          if [[ -n "$PERIODO" ]]; then args+=(--periodo "$PERIODO"); fi
+          node bin/buscacursos-uc.js "${args[@]}"
+      - name: Consolidar lotes y resumir cambios
+        run: node bin/buscacursos-uc-subir.js
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      # No subir HTML/JSON crudos como artifacts: contienen docentes sin filtrar.
+      - name: Limpiar preparación local
+        if: always()
+        run: rm -f .cache/buscacursos-uc.json .cache/buscacursos-anterior.json

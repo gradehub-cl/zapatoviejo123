@@ -111,7 +111,7 @@ function abrirNotaEnFila(boton){
   const valido=()=>!input.value.trim()||!isNaN(parseNota(input.value));
   const guardar=()=>{
     if(terminado)return;
-    if(!valido()){input.setAttribute('aria-invalid','true');showToast('Escribe una calificación válida');return;}
+    if(!valido()){input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');return;}
     terminado=true;
     const raw=input.value.trim();
     if(!raw){input.replaceWith(boton);return;}
@@ -124,7 +124,7 @@ function abrirNotaEnFila(boton){
   input.addEventListener('blur',guardar);
   input.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();e.stopPropagation();terminado=true;input.replaceWith(boton);boton.focus({preventScroll:true});}
-    else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');showToast('Escribe una calificación válida');}
+    else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');}
   });
   boton.replaceWith(input);input.focus({preventScroll:true});
 }

@@ -150,6 +150,13 @@ chk('el semestre de la foto se lee',run(`periodoDeFotoHorario(${json([{texto:'20
 const conUnos=fotoReal();conUnos.palabras=conUnos.palabras.map(p=>p.texto==='FIS1514-'?{...p,texto:'F1S1514-'}:p);
 chk('«F1S1514-» se lee como FIS1514 solo porque existe en el catálogo',texto(leerGrilla([conUnos]).FIS1514)==='M 09:40-10:50 Cátedra -');
 chk('sin píxeles (otra versión del lector) no hay tipo, pero sí horario',texto(leerGrilla([{...fotoReal(),pixeles:null}]).FIS1514)==='M 09:40-10:50 - -');
+// Caso real (pantallazo de iPhone, 2026-11-15): el cuadrito de «Laboratorio» de la
+// leyenda salió desteñido y el celeste de la celda quedaba más cerca del lila del taller.
+chk('celeste con leyenda desteñida sigue siendo laboratorio, no taller',
+  run('distanciaTinte([179,212,244],[204,225,246])<distanciaTinte([179,212,244],[198,195,247])'));
+chk('aunque un cuadrito de la leyenda salga desteñido (30 %, como en el caso real), cada color sigue en su tipo',
+  run(`COLORES_TIPO_UC.every(([t,c])=>{const pal=COLORES_TIPO_UC.map(([u,d])=>[u,u===t?d.map(v=>v+(255-v)*0.3):d]);
+    return pal.reduce((m,p)=>distanciaTinte(c,p[1])<distanciaTinte(c,m[1])?p:m)[0]===t;})`));
 
 (async()=>{
   console.log('\n=== BuscaCursos pone la sala y los profesores ===');
@@ -177,6 +184,10 @@ chk('sin píxeles (otra versión del lector) no hay tipo, pero sí horario',text
     _horarioClasesUC=[{sigla:'MAT1620',nombre:'Cálculo II',bloques:[],profesores:['Persona Sintética'],diferencias:['lun mód. 5 ayudantía es cátedra en BuscaCursos'],marcado:true}];pintarRevisionHorarioUC();`);
   chk('la revisión muestra los profesores y lo que no calza',/Profesor según BuscaCursos: Persona Sintética/.test(get('modal-content').innerHTML)&&/No calza con BuscaCursos: lun mód\. 5 ayudantía es cátedra en BuscaCursos/.test(get('modal-content').innerHTML));
   run('ramoConSigla=__rcs');
+
+  run(`_buscacursosNoDisponible=false;supabaseClient={rpc:async()=>({data:[{sigla:'MAT1640',seccion:1,profesores:[],horario:[{dias:['J'],modulo:6,tipo:'LAB',sala:'SIN SALA'}]}],error:null})}`);
+  const sinSala=await run(`proponerHorarioDesdeCatalogo({tenant:'uc',sigla:'MAT1640',seccion:1,periodo:'2026-2'})`);
+  chk('«SIN SALA» de BuscaCursos no se guarda como sala',!!sinSala&&sinSala.celdas.length===1&&sinSala.celdas[0].sala===''&&sinSala.celdas[0].tipo==='Laboratorio');
 
   console.log('\n=== Sin BuscaCursos la foto sigue sola ===');
   run(`_buscacursosNoDisponible=false;__rpc=[];supabaseClient={rpc:async(fn,args)=>{__rpc.push(fn);return {data:null,error:{code:'PGRST202',message:'Could not find the function'}};}}`);

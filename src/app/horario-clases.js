@@ -58,9 +58,9 @@ async function proponerHorarioDesdeCatalogo({tenant,sigla,seccion,periodo}={}){
       const mod=Number(b&&b.modulo);
       if(!b||!Array.isArray(b.dias)||!MODULOS_HORARIO_POR_TENANT.uc[mod])return;
       const tipo=TIPOS_BUSCACURSOS[String(b.tipo||'').toUpperCase()]||'';
-      // BuscaCursos marca "SIN SALA" cuando todavía no hay sala asignada (la
+      // BuscaCursos escribe «SIN SALA» cuando todavía no hay sala asignada (la
       // mitad de los bloques de 2026-2): eso no es una sala.
-      const sala=typeof b.sala==='string'&&!/^(sin sala|por asignar|sin asignar|-+)$/i.test(b.sala.trim())?b.sala.trim().slice(0,100):'';
+      const sala=typeof b.sala==='string'&&!/^(sin sala|por asignar|sin asignar|por definir|-+)$/i.test(b.sala.trim())?b.sala.trim().slice(0,100):'';
       b.dias.filter(d=>DIAS_HORARIO.some(([k])=>k===d)).forEach(dia=>celdas.push({dia,mod,tipo,sala}));
     });
     const profesores=(Array.isArray(fila.profesores)?fila.profesores:[]).filter(x=>typeof x==='string'&&x.trim()&&!/^sin informar$/i.test(x.trim())).map(x=>x.trim().slice(0,100));

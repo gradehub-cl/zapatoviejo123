@@ -51,13 +51,36 @@ chk('sin hora no hay aviso',!lista.some(x=>/Tarea sin hora/.test(x)));
 chk('lo que ya pasó o ya tiene nota no cuenta',!lista.some(x=>/Control/.test(x)));
 
 console.log('\n=== Los avisos de cada fase ===');
-const avisos=a.run(`avisosDePrueba(pruebasConHora(${AHORA},14)[0],${AHORA}).map(x=>({h:x.at.getHours()+':'+String(x.at.getMinutes()).padStart(2,'0'),t:x.titulo,u:x.url,id:x.id}))`);
-chk('30, 15 y 10 minutos antes, y al terminar',avisos.map(x=>x.h).join()==='17:00,17:15,17:20,19:30');
-chk('último repaso, baño y agua, caminar a la sala, cómo te fue',/Último repaso/.test(avisos[0].t)&&/baño/.test(avisos[1].t)&&/Camina a tu sala/.test(avisos[2].t)&&/Cómo crees que te fue/.test(avisos[3].t));
-chk('"cómo te fue" abre el simulador del ramo; el resto, el ramo',avisos[3].u==='cl.gradehub.app://simular/a'&&avisos[0].u==='cl.gradehub.app://ramo/a');
-chk('los identificadores son estables y distintos',new Set(avisos.map(x=>x.id)).size===4&&avisos.every(x=>Number.isInteger(x.id)&&x.id>0&&x.id<2**31));
-chk('lo que ya pasó no se programa',a.run(`avisosDePrueba(pruebasConHora(${AHORA},14)[0],new Date(2026,9,7,17,16)).length`)===2);
-chk('con sala, dice cuál',a.run(`avisosDePrueba({...pruebasConHora(${AHORA},14)[0],sala:'B12'},${AHORA})[2].titulo`)==='Camina a la sala B12');
+// Lucas, 15-11: menos y más útiles. La noche anterior (hora, sala y lo que
+// necesitas), 15 minutos antes (caminar a la sala) y al terminar (cómo te fue).
+const DIA_ANTES='new Date(2026,9,6,12,0)';
+const avisos=a.run(`avisosDePrueba(pruebasConHora(${DIA_ANTES},14)[0],${DIA_ANTES}).map(x=>({d:x.at.getDate(),h:x.at.getHours()+':'+String(x.at.getMinutes()).padStart(2,'0'),t:x.titulo,c:x.cuerpo,u:x.url,id:x.id}))`);
+chk('la noche anterior a las 20:00, 15 minutos antes y al terminar',avisos.map(x=>x.d+' '+x.h).join()==='6 20:00,7 17:15,7 19:30');
+chk('la noche anterior dice qué es, a qué hora y lo que necesitas',/^Mañana: Interrogación 2 de Cálculo Sintético$/.test(avisos[0].t)&&/^17:30 · (Necesitas \d,\d|Vas aprobando)$/.test(avisos[0].c));
+chk('después: caminar a la sala y cómo te fue (sin repaso ni agua)',/^Camina a tu sala$/.test(avisos[1].t)&&/^¿Cómo te fue en Interrogación 2\?$/.test(avisos[2].t)&&!avisos.some(x=>/agua|baño|repaso/i.test(x.t)));
+chk('"cómo te fue" abre el simulador del ramo; el resto, el ramo',avisos[2].u==='cl.gradehub.app://simular/a'&&avisos[0].u==='cl.gradehub.app://ramo/a');
+chk('los identificadores son estables y distintos',new Set(avisos.map(x=>x.id)).size===3&&avisos.every(x=>Number.isInteger(x.id)&&x.id>0&&x.id<2**31));
+chk('lo que ya pasó no se programa',a.run(`avisosDePrueba(pruebasConHora(${AHORA},14)[0],new Date(2026,9,7,17,16)).length`)===1);
+const caminar=(extra='')=>a.run(`avisosDePrueba({...pruebasConHora(${AHORA},14)[0]${extra}},${AHORA}).find(x=>/^Camina/.test(x.titulo)).titulo`);
+chk('con sala, dice cuál',caminar(",sala:'B12'")==='Camina a la sala B12');
+// La prueba cae dentro de una clase del ramo: toma su sala y su término.
+a.run(`S.ramos[0].horario=copiarHorario([{dias:['W'],inicio:'17:30',fin:'18:40',tipo:'Cátedra',sala:'K201'}]);`);
+const conClase=a.run(`(p=>p.sala+'|'+p.fin.getHours()+':'+p.fin.getMinutes())(pruebasConHora(${AHORA},14)[0])`);
+chk('si la prueba cae en una clase del ramo, toma su sala y su hora de término',conClase==='K201|18:40');
+chk('y el aviso de caminar nombra esa sala',caminar()==='Camina a la sala K201');
+a.run(`S.ramos[0].horario=copiarHorario([{dias:['J'],inicio:'17:30',fin:'18:40',tipo:'Cátedra',sala:'K201'}]);`);
+chk('si no calza con ninguna clase (otro día), no se adivina la sala',a.run(`pruebasConHora(${AHORA},14)[0].sala`)===null);
+a.run(`S.ramos[0].horario=[];`);
+// «¿Cómo te fue?» mueve la nota sombra de esa evaluación: Normal = 4,0.
+a.almacen.set('gradehub_sensaciones',JSON.stringify({'a|i2||2026-10-07':{valor:4,fecha:Date.now()}}));
+a.run(`sesionNotasSombra={estado:null,ramos:new Map()};`);
+const sombra=a.run(`(()=>{const r=S.ramos[0],m=notasSombraDelRamo(r);const p=m&&m.pendientes.find(q=>q.catId==='i2');return p?m.fijas.get(p.clave):null;})()`);
+chk('«Bien» deja la sombra de esa evaluación en 5,0',sombra===5);
+a.almacen.set('gradehub_sensaciones',JSON.stringify({'a|i2||2026-10-07':{valor:3,fecha:Date.now()}}));
+a.run(`sesionNotasSombra={estado:null,ramos:new Map()};`);
+chk('«Normal» la deja en 4,0',a.run(`(()=>{const r=S.ramos[0],m=notasSombraDelRamo(r);const p=m.pendientes.find(q=>q.catId==='i2');return m.fijas.get(p.clave);})()`)===4);
+chk('la sensación no entra a S',!JSON.stringify(a.run('S')).includes('sensacion'));
+a.almacen.delete('gradehub_sensaciones');a.run(`sesionNotasSombra={estado:null,ramos:new Map()};`);
 
 console.log('\n=== Opt-in: sin activar no se programa nada ===');
 (async()=>{
@@ -73,11 +96,11 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   chk('queda activo solo en este dispositivo, fuera de S',a.almacen.get('gradehub_avisos_pruebas')==='1'&&!/avisos/.test(a.run('JSON.stringify(S)')));
   a.reg.programadas.length=0;a.reg.actividades.length=0;
   await a.run(`programarAvisosPruebas(${AHORA})`);
-  chk('programa los avisos de las dos evaluaciones',a.reg.programadas.length===8);
+  chk('programa los avisos de las dos evaluaciones (2 de hoy, porque la noche anterior ya pasó, y 3 del examen)',a.reg.programadas.length===5);
   chk('cada aviso va marcado como de GradeHub',a.reg.programadas.every(n=>n.extra.gradehub==='prueba'&&/^cl\.gradehub\.app:\/\//.test(n.extra.url)));
   const antes=a.reg.programadas.length;
   await a.run(`programarAvisosPruebas(${AHORA})`);
-  chk('reprogramar no duplica: cancela los anteriores',a.reg.canceladas.length>=antes&&a.reg.pendientes.length===8);
+  chk('reprogramar no duplica: cancela los anteriores',a.reg.canceladas.length>=antes&&a.reg.pendientes.length===5);
   a.run(`sincronizarActividadesPrueba(${AHORA})`);
   const act=a.reg.actividades.pop();
   chk('manda las de los próximos 3 días, no las lejanas',act.length===1&&act[0].evaluacion==='Interrogación 2');
@@ -92,7 +115,7 @@ console.log('\n=== Opt-in: sin activar no se programa nada ===');
   a.reg.sensaciones.push({clave:'a|i2||2026-10-07',valor:4,fecha:Date.now()},{clave:'x',valor:9,fecha:Date.now()});
   chk('recoge lo respondido con la app cerrada y descarta lo inválido',(await a.run('recogerSensaciones()'))===1);
   chk('queda solo en este dispositivo, fuera de S',/"a\|i2\|\|2026-10-07":\{"valor":4/.test(a.almacen.get('gradehub_sensaciones'))&&!/sensaci/.test(a.run('JSON.stringify(S)')));
-  chk('la usa en la evaluación de ese ramo que sigue sin nota',a.run(`(x=>x&&x.cat.id+':'+x.s.nota)(sensacionPendiente(S.ramos[0]))`)==='i2:5,5'&&a.run('sensacionPendiente(S.ramos[1])')===null);
+  chk('la usa en la evaluación de ese ramo que sigue sin nota',a.run(`(x=>x&&x.cat.id+':'+x.s.nota)(sensacionPendiente(S.ramos[0]))`)==='i2:5,0'&&a.run('sensacionPendiente(S.ramos[1])')===null);
   chk('una sensación vieja ya no precarga nada',a.run(`sensacionPendiente(S.ramos[0],Date.now()+4*864e5)`)===null);
   chk('el simulador parte con esa nota de partida',/precargarSensacion\(r\)/.test(leer('app.js'))&&a.run(`SENSACIONES.map(s=>s.texto).join()`)==='Muy mal,Mal,Normal,Bien,Muy bien');
   console.log('\n=== Tu olfato ===');

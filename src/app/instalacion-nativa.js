@@ -47,7 +47,8 @@ function vibrar(tipo){
   try{
     const H=enAppNativa()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Haptics;
     if(!H)return;
-    if(tipo==='borrar')H.notification({type:'WARNING'}).catch(()=>{});
+    if(tipo==='nota')H.notification({type:'SUCCESS'}).catch(()=>{});
+    else if(tipo==='borrar'||tipo==='error')H.notification({type:'WARNING'}).catch(()=>{});
     else if(tipo==='levantar')H.impact({style:'MEDIUM'}).catch(()=>{});
     // El generador de selección se prepara una vez y queda listo para cada tic.
     else if(tipo==='seleccion'){
@@ -201,3 +202,65 @@ function showMainApp(){
 // Orden izq→der para el deslizar. Es una lista VIVA: la pestaña de profesor solo
 // existe para quien está aprobado, así que el carrusel tiene que poder crecer y
 // encogerse sin dejar a nadie parado en una pestaña que ya no está.
+// En la app, la barra de pestañas se puede recorrer con el dedo, como en iOS:
+// se aprieta, se desliza y la pestaña bajo el dedo queda marcada; al soltar se
+// abre esa. Un toque normal sigue siendo un clic. Si el dedo sale de la barra
+// hacia arriba, no se abre nada.
+(function(){
+  const nav=document.getElementById('bottom-nav');
+  const raiz=document.documentElement;
+  if(!nav||typeof nav.addEventListener!=='function'||!raiz||!raiz.classList||!raiz.classList.contains('app-nativa'))return;
+  let inicio=null,arrastrando=false,bajo=null,anularClic=false;
+  const itemEn=(x,y)=>{
+    const r=nav.getBoundingClientRect();
+    if(y<r.top-40)return null;
+    // Por posición, no con elementFromPoint: así no importa qué esté encima.
+    const visibles=[...nav.querySelectorAll('.nav-item')].filter(i=>i.offsetParent!==null);
+    if(!visibles.length)return null;
+    const xs=Math.min(Math.max(x,r.left+1),r.right-1);
+    const centro=i=>{const b=i.getBoundingClientRect();return (b.left+b.right)/2;};
+    return visibles.reduce((a,i)=>Math.abs(xs-centro(i))<Math.abs(xs-centro(a))?i:a);
+  };
+  const marcar=it=>{
+    if(it===bajo)return;
+    if(bajo)bajo.classList.remove('nav-bajo-dedo');
+    bajo=it;
+    if(bajo){bajo.classList.add('nav-bajo-dedo');vibrar('seleccion');}
+  };
+  const terminar=()=>{
+    if(bajo)bajo.classList.remove('nav-bajo-dedo');
+    nav.classList.remove('nav-arrastrando');
+    inicio=null;arrastrando=false;bajo=null;
+  };
+  nav.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    inicio={x:e.clientX,y:e.clientY,id:e.pointerId};
+  });
+  nav.addEventListener('pointermove',e=>{
+    if(!inicio||e.pointerId!==inicio.id)return;
+    if(!arrastrando){
+      if(Math.abs(e.clientX-inicio.x)<10)return;
+      arrastrando=true;
+      try{nav.setPointerCapture(e.pointerId);}catch(_){}
+      nav.classList.add('nav-arrastrando');
+      bajo=null;
+    }
+    marcar(itemEn(e.clientX,e.clientY));
+  });
+  nav.addEventListener('pointerup',e=>{
+    if(!inicio||e.pointerId!==inicio.id)return;
+    if(arrastrando){
+      const it=itemEn(e.clientX,e.clientY);
+      anularClic=true;setTimeout(()=>{anularClic=false;},400);
+      terminar();
+      if(it&&!it.classList.contains('active'))it.click();
+      return;
+    }
+    inicio=null;
+  });
+  nav.addEventListener('pointercancel',terminar);
+  // El clic que el navegador dispara al soltar tras arrastrar no debe abrir otra pestaña.
+  nav.addEventListener('click',e=>{
+    if(anularClic&&e.isTrusted){e.stopPropagation();e.preventDefault();anularClic=false;}
+  },true);
+})();
