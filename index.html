@@ -135,18 +135,17 @@
   </svg>
 </div>
 <!-- El splash nativo se queda puesto hasta que esta pantalla ya se pintó (dos
-     cuadros); sin esto quedaba un fondo vacío entre los dos. Se saca de una
-     (es idéntico) y recién ahí parte la respiración, desde las capas juntas como
-     en el splash: antes corría escondida y quien abría sin sesión casi no la
-     veía. Si nunca llega, el splash se va solo a los 3 s (capacitor.config.json).
+     cuadros). Se retira al pintar la primera pantalla, sin esperar una
+     animación de marca. Si el JS no llega, el splash se va solo a los 3 s
+     (capacitor.config.json).
      quitarArranque() también la llama, por si la carga termina antes. -->
 <script>
 function soltarSplash(){
   const a=document.getElementById('arranque');
-  if(a&&!a.dataset.desde){a.dataset.desde=performance.now();a.classList.add('vivo');}
+  if(a)a.remove();
   try{Capacitor.Plugins.SplashScreen.hide({fadeOutDuration:0});}catch(e){}
 }
-if(document.documentElement.classList.contains('app-nativa'))requestAnimationFrame(()=>requestAnimationFrame(soltarSplash));
+if(document.documentElement.classList.contains('app-nativa'))document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(()=>requestAnimationFrame(soltarSplash)),{once:true});
 </script>
 <noscript><style>#screen-loading{display:none;}</style><div style="padding:40px 24px;text-align:center;font-family:sans-serif;color:#0f172a;">GradeHub necesita JavaScript para funcionar. Actívalo en tu navegador para registrar tus notas.</div></noscript>
 <div class="app">

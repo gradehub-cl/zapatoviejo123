@@ -4,5 +4,7 @@ import Capacitor
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(GradeHubWidgetsPlugin())
+        // La raíz nunca rebota: los contenedores HTML conservan su scroll.
+        webView?.scrollView.bounces = false
     }
 }
