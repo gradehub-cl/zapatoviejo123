@@ -57,6 +57,12 @@ public class AppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCont
             return
         }
         var result: [String: Any] = ["identityToken": token]
+        // Código de un solo uso: lo usa el servidor para revocar el acceso al
+        // borrar la cuenta (functions/apple-revocar.js). Iniciar sesión no lo usa.
+        if let codigo = credential.authorizationCode,
+           let texto = String(data: codigo, encoding: .utf8), !texto.isEmpty {
+            result["authorizationCode"] = texto
+        }
         if let components = credential.fullName {
             let name = PersonNameComponentsFormatter().string(from: components).trimmingCharacters(in: .whitespacesAndNewlines)
             if !name.isEmpty { result["fullName"] = name }

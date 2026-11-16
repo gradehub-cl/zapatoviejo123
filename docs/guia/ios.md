@@ -256,6 +256,29 @@ Antes del merge, Lucas configura con el equipo Apple Developer de la SpA:
    clave `.p8` y el JWT de secreto no son lo mismo: la firma genera un JWT nuevo.
    No se programó una renovación automática ni se cambiaron credenciales aquí.
 
+### Revocar Apple al borrar la cuenta (5.1.1(v))
+
+Al borrar una cuenta que entra con Apple, **en la app** se le pide a Apple que
+confirme (el mismo `AppleSignInPlugin`, que ahora también devuelve el
+`authorizationCode`) y `cuenta-borrado.js` manda ese código de un solo uso a
+`functions/apple-revocar.js`. La función verifica la sesión de Supabase, canjea
+el código con Apple, comprueba que el Apple ID (`sub`) sea el de la cuenta y
+revoca el token. **No se guarda ningún token**, ni hay tabla nueva ni SQL. Si la
+revocación falla, la cuenta no se borra y la persona puede reintentar. En la web
+no hay cómo pedir ese código sin la librería de Apple: la cuenta se borra igual.
+
+La función necesita tres secretos en **Cloudflare Pages → Settings → Variables
+and Secrets** (Production y Preview), nunca en el repo ni en el cliente:
+
+| Variable | Valor |
+|---|---|
+| `APPLE_TEAM_ID` | `PH6XQV8L2M` |
+| `APPLE_KEY_ID` | El Key ID de la llave de Sign in with Apple |
+| `APPLE_P8` | El contenido de la `.p8`, con sus líneas BEGIN/END (tipo *Secret*) |
+
+Sin esos secretos la función responde 503 y la app avisa que no pudo
+desconectar el Apple ID, sin borrar la cuenta.
+
 Antes de abrir Apple se consulta el endpoint público `/auth/v1/settings`, sin
 sesión ni datos personales. Si el proveedor está apagado o no se puede consultar,
 la pantalla conserva sus otros métodos y explica el error en español. Esto no
