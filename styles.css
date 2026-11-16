@@ -4913,7 +4913,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-identidad{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%}
 .directorio-textos{display:flex;flex-direction:column;gap:12px;min-width:0;flex:1}
 .directorio-avatar.catalogo-clase-logo{display:flex;align-items:center;justify-content:flex-end;width:auto;height:48px;max-width:120px;flex-shrink:0;font-weight:700;border:0;border-radius:0;overflow:visible}
-.directorio-avatar.catalogo-clase-logo img{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
+/* Solo el logo: la capa del contorno (img.logo-clase-borde) lleva su propio
+   tamaño y no se encoge, o queda corrida bajo el logo (Salva Ramos, 2026-11-16). */
+.directorio-avatar.catalogo-clase-logo img.logo-clase{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
 /* Sin logo: la inicial en un círculo teñido con el color del perfil. */
 .directorio-tarjeta .directorio-avatar.catalogo-clase-logo:not(:has(img)){justify-content:center;width:48px;border-radius:50%;
   background:color-mix(in srgb,var(--directorio-color) 22%,var(--card));color:var(--directorio-acento);font-size:1.25rem}
