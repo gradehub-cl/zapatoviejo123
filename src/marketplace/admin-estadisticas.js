@@ -236,7 +236,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
           </section>
         </div>
       </div>
-      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa anteriores"><h3>Reportes de programa anteriores</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>
+      <section class="admin-hig-profesores" id="admin-reportes-programa" aria-label="Reportes de programa"><h3>Reportes de programa anteriores</h3><p class="profesor-info" role="status">Cargando reportes…</p></section>
       ${temaFestivoAdminHTML()}`)}
   </div>`;
 }
@@ -297,8 +297,9 @@ let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado
 // Esta bandeja se crea solo después de renderPuertaDosPasos. El RPC vuelve a
 // exigir en el servidor una cuenta administradora con el segundo factor (aal2).
 async function pintarReportesProgramaAdmin(raiz){
-  const caja=raiz.querySelector('#admin-reportes-programa');
-  if(!caja)return;
+  const contenedor=raiz.querySelector('#admin-reportes-programa');
+  if(!contenedor)return;
+  const caja=prepararPestanasProgramas(contenedor);
   try{
     const {data,error}=await supabaseClient.rpc('admin_reportes_programa');
     if(!caja.isConnected)return;

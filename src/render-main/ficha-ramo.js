@@ -349,6 +349,8 @@ function renderRamo(){
     }
   }
 
+  pintarProgramaPdfRamo(r);
+
   // La pauta oficial cambió y este ramo sigue con la vieja. No se toca nada sin
   // que el estudiante apriete: es su ramo y su promedio va a cambiar.
   const pcw=document.getElementById('pauta-cambio');

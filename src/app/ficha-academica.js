@@ -69,19 +69,20 @@ function leerFichaAcademica(lineas){
   return {filas,omitidos};
 }
 
-async function lineasDePdf(archivo,pdfjs){
+async function lineasDePdf(archivo,pdfjs,{metadatos=false,maxPaginas=10,pararConTexto=false}={}){
   const data=new Uint8Array(await archivo.arrayBuffer());
   const doc=await pdfjs.getDocument({data,isEvalSupported:false,disableFontFace:true}).promise;
-  const lineas=[];
+  const lineas=[],paginas=doc.numPages;
   try{
     // Una ficha tiene una o dos páginas; el tope evita colgar el teléfono con
     // un PDF que no es la ficha.
-    for(let p=1;p<=Math.min(doc.numPages,10);p++){
+    for(let p=1;p<=Math.min(doc.numPages,maxPaginas);p++){
       const pagina=await doc.getPage(p);
       lineas.push(...lineasDeItemsPdf((await pagina.getTextContent()).items));
+      if(pararConTexto&&lineas.some(l=>l.trim()))break;
     }
   }finally{doc.destroy();}
-  return lineas;
+  return metadatos?{lineas,paginas}:lineas;
 }
 
 function esSeguimientoCurricular(lineas,nombre){

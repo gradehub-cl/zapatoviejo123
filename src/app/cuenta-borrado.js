@@ -22,8 +22,11 @@ async function eliminarCuenta(){
   if(!supabaseClient||!currentUser){showToast('Primero inicia sesión',true);return;}
   showToast('Eliminando tu cuenta…');
   try{
-    const {error}=await supabaseClient.rpc('eliminar_mi_cuenta');
-    if(error)throw error;
+    const yaBorrada=await borrarProgramasAntesDeCuenta();
+    if(!yaBorrada){
+      const {error}=await supabaseClient.rpc('eliminar_mi_cuenta');
+      if(error)throw error;
+    }
     track('delete_account');
     // Recién acá se limpia lo local: si el borrado en la nube falló, el
     // estudiante conserva sus notas en el dispositivo y puede reintentar.
