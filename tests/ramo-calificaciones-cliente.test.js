@@ -7,13 +7,15 @@ vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js','marketplac
 const run=s=>vm.runInContext(s,ctx);
 run(`var currentUser={id:'cuenta-sintetica'},supabaseClient=null;S=normalize({tenant:'uc',tipoCuenta:'estudiante',ramos:[{id:'r',nombre:'Ramo propio',sigla:'TST100',seccion:2,creditos:10,gates:[],categorias:[{id:'p',nombre:'Prueba',peso:50,directNota:true,notas:[{id:'n1',nombre:'Prueba',valor:5,peso:1}]},{id:'e',nombre:'Examen',peso:50,directNota:true,notas:[]}]}],historial:[]});globalThis.r=S.ramos[0];`);
 const sql=fs.readFileSync(__dirname+'/../supabase/ramo_calificaciones.sql','utf8');
-const validas=sql.match(/select array\[([\s\S]*?)\]::text\[\]/)[1].match(/'([^']+)'/g).map(x=>x.slice(1,-1));assert.deepEqual(JSON.parse(run('JSON.stringify(RAMO_ETIQUETAS.map(e=>e.id))')),validas);assert.equal(validas.length,12);
+const validas=sql.match(/select array\[([\s\S]*?)\]::text\[\]/)[1].match(/'([^']+)'/g).map(x=>x.slice(1,-1));assert.deepEqual(JSON.parse(run('JSON.stringify(RAMO_ETIQUETAS.map(e=>e.id))')),validas);assert.equal(validas.length,8);assert(!validas.includes('asistencia_obligatoria'),'la asistencia es una pregunta, no una etiqueta');
 const guardado=run('JSON.stringify(S)'),c=run('contextoCalificarRamo(r)');
 assert.equal(c.clave,'tst100');assert.equal(c.p_seccion,2);ctx.__ctx=c;
-assert.throws(()=>run("payloadCalificarRamo(__ctx,1,5,true,['otro'])"),/lista/);
-assert.throws(()=>run("payloadCalificarRamo(__ctx,1,5,true,Array(4).fill('interesante'))"),/lista/);
-for(const exp of ['payloadCalificarRamo(__ctx,0,5,true)','payloadCalificarRamo(__ctx,1,6,true)','payloadCalificarRamo(__ctx,1,3,null)'])assert.throws(()=>run(exp),/preguntas/);
-assert.deepEqual(JSON.parse(run("JSON.stringify(payloadCalificarRamo(__ctx,2,4,false,['interesante','interesante']))")),{p_ramo_id:'r',p_seccion:2,p_periodo:c.p_periodo,p_carga:2,p_facilidad:4,p_recomienda:false,p_etiquetas:['interesante']});
+const base={carga:1,facilidad:5,asistencia:null,recomienda:true};ctx.__b=base;
+assert.throws(()=>run("payloadCalificarRamo(__ctx,{...__b,etiquetas:['otro']})"),/lista/);
+assert.throws(()=>run("payloadCalificarRamo(__ctx,{...__b,etiquetas:Array(4).fill('interesante')})"),/lista/);
+for(const cambio of ['{carga:0}','{facilidad:6}','{facilidad:undefined}','{asistencia:undefined}','{asistencia:"si"}','{recomienda:null}'])assert.throws(()=>run(`payloadCalificarRamo(__ctx,{...__b,...${cambio}})`),/preguntas/);
+assert.deepEqual(JSON.parse(run("JSON.stringify(payloadCalificarRamo(__ctx,{carga:2,facilidad:4,asistencia:false,recomienda:false,etiquetas:['interesante','interesante']}))")),{p_ramo_id:'r',p_seccion:2,p_periodo:c.p_periodo,p_carga:2,p_facilidad:4,p_asistencia:false,p_recomienda:false,p_etiquetas:['interesante']});
+assert.equal(JSON.parse(run("JSON.stringify(payloadCalificarRamo(__ctx,__b))")).p_asistencia,null,'«No sé» viaja como null');
 assert.equal(run('elegibleAvisoCalificarRamo(r,__ctx,{puede_calificar:true,mia:null})'),true);
 assert.equal(run('elegibleAvisoCalificarRamo({...r,categorias:[{...r.categorias[0],peso:49.9},{...r.categorias[1],peso:50.1}]},__ctx,{puede_calificar:true,mia:null})'),false,'49,9% no se redondea a 50 para el aviso');
 run('marcarAvisoCalificarRamo(__ctx)');assert.equal(run('elegibleAvisoCalificarRamo(r,__ctx,{puede_calificar:true,mia:null})'),false);
@@ -24,8 +26,24 @@ assert.equal(run('elegibleAvisoCalificarRamo(r,__ctx,{puede_calificar:true,mia:{
 run("S.tipoCuenta='profesor'");assert.equal(run('contextoCalificarRamo(r)'),null);run("S.tipoCuenta='estudiante'");
 assert.equal(run('contextoCalificarRamo({...r,seccion:null})'),null);
 assert.equal(run('contenidoResumenRamoHTML({disponible:true,total:4,facilidad:4.9,docentes:[{nombre:"No debe aparecer"}]})').includes('No debe aparecer'),false);
-const html=run(`contenidoResumenRamoHTML({disponible:true,total:5,carga:[1,2,3,4].map(opcion=>({opcion,n:opcion===1?5:0})),facilidad:4,facilidad_distribucion:[1,2,3,4,5].map(opcion=>({opcion,n:opcion===4?5:0})),recomiendan_de_10:8,etiquetas:[{id:'asistencia_obligatoria',n:3},{id:'interesante',n:2},{id:'texto_inventado',n:9}],docentes:[{nombre:'Docente sintético',estrellas:{total:3,promedio:4.3},ramo:{total:4,facilidad:4.8}}]})`);
-assert(html.includes('Según estudiantes'));assert(!html.includes('Muy interesante'));assert(!html.includes('texto_inventado'));assert(html.includes('★ 4,3'));assert(!html.includes('4,8'));assert(!html.includes('anillo'));
+// Ramo sintético con dos profesores que evalúan distinto (como Fariña y Carmona).
+const bloque=(facilidad,si,no,rec,horas)=>({total:10,carga:[1,2,3,4].map(opcion=>({opcion,n:opcion===horas?7:opcion===horas%4+1?3:0})),facilidad,asistencia:{si,no},recomiendan_de_10:rec,etiquetas:[]});
+ctx.__d={disponible:true,...bloque(3.4,6,14,6,2),total:20,carga:[{opcion:1,n:4},{opcion:2,n:12},{opcion:3,n:4},{opcion:4,n:0}],etiquetas:[{id:'mucha_lectura',n:3},{id:'interesante',n:2},{id:'texto_inventado',n:9}],
+ docentes:[{nombre:'Profesora Exigente',estrellas:{total:3,promedio:4.3},opiniones:bloque(2.1,0,10,4,3)},{nombre:'Profesor Accesible',estrellas:null,opiniones:bloque(4.7,6,4,8,1)},{nombre:'Profesor Nuevo',estrellas:null,opiniones:{total:4,facilidad:1.2}}]};
+const coord=run('contenidoResumenRamoHTML(__d,{coordinado:true})'),noCoord=run('contenidoResumenRamoHTML(__d,{coordinado:false})'),sinDato=run('contenidoResumenRamoHTML(__d)');
+assert(coord.includes('3,4')&&coord.includes('Mucha lectura')&&!coord.includes('2,1')&&!coord.includes('4,7'),'coordinado: el ramo entero, sin desglose de facilidad por profesor');
+assert(coord.includes('class="anillo'),'coordinado: facilidad, recomendación y asistencia en anillos');
+assert(coord.includes('3 a 6 h <small>12 de 20</small>'),'coordinado: el tramo de horas más común con su peso');
+assert(coord.includes('Cómo enseña cada profesor')&&coord.includes('4,3')&&!coord.includes('Profesor Accesible'),'coordinado: del profesor solo cómo enseña, y solo con base');
+assert(!coord.includes('Muy interesante')&&!coord.includes('texto_inventado'));
+assert(!noCoord.includes('3,4'),'no coordinado: nunca el promedio que mezcla profesores');
+assert(noCoord.includes('2,1')&&noCoord.includes('4,7')&&noCoord.includes('Profesora Exigente')&&noCoord.includes('Profesor Accesible'));
+assert(noCoord.includes('class="rr-riel"')&&!noCoord.includes('class="anillo'),'no coordinado: barras paralelas, no anillos');
+assert(noCoord.includes('Dicen que se toma asistencia')&&noCoord.includes('0 <small>de 10</small>')&&noCoord.includes('6 <small>de 10</small>'),'la asistencia se muestra como hecho');
+assert(noCoord.includes('Con pocas opiniones todavía: Profesor Nuevo')&&!noCoord.includes('1,2'),'bajo cinco con un profesor no hay números');
+assert.equal(sinDato,noCoord,'sin dato de coordinación se muestra por profesor');
+ctx.__solo={...ctx.__d,docentes:[{nombre:'Profesor Nuevo',opiniones:null}]};
+const sinSeparar=run('contenidoResumenRamoHTML(__solo,{coordinado:false})');assert(sinSeparar.includes('Todavía no alcanzan para separarlas por profesor')&&!sinSeparar.includes('3,4'));
 assert.equal(run('JSON.stringify(S)'),guardado,'las presentaciones no cambian la pauta ni sus notas');
 // Búsqueda y selección existentes no dependen de la RPC ni del contenido del resumen.
 run(`globalThis.catalogoOriginal=searchCatalog('calculo','uc','ING-PC',2).map(r=>r.nombre);supabaseClient={rpc:async()=>({data:null,error:{code:'PGRST202'}})};`);

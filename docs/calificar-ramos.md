@@ -2,6 +2,37 @@
 
 Esta función no guarda notas académicas ni altera el promedio, la pauta o
 `gradehub_v1`. Sus respuestas cerradas viven en una tabla separada de Supabase.
+Va en la web y en la app (Lucas, 2026-11-15: excepción a la regla de «lo nuevo
+solo en la app»).
+
+## Qué se pregunta y qué se muestra (Lucas, 2026-11-15)
+
+Una opinión es de lo que la persona cursó: ramo, sección y semestre. La sección
+dice quién lo dictó. Son cuatro preguntas, más etiquetas opcionales:
+
+- qué tan fácil es sacarse buena nota (1 a 5);
+- horas a la semana fuera de clases (cuatro tramos);
+- si se tomaba asistencia (sí, no o no sé: es un hecho, no una estrella);
+- si lo recomendaría.
+
+«Cómo enseña» el profesor sigue en `profesor_calificaciones`. No se pregunta
+aparte la exigencia de las pruebas: casi repite la facilidad y alarga el
+formulario.
+
+Todo se guarda igual. **La regla se aplica al mostrar**, según
+`coordinacionRamo` (la coordinación puede cambiar de un semestre a otro):
+
+- **Coordinado** (Cálculo I): las pruebas son las mismas en todas las
+  secciones, así que el ramo entero va en anillos (facilidad con su palabra,
+  recomendación y asistencia), las horas en una barra repartida con el tramo
+  más común destacado, y del profesor solo «cómo enseña», en barras paralelas.
+- **No coordinado o sin dato** (Principios Ecológicos): «Depende de con quién
+  lo tomes». Cada dato compara a los profesores en barras paralelas sobre la
+  misma escala. **Nunca un promedio que mezcle profesores.**
+
+Cada cifra en su escala, según [reglas-y-entrega](guia/reglas-y-entrega.md):
+anillo para una escala o una parte de un total, barras para comparar. La ficha
+del ramo solo dice «N de cada 10 lo recomiendan» si es coordinado.
 
 ## SQL manual
 
@@ -41,9 +72,9 @@ veces a quien repite el ramo, el resumen usa su respuesta del **semestre más
 reciente**, no la última edición de un semestre antiguo. Esta elección no
 borra sus otras respuestas privadas.
 
-Una etiqueta requiere tres cuentas. Los números de carga y facilidad se
-muestran en colores neutros: son opiniones, no notas ni reglas del programa.
-La asistencia se rotula expresamente como lo que dicen los estudiantes.
+Una etiqueta requiere tres cuentas. Las cifras van en el acento, sin semáforo:
+son opiniones, no notas ni reglas del programa. La asistencia se muestra como
+lo que dicen los estudiantes, contando solo a quienes la recuerdan.
 
 Los docentes se atribuyen mediante los aportes y el consenso existente de
 sección/período. Un aporte propio que contradice el consenso no se atribuye al
@@ -51,8 +82,8 @@ docente ganador. Los nombres se presentan como docentes informados en distintos
 semestres, sin prometer que dictan el siguiente.
 
 Las estrellas conservan la consulta y el piso de tres de
-`profesor_calificacion_estado`. Su carga y facilidad específicas requieren
-cinco opiniones de ramo; bajo ese piso no se publica siquiera el tamaño del
+`profesor_calificacion_estado`. Su bloque propio (facilidad, horas,
+asistencia y recomendación) requiere cinco opiniones de ramo; bajo ese piso no se publica siquiera el tamaño del
 subgrupo. Si el ramo completo no alcanza su piso, no se muestra ningún desglose.
 
 Un nombre de `profesor_ocultos` nunca aparece. Sus opiniones solo contribuyen
@@ -61,12 +92,11 @@ autores sin aporte propio que puedan asociarse por el consenso de su sección.
 La receta de supresión al final del SQL debe ejecutarse **antes de borrar
 `profesor_aportes`**, y luego seguir la receta existente de `profesores.sql`.
 
-## Etiquetas propuestas para aprobación de Lucas
+## Etiquetas
 
 Mucha lectura; Controles semanales; Trabajo en grupo; Buen material;
-Muy interesante; Exigente pero justo; Asistencia obligatoria;
-Evaluaciones frecuentes; Práctica aplicada; Proyectos y presentaciones;
-Discusión en clases; Retroalimentación útil.
+Muy interesante; Exigente pero justo; Proyectos y presentaciones;
+Retroalimentación útil. La asistencia dejó de ser etiqueta.
 
 No existe «Otro», texto libre ni moderación en esta etapa. La segunda fase
 queda pendiente: filtros/orden por carga, facilidad y recomendación, y
@@ -79,17 +109,14 @@ comprueba piso, permisos, propiedad, historial, docentes ocultos, edición,
 borrado y cascada. `tests/ramo-calificaciones-cliente.test.js` comprueba
 etiquetas, aviso local, contexto, estado académico intacto y catálogo sin RPC.
 
-Las capturas usan una cuenta sintética existente con sección y notas; hay
-versiones a 375 y 1280 px, claro/oscuro, y texto al 200% en
-[`tests/capturas/calificar-ramos`](../tests/capturas/calificar-ramos/).
-El recorrido de navegador verifica calificar, editar, borrar, cierre de un
-semestre anterior, resumen con/sin muestra, paso después del profesor y agregar
-un ramo sin SQL. No se consultaron cuentas reales.
+Las capturas del rediseño (2026-11-15) están en la PR, con datos sintéticos.
+No se consultaron cuentas reales.
 
 Se siguen las HIG de [Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets),
 [Segmented controls](https://developer.apple.com/design/human-interface-guidelines/segmented-controls)
 y [Charts](https://developer.apple.com/design/human-interface-guidelines/charts):
 una hoja a la vez, una acción principal, opciones excluyentes de 44 pt,
-distribuciones en barras con valores también en texto, y cifras neutrales.
+comparaciones en barras paralelas con valores también en texto, y anillos con
+`aria-label`.
 Se revisaron foco, movimiento reducido, lectura al 200% y contraste de texto
 de al menos 4,5:1 en claro y oscuro.

@@ -1,4 +1,9 @@
 -- Fase 1: opiniones cerradas de ramos. Aplicar A MANO después de profesores.sql.
+-- Cada opinión es de una sección (ramo + sección + semestre), y la sección dice
+-- quién la dictó. Se guarda igual para todos los ramos: el cliente decide al
+-- mostrar si suma por ramo (coordinado) o por profesor (no coordinado o sin
+-- dato), porque la coordinación puede cambiar de un semestre a otro. Por eso el
+-- resumen devuelve el total del ramo y un bloque por profesor.
 -- Reaplicable; no modifica user_ramos, profesores.sql ni notas académicas.
 -- No ejecutar contra producción como parte de esta PR.
 begin;
@@ -8,12 +13,11 @@ begin;
 create or replace function public.ramo_piso_publicacion()
 returns integer language sql immutable set search_path = '' as $$ select 5; $$;
 
--- Propuesta de 12 etiquetas cerradas pendiente de revisión de Lucas.
+-- Etiquetas cerradas. La asistencia no va acá: es una pregunta (un hecho).
 create or replace function public.ramo_etiquetas_validas()
 returns text[] language sql immutable set search_path = '' as $$
  select array['mucha_lectura','controles_semanales','trabajo_grupo','buen_material',
- 'interesante','exigente_justo','asistencia_obligatoria','evaluaciones_frecuentes',
- 'practica_aplicada','proyectos_presentaciones','discusion_clase','retroalimentacion_util']::text[];
+ 'interesante','exigente_justo','proyectos_presentaciones','retroalimentacion_util']::text[];
 $$;
 
 create table if not exists public.ramo_calificaciones (
@@ -24,6 +28,8 @@ create table if not exists public.ramo_calificaciones (
  periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
  carga smallint not null check (carga between 1 and 4),
  facilidad smallint not null check (facilidad between 1 and 5),
+ -- ¿Se tomaba asistencia? null = no se acuerda.
+ asistencia boolean,
  recomienda boolean not null,
  etiquetas text[] not null default '{}'::text[] check (
   cardinality(etiquetas)<=3 and array_position(etiquetas,null) is null
@@ -71,8 +77,11 @@ begin
 end;
 $$;
 
+-- Firma anterior del borrador (nunca aplicada en producción).
+drop function if exists public.ramo_calificar(text,integer,text,integer,integer,boolean,text[]);
 create or replace function public.ramo_calificar(p_ramo_id text,p_seccion integer,p_periodo text,
- p_carga integer,p_facilidad integer,p_recomienda boolean,p_etiquetas text[] default '{}'::text[])
+ p_carga integer,p_facilidad integer,p_asistencia boolean,p_recomienda boolean,
+ p_etiquetas text[] default '{}'::text[])
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare c record; lista text[];
 begin
@@ -82,10 +91,11 @@ begin
  if p_etiquetas is null or cardinality(p_etiquetas)>3 or array_position(p_etiquetas,null) is not null
     or not p_etiquetas <@ public.ramo_etiquetas_validas() then raise exception 'etiquetas no válidas'; end if;
  select coalesce(array_agg(distinct e order by e),'{}'::text[]) into lista from unnest(p_etiquetas) e;
- insert into public.ramo_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,carga,facilidad,recomienda,etiquetas)
- values(auth.uid(),c.tenant,c.ramo_clave,p_seccion,p_periodo,p_carga,p_facilidad,p_recomienda,lista)
+ insert into public.ramo_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,carga,facilidad,asistencia,recomienda,etiquetas)
+ values(auth.uid(),c.tenant,c.ramo_clave,p_seccion,p_periodo,p_carga,p_facilidad,p_asistencia,p_recomienda,lista)
  on conflict(user_id,tenant,ramo_clave,periodo) do update set seccion=excluded.seccion,carga=excluded.carga,
- facilidad=excluded.facilidad,recomienda=excluded.recomienda,etiquetas=excluded.etiquetas,actualizada=now();
+ facilidad=excluded.facilidad,asistencia=excluded.asistencia,
+ recomienda=excluded.recomienda,etiquetas=excluded.etiquetas,actualizada=now();
  return true;
 end;
 $$;
@@ -105,7 +115,8 @@ returns jsonb language plpgsql stable security definer set search_path = '' as $
 declare c record; mia jsonb;
 begin
  select * into strict c from public.ramo_calificacion_contexto(p_ramo_id,p_seccion,p_periodo);
- select jsonb_build_object('carga',k.carga,'facilidad',k.facilidad,'recomienda',k.recomienda,'etiquetas',k.etiquetas)
+ select jsonb_build_object('carga',k.carga,'facilidad',k.facilidad,
+  'asistencia',k.asistencia,'recomienda',k.recomienda,'etiquetas',k.etiquetas)
  into mia from public.ramo_calificaciones k where k.user_id=auth.uid() and k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and k.periodo=p_periodo;
  return jsonb_build_object('puede_calificar',true,'mia',mia);
 end;
@@ -124,6 +135,31 @@ returns text language sql stable security definer set search_path = '' as $$
  ganadores as(select * from grupos where n=(select max(n) from grupos))
  select g.nombre from ganadores g where not exists(select 1 from ganadores otro where not public.profesor_coinciden(g.nombre,otro.nombre))
  order by (select count(*) from aportes a where a.nombre=g.nombre) desc,g.nombre limit 1;
+$$;
+
+-- Un bloque de agregados para un grupo de opiniones (el ramo entero o un
+-- profesor). Bajo el piso devuelve null: ni siquiera se expone cuántas son.
+-- Interna: solo la llama ramo_resumen_publico.
+create or replace function public.ramo_resumen_bloque(p_filas jsonb)
+returns jsonb language sql stable set search_path = '' as $$
+ with f as materialized (
+  select x->>'user_id' as u,(x->>'carga')::int as carga,(x->>'facilidad')::int as facilidad,
+   (x->>'asistencia')::boolean as asistencia,
+   (x->>'recomienda')::boolean as recomienda,
+   case when jsonb_typeof(x->'etiquetas')='array' then x->'etiquetas' else '[]'::jsonb end as etiquetas
+  from jsonb_array_elements(case when jsonb_typeof(p_filas)='array' then p_filas else '[]'::jsonb end) x
+ )
+ select case when (select count(distinct u) from f)<public.ramo_piso_publicacion() then null else jsonb_build_object(
+  'total',(select count(*) from f),
+  'carga',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from f where carga=g)) order by g) from generate_series(1,4) g),
+  'facilidad',(select round(avg(facilidad),1) from f),
+  'facilidad_distribucion',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from f where facilidad=g)) order by g) from generate_series(1,5) g),
+  'asistencia',jsonb_build_object('si',(select count(*) from f where asistencia),'no',(select count(*) from f where asistencia=false)),
+  'recomiendan_de_10',(select round(avg(case when recomienda then 10 else 0 end))::integer from f),
+  'etiquetas',(select coalesce(jsonb_agg(jsonb_build_object('id',e,'n',n) order by n desc,e),'[]'::jsonb)
+   from (select e,count(distinct f.u) as n from f,jsonb_array_elements_text(f.etiquetas) e
+         group by e having count(distinct f.u)>=3 order by n desc,e limit 6) t)
+ ) end;
 $$;
 
 create or replace function public.ramo_resumen_publico(p_tenant text,p_ramo_clave text)
@@ -163,20 +199,14 @@ begin
    (select jsonb_build_object('total',count(*),'promedio',round(avg(k.estrellas),1))
     from public.profesor_calificaciones k join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
     where k.tenant=p_tenant and k.ramo_clave=clave and public.profesor_coinciden(a.nombre,d.nombre) having count(*)>=3) as estrellas,
-   (select jsonb_build_object('total',count(*),'facilidad',round(avg(u.facilidad),1),'carga',
-     (select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from datos x where not x.oculto and public.profesor_coinciden(x.docente,d.nombre) and x.carga=g)) order by g) from generate_series(1,4) g))
-    from datos u where not u.oculto and public.profesor_coinciden(u.docente,d.nombre) having count(*)>=piso) as ramo
+   public.ramo_resumen_bloque((select jsonb_agg(to_jsonb(u)) from datos u
+    where not u.oculto and public.profesor_coinciden(u.docente,d.nombre))) as opiniones
   from docentes d
  )
  select case when not (select ok from permiso) then jsonb_build_object('disponible',false)
- else jsonb_build_object('disponible',true,'total',(select count(*) from datos),
-  'carga',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from datos where carga=g)) order by g) from generate_series(1,4) g),
-  'facilidad',(select round(avg(facilidad),1) from datos),
-  'facilidad_distribucion',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from datos where facilidad=g)) order by g) from generate_series(1,5) g),
-  'recomiendan_de_10',(select round(avg(case when recomienda then 10 else 0 end))::integer from datos),
-  'etiquetas',(select coalesce(jsonb_agg(jsonb_build_object('id',e,'n',n) order by n desc,e),'[]'::jsonb)
-   from (select e,count(distinct user_id) as n from datos,unnest(etiquetas) e group by e having count(distinct user_id)>=3 order by n desc,e limit 6) t),
-  'docentes',(select coalesce(jsonb_agg(jsonb_build_object('nombre',nombre,'estrellas',estrellas,'ramo',ramo) order by nombre),'[]'::jsonb) from resumen_docentes)) end into resultado;
+ else jsonb_build_object('disponible',true)
+  ||coalesce(public.ramo_resumen_bloque((select jsonb_agg(to_jsonb(d)) from datos d)),'{}'::jsonb)
+  ||jsonb_build_object('docentes',(select coalesce(jsonb_agg(jsonb_build_object('nombre',nombre,'estrellas',estrellas,'opiniones',opiniones) order by nombre),'[]'::jsonb) from resumen_docentes)) end into resultado;
  return resultado;
 end;
 $$;
@@ -185,11 +215,12 @@ revoke all on function public.ramo_piso_publicacion() from public,anon,authentic
 revoke all on function public.ramo_etiquetas_validas() from public,anon,authenticated;
 revoke all on function public.ramo_calificacion_contexto(text,integer,text) from public,anon,authenticated;
 revoke all on function public.ramo_docente_interno(text,text,integer,text) from public,anon,authenticated;
-revoke all on function public.ramo_calificar(text,integer,text,integer,integer,boolean,text[]) from public,anon,authenticated;
+revoke all on function public.ramo_resumen_bloque(jsonb) from public,anon,authenticated;
+revoke all on function public.ramo_calificar(text,integer,text,integer,integer,boolean,boolean,text[]) from public,anon,authenticated;
 revoke all on function public.ramo_calificacion_borrar(text,integer,text) from public,anon,authenticated;
 revoke all on function public.ramo_calificacion_estado(text,integer,text) from public,anon,authenticated;
 revoke all on function public.ramo_resumen_publico(text,text) from public,anon,authenticated;
-grant execute on function public.ramo_calificar(text,integer,text,integer,integer,boolean,text[]) to authenticated;
+grant execute on function public.ramo_calificar(text,integer,text,integer,integer,boolean,boolean,text[]) to authenticated;
 grant execute on function public.ramo_calificacion_borrar(text,integer,text) to authenticated;
 grant execute on function public.ramo_calificacion_estado(text,integer,text) to authenticated;
 grant execute on function public.ramo_resumen_publico(text,text) to authenticated;

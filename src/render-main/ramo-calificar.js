@@ -29,11 +29,12 @@ async function consultarCalificacionRamoFicha(r){
   return typeof estado?.puede_calificar==='boolean'?estado:null;
  }catch(e){return null;} // Sin SQL/red: el botón conserva el flujo del profesor.
 }
-function payloadCalificarRamo(c,carga,facilidad,recomienda,etiquetas=[]){
- const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id));
- if(!Number.isInteger(carga)||carga<1||carga>4||!Number.isInteger(facilidad)||facilidad<1||facilidad>5||typeof recomienda!=='boolean')throw Error('Completa las tres preguntas.');
+// asistencia: true, false o null («No sé»); undefined es no haber respondido.
+function payloadCalificarRamo(c,{carga,facilidad,asistencia,recomienda,etiquetas=[]}={}){
+ const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id)),escala=(n,max)=>Number.isInteger(n)&&n>=1&&n<=max;
+ if(!escala(carga,4)||!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||typeof recomienda!=='boolean')throw Error('Responde todas las preguntas.');
  if(!Array.isArray(etiquetas)||etiquetas.length>3||etiquetas.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
- return {...argumentosCalificarRamo(c),p_carga:carga,p_facilidad:facilidad,p_recomienda:recomienda,p_etiquetas:[...new Set(etiquetas)]};
+ return {...argumentosCalificarRamo(c),p_carga:carga,p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda:recomienda,p_etiquetas:[...new Set(etiquetas)]};
 }
 function claveAvisoCalificarRamo(c){return `gh_ramo_calificar_v1:${currentUser.id}:${c.tenant}:${c.clave}:${c.p_periodo}`;}
 function avisoCalificarRamoVisto(c){
@@ -63,10 +64,11 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
   if(!estado?.puede_calificar)throw Error('no disponible');
   const mia=estado.mia||{},seleccion=new Set(mia.etiquetas||[]);
   const radios=(nombre,opciones,valor)=>opciones.map(([v,t])=>`<label class="rc-opcion"><input type="radio" name="${nombre}" value="${v}"${String(valor)===String(v)?' checked':''}><span>${esc(t)}</span></label>`).join('');
-  caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p>
+  caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
    <form class="rc-form" novalidate>
-   <fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>
    <fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil es sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>
+   <fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>
+   <fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>
    <fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>
    <fieldset><legend>¿Cómo es? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${RAMO_ETIQUETAS.map(e=>`<label class="rc-etiqueta"><input type="checkbox" name="etiqueta" value="${e.id}"${seleccion.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}</div></fieldset>
    <p class="rc-error" role="alert"></p>${estado.mia?'<button type="button" class="docente-link rc-borrar" data-rc-borrar>Borrar mi opinión</button>':''}
@@ -86,7 +88,11 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
   form.onsubmit=e=>{
    e.preventDefault();try{
     const valor=n=>form.querySelector(`[name=${n}]:checked`)?.value;
-    const rec=valor('recomienda');const payload=payloadCalificarRamo(c,Number(valor('carga')),Number(valor('facilidad')),rec==='1'?true:rec==='0'?false:null,[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value));guardar('ramo_calificar',payload);
+    const rec=valor('recomienda'),asis=valor('asistencia');
+    const payload=payloadCalificarRamo(c,{carga:Number(valor('carga')),facilidad:Number(valor('facilidad')),
+     asistencia:asis==='si'?true:asis==='no'?false:asis==='nose'?null:undefined,recomienda:rec==='1'?true:rec==='0'?false:null,
+     etiquetas:[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value)});
+    guardar('ramo_calificar',payload);
    }catch(e){mensaje.textContent=e.message;enfocarEnHoja(form.querySelector('input:not(:checked)'));}
   };
   const borrar=form.querySelector('[data-rc-borrar]');if(borrar)borrar.onclick=()=>showConfirm('¿Borrar tu opinión del ramo?','Se quitarán tus respuestas y etiquetas.',()=>guardar('ramo_calificacion_borrar',argumentosCalificarRamo(c)),{label:'Borrar',danger:true,focusCancel:true});
