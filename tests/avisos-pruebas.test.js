@@ -79,6 +79,9 @@ chk('«Bien» deja la sombra de esa evaluación en 5,0',sombra===5);
 a.almacen.set('gradehub_sensaciones',JSON.stringify({'a|i2||2026-10-07':{valor:3,fecha:Date.now()}}));
 a.run(`sesionNotasSombra={estado:null,ramos:new Map()};`);
 chk('«Normal» la deja en 4,0',a.run(`(()=>{const r=S.ramos[0],m=notasSombraDelRamo(r);const p=m.pendientes.find(q=>q.catId==='i2');return m.fijas.get(p.clave);})()`)===4);
+a.almacen.set('gradehub_sensaciones',JSON.stringify({'a|i2||2026-10-07':{valor:1,fecha:Date.now()}}));
+a.run(`sesionNotasSombra={estado:null,ramos:new Map()};`);
+chk('«Muy mal» la deja en 2,0',a.run(`(()=>{const r=S.ramos[0],m=notasSombraDelRamo(r);const p=m.pendientes.find(q=>q.catId==='i2');return m.fijas.get(p.clave);})()`)===2);
 chk('la sensación no entra a S',!JSON.stringify(a.run('S')).includes('sensacion'));
 a.almacen.delete('gradehub_sensaciones');a.run(`sesionNotasSombra={estado:null,ramos:new Map()};`);
 

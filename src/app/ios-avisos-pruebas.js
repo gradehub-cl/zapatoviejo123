@@ -109,7 +109,7 @@ function sincronizarActividadesPrueba(ahora){
 const CLAVE_SENSACIONES='gradehub_sensaciones';
 // Las mismas notas que mueve la sombra (NOTA_SOMBRA_SENSACION): «Normal» es el 4,0.
 const SENSACIONES=[
-  {valor:1,texto:'Muy mal',nota:'3,0'},{valor:2,texto:'Mal',nota:'3,5'},{valor:3,texto:'Normal',nota:'4,0'},
+  {valor:1,texto:'Muy mal',nota:'2,0'},{valor:2,texto:'Mal',nota:'3,0'},{valor:3,texto:'Normal',nota:'4,0'},
   {valor:4,texto:'Bien',nota:'5,0'},{valor:5,texto:'Muy bien',nota:'6,0'}];
 function sensacionesGuardadas(){
   try{const o=JSON.parse(localStorage.getItem(CLAVE_SENSACIONES)||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{};}

@@ -122,7 +122,7 @@ function notasSombraDelRamo(r){
 // mientras no llegue la nota real (decisión de Lucas, 15-11): notas fijas con
 // «Normal» en el 4,0, escaladas a la escala del ramo. Es la nota de partida de
 // la sesión: la persona la cambia con el control como cualquier otra.
-const NOTA_SOMBRA_SENSACION={1:3.0,2:3.5,3:4.0,4:5.0,5:6.0};
+const NOTA_SOMBRA_SENSACION={1:2.0,2:3.0,3:4.0,4:5.0,5:6.0};
 function notasSombraDeSensaciones(r){
   const fijas=new Map();
   if(typeof sensacionesGuardadas!=='function')return fijas;
