@@ -19,16 +19,31 @@ function fechaHoraLocal(fecha,hora){
   return f&&h?new Date(+f[1],+f[2]-1,+f[3],+h[1],+h[2]):null;
 }
 function horaDe(d){return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;}
+// Si la prueba cae dentro de una clase de ese ramo (mismo día y hora), lo
+// más probable es que sea en esa sala y que dure lo que dura la clase: una
+// interrogación en horario de cátedra. Si no calza con ninguna clase (un
+// examen en otro horario), no se adivina la sala: queda «tu sala».
+const LETRA_DIA_PRUEBA=['D','L','M','W','J','V','S'];
+function claseDeLaPrueba(ramo,inicio){
+  if(typeof copiarHorario!=='function')return null;
+  const dia=LETRA_DIA_PRUEBA[inicio.getDay()],min=inicio.getHours()*60+inicio.getMinutes();
+  const enMin=h=>{const m=/^(\d{1,2}):(\d{2})$/.exec(h||'');return m?+m[1]*60+ +m[2]:null;};
+  return copiarHorario(ramo&&ramo.horario).find(b=>{
+    const ini=enMin(b.inicio),fin=enMin(b.fin);
+    return b.dias.includes(dia)&&ini!=null&&fin!=null&&min>=ini&&min<fin;
+  })||null;
+}
 function pruebasConHora(ahora,dias){
   ahora=ahora||new Date();
   const limite=ahora.getTime()+dias*864e5;
   return agendaEvents().filter(e=>e.pending&&e.hora).map(e=>{
     const inicio=fechaHoraLocal(e.fecha,e.hora);
     if(!inicio)return null;
+    const clase=claseDeLaPrueba(e.ramo,inicio),finClase=clase?fechaHoraLocal(e.fecha,clase.fin):null;
     return {clave:[e.ramo.id,e.cat.id,e.nota?e.nota.id:'',e.fecha].join('|'),ramoId:e.ramo.id,ramo:e.ramo.nombre,
       sigla:(typeof siglaDeRamo==='function'?siglaDeRamo(e.ramo):null)||null,color:e.ramo.color||null,
-      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,sala:null,
-      inicio,fin:new Date(inicio.getTime()+DURACION_PRUEBA_MIN*6e4)};
+      evaluacion:(e.nota&&e.nota.nombre)||e.cat.nombre,sala:clase&&clase.sala||null,
+      inicio,fin:finClase&&finClase>inicio?finClase:new Date(inicio.getTime()+DURACION_PRUEBA_MIN*6e4)};
   }).filter(p=>p&&p.fin.getTime()>ahora.getTime()&&p.inicio.getTime()<=limite);
 }
 function idAvisoPrueba(clave,fase){
