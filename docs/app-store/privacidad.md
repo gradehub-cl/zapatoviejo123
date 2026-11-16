@@ -78,8 +78,10 @@ así que las notas **no** se declaran con propósito publicitario.
 
 | Tipo Apple | Qué es | Propósitos | Evidencia |
 | --- | --- | --- | --- |
-| Usage Data → **Product Interaction** | Eventos de Google Analytics sin cookies («alguien agregó un ramo») | Analytics | `index.html` (gtag `G-TS791S6PDM`, consent `denied`), `src/app/analitica.js` |
+| Usage Data → **Product Interaction** | Eventos de Google Analytics sin cookies («alguien agregó un ramo») | Analytics | `index.html` (gtag `G-TS791S6PDM`, consent `denied`, sin Google Signals ni señales de anuncios), `src/app/analitica.js` |
 | Location → **Coarse Location** *(opcional, conservador)* | País que GA deduce de la IP | Analytics | GA4; `privacidad.html` «Estadísticas de uso» |
+
+**Tracking: No.** GA corre sin Google Signals ni señales de anuncios (`allow_google_signals:false`, `allow_ad_personalization_signals:false` en `index.html`), así que no se cruzan datos con otras apps o sitios. No hace falta el aviso de rastreo (ATT). En el panel de GA → Admin → Recopilación de datos, revisar que Google Signals siga apagado.
 
 ### No se recoge (verificado en el código)
 

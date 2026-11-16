@@ -103,7 +103,9 @@
   // producción y la _ga apareció igual); lo que corta la cookie es consent mode.
   gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
   gtag('js', new Date());
-  gtag('config', 'G-TS791S6PDM');
+  // Solo analítica propia: sin Google Signals ni señales de anuncios. Así GA no
+  // cruza datos con otras apps o sitios y la App Store no lo cuenta como rastreo.
+  gtag('config', 'G-TS791S6PDM', { allow_google_signals: false, allow_ad_personalization_signals: false });
 </script>
 
 <!-- La app iOS (Capacitor) se marca antes de pintar: la pantalla de carga de
