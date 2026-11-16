@@ -939,10 +939,9 @@ struct Fase: Identifiable {
     static func de(_ e: ActividadPruebaAtributos.ContentState) -> [Fase] {
         let m = { (min: Double) in e.inicio.addingTimeInterval(-min * 60) }
         return [
-            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(30)),
-            Fase(id: "Repaso", icono: "text.book.closed", desde: m(30), hasta: m(15)),
-            Fase(id: "Agua", icono: "drop", desde: m(15), hasta: m(10)),
-            Fase(id: "Sala", icono: "figure.walk", desde: m(10), hasta: e.inicio),
+            // Igual que los avisos (Lucas, 15-11): sin «repaso» ni «agua».
+            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(15)),
+            Fase(id: "Sala", icono: "figure.walk", desde: m(15), hasta: e.inicio),
             Fase(id: "Prueba", icono: "pencil", desde: e.inicio, hasta: e.fin),
         ]
     }
@@ -969,7 +968,7 @@ struct RielFases: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Estudia, último repaso a las \(Hora.de(Fase.de(estado)[1].desde)), agua, sala y prueba a las \(Hora.de(estado.inicio))")
+        .accessibilityLabel("Estudia, camina a la sala a las \(Hora.de(Fase.de(estado)[1].desde)) y prueba a las \(Hora.de(estado.inicio))")
     }
 }
 

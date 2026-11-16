@@ -110,13 +110,32 @@ function modeloNotasSombra(r,fijas=new Map()){
 
 function notasSombraDelRamo(r){
   if(sesionNotasSombra.estado!==S)sesionNotasSombra={estado:S,ramos:new Map()};
-  if(!sesionNotasSombra.ramos.has(r.id))sesionNotasSombra.ramos.set(r.id,{fijas:new Map(),abierta:null,iniciada:false});
+  if(!sesionNotasSombra.ramos.has(r.id))sesionNotasSombra.ramos.set(r.id,{fijas:notasSombraDeSensaciones(r),abierta:null,iniciada:false});
   const sesion=sesionNotasSombra.ramos.get(r.id),modelo=modeloNotasSombra(r,sesion.fijas);
   const claves=new Set(modelo?.pendientes.map(p=>p.clave)||[]);
   for(const clave of sesion.fijas.keys())if(!claves.has(clave))sesion.fijas.delete(clave);
   if(sesion.abierta&&!claves.has(sesion.abierta))sesion.abierta=null;
   if(modelo&&!sesion.iniciada){sesion.abierta=modelo.pendientes.find(esExamenSombra)?.clave||null;sesion.iniciada=true;}
   return modelo?{...modelo,sesion}:null;
+}
+// «¿Cómo te fue?» (Actividad en Vivo o aviso) mueve la sombra de esa evaluación
+// mientras no llegue la nota real (decisión de Lucas, 15-11): notas fijas con
+// «Normal» en el 4,0, escaladas a la escala del ramo. Es la nota de partida de
+// la sesión: la persona la cambia con el control como cualquier otra.
+const NOTA_SOMBRA_SENSACION={1:3.0,2:3.5,3:4.0,4:5.0,5:6.0};
+function notasSombraDeSensaciones(r){
+  const fijas=new Map();
+  if(typeof sensacionesGuardadas!=='function')return fijas;
+  const base=modeloNotasSombra(r,new Map());if(!base)return fijas;
+  const escala=v=>base.maximo===7&&base.minimo===1?v:base.minimo+(v-1)*(base.maximo-base.minimo)/6;
+  Object.entries(sensacionesGuardadas()).sort((a,b)=>(a[1].fecha||0)-(b[1].fecha||0)).forEach(([clave,x])=>{
+    const [ramoId,catId]=clave.split('|');
+    const v=NOTA_SOMBRA_SENSACION[x&&x.valor];
+    if(ramoId!==r.id||v==null)return;
+    const p=base.pendientes.find(q=>q.catId===catId&&!fijas.has(q.clave));
+    if(p)fijas.set(p.clave,Math.round(escala(v)*10)/10);
+  });
+  return fijas;
 }
 function valorNotaSombra(m,p){return m.fijas.get(p.clave)??m.auto.get(p.clave)??(m.estado==='no'?null:m.necesaria);}
 function botonNotaSombraHTML(m,p){
