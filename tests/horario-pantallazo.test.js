@@ -155,7 +155,7 @@ chk('sin píxeles (otra versión del lector) no hay tipo, pero sí horario',text
   console.log('\n=== BuscaCursos pone la sala y los profesores ===');
   run(`S.tenant='uc';_buscacursosNoDisponible=false;globalThis.__rpc=[];supabaseClient={rpc:async(fn,args)=>{__rpc.push([fn,args]);
     if(args.p_sigla==='MAT1620')return {data:[{periodo:'2026-2',sigla:'MAT1620',seccion:2,profesores:['Persona Sintética','Sin informar'],
-      horario:[{dias:['L','W','V'],modulo:4,tipo:'CLAS',sala:'K201'},{dias:['J'],modulo:1,tipo:'LAB',sala:'LAB-3'},{dias:['L'],modulo:5,tipo:'CLAS',sala:'B12'},{dias:['S'],modulo:2,tipo:'AYUD',sala:''}]}],error:null};
+      horario:[{dias:['L','W','V'],modulo:4,tipo:'CLAS',sala:'K201'},{dias:['J'],modulo:1,tipo:'LAB',sala:'LAB-3'},{dias:['M'],modulo:2,tipo:'CLAS',sala:'SIN SALA'},{dias:['L'],modulo:5,tipo:'CLAS',sala:'B12'},{dias:['S'],modulo:2,tipo:'AYUD',sala:''}]}],error:null};
     if(args.p_sigla==='IIC2233')return {data:[{sigla:'IIC2233',seccion:2,profesores:[],horario:[{dias:['M','J'],modulo:3,tipo:'CLAS',sala:'A5'},{dias:['V'],modulo:9,tipo:'TAL',sala:null},{dias:['L'],modulo:null,tipo:'CLAS',sala:'X'}]}],error:null};
     return {data:[],error:null};}};`);
   ctx.__foto=[fotoReal()];
@@ -169,6 +169,7 @@ chk('sin píxeles (otra versión del lector) no hay tipo, pero sí horario',text
   chk('un tipo distinto se avisa, no se corrige en silencio',de('MAT1620').diferencias.includes('lun mód. 5 ayudantía es cátedra en BuscaCursos'));
   chk('lo que BuscaCursos trae y la foto no, se avisa',de('MAT1620').diferencias.includes('BuscaCursos además trae sáb mód. 2 ayudantía'));
   chk('los profesores ocultos («Sin informar») no se muestran',JSON.stringify(de('MAT1620').profesores)==='["Persona Sintética"]');
+  chk('«SIN SALA» de BuscaCursos no se guarda como sala',de('MAT1620').diferencias.includes('BuscaCursos además trae mar mód. 2 cátedra')&&!JSON.stringify(rev).includes('SIN SALA'));
   chk('una sección que no está en BuscaCursos queda con la foto, sin sala',texto(de('FIS1514').bloques)==='M 09:40-10:50 Cátedra -');
   chk('un ramo sin grilla en la foto toma el horario de BuscaCursos (módulos válidos)',texto(de('IIC2233').bloques)==='MJ 11:00-12:10 Cátedra A5 | V 20:10-21:20 Taller -');
   chk('con BuscaCursos respondiendo no hay aviso de salas',!rev.avisos.some(a=>/No pudimos traer/.test(a)));
