@@ -239,16 +239,16 @@ extension Fila where Valor == EmptyView {
 struct ParteDelRamo: View {
     let porcentaje: Double
     var body: some View {
-        HStack(spacing: 6) {
-            ZStack {
-                Circle().stroke(.quaternary, lineWidth: 3)
-                Circle().trim(from: 0, to: min(max(porcentaje, 0), 100) / 100)
-                    .stroke(.primary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-            }
-            .frame(width: 16, height: 16)
-            Text("\(Int(porcentaje.rounded()))% del ramo").font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1)
+        ZStack {
+            Circle().stroke(.quaternary, lineWidth: 3.5)
+            Circle().trim(from: 0, to: min(max(porcentaje, 0), 100) / 100)
+                .stroke(.primary, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("\(Int(porcentaje.rounded()))%")
+                .font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit()
+                .minimumScaleFactor(0.7).lineLimit(1).padding(.horizontal, 4)
         }
+        .frame(width: 36, height: 36)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Vale el \(Int(porcentaje.rounded())) por ciento del ramo")
     }
@@ -295,9 +295,8 @@ struct ProximaVista: View {
         Fila(ramoId: d.ramoId, color: d.color, titulo: d.evaluacion, detalle: "\(d.sigla ?? d.ramo) · \(Fechas.cuando(d, desde: entrada.date))")
     }
 
-    // Chico (Lucas, 16-11: el mensaje de abajo se cortaba). Cuatro piezas, cada
-    // una en su línea y sin achicarse hasta ilegible: qué es, de qué ramo y
-    // cuánto vale; cuándo; y lo que necesitas, grande, que es para lo que está.
+    // Chico (Lucas, 16-11): qué es y de qué ramo; al medio, el anillo de cuánto
+    // pesa junto a cuándo es; abajo, la nota que necesitas, grande.
     func tarjeta(_ e: Resumen.Evaluacion) -> some View {
         HStack(alignment: .top, spacing: 8) {
             // El color del ramo vive en su línea lateral, como en Inicio.
@@ -305,23 +304,27 @@ struct ProximaVista: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(e.evaluacion).font(.headline).lineLimit(2).minimumScaleFactor(0.8)
                 Text(e.sigla ?? e.ramo).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 6)
-                Text(Fechas.cuando(e, desde: entrada.date)).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
-                // «mié 18 nov · 30%»: lo que vale del ramo, corto para que quepa.
-                Text([Fechas.corta(e.fecha), e.parte.map { "\(Int($0.rounded()))%" }].compactMap { $0 }.joined(separator: " · "))
-                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
-                    .accessibilityLabel([Fechas.corta(e.fecha), e.parte.map { "vale el \(Int($0.rounded())) por ciento del ramo" }].compactMap { $0 }.joined(separator: ", "))
-                meta(e).padding(.top, 4).privacySensitive()
+                Spacer(minLength: 4)
+                HStack(spacing: 8) {
+                    if let p = e.parte { ParteDelRamo(porcentaje: p) }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(Fechas.cuando(e, desde: entrada.date)).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                        Text(Fechas.corta(e.fecha)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 4)
+                meta(e).privacySensitive()
             }
             Spacer(minLength: 0)
         }
     }
 
     // Lo que necesitas en ESTA evaluación para ir con 4 después de rendirla
-    // (lo calcula la app; ver notaParaIrConCuatro). Textos cortos: caben enteros.
+    // (lo calcula la app; ver notaParaIrConCuatro). Si ya vas con 4 aunque
+    // saques la mínima, necesitas un 1,0: se dice igual, con la nota.
     @ViewBuilder
     func meta(_ e: Resumen.Evaluacion) -> some View {
-        if let n = e.necesitas {
+        if let n = e.necesitas ?? (e.margen == true ? "1.0" : nil) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text("Necesitas").font(.caption).foregroundStyle(.secondary)
                 Text(Nota.coma(n)).font(.title3.weight(.bold)).monospacedDigit()
@@ -329,8 +332,6 @@ struct ProximaVista: View {
             .lineLimit(1)
         } else if e.inalcanzable == true {
             Text("Sola no alcanza").font(.caption.weight(.semibold)).lineLimit(1)
-        } else if e.margen == true {
-            Text("Vas aprobando").font(.caption.weight(.semibold)).lineLimit(1)
         }
     }
 
@@ -384,12 +385,22 @@ struct PromedioVista: View {
     var body: some View {
         Group {
             switch familia {
-            // Mediano: el promedio a la izquierda y, a la derecha, cada ramo con
-            // su barra en la escala 1–7 y la marca del 4.
+            // Mediano (Lucas, 16-11): el promedio arriba a la izquierda y seis
+            // ramos, que es lo que tiene casi todo el mundo: dos bajo el promedio
+            // y cuatro a la derecha, cada uno con su barra 1–7 y la marca del 4.
             case .systemMedium:
+                let ramos = ramosConNota
                 HStack(alignment: .top, spacing: 16) {
-                    general.frame(maxWidth: .infinity, alignment: .leading)
-                    lista(4).frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 7) {
+                        cabecera
+                        Spacer(minLength: 0)
+                        lista(Array(ramos.prefix(2)))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Repartidas en todo el alto: la primera arriba con el
+                    // título y la última abajo, alineada con la de la izquierda.
+                    lista(Array(ramos.dropFirst(2).prefix(4)), repartir: true)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             default:
                 general
@@ -403,10 +414,27 @@ struct PromedioVista: View {
 
     var ramosConNota: [Resumen.Ramo] { (entrada.resumen?.ramos ?? []).filter { $0.promedio != nil } }
 
-    func lista(_ cuantos: Int) -> some View {
-        let ramos = ramosConNota
-        return VStack(alignment: .leading, spacing: 7) {
-            ForEach(Array(ramos.prefix(cuantos).enumerated()), id: \.offset) { _, r in
+    // Promedio del mediano: etiqueta y número, sin los puntos del chico (los
+    // ramos ya están al lado con su barra).
+    @ViewBuilder
+    var cabecera: some View {
+        Text("PROMEDIO").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+        if let p = entrada.resumen?.promedio {
+            Text(Self.nota(p.oficial))
+                .font(.system(size: 40, weight: .semibold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(Semaforo.color(p.nivel, esquema))
+                .minimumScaleFactor(0.7).lineLimit(1)
+                .padding(.top, -6)
+                .privacySensitive()
+        } else {
+            Text(entrada.resumen == nil ? "Abre GradeHub" : "Sin notas todavía").font(.subheadline)
+        }
+    }
+
+    func lista(_ ramos: [Resumen.Ramo], repartir: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(Array(ramos.enumerated()), id: \.offset) { i, r in
+                if repartir && i > 0 { Spacer(minLength: 0) }
                 Link(destination: enlaceRamo(r.id)) {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline) {
@@ -420,10 +448,6 @@ struct PromedioVista: View {
                 }
                 .privacySensitive()
             }
-            if ramos.count > cuantos {
-                Text("y \(ramos.count - cuantos) más").font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
         }
     }
 
