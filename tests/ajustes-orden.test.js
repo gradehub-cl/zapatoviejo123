@@ -56,4 +56,22 @@ test('Apariencia tiene exactamente un selector de fondo',()=>{
   const k=kit();vm.runInContext("openSettings('apariencia')",k.ctx);
   assert.equal((k.html().match(/id="s-fondo-grid"/g)||[]).length,1);
 });
+test('entrar desde Perfil a una sección: la flecha dice Perfil y vuelve ahí, no al índice de Ajustes',()=>{
+  const k=kit();let cerrado=0;vm.runInContext('closeModal=()=>{__cerrado()}',Object.assign(k.ctx,{__cerrado:()=>cerrado++}));
+  vm.runInContext("openSettings('calendario',{volverA:'Perfil'})",k.ctx);
+  assert.match(k.html(),/class="settings-back" aria-label="Volver a Perfil">[\s\S]*?<span>Perfil<\/span>/);
+  const antes=k.html();k.get('back').onclick();
+  assert.equal(cerrado,1,'cierra Ajustes y deja ver Perfil');assert.equal(k.html(),antes,'no repinta el índice de Ajustes');
+});
+test('sin origen, la flecha sigue llevando al índice de Ajustes',()=>{
+  const k=kit();let cerrado=0;vm.runInContext('closeModal=()=>{__cerrado()}',Object.assign(k.ctx,{__cerrado:()=>cerrado++}));
+  vm.runInContext("openSettings('calendario')",k.ctx);
+  assert.match(k.html(),/aria-label="Volver a Ajustes"/);
+  k.get('back').onclick();assert.equal(cerrado,0);assert.equal(k.buttons().length,8,'vuelve a la lista de secciones');
+});
+test('la pestaña Perfil abre cada sección pidiendo volver a Perfil',()=>{
+  const src=fs.readFileSync(root+'src/app/perfil-pestana.js','utf8');
+  assert.ok(!/openSettings\('[a-z]+'\)/.test(src),'ninguna fila abre Ajustes sin decir a dónde volver');
+  assert.ok(/openSettings\('calendario',\{volverA:'Perfil'\}\)/.test(src));
+});
 process.exitCode=failed?1:0;

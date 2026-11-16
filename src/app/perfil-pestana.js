@@ -20,14 +20,14 @@ const PERFIL_ICONOS={
 };
 // Lo que hace cada fila. Se busca por clave al tocar, no se escribe en el HTML.
 const PERFIL_ACCIONES={
-  cuenta:()=>openSettings('perfil'),
-  academico:()=>openSettings('academico'),
-  calendario:()=>openSettings('calendario'),
-  apariencia:()=>openSettings('apariencia'),
-  agentes:()=>openSettings('agentes'),
-  sugerencias:()=>openSettings('sugerencias'),
-  datos:()=>openSettings('datos'),
-  profesor:()=>openSettings('profesor'),
+  cuenta:()=>openSettings('perfil',{volverA:'Perfil'}),
+  academico:()=>openSettings('academico',{volverA:'Perfil'}),
+  calendario:()=>openSettings('calendario',{volverA:'Perfil'}),
+  apariencia:()=>openSettings('apariencia',{volverA:'Perfil'}),
+  agentes:()=>openSettings('agentes',{volverA:'Perfil'}),
+  sugerencias:()=>openSettings('sugerencias',{volverA:'Perfil'}),
+  datos:()=>openSettings('datos',{volverA:'Perfil'}),
+  profesor:()=>openSettings('profesor',{volverA:'Perfil'}),
   archivar:()=>confirmArchiveSemester(),
   calculadora:()=>openCalculadoraApp(),
   ficha:()=>openAvanceCurricular(),
