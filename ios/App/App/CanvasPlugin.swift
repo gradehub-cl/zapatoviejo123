@@ -21,7 +21,8 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
 
     static let api = CanvasPolitica.api
     // Lo único que la app necesita leer: quién eres, tus cursos, sus tareas
-    // (con tu propia nota si la web la pide), grupos y eventos del curso.
+    // (con tu propia nota si la web la pide), grupos, eventos y el programa
+    // del curso, este último ya convertido a texto plano.
     static let paginasMax = CanvasPolitica.paginasMax
 
     // ─── Llavero ─────────────────────────────────────────────────────────────
@@ -134,6 +135,7 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
                 case .cursos: call.resolve(["data": CanvasPolitica.proyectarCursos(filas)])
                 case .grupos: call.resolve(["data": CanvasPolitica.proyectarGrupos(filas)])
                 case .eventos: call.resolve(["data": CanvasPolitica.proyectarEventos(filas)])
+                case .programa: call.resolve(["data": CanvasPolitica.proyectarPrograma(datos as? [String: Any] ?? [:])])
                 // `users/self` solo sirve para validar el token al conectar.
                 case .yo, .none: call.resolve(["data": [] as [Any]])
                 }

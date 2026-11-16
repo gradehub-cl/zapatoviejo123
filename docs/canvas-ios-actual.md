@@ -17,9 +17,19 @@ Lucas pidió que la app lea todo lo útil de Canvas. Se agregó:
 - **Pesos de grupos** (`group_weight`, solo si el curso tiene `apply_assignment_group_weights`): en «Editar evaluaciones», un botón «Ver pesos en Canvas» los muestra como referencia «según Canvas». No cambian la pauta ni se guardan.
 - **Política**: además de la ruta, cada parámetro tiene lista cerrada con valores acotados (`CanvasPolitica.parametrosValidos`). `context_codes[]` solo acepta cursos (máximo 10): nunca el calendario personal, de grupos o de otra persona. Cada respuesta se recorta en Swift: cursos (id, nombre, código, periodo, si usa pesos), grupos (id, nombre, peso), eventos (título, inicio, fin, día completo, curso) y entrega (puntaje, calificación, eximida, estado). Sin descripciones, lugares, comentarios, archivos ni rúbricas.
 
-Descartado, con razón: **quizzes** (los que cuentan para la nota ya llegan como tareas; la ruta de quizzes solo suma los de práctica), **anuncios y módulos** (fechas en texto libre, propuestas poco confiables), **estadísticas del curso** (`score_statistics`: son datos de otros estudiantes; la política lo rechaza) y mensajes o archivos. El **programa del curso** (`syllabus_body`) queda para una PR aparte.
+Descartado, con razón: **quizzes** (los que cuentan para la nota ya llegan como tareas; la ruta de quizzes solo suma los de práctica), **anuncios y módulos** (fechas en texto libre, propuestas poco confiables), **estadísticas del curso** (`score_statistics`: son datos de otros estudiantes; la política lo rechaza) y mensajes o archivos. El **programa del curso** (`syllabus_body`) se agregó después; ver la sección siguiente.
 
 Por confirmar con una cuenta real: que la UC no tenga restringido `calendar_events` para estudiantes, cómo publican las notas los profes (puntos sobre 7, esquema numérico o porcentaje) y si los cursos UC usan `apply_assignment_group_weights`.
+
+## Pauta desde el programa del curso (2026-11-16)
+
+En «Armar mi pauta» / «Editar evaluaciones», el bloque «Programa en Canvas» lee `courses/:id?include[]=syllabus_body`. La ruta `courses/<id>` solo acepta ese parámetro y Swift devuelve únicamente `{texto, archivo, recortado}`: el HTML pasa a texto plano (títulos con `# `, celdas separadas por tabulación), sin etiquetas, enlaces, imágenes ni scripts, con tope de 60.000 caracteres. La web lo muestra siempre escapado.
+
+Los pesos los lee el mismo lector del catálogo UC, ahora compartido en `src/engine/programa-pauta.js` (`GH_PROGRAMA_PAUTA`); `bin/proponer-pautas-uc.js` lo importa y da el mismo resultado en los 35 programas de prueba. Para Canvas se aceptan además títulos como «Ponderaciones» o «Calificación», solo con `encabezadosAmplios`; el catálogo no cambia. Se lee solo la sección de evaluación, hasta el título siguiente.
+
+Se propone solo si el programa declara pesos que suman 100, sin nombres repetidos y con la sigla del ramo. Si no, la app dice por qué (sin sección, sin porcentajes, suma distinta, otro ramo) y no propone nada. Lo que el lector no modela (eximición, mínimos, fórmulas alternativas, asistencia) se muestra con la línea del programa para revisarlo a mano; la app no lo aplica. «Usar estas evaluaciones» solo llena el editor: una evaluación con el mismo nombre conserva id, notas y reglas; una con notas o con una regla de aprobación que el programa no menciona se queda; nada se guarda hasta «Guardar». Si el programa es un archivo adjunto (PDF), la app lo dice: Canvas en la app no lee archivos.
+
+Por confirmar con una cuenta real: cuántos cursos UC tienen el programa escrito en Canvas y no solo como PDF, y cómo titulan la sección de evaluación.
 
 ## Verificación
 
