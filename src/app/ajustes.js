@@ -10,6 +10,9 @@ function renderSettingsSiAbierto(){
 }
 function openSettings(){
   const initialSection=arguments[0];
+  // Quien abre una sección directo (la pestaña Perfil) puede pedir que la flecha
+  // vuelva a su pantalla en vez de al índice de Ajustes: openSettings('calendario',{volverA:'Perfil'}).
+  const volverA=arguments[1]&&typeof arguments[1].volverA==='string'?arguments[1].volverA:'';
   const soloProfesor=esCuentaProfesor();
   const seccionesProfesor=['perfil','apariencia','datos','sugerencias'];
   let settingsSem=S.careerSemestre;
@@ -286,13 +289,15 @@ function openSettings(){
           <div id="settings-nav-list"></div>
         </nav>
         <section class="settings-detail" ${activeSection?'':'aria-hidden="true"'}>
-          ${activeSection?`<div class="settings-detail-heading"><button type="button" class="settings-back" aria-label="Volver a Ajustes">${icons.arrow}<span>Ajustes</span></button><div><h2 id="settings-detail-title" tabindex="-1">${current[2]}</h2><p>${current[3]}</p></div></div><div class="settings-detail-body">${panel(activeSection)}</div>`:''}
+          ${activeSection?`<div class="settings-detail-heading"><button type="button" class="settings-back" aria-label="Volver a ${volverA&&activeSection===directSection?esc(volverA):'Ajustes'}">${icons.arrow}<span>${volverA&&activeSection===directSection?esc(volverA):'Ajustes'}</span></button><div><h2 id="settings-detail-title" tabindex="-1">${current[2]}</h2><p>${current[3]}</p></div></div><div class="settings-detail-body">${panel(activeSection)}</div>`:''}
         </section>
       </div>`;
     renderSettingsNav();
     const search=document.getElementById('settings-search');
     search.oninput=()=>{settingsSearch=search.value;renderSettingsNav();};
     const back=document.querySelector('.settings-back');if(back)back.onclick=()=>{
+      // Si se entró desde afuera a esta misma sección, volver es cerrar.
+      if(volverA&&activeSection===directSection){closeModal();return;}
       const previous=activeSection;activeSection='';renderSettings();
       entrarDesde(document.querySelector('.settings-shell'),'pop');
       const option=document.querySelector(`[data-settings-section="${previous}"]`);
