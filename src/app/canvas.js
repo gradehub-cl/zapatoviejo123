@@ -14,6 +14,9 @@ function pluginCanvas(){
   return {estado:()=>invocar('estado'),conectar:args=>invocar('conectar',args),get:args=>invocar('get',args),desconectar:()=>invocar('desconectar')};
 }
 function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
+// La sección Canvas de Ajustes y su fila en Perfil: en la app, el conector;
+// en la web, el calendario de Canvas (.ics).
+function canvasSeccionDisponible(){return canvasDisponible()||(typeof canvasIcsDisponible==='function'&&canvasIcsDisponible());}
 const TOKEN_CANVAS_RE=/^[0-9]{1,8}~[A-Za-z0-9]{20,100}$/;
 const CODIGO_CANVAS_RE=/^([A-Z]{3,4}[0-9]{3,4}[A-Z]?)-([0-9]{1,3})$/;
 function cursosCanvasDelSemestre(cursos,ahora){

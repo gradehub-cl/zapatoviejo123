@@ -5,9 +5,13 @@
 // Antes estaban tras el avatar de la esquina, en un menú. Cada fila abre lo
 // mismo que abría ese menú o la sección de Ajustes que corresponde: acá no se
 // guarda ni se calcula nada nuevo.
+const ICONO_CANVAS='<circle cx="12" cy="12" r="2.2"/>'+[0,45,90,135,180,225,270,315].map(g=>{const r=g*Math.PI/180;return `<circle cx="${(12+8*Math.cos(r)).toFixed(2)}" cy="${(12+8*Math.sin(r)).toFixed(2)}" r="1.6"/>`;}).join('');
 const PERFIL_ICONOS={
   academico:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/>',
   calendario:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
+  // Canvas (Lucas, 2026-11-17): un anillo de puntos, como su marca, en el trazo
+  // monocromo de los demás íconos. No es el logo a color.
+  canvas:ICONO_CANVAS,
   archivar:'<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',
   calculadora:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M7 8h10M8 13h2m4 0h2m-8 4h2m4 0h2"/>',
   ficha:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6m-3 3 3 3 3-3"/>',
@@ -23,6 +27,7 @@ const PERFIL_ACCIONES={
   cuenta:()=>openSettings('perfil',{volverA:'Perfil'}),
   academico:()=>openSettings('academico',{volverA:'Perfil'}),
   calendario:()=>openSettings('calendario',{volverA:'Perfil'}),
+  canvas:()=>openSettings('canvas',{volverA:'Perfil'}),
   apariencia:()=>openSettings('apariencia',{volverA:'Perfil'}),
   agentes:()=>openSettings('agentes',{volverA:'Perfil'}),
   sugerencias:()=>openSettings('sugerencias',{volverA:'Perfil'}),
@@ -35,12 +40,13 @@ const PERFIL_ACCIONES={
   salir:()=>signOut()
 };
 // Qué filas ve esta cuenta. Función pura: recibe lo que necesita y no toca el DOM.
-function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion}){
+function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas=false}){
   if(soloProfesor)return [
     ['La app',[['apariencia','Apariencia'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',[['datos','Datos y cuenta']]]
   ];
   const semestre=[['academico','Universidad y carrera'],['calendario','Calendario']];
+  if(conCanvas)semestre.push(['canvas','Canvas']);
   if(hayRamos)semestre.push(['archivar','Archivar semestre']);
   const herramientas=[['calculadora','Calculadora de nota']];
   if(conFicha)herramientas.push(['ficha','Cargar semestres pasados']);
@@ -68,7 +74,8 @@ function renderPerfil(){
   const conSesion=typeof currentUser!=='undefined'&&!!currentUser;
   const grupos=gruposPerfil({
     soloProfesor:esCuentaProfesor(),tenant:S.tenant,hayRamos:S.ramos.length>0,
-    conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),conSesion
+    conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),conSesion,
+    conCanvas:typeof canvasSeccionDisponible==='function'&&canvasSeccionDisponible()
   });
   const flecha='<svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   const fila=([clave,titulo])=>`<li><button type="button" class="perfil-fila" data-perfil="${clave}">
