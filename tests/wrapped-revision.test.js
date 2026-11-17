@@ -79,7 +79,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  });
  check('no afirma cierre de un ramo todavía pendiente ni celebra todos reprobados',()=>{
   const r=ramo('pendiente');r.categorias=[cat('control',50,3),cat('examen',50,null)];mostrar([r]);
-  const slides=JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,semester())'));assert.doesNotMatch(slides,/Cerraste|sacaste adelante|sobre el 4,0/);assert.match(slides,/con promedio de aprobación/);
+  const slides=JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,semester())'));assert.doesNotMatch(slides,/Cerraste|sacaste adelante|sobre el 4,0/);assert.doesNotMatch(slides,/0 de \d+ ramo/,'sin ramos aprobados no se escribe «0 de N» bajo el promedio');
  });
  check('no usa un historial de otro período ni adivina etiquetas antiguas',()=>{
   mostrar([]);set('S.historial',[{ramos:[ramo('archivado')]}]);assert.equal(run('ramosWrapped()'),null);
