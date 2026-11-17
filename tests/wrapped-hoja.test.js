@@ -22,6 +22,22 @@ check('la semana pesada sale desde tres evaluaciones en la misma semana',()=>{
   assert.equal(d.semana.k,3);assert.equal(d.semana.lunes,'2026-09-14');
   assert.equal(datos([ramo('A',[nota('a1',5,'2026-09-14'),nota('a2',5,'2026-09-25')])]).semana,null);
 });
+check('las páginas no comparten esqueleto: semana como objeto, ramo difícil como lista corregida y cierre de respiro',()=>{
+  datos([ramo('A',[nota('a1',6,'2026-09-14'),nota('a2',6.4,'2026-09-15'),nota('a3',6.8,'2026-09-18')]),
+    ramo('B',[nota('b1',4.4,'2026-09-16'),nota('b2',4.9,'2026-10-02'),nota('b3',4.6,'2026-11-18')])]);
+  const s=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2",null)');
+  const semana=s.find(x=>x.forma==='objeto');
+  assert.ok(semana&&!semana.big&&/<b>4<\/b> evaluaciones/.test(semana.titulo),'la semana manda el calendario y el dato va chico');
+  const lista=s.find(x=>x.forma==='lista');
+  assert.ok(lista,'el ramo aprobado que más costó se cuenta nota por nota');
+  assert.deepEqual([...lista.heroe.matchAll(/<span>(b\d)<\/span>/g)].map(m=>m[1]),['b1','b2','b3'],'en orden de fecha');
+  assert.match(lista.heroe,/Promedio<\/span><span class="hoja-lapiz"><b>4,6<\/b>/);
+  assert.equal(s.find(x=>x.tipo==='cierre').forma,'respiro');
+  // Reprobado: sin lista ni cifra, solo el nombre.
+  datos([ramo('A',[nota('a1',6,'2026-09-14'),nota('a2',6.4,'2026-10-15')]),ramo('B',[nota('b1',2.4,'2026-09-16'),nota('b2',3.1,'2026-10-02')])]);
+  const r=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2",null)').find(x=>x.k==='El ramo que más costó');
+  assert.ok(r&&!r.forma&&!r.heroe&&!r.big);
+});
 check('sin fechas no hay semana, comienzo, nota que movió ni remontada, y no revienta',()=>{
   const d=datos([ramo('A',[nota('a1',5),nota('a2',6)]),ramo('B',[nota('b1',4)])]);
   assert.equal(d.semana,null);assert.equal(d.primera,null);assert.equal(d.movio,null);assert.equal(d.remontada,null);

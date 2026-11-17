@@ -263,6 +263,15 @@ function pruebaWrapped(nota,evaluacion,ramo){
   return `<div class="hoja-prueba"><div class="enc"><b>${evaluacion}</b><span>${ramo}</span></div>
     <div class="nota">${hojaLapiz(`<span class="wrapped-big">${nota}</span>`)}</div><i class="renglon"></i><i class="renglon"></i><i class="renglon corto"></i></div>`;
 }
+// El ramo que más costó como una lista corregida de arriba abajo: cada
+// evaluación en su renglón, con puntos hasta la nota, y al pie el promedio
+// encerrado a lápiz. Hasta seis renglones; el resto se nombra.
+function listaWrapped(filas,promedio){
+  const ver=filas.slice(0,6),resto=filas.length-ver.length;
+  return `<div class="hoja-lista">${ver.map((f,i)=>`<div class="fila" style="--i:${i}"><span>${f.nombre}</span><i></i><b>${f.nota}</b></div>`).join('')}`
+    +`${resto>0?`<div class="fila mas" style="--i:${ver.length}"><span>y ${resto} más</span></div>`:''}`
+    +`<div class="total" style="--i:${ver.length+1}"><span>Promedio</span>${hojaLapiz(`<b>${promedio}</b>`)}</div></div>`;
+}
 // Antes y ahora en barras paralelas sobre la escala de 1,0 a 7,0. La de ahora
 // va en el color de la historia; la de antes, solo el contorno.
 function barrasWrapped(filas){
