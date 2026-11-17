@@ -239,7 +239,7 @@ function openSettings(){
         </label>
         <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas pautas; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
       </div>`:''}
-      ${!soloProfesor&&typeof cambiarAnunciosConNotas==='function'?`<div class="settings-pautas">
+      ${!soloProfesor&&typeof cambiarAnunciosConNotas==='function'&&(typeof recomendacionesEnInicio!=='function'||recomendacionesEnInicio())?`<div class="settings-pautas">
         <label class="toggle-row" for="s-anuncios-notas">
           <span class="toggle-label">Usar mis notas para elegir anuncios</span>
           <span class="toggle"><input id="s-anuncios-notas" type="checkbox" role="switch" ${S.anunciosConNotas===false?'':'checked'} onchange="cambiarAnunciosConNotas(this.checked)" aria-describedby="s-anuncios-notas-ayuda"/><span class="toggle-slider"></span></span>
