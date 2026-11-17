@@ -3062,17 +3062,12 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 /* ─── Wrapped 2026-2: «la hoja de respuestas» (render-main.js) ───
    Papel cuadriculado, burbujas A–E, resaltador, lápiz, post-it y timbre, con
    las medidas de Figma (.claude/wrapped-concepto.md, 4b). Un resaltador por
-   historia (--acento) y nunca el rojo ni el verde del semáforo. En oscuro, o en
-   el umbral y el cierre, la hoja pasa a pizarrón. Fuente del sistema.
+   historia (--acento) y nunca el rojo ni el verde del semáforo. Un solo fondo
+   en todo el Wrapped (Lucas, 2026-11-17): papel en claro, pizarrón en oscuro;
+   el color cambia solo en resaltador, post-its y cinta. Fuente del sistema.
    La dirección anterior (luces, tinta y vidrio) está en docs/wrapped/. */
 .wrapped{--papel:#F3EFE4;--grafito:#1D1D1F;--acento:#F2F23A;--sup:var(--papel);--tinta:var(--grafito);--tinta-2:#4A4740;--cuad:#D9D3C3;--linea:#B9B2A0;position:fixed;inset:0;z-index:400;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;font-family:var(--font-ui);background-color:#F3EFE4;background-color:var(--sup);background-image:linear-gradient(var(--cuad) 1px,transparent 1px),linear-gradient(90deg,var(--cuad) 1px,transparent 1px);background-size:24px 24px;background-position:-1px -1px;color:var(--tinta);padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 24px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 24px);cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;overscroll-behavior:contain;animation:wrappedAbrir var(--motion-screen) var(--ease-out) backwards;}
 .wrapped{--paso:260ms;transition:background-color var(--motion-base) var(--ease-standard),color var(--motion-base) var(--ease-standard);}
-/* La preparación va a todo color, en el resaltador de la historia: así cada
-   capítulo se anuncia distinto. Los acentos son claros: el grafito encima
-   pasa 4,5:1 con todos. */
-.wrapped[data-sup="acento"]{--sup:var(--acento);--tinta:#1D1D1F;--tinta-2:#34312A;--cuad:rgba(29,29,31,.07);--linea:rgba(29,29,31,.4);}
-/* El cuaderno: hoja blanca con renglones y el margen en el color de la historia. */
-.wrapped[data-sup="rayado"]{--sup:#FBFAF6;--cuad:#CBD5E3;background-image:linear-gradient(90deg,transparent 14px,var(--acento) 14px 16px,transparent 16px),linear-gradient(transparent 31px,var(--cuad) 31px);background-size:100% 100%,100% 32px;background-position:0 0,0 6px;}
 .wrapped[data-sup="pizarron"]{--sup:var(--grafito);--tinta:var(--papel);--tinta-2:#C9C4B6;--cuad:rgba(243,239,228,.10);--linea:rgba(243,239,228,.32);}
 .wrapped.saliendo{animation:wrappedSalir var(--motion-base) var(--ease-standard) forwards;pointer-events:none;}
 .wrapped-arriba{display:flex;align-items:center;gap:4px;min-height:52px;margin-right:-10px;}
@@ -3207,6 +3202,13 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .wrapped-slide[data-fase="prep"]{justify-content:center;gap:18px;}
 .wrapped-slide[data-fase="prep"]>*{animation-name:wrappedPrep;animation-duration:560ms;}
 .wrapped-prep{margin:0;font-size:clamp(34px,10.5vw,50px);line-height:1.04;font-weight:800;letter-spacing:-.03em;text-wrap:balance;}
+/* La preparación va sobre la misma hoja: cuando terminan de entrar las
+   palabras, el resaltador de la historia pasa por debajo de la frase. El
+   grafito encima del acento pasa 4,5:1 con todos los colores. */
+.wrapped-prep>span[aria-hidden],.hoja-marca.larga{background:linear-gradient(transparent 55%,var(--acento) 55% 90%,transparent 90%) no-repeat 0 0/100% 100%;-webkit-box-decoration-break:clone;box-decoration-break:clone;animation:wrappedResalta 520ms var(--ease-out) backwards;animation-delay:calc(var(--n,1) * 110ms + 360ms);}
+.hoja-marca.larga{display:inline;animation-delay:260ms;}
+.wrapped[data-sup="pizarron"] .wrapped-prep>span[aria-hidden],.wrapped[data-sup="pizarron"] .hoja-marca.larga{background-image:linear-gradient(transparent 88%,var(--acento) 88% 97%,transparent 97%);}
+@keyframes wrappedResalta{from{background-size:0 100%;}}
 .wrapped-prep>span[aria-hidden]>span{display:inline-block;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--w,0) * 110ms);}
 .wrapped-prep-sub{margin:0;font-size:22px;line-height:1.3;font-weight:500;color:var(--tinta-2);}
 .wrapped[data-dir="revela"] .wrapped-slide>*{animation-name:wrappedRevela;}

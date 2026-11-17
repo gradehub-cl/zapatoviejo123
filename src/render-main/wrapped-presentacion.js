@@ -17,71 +17,72 @@ function cifraWrapped(texto,desde){
 // no se agrega: nunca un cero inventado. La última es la que se comparte, así
 // que lleva solo lo que uno querría mostrar: nada del ramo que más costó.
 // El guion (Lucas, 2026-11-07): cada historia cuenta algo. Primero una
-// preparación a todo color que dice de qué se va a hablar (`prep`), después la
-// revelación, que entra de a una pieza. Las superficies se alternan (papel,
-// cuaderno, pizarrón) para que no haya dos pantallas iguales seguidas.
+// preparación que dice de qué se va a hablar (`prep`), después la revelación,
+// que entra de a una pieza. Un solo fondo en todo el Wrapped: papel en claro y
+// pizarrón en oscuro (Lucas, 2026-11-17). Lo que cambia entre historias es el
+// color del resaltador, los post-its y la cinta (`--acento`), no la hoja.
 // Si a alguien le fue mal, el tono cambia: menos comparación, más ánimo.
 function slidesWrapped(d,comp,label,recado){
   const s=[],pl=n=>n!==1?'s':'',c=comaWrapped;
   const u=esc((TENANTS[S.tenant]&&TENANTS[S.tenant].conArticulo)||'tu universidad');
   const nombre=esc((S.userName||'').trim().split(/\s+/)[0]||'');
   const dificil=(d.reprobados||0)>0||(d.gpa!==null&&d.gpa<4);
-  s.push({tipo:'umbral',sup:'pizarron',k:esc(label),titulo:`Lápices<br>${hojaMarca('abajo.')}`,
+  s.push({tipo:'umbral',k:esc(label),titulo:`Lápices<br>${hojaMarca('abajo.')}`,
     sub:d.completo?'Se terminó el semestre. Revisemos tu hoja.':'El semestre llegó al final. Revisemos tu hoja.',viz:filasUmbralWrapped()});
   s.push({tipo:'portada',titulo:nombre?`${nombre}, este fue tu ${esc(label)}.`:`Este fue tu ${esc(label)}.`,sub:'No todo cabe en un promedio. Pero intentemos.'});
-  s.push({tipo:'pregunta',sup:'papel',prep:{texto:'Empecemos por algo fácil.'},
+  s.push({tipo:'pregunta',prep:{texto:'Empecemos por algo fácil.'},
     titulo:'¿Cuántas notas anotaste este semestre?',pregunta:{opciones:alternativasWrapped(d.nNotas),
       bien:'Exacto. Llevas la cuenta.',mal:`Fueron ${d.nNotas}.`},
     viz:grillaWrapped(d.nNotas),sub:'Cada una fue una noche antes, una prueba y una espera.'});
-  if(d.semana)s.push({sup:'pizarron',prep:{texto:'Hubo una semana que no se olvida.'},
+  if(d.semana)s.push({prep:{texto:'Hubo una semana que no se olvida.'},
     k:`La del ${esc(d.semana.texto)}`,antes:true,big:cifraWrapped(String(d.semana.k)),titulo:'evaluaciones en siete días.',nota:'Y aquí estás.'});
   if(d.primera){
     const fin=d.mitades?d.mitades.segunda-d.mitades.primera:0;
-    s.push({sup:'rayado',prep:{texto:'¿Te acuerdas de cómo partió todo?'},
+    s.push({prep:{texto:'¿Te acuerdas de cómo partió todo?'},
       k:'Todo empezó con un',big:cifraWrapped(fmt(d.primera.valor),1),sub:`${esc(d.primera.nombre)} · ${esc(d.primera.ramo)}`,
       nota:fin>=0.3?'Mira dónde terminaste.':Math.abs(fin)<0.3?'Y lo sostuviste todo el semestre.':''});
   }
-  if(d.movio)s.push({sup:'papel',prep:{texto:'Hubo una nota que lo cambió todo.'},
+  if(d.movio)s.push({prep:{texto:'Hubo una nota que lo cambió todo.'},
     k:'Una sola nota.',big:cifraWrapped('+'+fmt(d.movio.delta)),flecha:true,sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio.`});
-  if(d.remontada)s.push({sup:'pizarron',prep:{texto:'Esta es la historia de una remontada.'},
+  if(d.remontada)s.push({prep:{texto:'Esta es la historia de una remontada.'},
     k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${fmtPromedio(d.remontada.minimo)}.`,titulo:'Terminó en',big:cifraWrapped(fmtPromedio(d.remontada.final),1),nota:'Nadie lo vio venir. Tú sí.'});
-  if(d.mejor)s.push({tipo:'goma',sup:'papel',prep:{texto:'Tu mejor nota quedó escondida.',sub:'Bórrala para verla.'},
+  if(d.mejor)s.push({tipo:'goma',prep:{texto:'Tu mejor nota quedó escondida.',sub:'Bórrala para verla.'},
     titulo:`Tu ${hojaMarca('mejor nota')}`,cifra:fmt(d.mejor.valor),
     nota:`<b>${esc(d.mejor.ramo)}</b><br>${esc(d.mejor.evaluacion)}`,sub:d.mejor.valor>=7?'Nada más que decir.':''});
   if(d.ranking.length>1){
     const opciones=d.ranking.slice(0,4).map(x=>({texto:esc(x.nombre),correcta:x===d.ranking[0]}));
     const giro=d.nNotas%opciones.length;
-    s.push({tipo:'pregunta',sup:'rayado',titulo:'¿Cuál fue tu mejor ramo?',
+    s.push({tipo:'pregunta',titulo:'¿Cuál fue tu mejor ramo?',
       pregunta:{opciones:opciones.map((o,i)=>opciones[(i+giro)%opciones.length]),bien:'Lo sabías.',mal:'Tus notas dicen otra cosa.'},
       viz:rankingWrapped(d.ranking)});
-  }else s.push({sup:'rayado',titulo:`Tu ramo estrella: ${hojaMarca(esc(d.estrella.r.nombre),2)}`,sub:`Tu mejor promedio: ${fmtPromedio(d.estrella.avg)}.`});
+  }else s.push({titulo:`Tu ramo estrella: ${hojaMarca(esc(d.estrella.r.nombre),2)}`,sub:`Tu mejor promedio: ${fmtPromedio(d.estrella.avg)}.`});
   // "Lo sacaste adelante" solo si de verdad lo aprobó: el resumen no celebra
   // lo que el semáforo pinta rojo.
-  if(d.dificil)s.push({sup:'pizarron',prep:{texto:'Ahora, el que más pelea dio.'},
+  if(d.dificil)s.push({prep:{texto:'Ahora, el que más pelea dio.'},
     k:'El ramo que más costó',titulo:esc(d.dificil.r.nombre),big:cifraWrapped(fmtPromedio(d.dificil.avg),1),
     sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía quedan evaluaciones por registrar.':notaAprobadaRamo(d.dificil.r,d.dificil.avg)?'Y lo sacaste adelante.':'Un ramo no te define. El próximo va con todo lo que aprendiste.'});
   if(dificil){
     const buenas=[`Anotaste <b>${d.nNotas}</b> nota${pl(d.nNotas)}. No te escondiste de ninguna.`];
     if(d.mejor)buenas.push(`Sacaste un <b>${fmt(d.mejor.valor)}</b> en ${esc(d.mejor.ramo)}.`);
     buenas.push(d.aprobando?`Sacaste adelante <b>${d.aprobando}</b> ramo${pl(d.aprobando)}.`:'Llegaste hasta el final. Eso también cuenta.');
-    s.push({tipo:'animo',sup:'papel',prep:{texto:'Este semestre pesó.',sub:'Lo sabemos.'},
+    s.push({tipo:'animo',prep:{texto:'Este semestre pesó.',sub:'Lo sabemos.'},
       titulo:'Pero no fue solo eso.',viz:corchoWrapped(buenas),sub:'El próximo empieza con todo lo que aprendiste en este.'});
   }
   if(d.personalidad){
     const p=d.personalidad,m=d.mitades,dato=p.id==='remontada'&&m?`<br><small>Tu 2.ª mitad del semestre promedió <b>${fmt(m.segunda)}</b>; la 1.ª, <b>${fmt(m.primera)}</b>.</small>`:'';
-    s.push({tipo:'pregunta',sup:'papel',prep:{texto:'Una pregunta más.',sub:'Esta es sobre ti.'},
+    s.push({tipo:'pregunta',prep:{texto:'Una pregunta más.',sub:'Esta es sobre ti.'},
       titulo:'¿Qué tipo de estudiante fuiste?',pregunta:{opciones:p.opciones.map(o=>({texto:esc(o.nombre),correcta:o.id===p.id})),
         bien:'Te conoces bien.',mal:'Tus notas te ven así:'},
       nota:`${esc(p.frase)}${dato}`});
   }
   // Una sola comparación, y solo si deja bien parado: nadie necesita leer que
   // quedó en el 12% (Lucas, 2026-11-02: cuidar a quien le fue mal).
-  if(comp&&comp.curso&&comp.curso.mejorQue>=50)s.push({sup:'rayado',prep:{texto:'¿Y tu curso?',sub:'Nadie ve las notas de nadie.'},
+  if(comp&&comp.curso&&comp.curso.mejorQue>=50)s.push({prep:{texto:'¿Y tu curso?',sub:'Nadie ve las notas de nadie.'},
     k:`En ${esc(comp.curso.ramo)} quedaste sobre el`,antes:true,big:cifraWrapped(comp.curso.mejorQue+'%'),titulo:hojaMarca('de tu curso.'),
     sub:`Comparado con ${comp.curso.total-1} personas del ramo que usan GradeHub.`,viz:reglaWrapped(comp.curso.mejorQue)});
   // El servidor compara el promedio simple de los ramos, no el ponderado de
   // Inicio (ver universidad_posicion.sql): por eso la frase dice "tus ramos".
-  else if(comp&&comp.uni&&comp.uni.mejorQue>=50)s.push({sup:'rayado',prep:{texto:`¿Y en toda ${u}?`,sub:'Nadie ve las notas de nadie.'},
+  else if(comp&&comp.uni&&comp.uni.mejorQue>=50)s.push({prep:{texto:`¿Y en toda ${u}?`,sub:'Nadie ve las notas de nadie.'},
     k:`En toda ${u}`,big:cifraWrapped(comp.uni.mejorQue+'%'),
     sub:`Con el promedio simple de tus ramos con sigla quedas igual o por sobre el ${comp.uni.mejorQue}% de otras ${comp.uni.total-1} personas de ${u} en GradeHub.`,viz:reglaWrapped(comp.uni.mejorQue)});
   // El recado de un profe que tuvo y calificó bien (ver wrapped_recado.sql).
@@ -89,19 +90,19 @@ function slidesWrapped(d,comp,label,recado){
   // servidor, o en una universidad sin videos, la historia no sale.
   const conSeccion=(S.ramos||[]).find(r=>r.seccion&&d.ranking.some(x=>x.nombre===r.nombre));
   const sinCalificar=!!recado&&recado.calificaciones===0&&!recado.video;
-  if(recado&&recado.video)s.push({tipo:'video',sup:'pizarron',prep:{texto:'Alguien pasó a dejarte un recado.'},
+  if(recado&&recado.video)s.push({tipo:'video',prep:{texto:'Alguien pasó a dejarte un recado.'},
     k:`Un recado de ${esc(recado.video.quien)}`,video:recado.video});
-  else if(sinCalificar)s.push({tipo:'video',sup:'pizarron',prep:{texto:'Alguien quería dejarte un recado.'},
+  else if(sinCalificar)s.push({tipo:'video',prep:{texto:'Alguien quería dejarte un recado.'},
     k:'Este espacio era para un profe.',video:null,sinCalificar:true,
     sub:'Los recados son de profes que calificaste bien. Como no calificaste a ninguno este semestre, no tenemos uno para ti.',
     ...(conSeccion?{accion:{texto:'Calificar a mis profes',ramo:conSeccion.id},nota:'Califica y vuelve a abrir tu hoja.'}:{})});
-  if(d.anterior&&d.anterior.delta>=0.1)s.push({sup:'papel',prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`},
+  if(d.anterior&&d.anterior.delta>=0.1)s.push({prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`},
     k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),flecha:true});
-  else if(d.anterior)s.push({sup:'papel',titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
-  if(d.gpa!==null)s.push({sup:'papel',prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.'}:{texto:'Y ahora, el número que lo resume todo.'},
+  else if(d.anterior)s.push({titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
+  if(d.gpa!==null)s.push({prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.'}:{texto:'Y ahora, el número que lo resume todo.'},
     k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`,viz:arcoWrapped(d.gpa)});
   if(conSeccion&&!sinCalificar)s.push({k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
-  s.push({tipo:'cierre',sup:'pizarron',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
+  s.push({tipo:'cierre',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
   const filas=[];
   if(d.personalidad)filas.push(['¿Qué tipo de estudiante fuiste?',esc(d.personalidad.nombre),d.personalidad.letra]);
   filas.push(['Ramo estrella',esc(d.estrella.r.nombre)]);
@@ -309,17 +310,19 @@ function pintarWrapped(){
   _wrapped.fase=s.prep?'prep':'revela';
   ov.querySelector('[data-paso="-1"]').disabled=i===0;
   ov.style.setProperty('--acento',HOJA_ACENTOS[i%HOJA_ACENTOS.length]);
+  ov.dataset.sup=oscuroWrapped()?'pizarron':'papel';
   const barras=ov.querySelector('.wrapped-barras');
   barras.setAttribute('aria-label',`Historia ${i+1} de ${slides.length}`);
   barras.innerHTML=slides.map((_,j)=>`<span class="${j<i?'on':j===i?'ahora':''}"></span>`).join('');
   const caja=ov.querySelector('.wrapped-slide');
   caja.scrollTop=0;caja.dataset.tipo=s.tipo||'';
   if(_wrapped.fase==='prep'){
-    ov.dataset.sup='acento';caja.dataset.fase='prep';
+    caja.dataset.fase='prep';
     ov.querySelector('[data-paso="1"]').textContent='Ver';
-    // Palabra por palabra, como quien lo va diciendo. VoiceOver lee la frase entera.
+    // Palabra por palabra, como quien lo va diciendo, y al final la frase se
+    // resalta en el color de la historia. VoiceOver lee la frase entera.
     const palabras=s.prep.texto.split(' ');
-    caja.innerHTML=`<p class="wrapped-prep" style="--d:0"><span class="wrapped-oculto">${s.prep.texto}</span><span aria-hidden="true">${palabras.map((w,k)=>`<span style="--w:${k}">${w}</span>`).join(' ')}</span></p>${s.prep.sub?`<p class="wrapped-prep-sub" style="--d:${Math.ceil(palabras.length/2)+2}">${s.prep.sub}</p>`:''}`;
+    caja.innerHTML=`<p class="wrapped-prep" style="--d:0"><span class="wrapped-oculto">${s.prep.texto}</span><span aria-hidden="true" style="--n:${palabras.length}">${palabras.map((w,k)=>`<span style="--w:${k}">${w}</span>`).join(' ')}</span></p>${s.prep.sub?`<p class="wrapped-prep-sub" style="--d:${Math.ceil(palabras.length/2)+2}">${s.prep.sub}</p>`:''}`;
     programarWrapped();
     return;
   }
@@ -335,7 +338,6 @@ function pintarRevelacionWrapped(){
   const {ov,slides,i}=_wrapped,s=slides[i];
   _wrapped.fase='revela';
   ov.querySelector('[data-paso="1"]').textContent=s.tipo==='umbral'?'Revisar mi hoja':i===slides.length-1?'Terminar':'Siguiente';
-  ov.dataset.sup=oscuroWrapped()&&s.sup!=='acento'?'pizarron':s.sup||'papel';
   // `--d` escalona la entrada: primero de qué se habla, después el número.
   let d=0;const p=(cls,html)=>html?`<p class="${cls}" style="--d:${d++}">${html}</p>`:'';
   const caja=ov.querySelector('.wrapped-slide');
