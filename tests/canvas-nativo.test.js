@@ -16,7 +16,7 @@ assert(swift.includes('completionHandler(nil)'),'nunca sigue una redirección co
 assert(swift.includes('session.bytes(for: pedido)')&&swift.includes('bytes.task.cancel()'),'tope durante la lectura');
 assert(swift.includes('CanvasPolitica.agregarGrupos')&&swift.includes('/assignment_groups'));
 assert(swift.includes('CanvasPolitica.parametrosValidos(ruta, items)'),'los parámetros también tienen lista cerrada');
-for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
+for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
 assert(!/call\.resolve\([^\n]*"token"/.test(swift),'el puente no devuelve credenciales');
 for(const f of ['CanvasPlugin.swift','CanvasPolitica.swift'])assert(read('ios/App/App.xcodeproj/project.pbxproj').includes(f+' in Sources'));
 assert(read('ios/App/App/MainViewController.swift').includes('registerPluginInstance(GradeHubCanvasPlugin())'));
@@ -75,6 +75,21 @@ assert(cursos[0]["syllabus_body"] == nil && cursos[0]["apply_assignment_group_we
 assert((cursos[0]["term"] as? [String:String])?["name"] == "2026 Segundo Semestre")
 let grupos = CanvasPolitica.proyectarGrupos([["id":12,"name":"Controles","group_weight":30,"rules":["drop_lowest":1],"assignments":[["id":1]]]])
 assert(Set(grupos[0].keys) == ["id","name","group_weight"])
+assert(CanvasPolitica.rutaValida("courses/42"))
+assert(CanvasPolitica.parametrosValidos("courses/42", q([("include[]","syllabus_body")])))
+assert(!CanvasPolitica.parametrosValidos("courses/42", q([("include[]","total_scores")])), "solo el programa")
+assert(!CanvasPolitica.parametrosValidos("courses/42", q([("include[]","students")])))
+assert(!CanvasPolitica.rutaValida("courses/42/front_page") && !CanvasPolitica.rutaValida("courses/42/pages"))
+let programa = CanvasPolitica.proyectarPrograma(["id":42,"name":"Curso","syllabus_body":"<h2>Evaluaci&oacute;n</h2><script>alert(1)</script><table><tr><th>Evaluación</th><th>Ponderación</th></tr><tr><td>Interrogación 1</td><td>25&nbsp;%</td></tr><tr><td><a href=\\"https://x.cl\\" onclick=\\"y()\\">Examen</a></td><td>35%</td></tr></table><p>Ver <a href=\\"/courses/42/files/77\\">programa.pdf</a></p><img src=x onerror=z()>","teachers":[["name":"Profe"]]])
+let textoPrograma = programa["texto"] as? String ?? ""
+assert(Set(programa.keys) == ["texto","archivo","recortado"])
+assert(textoPrograma.hasPrefix("# Evaluación\\n"), textoPrograma)
+assert(textoPrograma.contains("Interrogación 1\\t25 %") && textoPrograma.contains("Examen\\t35%"), textoPrograma)
+assert(!textoPrograma.contains("<") && !textoPrograma.contains("alert") && !textoPrograma.contains("onerror") && !textoPrograma.contains("https://x.cl"), textoPrograma)
+assert(programa["archivo"] as? Bool == true && programa["recortado"] as? Bool == false)
+let largo = CanvasPolitica.proyectarPrograma(["syllabus_body": String(repeating: "<p>Control 10%</p>", count: 20000)])
+assert((largo["texto"] as? String ?? "").count == CanvasPolitica.programaMax && largo["recortado"] as? Bool == true)
+assert(CanvasPolitica.proyectarPrograma(["syllabus_body": NSNull()])["texto"] as? String == "")
 print("PASS política Swift real")`);
  execFileSync('xcrun',['swiftc','-module-cache-path',path.join(dir,'cache'),path.join(root,'ios/App/App/CanvasPolitica.swift'),path.join(dir,'main.swift'),'-o',path.join(dir,'prueba')],{stdio:'pipe'});
  console.log(execFileSync(path.join(dir,'prueba'),{encoding:'utf8'}).trim());

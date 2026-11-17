@@ -73,6 +73,7 @@
     "src/app/calendario-importar.js",
     "src/app/canvas.js",
     "src/app/canvas-notas.js",
+    "src/app/canvas-programa.js",
     "src/app/canvas-calendario-web.js",
     "src/app/calendario-exportar.js",
     "src/app/calendario-suscripcion.js",
@@ -168,7 +169,8 @@
     "src/engine/ausencias-y-reemplazos.js",
     "src/engine/calculo-final.js",
     "src/engine/resolver-meta.js",
-    "src/engine/adaptador-ramo.js"
+    "src/engine/adaptador-ramo.js",
+    "src/engine/programa-pauta.js"
   ],
   "data.js": [
     "src/data/colores.js",

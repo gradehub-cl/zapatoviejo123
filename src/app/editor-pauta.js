@@ -246,6 +246,7 @@ function renderPautaManualModal(){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">${pautaArmando?'Armar mi pauta':'Editar evaluaciones'}</div>
     <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
+    ${typeof canvasProgramaEditorHTML==='function'?canvasProgramaEditorHTML():''}
     ${plantillas}
     ${duplicar}
     ${typeof canvasPesosEditorHTML==='function'?canvasPesosEditorHTML():''}
