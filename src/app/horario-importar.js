@@ -104,10 +104,12 @@ async function reconocerHorarioBuscacursos(lecturasFoto){
     const resultado=await clasesParaRevisionHorario(lecturasFoto,x=>porSigla.has(x),codigos,estado);
     if(document.getElementById('m-horario-estado')!==estado)return false;
     avisosClases.push(...resultado.avisos);
-    resultado.clases.forEach(({sigla,bloques,profesores,diferencias})=>{
+    resultado.clases.forEach(({sigla,bloques:leidos,profesores,diferencias})=>{
       const ramo=ramoConSigla(sigla),nuevo=_horarioUCReconocido.find(r=>r.sigla===sigla);
       if(!ramo&&!nuevo)return;
       const antes=ramo?copiarHorario(ramo.horario):[];
+      // Una foto nueva no deshace lo que marcó como «no voy» (horario-clases.js).
+      const bloques=conservarNoVoyHorario(antes,leidos);
       const igual=x=>JSON.stringify(x.map(({id,...b})=>b));
       if(antes.length&&igual(antes)===igual(bloques))return;
       _horarioClasesUC.push({sigla,nombre:ramo?ramo.nombre:nuevo.nombre,bloques,profesores,diferencias,reemplaza:antes.length>0,

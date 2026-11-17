@@ -20,7 +20,10 @@ function copiarHorario(horario){
     for(const c of JSON.stringify([dias,b.inicio,b.fin,sala,tipo]))hash=Math.imul(hash^c.charCodeAt(0),16777619)>>>0;
     let id=typeof b.id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(b.id)?b.id:'horario-'+hash.toString(36);
     if(usados.has(id))id='horario-'+hash.toString(36)+'-'+i;
-    usados.add(id);return {id,dias,inicio:b.inicio,fin:b.fin,sala,tipo};
+    // `noVoy` (Lucas, 2026-11-17): la persona marcó que no va a esta clase, por
+    // ejemplo a la ayudantía. Opcional: sin el campo, va. Solo se guarda cuando
+    // es true y no entra al id, así marcarlo no cambia la identidad del bloque.
+    usados.add(id);return {id,dias,inicio:b.inicio,fin:b.fin,sala,tipo,...(b.noVoy===true?{noVoy:true}:{})};
   });
 }
 // Traduce SOLO los módulos con fuente. Cada módulo sigue siendo un bloque:
@@ -92,7 +95,8 @@ function resumenHorarioClases(ramos,ahora=new Date()){
     const civil=new Date(Date.UTC(a,m-1,d+offset,12)),fecha=civil.toISOString().slice(0,10);
     const dia=['D','L','M','W','J','V','S'][civil.getUTCDay()];
     for(const r of ramos||[])for(const b of copiarHorario(r.horario)){
-      if(!b.dias.includes(dia))continue;
+      // Una clase a la que no va no sale en Hoy, en el widget ni en los avisos.
+      if(b.noVoy||!b.dias.includes(dia))continue;
       const inicioAt=instanteHorarioChile(fecha,b.inicio),finAt=instanteHorarioChile(fecha,b.fin);
       if(!inicioAt||!finAt)continue;
       clases.push({id:String(r.id)+':'+b.id+':'+fecha,ramoId:r.id,ramo:r.nombre,
@@ -114,7 +118,7 @@ function pintarHorarioRamo(r){
   if(!caja){caja=document.createElement('section');caja.id='ramo-horario';caja.className='horario-ficha';lista.insertAdjacentElement('afterend',caja);}
   const bloques=copiarHorario(r.horario);
   caja.innerHTML=`<header><h2>Horario</h2><button type="button" class="horario-accion" data-editar-horario>${bloques.length?'Editar':'Agregar bloque'}</button></header>
-    ${bloques.length?`<ul>${bloques.map(b=>`<li><span>${esc(diasBloqueHorario(b))}</span><b>${esc(b.inicio)}–${esc(b.fin)}</b><span>${esc([b.tipo,b.sala].filter(Boolean).join(' · ')||'Sin sala')}</span></li>`).join('')}</ul>`:'<p>Agrega los días y las horas de tus clases.</p>'}`;
+    ${bloques.length?`<ul>${bloques.map(b=>`<li${b.noVoy?' class="no-voy"':''}><span>${esc(diasBloqueHorario(b))}</span><b>${esc(b.inicio)}–${esc(b.fin)}</b><span>${esc([b.tipo,b.sala].filter(Boolean).join(' · ')||'Sin sala')}${b.noVoy?' · No vas':''}</span></li>`).join('')}</ul>`:'<p>Agrega los días y las horas de tus clases.</p>'}`;
   caja.querySelector('[data-editar-horario]').addEventListener('click',()=>abrirHorarioRamo(r.id));
 }
 // La hoja de edición sirve para un ramo guardado y para la revisión de la foto
@@ -125,9 +129,15 @@ function abrirEditorHorario({titulo,bloques:iniciales,agregar=false,alGuardar,al
   const nuevo=()=>({id:uid(),dias:[],inicio:'',fin:'',sala:'',tipo:''});
   if(!bloques.length||agregar)bloques.push(nuevo());
   const caja=document.getElementById('modal-content');
-  const leer=()=>{bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>({id:row.dataset.horarioBloque,
+  // «Voy a esta clase» viene del interruptor del bloque. Si un formulario no lo
+  // trae, se conserva la marca del bloque con el mismo id: editar la sala no
+  // borra lo que se marcó.
+  const leer=()=>{const noVoy=new Set(bloques.filter(b=>b.noVoy).map(b=>b.id));
+    bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>{const voy=row.querySelector('[name=voy]');
+    return {id:row.dataset.horarioBloque,
     dias:[...row.querySelectorAll('[name=dia]:checked')].map(n=>n.value),
-    ...Object.fromEntries(['inicio','fin','sala','tipo'].map(k=>[k,row.querySelector('[name='+k+']').value]))}));};
+    ...Object.fromEntries(['inicio','fin','sala','tipo'].map(k=>[k,row.querySelector('[name='+k+']').value])),
+    ...((voy?!voy.checked:noVoy.has(row.dataset.horarioBloque))?{noVoy:true}:{})};});};
   const pintar=()=>{
     caja.innerHTML=`<form class="horario-editor"><h2 class="modal-title">${esc(titulo)}</h2>
       <p class="modal-desc">Se repite cada semana. Horas de Chile.</p><div class="horario-bloques">${bloques.map((b,i)=>`
@@ -136,6 +146,7 @@ function abrirEditorHorario({titulo,bloques:iniciales,agregar=false,alGuardar,al
         <div class="horario-campos"><label>Inicio<input type="time" name="inicio" step="60" required value="${esc(b.inicio)}"></label><label>Fin<input type="time" name="fin" step="60" required value="${esc(b.fin)}"></label>
         <label>Sala <small>(opcional)</small><input type="text" name="sala" maxlength="100" value="${esc(b.sala)}" placeholder="Ej.: K201"></label>
         <label>Tipo <small>(opcional)</small><input type="text" name="tipo" maxlength="${NOMBRE_MAX}" value="${esc(b.tipo)}" placeholder="Cátedra, ayudantía…" list="horario-tipos"></label></div>
+        <label class="horario-voy"><span>Voy a esta clase</span><input type="checkbox" role="switch" name="voy"${b.noVoy?'':' checked'}></label>
         <div class="horario-bloque-acciones"><button type="button" data-copiar="${i}" class="horario-accion">Copiar bloque</button><button type="button" data-quitar="${i}" class="horario-accion">Quitar</button></div>
       </fieldset>`).join('')}</div>
       <datalist id="horario-tipos">${['Cátedra','Ayudantía','Laboratorio','Taller'].map(t=>`<option value="${t}">`).join('')}</datalist>
@@ -170,4 +181,34 @@ function abrirHorarioRamo(ramoId,{agregar=false,alGuardado=null}={}){
     if(alGuardado)alGuardado();else{renderRamo();renderHome();}
     showToast('Horario guardado');
   }});
+}
+
+// ─── «NO VOY» (Lucas, 2026-11-17) ───────────────────────────────────────────
+// Marcar las clases a las que no va, por ejemplo las ayudantías. La clase se
+// sigue viendo en la semana, apagada, pero no sale en Hoy, en el widget ni en
+// los avisos (resumenHorarioClases). Solo escribe `noVoy` en el bloque.
+const esAyudantiaHorario=b=>/^ayu/.test(normName(b&&b.tipo||''));
+function marcarNoVoyHorario(ramoId,bloqueId,noVoy){
+  const ramo=(S.ramos||[]).find(r=>r.id===ramoId);
+  if(!ramo||esCuentaProfesor()||!copiarHorario(ramo.horario).some(b=>b.id===bloqueId))return false;
+  ramo.horario=copiarHorario(ramo.horario.map(b=>b&&b.id===bloqueId?{...b,noVoy:!!noVoy}:b));
+  save();return true;
+}
+// Todas las ayudantías de todos los ramos de una vez. Devuelve cuántas cambió.
+function marcarAyudantiasHorario(noVoy){
+  if(esCuentaProfesor())return 0;
+  let cambiadas=0;
+  (S.ramos||[]).forEach(r=>{
+    if(!Array.isArray(r.horario)||!r.horario.some(b=>esAyudantiaHorario(b)&&!!b.noVoy!==!!noVoy))return;
+    r.horario=copiarHorario(r.horario.map(b=>{if(!esAyudantiaHorario(b)||!!b.noVoy===!!noVoy)return b;cambiadas++;return {...b,noVoy:!!noVoy};}));
+  });
+  if(cambiadas)save();
+  return cambiadas;
+}
+// Al reemplazar un horario (foto, BuscaCursos), la marca sigue en el bloque que
+// es la misma clase: mismos días, horas y tipo.
+function conservarNoVoyHorario(antes,nuevos){
+  const clave=b=>[b.dias.join(''),b.inicio,b.fin,normName(b.tipo||'')].join('|');
+  const marcadas=new Set(copiarHorario(antes).filter(b=>b.noVoy).map(clave));
+  return copiarHorario(nuevos).map(b=>marcadas.has(clave(b))?{...b,noVoy:true}:b);
 }
