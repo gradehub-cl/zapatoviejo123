@@ -168,3 +168,56 @@ function videoWrapped(v,sinCalificar){
 function corchoWrapped(notas){
   return `<div class="hoja-corcho">${notas.map((n,i)=>`<div style="--d:${i+2};--acento:${HOJA_ACENTOS[(i*2)%HOJA_ACENTOS.length]}">${hojaPostit(n,[-4,3,-2][i%3])}</div>`).join('')}</div>`;
 }
+
+// Los útiles de cada historia (Lucas, 2026-11-17, tras revisar el Wrapped de
+// Spotify: cada dato con su objeto). Aparecen en la preparación, como si
+// alguien los dejara sobre la mesa. Mismo trazo de grafito que el resto de la
+// hoja; `.a` va en el color de la historia y `.p` tapa la cuadrícula. Las
+// clases `.trazo`, `.sello`, `.huella` y `.migas` tienen su propio movimiento.
+function hojaLapizObjeto(largo){
+  const x=142-largo;
+  return `<g transform="rotate(-18 80 60)"><rect class="p" x="${x-26}" y="50" width="14" height="20" rx="4"/><rect class="p" x="${x-12}" y="50" width="12" height="20"/><path d="M${x-8} 50v20M${x-4} 50v20"/>`
+    +`<rect class="a" x="${x}" y="50" width="${largo-22}" height="20"/><path d="M${x} 60h${largo-22}"/><path class="p" d="M120 50 L142 60 L120 70 Z"/><path class="t" d="M135 56.8 L142 60 L135 63.2 Z"/></g>`;
+}
+const HOJA_OBJETOS={
+  lapiz:()=>hojaLapizObjeto(100)+'<path class="trazo" pathLength="100" d="M28 104 C 50 96, 62 110, 84 102 S 120 96, 136 104"/>',
+  gastado:()=>hojaLapizObjeto(40)+'<path class="migas" d="M60 96l4 3M72 102l2-4M54 106l4-1M84 98l3 3"/>',
+  calendario:()=>{
+    let dias='';for(let f=0;f<3;f++)for(let c=0;c<7;c++)dias+=`<circle class="t" cx="${35+c*15}" cy="${54+f*17}" r="${f===1?3.4:2.4}"/>`;
+    return '<rect class="p" x="22" y="18" width="116" height="92" rx="6"/><path d="M22 38h116"/><path d="M50 10v16M80 10v16M110 10v16"/>'
+      +'<rect class="a trazo-fondo" x="25" y="62" width="110" height="18" rx="9"/>'+dias;
+  },
+  sacapuntas:()=>'<g><rect class="p" x="8" y="62" width="12" height="16" rx="3"/><rect class="a" x="20" y="62" width="44" height="16"/><path d="M20 70h44"/><path class="p" d="M64 62 L82 70 L64 78 Z"/></g>'
+    +'<path class="a" d="M74 50 L130 46 L130 96 L74 92 Z"/><path d="M84 56 L122 54"/><circle class="t" cx="103" cy="55" r="2.6"/><circle class="p" cx="78" cy="70" r="7"/>'
+    +'<path class="trazo" pathLength="100" d="M112 44 c 4 -10 16 -12 18 -4 c 2 7 -8 9 -9 3 c -1 -4 4 -6 6 -3"/>',
+  corrector:()=>'<path d="M24 98h30M60 98h26M92 98h40"/><rect class="cinta" x="56" y="91" width="34" height="14" rx="2"/><path class="trazo" pathLength="100" d="M62 98 C 68 92, 76 102, 84 96"/>'
+    +'<g transform="rotate(-32 104 48)"><rect class="p" x="58" y="38" width="70" height="20" rx="10"/><rect class="a" x="70" y="38" width="24" height="20"/><path class="p" d="M128 42 L146 48 L128 54 Z"/></g>',
+  escuadra:()=>{
+    let marcas='';for(let x=40;x<=124;x+=8)marcas+=`M${x} 100v${(x/8)%2?-5:-9}`;
+    return `<path class="a" d="M30 104 L132 104 L30 18 Z"/><path class="p" d="M46 92 L96 92 L46 50 Z"/><path d="${marcas}"/>`;
+  },
+  goma:()=>'<g transform="rotate(-12 80 60)"><rect class="p" x="32" y="40" width="96" height="40" rx="8"/><rect class="a" x="62" y="40" width="66" height="40"/><path d="M62 40v40"/></g>'
+    +'<path class="migas" d="M34 100l5 2M48 106l3-4M28 92l2 5M60 110l5-1"/>',
+  mochila:()=>'<path d="M66 28 a14 14 0 0 1 28 0"/><rect class="a" x="38" y="26" width="84" height="86" rx="24"/><path d="M42 50 C 60 60, 100 60, 118 50"/>'
+    +'<rect class="p" x="54" y="70" width="52" height="32" rx="9"/><path d="M54 82h52M80 82v9"/>',
+  burbujas:()=>'<rect class="a trazo-fondo" x="10" y="48" width="140" height="20" rx="10"/>'+'ABCDE'.split('').map((l,i)=>`<circle class="${i===2?'t':'p'}" cx="${28+i*26}" cy="58" r="11"/><text${i===2?' class="llena"':''} x="${28+i*26}" y="58" text-anchor="middle" dominant-baseline="central">${l}</text>`).join('')
+    +'<path class="trazo" pathLength="100" d="M70 42 C 88 36, 102 50, 97 64 C 92 78, 64 78, 62 62 C 60 48, 74 40, 88 42"/>',
+  lista:()=>{
+    let filas='';for(let k=0;k<5;k++){const y=46+k*13;filas+=`<circle class="${k===1?'a':'p'}" cx="59" cy="${y}" r="3.6"/><path d="M68 ${y}h${k===1?36:28+(k*7)%12}"/>`;}
+    return '<rect class="a" x="40" y="18" width="80" height="96" rx="8"/><rect class="p" x="48" y="30" width="64" height="78" rx="3"/><rect class="p" x="64" y="11" width="32" height="14" rx="4"/>'+filas;
+  },
+  carnet:()=>'<rect class="p" x="26" y="30" width="108" height="72" rx="8"/><path class="a" d="M26 46 v-8 a8 8 0 0 1 8 -8 h92 a8 8 0 0 1 8 8 v8 z"/><path d="M26 46h108"/>'
+    +'<rect class="p" x="36" y="56" width="30" height="36" rx="4"/><circle cx="51" cy="68" r="6"/><path d="M41 90 c 2 -10 18 -10 20 0"/><path d="M76 62h46M76 74h34M76 86h40"/>',
+  papelito:()=>'<path class="p" d="M34 36 L118 28 L126 94 L42 102 Z"/><path d="M38 68 L122 60"/><rect class="a" x="66" y="20" width="36" height="14" transform="rotate(-6 84 27)"/>'
+    +'<path class="trazo" pathLength="100" d="M50 48 h40 M52 56 h24 M56 82 h36 M58 90 h20"/>',
+  cuaderno:()=>{
+    let espiral='';for(let y=28;y<=104;y+=12)espiral+=`M34 ${y} h12`;
+    return `<rect class="a" x="40" y="18" width="84" height="96" rx="6"/><path d="${espiral}"/><rect class="p" x="58" y="40" width="50" height="24" rx="3"/><path d="M64 50h38M64 57h24"/>`;
+  },
+  timbre:()=>'<ellipse class="huella" cx="80" cy="104" rx="36" ry="8"/><g class="sello"><circle class="p" cx="80" cy="20" r="12"/><rect class="p" x="72" y="30" width="16" height="22"/>'
+    +'<rect class="a" x="48" y="52" width="64" height="16" rx="3"/><rect class="t" x="52" y="68" width="56" height="5"/></g>',
+};
+function hojaObjeto(id){
+  const dibujo=HOJA_OBJETOS[id];
+  return dibujo?`<svg class="hoja-objeto" data-obj="${id}" viewBox="0 0 160 120" aria-hidden="true">${dibujo()}</svg>`:'';
+}
