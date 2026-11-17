@@ -261,6 +261,21 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 @keyframes arrAbajo{50%{transform:translateY(8px);}}
 @media(prefers-reduced-motion:reduce){#arranque.vivo .arr-capa{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
+/* Herramientas en Inicio (Lucas, 2026-11-17): llave inglesa arriba a la derecha
+   con un menú que se despliega hacia abajo, como un pull-down de iOS. */
+.topbar .herramientas-inicio{position:relative;margin-left:auto;}
+.topbar .herramientas-inicio[hidden]{display:none;}
+.topbar-icono{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-10px -10px -10px 0;padding:0;border:0;border-radius:8px;background:transparent;color:var(--fg);font-size:1.375rem;cursor:pointer;}
+.topbar-icono[aria-expanded="true"]{background:color-mix(in srgb,var(--fg) 8%,transparent);}
+.topbar-icono:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.herramientas-menu{position:absolute;right:-6px;top:calc(100% + 12px);z-index:30;min-width:252px;width:max-content;max-width:calc(100vw - 32px);padding:6px;border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 14px 36px rgba(0,0,0,.18);transform-origin:top right;}
+.herramientas-menu[hidden]{display:none;}
+.herramientas-menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;white-space:nowrap;cursor:pointer;}
+.herramientas-menu button:focus-visible{background:color-mix(in srgb,var(--fg) 7%,transparent);outline:none;}
+@media(hover:hover){.herramientas-menu button:hover{background:color-mix(in srgb,var(--fg) 7%,transparent);}}
+.herramientas-menu .ic{font-size:1.25rem;color:var(--fg2);}
+@media(prefers-reduced-motion:no-preference){.herramientas-menu:not([hidden]){animation:herramientas-abre var(--motion-fast) var(--ease-out);}}
+@keyframes herramientas-abre{from{opacity:0;transform:scale(.96) translateY(-4px);}}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
 @media(hover:hover) and (pointer:fine){.icon-btn:hover{background:color-mix(in srgb,var(--muted),var(--primary) 12%);color:var(--fg);}}

@@ -40,6 +40,7 @@ function renderRecorreccionesHome(){
     </article>`).join('')}`;
 }
 function renderHome(){
+  if(typeof pintarHerramientasInicio==="function")pintarHerramientasInicio();
   renderClasesHoy();
   renderPropuestasPautaHome();
   renderRecorreccionesHome();
