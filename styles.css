@@ -3341,6 +3341,48 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-corcho>div{animation:wrappedRevela 420ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso));}
 .hoja-corcho .hoja-postit{width:min(290px,88%);margin-left:0;}
 .hoja-corcho>div:nth-child(2) .hoja-postit{margin-left:auto;}
+/* Formas de página (Lucas, 2026-11-17: «los formatos se parecen harto»).
+   Cambian la composición y la escala, nunca el fondo de la hoja. */
+/* Objeto grande, dato chico: la semana ocupa el centro. */
+.wrapped-slide[data-forma="objeto"] .hoja-semana{--tinta:#1D1D1F;--tinta-2:#4A4740;max-width:none;gap:0;padding:0;border:2px solid #1D1D1F;border-radius:4px;background:#FBFAF6;color:#1D1D1F;transform:rotate(-1deg);box-shadow:0 1px 0 rgba(0,0,0,.06),0 18px 30px -18px rgba(29,29,31,.5);}
+.wrapped-slide[data-forma="objeto"] .hoja-semana .dia{justify-content:flex-start;gap:0;padding:0;border-radius:0;}
+.wrapped-slide[data-forma="objeto"] .hoja-semana .dia+.dia{border-left:1.5px solid #CBD5E3;}
+.wrapped-slide[data-forma="objeto"] .hoja-semana b{order:-1;align-self:stretch;padding:8px 0;border-bottom:2px solid #1D1D1F;text-align:center;font-size:17px;color:#1D1D1F;}
+.wrapped-slide[data-forma="objeto"] .hoja-semana .pila{flex-direction:column;justify-content:flex-start;min-height:min(34vh,270px);gap:8px;padding:12px 0;}
+.wrapped-slide[data-forma="objeto"] .hoja-semana .dia.tope{background:var(--acento);}
+.wrapped-slide[data-forma="objeto"] .hoja-semana .hoja-burbuja.chica{width:clamp(26px,8vw,36px);height:clamp(26px,8vw,36px);background:#1D1D1F;border-color:#1D1D1F;}
+.wrapped-slide[data-forma="objeto"] .wrapped-titulo{font-size:22px;font-weight:600;line-height:1.25;letter-spacing:0;}
+.wrapped-slide[data-forma="objeto"] .wrapped-titulo b{font-weight:900;font-variant-numeric:tabular-nums;}
+/* El número llega a los dos bordes de la pantalla, sin cortarse. */
+.wrapped-slide[data-forma="gigante"] .wrapped-grande{margin-inline:calc(-18px - env(safe-area-inset-left,0px)) calc(-18px - env(safe-area-inset-right,0px));}
+.wrapped-slide[data-forma="gigante"] .wrapped-big{font-size:min(calc(96vw / (var(--n,3) * .74)),210px);letter-spacing:-.065em;line-height:.8;}
+/* Respiro: casi nada en la página, al centro y en chico. */
+.wrapped-slide[data-forma="respiro"]{align-items:center;text-align:center;gap:26px;}
+.wrapped-slide[data-forma="respiro"] .wrapped-titulo{max-width:260px;font-size:21px;font-weight:500;line-height:1.4;letter-spacing:0;}
+.wrapped-slide[data-forma="respiro"] .wrapped-sub{max-width:260px;font-size:21px;line-height:1.4;}
+/* Lista corregida: cada nota en su renglón y el promedio encerrado al pie.
+   Es una hoja suelta: en papel y pizarrón se ve igual. */
+.hoja-lista{--tinta:#1D1D1F;--tinta-2:#4A4740;max-width:340px;padding:14px 20px 16px;box-sizing:border-box;background:#FBFAF6;color:#1D1D1F;transform:rotate(1deg);box-shadow:0 1px 0 rgba(0,0,0,.06),0 16px 26px -16px rgba(29,29,31,.45);font-variant-numeric:tabular-nums;}
+.hoja-lista .fila{display:flex;align-items:baseline;gap:8px;min-height:44px;padding-top:8px;box-sizing:border-box;border-bottom:1.5px solid #CBD5E3;font-size:19px;animation:wrappedRevela 380ms var(--ease-out) backwards;animation-delay:calc(var(--i,0) * 120ms + 300ms);}
+.hoja-lista .fila span{font-weight:600;}
+.hoja-lista .fila i{flex:1;align-self:center;border-bottom:2px dotted #9A9484;}
+.hoja-lista .fila b{font-size:24px;font-weight:800;}
+.hoja-lista .fila.mas span{font-weight:500;font-size:16px;color:#4A4740;}
+.hoja-lista .total{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:4px double #1D1D1F;animation:wrappedRevela 380ms var(--ease-out) backwards;animation-delay:calc(var(--i,0) * 120ms + 400ms);}
+.hoja-lista .total>span{font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}
+.hoja-lista .total b{font-size:58px;font-weight:900;letter-spacing:-.03em;line-height:1;padding:6px 12px;}
+.hoja-lista .hoja-lapiz>svg path{stroke:#2747D8;stroke-width:3;animation-delay:calc(var(--i,0) * 120ms + 700ms);}
+/* Post-it y cuaderno: una hoja encima de la cuadrícula con todo adentro. La
+   tinta de adentro es siempre grafito, también sobre el pizarrón. */
+.hoja-pagina{--tinta:#1D1D1F;--tinta-2:#4A4740;--linea:#B9B2A0;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;color:#1D1D1F;box-shadow:0 1px 0 rgba(0,0,0,.06),0 20px 32px -18px rgba(29,29,31,.55);}
+.hoja-pagina>*{animation:wrappedRevela 380ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 200ms);}
+.hoja-pagina.postit{--sup:var(--acento);min-height:min(64%,520px);justify-content:center;padding:36px 26px 40px;background:var(--acento);transform:rotate(-2deg);}
+.hoja-pagina.postit .wrapped-accion{margin-top:8px;}
+.hoja-pagina.cuaderno{--sup:#FBFAF6;position:relative;gap:0;padding:50px 20px 30px 58px;background-color:#FBFAF6;background-image:linear-gradient(transparent 39px,#C6D3E6 39px);background-size:100% 40px;transform:rotate(1deg);}
+.hoja-pagina.cuaderno::before{content:"";position:absolute;top:0;bottom:0;left:40px;border-left:2px solid color-mix(in srgb,var(--acento) 70%,#1D1D1F);}
+.hoja-pagina.cuaderno .wrapped-k,.hoja-pagina.cuaderno .wrapped-titulo,.hoja-pagina.cuaderno .wrapped-sub{line-height:40px;}
+.hoja-pagina.cuaderno .wrapped-big{height:120px;font-size:120px;line-height:120px;}
+.hoja-pagina.cuaderno .wrapped-viz{padding-top:12px;}
 /* Reducir movimiento: estado final inmediato, sin animación ni transición. */
 @media(prefers-reduced-motion:reduce){
   .wrapped,.wrapped *,.wrapped *::before,.wrapped *::after{animation:none!important;transition:none!important;}
