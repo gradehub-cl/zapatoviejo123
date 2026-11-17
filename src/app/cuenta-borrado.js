@@ -27,9 +27,14 @@ async function eliminarCuenta(){
     track('delete_account');
     // Recién acá se limpia lo local: si el borrado en la nube falló, el
     // estudiante conserva sus notas en el dispositivo y puede reintentar.
-    try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(CACHE_OWNER_KEY);localStorage.removeItem(PRE_IMPORT_KEY);}catch(e){}
-    if(typeof borrarCacheApartada==='function')borrarCacheApartada(currentUser.id);
-    try{await supabaseClient.auth.signOut();}catch(e){}
+    // Es la limpieza de cerrar sesión, no una lista propia: la de acá dejaba
+    // la base de sincronización (una copia completa de las notas) y, en el
+    // iPhone, los widgets, las Actividades y los avisos de la cuenta borrada.
+    const uid=currentUser.id;
+    // Una subida que estaba esperando ya no tiene cuenta a la que subir.
+    if(typeof _syncTimer!=='undefined'){clearTimeout(_syncTimer);_syncTimer=null;}
+    await cerrarSesion();
+    if(typeof borrarCacheApartada==='function')borrarCacheApartada(uid);
     showToast('Tu cuenta fue eliminada');
     setTimeout(()=>location.reload(),1400);
   }catch(e){

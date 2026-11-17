@@ -87,3 +87,10 @@ const SIGLAS_UC={
     'Dirección de Personas':'EAA2110', 'Práctica Social':'EAF2500',
   },
 };
+
+// Siglas vigentes en BuscaCursos que el catálogo de asignaturas no trae y que
+// comparten nombre con un ramo de malla (MAT1100 «Cálculo I» no es MAT1610).
+// Solo ponen nombre a una sigla ya elegida en Apoyo (perfiles y anuncios): no
+// entran al buscador de ramos, donde dos «Cálculo I» confundirían.
+// Fuente: buscacursos.uc.cl, 2026-2, consultado el 2026-11-11 (Lucas).
+const NOMBRES_UC_SOLO_BUSCACURSOS={MAT1100:'Cálculo I',MAT1220:'Cálculo II'};

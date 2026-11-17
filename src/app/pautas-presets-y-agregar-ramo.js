@@ -152,14 +152,15 @@ function renderCatalogResults(q){
   }
   box.innerHTML=res.map(r=>{
     const tengo=yaTengo.has(normName(r.nombre));
-    return `<button class="cat-hit${tengo?' ya':''}" ${tengo?'disabled':`onclick="addFromCatalogCodificado('${obCodificarNombre(r.nombre)}','${obCodificarNombre(r.sigla||'')}')"`}>
+    return `<div class="cat-hit-fila"><button class="cat-hit${tengo?' ya':''}" ${tengo?'disabled':`onclick="addFromCatalogCodificado('${obCodificarNombre(r.nombre)}','${obCodificarNombre(r.sigla||'')}')"`}>
       <span class="cat-hit-info">
         <span class="cat-hit-name">${esc(r.nombre)}</span>
         <span class="cat-hit-meta">${obCatalogMeta(r)}</span>
       </span>
       ${tengo?'<span class="cat-hit-tag">ya lo tienes</span>':'<span class="chevron-r">+</span>'}
-    </button>`;
+    </button>${typeof accionResumenCatalogoHTML==='function'?accionResumenCatalogoHTML(r):''}</div>`;
   }).join('');
+  if(typeof enlazarResumenesCatalogo==='function')enlazarResumenesCatalogo(box,q);
 }
 
 // Agrega directo desde el catálogo, con sello de procedencia y preset si existe

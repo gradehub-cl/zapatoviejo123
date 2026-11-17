@@ -62,14 +62,18 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('como estudiante', run('obTipo') === 'estudiante');
   chk('ya no hay paso 0 ni radios de tipo de cuenta', !/data-step="0"/.test(html) && !/name="ob-tipo"/.test(html));
   chk('el estudiante recorre 1, 2, 3 y 5: la generación quedó en el 1', JSON.stringify(run('obPasos("estudiante")')) === '[1,2,3,5]');
-  chk('el paso 1 pide nombre y semestre', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',semestre:2})`) === true
-    && run(`obStepValid(1,{tipo:'estudiante',nombre:'',semestre:2})`) === false && run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',semestre:2,semInvalido:true})`) === false);
+  chk('el paso 1 pide nombre y semestre', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',generacion:2025,semestre:2})`) === true
+    && run(`obStepValid(1,{tipo:'estudiante',nombre:'',generacion:2025,semestre:2})`) === false && run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',generacion:2025,semestre:2,semInvalido:true})`) === false);
   chk('la generación y el semestre están en el paso 1', /data-step="1">[\s\S]*id="ob-estudio"[\s\S]*id="ob-generacion-ruleta"[\s\S]*id="ob-sem-calculado"[\s\S]*data-step="2"/.test(html) && !/data-step="4"/.test(html));
   chk('el estudiante los ve', el('ob-estudio').hidden === false);
   chk('en el primer paso, el botón de la izquierda es Cerrar sesión', el('ob-back').hidden === false && el('ob-back').textContent === 'Cerrar sesión');
   run('obBack()');
   chk('y cierra sesión', run('_salidas') === 1 && run('obStep') === 1);
-  el('ob-name').value = 'Ana'; run('obNext()');
+  el('ob-name').value='Ana';run('checkOb();obNext()');
+  chk('sin elegir año no avanza aunque tenga nombre y semestre técnico',run('obGeneracion')===null&&run('obStep')===1&&el('ob-next').disabled===true);
+  chk('el semestre espera la elección del año',/Elige tu año de ingreso/.test(el('ob-sem-calculado').textContent));
+  chk('un año futuro o ausente no responde el paso',run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',semestre:2,generacion:new Date().getFullYear()+1})`)===false);
+  el('ob-name').value = 'Ana'; run('obGeneracion=2025;actualizarSemestreCalculado();obNext()');
   chk('del 1 a la universidad, como siempre', run('obStep') === 2);
   chk('desde ahí vuelve a decir Atrás', el('ob-back').textContent === 'Atrás');
   run('obBack()');
@@ -155,6 +159,13 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('y sigue en la universidad, sin repetir el nombre', run('obStep') === 2 && run('obTipo') === 'estudiante');
   chk('y un estudiante nuevo no queda como profesor', run('S.tipoCuenta') === 'estudiante');
 
+  console.log('\n=== Cuentas existentes: el borrador no reescribe su semestre ===');
+  run(`S={...freshState(),onboardingDone:true,careerSemestre:7,generacion:2023,tenant:'uc',carrera:'ING-PC',
+    ramos:[{id:'sintetico',nombre:'Ramo sintético',categorias:[{id:'c',nombre:'Evaluación',peso:100,notas:[{id:'n',valor:5.2}]}]}]};
+    obGeneracion=2025;obSemManual=true;selectedSem=4;obVerano=true`);
+  const existente=run('JSON.stringify(S)');run('obIniciar()');
+  chk('mantiene semestre, generación, ramos y notas exactamente',run('JSON.stringify(S)')===existente);
+  chk('la siguiente cuenta elige su propio año sin heredar el anterior',run('obGeneracion')===null&&run('obSemManual')===false&&run('obVerano')===false);
   console.log('\n=== El perfil académico no inventa universidad para un profesor ===');
   run(`var _perfilesSubidos=[];
     supabaseClient={from:tabla=>({upsert:datos=>{_perfilesSubidos.push({tabla,datos});return {error:null}}})};

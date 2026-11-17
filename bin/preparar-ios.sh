@@ -26,7 +26,13 @@ rsync -a ./ ios-web/ \
   --exclude 'tests' --exclude 'supabase' --exclude 'bin' --exclude 'src' \
   --exclude '*.md' --exclude 'package.json' --exclude 'package-lock.json' \
   --exclude '.gitignore' --exclude '.ignore' \
-  --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*'
+  --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*' \
+  --exclude '/functions' --exclude '/_headers' --exclude '/sitemap.xml' \
+  --exclude '/robots.txt' --exclude '/.well-known'
+# La última línea es solo de la app: son archivos que gradehub.cl sí publica,
+# pero para el servidor (las Pages Functions, las cabeceras de Cloudflare, lo
+# que leen los buscadores y Android). Dentro del binario no los usa nadie, y
+# el código de servidor no tiene por qué viajar en la app.
 
 # supabase-js va DENTRO de la app: index.html lo baja de jsDelivr, y así la app
 # no abría sin internet y esperaba a la CDN en cada arranque. Es el archivo del

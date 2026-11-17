@@ -94,7 +94,7 @@ async function forgotPassword(){
   if(boton&&boton.disabled)return;
   if(boton)boton.disabled=true;
   try{
-    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:paginaPublica()});
     if(error)throw error;
     authError('');showToast('Te enviamos un correo para recuperar tu contraseña');
   }catch(e){authError(traduceAuthError(e));}

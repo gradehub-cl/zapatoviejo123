@@ -13,7 +13,7 @@ function sandbox(){
 const ctx=sandbox(),plain=x=>JSON.parse(JSON.stringify(x));
 const at=new Date('2026-10-05T12:00:00Z');
 function curso(nombre){const p=ctx.presetRamo(nombre,'uc','COM',at);return {id:'curso',nombre,origen:{tenant:'uc',carrera:'COM'},...p,pautaHuella:ctx.huellaPauta(p.categorias)};}
-function poner(r,nombre,valor){const c=r.categorias.find(c=>c.nombre===nombre);assert.ok(c);c.notas=valor===null?[]:[{id:'nota-'+c.id,nombre:'Nota',valor,peso:1}];}
+function poner(r,nombre,valor){const c=r.categorias.find(c=>c.nombre===nombre);assert.ok(c);c.notas=valor===null?[]:Array.from({length:c.slots||1},(_,slot)=>({id:'nota-'+c.id+'-'+slot,nombre:'Nota',valor,peso:1,...(c.slots?{slot}:{})}));}
 function todo(r,valores){for(const [nombre,valor] of Object.entries(valores))poner(r,nombre,valor);return r;}
 function cercano(a,b){assert.ok(Math.abs(a-b)<1e-9,`${a} debe ser ${b}`);}
 const estrategia=curso('Estrategia Competitiva');

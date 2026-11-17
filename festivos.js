@@ -3,6 +3,8 @@
 // y S.fondo de cada usuario quedan intactos y vuelven solos al apagarlo.
 // Navidad ya tiene su botón en el panel, pero todavía no tiene diseño.
 let temaFestivo=null;
+// Copia de solo lectura para muestras: no activa el tema ni altera su paleta.
+let paletaTemaFestivo=()=>null;
 {
   const _applyTheme=applyTheme,_fraseInicio=fraseInicio;
   const PALETA={
@@ -11,6 +13,7 @@ let temaFestivo=null;
     oscuro:{primary:'#fb923c',primaryFg:'#1a0b2e',primaryLight:'#2a1640',accent:'#fb923c',secondary:'#c4b5fd',
       bg:'#120a1c',bg2:'#120a1c',card:'#1c1129',border:'#33224a',border2:'#5b4478',muted:'#241733',fg:'#f5f0fa',fg2:'#c4b6d4',fg3:'#9d8cb2'},
   };
+  paletaTemaFestivo=(tema,oscuro=false)=>tema==='halloween'?{...PALETA[oscuro?'oscuro':'claro']}:null;
   applyTheme=function(){
     _applyTheme();
     const halloween=temaFestivo==='halloween',dark=prefersDark();

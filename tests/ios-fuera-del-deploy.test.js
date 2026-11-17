@@ -23,6 +23,8 @@ const faltan = [...delDeploy].filter(x => !deIos.has(x));
 chk(`preparar-ios excluye todo lo que excluye el deploy${faltan.length ? ' (falta: ' + faltan.join(', ') + ')' : ''}`, faltan.length === 0);
 for (const x of ['tests', 'supabase', 'docs', 'bin', '*.md', 'node_modules']) chk(`incluido ${x}`, deIos.has(x));
 for (const x of ['ios', 'ios-web', 'capacitor.config.*']) chk(`preparar-ios no se copia a sí mismo: ${x}`, deIos.has(x));
+// La web los publica para el servidor, los buscadores y Android; la app no.
+for (const x of ['/functions', '/_headers', '/sitemap.xml', '/robots.txt', '/.well-known']) chk(`el binario no lleva ${x}`, deIos.has(x) && !delDeploy.has(x));
 chk('copia a ios-web y sincroniza con Capacitor', /rsync -a \.\/ ios-web\//.test(preparar) && /cap sync ios/.test(preparar));
 const config = JSON.parse(fs.readFileSync(path.join(raiz, 'capacitor.config.json'), 'utf8'));
 chk('Capacitor toma la web de ios-web', config.webDir === 'ios-web' && config.appId === 'cl.gradehub.app');

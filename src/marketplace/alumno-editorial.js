@@ -24,10 +24,10 @@ function estadoComparacionPrivada(comp){
 function barraUltimaPrivadaHTML(ramo,comp,seccion=false){
   const ultima=ultimaNotaPrivada(ramo,comp),muestra=ultima?comparacionEvaluacionPrivada(ramo,{id:ultima.id,nombre:ultima.evaluacion},comp):null,ref=muestra?.promedio??null;
   const lugar=seccion?'Sección':'Ramo',pos=v=>((Math.max(1,Math.min(7,v))-1)/6*100).toFixed(2);
-  const referencia=ref===null?estadoComparacionPrivada(comp):lugar+' · última evaluación: '+cifraNotaPrivada(fmtPromedio(ref));
-  return `<div class="pe-ultima-cabeza"><span>Última nota</span><strong>${ultima?esc(cifraNotaPrivada(fmt(ultima.nota))):'—'}</strong></div>
+  const referencia=ref===null?estadoComparacionPrivada(comp):lugar+' · última evaluación: '+fmtPromedio(ref);
+  return `<div class="pe-ultima-cabeza"><span>Última nota</span><strong>${ultima?esc(fmt(ultima.nota)):'—'}</strong></div>
     <p class="pe-ultima-fecha">${ultima?esc(ultima.evaluacion)+' · '+esc(fechaCorta(ultima.fecha)):'Sin evaluaciones con fecha'}</p>
-    <button type="button" class="pe-ultima" data-pe-ultima="${esc(ramo.id)}" aria-label="${esc(ultima?'Última nota '+cifraNotaPrivada(fmt(ultima.nota))+'. '+referencia+'. '+(muestra?textoMuestraPanel(muestra)+'.':''):'Sin última evaluación con fecha.')} Comparar con ${seccion?'el ramo':'su sección'}" aria-pressed="${seccion}">
+    <button type="button" class="pe-ultima" data-pe-ultima="${esc(ramo.id)}" aria-label="${esc(ultima?'Última nota '+fmt(ultima.nota)+'. '+referencia+'. '+(muestra?textoMuestraPanel(muestra)+'.':''):'Sin última evaluación con fecha.')} Comparar con ${seccion?'el ramo':'su sección'}" aria-pressed="${seccion}">
       <span class="pe-nota-pista" aria-hidden="true">${ultima?`<i style="width:${pos(ultima.nota)}%"></i>`:''}${ref!==null?`<b style="left:${pos(ref)}%"></b>`:''}<em style="left:50%"></em></span>
       <span class="pe-barra-extremos" aria-hidden="true"><span>1</span><span>4</span><span>7</span></span>
       <small>${esc(referencia)} <span aria-hidden="true">↔</span></small>${muestra?`<small>${esc(textoMuestraPanel(muestra))}</small>`:''}</button>`;
@@ -60,7 +60,7 @@ function evaluacionesPrivadasHTML(ramo,comp,contexto,ahora,al=null){
       const percentil=al?percentilEvaluacionPanel(al,ramo,n.id,comp):null;
       const peso=cat?pesoEvaluacionPrivada({ramo,cat,nota:n,historialRendida:true}):'';
       return `<tr><th scope="row">${esc(n.nombre)}<small>${fechas.has(n.id)?esc(fechaCorta(fechas.get(n.id))):'Sin fecha'}${peso?' · '+esc(peso):''}</small></th>
-        <td><b>${esc(cifraNotaPrivada(fmt(n.valor)))}</b><small>${notaAprobada(n.valor)?'Aprobada':'Bajo 4,0'}</small></td><td>${ref===null?'<span aria-label="Comparación no disponible">No disponible</span>':esc(cifraNotaPrivada(fmtPromedio(ref)))+`<small>${esc(textoMuestraPanel(muestra))}</small>`}${percentil===null?'':`<small>Percentil ${Math.round(percentil)} en GradeHub</small>`}</td></tr>`;
+        <td><b>${esc(fmt(n.valor))}</b><small>${notaAprobada(n.valor)?'Aprobada':'Bajo 4,0'}</small></td><td>${ref===null?'<span aria-label="Comparación no disponible">No disponible</span>':esc(fmtPromedio(ref))+`<small>${esc(textoMuestraPanel(muestra))}</small>`}${percentil===null?'':`<small>Percentil ${Math.round(percentil)} en GradeHub</small>`}</td></tr>`;
     }).join('')}</tbody></table></div>`:'<p class="pe-sub">Todavía no tiene notas.</p>'}</section>`;
 }
 // Modelo de presentación: notas del ramo actual, identidades de #976 y motor compartido.
@@ -108,9 +108,9 @@ function graficoFichaAlumnoHTML(m,id){
   const notas=m.evaluaciones.filter(e=>e.fecha).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
   if(!notas.length)return '<div class="fap-vacio">Todavía no tiene notas con fecha. Las notas sin fecha siguen abajo.</div>';
   const texto=e=>`${e.evaluacion} · ${fechaCorta(e.fecha)}`;
-  const serie=notas.map(e=>({valor:e.nota,etiqueta:texto(e),antes:e.lado==='antes',valorTexto:cifraNotaPrivada(fmt(e.nota)),
-    detalle:(e.curso===null?'Referencia no disponible':`Referencia ${cifraNotaPrivada(fmtPromedio(e.curso))} · vs. ${e.cursoPersonas} estudiantes en GradeHub`)+` · ${m.metodo==='manual'?(e.lado==='ahora'?'Preparada':'No preparada'):(e.lado==='ahora'?'Desde el inicio':'Antes del inicio')}`,
-    lectura:`${texto(e)}, nota ${cifraNotaPrivada(fmt(e.nota))}`}));
+  const serie=notas.map(e=>({valor:e.nota,etiqueta:texto(e),antes:e.lado==='antes',valorTexto:fmt(e.nota),
+    detalle:(e.curso===null?'Referencia no disponible':`Referencia ${fmtPromedio(e.curso)} · vs. ${e.cursoPersonas} estudiantes en GradeHub`)+` · ${m.metodo==='manual'?(e.lado==='ahora'?'Preparada':'No preparada'):(e.lado==='ahora'?'Desde el inicio':'Antes del inicio')}`,
+    lectura:`${texto(e)}, nota ${fmt(e.nota)}`}));
   // Una referencia ausente corta la línea: no une muestras que no existen.
   let anterior=false;const trazo=notas.map((e,i)=>{
     if(e.curso===null){anterior=false;return '';}
@@ -141,13 +141,13 @@ function ramoAlumnoEditorialHTML(al,r,comp,compUltima,seccionUltima,ahora){
   const fila=(e)=>{
     const diferencia=e.nota!==null&&e.muestra?e.nota-e.muestra.promedio:null;
     const etiqueta=m.metodo==='manual'?(e.preparada?'Con clases':'Sin clases'):!e.fecha||!m.desde?'Sin corte por fecha':e.preparada?'Desde el inicio':'Antes del inicio';
-    return `<li class="fap-fila"><div><b>${esc(e.nombre)}</b><small>${e.fecha?esc(fechaCorta(e.fecha)):'Sin fecha'} · ${esc(e.peso)}</small></div><strong class="fap-nota">${e.nota===null?'—':esc(cifraNotaPrivada(fmt(e.nota)))}</strong><div class="fap-ref">${e.muestra?esc(cifraNotaPrivada(fmtPromedio(e.muestra.promedio))):'—'}<small>${e.muestra?esc(textoMuestraPanel(e.muestra)):'No disponible'}</small></div><span class="fap-delta ${diferencia!==null&&signoEstPanel(diferencia,'puntos').startsWith('+')?'fap-sube':diferencia!==null&&signoEstPanel(diferencia,'puntos').startsWith('−')?'fap-baja':''}">${diferencia===null?'—':esc(signoEstPanel(diferencia,'puntos'))}</span><div class="fap-marca">${pre&&e.indice!==null&&!al.preparacion?.errorCarga?`<button type="button" data-fap-editar class="fap-marca-ver">${esc(etiqueta)} <span aria-hidden="true">✎</span></button><label class="fap-casilla" hidden><input type="checkbox" data-preparacion-eval="${e.indice}"${m.metodo==='manual'&&e.preparada?' checked':''}${e.ambigua?' disabled':''}><span>Preparada<span class="sr-only">: ${esc(e.nombre)}</span></span></label>`:esc(etiqueta)}</div></li>`;
+    return `<li class="fap-fila"><div><b>${esc(e.nombre)}</b><small>${e.fecha?esc(fechaCorta(e.fecha)):'Sin fecha'} · ${esc(e.peso)}</small></div><strong class="fap-nota">${e.nota===null?'—':esc(fmt(e.nota))}</strong><div class="fap-ref">${e.muestra?esc(fmtPromedio(e.muestra.promedio)):'—'}<small>${e.muestra?esc(textoMuestraPanel(e.muestra)):'No disponible'}</small></div><span class="fap-delta ${diferencia!==null&&signoEstPanel(diferencia,'puntos').startsWith('+')?'fap-sube':diferencia!==null&&signoEstPanel(diferencia,'puntos').startsWith('−')?'fap-baja':''}">${diferencia===null?'—':esc(signoEstPanel(diferencia,'puntos'))}</span><div class="fap-marca">${pre&&e.indice!==null&&!al.preparacion?.errorCarga?`<button type="button" data-fap-editar class="fap-marca-ver">${esc(etiqueta)} <span aria-hidden="true">✎</span></button><label class="fap-casilla" hidden><input type="checkbox" data-preparacion-eval="${e.indice}"${m.metodo==='manual'&&e.preparada?' checked':''}${e.ambigua?' disabled':''}><span>Preparada<span class="sr-only">: ${esc(e.nombre)}</span></span></label>`:esc(etiqueta)}</div></li>`;
   };
   const pendientes=d.filas.filter(e=>e.nota===null).sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999'));
   const pasadas=d.filas.filter(e=>e.nota!==null).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  const necesaria=d.necesaria===null?'Aún no se puede calcular lo necesario.':d.necesaria>7?'Con lo pendiente ya no alcanza para aprobar.':`Necesita ${cifraNotaPrivada(nfNecesaria(d.necesaria))} en cada evaluación pendiente para aprobar.`;
+  const necesaria=d.necesaria===null?'Aún no se puede calcular lo necesario.':d.necesaria>7?'Con lo pendiente ya no alcanza para aprobar.':`Necesita ${nfNecesaria(d.necesaria)} en cada evaluación pendiente para aprobar.`;
   return `<div class="fap-contexto"><span class="fap-sigla">${esc(r.sigla||'')}</span><span>${Number.isInteger(r.seccion)?'Sección '+esc(r.seccion):'Sin sección declarada'}</span></div>
-    <div class="fap-grilla"><section class="est-tarjeta-grande fap-grafico"><div class="fap-promedio"><div><span>Promedio actual</span><strong>${d.promedio===null?'—':esc(cifraNotaPrivada(fmtPromedio(d.promedio)))}</strong></div><span>${pasadas.length} ${pasadas.length===1?'nota compartida':'notas compartidas'}</span></div>
+    <div class="fap-grilla"><section class="est-tarjeta-grande fap-grafico"><div class="fap-promedio"><div><span>Promedio actual</span><strong>${d.promedio===null?'—':esc(fmtPromedio(d.promedio))}</strong></div><span>${pasadas.length} ${pasadas.length===1?'nota compartida':'notas compartidas'}</span></div>
     ${d.motivo?`<details class="fap-tope"><summary>${esc(d.motivo)} · Ver regla</summary>${ramoPanelHTML(r,comp,ahora,ramosDelAlumnoPanel(al),'',true)}</details>`:''}
     ${graficoFichaAlumnoHTML(m,r.id)}<div class="fap-leyenda"><span>● Alumno</span><span>┄ ${ref}</span><span>○ ${m.metodo==='manual'?'Sin clases':'Antes del inicio'} / ● ${m.metodo==='manual'?'Con clases':'Desde el inicio'}</span></div></section>
     <aside class="est-tarjeta-grande fap-comparacion"><h3>Frente al grupo</h3><div class="est-seg" role="group" aria-label="Referencia de toda la ficha">${[false,true].map(s=>`<button type="button" data-pe-grupo="${s?'seccion':'ramo'}" aria-pressed="${seccion===s}">${s?'Su sección':'Todo el ramo'}</button>`).join('')}</div><p class="fap-muted">${muestra?esc(textoMuestraPanel(muestra)):esc(estadoComparacionPrivada(comp))}</p>${comparacionFichaAlumnoHTML(m,!!pre&&!al.preparacion?.errorCarga)}

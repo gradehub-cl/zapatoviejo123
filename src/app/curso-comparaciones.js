@@ -110,6 +110,11 @@ async function subirNotasCurso(){
   else _firmaNotasCurso=firma;
 }
 
+// El total incluye a quien consulta: diez compañeros requieren once personas.
+// Se valida al recibir y también al pintar, por si queda una caché anterior.
+function posicionCursoVisible(f){
+  return !!f&&Number.isInteger(f.total)&&f.total>=11&&Number.isFinite(f.mejorQue)&&f.mejorQue>=0&&f.mejorQue<=100;
+}
 let _posCursoCache=null;
 async function cargarPosicionesCurso(){
   if(esCuentaProfesor())return null;
@@ -123,11 +128,11 @@ async function cargarPosicionesCurso(){
       const {data,error}=await supabaseClient.rpc('curso_posicion',{p_tenant:S.tenant,p_sigla:sigla});
       if(error)throw error;
       const fila=Array.isArray(data)?data[0]:data;
-      // Sin fila = todavia no son cinco. No se distingue de "fallo la red" a
+      // Sin fila = no hay comparación disponible. No se distingue de "fallo la red" a
       // proposito: en los dos casos no hay nada que mostrar.
       // Los dos tienen que ser numero: la frase le resta 1 al total para hablar
       // de companeros, y un total que no lo sea la deja diciendo "NaN".
-      if(fila&&typeof fila.mejor_que==='number'&&typeof fila.total==='number')out[r.id]={total:fila.total,mejorQue:fila.mejor_que};
+      if(fila&&typeof fila.mejor_que==='number'&&typeof fila.total==='number'&&posicionCursoVisible({total:fila.total,mejorQue:fila.mejor_que}))out[r.id]={total:fila.total,mejorQue:fila.mejor_que};
     }catch(e){}
   }
   _posCursoCache=out;

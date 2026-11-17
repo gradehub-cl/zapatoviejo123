@@ -164,8 +164,8 @@ function alertaRamoAgendaHTML(e){
   //    20% con 70% por rendir le decía «pesa poco» (reporte de un usuario).
   const ir=notaParaIrConCuatro(e);
   if(ir&&ir.nota)return caja(tono,urgente
-    ?`Es urgente: necesitas un ${ir.nota} para ir aprobando el ramo.`
-    :`Es importante: si sacas un ${ir.nota}, estarás aprobando el ramo.`);
+    ?`Es urgente: necesitas un ${notaConComa(ir.nota)} para ir aprobando el ramo.`
+    :`Es importante: si sacas un ${notaConComa(ir.nota)}, estarás aprobando el ramo.`);
   if(peso<EVALUACION_PESA_POCO)return caja(tono,urgente
     ?`Es urgente: esta evaluación pesa poco, pero necesitas un ${N} en lo pendiente para aprobar el ramo.`
     :`Esta evaluación pesa poco, pero una buena nota te ayudará: necesitas un ${N} en lo pendiente para aprobar el ramo.`);

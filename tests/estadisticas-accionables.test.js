@@ -58,6 +58,8 @@ console.log('\n=== Evolución del promedio por semestre ===');
     fmtPromedio:n=>n.toFixed(1),nf:(n,d)=>n.toFixed(d),
     esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')};
   vm.createContext(contexto);
+  vm.runInContext(fs.readFileSync(path.join(raiz,'engine.js'),'utf8'),contexto);
+  vm.runInContext(app.match(/function fmtPromedioGeneral\([\s\S]*?\n\}/)[0],contexto);
   vm.runInContext(app.match(/function parseEtiquetaSemestre\([\s\S]*?\n\}/)[0],contexto);
   ['serieEvolucionSemestres','trazoEvolucionNotas','htmlGraficoEvolucion'].forEach(n=>vm.runInContext(render.match(new RegExp('function '+n+'\\([\\s\\S]*?\\n\\}'))[0],contexto));
   const dibujar=periodo=>{contexto.periodo=periodo;contexto.hist='';vm.runInContext(bloque,contexto);return contexto.hist;};

@@ -31,7 +31,7 @@ for(const [count,pct,grade] of [[0,0,null],[2,40,5.5],[5,100,3.6]]){
   check(`${pct}%: el costado del promedio reutiliza el semestre y la carga actual`,
     /<strong>[^<]+<\/strong><span>1 ramo/.test(contexto.innerHTML)&&contexto.style.display==='flex');
   check(`${pct}%: dibujar no mueve el promedio ni escribe datos`,avg===grade&&run('ramoAvg(S.ramos[0])')===avg&&run('JSON.stringify(S)')===before&&writes===beforeWrites);
-  if(pct===100)check('100% reprobado conserva la nota 3.6 y distingue cierre de aprobación',row.innerHTML.includes('3.6')&&row.classList.contains('is-complete')&&row.innerHTML.includes('100%'));
+  if(pct===100)check('100% reprobado conserva la nota 3,6 y distingue cierre de aprobación',row.innerHTML.includes('3,6')&&row.classList.contains('is-complete')&&row.innerHTML.includes('100%'));
 }
 run(`S={...freshState(),tenant:'fen',userName:'Prueba',sortMode:'name',onboardingDone:true,ramos:[{
   id:'incompleto',nombre:'Pauta de prueba',color:'#9873bd',categorias:[{

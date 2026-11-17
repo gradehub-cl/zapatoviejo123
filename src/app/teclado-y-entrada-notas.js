@@ -123,6 +123,21 @@ function agregarCasilla(catId){
   const boton=cat&&document.querySelector(`#cat-list .nota-en-fila[data-cat-id="${catId}"][data-slot="${cat.slots-1}"]`);
   if(boton)abrirNotaEnFila(boton);
 }
+// "+ Agregar nota" de una lista abierta: crea la nota siguiente con el nombre de
+// la evaluación en singular ("Tarea 4"), pendiente, y la deja lista para escribir.
+// El nombre y la fecha se cambian tocando la fila.
+function agregarNotaLista(catId){
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const cat=r&&r.categorias.find(c=>c.id===catId);if(!cat)return;
+  cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+  const usados=new Set(cat.notas.map(n=>normName(n.nombre)));
+  let i=cat.notas.length;while(usados.has(normName(etiquetaCasilla(r,cat,i))))i++;
+  const nueva=asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,i),peso:1},'',null);
+  cat.notas.push(nueva);openCats[catId]=true;
+  save();track('add_nota',{ponderada:false,pendiente:true});renderRamo();
+  const boton=document.querySelector(`#cat-list .nota-en-fila[data-nota-id="${nueva.id}"]`);
+  if(boton)abrirNotaEnFila(boton);
+}
 function setSlotNota(catId,slot,raw){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
@@ -132,15 +147,19 @@ function setSlotNota(catId,slot,raw){
   // con eso se perdía todo lo que no fuera el número: la fecha de esa casilla,
   // su hora y el nombre que le hubieran puesto. Escribir la nota del Control 2
   // borraba que era el 18 de octubre.
-  const existente=cat.notas.find(n=>n.slot===slot);
+  // En una lista abierta no hay casillas: `slot` trae el id de la nota. Esa nota
+  // tiene nombre propio, así que vaciarla la deja pendiente; se borra desde su
+  // hoja o con "Quitar la última".
+  const porId=typeof slot==='string';
+  const existente=cat.notas.find(n=>porId?n.id===slot:n.slot===slot);
   const val=txt===''?NaN:parseNota(txt);
   if(txt!==''&&!isNaN(val)){
     if(existente)asignarCalificacionNota(existente,txt,val);
-    else cat.notas.push(asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,slot),peso:1,slot},txt,val));
+    else if(!porId)cat.notas.push(asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,slot),peso:1,slot},txt,val));
   }else if(existente){
     // Vaciar la nota no borra la casilla si tiene fecha: queda pendiente, que
     // es lo que dice "esto se rinde ese día y todavía no tengo la nota".
-    if(existente.fecha)asignarCalificacionNota(existente,'',null);
+    if(existente.fecha||porId)asignarCalificacionNota(existente,'',null);
     else cat.notas=cat.notas.filter(n=>n.slot!==slot);
   }
   save();track('set_nota_slot');renderRamo();

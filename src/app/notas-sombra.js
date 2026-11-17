@@ -67,7 +67,7 @@ function modeloNotasSombra(r,fijas=new Map()){
   const pendientes=[];
   for(const c of cats){
     if(!(c.peso>0))continue;
-    const min=Math.max(minimo,...gates.filter(g=>g.catId===c.id).map(g=>Number(nfNecesaria(g.min))));
+    const min=Math.max(minimo,...gates.filter(g=>g.catId===c.id).map(g=>Number(nfNecesariaDato(g.min))));
     if(c.slots>1){
       hojasCategoria(c).forEach(h=>{
         const n=(c.notas||[]).find(n=>n.id===h.id);
@@ -95,7 +95,7 @@ function modeloNotasSombra(r,fijas=new Map()){
     if(menor&&necesaria>=menor[1]-1e-9){auto.delete(menor[0]);continue;}
     break;
   }
-  const valor=Math.max(minimo,Number(nfNecesaria(necesaria)));
+  const valor=Math.max(minimo,Number(nfNecesariaDato(necesaria)));
   const estado=valor>maximo?'no':valor<=minimo&&!auto.size?'ya':'ok';
   if(estado!=='no'){
     const todas=new Map([...fijadas,...auto,...libres.map(p=>[p.clave,valor])]);

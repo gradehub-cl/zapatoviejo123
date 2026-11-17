@@ -31,10 +31,10 @@ ctx.exacto=exacto;
 
 const promedio=ctx.run('ramoAvg(exacto)');
 assert.ok(Math.abs(promedio-3.98)<1e-9,'la fórmula reproducida debe dar 3,98');
-assert.equal(ctx.run('fmt(ramoAvg(exacto))'),'4.0','la representación histórica ya redondeaba a una décima');
+assert.equal(ctx.run('fmt(ramoAvg(exacto))'),'4,0','la representación histórica ya redondeaba a una décima');
 assert.equal(ctx.run('colorClass(ramoAvg(exacto))'),'warn','el estado debe usar la misma nota 4,0 que ya veía la persona');
 assert.equal(ctx.run('notaFinalOficial(ramoAvg(exacto))'),4,'el valor oficial redondea a una décima');
-assert.equal(ctx.run('fmtPromedio(ramoAvg(exacto))'),'4.0','la UI muestra la nota oficial');
+assert.equal(ctx.run('fmtPromedio(ramoAvg(exacto))'),'4,0','la UI muestra la nota oficial');
 assert.equal(ctx.run('notaAprobada(ramoAvg(exacto))'),true,'3,98 queda aprobado como 4,0');
 
 const bordes=[
@@ -48,7 +48,7 @@ const bordes=[
 ];
 for(const [valor,texto,nivel,aprueba] of bordes){
   ctx.valor=valor;
-  assert.equal(ctx.run('fmtPromedio(valor)'),texto,`${valor} se representa sin cruzar el umbral`);
+  assert.equal(ctx.run('fmtPromedio(valor)'),texto.replace('.',','),`${valor} se representa sin cruzar el umbral`);
   assert.equal(ctx.run('colorClass(valor)'),nivel,`${valor} usa el semáforo correcto`);
   assert.equal(ctx.run('notaAprobada(valor)'),aprueba,`${valor} decide aprobación con el mismo valor`);
 }
@@ -70,7 +70,7 @@ const fijo=ramo('tope-fijo',[categoria('trabajo',50,6),categoria('examen',50,2)]
 });
 ctx.fijo=fijo;
 assert.equal(ctx.run('ramoAvg(fijo)'),3.9);
-assert.equal(ctx.run('fmtPromedio(ramoAvg(fijo))'),'3.9');
+assert.equal(ctx.run('fmtPromedio(ramoAvg(fijo))'),'3,9');
 assert.equal(ctx.run('notaAprobadaRamo(fijo,ramoAvg(fijo))'),false);
 
 // El requisito se mide redondeado, igual que la final: 3,98 es 4,0 y cumple.
@@ -88,7 +88,7 @@ const bajo=ramo('tope-propio-bajo',[categoria('individual',50,3.94),categoria('g
 });
 ctx.bajo=bajo;
 assert.equal(ctx.run('r2(ramoAvg(bajo))'),3.94,'cap self conserva el promedio del requisito');
-assert.equal(ctx.run('fmtPromedio(ramoAvg(bajo))'),'3.9');
+assert.equal(ctx.run('fmtPromedio(ramoAvg(bajo))'),'3,9');
 assert.equal(ctx.run('gatesActivas(bajo).length'),1,'la compuerta sigue explícitamente activa');
 assert.equal(ctx.run('notaAprobadaRamo(bajo,ramoAvg(bajo))'),false,'la compuerta explícita sigue reprobando');
 assert.equal(ctx.run('colorClassRamo(bajo,ramoAvg(bajo))'),'bad','el semáforo refleja la excepción explícita');
@@ -98,10 +98,10 @@ const main=fs.readFileSync(path.join(root,'render-main.js'),'utf8');
 const agenda=fs.readFileSync(path.join(root,'render-agenda.js'),'utf8');
 assert.match(main,/ramo-nota[^\n]+fmtPromedio\(avg\)/,'la tarjeta de Inicio usa el formato coherente');
 assert.match(main,/const s=fmtPromedio\(avg\)/,'la ficha del ramo usa el formato coherente');
-assert.match(main,/Promedio redondeado: \$\{fmtPromedio\(g\)\}/,'el detalle del promedio general tampoco revive el 3,98');
+assert.match(main,/Promedio redondeado: \$\{fmtPromedioGeneral\(g\)\}/,'el promedio general usa centésimas sin cambiar la nota final del ramo');
 assert.doesNotMatch(main,/Exacto: \$\{exacto\}/,'el detalle no vuelve a exigir centésimas después de aprobar');
 assert.match(agenda,/fmtPromedio\(e\.avg\)/,'la Agenda usa el formato coherente');
-assert.equal(ctx.run('fmtPromedio(simProjectedAvg(exacto))'),'4.0','el simulador parte del mismo resultado oficial');
+assert.equal(ctx.run('fmtPromedio(simProjectedAvg(exacto))'),'4,0','el simulador parte del mismo resultado oficial');
 ctx.openSimuladorModal();
 assert.equal(ctx.document.getElementById('sim-delta').textContent,'Tu promedio actual: 4,0','el simulador no vuelve a revelar 3,98 como si fuera otro promedio');
 

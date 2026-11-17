@@ -53,12 +53,12 @@ function filaListaHTML(f){
     const texto={bad:'Reprobando',warn:'Al borde',good:'Aprobando',neutral:'Sin notas'}[f.nivel];
     const seccion=f.ramo&&f.ramo.seccion?`Sección ${esc(f.ramo.seccion)}`:'';
     const noAlcanza=f.necesita!==null&&f.necesita>7.05;
-    const necesita=noAlcanza?'<b class="est-baja">No alcanza</b>':f.necesita!==null?`<b>${esc(nfNecesaria(f.necesita).replace('.',','))}</b><small>en lo pendiente</small>`:'<b class="est-gris">—</b>';
+    const necesita=noAlcanza?'<b class="est-baja">No alcanza</b>':f.necesita!==null?`<b>${esc(nfNecesaria(f.necesita))}</b><small>en lo pendiente</small>`:'<b class="est-gris">—</b>';
     const proxima=f.proxima?`<b>${esc(f.proxima.evaluacion)}</b><small>${esc(fechaCorta(f.proxima.fecha))}${f.proxima.hora?' · '+esc(f.proxima.hora):''}</small>`:'<b class="est-gris">—</b>';
     return `<button type="button" class="al-fila" data-ver-alumno="${esc(f.al.id)}"${f.r?` data-alumno-ramo="${esc(f.r.id)}"`:''}>
       <span class="al-nombre"><b>${esc(f.al.nombre_visible)}</b></span>
       <span class="al-ramo"><b>${f.ramo?esc(f.ramo.nombre):'Ya no tiene los ramos que te compartió'}</b>${seccion?`<small>${seccion}</small>`:''}${f.motivo?`<small class="al-motivo">${esc(f.motivo)}</small>`:''}</span>
-      <span class="al-promedio"><b class="${f.nivel==='bad'?'est-baja':f.avg===null?'est-gris':''}">${f.avg===null?'—':esc(fmtPromedio(f.avg).replace('.',','))}</b><small>${texto}</small></span>
+      <span class="al-promedio"><b class="${f.nivel==='bad'?'est-baja':f.avg===null?'est-gris':''}">${f.avg===null?'—':esc(fmtPromedio(f.avg))}</b><small>${texto}</small></span>
       <span class="al-proxima">${proxima}</span>
       <span class="al-necesita">${necesita}</span>
       <i class="al-abrir" aria-hidden="true">›</i></button>`;

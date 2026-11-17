@@ -42,18 +42,24 @@ function calculateFinalGrade(structure,grades,overrides={}){
     return promedio>=condicion.min-1e-10;
   }
   function evalNode(node){
-    if(node.type==='leaf'){const g=grades[node.id];const value=(typeof g==='number')?g:null;breakdown.push({id:node.id,name:node.name,value,complete:value!==null});return {value,complete:value!==null};}
+    if(node.type==='leaf'){const g=grades[node.id];const value=(typeof g==='number')?g:null;breakdown.push({id:node.id,name:node.name,value,complete:value!==null});return {value,complete:value!==null,coverage:value!==null?1:0};}
     let known=[],allComplete=true;
-    for(const c of node.children){const cr=evalNode(c);if(!cr.complete)allComplete=false;if(cr.value!==null)known.push({child:c,value:cr.value,complete:cr.complete,weight:gh_weightOf(c,overrides)});}
-    const fuera=gh_applyDrop(node,known);
+    const pesoEntrada=k=>gh_weightOf(k.child,overrides)*(k.child.partial_weight?k.coverage:1);
+    for(const c of node.children){
+      const cr=evalNode(c);if(!cr.complete)allComplete=false;
+      if(cr.value!==null){const k={child:c,value:cr.value,complete:cr.complete,coverage:cr.coverage};k.weight=pesoEntrada(k);known.push(k);}
+    }
+    // Con cantidad fija se espera la pauta completa antes de elegir descartes.
+    // Una lista abierta conserva su descarte sobre las notas ya rendidas.
+    const fuera=node.partial_weight&&!allComplete?[]:gh_applyDrop(node,known);
     if(fuera.length)drops.push({nodeId:node.id,name:node.name,dropped:fuera.map(f=>({id:f.child.id,name:f.child.name,value:f.value})),rendidas:known.length+fuera.length});
     let ambiguo=false,cambiaGrupo=false;
     const cambiar=(id,valor)=>{
       const nodo=node.children.find(c=>c.id===id);if(!nodo)return;
       let entrada=known.find(c=>c.child.id===id);
       if(!entrada){entrada={child:nodo,weight:gh_weightOf(nodo,overrides)};known.push(entrada);}
-      entrada.value=valor;entrada.complete=true;cambiaGrupo=true;
-      const fila=breakdown.find(b=>b.id===id);if(fila){fila.value=valor;fila.complete=true;}
+      entrada.value=valor;entrada.complete=true;entrada.coverage=1;entrada.weight=pesoEntrada(entrada);cambiaGrupo=true;
+      const fila=breakdown.find(b=>b.id===id);if(fila){fila.value=valor;fila.complete=true;fila.coverage=1;}
       resueltas.add(id);
     };
     const aplicar=etapa=>{
@@ -137,7 +143,7 @@ function calculateFinalGrade(structure,grades,overrides={}){
       if(!activa)return;
       if(regla.ambigua===true){ambiguo=true;return;}
       (regla.pesos||[]).forEach(e=>{overrides[e.catId]={...overrides[e.catId],weight:e.peso};});
-      known.forEach(e=>{e.weight=gh_weightOf(e.child,overrides);});
+      known.forEach(e=>{e.weight=pesoEntrada(e);});
     });
     let sumW=0,acc=0;
     for(const k of known){acc+=k.value*k.weight;sumW+=k.weight;}
@@ -152,9 +158,13 @@ function calculateFinalGrade(structure,grades,overrides={}){
       }
       value=Math.min(escalaMax,value+b.suma);
     }
-    breakdown.push({id:node.id,name:node.name,value,complete:allComplete});return {value,complete:allComplete};
+    const total=node.children.reduce((s,c)=>s+gh_weightOf(c,overrides),0);
+    const cubierto=allComplete&&known.length+fuera.length===node.children.length;
+    const coverage=total>0?(cubierto?1:Math.min(1,sumW/total)):0;
+    breakdown.push({id:node.id,name:node.name,value,complete:allComplete,coverage});return {value,complete:allComplete,coverage};
   }
-  let rootValue=evalNode(structure).value;
+  const root=evalNode(structure);
+  let rootValue=root.value;
   const effW=gh_effWeights(structure,overrides);
   gh_collectEmpty(structure,grades,effW,emptyLeaves);
   function cubierta(node,hereda=false){const si=hereda||resueltas.has(node.id);if(node.type==='leaf'){if(si)resueltas.add(node.id);}else node.children.forEach(c=>cubierta(c,si));}
@@ -164,5 +174,5 @@ function calculateFinalGrade(structure,grades,overrides={}){
     for(let i=emptyLeaves.length-1;i>=0;i--)if(emptyLeaves[i].effectiveWeight===0)emptyLeaves.splice(i,1);
   }
   gh_leafGates(structure,grades,(gate)=>{gates.push(gate);if(!gate.ok&&rootValue!==null)rootValue=Math.min(rootValue,gate.fail_cap);});
-  return {value:gh_roundFinal(rootValue,gh_meta(structure)),raw:rootValue,complete:emptyLeaves.length===0,breakdown,emptyLeaves,gates,drops,formulas,mejoras,eximiciones,weightOverrides:overrides};
+  return {value:gh_roundFinal(rootValue,gh_meta(structure)),raw:rootValue,coverage:root.coverage,complete:emptyLeaves.length===0,breakdown,emptyLeaves,gates,drops,formulas,mejoras,eximiciones,weightOverrides:overrides};
 }

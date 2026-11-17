@@ -43,8 +43,8 @@ const html=byId('notas-propuestas').innerHTML;
 const filas=html.split('prop-fila').slice(1);
 
 console.log('\n=== Notas ===');
-chk('la casilla 1 tacha la nota del Control 1 (6.2), no la del 2', /<s>6\.2<\/s> → 5\.14/.test(filas[0]||''));
-chk('muestra la nota propuesta con sus centésimas', /5\.14/.test(filas[0]||''));
+chk('la casilla 1 tacha la nota del Control 1 (6,2), no la del 2', /<s>6,2<\/s> → 5,14/.test(filas[0]||''));
+chk('muestra la nota propuesta con sus centésimas', /5,14/.test(filas[0]||''));
 
 console.log('\n=== Fechas ===');
 chk('nunca "[object Object]"', !/object Object/.test(html));

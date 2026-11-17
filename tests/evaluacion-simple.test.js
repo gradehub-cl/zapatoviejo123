@@ -75,9 +75,9 @@ chk('distingue un ramo del catálogo que todavía no tiene pauta oficial',
   !pautaCatalogoSinOficial({ nombre: 'Ramo manual', origen: null, categorias: [] }));
 chk('la acción vacía le dice que puede armar su pauta',
   /pautaCatalogoSinOficial\(r\)[\s\S]{0,500}Armar mi pauta/.test(renderMain));
-chk('una pauta completa recién creada ofrece revisarla antes de compartirla',
-  /estabaVacia[\s\S]{0,900}ofrecerCompartirPauta\(r\)/.test(src) &&
-  /Revisar antes de enviar/.test(src) && /Nunca tus notas/.test(src));
+chk('guardar una pauta propia usa el aviso informativo único',
+  /if\(filas.length\)[\s\S]{0,150}informarAportePauta/.test(src) &&
+  /Tus programas se suman en forma anónima/.test(src) && /Nunca se comparten tus notas/.test(src));
 
 console.log('\n=== Reportar la pauta se encuentra ===');
 const html = fs.readFileSync(raiz + 'index.html', 'utf8');
@@ -89,9 +89,9 @@ chk('ya no cuelga del modal de editar', !/openReportModal/.test(editar));
 // Sigue habiendo un único acceso permanente en la ficha. El tercero aparece
 // solo después de crear una pauta completa y abre una revisión: no envía nada
 // por sí solo ni duplica una acción constante en otra pantalla.
-chk('solo ofrece compartir desde el hito de crear una pauta completa',
+chk('no pregunta si quiere compartir ni agrega otro acceso a reportar',
   (src.match(/rep\.onclick=\(\)=>openReportModal\(r\.id\)/g) || []).length === 1 &&
-  /function ofrecerCompartirPauta\(r\)[\s\S]{0,500}showConfirm[\s\S]{0,500}openReportModal\(r\.id\)/.test(src));
+  !/ofrecerCompartirPauta|¿Compartir esta pauta\?/.test(src));
 // El texto viejo ("¿Le cambiaron las ponderaciones?") daba por hecho que la
 // pauta existe y cambió. Hoy el caso mayoritario es que no la tenemos.
 chk('el texto sirve para una pauta mala y para una que falta',

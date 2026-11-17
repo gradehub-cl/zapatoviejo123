@@ -46,4 +46,19 @@ const salida=grid.children.find(b=>/^Usar /.test(b.innerHTML));
 if(salida)salida.onclick();
 chk('con resultados parciales igual permite declarar lo escrito',resultados.length>0&&!!salida&&run('selectedCarrera')===null&&run('selectedCarreraNombre')==='Pedagogía'&&run('obStepValid(3)')===true);
 
+console.log('\n=== Sinónimos de carrera, misma identidad ===');
+const antes=run('JSON.stringify(S)');
+run('selectedTenant="uc";carreraFiltro="ingenieria civil";initCarreraGrid();');
+const ingenierias=grid.children.filter(b=>b.textContent==='Ingeniería');
+chk('Ingeniería Civil encuentra una sola Ingeniería UC',ingenierias.length===1);
+ingenierias[0]?.onclick();
+chk('elegir el sinónimo conserva código y nombre canónicos',run('selectedCarrera')==='ING-PC'&&run('selectedCarreraNombre')==='Ingeniería');
+chk('buscar y elegir no escribe el estado guardado',run('JSON.stringify(S)')===antes);
+chk('plan común y acentos también encuentran la misma opción',run('coincideBusquedaCarrera(carrerasDeclarables("uc").find(c=>c.malla==="ING-PC"),"plan comun de ingenieria")'));
+run('carreraFiltro="teatro";initCarreraGrid();');
+chk('Teatro encuentra Actuación sin duplicar la carrera',grid.children.filter(b=>b.textContent==='Actuación').length===1);
+chk('un diploma no declarado no se convierte en el plan común',run('!coincideBusquedaCarrera(carrerasDeclarables("uc").find(c=>c.malla==="ING-PC"),"Ingeniería Civil Industrial")'));
+chk('los alias UC no aparecen en otra universidad',run('!carrerasDeclarables("fen").some(c=>coincideBusquedaCarrera(c,"Teatro"))'));
+chk('Ajustes usa la misma búsqueda por nombre y alias',fs.readFileSync(raiz+'src/app/ajustes.js','utf8').includes('todas.filter(c=>coincideBusquedaCarrera(c,q))'));
+
 console.log('\nPASS: '+ok+'   FAIL: '+fail);process.exit(fail?1:0);

@@ -33,6 +33,29 @@ assert.match(run('contactoPerfilHTML({})'),/value="" checked/,'sin contacto part
 assert.match(run("tarjetaPerfilCamposHTML({color_tarjeta:'#1f5fbf'})"),/data-pf-color="#1f5fbf"[^>]*aria-pressed="true"/);
 assert.match(run("iconoCanalPerfil('whatsapp')"),/fill="currentColor"/);
 ctx.__p={nombre_publico:'Sintética',presentacion:'x',ramos_siglas:['TST100'],contacto_tipo:'whatsapp',contacto_valor:'+56 9 1234 5678'};
-assert.match(run("perfilPublicoHTML(__p,null,{TST100:'Ramo de prueba'})"),/TST100<\/strong><span>Ramo de prueba/,'la vista previa usa los nombres del buscador');
+assert.match(run("perfilPublicoHTML(__p,null,{TST100:'Ramo de prueba'})"),/TST100<\/strong><span>Ramo de prueba/,'la lista entera usa los nombres del buscador');
+// Muchos ramos (una plataforma): arriba solo siglas, hasta seis y «+N». Quien
+// mira solo ve los de su universidad cuando el perfil enseña en varias.
+ctx.__p2={...ctx.__p,universidades:['uc','uai'],ramos_siglas:['TST100','TST200','TST300','TST400','TST500','TST600','TST700','XYZ999']};
+{
+  const todos={TST100:'Uno',TST200:'Dos',TST300:'Tres',TST400:'Cuatro',TST500:'Cinco',TST600:'Seis',TST700:'Siete'};
+  ctx.__todos=todos;
+  const html=run("S.tenant='uc';perfilPublicoHTML(__p2,null,__todos)");
+  const chips=html.match(/<ul class="perfil-apoyo-chips">([\s\S]*?)<\/ul>/)[1];
+  assert.equal((chips.match(/<li>TST/g)||[]).length,6,'seis siglas a la vista');
+  assert.match(chips,/>\+1<\/li>/);
+  assert.doesNotMatch(chips,/Uno|Dos/,'arriba no van los nombres');
+  assert.match(html,/7 ramos en la UC/);
+  assert.doesNotMatch(html,/XYZ999/,'una sigla que su universidad no conoce no se muestra');
+  assert.match(html,/<summary>Ver los 7 ramos<\/summary>/);
+  assert.match(html,/class="perfil-apoyo" style="--directorio-color:#/,'el perfil abierto conserva su color');
+  // Perfil de una sola universidad: se ven todas, aunque alguna no tenga nombre.
+  ctx.__p3={...ctx.__p,universidades:['uc'],ramos_siglas:['TST100','XYZ999']};
+  const solo=run("perfilPublicoHTML(__p3,null,__todos)");
+  assert.match(solo,/XYZ999/);assert.match(solo,/2 ramos · UC/);
+  // Siglas de BuscaCursos fuera del catálogo: tienen nombre en Apoyo.
+  assert.equal(run("nombresRamosParaClases('uc').MAT1100"),'Cálculo I');
+  assert.equal(run("nombresRamosParaClases('uai').MAT1100"),undefined,'solo para la UC');
+}
 assert.equal(run("buscarRamosParaClase({MAT1620:'Cálculo II',FIS1514:'Dinámica'},'mat16',[])[0].nombre"),'Cálculo II','por sigla dice el nombre');
 console.log('PASS perfil: teléfono, contacto, color, íconos, vista previa y búsqueda por sigla');

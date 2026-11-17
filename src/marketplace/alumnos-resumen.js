@@ -46,7 +46,7 @@ function resumenInicioAlumnosHTML(r,{ramo='',orden='urgencia',dia=0,limite=6}={}
   const fila=f=>conUniversidadPanel(f.al.tenant,()=>{
     const motivo=f.necesita>7.05?'No alcanza':f.nivel==='bad'?'Reprobando':f.nivel==='warn'?'Al borde':'Meta exigente';
     const fecha=f.proxima?fechaCorta(f.proxima.fecha):'—';
-    const meta=f.necesita!==null&&f.necesita<=7.05?' · '+nfNecesaria(f.necesita).replace('.',',')+' para aprobar':'';
+    const meta=f.necesita!==null&&f.necesita<=7.05?' · '+nfNecesaria(f.necesita)+' para aprobar':'';
     return `<li><button type="button" class="ras-fila" data-ver-alumno="${esc(f.al.id)}" data-alumno-ramo="${esc(f.r.id)}">
       <span><b>${esc(f.al.nombre_visible)}</b><small>${esc(f.ramo.nombre)}</small></span>
       <span class="ras-razon"${f.motivo?` title="${esc(f.motivo)}"`:''}><b>${motivo}</b><small>${esc(fecha+meta)}</small></span><span aria-hidden="true">›</span></button></li>`;
@@ -159,7 +159,7 @@ function csvAlumnosPanel(alumnos,compDe,compSeccionDe=null){
 // las comparaciones del panel; sin muestra suficiente la celda queda vacía.
 function csvResumenAlumnosPanel(alumnos,compDe,compSeccionDe=null,ahora=new Date()){
   const num=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'':String(v).replace('.',',');
-  const prom=v=>v===null||v===undefined?'':num(fmtPromedio(Number(v)));
+  const prom=v=>v===null||v===undefined?'':num(fmtPromedioDato(Number(v)));
   const comparable=x=>{const dato=datosComparacionPanel(x);return dato?prom(dato.promedio):'';};
   const diferencia=v=>v===null||v===undefined?'':num(v.toFixed(1));
   const estado={good:'Aprobando',warn:'Al borde',bad:'Reprobando',neutral:'Sin notas'};
