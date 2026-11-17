@@ -245,7 +245,7 @@ function barrasWrapped(filas){
     <span class="pista"><i style="--v:${ancho(f.valor)}%"></i></span><b>${fmtPromedio(f.valor)}</b></div>`).join('')}
     <div class="escala"><span>1,0</span><span>4,0</span><span>7,0</span></div></div>`;
 }
-// La nota que lo cambió todo: el promedio de antes queda bajo el corrector y
+// La nota que pesó más que las otras: el promedio de antes queda bajo el corrector y
 // encima se escribe el nuevo.
 function correctorWrapped(antes,despues){
   return `<div class="hoja-corrige" aria-hidden="true"><span class="viejo">${fmtPromedio(antes)}<i class="cinta"></i></span><span class="nuevo">${fmtPromedio(despues)}</span></div>`;

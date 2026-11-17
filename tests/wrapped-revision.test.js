@@ -249,7 +249,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
   mostrar([ramo('uno')]);
   const slides=run("slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())");
   const uni=slides.find(x=>/^En toda/.test(x.k||''));
-  assert.equal(uni.k,'En toda la UC');assert.match(uni.sub,/personas de la UC en GradeHub/);
+  assert.equal(uni.k,'En toda la UC quedaste sobre el');assert.match(uni.sub,/otras 119 personas/);
  });
  check('en pantalla ancha la hoja es una columna centrada',()=>{
   const ancho=read('styles.css').match(/@media \(min-width:768px\)\{\s*\.wrapped-arriba[^}]*\}/);

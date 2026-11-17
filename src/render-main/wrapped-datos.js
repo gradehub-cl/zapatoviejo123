@@ -202,11 +202,11 @@ function mitadesWrapped(fechadas){
 const PERSONALIDADES_WRAPPED=[
   {id:'remontada',nombre:'Remontada profesional',frase:'Cuando parecía perdido, apareciste.'},
   {id:'siete',nombre:'Siete sin miedo',frase:'Algunos sueñan con un 7. Tú los coleccionas.'},
-  {id:'parejo',nombre:'Siempre parejo',frase:'Pase lo que pase, tú: constante.'},
+  {id:'parejo',nombre:'Siempre parejo',frase:'Semana buena o mala, tus notas no se movieron.'},
   {id:'arranque',nombre:'Arranque fuerte',frase:'Saliste a ganar desde la primera prueba.'},
   {id:'maraton',nombre:'Maratonista',frase:'Más ramos que horas en el día. Y aun así.'},
   {id:'filo',nombre:'Al filo, pero adentro',frase:'Cada décima cuenta. Tú lo sabes mejor que nadie.'},
-  {id:'construccion',nombre:'En construcción',frase:'Cada semestre se escribe distinto. Este fue tuyo.'},
+  {id:'construccion',nombre:'En construcción',frase:'Todavía estás encontrando tu ritmo. Este semestre fue parte de eso.'},
 ];
 function personalidadWrapped(d){
   const valores=d.valores,media=valores.reduce((s,v)=>s+v,0)/valores.length;

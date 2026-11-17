@@ -28,8 +28,8 @@ function slidesWrapped(d,comp,label,recado){
   const nombre=esc((S.userName||'').trim().split(/\s+/)[0]||'');
   const dificil=(d.reprobados||0)>0||(d.gpa!==null&&d.gpa<4);
   s.push({tipo:'umbral',k:esc(label),titulo:`Lápices<br>${hojaMarca('abajo.')}`,
-    sub:d.completo?'Se terminó el semestre. Revisemos tu hoja.':'El semestre llegó al final. Revisemos tu hoja.',viz:filasUmbralWrapped()});
-  s.push({tipo:'portada',titulo:nombre?`${nombre}, este fue tu ${esc(label)}.`:`Este fue tu ${esc(label)}.`,sub:'No todo cabe en un promedio. Pero intentemos.'});
+    sub:d.completo?'Se terminó el semestre. Revisemos tu hoja.':'Todavía faltan notas, pero ya podemos revisar tu hoja.',viz:filasUmbralWrapped()});
+  s.push({tipo:'portada',titulo:nombre?`${nombre}, este fue tu semestre.`:'Este fue tu semestre.',sub:'No todo cabe en un promedio. Pero intentemos.'});
   s.push({tipo:'pregunta',prep:{texto:'Empecemos por algo fácil.',obj:'lapiz'},
     titulo:'¿Cuántas notas anotaste este semestre?',pregunta:{opciones:alternativasWrapped(d.nNotas),
       bien:'Exacto. Llevas la cuenta.',mal:`Fueron ${d.nNotas}.`},
@@ -39,11 +39,11 @@ function slidesWrapped(d,comp,label,recado){
   if(d.primera){
     const fin=d.mitades?d.mitades.segunda-d.mitades.primera:0;
     s.push({prep:{texto:'¿Te acuerdas de cómo partió todo?',obj:'sacapuntas'},
-      k:'Todo empezó con un',heroe:pruebaWrapped(cifraWrapped(fmt(d.primera.valor),1),esc(d.primera.nombre),esc(d.primera.ramo)),
+      k:'Tu primera nota fue un',heroe:pruebaWrapped(cifraWrapped(fmt(d.primera.valor),1),esc(d.primera.nombre),esc(d.primera.ramo)),
       ...(fin>=0.3?{sub:'Mira dónde terminaste.',viz:barrasWrapped([{label:'1.ª mitad',valor:d.mitades.primera},{label:'2.ª mitad',valor:d.mitades.segunda,ahora:true}])}
-        :{nota:Math.abs(fin)<0.3&&d.mitades?'Y lo sostuviste todo el semestre.':''})});
+        :{nota:Math.abs(fin)<0.3&&d.mitades?'Y mantuviste el ritmo todo el semestre.':''})});
   }
-  if(d.movio)s.push({prep:{texto:'Hubo una nota que lo cambió todo.',obj:'corrector'},
+  if(d.movio)s.push({prep:{texto:'Hubo una nota que pesó más que las otras.',obj:'corrector'},
     k:'Una sola nota.',heroe:correctorWrapped(d.movio.antes,d.movio.despues),sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio en ${fmt(d.movio.delta)}.`});
   if(d.remontada)s.push({prep:{texto:'Esta es la historia de una remontada.',obj:'escuadra'},
     k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${fmtPromedio(d.remontada.minimo)}.`,antes:true,heroe:curvaWrapped(d.remontada.serie.slice(1),d.remontada.iMinimo-1,d.remontada.final),titulo:`Terminó en ${hojaMarca(fmtPromedio(d.remontada.final))}.`,nota:'Nadie lo vio venir. Tú sí.'});
@@ -58,10 +58,14 @@ function slidesWrapped(d,comp,label,recado){
       viz:rankingWrapped(d.ranking)});
   }else s.push({titulo:`Tu ramo estrella: ${hojaMarca(esc(d.estrella.r.nombre),2)}`,sub:`Tu mejor promedio: ${fmtPromedio(d.estrella.avg)}.`});
   // "Lo sacaste adelante" solo si de verdad lo aprobó: el resumen no celebra
-  // lo que el semáforo pinta rojo.
-  if(d.dificil)s.push({prep:{texto:'Ahora, el que más pelea dio.',obj:'gastado'},
-    k:'El ramo que más costó',titulo:esc(d.dificil.r.nombre),big:cifraWrapped(fmtPromedio(d.dificil.avg),1),
-    sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía quedan evaluaciones por registrar.':notaAprobadaRamo(d.dificil.r,d.dificil.avg)?'Y lo sacaste adelante.':'Un ramo no te define. El próximo va con todo lo que aprendiste.'});
+  // lo que el semáforo pinta rojo. Y el promedio va en grande solo si aprueba:
+  // se reconoce el esfuerzo, no se agranda el resultado (Lucas, 2026-11-17).
+  if(d.dificil){
+    const aprobado=notaAprobadaRamo(d.dificil.r,d.dificil.avg);
+    s.push({prep:{texto:'Ahora, el que más pelea dio.',obj:'gastado'},
+      k:'El ramo que más costó',titulo:esc(d.dificil.r.nombre),...(aprobado?{big:cifraWrapped(fmtPromedio(d.dificil.avg),1)}:{}),
+      sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía te quedan notas por anotar.':aprobado?'Y lo sacaste adelante.':'Un ramo no te define. Lo que aprendiste se queda contigo.'});
+  }
   if(dificil){
     const buenas=[`Anotaste <b>${d.nNotas}</b> nota${pl(d.nNotas)}. No te escondiste de ninguna.`];
     if(d.mejor)buenas.push(`Sacaste un <b>${fmt(d.mejor.valor)}</b> en ${esc(d.mejor.ramo)}.`);
@@ -80,12 +84,12 @@ function slidesWrapped(d,comp,label,recado){
   // quedó en el 12% (Lucas, 2026-11-02: cuidar a quien le fue mal).
   if(comp&&comp.curso&&comp.curso.mejorQue>=50)s.push({prep:{texto:'¿Y tu curso?',sub:'Nadie ve las notas de nadie.',obj:'lista'},
     k:`En ${esc(comp.curso.ramo)} quedaste sobre el`,antes:true,big:cifraWrapped(comp.curso.mejorQue+'%'),titulo:hojaMarca('de tu curso.'),
-    sub:`Comparado con ${comp.curso.total-1} personas del ramo que usan GradeHub.`,viz:reglaWrapped(comp.curso.mejorQue)});
+    sub:`Entre las ${comp.curso.total-1} personas de tu ramo que usan GradeHub.`,viz:reglaWrapped(comp.curso.mejorQue)});
   // El servidor compara el promedio simple de los ramos, no el ponderado de
   // Inicio (ver universidad_posicion.sql): por eso la frase dice "tus ramos".
   else if(comp&&comp.uni&&comp.uni.mejorQue>=50)s.push({prep:{texto:`¿Y en toda ${u}?`,sub:'Nadie ve las notas de nadie.',obj:'carnet'},
-    k:`En toda ${u}`,big:cifraWrapped(comp.uni.mejorQue+'%'),
-    sub:`Con el promedio simple de tus ramos con sigla quedas igual o por sobre el ${comp.uni.mejorQue}% de otras ${comp.uni.total-1} personas de ${u} en GradeHub.`,viz:reglaWrapped(comp.uni.mejorQue)});
+    k:`En toda ${u} quedaste sobre el`,antes:true,big:cifraWrapped(comp.uni.mejorQue+'%'),titulo:'de quienes usan GradeHub.',
+    sub:`Comparamos el promedio simple de tus ramos con el de otras ${comp.uni.total-1} personas.`,viz:reglaWrapped(comp.uni.mejorQue)});
   // El recado de un profe que tuvo y calificó bien (ver wrapped_recado.sql).
   // Si no calificó a nadie, se le dice por qué no hay. Sin respuesta del
   // servidor, o en una universidad sin videos, la historia no sale.
@@ -95,13 +99,13 @@ function slidesWrapped(d,comp,label,recado){
     k:`Un recado de ${esc(recado.video.quien)}`,video:recado.video});
   else if(sinCalificar)s.push({tipo:'video',prep:{texto:'Alguien quería dejarte un recado.',obj:'papelito'},
     k:'Este espacio era para un profe.',video:null,sinCalificar:true,
-    sub:'Los recados son de profes que calificaste bien. Como no calificaste a ninguno este semestre, no tenemos uno para ti.',
+    sub:'Los recados son de profes que calificaste bien. Este semestre no calificaste a ninguno.',
     ...(conSeccion?{accion:{texto:'Calificar a mis profes',ramo:conSeccion.id},nota:'Califica y vuelve a abrir tu hoja.'}:{})});
   if(d.anterior&&d.anterior.delta>=0.1)s.push({prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`,obj:'cuaderno'},
     k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),
     viz:barrasWrapped([{label:esc(d.anterior.label),valor:d.anterior.antes},{label:esc(label),valor:d.anterior.ahora,ahora:true}])});
   else if(d.anterior)s.push({titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
-  if(d.gpa!==null)s.push({prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.',obj:'timbre'}:{texto:'Y ahora, el número que lo resume todo.',obj:'timbre'},
+  if(d.gpa!==null)s.push({prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.',obj:'timbre'}:{texto:'Y ahora, el número que todos te van a preguntar.',obj:'timbre'},
     k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`,viz:arcoWrapped(d.gpa)});
   if(conSeccion&&!sinCalificar)s.push({k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
   s.push({tipo:'cierre',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
