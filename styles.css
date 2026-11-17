@@ -5895,6 +5895,15 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-dias{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}.horario-dias label{position:relative;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;cursor:pointer;}.horario-dias input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}.horario-dias label>span:first-of-type{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:6px;border:1px solid var(--border2);border-radius:9px;font-size:.8125rem;}.horario-dias input:checked+span{background:var(--primary);border-color:var(--primary);color:var(--primary-fg);}.horario-dias input:focus-visible+span{outline:2px solid var(--fg);outline-offset:2px;}
 .horario-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.horario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}.horario-campos label{min-width:0;display:grid;gap:6px;font-size:.875rem;}.horario-campos small{font-size:.75rem;color:var(--fg2);}.horario-editor input[type=time],.horario-editor input[type=text]{box-sizing:border-box;display:block;-webkit-appearance:none;appearance:none;min-width:0;width:100%;min-height:44px;padding:10px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--input-bg,var(--bg2));border:1px solid var(--border2);border-radius:8px;color-scheme:light dark;}.horario-bloque-acciones{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}.horario-error{color:var(--red);font-size:.875rem;}.horario-editor .modal-title{overflow-wrap:anywhere;}
 @container(max-width:18rem){.horario-campos{grid-template-columns:minmax(0,1fr);}}
+/* «No voy» (Lucas, 2026-11-17): la clase sigue a la vista en la semana, apagada:
+   contorno punteado del color del ramo, sin relleno y texto secundario. */
+.horario-semana-clase.no-voy{background:transparent;border-style:dashed;}
+.horario-semana-clase.no-voy b,.horario-semana-clase.no-voy .horario-semana-sala{color:var(--fg2);font-weight:600;}
+.horario-ficha li.no-voy{color:var(--fg2);}
+.horario-voy{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin-top:12px;font:500 .9375rem var(--font-ui);color:var(--fg);cursor:pointer;}
+.horario-voy-grande{margin-top:18px;font-size:1rem;}
+.horario-voy-ayuda{margin:2px 0 16px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.horario-clase-hoja>.horario-accion{width:100%;margin-bottom:8px;}
 /* Revisión de la foto: las clases leídas de cada ramo, con Corregir al lado. */
 .horario-revision-ramo{border:1px solid var(--border);border-radius:11px;background:var(--bg2);}.horario-revision-ramo>.agent-ramo-row{border:0;background:transparent;align-items:flex-start;padding-bottom:2px;}.horario-revision-ramo .agent-ramo-check{margin-top:1px;}.horario-revision-ramo>.horario-accion{display:block;margin:0 12px 10px auto;}
 .agent-ramo-row small.horario-revision-diferencia{color:var(--fg);font-weight:600;}

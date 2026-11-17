@@ -49,7 +49,42 @@ function bloquesSemanaHorario(ramos){
   return porDia;
 }
 function etiquetaClaseSemana(x,nombreDia){
-  return [x.ramo.nombre,`${nombreDia} de ${x.bloque.inicio} a ${x.bloque.fin}`,x.bloque.tipo,x.bloque.sala?'sala '+x.bloque.sala:''].filter(Boolean).join(', ');
+  return [x.ramo.nombre,`${nombreDia} de ${x.bloque.inicio} a ${x.bloque.fin}`,x.bloque.tipo,x.bloque.sala?'sala '+x.bloque.sala:'',x.bloque.noVoy?'no vas':''].filter(Boolean).join(', ');
+}
+// Tocar una clase abre su hoja: «Voy a esta clase» se aplica al tiro
+// (interruptor, HIG Toggles) y, si es ayudantía, se pueden marcar todas.
+// Editar el horario del ramo sigue a un toque.
+function abrirClaseHorario(ramoId,bloqueId,alCambiar){
+  const ramo=(S.ramos||[]).find(r=>r.id===ramoId);
+  const bloque=ramo&&copiarHorario(ramo.horario).find(b=>b.id===bloqueId);
+  if(!bloque||esCuentaProfesor())return;
+  const caja=document.getElementById('modal-content');
+  const pintar=()=>{
+    const r=(S.ramos||[]).find(x=>x.id===ramoId),b=r&&copiarHorario(r.horario).find(x=>x.id===bloqueId);
+    if(!b){closeModal();return;}
+    const ayudantias=(S.ramos||[]).flatMap(x=>copiarHorario(x.horario)).filter(esAyudantiaHorario);
+    const todasNoVoy=ayudantias.length>0&&ayudantias.every(x=>x.noVoy);
+    const detalle=[b.tipo,`${diasBloqueHorario(b)} ${b.inicio}–${b.fin}`,b.sala].filter(Boolean).join(' · ');
+    caja.innerHTML=`<div class="horario-clase-hoja"><h2 class="modal-title" id="modal-titulo">${esc(r.nombre)}</h2>
+      <p class="modal-desc">${esc(detalle)}</p>
+      <label class="horario-voy horario-voy-grande"><span>Voy a esta clase</span><input type="checkbox" role="switch" data-voy${b.noVoy?'':' checked'}></label>
+      <p class="horario-voy-ayuda">Si no vas, queda apagada en tu semana y no sale en Hoy, en el widget ni en los avisos.</p>
+      ${esAyudantiaHorario(b)&&ayudantias.length>1?`<button type="button" class="horario-accion" data-ayudantias="${todasNoVoy?'voy':'no-voy'}">${todasNoVoy?'Voy a todas las ayudantías':'No voy a ninguna ayudantía'}</button>`:''}
+      <div class="modal-btns"><button type="button" class="btn-cancel" data-editar-ramo>Editar horario</button><button type="button" class="btn-confirm" data-listo>Listo</button></div></div>`;
+    caja.querySelector('[data-voy]').addEventListener('change',e=>{
+      if(marcarNoVoyHorario(ramoId,bloqueId,!e.target.checked)){if(alCambiar)alCambiar();pintar();caja.querySelector('[data-voy]')?.focus();}
+    });
+    caja.querySelector('[data-ayudantias]')?.addEventListener('click',e=>{
+      const noVoy=e.currentTarget.dataset.ayudantias==='no-voy',n=marcarAyudantiasHorario(noVoy);
+      if(!n)return;
+      if(alCambiar)alCambiar();pintar();
+      showToast(noVoy?`${n} ${n===1?'ayudantía marcada':'ayudantías marcadas'}: no vas`:`Vuelves a ir a ${n} ${n===1?'ayudantía':'ayudantías'}`);
+      caja.querySelector('[data-ayudantias]')?.focus();
+    });
+    caja.querySelector('[data-editar-ramo]').addEventListener('click',()=>abrirHorarioRamo(ramoId,{alGuardado:alCambiar}));
+    caja.querySelector('[data-listo]').addEventListener('click',()=>closeModal());
+  };
+  pintar();openModal();
 }
 function horarioSemanaHTML(ramos,ahora=new Date()){
   const porDia=bloquesSemanaHorario(ramos);
@@ -82,7 +117,7 @@ function horarioSemanaHTML(ramos,ahora=new Date()){
       <div class="horario-semana-horas" aria-hidden="true">${horas.map(m=>`<span style="top:${y(m)}px">${String(m/60).padStart(2,'0')}:00</span>`).join('')}</div>
       ${dias.map(([k,n])=>`<div class="horario-semana-dia${k===hoy?' hoy':''}" role="group" aria-label="${esc(n)}">
         ${k===hoy&&minutoAhora>desde&&minutoAhora<hasta?`<span class="horario-semana-ahora" style="top:${y(minutoAhora)}px" aria-hidden="true"></span>`:''}
-        ${(porDia.get(k)||[]).map(x=>`<button type="button" class="horario-semana-clase" data-horario-ramo="${esc(x.ramo.id)}"
+        ${(porDia.get(k)||[]).map(x=>`<button type="button" class="horario-semana-clase${x.bloque.noVoy?' no-voy':''}" data-horario-ramo="${esc(x.ramo.id)}" data-horario-bloque="${esc(x.bloque.id)}"
           style="top:${y(x.ini)}px;height:${Math.max(44,y(x.fin)-y(x.ini))}px;left:calc(${x.carril}*100%/${x.carriles});width:calc(100%/${x.carriles});--ramo:${esc(x.ramo.color||'var(--fg3)')}"
           aria-label="${esc(etiquetaClaseSemana(x,n))}">${rotulo(x.ramo,x.carriles>1)}${x.bloque.sala&&x.carriles===1?`<span class="horario-semana-sala">${esc(x.bloque.sala)}</span>`:''}</button>`).join('')}
       </div>`).join('')}
@@ -108,8 +143,9 @@ function renderHorarioSemana(body,ahora=new Date()){
       ${hayRamos&&fotoUC?'<button type="button" class="horario-accion horario-semana-secundaria" data-horario-accion="agregar">Agregar a mano</button>':''}
     </div>`;
   }else{
-    const clases=conHorario.reduce((n,r)=>n+copiarHorario(r.horario).reduce((m,b)=>m+b.dias.length,0),0);
-    if(sub)sub.textContent=`${clases} ${clases===1?'clase':'clases'} a la semana`;
+    const contar=filtro=>conHorario.reduce((n,r)=>n+copiarHorario(r.horario).filter(filtro).reduce((m,b)=>m+b.dias.length,0),0);
+    const clases=contar(b=>!b.noVoy),noVas=contar(b=>b.noVoy);
+    if(sub)sub.textContent=`${clases} ${clases===1?'clase':'clases'} a la semana${noVas?` · ${noVas} no vas`:''}`;
     body.innerHTML=`${horarioSemanaHTML(conHorario,ahora)}
       <div class="horario-semana-acciones">
         <button type="button" class="horario-accion" data-horario-accion="agregar">Agregar clase</button>
@@ -119,7 +155,9 @@ function renderHorarioSemana(body,ahora=new Date()){
         <ul>${sinHorario.map(r=>`<li><button type="button" data-horario-agregar="${esc(r.id)}"><span>${esc(r.nombre)}</span><span class="horario-semana-mas">Agregar</span></button></li>`).join('')}</ul></section>`:''}`;
   }
   const repintar=()=>{if(typeof currentTab==='undefined'||currentTab==='agenda')renderAgenda();};
-  body.querySelectorAll('[data-horario-ramo]').forEach(b=>b.addEventListener('click',()=>abrirHorarioRamo(b.dataset.horarioRamo,{alGuardado:repintar})));
+  // Marcar «no voy» repinta la semana detrás de la hoja e Inicio (Hoy).
+  const alCambiarClase=()=>{repintar();if(typeof renderHome==='function')renderHome();};
+  body.querySelectorAll('[data-horario-ramo]').forEach(b=>b.addEventListener('click',()=>abrirClaseHorario(b.dataset.horarioRamo,b.dataset.horarioBloque,alCambiarClase)));
   body.querySelectorAll('[data-horario-agregar]').forEach(b=>b.addEventListener('click',()=>abrirHorarioRamo(b.dataset.horarioAgregar,{alGuardado:repintar})));
   body.querySelectorAll('[data-horario-accion]').forEach(b=>b.addEventListener('click',()=>{
     const a=b.dataset.horarioAccion;
