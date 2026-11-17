@@ -23,7 +23,7 @@ function openSettings(){
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
   let settingsTenant=S.tenant||'fen';
-  const directSection=['perfil','profesor','academico','calendario','apariencia','agentes','sugerencias','datos'].includes(initialSection)
+  const directSection=['perfil','profesor','academico','calendario','canvas','apariencia','agentes','sugerencias','datos'].includes(initialSection)
     &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
@@ -31,6 +31,7 @@ function openSettings(){
     profesor:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h7"/></svg>',
     academico:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg>',
     calendario:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>',
+    canvas:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'+ICONO_CANVAS+'</svg>',
     apariencia:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
     agentes:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/></svg>',
     sugerencias:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>',
@@ -45,7 +46,8 @@ function openSettings(){
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
-    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
+    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
+    ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas','Ramos, fechas y notas de Canvas UC','canvas uc token ramos tareas fechas notas programa pesos']]:[]),
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte denunciar abuso']
   ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
@@ -133,6 +135,12 @@ function openSettings(){
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
       </div>`;
+    // Canvas en su propia sección, con su ícono (Lucas, 2026-11-17): antes
+    // estaba dentro de Calendario, pero trae ramos, fechas, notas y programa.
+    if(section==='canvas')return canvasDisponible()?`
+      <p class="settings-help settings-help-top">Nada se agrega sin que lo revises antes.</p>
+      <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`
+      :canvasIcsDisponible()?'<div id="s-canvas-ics"></div>':'<p class="settings-help settings-help-top">Canvas está disponible para la UC.</p>';
     if(section==='calendario')return `
       <p class="settings-help settings-help-top">Tus evaluaciones en Google Calendar, Apple Calendar u Outlook. Se agrega una vez y se actualiza sola cada algunas horas.</p>
       ${currentUser?`
@@ -151,11 +159,6 @@ function openSettings(){
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
       </div>
-      ${canvasDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
-      <label class="modal-label">Canvas UC</label>
-      <p class="settings-help" style="margin-top:0;">Trae ramos y fechas. Revisas cada propuesta antes de agregarla.</p>
-      <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`:''}
-      ${canvasIcsDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div><label class="modal-label">Canvas UC</label><div id="s-canvas-ics"></div>`:''}
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
       <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
@@ -324,8 +327,8 @@ function openSettings(){
     }
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
-    if(activeSection==='calendario'&&canvasDisponible())pintarCanvasAjustes();
-    if(activeSection==='calendario'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
+    if(activeSection==='canvas'&&canvasDisponible())pintarCanvasAjustes();
+    if(activeSection==='canvas'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     if(activeSection==='datos'&&currentUser&&typeof pintarBloqueosAjustes==='function')pintarBloqueosAjustes();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
