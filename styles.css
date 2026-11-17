@@ -3209,6 +3209,25 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-marca.larga{display:inline;animation-delay:260ms;}
 .wrapped[data-sup="pizarron"] .wrapped-prep>span[aria-hidden],.wrapped[data-sup="pizarron"] .hoja-marca.larga{background-image:linear-gradient(transparent 88%,var(--acento) 88% 97%,transparent 97%);}
 @keyframes wrappedResalta{from{background-size:0 100%;}}
+/* El útil de cada historia: cae sobre la hoja con un rebote corto y después
+   hace lo suyo (el lápiz raya, el timbre marca, la goma deja migas). */
+.hoja-objeto{display:block;width:min(176px,46vw);height:auto;margin:0 0 -4px -8px;overflow:visible;animation:hojaObjeto 640ms var(--ease-out) backwards;}
+.hoja-objeto path,.hoja-objeto rect,.hoja-objeto circle,.hoja-objeto ellipse{fill:none;stroke:var(--tinta);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
+.hoja-objeto .a{fill:var(--acento);}
+.hoja-objeto .p{fill:var(--sup);}
+.hoja-objeto .t{fill:var(--tinta);stroke:none;}
+.hoja-objeto text{fill:var(--tinta);font-family:var(--font-ui);font-size:12px;font-weight:800;}
+.hoja-objeto .trazo{stroke-dasharray:100;animation:hojaTraza 700ms var(--ease-out) 620ms backwards;}
+.hoja-objeto .trazo-fondo{stroke:none;transform-box:fill-box;transform-origin:left center;animation:hojaBarre 420ms var(--ease-out) 560ms backwards;}
+.hoja-objeto .cinta{fill:#FBFAF6;stroke-width:1.8;transform-box:fill-box;transform-origin:left center;animation:hojaBarre 380ms var(--ease-out) 560ms backwards;}
+.hoja-objeto text.llena{fill:var(--sup);}
+.hoja-objeto .migas{animation:wrappedAparece 300ms var(--ease-out) 640ms backwards;}
+.hoja-objeto .sello{animation:hojaSello 420ms var(--ease-out) 380ms backwards;}
+.hoja-objeto .huella{stroke:var(--acento);stroke-width:5;stroke-dasharray:6 5;animation:wrappedAparece var(--motion-fast) var(--ease-out) 700ms backwards;}
+@keyframes hojaObjeto{0%{opacity:0;transform:translateY(-26px) rotate(-7deg) scale(.94);}60%{opacity:1;transform:translateY(3px) rotate(1.5deg) scale(1);}100%{transform:none;}}
+@keyframes hojaBarre{from{transform:scaleX(0);}}
+@keyframes hojaSello{0%{transform:translateY(-22px);}70%{transform:translateY(4px);}100%{transform:none;}}
+@keyframes wrappedAparece{from{opacity:0;}}
 .wrapped-prep>span[aria-hidden]>span{display:inline-block;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--w,0) * 110ms);}
 .wrapped-prep-sub{margin:0;font-size:22px;line-height:1.3;font-weight:500;color:var(--tinta-2);}
 .wrapped[data-dir="revela"] .wrapped-slide>*{animation-name:wrappedRevela;}
