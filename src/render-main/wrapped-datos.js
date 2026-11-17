@@ -128,14 +128,16 @@ function fechaCortaWrapped(iso){
   return new Date(Date.UTC(y,m-1,d,12)).toLocaleDateString('es-CL',{day:'numeric',month:'long',timeZone:'UTC'});
 }
 // La semana (de lunes a domingo) con más evaluaciones rendidas. Desde tres.
+// `dias` cuenta cuántas cayeron cada día, de lunes a domingo, para dibujarla.
 function semanaPesadaWrapped(fechadas){
   const por=new Map();
   fechadas.forEach(x=>{
     const [y,m,d]=x.fecha.split('-').map(Number),t=Date.UTC(y,m-1,d),dia=(new Date(t).getUTCDay()+6)%7;
     const lunes=new Date(t-dia*864e5).toISOString().slice(0,10);
-    por.set(lunes,(por.get(lunes)||0)+1);
+    if(!por.has(lunes))por.set(lunes,[0,0,0,0,0,0,0]);
+    por.get(lunes)[dia]++;
   });
-  let mejor=null;por.forEach((k,lunes)=>{if(!mejor||k>mejor.k||(k===mejor.k&&lunes<mejor.lunes))mejor={lunes,k};});
+  let mejor=null;por.forEach((dias,lunes)=>{const k=dias.reduce((s,n)=>s+n,0);if(!mejor||k>mejor.k||(k===mejor.k&&lunes<mejor.lunes))mejor={lunes,k,dias};});
   return mejor&&mejor.k>=3?{...mejor,texto:fechaCortaWrapped(mejor.lunes)}:null;
 }
 // El semestre como se fue llenando: el promedio general después de cada nota,
@@ -168,11 +170,12 @@ function notaQueMovioWrapped(evo){
     const a=evo[i-1].g,b=evo[i].g;
     if(a===null||b===null)continue;
     const delta=Number(fmtPromedioDato(b))-Number(fmtPromedioDato(a));
-    if(delta>=0.1-1e-9&&(!mejor||delta>mejor.delta))mejor={delta,x:evo[i].x};
+    if(delta>=0.1-1e-9&&(!mejor||delta>mejor.delta))mejor={delta,x:evo[i].x,antes:a,despues:b};
   }
   return mejor;
 }
 // Un ramo que estuvo bajo 4,0 después de su segunda nota y terminó aprobado.
+// `serie` es el promedio del ramo después de cada nota, para dibujar la curva.
 function remontadaWrapped(ramos,evo){
   if(!evo)return null;
   let mejor=null;
@@ -184,7 +187,7 @@ function remontadaWrapped(ramos,evo){
     const bajo=pasos.slice(1,-1).reduce((m,p)=>!m||p.avgRamo<m.avgRamo?p:m,null);
     if(!bajo||Number(fmtPromedioDato(bajo.avgRamo))>=4)return;
     const subida=final-bajo.avgRamo;
-    if(!mejor||subida>mejor.subida)mejor={r,subida,minimo:bajo.avgRamo,final,mes:fechaCortaWrapped(bajo.x.fecha).split(' ').pop()};
+    if(!mejor||subida>mejor.subida)mejor={r,subida,minimo:bajo.avgRamo,final,mes:fechaCortaWrapped(bajo.x.fecha).split(' ').pop(),serie:pasos.map(p=>p.avgRamo),iMinimo:pasos.indexOf(bajo)};
   });
   return mejor;
 }
@@ -230,7 +233,7 @@ function frenteAnteriorWrapped(gpaActual,actual){
   if(!h||gpaActual===null)return null;
   const delta=Number(fmtPromedioDato(gpaActual))-Number(fmtPromedioDato(h.gpa));
   if(delta<=-0.05)return null;
-  return {label:h.label,delta:Math.round(delta*10)/10};
+  return {label:h.label,delta:Math.round(delta*10)/10,antes:h.gpa,ahora:gpaActual};
 }
 function extrasWrapped(d,ramos,actual){
   const fechadas=notasFechadasWrapped(ramos);

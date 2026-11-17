@@ -35,17 +35,18 @@ function slidesWrapped(d,comp,label,recado){
       bien:'Exacto. Llevas la cuenta.',mal:`Fueron ${d.nNotas}.`},
     viz:grillaWrapped(d.nNotas),sub:'Cada una fue una noche antes, una prueba y una espera.'});
   if(d.semana)s.push({prep:{texto:'Hubo una semana que no se olvida.',obj:'calendario'},
-    k:`La del ${esc(d.semana.texto)}`,antes:true,big:cifraWrapped(String(d.semana.k)),titulo:'evaluaciones en siete días.',nota:'Y aquí estás.'});
+    k:`La del ${esc(d.semana.texto)}`,antes:true,big:cifraWrapped(String(d.semana.k)),titulo:'evaluaciones en siete días.',sub:'Y aquí estás.',viz:semanaWrapped(d.semana.dias)});
   if(d.primera){
     const fin=d.mitades?d.mitades.segunda-d.mitades.primera:0;
     s.push({prep:{texto:'¿Te acuerdas de cómo partió todo?',obj:'sacapuntas'},
-      k:'Todo empezó con un',big:cifraWrapped(fmt(d.primera.valor),1),sub:`${esc(d.primera.nombre)} · ${esc(d.primera.ramo)}`,
-      nota:fin>=0.3?'Mira dónde terminaste.':Math.abs(fin)<0.3?'Y lo sostuviste todo el semestre.':''});
+      k:'Todo empezó con un',heroe:pruebaWrapped(cifraWrapped(fmt(d.primera.valor),1),esc(d.primera.nombre),esc(d.primera.ramo)),
+      ...(fin>=0.3?{sub:'Mira dónde terminaste.',viz:barrasWrapped([{label:'1.ª mitad',valor:d.mitades.primera},{label:'2.ª mitad',valor:d.mitades.segunda,ahora:true}])}
+        :{nota:Math.abs(fin)<0.3&&d.mitades?'Y lo sostuviste todo el semestre.':''})});
   }
   if(d.movio)s.push({prep:{texto:'Hubo una nota que lo cambió todo.',obj:'corrector'},
-    k:'Una sola nota.',big:cifraWrapped('+'+fmt(d.movio.delta)),flecha:true,sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio.`});
+    k:'Una sola nota.',heroe:correctorWrapped(d.movio.antes,d.movio.despues),sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio en ${fmt(d.movio.delta)}.`});
   if(d.remontada)s.push({prep:{texto:'Esta es la historia de una remontada.',obj:'escuadra'},
-    k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${fmtPromedio(d.remontada.minimo)}.`,titulo:'Terminó en',big:cifraWrapped(fmtPromedio(d.remontada.final),1),nota:'Nadie lo vio venir. Tú sí.'});
+    k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${fmtPromedio(d.remontada.minimo)}.`,antes:true,heroe:curvaWrapped(d.remontada.serie.slice(1),d.remontada.iMinimo-1,d.remontada.final),titulo:`Terminó en ${hojaMarca(fmtPromedio(d.remontada.final))}.`,nota:'Nadie lo vio venir. Tú sí.'});
   if(d.mejor)s.push({tipo:'goma',prep:{texto:'Tu mejor nota quedó escondida.',sub:'Bórrala para verla.',obj:'goma'},
     titulo:`Tu ${hojaMarca('mejor nota')}`,cifra:fmt(d.mejor.valor),
     nota:`<b>${esc(d.mejor.ramo)}</b><br>${esc(d.mejor.evaluacion)}`,sub:d.mejor.valor>=7?'Nada más que decir.':''});
@@ -97,7 +98,8 @@ function slidesWrapped(d,comp,label,recado){
     sub:'Los recados son de profes que calificaste bien. Como no calificaste a ninguno este semestre, no tenemos uno para ti.',
     ...(conSeccion?{accion:{texto:'Calificar a mis profes',ramo:conSeccion.id},nota:'Califica y vuelve a abrir tu hoja.'}:{})});
   if(d.anterior&&d.anterior.delta>=0.1)s.push({prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`,obj:'cuaderno'},
-    k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),flecha:true});
+    k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),
+    viz:barrasWrapped([{label:esc(d.anterior.label),valor:d.anterior.antes},{label:esc(label),valor:d.anterior.ahora,ahora:true}])});
   else if(d.anterior)s.push({titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
   if(d.gpa!==null)s.push({prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.',obj:'timbre'}:{texto:'Y ahora, el número que lo resume todo.',obj:'timbre'},
     k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`,viz:arcoWrapped(d.gpa)});
@@ -392,7 +394,10 @@ function pintarRevelacionWrapped(){
     programarWrapped();
     return;
   }
-  const grande=s.big?`<div class="wrapped-grande${s.timbre?' con-timbre':''}" style="--d:${d++}"><p class="wrapped-big">${s.big}</p>${s.timbre?hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ '):''}${s.flecha?hojaFlecha():''}</div>`:'';
+  // `heroe` es la pieza que cuenta el dato (la prueba, el corrector, la curva)
+  // y va donde iría la cifra grande.
+  const grande=s.big?`<div class="wrapped-grande${s.timbre?' con-timbre':''}" style="--d:${d++}"><p class="wrapped-big">${s.big}</p>${s.timbre?hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ '):''}</div>`
+    :s.heroe?`<div class="wrapped-heroe" style="--d:${d++}">${s.heroe}</div>`:'';
   caja.innerHTML=p('wrapped-k',s.k)
     +(s.tipo==='umbral'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
     +(s.antes||!s.titulo?grande:'')
