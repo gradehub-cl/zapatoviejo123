@@ -30,6 +30,10 @@ function save(){
     const def=definicionPresetDelRamo(r);
     if(def?.eximicion?.notaExamen==='maxima')r.eximicion=eximicionParaGuardar(def);
     else if(r.eximicion?.notaExamen==='maxima')delete r.eximicion;
+    if(pautaOficialDelRamo(r.nombre,r.origen?.tenant)?.reglasPorSeccion===true){
+      const bonus=resolverBonus(def,r.categorias);
+      if(bonus)r.bonus=bonus;else delete r.bonus;
+    }
   });
   if(_storageOK){
     try{

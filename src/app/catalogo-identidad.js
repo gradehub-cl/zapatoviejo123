@@ -141,7 +141,8 @@ function sellarDatosCatalogo(r,tenant){
   if(r.creditos===null||r.creditos===undefined){
     // Con la pauta del ramo, si es de ESTE curso: TTF012 no está en cursos-uc.js
     // y su crédito vive solo en PRESETS_UC.
-    const def=pautaCalzaConSigla(r.nombre,r.sigla)?definicionPresetDelRamo(r):null;
+    // Un ramo no coordinado tiene créditos aunque su pauta dependa de la sección.
+    const def=pautaCalzaConSigla(r.nombre,r.sigla)?(definicionPresetDelRamo(r)||datosRamoNoCoordinado(r.nombre,r.sigla,t)):null;
     // La sigla, no el ramoKey: en cuentas antiguas el ramoKey es el nombre
     // normalizado y cursoUcCompleto lo tomaba como sigla sin calzar nada.
     const cr=creditosDe(r.nombre,t,def,r.sigla||r.origen.ramoKey);

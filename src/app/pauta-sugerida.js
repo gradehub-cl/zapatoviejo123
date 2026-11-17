@@ -23,7 +23,7 @@ function copiarFuenteSugerida(a){
   return a?.fuente==='programa'&&secciones.length?{fuente:'programa',secciones}:{};
 }
 function textoReferenciaSugerida(o){
-  if(o?.fuente==='catalogo')return 'Pauta publicada en el catálogo UC; puede no ser la de tu sección';
+  if(o?.fuente==='catalogo')return 'Pauta publicada para este ramo; puede no ser la de tu sección';
   if(o?.fuente==='programa')return `Programa oficial de la${o.secciones.length>1?'s secciones':' sección'} ${listaY(o.secciones.map(String))}`;
   return '';
 }
