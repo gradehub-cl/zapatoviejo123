@@ -229,7 +229,7 @@ function reducirImagenClase(img,w,h){
 // redibujaba dentro del canvas del contorno, y Safari al achicarlo borraba
 // las letras finas (TuApunte en iPhone, 2026-10-25). Ahora el logo es la
 // imagen original, que el navegador escala bien, y el canvas solo lleva el
-// borde fino del color del texto y un halo suave. Antes era un `filter:
+// borde fino del color del texto, sin halo. Antes era un `filter:
 // drop-shadow`, que Safari dibujaba como un halo borroso (2026-09-26).
 function dibujarContornoLogoClase(img,caja){
   try{
@@ -239,7 +239,9 @@ function dibujarContornoLogoClase(img,caja){
     const bw=img.clientWidth||caja.clientWidth||44,bh=img.clientHeight||caja.clientHeight||44;
     const k=Math.min(bw/img.naturalWidth,bh/img.naturalHeight);
     const w=Math.max(1,Math.round(img.naturalWidth*k*dpr)),h=Math.max(1,Math.round(img.naturalHeight*k*dpr));
-    const borde=1.2*dpr,halo=3.5*dpr,pad=Math.ceil(halo+1);
+    // Borde fino, nítido y sin halo: con halo el logo brillaba (Salva Ramos,
+    // 2026-11-16; Lucas eligió la opción A).
+    const borde=.8*dpr,pad=Math.ceil(borde+2);
     const color=String(getComputedStyle(caja).getPropertyValue('--fg')||'').trim()||'#f1f1f3';
     // La silueta del logo en el color del texto.
     const sil=document.createElement('canvas');sil.width=w;sil.height=h;
@@ -247,12 +249,7 @@ function dibujarContornoLogoClase(img,caja){
     cs.globalCompositeOperation='source-in';cs.fillStyle=color;cs.fillRect(0,0,w,h);
     const out=document.createElement('canvas');out.width=w+2*pad;out.height=h+2*pad;
     const co=out.getContext('2d');
-    // Halo suave: la silueta corrida en un anillo ancho, casi transparente.
-    co.globalAlpha=.07;
-    for(let n=0;n<24;n++){const a=n/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*halo,pad+Math.sin(a)*halo);}
-    // Borde fino y opaco.
-    co.globalAlpha=1;
-    for(let n=0;n<16;n++){const a=n/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
+    for(let n=0;n<24;n++){const a=n/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
     // Debajo del logo no queda nada: solo el anillo de afuera.
     co.globalCompositeOperation='destination-out';co.drawImage(sil,pad,pad);
     const capa=document.createElement('img');

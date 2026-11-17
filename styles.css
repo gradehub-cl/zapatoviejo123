@@ -908,8 +908,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 /* El contorno es una capa detrás del logo, no el logo redibujado. */
 .clase-apoyo-logo,.catalogo-clase-logo,.profesor-logo-img{position:relative;}
 .clase-apoyo-logo img.logo-clase,.catalogo-clase-logo img.logo-clase,.profesor-logo-img img.logo-clase{position:relative;z-index:1;}
-/* Contorno al 60 %: opaco, el logo de Salva Ramos brillaba (2026-11-16). */
-.clase-apoyo-logo img.logo-clase-borde,.catalogo-clase-logo img.logo-clase-borde,.profesor-logo-img img.logo-clase-borde{position:absolute;z-index:0;max-width:none;transform:translate(-50%,-50%);border-radius:0;pointer-events:none;opacity:.6;}
+.clase-apoyo-logo img.logo-clase-borde,.catalogo-clase-logo img.logo-clase-borde,.profesor-logo-img img.logo-clase-borde{position:absolute;z-index:0;max-width:none;transform:translate(-50%,-50%);border-radius:0;pointer-events:none;}
 .clase-apoyo-cerrar{flex:none;display:flex;align-items:center;justify-content:center;width:44px;border:0;background:none;color:var(--fg3);cursor:pointer;}
 .clase-apoyo-cerrar .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
 .ramo-reordering .clase-apoyo{display:none;}
