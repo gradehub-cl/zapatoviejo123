@@ -195,3 +195,20 @@ HIG: [Widgets](https://developer.apple.com/design/human-interface-guidelines/wid
 y [Layout](https://developer.apple.com/design/human-interface-guidelines/layout):
 contenido oportuno y breve, jerarquía de próxima clase, enlace al ramo,
 controles de 44 puntos y adaptación al tamaño de texto/pantalla.
+
+## Siri, Atajos y Spotlight
+
+`ios/App/App/Atajos.swift` tiene dos App Intents, «Próxima clase» y «Nota que
+necesito», y el `AppShortcutsProvider` con sus frases («¿Qué clase tengo ahora
+en GradeHub?», «¿Qué nota necesito en GradeHub?»). Responden sin abrir la app
+leyendo el mismo resumen que los widgets: `Resumen`, `Almacen`, `Fechas` y
+`Horario` viven en `ios/App/Shared/Resumen.swift`, que compilan los dos targets.
+No calculan nada: `necesitas` ya viene escrito por la app. Piden desbloquear el
+iPhone antes de responder (`authenticationPolicy = .requiresAuthentication`),
+porque dicen ramos, salas y notas en voz alta. Son de iOS 17 en adelante.
+
+El proyecto está en inglés (`developmentRegion = en`): las frases van repetidas
+en `ios/App/App/es.lproj/AppShortcuts.strings` para que Siri en español las
+reconozca. Una frase nueva va en los dos lados. Para probarlas: compila con
+`GRADEHUB_BUNDLE_ID=cl.gradehub.app.qa`, abre la app con `-gradehubDemoWidgets`
+y toca los atajos en la app Atajos → Apps → GradeHub.
