@@ -95,7 +95,10 @@ async function red(){
   };
   assert.equal((await registrar([opcion()])).length,1);
   assert.equal(r.categorias.length,0,'la lectura no aplica una pauta');
-  assert.equal((await registrar([opcion(estructura,2),opcion(otra,2),opcion(estructura,1)])).length,2);
+  assert.equal((await registrar([opcion(estructura,2),opcion(otra,2)])).length,2,'empate: dos opciones');
+  // La RPC nueva separa por sección y profe: la misma estructura se suma.
+  const sumadas=await registrar([opcion(estructura,2),opcion(otra,2),opcion(estructura,1)]);
+  assert.equal(JSON.stringify(sumadas.map(f=>f.respaldos)),'[3]','la misma estructura en dos filas suma sus respaldos');
   assert.equal((await registrar([opcion(estructura,3),opcion(otra,2)]))[0].respaldos,3);
   r.pautaSugerida={descartada:2};
   assert.equal((await registrar([opcion(otra,2)])).length,0);

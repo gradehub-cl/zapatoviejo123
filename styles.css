@@ -1191,6 +1191,14 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
   margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);font-size:.875rem;
 }
 .pauta-sugerida .pauta-sugerida-fila strong{font-variant-numeric:tabular-nums;}
+.pauta-sugerida .pauta-sugerida-opcion.pauta-sugerida-opcion-tuya{border:2px solid var(--primary);background:var(--primary-light);}
+.pauta-sugerida .pauta-sugerida-tuya{
+  display:inline-block;margin:.25rem 0 .15rem;padding:.1rem .5rem;border-radius:999px;
+  background:var(--primary);color:var(--primary-fg);font-size:.75rem;font-weight:700;
+}
+.pauta-sugerida .pauta-sugerida-opcion strong+.pauta-sugerida-tuya{margin-left:.4rem;}
+.pauta-sugerida fieldset>p.pauta-sugerida-pista{display:flex;flex-wrap:wrap;align-items:center;gap:0 .25rem;margin-top:-.4rem;}
+.pauta-sugerida .pauta-sugerida-pista .docente-link{color:var(--primary);}
 .pauta-sugerida .pauta-sugerida-acciones{flex-wrap:wrap;margin-top:.8rem;}
 .pauta-sugerida .pauta-sugerida-acciones button{flex:1 1 8rem;min-width:44px;min-height:44px;}
 .pauta-sugerida .pauta-sugerida-acciones button:disabled{opacity:1;background:var(--muted);color:var(--fg2);}
@@ -3089,17 +3097,12 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 /* ─── Wrapped 2026-2: «la hoja de respuestas» (render-main.js) ───
    Papel cuadriculado, burbujas A–E, resaltador, lápiz, post-it y timbre, con
    las medidas de Figma (.claude/wrapped-concepto.md, 4b). Un resaltador por
-   historia (--acento) y nunca el rojo ni el verde del semáforo. En oscuro, o en
-   el umbral y el cierre, la hoja pasa a pizarrón. Fuente del sistema.
+   historia (--acento) y nunca el rojo ni el verde del semáforo. Un solo fondo
+   en todo el Wrapped (Lucas, 2026-11-17): papel en claro, pizarrón en oscuro;
+   el color cambia solo en resaltador, post-its y cinta. Fuente del sistema.
    La dirección anterior (luces, tinta y vidrio) está en docs/wrapped/. */
 .wrapped{--papel:#F3EFE4;--grafito:#1D1D1F;--acento:#F2F23A;--sup:var(--papel);--tinta:var(--grafito);--tinta-2:#4A4740;--cuad:#D9D3C3;--linea:#B9B2A0;position:fixed;inset:0;z-index:400;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;font-family:var(--font-ui);background-color:#F3EFE4;background-color:var(--sup);background-image:linear-gradient(var(--cuad) 1px,transparent 1px),linear-gradient(90deg,var(--cuad) 1px,transparent 1px);background-size:24px 24px;background-position:-1px -1px;color:var(--tinta);padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 24px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 24px);cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;overscroll-behavior:contain;animation:wrappedAbrir var(--motion-screen) var(--ease-out) backwards;}
 .wrapped{--paso:260ms;transition:background-color var(--motion-base) var(--ease-standard),color var(--motion-base) var(--ease-standard);}
-/* La preparación va a todo color, en el resaltador de la historia: así cada
-   capítulo se anuncia distinto. Los acentos son claros: el grafito encima
-   pasa 4,5:1 con todos. */
-.wrapped[data-sup="acento"]{--sup:var(--acento);--tinta:#1D1D1F;--tinta-2:#34312A;--cuad:rgba(29,29,31,.07);--linea:rgba(29,29,31,.4);}
-/* El cuaderno: hoja blanca con renglones y el margen en el color de la historia. */
-.wrapped[data-sup="rayado"]{--sup:#FBFAF6;--cuad:#CBD5E3;background-image:linear-gradient(90deg,transparent 14px,var(--acento) 14px 16px,transparent 16px),linear-gradient(transparent 31px,var(--cuad) 31px);background-size:100% 100%,100% 32px;background-position:0 0,0 6px;}
 .wrapped[data-sup="pizarron"]{--sup:var(--grafito);--tinta:var(--papel);--tinta-2:#C9C4B6;--cuad:rgba(243,239,228,.10);--linea:rgba(243,239,228,.32);}
 .wrapped.saliendo{animation:wrappedSalir var(--motion-base) var(--ease-standard) forwards;pointer-events:none;}
 .wrapped-arriba{display:flex;align-items:center;gap:4px;min-height:52px;margin-right:-10px;}
@@ -3151,8 +3154,6 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .hoja-lapiz{position:relative;display:flex;align-items:center;gap:14px;}
 .hoja-lapiz>svg{position:absolute;inset:-8px;width:calc(100% + 16px);height:calc(100% + 16px);overflow:visible;pointer-events:none;}
 .hoja-lapiz>svg path{fill:none;stroke:var(--tinta);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;opacity:.9;stroke-dasharray:100;animation:hojaTraza 700ms var(--ease-out) 500ms backwards;}
-.hoja-flecha{width:72px;height:50px;flex:none;overflow:visible;}
-.hoja-flecha path{fill:none;stroke:var(--tinta);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
 .hoja-postit{width:min(232px,72%);margin-left:auto;padding:18px 18px 22px;box-sizing:border-box;background:var(--acento);color:#1D1D1F;font-size:17px;line-height:1.3;transform:rotate(var(--giro,-3deg));box-shadow:0 1px 0 rgba(0,0,0,.06),0 14px 22px -12px rgba(29,29,31,.45);clip-path:polygon(0 0,100% 0,100% 88%,90% 100%,0 100%);}
 .hoja-postit b{font-size:20px;}
 .hoja-postit small{display:block;margin-top:6px;font-size:15px;}
@@ -3234,6 +3235,79 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .wrapped-slide[data-fase="prep"]{justify-content:center;gap:18px;}
 .wrapped-slide[data-fase="prep"]>*{animation-name:wrappedPrep;animation-duration:560ms;}
 .wrapped-prep{margin:0;font-size:clamp(34px,10.5vw,50px);line-height:1.04;font-weight:800;letter-spacing:-.03em;text-wrap:balance;}
+/* La preparación va sobre la misma hoja: cuando terminan de entrar las
+   palabras, el resaltador de la historia pasa por debajo de la frase. El
+   grafito encima del acento pasa 4,5:1 con todos los colores. */
+.wrapped-prep>span[aria-hidden],.hoja-marca.larga{background:linear-gradient(transparent 55%,var(--acento) 55% 90%,transparent 90%) no-repeat 0 0/100% 100%;-webkit-box-decoration-break:clone;box-decoration-break:clone;animation:wrappedResalta 520ms var(--ease-out) backwards;animation-delay:calc(var(--n,1) * 110ms + 360ms);}
+.hoja-marca.larga{display:inline;animation-delay:260ms;}
+.wrapped[data-sup="pizarron"] .wrapped-prep>span[aria-hidden],.wrapped[data-sup="pizarron"] .hoja-marca.larga{background-image:linear-gradient(transparent 88%,var(--acento) 88% 97%,transparent 97%);}
+@keyframes wrappedResalta{from{background-size:0 100%;}}
+/* El útil de cada historia: cae sobre la hoja con un rebote corto y después
+   hace lo suyo (el lápiz raya, el timbre marca, la goma deja migas). */
+.hoja-objeto{display:block;width:min(176px,46vw);height:auto;margin:0 0 -4px -8px;overflow:visible;animation:hojaObjeto 640ms var(--ease-out) backwards;}
+.hoja-objeto path,.hoja-objeto rect,.hoja-objeto circle,.hoja-objeto ellipse{fill:none;stroke:var(--tinta);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
+.hoja-objeto .a{fill:var(--acento);}
+.hoja-objeto .p{fill:var(--sup);}
+.hoja-objeto .t{fill:var(--tinta);stroke:none;}
+.hoja-objeto text{fill:var(--tinta);font-family:var(--font-ui);font-size:12px;font-weight:800;}
+.hoja-objeto .trazo{stroke-dasharray:100;animation:hojaTraza 700ms var(--ease-out) 620ms backwards;}
+.hoja-objeto .trazo-fondo{stroke:none;transform-box:fill-box;transform-origin:left center;animation:hojaBarre 420ms var(--ease-out) 560ms backwards;}
+.hoja-objeto .cinta{fill:#FBFAF6;stroke-width:1.8;transform-box:fill-box;transform-origin:left center;animation:hojaBarre 380ms var(--ease-out) 560ms backwards;}
+.hoja-objeto text.llena{fill:var(--sup);}
+.hoja-objeto .migas{animation:wrappedAparece 300ms var(--ease-out) 640ms backwards;}
+.hoja-objeto .sello{animation:hojaSello 420ms var(--ease-out) 380ms backwards;}
+.hoja-objeto .huella{stroke:var(--acento);stroke-width:5;stroke-dasharray:6 5;animation:wrappedAparece var(--motion-fast) var(--ease-out) 700ms backwards;}
+@keyframes hojaObjeto{0%{opacity:0;transform:translateY(-26px) rotate(-7deg) scale(.94);}60%{opacity:1;transform:translateY(3px) rotate(1.5deg) scale(1);}100%{transform:none;}}
+@keyframes hojaBarre{from{transform:scaleX(0);}}
+@keyframes hojaSello{0%{transform:translateY(-22px);}70%{transform:translateY(4px);}100%{transform:none;}}
+@keyframes wrappedAparece{from{opacity:0;}}
+/* Las revelaciones con su metáfora: semana, prueba, barras, corrector y curva.
+   Entran después de la pieza que las contiene (--d * --paso). */
+.wrapped-heroe{position:relative;}
+.hoja-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:340px;padding-top:10px;border-top:1.5px solid var(--linea);}
+.hoja-semana .dia{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0 6px;border-radius:12px;}
+.hoja-semana .dia.tope{background:var(--acento);}
+.hoja-semana .pila{display:flex;flex-direction:column-reverse;gap:4px;min-height:86px;}
+.hoja-semana .hoja-burbuja.chica{width:22px;height:22px;}
+.hoja-semana b{font-size:15px;font-weight:800;color:var(--tinta-2);}
+.hoja-semana .dia.tope b{color:#1D1D1F;}
+.hoja-semana .dia.tope .hoja-burbuja.llena{background:#1D1D1F;border-color:#1D1D1F;}
+.wrapped[data-sup="pizarron"] .hoja-semana .dia.tope{background:none;box-shadow:inset 0 0 0 2px var(--acento);}
+.wrapped[data-sup="pizarron"] .hoja-semana .dia.tope b{color:var(--acento);}
+.wrapped[data-sup="pizarron"] .hoja-semana .dia.tope .hoja-burbuja.llena{background:var(--tinta);border-color:var(--tinta);}
+/* La prueba es una hoja blanca de verdad, también sobre el pizarrón; la nota
+   va encerrada con lápiz pasta azul, como la corrigió el profe. */
+.hoja-prueba{--tinta:#1D1D1F;--tinta-2:#4A4740;position:relative;display:grid;grid-template-columns:1fr auto;gap:0 14px;max-width:330px;padding:16px 18px 20px;box-sizing:border-box;background:#FBFAF6;color:#1D1D1F;transform:rotate(-1.5deg);box-shadow:0 1px 0 rgba(0,0,0,.06),0 16px 26px -16px rgba(29,29,31,.45);}
+.hoja-prueba .enc{display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1.5px solid #CBD5E3;}
+.hoja-prueba .enc b{font-size:20px;font-weight:800;}
+.hoja-prueba .enc span{font-size:15px;color:#4A4740;}
+.hoja-prueba .nota{grid-column:2;grid-row:1/span 4;align-self:center;padding:8px 10px;}
+.hoja-prueba .nota .wrapped-big{font-size:clamp(64px,20vw,92px);line-height:1;}
+.hoja-prueba .hoja-lapiz>svg path{stroke:#2747D8;stroke-width:3;}
+.hoja-prueba .renglon{display:block;height:1.5px;margin-top:16px;background:#CBD5E3;}
+.hoja-prueba .renglon.corto{width:60%;}
+.hoja-barras{display:grid;gap:10px;max-width:340px;margin-top:18px;}
+.hoja-barras .fila{display:grid;grid-template-columns:84px 1fr 3em;align-items:center;gap:10px;}
+.hoja-barras .etq{font-size:15px;font-weight:600;color:var(--tinta-2);}
+.hoja-barras .pista{height:22px;border:1.5px solid var(--tinta);border-radius:4px;overflow:hidden;}
+.hoja-barras .pista i{display:block;width:var(--v);height:100%;background:color-mix(in srgb,var(--tinta) 22%,transparent);transform-origin:left center;animation:hojaBarre 600ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + var(--r,0) * 1s + 240ms);}
+.hoja-barras .ahora .pista i{background:var(--acento);}
+.hoja-barras .ahora .etq{color:var(--tinta);}
+.hoja-barras .fila b{font-size:20px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+.hoja-barras .escala{display:flex;justify-content:space-between;margin:0 calc(3em + 10px) 0 94px;font-size:12px;font-weight:600;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
+.hoja-corrige{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+.hoja-corrige .viejo{position:relative;font-size:clamp(48px,14vw,64px);line-height:1;font-weight:800;letter-spacing:-.03em;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
+.hoja-corrige .cinta{position:absolute;left:-8px;right:-8px;top:44%;height:.24em;background:#FBFAF6;border:1.5px solid var(--linea);border-radius:2px;transform-origin:left center;animation:hojaBarre 420ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 480ms);}
+.hoja-corrige .nuevo{font-size:clamp(96px,30vw,150px);font-weight:900;line-height:.9;letter-spacing:-.05em;font-variant-numeric:tabular-nums;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 860ms);}
+.hoja-curva{display:block;width:100%;max-width:360px;height:auto;overflow:visible;}
+.hoja-curva path{fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.hoja-curva .umbral{stroke:var(--tinta-2);stroke-width:1.5;stroke-dasharray:4 5;}
+.hoja-curva .linea{stroke:var(--tinta);stroke-width:3;stroke-dasharray:100;animation:hojaTraza 900ms var(--ease-out) 300ms backwards;}
+.hoja-curva .trazo{stroke:var(--tinta);stroke-width:2.4;stroke-dasharray:100;animation:hojaTraza 600ms var(--ease-out) 1100ms backwards;}
+.hoja-curva .fin{fill:var(--acento);stroke:var(--tinta);stroke-width:2;animation:wrappedAparece var(--motion-base) var(--ease-out) 1100ms backwards;}
+.hoja-curva text{fill:var(--tinta);font-family:var(--font-ui);font-variant-numeric:tabular-nums;}
+.hoja-curva .etq{font-size:12px;font-weight:700;fill:var(--tinta-2);}
+.hoja-curva .valor{font-size:20px;font-weight:900;}
 .wrapped-prep>span[aria-hidden]>span{display:inline-block;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--w,0) * 110ms);}
 .wrapped-prep-sub{margin:0;font-size:22px;line-height:1.3;font-weight:500;color:var(--tinta-2);}
 .wrapped[data-dir="revela"] .wrapped-slide>*{animation-name:wrappedRevela;}
@@ -3265,7 +3339,6 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .hoja-video video,.hoja-video>div{display:block;width:100%;aspect-ratio:9/16;max-height:52vh;object-fit:cover;background:#1D1D1F;}
 .hoja-video>div{display:grid;place-content:center;gap:6px;padding:16px;box-sizing:border-box;text-align:center;background:transparent;border:2px dashed #B9B2A0;color:#4A4740;}
 .hoja-video>div p{margin:0;font-size:18px;font-weight:700;color:#1D1D1F;}
-.hoja-video-signo{font-size:96px;font-weight:900;line-height:1;color:#B9B2A0;}
 .wrapped-slide[data-tipo="video"] .hoja-video.vacio>div{max-height:34vh;}
 .hoja-video figcaption{margin-top:10px;font-size:17px;font-weight:700;}
 .hoja-video figcaption small{display:block;font-size:15px;font-weight:400;color:#4A4740;}
@@ -3592,10 +3665,16 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .panel-alumnos-exportar-opciones button{display:grid;gap:4px;min-height:56px;padding:12px 14px;text-align:left;font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;}
 .panel-alumnos-exportar-opciones button span{font-size:.875rem;color:var(--fg2);line-height:1.35;}
 .panel-alumnos-exportar-opciones button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
-.panel-alumnos-vistas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:2px;margin:8px 0 10px;border-radius:10px;background:rgba(118,118,128,.12);}
-.panel-alumnos-vistas.tres-vistas{grid-template-columns:repeat(3,minmax(0,1fr));}
-.panel-alumnos-vistas button{min-width:0;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;line-height:1.25;overflow-wrap:anywhere;cursor:pointer;}
-.panel-alumnos-vistas button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
+/* Vistas, «Comparar con» y tipo de anuncio: pestañas de texto con una raya
+   bajo la activa, como Agenda y Estadísticas (Lucas, 2026-11-16). La línea
+   de base va con sombra interior para que el desborde horizontal no la corte. */
+.panel-alumnos-vistas,.panel-alumnos-compara,.profesor-tipo-opciones{display:flex;gap:20px;margin:8px 0 12px;padding:0;border-radius:0;background:transparent;box-shadow:inset 0 -1px 0 var(--border);overflow-x:auto;scrollbar-width:none;}
+:is(.panel-alumnos-vistas,.panel-alumnos-compara,.profesor-tipo-opciones)::-webkit-scrollbar{display:none;}
+:is(.panel-alumnos-vistas,.panel-alumnos-compara) button,.profesor-tipo-opciones label{position:relative;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 2px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg2);font:500 .9375rem/1.25 var(--font-ui);letter-spacing:0;white-space:nowrap;cursor:pointer;}
+:is(.panel-alumnos-vistas,.panel-alumnos-compara) button[aria-pressed="true"],.profesor-tipo-opciones label:has(input:checked){color:var(--fg);font-weight:650;}
+:is(.panel-alumnos-vistas,.panel-alumnos-compara) button[aria-pressed="true"]::after,.profesor-tipo-opciones label:has(input:checked)::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:1px;background:currentColor;}
+:is(.panel-alumnos-vistas,.panel-alumnos-compara) button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;border-radius:6px;}
+@media(prefers-reduced-motion:no-preference){:is(.panel-alumnos-vistas,.panel-alumnos-compara) button,.profesor-tipo-opciones label{transition:color var(--motion-fast) var(--ease-out);}}
 .panel-alumnos-mas,.panel-alumnos-regresar{min-height:44px;}
 /* La acción principal de cada pantalla de profesor (Invitar alumno, Crear
    anuncio): botón con el acento, igual en las dos (2026-10-23). */
@@ -3606,8 +3685,6 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 /* Cuatro cifras: 2×2 en el teléfono y una fila en pantalla ancha. */
 .panel-resumen-cifras .ah-cifra:nth-child(3){grid-column:auto;}
 @media (min-width:560px){.ah-cifras.panel-resumen-cifras{grid-template-columns:repeat(4,minmax(0,1fr));}}
-/* Cuatro vistas en 375 pt: «Estadísticas» cabe en una línea. */
-.panel-alumnos-vistas:not(.tres-vistas) button{padding:8px 0;font-size:.8125rem;white-space:nowrap;letter-spacing:-.01em;}
 .panel-resumen-filas{list-style:none;margin:0 0 8px;padding:0;}
 .panel-resumen-filas li+li{border-top:1px solid var(--border);}
 .panel-resumen-filas button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;padding:10px 2px;border:0;background:transparent;color:var(--fg);font-family:var(--font-ui);text-align:left;cursor:pointer;}
@@ -3684,16 +3761,10 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
    con el aspecto de un control segmentado (HIG: Segmented controls). */
 .profesor-tipo{margin:0 0 14px;padding:0;border:0;min-width:0;}
 .profesor-tipo legend{padding:0;}
-.profesor-tipo-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:2px;margin:6px 0 6px;border-radius:10px;background:rgba(118,118,128,.12);}
-.profesor-tipo-opciones label{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 6px;border:1px solid transparent;border-radius:8px;color:var(--fg2);font-size:.875rem;font-weight:600;text-align:center;cursor:pointer;}
 .profesor-tipo-opciones input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none;}
-.profesor-tipo-opciones label:has(input:checked){background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
 .profesor-tipo-opciones label:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:2px;}
 .profesor-solo-clase:not([hidden]){display:contents;}
 .profesor-solo-clase[hidden]{display:none;}
-.panel-alumnos-compara{display:flex;gap:2px;padding:2px;margin:4px 0 8px;border-radius:10px;background:rgba(118,118,128,.12);}
-.panel-alumnos-compara button{flex:1;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--fg2);font-family:var(--font-ui);font-size:.875rem;font-weight:600;cursor:pointer;}
-.panel-alumnos-compara button[aria-pressed="true"]{background:var(--card);color:var(--fg);border-color:var(--border);box-shadow:0 1px 2px rgba(0,0,0,.12);}
 .panel-alumnos-compara button:disabled{opacity:.6;cursor:default;}
 .panel-resumen-ramo{border:1px solid var(--border);border-radius:14px;padding:4px 14px 12px;margin-top:10px;background:var(--card);}
 .panel-resumen-ramo summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 14px;min-height:44px;padding-top:10px;cursor:pointer;list-style:none;}
@@ -3860,8 +3931,7 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .panel-alumnos-exportar{color:var(--fg2);font-size:.875rem;text-decoration:underline;text-underline-offset:3px;}
 .alumnos-editorial .panel-alumnos-regresar{display:inline-flex;align-items:center;gap:8px;color:var(--fg2);font-size:.875rem;}
 .alumnos-editorial .panel-alumnos-regresar span{font-size:1.5rem;line-height:1;}
-.alumnos-editorial .panel-alumnos-compara{max-width:30rem;margin:0 0 24px;}
-.alumnos-editorial .panel-alumnos-compara button{padding:10px 12px;line-height:1.4;}
+.alumnos-editorial .panel-alumnos-compara{margin:0 0 24px;}
 .alumnos-editorial .panel-alumnos-ficha h2{font-size:1.5rem;letter-spacing:-.025em;line-height:1.3;}
 .alumnos-editorial .panel-alumnos-ficha #alumnos-ficha-contenido{padding:0;border:0;border-radius:0;background:transparent;}
 .alumnos-editorial :is(.panel-alumnos-ramo,.panel-resumen-ramo){padding:20px 0;margin:0;border:0;border-top:1px solid var(--border);border-radius:0;background:transparent;}
@@ -3902,8 +3972,6 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .alumnos-editorial .panel-alumnos-estado p{font-size:1rem;color:var(--fg2);margin:0;}
 @container (max-width:40rem){
   .alumnos-editorial .ah-grupo>.ah-cifras .ah-cifra:last-child{grid-column:1/-1;}
-  .alumnos-editorial .panel-alumnos-vistas{display:flex;overflow-x:auto;gap:4px;padding:4px;scroll-padding-inline:4px;}
-  .alumnos-editorial .panel-alumnos-vistas button{flex:1 0 auto;font-size:.875rem;padding:10px 12px;letter-spacing:0;white-space:nowrap;}
   .alumnos-editorial .panel-resumen-ramo summary{grid-template-columns:repeat(2,minmax(0,1fr));}
   .alumnos-editorial .panel-resumen-nombre{grid-column:1/-1;}
   .alumnos-editorial .panel-resumen-ramo :is(.panel-alumnos-prom,.panel-alumnos-gh){align-items:flex-start;}
@@ -4940,11 +5008,15 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-identidad{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%}
 .directorio-textos{display:flex;flex-direction:column;gap:12px;min-width:0;flex:1}
 .directorio-avatar.catalogo-clase-logo{display:flex;align-items:center;justify-content:flex-end;width:auto;height:48px;max-width:120px;flex-shrink:0;font-weight:700;border:0;border-radius:0;overflow:visible}
-.directorio-avatar.catalogo-clase-logo img{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
+/* Solo el logo: la capa del contorno (img.logo-clase-borde) lleva su propio
+   tamaño y no se encoge, o queda corrida bajo el logo (Salva Ramos, 2026-11-16). */
+.directorio-avatar.catalogo-clase-logo img.logo-clase{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
+/* Un logo cuadrado o redondo a 48 px quedaba diminuto al lado de uno ancho (TuApunte, 2026-11-16). */
+.directorio-tarjeta .directorio-avatar.catalogo-clase-logo.logo-cuadrado{height:72px}
 /* Sin logo: la inicial en un círculo teñido con el color del perfil. */
 .directorio-tarjeta .directorio-avatar.catalogo-clase-logo:not(:has(img)){justify-content:center;width:48px;border-radius:50%;
   background:color-mix(in srgb,var(--directorio-color) 22%,var(--card));color:var(--directorio-acento);font-size:1.25rem}
-.directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit}
+.directorio-tarjeta .directorio-nombre{font-size:clamp(1.5rem,3vw,2rem);line-height:1.12;font-weight:700;color:inherit;overflow-wrap:break-word}
 .directorio-tarjeta .directorio-etiqueta{font-size:1rem;font-weight:600;color:var(--directorio-acento)}
 .directorio-tarjeta .directorio-siglas{font-size:.875rem;font-variant-numeric:tabular-nums;color:var(--fg2)}
 .directorio-valoracion{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;font-size:1rem;line-height:1.25;flex-shrink:0;font-variant-numeric:tabular-nums;color:inherit}
@@ -4976,7 +5048,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-filtros button:active{opacity:.8}
 .directorio-seccion{margin:24px 0}
 .directorio-seccion h2,.directorio-perfil-abierto h3{font-size:1.1rem;margin:20px 0 12px}
-.directorio-grilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}
+/* Dos por fila en el computador: con tres, el logo le dejaba al nombre menos
+   de 100 px y se cortaba a mitad de palabra («Ment / orIA», 2026-11-16). */
+.directorio-grilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}
 .directorio-vacio{border:1px solid var(--border);border-radius:8px;padding:20px;background:var(--card);color:var(--fg2)}
 .directorio-vacio button{white-space:normal;text-align:left}
 .directorio-publicidad{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
@@ -5564,10 +5638,6 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .ramos-panel .ramos-cifras>.adm-metrica:last-child{grid-column:1/-1;}
   .ramos-panel .ramos-ver{grid-column:1;grid-row:3;justify-self:start;}
 }
-@media(max-width:1023px){
-  .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas:not([hidden]){display:flex;flex-wrap:wrap;gap:2px;overflow:visible;}
-  .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;padding:6px 7px;}
-}
 @media(min-width:1024px){
   .alumnos-editorial.panel-en-ramos .panel-alumnos-vistas{display:none;}
 }
@@ -5627,10 +5697,6 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
   .cr-panel .cr-numeros{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 
-@media(max-width:1023px){
-  .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas{display:flex;flex-wrap:wrap;}
-  .profesor-hig:has(.cr-panel:not([hidden]))>.panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;}
-}
 
 /* Alumnos › Resumen. Atención junto a la agenda semanal. */
 .panel-en-resumen>.panel-solo-pruebas,.panel-en-resumen>.panel-solo-pruebas+.clase-privacidad,.panel-en-resumen>[data-solo-pruebas-estado]{display:none;}
@@ -5689,10 +5755,6 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 @container(max-width:20rem){
   .ras .admin-grafico{display:none;}
   .ras .ras-selector-dia{display:flex;margin:.6rem 0;}
-}
-@media(max-width:1023px){
-  .alumnos-editorial.panel-en-resumen .panel-alumnos-vistas:not([hidden]){display:flex;flex-wrap:wrap;gap:2px;overflow:visible;}
-  .alumnos-editorial.panel-en-resumen .panel-alumnos-vistas button{flex:1 1 auto;white-space:normal;padding:6px 7px;}
 }
 @media(min-width:1024px){.alumnos-editorial.panel-en-resumen .panel-alumnos-vistas{display:none;}}
 

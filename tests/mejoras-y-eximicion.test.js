@@ -60,7 +60,7 @@ r=ramo([4,6,5.5,null],{bonusConfirmado:{texto:true}});
 // Revelación y Fe: las décimas van a la nota más baja, como dice el programa
 // (Lucas, 2026-11-11, "por si acaso"), no repartidas para subir la final.
 {
- const def=run("JSON.stringify(PRESETS_UC['Revelación y Fe'].bonus.find(b=>b.id==='talleres'))");
+ const def=run("JSON.stringify(PRESETS_UC['Revelación y Fe'].porSeccion[1].bonus.find(b=>b.id==='talleres'))");
  assert.equal(JSON.parse(def).operacion,'sumar','TTF012 suma las décimas a la nota más baja');
  const aLaMasBaja=extra=>ramo(extra.valores,{...extra.ramo,bonus:copia(mejoras).map(b=>b.id==='talleres'?{...b,operacion:'sumar'}:b)});
  // Sin eximición (sin contador) y examen rendido 5,0: la más baja es el examen.

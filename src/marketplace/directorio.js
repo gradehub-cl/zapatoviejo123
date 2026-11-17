@@ -41,17 +41,28 @@ async function perfilConDirectorio(p){
   }catch(e){return uid===sesionProfesorClase()?{...p,directorioDisponible:false}:null;}
 }
 
-function diaDirectorio(ahora=Date.now()){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ahora));
+// Orden que rota (Lucas, 2026-11-16): cada persona recibe su propia mezcla y
+// cambia en cada visita. Se mantiene 30 minutos para que al buscar, filtrar o
+// volver de un perfil nada salte de lugar; pasado ese rato, otra mezcla. Así la
+// vitrina se reparte entre todos en vez de que uno quede primero todo el día.
+const ROTACION_DIRECTORIO_MS=30*60*1000;
+let semillaDirectorioActual=null;
+function semillaDirectorio(ahora=Date.now()){
+  if(!semillaDirectorioActual||ahora-semillaDirectorioActual.desde>ROTACION_DIRECTORIO_MS||ahora<semillaDirectorioActual.desde){
+    let valor=Math.floor(Math.random()*4294967296);
+    try{valor=crypto.getRandomValues(new Uint32Array(1))[0];}catch(e){}
+    semillaDirectorioActual={valor:String(valor),desde:ahora};
+  }
+  return semillaDirectorioActual.valor;
 }
-function ordenDiarioDirectorio(perfiles,dia){
+function ordenDirectorio(perfiles,semillaTexto){
   const lista=perfiles.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-  let semilla=2166136261;for(const letra of String(dia))semilla=Math.imul(semilla^letra.charCodeAt(0),16777619)>>>0;
+  let semilla=2166136261;for(const letra of String(semillaTexto))semilla=Math.imul(semilla^letra.charCodeAt(0),16777619)>>>0;
   const azar=()=>{semilla+=0x6d2b79f5;let x=semilla;x=Math.imul(x^x>>>15,x|1);x^=x+Math.imul(x^x>>>7,x|61);return ((x^x>>>14)>>>0)/4294967296;};
   for(let i=lista.length-1;i>0;i--){const j=Math.floor(azar()*(i+1));[lista[i],lista[j]]=[lista[j],lista[i]];}
   return lista;
 }
-function prepararDirectorio(perfiles,{busqueda='',categoria='',nombres={},ahora=Date.now()}={}){
+function prepararDirectorio(perfiles,{busqueda='',categoria='',nombres={},ahora=Date.now(),semilla=semillaDirectorio(ahora)}={}){
   const tokens=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   const lista=(Array.isArray(perfiles)?perfiles:[]).filter(p=>{
     if(!p||!p.id||p.en_directorio===false||p.estado&&p.estado!=='aprobado')return false;
@@ -60,8 +71,9 @@ function prepararDirectorio(perfiles,{busqueda='',categoria='',nombres={},ahora=
     const texto=normalizarBusquedaClase([p.nombre_publico,p.etiqueta,...siglas,...siglas.map(s=>nombres[s]||'')].join(' '));
     return tokens.every(t=>texto.includes(t));
   }).map(p=>({...p,destacado:Number.isFinite(Date.parse(p.destacado_hasta))&&Date.parse(p.destacado_hasta)>ahora}));
-  return {destacados:lista.filter(p=>p.destacado).sort((a,b)=>String(a.id).localeCompare(String(b.id))),
-    normales:ordenDiarioDirectorio(lista.filter(p=>!p.destacado),diaDirectorio(ahora))};
+  // Los destacados también rotan entre ellos: todos pagaron lo mismo.
+  return {destacados:ordenDirectorio(lista.filter(p=>p.destacado),'d'+semilla),
+    normales:ordenDirectorio(lista.filter(p=>!p.destacado),semilla)};
 }
 function anunciosDestacadosDirectorio(anuncios,busqueda,categoria,nombres,ahora=Date.now()){
   return prepararCatalogoClases(anuncios,busqueda,nombres,{ahora}).filter(a=>Number(a.precio_clp)>0&&

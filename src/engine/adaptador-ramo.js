@@ -50,7 +50,7 @@ function gh_crearCalculoRamo(deps){
   }
   function reglaDeEximicion(r){
     const def=definicionPresetDelRamo(r),regla=def?.eximicion;
-    if(!regla)return null;
+    if(!regla||Array.isArray(regla.secciones)&&!regla.secciones.includes(r.seccion))return null;
     if(regla.requierePautaOriginal===true){
       const evals=def.evals||regla.pauta||[],cats=r.categorias||[];
       if(!Array.isArray(evals)||evals.length!==cats.length||evals.some(([nombre,peso,extra])=>{
@@ -62,7 +62,7 @@ function gh_crearCalculoRamo(deps){
   }
   function reglasBonusVigentes(r){
     const cats=r.categorias||[];
-    return (Array.isArray(r.bonus)?r.bonus:[]).filter(b=>b&&(b.destino!=='grupo'||
+    return (Array.isArray(r.bonus)?r.bonus:[]).filter(b=>b&&(!Array.isArray(b.secciones)||b.secciones.includes(r.seccion))&&(b.destino!=='grupo'||
       Array.isArray(b.catIds)&&b.catIds.length&&b.catIds.every(id=>cats.some(c=>c.id===id))
       &&(!b.pauta||Array.isArray(b.pauta)&&b.pauta.length===cats.length&&b.pauta.every(e=>{
       const c=cats.find(c=>c.id===e.catId);

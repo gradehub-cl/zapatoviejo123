@@ -290,7 +290,7 @@ function resolverBonus(def,categorias){
       if(evals.length!==categorias.length||evals.some(([nombre,peso])=>!categorias.some(c=>normName(c.nombre)===normName(nombre)&&c.peso===peso&&(c.slots||1)===1)))return;
       const ids=(b.evals||[]).map(idDe);
       if(!ids.length||ids.some(x=>!x)||!['sumar','promediar','distribuir'].includes(b.operacion))return;
-      out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino:'grupo',catIds:ids,operacion:b.operacion,valor:b.valor,etapa:b.etapa,
+      out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino:'grupo',catIds:ids,operacion:b.operacion,valor:b.valor,etapa:b.etapa,
         pauta:categorias.map(c=>({catId:c.id,nombre:c.nombre,peso:c.peso,slots:c.slots||1,dropLowest:c.dropLowest||null}))});
       return;
     }
@@ -302,7 +302,7 @@ function resolverBonus(def,categorias){
       if(!ids.length||ids.some(x=>!x)||typeof b.si.mayorQue!=='number')return;
       si={catIds:ids,mayorQue:b.si.mayorQue};
     }
-    out.push({id:b.id,pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
+    out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
       ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
       ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
   });

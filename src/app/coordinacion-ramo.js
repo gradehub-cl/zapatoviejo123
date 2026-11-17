@@ -9,7 +9,9 @@
 //   1. El dato explícito `coordinado` de la pauta oficial. Lo pone el programa
 //      o lo confirma Lucas; tener varios profesores no basta (Derecho UC).
 //   2. Tener pauta oficial para todo el ramo: alguien la transcribió como una.
-//   3. La malla: un ramo que aparece en alguna malla de la universidad se toma
+//   3. Los reportes: dos pautas bien respaldadas de profesores o secciones
+//      distintas (distribuciones-pauta.js) dicen que no es coordinado.
+//   4. La malla: un ramo que aparece en alguna malla de la universidad se toma
 //      como coordinado; uno que no aparece en ninguna (electivos, teológicos,
 //      formación general), como no coordinado.
 // Devuelve null mientras no se pueda saber: las mallas de UC, UAI, UAndes y
@@ -29,6 +31,53 @@ function pautaOficialDelRamo(nombre,tenant){
   return clave?presets[clave]:null;
 }
 
+// Nombre, sigla y créditos de un ramo no coordinado sin pauta para todos.
+// Con sigla, solo si es la del programa: nunca los datos de un homónimo.
+function datosRamoNoCoordinado(nombre,sigla,tenant=S.tenant){
+  const presets=PRESETS_POR_TENANT[tenant];
+  if(!presets)return null;
+  const clave=claveCatalogo(nombre,Object.keys(presets),tenant),def=clave&&presets[clave];
+  if(!def||Array.isArray(def)||def.coordinado!==false||pautaPresetSuficiente(evalsDePreset(def)))return null;
+  if(sigla&&def.sigla&&normName(sigla)!==normName(def.sigla))return null;
+  return {nombre:clave,sigla:def.sigla||null,creditos:typeof def.creditos==='number'?def.creditos:null};
+}
+
+// El programa publicado que le corresponde a un ramo no coordinado, o null:
+//   · el de su sección, si la sección tiene programa (`porSeccion`);
+//   · si no, el que calza exacto con su pauta guardada (mismos nombres y
+//     pesos): quien ya tenía cargado el programa de las secciones 4 y 5 de
+//     Biología de la Célula, o el de Revelación y Fe, conserva sus reglas
+//     (eximición, lo que no se calcula) aunque no haya dicho su sección.
+// Devuelve la definición completa de ese programa, como un preset coordinado,
+// y de dónde sale ({fuente:'programa', secciones} o {fuente:'catalogo'}).
+function formaProgramaRamo(lista){
+  return lista.map(([n,p])=>normName(n)+':'+r2(Number(p)||0)).sort().join('|');
+}
+function programaQueCalza(ramo,def){
+  if(!ramo||!def||Array.isArray(def)||def.coordinado!==false)return null;
+  if(def.sigla&&ramo.sigla&&normName(def.sigla)!==normName(ramo.sigla))return null;
+  const {porSeccion,evalsReferencia,...general}=def;
+  const programas=[];
+  Object.keys(porSeccion||{}).map(Number).filter(n=>Number.isInteger(n)&&n>0).sort((a,b)=>a-b).forEach(n=>{
+    const evals=evalsDePreset(porSeccion[n]);
+    const previo=programas.find(p=>p.fuente==='programa'&&formaProgramaRamo(p.def.evals)===formaProgramaRamo(evals));
+    if(previo){previo.secciones.push(n);return;}
+    programas.push({def:{...general,...porSeccion[n]},fuente:'programa',secciones:[n]});
+  });
+  if(Array.isArray(evalsReferencia)&&evalsReferencia.length)
+    programas.push({def:{...general,evals:evalsReferencia},fuente:'catalogo',secciones:[]});
+  if(Number.isInteger(ramo.seccion)){
+    const suyo=programas.find(p=>p.secciones.includes(ramo.seccion));
+    if(suyo)return suyo;
+  }
+  // Una restricción declarada de profesor/sección no se deduce de los pesos.
+  if(def.reglasPorSeccion===true)return null;
+  const cats=catsDePauta(ramo.categorias);
+  if(!cats.length)return null;
+  const forma=formaProgramaRamo(cats.map(c=>[c.nombre,c.peso]));
+  return programas.find(p=>pautaPresetSuficiente(p.def.evals)&&formaProgramaRamo(p.def.evals)===forma)||null;
+}
+
 // Nombres normalizados de todas las mallas cargadas de una universidad. La
 // caché se invalida cuando llegan las mallas diferidas.
 const _nombresMallasCoordinacion={};
@@ -43,7 +92,7 @@ function nombresMallasCoordinacion(tenant){
   return nombres;
 }
 
-// {coordinado:boolean, fuente:'programa'|'pauta-oficial'|'malla'|'fuera-de-malla'} o null.
+// {coordinado:boolean, fuente:'programa'|'pauta-oficial'|'reportes'|'malla'|'fuera-de-malla'} o null.
 function coordinacionRamo(r){
   if(!r||!r.nombre)return null;
   const tenant=r.origen?.tenant||S.tenant;
@@ -52,6 +101,9 @@ function coordinacionRamo(r){
   if(def&&!Array.isArray(def)&&typeof def.coordinado==='boolean')
     return {coordinado:def.coordinado,fuente:'programa'};
   if(def&&pautaPresetSuficiente(evalsDePreset(def)))return {coordinado:true,fuente:'pauta-oficial'};
+  // Los reportes pueden mostrar que el ramo cambia según profesor o sección
+  // aunque esté en la malla (distribuciones-pauta.js).
+  if(evidenciaCoordinacionDe(r)===true)return {coordinado:false,fuente:'reportes'};
   const nombre=normName(r.nombre),sinonimo=sinonimoDe(r.nombre,tenant);
   const nombres=nombresMallasCoordinacion(tenant);
   if(nombres.has(nombre)||(sinonimo&&nombres.has(normName(sinonimo))))return {coordinado:true,fuente:'malla'};

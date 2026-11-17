@@ -31,6 +31,29 @@
 // suelen seguir sirviendo después, pero las fechas solo se precargan mientras
 // ese período siga vigente. Si un programa no declara el período, se omite el
 // campo y la app conserva los pesos sin presentar sus fechas como actuales.
+// Programa de Juan Pablo Espinosa Arce, 2026-2. Lucas confirmó el
+// 2026-11-11 que aplica a ambas secciones, 1 y 2. Una sola definición para
+// ese profesor; no se infiere una sección por tener los mismos porcentajes.
+const PROGRAMA_TTF012_JP_2026_2={
+    evals:[['Evaluación 1',20,{fecha:'2026-09-07'}],['Evaluación 2',20,{fecha:'2026-10-14'}],['Evaluación 3',30,{fecha:'2026-11-16'}],['Examen final',30]],
+    // Aclaraciones de Lucas, 2026-11-11: exime desde 5,95; texto previo;
+    // décimas a la nota más baja tras decidir la eximición, como dice el
+    // programa y por si acaso (Lucas, 2026-11-11, en vez de repartirlas); examen eximido = máxima final;
+    // empates a mayor peso y notas mejoradas con tope 7,0. Contador: hasta 6 faltas.
+    eximicion:{secciones:[1,2],evaluacion:'Examen final',segun:['Evaluación 1','Evaluación 2','Evaluación 3'],
+      min:5.95,promedio:'simple',notaExamen:'maxima',maxInasistencias:6,ignoraDescartes:true,requierePautaOriginal:true,
+      requiereConfirmacion:false},
+    bonus:[
+      {id:'texto',secciones:[1,2],entrada:'confirmacion',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3'],
+        operacion:'promediar',valor:7,etapa:'previa',pregunta:'Presenté un texto',
+        ayuda:'Promedia un 7,0 con la menor de E1, E2 y E3 antes de calcular la presentación.'},
+      {id:'talleres',secciones:[1,2],entrada:'decimas',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3','Examen final'],
+        operacion:'sumar',etapa:'final',pregunta:'Décimas de talleres',
+        ayuda:'Solo las ganadas asistiendo al taller. Se suman a tu nota más baja al final del semestre, con tope 7,0. 5 décimas = +0,5.'},
+    ],
+    reglasDelCurso:['Una evaluación no rendida sin justificación autorizada dentro de 48 horas recibe un 1,0; ingresa esa nota cuando el profesor la confirme'],
+};
+
 const PRESETS_UC={
   // MAT1610, programa 2026-1: la primera interrogación justificada toma la
   // nota del examen; las siguientes se recuperan con pruebas especiales (P).
@@ -218,34 +241,43 @@ const PRESETS_UC={
     sigla:'BIO141C',
     periodo:'2026-2',
     creditos:10,
-    evals:[
-      ['Interrogaciones',45.5,{slots:3,slotLabel:'Interrogación'}],
-      ['Talleres',14,{lista:true}],
-      ['Trabajos prácticos',7,{slots:2,slotLabel:'Trabajo práctico'}],
-      ['Trabajo grupal',3.5],
-      ['Examen final',30],
-    ],
-    // La app puede comprobar la presentación y los mínimos de notas, pero no
-    // sabe cuántos Talleres faltó la persona ni cuántos controles habrá. Por
-    // eso llegar al 5,0 solo OFRECE la eximición: el estudiante confirma que
-    // ingresó todo y que cumple la asistencia antes de sacar el Examen.
-    eximicion:{
-      evaluacion:'Examen final',
-      segun:['Interrogaciones','Talleres','Trabajos prácticos','Trabajo grupal'],
-      min:5,
-      ignoraDescartes:true,
-      requiereConfirmacion:true,
-      confirmar:'cumples la asistencia de Taller exigida por tu sección',
-      ocultaEvaluacion:true,
-      minimos:[
-        {evaluacion:'Interrogaciones',min:4,cadaNota:true},
-        {evaluacion:'Talleres',min:4},
-      ],
-    },
-    noCalcula:[
-      'Con 100% de los controles de Taller puedes eliminar la peor nota, pero el programa no especifica cuántos controles habrá durante el semestre',
-      'El Examen es reprobatorio bajo las condiciones de Interrogaciones y Talleres que define el programa, pero no publica la fórmula con que se transforma esa situación en la nota final',
-    ],
+    // No es coordinado (Lucas, 2026-11-09) y este programa es el de las
+    // secciones 4 y 5: va en `porSeccion`, como Derecho UC. Las demás secciones
+    // reciben las pautas que reportan sus compañeros (distribuciones-pauta.js).
+    coordinado:false,
+    porSeccion:(()=>{
+      const programa={
+        evals:[
+          ['Interrogaciones',45.5,{slots:3,slotLabel:'Interrogación'}],
+          ['Talleres',14,{lista:true}],
+          ['Trabajos prácticos',7,{slots:2,slotLabel:'Trabajo práctico'}],
+          ['Trabajo grupal',3.5],
+          ['Examen final',30],
+        ],
+        // La app puede comprobar la presentación y los mínimos de notas, pero no
+        // sabe cuántos Talleres faltó la persona ni cuántos controles habrá. Por
+        // eso llegar al 5,0 solo OFRECE la eximición: el estudiante confirma que
+        // ingresó todo y que cumple la asistencia antes de sacar el Examen.
+        eximicion:{
+          evaluacion:'Examen final',
+          segun:['Interrogaciones','Talleres','Trabajos prácticos','Trabajo grupal'],
+          min:5,
+          ignoraDescartes:true,
+          requiereConfirmacion:true,
+          confirmar:'cumples la asistencia de Taller exigida por tu sección',
+          ocultaEvaluacion:true,
+          minimos:[
+            {evaluacion:'Interrogaciones',min:4,cadaNota:true},
+            {evaluacion:'Talleres',min:4},
+          ],
+        },
+        noCalcula:[
+          'Con 100% de los controles de Taller puedes eliminar la peor nota, pero el programa no especifica cuántos controles habrá durante el semestre',
+          'El Examen es reprobatorio bajo las condiciones de Interrogaciones y Talleres que define el programa, pero no publica la fórmula con que se transforma esa situación en la nota final',
+        ],
+      };
+      return {4:programa,5:programa};
+    })(),
   },
   // Formación General UC · programa recibido con el nombre de archivo
   // "CFG FON 104", pero el propio documento declara la sigla como pendiente.
@@ -967,9 +999,18 @@ const PRESETS_UC={
   // Los teológicos que NO están acá son los que el catálogo no publica con
   // porcentajes, o los publica sumando distinto de 100. Esos siguen en
   // `CURSOS_UC` sin pauta, que es lo honesto mientras no haya un programa.
+  //
+  // NO SON COORDINADOS (Lucas, 2026-11-09): cada profesor arma su pauta, y los
+  // reportes lo confirman (TTF205: 7 de 11 estudiantes reportan otra distinta
+  // a la del catálogo). Por eso la pauta va en `evalsReferencia` y no en
+  // `evals`: no se carga sola a nadie. La ficha la ofrece como una opción más,
+  // diciendo que es la del catálogo y que puede no ser la de tu sección, junto
+  // a las que reportan los estudiantes (distribuciones-pauta.js). Siguen en el
+  // buscador por el catálogo completo de cursos (cursos-uc.js).
   'La Biblia de Jesús':{
     sigla:'TTF036',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Infografía digital',20],
       ['Corto de video',20],
       ['Aplicación de lectura bíblica',30],
@@ -978,7 +1019,8 @@ const PRESETS_UC={
   },
   'La Belleza de la Fragilidad Humana':{
     sigla:'TTF109',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Fichas de lectura',30,{lista:true}],
       ['Relatos autobiográficos',30,{lista:true}],
       ['Texto autoetnográfico',40],
@@ -986,7 +1028,8 @@ const PRESETS_UC={
   },
   'Virgen María y Feminismo: ¿Diálogo o Confrontación?':{
     sigla:'TTF115',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Control personal de contenido y lecturas',20],
       ['Tareas grupales',30,{lista:true}],
       ['Pre-entrega del trabajo del video',10],
@@ -995,7 +1038,8 @@ const PRESETS_UC={
   },
   'Arquitectura Sacra':{
     sigla:'TTF116',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Prueba escrita',30],
       ['Informe análisis de caso individual',15],
       ['Informe de análisis de caso grupal',15],
@@ -1004,7 +1048,8 @@ const PRESETS_UC={
   },
   'Esperanza Cristiana, Muerte y Más Allá':{
     sigla:'TTF118',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Tareas grupales en clases',40,{lista:true}],
       ['Presentación grupal',20],
       ['Co evaluación',20],
@@ -1013,7 +1058,8 @@ const PRESETS_UC={
   },
   'Búsquedas Religiosas y Cristianismo':{
     sigla:'TTF202',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Síntesis de debates',40,{lista:true}],
       ['Controles de lectura',30,{lista:true}],
       ['Prueba',30],
@@ -1021,7 +1067,8 @@ const PRESETS_UC={
   },
   '¿Quién Es Jesús de Nazareth?':{
     sigla:'TTF205',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Infografía grupal',30],
       ['Producción escrita',30],
       ['Podcast',40],
@@ -1029,7 +1076,8 @@ const PRESETS_UC={
   },
   'El Padrenuestro: la Oración de Jesús':{
     sigla:'TTF206',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Informes investigación',20,{lista:true}],
       ['Informes de lectura',30,{lista:true}],
       ['Controles escritos',30,{lista:true}],
@@ -1038,7 +1086,8 @@ const PRESETS_UC={
   },
   'Doctrina Social de la Iglesia':{
     sigla:'TTF207',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',40,{lista:true}],
       ['Controles de lectura',20,{lista:true}],
       ['Ensayos',40,{lista:true}],
@@ -1046,7 +1095,8 @@ const PRESETS_UC={
   },
   'Fe y Razón: Una Perspectiva Histórica':{
     sigla:'TTF208',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',30,{lista:true}],
       ['Informes de lectura',30,{lista:true}],
       ['Trabajo grupal',40],
@@ -1054,7 +1104,8 @@ const PRESETS_UC={
   },
   'Experiencia Creyente y Secularismo':{
     sigla:'TTF210',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Prueba de desarrollo',30],
       ['Tareas',20,{lista:true}],
       ['Producción audiovisual grupal',10],
@@ -1063,14 +1114,16 @@ const PRESETS_UC={
   },
   'Para Pensar la Muerte':{
     sigla:'TTF211',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Ensayos individuales',60,{lista:true}],
       ['Interrogaciones grupales',40,{lista:true}],
     ],
   },
   'Espiritualidad Laical y Cultura Moderna':{
     sigla:'TTF213',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Controles de lecturas',50,{lista:true}],
       ['Pruebas',20,{lista:true}],
       ['Informe escrito grupal',30],
@@ -1078,7 +1131,8 @@ const PRESETS_UC={
   },
   'Teología y Ecología':{
     sigla:'TTF215',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Presentación síntesis de contenidos',30],
       ['Informe escrito',35],
       ['Análisis de caso grupal',35],
@@ -1086,7 +1140,8 @@ const PRESETS_UC={
   },
   '¿Creer o No Creer?':{
     sigla:'TTF216',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',40,{lista:true}],
       ['Informes de lectura',20,{lista:true}],
       ['Trabajo grupal',30],
@@ -1095,7 +1150,8 @@ const PRESETS_UC={
   },
   '¿Es Necesaria la Iglesia?':{
     sigla:'TTF217',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',40,{lista:true}],
       ['Trabajo grupal (entrevistas y análisis)',35],
       ['Ensayo individual',25],
@@ -1103,7 +1159,8 @@ const PRESETS_UC={
   },
   'Lectura Contemporánea de la Biblia':{
     sigla:'TTF218',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Presentaciones grupales',30,{lista:true}],
       ['Análisis de casos individual',40],
       ['Ensayo final',30],
@@ -1111,7 +1168,8 @@ const PRESETS_UC={
   },
   'Existencia Humana y la Búsqueda de Sentido':{
     sigla:'TTF219',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Prueba escrita',30],
       ['Informe de análisis de caso grupal',30],
       ['Ensayo final',40],
@@ -1119,7 +1177,8 @@ const PRESETS_UC={
   },
   'Teología del Cuerpo Humano':{
     sigla:'TTF220',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Presentaciones grupales',60,{lista:true}],
       ['Análisis de casos individual',25],
       ['Ensayo final',15],
@@ -1127,7 +1186,8 @@ const PRESETS_UC={
   },
   'Cristianismo y Crisis Ecológica':{
     sigla:'TTF222',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Controles de lectura',50,{lista:true}],
       ['Evaluación de pares',20],
       ['Portafolio',30],
@@ -1135,7 +1195,8 @@ const PRESETS_UC={
   },
   'Fe y Ciencia':{
     sigla:'TTF225',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Control escrito de contenidos',35],
       ['Ensayo',30],
       ['Trabajo colaborativo y exposición',35],
@@ -1143,7 +1204,8 @@ const PRESETS_UC={
   },
   'Religión y Política':{
     sigla:'TTF226',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Pruebas',60,{lista:true}],
       ['Exposiciones grupales',30,{lista:true}],
       ['Participación en el curso',10],
@@ -1151,7 +1213,8 @@ const PRESETS_UC={
   },
   'Teología Feminista: Un Signo de los Tiempos':{
     sigla:'TTF232',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Tareas',20,{lista:true}],
       ['Control de lectura',25],
       ['Análisis de casos',25],
@@ -1161,37 +1224,17 @@ const PRESETS_UC={
   },
   'Teología y Literatura':{
     sigla:'TTF233',
-    evals:[
+    coordinado:false,
+    evalsReferencia:[
       ['Informe de lectura',15],
       ['Ejercicios grupales',60,{lista:true}],
       ['Relectura final individual',25],
     ],
   },
   'Revelación y Fe':{
-    sigla:'TTF012',
-    periodo:'2026-2',
-    // BuscaCursos 2026-2 (las 4 secciones de TTF012). Sin este dato los créditos
-    // salían del homónimo TEB110 (8) o quedaban vacíos. Reportado el 2026-10-01.
-    creditos:10,
-    evals:[['Evaluación 1',20,{fecha:'2026-09-07'}],['Evaluación 2',20,{fecha:'2026-10-14'}],['Evaluación 3',30,{fecha:'2026-11-16'}],['Examen final',30]],
-    // Programa de Juan Pablo Espinosa, 2026-2. #1056 aún está abierta:
-    // al integrarla, conservar estas reglas en la pauta de referencia de él.
-    // Aclaraciones de Lucas, 2026-11-11: exime desde 5,95; texto previo;
-    // décimas a la nota más baja tras decidir la eximición, como dice el
-    // programa y por si acaso (Lucas, 2026-11-11, en vez de repartirlas); examen eximido = máxima final;
-    // empates a mayor peso y notas mejoradas con tope 7,0. Contador: hasta 6 faltas.
-    eximicion:{evaluacion:'Examen final',segun:['Evaluación 1','Evaluación 2','Evaluación 3'],
-      min:5.95,promedio:'simple',notaExamen:'maxima',maxInasistencias:6,ignoraDescartes:true,requierePautaOriginal:true,
-      requiereConfirmacion:false},
-    bonus:[
-      {id:'texto',entrada:'confirmacion',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3'],
-        operacion:'promediar',valor:7,etapa:'previa',pregunta:'Presenté un texto',
-        ayuda:'Promedia un 7,0 con la menor de E1, E2 y E3 antes de calcular la presentación.'},
-      {id:'talleres',entrada:'decimas',a:'grupo',evals:['Evaluación 1','Evaluación 2','Evaluación 3','Examen final'],
-        operacion:'sumar',etapa:'final',pregunta:'Décimas de talleres',
-        ayuda:'Solo las ganadas asistiendo al taller. Se suman a tu nota más baja al final del semestre, con tope 7,0. 5 décimas = +0,5.'},
-    ],
-    reglasDelCurso:['Una evaluación no rendida sin justificación autorizada dentro de 48 horas recibe un 1,0; ingresa esa nota cuando el profesor la confirme'],
+    sigla:'TTF012',periodo:'2026-2',creditos:10,coordinado:false,
+    reglasPorSeccion:true,
+    porSeccion:{1:PROGRAMA_TTF012_JP_2026_2,2:PROGRAMA_TTF012_JP_2026_2},
   },
   // ─── Derecho UC · formularios de condiciones y evaluaciones 2026-2 ───
   // Ramos NO coordinados (`coordinado:false`, confirmado por Lucas el

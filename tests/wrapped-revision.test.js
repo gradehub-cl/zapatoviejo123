@@ -79,7 +79,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  });
  check('no afirma cierre de un ramo todavía pendiente ni celebra todos reprobados',()=>{
   const r=ramo('pendiente');r.categorias=[cat('control',50,3),cat('examen',50,null)];mostrar([r]);
-  const slides=JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,semester())'));assert.doesNotMatch(slides,/Cerraste|sacaste adelante|sobre el 4,0/);assert.match(slides,/con promedio de aprobación/);
+  const slides=JSON.stringify(run('slidesWrapped(datosWrapped(S.ramos),null,semester())'));assert.doesNotMatch(slides,/Cerraste|sacaste adelante|sobre el 4,0/);assert.doesNotMatch(slides,/0 de \d+ ramo/,'sin ramos aprobados no se escribe «0 de N» bajo el promedio');
  });
  check('no usa un historial de otro período ni adivina etiquetas antiguas',()=>{
   mostrar([]);set('S.historial',[{ramos:[ramo('archivado')]}]);assert.equal(run('ramosWrapped()'),null);
@@ -249,7 +249,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
   mostrar([ramo('uno')]);
   const slides=run("slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())");
   const uni=slides.find(x=>/^En toda/.test(x.k||''));
-  assert.equal(uni.k,'En toda la UC');assert.match(uni.sub,/personas de la UC en GradeHub/);
+  assert.equal(uni.k,'En toda la UC quedaste sobre el');assert.match(uni.sub,/otras 119 personas/);
  });
  check('en pantalla ancha la hoja es una columna centrada',()=>{
   const ancho=read('styles.css').match(/@media \(min-width:768px\)\{\s*\.wrapped-arriba[^}]*\}/);

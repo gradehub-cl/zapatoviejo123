@@ -28,6 +28,7 @@ const chk = (n, c) => { if (c) { ok++; console.log('  OK   ' + n); } else { fail
 
 const CURSOS_UC = val('CURSOS_UC'), MALLA_UC = val('MALLA_UC'), PRESETS_UC = val('PRESETS_UC'), CREDITOS_UC = val('CREDITOS_UC');
 const normName = val('normName'), catalogo = val('catalogRamosUniversidad'), buscar = val('searchCatalog'), presetRamo = val('presetRamo');
+const pautaPresetSuficiente = val('pautaPresetSuficiente'), evalsDePreset = val('evalsDePreset');
 
 console.log('\n=== La lista está bien formada ===');
 chk('tiene cursos', CURSOS_UC.length > 0);
@@ -42,11 +43,17 @@ const enMalla = new Set();
 Object.values(MALLA_UC).forEach(sems => Object.values(sems).forEach(rs => rs.forEach(r => enMalla.add(normName(typeof r === 'string' ? r : (r.n || r.nombre))))));
 chk('ninguno duplica un ramo que ya está en una malla',
   CURSOS_UC.every(([, n]) => !enMalla.has(normName(n))));
-const cursosConPauta=CURSOS_UC.filter(([,n])=>Object.keys(PRESETS_UC).some(k=>normName(k)===normName(n)));
+// Con pauta para todos: los no coordinados (coordinado:false) no la traen.
+const cursosConPauta=CURSOS_UC.filter(([,n])=>Object.keys(PRESETS_UC).some(k=>normName(k)===normName(n)&&pautaPresetSuficiente(evalsDePreset(PRESETS_UC[k]))));
 chk('cada pauta fuera de malla se puede cargar desde su programa verificado',
-  cursosConPauta.length>0&&cursosConPauta.every(([,n])=>!!presetRamo(n,'uc','ING-PC')));
-chk('Biología de la Célula deja de llegar vacía',
-  !!presetRamo('Biología de la Célula','uc','ING-PC'));
+  // Desde 2026-11-09 la única (Biología de la Célula) es no coordinada: la
+  // lista puede quedar vacía, pero cualquiera que vuelva a entrar debe cargar.
+  cursosConPauta.every(([,n])=>!!presetRamo(n,'uc','ING-PC')));
+// No es coordinado (2026-11-09): el programa de las secciones 4 y 5 no se le
+// carga a todos; la ficha lo ofrece junto a lo que reportan los demás.
+chk('Biología de la Célula no recibe la pauta de otras secciones',
+  !presetRamo('Biología de la Célula','uc','ING-PC')&&
+  !!PRESETS_UC['Biología de la Célula'].porSeccion[4]&&PRESETS_UC['Biología de la Célula'].coordinado===false);
 
 console.log('\n=== El buscador los encuentra ===');
 const cat = catalogo('uc', 'ING-PC');

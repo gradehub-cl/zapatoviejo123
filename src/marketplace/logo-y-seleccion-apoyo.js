@@ -43,7 +43,11 @@ function revisarLogoClase(img){
   if(!caja||!img.naturalWidth)return;
   // Primero el margen transparente: si se recorta, el logo vuelve a cargar y
   // esta función corre de nuevo con la imagen ya recortada.
+  // Antes, el fondo blanco liso: un logo transparente se recorta y se adapta
+  // al tema como cualquier otro.
+  try{if(quitarFondoBlancoLogoClase(img))return;}catch(e){}
   try{if(recortarMargenLogoClase(img))return;}catch(e){}
+  if(img.dataset.fondo==='quitado'&&!img.dataset.sinFondoSrc)img.dataset.sinFondoSrc=img.src;
   if(img.dataset.contorno==='1')return;
   // Un logo casi cuadrado o redondo, a la misma altura que uno ancho, queda
   // chico y su texto ilegible (TuApunte, 2026-10-25): se le da más alto.
@@ -65,7 +69,84 @@ function revisarLogoClase(img){
   if(caja.classList)caja.classList.toggle('logo-opaco',!!visibles&&transparentes/(px.length/4)<.1);
   if(!visibles||transparentes/(px.length/4)<.1)return;
   const logo=suma/visibles,fondo=fondoDetrasClase(caja);
-  if((Math.max(logo,fondo)+.05)/(Math.min(logo,fondo)+.05)<2)dibujarContornoLogoClase(img,caja);
+  if((Math.max(logo,fondo)+.05)/(Math.min(logo,fondo)+.05)>=2)return;
+  // Un logo al que se le quitó el fondo blanco se diseñó sobre blanco: sus
+  // letras negras o grises pasan al color del texto y los colores de marca
+  // quedan iguales (MentorIA, 2026-11-16). Si no tiene letras así, contorno.
+  if(img.dataset.fondo==='quitado'&&aclararLetrasLogoClase(img,caja))return;
+  dibujarContornoLogoClase(img,caja);
+}
+// Un logo opaco con fondo blanco liso (un PNG o JPG exportado sobre blanco)
+// se veía como una placa pegada en la tarjeta. Si el borde de la imagen es
+// casi todo blanco, lo blanco y gris muy claro se vuelve transparente, con el
+// borde suavizado. Los colores claros de marca (un lila pastel) no se tocan.
+// Una insignia con letras caladas recupera su blanco interior en
+// rellenarHuecosInsigniaClase, al recortar.
+function quitarFondoBlancoLogoClase(img){
+  if(img.dataset.fondo)return false;
+  img.dataset.fondo='revisado';
+  const W=img.naturalWidth,H=img.naturalHeight,e=96/Math.max(W,H);
+  const sw=Math.max(1,Math.round(W*e)),sh=Math.max(1,Math.round(H*e));
+  const m=document.createElement('canvas');m.width=sw;m.height=sh;
+  const mx=m.getContext('2d',{willReadFrequently:true});mx.drawImage(img,0,0,sw,sh);
+  const d=mx.getImageData(0,0,sw,sh).data;
+  const blanco=k=>d[k+3]>200&&Math.min(d[k],d[k+1],d[k+2])>=225;
+  let borde=0,blancos=0,claros=0;
+  for(let y=0;y<sh;y++)for(let x=0;x<sw;x++){
+    const k=(y*sw+x)*4,b=blanco(k);if(b)claros++;
+    if(x===0||y===0||x===sw-1||y===sh-1){borde++;if(b)blancos++;}
+  }
+  // Borde blanco y algo de dibujo adentro (ni una foto ni un logo blanco).
+  if(blancos/borde<.9||claros/(sw*sh)>.97)return false;
+  const tope=Math.min(1,1200/Math.max(W,H)),fw=Math.max(1,Math.round(W*tope)),fh=Math.max(1,Math.round(H*tope));
+  const c=tope<1?reducirImagenClase(img,fw,fh):(()=>{const t=document.createElement('canvas');t.width=W;t.height=H;t.getContext('2d').drawImage(img,0,0);return t;})();
+  const ctx=c.getContext('2d',{willReadFrequently:true}),im=ctx.getImageData(0,0,c.width,c.height),p=im.data;
+  for(let k=0;k<p.length;k+=4){
+    const mn=Math.min(p[k],p[k+1],p[k+2]),mxv=Math.max(p[k],p[k+1],p[k+2]);
+    if(mn<=150||mxv-mn>=40)continue;
+    // Entre gris claro y blanco: cuanto más blanco, más transparente, y el
+    // color se recupera como si no hubiera estado mezclado con blanco.
+    const a=Math.max(0,Math.min(1,(255-mn)/105));
+    if(a<=.02){p[k+3]=0;continue;}
+    for(let j=0;j<3;j++)p[k+j]=Math.max(0,Math.min(255,Math.round((p[k+j]-255*(1-a))/a)));
+    p[k+3]=Math.round(p[k+3]*a);
+  }
+  ctx.putImageData(im,0,0);
+  img.dataset.fondo='quitado';
+  img.src=c.toDataURL('image/png');
+  return true;
+}
+// Negro y grises oscuros (casi sin color) pasan al color del texto del tema.
+// Devuelve false si el logo casi no los tiene: entonces va el contorno.
+function aclararLetrasLogoClase(img,caja){
+  const W=img.naturalWidth,H=img.naturalHeight;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
+  const color=String(getComputedStyle(caja).getPropertyValue('--fg')||'').trim()||'#f1f1f3';
+  const t=document.createElement('canvas');t.width=t.height=1;const tc=t.getContext('2d',{willReadFrequently:true});
+  tc.fillStyle=color;tc.fillRect(0,0,1,1);const [r,g,b]=tc.getImageData(0,0,1,1).data;
+  const im=ctx.getImageData(0,0,W,H),p=im.data;let cambiados=0,visibles=0;
+  for(let k=0;k<p.length;k+=4){
+    if(p[k+3]<40)continue;visibles++;
+    const mn=Math.min(p[k],p[k+1],p[k+2]),mx=Math.max(p[k],p[k+1],p[k+2]);
+    if(mx<120&&mx-mn<60){p[k]=r;p[k+1]=g;p[k+2]=b;cambiados++;}
+  }
+  if(!visibles||cambiados/visibles<.25)return false;
+  ctx.putImageData(im,0,0);
+  img.dataset.contorno='1';
+  img.src=c.toDataURL('image/png');
+  return true;
+}
+// Al cambiar de claro a oscuro, cada logo se vuelve a mirar sobre su fondo
+// nuevo: sale el contorno o las letras aclaradas que ya no hacen falta.
+function readaptarLogosClase(){
+  setTimeout(()=>document.querySelectorAll('img.logo-clase').forEach(img=>{
+    const caja=img.parentElement;if(!caja)return;
+    caja.querySelectorAll('.logo-clase-borde').forEach(b=>b.remove());
+    caja.classList.remove('logo-contorno');delete img.dataset.contorno;
+    const base=img.dataset.sinFondoSrc;
+    if(base&&img.src!==base)img.src=base;else revisarLogoClase(img);
+  }),80);
 }
 // Se prepara una vez, a la resolución original (sin achicar nada; después el
 // navegador escala la imagen como cualquier otra). Dos arreglos (TuApunte,
@@ -148,7 +229,7 @@ function reducirImagenClase(img,w,h){
 // redibujaba dentro del canvas del contorno, y Safari al achicarlo borraba
 // las letras finas (TuApunte en iPhone, 2026-10-25). Ahora el logo es la
 // imagen original, que el navegador escala bien, y el canvas solo lleva el
-// borde fino del color del texto y un halo suave. Antes era un `filter:
+// borde fino del color del texto, sin halo. Antes era un `filter:
 // drop-shadow`, que Safari dibujaba como un halo borroso (2026-09-26).
 function dibujarContornoLogoClase(img,caja){
   try{
@@ -158,7 +239,9 @@ function dibujarContornoLogoClase(img,caja){
     const bw=img.clientWidth||caja.clientWidth||44,bh=img.clientHeight||caja.clientHeight||44;
     const k=Math.min(bw/img.naturalWidth,bh/img.naturalHeight);
     const w=Math.max(1,Math.round(img.naturalWidth*k*dpr)),h=Math.max(1,Math.round(img.naturalHeight*k*dpr));
-    const borde=1.2*dpr,halo=3.5*dpr,pad=Math.ceil(halo+1);
+    // Borde fino, nítido y sin halo: con halo el logo brillaba (Salva Ramos,
+    // 2026-11-16; Lucas eligió la opción A).
+    const borde=.8*dpr,pad=Math.ceil(borde+2);
     const color=String(getComputedStyle(caja).getPropertyValue('--fg')||'').trim()||'#f1f1f3';
     // La silueta del logo en el color del texto.
     const sil=document.createElement('canvas');sil.width=w;sil.height=h;
@@ -166,12 +249,7 @@ function dibujarContornoLogoClase(img,caja){
     cs.globalCompositeOperation='source-in';cs.fillStyle=color;cs.fillRect(0,0,w,h);
     const out=document.createElement('canvas');out.width=w+2*pad;out.height=h+2*pad;
     const co=out.getContext('2d');
-    // Halo suave: la silueta corrida en un anillo ancho, casi transparente.
-    co.globalAlpha=.07;
-    for(let n=0;n<24;n++){const a=n/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*halo,pad+Math.sin(a)*halo);}
-    // Borde fino y opaco.
-    co.globalAlpha=1;
-    for(let n=0;n<16;n++){const a=n/16*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
+    for(let n=0;n<24;n++){const a=n/24*2*Math.PI;co.drawImage(sil,pad+Math.cos(a)*borde,pad+Math.sin(a)*borde);}
     // Debajo del logo no queda nada: solo el anillo de afuera.
     co.globalCompositeOperation='destination-out';co.drawImage(sil,pad,pad);
     const capa=document.createElement('img');
@@ -191,6 +269,12 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
   },true);
   // Si el almacenamiento no respondiera con CORS, la imagen se carga igual,
   // sin revisión de contraste: nunca un logo roto por esto.
+  if(typeof window!=='undefined'&&window.matchMedia){
+    const mq=window.matchMedia('(prefers-color-scheme: dark)');
+    if(mq.addEventListener)mq.addEventListener('change',readaptarLogosClase);
+  }
+  if(typeof MutationObserver==='function'&&document.documentElement)
+    new MutationObserver(readaptarLogosClase).observe(document.documentElement,{attributes:true,attributeFilter:['data-modo']});
   document.addEventListener('error',e=>{
     const img=e.target;
     if(img&&img.classList&&img.classList.contains('logo-clase')&&img.hasAttribute('crossorigin')){const src=img.src;img.removeAttribute('crossorigin');img.src=src;}

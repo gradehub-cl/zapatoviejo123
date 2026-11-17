@@ -22,5 +22,9 @@ assert.match(dificil.sub,/sacaste adelante/,'un ramo cerrado y aprobado conserva
 ctx.__ramos=[ramo('Otro ramo',6),{...ramo('Pendiente',5),categorias:[cat('control',50,5),cat('examen',50,null)]}];run('S.ramos=__ramos;');
 dificil=run('slidesWrapped(datosWrapped(S.ramos),null,"2026-2")').find(x=>x.k==='El ramo que más costó');
 assert.doesNotMatch(dificil.sub,/sacaste adelante/,'un promedio parcial no afirma cierre');
-assert.match(dificil.sub,/pendiente|registrar/);
+assert.match(dificil.sub,/pendiente|registrar|por anotar/);
+ctx.__ramos=[ramo('Otro ramo',6),ramo('Reprobado',3.2)];run('S.ramos=__ramos;');
+dificil=run('slidesWrapped(datosWrapped(S.ramos),null,"2026-2")').find(x=>x.k==='El ramo que más costó');
+assert.equal(dificil.big,undefined,'un ramo reprobado no muestra su promedio en grande');
+assert.match(dificil.sub,/no te define/);
 console.log('OK: Wrapped respeta compuertas, redondeo y evaluaciones pendientes');
