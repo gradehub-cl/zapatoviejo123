@@ -4911,6 +4911,8 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* Solo el logo: la capa del contorno (img.logo-clase-borde) lleva su propio
    tamaño y no se encoge, o queda corrida bajo el logo (Salva Ramos, 2026-11-16). */
 .directorio-avatar.catalogo-clase-logo img.logo-clase{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
+/* Un logo cuadrado o redondo a 48 px quedaba diminuto al lado de uno ancho (TuApunte, 2026-11-16). */
+.directorio-tarjeta .directorio-avatar.catalogo-clase-logo.logo-cuadrado{height:72px}
 /* Sin logo: la inicial en un círculo teñido con el color del perfil. */
 .directorio-tarjeta .directorio-avatar.catalogo-clase-logo:not(:has(img)){justify-content:center;width:48px;border-radius:50%;
   background:color-mix(in srgb,var(--directorio-color) 22%,var(--card));color:var(--directorio-acento);font-size:1.25rem}
