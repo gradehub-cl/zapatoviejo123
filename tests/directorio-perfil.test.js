@@ -8,6 +8,12 @@ const val=e=>run(`validarPerfilProfesor(${JSON.stringify(e)})`);
 assert(val(base).ok);assert(!('en_directorio' in val(base).datos));
 const nuevo={...base,en_directorio:true,categorias:['clases','laboratorio'],etiqueta:'Clases STEM',color_tarjeta:'#ffff00',contacto_tipo:'whatsapp',contacto_valor:'+56 9 1234 5678'};
 assert(val(nuevo).ok);
+const plataforma={...nuevo,tipo_perfil:'empresa',categorias:['plataforma'],etiqueta:'Plataformas y apps',contacto_tipo:'',contacto_valor:'',sitio_web:'https://plataforma.example.invalid'};
+assert(val(plataforma).ok,'una app sin WhatsApp ni clases pasa la validación');
+assert.equal(val({...plataforma,categorias:['inventada']}).campo,'categorias','una categoría inventada se rechaza');
+assert.equal(val(base).datos.tipo_perfil,'profesor','el valor de una cuenta existente se conserva');
+assert.equal(run("TIPOS_PERFIL.find(([valor])=>valor==='profesor')[1]"),'Particular');
+assert.equal(run("CATEGORIAS_DIRECTORIO.at(-2)[0]"),'plataforma','antes de Otro');
 for(const [k,v] of [['categorias',[]],['categorias',['malo']],['etiqueta','x'],['etiqueta','Dos\nlíneas'],['color_tarjeta','rojo'],['contacto_valor','+56 123'],['universidades',[]]])assert(!val({...nuevo,[k]:v}).ok,k);
 assert(val({...nuevo,en_directorio:false,categorias:[],etiqueta:''}).ok);
 for(const color of ['#ffffff','#000000','#ffff00','#00ff00','#777777']){

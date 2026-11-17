@@ -37,7 +37,7 @@ function intentar({ tenant, carrera, nombreCarrera, ramos }) {
   run(`selectedTenant=${JSON.stringify(tenant)}`);
   run(`selectedCarrera=${JSON.stringify(carrera)}`);
   run(`selectedCarreraNombre=${JSON.stringify(nombreCarrera)}`);
-  run('selectedSem=1');
+  run('obGeneracion=new Date().getFullYear();selectedSem=1');
   run(`obRamos=${JSON.stringify((ramos || []).map(n => ({ nombre: n, manual: true })))}`);
   run('completeOnboarding()');
   return { entro: run('S.onboardingDone') === true, S: run('JSON.parse(JSON.stringify(S))') };

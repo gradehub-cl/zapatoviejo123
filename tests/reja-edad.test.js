@@ -22,13 +22,13 @@ const val=e=>vm.runInContext(e,ctx);
 let ok=0,fail=0;
 const chk=(n,c)=>{if(c){ok++;console.log('  ok   '+n);}else{fail++;console.log('  FAIL '+n);}};
 
-const base={nombre:'Persona Sintética',tenant:'fen',carrera:'IICG',semestre:2};
+const base={generacion:2025,nombre:'Persona Sintética',tenant:'fen',carrera:'IICG',semestre:2};
 const app=fs.readFileSync(path.join(raiz,'app.js'),'utf8');
 chk('el paso 1 pide el nombre',val('obStepValid')(1,base)===true&&val('obStepValid')(1,{...base,nombre:'  '})===false);
 chk('ya no hay ruleta ni aviso de edad',!/ob-edad-ruleta|ob-edad-aviso/.test(html)&&!/obEdad|ruletaEdad|EDAD_MINIMA/.test(app));
 const anio=new Date().getFullYear();
-chk('la de generación va de 2000 al año actual y parte en el año actual',
-  val('obGeneracion')===anio&&val(`rangoAnios(2000,${anio})[0]`)===2000&&val(`rangoAnios(2000,${anio}).slice(-1)[0]`)===anio);
+chk('la de generación va de 2000 al año actual y parte sin elección',
+  val('obGeneracion')===null&&val(`rangoAnios(2000,${anio})[0]`)===2000&&val(`rangoAnios(2000,${anio}).slice(-1)[0]`)===anio);
 chk('el final del onboarding devuelve al paso 1 si falta el nombre',
   (()=>{val("selectedTenant='fen';selectedCarrera='IICG';selectedSem=2");
     return val('obPasoIncompleto')()===1;})());
@@ -57,8 +57,8 @@ chk('la generación se guarda en la cuenta; las anteriores quedan en null',
 
 // "Cambiar" pide escribir el semestre o marcar TAV (verano fuera de la UC).
 // Desde 2026-11-03 va en el paso 1, bajo el nombre.
-const paso1Valido=()=>val('obStepValid')(1,{nombre:'Ana',semestre:val('selectedSem'),verano:val('obVerano'),semInvalido:val('obSemInvalido')});
-val("selectedTenant='uc';selectedCarrera=null;obSemManual=false;obVerano=false;obSemInvalido=false;selectedSem=2");
+const paso1Valido=()=>val('obStepValid')(1,{nombre:'Ana',generacion:val('obGeneracion'),semestre:val('selectedSem'),verano:val('obVerano'),semInvalido:val('obSemInvalido')});
+val("obGeneracion=new Date().getFullYear();selectedTenant='uc';selectedCarrera=null;obSemManual=false;obVerano=false;obSemInvalido=false;selectedSem=2");
 val("escribirSemestreOnboarding('5')");
 chk('escribir 5 deja el 5.º, elegido a mano',val('selectedSem')===5&&val('obSemManual')===true&&paso1Valido()===true);
 val("escribirSemestreOnboarding('abc')");

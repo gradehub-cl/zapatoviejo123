@@ -27,7 +27,7 @@ run(`S.tenant='uc';S.carrera='Carrera de prueba';currentUser={id:'u1'};globalThi
 
 (async()=>{
   console.log('\n=== La sección viaja con el voto ===');
-  run('S.ramos='+J([ramo({seccion:3})]));
+  run('S.aportarPautasAutomaticamente=true;S.ramos='+J([ramo({seccion:3})]));
   await run('aportarPautasAlCatalogo()');
   chk('el voto lleva p_seccion',calls.length===1&&calls[0].args.p_seccion===3);
   chk('queda marcada como enviada',run('S.ramos[0].seccionAportada')===3);

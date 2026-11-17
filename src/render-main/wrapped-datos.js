@@ -80,9 +80,9 @@ function datosWrapped(ramos){
 }
 
 // Solo para el semestre en curso: es el que tiene promedios en `curso_notas`.
-// Si el servidor no contesta o no llegan a cinco, esas pantallas no aparecen.
+// Si el servidor no contesta o no llegan a diez compañeros, esas pantallas no aparecen.
 function posicionWrappedValida(f){
-  return f&&Number.isInteger(f.total)&&f.total>=5&&Number.isFinite(f.mejorQue)&&f.mejorQue>=0&&f.mejorQue<=100;
+  return posicionCursoVisible(f);
 }
 async function comparacionWrapped(){
   if(!supabaseClient||!currentUser)return null;
@@ -167,7 +167,7 @@ function notaQueMovioWrapped(evo){
   for(let i=desde;i<evo.length;i++){
     const a=evo[i-1].g,b=evo[i].g;
     if(a===null||b===null)continue;
-    const delta=Number(fmtPromedio(b))-Number(fmtPromedio(a));
+    const delta=Number(fmtPromedioDato(b))-Number(fmtPromedioDato(a));
     if(delta>=0.1-1e-9&&(!mejor||delta>mejor.delta))mejor={delta,x:evo[i].x};
   }
   return mejor;
@@ -182,7 +182,7 @@ function remontadaWrapped(ramos,evo){
     const final=ramoAvg(r,undefined,ramos);
     if(final===null||!notaAprobadaRamo(r,final))return;
     const bajo=pasos.slice(1,-1).reduce((m,p)=>!m||p.avgRamo<m.avgRamo?p:m,null);
-    if(!bajo||Number(fmtPromedio(bajo.avgRamo))>=4)return;
+    if(!bajo||Number(fmtPromedioDato(bajo.avgRamo))>=4)return;
     const subida=final-bajo.avgRamo;
     if(!mejor||subida>mejor.subida)mejor={r,subida,minimo:bajo.avgRamo,final,mes:fechaCortaWrapped(bajo.x.fecha).split(' ').pop()};
   });
@@ -215,7 +215,7 @@ function personalidadWrapped(d){
     parejo:valores.length>=3&&desvio<=0.4,
     arranque:!!mit&&mit.primera-mit.segunda>=0.8&&todos,
     maraton:d.nRamos>=7||(d.semana?.k||0)>=5,
-    filo:todos&&d.ranking.some(x=>{const v=Number(fmtPromedio(x.avg));return v>=4&&v<=4.2;}),
+    filo:todos&&d.ranking.some(x=>{const v=Number(fmtPromedioDato(x.avg));return v>=4&&v<=4.2;}),
     construccion:true,
   };
   const elegida=PERSONALIDADES_WRAPPED.find(p=>reglas[p.id]);
@@ -228,7 +228,7 @@ function personalidadWrapped(d){
 function frenteAnteriorWrapped(gpaActual,actual){
   const h=(S.historial||[]).filter(x=>Number.isFinite(x.gpa))[actual?0:1];
   if(!h||gpaActual===null)return null;
-  const delta=Number(fmtPromedio(gpaActual))-Number(fmtPromedio(h.gpa));
+  const delta=Number(fmtPromedioDato(gpaActual))-Number(fmtPromedioDato(h.gpa));
   if(delta<=-0.05)return null;
   return {label:h.label,delta:Math.round(delta*10)/10};
 }

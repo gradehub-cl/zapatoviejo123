@@ -2,7 +2,7 @@
 // Cambio del grupo y aprobación antes/ahora; debajo, cada alumno.
 // Las explicaciones del método se consultan al final, después de los datos.
 // Sin colores del semáforo: subir respecto del ramo no es "aprobar".
-const unDecimalPanel=v=>Math.abs(v).toFixed(1);
+const unDecimalPanel=v=>nf(Math.abs(v));
 const conSignoPanel=v=>(v>0.049?'+':v<-0.049?'−':'')+unDecimalPanel(v);
 const porcentajePanel=v=>v===null?'—':Math.round(v*100)+'%';
 function frenteAlCursoPanel(d,referencia='el ramo'){
@@ -313,14 +313,14 @@ function proximaFilaAlumnoHTML(p,exigente){
   if(!p)return `<span class="panel-alumnos-fila-proxima">Sin próxima evaluación con fecha</span>
     <span class="panel-alumnos-fila-meta">${exigente
       ?exigente.necesita>7.05?`Con lo pendiente no alcanza para aprobar ${esc(exigente.ramo.nombre)}`
-        :`Para aprobar ${esc(exigente.ramo.nombre)}: ${esc(nfNecesaria(exigente.necesita).replace('.',','))} en lo pendiente`
+        :`Para aprobar ${esc(exigente.ramo.nombre)}: ${esc(nfNecesaria(exigente.necesita))} en lo pendiente`
       :'Aún no se puede calcular cuánto necesita'}</span>`;
   const cuando=fechaCorta(p.fecha)+(p.hora?' · '+p.hora:'');
   let meta='Aún sin notas para calcular cuánto necesita';
   if(p.avg!==null){
     if(p.necesita!==null&&p.necesita>7.05)meta='Con lo pendiente no alcanza para aprobar';
     else if(p.necesita!==null){
-      meta=`Para aprobar: ${nfNecesaria(p.necesita).replace('.',',')} en lo pendiente`;
+      meta=`Para aprobar: ${nfNecesaria(p.necesita)} en lo pendiente`;
       // Como la Agenda (Lucas, 2026-10-22): si esta sola lo deja en 4,0, se dice
       // la nota, pese lo que pese; si no, y vale menos del 10% del ramo, pesa poco.
       if(p.cuatro.nota)meta+=` · ${p.cuatro.nota.replace('.',',')} en esta para ir con 4`;

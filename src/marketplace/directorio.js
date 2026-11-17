@@ -1,5 +1,5 @@
 // Piezas compartidas por el editor y el directorio. Nunca dependen de notas.
-const CATEGORIAS_DIRECTORIO=[['clases','Clases particulares'],['material','Material y apuntes'],['laboratorio','Laboratorios y proyectos'],['otro','Otro']];
+const CATEGORIAS_DIRECTORIO=[['clases','Clases particulares'],['material','Material y apuntes'],['laboratorio','Laboratorios y proyectos'],['plataforma','Plataformas y apps'],['otro','Otro']];
 const CAMPOS_DIRECTORIO='directorio_id,categorias,etiqueta,color_tarjeta,en_directorio,contacto_tipo,contacto_valor,destacado_hasta';
 function colorTarjetaDirectorio(color){return /^#[0-9a-f]{6}$/.test(String(color))?color:'#126b63';}
 function luminanciaDirectorio(color){
@@ -23,10 +23,11 @@ function valoracionDirectorioHTML(estado){
 function tarjetaDirectorioHTML(p,{previa=false,logoURL=''}={}){
   const color=colorTarjetaDirectorio(p.color_tarjeta),texto=textoTarjetaDirectorio(color);
   const tag=previa?'div':'button',id=String(p.id||p.directorio_id||'');
+  const siglas=seleccionRamosPerfilApoyo(p,{previa}).mias;
   return `<${tag} ${previa?'':`type="button" data-directorio-perfil="${esc(id)}"`} class="directorio-tarjeta" style="--directorio-color:${color};--directorio-texto:${texto}">
     <span class="directorio-tarjeta-cabeza"><span class="directorio-etiqueta">${esc(p.etiqueta||'Tu etiqueta')}</span>${valoracionDirectorioHTML(p.calificacion)}</span>
     <span class="directorio-identidad"><span class="directorio-textos"><strong class="directorio-nombre">${esc(p.nombre_publico||'Tu nombre público')}</strong>
-      <span class="directorio-siglas">${esc((p.ramos_siglas||[]).slice(0,3).join(' · '))}</span></span>
+      <span class="directorio-siglas">${esc(siglas.slice(0,3).join(' · '))}</span></span>
       <span class="directorio-avatar catalogo-clase-logo" aria-hidden="true"${p.logo_path?` data-directorio-logo="${esc(p.logo_path)}"`:''}>${logoURL?imgLogoClase(logoURL):esc(String(p.nombre_publico||'P').charAt(0))}</span></span>
   </${tag}>`;
 }
@@ -40,17 +41,28 @@ async function perfilConDirectorio(p){
   }catch(e){return uid===sesionProfesorClase()?{...p,directorioDisponible:false}:null;}
 }
 
-function diaDirectorio(ahora=Date.now()){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ahora));
+// Orden que rota (Lucas, 2026-11-16): cada persona recibe su propia mezcla y
+// cambia en cada visita. Se mantiene 30 minutos para que al buscar, filtrar o
+// volver de un perfil nada salte de lugar; pasado ese rato, otra mezcla. Así la
+// vitrina se reparte entre todos en vez de que uno quede primero todo el día.
+const ROTACION_DIRECTORIO_MS=30*60*1000;
+let semillaDirectorioActual=null;
+function semillaDirectorio(ahora=Date.now()){
+  if(!semillaDirectorioActual||ahora-semillaDirectorioActual.desde>ROTACION_DIRECTORIO_MS||ahora<semillaDirectorioActual.desde){
+    let valor=Math.floor(Math.random()*4294967296);
+    try{valor=crypto.getRandomValues(new Uint32Array(1))[0];}catch(e){}
+    semillaDirectorioActual={valor:String(valor),desde:ahora};
+  }
+  return semillaDirectorioActual.valor;
 }
-function ordenDiarioDirectorio(perfiles,dia){
+function ordenDirectorio(perfiles,semillaTexto){
   const lista=perfiles.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
-  let semilla=2166136261;for(const letra of String(dia))semilla=Math.imul(semilla^letra.charCodeAt(0),16777619)>>>0;
+  let semilla=2166136261;for(const letra of String(semillaTexto))semilla=Math.imul(semilla^letra.charCodeAt(0),16777619)>>>0;
   const azar=()=>{semilla+=0x6d2b79f5;let x=semilla;x=Math.imul(x^x>>>15,x|1);x^=x+Math.imul(x^x>>>7,x|61);return ((x^x>>>14)>>>0)/4294967296;};
   for(let i=lista.length-1;i>0;i--){const j=Math.floor(azar()*(i+1));[lista[i],lista[j]]=[lista[j],lista[i]];}
   return lista;
 }
-function prepararDirectorio(perfiles,{busqueda='',categoria='',nombres={},ahora=Date.now()}={}){
+function prepararDirectorio(perfiles,{busqueda='',categoria='',nombres={},ahora=Date.now(),semilla=semillaDirectorio(ahora)}={}){
   const tokens=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   const lista=(Array.isArray(perfiles)?perfiles:[]).filter(p=>{
     if(!p||!p.id||p.en_directorio===false||p.estado&&p.estado!=='aprobado')return false;
@@ -59,19 +71,20 @@ function prepararDirectorio(perfiles,{busqueda='',categoria='',nombres={},ahora=
     const texto=normalizarBusquedaClase([p.nombre_publico,p.etiqueta,...siglas,...siglas.map(s=>nombres[s]||'')].join(' '));
     return tokens.every(t=>texto.includes(t));
   }).map(p=>({...p,destacado:Number.isFinite(Date.parse(p.destacado_hasta))&&Date.parse(p.destacado_hasta)>ahora}));
-  return {destacados:lista.filter(p=>p.destacado).sort((a,b)=>String(a.id).localeCompare(String(b.id))),
-    normales:ordenDiarioDirectorio(lista.filter(p=>!p.destacado),diaDirectorio(ahora))};
+  // Los destacados también rotan entre ellos: todos pagaron lo mismo.
+  return {destacados:ordenDirectorio(lista.filter(p=>p.destacado),'d'+semilla),
+    normales:ordenDirectorio(lista.filter(p=>!p.destacado),semilla)};
 }
 function anunciosDestacadosDirectorio(anuncios,busqueda,categoria,nombres,ahora=Date.now()){
   return prepararCatalogoClases(anuncios,busqueda,nombres,{ahora}).filter(a=>Number(a.precio_clp)>0&&
     (!a.publicado_at||Date.parse(a.publicado_at)<=ahora)&&(!categoria||(categoria==='material'?esMaterialClase(a):categoria==='clases'&&!esMaterialClase(a))));
 }
 function cabeceraDirectorioHTML(){
-  return `<div class="catalogo-clases directorio-clases"><header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 id="modal-titulo">Encuentra tu apoyo</h1><p>Clases, apuntes y ayuda para tus ramos.</p></div><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></header>
+  return `<div class="catalogo-clases directorio-clases"><header class="catalogo-clases-head"><div><p class="catalogo-ceja">APOYO</p><h1 id="modal-titulo">Encuentra tu apoyo</h1><p>Profes, academias y apps para tus ramos.</p></div><button type="button" class="settings-cerrar" data-directorio-cerrar>Cerrar</button></header>
     <label class="directorio-busqueda" for="directorio-buscar">Buscar por ramo, sigla o perfil<input id="directorio-buscar" type="search" autocomplete="off" placeholder="Cálculo, MAT1620, clases particulares…" aria-describedby="directorio-estado"></label>
-    <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
+    <div class="directorio-filtros" role="group" aria-label="Tipo de apoyo">${[['','Todos'],['clases','Clases'],['material','Material'],['laboratorio','Laboratorios'],['plataforma','Plataformas y apps'],['otro','Otro']].map(([v,t])=>`<button type="button" data-directorio-categoria="${v}" aria-pressed="${v===''?'true':'false'}">${t}</button>`).join('')}</div>
     <p id="directorio-estado" class="profesor-info" role="status" aria-live="polite">Buscando perfiles…</p><div id="directorio-resultados" aria-busy="true"></div>
-    <p class="catalogo-privacidad">El directorio no usa tus notas ni los ramos de tu cuenta.</p></div>`;
+    <p class="catalogo-privacidad">Ordenamos los ramos según tu carrera, en tu dispositivo. No usamos tus notas ni enviamos esta información.</p></div>`;
 }
 let vistaDirectorioVersion=0,limpiarDirectorioActual=null;
 // Devuelve false solo si no está instalado el SQL: conserva el catálogo anterior.
@@ -96,7 +109,7 @@ async function abrirDirectorioClases(){
     resultados.setAttribute('aria-busy','false');
     const tarjetas=p=>p.map(x=>tarjetaDirectorioHTML(x)).join('');
     resultados.innerHTML=`${pagados.length||grupos.destacados.length?`<section class="directorio-seccion"><h2>Destacados</h2><p class="profesor-info">Publicidad · espacios destacados</p><div class="directorio-grilla">${pagados.map(a=>`<div class="directorio-publicidad"><span class="directorio-anuncio-marca">Destacado · Publicidad</span>${tarjetaCatalogoClase(a)}</div>`).join('')}${tarjetas(grupos.destacados)}</div></section>`:''}
-      <section class="directorio-seccion"><h2>Directorio</h2>${grupos.normales.length?`<div class="directorio-grilla">${tarjetas(grupos.normales)}</div>`:!perfiles.length?`<div class="directorio-vacio"><p>Todavía no hay perfiles en tu universidad</p><button type="button" class="clase-accion" data-directorio-crear>¿Haces clases o vendes material? Crea tu perfil</button></div>`:grupos.destacados.length?'':'<p class="directorio-vacio">Prueba con otro ramo o tipo de apoyo.</p>'}</section>`;
+      <section class="directorio-seccion"><h2>Todos</h2>${grupos.normales.length?`<div class="directorio-grilla">${tarjetas(grupos.normales)}</div>`:!perfiles.length?`<div class="directorio-vacio"><p>Todavía no hay perfiles en tu universidad</p><button type="button" class="clase-accion" data-directorio-crear>¿Haces clases o vendes material? Crea tu perfil</button></div>`:grupos.destacados.length?'':'<p class="directorio-vacio">Prueba con otro ramo o tipo de apoyo.</p>'}</section>`;
     resultados.querySelectorAll('[data-directorio-perfil]').forEach(b=>b.addEventListener('click',()=>{
       const p=perfiles.find(p=>p.id===b.dataset.directorioPerfil),hoja=raiz.closest('.modal-sheet'),scroll=hoja?.scrollTop||0;if(p){limpiarObservacion();abrirPerfilDirectorio(p,{raiz,tenant,anuncios,volver:()=>{if(!vigente())return;raiz.querySelector('.directorio-clases').hidden=false;resultados.hidden=false;const detalle=raiz.querySelector('.directorio-perfil-abierto');if(detalle)detalle.remove();pintar();const card=[...resultados.querySelectorAll('[data-directorio-perfil]')].find(b=>b.dataset.directorioPerfil===p.id);card?.focus({preventScroll:true});if(hoja)hoja.scrollTop=scroll;}});}
     }));
@@ -113,6 +126,8 @@ async function abrirDirectorioClases(){
     if(r.error&&sqlClasesDesactualizado(r.error)){limpiarObservacion();raiz.innerHTML=anterior;return false;}
     if(r.error||!Array.isArray(r.data))throw r.error||Error('respuesta inválida');
     perfiles=r.data;
+    await cargarMallaVisorApoyo();
+    if(!vigente())return true;
     // Los anuncios conservan exactamente su medición y costo actuales.
     try{anuncios=await cargarAnunciosClases(tenant,{propagarError:true});}catch(e){estado.textContent='Los perfiles están disponibles; no pudimos cargar los anuncios.';}
     if(!vigente())return true;
@@ -120,7 +135,7 @@ async function abrirDirectorioClases(){
     logosCatalogoClases=await logosDeAnuncios(anuncios.map(a=>a.id));if(!vigente())return true;
     lista=true;pintar();
     if(tenant==='uc'&&typeof cargarCursosUC==='function')cargarCursosUC().then(ok=>{if(ok&&vigente()){nombres=nombresRamosParaClases(tenant);pintar();}}).catch(()=>{});
-  }catch(e){console.warn('No se pudo cargar el directorio:',e?.code||e?.message||'error');if(vigente()){estado.textContent='No pudimos cargar el directorio. Revisa tu conexión.';resultados.setAttribute('aria-busy','false');resultados.innerHTML='<button type="button" class="clase-accion" data-directorio-reintentar>Reintentar</button>';resultados.querySelector('button').addEventListener('click',()=>{limpiarObservacion();openCatalogoClases();});}}
+  }catch(e){console.warn('No se pudo cargar el directorio:',e?.code||e?.message||'error');if(vigente()){estado.textContent='No pudimos cargar la lista. Revisa tu conexión.';resultados.setAttribute('aria-busy','false');resultados.innerHTML='<button type="button" class="clase-accion" data-directorio-reintentar>Reintentar</button>';resultados.querySelector('button').addEventListener('click',()=>{limpiarObservacion();openCatalogoClases();});}}
   return true;
 }
 async function cargarLogosDirectorio(raiz){

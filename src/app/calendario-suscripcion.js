@@ -17,7 +17,7 @@ async function pedirFeedCalendario(regenerar){
   const {data,error}=await supabaseClient.rpc(regenerar?'calendar_feed_revoke':'calendar_feed_token');
   if(currentUser!==usuario||version!==_feedVersion)return null;
   if(error)throw error;
-  _feedUrl=location.origin+'/cal/'+data;
+  _feedUrl=paginaPublica('/cal/'+data);
   _feedUsuario=usuario;
   return _feedUrl;
 }

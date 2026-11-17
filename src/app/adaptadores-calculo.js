@@ -147,13 +147,12 @@ function getColorRamo(r,n){
 //
 // Solo aparece cuando el laboratorio tiene notas: antes de eso el promedio de
 // siempre YA es solo la cátedra, y repetir el mismo número confundiría.
-// `fmt` decide la coma decimal: el simulador la usa y la ficha no. `exacto`
-// agrega el promedio sin redondear, como el número grande al tocarlo.
-function htmlSoloCatedra(r,{fmt=x=>x,exacto=null}={}){
+// `exacto` agrega el promedio sin redondear, como el número grande al tocarlo.
+function htmlSoloCatedra(r,{exacto=null}={}){
   const partes=partesDelVinculo(r);
   if(!partes||partes.propio.valor===null||partes.externo.valor===null)return '';
   const v=partes.propio.valor;
-  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmt(fmtPromedio(v))}</span>`+
+  return `<span class="solo-parte-num" style="color:${getColorRamo(r,v)}">${fmtPromedio(v)}</span>`+
     `<span class="solo-parte-label">Solo cátedra${exacto?` · ${exacto(v)}`:''}</span>`;
 }
 // Lo que falta para aprobar. En un ramo con laboratorio habla solo de la
@@ -163,11 +162,18 @@ function notaNecesariaParaAprobar(r){
   return partes?{valor:partes.propio.necesaria,cual:' cátedra'}:{valor:notaNecesaria(r),cual:''};
 }
 // Donde el descarte es manual, la app solo avisa cuántas notas permite borrar la
-// pauta. Un porcentaje depende de cuántas se rindieron, así que se dice tal cual.
+// pauta. Un porcentaje depende de cuántas se rindieron: se traduce a notas con
+// el redondeo de la universidad, y nunca a todas las rendidas.
 function textoNotasBorrables(r,cat){
   const d=cat&&cat.dropLowest;
   if(!d||!gh_descarteManual(r,S.tenant))return '';
-  if(typeof d.fraction==='number')return `Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+  if(typeof d.fraction==='number'){
+    const base=`Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+    const rendidas=(cat.notas||[]).filter(n=>typeof n.valor==='number').length;
+    const redondear=gh_reglasNota(r&&r.origen&&r.origen.tenant||S.tenant).descarte_redondeo==='arriba'?Math.ceil:Math.floor;
+    const k=Math.min(redondear(Math.round(d.fraction*rendidas*1e6)/1e6),rendidas-1);
+    return k>=1?`${base}. Con ${rendidas} rendidas, puedes borrar ${k}`:base;
+  }
   const n=Math.floor(Number(d.count))||0;
   if(n<1)return '';
   return `Según la pauta, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
@@ -178,7 +184,7 @@ function textoDescarte(cat,descarte){
   const notas=descarte.dropped||[];
   const cantidad=notas.length;
   const propia=cat.descarteOrigen==='editor';
-  const lista=notas.map(n=>`${n.name} (${propia?fmt(n.value).replace('.',','):fmt(n.value)})`).join(', ');
+  const lista=notas.map(n=>`${n.name} (${fmt(n.value)})`).join(', ');
   const regla=cat.dropLowest||{};
   let redondeo='';
   if(typeof regla.fraction==='number'){
@@ -236,6 +242,20 @@ function gpa(ramos){
     return den>0?num/den:simple();
   }
   return simple();
+}
+// El promedio del semestre no es la nota final oficial de un ramo. Se muestra
+// a centésimas, desde el valor bruto de gpa, sin un redondeo intermedio.
+// El promedio general va con UN decimal en toda la app, como lo muestran las
+// universidades (Lucas, 2026-11-11: 5,42 se ve 5,4). Tocar el promedio en
+// Inicio muestra el valor exacto. Las diferencias (deltas y aportes) usan
+// fmtDiferenciaPromedio, con dos decimales: con uno, un +0,04 se vería +0,0.
+function fmtPromedioGeneral(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,1).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1,useGrouping:false});
+}
+function fmtDiferenciaPromedio(valor){
+  if(!Number.isFinite(valor))return '—';
+  return gh_excelRound(valor+1e-9,2).toLocaleString('es-CL',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false});
 }
 // Total de créditos inscritos (solo cuenta los que tienen el dato)
 function totalCreditos(ramos){

@@ -33,8 +33,8 @@ function servidor(r,tenant){
     assert.deepEqual(motor.gh_reglasNota(t),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4},'sin regla propia: la común ('+t+')');
   assert.deepEqual(motor.gh_reglasNota('uai').rounding,{decimals:1});
   assert.deepEqual(motor.gh_reglasNota('uai').promedioAcademico,{exclusiones:['educacion_fisica','extraprogramatica','convalidada'],excluirReprobadosLuegoAprobados:true});
-  // La FEN solo se aparta en quién borra la nota: su escala es la común.
-  assert.deepEqual(motor.gh_reglasNota('fen'),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4,descarte_manual:true});
+  // La FEN solo se aparta en quién borra la nota y cómo cuenta un porcentaje: su escala es la común.
+  assert.deepEqual(motor.gh_reglasNota('fen'),{grade_scale:{min:1,max:7},rounding:{decimals:1},passing_grade:4,descarte_manual:true,descarte_redondeo:'arriba'});
   assert.deepEqual(motor.gh_reglasNota('uandes').rounding,{decimals:1,previo:2});
 
   const ua=motor.gh_reglasNota('uandes'),comun=motor.gh_reglasNota('uc');
@@ -49,16 +49,16 @@ function servidor(r,tenant){
     const app=sandbox();app.run(`S.tenant=${JSON.stringify(tenant)}`);
     app.r=cerrado();app.run('S.ramos=[r]');
     assert.equal(app.run('notaFinalOficial(ramoAvg(r))'),final,`${tenant}: nota oficial`);
-    assert.equal(app.run('fmtPromedio(ramoAvg(r))'),final.toFixed(1),`${tenant}: lo que se ve`);
+    assert.equal(app.run('fmtPromedio(ramoAvg(r))'),final.toFixed(1).replace('.',','),`${tenant}: lo que se ve`);
     assert.equal(app.run('notaAprobadaRamo(r,ramoAvg(r))'),aprueba,`${tenant}: semáforo`);
     // La pregunta que la app existe para responder.
     app.r=pendiente();app.run('S.ramos=[r]');
-    assert.equal(app.run('nfNecesaria(notaNecesaria(r,4))'),necesita,`${tenant}: nota necesaria en el examen`);
+    assert.equal(app.run('nfNecesaria(notaNecesaria(r,4))'),necesita.replace('.',','),`${tenant}: nota necesaria en el examen`);
 
     // El agente conectado responde lo mismo que la app.
     const llamar=servidor(pendiente(),tenant);
     const r=await llamar('que_necesito_para_aprobar',{ramo:'Kinesiología sintética',meta:4});
-    assert.equal(app.run('nfNecesaria('+r.promedioNecesario+')'),necesita,`${tenant}: MCP pide lo mismo`);
+    assert.equal(app.run('nfNecesaria('+r.promedioNecesario+')'),necesita.replace('.',','),`${tenant}: MCP pide lo mismo`);
     const sim=await llamar('simular',{ramo:'Kinesiología sintética',meta:4,notas:[{evaluacion:'Examen',valor:3.9}]});
     assert.equal(sim.alcanzaLaMeta,aprueba,`${tenant}: MCP aprueba igual que la app`);
   }

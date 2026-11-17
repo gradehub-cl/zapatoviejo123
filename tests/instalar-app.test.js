@@ -32,14 +32,32 @@ let ok=0,fail=0;
 const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('  FAIL '+n);}};
 
 console.log('\n=== Cuándo se ofrece ===');
-val('_promptInstalar={prompt(){},userChoice:Promise.resolve({outcome:"dismissed"})}');
-almacen['gradehub_visitas']='1';
-pintar();
-chk('en la primera visita no se ofrece nada',aviso.hidden===true);
-almacen['gradehub_visitas']='2';
-pintar();
-chk('desde la segunda sí',aviso.hidden===false&&/Ten GradeHub como app/.test(aviso.innerHTML));
+val(`currentUser={id:'persona-sintetica'};S.ramos=[{categorias:[{notas:[{valor:5.2}]}]}];_promptInstalar={prompt(){},userChoice:Promise.resolve({outcome:"dismissed"})}`);
+const estadoAntes=val('JSON.stringify(S)');
+val(`contarVisita(new Date(2026,10,10,23,50))`);pintar();
+chk('primera sesión con notas no ofrece instalar',aviso.hidden===true);
+val(`contarVisita(new Date(2026,10,11,0,10))`);pintar();
+chk('cruzar medianoche sin salir tampoco lo ofrece',aviso.hidden===true);
+val(`_visitasInstalar.clear();contarVisita(new Date(2026,10,10,23,55))`);pintar();
+chk('volver el mismo día no alcanza aunque haya dos visitas',aviso.hidden===true);
+val(`_visitasInstalar.clear();contarVisita(new Date(2026,10,11,9))`);pintar();
+chk('volver otro día con notas sí lo ofrece',aviso.hidden===false&&/Ten GradeHub como app/.test(aviso.innerHTML));
 chk('con prompt del navegador ofrece instalar de verdad',/onclick="instalarApp\(\)"/.test(aviso.innerHTML));
+chk('registrar visitas no cambia ningún dato de la cuenta',val('JSON.stringify(S)')===estadoAntes);
+val('S.ramos[0].categorias[0].notas=[{valor:null}]');pintar();
+chk('otro día pero con solo casillas pendientes no se ofrece',aviso.hidden===true);
+val('S.ramos[0].categorias[0].notas=[{valor:NaN}]');pintar();
+chk('un valor no finito no cuenta como nota',aviso.hidden===true);
+val('S.ramos[0].categorias[0].notas=[{valor:5.2}]');
+val(`currentUser={id:'otra-persona'};contarVisita(new Date(2026,10,11))`);pintar();
+chk('otra cuenta en el dispositivo tiene su primera sesión',aviso.hidden===true);
+val(`currentUser={id:'persona-sintetica'}`);pintar();
+chk('volver a la cuenta anterior conserva su elegibilidad',aviso.hidden===false);
+// El contador viejo no informa fechas: una cuenta existente comienza a medir
+// días desde este cliente y no recibe el aviso por tener muchas recargas.
+val(`currentUser={id:'cuenta-antigua'};localStorage.setItem('gradehub_visitas','99');contarVisita(new Date(2026,10,11))`);pintar();
+chk('99 visitas heredadas no se interpretan como días distintos',aviso.hidden===true);
+val(`currentUser={id:'persona-sintetica'}`);
 
 console.log('\n=== Cuándo NO ===');
 standalone=true;pintar();

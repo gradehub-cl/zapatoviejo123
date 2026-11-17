@@ -87,7 +87,7 @@ function cambioDePauta(r){
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
   const cambios=reglasCambian?[{tipo:'regla',nombre:'Se incorporan las fórmulas condicionales y los límites de ausencias definidos por el programa'}]:[];
-  const minimo=g=>simConComa(nf(g.min));
+  const minimo=g=>nf(g.min);
   // Si solo cambiaron las evaluaciones del grupo, el requisito es el mismo: esas
   // evaluaciones ya salen en la lista, y decir "nuevo" y "deja de exigirse" del
   // mismo requisito se lee como un error.

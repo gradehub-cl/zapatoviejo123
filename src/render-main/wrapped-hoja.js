@@ -51,7 +51,7 @@ function grillaWrapped(n){
 // Los ramos de mejor a peor. La lista es accesible: nombre y promedio de cada uno.
 function rankingWrapped(ranking){
   return `<ol class="wrapped-ranking">${ranking.slice(0,5).map((x,i)=>`
-    <li class="${i===0?'top':''}"><b class="pos" aria-hidden="true">${i+1}</b><span>${i===0?hojaMarca(esc(x.nombre),2):esc(x.nombre)}</span><b class="prom">${comaWrapped(fmtPromedio(x.avg))}</b></li>`).join('')}</ol>`;
+    <li class="${i===0?'top':''}"><b class="pos" aria-hidden="true">${i+1}</b><span>${i===0?hojaMarca(esc(x.nombre),2):esc(x.nombre)}</span><b class="prom">${fmtPromedio(x.avg)}</b></li>`).join('')}</ol>`;
 }
 // La regla de cuaderno de 0 a 100, con «tú» y la flecha en el lugar.
 function reglaWrapped(p){

@@ -45,11 +45,11 @@ chk('lo vencido no aparece',!r.agenda.some(e=>e.evaluacion==='Control 0'));
 // Cálculo I (sintético): I1 = 4,2 (30%), I2 (30%) y Examen (40%) pendientes.
 // Para ir con 4 tras la I2: (4,2·30 + x·30)/60 ≥ 3,95 → x ≥ 3,7.
 chk('"para ir con 4" cuenta lo evaluado más esa evaluación, nada de lo que viene',r.agenda[0].necesitas==='3.7');
-chk('no es el promedio que necesitas en todo lo pendiente',r.agenda[0].necesitas!==a.run('nfNecesaria(notaNecesaria(S.ramos[0]))'));
+chk('no es el promedio que necesitas en todo lo pendiente',r.agenda[0].necesitas!==a.run('nfNecesariaDato(notaNecesaria(S.ramos[0]))'));
 chk('en la última evaluación del ramo es la nota para cerrarlo con 4',
   a.run(`(()=>{const r=normalize({ramos:[{id:'u',nombre:'Última',color:'#000',gates:[],categorias:[
     {id:'p',nombre:'Prueba',peso:60,notas:[{id:'q',valor:5.0}]},{id:'f',nombre:'Final',peso:40,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
-    const e={ramo:r,cat:r.categorias[1],nota:null};return notaParaIrConCuatro(e).nota===nfNecesaria(notaNecesaria(r));})()`));
+    const e={ramo:r,cat:r.categorias[1],nota:null};return notaParaIrConCuatro(e).nota===nfNecesariaDato(notaNecesaria(r));})()`));
 chk('con margen: aunque te saques un 1,0 sigues con 4',
   a.run(`(()=>{const r=normalize({ramos:[{id:'m',nombre:'Holgado',color:'#000',gates:[],categorias:[
     {id:'p',nombre:'Prueba',peso:80,notas:[{id:'q',valor:6.5}]},{id:'f',nombre:'Control',peso:20,fecha:'2026-12-01',notas:[]}]}]}).ramos[0];
@@ -68,8 +68,8 @@ chk('lleva el color del ramo para su línea lateral',r.agenda[0].color==='#7F77D
 chk('lleva cuánto del ramo define, el mismo de la Agenda',r.agenda[0].parte===30&&r.agenda[1].parte===40);
 chk('cada ramo lleva su color para la línea lateral',r.ramos[0].color==='#7F77DD');
 chk('las estadísticas son las mismas de la pantalla Estadísticas',r.estadisticas.avance===a.run('avanceEvaluaciones(S.ramos).pct')
-  &&r.estadisticas.rango.piso===a.run('nf(proyeccionSemestre(S.ramos).piso)')&&r.estadisticas.rango.techo===a.run('nf(proyeccionSemestre(S.ramos).techo)')
-  &&r.estadisticas.exigente.ramoId===a.run('loQueFaltaPorRamo(S.ramos)[0].ramo.id')&&r.estadisticas.exigente.necesitas===a.run('nfNecesaria(loQueFaltaPorRamo(S.ramos)[0].necesita)'));
+  &&r.estadisticas.rango.piso===a.run('nfDato(proyeccionSemestre(S.ramos).piso)')&&r.estadisticas.rango.techo===a.run('nfDato(proyeccionSemestre(S.ramos).techo)')
+  &&r.estadisticas.exigente.ramoId===a.run('loQueFaltaPorRamo(S.ramos)[0].ramo.id')&&r.estadisticas.exigente.necesitas===a.run('nfNecesariaDato(loQueFaltaPorRamo(S.ramos)[0].necesita)'));
 chk('no lleva notas individuales ni nombres de personas',!JSON.stringify(r).includes('"valor"')&&!('userName' in r));
 
 console.log('\n=== Pendientes, en orden de urgencia (#639) ===');

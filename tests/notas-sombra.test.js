@@ -10,7 +10,7 @@ function cargar(r){ctx.__r=r;run("S={tenant:'uc',tipoCuenta:'estudiante',ramos:[
 const porNombre=(m,n)=>m.pendientes.find(p=>p.nombre===n);
 let m=cargar(curso([cat('Rendida',20,3.2),cat('Prueba pendiente',40),cat('Examen',40)]));
 assert.equal(m.necesaria,4.2);assert.equal(m.auto.size,0);assert.equal(m.libres.length,2);
-assert.equal(run('nfNecesaria(notaNecesariaParaAprobar(r).valor)'),m.necesaria.toFixed(1),'sin piso aislado se conserva la respuesta del medidor existente');
+assert.equal(run('nfNecesaria(notaNecesariaParaAprobar(r).valor)'),m.necesaria.toFixed(1).replace('.',','),'sin piso aislado se conserva la respuesta del medidor existente');
 const antes=run('JSON.stringify(S)'),promedio=run('gpa(S.ramos)');
 run('var vista=notasSombraDelRamo(r);');assert.equal(run('JSON.stringify(S)'),antes);assert.equal(run('gpa(S.ramos)'),promedio);
 ctx.__m=m;assert(run("botonNotaSombraHTML({...__m,sesion:{abierta:null}},__m.pendientes[0])").includes('necesitas 4,2'));

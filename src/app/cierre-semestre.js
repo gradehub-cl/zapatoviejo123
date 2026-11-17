@@ -100,6 +100,7 @@ function guardarArchivoRevisado(){
   });
   S.historial.unshift({id:uid(),label,archivedAt:Date.now(),careerSemestre:S.careerSemestre,gpa:gpa(copias),ramos:copias});
   S.ramos=[];archivoSemestreDraft=null;archivoSemestreNotas=null;save();track('archive_semester',{label});closeModal();renderHome();
+  if(typeof ofrecerCalificarRamosCerrados==='function')ofrecerCalificarRamosCerrados(copias,label);
 }
 function abrirNotaOficialHistorial(histId,ramoId){
   const h=S.historial.find(x=>x.id===histId),r=h&&(h.ramos||[]).find(x=>x.id===ramoId);if(!r)return;

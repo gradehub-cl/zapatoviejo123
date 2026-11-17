@@ -45,7 +45,7 @@ const colores=run('hitosEvolucionHTML(__colores,5)');
 assert(colores.includes('<strong class="bad" style="color:'+run('getColor(3)')+'">3,00</strong>'));
 assert(colores.includes('<strong class="warn" style="color:'+run('getColor(4.5)')+'">4,50</strong>'));
 assert(colores.includes('<strong class="good" style="color:'+run('getColor(6)')+'">6,00</strong>'));
-assert(colores.includes('Promedio 5,00 <span class="es-sube">↑ +0,10 puntos</span>'));
+assert(colores.includes('Promedio 5,0 <span class="es-sube">↑ +0,10 puntos</span>'));
 const contorno=run('contornoAvanceStatsHTML(36)');assert(contorno.includes('stroke-dasharray="36 100"'));assert(contorno.includes('pathLength="100"'));assert(!contorno.includes('anillo'));assert(contorno.includes('36%'));
 // El rango no vuelve a pedir datos ni repinta otros bloques ni mueve el scroll.
 const scroll={scrollTop:411},zona={innerHTML:'',closest:()=>scroll,querySelector:()=>({focus(o){assert.equal(o.preventScroll,true)}})};

@@ -78,8 +78,12 @@ chk('Talleres oficial no muestra un botón que borra toda la evaluación',
 val('S').ramos[0].categorias.find(c=>c.nombre==='Talleres').peso=15;
 val('renderRamo')();
 const talleresCorregidos=byId('cat-list').children.find(f=>f.innerHTML.includes('Talleres'));
-chk('una pauta que la persona corrigió conserva la opción de borrar su propia fila',
-  /Eliminar evaluación Talleres/.test(talleresCorregidos?.innerHTML||''));
+// La lista se dibuja como el grupo de casillas (Martín, 2026-11-11) y ya no trae
+// el basurero en la cabecera: quitar una evaluación propia vive en "Editar
+// evaluaciones" (`quitarPautaFila`), que pregunta qué hacer con sus notas.
+chk('con la pauta corregida la ficha tampoco borra la evaluación de un toque',
+  !/Eliminar evaluación/.test(talleresCorregidos?.innerHTML||'')&&/Agregar nota/.test(talleresCorregidos?.innerHTML||''));
+chk('quitar la evaluación sigue disponible en el editor de la pauta',val('typeof quitarPautaFila')==='function');
 
 console.log('\n=== Una cantidad esperada dibuja todas sus casillas ===');
 const reparada=val('normalize')({ramos:[{
@@ -114,7 +118,7 @@ const avance=val('ramoProgress')(labConInforme);
 error=null;try{val('renderRamo')();}catch(e){error=e;}
 const informesConNota=byId('cat-list').children[1];
 chk('la primera nota abre el grupo y deja visible su valor',
-  error===null&&/eval-group-body open/.test(informesConNota?.innerHTML||'')&&/value="5\.4"/.test(informesConNota?.innerHTML||''));
+  error===null&&/eval-group-body open/.test(informesConNota?.innerHTML||'')&&/value="5,4"/.test(informesConNota?.innerHTML||''));
 val('openCats')[informes.id]=false;val('renderRamo')();
 chk('si se cerró a mano conserva esa decisión',
   !/eval-group-body open/.test(byId('cat-list').children[1]?.innerHTML||''));
@@ -130,7 +134,7 @@ vm.runInContext(`S={...freshState(),ramos:${JSON.stringify(ramaRecargada.ramos)}
 error=null;try{val('renderRamo')();}catch(e){error=e;}
 const informesTrasRecargar=byId('cat-list').children[1];
 chk('Informe 0 sigue asociado a su casilla después de normalizar y recargar',
-  error===null&&informeRecargado.notas[0]?.slot===0&&/value="5\.4"/.test(informesTrasRecargar?.innerHTML||''));
+  error===null&&informeRecargado.notas[0]?.slot===0&&/value="5,4"/.test(informesTrasRecargar?.innerHTML||''));
 const respaldoSinSlot=JSON.parse(JSON.stringify(ramaRecargada));
 delete respaldoSinSlot.ramos[0].categorias.find(c=>c.nombre==='Informes').notas[0].slot;
 const legadoRecuperado=val('normalize')(respaldoSinSlot).ramos[0].categorias.find(c=>c.nombre==='Informes');

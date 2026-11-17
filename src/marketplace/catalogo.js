@@ -3,7 +3,8 @@
 //
 // Esta puerta no es una recomendación: todos los estudiantes de la misma
 // universidad reciben los mismos anuncios y el filtro trabaja sobre esa lista
-// ya descargada. No lee S.ramos ni una nota para ordenar o esconder resultados.
+// ya descargada. Los anuncios no leen ramos ni notas para ordenar resultados.
+// Las siglas de un perfil de Apoyo sí se priorizan localmente por carrera (#1102).
 function normalizarBusquedaClase(texto){
   return String(texto||'').toLowerCase().normalize('NFD')
     .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
@@ -20,6 +21,8 @@ function nombresRamosParaClases(tenant){
   // encontrable por su código y por el texto que escribió el profesor.
   const creditos=typeof CREDITOS_POR_TENANT!=='undefined'&&CREDITOS_POR_TENANT[tenant];
   if(creditos)Object.entries(creditos).forEach(([nombre,fila])=>agregar(fila&&fila[1],nombre));
+  if(tenant==='uc'&&typeof NOMBRES_UC_SOLO_BUSCACURSOS!=='undefined')
+    Object.entries(NOMBRES_UC_SOLO_BUSCACURSOS).forEach(([sigla,nombre])=>agregar(sigla,nombre));
   if(tenant==='uc'&&typeof cursosUcDisponibles==='function')
     cursosUcDisponibles().forEach(fila=>{if(Array.isArray(fila))agregar(fila[0],fila[1]);});
   if(tenant==='uc'&&typeof SIGLAS_UC!=='undefined')
@@ -239,25 +242,118 @@ function iconoCanalPerfil(canal){
   };
   return `<svg class="perfil-contacto-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${trazos[canal]||''}</svg>`;
 }
-function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant)){
+// Ramos de un perfil (Lucas, 2026-11-11): arriba van las siglas, porque un
+// «Cálculo I» de la UC no es el de la UAI; la lista entera, con nombre cuando
+// GradeHub lo conoce, queda cerrada hasta abrirla. Solo la universidad de quien mira.
+const MAX_RAMOS_PERFIL_VISIBLES=6;
+// Nombres por universidad del perfil: catálogo y créditos (nombresRamosParaClases)
+// más las pautas cargadas, que traen sigla y nombre (UAI, UDD, UAndes, FEN).
+function nombresRamosPerfilPorUni(unis){
+  const out={};
+  for(const t of unis){
+    const nombres={...nombresRamosParaClases(t)};
+    const presets=typeof PRESETS_POR_TENANT!=='undefined'&&PRESETS_POR_TENANT[t];
+    if(presets)Object.entries(presets).forEach(([nombre,def])=>{
+      const sigla=def&&!Array.isArray(def)&&typeof def.sigla==='string'?siglaAnuncio(def.sigla):'';
+      if(sigla&&!nombres[sigla])nombres[sigla]=nombre;
+    });
+    out[t]=nombres;
+  }
+  return out;
+}
+// Solo códigos: no lee S, no mira notas y no deduce equivalencias por nombre.
+function ramosRelevantesParaVisor(siglas,{cursando=[],historial=[],malla=null}={}){
+  const normalizar=s=>typeof s==='string'?s.toUpperCase().replace(/\s/g,''):'';
+  const codigos=lista=>[...new Set((Array.isArray(lista)?lista:[]).map(x=>normalizar(typeof x==='string'?x:x?.sigla)).filter(Boolean))];
+  const todas=codigos(siglas),respaldo=()=>({mias:todas,otras:[],criterio:'universidad'});
+  if(!codigos(malla).length)return respaldo();
+  const previos=(Array.isArray(historial)?historial:[]).flatMap(h=>Array.isArray(h?.ramos)?h.ramos:[h]);
+  const conocidas=new Set(codigos([...(Array.isArray(cursando)?cursando:[]),...previos]));
+  // Lo cursado va primero y la malla completa el resto: un ramo de su malla que
+  // aún no toma también es de su carrera, nunca de «Otras carreras».
+  const deMalla=new Set(codigos(malla));
+  const cursadas=todas.filter(s=>conocidas.has(s));
+  const mias=[...cursadas,...todas.filter(s=>!conocidas.has(s)&&deMalla.has(s))];
+  if(!mias.length)return respaldo();
+  const criterio=cursadas.length?'ramos':'malla';
+  const elegidas=new Set(mias);
+  return {mias,otras:todas.filter(s=>!elegidas.has(s)),criterio};
+}
+function perfilPropioApoyo(p){
+  if(typeof currentUser==='undefined'||!currentUser?.id)return false;
+  const propio=typeof perfilProfesorCache!=='undefined'&&perfilProfesorCache;
+  return p.user_id===currentUser.id||!!(propio?.directorio_id&&(p.id||p.directorio_id)===propio.directorio_id);
+}
+// La malla guarda nombres. Se usan los códigos del catálogo ya disponible,
+// nunca el nombre de otra sigla del perfil que coincida en «Cálculo I».
+function contextoRamosVisorApoyo(){
+  if(typeof S==='undefined'||!S.carrera||typeof mallaDeCarrera!=='function')return {};
+  const malla=mallaDeCarrera(S.tenant,S.carrera);
+  if(!malla)return {};
+  const codigo=r=>r?.sigla||(typeof siglaDeRamo==='function'?siglaDeRamo(r,S.tenant):null);
+  const deSuUniversidad=r=>!r?.origen?.tenant||r.origen.tenant===S.tenant;
+  return {cursando:(S.ramos||[]).filter(deSuUniversidad).map(codigo),
+    historial:(S.historial||[]).filter(h=>!h.tenant||h.tenant===S.tenant).map(h=>({ramos:(h.ramos||[]).filter(deSuUniversidad).map(codigo)})),
+    malla:Object.values(malla).flat().map(nombre=>typeof nombre==='string'
+      ?(S.tenant==='uc'&&typeof siglaUC==='function'?siglaUC(nombre,S.carrera):null)||codigo({nombre})
+      :codigo(nombre)).filter(Boolean)};
+}
+async function cargarMallaVisorApoyo(){
+  if(typeof S!=='undefined'&&S.carrera&&typeof mallaDeCarrera==='function'&&!mallaDeCarrera(S.tenant,S.carrera)&&typeof cargarMallasUC==='function')
+    await cargarMallasUC(S.tenant).catch(()=>false); // Archivo público local; ninguna consulta de notas o perfiles.
+}
+// Misma selección para tarjeta y ficha. Primero conserva el límite por universidad
+// de #1099; la vista previa y el dueño omiten ambos filtros.
+function seleccionRamosPerfilApoyo(p,{previa=false,nombres=null,visor=typeof S!=='undefined'?S.tenant:null}={}){
+  const siglas=[...new Set((p.ramos_siglas||[]).filter(s=>typeof s==='string').map(s=>s.toUpperCase().replace(/\s/g,'')))].filter(Boolean);
+  const tenants=p.universidades||[],porUni=nombresRamosPerfilPorUni(tenants),propia=visor&&tenants.includes(visor);
+  const nombresVisor=nombres||propia&&porUni[visor]||{};
+  if(previa||perfilPropioApoyo(p))return {mias:siglas,otras:[],criterio:'propio'};
+  // Con asociación declarada (#1105) manda la lista exacta de su universidad;
+  // sin ella, el límite por siglas conocidas de #1099.
+  const mapa=p.ramos_por_universidad&&typeof p.ramos_por_universidad==='object'&&!Array.isArray(p.ramos_por_universidad)?p.ramos_por_universidad:null;
+  const visibles=mapa?[...new Set((mapa[visor]||[]).filter(s=>typeof s==='string').map(s=>s.toUpperCase().replace(/\s/g,'')))].filter(Boolean)
+    :tenants.length>1&&propia?siglas.filter(s=>nombresVisor[s]):siglas;
+  return ramosRelevantesParaVisor(visibles,contextoRamosVisorApoyo());
+}
+function ramosPerfilApoyoHTML(siglas,nombres,unis,tenants=[],visor=null,{previa=false,perfil={},porUniversidad=null}={}){
+  if(!siglas.length)return unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:'';
+  const porUni=nombresRamosPerfilPorUni(tenants),propia=visor&&tenants.includes(visor);
+  const nombresVisor=propia?{...porUni[visor],...nombres}:nombres;
+  const asociados=porUniversidad&&typeof porUniversidad==='object'&&!Array.isArray(porUniversidad);
+  const {mias:visibles,otras,criterio}=seleccionRamosPerfilApoyo({...perfil,ramos_siglas:siglas,universidades:tenants,ramos_por_universidad:asociados?porUniversidad:null},{previa,nombres:nombresVisor,visor});
+  if(!visibles.length)return asociados&&criterio!=='propio'?'<p class="profesor-info">No hay ramos asociados a tu universidad.</p>':'';
+  const etiquetaUni=propia?(UNIVERSIDADES_PERFIL.find(([v])=>v===visor)||[])[1]:'';
+  const nombreDe=s=>nombresVisor[s]||(!asociados&&tenants.map(t=>porUni[t][s]).find(Boolean))||'';
+  const carrera=criterio==='ramos'||criterio==='malla';
+  const resumen=`${visibles.length} ${visibles.length===1?'ramo':'ramos'}${carrera?' de tu carrera':etiquetaUni&&tenants.length>1?` en la ${etiquetaUni}`:unis.length&&tenants.length===1?` · ${unis.join(', ')}`:''}`;
+  const fila=s=>`<li><strong>${esc(s)}</strong>${nombreDe(s)?`<span>${esc(nombreDe(s))}</span>`:''}</li>`;
+  const mas=visibles.length>MAX_RAMOS_PERFIL_VISIBLES;
+  const lista=asociados&&previa?tenants.filter(t=>(porUniversidad[t]||[]).length).map(t=>`<h4>${esc((UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]||t)}</h4><ul class="perfil-apoyo-ramos">${porUniversidad[t].map(s=>`<li><strong>${esc(s)}</strong>${porUni[t]?.[s]?`<span>${esc(porUni[t][s])}</span>`:''}</li>`).join('')}</ul>`).join(''):`<ul class="perfil-apoyo-ramos">${visibles.map(fila).join('')}</ul>`;
+  return `<section class="perfil-apoyo-seccion perfil-apoyo-ramos-caja"><h3>Ramos</h3><p class="perfil-apoyo-ramos-resumen">${esc(resumen)}</p>
+    <ul class="perfil-apoyo-chips">${visibles.slice(0,MAX_RAMOS_PERFIL_VISIBLES).map(s=>`<li>${esc(s)}</li>`).join('')}${mas?`<li class="perfil-apoyo-chip-mas">+${visibles.length-MAX_RAMOS_PERFIL_VISIBLES}</li>`:''}</ul>
+    <details class="perfil-apoyo-todos"><summary>Ver ${visibles.length===1?'el ramo':`los ${visibles.length} ramos`}</summary>${lista}${otras.length?`<details class="perfil-apoyo-otras"><summary>Otras carreras (${otras.length})</summary><ul class="perfil-apoyo-ramos">${otras.map(fila).join('')}</ul></details>`:''}</details></section>`;
+}
+function perfilPublicoHTML(p,anuncioId,nombres=nombresRamosParaClases(S.tenant),{previa=false}={}){
   const tipo=(TIPOS_PERFIL.find(([v])=>v===p.tipo_perfil)||[])[1]||'';
   const unis=(p.universidades||[]).map(t=>(UNIVERSIDADES_PERFIL.find(([v])=>v===t)||[])[1]).filter(Boolean);
   const otros=(p.anuncios||[]).filter(id=>id!==anuncioId).map(id=>catalogoClasesActual.find(a=>a.id===id)).filter(Boolean);
   const sinTitulo=(p.anuncios||[]).filter(id=>id!==anuncioId).length-otros.length;
   const canales=canalesPerfilApoyo(p);
-  return `<header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
+  const color=typeof colorTarjetaDirectorio==='function'?colorTarjetaDirectorio(p.color_tarjeta):'#126b63';
+  return `<div class="perfil-apoyo" style="--directorio-color:${color}"><header class="perfil-apoyo-identidad"><div><p class="perfil-apoyo-etiqueta">${esc(p.etiqueta||tipo)}</p><h2>${esc(p.nombre_publico)}</h2>${valoracionDirectorioHTML(p.calificacion)}</div>
       ${p.logo_path?`<div class="catalogo-clase-logo perfil-apoyo-logo" data-directorio-logo="${esc(p.logo_path)}" aria-hidden="true"></div>`:''}</header>
     <p class="perfil-publico-texto">${esc(p.presentacion||'')}</p>
     ${canales.length?`<div class="perfil-apoyo-contactos" aria-label="Contactar a ${esc(p.nombre_publico)}">${canales.map(c=>c.enlace?`<a class="clase-accion perfil-contacto-${c.canal}" href="${esc(c.enlace)}" target="_blank" rel="noopener noreferrer" data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></a>`:`<button type="button" class="clase-accion perfil-contacto-${c.canal}" data-directorio-contactar data-perfil-canal="${c.canal}">${iconoCanalPerfil(c.canal)}<span>${c.texto}</span></button>`).join('')}</div>`:''}
     <p class="profesor-info" data-directorio-contacto-estado role="status"></p>
-    ${(p.ramos_siglas||[]).length?`<section class="perfil-apoyo-seccion"><h3>Ramos que enseña</h3><ul class="perfil-apoyo-ramos">${p.ramos_siglas.map(sigla=>`<li><strong>${esc(sigla)}</strong>${nombres[sigla]?`<span>${esc(nombres[sigla])}</span>`:''}</li>`).join('')}</ul></section>`:''}
-    ${unis.length?`<p class="profesor-info">${esc(unis.join(' · '))}</p>`:''}
-    ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}`;
+    ${ramosPerfilApoyoHTML(p.ramos_siglas||[],nombres,unis,(p.universidades||[]).filter(t=>UNIVERSIDADES_PERFIL.some(([v])=>v===t)),typeof S!=='undefined'?S.tenant:null,{previa,perfil:p,porUniversidad:p.ramos_por_universidad})}
+    ${otros.length||sinTitulo>0?`<section class="perfil-publico-otros perfil-apoyo-seccion"><h3>Sus otras clases</h3><ul>${otros.map(a=>`<li><button type="button" data-ir-anuncio="${esc(a.id)}">${esc(a.titulo||'Clase particular')} · ${esc(a.ramos_siglas.join(', '))}</button></li>`).join('')}${sinTitulo>0?`<li>${otros.length?'Y ':''}${sinTitulo} ${sinTitulo===1?'clase publicada más':'clases publicadas más'}</li>`:''}</ul></section>`:''}</div>`;
 }
 async function mostrarPerfilEnClase(caja){
   if(caja.dataset.cargado)return;caja.dataset.cargado='1';
   const uid=typeof currentUser==='undefined'?null:currentUser?.id,tenant=S.tenant;
   const p=await perfilDeAnuncio(caja.dataset.perfil);
+  await cargarMallaVisorApoyo();
   if(!p||!caja.isConnected||(typeof currentUser==='undefined'?null:currentUser?.id)!==uid||S.tenant!==tenant)return;
   caja.innerHTML=`<button type="button" class="catalogo-clase-ver perfil-publico-abrir" aria-haspopup="dialog">Ver perfil de ${esc(p.nombre_publico)}</button>`;
   const boton=caja.querySelector('.perfil-publico-abrir');
@@ -293,7 +389,7 @@ function filtrosCatalogoClases(){
 }
 function cabeceraCatalogoClasesHTML(){
   return `<div class="catalogo-clases catalogo-redisenado">
-    <header class="catalogo-clases-head"><div><p class="catalogo-ceja">CLASES PARTICULARES</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
+    <header class="catalogo-clases-head"><div><p class="catalogo-ceja">APOYO</p><h1 class="modal-title" id="modal-titulo">Un poco de apoyo. Un gran avance.</h1><p class="catalogo-bajada">Encuentra una clase para ese ramo que necesita un empujón.</p></div><button type="button" class="settings-cerrar" onclick="closeModal()">Cerrar</button></header>
     <div class="catalogo-herramientas"><div class="catalogo-buscador"><label for="catalogo-clases-buscar">Buscar clases</label>
     <div class="catalogo-clases-busqueda"><input id="catalogo-clases-buscar" type="search" autocomplete="off" placeholder="Busca por ramo o sigla" aria-describedby="catalogo-clases-estado"></div></div>
     <label class="catalogo-filtro">Qué buscas<select id="catalogo-tipo"><option value="">Todo</option>${TIPOS_ANUNCIO.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
@@ -392,6 +488,8 @@ function activarTarjetasClases(raiz){
 const IMPRESION_VISIBLE=0.5,IMPRESION_MS=1000;
 let impresionesCatalogo=new Set(),observadorCatalogo=null,logosCatalogoClases=new Map(),limpiarVisibilidadCatalogo=null;
 let eventosCatalogo=new Map();
+const impresionesCatalogoEnCurso=new Set();
+const vistasPorCatalogo=new WeakMap();
 function observarImpresionesClases(raiz,anuncios,busqueda=''){
   // Si la persona escribió algo, las tarjetas que ve son resultado de buscar.
   const canal=String(busqueda||'').trim()?'busqueda':'lista';
@@ -400,27 +498,33 @@ function observarImpresionesClases(raiz,anuncios,busqueda=''){
   if(typeof IntersectionObserver!=='function'||!raiz)return;
   const sigla=new Map((anuncios||[]).map(a=>[a.id,(a.ramos_siglas||[])[0]||'']));
   const eventos=eventosCatalogo;
+  if(!vistasPorCatalogo.has(eventos))vistasPorCatalogo.set(eventos,new Set());
+  const vistas=vistasPorCatalogo.get(eventos);
+  const publicaciones=new Map((anuncios||[]).map(a=>[a.id,a.publicado_at]));
   const timers=new Map(),visibles=new Set(),tarjetas=new Map();
   const programar=(card,id,demora=IMPRESION_MS)=>{
     if(timers.has(id))return;
     timers.set(id,setTimeout(async()=>{
       timers.delete(id);
-      const clave=id+':'+canal;
+      const clave=id+':'+canal,claveEvento=claveMedicionClase(id);
       if(document.visibilityState==='hidden'||!card.isConnected||!visibles.has(id)||impresionesCatalogo.has(clave))return;
+      if(!eventos.has(claveEvento))eventos.set(claveEvento,nuevoEventoMetricaClase());
+      const eventoId=eventos.get(claveEvento),medidas=impresionesCatalogo;
+      if(impresionesCatalogoEnCurso.has(eventoId))return;
+      impresionesCatalogoEnCurso.add(eventoId);
       const usuario=currentUser&&currentUser.id;
+      // El alcance conserva su RPC y su cobro. Un fallo no impide el total.
       const alcance=await registrarAlcanceAnuncio(id,canal);
-      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo)return;
-      if(alcance===null){
+      if(!currentUser||currentUser.id!==usuario||eventos!==eventosCatalogo){impresionesCatalogoEnCurso.delete(eventoId);return;}
+      const metrica=vistas.has(claveEvento)?true:await registrarMetricaAnuncio(id,'impresion',sigla.get(id),
+        {eventoId,publicacion:publicaciones.get(id),cobroConfirmado:alcance!==null});
+      impresionesCatalogoEnCurso.delete(eventoId);
+      if(alcance!==null&&metrica!==null)vistas.add(claveEvento);
+      if(alcance===null||metrica===null){
         if(card.isConnected&&visibles.has(id))programar(card,id,5000);
         return;
       }
-      if(!eventosCatalogo.has(clave))eventosCatalogo.set(clave,nuevoEventoMetricaClase());
-      const metrica=await registrarMetricaAnuncio(id,'impresion',sigla.get(id),{eventoId:eventosCatalogo.get(clave)});
-      if(metrica===null){
-        if(card.isConnected&&visibles.has(id))programar(card,id,5000);
-        return;
-      }
-      impresionesCatalogo.add(clave);
+      medidas.add(clave);
     },demora));
   };
   observadorCatalogo=new IntersectionObserver(entradas=>{
@@ -534,7 +638,7 @@ function nuevoEventoMetricaClase(){
   });
 }
 let eventosAnuncioDisponibles=true;
-async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null}={}){
+async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoEventoMetricaClase(),publicacion=null,cobroConfirmado=true}={}){
   const payload=payloadMetricaAnuncio(anuncioId,tipo,ramoSigla);
   if(!supabaseClient||!currentUser||!payload)return false;
   try{
@@ -546,28 +650,22 @@ async function registrarMetricaAnuncio(anuncioId,tipo,ramoSigla,{eventoId=nuevoE
       if(!sqlClasesDesactualizado(r.error))throw r.error;
       eventosAnuncioDisponibles=false; // Sin SQL: conserva la medición anterior.
     }
+    // Compatibilidad: la RPC antigua depende de la fila cobrable confirmada.
+    if(!cobroConfirmado)return null;
     const {data,error}=await supabaseClient.rpc('registrar_metrica_anuncio',payload);
     if(error)throw error;
     return data===true;
   }catch(error){console.warn('No se pudo registrar la métrica del anuncio:',error.message||error);return null;}
 }
 
-// La repetición se registra después de confirmar la interacción única.
+// La interacción cobrable conserva su RPC; el total es independiente de su resultado.
 // Un reintento conserva su clave: una respuesta perdida no suma otro evento.
 async function registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos=2,eventoId=nuevoEventoMetricaClase()}={}){
   const usuario=currentUser&&currentUser.id;
   const cargo=await registrarInteraccionAnuncio(anuncioId,tipo);
   if(!currentUser||currentUser.id!==usuario)return null;
-  if(cargo===null){
-    // La apertura ya ocurrió en pantalla y su botón desapareció: reintentarla
-    // sin pedir otro clic. Contacto sí requiere un nuevo gesto para navegar.
-    if(tipo==='apertura'&&reintentos>0)setTimeout(()=>{
-      if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
-    },5000);
-    return null;
-  }
-  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId});
-  if(metrica===null&&reintentos>0)setTimeout(()=>{
+  const metrica=await registrarMetricaAnuncio(anuncioId,tipo==='apertura'?'clic':'contacto',sigla,{eventoId,cobroConfirmado:cargo!==null});
+  if((metrica===null||cargo===null&&tipo==='apertura')&&reintentos>0)setTimeout(()=>{
     if(currentUser&&currentUser.id===usuario)registrarInteraccionMedida(anuncioId,tipo,sigla,{reintentos:reintentos-1,eventoId});
   },5000);
   return cargo;

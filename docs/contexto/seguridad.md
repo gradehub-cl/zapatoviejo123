@@ -192,3 +192,56 @@ con `clock_timestamp()` dentro de PostgreSQL, con resolución local de 1 ms;
 Incremento medio observado: **2,33 ms**; no supera 20 ms en esta medición. No
 se introdujeron optimizaciones de rendimiento. Es una medición en memoria/WASM,
 no una garantía de latencia del Postgres de producción, su disco o su carga.
+
+### Catálogo UC de secciones · revisión local 2026-11-03
+
+`supabase/catalogo_uc_secciones.sql` prepara dos tablas con RLS: oferta pública
+de cursos y lotes temporales de importación. Lucas lo aplicó en producción el
+2026-11-15; ese día se comprobó RLS en ambas tablas, que `anon` no lee la tabla
+base ni puede consolidar, y que sí ejecuta la RPC pública. No son registros de cuentas y no llevan FK a `auth.users`.
+
+- `anon` y `authenticated` no leen ni escriben las tablas base. El secreto de
+  servidor prepara lotes y consolida una corrida completa en una transacción,
+  con cantidad esperada y guarda del 70%; una lectura fallida no vacía la base.
+- Solo la RPC `catalogo_uc_secciones_publicas` tiene lectura pública. Sustituye
+  los nombres de `profesor_ocultos` por «Sin informar», usando la coincidencia
+  existente también ante el orden apellido/nombre de Buscacursos. El filtro se
+  aplica al leer, sin depender de una nueva corrida. No expone cuentas ni notas.
+- No se suben HTML/JSON crudos como artifacts ni se imprimen nombres en los
+  logs de Actions. El workflow con secreto solo corre en `main`, bajo el
+  environment `supabase`; la prueba en otra rama no obtiene secretos.
+- Las bajas conservan la sección como no vigente. Los lotes abandonados se
+  limpian a los siete días tras una consolidación exitosa. No modifica el
+  borrado de cuenta ni las tablas de aportes/calificaciones de profesor.
+- PGlite prueba permisos como `anon`, `authenticated` y `service_role`, el
+  docente oculto, la reaplicación y el rechazo atómico de cargas incompletas.
+  Guía operativa y atribución: [Buscacursos UC](../buscacursos-uc.md).
+
+### Calificaciones de ramos · auditoría preparada, 2026-11-03
+
+`supabase/ramo_calificaciones.sql` se aplica manualmente después de
+`profesores.sql`. Esta revisión y sus pruebas PGlite son locales: no certifican
+la instalación ni ejecutaron SQL en producción.
+
+- Tabla privada con RLS y sin permisos directos para `PUBLIC`, `anon` o
+  `authenticated`. Solo cuatro RPC públicas, con sesión, `search_path=''` y
+  contexto del ramo/sección/período tomado de `user_ramos`. Los auxiliares y
+  la constante del piso no tienen permisos de ejecución para clientes.
+- Las cuentas `tipoCuenta='profesor'` no califican. El historial solo habilita
+  respuestas si conserva sección, período y universidad verificable por origen
+  o cierre; no se añaden campos al estado guardado.
+- Solo el autor lee/edita/borra su respuesta por contexto. El resumen para elegir
+  ramos no requiere tener el ramo, pero sí sesión, y devuelve solo agregados:
+  cinco cuentas distintas como mínimo, tres para una etiqueta. Cada cuenta
+  aporta su semestre más reciente, sin inflar n al repetir el ramo.
+- Un docente oculto nunca aparece en el desglose. El ramo solo publica si hay
+  cinco cuentas sin ese docente; entonces sus opiniones pueden contribuir al
+  total general. La receta manual de supresión está en el SQL y debe ejecutarse
+  antes de eliminar los aportes que permiten asociar el docente.
+- FK `user_id -> auth.users ON DELETE CASCADE`. El test borra una cuenta
+  sintética y comprueba cero filas residuales, además de cerrar el agregado si
+  el borrado deja el grupo bajo el piso. No hay datos en Storage que limpiar.
+- Validación: `tests/ramo-calificaciones-sql.test.js` cubre permisos positivos y
+  negativos, contexto, privacidad, roles, docencia, edición/borrado, reaplicación
+  y cascada. `tests/ramo-calificaciones-cliente.test.js` verifica contrato de
+  etiquetas, aviso local por cuenta/ramo/período y búsqueda sin la nueva RPC.

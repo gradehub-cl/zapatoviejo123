@@ -291,10 +291,17 @@ const PRESETS_FEN={
     // coincide siempre (barrido de las 6561 combinaciones), y el número solo
     // difiere cuando ya estás reprobado por los dos caminos. Es una aproximación
     // deliberada y por eso se declara, no una deuda.
+    //
+    // La cuarta no sale del programa: la confirmó Martín el 2026-11-11. Los 20
+    // reportes de catalog_reports a esa fecha traen todos Solemne 25% y reparten
+    // el resto de al menos seis formas (Examen 30 o 35, Trabajo Práctico 20 o 30,
+    // Controles 15 a 25), como Tecnología y Sistemas de Información. Los pesos no
+    // se tocan: siguen siendo los del programa.
     reglasDelCurso:[
       'Si tu promedio en las evaluaciones individuales (Solemne, Controles y Examen) queda bajo 4,0, las notas grupales no se consideran y tu nota final pasa a ser ese promedio individual',
       'La nota del trabajo grupal se ajusta con un modificador por evaluación de pares, normalmente entre -0,9 y +0,9, aunque el rango cambia cada semestre',
       'Las evaluaciones no se repiten. Con prueba recuperativa autorizada se recupera solo una, Solemne o Examen, y nunca los controles',
+      'La Solemne (25%) es igual en todas las secciones, pero el resto lo reparte cada sección a su manera. Si en la tuya Controles, Trabajo Práctico y Examen Final no valen 25% cada uno, edita la pauta',
     ],
     evals:[
       ['Solemne',25],

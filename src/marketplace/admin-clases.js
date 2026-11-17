@@ -363,6 +363,7 @@ function fichaAdminProfesorHTML(p){
   const fecha=f=>Number.isFinite(new Date(f).getTime())?new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Santiago'}).format(new Date(f)):'';
   return `<details class="admin-hig-ficha"><summary>Ficha del profesor</summary><div class="admin-hig-ficha-cuerpo">
     <div data-admin-directorio="${id}"></div>
+    ${ramosUniversidadPerfilHTML(p)}
     <dl class="admin-hig-ficha-datos">
       ${dato('Publicados',num(cuenta(['publicado'])))}${dato('En revisión',num(cuenta(['en_revision'])))}${dato('Borradores',num(cuenta(['borrador'])))}
       ${dato('Cobros en deuda',num(deudas))}${p.alumnos_conectados!=null?dato('Alumnos conectados',num(alumnos)):''}
