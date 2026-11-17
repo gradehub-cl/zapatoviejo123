@@ -12,6 +12,7 @@ const css = fs.readFileSync(raiz + 'styles.css', 'utf8');
 const ctx = { document: { addEventListener() {}, getElementById: () => null } };
 vm.createContext(ctx);
 vm.runInContext(fuente + '\n;this.gruposPerfil=gruposPerfil;this.PERFIL_ACCIONES=PERFIL_ACCIONES;this.PERFIL_ICONOS=PERFIL_ICONOS;', ctx);
+vm.runInContext(fs.readFileSync(raiz + 'src/app/herramientas-inicio.js', 'utf8') + '\n;this.herramientasInicio=herramientasInicio;', ctx);
 
 let ok = 0, fail = 0;
 const chk = (n, c) => { if (c) { ok++; console.log('  OK   ' + n); } else { fail++; console.log('  FAIL ' + n); } };
@@ -27,6 +28,11 @@ chk('la foto del horario es solo de la UC', !est.includes('horario') && claves(c
 chk('cargar semestres solo donde hay lector', !est.includes('ficha') && claves(ctx.gruposPerfil({ ...base, conFicha: true })).includes('ficha'));
 chk('sin sesión no se ofrece dar clases', !claves(ctx.gruposPerfil({ ...base, conSesion: false })).includes('profesor'));
 chk('Canvas tiene su fila solo donde está disponible, después de Calendario', !est.includes('canvas') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conCanvas: true }));return c.indexOf('canvas')===c.indexOf('calendario')+1;})());
+console.log('\n=== Herramientas en Inicio ===');
+const herr = o => vm.runInContext('herramientasInicio('+JSON.stringify(o)+')', ctx).map(([c]) => c);
+chk('la calculadora siempre está', herr({ tenant: 'syn' }).join() === 'calculadora');
+chk('UC con Canvas y ficha: las cuatro, en orden', herr({ tenant: 'uc', conCanvas: true, conFicha: true }).join() === 'calculadora,horario,canvas,ficha');
+chk('sin Canvas no se ofrece traer notas', !herr({ tenant: 'uc', conFicha: true }).includes('canvas'));
 chk('Canvas tiene su propio ícono', /circle/.test(vm.runInContext('PERFIL_ICONOS.canvas', ctx)));
 
 console.log('\n=== Cuenta de profesor ===');
