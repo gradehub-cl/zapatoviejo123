@@ -161,9 +161,22 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     static func demoWidgets() {
         let enDosDias = Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date()
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+        let h = DateFormatter(); h.locale = Locale(identifier: "en_US_POSIX"); h.dateFormat = "HH:mm"
+        let iso = ISO8601DateFormatter()
+        // Una clase en curso, otra más tarde y una mañana (#641).
+        let clase = { (ramoId: String, ramo: String, sigla: String, sala: String, tipo: String, desdeMin: Double, duraMin: Double) -> String in
+            let d = Date().addingTimeInterval(desdeMin * 60), fin = d.addingTimeInterval(duraMin * 60)
+            return """
+            {"ramoId":"\(ramoId)","ramo":"\(ramo)","sigla":"\(sigla)","fecha":"\(f.string(from: d))","inicio":"\(h.string(from: d))","fin":"\(h.string(from: fin))","inicioAt":"\(iso.string(from: d))","finAt":"\(iso.string(from: fin))","sala":"\(sala)","tipo":"\(tipo)"}
+            """
+        }
+        let clases = [clase("demo", "Cálculo II", "MAT1620", "B12", "CLAS", -30, 80), clase("b", "Física", "FIS1514", "K201", "AYUD", 90, 70),
+                      clase("c", "Programación", "IIC1103", "LAB 3", "LAB", 24 * 60, 80)].joined(separator: ",")
         let json = """
         {"version":1,"actualizado":"\(ISO8601DateFormatter().string(from: Date()))","promedio":{"oficial":5.3,"nivel":"good"},
-        "ramos":[{"id":"demo","nombre":"Cálculo II","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","promedio":3.8,"nivel":"bad"}],
+        "ramos":[{"id":"demo","nombre":"Cálculo II","color":"#7F77DD","promedio":4.6,"nivel":"good"},{"id":"b","nombre":"Física","color":"#1D9E75","promedio":3.8,"nivel":"bad"},
+        {"id":"c","nombre":"Programación","color":"#D85A30","promedio":5.8,"nivel":"good"}],
+        "clasesProximas":[\(clases)],
         "agenda":[{"ramoId":"demo","ramo":"Cálculo II","sigla":"MAT1620","color":"#7F77DD","evaluacion":"Interrogación 2","fecha":"\(f.string(from: enDosDias))","hora":"17:30","necesitas":"3.7","parte":30},
         {"ramoId":"b","ramo":"Física","sigla":"FIS1514","color":"#1D9E75","evaluacion":"Control 4","fecha":"\(f.string(from: enDosDias.addingTimeInterval(86400)))"},
         {"ramoId":"c","ramo":"Programación","sigla":"IIC1103","color":"#D85A30","evaluacion":"Tarea 3","fecha":"\(f.string(from: enDosDias.addingTimeInterval(4 * 86400)))"},

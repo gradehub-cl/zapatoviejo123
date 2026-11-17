@@ -178,13 +178,13 @@ personas ni promedios. `id` identifica una ocurrencia (ramo, bloque, fecha).
 
 No se sube `WIDGETS_VERSION`: el decodificador Swift existente exige `version==1`
 y sus `Decodable` ignoran las claves nuevas. Los cuatro widgets actuales siguen
-funcionando sin recompilar. El nuevo widget **todavía requiere trabajo Swift en
-la rama `ios`**, su decodificador de estos campos, familia/diseño y un timeline
-con entradas en los inicios, fines y cambios de fecha. Para avanzar sin abrir la
-app debe consumir `clasesProximas`, no quedarse mostrando `proximaClase` de la
-instantánea. Al agotar el horizonte, mostrar sin datos recientes y pedir una
-recarga; no repetir una semana indefinidamente. Las horas no son eventos Canvas,
-no incorporan feriados, vacaciones ni suspensiones puntuales.
+funcionando sin recompilar. El widget **Horario** (`HorarioWidget` en
+`GradeHubWidgets.swift`) consume solo `clasesProximas`: su timeline tiene una
+entrada en cada inicio, fin, 15 minutos antes (sube en la Smart Stack con
+`TimelineEntryRelevance`) y cada medianoche. Al agotar el horizonte pide abrir la
+app; no repite semanas. Cada clase se decodifica por separado (`Tolerante`): una
+mal formada no deja a los demás widgets sin datos. Las horas no son eventos
+Canvas, no incorporan feriados, vacaciones ni suspensiones puntuales.
 
 El enlace ya lo abre `abrirEnlaceWidget`; si se borró el ramo lleva a Inicio.
 Aplicar privacidad a nombres de ramos y salas en pantalla bloqueada como a las

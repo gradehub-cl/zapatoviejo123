@@ -49,11 +49,32 @@ struct Resumen: Decodable {
         let rango: Rango?
         let exigente: Exigente?
     }
+    // Una clase del horario (#641), ya calculada por la app con la hora de Chile
+    // (resumenHorarioClases, la misma de Inicio). Sin notas.
+    struct Clase: Decodable {
+        let ramoId: String
+        let ramo: String
+        let sigla: String?
+        let fecha: String
+        let inicio: String
+        let fin: String
+        let inicioAt: String
+        let finAt: String
+        let sala: String?
+        let tipo: String?
+    }
     let ramos: [Ramo]
     let agenda: [Evaluacion]
     // Opcionales: un resumen guardado por una versión anterior de la app no los trae.
     let pendientes: [Pendiente]?
     let estadisticas: Estadisticas?
+    let clasesProximas: [Tolerante<Clase>]?
+}
+
+// Un elemento mal formado se descarta solo, sin dejar a todos los widgets sin datos.
+struct Tolerante<T: Decodable>: Decodable {
+    let valor: T?
+    init(from decoder: Decoder) throws { valor = try? T(from: decoder) }
 }
 
 enum Almacen {
@@ -545,6 +566,268 @@ struct PendientesWidget: Widget {
     }
 }
 
+// MARK: - Horario (#641)
+
+// La app manda las clases de los próximos 7 días con su instante exacto
+// (`inicioAt`/`finAt`, con el cambio de hora de Chile ya resuelto). El widget
+// solo elige cuál mostrar según la hora de cada entrada: no arma el horario ni
+// repite semanas. Si nadie abre la app en 7 días, pide abrirla.
+enum Horario {
+    static let conFraccion: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    static let sinFraccion = ISO8601DateFormatter()
+    static func instante(_ s: String) -> Date? { conFraccion.date(from: s) ?? sinFraccion.date(from: s) }
+
+    static func todas(_ r: Resumen?) -> [Resumen.Clase] { (r?.clasesProximas ?? []).compactMap(\.valor) }
+    // Las que todavía no terminan, en el orden de la app: la en curso va primero.
+    static func vigentes(_ r: Resumen?, _ ahora: Date) -> [Resumen.Clase] {
+        todas(r).filter { (instante($0.finAt) ?? .distantPast) > ahora }
+    }
+    // El fin exacto ya no es "en curso", igual que en Inicio.
+    static func enCurso(_ c: Resumen.Clase, _ ahora: Date) -> Bool {
+        guard let d = instante(c.inicioAt), let h = instante(c.finAt) else { return false }
+        return d <= ahora && ahora < h
+    }
+    static let diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+    // "Hoy", "Mañana" o el día ("Jueves"), en español aunque el iPhone no lo esté.
+    static func dia(_ c: Resumen.Clase, _ ahora: Date) -> String {
+        switch Fechas.diasHasta(c.fecha, desde: ahora) {
+        case 0: return "Hoy"
+        case 1: return "Mañana"
+        default:
+            guard let d = Fechas.dia(c.fecha) else { return c.fecha }
+            return diasSemana[Calendar(identifier: .gregorian).component(.weekday, from: d) - 1]
+        }
+    }
+    static func lugar(_ c: Resumen.Clase) -> String? {
+        let partes = [c.sala.map { "Sala \($0)" }, c.tipo].compactMap { $0 }.filter { !$0.isEmpty }
+        return partes.isEmpty ? nil : partes.joined(separator: " · ")
+    }
+    // El color vive en el ramo, no en la clase.
+    static func color(_ r: Resumen?, _ c: Resumen.Clase) -> String? { r?.ramos.first { $0.id == c.ramoId }?.color }
+
+    // Desde 15 minutos antes y hasta que termina, la clase es lo más útil de la
+    // pantalla: la Smart Stack sube el widget sola. El resto del tiempo, nada.
+    static func relevancia(_ r: Resumen?, _ ahora: Date) -> TimelineEntryRelevance {
+        guard let c = vigentes(r, ahora).first, let d = instante(c.inicioAt), let h = instante(c.finAt),
+              d.timeIntervalSince(ahora) <= 15 * 60 else { return TimelineEntryRelevance(score: 0) }
+        return TimelineEntryRelevance(score: 100, duration: h.timeIntervalSince(ahora))
+    }
+}
+
+struct EntradaHorario: TimelineEntry {
+    let date: Date
+    let resumen: Resumen?
+    var relevance: TimelineEntryRelevance? = nil
+}
+
+// Una entrada al empezar y al terminar cada clase, 15 minutos antes (para la
+// Smart Stack) y a cada medianoche ("Mañana" pasa a "Hoy"), sin abrir la app.
+struct ProveedorHorario: TimelineProvider {
+    func placeholder(in context: Context) -> EntradaHorario { EntradaHorario(date: .now, resumen: nil) }
+    func getSnapshot(in context: Context, completion: @escaping (EntradaHorario) -> Void) {
+        completion(EntradaHorario(date: .now, resumen: Almacen.leer()))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<EntradaHorario>) -> Void) {
+        let resumen = Almacen.leer(), ahora = Date(), cal = Calendar.current
+        let clases = Horario.vigentes(resumen, ahora)
+        var cambios = Set<Date>()
+        for c in clases {
+            if let d = Horario.instante(c.inicioAt), let h = Horario.instante(c.finAt) {
+                cambios.formUnion([d.addingTimeInterval(-15 * 60), d, h])
+            }
+        }
+        if let ultima = clases.compactMap({ Horario.instante($0.finAt) }).max() {
+            var dia = cal.startOfDay(for: ahora)
+            while let siguiente = cal.date(byAdding: .day, value: 1, to: dia), siguiente <= ultima {
+                cambios.insert(siguiente)
+                dia = siguiente
+            }
+        }
+        let fechas = [ahora] + cambios.filter { $0 > ahora }.sorted()
+        // Después de la última clase no cambia nada hasta que la app guarde otro resumen.
+        completion(Timeline(entries: fechas.map { EntradaHorario(date: $0, resumen: resumen, relevance: Horario.relevancia(resumen, $0)) },
+                            policy: .never))
+    }
+}
+
+// Cuánto va de la clase: un riel que el sistema llena solo, sin gastar recargas.
+struct AvanceClase: View {
+    let clase: Resumen.Clase
+    var body: some View {
+        if let d = Horario.instante(clase.inicioAt), let h = Horario.instante(clase.finAt), d < h {
+            ProgressView(timerInterval: d...h, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                .progressViewStyle(.linear).tint(.primary)
+                .accessibilityLabel("Termina a las \(clase.fin)")
+        }
+    }
+}
+
+struct HorarioVista: View {
+    @Environment(\.widgetFamily) var familia
+    let entrada: EntradaHorario
+
+    var body: some View {
+        let ahora = entrada.date
+        let clases = Horario.vigentes(entrada.resumen, ahora)
+        Group {
+            if let c = clases.first {
+                switch familia {
+                case .accessoryInline: inline(c)
+                case .accessoryCircular: circular(c)
+                case .accessoryRectangular: rectangular(c)
+                case .systemMedium:
+                    HStack(alignment: .top, spacing: 16) {
+                        tarjeta(c, despues: nil).frame(maxWidth: .infinity, alignment: .leading)
+                        lista(Array(clases.dropFirst().prefix(3))).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                case .systemLarge:
+                    VStack(alignment: .leading, spacing: 10) {
+                        tarjeta(c, despues: nil).fixedSize(horizontal: false, vertical: true)
+                        Divider()
+                        lista(Array(clases.dropFirst().prefix(6)))
+                    }
+                default: tarjeta(c, despues: clases.dropFirst().first)
+                }
+            } else {
+                vacio
+            }
+        }
+        .widgetURL(clases.first.map { enlaceRamo($0.ramoId) } ?? URL(string: "cl.gradehub.app://inicio"))
+    }
+
+    // Lo que dice la hora grande: cuándo empieza o, en clase, cuándo termina.
+    func hora(_ c: Resumen.Clase) -> String { Horario.enCurso(c, entrada.date) ? "Hasta las \(c.fin)" : c.inicio }
+
+    // 0.5 s: cuándo (grande), qué ramo y dónde. En clase, el riel de cuánto falta.
+    func tarjeta(_ c: Resumen.Clase, despues: Resumen.Clase?) -> some View {
+        let enCurso = Horario.enCurso(c, entrada.date)
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(enCurso ? "EN CLASE" : Horario.dia(c, entrada.date).uppercased())
+                .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            HStack(alignment: .top, spacing: 8) {
+                Rectangle().fill(Color(hexRamo: Horario.color(entrada.resumen, c))).frame(width: 3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(hora(c)).font(.title2.weight(.semibold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.6).widgetAccentable()
+                    Group {
+                        Text(c.ramo).font(.headline).lineLimit(2).minimumScaleFactor(0.7)
+                        if let l = Horario.lugar(c) {
+                            Text(l).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                        }
+                    }
+                    .privacySensitive()
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            if enCurso {
+                AvanceClase(clase: c).padding(.top, 8)
+            } else if let s = despues {
+                // La hora primero: si no cabe, se corta el ramo y no la hora.
+                Text("Después \(Horario.dia(s, entrada.date) == Horario.dia(c, entrada.date) ? "" : Horario.dia(s, entrada.date).lowercased() + " ")\(s.inicio) · \(s.sigla ?? s.ramo)")
+                    .font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1).padding(.top, 6)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // Lo que viene, con el día cuando no es hoy. Cada fila abre su ramo.
+    func lista(_ siguientes: [Resumen.Clase]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Después").font(.caption).foregroundStyle(.secondary)
+            if siguientes.isEmpty {
+                Text("Nada más esta semana").font(.subheadline).foregroundStyle(.secondary)
+            }
+            ForEach(Array(siguientes.enumerated()), id: \.offset) { _, s in
+                let dia = Horario.dia(s, entrada.date)
+                Fila(ramoId: s.ramoId, color: Horario.color(entrada.resumen, s), titulo: s.ramo,
+                     detalle: [dia == "Hoy" ? nil : dia, "\(s.inicio)–\(s.fin)", s.sala.map { "Sala \($0)" }].compactMap { $0 }.joined(separator: " · "))
+                    .privacySensitive()
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // Pantalla de bloqueo: "10:00 · Cálculo II · Sala B12" encima del reloj.
+    func inline(_ c: Resumen.Clase) -> some View {
+        let lugar = c.sala.map { " · \($0)" } ?? ""
+        return Text("\(Horario.enCurso(c, entrada.date) ? "Hasta \(c.fin)" : c.inicio) · \(c.sigla ?? c.ramo)\(lugar)")
+    }
+
+    func rectangular(_ c: Resumen.Clase) -> some View {
+        let enCurso = Horario.enCurso(c, entrada.date)
+        return VStack(alignment: .leading, spacing: 1) {
+            Text(enCurso ? "Hasta las \(c.fin)" : "\(Horario.dia(c, entrada.date)) · \(c.inicio)")
+                .font(.headline).monospacedDigit().widgetAccentable().lineLimit(1)
+            Text(c.ramo).font(.subheadline).lineLimit(1).privacySensitive()
+            if enCurso {
+                AvanceClase(clase: c).padding(.top, 2)
+            } else if let l = Horario.lugar(c) {
+                Text(l).font(.caption).foregroundStyle(.secondary).lineLimit(1).privacySensitive()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // Un anillo que se llena durante la clase; antes, la hora de inicio.
+    func circular(_ c: Resumen.Clase) -> some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            if Horario.enCurso(c, entrada.date), let d = Horario.instante(c.inicioAt), let h = Horario.instante(c.finAt), d < h {
+                ProgressView(timerInterval: d...h, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .progressViewStyle(.circular).widgetAccentable()
+            }
+            VStack(spacing: 0) {
+                Text(Horario.enCurso(c, entrada.date) ? c.fin : c.inicio)
+                    .font(.system(.headline, design: .rounded)).monospacedDigit().minimumScaleFactor(0.6)
+                Text(c.sigla ?? c.ramo).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.6)
+                    .privacySensitive()
+            }
+            .padding(6)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Horario.enCurso(c, entrada.date) ? "En clase de \(c.ramo) hasta las \(c.fin)" : "\(c.ramo) a las \(c.inicio)")
+    }
+
+    var vacio: some View {
+        let texto: String
+        if entrada.resumen == nil { texto = "Abre GradeHub" }
+        else if Horario.todas(entrada.resumen).isEmpty { texto = "Agrega tu horario en GradeHub" }
+        // Se acabaron las clases que mandó la app: hay que abrirla para traer la semana.
+        else { texto = "Abre GradeHub para ver tus próximas clases" }
+        return Group {
+            switch familia {
+            case .accessoryInline: Text(texto)
+            case .accessoryCircular: ZStack { AccessoryWidgetBackground(); Image(systemName: "calendar").font(.title3) }
+                .accessibilityLabel(texto)
+            case .accessoryRectangular: Text(texto).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
+            default:
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("HORARIO").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Text(texto).font(.subheadline)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
+struct HorarioWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "horario", provider: ProveedorHorario()) { entrada in
+            HorarioVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Horario")
+        .description("Mira qué clase toca, a qué hora y en qué sala.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+    }
+}
+
 // MARK: - Estadísticas configurable (#638)
 
 enum Estadistica: String, AppEnum {
@@ -861,6 +1144,7 @@ struct GradeHubWidgets: WidgetBundle {
         ProximaEvaluacionWidget()
         PromedioGeneralWidget()
         PendientesWidget()
+        HorarioWidget()
         EstadisticasWidget()
         ActividadPruebaWidget()
     }
