@@ -88,7 +88,26 @@ const igual=(a,b,m)=>assert.equal(JSON.stringify(a),JSON.stringify(b),m);
   assert.equal(run('JSON.stringify(S)'),antesNotas,'traer notas no escribe nada');
   assert.equal(guardados,guardadosNotas);
   assert.deepEqual(JSON.parse(run('JSON.stringify(canvasNotasDraft.map(p=>[p.titulo,p.target,p.valor]))')),
-    [['I1','r|i|',5.5],['Control 2','r|c|2',6.3],['Tarea 1','r|t|',null]],'Control 1 ya tenía nota: no se propone');
+    [['I1','r|i|',5.5],['Control 2','r|c|2',6.3],['Tarea 1','r|t|',5.3]],'Control 1 ya tenía nota: no se propone; 18 de 25 pts con 50 % es 5,3');
+  // Puntaje → nota con exigencia (Lucas, 2026-11-17). Escala chilena, a la décima.
+  const nP=(p,t,e)=>run(`notaDesdePuntaje(${p},${t},${e})`);
+  assert.equal(nP(12.5,25,50),4,'la exigencia justa es un 4,0');assert.equal(nP(0,25,50),1);assert.equal(nP(25,25,50),7);
+  assert.equal(nP(18,25,60),4.9);assert.equal(nP(30,25,50),7,'un bonus sobre el total no pasa de 7,0');
+  assert.equal(nP(-1,25,50),null);assert.equal(nP(5,0,50),null,'sin total no hay nota');assert.equal(nP(5,25,0),null,'exigencia fuera de rango');
+  assert.equal(nP(39.5,79,50),4,'3,95 se aproxima a 4,0');
+  assert.equal(run("exigenciaValida('60 %')"),60);assert.equal(run("exigenciaValida('55,5')"),55.5);assert.equal(run("exigenciaValida('120')"),null);
+  assert.equal(run("exigenciaRamo({})"),50,'sin exigencia, 50 %');assert.equal(run("exigenciaRamo({exigencia:60})"),60);
+  const pct=JSON.parse(run(`JSON.stringify(notaDesdeCanvas({grading_type:'percent',submission:{grade:'72%'}}))`));
+  assert.deepEqual(pct.puntos,{obtenido:72,total:100},'un porcentaje sin puntos se lee como 72 de 100');
+  // En la revisión: 60 % recalcula la fila y borra lo escrito a mano.
+  run("canvasNotasDraft[2].editado='6,9'");run('exigenciaNotaCanvas(2,60)');
+  assert.equal(run('canvasNotasDraft[2].valor'),4.9);assert.equal(run('canvasNotasDraft[2].editado'),null);
+  run("exigenciaNotaCanvas(2,'abc')");assert.equal(run('canvasNotasDraft[2].exigencia'),60,'una exigencia inválida no cambia nada');
+  run('exigenciaNotaCanvas(2,50)');
+  // La exigencia guardada en el ramo manda al traer.
+  run("S.ramos[0].exigencia=60");
+  assert.equal(JSON.parse(run(`JSON.stringify(resumenNotasCanvas([{id:9,name:'Tarea 1',grading_type:'points',points_possible:25,submission:{score:18}}],S.ramos[0]).propuestas.map(p=>[p.valor,p.exigencia]))`))[0].join(),'4.9,60');
+  run("delete S.ramos[0].exigencia");
   nodo('cn-nota-0').value='5,5';nodo('cn-nota-1').value='6,3';nodo('cn-nota-2').value='';
   run('confirmarNotasCanvas()');
   chk(/Tarea 1/.test(nodo('cn-error').textContent),'una fila sin nota detiene el guardado');
