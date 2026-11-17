@@ -20,7 +20,10 @@ function copiarHorario(horario){
     for(const c of JSON.stringify([dias,b.inicio,b.fin,sala,tipo]))hash=Math.imul(hash^c.charCodeAt(0),16777619)>>>0;
     let id=typeof b.id==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(b.id)?b.id:'horario-'+hash.toString(36);
     if(usados.has(id))id='horario-'+hash.toString(36)+'-'+i;
-    usados.add(id);return {id,dias,inicio:b.inicio,fin:b.fin,sala,tipo};
+    // `noVoy` (Lucas, 2026-11-17): la persona marcó que no va a esta clase, por
+    // ejemplo a la ayudantía. Opcional: sin el campo, va. Solo se guarda cuando
+    // es true y no entra al id, así marcarlo no cambia la identidad del bloque.
+    usados.add(id);return {id,dias,inicio:b.inicio,fin:b.fin,sala,tipo,...(b.noVoy===true?{noVoy:true}:{})};
   });
 }
 // Traduce SOLO los módulos con fuente. Cada módulo sigue siendo un bloque:
@@ -59,7 +62,8 @@ function resumenHorarioClases(ramos,ahora=new Date()){
     const civil=new Date(Date.UTC(a,m-1,d+offset,12)),fecha=civil.toISOString().slice(0,10);
     const dia=['D','L','M','W','J','V','S'][civil.getUTCDay()];
     for(const r of ramos||[])for(const b of copiarHorario(r.horario)){
-      if(!b.dias.includes(dia))continue;
+      // Una clase a la que no va no sale en Hoy, en el widget ni en los avisos.
+      if(b.noVoy||!b.dias.includes(dia))continue;
       const inicioAt=instanteHorarioChile(fecha,b.inicio),finAt=instanteHorarioChile(fecha,b.fin);
       if(!inicioAt||!finAt)continue;
       clases.push({id:String(r.id)+':'+b.id+':'+fecha,ramoId:r.id,ramo:r.nombre,
@@ -91,9 +95,13 @@ function abrirHorarioRamo(ramoId){
   const nuevo=()=>({id:uid(),dias:[],inicio:'',fin:'',sala:'',tipo:''});
   if(!bloques.length)bloques.push(nuevo());
   const caja=document.getElementById('modal-content');
-  const leer=()=>{bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>({id:row.dataset.horarioBloque,
+  // El formulario no tiene «no voy»: se conserva del bloque con el mismo id,
+  // para que editar la sala en la web no borre lo que se marcó en la app.
+  const leer=()=>{const noVoy=new Set(bloques.filter(b=>b.noVoy).map(b=>b.id));
+    bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>({id:row.dataset.horarioBloque,
     dias:[...row.querySelectorAll('[name=dia]:checked')].map(n=>n.value),
-    ...Object.fromEntries(['inicio','fin','sala','tipo'].map(k=>[k,row.querySelector('[name='+k+']').value]))}));};
+    ...Object.fromEntries(['inicio','fin','sala','tipo'].map(k=>[k,row.querySelector('[name='+k+']').value])),
+    ...(noVoy.has(row.dataset.horarioBloque)?{noVoy:true}:{})}));};
   const pintar=()=>{
     caja.innerHTML=`<form class="horario-editor"><h2 class="modal-title">Horario de ${esc(ramo.nombre)}</h2>
       <p class="modal-desc">Se repite cada semana. Horas de Chile.</p><div class="horario-bloques">${bloques.map((b,i)=>`
