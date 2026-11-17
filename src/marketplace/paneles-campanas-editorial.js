@@ -76,6 +76,8 @@ function resumenProfesorEditorialHTML(medidas,periodo,ahora,{anuncios=medidas.ma
   const pagadas=costos.filter(c=>c&&!c.sinCosto);
   const costo=costos.every(Boolean)?sumarCostosCampana(pagadas.length?pagadas:costos):null;
   const clp=n=>Number.isFinite(n)?pesosClase(n):'—';
+  // En la app no hay costo ni tope a la vista (3.1.1, campanasSeCompranAqui).
+  const compras=typeof campanasSeCompranAqui!=='function'||campanasSeCompranAqui();
   const porId=new Map(medidas.map(d=>[d.a.id,d]));
   const fila=a=>{
     const d=porId.get(a.id),vig=vigenciaAnuncio(a,ahora);
@@ -84,24 +86,24 @@ function resumenProfesorEditorialHTML(medidas,periodo,ahora,{anuncios=medidas.ma
     return `<li class="cr-fila">
       <div class="cr-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((ESTADOS_ANUNCIO[vig]||[vig])[0])}</small></div>
       <div class="cr-numeros">${cifra('Vistas',numeroPrivado(alcance?.vistas))}${cifra('Aperturas',numeroPrivado(alcance?.aperturas))}${cifra('Contactos',numeroPrivado(alcance?.contactos))}
-        ${cifra('Costo de campaña',d?.costo?.sinCosto?'Sin costo':clp(d?.costo?.total))}${cifra('Tope',clp(d?.costo?.tope))}</div>
+        ${compras?cifra('Costo de campaña',d?.costo?.sinCosto?'Sin costo':clp(d?.costo?.total))+cifra('Tope',clp(d?.costo?.tope)):''}</div>
       <button type="button" class="agent-refresh cr-ver" data-cr-ver="${esc(a.id)}" aria-label="Ver anuncio ${esc(a.titulo||'Sin título')}">Ver anuncio</button></li>`;
   };
   const alcance=filas?alcanceAdminHTML(filas,periodo,metrica,ahora,{comparar,enCurso:true}):
     `<div class="adm-metricas adm-metricas-tres">${['Vistas','Aperturas','Contactos'].map(titulo=>metricaAdminHTML({titulo,valor:'—'})).join('')}</div>
     <p class="clase-sin-datos" role="status">${medidas.length?'Historial no disponible.':'El alcance aparece cuando un anuncio empieza a mostrarse.'}</p>`;
   return `<div class="cr-resumen">
-    <div class="cr-grilla">
-      <section class="adm-tarjeta cr-costo" aria-label="Costo y tope de campañas activas">
+    <div class="cr-grilla${compras?'':' cr-grilla-sola'}">
+      ${compras?`<section class="adm-tarjeta cr-costo" aria-label="Costo y tope de campañas activas">
         <h2>Campañas activas</h2>
         ${metricaAdminHTML({titulo:'Costo acumulado',valor:costo?.sinCosto?'Sin costo':clp(costo?.total)})}
         ${metricaAdminHTML({titulo:'Tope',valor:clp(costo?.tope)})}
         ${costo?.tope>0?`<div class="adm-riel" aria-hidden="true"><i style="transform:scaleX(${Math.min(1,costo.total/costo.tope).toFixed(3)})"></i></div>`:''}
-      </section>
+      </section>`:''}
       <section class="est adm adm-tarjeta cr-alcance" aria-label="Alcance de tus anuncios">
         <div class="adm-tarjeta-cabeza"><h2>Alcance</h2>${filas?periodoPrivadoHTML(periodo):''}</div>
         ${alcance}
-        <details class="cr-metodo"><summary>Cómo se cuentan</summary><p>Vistas, aperturas y contactos cuentan personas por publicación de cada anuncio. El historial agrupa por día. Una misma cuenta puede aparecer en más de un anuncio o publicación. Un contacto indica que alguien abrió la opción de contactar. El costo es acumulado y cada campaña nunca pasa de su tope.</p></details>
+        <details class="cr-metodo"><summary>Cómo se cuentan</summary><p>Vistas, aperturas y contactos cuentan personas por publicación de cada anuncio. El historial agrupa por día. Una misma cuenta puede aparecer en más de un anuncio o publicación. Un contacto indica que alguien abrió la opción de contactar.${compras?' El costo es acumulado y cada campaña nunca pasa de su tope.':''}</p></details>
       </section>
     </div>
     ${anuncios.length?`<section class="cr-anuncios" aria-label="Cifras por anuncio"><h2>Por anuncio</h2><ul>${anuncios.map(fila).join('')}</ul></section>`:''}

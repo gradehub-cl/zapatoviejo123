@@ -5583,6 +5583,8 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .cr-panel .clases-pendientes .agent-refresh{color:var(--fg);text-decoration:underline;text-underline-offset:3px;}
 .cr-panel .cr-resumen{display:grid;gap:1rem;}
 .cr-panel .cr-grilla{display:grid;grid-template-columns:minmax(0,2fr) minmax(12rem,1fr);gap:1rem;align-items:start;}
+/* En la app no hay tarjeta de costo (App Review 3.1.1): el alcance ocupa el ancho. */
+.cr-panel .cr-grilla.cr-grilla-sola{grid-template-columns:minmax(0,1fr);}
 .cr-panel :is(.cr-costo,.cr-anuncios){min-width:0;padding:1rem;border:1px solid var(--border);border-radius:20px;background:var(--card);}
 .cr-panel .cr-costo{display:grid;grid-column:2;grid-row:1;gap:.65rem;}
 .cr-panel .cr-costo .adm-metrica{display:grid;grid-column:auto;gap:.2rem;}
