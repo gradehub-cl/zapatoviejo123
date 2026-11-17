@@ -13,7 +13,10 @@ function comaWrapped(t){return String(t).replace(/(\d)\.(\d)/g,'$1,$2');}
 
 // El trazo irregular del resaltador, detrás de la mitad inferior del texto.
 const HOJA_TRAZOS=['M3 14 C 34 9, 70 17, 104 11 S 168 8, 197 13','M2 12 C 40 16, 80 8, 118 13 S 176 15, 198 10','M4 13 C 28 10, 92 15, 130 10 S 182 12, 196 14'];
+// Una frase larga se parte en varias líneas y el trazo quedaría solo bajo la
+// última: esas se resaltan línea por línea con CSS (`.hoja-marca.larga`).
 function hojaMarca(html,semilla=0){
+  if(String(html).replace(/<[^>]*>/g,'').replace(/&[a-z#0-9]+;/gi,'x').length>16)return `<span class="hoja-marca larga">${html}</span>`;
   return `<span class="hoja-marca"><svg viewBox="0 0 200 24" preserveAspectRatio="none" aria-hidden="true"><path d="${HOJA_TRAZOS[semilla%3]}" pathLength="100"/></svg>${html}</span>`;
 }
 function hojaBurbuja(letra='',llena=false){
