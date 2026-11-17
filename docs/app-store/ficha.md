@@ -100,9 +100,62 @@ cambiar `UC,uchile` por `PUC,FEN` según búsquedas reales.
 
 ## Notas para el revisor (App Review Information → Notes) — borrador
 
+Acordado con Lucas el 2026-11-17: **no se esconde nada al revisor**. Las
+campañas de los profesores se compran solo en la web; en la app no hay compras
+ni enlaces de pago (#1161). Si Apple rechaza algo, se corrige en una versión
+nueva, nunca con un interruptor remoto. La frase sobre los anuncios es la
+acordada y no se cambia sin Lucas.
+
+Se carga **en inglés** (lo leen revisores de todo el mundo). Abajo va la misma
+nota en español, de referencia. Completar `[CUENTA DEMO]` solo en App Store
+Connect (Sign-In Information), nunca en el repo; el plan de la cuenta está en
+`testflight.md`.
+
 ```
-GradeHub calcula promedios y la nota necesaria a partir de la pauta de cada ramo. La cuenta demo trae ramos y notas ficticias para ver la Agenda, Estadísticas y los widgets con datos. Los avisos marcados "Publicidad · Clase particular" son clases particulares pagadas por profesores revisados por nuestro equipo; el contacto se abre fuera de la app. La cuenta se elimina en Ajustes → Datos y cuenta → Eliminar mi cuenta.
+GradeHub helps university students in Chile track their grades: each course follows its official grading scheme, and the app shows the course average, the semester average and the grade needed in the remaining evaluations to pass.
+
+Demo account: [CUENTA DEMO] (email and password, synthetic data only). It has courses with grades and upcoming evaluations so you can see Agenda, Statistics and the widgets with content.
+
+Sign in: email, Sign in with Apple or Google.
+
+Ads: the app shows ads for private tutoring classes, always labeled "Publicidad · Clase particular" (Spanish for "Ad · Private class"). Which ad appears on the Home screen is decided on the device, comparing each campaign's audience with the student's courses and grades; grades are not sent to our servers for this. Students can turn it off in Settings → Datos y cuenta → "Usar mis notas para elegir anuncios"; then no recommendations appear on Home. Ads for private tutoring classes are managed by GradeHub directly with the tutors; the app has no purchases and no payment links. Contacting a tutor opens outside the app (WhatsApp, Instagram or a web link), and the class price shown is what the tutor charges the student for an in-person or one-to-one class.
+
+Tutor accounts: tutors approved by our team see their ads and reach numbers in the "Clases" tab and can pause them. They cannot create, renew or pay for campaigns in the app.
+
+User-generated content: every ad, tutor profile and professor rating has "Denunciar o bloquear" (report or block). Blocked authors are managed in Settings → Datos y cuenta. Reports are reviewed by our team.
+
+Account deletion: Settings → Datos y cuenta → Eliminar mi cuenta. Accounts that use Sign in with Apple are revoked with Apple before deletion. Please do not delete the demo account; if you want to test deletion, create a new account.
+
+Widgets: long-press the Home Screen → Edit → Add Widget → GradeHub (Next evaluation, Overall average, Pending, Next class, Statistics).
+
+Not affiliated with any university.
 ```
+
+Referencia en español:
+
+```
+GradeHub ayuda a estudiantes universitarios de Chile a llevar sus notas: cada ramo sigue su pauta oficial y la app muestra el promedio del ramo, el del semestre y la nota que se necesita en lo que queda para aprobar.
+
+Cuenta demo: [CUENTA DEMO] (correo y contraseña, solo datos ficticios). Tiene ramos con notas y evaluaciones próximas para ver la Agenda, Estadísticas y los widgets con contenido.
+
+Acceso: correo, Entrar con Apple o Google.
+
+Anuncios: la app muestra anuncios de clases particulares, siempre marcados «Publicidad · Clase particular». Qué anuncio aparece en Inicio se decide en el dispositivo, comparando el público de cada campaña con los ramos y notas del estudiante; las notas no se envían a nuestros servidores para eso. Se puede apagar en Ajustes → Datos y cuenta → «Usar mis notas para elegir anuncios»; apagado, no aparecen recomendaciones en Inicio. Los anuncios de clases particulares los gestiona GradeHub directamente con los profesores; la app no tiene compras ni enlaces de pago. El contacto con el profesor se abre fuera de la app (WhatsApp, Instagram o un enlace web), y el precio que se ve es lo que el profesor le cobra al estudiante por una clase presencial o individual.
+
+Cuentas de profesor: los profesores aprobados por nuestro equipo ven sus anuncios y su alcance en la pestaña «Clases» y pueden pausarlos. No pueden crear, renovar ni pagar campañas en la app.
+
+Contenido de usuarios: cada anuncio, perfil de profesor y calificación de profesor tiene «Denunciar o bloquear». Los autores bloqueados se administran en Ajustes → Datos y cuenta. Nuestro equipo revisa las denuncias.
+
+Borrar la cuenta: Ajustes → Datos y cuenta → Eliminar mi cuenta. En las cuentas que entran con Apple, primero se revoca el acceso con Apple. Por favor no borren la cuenta demo; para probar el borrado, creen una cuenta nueva.
+
+Widgets: mantener presionada la pantalla de inicio → Editar → Agregar widget → GradeHub (Próxima evaluación, Promedio general, Pendientes, Próxima clase, Estadísticas).
+
+Sin relación con ninguna universidad.
+```
+
+Antes de cargarla, verificar en el build que se envía: que estén #1161
+(sin compras en la app) y #1163 (interruptor de anuncios por notas), y que
+cada ruta nombrada exista con ese texto en la app.
 
 ## Pendiente de revisar
 

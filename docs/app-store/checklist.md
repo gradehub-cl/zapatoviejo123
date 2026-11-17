@@ -18,12 +18,7 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 - [x] El repo usa `group.cl.gradehub.app.shared` (#1111, mergeada en `ios`).
 - [x] `ITSAppUsesNonExemptEncryption = NO` en `ios/App/App/Info.plist` (#1127).
 - [x] Solo iPhone: `TARGETED_DEVICE_FAMILY = 1` (#1131).
-- [ ] **[código]** Entrar con Apple: la app ofrece «Continuar con Google»
-      (`src/app-session/oauth-y-recuperacion.js`), así que la guideline 4.8 pide
-      una opción equivalente (Sign in with Apple). Está en el PR borrador
-      **#1112**; hoy `App.entitlements` en `main` no tiene
-      `com.apple.developer.applesignin`. Debe estar mergeado antes de App Review
-      (para TestFlight externo es muy recomendable).
+- [x] **[código]** Entrar con Apple (guideline 4.8): #1112, y revocar con Apple al borrar la cuenta: #1133.
 - [ ] **[Lucas]** Developer → Certificates, IDs & Profiles → **Keys** → crear una
       key con **Sign in with Apple** habilitado, asociada al App ID primario
       `cl.gradehub.app`. Descargar el `.p8` (se baja una sola vez) y anotar el Key ID.
@@ -61,13 +56,15 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 - [ ] **[tras merge]** App Information: nombre, subtítulo, categoría Educación,
       URL de privacidad (`ficha.md`).
 - [ ] **[tras merge]** Versión 1.0: texto promocional, descripción, palabras
-      clave, URLs de soporte y marketing, notas al revisor (`ficha.md`).
+      clave, URLs de soporte y marketing, notas al revisor (`ficha.md`, en inglés).
+- [x] **[código]** En la app no se compran campañas (3.1.1): #1161.
+- [ ] **[código]** Interruptor «Usar mis notas para elegir anuncios» (5.1.2 / 2.5.18): #1163.
+- [ ] **[código]** Versión B lista por si rechazan por 2.5.18: anuncios sin notas en la app (PR en borrador).
 - [ ] **[tras merge]** App Privacy: cargar las etiquetas de `privacidad.md`
       (tracking: No) — después de cerrar sus puntos «Verificar».
 - [ ] **[tras merge]** Age Rating: cuestionario según `age-rating.md`.
 - [ ] **[Lucas]** Decidir si se fuerza 13+ (ver `age-rating.md`).
-- [ ] **[código]** Botón «Reportar» en avisos/perfiles de profesores (guideline
-      1.2) si se declara contenido de usuarios.
+- [x] **[código]** «Denunciar o bloquear» en anuncios, perfiles y opiniones (guideline 1.2): #1137.
 - [ ] **[código]** Ajustes a `privacidad.html` para iOS (ver `privacidad.md` §1).
 - [ ] **[Lucas]** Capturas de 6,9". Sin iPad: la app parte solo en iPhone (#1131).
 - [ ] **[Lucas]** Precio: gratis. **Disponibilidad: todos los países menos los
