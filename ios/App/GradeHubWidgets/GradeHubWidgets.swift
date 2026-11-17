@@ -700,44 +700,53 @@ struct CuentaRegresiva: View {
     }
 }
 
-// Las fases que acompañan la cuenta regresiva, iguales a los avisos de la app.
+// Las fases que acompañan la cuenta regresiva (Lucas, 2026-10-10, #675).
+// "Estudia" acompaña la cuenta regresiva desde que aparece la Actividad y a
+// las 2 horas empiezan las demás. Cada una parte con un aviso de la app
+// (`avisosDePrueba`): si cambias una hora aquí, cámbiala allá.
 struct Fase: Identifiable {
     let id: String, icono: String, desde: Date, hasta: Date
     static let horasAntes: Double = 6
     static func de(_ e: ActividadPruebaAtributos.ContentState) -> [Fase] {
         let m = { (min: Double) in e.inicio.addingTimeInterval(-min * 60) }
         return [
-            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(30)),
-            Fase(id: "Repaso", icono: "text.book.closed", desde: m(30), hasta: m(15)),
-            Fase(id: "Agua", icono: "drop", desde: m(15), hasta: m(10)),
-            Fase(id: "Sala", icono: "figure.walk", desde: m(10), hasta: e.inicio),
-            Fase(id: "Prueba", icono: "pencil", desde: e.inicio, hasta: e.fin),
+            Fase(id: "Estudia", icono: "book", desde: m(horasAntes * 60), hasta: m(120)),
+            Fase(id: "Repaso", icono: "text.book.closed", desde: m(120), hasta: m(60)),
+            Fase(id: "Descanso", icono: "cup.and.saucer", desde: m(60), hasta: m(30)),
+            Fase(id: "Agua", icono: "drop", desde: m(30), hasta: m(15)),
+            Fase(id: "Sala", icono: "figure.walk", desde: m(15), hasta: e.inicio),
         ]
     }
 }
 
 // Un tramo por fase, de igual ancho: cada uno se llena solo durante su tiempo.
 // Neutro, como el riel de avance de Inicio: el color del ramo vive en su línea.
+// La etiqueta va centrada bajo su tramo: el nombre, y si con el texto grande
+// no cabe, solo el ícono. Nombre e ícono juntos no caben en cinco tramos a
+// 375 pt ("Descanso" quedaba sin ícono y el resto con él).
 struct RielFases: View {
     let estado: ActividadPruebaAtributos.ContentState
     var conEtiquetas = true
     var body: some View {
+        let fases = Fase.de(estado)
         HStack(alignment: .top, spacing: 4) {
-            ForEach(Fase.de(estado)) { f in
-                VStack(alignment: .leading, spacing: 4) {
+            ForEach(fases) { f in
+                VStack(alignment: .center, spacing: 4) {
                     ProgressView(timerInterval: f.desde...f.hasta, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
                         .progressViewStyle(.linear).tint(.primary)
                     if conEtiquetas {
-                        Label(f.id, systemImage: f.icono).labelStyle(.titleAndIcon)
-                            .font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                            .lineLimit(1).minimumScaleFactor(0.8)
+                        ViewThatFits(in: .horizontal) {
+                            Text(f.id)
+                            Image(systemName: f.icono)
+                        }
+                        .font(.caption2.weight(.medium)).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Estudia, último repaso a las \(Hora.de(Fase.de(estado)[1].desde)), agua, sala y prueba a las \(Hora.de(estado.inicio))")
+        .accessibilityLabel(fases.map { "\($0.id) a las \(Hora.de($0.desde))" }.joined(separator: ", ") + "; prueba a las \(Hora.de(estado.inicio))")
     }
 }
 
@@ -749,7 +758,7 @@ struct BotonesSensacion: View {
             ForEach(1...5, id: \.self) { v in
                 Button(intent: ResponderSensacion(clave: clave, valor: v)) {
                     Text(Sensacion.texto(v)).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .frame(maxWidth: .infinity, minHeight: 44) // HIG: 44 pt para tocar
                         .background(.primary.opacity(0.12), in: Capsule())
                 }
                 .buttonStyle(.plain)

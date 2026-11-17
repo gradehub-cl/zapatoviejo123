@@ -1,7 +1,8 @@
 // ─── AVISOS ANTES DE UNA EVALUACIÓN (app iOS, #645) ─────────────────────────
 // Versión sin servidor. Para cada evaluación pendiente CON HORA: notificaciones
-// locales de cada fase (repaso, baño y agua, caminar a la sala, cómo te fue) y
-// la Actividad en Vivo desde 6 horas antes, con el riel de fases y "¿cómo te fue?".
+// locales al empezar cada fase (repaso, descanso, agua, caminar a la sala) y al
+// terminar (cómo te fue), y la Actividad en Vivo desde 6 horas antes, con el
+// riel de fases y "¿cómo te fue?". Fases decididas por Lucas el 2026-10-10 (#675).
 // Es opt-in y vale por dispositivo: la preferencia no entra a S ni a la nube.
 // Sin hora no hay a partir de cuándo contar, así que no se avisa nada.
 const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
@@ -33,15 +34,18 @@ function pruebasConHora(ahora,dias){
 }
 function idAvisoPrueba(clave,fase){
   let h=5381;for(const c of clave)h=((h*33)^c.charCodeAt(0))>>>0;
-  return (h%200000000)*4+fase+1;
+  return (h%200000000)*5+fase+1; // cinco avisos por evaluación
 }
-// Los textos de cada fase. Tono de compañero (AGENTS.md); los decide Lucas.
+// Uno al empezar cada fase del riel de la Actividad (Fase.de en Swift): repaso
+// −2 h, descanso −1 h, agua −30 min y sala −15 min. Tono de compañero
+// (AGENTS.md); los textos los decide Lucas.
 function avisosDePrueba(p,ahora){
   const lugar=p.sala?`la sala ${p.sala}`:'tu sala';
   return [
-    [30,'Último repaso',`${p.evaluacion} de ${p.ramo} empieza en 30 minutos.`,'ramo'],
-    [15,'Anda al baño y llena tu botella de agua',`${p.evaluacion} empieza en 15 minutos.`,'ramo'],
-    [10,`Camina a ${lugar}`,`${p.evaluacion} de ${p.ramo} a las ${horaDe(p.inicio)}.`,'ramo'],
+    [120,'Último repaso',`${p.evaluacion} de ${p.ramo} empieza en 2 horas.`,'ramo'],
+    [60,'Descansa un rato',`${p.evaluacion} empieza en 1 hora. Despéjate antes de entrar.`,'ramo'],
+    [30,'Anda al baño y llena tu botella de agua',`${p.evaluacion} empieza en 30 minutos.`,'ramo'],
+    [15,`Camina a ${lugar}`,`${p.evaluacion} de ${p.ramo} a las ${horaDe(p.inicio)}.`,'ramo'],
     [-DURACION_PRUEBA_MIN,'¿Cómo crees que te fue?',`${p.evaluacion} de ${p.ramo}. Toca para simular tu nota.`,'simular'],
   ].map(([antes,titulo,cuerpo,destino],fase)=>({id:idAvisoPrueba(p.clave,fase),at:new Date(p.inicio.getTime()-antes*6e4),
     titulo,cuerpo,url:`cl.gradehub.app://${destino}/${p.ramoId}`}))
@@ -84,10 +88,16 @@ function sincronizarActividadesPrueba(ahora){
 // el iPhone lo deja en el App Group y acá se recoge. Es una sensación, no una
 // nota: vive solo en este dispositivo (fuera de S y de la nube) y sirve para
 // abrir el simulador con una nota de partida que la persona cambia si quiere.
+// Escala de Lucas (2026-10-10, #675): cada respuesta es un tramo de nota y su
+// nota esperada (el centro). "Normal" es angosto, alrededor del 4,0. El borde
+// cuenta para el tramo de abajo: un 2,5 es "Muy mal" y un 3,7, "Mal".
 const CLAVE_SENSACIONES='gradehub_sensaciones';
 const SENSACIONES=[
-  {valor:1,texto:'Muy mal',nota:'2,5'},{valor:2,texto:'Mal',nota:'3,5'},{valor:3,texto:'Normal',nota:'4,5'},
-  {valor:4,texto:'Bien',nota:'5,5'},{valor:5,texto:'Muy bien',nota:'6,5'}];
+  {valor:1,texto:'Muy mal',desde:1,hasta:2.5,nota:'1,8'},{valor:2,texto:'Mal',desde:2.5,hasta:3.7,nota:'3,1'},
+  {valor:3,texto:'Normal',desde:3.7,hasta:4.3,nota:'4,0'},{valor:4,texto:'Bien',desde:4.3,hasta:5.6,nota:'5,0'},
+  {valor:5,texto:'Muy bien',desde:5.6,hasta:7,nota:'6,3'}];
+// El tramo donde cae una nota.
+function sensacionDeNota(nota){return SENSACIONES.find(s=>nota<=s.hasta)||SENSACIONES[SENSACIONES.length-1];}
 function sensacionesGuardadas(){
   try{const o=JSON.parse(localStorage.getItem(CLAVE_SENSACIONES)||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{};}
   catch(e){return {};}

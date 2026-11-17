@@ -10,10 +10,16 @@ function olfatoGuardado(){
   try{const a=JSON.parse(localStorage.getItem(CLAVE_OLFATO)||'[]');return Array.isArray(a)?a.filter(x=>x&&x.valor>=1&&x.valor<=5&&typeof x.nota==='number'):[];}
   catch(e){return [];}
 }
-// En una prueba, ocho décimas de diferencia ya es otra sensación; en el promedio
-// de varias, cinco bastan para que sea costumbre y no casualidad.
-function veredictoOlfato(diferencia,umbral=0.8){
-  return diferencia>=umbral?'pesimista':diferencia<=-umbral?'optimista':'acierto';
+// Le achuntaste si la nota cayó dentro del tramo de lo que dijiste; sobre el
+// tramo fuiste pesimista y bajo él, optimista (#675).
+function veredictoOlfato(nota,s){
+  const v=sensacionDeNota(nota).valor;
+  return v>s.valor?'pesimista':v<s.valor?'optimista':'acierto';
+}
+// Cuánto quedó la nota fuera del tramo: 0 adentro, positivo sobre, negativo bajo.
+function distanciaTramo(nota,s){
+  const r=veredictoOlfato(nota,s);
+  return r==='pesimista'?nota-s.hasta:r==='optimista'?nota-s.desde:0;
 }
 // Junta cada sensación con la nota que llegó después. Devuelve lo recién revelado.
 function revisarOlfato(){
@@ -32,7 +38,7 @@ function revisarOlfato(){
     if(!nota)return;
     const par={valor:x.valor,nota:Math.round(nota.valor*10)/10,fecha:Date.now()};
     pares.push(par);delete todas[clave];
-    const resultado=veredictoOlfato(par.nota-parseNota(s.nota));
+    const resultado=veredictoOlfato(par.nota,s);
     reveladas.push({evaluacion:nota.nombre||cat.nombre,s,nota:par.nota,resultado});
     track('olfato_revelado',{resultado});
   });
@@ -56,8 +62,13 @@ function resumenOlfato(){
   const pares=olfatoGuardado();
   const filas=SENSACIONES.map(s=>({s,h:notaHabitual(s.valor)||(()=>{const de=pares.filter(x=>x.valor===s.valor);
     return de.length?{prom:de[0].nota,veces:1,texto:simConComa(de[0].nota.toFixed(1))}:null;})()})).filter(f=>f.h);
-  const dif=pares.length?pares.reduce((a,x)=>a+x.nota-parseNota(SENSACIONES[x.valor-1].nota),0)/pares.length:0;
-  return {pares:pares.length,filas,diferencia:dif,veredicto:pares.length>=3?veredictoOlfato(dif,0.5):null};
+  // Veredicto general (propuesta para Lucas, #675): si le achuntaste a la mitad
+  // o más, buen olfato; si no, manda hacia dónde te alejas del tramo en promedio.
+  const s=x=>SENSACIONES[x.valor-1];
+  const aciertos=pares.filter(x=>veredictoOlfato(x.nota,s(x))==='acierto').length;
+  const dif=pares.length?pares.reduce((a,x)=>a+distanciaTramo(x.nota,s(x)),0)/pares.length:0;
+  const veredicto=pares.length>=3?(aciertos*2>=pares.length||!dif?'acierto':dif>0?'pesimista':'optimista'):null;
+  return {pares:pares.length,aciertos,filas,diferencia:dif,veredicto};
 }
 function pintarAvisosPruebas(){
   const b=document.getElementById('s-avisos-pruebas');
