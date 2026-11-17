@@ -155,11 +155,15 @@ function borradoGomaWrapped(g){
 // subtítulos y controles del sistema; no arranca solo ni con sonido. Sin
 // archivo queda el marco: vacío con un signo de pregunta si la persona no
 // calificó a nadie, o el espacio reservado en la vista previa.
-function videoWrapped(v,sinCalificar){
-  if(sinCalificar)return `<figure class="hoja-video vacio"><div><span class="hoja-video-signo" aria-hidden="true">?</span></div></figure>`;
-  if(!v||!v.src)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Se carga en el bucket <code>wrapped</code> (ver wrapped_recado.sql).</small></div>${v&&v.quien?`<figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption>`:''}</figure>`;
-  return `<figure class="hoja-video"><video src="${esc(v.src)}"${v.poster?` poster="${esc(v.poster)}"`:''} controls playsinline preload="metadata">${v.subtitulos?`<track kind="captions" src="${esc(v.subtitulos)}" srclang="es" label="Español" default>`:''}</video>
-    <figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption></figure>`;
+function videoWrapped(v){
+  const pie=v&&v.quien?`<figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption>`:'';
+  if(v&&v.fallo)return `<figure class="hoja-video vacio"><div><p>No pudimos cargar el video.</p><small>Vuelve a abrir tu hoja más tarde para verlo.</small></div>${pie}</figure>`;
+  if(!v||!v.src)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Se carga en el bucket <code>wrapped</code> (ver wrapped_recado.sql).</small></div>${pie}</figure>`;
+  // Sin póster, Safari en iPhone muestra un cuadro negro hasta apretar play:
+  // `#t=0.1` le pide pintar el primer cuadro.
+  const src=v.poster?v.src:`${v.src}#t=0.1`;
+  return `<figure class="hoja-video"><video src="${esc(src)}"${v.poster?` poster="${esc(v.poster)}"`:''} controls playsinline preload="metadata">${v.subtitulos?`<track kind="captions" src="${esc(v.subtitulos)}" srclang="es" label="Español" default>`:''}</video>
+    ${pie}</figure>`;
 }
 // Un tablero de post-its: lo bueno del semestre, de a uno.
 function corchoWrapped(notas){
