@@ -74,6 +74,17 @@ check('con pocos datos no repite ni inventa: primera=mejor, un solo ramo',()=>{
   assert.ok(!JSON.stringify(s).includes('ramo estrella')&&!JSON.stringify(s).includes('Ramo estrella'),'con un ramo no hay estrella');
   assert.ok(uno);
 });
+check('pulido tras la revisión en el iPhone: desempate, goma, empuje y útiles',()=>{
+  const html=run('rankingWrapped([{nombre:"A",avg:6.42},{nombre:"B",avg:6.38},{nombre:"C",avg:4.9}])');
+  assert.match(html,/6,42[\s\S]*6,38[\s\S]*4,9</,'los empatados con un decimal llevan el segundo; el resto, uno');
+  const goma=run('gomaWrapped("7,0",false)');
+  assert.match(goma,/hoja-goma pantalla/);assert.match(goma,/hoja-goma-btn/,'Borrar de una sigue para VoiceOver');
+  assert.equal(run('gomaWrapped("7,0",false)'),goma,'el escondite es el mismo en cada apertura');
+  assert.doesNotMatch(run('gomaWrapped("7,0",true)'),/canvas/);
+  const emp=run('empujeWrapped("7,0",5.1,5.4)');
+  assert.doesNotMatch(emp,/NaN/);assert.match(emp,/--desde:[\d.]+%;--hasta:[\d.]+%/);assert.match(emp,/>5,1<[\s\S]*>5,4</);
+  for(const k of ['sacapuntas','gastado','regla','avion'])assert.match(run(`hojaObjeto("${k}")`),new RegExp(`data-obj="${k}"`));
+});
 check('la tarjeta lleva solo el primer nombre; las cifras van con coma',()=>{
   datos([ramo('A',[nota('a1',5.5,'2026-09-01'),nota('a2',6.5,'2026-10-01')])]);
   const slides=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2")');
@@ -106,7 +117,7 @@ check('un semestre con un ramo reprobado trae ánimo y no compara hacia abajo',(
   const slides=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),{curso:{ramo:"B",mejorQue:12,total:30},uni:{mejorQue:30,total:90}},"2026-2")');
   const animo=slides.find(x=>x.tipo==='animo');assert.ok(animo);assert.match(animo.viz,/Sacaste adelante <b>1<\/b> ramo\./);
   assert.ok(!slides.some(x=>/wrapped-regla/.test(x.viz||'')),'sin percentiles bajo el 50');
-  assert.match(slides.find(x=>x.k==='Tu promedio').prep.texto,/no cuenta toda la historia/);
+  assert.match(slides.find(x=>x.tipo==='promedio').prep.texto,/no cuenta toda la historia/);
   const bueno=run('slidesWrapped(extrasWrapped(datosWrapped([S.ramos[0]]),[S.ramos[0]],true),{curso:{ramo:"A",mejorQue:80,total:30}},"2026-2")');
   assert.ok(!bueno.some(x=>x.tipo==='animo'));assert.ok(bueno.some(x=>/wrapped-regla/.test(x.viz||'')));
 });

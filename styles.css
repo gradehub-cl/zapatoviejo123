@@ -3090,7 +3090,10 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .wrapped-indice button{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:4px 10px;border:0;border-radius:10px;background:transparent;color:var(--tinta);font:inherit;font-size:16px;text-align:left;cursor:pointer;}
 .wrapped-indice button[aria-current]{background:color-mix(in srgb,var(--acento) 55%,transparent);}
 .wrapped-indice span:not(.hoja-burbuja){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.wrapped-slide{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:16px 0 20px;}
+/* La historia se extiende hasta el borde de la pantalla y recupera el margen
+   con padding: así un círculo a lápiz o un post-it girado que sobresale del
+   texto entra en el margen en vez de cortarse (Lucas, 2026-11-17). */
+.wrapped-slide{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;justify-content:center;gap:14px;margin-inline:calc(-24px - env(safe-area-inset-left,0px)) calc(-24px - env(safe-area-inset-right,0px));padding:16px calc(24px + env(safe-area-inset-right,0px)) 20px calc(24px + env(safe-area-inset-left,0px));}
 .wrapped-slide>*{animation:wrappedEntra 380ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso));}
 .wrapped[data-dir="atras"] .wrapped-slide>*{animation-name:wrappedEntraAtras;}
 .wrapped-k{margin:0;font-size:20px;line-height:1.3;font-weight:500;color:var(--tinta);}
@@ -3148,13 +3151,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .wrapped-regla text{fill:var(--tinta);font-family:var(--font-ui);font-size:13px;font-weight:600;}
 .wrapped-regla .tu{font-size:17px;font-weight:700;}
 .wrapped-regla .trazo{fill:none;stroke:var(--tinta);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
-.wrapped-arco{width:min(100%,280px);overflow:visible;}
-.wrapped-arco path{fill:none;stroke-width:12;stroke-linecap:round;}
-.wrapped-arco .pista{stroke:var(--linea);}
-.wrapped-arco .valor{stroke:var(--tinta);stroke-dasharray:var(--v) 100;}
-.wrapped-arco line{stroke:var(--tinta);stroke-width:2;}
-.wrapped-arco text{fill:var(--tinta-2);font-family:var(--font-ui);font-size:11px;font-weight:600;}
-.wrapped-arco circle{fill:var(--acento);stroke:var(--tinta);stroke-width:2;}
 .wrapped-accion,.wrapped-compartir,.wrapped-descargar{min-height:52px;border-radius:26px;font:inherit;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
 .wrapped-accion,.wrapped-compartir{border:0;background:var(--tinta);color:var(--sup);}
 .wrapped-descargar{border:1.5px solid var(--tinta);background:transparent;color:var(--tinta);}
@@ -3172,6 +3168,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
    Estirada al ancho del computador, las cifras quedaban pegadas a la izquierda. */
 @media (min-width:768px){
   .wrapped-arriba,.wrapped-slide,.wrapped-pasos{width:100%;max-width:430px;margin-inline:auto;}
+  .wrapped-slide{max-width:478px;}
   .wrapped-indice{left:50%;right:auto;width:min(430px,calc(100% - 32px));transform:translateX(-50%);}
 }
 @keyframes wrappedAbrir{from{opacity:0;transform:translateY(24px) scale(.98);}}
@@ -3219,6 +3216,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-objeto .trazo-fondo{stroke:none;transform-box:fill-box;transform-origin:left center;animation:hojaBarre 420ms var(--ease-out) 560ms backwards;}
 .hoja-objeto .cinta{fill:#FBFAF6;stroke-width:1.8;transform-box:fill-box;transform-origin:left center;animation:hojaBarre 380ms var(--ease-out) 560ms backwards;}
 .hoja-objeto text.llena{fill:var(--sup);}
+.hoja-objeto .estela{stroke-dasharray:4 7;animation:wrappedAparece var(--motion-base) var(--ease-out) 520ms backwards;}
 .hoja-objeto .migas{animation:wrappedAparece 300ms var(--ease-out) 640ms backwards;}
 .hoja-objeto .sello{animation:hojaSello 420ms var(--ease-out) 380ms backwards;}
 .hoja-objeto .huella{stroke:var(--acento);stroke-width:5;stroke-dasharray:6 5;animation:wrappedAparece var(--motion-fast) var(--ease-out) 700ms backwards;}
@@ -3226,6 +3224,33 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 @keyframes hojaBarre{from{transform:scaleX(0);}}
 @keyframes hojaSello{0%{transform:translateY(-22px);}70%{transform:translateY(4px);}100%{transform:none;}}
 @keyframes wrappedAparece{from{opacity:0;}}
+/* El promedio en la casilla «Nota» de la prueba. Cuenta hasta su valor y, si
+   el semestre salió bien, cae el timbre y la hoja acusa el golpe. */
+.hoja-casilla{position:relative;margin:40px 6px 14px;padding:30px 14px 20px;border:3px solid var(--tinta);border-radius:6px 12px 8px 14px;transform:rotate(-1deg);}
+.hoja-casilla .etq{position:absolute;top:-13px;left:16px;padding:0 8px;background:var(--sup);font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;}
+.hoja-casilla .wrapped-big{font-size:clamp(110px,40vw,200px);line-height:.85;text-align:center;}
+.hoja-casilla .hoja-timbre{top:-62px;right:-16px;width:112px;height:112px;animation-delay:1100ms;}
+.hoja-casilla.con-sello{animation:hojaGolpe 260ms var(--ease-out) 1380ms both;}
+@keyframes hojaGolpe{30%{transform:rotate(-1deg) translate(2px,3px);}60%{transform:rotate(-1deg) translate(-2px,-1px);}100%{transform:rotate(-1deg);}}
+/* «Una sola nota»: la nota cae como post-it y empuja tu promedio en la regla. */
+.hoja-empuje{display:flex;flex-direction:column;gap:46px;}
+.hoja-empuje .cae{align-self:flex-start;animation:hojaCae 520ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 240ms);}
+.hoja-empuje .hoja-postit{width:auto;min-width:150px;margin:0;}
+.hoja-empuje .hoja-postit b{display:block;font-size:64px;font-weight:900;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
+@keyframes hojaCae{0%{opacity:0;transform:translateY(-40px) rotate(-10deg);}70%{opacity:1;transform:translateY(4px);}100%{transform:none;}}
+.hoja-empuje .regla{position:relative;}
+.hoja-empuje svg{display:block;width:100%;height:auto;overflow:visible;}
+.hoja-empuje svg rect{fill:var(--sup);stroke:var(--tinta);stroke-width:1.5;}
+.hoja-empuje svg path{fill:none;stroke:var(--tinta);stroke-width:1.2;}
+.hoja-empuje svg text{fill:var(--tinta-2);font-family:var(--font-ui);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;}
+.hoja-empuje .banda{position:absolute;top:8%;left:var(--desde);width:calc(var(--hasta) - var(--desde));height:34%;background:var(--acento);opacity:.85;transform-origin:left center;animation:hojaBarre 700ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 900ms);}
+.hoja-empuje .regla{margin-bottom:22px;}
+.hoja-empuje .antes{position:absolute;top:calc(100% + 4px);left:var(--desde);transform:translateX(-50%);font-size:15px;font-weight:700;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
+.hoja-empuje .antes::before{content:"";position:absolute;bottom:100%;left:50%;width:1.5px;height:10px;margin-left:-.75px;background:var(--tinta-2);}
+.hoja-empuje .marca{position:absolute;top:-36px;right:0;bottom:0;left:0;pointer-events:none;transform:translateX(var(--hasta));animation:hojaEmpuja 700ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 900ms);}
+.hoja-empuje .marca i{position:absolute;top:26px;bottom:-4px;left:-1.5px;width:3px;border-radius:2px;background:var(--tinta);}
+.hoja-empuje .marca span{position:absolute;top:0;left:0;transform:translateX(-50%);font-size:22px;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums;}
+@keyframes hojaEmpuja{from{transform:translateX(var(--desde));}}
 /* Las revelaciones con su metáfora: semana, prueba, barras, corrector y curva.
    Entran después de la pieza que las contiene (--d * --paso). */
 .wrapped-heroe{position:relative;}
@@ -3260,10 +3285,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-barras .ahora .etq{color:var(--tinta);}
 .hoja-barras .fila b{font-size:20px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
 .hoja-barras .escala{display:flex;justify-content:space-between;margin:0 calc(3em + 10px) 0 94px;font-size:12px;font-weight:600;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
-.hoja-corrige{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
-.hoja-corrige .viejo{position:relative;font-size:clamp(48px,14vw,64px);line-height:1;font-weight:800;letter-spacing:-.03em;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
-.hoja-corrige .cinta{position:absolute;left:-8px;right:-8px;top:44%;height:.24em;background:#FBFAF6;border:1.5px solid var(--linea);border-radius:2px;transform-origin:left center;animation:hojaBarre 420ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 480ms);}
-.hoja-corrige .nuevo{font-size:clamp(96px,30vw,150px);font-weight:900;line-height:.9;letter-spacing:-.05em;font-variant-numeric:tabular-nums;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 860ms);}
 .hoja-curva{display:block;width:100%;max-width:360px;height:auto;overflow:visible;}
 .hoja-curva path{fill:none;stroke-linecap:round;stroke-linejoin:round;}
 .hoja-curva .umbral{stroke:var(--tinta-2);stroke-width:1.5;stroke-dasharray:4 5;}
@@ -3296,6 +3317,14 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-goma{position:relative;padding:6px 12px 10px 0;}
 .hoja-goma canvas{position:absolute;inset:-8px -8px -8px -12px;width:calc(100% + 20px);height:calc(100% + 16px);color:var(--tinta);touch-action:none;cursor:crosshair;}
 .hoja-goma.borrada .wrapped-big{animation:hojaRellena 320ms var(--ease-out) backwards;}
+.wrapped-slide[data-tipo="goma"]{position:relative;}
+/* La goma a pantalla completa: toda la hoja rayada y la nota en algún lado. */
+.hoja-goma.pantalla{position:absolute;inset:0;padding:0;}
+.hoja-goma.pantalla .wrapped-big{position:absolute;left:var(--x);top:var(--y);margin:0;transform:translate(-50%,-50%);}
+.hoja-goma.pantalla canvas{inset:0;width:100%;height:100%;}
+.hoja-goma-pie{position:absolute;left:0;right:0;bottom:12px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
+.hoja-goma-pie p{margin:0;padding:6px 12px;border-radius:8px;background:var(--sup);font-size:16px;font-weight:600;}
+.hoja-goma-pie .hoja-goma-btn{pointer-events:auto;background:var(--sup);}
 .hoja-goma-btn{min-height:44px;padding:0 18px;border:1.5px dashed var(--tinta);border-radius:22px;background:transparent;color:var(--tinta);font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
 .hoja-goma-btn:focus-visible{outline:3px solid var(--tinta);outline-offset:2px;}
 /* El recado del profe: una foto instantánea pegada con cinta a la hoja. */

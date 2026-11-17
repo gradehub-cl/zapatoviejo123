@@ -64,8 +64,8 @@ chk('VoiceOver lee la cifra final, no el conteo',/aria-hidden="true"/.test(cifra
 chk('un porcentaje cuenta con su signo',/data-suf="%"/.test(run('cifraWrapped("84%")')));
 const todas=JSON.stringify(run('slidesWrapped(datosWrapped(__ramos),{curso:{ramo:"Micro",mejorQue:84,total:26},uni:{total:121,mejorQue:71}},"2026-2")'));
 // Una sola comparación: la del curso si existe; la de la universidad si no (2026-11-07).
-chk('promedio con arco, estrella con ranking y una comparación con regla',/wrapped-arco/.test(todas)&&/wrapped-ranking/.test(todas)&&(todas.match(/wrapped-regla/g)||[]).length===1);
-chk('el arco no usa colores del semáforo',!/var\(--(green|yellow|red)/.test(run('arcoWrapped(3.2)')));
+chk('promedio en la casilla, estrella con ranking y una comparación con regla',/hoja-casilla/.test(todas)&&/wrapped-ranking/.test(todas)&&(todas.match(/wrapped-regla/g)||[]).length===1);
+chk('la casilla no usa colores del semáforo y sin timbre no celebra',!/var\(--(green|yellow|red)/.test(run('casillaWrapped("3,2","2026-2",false)'))&&!/hoja-timbre/.test(run('casillaWrapped("3,2","2026-2",false)')));
 
 // HIG, Accessibility: un gesto necesita una alternativa, y el texto tiene que
 // poder agrandarse al 200% sin que nada se salga de la pantalla.
