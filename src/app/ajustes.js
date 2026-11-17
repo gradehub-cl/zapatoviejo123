@@ -239,6 +239,13 @@ function openSettings(){
         </label>
         <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas pautas; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
       </div>`:''}
+      ${!soloProfesor&&typeof cambiarAnunciosConNotas==='function'?`<div class="settings-pautas">
+        <label class="toggle-row" for="s-anuncios-notas">
+          <span class="toggle-label">Usar mis notas para elegir anuncios</span>
+          <span class="toggle"><input id="s-anuncios-notas" type="checkbox" role="switch" ${S.anunciosConNotas===false?'':'checked'} onchange="cambiarAnunciosConNotas(this.checked)" aria-describedby="s-anuncios-notas-ayuda"/><span class="toggle-slider"></span></span>
+        </label>
+        <p class="settings-help" id="s-anuncios-notas-ayuda">Las clases particulares recomendadas en Inicio se eligen en este dispositivo según tus ramos y notas; tus notas no se envían para eso. Si lo apagas, no verás recomendaciones en Inicio y puedes seguir buscando en Apoyo.</p>
+      </div>`:''}
       ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
