@@ -3066,9 +3066,9 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
    en todo el Wrapped (Lucas, 2026-11-17): papel en claro, pizarrón en oscuro;
    el color cambia solo en resaltador, post-its y cinta. Fuente del sistema.
    La dirección anterior (luces, tinta y vidrio) está en docs/wrapped/. */
-.wrapped{--papel:#F3EFE4;--grafito:#1D1D1F;--acento:#F2F23A;--sup:var(--papel);--tinta:var(--grafito);--tinta-2:#4A4740;--cuad:#D9D3C3;--linea:#B9B2A0;position:fixed;inset:0;z-index:400;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;font-family:var(--font-ui);background-color:#F3EFE4;background-color:var(--sup);background-image:linear-gradient(var(--cuad) 1px,transparent 1px),linear-gradient(90deg,var(--cuad) 1px,transparent 1px);background-size:24px 24px;background-position:-1px -1px;color:var(--tinta);padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 24px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 24px);cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;overscroll-behavior:contain;animation:wrappedAbrir var(--motion-screen) var(--ease-out) backwards;}
+.wrapped{--papel:#F3EFE4;--grafito:#1D1D1F;--acento:#F2F23A;--sello:#2F45C4;--sup:var(--papel);--tinta:var(--grafito);--tinta-2:#4A4740;--cuad:#D9D3C3;--linea:#B9B2A0;position:fixed;inset:0;z-index:400;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;font-family:var(--font-ui);background-color:#F3EFE4;background-color:var(--sup);background-image:linear-gradient(var(--cuad) 1px,transparent 1px),linear-gradient(90deg,var(--cuad) 1px,transparent 1px);background-size:24px 24px;background-position:-1px -1px;color:var(--tinta);padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 24px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 24px);cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;overscroll-behavior:contain;animation:wrappedAbrir var(--motion-screen) var(--ease-out) backwards;}
 .wrapped{--paso:260ms;transition:background-color var(--motion-base) var(--ease-standard),color var(--motion-base) var(--ease-standard);}
-.wrapped[data-sup="pizarron"]{--sup:var(--grafito);--tinta:var(--papel);--tinta-2:#C9C4B6;--cuad:rgba(243,239,228,.10);--linea:rgba(243,239,228,.32);}
+.wrapped[data-sup="pizarron"]{--sup:var(--grafito);--sello:#9DAAFF;--tinta:var(--papel);--tinta-2:#C9C4B6;--cuad:rgba(243,239,228,.10);--linea:rgba(243,239,228,.32);}
 .wrapped.saliendo{animation:wrappedSalir var(--motion-base) var(--ease-standard) forwards;pointer-events:none;}
 .wrapped-arriba{display:flex;align-items:center;gap:4px;min-height:52px;margin-right:-10px;}
 .wrapped-barras{flex:1;display:flex;align-items:center;min-width:0;}
@@ -3125,7 +3125,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-postit{width:min(232px,72%);margin-left:auto;padding:18px 18px 22px;box-sizing:border-box;background:var(--acento);color:#1D1D1F;font-size:17px;line-height:1.3;transform:rotate(var(--giro,-3deg));box-shadow:0 1px 0 rgba(0,0,0,.06),0 14px 22px -12px rgba(29,29,31,.45);clip-path:polygon(0 0,100% 0,100% 88%,90% 100%,0 100%);}
 .hoja-postit b{font-size:20px;}
 .hoja-postit small{display:block;margin-top:6px;font-size:15px;}
-.hoja-timbre{position:absolute;right:-10px;top:-78px;width:124px;height:124px;overflow:visible;transform:rotate(-14deg);color:var(--tinta);animation:hojaTimbre 360ms var(--ease-out) 420ms backwards;}
+.hoja-timbre{position:absolute;right:-10px;top:-78px;width:124px;height:124px;overflow:visible;transform:rotate(-14deg);color:var(--sello);animation:hojaTimbre 360ms var(--ease-out) 420ms backwards;}
 .hoja-timbre circle{stroke:currentColor;}
 .hoja-timbre text{fill:currentColor;stroke:none;font-family:var(--font-ui);}
 .hoja-timbre .anillo{font-size:15px;font-weight:800;letter-spacing:3px;}
@@ -3320,7 +3320,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .wrapped-slide[data-tipo="goma"]{position:relative;}
 /* La goma a pantalla completa: toda la hoja rayada y la nota en algún lado. */
 .hoja-goma.pantalla{position:absolute;inset:0;padding:0;}
-.hoja-goma.pantalla .wrapped-big{position:absolute;left:var(--x);top:var(--y);margin:0;transform:translate(-50%,-50%);}
+.hoja-goma.pantalla .wrapped-big{font-size:clamp(44px,13vw,60px);line-height:1;position:absolute;left:var(--x);top:var(--y);margin:0;transform:translate(-50%,-50%);}
 .hoja-goma.pantalla canvas{inset:0;width:100%;height:100%;}
 .hoja-goma-pie{position:absolute;left:0;right:0;bottom:12px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
 .hoja-goma-pie p{margin:0;padding:6px 12px;border-radius:8px;background:var(--sup);font-size:16px;font-weight:600;}
