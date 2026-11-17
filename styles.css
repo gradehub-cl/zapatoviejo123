@@ -908,7 +908,8 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 /* El contorno es una capa detrás del logo, no el logo redibujado. */
 .clase-apoyo-logo,.catalogo-clase-logo,.profesor-logo-img{position:relative;}
 .clase-apoyo-logo img.logo-clase,.catalogo-clase-logo img.logo-clase,.profesor-logo-img img.logo-clase{position:relative;z-index:1;}
-.clase-apoyo-logo img.logo-clase-borde,.catalogo-clase-logo img.logo-clase-borde,.profesor-logo-img img.logo-clase-borde{position:absolute;z-index:0;max-width:none;transform:translate(-50%,-50%);border-radius:0;pointer-events:none;}
+/* Contorno al 60 %: opaco, el logo de Salva Ramos brillaba (2026-11-16). */
+.clase-apoyo-logo img.logo-clase-borde,.catalogo-clase-logo img.logo-clase-borde,.profesor-logo-img img.logo-clase-borde{position:absolute;z-index:0;max-width:none;transform:translate(-50%,-50%);border-radius:0;pointer-events:none;opacity:.6;}
 .clase-apoyo-cerrar{flex:none;display:flex;align-items:center;justify-content:center;width:44px;border:0;background:none;color:var(--fg3);cursor:pointer;}
 .clase-apoyo-cerrar .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
 .ramo-reordering .clase-apoyo{display:none;}
@@ -4911,6 +4912,8 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* Solo el logo: la capa del contorno (img.logo-clase-borde) lleva su propio
    tamaño y no se encoge, o queda corrida bajo el logo (Salva Ramos, 2026-11-16). */
 .directorio-avatar.catalogo-clase-logo img.logo-clase{display:block;width:auto;height:100%;max-width:100%;object-fit:contain;border-radius:0}
+/* Un logo cuadrado o redondo a 48 px quedaba diminuto al lado de uno ancho (TuApunte, 2026-11-16). */
+.directorio-tarjeta .directorio-avatar.catalogo-clase-logo.logo-cuadrado{height:72px}
 /* Sin logo: la inicial en un círculo teñido con el color del perfil. */
 .directorio-tarjeta .directorio-avatar.catalogo-clase-logo:not(:has(img)){justify-content:center;width:48px;border-radius:50%;
   background:color-mix(in srgb,var(--directorio-color) 22%,var(--card));color:var(--directorio-acento);font-size:1.25rem}
