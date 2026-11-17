@@ -26,9 +26,6 @@ function hojaBurbuja(letra='',llena=false){
 function hojaLapiz(html){
   return `<span class="hoja-lapiz">${html}<svg viewBox="0 0 300 100" preserveAspectRatio="none" aria-hidden="true"><path d="M40 14 C 120 0, 262 2, 290 34 C 306 62, 236 96, 140 97 C 52 98, 4 80, 8 50 C 12 22, 70 8, 150 6 C 196 5, 238 10, 262 18" pathLength="100" vector-effect="non-scaling-stroke"/></svg></span>`;
 }
-function hojaFlecha(){
-  return `<svg class="hoja-flecha" viewBox="0 0 100 70" aria-hidden="true"><path d="M6 8 C 2 34, 30 30, 34 18 C 38 6, 18 6, 20 24 C 22 48, 58 60, 90 56"/><path d="M76 46 L 92 56 L 76 66"/></svg>`;
-}
 function hojaPostit(html,giro=-3){
   return `<div class="hoja-postit" style="--giro:${giro}deg">${html}</div>`;
 }
@@ -220,4 +217,54 @@ const HOJA_OBJETOS={
 function hojaObjeto(id){
   const dibujo=HOJA_OBJETOS[id];
   return dibujo?`<svg class="hoja-objeto" data-obj="${id}" viewBox="0 0 160 120" aria-hidden="true">${dibujo()}</svg>`:'';
+}
+
+// ─── Las revelaciones con su metáfora (Lucas, 2026-11-17) ───
+// Cada dato se muestra con un objeto de la sala, no solo con una cifra. Todas
+// son decorativas (`aria-hidden`): la frase de la historia ya dice el dato.
+
+// La semana pesada en la hoja del calendario: una burbuja rellena por
+// evaluación, en el día que cayó. El día más cargado va resaltado, solo si
+// tuvo más de una: con una por día no hay uno que destaque.
+function semanaWrapped(dias){
+  const max=Math.max(...dias),tope=max>1?max:Infinity;let r=0;
+  return `<div class="hoja-semana" aria-hidden="true">${'LMMJVSD'.split('').map((l,i)=>`<div class="dia${dias[i]===tope?' tope':''}"><span class="pila">${
+    Array.from({length:dias[i]},()=>`<span class="hoja-burbuja chica llena" style="--r:${(r++*.08).toFixed(2)}"></span>`).join('')}</span><b>${l}</b></div>`).join('')}</div>`;
+}
+// La primera nota como una prueba corregida: el nombre arriba y la nota
+// encerrada a lápiz en la esquina.
+function pruebaWrapped(nota,evaluacion,ramo){
+  return `<div class="hoja-prueba"><div class="enc"><b>${evaluacion}</b><span>${ramo}</span></div>
+    <div class="nota">${hojaLapiz(`<span class="wrapped-big">${nota}</span>`)}</div><i class="renglon"></i><i class="renglon"></i><i class="renglon corto"></i></div>`;
+}
+// Antes y ahora en barras paralelas sobre la escala de 1,0 a 7,0. La de ahora
+// va en el color de la historia; la de antes, solo el contorno.
+function barrasWrapped(filas){
+  const ancho=v=>(Math.min(Math.max((v-1)/6,0),1)*100).toFixed(1);
+  return `<div class="hoja-barras" aria-hidden="true">${filas.map((f,i)=>`<div class="fila${f.ahora?' ahora':''}" style="--r:${i*.15}"><span class="etq">${f.label}</span>
+    <span class="pista"><i style="--v:${ancho(f.valor)}%"></i></span><b>${fmtPromedio(f.valor)}</b></div>`).join('')}
+    <div class="escala"><span>1,0</span><span>4,0</span><span>7,0</span></div></div>`;
+}
+// La nota que lo cambió todo: el promedio de antes queda bajo el corrector y
+// encima se escribe el nuevo.
+function correctorWrapped(antes,despues){
+  return `<div class="hoja-corrige" aria-hidden="true"><span class="viejo">${fmtPromedio(antes)}<i class="cinta"></i></span><span class="nuevo">${fmtPromedio(despues)}</span></div>`;
+}
+// La remontada como curva desde la segunda nota (la remontada se mide desde
+// ahí): el promedio del ramo después de cada nota, la
+// línea del 4,0 punteada y el punto más bajo encerrado a lápiz. En grafito:
+// el semáforo no es decorado.
+function curvaWrapped(serie,iMinimo,final){
+  const pts=serie.slice();if(Math.abs(final-pts[pts.length-1])>=0.05)pts.push(final);
+  // El eje va de un poco bajo lo más bajo a un poco sobre lo más alto, siempre
+  // con el 4,0 adentro: en la escala completa la subida se ve plana.
+  const lo=Math.max(1,Math.min(...pts,4)-0.6),hi=Math.min(7,Math.max(...pts,4)+0.6);
+  const w=320,h=150,x=i=>14+i*(w-84)/Math.max(pts.length-1,1),y=v=>h-16-(v-lo)/(hi-lo)*(h-32);
+  const linea=pts.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const mx=x(iMinimo),my=y(pts[iMinimo]),fx=x(pts.length-1),fy=y(pts[pts.length-1]),u=y(4).toFixed(1);
+  return `<svg class="hoja-curva" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <path class="umbral" d="M8 ${u}H${w-8}"/><text class="etq" x="8" y="${(y(4)-6).toFixed(1)}">4,0</text>
+    <path class="linea" pathLength="100" d="${linea}"/>
+    <path class="trazo" pathLength="100" d="M${mx-6} ${my-19} C ${mx+22} ${my-22}, ${mx+24} ${my+18}, ${mx} ${my+19} C ${mx-24} ${my+20}, ${mx-24} ${my-13}, ${mx+3} ${my-20}"/>
+    <circle class="fin" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="7"/><text class="valor" x="${(fx+14).toFixed(1)}" y="${(fy+7).toFixed(1)}">${fmtPromedio(final)}</text></svg>`;
 }

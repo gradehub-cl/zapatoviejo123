@@ -52,6 +52,20 @@ check('frente al semestre anterior: sube o se mantiene; una baja no aparece',()=
   assert.equal(datos([ramo('A',[nota('a1',4)])],[{label:'2026-1',gpa:5.0}]).anterior,null);
   assert.equal(datos([ramo('A',[nota('a1',5)])]).anterior,null,'sin semestre anterior no hay comparación');
 });
+check('las revelaciones dibujan datos reales: días de la semana, antes y después, curva y semestre anterior',()=>{
+  const sem=datos([ramo('A',[nota('a1',5,'2026-09-14'),nota('a2',5,'2026-09-16'),nota('a3',6,'2026-09-16'),nota('a4',6,'2026-10-20')])]).semana;
+  assert.deepEqual(Array.from(sem.dias),[1,0,2,0,0,0,0]);
+  assert.match(run(`semanaWrapped(${JSON.stringify(sem.dias)})`),/dia tope/,'el miércoles, con dos, va resaltado');
+  assert.doesNotMatch(run('semanaWrapped([1,1,1,0,0,0,0])'),/tope/,'con una por día no se resalta ninguno');
+  const mov=datos([ramo('A',[nota('a1',3,'2026-08-20'),nota('a2',4,'2026-10-01')]),ramo('B',[nota('b1',6,'2026-08-25'),nota('b2',6,'2026-09-01')])]).movio;
+  assert.equal(Number(run(`fmtPromedioDato(${mov.despues})`))-Number(run(`fmtPromedioDato(${mov.antes})`)),mov.delta,'el corrector muestra los mismos promedios que el delta');
+  const rem=datos([ramo('Cálculo',[nota('c1',3.0,'2026-08-20'),nota('c2',3.4,'2026-09-15'),nota('c3',6.8,'2026-10-20'),nota('c4',6.5,'2026-11-20')])]).remontada;
+  assert.equal(rem.serie.length,4);assert.equal(rem.serie[rem.iMinimo],rem.minimo);assert.ok(rem.iMinimo>=1,'la curva parte desde la segunda nota');
+  assert.doesNotMatch(run(`curvaWrapped(${JSON.stringify(rem.serie.slice(1))},${rem.iMinimo-1},${rem.final})`),/NaN/);
+  const ant=datos([ramo('A',[nota('a1',6)])],[{label:'2026-1',gpa:5.0}]).anterior;
+  assert.equal(ant.antes,5);assert.equal(ant.ahora,6);
+  assert.match(run('barrasWrapped([{label:"2026-1",valor:5},{label:"2026-2",valor:6,ahora:true}])'),/5,0[\s\S]*6,0/);
+});
 check('la tarjeta lleva solo el primer nombre; las cifras van con coma',()=>{
   datos([ramo('A',[nota('a1',5.5,'2026-09-01'),nota('a2',6.5,'2026-10-01')])]);
   const slides=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos,true),null,"2026-2")');

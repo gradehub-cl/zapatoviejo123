@@ -3119,8 +3119,6 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .hoja-lapiz{position:relative;display:flex;align-items:center;gap:14px;}
 .hoja-lapiz>svg{position:absolute;inset:-8px;width:calc(100% + 16px);height:calc(100% + 16px);overflow:visible;pointer-events:none;}
 .hoja-lapiz>svg path{fill:none;stroke:var(--tinta);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;opacity:.9;stroke-dasharray:100;animation:hojaTraza 700ms var(--ease-out) 500ms backwards;}
-.hoja-flecha{width:72px;height:50px;flex:none;overflow:visible;}
-.hoja-flecha path{fill:none;stroke:var(--tinta);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
 .hoja-postit{width:min(232px,72%);margin-left:auto;padding:18px 18px 22px;box-sizing:border-box;background:var(--acento);color:#1D1D1F;font-size:17px;line-height:1.3;transform:rotate(var(--giro,-3deg));box-shadow:0 1px 0 rgba(0,0,0,.06),0 14px 22px -12px rgba(29,29,31,.45);clip-path:polygon(0 0,100% 0,100% 88%,90% 100%,0 100%);}
 .hoja-postit b{font-size:20px;}
 .hoja-postit small{display:block;margin-top:6px;font-size:15px;}
@@ -3228,6 +3226,53 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 @keyframes hojaBarre{from{transform:scaleX(0);}}
 @keyframes hojaSello{0%{transform:translateY(-22px);}70%{transform:translateY(4px);}100%{transform:none;}}
 @keyframes wrappedAparece{from{opacity:0;}}
+/* Las revelaciones con su metáfora: semana, prueba, barras, corrector y curva.
+   Entran después de la pieza que las contiene (--d * --paso). */
+.wrapped-heroe{position:relative;}
+.hoja-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:340px;padding-top:10px;border-top:1.5px solid var(--linea);}
+.hoja-semana .dia{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0 6px;border-radius:12px;}
+.hoja-semana .dia.tope{background:var(--acento);}
+.hoja-semana .pila{display:flex;flex-direction:column-reverse;gap:4px;min-height:86px;}
+.hoja-semana .hoja-burbuja.chica{width:22px;height:22px;}
+.hoja-semana b{font-size:15px;font-weight:800;color:var(--tinta-2);}
+.hoja-semana .dia.tope b{color:#1D1D1F;}
+.hoja-semana .dia.tope .hoja-burbuja.llena{background:#1D1D1F;border-color:#1D1D1F;}
+.wrapped[data-sup="pizarron"] .hoja-semana .dia.tope{background:none;box-shadow:inset 0 0 0 2px var(--acento);}
+.wrapped[data-sup="pizarron"] .hoja-semana .dia.tope b{color:var(--acento);}
+.wrapped[data-sup="pizarron"] .hoja-semana .dia.tope .hoja-burbuja.llena{background:var(--tinta);border-color:var(--tinta);}
+/* La prueba es una hoja blanca de verdad, también sobre el pizarrón; la nota
+   va encerrada con lápiz pasta azul, como la corrigió el profe. */
+.hoja-prueba{--tinta:#1D1D1F;--tinta-2:#4A4740;position:relative;display:grid;grid-template-columns:1fr auto;gap:0 14px;max-width:330px;padding:16px 18px 20px;box-sizing:border-box;background:#FBFAF6;color:#1D1D1F;transform:rotate(-1.5deg);box-shadow:0 1px 0 rgba(0,0,0,.06),0 16px 26px -16px rgba(29,29,31,.45);}
+.hoja-prueba .enc{display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1.5px solid #CBD5E3;}
+.hoja-prueba .enc b{font-size:20px;font-weight:800;}
+.hoja-prueba .enc span{font-size:15px;color:#4A4740;}
+.hoja-prueba .nota{grid-column:2;grid-row:1/span 4;align-self:center;padding:8px 10px;}
+.hoja-prueba .nota .wrapped-big{font-size:clamp(64px,20vw,92px);line-height:1;}
+.hoja-prueba .hoja-lapiz>svg path{stroke:#2747D8;stroke-width:3;}
+.hoja-prueba .renglon{display:block;height:1.5px;margin-top:16px;background:#CBD5E3;}
+.hoja-prueba .renglon.corto{width:60%;}
+.hoja-barras{display:grid;gap:10px;max-width:340px;margin-top:18px;}
+.hoja-barras .fila{display:grid;grid-template-columns:84px 1fr 3em;align-items:center;gap:10px;}
+.hoja-barras .etq{font-size:15px;font-weight:600;color:var(--tinta-2);}
+.hoja-barras .pista{height:22px;border:1.5px solid var(--tinta);border-radius:4px;overflow:hidden;}
+.hoja-barras .pista i{display:block;width:var(--v);height:100%;background:color-mix(in srgb,var(--tinta) 22%,transparent);transform-origin:left center;animation:hojaBarre 600ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + var(--r,0) * 1s + 240ms);}
+.hoja-barras .ahora .pista i{background:var(--acento);}
+.hoja-barras .ahora .etq{color:var(--tinta);}
+.hoja-barras .fila b{font-size:20px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+.hoja-barras .escala{display:flex;justify-content:space-between;margin:0 calc(3em + 10px) 0 94px;font-size:12px;font-weight:600;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
+.hoja-corrige{display:flex;flex-direction:column;align-items:flex-start;gap:6px;}
+.hoja-corrige .viejo{position:relative;font-size:clamp(48px,14vw,64px);line-height:1;font-weight:800;letter-spacing:-.03em;color:var(--tinta-2);font-variant-numeric:tabular-nums;}
+.hoja-corrige .cinta{position:absolute;left:-8px;right:-8px;top:44%;height:.24em;background:#FBFAF6;border:1.5px solid var(--linea);border-radius:2px;transform-origin:left center;animation:hojaBarre 420ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 480ms);}
+.hoja-corrige .nuevo{font-size:clamp(96px,30vw,150px);font-weight:900;line-height:.9;letter-spacing:-.05em;font-variant-numeric:tabular-nums;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--d,0) * var(--paso) + 860ms);}
+.hoja-curva{display:block;width:100%;max-width:360px;height:auto;overflow:visible;}
+.hoja-curva path{fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.hoja-curva .umbral{stroke:var(--tinta-2);stroke-width:1.5;stroke-dasharray:4 5;}
+.hoja-curva .linea{stroke:var(--tinta);stroke-width:3;stroke-dasharray:100;animation:hojaTraza 900ms var(--ease-out) 300ms backwards;}
+.hoja-curva .trazo{stroke:var(--tinta);stroke-width:2.4;stroke-dasharray:100;animation:hojaTraza 600ms var(--ease-out) 1100ms backwards;}
+.hoja-curva .fin{fill:var(--acento);stroke:var(--tinta);stroke-width:2;animation:wrappedAparece var(--motion-base) var(--ease-out) 1100ms backwards;}
+.hoja-curva text{fill:var(--tinta);font-family:var(--font-ui);font-variant-numeric:tabular-nums;}
+.hoja-curva .etq{font-size:12px;font-weight:700;fill:var(--tinta-2);}
+.hoja-curva .valor{font-size:20px;font-weight:900;}
 .wrapped-prep>span[aria-hidden]>span{display:inline-block;animation:wrappedPrep 480ms var(--ease-out) backwards;animation-delay:calc(var(--w,0) * 110ms);}
 .wrapped-prep-sub{margin:0;font-size:22px;line-height:1.3;font-weight:500;color:var(--tinta-2);}
 .wrapped[data-dir="revela"] .wrapped-slide>*{animation-name:wrappedRevela;}
