@@ -10,10 +10,13 @@ const ahora=Date.parse('2026-11-04T12:00:00Z'),perfiles=Array.from({length:10},(
  destacado_hasta:i===1?'2026-11-05T12:00:00Z':i===2?'2026-11-01T12:00:00Z':null,en_directorio:true,estado:'aprobado'}));
 ctx.perfiles=perfiles;ctx.ahora=ahora;const prep=op=>plain(run(`prepararDirectorio(perfiles,{ahora,...${JSON.stringify(op||{})}})`));
 assert.equal(prep().destacados.length,1);assert(prep().normales.some(p=>p.id==='p2'));
-assert.deepEqual(prep(),prep());const manana=prep({ahora:ahora+86400000});assert.notDeepEqual(prep().normales.map(p=>p.id),manana.normales.map(p=>p.id));
-ctx.normales=perfiles.filter(p=>!p.destacado_hasta);
-assert.notDeepEqual(plain(run("ordenDiarioDirectorio(normales,'2026-11-04').map(p=>p.id)")),plain(run("ordenDiarioDirectorio(normales,'2026-11-05').map(p=>p.id)")),'la semilla cambia el orden aun sin cambios de destacados');
-const invertido=plain(run('prepararDirectorio(perfiles.slice().reverse(),{ahora})'));assert.deepEqual(invertido,prep(),'orden de llegada no altera semilla');
+assert.deepEqual(prep(),prep(),'dentro de la misma visita el orden no salta');
+assert.deepEqual(prep({ahora:ahora+20*60000}),prep(),'a los 20 minutos sigue igual');
+assert.notEqual(run(`semillaDirectorio(${ahora+31*60000})`),run(`semillaDirectorio(${ahora})`),'pasada media hora, mezcla nueva');
+const ids=s=>prep({semilla:s}).normales.map(p=>p.id);
+assert.notDeepEqual(ids('visita-a'),ids('visita-b'),'otra visita, otro orden');
+assert.deepEqual(ids('visita-a'),ids('visita-a'));
+const invertido=plain(run("prepararDirectorio(perfiles.slice().reverse(),{ahora,semilla:'visita-a'})"));assert.deepEqual(invertido,prep({semilla:'visita-a'}),'orden de llegada no altera semilla');
 const copia=JSON.stringify(perfiles);prep({busqueda:'stem'});assert.equal(JSON.stringify(perfiles),copia);
 ctx.perfiles=[...perfiles,{...perfiles[0],id:'privado',en_directorio:false},{...perfiles[0],id:'suspendido',estado:'suspendido'}];
 assert.equal(prep().normales.length,9);
@@ -43,5 +46,5 @@ assert(run('metricasDirectorioHTML({vistas:null,aperturas:17,contactos:null})').
  canales.length=0;ctx.supabaseClient.rpc=async(n,p)=>{canales.push({n,p});return n==='registrar_evento_perfil_apoyo'?{error:{code:'PGRST202'}}:{data:true,error:null}};
  assert.equal(await run("registrarEventoDirectorio('p0','contacto','uc',{canal:'web'})"),true);assert.deepEqual(canales.map(c=>c.n),['registrar_evento_perfil_apoyo','registrar_evento_perfil']);
  assert.equal(ctx.S.tenant,tenantAntes,'las métricas no cambian el contexto');
- console.log('PASS: consentimiento/suspensión, vencimiento, orden diario estable, búsqueda, categorías, sin S, false terminal y sin correo precargado');
+ console.log('PASS: consentimiento/suspensión, vencimiento, orden que rota por visita, búsqueda, categorías, sin S, false terminal y sin correo precargado');
 })().catch(e=>{console.error(e);process.exitCode=1});
