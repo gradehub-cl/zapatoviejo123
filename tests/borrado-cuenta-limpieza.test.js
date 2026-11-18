@@ -17,10 +17,12 @@ function arnes({fallaRemoto=false}={}){
     ['gradehub_v1_pre_import',copia],['gradehub_curso_siglas','["SYN100"]'],['gradehub_v1_respaldo_'+UID,copia],
     // Preferencia del dispositivo, no de la cuenta: tiene que sobrevivir.
     ['gradehub_sombras','0']]);
-  const nativo={borrar:0,actividades:[],cancelados:[],rpc:[],salidas:0,recargas:0,subidas:0};
+  const nativo={borrar:0,actividades:[],cancelados:[],rpc:[],salidas:0,recargas:0,subidas:0,canvas:[]};
   const timers=new Map();let nTimer=0;
   const window={addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}}),
     Capacitor:{isNativePlatform:()=>true,Plugins:{
+      // El token de Canvas de la cuenta sale del llavero (auditoría App Store #1193).
+      GradeHubCanvas:{desconectar(o){nativo.canvas.push(o.cuenta);return Promise.resolve({conectado:false});},estado:()=>Promise.resolve({conectado:true})},
       GradeHubWidgets:{guardarResumen:()=>Promise.resolve(),borrarResumen(){nativo.borrar++;return Promise.resolve();},
         sincronizarActividades(o){nativo.actividades.push(o.actividades);return Promise.resolve();}},
       LocalNotifications:{getPending:()=>Promise.resolve({notifications:[{id:7,extra:{gradehub:'prueba'}},{id:8,extra:{}}]}),
@@ -53,6 +55,7 @@ const conNotas=h=>[...h.almacen].filter(([,v])=>v.includes(MARCA)).map(([k])=>k)
     assert.equal(h.almacen.has(k),false,k+' se borra');
   assert.equal(h.almacen.get('gradehub_sombras'),'0','una preferencia del dispositivo no se toca');
   assert.equal(h.nativo.borrar,1,'se borra el resumen de los widgets');
+  assert.deepEqual(h.nativo.canvas,[UID],'se borra el token de Canvas de esa cuenta, y solo de esa');
   assert.equal(JSON.stringify(h.nativo.actividades),'[[]]','no quedan Actividades en Vivo');
   assert.deepEqual(h.nativo.cancelados,[7],'se cancelan los avisos de pruebas y solo esos');
   assert.equal(h.nativo.salidas,1,'cierra la sesión');
@@ -68,6 +71,7 @@ const conNotas=h=>[...h.almacen].filter(([,v])=>v.includes(MARCA)).map(([k])=>k)
   await f.run('eliminarCuenta()');
   assert.equal(JSON.stringify([...f.almacen]),antes,'si la nube falla, la copia local queda intacta');
   assert.equal(f.nativo.borrar,0,'y los widgets también');
+  assert.deepEqual(f.nativo.canvas,[],'y el token de Canvas sigue en el llavero');
   assert.equal(f.nativo.salidas,0);
   assert.equal(f.run('currentUser.id'),UID,'sigue con su sesión para reintentar');
   assert.equal(f.run('S.ramos.length'),1);
