@@ -55,6 +55,12 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
         return String(data: datos, encoding: .utf8)
     }
     static func borrarToken(_ cuenta: String) { SecItemDelete(consulta(cuenta) as CFDictionary) }
+    // Canvas responde 401 tanto a un token vencido como a «no tienes permiso
+    // para eso» (un curso que esconde una sección). Se borra solo si Canvas
+    // tampoco acepta el token para `users/self`.
+    static func borrarSiVencio(_ token: String, cuenta: String) async {
+        if case .failure(let e) = await pedir("users/self", [], token: token), e.codigo == 401, leerToken(cuenta) == token { borrarToken(cuenta) }
+    }
 
     // ─── Métodos ─────────────────────────────────────────────────────────────
     private func cuenta(_ call: CAPPluginCall) -> String? {
@@ -129,7 +135,7 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
                     case .success(let datosGrupos): grupos = datosGrupos as? [[String: Any]] ?? []
                     case .failure(let error):
                         if error.codigo == 401 {
-                            if Self.leerToken(cuenta) == token { Self.borrarToken(cuenta) }
+                            await Self.borrarSiVencio(token, cuenta: cuenta)
                             call.reject(error.mensaje, String(error.codigo)); return
                         }
                     }
@@ -144,7 +150,7 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             case .failure(let error):
                 // Un token revocado o vencido no sirve más: se borra.
-                if error.codigo == 401 && Self.leerToken(cuenta) == token { Self.borrarToken(cuenta) }
+                if error.codigo == 401 { await Self.borrarSiVencio(token, cuenta: cuenta) }
                 call.reject(error.mensaje, String(error.codigo))
             }
         }
@@ -166,15 +172,14 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
             // quedan los módulos, que es donde suele estar el programa.
             let archivos = await Self.pedir("courses/\(curso)/files", [porPagina], token: token, permitida: CanvasPolitica.rutaArchivos)
             let modulos = await Self.pedir("courses/\(curso)/modules", conItems, token: token, permitida: CanvasPolitica.rutaArchivos)
-            for r in [archivos, modulos] {
-                if case .failure(let e) = r, e.codigo == 401 {
-                    if Self.leerToken(cuenta) == token { Self.borrarToken(cuenta) }
-                    call.reject(e.mensaje, "401"); return
-                }
-            }
+            // Ojo: Canvas responde 401 también cuando el curso esconde
+            // «Archivos» a los estudiantes. Eso NO es un token vencido: acá
+            // nunca se borra el token; si falta acceso, quedan los módulos.
             let a = (try? archivos.get()) as? [[String: Any]] ?? []
             let m = (try? modulos.get()) as? [[String: Any]] ?? []
-            if a.isEmpty, m.isEmpty, case .failure(let e) = modulos { call.reject(e.mensaje, String(e.codigo)); return }
+            if a.isEmpty, m.isEmpty, case .failure = archivos, case .failure(let e) = modulos {
+                call.reject("No pudimos ver los archivos del curso en Canvas.", String(e.codigo)); return
+            }
             call.resolve(["data": CanvasPolitica.proyectarArchivos(archivos: a, modulos: m)])
         }
     }
@@ -192,8 +197,9 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
             switch await Self.pedir("courses/\(curso)/files/\(archivo)", [], token: token, permitida: CanvasPolitica.rutaArchivos) {
             case .success(let datos): ficha = datos as? [String: Any] ?? [:]
             case .failure(let e):
-                if e.codigo == 401 && Self.leerToken(cuenta) == token { Self.borrarToken(cuenta) }
-                call.reject(e.mensaje, String(e.codigo)); return
+                // Un 401 acá suele ser «sin permiso para ese archivo», no un
+                // token vencido: no se borra.
+                call.reject("No pudimos abrir ese archivo de Canvas.", String(e.codigo)); return
             }
             let nombre = ficha["display_name"] as? String ?? ""
             guard let tipo = CanvasPolitica.tipoArchivo(nombre: nombre, contentType: ficha["content-type"] as? String) else {

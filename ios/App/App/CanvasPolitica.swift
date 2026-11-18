@@ -202,10 +202,12 @@ enum CanvasPolitica {
         }
         for m in modulos {
             let modulo = m["name"] as? String
+            // El título de un ítem de módulo muchas veces no lleva extensión
+            // («Programa del curso»): entra como «archivo» y su tipo real lo
+            // confirma `leerArchivo` con el content-type de Canvas.
             for item in m["items"] as? [[String: Any]] ?? [] where (item["type"] as? String) == "File" {
-                guard let id = item["content_id"] as? Int, let titulo = item["title"] as? String,
-                      let tipo = tipoArchivo(nombre: titulo, contentType: nil) else { continue }
-                sumar(id, titulo, tipo, nil, modulo)
+                guard let id = item["content_id"] as? Int, let titulo = item["title"] as? String else { continue }
+                sumar(id, titulo, tipoArchivo(nombre: titulo, contentType: nil) ?? "archivo", nil, modulo)
             }
         }
         return orden.compactMap { porID[$0] }

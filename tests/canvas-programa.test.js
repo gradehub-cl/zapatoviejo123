@@ -122,7 +122,16 @@ const conTabla=[
   // Sin archivos que parezcan programa.
   run("canvasProgramaRamo.clear()");archivosCurso=[{id:8,nombre:'Guía 3.pdf',tipo:'pdf'}];
   await run('leerProgramaCanvas()');
-  assert.match(run('canvasProgramaEditorHTML()'),/No encontramos el programa/);
+  assert.match(run('canvasProgramaEditorHTML()'),/Revisamos 1 archivo del curso en Canvas y ninguno parece el programa/);
+  // Un ítem de módulo sin extensión en el título también se prueba.
+  run("canvasProgramaRamo.clear()");archivosCurso=[{id:11,nombre:'Programa del curso',tipo:'archivo',modulo:'Información'}];
+  textos={11:{texto:'# Evaluación\nInforme\t40%\nPresentación\t60%'}};llamadasArchivos=[];
+  await run('leerProgramaCanvas()');
+  assert.deepEqual(llamadasArchivos,[['lista',42],['leer',11]]);assert.match(run('canvasProgramaEditorHTML()'),/Sale de «Programa del curso»/);
+  // Sin permiso para ver archivos: se dice así, sin culpar al token.
+  run("canvasProgramaRamo.clear()");const listaReal=plugin.archivosCurso;plugin.archivosCurso=async()=>{throw new Error('401')};
+  await run('leerProgramaCanvas()');plugin.archivosCurso=listaReal;
+  assert.match(run('canvasProgramaEditorHTML()'),/no nos dejó ver los archivos/);
   assert.equal(json('S.ramos.find(r=>r.id===\'r3\').categorias').length,0,'nada se guarda solo');
   console.log('OK Canvas programa: lee pesos del programa, marca reglas, no inventa y solo guarda con Guardar');
 })().catch(e=>{console.error(e);process.exit(1)});
