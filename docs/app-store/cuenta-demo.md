@@ -1,5 +1,15 @@
 # Cuenta demo para App Review
 
+> **Cargada el 18-nov-2026** (Lucas puso las claves; Claude cargó los datos).
+> Se cambió el plan de abajo a pedido de Lucas: la cuenta está en **2.º semestre**
+> con los cuatro sugeridos de Ingeniería UC y notas sintéticas:
+> Cálculo II 5,7 (verde), Dinámica 4,3 y Laboratorio de Dinámica 4,4 (ámbar),
+> Introducción a la Programación 3,7 (rojo, con la regla que topa la nota).
+> Fechas: las oficiales de cada pauta. Horario sintético, sala DEMO.
+> La segunda cuenta tiene solo Cálculo II. Ambas están en
+> `admin.cuentas_excluidas_metricas` y se verificó que no registran alcance.
+> Las tablas de abajo quedan como referencia del plan original.
+
 Guion preparado el 18-nov-2026; **no se creó ninguna cuenta ni se tocó
 producción**. Lucas carga todo desde la app con correo y contraseña. La cuenta
 principal se conserva durante la revisión; una segunda cuenta permite probar
