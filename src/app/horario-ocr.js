@@ -198,6 +198,84 @@ function codigosDeFotoHorario(lecturas,existe){
     return {sigla,seccion};
   });
 }
+// Cuándo es cada clase, de una grilla con los días arriba (LUN … SÁB) y la
+// hora de cada fila a la izquierda ("08:00 - 09:20"), como Docencia Web FEN.
+// La celda dice el código y la sala en una línea y, más abajo, (CAT) o (AYU).
+// El día es el encabezado alineado con la celda; la hora, la de la fila a la
+// altura de la celda. Una celda que no calza con ninguno queda fuera: si no se
+// leyó la hora de una fila, la clase no se corre a la de al lado.
+// Devuelve, por código leído ("ENMEM1505"), sus bloques listos para guardar.
+//
+// Lo que hace el lector con un pantallazo real de Docencia Web: pega el guion
+// a la hora ("08:00-" "09:20"), a veces se come los dos puntos de la sala
+// ("SalaP-311"), parte "Aud.Price" en dos y el "(AYU)" amarillo sale "(Avy)"
+// o "(au)". Por eso el tipo se decide por la primera letra entre paréntesis.
+const TIPO_CLASE_FOTO={C:'Cátedra',A:'Ayudantía'};
+function bloquesDeFotoHorario(lecturas,existe){
+  const plano=t=>t.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
+  const hora=t=>{const m=/^[-–]?(\d{1,2})[:.](\d{2})[-–]?$/.exec(t);return m?m[1].padStart(2,'0')+':'+m[2]:null;};
+  const porCodigo=new Map();
+  for(const l of [].concat(lecturas||[])){
+    const palabras=(l&&Array.isArray(l.palabras)?l.palabras:[])
+      .map(p=>({...p,t:String(p.texto||'').trim(),cy:(p.y0+p.y1)/2,alto:Math.max(1,p.y1-p.y0)}));
+    const mismaLinea=(a,b)=>Math.abs(a.cy-b.cy)<Math.max(a.alto,b.alto)*0.6;
+    const dias=new Map();
+    for(const p of palabras){
+      const m=/^(LUN|MAR|MIE|JUE|VIE|SAB|DOM)(ES|TES|RCOLES|VES|RNES|ADO|INGO)?$/.exec(plano(p.t));
+      if(m&&(!dias.has(m[1])||p.y0<dias.get(m[1]).y0))dias.set(m[1],p);
+    }
+    // "08:00 - 09:20" llega como tres palabras, o junto si el lector lo pega.
+    const filas=[];
+    for(const p of palabras){
+      const junto=/^(\d{1,2}[:.]\d{2})[-–](\d{1,2}[:.]\d{2})$/.exec(p.t);
+      let inicio=junto?hora(junto[1]):hora(p.t),fin=junto?hora(junto[2]):null;
+      if(inicio&&!junto){
+        const sig=palabras.filter(q=>q.x0>p.x1&&q.x0-p.x1<p.alto*4&&mismaLinea(p,q)&&hora(q.t)).sort((a,b)=>a.x0-b.x0)[0];
+        fin=sig?hora(sig.t):null;
+      }
+      if(inicio&&fin&&horaHorarioValida(inicio)&&horaHorarioValida(fin)&&fin>inicio)filas.push({cy:p.cy,inicio,fin});
+    }
+    if(dias.size<2||!filas.length)continue;
+    const cerca=(lista,d)=>lista.reduce((a,b)=>d(b)<d(a)?b:a);
+    for(const p of palabras){
+      const m=SIGLA_FOTO_RE.exec(normalizarTextoOcrHorario(p.t.replace(/[.,;:)\]]+$/,'')).trim());
+      if(!m)continue;
+      const [dia,cab]=cerca([...dias],([,c])=>Math.abs(c.x0-p.x0));
+      const fila=cerca(filas,f=>Math.abs(f.cy-p.cy));
+      if(cab.y1>p.y0||Math.abs(cab.x0-p.x0)>p.alto*4||Math.abs(fila.cy-p.cy)>p.alto*3.5)continue;
+      // La sala va justo a la derecha: "Sala:P-309", o "Sala:" y "P-309". Una
+      // palabra pegada después es la misma sala partida ("Aud" "Price").
+      const der=palabras.filter(q=>q.x0>=p.x1-2&&q.x0-p.x1<p.alto*10&&mismaLinea(p,q)).sort((a,b)=>a.x0-b.x0);
+      const i=der.findIndex(q=>/^sala/i.test(q.t)&&q.x0-p.x1<p.alto*4);
+      let sala='';
+      if(i>=0){
+        let j=i;sala=der[i].t.replace(/^sala\s*[:;.]?\s*/i,'');
+        if(!sala&&der[i+1])sala=der[++j].t;
+        if(der[j+1]&&der[j+1].x0-der[j].x1<p.alto*0.6)sala+=' '+der[j+1].t;
+      }
+      const tipo=palabras.filter(q=>q.y0>p.y1&&q.y0-p.y1<p.alto*5&&Math.abs(q.x0-p.x0)<p.alto*2&&/^\([CA][A-Z]{1,2}\)$/.test(plano(q.t)))
+        .sort((a,b)=>a.y0-b.y0)[0];
+      const codigo=existe?siglaOcrEnCatalogo(m[1],existe):m[1];
+      if(!porCodigo.has(codigo))porCodigo.set(codigo,new Map());
+      // Lo mismo leído en las dos versiones de la imagen es una clase, no dos:
+      // vale la primera lectura, que es la de la imagen tal cual.
+      const clave=dia+'|'+fila.inicio+'|'+fila.fin;
+      if(!porCodigo.get(codigo).has(clave))porCodigo.get(codigo).set(clave,{dia:DIAS_HORARIO.find(([,n])=>plano(n).startsWith(dia))[0],
+        inicio:fila.inicio,fin:fila.fin,sala,tipo:tipo?TIPO_CLASE_FOTO[plano(tipo.t)[1]]:''});
+    }
+  }
+  // Misma hora, sala y tipo en varios días es un solo bloque, como lo escribe
+  // una persona en el editor.
+  return new Map([...porCodigo].map(([codigo,clases])=>{
+    const bloques=new Map();
+    for(const c of clases.values()){
+      const k=[c.inicio,c.fin,c.sala,c.tipo].join('|');
+      if(!bloques.has(k))bloques.set(k,{dias:[],inicio:c.inicio,fin:c.fin,sala:c.sala,tipo:c.tipo});
+      bloques.get(k).dias.push(c.dia);
+    }
+    return [codigo,copiarHorario([...bloques.values()])];
+  }));
+}
 const FOTO_HORARIO_MAX=20*1024*1024;
 let _horarioLeyendoFoto=false;
 // Calificar puede aprovechar la lectura sin abrir la importación de ramos.
