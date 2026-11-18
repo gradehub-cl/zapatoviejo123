@@ -231,8 +231,11 @@ de cuenta. Nada más: no accedemos a tu Gmail, a tus contactos ni a tu Drive.</p
 <h3>Si entras con Apple</h3>
 <p>En la app para iPhone, Apple nos entrega un identificador para reconocer tu
 cuenta y, si lo autorizas, tu nombre y correo. Si eliges «Ocultar mi correo»,
-recibimos el correo de retransmisión de Apple. El identificador y el correo se
-usan con Supabase para iniciar sesión. No recibimos la contraseña de tu Apple ID.</p>
+recibimos el correo de retransmisión de Apple (relay). El identificador y el
+correo se usan con Supabase para iniciar sesión. El correo de relay puede
+corresponder a una cuenta distinta de la que ya tenías con Google o con tu
+correo. No recibimos la contraseña de tu Apple ID ni accedemos a tu iCloud,
+fotos o contactos.</p>
 <p>Al eliminar una cuenta de Apple desde la app para iPhone, te pedimos confirmar
 con Apple. Enviamos un código de un solo uso a nuestro servidor para revocar el
 acceso; no conservamos ese código ni los tokens de Apple que se usan para
