@@ -129,7 +129,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    recomienda:`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
   };
   // Formulario nuevo: sin horas y recomendar al final (Lucas, 2026-11-18).
-  const orden=v2?[preguntas.facilidad,preguntas.asistencia,etiquetasHTML,preguntas.recomienda]
+  const orden=v2?[preguntas.facilidad,preguntas.asistencia,preguntas.recomienda,etiquetasHTML]
    :[preguntas.facilidad,preguntas.carga,preguntas.asistencia,preguntas.recomienda,etiquetasHTML];
   caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
    <form class="rc-form" novalidate>${orden.join('')}

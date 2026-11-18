@@ -67,10 +67,9 @@ assert(h.includes('¿Cuántas horas a la semana'),'sin SQL nuevo: formulario ant
 assert(pos(h,'¿Lo recomendarías?')<pos(h,'¿Cómo era?'),'el anterior conserva su orden');pos(h,'¿Qué tan fácil era sacarse buena nota?');
 h=await hoja({version:2});
 assert(!h.includes('¿Cuántas horas'),'con SQL nuevo ya no pregunta horas');
-const orden=['¿Qué tan fácil era sacarse buena nota?','¿Se tomaba asistencia?','¿Cómo era?','¿Lo recomendarías?'].map(t=>pos(h,t));
-assert.deepEqual([...orden].sort((a,b)=>a-b),orden,'orden nuevo: termina en recomendar');
+const orden=['¿Qué tan fácil era sacarse buena nota?','¿Se tomaba asistencia?','¿Lo recomendarías?','¿Cómo era?'].map(t=>pos(h,t));
+assert.deepEqual([...orden].sort((a,b)=>a-b),orden,'orden nuevo: recomendar antes de las etiquetas');
 assert(!h.includes('estudiar')&&!h.includes('name="estudio"'),'sin pregunta de estudio');
-assert(h.lastIndexOf('</fieldset>')>pos(h,'¿Lo recomendarías?'),'recomendar es la última pregunta');
 assert(h.includes('data-rc-otro')&&h.includes('maxlength="20"'),'«Otro» con su campo');
 assert.equal((h.match(/name="etiqueta"/g)||[]).length,8,'sin sugeridas (RPC ausente): la lista fija');
 h=await hoja({version:2,sugeridas:{disponible:true,orden:['mucha_lectura'],sin_uso:['interesante'],propias:['<img src=x onerror=alert(1)>']},mia:{facilidad:4,asistencia:true,recomienda:true,etiquetas:[],otros:['Muy <b>práctico</b>'],carga:2}});
