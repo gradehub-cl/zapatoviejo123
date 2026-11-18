@@ -81,6 +81,14 @@ console.log('\nAyudantías');
   chk('con ayudantiaFlexible:false el tope se descarta',armar(oferta,['TST1001','TST2002'],{ayudantiaFlexible:false}).combinaciones.length===0);
   const lab=[sec('TST1001',1,[b(['L'],1)]),sec('TST2002',1,[b(['L'],1,'LAB')])];
   chk('un laboratorio es fijo: topa con cátedra',armar(lab,['TST1001','TST2002']).combinaciones.length===0);
+  // Decisión de Lucas (2026-11-18): en la UC se puede inscribir con tope de
+  // ayudantía, pero no es lo ideal. Se propone con aviso y, a igual número de
+  // días y ventanas, va después de la combinación sin tope.
+  const elegir=[sec('TST1001',1,[b(['L'],1),b(['M'],3,'AYU')]),sec('TST2002',1,[b(['L'],2),b(['M'],3,'AYU')]),
+    sec('TST2002',2,[b(['L'],2),b(['M'],4,'AYU')])];
+  const orden=armar(elegir,['TST1001','TST2002']).combinaciones;
+  chk('a igual días y ventanas, sin tope de ayudantía va primero',orden.length===2
+    &&orden[0].avisos.length===0&&orden[1].avisos.some(a=>a.tipo==='tope'&&a.dia==='M'&&a.modulo===3));
 }
 
 console.log('\nSecciones con el mismo horario y profe preferido');
