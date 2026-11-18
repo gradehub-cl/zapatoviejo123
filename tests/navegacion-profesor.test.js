@@ -89,7 +89,9 @@ chk('el menú no ofrece importar el horario a un profesor', el('um-horario').hid
 cuenta(null, false); run("S.tenant='uc';openUserMenu()");
 chk('un estudiante UC antiguo sí puede importar su horario', !el('um-horario').hidden);
 run("S.tenant='fen';openUserMenu()");
-chk('otras universidades no reciben un lector del catálogo UC', el('um-horario').hidden);
+chk('la FEN también importa su horario de Docencia Web', !el('um-horario').hidden);
+run("S.tenant='uai';openUserMenu()");
+chk('una universidad sin formato de horario no recibe el lector', el('um-horario').hidden);
 chk('el menú abre el mismo importador que Agregar ramo', /id="um-horario"[^>]*umGo\(abrirImportarHorarioBuscacursos\)/.test(html));
 chk('la malla ya no ocupa un lugar en el menú del perfil', !/id="um-malla"/.test(html));
 
