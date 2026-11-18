@@ -57,7 +57,7 @@ EN TU IPHONE
 ESTADÍSTICAS
 • Cómo vas en el semestre, tu avance y lo que más te exige.
 • Historial de semestres anteriores.
-• Compárate de forma anónima con quienes cursan el mismo ramo: solo ves un porcentaje y únicamente cuando hay al menos cinco personas.
+• Compárate de forma anónima con quienes cursan el mismo ramo: solo ves un porcentaje y únicamente cuando hay al menos diez compañeros además de ti.
 
 TUS DATOS
 • Funciona sin conexión: tus notas se guardan en tu teléfono.
