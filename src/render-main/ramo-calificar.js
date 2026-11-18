@@ -118,12 +118,12 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
   const escritasMias=v2&&Array.isArray(mia.otros)?mia.otros.filter(t=>typeof t==='string'&&t.trim()):[];
   const chipEscrita=(texto,marcada)=>`<label class="rc-etiqueta rc-escrita"><input type="checkbox" name="escrita" value="${esc(texto)}"${marcada?' checked':' data-rc-sugerida'}><span>${esc(texto)}</span></label>`;
   const chips=v2?etiquetasSugeridasRamo(sugeridas,[...seleccion],escritasMias):RAMO_ETIQUETAS.map(e=>({id:e.id}));
-  const etiquetasHTML=`<fieldset><legend>¿Cómo fue? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${chips.map(x=>x.id
+  const etiquetasHTML=`<fieldset><legend>¿Cómo era? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${chips.map(x=>x.id
     ?`<label class="rc-etiqueta"><input type="checkbox" name="etiqueta" value="${esc(x.id)}"${seleccion.has(x.id)?' checked':''}><span>${esc(RAMO_ETIQUETAS.find(e=>e.id===x.id).texto)}</span></label>`
     :chipEscrita(x.texto,!x.sugerida)).join('')}${v2?'<label class="rc-etiqueta rc-otro"><input type="checkbox" name="otro" data-rc-otro><span>Otro</span></label>':''}</div>
     ${v2?'<div class="rc-otro-campo" hidden><input type="text" class="rc-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="rc-otro-cuenta"><span id="rc-otro-cuenta" class="rc-otro-cuenta">0/20</span><button type="button" class="docente-link" data-rc-agregar>Agregar</button></div>':''}</fieldset>`;
   const preguntas={
-   facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil fue sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
+   facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil era sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
    carga:`<fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>`,
    asistencia:`<fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>`,
    recomienda:`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,

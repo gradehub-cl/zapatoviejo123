@@ -64,10 +64,10 @@ const hoja=async({version,sugeridas,mia=null})=>{
 const pos=(h,t)=>{const i=h.indexOf(t);assert(i>=0,'falta: '+t);return i;};
 let h=await hoja({});
 assert(h.includes('¿Cuántas horas a la semana'),'sin SQL nuevo: formulario anterior con horas');assert(!h.includes('data-rc-otro'));
-assert(pos(h,'¿Lo recomendarías?')<pos(h,'¿Cómo fue?'),'el anterior conserva su orden');pos(h,'¿Qué tan fácil fue sacarse buena nota?');
+assert(pos(h,'¿Lo recomendarías?')<pos(h,'¿Cómo era?'),'el anterior conserva su orden');pos(h,'¿Qué tan fácil era sacarse buena nota?');
 h=await hoja({version:2});
 assert(!h.includes('¿Cuántas horas'),'con SQL nuevo ya no pregunta horas');
-const orden=['¿Qué tan fácil fue sacarse buena nota?','¿Se tomaba asistencia?','¿Cómo fue?','¿Lo recomendarías?'].map(t=>pos(h,t));
+const orden=['¿Qué tan fácil era sacarse buena nota?','¿Se tomaba asistencia?','¿Cómo era?','¿Lo recomendarías?'].map(t=>pos(h,t));
 assert.deepEqual([...orden].sort((a,b)=>a-b),orden,'orden nuevo: termina en recomendar');
 assert(!h.includes('estudiar')&&!h.includes('name="estudio"'),'sin pregunta de estudio');
 assert(h.lastIndexOf('</fieldset>')>pos(h,'¿Lo recomendarías?'),'recomendar es la última pregunta');
