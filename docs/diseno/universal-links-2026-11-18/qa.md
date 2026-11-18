@@ -1,6 +1,6 @@
 # QA de Universal Links — 2026-11-18
 
-Simulador propio «GradeHub-Enlaces-QA», iPhone 18 Pro, iOS 27.0. Solo cuentas,
+Simuladores propios «GradeHub-Enlaces-QA» y «GradeHub-Enlaces-Final», iPhone 18 Pro, iOS 27.0. Solo cuentas,
 profesor y ramos sintéticos; sin ponderaciones inventadas ni filas reales.
 
 | Estado observado | Claro | Oscuro |
@@ -30,9 +30,16 @@ como muestra la oscura. No se crearon cuentas de servidor.
   Una ruta desconocida deja Inicio visible y cierra la hoja anterior. El
   registro QA termina con `auth:false`, `modal:false`, `pestana:"home"`, dueño
   propio y `errores:[]`.
+- Se repitió el arranque de un proceso cerrado con la actividad inyectada al
+  aparecer el WebView: `sesion:false`, `auth:true`, `pendiente:"ABCD2345"`,
+  `dueno:null`, sin ramos ni errores. Después del login: dueño propio y hoja
+  de consentimiento. Se registran las opciones de arranque antes de mostrar
+  la ventana, para no perder el primer `capacitorViewDidAppear`.
 - `tests/universal-links.test.js` comprueba además getLaunchUrl/arranque frío,
   evento retenido duplicado, onboarding, recuperación/auth excluidos,
-  parámetros malformados, cambio de cuenta y formulario sin guardar. Ejecuta
+  parámetros malformados, cambio de cuenta y formulario sin guardar. Un único
+  oyente conserva los callbacks OAuth retenidos; las fichas de widgets esperan
+  también al dueño correcto de la caché. Ejecuta
   el `afterLogin` real con una lectura remota demorada y una caché de otra
   persona. También pasa aplicado a una copia temporal de `origin/ios`.
 
@@ -53,6 +60,16 @@ xcrun simctl openurl DEVICE 'cl.gradehub.enlacesqa://abrir?url=https%3A%2F%2Fgra
 xcrun simctl openurl DEVICE 'cl.gradehub.enlacesqa://entrar'
 xcrun simctl openurl DEVICE 'cl.gradehub.enlacesqa://abrir?url=https%3A%2F%2Fgradehub.cl%2Fno-existe'
 ```
+
+Para repetir el arranque en frío sin el diálogo de apertura del esquema QA:
+
+```bash
+xcrun simctl launch --terminate-running-process DEVICE cl.gradehub.enlacesqa -qaEnlaceFrio 'cl.gradehub.enlacesqa://abrir?url=https%3A%2F%2Fgradehub.cl%2F%3Fprofe%3DABCD2345'
+```
+
+Ese argumento existe solo en la copia temporal y entrega la actividad al puente
+nativo al aparecer el WebView. Si la lectura de estado ocurre antes de cargar JS,
+`cl.gradehub.enlacesqa://estado` vuelve a leerlo sin repetir el enlace.
 
 Esperar a que termine cada pantalla antes del siguiente comando. `entrar`
 solo existe en la copia QA: llama el login con credenciales sintéticas y

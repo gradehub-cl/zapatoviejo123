@@ -59,7 +59,9 @@ function resolverEnlaceUniversalPendiente(){
     // o llega otro link. Nunca se retoma el destino de esa visita anterior.
     if(!sesionListaParaEnlaceUniversal()||cuenta!==currentUser.id||visita!==_visitaSesion||pedido!==_ultimoEnlaceUniversal)return;
     try{
-      if(destino.tipo==='profe'){
+      if(destino.tipo==='nativo'){
+        closeModal();destino.abrir(destino.evento);
+      }else if(destino.tipo==='profe'){
         contextoEnlaceUniversal(destino);
         revisarInvitacionProfesor().catch(()=>{});
       }else{
@@ -79,24 +81,34 @@ function activarEnlacesUniversales(){
   _sesionEnlacesUniversales={uid:currentUser.id,visita:_visitaSesion};
   return resolverEnlaceUniversalPendiente();
 }
-if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor?.Plugins?.App){
-  const appEnlaces=window.Capacitor.Plugins.App;
+// Un solo oyente para HTTPS, OAuth y widgets. Capacitor entrega un evento
+// retenido al PRIMER oyente: dos registros podían consumir la vuelta del login.
+function registrarEnlacesUniversales(appEnlaces,otrosEnlaces){
   let recibioEvento=false,desdeLanzamiento=null;
-  // Capacitor retiene appUrlOpen hasta que exista un listener. getLaunchUrl
-  // cubre el arranque en frío; si llegan ambos, esa primera URL se consume una vez.
-  try{Promise.resolve(appEnlaces.addListener('appUrlOpen',ev=>{
+  const recibir=ev=>{
     recibioEvento=true;
     const duplicado=desdeLanzamiento&&ev?.url===desdeLanzamiento;
     desdeLanzamiento=null;
-    if(!duplicado)recibirEnlaceUniversal(ev?.url);
-  })).catch(()=>{});}catch(e){}
+    if(duplicado||recibirEnlaceUniversal(ev?.url))return;
+    const url=ev?.url;
+    if(typeof url==='string'&&url.length<=2048&&url.startsWith('cl.gradehub.app://')&&!url.startsWith(VUELTA_NATIVA)){
+      // Las fichas privadas de widgets tampoco pueden abrir la caché anterior
+      // antes del login. Se conserva su manejador y se difiere solo la entrada.
+      _ultimoEnlaceUniversal=_enlaceUniversalPendiente={destino:{tipo:'nativo',evento:ev,abrir:otrosEnlaces},uid:currentUser?.id||null};
+      resolverEnlaceUniversalPendiente();
+    }else otrosEnlaces(ev);
+  };
+  try{Promise.resolve(appEnlaces.addListener('appUrlOpen',recibir)).catch(()=>{});}catch(e){}
   if(typeof appEnlaces.getLaunchUrl==='function'){
     try{Promise.resolve(appEnlaces.getLaunchUrl()).then(ev=>{
       if(recibioEvento)return;
-      desdeLanzamiento=ev?.url||null;
-      recibirEnlaceUniversal(desdeLanzamiento);
+      // Solo deduplicar si este router consumió el HTTPS. Un callback OAuth
+      // o widget debe seguir llegando al manejador original por el evento.
+      if(recibirEnlaceUniversal(ev?.url))desdeLanzamiento=ev.url;
     }).catch(()=>{});}catch(e){}
   }
+}
+if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA){
   // Un evento puede llegar antes de marketplace.js, donde vive la invitación.
   document.addEventListener('DOMContentLoaded',()=>{if(_enlaceUniversalPendiente)contextoEnlaceUniversal(_enlaceUniversalPendiente.destino);},{once:true});
 }

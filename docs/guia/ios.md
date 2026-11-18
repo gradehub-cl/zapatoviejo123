@@ -101,8 +101,12 @@ su URL exacta. No se agrega una redirección. `App.entitlements` declara
 `applinks:gradehub.cl`; el único identificador de equipo añadido para la
 asociación pública está en el AASA, nunca en el proyecto de Xcode.
 
-`src/app-session/enlaces-universales.js` escucha `appUrlOpen` y consulta
-`getLaunchUrl`, con deduplicación del arranque. Solo actúa con `enAppNativa()`.
+`src/app-session/enlaces-universales.js` usa el mismo oyente `appUrlOpen` de OAuth/widgets y consulta
+`getLaunchUrl`, con deduplicación del arranque. No registra un segundo oyente
+que pueda consumir la vuelta de OAuth retenida por Capacitor; el getter solo
+deduplica los HTTPS que este router realmente manejó. Los enlaces privados de
+widgets conservan su manejador y esperan la misma comprobación de sesión y
+caché; la vuelta OAuth se entrega inmediatamente al acceso. Solo actúa con `enAppNativa()`.
 No navega el WebView a la URL entrante ni altera la sesión. Una entrada espera
 hasta `showMainApp`, con onboarding terminado, sin recuperación activa, la
 misma visita de sesión y `getCacheOwner() === currentUser.id`. Si cambia la
@@ -125,6 +129,8 @@ Referencia: [Apple, Supporting universal links in your app](https://developer.ap
 asociación de dominio y app, validación de parámetros y acciones que no
 modifican datos privados por el solo hecho de abrir un link. El puente de
 escenas que ya trae Capacitor 8.5.2 entrega la actividad a `@capacitor/app`.
+`SceneDelegate` registra el arranque antes de mostrar la ventana, para que el
+puente observe el primer `capacitorViewDidAppear` y no pierda la actividad.
 
 ## Contrato «Próxima clase» (web y PWA, 2026-11-12)
 

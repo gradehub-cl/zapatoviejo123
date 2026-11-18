@@ -49,7 +49,10 @@ p.write_text(s)
 # Solo el relay QA traduce el esquema aislado a la NSUserActivity pública que
 # normalmente entrega iOS. De ahí pasa por SceneDelegateProxy y @capacitor/app.
 p=app/'App/SceneDelegate.swift';s=p.read_text()
-s=s.replace('        SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)', '''        if let url = connectionOptions.urlContexts.first?.url {
+s=s.replace('        SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)', '''        let argumentos = ProcessInfo.processInfo.arguments
+        let posicion = argumentos.firstIndex(of: "-qaEnlaceFrio")
+        let frio = posicion.flatMap { $0 + 1 < argumentos.count ? URL(string: argumentos[$0 + 1]) : nil }
+        if let url = connectionOptions.urlContexts.first?.url ?? frio {
             var observador: NSObjectProtocol?
             observador = NotificationCenter.default.addObserver(forName: .capacitorViewDidAppear, object: nil, queue: .main) { _ in
                 if let observador { NotificationCenter.default.removeObserver(observador) }

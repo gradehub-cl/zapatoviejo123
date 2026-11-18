@@ -70,11 +70,15 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
     const extra=ev&&ev.notification&&ev.notification.extra;
     if(extra&&extra.gradehub==='prueba'&&typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(extra.url);
   });
-  if(App)App.addListener('appUrlOpen',ev=>{
+  const abrirEnlaceNativo=ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
     else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
-  });
+  };
+  if(App){
+    if(typeof registrarEnlacesUniversales==='function')registrarEnlacesUniversales(App,abrirEnlaceNativo);
+    else App.addListener('appUrlOpen',abrirEnlaceNativo);
+  }
   // Lo que se respondió en la Actividad en Vivo con la app cerrada.
   if(typeof recogerSensaciones==='function'){
     setTimeout(recogerSensaciones,0);

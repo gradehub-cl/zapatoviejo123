@@ -13,16 +13,17 @@ const cabecera=leer('_headers').split('/.well-known/apple-app-site-association\n
 assert(cabecera&&/^  Content-Type: application\/json\s*$/m.test(cabecera));
 assert(!fs.existsSync(path.join(raiz,'_redirects')),'revisar redirecciones nuevas antes de confiar en el AASA');
 assert(leer('ios/App/App/App.entitlements').includes('<string>applinks:gradehub.cl</string>'));
+const escena=leer('ios/App/App/SceneDelegate.swift');assert(escena.indexOf('SceneDelegateProxy.shared.scene(scene, willConnectTo:')<escena.indexOf('window?.makeKeyAndVisible()'),'registrar el arranque antes de que aparezca el WebView');
 const deploy=leer('.github/workflows/deploy.yml');assert(deploy.includes('.well-known/assetlinks.json .well-known/apple-app-site-association'));
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'gh-aasa-dist-'));
 try{const excl=[...deploy.matchAll(/--exclude '([^']+)'/g)].map(m=>'--exclude='+m[1]);cp.execFileSync('rsync',['-a',...excl,raiz+'/',temp+'/']);assert.equal(fs.readFileSync(path.join(temp,'.well-known/apple-app-site-association'),'utf8'),leer('.well-known/apple-app-site-association'));}finally{fs.rmSync(temp,{recursive:true,force:true});}
 console.log('PASS AASA: JSON, inventario, auth fuera, entitlement, Content-Type y copia real a dist');
 
-function contexto({nativa=true,lanzamiento,falloLanzamiento=false}={}){
+function contexto({nativa=true,lanzamiento,falloLanzamiento=false,retenido}={}){
  const ids={},almacen=new Map(),oyentes={},timers=[],llamadas=[],eventos=[],docEventos={};
  const el=()=>{const clases=new Set();return {style:{setProperty(){},removeProperty(){}},classList:{add(...a){a.forEach(x=>clases.add(x));},remove(...a){a.forEach(x=>clases.delete(x));},contains:x=>clases.has(x),toggle(){}},dataset:{},value:'',innerHTML:'',textContent:'',addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},getAttribute(){return null;},querySelector(){return null;},querySelectorAll(){return [];},focus(){}};};
  const window={addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})};
- if(nativa)window.Capacitor={isNativePlatform:()=>true,Plugins:{App:{addListener(n,f){(oyentes[n]??=[]).push(f);},getLaunchUrl(){return falloLanzamiento?Promise.reject(Error('sin URL')):Promise.resolve(lanzamiento?{url:lanzamiento}:undefined);}}}};
+ if(nativa)window.Capacitor={isNativePlatform:()=>true,Plugins:{App:{addListener(n,f){(oyentes[n]??=[]).push(f);if(n==='appUrlOpen'&&retenido){const url=retenido;retenido=null;Promise.resolve().then(()=>f({url}));}},getLaunchUrl(){return falloLanzamiento?Promise.reject(Error('sin URL')):Promise.resolve(lanzamiento?{url:lanzamiento}:undefined);}}}};
  const storage={getItem:k=>almacen.get(k)||null,setItem:(k,v)=>almacen.set(k,String(v)),removeItem:k=>almacen.delete(k)};
  const ctx={window,document:{getElementById:id=>ids[id]??=(el()),documentElement:el(),body:el(),createElement:el,querySelector:()=>el(),querySelectorAll:()=>[],addEventListener(n,f){(docEventos[n]??=[]).push(f);}},localStorage:storage,sessionStorage:storage,navigator:{},location:{origin:nativa?'capacitor://localhost':'https://gradehub.cl',pathname:'/',search:'',hash:'',href:'https://gradehub.cl/'},history:{replaceState(){}},URL,URLSearchParams,console,setTimeout:f=>{timers.push(f);return timers.length;},clearTimeout(){}};
  vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js','app-session.js','marketplace.js','render-main.js','render-agenda.js'])vm.runInContext(leer(f),ctx);
@@ -34,7 +35,12 @@ function contexto({nativa=true,lanzamiento,falloLanzamiento=false}={}){
 }
 const pausa=()=>new Promise(r=>setImmediate(r));
 (async()=>{
- const c=contexto();c.entrar();c.llamadas.length=0;
+ const c=contexto();assert.equal(c.oyentes.appUrlOpen.length,1,'un solo oyente nativo para no robar eventos retenidos');c.entrar();c.llamadas.length=0;
+ const callback='cl.gradehub.app://login-callback?code=sintetico';
+ const oauthFrio=contexto({lanzamiento:callback});oauthFrio.run(`globalThis.__oauth=[];volverDeOAuthNativo=url=>__oauth.push(url)`);await pausa();oauthFrio.emitir(callback);assert.equal(oauthFrio.run('__oauth.length'),1,'getLaunchUrl no consume ni deduplica un callback OAuth que no manejó');
+ const retenido=contexto({lanzamiento:callback,retenido:callback});retenido.run(`globalThis.__oauth=[];volverDeOAuthNativo=url=>__oauth.push(url)`);await pausa();assert.equal(retenido.run('__oauth.length'),1,'el único oyente entrega el OAuth retenido al flujo original');
+ const widget=contexto({lanzamiento:'cl.gradehub.app://ramo/sintetico'});widget.run(`globalThis.__widgets=[];abrirEnlaceWidget=url=>__widgets.push(url)`);await pausa();widget.emitir('cl.gradehub.app://ramo/sintetico');assert.equal(widget.run('__widgets.length'),0,'un widget privado no abre la caché antes de entrar');widget.entrar();assert.equal(widget.run('__widgets.length'),1);
+
  const casos=[['https://gradehub.cl/','tab','home'],['https://gradehub.cl/?profe=ABCD2345','invitacion','ABCD2345'],['https://gradehub.cl/?dar-clases','tab','profesor'],['https://gradehub.cl/?desde=calculadora','tab','home'],['https://gradehub.cl/desconocido','tab','home']];
  for(const [url,tipo,destino] of casos){c.emitir(url);assert.deepEqual(c.llamadas.at(-1).slice(0,2),[tipo,destino],url);}
  const n=c.llamadas.length;
