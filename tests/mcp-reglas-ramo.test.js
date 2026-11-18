@@ -30,8 +30,30 @@ const conCompuerta = { ...ramo, id: 'rc', nombre: 'Curso Sintético con Mínimo'
   categorias: [{ id: 'q', nombre: 'Controles', peso: 40, slots: 3, dropLowest: { count: 1 }, notas: [] }, { id: 'x', nombre: 'Examen', peso: 60, notas: [] }],
   gates: [{ type: 'min_grade_required', catId: 'x', min: 3.5, cap: 3.9, nombre: 'Examen' }] };
 
+// La app guarda en el ramo una copia de solo texto de las reglas del curso y
+// de las que el motor no calcula, porque el servidor no tiene el catálogo.
+function el() { return { style: { setProperty() {} }, classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} }, dataset: {}, value: '', innerHTML: '', textContent: '',
+  addEventListener() {}, appendChild() {}, setAttribute() {}, removeAttribute() {}, querySelector() { return null; }, querySelectorAll() { return []; }, focus() {} }; }
+const app = { console, window: { addEventListener() {}, matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) },
+  document: { getElementById: el, querySelector: () => el(), querySelectorAll: () => [], createElement: el, addEventListener() {}, documentElement: el(), body: el(), head: { appendChild() {} } },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, navigator: {}, location: { origin: '', pathname: '/', search: '', hash: '' },
+  history: { replaceState() {} }, setTimeout, clearTimeout, requestAnimationFrame() { return 1; } };
+vm.createContext(app);
+for (const f of ['data.js', 'engine.js', 'app.js']) vm.runInContext(leer(f), app, { filename: f });
+vm.runInContext(`PRESETS_FEN['Curso Sintético con Texto']={evals:[['Parcial',50],['Examen',50]],
+  reglasDelCurso:['Sin justificar en 48 horas, la evaluación vale 1,0'],noCalcula:['Un taller opcional sube una décima']};`, app);
+const normalizado = (extra = {}) => JSON.parse(vm.runInContext(`JSON.stringify(normalize({tenant:'fen',ramos:[${JSON.stringify({ id: 'rt', nombre: 'Curso Sintético con Texto', gates: [], creditos: 6,
+  origen: { tenant: 'fen', carrera: null, ramoKey: 'curso sintetico con texto' },
+  categorias: [{ id: 'p', nombre: 'Parcial', peso: 50, notas: [{ id: 'np', nombre: 'Parcial', valor: 5, peso: 1 }] }, { id: 'e', nombre: 'Examen', peso: 50, notas: [] }], ...extra })}]}).ramos[0])`, app));
+const conTexto = normalizado();
+chk('la app copia las reglas del curso en el ramo', conTexto.reglasDelCurso?.[0] === 'Sin justificar en 48 horas, la evaluación vale 1,0');
+chk('y las que el motor no calcula', conTexto.reglasNoCalculadas?.[0] === 'Un taller opcional sube una décima');
+chk('las notas no cambian', conTexto.categorias[0].notas[0].valor === 5);
+const manual = JSON.parse(vm.runInContext(`JSON.stringify(normalize({tenant:'fen',ramos:[{id:'rm',nombre:'Curso Sintético con Texto',reglasDelCurso:['vieja'],reglasNoCalculadas:['vieja'],categorias:[]}]}).ramos[0])`, app));
+chk('un ramo manual del mismo nombre no recibe reglas y pierde una copia vieja', !('reglasDelCurso' in manual) && !('reglasNoCalculadas' in manual));
+
 const mcp = { console, Response, structuredClone, Intl, HERRAMIENTAS: [], NOMBRES: ['ver_ramo', 'que_necesito_para_aprobar'],
-  fetch: async () => ({ ok: true, json: async () => ({ tenant: 'uc', ramos: [structuredClone(ramo), structuredClone(conCompuerta)] }) }), module: { exports: {} }, exports: {} };
+  fetch: async () => ({ ok: true, json: async () => ({ tenant: 'uc', ramos: [structuredClone(ramo), structuredClone(conCompuerta), structuredClone(conTexto)] }) }), module: { exports: {} }, exports: {} };
 vm.createContext(mcp);
 vm.runInContext(leer('engine.js'), mcp);
 mcp.motorCompartido = { gh_crearCalculoRamo: mcp.module.exports.gh_crearCalculoRamo };
@@ -56,6 +78,8 @@ const tool = async (name, args) => {
   chk('muestra el descarte de la nota más baja', c.reglas?.descartes?.[0]?.evaluacion === 'Controles' && c.reglas.descartes[0].seDescartan === 1);
   chk('muestra la compuerta con su mínimo y tope', c.reglas?.compuertas?.[0]?.minimo === 3.5 && /mínimo 3,5; si no, la final queda en 3,9/.test(c.reglas.compuertas[0].texto));
   chk('un ramo sin eximición no inventa una', !('eximicion' in c.reglas));
+  const t = await tool('ver_ramo', { ramo: 'Curso Sintético con Texto' });
+  chk('el agente ve la copia que guardó la app', t.reglas?.reglasDelCurso?.[0]?.includes('1,0') && t.reglas?.reglasNoCalculadas?.length === 1);
   const n = await tool('que_necesito_para_aprobar', { ramo: 'sin123' });
   chk('la sigla también sirve para la nota necesaria', n.ramo === 'Curso Sintético de Reglas');
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
