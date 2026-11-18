@@ -41,9 +41,11 @@ function payloadCalificarRamo(c,{carga,facilidad,asistencia,recomienda,etiquetas
 // guardadas no se tocan) y con etiquetas escritas. Mismas reglas que
 // ramo_opinar en SQL (Lucas, 2026-11-18).
 // recomienda: 3 = Sí, 2 = Más o menos, 1 = No.
-function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros=[]}={}){
+// sinRecomendar: ramo de malla coordinado, donde no se pregunta; se conserva
+// el nivel que ya tenía la opinión (o queda vacío).
+function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros=[],sinRecomendar=false}={}){
  const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id)),escala=(n,max)=>Number.isInteger(n)&&n>=1&&n<=max;
- if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||!escala(recomienda,3))throw Error('Responde todas las preguntas.');
+ if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||!(sinRecomendar?recomienda==null||escala(recomienda,3):escala(recomienda,3)))throw Error('Responde todas las preguntas.');
  const lista=[...new Set(Array.isArray(etiquetas)?etiquetas:[])];
  if(lista.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
  const escritas=[];
@@ -53,7 +55,7 @@ function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros
   if(!escritas.some(x=>normalEtiquetaEscrita(x)===normalEtiquetaEscrita(limpio)))escritas.push(limpio);
  }
  if(lista.length+escritas.length>3)throw Error('Elige hasta 3 etiquetas.');
- return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda_nivel:recomienda,p_etiquetas:lista,p_otros:escritas};
+ return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda_nivel:recomienda??null,p_etiquetas:lista,p_otros:escritas};
 }
 // Las etiquetas que se ofrecen salen de lo que más se elige en el ramo. Sin
 // datos (o sin la RPC) queda la lista fija. Las propias siempre se ven.
@@ -89,6 +91,23 @@ function avisoCalificarRamoVisto(c){
  const k=claveAvisoCalificarRamo(c);try{return avisosRamoVistos.has(k)||localStorage.getItem(k)==='1';}catch(e){return avisosRamoVistos.has(k);}
 }
 function marcarAvisoCalificarRamo(c){const k=claveAvisoCalificarRamo(c);avisosRamoVistos.add(k);try{localStorage.setItem(k,'1');}catch(e){}}
+// «¿Lo recomendarías?» no sirve en un ramo obligatorio: igual hay que tomarlo
+// (Lucas, 2026-11-18). Solo en uno de malla coordinado no se pregunta. En uno
+// no coordinado se mantiene: el encabezado ya dice la sección y el profe, así
+// que recomendar el ramo es recomendarlo con ese profe. Devuelve 'ramo' o null.
+function ramoEnMallaPropia(r,tenant){
+ try{
+  const nombres=[r?.origen?.ramoKey,r?.nombre].filter(x=>typeof x==='string'&&x.trim()).map(normName);
+  if(!nombres.length)return false;
+  const malla=tenant===S.tenant&&typeof mallaDeCarrera==='function'?mallaDeCarrera(tenant,S.carrera):null;
+  if(malla)return Object.values(malla).some(sem=>Array.isArray(sem)&&sem.some(n=>nombres.includes(normName(n))));
+  return typeof ramoDeLaMalla==='function'&&nombres.some(n=>ramoDeLaMalla(n,tenant));
+ }catch(e){return false;}
+}
+async function preguntaRecomendarRamo(r,tenant){
+ if(!ramoEnMallaPropia(r,tenant))return 'ramo';
+ try{return await coordinacionResumenRamo(r,tenant)===false?'ramo':null;}catch(e){return null;}
+}
 // Calificar (ramo o profe) se abre con la mitad del ramo evaluada, por peso.
 // Antes no hay base para opinar (Lucas, 2026-11-18). Editar lo ya guardado
 // sigue disponible siempre.
@@ -137,7 +156,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
  caja.innerHTML=`<div class="modal-title">Calificar ramo</div><p class="rc-nombre">${esc(r.nombre)}</p><p role="status">Cargando tu opinión…</p><button type="button" class="btn-cancel" data-rc-cerrar>Volver</button>`;
  caja.querySelector('[data-rc-cerrar]').onclick=cerrar;openModal();
  try{
-  const [{data:estado,error},subtitulo]=await Promise.all([cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c)),subtituloCalificarRamo(r,c)]);if(error)throw error;if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
+  const [{data:estado,error},subtitulo,recomendar]=await Promise.all([cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c)),subtituloCalificarRamo(r,c),preguntaRecomendarRamo(r,c.tenant)]);if(error)throw error;if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
   if(!estado?.puede_calificar)throw Error('no disponible');
   const mia=estado.mia||{},seleccion=new Set(mia.etiquetas||[]);
   const radios=(nombre,opciones,valor)=>opciones.map(([v,t])=>`<label class="rc-opcion"><input type="radio" name="${nombre}" value="${v}"${String(valor)===String(v)?' checked':''}><span>${esc(t)}</span></label>`).join('');
@@ -162,7 +181,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    asistencia:`<fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>`,
    recomienda:v2
     // Sí / Más o menos / No. Una opinión antigua (solo Sí o No) se lee igual.
-    ?`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda rc-recomienda-3">${radios('recomienda',[[3,'Sí'],[2,'Más o menos'],[1,'No']],nivelRecomiendaRamo(mia))}</div></fieldset>`
+    ?recomendar===null?'':`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda rc-recomienda-3">${radios('recomienda',[[3,'Sí'],[2,'Más o menos'],[1,'No']],nivelRecomiendaRamo(mia))}</div></fieldset>`
     :`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
   };
   // Formulario nuevo: sin horas y recomendar antes de las etiquetas (Lucas, 2026-11-18).
@@ -220,9 +239,9 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
      asistencia:asis==='si'?true:asis==='no'?false:asis==='nose'?null:undefined,
      etiquetas:[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value)};
     if(!v2){guardar('ramo_calificar',payloadCalificarRamo(c,{...comunes,recomienda:rec==='1'?true:rec==='0'?false:null,carga:Number(valor('carga'))}));return;}
-    comunes.recomienda=Number(rec)||null;
+    comunes.recomienda=v2&&recomendar===null?nivelRecomiendaRamo(estado.mia):Number(rec)||null;
     if(otroChip.checked&&textoOtro.value.trim()&&!agregarEscrita())return;
-    guardar('ramo_opinar',payloadOpinarRamo(c,{...comunes,
+    guardar('ramo_opinar',payloadOpinarRamo(c,{...comunes,sinRecomendar:recomendar===null,
      otros:[...form.querySelectorAll('[name=escrita]:checked')].map(x=>x.value)}));
    }catch(e){mensaje.textContent=e.message;enfocarEnHoja(form.querySelector('input:not(:checked)'));}
   };
