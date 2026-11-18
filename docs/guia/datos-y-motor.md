@@ -23,6 +23,23 @@ pendientes para las casillas sin nota —nunca se guardan en `S`—, para que me
 y avance no den por cerrado un 70% con un solo informe. Sin `slots`, no se
 inventa cuántas evaluaciones faltan.
 
+### Equipo de Canvas: caché de sesión
+
+El equipo confirmado de Canvas vive en memoria, ligado a cuenta, universidad,
+sigla, sección y período, como `docenteFichaActual`. No añade campos al ramo ni
+al JSON `gradehub_v1`, no se respalda ni llega al panel de alumnos: `mis_alumnos`
+devuelve completo el ramo compartido y un campo nuevo ampliaría sus datos.
+
+Leer solo propone. Al aceptar, la sección usa el campo existente `seccion`; el
+equipo se muestra durante esta sesión. Al desconectar Canvas, cerrar sesión,
+reiniciar o borrar la cuenta se limpia la caché junto con las otras de Canvas.
+Para verlo tras recargar hay que volver a traer los datos y confirmarlos.
+
+El profesor propuesto usa `contextoDocente`/`profesorPropuestoRamo` y la misma
+confirmación de la calificación. Solo al guardar esa calificación se informa
+por `profesor_docente_informar`, como antes. Los ayudantes no se proponen como
+profesores. Ningún nombre leído se convierte automáticamente en reporte o voto.
+
 ### Fecha de edición de una nota
 
 `nota.editadaEn` es opcional: una fecha ISO en UTC de la última creación o

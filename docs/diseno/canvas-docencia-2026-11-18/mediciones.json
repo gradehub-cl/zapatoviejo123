@@ -1,0 +1,54 @@
+[
+  {
+    "modo": "claro",
+    "antes": {
+      "seccion": null,
+      "errores": [],
+      "scroll": 375,
+      "texto": "Cancelar\nGuardar datos elegidos\nSección y equipo de Canvas\n\nLa sección se guarda en tu cuenta. El equipo queda en esta sesión de la app. Informar al profesor se confirma aparte al calificar.\n\nCurso sintético Canvas\nAgregar sección 2\n\nProfesor: Docente Sintético Uno\n\nAyudante: Ayudante Sintética Uno\n\nMostrar este equipo en mi ficha"
+    },
+    "despues": {
+      "seccion": 2,
+      "nota": 5.4,
+      "texto": "Profesor: Docente Sintético Uno\n\nAyudante: Ayudante Sintética Uno\n\nDe Canvas · 2026-2 · sección 2",
+      "escrituras": 0,
+      "scroll": 375
+    },
+    "contrasteMin": 5.204661271054155,
+    "botones": [
+      44,
+      44,
+      44,
+      44
+    ]
+  },
+  {
+    "modo": "oscuro",
+    "antes": {
+      "seccion": null,
+      "errores": [],
+      "scroll": 375,
+      "texto": "Cancelar\nGuardar datos elegidos\nSección y equipo de Canvas\n\nLa sección se guarda en tu cuenta. El equipo queda en esta sesión de la app. Informar al profesor se confirma aparte al calificar.\n\nCurso sintético Canvas\nAgregar sección 2\n\nProfesor: Docente Sintético Uno\n\nAyudante: Ayudante Sintética Uno\n\nMostrar este equipo en mi ficha"
+    },
+    "despues": {
+      "seccion": 2,
+      "nota": 5.4,
+      "texto": "Profesor: Docente Sintético Uno\n\nAyudante: Ayudante Sintética Uno\n\nDe Canvas · 2026-2 · sección 2",
+      "escrituras": 0,
+      "scroll": 375
+    },
+    "contrasteMin": 6.49551501229122,
+    "botones": [
+      44,
+      44,
+      44,
+      44
+    ]
+  },
+  {
+    "texto200": {
+      "scroll": 375,
+      "alto": 44
+    }
+  }
+]

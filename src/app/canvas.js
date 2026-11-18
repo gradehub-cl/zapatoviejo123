@@ -21,6 +21,9 @@ function pluginCanvas(){
 async function olvidarCanvasCuenta(){
   try{const p=pluginCanvas();if(p)await p.desconectar();}catch(e){}
   if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();
+  if(typeof propuestasDocenciaCanvas!=='undefined')propuestasDocenciaCanvas.clear();
+  if(typeof equipoDocenciaCanvas!=='undefined')equipoDocenciaCanvas.clear();
+  if(typeof revisionDocenciaCanvas!=='undefined')revisionDocenciaCanvas=null;
   if(typeof canvasProgramaRamo!=='undefined')canvasProgramaRamo.clear();
 }
 function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
@@ -89,7 +92,7 @@ async function conectarCanvas(){
 function desconectarCanvas(){
   if(!canvasDisponible())return;
   showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
-    try{await pluginCanvas().desconectar();if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes();}
+    try{await pluginCanvas().desconectar();propuestasDocenciaCanvas.clear();equipoDocenciaCanvas.clear();revisionDocenciaCanvas=null;if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes();}
     catch(e){avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
   },{label:'Desconectar',focusCancel:true});
 }
@@ -104,14 +107,16 @@ async function cursosCanvas(){
 async function traerRamosCanvas(){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando tus ramos en Canvas…');
+  const ctx={estado:S,cuenta:currentUser?.id,periodo:semester(),tenant:S.tenant};
   let cursos;
   try{cursos=await cursosCanvas();}
   catch(e){avisoCanvas('No pudimos leer Canvas. Revisa la conexión o el token.',true);return;}
+  if(!await leerDocenciaCanvas(cursos,ctx))return;
   const tienes=new Set((S.ramos||[]).map(siglaRamoCanvas).filter(Boolean));
   const faltan=cursos.filter(c=>!tienes.has(c.sigla));
   track('canvas_ramos',{encontrados:cursos.length,faltan:faltan.length});
   if(!cursos.length){avisoCanvas('No encontramos ramos de este semestre en Canvas.');return;}
-  if(!faltan.length){avisoCanvas('Ya tienes todos esos ramos.');return;}
+  if(!faltan.length){avisoCanvas('Ya tienes todos esos ramos.');abrirRevisionDocenciaCanvas();return;}
   _horarioTextoPegado=faltan.map(c=>`${c.sigla}-${c.seccion}`).join(', ');
   abrirImportarHorarioBuscacursos(true);
   await reconocerHorarioBuscacursos();
@@ -133,28 +138,44 @@ function isoMasDiasCanvas(ahora,dias){
 async function traerFechasCanvas(){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando fechas en Canvas…');
+  const ctx={estado:S,cuenta:currentUser?.id,periodo:semester(),tenant:S.tenant};
+  const vigente=()=>S===ctx.estado&&currentUser?.id===ctx.cuenta&&semester()===ctx.periodo&&S.tenant===ctx.tenant;
   let propuestas=[],ramos=0;
+  const lecturas=[];
   const conteos={total:0,tareas:0,eventos:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
   try{
     const cursos=await cursosCanvas(),ahora=new Date();
+    if(!await leerDocenciaCanvas(cursos,ctx))return;
     for(const c of cursos){
-      const ramo=(S.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla);
+      if(!vigente())return;
+      const ramo=(S.ramos||[]).find(r=>cursoCanvasParaRamo(r,cursos)?.id===c.id);
       if(!ramo)continue;
       ramos++;
       const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
       // Sin fechas, Canvas devuelve solo los eventos de hoy.
       const eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
         start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
+      if(!vigente())return;
+      lecturas.push({curso:c,ramo,tareas,eventos});
       const r=resumenFechasCanvas(tareas,ramo,ahora,[],eventos);
       propuestas=propuestas.concat(r.propuestas);
       for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
     }
   }catch(e){avisoCanvas('No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
+  if(!vigente())return;
   track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
     duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion});
-  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
-  avisoCanvas('');
-  icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
-  renderRevisionIcs();
-  openModal();
+  const continuar=()=>{
+    if(!vigente())return;
+    // Guardar la sección puede completar fechas oficiales; se vuelve a comparar
+    // antes de abrir la revisión, sin reutilizar un destino que ya se fechó.
+    const cursos=lecturas.map(l=>l.curso);
+    propuestas=lecturas.filter(l=>S.ramos.includes(l.ramo)&&cursoCanvasParaRamo(l.ramo,cursos)?.id===l.curso.id)
+      .flatMap(l=>resumenFechasCanvas(l.tareas,l.ramo,new Date(),[],l.eventos).propuestas);
+    if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
+    avisoCanvas('');
+    icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
+    renderRevisionIcs();openModal();
+  };
+  if(!abrirRevisionDocenciaCanvas(S.ramos,continuar))continuar();
 }
