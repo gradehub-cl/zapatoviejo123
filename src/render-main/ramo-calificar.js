@@ -92,9 +92,9 @@ function avisoCalificarRamoVisto(c){
 }
 function marcarAvisoCalificarRamo(c){const k=claveAvisoCalificarRamo(c);avisosRamoVistos.add(k);try{localStorage.setItem(k,'1');}catch(e){}}
 // «¿Lo recomendarías?» no sirve en un ramo obligatorio: igual hay que tomarlo
-// (Lucas, 2026-11-18). En uno de malla coordinado no se pregunta; en uno de
-// malla no coordinado se recomienda la sección, que sí se elige. Optativos,
-// OFG y ramos fuera de la malla siguen igual. Devuelve 'ramo', 'seccion' o null.
+// (Lucas, 2026-11-18). Solo en uno de malla coordinado no se pregunta. En uno
+// no coordinado se mantiene: el encabezado ya dice la sección y el profe, así
+// que recomendar el ramo es recomendarlo con ese profe. Devuelve 'ramo' o null.
 function ramoEnMallaPropia(r,tenant){
  try{
   const nombres=[r?.origen?.ramoKey,r?.nombre].filter(x=>typeof x==='string'&&x.trim()).map(normName);
@@ -106,7 +106,7 @@ function ramoEnMallaPropia(r,tenant){
 }
 async function preguntaRecomendarRamo(r,tenant){
  if(!ramoEnMallaPropia(r,tenant))return 'ramo';
- try{return await coordinacionResumenRamo(r,tenant)===false?'seccion':null;}catch(e){return null;}
+ try{return await coordinacionResumenRamo(r,tenant)===false?'ramo':null;}catch(e){return null;}
 }
 // Calificar (ramo o profe) se abre con la mitad del ramo evaluada, por peso.
 // Antes no hay base para opinar (Lucas, 2026-11-18). Editar lo ya guardado
@@ -181,7 +181,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    asistencia:`<fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>`,
    recomienda:v2
     // Sí / Más o menos / No. Una opinión antigua (solo Sí o No) se lee igual.
-    ?recomendar===null?'':`<fieldset><legend>${recomendar==='seccion'?'¿Recomendarías esta sección?':'¿Lo recomendarías?'}</legend><div class="rc-recomienda rc-recomienda-3">${radios('recomienda',[[3,'Sí'],[2,'Más o menos'],[1,'No']],nivelRecomiendaRamo(mia))}</div></fieldset>`
+    ?recomendar===null?'':`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda rc-recomienda-3">${radios('recomienda',[[3,'Sí'],[2,'Más o menos'],[1,'No']],nivelRecomiendaRamo(mia))}</div></fieldset>`
     :`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
   };
   // Formulario nuevo: sin horas y recomendar antes de las etiquetas (Lucas, 2026-11-18).

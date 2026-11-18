@@ -94,14 +94,14 @@ const res=run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,rec
 assert(res.includes('Horas a la semana'),'las horas antiguas siguen en el resumen');assert(res.includes('5 de cada 10 lo recomiendan')&&res.includes('3 de 10, más o menos'),'más o menos va aparte');
 assert(!run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,recomiendan_de_10:5,asistencia:{si:0,no:0},docentes:[]},{coordinado:true})").includes('más o menos'),'sin dato, no se menciona');
 // ── «¿Lo recomendarías?» según el tipo de ramo (Lucas, 2026-11-18) ──
-// Malla coordinado: no se pregunta. Malla no coordinado: la sección. Fuera de la malla: el ramo.
+// Solo en un ramo de malla coordinado no se pregunta; en los demás, «¿Lo recomendarías?».
 {
  const S0=run('JSON.stringify({c:S.carrera,t:S.tenant})');run("S.carrera='ING-PC'");
  const coord=run('coordinacionResumenRamo');
  const tipo=async(nombre,coordinado,extra='')=>{run(`coordinacionResumenRamo=async()=>${JSON.stringify(coordinado)}`);return await run(`preguntaRecomendarRamo({nombre:${JSON.stringify(nombre)}${extra}},'uc')`);};
  assert.equal(await tipo('Cálculo I',true),null,'malla coordinado');
  assert.equal(await tipo('calculo i',true),null,'por nombre normalizado');
- assert.equal(await tipo('Cálculo I',false),'seccion','malla no coordinado');
+ assert.equal(await tipo('Cálculo I',false),'ramo','malla no coordinado: el encabezado ya dice sección y profe');
  assert.equal(await tipo('Cálculo I',null),null,'sin saber si es coordinado, un ramo de malla no pregunta por el ramo');
  assert.equal(await tipo('Mi nombre propio',true,",origen:{ramoKey:'Cálculo II'}"),null,'renombrado: manda el nombre de origen');
  assert.equal(await tipo('Teología sintética',true),'ramo','fuera de la malla');
