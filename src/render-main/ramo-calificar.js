@@ -51,6 +51,24 @@ function errorCalificarRamo(e,accion='guardar'){
  if(/no sincronizados/.test(String(e?.message)))return 'Este ramo o sección aún no está sincronizado. Vuelve a intentarlo en un momento.';
  return `No pudimos ${accion} tu opinión. Revisa tu conexión e inténtalo de nuevo.`;
 }
+// «2026-2 · Sección 1» y, si el ramo no es coordinado, «· con <profesor>»:
+// cada profesor arma sus pruebas, así que la opinión es de esa sección con ese
+// profesor (Lucas, 2026-11-18). El nombre sale de la ficha ya abierta o del
+// registro de docentes del semestre vigente; si no se sabe, no se pone.
+async function subtituloCalificarRamo(r,c){
+ const base=`${c.p_periodo} · Sección ${c.p_seccion}`;
+ try{
+  const coordinado=typeof coordinacionResumenRamo==='function'?await coordinacionResumenRamo(r,c.tenant):null;
+  if(coordinado===true||c.p_periodo!==semester())return base;
+  let d=typeof docenteFichaDeRamo==='function'?docenteFichaDeRamo(r):null,nombre=d&&(d.nombre||d.mio);
+  if(!nombre&&typeof contextoDocente==='function'&&contextoDocente(r)){
+   const {data,error}=await supabaseClient.rpc('profesor_docente_estado',contextoDocente(r));
+   const fila=(Array.isArray(data)?data[0]:data)||{};
+   if(!error)nombre=limpiarTextoProfesor(fila.nombre_publico||fila.mi_nombre,100);
+  }
+  return nombre?`${base} · con ${nombreCorto(nombre)}`:base;
+ }catch(e){return base;}
+}
 async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
  const c=contextoCalificarRamo(r,periodo);if(!c||typeof supabaseClient==='undefined'||!supabaseClient)return false;
  const cuenta=currentUser.id,cliente=supabaseClient,caja=document.getElementById('modal-content'),version=++versionCalificarRamo;if(!caja)return false;
@@ -60,11 +78,11 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
  caja.innerHTML=`<div class="modal-title">Calificar ramo</div><p class="rc-nombre">${esc(r.nombre)}</p><p role="status">Cargando tu opinión…</p><button type="button" class="btn-cancel" data-rc-cerrar>Volver</button>`;
  caja.querySelector('[data-rc-cerrar]').onclick=cerrar;openModal();
  try{
-  const {data:estado,error}=await cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c));if(error)throw error;if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
+  const [{data:estado,error},subtitulo]=await Promise.all([cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c)),subtituloCalificarRamo(r,c)]);if(error)throw error;if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
   if(!estado?.puede_calificar)throw Error('no disponible');
   const mia=estado.mia||{},seleccion=new Set(mia.etiquetas||[]);
   const radios=(nombre,opciones,valor)=>opciones.map(([v,t])=>`<label class="rc-opcion"><input type="radio" name="${nombre}" value="${v}"${String(valor)===String(v)?' checked':''}><span>${esc(t)}</span></label>`).join('');
-  caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
+  caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(subtitulo)}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
    <form class="rc-form" novalidate>
    <fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil es sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>
    <fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>
