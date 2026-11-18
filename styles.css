@@ -4903,6 +4903,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .rc-form legend{font-size:.9375rem;font-weight:600;line-height:1.5;margin-bottom:12px;}
 .rc-form legend small{display:block;font-size:.75rem;color:var(--fg2);font-weight:400;}
 .rc-cargas,.rc-escala,.rc-recomienda{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr));}
+.rc-recomienda.rc-recomienda-3{grid-template-columns:repeat(3,minmax(0,1fr));}
 .rc-escala{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;}
 .rc-asistencia{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr));}
 .rc-ayuda{margin:-12px 0 20px;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
@@ -4915,6 +4916,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .rc-extremos{display:flex;justify-content:space-between;gap:12px;font-size:.75rem;color:var(--fg2);margin-top:8px;}
 .rc-etiquetas{display:flex;flex-wrap:wrap;gap:8px;}
 .rc-etiqueta span{border-radius:22px;padding-inline:12px;font-size:.8125rem;}
+/* «Otro» en Calificar ramo: igual que en Calificar profesor (.calif-otro*). */
+.rc-otro span{border-style:dashed;}
+.rc-otro-campo{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.rc-otro-campo[hidden]{display:none;}
+.rc-otro-campo .docente-link{flex:none;margin-left:0;min-height:44px;}
+.rc-otro-campo input.rc-otro-texto{flex:1;min-width:0;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
+.rc-otro-cuenta{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
 .rc-error{color:var(--red);font-size:.875rem;line-height:1.5;margin:0 0 12px;}
 .rc-error:empty{display:none;}
 .rc-form .rc-borrar{display:block;min-height:44px;color:var(--red);margin-bottom:12px;}

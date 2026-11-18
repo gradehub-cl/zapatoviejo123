@@ -23,9 +23,14 @@ function horasRamoTexto(b){
  for(const x of lista)if(Number.isSafeInteger(x?.n)&&x.n>0&&x.opcion>=1&&x.opcion<=4&&(!mejor||x.n>mejor.n))mejor=x;
  return mejor?RAMO_CARGAS[mejor.opcion-1]:'—';
 }
+// Las escritas («Otro») solo llegan si las repiten tres cuentas o más.
 function etiquetasRamoHTML(b){
- const lista=(Array.isArray(b?.etiquetas)?b.etiquetas:[]).filter(e=>Number.isSafeInteger(e.n)&&e.n>=3&&RAMO_ETIQUETAS.some(x=>x.id===e.id));
- return lista.length?`<ul class="rr-etiquetas">${lista.map(e=>`<li>${esc(RAMO_ETIQUETAS.find(x=>x.id===e.id).texto)}</li>`).join('')}</ul>`:'';
+ const lista=(Array.isArray(b?.etiquetas)?b.etiquetas:[]).filter(e=>Number.isSafeInteger(e.n)&&e.n>=3&&RAMO_ETIQUETAS.some(x=>x.id===e.id))
+  .map(e=>({texto:RAMO_ETIQUETAS.find(x=>x.id===e.id).texto,n:e.n}));
+ const escritas=(Array.isArray(b?.escritas)?b.escritas:[]).filter(e=>typeof e?.texto==='string'&&e.texto.trim()&&Number.isSafeInteger(e.n)&&e.n>=3)
+  .map(e=>({texto:e.texto.trim(),n:e.n}));
+ const todas=[...lista,...escritas].sort((a,b)=>b.n-a.n).slice(0,8);
+ return todas.length?`<ul class="rr-etiquetas">${todas.map(e=>`<li>${esc(e.texto)}</li>`).join('')}</ul>`:'';
 }
 // Cada cifra en su escala (docs/guia/reglas-y-entrega.md, «Estadísticas pone
 // cada número en su escala»): una posición de 1 a 5 o una parte de un total va
@@ -44,12 +49,14 @@ function asistenciaRamo(b){
  return Number.isSafeInteger(si)&&Number.isSafeInteger(no)&&si>=0&&no>=0&&si+no>=5&&si+no<=b.total?{si,no,n:si+no}:null;
 }
 function recomiendanRamo(b){return Math.max(0,Math.min(10,Math.round(Number(b?.recomiendan_de_10)||0)));}
+// «Más o menos» va aparte: no suma a los que lo recomiendan.
+function masOMenosRamo(b){return Math.max(0,Math.min(10,Math.round(Number(b?.mas_o_menos_de_10)||0)));}
 function anillosRamoHTML(b){
  const rec=recomiendanRamo(b),asis=asistenciaRamo(b);
  const mayoria=asis?(asis.si>=asis.no?{palabra:'Sí',n:asis.si}:{palabra:'No',n:asis.no}):null;
  return `<div class="stats-anillos-fila rr-anillos">
   ${anilloRamoHTML({fraccion:escala5Ramo(b.facilidad),valor:decimalRamo(b.facilidad),de:palabraFacilidadRamo(b.facilidad),pie:'Facilidad para sacarse buena nota, de 1 a 5',etiqueta:`Facilidad ${decimalRamo(b.facilidad)} de 5: ${palabraFacilidadRamo(b.facilidad).toLowerCase()}`})}
-  ${anilloRamoHTML({fraccion:rec/10,valor:String(rec),de:'de 10',pie:'Lo recomiendan',etiqueta:`${rec} de cada 10 lo recomiendan`})}
+  ${anilloRamoHTML({fraccion:rec/10,valor:String(rec),de:'de 10',pie:masOMenosRamo(b)?`Lo recomiendan · ${masOMenosRamo(b)} de 10, más o menos`:'Lo recomiendan',etiqueta:`${rec} de cada 10 lo recomiendan${masOMenosRamo(b)?`; ${masOMenosRamo(b)} de cada 10, más o menos`:''}`})}
   ${mayoria?anilloRamoHTML({fraccion:mayoria.n/asis.n,valor:mayoria.palabra,de:`${mayoria.n} de ${asis.n}`,pie:'¿Se toma asistencia?',etiqueta:asistenciaRamoTexto(b)}):''}
  </div>`;
 }
