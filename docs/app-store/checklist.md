@@ -37,7 +37,7 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 
 - [x] **[Lucas]** `git pull` en `ios` → `npm ci` → `npm run ios:preparar` (build 1.0 (1), 15-nov).
 - [x] **[código]** El build Release/Archive verifica la configuración copiada y
-      los recursos web con `bin/verificar-build-ios.py` (PR pendiente).
+      los recursos web con `bin/verificar-build-ios.py` (#1190).
 - [ ] **[Lucas]** Antes de Archive: `npm run ios:preparar` →
       `python3 bin/verificar-build-ios.py`. No usar `ios:rama` para enviar a Apple.
 - [ ] **[Lucas]** Xcode → target App y GradeHubWidgets: firma automática con el
