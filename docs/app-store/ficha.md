@@ -109,7 +109,7 @@ acordada y no se cambia sin Lucas.
 Se carga **en inglés** (lo leen revisores de todo el mundo). Abajo va la misma
 nota en español, de referencia. Completar `[CUENTA DEMO]` solo en App Store
 Connect (Sign-In Information), nunca en el repo; el plan de la cuenta está en
-`testflight.md`.
+`cuenta-demo.md` (carga y segunda cuenta de borrado).
 
 ```
 GradeHub helps university students in Chile track their grades: each course follows its official grading scheme, and the app shows the course average, the semester average and the grade needed in the remaining evaluations to pass.
@@ -124,9 +124,13 @@ Tutor accounts: tutors approved by our team see their ads and reach numbers in t
 
 User-generated content: every ad, tutor profile and professor rating has "Denunciar o bloquear" (report or block). Blocked authors are managed in Settings → Datos y cuenta. Reports are reviewed by our team.
 
-Account deletion: Settings → Datos y cuenta → Eliminar mi cuenta. Accounts that use Sign in with Apple are revoked with Apple before deletion. Please do not delete the demo account; if you want to test deletion, create a new account.
-
-Widgets: long-press the Home Screen → Edit → Add Widget → GradeHub (Next evaluation, Overall average, Pending, Next class, Statistics).
+Suggested review path (the interface is in Spanish):
+1. Sign in with the main demo email/password provided in Sign-In Information. On Inicio, open Álgebra Lineal (MAT1203). Tap the existing I1 grade, change it to 4,3 and finish editing; return it to 4,2 afterward. Open Simular, set the pending I3 to 6,0 and Examen to 4,2. Close with Cerrar without saving hypothetical grades as real.
+2. Open Agenda for the upcoming I3. In Ajustes → Calendario → Avisos antes de tus evaluaciones, enable local alerts and allow notifications. The schedule is refreshed before submission. Live Activity starts within six hours of a timed evaluation; to test immediately, set I3 to today, 30 minutes ahead, then restore it to tomorrow at 10:00. The system controls notification and Live Activity presentation.
+3. Open the app once, then long-press the iOS Home Screen → Edit → Add Widget → GradeHub. Add Próxima evaluación or Próxima clase. These use the demo schedule and do not require any external calendar account.
+4. To review Sign in with Apple, sign out and tap Continuar con Apple using your own review Apple ID. This is a separate account from the email demo; do not expect to see the demo's courses there. Sign out and return to the supplied demo account afterward.
+5. Open a tutor ad/profile from Apoyo and tap Denunciar o bloquear. You can inspect the reasons and cancel. If submitting a test report, use Otro motivo and write “App Review — synthetic test”; do not contact a real tutor to test the app. Blocked authors can be unblocked in Ajustes → Datos y cuenta.
+6. To test deletion, sign out and use the SECOND disposable account supplied separately in Sign-In Information. Go to Ajustes → Datos y cuenta → Eliminar mi cuenta and confirm. Do not delete the main demo account. Apple accounts require confirmation with Apple and token revocation before deletion; the disposable email account tests the standard deletion path.
 
 Not affiliated with any university.
 ```
@@ -146,9 +150,13 @@ Cuentas de profesor: los profesores aprobados por nuestro equipo ven sus anuncio
 
 Contenido de usuarios: cada anuncio, perfil de profesor y calificación de profesor tiene «Denunciar o bloquear». Los autores bloqueados se administran en Ajustes → Datos y cuenta. Nuestro equipo revisa las denuncias.
 
-Borrar la cuenta: Ajustes → Datos y cuenta → Eliminar mi cuenta. En las cuentas que entran con Apple, primero se revoca el acceso con Apple. Por favor no borren la cuenta demo; para probar el borrado, creen una cuenta nueva.
-
-Widgets: mantener presionada la pantalla de inicio → Editar → Agregar widget → GradeHub (Próxima evaluación, Promedio general, Pendientes, Próxima clase, Estadísticas).
+Recorrido sugerido (la interfaz está en español):
+1. Entrar con la cuenta demo principal. Inicio → Álgebra Lineal (MAT1203): cambiar I1 a 4,3 y devolverla a 4,2. Simular con I3 6,0 y Examen 4,2; Cerrar sin guardar las hipotéticas como reales.
+2. Agenda muestra I3 próxima. Ajustes → Calendario → Avisos antes de tus evaluaciones: activar y permitir. La Actividad en Vivo parte dentro de las seis horas previas; para probarla ahora, mover I3 a dentro de 30 minutos y luego devolverla a mañana a las 10:00. iOS decide la presentación de avisos y actividades.
+3. Abrir la app una vez y agregar Próxima evaluación o Próxima clase desde Editar → Agregar widget de la pantalla de inicio de iOS. No requiere un calendario externo.
+4. Cerrar sesión y usar Continuar con Apple con el Apple ID del revisor. Es otra cuenta: no lleva los ramos de la demo de correo. Después volver a entrar con las credenciales demo.
+5. En Apoyo, abrir un anuncio/perfil y Denunciar o bloquear. Se puede revisar y cancelar; si se envía una denuncia de prueba, elegir Otro motivo y escribir «App Review — synthetic test». No contactar a un profesor real para probar. Los bloqueos se deshacen en Ajustes → Datos y cuenta.
+6. Para borrar, cerrar sesión y entrar con la SEGUNDA cuenta desechable entregada aparte en App Store Connect. Ajustes → Datos y cuenta → Eliminar mi cuenta y confirmar. Conservar la principal. La cuenta desechable de correo prueba el borrado común; Apple exige además su confirmación y revocación.
 
 Sin relación con ninguna universidad.
 ```
