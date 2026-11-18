@@ -18,6 +18,9 @@ assert(swift.includes('CanvasPolitica.agregarGrupos')&&swift.includes('/assignme
 assert(swift.includes('CanvasPolitica.parametrosValidos(ruta, items)'),'los parámetros también tienen lista cerrada');
 assert(swift.includes('siguiente.setValue(nil, forHTTPHeaderField: "Authorization")')&&swift.includes('CanvasPolitica.redireccionValida(url)'),'la descarga sigue la redirección solo sin token y a dominios conocidos');
 assert(swift.includes('CanvasPolitica.descargaValida(url)')&&swift.includes('CanvasPolitica.archivoBytesMax'),'el archivo se valida y tiene tope');
+{const lectura=swift.slice(swift.indexOf('@objc func archivosCurso'),swift.indexOf('static func textoPdf'));
+ assert(lectura.length>100&&!lectura.includes('borrarToken'),'un 401 de archivos (curso que los esconde) nunca borra el token');}
+assert(swift.includes('static func borrarSiVencio')&&!/codigo == 401 && Self\.leerToken\(cuenta\) == token \{ Self\.borrarToken/.test(swift),'el token se borra solo si Canvas tampoco lo acepta para users/self');
 assert(/case "pdf": contenido = Self\.textoPdf/.test(swift)&&swift.includes('CanvasPolitica.recortarTexto(contenido)'),'a la web llega solo texto recortado');
 for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
 assert(!/call\.resolve\([^\n]*"token"/.test(swift),'el puente no devuelve credenciales');
@@ -107,6 +110,8 @@ let lista = CanvasPolitica.proyectarArchivos(archivos: [["id":5,"display_name":"
   modulos: [["name":"Programa","items":[["type":"File","content_id":5,"title":"Programa.pdf"],["type":"File","content_id":7,"title":"Reglas.docx"],["type":"Page","title":"x"]]]])
 assert(lista.count == 2 && lista[0]["url"] == nil && lista[0]["modulo"] as? String == "Programa" && lista[1]["tipo"] as? String == "docx")
 assert(CanvasPolitica.textoDocx(Data("no es zip".utf8)) == nil)
+let sinExt = CanvasPolitica.proyectarArchivos(archivos: [], modulos: [["name":"Información","items":[["type":"File","content_id":9,"title":"Programa del curso"]]]])
+assert(sinExt.count == 1 && sinExt[0]["tipo"] as? String == "archivo", "un ítem de módulo sin extensión también entra")
 print("PASS política Swift real")`);
  execFileSync('xcrun',['swiftc','-module-cache-path',path.join(dir,'cache'),path.join(root,'ios/App/App/CanvasPolitica.swift'),path.join(dir,'main.swift'),'-o',path.join(dir,'prueba')],{stdio:'pipe'});
  console.log(execFileSync(path.join(dir,'prueba'),{encoding:'utf8'}).trim());

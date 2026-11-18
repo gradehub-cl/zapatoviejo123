@@ -89,7 +89,7 @@ function puntajeArchivoPrograma(a){
 }
 function archivosProgramaCanvas(lista){
   return (Array.isArray(lista)?lista:[])
-    .filter(a=>a&&Number.isSafeInteger(a.id)&&['pdf','docx','txt'].includes(a.tipo)&&!(a.tamano>15*1024*1024))
+    .filter(a=>a&&Number.isSafeInteger(a.id)&&['pdf','docx','txt','archivo'].includes(a.tipo)&&!(a.tamano>15*1024*1024))
     .map(a=>({...a,puntaje:puntajeArchivoPrograma(a)}))
     .filter(a=>a.puntaje>0)
     .sort((x,y)=>y.puntaje-x.puntaje||String(x.nombre).localeCompare(String(y.nombre)))
@@ -97,9 +97,12 @@ function archivosProgramaCanvas(lista){
 }
 async function programaDesdeArchivosCanvas(cursoId,sigla){
   const p=pluginCanvas();if(!p||typeof p.archivosCurso!=='function')return null;
-  const r=await p.archivosCurso({curso:cursoId});
-  const candidatos=archivosProgramaCanvas(r&&r.data);
-  if(!candidatos.length)return {resultado:{estado:'sin_archivo',filas:[]},archivo:null};
+  let lista;
+  try{const r=await p.archivosCurso({curso:cursoId});lista=Array.isArray(r&&r.data)?r.data:[];}
+  catch(e){return {resultado:{estado:'sin_acceso',filas:[]},archivo:null};}
+  const candidatos=archivosProgramaCanvas(lista);
+  // Cuántos se revisaron, para que «no lo encontramos» diga algo concreto.
+  if(!candidatos.length)return {resultado:{estado:'sin_archivo',filas:[],revisados:lista.length},archivo:null};
   let mejor=null;
   for(const a of candidatos){
     let leido;
@@ -113,7 +116,8 @@ async function programaDesdeArchivosCanvas(cursoId,sigla){
 }
 function mensajeProgramaCanvas(res){
   return {
-    sin_archivo:'No encontramos el programa ni en Canvas ni entre los archivos del curso. Escribe las evaluaciones con su porcentaje.',
+    sin_archivo:(res.revisados?'Revisamos '+res.revisados+' archivo'+(res.revisados===1?'':'s')+' del curso en Canvas y ninguno parece el programa.':'Este curso no tiene archivos visibles en Canvas.')+' Escribe las evaluaciones con su porcentaje.',
+    sin_acceso:'Canvas no nos dejó ver los archivos de este curso. Escribe las evaluaciones con su porcentaje.',
     escaneado:'El programa está escaneado como imagen y no se puede leer. Copia los porcentajes del programa.',
     archivo:'El programa está como archivo en Canvas y no pudimos leerlo. Actualiza la app o copia los porcentajes del programa.',
     vacio:'Este curso no tiene el programa escrito en Canvas.',
