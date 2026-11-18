@@ -65,7 +65,10 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 - [ ] **[tras merge]** Age Rating: cuestionario según `age-rating.md`.
 - [ ] **[Lucas]** Decidir si se fuerza 13+ (ver `age-rating.md`).
 - [x] **[código]** «Denunciar o bloquear» en anuncios, perfiles y opiniones (guideline 1.2): #1137.
-- [ ] **[código]** Ajustes a `privacidad.html` para iOS (ver `privacidad.md` §1).
+- [x] **[código]** Ajustes a `privacidad.html` para iOS: #1191; auditoría de
+      Canvas, MCP y Apple en `privacidad.md` (PR pendiente).
+- [ ] **[Lucas, tras merge #1191]** Comprobar política publicada y cerrar las
+      verificaciones de producción pendientes en `privacidad.md` antes de App Privacy.
 - [ ] **[Lucas]** Capturas de 6,9". Sin iPad: la app parte solo en iPhone (#1131).
 - [ ] **[Lucas]** Precio: gratis. **Disponibilidad: todos los países menos los
       27 de la Unión Europea** (decisión de Lucas; evita las obligaciones de
