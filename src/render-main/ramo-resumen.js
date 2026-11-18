@@ -122,19 +122,9 @@ async function abrirResumenRamo(r,{tenant=S.tenant,alVolver=null,alAgregar=null}
  try{const [d,coordinado]=await Promise.all([cargarResumenRamo(tenant,clave),coordinacionResumenRamo(r,tenant)]);if(vigente())caja.querySelector('[data-rr-body]').innerHTML=contenidoResumenRamoHTML(d,{coordinado});}
  catch(e){if(vigente())caja.querySelector('[data-rr-body]').innerHTML='<p role="status">No pudimos cargar las opiniones. Puedes seguir y agregar el ramo igualmente.</p>';}
 }
-// Se agrega al resultado, no a searchCatalog: el motor de búsqueda no espera red.
-function accionResumenCatalogoHTML(r){
- return typeof currentUser!=='undefined'&&currentUser?`<button type="button" class="ramo-catalogo-resumen" data-como-ramo data-nombre="${esc(r.nombre)}" data-sigla="${esc(r.sigla||'')}">Cómo es este ramo</button>`:'';
-}
-function enlazarResumenesCatalogo(caja,q){
- if(!caja?.querySelectorAll)return;const tenant=S.tenant,cuenta=typeof currentUser!=='undefined'&&currentUser?.id,estado=S,despues=alAgregarRamo,cancelar=alCancelarAgregarRamo;
- caja.querySelectorAll('[data-como-ramo]').forEach(b=>b.addEventListener('click',()=>{
-  if(!currentUser||currentUser.id!==cuenta||S!==estado)return;
-  const r={nombre:b.dataset.nombre,sigla:b.dataset.sigla,origen:{tenant,ramoKey:ramoKey(b.dataset.nombre,tenant,S.carrera,b.dataset.sigla)}};
-  const volver=()=>{if(currentUser?.id!==cuenta||S!==estado)return;openAddRamoModal(despues,cancelar);const input=document.getElementById('m-ramo-search');if(input){input.value=q;renderCatalogResults(q);}};
-  abrirResumenRamo(r,{tenant,alVolver:volver,alAgregar:()=>{if(currentUser?.id===cuenta&&S===estado)addFromCatalog(r.nombre,r.sigla);}});
- }));
-}
+// El buscador de ramos no muestra «Cómo es este ramo»: la información de
+// ramos ajenos se muestra solo en la toma de ramos, que aún no definimos
+// (Lucas, 2026-11-17). abrirResumenRamo queda para ese momento.
 async function pintarResumenRamoFicha(r,opinion=consultarCalificacionRamoFicha(r)){
  const version=++versionResumenRamoFicha,cuenta=typeof currentUser!=='undefined'&&currentUser?.id;
  const hero=document.querySelector('#screen-ramo .ramo-hero');
