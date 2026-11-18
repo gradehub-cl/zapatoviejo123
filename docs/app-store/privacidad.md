@@ -12,6 +12,12 @@ consulta producción ni confirma que el texto nuevo esté desplegado. La políti
 pública se corrige en una PR separada contra `main`, [PR #1191](https://github.com/gradehub-cl/zapatoviejo123/pull/1191); **hay que
 mergearla y comprobar su publicación antes del envío a Apple**.
 
+Al traer #1191 desde main a ios, hay dos conflictos de texto previsibles en
+`privacidad.html`: fecha (12 frente a 18-nov) y la sección Apple que ios agregó
+en #1112. Conservar la fecha 18-nov y la sección ampliada de #1191, que explica
+relay, confirmación al borrar y límites de revocación web. No son conflictos
+del código de auth. No basta mergear esta auditoría para publicar la política.
+
 | Punto revisado | Lo que hace el código | Evidencia |
 |---|---|---|
 | Fuente y librerías | Fuente del sistema, sin Google Fonts. **La web sí carga jsDelivr** para supabase-js; `ios:preparar` lo copia dentro del build nativo. Eliminar ambos proveedores de la política habría sido incorrecto. | `index.html:38,757`, `_headers:36`, `bin/preparar-ios.sh:37-53` |
