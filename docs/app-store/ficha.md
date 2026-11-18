@@ -51,7 +51,7 @@ AGENDA
 • Saca una foto de tu horario y GradeHub reconoce las siglas de tus ramos (el reconocimiento corre en tu teléfono).
 
 EN TU IPHONE
-• Widgets para la pantalla de inicio y de bloqueo: Próxima evaluación, Promedio general, Pendientes y Estadísticas.
+• Widgets para la pantalla de inicio y de bloqueo: Próxima evaluación, Próxima clase, Promedio general, Pendientes y Estadísticas.
 • Avisos antes de una evaluación con hora y una Actividad en Vivo que te acompaña las horas previas (opcionales).
 
 ESTADÍSTICAS
