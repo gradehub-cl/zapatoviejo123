@@ -133,12 +133,16 @@ function isoMasDiasCanvas(ahora,dias){
 async function traerFechasCanvas(){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando fechas en Canvas…');
-  let propuestas=[],ramos=0;
+  let propuestas=[],ramos=0,anunciosSinLeer=0;
+  const estado=S,cuenta=currentUser?.id||null;
+  const vigente=()=>S===estado&&(currentUser?.id||null)===cuenta;
+  contextoFechasCanvas=null;avisoAnunciosCanvas='';
   const conteos={total:0,tareas:0,eventos:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
   try{
     const cursos=await cursosCanvas(),ahora=new Date();
     for(const c of cursos){
-      const ramo=(S.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla);
+      if(!vigente())return;
+      const ramo=(estado.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla&&(r.seccion?Number(r.seccion)===c.seccion:cursos.filter(x=>x.sigla===c.sigla).length===1));
       if(!ramo)continue;
       ramos++;
       const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
@@ -146,15 +150,26 @@ async function traerFechasCanvas(){
       const eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
         start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
       const r=resumenFechasCanvas(tareas,ramo,ahora,[],eventos);
-      propuestas=propuestas.concat(r.propuestas);
+      let anuncios=[];
+      try{anuncios=await canvasGet(`courses/${c.id}/discussion_topics`,{only_announcements:'true',per_page:50});}
+      catch(e){anunciosSinLeer++;}
+      if(!vigente())return;
+      const desdeAnuncios=propuestasAnunciosCanvas(anuncios,ramo,ahora);
+      const destinos=destinosAnunciosCanvas(ramo);
+      const reemplazada=p=>desdeAnuncios.some(a=>a.target===p.target||a.target.endsWith('|')&&p.target?.startsWith(a.target)
+        ||puntajeCanvas(destinos.find(t=>claveDestinoIcs(t)===a.target)?.nombres||[],p.titulo,'')===3);
+      propuestas=propuestas.concat(r.propuestas.filter(p=>!reemplazada(p)),desdeAnuncios);
       for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
     }
   }catch(e){avisoCanvas('No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
+  if(!vigente())return;
+  avisoAnunciosCanvas=anunciosSinLeer?'No pudimos leer los anuncios de '+anunciosSinLeer+' curso'+(anunciosSinLeer===1?'':'s')+'. Las tareas y eventos siguen disponibles.':'';
   track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
-    duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion});
-  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
+    duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion,anuncios:propuestas.filter(p=>p.origen==='canvas-anuncio').length,anuncios_sin_leer:anunciosSinLeer});
+  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos)+(avisoAnunciosCanvas?' '+avisoAnunciosCanvas:''));return;}
   avisoCanvas('');
   icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
+  contextoFechasCanvas={estado,cuenta};
   renderRevisionIcs();
   openModal();
 }
