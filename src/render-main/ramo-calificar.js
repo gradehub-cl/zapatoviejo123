@@ -40,9 +40,10 @@ function payloadCalificarRamo(c,{carga,facilidad,asistencia,recomienda,etiquetas
 // Formulario nuevo (servidor con `version: 2`): sin horas a la semana (las
 // guardadas no se tocan) y con etiquetas escritas. Mismas reglas que
 // ramo_opinar en SQL (Lucas, 2026-11-18).
+// recomienda: 3 = Sí, 2 = Más o menos, 1 = No.
 function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros=[]}={}){
  const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id)),escala=(n,max)=>Number.isInteger(n)&&n>=1&&n<=max;
- if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||typeof recomienda!=='boolean')throw Error('Responde todas las preguntas.');
+ if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||!escala(recomienda,3))throw Error('Responde todas las preguntas.');
  const lista=[...new Set(Array.isArray(etiquetas)?etiquetas:[])];
  if(lista.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
  const escritas=[];
@@ -52,7 +53,7 @@ function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros
   if(!escritas.some(x=>normalEtiquetaEscrita(x)===normalEtiquetaEscrita(limpio)))escritas.push(limpio);
  }
  if(lista.length+escritas.length>3)throw Error('Elige hasta 3 etiquetas.');
- return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda:recomienda,p_etiquetas:lista,p_otros:escritas};
+ return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda_nivel:recomienda,p_etiquetas:lista,p_otros:escritas};
 }
 // Las etiquetas que se ofrecen salen de lo que más se elige en el ramo. Sin
 // datos (o sin la RPC) queda la lista fija. Las propias siempre se ven.
@@ -76,6 +77,12 @@ function etiquetasSugeridasRamo(sug,mias=[],escritas=[]){
  // Lo que la persona ya eligió nunca desaparece.
  for(const id of mias)if(valida(id)&&!visibles.some(x=>x.id===id))visibles.push({id});
  return [...visibles,...propias];
+}
+// Nivel guardado (3, 2 o 1) o, en una opinión antigua, su Sí o No.
+function nivelRecomiendaRamo(mia){
+ const n=Number(mia?.recomienda_nivel);
+ if(n>=1&&n<=3&&Number.isInteger(n))return n;
+ return mia?.recomienda===true?3:mia?.recomienda===false?1:null;
 }
 function claveAvisoCalificarRamo(c){return `gh_ramo_calificar_v1:${currentUser.id}:${c.tenant}:${c.clave}:${c.p_periodo}`;}
 function avisoCalificarRamoVisto(c){
@@ -126,7 +133,10 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil era sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
    carga:`<fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>`,
    asistencia:`<fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>`,
-   recomienda:`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
+   recomienda:v2
+    // Sí / Más o menos / No. Una opinión antigua (solo Sí o No) se lee igual.
+    ?`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda rc-recomienda-3">${radios('recomienda',[[3,'Sí'],[2,'Más o menos'],[1,'No']],nivelRecomiendaRamo(mia))}</div></fieldset>`
+    :`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
   };
   // Formulario nuevo: sin horas y recomendar al final (Lucas, 2026-11-18).
   const orden=v2?[preguntas.facilidad,preguntas.asistencia,preguntas.recomienda,etiquetasHTML]
@@ -180,9 +190,10 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
     const valor=n=>form.querySelector(`[name=${n}]:checked`)?.value;
     const rec=valor('recomienda'),asis=valor('asistencia');
     const comunes={facilidad:Number(valor('facilidad')),
-     asistencia:asis==='si'?true:asis==='no'?false:asis==='nose'?null:undefined,recomienda:rec==='1'?true:rec==='0'?false:null,
+     asistencia:asis==='si'?true:asis==='no'?false:asis==='nose'?null:undefined,
      etiquetas:[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value)};
-    if(!v2){guardar('ramo_calificar',payloadCalificarRamo(c,{...comunes,carga:Number(valor('carga'))}));return;}
+    if(!v2){guardar('ramo_calificar',payloadCalificarRamo(c,{...comunes,recomienda:rec==='1'?true:rec==='0'?false:null,carga:Number(valor('carga'))}));return;}
+    comunes.recomienda=Number(rec)||null;
     if(otroChip.checked&&textoOtro.value.trim()&&!agregarEscrita())return;
     guardar('ramo_opinar',payloadOpinarRamo(c,{...comunes,
      otros:[...form.querySelectorAll('[name=escrita]:checked')].map(x=>x.value)}));

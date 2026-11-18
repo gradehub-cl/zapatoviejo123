@@ -11,13 +11,14 @@ const ctx={console,setTimeout,clearTimeout,URL,window:{addEventListener(){},matc
 vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js','marketplace.js','render-main.js','render-agenda.js'])vm.runInContext(fs.readFileSync(__dirname+'/../'+f,'utf8'),ctx);
 const run=s=>vm.runInContext(s,ctx),json=s=>JSON.parse(run(`JSON.stringify(${s})`));
 run(`var currentUser={id:'cuenta-sintetica'};S=normalize({tenant:'uc',tipoCuenta:'estudiante',ramos:[{id:'r',nombre:'Ramo sintético',sigla:'TST100',seccion:1,gates:[],categorias:[{id:'p',nombre:'Prueba',peso:100,directNota:true,notas:[]}]}],historial:[]});globalThis.r=S.ramos[0];globalThis.__c=contextoCalificarRamo(r);`);
-const base={facilidad:3,asistencia:null,recomienda:true};ctx.__b=base;
+const base={facilidad:3,asistencia:null,recomienda:3};ctx.__b=base;
 
 // ── Payload nuevo ──
 let p=json("payloadOpinarRamo(__c,{...__b,etiquetas:['mucha_lectura','mucha_lectura'],otros:['  Mucha   tarea ','mucha TAREA']})");
 assert.deepEqual(p.p_etiquetas,['mucha_lectura']);assert.deepEqual(p.p_otros,['Mucha tarea'],'escritas normalizadas y sin repetir');
-assert.equal('p_carga' in p,false,'el formulario nuevo no pregunta horas');assert.equal('p_estudio' in p,false,'tampoco estudio');
-for(const cambio of ['{facilidad:6}','{facilidad:undefined}','{asistencia:undefined}','{recomienda:null}'])
+assert.equal('p_carga' in p,false,'el formulario nuevo no pregunta horas');assert.equal(p.p_recomienda_nivel,3);assert.equal('p_recomienda' in p,false,'el booleano lo deriva el servidor');
+assert.equal(json("payloadOpinarRamo(__c,{...__b,recomienda:2})").p_recomienda_nivel,2,'Más o menos');assert.equal('p_estudio' in p,false,'tampoco estudio');
+for(const cambio of ['{facilidad:6}','{facilidad:undefined}','{asistencia:undefined}','{recomienda:null}','{recomienda:true}','{recomienda:0}','{recomienda:4}'])
  assert.throws(()=>run(`payloadOpinarRamo(__c,{...__b,...${cambio}})`),/preguntas/);
 assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,etiquetas:['mucha_lectura','interesante'],otros:['Muy practico','Mucha tarea']})"),/hasta 3/);
 assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,otros:['ab']})"),/entre 3 y 20/);
@@ -64,6 +65,7 @@ const hoja=async({version,sugeridas,mia=null})=>{
 const pos=(h,t)=>{const i=h.indexOf(t);assert(i>=0,'falta: '+t);return i;};
 let h=await hoja({});
 assert(h.includes('¿Cuántas horas a la semana'),'sin SQL nuevo: formulario anterior con horas');assert(!h.includes('data-rc-otro'));
+assert(!h.includes('Más o menos')&&/name="recomienda" value="1"/.test(h)&&/name="recomienda" value="0"/.test(h),'sin SQL nuevo: recomendar sigue en Sí / No');
 assert(pos(h,'¿Lo recomendarías?')<pos(h,'¿Cómo era?'),'el anterior conserva su orden');pos(h,'¿Qué tan fácil era sacarse buena nota?');
 h=await hoja({version:2});
 assert(!h.includes('¿Cuántas horas'),'con SQL nuevo ya no pregunta horas');
@@ -71,16 +73,24 @@ const orden=['¿Qué tan fácil era sacarse buena nota?','¿Se tomaba asistencia
 assert.deepEqual([...orden].sort((a,b)=>a-b),orden,'orden nuevo: recomendar antes de las etiquetas');
 assert(!h.includes('estudiar')&&!h.includes('name="estudio"'),'sin pregunta de estudio');
 assert(h.includes('data-rc-otro')&&h.includes('maxlength="20"'),'«Otro» con su campo');
+assert(pos(h,'value="3"><span>Sí')<pos(h,'value="2"><span>Más o menos')&&pos(h,'value="2"><span>Más o menos')<pos(h,'value="1"><span>No</span>'),'Sí / Más o menos / No, en ese orden');
 assert.equal((h.match(/name="etiqueta"/g)||[]).length,8,'sin sugeridas (RPC ausente): la lista fija');
 h=await hoja({version:2,sugeridas:{disponible:true,orden:['mucha_lectura'],sin_uso:['interesante'],propias:['<img src=x onerror=alert(1)>']},mia:{facilidad:4,asistencia:true,recomienda:true,etiquetas:[],otros:['Muy <b>práctico</b>'],carga:2}});
 assert(!h.includes('<img')&&h.includes('&lt;img'),'una escrita sugerida va escapada');assert(!h.includes('<b>práctico')&&h.includes('&lt;b&gt;'),'la propia también');
 assert(!h.includes('value="interesante"'),'la que nadie elige no se ofrece');assert(pos(h,'value="mucha_lectura"')<pos(h,'value="controles_semanales"'),'la más elegida primero');
 assert(/name="facilidad" value="4" checked/.test(h),'conserva lo guardado');
+assert(/name="recomienda" value="3" checked/.test(h),'una opinión antigua con «sí» se lee como Sí');
+assert.equal(run("nivelRecomiendaRamo({recomienda:false})"),1,'antigua «no» → No');assert.equal(run("nivelRecomiendaRamo({recomienda:null,recomienda_nivel:2})"),2);
+assert.equal(run("nivelRecomiendaRamo({recomienda:true,recomienda_nivel:2})"),2,'el nivel manda');assert.equal(run("nivelRecomiendaRamo(null)"),null);
+h=await hoja({version:2,mia:{facilidad:2,asistencia:false,recomienda:null,recomienda_nivel:2,etiquetas:[],otros:[]}});
+assert(/name="recomienda" value="2" checked/.test(h),'Más o menos guardado');
 
 // ── Resumen (toma de ramos): escritas con tres cuentas ──
 assert.equal(run("typeof estudioRamoHTML"),'undefined','sin pregunta de estudio');
 const et=run("etiquetasRamoHTML({etiquetas:[{id:'mucha_lectura',n:5}],escritas:[{texto:'<i>Mucha</i> tarea',n:3},{texto:'Poca gente',n:2}]})");
 assert(et.includes('Mucha lectura')&&et.includes('&lt;i&gt;Mucha'),'escrita escapada');assert(!et.includes('Poca gente'),'una escrita con dos cuentas no aparece');
-assert(run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,recomiendan_de_10:5,asistencia:{si:0,no:0},carga:[{opcion:2,n:6}],docentes:[]},{coordinado:true})").includes('Horas a la semana'),'las horas antiguas siguen en el resumen');
-console.log('OK calificaciones ronda 2 (cliente): payload, orden, Otro, sugeridas de ramo y profesor, sin SQL, pasado y escapado');
+const res=run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,recomiendan_de_10:5,mas_o_menos_de_10:3,asistencia:{si:0,no:0},carga:[{opcion:2,n:6}],docentes:[]},{coordinado:true})");
+assert(res.includes('Horas a la semana'),'las horas antiguas siguen en el resumen');assert(res.includes('5 de cada 10 lo recomiendan')&&res.includes('3 de 10, más o menos'),'más o menos va aparte');
+assert(!run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,recomiendan_de_10:5,asistencia:{si:0,no:0},docentes:[]},{coordinado:true})").includes('más o menos'),'sin dato, no se menciona');
+console.log('OK calificaciones ronda 2 (cliente): payload, orden, Otro, sugeridas de ramo y profesor, sin SQL, recomendar en tres, pasado y escapado');
 })().catch(e=>{console.error(e);process.exit(1);});

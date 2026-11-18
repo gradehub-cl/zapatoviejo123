@@ -49,12 +49,14 @@ function asistenciaRamo(b){
  return Number.isSafeInteger(si)&&Number.isSafeInteger(no)&&si>=0&&no>=0&&si+no>=5&&si+no<=b.total?{si,no,n:si+no}:null;
 }
 function recomiendanRamo(b){return Math.max(0,Math.min(10,Math.round(Number(b?.recomiendan_de_10)||0)));}
+// «Más o menos» va aparte: no suma a los que lo recomiendan.
+function masOMenosRamo(b){return Math.max(0,Math.min(10,Math.round(Number(b?.mas_o_menos_de_10)||0)));}
 function anillosRamoHTML(b){
  const rec=recomiendanRamo(b),asis=asistenciaRamo(b);
  const mayoria=asis?(asis.si>=asis.no?{palabra:'Sí',n:asis.si}:{palabra:'No',n:asis.no}):null;
  return `<div class="stats-anillos-fila rr-anillos">
   ${anilloRamoHTML({fraccion:escala5Ramo(b.facilidad),valor:decimalRamo(b.facilidad),de:palabraFacilidadRamo(b.facilidad),pie:'Facilidad para sacarse buena nota, de 1 a 5',etiqueta:`Facilidad ${decimalRamo(b.facilidad)} de 5: ${palabraFacilidadRamo(b.facilidad).toLowerCase()}`})}
-  ${anilloRamoHTML({fraccion:rec/10,valor:String(rec),de:'de 10',pie:'Lo recomiendan',etiqueta:`${rec} de cada 10 lo recomiendan`})}
+  ${anilloRamoHTML({fraccion:rec/10,valor:String(rec),de:'de 10',pie:masOMenosRamo(b)?`Lo recomiendan · ${masOMenosRamo(b)} de 10, más o menos`:'Lo recomiendan',etiqueta:`${rec} de cada 10 lo recomiendan${masOMenosRamo(b)?`; ${masOMenosRamo(b)} de cada 10, más o menos`:''}`})}
   ${mayoria?anilloRamoHTML({fraccion:mayoria.n/asis.n,valor:mayoria.palabra,de:`${mayoria.n} de ${asis.n}`,pie:'¿Se toma asistencia?',etiqueta:asistenciaRamoTexto(b)}):''}
  </div>`;
 }

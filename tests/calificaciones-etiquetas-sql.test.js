@@ -7,7 +7,7 @@ const q=async(s,a=[])=>(await db.query(s,a)).rows;
 const soy=async i=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[i?u(i):'']);await db.exec('set role authenticated');};
 const ramo=(i,sec=1)=>({id:'r'+i,nombre:'Ramo sintético',sigla:'TST100',seccion:sec,origen:{tenant:'uc',ramoKey:'TST100'},categorias:[]});
 let periodo;
-const opinar=(i,{etiquetas=[],otros=[],sec=1}={})=>q('select ramo_opinar($1,$2,$3,$4,$5,$6,$7,$8)',['r'+i,sec,periodo,3,true,true,etiquetas,otros]);
+const opinar=(i,{etiquetas=[],otros=[],sec=1,nivel=3}={})=>q('select ramo_opinar($1,$2,$3,$4,$5,$6,$7,$8)',['r'+i,sec,periodo,3,true,nivel,etiquetas,otros]);
 const antigua=(i,etiquetas=['interesante'])=>q('select ramo_calificar($1,1,$2,$3,4,null,true,$4)',['r'+i,periodo,(i%4)+1,etiquetas]);
 const estado=async i=>(await q('select ramo_calificacion_estado($1,1,$2) as j',['r'+i,periodo]))[0].j;
 const sugeridas=async i=>(await q('select ramo_etiquetas_sugeridas($1,1,$2) as j',['r'+i,periodo]))[0].j;
@@ -30,11 +30,19 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  await soy(1);let e=await estado(1);assert.equal(e.version,2);assert.equal(e.mia.carga,2);assert.equal('estudio' in e.mia,false,'sin estudio');assert.deepEqual(e.mia.otros,[]);
  // Editar con el formulario nuevo conserva la carga antigua.
  await opinar(1,{etiquetas:['mucha_lectura'],otros:['Mucha  matemática']});
- e=await estado(1);assert.equal(e.mia.carga,2,'quien edita una opinión antigua mantiene su carga');assert.deepEqual(e.mia.otros,['Mucha matemática'],'espacios normalizados');
+ e=await estado(1);assert.equal(e.mia.carga,2,'quien edita una opinión antigua mantiene su carga');
+ // Recomendar en tres: el booleano se sigue escribiendo y no se reinterpreta.
+ await soy(2);e=await estado(2);assert.equal(e.mia.recomienda_nivel,3,'una antigua «sí» se lee como Sí');assert.equal(e.mia.recomienda,true);
+ await soy(1);await opinar(1,{etiquetas:['mucha_lectura'],otros:['Mucha  matemática'],nivel:2});e=await estado(1);assert.equal(e.mia.recomienda_nivel,2);assert.equal(e.mia.recomienda,null,'Más o menos guarda el booleano vacío');
+ await opinar(1,{etiquetas:['mucha_lectura'],otros:['Mucha  matemática'],nivel:1});e=await estado(1);assert.equal(e.mia.recomienda,false,'No = false');
+ await db.exec('reset role');await assert.rejects(q("update ramo_calificaciones set recomienda=true where recomienda_nivel=1"),/recomienda_nivel_check/);
+ await db.query("update ramo_calificaciones set recomienda_nivel=null,recomienda=false where user_id=$1",[u(1)]);await soy(1);
+ assert.equal((await estado(1)).mia.recomienda_nivel,1,'una antigua «no» se lee como No');assert.deepEqual(e.mia.otros,['Mucha matemática'],'espacios normalizados');
  await soy(3);await opinar(3);e=await estado(3);assert.equal(e.mia.carga,null,'una opinión nueva no inventa horas');
  // Validación: facilidad y recomendar obligatorias, tres etiquetas en total, filtro de texto.
- await assert.rejects(q('select ramo_opinar($1,1,$2,6,true,true)',['r3',periodo]),/no válidas/);
+ await assert.rejects(q('select ramo_opinar($1,1,$2,6,true,3)',['r3',periodo]),/no válidas/);
  await assert.rejects(q('select ramo_opinar($1,1,$2,3,true,null)',['r3',periodo]),/no válidas/);
+ await assert.rejects(opinar(3,{nivel:0}),/no válidas/);await assert.rejects(opinar(3,{nivel:4}),/no válidas/);
  assert.equal((await q("select count(*)::int as n from information_schema.columns where table_name='ramo_calificaciones' and column_name='estudio'"))[0].n,0,'sin columna estudio');
  await assert.rejects(opinar(3,{etiquetas:['mucha_lectura','interesante'],otros:['Muy practico','Mucha tarea']}),/etiquetas/);
  await assert.rejects(opinar(3,{otros:['Profe idiota']}),/texto no permitido/);
@@ -43,7 +51,7 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  await assert.rejects(opinar(3,{etiquetas:['inventada']}),/etiquetas/);
  await opinar(3,{otros:['Muy practico','muy  PRÁCTICO']});assert.deepEqual((await estado(3)).mia.otros,['Muy practico'],'la misma escrita dos veces cuenta una');
  // La app anterior sigue guardando; si se pasaría de tres, se quitan las escritas.
- await soy(1);await antigua(1,['interesante','buen_material','trabajo_grupo']);e=await estado(1);assert.deepEqual(e.mia.otros,[]);
+ await soy(1);await antigua(1,['interesante','buen_material','trabajo_grupo']);e=await estado(1);assert.deepEqual(e.mia.otros,[]);assert.equal(e.mia.recomienda_nivel,3,'la app anterior deja el nivel en Sí o No');
  await assert.rejects(q('select * from ramo_calificaciones'),/permission denied/);
 
  // Sugeridas: con menos de cinco cuentas no hay; el cliente usa la lista fija.
@@ -58,7 +66,9 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  s=await sugeridas(10);assert(s.sin_uso.includes('interesante')===false,'interesante tiene una cuenta: no está sin uso');
  assert(s.sin_uso.includes('proyectos_presentaciones'),'con diez cuentas, la que nadie eligió queda sin uso');assert(!s.sin_uso.includes('mucha_lectura'));
  // Resumen: escritas, sin quitar carga.
- let r=await resumen();assert.equal(r.disponible,true);assert.equal(r.estudio,undefined,'sin estudio en el resumen');
+ await soy(6);await opinar(6,{etiquetas:['mucha_lectura','buen_material'],nivel:2});await soy(7);await opinar(7,{etiquetas:['mucha_lectura','buen_material'],nivel:1});
+ let r=await resumen();assert.equal(r.disponible,true);
+ assert.equal(r.recomiendan_de_10,8,'solo los Sí, sobre todos los que respondieron (8 de 10)');assert.equal(r.mas_o_menos_de_10,1,'más o menos aparte (1 de 10)');assert.equal(r.estudio,undefined,'sin estudio en el resumen');
  assert.equal(r.carga.reduce((n,x)=>n+x.n,0),2,'las dos cargas antiguas siguen en el resumen');assert.deepEqual(r.escritas.map(x=>x.texto),['Muy practico']);
 
  // Profesor: piso de tres con el mismo docente; escritas con tres cuentas.
