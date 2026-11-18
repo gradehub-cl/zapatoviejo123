@@ -320,3 +320,22 @@ y resolución explícita de dos cuentas con notas: nunca fusionarlas por correo.
 Referencias: [Supabase — Apple](https://supabase.com/docs/guides/auth/social-sign-in/auth-apple),
 [HIG — Sign in with Apple](https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple),
 [revocación REST](https://developer.apple.com/documentation/signinwithapplerestapi/revoke-tokens).
+
+## Siri, Atajos y Spotlight
+
+`ios/App/App/Atajos.swift` tiene dos App Intents, «Próxima clase» y «Nota que
+necesito», y el `AppShortcutsProvider` con sus frases («¿Qué clase tengo ahora
+en GradeHub?», «¿Qué nota necesito en GradeHub?»). Responden sin abrir la app
+leyendo el mismo resumen que los widgets: `Resumen`, `Almacen`, `Fechas`,
+`Nota` y `Clases` viven en `ios/App/Shared/Resumen.swift`, que compilan los dos
+targets, así que Siri elige la clase con las mismas funciones que el widget
+«Próxima clase». No calculan nada: `necesitas` ya viene escrito por la app.
+Piden desbloquear el iPhone antes de responder
+(`authenticationPolicy = .requiresAuthentication`), porque dicen ramos, salas y
+notas en voz alta. Son de iOS 17 en adelante.
+
+El proyecto está en inglés (`developmentRegion = en`): las frases van repetidas
+en `ios/App/App/es.lproj/AppShortcuts.strings` para que Siri en español las
+reconozca. Una frase nueva va en los dos lados. Para probarlas: compila con
+`GRADEHUB_BUNDLE_ID=cl.gradehub.app.qa`, abre la app con `-gradehubDemoWidgets`
+y toca los atajos en la app Atajos → Apps → GradeHub.
