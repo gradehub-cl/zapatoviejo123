@@ -51,8 +51,11 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
 ## 3. TestFlight externo
 
 - [ ] **[tras merge]** Test Information: copiar de `docs/app-store/testflight.md`.
-- [ ] **[Lucas]** Crear la cuenta demo en producción según el plan de
-      `testflight.md` y pegar usuario/contraseña solo en App Store Connect.
+- [x] **[documentación]** Guion de las dos cuentas y recorrido del revisor en
+      `cuenta-demo.md` y `ficha.md` (#1192). No se crearon cuentas.
+- [ ] **[Lucas]** Aprobar la exclusión preventiva de métricas de #1192, crear
+      las dos cuentas según `cuenta-demo.md` y guardar sus credenciales solo
+      en App Store Connect.
 - [ ] **[Lucas]** Grupo externo → agregar build → enviar a Beta App Review.
 
 ## 4. Ficha y envío a App Review
