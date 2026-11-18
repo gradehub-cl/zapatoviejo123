@@ -6082,6 +6082,79 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-elegir-ramo button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ramo);border-radius:10px;background:var(--card);color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
 .horario-elegir-ramo small{color:var(--fg2);font-size:.75rem;font-variant-numeric:tabular-nums;}
 @media(prefers-reduced-motion:no-preference){#agenda-vista .agenda-vista button{transition:color var(--motion-fast) var(--ease-out);}}
+/* Agenda Día | Semana | Mes (2026-11-18). Navegación ‹ Hoy › compartida;
+   botones de 44 pt (HIG Layout). El color del ramo marca el ramo, nunca el
+   estado: no hay semáforo acá. */
+#agenda-body .agenda-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 0 8px;}
+#agenda-body .agenda-nav-titulo{font-size:1rem;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-nav-botones{display:flex;align-items:center;gap:2px;}
+#agenda-body .agenda-nav-flecha{width:44px;height:44px;border:0;border-radius:10px;background:transparent;color:var(--fg2);font:400 1.375rem var(--font-ui);cursor:pointer;}
+#agenda-body .agenda-nav-hoy{min-height:44px;padding:0 10px;border:0;background:transparent;color:var(--primary);font:600 .9375rem var(--font-ui);cursor:pointer;}
+#agenda-body :is(.agenda-nav-flecha,.agenda-nav-hoy):focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+#agenda-body .agenda-dia-seccion{display:block;margin:18px 0 8px;}
+/* Día: lo que se rinde, con la nota que pide lo pendiente */
+#agenda-body .agenda-dia-pruebas{display:grid;gap:8px;}
+#agenda-body .agenda-dia-prueba{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:64px;padding:12px 14px 12px 12px;border-radius:14px;
+  border:1px solid color-mix(in srgb,var(--ramo) 45%,var(--border));background:color-mix(in srgb,var(--ramo) 9%,var(--card));color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+#agenda-body .agenda-dia-prueba>i{align-self:stretch;border-radius:2px;background:var(--ramo);}
+#agenda-body .agenda-dia-que{display:flex;flex-direction:column;gap:2px;min-width:0;}
+#agenda-body .agenda-dia-que b{font-size:.9375rem;font-weight:650;letter-spacing:-.01em;}
+#agenda-body .agenda-dia-que span{font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-dia-nec{display:flex;flex-direction:column;align-items:flex-end;text-align:right;line-height:1.15;}
+#agenda-body .agenda-dia-nec small{font-size:.6875rem;color:var(--fg2);}
+#agenda-body .agenda-dia-nec b{font-size:1.375rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+/* Día: la línea del día, clases y evaluaciones juntas */
+#agenda-body .agenda-dia-linea{display:flex;flex-direction:column;}
+#agenda-body .agenda-dia-fila{display:grid;grid-template-columns:52px 3px minmax(0,1fr);gap:12px;align-items:stretch;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+#agenda-body .agenda-dia-linea>.agenda-dia-fila:first-child{border-top:0;}
+#agenda-body .agenda-dia-hora{padding-top:2px;font-size:.75rem;color:var(--fg2);text-align:right;font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-dia-fila>i{border-radius:2px;background:var(--ramo);}
+#agenda-body .agenda-dia-fila>span:last-child{display:flex;flex-direction:column;gap:1px;min-width:0;}
+#agenda-body .agenda-dia-fila b{font-size:.875rem;font-weight:600;}
+#agenda-body .agenda-dia-fila b em{font-style:normal;font-weight:700;color:var(--fg2);}
+#agenda-body .agenda-dia-fila>span:last-child>span{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-dia-fila.no-voy>i{background:transparent;border:1px dashed var(--border2);}
+#agenda-body .agenda-dia-fila.no-voy b{color:var(--fg2);font-weight:500;}
+#agenda-body .agenda-dia-ahora{position:relative;display:block;height:0;margin:0 0 0 58px;border-top:2px solid var(--fg);}
+#agenda-body .agenda-dia-ahora::before{content:"";position:absolute;left:-4px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--fg);}
+#agenda-body .agenda-dia-vacio{padding:18px 0 6px;color:var(--fg2);font-size:.9375rem;}
+#agenda-body .agenda-dia-proxima{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);text-align:left;font:500 .875rem var(--font-ui);cursor:pointer;}
+#agenda-body :is(.agenda-dia-prueba,.agenda-dia-fila,.agenda-dia-proxima,.agenda-fila-eval):focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:10px;}
+/* Una evaluación en una lista (Mes y Semana sin horario) */
+#agenda-body .agenda-fila-eval{display:grid;grid-template-columns:3px minmax(0,1fr);gap:12px;align-items:stretch;width:100%;min-height:52px;padding:8px 0;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+#agenda-body .agenda-fila-eval>i{border-radius:2px;background:var(--ramo);}
+#agenda-body .agenda-fila-eval>span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+#agenda-body .agenda-fila-t{font-size:.9375rem;font-weight:600;}
+#agenda-body .agenda-fila-s{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+/* Semana: fecha en la cabecera, franja «Día» y evaluaciones encima */
+.horario-semana-cabecera span b{display:block;font-size:.9375rem;font-weight:650;color:var(--fg);line-height:1.2;}
+.horario-semana-todo-dia{display:grid;grid-template-columns:var(--horario-gutter) repeat(var(--horario-dias),minmax(0,1fr));gap:0 3px;margin:2px 0 6px;}
+.horario-semana-todo-dia>div{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.horario-semana-todo-dia-r{align-self:center;font-size:.6875rem;color:var(--fg2);}
+/* Relleno sólido: se distingue de una clase sin depender solo del color, y el
+   texto es blanco o casi negro según el ramo (≥4,5:1, HIG Color). */
+.horario-semana-chip,.horario-semana-eval{border:0;background:var(--ramo);color:var(--ramo-texto,var(--fg));font:inherit;text-align:left;cursor:pointer;}
+.horario-semana-chip{min-height:44px;padding:4px;border-radius:6px;font-size:.6875rem;font-weight:700;line-height:1.2;overflow:hidden;overflow-wrap:anywhere;}
+.horario-semana-eval{position:absolute;left:0;right:0;z-index:2;box-sizing:border-box;display:flex;flex-direction:column;gap:1px;padding:4px 3px 3px 5px;border-radius:6px;box-shadow:0 0 0 2px var(--bg);overflow:hidden;}
+.horario-semana-eval b{font-size:.6875rem;font-weight:800;line-height:1.15;overflow-wrap:anywhere;}
+.horario-semana-eval span{font-size:.6875rem;font-weight:600;font-variant-numeric:tabular-nums;}
+:is(.horario-semana-chip,.horario-semana-eval):focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
+/* Mes */
+#agenda-body .agenda-mes{margin-bottom:6px;font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-mes-semana,#agenda-body .agenda-mes-grilla{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}
+#agenda-body .agenda-mes-semana span{text-align:center;font-size:.6875rem;font-weight:600;color:var(--fg2);padding-bottom:4px;}
+#agenda-body .agenda-mes-dia{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;min-width:0;height:52px;padding:6px 0 0;border:0;border-radius:12px;background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);cursor:pointer;}
+#agenda-body .agenda-mes-dia.fuera{color:var(--fg3);}
+#agenda-body .agenda-mes-n{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;line-height:1;}
+#agenda-body .agenda-mes-dia.hoy .agenda-mes-n{background:var(--fg);color:var(--bg);font-weight:700;}
+#agenda-body .agenda-mes-dia[aria-pressed="true"]:not(.hoy) .agenda-mes-n{box-shadow:inset 0 0 0 1.5px var(--fg);font-weight:650;}
+#agenda-body .agenda-mes-puntos{display:flex;gap:3px;height:6px;}
+#agenda-body .agenda-mes-puntos i{width:6px;height:6px;border-radius:50%;}
+#agenda-body .agenda-mes-dia:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+#agenda-body .agenda-mes-detalle{margin-top:6px;border-top:1px solid var(--border);}
+#agenda-body .agenda-mes-vacio{margin:0;padding:8px 0 12px;color:var(--fg2);font-size:.875rem;}
+@media(hover:hover){#agenda-body .agenda-mes-dia:hover,#agenda-body .agenda-nav-flecha:hover{background:var(--muted);}}
+@media(prefers-reduced-motion:no-preference){#agenda-body :is(.agenda-mes-dia,.agenda-nav-flecha){transition:background var(--motion-fast) var(--ease-out);}}
 @media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
 
 /* ─── Pestaña Perfil ───────────────────────────────────────────────────────
