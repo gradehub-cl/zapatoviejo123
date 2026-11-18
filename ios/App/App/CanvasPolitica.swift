@@ -1,4 +1,5 @@
 import Foundation
+import Compression
 
 // Lista cerrada compartida por solicitudes iniciales y páginas siguientes.
 // Cada ruta tiene también sus parámetros permitidos, con valores acotados, y
@@ -59,8 +60,8 @@ enum CanvasPolitica {
         return true
     }
 
-    static func urlValida(_ url: URL, ruta: String) -> Bool {
-        url.scheme == "https" && url.host == host && url.port == nil && url.user == nil && url.password == nil && url.fragment == nil && url.path == "/api/v1/" + ruta && rutaValida(ruta)
+    static func urlValida(_ url: URL, ruta: String, permitida: (String) -> Bool = rutaValida) -> Bool {
+        url.scheme == "https" && url.host == host && url.port == nil && url.user == nil && url.password == nil && url.fragment == nil && url.path == "/api/v1/" + ruta && permitida(ruta)
     }
     static func cuentaValida(_ cuenta: String) -> Bool { UUID(uuidString: cuenta) != nil }
     static func tokenValido(_ token: String) -> Bool { calza(token, "^[0-9]{1,8}~[A-Za-z0-9]{20,100}$") }
@@ -149,6 +150,129 @@ enum CanvasPolitica {
             if let valor { salida.replaceSubrange(todo, with: valor) }
         }
         return salida
+    }
+
+    // ─── Programa desde los archivos del curso (Lucas, 2026-11-17) ──────────
+    // En la UC el programa casi nunca está en `syllabus_body`: es un PDF o un
+    // Word entre los archivos o en un módulo «Programa». La web NO puede pedir
+    // estas rutas con `get` (siguen fuera de `rutaValida`): solo los dos
+    // métodos del plugin, que devuelven nombres y texto, nunca enlaces.
+    static let archivoBytesMax = 15 * 1024 * 1024
+    static let archivosMax = 300
+    static func cursoValido(_ id: Int) -> Bool { (1...999_999_999_999).contains(id) }
+    static func rutaArchivos(_ ruta: String) -> Bool {
+        calza(ruta, "^courses/[0-9]{1,12}/(files|modules|files/[0-9]{1,12})$")
+    }
+    static func parametrosArchivos(_ ruta: String, _ items: [URLQueryItem]) -> Bool {
+        items.allSatisfy { item in
+            let v = item.value ?? ""
+            switch item.name {
+            case "per_page": return calza(v, "^[0-9]{1,3}$") && (1...100).contains(Int(v) ?? 0)
+            case "include[]": return ruta.hasSuffix("/modules") && v == "items"
+            default: return false
+            }
+        }
+    }
+    // Solo lo que se puede leer como texto. El tipo sale del content-type o,
+    // en un ítem de módulo, de la extensión del nombre.
+    static func tipoArchivo(nombre: String, contentType: String?) -> String? {
+        let ct = (contentType ?? "").lowercased(), n = nombre.lowercased()
+        if ct == "application/pdf" || n.hasSuffix(".pdf") { return "pdf" }
+        if ct == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || n.hasSuffix(".docx") { return "docx" }
+        if ct == "text/plain" || n.hasSuffix(".txt") { return "txt" }
+        return nil
+    }
+    // Nombres y tipos de los archivos del curso, sin enlaces ni rutas. Los de
+    // un módulo dicen en qué módulo están: «Programa» pesa al elegir.
+    static func proyectarArchivos(archivos: [[String: Any]], modulos: [[String: Any]]) -> [[String: Any]] {
+        var porID: [Int: [String: Any]] = [:]
+        var orden: [Int] = []
+        func sumar(_ id: Int, _ nombre: String, _ tipo: String, _ tamano: Int?, _ modulo: String?) {
+            guard cursoValido(id), porID.count < archivosMax else { return }
+            var fila = porID[id] ?? ["id": id, "nombre": String(nombre.prefix(200)), "tipo": tipo]
+            if let tamano { fila["tamano"] = tamano }
+            if let modulo, fila["modulo"] == nil { fila["modulo"] = String(modulo.prefix(120)) }
+            if porID[id] == nil { orden.append(id) }
+            porID[id] = fila
+        }
+        for a in archivos {
+            guard let id = a["id"] as? Int, let nombre = a["display_name"] as? String,
+                  let tipo = tipoArchivo(nombre: nombre, contentType: a["content-type"] as? String) else { continue }
+            sumar(id, nombre, tipo, a["size"] as? Int, nil)
+        }
+        for m in modulos {
+            let modulo = m["name"] as? String
+            for item in m["items"] as? [[String: Any]] ?? [] where (item["type"] as? String) == "File" {
+                guard let id = item["content_id"] as? Int, let titulo = item["title"] as? String,
+                      let tipo = tipoArchivo(nombre: titulo, contentType: nil) else { continue }
+                sumar(id, titulo, tipo, nil, modulo)
+            }
+        }
+        return orden.compactMap { porID[$0] }
+    }
+    // El enlace de descarga que da Canvas: el mismo host y /files/N/download.
+    static func descargaValida(_ url: URL) -> Bool {
+        url.scheme == "https" && url.host == host && url.port == nil && url.user == nil && url.password == nil
+            && calza(url.path, "^(/courses/[0-9]{1,12})?/files/[0-9]{1,12}/download$")
+    }
+    // Canvas redirige el archivo a su almacenamiento. Se sigue solo a HTTPS de
+    // esos dominios y sin el token (lo quita el delegado de la descarga).
+    static func redireccionValida(_ url: URL) -> Bool {
+        guard url.scheme == "https", url.user == nil, url.password == nil, let h = url.host?.lowercased() else { return false }
+        return h == host || ["inscloudgate.net", "instructure.com", "amazonaws.com"].contains { h == $0 || h.hasSuffix("." + $0) }
+    }
+    static func recortarTexto(_ texto: String) -> [String: Any] {
+        ["texto": String(texto.prefix(programaMax)), "recortado": texto.count > programaMax]
+    }
+
+    // Texto de un .docx: un ZIP con word/document.xml. Se lee el directorio
+    // central, se descomprime solo ese archivo y sus párrafos y celdas pasan
+    // por el mismo limpiador que el programa en HTML.
+    static func textoDocx(_ datos: Data) -> String? {
+        guard let xml = archivoZip(datos, nombre: "word/document.xml"), let crudo = String(data: xml, encoding: .utf8) else { return nil }
+        var s = crudo
+        func cambiar(_ patron: String, _ por: String) { s = s.replacingOccurrences(of: patron, with: por, options: .regularExpression) }
+        cambiar("<w:tab\\s*/>", "\t")
+        cambiar("<w:br\\s*/>", "<br>")
+        // El último párrafo de una celda no corta la fila: «Control 1⇥20 %».
+        cambiar("</w:p>(\\s*</w:tc>)", "$1")
+        cambiar("</w:p>", "</p>")
+        cambiar("</w:tc>", "</td>")
+        cambiar("</w:tr>", "</tr>")
+        return textoPrograma(s)
+    }
+    static func archivoZip(_ datos: Data, nombre: String) -> Data? {
+        let b = [UInt8](datos)
+        func u16(_ i: Int) -> Int { i + 1 < b.count ? Int(b[i]) | Int(b[i + 1]) << 8 : -1 }
+        func u32(_ i: Int) -> Int { i + 3 < b.count ? Int(b[i]) | Int(b[i + 1]) << 8 | Int(b[i + 2]) << 16 | Int(b[i + 3]) << 24 : -1 }
+        guard b.count >= 22 else { return nil }
+        var fin = -1
+        var i = b.count - 22
+        while i >= max(0, b.count - 65_557) { if u32(i) == 0x06054b50 { fin = i; break }; i -= 1 }
+        guard fin >= 0 else { return nil }
+        let entradas = u16(fin + 10), inicio = u32(fin + 16)
+        guard entradas > 0, entradas < 10_000, inicio >= 0, inicio < b.count else { return nil }
+        var p = inicio
+        for _ in 0..<entradas {
+            guard u32(p) == 0x02014b50 else { return nil }
+            let metodo = u16(p + 10), comprimido = u32(p + 20), real = u32(p + 24)
+            let largo = u16(p + 28), extra = u16(p + 30), comentario = u16(p + 32), local = u32(p + 42)
+            guard largo >= 0, p + 46 + largo <= b.count else { return nil }
+            let n = String(decoding: b[(p + 46)..<(p + 46 + largo)], as: UTF8.self)
+            if n == nombre {
+                guard local >= 0, u32(local) == 0x04034b50 else { return nil }
+                let desde = local + 30 + u16(local + 26) + u16(local + 28)
+                guard comprimido >= 0, real > 0, real <= 20 * 1024 * 1024, desde + comprimido <= b.count else { return nil }
+                let fuente = Array(b[desde..<(desde + comprimido)])
+                if metodo == 0 { return Data(fuente) }
+                guard metodo == 8 else { return nil }
+                var destino = [UInt8](repeating: 0, count: real)
+                let escritos = compression_decode_buffer(&destino, real, fuente, fuente.count, nil, COMPRESSION_ZLIB)
+                return escritos > 0 ? Data(destino.prefix(escritos)) : nil
+            }
+            p += 46 + largo + extra + comentario
+        }
+        return nil
     }
 
     static func agregarGrupos(_ tareas: [[String: Any]], grupos: [[String: Any]]) -> [[String: Any]] {

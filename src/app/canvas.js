@@ -11,7 +11,8 @@ function pluginCanvas(){
     if(currentUser?.id!==cuenta||S!==estado)throw new Error('Cambió la cuenta de GradeHub.');
     return respuesta;
   };
-  return {estado:()=>invocar('estado'),conectar:args=>invocar('conectar',args),get:args=>invocar('get',args),desconectar:()=>invocar('desconectar')};
+  return {estado:()=>invocar('estado'),conectar:args=>invocar('conectar',args),get:args=>invocar('get',args),desconectar:()=>invocar('desconectar'),
+    archivosCurso:args=>invocar('archivosCurso',args),leerArchivo:args=>invocar('leerArchivo',args)};
 }
 function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
 // La sección Canvas de Ajustes y su fila en Perfil: en la app, el conector;

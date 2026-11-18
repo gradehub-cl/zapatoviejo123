@@ -71,9 +71,51 @@ function pautaDesdeProgramaCanvas(programa,sigla){
   const reglas=lectura.complexRuleLines.map(c=>String(c.line).slice(0,220)).slice(0,4);
   return {...base,estado:'propuesta',filas,senales,reglas};
 }
+// ─── El programa entre los ARCHIVOS del curso (Lucas, 2026-11-17) ─────────
+// En la UC el campo «programa» de Canvas casi siempre viene vacío: el programa
+// es un PDF o un Word entre los archivos o en un módulo «Programa». El plugin
+// da nombres y tipos (nunca enlaces) y lee un archivo a texto. Se prueban los
+// mejores candidatos por nombre y vale el primero que trae una pauta completa.
+const CANVAS_ARCHIVOS_MAX=3;
+function puntajeArchivoPrograma(a){
+  const n=normName(String(a&&a.nombre||'').replace(/[_.-]+/g,' ')),m=normName(a&&a.modulo||'');
+  let p=0;
+  if(/\b(programa|syllabus|silabo|reglas|condiciones|normativa)\b/.test(n))p+=5;
+  if(/\b(programa|syllabus|informacion del curso)\b/.test(m))p+=3;
+  if(/\b(clase a clase|calendario|cronograma|fechas|planificacion)\b/.test(n))p+=1;
+  // Una pauta de corrección, una guía o un enunciado no es el programa.
+  if(/\b(pauta de correccion|solucion|solucionario|ayudantia|guia|enunciado|tarea|control|interrogacion|examen|prueba)\b/.test(n)&&p<5)p-=4;
+  return p;
+}
+function archivosProgramaCanvas(lista){
+  return (Array.isArray(lista)?lista:[])
+    .filter(a=>a&&Number.isSafeInteger(a.id)&&['pdf','docx','txt'].includes(a.tipo)&&!(a.tamano>15*1024*1024))
+    .map(a=>({...a,puntaje:puntajeArchivoPrograma(a)}))
+    .filter(a=>a.puntaje>0)
+    .sort((x,y)=>y.puntaje-x.puntaje||String(x.nombre).localeCompare(String(y.nombre)))
+    .slice(0,CANVAS_ARCHIVOS_MAX);
+}
+async function programaDesdeArchivosCanvas(cursoId,sigla){
+  const p=pluginCanvas();if(!p||typeof p.archivosCurso!=='function')return null;
+  const r=await p.archivosCurso({curso:cursoId});
+  const candidatos=archivosProgramaCanvas(r&&r.data);
+  if(!candidatos.length)return {resultado:{estado:'sin_archivo',filas:[]},archivo:null};
+  let mejor=null;
+  for(const a of candidatos){
+    let leido;
+    try{leido=await p.leerArchivo({curso:cursoId,archivo:a.id});}catch(e){continue;}
+    const texto=String(leido&&leido.texto||'');
+    const resultado=texto.trim()?pautaDesdeProgramaCanvas({texto,archivo:false,recortado:!!leido.recortado},sigla):{estado:'escaneado',filas:[]};
+    if(resultado.estado==='propuesta')return {resultado,archivo:a.nombre};
+    if(!mejor)mejor={resultado,archivo:a.nombre};
+  }
+  return mejor||{resultado:{estado:'sin_archivo',filas:[]},archivo:null};
+}
 function mensajeProgramaCanvas(res){
   return {
-    archivo:'El programa está como archivo en Canvas. La app no lee archivos: copia los porcentajes del programa.',
+    sin_archivo:'No encontramos el programa ni en Canvas ni entre los archivos del curso. Escribe las evaluaciones con su porcentaje.',
+    escaneado:'El programa está escaneado como imagen y no se puede leer. Copia los porcentajes del programa.',
+    archivo:'El programa está como archivo en Canvas y no pudimos leerlo. Actualiza la app o copia los porcentajes del programa.',
     vacio:'Este curso no tiene el programa escrito en Canvas.',
     sin_seccion:'No encontramos la sección de evaluación en el programa de Canvas.',
     sin_pesos:'El programa de Canvas no trae porcentajes por evaluación.',
@@ -99,7 +141,7 @@ function canvasProgramaEditorHTML(){
       +(res.reglas.length?'<ul style="margin:4px 0 6px;padding-left:18px;">'+res.reglas.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>':'')+'</div>':'';
     cuerpo='<ul style="list-style:none;margin:0 0 6px;padding:0;font-size:0.8125rem;line-height:1.6;">'+filas+'</ul>'+avisos
       +'<div class="pauta-plantillas-opciones"><button type="button" style="min-height:44px;" onclick="usarProgramaCanvas()">Usar estas evaluaciones</button></div>'
-      +'<div class="pauta-plantillas-nota">Quedan en el editor para revisarlas. Nada cambia hasta que toques Guardar.</div>';
+      +'<div class="pauta-plantillas-nota">'+(d.archivo?'Sale de «'+esc(d.archivo)+'». ':'')+'Quedan en el editor para revisarlas. Nada cambia hasta que toques Guardar.</div>';
   }
   return '<div class="pauta-plantillas" id="m-pauta-programa"><div class="pauta-plantillas-titulo">Programa en Canvas</div>'+cuerpo+'</div>';
 }
@@ -116,9 +158,17 @@ async function leerProgramaCanvas(){
     const curso=(await cursosCanvas()).find(c=>c.sigla===sigla);
     if(!curso)canvasProgramaRamo.set(id,{error:'No encontramos este ramo en tu Canvas de este semestre.'});
     else{
-      const resultado=pautaDesdeProgramaCanvas(await canvasGet(`courses/${curso.id}`,{'include[]':['syllabus_body']}),sigla);
-      canvasProgramaRamo.set(id,{resultado});
-      track('canvas_programa',{estado:resultado.estado,evaluaciones:resultado.filas.length,senales:(resultado.senales||[]).length});
+      let resultado=pautaDesdeProgramaCanvas(await canvasGet(`courses/${curso.id}`,{'include[]':['syllabus_body']}),sigla),archivo=null;
+      // Sin pauta en el campo «programa», se busca entre los archivos del curso.
+      if(resultado.estado!=='propuesta'){
+        let desdeArchivos=null;
+        try{desdeArchivos=await programaDesdeArchivosCanvas(curso.id,sigla);}catch(e){}
+        if(desdeArchivos&&(desdeArchivos.resultado.estado==='propuesta'||['vacio','archivo','sin_seccion'].includes(resultado.estado))){
+          resultado=desdeArchivos.resultado;archivo=desdeArchivos.archivo;
+        }
+      }
+      canvasProgramaRamo.set(id,{resultado,archivo});
+      track('canvas_programa',{estado:resultado.estado,evaluaciones:resultado.filas.length,senales:(resultado.senales||[]).length,desde_archivo:!!archivo});
     }
   }catch(e){canvasProgramaRamo.set(id,{error:'No pudimos leer Canvas. Revisa la conexión o el token.'});}
   repintarProgramaCanvas();
