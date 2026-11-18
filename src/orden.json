@@ -164,7 +164,8 @@
     "src/render-agenda/interacciones.js",
     "src/render-agenda/resumen-y-pendientes.js",
     "src/render-agenda/pantalla.js",
-    "src/render-agenda/horario-semana.js"
+    "src/render-agenda/horario-semana.js",
+    "src/render-agenda/agenda-dia-mes.js"
   ],
   "engine.js": [
     "src/engine/reglas-y-puntajes.js",
