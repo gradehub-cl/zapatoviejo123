@@ -14,6 +14,15 @@ function pluginCanvas(){
   return {estado:()=>invocar('estado'),conectar:args=>invocar('conectar',args),get:args=>invocar('get',args),desconectar:()=>invocar('desconectar'),
     archivosCurso:args=>invocar('archivosCurso',args),leerArchivo:args=>invocar('leerArchivo',args)};
 }
+// Al cerrar sesión, borrar la cuenta o reiniciar la app, el token de Canvas
+// de esa cuenta sale del llavero (auditoría App Store #1193). Se llama ANTES de
+// cerrar la sesión: el plugin necesita la cuenta para saber qué token borrar.
+// No espera a Canvas ni falla: es solo borrar del llavero de este iPhone.
+async function olvidarCanvasCuenta(){
+  try{const p=pluginCanvas();if(p)await p.desconectar();}catch(e){}
+  if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();
+  if(typeof canvasProgramaRamo!=='undefined')canvasProgramaRamo.clear();
+}
 function canvasDisponible(){return !esCuentaProfesor()&&S.tenant==='uc'&&!!pluginCanvas();}
 // La sección Canvas de Ajustes y su fila en Perfil: en la app, el conector;
 // en la web, el calendario de Canvas (.ics).
