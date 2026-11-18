@@ -338,6 +338,7 @@ function normalize(data) {
     ...r,
     id: idSeguro(r.id),
     ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
     color: r.color || '#2563eb',
     // Créditos SCT — opcional. Si todos los ramos lo tienen, el promedio se pondera.
     // El 0 se conserva: es un dato exacto, no un faltante. Ver tieneCreditos().
@@ -602,6 +603,7 @@ function normalize(data) {
       ...r,
       id: idSeguro(r.id),
       ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
       categorias: comoLista(r.categorias).map(c => ({
         ...c,
         id: idSeguro(c.id),

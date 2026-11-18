@@ -133,5 +133,13 @@ const conTabla=[
   await run('leerProgramaCanvas()');plugin.archivosCurso=listaReal;
   assert.match(run('canvasProgramaEditorHTML()'),/no nos dejó ver los archivos/);
   assert.equal(json('S.ramos.find(r=>r.id===\'r3\').categorias').length,0,'nada se guarda solo');
+  // Una lectura que termina después de cambiar de cuenta no deja fuente reutilizable.
+  const getReal=plugin.get;let resolverPrograma;
+  plugin.get=async p=>p.path==='courses/42'?new Promise(resolve=>{resolverPrograma=resolve}):getReal(p);
+  const tardia=run('leerProgramaCanvas()');
+  while(!resolverPrograma)await new Promise(resolve=>setImmediate(resolve));
+  run("S={...S,ramos:[]};currentUser={id:'00000000-0000-0000-0000-000000000002'};canvasProgramaRamo.clear()");
+  resolverPrograma({data:{texto:'# Evaluación\nInforme\t100%'}});await tardia;plugin.get=getReal;
+  assert.equal(run('canvasProgramaRamo.size'),0,'el resultado de la cuenta anterior se descarta');
   console.log('OK Canvas programa: lee pesos del programa, marca reglas, no inventa y solo guarda con Guardar');
 })().catch(e=>{console.error(e);process.exit(1)});
