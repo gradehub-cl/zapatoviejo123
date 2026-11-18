@@ -32,9 +32,9 @@ function openUserMenu(){
   // Archivar solo tiene sentido con ramos cargados
   const arch=document.getElementById('um-archivar');
   if(arch)arch.style.display=S.ramos.length?'flex':'none';
-  // El lector reconoce el catálogo UC; no es una herramienta de profesor.
+  // Solo donde sabemos leer el horario; no es una herramienta de profesor.
   const horario=document.getElementById('um-horario');
-  if(horario)horario.hidden=esCuentaProfesor()||S.tenant!=='uc';
+  if(horario)horario.hidden=esCuentaProfesor()||!HORARIO_FOTO_POR_TENANT[S.tenant];
   // Cargar el historial desde la ficha: solo donde hay lector (hoy, la UC).
   const ficha=document.getElementById('um-ficha');
   if(ficha)ficha.hidden=!avanceCurricularDisponible();

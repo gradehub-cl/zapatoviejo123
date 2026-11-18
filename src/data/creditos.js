@@ -380,6 +380,15 @@ const CREDITOS_FEN={
 // MEM1505 (Métodos Matemáticos II), sección 2; es el mismo EN que se le saca
 // a las siglas de Docencia Web arriba. Sin entrada no se ofrece la foto.
 const PREFIJO_SIGLA_HORARIO={uc:'',fen:'EN'};
+// "Subir foto de tu horario": dónde lo ve cada universidad y un código como lo
+// escribe ahí. Sin entrada no se ofrece. `horas`: la grilla trae los días
+// arriba y la hora de cada fila a la izquierda ("08:00 - 09:20"), así que de
+// la foto sale también cuándo es cada clase. Así se ve el horario de Docencia
+// Web FEN (Primavera 2026); en la UC la fila dice el módulo y no la hora.
+const HORARIO_FOTO_POR_TENANT={
+  uc:{donde:'Mi UC o BuscaCursos',ejemplo:'MAT1610-1'},
+  fen:{donde:'Docencia Web',ejemplo:'ENMEM1505/02',horas:true},
+};
 
 // Siglas de TODOS los ramos UC que hoy se pueden cargar desde una malla.
 //

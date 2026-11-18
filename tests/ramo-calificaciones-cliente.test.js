@@ -50,7 +50,7 @@ run(`globalThis.catalogoOriginal=searchCatalog('calculo','uc','ING-PC',2).map(r=
 (async()=>{
  await assert.rejects(run("cargarResumenRamo('uc','tst100')"));
  assert.equal(run("JSON.stringify(searchCatalog('calculo','uc','ING-PC',2).map(r=>r.nombre))"),run('JSON.stringify(catalogoOriginal)'));
- assert(run("accionResumenCatalogoHTML({nombre:'Ramo <sintético>',sigla:'TST100'})").includes('&lt;sintético&gt;'));
+ assert.equal(run("typeof accionResumenCatalogoHTML"),'undefined','el buscador de ramos no ofrece «Cómo es este ramo»');
  const base=run('JSON.stringify(S)');
  run(`S.historial=[{id:'h',label:'2025-2',ramos:[{...r,id:'hist',origen:{tenant:'uc',ramoKey:'TST100'}}]}]`);
  assert(run("contextoCalificarRamo(S.historial[0].ramos[0],'2025-2')"));
