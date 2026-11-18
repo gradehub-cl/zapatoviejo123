@@ -12,6 +12,9 @@ enum CanvasPolitica {
     static let contextosMax = 10
     // El programa llega como texto plano y con tope: nunca HTML a la web.
     static let programaMax = 60_000
+    static let anuncioMax = 8_000
+    static let anunciosPaginasMax = 3
+    static func limitePaginas(_ ruta: String) -> Int { tipo(ruta) == .anuncios ? anunciosPaginasMax : paginasMax }
 
     private static func calza(_ texto: String, _ patron: String) -> Bool {
         let match = texto.range(of: patron, options: .regularExpression)
@@ -19,16 +22,17 @@ enum CanvasPolitica {
     }
 
     static func rutaValida(_ ruta: String) -> Bool {
-        calza(ruta, "^(users/self|courses|calendar_events|courses/[0-9]{1,12}|courses/[0-9]{1,12}/(assignments|assignment_groups))$")
+        calza(ruta, "^(users/self|courses|calendar_events|courses/[0-9]{1,12}|courses/[0-9]{1,12}/(assignments|assignment_groups|discussion_topics))$")
     }
 
-    enum Tipo { case yo, cursos, tareas, grupos, eventos, programa }
+    enum Tipo { case yo, cursos, tareas, grupos, eventos, programa, anuncios }
     static func tipo(_ ruta: String) -> Tipo? {
         guard rutaValida(ruta) else { return nil }
         if ruta == "users/self" { return .yo }
         if ruta == "courses" { return .cursos }
         if ruta == "calendar_events" { return .eventos }
         if calza(ruta, "^courses/[0-9]{1,12}$") { return .programa }
+        if ruta.hasSuffix("/discussion_topics") { return .anuncios }
         return ruta.hasSuffix("/assignments") ? .tareas : .grupos
     }
 
@@ -37,6 +41,7 @@ enum CanvasPolitica {
     static func parametrosValidos(_ ruta: String, _ items: [URLQueryItem]) -> Bool {
         guard let tipo = tipo(ruta) else { return false }
         var contextos = 0
+        var soloAnuncios = 0
         for item in items {
             let v = item.value ?? ""
             let ok: Bool
@@ -44,6 +49,7 @@ enum CanvasPolitica {
             case (_, "per_page"): ok = calza(v, "^[0-9]{1,3}$") && (1...100).contains(Int(v) ?? 0)
             case (.cursos, "enrollment_state"): ok = v == "active"
             case (.cursos, "include[]"): ok = v == "term"
+            case (.anuncios, "only_announcements"): soloAnuncios += 1; ok = v == "true"
             case (.tareas, "include[]"): ok = v == "submission"
             case (.tareas, "bucket"): ok = ["future", "past", "upcoming", "undated"].contains(v)
             case (.tareas, "order_by"): ok = ["due_at", "position", "name"].contains(v)
@@ -57,7 +63,17 @@ enum CanvasPolitica {
         }
         // Sin contexto, Canvas devolvería el calendario personal de la cuenta.
         if tipo == .eventos && (contextos == 0 || contextos > contextosMax) { return false }
+        if tipo == .anuncios && soloAnuncios != 1 { return false }
         return true
+    }
+
+    // Las páginas siguientes conservan el filtro obligatorio: nunca leen foros.
+    static func paginaAnunciosValida(_ url: URL, ruta: String) -> Bool {
+        guard tipo(ruta) == .anuncios else { return true }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let paginas = items.filter { $0.name == "page" }
+        guard paginas.count <= 1, paginas.allSatisfy({ Int($0.value ?? "").map { (1...anunciosPaginasMax).contains($0) } ?? false }) else { return false }
+        return parametrosValidos(ruta, items.filter { $0.name != "page" })
     }
 
     static func urlValida(_ url: URL, ruta: String, permitida: (String) -> Bool = rutaValida) -> Bool {
@@ -87,6 +103,23 @@ enum CanvasPolitica {
     static func proyectarEventos(_ eventos: [[String: Any]]) -> [[String: Any]] {
         eventos.filter { ($0["type"] as? String ?? "event") == "event" && (($0["context_code"] as? String)?.hasPrefix("course_") ?? false) }
             .map { solo($0, ["id", "title", "start_at", "end_at", "all_day", "context_code"]) }
+    }
+
+    // Solo anuncios publicados: título, publicación y texto plano. No pasan IDs,
+    // autor, enlaces estructurados, adjuntos, participantes ni respuestas.
+    static func proyectarAnuncios(_ anuncios: [[String: Any]]) -> [[String: Any]] {
+        anuncios.compactMap { a in
+            guard a["published"] as? Bool != false, a["is_announcement"] as? Bool != false,
+                  let publicado = a["posted_at"] as? String, !publicado.isEmpty else { return nil }
+            let completo = textoPrograma(a["message"] as? String ?? "")
+            var texto = String(completo.prefix(anuncioMax))
+            // Un recorte a mitad de una frase no se interpreta como fecha completa.
+            if completo.count > anuncioMax {
+                if let fin = texto.lastIndex(where: { $0 == "\n" || $0 == "." || $0 == ";" }) { texto = String(texto[...fin]) }
+                else { texto = "" }
+            }
+            return ["title": String(textoPrograma(a["title"] as? String ?? "").prefix(180)), "posted_at": String(publicado.prefix(40)), "texto": texto]
+        }
     }
 
     // La nota propia que Canvas ya publicó, cuando la web la pide. Sin

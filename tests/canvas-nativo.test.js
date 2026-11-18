@@ -15,6 +15,7 @@ assert(swift.includes('kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly'));asser
 assert(swift.includes('completionHandler(nil)'),'nunca sigue una redirección con Authorization');
 assert(swift.includes('session.bytes(for: pedido)')&&swift.includes('bytes.task.cancel()'),'tope durante la lectura');
 assert(swift.includes('CanvasPolitica.agregarGrupos')&&swift.includes('/assignment_groups'));
+assert(swift.includes('CanvasPolitica.limitePaginas(ruta)')&&swift.includes('CanvasPolitica.paginaAnunciosValida(url, ruta: ruta)'),'el tope y el filtro también protegen páginas siguientes');
 assert(swift.includes('CanvasPolitica.parametrosValidos(ruta, items)'),'los parámetros también tienen lista cerrada');
 assert(swift.includes('siguiente.setValue(nil, forHTTPHeaderField: "Authorization")')&&swift.includes('CanvasPolitica.redireccionValida(url)'),'la descarga sigue la redirección solo sin token y a dominios conocidos');
 assert(swift.includes('CanvasPolitica.descargaValida(url)')&&swift.includes('CanvasPolitica.archivoBytesMax'),'el archivo se valida y tiene tope');
@@ -22,7 +23,7 @@ assert(swift.includes('CanvasPolitica.descargaValida(url)')&&swift.includes('Can
  assert(lectura.length>100&&!lectura.includes('borrarToken'),'un 401 de archivos (curso que los esconde) nunca borra el token');}
 assert(swift.includes('static func borrarSiVencio')&&!/codigo == 401 && Self\.leerToken\(cuenta\) == token \{ Self\.borrarToken/.test(swift),'el token se borra solo si Canvas tampoco lo acepta para users/self');
 assert(/case "pdf": contenido = Self\.textoPdf/.test(swift)&&swift.includes('CanvasPolitica.recortarTexto(contenido)'),'a la web llega solo texto recortado');
-for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
+for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma','proyectarAnuncios'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
 assert(!/call\.resolve\([^\n]*"token"/.test(swift),'el puente no devuelve credenciales');
 for(const f of ['CanvasPlugin.swift','CanvasPolitica.swift'])assert(read('ios/App/App.xcodeproj/project.pbxproj').includes(f+' in Sources'));
 assert(read('ios/App/App/MainViewController.swift').includes('registerPluginInstance(GradeHubCanvasPlugin())'));
@@ -64,6 +65,25 @@ assert(CanvasPolitica.urlValida(URL(string:buenas)!,ruta:"courses/123/assignment
 for mala in ["http://cursos.canvas.uc.cl/api/v1/courses", "https://otro.cl/api/v1/courses", "https://cursos.canvas.uc.cl:444/api/v1/courses", "https://x@cursos.canvas.uc.cl/api/v1/courses", "https://cursos.canvas.uc.cl/api/v1/courses#x", "https://cursos.canvas.uc.cl/api/v1/users/self"] {
  assert(!CanvasPolitica.urlValida(URL(string:mala)!,ruta:"courses"))
 }
+assert(CanvasPolitica.rutaValida("courses/42/discussion_topics"))
+assert(CanvasPolitica.tipo("courses/42/discussion_topics") == .anuncios)
+assert(CanvasPolitica.parametrosValidos("courses/42/discussion_topics", q([("only_announcements","true"),("per_page","50")])))
+for items in [q([]),q([("only_announcements","false")]),q([("only_announcements","true"),("include[]","all_dates")]),q([("only_announcements","true"),("only_announcements","true")]),q([("only_announcements","true"),("as_user_id","1")])] { assert(!CanvasPolitica.parametrosValidos("courses/42/discussion_topics",items)) }
+for ruta in ["announcements","groups/42/discussion_topics","courses/42/discussion_topics/1","courses/42/discussion_topics/1/entries","courses/../discussion_topics"] { assert(!CanvasPolitica.rutaValida(ruta)) }
+assert(CanvasPolitica.limitePaginas("courses/42/discussion_topics") == 3)
+assert(CanvasPolitica.limitePaginas("courses/42/assignments") == 10)
+assert(CanvasPolitica.paginaAnunciosValida(URL(string:"https://cursos.canvas.uc.cl/api/v1/courses/42/discussion_topics?only_announcements=true&per_page=50&page=2")!,ruta:"courses/42/discussion_topics"))
+for query in ["page=2","only_announcements=false&page=2","only_announcements=true&page=4","only_announcements=true&include%5B%5D=authors","only_announcements=true&page=2&page=3"] { assert(!CanvasPolitica.paginaAnunciosValida(URL(string:"https://cursos.canvas.uc.cl/api/v1/courses/42/discussion_topics?"+query)!,ruta:"courses/42/discussion_topics")) }
+let anuncios = CanvasPolitica.proyectarAnuncios([["id":1,"title":"<b>I2</b>","posted_at":"2026-11-08T15:00:00Z","message":"<p>La I2 ser&aacute; el 20 de noviembre a las 17:30 en B12.</p><script>secreto()</script><img src=x><a href=\\"https://privado\\">Ver</a>","published":true,"is_announcement":true,"author":["name":"Persona"],"attachments":["url":"secreto"],"replies":["privado"],"html_url":"https://privado"],["title":"Foro","posted_at":"2026-11-08","is_announcement":false],["title":"Borrador","published":false],["title":"Sin fecha"]])
+assert(anuncios.count == 1)
+assert(Set(anuncios[0].keys) == ["title","posted_at","texto"])
+assert(anuncios[0]["title"] as? String == "I2")
+let mensaje = anuncios[0]["texto"] as? String ?? ""
+assert(mensaje.contains("será el 20 de noviembre") && !mensaje.contains("<") && !mensaje.contains("secreto") && !mensaje.contains("https://privado"))
+let recortadoAnuncio = CanvasPolitica.proyectarAnuncios([["title":String(repeating:"a",count:300),"posted_at":"2026-11-08","message":"Fecha confirmada. " + String(repeating:"x",count:10000)]])[0]
+assert((recortadoAnuncio["title"] as? String ?? "").count == 180)
+assert((recortadoAnuncio["texto"] as? String ?? "").count <= CanvasPolitica.anuncioMax)
+assert(!(recortadoAnuncio["texto"] as? String ?? "").hasSuffix("x"),"el texto recortado no conserva una frase incompleta")
 let filas = CanvasPolitica.agregarGrupos([["id":1,"name":"Entrega","due_at":"2026-11-15","assignment_group_id":12,"grade":"privado"]],grupos:[["id":12,"name":"Controles"]])
 assert((filas[0]["assignment_group"] as? [String:String])?["name"] == "Controles")
 assert(filas[0]["grade"] == nil)
