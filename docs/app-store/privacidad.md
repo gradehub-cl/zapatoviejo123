@@ -1,44 +1,43 @@
 # Privacidad para la App Store — BORRADOR
 
 > **BORRADOR para revisión.** Propuesta de respuestas para App Store Connect →
-> App Privacy, sacada del código y del SQL del repo al 13-nov-2026. Nada está
+> App Privacy, contrastada con el código y el SQL de `origin/ios` (`2b702118`) al
+> 18-nov-2026 y con `origin/main` (`55791f86`). Nada está
 > cargado. Donde dice *verificar*, el repo no alcanza para estar seguro.
 
-## 1. ¿Sirve la política publicada?
+## 1. Política pública y diferencia entre web e iPhone
 
-**Sí, existe y sirve como Privacy Policy URL:** `https://gradehub.cl/privacidad.html`
-(fuente: `privacidad.html` del repo; la versión publicada responde 200 y dice
-«Última actualización: 4 de noviembre de 2026»).
+La URL sigue siendo `https://gradehub.cl/privacidad.html`. Esta revisión no
+consulta producción ni confirma que el texto nuevo esté desplegado. La política
+pública se corrige en una PR separada contra `main`, [PR #1191](https://github.com/gradehub-cl/zapatoviejo123/pull/1191); **hay que
+mergearla y comprobar su publicación antes del envío a Apple**.
 
-Cubre lo que Apple pide (guideline 5.1.1(i)): qué datos se recogen y cómo,
-para qué, con quién se comparten (Supabase, Cloudflare, Google Analytics,
-Google Fonts/jsDelivr, Google al entrar con Google), retención, cómo pedir y
-hacer el borrado (Ajustes → Datos y cuenta → Eliminar mi cuenta, en la app;
-cumple 5.1.1(v)), y contacto (`gradehub.app@gmail.com`).
+Al traer #1191 desde main a ios, hay dos conflictos de texto previsibles en
+`privacidad.html`: fecha (12 frente a 18-nov) y la sección Apple que ios agregó
+en #1112. Conservar la fecha 18-nov y la sección ampliada de #1191, que explica
+relay, confirmación al borrar y límites de revocación web. No son conflictos
+del código de auth. No basta mergear esta auditoría para publicar la política.
 
-**Lo que falta o conviene ajustar para la app iOS** (texto propuesto; va a
-`privacidad.html` en otro PR, no en este):
+| Punto revisado | Lo que hace el código | Evidencia |
+|---|---|---|
+| Fuente y librerías | Fuente del sistema, sin Google Fonts. **La web sí carga jsDelivr** para supabase-js; `ios:preparar` lo copia dentro del build nativo. Eliminar ambos proveedores de la política habría sido incorrecto. | `index.html:38,757`, `_headers:36`, `bin/preparar-ios.sh:37-53` |
+| Contacto de particulares | Quien publica elige WhatsApp, Instagram o email y puede agregar sitio web. WhatsApp revela su número a quienes consultan el perfil/anuncio aprobado. No se pide el teléfono a estudiantes para llevar notas. | `src/marketplace/perfil-profesor.js`, `src/marketplace/catalogo.js` |
+| Apple | Apple ID, nombre cuando se recibe y correo real o relay para Auth. Revocación al borrar en iPhone con confirmación y código temporal en servidor, sin persistir tokens Apple. La web borra la cuenta sin revocarlos. | `src/app-session/apple-acceso.js`, `src/app/cuenta-borrado.js`, `functions/apple-revocar.js` (#1112, #1133) |
+| Canvas iPhone | Token en llavero separado por cuenta, `AfterFirstUnlockThisDeviceOnly`; plugin consulta Canvas directamente. Solo lo que la persona confirma entra a `S` y puede sincronizarse. | `ios/App/App/CanvasPlugin.swift:34-55`, `src/app/canvas.js`, `canvas-notas.js`, `canvas-programa.js` |
+| Canvas web | URL ICS en localStorage por cuenta; al actualizar pasa a la función Cloudflare y desde allí a Canvas. La función devuelve el calendario sin escribirlo en BD ni registrar su contenido. Las fechas confirmadas sí se guardan en los ramos. | `src/app/canvas-calendario-web.js:2-20,68-76,103-137`, `functions/canvas-calendario.js` |
+| Widgets / App Group | Resumen calculado y almacenado en el teléfono, sin servidor para mostrarlo. Incluye notas y horarios: puede ser visible en Inicio/bloqueo según el widget. | `src/app/ios-widgets.js`, `ios/App/App/WidgetsPlugin.swift:26-46` |
+| Avisos / Actividad en Vivo | Programación local; respuestas a «cómo te fue» locales. GA recibe el evento de uso, no la respuesta. | `src/app/ios-avisos-pruebas.js:109-133`, `ios/App/App/WidgetsPlugin.swift`, `ios/App/Shared/ActividadPrueba.swift` |
+| Denuncias / bloqueos | Cuenta, contenido, motivo y texto opcional; revisión con MFA sin mostrar el denunciante al admin. FK por denunciante/bloqueador y autor, con cascada al borrar. | `supabase/denuncias_bloqueos.sql`, `src/marketplace/denuncias.js` (#1137) |
+| Anuncios con notas | Elección en el dispositivo, activada inicialmente. Apagar «Usar mis notas para elegir anuncios» elimina recomendaciones en Inicio; Apoyo sigue disponible. La preferencia en `S` puede sincronizarse, sin enviar notas para elegir el anuncio. | `src/marketplace/recomendacion-inicio.js:23-36,378`, `src/app/ajustes.js:246-250` (#1163) |
+| Analítica | GA se carga en web/iPhone con los cuatro permisos de Consent Mode denegados antes de config. El build iOS también desactiva Google Signals y señales de personalización. No equivale a ausencia de tráfico a Google. | `index.html:97-108`, `src/app/analitica.js` |
+| Agentes elegidos por la persona | El conector entrega sus ramos/notas/fechas al servicio de IA elegido. `agent_links` guarda vínculo, llave, fechas de creación, último uso y vencimiento. No es procesamiento solo local. | `supabase/agente_mcp.sql`, `supabase/agente_url_directa.sql`, `functions/mcp/[[ruta]].js`, `src/app/agentes-conexion.js` |
 
-1. Habla siempre de «tu navegador» y «el almacenamiento local del navegador».
-   En iPhone los datos quedan en la app. Propuesta, en «Dónde viven tus datos»:
-   > **En tu propio dispositivo**: en la web, en el almacenamiento local del
-   > navegador (la clave `gradehub_v1`); en la app para iPhone, dentro de la
-   > app y, para los widgets, en un espacio compartido entre la app y sus
-   > widgets que no sale del teléfono.
-2. No menciona funciones propias de iOS. Propuesta de sección nueva:
-   > **En la app para iPhone.** Si sacas una foto de tu horario, la lectura del
-   > texto ocurre en tu teléfono y la foto no se sube. Los avisos antes de una
-   > evaluación y la Actividad en Vivo son notificaciones locales: se programan
-   > en tu iPhone y no pasan por nuestros servidores. Lo que respondes en
-   > «¿cómo te fue?» queda en tu teléfono. Si eres profesor particular y subes
-   > un logo o un flyer, esa imagen se guarda en nuestra base de datos para
-   > mostrarla en tu aviso.
-3. «Estadísticas de uso» dice que GA va sin cookies. En la app iOS el mismo
-   `index.html` carga Google Analytics (`index.html` líneas ~95–106, se copia
-   tal cual a `ios-web` en `bin/preparar-ios.sh`). Conviene decir que también
-   aplica en la app.
-4. Si entra #1112 (Entrar con Apple), esa PR ya toca `privacidad.html`;
-   revisar que mencione el correo de relay de Apple («Ocultar mi correo»).
+**Límite identificado:** cerrar sesión limpia la URL ICS de Canvas, pero no
+llama a `GradeHubCanvas.desconectar`. El token nativo queda aislado por cuenta
+en el llavero; «Desconectar Canvas» lo borra y revocarlo en Canvas lo invalida.
+No se declara que cerrar sesión o borrar Auth revoque ese token. Revisar aparte
+si se quiere eliminarlo del llavero también al borrar la cuenta; esta PR de
+texto no cambia el borrado ni la integración.
 
 ## 2. App Privacy («nutrition labels») — propuesta
 
@@ -47,7 +46,9 @@ publicidad, no se usa IDFA (no hay `NSUserTrackingUsageDescription` ni
 `AppTrackingTransparency` en `ios/`), GA va con `ad_storage`,
 `ad_user_data` y `ad_personalization` en `denied` (`index.html`), y los
 profesores que pagan avisos reciben solo totales (`privacidad.html`,
-`supabase/anuncio_totales.sql`). Por lo tanto no hace falta el prompt ATT.
+`supabase/anuncio_totales.sql`). Con esas prácticas, la propuesta es no pedir
+ATT; Lucas debe comprobar que la configuración real de los proveedores coincide
+antes de responder en App Store Connect. Esto no certifica el proyecto desplegado.
 
 «Data Used to Track You»: ninguno.
 
@@ -55,13 +56,14 @@ profesores que pagan avisos reciben solo totales (`privacidad.html`,
 
 | Tipo Apple | Qué es en GradeHub | Propósitos | Evidencia |
 | --- | --- | --- | --- |
-| Contact Info → **Email Address** | Correo de la cuenta (o el que entrega Google) | App Functionality | Supabase Auth; `src/app-session/login-registro.js`, `oauth-y-recuperacion.js` |
-| Contact Info → **Name** | Nombre opcional; nombre de la cuenta Google; nombre con que el alumno aparece ante su profesor | App Functionality | `profiles` (`src/app-session/perfil-y-legal.js`), `supabase/profesor_alumnos.sql` |
-| User Content → **Other User Content** | Ramos, evaluaciones, notas, pautas propias, calificación y etiquetas a profesores, respuestas a encuestas | App Functionality; Analytics (promedios anónimos agregados) | `user_ramos` (`src/app-session/sync-escritura.js`), `evaluacion_notas` en `supabase/notas_tipicas.sql`, `profesor_calificaciones` en `supabase/profesores.sql`, `supabase/encuestas.sql` |
+| Contact Info → **Email Address** | Correo de la cuenta, Google o Apple (real o relay) | App Functionality | Supabase Auth; `src/app-session/login-registro.js`, `oauth-y-recuperacion.js` |
+| Contact Info → **Name** | Nombre opcional; nombre recibido de Google o Apple; nombre con que el alumno aparece ante su profesor | App Functionality | `profiles` (`src/app-session/perfil-y-legal.js`), `supabase/profesor_alumnos.sql` |
+| Contact Info → **Phone Number** | WhatsApp elegido por el particular que publica, visible en su contacto | App Functionality | `src/marketplace/perfil-profesor.js`, `supabase/perfil_profesor.sql` |
+| User Content → **Other User Content** | Ramos, evaluaciones, notas, pautas propias, calificación y etiquetas a profesores, respuestas a encuestas, denuncias y propuestas de agentes | App Functionality; Analytics (promedios anónimos agregados) | `user_ramos` (`src/app-session/sync-escritura.js`), `evaluacion_notas` en `supabase/notas_tipicas.sql`, `profesor_calificaciones` en `supabase/profesores.sql`, `supabase/encuestas.sql` |
 | User Content → **Customer Support** | Sugerencias y comentarios enviados desde Ajustes | App Functionality | `supabase/user_feedback.sql`, `src/app/feedback-enviar.js` |
 | User Content → **Photos or Videos** | Solo cuentas de profesor particular: logo y flyer del aviso | App Functionality | bucket `tutor-flyers` en `src/marketplace/logo-y-seleccion-apoyo.js` |
-| Identifiers → **User ID** | UUID de la cuenta en Supabase | App Functionality; Analytics | todas las tablas con `user_id`; `supabase/visitas_diarias.sql` |
-| Usage Data → **Product Interaction** | Días en que la cuenta abrió la app; visitas a encuestas | Analytics; App Functionality | `supabase/visitas_diarias.sql`, `encuesta_visitas` en `supabase/encuestas.sql` |
+| Identifiers → **User ID** | UUID de la cuenta en Supabase y el identificador Apple usado por Auth | App Functionality; Analytics | todas las tablas con `user_id`; `supabase/visitas_diarias.sql` |
+| Usage Data → **Product Interaction** | Días en que la cuenta abrió la app; visitas a encuestas; creación, último uso y vencimiento de agentes conectados | Analytics; App Functionality | `supabase/visitas_diarias.sql`, `encuesta_visitas` en `supabase/encuestas.sql`, `supabase/agente_mcp.sql` |
 | Usage Data → **Advertising Data** | Qué clase particular vio la cuenta, el día y si llegó por recomendación/búsqueda/catálogo (para cobrar una vez por persona) | Third-Party Advertising *(conservador; ver nota)*; Analytics | `anuncio_interacciones`, `anuncio_alcance` en `supabase/clases_particulares.sql`; `supabase/anuncio_eventos.sql` |
 | Diagnostics → **Other Diagnostic Data** | Tipo de error, pantalla y versión, asociados a la cuenta | App Functionality | `supabase/errores_app.sql`, `src/app-session/errores.js` |
 | Other Data → **Other Data Types** | Universidad, carrera, semestre, generación (año de ingreso); edad elegida en cuentas antiguas | App Functionality; Analytics | `profiles` (`src/app-session/perfil-y-legal.js`), `supabase/edad_declarada.sql` |
@@ -81,11 +83,14 @@ así que las notas **no** se declaran con propósito publicitario.
 | Usage Data → **Product Interaction** | Eventos de Google Analytics sin cookies («alguien agregó un ramo») | Analytics | `index.html` (gtag `G-TS791S6PDM`, consent `denied`, sin Google Signals ni señales de anuncios), `src/app/analitica.js` |
 | Location → **Coarse Location** *(opcional, conservador)* | País que GA deduce de la IP | Analytics | GA4; `privacidad.html` «Estadísticas de uso» |
 
-**Tracking: No.** GA corre sin Google Signals ni señales de anuncios (`allow_google_signals:false`, `allow_ad_personalization_signals:false` en `index.html`), así que no se cruzan datos con otras apps o sitios. No hace falta el aviso de rastreo (ATT). En el panel de GA → Admin → Recopilación de datos, revisar que Google Signals siga apagado.
+**Tracking: No.** GA corre sin Google Signals ni señales de anuncios (`allow_google_signals:false`, `allow_ad_personalization_signals:false` en `index.html`), El código no añade un identificador de GradeHub ni activa esas señales para
+cruzar datos entre servicios. Mantener esta configuración y verificar en el panel
+de GA → Admin → Recopilación de datos que Google Signals siga apagado antes de
+confirmar Tracking: No. No se revisó esa configuración de producción.
 
 ### No se recoge (verificado en el código)
 
-- Precise Location, Contacts, Health & Fitness, Financial Info / Purchases,
+- Precise Location, Contacts, Health & Fitness, tarjeta ni cuenta bancaria,
   Browsing History, Search History (la búsqueda del catálogo no se guarda,
   según `privacidad.html`), Sensitive Info, Audio, Gameplay, Emails/Text Messages.
 - **Fotos del horario**: el OCR corre en el dispositivo con Tesseract
@@ -94,13 +99,31 @@ así que las notas **no** se declaran con propósito publicitario.
   (`NSPhotoLibraryAddUsageDescription`) → no se declara.
 - Avisos y Actividad en Vivo: locales (`src/app/ios-avisos-pruebas.js`) → no se declaran.
 
-### Verificar antes de enviar
+### Verificaciones del repo y pendientes antes de enviar
+
+Comprobación de código, **no auditoría del proyecto desplegado**. La definición
+Apple de «recogido» excluye el procesamiento solo local y el tránsito necesario
+para atender una petición en tiempo real; no excluye las notas que se aceptan y
+sincronizan. Referencia: [App privacy details](https://developer.apple.com/app-store/app-privacy-details/).
+
 
 - [ ] Tablas base creadas desde el Dashboard (`profiles`, `user_ramos`,
       `catalog_reports`): no están declaradas en el repo
       (`supabase/permisos_tablas_base.sql`). Confirmar columnas reales.
-- [ ] Integración Canvas (`src/app/canvas.js`, plugin `GradeHubCanvas`): confirmar
-      si el token o datos de Canvas se guardan en Supabase o solo en el dispositivo.
-- [ ] Agentes conectados / MCP (`supabase/agente_mcp.sql`, `agent_links`):
-      guarda fechas de uso por cuenta; entra en Product Interaction/App Functionality.
-- [ ] Si #1112 se mergea, Apple ID token: igual cae en Email Address / Name.
+- [x] Canvas revisado en el repo: token de iPhone solo en llavero; web ICS
+      transita por Cloudflare y no se persiste allí. Datos aceptados pasan a los
+      ramos y se incluyen en Other User Content si se sincronizan (#1193).
+- [x] MCP revisado: `agent_links` guarda fechas y llave asociadas a la cuenta;
+      último uso entra en Product Interaction/App Functionality. El conector
+      envía contenido al agente elegido; no es una función solo local. Las tablas
+      tienen FK en cascada y RLS en el SQL del repo (#1193).
+- [x] Apple ID revisado en #1112 y revocación #1133: correo/relay y nombre
+      figuran en Contact Info y el identificador de Auth en User ID. El token se
+      entrega a Supabase para autenticar; el cliente no lo guarda por separado.
+      El servidor de revocación usa tokens Apple temporalmente, sin tabla nueva
+      ni persistencia. Su configuración real y el login requieren prueba de Lucas
+      (#1193).
+- [ ] Lucas: comprobar columnas/tablas reales creadas desde Dashboard y que el
+      SQL auditado sea el desplegado. No se consultó Supabase por instrucción.
+- [ ] Lucas: comprobar la política nueva publicada y copiar etiquetas a App Store
+      Connect solo tras validar las prácticas reales; no se entró a ese servicio.
