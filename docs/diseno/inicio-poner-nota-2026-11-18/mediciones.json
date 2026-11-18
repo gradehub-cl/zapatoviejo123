@@ -11,7 +11,11 @@
     ],
     "contraste": 7.5103018216066175,
     "errores": [],
-    "lecturas": []
+    "lecturas": [],
+    "placeholder": {
+      "color": "rgb(84, 84, 91)",
+      "base": "rgb(84, 84, 91)"
+    }
   },
   {
     "modo": "claro",
@@ -35,7 +39,11 @@
     ],
     "contraste": 9.727323338328082,
     "errores": [],
-    "lecturas": []
+    "lecturas": [],
+    "placeholder": {
+      "color": "rgb(180, 180, 189)",
+      "base": "rgb(180, 180, 189)"
+    }
   },
   {
     "modo": "oscuro",

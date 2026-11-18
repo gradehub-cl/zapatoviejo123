@@ -88,6 +88,7 @@ No se modificó Swift; no hace falta una ruta nativa ni plugin nuevos.
 ## Validación final
 
 - Build, revisión JS, balance CSS y `git diff --check`.
-- Suite completa `npm test -- --resumen`.
+- Suite completa `npm test -- --resumen`: 476/476 aprobadas sobre la última
+  `ios`, incluida la Agenda de la #1202. JS OK; CSS 5323/5323 OK.
 - Pruebas sintéticas de descartes, plazos por universidad, ingreso y guardado
   reales, Canvas, respuesta tardía, campo en edición y aislamiento web.
