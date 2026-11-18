@@ -1,5 +1,9 @@
 // Opiniones cerradas de ramos. Estado efímero y aviso local separado de gradehub_v1.
 const RAMO_CARGAS=['Menos de 3','3 a 6','6 a 10','Más de 10'];
+// Reemplaza a las horas a la semana en el formulario nuevo (Lucas, 2026-11-18):
+// es más concreto y se puede comparar. Las horas ya guardadas no se tocan.
+const RAMO_ESTUDIO=['El día antes','2 a 3 días antes','Una semana antes','Más de una semana antes'];
+const RAMO_CHIPS_MAX=8;
 const avisosRamoVistos=new Set();
 let versionCalificarRamo=0;
 function claveCalificarRamo(r){return nombreProfesorNormal(r?.sigla||r?.origen?.ramoKey||r?.nombre||'');}
@@ -36,6 +40,45 @@ function payloadCalificarRamo(c,{carga,facilidad,asistencia,recomienda,etiquetas
  if(!Array.isArray(etiquetas)||etiquetas.length>3||etiquetas.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
  return {...argumentosCalificarRamo(c),p_carga:carga,p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda:recomienda,p_etiquetas:[...new Set(etiquetas)]};
 }
+// Formulario nuevo (servidor con `version: 2`): estudio en vez de horas y
+// etiquetas escritas. Mismas reglas que ramo_opinar en SQL.
+function payloadOpinarRamo(c,{facilidad,asistencia,estudio,recomienda,etiquetas=[],otros=[]}={}){
+ const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id)),escala=(n,max)=>Number.isInteger(n)&&n>=1&&n<=max;
+ if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||!escala(estudio,4)||typeof recomienda!=='boolean')throw Error('Responde todas las preguntas.');
+ const lista=[...new Set(Array.isArray(etiquetas)?etiquetas:[])];
+ if(lista.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
+ const escritas=[];
+ for(const t of Array.isArray(otros)?otros:[]){
+  const limpio=String(t||'').replace(/\s+/g,' ').trim();
+  if([...limpio].length<3||[...limpio].length>20)throw Error('Cada etiqueta escrita tiene entre 3 y 20 letras.');
+  if(!escritas.some(x=>normalEtiquetaEscrita(x)===normalEtiquetaEscrita(limpio)))escritas.push(limpio);
+ }
+ if(lista.length+escritas.length>3)throw Error('Elige hasta 3 etiquetas.');
+ return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_estudio:estudio,p_recomienda:recomienda,p_etiquetas:lista,p_otros:escritas};
+}
+// Las etiquetas que se ofrecen salen de lo que más se elige en el ramo. Sin
+// datos (o sin la RPC) queda la lista fija. Las propias siempre se ven.
+//  sug: {disponible, orden:[ids], sin_uso:[ids], propias:[textos]}
+// Devuelve [{id}] para las de la lista y [{texto}] para las escritas.
+function etiquetasSugeridasRamo(sug,mias=[],escritas=[]){
+ const base=RAMO_ETIQUETAS.map(e=>e.id),valida=id=>base.includes(id);
+ const propias=escritas.map(texto=>({texto}));
+ if(!sug||sug.disponible!==true)return [...base.map(id=>({id})),...propias];
+ const orden=[...new Set((Array.isArray(sug.orden)?sug.orden:[]).filter(valida))];
+ const sinUso=new Set((Array.isArray(sug.sin_uso)?sug.sin_uso:[]).filter(valida));
+ const vistos=new Set(escritas.map(normalEtiquetaEscrita));
+ const textos=[];
+ for(const t of Array.isArray(sug.propias)?sug.propias:[]){
+  const n=normalEtiquetaEscrita(t);if(typeof t!=='string'||!n||vistos.has(n))continue;vistos.add(n);textos.push({texto:t.trim(),sugerida:true});
+ }
+ // Prioridad: las más elegidas, después las escritas que repiten tres o más,
+ // y al final el resto de la lista que alguien usa. Hasta ocho.
+ const candidatas=[...orden.map(id=>({id})),...textos,...base.filter(id=>!orden.includes(id)&&!sinUso.has(id)).map(id=>({id}))];
+ const visibles=candidatas.slice(0,RAMO_CHIPS_MAX);
+ // Lo que la persona ya eligió nunca desaparece.
+ for(const id of mias)if(valida(id)&&!visibles.some(x=>x.id===id))visibles.push({id});
+ return [...visibles,...propias];
+}
 function claveAvisoCalificarRamo(c){return `gh_ramo_calificar_v1:${currentUser.id}:${c.tenant}:${c.clave}:${c.p_periodo}`;}
 function avisoCalificarRamoVisto(c){
  const k=claveAvisoCalificarRamo(c);try{return avisosRamoVistos.has(k)||localStorage.getItem(k)==='1';}catch(e){return avisosRamoVistos.has(k);}
@@ -49,6 +92,8 @@ function errorCalificarRamo(e,accion='guardar'){
  if(/PGRST202|42883/.test(String(e?.code)))return 'Las calificaciones de ramos aún no están disponibles.';
  if(/profesor no califica/.test(String(e?.message)))return 'Las cuentas de profesor no califican ramos.';
  if(/no sincronizados/.test(String(e?.message)))return 'Este ramo o sección aún no está sincronizado. Vuelve a intentarlo en un momento.';
+ if(/texto no permitido/.test(String(e?.message)))return 'Esa etiqueta no se puede usar.';
+ if(/etiquetas/.test(String(e?.message)))return 'Elige hasta 3 etiquetas.';
  return `No pudimos ${accion} tu opinión. Revisa tu conexión e inténtalo de nuevo.`;
 }
 async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
@@ -64,24 +109,72 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
   if(!estado?.puede_calificar)throw Error('no disponible');
   const mia=estado.mia||{},seleccion=new Set(mia.etiquetas||[]);
   const radios=(nombre,opciones,valor)=>opciones.map(([v,t])=>`<label class="rc-opcion"><input type="radio" name="${nombre}" value="${v}"${String(valor)===String(v)?' checked':''}><span>${esc(t)}</span></label>`).join('');
+  // Con `version: 2` el servidor acepta el formulario nuevo; sin ella (SQL aún
+  // no aplicado) sigue el anterior, para no perder respuestas.
+  const v2=estado.version===2;
+  let sugeridas=null;
+  if(v2){
+   try{const {data,error:e2}=await cliente.rpc('ramo_etiquetas_sugeridas',argumentosCalificarRamo(c));if(!e2)sugeridas=data;}catch(e){}
+   if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
+  }
+  const escritasMias=v2&&Array.isArray(mia.otros)?mia.otros.filter(t=>typeof t==='string'&&t.trim()):[];
+  const chipEscrita=(texto,marcada)=>`<label class="rc-etiqueta rc-escrita"><input type="checkbox" name="escrita" value="${esc(texto)}"${marcada?' checked':' data-rc-sugerida'}><span>${esc(texto)}</span></label>`;
+  const chips=v2?etiquetasSugeridasRamo(sugeridas,[...seleccion],escritasMias):RAMO_ETIQUETAS.map(e=>({id:e.id}));
+  const etiquetasHTML=`<fieldset><legend>¿Cómo es? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${chips.map(x=>x.id
+    ?`<label class="rc-etiqueta"><input type="checkbox" name="etiqueta" value="${esc(x.id)}"${seleccion.has(x.id)?' checked':''}><span>${esc(RAMO_ETIQUETAS.find(e=>e.id===x.id).texto)}</span></label>`
+    :chipEscrita(x.texto,!x.sugerida)).join('')}${v2?'<label class="rc-etiqueta rc-otro"><input type="checkbox" name="otro" data-rc-otro><span>Otro</span></label>':''}</div>
+    ${v2?'<div class="rc-otro-campo" hidden><input type="text" class="rc-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="rc-otro-cuenta"><span id="rc-otro-cuenta" class="rc-otro-cuenta">0/20</span><button type="button" class="docente-link" data-rc-agregar>Agregar</button></div>':''}</fieldset>`;
+  const preguntas={
+   facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil es sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
+   carga:`<fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>`,
+   asistencia:`<fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>`,
+   estudio:`<fieldset><legend>¿Con cuánto tiempo empezaste a estudiar para las pruebas?</legend><div class="rc-cargas">${radios('estudio',RAMO_ESTUDIO.map((t,i)=>[i+1,t]),mia.estudio)}</div></fieldset>`,
+   recomienda:`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
+  };
+  // Formulario nuevo: recomendar va al final (Lucas, 2026-11-18).
+  const orden=v2?[preguntas.facilidad,preguntas.asistencia,preguntas.estudio,etiquetasHTML,preguntas.recomienda]
+   :[preguntas.facilidad,preguntas.carga,preguntas.asistencia,preguntas.recomienda,etiquetasHTML];
   caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
-   <form class="rc-form" novalidate>
-   <fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil es sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>
-   <fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>
-   <fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>
-   <fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>
-   <fieldset><legend>¿Cómo es? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${RAMO_ETIQUETAS.map(e=>`<label class="rc-etiqueta"><input type="checkbox" name="etiqueta" value="${e.id}"${seleccion.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}</div></fieldset>
+   <form class="rc-form" novalidate>${orden.join('')}
    <p class="rc-error" role="alert"></p>${estado.mia?'<button type="button" class="docente-link rc-borrar" data-rc-borrar>Borrar mi opinión</button>':''}
    <div class="modal-btns"><button type="button" class="btn-cancel" data-rc-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Guardar</button></div></form>`;
   const form=caja.querySelector('form'),mensaje=form.querySelector('[role=alert]');
-  const limitar=()=>{const checks=[...form.querySelectorAll('[name=etiqueta]')],n=checks.filter(x=>x.checked).length;checks.forEach(x=>x.disabled=!x.checked&&n>=3);};
-  form.addEventListener('change',limitar);limitar();form.querySelector('[data-rc-cancelar]').onclick=cerrar;
+  const otroChip=form.querySelector('[data-rc-otro]'),campoOtro=form.querySelector('.rc-otro-campo'),textoOtro=form.querySelector('.rc-otro-texto');
+  // Hasta tres entre las de la lista y las escritas; «Otro» abierto ocupa un lugar.
+  const limitar=()=>{
+   const checks=[...form.querySelectorAll('[name=etiqueta],[name=escrita],[name=otro]')],n=checks.filter(x=>x.checked).length;
+   checks.forEach(x=>x.disabled=!x.checked&&n>=3);
+   if(otroChip&&campoOtro.hidden===otroChip.checked){campoOtro.hidden=!otroChip.checked;if(otroChip.checked)enfocarEnHoja(textoOtro);}
+  };
+  form.addEventListener('change',e=>{
+   // Desmarcar una escrita propia la quita; una sugerida queda como opción.
+   if(e.target.matches('[name=escrita]:not([data-rc-sugerida])')&&!e.target.checked)e.target.closest('label').remove();
+   limitar();
+  });limitar();form.querySelector('[data-rc-cancelar]').onclick=cerrar;
+  const contarOtro=()=>{form.querySelector('.rc-otro-cuenta').textContent=[...textoOtro.value].length+'/20';};
+  // Lo escrito pasa a ser una etiqueta marcada y «Otro» vuelve a quedar libre.
+  const agregarEscrita=()=>{
+   const t=textoOtro.value.replace(/\s+/g,' ').trim();
+   if([...t].length<3){mensaje.textContent='Escribe tu etiqueta.';textoOtro.focus();return false;}
+   if([...t].length>20){mensaje.textContent='La etiqueta puede tener hasta 20 caracteres.';textoOtro.focus();return false;}
+   mensaje.textContent='';
+   const igual=[...form.querySelectorAll('[name=escrita]')].find(x=>normalEtiquetaEscrita(x.value)===normalEtiquetaEscrita(t));
+   otroChip.checked=false;
+   if(igual)igual.checked=true;else otroChip.closest('label').insertAdjacentHTML('beforebegin',chipEscrita(t,true));
+   textoOtro.value='';contarOtro();limitar();
+   return true;
+  };
+  if(otroChip){
+   textoOtro.addEventListener('input',contarOtro);
+   textoOtro.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(agregarEscrita())[...form.querySelectorAll('[name=escrita]:checked')].pop()?.focus();}});
+   form.querySelector('[data-rc-agregar]').onclick=()=>{if(agregarEscrita())[...form.querySelectorAll('[name=escrita]:checked')].pop()?.focus();};
+  }
   let enviando=false;
   const guardar=async(rpc,args)=>{
    if(enviando||!vigente()||!form.isConnected)return;enviando=true;const botones=[...form.querySelectorAll('button')];botones.forEach(b=>b.disabled=true);mensaje.textContent='';
    try{
     const {error}=await cliente.rpc(rpc,args);if(error)throw error;if(!vigente()||!form.isConnected)return;
-    marcarAvisoCalificarRamo(c);invalidarResumenRamo(c.tenant,c.clave);cerrar();showToast(rpc==='ramo_calificar'?'Tu opinión quedó guardada':'Borramos tu opinión');
+    marcarAvisoCalificarRamo(c);invalidarResumenRamo(c.tenant,c.clave);cerrar();showToast(rpc==='ramo_calificacion_borrar'?'Borramos tu opinión':'Tu opinión quedó guardada');
     if(S.ramos.includes(r)&&currentRamoId===r.id){const opinion=consultarCalificacionRamoFicha(r);renderDocenteRamo(r,opinion);pintarResumenRamoFicha(r,opinion);}
    }catch(e){if(vigente()&&form.isConnected){mensaje.textContent=errorCalificarRamo(e);botones.forEach(b=>b.disabled=false);enviando=false;}}
   };
@@ -89,10 +182,13 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    e.preventDefault();try{
     const valor=n=>form.querySelector(`[name=${n}]:checked`)?.value;
     const rec=valor('recomienda'),asis=valor('asistencia');
-    const payload=payloadCalificarRamo(c,{carga:Number(valor('carga')),facilidad:Number(valor('facilidad')),
+    const comunes={facilidad:Number(valor('facilidad')),
      asistencia:asis==='si'?true:asis==='no'?false:asis==='nose'?null:undefined,recomienda:rec==='1'?true:rec==='0'?false:null,
-     etiquetas:[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value)});
-    guardar('ramo_calificar',payload);
+     etiquetas:[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value)};
+    if(!v2){guardar('ramo_calificar',payloadCalificarRamo(c,{...comunes,carga:Number(valor('carga'))}));return;}
+    if(otroChip.checked&&textoOtro.value.trim()&&!agregarEscrita())return;
+    guardar('ramo_opinar',payloadOpinarRamo(c,{...comunes,estudio:Number(valor('estudio')),
+     otros:[...form.querySelectorAll('[name=escrita]:checked')].map(x=>x.value)}));
    }catch(e){mensaje.textContent=e.message;enfocarEnHoja(form.querySelector('input:not(:checked)'));}
   };
   const borrar=form.querySelector('[data-rc-borrar]');if(borrar)borrar.onclick=()=>showConfirm('¿Borrar tu opinión del ramo?','Se quitarán tus respuestas y etiquetas.',()=>guardar('ramo_calificacion_borrar',argumentosCalificarRamo(c)),{label:'Borrar',danger:true,focusCancel:true});

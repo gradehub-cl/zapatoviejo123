@@ -23,9 +23,14 @@ function horasRamoTexto(b){
  for(const x of lista)if(Number.isSafeInteger(x?.n)&&x.n>0&&x.opcion>=1&&x.opcion<=4&&(!mejor||x.n>mejor.n))mejor=x;
  return mejor?RAMO_CARGAS[mejor.opcion-1]:'—';
 }
+// Las escritas («Otro») solo llegan si las repiten tres cuentas o más.
 function etiquetasRamoHTML(b){
- const lista=(Array.isArray(b?.etiquetas)?b.etiquetas:[]).filter(e=>Number.isSafeInteger(e.n)&&e.n>=3&&RAMO_ETIQUETAS.some(x=>x.id===e.id));
- return lista.length?`<ul class="rr-etiquetas">${lista.map(e=>`<li>${esc(RAMO_ETIQUETAS.find(x=>x.id===e.id).texto)}</li>`).join('')}</ul>`:'';
+ const lista=(Array.isArray(b?.etiquetas)?b.etiquetas:[]).filter(e=>Number.isSafeInteger(e.n)&&e.n>=3&&RAMO_ETIQUETAS.some(x=>x.id===e.id))
+  .map(e=>({texto:RAMO_ETIQUETAS.find(x=>x.id===e.id).texto,n:e.n}));
+ const escritas=(Array.isArray(b?.escritas)?b.escritas:[]).filter(e=>typeof e?.texto==='string'&&e.texto.trim()&&Number.isSafeInteger(e.n)&&e.n>=3)
+  .map(e=>({texto:e.texto.trim(),n:e.n}));
+ const todas=[...lista,...escritas].sort((a,b)=>b.n-a.n).slice(0,8);
+ return todas.length?`<ul class="rr-etiquetas">${todas.map(e=>`<li>${esc(e.texto)}</li>`).join('')}</ul>`:'';
 }
 // Cada cifra en su escala (docs/guia/reglas-y-entrega.md, «Estadísticas pone
 // cada número en su escala»): una posición de 1 a 5 o una parte de un total va
@@ -63,11 +68,26 @@ function horasRamoHTML(b){
   <div class="rr-reparto" role="img" aria-label="${esc(lista.map(x=>`${x.texto} horas: ${x.n} de ${total}`).join('; '))}">${lista.filter(x=>x.n).map(x=>`<i${x===moda?' class="rr-destacada"':''} style="flex-grow:${x.n}"></i>`).join('')}</div>
   <div class="rr-reparto-escala" aria-hidden="true"><span>Menos</span><span>Más</span></div></div>`;
 }
+// «Con cuánto tiempo empezaron a estudiar para las pruebas»: misma barra
+// repartida que las horas. Aparece desde cinco respuestas con ese dato (las
+// opiniones antiguas no lo tienen).
+function distribucionEstudioRamo(b){
+ const lista=RAMO_ESTUDIO.map((texto,i)=>{const n=Number((Array.isArray(b?.estudio)?b.estudio:[]).find(x=>x?.opcion===i+1)?.n);return {texto,n:Number.isSafeInteger(n)&&n>=0?n:0,i};});
+ const total=lista.reduce((a,x)=>a+x.n,0),moda=lista.reduce((m,x)=>x.n>m.n?x:m,{n:0});
+ return total>=5&&moda.n?{lista,total,moda}:null;
+}
+function estudioRamoHTML(b){
+ const d=distribucionEstudioRamo(b);if(!d)return '';
+ return `<div class="rr-horas"><div class="rr-horas-cabeza"><span>Empezaron a estudiar para las pruebas</span><b>${esc(d.moda.texto)} <small>${d.moda.n} de ${d.total}</small></b></div>
+  <div class="rr-reparto" role="img" aria-label="${esc(d.lista.map(x=>`${x.texto}: ${x.n} de ${d.total}`).join('; '))}">${d.lista.filter(x=>x.n).map(x=>`<i${x===d.moda?' class="rr-destacada"':''} style="flex-grow:${x.n}"></i>`).join('')}</div>
+  <div class="rr-reparto-escala" aria-hidden="true"><span>Menos tiempo</span><span>Más tiempo</span></div></div>`;
+}
 const METRICAS_RAMO=[
  {titulo:'Facilidad para sacarse buena nota',dato:p=>{const v=Number(p.opiniones?.facilidad);return Number.isFinite(v)?{f:escala5Ramo(v),texto:decimalRamo(v),de:'de 5'}:null;}},
  {titulo:'Lo recomiendan',dato:p=>{const v=recomiendanRamo(p.opiniones);return {f:v/10,texto:String(v),de:'de 10'};}},
  {titulo:'Dicen que se toma asistencia',dato:p=>{const a=asistenciaRamo(p.opiniones);return a?{f:a.si/a.n,texto:String(a.si),de:`de ${a.n}`}:null;}},
  {titulo:'Horas a la semana, lo más común',dato:p=>{const i=RAMO_CARGAS.indexOf(horasRamoTexto(p.opiniones));return i>=0?{f:(i+1)/4,texto:['< 3','3 a 6','6 a 10','> 10'][i],de:'h'}:null;}},
+ {titulo:'Empezaron a estudiar, lo más común',dato:p=>{const d=distribucionEstudioRamo(p.opiniones);return d?{f:(d.moda.i+1)/4,texto:['1 día','2–3 días','1 semana','+1 semana'][d.moda.i],de:'antes'}:null;}},
  {titulo:'Cómo enseña',dato:p=>{const v=Number(p.estrellas?.promedio);return Number(p.estrellas?.total)>=3&&v>=1&&v<=5?{f:escala5Ramo(v),texto:decimalRamo(v),de:'de 5'}:null;}},
 ];
 const ENSENA_RAMO=METRICAS_RAMO[METRICAS_RAMO.length-1];
@@ -90,7 +110,7 @@ function contenidoResumenRamoHTML(d,{coordinado=null}={}){
  if(coordinado===true){
   const conEstrellas=docentes.filter(p=>ENSENA_RAMO.dato(p));
   return `${pie}
- <section class="rr-bloque"><h3>Cómo es el ramo</h3><p>Coordinado: las mismas pruebas en todas las secciones.</p>${anillosRamoHTML(d)}${horasRamoHTML(d)}${etiquetasRamoHTML(d)}</section>
+ <section class="rr-bloque"><h3>Cómo es el ramo</h3><p>Coordinado: las mismas pruebas en todas las secciones.</p>${anillosRamoHTML(d)}${estudioRamoHTML(d)}${horasRamoHTML(d)}${etiquetasRamoHTML(d)}</section>
  ${conEstrellas.length?`<section class="rr-bloque"><h3>Cómo enseña cada profesor</h3><ul class="rr-filas">${conEstrellas.map(p=>filaRamoHTML(p.nombre,ENSENA_RAMO.dato(p))).join('')}</ul></section>`:''}`;
  }
  const conDatos=docentes.filter(p=>bloqueRamoValido(p.opiniones)),pocos=docentes.filter(p=>!bloqueRamoValido(p.opiniones));

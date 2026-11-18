@@ -14,10 +14,23 @@ function payloadCalificacion(contexto,estrellas,etiquetas,otros=[]){
 // Etiquetas escritas: la misma sin tildes, mayúsculas ni espacios de más cuenta una.
 function normalEtiquetaEscrita(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase();}
 // Las seis más cercanas; las seleccionadas permanecen aunque cambien las estrellas.
-function etiquetasSugeridasProfesor(estrellas,seleccionadas=[]){
+// Con datos de este profesor (sug, de profesor_etiquetas_sugeridas): se quitan
+// las que nadie eligió y entran las dos más elegidas aunque no sean de esas
+// estrellas, para que lo que más se dice de él siempre se vea (Lucas, 2026-11-18).
+function etiquetasSugeridasProfesor(estrellas,seleccionadas=[],sug=null){
   if(!estrellas)return [];
-  const cercanas=new Set([...PROFESOR_ETIQUETAS].sort((a,b)=>Math.abs(a.valencia-estrellas)-Math.abs(b.valencia-estrellas)||a.valencia-b.valencia).slice(0,6).map(e=>e.id));
-  return PROFESOR_ETIQUETAS.filter(e=>cercanas.has(e.id)||seleccionadas.includes(e.id)).map(e=>e.id);
+  const validas=new Set(PROFESOR_ETIQUETAS.map(e=>e.id)),datos=sug&&sug.disponible===true;
+  const sinUso=new Set(datos&&Array.isArray(sug.sin_uso)?sug.sin_uso:[]);
+  const populares=datos&&Array.isArray(sug.orden)?sug.orden.filter(id=>validas.has(id)&&!sinUso.has(id)).slice(0,2):[];
+  const cercanas=new Set([...PROFESOR_ETIQUETAS].filter(e=>!sinUso.has(e.id)).sort((a,b)=>Math.abs(a.valencia-estrellas)-Math.abs(b.valencia-estrellas)||a.valencia-b.valencia).slice(0,6).map(e=>e.id));
+  return PROFESOR_ETIQUETAS.filter(e=>cercanas.has(e.id)||populares.includes(e.id)||seleccionadas.includes(e.id)).map(e=>e.id);
+}
+// Escritas que repiten tres cuentas o más con este profesor, como sugerencia.
+function escritasSugeridasProfesor(sug,ya=[]){
+  if(!sug||sug.disponible!==true||!Array.isArray(sug.propias))return [];
+  const vistos=new Set(ya.map(normalEtiquetaEscrita)),out=[];
+  for(const t of sug.propias){const n=normalEtiquetaEscrita(t);if(typeof t!=='string'||!n||vistos.has(n))continue;vistos.add(n);out.push(t.trim());}
+  return out.slice(0,3);
 }
 function errorCalificacion(error){
   const mensaje=String(error&&error.message||'');
@@ -84,7 +97,8 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
   const pasoCalificar=elegido=>{
     const mia=Number(calif.mi_estrellas)||0,mias=new Set(Array.isArray(calif.mi_etiquetas)?calif.mi_etiquetas:[]);
     const escritas=Array.isArray(calif.mi_otros)?calif.mi_otros:calif.mi_otro?[calif.mi_otro]:[];
-    const chipEscrita=t=>`<label class="calif-chip calif-escrita"><input type="checkbox" name="calif-etiqueta" value="${esc(t)}" data-escrita checked><span>${esc(t)}</span></label>`;
+    const chipEscrita=(t,sugerida=false)=>`<label class="calif-chip calif-escrita"><input type="checkbox" name="calif-etiqueta" value="${esc(t)}" data-escrita${sugerida?' data-sugerida':' checked'}><span>${esc(t)}</span></label>`;
+    let sugProfesor=null;
     contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
       <form class="calif-form" novalidate>
         <p class="calif-quien"><span>${esc(elegido)}</span><button type="button" class="docente-link" data-cambiar>Cambiar</button></p>
@@ -92,7 +106,7 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
           <div class="calif-opciones" data-valor="${mia}">${[1,2,3,4,5].map(n=>`<label class="calif-opcion"><input type="radio" name="calif-estrellas" value="${n}"${n===mia?' checked':''}><span aria-hidden="true">★</span><span class="calif-sr">${n} de 5</span></label>`).join('')}</div>
         </fieldset>
         <fieldset class="calif-campo"><legend>¿Cómo es? <span class="calif-opcional">hasta 3</span></legend>
-          <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip" data-valencia="${e.valencia}"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}${escritas.map(chipEscrita).join('')}<label class="calif-chip calif-otro"><input type="checkbox" name="calif-etiqueta" value="otro"><span>Otro</span></label></div>
+          <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip" data-valencia="${e.valencia}"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}${escritas.map(t=>chipEscrita(t)).join('')}<label class="calif-chip calif-otro"><input type="checkbox" name="calif-etiqueta" value="otro"><span>Otro</span></label></div>
           <div class="calif-otro-campo" hidden><input type="text" class="calif-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="calif-otro-cuenta"><span id="calif-otro-cuenta" class="calif-otro-cuenta">0/20</span><button type="button" class="docente-link" data-agregar>Agregar</button></div>
         </fieldset>
         <p class="calif-error" role="alert"></p>
@@ -105,7 +119,7 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
       const v=estrellas();form.querySelectorAll('.calif-opcion').forEach((l,i)=>l.classList.toggle('lleno',i<v));
       form.querySelector('.calif-opciones').dataset.valor=v;
       const seleccionadas=[...form.querySelectorAll('input[name=calif-etiqueta]:checked')].map(x=>x.value);
-      const sugeridas=new Set(etiquetasSugeridasProfesor(v,seleccionadas));
+      const sugeridas=new Set(etiquetasSugeridasProfesor(v,seleccionadas,sugProfesor));
       form.querySelectorAll('.calif-chip:not(.calif-otro):not(.calif-escrita)').forEach(l=>{l.hidden=!sugeridas.has(l.querySelector('input').value);});
       form.querySelector('.calif-chips').closest('fieldset').hidden=!v;
       const marcadoOtro=form.querySelector('.calif-otro input').checked,campo=form.querySelector('.calif-otro-campo');
@@ -114,7 +128,20 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
       chips.forEach(x=>{x.disabled=!x.checked&&n>=3;});
     };
     // Desmarcar una escrita la quita: no queda como sugerencia.
-    form.addEventListener('change',e=>{if(e.target.matches('[data-escrita]')&&!e.target.checked)e.target.closest('label').remove();marcar();});marcar();
+    form.addEventListener('change',e=>{if(e.target.matches('[data-escrita]:not([data-sugerida])')&&!e.target.checked)e.target.closest('label').remove();marcar();});marcar();
+    // Sugerencias de este profesor: llegan después y no frenan el formulario.
+    // Sin la RPC (SQL sin aplicar) queda como antes.
+    (async()=>{
+      try{
+        const {data,error}=await supabaseClient.rpc('profesor_etiquetas_sugeridas',contexto);
+        if(error||!form.isConnected||!vigente())return;
+        sugProfesor=data;
+        const ya=[...form.querySelectorAll('[data-escrita]')].map(x=>x.value);
+        const otro=form.querySelector('.calif-otro');
+        escritasSugeridasProfesor(sugProfesor,ya).forEach(t=>otro.insertAdjacentHTML('beforebegin',chipEscrita(t,true)));
+        marcar();
+      }catch(e){}
+    })();
     const textoOtro=form.querySelector('.calif-otro-texto'),otroChip=form.querySelector('.calif-otro input');
     const contar=()=>{form.querySelector('.calif-otro-cuenta').textContent=[...textoOtro.value].length+'/20';};
     textoOtro.addEventListener('input',contar);
@@ -125,7 +152,9 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
       if([...t].length<3){mensaje.textContent='Escribe tu etiqueta.';textoOtro.focus();return false;}
       if([...t].length>20){mensaje.textContent='La etiqueta puede tener hasta 20 caracteres.';textoOtro.focus();return false;}
       mensaje.textContent='';
-      if(!escritasMarcadas().some(x=>normalEtiquetaEscrita(x)===normalEtiquetaEscrita(t)))otroChip.closest('label').insertAdjacentHTML('beforebegin',chipEscrita(t));
+      // Si ya está (marcada o como sugerencia), se marca esa en vez de repetirla.
+      const igual=[...form.querySelectorAll('[data-escrita]')].find(x=>normalEtiquetaEscrita(x.value)===normalEtiquetaEscrita(t));
+      if(igual)igual.checked=true;else otroChip.closest('label').insertAdjacentHTML('beforebegin',chipEscrita(t));
       textoOtro.value='';contar();otroChip.checked=false;marcar();
       return true;
     };
