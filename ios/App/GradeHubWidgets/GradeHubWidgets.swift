@@ -15,6 +15,8 @@ import WidgetKit
 struct Entrada: TimelineEntry {
     let date: Date
     let resumen: Resumen?
+    // Solo la usa Próxima clase: cuánto le importa esta entrada a la Smart Stack.
+    var relevance: TimelineEntryRelevance? = nil
 }
 
 struct Proveedor: TimelineProvider {
@@ -486,6 +488,18 @@ struct PendientesWidget: Widget {
 
 // MARK: - Próxima clase (#641)
 
+// La Smart Stack es cosa del widget (WidgetKit): va acá y no en Shared/Resumen.swift.
+extension Clases {
+    // Desde 15 minutos antes y hasta que termina, la clase es lo más útil de la
+    // pantalla: la Smart Stack sube el widget sola. El resto del tiempo, nada.
+    static let aviso: TimeInterval = 15 * 60
+    static func relevancia(_ r: Resumen?, _ ahora: Date) -> TimelineEntryRelevance {
+        guard !vencido(r, ahora), let o = vigentes(r, desde: ahora).first,
+              o.inicio.timeIntervalSince(ahora) <= aviso else { return TimelineEntryRelevance(score: 0) }
+        return TimelineEntryRelevance(score: 100, duration: o.fin.timeIntervalSince(ahora))
+    }
+}
+
 // Una entrada en cada inicio, cada fin y cada medianoche de Chile: "Mañana" pasa
 // a "Hoy" y "Hoy" a "Ahora" sin abrir la app. La última es el fin del horizonte.
 struct ProveedorClases: TimelineProvider {
@@ -500,14 +514,16 @@ struct ProveedorClases: TimelineProvider {
             completion(Timeline(entries: [Entrada(date: ahora, resumen: resumen)], policy: .never))
             return
         }
-        var cambios = Clases.todas(resumen).flatMap { [$0.inicio, $0.fin] }
+        // También 15 minutos antes de cada una: ahí sube en la Smart Stack.
+        var cambios = Clases.todas(resumen).flatMap { [$0.inicio.addingTimeInterval(-Clases.aviso), $0.inicio, $0.fin] }
         var noche = Clases.cal.startOfDay(for: ahora)
         while let sigue = Clases.cal.date(byAdding: .day, value: 1, to: noche), sigue <= fin {
             cambios.append(sigue)
             noche = sigue
         }
         let fechas = Array(Set(cambios.filter { $0 > ahora && $0 <= fin } + [fin])).sorted()
-        completion(Timeline(entries: ([ahora] + fechas).map { Entrada(date: $0, resumen: resumen) }, policy: .after(fin)))
+        completion(Timeline(entries: ([ahora] + fechas).map { Entrada(date: $0, resumen: resumen, relevance: Clases.relevancia(resumen, $0)) },
+                            policy: .after(fin)))
     }
 }
 
@@ -527,6 +543,8 @@ struct ProximaClaseVista: View {
                     Text([o.clase.sigla ?? o.clase.ramo, Clases.hora(o, ahora), o.clase.sala].compactMap { $0 }.joined(separator: " · "))
                         .privacySensitive()
                 } else { Text(corto) }
+            case .accessoryCircular:
+                circular(vigentes.first)
             case .accessoryRectangular:
                 if let o = vigentes.first {
                     VStack(alignment: .leading, spacing: 1) {
@@ -619,6 +637,32 @@ struct ProximaClaseVista: View {
         }
     }
 
+    // Bloqueo, circular: la hora de inicio y la sigla. En clase, un anillo que el
+    // sistema llena solo hasta el fin (no gasta recargas) y la hora de término.
+    func circular(_ o: Clases.Ocurrencia?) -> some View {
+        let ahora = entrada.date
+        return ZStack {
+            AccessoryWidgetBackground()
+            if let o {
+                if Clases.enCurso(o, ahora) {
+                    ProgressView(timerInterval: o.inicio...o.fin, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                        .progressViewStyle(.circular).widgetAccentable()
+                }
+                VStack(spacing: 0) {
+                    Text(Clases.enCurso(o, ahora) ? o.clase.fin : o.clase.inicio)
+                        .font(.system(.headline, design: .rounded)).monospacedDigit().minimumScaleFactor(0.6)
+                    Text(o.clase.sigla ?? o.clase.ramo).font(.system(size: 11, weight: .medium))
+                        .lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
+                }
+                .padding(6)
+            } else {
+                Image(systemName: "calendar").font(.title3)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(o.map { Clases.enCurso($0, ahora) ? "En clase de \($0.clase.ramo) hasta las \($0.clase.fin)" : "\($0.clase.ramo) a las \($0.clase.inicio)" } ?? corto)
+    }
+
     var vacio: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("PRÓXIMA CLASE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
@@ -637,7 +681,7 @@ struct ProximaClaseWidget: Widget {
         }
         .configurationDisplayName("Próxima clase")
         .description("Qué clase te toca, a qué hora y en qué sala.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
