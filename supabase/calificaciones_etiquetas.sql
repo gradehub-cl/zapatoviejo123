@@ -1,12 +1,11 @@
 -- Calificar ramo y profesor, ronda 2 (Lucas, 2026-11-18). Aplicar A MANO
 -- después de profesores.sql y ramo_calificaciones.sql. Reaplicable.
 --
--- 1. Ramo: nueva pregunta «¿Con cuánto tiempo empezaste a estudiar para las
---    pruebas?» (columna `estudio`, 1..4) y etiquetas escritas («Otro», columna
---    `otros`), con el mismo filtro de texto que las del profesor.
---    `carga` (horas a la semana) NO se borra ni se reinterpreta: deja de
---    preguntarse, las respuestas guardadas se conservan y siguen en el resumen.
---    Quien edita una opinión antigua mantiene su `carga`.
+-- 1. Ramo: etiquetas escritas («Otro», columna `otros`) con el mismo filtro de
+--    texto que las del profesor. La pregunta de horas a la semana deja de
+--    hacerse: `carga` NO se borra ni se reinterpreta, las respuestas guardadas
+--    se conservan y siguen en el resumen, y quien edita una opinión antigua
+--    mantiene su `carga`. Las opiniones nuevas la guardan vacía.
 -- 2. Etiquetas sugeridas para ramo y profesor: cuáles se eligen más en ese
 --    ramo (o con ese profesor). Solo salen ids y textos, nunca conteos ni quién.
 --
@@ -16,13 +15,9 @@
 begin;
 
 -- ─── Ramo: columnas nuevas ──────────────────────────────────────────────────
-alter table public.ramo_calificaciones add column if not exists estudio smallint;
 alter table public.ramo_calificaciones add column if not exists otros text[] not null default '{}'::text[];
 -- Las opiniones nuevas ya no traen horas: la columna queda opcional.
 alter table public.ramo_calificaciones alter column carga drop not null;
-alter table public.ramo_calificaciones drop constraint if exists ramo_calificaciones_estudio_check;
-alter table public.ramo_calificaciones add constraint ramo_calificaciones_estudio_check
- check (estudio is null or estudio between 1 and 4);
 alter table public.ramo_calificaciones drop constraint if exists ramo_calificaciones_otros_check;
 alter table public.ramo_calificaciones add constraint ramo_calificaciones_otros_check
  check (public.profesor_otros_permitidos(otros) and cardinality(etiquetas)+cardinality(otros)<=3);
@@ -39,16 +34,17 @@ returns text[] language sql immutable set search_path = '' as $$
 $$;
 
 -- Guardar con el formulario nuevo. Todas las preguntas son obligatorias salvo
--- asistencia (null = no sé) y las etiquetas.
+-- asistencia (null = no sé) y las etiquetas. Sin horas: `carga` queda vacía en
+-- una opinión nueva y se conserva en una antigua.
+drop function if exists public.ramo_opinar(text,integer,text,integer,boolean,integer,boolean,text[],text[]);
 create or replace function public.ramo_opinar(p_ramo_id text,p_seccion integer,p_periodo text,
- p_facilidad integer,p_asistencia boolean,p_estudio integer,p_recomienda boolean,
+ p_facilidad integer,p_asistencia boolean,p_recomienda boolean,
  p_etiquetas text[] default '{}'::text[],p_otros text[] default '{}'::text[])
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare c record; lista text[]; escritas text[];
 begin
  select * into strict c from public.ramo_calificacion_contexto(p_ramo_id,p_seccion,p_periodo);
- if p_facilidad is null or p_facilidad not between 1 and 5 or p_estudio is null or p_estudio not between 1 and 4
-    or p_recomienda is null then raise exception 'respuestas no válidas'; end if;
+ if p_facilidad is null or p_facilidad not between 1 and 5 or p_recomienda is null then raise exception 'respuestas no válidas'; end if;
  if p_etiquetas is null or array_position(p_etiquetas,null) is not null
     or not p_etiquetas <@ public.ramo_etiquetas_validas() then raise exception 'etiquetas no válidas'; end if;
  select coalesce(array_agg(distinct e order by e),'{}'::text[]) into lista from unnest(p_etiquetas) e;
@@ -56,12 +52,12 @@ begin
  if cardinality(lista)+cardinality(escritas)>3 then raise exception 'etiquetas no válidas'; end if;
  if not coalesce((select bool_and(public.profesor_texto_permitido(t)) from unnest(escritas) t),true) then
   raise exception 'texto no permitido'; end if;
- insert into public.ramo_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,carga,facilidad,asistencia,recomienda,etiquetas,estudio,otros)
- values(auth.uid(),c.tenant,c.ramo_clave,p_seccion,p_periodo,null,p_facilidad,p_asistencia,p_recomienda,lista,p_estudio,escritas)
+ insert into public.ramo_calificaciones(user_id,tenant,ramo_clave,seccion,periodo,carga,facilidad,asistencia,recomienda,etiquetas,otros)
+ values(auth.uid(),c.tenant,c.ramo_clave,p_seccion,p_periodo,null,p_facilidad,p_asistencia,p_recomienda,lista,escritas)
  -- `carga` no está en el SET: una opinión antigua conserva sus horas.
  on conflict(user_id,tenant,ramo_clave,periodo) do update set seccion=excluded.seccion,
  facilidad=excluded.facilidad,asistencia=excluded.asistencia,recomienda=excluded.recomienda,
- etiquetas=excluded.etiquetas,estudio=excluded.estudio,otros=excluded.otros,actualizada=now();
+ etiquetas=excluded.etiquetas,otros=excluded.otros,actualizada=now();
  return true;
 exception when check_violation then raise exception 'etiquetas no válidas';
 end;
@@ -98,20 +94,20 @@ declare c record; mia jsonb;
 begin
  select * into strict c from public.ramo_calificacion_contexto(p_ramo_id,p_seccion,p_periodo);
  select jsonb_build_object('carga',k.carga,'facilidad',k.facilidad,'asistencia',k.asistencia,
-  'recomienda',k.recomienda,'etiquetas',k.etiquetas,'estudio',k.estudio,'otros',k.otros)
+  'recomienda',k.recomienda,'etiquetas',k.etiquetas,'otros',k.otros)
  into mia from public.ramo_calificaciones k where k.user_id=auth.uid() and k.tenant=c.tenant and k.ramo_clave=c.ramo_clave and k.periodo=p_periodo;
  return jsonb_build_object('puede_calificar',true,'mia',mia,'version',2);
 end;
 $$;
 
--- Resumen: lo mismo de antes más `estudio` (distribución, solo respuestas con
--- dato) y las etiquetas escritas que repiten tres cuentas o más.
+-- Resumen: lo mismo de antes más las etiquetas escritas que repiten tres
+-- cuentas o más.
 create or replace function public.ramo_resumen_bloque(p_filas jsonb)
 returns jsonb language sql stable set search_path = '' as $$
  with f as materialized (
   select x->>'user_id' as u,(x->>'carga')::int as carga,(x->>'facilidad')::int as facilidad,
    (x->>'asistencia')::boolean as asistencia,
-   (x->>'recomienda')::boolean as recomienda,(x->>'estudio')::int as estudio,
+   (x->>'recomienda')::boolean as recomienda,
    case when jsonb_typeof(x->'etiquetas')='array' then x->'etiquetas' else '[]'::jsonb end as etiquetas,
    case when jsonb_typeof(x->'otros')='array' then x->'otros' else '[]'::jsonb end as otros
   from jsonb_array_elements(case when jsonb_typeof(p_filas)='array' then p_filas else '[]'::jsonb end) x
@@ -119,7 +115,6 @@ returns jsonb language sql stable set search_path = '' as $$
  select case when (select count(distinct u) from f)<public.ramo_piso_publicacion() then null else jsonb_build_object(
   'total',(select count(*) from f),
   'carga',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from f where carga=g)) order by g) from generate_series(1,4) g),
-  'estudio',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from f where estudio=g)) order by g) from generate_series(1,4) g),
   'facilidad',(select round(avg(facilidad),1) from f),
   'facilidad_distribucion',(select jsonb_agg(jsonb_build_object('opcion',g,'n',(select count(*) from f where facilidad=g)) order by g) from generate_series(1,5) g),
   'asistencia',jsonb_build_object('si',(select count(*) from f where asistencia),'no',(select count(*) from f where asistencia=false)),
@@ -204,12 +199,12 @@ $$;
 revoke all on function public.calificacion_escritas(text[]) from public,anon,authenticated;
 revoke all on function public.calificacion_sugeridas(jsonb,text[],integer,integer,integer) from public,anon,authenticated;
 revoke all on function public.ramo_resumen_bloque(jsonb) from public,anon,authenticated;
-revoke all on function public.ramo_opinar(text,integer,text,integer,boolean,integer,boolean,text[],text[]) from public,anon,authenticated;
+revoke all on function public.ramo_opinar(text,integer,text,integer,boolean,boolean,text[],text[]) from public,anon,authenticated;
 revoke all on function public.ramo_calificar(text,integer,text,integer,integer,boolean,boolean,text[]) from public,anon,authenticated;
 revoke all on function public.ramo_calificacion_estado(text,integer,text) from public,anon,authenticated;
 revoke all on function public.ramo_etiquetas_sugeridas(text,integer,text) from public,anon,authenticated;
 revoke all on function public.profesor_etiquetas_sugeridas(text,integer,text) from public,anon,authenticated;
-grant execute on function public.ramo_opinar(text,integer,text,integer,boolean,integer,boolean,text[],text[]) to authenticated;
+grant execute on function public.ramo_opinar(text,integer,text,integer,boolean,boolean,text[],text[]) to authenticated;
 grant execute on function public.ramo_calificar(text,integer,text,integer,integer,boolean,boolean,text[]) to authenticated;
 grant execute on function public.ramo_calificacion_estado(text,integer,text) to authenticated;
 grant execute on function public.ramo_etiquetas_sugeridas(text,integer,text) to authenticated;

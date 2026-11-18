@@ -1,8 +1,5 @@
 // Opiniones cerradas de ramos. Estado efímero y aviso local separado de gradehub_v1.
 const RAMO_CARGAS=['Menos de 3','3 a 6','6 a 10','Más de 10'];
-// Reemplaza a las horas a la semana en el formulario nuevo (Lucas, 2026-11-18):
-// es más concreto y se puede comparar. Las horas ya guardadas no se tocan.
-const RAMO_ESTUDIO=['El día antes','2 a 3 días antes','Una semana antes','Más de una semana antes'];
 const RAMO_CHIPS_MAX=8;
 const avisosRamoVistos=new Set();
 let versionCalificarRamo=0;
@@ -40,11 +37,12 @@ function payloadCalificarRamo(c,{carga,facilidad,asistencia,recomienda,etiquetas
  if(!Array.isArray(etiquetas)||etiquetas.length>3||etiquetas.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
  return {...argumentosCalificarRamo(c),p_carga:carga,p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda:recomienda,p_etiquetas:[...new Set(etiquetas)]};
 }
-// Formulario nuevo (servidor con `version: 2`): estudio en vez de horas y
-// etiquetas escritas. Mismas reglas que ramo_opinar en SQL.
-function payloadOpinarRamo(c,{facilidad,asistencia,estudio,recomienda,etiquetas=[],otros=[]}={}){
+// Formulario nuevo (servidor con `version: 2`): sin horas a la semana (las
+// guardadas no se tocan) y con etiquetas escritas. Mismas reglas que
+// ramo_opinar en SQL (Lucas, 2026-11-18).
+function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros=[]}={}){
  const ids=new Set(RAMO_ETIQUETAS.map(e=>e.id)),escala=(n,max)=>Number.isInteger(n)&&n>=1&&n<=max;
- if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||!escala(estudio,4)||typeof recomienda!=='boolean')throw Error('Responde todas las preguntas.');
+ if(!escala(facilidad,5)||!(asistencia===null||typeof asistencia==='boolean')||typeof recomienda!=='boolean')throw Error('Responde todas las preguntas.');
  const lista=[...new Set(Array.isArray(etiquetas)?etiquetas:[])];
  if(lista.some(e=>!ids.has(e)))throw Error('Elige hasta 3 etiquetas de la lista.');
  const escritas=[];
@@ -54,7 +52,7 @@ function payloadOpinarRamo(c,{facilidad,asistencia,estudio,recomienda,etiquetas=
   if(!escritas.some(x=>normalEtiquetaEscrita(x)===normalEtiquetaEscrita(limpio)))escritas.push(limpio);
  }
  if(lista.length+escritas.length>3)throw Error('Elige hasta 3 etiquetas.');
- return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_estudio:estudio,p_recomienda:recomienda,p_etiquetas:lista,p_otros:escritas};
+ return {...argumentosCalificarRamo(c),p_facilidad:facilidad,p_asistencia:asistencia,p_recomienda:recomienda,p_etiquetas:lista,p_otros:escritas};
 }
 // Las etiquetas que se ofrecen salen de lo que más se elige en el ramo. Sin
 // datos (o sin la RPC) queda la lista fija. Las propias siempre se ven.
@@ -120,19 +118,18 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
   const escritasMias=v2&&Array.isArray(mia.otros)?mia.otros.filter(t=>typeof t==='string'&&t.trim()):[];
   const chipEscrita=(texto,marcada)=>`<label class="rc-etiqueta rc-escrita"><input type="checkbox" name="escrita" value="${esc(texto)}"${marcada?' checked':' data-rc-sugerida'}><span>${esc(texto)}</span></label>`;
   const chips=v2?etiquetasSugeridasRamo(sugeridas,[...seleccion],escritasMias):RAMO_ETIQUETAS.map(e=>({id:e.id}));
-  const etiquetasHTML=`<fieldset><legend>¿Cómo es? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${chips.map(x=>x.id
+  const etiquetasHTML=`<fieldset><legend>¿Cómo fue? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${chips.map(x=>x.id
     ?`<label class="rc-etiqueta"><input type="checkbox" name="etiqueta" value="${esc(x.id)}"${seleccion.has(x.id)?' checked':''}><span>${esc(RAMO_ETIQUETAS.find(e=>e.id===x.id).texto)}</span></label>`
     :chipEscrita(x.texto,!x.sugerida)).join('')}${v2?'<label class="rc-etiqueta rc-otro"><input type="checkbox" name="otro" data-rc-otro><span>Otro</span></label>':''}</div>
     ${v2?'<div class="rc-otro-campo" hidden><input type="text" class="rc-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="rc-otro-cuenta"><span id="rc-otro-cuenta" class="rc-otro-cuenta">0/20</span><button type="button" class="docente-link" data-rc-agregar>Agregar</button></div>':''}</fieldset>`;
   const preguntas={
-   facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil es sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
+   facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil fue sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
    carga:`<fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>`,
    asistencia:`<fieldset><legend>¿Se tomaba asistencia?</legend><div class="rc-asistencia">${radios('asistencia',[['si','Sí'],['no','No'],['nose','No sé']],mia.asistencia===true?'si':mia.asistencia===false?'no':estado.mia?'nose':null)}</div></fieldset>`,
-   estudio:`<fieldset><legend>¿Con cuánto tiempo empezaste a estudiar para las pruebas?</legend><div class="rc-cargas">${radios('estudio',RAMO_ESTUDIO.map((t,i)=>[i+1,t]),mia.estudio)}</div></fieldset>`,
    recomienda:`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
   };
-  // Formulario nuevo: recomendar va al final (Lucas, 2026-11-18).
-  const orden=v2?[preguntas.facilidad,preguntas.asistencia,preguntas.estudio,etiquetasHTML,preguntas.recomienda]
+  // Formulario nuevo: sin horas y recomendar al final (Lucas, 2026-11-18).
+  const orden=v2?[preguntas.facilidad,preguntas.asistencia,etiquetasHTML,preguntas.recomienda]
    :[preguntas.facilidad,preguntas.carga,preguntas.asistencia,preguntas.recomienda,etiquetasHTML];
   caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
    <form class="rc-form" novalidate>${orden.join('')}
@@ -187,7 +184,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
      etiquetas:[...form.querySelectorAll('[name=etiqueta]:checked')].map(x=>x.value)};
     if(!v2){guardar('ramo_calificar',payloadCalificarRamo(c,{...comunes,carga:Number(valor('carga'))}));return;}
     if(otroChip.checked&&textoOtro.value.trim()&&!agregarEscrita())return;
-    guardar('ramo_opinar',payloadOpinarRamo(c,{...comunes,estudio:Number(valor('estudio')),
+    guardar('ramo_opinar',payloadOpinarRamo(c,{...comunes,
      otros:[...form.querySelectorAll('[name=escrita]:checked')].map(x=>x.value)}));
    }catch(e){mensaje.textContent=e.message;enfocarEnHoja(form.querySelector('input:not(:checked)'));}
   };

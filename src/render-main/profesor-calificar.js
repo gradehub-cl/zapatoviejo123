@@ -102,10 +102,10 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
     contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
       <form class="calif-form" novalidate>
         <p class="calif-quien"><span>${esc(elegido)}</span><button type="button" class="docente-link" data-cambiar>Cambiar</button></p>
-        <fieldset class="calif-campo"><legend>¿Cómo lo evalúas como profe?</legend>
+        <fieldset class="calif-campo"><legend>¿Cómo fue como profe?</legend>
           <div class="calif-opciones" data-valor="${mia}">${[1,2,3,4,5].map(n=>`<label class="calif-opcion"><input type="radio" name="calif-estrellas" value="${n}"${n===mia?' checked':''}><span aria-hidden="true">★</span><span class="calif-sr">${n} de 5</span></label>`).join('')}</div>
         </fieldset>
-        <fieldset class="calif-campo"><legend>¿Cómo es? <span class="calif-opcional">hasta 3</span></legend>
+        <fieldset class="calif-campo"><legend>¿Cómo fue? <span class="calif-opcional">hasta 3</span></legend>
           <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip" data-valencia="${e.valencia}"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}${escritas.map(t=>chipEscrita(t)).join('')}<label class="calif-chip calif-otro"><input type="checkbox" name="calif-etiqueta" value="otro"><span>Otro</span></label></div>
           <div class="calif-otro-campo" hidden><input type="text" class="calif-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="calif-otro-cuenta"><span id="calif-otro-cuenta" class="calif-otro-cuenta">0/20</span><button type="button" class="docente-link" data-agregar>Agregar</button></div>
         </fieldset>

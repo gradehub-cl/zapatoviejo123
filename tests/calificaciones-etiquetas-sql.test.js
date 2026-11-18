@@ -7,7 +7,7 @@ const q=async(s,a=[])=>(await db.query(s,a)).rows;
 const soy=async i=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[i?u(i):'']);await db.exec('set role authenticated');};
 const ramo=(i,sec=1)=>({id:'r'+i,nombre:'Ramo sintético',sigla:'TST100',seccion:sec,origen:{tenant:'uc',ramoKey:'TST100'},categorias:[]});
 let periodo;
-const opinar=(i,{etiquetas=[],otros=[],estudio=2,sec=1}={})=>q('select ramo_opinar($1,$2,$3,$4,$5,$6,$7,$8,$9)',['r'+i,sec,periodo,3,true,estudio,true,etiquetas,otros]);
+const opinar=(i,{etiquetas=[],otros=[],sec=1}={})=>q('select ramo_opinar($1,$2,$3,$4,$5,$6,$7,$8)',['r'+i,sec,periodo,3,true,true,etiquetas,otros]);
 const antigua=(i,etiquetas=['interesante'])=>q('select ramo_calificar($1,1,$2,$3,4,null,true,$4)',['r'+i,periodo,(i%4)+1,etiquetas]);
 const estado=async i=>(await q('select ramo_calificacion_estado($1,1,$2) as j',['r'+i,periodo]))[0].j;
 const sugeridas=async i=>(await q('select ramo_etiquetas_sugeridas($1,1,$2) as j',['r'+i,periodo]))[0].j;
@@ -26,15 +26,16 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  await db.exec('reset role');await db.exec(read('supabase/calificaciones_etiquetas.sql'));await db.exec(read('supabase/calificaciones_etiquetas.sql'));
  assert.equal((await q('select count(*)::int as n from ramo_calificaciones where carga is not null'))[0].n,2,'reaplicar conserva las horas guardadas');
 
- // Estado anuncia el formulario nuevo; una opinión antigua no tiene estudio.
- await soy(1);let e=await estado(1);assert.equal(e.version,2);assert.equal(e.mia.carga,2);assert.equal(e.mia.estudio,null);assert.deepEqual(e.mia.otros,[]);
+ // Estado anuncia el formulario nuevo; una opinión antigua conserva sus horas.
+ await soy(1);let e=await estado(1);assert.equal(e.version,2);assert.equal(e.mia.carga,2);assert.equal('estudio' in e.mia,false,'sin estudio');assert.deepEqual(e.mia.otros,[]);
  // Editar con el formulario nuevo conserva la carga antigua.
- await opinar(1,{estudio:3,etiquetas:['mucha_lectura'],otros:['Mucha  matemática']});
- e=await estado(1);assert.equal(e.mia.carga,2,'quien edita una opinión antigua mantiene su carga');assert.equal(e.mia.estudio,3);assert.deepEqual(e.mia.otros,['Mucha matemática'],'espacios normalizados');
+ await opinar(1,{etiquetas:['mucha_lectura'],otros:['Mucha  matemática']});
+ e=await estado(1);assert.equal(e.mia.carga,2,'quien edita una opinión antigua mantiene su carga');assert.deepEqual(e.mia.otros,['Mucha matemática'],'espacios normalizados');
  await soy(3);await opinar(3);e=await estado(3);assert.equal(e.mia.carga,null,'una opinión nueva no inventa horas');
- // Validación: estudio obligatorio 1..4, tres etiquetas en total, filtro de texto.
- await assert.rejects(opinar(3,{estudio:0}),/no válidas/);await assert.rejects(opinar(3,{estudio:5}),/no válidas/);
- await assert.rejects(q('select ramo_opinar($1,1,$2,3,true,null,true)',['r3',periodo]),/no válidas/);
+ // Validación: facilidad y recomendar obligatorias, tres etiquetas en total, filtro de texto.
+ await assert.rejects(q('select ramo_opinar($1,1,$2,6,true,true)',['r3',periodo]),/no válidas/);
+ await assert.rejects(q('select ramo_opinar($1,1,$2,3,true,null)',['r3',periodo]),/no válidas/);
+ assert.equal((await q("select count(*)::int as n from information_schema.columns where table_name='ramo_calificaciones' and column_name='estudio'"))[0].n,0,'sin columna estudio');
  await assert.rejects(opinar(3,{etiquetas:['mucha_lectura','interesante'],otros:['Muy practico','Mucha tarea']}),/etiquetas/);
  await assert.rejects(opinar(3,{otros:['Profe idiota']}),/texto no permitido/);
  await assert.rejects(opinar(3,{otros:['ab']}),/texto no permitido/,'muy corta');
@@ -42,7 +43,7 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  await assert.rejects(opinar(3,{etiquetas:['inventada']}),/etiquetas/);
  await opinar(3,{otros:['Muy practico','muy  PRÁCTICO']});assert.deepEqual((await estado(3)).mia.otros,['Muy practico'],'la misma escrita dos veces cuenta una');
  // La app anterior sigue guardando; si se pasaría de tres, se quitan las escritas.
- await soy(1);await antigua(1,['interesante','buen_material','trabajo_grupo']);e=await estado(1);assert.deepEqual(e.mia.otros,[]);assert.equal(e.mia.estudio,3);
+ await soy(1);await antigua(1,['interesante','buen_material','trabajo_grupo']);e=await estado(1);assert.deepEqual(e.mia.otros,[]);
  await assert.rejects(q('select * from ramo_calificaciones'),/permission denied/);
 
  // Sugeridas: con menos de cinco cuentas no hay; el cliente usa la lista fija.
@@ -56,8 +57,8 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  for(let i=6;i<=10;i++){await soy(i);await opinar(i,{etiquetas:['mucha_lectura','buen_material']});}
  s=await sugeridas(10);assert(s.sin_uso.includes('interesante')===false,'interesante tiene una cuenta: no está sin uso');
  assert(s.sin_uso.includes('proyectos_presentaciones'),'con diez cuentas, la que nadie eligió queda sin uso');assert(!s.sin_uso.includes('mucha_lectura'));
- // Resumen: estudio y escritas, sin quitar carga.
- let r=await resumen();assert.equal(r.disponible,true);assert.equal(r.estudio.length,4);assert.equal(r.estudio.reduce((n,x)=>n+x.n,0),10);
+ // Resumen: escritas, sin quitar carga.
+ let r=await resumen();assert.equal(r.disponible,true);assert.equal(r.estudio,undefined,'sin estudio en el resumen');
  assert.equal(r.carga.reduce((n,x)=>n+x.n,0),2,'las dos cargas antiguas siguen en el resumen');assert.deepEqual(r.escritas.map(x=>x.texto),['Muy practico']);
 
  // Profesor: piso de tres con el mismo docente; escritas con tres cuentas.
@@ -77,5 +78,5 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  await db.exec('set role anon');await assert.rejects(q('select ramo_etiquetas_sugeridas($1,1,$2)',['r1',periodo]),/permission denied/);
  await db.exec('reset role');await db.query('delete from auth.users where id=$1',[u(4)]);
  assert.equal((await q('select count(*)::int as n from ramo_calificaciones where user_id=$1',[u(4)]))[0].n,0,'borrar la cuenta borra sus etiquetas escritas');
- console.log('OK calificaciones ronda 2: estudio sin pisar carga, escritas filtradas, app anterior, sugeridas con piso, profesor, permisos y cascade');
+ console.log('OK calificaciones ronda 2: sin horas nuevas y sin pisar carga, escritas filtradas, app anterior, sugeridas con piso, profesor, permisos y cascade');
 }catch(e){console.error(e);process.exitCode=1;}})();
