@@ -106,17 +106,17 @@ sincronizan. Referencia: [App privacy details](https://developer.apple.com/app-s
       (`supabase/permisos_tablas_base.sql`). Confirmar columnas reales.
 - [x] Canvas revisado en el repo: token de iPhone solo en llavero; web ICS
       transita por Cloudflare y no se persiste allí. Datos aceptados pasan a los
-      ramos y se incluyen en Other User Content si se sincronizan (PR pendiente).
+      ramos y se incluyen en Other User Content si se sincronizan (#1193).
 - [x] MCP revisado: `agent_links` guarda fechas y llave asociadas a la cuenta;
       último uso entra en Product Interaction/App Functionality. El conector
       envía contenido al agente elegido; no es una función solo local. Las tablas
-      tienen FK en cascada y RLS en el SQL del repo (PR pendiente).
+      tienen FK en cascada y RLS en el SQL del repo (#1193).
 - [x] Apple ID revisado en #1112 y revocación #1133: correo/relay y nombre
       figuran en Contact Info y el identificador de Auth en User ID. El token se
       entrega a Supabase para autenticar; el cliente no lo guarda por separado.
       El servidor de revocación usa tokens Apple temporalmente, sin tabla nueva
       ni persistencia. Su configuración real y el login requieren prueba de Lucas
-      (PR pendiente).
+      (#1193).
 - [ ] Lucas: comprobar columnas/tablas reales creadas desde Dashboard y que el
       SQL auditado sea el desplegado. No se consultó Supabase por instrucción.
 - [ ] Lucas: comprobar la política nueva publicada y copiar etiquetas a App Store
