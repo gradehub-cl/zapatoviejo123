@@ -16,6 +16,9 @@ assert(swift.includes('completionHandler(nil)'),'nunca sigue una redirección co
 assert(swift.includes('session.bytes(for: pedido)')&&swift.includes('bytes.task.cancel()'),'tope durante la lectura');
 assert(swift.includes('CanvasPolitica.agregarGrupos')&&swift.includes('/assignment_groups'));
 assert(swift.includes('CanvasPolitica.parametrosValidos(ruta, items)'),'los parámetros también tienen lista cerrada');
+assert(swift.includes('siguiente.setValue(nil, forHTTPHeaderField: "Authorization")')&&swift.includes('CanvasPolitica.redireccionValida(url)'),'la descarga sigue la redirección solo sin token y a dominios conocidos');
+assert(swift.includes('CanvasPolitica.descargaValida(url)')&&swift.includes('CanvasPolitica.archivoBytesMax'),'el archivo se valida y tiene tope');
+assert(/case "pdf": contenido = Self\.textoPdf/.test(swift)&&swift.includes('CanvasPolitica.recortarTexto(contenido)'),'a la web llega solo texto recortado');
 for(const f of ['proyectarCursos','proyectarGrupos','proyectarEventos','proyectarPrograma'])assert(swift.includes('CanvasPolitica.'+f),'cada respuesta se recorta: '+f);
 assert(!/call\.resolve\([^\n]*"token"/.test(swift),'el puente no devuelve credenciales');
 for(const f of ['CanvasPlugin.swift','CanvasPolitica.swift'])assert(read('ios/App/App.xcodeproj/project.pbxproj').includes(f+' in Sources'));
@@ -90,6 +93,20 @@ assert(programa["archivo"] as? Bool == true && programa["recortado"] as? Bool ==
 let largo = CanvasPolitica.proyectarPrograma(["syllabus_body": String(repeating: "<p>Control 10%</p>", count: 20000)])
 assert((largo["texto"] as? String ?? "").count == CanvasPolitica.programaMax && largo["recortado"] as? Bool == true)
 assert(CanvasPolitica.proyectarPrograma(["syllabus_body": NSNull()])["texto"] as? String == "")
+// Programa desde los archivos (2026-11-17): rutas solo para el plugin, sin enlaces a la web.
+assert(CanvasPolitica.rutaArchivos("courses/12/files") && CanvasPolitica.rutaArchivos("courses/12/modules") && CanvasPolitica.rutaArchivos("courses/12/files/99"))
+assert(!CanvasPolitica.rutaValida("courses/12/files") && !CanvasPolitica.rutaValida("courses/12/modules"), "la web sigue sin pedir archivos con get")
+assert(!CanvasPolitica.rutaArchivos("courses/12/files/99/download") && !CanvasPolitica.rutaArchivos("users/self/files") && !CanvasPolitica.rutaArchivos("courses/12/users"))
+assert(CanvasPolitica.parametrosArchivos("courses/12/modules", q([("include[]","items"),("per_page","100")])))
+assert(!CanvasPolitica.parametrosArchivos("courses/12/files", q([("include[]","items")])) && !CanvasPolitica.parametrosArchivos("courses/12/files", q([("search_term","x")])))
+assert(CanvasPolitica.descargaValida(URL(string:"https://cursos.canvas.uc.cl/files/55/download?download_frd=1&verifier=x")!))
+for mala in ["https://otro.cl/files/55/download", "http://cursos.canvas.uc.cl/files/55/download", "https://cursos.canvas.uc.cl/files/55", "https://cursos.canvas.uc.cl/api/v1/users/self"] { assert(!CanvasPolitica.descargaValida(URL(string:mala)!), mala) }
+assert(CanvasPolitica.redireccionValida(URL(string:"https://inst-fs-iad-prod.inscloudgate.net/files/abc")!))
+for mala in ["https://inscloudgate.net.otro.cl/x", "http://inst-fs.inscloudgate.net/x", "https://u:p@inst-fs.inscloudgate.net/x"] { assert(!CanvasPolitica.redireccionValida(URL(string:mala)!), mala) }
+let lista = CanvasPolitica.proyectarArchivos(archivos: [["id":5,"display_name":"Programa.pdf","content-type":"application/pdf","size":1000,"url":"https://secreto"],["id":6,"display_name":"foto.png","content-type":"image/png"]],
+  modulos: [["name":"Programa","items":[["type":"File","content_id":5,"title":"Programa.pdf"],["type":"File","content_id":7,"title":"Reglas.docx"],["type":"Page","title":"x"]]]])
+assert(lista.count == 2 && lista[0]["url"] == nil && lista[0]["modulo"] as? String == "Programa" && lista[1]["tipo"] as? String == "docx")
+assert(CanvasPolitica.textoDocx(Data("no es zip".utf8)) == nil)
 print("PASS política Swift real")`);
  execFileSync('xcrun',['swiftc','-module-cache-path',path.join(dir,'cache'),path.join(root,'ios/App/App/CanvasPolitica.swift'),path.join(dir,'main.swift'),'-o',path.join(dir,'prueba')],{stdio:'pipe'});
  console.log(execFileSync(path.join(dir,'prueba'),{encoding:'utf8'}).trim());
