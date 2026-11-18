@@ -49,7 +49,7 @@ function payloadOpinarRamo(c,{facilidad,asistencia,recomienda,etiquetas=[],otros
  const escritas=[];
  for(const t of Array.isArray(otros)?otros:[]){
   const limpio=String(t||'').replace(/\s+/g,' ').trim();
-  if([...limpio].length<3||[...limpio].length>20)throw Error('Cada etiqueta escrita tiene entre 3 y 20 letras.');
+  if([...limpio].length<3||[...limpio].length>40)throw Error('Cada etiqueta escrita tiene entre 3 y 40 letras.');
   if(!escritas.some(x=>normalEtiquetaEscrita(x)===normalEtiquetaEscrita(limpio)))escritas.push(limpio);
  }
  if(lista.length+escritas.length>3)throw Error('Elige hasta 3 etiquetas.');
@@ -146,7 +146,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
   const etiquetasHTML=`<fieldset><legend>¿Cómo era? <small>Hasta 3 · opcional</small></legend><div class="rc-etiquetas">${chips.map(x=>x.id
     ?`<label class="rc-etiqueta"><input type="checkbox" name="etiqueta" value="${esc(x.id)}"${seleccion.has(x.id)?' checked':''}><span>${esc(RAMO_ETIQUETAS.find(e=>e.id===x.id).texto)}</span></label>`
     :chipEscrita(x.texto,!x.sugerida)).join('')}${v2?'<label class="rc-etiqueta rc-otro"><input type="checkbox" name="otro" data-rc-otro><span>Otro</span></label>':''}</div>
-    ${v2?'<div class="rc-otro-campo" hidden><input type="text" class="rc-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="rc-otro-cuenta"><span id="rc-otro-cuenta" class="rc-otro-cuenta">0/20</span><button type="button" class="docente-link" data-rc-agregar>Agregar</button></div>':''}</fieldset>`;
+    ${v2?'<div class="rc-otro-campo" hidden><input type="text" class="rc-otro-texto" maxlength="40" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="rc-otro-cuenta"><span id="rc-otro-cuenta" class="rc-otro-cuenta">0/40</span><button type="button" class="docente-link" data-rc-agregar>Agregar</button></div>':''}</fieldset>`;
   const preguntas={
    facilidad:`<fieldset aria-describedby="rc-facilidad-extremos"><legend>¿Qué tan fácil era sacarse buena nota?</legend><div class="rc-escala">${radios('facilidad',[1,2,3,4,5].map(n=>[n,String(n)]),mia.facilidad)}</div><div class="rc-extremos" id="rc-facilidad-extremos"><span>Muy difícil</span><span>Muy fácil</span></div></fieldset>`,
    carga:`<fieldset><legend>¿Cuántas horas a la semana le dedicaste fuera de clases?</legend><div class="rc-cargas">${radios('carga',RAMO_CARGAS.map((t,i)=>[i+1,t]),mia.carga)}</div></fieldset>`,
@@ -176,12 +176,12 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
    if(e.target.matches('[name=escrita]:not([data-rc-sugerida])')&&!e.target.checked)e.target.closest('label').remove();
    limitar();
   });limitar();form.querySelector('[data-rc-cancelar]').onclick=cerrar;
-  const contarOtro=()=>{form.querySelector('.rc-otro-cuenta').textContent=[...textoOtro.value].length+'/20';};
+  const contarOtro=()=>{form.querySelector('.rc-otro-cuenta').textContent=[...textoOtro.value].length+'/40';};
   // Lo escrito pasa a ser una etiqueta marcada y «Otro» vuelve a quedar libre.
   const agregarEscrita=()=>{
    const t=textoOtro.value.replace(/\s+/g,' ').trim();
    if([...t].length<3){mensaje.textContent='Escribe tu etiqueta.';textoOtro.focus();return false;}
-   if([...t].length>20){mensaje.textContent='La etiqueta puede tener hasta 20 caracteres.';textoOtro.focus();return false;}
+   if([...t].length>40){mensaje.textContent='La etiqueta puede tener hasta 40 caracteres.';textoOtro.focus();return false;}
    mensaje.textContent='';
    const igual=[...form.querySelectorAll('[name=escrita]')].find(x=>normalEtiquetaEscrita(x.value)===normalEtiquetaEscrita(t));
    otroChip.checked=false;

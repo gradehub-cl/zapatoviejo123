@@ -21,8 +21,9 @@ assert.equal(json("payloadOpinarRamo(__c,{...__b,recomienda:2})").p_recomienda_n
 for(const cambio of ['{facilidad:6}','{facilidad:undefined}','{asistencia:undefined}','{recomienda:null}','{recomienda:true}','{recomienda:0}','{recomienda:4}'])
  assert.throws(()=>run(`payloadOpinarRamo(__c,{...__b,...${cambio}})`),/preguntas/);
 assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,etiquetas:['mucha_lectura','interesante'],otros:['Muy practico','Mucha tarea']})"),/hasta 3/);
-assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,otros:['ab']})"),/entre 3 y 20/);
-assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,otros:['x'.repeat(21)]})"),/entre 3 y 20/);
+assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,otros:['ab']})"),/entre 3 y 40/);
+assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,otros:['x'.repeat(41)]})"),/entre 3 y 40/);
+assert.equal(run("payloadOpinarRamo(__c,{...__b,otros:['x'.repeat(40)]})").p_otros[0].length,40,'40 caracteres se aceptan');
 assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,etiquetas:['inventada']})"),/lista/);
 
 // ── Etiquetas sugeridas del ramo ──
@@ -72,7 +73,7 @@ assert(!h.includes('¿Cuántas horas'),'con SQL nuevo ya no pregunta horas');
 const orden=['¿Qué tan fácil era sacarse buena nota?','¿Se tomaba asistencia?','¿Lo recomendarías?','¿Cómo era?'].map(t=>pos(h,t));
 assert.deepEqual([...orden].sort((a,b)=>a-b),orden,'orden nuevo: recomendar antes de las etiquetas');
 assert(!h.includes('estudiar')&&!h.includes('name="estudio"'),'sin pregunta de estudio');
-assert(h.includes('data-rc-otro')&&h.includes('maxlength="20"'),'«Otro» con su campo');
+assert(h.includes('data-rc-otro')&&h.includes('maxlength="40"'),'«Otro» con su campo');
 assert(pos(h,'value="3"><span>Sí')<pos(h,'value="2"><span>Más o menos')&&pos(h,'value="2"><span>Más o menos')<pos(h,'value="1"><span>No</span>'),'Sí / Más o menos / No, en ese orden');
 assert.equal((h.match(/name="etiqueta"/g)||[]).length,8,'sin sugeridas (RPC ausente): la lista fija');
 h=await hoja({version:2,sugeridas:{disponible:true,orden:['mucha_lectura'],sin_uso:['interesante'],propias:['<img src=x onerror=alert(1)>']},mia:{facilidad:4,asistencia:true,recomienda:true,etiquetas:[],otros:['Muy <b>práctico</b>'],carga:2}});
