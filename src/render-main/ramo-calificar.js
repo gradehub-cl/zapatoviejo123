@@ -89,9 +89,18 @@ function avisoCalificarRamoVisto(c){
  const k=claveAvisoCalificarRamo(c);try{return avisosRamoVistos.has(k)||localStorage.getItem(k)==='1';}catch(e){return avisosRamoVistos.has(k);}
 }
 function marcarAvisoCalificarRamo(c){const k=claveAvisoCalificarRamo(c);avisosRamoVistos.add(k);try{localStorage.setItem(k,'1');}catch(e){}}
+// Calificar (ramo o profe) se abre con la mitad del ramo evaluada, por peso.
+// Antes no hay base para opinar (Lucas, 2026-11-18). Editar lo ya guardado
+// sigue disponible siempre.
+function calificacionAbiertaRamo(r){
+ try{
+  if(ramoCompletamenteEvaluado(r))return true;
+  const progreso=ramoProgress(r);
+  return progreso.total>0&&progreso.total-progreso.pending>=progreso.total/2;
+ }catch(e){return false;}
+}
 function elegibleAvisoCalificarRamo(r,c,estado){
- const progreso=ramoProgress(r),mitad=progreso.total>0&&progreso.total-progreso.pending>=progreso.total/2;
- return !!(c&&estado?.puede_calificar&&!estado.mia&&!avisoCalificarRamoVisto(c)&&(ramoCompletamenteEvaluado(r)||mitad));
+ return !!(c&&estado?.puede_calificar&&!estado.mia&&!avisoCalificarRamoVisto(c)&&calificacionAbiertaRamo(r));
 }
 function errorCalificarRamo(e,accion='guardar'){
  if(/PGRST202|42883/.test(String(e?.code)))return 'Las calificaciones de ramos aún no están disponibles.';

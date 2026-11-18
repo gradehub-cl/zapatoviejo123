@@ -56,10 +56,32 @@ ctx.abrirCalificarProfesor(r,contexto,{nombre:'',mio:'',calif:{}});
 assert.match(contenido.innerHTML,/¿Es tu profesor <strong>Tomás Prueba<\/strong>\?/);
 assert.match(contenido.innerHTML,/Completar o corregir el nombre/);
 assert.match(contenido.innerHTML,/No, es otra persona/);assert.match(contenido.innerHTML,/Sí, es mi profesor/);
-assert.equal(abiertos,1);assert.deepEqual(llamadas,[],'proponer no simula aportes ni escribe en Supabase');
+assert.equal(abiertos,1);assert.deepEqual(llamadas.map(x=>x[0]).filter(f=>f!=='ramo_calificacion_estado'),[],'proponer no simula aportes ni escribe en Supabase');
+assert.match(contenido.innerHTML,/data-solo-ramo hidden>Calificar solo el ramo</,'la salida sin profe parte oculta');
 ctx.abrirCalificarProfesor(r,contexto,{nombre:'Docente del consenso',mio:'',calif:{}});
 assert.match(contenido.innerHTML,/<strong>Docente del consenso<\/strong>/,'el consenso real tiene prioridad');
 ctx.abrirCalificarProfesor(r,contexto,{nombre:'',mio:'Mi docente confirmado',calif:{}});
 assert.match(contenido.innerHTML,/<strong>Mi docente confirmado<\/strong>/,'conserva el nombre propio antes de la oferta');
 assert.equal(JSON.stringify(ctx.S),antes,'abrir y proponer no cambian ramos ni notas');
+// «Calificar solo el ramo»: aparece si el ramo está pendiente y lleva a su hoja.
+(async()=>{
+ const abiertosRamo=[];ctx.abrirCalificarRamo=x=>abiertosRamo.push(x);
+ for(const [estado,visible] of [[{puede_calificar:true,mia:null},true],[{puede_calificar:true,mia:{facilidad:3}},false],[null,false]]){
+  ctx.consultarCalificacionRamoFicha=async()=>estado;
+  ctx.abrirCalificarProfesor(r,contexto,{nombre:'',mio:'',calif:{}});
+  const sinNombre=contenido.querySelector('[data-solo-ramo]');
+  ctx.abrirCalificarProfesor(r,contexto,{nombre:'Docente del consenso',mio:'',calif:{}});
+  const conNombre=contenido.querySelector('[data-solo-ramo]');
+  await new Promise(res=>setImmediate(res));
+  assert.match(contenido.innerHTML,/Calificar solo el ramo/);
+  assert.equal(conNombre.hidden===false,visible,'con nombre propuesto: '+JSON.stringify(estado));
+  assert.notEqual(sinNombre.hidden,false,'el enlace de una hoja ya reemplazada no se muestra');
+  if(visible){conNombre.onclick();assert.equal(abiertosRamo.pop(),r,'lleva a calificar el ramo');}
+ }
+ ctx.consultarCalificacionRamoFicha=async()=>({puede_calificar:true,mia:null});
+ ctx.abrirCalificarProfesor(r,contexto,{nombre:'',mio:'',calif:{}});
+ const b=contenido.querySelector('[data-solo-ramo]');await new Promise(res=>setImmediate(res));
+ assert.equal(b.hidden,false,'también al escribir el nombre');
+ console.log('OK calificar solo el ramo: oculto mientras consulta, visible si el ramo falta, lleva a su hoja');
+})().catch(e=>{console.error(e);process.exit(1);});
 console.log('OK calificaciones UI: promedio, valencias, Otro, propuestas por sección y confirmación sin escrituras');
