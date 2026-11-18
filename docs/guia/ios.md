@@ -52,6 +52,22 @@ npm run ios:preparar   # mete la web dentro de la app (la que va a la App Store)
 npm run ios:rama       # lo mismo, pero la app carga desde ios.gradehub.pages.dev
 ```
 
+**Antes de Archive:** ejecutar `npm run ios:preparar`, no `ios:rama`, y comprobar
+la copia que realmente usa Xcode:
+
+```bash
+python3 bin/verificar-build-ios.py
+```
+
+El target App ejecuta el mismo verificador automáticamente en cada build
+**Release**, incluido Archive. Falla si la configuración copiada
+`ios/App/App/capacitor.config.json` contiene `server.url`, si falta la web o si
+algún script local de su `index.html` no está empaquetado. La fase usa Python 3
+de Xcode/Command Line Tools (`/usr/bin/python3`), sin instalar paquetes ni depender
+del PATH de Node. Debug conserva `ios:rama` para probar la rama compartida.
+El control no modifica el contenido: ante un error hay que volver a preparar
+la app. No equivale a una auditoría de todas las conexiones de red.
+
 En el simulador, sin firmar (`xcrun simctl list devices available` dice cuáles
 hay). El DerivedData va fuera de `~/Desktop`: codesign rechaza los atributos que
 pone iCloud («resource fork… detritus not allowed»).
