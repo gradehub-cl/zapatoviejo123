@@ -17,10 +17,7 @@ function openEditCatModal(catId){
     <div id="m-cat-fecha-grupo" ${cat.slots>1&&!cat.fecha?'hidden':''}>${campoFechaHoraHTML('m-cat',cat.fecha,cat.hora,true)}</div>
     <div id="m-cat-fechas-casillas">${cat.slots>1?fechasCasillasHTML(r,cat,cat.slots):''}</div>
     ${cat.directNota===true&&!(Number.isInteger(cat.slots)&&cat.slots>1)?controlRecorreccionHTML((cat.notas||[])[0],cat.fecha):''}
-    ${cat.fecha?`<a class="ramo-action" href="${esc(googleCalUrl(r,cat))}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;margin-bottom:14px;">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
-      Agregar a Google Calendar
-    </a>`:''}
+    ${cat.fecha?enlaceGoogleCalHTML(r,cat):''}
     ${reglasEvaluacionEditorHTML({reglas,varias:cat.directNota===false||cat.slots>1,manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:!(cat.slots>1)})}
     ${opcionAusenciaHojaHTML(r,cat)}
     <div class="modal-btns">
@@ -113,10 +110,17 @@ function fechasCasillasHTML(r,cat,cantidad){
       const nombre=cat.slots>1&&n?nombreNotaCasilla(r,cat,n):(n&&n.nombre)||etiquetaCasilla(r,cat,i);
       const f=esc(n&&n.fecha||''),h=esc(n&&n.fecha&&n.hora||''),id='m-casilla-'+i;
       return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <span style="flex:1 1 100%;font-size:0.8125rem;color:var(--fg2);">${esc(nombre)}</span>
+        <span style="flex:1 1 100%;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin-bottom:-8px;font-size:0.8125rem;color:var(--fg2);"><span>${esc(nombre)}</span>${cat.slots>1&&n&&n.fecha?`<a href="${esc(googleCalUrl(r,cat,n))}" target="_blank" rel="noopener noreferrer" aria-label="Agregar ${esc(nombre)} a Google Calendar" style="display:inline-flex;align-items:center;min-height:44px;padding:0 4px;color:var(--fg2);font-size:0.75rem;">Google Calendar</a>`:''}</span>
         <input type="date" id="${id}-fecha" value="${f}" autocomplete="off" aria-label="Fecha de ${esc(nombre)}" style="flex:1 1 9.5rem;min-width:9rem;" oninput="sincronizarHora('${id}')" onfocus="sembrarFechaHoy('${id}')"/>
         <input type="time" id="${id}-hora" value="${h}" autocomplete="off" aria-label="Hora de ${esc(nombre)} (opcional)" style="flex:1 1 7rem;min-width:6.5rem;" ${f?'':'disabled'}/>
-      </div>`;}).join('')}</div>`;
+      </div>`;}).join('')}</div>
+    <p style="margin:-6px 0 14px;font-size:0.8125rem;color:var(--fg3);line-height:1.35;">Para pasarlas todas a tu calendario de una vez: Agenda → Calendario.</p>`;
+}
+function enlaceGoogleCalHTML(r,cat,nota=null){
+  return `<a class="ramo-action" href="${esc(googleCalUrl(r,cat,nota))}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;margin-bottom:14px;">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+      Agregar a Google Calendar
+    </a>`;
 }
 // Al escribir la cantidad aparecen sus filas; lo ya escrito en ellas se conserva.
 function pintarFechasCasillas(r,cat,cantidad){
@@ -192,6 +196,7 @@ function openEditNotaModal(catId,notaId){
     <label class="modal-label">${etiquetaNotaEntrada()} <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">— vacía si todavía no la rindes</span></label>
     <div class="modal-input"><input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="m-nota-val" value="${n.valor!==null?textoCalificacionNota(n):''}"/></div>
     ${campoFechaHoraHTML('m-nota',n.fecha,n.hora,true)}
+    ${n.fecha?enlaceGoogleCalHTML(r,cat,n):''}
     ${controlRecorreccionHTML(n,n.fecha||cat.fecha,cat.fecha)}
     <div class="toggle-row">
       <div><div class="toggle-label">Ponderación personalizada</div><div class="toggle-sub">Por defecto se promedia simple</div></div>
