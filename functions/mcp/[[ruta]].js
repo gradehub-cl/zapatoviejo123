@@ -79,9 +79,70 @@ function copiarRecuperativo(regla) {
 function buscarRamo(ramos, consulta) {
   const q = norm(consulta);
   if (!q) return null;
+  // Las herramientas prometen «nombre o sigla»: «TTF012» también encuentra
+  // Revelación y Fe, aunque la sigla no esté en el nombre.
   return ramos.find(r => norm(r.nombre) === q)
+    || ramos.find(r => norm(siglaDeRamo(r)) === q)
     || ramos.find(r => norm(r.origen && r.origen.ramoKey) === q)
     || ramos.find(r => norm(r.nombre).includes(q));
+}
+
+// Las reglas que el ramo trae guardadas, para que el agente las vea y las
+// explique (Lucas, 2026-11-17: «que puedan ver bien todas las reglas, como las
+// de Revelación y Fe»). Solo describe: el cálculo sigue en el motor. El
+// catálogo no viaja al servidor, así que lo que vive solo ahí (las reglas
+// informativas del curso) se lee del ramo cuando la app lo guardó.
+function reglasDelRamo(r, calculo) {
+  const coma = n => String(n).replace('.', ',');
+  const cats = Array.isArray(r.categorias) ? r.categorias : [];
+  const nombreDe = id => (cats.find(c => c.id === id) || {}).nombre || null;
+  const out = {};
+  if (Number.isInteger(r.seccion)) out.seccion = r.seccion;
+  const descartes = cats.filter(c => Number.isInteger(c.dropLowest?.count) && c.dropLowest.count > 0)
+    .map(c => ({ evaluacion: c.nombre, seDescartan: c.dropLowest.count, texto: `En ${c.nombre} se descarta${c.dropLowest.count > 1 ? 'n las ' + c.dropLowest.count + ' notas más bajas' : ' la nota más baja'}.` }));
+  if (descartes.length) out.descartes = descartes;
+  const compuertas = (Array.isArray(r.gates) ? r.gates : []).filter(g => g && (g.type === 'min_grade_required' || g.type === 'group_min'))
+    .map(g => {
+      const sobre = g.type === 'group_min' ? (g.catIds || []).map(nombreDe).filter(Boolean) : [nombreDe(g.catId)].filter(Boolean);
+      const tope = g.cap === 'self' ? 'la final queda en ese promedio' : Number.isFinite(g.cap) ? `la final queda en ${coma(g.cap)}` : 'no se aprueba';
+      return { nombre: g.nombre || sobre.join(', '), sobre, minimo: g.min, ...(g.cap != null ? { tope: g.cap } : {}),
+        texto: `${g.nombre || sobre.join(' + ')}: mínimo ${coma(g.min)}; si no, ${tope}.` };
+    });
+  if (compuertas.length) out.compuertas = compuertas;
+  const calculadas = (calculo.reglasCalculoVigentes?.(r) || []).map(g => ({ tipo: g.type, nombre: g.nombre || null }));
+  if (calculadas.length) out.formulas = calculadas;
+  const ex = calculo.estadoEximicion?.(r), regla = ex?.regla || r.eximicion;
+  if (regla && (!Array.isArray(regla.secciones) || regla.secciones.includes(r.seccion))) {
+    out.eximicion = {
+      evaluacion: regla.evaluacion, segun: regla.segun, minimo: regla.min, promedio: regla.promedio || null,
+      ...(Number.isInteger(regla.maxInasistencias) ? { maxInasistencias: regla.maxInasistencias, faltasRegistradas: r.faltas?.activo ? r.faltas.cantidad ?? 0 : null } : {}),
+      ...(regla.notaExamen ? { notaExamen: regla.notaExamen } : {}),
+      ...(ex ? { cumple: !!ex.elegible, activa: !!ex.activa, promedioActual: ex.promedio ?? null, notaExamenCalculada: ex.notaExamen ?? null } : {}),
+      texto: `Se exime de ${regla.evaluacion} con promedio${regla.promedio === 'simple' ? ' simple' : ''} de ${(regla.segun || []).join(', ')} desde ${coma(regla.min)}`
+        + (Number.isInteger(regla.maxInasistencias) ? ` y con ${regla.maxInasistencias} faltas como máximo` : '') + '.',
+    };
+  }
+  const bonus = (Array.isArray(r.bonus) ? r.bonus : []).map(b => ({
+    id: b.id, pregunta: b.pregunta || null, texto: b.ayuda || null,
+    ...(r.bonusConfirmado && b.id in r.bonusConfirmado ? { confirmado: r.bonusConfirmado[b.id] === true } : {}),
+    ...(r.bonusIngresado && b.id in r.bonusIngresado ? { ingresado: r.bonusIngresado[b.id] } : {}),
+  }));
+  if (bonus.length) out.bonus = bonus;
+  const ausencias = r.reglasAusenciaJustificada;
+  if (ausencias && (ausencias.reemplazos || ausencias.traspasos)) out.ausenciasJustificadas = {
+    reemplazos: (ausencias.reemplazos || []).map(x => ({ desde: x.desde, hacia: x.hacia })),
+    ...(ausencias.traspasos ? { traspasos: ausencias.traspasos } : {}),
+    ...(Number.isInteger(ausencias.maxReemplazos) ? { maxReemplazos: ausencias.maxReemplazos } : {}),
+  };
+  if (Array.isArray(r.reemplazosOptativos) && r.reemplazosOptativos.length) out.reemplazosOptativos = r.reemplazosOptativos.length;
+  const vinculo = calculo.referenciaRamoVinculado?.(r);
+  if (vinculo) out.ramoVinculado = { ramo: vinculo.ramo, ...(vinculo.sigla ? { sigla: vinculo.sigla } : {}), ...(Number.isFinite(vinculo.peso) ? { peso: vinculo.peso } : {}), ...(Number.isFinite(vinculo.min) ? { minimo: vinculo.min } : {}) };
+  if (r.faltas?.activo) out.faltas = { registradas: r.faltas.cantidad ?? 0, ...(Number.isInteger(r.faltas.limite) ? { maximo: r.faltas.limite } : {}) };
+  // Reglas informativas del programa que el promedio no incluye (por ejemplo,
+  // el 1,0 a una evaluación no rendida sin justificación). Solo si la app las
+  // guardó en el ramo: el servidor no tiene el catálogo.
+  for (const k of ['reglasDelCurso', 'reglasNoCalculadas']) if (Array.isArray(r[k]) && r[k].length) out[k] = r[k].filter(t => typeof t === 'string').slice(0, 20);
+  return out;
 }
 
 // Cada llamada arma el adaptador con los ramos entregados por `agente_datos`.
@@ -672,8 +733,11 @@ function despachar(nombre, estado, args) {
   if (nombre === 'ver_ramo') {
     const r = buscar(args.ramo);
     if (!r) return { error: 'No encontré ese ramo', ramos: ramos.map(x => x.nombre) };
+    const reglas = reglasDelRamo(r, calculoPara(ramos, tenant));
     return {
       nombre: r.nombre,
+      sigla: siglaDeRamo(r),
+      ...(Object.keys(reglas).length ? { reglas } : {}),
       evaluaciones: (r.categorias || []).map(c => ({
         nombre: c.nombre,
         peso: c.peso,

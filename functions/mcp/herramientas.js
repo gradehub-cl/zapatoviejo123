@@ -90,7 +90,7 @@ export const HERRAMIENTAS = [
   {
     nombre: 'ver_ramo',
     tipo: 'lectura',
-    resumen: 'Un ramo con sus evaluaciones, ponderaciones y las notas que ya tiene.',
+    resumen: 'Un ramo con sus evaluaciones, ponderaciones y notas, y sus reglas: eximición, descartes, compuertas (mínimos para aprobar), bonus o décimas, ausencias justificadas, ramo vinculado, faltas y las reglas del curso que el promedio no incluye. Úsala antes de explicar cómo se calcula un ramo.',
     args: { ramo: 'nombre o sigla' },
   },
   {
