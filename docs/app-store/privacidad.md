@@ -54,6 +54,13 @@ antes de responder en App Store Connect. Esto no certifica el proyecto desplegad
 
 ### Data Linked to You
 
+> **Una sola respuesta por tipo de dato (revisión de Hark, 2026-11-18):** App Store Connect no deja declarar
+> *Product Interaction* como vinculado y como no vinculado a la vez. Se declara **una vez, vinculado a la
+> identidad**, con los dos propósitos (App Functionality y Analytics): es la respuesta conservadora que cubre
+> las dos filas de abajo. *Coarse Location* (GA deduce el país de la IP) **se declara**, no vinculado y solo
+> para Analytics: es la opción conservadora, y omitirla arriesga una observación de App Review.
+
+
 | Tipo Apple | Qué es en GradeHub | Propósitos | Evidencia |
 | --- | --- | --- | --- |
 | Contact Info → **Email Address** | Correo de la cuenta, Google o Apple (real o relay) | App Functionality | Supabase Auth; `src/app-session/login-registro.js`, `oauth-y-recuperacion.js` |
