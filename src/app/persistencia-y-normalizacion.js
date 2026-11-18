@@ -531,6 +531,21 @@ function normalize(data) {
     const bonusOficial=resolverBonus(definicionPresetDelRamo(r),r.categorias);
     if(bonusOficial)r.bonus=bonusOficial;
     else delete r.bonus;
+    // Las reglas informativas del curso (lo que el promedio no incluye, como el
+    // 1,0 a una evaluación no rendida sin justificación) y las que el motor
+    // todavía no calcula también viven solo en el catálogo. El conector MCP no
+    // lo tiene, así que viaja una copia de solo texto que se renueva en cada
+    // carga y sigue al catálogo (Lucas, 2026-11-17). Nada se calcula con ella;
+    // un ramo manual no recibe ninguna.
+    const textosDelPrograma=campo=>{
+      const lista=(typeof reglasDelPreset==='function'?reglasDelPreset(r,campo):[])
+        .filter(t=>typeof t==='string'&&t.trim()).map(t=>t.slice(0,400)).slice(0,20);
+      return lista.length?lista:null;
+    };
+    const delCurso=textosDelPrograma('reglasDelCurso');
+    if(delCurso)r.reglasDelCurso=delCurso;else delete r.reglasDelCurso;
+    const noCalculadas=textosDelPrograma('noCalcula');
+    if(noCalculadas)r.reglasNoCalculadas=noCalculadas;else delete r.reglasNoCalculadas;
     // La regla usa los ids actuales. Una pauta editada no hereda reglas de otra.
     const defOptativo=definicionPresetDelRamo(r);
     const oficialOptativo=defOptativo&&huellaPauta(catsDePauta(r.categorias))===
