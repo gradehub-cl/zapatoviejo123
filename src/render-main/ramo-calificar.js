@@ -101,6 +101,24 @@ function errorCalificarRamo(e,accion='guardar'){
  if(/etiquetas/.test(String(e?.message)))return 'Elige hasta 3 etiquetas.';
  return `No pudimos ${accion} tu opinión. Revisa tu conexión e inténtalo de nuevo.`;
 }
+// «2026-2 · Sección 1» y, si el ramo no es coordinado, «· con <profesor>»:
+// cada profesor arma sus pruebas, así que la opinión es de esa sección con ese
+// profesor (Lucas, 2026-11-18). El nombre sale de la ficha ya abierta o del
+// registro de docentes del semestre vigente; si no se sabe, no se pone.
+async function subtituloCalificarRamo(r,c){
+ const base=`${c.p_periodo} · Sección ${c.p_seccion}`;
+ try{
+  const coordinado=typeof coordinacionResumenRamo==='function'?await coordinacionResumenRamo(r,c.tenant):null;
+  if(coordinado===true||c.p_periodo!==semester())return base;
+  let d=typeof docenteFichaDeRamo==='function'?docenteFichaDeRamo(r):null,nombre=d&&(d.nombre||d.mio);
+  if(!nombre&&typeof contextoDocente==='function'&&contextoDocente(r)){
+   const {data,error}=await supabaseClient.rpc('profesor_docente_estado',contextoDocente(r));
+   const fila=(Array.isArray(data)?data[0]:data)||{};
+   if(!error)nombre=limpiarTextoProfesor(fila.nombre_publico||fila.mi_nombre,100);
+  }
+  return nombre?`${base} · con ${nombreCorto(nombre)}`:base;
+ }catch(e){return base;}
+}
 async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
  const c=contextoCalificarRamo(r,periodo);if(!c||typeof supabaseClient==='undefined'||!supabaseClient)return false;
  const cuenta=currentUser.id,cliente=supabaseClient,caja=document.getElementById('modal-content'),version=++versionCalificarRamo;if(!caja)return false;
@@ -110,7 +128,7 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
  caja.innerHTML=`<div class="modal-title">Calificar ramo</div><p class="rc-nombre">${esc(r.nombre)}</p><p role="status">Cargando tu opinión…</p><button type="button" class="btn-cancel" data-rc-cerrar>Volver</button>`;
  caja.querySelector('[data-rc-cerrar]').onclick=cerrar;openModal();
  try{
-  const {data:estado,error}=await cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c));if(error)throw error;if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
+  const [{data:estado,error},subtitulo]=await Promise.all([cliente.rpc('ramo_calificacion_estado',argumentosCalificarRamo(c)),subtituloCalificarRamo(r,c)]);if(error)throw error;if(!vigente()||!caja.querySelector('[data-rc-cerrar]'))return false;
   if(!estado?.puede_calificar)throw Error('no disponible');
   const mia=estado.mia||{},seleccion=new Set(mia.etiquetas||[]);
   const radios=(nombre,opciones,valor)=>opciones.map(([v,t])=>`<label class="rc-opcion"><input type="radio" name="${nombre}" value="${v}"${String(valor)===String(v)?' checked':''}><span>${esc(t)}</span></label>`).join('');
@@ -138,10 +156,10 @@ async function abrirCalificarRamo(r,{periodo=semester(),alVolver=null}={}){
     ?`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda rc-recomienda-3">${radios('recomienda',[[3,'Sí'],[2,'Más o menos'],[1,'No']],nivelRecomiendaRamo(mia))}</div></fieldset>`
     :`<fieldset><legend>¿Lo recomendarías?</legend><div class="rc-recomienda">${radios('recomienda',[[1,'Sí'],[0,'No']],mia.recomienda===true?1:mia.recomienda===false?0:null)}</div></fieldset>`,
   };
-  // Formulario nuevo: sin horas y recomendar al final (Lucas, 2026-11-18).
+  // Formulario nuevo: sin horas y recomendar antes de las etiquetas (Lucas, 2026-11-18).
   const orden=v2?[preguntas.facilidad,preguntas.asistencia,preguntas.recomienda,etiquetasHTML]
    :[preguntas.facilidad,preguntas.carga,preguntas.asistencia,preguntas.recomienda,etiquetasHTML];
-  caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(periodo)} · Sección ${c.p_seccion}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
+  caja.innerHTML=`<div class="modal-title">${estado.mia?'Tu opinión del ramo':'Calificar ramo'}</div><p class="rc-nombre">${esc(r.nombre)} <small>${esc(subtitulo)}</small></p><p class="rc-ayuda">Responde por tu sección: si cada profesor evalúa distinto, lo mostramos por separado.</p>
    <form class="rc-form" novalidate>${orden.join('')}
    <p class="rc-error" role="alert"></p>${estado.mia?'<button type="button" class="docente-link rc-borrar" data-rc-borrar>Borrar mi opinión</button>':''}
    <div class="modal-btns"><button type="button" class="btn-cancel" data-rc-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Guardar</button></div></form>`;
