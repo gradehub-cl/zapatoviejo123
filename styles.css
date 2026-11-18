@@ -2406,27 +2406,6 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .fondo-swatch{width:36px;height:27px;border:2px solid var(--card);border-radius:7px;background:linear-gradient(var(--gradient-accent),var(--swatch-light) 0 50%,var(--swatch-dark) 50%);box-shadow:0 0 0 1px var(--border2);}
 .fondo-opt.sel .fondo-swatch{box-shadow:0 0 0 2px var(--primary),0 3px 10px color-mix(in srgb,var(--primary),transparent 65%);}
 
-/* Aviso de versión nueva. Aparece cuando el service worker nuevo toma el
-   control: sin esto el estudiante tendría que recargar dos veces para ver un
-   cambio, y nadie lo hace. Va sobre la barra inferior, no encima del contenido:
-   informa, no interrumpe. */
-.update-toast{position:fixed;left:50%;transform:translateX(-50%) translateY(140%);
-  bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:400;
-  /* width:max-content o el elemento fijo se encoge al contenido y parte el
-     texto en tres líneas. El cap evita que se salga en pantallas angostas. */
-  display:flex;align-items:center;gap:12px;
-  width:max-content;max-width:calc(100vw - 28px);
-  padding:11px 12px 11px 16px;border-radius:14px;
-  background:var(--card);border:1px solid var(--border2);box-shadow:var(--shadow-lg);
-  font-family:var(--font-ui);font-size:0.8125rem;color:var(--fg);letter-spacing:-.005em;
-  transition:transform var(--motion-base) var(--ease-out);}
-.update-toast.show{transform:translateX(-50%) translateY(0);}
-.update-toast button{flex-shrink:0;min-width:44px;min-height:44px;padding:7px 13px;border:none;border-radius:9px;
-  background:var(--primary);color:var(--primary-fg);cursor:pointer;
-  font-family:var(--font-ui);font-size:0.78125rem;font-weight:700;letter-spacing:-.005em;}
-@media(min-width:1024px){
-  .update-toast{bottom:24px;left:calc(50% + (var(--rail) / 2));}
-}
 
 /* ── Fundación de ritmo y movimiento ────────────────────────────────────
    El movimiento confirma una acción o un cambio de contexto; nunca es una
@@ -2532,12 +2511,6 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   /* El toast entra deslizándose Y con opacidad: se queda con la opacidad. */
   .toast,.toast.show{transform:translateX(-50%);}
 
-  /* El de actualización solo se desplazaba, así que sin translate no tendría
-     cómo aparecer ni irse: pasa a fundido, con pointer-events para que
-     escondido no siga capturando toques. */
-  .update-toast{transform:translateX(-50%);opacity:0;visibility:hidden;pointer-events:none;
-    transition:opacity var(--motion-base) var(--ease-standard),visibility var(--motion-base);}
-  .update-toast.show{transform:translateX(-50%);opacity:1;visibility:visible;pointer-events:auto;}
 
   /* Las entradas conservan el fundido y pierden el recorrido. Se cambia solo
      el nombre del keyframe: duración y curva siguen siendo las mismas. */

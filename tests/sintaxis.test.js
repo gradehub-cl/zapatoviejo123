@@ -274,12 +274,12 @@ if (!/reg\.update\(\)/.test(app)) {
   console.error('falta reg.update(): sin una revisión explícita, el aviso de version nueva nunca se dispara en la app instalada');
   process.exit(1);
 }
-if (!/visibilitychange[\s\S]{0,400}visibilityState[\s\S]{0,400}reg\.update/.test(app)) {
+if (!/visibilitychange[\s\S]{0,1200}visibilityState[\s\S]{0,1200}reg\.update/.test(app)) {
   console.error('la revision de version nueva tiene que dispararse al volver al primer plano');
   process.exit(1);
 }
-if (!/function avisarActualizacion/.test(app) || !/location\.reload\(\)/.test(app)) {
-  console.error('el aviso de version nueva y su recarga tienen que seguir existiendo');
+if (!/function aplicarActualizacion/.test(app) || !/location\.reload\(\)/.test(app)) {
+  console.error('la actualización automática y su recarga tienen que seguir existiendo');
   process.exit(1);
 }
 
