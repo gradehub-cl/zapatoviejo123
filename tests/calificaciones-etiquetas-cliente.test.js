@@ -93,5 +93,28 @@ assert(et.includes('Mucha lectura')&&et.includes('&lt;i&gt;Mucha'),'escrita esca
 const res=run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,recomiendan_de_10:5,mas_o_menos_de_10:3,asistencia:{si:0,no:0},carga:[{opcion:2,n:6}],docentes:[]},{coordinado:true})");
 assert(res.includes('Horas a la semana'),'las horas antiguas siguen en el resumen');assert(res.includes('5 de cada 10 lo recomiendan')&&res.includes('3 de 10, más o menos'),'más o menos va aparte');
 assert(!run("contenidoResumenRamoHTML({disponible:true,total:6,facilidad:3,recomiendan_de_10:5,asistencia:{si:0,no:0},docentes:[]},{coordinado:true})").includes('más o menos'),'sin dato, no se menciona');
+// ── «¿Lo recomendarías?» según el tipo de ramo (Lucas, 2026-11-18) ──
+// Malla coordinado: no se pregunta. Malla no coordinado: la sección. Fuera de la malla: el ramo.
+{
+ const S0=run('JSON.stringify({c:S.carrera,t:S.tenant})');run("S.carrera='ING-PC'");
+ const coord=run('coordinacionResumenRamo');
+ const tipo=async(nombre,coordinado,extra='')=>{run(`coordinacionResumenRamo=async()=>${JSON.stringify(coordinado)}`);return await run(`preguntaRecomendarRamo({nombre:${JSON.stringify(nombre)}${extra}},'uc')`);};
+ assert.equal(await tipo('Cálculo I',true),null,'malla coordinado');
+ assert.equal(await tipo('calculo i',true),null,'por nombre normalizado');
+ assert.equal(await tipo('Cálculo I',false),'seccion','malla no coordinado');
+ assert.equal(await tipo('Cálculo I',null),null,'sin saber si es coordinado, un ramo de malla no pregunta por el ramo');
+ assert.equal(await tipo('Mi nombre propio',true,",origen:{ramoKey:'Cálculo II'}"),null,'renombrado: manda el nombre de origen');
+ assert.equal(await tipo('Teología sintética',true),'ramo','fuera de la malla');
+ run("coordinacionResumenRamo=async()=>{throw Error('x')}");assert.equal(await run("preguntaRecomendarRamo({nombre:'Cálculo I'},'uc')"),null,'un error no vuelve a preguntar por el ramo');
+ run("S.carrera=null");assert.equal(await tipo('Cálculo II',true),null,'sin carrera usa todas las mallas de la universidad');
+ assert.equal(await tipo('Teología sintética',true),'ramo');
+ ctx.__coord=coord;run('coordinacionResumenRamo=__coord');
+ const s0=JSON.parse(S0);run(`S.carrera=${JSON.stringify(s0.c??null)}`);
+ // Sin la pregunta: el nivel queda vacío o conserva el guardado.
+ assert.equal(json("payloadOpinarRamo(__c,{...__b,recomienda:undefined,sinRecomendar:true})").p_recomienda_nivel,null);
+ assert.equal(json("payloadOpinarRamo(__c,{...__b,recomienda:2,sinRecomendar:true})").p_recomienda_nivel,2,'se conserva el de antes');
+ assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,recomienda:7,sinRecomendar:true})"),/preguntas/);
+ assert.throws(()=>run("payloadOpinarRamo(__c,{...__b,recomienda:undefined})"),/preguntas/,'en los demás sigue siendo obligatoria');
+}
 console.log('OK calificaciones ronda 2 (cliente): payload, orden, Otro, sugeridas de ramo y profesor, sin SQL, recomendar en tres, pasado y escapado');
 })().catch(e=>{console.error(e);process.exit(1);});

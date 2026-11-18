@@ -25,8 +25,10 @@ alter table public.ramo_calificaciones alter column carga drop not null;
 alter table public.ramo_calificaciones add column if not exists recomienda_nivel smallint;
 alter table public.ramo_calificaciones alter column recomienda drop not null;
 alter table public.ramo_calificaciones drop constraint if exists ramo_calificaciones_recomienda_nivel_check;
+-- Sin nivel: una opinión antigua (Sí o No en `recomienda`) o un ramo de malla
+-- coordinado, donde no se pregunta (Lucas, 2026-11-18): ahí los dos van vacíos.
 alter table public.ramo_calificaciones add constraint ramo_calificaciones_recomienda_nivel_check
- check ((recomienda_nivel is null and recomienda is not null)
+ check (recomienda_nivel is null
   or (recomienda_nivel=3 and recomienda is true) or (recomienda_nivel=1 and recomienda is false)
   or (recomienda_nivel=2 and recomienda is null));
 alter table public.ramo_calificaciones drop constraint if exists ramo_calificaciones_otros_check;
@@ -45,7 +47,8 @@ returns text[] language sql immutable set search_path = '' as $$
 $$;
 
 -- Guardar con el formulario nuevo. Todas las preguntas son obligatorias salvo
--- asistencia (null = no sé) y las etiquetas. Sin horas: `carga` queda vacía en
+-- asistencia (null = no sé), recomendar (null en un ramo de malla coordinado,
+-- donde el cliente no la hace) y las etiquetas. Sin horas: `carga` queda vacía en
 -- una opinión nueva y se conserva en una antigua.
 drop function if exists public.ramo_opinar(text,integer,text,integer,boolean,integer,boolean,text[],text[]);
 drop function if exists public.ramo_opinar(text,integer,text,integer,boolean,boolean,text[],text[]);
@@ -56,7 +59,7 @@ returns boolean language plpgsql security definer set search_path = '' as $$
 declare c record; lista text[]; escritas text[];
 begin
  select * into strict c from public.ramo_calificacion_contexto(p_ramo_id,p_seccion,p_periodo);
- if p_facilidad is null or p_facilidad not between 1 and 5 or p_recomienda_nivel is null or p_recomienda_nivel not between 1 and 3
+ if p_facilidad is null or p_facilidad not between 1 and 5 or p_recomienda_nivel not between 1 and 3
     then raise exception 'respuestas no válidas'; end if;
  if p_etiquetas is null or array_position(p_etiquetas,null) is not null
     or not p_etiquetas <@ public.ramo_etiquetas_validas() then raise exception 'etiquetas no válidas'; end if;

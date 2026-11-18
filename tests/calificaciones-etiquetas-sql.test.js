@@ -41,7 +41,9 @@ const resumen=async()=>(await q("select ramo_resumen_publico('uc','TST100') as j
  await soy(3);await opinar(3);e=await estado(3);assert.equal(e.mia.carga,null,'una opinión nueva no inventa horas');
  // Validación: facilidad y recomendar obligatorias, tres etiquetas en total, filtro de texto.
  await assert.rejects(q('select ramo_opinar($1,1,$2,6,true,3)',['r3',periodo]),/no válidas/);
- await assert.rejects(q('select ramo_opinar($1,1,$2,3,true,null)',['r3',periodo]),/no válidas/);
+ // Ramo de malla coordinado: no se pregunta recomendar y los dos campos quedan vacíos.
+ await q('select ramo_opinar($1,1,$2,3,true,null)',['r3',periodo]);e=await estado(3);assert.equal(e.mia.recomienda_nivel,null);assert.equal(e.mia.recomienda,null);
+ await db.exec('reset role');await assert.rejects(db.query("update ramo_calificaciones set recomienda_nivel=3 where user_id=$1",[u(3)]),/recomienda_nivel_check/);await soy(3);
  await assert.rejects(opinar(3,{nivel:0}),/no válidas/);await assert.rejects(opinar(3,{nivel:4}),/no válidas/);
  assert.equal((await q("select count(*)::int as n from information_schema.columns where table_name='ramo_calificaciones' and column_name='estudio'"))[0].n,0,'sin columna estudio');
  await assert.rejects(opinar(3,{etiquetas:['mucha_lectura','interesante'],otros:['Muy practico','Mucha tarea']}),/etiquetas/);
