@@ -107,7 +107,7 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
         </fieldset>
         <fieldset class="calif-campo"><legend>¿Cómo era? <span class="calif-opcional">hasta 3</span></legend>
           <div class="calif-chips">${PROFESOR_ETIQUETAS.map(e=>`<label class="calif-chip" data-valencia="${e.valencia}"><input type="checkbox" name="calif-etiqueta" value="${esc(e.id)}"${mias.has(e.id)?' checked':''}><span>${esc(e.texto)}</span></label>`).join('')}${escritas.map(t=>chipEscrita(t)).join('')}<label class="calif-chip calif-otro"><input type="checkbox" name="calif-etiqueta" value="otro"><span>Otro</span></label></div>
-          <div class="calif-otro-campo" hidden><input type="text" class="calif-otro-texto" maxlength="20" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="calif-otro-cuenta"><span id="calif-otro-cuenta" class="calif-otro-cuenta">0/20</span><button type="button" class="docente-link" data-agregar>Agregar</button></div>
+          <div class="calif-otro-campo" hidden><input type="text" class="calif-otro-texto" maxlength="40" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Tu etiqueta" aria-label="Escribe tu etiqueta" aria-describedby="calif-otro-cuenta"><span id="calif-otro-cuenta" class="calif-otro-cuenta">0/40</span><button type="button" class="docente-link" data-agregar>Agregar</button></div>
         </fieldset>
         <p class="calif-error" role="alert"></p>
         ${mia?'<button type="button" class="docente-link calif-borrar" data-borrar>Borrar mi calificación</button>':''}
@@ -143,14 +143,14 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
       }catch(e){}
     })();
     const textoOtro=form.querySelector('.calif-otro-texto'),otroChip=form.querySelector('.calif-otro input');
-    const contar=()=>{form.querySelector('.calif-otro-cuenta').textContent=[...textoOtro.value].length+'/20';};
+    const contar=()=>{form.querySelector('.calif-otro-cuenta').textContent=[...textoOtro.value].length+'/40';};
     textoOtro.addEventListener('input',contar);
     const escritasMarcadas=()=>[...form.querySelectorAll('[data-escrita]:checked')].map(x=>x.value);
     // Lo escrito en «Otro» pasa a ser una etiqueta más; «Otro» vuelve a quedar libre.
     const agregarEscrita=()=>{
       const t=textoOtro.value.replace(/\s+/g,' ').trim();
       if([...t].length<3){mensaje.textContent='Escribe tu etiqueta.';textoOtro.focus();return false;}
-      if([...t].length>20){mensaje.textContent='La etiqueta puede tener hasta 20 caracteres.';textoOtro.focus();return false;}
+      if([...t].length>40){mensaje.textContent='La etiqueta puede tener hasta 40 caracteres.';textoOtro.focus();return false;}
       mensaje.textContent='';
       // Si ya está (marcada o como sugerencia), se marca esa en vez de repetirla.
       const igual=[...form.querySelectorAll('[data-escrita]')].find(x=>normalEtiquetaEscrita(x.value)===normalEtiquetaEscrita(t));
