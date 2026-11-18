@@ -1,4 +1,4 @@
-// Propuesta manual: la demo usa el producto normal sin cobrar a profesores.
+// Aprobado por Lucas (2026-11-18): la demo usa el producto normal sin cobrar a profesores.
 // Base completa + RPC reales; todos los usuarios/anuncios son sintéticos.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');
@@ -25,7 +25,7 @@ const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
   const publicacion=(await q('select publicado_at from tutor_anuncios where id=$1',[id(10)]))[0].publicado_at;
   const funciones=()=>q("select proname,pg_get_functiondef(oid) def from pg_proc where proname in ('costo_campana','cuenta_para_campana','registrar_alcance_anuncio','registrar_interaccion_anuncio','tarifa_campana_clp') order by proname,oid");
   const antes=await funciones(),sql=leer('supabase/cuentas_demo_metricas.sql');
-  assert.match(sql,/^-- sql-produccion: manual/m,'no entra a aplicación automática');
+  assert.doesNotMatch(sql,/^-- sql-produccion: manual/m,'reaplicable: se aplica con bin/sql-produccion.js');
   await db.exec(sql);await q('insert into admin.cuentas_excluidas_metricas(user_id) values($1)',[id(3)]);
   await db.exec(sql);assert.deepEqual(await funciones(),antes,'no reemplaza el cobro ni sus registros');
   assert.equal((await q('select count(*)::int n from admin.cuentas_excluidas_metricas'))[0].n,1,'reaplicar conserva la exclusión');

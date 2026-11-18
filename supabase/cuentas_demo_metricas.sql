@@ -1,5 +1,4 @@
--- sql-produccion: manual
--- PROPUESTA para Lucas: NO aplicada. Reaplicable, sin IDs reales ni backfill.
+-- Aprobado por Lucas el 2026-11-18. Reaplicable, sin IDs reales ni backfill.
 -- Aplicar después de clases_particulares.sql, administradores.sql,
 -- anuncio_eventos.sql, metricas_dia_chile.sql y anuncio_totales.sql.
 -- Registrar las cuentas demo ANTES de su primera visita con ramos.
