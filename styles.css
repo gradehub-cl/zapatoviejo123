@@ -4148,6 +4148,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calif-quien .docente-link{margin:0 -12px 0 0;flex:none;font-weight:400;}
 .calif-campo{margin:0 0 14px;padding:0;border:0;min-width:0;}
 .calif-campo legend{padding:0;margin-bottom:6px;font-weight:600;color:var(--fg);}
+/* «Calificar solo el ramo»: salida para quien no conoce a su profe. */
+.calif-solo-ramo{display:block;margin:12px auto 0;}
+.calif-solo-ramo[hidden]{display:none;}
 .calif-opcional{margin-left:4px;color:var(--fg2);font-size:.8125rem;font-weight:400;}
 .calif-opciones{display:flex;gap:2px;margin-left:-6px;}
 .calif-opcion{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;font-size:1.625rem;line-height:1;color:var(--fg3);cursor:pointer;}
