@@ -39,6 +39,9 @@ function profesorPropuestoRamo(r,contexto){
   const seccion=Number(contexto.p_seccion);
   if(!Number.isInteger(seccion)||seccion<1||seccion>999||seccion!==Number(r.seccion)
     ||contexto.p_ramo_id!==r.id||contexto.p_periodo!==semester())return '';
+  const canvas=typeof profesoresCanvasRamo==='function'?profesoresCanvasRamo(r):[];
+  if(canvas.length===1)return canvas[0];
+  if(canvas.length>1)return '';
   const sigla=String(r.sigla||r.origen?.ramoKey||'').trim().toUpperCase();
   const nombre=PROFESORES_PROPUESTOS[S.tenant]?.[contexto.p_periodo]?.[sigla]?.[seccion];
   return typeof nombre==='string'?nombre:'';
@@ -72,7 +75,8 @@ function abrirCalificarProfesor(r,contexto,{nombre,mio,calif}){
     contenido.innerHTML=`<div class="modal-title">Calificar profesor</div>
       <form class="calif-nombre" novalidate>
         <label class="modal-label" for="calif-nombre">Nombre, segundo nombre y apellido</label>
-        <div class="modal-input"><input type="text" id="calif-nombre" class="calif-campo-texto" maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Ej.: María José Pérez" value="${esc(valor||'')}" aria-describedby="calif-nombre-ayuda calif-nombre-error"></div>
+        <div class="modal-input"><input type="text" id="calif-nombre"${typeof profesoresCanvasRamo==='function'&&profesoresCanvasRamo(r).length?' list="calif-profes-canvas"':''} class="calif-campo-texto" maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Ej.: María José Pérez" value="${esc(valor||'')}" aria-describedby="calif-nombre-ayuda calif-nombre-error"></div>
+        ${typeof nombresProfesorCanvasHTML==='function'?nombresProfesorCanvasHTML(r):''}
         <p id="calif-nombre-ayuda" class="calif-opcional">Puedes seguir sin el segundo nombre si no lo sabes.</p>
         <p id="calif-nombre-error" class="calif-error" role="alert"></p>
         <div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar>Cancelar</button><button type="submit" class="btn-confirm">Continuar</button></div>

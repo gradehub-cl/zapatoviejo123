@@ -143,6 +143,9 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
                                   "grupos": CanvasPolitica.proyectarGrupos(grupos)])
                 case .cursos: call.resolve(["data": CanvasPolitica.proyectarCursos(filas)])
                 case .grupos: call.resolve(["data": CanvasPolitica.proyectarGrupos(filas)])
+                case .docentes:
+                    let curso = Int(ruta.split(separator: "/")[1]) ?? 0
+                    call.resolve(["data": CanvasPolitica.proyectarDocentes(filas, curso: curso)])
                 case .eventos: call.resolve(["data": CanvasPolitica.proyectarEventos(filas)])
                 case .programa: call.resolve(["data": CanvasPolitica.proyectarPrograma(datos as? [String: Any] ?? [:])])
                 // `users/self` solo sirve para validar el token al conectar.
@@ -282,9 +285,9 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
         var leidos = 0
         var acumulado: [Any] = []
         var paginas = 0
-        while let url = siguiente, paginas < paginasMax {
+        while let url = siguiente, paginas < CanvasPolitica.limitePaginas(ruta) {
             // Canvas manda la página siguiente completa; solo se sigue si es el mismo host.
-            guard CanvasPolitica.urlValida(url, ruta: ruta, permitida: permitida) else { return .failure(ErrorCanvas(codigo: 0)) }
+            guard CanvasPolitica.urlValida(url, ruta: ruta, permitida: permitida), CanvasPolitica.paginaDocentesValida(url, ruta: ruta) else { return .failure(ErrorCanvas(codigo: 0)) }
             var pedido = URLRequest(url: url, timeoutInterval: 20)
             pedido.httpMethod = "GET"
             pedido.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

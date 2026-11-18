@@ -75,6 +75,7 @@
     "src/app/calendario-formato.js",
     "src/app/calendario-importar.js",
     "src/app/canvas.js",
+    "src/app/canvas-docencia.js",
     "src/app/canvas-notas.js",
     "src/app/canvas-programa.js",
     "src/app/canvas-calendario-web.js",
