@@ -1,28 +1,36 @@
-// Horario de la semana dentro de la Agenda (Lucas, 2026-11-15: «Evaluaciones |
-// Horario», como la #644). Solo en la app nativa: hasta el lanzamiento, lo
-// nuevo va solo a la app. Lee `ramo.horario` y no escribe nada: editar abre la
-// misma hoja de la ficha (abrirHorarioRamo), que valida y guarda.
-let agendaVista='evaluaciones';
+// Horario de la semana dentro de la Agenda (Lucas, 2026-11-15, como la #644).
+// Lee `ramo.horario` y no escribe nada: editar abre la misma hoja de la ficha
+// (abrirHorarioRamo), que valida y guarda.
+//
+// Desde el 2026-11-18 la Agenda del estudiante se ve por Día | Semana | Mes
+// (pedido de una estudiante y de Lucas). Va también en la web: no depende de
+// enAppNativa(). El profesor sigue con la lista de siempre ('lista').
+const AGENDA_VISTAS=[['dia','Día'],['semana','Semana'],['mes','Mes']];
+const CLAVE_VISTA_AGENDA='gh_agenda_vista';
+let agendaVista=(()=>{try{const v=localStorage.getItem(CLAVE_VISTA_AGENDA);return AGENDA_VISTAS.some(([k])=>k===v)?v:'dia';}catch(e){return 'dia';}})();
 const HORARIO_SEMANA_PX_MIN=0.9;
-function vistaHorarioDisponible(){
-  return typeof enAppNativa==='function'&&enAppNativa()&&!(typeof esCuentaProfesor==='function'&&esCuentaProfesor());
+function vistasAgendaDisponibles(){
+  return !(typeof esCuentaProfesor==='function'&&esCuentaProfesor());
 }
-// Pinta el control segmentado y devuelve la vista que corresponde mostrar.
+// Pinta las pestañas y devuelve la vista que corresponde mostrar.
 function pintarVistaAgenda(){
   const caja=document.getElementById('agenda-vista');
-  const disponible=vistaHorarioDisponible();
-  if(!disponible)agendaVista='evaluaciones';
-  if(!caja)return agendaVista;
+  const disponible=vistasAgendaDisponibles();
+  if(disponible&&!AGENDA_VISTAS.some(([k])=>k===agendaVista))agendaVista='dia';
+  const vista=disponible?agendaVista:'lista';
+  if(!caja)return vista;
   caja.hidden=!disponible;
-  if(!disponible){caja.innerHTML='';return agendaVista;}
-  caja.innerHTML=`<div class="agenda-vista" role="group" aria-label="Qué ver en la Agenda">${[['evaluaciones','Evaluaciones'],['horario','Horario']]
+  if(!disponible){caja.innerHTML='';return vista;}
+  caja.innerHTML=`<div class="agenda-vista" role="group" aria-label="Qué ver en la Agenda">${AGENDA_VISTAS
     .map(([k,t])=>`<button type="button" data-agenda-vista="${k}" aria-pressed="${agendaVista===k}">${t}</button>`).join('')}</div>`;
   caja.querySelectorAll('[data-agenda-vista]').forEach(b=>b.addEventListener('click',()=>{
     if(agendaVista===b.dataset.agendaVista)return;
-    agendaVista=b.dataset.agendaVista;renderAgenda();
+    agendaVista=b.dataset.agendaVista;
+    try{localStorage.setItem(CLAVE_VISTA_AGENDA,agendaVista);}catch(e){}
+    renderAgenda();
     document.querySelector(`#agenda-vista [data-agenda-vista="${agendaVista}"]`)?.focus();
   }));
-  return agendaVista;
+  return vista;
 }
 const minutosHorario=h=>{const [a,b]=h.split(':').map(Number);return a*60+b;};
 // Los bloques de la semana, uno por día, con su carril si se topan.
@@ -86,18 +94,27 @@ function abrirClaseHorario(ramoId,bloqueId,alCambiar){
   };
   pintar();openModal();
 }
-function horarioSemanaHTML(ramos,ahora=new Date()){
+// `eventos`: las evaluaciones con fecha (agendaEvents). Las de la semana que se
+// ve van encima del horario: con hora, como bloque sólido a su hora; sin hora,
+// en la franja «Día» de arriba. `semana` corre la semana (0 = la actual).
+function horarioSemanaHTML(ramos,ahora=new Date(),{eventos=[],semana=0}={}){
   const porDia=bloquesSemanaHorario(ramos);
   const todos=[...porDia.values()].flat();
-  if(!todos.length)return '';
-  // Lunes a viernes siempre; sábado y domingo solo si hay clases.
-  const dias=DIAS_HORARIO.filter(([k])=>!['S','D'].includes(k)||porDia.has(k));
-  const desde=Math.floor(Math.min(...todos.map(x=>x.ini))/60)*60;
-  const hasta=Math.ceil(Math.max(...todos.map(x=>x.fin))/60)*60;
+  const hoyIso=isoHoyAgenda(ahora),lunes=sumarDiasAgenda(lunesAgenda(hoyIso),7*semana);
+  const fechaDe=k=>sumarDiasAgenda(lunes,DIAS_HORARIO.findIndex(([x])=>x===k));
+  const domingo=sumarDiasAgenda(lunes,6);
+  const evs=(eventos||[]).filter(e=>e&&e.fecha>=lunes&&e.fecha<=domingo);
+  const conHora=evs.filter(e=>horaValidaAgenda(e.hora)),sinHora=evs.filter(e=>!horaValidaAgenda(e.hora));
+  if(!todos.length&&!evs.length)return '';
+  const evPorDia=k=>evs.filter(e=>e.fecha===fechaDe(k));
+  // Lunes a viernes siempre; sábado y domingo solo si hay clases o evaluaciones.
+  const dias=DIAS_HORARIO.filter(([k])=>!['S','D'].includes(k)||porDia.has(k)||evPorDia(k).length);
+  const minutos=[...todos.map(x=>[x.ini,x.fin]),...conHora.map(e=>{const m=minutosHorario(e.hora);return [m,Math.min(24*60,m+60)];})];
+  const desde=minutos.length?Math.floor(Math.min(...minutos.map(x=>x[0]))/60)*60:8*60;
+  const hasta=minutos.length?Math.ceil(Math.max(...minutos.map(x=>x[1]))/60)*60:18*60;
   const alto=Math.round((hasta-desde)*HORARIO_SEMANA_PX_MIN);
   const y=m=>Math.round((m-desde)*HORARIO_SEMANA_PX_MIN);
   const p=partesHorarioChile(ahora);
-  const hoy=['D','L','M','W','J','V','S'][new Date(Date.UTC(+p.year,+p.month-1,+p.day,12)).getUTCDay()];
   const minutoAhora=Number(p.hour)*60+Number(p.minute);
   const horas=[];for(let m=desde;m<=hasta;m+=60)horas.push(m);
   const sigla=r=>(typeof siglaDeRamo==='function'?siglaDeRamo(r):r.sigla)||'';
@@ -111,18 +128,24 @@ function horarioSemanaHTML(ramos,ahora=new Date()){
     if(!m)return `<b>${esc(s)}</b>`;
     return `<b><span>${esc(m[1])}</span>${angosto?'':`<span>${esc(m[2])}</span>`}</b>`;
   };
+  const esHoy=k=>fechaDe(k)===hoyIso;
+  const evento=(e,n)=>`<button type="button" class="horario-semana-eval" data-agenda-action="ver-ramo" data-ramo-id="${esc(e.ramo.id)}" style="top:${y(minutosHorario(e.hora))}px;height:${Math.max(44,y(Math.min(24*60,minutosHorario(e.hora)+60))-y(minutosHorario(e.hora)))}px;--ramo:${esc(e.ramo.color||'var(--fg3)')};--ramo-texto:${textoSobreColorAgenda(e.ramo.color)||'var(--fg)'}"
+          aria-label="${esc(etiquetaEventoAgenda(e))}"><b>${esc(nombreEventoAgenda(e))}</b><span>${esc(e.hora)}</span></button>`;
   return `<div class="horario-semana" style="--horario-alto:${alto}px;--horario-dias:${dias.length}">
-    <div class="horario-semana-cabecera" aria-hidden="true"><span></span>${dias.map(([k,n])=>`<span${k===hoy?' class="hoy"':''}>${esc(n.slice(0,3))}</span>`).join('')}</div>
+    <div class="horario-semana-cabecera" aria-hidden="true"><span></span>${dias.map(([k,n])=>`<span${esHoy(k)?' class="hoy"':''}>${esc(n.slice(0,3))}<b>${Number(fechaDe(k).slice(8))}</b></span>`).join('')}</div>
+    ${sinHora.length?`<div class="horario-semana-todo-dia"><span class="horario-semana-todo-dia-r" aria-hidden="true">Día</span>${dias.map(([k])=>`<div>${evPorDia(k).filter(e=>!horaValidaAgenda(e.hora)).map(e=>`<button type="button" class="horario-semana-chip" data-agenda-action="ver-ramo" data-ramo-id="${esc(e.ramo.id)}" style="--ramo:${esc(e.ramo.color||'var(--fg3)')};--ramo-texto:${textoSobreColorAgenda(e.ramo.color)||'var(--fg)'}" aria-label="${esc(etiquetaEventoAgenda(e))}">${esc(nombreEventoAgenda(e))}</button>`).join('')}</div>`).join('')}</div>`:''}
     <div class="horario-semana-cuerpo">
       <div class="horario-semana-horas" aria-hidden="true">${horas.map(m=>`<span style="top:${y(m)}px">${String(m/60).padStart(2,'0')}:00</span>`).join('')}</div>
-      ${dias.map(([k,n])=>`<div class="horario-semana-dia${k===hoy?' hoy':''}" role="group" aria-label="${esc(n)}">
-        ${k===hoy&&minutoAhora>desde&&minutoAhora<hasta?`<span class="horario-semana-ahora" style="top:${y(minutoAhora)}px" aria-hidden="true"></span>`:''}
+      ${dias.map(([k,n])=>`<div class="horario-semana-dia${esHoy(k)?' hoy':''}" role="group" aria-label="${esc(nombreFechaAgenda(fechaDe(k)))}">
+        ${esHoy(k)&&minutoAhora>desde&&minutoAhora<hasta?`<span class="horario-semana-ahora" style="top:${y(minutoAhora)}px" aria-hidden="true"></span>`:''}
         ${(porDia.get(k)||[]).map(x=>`<button type="button" class="horario-semana-clase${x.bloque.noVoy?' no-voy':''}" data-horario-ramo="${esc(x.ramo.id)}" data-horario-bloque="${esc(x.bloque.id)}"
           style="top:${y(x.ini)}px;height:${Math.max(44,y(x.fin)-y(x.ini))}px;left:calc(${x.carril}*100%/${x.carriles});width:calc(100%/${x.carriles});--ramo:${esc(x.ramo.color||'var(--fg3)')}"
           aria-label="${esc(etiquetaClaseSemana(x,n))}">${rotulo(x.ramo,x.carriles>1)}${x.bloque.sala&&x.carriles===1?`<span class="horario-semana-sala">${esc(x.bloque.sala)}</span>`:''}</button>`).join('')}
+        ${evPorDia(k).filter(e=>horaValidaAgenda(e.hora)).map(e=>evento(e,n)).join('')}
       </div>`).join('')}
     </div></div>`;
 }
+let agendaSemanaOffset=0;
 function renderHorarioSemana(body,ahora=new Date()){
   const ramos=(S.ramos||[]);
   const conHorario=ramos.filter(r=>copiarHorario(r.horario).length);
@@ -131,22 +154,26 @@ function renderHorarioSemana(body,ahora=new Date()){
   const expBtn=document.getElementById('agenda-export-btn');if(expBtn)expBtn.style.display='none';
   if(titulo)titulo.textContent='Tu semana';
   const fotoUC=S.tenant==='uc';
+  const eventos=agendaEvents();
+  const lunes=sumarDiasAgenda(lunesAgenda(isoHoyAgenda(ahora)),7*agendaSemanaOffset);
+  const nav=navAgendaHTML(rangoSemanaAgenda(lunes),'semana',agendaSemanaOffset!==0);
   if(!conHorario.length){
     if(sub)sub.textContent='';
     const hayRamos=ramos.length>0;
-    body.innerHTML=`<div class="ag-empty">
+    const deLaSemana=eventos.filter(e=>e.fecha>=lunes&&e.fecha<=sumarDiasAgenda(lunes,6));
+    body.innerHTML=`${nav}<div class="ag-empty">
       <div class="ag-empty-title">${hayRamos?'Arma tu horario':'Agrega tu primer ramo'}</div>
       <div class="ag-empty-desc">${hayRamos
         ?(fotoUC?'Sube el pantallazo de «Carga Académica» de Mi UC y armamos tu semana. Antes de guardar, lo revisas.':'Agrega los días y las horas de tus clases.')
         :'Después podrás armar tu horario de clases.'}</div>
       <button type="button" class="ag-empty-cta" data-horario-accion="${hayRamos?(fotoUC?'foto':'agregar'):'ramo'}">${hayRamos?(fotoUC?'Subir foto del horario':'Agregar clase'):'Agregar mi primer ramo'}</button>
       ${hayRamos&&fotoUC?'<button type="button" class="horario-accion horario-semana-secundaria" data-horario-accion="agregar">Agregar a mano</button>':''}
-    </div>`;
+    </div>${deLaSemana.length?`<h2 class="section-hd-title agenda-dia-seccion">Evaluaciones de esta semana</h2>${deLaSemana.map(e=>eventoAgendaFilaHTML(e,{conFecha:true})).join('')}`:''}`;
   }else{
     const contar=filtro=>conHorario.reduce((n,r)=>n+copiarHorario(r.horario).filter(filtro).reduce((m,b)=>m+b.dias.length,0),0);
     const clases=contar(b=>!b.noVoy),noVas=contar(b=>b.noVoy);
     if(sub)sub.textContent=`${clases} ${clases===1?'clase':'clases'} a la semana${noVas?` · ${noVas} no vas`:''}`;
-    body.innerHTML=`${horarioSemanaHTML(conHorario,ahora)}
+    body.innerHTML=`${nav}${horarioSemanaHTML(conHorario,ahora,{eventos,semana:agendaSemanaOffset})}
       <div class="horario-semana-acciones">
         <button type="button" class="horario-accion" data-horario-accion="agregar">Agregar clase</button>
         ${fotoUC?'<button type="button" class="horario-accion" data-horario-accion="foto">Subir foto del horario</button>':''}
@@ -157,6 +184,7 @@ function renderHorarioSemana(body,ahora=new Date()){
   const repintar=()=>{if(typeof currentTab==='undefined'||currentTab==='agenda')renderAgenda();};
   // Marcar «no voy» repinta la semana detrás de la hoja e Inicio (Hoy).
   const alCambiarClase=()=>{repintar();if(typeof renderHome==='function')renderHome();};
+  enlazarNavAgenda(body,paso=>{agendaSemanaOffset=paso===0?0:agendaSemanaOffset+paso;renderAgenda();});
   body.querySelectorAll('[data-horario-ramo]').forEach(b=>b.addEventListener('click',()=>abrirClaseHorario(b.dataset.horarioRamo,b.dataset.horarioBloque,alCambiarClase)));
   body.querySelectorAll('[data-horario-agregar]').forEach(b=>b.addEventListener('click',()=>abrirHorarioRamo(b.dataset.horarioAgregar,{alGuardado:repintar})));
   body.querySelectorAll('[data-horario-accion]').forEach(b=>b.addEventListener('click',()=>{

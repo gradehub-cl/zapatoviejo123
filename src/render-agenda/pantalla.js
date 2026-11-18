@@ -5,8 +5,17 @@ function renderAgenda(){
   agendaDetalleAbierto=null;
   const resumenInicial=document.getElementById('agenda-sub');
   if(resumenInicial)resumenInicial.textContent='';
-  // «Evaluaciones | Horario»: el horario de la semana vive en horario-semana.js.
-  if(typeof pintarVistaAgenda==='function'&&pintarVistaAgenda()==='horario'){renderHorarioSemana(body);return;}
+  // Día | Semana | Mes (horario-semana.js y agenda-dia-mes.js). Mes es la
+  // lista de siempre con la grilla del mes arriba; el profesor ve solo la lista.
+  const vista=typeof pintarVistaAgenda==='function'?pintarVistaAgenda():'lista';
+  if(vista==='semana'){renderHorarioSemana(body);return;}
+  if(vista==='dia'){renderDiaAgenda(body);return;}
+  renderListaAgenda(body,vista==='mes');
+}
+function renderListaAgenda(body,conMes=false){
+  // La grilla del mes va arriba de la lista; sin fechas no hay grilla.
+  const mes=conMes&&typeof mesAgendaHTML==='function'?mesAgendaHTML():'';
+  const pintar=html=>{body.innerHTML=mes+html;if(mes)enlazarMesAgenda(body);};
   const tituloAgenda=document.getElementById('agenda-title');
   if(tituloAgenda)tituloAgenda.textContent='Qué se viene';
   const events=agendaEvents();
@@ -34,7 +43,7 @@ function renderAgenda(){
     const ctaLabel=primeraSinFecha?"Poner primera fecha":hayRamos?"Agregar evaluación":"Agregar mi primer ramo";
     const ctaAction=primeraSinFecha?'agregar-fecha':hayRamos?'agregar-evaluacion':'agregar-ramo';
     const ctaRamo=hayRamos?` data-ramo-id="${esc(primerRamo.id)}"`:'';
-    body.innerHTML=`
+    pintar(`
       <div class="ag-empty">
         <div class="ag-empty-icon" aria-hidden="true">
           <svg viewBox="0 0 64 64" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
@@ -47,12 +56,12 @@ function renderAgenda(){
         <div class="ag-empty-title">${title}</div>
         <div class="ag-empty-desc">${desc}</div>
         <button type="button" class="ag-empty-cta" data-agenda-action="${ctaAction}"${ctaRamo}>${ctaLabel}</button>
-      </div>`;
+      </div>`);
     return;
   }
 
   if(events.length===0){
-    body.innerHTML=agendaPendientesHTML(listaPendientes,ahora)+agendaRendidasHTML(rendidas,[]);
+    pintar(agendaPendientesHTML(listaPendientes,ahora)+agendaRendidasHTML(rendidas,[]));
     const sub=document.getElementById('agenda-sub');
     if(sub)sub.textContent=listaPendientes.length?`${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}`:'Todo al día';
     activarDetallesAgenda(body);
@@ -146,6 +155,6 @@ function renderAgenda(){
   html+=agendaPendientesHTML(listaPendientes,ahora);
   html+=agendaRendidasHTML(rendidas,porVenir);
 
-  body.innerHTML=html;
+  pintar(html);
   activarDetallesAgenda(body);
 }
