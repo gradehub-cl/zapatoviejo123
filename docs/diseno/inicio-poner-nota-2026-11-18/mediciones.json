@@ -1,0 +1,63 @@
+[
+  {
+    "modo": "claro",
+    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\nGuardar\nAhora no",
+    "alto": 127.78125,
+    "scroll": 375,
+    "botones": [
+      44,
+      44,
+      44
+    ],
+    "contraste": 7.5103018216066175,
+    "errores": [],
+    "lecturas": []
+  },
+  {
+    "modo": "claro",
+    "guardado": {
+      "valor": 5.4,
+      "otra": null,
+      "necesita": "3,5",
+      "toast": "Ahora necesitas 3,5 en lo que queda para aprobar",
+      "pantalla": null
+    }
+  },
+  {
+    "modo": "oscuro",
+    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\nGuardar\nAhora no",
+    "alto": 127.78125,
+    "scroll": 375,
+    "botones": [
+      44,
+      44,
+      44
+    ],
+    "contraste": 9.727323338328082,
+    "errores": [],
+    "lecturas": []
+  },
+  {
+    "modo": "oscuro",
+    "guardado": {
+      "valor": 5.4,
+      "otra": null,
+      "necesita": "3,5",
+      "toast": "Ahora necesitas 3,5 en lo que queda para aprobar",
+      "pantalla": null
+    }
+  },
+  {
+    "texto200": {
+      "scroll": 375,
+      "botones": [
+        56,
+        46,
+        46
+      ]
+    }
+  },
+  {
+    "webOculta": true
+  }
+]

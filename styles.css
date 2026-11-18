@@ -6149,6 +6149,20 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .admin-denuncias{margin-bottom:16px;}
 .denuncia-admin-detalles{margin:6px 0 10px;padding-left:18px;font-size:.8125rem;color:var(--fg2);}
 
+/* Nota pendiente: pregunta y entrada directa, solo en la app. */
+html.app-nativa .nota-inicio{margin:8px 20px 14px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);color:var(--fg);font-family:var(--font-ui);}
+html.app-nativa .nota-inicio[hidden]{display:none;}
+html.app-nativa .nota-inicio h2{margin:0;font-size:1rem;line-height:1.35;font-weight:650;overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-ramo{margin:4px 0 10px;font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-acciones{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+html.app-nativa .nota-inicio input#nota-inicio-valor{flex:0 1 5.25em;width:5.25em;min-width:4.5em;min-height:44px;margin:0;padding:8px 10px;font-size:1rem;font-variant-numeric:tabular-nums;}
+html.app-nativa .nota-inicio-acciones button{min-width:44px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-ahora]{margin-left:auto;background:none;color:var(--fg2);}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-guardar],html.app-nativa .nota-inicio-acciones button[data-nota-inicio-canvas]{background:var(--fg);color:var(--bg);}
+html.app-nativa .nota-inicio-acciones button:active{opacity:.75;}
+html.app-nativa .nota-inicio-acciones button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+html.app-nativa #nota-inicio-error{margin:8px 0 0;font-size:.8125rem;color:var(--fg2);}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

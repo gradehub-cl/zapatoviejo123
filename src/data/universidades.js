@@ -54,3 +54,10 @@ const TENANT_GLYPHS={
   // fen: '<path d="…"/>',
   // uc:  '<path d="…"/>',
 };
+
+// Plazo del recordatorio de notas en Inicio (app). Lucas, 18-11-2026:
+// UC espera dos semanas y no vence; las demás miran los últimos 14 días.
+const RECORDATORIO_NOTAS_POR_TENANT={
+  defecto:{desde:1,hasta:14},
+  uc:{desde:14,hasta:null},
+};

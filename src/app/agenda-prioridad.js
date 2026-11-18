@@ -16,6 +16,7 @@ function reglaDescarteConCantidadAbierta(ramo){
 // Convierte una nota recién ingresada en una consecuencia académica concreta.
 // El cálculo habla solo de lo que queda pendiente y respeta compuertas activas.
 function lecturaDespuesDeNota(ramo){
+  const desdeInicio=typeof consumirEntradaNotaInicio==='function'&&consumirEntradaNotaInicio(ramo);
   const avg=ramoAvg(ramo);
   if(avg===null)return 'Nota guardada';
   const gate=gatesActivas(ramo)[0];
@@ -27,6 +28,7 @@ function lecturaDespuesDeNota(ramo){
   if(necesita>7.05)return `Vas ${fmtPromedio(avg)} · ya no alcanza sólo con lo pendiente`;
   if(notaNecesariaCondicional(ramo))return `Vas ${fmtPromedio(avg)} · con ${nfNecesaria(necesita)} en cada evaluación pendiente llegas al 4,0`;
   if(necesita<=1.0)return `Vas ${fmtPromedio(avg)} · tienes margen para aprobar`;
+  if(desdeInicio)return `Ahora necesitas ${nfNecesaria(necesita)} en lo que queda para aprobar`;
   if(nivelNota(avg)==='good'&&necesita<=4.0)return `Vas ${fmtPromedio(avg)} · buen margen en lo pendiente`;
   return `Vas ${fmtPromedio(avg)} · necesitas ${nfNecesaria(necesita)} en lo pendiente para aprobar`;
 }
