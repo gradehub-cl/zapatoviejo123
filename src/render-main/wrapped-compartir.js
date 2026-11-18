@@ -60,9 +60,9 @@ async function imagenWrapped(s,conPromedio=false){
   const mejor=s.filas.find(f=>f[0]==='Mejor nota');
   if(mejor){
     etiqueta(`${pers?3:2}. Mejor nota`,yr+94,GRAFITO);
-    texto(textoPlano(mejor[1]),X-8,1470,900,250);
+    texto(textoPlano(mejor[1]),X-8,1420,900,250);
     // El timbre: doble anillo, el texto alrededor y la tinta gastada.
-    const cx=D-135,cy=1360,r=135;
+    const cx=D-135,cy=1310,r=135;
     ctx.save();ctx.translate(cx,cy);ctx.rotate(-12*Math.PI/180);ctx.globalAlpha=.88;ctx.strokeStyle=GRAFITO;
     ctx.lineWidth=7;ctx.beginPath();ctx.arc(0,0,r*.95,0,Math.PI*2);ctx.stroke();
     ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r*.66,0,Math.PI*2);ctx.stroke();

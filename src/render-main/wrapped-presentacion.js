@@ -34,8 +34,12 @@ function slidesWrapped(d,comp,label,recado){
     titulo:'¿Cuántas notas anotaste este semestre?',pregunta:{opciones:alternativasWrapped(d.nNotas),
       bien:'Exacto. Llevas la cuenta.',mal:`Fueron ${d.nNotas}.`},
     viz:grillaWrapped(d.nNotas),sub:'Cada una fue una noche antes, una prueba y una espera.'});
-  if(d.semana)s.push({prep:{texto:'Hubo una semana que no se olvida.',obj:'calendario'},
-    k:`La del ${esc(d.semana.texto)}`,antes:true,big:cifraWrapped(String(d.semana.k)),titulo:'evaluaciones en siete días.',sub:'Y aquí estás.',viz:semanaWrapped(d.semana.dias)});
+  // Las páginas no comparten esqueleto (Lucas, 2026-11-17: «los formatos se
+  // parecen harto»). `forma` cambia la composición, nunca el fondo: objeto
+  // grande y dato chico, número que llega a los bordes, lista corregida, hoja
+  // de cuaderno, post-it entero y una página casi vacía para respirar.
+  if(d.semana)s.push({forma:'objeto',prep:{texto:'Hubo una semana que no se olvida.',obj:'calendario'},
+    k:`La del ${esc(d.semana.texto)}`,viz:semanaWrapped(d.semana.dias),titulo:`<b>${d.semana.k}</b> evaluaciones en siete días.`,sub:'Y aquí estás.'});
   // Con pocas notas, la primera puede ser también la mejor: entonces la cuenta
   // la goma y no se repite la misma evaluación dos veces seguidas.
   const primeraEsMejor=!!(d.primera&&d.mejor&&d.primera.valor===d.mejor.valor&&d.primera.ramo===d.mejor.ramo&&d.primera.nombre===d.mejor.evaluacion);
@@ -46,8 +50,9 @@ function slidesWrapped(d,comp,label,recado){
       ...(fin>=0.3?{sub:'Mira dónde terminaste.',viz:barrasWrapped([{label:'1.ª mitad',valor:d.mitades.primera},{label:'2.ª mitad',valor:d.mitades.segunda,ahora:true}])}
         :{nota:Math.abs(fin)<0.3&&d.mitades?'Y mantuviste el ritmo todo el semestre.':''})});
   }
-  if(d.movio)s.push({prep:{texto:'Hubo una nota que pesó más que las otras.',obj:'corrector'},
-    k:'Una sola nota.',heroe:correctorWrapped(d.movio.antes,d.movio.despues),sub:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)} subió tu promedio en ${fmt(d.movio.delta)}.`});
+  if(d.movio)s.push({prep:{texto:'Hubo una nota que pesó más que las otras.',obj:'regla'},
+    k:'Una sola nota.',titulo:`${esc(d.movio.x.nombre)} de ${esc(d.movio.x.r.nombre)}`,heroe:empujeWrapped(fmt(d.movio.x.n.valor),d.movio.antes,d.movio.despues),
+    sub:`Te subió el promedio de ${fmtPromedio(d.movio.antes)} a ${fmtPromedio(d.movio.despues)}.`});
   if(d.remontada)s.push({prep:{texto:'Esta es la historia de una remontada.',obj:'escuadra'},
     k:`En ${esc(d.remontada.mes)}, ${esc(d.remontada.r.nombre)} iba en ${fmtPromedio(d.remontada.minimo)}.`,antes:true,heroe:curvaWrapped(d.remontada.serie.slice(1),d.remontada.iMinimo-1,d.remontada.final),titulo:`Terminó en ${hojaMarca(fmtPromedio(d.remontada.final))}.`,nota:'Nadie lo vio venir. Tú sí.'});
   if(d.mejor)s.push({tipo:'goma',prep:{texto:'Tu mejor nota quedó escondida.',sub:'Bórrala para verla.',obj:'goma'},
@@ -66,8 +71,16 @@ function slidesWrapped(d,comp,label,recado){
   // se reconoce el esfuerzo, no se agranda el resultado (Lucas, 2026-11-17).
   if(d.dificil){
     const aprobado=notaAprobadaRamo(d.dificil.r,d.dificil.avg);
-    s.push({prep:{texto:'Ahora, el que más pelea dio.',obj:'gastado'},
-      k:'El ramo que más costó',titulo:esc(d.dificil.r.nombre),...(aprobado?{big:cifraWrapped(fmtPromedio(d.dificil.avg),1)}:{}),
+    // Aprobado, se cuenta como una prueba corregida: cada nota en su renglón y
+    // el promedio encerrado al pie. Si no, solo el nombre: no se repasa nota
+    // por nota lo que no salió.
+    const evaluaciones=(d.dificil.r.categorias||[]).flatMap(c=>(c.notas||[]).filter(n=>typeof n.valor==='number'))
+      .sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||'')));
+    const lista=aprobado&&evaluaciones.length>1;
+    s.push({...(lista?{forma:'lista'}:{}),prep:{texto:'Ahora, el que más pelea dio.',obj:'gastado'},
+      k:'El ramo que más costó',titulo:esc(d.dificil.r.nombre),
+      ...(lista?{heroe:listaWrapped(evaluaciones.map(n=>({nombre:esc(n.nombre||''),nota:fmt(n.valor)})),fmtPromedio(d.dificil.avg))}
+        :aprobado?{big:cifraWrapped(fmtPromedio(d.dificil.avg),1)}:{}),
       sub:!ramoCompletamenteEvaluado(d.dificil.r)?'Todavía te quedan notas por anotar.':aprobado?'Y lo sacaste adelante.':'Un ramo no te define. Lo que aprendiste se queda contigo.'});
   }
   if(dificil){
@@ -86,12 +99,12 @@ function slidesWrapped(d,comp,label,recado){
   }
   // Una sola comparación, y solo si deja bien parado: nadie necesita leer que
   // quedó en el 12% (Lucas, 2026-11-02: cuidar a quien le fue mal).
-  if(comp&&comp.curso&&comp.curso.mejorQue>=50)s.push({prep:{texto:'¿Y tu curso?',sub:'Nadie ve las notas de nadie.',obj:'lista'},
+  if(comp&&comp.curso&&comp.curso.mejorQue>=50)s.push({forma:'gigante',prep:{texto:'¿Y tu curso?',sub:'Nadie ve las notas de nadie.',obj:'lista'},
     k:`En ${esc(comp.curso.ramo)} quedaste sobre el`,antes:true,big:cifraWrapped(comp.curso.mejorQue+'%'),titulo:hojaMarca('de tu curso.'),
     sub:`Entre las ${comp.curso.total-1} personas de tu ramo que usan GradeHub.`,viz:reglaWrapped(comp.curso.mejorQue)});
   // El servidor compara el promedio simple de los ramos, no el ponderado de
   // Inicio (ver universidad_posicion.sql): por eso la frase dice "tus ramos".
-  else if(comp&&comp.uni&&comp.uni.mejorQue>=50)s.push({prep:{texto:`¿Y en toda ${u}?`,sub:'Nadie ve las notas de nadie.',obj:'carnet'},
+  else if(comp&&comp.uni&&comp.uni.mejorQue>=50)s.push({forma:'gigante',prep:{texto:`¿Y en toda ${u}?`,sub:'Nadie ve las notas de nadie.',obj:'carnet'},
     k:`En toda ${u} quedaste sobre el`,antes:true,big:cifraWrapped(comp.uni.mejorQue+'%'),titulo:'de quienes usan GradeHub.',
     sub:`Comparamos el promedio simple de tus ramos con el de otras ${comp.uni.total-1} personas.`,viz:reglaWrapped(comp.uni.mejorQue)});
   // El recado de un profe que tuvo y calificó bien (ver wrapped_recado.sql).
@@ -99,16 +112,17 @@ function slidesWrapped(d,comp,label,recado){
   // así que quien no tiene uno no ve nada: un aviso de «no calificaste» le
   // prometería un video que casi nadie va a recibir (Lucas, 2026-11-17).
   const conSeccion=(S.ramos||[]).find(r=>r.seccion&&d.ranking.some(x=>x.nombre===r.nombre));
-  if(recado&&recado.video)s.push({tipo:'video',prep:{texto:'Alguien pasó a dejarte un recado.',obj:'papelito'},
+  if(recado&&recado.video)s.push({tipo:'video',prep:{texto:'Alguien pasó a dejarte un recado.',obj:'avion'},
     k:`Un recado de ${esc(recado.video.quien)}`,video:recado.video});
-  if(d.anterior&&d.anterior.delta>=0.1)s.push({prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`,obj:'cuaderno'},
+  if(d.anterior&&d.anterior.delta>=0.1)s.push({forma:'cuaderno',prep:{texto:`¿Te acuerdas de ${esc(d.anterior.label)}?`,obj:'cuaderno'},
     k:`Desde ${esc(d.anterior.label)}`,titulo:'Subiste',big:cifraWrapped('+'+fmt(d.anterior.delta)),
     viz:barrasWrapped([{label:esc(d.anterior.label),valor:d.anterior.antes},{label:esc(label),valor:d.anterior.ahora,ahora:true}])});
   else if(d.anterior)s.push({titulo:`Mismo nivel que ${esc(d.anterior.label)}.`,sub:'Lo difícil es sostenerlo.'});
   if(d.gpa!==null)s.push({prep:dificil?{texto:'Un número no cuenta toda la historia.',sub:'Pero aquí está.',obj:'timbre'}:{texto:'Y ahora, el número que todos te van a preguntar.',obj:'timbre'},
-    k:'Tu promedio',big:cifraWrapped(fmtPromedio(d.gpa),1),sub:d.aprobando?`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`:'',viz:arcoWrapped(d.gpa)});
-  if(conSeccion)s.push({k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
-  s.push({tipo:'cierre',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
+    tipo:'promedio',heroe:casillaWrapped(cifraWrapped(fmtPromedio(d.gpa),1),esc(label),!dificil),
+    sub:d.aprobando?`${d.aprobando} de ${d.nRamos} ramo${pl(d.nRamos)} con promedio de aprobación.`:''});
+  if(conSeccion)s.push({forma:'postit',k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
+  s.push({tipo:'cierre',forma:'respiro',titulo:'Ningún número muestra las noches, los nervios, los cafés.',sub:hojaMarca('Pero este semestre lo hiciste tú.')});
   const filas=[];
   if(d.personalidad)filas.push(['¿Qué tipo de estudiante fuiste?',esc(d.personalidad.nombre),d.personalidad.letra]);
   if(d.ranking.length>1)filas.push(['Ramo estrella',esc(d.estrella.r.nombre)]);
@@ -323,7 +337,7 @@ function pintarWrapped(){
   const caja=ov.querySelector('.wrapped-slide');
   caja.scrollTop=0;caja.dataset.tipo=s.tipo||'';
   if(_wrapped.fase==='prep'){
-    caja.dataset.fase='prep';
+    caja.dataset.fase='prep';caja.dataset.forma='';
     ov.querySelector('[data-paso="1"]').textContent='Ver';
     // Palabra por palabra, como quien lo va diciendo, y al final la frase se
     // resalta en el color de la historia. VoiceOver lee la frase entera.
@@ -347,7 +361,7 @@ function pintarRevelacionWrapped(){
   // `--d` escalona la entrada: primero de qué se habla, después el número.
   let d=0;const p=(cls,html)=>html?`<p class="${cls}" style="--d:${d++}">${html}</p>`:'';
   const caja=ov.querySelector('.wrapped-slide');
-  caja.scrollTop=0;caja.dataset.fase='revela';
+  caja.scrollTop=0;caja.dataset.fase='revela';caja.dataset.forma=s.forma||'';
   if(s.tipo==='final'){
     caja.innerHTML=`${p('wrapped-titulo',`Tu hoja del ${hojaMarca('semestre.')}`)}
       <div class="wrapped-tarjeta" style="--d:${d++}"><p class="wrapped-pie">Preparando tu hoja…</p></div>
@@ -377,9 +391,10 @@ function pintarRevelacionWrapped(){
   }
   delete caja.dataset.respondida;
   if(s.tipo==='goma'){
-    caja.innerHTML=p('wrapped-titulo',s.titulo)
-      +`<div class="wrapped-grande con-timbre" style="--d:${d++}">${gomaWrapped(s.cifra,s.borrada)}${s.borrada?hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ '):''}</div>`
-      +(s.borrada?p('wrapped-sub',s.sub)+(s.nota?`<div style="--d:${d++}">${hojaPostit(s.nota,i%2?3:-3)}</div>`:''):'');
+    caja.innerHTML=s.borrada?p('wrapped-titulo',s.titulo)
+      +`<div class="wrapped-grande con-timbre" style="--d:${d++}">${gomaWrapped(s.cifra,true)}${hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ ')}</div>`
+      +p('wrapped-sub',s.sub)+(s.nota?`<div style="--d:${d++}">${hojaPostit(s.nota,i%2?3:-3)}</div>`:'')
+      :gomaWrapped(s.cifra,false);
     if(!s.borrada)armarGomaWrapped(caja.querySelector('.hoja-goma canvas'));
     programarWrapped();
     return;
@@ -403,19 +418,27 @@ function pintarRevelacionWrapped(){
   }
   // `heroe` es la pieza que cuenta el dato (la prueba, el corrector, la curva)
   // y va donde iría la cifra grande.
-  const grande=s.big?`<div class="wrapped-grande${s.timbre?' con-timbre':''}" style="--d:${d++}"><p class="wrapped-big">${s.big}</p>${s.timbre?hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ '):''}</div>`
+  // En la forma «gigante» el tamaño sale del largo de la cifra, para que
+  // llegue a los bordes sin cortarse (82 % y 100 % caben igual).
+  const largo=s.forma==='gigante'?`;--n:${String(s.big||'').replace(/<[^>]*>/g,'').length/2}`:'';
+  const grande=s.big?`<div class="wrapped-grande${s.timbre?' con-timbre':''}" style="--d:${d++}${largo}"><p class="wrapped-big">${s.big}</p>${s.timbre?hojaTimbre('Nº 1','★ MEJOR NOTA ★ '+esc(slides[slides.length-1].k)+' ★ '):''}</div>`
     :s.heroe?`<div class="wrapped-heroe" style="--d:${d++}">${s.heroe}</div>`:'';
-  caja.innerHTML=p('wrapped-k',s.k)
-    +(s.tipo==='umbral'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
+  // Con forma «objeto» el dibujo va antes que el dato, y en grande.
+  const vizArriba=s.tipo==='umbral'||s.forma==='objeto';
+  const cuerpo=p('wrapped-k',s.k)
+    +(vizArriba?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
     +(s.antes||!s.titulo?grande:'')
     +p('wrapped-titulo',s.titulo)
     +(s.antes||!s.titulo?'':grande)
     // En el ánimo, primero lo bueno y después la frase que lo cierra.
     +(s.tipo==='animo'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
     +p('wrapped-sub',s.sub)
-    +(s.viz&&s.tipo!=='umbral'&&s.tipo!=='animo'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
+    +(s.viz&&!vizArriba&&s.tipo!=='animo'?`<div class="wrapped-viz" style="--d:${d++}">${s.viz}</div>`:'')
     +(s.nota?`<div style="--d:${d++}">${hojaPostit(s.nota,i%2?3:-3)}</div>`:'')
     +(s.accion?`<button class="wrapped-accion" type="button" data-ramo="${esc(s.accion.ramo)}" style="--d:${d++}">${esc(s.accion.texto)}</button>`:'');
+  // El post-it y el cuaderno son una hoja encima de la cuadrícula: todo el
+  // contenido va adentro.
+  caja.innerHTML=s.forma==='postit'||s.forma==='cuaderno'?`<div class="hoja-pagina ${s.forma}">${cuerpo}</div>`:cuerpo;
   contarWrapped(caja,i);
   programarWrapped();
 }
@@ -435,7 +458,10 @@ function armarGomaWrapped(canvas){
   const estado=_wrapped,i=estado.i;
   requestAnimationFrame(()=>{
     if(_wrapped!==estado||estado.i!==i||!canvas.isConnected)return;
-    const g=rayarGomaWrapped(canvas);if(!g)return borrarGomaWrapped();
+    const g=rayarGomaWrapped(canvas,canvas.closest('.pantalla'));if(!g)return borrarGomaWrapped();
+    const cifra=canvas.parentElement.querySelector('.wrapped-big');
+    if(cifra){const a=canvas.getBoundingClientRect(),b=cifra.getBoundingClientRect(),k=g.ancho/Math.max(a.width,1);
+      g.zona={x:Math.max(0,Math.round((b.left-a.left)*k)),y:Math.max(0,Math.round((b.top-a.top)*k)),w:Math.round(b.width*k),h:Math.round(b.height*k)};}
     let ultimo=null,trazos=0;
     const punto=e=>{const r=canvas.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];};
     canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture?.(e.pointerId);ultimo=punto(e);clearTimeout(estado.timer);});

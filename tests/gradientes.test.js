@@ -31,8 +31,9 @@ const enMascaras = (css.match(/linear-gradient\(/g) || []).length - total;
 // 2026-11-07: el cuaderno del Wrapped suma margen y renglones (un patrón, no un degradado).
 // 2026-11-03: la tarjeta de clases de Inicio suma un relleno liso
 // (`linear-gradient(var(--card),var(--card))`) que recorta el brillo del contorno.
+// 2026-11-17: la hoja de cuaderno del Wrapped vuelve con sus renglones (un patrón).
 // La pista sombra distingue el tramo bloqueado y el valor elegido: dos gradientes de datos.
-chk(`hay 26 gradientes que pintan, incluidos Wrapped, peso pendiente de la ficha y el contorno de clases (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 26);
+chk(`hay 27 gradientes que pintan, incluidos Wrapped, peso pendiente de la ficha y el contorno de clases (${total}${enMascaras?` · ${enMascaras} más en máscaras`:''})`, total === 27);
 chk('el sistema declara una dirección para superficies y otra para acentos',
   /--gradient-surface:150deg;--gradient-accent:135deg;/.test(css));
 

@@ -122,37 +122,25 @@ async function abrirResumenRamo(r,{tenant=S.tenant,alVolver=null,alAgregar=null}
  try{const [d,coordinado]=await Promise.all([cargarResumenRamo(tenant,clave),coordinacionResumenRamo(r,tenant)]);if(vigente())caja.querySelector('[data-rr-body]').innerHTML=contenidoResumenRamoHTML(d,{coordinado});}
  catch(e){if(vigente())caja.querySelector('[data-rr-body]').innerHTML='<p role="status">No pudimos cargar las opiniones. Puedes seguir y agregar el ramo igualmente.</p>';}
 }
-// Se agrega al resultado, no a searchCatalog: el motor de búsqueda no espera red.
-function accionResumenCatalogoHTML(r){
- return typeof currentUser!=='undefined'&&currentUser?`<button type="button" class="ramo-catalogo-resumen" data-como-ramo data-nombre="${esc(r.nombre)}" data-sigla="${esc(r.sigla||'')}">Cómo es este ramo</button>`:'';
-}
-function enlazarResumenesCatalogo(caja,q){
- if(!caja?.querySelectorAll)return;const tenant=S.tenant,cuenta=typeof currentUser!=='undefined'&&currentUser?.id,estado=S,despues=alAgregarRamo,cancelar=alCancelarAgregarRamo;
- caja.querySelectorAll('[data-como-ramo]').forEach(b=>b.addEventListener('click',()=>{
-  if(!currentUser||currentUser.id!==cuenta||S!==estado)return;
-  const r={nombre:b.dataset.nombre,sigla:b.dataset.sigla,origen:{tenant,ramoKey:ramoKey(b.dataset.nombre,tenant,S.carrera,b.dataset.sigla)}};
-  const volver=()=>{if(currentUser?.id!==cuenta||S!==estado)return;openAddRamoModal(despues,cancelar);const input=document.getElementById('m-ramo-search');if(input){input.value=q;renderCatalogResults(q);}};
-  abrirResumenRamo(r,{tenant,alVolver:volver,alAgregar:()=>{if(currentUser?.id===cuenta&&S===estado)addFromCatalog(r.nombre,r.sigla);}});
- }));
-}
+// «Cómo es este ramo» no se muestra en el buscador ni en la ficha: cuando el
+// estudiante ya eligió el ramo, no tiene nada que hacer con esa información.
+// Se mostrará solo en la toma de ramos, que aún no definimos (Lucas,
+// 2026-11-18). abrirResumenRamo queda para ese momento. En la ficha solo se
+// pide la opinión propia.
 async function pintarResumenRamoFicha(r,opinion=consultarCalificacionRamoFicha(r)){
  const version=++versionResumenRamoFicha,cuenta=typeof currentUser!=='undefined'&&currentUser?.id;
  const hero=document.querySelector('#screen-ramo .ramo-hero');
  const anterior=document.getElementById('ramo-opinion');if(anterior?.remove)anterior.remove();
  if(!cuenta||!hero||typeof hero.appendChild!=='function'||typeof supabaseClient==='undefined'||!supabaseClient)return;
- const c=contextoCalificarRamo(r),cliente=supabaseClient,tenant=S.tenant;
+ const c=contextoCalificarRamo(r),cliente=supabaseClient;
  const vigente=()=>version===versionResumenRamoFicha&&currentUser?.id===cuenta&&supabaseClient===cliente&&S.ramos.includes(r)&&currentRamoId===r.id&&document.getElementById('screen-ramo')?.classList.contains('active');
  try{
-  const [resumen,estado,coordinado]=await Promise.all([cargarResumenRamo(tenant,claveCalificarRamo(r)),opinion,coordinacionResumenRamo(r,tenant)]);
-  if(!vigente())return;const dato=resumenRamoDisponible(resumen);
+  const estado=await opinion;
+  if(!vigente())return;
   const invitacion=elegibleAvisoCalificarRamo(r,c,estado),mia=!!estado?.mia;
-  if(!dato&&!invitacion&&!mia)return;
+  if(!invitacion&&!mia)return;
   const linea=document.createElement('div');linea.id='ramo-opinion';linea.className='ramo-opinion';
-  // En un ramo no coordinado, el «de cada 10» mezclaría profesores: no se muestra.
-  const textoResumen=coordinado===true?`${Math.max(0,Math.min(10,Number(resumen?.recomiendan_de_10)||0))} de cada 10 lo recomiendan · Cómo es este ramo`:'Cómo es este ramo con cada profesor';
-  linea.innerHTML=`${dato?`<button type="button" class="ramo-opinion-resumen" data-rc-resumen>${textoResumen} <span aria-hidden="true">›</span></button>`:''}
-  ${invitacion?`<div class="ramo-opinion-invitacion"><span>¿Cómo ha sido ${esc(r.nombre)}?</span><button type="button" data-rc-calificar>Dar mi opinión</button><button type="button" data-rc-descartar>Ahora no</button></div>`:mia?'<button type="button" class="ramo-opinion-resumen" data-rc-calificar>Tu opinión del ramo · Editar</button>':''}`;
-  linea.querySelector('[data-rc-resumen]')?.addEventListener('click',()=>abrirResumenRamo(r));
+  linea.innerHTML=`${invitacion?`<div class="ramo-opinion-invitacion"><span>¿Cómo ha sido ${esc(r.nombre)}?</span><button type="button" data-rc-calificar>Dar mi opinión</button><button type="button" data-rc-descartar>Ahora no</button></div>`:mia?'<button type="button" class="ramo-opinion-resumen" data-rc-calificar>Tu opinión del ramo · Editar</button>':''}`;
   linea.querySelector('[data-rc-calificar]')?.addEventListener('click',()=>abrirCalificarRamo(r));
   linea.querySelector('[data-rc-descartar]')?.addEventListener('click',()=>linea.querySelector('.ramo-opinion-invitacion')?.remove());
   hero.appendChild(linea);if(invitacion)marcarAvisoCalificarRamo(c);

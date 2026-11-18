@@ -108,7 +108,7 @@ function openAddRamoModal(despuesDeAgregar,despuesDeCancelar){
     <div class="modal-input"><input type="text" id="m-ramo-search" placeholder="${ejemploRamo}" maxlength="${NOMBRE_MAX}" autocomplete="off" autocapitalize="none" aria-describedby="m-ramo-error"/></div>
     <p id="m-ramo-error" role="alert" hidden style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);"></p>
     ${hayCatalogo?'<div id="m-ramo-results" class="cat-results"></div>':''}
-    ${S.tenant==='uc'?'<button type="button" class="horario-importar-link" onclick="abrirImportarHorarioBuscacursos()">Subir foto de tu horario</button>':''}
+    ${HORARIO_FOTO_POR_TENANT[S.tenant]?'<button type="button" class="horario-importar-link" onclick="abrirImportarHorarioBuscacursos()">Subir foto de tu horario</button>':''}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-add-ramo-btn" onclick="confirmAddRamo()">Agregar ramo</button>
@@ -158,9 +158,8 @@ function renderCatalogResults(q){
         <span class="cat-hit-meta">${obCatalogMeta(r)}</span>
       </span>
       ${tengo?'<span class="cat-hit-tag">ya lo tienes</span>':'<span class="chevron-r">+</span>'}
-    </button>${typeof accionResumenCatalogoHTML==='function'?accionResumenCatalogoHTML(r):''}</div>`;
+    </button></div>`;
   }).join('');
-  if(typeof enlazarResumenesCatalogo==='function')enlazarResumenesCatalogo(box,q);
 }
 
 // Agrega directo desde el catálogo, con sello de procedencia y preset si existe
