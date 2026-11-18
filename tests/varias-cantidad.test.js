@@ -63,4 +63,30 @@ assert.equal(norm.slots,5);assert.equal(JSON.stringify(norm.notas.map(n=>n.slot)
 assert.match(run("cantidadVariasHTML({directNota:false,notas:[]})"),/¿Cuántas son\?/);
 assert.doesNotMatch(run("cantidadVariasHTML({directNota:false,notas:[]})"),/id="m-cat-cantidad-fila" hidden/);
 assert.match(run("cantidadVariasHTML({directNota:true,notas:[]})"),/id="m-cat-cantidad-fila" hidden/);
-console.log('OK varias notas con cantidad: lectura, casillas sin perder notas, avance parcial y normalize');
+
+// Una fecha por casilla: solo se escriben las que cambian, y una fila vacía no
+// crea notas ni marca fechas quitadas.
+run(`var __r3={id:'r3',nombre:'Fechas sintético',categorias:[{id:'k',nombre:'Controles',peso:30,directNota:true,slots:4,notas:[
+  {id:'k0',nombre:'Controles 1',valor:5,peso:1,slot:0,fecha:'2026-09-01',fechaOrigen:'usuario'}]}]}`);
+run("document.getElementById('m-casilla-0-fecha').value='2026-09-01'");
+run("document.getElementById('m-casilla-1-fecha').value='2026-09-15'");
+run("document.getElementById('m-casilla-1-hora').value='10:00'");
+run("document.getElementById('m-casilla-2-fecha').value=''");
+run("document.getElementById('m-casilla-3-fecha').value='2026-10-06'");
+run('guardarFechasCasillas(__r3,__r3.categorias[0])');
+const k=JSON.parse(run('JSON.stringify(__r3.categorias[0].notas.map(n=>({slot:n.slot,fecha:n.fecha||null,hora:n.hora||null,valor:n.valor??null,quitada:!!n.fechaQuitada})).sort((a,b)=>a.slot-b.slot))'));
+assert.deepEqual(k,[
+  {slot:0,fecha:'2026-09-01',hora:null,valor:5,quitada:false},
+  {slot:1,fecha:'2026-09-15',hora:'10:00',valor:null,quitada:false},
+  {slot:3,fecha:'2026-10-06',hora:null,valor:null,quitada:false}],'casillas 1 y 3 nuevas como pendientes; la 2 vacía no se crea');
+const ev=JSON.parse(run("JSON.stringify(agendaEvents([__r3]).map(e=>e.fecha))"));
+assert.deepEqual(ev,['2026-09-01','2026-09-15','2026-10-06'],'cada control aparece en su día en la Agenda');
+// Quitar la fecha de una casilla la quita de la Agenda.
+run("document.getElementById('m-casilla-3-fecha').value=''");
+run('guardarFechasCasillas(__r3,__r3.categorias[0])');
+assert.deepEqual(JSON.parse(run("JSON.stringify(agendaEvents([__r3]).map(e=>e.fecha))")),['2026-09-01','2026-09-15']);
+// Filas para una cantidad recién escrita: las notas sin casilla, en su orden.
+assert.equal(run(`JSON.stringify(notasPorFilaCasillas({nombre:'Tareas',notas:[{id:'p',nombre:'T1'},{id:'q',nombre:'T2'}]},3).map(n=>n&&n.id))`),'["p","q",null]');
+assert.match(run(`fechasCasillasHTML({id:'x'},{nombre:'Tareas',notas:[]},2)`),/Tarea 2/,'mismo nombre que tendrá la casilla');
+assert.match(run(`fechasCasillasHTML({id:'x'},{nombre:'X',notas:[{id:'z',nombre:'Nota <b>'}]},2)`),/Nota &lt;b&gt;/);
+console.log('OK varias notas con cantidad: lectura, casillas sin perder notas, avance parcial, normalize y una fecha por casilla');

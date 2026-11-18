@@ -14,7 +14,8 @@ function openEditCatModal(catId){
       <span>Son varias notas que se promedian ${(cat.notas||[]).length>1?'<span style="color:var(--fg3);">(ya tiene varias notas: para volver a una sola, bórralas)</span>':'<span style="color:var(--fg3);">(controles, laboratorios, tareas)</span>'}</span>
     </label>
     ${cantidadVariasHTML(cat)}`}
-    ${campoFechaHoraHTML('m-cat',cat.fecha,cat.hora,true)}
+    <div id="m-cat-fecha-grupo" ${cat.slots>1&&!cat.fecha?'hidden':''}>${campoFechaHoraHTML('m-cat',cat.fecha,cat.hora,true)}</div>
+    <div id="m-cat-fechas-casillas">${cat.slots>1?fechasCasillasHTML(r,cat,cat.slots):''}</div>
     ${cat.directNota===true&&!(Number.isInteger(cat.slots)&&cat.slots>1)?controlRecorreccionHTML((cat.notas||[])[0],cat.fecha):''}
     ${cat.fecha?`<a class="ramo-action" href="${esc(googleCalUrl(r,cat))}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;margin-bottom:14px;">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
@@ -28,7 +29,9 @@ function openEditCatModal(catId){
     </div>`;
   openModal();wirePesoControl();
   const varias=document.getElementById('m-cat-varias'),filaCantidad=document.getElementById('m-cat-cantidad-fila');
-  if(varias&&filaCantidad)varias.addEventListener('change',()=>{filaCantidad.hidden=!varias.checked;});
+  if(varias&&filaCantidad)varias.addEventListener('change',()=>{filaCantidad.hidden=!varias.checked;if(!varias.checked)pintarFechasCasillas(r,cat,null);});
+  const cantidad=document.getElementById('m-cat-cantidad');
+  if(cantidad)cantidad.addEventListener('input',()=>{const n=parseInt(cantidad.value,10);pintarFechasCasillas(r,cat,n>=2&&n<=CANTIDAD_VARIAS_MAX&&n>=(cat.notas||[]).length?n:null);});
   setTimeout(()=>{const i=document.getElementById('m-cat-name');i.focus();i.select();},100);
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmEditCat(catId);});
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(editCatError){editCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
@@ -55,6 +58,7 @@ function confirmEditCat(catId){
   // escondería el resto sin decirlo.
   if(casilla&&!casilla.disabled)cat.directNota=!casilla.checked;
   if(cantidad)fijarCantidadVarias(r,cat,cantidad);
+  if(cat.slots>1)guardarFechasCasillas(r,cat);
   save();track('edit_categoria',{tiene_fecha:!!fecha,varias_notas:cat.directNota===false||cat.slots>1,con_cantidad:!!cantidad});closeModal();renderRamo();
   // La Agenda vive en otra pantalla y no se enteraba: al quitarle la fecha a una
   // evaluación seguía apareciendo ahí hasta que algo más la redibujara. El peso
@@ -90,6 +94,56 @@ function leerCantidadVarias(cat){
   else if(n<notas)error=`Ya tiene ${notas} notas: la cantidad tiene que ser ${notas} o más.`;
   if(error){editCatError=error;mostrarErrorCampo('m-cat-cantidad','m-cat-error',error);return false;}
   return n;
+}
+// Una fecha por casilla. «Agregar fecha» de la Agenda abre esta misma hoja, y
+// con una sola fecha para el grupo no había cómo poner cada control en su día.
+// La fila i es la casilla i; si todavía no hay casillas (se acaba de escribir
+// la cantidad), las notas sin casilla ocupan las primeras filas en su orden,
+// igual que en fijarCantidadVarias.
+function notasPorFilaCasillas(cat,cantidad){
+  const notas=cat.notas||[],filas=Array.from({length:cantidad},()=>null);
+  if(cat.slots>1){notas.forEach(n=>{if(Number.isInteger(n.slot)&&n.slot<cantidad)filas[n.slot]=n;});return filas;}
+  notas.filter(n=>!Number.isInteger(n.slot)).slice(0,cantidad).forEach((n,i)=>{filas[i]=n;});
+  return filas;
+}
+function fechasCasillasHTML(r,cat,cantidad){
+  const filas=notasPorFilaCasillas(cat,cantidad);
+  return `<label class="modal-label">Fecha de cada una <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">(opcional — aparecen en la Agenda)</span></label>
+    <div class="cat-fechas-casillas" style="display:grid;gap:8px;margin-bottom:14px;">${filas.map((n,i)=>{
+      const nombre=cat.slots>1&&n?nombreNotaCasilla(r,cat,n):(n&&n.nombre)||etiquetaCasilla(r,cat,i);
+      const f=esc(n&&n.fecha||''),h=esc(n&&n.fecha&&n.hora||''),id='m-casilla-'+i;
+      return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="flex:1 1 100%;font-size:0.8125rem;color:var(--fg2);">${esc(nombre)}</span>
+        <input type="date" id="${id}-fecha" value="${f}" autocomplete="off" aria-label="Fecha de ${esc(nombre)}" style="flex:1 1 9.5rem;min-width:9rem;" oninput="sincronizarHora('${id}')" onfocus="sembrarFechaHoy('${id}')"/>
+        <input type="time" id="${id}-hora" value="${h}" autocomplete="off" aria-label="Hora de ${esc(nombre)} (opcional)" style="flex:1 1 7rem;min-width:6.5rem;" ${f?'':'disabled'}/>
+      </div>`;}).join('')}</div>`;
+}
+// Al escribir la cantidad aparecen sus filas; lo ya escrito en ellas se conserva.
+function pintarFechasCasillas(r,cat,cantidad){
+  const caja=document.getElementById('m-cat-fechas-casillas'),grupo=document.getElementById('m-cat-fecha-grupo');
+  if(!caja||cat.slots>1)return;
+  const escritas=[];
+  for(let i=0;i<CANTIDAD_VARIAS_MAX;i++){const f=document.getElementById(`m-casilla-${i}-fecha`);if(!f)break;escritas.push([f.value,document.getElementById(`m-casilla-${i}-hora`)?.value||'']);}
+  caja.innerHTML=cantidad?fechasCasillasHTML(r,cat,cantidad):'';
+  escritas.forEach(([f,h],i)=>{const fe=document.getElementById(`m-casilla-${i}-fecha`),ho=document.getElementById(`m-casilla-${i}-hora`);if(fe&&f){fe.value=f;if(ho){ho.disabled=false;ho.value=h;}}});
+  if(grupo)grupo.hidden=!!cantidad&&!cat.fecha;
+}
+// Solo escribe las casillas que cambiaron: una fila que sigue vacía no crea una
+// nota ni marca una fecha como quitada.
+function guardarFechasCasillas(r,cat){
+  cat.notas=Array.isArray(cat.notas)?cat.notas:[];
+  for(let i=0;i<cat.slots;i++){
+    const campo=document.getElementById(`m-casilla-${i}-fecha`);if(!campo)continue;
+    const fecha=campo.value||null,hora=fecha?leerHora('m-casilla-'+i):null;
+    let n=cat.notas.find(x=>x.slot===i);
+    if((n&&n.fecha||null)===fecha&&(n&&n.hora||null)===hora)continue;
+    if(!n){
+      if(!fecha)continue;
+      n=asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,i),peso:1,slot:i},'',null);
+      cat.notas.push(n);
+    }
+    marcarFechaUsuario(n,fecha,hora);
+  }
 }
 // Las notas que ya tenía pasan a las primeras casillas, en el orden en que se
 // guardaron, con su nombre, valor y fecha. No se pierde ni se reordena nada.
