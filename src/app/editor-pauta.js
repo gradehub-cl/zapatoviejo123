@@ -4,6 +4,8 @@
 // pauta real. Los pesos pueden quedar incompletos porque en semana 1 muchas
 // veces todavía no está toda la información.
 let pautaDraft=[];
+// Solo el borrador: aceptar una lectura Canvas no escribe el ramo hasta Guardar.
+let pautaProgramaCanvasDraft=null;
 // Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
 // `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.
 let pautaQuitadas=[];
@@ -69,7 +71,9 @@ function openPautaManualModal(){
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
-  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];
+  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];pautaProgramaCanvasDraft=null;
+  // La lectura pertenece a esta apertura, nunca a otra cuenta o borrador.
+  canvasProgramaRamo.delete(r.id);
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
@@ -462,6 +466,10 @@ function guardarPautaManual(){
   const vigentes=new Set(r.categorias.map(c=>c.id));
   if(r.gates?.some(g=>g.origen==='editor'&&!vigentes.has(g.catId)))
     r.gates=r.gates.filter(g=>g.origen!=='editor'||vigentes.has(g.catId));
+  if(enAppNativa()&&pautaProgramaCanvasDraft?.ramoId===r.id){
+    r.programaCanvas=crearProgramaCanvas(pautaProgramaCanvasDraft.archivo,pautaProgramaCanvasDraft.citas,r);
+    pautaProgramaCanvasDraft=null;
+  }
   const estado=estadoPauta(r.categorias);save();track('configurar_pauta',{evaluaciones:filas.length,total:estado.total});closeModal();renderRamo();
   showToast(estado.lista?'✓ Listo, ya suma 100%':'Guardado · puedes completar el resto después');
   // Aviso informativo de una sola vez por cuenta, sin pedir una decisión ni

@@ -377,7 +377,10 @@ function renderRamo(){
   const noCalcula=reglasNoCalculadas(r);
   const delCurso=reglasDelCurso(r);
   const calculadas=reglasCalculadas(r);
-  if(noCalcula.length||delCurso.length||calculadas.length){
+  if(enAppNativa()){
+    const html=reglasRamoHTML(r);
+    ncw.style.display=html?'block':'none';ncw.className='';ncw.innerHTML=html;
+  }else if(noCalcula.length||delCurso.length||calculadas.length){
     ncw.style.display='flex';ncw.className='weight-setup-nudge';
     const items=lista=>`<ul style="margin:6px 0 0;padding-left:17px;">${lista.map(regla=>`<li>${esc(regla)}</li>`).join('')}</ul>`;
     const bloques=[];
@@ -408,7 +411,10 @@ function renderRamo(){
   // cualquier ramo. Llegar al promedio solo habilita la confirmación: nunca
   // afirma la eximición sola.
   const ew=document.getElementById('eximicion-warning');
-  if(ew&&eximicion?.regla.notaExamen==='maxima'){
+  if(ew&&enAppNativa()&&eximicion?.regla.notaExamen==='maxima'&&faltasActivas(r)){
+    // La lectura nueva ya muestra el estado; el contador conserva su acción.
+    ew.style.display='none';ew.innerHTML='';
+  }else if(ew&&eximicion?.regla.notaExamen==='maxima'){
     const presentacion=eximicion.promedio===null?'Pendiente':fmtPromedioExacto(eximicion.promedio);
     ew.style.display='block';ew.className='weight-setup-nudge eximicion-note mejoras-programa';
     ew.innerHTML=`<div class="mejoras-programa-contenido"><b>Eximición del examen</b>

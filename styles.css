@@ -6222,6 +6222,35 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .admin-denuncias{margin-bottom:16px;}
 .denuncia-admin-detalles{margin:6px 0 10px;padding-left:18px;font-size:.8125rem;color:var(--fg2);}
 
+/* ─── Reglas del ramo: lectura por capas, solo app ─────────────────────── */
+html.app-nativa .reglas-ramo{--est-linea:var(--border);--est-gris:var(--fg3);margin:20px 0 24px;padding:0 20px;color:var(--fg);font-family:var(--font-ui);}
+html.app-nativa .reglas-ramo h2{font-size:1.125rem;font-weight:650;line-height:1.3;margin:0 0 8px;}
+html.app-nativa .reglas-ramo .reglas-etiqueta{font-size:.8125rem;color:var(--fg2);margin:0 0 4px;}
+html.app-nativa .reglas-ramo .reglas-fila{padding:14px 0;border-bottom:1px solid var(--border);}
+html.app-nativa .reglas-ramo h3{font-size:.8125rem;font-weight:600;line-height:1.45;color:var(--fg2);margin:0 0 5px;}
+html.app-nativa .reglas-ramo p.reglas-simple{font-size:1rem;line-height:1.55;margin:0;overflow-wrap:anywhere;}
+html.app-nativa .reglas-ramo .reglas-aviso{display:block;font-size:.8125rem;line-height:1.5;color:var(--fg2);margin-top:5px;}
+html.app-nativa .reglas-ramo summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;list-style:none;cursor:pointer;color:var(--fg2);font-size:.8125rem;font-weight:550;line-height:1.5;}
+html.app-nativa .reglas-ramo summary::-webkit-details-marker{display:none;}
+html.app-nativa .reglas-ramo summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
+html.app-nativa .reglas-ramo summary .ic{flex-shrink:0;width:18px;height:18px;}
+html.app-nativa .reglas-ramo details[open]>summary .ic-despliegue{transform:rotate(180deg);}
+html.app-nativa .reglas-ramo blockquote{margin:8px 0;padding:0 0 0 12px;border-left:2px solid var(--border);font-size:.875rem;line-height:1.65;overflow-wrap:anywhere;white-space:pre-wrap;}
+html.app-nativa .reglas-ramo .reglas-texto-origen,html.app-nativa .reglas-ramo .reglas-fuente,html.app-nativa .reglas-ramo .reglas-cita>p{font-size:.8125rem;color:var(--fg2);line-height:1.55;margin:8px 0;overflow-wrap:anywhere;}
+html.app-nativa .reglas-ramo .reglas-reparto{margin-top:22px;}
+html.app-nativa .reglas-ramo .reglas-reparto>h3{display:flex;justify-content:space-between;font-size:.9375rem;color:var(--fg);}
+html.app-nativa .reglas-ramo .reglas-reparto p{font-size:.8125rem;color:var(--fg2);line-height:1.5;margin:6px 0 12px;}
+html.app-nativa .reglas-ramo .reglas-peso{margin-top:12px;min-width:0;}
+html.app-nativa .reglas-ramo .reglas-grupo-hijos .est-par>span:first-child{padding-left:12px;border-left:1px solid var(--border);}
+html.app-nativa .reglas-ramo .reglas-grupo>.est-par>span:first-child{font-weight:600;}
+html.app-nativa .reglas-ramo .est-par{grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;font-size:.875rem;color:var(--fg);line-height:1.4;}
+html.app-nativa .reglas-ramo .est-par>span:first-child{overflow-wrap:anywhere;}
+html.app-nativa .reglas-ramo .est-par b{font-size:.875rem;color:var(--fg);font-variant-numeric:tabular-nums;}
+html.app-nativa .reglas-ramo .est-par .est-pista{grid-column:1/-1;grid-row:2;height:5px;}
+html.app-nativa .reglas-ramo .reglas-peso>small{display:block;font-size:.8125rem;color:var(--fg2);line-height:1.5;margin-top:6px;}
+html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-height:1.6;margin-top:20px;padding-top:12px;border-top:1px solid var(--border);overflow-wrap:anywhere;}
+@media(prefers-reduced-motion:reduce){html.app-nativa .reglas-ramo .ic-despliegue{transition:none;}}
+
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
    Martín: "que la app parezca lo menos PWA posible".

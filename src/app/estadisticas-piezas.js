@@ -58,3 +58,8 @@ function toggleHist(id){openHist[id]=!openHist[id];renderStats();}
 function iconoDespliegue(abierto){
   return `<svg class="ic ic-despliegue${abierto?' abierto':''}" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
 }
+
+// Barras paralelas: comparación o partes de un total en una escala común.
+function barraParalelaEstHTML(nombre,v,texto,ahora,precision=0){
+  return `<div class="est-par"><span>${nombre}</span><span class="est-pista${ahora?' est-pista-ahora':''}" aria-hidden="true"><i style="width:${v===null?0:Math.round(v*100*10**precision)/10**precision}%"></i></span><b>${texto}</b></div>`;
+}
