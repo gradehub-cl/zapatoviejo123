@@ -4971,7 +4971,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .rr-vacio{padding:16px;border:1px solid var(--border);border-radius:8px;margin-bottom:20px;}
 .cat-hit-fila{border-bottom:1px solid var(--border);}
 .cat-hit-fila .cat-hit{width:100%;border-bottom:0;}
-button.ramo-catalogo-resumen{display:block;min-height:44px;margin:0 0 8px;padding:8px 12px;border:0;background:none;color:var(--fg2);font:inherit;font-size:.8125rem;text-decoration:underline;text-underline-offset:3px;text-align:left;}
 .ramo-opinion{margin-top:14px;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
 button.ramo-opinion-resumen{display:block;min-height:44px;width:100%;border:0;padding:10px 0;background:none;color:var(--fg2);font:inherit;line-height:1.5;text-align:left;font-variant-numeric:tabular-nums;}
 .ramo-opinion-invitacion{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:12px 0;border-top:1px solid var(--border);}

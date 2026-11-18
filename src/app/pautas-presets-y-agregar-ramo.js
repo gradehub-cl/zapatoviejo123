@@ -158,9 +158,8 @@ function renderCatalogResults(q){
         <span class="cat-hit-meta">${obCatalogMeta(r)}</span>
       </span>
       ${tengo?'<span class="cat-hit-tag">ya lo tienes</span>':'<span class="chevron-r">+</span>'}
-    </button>${typeof accionResumenCatalogoHTML==='function'?accionResumenCatalogoHTML(r):''}</div>`;
+    </button></div>`;
   }).join('');
-  if(typeof enlazarResumenesCatalogo==='function')enlazarResumenesCatalogo(box,q);
 }
 
 // Agrega directo desde el catálogo, con sello de procedencia y preset si existe
