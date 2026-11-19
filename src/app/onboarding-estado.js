@@ -63,6 +63,7 @@ const obPasosVistos=new Set();
 let obRamos=[],obRamosKey='',obManualOpen=false,obManualError='';
 
 document.getElementById('ob-name').addEventListener('input',checkOb);
+document.getElementById('ob-apellido')?.addEventListener('input',checkOb);
 
 
 // "Tu malla se carga sola" se promete en el paso 3, y el semestre todavía se

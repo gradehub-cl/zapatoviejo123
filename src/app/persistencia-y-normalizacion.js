@@ -583,6 +583,8 @@ function normalize(data) {
   data.onboardingDone = Boolean(data.onboardingDone);
   data.careerSemestre = Number(data.careerSemestre) || 1;
   data.userName = data.userName || '';
+  // Apellido (2026-11-18): las cuentas anteriores no lo tienen y quedan vacías.
+  data.userApellido = typeof data.userApellido === 'string' ? data.userApellido.replace(/\s+/g,' ').trim().slice(0, 60) : '';
   // Lo que el estudiante DECLARÓ que estudia. Es lo único que hay cuando su
   // carrera no tiene malla, y es el dato que dice qué malla construir después.
   data.carreraNombre = typeof data.carreraNombre === 'string' && data.carreraNombre.trim()
