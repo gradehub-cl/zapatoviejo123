@@ -14,9 +14,9 @@ function normalizarRamosAmigo(ramos){
     horario:(Array.isArray(r.horario)?r.horario:[]).map(b=>b&&{...b,sala:b.sala||'',tipo:b.tipo||''})
   }));
 }
-const minutosHorario=h=>{const [a,b]=String(h).split(':').map(Number);return a*60+b;};
-const horaDeMinutos=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
-const diaHorarioChile=instante=>{
+const minutosAmigo=h=>{const [a,b]=String(h).split(':').map(Number);return a*60+b;};
+const horaAmigo=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const diaAmigoChile=instante=>{
   const p=partesHorarioChile(instante),civil=new Date(Date.UTC(+p.year,+p.month-1,+p.day,12));
   return ['D','L','M','W','J','V','S'][civil.getUTCDay()];
 };
@@ -25,7 +25,7 @@ const diaHorarioChile=instante=>{
 // Una clase marcada «no voy» no ocupa: a esa hora está libre.
 function tramosOcupados(ramos,dia){
   const t=[];
-  for(const r of ramos||[])for(const b of copiarHorario(r.horario))if(!b.noVoy&&b.dias.includes(dia))t.push([minutosHorario(b.inicio),minutosHorario(b.fin)]);
+  for(const r of ramos||[])for(const b of copiarHorario(r.horario))if(!b.noVoy&&b.dias.includes(dia))t.push([minutosAmigo(b.inicio),minutosAmigo(b.fin)]);
   t.sort((x,y)=>x[0]-y[0]);
   const unidos=[];
   for(const [i,f] of t){const u=unidos[unidos.length-1];if(u&&i<=u[1])u[1]=Math.max(u[1],f);else unidos.push([i,f]);}
@@ -43,7 +43,7 @@ function ventanasLibresEnComun(mios,suyos,dia,{minimo=30}={}){
   let cursor=desde;
   for(const [i,f] of ocupado){if(i>cursor)libres.push([cursor,i]);cursor=Math.max(cursor,f);}
   if(hasta>cursor)libres.push([cursor,hasta]);
-  return libres.filter(([i,f])=>f-i>=minimo).map(([i,f])=>({inicio:horaDeMinutos(i),fin:horaDeMinutos(f),minutos:f-i}));
+  return libres.filter(([i,f])=>f-i>=minimo).map(([i,f])=>({inicio:horaAmigo(i),fin:horaAmigo(f),minutos:f-i}));
 }
 // Los días de lunes a sábado con al menos una ventana en común.
 function semanaLibresEnComun(mios,suyos,opciones){
@@ -67,19 +67,19 @@ function ramosEnComun(mios,suyos){
 //   sinhorario → no ha cargado su horario
 function estadoAhoraAmigo(ramos,ahora=new Date()){
   if(!(ramos||[]).some(r=>copiarHorario(r.horario).length))return {estado:'sinhorario'};
-  const ms=new Date(ahora).getTime(),dia=diaHorarioChile(ms),p=partesHorarioChile(ms),min=+p.hour*60+ +p.minute;
+  const ms=new Date(ahora).getTime(),dia=diaAmigoChile(ms),p=partesHorarioChile(ms),min=+p.hour*60+ +p.minute;
   const hoy=[];
   for(const r of ramos)for(const b of copiarHorario(r.horario))if(!b.noVoy&&b.dias.includes(dia))hoy.push({ramo:r.nombre,sigla:r.sigla||null,sala:b.sala||null,inicio:b.inicio,fin:b.fin});
   if(!hoy.length)return {estado:'sinclases'};
   hoy.sort((x,y)=>x.inicio.localeCompare(y.inicio));
-  const ahoraClase=hoy.find(c=>minutosHorario(c.inicio)<=min&&min<minutosHorario(c.fin));
+  const ahoraClase=hoy.find(c=>minutosAmigo(c.inicio)<=min&&min<minutosAmigo(c.fin));
   if(ahoraClase){
     // Clases seguidas cuentan como una: «en clases hasta» la última que empalma.
-    let hasta=minutosHorario(ahoraClase.fin);
-    for(const c of hoy)if(minutosHorario(c.inicio)<=hasta+10&&minutosHorario(c.fin)>hasta)hasta=minutosHorario(c.fin);
-    return {estado:'clase',ramo:ahoraClase.ramo,sigla:ahoraClase.sigla,sala:ahoraClase.sala,hasta:horaDeMinutos(hasta)};
+    let hasta=minutosAmigo(ahoraClase.fin);
+    for(const c of hoy)if(minutosAmigo(c.inicio)<=hasta+10&&minutosAmigo(c.fin)>hasta)hasta=minutosAmigo(c.fin);
+    return {estado:'clase',ramo:ahoraClase.ramo,sigla:ahoraClase.sigla,sala:ahoraClase.sala,hasta:horaAmigo(hasta)};
   }
-  const proxima=hoy.find(c=>minutosHorario(c.inicio)>min);
+  const proxima=hoy.find(c=>minutosAmigo(c.inicio)>min);
   if(proxima)return {estado:'libre',proxima};
   return {estado:'termino'};
 }

@@ -216,6 +216,12 @@ function cargasAlEntrar(){
       .then(()=>{if(typeof recalcularNavTabs==='function')recalcularNavTabs();})
       .catch(()=>{});
   }
+  // Amigos: aparece solo si su SQL ya está aplicado. Una pregunta, sin bloquear.
+  if(typeof cargarAmigos==='function'){
+    cargarAmigos()
+      .then(()=>{if(typeof recalcularNavTabs==='function')recalcularNavTabs();if(typeof pintarInsigniaAmigos==='function')pintarInsigniaAmigos();})
+      .catch(()=>{});
+  }
   // Igual para la pestaña de administración: una pregunta, sin bloquear nada.
   if(typeof cargarSoyAdministrador==='function'){
     cargarSoyAdministrador()

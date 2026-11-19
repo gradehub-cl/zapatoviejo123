@@ -43,6 +43,7 @@ async function cerrarSesion(){
   S=freshState();
   // Las pestañas de profesor y admin son de la cuenta que salió, no del navegador.
   if(typeof olvidarSesionMarketplace==='function')olvidarSesionMarketplace();
+  if(typeof olvidarAmigos==='function')olvidarAmigos();
   if(typeof recalcularNavTabs==='function')recalcularNavTabs();
   authMode='login';
   document.getElementById('auth-user').value='';

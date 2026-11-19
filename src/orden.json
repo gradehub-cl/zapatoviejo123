@@ -44,6 +44,7 @@
     "src/app/editor-agregar-nota.js",
     "src/app/perfil-menu.js",
     "src/app/perfil-pestana.js",
+    "src/app/amigos-pantalla.js",
     "src/app/herramientas-inicio.js",
     "src/app/agentes-conexion.js",
     "src/app/agentes-propuestas-notas.js",

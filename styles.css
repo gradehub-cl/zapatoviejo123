@@ -2050,6 +2050,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-profesor,
 .app.tab-mode #screen-alumnos,
 .app.tab-mode #screen-perfil,
+.app.tab-mode #screen-amigos,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -2069,6 +2070,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-profesor[hidden],
 .app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden],
+.app.tab-mode #screen-amigos[hidden],
 .app.tab-mode #screen-perfil[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
@@ -2076,6 +2078,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode.dragging #screen-profesor,
 .app.tab-mode.dragging #screen-alumnos,
 .app.tab-mode.dragging #screen-admin,
+.app.tab-mode.dragging #screen-amigos,
 .app.tab-mode.dragging #screen-perfil{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
@@ -2536,6 +2539,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-profesor,
   .app.tab-mode #screen-alumnos,
   .app.tab-mode #screen-admin,
+  .app.tab-mode #screen-amigos,
   .app.tab-mode #screen-perfil{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group{will-change:auto;}
 
@@ -6267,6 +6271,80 @@ html.app-nativa .reglas-ramo .est-par .est-pista{grid-column:1/-1;grid-row:2;hei
 html.app-nativa .reglas-ramo .reglas-peso>small{display:block;font-size:.8125rem;color:var(--fg2);line-height:1.5;margin-top:6px;}
 html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-height:1.6;margin-top:20px;padding-top:12px;border-top:1px solid var(--border);overflow-wrap:anywhere;}
 @media(prefers-reduced-motion:reduce){html.app-nativa .reglas-ramo .ic-despliegue{transition:none;}}
+
+/* ─── Pestaña Amigos ───────────────────────────────────────────────────────
+   Misma lista agrupada que Perfil (HIG: Lists and tables). Sin semáforo: acá
+   no hay notas. «En clases» se marca con el acento, no con verde ni rojo. */
+#amigos-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
+.amigos-yo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0 4px;}
+.amigos-yo>div{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.amigos-yo-user{font-size:1.375rem;font-weight:650;letter-spacing:-.03em;overflow-wrap:anywhere;}
+.amigos-yo small{font-size:.8125rem;color:var(--fg3);}
+.amigos-invitar,.amigo-boton{flex-shrink:0;min-height:44px;min-width:44px;padding:0 16px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:600 .9375rem var(--font-ui);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigo-boton.principal{border-color:var(--fg);background:var(--fg);color:var(--bg2);}
+.amigos-invitar:active,.amigo-boton:active{opacity:.6;}
+.amigos-invitar:focus-visible,.amigo-boton:focus-visible,.amigo-fila:focus-visible,.amigos-link:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.amigos-aviso{margin:16px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-size:.875rem;line-height:1.45;color:var(--fg2);}
+.amigos-grupo li+li{border-top:1px solid var(--border);}
+.amigo-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 0;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigo-fila:active .amigo-texto{opacity:.55;}
+.amigo-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1rem;font-weight:600;color:var(--fg);}
+.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.grande{width:56px;height:56px;font-size:1.375rem;}
+.amigo-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.amigo-texto b{font-size:1rem;font-weight:550;letter-spacing:-.01em;overflow-wrap:anywhere;}
+.amigo-texto small{font-size:.8125rem;line-height:1.35;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.amigo-comun{flex-shrink:0;font-size:.75rem;color:var(--fg3);white-space:nowrap;}
+.amigo-solicitud{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;}
+.amigo-acciones{display:flex;gap:8px;flex-shrink:0;}
+/* Con dos botones, van bajo el nombre y a todo el ancho: al lado lo apretaban a tres líneas. */
+.amigo-solicitud.recibida{flex-wrap:wrap;row-gap:10px;}
+.amigo-solicitud.recibida .amigo-acciones{flex:1 0 100%;padding-left:52px;}
+.amigo-solicitud.recibida .amigo-boton{flex:1;}
+.amigo-estado{font-size:.875rem;color:var(--fg3);}
+.amigos-vacio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:32px;padding:28px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);text-align:center;}
+.amigos-vacio h2{margin:0;font-size:1.125rem;font-weight:650;}
+.amigos-vacio p{margin:0 0 8px;font-size:.875rem;color:var(--fg2);}
+.amigos-vacio .btn-primary{max-width:280px;}
+.amigos-link{min-height:44px;padding:0 8px;border:0;background:none;color:var(--primary);font:600 .9375rem var(--font-ui);cursor:pointer;}
+.amigos-link-centro{display:block;margin:12px auto 0;}
+.amigos-vacio-texto{margin:8px 0;font-size:.875rem;line-height:1.45;color:var(--fg2);}
+.amigos-ajuste{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:8px 0;cursor:pointer;}
+.amigos-ajuste>span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.amigos-ajuste b{font-size:1rem;font-weight:400;}
+.amigos-ajuste small{font-size:.8125rem;line-height:1.35;color:var(--fg3);}
+.amigos-username{display:flex;flex-direction:column;gap:12px;padding:32px 0 0;}
+.amigos-username h2{margin:0;font-size:1.5rem;font-weight:650;letter-spacing:-.03em;}
+.amigos-username>p{margin:0;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
+.amigos-campo{display:flex;align-items:center;gap:2px;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);}
+.amigos-campo:focus-within{border-color:var(--primary);}
+.amigos-campo>span{color:var(--fg3);font-size:1rem;}
+.amigos-campo input[type=text],.amigos-campo input[type=search]{flex:1;min-width:0;min-height:46px;padding:0;border:0;background:transparent;box-shadow:none;font-size:1rem;}
+.amigos-campo input[type=text]:focus,.amigos-campo input[type=search]:focus{outline:none;}
+.amigos-username-estado{min-height:1.4em;margin:0;font-size:.8125rem;color:var(--fg2);}
+.amigos-username-estado.libre{color:var(--primary);}
+.amigos-buscar{display:flex;gap:8px;margin-bottom:12px;}
+.amigos-buscar .amigos-campo{flex:1;min-width:0;}
+.amigos-encontrado{padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.amigo-cabecera{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+.amigo-cabecera .modal-title{margin:0;}
+.amigo-sub{margin:2px 0 0;font-size:.875rem;color:var(--fg2);}
+.amigo-ahora{margin:0 0 20px;font-size:.9375rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.amigo-ahora.en-clase{color:var(--fg);font-weight:550;}
+.amigo-lista{list-style:none;margin:0 0 20px;padding:0;}
+.amigo-lista li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:6px 0;font-size:.9375rem;}
+.amigo-lista li+li{border-top:1px solid var(--border);}
+.amigo-chip{flex-shrink:0;padding:2px 8px;border-radius:999px;background:var(--muted);font-size:.75rem;color:var(--fg2);}
+.amigo-horas{color:var(--fg2);font-variant-numeric:tabular-nums;text-align:right;}
+.amigo-peligro{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 4px;padding-top:12px;border-top:1px solid var(--border);}
+.amigo-peligro .amigos-link{color:var(--red);padding:0;}
+.amigos-denuncia fieldset{margin:0 0 12px;padding:0;border:0;}
+.amigos-motivo{display:flex;align-items:center;gap:12px;min-height:44px;font-size:.9375rem;cursor:pointer;}
+.amigos-motivo input{width:20px;height:20px;accent-color:var(--primary);}
+.amigos-denuncia textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;}
+/* Insignia de solicitudes sobre el ícono, como en iOS. */
+.nav-item .nav-icon{position:relative;}
+.nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
