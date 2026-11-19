@@ -10,7 +10,7 @@ function elemento(){
   return {
     style:{setProperty(){},removeProperty(){}},textContent:'',innerHTML:'',value:'',className:'',onclick:null,parentElement:null,
     classList:{add:c=>clases.add(c),remove:c=>clases.delete(c),contains:c=>clases.has(c)},
-    addEventListener(){},focus(){this.focused=true;},select(){},setAttribute(k,v){atributos[k]=String(v);},removeAttribute(k){delete atributos[k];},getAttribute(k){return atributos[k]||null;},
+    addEventListener(t,f){(this._listeners||(this._listeners={}))[t]=[...(this._listeners[t]||[]),f];},focus(){this.focused=true;},select(){},setAttribute(k,v){atributos[k]=String(v);},removeAttribute(k){delete atributos[k];},getAttribute(k){return atributos[k]||null;},
     querySelector(){return null;},querySelectorAll(){return [];},appendChild(){},remove(){},dataset:{},clientWidth:400,
   };
 }
@@ -177,6 +177,23 @@ function rechazoNombreAjustes(){
   return input.getAttribute('aria-invalid')==='true'&&input.focused&&aviso.textContent.length>0;
 }
 chk('Ajustes explica que falta el nombre antes de guardar',rechazoNombreAjustes());
+// Apellido en Ajustes (2026-11-18): quien ya lo tiene no lo deja vacío; se corrige y se guarda limpio.
+function apellidoAjustes(){
+  const kit=arnes(fuente());
+  const correr=c=>vm.runInContext(c,kit.ctx);
+  correr(`
+    S={ramos:[],userName:'Ana',userApellido:'Perez',careerSemestre:1,carrera:null,tenant:'fen',historial:[],modo:'sistema',acento:'turquesa',fondo:'neutro'};
+    currentUser=null;openSettings('perfil');`);
+  const campo=kit.ids['s-apellido'];if(!campo||!/id="s-apellido"[^>]*value="Perez"/.test(kit.ids['modal-content'].innerHTML))return false;
+  campo.value='  ';(campo._listeners?.input||[]).forEach(f=>f());
+  correr('window.saveSettings()');
+  const vacioRechazado=correr('S.userApellido')==='Perez'&&kit.ids['s-apellido-error'].textContent.includes('apellido');
+  campo.value=' Pérez   Soto ';(campo._listeners?.input||[]).forEach(f=>f());
+  for(const f of ['renderHome','renderStats','renderAgenda','save','syncProfile','track','closeModal','showToast','applyTheme'])correr(`if(typeof ${f}!=='function')globalThis.${f}=()=>{};`);
+  correr('window.saveSettings()');
+  return vacioRechazado&&correr('S.userApellido')==='Pérez Soto';
+}
+chk('Ajustes permite corregir el apellido sin dejarlo vacío',apellidoAjustes());
 
 function rechazoPauta(codigo,fragmento){
   const kit=arnes(fuente());

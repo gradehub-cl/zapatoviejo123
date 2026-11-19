@@ -16,6 +16,9 @@ function openSettings(){
   let settingsCarrera=S.carrera,settingsCarreraNombre=S.carreraNombre||null,settingsCarreraFiltro='';
   let settingsName=S.userName;
   let settingsNameError='';
+  // Apellido (2026-11-18): se corrige acá. Quien ya lo tiene no lo puede dejar
+  // vacío; una cuenta antigua puede agregarlo o seguir sin él.
+  let settingsApellido=S.userApellido||'',settingsApellidoError='';
   let settingsSearch='';
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
@@ -89,6 +92,12 @@ function openSettings(){
         <div class="modal-input"><input type="text" id="s-name" value="${esc(settingsName)}" maxlength="30" autocomplete="off" aria-describedby="s-name-hint s-name-error"/></div>
         <p id="s-name-error" role="alert" ${settingsNameError?'':'hidden'} style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);">${esc(settingsNameError)}</p>
         <p class="settings-name-hint" id="s-name-hint">${soloProfesor?'Es el nombre que ves en tu cuenta.':'Aparece en el saludo de inicio.'}</p>
+      </div>
+      <label class="modal-label" for="s-apellido">Apellido</label>
+      <div class="settings-name-field">
+        <div class="modal-input"><input type="text" id="s-apellido" value="${esc(settingsApellido)}" maxlength="60" autocomplete="family-name" autocapitalize="words" aria-describedby="s-apellido-hint s-apellido-error"/></div>
+        <p id="s-apellido-error" role="alert" ${settingsApellidoError?'':'hidden'} style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);">${esc(settingsApellidoError)}</p>
+        <p class="settings-name-hint" id="s-apellido-hint">No se muestra a otros estudiantes.</p>
       </div>
       ${guardarBtn()}
       ${currentUser?`<div class="settings-account-access">
@@ -299,7 +308,7 @@ function openSettings(){
       const malla=document.getElementById('s-malla');
       if(malla)malla.onclick=()=>{
         if(settingsTenant!==S.tenant||settingsCarrera!==S.carrera||settingsSem!==S.careerSemestre
-          ||settingsCarreraNombre!==(S.carreraNombre||null)||settingsName!==S.userName){
+          ||settingsCarreraNombre!==(S.carreraNombre||null)||settingsName!==S.userName||settingsApellido!==(S.userApellido||'')){
           showToast('Guarda tus cambios en Ajustes antes de ver tu malla.');return;
         }
         openMallaModal();
@@ -320,6 +329,11 @@ function openSettings(){
         inp.addEventListener('input',()=>{settingsName=inp.value;if(settingsNameError){settingsNameError='';limpiarErrorCampo('s-name','s-name-error');}checkSave();});
         inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
         enfocarEnHoja(inp,()=>inp.select());
+      }
+      const ape=document.getElementById('s-apellido');
+      if(ape){
+        ape.addEventListener('input',()=>{settingsApellido=ape.value;if(settingsApellidoError){settingsApellidoError='';limpiarErrorCampo('s-apellido','s-apellido-error');}checkSave();});
+        ape.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
       }
     }
   }
@@ -465,8 +479,14 @@ function openSettings(){
       mostrarErrorCampo('s-name','s-name-error',settingsNameError);
       return false;
     }
+    const apellido=apellidoLimpio(settingsApellido);
+    if(!apellido&&S.userApellido){
+      settingsApellidoError='Escribe tu apellido para guardar los cambios.';
+      mostrarErrorCampo('s-apellido','s-apellido-error',settingsApellidoError);
+      return false;
+    }
     const cambioUni=settingsTenant!==S.tenant;
-    S.userName=name;S.careerSemestre=settingsSem;S.carrera=settingsCarrera;S.carreraNombre=settingsCarreraNombre;S.tenant=settingsTenant;
+    S.userName=name;S.userApellido=apellido;S.careerSemestre=settingsSem;S.carrera=settingsCarrera;S.carreraNombre=settingsCarreraNombre;S.tenant=settingsTenant;
     selectedTenant=settingsTenant;
     applyTheme();
     save();syncProfile();track('settings_saved',{cambio_universidad:cambioUni});

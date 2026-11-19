@@ -343,10 +343,14 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
     <div class="ob-step" data-step="1">
       <div class="ob-step-num">Paso 1 de 4</div>
       <h1 class="ob-title ob-title-left" tabindex="-1">¿Cómo te llamas?</h1>
-      <div class="ob-sub ob-sub-left">Puede ser tu nombre o un apodo.</div>
+      <div class="ob-sub ob-sub-left">Tu nombre aparece en el saludo de inicio.</div>
       <div class="ob-card">
-        <label class="field-label" for="ob-name">Nombre o apodo</label>
-        <input type="text" id="ob-name" placeholder="Nombre o apodo" maxlength="30" autocomplete="given-name" onkeydown="if(event.key===&apos;Enter&apos;)obNext()"/>
+        <label class="field-label" for="ob-name">Nombre</label>
+        <input type="text" id="ob-name" placeholder="Nombre" maxlength="30" autocomplete="given-name" autocapitalize="words" onkeydown="if(event.key===&apos;Enter&apos;)obNext()"/>
+        <!-- Apellido desde 2026-11-18 (Lucas). Obligatorio solo al entrar con
+             correo; con Google o Apple llega escrito si lo traen. -->
+        <label class="field-label ob-apellido-label" for="ob-apellido">Apellido</label>
+        <input type="text" id="ob-apellido" placeholder="Apellido" maxlength="60" autocomplete="family-name" autocapitalize="words" onkeydown="if(event.key===&apos;Enter&apos;)obNext()"/>
       </div>
       <!-- La generación y el semestre que sale de ella van acá desde 2026-11-03
            (antes eran el paso 4). Sin carrera todavía, el paso 5 lo ajusta a
@@ -373,7 +377,7 @@ if(document.documentElement.classList.contains('app-nativa'))requestAnimationFra
 
     <div class="ob-step" data-step="2" style="display:none;">
       <div class="ob-step-num">Paso 2 de 4</div>
-      <h1 class="ob-title ob-title-left" tabindex="-1">¿Dónde estudias?</h1>
+      <h1 class="ob-title ob-title-left" tabindex="-1" id="ob-titulo-universidad">¿Cuál es tu universidad?</h1>
       <div class="ob-sub ob-sub-left">Así te mostramos los ramos de tu universidad.</div>
       <div id="tenant-grid" class="ob-options"></div>
     </div>
