@@ -2,6 +2,7 @@
   "app.js": [
     "src/app/analitica.js",
     "src/app/horario-clases.js",
+    "src/app/amigos-horario.js",
     "src/app/armador-horario.js",
     "src/app/persistencia-y-normalizacion.js",
     "src/app/identidad.js",
