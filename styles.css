@@ -476,6 +476,11 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   background:color-mix(in srgb,var(--tb),transparent 86%);
   border:1px solid color-mix(in srgb,var(--tb),transparent 70%);
   transition:background var(--motion-fast),border-color var(--motion-fast);}
+.tenant-badge.tenant-badge-color{background:var(--tb-fondo);border-color:transparent;}
+.tenant-badge-color .tenant-mono{color:var(--tb-texto);}
+/* En oscuro un borde tenue separa los fondos oscuros (azules, negro) del fondo. */
+:root[data-modo="oscuro"] .tenant-badge.tenant-badge-color{border-color:rgba(255,255,255,.16);}
+@media (prefers-color-scheme:dark){:root:not([data-modo="claro"]) .tenant-badge.tenant-badge-color{border-color:rgba(255,255,255,.16);}}
 .tenant-glyph{width:58%;height:58%;fill:none;stroke:var(--tb);stroke-width:2.6;
   stroke-linecap:round;stroke-linejoin:round;}
 .tenant-mono{font-family:var(--font-ui);font-weight:800;color:var(--tb);

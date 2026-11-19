@@ -14,7 +14,10 @@ function tenantMark(code){
 // Con caja teñida — onboarding
 function tenantBadge(code,cls){
   if(!TENANTS[code])return '';
-  return `<span class="tenant-badge ${cls||''}" style="--tb:var(--primary)" aria-hidden="true">`
+  // Con los colores de la universidad: la sigla sobre su fondo institucional.
+  const c=TENANTS[code].colores,hex=/^#[0-9a-f]{6}$/i;
+  const conColor=c&&hex.test(c.fondo)&&hex.test(c.texto);
+  return `<span class="tenant-badge ${cls||''}${conColor?' tenant-badge-color':''}" style="--tb:var(--primary)${conColor?`;--tb-fondo:${c.fondo};--tb-texto:${c.texto}`:''}" aria-hidden="true">`
     +tenantMark(code)+'</span>';
 }
 

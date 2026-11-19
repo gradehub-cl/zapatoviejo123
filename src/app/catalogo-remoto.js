@@ -181,7 +181,7 @@ function renderTenantPick(){
     b.style.setProperty('--tb','var(--primary)');
     b.innerHTML=`${tenantBadge(code,'lg')}
       <span class="tenant-opt-info">
-        <span class="tenant-opt-name">${esc(cfg.label||cfg.name)}</span>
+        <span class="tenant-opt-name">${esc(cfg.nombreCompleto||cfg.label||cfg.name)}</span>
       </span>`;
     // Sin subtítulo (Lucas, 2026-11-18): «Economía y Negocios» confundía más
     // de lo que ayudaba. `cfg.sub` sigue en los datos para otros usos.
