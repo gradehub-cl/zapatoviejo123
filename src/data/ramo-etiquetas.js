@@ -1,4 +1,5 @@
-// Etiquetas cerradas, sin «Otro». Se publican como opinión de estudiantes,
+// Etiquetas de la lista. «Otro» (escritas) se guarda aparte, con el filtro de
+// supabase/calificaciones_etiquetas.sql. Se publican como opinión de estudiantes,
 // nunca como reglas del programa. La asistencia no es etiqueta: es una pregunta.
 // La misma lista vive en ramo_etiquetas_validas() (supabase/ramo_calificaciones.sql).
 const RAMO_ETIQUETAS=[

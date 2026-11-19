@@ -396,6 +396,7 @@ html.app-nativa,html.app-nativa body{overscroll-behavior-y:none;}
 .ob-edad label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;}
 .ob-edad input{margin-top:2px;flex:0 0 auto;width:17px;height:17px;accent-color:var(--primary);}
 .ob-edad b{color:var(--fg);font-weight:650;}
+.ob-card .ob-apellido-label{margin-top:16px;}
 .field-label{font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--fg3);margin-bottom:8px;display:block;}
 /* `date` va en la misma lista que los demás y no es un detalle: sin esto el
    campo de fecha se queda con el ancho por defecto del navegador —un control
@@ -490,6 +491,11 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   background:color-mix(in srgb,var(--tb),transparent 86%);
   border:1px solid color-mix(in srgb,var(--tb),transparent 70%);
   transition:background var(--motion-fast),border-color var(--motion-fast);}
+.tenant-badge.tenant-badge-color{background:var(--tb-fondo);border-color:transparent;}
+.tenant-badge-color .tenant-mono{color:var(--tb-texto);}
+/* En oscuro un borde tenue separa los fondos oscuros (azules, negro) del fondo. */
+:root[data-modo="oscuro"] .tenant-badge.tenant-badge-color{border-color:rgba(255,255,255,.16);}
+@media (prefers-color-scheme:dark){:root:not([data-modo="claro"]) .tenant-badge.tenant-badge-color{border-color:rgba(255,255,255,.16);}}
 .tenant-glyph{width:58%;height:58%;fill:none;stroke:var(--tb);stroke-width:2.6;
   stroke-linecap:round;stroke-linejoin:round;}
 .tenant-mono{font-family:var(--font-ui);font-weight:800;color:var(--tb);
@@ -4198,6 +4204,9 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calif-quien .docente-link{margin:0 -12px 0 0;flex:none;font-weight:400;}
 .calif-campo{margin:0 0 14px;padding:0;border:0;min-width:0;}
 .calif-campo legend{padding:0;margin-bottom:6px;font-weight:600;color:var(--fg);}
+/* «Calificar solo el ramo»: salida para quien no conoce a su profe. */
+.calif-solo-ramo{display:block;margin:12px auto 0;}
+.calif-solo-ramo[hidden]{display:none;}
 .calif-opcional{margin-left:4px;color:var(--fg2);font-size:.8125rem;font-weight:400;}
 .calif-opciones{display:flex;gap:2px;margin-left:-6px;}
 .calif-opcion{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;font-size:1.625rem;line-height:1;color:var(--fg3);cursor:pointer;}
@@ -4947,6 +4956,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .rc-form legend{font-size:.9375rem;font-weight:600;line-height:1.5;margin-bottom:12px;}
 .rc-form legend small{display:block;font-size:.75rem;color:var(--fg2);font-weight:400;}
 .rc-cargas,.rc-escala,.rc-recomienda{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr));}
+.rc-recomienda.rc-recomienda-3{grid-template-columns:repeat(3,minmax(0,1fr));}
 .rc-escala{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;}
 .rc-asistencia{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr));}
 .rc-ayuda{margin:-12px 0 20px;color:var(--fg2);font-size:.8125rem;line-height:1.5;}
@@ -4959,6 +4969,13 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .rc-extremos{display:flex;justify-content:space-between;gap:12px;font-size:.75rem;color:var(--fg2);margin-top:8px;}
 .rc-etiquetas{display:flex;flex-wrap:wrap;gap:8px;}
 .rc-etiqueta span{border-radius:22px;padding-inline:12px;font-size:.8125rem;}
+/* «Otro» en Calificar ramo: igual que en Calificar profesor (.calif-otro*). */
+.rc-otro span{border-style:dashed;}
+.rc-otro-campo{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.rc-otro-campo[hidden]{display:none;}
+.rc-otro-campo .docente-link{flex:none;margin-left:0;min-height:44px;}
+.rc-otro-campo input.rc-otro-texto{flex:1;min-width:0;min-height:44px;padding:10px 12px;font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--border2);border-radius:10px;}
+.rc-otro-cuenta{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
 .rc-error{color:var(--red);font-size:.875rem;line-height:1.5;margin:0 0 12px;}
 .rc-error:empty{display:none;}
 .rc-form .rc-borrar{display:block;min-height:44px;color:var(--red);margin-bottom:12px;}

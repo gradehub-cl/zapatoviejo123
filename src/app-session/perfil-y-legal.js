@@ -19,6 +19,9 @@ async function syncProfile(){
       // Columna de #697: si todavía no existe, esta subida falla entera; por
       // eso solo va cuando hay generación, que tienen solo las cuentas nuevas.
       ...(S.generacion?{generacion:S.generacion}:{}),
+      // Igual que generación: solo cuando hay apellido (cuentas nuevas), para
+      // que una cuenta antigua nunca dependa de la columna nueva.
+      ...(S.userApellido?{apellido:S.userApellido}:{}),
     });
   }catch(e){}
 }

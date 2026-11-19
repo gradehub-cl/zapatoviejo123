@@ -64,6 +64,19 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
   chk('el estudiante recorre 1, 2, 3 y 5: la generación quedó en el 1', JSON.stringify(run('obPasos("estudiante")')) === '[1,2,3,5]');
   chk('el paso 1 pide nombre y semestre', run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',generacion:2025,semestre:2})`) === true
     && run(`obStepValid(1,{tipo:'estudiante',nombre:'',generacion:2025,semestre:2})`) === false && run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',generacion:2025,semestre:2,semInvalido:true})`) === false);
+  // Apellido (2026-11-18): obligatorio al entrar con correo; con Google o Apple, opcional.
+  chk('con correo, sin apellido el paso 1 no avanza',run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',apellido:'  ',apellidoObligatorio:true,generacion:2025,semestre:2})`)===false
+    &&run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',apellido:'Pérez',apellidoObligatorio:true,generacion:2025,semestre:2})`)===true);
+  chk('con Google o Apple el apellido es opcional',run(`obStepValid(1,{tipo:'estudiante',nombre:'Ana',apellido:'',apellidoObligatorio:false,generacion:2025,semestre:2})`)===true);
+  chk('el proveedor decide si es obligatorio',(()=>{const antes=run('JSON.stringify(currentUser||null)');
+    run("currentUser={id:'u-sint',app_metadata:{provider:'email'}}");const correo=run('apellidoObligatorioOnboarding()');
+    run("currentUser={id:'u-sint',app_metadata:{provider:'google'}}");const google=run('apellidoObligatorioOnboarding()');
+    run("currentUser={id:'u-sint',app_metadata:{provider:'apple'}}");const apple=run('apellidoObligatorioOnboarding()');
+    run('currentUser='+antes);return correo===true&&google===false&&apple===false;})());
+  chk('el campo Apellido está junto al nombre, con autocompletar de apellido',/id="ob-name"[\s\S]{0,900}id="ob-apellido"[^>]*autocomplete="family-name"/.test(html));
+  chk('el paso de la universidad saluda por el primer nombre',run(`tituloUniversidadOnboarding('  Lucas José ')`)==='Lucas, ¿cuál es tu universidad?'&&run(`tituloUniversidadOnboarding('')`)==='¿Cuál es tu universidad?');
+  chk('las universidades van sin subtítulo',!/tenant-opt-sub/.test(run('String(renderTenantPick)')));
+  chk('el apellido se limpia y se acota',run(`apellidoLimpio('  de la   Fuente ')`)==='de la Fuente'&&run(`apellidoLimpio('x'.repeat(80)).length`)===60);
   chk('la generación y el semestre están en el paso 1', /data-step="1">[\s\S]*id="ob-estudio"[\s\S]*id="ob-generacion-ruleta"[\s\S]*id="ob-sem-calculado"[\s\S]*data-step="2"/.test(html) && !/data-step="4"/.test(html));
   chk('el estudiante los ve', el('ob-estudio').hidden === false);
   chk('en el primer paso, el botón de la izquierda es Cerrar sesión', el('ob-back').hidden === false && el('ob-back').textContent === 'Cerrar sesión');
@@ -179,6 +192,9 @@ const PRESENTACION = 'Hago clases de Cálculo I y II hace tres años.';
     &&run('_perfilesSubidos[0].tabla')==='profiles'
     &&run('_perfilesSubidos[0].datos.universidad')==='uc'
     &&run('_perfilesSubidos[0].datos.semestre')===3);
+  chk('una cuenta sin apellido no manda la columna nueva',!('apellido' in run('_perfilesSubidos[0].datos')));
+  run(`S.userApellido='Pérez Soto'`);await run('syncProfile()');
+  chk('con apellido, se sube a profiles',run('_perfilesSubidos[1].datos.apellido')==='Pérez Soto');
 
   console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
   process.exit(fail ? 1 : 0);
