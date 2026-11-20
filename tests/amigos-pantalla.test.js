@@ -97,6 +97,19 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('la semana del amigo se mira, no se edita: sin botones',(()=>{const h=run(`semanaAmigoHTML({universidad:'uc'},normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'}]}]))`);
     return /horario-semana/.test(h)&&!/<button/.test(h)&&/role="img"/.test(h);})());
 
+  console.log('\n=== Widget «Hoy en la u» ===');
+  run(`amigosListaCache=[{id:'x1',username:'beto_ej',nombre:'Beto Ejemplo',estado:'amigos'},{id:'x2',username:'dani99',nombre:null,estado:'amigos'},{id:'x3',username:'eli',nombre:'Eli',estado:'enviada'}];
+    amigosHorariosCache=new Map([['x1',normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00',sala:'K201'},{dias:['L'],inicio:'12:00',fin:'13:00',sala:null,noVoy:true}]}])],
+      ['x2',normalizarRamosAmigo([{nombre:'Dos',sigla:'SYN2',horario:[]}])]]);`);
+  const w=JSON.parse(run(`JSON.stringify(resumenAmigosParaWidget(new Date('2026-11-16T07:00:00-03:00')))`));
+  chk('el widget recibe solo nombre de pila, inicial y horas; nunca ramos ni notas',w.version===1&&w.total===2&&w.amigos.length===1&&w.amigos[0].nombre==='Beto'&&w.amigos[0].inicial==='B'
+    &&Object.keys(w.amigos[0].bloques[0]).sort().join()==='fecha,finAt,inicioAt,sala'&&!/SYN1|Uno|nota|promedio/.test(JSON.stringify(w)));
+  chk('las clases «no voy» no llegan al widget',w.amigos[0].bloques.every(b=>!/T15:00/.test(b.inicioAt))&&w.amigos[0].bloques.filter(b=>b.fecha==='2026-11-16').length===1);
+  chk('al cerrar sesión se borra el horario de los amigos del widget',/borrarAmigosWidget\(\);/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8').match(/function olvidarAmigos\(\)\{[\s\S]*?\n\}/)[0])
+    &&/removeObject\(forKey: Self\.claveAmigos\)/.test(fs.readFileSync(raiz+'ios/App/App/WidgetsPlugin.swift','utf8')));
+  chk('tocar el widget abre Amigos o la ficha del amigo',/amigos\|amigo\)/.test(fs.readFileSync(raiz+'src/app/ios-widgets.js','utf8')));
+  chk('el widget está registrado en el paquete',/HoyEnLaUWidget\(\)/.test(fs.readFileSync(raiz+'ios/App/GradeHubWidgets/GradeHubWidgets.swift','utf8')));
+
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
   chk('una cuenta de profesor no tiene Amigos',!run('NAV_TABS').includes('amigos')&&el('nav-amigos').hidden===true);

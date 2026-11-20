@@ -15,11 +15,15 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "borrarResumen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sincronizarActividades", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "leerSensaciones", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "guardarAmigos", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "borrarAmigos", returnType: CAPPluginReturnPromise),
     ]
 
     // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
     static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app.shared"
     static let clave = "resumen.v1"
+    // «Hoy en la u»: los bloques de clases de los amigos (ver AmigosHoy).
+    static let claveAmigos = "amigos.v1"
     // Un resumen sano pesa unos pocos KB; algo mucho más grande es un error.
     static let maximoBytes = 200_000
 
@@ -44,7 +48,29 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         if ProcessInfo.processInfo.arguments.contains("-gradehubDemoWidgets") { call.resolve(); return }
         #endif
         UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.clave)
+        // Tampoco el horario de los amigos de esa cuenta.
+        UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.claveAmigos)
         WidgetCenter.shared.reloadAllTimelines()
+        call.resolve()
+    }
+
+    // «Hoy en la u»: la app manda los bloques de sus amigos ya filtrados.
+    @objc func guardarAmigos(_ call: CAPPluginCall) {
+        guard let json = call.getString("json"),
+              json.utf8.count <= Self.maximoBytes,
+              let datos = json.data(using: .utf8),
+              (try? JSONSerialization.jsonObject(with: datos)) is [String: Any],
+              let compartido = UserDefaults(suiteName: Self.grupo) else {
+            call.reject("Datos inválidos")
+            return
+        }
+        compartido.set(json, forKey: Self.claveAmigos)
+        WidgetCenter.shared.reloadTimelines(ofKind: "hoy-en-la-u")
+        call.resolve()
+    }
+    @objc func borrarAmigos(_ call: CAPPluginCall) {
+        UserDefaults(suiteName: Self.grupo)?.removeObject(forKey: Self.claveAmigos)
+        WidgetCenter.shared.reloadTimelines(ofKind: "hoy-en-la-u")
         call.resolve()
     }
 

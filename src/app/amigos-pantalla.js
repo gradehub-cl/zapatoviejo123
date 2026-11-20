@@ -50,6 +50,9 @@ async function cargarAmigos(){
     amigosDisponibleCache=true;amigosEstadoCache=estado||{};
     await sondearExtrasAmigos(v);
     abrirAmigoPendiente();
+    // En la app, la lista se trae al entrar para que el widget no espere a que
+    // abras la pestaña.
+    if(typeof pluginWidgets==='function'&&pluginWidgets())refrescarAmigos();
   }catch(e){if(v===amigosVersion)amigosDisponibleCache=false;}
   return amigosDisponibleCache;
 }
@@ -62,6 +65,7 @@ async function sondearExtrasAmigos(v){
   amigosNotasDisponible=n.status==='fulfilled';amigosNotasComparte=!!(amigosNotasDisponible&&n.value&&n.value.comparte);
 }
 function olvidarAmigos(){
+  borrarAmigosWidget();
   amigosVersion++;amigosDisponibleCache=false;amigosEstadoCache=null;amigosListaCache=null;amigosHorariosCache=new Map();
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
   _notasPublicadas=null;clearTimeout(_notasTimer);
@@ -82,9 +86,10 @@ async function refrescarAmigos(){
     if(v===amigosVersion&&!amigosListaCache)amigosListaCache=[];
     if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);
   }finally{amigosCargando=false;}
+  _amigosRefrescadoAt=Date.now();
   if(typeof currentTab!=='undefined'&&currentTab==='amigos')pintarAmigos();
   pintarInsigniaAmigos();
-  publicarNotasAmigos();publicarPruebasAmigos();
+  publicarNotasAmigos();publicarPruebasAmigos();publicarAmigosWidget();
 }
 function renderAmigos(){
   pintarAmigos();
@@ -101,6 +106,39 @@ function pintarInsigniaAmigos(){
   marca.textContent=n>9?'9+':String(n);
   btn.setAttribute('aria-label',`Amigos, ${n} ${n===1?'pendiente':'pendientes'}`);
 }
+
+// ─── Widget «Hoy en la u» (app iOS) ───
+// Los bloques de clases de los amigos para hoy y los siete días siguientes,
+// sacados de lo mismo que muestra la pestaña (resumenHorarioClases, que ya deja
+// fuera las clases «no voy»). El widget decide con la hora quién está libre;
+// acá no viaja ninguna nota, ramo ni sigla: solo nombre de pila, inicial y horas.
+function resumenAmigosParaWidget(ahora=new Date()){
+  const amigos=(amigosListaCache||[]).filter(a=>a.estado==='amigos');
+  const conClases=amigos.map(a=>{
+    const ramos=amigosHorariosCache.get(a.id);if(!ramos)return null;
+    const bloques=resumenHorarioClases(ramos,ahora).clasesProximas.slice(0,40).map(c=>({fecha:c.fecha,inicioAt:c.inicioAt,finAt:c.finAt,sala:c.sala||null}));
+    if(!bloques.length)return null;
+    const nombre=String(a.nombre||a.username).trim().split(/\s+/)[0].slice(0,20);
+    return {id:a.id,nombre,inicial:(nombre[0]||'?').toUpperCase(),bloques};
+  }).filter(Boolean).slice(0,12);
+  return {version:1,actualizado:new Date(ahora).toISOString(),fechaHoy:fechaHorarioChile(new Date(ahora).getTime()),total:amigos.length,amigos:conClases};
+}
+function publicarAmigosWidget(){
+  const p=typeof pluginWidgets==='function'&&pluginWidgets();
+  if(!p||typeof p.guardarAmigos!=='function'||!amigosVisible()||!amigosListaCache)return;
+  try{const r=p.guardarAmigos({json:JSON.stringify(resumenAmigosParaWidget())});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+}
+function borrarAmigosWidget(){
+  const p=typeof pluginWidgets==='function'&&pluginWidgets();
+  if(!p||typeof p.borrarAmigos!=='function')return;
+  try{const r=p.borrarAmigos();if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+}
+// Volver a la app después de un rato pone el widget al día (los amigos cambian
+// su horario); como mucho una vez cada 15 minutos.
+let _amigosRefrescadoAt=0;
+if(typeof document!=='undefined'&&typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&amigosVisible()&&Date.now()-_amigosRefrescadoAt>15*6e4)refrescarAmigos();
+});
 
 // ─── Pintar ───
 const inicialAmigo=a=>esc(((a.nombre||a.username||'?').trim()[0]||'?').toUpperCase());
