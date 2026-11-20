@@ -1564,6 +1564,7 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .medidor-raya{stroke:var(--fg);stroke-width:2;stroke-linecap:butt;}
 .stats-priority-medidor{display:flex;flex-direction:column;align-items:center;flex:none;min-width:84px;}
 .stats-priority-num{margin-top:-20px;font-size:1.25rem;font-weight:800;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;}
+.stats-priority-lectura{margin-top:2px;font-size:.8125rem;line-height:1.3;color:var(--fg2);}
 .stats-priority-medidor small{margin-top:4px;font-size:.625rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;}
 /* Escala de 1 a 7 con la banda posible, el 4,0 y dónde vas. */
 .escala-notas{position:relative;height:50px;margin-top:14px;}
