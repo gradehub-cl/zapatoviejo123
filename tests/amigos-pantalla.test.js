@@ -64,6 +64,21 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('cada subida a la nube actualiza lo compartido',/programarPublicarNotasAmigos\(\)/.test(fs.readFileSync(raiz+'src/app-session/sync-escritura.js','utf8')));
   chk('compartir notas es un interruptor y parte apagado',/id="amigos-notas" type="checkbox" role="switch"\$\{amigosNotasComparte\?' checked':''\}/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8')));
 
+  console.log('\n=== Como Instagram ===');
+  run(`amigosEstadoCache={username:'ana_s'};amigosListaCache=[{id:'x1',username:'beto_ej',nombre:'Beto',estado:'amigos'},{id:'x2',username:'dani99',nombre:'Dani',estado:'amigos'}];
+    amigosHorariosCache=new Map([['x1',normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'},{dias:['L'],inicio:'12:00',fin:'13:00'}]}])],
+                                 ['x2',normalizarRamosAmigo([{nombre:'Dos',sigla:'SYN2',horario:[{dias:['L'],inicio:'09:00',fin:'11:00'}]}])]]);`);
+  const lunes11=`new Date('2026-11-16T11:00:00-03:00')`;
+  const hist=run(`historiasAmigosHTML(amigosListaCache,${lunes11})`);
+  // Lunes 11:00: Beto tiene clase a las 12 (libre); Dani terminó a las 11 (ya no está en la u).
+  chk('historias: quién está hoy en la u, con anillo si está libre',/Beto/.test(hist)&&!/Dani/.test(hist)&&/historia-anillo libre/.test(hist));
+  chk('historias: sin nadie en la u, no hay fila',run(`historiasAmigosHTML(amigosListaCache,new Date('2026-11-16T20:00:00-03:00'))`)==='');
+  const cab=run(`cabeceraPerfilAmigosHTML({username:'ana_s'},amigosListaCache,${lunes11})`);
+  chk('la cabecera tiene cifras, «Editar username» y «Compartir perfil»',/<b>2<\/b><small>amigos/.test(cab)&&/Editar username/.test(cab)&&/Compartir perfil/.test(cab)&&/<b>1<\/b><small>en la u/.test(cab));
+  chk('cambiar el username: el límite de 30 días se dice antes',run(`proximoCambioUsername('2026-11-10T00:00:00Z',new Date('2026-11-20T00:00:00Z'))`)!==null&&run(`proximoCambioUsername('2026-10-01T00:00:00Z',new Date('2026-11-20T00:00:00Z'))`)===null);
+  chk('el admin ve una tarjeta por cuenta, con sus denuncias juntas',(()=>{const g=JSON.parse(run(`JSON.stringify(gruposDenunciasUsuarios([{id:1,username:'malo',username_actual:'malo',motivo:'acoso',detalle:'x',created_at:'2026-11-19'},{id:2,username:'malo',username_actual:'malo',motivo:'spam',detalle:null,created_at:'2026-11-18'},{id:3,username:'otro',username_actual:'otro',motivo:'spam',created_at:'2026-11-20'}]))`));
+    return g.length===2&&g[0].total===2&&g[0].motivos.join()==='acoso,spam'&&!/user_id|denunciante/.test(JSON.stringify(g));})());
+
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
   chk('una cuenta de profesor no tiene Amigos',!run('NAV_TABS').includes('amigos')&&el('nav-amigos').hidden===true);

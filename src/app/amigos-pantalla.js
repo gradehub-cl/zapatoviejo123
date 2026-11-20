@@ -135,6 +135,46 @@ function seccionTurnoHTML(amigos){
     ${m.tipo==='perfecto'?'<span class="amigo-chip perfecto">Match perfecto</span>':''}
     <svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>`).join('')}</ul></section>`;
 }
+// La cabecera de un perfil de Instagram: avatar y tres cifras al lado, el nombre
+// abajo y dos botones del mismo peso («Editar username», «Compartir perfil»).
+function cabeceraPerfilAmigosHTML(e,amigos,ahora){
+  const grupos=(amigosGruposCache||[]).filter(g=>g.estado==='miembro').length;
+  const enLaU=amigos.filter(a=>{const r=amigosHorariosCache.get(a.id),est=r&&estadoAhoraAmigo(r,ahora);return est&&(est.estado==='clase'||est.estado==='libre');}).length;
+  const nombre=[S.userName,S.userApellido].filter(Boolean).join(' ');
+  const t=typeof TENANTS!=='undefined'&&TENANTS[S.tenant];
+  const linea=[t?t.short:'',S.carreraNombre].filter(Boolean).join(' · ');
+  const cifra=(n,txt,accion)=>accion?`<button type="button" class="amigos-cifra" data-amigos="${accion}"><b>${n}</b><small>${txt}</small></button>`:`<div class="amigos-cifra"><b>${n}</b><small>${txt}</small></div>`;
+  return `<section class="amigos-perfil">
+    <div class="amigos-perfil-fila">
+      <span class="amigo-avatar perfil-grande" aria-hidden="true">${esc(userInitial())}</span>
+      <div class="amigos-cifras">
+        ${cifra(amigos.length,amigos.length===1?'amigo':'amigos',amigos.length?'ir-amigos':'')}
+        ${amigosGruposDisponible?cifra(grupos,grupos===1?'grupo':'grupos',grupos?'ir-grupos':''):''}
+        ${cifra(enLaU,'en la u','')}
+      </div>
+    </div>
+    ${nombre?`<b class="amigos-perfil-nombre">${esc(nombre)}</b>`:''}
+    <span class="amigos-perfil-user">@${esc(e.username)}${linea?` · ${esc(linea)}`:''}</span>
+    <div class="amigos-perfil-botones">
+      <button type="button" class="amigo-boton" data-amigos="editar-username">Editar username</button>
+      <button type="button" class="amigo-boton" data-amigos="invitar">Compartir perfil</button>
+    </div>
+  </section>`;
+}
+// Como las historias de Instagram, pero con lo útil: quién está hoy en la u.
+// Anillo de color = libre ahora (para juntarse); gris = en clases.
+function historiasAmigosHTML(amigos,ahora){
+  const hoy=amigos.map(a=>{const r=amigosHorariosCache.get(a.id);return {a,e:r?estadoAhoraAmigo(r,ahora):null};})
+    .filter(x=>x.e&&(x.e.estado==='libre'||x.e.estado==='clase'))
+    .sort((x,y)=>(x.e.estado==='libre'?0:1)-(y.e.estado==='libre'?0:1));
+  if(!hoy.length)return '';
+  return `<section class="amigos-historias" aria-label="Hoy en la u"><ul>${hoy.map(({a,e})=>{
+    const pila=(a.nombre||a.username).split(' ')[0],sub=e.estado==='libre'?'Libre':`Hasta ${e.hasta}`;
+    return `<li><button type="button" class="amigos-historia" data-amigos="ver" data-id="${esc(a.id)}" aria-label="${esc(nombreAmigo(a))}: ${esc(textoEstadoAmigo(e))}">
+      <span class="historia-anillo ${e.estado==='libre'?'libre':'en-clase'}"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span></span>
+      <span class="historia-nombre">${esc(pila)}</span><small>${esc(sub)}</small></button></li>`;
+  }).join('')}</ul></section>`;
+}
 function pintarAmigos(){
   const caja=typeof document!=='undefined'&&document.getElementById('amigos-body');if(!caja)return;
   if(!amigosVisible()){caja.innerHTML='<p class="amigos-vacio-texto">Inicia sesión para agregar amigos.</p>';return;}
@@ -149,17 +189,15 @@ function pintarAmigos(){
   const recibidas=lista.filter(a=>a.estado==='recibida'),enviadas=lista.filter(a=>a.estado==='enviada');
   const sub=a=>esc(['@'+a.username,a.universidad&&TENANTS[a.universidad]?TENANTS[a.universidad].short:''].filter(Boolean).join(' · '));
   caja.innerHTML=`
-    <section class="amigos-yo">
-      <div><span class="amigos-yo-user">@${esc(e.username)}</span><small>Así te encuentran tus amigos</small></div>
-      <button type="button" class="amigos-invitar" data-amigos="invitar">Invitar</button>
-    </section>
+    ${cabeceraPerfilAmigosHTML(e,amigos,ahora)}
+    ${historiasAmigosHTML(amigos,ahora)}
     ${recibidas.length?`<section class="perfil-grupo amigos-grupo"><h2>Solicitudes</h2><ul>${recibidas.map(a=>`<li class="amigo-solicitud recibida">
       <span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span>
       <span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>${sub(a)}</small></span>
       <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="rechazar" data-id="${esc(a.id)}" aria-label="Rechazar a ${esc(nombreAmigo(a))}">Rechazar</button>
       <button type="button" class="amigo-boton principal" data-amigos="aceptar" data-id="${esc(a.id)}" aria-label="Aceptar a ${esc(nombreAmigo(a))}">Aceptar</button></span></li>`).join('')}</ul></section>`:''}
     ${seccionTurnoHTML(amigos)}
-    ${amigos.length?`<section class="perfil-grupo amigos-grupo"><h2>Tus amigos</h2><ul>${amigos.map(a=>filaAmigoHTML(a,ahora)).join('')}</ul></section>`
+    ${amigos.length?`<section class="perfil-grupo amigos-grupo" id="amigos-seccion-amigos"><h2>Tus amigos</h2><ul>${amigos.map(a=>filaAmigoHTML(a,ahora)).join('')}</ul></section>`
       :`<section class="amigos-vacio"><h2>Agrega a tu primer amigo</h2><p>Mándales tu link o búscalos por su username.</p>
         <button type="button" class="btn-primary" data-amigos="invitar">Invitar amigos</button>
         <button type="button" class="amigos-link" data-amigos="agregar">Buscar por username</button></section>`}
@@ -178,7 +216,7 @@ function pintarAmigos(){
         <li><button type="button" class="perfil-fila" data-amigos="bloqueados"><span class="perfil-fila-titulo">Bloqueados</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>
       </ul>
     </section>`;
-  if(!S.ramos.some(r=>copiarHorario(r.horario).length)&&amigos.length)caja.querySelector('.amigos-yo').insertAdjacentHTML('afterend','<p class="amigos-aviso">Agrega el horario de tus ramos para ver cuándo coinciden con tus amigos.</p>');
+  if(!S.ramos.some(r=>copiarHorario(r.horario).length)&&amigos.length)caja.querySelector('.amigos-perfil').insertAdjacentHTML('afterend','<p class="amigos-aviso">Agrega el horario de tus ramos para ver cuándo coinciden con tus amigos.</p>');
 }
 
 // ─── Elegir username ───
@@ -232,6 +270,49 @@ async function guardarUsername(valor){
     const est=document.getElementById('amigos-username-estado');if(est)est.textContent=mensajeErrorAmigos(e);
     if(ok)ok.disabled=false;
   }
+}
+
+// Cambiar el username desde Perfil, como «Nombre de usuario» en Editar perfil
+// de Instagram: el campo con el actual, aviso de disponible y el límite de 30
+// días dicho antes de escribir, no después de fallar.
+const DIAS_CAMBIO_USERNAME=30;
+function proximoCambioUsername(cambiadoAt,ahora=new Date()){
+  const t=Date.parse(cambiadoAt);if(!Number.isFinite(t))return null;
+  const prox=new Date(t+DIAS_CAMBIO_USERNAME*864e5);
+  return prox>ahora?prox:null;
+}
+function abrirCambiarUsername(){
+  const e=amigosEstadoCache||{};if(!e.username)return;
+  const prox=proximoCambioUsername(e.cambiado_at);
+  const fecha=prox&&prox.toLocaleDateString('es-CL',{day:'numeric',month:'long'});
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Username</div>
+    <form class="amigos-username amigos-username-hoja" id="amigos-username-cambiar" novalidate>
+      <label class="amigos-campo" for="amigos-username"><span aria-hidden="true">@</span>
+        <input id="amigos-username" type="text" autocapitalize="none" autocomplete="username" spellcheck="false" maxlength="21" value="${esc(e.username)}" aria-describedby="amigos-username-estado"${prox?' disabled':''}></label>
+      <p class="amigos-username-estado" id="amigos-username-estado" role="status" aria-live="polite"></p>
+      <p class="amigos-vacio-texto">${prox?`Lo cambiaste hace poco. Podrás volver a cambiarlo el ${esc(fecha)}.`
+        :`Tus amigos te seguirán viendo; tu link anterior deja de funcionar. Después podrás cambiarlo de nuevo en ${DIAS_CAMBIO_USERNAME} días.`}</p>
+    </form>
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button type="submit" form="amigos-username-cambiar" class="btn-confirm" id="amigos-username-ok" disabled>Guardar</button></div>`;
+  openModal();
+  if(prox)return;
+  const input=document.getElementById('amigos-username');
+  input.addEventListener('input',()=>{if(input.value.trim().replace(/^@+/,'').toLowerCase()===e.username){clearTimeout(_usernameTimer);document.getElementById('amigos-username-estado').textContent='';document.getElementById('amigos-username-ok').disabled=true;}else revisarUsername(input.value);});
+  document.getElementById('amigos-username-cambiar').addEventListener('submit',async ev=>{
+    ev.preventDefault();
+    const ok=document.getElementById('amigos-username-ok');ok.disabled=true;
+    try{
+      const u=await rpcAmigos('fijar_username',{p_username:input.value});
+      amigosEstadoCache={...(amigosEstadoCache||{}),username:u,cambiado_at:new Date().toISOString()};
+      if(typeof vibrar==='function')vibrar('exito');
+      closeModal();showToast(`Ahora eres @${u}`);
+      if(typeof renderPerfil==='function')renderPerfil();
+      pintarAmigos();
+    }catch(err){document.getElementById('amigos-username-estado').textContent=mensajeErrorAmigos(err);ok.disabled=false;}
+  });
+  setTimeout(()=>{input.focus();input.select();},60);
 }
 
 // ─── Invitar ───
@@ -292,16 +373,18 @@ function abrirAmigo(id){
   const a=(amigosListaCache||[]).find(x=>x.id===id);if(!a)return;
   const ramos=amigosHorariosCache.get(id),uni=a.universidad&&TENANTS[a.universidad]?TENANTS[a.universidad].short:'';
   const mioConHorario=S.ramos.some(r=>copiarHorario(r.horario).length);
-  let cuerpo;
+  let cuerpo,cifras={comun:'–',libres:'–',turno:'–'},estado=null;
   if(!ramos)cuerpo='<p class="amigos-vacio-texto">No comparte su horario.</p>';
   else{
     const est=estadoAhoraAmigo(ramos),comun=ramosEnComun(S.ramos,ramos),semana=semanaLibresEnComun(S.ramos,ramos),turno=matchTurno(S.ramos,ramos);
+    estado=est;
+    const minutos=semana.reduce((t,d)=>t+d.ventanas.reduce((x,v)=>x+v.minutos,0),0);
+    cifras={comun:String(comun.length),libres:!mioConHorario?'–':minutos>=60?`${Math.round(minutos/60)} h`:`${minutos} min`,turno:!mioConHorario?'–':turno.tipo==='perfecto'?'Todos':String(turno.dias.length)};
     const suyoConHorario=ramos.some(r=>copiarHorario(r.horario).length);
     const sinCruce=!mioConHorario?'<p class="amigos-vacio-texto">Agrega tu horario para ver cuándo coinciden.</p>'
       :!suyoConHorario?'<p class="amigos-vacio-texto">Todavía no carga su horario.</p>':'';
     const notas=amigosNotasCache.get(id)||[];
-    cuerpo=`<p class="amigo-ahora${est.estado==='clase'?' en-clase':''}">${esc(textoEstadoAmigo(est))}</p>
-      <h3 class="modal-label amigo-lista-cabeza"><span>Ramos en común</span>${comun.some(r=>notas.some(x=>x.sigla===r.sigla))?`<span>Promedio de ${esc(a.nombre||'@'+a.username)}</span>`:''}</h3>
+    cuerpo=`<h3 class="modal-label amigo-lista-cabeza"><span>Ramos en común</span>${comun.some(r=>notas.some(x=>x.sigla===r.sigla))?`<span>Promedio de ${esc(a.nombre||'@'+a.username)}</span>`:''}</h3>
       ${comun.length?`<ul class="amigo-lista">${comun.map(r=>{
           const n=notas.find(x=>x.sigla===r.sigla);
           return `<li><span>${esc(r.nombre)}</span><span class="amigo-lista-der">${r.mismaSeccion?'<span class="amigo-chip">Misma sección</span>':''}${n?notaAmigoHTML(n,a):''}</span></li>`;
@@ -313,17 +396,43 @@ function abrirAmigo(id){
       <h3 class="modal-label">Hacer turno</h3>
       ${sinCruce||turnoFichaHTML(turno)}`;
   }
+  // El perfil de Instagram: avatar con anillo si está libre, tres cifras de lo
+  // que comparten, nombre, «Amigos ▾» (sus opciones) y una acción al lado.
+  const anillo=estado&&estado.estado==='libre'?'libre':estado&&estado.estado==='clase'?'en-clase':'';
   document.getElementById('modal-content').innerHTML=`
-    <div class="amigo-cabecera"><span class="amigo-avatar grande" aria-hidden="true">${inicialAmigo(a)}</span>
-      <div><div class="modal-title">${esc(nombreAmigo(a))}</div><p class="amigo-sub">${esc(['@'+a.username,uni,a.carrera].filter(Boolean).join(' · '))}</p></div></div>
-    ${cuerpo}
-    <div class="amigo-peligro">
-      <button type="button" class="amigos-link" data-amigos="eliminar" data-id="${esc(a.id)}">Eliminar de amigos</button>
-      <button type="button" class="amigos-link" data-amigos="bloquear" data-user="${esc(a.username)}">Bloquear</button>
-      <button type="button" class="amigos-link" data-amigos="denunciar" data-user="${esc(a.username)}">Denunciar</button>
+    <div class="amigos-perfil amigos-perfil-ficha">
+      <div class="amigos-perfil-fila">
+        <span class="historia-anillo grande ${anillo}"><span class="amigo-avatar perfil-grande" aria-hidden="true">${inicialAmigo(a)}</span></span>
+        <div class="amigos-cifras">
+          <div class="amigos-cifra"><b>${esc(cifras.comun)}</b><small>en común</small></div>
+          <div class="amigos-cifra"><b>${esc(cifras.libres)}</b><small>libres juntos</small></div>
+          <div class="amigos-cifra"><b>${esc(cifras.turno)}</b><small>días de turno</small></div>
+        </div>
+      </div>
+      <b class="amigos-perfil-nombre">${esc(nombreAmigo(a))}</b>
+      <span class="amigos-perfil-user">${esc(['@'+a.username,uni,a.carrera].filter(Boolean).join(' · '))}</span>
+      ${estado?`<span class="amigo-ahora${estado.estado==='clase'?' en-clase':''}">${esc(textoEstadoAmigo(estado))}</span>`:''}
+      <div class="amigos-perfil-botones">
+        <button type="button" class="amigo-boton" data-amigos="menu-amigo" data-id="${esc(a.id)}" aria-haspopup="true">Amigos <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        ${amigosGruposDisponible?`<button type="button" class="amigo-boton" data-amigos="grupo-con" data-user="${esc(a.username)}">Armar grupo</button>`:''}
+      </div>
     </div>
+    ${cuerpo}
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
   openModal();
+}
+// «Siguiendo ▾» de Instagram: lo que se hace con esta amistad, en un menú.
+function abrirMenuAmigo(id){
+  const a=(amigosListaCache||[]).find(x=>x.id===id);if(!a)return;
+  document.getElementById('modal-content').innerHTML=`
+    <div class="amigo-cabecera"><span class="amigo-avatar grande" aria-hidden="true">${inicialAmigo(a)}</span>
+      <div><div class="modal-title">${esc(nombreAmigo(a))}</div><p class="amigo-sub">@${esc(a.username)}</p></div></div>
+    <div class="grupo-opciones">
+      <button type="button" class="grupo-opcion" data-amigos="eliminar" data-id="${esc(a.id)}">Eliminar de amigos</button>
+      <button type="button" class="grupo-opcion peligro" data-amigos="bloquear" data-user="${esc(a.username)}">Bloquear</button>
+      <button type="button" class="grupo-opcion peligro" data-amigos="denunciar" data-user="${esc(a.username)}">Denunciar</button>
+    </div>
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="ver" data-id="${esc(a.id)}">Volver</button></div>`;
 }
 const MOTIVOS_DENUNCIA_AMIGO=[['username_ofensivo','Username ofensivo'],['acoso','Acoso o mensajes que incomodan'],['suplantacion','Se hace pasar por otra persona'],['spam','Spam'],['otro','Otro']];
 function abrirDenunciarAmigo(username){
@@ -430,7 +539,7 @@ function lineaGrupo(g){
 function seccionGruposHTML(){
   if(!amigosGruposDisponible)return '';
   const grupos=amigosGruposCache||[],invit=grupos.filter(g=>g.estado==='invitado'),mios=grupos.filter(g=>g.estado==='miembro');
-  return `<section class="perfil-grupo amigos-grupo"><h2>Grupos</h2><ul>
+  return `<section class="perfil-grupo amigos-grupo" id="amigos-seccion-grupos"><h2>Grupos</h2><ul>
     ${invit.map(g=>`<li class="amigo-solicitud recibida">
       ${avatarGrupoHTML(g.nombres)}
       <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(g.invitado_por?`@${g.invitado_por} te invitó`:'Te invitaron')}</small><small>${esc(lineaGrupo(g))}</small></span>
@@ -470,7 +579,7 @@ function enlazarElegirAmigos(form,alCambiar){
   pintar();
 }
 // Nombre opcional, como en Instagram: sin nombre se llama como sus personas.
-function abrirGrupoNuevo(){
+function abrirGrupoNuevo(preUser){
   const hayAmigos=(amigosListaCache||[]).some(a=>a.estado==='amigos');
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Nuevo grupo</div>
@@ -485,6 +594,7 @@ function abrirGrupoNuevo(){
   openModal();
   const form=document.getElementById('amigos-grupo-form'),nombre=document.getElementById('amigos-grupo-nombre'),crear=document.getElementById('amigos-grupo-crear');
   const sugerido=m=>listaNombres([...m.map(i=>i.dataset.nombre.replace(/^@/,'').split(' ')[0]),'tú']).slice(0,GRUPO_NOMBRE_MAX);
+  if(preUser){const i=[...form.querySelectorAll('input[name=u]')].find(x=>x.value===preUser);if(i)i.checked=true;}
   enlazarElegirAmigos(form,m=>{crear.disabled=!m.length;crear.textContent=m.length>1?`Crear (${m.length})`:'Crear';nombre.placeholder=m.length?sugerido(m):'Estudio Micro';});
   form.addEventListener('submit',async ev=>{
     ev.preventDefault();
@@ -668,6 +778,10 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='denunciar')abrirDenunciarAmigo(user);
     else if(acc==='grupo')abrirGrupo(id);
     else if(acc==='grupo-nuevo')abrirGrupoNuevo();
+    else if(acc==='grupo-con')abrirGrupoNuevo(user);
+    else if(acc==='menu-amigo')abrirMenuAmigo(id);
+    else if(acc==='editar-username')abrirCambiarUsername();
+    else if(acc==='ir-amigos'||acc==='ir-grupos'){const sec=document.getElementById(acc==='ir-amigos'?'amigos-seccion-amigos':'amigos-seccion-grupos');if(sec)sec.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});}
     else if(acc==='grupo-invitar')abrirInvitarGrupo(id);
     else if(acc==='grupo-renombrar')abrirRenombrarGrupo(id);
     else if(acc==='grupo-miembro')abrirMiembroGrupo(id,user);
