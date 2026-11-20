@@ -201,7 +201,8 @@ function confirmarNotasCanvas(){
   if(typeof currentRamoId!=='undefined'&&currentRamoId&&typeof renderRamo==='function')renderRamo();
   else if(typeof renderHome==='function')renderHome();
   track('canvas_notas_guardadas',{notas:puestas,elegidas:r.elegidas.length});
-  showToast(puestas+' nota'+(puestas===1?' guardada':'s guardadas')+(puestas<r.elegidas.length?'; el resto ya tenía nota':''),puestas<r.elegidas.length);
+  const lecturaInicio=typeof lecturaCanvasGuardadaInicio==='function'?lecturaCanvasGuardadaInicio():null;
+  showToast(lecturaInicio||puestas+' nota'+(puestas===1?' guardada':'s guardadas')+(puestas<r.elegidas.length?'; el resto ya tenía nota':''),puestas<r.elegidas.length);
 }
 async function traerNotasCanvas(){
   if(!canvasDisponible())return;

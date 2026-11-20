@@ -98,13 +98,14 @@ function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
   return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
 }
-function abrirNotaEnFila(boton){
+function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   if(!boton||!boton.isConnected)return;
   const input=document.createElement('input');
   input.type='text';input.className='eval-row-input nota-campo';input.inputMode='decimal';
   // Lucas, 2026-11-03: al tocar una sombra la casilla queda vacía. Si no se anota
   // nada, guardar() devuelve el botón y la sombra vuelve a verse.
   input.autocapitalize='characters';input.maxLength=4;
+  if(idCampo)input.id=idCampo;
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
   if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);
   let terminado=false;
@@ -115,6 +116,8 @@ function abrirNotaEnFila(boton){
     terminado=true;
     const raw=input.value.trim();
     if(!raw){input.replaceWith(boton);return;}
+    // Inicio reutiliza el mismo campo sin navegar ni cambiar currentRamoId.
+    if(alGuardar){if(alGuardar(raw)===false)terminado=false;return;}
     if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,raw);
     else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),raw);
     else setDirectNota(boton.dataset.catId,raw);
@@ -127,6 +130,7 @@ function abrirNotaEnFila(boton){
     else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');}
   });
   boton.replaceWith(input);input.focus({preventScroll:true});
+  return input;
 }
 
 function renderRamo(){
