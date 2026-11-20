@@ -3,7 +3,18 @@ const assert=require('node:assert/strict'),fs=require('fs'),path=require('path')
 const leer=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8'),ids=new Map();let guardados=0;
 const nodo=id=>{if(ids.has(id))return ids.get(id);const n={innerHTML:'',value:'',dataset:{},style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},toggle(){},contains(){return false}},addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},focus(){},querySelectorAll(){return []},isConnected:true};ids.set(id,n);return n;};
 let anuncios=[],tareas=[],fallar=false,peticiones=[],metricas=[];
-const puente={get:async({path,params})=>{peticiones.push({path,params});if(path==='courses')return {data:[{id:42,course_code:'SYN100-2',term:{name:'2026 Segundo Semestre'}}]};if(path.endsWith('/assignments'))return {data:tareas};if(path.endsWith('discussion_topics')){if(fallar)throw Error('No autorizado');return {data:anuncios};}return {data:[]};}};
+let codigoEventos=null,conectado=true;
+const puente={
+ estado:async()=>({conectado}),
+ get:async({path,params})=>{
+  peticiones.push({path,params});
+  if(path==='courses')return {data:[{id:42,course_code:'SYN100-2',term:{name:'2026 Segundo Semestre'}}]};
+  if(path.endsWith('/assignments'))return {data:tareas};
+  if(path==='calendar_events'&&codigoEventos)throw Object.assign(Error('No pudimos leer los eventos'),{code:codigoEventos});
+  if(path.endsWith('discussion_topics')){if(fallar)throw Error('No autorizado');return {data:anuncios};}
+  return {data:[]};
+ }
+};
 const ctx={console,Intl,window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}}),Capacitor:{isNativePlatform:()=>true,Plugins:{GradeHubCanvas:puente}}},document:{getElementById:nodo,createElement:()=>nodo('nuevo'),addEventListener(){},documentElement:nodo('html'),body:nodo('body'),querySelector:()=>nodo('query'),querySelectorAll:()=>[]},localStorage:{getItem(){return null},setItem(){guardados++},removeItem(){}},navigator:{},location:{origin:'',pathname:'/',hash:''},setTimeout(){},clearTimeout(){}};
 vm.createContext(ctx);for(const f of ['data.js','engine.js','app.js'])vm.runInContext(leer(f),ctx,{filename:f});
 const run=s=>vm.runInContext(s,ctx),json=s=>JSON.parse(run('JSON.stringify('+s+')'));
@@ -80,5 +91,18 @@ ctx.window.Capacitor.isNativePlatform=()=>false;assert.throws(()=>run('aplicarPr
  run('confirmarImportarCalendario()');assert.equal(run("r.categorias.find(c=>c.id==='i2').fecha"),'2026-11-20');assert(guardados>guardadosAntes,'confirmar sí guarda');
  fallar=true;tareas=[{name:'Control 3',due_at:'2026-11-23T13:00:00Z'}];await run('traerFechasCanvas()');assert.match(nodo('modal-content').innerHTML,/No pudimos leer los anuncios/);assert.equal(run('icsImportDraft.length'),1,'las tareas siguen en la hoja sin la ruta nueva');assert.equal(run('icsImportDraft[0].origen'),'canvas');
  assert.equal(run("r.categorias.find(c=>c.id==='i2').fecha"),'2026-11-20','un binario viejo o error de anuncios no cambia lo existente');
+ for(const codigo of ['403','401']){
+  codigoEventos=codigo;
+  await run('traerFechasCanvas()');
+  assert.match(nodo('modal-content').innerHTML,/No pudimos leer los eventos del calendario de 1 curso/);
+  assert.equal(run('icsImportDraft[0].target'),'r|c|c3','una tarea sigue disponible si falla la consulta de eventos');
+ }
+ conectado=false;
+ for(const codigo of ['401','429']){
+  codigoEventos=codigo;peticiones=[];nodo('modal-content').innerHTML='';
+  await run('traerFechasCanvas()');
+  assert.equal(nodo('modal-content').innerHTML,'','sin revisión si se revocó el token o hay límite temporal');
+  assert(!peticiones.some(p=>p.path.endsWith('discussion_topics')),'no sigue consultando Canvas');
+ }
  console.log('PASS anuncios Canvas: alias, fechas, cambios revisados, año, ambigüedad, cuenta, persistencia y respaldo');
 })().catch(e=>{console.error(e);process.exit(1)});
