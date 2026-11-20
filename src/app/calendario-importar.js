@@ -276,13 +276,14 @@ function opcionesDestinoIcs(selected,used,ramoId){
   })).join('');
 }
 function renderRevisionIcs(){
+  const canvasNativo=enAppNativa()&&!!contextoFechasCanvas;
   const used=new Set(icsImportDraft.map(item=>item.target).filter(Boolean));
   const rows=icsImportDraft.map((item,index)=>{
     if(enAppNativa()&&item.origen==='canvas-anuncio')return filaAnuncioRevisionCanvas(item,index);
     const ramoId=item.ramoId||((destinosIcs().find(t=>claveDestinoIcs(t)===item.target)||{}).ramo||{}).id||null;
     const estado=item.target?(item.origen==='canvas'?'Sugerencia de Canvas':'Coincidencia propuesta'):'Sin asignar';
     return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
-      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(item.hora?fechaHoraCorta(item.fecha,item.hora):fechaCorta(item.fecha))+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;'+(canvasNativo?'flex-wrap:wrap;column-gap:12px;row-gap:4px;':'')+'"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(item.hora?fechaHoraCorta(item.fecha,item.hora):fechaCorta(item.fecha))+'</span></div>'
       +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+estado+'</div>'
       +'<div class="modal-input"><label class="modal-label" for="ics-ramo-'+index+'">Ramo</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-ramo-'+index+'" data-ics-ramo aria-label="Ramo de '+esc(item.titulo)+'" onchange="asignarRamoIcs('+index+',this.value)">'+opcionesRamoIcs(ramoId)+'</select></div>'
       +'<div class="modal-input"><label class="modal-label" for="ics-evaluacion-'+index+'">Evaluación</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-evaluacion-'+index+'" data-ics-evaluacion aria-label="Evaluación de '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)"'+(ramoId?'':' disabled')+'>'+opcionesDestinoIcs(item.target,used,ramoId)+'</select></div>'
@@ -290,30 +291,33 @@ function renderRevisionIcs(){
   }).join('');
   document.getElementById('modal-content').innerHTML=[
     '<div class="modal-title">Revisa las fechas</div>',
-    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 8px;">'+(enAppNativa()&&icsImportDraft.some(p=>p.origen==='canvas-anuncio')?'Revisa cada fecha y su origen. Los cambios se aplican solo al guardar. Elige «No importar» para descartarlos.':'Las coincidencias son propuestas. Puedes cambiarlas, dejar una sin importar o asignar manualmente las que no calzaron.')+'</p>',
-    (enAppNativa()&&contextoFechasCanvas?.avisos?'<p class="settings-help" role="status">'+esc(contextoFechasCanvas.avisos)+'</p>':''),
-    '<div id="ics-revision-lista" style="max-height:48vh;overflow:auto;border-top:1px solid var(--border);">'+rows+'</div>',
-    '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">'+(enAppNativa()&&icsImportDraft.some(p=>p.origen==='canvas-anuncio')?'Guardar fechas elegidas':'Agregar fechas elegidas')+'</button></div>'
+    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 8px;">'+(canvasNativo?'Confirma a qué evaluación corresponde cada fecha. Elige «No importar» para descartarla.':'Las coincidencias son propuestas. Puedes cambiarlas, dejar una sin importar o asignar manualmente las que no calzaron.')+'</p>',
+    (canvasNativo&&contextoFechasCanvas.avisos?'<p class="settings-help" role="status">'+esc(contextoFechasCanvas.avisos)+'</p>':''),
+    '<div id="ics-revision-lista" style="'+(canvasNativo?'':'max-height:48vh;overflow:auto;')+'border-top:1px solid var(--border);">'+rows+'</div>',
+    '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">'+(canvasNativo?'Guardar fechas':'Agregar fechas elegidas')+'</button></div>'
   ].join('');
+}
+function redibujarRevisionIcs(index){
+  const lista=document.getElementById('ics-revision-lista');
+  const hoja=enAppNativa()&&contextoFechasCanvas&&lista?.closest?.('.modal-sheet');
+  const arriba=(hoja||lista)?.scrollTop||0;
+  renderRevisionIcs();
+  const scroll=hoja||document.getElementById('ics-revision-lista');
+  if(scroll)scroll.scrollTop=arriba;
+  document.getElementById('ics-evaluacion-'+index)?.focus?.({preventScroll:true});
 }
 function asignarRamoIcs(index,ramoId){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
   icsImportDraft[index].ramoId=(S.ramos||[]).some(r=>r.id===ramoId)?ramoId:null;
   icsImportDraft[index].target=null;
-  const lista=document.getElementById('ics-revision-lista');const arriba=lista?lista.scrollTop:0;
-  renderRevisionIcs();
-  const nueva=document.getElementById('ics-revision-lista');if(nueva)nueva.scrollTop=arriba;
-  const select=nueva&&nueva.querySelectorAll('[data-ics-evaluacion]')[index];
-  if(select)select.focus({preventScroll:true});
+  redibujarRevisionIcs(index);
 }
 function asignarDestinoIcs(index,target){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
   const propuesta=icsImportDraft[index];
   if(enAppNativa()&&propuesta.origen==='canvas-anuncio'){
     propuesta.target=target===propuesta.targetAnuncio?target:null;
-    const lista=document.getElementById('ics-revision-lista'),arriba=lista?.scrollTop||0;
-    renderRevisionIcs();const nueva=document.getElementById('ics-revision-lista');if(nueva)nueva.scrollTop=arriba;
-    document.getElementById('ics-evaluacion-'+index)?.focus({preventScroll:true});return;
+    redibujarRevisionIcs(index);return;
   }
   const encontrado=destinosIcs().find(t=>claveDestinoIcs(t)===target);
   const ramoId=icsImportDraft[index].ramoId;
@@ -322,13 +326,7 @@ function asignarDestinoIcs(index,target){
   if(valido)icsImportDraft[index].ramoId=encontrado.ramo.id;
   // Se redibuja para deshabilitar el destino recién tomado en las demás filas;
   // sin esto la lista volvía arriba y el foco se perdía en cada elección.
-  const lista=document.getElementById('ics-revision-lista');
-  const arriba=lista?lista.scrollTop:0;
-  renderRevisionIcs();
-  const nueva=document.getElementById('ics-revision-lista');
-  if(nueva)nueva.scrollTop=arriba;
-  const select=nueva&&nueva.querySelectorAll('[data-ics-evaluacion]')[index];
-  if(select)select.focus({preventScroll:true});
+  redibujarRevisionIcs(index);
 }
 function confirmarImportarCalendario(){
   let aplicadas=0;
