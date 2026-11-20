@@ -66,3 +66,7 @@
 # hasta que expire. Es el archivo que menos se puede cachear de todos.
 /sw.js
   Cache-Control: no-cache
+
+# Apple exige el AASA como JSON, en esta URL exacta y sin redirección.
+/.well-known/apple-app-site-association
+  Content-Type: application/json

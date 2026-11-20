@@ -64,6 +64,74 @@ la app abre en modo local. Al terminar, vuelve a correr `ios:preparar`.
 **Tests:** `npm test`, como siempre. Los de la app son `ios-fuera-del-deploy`,
 `oauth-nativo`, `pantalla-de-carga`, `app-nativa-ios` y `widgets-resumen`.
 
+## Universal Links de gradehub.cl (#665, #663)
+
+Inventario revisado contra `main` e `ios` el 2026-11-18:
+
+| URL que existe | Fuente | Destino en la app |
+|---|---|---|
+| `https://gradehub.cl/` | `index.html` (URL pública/canonical) | Pantalla inicial de esta cuenta: Inicio o Clases. |
+| `https://gradehub.cl/?profe=ABCD2345` (código sintético) | `linkAlumnosProfesor`, `src/marketplace/alumnos-compartir.js` | Invitación del profesor; primero login y onboarding, luego la hoja existente para elegir qué compartir. No abre datos privados del profesor ni comparte nada por sí sola. |
+| `https://gradehub.cl/?dar-clases` | `src/app-session/pantalla-acceso.js` | Entrada de profesor del acceso/onboarding. Con una cuenta existente pide Clases mediante la navegación y sus permisos actuales; nunca convierte una cuenta por URL. |
+| `https://gradehub.cl/?desde=calculadora` | CTA de `calculadora.html` | Pantalla inicial; conserva solo la atribución de entrada existente. |
+
+**No hay hoy links HTTPS compartibles de una clase/anuncio, perfil de Apoyo o
+ficha de ramo.** El catálogo navega mediante acciones internas; los contactos
+van a WhatsApp, Instagram, correo o el sitio externo. Los widgets/avisos usan
+`cl.gradehub.app://ramo/<id>`, que sigue por su manejador actual. No se inventan
+URLs web para estas pantallas en esta PR. Wrapped comparte una imagen, y Alumnos
+exporta un archivo: tampoco son rutas web a interceptar.
+
+El AASA de `.well-known/apple-app-site-association` permite únicamente `/`, la
+ruta de estas entradas. Excluye primero cualquier fragmento no vacío y los
+parámetros de auth/recuperación (`code`, tokens, `type`, `state` y errores),
+incluso si acompañan `profe`. Apple trata un query item ausente como cadena
+vacía: por eso los diccionarios usan `?*`, y los patrones de query completa
+cubren también los parámetros vacíos o sin `=`. Un `*` solo en esos diccionarios
+excluiría todas las URLs normales por error. El test reproduce esa semántica
+([Apple, WWDC19, 6:29](https://developer.apple.com/videos/play/wwdc2019/717/?time=389)).
+Todo lo demás, incluidas páginas legales,
+`/auth/*`, `/login-callback`, `/cal/*`, `/mcp/*` y la calculadora, queda fuera del
+AASA. Un HTTPS desconocido que llegue directamente al manejador nativo va a la
+pantalla inicial; eso no amplía las rutas que iOS puede asociar.
+
+El archivo se copia a `dist/` por el mismo `rsync` que `assetlinks.json` y figura
+en la lista cerrada del deploy. `_headers` lo sirve como `application/json` en
+su URL exacta. No se agrega una redirección. `App.entitlements` declara
+`applinks:gradehub.cl`; el único identificador de equipo añadido para la
+asociación pública está en el AASA, nunca en el proyecto de Xcode.
+
+`src/app-session/enlaces-universales.js` usa el mismo oyente `appUrlOpen` de OAuth/widgets y consulta
+`getLaunchUrl`, con deduplicación del arranque. No registra un segundo oyente
+que pueda consumir la vuelta de OAuth retenida por Capacitor; el getter solo
+deduplica los HTTPS que este router realmente manejó. Los enlaces privados de
+widgets conservan su manejador y esperan la misma comprobación de sesión y
+caché; la vuelta OAuth se entrega inmediatamente al acceso. Solo actúa con `enAppNativa()`.
+No navega el WebView a la URL entrante ni altera la sesión. Una entrada espera
+hasta `showMainApp`, con onboarding terminado, sin recuperación activa, la
+misma visita de sesión y `getCacheOwner() === currentUser.id`. Si cambia la
+cuenta mientras espera un destino recibido con sesión, lo descarta. La
+invitación reutiliza el código pendiente y la hoja de consentimiento
+existentes; ninguna nota se comparte automáticamente. Las métricas conservan
+solo la etapa existente, sin URL, código ni identificadores.
+
+**Lucas, antes del merge:** activar **Associated Domains** en el App ID
+`cl.gradehub.app` del portal de Apple y actualizar el perfil de firma que lo
+necesite. Después del merge/despliegue, comprobar un HTTP 200 sin redirección y
+`Content-Type: application/json` en
+`https://gradehub.cl/.well-known/apple-app-site-association`, compilar con el
+entitlement y reinstalar. La asociación real requiere el dominio desplegado y
+un iPhone; el CDN de Apple puede demorar su actualización. Probar desde un link
+en Mail/Mensajes con la app cerrada y abierta, con y sin sesión; no basta
+escribirlo en la barra de Safari. Sin app instalada sigue la web existente.
+
+Referencia: [Apple, Supporting universal links in your app](https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app):
+asociación de dominio y app, validación de parámetros y acciones que no
+modifican datos privados por el solo hecho de abrir un link. El puente de
+escenas que ya trae Capacitor 8.5.2 entrega la actividad a `@capacitor/app`.
+`SceneDelegate` registra el arranque antes de mostrar la ventana, para que el
+puente observe el primer `capacitorViewDidAppear` y no pierda la actividad.
+
 ## Contrato «Próxima clase» (web y PWA, 2026-11-12)
 
 El horario es privado y opcional en cada ramo activo, dentro del JSON existente:
