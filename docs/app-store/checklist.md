@@ -91,9 +91,9 @@ Rama `claude/friendly-noether-h0w94l`. La pestaña aparece solo en la app nativa
 y solo cuando su SQL está aplicado; sin SQL, la app queda como estaba.
 
 - [ ] **[Martín]** Aplicar en producción, en este orden, después de
-      `administradores.sql`: `supabase/amigos.sql`, `supabase/amigos_grupos.sql`
-      y `supabase/amigos_notas.sql`. Desde su Mac:
-      `node bin/sql-produccion.js aplicar supabase/amigos.sql supabase/amigos_grupos.sql supabase/amigos_notas.sql`
+      `administradores.sql`: `supabase/amigos.sql`, `supabase/amigos_grupos.sql`,
+      `supabase/amigos_notas.sql` y `supabase/amigos_calendario.sql`. Desde su Mac:
+      `node bin/sql-produccion.js aplicar supabase/amigos.sql supabase/amigos_grupos.sql supabase/amigos_notas.sql supabase/amigos_calendario.sql`
       (un clic por archivo), o pegándolos en el SQL Editor. Comprobar con
       `node bin/sql-produccion.js consultar "select count(*) from pg_proc where proname in ('amigos_estado','mis_grupos','amigos_notas_estado')"` → 3.
       (Desde la nube no se puede: no hay token y quitar el clic de confirmación

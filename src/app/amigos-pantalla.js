@@ -13,6 +13,7 @@ const URL_AMIGOS='https://gradehub.cl/';
 let amigosDisponibleCache=false,amigosEstadoCache=null,amigosListaCache=null,amigosHorariosCache=new Map(),amigosVersion=0,amigosCargando=false;
 let amigosGruposDisponible=false,amigosGruposCache=null,amigosNotasDisponible=false,amigosNotasComparte=false,amigosNotasCache=new Map();
 let _notasPublicadas=null,_notasTimer=null;
+let amigosCalendarioDisponible=false,amigosPruebasComparte=false,_pruebasPublicadas=null;
 
 // Un link gradehub.cl/?amigo=usuario deja el username guardado hasta que la
 // persona tenga sesión y Amigos esté listo; entonces se abre «Agregar».
@@ -54,8 +55,9 @@ async function cargarAmigos(){
 }
 // Grupos y notas: si su SQL no está aplicado, esa parte simplemente no aparece.
 async function sondearExtrasAmigos(v){
-  const [g,n]=await Promise.allSettled([rpcAmigos('mis_grupos'),rpcAmigos('amigos_notas_estado')]);
+  const [g,n,c]=await Promise.allSettled([rpcAmigos('mis_grupos'),rpcAmigos('amigos_notas_estado'),rpcAmigos('amigos_pruebas_estado')]);
   if(v!==amigosVersion)return;
+  amigosCalendarioDisponible=c.status==='fulfilled';amigosPruebasComparte=amigosCalendarioDisponible&&c.value===true;
   amigosGruposDisponible=g.status==='fulfilled';amigosGruposCache=amigosGruposDisponible&&Array.isArray(g.value)?g.value:(amigosGruposDisponible?[]:null);
   amigosNotasDisponible=n.status==='fulfilled';amigosNotasComparte=!!(amigosNotasDisponible&&n.value&&n.value.comparte);
 }
@@ -63,6 +65,7 @@ function olvidarAmigos(){
   amigosVersion++;amigosDisponibleCache=false;amigosEstadoCache=null;amigosListaCache=null;amigosHorariosCache=new Map();
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
   _notasPublicadas=null;clearTimeout(_notasTimer);
+  amigosCalendarioDisponible=false;amigosPruebasComparte=false;_pruebasPublicadas=null;
 }
 async function refrescarAmigos(){
   if(!amigosVisible()||amigosCargando)return;
@@ -81,7 +84,7 @@ async function refrescarAmigos(){
   }finally{amigosCargando=false;}
   if(typeof currentTab!=='undefined'&&currentTab==='amigos')pintarAmigos();
   pintarInsigniaAmigos();
-  publicarNotasAmigos();
+  publicarNotasAmigos();publicarPruebasAmigos();
 }
 function renderAmigos(){
   pintarAmigos();
@@ -218,6 +221,8 @@ function pintarAmigos(){
           <input id="amigos-compartir" type="checkbox" role="switch"${e.comparte_horario!==false?' checked':''}></label></li>
         ${amigosNotasDisponible?`<li><label class="amigos-ajuste" for="amigos-notas"><span><b>Compartir mis promedios</b><small>Solo en ramos que toman juntos y con amigos que también comparten.</small></span>
           <input id="amigos-notas" type="checkbox" role="switch"${amigosNotasComparte?' checked':''}></label></li>`:''}
+        ${amigosCalendarioDisponible&&amigosGruposDisponible?`<li><label class="amigos-ajuste" for="amigos-pruebas"><span><b>Compartir mis pruebas con mis grupos</b><small>Ramo, nombre y fecha de lo que viene. Nunca la nota ni la ponderación.</small></span>
+          <input id="amigos-pruebas" type="checkbox" role="switch"${amigosPruebasComparte?' checked':''}></label></li>`:''}
         <li><button type="button" class="perfil-fila" data-amigos="bloqueados"><span class="perfil-fila-titulo">Bloqueados</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>
       </ul>
     </section>`;
@@ -491,7 +496,89 @@ async function publicarNotasAmigos(){
   if(firma===_notasPublicadas)return;
   try{await rpcAmigos('publicar_mis_notas',{p_ramos:datos});if(v===amigosVersion)_notasPublicadas=firma;}catch(e){}
 }
-function programarPublicarNotasAmigos(){clearTimeout(_notasTimer);_notasTimer=setTimeout(publicarNotasAmigos,1500);}
+// Cada subida a la nube actualiza lo que se comparte (promedios y pruebas).
+function programarPublicarNotasAmigos(){clearTimeout(_notasTimer);_notasTimer=setTimeout(()=>{publicarNotasAmigos();publicarPruebasAmigos();},1500);}
+
+// ─── Pruebas compartidas con los grupos ───
+// Las evaluaciones por venir de la Agenda, de acá a 60 días: ramo, sigla,
+// nombre, fecha y hora. Nunca la nota ni el peso.
+function resumenPruebasAmigos(ramos){
+  return agendaEvents(ramos).filter(e=>estadoEventoAgenda(e)==='por_venir'&&diasHasta(e.fecha)<=60).slice(0,60).map(e=>({
+    ramo:String(e.ramo.nombre||'').slice(0,80),
+    sigla:(typeof siglaDeRamo==='function'&&siglaDeRamo(e.ramo))||null,
+    nombre:String(nombreEventoAgenda(e)||'').slice(0,80),fecha:e.fecha,hora:e.hora||null
+  }));
+}
+async function publicarPruebasAmigos(){
+  if(!amigosVisible()||!amigosCalendarioDisponible||!amigosPruebasComparte)return;
+  const datos=resumenPruebasAmigos(S.ramos),firma=JSON.stringify(datos),v=amigosVersion;
+  if(firma===_pruebasPublicadas)return;
+  try{await rpcAmigos('publicar_mis_pruebas',{p_pruebas:datos});if(v===amigosVersion)_pruebasPublicadas=firma;}catch(e){}
+}
+async function cambiarCompartirPruebas(valor){
+  const sw=document.getElementById('amigos-pruebas');
+  try{
+    if(valor){const datos=resumenPruebasAmigos(S.ramos);await rpcAmigos('publicar_mis_pruebas',{p_pruebas:datos});_pruebasPublicadas=JSON.stringify(datos);amigosPruebasComparte=true;}
+    else{await rpcAmigos('dejar_de_compartir_pruebas');amigosPruebasComparte=false;_pruebasPublicadas=null;}
+  }catch(e){showToast(mensajeErrorAmigos(e),true);if(sw)sw.checked=!valor;}
+}
+
+// ─── Calendario del grupo: salas reservadas y pruebas ───
+const ICONO_SALA='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+const ICONO_PRUEBA='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+function etiquetaDiaCalendario(fecha){
+  const d=diasHasta(fecha);
+  if(d===0)return 'Hoy';if(d===1)return 'Mañana';
+  const t=new Date(fecha+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'short'});
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
+// Agrupado por día, como la Agenda. `items` viene de grupo_calendario.
+function calendarioGrupoHTML(id,items){
+  const porDia=new Map();
+  for(const it of items||[]){const f=String(it.fecha).slice(0,10);if(!porDia.has(f))porDia.set(f,[]);porDia.get(f).push(it);}
+  const quien=it=>it.yo?'Tú':(it.nombre||'@'+it.username).split(' ')[0];
+  const fila=it=>it.tipo==='reserva'
+    ?`<li class="cal-item"><span class="cal-icono sala" aria-hidden="true">${ICONO_SALA}</span>
+        <span class="amigo-texto"><b>${esc(it.titulo)}</b><small>${esc(`${it.inicio}–${it.fin} · ${quien(it)}`)}</small></span>
+        ${it.yo?`<button type="button" class="amigos-link cal-borrar" data-amigos="reserva-borrar" data-id="${esc(it.id)}" data-grupo="${esc(id)}" aria-label="Borrar la reserva de ${esc(it.titulo)}">Borrar</button>`:''}</li>`
+    :`<li class="cal-item"><span class="cal-icono prueba" aria-hidden="true">${ICONO_PRUEBA}</span>
+        <span class="amigo-texto"><b>${esc(it.titulo)}${it.detalle?` · ${esc(it.detalle)}`:''}</b><small>${esc([it.inicio,quien(it)].filter(Boolean).join(' · '))}</small></span></li>`;
+  const cuerpo=porDia.size?[...porDia].map(([f,l])=>`<li class="cal-dia"><h4>${esc(etiquetaDiaCalendario(f))}</h4><ul>${l.map(fila).join('')}</ul></li>`).join('')
+    :`<li><p class="amigos-vacio-texto">Nada en las próximas tres semanas.${amigosPruebasComparte?'':' Activa «Compartir mis pruebas» en Privacidad para que el grupo vea las tuyas.'}</p></li>`;
+  return `<h3 class="modal-label">Calendario</h3>
+    <ul class="cal-grupo">${cuerpo}</ul>
+    <button type="button" class="amigo-fila amigos-fila-mas cal-anotar" data-amigos="reserva-nueva" data-id="${esc(id)}">
+      <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Anotar sala reservada</b></span></button>`;
+}
+function abrirReservaNueva(id){
+  const hoy=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  const max=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Sala reservada</div>
+    <form id="amigos-reserva-form" class="amigos-grupo-form" novalidate>
+      <label class="modal-label" for="amigos-reserva-lugar">Dónde</label>
+      <input id="amigos-reserva-lugar" class="amigos-grupo-nombre" type="text" maxlength="60" autocomplete="off" placeholder="Sala B-12, Biblioteca San Joaquín">
+      <label class="modal-label" for="amigos-reserva-fecha">Día</label>
+      <input id="amigos-reserva-fecha" class="amigos-grupo-nombre" type="date" min="${hoy}" max="${max}" value="${hoy}">
+      <div class="cal-horas">
+        <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" value="14:00"></label>
+        <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" value="16:00"></label>
+      </div>
+      <p class="amigos-vacio-texto">La ve solo este grupo. La reserva en sí la haces en el sistema de tu universidad.</p>
+    </form>
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
+      <button type="submit" form="amigos-reserva-form" class="btn-confirm">Guardar</button></div>`;
+  document.getElementById('amigos-reserva-form').addEventListener('submit',async ev=>{
+    ev.preventDefault();
+    const v=k=>document.getElementById('amigos-reserva-'+k).value;
+    if(!v('lugar').trim()){showToast('Escribe dónde',true);return;}
+    try{
+      await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin')});
+      if(typeof vibrar==='function')vibrar('exito');
+      abrirGrupo(id);
+    }catch(e){showToast(mensajeErrorAmigos(e),true);}
+  });
+}
 // El promedio del amigo con el semáforo de siempre; sin notas, en gris.
 function notaAmigoHTML(n,a){
   const quien=a&&a.nombre?a.nombre:'Tu amigo';
@@ -617,16 +704,19 @@ async function abrirGrupo(id){
   document.getElementById('modal-content').innerHTML=`<div class="modal-title">${esc(g?g.nombre:'Grupo')}</div><p class="amigos-vacio-texto" role="status">Cargando…</p>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
   openModal();
-  let filas;
-  try{filas=(await rpcAmigos('grupo_detalle',{p_grupo:id}))||[];}
-  catch(e){closeModal();showToast(mensajeErrorAmigos(e),true);refrescarAmigos();return;}
-  amigosGrupoDetalle={id,filas};
-  pintarGrupo(id,filas);
+  let filas,cal=null;
+  try{
+    [filas,cal]=await Promise.all([rpcAmigos('grupo_detalle',{p_grupo:id}),
+      amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:id}).catch(()=>null):null]);
+    filas=filas||[];
+  }catch(e){closeModal();showToast(mensajeErrorAmigos(e),true);refrescarAmigos();return;}
+  amigosGrupoDetalle={id,filas,cal};
+  pintarGrupo(id,filas,cal);
 }
 // La ficha del grupo sigue a «Info. del grupo» de WhatsApp: cabecera centrada
 // (avatar, nombre que se toca para cambiarlo, «Grupo · N personas»), lo útil,
 // la lista de personas que empieza con «Agregar personas» y salir al final.
-function pintarGrupo(id,filas){
+function pintarGrupo(id,filas,cal){
   const g=(amigosGruposCache||[]).find(x=>x.id===id)||{nombre:'Grupo'};
   const ahora=new Date();
   const miembros=filas.filter(f=>f.estado==='miembro');
@@ -651,6 +741,7 @@ function pintarGrupo(id,filas){
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
       <p class="amigo-sub">Grupo · ${esc(personasTxt(miembros.length))}${enClases?` · ${enClases} en clases`:''}</p>
     </div>
+    ${Array.isArray(cal)?calendarioGrupoHTML(id,cal):''}
     <h3 class="modal-label">Todos libres a la vez</h3>
     ${!mioConHorario&&!(conRamos.length>=2)?'<p class="amigos-vacio-texto">Agrega tu horario para ver cuándo coinciden.</p>'
       :semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}${d.personas<1+conRamos.length?` <small class="amigo-de">${d.personas} de ${1+conRamos.length}</small>`:''}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
@@ -784,6 +875,8 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='grupo')abrirGrupo(id);
     else if(acc==='grupo-nuevo')abrirGrupoNuevo();
     else if(acc==='grupo-con')abrirGrupoNuevo(user);
+    else if(acc==='reserva-nueva')abrirReservaNueva(id);
+    else if(acc==='reserva-borrar'){const g=b.dataset.grupo;showConfirm('¿Borrar esta reserva del calendario?','Solo la quita del grupo. Si reservaste en tu universidad, cancélala allá.',async()=>{try{await rpcAmigos('borrar_reserva_grupo',{p_id:id});abrirGrupo(g);}catch(e){showToast(mensajeErrorAmigos(e),true);}},{label:'Borrar'});}
     else if(acc==='menu-amigo')abrirMenuAmigo(id);
     else if(acc==='editar-username')abrirCambiarUsername();
     else if(acc==='ir-amigos'||acc==='ir-grupos'){const sec=document.getElementById(acc==='ir-amigos'?'amigos-seccion-amigos':'amigos-seccion-grupos');if(sec)sec.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});}
@@ -797,5 +890,6 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
   document.addEventListener('change',ev=>{
     if(ev.target&&ev.target.id==='amigos-compartir')cambiarCompartirHorario(ev.target.checked);
     else if(ev.target&&ev.target.id==='amigos-notas')cambiarCompartirNotas(ev.target.checked);
+    else if(ev.target&&ev.target.id==='amigos-pruebas')cambiarCompartirPruebas(ev.target.checked);
   });
 }

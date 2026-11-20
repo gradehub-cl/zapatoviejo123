@@ -6431,6 +6431,19 @@ button.amigos-cifra:active{opacity:.55;}
 .historia-nombre{max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem;}
 .amigos-historia small{font-size:.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;white-space:nowrap;}
 .amigos-historia:focus-visible,.amigos-cifra:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
+/* Calendario del grupo: por día, como la Agenda. */
+.cal-grupo{list-style:none;margin:0 0 4px;padding:0;}
+.cal-dia h4{margin:12px 0 2px;font-size:.8125rem;font-weight:600;color:var(--fg2);}
+.cal-dia ul{list-style:none;margin:0;padding:0;}
+.cal-item{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 0;border-bottom:1px solid var(--border);}
+.cal-icono{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:var(--muted);color:var(--fg2);}
+.cal-icono.sala{background:var(--primary-light);color:var(--primary);}
+.cal-icono .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.cal-borrar{color:var(--fg3);font-weight:500;}
+.cal-anotar{margin-bottom:12px;}
+.cal-horas{display:flex;gap:12px;}
+.cal-horas label{flex:1;display:flex;flex-direction:column;}
+.amigos-grupo-form input.amigos-grupo-nombre[type=date],.amigos-grupo-form input.amigos-grupo-nombre[type=time]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}

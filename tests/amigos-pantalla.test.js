@@ -82,6 +82,18 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   run(`S.tenant='uc';`);
   chk('ramos en común solo dentro de la misma universidad',run(`ramosEnComunAmigo({universidad:'uai'},[{nombre:'X',sigla:'SYN101'}]).length`)===0&&run(`mismaUAmigo({universidad:'uc'})`)===true);
 
+  console.log('\n=== Calendario del grupo ===');
+  run(`S.ramos=[{id:'r1',nombre:'Curso Sintético',sigla:'SYN101',horario:[],categorias:[{id:'c1',nombre:'Prueba 1',peso:40,fecha:'2099-01-10',notas:[{id:'n1',valor:null}]},
+    {id:'c2',nombre:'Control',peso:20,fecha:'2020-01-01',notas:[{id:'n2',valor:5.5}]}]}];`);
+  const pr=JSON.parse(run('JSON.stringify(resumenPruebasAmigos(S.ramos))'));
+  chk('se comparten solo pruebas por venir de acá a 60 días, sin notas ni pesos',pr.length===0&&!/peso|valor|5\.5/.test(JSON.stringify(pr)));
+  run(`S.ramos[0].categorias[0].fecha=new Date(Date.now()+5*864e5).toISOString().slice(0,10);`);
+  const pr2=JSON.parse(run('JSON.stringify(resumenPruebasAmigos(S.ramos))'));
+  chk('una prueba en 5 días sí, con ramo, sigla, nombre y fecha',pr2.length===1&&Object.keys(pr2[0]).sort().join()==='fecha,hora,nombre,ramo,sigla'&&pr2[0].nombre==='Prueba 1');
+  chk('el calendario agrupa por día y deja borrar solo lo propio',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12'},
+    {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3'}])`);
+    return (h.match(/cal-dia/g)||[]).length===1&&(h.match(/reserva-borrar/g)||[]).length===1&&/Anotar sala reservada/.test(h);})());
+
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
   chk('una cuenta de profesor no tiene Amigos',!run('NAV_TABS').includes('amigos')&&el('nav-amigos').hidden===true);
