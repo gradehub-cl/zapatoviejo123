@@ -31,10 +31,43 @@ async function registrarVisitaDiaria(ahora=new Date()){
   }catch(e){return false;}
 }
 
+let _ultimaLecturaNube=0;
 async function loadFromCloud(){
   const {data,error}=await supabaseClient.from('user_ramos').select('data').eq('user_id',currentUser.id).maybeSingle();
   if(error)throw error;
+  _ultimaLecturaNube=Date.now();
   return data?data.data:null; // null = la cuenta aún no tiene datos
+}
+// Lo anotado en otro dispositivo llegaba solo al abrir la app desde cero
+// (afterLogin). El celular deja la app en segundo plano por días, y una
+// pestaña del computador queda abierta: al volver a ellas se veían las notas
+// viejas hasta cerrar la app del todo o editar algo (2026-11-20). Ahora, al
+// volver a la pantalla, se trae la nube por el mismo camino que al entrar
+// (reconciliarEnSegundoPlano: candado de subidas, fusión sin pérdidas y nada
+// con un modal abierto). Como mucho una vez cada 30 segundos, y sin avisos de
+// «sin conexión» si no hay red: la copia local sigue sirviendo.
+const NUBE_AL_VOLVER_MS=30000;
+// Una nota a medio escribir en la fila (sin hoja abierta) se perdería al
+// repintar: el valor solo se guarda en `change`. Si hay un campo de texto con
+// el foco, se espera a la próxima vuelta.
+function escribiendoAhora(){
+  const el=typeof document!=='undefined'&&document.activeElement;
+  if(!el||!el.tagName)return false;
+  const tag=String(el.tagName).toUpperCase();
+  return tag==='TEXTAREA'||el.isContentEditable===true||tag==='INPUT'&&!/^(button|checkbox|radio|range|submit|reset|file|color)$/i.test(el.type||'');
+}
+function traerNubeAlVolver(ahora=Date.now()){
+  if(!supabaseClient||!currentUser||!S||!S.onboardingDone)return false;
+  if(escribiendoAhora())return false;
+  const uid=currentUser.id;
+  // Sin base todavía (primera sincronización en curso) lo resuelve afterLogin.
+  if(getCacheOwner()!==uid||!leerBaseSync(uid))return false;
+  if(ahora-_ultimaLecturaNube<NUBE_AL_VOLVER_MS)return false;
+  _ultimaLecturaNube=ahora;
+  const visita=_visitaSesion;
+  const vigente=()=>visita===_visitaSesion&&!!currentUser&&currentUser.id===uid;
+  reconciliarEnSegundoPlano(uid,vigente,{alVolver:true}).catch(()=>{});
+  return true;
 }
 let _syncTimer=null;
 function syncToCloud(){
@@ -63,11 +96,16 @@ function reintentarSubida(){
 if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden')subirSyncPendiente();
-    else reintentarSubida();
+    else{reintentarSubida();traerNubeAlVolver();}
   });
 if(typeof window!=='undefined'&&typeof window.addEventListener==='function'){
   window.addEventListener('pagehide',subirSyncPendiente);
   window.addEventListener('online',reintentarSubida);
+  // Al volver la red, también se trae lo que haya cambiado en otro dispositivo.
+  window.addEventListener('online',()=>traerNubeAlVolver());
+  // En el computador, volver a la pestaña sin que se haya escondido (otra
+  // ventana encima) también cuenta.
+  window.addEventListener('focus',()=>traerNubeAlVolver());
 }
 // Una subida a la vez: si llega otra mientras una va en camino, se repite al
 // terminar con el estado de ese momento. Dos subidas cruzadas partirían de la
