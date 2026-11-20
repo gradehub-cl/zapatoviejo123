@@ -445,9 +445,28 @@ function abrirAmigo(id){
         ${amigosGruposDisponible?`<button type="button" class="amigo-boton" data-amigos="grupo-con" data-user="${esc(a.username)}">Armar grupo</button>`:''}
       </div>
     </div>
+    ${ramos&&ramos.some(r=>copiarHorario(r.horario).length)?`<button type="button" class="perfil-fila amigo-ver-semana" data-amigos="semana" data-id="${esc(a.id)}"><span class="perfil-fila-titulo">Ver su semana</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>`:''}
     ${cuerpo}
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
   openModal();
+}
+// Su semana en la grilla de la Agenda (como la cuadrícula de un perfil de
+// Instagram): sus clases en gris y en el acento las que toman juntos. Solo se
+// mira: las clases no se abren ni se editan, así que no son botones.
+function semanaAmigoHTML(a,ramos){
+  if(typeof horarioSemanaHTML!=='function')return '';
+  const comun=new Set(ramosEnComunAmigo(a,ramos).map(r=>r.sigla));
+  const conColor=ramos.map(r=>({...r,color:comun.has(String(r.sigla||r.nombre||'').trim().toUpperCase())?'var(--primary)':'var(--fg3)'}));
+  return horarioSemanaHTML(conColor,new Date()).replace(/<button type="button"/g,'<div role="img"').replace(/<\/button>/g,'</div>');
+}
+function abrirSemanaAmigo(id){
+  const a=(amigosListaCache||[]).find(x=>x.id===id),ramos=a&&amigosHorariosCache.get(id);if(!ramos)return;
+  const grilla=semanaAmigoHTML(a,ramos);
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">Semana de ${esc(a.nombre||'@'+a.username)}</div>
+    ${grilla?`<p class="amigos-vacio-texto amigo-semana-leyenda"><span class="amigo-semana-punto comun" aria-hidden="true"></span>En común contigo <span class="amigo-semana-punto" aria-hidden="true"></span>Solo suyas</p>
+      <div class="amigo-semana">${grilla}</div>`:'<p class="amigos-vacio-texto">Todavía no carga su horario.</p>'}
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="ver" data-id="${esc(id)}">Volver</button></div>`;
 }
 // «Siguiendo ▾» de Instagram: lo que se hace con esta amistad, en un menú.
 function abrirMenuAmigo(id){
@@ -896,6 +915,7 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='reserva-nueva')abrirReservaNueva(id);
     else if(acc==='reserva-borrar'){const g=b.dataset.grupo;showConfirm('¿Borrar esta reserva del calendario?','Solo la quita del grupo. Si reservaste en tu universidad, cancélala allá.',async()=>{try{await rpcAmigos('borrar_reserva_grupo',{p_id:id});abrirGrupo(g);}catch(e){showToast(mensajeErrorAmigos(e),true);}},{label:'Borrar'});}
     else if(acc==='menu-amigo')abrirMenuAmigo(id);
+    else if(acc==='semana')abrirSemanaAmigo(id);
     else if(acc==='editar-username')abrirCambiarUsername();
     else if(acc==='ir-amigos'||acc==='ir-grupos'){const sec=document.getElementById(acc==='ir-amigos'?'amigos-seccion-amigos':'amigos-seccion-grupos');if(sec)sec.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});}
     else if(acc==='grupo-invitar')abrirInvitarGrupo(id);

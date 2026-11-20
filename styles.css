@@ -6469,6 +6469,12 @@ button.amigos-cifra:active{opacity:.55;}
 .esq-texto{flex:1;height:32px;}
 @media (prefers-reduced-motion:no-preference){.esq{animation:esq-brillo 1.4s ease-in-out infinite;}}
 @keyframes esq-brillo{0%,100%{opacity:1}50%{opacity:.55}}
+.amigo-ver-semana{margin:0 0 4px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.amigo-semana .horario-semana-cabecera{background:var(--bg2);}
+.amigo-semana-leyenda{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.amigo-semana-punto{display:inline-block;width:10px;height:10px;margin-left:8px;border-radius:3px;background:var(--fg3);}
+.amigo-semana-punto:first-child{margin-left:0;}
+.amigo-semana-punto.comun{background:var(--primary);}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}

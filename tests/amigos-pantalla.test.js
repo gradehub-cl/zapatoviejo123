@@ -94,6 +94,9 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
     {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3'}])`);
     return (h.match(/cal-dia/g)||[]).length===1&&(h.match(/reserva-borrar/g)||[]).length===1&&/Anotar sala reservada/.test(h);})());
 
+  chk('la semana del amigo se mira, no se edita: sin botones',(()=>{const h=run(`semanaAmigoHTML({universidad:'uc'},normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'}]}]))`);
+    return /horario-semana/.test(h)&&!/<button/.test(h)&&/role="img"/.test(h);})());
+
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
   chk('una cuenta de profesor no tiene Amigos',!run('NAV_TABS').includes('amigos')&&el('nav-amigos').hidden===true);
