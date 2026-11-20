@@ -81,14 +81,44 @@ chk('grupos: libres a la vez entre quienes van ese día',()=>{
   assert.deepEqual(sem.map(d=>d.dia),['L']);
   assert.deepEqual(run('ventanasLibresGrupo(__d,"L")',[mios]),{personas:1,ventanas:[]},'una sola persona no es grupo');
 });
-chk('hacer turno: llegan o se van a la misma hora',()=>{
-  const otro=run('normalizarRamosAmigo(__d)',[{nombre:'Curso Seis',sigla:'SYN606',horario:[{dias:['L'],inicio:'08:30',fin:'13:00'},{dias:['W'],inicio:'11:00',fin:'12:00'}]}]);
-  const t=run('turnoEnComun(__d[0],__d[1])',[mios,otro]);
-  // Lunes: yo llego 08:20 y me voy 15:10; él llega 08:30 (10 min) y se va 13:00.
-  // Miércoles: yo 08:20-09:30, él 11:00-12:00: no coinciden.
-  assert.deepEqual(t,[{dia:'L',nombre:'Lunes',llegan:true,salen:false,llegada:'08:20',salida:'15:10'}]);
-  assert.equal(run('textoTurno(__d)',t[0]),'llegan 08:20');
-  assert.equal(run('turnoEnComun(__d[0],__d[1],{tolerancia:5}).length',[mios,otro]),0,'con menos holgura no cuenta');
-  assert.equal(run('textoTurno(__d)',{llegan:true,salen:true,llegada:'08:20',salida:'15:10'}),'llegan 08:20 y se van 15:10');
+const R=(sigla,bloques)=>({nombre:'Curso '+sigla,sigla,horario:bloques.map(([dias,inicio,fin,noVoy])=>({dias,inicio,fin,...(noVoy?{noVoy:true}:{})}))});
+const norm=l=>run('normalizarRamosAmigo(__d)',l);
+chk('hacer turno: un día cuenta solo si llegan Y se van juntos',()=>{
+  const yo=norm([R('A',[[['L','W'],'08:20','12:00'],[['M'],'10:00','13:00']])]);
+  // Lunes: llega 08:30 y se va 12:10 (dentro de 20 min). Martes: llega igual pero se va 16:00. Miércoles: no va.
+  const el=norm([R('B',[[['L'],'08:30','12:10'],[['M'],'10:00','16:00']])]);
+  const m=run('matchTurno(__d[0],__d[1])',[yo,el]);
+  assert.equal(m.tipo,'dia');
+  assert.deepEqual(m.dias,[{dia:'L',nombre:'Lunes',llegada:'08:20',salida:'12:10'}],'el martes llegan juntos pero no se van juntos');
+  assert.equal(run('textoMatchTurno(__d)',m),'Match de turno el lunes');
+  assert.equal(run('textoTurno(__d)',m.dias[0]),'Llegan 08:20 · se van 12:10');
+  assert.equal(run('listaDiasTurno(__d)',[{nombre:'Lunes'},{nombre:'Martes'},{nombre:'Jueves'}]),'lunes, martes y jueves');
+});
+chk('match perfecto: mismos días y todos coinciden',()=>{
+  const yo=norm([R('A',[[['L','W'],'08:20','12:00']])]),igual=norm([R('B',[[['L','W'],'08:30','11:50']])]);
+  assert.equal(run('matchTurno(__d[0],__d[1]).tipo',[yo,igual]),'perfecto');
+  assert.equal(run('textoMatchTurno(matchTurno(__d[0],__d[1]))',[yo,igual]),'Match perfecto de turno');
+  // Si además va el viernes, ese día yo voy sola: ya no es perfecto.
+  const masDias=norm([R('B',[[['L','W'],'08:30','11:50'],[['V'],'09:00','10:00']])]);
+  assert.equal(run('matchTurno(__d[0],__d[1]).tipo',[yo,masDias]),'dia');
+  assert.equal(run('matchTurno(__d[0],__d[1]).tipo',[yo,norm([R('C',[[['L'],'14:00','18:00']])])]),'ninguno');
+});
+chk('«no voy» cuenta en todo: turno, libres, grupo y qué hace ahora',()=>{
+  // La de 08:20 del lunes está marcada «no voy»: llego a las 10:00.
+  const yo=norm([R('A',[[['L'],'08:20','09:30',true],[['L'],'10:00','12:00']])]);
+  const el=norm([R('B',[[['L'],'10:00','12:00']])]);
+  assert.equal(run('matchTurno(__d[0],__d[1]).tipo',[yo,el]),'perfecto','sin la clase a la que no voy, llegamos juntos');
+  assert.deepEqual(run('tramosOcupados(__d,"L")',yo),[[600,720]]);
+  // Libres: con la de 08:20 marcada, de 08:20 a 10:00 no hay jornada mía que partir.
+  const temprano=norm([R('C',[[['L'],'08:00','09:00'],[['L'],'11:00','12:00']])]);
+  assert.deepEqual(run('ventanasLibresEnComun(__d[0],__d[1],"L")',[yo,temprano]).map(v=>v.inicio+'-'+v.fin),['09:00-10:00']);
+  assert.deepEqual(run('ventanasLibresGrupo(__d,"L")',[yo,temprano,el]).ventanas.map(v=>v.inicio+'-'+v.fin),['09:00-10:00']);
+  // Qué hace ahora: a las 08:30 no está en clases; su próxima es la de las 10:00.
+  const e=run('estadoAhoraAmigo(__d[0],__d[1])',[yo,new Date('2026-11-16T08:30:00-03:00')]);
+  assert.equal(e.estado,'libre');assert.equal(e.proxima.inicio,'10:00');
+  // Si no va a ninguna clase ese día, ese día no va a la u.
+  const nada=norm([R('D',[[['L'],'10:00','12:00',true]])]);
+  assert.equal(run('estadoAhoraAmigo(__d[0],__d[1]).estado',[nada,new Date('2026-11-16T11:00:00-03:00')]),'sinclases');
+  assert.equal(run('matchTurno(__d[0],__d[1]).tipo',[nada,el]),'ninguno');
 });
 console.log(`\nPASS: ${ok}   FAIL: 0`);

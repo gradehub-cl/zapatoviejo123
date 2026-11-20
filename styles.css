@@ -6380,6 +6380,11 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-nota.warn{background:var(--yellow-bg);color:var(--yellow);}
 .amigo-nota.bad{background:var(--red-bg);color:var(--red);}
 .amigo-nota.neutral{background:var(--muted);color:var(--fg3);font-weight:500;}
+.amigo-turno{display:flex;flex-direction:column;gap:2px;margin:0 0 8px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.amigo-turno b{font-size:.9375rem;font-weight:600;}
+.amigo-turno small{font-size:.8125rem;color:var(--fg2);}
+.amigo-turno.perfecto{border-color:var(--primary);background:var(--primary-light);}
+.amigo-chip.perfecto{background:var(--primary-light);color:var(--primary);font-weight:600;}
 .amigo-de{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .amigo-lista-personas li{justify-content:flex-start;}
 .amigo-lista-personas .amigo-chip{font-weight:500;}

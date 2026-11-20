@@ -115,6 +115,26 @@ function filaAmigoHTML(a,ahora){
     <svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
   </button></li>`;
 }
+// El match de turno en la ficha: destacado si es perfecto, días si es parcial.
+function turnoFichaHTML(m){
+  if(m.tipo==='ninguno')return '<p class="amigos-vacio-texto">Esta semana ningún día llegan y se van a la misma hora.</p>';
+  return `<div class="amigo-turno${m.tipo==='perfecto'?' perfecto':''}"><b>${esc(textoMatchTurno(m))}</b>
+    ${m.tipo==='perfecto'?'<small>Llegan y se van a la misma hora todos los días que van.</small>':''}</div>
+    <ul class="amigo-lista">${m.dias.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${esc(textoTurno(d))}</span></li>`).join('')}</ul>`;
+}
+// Arriba de la lista: con quién puedes hacer turno, los perfectos primero.
+function seccionTurnoHTML(amigos){
+  if(!S.ramos.some(r=>copiarHorario(r.horario).length))return '';
+  const matches=amigos.map(a=>({a,m:amigosHorariosCache.get(a.id)?matchTurno(S.ramos,amigosHorariosCache.get(a.id)):null}))
+    .filter(x=>x.m&&x.m.tipo!=='ninguno')
+    .sort((x,y)=>(x.m.tipo==='perfecto'?0:1)-(y.m.tipo==='perfecto'?0:1)||y.m.dias.length-x.m.dias.length);
+  if(!matches.length)return '';
+  return `<section class="perfil-grupo amigos-grupo"><h2>Para hacer turno</h2><ul>${matches.map(({a,m})=>`<li><button type="button" class="amigo-fila" data-amigos="ver" data-id="${esc(a.id)}">
+    <span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span>
+    <span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>${esc(m.tipo==='perfecto'?'Todos los días que van':listaDiasTurno(m.dias).replace(/^./,c=>c.toUpperCase()))}</small></span>
+    ${m.tipo==='perfecto'?'<span class="amigo-chip perfecto">Match perfecto</span>':''}
+    <svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>`).join('')}</ul></section>`;
+}
 function pintarAmigos(){
   const caja=typeof document!=='undefined'&&document.getElementById('amigos-body');if(!caja)return;
   if(!amigosVisible()){caja.innerHTML='<p class="amigos-vacio-texto">Inicia sesión para agregar amigos.</p>';return;}
@@ -138,6 +158,7 @@ function pintarAmigos(){
       <span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>${sub(a)}</small></span>
       <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="rechazar" data-id="${esc(a.id)}" aria-label="Rechazar a ${esc(nombreAmigo(a))}">Rechazar</button>
       <button type="button" class="amigo-boton principal" data-amigos="aceptar" data-id="${esc(a.id)}" aria-label="Aceptar a ${esc(nombreAmigo(a))}">Aceptar</button></span></li>`).join('')}</ul></section>`:''}
+    ${seccionTurnoHTML(amigos)}
     ${amigos.length?`<section class="perfil-grupo amigos-grupo"><h2>Tus amigos</h2><ul>${amigos.map(a=>filaAmigoHTML(a,ahora)).join('')}</ul></section>`
       :`<section class="amigos-vacio"><h2>Agrega a tu primer amigo</h2><p>Mándales tu link o búscalos por su username.</p>
         <button type="button" class="btn-primary" data-amigos="invitar">Invitar amigos</button>
@@ -274,7 +295,7 @@ function abrirAmigo(id){
   let cuerpo;
   if(!ramos)cuerpo='<p class="amigos-vacio-texto">No comparte su horario.</p>';
   else{
-    const est=estadoAhoraAmigo(ramos),comun=ramosEnComun(S.ramos,ramos),semana=semanaLibresEnComun(S.ramos,ramos),turno=turnoEnComun(S.ramos,ramos);
+    const est=estadoAhoraAmigo(ramos),comun=ramosEnComun(S.ramos,ramos),semana=semanaLibresEnComun(S.ramos,ramos),turno=matchTurno(S.ramos,ramos);
     const suyoConHorario=ramos.some(r=>copiarHorario(r.horario).length);
     const sinCruce=!mioConHorario?'<p class="amigos-vacio-texto">Agrega tu horario para ver cuándo coinciden.</p>'
       :!suyoConHorario?'<p class="amigos-vacio-texto">Todavía no carga su horario.</p>':'';
@@ -289,9 +310,8 @@ function abrirAmigo(id){
       <h3 class="modal-label">Libres a la vez</h3>
       ${sinCruce||(semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
         :'<p class="amigos-vacio-texto">Esta semana no tienen ventanas libres en común.</p>')}
-      <h3 class="modal-label">Para hacer turno</h3>
-      ${sinCruce||(turno.length?`<ul class="amigo-lista">${turno.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${esc(textoTurno(d))}</span></li>`).join('')}</ul>`
-        :'<p class="amigos-vacio-texto">Esta semana no llegan ni se van a la misma hora.</p>')}`;
+      <h3 class="modal-label">Hacer turno</h3>
+      ${sinCruce||turnoFichaHTML(turno)}`;
   }
   document.getElementById('modal-content').innerHTML=`
     <div class="amigo-cabecera"><span class="amigo-avatar grande" aria-hidden="true">${inicialAmigo(a)}</span>
@@ -520,6 +540,11 @@ function pintarGrupo(id,filas){
     ${!mioConHorario&&!(conRamos.length>=2)?'<p class="amigos-vacio-texto">Agrega tu horario para ver cuándo coinciden.</p>'
       :semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}${d.personas<1+conRamos.length?` <small class="amigo-de">${d.personas} de ${1+conRamos.length}</small>`:''}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
       :'<p class="amigos-vacio-texto">Esta semana no tienen ventanas libres en común.</p>'}
+    ${(()=>{
+      if(!mioConHorario)return '';
+      const t=filas.filter(f=>!f.yo&&f.ramos).map(f=>({f,m:matchTurno(S.ramos,normalizarRamosAmigo(f.ramos))})).filter(x=>x.m.tipo!=='ninguno');
+      return t.length?`<h3 class="modal-label">Hacer turno contigo</h3><ul class="amigo-lista">${t.map(({f,m})=>`<li><span>${esc(nombreAmigo(f))}</span><span class="amigo-horas">${esc(m.tipo==='perfecto'?'Match perfecto':listaDiasTurno(m.dias))}</span></li>`).join('')}</ul>`:'';
+    })()}
     <h3 class="modal-label">${esc(personasTxt(filas.length))}</h3>
     <ul class="amigo-lista amigo-lista-personas">
       <li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-invitar" data-id="${esc(id)}">

@@ -112,22 +112,40 @@ function semanaLibresGrupo(listas,opciones){
   return DIAS_HORARIO.filter(([k])=>k!=='D').map(([dia,nombre])=>({dia,nombre,...ventanasLibresGrupo(listas,dia,opciones)})).filter(d=>d.ventanas.length);
 }
 
-// ─── Hacer turno: llegan o se van a la misma hora ───
-// Por día de lunes a sábado en que los dos tienen clases: la primera clase de
-// cada uno (llegada) y la última (salida). Coinciden si la diferencia es de a
-// lo más `tolerancia` minutos: sirve para irse juntos, compartir auto o micro.
+// ─── Hacer turno: llegan y se van a la misma hora ───
+// Un día sirve para hacer turno (irse juntos, compartir auto o micro) solo si
+// los dos llegan Y se van a la misma hora: la primera clase y la última a las
+// que van, con a lo más `tolerancia` minutos de diferencia. Las clases marcadas
+// «no voy» no cuentan (tramosOcupados las salta): si no vas a la de las 8:20,
+// llegas a la siguiente.
+const DIAS_TURNO=()=>DIAS_HORARIO.filter(([k])=>k!=='D');
 function turnoEnComun(mios,suyos,{tolerancia=20}={}){
-  return DIAS_HORARIO.filter(([k])=>k!=='D').map(([dia,nombre])=>{
+  return DIAS_TURNO().map(([dia,nombre])=>{
     const a=tramosOcupados(mios,dia),b=tramosOcupados(suyos,dia);
     if(!a.length||!b.length)return null;
     const llegan=Math.abs(a[0][0]-b[0][0])<=tolerancia,salen=Math.abs(a[a.length-1][1]-b[b.length-1][1])<=tolerancia;
-    if(!llegan&&!salen)return null;
-    return {dia,nombre,llegan,salen,
-      llegada:horaAmigo(Math.min(a[0][0],b[0][0])),salida:horaAmigo(Math.max(a[a.length-1][1],b[b.length-1][1]))};
+    if(!llegan||!salen)return null;
+    // Se sale a la hora del que entra primero y se vuelve con el que termina último.
+    return {dia,nombre,llegada:horaAmigo(Math.min(a[0][0],b[0][0])),salida:horaAmigo(Math.max(a[a.length-1][1],b[b.length-1][1]))};
   }).filter(Boolean);
 }
-// «Lunes · llegan 08:20 y se van 15:10». Sin inventar: solo lo que coincide.
-function textoTurno(d){
-  const partes=[d.llegan?`llegan ${d.llegada}`:'',d.salen?`se van ${d.salida}`:''].filter(Boolean);
-  return partes.join(' y ');
+// perfecto → van a la u los mismos días y en todos llegan y se van juntos.
+// dia      → coinciden algunos días (`dias`).
+// ninguno  → ningún día.
+function matchTurno(mios,suyos,opciones){
+  const dias=turnoEnComun(mios,suyos,opciones);
+  if(!dias.length)return {tipo:'ninguno',dias};
+  const van=l=>DIAS_TURNO().filter(([d])=>tramosOcupados(l,d).length).map(([d])=>d).join();
+  return {tipo:van(mios)===van(suyos)&&dias.length===van(mios).split(',').length?'perfecto':'dia',dias};
 }
+// «lunes», «lunes y miércoles», «lunes, martes y jueves».
+function listaDiasTurno(dias){
+  const n=(dias||[]).map(d=>d.nombre.toLowerCase());
+  return n.length<=1?(n[0]||''):n.slice(0,-1).join(', ')+' y '+n[n.length-1];
+}
+function textoMatchTurno(m){
+  if(!m||m.tipo==='ninguno')return '';
+  return m.tipo==='perfecto'?'Match perfecto de turno':`Match de turno el ${listaDiasTurno(m.dias)}`;
+}
+// «Llegan 08:20 · se van 15:10».
+function textoTurno(d){return `Llegan ${d.llegada} · se van ${d.salida}`;}
