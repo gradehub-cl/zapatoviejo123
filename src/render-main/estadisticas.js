@@ -42,14 +42,14 @@ function renderStats(){
       const imposible=x.necesita>7.05;
       const ex=exigenciaNotaNecesaria(x.necesita);
       const valor=imposible?'—':nfNecesaria(Math.max(1,x.necesita));
-      // La cifra va del color que marca el medidor y una frase dice qué es,
-      // para que se lea sola sin conocer la pantalla (pedido frecuente,
-      // Lucas 2026-11-19).
-      const lectura=imposible
-        ? 'Ya no alcanza solo con lo que te queda'
-        : 'En lo que te queda necesitas';
+      // La cifra va del color que marca el medidor y una frase pegada a él,
+      // con una flecha, dice qué es: se lee sola sin conocer la pantalla
+      // (pedido frecuente, Lucas 2026-11-19). Si ya no alcanza, no hay cifra
+      // que señalar y la frase vuelve bajo el nombre.
+      const flecha='<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h7M6.5 3 9.5 6l-3 3"/></svg>';
+      const lectura=imposible?'':`<span class="stats-priority-lectura">En lo que te queda necesitas${flecha}</span>`;
       const sub=imposible
-        ? `Vas ${fmtPromedio(x.avg)} en lo evaluado`
+        ? `Ya no alcanza solo con lo que te queda · vas ${fmtPromedio(x.avg)}`
         : x.abierto
           ? `Vas ${fmtPromedio(x.avg)} · puede bajar según cuántas notas te tomen`
           : `Vas ${fmtPromedio(x.avg)} en lo evaluado`;
@@ -57,9 +57,9 @@ function renderStats(){
         <span class="ag-row-bar" style="background:${esc(x.ramo.color)}"></span>
         <div class="ag-row-main">
           <div class="ag-row-name">${esc(x.ramo.nombre)}</div>
-          <div class="stats-priority-lectura">${lectura}</div>
           <div class="ag-row-sub">${sub}</div>
         </div>
+        ${lectura}
         <div class="stats-priority-medidor">${htmlMedidorNota(imposible?7:x.necesita)}<span class="stats-priority-num" style="color:${ex.color};">${valor}</span><small style="color:${ex.color}">${ex.palabra}</small></div>
       </button>`;
     };
