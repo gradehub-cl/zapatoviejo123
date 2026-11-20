@@ -26,6 +26,13 @@ const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('
   vm.runInContext('pintarRecomendacionClase(contenedor)',ctx);await new Promise(r=>setImmediate(r));
   chk('prendido: Inicio sigue su camino de siempre',ctx.S.anunciosConNotas===true&&llamadas.includes('mi_cierre_anuncios'));
 
+  // Versión B: en la app no hay recomendación en Inicio, aunque esté prendido.
+  ctx.enAppNativa=()=>true;llamadas.length=0;
+  vm.runInContext('pintarRecomendacionClase(contenedor)',ctx);await new Promise(r=>setImmediate(r));
+  chk('versión B: en la app Inicio no recomienda ni pide nada',llamadas.length===0&&vm.runInContext('recomendacionesEnInicio()',ctx)===false);
+  ctx.enAppNativa=()=>false;
+  chk('versión B: en la web sigue recomendando',vm.runInContext('recomendacionesEnInicio()',ctx)===true);
+
   console.log('\n=== La cuenta ===');
   const nodo={style:{setProperty(){}},classList:{add(){},remove(){},contains(){return false}},addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},getAttribute(){return null},querySelector(){return null},querySelectorAll(){return []},innerHTML:'',textContent:''};
   const app={window:{addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}})},
