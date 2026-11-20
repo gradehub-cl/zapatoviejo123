@@ -195,6 +195,9 @@ function tareasConEstadoAlEntrar(){
   // notas— y no bloquea nada. Va después del consenso a propósito: si una pauta
   // acaba de llegar de otros, no tiene sentido devolvérsela.
   if(typeof aportarPautasAlCatalogo==='function')aportarPautasAlCatalogo().catch(()=>{});
+  // Cuentas por correo que ya tienen nombre y apellido pero entraron antes de
+  // esto: llegan a Auth en su próxima entrada, con el estado de esta cuenta.
+  if(S.onboardingDone&&typeof copiarNombreAAuth==='function')copiarNombreAAuth();
   // Los promedios de la comparación con el curso se renuevan al entrar, no solo
   // al abrir Estadísticas: curso_posicion y universidad_posicion ignoran filas
   // sin actualizar en 30 días (para que no cuenten los ramos borrados o
