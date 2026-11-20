@@ -1135,13 +1135,13 @@ struct HoyEnLaUVista: View {
             case .systemMedium:
                 HStack(alignment: .top, spacing: 14) {
                     resumen.frame(width: 118, alignment: .leading)
-                    lista(Array(personas.prefix(4)))
+                    lista(Array(personas.prefix(3)))
                 }
             case .systemLarge:
                 VStack(alignment: .leading, spacing: 12) {
                     resumen
                     Divider()
-                    lista(Array(personas.prefix(7)))
+                    lista(Array(personas.prefix(6)))
                 }
             default:
                 resumen
@@ -1158,7 +1158,8 @@ struct HoyEnLaUVista: View {
             Spacer(minLength: 0)
             if !personas.isEmpty { PilaAvatares(personas: libres.isEmpty ? personas : libres) }
             Text(titular)
-                .font(.system(.title3, design: .default).weight(.semibold)).monospacedDigit()
+                // En el mediano la columna es angosta: un paso menos para que no parta en tres líneas.
+                .font(familia == .systemMedium ? .headline : .title3.weight(.semibold)).monospacedDigit()
                 .foregroundStyle(libres.isEmpty ? Color.primary : AcentoApp.color(esquema))
                 .lineLimit(2).minimumScaleFactor(0.75)
             Text(bajada).font(.caption).foregroundStyle(.secondary).lineLimit(2).privacySensitive()
@@ -1169,7 +1170,7 @@ struct HoyEnLaUVista: View {
 
     // Cada fila abre la ficha de ese amigo.
     func lista(_ lista: [EnLaU.Persona]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             if lista.isEmpty {
                 Spacer(minLength: 0)
                 Text(entrada.datos == nil ? "Abre la pestaña Amigos para verlos acá." : "Cuando tengan clases hoy, aparecen acá.")
@@ -1178,12 +1179,13 @@ struct HoyEnLaUVista: View {
             }
             ForEach(lista) { p in
                 Link(destination: EnLaU.enlace(p)) {
-                    HStack(spacing: 10) {
-                        AvatarAmigo(persona: p, tamano: 26)
+                    // Filas de 32 pt: nombre y una sola línea de estado, como una lista de iOS compacta.
+                    HStack(spacing: 9) {
+                        AvatarAmigo(persona: p, tamano: 24)
                         VStack(alignment: .leading, spacing: 0) {
-                            Text(p.nombre).font(.subheadline.weight(.semibold)).lineLimit(1)
-                            Text(EnLaU.linea(p)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                                .lineLimit(1).minimumScaleFactor(0.8)
+                            Text(p.nombre).font(.footnote.weight(.semibold)).lineLimit(1)
+                            Text(EnLaU.linea(p)).font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+                                .lineLimit(1).minimumScaleFactor(0.85)
                         }
                         Spacer(minLength: 0)
                     }
