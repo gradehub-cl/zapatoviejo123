@@ -91,6 +91,8 @@ let _cerrandoSesion=false;
 // un código que solo sirve con el verificador guardado en este dispositivo, no
 // la sesión. La web sigue con el flujo de siempre.
 const APP_NATIVA=typeof window!=='undefined'&&!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+// Igual que enAppIOS() en app.js: Android es la excepción.
+const APP_IOS=APP_NATIVA&&!(typeof window.Capacitor.getPlatform==='function'&&window.Capacitor.getPlatform()==='android');
 const VUELTA_NATIVA='cl.gradehub.app://login-callback';
 try{
   if(window.supabase && SUPABASE_URL.startsWith('http')){

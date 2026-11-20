@@ -103,7 +103,7 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('otra cuenta en el mismo navegador no la ve, y se borra',run('urlCanvasIcsGuardada()')===null&&!('gradehub_canvas_ics' in guardado));
   chk('cerrar sesión la borra',/olvidarUrlCanvasIcs\(\)/.test(leer('app-session.js').split('async function cerrarSesion')[1].split('\n}\n')[0]));
   chk('desconectar pide confirmar, con Cancelar a mano',/function desconectarCanvasIcs\(\)\{[^]*showConfirm\([^]*focusCancel:true/.test(leer('app.js')));
-  chk('en la app iOS no aparece: ahí está el token',run(`enAppNativa=()=>true;canvasIcsDisponible()`)===false);
+  chk('en la app con Canvas nativo no aparece: ahí está el token',run(`const pc=pluginCanvas;pluginCanvas=()=>({});const r=canvasIcsDisponible();pluginCanvas=pc;r`)===false);
 
   run(`enAppNativa=()=>false;S.tenant='uc';currentUser={id:'u1'};supabaseClient={auth:{getSession:async()=>({data:{session:{access_token:'jwt-sintetico'}}})}};icsImportDraft=null`);
   let responder;ctx.fetch=()=>new Promise(r=>responder=r);
