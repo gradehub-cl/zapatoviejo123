@@ -196,3 +196,5 @@ function gh_reemplazosOptativos(structure,grades,reglas,calcular,originales=grad
 //   entrada 'faltas'  → `suma` si faltó a `hasta` talleres o menos
 // `destino` es 'final' o el id de una categoría; `si` condiciona el bonus a que
 // el promedio ponderado de esas categorías SUPERE `mayorQue`, sin redondear.
+// `alCompletar` espera a que el destino tenga todas sus notas: el bonus va
+// sobre un promedio que todavía no existe mientras falte una evaluación.

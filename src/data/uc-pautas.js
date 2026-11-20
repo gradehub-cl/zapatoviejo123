@@ -600,9 +600,11 @@ const PRESETS_UC={
     // podrá faltar a 2 talleres, independiente de la justificación". La
     // profesora aclaró después que son 8. Se pregunta por las faltas, que es
     // como el programa la opera y no depende de cuántos talleres hay en total.
+    // Las décimas van sobre el promedio de los Controles, que solo existe con
+    // los tres rendidos: antes de eso no se suman (Lucas, 2026-11-20).
     bonus:[
-      {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',
-        ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles'},
+      {id:'talleres',pregunta:'Talleres a los que has faltado',entrada:'faltas',hasta:2,suma:0.5,a:'Controles',alCompletar:true,
+        ayuda:'Si faltas como máximo a 2 talleres, con o sin justificación, sumas 5 décimas al promedio de los Controles cuando estén los 3 anotados'},
     ],
     noCalcula:[
       'El programa no indica si se conserva el laboratorio al repetir la cátedra o al revés: confirma en tu Escuela',

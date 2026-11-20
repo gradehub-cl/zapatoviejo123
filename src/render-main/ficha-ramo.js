@@ -527,7 +527,8 @@ function renderRamo(){
             :`Suman ${coma((Math.min(v,topeBonus(b))/10).toFixed(1))} ${esc(destino(b))}.`;
         }else{
           const quedan=b.hasta-v;
-          detalle=v<=b.hasta?`Sumas ${coma(b.suma.toFixed(1))} ${esc(destino(b))}. ${quedan===0?'No puedes faltar a otro.':quedan===1?'Puedes faltar a 1 más.':`Puedes faltar a ${quedan} más.`}`
+          const espera=b.alCompletar&&calc.res.breakdown.find(x=>x.id===b.destino)?.complete!==true;
+          detalle=v<=b.hasta?`${espera?'Sumarás':'Sumas'} ${coma(b.suma.toFixed(1))} ${esc(destino(b))}${espera?' cuando estén todas sus notas':''}. ${quedan===0?'No puedes faltar a otro.':quedan===1?'Puedes faltar a 1 más.':`Puedes faltar a ${quedan} más.`}`
             :`Con más de ${b.hasta} ${unidad[1]} ya no sumas las ${coma((b.suma*10).toFixed(0))} décimas.`;
         }
         const control=v===null
