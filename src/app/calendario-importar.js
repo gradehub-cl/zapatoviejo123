@@ -77,12 +77,13 @@ function parseIcsCalendario(text,{inicioCrudo=false}={}){
 function claveDestinoIcs(target){
   return target.ramo.id+'|'+target.cat.id+'|'+(target.nota?target.nota.id:'');
 }
-function destinosIcs(){
+function fechaDisponibleIcs(item){return !item.fecha&&!item.fechaQuitada;}
+function destinosIcs({incluirOcupados=false}={}){
   const out=[];
   (S.ramos||[]).forEach(r=>(r.categorias||[]).forEach(cat=>{
-    if(!cat.fecha&&!cat.fechaQuitada)out.push({ramo:r,cat,nota:null});
+    if(incluirOcupados||fechaDisponibleIcs(cat))out.push({ramo:r,cat,nota:null});
     (cat.notas||[]).forEach(nota=>{
-      if(!nota.fecha&&!nota.fechaQuitada)out.push({ramo:r,cat,nota});
+      if(incluirOcupados||fechaDisponibleIcs(nota))out.push({ramo:r,cat,nota});
     });
   }));
   return out;
@@ -142,7 +143,7 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[]){
   const hoy=fechaChileCanvas(ahora||new Date());
   const porGrupo=new Map((grupos||[]).map(g=>[String(g.id),String(g.name||'')]));
   const entrada=Array.isArray(tareas)&&tareas.length?tareas:(grupos||[]).flatMap(g=>(g.assignments||[]).map(t=>({...t,assignment_group_id:g.id})));
-  const destinos=destinosIcs().filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
+  const destinos=destinosIcs({incluirOcupados:true}).filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
   const usados=new Set(),vistas=new Set(),propuestas=[];
   const conteos={total:entrada.length,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0};
   for(const tarea of entrada){
@@ -150,7 +151,8 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[]){
     const fecha=fechaChileCanvas(tarea.due_at);
     if(!fecha){conteos.sinFecha++;continue;}
     if(fecha<hoy){conteos.pasadas++;continue;}
-    const nombre=String(tarea.name||'').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
+    const titulo=String(tarea.name||'').trim();
+    const nombre=/^P\s*\d+$/i.test(titulo)?titulo:titulo.replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
     if(!nombre){conteos.sinDestino++;continue;}
     const grupo=String(tarea.assignment_group?.name||porGrupo.get(String(tarea.assignment_group_id))||'').trim();
     const clave=normName(nombre)+'|'+fecha+'|'+normName(grupo);
@@ -166,9 +168,13 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[]){
       return tipos.includes(tipoEvaluacionCanvas(nombre))&&tipoEvaluacionCanvas(nombre)?1
         :grupo&&tipos.includes(tipoEvaluacionCanvas(grupo))&&tipoEvaluacionCanvas(grupo)?1:0;
     };
-    const candidatos=destinos.filter(t=>!usados.has(claveDestinoIcs(t))).map(t=>({t,p:puntuar(t)})).filter(x=>x.p>0)
+    const candidatos=destinos.map(t=>({t,p:puntuar(t)})).filter(x=>x.p>0)
       .sort((a,b)=>b.p-a.p);
-    const target=candidatos.length?claveDestinoIcs(candidatos[0].t):null;
+    // Una coincidencia por nombre o grupo sigue siendo la mejor aunque esa
+    // evaluación ya tenga fecha. No pasar a otra solo porque sea del mismo tipo.
+    const mejor=candidatos[0]?.p;
+    const libre=candidatos.find(({t,p})=>p===mejor&&fechaDisponibleIcs(t.nota||t.cat)&&!usados.has(claveDestinoIcs(t)));
+    const target=libre?claveDestinoIcs(libre.t):null;
     if(target)usados.add(target);else conteos.sinDestino++;
     propuestas.push({titulo:nombre+' · '+ramo.nombre,fecha,ramoId:ramo.id,target,origen:'canvas'});
   }
