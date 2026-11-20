@@ -302,9 +302,10 @@ function redibujarRevisionIcs(index){
   const hoja=enAppNativa()&&contextoFechasCanvas&&lista?.closest?.('.modal-sheet');
   const arriba=(hoja||lista)?.scrollTop||0;
   renderRevisionIcs();
-  const scroll=hoja||document.getElementById('ics-revision-lista');
+  const nueva=document.getElementById('ics-revision-lista');
+  const scroll=hoja||nueva;
   if(scroll)scroll.scrollTop=arriba;
-  document.getElementById('ics-evaluacion-'+index)?.focus?.({preventScroll:true});
+  nueva?.querySelectorAll('[data-ics-evaluacion]')[index]?.focus({preventScroll:true});
 }
 function asignarRamoIcs(index,ramoId){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
