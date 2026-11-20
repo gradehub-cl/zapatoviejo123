@@ -85,6 +85,30 @@ Datos fijos: Team ID **PH6XQV8L2M** (GradeHub SpA) · bundle **cl.gradehub.app**
       teléfono y correo solo en App Store Connect) y cuenta demo.
 - [ ] **[Lucas]** Enviar a revisión; publicación manual recomendada para la 1.0.
 
+## 5. Amigos (si va en este envío)
+
+Rama `claude/friendly-noether-h0w94l`. La pestaña aparece solo en la app nativa
+y solo cuando su SQL está aplicado; sin SQL, la app queda como estaba.
+
+- [ ] **[Martín]** Aplicar en producción, en este orden, después de
+      `administradores.sql`: `supabase/amigos.sql`, `supabase/amigos_grupos.sql`
+      y `supabase/amigos_notas.sql`. Desde su Mac:
+      `node bin/sql-produccion.js aplicar supabase/amigos.sql supabase/amigos_grupos.sql supabase/amigos_notas.sql`
+      (un clic por archivo), o pegándolos en el SQL Editor. Comprobar con
+      `node bin/sql-produccion.js consultar "select count(*) from pg_proc where proname in ('amigos_estado','mis_grupos','amigos_notas_estado')"` → 3.
+      (Desde la nube no se puede: no hay token y quitar el clic de confirmación
+      quedó descartado.)
+- [ ] **[código]** Pantalla en el panel de admin para `admin_denuncias_usuarios`
+      y `admin_resolver_denuncia_usuario` (App Review 1.2; hoy solo por SQL).
+- [ ] **[Lucas]** Cuenta demo para App Review con username, un amigo con horario
+      y un grupo; anotarlo en `cuenta-demo.md` y en la nota para el revisor.
+- [ ] **[Lucas]** Publicar `privacidad.html` con las filas de Amigos antes del
+      envío (llega a la web con el merge a `main`).
+- [ ] **[tras merge]** App Privacy: Amigos no agrega tipos de dato; revisar las
+      filas actualizadas en `privacidad.md` (Name, Other User Content, User ID).
+- [ ] **[código]** Universal Links (#663): el link `gradehub.cl/?amigo=…` hoy
+      abre la web, donde Amigos no aparece.
+
 ## Notas
 
 - Los minutos de GitHub Actions de la organización están al 100 % hasta el

@@ -2054,6 +2054,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-profesor,
 .app.tab-mode #screen-alumnos,
 .app.tab-mode #screen-perfil,
+.app.tab-mode #screen-amigos,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -2073,6 +2074,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-profesor[hidden],
 .app.tab-mode #screen-alumnos[hidden],
 .app.tab-mode #screen-admin[hidden],
+.app.tab-mode #screen-amigos[hidden],
 .app.tab-mode #screen-perfil[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
@@ -2080,6 +2082,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode.dragging #screen-profesor,
 .app.tab-mode.dragging #screen-alumnos,
 .app.tab-mode.dragging #screen-admin,
+.app.tab-mode.dragging #screen-amigos,
 .app.tab-mode.dragging #screen-perfil{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
@@ -2540,6 +2543,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-profesor,
   .app.tab-mode #screen-alumnos,
   .app.tab-mode #screen-admin,
+  .app.tab-mode #screen-amigos,
   .app.tab-mode #screen-perfil{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group{will-change:auto;}
 
@@ -6271,6 +6275,134 @@ html.app-nativa .reglas-ramo .est-par .est-pista{grid-column:1/-1;grid-row:2;hei
 html.app-nativa .reglas-ramo .reglas-peso>small{display:block;font-size:.8125rem;color:var(--fg2);line-height:1.5;margin-top:6px;}
 html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-height:1.6;margin-top:20px;padding-top:12px;border-top:1px solid var(--border);overflow-wrap:anywhere;}
 @media(prefers-reduced-motion:reduce){html.app-nativa .reglas-ramo .ic-despliegue{transition:none;}}
+
+/* ─── Pestaña Amigos ───────────────────────────────────────────────────────
+   Misma lista agrupada que Perfil (HIG: Lists and tables). El semáforo solo
+   aparece en los promedios compartidos. «En clases» se marca con el acento,
+   no con verde ni rojo. */
+#amigos-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
+.amigos-yo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0 4px;}
+.amigos-yo>div{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.amigos-yo-user{font-size:1.375rem;font-weight:650;letter-spacing:-.03em;overflow-wrap:anywhere;}
+.amigos-yo small{font-size:.8125rem;color:var(--fg3);}
+.amigos-invitar,.amigo-boton{flex-shrink:0;min-height:44px;min-width:44px;padding:0 16px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:600 .9375rem var(--font-ui);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigo-boton.principal{border-color:var(--fg);background:var(--fg);color:var(--bg2);}
+.amigos-invitar:active,.amigo-boton:active{opacity:.6;}
+.amigos-invitar:focus-visible,.amigo-boton:focus-visible,.amigo-fila:focus-visible,.amigos-link:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.amigos-aviso{margin:16px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-size:.875rem;line-height:1.45;color:var(--fg2);}
+.amigos-grupo li+li{border-top:1px solid var(--border);}
+.amigo-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 0;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigo-fila:active .amigo-texto{opacity:.55;}
+.amigo-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1rem;font-weight:600;color:var(--fg);}
+.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.grande{width:56px;height:56px;font-size:1.375rem;}
+.amigo-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.amigo-texto b{font-size:1rem;font-weight:550;letter-spacing:-.01em;overflow-wrap:anywhere;}
+.amigo-texto small{font-size:.8125rem;line-height:1.35;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.amigo-comun{flex-shrink:0;font-size:.75rem;color:var(--fg3);white-space:nowrap;}
+.amigo-solicitud{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;}
+.amigo-acciones{display:flex;gap:8px;flex-shrink:0;}
+/* Con dos botones, van bajo el nombre y a todo el ancho: al lado lo apretaban a tres líneas. */
+.amigo-solicitud.recibida{flex-wrap:wrap;row-gap:10px;}
+.amigo-solicitud.recibida .amigo-acciones{flex:1 0 100%;padding-left:52px;}
+.amigo-solicitud.recibida .amigo-boton{flex:1;}
+.amigo-estado{font-size:.875rem;color:var(--fg3);}
+.amigos-vacio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:32px;padding:28px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);text-align:center;}
+.amigos-vacio h2{margin:0;font-size:1.125rem;font-weight:650;}
+.amigos-vacio p{margin:0 0 8px;font-size:.875rem;color:var(--fg2);}
+.amigos-vacio .btn-primary{max-width:280px;}
+.amigos-link{min-height:44px;padding:0 8px;border:0;background:none;color:var(--primary);font:600 .9375rem var(--font-ui);cursor:pointer;}
+.amigos-link-centro{display:block;margin:12px auto 0;}
+.amigos-vacio-texto{margin:8px 0;font-size:.875rem;line-height:1.45;color:var(--fg2);}
+.amigos-ajuste{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:8px 0;cursor:pointer;}
+.amigos-ajuste>span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.amigos-ajuste b{font-size:1rem;font-weight:400;}
+.amigos-ajuste small{font-size:.8125rem;line-height:1.35;color:var(--fg3);}
+.amigos-username{display:flex;flex-direction:column;gap:12px;padding:32px 0 0;}
+.amigos-username h2{margin:0;font-size:1.5rem;font-weight:650;letter-spacing:-.03em;}
+.amigos-username>p{margin:0;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
+.amigos-campo{display:flex;align-items:center;gap:2px;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);}
+.amigos-campo:focus-within{border-color:var(--primary);}
+.amigos-campo>span{color:var(--fg3);font-size:1rem;}
+.amigos-campo input[type=text],.amigos-campo input[type=search]{flex:1;min-width:0;min-height:46px;padding:0;border:0;background:transparent;box-shadow:none;font-size:1rem;}
+.amigos-campo input[type=text]:focus,.amigos-campo input[type=search]:focus{outline:none;}
+.amigos-username-estado{min-height:1.4em;margin:0;font-size:.8125rem;color:var(--fg2);}
+.amigos-username-estado.libre{color:var(--primary);}
+.amigos-buscar{display:flex;gap:8px;margin-bottom:12px;}
+.amigos-buscar .amigos-campo{flex:1;min-width:0;}
+.amigos-encontrado{padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.amigo-cabecera{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+.amigo-cabecera .modal-title{margin:0;}
+.amigo-sub{margin:2px 0 0;font-size:.875rem;color:var(--fg2);}
+.amigo-ahora{margin:0 0 20px;font-size:.9375rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.amigo-ahora.en-clase{color:var(--fg);font-weight:550;}
+.amigo-lista{list-style:none;margin:0 0 20px;padding:0;}
+.amigo-lista li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:6px 0;font-size:.9375rem;}
+.amigo-lista li+li{border-top:1px solid var(--border);}
+.amigo-chip{flex-shrink:0;padding:2px 8px;border-radius:999px;background:var(--muted);font-size:.75rem;color:var(--fg2);}
+.amigo-horas{color:var(--fg2);font-variant-numeric:tabular-nums;text-align:right;}
+.amigo-peligro{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 4px;padding-top:12px;border-top:1px solid var(--border);}
+.amigo-peligro .amigos-link{color:var(--red);padding:0;}
+.amigos-denuncia fieldset{margin:0 0 12px;padding:0;border:0;}
+.amigos-motivo{display:flex;align-items:center;gap:12px;min-height:44px;font-size:.9375rem;cursor:pointer;}
+.amigos-motivo input{width:20px;height:20px;accent-color:var(--primary);}
+.amigos-denuncia textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;}
+/* Grupos, turno y promedios compartidos. El promedio usa el semáforo de
+   siempre (aprobado / al borde / reprobado): es una nota, no un adorno. */
+.amigo-avatar.grupo{color:var(--fg2);}
+.amigo-avatar .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
+.amigo-avatar.grande .ic{width:28px;height:28px;}
+/* «Nuevo grupo» y «Agregar personas»: la fila verde con + de WhatsApp. */
+.amigos-fila-mas .amigo-avatar{border-color:transparent;background:var(--primary);color:var(--primary-fg);}
+.amigos-fila-mas b{color:var(--primary);font-weight:600;}
+/* Avatar de grupo: dos iniciales superpuestas, como Instagram o iMessage. */
+.amigo-avatar.pila{position:relative;border:0;background:none;}
+.amigo-avatar.pila>span{position:absolute;display:flex;align-items:center;justify-content:center;width:62%;height:62%;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:.75rem;font-weight:600;}
+.amigo-avatar.pila>span:first-child{top:0;left:0;}
+.amigo-avatar.pila>span:last-child{right:0;bottom:0;box-shadow:0 0 0 2px var(--bg2);background:var(--muted);}
+.amigo-avatar.grande.pila{width:80px;height:80px;}
+.amigo-avatar.grande.pila>span{font-size:1.25rem;}
+.grupo-cabecera{display:flex;flex-direction:column;align-items:center;gap:6px;margin:4px 0 20px;text-align:center;}
+.grupo-cabecera>.amigo-avatar.grande:not(.pila){width:80px;height:80px;}
+.grupo-nombre{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:0;background:none;color:var(--fg);font:650 1.375rem/1.2 var(--font-ui);letter-spacing:-.02em;cursor:pointer;}
+.grupo-nombre .ic{width:18px;height:18px;fill:none;stroke:var(--fg3);stroke-width:1.8;stroke-linejoin:round;}
+.grupo-cabecera .amigo-sub{margin:0;font-variant-numeric:tabular-nums;}
+.grupo-salir{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;margin:8px 0 4px;padding:0;border:0;border-top:1px solid var(--border);background:none;color:var(--red);font:500 1rem var(--font-ui);cursor:pointer;}
+.grupo-salir .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.grupo-opciones{display:flex;flex-direction:column;margin:4px 0 12px;border-top:1px solid var(--border);}
+.grupo-opcion{min-height:52px;padding:0;border:0;border-bottom:1px solid var(--border);background:none;color:var(--fg);font:1rem var(--font-ui);text-align:left;cursor:pointer;}
+.grupo-opcion.peligro{color:var(--red);}
+.amigos-elegidos{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px;}
+.amigos-elegidos:empty{display:none;}
+.amigos-elegido{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;border:0;border-radius:999px;background:var(--primary-light);color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
+.amigos-elegido span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;font-size:1.125rem;color:var(--fg2);}
+.grupo-nombre:focus-visible,.grupo-salir:focus-visible,.grupo-opcion:focus-visible,.amigos-elegido:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.amigo-texto small+small{color:var(--fg3);}
+.amigo-lista-der{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.amigo-nota{min-width:44px;padding:3px 10px;border-radius:999px;box-sizing:border-box;font-size:.8125rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;}
+.amigo-nota.good{background:var(--green-bg);color:var(--green);}
+.amigo-nota.warn{background:var(--yellow-bg);color:var(--yellow);}
+.amigo-nota.bad{background:var(--red-bg);color:var(--red);}
+.amigo-nota.neutral{background:var(--muted);color:var(--fg3);font-weight:500;}
+.amigo-turno{display:flex;flex-direction:column;gap:2px;margin:0 0 8px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.amigo-turno b{font-size:.9375rem;font-weight:600;}
+.amigo-turno small{font-size:.8125rem;color:var(--fg2);}
+.amigo-turno.perfecto{border-color:var(--primary);background:var(--primary-light);}
+.amigo-chip.perfecto{background:var(--primary-light);color:var(--primary);font-weight:600;}
+.amigo-de{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.amigo-lista-personas li{justify-content:flex-start;}
+.amigo-lista-personas .amigo-chip{font-weight:500;}
+.amigo-lista-personas .amigo-fila{min-height:60px;}
+.amigo-lista-cabeza{display:flex;justify-content:space-between;gap:12px;}
+.amigos-grupo-form fieldset{margin:16px 0 4px;padding:0;border:0;}
+.amigos-grupo-form .amigos-grupo-nombre[type=text],#amigos-renombrar-form .amigos-grupo-nombre[type=text]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
+.amigos-elegir-lista{list-style:none;margin:0;padding:0;max-height:42vh;overflow-y:auto;}
+.amigos-elegir-lista li+li{border-top:1px solid var(--border);}
+.amigos-elegir{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;}
+.amigos-elegir input[type=checkbox]{flex-shrink:0;width:22px;height:22px;margin:0;accent-color:var(--primary);}
+/* Insignia de solicitudes sobre el ícono, como en iOS. */
+.nav-item .nav-icon{position:relative;}
+.nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
