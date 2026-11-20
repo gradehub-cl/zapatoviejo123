@@ -129,6 +129,25 @@ returns boolean language sql immutable set search_path = '' as $$
 $$;
 revoke all on function public.amigos_username_reservado(text) from public, anon, authenticated;
 
+-- Filtro de groserías e insultos para usernames y nombres de grupo (App
+-- Review 1.2: contenido de usuarios). Misma idea que profesor_texto_permitido:
+-- vive en la base, no solo en la app. Raíces fuertes se buscan en cualquier
+-- parte (un username no tiene espacios); las que aparecen dentro de nombres
+-- reales, solo como palabra suelta: no se rechaza «gilberto», «penelope»,
+-- «maricel», «vergara» ni «computacion». Se deshace
+-- el leetspeak común (0→o, 1→i, 3→e, 4→a, 5→s, 7→t).
+create or replace function public.amigos_texto_ofensivo(p text)
+returns boolean language sql immutable set search_path = '' as $$
+  with t as (select translate(lower(coalesce(p, '')), 'áéíóúüñ013457', 'aeiouunoieast') as x)
+  select x ~ '(weon|weona|hueon|huevon|aweon|culia|conchetu|conchesu|maricon|mierd|ctm|csm|ptm|idiota|imbecil|estupid|pendej|cabron|zorra|perra|nazi|hitler|violador|pedofil|racista|porno|cocain|suicid)'
+      -- «puto» al empezar una palabra: atrapa «putoelquelee» sin tocar «computacion».
+      or x ~ '(^|[^a-z])put[ao]'
+      or x ~ ('(^|[^a-z])(' || array_to_string(array['wn','wna','wea','weas','ql','qlo','gil','gila','pico','raja','culo','culos','poto','longi','flaite','facho','caca',
+                                                    'pichula','pene','verga','sexo','tetas','droga','drogas'],'|') || ')([^a-z]|$)')
+  from t
+$$;
+revoke all on function public.amigos_texto_ofensivo(text) from public, anon, authenticated;
+
 -- El user_id de un username, solo si existe y nadie bloqueó a nadie.
 create or replace function public.amigos_resolver(p_username text, p_yo uuid)
 returns uuid language sql stable security definer set search_path = '' as $$
@@ -196,6 +215,7 @@ declare uid uuid := public.amigos_exigir_sesion(); n text := public.amigos_norma
 begin
   if n !~ '^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$' or n ~ '[._]{2}' then return 'invalido'; end if;
   if public.amigos_username_reservado(n) then return 'reservado'; end if;
+  if public.amigos_texto_ofensivo(n) then return 'no_permitido'; end if;
   if exists (select 1 from public.usernames where username = n and user_id <> uid) then return 'ocupado'; end if;
   return 'disponible';
 end;
@@ -212,6 +232,7 @@ begin
     raise exception 'username inválido: de 3 a 20 letras, números, punto o guion bajo';
   end if;
   if public.amigos_username_reservado(n) then raise exception 'ese username está reservado'; end if;
+  if public.amigos_texto_ofensivo(n) then raise exception 'ese username no está permitido'; end if;
   select * into actual from public.usernames where user_id = uid;
   if found and actual.username = n then return n; end if;
   if found and actual.cambiado_at > now() - interval '30 days' then
@@ -307,7 +328,9 @@ language plpgsql stable security definer set search_path = '' as $$
 declare uid uuid := public.amigos_exigir_sesion();
 begin
   return query
-  select a.id, u.username, p.nombre, p.apellido, p.universidad, p.carrera,
+  select a.id, u.username, p.nombre, p.apellido, p.universidad,
+         -- La carrera, solo entre amigos: una solicitud pendiente no la revela.
+         case when a.estado = 'aceptada' then p.carrera end,
          case when a.estado = 'aceptada' then 'amigos' when a.de = uid then 'enviada' else 'recibida' end,
          coalesce(a.aceptada_at, a.created_at)
     from public.amistades a

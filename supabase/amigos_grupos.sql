@@ -125,6 +125,7 @@ begin
     raise exception 'elige tu username antes de crear un grupo';
   end if;
   if char_length(n) not between 1 and 40 then raise exception 'el nombre del grupo va de 1 a 40 caracteres'; end if;
+  if public.amigos_texto_ofensivo(n) then raise exception 'ese nombre de grupo no está permitido'; end if;
   if (select count(*) from public.amigos_grupo_miembros where user_id = uid and estado = 'miembro') >= 10 then
     raise exception 'puedes estar en hasta 10 grupos';
   end if;
@@ -198,6 +199,7 @@ declare uid uuid := public.amigos_exigir_sesion(); n text := btrim(coalesce(p_no
 begin
   if not public.amigos_es_miembro(p_grupo, uid) then raise exception 'no estás en ese grupo'; end if;
   if char_length(n) not between 1 and 40 then raise exception 'el nombre del grupo va de 1 a 40 caracteres'; end if;
+  if public.amigos_texto_ofensivo(n) then raise exception 'ese nombre de grupo no está permitido'; end if;
   update public.amigos_grupos set nombre = n where id = p_grupo;
   return n;
 end;

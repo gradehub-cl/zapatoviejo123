@@ -42,6 +42,7 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   await sesion(A);
   await assert.rejects(q('select public.crear_grupo($1,$2)',['  ',[]]),/1 a 40/);
   await assert.rejects(q('select public.crear_grupo($1,$2)',['Estudio',['eli.e']]),/tus amigos/,'solo amigos');
+  await assert.rejects(q('select public.crear_grupo($1,$2)',['Los ql',['beto_ej']]),/no está permitido/,'nombres de grupo filtrados');
   const g=await uno('select public.crear_grupo($1,$2)',['Estudio Sintético',['beto_ej','carla.p']]);
   assert.equal((await q('select count(*)::int n from public.mis_grupos()'))[0].n,1,'el intento fallido no dejó grupo');
   let mg=(await q('select * from public.mis_grupos()'))[0];

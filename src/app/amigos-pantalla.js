@@ -183,7 +183,7 @@ function pintarAmigos(){
 
 // ─── Elegir username ───
 let _usernameTimer=null;
-const TEXTO_USERNAME={invalido:'De 3 a 20: letras, números, punto o guion bajo.',reservado:'Ese username está reservado.',ocupado:'Ya está ocupado.',disponible:'Disponible.'};
+const TEXTO_USERNAME={invalido:'De 3 a 20: letras, números, punto o guion bajo.',reservado:'Ese username está reservado.',no_permitido:'Ese username no está permitido.',ocupado:'Ya está ocupado.',disponible:'Disponible.'};
 function sugerenciaUsername(){
   const base=String(S.userName||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
   const ap=String(S.userApellido||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');

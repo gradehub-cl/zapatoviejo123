@@ -44,12 +44,13 @@ let ok=0;const paso=n=>{ok++;console.log('  OK   '+n);};
   await sesion(A);
   assert.equal((await uno('select public.amigos_estado()')).username,null);
   for(const [txt,esp] of [['ab','invalido'],['.ana','invalido'],['ana..b','invalido'],['a'.repeat(21),'invalido'],['Ana Sin','invalido'],
-                          ['admin','reservado'],['soporte.uc','reservado'],['gradehub_cl','reservado'],['uc','invalido'],['puc','reservado'],['@Ana.Sint','disponible']])
+                          ['admin','reservado'],['soporte.uc','reservado'],['gradehub_cl','reservado'],['uc','invalido'],['puc','reservado'],['el_w3on','no_permitido'],['wn.feo','no_permitido'],['gilberto','disponible'],['penelope.v','disponible'],['maricel_r','disponible'],['vergara','disponible'],['ing.computacion','disponible'],['concha.toro','disponible'],['@Ana.Sint','disponible']])
     assert.equal(await uno('select public.amigos_username_disponible($1)',[txt]),esp,txt);
   assert.equal(await uno('select public.fijar_username($1)',['  @Ana.Sint ']),'ana.sint','normaliza @, espacios y mayúsculas');
   assert.equal(await uno('select public.fijar_username($1)',['ana.sint']),'ana.sint','repetir el mismo no es un cambio');
   await assert.rejects(q('select public.fijar_username($1)',['ana_otra']),/30 días/,'cambiar al tiro no se puede');
   await assert.rejects(q('select public.fijar_username($1)',['administrador']),/reservado/);
+  await assert.rejects(q('select public.fijar_username($1)',['putoelquelee']),/no está permitido/);
   await sesion(B);
   assert.equal(await uno('select public.amigos_username_disponible($1)',['ANA.SINT']),'ocupado');
   await assert.rejects(q('select public.fijar_username($1)',['Ana.Sint']),/ocupado/);
@@ -81,11 +82,13 @@ let ok=0;const paso=n=>{ok++;console.log('  OK   '+n);};
   let mias=await q('select * from public.mis_amistades()');
   assert.equal(mias.length,1);assert.equal(mias[0].estado,'recibida');assert.equal(mias[0].username,'ana_s');
   assert(!Object.keys(mias[0]).some(k=>/user_id|email|^de$|^para$/.test(k)),'sin ids de cuenta');
+  assert.equal(mias[0].carrera,null,'una solicitud pendiente no revela la carrera');
   await sesion(C);assert.equal(await uno('select public.responder_amistad($1,false)',[(await q('select id from public.mis_amistades()'))[0].id]),true,'rechazar');
   await sesion(A);assert.deepEqual((await q('select username,estado from public.mis_amistades()')),[{username:'beto_ej',estado:'enviada'}],'rechazar borra sin aviso');
   await sesion(D);assert.equal(await uno('select public.responder_amistad($1,true)',[mias[0].id]),false,'no se responde una solicitud ajena');
   await sesion(B);assert.equal(await uno('select public.responder_amistad($1,true)',[mias[0].id]),true);
   await sesion(A);assert.deepEqual((await q('select username,estado from public.mis_amistades()')),[{username:'beto_ej',estado:'amigos'}]);
+  assert.equal((await q('select carrera from public.mis_amistades()'))[0].carrera,'Ingeniería de Ejemplo','entre amigos, sí');
   // Pedir a quien ya me pidió es aceptar.
   await sesion(D);await uno('select public.solicitar_amistad($1)',['ana_s']);
   await sesion(A);assert.equal(await uno('select public.solicitar_amistad($1)',['dani99']),'amigos');
