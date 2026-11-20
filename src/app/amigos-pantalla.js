@@ -190,7 +190,10 @@ function pintarAmigos(){
   // Sin username no hay a quién agregar todavía: el botón de arriba aparece después.
   const agregar=document.querySelector('#screen-amigos .topbar-link');if(agregar)agregar.hidden=!e.username;
   if(!e.username){pintarElegirUsername(caja);return;}
-  if(!amigosListaCache){caja.innerHTML='<p class="amigos-vacio-texto" role="status">Cargando…</p>';return;}
+  // Mientras llega la lista, su forma (como Instagram), no un «Cargando…».
+  if(!amigosListaCache){caja.innerHTML=`<div class="amigos-esqueleto" role="status" aria-label="Cargando amigos">
+    <div class="amigos-perfil-fila"><span class="esq esq-avatar"></span><span class="esq esq-linea"></span></div>
+    ${[1,2,3].map(()=>'<div class="esq-fila"><span class="esq esq-circulo"></span><span class="esq esq-texto"></span></div>').join('')}</div>`;return;}
   const ahora=new Date(),lista=amigosListaCache;
   const amigos=lista.filter(a=>a.estado==='amigos').map(a=>({a,e:amigosHorariosCache.get(a.id)?estadoAhoraAmigo(amigosHorariosCache.get(a.id),ahora):null}))
     .sort((x,y)=>(ORDEN_ESTADO_AMIGO[x.e?.estado]??5)-(ORDEN_ESTADO_AMIGO[y.e?.estado]??5)||nombreAmigo(x.a).localeCompare(nombreAmigo(y.a),'es')).map(x=>x.a);
@@ -239,13 +242,25 @@ function sugerenciaUsername(){
   return s.length>=3?s:'';
 }
 function pintarElegirUsername(caja){
+  // La primera vez: qué se gana, en tres líneas, y recién ahí el username
+  // (como al empezar en Instagram o BeReal). Solo lo que esta cuenta tendrá.
+  const beneficios=[
+    ['Quién está en la u','Y quién está libre ahora para juntarse.'],
+    ['Libres a la vez y turno','Cuándo coinciden y con quién llegas y te vas.'],
+    ...(amigosGruposDisponible?[['Grupos de estudio',amigosCalendarioDisponible?'Salas reservadas y pruebas de todos en un calendario.':'Cuándo están todos libres.']]:[])
+  ];
   caja.innerHTML=`<form class="amigos-username" id="amigos-username-form" novalidate>
-    <h2>Elige tu username</h2>
-    <p>Así te encuentran tus compañeros de la U. Nadie ve tu horario hasta que lo aceptes.</p>
+    <div class="amigos-bienvenida">
+      <span class="amigo-avatar perfil-grande" aria-hidden="true">${esc(userInitial())}</span>
+      <h2>Tus amigos de la U</h2>
+      <ul class="amigos-beneficios">${beneficios.map(([t,d])=>`<li><b>${esc(t)}</b><small>${esc(d)}</small></li>`).join('')}</ul>
+    </div>
+    <label class="modal-label" for="amigos-username">Elige tu username</label>
     <label class="amigos-campo" for="amigos-username"><span aria-hidden="true">@</span>
       <input id="amigos-username" type="text" inputmode="text" autocapitalize="none" autocomplete="username" spellcheck="false" maxlength="21" value="${esc(sugerenciaUsername())}" aria-describedby="amigos-username-estado"></label>
     <p class="amigos-username-estado" id="amigos-username-estado" role="status" aria-live="polite"></p>
     <button type="submit" class="btn-primary" id="amigos-username-ok" disabled>Continuar</button>
+    <p class="amigos-vacio-texto amigos-letra-chica">Solo te encuentran compañeros de tu universidad. Nadie ve tu horario hasta que aceptes una amistad, y nunca tus notas.</p>
   </form>`;
   const input=caja.querySelector('#amigos-username');
   input.addEventListener('input',()=>revisarUsername(input.value));
