@@ -1592,6 +1592,10 @@ input[type=checkbox][role=switch]:disabled,.toggle input[type=checkbox]:disabled
 .medidor-raya{stroke:var(--fg);stroke-width:2;stroke-linecap:butt;}
 .stats-priority-medidor{display:flex;flex-direction:column;align-items:center;flex:none;min-width:84px;}
 .stats-priority-num{margin-top:-20px;font-size:1.25rem;font-weight:800;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;}
+/* Nombre a todo el ancho; abajo, «Vas X» a la izquierda y la frase pegada al medidor. */
+.stats-priority-texto{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:end;}
+.stats-priority-texto .ag-row-name{grid-column:1/-1;}
+.stats-priority-lectura{grid-column:2;grid-row:2;text-align:right;font-size:.75rem;line-height:1.35;color:var(--fg2);white-space:nowrap;}
 .stats-priority-medidor small{margin-top:4px;font-size:.625rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;}
 /* Escala de 1 a 7 con la banda posible, el 4,0 y dónde vas. */
 .escala-notas{position:relative;height:50px;margin-top:14px;}
@@ -2917,7 +2921,7 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 /* Estadísticas reutiliza stat-card; sus filas no son tarjetas anidadas. */
 #screen-stats .stats-section-card{margin:0 20px 16px;padding:16px;cursor:default;transform:none;}
 @media(hover:hover) and (pointer:fine){#screen-stats .stats-section-card:hover{background:var(--card);border-color:var(--border);}}
-#screen-stats .stats-prioridades .stats-priority-row{margin:0;border:0;border-radius:0;background:none;box-shadow:none;transform:none;}
+#screen-stats .stats-prioridades .stats-priority-row{margin:0;border:0;border-radius:0;background:none;box-shadow:none;transform:none;padding-top:18px;padding-bottom:18px;}
 #screen-stats .stats-prioridades .stats-priority-row+.stats-priority-row{border-top:1px solid var(--border);}
 #screen-stats .stats-history-module .hist-card{margin:0;border:0;border-radius:0;background:none;box-shadow:none;transform:none;}
 #screen-stats .stats-history-module .hist-card+.hist-card{border-top:1px solid var(--border);}
