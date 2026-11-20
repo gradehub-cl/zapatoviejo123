@@ -1,5 +1,7 @@
 # Inicio: «¿Cómo te fue?»
 
+Actualizado el 19-11-2026 con el control de la ficha solicitado por Lucas.
+
 Solo app nativa. Datos sintéticos, sin cuentas ni Canvas reales. Pruebas del
 motor con una pauta propia, sin `presetRamo()`. Se conserva el flujo web previo.
 
@@ -11,18 +13,20 @@ UC: desde 14 días después de la fecha, sin vencimiento, hasta guardar la nota 
 `RECORDATORIO_NOTAS_POR_TENANT`, sin condicionales por universidad ni reglas
 nuevas en el motor. Las pruebas cubren días 1, 13, 14, 20 y fechas más antiguas.
 
-La composición final, ajustada por Lucas, contiene solo pregunta, ramo y campo
-con «Guardar» / «Ahora no»: sin contador, explicación larga ni abrir otra
+La composición final, ajustada por Lucas, contiene solo pregunta, ramo y control
+con «+ Nota» / «Ahora no»: sin contador, explicación larga ni abrir otra
 pantalla para poner la nota.
 
 ## Qué se reutiliza
 
 - `agendaEvents` para las evaluaciones y sus fechas: una fecha propia identifica
   su casilla; la fecha del grupo cubre solo casillas sin fecha propia.
-- Los escritores existentes (`escribirNotaPropuesta`, `asignarCalificacionNota`)
+- Los escritores existentes (`abrirNotaEnFila`, `escribirNotaPropuesta`, `asignarCalificacionNota`)
   y `save`, sin crear notas al pintar. La prueba y el navegador comprueban que
   la entrada de Control 3 cambia solo la tercera casilla y Control 2 sigue
-  pendiente. Se guarda sin salir de Inicio, también con el guardado real.
+  pendiente. Se guarda al salir del campo sin abandonar Inicio, también con el guardado real.
+  La ficha conserva su camino anterior; Inicio aporta su destino mediante una
+  función opcional al mismo editor en fila. No hay botón Guardar separado.
 - `lecturaDespuesDeNota` y `notaNecesaria`: el aviso después del guardado sale
   del motor. Conserva los casos de compuertas, nota inalcanzable, cierre y listas
   con descarte abierto. No hay cálculo de promedios ni pesos nuevo.
@@ -66,13 +70,16 @@ neutras y texto sin semáforo ni celebración. Se midieron controles ≥44 px,
 contraste superior a 4,5:1 y ancho de documento 375 px sin scroll horizontal.
 Texto al 200 % conserva las acciones y el ajuste de líneas.
 
-La tarjeta final mide 127,78 px en la muestra de 375 px, con controles de 44 px
-y contraste mínimo 7,51:1 en claro / 9,73:1 en oscuro. Con texto al 200 %, las
+La tarjeta final mide 118 px en la muestra de 375 px, con controles de 44 px
+y contraste mínimo 5,23:1 en claro / 9,73:1 en oscuro. Con texto al 200 %, las
 acciones se ajustan en filas y no hay scroll horizontal. Las capturas finales
-corresponden al ingreso compacto, no al diseño inicial que abría el ramo.
+corresponden al control + Nota compartido con la ficha, no a los diseños
+anteriores. Se compararon los estilos calculados de ambos botones: ancho
+84 px, altura mínima 44 px, radio 8 px, borde, fondo, color, fuente y padding
+coinciden en los dos modos.
 
 Una respuesta tardía de Canvas no borra el valor ni reemplaza el campo que se
-está editando. Se probó guardar `5,4` con teclado y el botón «Guardar»: el aviso
+está editando. Se probó guardar `5,4` con teclado y salir del campo con Tab: el aviso
 «Ahora necesitas 3,5 en lo que queda para aprobar» coincide con `notaNecesaria`.
 
 HIG: [Feedback](https://developer.apple.com/design/human-interface-guidelines/feedback)
@@ -88,7 +95,10 @@ No se modificó Swift; no hace falta una ruta nativa ni plugin nuevos.
 ## Validación final
 
 - Build, revisión JS, balance CSS y `git diff --check`.
-- Suite completa `npm test -- --resumen`: 476/476 aprobadas sobre la última
-  `ios`, incluida la Agenda de la #1202. JS OK; CSS 5323/5323 OK.
+- Suite completa `npm test -- --resumen`: 485/485 aprobadas sobre `ios` actualizada al 19-11-2026. JS y balance CSS OK.
 - Pruebas sintéticas de descartes, plazos por universidad, ingreso y guardado
   reales, Canvas, respuesta tardía, campo en edición y aislamiento web.
+
+También se comprobó con un toque real en «Ahora no» mientras había `5,4`
+escrito: descarta sin guardar. Campo vacío, Escape, nota inválida y blur
+duplicado tienen pruebas sintéticas ejecutando el editor compartido real.

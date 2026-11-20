@@ -1,20 +1,44 @@
 [
   {
     "modo": "claro",
-    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\nGuardar\nAhora no",
-    "alto": 127.78125,
+    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\n+ Nota\nAhora no",
+    "alto": 118,
     "scroll": 375,
     "botones": [
       44,
-      44,
       44
     ],
-    "contraste": 7.5103018216066175,
+    "contraste": 5.232687762135692,
     "errores": [],
-    "lecturas": [],
-    "placeholder": {
-      "color": "rgb(84, 84, 91)",
-      "base": "rgb(84, 84, 91)"
+    "lecturas": []
+  },
+  {
+    "modo": "claro",
+    "compartido": {
+      "inicio": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(184, 184, 190)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(13, 122, 107)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      },
+      "ficha": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(184, 184, 190)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(13, 122, 107)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      }
     }
   },
   {
@@ -29,20 +53,44 @@
   },
   {
     "modo": "oscuro",
-    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\nGuardar\nAhora no",
-    "alto": 127.78125,
+    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\n+ Nota\nAhora no",
+    "alto": 118,
     "scroll": 375,
     "botones": [
-      44,
       44,
       44
     ],
     "contraste": 9.727323338328082,
     "errores": [],
-    "lecturas": [],
-    "placeholder": {
-      "color": "rgb(180, 180, 189)",
-      "base": "rgb(180, 180, 189)"
+    "lecturas": []
+  },
+  {
+    "modo": "oscuro",
+    "compartido": {
+      "inicio": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(85, 85, 94)",
+        "backgroundColor": "rgb(17, 17, 19)",
+        "color": "rgb(45, 212, 191)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      },
+      "ficha": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(85, 85, 94)",
+        "backgroundColor": "rgb(17, 17, 19)",
+        "color": "rgb(45, 212, 191)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      }
     }
   },
   {
@@ -59,8 +107,7 @@
     "texto200": {
       "scroll": 375,
       "botones": [
-        56,
-        46,
+        51,
         46
       ]
     }

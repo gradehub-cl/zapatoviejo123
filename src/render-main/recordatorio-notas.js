@@ -165,18 +165,18 @@ async function consultarCanvasNotasInicio(items){
   if(contextoCanvasInicioVigente(d))renderNotaPendienteInicio(new Date(),false);
 }
 function guardarNotaInicio(item,raw){
-  if(!enAppNativa()||item.estado!==S||item.clave!==claveNotaInicio(item))return;
+  if(!enAppNativa()||item.estado!==S||item.clave!==claveNotaInicio(item))return false;
   const vigente=notasRecientesInicio().find(e=>e.clave===item.clave);
-  if(!vigente){renderNotaPendienteInicio();return;}
+  if(!vigente){renderNotaPendienteInicio();return false;}
   const valor=parseNota(raw),error=document.getElementById('nota-inicio-error'),campo=document.getElementById('nota-inicio-valor');
   if(!Number.isFinite(valor)){
     error.hidden=false;error.textContent='Escribe una nota válida entre 1,0 y 7,0.';
-    campo.setAttribute('aria-invalid','true');campo.focus();return;
+    campo.setAttribute('aria-invalid','true');campo.focus();return false;
   }
   const c=vigente.cat,r=vigente.ramo;
   let n=vigente.nota||(Number.isInteger(vigente.slot)?(c.notas||[]).find(n=>n.slot===vigente.slot):null);
   if(!n){
-    if(!escribirNotaPropuesta(c,{valor,casilla:Number.isInteger(vigente.slot)?vigente.slot+1:null},r))return;
+    if(!escribirNotaPropuesta(c,{valor,casilla:Number.isInteger(vigente.slot)?vigente.slot+1:null},r))return false;
     n=Number.isInteger(vigente.slot)?c.notas.find(n=>n.slot===vigente.slot):c.notas.find(n=>n.valor===valor);
   }
   asignarCalificacionNota(n,raw,valor);
@@ -186,6 +186,7 @@ function guardarNotaInicio(item,raw){
   renderHome();
   if(typeof renderAgenda==='function')renderAgenda();
   vibrar('nota');showToast(lectura);
+  return true;
 }
 function renderNotaPendienteInicio(ahora=new Date(),consultar=true){
   const caja=document.getElementById('home-nota-pendiente');if(!caja)return;
@@ -195,17 +196,24 @@ function renderNotaPendienteInicio(ahora=new Date(),consultar=true){
   caja.hidden=!item;caja.innerHTML='';if(!item)return;
   caja.dataset.clave=item.clave;
   const propuesta=propuestaCanvasNotaInicio(item),nombre=nombreNotaInicio(item);
-  caja.innerHTML=`<h2 id="nota-inicio-titulo">¿Cómo te fue en ${esc(nombre)}?</h2><p class="nota-inicio-ramo">${esc(item.ramo.nombre)}</p>
+  caja.innerHTML=`<div class="nota-inicio-fila"><div class="nota-inicio-texto"><h2 id="nota-inicio-titulo">¿Cómo te fue en ${esc(nombre)}?</h2><p class="nota-inicio-ramo">${esc(item.ramo.nombre)}</p></div>
     <form class="nota-inicio-acciones" novalidate>
-      ${propuesta?'<button type="button" data-nota-inicio-canvas>Traer de Canvas</button>':`<input id="nota-inicio-valor" type="text" inputmode="${inputModeNota()}" autocapitalize="characters" autocomplete="off" maxlength="4" placeholder="Nota" aria-label="Nota de ${esc(nombre)} en ${esc(item.ramo.nombre)}" aria-describedby="nota-inicio-error"><button type="submit" data-nota-inicio-guardar>Guardar</button>`}
+      ${propuesta?'<button type="button" data-nota-inicio-canvas>Traer de Canvas</button>':`<button type="button" class="nota-en-fila" data-nota-inicio-poner aria-label="Anotar nota de ${esc(nombre)} en ${esc(item.ramo.nombre)}">+ Nota</button>`}
       <button type="button" data-nota-inicio-ahora>Ahora no</button>
-    </form><p id="nota-inicio-error" role="alert" hidden></p>`;
-  caja.querySelector('[data-nota-inicio-ahora]').onclick=()=>descartarNotaInicio(item);
+    </form></div><p id="nota-inicio-error" role="alert" hidden></p>`;
+  let cancelada=false;
+  const ahoraNo=caja.querySelector('[data-nota-inicio-ahora]');
+  // El toque en «Ahora no» no debe guardar por blur lo que se estaba escribiendo.
+  ahoraNo.onpointerdown=e=>e.preventDefault();
+  ahoraNo.onclick=()=>{cancelada=true;descartarNotaInicio(item);};
   if(propuesta)caja.querySelector('[data-nota-inicio-canvas]').onclick=()=>{
     const vigente=notasRecientesInicio().find(e=>e.clave===item.clave),p=vigente&&propuestaCanvasNotaInicio(vigente);
     if(!p)return renderNotaPendienteInicio();
     entradaNotaInicio=vigente;canvasNotasDraft=[{...p}];renderRevisionNotasCanvas();openModal();
   };
-  else caja.querySelector('form').onsubmit=e=>{e.preventDefault();guardarNotaInicio(item,document.getElementById('nota-inicio-valor').value);};
+  else caja.querySelector('[data-nota-inicio-poner]').onclick=e=>{
+    abrirNotaEnFila(e.currentTarget,{idCampo:'nota-inicio-valor',alGuardar:raw=>cancelada?false:guardarNotaInicio(item,raw)});
+  };
+  caja.querySelector('form').onsubmit=e=>{e.preventDefault();document.getElementById('nota-inicio-valor')?.blur();};
   if(consultar)void consultarCanvasNotasInicio(items);
 }

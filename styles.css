@@ -4795,8 +4795,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
    falta. El tramo del resto del ramo no se entendía (Lucas, 2026-11-03). */
 #screen-ramo .ficha-peso-grupo{display:block;width:100%;height:100%;}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
-#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
-#screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
+#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input,html.app-nativa .nota-inicio button.nota-en-fila,html.app-nativa .nota-inicio input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
+#screen-ramo button.nota-en-fila,html.app-nativa .nota-inicio button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
 #screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
@@ -4806,7 +4806,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .casillas-btn:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
 #screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
 #screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}
-#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible,html.app-nativa .nota-inicio .nota-en-fila:focus-visible,html.app-nativa .nota-inicio input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 @keyframes nota-en-fila{from{opacity:.5;}to{opacity:1;}}
 @media(prefers-reduced-motion:reduce){#screen-ramo .nota-campo{animation:none;}}
 @container ficha-hero (max-width:18rem){
@@ -6239,17 +6239,16 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .admin-denuncias{margin-bottom:16px;}
 .denuncia-admin-detalles{margin:6px 0 10px;padding-left:18px;font-size:.8125rem;color:var(--fg2);}
 
-/* Nota pendiente: pregunta y entrada directa, solo en la app. */
+/* Nota pendiente en Inicio: reutiliza el control de la ficha, solo app. */
 html.app-nativa .nota-inicio{margin:8px 20px 14px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);color:var(--fg);font-family:var(--font-ui);}
 html.app-nativa .nota-inicio[hidden]{display:none;}
+html.app-nativa .nota-inicio-fila{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
+html.app-nativa .nota-inicio-texto{flex:1 1 10rem;min-width:0;}
 html.app-nativa .nota-inicio h2{margin:0;font-size:1rem;line-height:1.35;font-weight:650;overflow-wrap:anywhere;}
-html.app-nativa .nota-inicio-ramo{margin:4px 0 10px;font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
-html.app-nativa .nota-inicio-acciones{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
-html.app-nativa .nota-inicio input#nota-inicio-valor{flex:0 1 5.25em;width:5.25em;min-width:4.5em;min-height:44px;margin:0;padding:8px 10px;font-size:1rem;font-variant-numeric:tabular-nums;}
-html.app-nativa .nota-inicio input#nota-inicio-valor::placeholder{color:var(--fg2);opacity:1;}
-html.app-nativa .nota-inicio-acciones button{min-width:44px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;}
-html.app-nativa .nota-inicio-acciones button[data-nota-inicio-ahora]{margin-left:auto;background:none;color:var(--fg2);}
-html.app-nativa .nota-inicio-acciones button[data-nota-inicio-guardar],html.app-nativa .nota-inicio-acciones button[data-nota-inicio-canvas]{background:var(--fg);color:var(--bg);}
+html.app-nativa .nota-inicio-ramo{margin:4px 0 0;font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-acciones{display:flex;flex:none;flex-direction:column;align-items:flex-end;gap:0;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-ahora]{min-width:44px;min-height:44px;padding:8px 6px;border:0;border-radius:8px;background:none;color:var(--fg2);font:inherit;font-size:.8125rem;cursor:pointer;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-canvas]{min-width:44px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--primary);font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;}
 html.app-nativa .nota-inicio-acciones button:active{opacity:.75;}
 html.app-nativa .nota-inicio-acciones button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 html.app-nativa #nota-inicio-error{margin:8px 0 0;font-size:.8125rem;color:var(--fg2);}
