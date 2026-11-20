@@ -54,6 +54,39 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   await run('cargarAmigos()');
   chk('sin amigos_grupos.sql, no hay sección Grupos',run('amigosGruposDisponible')===false&&run('seccionGruposHTML()')==='');
 
+  console.log('\n=== Ficha de grupo ===');
+  run(`amigosGruposDisponible=true;amigosGruposCache=[{id:'g1',nombre:'Estudio & repaso',estado:'miembro',miembros:2}];
+    amigosListaCache=[];S.ramos=[];`);
+  chk('sin amigos se conservan los grupos existentes y no se ofrece crear otro',
+    /Estudio &amp; repaso/.test(run('seccionGruposHTML()'))&&!/grupo-nuevo/.test(run('seccionGruposHTML()')));
+  run(`amigosListaCache=[{estado:'amigos',username:'beto_ej',nombre:'Beto'}];`);
+  chk('con amigos aparece la acción para crear y el selector tiene etiquetas',
+    /Crear grupo/.test(run('seccionGruposHTML()'))&&/role="status"[\s\S]*<label class="amigos-elegir"/.test(run('elegirAmigosHTML([])')));
+  run(`var abrirModalOriginal=openModal;openModal=()=>{};
+    pintarGrupo('g1',[{username:'ana_ej',yo:true,creador:true,estado:'miembro'},{username:'beto_ej',nombre:'Beto',estado:'miembro'},
+      {username:'carla_ej',nombre:'Carla',estado:'invitado'}]);openModal=abrirModalOriginal;`);
+  const ficha=el('modal-content').innerHTML;
+  chk('la ficha cuenta solo integrantes y separa las invitaciones pendientes',
+    /<h2 class="modal-title grupo-titulo">Estudio &amp; repaso<\/h2>/.test(ficha)
+    &&/2 personas/.test(ficha)&&ficha.indexOf('Beto')<ficha.indexOf('Invitaciones pendientes')
+    &&ficha.indexOf('Invitaciones pendientes')<ficha.indexOf('Carla'));
+  chk('sin dos horarios la ficha explica por qué faltan coincidencias',
+    /al menos dos horarios/.test(ficha)&&!/Todos libres a la vez/.test(ficha));
+  const carga={isConnected:true,insertAdjacentHTML(_,texto){this.reintentar=texto;}};
+  el('modal-content').querySelector=()=>carga;
+  let abierto=true;
+  el('modal').classList.contains=()=>abierto;
+  run(`openModal=()=>{};amigosGrupoDetalle=null;`);
+  cliente(`n=>({error:{message:'No disponible'}})`);
+  await run(`abrirGrupo('g1')`);
+  chk('si falla la consulta, la hoja muestra reintento',/Reintentar/.test(carga.reintentar)&&carga.textContent==='No se pudo cargar el grupo.');
+  cliente(`n=>new Promise(r=>setTimeout(()=>r({data:[{username:'ana_ej',yo:true,estado:'miembro'}],error:null}),10))`);
+  const detallePendiente=run(`abrirGrupo('g1')`);abierto=false;await detallePendiente;
+  chk('cerrar la hoja mientras carga descarta su respuesta',run('amigosGrupoDetalle')===null);
+  run(`openModal=abrirModalOriginal;amigosGrupoDetalle={id:'g1',filas:[]};`);
+  el('modal').classList.contains=()=>false;
+  el('modal-content').querySelector=()=>null;
+
   console.log('\n=== Lo que se publica de las notas ===');
   run(`S.ramos=[{id:'r1',nombre:'Curso Sintético',sigla:'syn101',categorias:[{id:'c1',nombre:'Controles',peso:50,notas:[{id:'n1',valor:6.0}]},{id:'c2',nombre:'Examen',peso:50,notas:[{id:'n2',valor:null}]}],horario:[]},
     {id:'r2',nombre:'Sin sigla',categorias:[],horario:[]}];`);
@@ -71,7 +104,7 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
 
   console.log('\n=== Se olvida al cerrar sesión ===');
   run('olvidarAmigos();recalcularNavTabs()');
-  chk('quien entra después no hereda la pestaña',!run('NAV_TABS').includes('amigos')&&run('amigosEstadoCache')===null);
+  chk('quien entra después no hereda la pestaña ni la ficha de grupo',!run('NAV_TABS').includes('amigos')&&run('amigosEstadoCache')===null&&run('amigosGrupoDetalle')===null);
   chk('cerrar sesión llama a olvidarAmigos',/olvidarAmigos\(\)/.test(fs.readFileSync(raiz+'src/app-session/salida-cuenta.js','utf8')));
   chk('entrar pregunta una vez, sin bloquear',/cargarAmigos\(\)\s*\n\s*\.then\(/.test(fs.readFileSync(raiz+'src/app-session/entrada-cuenta.js','utf8')));
   // Una respuesta que llega después de cerrar sesión no revive la pestaña.

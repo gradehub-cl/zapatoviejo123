@@ -6396,6 +6396,62 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigos-elegir-lista li+li{border-top:1px solid var(--border);}
 .amigos-elegir{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;}
 .amigos-elegir input[type=checkbox]{flex-shrink:0;width:22px;height:22px;margin:0;accent-color:var(--primary);}
+
+/* Grupos nativos: la misma jerarquía de listas que Perfil y Ajustes. */
+html.app-nativa .amigos-grupos>h2{
+  margin-bottom:10px;color:var(--fg);font-size:1.1875rem;font-weight:650;letter-spacing:-.015em;text-transform:none;
+}
+html.app-nativa .grupo-celdas{
+  margin:0;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);
+}
+html.app-nativa .grupo-celdas>li+li{border-top:1px solid var(--border);}
+html.app-nativa .grupo-celdas .amigo-fila,
+html.app-nativa .grupo-celdas .amigo-solicitud,
+html.app-nativa .grupo-celdas .amigos-elegir{padding:10px 12px;}
+html.app-nativa .grupo-celdas .amigo-texto small,
+html.app-nativa .grupo-celdas .amigo-chip{color:var(--fg2);}
+html.app-nativa .grupo-celdas .amigo-texto small{overflow-wrap:anywhere;}
+html.app-nativa .grupo-celdas .amigo-avatar{background:var(--bg2);}
+html.app-nativa .grupo-celdas .amigo-avatar.pila{background:transparent;}
+html.app-nativa .grupo-celdas .amigo-avatar.pila>span:last-child{box-shadow:0 0 0 2px var(--celda-agrupada);}
+html.app-nativa .grupo-celdas .amigos-fila-mas .amigo-avatar{background:var(--primary-light);color:var(--fg);}
+html.app-nativa .grupo-celdas .amigos-fila-mas b{color:var(--fg);}
+html.app-nativa .grupo-celdas :is(.amigo-fila,.amigos-elegir):is(:active,:focus-within){background:var(--primary-light);}
+html.app-nativa .grupo-invitaciones{margin-bottom:12px;}
+html.app-nativa .grupo-invitaciones .amigo-solicitud{row-gap:8px;}
+html.app-nativa .grupo-invitaciones .amigo-acciones{flex-wrap:wrap;padding-left:0;}
+html.app-nativa .grupo-invitaciones .amigo-boton{min-width:min(7rem,100%);padding:8px 12px;overflow-wrap:anywhere;}
+
+html.app-nativa .grupo-titulo{color:var(--fg);overflow-wrap:anywhere;}
+html.app-nativa .grupo-etiqueta{display:block;margin:0 0 8px;color:var(--fg);font-size:1rem;font-weight:650;}
+html.app-nativa .grupo-etiqueta small{color:var(--fg2);font-size:.875rem;font-weight:400;}
+html.app-nativa .grupo-cabecera{gap:4px;margin-bottom:22px;padding-top:4px;}
+html.app-nativa .grupo-cabecera .grupo-titulo{margin:6px 0 0;font-size:1.5rem;}
+html.app-nativa .grupo-cabecera>.amigo-avatar.grande{width:68px;height:68px;}
+html.app-nativa .grupo-nombre{font:600 .875rem/1.4 var(--font-ui);letter-spacing:0;border-radius:8px;}
+html.app-nativa .grupo-nombre .ic{width:1.1em;height:1.1em;stroke:currentColor;}
+html.app-nativa .grupo-seccion{margin:0 0 20px;}
+html.app-nativa .grupo-horarios li{flex-wrap:wrap;min-height:52px;padding:10px 12px;row-gap:4px;overflow-wrap:anywhere;}
+html.app-nativa .grupo-horarios b{font-size:.9375rem;font-weight:600;}
+html.app-nativa .grupo-horarios small{display:block;color:var(--fg2);font-size:.8125rem;}
+html.app-nativa .grupo-horarios .amigo-horas{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;margin-left:auto;}
+html.app-nativa .grupo-horarios .amigo-horas>span{white-space:nowrap;}
+html.app-nativa .grupo-celdas.amigo-lista-personas>li:has(.amigo-fila){padding:0;}
+html.app-nativa .grupo-ficha .grupo-salir{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);text-align:left;}
+html.app-nativa .grupo-ficha .grupo-salir .ic{flex:none;}
+
+html.app-nativa .amigos-grupo-form fieldset{min-width:0;}
+html.app-nativa .amigos-grupo-form .amigos-elegir-lista{max-height:none;overflow:visible;}
+html.app-nativa .grupo-celdas .amigos-elegir{min-height:56px;}
+html.app-nativa .grupo-celdas .amigos-elegir input[type=checkbox]{margin-left:auto;}
+html.app-nativa .grupo-seleccion-estado{margin:0 0 8px;color:var(--fg2);font-size:.875rem;line-height:1.4;}
+html.app-nativa .amigos-elegidos:not(:empty){margin-bottom:10px;}
+html.app-nativa .amigos-elegido{
+  min-height:44px;min-width:44px;max-width:100%;padding:6px 10px;border-radius:8px;text-align:left;
+}
+html.app-nativa .amigos-elegido span:first-child{display:block;width:auto;height:auto;color:var(--fg);font:inherit;overflow-wrap:anywhere;}
+html.app-nativa .amigos-elegido span:last-child{flex:none;}
+html.app-nativa .grupo-privacidad{margin:12px 0 4px;color:var(--fg2);font-size:.875rem;line-height:1.5;}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}
