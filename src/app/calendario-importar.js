@@ -77,12 +77,13 @@ function parseIcsCalendario(text,{inicioCrudo=false}={}){
 function claveDestinoIcs(target){
   return target.ramo.id+'|'+target.cat.id+'|'+(target.nota?target.nota.id:'');
 }
-function destinosIcs(){
+function fechaDisponibleIcs(item){return !item.fecha&&!item.fechaQuitada;}
+function destinosIcs({incluirOcupados=false}={}){
   const out=[];
   (S.ramos||[]).forEach(r=>(r.categorias||[]).forEach(cat=>{
-    if(!cat.fecha&&!cat.fechaQuitada)out.push({ramo:r,cat,nota:null});
+    if(incluirOcupados||fechaDisponibleIcs(cat))out.push({ramo:r,cat,nota:null});
     (cat.notas||[]).forEach(nota=>{
-      if(!nota.fecha&&!nota.fechaQuitada)out.push({ramo:r,cat,nota});
+      if(incluirOcupados||fechaDisponibleIcs(nota))out.push({ramo:r,cat,nota});
     });
   }));
   return out;
@@ -161,7 +162,8 @@ function puntajeCanvas(nombres,nombre,grupo){
 // asterisco al final: seguido de la barra parece el cierre de un comentario
 // para los tests que leen el bundle sin comentarios.
 function nombreLimpioCanvas(texto){
-  return String(texto||'').replace(/\s*\[[^\]]*\]\s{0,}/g,' ').trim().replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
+  const titulo=String(texto||'').replace(/\s*\[[^\]]*\]\s{0,}/g,' ').trim();
+  return /^P\s*\d+$/i.test(titulo)?titulo:titulo.replace(/[\s_-]*P(regunta)?\s*\d+$/i,'').trim();
 }
 // Tareas (con su fecha de entrega) y eventos del calendario del curso (con la
 // hora de inicio: así publican muchos profes UC las interrogaciones). Un
@@ -174,7 +176,7 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[],eventos=[]){
   const listaEventos=(Array.isArray(eventos)?eventos:[]).filter(Boolean).map(e=>({name:e.title,due_at:e.start_at,
     hora:e.all_day?null:horaChileCanvas(e.start_at),evento:true}));
   const entrada=listaEventos.concat(listaTareas);
-  const destinos=destinosIcs().filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
+  const destinos=destinosIcs({incluirOcupados:true}).filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
   const usados=new Set(),vistas=new Set(),propuestas=[];
   const conteos={total:entrada.length,tareas:listaTareas.length,eventos:listaEventos.length,
     sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
@@ -190,10 +192,14 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[],eventos=[]){
     if(vistas.has(clave)){conteos.duplicadas++;continue;}
     vistas.add(clave);
     const nombresDe=t=>t.nota?[t.nota.nombre,nombreNotaCasilla(t.ramo,t.cat,t.nota)]:[t.cat.nombre];
-    const candidatos=destinos.filter(t=>!usados.has(claveDestinoIcs(t))).map(t=>({t,p:puntajeCanvas(nombresDe(t),nombre,grupo)})).filter(x=>x.p>0)
+    const candidatos=destinos.map(t=>({t,p:puntajeCanvas(nombresDe(t),nombre,grupo)})).filter(x=>x.p>0)
       .sort((a,b)=>b.p-a.p);
     if(tarea.evento&&!candidatos.length&&!tipoEvaluacionCanvas(nombre)){conteos.noEvaluacion++;continue;}
-    const target=candidatos.length?claveDestinoIcs(candidatos[0].t):null;
+    // Una coincidencia por nombre o grupo sigue siendo la mejor aunque esa
+    // evaluación ya tenga fecha. No pasar a otra solo porque sea del mismo tipo.
+    const mejor=candidatos[0]?.p;
+    const libre=candidatos.find(({t,p})=>p===mejor&&fechaDisponibleIcs(t.nota||t.cat)&&!usados.has(claveDestinoIcs(t)));
+    const target=libre?claveDestinoIcs(libre.t):null;
     if(target)usados.add(target);else conteos.sinDestino++;
     propuestas.push({titulo:nombre+' · '+ramo.nombre,fecha,...(tarea.hora?{hora:tarea.hora}:{}),ramoId:ramo.id,target,origen:'canvas'});
   }
