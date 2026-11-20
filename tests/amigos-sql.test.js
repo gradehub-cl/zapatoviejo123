@@ -66,6 +66,16 @@ let ok=0;const paso=n=>{ok++;console.log('  OK   '+n);};
   assert.deepEqual(r,[{username:'beto_ej',nombre:'Beto',apellido:'Ejemplo',universidad:'uc',relacion:'ninguna'}]);
   assert.equal((await q('select * from public.buscar_usuario($1)',['beto'])).length,0,'no busca por parte del nombre');
   assert.equal((await q('select * from public.buscar_usuario($1)',['ana_s']))[0].relacion,'yo');
+  // Solo la misma U: alguien de otra universidad no aparece ni se puede agregar,
+  // pero su username igual está ocupado para todos.
+  await db.exec('reset role');await q("insert into public.profiles(id,nombre,universidad) values($1,'Eli','uai')",[E]);await q("insert into public.usernames(user_id,username) values($1,'eli.uai')",[E]);
+  await sesion(A);
+  assert.equal((await q('select * from public.buscar_usuario($1)',['eli.uai'])).length,0,'otra U no aparece');
+  await assert.rejects(q('select public.solicitar_amistad($1)',['eli.uai']),/no encontramos/,'ni se puede agregar');
+  assert.equal(await uno('select public.amigos_username_disponible($1)',['eli.uai']),'ocupado','el username es único en toda la app');
+  await db.exec('reset role');await q('delete from public.usernames where user_id=$1',[E]);await q('delete from public.profiles where id=$1',[E]);
+  await sesion(A);
+  paso('solo la misma universidad; el username es único en toda la app');
   paso('buscar solo por username exacto y sin datos de cuenta');
 
   // ─── Solicitudes ───
@@ -95,7 +105,7 @@ let ok=0;const paso=n=>{ok++;console.log('  OK   '+n);};
   paso('pedir, rechazar, aceptar y aceptar pidiendo de vuelta');
   // Límite diario.
   await db.exec('reset role');
-  const extras=[];for(let i=0;i<31;i++){const id=u(100+i);extras.push(id);await q('insert into auth.users(id) values($1)',[id]);await q("insert into public.usernames(user_id,username) values($1,$2)",[id,'extra'+i]);}
+  const extras=[];for(let i=0;i<31;i++){const id=u(100+i);extras.push(id);await q('insert into auth.users(id) values($1)',[id]);await q("insert into public.usernames(user_id,username) values($1,$2)",[id,'extra'+i]);await q("insert into public.profiles(id,universidad) values($1,'uc')",[id]);}
   await sesion(C);for(let i=0;i<30;i++)await uno('select public.solicitar_amistad($1)',['extra'+i]);
   await assert.rejects(q('select public.solicitar_amistad($1)',['extra30']),/demasiadas/);
   await db.exec('reset role');await q('delete from auth.users where id = any($1)',[extras]);

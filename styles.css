@@ -6281,10 +6281,6 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
    aparece en los promedios compartidos. «En clases» se marca con el acento,
    no con verde ni rojo. */
 #amigos-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
-.amigos-yo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0 4px;}
-.amigos-yo>div{display:flex;flex-direction:column;gap:2px;min-width:0;}
-.amigos-yo-user{font-size:1.375rem;font-weight:650;letter-spacing:-.03em;overflow-wrap:anywhere;}
-.amigos-yo small{font-size:.8125rem;color:var(--fg3);}
 .amigos-invitar,.amigo-boton{flex-shrink:0;min-height:44px;min-width:44px;padding:0 16px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:600 .9375rem var(--font-ui);cursor:pointer;-webkit-tap-highlight-color:transparent;}
 .amigo-boton.principal{border-color:var(--fg);background:var(--fg);color:var(--bg2);}
 .amigos-invitar:active,.amigo-boton:active{opacity:.6;}
@@ -6294,7 +6290,8 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 0;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
 .amigo-fila:active .amigo-texto{opacity:.55;}
 .amigo-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1rem;font-weight:600;color:var(--fg);}
-.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.libre{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--border2);}
 .amigo-avatar.grande{width:56px;height:56px;font-size:1.375rem;}
 .amigo-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
 .amigo-texto b{font-size:1rem;font-weight:550;letter-spacing:-.01em;overflow-wrap:anywhere;}
@@ -6302,10 +6299,14 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-comun{flex-shrink:0;font-size:.75rem;color:var(--fg3);white-space:nowrap;}
 .amigo-solicitud{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;}
 .amigo-acciones{display:flex;gap:8px;flex-shrink:0;}
-/* Con dos botones, van bajo el nombre y a todo el ancho: al lado lo apretaban a tres líneas. */
-.amigo-solicitud.recibida{flex-wrap:wrap;row-gap:10px;}
-.amigo-solicitud.recibida .amigo-acciones{flex:1 0 100%;padding-left:52px;}
-.amigo-solicitud.recibida .amigo-boton{flex:1;}
+/* Acciones de fila compactas, como «Confirmar / Eliminar» en las solicitudes de
+   Instagram: al lado del nombre, del mismo tamaño que los botones del perfil.
+   32 pt a la vista y 44 de área para el dedo (HIG Buttons). */
+.amigo-solicitud .amigo-boton{position:relative;min-height:32px;min-width:0;padding:0 14px;border:0;border-radius:8px;background:var(--muted);font-size:.875rem;}
+.amigo-solicitud .amigo-boton.principal{background:var(--fg);color:var(--bg2);}
+.amigo-solicitud .amigo-boton::after{content:'';position:absolute;inset:-6px -2px;}
+.amigo-solicitud .amigo-acciones{gap:6px;}
+.amigo-solicitud .amigo-texto b,.amigo-solicitud .amigo-texto small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal;}
 .amigo-estado{font-size:.875rem;color:var(--fg3);}
 .amigos-vacio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:32px;padding:28px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);text-align:center;}
 .amigos-vacio h2{margin:0;font-size:1.125rem;font-weight:650;}
@@ -6326,6 +6327,9 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigos-campo>span{color:var(--fg3);font-size:1rem;}
 .amigos-campo input[type=text],.amigos-campo input[type=search]{flex:1;min-width:0;min-height:46px;padding:0;border:0;background:transparent;box-shadow:none;font-size:1rem;}
 .amigos-campo input[type=text]:focus,.amigos-campo input[type=search]:focus{outline:none;}
+.amigos-username-hoja{padding:4px 0 0;}
+.perfil-fila-valor{margin-left:auto;padding-left:12px;font-size:.9375rem;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50%;}
+.perfil-username{color:var(--fg);font-weight:500;}
 .amigos-username-estado{min-height:1.4em;margin:0;font-size:.8125rem;color:var(--fg2);}
 .amigos-username-estado.libre{color:var(--primary);}
 .amigos-buscar{display:flex;gap:8px;margin-bottom:12px;}
@@ -6400,6 +6404,89 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigos-elegir-lista li+li{border-top:1px solid var(--border);}
 .amigos-elegir{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;}
 .amigos-elegir input[type=checkbox]{flex-shrink:0;width:22px;height:22px;margin:0;accent-color:var(--primary);}
+/* Cabecera como un perfil de Instagram: avatar, tres cifras, nombre y dos
+   botones del mismo peso. Sin gradiente: el anillo usa el acento de la app. */
+.amigos-perfil{display:flex;flex-direction:column;gap:2px;padding:16px 0 4px;}
+.amigos-perfil-fila{display:flex;align-items:center;gap:20px;margin-bottom:10px;}
+.amigo-avatar.perfil-grande{width:80px;height:80px;font-size:1.875rem;font-weight:600;}
+.amigos-cifras{display:flex;flex:1;justify-content:space-around;gap:4px;min-width:0;}
+.amigos-cifra{display:flex;flex-direction:column;align-items:center;gap:0;min-width:56px;min-height:44px;justify-content:center;padding:0;border:0;background:none;color:var(--fg);font:inherit;cursor:default;}
+button.amigos-cifra{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+button.amigos-cifra:active{opacity:.55;}
+.amigos-cifra b{font-size:1.125rem;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.amigos-cifra small{font-size:.8125rem;color:var(--fg2);white-space:nowrap;}
+.amigos-perfil-nombre{font-size:.9375rem;font-weight:600;}
+.amigos-perfil-user{font-size:.875rem;color:var(--fg2);overflow-wrap:anywhere;}
+.amigos-perfil .amigo-ahora{margin:4px 0 0;font-size:.875rem;}
+.amigos-perfil-botones{display:flex;gap:8px;margin-top:12px;}
+.amigos-perfil-botones .amigo-boton{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:36px;padding:0 12px;border:0;background:var(--muted);font-size:.875rem;}
+.amigos-perfil-botones .amigo-boton .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
+/* 36 pt de alto a la vista, 44 de área para el dedo (HIG Buttons). */
+.amigos-perfil-botones .amigo-boton{position:relative;}
+.amigos-perfil-botones .amigo-boton::after{content:'';position:absolute;inset:-4px 0;}
+.amigos-perfil-ficha{padding-top:0;margin-bottom:12px;}
+/* Historias: quién está hoy en la u. Anillo de color = libre ahora. */
+.amigos-historias{margin:12px -20px 4px;padding:4px 0 8px;border-bottom:1px solid var(--border);}
+.amigos-historias ul{display:flex;gap:14px;list-style:none;margin:0;padding:0 20px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.amigos-historias ul::-webkit-scrollbar{display:none;}
+.amigos-historia{display:flex;flex-direction:column;align-items:center;gap:4px;width:68px;padding:0;border:0;background:none;color:var(--fg);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigos-historia:active{opacity:.6;}
+.historia-anillo{display:inline-flex;padding:3px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--border2);}
+.historia-anillo.libre{box-shadow:inset 0 0 0 2.5px var(--primary);}
+.historia-anillo .amigo-avatar{width:56px;height:56px;font-size:1.25rem;border:2px solid var(--bg2);}
+.historia-anillo.grande .amigo-avatar{width:80px;height:80px;font-size:1.875rem;}
+.historia-anillo.grande:not(.libre):not(.en-clase){box-shadow:none;padding:0;}
+.historia-anillo.grande:not(.libre):not(.en-clase) .amigo-avatar{border:1px solid var(--border2);}
+.historia-nombre{max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem;}
+.amigos-historia small{font-size:.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.amigos-historia:focus-visible,.amigos-cifra:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
+/* Calendario del grupo: por día, como la Agenda. */
+.cal-grupo{list-style:none;margin:0 0 4px;padding:0;}
+.cal-dia h4{margin:12px 0 2px;font-size:.8125rem;font-weight:600;color:var(--fg2);}
+.cal-dia ul{list-style:none;margin:0;padding:0;}
+.cal-item{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 0;border-bottom:1px solid var(--border);}
+.cal-icono{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:var(--muted);color:var(--fg2);}
+.cal-icono.sala{background:var(--primary-light);color:var(--primary);}
+.cal-icono .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.cal-borrar{color:var(--fg3);font-weight:500;}
+.cal-anotar{margin-bottom:12px;}
+.cal-horas{display:flex;gap:12px;}
+.cal-horas label{flex:1;display:flex;flex-direction:column;}
+.amigos-grupo-form input.amigos-grupo-nombre[type=date],.amigos-grupo-form input.amigos-grupo-nombre[type=time]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
+/* Primera vez: qué se gana, antes de pedir el username. */
+.amigos-bienvenida{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:12px;text-align:center;}
+.amigos-bienvenida h2{margin:6px 0 4px;}
+.amigos-bienvenida .amigo-avatar.perfil-grande{width:64px;height:64px;font-size:1.5rem;}
+#amigos-username-form{padding-top:16px;}
+.amigos-beneficios{list-style:none;margin:0;padding:0;width:100%;text-align:left;border-top:1px solid var(--border);}
+.amigos-beneficios li{display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border);}
+.amigos-beneficios b{font-size:.9375rem;font-weight:600;}
+.amigos-beneficios small{font-size:.875rem;color:var(--fg2);line-height:1.4;}
+.amigos-letra-chica{font-size:.8125rem;color:var(--fg3);text-align:center;}
+/* Esqueleto de carga: la forma de la pantalla, con un brillo suave. */
+.amigos-esqueleto{padding:16px 0;}
+.esq{display:block;border-radius:8px;background:var(--muted);}
+.esq-avatar{width:80px;height:80px;border-radius:50%;flex-shrink:0;}
+.esq-linea{flex:1;height:44px;}
+.esq-fila{display:flex;align-items:center;gap:14px;padding:12px 0;}
+.esq-circulo{width:40px;height:40px;border-radius:50%;flex-shrink:0;}
+.esq-texto{flex:1;height:32px;}
+@media (prefers-reduced-motion:no-preference){.esq{animation:esq-brillo 1.4s ease-in-out infinite;}}
+@keyframes esq-brillo{0%,100%{opacity:1}50%{opacity:.55}}
+.amigo-ver-semana{margin:0 0 4px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.amigo-semana .horario-semana-cabecera{background:var(--bg2);}
+.amigo-semana-leyenda{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.amigo-semana-punto{display:inline-block;width:10px;height:10px;margin-left:8px;border-radius:3px;background:var(--fg3);}
+.amigo-semana-punto:first-child{margin-left:0;}
+.amigo-semana-punto.comun{background:var(--primary);}
+.amigos-aviso-push{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:12px 0 4px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.amigos-aviso-push .amigo-texto{flex:1 1 180px;}
+.amigos-aviso-push .amigo-texto small{white-space:normal;}
+.amigos-aviso-push .amigo-acciones{margin-left:auto;}
+.amigos-aviso-push .amigo-boton{position:relative;min-height:32px;padding:0 12px;border:0;border-radius:8px;background:var(--muted);font-size:.8125rem;}
+.amigos-aviso-push .amigo-boton.principal{background:var(--fg);color:var(--bg2);}
+.amigos-aviso-push .amigo-boton::after{content:'';position:absolute;inset:-6px -2px;}
+.amigos-aviso-push .cal-icono .ic{fill:none;}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}

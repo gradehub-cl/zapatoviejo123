@@ -21,6 +21,8 @@ async function signOut(){
 async function cerrarSesion(){
   if(typeof olvidarAvisosFeedback==='function')olvidarAvisosFeedback();
   if(typeof olvidarCanvasCuenta==='function')await olvidarCanvasCuenta();
+  // Avisos de Amigos: con la sesión viva.
+  if(typeof olvidarAvisosAmigos==='function')try{await olvidarAvisosAmigos();}catch(e){}
   _visitaSesion++;
   try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
   finally{_cerrandoSesion=false;}

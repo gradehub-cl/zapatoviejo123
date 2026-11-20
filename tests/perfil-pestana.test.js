@@ -27,6 +27,7 @@ chk('sin ramos no hay nada que archivar', !claves(ctx.gruposPerfil({ ...base, ha
 chk('la foto del horario es solo de la UC', !est.includes('horario') && claves(ctx.gruposPerfil({ ...base, tenant: 'uc' })).includes('horario'));
 chk('cargar semestres solo donde hay lector', !est.includes('ficha') && claves(ctx.gruposPerfil({ ...base, conFicha: true })).includes('ficha'));
 chk('sin sesión no se ofrece dar clases', !claves(ctx.gruposPerfil({ ...base, conSesion: false })).includes('profesor'));
+chk('con Amigos, el username se cambia en Tu cuenta, como en Instagram', !est.includes('username') && claves(ctx.gruposPerfil({ ...base, conAmigos: true })).includes('username'));
 chk('Canvas tiene su fila solo donde está disponible, después de Calendario', !est.includes('canvas') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conCanvas: true }));return c.indexOf('canvas')===c.indexOf('calendario')+1;})());
 console.log('\n=== Herramientas en Inicio ===');
 const herr = o => vm.runInContext('herramientasInicio('+JSON.stringify(o)+')', ctx).map(([c]) => c);
