@@ -1,18 +1,22 @@
 
 async function afterSignup(){
-  track('signup',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
+  const origen=typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined;
   const uid=currentUser?.id;
   if(typeof marcarPrimeraSesionEncuesta==='function')marcarPrimeraSesionEncuesta(uid);
   const aislamiento=uid&&aislarCacheEnRegistro(uid);
   if(!aislamiento){
+    // La cuenta se creó, pero se cierra al tiro: el registro cuenta, sin identificar.
+    track('signup',origen);
     try{await supabaseClient.auth.signOut();}catch(e){}
     currentUser=null;
     const error=new Error('No pudimos proteger los ramos guardados en este dispositivo.');
     error.code='CACHE_LOCAL_NO_AISLADA';
     throw error;
   }
-  // Une lo anónimo de antes de registrarse con la cuenta nueva (embudo de registro).
-  if(typeof identificarAnalitica==='function')identificarAnalitica();
+  // Une lo anónimo de antes de registrarse con la cuenta nueva (embudo de
+  // registro) y recién ahí manda signup, con la caché ya aislada.
+  if(typeof registrarEntradaAnalitica==='function')registrarEntradaAnalitica('signup',origen);
+  else track('signup',origen);
   if(aislamiento.propia&&S.onboardingDone&&S.ramos.length){
     const respaldado=await syncNow();await syncProfile();
     showToast(respaldado
@@ -30,7 +34,8 @@ async function afterSignup(){
 }
 async function afterLogin(){
   if(typeof olvidarAvisosFeedback==='function')olvidarAvisosFeedback();
-  track('login',typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined);
+  // login sale en cargasAlEntrar(), después de identificar y con S ya de esta cuenta.
+  const origen=typeof consumirOrigenEntrada==='function'?consumirOrigenEntrada():undefined;
   registrarVisitaDiaria();
   const uid=currentUser?currentUser.id:null;
   const visita=++_visitaSesion;
@@ -56,7 +61,7 @@ async function afterLogin(){
   // manda la nube e ignoraría lo anotado en esa ventana.
   if(uid&&getCacheOwner()===uid&&leerBaseSync(uid)&&S.onboardingDone){
     enterApp();
-    cargasAlEntrar();
+    cargasAlEntrar(origen);
     reconciliarEnSegundoPlano(uid,vigente)
       .then(()=>{if(vigente())tareasConEstadoAlEntrar();})
       .catch(e=>registrarErrorArranque(e,'reconciliar'));
@@ -100,7 +105,7 @@ async function afterLogin(){
   if(!vigente())return;
   if(S.onboardingDone)enterApp();else enterOnboarding();
   tareasConEstadoAlEntrar();
-  cargasAlEntrar();
+  cargasAlEntrar(origen);
 }
 // Aplica la fila de la nube al entrar. Devuelve qué falta subir: 'local' si
 // este dispositivo tenía algo que la nube no, 'corregida' si normalize()
@@ -214,8 +219,9 @@ function tareasConEstadoAlEntrar(){
   if(S.onboardingDone&&typeof subirNotasCurso==='function')subirNotasCurso().catch(()=>{});
 }
 // Lo que se lee de la red al entrar y no depende de S. No bloquea nada.
-function cargasAlEntrar(){
-  if(typeof identificarAnalitica==='function')identificarAnalitica();
+function cargasAlEntrar(origen){
+  if(typeof registrarEntradaAnalitica==='function')registrarEntradaAnalitica('login',origen);
+  else if(typeof track==='function')track('login',origen);
   if(typeof cargarAvisosFeedback==='function')cargarAvisosFeedback().catch(()=>{});
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL

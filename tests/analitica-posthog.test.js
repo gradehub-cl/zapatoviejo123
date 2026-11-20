@@ -39,6 +39,42 @@ chk('sin clave, PostHog queda apagado',(()=>{const c3={location:{hostname:'grade
 chk('localhost y vistas previas no mandan datos',(()=>{const c4={location:{hostname:'localhost',protocol:'http:'},console,setTimeout};vm.createContext(c4);vm.runInContext(fuente.replace(/const POSTHOG_KEY='[^']*'/,"const POSTHOG_KEY='phc_prueba123456'"),c4);return vm.runInContext('analiticaPropiaActiva()',c4)===false;})());
 chk('la clave nunca es secreta',!/POSTHOG_KEY='(?!phc_|')/.test(fuente)&&!/phx_/.test(fuente));
 
+console.log('\n=== login y signup: primero identify, después el evento ===');
+{
+  const c5={location:{hostname:'gradehub.cl',protocol:'https:'},console,setTimeout,
+    currentUser:{id:'00000000-0000-4000-8000-000000000001'},S:{tenant:'uc'},
+    esCuentaProfesor:()=>false,enAppNativa:()=>true};
+  vm.createContext(c5);vm.runInContext(fuente,c5);
+  const llamadas=[];
+  const ph={identify:id=>llamadas.push(['identify',id]),register:p=>llamadas.push(['register',p]),
+    capture:(ev,p)=>llamadas.push(['capture',ev,p])};
+  // PostHog todavía no carga: todo queda en la cola.
+  vm.runInContext(`registrarEntradaAnalitica('login',{origen:'calculadora'})`,c5);
+  chk('sin PostHog cargado, nada se pierde: queda en la cola',llamadas.length===0&&vm.runInContext('_analiticaPropiaCola.length',c5)===2);
+  c5.__ph=ph;vm.runInContext('_analiticaPropia=__ph;_analiticaPropiaEstado="lista";_analiticaPropiaCola.splice(0).forEach(f=>f(__ph));',c5);
+  const orden=llamadas.map(l=>l[0]==='capture'?l[1]:l[0]).join(',');
+  chk('la cola respeta el orden identify → register → login',orden==='identify,register,login');
+  const ev=llamadas.find(l=>l[0]==='capture');
+  chk('login lleva tenant, tipo de cuenta y plataforma',ev&&ev[2].tenant==='uc'&&ev[2].tipo_cuenta==='estudiante'&&ev[2].plataforma==='ios');
+  chk('login conserva el origen de la entrada',ev&&ev[2].origen==='calculadora');
+  // Con PostHog ya cargado, el mismo orden y las mismas propiedades.
+  llamadas.length=0;c5.S.tenant='uandes';
+  vm.runInContext(`registrarEntradaAnalitica('signup')`,c5);
+  chk('con PostHog cargado: identify → register → signup',llamadas.map(l=>l[0]==='capture'?l[1]:l[0]).join(',')==='identify,register,signup');
+  const sg=llamadas.find(l=>l[0]==='capture');
+  chk('signup lleva los datos de la cuenta que entra',sg&&sg[2].tenant==='uandes'&&sg[2].plataforma==='ios'&&!('origen' in sg[2]));
+  const reg=llamadas.find(l=>l[0]==='register');
+  chk('el evento y register llevan los mismos datos',reg&&JSON.stringify(reg[1])===JSON.stringify({tenant:sg[2].tenant,tipo_cuenta:sg[2].tipo_cuenta,plataforma:sg[2].plataforma}));
+  const entrada=leer('src/app-session/entrada-cuenta.js');
+  const login=(entrada.match(/async function afterLogin\(\)\{[\s\S]*?\n\}/)||[''])[0];
+  const signup=(entrada.match(/async function afterSignup\(\)\{[\s\S]*?\n\}/)||[''])[0];
+  chk('afterLogin no manda login antes de cargar la cuenta',!!login&&!/track\('login'/.test(login)&&/cargasAlEntrar\(origen\)/.test(login)
+    &&/function cargasAlEntrar\(origen\)\{\s*if\(typeof registrarEntradaAnalitica==='function'\)registrarEntradaAnalitica\('login',origen\)/.test(entrada));
+  chk('afterSignup identifica y manda signup solo con la caché ya aislada',!!signup
+    &&signup.indexOf("registrarEntradaAnalitica('signup'")>signup.indexOf('aislarCacheEnRegistro(uid)')
+    &&signup.indexOf("registrarEntradaAnalitica('signup'")>signup.indexOf('if(!aislamiento)'));
+}
+
 console.log('\n=== El proxy /ds ===');
 const fn={URL,Headers,Response,console};
 vm.createContext(fn);
