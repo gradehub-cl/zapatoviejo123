@@ -110,6 +110,9 @@ const nombreAmigo=a=>a.nombre?`${a.nombre}${a.apellido?' '+a.apellido:''}`:'@'+a
 // sigla puede ser otro ramo en otra universidad.
 function mismaUAmigo(a){return !!(a&&a.universidad&&S.tenant&&a.universidad===S.tenant);}
 function ramosEnComunAmigo(a,ramos){return mismaUAmigo(a)?ramosEnComun(S.ramos,ramos):[];}
+// El mismo código en toda la pestaña (historias, lista, ficha y grupo):
+// anillo de color = libre ahora en la u; anillo gris = en clases.
+function anilloAmigo(e){return e&&e.estado==='libre'?' libre':e&&e.estado==='clase'?' en-clase':'';}
 const ORDEN_ESTADO_AMIGO={clase:0,libre:1,termino:2,sinclases:3,sinhorario:4};
 function filaAmigoHTML(a,ahora){
   const ramos=amigosHorariosCache.get(a.id);
@@ -117,7 +120,7 @@ function filaAmigoHTML(a,ahora){
   const comun=ramos?ramosEnComunAmigo(a,ramos).length:0;
   const linea=est?textoEstadoAmigo(est):'No comparte su horario';
   return `<li><button type="button" class="amigo-fila" data-amigos="ver" data-id="${esc(a.id)}">
-    <span class="amigo-avatar${est&&est.estado==='clase'?' en-clase':''}" aria-hidden="true">${inicialAmigo(a)}</span>
+    <span class="amigo-avatar${est?anilloAmigo(est):''}" aria-hidden="true">${inicialAmigo(a)}</span>
     <span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>${esc(linea)}</small></span>
     ${comun?`<span class="amigo-comun">${comun} ${comun===1?'ramo':'ramos'} en común</span>`:''}
     <svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
@@ -649,7 +652,7 @@ function seccionGruposHTML(){
   return `<section class="perfil-grupo amigos-grupo" id="amigos-seccion-grupos"><h2>Grupos</h2><ul>
     ${invit.map(g=>`<li class="amigo-solicitud recibida">
       ${avatarGrupoHTML(g.nombres)}
-      <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(g.invitado_por?`@${g.invitado_por} te invitó`:'Te invitaron')}</small><small>${esc(lineaGrupo(g))}</small></span>
+      <span class="amigo-texto" title="${esc(lineaGrupo(g))}"><b>${esc(g.nombre)}</b><small>${esc(g.invitado_por?`@${g.invitado_por} te invitó`:'Te invitaron')}</small></span>
       <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="grupo-rechazar" data-id="${esc(g.id)}" aria-label="Rechazar ${esc(g.nombre)}">Rechazar</button>
       <button type="button" class="amigo-boton principal" data-amigos="grupo-aceptar" data-id="${esc(g.id)}" aria-label="Unirme a ${esc(g.nombre)}">Unirme</button></span></li>`).join('')}
     ${mios.map(g=>`<li><button type="button" class="amigo-fila" data-amigos="grupo" data-id="${esc(g.id)}">
@@ -743,7 +746,7 @@ function pintarGrupo(id,filas,cal){
   const filaHTML=f=>{
     const ramos=f.ramos?normalizarRamosAmigo(f.ramos):null,est=ramos?estadoAhoraAmigo(ramos,ahora):null;
     const linea=f.estado==='invitado'?'Invitación pendiente':est?textoEstadoAmigo(est):f.yo?'@'+f.username:'No comparte su horario';
-    const contenido=`<span class="amigo-avatar${est&&est.estado==='clase'?' en-clase':''}" aria-hidden="true">${inicialAmigo(f)}</span>
+    const contenido=`<span class="amigo-avatar${est?anilloAmigo(est):''}" aria-hidden="true">${inicialAmigo(f)}</span>
       <span class="amigo-texto"><b>${f.yo?'Tú':esc(nombreAmigo(f))}</b><small>${esc(linea)}</small></span>
       ${f.creador?'<span class="amigo-chip">Admin</span>':''}`;
     return f.yo?`<li class="amigo-solicitud">${contenido}</li>`

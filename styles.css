@@ -6286,7 +6286,8 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 0;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
 .amigo-fila:active .amigo-texto{opacity:.55;}
 .amigo-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1rem;font-weight:600;color:var(--fg);}
-.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.libre{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--border2);}
 .amigo-avatar.grande{width:56px;height:56px;font-size:1.375rem;}
 .amigo-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
 .amigo-texto b{font-size:1rem;font-weight:550;letter-spacing:-.01em;overflow-wrap:anywhere;}
@@ -6294,10 +6295,14 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-comun{flex-shrink:0;font-size:.75rem;color:var(--fg3);white-space:nowrap;}
 .amigo-solicitud{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;}
 .amigo-acciones{display:flex;gap:8px;flex-shrink:0;}
-/* Con dos botones, van bajo el nombre y a todo el ancho: al lado lo apretaban a tres líneas. */
-.amigo-solicitud.recibida{flex-wrap:wrap;row-gap:10px;}
-.amigo-solicitud.recibida .amigo-acciones{flex:1 0 100%;padding-left:52px;}
-.amigo-solicitud.recibida .amigo-boton{flex:1;}
+/* Acciones de fila compactas, como «Confirmar / Eliminar» en las solicitudes de
+   Instagram: al lado del nombre, del mismo tamaño que los botones del perfil.
+   32 pt a la vista y 44 de área para el dedo (HIG Buttons). */
+.amigo-solicitud .amigo-boton{position:relative;min-height:32px;min-width:0;padding:0 14px;border:0;border-radius:8px;background:var(--muted);font-size:.875rem;}
+.amigo-solicitud .amigo-boton.principal{background:var(--fg);color:var(--bg2);}
+.amigo-solicitud .amigo-boton::after{content:'';position:absolute;inset:-6px -2px;}
+.amigo-solicitud .amigo-acciones{gap:6px;}
+.amigo-solicitud .amigo-texto b,.amigo-solicitud .amigo-texto small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal;}
 .amigo-estado{font-size:.875rem;color:var(--fg3);}
 .amigos-vacio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:32px;padding:28px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);text-align:center;}
 .amigos-vacio h2{margin:0;font-size:1.125rem;font-weight:650;}
