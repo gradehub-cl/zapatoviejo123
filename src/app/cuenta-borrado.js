@@ -58,7 +58,7 @@ async function revocarAppleAntesDeBorrar(){
 
 async function eliminarCuenta(){
   if(!supabaseClient||!currentUser){showToast('Primero inicia sesión',true);return;}
-  if(cuentaConApple(currentUser)&&typeof enAppNativa==='function'&&enAppNativa()){
+  if(cuentaConApple(currentUser)&&typeof enAppIOS==='function'&&enAppIOS()){
     if(!await revocarAppleAntesDeBorrar())return;
   }
   showToast('Eliminando tu cuenta…');

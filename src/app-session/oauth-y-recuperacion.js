@@ -11,7 +11,7 @@ async function signInWithProvider(provider){
       const anterior=currentUser,cliente=supabaseClient;await confirmarAppleDisponible();
       if(currentUser!==anterior||supabaseClient!==cliente){reactivarBotonesOAuth();return;}
     }
-    if(provider==='apple'&&APP_NATIVA){await entrarConAppleNativo();return;}
+    if(provider==='apple'&&APP_IOS){await entrarConAppleNativo();return;}
     if(provider==='apple')guardarEntradaApple(contextoEntradaApple());
     if(APP_NATIVA){
       const {data,error}=await supabaseClient.auth.signInWithOAuth({

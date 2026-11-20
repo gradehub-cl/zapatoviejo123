@@ -95,7 +95,7 @@ chk('con movimiento reducido la alerta solo se funde', /prefers-reduced-motion:r
 
 console.log('\n=== Deslizar desde el borde para volver ===');
 const gesto = app.slice(app.indexOf('(function initVolverDeslizando(){'), app.indexOf('(function initVolverDeslizando(){') + 4000);
-chk('parte solo desde el borde izquierdo y solo en la app', /const BORDE=24;/.test(gesto) && /!enAppNativa\(\)/.test(gesto) && /t\.clientX>BORDE\)return;/.test(gesto));
+chk('parte solo desde el borde izquierdo y solo en el iPhone (en Android ese borde es del sistema)', /const BORDE=24;/.test(gesto) && /!enAppIOS\(\)/.test(gesto) && /t\.clientX>BORDE\)return;/.test(gesto));
 chk('no se activa con una hoja, una alerta o un menú abiertos', /\.modal-overlay\.open,\.confirm-overlay\.open,#menu-flotante/.test(gesto));
 chk('un scroll vertical no se confunde con el gesto', /Math\.abs\(dy\)>=Math\.abs\(dx\)\)\{g=null;return;\}/.test(gesto));
 chk('decide por velocidad o por la mitad, y vuelve a la pestaña de origen', /const sale=v>0\.35\|\|\(v>-0\.2&&s\.dx>w\/2\);/.test(gesto) && /showTab\(s\.destino\)/.test(gesto));

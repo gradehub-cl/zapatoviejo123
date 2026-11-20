@@ -238,7 +238,7 @@ function goHome(){
     [['transform',ramo],['transition',ramo],['boxShadow',ramo],['transition',atras],['filter',atras]].forEach(([k,el])=>{if(el)el.style[k]='';});
   }
   document.addEventListener('touchstart',e=>{
-    if(animando||!enAppNativa()||!e.touches||e.touches.length!==1)return;
+    if(animando||!enAppIOS()||!e.touches||e.touches.length!==1)return;
     const ramo=document.getElementById('screen-ramo');
     if(!ramo||!ramo.classList.contains('active')||document.documentElement.dataset.nav)return;
     if(document.querySelector('.modal-overlay.open,.confirm-overlay.open,#menu-flotante'))return;
