@@ -18,7 +18,7 @@ function track(event, params){
 //
 // La clave phc_ es pública por diseño (va en el navegador, como la
 // sb_publishable_). Vacía = PostHog apagado y la app queda igual que antes.
-const POSTHOG_KEY='';
+const POSTHOG_KEY='phc_ra6Ep8uC7H76FrnScWUnuj3jiJYThtW3sZKuLDoqbZpF';
 // Solo producción y la app: localhost y las vistas previas no ensucian los datos.
 function analiticaPropiaActiva(){
   if(!POSTHOG_KEY)return false;
