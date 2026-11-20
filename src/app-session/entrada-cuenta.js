@@ -11,6 +11,8 @@ async function afterSignup(){
     error.code='CACHE_LOCAL_NO_AISLADA';
     throw error;
   }
+  // Une lo anónimo de antes de registrarse con la cuenta nueva (embudo de registro).
+  if(typeof identificarAnalitica==='function')identificarAnalitica();
   if(aislamiento.propia&&S.onboardingDone&&S.ramos.length){
     const respaldado=await syncNow();await syncProfile();
     showToast(respaldado
@@ -195,6 +197,9 @@ function tareasConEstadoAlEntrar(){
   // notas— y no bloquea nada. Va después del consenso a propósito: si una pauta
   // acaba de llegar de otros, no tiene sentido devolvérsela.
   if(typeof aportarPautasAlCatalogo==='function')aportarPautasAlCatalogo().catch(()=>{});
+  // Cuentas por correo que ya tienen nombre y apellido pero entraron antes de
+  // esto: llegan a Auth en su próxima entrada, con el estado de esta cuenta.
+  if(S.onboardingDone&&typeof copiarNombreAAuth==='function')copiarNombreAAuth();
   // Los promedios de la comparación con el curso se renuevan al entrar, no solo
   // al abrir Estadísticas: curso_posicion y universidad_posicion ignoran filas
   // sin actualizar en 30 días (para que no cuenten los ramos borrados o
@@ -206,6 +211,7 @@ function tareasConEstadoAlEntrar(){
 }
 // Lo que se lee de la red al entrar y no depende de S. No bloquea nada.
 function cargasAlEntrar(){
+  if(typeof identificarAnalitica==='function')identificarAnalitica();
   if(typeof cargarAvisosFeedback==='function')cargarAvisosFeedback().catch(()=>{});
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL

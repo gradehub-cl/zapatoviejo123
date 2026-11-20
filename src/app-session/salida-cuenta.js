@@ -25,6 +25,7 @@ async function cerrarSesion(){
   try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
   finally{_cerrandoSesion=false;}
   currentUser=null;closeModal();
+  if(typeof olvidarAnalitica==='function')olvidarAnalitica();
   if(typeof borrarResumenWidgets==='function')borrarResumenWidgets();
   if(typeof olvidarSesionAgentes==='function')olvidarSesionAgentes();
   // Las propuestas pertenecen a la cuenta que salió, no al navegador.
