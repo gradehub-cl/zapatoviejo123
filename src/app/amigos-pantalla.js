@@ -102,9 +102,9 @@ function pintarInsigniaAmigos(){
 // ─── Pintar ───
 const inicialAmigo=a=>esc(((a.nombre||a.username||'?').trim()[0]||'?').toUpperCase());
 const nombreAmigo=a=>a.nombre?`${a.nombre}${a.apellido?' '+a.apellido:''}`:'@'+a.username;
-// La misma sigla puede ser otro ramo en otra universidad: ramos en común y
-// promedios solo se cruzan dentro de la misma U. Horario, libres y turno sí
-// valen entre universidades (son horas, no ramos).
+// Amigos es dentro de la misma U (el servidor ya no entrega a nadie de otra).
+// Este cruce queda por si alguien cambia de U con la lista ya cargada: la misma
+// sigla puede ser otro ramo en otra universidad.
 function mismaUAmigo(a){return !!(a&&a.universidad&&S.tenant&&a.universidad===S.tenant);}
 function ramosEnComunAmigo(a,ramos){return mismaUAmigo(a)?ramosEnComun(S.ramos,ramos):[];}
 const ORDEN_ESTADO_AMIGO={clase:0,libre:1,termino:2,sinclases:3,sinhorario:4};
@@ -236,7 +236,7 @@ function sugerenciaUsername(){
 function pintarElegirUsername(caja){
   caja.innerHTML=`<form class="amigos-username" id="amigos-username-form" novalidate>
     <h2>Elige tu username</h2>
-    <p>Así te encuentran tus amigos. Nadie ve tu horario hasta que lo aceptes.</p>
+    <p>Así te encuentran tus compañeros de la U. Nadie ve tu horario hasta que lo aceptes.</p>
     <label class="amigos-campo" for="amigos-username"><span aria-hidden="true">@</span>
       <input id="amigos-username" type="text" inputmode="text" autocapitalize="none" autocomplete="username" spellcheck="false" maxlength="21" value="${esc(sugerenciaUsername())}" aria-describedby="amigos-username-estado"></label>
     <p class="amigos-username-estado" id="amigos-username-estado" role="status" aria-live="polite"></p>
@@ -354,7 +354,7 @@ async function buscarAmigo(valor){
   caja.innerHTML='<p class="amigos-vacio-texto">Buscando…</p>';
   try{
     const r=(await rpcAmigos('buscar_usuario',{p_username:n}))||[];
-    if(!r.length){caja.innerHTML='<p class="amigos-vacio-texto">No encontramos a nadie con ese username.</p>';return;}
+    if(!r.length){caja.innerHTML='<p class="amigos-vacio-texto">No encontramos a nadie de tu universidad con ese username.</p>';return;}
     const p=r[0],uni=p.universidad&&TENANTS[p.universidad]?TENANTS[p.universidad].short:'';
     const accion={yo:'<span class="amigo-estado">Eres tú</span>',amigos:'<span class="amigo-estado">Ya son amigos</span>',
       enviada:'<span class="amigo-estado">Solicitud enviada</span>',
@@ -394,7 +394,7 @@ function abrirAmigo(id){
           const n=notas.find(x=>x.sigla===r.sigla);
           return `<li><span>${esc(r.nombre)}</span><span class="amigo-lista-der">${r.mismaSeccion?'<span class="amigo-chip">Misma sección</span>':''}${n?notaAmigoHTML(n,a):''}</span></li>`;
         }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir mis promedios» en Privacidad para comparar notas en estos ramos.</p>':''}`
-        :`<p class="amigos-vacio-texto">${mismaUAmigo(a)?'No toman ramos juntos este semestre.':'Estudian en universidades distintas.'}</p>`}
+        :'<p class="amigos-vacio-texto">No toman ramos juntos este semestre.</p>'}
       <h3 class="modal-label">Libres a la vez</h3>
       ${sinCruce||(semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
         :'<p class="amigos-vacio-texto">Esta semana no tienen ventanas libres en común.</p>')}

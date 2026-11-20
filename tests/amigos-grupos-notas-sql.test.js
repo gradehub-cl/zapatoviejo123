@@ -90,7 +90,7 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   paso('sacar, renombrar, salir; sin grupos huérfanos');
 
   await db.exec('reset role');
-  const extra=[];for(let i=0;i<14;i++){const id=u(200+i);extra.push(id);await q('insert into auth.users(id) values($1)',[id]);await q('insert into public.usernames values($1,$2)',[id,'extra'+i]);
+  const extra=[];for(let i=0;i<14;i++){const id=u(200+i);extra.push(id);await q('insert into auth.users(id) values($1)',[id]);await q('insert into public.usernames values($1,$2)',[id,'extra'+i]);await q("insert into public.profiles(id,universidad) values($1,'uc')",[id]);
     await q("insert into public.amistades(de,para,estado) values($1,$2,'aceptada')",[A,id]);}
   await sesion(A);
   for(let i=0;i<13;i++)await uno('select public.invitar_a_grupo($1,$2)',[g,'extra'+i]);

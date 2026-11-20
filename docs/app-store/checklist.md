@@ -108,6 +108,10 @@ y solo cuando su SQL está aplicado; sin SQL, la app queda como estaba.
       filas actualizadas en `privacidad.md` (Name, Other User Content, User ID).
 - [ ] **[código]** Universal Links (#663): el link `gradehub.cl/?amigo=…` hoy
       abre la web, donde Amigos no aparece.
+- Segunda versión (decidido por Lucas, 2026-11-20): Amigos parte solo dentro de
+  la misma universidad. Lo único entre universidades que vale la pena es un
+  calendario de pruebas en un grupo para ver cuándo pueden juntarse; turno y
+  almorzar entre U se descartaron.
 
 ## Notas
 

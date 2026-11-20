@@ -10,6 +10,8 @@
 -- (amigos_grupos.sql, amigos_notas.sql), que se aplica después de este.
 --
 -- PRIVACIDAD
+--   - Solo entre personas de la misma universidad (profiles.universidad). Si
+--     alguien cambia de U, sus amistades con la anterior dejan de verse.
 --   - Nadie aparece en un listado ni en una búsqueda parcial. A una persona se
 --     la encuentra escribiendo su username exacto, o abriendo su link.
 --   - Antes de aceptar, la otra persona ve solo username, nombre, apellido y
@@ -148,11 +150,22 @@ returns boolean language sql immutable set search_path = '' as $$
 $$;
 revoke all on function public.amigos_texto_ofensivo(text) from public, anon, authenticated;
 
--- El user_id de un username, solo si existe y nadie bloqueó a nadie.
+-- Amigos es dentro de la misma universidad (Lucas, 2026-11-20): solo se
+-- encuentra, se agrega y se ve a quien estudia en la misma U. El username sí es
+-- único en toda la app. Sin universidad en el perfil, no hay con quién cruzar.
+create or replace function public.amigos_misma_u(p_a uuid, p_b uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select coalesce((select universidad from public.profiles where id = p_a) =
+                  (select universidad from public.profiles where id = p_b), false)
+$$;
+revoke all on function public.amigos_misma_u(uuid, uuid) from public, anon, authenticated;
+
+-- El user_id de un username, solo si existe, es de mi U y nadie bloqueó a nadie.
 create or replace function public.amigos_resolver(p_username text, p_yo uuid)
 returns uuid language sql stable security definer set search_path = '' as $$
   select u.user_id from public.usernames u
    where u.username = public.amigos_normalizar(p_username)
+     and (u.user_id = p_yo or public.amigos_misma_u(p_yo, u.user_id))
      and not exists (select 1 from public.amigos_bloqueos b
                       where (b.user_id = p_yo and b.bloqueado = u.user_id)
                          or (b.user_id = u.user_id and b.bloqueado = p_yo))
@@ -204,7 +217,7 @@ begin
     'username', (select username from public.usernames where user_id = uid),
     'cambiado_at', (select cambiado_at from public.usernames where user_id = uid),
     'comparte_horario', coalesce((select comparte_horario from public.amigos_ajustes where user_id = uid), true),
-    'recibidas', (select count(*) from public.amistades where para = uid and estado = 'pendiente'));
+    'recibidas', (select count(*) from public.amistades where para = uid and estado = 'pendiente' and public.amigos_misma_u(uid, de)));
 end;
 $$;
 
@@ -336,7 +349,7 @@ begin
     from public.amistades a
     join public.usernames u on u.user_id = case when a.de = uid then a.para else a.de end
     left join public.profiles p on p.id = u.user_id
-   where a.de = uid or a.para = uid
+   where (a.de = uid or a.para = uid) and public.amigos_misma_u(uid, u.user_id)
    order by (a.estado = 'aceptada'), lower(coalesce(p.nombre, u.username));
 end;
 $$;
@@ -355,7 +368,7 @@ begin
     join public.usernames u on u.user_id = case when a.de = uid then a.para else a.de end
     left join public.profiles p on p.id = u.user_id
     left join public.user_ramos d on d.user_id = u.user_id
-   where (a.de = uid or a.para = uid) and a.estado = 'aceptada'
+   where (a.de = uid or a.para = uid) and a.estado = 'aceptada' and public.amigos_misma_u(uid, u.user_id)
      and coalesce((select s.comparte_horario from public.amigos_ajustes s where s.user_id = u.user_id), true);
 end;
 $$;
