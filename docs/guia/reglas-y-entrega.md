@@ -125,6 +125,17 @@ visual que no las cumple no se mergea. Lo que más aplica a una PWA:
   medidas propias (`tests/interruptor-unico.test.js`).
 - **Un solo radio: 8 px** para botones, campos y tarjetas (2026-11-15). Las
   hojas conservan sus esquinas superiores y los círculos siguen siendo círculos.
+- **Botones de fila compactos, no toscos** (Lucas, 2026-11-20). Las acciones que
+  van en una fila o una tarjeta (aceptar, rechazar, cancelar, agregar, editar)
+  son como «Confirmar / Eliminar» de Instagram: al lado del texto, 32 pt a la
+  vista y 44 pt de área con un `::after`, sin borde, la principal rellena y la
+  otra en `--muted`. Nada de botones a todo el ancho ni de 44 pt dibujados para
+  una acción secundaria. Referencia: `.amigo-solicitud .amigo-boton` y
+  `.amigos-perfil-botones` en `styles.css` (pestaña Amigos).
+  **Pendiente aplicarlo en:** el panel de admin (todo amontonado arriba: la barra
+  de vistas, el buscador y los filtros compiten; acciones de tarjetas como
+  «Marcar resuelta», «Descartar» o «Pausar profesor» con el peso de una acción
+  principal), y revisar Clases, Alumnos y las hojas de Ajustes con el mismo ojo.
 - **La barra es Inicio · Agenda · Estadísticas · Perfil** (2026-11-15), con
   Clases, Alumnos y Admin antes de Perfil para quien las tiene. Perfil es
   siempre la última y reemplaza al avatar con menú: la cuenta, el semestre y
