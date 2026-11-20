@@ -184,8 +184,9 @@ function openSettings(){
     if(section==='agentes')return currentUser?`
       <div class="agent-explainer">
         <b>Qué puede hacer</b>
-        <span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span>
-        <span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>
+        ${enAppNativa()
+          ?'<span>Puede leer tus ramos, notas y fechas, simular escenarios y preparar propuestas de ramos, pautas, notas y fechas.</span><span class="agent-explainer-no">Tú revisas y eliges qué propuestas aplicar en GradeHub.</span>'
+          :'<span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span><span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>'}
       </div>
 
       <label class="modal-label">1. Pregúntale a tu agente dónde conectarlo</label>
@@ -212,7 +213,7 @@ function openSettings(){
         <b>Ideas para pedirle</b>
         <span>Elige un mensaje y pégalo en el chat.</span>
         <select class="feedback-select" id="s-agent-prompt-pick" onchange="pintarPromptAgente()" aria-label="Qué pedirle a tu agente">
-          ${Object.entries(PROMPTS_AGENTE).map(([clave,p])=>`<option value="${esc(clave)}">${esc(p.titulo)}</option>`).join('')}
+          ${Object.entries(PROMPTS_AGENTE).filter(([,p])=>!p.soloApp||enAppNativa()).map(([clave,p])=>`<option value="${esc(clave)}">${esc(p.titulo)}</option>`).join('')}
         </select>
         <span id="s-agent-prompt-bajada">${esc(PROMPTS_AGENTE.repaso.bajada)}</span>
         <details class="agent-prompt-ver"><summary>Ver el mensaje</summary><span id="s-agent-prompt-texto">${esc(PROMPTS_AGENTE.repaso.texto)}</span></details>
