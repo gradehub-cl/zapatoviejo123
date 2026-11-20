@@ -62,6 +62,7 @@ async function sondearExtrasAmigos(v){
 function olvidarAmigos(){
   amigosVersion++;amigosDisponibleCache=false;amigosEstadoCache=null;amigosListaCache=null;amigosHorariosCache=new Map();
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
+  amigosGrupoDetalle=null;
   _notasPublicadas=null;clearTimeout(_notasTimer);
 }
 async function refrescarAmigos(){
@@ -158,12 +159,12 @@ function pintarAmigos(){
       <span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>${sub(a)}</small></span>
       <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="rechazar" data-id="${esc(a.id)}" aria-label="Rechazar a ${esc(nombreAmigo(a))}">Rechazar</button>
       <button type="button" class="amigo-boton principal" data-amigos="aceptar" data-id="${esc(a.id)}" aria-label="Aceptar a ${esc(nombreAmigo(a))}">Aceptar</button></span></li>`).join('')}</ul></section>`:''}
+    ${seccionGruposHTML()}
     ${seccionTurnoHTML(amigos)}
     ${amigos.length?`<section class="perfil-grupo amigos-grupo"><h2>Tus amigos</h2><ul>${amigos.map(a=>filaAmigoHTML(a,ahora)).join('')}</ul></section>`
       :`<section class="amigos-vacio"><h2>Agrega a tu primer amigo</h2><p>Mándales tu link o búscalos por su username.</p>
         <button type="button" class="btn-primary" data-amigos="invitar">Invitar amigos</button>
         <button type="button" class="amigos-link" data-amigos="agregar">Buscar por username</button></section>`}
-    ${seccionGruposHTML()}
     ${enviadas.length?`<section class="perfil-grupo amigos-grupo"><h2>Enviadas</h2><ul>${enviadas.map(a=>`<li class="amigo-solicitud">
       <span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span>
       <span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>${sub(a)}</small></span>
@@ -403,6 +404,7 @@ async function cambiarCompartirNotas(valor){
 // ─── Grupos ───
 const ICONO_GRUPO='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.6 14.2c2.4-.3 4.4 1.2 4.9 4.3"/></svg>';
 const ICONO_MAS='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const FLECHA_GRUPO='<svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 const personasTxt=n=>`${n} ${n===1?'persona':'personas'}`;
 // El mismo tope que amigos_grupos.sql: no es un nombre académico (NOMBRE_MAX).
 const GRUPO_NOMBRE_MAX=40;
@@ -430,42 +432,54 @@ function lineaGrupo(g){
 function seccionGruposHTML(){
   if(!amigosGruposDisponible)return '';
   const grupos=amigosGruposCache||[],invit=grupos.filter(g=>g.estado==='invitado'),mios=grupos.filter(g=>g.estado==='miembro');
-  return `<section class="perfil-grupo amigos-grupo"><h2>Grupos</h2><ul>
+  const hayAmigos=(amigosListaCache||[]).some(a=>a.estado==='amigos');
+  return `<section class="perfil-grupo amigos-grupo amigos-grupos" aria-labelledby="amigos-grupos-titulo">
+    <h2 id="amigos-grupos-titulo">Grupos</h2>
+    ${invit.length?`<h3 class="grupo-etiqueta">Invitaciones</h3><ul class="grupo-celdas grupo-invitaciones" role="list">
     ${invit.map(g=>`<li class="amigo-solicitud recibida">
       ${avatarGrupoHTML(g.nombres)}
-      <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(g.invitado_por?`@${g.invitado_por} te invitó`:'Te invitaron')}</small><small>${esc(lineaGrupo(g))}</small></span>
-      <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="grupo-rechazar" data-id="${esc(g.id)}" aria-label="Rechazar ${esc(g.nombre)}">Rechazar</button>
-      <button type="button" class="amigo-boton principal" data-amigos="grupo-aceptar" data-id="${esc(g.id)}" aria-label="Unirme a ${esc(g.nombre)}">Unirme</button></span></li>`).join('')}
+      <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(g.invitado_por?`@${g.invitado_por} te invitó`:'Te invitaron')}</small>${g.nombres?.length?`<small>${esc(lineaGrupo(g))}</small>`:''}</span>
+      <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="grupo-rechazar" data-id="${esc(g.id)}" aria-label="Rechazar la invitación a ${esc(g.nombre)}">Rechazar</button>
+      <button type="button" class="amigo-boton principal" data-amigos="grupo-aceptar" data-id="${esc(g.id)}" aria-label="Unirme a ${esc(g.nombre)}">Unirme</button></span></li>`).join('')}</ul>`:''}
+    ${mios.length&&invit.length?'<h3 class="grupo-etiqueta">Tus grupos</h3>':''}
+    ${mios.length||hayAmigos?`<ul class="grupo-celdas" role="list">
     ${mios.map(g=>`<li><button type="button" class="amigo-fila" data-amigos="grupo" data-id="${esc(g.id)}">
       ${avatarGrupoHTML(g.nombres)}
       <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(lineaGrupo(g))}</small></span>
-      <svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>`).join('')}
-    <li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-nuevo">
+      ${FLECHA_GRUPO}</button></li>`).join('')}
+    ${hayAmigos?`<li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-nuevo">
       <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span>
-      <span class="amigo-texto"><b>Nuevo grupo</b>${mios.length?'':'<small>Para ver cuándo están todos libres</small>'}</span></button></li>
-  </ul></section>`;
+      <span class="amigo-texto"><b>Crear grupo</b>${mios.length?'':'<small>Encuentra horarios libres en común</small>'}</span>${FLECHA_GRUPO}</button></li>`:''}
+  </ul>`:''}
+    ${!mios.length&&!invit.length&&!hayAmigos?'<p class="amigos-vacio-texto">Cuando tengas amigos en GradeHub, podrás crear un grupo.</p>':''}
+  </section>`;
 }
 // Elegir amigos, como al crear un grupo en WhatsApp: los marcados aparecen
 // arriba como fichas que se pueden quitar. `fuera`: usernames que ya están.
 function elegirAmigosHTML(fuera){
   const lista=(amigosListaCache||[]).filter(a=>a.estado==='amigos'&&!(fuera||[]).includes(a.username));
   if(!lista.length)return '<p class="amigos-vacio-texto">No te quedan amigos por invitar.</p>';
-  return `<div class="amigos-elegidos" aria-live="polite"></div>
-    <ul class="amigos-elegir-lista">${lista.map(a=>`<li><label class="amigos-elegir"><input type="checkbox" name="u" value="${esc(a.username)}" data-nombre="${esc(a.nombre||'@'+a.username)}">
-    <span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span><span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b><small>@${esc(a.username)}</small></span></label></li>`).join('')}</ul>`;
+  return `<p class="grupo-seleccion-estado" role="status">Elige a quién invitar</p>
+    <div class="amigos-elegidos"></div>
+    <ul class="amigos-elegir-lista grupo-celdas" role="list">${lista.map(a=>`<li><label class="amigos-elegir">
+    <span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span><span class="amigo-texto"><b>${esc(nombreAmigo(a))}</b>${a.nombre?`<small>@${esc(a.username)}</small>`:''}</span>
+    <input type="checkbox" name="u" value="${esc(a.username)}" data-nombre="${esc(a.nombre||'@'+a.username)}"></label></li>`).join('')}</ul>`;
 }
 // Repinta las fichas de arriba y avisa cuántos van marcados.
 function enlazarElegirAmigos(form,alCambiar){
   const pintar=()=>{
     const marcados=[...form.querySelectorAll('input[name=u]:checked')];
     const caja=form.querySelector('.amigos-elegidos');
-    if(caja)caja.innerHTML=marcados.map(i=>`<button type="button" class="amigos-elegido" data-quitar="${esc(i.value)}" aria-label="Quitar a ${esc(i.dataset.nombre)}">${esc(i.dataset.nombre)}<span aria-hidden="true">×</span></button>`).join('');
+    const estado=form.querySelector('.grupo-seleccion-estado');
+    if(estado)estado.textContent=marcados.length?`${personasTxt(marcados.length)} ${marcados.length===1?'seleccionada':'seleccionadas'}`:'Elige a quién invitar';
+    if(caja)caja.innerHTML=marcados.map(i=>`<button type="button" class="amigos-elegido" data-quitar="${esc(i.value)}" aria-label="Quitar a ${esc(i.dataset.nombre)}"><span>${esc(i.dataset.nombre)}</span><span aria-hidden="true">×</span></button>`).join('');
     alCambiar(marcados);
   };
   form.addEventListener('change',pintar);
   form.addEventListener('click',ev=>{
     const b=ev.target.closest&&ev.target.closest('[data-quitar]');if(!b)return;
-    const i=[...form.querySelectorAll('input[name=u]')].find(x=>x.value===b.dataset.quitar);if(i){i.checked=false;pintar();}
+    const i=[...form.querySelectorAll('input[name=u]')].find(x=>x.value===b.dataset.quitar);
+    if(i){i.checked=false;pintar();i.focus();}
   });
   pintar();
 }
@@ -473,87 +487,113 @@ function enlazarElegirAmigos(form,alCambiar){
 function abrirGrupoNuevo(){
   const hayAmigos=(amigosListaCache||[]).some(a=>a.estado==='amigos');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Nuevo grupo</div>
+    <h2 class="modal-title grupo-titulo">Crear grupo</h2>
     <form id="amigos-grupo-form" class="amigos-grupo-form" novalidate>
-      <label class="modal-label" for="amigos-grupo-nombre">Nombre (opcional)</label>
-      <input id="amigos-grupo-nombre" class="amigos-grupo-nombre" type="text" maxlength="${GRUPO_NOMBRE_MAX}" autocomplete="off" placeholder="Estudio Micro">
-      <fieldset><legend class="modal-label">Personas</legend>${hayAmigos?elegirAmigosHTML([]):'<p class="amigos-vacio-texto">Agrega amigos para armar un grupo.</p>'}</fieldset>
-      <p class="amigos-vacio-texto">Quienes se unan verán el horario de los demás. Nunca sus notas.</p>
+      <label class="grupo-etiqueta" for="amigos-grupo-nombre">Nombre <small>(opcional)</small></label>
+      <input id="amigos-grupo-nombre" class="amigos-grupo-nombre" type="text" maxlength="${GRUPO_NOMBRE_MAX}" autocomplete="off" placeholder="Ej. Grupo de estudio">
+      <fieldset><legend class="grupo-etiqueta">Amigos</legend>${hayAmigos?elegirAmigosHTML([]):'<p class="amigos-vacio-texto">Agrega amigos para armar un grupo.</p>'}</fieldset>
+      <p class="grupo-privacidad">Al entrar al grupo, cada persona comparte su horario si lo tiene activado en Amigos. Las notas quedan privadas.</p>
     </form>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button type="submit" form="amigos-grupo-form" class="btn-confirm" id="amigos-grupo-crear" disabled>Crear</button></div>`;
   openModal();
   const form=document.getElementById('amigos-grupo-form'),nombre=document.getElementById('amigos-grupo-nombre'),crear=document.getElementById('amigos-grupo-crear');
   const sugerido=m=>listaNombres([...m.map(i=>i.dataset.nombre.replace(/^@/,'').split(' ')[0]),'tú']).slice(0,GRUPO_NOMBRE_MAX);
-  enlazarElegirAmigos(form,m=>{crear.disabled=!m.length;crear.textContent=m.length>1?`Crear (${m.length})`:'Crear';nombre.placeholder=m.length?sugerido(m):'Estudio Micro';});
+  enlazarElegirAmigos(form,m=>{crear.disabled=!m.length||form.hasAttribute('aria-busy');nombre.placeholder=m.length?sugerido(m):'Ej. Grupo de estudio';});
   form.addEventListener('submit',async ev=>{
     ev.preventDefault();
     const marcados=[...form.querySelectorAll('input[name=u]:checked')];
-    if(!marcados.length)return;
+    if(crear.disabled||!marcados.length)return;
+    crear.disabled=true;crear.textContent='Creando…';form.setAttribute('aria-busy','true');
+    const v=amigosVersion;
     try{
       const id=await rpcAmigos('crear_grupo',{p_nombre:nombre.value.trim()||sugerido(marcados),p_usernames:marcados.map(i=>i.value)});
+      if(v!==amigosVersion)return;
       if(typeof vibrar==='function')vibrar('exito');
-      closeModal();await refrescarAmigos();abrirGrupo(id);
-    }catch(e){showToast(mensajeErrorAmigos(e),true);}
+      showToast('Grupo creado');
+      await refrescarAmigos();
+      if(v===amigosVersion&&form.isConnected&&document.getElementById('modal').classList.contains('open'))abrirGrupo(id);
+    }catch(e){if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);}
+    finally{form.removeAttribute('aria-busy');crear.textContent='Crear';crear.disabled=!form.querySelector('input[name=u]:checked');}
   });
 }
 async function abrirGrupo(id){
   const g=(amigosGruposCache||[]).find(x=>x.id===id);
-  document.getElementById('modal-content').innerHTML=`<div class="modal-title">${esc(g?g.nombre:'Grupo')}</div><p class="amigos-vacio-texto" role="status">Cargando…</p>
+  const contenido=document.getElementById('modal-content'),v=amigosVersion;
+  contenido.innerHTML=`<h2 class="modal-title grupo-titulo">${esc(g?g.nombre:'Grupo')}</h2><p class="amigos-vacio-texto grupo-cargando" role="status">Cargando grupo…</p>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
+  const carga=contenido.querySelector('.grupo-cargando');
+  const sigueAbierto=()=>v===amigosVersion&&carga.isConnected&&document.getElementById('modal').classList.contains('open');
   openModal();
   let filas;
   try{filas=(await rpcAmigos('grupo_detalle',{p_grupo:id}))||[];}
-  catch(e){closeModal();showToast(mensajeErrorAmigos(e),true);refrescarAmigos();return;}
+  catch(e){
+    if(!sigueAbierto())return;
+    carga.textContent='No se pudo cargar el grupo.';
+    carga.insertAdjacentHTML('afterend',`<button type="button" class="amigo-boton" data-amigos="grupo" data-id="${esc(id)}">Reintentar</button>`);
+    return;
+  }
+  if(!sigueAbierto())return;
   amigosGrupoDetalle={id,filas};
   pintarGrupo(id,filas);
 }
-// La ficha del grupo sigue a «Info. del grupo» de WhatsApp: cabecera centrada
-// (avatar, nombre que se toca para cambiarlo, «Grupo · N personas»), lo útil,
-// la lista de personas que empieza con «Agregar personas» y salir al final.
 function pintarGrupo(id,filas){
   const g=(amigosGruposCache||[]).find(x=>x.id===id)||{nombre:'Grupo'};
   const ahora=new Date();
   const miembros=filas.filter(f=>f.estado==='miembro');
-  const conRamos=filas.filter(f=>!f.yo&&f.ramos).map(f=>normalizarRamosAmigo(f.ramos));
+  const pendientes=filas.filter(f=>f.estado==='invitado');
+  const horarios=miembros.filter(f=>!f.yo&&f.ramos).map(f=>({f,ramos:normalizarRamosAmigo(f.ramos)}));
   const mioConHorario=S.ramos.some(r=>copiarHorario(r.horario).length);
-  const semana=semanaLibresGrupo([mioConHorario?S.ramos:[],...conRamos]);
-  const enClases=filas.filter(f=>!f.yo&&f.ramos&&estadoAhoraAmigo(normalizarRamosAmigo(f.ramos),ahora).estado==='clase').length;
-  const nombres=filas.filter(f=>!f.yo&&f.estado==='miembro').map(f=>(f.nombre||f.username).split(' ')[0]);
+  const agendas=[...(mioConHorario?[S.ramos]:[]),...horarios.map(h=>h.ramos)].filter(ramos=>ramos.some(r=>copiarHorario(r.horario).length));
+  const horariosSuficientes=agendas.length>=2;
+  const semana=horariosSuficientes?semanaLibresGrupo(agendas):[];
+  const turnos=mioConHorario?horarios.map(({f,ramos})=>({f,m:matchTurno(S.ramos,ramos)})).filter(x=>x.m.tipo!=='ninguno'):[];
+  const nombres=miembros.filter(f=>!f.yo).map(f=>(f.nombre||f.username).split(' ')[0]);
   const filaHTML=f=>{
     const ramos=f.ramos?normalizarRamosAmigo(f.ramos):null,est=ramos?estadoAhoraAmigo(ramos,ahora):null;
-    const linea=f.estado==='invitado'?'Invitación pendiente':est?textoEstadoAmigo(est):f.yo?'@'+f.username:'No comparte su horario';
+    const linea=f.estado==='invitado'||f.yo?'@'+f.username:est?textoEstadoAmigo(est):'Horario no disponible';
     const contenido=`<span class="amigo-avatar${est&&est.estado==='clase'?' en-clase':''}" aria-hidden="true">${inicialAmigo(f)}</span>
       <span class="amigo-texto"><b>${f.yo?'Tú':esc(nombreAmigo(f))}</b><small>${esc(linea)}</small></span>
       ${f.creador?'<span class="amigo-chip">Admin</span>':''}`;
     return f.yo?`<li class="amigo-solicitud">${contenido}</li>`
-      :`<li><button type="button" class="amigo-fila" data-amigos="grupo-miembro" data-id="${esc(id)}" data-user="${esc(f.username)}">${contenido}</button></li>`;
+      :`<li><button type="button" class="amigo-fila" data-amigos="grupo-miembro" data-id="${esc(id)}" data-user="${esc(f.username)}">${contenido}${FLECHA_GRUPO}</button></li>`;
   };
   document.getElementById('modal-content').innerHTML=`
+    <div class="grupo-ficha">
     <div class="grupo-cabecera">
       ${avatarGrupoHTML(nombres,true)}
-      <button type="button" class="grupo-nombre" data-amigos="grupo-renombrar" data-id="${esc(id)}" aria-label="Cambiar el nombre de ${esc(g.nombre)}">${esc(g.nombre)}
+      <h2 class="modal-title grupo-titulo">${esc(g.nombre)}</h2>
+      <p class="amigo-sub">${esc(personasTxt(miembros.length))}</p>
+      <button type="button" class="grupo-nombre" data-amigos="grupo-renombrar" data-id="${esc(id)}">
+        Cambiar nombre
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
-      <p class="amigo-sub">Grupo · ${esc(personasTxt(miembros.length))}${enClases?` · ${enClases} en clases`:''}</p>
     </div>
-    <h3 class="modal-label">Todos libres a la vez</h3>
-    ${!mioConHorario&&!(conRamos.length>=2)?'<p class="amigos-vacio-texto">Agrega tu horario para ver cuándo coinciden.</p>'
-      :semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}${d.personas<1+conRamos.length?` <small class="amigo-de">${d.personas} de ${1+conRamos.length}</small>`:''}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
-      :'<p class="amigos-vacio-texto">Esta semana no tienen ventanas libres en común.</p>'}
-    ${(()=>{
-      if(!mioConHorario)return '';
-      const t=filas.filter(f=>!f.yo&&f.ramos).map(f=>({f,m:matchTurno(S.ramos,normalizarRamosAmigo(f.ramos))})).filter(x=>x.m.tipo!=='ninguno');
-      return t.length?`<h3 class="modal-label">Hacer turno contigo</h3><ul class="amigo-lista">${t.map(({f,m})=>`<li><span>${esc(nombreAmigo(f))}</span><span class="amigo-horas">${esc(m.tipo==='perfecto'?'Match perfecto':listaDiasTurno(m.dias))}</span></li>`).join('')}</ul>`:'';
-    })()}
-    <h3 class="modal-label">${esc(personasTxt(filas.length))}</h3>
-    <ul class="amigo-lista amigo-lista-personas">
+    <section class="grupo-seccion">
+      <h3 class="grupo-etiqueta">Horarios libres en común</h3>
+      ${!horariosSuficientes?'<p class="amigos-vacio-texto">Se necesitan al menos dos horarios para calcular las coincidencias.</p>'
+        :semana.length?`<ul class="amigo-lista grupo-celdas grupo-horarios" role="list">${semana.map(d=>`<li>
+          <span><b>${esc(d.nombre)}</b><small>${esc(personasTxt(d.personas))} con clases</small></span>
+          <span class="amigo-horas">${d.ventanas.map(v=>`<span>${esc(v.inicio)}–${esc(v.fin)}</span>`).join('')}</span></li>`).join('')}</ul>`
+        :'<p class="amigos-vacio-texto">Esta semana no hay ventanas libres en común.</p>'}
+    </section>
+    ${turnos.length?`<section class="grupo-seccion"><h3 class="grupo-etiqueta">Hacer turno contigo</h3>
+      <ul class="amigo-lista grupo-celdas grupo-horarios" role="list">${turnos.map(({f,m})=>`<li><b>${esc(nombreAmigo(f))}</b>
+      <span class="amigo-horas">${esc(m.tipo==='perfecto'?'Coinciden todos los días':listaDiasTurno(m.dias))}</span></li>`).join('')}</ul></section>`:''}
+    <section class="grupo-seccion">
+    <h3 class="grupo-etiqueta">Integrantes</h3>
+    <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">
       <li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-invitar" data-id="${esc(id)}">
-        <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Agregar personas</b></span></button></li>
-      ${filas.map(filaHTML).join('')}
+        <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Invitar amigos</b></span>${FLECHA_GRUPO}</button></li>
+      ${miembros.map(filaHTML).join('')}
     </ul>
+    </section>
+    ${pendientes.length?`<section class="grupo-seccion"><h3 class="grupo-etiqueta">Invitaciones pendientes</h3>
+      <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">${pendientes.map(filaHTML).join('')}</ul></section>`:''}
     <button type="button" class="grupo-salir" data-amigos="grupo-salir" data-id="${esc(id)}">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/></svg>Salir del grupo</button>
+    </div>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
+  openModal();
 }
 // Tocar a alguien del grupo: como en WhatsApp, un menú corto. Su ficha si es
 // tu amigo; sacarlo si eres admin.
@@ -567,58 +607,85 @@ function abrirMiembroGrupo(id,username){
   ].filter(Boolean);
   document.getElementById('modal-content').innerHTML=`
     <div class="amigo-cabecera"><span class="amigo-avatar grande" aria-hidden="true">${inicialAmigo(f)}</span>
-      <div><div class="modal-title">${esc(nombreAmigo(f))}</div><p class="amigo-sub">@${esc(f.username)}</p></div></div>
+      <div><h2 class="modal-title grupo-titulo">${esc(nombreAmigo(f))}</h2>${f.nombre?`<p class="amigo-sub">@${esc(f.username)}</p>`:''}</div></div>
     <div class="grupo-opciones">${opciones.join('')}</div>
     <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button></div>`;
+  openModal();
 }
 function abrirInvitarGrupo(id){
   const fuera=amigosGrupoDetalle&&amigosGrupoDetalle.id===id?amigosGrupoDetalle.filas.map(f=>f.username):[];
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Invitar al grupo</div>
+    <h2 class="modal-title grupo-titulo">Invitar amigos</h2>
     <form id="amigos-invitar-form" class="amigos-grupo-form" novalidate>${elegirAmigosHTML(fuera)}</form>
     <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
-      <button type="submit" form="amigos-invitar-form" class="btn-confirm" id="amigos-invitar-ok" disabled>Invitar</button></div>`;
-  const ok=document.getElementById('amigos-invitar-ok');
-  enlazarElegirAmigos(document.getElementById('amigos-invitar-form'),m=>{ok.disabled=!m.length;ok.textContent=m.length>1?`Invitar (${m.length})`:'Invitar';});
-  document.getElementById('amigos-invitar-form').addEventListener('submit',async ev=>{
+      <button type="submit" form="amigos-invitar-form" class="btn-confirm" id="amigos-invitar-ok" disabled>Enviar</button></div>`;
+  openModal();
+  const ok=document.getElementById('amigos-invitar-ok'),form=document.getElementById('amigos-invitar-form');
+  enlazarElegirAmigos(form,m=>{ok.disabled=!m.length||form.hasAttribute('aria-busy');});
+  form.addEventListener('submit',async ev=>{
     ev.preventDefault();
-    const usernames=[...ev.target.querySelectorAll('input[name=u]:checked')].map(i=>i.value);
-    if(!usernames.length){abrirGrupo(id);return;}
+    const usernames=[...form.querySelectorAll('input[name=u]:checked')].map(i=>i.value);
+    if(ok.disabled||!usernames.length)return;
+    ok.disabled=true;ok.textContent='Enviando…';form.setAttribute('aria-busy','true');
+    const v=amigosVersion;
     try{
-      for(const u of usernames)await rpcAmigos('invitar_a_grupo',{p_grupo:id,p_username:u});
+      for(const u of usernames){
+        if(v!==amigosVersion)return;
+        await rpcAmigos('invitar_a_grupo',{p_grupo:id,p_username:u});
+      }
+      if(v!==amigosVersion)return;
       showToast(usernames.length===1?'Invitación enviada':'Invitaciones enviadas');
-    }catch(e){showToast(mensajeErrorAmigos(e),true);}
-    abrirGrupo(id);
+    }catch(e){if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);}
+    finally{form.removeAttribute('aria-busy');ok.textContent='Enviar';ok.disabled=!form.querySelector('input[name=u]:checked');}
+    if(v===amigosVersion&&form.isConnected&&document.getElementById('modal').classList.contains('open'))abrirGrupo(id);
   });
 }
 function abrirRenombrarGrupo(id){
   const g=(amigosGruposCache||[]).find(x=>x.id===id)||{nombre:''};
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Cambiar nombre</div>
-    <form id="amigos-renombrar-form" novalidate><input id="amigos-renombrar" class="amigos-grupo-nombre" type="text" maxlength="${GRUPO_NOMBRE_MAX}" autocomplete="off" value="${esc(g.nombre)}" aria-label="Nombre del grupo"></form>
+    <h2 class="modal-title grupo-titulo">Cambiar nombre</h2>
+    <form id="amigos-renombrar-form" novalidate><label class="grupo-etiqueta" for="amigos-renombrar">Nombre del grupo</label>
+    <input id="amigos-renombrar" class="amigos-grupo-nombre" type="text" maxlength="${GRUPO_NOMBRE_MAX}" autocomplete="off" value="${esc(g.nombre)}" required></form>
     <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
-      <button type="submit" form="amigos-renombrar-form" class="btn-confirm">Guardar</button></div>`;
-  document.getElementById('amigos-renombrar-form').addEventListener('submit',async ev=>{
+      <button type="submit" form="amigos-renombrar-form" class="btn-confirm" id="amigos-renombrar-ok">Guardar</button></div>`;
+  openModal();
+  const form=document.getElementById('amigos-renombrar-form'),nombre=document.getElementById('amigos-renombrar'),ok=document.getElementById('amigos-renombrar-ok');
+  const actualizar=()=>{ok.disabled=!nombre.value.trim()||nombre.value.trim()===g.nombre||form.hasAttribute('aria-busy');};
+  nombre.addEventListener('input',actualizar);
+  actualizar();
+  form.addEventListener('submit',async ev=>{
     ev.preventDefault();
-    try{await rpcAmigos('renombrar_grupo',{p_grupo:id,p_nombre:document.getElementById('amigos-renombrar').value});await refrescarAmigos();abrirGrupo(id);}
-    catch(e){showToast(mensajeErrorAmigos(e),true);}
+    if(ok.disabled)return;
+    ok.disabled=true;ok.textContent='Guardando…';form.setAttribute('aria-busy','true');
+    const v=amigosVersion;
+    try{
+      const nuevoNombre=await rpcAmigos('renombrar_grupo',{p_grupo:id,p_nombre:nombre.value.trim()});
+      if(v!==amigosVersion)return;
+      if(typeof nuevoNombre==='string')g.nombre=nuevoNombre;
+      showToast('Nombre actualizado');
+      await refrescarAmigos();
+      if(v===amigosVersion&&form.isConnected&&document.getElementById('modal').classList.contains('open'))abrirGrupo(id);
+    }catch(e){if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);}
+    finally{form.removeAttribute('aria-busy');ok.textContent='Guardar';actualizar();}
   });
 }
 async function accionGrupo(accion,{id,user,confirmado}={}){
   const g=(amigosGruposCache||[]).find(x=>x.id===id),nombre=g?g.nombre:'el grupo';
   try{
     if(accion==='grupo-aceptar'){
-      if(!confirmado)return showConfirm(`¿Unirte a ${nombre}?`,'Las personas del grupo verán tu horario, aunque no sean tus amigos. Nunca tus notas.',()=>accionGrupo(accion,{id,confirmado:true}),{label:'Unirme',danger:false});
+      if(!confirmado)return showConfirm(`¿Unirte a ${nombre}?`,amigosEstadoCache?.comparte_horario===false
+        ?'Tu horario está oculto. Si activas «Compartir mi horario» en Amigos, quienes estén en el grupo podrán verlo. Tus notas quedan privadas.'
+        :'Las personas del grupo podrán ver tu horario, incluso si aún no son tus amigos. Tus notas quedan privadas.',()=>accionGrupo(accion,{id,confirmado:true}),{label:'Unirme',danger:false});
       await rpcAmigos('responder_grupo',{p_grupo:id,p_aceptar:true});
       if(typeof vibrar==='function')vibrar('exito');
       await refrescarAmigos();abrirGrupo(id);return;
     }
     if(accion==='grupo-rechazar')await rpcAmigos('responder_grupo',{p_grupo:id,p_aceptar:false});
     else if(accion==='grupo-salir'){
-      if(!confirmado)return showConfirm(`¿Salir de ${nombre}?`,'Dejarás de ver los horarios del grupo y ellos el tuyo. No le avisaremos a nadie.',()=>accionGrupo(accion,{id,confirmado:true}),{label:'Salir',danger:true});
+      if(!confirmado)return showConfirm(`¿Salir de ${nombre}?`,'Perderás acceso al grupo y a los horarios compartidos allí. No le avisaremos a nadie.',()=>accionGrupo(accion,{id,confirmado:true}),{label:'Salir',danger:true,focusCancel:true});
       await rpcAmigos('salir_de_grupo',{p_grupo:id});closeModal();
     }else if(accion==='grupo-quitar'){
-      if(!confirmado)return showConfirm(`¿Sacar a @${user}?`,'Dejará de ver los horarios del grupo. No le avisaremos.',()=>accionGrupo(accion,{id,user,confirmado:true}),{label:'Sacar',danger:true});
+      if(!confirmado)return showConfirm(`¿Sacar a @${user}?`,'Perderá acceso al grupo y a los horarios compartidos allí. No le avisaremos.',()=>accionGrupo(accion,{id,user,confirmado:true}),{label:'Sacar',danger:true,focusCancel:true});
       await rpcAmigos('quitar_de_grupo',{p_grupo:id,p_username:user});
       await refrescarAmigos();abrirGrupo(id);return;
     }
