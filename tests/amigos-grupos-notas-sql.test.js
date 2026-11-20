@@ -120,6 +120,9 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   await sesion(E);await pub([{sigla:'SYN101',promedio:5}]);assert.equal((await q('select * from public.amigos_notas()')).length,0,'quien no es amigo no ve');
   await db.exec('reset role');await q('update public.amigos_notas set ramos=$2 where user_id=$1',[B,JSON.stringify([{sigla:'SYN999',promedio:6,avance:9,nivel:'good'}])]);
   await sesion(B);assert.deepEqual((await q('select * from public.amigos_notas()'))[0].ramos.map(r=>r.sigla),['SYN101'],'B ve SYN101 de A, no SYN202: no lo toma');
+  await db.exec('reset role');await q("update public.profiles set universidad='uai' where id=$1",[B]);
+  await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'otra universidad: la misma sigla puede ser otro ramo');
+  await db.exec('reset role');await q("update public.profiles set universidad='uc' where id=$1",[B]);
   await sesion(B);assert.equal(await uno('select public.dejar_de_compartir_notas()'),true);
   await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'apagar corta al tiro');
   paso('notas: apagadas por defecto, recíprocas, solo ramos en común y validadas');

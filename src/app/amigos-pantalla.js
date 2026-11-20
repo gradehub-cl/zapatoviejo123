@@ -102,11 +102,16 @@ function pintarInsigniaAmigos(){
 // ─── Pintar ───
 const inicialAmigo=a=>esc(((a.nombre||a.username||'?').trim()[0]||'?').toUpperCase());
 const nombreAmigo=a=>a.nombre?`${a.nombre}${a.apellido?' '+a.apellido:''}`:'@'+a.username;
+// La misma sigla puede ser otro ramo en otra universidad: ramos en común y
+// promedios solo se cruzan dentro de la misma U. Horario, libres y turno sí
+// valen entre universidades (son horas, no ramos).
+function mismaUAmigo(a){return !!(a&&a.universidad&&S.tenant&&a.universidad===S.tenant);}
+function ramosEnComunAmigo(a,ramos){return mismaUAmigo(a)?ramosEnComun(S.ramos,ramos):[];}
 const ORDEN_ESTADO_AMIGO={clase:0,libre:1,termino:2,sinclases:3,sinhorario:4};
 function filaAmigoHTML(a,ahora){
   const ramos=amigosHorariosCache.get(a.id);
   const est=ramos?estadoAhoraAmigo(ramos,ahora):null;
-  const comun=ramos?ramosEnComun(S.ramos,ramos).length:0;
+  const comun=ramos?ramosEnComunAmigo(a,ramos).length:0;
   const linea=est?textoEstadoAmigo(est):'No comparte su horario';
   return `<li><button type="button" class="amigo-fila" data-amigos="ver" data-id="${esc(a.id)}">
     <span class="amigo-avatar${est&&est.estado==='clase'?' en-clase':''}" aria-hidden="true">${inicialAmigo(a)}</span>
@@ -376,7 +381,7 @@ function abrirAmigo(id){
   let cuerpo,cifras={comun:'–',libres:'–',turno:'–'},estado=null;
   if(!ramos)cuerpo='<p class="amigos-vacio-texto">No comparte su horario.</p>';
   else{
-    const est=estadoAhoraAmigo(ramos),comun=ramosEnComun(S.ramos,ramos),semana=semanaLibresEnComun(S.ramos,ramos),turno=matchTurno(S.ramos,ramos);
+    const est=estadoAhoraAmigo(ramos),comun=ramosEnComunAmigo(a,ramos),semana=semanaLibresEnComun(S.ramos,ramos),turno=matchTurno(S.ramos,ramos);
     estado=est;
     const minutos=semana.reduce((t,d)=>t+d.ventanas.reduce((x,v)=>x+v.minutos,0),0);
     cifras={comun:String(comun.length),libres:!mioConHorario?'–':minutos>=60?`${Math.round(minutos/60)} h`:`${minutos} min`,turno:!mioConHorario?'–':turno.tipo==='perfecto'?'Todos':String(turno.dias.length)};
@@ -389,7 +394,7 @@ function abrirAmigo(id){
           const n=notas.find(x=>x.sigla===r.sigla);
           return `<li><span>${esc(r.nombre)}</span><span class="amigo-lista-der">${r.mismaSeccion?'<span class="amigo-chip">Misma sección</span>':''}${n?notaAmigoHTML(n,a):''}</span></li>`;
         }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir mis promedios» en Privacidad para comparar notas en estos ramos.</p>':''}`
-        :'<p class="amigos-vacio-texto">No toman ramos juntos este semestre.</p>'}
+        :`<p class="amigos-vacio-texto">${mismaUAmigo(a)?'No toman ramos juntos este semestre.':'Estudian en universidades distintas.'}</p>`}
       <h3 class="modal-label">Libres a la vez</h3>
       ${sinCruce||(semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
         :'<p class="amigos-vacio-texto">Esta semana no tienen ventanas libres en común.</p>')}

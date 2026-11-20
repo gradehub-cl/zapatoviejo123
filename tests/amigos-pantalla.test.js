@@ -79,6 +79,9 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('el admin ve una tarjeta por cuenta, con sus denuncias juntas',(()=>{const g=JSON.parse(run(`JSON.stringify(gruposDenunciasUsuarios([{id:1,username:'malo',username_actual:'malo',motivo:'acoso',detalle:'x',created_at:'2026-11-19'},{id:2,username:'malo',username_actual:'malo',motivo:'spam',detalle:null,created_at:'2026-11-18'},{id:3,username:'otro',username_actual:'otro',motivo:'spam',created_at:'2026-11-20'}]))`));
     return g.length===2&&g[0].total===2&&g[0].motivos.join()==='acoso,spam'&&!/user_id|denunciante/.test(JSON.stringify(g));})());
 
+  run(`S.tenant='uc';`);
+  chk('ramos en común solo dentro de la misma universidad',run(`ramosEnComunAmigo({universidad:'uai'},[{nombre:'X',sigla:'SYN101'}]).length`)===0&&run(`mismaUAmigo({universidad:'uc'})`)===true);
+
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
   chk('una cuenta de profesor no tiene Amigos',!run('NAV_TABS').includes('amigos')&&el('nav-amigos').hidden===true);
