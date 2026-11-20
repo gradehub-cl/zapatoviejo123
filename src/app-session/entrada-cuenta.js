@@ -152,14 +152,14 @@ async function respaldarCopiaSinFila(){
 // la fusión tomaría por borrada la nota recién subida. Lo que se pide subir en
 // ese rato (save, pagehide, online) espera y sale al terminar, con la S ya
 // reconciliada.
-async function reconciliarEnSegundoPlano(uid,vigente){
+async function reconciliarEnSegundoPlano(uid,vigente,{alVolver=false}={}){
   while(_subida){try{await _subida;}catch(e){}}
   if(!vigente())return;
   let resultado=null,pedida=false;
   _subida=(async()=>{
     let cloud;
     try{cloud=await loadFromCloud();}
-    catch(e){if(vigente())showToast('Sin conexión · usando tu copia local');return false;}
+    catch(e){if(vigente()&&!alVolver)showToast('Sin conexión · usando tu copia local');return false;}
     if(!vigente())return false;
     // Con un modal abierto no se reemplaza S (ver fusionarConNube).
     if(modalAbiertoSync()){resultado='modal';return false;}
@@ -168,6 +168,8 @@ async function reconciliarEnSegundoPlano(uid,vigente){
     resultado=aplicarNubeAlEntrar(uid,cloud,true);
     if(!igualSync(antes,S)){
       repintarTrasFusion();
+      // Al volver a la app, que se note por qué cambió lo que estaba en pantalla.
+      if(alVolver)showToast('Actualizamos con lo que anotaste en otro dispositivo');
       // El servidor pudo convertir la cuenta en profesor (ver fusionarSync).
       if(typeof recalcularNavTabs==='function')recalcularNavTabs();
     }
@@ -177,8 +179,10 @@ async function reconciliarEnSegundoPlano(uid,vigente){
   finally{_subida=null;if(_otraSubida){_otraSubida=false;pedida=true;}}
   if(resultado==='modal'){
     if(pedida)syncToCloud();
+    // Al volver a la app no se insiste: se trae en la próxima vuelta.
+    if(alVolver){if(typeof _ultimaLecturaNube!=='undefined')_ultimaLecturaNube=0;return;}
     await new Promise(r=>setTimeout(r,1500));
-    return reconciliarEnSegundoPlano(uid,vigente);
+    return reconciliarEnSegundoPlano(uid,vigente,{alVolver});
   }
   if(resultado==='sinFila')await respaldarCopiaSinFila();
   else subirTrasEntrar(resultado||(pedida?'pedida':null));
