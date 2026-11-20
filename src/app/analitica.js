@@ -102,15 +102,24 @@ try{
 
 // Al entrar con cuenta: el id de Supabase y datos agregados (universidad,
 // tipo de cuenta, web o app). Nada que identifique a la persona fuera de acá.
-function identificarAnalitica(){
-  if(!currentUser||!currentUser.id)return;
-  const uid=currentUser.id;
-  const props={
+function propsAnaliticaCuenta(){
+  return {
     tenant:(typeof S!=='undefined'&&S&&S.tenant)||null,
     tipo_cuenta:(typeof esCuentaProfesor==='function'&&esCuentaProfesor())?'profesor':'estudiante',
     plataforma:(typeof enAppNativa==='function'&&enAppNativa())?'ios':'web',
   };
+}
+function identificarAnalitica(){
+  if(!currentUser||!currentUser.id)return;
+  const uid=currentUser.id,props=propsAnaliticaCuenta();
   conAnaliticaPropia(ph=>{ph.identify(uid);ph.register(props);});
+}
+// login y signup salen después de identificar y con los mismos datos
+// agregados, ya con el estado de la cuenta que entra (no el de la anterior).
+// Si PostHog no ha cargado, la cola guarda identify y el evento en ese orden.
+function registrarEntradaAnalitica(evento,origen){
+  identificarAnalitica();
+  track(evento,{...(origen||{}),...propsAnaliticaCuenta()});
 }
 // Al cerrar sesión: la siguiente persona en este navegador parte de cero.
 function olvidarAnalitica(){
