@@ -49,6 +49,7 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   await sesion(B);
   mg=(await q('select * from public.mis_grupos()'))[0];
   assert.deepEqual({e:mg.estado,i:mg.invitado_por,n:mg.nombre},{e:'invitado',i:'ana_s',n:'Estudio Sintético'});
+  assert.deepEqual(mg.nombres,['Ana'],'antes de unirse ve quiénes están, sin horarios');
   await assert.rejects(q('select * from public.grupo_detalle($1)',[g]),/no estás/,'invitado no ve horarios');
   await assert.rejects(q('select public.invitar_a_grupo($1,$2)',[g,'ana_s']),/no estás/);
   assert.equal(await uno('select public.responder_grupo($1,true)',[g]),true);

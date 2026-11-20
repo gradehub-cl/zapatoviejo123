@@ -205,8 +205,11 @@ $$;
 
 -- ─── LEER ───────────────────────────────────────────────────────────────────
 -- Mis grupos y mis invitaciones. `miembros` cuenta solo a quienes aceptaron.
+-- `nombres`: hasta tres nombres de pila de otros miembros, para el avatar y la
+-- línea «Tú, Beto y Dani» (como WhatsApp antes de unirse). Nada de horarios.
+drop function if exists public.mis_grupos();
 create or replace function public.mis_grupos()
-returns table(id uuid, nombre text, estado text, miembros integer, soy_creador boolean, invitado_por text)
+returns table(id uuid, nombre text, estado text, miembros integer, soy_creador boolean, invitado_por text, nombres text[])
 language plpgsql stable security definer set search_path = '' as $$
 declare uid uuid := public.amigos_exigir_sesion();
 begin
@@ -214,7 +217,14 @@ begin
   select g.id, g.nombre, m.estado,
          (select count(*)::integer from public.amigos_grupo_miembros x where x.grupo_id = g.id and x.estado = 'miembro'),
          g.creador is not distinct from uid,
-         (select u.username from public.usernames u where u.user_id = m.invitado_por)
+         (select u.username from public.usernames u where u.user_id = m.invitado_por),
+         array(select coalesce(nullif(split_part(btrim(p.nombre), ' ', 1), ''), u.username)
+                 from public.amigos_grupo_miembros x
+                 join public.usernames u on u.user_id = x.user_id
+                 left join public.profiles p on p.id = x.user_id
+                where x.grupo_id = g.id and x.estado = 'miembro' and x.user_id <> uid
+                  and not public.amigos_hay_bloqueo(uid, x.user_id)
+                order by x.created_at limit 3)
     from public.amigos_grupo_miembros m
     join public.amigos_grupos g on g.id = m.grupo_id
    where m.user_id = uid

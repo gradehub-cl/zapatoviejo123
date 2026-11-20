@@ -47,6 +47,9 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   ctx.document.createElement=()=>Object.assign(marca,nuevo());
   run('pintarInsigniaAmigos()');ctx.document.createElement=nuevo;
   chk('la insignia suma solicitudes e invitaciones a grupos',nav['_aria-label']==='Amigos, 2 pendientes'&&marca.textContent==='2');
+  chk('bajo el grupo, quiénes están, como WhatsApp',run(`lineaGrupo({estado:'miembro',miembros:5,nombres:['Beto','Dani']})`)==='Tú, Beto, Dani y 2 más'
+    &&run(`lineaGrupo({estado:'invitado',miembros:2,nombres:['Dani','Gabi']})`)==='Dani y Gabi'&&run(`listaNombres(['Beto'])`)==='Beto');
+  chk('el avatar del grupo son dos iniciales superpuestas',/pila/.test(run(`avatarGrupoHTML(['Beto','Dani'])`))&&!/pila/.test(run(`avatarGrupoHTML([])`)));
   cliente(`n=>n==='amigos_estado'?{data:{username:'ana_s'},error:null}:{data:null,error:{message:'Could not find the function'}}`);
   await run('cargarAmigos()');
   chk('sin amigos_grupos.sql, no hay sección Grupos',run('amigosGruposDisponible')===false&&run('seccionGruposHTML()')==='');

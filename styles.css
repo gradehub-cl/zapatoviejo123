@@ -6348,8 +6348,32 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-avatar.grupo{color:var(--fg2);}
 .amigo-avatar .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
 .amigo-avatar.grande .ic{width:28px;height:28px;}
-.amigos-nuevo-grupo .amigo-avatar{border-style:dashed;color:var(--primary);}
-.amigos-nuevo-grupo b{color:var(--primary);font-weight:600;}
+/* «Nuevo grupo» y «Agregar personas»: la fila verde con + de WhatsApp. */
+.amigos-fila-mas .amigo-avatar{border-color:transparent;background:var(--primary);color:var(--primary-fg);}
+.amigos-fila-mas b{color:var(--primary);font-weight:600;}
+/* Avatar de grupo: dos iniciales superpuestas, como Instagram o iMessage. */
+.amigo-avatar.pila{position:relative;border:0;background:none;}
+.amigo-avatar.pila>span{position:absolute;display:flex;align-items:center;justify-content:center;width:62%;height:62%;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:.75rem;font-weight:600;}
+.amigo-avatar.pila>span:first-child{top:0;left:0;}
+.amigo-avatar.pila>span:last-child{right:0;bottom:0;box-shadow:0 0 0 2px var(--bg2);background:var(--muted);}
+.amigo-avatar.grande.pila{width:80px;height:80px;}
+.amigo-avatar.grande.pila>span{font-size:1.25rem;}
+.grupo-cabecera{display:flex;flex-direction:column;align-items:center;gap:6px;margin:4px 0 20px;text-align:center;}
+.grupo-cabecera>.amigo-avatar.grande:not(.pila){width:80px;height:80px;}
+.grupo-nombre{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:0;background:none;color:var(--fg);font:650 1.375rem/1.2 var(--font-ui);letter-spacing:-.02em;cursor:pointer;}
+.grupo-nombre .ic{width:18px;height:18px;fill:none;stroke:var(--fg3);stroke-width:1.8;stroke-linejoin:round;}
+.grupo-cabecera .amigo-sub{margin:0;font-variant-numeric:tabular-nums;}
+.grupo-salir{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;margin:8px 0 4px;padding:0;border:0;border-top:1px solid var(--border);background:none;color:var(--red);font:500 1rem var(--font-ui);cursor:pointer;}
+.grupo-salir .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.grupo-opciones{display:flex;flex-direction:column;margin:4px 0 12px;border-top:1px solid var(--border);}
+.grupo-opcion{min-height:52px;padding:0;border:0;border-bottom:1px solid var(--border);background:none;color:var(--fg);font:1rem var(--font-ui);text-align:left;cursor:pointer;}
+.grupo-opcion.peligro{color:var(--red);}
+.amigos-elegidos{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px;}
+.amigos-elegidos:empty{display:none;}
+.amigos-elegido{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;border:0;border-radius:999px;background:var(--primary-light);color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
+.amigos-elegido span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;font-size:1.125rem;color:var(--fg2);}
+.grupo-nombre:focus-visible,.grupo-salir:focus-visible,.grupo-opcion:focus-visible,.amigos-elegido:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.amigo-texto small+small{color:var(--fg3);}
 .amigo-lista-der{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .amigo-nota{min-width:44px;padding:3px 10px;border-radius:999px;box-sizing:border-box;font-size:.8125rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;}
 .amigo-nota.good{background:var(--green-bg);color:var(--green);}
@@ -6358,11 +6382,9 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigo-nota.neutral{background:var(--muted);color:var(--fg3);font-weight:500;}
 .amigo-de{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
 .amigo-lista-personas li{justify-content:flex-start;}
-.amigo-lista-personas .amigo-chip{margin-left:6px;font-weight:500;vertical-align:1px;}
+.amigo-lista-personas .amigo-chip{font-weight:500;}
+.amigo-lista-personas .amigo-fila{min-height:60px;}
 .amigo-lista-cabeza{display:flex;justify-content:space-between;gap:12px;}
-.amigos-link.amigos-link-quitar{color:var(--fg3);font-weight:500;}
-.amigos-ancho{display:block;width:100%;margin:0 0 8px;}
-.amigo-peligro .amigos-link.amigos-link-neutro{color:var(--primary);}
 .amigos-grupo-form fieldset{margin:16px 0 4px;padding:0;border:0;}
 .amigos-grupo-form .amigos-grupo-nombre[type=text],#amigos-renombrar-form .amigos-grupo-nombre[type=text]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
 .amigos-elegir-lista{list-style:none;margin:0;padding:0;max-height:42vh;overflow-y:auto;}
