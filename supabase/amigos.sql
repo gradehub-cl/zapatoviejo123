@@ -6,8 +6,8 @@
 --
 -- QUÉ ES (Lucas, 2026-11-19): una pestaña Amigos para agregarse por username,
 -- ver los ramos y el horario de los amigos, encontrar ventanas libres en común
--- y saber si están en clases. Primera versión, sin notas: compartir notas,
--- grupos y calificaciones con amigos vienen después y llevan su propio SQL.
+-- y saber si están en clases. Grupos y notas compartidas tienen su propio SQL
+-- (amigos_grupos.sql, amigos_notas.sql), que se aplica después de este.
 --
 -- PRIVACIDAD
 --   - Nadie aparece en un listado ni en una búsqueda parcial. A una persona se
@@ -139,6 +139,30 @@ returns uuid language sql stable security definer set search_path = '' as $$
                          or (b.user_id = u.user_id and b.bloqueado = p_yo))
 $$;
 revoke all on function public.amigos_resolver(text, uuid) from public, anon, authenticated;
+
+-- Lo único que sale del JSON de user_ramos hacia otra persona: por ramo del
+-- semestre activo, nombre, sigla, sección y los bloques a los que va. Nunca
+-- evaluaciones, notas, pautas ni historial. La usan amigos_horarios y, en
+-- amigos_grupos.sql, grupo_detalle.
+create or replace function public.amigos_ramos_publicos(p_data jsonb)
+returns jsonb language sql immutable set search_path = '' as $$
+  select coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'nombre', r ->> 'nombre',
+             'sigla', coalesce(nullif(r ->> 'sigla', ''), r -> 'origen' ->> 'ramoKey'),
+             'seccion', case when jsonb_typeof(r -> 'seccion') = 'number' then r -> 'seccion' end,
+             'horario', coalesce((
+                select jsonb_agg(jsonb_build_object(
+                         'dias', b -> 'dias', 'inicio', b ->> 'inicio', 'fin', b ->> 'fin',
+                         'sala', b ->> 'sala', 'tipo', b ->> 'tipo'))
+                  from jsonb_array_elements(case when jsonb_typeof(r -> 'horario') = 'array' then r -> 'horario' else '[]'::jsonb end) b
+                 where jsonb_typeof(b) = 'object' and coalesce((b ->> 'noVoy')::boolean, false) = false
+              ), '[]'::jsonb)))
+      from jsonb_array_elements(case when jsonb_typeof(p_data -> 'ramos') = 'array' then p_data -> 'ramos' else '[]'::jsonb end) r
+     where jsonb_typeof(r) = 'object'
+  ), '[]'::jsonb)
+$$;
+revoke all on function public.amigos_ramos_publicos(jsonb) from public, anon, authenticated;
 
 create or replace function public.amigos_exigir_sesion()
 returns uuid language plpgsql stable set search_path = '' as $$
@@ -303,22 +327,7 @@ language plpgsql stable security definer set search_path = '' as $$
 declare uid uuid := public.amigos_exigir_sesion();
 begin
   return query
-  select a.id, u.username, p.nombre,
-         coalesce((
-           select jsonb_agg(jsonb_build_object(
-                    'nombre', r ->> 'nombre',
-                    'sigla', coalesce(nullif(r ->> 'sigla', ''), r -> 'origen' ->> 'ramoKey'),
-                    'seccion', case when jsonb_typeof(r -> 'seccion') = 'number' then r -> 'seccion' end,
-                    'horario', coalesce((
-                       select jsonb_agg(jsonb_build_object(
-                                'dias', b -> 'dias', 'inicio', b ->> 'inicio', 'fin', b ->> 'fin',
-                                'sala', b ->> 'sala', 'tipo', b ->> 'tipo'))
-                         from jsonb_array_elements(case when jsonb_typeof(r -> 'horario') = 'array' then r -> 'horario' else '[]'::jsonb end) b
-                        where jsonb_typeof(b) = 'object' and coalesce((b ->> 'noVoy')::boolean, false) = false
-                     ), '[]'::jsonb)))
-             from jsonb_array_elements(case when jsonb_typeof(d.data -> 'ramos') = 'array' then d.data -> 'ramos' else '[]'::jsonb end) r
-            where jsonb_typeof(r) = 'object'
-         ), '[]'::jsonb)
+  select a.id, u.username, p.nombre, public.amigos_ramos_publicos(d.data)
     from public.amistades a
     join public.usernames u on u.user_id = case when a.de = uid then a.para else a.de end
     left join public.profiles p on p.id = u.user_id
