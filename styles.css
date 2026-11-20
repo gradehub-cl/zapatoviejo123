@@ -6273,8 +6273,9 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 @media(prefers-reduced-motion:reduce){html.app-nativa .reglas-ramo .ic-despliegue{transition:none;}}
 
 /* ─── Pestaña Amigos ───────────────────────────────────────────────────────
-   Misma lista agrupada que Perfil (HIG: Lists and tables). Sin semáforo: acá
-   no hay notas. «En clases» se marca con el acento, no con verde ni rojo. */
+   Misma lista agrupada que Perfil (HIG: Lists and tables). El semáforo solo
+   aparece en los promedios compartidos. «En clases» se marca con el acento,
+   no con verde ni rojo. */
 #amigos-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
 .amigos-yo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0 4px;}
 .amigos-yo>div{display:flex;flex-direction:column;gap:2px;min-width:0;}
@@ -6342,6 +6343,32 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigos-motivo{display:flex;align-items:center;gap:12px;min-height:44px;font-size:.9375rem;cursor:pointer;}
 .amigos-motivo input{width:20px;height:20px;accent-color:var(--primary);}
 .amigos-denuncia textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;}
+/* Grupos, turno y promedios compartidos. El promedio usa el semáforo de
+   siempre (aprobado / al borde / reprobado): es una nota, no un adorno. */
+.amigo-avatar.grupo{color:var(--fg2);}
+.amigo-avatar .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
+.amigo-avatar.grande .ic{width:28px;height:28px;}
+.amigos-nuevo-grupo .amigo-avatar{border-style:dashed;color:var(--primary);}
+.amigos-nuevo-grupo b{color:var(--primary);font-weight:600;}
+.amigo-lista-der{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.amigo-nota{min-width:44px;padding:3px 10px;border-radius:999px;box-sizing:border-box;font-size:.8125rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;}
+.amigo-nota.good{background:var(--green-bg);color:var(--green);}
+.amigo-nota.warn{background:var(--yellow-bg);color:var(--yellow);}
+.amigo-nota.bad{background:var(--red-bg);color:var(--red);}
+.amigo-nota.neutral{background:var(--muted);color:var(--fg3);font-weight:500;}
+.amigo-de{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.amigo-lista-personas li{justify-content:flex-start;}
+.amigo-lista-personas .amigo-chip{margin-left:6px;font-weight:500;vertical-align:1px;}
+.amigo-lista-cabeza{display:flex;justify-content:space-between;gap:12px;}
+.amigos-link.amigos-link-quitar{color:var(--fg3);font-weight:500;}
+.amigos-ancho{display:block;width:100%;margin:0 0 8px;}
+.amigo-peligro .amigos-link.amigos-link-neutro{color:var(--primary);}
+.amigos-grupo-form fieldset{margin:16px 0 4px;padding:0;border:0;}
+.amigos-grupo-form .amigos-grupo-nombre[type=text],#amigos-renombrar-form .amigos-grupo-nombre[type=text]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
+.amigos-elegir-lista{list-style:none;margin:0;padding:0;max-height:42vh;overflow-y:auto;}
+.amigos-elegir-lista li+li{border-top:1px solid var(--border);}
+.amigos-elegir{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;}
+.amigos-elegir input[type=checkbox]{flex-shrink:0;width:22px;height:22px;margin:0;accent-color:var(--primary);}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}

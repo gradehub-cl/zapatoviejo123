@@ -92,3 +92,42 @@ function textoEstadoAmigo(e){
   if(e.estado==='sinclases')return 'Sin clases hoy';
   return 'Sin horario cargado';
 }
+
+// ─── Grupos: libres a la vez entre varias personas ───
+// `listas` es un arreglo de horarios (uno por persona, el propio incluido).
+// Cuenta solo a quienes tienen clases ese día: quien no va a la u ese día no
+// está para juntarse, pero tampoco borra la ventana de los demás. Hacen falta
+// al menos dos personas en la u. `personas` dice cuántas son.
+function ventanasLibresGrupo(listas,dia,{minimo=30}={}){
+  const tramos=(listas||[]).map(l=>tramosOcupados(l,dia)).filter(t=>t.length);
+  if(!(tramos.length>=2))return {personas:tramos.length,ventanas:[]};
+  const desde=Math.min(...tramos.map(t=>t[0][0])),hasta=Math.max(...tramos.map(t=>t[t.length-1][1]));
+  const ocupado=tramos.flat().sort((x,y)=>x[0]-y[0]),libres=[];
+  let cursor=desde;
+  for(const [i,f] of ocupado){if(i>cursor)libres.push([cursor,i]);cursor=Math.max(cursor,f);}
+  if(hasta>cursor)libres.push([cursor,hasta]);
+  return {personas:tramos.length,ventanas:libres.filter(([i,f])=>f-i>=minimo).map(([i,f])=>({inicio:horaAmigo(i),fin:horaAmigo(f),minutos:f-i}))};
+}
+function semanaLibresGrupo(listas,opciones){
+  return DIAS_HORARIO.filter(([k])=>k!=='D').map(([dia,nombre])=>({dia,nombre,...ventanasLibresGrupo(listas,dia,opciones)})).filter(d=>d.ventanas.length);
+}
+
+// ─── Hacer turno: llegan o se van a la misma hora ───
+// Por día de lunes a sábado en que los dos tienen clases: la primera clase de
+// cada uno (llegada) y la última (salida). Coinciden si la diferencia es de a
+// lo más `tolerancia` minutos: sirve para irse juntos, compartir auto o micro.
+function turnoEnComun(mios,suyos,{tolerancia=20}={}){
+  return DIAS_HORARIO.filter(([k])=>k!=='D').map(([dia,nombre])=>{
+    const a=tramosOcupados(mios,dia),b=tramosOcupados(suyos,dia);
+    if(!a.length||!b.length)return null;
+    const llegan=Math.abs(a[0][0]-b[0][0])<=tolerancia,salen=Math.abs(a[a.length-1][1]-b[b.length-1][1])<=tolerancia;
+    if(!llegan&&!salen)return null;
+    return {dia,nombre,llegan,salen,
+      llegada:horaAmigo(Math.min(a[0][0],b[0][0])),salida:horaAmigo(Math.max(a[a.length-1][1],b[b.length-1][1]))};
+  }).filter(Boolean);
+}
+// «Lunes · llegan 08:20 y se van 15:10». Sin inventar: solo lo que coincide.
+function textoTurno(d){
+  const partes=[d.llegan?`llegan ${d.llegada}`:'',d.salen?`se van ${d.salida}`:''].filter(Boolean);
+  return partes.join(' y ');
+}

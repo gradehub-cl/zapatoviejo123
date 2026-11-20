@@ -67,4 +67,28 @@ chk('la frase de la lista no inventa sala',()=>{
   assert.equal(run('textoEstadoAmigo(__d)',{estado:'clase',hasta:'09:30',sala:'K201'}),'En clases hasta las 09:30 · K201');
   assert.equal(run('textoEstadoAmigo(__d)',{estado:'libre',proxima:{inicio:'12:30'}}),'Libre · clase a las 12:30');
 });
+chk('grupos: libres a la vez entre quienes van ese día',()=>{
+  const tercero=run('normalizarRamosAmigo(__d)',[{nombre:'Curso Cinco',sigla:'SYN505',horario:[{dias:['L'],inicio:'10:00',fin:'10:40'},{dias:['W'],inicio:'08:00',fin:'09:00'}]}]);
+  // Lunes: yo y él como antes; el tercero ocupa 10:00-10:40, así la ventana
+  // 09:30-11:00 se parte en 30 y 20 minutos, y la de 20 no alcanza.
+  const l=run('ventanasLibresGrupo(__d,"L")',[mios,suyos,tercero]);
+  assert.equal(l.personas,3);
+  assert.deepEqual(l.ventanas.map(v=>v.inicio+'-'+v.fin),['09:30-10:00']);
+  // Miércoles: yo 08:20-09:30, él 08:20-09:30, el tercero 08:00-09:00: nadie libre entre medio.
+  assert.equal(run('ventanasLibresGrupo(__d,"W").ventanas.length',[mios,suyos,tercero]),0);
+  assert.equal(run('ventanasLibresGrupo(__d,"J").personas',[mios,suyos,tercero]),0);
+  const sem=run('semanaLibresGrupo(__d)',[mios,suyos,tercero]);
+  assert.deepEqual(sem.map(d=>d.dia),['L']);
+  assert.deepEqual(run('ventanasLibresGrupo(__d,"L")',[mios]),{personas:1,ventanas:[]},'una sola persona no es grupo');
+});
+chk('hacer turno: llegan o se van a la misma hora',()=>{
+  const otro=run('normalizarRamosAmigo(__d)',[{nombre:'Curso Seis',sigla:'SYN606',horario:[{dias:['L'],inicio:'08:30',fin:'13:00'},{dias:['W'],inicio:'11:00',fin:'12:00'}]}]);
+  const t=run('turnoEnComun(__d[0],__d[1])',[mios,otro]);
+  // Lunes: yo llego 08:20 y me voy 15:10; él llega 08:30 (10 min) y se va 13:00.
+  // Miércoles: yo 08:20-09:30, él 11:00-12:00: no coinciden.
+  assert.deepEqual(t,[{dia:'L',nombre:'Lunes',llegan:true,salen:false,llegada:'08:20',salida:'15:10'}]);
+  assert.equal(run('textoTurno(__d)',t[0]),'llegan 08:20');
+  assert.equal(run('turnoEnComun(__d[0],__d[1],{tolerancia:5}).length',[mios,otro]),0,'con menos holgura no cuenta');
+  assert.equal(run('textoTurno(__d)',{llegan:true,salen:true,llegada:'08:20',salida:'15:10'}),'llegan 08:20 y se van 15:10');
+});
 console.log(`\nPASS: ${ok}   FAIL: 0`);

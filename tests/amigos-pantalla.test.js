@@ -14,6 +14,8 @@ const ctx={window:{addEventListener(){},matchMedia:()=>({matches:false,addEventL
   requestAnimationFrame(){return 0;},cancelAnimationFrame(){},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})};
 vm.createContext(ctx);vm.runInContext(src,ctx);
 const run=c=>vm.runInContext(c,ctx);
+// Lo nuevo va solo a la app hasta el lanzamiento: el harness hace de app nativa.
+run(`window.Capacitor={isNativePlatform:()=>true};`);
 run(`renderHome=()=>{};renderStats=()=>{};renderAgenda=()=>{};renderPerfil=()=>{};renderAmigos=()=>{};esAdministrador=()=>false;track=()=>{};`);
 let ok=0;const chk=(n,c)=>{assert.ok(c,n);ok++;console.log('  OK   '+n);};
 const cuenta=tipo=>{run(`S=normalize(Object.assign(freshState(),{onboardingDone:true${tipo?`,tipoCuenta:'${tipo}'`:''}}));perfilProfesorCache=null;`);};
@@ -30,6 +32,34 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   await run('cargarAmigos()');run('recalcularNavTabs()');
   chk('con el SQL, Amigos va al medio',run('NAV_TABS.join()')==='home,agenda,amigos,stats,perfil'&&el('nav-amigos').hidden===false&&el('screen-amigos').hidden===false);
   chk('son cinco pestañas, lo que recomienda la HIG',run('NAV_TABS.length')===5);
+  run(`window.Capacitor=undefined;recalcularNavTabs()`);
+  chk('en la web no aparece: lo nuevo va solo a la app',!run('NAV_TABS').includes('amigos'));
+  run(`window.Capacitor={isNativePlatform:()=>true};recalcularNavTabs()`);
+
+  console.log('\n=== Grupos y notas se sondean aparte ===');
+  chk('con su SQL, grupos y notas quedan disponibles',run('amigosGruposDisponible')===true&&run('amigosNotasDisponible')===true&&run('Array.isArray(amigosGruposCache)'));
+  cliente(`n=>n==='amigos_estado'?{data:{username:'ana_s',recibidas:1},error:null}:n==='mis_grupos'?{data:[{id:'g1',nombre:'Estudio',estado:'invitado',miembros:2,invitado_por:'beto_ej'}],error:null}:{data:null,error:{message:'Could not find the function'}}`);
+  await run('cargarAmigos()');
+  chk('sin amigos_notas.sql, no se ofrece compartir notas',run('amigosGruposDisponible')===true&&run('amigosNotasDisponible')===false);
+  chk('la sección Grupos muestra la invitación',/Estudio/.test(run('seccionGruposHTML()'))&&/grupo-aceptar/.test(run('seccionGruposHTML()')));
+  const nav=el('nav-amigos'),icono=nuevo(),marca={textContent:''};
+  nav.querySelector=sel=>sel==='.nav-icon'?icono:null;nav.setAttribute=(k,v)=>{nav['_'+k]=v;};
+  ctx.document.createElement=()=>Object.assign(marca,nuevo());
+  run('pintarInsigniaAmigos()');ctx.document.createElement=nuevo;
+  chk('la insignia suma solicitudes e invitaciones a grupos',nav['_aria-label']==='Amigos, 2 pendientes'&&marca.textContent==='2');
+  cliente(`n=>n==='amigos_estado'?{data:{username:'ana_s'},error:null}:{data:null,error:{message:'Could not find the function'}}`);
+  await run('cargarAmigos()');
+  chk('sin amigos_grupos.sql, no hay sección Grupos',run('amigosGruposDisponible')===false&&run('seccionGruposHTML()')==='');
+
+  console.log('\n=== Lo que se publica de las notas ===');
+  run(`S.ramos=[{id:'r1',nombre:'Curso Sintético',sigla:'syn101',categorias:[{id:'c1',nombre:'Controles',peso:50,notas:[{id:'n1',valor:6.0}]},{id:'c2',nombre:'Examen',peso:50,notas:[{id:'n2',valor:null}]}],horario:[]},
+    {id:'r2',nombre:'Sin sigla',categorias:[],horario:[]}];`);
+  const pub=JSON.parse(run('JSON.stringify(resumenNotasAmigos(S.ramos))'));
+  chk('solo sigla, nombre, promedio, % evaluado y nivel; nunca notas sueltas',pub.length>=1&&Object.keys(pub[0]).sort().join()==='avance,nivel,nombre,promedio,sigla'&&pub[0].sigla==='SYN101');
+  chk('el promedio sale del motor (6,0 con la mitad evaluada)',pub[0].promedio===6&&pub[0].avance===50&&pub[0].nivel==='good');
+  chk('el chip del amigo usa el semáforo y coma decimal',/amigo-nota good/.test(run(`notaAmigoHTML({promedio:6.1,nivel:'good'},{nombre:'Beto'})`))&&/6,1/.test(run(`notaAmigoHTML({promedio:6.1,nivel:'good'},{nombre:'Beto'})`))&&/Sin notas/.test(run(`notaAmigoHTML({promedio:null},{})`)));
+  chk('cada subida a la nube actualiza lo compartido',/programarPublicarNotasAmigos\(\)/.test(fs.readFileSync(raiz+'src/app-session/sync-escritura.js','utf8')));
+  chk('compartir notas es un interruptor y parte apagado',/id="amigos-notas" type="checkbox" role="switch"\$\{amigosNotasComparte\?' checked':''\}/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8')));
 
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
