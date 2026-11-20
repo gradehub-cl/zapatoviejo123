@@ -133,7 +133,7 @@ function isoMasDiasCanvas(ahora,dias){
 async function traerFechasCanvas(){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando fechas en Canvas…');
-  let propuestas=[],ramos=0,anunciosSinLeer=0;
+  let propuestas=[],ramos=0,anunciosSinLeer=0,eventosSinLeer=0;
   const estado=S,cuenta=currentUser?.id||null;
   const vigente=()=>S===estado&&(currentUser?.id||null)===cuenta;
   contextoFechasCanvas=null;avisoAnunciosCanvas='';
@@ -147,8 +147,18 @@ async function traerFechasCanvas(){
       ramos++;
       const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
       // Sin fechas, Canvas devuelve solo los eventos de hoy.
-      const eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
-        start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
+      let eventos=[];
+      try{
+        eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
+          start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
+      }catch(error){
+        if(!vigente())return;
+        const codigo=Number(error?.code);
+        // El puente solo elimina el token tras comprobar que Canvas lo revocó.
+        if(codigo===429||(codigo===401&&!(await pluginCanvas()?.estado())?.conectado))throw error;
+        eventosSinLeer++;
+      }
+      if(!vigente())return;
       const r=resumenFechasCanvas(tareas,ramo,ahora,[],eventos);
       let anuncios=[];
       try{anuncios=await canvasGet(`courses/${c.id}/discussion_topics`,{only_announcements:'true',per_page:50});}
@@ -161,15 +171,17 @@ async function traerFechasCanvas(){
       propuestas=propuestas.concat(r.propuestas.filter(p=>!reemplazada(p)),desdeAnuncios);
       for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
     }
-  }catch(e){avisoCanvas('No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
+  }catch(e){if(vigente())avisoCanvas(Number(e?.code)===429?'Canvas recibió muchas consultas. Espera un momento y vuelve a intentar.':'No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
   if(!vigente())return;
-  avisoAnunciosCanvas=anunciosSinLeer?'No pudimos leer los anuncios de '+anunciosSinLeer+' curso'+(anunciosSinLeer===1?'':'s')+'. Las tareas y eventos siguen disponibles.':'';
+  avisoAnunciosCanvas=anunciosSinLeer?'No pudimos leer los anuncios de '+anunciosSinLeer+' curso'+(anunciosSinLeer===1?'':'s')+'.':'';
+  const avisoEventos=eventosSinLeer?'No pudimos leer los eventos del calendario de '+eventosSinLeer+' curso'+(eventosSinLeer===1?'':'s')+'.':'';
+  const avisos=[avisoEventos,avisoAnunciosCanvas].filter(Boolean).join(' ');
   track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
     duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion,anuncios:propuestas.filter(p=>p.origen==='canvas-anuncio').length,anuncios_sin_leer:anunciosSinLeer});
-  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos)+(avisoAnunciosCanvas?' '+avisoAnunciosCanvas:''));return;}
+  if(!propuestas.length){avisoCanvas(avisos?'No encontramos fechas nuevas en los datos disponibles. '+avisos:'Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
   avisoCanvas('');
   icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
-  contextoFechasCanvas={estado,cuenta};
+  contextoFechasCanvas={estado,cuenta,avisos};
   renderRevisionIcs();
   openModal();
 }

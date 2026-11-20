@@ -291,7 +291,7 @@ function renderRevisionIcs(){
   document.getElementById('modal-content').innerHTML=[
     '<div class="modal-title">Revisa las fechas</div>',
     '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 8px;">'+(enAppNativa()&&icsImportDraft.some(p=>p.origen==='canvas-anuncio')?'Revisa cada fecha y su origen. Los cambios se aplican solo al guardar. Elige «No importar» para descartarlos.':'Las coincidencias son propuestas. Puedes cambiarlas, dejar una sin importar o asignar manualmente las que no calzaron.')+'</p>',
-    (enAppNativa()&&contextoFechasCanvas&&avisoAnunciosCanvas?'<p class="settings-help" role="status">'+esc(avisoAnunciosCanvas)+'</p>':''),
+    (enAppNativa()&&contextoFechasCanvas?.avisos?'<p class="settings-help" role="status">'+esc(contextoFechasCanvas.avisos)+'</p>':''),
     '<div id="ics-revision-lista" style="max-height:48vh;overflow:auto;border-top:1px solid var(--border);">'+rows+'</div>',
     '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">'+(enAppNativa()&&icsImportDraft.some(p=>p.origen==='canvas-anuncio')?'Guardar fechas elegidas':'Agregar fechas elegidas')+'</button></div>'
   ].join('');
