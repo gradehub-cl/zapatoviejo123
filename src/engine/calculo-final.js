@@ -18,8 +18,9 @@ function gh_bonusActivos(bonus,ingresado,confirmado){
     }
     if(!(suma>0))return;
     const si=b.si&&Array.isArray(b.si.catIds)&&typeof b.si.mayorQue==='number'?{ids:b.si.catIds,mayorQue:b.si.mayorQue}:null;
-    if(b.destino==='final')out.final.push({suma,si});
-    else if(typeof b.destino==='string')(out.porCategoria[b.destino]=out.porCategoria[b.destino]||[]).push({suma,si});
+    const regla={suma,si,...(b.alCompletar===true?{alCompletar:true}:{})};
+    if(b.destino==='final')out.final.push(regla);
+    else if(typeof b.destino==='string')(out.porCategoria[b.destino]=out.porCategoria[b.destino]||[]).push(regla);
   });
   return out;
 }
@@ -151,6 +152,7 @@ function calculateFinalGrade(structure,grades,overrides={}){
     if(node.aggregation_rule==='gated_average'&&value!==null){const p=node.rule_params||{};const off=known.filter(k=>!gh_cumpleMinimo(k.value,p.min_required));const locked=off.filter(o=>o.complete);const ok=off.length===0;gates.push({nodeId:node.id,kind:'gated_average',ok,min_required:p.min_required,fail_cap:p.fail_cap,offenders:off.map(o=>o.child.name),lockedOffenders:locked.map(o=>o.child.name),pending:known.length<node.children.length});if(!ok)value=Math.min(value,p.fail_cap);}
     // Las décimas van encima del promedio del nodo, nunca sobre la escala.
     if(value!==null&&Array.isArray(node.bonus))for(const b of node.bonus){
+      if(b.alCompletar&&!allComplete)continue;
       if(b.si){
         const de=known.filter(k=>b.si.ids.includes(k.child.id));
         const w=de.reduce((x,k)=>x+k.weight,0);
