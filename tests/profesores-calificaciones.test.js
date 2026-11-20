@@ -71,10 +71,10 @@ const cinco=(p=periodo)=>q('select * from profesores_cinco_estrellas($1)',[p]);
   await soy(1);await otro(1,'Transmite calma',['buena_onda']);
   assert.equal((await estado(1)).mi_otro,'Transmite calma','la propia se guarda y solo la ve quien la escribió');
   assert(!(await estado(1)).etiquetas.some(x=>x.texto),'con una cuenta no se publica el texto');
-  for(const texto of ['Idiota','weón','Profe 123','abcdefghijklmnopqrstu'])await assert.rejects(otro(1,texto),/texto no permitido/);
+  for(const texto of ['Idiota','weón','Profe 123','a'.repeat(41)])await assert.rejects(otro(1,texto),/texto no permitido/);
   await assert.rejects(otro(1,'Transmite calma',['amable','puntual','paciente']),/etiquetas inválidas/,'Otro cuenta dentro del máximo de tres');
   assert.equal((await estado(1)).mi_otro,'Transmite calma','rechazar no pisa lo guardado');
-  await otro(1,'abcdefghijklmnopqrst');assert.equal((await estado(1)).mi_otro.length,20,'el límite de 20 se acepta');
+  await otro(1,'Explica con calma y da ejemplos muy bien');assert.equal((await estado(1)).mi_otro.length,40,'el límite de 40 se acepta');
   await otro(1,'Transmite calma');
   // Repetir la misma etiqueta en tres semestres no equivale a tres cuentas.
   await db.exec('reset role');

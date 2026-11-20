@@ -3,20 +3,25 @@
 // `mono` es la sigla que se dibuja en el monograma (ver tenantBadge). No es el
 // logo ni el escudo de la universidad: es una etiqueta con iniciales en la
 // tipografía de GradeHub. Nunca reproducir marcas registradas acá.
+// `colores`: fondo y letra de la sigla, tomados de los manuales de marca de
+// cada universidad (Lucas, 2026-11-18). Solo color con iniciales, sin logos.
+// Contraste de la sigla sobre su fondo ≥ 4,5:1. `nombreCompleto` se usa al
+// elegir universidad (sin «de Chile» en la UC para que quepa en una línea a
+// 375 pt); `name` sigue siendo la forma corta del resto de la app.
 const TENANTS={
-  fen:{name:'U. de Chile', short:'FEN', conArticulo:'la U. de Chile', mono:'FEN', sub:'Economía y Negocios'},
+  fen:{name:'U. de Chile', nombreCompleto:'Universidad de Chile', colores:{fondo:'#004B93',texto:'#FFFFFF'}, short:'FEN', conArticulo:'la U. de Chile', mono:'FEN', sub:'Economía y Negocios'},
   // profiles guarda el código estable del tenant; name/label son solo visibles.
-  uc :{name:'U. Católica', label:'U. Católica', short:'UC', conArticulo:'la UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
+  uc :{name:'U. Católica', label:'U. Católica', nombreCompleto:'Pontificia Universidad Católica', colores:{fondo:'#173F8A',texto:'#FEC60D'}, short:'UC', conArticulo:'la UC', mono:'UC', sub:'Ingeniería, Comercial y más carreras'},
   // oculto:true → no se ofrece al elegir universidad, pero sigue funcionando
   // completo (tema, carreras, presets) para quien ya lo tenga seleccionado.
   // Quitar la marca cuando se quiera lanzar.
-  uai:{name:'U. Adolfo Ibáñez', short:'UAI', conArticulo:'la UAI', mono:'UAI', sub:'Todas las carreras'},
+  uai:{name:'U. Adolfo Ibáñez', nombreCompleto:'Universidad Adolfo Ibáñez', colores:{fondo:'#1D1E20',texto:'#FFFFFF'}, short:'UAI', conArticulo:'la UAI', mono:'UAI', sub:'Todas las carreras'},
   // Las mallas de la UAndes viven en mallas-uandes.js. Pautas todavía no hay:
   // no se inventan ponderaciones.
-  uandes:{name:'U. de los Andes', short:'UANDES', conArticulo:'la U. de los Andes', mono:'UA', sub:'Todas las carreras'},
+  uandes:{name:'U. de los Andes', nombreCompleto:'Universidad de los Andes', colores:{fondo:'#E00034',texto:'#FFFFFF'}, short:'UANDES', conArticulo:'la U. de los Andes', mono:'UA', sub:'Todas las carreras'},
   // Las mallas de la UDD viven en mallas-udd.js; sus pautas, en udd-pautas.js,
   // solo de los programas que publican ponderaciones.
-  udd:{name:'U. del Desarrollo', short:'UDD', conArticulo:'la UDD', mono:'UDD', sub:'Todas las carreras'},
+  udd:{name:'U. del Desarrollo', nombreCompleto:'Universidad del Desarrollo', colores:{fondo:'#005293',texto:'#FFFFFF'}, short:'UDD', conArticulo:'la UDD', mono:'UDD', sub:'Todas las carreras'},
 };
 
 // El dominio del correo institucional de los estudiantes, por universidad. Al

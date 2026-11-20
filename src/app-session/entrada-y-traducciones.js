@@ -10,6 +10,14 @@ function enterOnboarding(){
     const n=(m.full_name||m.name||'').trim();
     if(n)nameInput.value=n.split(' ')[0];
   }
+  // El apellido también, si el proveedor lo trae: el que separa Google
+  // (family_name) o lo que sigue al primer nombre.
+  const apellidoInput=document.getElementById('ob-apellido');
+  if(apellidoInput&&!apellidoInput.value.trim()&&currentUser&&currentUser.user_metadata){
+    const m=currentUser.user_metadata,completo=String(m.full_name||m.name||'').trim().split(/\s+/);
+    const a=String(m.family_name||'').trim()||(completo.length>1?completo.slice(1).join(' '):'');
+    if(a)apellidoInput.value=a.slice(0,60);
+  }
   obIniciar();
   // Con el correo institucional ya sabemos su universidad: llega marcada en el
   // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:

@@ -209,28 +209,35 @@ function prepararImportacionIcs(text){
 }
 function aplicarPropuestasIcs(propuestas){
   const targets=new Map(destinosIcs().map(target=>[claveDestinoIcs(target),target]));
+  if(enAppNativa())validarContextoFechasCanvas();
   const elegidas=(propuestas||[]).filter(p=>p&&p.target);
   if(!elegidas.length)return 0;
   const seen=new Set();
   elegidas.forEach(p=>{
     if(seen.has(p.target))throw new Error('Una evaluación no puede recibir dos fechas');
     seen.add(p.target);
+    if(p.origen==='canvas-anuncio')targets.set(p.target,validarPropuestaAnuncioCanvas(p));
     if(!targets.has(p.target))throw new Error('Una de las fechas ya no está disponible');
     if(!fechaDesdeIcs(String(p.fecha||'').replace(/-/g,'')))throw new Error('Una fecha propuesta no es válida');
   });
   elegidas.forEach(p=>{
     const target=targets.get(p.target);
+    if(p.origen==='canvas-anuncio'&&target.virtual){
+      target.nota=asignarCalificacionNota({id:uid(),nombre:target.etiqueta,peso:1,slot:target.nota.slot},'',null);
+      target.cat.notas.push(target.nota);
+    }
     const item=target.nota||target.cat;
     item.fecha=p.fecha;item.fechaOrigen='calendario';item.fechaQuitada=false;
-    // La hora solo llega de un evento de Canvas y solo se pone si no había una.
-    if(p.hora&&HORA_RE.test(p.hora)&&!item.hora){item.hora=p.hora;item.horaOrigen='calendario';item.horaQuitada=false;}
+    // Un cambio revisado de anuncio puede corregir la hora. Los calendarios
+    // y eventos conservan su comportamiento anterior: solo rellenan una vacía.
+    if(p.hora&&HORA_RE.test(p.hora)&&(!item.hora||p.origen==='canvas-anuncio')){item.hora=p.hora;item.horaOrigen='calendario';item.horaQuitada=false;}
   });
   return elegidas.length;
 }
 
 
 function abrirImportarCalendario(){
-  icsImportDraft=[];
+  icsImportDraft=[];contextoFechasCanvas=null;avisoAnunciosCanvas='';
   document.getElementById('modal-content').innerHTML=[
     '<div class="modal-title">Importar fechas desde un calendario</div>',
     '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">Elige un archivo <b>.ics</b> exportado desde Apple, Google u Outlook. Primero revisas dónde va cada fecha: nada se guarda todavía.</p>',
@@ -265,6 +272,7 @@ function opcionesDestinoIcs(selected,used,ramoId){
 function renderRevisionIcs(){
   const used=new Set(icsImportDraft.map(item=>item.target).filter(Boolean));
   const rows=icsImportDraft.map((item,index)=>{
+    if(enAppNativa()&&item.origen==='canvas-anuncio')return filaAnuncioRevisionCanvas(item,index);
     const ramoId=item.ramoId||((destinosIcs().find(t=>claveDestinoIcs(t)===item.target)||{}).ramo||{}).id||null;
     const estado=item.target?(item.origen==='canvas'?'Sugerencia de Canvas':'Coincidencia propuesta'):'Sin asignar';
     return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
@@ -276,9 +284,10 @@ function renderRevisionIcs(){
   }).join('');
   document.getElementById('modal-content').innerHTML=[
     '<div class="modal-title">Revisa las fechas</div>',
-    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 8px;">Las coincidencias son propuestas. Puedes cambiarlas, dejar una sin importar o asignar manualmente las que no calzaron.</p>',
+    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 8px;">'+(enAppNativa()&&icsImportDraft.some(p=>p.origen==='canvas-anuncio')?'Revisa cada fecha y su origen. Los cambios se aplican solo al guardar. Elige «No importar» para descartarlos.':'Las coincidencias son propuestas. Puedes cambiarlas, dejar una sin importar o asignar manualmente las que no calzaron.')+'</p>',
+    (enAppNativa()&&contextoFechasCanvas&&avisoAnunciosCanvas?'<p class="settings-help" role="status">'+esc(avisoAnunciosCanvas)+'</p>':''),
     '<div id="ics-revision-lista" style="max-height:48vh;overflow:auto;border-top:1px solid var(--border);">'+rows+'</div>',
-    '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">Agregar fechas elegidas</button></div>'
+    '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarImportarCalendario()">'+(enAppNativa()&&icsImportDraft.some(p=>p.origen==='canvas-anuncio')?'Guardar fechas elegidas':'Agregar fechas elegidas')+'</button></div>'
   ].join('');
 }
 function asignarRamoIcs(index,ramoId){
@@ -293,6 +302,13 @@ function asignarRamoIcs(index,ramoId){
 }
 function asignarDestinoIcs(index,target){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
+  const propuesta=icsImportDraft[index];
+  if(enAppNativa()&&propuesta.origen==='canvas-anuncio'){
+    propuesta.target=target===propuesta.targetAnuncio?target:null;
+    const lista=document.getElementById('ics-revision-lista'),arriba=lista?.scrollTop||0;
+    renderRevisionIcs();const nueva=document.getElementById('ics-revision-lista');if(nueva)nueva.scrollTop=arriba;
+    document.getElementById('ics-evaluacion-'+index)?.focus({preventScroll:true});return;
+  }
   const encontrado=destinosIcs().find(t=>claveDestinoIcs(t)===target);
   const ramoId=icsImportDraft[index].ramoId;
   const valido=encontrado&&(!ramoId||encontrado.ramo.id===ramoId);
@@ -316,7 +332,7 @@ function confirmarImportarCalendario(){
   save();
   if(typeof renderAgenda==='function')renderAgenda();
   const revisadas=icsImportDraft.length;
-  icsImportDraft=[];
+  icsImportDraft=[];contextoFechasCanvas=null;avisoAnunciosCanvas='';
   closeModal();
   track('import_ics',{eventos:aplicadas,revisados:revisadas});
   showToast(aplicadas+' fecha'+(aplicadas===1?' agregada':'s agregadas'));
