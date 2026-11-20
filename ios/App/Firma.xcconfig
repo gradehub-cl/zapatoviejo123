@@ -14,5 +14,10 @@
 // que el de la app (sale solo: $(GRADEHUB_BUNDLE_ID).widgets).
 GRADEHUB_BUNDLE_ID = cl.gradehub.app
 GRADEHUB_APP_GROUP = group.cl.gradehub.app.shared
+// Avisos push (Amigos): desarrollo al correr desde Xcode, producción en
+// TestFlight y App Store. Un Personal Team gratis no tiene Push: quien firme
+// así tiene que quitar `aps-environment` de App.entitlements en su copia local.
+GRADEHUB_APS_ENV = development
+GRADEHUB_APS_ENV[config=Release] = production
 
 #include? "Firma.local.xcconfig"

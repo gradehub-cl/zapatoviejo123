@@ -14,6 +14,7 @@ let amigosDisponibleCache=false,amigosEstadoCache=null,amigosListaCache=null,ami
 let amigosGruposDisponible=false,amigosGruposCache=null,amigosNotasDisponible=false,amigosNotasComparte=false,amigosNotasCache=new Map();
 let _notasPublicadas=null,_notasTimer=null;
 let amigosCalendarioDisponible=false,amigosPruebasComparte=false,_pruebasPublicadas=null;
+let amigosAvisosDisponible=false;
 
 // Un link gradehub.cl/?amigo=usuario deja el username guardado hasta que la
 // persona tenga sesión y Amigos esté listo; entonces se abre «Agregar».
@@ -61,6 +62,12 @@ async function sondearExtrasAmigos(v){
   const [g,n,c]=await Promise.allSettled([rpcAmigos('mis_grupos'),rpcAmigos('amigos_notas_estado'),rpcAmigos('amigos_pruebas_estado')]);
   if(v!==amigosVersion)return;
   amigosCalendarioDisponible=c.status==='fulfilled';amigosPruebasComparte=amigosCalendarioDisponible&&c.value===true;
+  // Avisos: solo en la app y con amigos_avisos.sql. Olvidar un token que no
+  // existe no hace nada y dice si la función está.
+  if(pluginAvisosAmigos()){
+    try{await rpcAmigos('olvidar_dispositivo',{p_token:'0'});if(v===amigosVersion)amigosAvisosDisponible=true;}catch(e){amigosAvisosDisponible=false;}
+    if(amigosAvisosDisponible)renovarAvisosAmigos();
+  }
   amigosGruposDisponible=g.status==='fulfilled';amigosGruposCache=amigosGruposDisponible&&Array.isArray(g.value)?g.value:(amigosGruposDisponible?[]:null);
   amigosNotasDisponible=n.status==='fulfilled';amigosNotasComparte=!!(amigosNotasDisponible&&n.value&&n.value.comparte);
 }
@@ -69,7 +76,7 @@ function olvidarAmigos(){
   amigosVersion++;amigosDisponibleCache=false;amigosEstadoCache=null;amigosListaCache=null;amigosHorariosCache=new Map();
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
   _notasPublicadas=null;clearTimeout(_notasTimer);
-  amigosCalendarioDisponible=false;amigosPruebasComparte=false;_pruebasPublicadas=null;
+  amigosCalendarioDisponible=false;amigosPruebasComparte=false;_pruebasPublicadas=null;amigosAvisosDisponible=false;
 }
 async function refrescarAmigos(){
   if(!amigosVisible()||amigosCargando)return;
@@ -242,6 +249,7 @@ function pintarAmigos(){
   const sub=a=>esc(['@'+a.username,a.universidad&&TENANTS[a.universidad]?TENANTS[a.universidad].short:''].filter(Boolean).join(' · '));
   caja.innerHTML=`
     ${cabeceraPerfilAmigosHTML(e,amigos,ahora)}
+    ${preguntarAvisosHTML(amigos.length+recibidas.length>0)}
     ${historiasAmigosHTML(amigos,ahora)}
     ${recibidas.length?`<section class="perfil-grupo amigos-grupo"><h2>Solicitudes</h2><ul>${recibidas.map(a=>`<li class="amigo-solicitud recibida">
       <span class="amigo-avatar" aria-hidden="true">${inicialAmigo(a)}</span>
@@ -265,6 +273,8 @@ function pintarAmigos(){
           <input id="amigos-compartir" type="checkbox" role="switch"${e.comparte_horario!==false?' checked':''}></label></li>
         ${amigosNotasDisponible?`<li><label class="amigos-ajuste" for="amigos-notas"><span><b>Compartir mis promedios</b><small>Solo en ramos que toman juntos y con amigos que también comparten.</small></span>
           <input id="amigos-notas" type="checkbox" role="switch"${amigosNotasComparte?' checked':''}></label></li>`:''}
+        ${amigosAvisosDisponible?`<li><label class="amigos-ajuste" for="amigos-avisos"><span><b>Avisos</b><small>Solicitudes, invitaciones a grupos y salas nuevas. Nunca tus notas.</small></span>
+          <input id="amigos-avisos" type="checkbox" role="switch"${avisosAmigosActivos()?' checked':''}></label></li>`:''}
         ${amigosCalendarioDisponible&&amigosGruposDisponible?`<li><label class="amigos-ajuste" for="amigos-pruebas"><span><b>Compartir mis pruebas con mis grupos</b><small>Ramo, nombre y fecha de lo que viene. Nunca la nota ni la ponderación.</small></span>
           <input id="amigos-pruebas" type="checkbox" role="switch"${amigosPruebasComparte?' checked':''}></label></li>`:''}
         <li><button type="button" class="perfil-fila" data-amigos="bloqueados"><span class="perfil-fila-titulo">Bloqueados</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>
@@ -596,6 +606,58 @@ async function cambiarCompartirPruebas(valor){
     if(valor){const datos=resumenPruebasAmigos(S.ramos);await rpcAmigos('publicar_mis_pruebas',{p_pruebas:datos});_pruebasPublicadas=JSON.stringify(datos);amigosPruebasComparte=true;}
     else{await rpcAmigos('dejar_de_compartir_pruebas');amigosPruebasComparte=false;_pruebasPublicadas=null;}
   }catch(e){showToast(mensajeErrorAmigos(e),true);if(sw)sw.checked=!valor;}
+}
+
+// ─── Avisos push (app iOS) ───
+// Opcionales y por iPhone: el token vive en este teléfono (localStorage) y en
+// push_dispositivos. Se pregunta con una tarjeta propia antes que el diálogo
+// de iOS, que aparece una sola vez en la vida de la app (HIG: Notifications).
+const CLAVE_AVISOS_AMIGOS='gradehub_avisos_amigos',CLAVE_AVISOS_PREGUNTA='gradehub_avisos_amigos_pregunta';
+function pluginAvisosAmigos(){
+  if(typeof pluginWidgets!=='function'||!pluginWidgets())return null;
+  const cap=typeof window!=='undefined'&&window.Capacitor;
+  return cap&&cap.Plugins&&cap.Plugins.GradeHubAvisos||null;
+}
+const tokenAvisosAmigos=()=>{try{return localStorage.getItem(CLAVE_AVISOS_AMIGOS)||'';}catch(e){return '';}};
+function avisosAmigosActivos(){return !!tokenAvisosAmigos();}
+async function activarAvisosAmigos(){
+  const p=pluginAvisosAmigos();if(!p)return false;
+  try{
+    const r=await p.activar();
+    if(!r||r.permiso!=='concedido'||!r.token){showToast('Actívalos en Ajustes del iPhone → GradeHub → Notificaciones.',true);return false;}
+    await rpcAmigos('registrar_dispositivo',{p_token:r.token});
+    try{localStorage.setItem(CLAVE_AVISOS_AMIGOS,r.token);}catch(e){}
+    if(typeof vibrar==='function')vibrar('exito');
+    return true;
+  }catch(e){showToast(mensajeErrorAmigos(e),true);return false;}
+}
+async function desactivarAvisosAmigos(){
+  const t=tokenAvisosAmigos();
+  try{localStorage.removeItem(CLAVE_AVISOS_AMIGOS);}catch(e){}
+  if(t)try{await rpcAmigos('olvidar_dispositivo',{p_token:t});}catch(e){}
+}
+// Al entrar: iOS puede cambiar el token, o en este iPhone entró otra cuenta.
+// Solo si ya estaban activos y el permiso sigue: sin diálogos nuevos.
+async function renovarAvisosAmigos(){
+  const p=pluginAvisosAmigos();if(!p||!avisosAmigosActivos())return;
+  try{
+    const e=await p.estado();
+    if(!e||e.permiso!=='concedido'){await desactivarAvisosAmigos();return;}
+    const r=await p.activar();
+    if(r&&r.token){await rpcAmigos('registrar_dispositivo',{p_token:r.token});try{localStorage.setItem(CLAVE_AVISOS_AMIGOS,r.token);}catch(x){}}
+  }catch(e){}
+}
+// Antes de cerrar sesión (con la sesión todavía viva): este iPhone deja de
+// recibir avisos de esa cuenta.
+async function olvidarAvisosAmigos(){if(avisosAmigosActivos())await desactivarAvisosAmigos();}
+function preguntarAvisosHTML(hayAlgo){
+  let respondida=false;try{respondida=!!localStorage.getItem(CLAVE_AVISOS_PREGUNTA);}catch(e){}
+  if(!amigosAvisosDisponible||avisosAmigosActivos()||respondida||!hayAlgo)return '';
+  return `<section class="amigos-aviso-push" aria-label="Avisos">
+    <span class="cal-icono sala" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+    <div class="amigo-texto"><b>¿Te avisamos?</b><small>Cuando alguien te agregue, te invite a un grupo o anote una sala.</small></div>
+    <span class="amigo-acciones"><button type="button" class="amigo-boton" data-amigos="avisos-no">Ahora no</button><button type="button" class="amigo-boton principal" data-amigos="avisos-si">Activar</button></span>
+  </section>`;
 }
 
 // ─── Calendario del grupo: salas reservadas y pruebas ───
@@ -951,6 +1013,10 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='grupo-nuevo')abrirGrupoNuevo();
     else if(acc==='grupo-con')abrirGrupoNuevo(user);
     else if(acc==='reserva-nueva')abrirReservaNueva(id);
+    else if(acc==='avisos-si'||acc==='avisos-no'){
+      try{localStorage.setItem(CLAVE_AVISOS_PREGUNTA,acc==='avisos-si'?'si':'no');}catch(e){}
+      (acc==='avisos-si'?activarAvisosAmigos():Promise.resolve()).then(()=>pintarAmigos());
+    }
     else if(acc==='reserva-borrar'){const g=b.dataset.grupo;showConfirm('¿Borrar esta reserva del calendario?','Solo la quita del grupo. Si reservaste en tu universidad, cancélala allá.',async()=>{try{await rpcAmigos('borrar_reserva_grupo',{p_id:id});abrirGrupo(g);}catch(e){showToast(mensajeErrorAmigos(e),true);}},{label:'Borrar'});}
     else if(acc==='menu-amigo')abrirMenuAmigo(id);
     else if(acc==='semana')abrirSemanaAmigo(id);
@@ -967,5 +1033,9 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     if(ev.target&&ev.target.id==='amigos-compartir')cambiarCompartirHorario(ev.target.checked);
     else if(ev.target&&ev.target.id==='amigos-notas')cambiarCompartirNotas(ev.target.checked);
     else if(ev.target&&ev.target.id==='amigos-pruebas')cambiarCompartirPruebas(ev.target.checked);
+    else if(ev.target&&ev.target.id==='amigos-avisos'){
+      const sw=ev.target;
+      if(sw.checked)activarAvisosAmigos().then(ok=>{if(!ok)sw.checked=false;});else desactivarAvisosAmigos();
+    }
   });
 }

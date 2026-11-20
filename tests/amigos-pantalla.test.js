@@ -110,6 +110,17 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('tocar el widget abre Amigos o la ficha del amigo',/amigos\|amigo\)/.test(fs.readFileSync(raiz+'src/app/ios-widgets.js','utf8')));
   chk('el widget está registrado en el paquete',/HoyEnLaUWidget\(\)/.test(fs.readFileSync(raiz+'ios/App/GradeHubWidgets/GradeHubWidgets.swift','utf8')));
 
+  console.log('\n=== Avisos push ===');
+  const salida=fs.readFileSync(raiz+'src/app-session/salida-cuenta.js','utf8');
+  chk('cerrar sesión olvida este iPhone antes de cerrar la sesión',salida.indexOf('olvidarAvisosAmigos')>0&&salida.indexOf('olvidarAvisosAmigos')<salida.indexOf('auth.signOut()'));
+  run(`amigosAvisosDisponible=true;`);
+  chk('la tarjeta «¿Te avisamos?» sale solo si hay con quién y no se respondió',/Te avisamos/.test(run('preguntarAvisosHTML(true)'))&&run('preguntarAvisosHTML(false)')===''&&(()=>{run(`amigosAvisosDisponible=false;`);return run('preguntarAvisosHTML(true)')==='';})());
+  run(`window.Capacitor=undefined;_pluginWidgets=undefined;`);
+  chk('en la web no hay avisos',run('pluginAvisosAmigos()')===null);
+  run(`window.Capacitor={isNativePlatform:()=>true};_pluginWidgets=undefined;`);
+  chk('tocar el aviso usa el mismo camino que los widgets',/UIApplication\.shared\.open\(url\)/.test(fs.readFileSync(raiz+'ios/App/App/WidgetsPlugin.swift','utf8'))&&/GradeHubAvisosPlugin\(\)/.test(fs.readFileSync(raiz+'ios/App/App/MainViewController.swift','utf8')));
+  chk('el permiso de push es de desarrollo en Xcode y de producción al publicar',/aps-environment/.test(fs.readFileSync(raiz+'ios/App/App/App.entitlements','utf8'))&&/GRADEHUB_APS_ENV\[config=Release\] = production/.test(fs.readFileSync(raiz+'ios/App/Firma.xcconfig','utf8')));
+
   console.log('\n=== Solo estudiantes ===');
   cuenta('profesor');run('recalcularNavTabs()');
   chk('una cuenta de profesor no tiene Amigos',!run('NAV_TABS').includes('amigos')&&el('nav-amigos').hidden===true);

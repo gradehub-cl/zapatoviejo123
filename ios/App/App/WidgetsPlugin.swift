@@ -1,5 +1,6 @@
 import ActivityKit
 import Capacitor
+import UserNotifications
 import WidgetKit
 
 // Puente de la app web a los widgets (#634). La web calcula el resumen con el
@@ -221,4 +222,80 @@ public class GradeHubWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         WidgetCenter.shared.reloadAllTimelines()
     }
     #endif
+}
+
+// MARK: - Avisos push de Amigos
+
+// Pide permiso para avisos, entrega a la app el token de este iPhone (la app
+// lo registra en Supabase: registrar_dispositivo) y abre lo que dice el aviso
+// al tocarlo. Los avisos los manda supabase/functions/avisos-push. Va en este
+// archivo para no tocar el proyecto de Xcode con un archivo nuevo.
+@objc(GradeHubAvisosPlugin)
+public class GradeHubAvisosPlugin: CAPPlugin, CAPBridgedPlugin, NotificationHandlerProtocol {
+    public let identifier = "GradeHubAvisosPlugin"
+    public let jsName = "GradeHubAvisos"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "estado", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activar", returnType: CAPPluginReturnPromise),
+    ]
+    // AppDelegate los publica cuando iOS entrega (o no) el token.
+    static let tokenListo = Notification.Name("gradehub.avisos.token")
+    static let tokenFallo = Notification.Name("gradehub.avisos.fallo")
+    private var pendiente: CAPPluginCall?
+
+    override public func load() {
+        NotificationCenter.default.addObserver(self, selector: #selector(llegoToken(_:)), name: Self.tokenListo, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(falloToken(_:)), name: Self.tokenFallo, object: nil)
+        // Los avisos locales (pruebas) siguen con su plugin; estos son los push.
+        bridge?.notificationRouter.pushNotificationHandler = self
+    }
+
+    static func permiso(_ s: UNAuthorizationStatus) -> String {
+        switch s {
+        case .authorized, .provisional, .ephemeral: return "concedido"
+        case .denied: return "denegado"
+        default: return "sin-preguntar"
+        }
+    }
+
+    @objc func estado(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            call.resolve(["permiso": Self.permiso(s.authorizationStatus)])
+        }
+    }
+
+    // Pide permiso (solo la primera vez muestra el diálogo de iOS) y registra.
+    @objc func activar(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { concedido, _ in
+            guard concedido else { call.resolve(["permiso": "denegado"]); return }
+            DispatchQueue.main.async {
+                self.pendiente?.reject("reemplazado")
+                self.pendiente = call
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+        }
+    }
+
+    @objc private func llegoToken(_ n: Notification) {
+        guard let datos = n.object as? Data, let call = pendiente else { return }
+        pendiente = nil
+        call.resolve(["permiso": "concedido", "token": datos.map { String(format: "%02x", $0) }.joined()])
+    }
+    @objc private func falloToken(_ n: Notification) {
+        guard let call = pendiente else { return }
+        pendiente = nil
+        call.reject("No se pudo registrar este iPhone para avisos")
+    }
+
+    // Con la app abierta el aviso se muestra igual, como banner.
+    public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound]
+    }
+    // Tocar el aviso abre lo que dice (cl.gradehub.app://amigos o ://amigo/<id>)
+    // por el mismo camino que los widgets.
+    public func didReceive(response: UNNotificationResponse) {
+        guard let texto = response.notification.request.content.userInfo["enlace"] as? String,
+              let url = URL(string: texto), url.scheme == "cl.gradehub.app" else { return }
+        DispatchQueue.main.async { UIApplication.shared.open(url) }
+    }
 }

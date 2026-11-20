@@ -6475,6 +6475,14 @@ button.amigos-cifra:active{opacity:.55;}
 .amigo-semana-punto{display:inline-block;width:10px;height:10px;margin-left:8px;border-radius:3px;background:var(--fg3);}
 .amigo-semana-punto:first-child{margin-left:0;}
 .amigo-semana-punto.comun{background:var(--primary);}
+.amigos-aviso-push{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:12px 0 4px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.amigos-aviso-push .amigo-texto{flex:1 1 180px;}
+.amigos-aviso-push .amigo-texto small{white-space:normal;}
+.amigos-aviso-push .amigo-acciones{margin-left:auto;}
+.amigos-aviso-push .amigo-boton{position:relative;min-height:32px;padding:0 12px;border:0;border-radius:8px;background:var(--muted);font-size:.8125rem;}
+.amigos-aviso-push .amigo-boton.principal{background:var(--fg);color:var(--bg2);}
+.amigos-aviso-push .amigo-boton::after{content:'';position:absolute;inset:-6px -2px;}
+.amigos-aviso-push .cal-icono .ic{fill:none;}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}
