@@ -649,7 +649,14 @@ function renderRamo(){
     if(cat.directNota){
       // Preset con varios espacios (ej: Laboratorio = 3 notas que se promedian) — COLAPSABLE
       if(cat.slots&&cat.slots>1){
-        const av=cat.dropLowest?calculoCategoria?.value??avgPond(notas):avgPond(notas);
+        // Las décimas del programa (#631) van sobre el promedio de la
+        // evaluación: el número de la fila es el que cuenta, con ellas, y se
+        // dice cuántas incluye (Lucas, 2026-11-20). Sin regla, el de siempre.
+        const base=cat.dropLowest?null:avgPond(notas);
+        const decimasBonus=base!==null&&!justificada&&(r.bonus||[]).some(b=>b&&b.destino===cat.id)&&typeof calculoCategoria?.value==='number'
+          ?Math.round((calculoCategoria.value-base)*10):0;
+        const av=cat.dropLowest?calculoCategoria?.value??avgPond(notas):decimasBonus>0?calculoCategoria.value:base;
+        const avisoBonus=decimasBonus>0?`<div class="eval-row-weight">Incluye ${decimasBonus===1?'1 décima':decimasBonus+' décimas'} de bonificación${calculoCategoria.value>=7-1e-9?', con tope de 7,0':''}</div>`:'';
         // Vacío parte compacto, pero al guardar la primera nota (o dejar una
         // anotada para después) hay algo concreto que revisar. `openCats` solo
         // toma el control después de que la persona abrió o cerró a mano.
@@ -716,6 +723,7 @@ function renderRamo(){
               <div class="eval-row-name">${esc(cat.nombre)}</div>
               ${borrables?`<div class="eval-row-weight">${esc(borrables)}</div>`:''}
               <div class="eval-row-weight">${r2(cat.peso)}% · promedio de ${cat.slots}${notasCount?` · ${notasCount}/${cat.slots} ingresadas`:''}${fechaChip?' · '+fechaChip:''}${exenta?' · exento/a':''}</div>
+              ${avisoBonus}
             </div>
             <div class="ramo-nota ${justificada?'':colorClass(av)}" style="--grade-color:${getColor(av)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(av)}</div>
             <span aria-hidden="true" style="color:var(--fg3);font-size:0.6875rem;margin-left:6px;">${isOpen?'▲':'▼'}</span>
