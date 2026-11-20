@@ -11,6 +11,8 @@ async function afterSignup(){
     error.code='CACHE_LOCAL_NO_AISLADA';
     throw error;
   }
+  // Une lo anónimo de antes de registrarse con la cuenta nueva (embudo de registro).
+  if(typeof identificarAnalitica==='function')identificarAnalitica();
   if(aislamiento.propia&&S.onboardingDone&&S.ramos.length){
     const respaldado=await syncNow();await syncProfile();
     showToast(respaldado
@@ -206,6 +208,7 @@ function tareasConEstadoAlEntrar(){
 }
 // Lo que se lee de la red al entrar y no depende de S. No bloquea nada.
 function cargasAlEntrar(){
+  if(typeof identificarAnalitica==='function')identificarAnalitica();
   if(typeof cargarAvisosFeedback==='function')cargarAvisosFeedback().catch(()=>{});
   // Si esta persona está aprobada como profesor particular, le aparece una
   // cuarta pestaña. Se pregunta una vez al entrar y no bloquea nada: si el SQL
