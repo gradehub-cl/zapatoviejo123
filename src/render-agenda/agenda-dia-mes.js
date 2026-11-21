@@ -1,5 +1,6 @@
 // Agenda por Día y por Mes (Lucas, 2026-11-18; maqueta aprobada en
-// .claude/maqueta-agenda-dia-semana-mes.html). La Semana vive en
+// .claude/maqueta-agenda-dia-semana-mes.html). Desde el 2026-11-21 el Día se
+// muestra bajo la semana del Horario y el Mes sobre Evaluaciones. La Semana vive en
 // horario-semana.js. Todo lee lo de siempre —agendaEvents(), el horario de
 // cada ramo, pendientes()— y no escribe nada: tocar algo abre la ficha, la hoja
 // de la clase o la acción de siempre de la Agenda.
@@ -88,8 +89,9 @@ function filaEvaluacionDiaHTML(e,hora){
 }
 
 // ─── DÍA ────────────────────────────────────────────────────────────────────
-let agendaDiaOffset=0;
-function diaAgendaHTML(fecha,ahora=new Date()){
+// `conPendientes`: lo pendiente (notas por poner, fechas por revisar) va solo
+// en hoy. Bajo la semana del Horario no va: es de Evaluaciones.
+function diaAgendaHTML(fecha,ahora=new Date(),{conPendientes=true}={}){
   const hoyIso=isoHoyAgenda(ahora),esHoy=fecha===hoyIso;
   const todos=agendaEvents();
   const evs=todos.filter(e=>e.fecha===fecha).map(withPriority);
@@ -97,7 +99,7 @@ function diaAgendaHTML(fecha,ahora=new Date()){
   const p=partesHorarioChile(ahora),minutoAhora=Number(p.hour)*60+Number(p.minute);
   let html='';
   if(evs.length){
-    html+=`<h2 class="section-hd-title agenda-dia-seccion">${esHoy?'Se rinde hoy':'Ese día'}</h2><div class="agenda-dia-pruebas">${evs.map(e=>`<button type="button" class="agenda-dia-prueba" data-agenda-action="ver-ramo" data-ramo-id="${esc(e.ramo.id)}" style="--ramo:${esc(e.ramo.color||'var(--fg3)')}" aria-label="${esc(etiquetaEventoAgenda(e))}">
+    html+=`<h2 class="section-hd-title agenda-dia-seccion">${esHoy?'Se rinde hoy':'Se rinde ese día'}</h2><div class="agenda-dia-pruebas">${evs.map(e=>`<button type="button" class="agenda-dia-prueba" data-agenda-action="ver-ramo" data-ramo-id="${esc(e.ramo.id)}" style="--ramo:${esc(e.ramo.color||'var(--fg3)')}" aria-label="${esc(etiquetaEventoAgenda(e))}">
       <i aria-hidden="true"></i>
       <span class="agenda-dia-que"><b>${esc(nombreEventoAgenda(e))}</b><span>${esc(e.ramo.nombre)}</span><span>${[horaValidaAgenda(e.hora)?esc(e.hora):'',pesoEventoAgendaTexto(e),e.estadoAgenda==='con_nota'?'ya evaluada':''].filter(Boolean).join(' · ')}</span></span>
       ${necesitaAgendaHTML(e)}</button>`).join('')}</div>`;
@@ -123,27 +125,9 @@ function diaAgendaHTML(fecha,ahora=new Date()){
   }
   // Lo pendiente (notas por poner, fechas por revisar) solo en hoy: es lo que
   // hay que resolver ahora, no algo de un día cualquiera.
-  if(esHoy&&typeof agendaPendientesHTML==='function')html+=agendaPendientesHTML(pendientesDeAgenda(ahora),ahora);
+  if(conPendientes&&esHoy&&typeof agendaPendientesHTML==='function')html+=agendaPendientesHTML(pendientesDeAgenda(ahora),ahora);
   return html;
 }
-// «Hoy, sábado 21 de noviembre»; lejos de hoy, solo la fecha.
-function etiquetaDiaAgenda(fecha,dias){
-  const nombre=nombreFechaAgenda(fecha);
-  return dias===0||dias===1||dias===-1?`${cuandoTexto(dias)}, ${nombre[0].toLowerCase()}${nombre.slice(1)}`:nombre;
-}
-function renderDiaAgenda(body,ahora=new Date()){
-  const hoyIso=isoHoyAgenda(ahora),fecha=sumarDiasAgenda(hoyIso,agendaDiaOffset);
-  // El título y el resumen son de la Agenda (encabezadoAgenda); la fecha del
-  // día va en el navegador, donde se mueve con ‹ ›.
-  const dias=diasEntreAgenda(hoyIso,fecha);
-  body.innerHTML=navAgendaHTML(etiquetaDiaAgenda(fecha,dias),'dia',dias!==0)+diaAgendaHTML(fecha,ahora);
-  const repintar=()=>{if(typeof currentTab==='undefined'||currentTab==='agenda')renderAgenda();};
-  enlazarNavAgenda(body,paso=>{agendaDiaOffset=paso===0?0:agendaDiaOffset+paso;renderAgenda();});
-  body.querySelectorAll('[data-agenda-ir-dia]').forEach(b=>b.addEventListener('click',()=>{agendaDiaOffset=diasEntreAgenda(hoyIso,b.dataset.agendaIrDia);renderAgenda();}));
-  body.querySelectorAll('[data-horario-ramo]').forEach(b=>b.addEventListener('click',()=>abrirClaseHorario(b.dataset.horarioRamo,b.dataset.horarioBloque,()=>{repintar();if(typeof renderHome==='function')renderHome();})));
-  if(typeof activarDetallesAgenda==='function')activarDetallesAgenda(body);
-}
-
 // ─── MES ────────────────────────────────────────────────────────────────────
 let agendaMesOffset=0,agendaMesSel=null;
 function mesAgendaHTML(ahora=new Date()){

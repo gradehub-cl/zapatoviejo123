@@ -3,16 +3,15 @@ function renderAgenda(){
   const body=document.getElementById("agenda-body");if(!body)return;
   activarAccionesAgenda(body);
   agendaDetalleAbierto=null;
-  // Día | Semana | Mes (horario-semana.js y agenda-dia-mes.js). Mes es la
-  // lista de siempre con la grilla del mes arriba; el profesor ve solo la lista.
+  // Evaluaciones | Horario (horario-semana.js). Evaluaciones es la lista de
+  // siempre, con el mes arriba si se pide; el profesor ve solo la lista.
   const vista=typeof pintarVistaAgenda==='function'?pintarVistaAgenda():'lista';
-  // Día, Semana y Mes son tres zooms de la misma Agenda: el título, el resumen
-  // y «Calendario» no cambian al pasar de una a otra (Lucas, 2026-11-21: «está
-  // mezclado y es difícil entenderlo»). Cada vista pinta solo su cuerpo.
+  // El título, el resumen y «Calendario» no cambian al pasar de una vista a
+  // otra (Lucas, 2026-11-21: «está mezclado y es difícil entenderlo»). Cada
+  // vista pinta solo su cuerpo.
   encabezadoAgenda();
-  if(vista==='semana'){renderHorarioSemana(body);return;}
-  if(vista==='dia'){renderDiaAgenda(body);return;}
-  renderListaAgenda(body,vista==='mes');
+  if(vista==='horario'){renderHorarioSemana(body);return;}
+  renderListaAgenda(body,vista==='evaluaciones');
 }
 // El resumen de arriba habla siempre de evaluaciones, en las tres vistas.
 function resumenAgendaTexto(ahora=new Date()){
@@ -42,9 +41,19 @@ function encabezadoAgenda(ahora=new Date()){
   const expBtn=document.getElementById('agenda-export-btn');
   if(expBtn)expBtn.style.display='block';
 }
+// El mes es opcional: abierto empujaba «Tus prioridades» fuera de la pantalla.
+const CLAVE_MES_AGENDA='gh_agenda_mes';
+let agendaMesVisible=(()=>{try{return localStorage.getItem(CLAVE_MES_AGENDA)==='1';}catch(e){return false;}})();
 function renderListaAgenda(body,conMes=false){
-  // La grilla del mes va arriba de la lista; sin fechas no hay grilla.
-  const mes=conMes&&typeof mesAgendaHTML==='function'?mesAgendaHTML():'';
+  // La grilla del mes va arriba de la lista, si se pidió; sin fechas no hay grilla.
+  const mesPosible=conMes&&typeof mesAgendaHTML==='function'&&agendaEvents().length>0;
+  const mes=mesPosible&&agendaMesVisible?mesAgendaHTML():'';
+  if(conMes&&typeof accionVistaAgenda==='function')accionVistaAgenda(mesPosible?`<button type="button" class="agenda-vista-accion" data-agenda-mes-toggle aria-expanded="${agendaMesVisible}">${agendaMesVisible?'Ocultar mes':'Ver mes'}</button>`:'',()=>{
+    agendaMesVisible=!agendaMesVisible;
+    try{localStorage.setItem(CLAVE_MES_AGENDA,agendaMesVisible?'1':'0');}catch(e){}
+    renderAgenda();
+    document.querySelector('#agenda-vista [data-agenda-mes-toggle]')?.focus();
+  });
   const pintar=html=>{body.innerHTML=mes+html;if(mes)enlazarMesAgenda(body);};
   const events=agendaEvents();
   const sinFecha=agendaSinFecha();

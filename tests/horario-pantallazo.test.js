@@ -260,11 +260,11 @@ chk('aunque un cuadrito de la leyenda salga desteñido (30 %, como en el caso re
   run('aplicarHorarioBuscacursos()');marcas={};
   chk('si llegó otro horario por sync, se conserva',run(`ramoConSigla('MAT1620').horario[0].sala`)==='Otro dispositivo');
 
-  console.log('\n=== La semana en la Agenda (Día | Semana | Mes, también en la web) ===');
-  run(`enAppNativa=()=>false;agendaVista='semana'`);
-  chk('en la web también aparece «Día | Semana | Mes»',run('pintarVistaAgenda()')==='semana'&&get('agenda-vista').hidden===false&&/aria-pressed="true">Semana/.test(get('agenda-vista').innerHTML));
-  run(`enAppNativa=()=>true;agendaVista='semana'`);
-  chk('en la app, lo mismo',run('pintarVistaAgenda()')==='semana');
+  console.log('\n=== La semana en la Agenda (Evaluaciones | Horario, también en la web) ===');
+  run(`enAppNativa=()=>false;agendaVista='horario'`);
+  chk('en la web también aparece «Evaluaciones | Horario»',run('pintarVistaAgenda()')==='horario'&&get('agenda-vista').hidden===false&&/aria-pressed="true">Horario/.test(get('agenda-vista').innerHTML));
+  run(`enAppNativa=()=>true;agendaVista='horario'`);
+  chk('en la app, lo mismo',run('pintarVistaAgenda()')==='horario');
   run(`esCuentaProfesor=()=>true`);
   chk('una cuenta de profesor no lo ve',run('pintarVistaAgenda()')==='lista'&&get('agenda-vista').hidden===true);
   run(`esCuentaProfesor=()=>false`);

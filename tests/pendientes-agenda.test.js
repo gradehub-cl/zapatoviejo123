@@ -44,7 +44,7 @@ assert.doesNotMatch(html,/Prueba futura/,'pasado mañana y después siguen en la
 assert.equal(run('JSON.stringify(S)'),antes,'pintar la lista no guarda ni cambia datos');
 
 ctx.Date=class extends Date{constructor(...args){super(...(args.length?args:[2026,9,7,12]));}static now(){return new Date(2026,9,7,12).getTime();}};
-run('(agendaVista="mes",renderAgenda())');
+run('(agendaVista="evaluaciones",renderAgenda())');
 // Cada evaluación tiene UNA fila: en prioridades o en Pendientes, no en las dos.
 // (El detalle de otra evaluación puede nombrarla como "la siguiente": eso no es
 // una fila, por eso se cuentan los nombres de fila y no el texto suelto.)
@@ -59,7 +59,7 @@ assert.ok(pantalla.indexOf('Prueba de hoy')<pantalla.indexOf('aria-label="Pendie
 assert.equal(run('JSON.stringify(S)'),antes,'renderizar Agenda no cambia datos');
 
 run("S.ramos[0].categorias[0].fecha='2026-10-08'");
-run('(agendaVista="mes",renderAgenda())');
+run('(agendaVista="evaluaciones",renderAgenda())');
 assert.ok(stub.innerHTML.indexOf('Prueba de hoy')>=0&&stub.innerHTML.indexOf('Prueba de hoy')<stub.innerHTML.indexOf('aria-label="Pendientes"'),'lo de mañana también va en prioridades');
 assert.equal(filas('Prueba de hoy'),1,'y no se repite en Pendientes');
 
