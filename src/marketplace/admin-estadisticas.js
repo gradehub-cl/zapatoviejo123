@@ -195,9 +195,31 @@ function crecimientoAdminHTML(semanas,ahora=Date.now()){
   return `<section class="adm-tarjeta admin-crecimiento" data-adm-grupo aria-labelledby="admin-crecimiento-titulo"><h3 id="admin-crecimiento-titulo" class="adm-oculto">Crecimiento semanal</h3>${graficosCrecimientoAdminHTML(semanas,ahora)}${tabla}</section>`;
 }
 const AREAS_ADMIN=['profesores','anuncios','estadisticas','usuarios','pautas'];
+function panelProfesoresAdminHTML(profesores,ahora){
+  const conteos=Object.fromEntries(FILTROS_PROFESORES_ADMIN.map(([estado])=>[estado,profesores.filter(p=>p.estado===estado).length]));
+  const filtro=vistaAdmin.profesores||(conteos.pendiente?'pendiente':'aprobado');
+  const solicitudes=[],filas=[],gestion=[];
+  for(const p of profesores){
+    const cifras=cifrasProfesorAdmin(p,ahora),persona=personaAdminHigHTML(p,cifras);
+    if(p.estado==='pendiente')solicitudes.push(persona);else filas.push(persona);
+    const enlaces=[[cifras.deudas,'cobros','cobro en deuda','cobros en deuda'],[cifras.revision,'revision','anuncio en revisión','anuncios en revisión']]
+      .filter(([n])=>n>0).map(([n,seccion,uno,varios])=>`<button type="button" data-admin-ir="anuncios:${seccion}" data-admin-gestion-prof="${esc(p.user_id)}" aria-label="${esc(p.nombre)} · ${n} ${n===1?uno:varios}">${n} ${n===1?uno:varios} ›</button>`);
+    if(enlaces.length)gestion.push(`<li data-admin-atencion-prof="${esc(p.user_id)}"><b>${esc(p.nombre||'Sin nombre')}</b><span>${enlaces.join('')}</span></li>`);
+  }
+  const tabs=FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<button type="button" role="tab" id="adm-prof-tab-${v}" aria-controls="admin-lista-profesores" aria-selected="${v===filtro}" tabindex="${v===filtro?0:-1}" data-admin-filtro-prof="${v}">${t} <span>${conteos[v]}</span></button>`).join('');
+  return `<h2>Profesores</h2>
+    <div class="adm-prof-barra"><div class="adm-prof-tabs" role="tablist" aria-label="Estado del profesor">${tabs}</div>
+      <div class="adm-prof-buscar"><input type="search" id="admin-buscar-profesor" aria-label="Buscar por nombre" placeholder="Buscar por nombre" autocomplete="off"></div></div>
+    <div id="admin-lista-profesores" role="tabpanel" aria-labelledby="adm-prof-tab-${filtro}">
+      <div class="adm-postulaciones">${solicitudes.join('')}</div>
+      ${gestion.length?`<section class="adm-prof-atencion" id="admin-prof-gestion"><h3>Por resolver</h3><ul>${gestion.join('')}</ul></section>`:!conteos.pendiente?'<p class="adm-prof-sin-tareas">Sin postulaciones, deudas ni anuncios por revisar.</p>':''}
+      <div id="admin-prof-columnas" class="adm-prof-columnas" aria-hidden="true"><span>Nombre</span><span>Estado</span>${COLUMNAS_PROFESOR_ADMIN.map(t=>`<span>${t}</span>`).join('')}<span></span></div>
+      ${filas.join('')}
+      <p id="admin-profesores-vacio" role="status" hidden></p>
+    </div>`;
+}
 function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcance=null,historial=null){
-  const filas=filasAdminHig(profesores,ahora),r=resumenAdminClases(profesores,ahora);
-  const kpi=(titulo,valor,detalle)=>`<div><span>${titulo}</span><strong>${valor}</strong><p>${detalle}</p></div>`;
+  const filas=filasAdminHig(profesores,ahora);
   const tab=(nombre,texto)=>`<button type="button" role="tab" id="admin-tab-${nombre}" data-admin-area="${nombre}" aria-controls="admin-area-${nombre}" aria-selected="${nombre===area}" tabindex="${nombre===area?'0':'-1'}">${texto}</button>`;
   const panel=(nombre,contenido)=>`<section class="admin-hig-panel${nombre==='usuarios'?' adu adm-lista':''}" role="tabpanel" id="admin-area-${nombre}" data-admin-panel="${nombre}" aria-labelledby="admin-tab-${nombre}" tabindex="0"${nombre===area?'':' hidden'}>${contenido}</section>`;
   // Sin cabecera propia: «Administración» va en la barra (Lucas, 2026-10-22).
@@ -206,11 +228,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     <div class="admin-hig-areas" role="tablist" aria-label="Secciones de administración">
       ${tab('profesores','Profesores')}${tab('anuncios','Anuncios')}${tab('estadisticas','Estadísticas')}${tab('usuarios','Usuarios')}${tab('pautas','Pautas')}
     </div>
-    ${panel('profesores',`<h2>Profesores</h2>
-      <p class="admin-hig-nota">${profesores.length} profesores · ${r.pendientes} esperando revisión. Revisar logos sigue en SQL Editor.</p>
-      <div class="admin-hig-herramientas"><label class="admin-hig-busqueda" for="admin-buscar-profesor">Buscar<input type="search" id="admin-buscar-profesor" placeholder="Nombre del profesor" autocomplete="off"></label>
-      <label for="admin-estado-profesor">Estado<select id="admin-estado-profesor">${FILTROS_PROFESORES_ADMIN.map(([v,t])=>`<option value="${v}"${v===vistaAdmin.profesores?' selected':''}>${t}</option>`).join('')}</select></label></div>
-      <div class="admin-hig-profesores" id="admin-lista-profesores"></div>`)}
+    ${panel('profesores',panelProfesoresAdminHTML(profesores,ahora))}
     ${panel('anuncios',`${anunciosAdminEditorialHTML(profesores,ahora,historial,alcance)}
     <div class="adm-lista">
       <div class="adm-lista-barra">
@@ -295,7 +313,7 @@ function enlazarTemaFestivoAdmin(raiz){
 // La vista elegida sobrevive al repintado: cada acción vuelve a pintar el
 // panel, y quien publicaba desde "Por revisar" caía de vuelta en "Campañas"
 // con la búsqueda y el filtro borrados.
-let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:'aprobado',busquedaProfesores:''};
+let vistaAdmin={area:'anuncios',seccion:'campanas',busqueda:'',estado:'publicado',profesores:null,busquedaProfesores:''};
 // Esta bandeja se crea solo después de renderPuertaDosPasos. El RPC vuelve a
 // exigir en el servidor una cuenta administradora con el segundo factor (aal2).
 async function pintarReportesProgramaAdmin(raiz){
@@ -345,7 +363,6 @@ async function pintarPanelAdmin(raiz){
   const pedida=typeof tomarVistaNav==='function'&&tomarVistaNav('admin');
   if(pedida&&AREAS_ADMIN.includes(pedida))vistaAdmin.area=pedida;
   const pendientes=profesores.filter(p=>p.estado==='pendiente').length;
-  if(vistaAdmin.profesores===undefined)vistaAdmin.profesores='aprobado';
   marcarPendientesNavAdmin(pendientes);
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance,historial);
   pintarReportesProgramaAdmin(raiz);
@@ -356,18 +373,38 @@ async function pintarPanelAdmin(raiz){
   enlazarMetricasAdmin(raiz);
   const lista=raiz.querySelector('#admin-lista-profesores');
   if(lista&&typeof lista.querySelectorAll==='function'){
-    lista.innerHTML=profesores.map(personaAdminHigHTML).join('')+`<p class="admin-hig-motivo" id="admin-profesores-vacio" hidden>${profesores.length?'Nadie calza con este filtro.':'Todavía no hay profesores.'}</p>`;
-    const buscar=raiz.querySelector('#admin-buscar-profesor'),filtro=raiz.querySelector('#admin-estado-profesor');
-    buscar.value=vistaAdmin.busquedaProfesores||'';filtro.value=vistaAdmin.profesores;
+    const buscar=raiz.querySelector('#admin-buscar-profesor'),tabs=[...raiz.querySelectorAll('[data-admin-filtro-prof]')];
+    buscar.value=vistaAdmin.busquedaProfesores||'';
     const filtrar=()=>{
-      vistaAdmin={...vistaAdmin,profesores:filtro.value,busquedaProfesores:buscar.value};
-      const visibles=new Set(filtrarProfesoresAdmin(profesores,{estado:vistaAdmin.profesores,busqueda:buscar?buscar.value:''}).map(p=>String(p.user_id)));
+      const estado=vistaAdmin.profesores||(pendientes?'pendiente':'aprobado');
+      vistaAdmin.busquedaProfesores=buscar.value;
+      const coincidencias=filtrarProfesoresAdmin(profesores,{busqueda:buscar.value});
+      const nombres=new Set(coincidencias.map(p=>String(p.user_id)));
+      const visibles=new Set(coincidencias.filter(p=>p.estado===estado).map(p=>String(p.user_id)));
+      tabs.forEach(b=>{
+        const activo=b.dataset.adminFiltroProf===estado;
+        b.setAttribute('aria-selected',String(activo));b.tabIndex=activo?0:-1;
+      });
+      lista.setAttribute('aria-labelledby','adm-prof-tab-'+estado);
       lista.querySelectorAll('[data-admin-persona]').forEach(el=>{el.hidden=!visibles.has(el.dataset.adminPersona);});
-      const vacio=lista.querySelector('#admin-profesores-vacio');if(vacio)vacio.hidden=visibles.size>0;
+      lista.querySelector('#admin-prof-columnas').hidden=estado==='pendiente'||!visibles.size;
+      const alertas=lista.querySelectorAll('[data-admin-atencion-prof]');
+      alertas.forEach(el=>{el.hidden=!nombres.has(el.dataset.adminAtencionProf);});
+      const gestion=lista.querySelector('#admin-prof-gestion');if(gestion)gestion.hidden=![...alertas].some(el=>!el.hidden);
+      const vacio=lista.querySelector('#admin-profesores-vacio');
+      vacio.hidden=visibles.size>0;vacio.textContent=buscar.value?'Nadie coincide con esta búsqueda.':estado==='pendiente'?'No hay postulaciones por revisar.':'No hay profesores en este estado.';
     };
-    filtro.addEventListener('change',filtrar);
-    if(buscar)buscar.addEventListener('input',filtrar);
-    filtrar();
+    tabs.forEach((b,i)=>{
+      const elegir=()=>{vistaAdmin.profesores=b.dataset.adminFiltroProf;filtrar();};
+      b.addEventListener('click',elegir);
+      b.addEventListener('keydown',e=>{
+        const paso=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;
+        const n=e.key==='Home'?0:e.key==='End'?tabs.length-1:paso?(i+paso+tabs.length)%tabs.length:-1;
+        if(n<0)return;
+        e.preventDefault();vistaAdmin.profesores=tabs[n].dataset.adminFiltroProf;filtrar();tabs[n].focus();
+      });
+    });
+    buscar.addEventListener('input',filtrar);filtrar();
   }
   const mostrarArea=nombre=>{
     if(!AREAS_ADMIN.includes(nombre))return;
@@ -420,9 +457,22 @@ async function pintarPanelAdmin(raiz){
   raiz.querySelectorAll('[data-admin-ir]').forEach(b=>b.addEventListener('click',()=>{
     const [area,vista]=b.dataset.adminIr.split(':');
     mostrarArea(area);
-    if(area==='anuncios')raiz.querySelector(`[data-admin-seccion="${vista}"]`)?.click();
-    const estado=area==='profesores'&&raiz.querySelector('#admin-estado-profesor');
-    if(estado){estado.value=vista;estado.dispatchEvent(new Event('change',{bubbles:true}));}
+    if(area==='anuncios'){
+      const profesor=profesores.find(p=>p.user_id===b.dataset.adminGestionProf);
+      if(profesor)buscar.value=profesor.nombre||'';
+      const boton=raiz.querySelector(`[data-admin-seccion="${vista}"]`);boton?.click();
+      if(profesor){
+        // El nombre puede repetirse. Abre el aviso por su ID antes de editar o cobrar.
+        const anuncio=(profesor.anuncios||[]).find(a=>vista==='revision'?a.estado==='en_revision':cobrosEnDeudaAdmin(a)>0);
+        const fila=anuncio&&[...raiz.querySelectorAll('[data-admin-fila]')].find(f=>f.dataset.adminFila===anuncio.id);
+        if(fila){fila.open=true;fila.querySelector('summary')?.focus();}
+        else boton?.focus();
+      }
+    }
+    if(area==='profesores'){
+      const campo=raiz.querySelector('#admin-buscar-profesor');campo.value='';
+      const boton=raiz.querySelector(`[data-admin-filtro-prof="${vista}"]`);boton?.click();boton?.focus();
+    }
   }));
   enlazarAdminEditorial(raiz,historial,alcance,ahora);
   enlazarSelectoresPrivados(raiz);
@@ -543,7 +593,7 @@ async function pintarPanelAdmin(raiz){
     showConfirm(`¿Eliminar a ${b.dataset.nombre||'este profesor'} como profesor?`,
       'Se borran su ficha y sus borradores. Su cuenta y sus notas de estudiante no se tocan, y puede volver a postular.',
       ()=>llamar('admin_eliminar_profesor',{p_user_id:b.dataset.adminEliminar},'Profesor eliminado'),
-      {label:'Eliminar',danger:true})));
+      {label:'Eliminar',danger:true,focusCancel:true})));
   raiz.querySelectorAll('[data-admin-profesor]').forEach(b=>b.addEventListener('click',()=>{
     const pausar=b.dataset.estado==='suspendido';
     showConfirm(pausar?'¿Pausar a este profesor?':'¿Reactivar a este profesor?',
