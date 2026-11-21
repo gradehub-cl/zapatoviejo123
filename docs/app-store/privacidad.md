@@ -88,6 +88,13 @@ así que las notas **no** se declaran con propósito publicitario.
 La pestaña Amigos (solo en la app; `supabase/amigos.sql`, `amigos_grupos.sql`,
 `amigos_notas.sql`) **no agrega tipos de dato nuevos**: cae en Name, Other User
 Content y User ID, que ya se declaran como vinculados y para App Functionality.
+El calendario de grupos (salas reservadas y fechas de pruebas, sin notas) también
+cae en Other User Content.
+**Avisos push (opt-in):** el token APNs del iPhone se guarda asociado a la cuenta
+(`push_dispositivos`) solo para mandar avisos. Apple no lo pide como tipo de dato
+propio; lo conservador es incluirlo en *Identifiers → Device ID* vinculado y para
+App Functionality (*verificar* con la definición vigente antes de enviar). El
+widget «Hoy en la u» lee datos guardados en el teléfono: no se declara aparte.
 Lo que sí cambia es que hay datos que **otros usuarios ven**, y eso tiene que
 estar en la política pública (`privacidad.html`, filas de Amigos y «Con tus
 amigos y tus grupos»). Ni la ubicación ni los contactos del teléfono se usan:

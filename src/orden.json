@@ -121,7 +121,8 @@
     "src/marketplace/alumnos-ejemplo.js",
     "src/marketplace/alumnos-pantalla.js",
     "src/marketplace/encuestas.js",
-    "src/marketplace/denuncias.js"
+    "src/marketplace/denuncias.js",
+    "src/marketplace/denuncias-usuarios.js"
   ],
   "app-session.js": [
     "src/app-session/cliente-y-politicas.js",

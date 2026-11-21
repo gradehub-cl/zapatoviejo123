@@ -228,6 +228,7 @@ function panelAdminHigHTML(profesores,ahora,crecimiento=[],area='anuncios',alcan
     ${panel('pautas','<div id="admin-pautas-contenido"></div>')}
     ${panel('usuarios',`<h2>Usuarios</h2>
       <section class="adm-tarjeta admin-denuncias" id="admin-denuncias" aria-label="Denuncias"><h3>Denuncias</h3><p class="admin-hig-nota" role="status">Cargando denuncias…</p></section>
+      <section class="adm-tarjeta admin-denuncias" id="admin-denuncias-usuarios" aria-label="Denuncias de usuarios"><h3>Denuncias de usuarios</h3><p class="admin-hig-nota" role="status">Cargando denuncias…</p></section>
       <div class="adu-columnas">
         <section class="adm-tarjeta" id="admin-encuestas-contenido" aria-label="Encuestas"><p class="admin-hig-nota" role="status">Cargando encuestas…</p></section>
         <div class="adu-publico">
@@ -349,6 +350,7 @@ async function pintarPanelAdmin(raiz){
   raiz.innerHTML=(compatibilidadSqlClases.campanas||compatibilidadSqlClases.cobros?`<p class="profesor-info" role="status">${esc(AVISO_SQL_CLASES)}</p>`:'')+panelAdminHigHTML(profesores,ahora,crecimiento,vistaAdmin.area,alcance,historial);
   pintarReportesProgramaAdmin(raiz);
   if(typeof pintarDenunciasAdmin==='function')pintarDenunciasAdmin(raiz);
+  if(typeof pintarDenunciasUsuariosAdmin==='function')pintarDenunciasUsuariosAdmin(raiz);
   enlazarTemaFestivoAdmin(raiz);
   enlazarGraficosAdmin(raiz);
   enlazarMetricasAdmin(raiz);

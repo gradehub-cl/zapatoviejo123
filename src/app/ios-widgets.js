@@ -138,10 +138,17 @@ function borrarResumenWidgets(){
 // Tocar un widget abre la pantalla exacta: cl.gradehub.app://ramo/<id>,
 // ://agenda, ://estadisticas o ://inicio. Un ramo que ya no existe deja en Inicio.
 function abrirEnlaceWidget(url){
-  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
+  const m=/^cl\.gradehub\.app:\/\/(ramo|simular|agenda|estadisticas|inicio|amigos|amigo)(?:\/([A-Za-z0-9_-]{1,64}))?\/?$/.exec(String(url||''));
   // Una cuenta de profesor no tiene ramos ni widgets de estudiante.
   if(!m||!S.onboardingDone||esCuentaProfesor())return false;
   if(m[1]==='agenda'){showTab('agenda');return true;}
+  // «Hoy en la u»: la pestaña Amigos, o la ficha del amigo que se tocó.
+  if(m[1]==='amigos'||m[1]==='amigo'){
+    if(typeof amigosVisible!=='function'||!amigosVisible()){showTab('home');return false;}
+    showTab('amigos');
+    if(m[1]==='amigo'&&m[2])Promise.resolve(amigosListaCache||refrescarAmigos()).then(()=>abrirAmigo(m[2]));
+    return true;
+  }
   if(m[1]==='estadisticas'){showTab('stats');return true;}
   if((m[1]==='ramo'||m[1]==='simular')&&S.ramos.some(r=>r.id===m[2])){
     openRamo(m[2]);

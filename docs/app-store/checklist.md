@@ -91,15 +91,23 @@ Rama `claude/friendly-noether-h0w94l`. La pestaña aparece solo en la app nativa
 y solo cuando su SQL está aplicado; sin SQL, la app queda como estaba.
 
 - [ ] **[Martín]** Aplicar en producción, en este orden, después de
-      `administradores.sql`: `supabase/amigos.sql`, `supabase/amigos_grupos.sql`
-      y `supabase/amigos_notas.sql`. Desde su Mac:
-      `node bin/sql-produccion.js aplicar supabase/amigos.sql supabase/amigos_grupos.sql supabase/amigos_notas.sql`
+      `administradores.sql`: `supabase/amigos.sql`, `supabase/amigos_grupos.sql`,
+      `supabase/amigos_notas.sql`, `supabase/amigos_calendario.sql` y
+      `supabase/amigos_avisos.sql`. Desde su Mac:
+      `node bin/sql-produccion.js aplicar supabase/amigos.sql supabase/amigos_grupos.sql supabase/amigos_notas.sql supabase/amigos_calendario.sql supabase/amigos_avisos.sql`
       (un clic por archivo), o pegándolos en el SQL Editor. Comprobar con
       `node bin/sql-produccion.js consultar "select count(*) from pg_proc where proname in ('amigos_estado','mis_grupos','amigos_notas_estado')"` → 3.
       (Desde la nube no se puede: no hay token y quitar el clic de confirmación
       quedó descartado.)
-- [ ] **[código]** Pantalla en el panel de admin para `admin_denuncias_usuarios`
-      y `admin_resolver_denuncia_usuario` (App Review 1.2; hoy solo por SQL).
+- [x] **[código]** Pantalla en el panel de admin para las denuncias de usuarios.
+- [ ] **[Lucas]** Avisos push: llave APNs, Push Notifications en el App ID,
+      secretos, `supabase functions deploy avisos-push` y el Database Webhook.
+      Paso a paso en `supabase/functions/avisos-push/LEEME.md`. En Xcode, revisar
+      que Signing & Capabilities muestre **Push Notifications** (el permiso ya
+      está en `App.entitlements`).
+- [ ] **[Lucas/Martín]** Compilar en Xcode y probar en un iPhone: el widget
+      «Hoy en la u» (pequeño, mediano, grande y bloqueo) y los avisos. Se
+      escribieron sin poder compilar.
 - [ ] **[Lucas]** Cuenta demo para App Review con username, un amigo con horario
       y un grupo; anotarlo en `cuenta-demo.md` y en la nota para el revisor.
 - [ ] **[Lucas]** Publicar `privacidad.html` con las filas de Amigos antes del
@@ -108,6 +116,10 @@ y solo cuando su SQL está aplicado; sin SQL, la app queda como estaba.
       filas actualizadas en `privacidad.md` (Name, Other User Content, User ID).
 - [ ] **[código]** Universal Links (#663): el link `gradehub.cl/?amigo=…` hoy
       abre la web, donde Amigos no aparece.
+- Segunda versión (decidido por Lucas, 2026-11-20): Amigos parte solo dentro de
+  la misma universidad. Lo único entre universidades que vale la pena es un
+  calendario de pruebas en un grupo para ver cuándo pueden juntarse; turno y
+  almorzar entre U se descartaron.
 
 ## Notas
 
