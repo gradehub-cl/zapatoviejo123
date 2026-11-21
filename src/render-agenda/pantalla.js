@@ -3,32 +3,63 @@ function renderAgenda(){
   const body=document.getElementById("agenda-body");if(!body)return;
   activarAccionesAgenda(body);
   agendaDetalleAbierto=null;
-  const resumenInicial=document.getElementById('agenda-sub');
-  if(resumenInicial)resumenInicial.textContent='';
-  // Día | Semana | Mes (horario-semana.js y agenda-dia-mes.js). Mes es la
-  // lista de siempre con la grilla del mes arriba; el profesor ve solo la lista.
+  // Evaluaciones | Horario (horario-semana.js). Evaluaciones es la lista de
+  // siempre, con el mes arriba si se pide; el profesor ve solo la lista.
   const vista=typeof pintarVistaAgenda==='function'?pintarVistaAgenda():'lista';
-  if(vista==='semana'){renderHorarioSemana(body);return;}
-  if(vista==='dia'){renderDiaAgenda(body);return;}
-  renderListaAgenda(body,vista==='mes');
+  // El título, el resumen y «Calendario» no cambian al pasar de una vista a
+  // otra (Lucas, 2026-11-21: «está mezclado y es difícil entenderlo»). Cada
+  // vista pinta solo su cuerpo.
+  encabezadoAgenda();
+  if(vista==='horario'){renderHorarioSemana(body);return;}
+  renderListaAgenda(body,vista==='evaluaciones');
 }
+// El resumen de arriba habla siempre de evaluaciones, en las tres vistas.
+function resumenAgendaTexto(ahora=new Date()){
+  const events=agendaEvents(),listaPendientes=pendientesDeAgenda(ahora),rendidas=agendaRendidas();
+  if(events.length===0&&listaPendientes.length===0&&rendidas.length===0)return '';
+  if(events.length===0)return listaPendientes.length?`${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}`:'Todo al día';
+  const pendientesEv=events.map(e=>({...e,estadoAgenda:estadoEventoAgenda(e)})).filter(e=>e.estadoAgenda!=='con_nota');
+  const porVenir=pendientesEv.filter(e=>e.estadoAgenda==='por_venir');
+  const fechasPasadas=pendientesEv.filter(e=>e.estadoAgenda==='esperando_nota'||e.estadoAgenda==='requiere_revision');
+  const fechasPorRevisar=fechasPasadas.filter(e=>e.estadoAgenda==='requiere_revision');
+  if(listaPendientes.length>0)return `${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}${porVenir.length?` · ${porVenir.length} por venir`:''}`;
+  if(porVenir.length===0&&fechasPasadas.length===0)return 'Todo al día';
+  if(porVenir.length===0)return `${fechasPasadas.length} fecha${fechasPasadas.length!==1?'s':''} pasada${fechasPasadas.length!==1?'s':''} sin nota`;
+  const prox=porVenir.map(withPriority).reduce((min,e)=>e.dias<min.dias?e:min);
+  const partes=[`${porVenir.length} por venir`,`la próxima ${cuandoTexto(prox.dias).toLowerCase()}`];
+  if(fechasPasadas.length)partes.push(`${fechasPasadas.length} sin nota`);
+  if(fechasPorRevisar.length)partes.push(`${fechasPorRevisar.length} por revisar`);
+  return partes.join(' · ');
+}
+function encabezadoAgenda(ahora=new Date()){
+  const titulo=document.getElementById('agenda-title'),sub=document.getElementById('agenda-sub');
+  if(titulo)titulo.textContent='Qué se viene';
+  if(sub)sub.textContent=resumenAgendaTexto(ahora);
+  // Importar fechas sirve justo cuando la Agenda aún no tiene ninguna. El menú
+  // decide cuáles opciones de salida aplican; esconder el acceso lo volvería
+  // inaccesible para su caso principal.
+  const expBtn=document.getElementById('agenda-export-btn');
+  if(expBtn)expBtn.style.display='block';
+}
+// El mes es opcional: abierto empujaba «Tus prioridades» fuera de la pantalla.
+const CLAVE_MES_AGENDA='gh_agenda_mes';
+let agendaMesVisible=(()=>{try{return localStorage.getItem(CLAVE_MES_AGENDA)==='1';}catch(e){return false;}})();
 function renderListaAgenda(body,conMes=false){
-  // La grilla del mes va arriba de la lista; sin fechas no hay grilla.
-  const mes=conMes&&typeof mesAgendaHTML==='function'?mesAgendaHTML():'';
+  // La grilla del mes va arriba de la lista, si se pidió; sin fechas no hay grilla.
+  const mesPosible=conMes&&typeof mesAgendaHTML==='function'&&agendaEvents().length>0;
+  const mes=mesPosible&&agendaMesVisible?mesAgendaHTML():'';
+  if(conMes&&typeof accionVistaAgenda==='function')accionVistaAgenda(mesPosible?`<button type="button" class="agenda-vista-accion" data-agenda-mes-toggle aria-expanded="${agendaMesVisible}">${agendaMesVisible?'Ocultar mes':'Ver mes'}</button>`:'',()=>{
+    agendaMesVisible=!agendaMesVisible;
+    try{localStorage.setItem(CLAVE_MES_AGENDA,agendaMesVisible?'1':'0');}catch(e){}
+    renderAgenda();
+    document.querySelector('#agenda-vista [data-agenda-mes-toggle]')?.focus();
+  });
   const pintar=html=>{body.innerHTML=mes+html;if(mes)enlazarMesAgenda(body);};
-  const tituloAgenda=document.getElementById('agenda-title');
-  if(tituloAgenda)tituloAgenda.textContent='Qué se viene';
   const events=agendaEvents();
   const sinFecha=agendaSinFecha();
   const rendidas=agendaRendidas();
   const ahora=new Date();
   const listaPendientes=pendientesDeAgenda(ahora);
-
-  const expBtn=document.getElementById("agenda-export-btn");
-  // Importar fechas sirve justo cuando la Agenda aún no tiene ninguna. El menú
-  // decide cuáles opciones de salida aplican; esconder el acceso lo volvería
-  // inaccesible para su caso principal.
-  if(expBtn)expBtn.style.display="block";
 
   if(events.length===0&&listaPendientes.length===0&&rendidas.length===0){
     const hayRamos=S.ramos.length>0;
@@ -62,8 +93,6 @@ function renderListaAgenda(body,conMes=false){
 
   if(events.length===0){
     pintar(agendaPendientesHTML(listaPendientes,ahora)+agendaRendidasHTML(rendidas,[]));
-    const sub=document.getElementById('agenda-sub');
-    if(sub)sub.textContent=listaPendientes.length?`${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}`:'Todo al día';
     activarDetallesAgenda(body);
     return;
   }
@@ -72,27 +101,7 @@ function renderListaAgenda(body,conMes=false){
   const eventosPendientes=clasificados.filter(e=>e.estadoAgenda!=='con_nota').map(withPriority);
   // Hoy y mañana también: son lo más próximo y van en "Tus prioridades".
   const porVenir=eventosPendientes.filter(e=>e.estadoAgenda==='por_venir');
-  const fechasPasadas=eventosPendientes.filter(e=>e.estadoAgenda==='esperando_nota'||e.estadoAgenda==='requiere_revision');
-  const fechasPorRevisar=fechasPasadas.filter(e=>e.estadoAgenda==='requiere_revision');
   const ordenadas=ordenarAgenda(porVenir,agendaOrdenActual);
-
-  // Subtítulo del hero: resume el estado en una línea
-  const sub=document.getElementById('agenda-sub');
-  if(sub){
-    if(listaPendientes.length>0){
-      sub.textContent=`${listaPendientes.length} pendiente${listaPendientes.length!==1?'s':''}${porVenir.length?` · ${porVenir.length} por venir`:''}`;
-    }else if(porVenir.length===0&&fechasPasadas.length===0){
-      sub.textContent='Todo al día';
-    }else if(porVenir.length===0){
-      sub.textContent=`${fechasPasadas.length} fecha${fechasPasadas.length!==1?'s':''} pasada${fechasPasadas.length!==1?'s':''} sin nota`;
-    }else{
-      const prox=porVenir.reduce((min,e)=>e.dias<min.dias?e:min,porVenir[0]);
-      const partes=[`${porVenir.length} por venir`,`la próxima ${cuandoTexto(prox.dias).toLowerCase()}`];
-      if(fechasPasadas.length)partes.push(`${fechasPasadas.length} sin nota`);
-      if(fechasPorRevisar.length)partes.push(`${fechasPorRevisar.length} por revisar`);
-      sub.textContent=partes.join(' · ');
-    }
-  }
 
   // Las prioridades van siempre arriba; Pendientes, debajo y plegado.
   let html='';

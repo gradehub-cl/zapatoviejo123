@@ -98,13 +98,14 @@ function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
   return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
 }
-function abrirNotaEnFila(boton){
+function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   if(!boton||!boton.isConnected)return;
   const input=document.createElement('input');
   input.type='text';input.className='eval-row-input nota-campo';input.inputMode='decimal';
   // Lucas, 2026-11-03: al tocar una sombra la casilla queda vacía. Si no se anota
   // nada, guardar() devuelve el botón y la sombra vuelve a verse.
   input.autocapitalize='characters';input.maxLength=4;
+  if(idCampo)input.id=idCampo;
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
   if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);
   let terminado=false;
@@ -115,6 +116,8 @@ function abrirNotaEnFila(boton){
     terminado=true;
     const raw=input.value.trim();
     if(!raw){input.replaceWith(boton);return;}
+    // Inicio reutiliza el mismo campo sin navegar ni cambiar currentRamoId.
+    if(alGuardar){if(alGuardar(raw)===false)terminado=false;return;}
     if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,raw);
     else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),raw);
     else setDirectNota(boton.dataset.catId,raw);
@@ -127,6 +130,7 @@ function abrirNotaEnFila(boton){
     else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');}
   });
   boton.replaceWith(input);input.focus({preventScroll:true});
+  return input;
 }
 
 function renderRamo(){
@@ -755,7 +759,7 @@ function renderRamo(){
           <div class="eval-row-name">${esc(cat.nombre)}</div>${derivada}
           <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value)}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${exenta?(typeof calculoCategoria?.value==='number'?`<span class="ramo-nota">${nf(calculoCategoria.value)}</span>`:`<span class="ramo-nota neutral" aria-label="Sin nota: exento/a">·</span>`):justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
       adjuntarCategoria(row,cat);

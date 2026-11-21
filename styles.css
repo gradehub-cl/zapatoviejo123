@@ -4803,8 +4803,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
    falta. El tramo del resto del ramo no se entendía (Lucas, 2026-11-03). */
 #screen-ramo .ficha-peso-grupo{display:block;width:100%;height:100%;}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
-#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
-#screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
+#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input,html.app-nativa .nota-inicio button.nota-en-fila,html.app-nativa .nota-inicio input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
+#screen-ramo button.nota-en-fila,html.app-nativa .nota-inicio button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
 #screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
@@ -4814,7 +4814,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .casillas-btn:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
 #screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
 #screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}
-#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible,html.app-nativa .nota-inicio .nota-en-fila:focus-visible,html.app-nativa .nota-inicio input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 @keyframes nota-en-fila{from{opacity:.5;}to{opacity:1;}}
 @media(prefers-reduced-motion:reduce){#screen-ramo .nota-campo{animation:none;}}
 @container ficha-hero (max-width:18rem){
@@ -6068,7 +6068,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
    Pestañas de texto con la raya bajo la activa, como el rango de «Tu promedio
    en el tiempo» en Estadísticas: se leen como parte de la app. */
 #agenda-vista{padding:2px 20px 0;}
-.agenda-vista{display:flex;gap:24px;border-bottom:1px solid var(--border);}
+.agenda-vista-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);}
+.agenda-vista{display:flex;gap:24px;}
+#agenda-vista .agenda-vista-accion{min-height:44px;padding:0 0 0 8px;border:0;background:transparent;color:var(--primary);font:600 .875rem var(--font-ui);cursor:pointer;white-space:nowrap;}
+#agenda-vista .agenda-vista-accion:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 #agenda-vista .agenda-vista button{position:relative;min-height:44px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--fg2);font:500 .9375rem var(--font-ui);cursor:pointer;}
 #agenda-vista .agenda-vista button[aria-pressed="true"]{color:var(--fg);font-weight:650;}
 #agenda-vista .agenda-vista button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:1px;background:currentColor;}
@@ -6088,20 +6091,19 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-semana-dia.hoy{background:color-mix(in srgb,var(--fg),transparent 97%);}
 .horario-semana-ahora{position:absolute;left:0;right:0;height:2px;background:var(--fg);z-index:1;pointer-events:none;}
 .horario-semana-clase{position:absolute;box-sizing:border-box;min-width:0;margin:0;padding:5px 3px 4px 5px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;
-  border:1px solid var(--horario-borde);border-radius:6px;background:color-mix(in srgb,var(--ramo) var(--horario-tinte),var(--card));color:var(--fg);text-align:left;font:inherit;cursor:pointer;
-  --horario-tinte:8%;--horario-borde:color-mix(in srgb,var(--ramo) 78%,var(--fg));}
+  border:1px solid var(--horario-borde);border-radius:6px;background:color-mix(in srgb,var(--ramo) var(--horario-tinte),var(--card));color:var(--fg2);text-align:left;font:inherit;cursor:pointer;
+  --horario-tinte:6%;--horario-borde:color-mix(in srgb,var(--ramo) 45%,var(--border));}
 /* Como las tarjetas de perfil (.directorio-tarjeta): contorno del color del ramo y fondo atenuado. */
-@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .horario-semana-clase{--horario-tinte:16%;--horario-borde:color-mix(in srgb,var(--ramo) 70%,#fff);}}
-:root[data-modo="oscuro"] .horario-semana-clase{--horario-tinte:16%;--horario-borde:color-mix(in srgb,var(--ramo) 70%,#fff);}
+/* Las clases son el fondo de la semana: tinte y contorno más bajos, texto
+   secundario (≥4,5:1). Las evaluaciones, rellenas, van encima. */
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .horario-semana-clase{--horario-tinte:10%;--horario-borde:color-mix(in srgb,var(--ramo) 50%,var(--border));}}
+:root[data-modo="oscuro"] .horario-semana-clase{--horario-tinte:10%;--horario-borde:color-mix(in srgb,var(--ramo) 50%,var(--border));}
 .horario-semana-clase b{display:flex;flex-wrap:wrap;column-gap:.2em;font-size:.6875rem;font-weight:700;line-height:1.2;letter-spacing:-.01em;max-width:100%;}
 .horario-semana-clase b span{white-space:nowrap;}
 .horario-semana-clase b.horario-semana-nombre{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:650;}
 .horario-semana-sala{font-size:.6875rem;line-height:1.2;color:var(--fg2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .horario-semana-clase:focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
-.horario-semana-acciones{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 18px;}
 .horario-semana-secundaria{margin-top:10px;border:0;color:var(--fg2);padding-left:0;}
-.horario-semana-faltan ul{list-style:none;margin:6px 0 0;padding:0;}
-.horario-semana-faltan button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
 .horario-semana-mas{color:var(--fg2);font-size:.8125rem;font-weight:600;}
 .horario-elegir-ramo{display:grid;gap:6px;margin:14px 0;}
 .horario-elegir-ramo button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ramo);border-radius:10px;background:var(--card);color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
@@ -6159,11 +6161,44 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* Relleno sólido: se distingue de una clase sin depender solo del color, y el
    texto es blanco o casi negro según el ramo (≥4,5:1, HIG Color). */
 .horario-semana-chip,.horario-semana-eval{border:0;background:var(--ramo);color:var(--ramo-texto,var(--fg));font:inherit;text-align:left;cursor:pointer;}
-.horario-semana-chip{min-height:44px;padding:4px;border-radius:6px;font-size:.6875rem;font-weight:700;line-height:1.2;overflow:hidden;overflow-wrap:anywhere;}
+.horario-semana-chip{display:flex;flex-direction:column;gap:1px;min-height:44px;padding:4px;border-radius:6px;font-size:.6875rem;font-weight:700;line-height:1.2;overflow:hidden;overflow-wrap:anywhere;}
+.horario-semana-chip b{font-weight:800;}
+.horario-semana-eval-ramo{display:flex;flex-wrap:wrap;font-weight:600;}
+.horario-semana-eval-ramo>span{white-space:nowrap;}
 .horario-semana-eval{position:absolute;left:0;right:0;z-index:2;box-sizing:border-box;display:flex;flex-direction:column;gap:1px;padding:4px 3px 3px 5px;border-radius:6px;box-shadow:0 0 0 2px var(--bg);overflow:hidden;}
 .horario-semana-eval b{font-size:.6875rem;font-weight:800;line-height:1.15;overflow-wrap:anywhere;}
 .horario-semana-eval span{font-size:.6875rem;font-weight:600;font-variant-numeric:tabular-nums;}
 :is(.horario-semana-chip,.horario-semana-eval):focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
+/* Ver y editar separados: «Editar horario» va junto a las pestañas. */
+#agenda-body .agenda-nav-texto{display:flex;flex-direction:column;min-width:0;}
+#agenda-body .agenda-nav-nota{font-size:.75rem;font-weight:600;color:var(--fg2);}
+#agenda-body .horario-semana-faltan-aviso{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;margin:-6px 0 8px;padding:0;border:0;background:transparent;color:var(--fg2);font:500 .875rem var(--font-ui);text-align:left;cursor:pointer;}
+#agenda-body .horario-semana-faltan-aviso span{color:var(--primary);font-weight:600;}
+#agenda-body .horario-semana-faltan-aviso:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+/* Horario: la tira elige el día que se ve debajo; su columna se marca suave en la semana. */
+#agenda-body .horario-tira{display:grid;grid-template-columns:repeat(var(--horario-dias),minmax(0,1fr));gap:4px;margin:0 0 4px;}
+#agenda-body .horario-tira button{min-height:52px;padding:4px 0;border:0;border-radius:10px;background:transparent;color:var(--fg2);font:600 .75rem var(--font-ui);text-align:center;cursor:pointer;font-variant-numeric:tabular-nums;}
+#agenda-body .horario-tira button b{display:block;font-size:1.0625rem;font-weight:650;color:var(--fg);line-height:1.25;}
+#agenda-body .horario-tira button.hoy{color:var(--primary);}
+#agenda-body .horario-tira button.hoy b{color:var(--primary);}
+#agenda-body .horario-tira button[aria-pressed="true"]{background:var(--fg);color:var(--bg);}
+#agenda-body .horario-tira button[aria-pressed="true"] b{color:var(--bg);}
+#agenda-body .horario-tira button:focus-visible{outline:2px solid var(--primary);outline-offset:1px;}
+@media(hover:hover){#agenda-body .horario-tira button[aria-pressed="false"]:hover{background:var(--muted);}}
+@media(prefers-reduced-motion:no-preference){#agenda-body .horario-tira button{transition:background var(--motion-fast) var(--ease-out);}}
+.horario-semana-cabecera span.sel{color:var(--fg);box-shadow:inset 0 -2px 0 var(--fg);border-radius:0;}
+.horario-semana-dia.sel{background:color-mix(in srgb,var(--fg),transparent 95%);}
+#agenda-body .horario-semana-detalle{margin-bottom:8px;}
+/* «Tu horario» (hoja) */
+.tu-horario-ramos{list-style:none;margin:8px 0 12px;padding:0;}
+.tu-horario-ramos button{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.tu-horario-ramos li:last-child button{border-bottom:1px solid var(--border);}
+.tu-horario-ramos i{flex:none;width:4px;align-self:stretch;border-radius:2px;background:var(--ramo);}
+.tu-horario-ramos button>span:not(.horario-semana-mas){display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.tu-horario-ramos b{font:600 .9375rem var(--font-ui);}
+.tu-horario-ramos small{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.tu-horario-ramos button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+.tu-horario-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
 /* Mes */
 #agenda-body .agenda-mes{margin-bottom:6px;font-variant-numeric:tabular-nums;}
 #agenda-body .agenda-mes-semana,#agenda-body .agenda-mes-grilla{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}
@@ -6246,6 +6281,20 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .calif-denunciar{display:block;margin-top:4px;color:var(--fg2);font-size:.875rem;}
 .admin-denuncias{margin-bottom:16px;}
 .denuncia-admin-detalles{margin:6px 0 10px;padding-left:18px;font-size:.8125rem;color:var(--fg2);}
+
+/* Nota pendiente en Inicio: reutiliza el control de la ficha, solo app. */
+html.app-nativa .nota-inicio{margin:8px 20px 14px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);color:var(--fg);font-family:var(--font-ui);}
+html.app-nativa .nota-inicio[hidden]{display:none;}
+html.app-nativa .nota-inicio-fila{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
+html.app-nativa .nota-inicio-texto{flex:1 1 10rem;min-width:0;}
+html.app-nativa .nota-inicio h2{margin:0;font-size:1rem;line-height:1.35;font-weight:650;overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-ramo{margin:4px 0 0;font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-acciones{display:flex;flex:none;flex-direction:column;align-items:flex-end;gap:0;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-ahora]{min-width:44px;min-height:44px;padding:8px 6px;border:0;border-radius:8px;background:none;color:var(--fg2);font:inherit;font-size:.8125rem;cursor:pointer;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-canvas]{min-width:44px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--primary);font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;}
+html.app-nativa .nota-inicio-acciones button:active{opacity:.75;}
+html.app-nativa .nota-inicio-acciones button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+html.app-nativa #nota-inicio-error{margin:8px 0 0;font-size:.8125rem;color:var(--fg2);}
 
 /* ─── Reglas del ramo: lectura por capas, solo app ─────────────────────── */
 html.app-nativa .reglas-ramo{--est-linea:var(--border);--est-gris:var(--fg3);margin:20px 0 24px;padding:0 20px;color:var(--fg);font-family:var(--font-ui);}

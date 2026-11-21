@@ -234,6 +234,21 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     chk('y la próxima vuelta sí lo trae',cel.run('traerNubeAlVolver()')===true);await esperar(50);
     chk('ahí aparece la nota',JSON.stringify(cel.notas())===JSON.stringify([[[6],[]]]));
   }
+  {
+    // Una nota a medio escribir en la fila no se pisa: se espera a soltarla.
+    const nube=createNubeYa();
+    const cel=await preparar(nube);
+    const pc=dispositivo(nube);await pc.entrar('u1');
+    pc.anotar(0,6.1,'p');await pc.subir();
+    cel.run(`document.activeElement={tagName:'INPUT',type:'text'};_ultimaLecturaNube=0`);
+    chk('con un campo de nota con el foco no pide la nube',cel.run('traerNubeAlVolver()')===false);
+    await esperar(30);
+    chk('y no cambia lo que se está escribiendo',JSON.stringify(cel.notas())===JSON.stringify([[[],[]]]));
+    cel.run(`document.activeElement={tagName:'BUTTON'}`);
+    chk('un botón con el foco no lo frena',cel.run('traerNubeAlVolver()')===true);await esperar(50);
+    chk('y ahí aparece la nota',JSON.stringify(cel.notas())===JSON.stringify([[[6.1],[]]]));
+    cel.run('document.activeElement=null');
+  }
   chk('volver a la pantalla, a la ventana o recuperar la red llaman a traerNubeAlVolver',
     /else\{reintentarSubida\(\);traerNubeAlVolver\(\);\}/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8'))
     &&/addEventListener\('focus',\(\)=>traerNubeAlVolver\(\)\)/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8')));

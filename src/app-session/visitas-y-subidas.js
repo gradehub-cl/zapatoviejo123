@@ -47,8 +47,18 @@ async function loadFromCloud(){
 // con un modal abierto). Como mucho una vez cada 30 segundos, y sin avisos de
 // «sin conexión» si no hay red: la copia local sigue sirviendo.
 const NUBE_AL_VOLVER_MS=30000;
+// Una nota a medio escribir en la fila (sin hoja abierta) se perdería al
+// repintar: el valor solo se guarda en `change`. Si hay un campo de texto con
+// el foco, se espera a la próxima vuelta.
+function escribiendoAhora(){
+  const el=typeof document!=='undefined'&&document.activeElement;
+  if(!el||!el.tagName)return false;
+  const tag=String(el.tagName).toUpperCase();
+  return tag==='TEXTAREA'||el.isContentEditable===true||tag==='INPUT'&&!/^(button|checkbox|radio|range|submit|reset|file|color)$/i.test(el.type||'');
+}
 function traerNubeAlVolver(ahora=Date.now()){
   if(!supabaseClient||!currentUser||!S||!S.onboardingDone)return false;
+  if(escribiendoAhora())return false;
   const uid=currentUser.id;
   // Sin base todavía (primera sincronización en curso) lo resuelve afterLogin.
   if(getCacheOwner()!==uid||!leerBaseSync(uid))return false;
