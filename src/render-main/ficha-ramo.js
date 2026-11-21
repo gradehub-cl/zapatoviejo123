@@ -759,7 +759,7 @@ function renderRamo(){
           <div class="eval-row-name">${esc(cat.nombre)}</div>${derivada}
           <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value)}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${exenta?(typeof calculoCategoria?.value==='number'?`<span class="ramo-nota">${nf(calculoCategoria.value)}</span>`:`<span class="ramo-nota neutral" aria-label="Sin nota: exento/a">·</span>`):justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
       adjuntarCategoria(row,cat);
