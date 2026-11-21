@@ -11,7 +11,7 @@ assert.match(pend,/class="accion-principal" data-admin-postulacion="u1" data-est
 assert.match(pend,/data-estado="rechazado">Rechazar/);
 assert.doesNotMatch(pend,/data-admin-eliminar/,'una postulación se rechaza, no se elimina');
 assert.match(pend,/&lt;b&gt;Enseño/,'la presentación se muestra para decidir, sin entrar como HTML');
-assert.match(pend,/postuló el 20 de octubre/);
+assert.match(pend,/Postuló el 20 de octubre/);
 const limpio=fila({estado:'aprobado'});
 assert.match(limpio,/data-estado="suspendido">Pausar profesor/);
 assert.match(limpio,/data-admin-eliminar="u1"/,'sin historial se puede eliminar');
@@ -31,16 +31,19 @@ console.log('OK admin profesores: aceptar, rechazar, pausar y eliminar solo cuan
 const ficha=fila({estado:'aprobado',panel_alumnos:true,alumnos_conectados:3,nota:'<i>15%</i> comisión',
   ultimos_30_dias:{vieron:120,abrieron:30,contactaron:7},anuncios:[{estado:'publicado'},{estado:'borrador',cobros:[{estado:'deuda'}]},{estado:'eliminado'}],
   historial:[{accion:'panel_alumnos',detalle:{activo:false},fecha:'2026-10-22T15:00:00Z',admin:'admin@ejemplo.cl'},{accion:'algo_nuevo',fecha:'2026-10-21T15:00:00Z'}]});
-assert.match(ficha,/<summary>Ficha del profesor<\/summary>/);
+const resumen=ficha.split('</summary>')[0];
+assert.match(resumen,/Profe sintético/);
+assert.doesNotMatch(resumen,/ejemplo.cl|data-admin-profesor|data-admin-eliminar/);
+assert.match(ficha.split('</summary>')[1],/profe@ejemplo.cl/);
 assert.match(ficha,/Alcance · últimos 30 días[\s\S]*Lo contactaron<\/span><b>7<\/b>/,'cruza contactos con lo que reporta');
-assert.match(ficha,/Publicados<\/dt><dd>1<\/dd>[\s\S]*Borradores<\/dt><dd>1<\/dd>/,'un eliminado no se cuenta');
-assert.match(ficha,/Cobros en deuda<\/dt><dd>1/);
+assert.match(ficha,/Publicados<\/small><b>1<\/b>[\s\S]*Borradores · 1/,'un eliminado no se cuenta');
+assert.match(ficha,/Cobros en deuda<\/small><b>1/);
 assert.match(ficha,/role="switch" aria-checked="true" data-admin-panel-alumnos="u1" data-activo="false" data-alumnos="3">Ocultar/);
 assert.match(ficha,/&lt;i&gt;15%&lt;\/i&gt; comisión<\/textarea>/,'la nota no entra como HTML');
 assert.match(ficha,/Ocultó el panel de alumnos<\/span><small>[^<]*admin@ejemplo\.cl/);
 assert.match(ficha,/algo_nuevo/,'una acción sin texto se muestra igual, sin inventar');
 const sinSql=fila({estado:'aprobado'});
-assert.doesNotMatch(sinSql,/data-admin-panel-alumnos|data-admin-nota|Últimos cambios|30 días/,'sin el SQL nuevo, la ficha no ofrece lo que no puede guardar');
+assert.doesNotMatch(sinSql,/data-admin-panel-alumnos|data-admin-nota|Últimos cambios|Alcance · últimos 30 días/,'sin el SQL nuevo, la ficha no ofrece lo que no puede guardar');
 assert.doesNotMatch(fila({estado:'pendiente'}),/Ficha del profesor/,'una postulación todavía no tiene ficha');
 ctx.__l=[{user_id:'a',nombre:'Academia Álgebra',estado:'aprobado'},{user_id:'b',nombre:'Profe Pendiente',estado:'pendiente'},{user_id:'c',nombre:'Otra academia',estado:'suspendido'}];
 const filtro=o=>vm.runInContext(`filtrarProfesoresAdmin(__l,${JSON.stringify(o)}).map(p=>p.user_id).join()`,ctx);
@@ -48,3 +51,21 @@ assert.equal(filtro({estado:'pendiente'}),'b');
 assert.equal(filtro({estado:'',busqueda:'academia'}),'a,c','busca sin importar mayúsculas');
 assert.equal(filtro({estado:'',busqueda:'algebra'}),'a','ni tildes');
 console.log('OK ficha del profesor: datos, panel de alumnos, nota, historial y filtros');
+
+const heredado=fila({estado:'aprobado',alumnos_conectados:undefined,ultimos_30_dias:null});
+assert.match(heredado,/Alumnos conectados<\/small><b>—/);
+const deudaAnterior=fila({estado:'suspendido',anuncios:[{estado:'eliminado',cobros:[{estado:'deuda'}]}]});
+assert.match(deudaAnterior,/Cobros en deuda<\/small><b>1/,'el cobro histórico sigue siendo una tarea');
+assert.ok(limpio.indexOf('data-admin-eliminar')>limpio.indexOf('data-admin-profesor'));
+
+// Tamaños distintos detectan conteos cruzados y permiten cotejar el riel.
+ctx.muestra=['aprobado','pendiente','rechazado','pendiente','aprobado','aprobado'].map((estado,i)=>({
+  user_id:'prueba-'+i,nombre:'Docente '+i,estado,anuncios:[]
+}));
+const panel=vm.runInContext('panelProfesoresAdminHTML(muestra,0)',ctx);
+for(const [estado,n] of [['pendiente',2],['aprobado',3],['suspendido',0],['rechazado',1]]){
+  assert.match(panel,new RegExp('data-admin-filtro-prof="'+estado+'">[^<]+<span>'+n+'</span>'));
+}
+assert.ok(panel.indexOf('data-admin-persona="prueba-1"')<panel.indexOf('data-admin-persona="prueba-0"'));
+assert.doesNotMatch(panel,/SQL Editor/);
+assert.match(vm.runInContext('panelProfesoresAdminHTML([],0)',ctx),/Sin postulaciones, deudas ni anuncios por revisar/);

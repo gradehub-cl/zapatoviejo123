@@ -3608,34 +3608,81 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-hig .admin-anuncio-estadisticas :is(.clase-sin-datos,.clase-privacidad){font-size:.875rem;}
 .admin-hig .admin-anuncio details>summary{padding:10px 0;cursor:pointer;}
 .admin-hig-profesores{border-top:1px solid var(--border);}
-.admin-hig-persona{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 0;border-bottom:1px solid var(--border);}
-.admin-hig-persona>div{min-width:0;overflow-wrap:anywhere;}
-.admin-hig-persona h3{font-size:1rem;margin:0;}
-.admin-hig-persona p{font-size:.8125rem;color:var(--fg2);margin:4px 0 0;}
-.admin-hig-persona .admin-hig-presentacion{max-width:60ch;color:var(--fg);line-height:1.45;white-space:pre-line;}
-.admin-hig-persona .admin-hig-motivo{color:var(--fg3);}
-.admin-hig-persona-acciones{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;flex:none;}
-.admin-hig-persona-acciones>.accion-principal{margin:0;}
-.admin-hig-persona-acciones>button{min-height:44px;}
-.admin-hig-eliminar{color:var(--red);}
-.admin-hig-persona{flex-wrap:wrap;}
-.admin-hig-persona[hidden]{display:none;}
-.admin-hig-ficha{flex-basis:100%;}
-.admin-hig-ficha>summary{display:inline-flex;align-items:center;min-height:44px;cursor:pointer;font-size:.875rem;font-weight:600;color:var(--primary);}
+/* Administración web: revisión de profesores y directorio de la sesión. */
+#admin-area-profesores{container-type:inline-size;font-family:var(--font-ui);}
+#admin-area-profesores [hidden]{display:none;}
+.adm-prof-barra{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:16px 0;}
+.adm-prof-tabs{display:flex;flex-wrap:wrap;gap:2px;}
+.adm-prof-tabs button,.adm-prof-atencion button{min-width:44px;min-height:44px;padding:6px 10px;background:transparent;border:0;color:var(--fg2);font:inherit;font-size:.875rem;cursor:pointer;}
+.adm-prof-tabs button{border-bottom:2px solid transparent;font-variant-numeric:tabular-nums;}
+.adm-prof-tabs button span::before{content:"· ";}
+.adm-prof-tabs button[aria-selected=true]{border-color:var(--fg);font-weight:650;color:var(--fg);}
+.adm-prof-buscar input[type=search]::placeholder{color:var(--fg2);opacity:1;}
+.adm-prof-buscar input[type=search]{min-height:44px;width:100%;background:var(--bg2);border-radius:8px;}
+.adm-postulaciones{display:grid;gap:12px;}
+.adm-postulacion{padding:16px 20px;border:1px solid var(--border2);border-radius:8px;overflow-wrap:anywhere;}
+.adm-postulacion h3,.adm-prof-atencion h3{font-size:1rem;margin:0;color:var(--fg);}
+.adm-prof-fecha,.adm-prof-contacto p,.adm-prof-formacion p,.adm-prof-sin-tareas,#admin-profesores-vacio{color:var(--fg2);font-size:.875rem;}
+.adm-prof-fecha,.adm-prof-formacion p{margin:2px 0;}
+.adm-prof-formacion{margin-top:10px;font-size:.875rem;}
+.adm-prof-formacion section{display:flex;align-items:baseline;gap:8px;}
+.adm-prof-formacion h4{margin:0;}
+.adm-prof-presentacion{max-width:72ch;margin:10px 0;line-height:1.5;white-space:pre-line;}
+.adm-postular-acciones,.adm-prof-gestion{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.adm-postular-acciones .accion-principal{width:auto;margin:0;min-height:44px;padding:8px 20px;}
+.adm-prof-contacto summary{display:list-item;width:fit-content;align-content:center;min-width:44px;min-height:44px;color:var(--fg2);font-size:.8125rem;cursor:pointer;}
+.adm-prof-atencion{margin:18px 0 24px;}
+.adm-prof-atencion ul{list-style:none;padding:0;margin:4px 0 0;}
+.adm-prof-atencion li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0 12px;border-bottom:1px solid var(--border);font-size:.875rem;}
+.adm-prof-atencion li span{display:flex;flex-wrap:wrap;}
+.adm-prof-atencion button{color:var(--primary);font-weight:600;}
+.adm-prof-columnas,.adm-prof-fila>summary{display:grid;align-items:center;grid-template-columns:minmax(8rem,2fr) minmax(5rem,1fr) repeat(5,minmax(0,.9fr)) 12px;gap:10px;padding:10px 6px;}
+.adm-prof-columnas{border-bottom:1px solid var(--border2);font-size:.75rem;color:var(--fg2);}
+.adm-prof-columnas span:nth-child(n+3),.adm-prof-cifra{text-align:right;}
+.adm-prof-fila{border-bottom:1px solid var(--border);}
+.adm-prof-fila>summary{color:var(--fg);min-height:48px;font-size:.875rem;cursor:pointer;list-style:none;}
+.adm-prof-fila>summary::-webkit-details-marker{display:none;}
+.adm-prof-fila[open]>summary{background:var(--bg2);}
+@media(hover:hover){.adm-prof-fila>summary:hover{background:var(--bg2);}}
+.adm-prof-nombre{font-weight:650;overflow-wrap:anywhere;}
+.adm-prof-estado{color:var(--fg2);}
+.adm-prof-cifra{font-variant-numeric:tabular-nums;}
+.adm-prof-cifra b{font-weight:500;}
+.adm-prof-cifra small{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+.adm-prof-flecha{display:grid;place-items:center;width:12px;height:12px;line-height:1;justify-self:end;color:var(--fg2);}
+.adm-prof-fila[open]>summary .adm-prof-flecha{transform:rotate(90deg);}
+.adm-prof-fila .admin-hig-ficha-cuerpo :is(.admin-hig-ficha-fila small,.admin-hig-motivo,.modal-label,.admin-hig-historial small){color:var(--fg2);}
+.adm-prof-fila .admin-hig-ficha-cuerpo{padding:16px 8px;overflow-wrap:anywhere;}
+.adm-prof-baja{margin-top:12px;border-top:1px solid var(--border);padding-top:16px;}
+#admin-area-profesores .admin-hig-eliminar{color:color-mix(in srgb,var(--red) 72%,var(--fg));border-color:currentColor;}
+#admin-area-profesores :is(button,summary,input,textarea):focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+#admin-area-profesores :is(button,textarea){min-height:44px;min-width:44px;}
+@container (max-width:46rem){
+  .adm-prof-buscar{width:100%;}
+  .adm-prof-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;}
+  .adm-prof-tabs button{font-size:.8125rem;padding:5px 2px;}
+  .adm-prof-tabs button span{display:block;font-variant-numeric:tabular-nums;}
+  .adm-prof-tabs button span::before{content:none;}
+  .adm-prof-columnas{display:none;}
+  .adm-prof-fila>summary{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px 6px;padding:12px 2px;}
+  .adm-prof-nombre{grid-column:1/4;}
+  .adm-prof-estado{grid-column:4/6;padding-right:16px;text-align:right;}
+  .adm-prof-flecha{grid-row:1;grid-column:5;}
+  .adm-prof-estado,.adm-prof-nombre{grid-row:1;}
+  .adm-prof-cifra{grid-row:2;align-self:start;display:flex;flex-direction:column-reverse;align-items:flex-end;}
+  .adm-prof-cifra small{position:static;width:auto;height:auto;clip-path:none;font-size:.6875rem;color:var(--fg2);overflow-wrap:anywhere;}
+}
+
 .admin-hig-ficha-cuerpo{display:grid;gap:10px;max-width:720px;padding:4px 0 8px;}
-.admin-hig-ficha-datos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 20px;margin:0;}
-.admin-hig-ficha-datos dt{font-size:.75rem;color:var(--fg3);}
-.admin-hig-ficha-datos dd{margin:2px 0 0;font-size:1.25rem;font-weight:650;font-variant-numeric:tabular-nums;color:var(--fg);}
 .admin-hig-ficha-fila{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border);}
 .admin-hig-ficha-fila span{display:flex;flex-direction:column;gap:2px;font-size:.875rem;}
 .admin-hig-ficha-fila small{color:var(--fg3);font-size:.8125rem;}
 .admin-hig .admin-hig-nota-texto{width:100%;min-height:80px;padding:10px 13px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2);color:var(--fg);font:inherit;font-size:1rem;resize:vertical;}
 .admin-hig-ficha-cuerpo>.clase-accion{justify-self:start;min-height:44px;}
-.admin-hig-ficha h4{margin:8px 0 0;font-size:.8125rem;color:var(--fg2);}
+.adm-prof-fila .admin-hig-ficha-cuerpo h4{margin:8px 0 0;font-size:.8125rem;color:var(--fg2);}
 .admin-hig-historial{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:.8125rem;}
 .admin-hig-historial li{display:flex;justify-content:space-between;gap:12px;}
 .admin-hig-historial small{color:var(--fg3);font-variant-numeric:tabular-nums;text-align:right;}
-@media(max-width:640px){.admin-hig-persona{flex-direction:column;align-items:stretch;}.admin-hig-persona-acciones{justify-content:flex-start;}}
 .admin-hig-vacio{padding:30px;border:1px dashed var(--border2);border-radius:14px;color:var(--fg2);}
 .admin-revision{padding:18px 0 22px;border-bottom:1px solid var(--border);min-width:0;}
 .admin-revision h4{font-size:1.125rem;margin:0 0 12px;}
@@ -3653,7 +3700,7 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
 .admin-lista-cobro,.clase-comentario-revision{border-left:3px solid var(--border2);padding:10px 14px;margin:12px 0;background:var(--muted);color:var(--fg);overflow-wrap:anywhere;}
 .clase-comentario-revision p{margin:6px 0 0;white-space:pre-wrap;}
 @media(min-width:1000px){#admin-body:has(.admin-hig){max-width:1100px;margin:0 auto;}}
-@media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-persona{align-items:flex-start;flex-direction:column;}.admin-hig-herramientas{grid-template-columns:minmax(0,1fr);}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
+@media(max-width:760px){.admin-hig-resumen{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;}.admin-hig-resumen>div+div{padding-left:0;border-left:0;}.admin-hig-fila>summary{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.admin-hig-identidad{grid-column:1/-1;}.admin-hig-importe{grid-column:2;grid-row:2;}.admin-hig-fila>summary>span:last-child{display:none;}.admin-hig .admin-cobro{grid-template-columns:repeat(2,minmax(0,1fr));}.admin-hig .admin-cobro>span{grid-column:1/-1;}.admin-hig .admin-cobro button{grid-column:1/-1;}.admin-hig .admin-anuncio{padding:16px;}.admin-hig-herramientas{grid-template-columns:minmax(0,1fr);}.admin-revision-datos,.admin-revision-acciones{grid-template-columns:minmax(0,1fr);}.admin-revision-acciones label{grid-column:1;}.admin-revision-acciones .btn-confirm{width:100%;}.admin-revision-acciones .clase-accion{width:100%;}}
 @media(max-width:600px){.admin-hig-areas{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(prefers-reduced-motion:reduce){.admin-hig *{animation:none;transition:none;}}
 
