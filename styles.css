@@ -6088,20 +6088,19 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-semana-dia.hoy{background:color-mix(in srgb,var(--fg),transparent 97%);}
 .horario-semana-ahora{position:absolute;left:0;right:0;height:2px;background:var(--fg);z-index:1;pointer-events:none;}
 .horario-semana-clase{position:absolute;box-sizing:border-box;min-width:0;margin:0;padding:5px 3px 4px 5px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;
-  border:1px solid var(--horario-borde);border-radius:6px;background:color-mix(in srgb,var(--ramo) var(--horario-tinte),var(--card));color:var(--fg);text-align:left;font:inherit;cursor:pointer;
-  --horario-tinte:8%;--horario-borde:color-mix(in srgb,var(--ramo) 78%,var(--fg));}
+  border:1px solid var(--horario-borde);border-radius:6px;background:color-mix(in srgb,var(--ramo) var(--horario-tinte),var(--card));color:var(--fg2);text-align:left;font:inherit;cursor:pointer;
+  --horario-tinte:6%;--horario-borde:color-mix(in srgb,var(--ramo) 45%,var(--border));}
 /* Como las tarjetas de perfil (.directorio-tarjeta): contorno del color del ramo y fondo atenuado. */
-@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .horario-semana-clase{--horario-tinte:16%;--horario-borde:color-mix(in srgb,var(--ramo) 70%,#fff);}}
-:root[data-modo="oscuro"] .horario-semana-clase{--horario-tinte:16%;--horario-borde:color-mix(in srgb,var(--ramo) 70%,#fff);}
+/* Las clases son el fondo de la semana: tinte y contorno más bajos, texto
+   secundario (≥4,5:1). Las evaluaciones, rellenas, van encima. */
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .horario-semana-clase{--horario-tinte:10%;--horario-borde:color-mix(in srgb,var(--ramo) 50%,var(--border));}}
+:root[data-modo="oscuro"] .horario-semana-clase{--horario-tinte:10%;--horario-borde:color-mix(in srgb,var(--ramo) 50%,var(--border));}
 .horario-semana-clase b{display:flex;flex-wrap:wrap;column-gap:.2em;font-size:.6875rem;font-weight:700;line-height:1.2;letter-spacing:-.01em;max-width:100%;}
 .horario-semana-clase b span{white-space:nowrap;}
 .horario-semana-clase b.horario-semana-nombre{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:650;}
 .horario-semana-sala{font-size:.6875rem;line-height:1.2;color:var(--fg2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .horario-semana-clase:focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
-.horario-semana-acciones{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 18px;}
 .horario-semana-secundaria{margin-top:10px;border:0;color:var(--fg2);padding-left:0;}
-.horario-semana-faltan ul{list-style:none;margin:6px 0 0;padding:0;}
-.horario-semana-faltan button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
 .horario-semana-mas{color:var(--fg2);font-size:.8125rem;font-weight:600;}
 .horario-elegir-ramo{display:grid;gap:6px;margin:14px 0;}
 .horario-elegir-ramo button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ramo);border-radius:10px;background:var(--card);color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
@@ -6159,11 +6158,32 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* Relleno sólido: se distingue de una clase sin depender solo del color, y el
    texto es blanco o casi negro según el ramo (≥4,5:1, HIG Color). */
 .horario-semana-chip,.horario-semana-eval{border:0;background:var(--ramo);color:var(--ramo-texto,var(--fg));font:inherit;text-align:left;cursor:pointer;}
-.horario-semana-chip{min-height:44px;padding:4px;border-radius:6px;font-size:.6875rem;font-weight:700;line-height:1.2;overflow:hidden;overflow-wrap:anywhere;}
+.horario-semana-chip{display:flex;flex-direction:column;gap:1px;min-height:44px;padding:4px;border-radius:6px;font-size:.6875rem;font-weight:700;line-height:1.2;overflow:hidden;overflow-wrap:anywhere;}
+.horario-semana-chip b{font-weight:800;}
+.horario-semana-eval-ramo{display:flex;flex-wrap:wrap;font-weight:600;}
+.horario-semana-eval-ramo>span{white-space:nowrap;}
 .horario-semana-eval{position:absolute;left:0;right:0;z-index:2;box-sizing:border-box;display:flex;flex-direction:column;gap:1px;padding:4px 3px 3px 5px;border-radius:6px;box-shadow:0 0 0 2px var(--bg);overflow:hidden;}
 .horario-semana-eval b{font-size:.6875rem;font-weight:800;line-height:1.15;overflow-wrap:anywhere;}
 .horario-semana-eval span{font-size:.6875rem;font-weight:600;font-variant-numeric:tabular-nums;}
 :is(.horario-semana-chip,.horario-semana-eval):focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
+/* Ver y editar separados: arriba de la grilla, el resumen y «Editar horario». */
+#agenda-body .agenda-nav-texto{display:flex;flex-direction:column;min-width:0;}
+#agenda-body .agenda-nav-nota{font-size:.75rem;font-weight:600;color:var(--fg2);}
+#agenda-body .horario-semana-barra{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 2px;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+#agenda-body .horario-semana-editar{min-height:44px;padding:0 0 0 10px;border:0;background:transparent;color:var(--primary);font:600 .875rem var(--font-ui);cursor:pointer;white-space:nowrap;}
+#agenda-body .horario-semana-faltan-aviso{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;margin:-6px 0 8px;padding:0;border:0;background:transparent;color:var(--fg2);font:500 .875rem var(--font-ui);text-align:left;cursor:pointer;}
+#agenda-body .horario-semana-faltan-aviso span{color:var(--primary);font-weight:600;}
+#agenda-body :is(.horario-semana-editar,.horario-semana-faltan-aviso):focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+/* «Tu horario» (hoja) */
+.tu-horario-ramos{list-style:none;margin:8px 0 12px;padding:0;}
+.tu-horario-ramos button{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.tu-horario-ramos li:last-child button{border-bottom:1px solid var(--border);}
+.tu-horario-ramos i{flex:none;width:4px;align-self:stretch;border-radius:2px;background:var(--ramo);}
+.tu-horario-ramos button>span:not(.horario-semana-mas){display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.tu-horario-ramos b{font:600 .9375rem var(--font-ui);}
+.tu-horario-ramos small{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.tu-horario-ramos button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+.tu-horario-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
 /* Mes */
 #agenda-body .agenda-mes{margin-bottom:6px;font-variant-numeric:tabular-nums;}
 #agenda-body .agenda-mes-semana,#agenda-body .agenda-mes-grilla{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}

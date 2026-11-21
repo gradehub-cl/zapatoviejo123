@@ -46,10 +46,11 @@ function textoSobreColorAgenda(color){
   return 1.05/(L+0.05)>=(L+0.05)/0.05?'#ffffff':'#111113';
 }
 // ‹ etiqueta › y «Hoy» cuando no se está en hoy. Botones de 44 pt.
-function navAgendaHTML(etiqueta,tipo,mostrarHoy){
+// `nota`: una línea chica sobre la etiqueta («La semana que viene»).
+function navAgendaHTML(etiqueta,tipo,mostrarHoy,nota=''){
   const que=tipo==='mes'?'Mes':tipo==='semana'?'Semana':'Día';
   return `<div class="agenda-nav" data-agenda-nav-tipo="${tipo}">
-    <b class="agenda-nav-titulo" aria-live="polite">${esc(etiqueta)}</b>
+    <span class="agenda-nav-texto" aria-live="polite">${nota?`<small class="agenda-nav-nota">${esc(nota)}</small>`:''}<b class="agenda-nav-titulo">${esc(etiqueta)}</b></span>
     <div class="agenda-nav-botones">
       ${mostrarHoy?'<button type="button" class="agenda-nav-hoy" data-agenda-nav="0">Hoy</button>':''}
       <button type="button" class="agenda-nav-flecha" data-agenda-nav="-1" aria-label="${que} anterior">‹</button>
@@ -125,16 +126,17 @@ function diaAgendaHTML(fecha,ahora=new Date()){
   if(esHoy&&typeof agendaPendientesHTML==='function')html+=agendaPendientesHTML(pendientesDeAgenda(ahora),ahora);
   return html;
 }
+// «Hoy, sábado 21 de noviembre»; lejos de hoy, solo la fecha.
+function etiquetaDiaAgenda(fecha,dias){
+  const nombre=nombreFechaAgenda(fecha);
+  return dias===0||dias===1||dias===-1?`${cuandoTexto(dias)}, ${nombre[0].toLowerCase()}${nombre.slice(1)}`:nombre;
+}
 function renderDiaAgenda(body,ahora=new Date()){
   const hoyIso=isoHoyAgenda(ahora),fecha=sumarDiasAgenda(hoyIso,agendaDiaOffset);
-  const titulo=document.getElementById('agenda-title'),sub=document.getElementById('agenda-sub');
-  const expBtn=document.getElementById('agenda-export-btn');if(expBtn)expBtn.style.display='block';
-  if(titulo)titulo.textContent=nombreFechaAgenda(fecha);
-  const evs=agendaEvents().filter(e=>e.fecha===fecha).length;
-  const clases=(bloquesSemanaHorario(S.ramos||[]).get(claveDiaAgenda(fecha))||[]).filter(x=>!x.bloque.noVoy).length;
-  if(sub)sub.textContent=[evs?`${evs} ${evs===1?'evaluación':'evaluaciones'}`:'',clases?`${clases} ${clases===1?'clase':'clases'}`:''].filter(Boolean).join(' · ');
+  // El título y el resumen son de la Agenda (encabezadoAgenda); la fecha del
+  // día va en el navegador, donde se mueve con ‹ ›.
   const dias=diasEntreAgenda(hoyIso,fecha);
-  body.innerHTML=navAgendaHTML(cuandoTexto(dias),'dia',dias!==0)+diaAgendaHTML(fecha,ahora);
+  body.innerHTML=navAgendaHTML(etiquetaDiaAgenda(fecha,dias),'dia',dias!==0)+diaAgendaHTML(fecha,ahora);
   const repintar=()=>{if(typeof currentTab==='undefined'||currentTab==='agenda')renderAgenda();};
   enlazarNavAgenda(body,paso=>{agendaDiaOffset=paso===0?0:agendaDiaOffset+paso;renderAgenda();});
   body.querySelectorAll('[data-agenda-ir-dia]').forEach(b=>b.addEventListener('click',()=>{agendaDiaOffset=diasEntreAgenda(hoyIso,b.dataset.agendaIrDia);renderAgenda();}));
