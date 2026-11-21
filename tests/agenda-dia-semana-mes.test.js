@@ -1,4 +1,4 @@
-// Agenda Día | Semana | Mes (2026-11-18): vistas, día en orden, evaluaciones
+// Agenda Evaluaciones | Horario (antes Día | Semana | Mes): vistas, día en orden, evaluaciones
 // sobre el horario y grilla del mes. Solo datos sintéticos.
 const fs=require('fs'),vm=require('vm'),path=require('path');
 const raiz=process.env.GRADEHUB_ROOT||path.join(__dirname,'..');
@@ -36,11 +36,14 @@ const estado={tenant:'uc',ramos:[
 run(`S=normalize(${JSON.stringify(estado)});currentTab='agenda';esCuentaProfesor=()=>false;`);
 
 console.log('\n=== Vistas ===');
-chk('parte en Día',run('agendaVista')==='dia');
-chk('pinta «Día | Semana | Mes» con Día marcado',run('pintarVistaAgenda()')==='dia'&&/aria-pressed="true">Día/.test(get('agenda-vista').innerHTML)&&/>Semana</.test(get('agenda-vista').innerHTML)&&/>Mes</.test(get('agenda-vista').innerHTML));
-chk('no depende de la app: en la web también',run('enAppNativa=()=>false;pintarVistaAgenda()')==='dia'&&get('agenda-vista').hidden===false);
+chk('parte en Evaluaciones',run('agendaVista')==='evaluaciones');
+chk('pinta «Evaluaciones | Horario» con Evaluaciones marcada',run('pintarVistaAgenda()')==='evaluaciones'&&/aria-pressed="true">Evaluaciones/.test(get('agenda-vista').innerHTML)&&/>Horario</.test(get('agenda-vista').innerHTML)&&!/>Día<|>Mes</.test(get('agenda-vista').innerHTML));
+chk('no depende de la app: en la web también',run('enAppNativa=()=>false;pintarVistaAgenda()')==='evaluaciones'&&get('agenda-vista').hidden===false);
 run("agendaVista='algo-raro'");
-chk('una vista desconocida vuelve a Día',run('pintarVistaAgenda()')==='dia');
+chk('una vista desconocida vuelve a Evaluaciones',run('pintarVistaAgenda()')==='evaluaciones');
+run("agendaVista='semana'");
+chk('las vistas de antes se traducen: Semana → Horario',run('pintarVistaAgenda()')==='horario');
+run("agendaVista='evaluaciones'");
 run('esCuentaProfesor=()=>true');
 chk('el profesor sigue con la lista, sin pestañas',run('pintarVistaAgenda()')==='lista'&&get('agenda-vista').hidden===true);
 run('esCuentaProfesor=()=>false');
@@ -56,7 +59,7 @@ chk('la clase a la que no va se marca, sin borrarla',/agenda-dia-fila no-voy[^>]
 chk('el nombre del ramo se escapa',/Cálculo &lt;II&gt;/.test(dia)&&!/Cálculo <II>/.test(dia));
 chk('cada evaluación abre la ficha con la acción de siempre',/data-agenda-action="ver-ramo" data-ramo-id="calc"/.test(dia));
 const otro=run(`diaAgendaHTML('2026-11-20',${AHORA})`);
-chk('otro día: «Ese día», sin línea de ahora',/Ese día/.test(otro)&&!/agenda-dia-ahora/.test(otro));
+chk('otro día: «Ese día», sin línea de ahora',/Se rinde ese día/.test(otro)&&!/agenda-dia-ahora/.test(otro));
 run('S.ramos[1].categorias[1].fecha="2026-11-10"');
 chk('lo pendiente sale solo hoy',/Fecha pasada sin nota|Revisar fecha/.test(run(`diaAgendaHTML('2026-11-18',${AHORA})`))&&!/Fecha pasada sin nota|Revisar fecha/.test(run(`diaAgendaHTML('2026-11-20',${AHORA})`)));
 run('S.ramos[1].categorias[1].fecha="2026-11-21"');
@@ -64,12 +67,7 @@ const sabado=run(`diaAgendaHTML('2026-11-21',${AHORA})`);
 chk('un día sin clases muestra igual su evaluación sin hora',/Tarea 4/.test(sabado)&&/Sin hora/.test(sabado));
 const domingo=run(`diaAgendaHTML('2026-11-22',${AHORA})`);
 chk('un día vacío lo dice y ofrece lo próximo',/Nada agendado este día/.test(domingo)&&/Lo próximo: Examen · Cálculo &lt;II&gt;/.test(domingo));
-run(`renderDiaAgenda(document.getElementById('agenda-body'),${AHORA})`);
-chk('la fecha va en el navegador («Hoy, miércoles…»), no en el título',/agenda-nav-titulo">Hoy, miércoles 18 de noviembre</.test(get('agenda-body').innerHTML)&&get('agenda-title').textContent!=='Miércoles 18 de noviembre');
-chk('en hoy no aparece «Hoy» para volver',!/data-agenda-nav="0"/.test(get('agenda-body').innerHTML));
-run(`agendaDiaOffset=2;renderDiaAgenda(document.getElementById('agenda-body'),${AHORA})`);
-chk('en otro día aparece «Hoy» y la fecha sola',/data-agenda-nav="0"/.test(get('agenda-body').innerHTML)&&/agenda-nav-titulo">Viernes 20 de noviembre</.test(get('agenda-body').innerHTML));
-run('agendaDiaOffset=0');
+chk('bajo el Horario el día no repite lo pendiente',!/Fecha pasada sin nota|Revisar fecha|Pendientes/.test(run(`diaAgendaHTML('2026-11-18',${AHORA},{conPendientes:false})`)));
 
 console.log('\n=== Semana ===');
 const eventos='agendaEvents()';
@@ -103,12 +101,15 @@ mes=run(`mesAgendaHTML(${AHORA})`);
 chk('diciembre: elige el 1 y ofrece volver a hoy',/Diciembre 2026/.test(mes)&&/data-mes-dia="2026-12-01" aria-pressed="true"/.test(mes)&&/data-agenda-nav="0"/.test(mes));
 run("agendaMesOffset=0;agendaMesSel=null");
 chk('sin evaluaciones con fecha no hay grilla',run(`(()=>{const g=S;S={...S,ramos:[]};const h=mesAgendaHTML(${AHORA});S=g;return h;})()`)==='');
-run("agendaVista='mes';renderAgenda()");
-chk('Mes es la grilla arriba y la lista de siempre abajo',/class="agenda-mes"/.test(get('agenda-body').innerHTML)&&/Tus prioridades|Después/.test(get('agenda-body').innerHTML));
+run("agendaVista='evaluaciones';agendaMesVisible=false;renderAgenda()");
+chk('Evaluaciones parte en la lista, con «Ver mes» junto a las pestañas y sin la grilla',!/class="agenda-mes"/.test(get('agenda-body').innerHTML)&&/data-agenda-mes-toggle aria-expanded="false">Ver mes/.test(get('agenda-vista-accion').innerHTML)&&/Tus prioridades|Después/.test(get('agenda-body').innerHTML));
+run("agendaMesVisible=true;renderAgenda()");
+chk('con «Ver mes», la grilla va arriba de la lista',/^<section class="agenda-mes"/.test(get('agenda-body').innerHTML)&&/Ocultar mes/.test(get('agenda-vista-accion').innerHTML)&&/Tus prioridades|Después/.test(get('agenda-body').innerHTML));
+run("agendaMesVisible=false");
 
 console.log('\n=== Un solo encabezado para las tres vistas ===');
-const encabezados=['dia','semana','mes'].map(v=>{run(`agendaVista='${v}';renderAgenda()`);return [get('agenda-title').textContent,get('agenda-sub').textContent,get('agenda-export-btn').style.display];});
-chk('Día, Semana y Mes muestran el mismo título, resumen y «Calendario»',encabezados.every(e=>JSON.stringify(e)===JSON.stringify(encabezados[0]))&&encabezados[0][0]==='Qué se viene'&&encabezados[0][2]==='block');
+const encabezados=['evaluaciones','horario'].map(v=>{run(`agendaVista='${v}';renderAgenda()`);return [get('agenda-title').textContent,get('agenda-sub').textContent,get('agenda-export-btn').style.display];});
+chk('Evaluaciones y Horario muestran el mismo título, resumen y «Calendario»',encabezados.every(e=>JSON.stringify(e)===JSON.stringify(encabezados[0]))&&encabezados[0][0]==='Qué se viene'&&encabezados[0][2]==='block');
 chk('el resumen habla de evaluaciones, no de clases',/pendiente|por venir|al día|sin nota/.test(encabezados[0][1])&&!/clase/.test(encabezados[0][1]));
 
 console.log('\n=== Fin de semana: se abre la semana que viene ===');
@@ -135,9 +136,19 @@ console.log('\n=== Ver la semana no es editarla ===');
 run(`S.ramos.push({id:'etica',nombre:'Ética',color:'#c2255c',gates:[],horario:[],categorias:[]});renderHorarioSemana(document.getElementById('agenda-body'),${AHORA})`);
 cuerpo=get('agenda-body').innerHTML;
 chk('la vista no trae «Agregar clase» ni «Subir foto» ni la lista «Sin horario»',!/Agregar clase|Subir foto del horario|horario-semana-faltan"|<h2[^>]*>Sin horario/.test(cuerpo));
-chk('un solo acceso: «Editar horario», junto al resumen de clases',(cuerpo.match(/data-horario-accion="editar">Editar horario/g)||[]).length===1&&/horario-semana-barra"><span>4 clases a la semana · 1 no vas</.test(cuerpo));
+chk('un solo acceso: «Editar horario», junto a las pestañas',/>Editar horario<\/button>/.test(get('agenda-vista-accion').innerHTML)&&!/Editar horario/.test(cuerpo));
 chk('los ramos sin horario son una línea que abre lo mismo',/data-horario-accion="editar">1 ramo sin horario<span>Completar/.test(cuerpo));
-chk('abajo, las evaluaciones de la semana con su nombre entero',/Evaluaciones de la semana/.test(cuerpo)&&/agenda-fila-t">Control 4/.test(cuerpo)&&/agenda-fila-t">Tarea 4/.test(cuerpo));
+chk('arriba, la tira de días con hoy elegido; debajo, el día en orden',/class="horario-tira"[\s\S]*data-semana-dia="2026-11-18" aria-pressed="true" aria-label="Miércoles 18 de noviembre, hoy"/.test(cuerpo)&&/horario-semana-detalle" aria-label="Miércoles 18 de noviembre"[\s\S]*Se rinde hoy[\s\S]*Control 4/.test(cuerpo)&&!/Revisar fecha|Fecha pasada sin nota/.test(cuerpo));
+chk('el orden es tira → día → semana completa',cuerpo.indexOf('horario-tira')<cuerpo.indexOf('horario-semana-detalle')&&cuerpo.indexOf('horario-semana-detalle')<cuerpo.indexOf('Semana completa')&&cuerpo.indexOf('Semana completa')<cuerpo.indexOf('class="horario-semana"'));
+chk('la columna del día elegido se marca en la semana',/horario-semana-dia hoy sel"/.test(cuerpo)&&/<span class="hoy sel">Mié/.test(cuerpo));
+run(`agendaSemanaSel='2026-11-20';renderHorarioSemana(document.getElementById('agenda-body'),${AHORA})`);
+cuerpo=get('agenda-body').innerHTML;
+chk('tocar otro día lo muestra',/horario-semana-detalle" aria-label="Viernes 20 de noviembre"/.test(cuerpo)&&/data-semana-dia="2026-11-20" aria-pressed="true"/.test(cuerpo)&&/Se rinde ese día/.test(cuerpo));
+run(`agendaSemanaSel='2026-12-24';renderHorarioSemana(document.getElementById('agenda-body'),${AHORA})`);
+chk('un día elegido de otra semana no se arrastra: vuelve a hoy',/horario-semana-detalle" aria-label="Miércoles 18 de noviembre"/.test(get('agenda-body').innerHTML));
+chk('en una semana sin hoy, abre el lunes',run(`diaElegidoSemana('2026-11-30','2026-11-18',S.ramos,[])`)==='2026-11-30');
+chk('un sábado sin columna no se elige',run(`(agendaSemanaSel='2026-11-28',diaElegidoSemana('2026-11-23','2026-11-18',S.ramos,[]))`)==='2026-11-23');
+run('agendaSemanaSel=null');
 const hoja=run('tuHorarioHTML()');
 chk('«Tu horario» lista los ramos con y sin horario',/data-tu-horario-ramo="calc"[\s\S]*Cátedra lun, mié, vie 08:20–09:30[\s\S]*Editar/.test(hoja)&&/data-tu-horario-ramo="etica"[\s\S]*Sin horario[\s\S]*Agregar/.test(hoja));
 chk('«Tu horario» marca la clase a la que no va',/Ayudantía mié 14:50–16:00 \(no vas\)/.test(hoja));
@@ -147,9 +158,15 @@ chk('un profesor no abre «Tu horario»',get('modal-content').innerHTML==='');
 run(`esCuentaProfesor=()=>false;S.ramos=S.ramos.filter(r=>r.id!=='etica')`);
 
 console.log('\n=== Se recuerda la vista ===');
-almacen.set('gh_agenda_vista','semana');
-const nuevo=vm.createContext({...ctx});vm.runInContext(src,nuevo);
-chk('al volver, abre en la última vista elegida',vm.runInContext('agendaVista',nuevo)==='semana');
+almacen.set('gh_agenda_vista','horario');
+let nuevo=vm.createContext({...ctx});vm.runInContext(src,nuevo);
+chk('al volver, abre en la última vista elegida',vm.runInContext('agendaVista',nuevo)==='horario');
+almacen.set('gh_agenda_vista','dia');
+nuevo=vm.createContext({...ctx});vm.runInContext(src,nuevo);
+chk('quien tenía Día guardado abre en Horario',vm.runInContext('agendaVista',nuevo)==='horario');
+almacen.set('gh_agenda_vista','mes');
+nuevo=vm.createContext({...ctx});vm.runInContext(src,nuevo);
+chk('quien tenía Mes guardado abre en Evaluaciones',vm.runInContext('agendaVista',nuevo)==='evaluaciones');
 chk('no toca gradehub_v1',![...almacen.keys()].includes('gradehub_v1'));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);

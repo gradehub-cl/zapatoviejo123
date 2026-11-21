@@ -6068,7 +6068,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
    Pestañas de texto con la raya bajo la activa, como el rango de «Tu promedio
    en el tiempo» en Estadísticas: se leen como parte de la app. */
 #agenda-vista{padding:2px 20px 0;}
-.agenda-vista{display:flex;gap:24px;border-bottom:1px solid var(--border);}
+.agenda-vista-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);}
+.agenda-vista{display:flex;gap:24px;}
+#agenda-vista .agenda-vista-accion{min-height:44px;padding:0 0 0 8px;border:0;background:transparent;color:var(--primary);font:600 .875rem var(--font-ui);cursor:pointer;white-space:nowrap;}
+#agenda-vista .agenda-vista-accion:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 #agenda-vista .agenda-vista button{position:relative;min-height:44px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--fg2);font:500 .9375rem var(--font-ui);cursor:pointer;}
 #agenda-vista .agenda-vista button[aria-pressed="true"]{color:var(--fg);font-weight:650;}
 #agenda-vista .agenda-vista button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:1px;background:currentColor;}
@@ -6166,14 +6169,26 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .horario-semana-eval b{font-size:.6875rem;font-weight:800;line-height:1.15;overflow-wrap:anywhere;}
 .horario-semana-eval span{font-size:.6875rem;font-weight:600;font-variant-numeric:tabular-nums;}
 :is(.horario-semana-chip,.horario-semana-eval):focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
-/* Ver y editar separados: arriba de la grilla, el resumen y «Editar horario». */
+/* Ver y editar separados: «Editar horario» va junto a las pestañas. */
 #agenda-body .agenda-nav-texto{display:flex;flex-direction:column;min-width:0;}
 #agenda-body .agenda-nav-nota{font-size:.75rem;font-weight:600;color:var(--fg2);}
-#agenda-body .horario-semana-barra{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 2px;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
-#agenda-body .horario-semana-editar{min-height:44px;padding:0 0 0 10px;border:0;background:transparent;color:var(--primary);font:600 .875rem var(--font-ui);cursor:pointer;white-space:nowrap;}
 #agenda-body .horario-semana-faltan-aviso{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;margin:-6px 0 8px;padding:0;border:0;background:transparent;color:var(--fg2);font:500 .875rem var(--font-ui);text-align:left;cursor:pointer;}
 #agenda-body .horario-semana-faltan-aviso span{color:var(--primary);font-weight:600;}
-#agenda-body :is(.horario-semana-editar,.horario-semana-faltan-aviso):focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+#agenda-body .horario-semana-faltan-aviso:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+/* Horario: la tira elige el día que se ve debajo; su columna se marca suave en la semana. */
+#agenda-body .horario-tira{display:grid;grid-template-columns:repeat(var(--horario-dias),minmax(0,1fr));gap:4px;margin:0 0 4px;}
+#agenda-body .horario-tira button{min-height:52px;padding:4px 0;border:0;border-radius:10px;background:transparent;color:var(--fg2);font:600 .75rem var(--font-ui);text-align:center;cursor:pointer;font-variant-numeric:tabular-nums;}
+#agenda-body .horario-tira button b{display:block;font-size:1.0625rem;font-weight:650;color:var(--fg);line-height:1.25;}
+#agenda-body .horario-tira button.hoy{color:var(--primary);}
+#agenda-body .horario-tira button.hoy b{color:var(--primary);}
+#agenda-body .horario-tira button[aria-pressed="true"]{background:var(--fg);color:var(--bg);}
+#agenda-body .horario-tira button[aria-pressed="true"] b{color:var(--bg);}
+#agenda-body .horario-tira button:focus-visible{outline:2px solid var(--primary);outline-offset:1px;}
+@media(hover:hover){#agenda-body .horario-tira button[aria-pressed="false"]:hover{background:var(--muted);}}
+@media(prefers-reduced-motion:no-preference){#agenda-body .horario-tira button{transition:background var(--motion-fast) var(--ease-out);}}
+.horario-semana-cabecera span.sel{color:var(--fg);box-shadow:inset 0 -2px 0 var(--fg);border-radius:0;}
+.horario-semana-dia.sel{background:color-mix(in srgb,var(--fg),transparent 95%);}
+#agenda-body .horario-semana-detalle{margin-bottom:8px;}
 /* «Tu horario» (hoja) */
 .tu-horario-ramos{list-style:none;margin:8px 0 12px;padding:0;}
 .tu-horario-ramos button{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
