@@ -93,6 +93,9 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('el calendario agrupa por día y deja borrar solo lo propio',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12'},
     {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3'}])`);
     return (h.match(/cal-dia/g)||[]).length===1&&(h.match(/reserva-borrar/g)||[]).length===1&&/Anotar sala reservada/.test(h);})());
+  chk('el código de la sala se ve en la reserva, escapado',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12',detalle:'4821<b>'},
+    {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3',detalle:null}])`);
+    return (h.match(/cal-codigo/g)||[]).length===1&&/Código <b>4821&lt;b&gt;<\/b>/.test(h);})());
 
   chk('la semana del amigo se mira, no se edita: sin botones',(()=>{const h=run(`semanaAmigoHTML({universidad:'uc'},normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'}]}]))`);
     return /horario-semana/.test(h)&&!/<button/.test(h)&&/role="img"/.test(h);})());
