@@ -33,7 +33,8 @@ const pagina=({pre='No tiene',rel='No tiene',res='No tiene',eq='No tiene'}={})=>
   chk('página vacía: cambió el formato',lanza(()=>parsearRequisitos('<html></html>','X'),/Cambió el formato/));
   chk('relación desconocida',lanza(()=>parsearRequisitos(pagina({rel:'quizás'}),'X'),/Relación desconocida/));
   chk('captcha: se detiene',lanza(()=>parsearRequisitos('<div class="cf-turnstile"></div>','X'),/desafío o captcha/));
-  chk('texto absurdo de largo',lanza(()=>parsearRequisitos(pagina({pre:'TST1001 o '.repeat(300)}),'X'),/demasiado largo/));
+  chk('una combinatoria larga como la de ACT181 entra',parsearRequisitos(pagina({pre:'(TST1001 y TST1002 y TST1003) o '.repeat(80)+'TST1004'}),'X').prerrequisitos.length>2300);
+  chk('texto absurdo de largo',lanza(()=>parsearRequisitos(pagina({pre:'TST1001 o '.repeat(2100)}),'X'),/demasiado largo/));
 
   console.log('\n=== Qué siglas leer ===');
   chk('normaliza, filtra y ordena',JSON.stringify(normalizarSiglas([' tst1002','TST1001','TST1001','no es sigla',null,'Z1']))==='["TST1001","TST1002"]');

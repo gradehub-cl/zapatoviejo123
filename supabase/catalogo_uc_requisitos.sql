@@ -8,12 +8,21 @@
 begin;
 create table if not exists public.catalogo_uc_requisitos (
  sigla text primary key check(sigla ~ '^[A-Z][A-Z0-9_]{2,11}$'),
- prerrequisitos text check(prerrequisitos is null or length(prerrequisitos) between 1 and 2000),
+ prerrequisitos text,
  relacion text check(relacion is null or relacion in ('y','o')),
- restricciones text check(restricciones is null or length(restricciones) between 1 and 2000),
- equivalencias text check(equivalencias is null or length(equivalencias) between 1 and 2000),
+ restricciones text,
+ equivalencias text,
  leido_en timestamptz not null default now()
 );
+-- Los largos van como restricciones con nombre para poder cambiarlos al
+-- reaplicar. 20.000 y no 2.000: ACT181 escribe completa la combinatoria
+-- «3 de 10» y pasa de 2.300 caracteres (2026-11-21).
+alter table public.catalogo_uc_requisitos drop constraint if exists catalogo_uc_requisitos_prerrequisitos_check;
+alter table public.catalogo_uc_requisitos drop constraint if exists catalogo_uc_requisitos_restricciones_check;
+alter table public.catalogo_uc_requisitos drop constraint if exists catalogo_uc_requisitos_equivalencias_check;
+alter table public.catalogo_uc_requisitos add constraint catalogo_uc_requisitos_prerrequisitos_check check(prerrequisitos is null or length(prerrequisitos) between 1 and 20000);
+alter table public.catalogo_uc_requisitos add constraint catalogo_uc_requisitos_restricciones_check check(restricciones is null or length(restricciones) between 1 and 20000);
+alter table public.catalogo_uc_requisitos add constraint catalogo_uc_requisitos_equivalencias_check check(equivalencias is null or length(equivalencias) between 1 and 20000);
 alter table public.catalogo_uc_requisitos enable row level security;
 revoke all on public.catalogo_uc_requisitos from public,anon,authenticated;
 grant select on public.catalogo_uc_requisitos to anon,authenticated;

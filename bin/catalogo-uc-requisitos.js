@@ -26,7 +26,7 @@ const UA='GradeHubBot/1.0 (+https://gradehub.cl)';
 const CATALOGO='https://catalogo.uc.cl/index.php?tmpl=component&option=com_catalogo&view=requisitos&sigla=';
 const SALIDA=path.join(__dirname,'..','.cache','catalogo-uc-requisitos.json');
 const SIGLA_RE=/^[A-Z][A-Z0-9_]{2,11}$/;
-const ESPERA_MS=1000,TIMEOUT_MS=15000,MAX_FALLOS_SEGUIDOS=5;
+const LARGO_MAXIMO=20000,ESPERA_MS=1000,TIMEOUT_MS=15000,MAX_FALLOS_SEGUIDOS=5;
 const ENTIDADES={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',aacute:'á',eacute:'é',iacute:'í',oacute:'ó',uacute:'ú',ntilde:'ñ',uuml:'ü'};
 
 // El catálogo escribe «Relaci&oacuten» sin punto y coma: se acepta sin él.
@@ -45,7 +45,8 @@ function bloqueo(html){
 }
 
 // Una fila por sigla con los cuatro campos. Si falta alguno, cambió el formato
-// y se lanza: preferimos no escribir nada a guardar algo a medias.
+// y se lanza: preferimos no escribir nada a guardar algo a medias. El largo
+// máximo es holgado porque ACT181 escribe entera la combinatoria «3 de 10».
 function parsearRequisitos(html,sigla){
   if(bloqueo(html))throw Error('El catálogo presentó un desafío o captcha. Detenido; no se evade ni se escribe nada.');
   const campos={};
@@ -61,7 +62,7 @@ function parsearRequisitos(html,sigla){
   const relacion=valor(campos.relacion);
   if(relacion!==null&&!/^(y|o)$/i.test(relacion))throw Error(`Relación desconocida en ${sigla}: «${relacion}». No se escribe nada.`);
   for(const k of ['prerrequisitos','restricciones','equivalencias'])
-    if(campos[k].length>2000)throw Error(`Texto demasiado largo en ${sigla} (${k}). No se escribe nada.`);
+    if(campos[k].length>LARGO_MAXIMO)throw Error(`Texto demasiado largo en ${sigla} (${k}). No se escribe nada.`);
   return {sigla,prerrequisitos:valor(campos.prerrequisitos),relacion:relacion&&relacion.toLowerCase(),
     restricciones:valor(campos.restricciones),equivalencias:valor(campos.equivalencias)};
 }
