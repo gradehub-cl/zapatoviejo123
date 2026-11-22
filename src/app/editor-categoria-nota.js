@@ -207,7 +207,7 @@ function openEditNotaModal(catId,notaId){
       <input type="range" min="1" max="100" value="${n.peso}" id="m-nota-peso" oninput="document.getElementById('m-nota-peso-val').textContent=this.value"/>
     </div>
     ${Number.isInteger(n.slot)?opcionAusenciaHojaHTML(r,cat,{slot:n.slot}):''}
-    ${Number.isInteger(n.slot)&&cat.slots>1?'':`<button type="button" class="btn-eliminar-nota" onclick="confirmarEliminarNota('${catId}','${notaId}')">Eliminar nota</button>`}
+    <button type="button" class="btn-eliminar-nota" onclick="confirmarEliminarNota('${catId}','${notaId}')">Eliminar nota</button>
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" id="m-edit-nota-btn" onclick="confirmEditNota('${catId}','${notaId}')">Guardar</button>
@@ -216,8 +216,11 @@ function openEditNotaModal(catId,notaId){
   enfocarEnHoja(document.getElementById('m-nota-name'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
 }
-// Una nota de lista se borra desde su hoja. Con número pregunta antes: es un dato
-// que no vuelve. Vacía no hay nada que perder.
+// Una nota se borra desde su hoja, sea de lista o de un grupo con casillas: en
+// el grupo la casilla queda vacía y, si era la última agregada, "Quitar la
+// última" la saca. Antes el grupo no lo ofrecía y una nota con número no se
+// podía sacar nunca. Con número pregunta antes: es un dato que no vuelve.
+// Vacía no hay nada que perder.
 function confirmarEliminarNota(catId,notaId){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const n=r?.categorias.find(c=>c.id===catId)?.notas.find(x=>x.id===notaId);if(!n)return;
