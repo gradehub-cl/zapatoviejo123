@@ -458,6 +458,19 @@ async function buscarAmigo(valor){
       <span class="amigo-acciones">${accion}</span></div>`;
   }catch(e){caja.innerHTML=`<p class="amigos-vacio-texto">${esc(mensajeErrorAmigos(e))}</p>`;}
 }
+// El link gradehub.cl/?amigo=usuario abre la app si está instalada (Universal
+// Link, ver .well-known/apple-app-site-association en main). Se guarda igual
+// que al entrar por la web y «Agregar» se abre apenas haya sesión y username:
+// al tiro si ya los hay, o cuando cargarAmigos termine después del login.
+function recibirLinkAmigo(url){
+  let u;try{u=new URL(String(url||''));}catch(e){return false;}
+  if(u.origin!=='https://gradehub.cl'||u.pathname!=='/')return false;
+  const n=u.searchParams.get('amigo');
+  if(!n||!/^@?[A-Za-z0-9._]{3,20}$/.test(n))return false;
+  try{sessionStorage.setItem(CLAVE_AMIGO_PENDIENTE,n.replace(/^@/,'').toLowerCase());}catch(e){}
+  abrirAmigoPendiente();
+  return true;
+}
 function abrirAmigoPendiente(){
   let u=null;try{u=sessionStorage.getItem(CLAVE_AMIGO_PENDIENTE);}catch(e){}
   if(!u||!amigosVisible()||!(amigosEstadoCache&&amigosEstadoCache.username))return;

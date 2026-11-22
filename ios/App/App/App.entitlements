@@ -6,6 +6,10 @@
 	<string>$(GRADEHUB_APS_ENV)</string>
 	<key>com.apple.developer.applesignin</key>
 	<array><string>Default</string></array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:gradehub.cl</string>
+	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>$(GRADEHUB_APP_GROUP)</string>
