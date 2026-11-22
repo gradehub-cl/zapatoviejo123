@@ -88,7 +88,7 @@ function notasConPunto(){
 }
 const comasVisibles=()=>Object.values(ids).reduce((n,e)=>{const h=e.innerHTML+' '+e.children.map(c=>c.innerHTML||'').join(' ');
   return n+(h.replace(/<[^>]*>/g,' ').match(/\d,\d/g)||[]).length+(h.match(/ value="\d,\d/g)||[]).length;},0);
-[['Inicio','renderHome()'],['la ficha del ramo','renderRamo()'],['Estadísticas','renderStats()'],['Agenda','renderAgenda()'],
+[['Inicio','renderHome()'],['la ficha del ramo','renderRamo()'],['Estadísticas','renderStats()'],['Agenda','(agendaVista="evaluaciones",renderAgenda())'],
  ['el simulador del ramo','openSimuladorModal()'],['el simulador del semestre','openSimGlobalModal()'],
  ['corregir un ramo del historial',"openEditHistRamoModal('h1','hr')"],['editar un semestre del historial',"openRenombrarHistModal('h1')"]].forEach(([nombre,paso])=>{
   Object.values(ids).forEach(e=>{e.innerHTML='';e.textContent='';});

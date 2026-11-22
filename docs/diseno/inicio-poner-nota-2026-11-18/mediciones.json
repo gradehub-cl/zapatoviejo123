@@ -1,0 +1,118 @@
+[
+  {
+    "modo": "claro",
+    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\n+ Nota\nAhora no",
+    "alto": 118,
+    "scroll": 375,
+    "botones": [
+      44,
+      44
+    ],
+    "contraste": 5.232687762135692,
+    "errores": [],
+    "lecturas": []
+  },
+  {
+    "modo": "claro",
+    "compartido": {
+      "inicio": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(184, 184, 190)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(13, 122, 107)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      },
+      "ficha": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(184, 184, 190)",
+        "backgroundColor": "rgb(255, 255, 255)",
+        "color": "rgb(13, 122, 107)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      }
+    }
+  },
+  {
+    "modo": "claro",
+    "guardado": {
+      "valor": 5.4,
+      "otra": null,
+      "necesita": "3,5",
+      "toast": "Ahora necesitas 3,5 en lo que queda para aprobar",
+      "pantalla": null
+    }
+  },
+  {
+    "modo": "oscuro",
+    "texto": "¿Cómo te fue en Control 3?\n\nDinámica sintética\n\n+ Nota\nAhora no",
+    "alto": 118,
+    "scroll": 375,
+    "botones": [
+      44,
+      44
+    ],
+    "contraste": 9.727323338328082,
+    "errores": [],
+    "lecturas": []
+  },
+  {
+    "modo": "oscuro",
+    "compartido": {
+      "inicio": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(85, 85, 94)",
+        "backgroundColor": "rgb(17, 17, 19)",
+        "color": "rgb(45, 212, 191)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      },
+      "ficha": {
+        "width": "84px",
+        "minHeight": "44px",
+        "borderRadius": "8px",
+        "borderColor": "rgb(85, 85, 94)",
+        "backgroundColor": "rgb(17, 17, 19)",
+        "color": "rgb(45, 212, 191)",
+        "fontSize": "14px",
+        "fontWeight": "600",
+        "textAlign": "center",
+        "padding": "8px 4px"
+      }
+    }
+  },
+  {
+    "modo": "oscuro",
+    "guardado": {
+      "valor": 5.4,
+      "otra": null,
+      "necesita": "3,5",
+      "toast": "Ahora necesitas 3,5 en lo que queda para aprobar",
+      "pantalla": null
+    }
+  },
+  {
+    "texto200": {
+      "scroll": 375,
+      "botones": [
+        51,
+        46
+      ]
+    }
+  },
+  {
+    "webOculta": true
+  }
+]

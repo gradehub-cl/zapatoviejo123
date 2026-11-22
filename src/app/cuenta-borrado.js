@@ -18,8 +18,49 @@ function confirmarEliminarCuenta(){
   },{label:'Continuar'});
 }
 
+// «Entrar con Apple» exige revocar el acceso al borrar la cuenta (App Review
+// 5.1.1(v)). En la app se le pide a Apple que confirme y el servidor revoca con
+// ese código de un solo uso (functions/apple-revocar.js): no guardamos tokens.
+// Si no se puede revocar, la cuenta NO se borra y la persona puede reintentar.
+// En la web no hay cómo pedir ese código sin la librería de Apple: se borra
+// igual, y GradeHub se puede quitar en Ajustes › Apple ID › Iniciar sesión con Apple.
+function cuentaConApple(user){
+  if(!user)return false;
+  if(Array.isArray(user.identities)&&user.identities.some(i=>i&&i.provider==='apple'))return true;
+  const p=user.app_metadata&&user.app_metadata.providers;
+  return Array.isArray(p)&&p.includes('apple');
+}
+function urlRevocarApple(){
+  const origen=typeof location!=='undefined'&&location.origin||'';
+  return /^https:\/\//.test(origen)?origen+'/apple-revocar':'https://gradehub.cl/apple-revocar';
+}
+async function revocarAppleAntesDeBorrar(){
+  const plugin=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.AppleSignIn;
+  if(!plugin||typeof plugin.authorize!=='function'){showToast('Actualiza la app para eliminar una cuenta que entra con Apple.',true);return false;}
+  let credencial;
+  try{
+    const bytes=crypto.getRandomValues(new Uint8Array(32));
+    credencial=await plugin.authorize({nonce:[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('')});
+  }catch(e){showToast('Para eliminar tu cuenta, confirma con Apple.',true);return false;}
+  const code=credencial&&credencial.authorizationCode;
+  if(!code){showToast('Apple no devolvió la confirmación. Intenta de nuevo.',true);return false;}
+  try{
+    const {data}=await supabaseClient.auth.getSession();
+    const token=data&&data.session&&data.session.access_token;
+    if(!token)throw new Error('sin sesión');
+    const r=await fetch(urlRevocarApple(),{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({code})});
+    if(r.ok)return true;
+    let motivo='';try{motivo=(await r.json()).error||'';}catch(e){}
+    showToast((motivo||'No pudimos desconectar tu Apple ID.')+' Tu cuenta no se borró.',true);
+    return false;
+  }catch(e){showToast('No pudimos desconectar tu Apple ID. Revisa tu conexión: tu cuenta no se borró.',true);return false;}
+}
+
 async function eliminarCuenta(){
   if(!supabaseClient||!currentUser){showToast('Primero inicia sesión',true);return;}
+  if(cuentaConApple(currentUser)&&typeof enAppIOS==='function'&&enAppIOS()){
+    if(!await revocarAppleAntesDeBorrar())return;
+  }
   showToast('Eliminando tu cuenta…');
   try{
     const {error}=await supabaseClient.rpc('eliminar_mi_cuenta');
@@ -54,7 +95,10 @@ function confirmResetApp(){
     // copia previa a importar son copias completas de las notas.
     [STORAGE_KEY,CACHE_OWNER_KEY,SYNC_BASE_KEY,CURSO_SIGLAS_KEY,PRE_IMPORT_KEY].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
     if(typeof borrarCacheApartada==='function')borrarCacheApartada(conCuenta?currentUser.id:null);
-    if(conCuenta){try{await supabaseClient.auth.signOut();}catch(e){}}
+    if(conCuenta){
+      if(typeof olvidarCanvasCuenta==='function')await olvidarCanvasCuenta();
+      try{await supabaseClient.auth.signOut();}catch(e){}
+    }
     location.reload();
   },{label:'Reiniciar'});
 }

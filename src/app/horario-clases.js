@@ -33,10 +33,43 @@ function horarioDesdeModulos(tenant,dias,modulos,{sala='',tipo=''}={}){
   if(!tabla||!Array.isArray(modulos)||!modulos.length||modulos.some(m=>!tabla[m]))return [];
   return copiarHorario([...new Set(modulos)].map(m=>({dias,inicio:tabla[m][0],fin:tabla[m][1],sala,tipo})));
 }
-// Punto de entrada futuro para catalogo_uc_secciones. Null = sin propuesta.
-// No consulta una tabla inexistente, ni escribe. Quien lo implemente debe
-// devolver bloques para REVISIÓN: nunca aplicar sin confirmación.
-function proponerHorarioDesdeCatalogo({tenant,sigla,seccion}={}){return null;}
+// BuscaCursos (#986): la RPC pública catalogo_uc_secciones_publicas devuelve
+// las secciones del período con `horario` [{dias, modulo, tipo, sala}] y los
+// profesores. Solo LEE y devuelve una propuesta para la revisión: nunca escribe.
+// Si la RPC todavía no existe (falta aplicar el SQL), no hay conexión o tarda,
+// devuelve null y la foto sigue sola, sin sala. Nunca se inventa una sala.
+const TIPOS_BUSCACURSOS={CLAS:'Cátedra',AYU:'Ayudantía',AYUD:'Ayudantía',LAB:'Laboratorio',TAL:'Taller',
+  PRA:'Práctica',TES:'Tesis',TER:'Terreno'};
+const BUSCACURSOS_ESPERA_MS=6000;
+let _buscacursosNoDisponible=false;
+async function proponerHorarioDesdeCatalogo({tenant,sigla,seccion,periodo}={}){
+  if(tenant!=='uc'||!sigla||seccion==null||_buscacursosNoDisponible)return null;
+  const cliente=typeof supabaseClient!=='undefined'?supabaseClient:null;
+  if(!cliente||typeof cliente.rpc!=='function')return null;
+  try{
+    const consulta=Promise.resolve(cliente.rpc('catalogo_uc_secciones_publicas',{p_periodo:periodo||semester(),p_sigla:String(sigla).toUpperCase()}));
+    const {data,error}=await Promise.race([consulta,new Promise(r=>setTimeout(()=>r({error:{code:'espera'}}),BUSCACURSOS_ESPERA_MS))]);
+    if(error){
+      // Función inexistente: no se vuelve a preguntar en esta visita.
+      if(error.code==='PGRST202'||error.code==='42883'||error.status===404)_buscacursosNoDisponible=true;
+      return null;
+    }
+    const fila=(Array.isArray(data)?data:[]).find(f=>f&&String(f.sigla||'').toUpperCase()===String(sigla).toUpperCase()&&Number(f.seccion)===Number(seccion));
+    if(!fila)return null;
+    const celdas=[];
+    (Array.isArray(fila.horario)?fila.horario:[]).forEach(b=>{
+      const mod=Number(b&&b.modulo);
+      if(!b||!Array.isArray(b.dias)||!MODULOS_HORARIO_POR_TENANT.uc[mod])return;
+      const tipo=TIPOS_BUSCACURSOS[String(b.tipo||'').toUpperCase()]||'';
+      // BuscaCursos escribe «SIN SALA» cuando todavía no hay sala asignada (la
+      // mitad de los bloques de 2026-2): eso no es una sala.
+      const sala=typeof b.sala==='string'&&!/^(sin sala|por asignar|sin asignar|por definir|-+)$/i.test(b.sala.trim())?b.sala.trim().slice(0,100):'';
+      b.dias.filter(d=>DIAS_HORARIO.some(([k])=>k===d)).forEach(dia=>celdas.push({dia,mod,tipo,sala}));
+    });
+    const profesores=(Array.isArray(fila.profesores)?fila.profesores:[]).filter(x=>typeof x==='string'&&x.trim()&&!/^sin informar$/i.test(x.trim())).map(x=>x.trim().slice(0,100));
+    return {celdas,profesores};
+  }catch(e){return null;}
+}
 function partesHorarioChile(instante){
   return Object.fromEntries(FORMATO_HORARIO_CHILE.formatToParts(new Date(instante)).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
 }
@@ -85,36 +118,41 @@ function pintarHorarioRamo(r){
   if(!caja){caja=document.createElement('section');caja.id='ramo-horario';caja.className='horario-ficha';lista.insertAdjacentElement('afterend',caja);}
   const bloques=copiarHorario(r.horario);
   caja.innerHTML=`<header><h2>Horario</h2><button type="button" class="horario-accion" data-editar-horario>${bloques.length?'Editar':'Agregar bloque'}</button></header>
-    ${bloques.length?`<ul>${bloques.map(b=>`<li><span>${esc(diasBloqueHorario(b))}</span><b>${esc(b.inicio)}–${esc(b.fin)}</b><span>${esc([b.tipo,b.sala].filter(Boolean).join(' · ')||'Sin sala')}</span></li>`).join('')}</ul>`:'<p>Agrega los días y las horas de tus clases.</p>'}`;
+    ${bloques.length?`<ul>${bloques.map(b=>`<li${b.noVoy?' class="no-voy"':''}><span>${esc(diasBloqueHorario(b))}</span><b>${esc(b.inicio)}–${esc(b.fin)}</b><span>${esc([b.tipo,b.sala].filter(Boolean).join(' · ')||'Sin sala')}${b.noVoy?' · No vas':''}</span></li>`).join('')}</ul>`:'<p>Agrega los días y las horas de tus clases.</p>'}`;
   caja.querySelector('[data-editar-horario]').addEventListener('click',()=>abrirHorarioRamo(r.id));
 }
-function abrirHorarioRamo(ramoId){
-  const ramo=S.ramos.find(r=>r.id===ramoId);if(!ramo||esCuentaProfesor())return;
-  const inicial=JSON.stringify(ramo.horario),tenant=S.tenant,cuenta=typeof currentUser==='undefined'?null:currentUser?.id;
-  let bloques=copiarHorario(ramo.horario);
+// La hoja de edición sirve para un ramo guardado y para la revisión de la foto
+// (bloques que todavía no se guardan). `alGuardar(bloques)` decide qué hacer
+// con lo validado y devuelve un texto de error si no pudo guardarlo.
+function abrirEditorHorario({titulo,bloques:iniciales,agregar=false,alGuardar,alCancelar=closeModal,textoGuardar='Guardar horario'}){
+  let bloques=copiarHorario(iniciales);
   const nuevo=()=>({id:uid(),dias:[],inicio:'',fin:'',sala:'',tipo:''});
-  if(!bloques.length)bloques.push(nuevo());
+  if(!bloques.length||agregar)bloques.push(nuevo());
   const caja=document.getElementById('modal-content');
-  // El formulario no tiene «no voy»: se conserva del bloque con el mismo id,
-  // para que editar la sala en la web no borre lo que se marcó en la app.
+  // «Voy a esta clase» viene del interruptor del bloque. Si un formulario no lo
+  // trae, se conserva la marca del bloque con el mismo id: editar la sala no
+  // borra lo que se marcó.
   const leer=()=>{const noVoy=new Set(bloques.filter(b=>b.noVoy).map(b=>b.id));
-    bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>({id:row.dataset.horarioBloque,
+    bloques=[...caja.querySelectorAll('[data-horario-bloque]')].map(row=>{const voy=row.querySelector('[name=voy]');
+    return {id:row.dataset.horarioBloque,
     dias:[...row.querySelectorAll('[name=dia]:checked')].map(n=>n.value),
     ...Object.fromEntries(['inicio','fin','sala','tipo'].map(k=>[k,row.querySelector('[name='+k+']').value])),
-    ...(noVoy.has(row.dataset.horarioBloque)?{noVoy:true}:{})}));};
+    ...((voy?!voy.checked:noVoy.has(row.dataset.horarioBloque))?{noVoy:true}:{})};});};
   const pintar=()=>{
-    caja.innerHTML=`<form class="horario-editor"><h2 class="modal-title">Horario de ${esc(ramo.nombre)}</h2>
+    caja.innerHTML=`<form class="horario-editor"><h2 class="modal-title">${esc(titulo)}</h2>
       <p class="modal-desc">Se repite cada semana. Horas de Chile.</p><div class="horario-bloques">${bloques.map((b,i)=>`
       <fieldset data-horario-bloque="${esc(b.id)}"><legend>Bloque ${i+1}</legend>
         <div class="horario-dias" role="group" aria-label="Días del bloque ${i+1}">${DIAS_HORARIO.map(([k,n])=>`<label><input type="checkbox" name="dia" value="${k}"${b.dias.includes(k)?' checked':''}><span aria-hidden="true">${esc(n.slice(0,3))}</span><span class="horario-sr">${esc(n)}</span></label>`).join('')}</div>
         <div class="horario-campos"><label>Inicio<input type="time" name="inicio" step="60" required value="${esc(b.inicio)}"></label><label>Fin<input type="time" name="fin" step="60" required value="${esc(b.fin)}"></label>
         <label>Sala <small>(opcional)</small><input type="text" name="sala" maxlength="100" value="${esc(b.sala)}" placeholder="Ej.: K201"></label>
-        <label>Tipo <small>(opcional)</small><input type="text" name="tipo" maxlength="${NOMBRE_MAX}" value="${esc(b.tipo)}" placeholder="CLAS, AYUD, LAB…"></label></div>
+        <label>Tipo <small>(opcional)</small><input type="text" name="tipo" maxlength="${NOMBRE_MAX}" value="${esc(b.tipo)}" placeholder="Cátedra, ayudantía…" list="horario-tipos"></label></div>
+        <label class="horario-voy"><span>Voy a esta clase</span><input type="checkbox" role="switch" name="voy"${b.noVoy?'':' checked'}></label>
         <div class="horario-bloque-acciones"><button type="button" data-copiar="${i}" class="horario-accion">Copiar bloque</button><button type="button" data-quitar="${i}" class="horario-accion">Quitar</button></div>
       </fieldset>`).join('')}</div>
+      <datalist id="horario-tipos">${['Cátedra','Ayudantía','Laboratorio','Taller'].map(t=>`<option value="${t}">`).join('')}</datalist>
       <button type="button" class="horario-accion" data-agregar-bloque>+ Agregar bloque</button>
-      <p class="horario-error" role="alert" tabindex="-1"></p><div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar-horario>Cancelar</button><button type="submit" class="btn-confirm">Guardar horario</button></div></form>`;
-    caja.querySelector('[data-cancelar-horario]').addEventListener('click',closeModal);
+      <p class="horario-error" role="alert" tabindex="-1"></p><div class="modal-btns"><button type="button" class="btn-cancel" data-cancelar-horario>Cancelar</button><button type="submit" class="btn-confirm">${esc(textoGuardar)}</button></div></form>`;
+    caja.querySelector('[data-cancelar-horario]').addEventListener('click',()=>alCancelar());
     const enfocarUltimo=()=>caja.querySelectorAll('[data-horario-bloque]')[bloques.length-1]?.querySelector('input')?.focus();
     caja.querySelector('[data-agregar-bloque]').addEventListener('click',()=>{leer();bloques.push(nuevo());pintar();enfocarUltimo();});
     caja.querySelectorAll('[data-copiar]').forEach(b=>b.addEventListener('click',()=>{leer();bloques.push({...bloques[+b.dataset.copiar],id:uid(),dias:[...bloques[+b.dataset.copiar].dias]});pintar();enfocarUltimo();}));
@@ -123,10 +161,54 @@ function abrirHorarioRamo(ramoId){
       e.preventDefault();leer();const error=caja.querySelector('.horario-error');
       const indice=bloques.findIndex(b=>!bloqueHorarioValido(b));
       if(indice!==-1){error.textContent=`Revisa el bloque ${indice+1}: elige al menos un día y una hora de fin posterior al inicio.`;error.focus();return;}
-      const actual=S.ramos.find(r=>r.id===ramoId);
-      if(!actual||tenant!==S.tenant||cuenta!==(typeof currentUser==='undefined'?null:currentUser?.id)||JSON.stringify(actual.horario)!==inicial){error.textContent='El ramo o su horario cambió. Cierra y vuelve a abrir para revisarlo.';error.focus();return;}
-      actual.horario=copiarHorario(bloques);save();closeModal();renderRamo();renderHome();showToast('Horario guardado');
+      const problema=alGuardar(copiarHorario(bloques));
+      if(problema){error.textContent=problema;error.focus();}
     });
   };
   pintar();openModal();
+}
+// `agregar` abre con un bloque nuevo al final (Agregar clase, en la Agenda).
+// `alGuardado` reemplaza el repintado de la ficha: desde la Agenda no hay ramo
+// abierto y renderRamo mandaría a Inicio.
+function abrirHorarioRamo(ramoId,{agregar=false,alGuardado=null}={}){
+  const ramo=S.ramos.find(r=>r.id===ramoId);if(!ramo||esCuentaProfesor())return;
+  const inicial=JSON.stringify(ramo.horario),tenant=S.tenant,cuenta=typeof currentUser==='undefined'?null:currentUser?.id;
+  abrirEditorHorario({titulo:`Horario de ${ramo.nombre}`,bloques:ramo.horario,agregar,alGuardar:bloques=>{
+    const actual=S.ramos.find(r=>r.id===ramoId);
+    if(!actual||tenant!==S.tenant||cuenta!==(typeof currentUser==='undefined'?null:currentUser?.id)||JSON.stringify(actual.horario)!==inicial)
+      return 'El ramo o su horario cambió. Cierra y vuelve a abrir para revisarlo.';
+    actual.horario=bloques;save();closeModal();
+    if(alGuardado)alGuardado();else{renderRamo();renderHome();}
+    showToast('Horario guardado');
+  }});
+}
+
+// ─── «NO VOY» (Lucas, 2026-11-17) ───────────────────────────────────────────
+// Marcar las clases a las que no va, por ejemplo las ayudantías. La clase se
+// sigue viendo en la semana, apagada, pero no sale en Hoy, en el widget ni en
+// los avisos (resumenHorarioClases). Solo escribe `noVoy` en el bloque.
+const esAyudantiaHorario=b=>/^ayu/.test(normName(b&&b.tipo||''));
+function marcarNoVoyHorario(ramoId,bloqueId,noVoy){
+  const ramo=(S.ramos||[]).find(r=>r.id===ramoId);
+  if(!ramo||esCuentaProfesor()||!copiarHorario(ramo.horario).some(b=>b.id===bloqueId))return false;
+  ramo.horario=copiarHorario(ramo.horario.map(b=>b&&b.id===bloqueId?{...b,noVoy:!!noVoy}:b));
+  save();return true;
+}
+// Todas las ayudantías de todos los ramos de una vez. Devuelve cuántas cambió.
+function marcarAyudantiasHorario(noVoy){
+  if(esCuentaProfesor())return 0;
+  let cambiadas=0;
+  (S.ramos||[]).forEach(r=>{
+    if(!Array.isArray(r.horario)||!r.horario.some(b=>esAyudantiaHorario(b)&&!!b.noVoy!==!!noVoy))return;
+    r.horario=copiarHorario(r.horario.map(b=>{if(!esAyudantiaHorario(b)||!!b.noVoy===!!noVoy)return b;cambiadas++;return {...b,noVoy:!!noVoy};}));
+  });
+  if(cambiadas)save();
+  return cambiadas;
+}
+// Al reemplazar un horario (foto, BuscaCursos), la marca sigue en el bloque que
+// es la misma clase: mismos días, horas y tipo.
+function conservarNoVoyHorario(antes,nuevos){
+  const clave=b=>[b.dias.join(''),b.inicio,b.fin,normName(b.tipo||'')].join('|');
+  const marcadas=new Set(copiarHorario(antes).filter(b=>b.noVoy).map(clave));
+  return copiarHorario(nuevos).map(b=>marcadas.has(clave(b))?{...b,noVoy:true}:b);
 }

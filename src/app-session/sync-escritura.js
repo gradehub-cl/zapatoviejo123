@@ -29,6 +29,8 @@ async function subirConVersion(uid){
         S._rev=enviado._rev;
         guardarBaseSync(uid,enviado);
         if(typeof enviarDiscrepanciasCierre==='function')enviarDiscrepanciasCierre().catch(()=>{});
+        // Si comparte sus promedios con amigos, se actualizan con lo recién subido.
+        if(typeof programarPublicarNotasAmigos==='function')programarPublicarNotasAmigos();
         setCacheOwner(uid); // la caché local quedó alineada con esta cuenta
         return true;
       }

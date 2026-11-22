@@ -6,7 +6,7 @@ const SECCIONES_STATS=[
   {id:'rango',      titulo:'Rango del semestre'},
   {id:'historial',  titulo:'Historial'},
   // Sale de lo que se responde en la Actividad en Vivo: existe solo en la app.
-  {id:'olfato',     titulo:'Tu olfato',disponible:()=>typeof avisosPruebasDisponibles==='function'&&avisosPruebasDisponibles()},
+  {id:'olfato',     titulo:'Tu olfato',disponible:()=>typeof avisosPruebasDisponibles==='function'&&avisosPruebasDisponibles()&&enAppIOS()}, // sale de la Actividad en Vivo
 ];
 function ordenSecciones(){
   const guardado=Array.isArray(S.statsOrden)?S.statsOrden:[];

@@ -35,7 +35,8 @@ const convertir=run('horarioDesdeModulos');
 assert.deepEqual(js(convertir('uc',['L','W'],[2],{sala:'K201',tipo:'CLAS'})).map(({id,...b})=>b),[bloque(['L','W'],'09:40','10:50')]);
 assert.equal(convertir('uc',['L'],[0]).length,0);assert.equal(convertir('sin-tabla',['L'],[2]).length,0);
 assert.deepEqual(js(convertir('uc',['M'],[4,5])).map(b=>[b.inicio,b.fin]),[['12:20','13:30'],['14:50','16:00']],'no clase inventada durante almuerzo');
-assert.equal(run('proponerHorarioDesdeCatalogo')({tenant:'uc',sigla:'SYN100',seccion:1}),null);
+// Sin cliente de Supabase (o sin la RPC de BuscaCursos) no hay propuesta.
+run('proponerHorarioDesdeCatalogo')({tenant:'uc',sigla:'SYN100',seccion:1}).then(v=>assert.equal(v,null));
 assert.deepEqual(js(run('copiarHorario')([{dias:['X'],inicio:'08:00',fin:'09:00'},bloque(['L'],'25:00','26:00'),bloque(['L'],'10:00','09:00')])),[]);
 const antiguo=estado([ramo('antiguo')]);assert.equal(Object.hasOwn(antiguo.ramos[0],'horario'),false,'estado antiguo no adquiere horario');
 const nuevo=estado(horarios),otraVez=estado(horarios);assert.deepEqual(js(nuevo),js(otraVez),'IDs deterministas al normalizar un respaldo sin IDs');
@@ -70,6 +71,20 @@ assert.equal(tras.noVoy,true,'la normalización conserva noVoy');assert.equal(tr
 assert.equal(Object.hasOwn(conAyu.ramos[0].horario[0],'noVoy'),false,'sin marcar no se agrega el campo');
 const falso=js(conAyu);falso.ramos[0].horario[1].noVoy='sí';assert.equal(Object.hasOwn(run('normalize')(falso).ramos[0].horario[1],'noVoy'),false,'un valor raro no marca nada ni bota el bloque');
 assert.equal(run('normalize')(falso).ramos[0].horario.length,2);
+// La app: marcar una clase, todas las ayudantías, y una foto nueva no lo deshace.
+ctx.__dos=estado([ramo('a',[bloque(['L']),bloque(['M'],'10:00','11:00',{tipo:'Ayudantía'})]),ramo('b',[bloque(['J'],'12:00','13:00',{tipo:'AYU'}),bloque(['V'],'08:20','09:30',{tipo:'Laboratorio'})])]);
+run('S=__dos');
+const idA=run('S.ramos[0].horario[1].id');
+assert.equal(run(`marcarNoVoyHorario('a','${idA}',true)`),true);assert.equal(run('S.ramos[0].horario[1].noVoy'),true);
+assert.equal(run(`marcarNoVoyHorario('a','no-existe',true)`),false,'un bloque que no existe no marca nada');
+assert.equal(run(`marcarNoVoyHorario('a','${idA}',false)`),true);assert.equal(run("Object.hasOwn(S.ramos[0].horario[1],'noVoy')"),false,'desmarcar quita el campo');
+assert.equal(run('marcarAyudantiasHorario(true)'),2,'Ayudantía y AYU cuentan como ayudantía');
+assert.equal(run('S.ramos[1].horario[1].noVoy'),undefined,'el laboratorio no se toca');
+assert.equal(run('marcarAyudantiasHorario(true)'),0,'marcar otra vez no cambia nada');
+assert.equal(run('marcarAyudantiasHorario(false)'),2);
+const antes=[{...bloque(['M'],'10:00','11:00',{tipo:'Ayudantía'}),noVoy:true},bloque(['L'])],foto=[bloque(['M'],'10:00','11:00',{tipo:'Ayudantía',sala:'B12'}),bloque(['W'],'14:00','15:20',{tipo:'Ayudantía'})];
+const conservada=js(run('conservarNoVoyHorario')(antes,foto));
+assert.equal(conservada[0].noVoy,true,'la misma clase de la foto nueva conserva «no voy»');assert.equal(Object.hasOwn(conservada[1],'noVoy'),false,'una clase nueva parte como «voy»');
 r=resumen(run('normalize')(marcado).ramos,'2026-11-09T11:30:00Z');
 assert.deepEqual(r.clasesHoy.map(c=>c.inicio),['08:20'],'la clase marcada no sale en Hoy');
 assert.equal(r.clasesProximas.some(c=>c.inicio==='10:00'),false,'ni en las próximas del widget');
