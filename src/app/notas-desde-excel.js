@@ -182,31 +182,37 @@ function excelAplicar(calzadas,ramos){
 
 // ─── Pantalla ────────────────────────────────────────────────────────────────
 let excelBorrador=null;
+// Lo pegado, para que «Atrás» en la revisión no obligue a pegarlo de nuevo.
+// Vive solo en memoria y se borra al guardar o al abrir de nuevo desde el
+// enlace, para que no lo vea otra cuenta en el mismo teléfono.
+let excelTextoPegado='';
 
 function excelOfertaOnboardingHTML(){
   if(!enAppNativa()||!(S.ramos||[]).some(r=>(r.categorias||[]).length))return '';
   return `<button type="button" class="ob-excel-enlace" onclick="abrirNotasDesdeExcel()">¿Llevabas tus notas en Excel? Pégalas acá</button>`;
 }
 
-function abrirNotasDesdeExcel(){
+function abrirNotasDesdeExcel(conservarTexto){
   excelBorrador=null;
+  if(conservarTexto!==true)excelTextoPegado='';
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Pegar tus notas</div>
     <p class="modal-desc">En Excel, Numbers o Google Sheets, selecciona las celdas con tus ramos, evaluaciones y notas, cópialas y pégalas acá. Antes de guardar vas a ver dónde queda cada una.</p>
     <textarea id="m-excel-texto" class="horario-importar-texto" rows="6" maxlength="${EXCEL_MAX_TEXTO}" autocomplete="off" autocapitalize="none" spellcheck="false"
       aria-label="Celdas copiadas de tu planilla" aria-describedby="m-excel-aviso" placeholder="Cálculo II&#9;I1&#9;5,4"
-      oninput="document.getElementById('m-excel-leer').disabled=!this.value.trim()"></textarea>
+      oninput="document.getElementById('m-excel-leer').disabled=!this.value.trim()">${esc(excelTextoPegado)}</textarea>
     <p class="settings-help" id="m-excel-aviso" role="status" aria-live="polite">El texto no sale de tu teléfono.</p>
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="closeModal()">Ahora no</button>
-      <button type="button" class="btn-confirm" id="m-excel-leer" disabled onclick="revisarNotasDesdeExcel()">Revisar</button>
+      <button type="button" class="btn-confirm" id="m-excel-leer" ${excelTextoPegado.trim()?'':'disabled'} onclick="revisarNotasDesdeExcel()">Revisar</button>
     </div>`;
   openModal();
 }
 
 function revisarNotasDesdeExcel(){
   const caja=document.getElementById('m-excel-texto');
-  const notas=excelExtraer(caja&&caja.value);
+  excelTextoPegado=String((caja&&caja.value)||'').slice(0,EXCEL_MAX_TEXTO);
+  const notas=excelExtraer(excelTextoPegado);
   const aviso=document.getElementById('m-excel-aviso');
   if(!notas.length){
     if(aviso)aviso.textContent='No encontramos notas. Copia también la columna con el nombre de cada evaluación.';
@@ -250,7 +256,7 @@ function renderRevisionExcel(){
     ${ramosSinCalce.length?`<p class="settings-help">No encontramos ${ramosSinCalce.length===1?'este ramo':'estos ramos'} en tu semestre, así que no se agrega${sinRamo.length===1?'':'n'} ${sinRamo.length===1?'su nota':`sus ${sinRamo.length} notas`}: ${ramosSinCalce.map(esc).join(', ')}.</p>`:''}
     <p class="settings-help">Si una evaluación ya tiene nota, se queda como está.</p>
     <div class="modal-btns">
-      <button type="button" class="btn-cancel" onclick="abrirNotasDesdeExcel()">Atrás</button>
+      <button type="button" class="btn-cancel" onclick="abrirNotasDesdeExcel(true)">Atrás</button>
       <button type="button" class="btn-confirm" ${total?'':'disabled'} onclick="guardarNotasDesdeExcel()">${total?`Guardar ${total} nota${total!==1?'s':''}`:'Guardar'}</button>
     </div>`;
 }
@@ -267,7 +273,7 @@ function guardarNotasDesdeExcel(){
   if(!excelBorrador)return;
   const calzadas=excelBorrador.notas;
   const {puestas,ocupadas}=excelAplicar(calzadas,S.ramos);
-  excelBorrador=null;
+  excelBorrador=null;excelTextoPegado='';
   save();
   track('notas_excel_guardadas',{notas:puestas,ocupadas,asignadas:calzadas.filter(n=>n.asignada).length,
     sin_calce:calzadas.filter(n=>n.estado!=='lista').length});
