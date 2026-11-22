@@ -9,7 +9,9 @@ const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
 const DURACION_PRUEBA_MIN=120;
 const AVISOS_PRUEBA_MAX=60; // iOS guarda hasta 64 notificaciones pendientes por app
 function pluginNotificaciones(){
-  if(!pluginWidgets())return null;
+  // Los avisos son notificaciones locales: no dependen de los widgets, así
+  // que también corren en Android.
+  if(!enAppNativa())return null;
   const cap=window.Capacitor;
   return cap&&cap.Plugins&&cap.Plugins.LocalNotifications||null;
 }

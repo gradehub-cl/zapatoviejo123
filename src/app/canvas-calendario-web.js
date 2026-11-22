@@ -2,7 +2,13 @@
 const CANVAS_ICS_KEY='gradehub_canvas_ics';
 const URL_CANVAS_ICS_RE=/^https:\/\/cursos\.canvas\.uc\.cl\/feeds\/calendars\/user_[A-Za-z0-9]{20,80}\.ics$/;
 const CANVAS_ICS_SIN_FECHAS='Tu calendario de Canvas no tiene fechas próximas para tus ramos.';
-function canvasIcsDisponible(){return !esCuentaProfesor()&&!!currentUser&&S.tenant==='uc'&&!enAppNativa();}
+// Si la app trae Canvas nativo (el token en el llavero del iPhone), manda ese.
+// Sin él —Android, que carga gradehub.cl— el calendario .ics funciona igual que
+// en la web. Desde capacitor:// no hay /canvas-calendario que consultar.
+function canvasIcsDisponible(){
+  return !esCuentaProfesor()&&!!currentUser&&S.tenant==='uc'&&!pluginCanvas()
+    &&!(typeof location!=='undefined'&&location.protocol==='capacitor:');
+}
 // Canvas también la ofrece como webcal://; es la misma.
 function normalizarUrlCanvasIcs(texto){
   const url=String(texto||'').trim().replace(/^webcal:\/\//i,'https://');

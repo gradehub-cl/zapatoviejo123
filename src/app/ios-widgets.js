@@ -98,7 +98,9 @@ let _pluginWidgets,_widgetsTimer=null;
 function pluginWidgets(){
   if(_pluginWidgets!==undefined)return _pluginWidgets;
   const cap=typeof window!=='undefined'?window.Capacitor:null;
-  const nativa=!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
+  // Solo el iPhone tiene widgets: en Android registerPlugin daría un objeto
+  // que falla en cada llamada.
+  const nativa=typeof enAppIOS==='function'?enAppIOS():!!(cap&&typeof cap.isNativePlatform==='function'&&cap.isNativePlatform());
   // La app no carga @capacitor/core (no hay build), así que no hay registerPlugin:
   // el puente nativo deja cada plugin registrado en Capacitor.Plugins.
   try{_pluginWidgets=!nativa?null:(cap.Plugins&&cap.Plugins.GradeHubWidgets)
@@ -110,10 +112,11 @@ function pluginWidgets(){
 function publicarResumenWidgets(){
   // Una cuenta convertida puede dejar widgets antiguos en este iPhone.
   if(esCuentaProfesor()){borrarResumenWidgets();return;}
-  const p=pluginWidgets();if(!p)return;
+  // Android no tiene widgets, pero sí avisos de evaluación.
+  const p=pluginWidgets();if(!p&&!pluginNotificaciones())return;
   clearTimeout(_widgetsTimer);
   _widgetsTimer=setTimeout(()=>{
-    try{
+    if(p)try{
       const pedido=S.onboardingDone?p.guardarResumen({json:JSON.stringify(resumenParaWidgets())}):p.borrarResumen();
       if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});
     }catch(e){}
@@ -126,11 +129,14 @@ function publicarResumenWidgets(){
 }
 // Al cerrar sesión no pueden quedar notas de esa cuenta en la pantalla de inicio.
 function borrarResumenWidgets(){
-  const p=pluginWidgets();if(!p)return;
+  const p=pluginWidgets();
   clearTimeout(_widgetsTimer);
-  try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
-  // Ni avisos ni tarjetas de la cuenta que salió.
-  try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  if(p){
+    try{const pedido=p.borrarResumen();if(pedido&&typeof pedido.catch==='function')pedido.catch(()=>{});}catch(e){}
+    // Ni avisos ni tarjetas de la cuenta que salió.
+    try{const r=p.sincronizarActividades({actividades:[]});if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
+  }
+  // En Android no hay widgets, pero los avisos de la cuenta que salió igual se van.
   const ln=pluginNotificaciones();
   if(ln)Promise.resolve(ln.getPending()).then(r=>{const ids=((r&&r.notifications)||[]).filter(n=>n&&n.extra&&n.extra.gradehub==='prueba').map(n=>({id:n.id}));
     return ids.length?ln.cancel({notifications:ids}):null;}).catch(()=>{});
