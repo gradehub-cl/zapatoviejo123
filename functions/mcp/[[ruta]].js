@@ -245,11 +245,131 @@ function alcanzaMetaOficial(calculo, ramo, promedio, meta) {
     && !(objetivo >= 4 && calculo.gatesActivas(ramo).length);
 }
 
+// ¿Cuánto necesito en ESTA evaluación, con todo lo demás fijo? `notaNecesaria`
+// reparte la misma nota en todo lo pendiente, y con examen y laboratorio
+// pendientes esa respuesta no sirve para preparar el examen. No hay fórmula
+// nueva: se fija lo demás con los supuestos del agente (o `resto`) en una copia
+// del ramo —y del ramo vinculado, si lo hay— y se le pregunta al mismo
+// `notaNecesaria`, que ya respeta compuertas, descartes, eximición, el vínculo
+// con su mínimo y el redondeo oficial. Lo único pendiente que queda es la
+// evaluación pedida, así que su respuesta es la nota de esa evaluación.
+function necesitaEnEvaluacion(ramos, ramo, args, meta, tenant) {
+  const calculoBase = calculoPara(ramos, tenant);
+  const vinculado = calculoBase.ramoVinculado ? calculoBase.ramoVinculado(ramo, ramos) : null;
+  const partes = [ramo, ...(vinculado ? [vinculado] : [])];
+  const enRamo = (r, nombre) => (r.categorias || []).filter(c => norm(c.nombre) === norm(nombre));
+  // La evaluación se busca primero en el ramo pedido y después en el vinculado
+  // (el laboratorio de Dinámica vive en otro ramo y entra a su nota).
+  const ubicar = (nombre, ramoPedido) => {
+    const donde = ramoPedido == null ? partes : partes.filter(r => norm(r.nombre) === norm(ramoPedido) || norm(siglaDeRamo(r)) === norm(ramoPedido));
+    for (const r of donde) {
+      const cats = enRamo(r, nombre);
+      if (cats.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}" en ${r.nombre}. Corrige la pauta en la app antes de calcular.` };
+      if (cats.length) return { r, cat: cats[0] };
+    }
+    const declaradas = partes.flatMap(r => (r.categorias || []).map(c => (partes.length > 1 ? `${c.nombre} (${r.nombre})` : c.nombre)));
+    return { error: `No encontré "${nombre}" en ${ramo.nombre}. Las evaluaciones que tiene son: ${declaradas.join(', ')}.` };
+  };
+  const slotsDe = c => (Number.isInteger(c.slots) && c.slots > 1 ? c.slots : 1);
+  const casillaValida = (c, casilla) => casilla == null || (Number.isInteger(casilla) && casilla >= 1 && casilla <= slotsDe(c));
+
+  const objetivo = ubicar(String(args.evaluacion || '').trim());
+  if (objetivo.error) return { error: objetivo.error };
+  const { r: ramoObjetivo, cat: objetivoCat } = objetivo;
+  const casillaObjetivo = args.casilla == null ? null : args.casilla;
+  if (!casillaValida(objetivoCat, casillaObjetivo)) return { error: `${objetivoCat.nombre} tiene ${slotsDe(objetivoCat)} casilla${slotsDe(objetivoCat) > 1 ? 's' : ''}; la casilla va de 1 a ${slotsDe(objetivoCat)}.` };
+  const pendientesObjetivo = pendientesDeCategoria(objetivoCat).filter(c => casillaObjetivo == null || slotsDe(objetivoCat) === 1 || c === casillaObjetivo);
+  if (!pendientesObjetivo.length) return { error: `${objetivoCat.nombre}${casillaObjetivo != null && slotsDe(objetivoCat) > 1 ? ' casilla ' + casillaObjetivo : ''} ya tiene nota: no queda nada que calcular ahí. Para probar otra nota usa simular.` };
+  const esObjetivo = (r, c, casilla) => r === ramoObjetivo && c === objetivoCat && (casillaObjetivo == null || slotsDe(c) === 1 || casilla === casillaObjetivo);
+
+  let resto = null;
+  if (args.resto != null) {
+    resto = Number(args.resto);
+    if (!Number.isFinite(resto) || resto < 1 || resto > 7) return { error: '«resto» tiene que ser una nota entre 1,0 y 7,0.' };
+  }
+  const supuestos = args.supuestos == null ? [] : args.supuestos;
+  if (!Array.isArray(supuestos) || supuestos.length > 60) return { error: 'Los supuestos tienen que venir en una lista de hasta 60.' };
+  // Cada supuesto cae sobre una casilla pendiente. Uno sin casilla en una
+  // evaluación de varias vale para todas sus casillas pendientes.
+  const fijadas = new Map();
+  const clave = (r, c, casilla) => `${r.id}|${c.id}|${casilla == null ? '' : casilla}`;
+  for (const s of supuestos) {
+    const nombre = String(s && s.evaluacion || '').trim(), valor = Number(s && s.valor), casilla = s && s.casilla;
+    if (!nombre) return { error: 'Cada supuesto necesita el nombre de su evaluación.' };
+    if (!Number.isFinite(valor) || valor < 1 || valor > 7) return { error: `El supuesto de "${nombre}" está fuera de la escala 1,0 a 7,0.` };
+    const lugar = ubicar(nombre, s.ramo);
+    if (lugar.error) return { error: lugar.error };
+    if (!casillaValida(lugar.cat, casilla)) return { error: `La casilla de "${nombre}" va de 1 a ${slotsDe(lugar.cat)}.` };
+    const pedidas = pendientesDeCategoria(lugar.cat).filter(c => casilla == null || slotsDe(lugar.cat) === 1 || c === casilla);
+    const libres = pedidas.filter(c => !esObjetivo(lugar.r, lugar.cat, c));
+    if (!libres.length) {
+      return { error: pedidas.length
+        ? `"${nombre}" es la evaluación que estás calculando: no puede ser también un supuesto.`
+        : `"${nombre}"${casilla != null && slotsDe(lugar.cat) > 1 ? ' casilla ' + casilla : ''} ya tiene nota; los supuestos son solo para lo pendiente.` };
+    }
+    for (const c of libres) {
+      if (fijadas.has(clave(lugar.r, lugar.cat, c))) return { error: `Hay dos supuestos para "${nombre}"${c != null ? ' casilla ' + c : ''}.` };
+      fijadas.set(clave(lugar.r, lugar.cat, c), { r: lugar.r, cat: lugar.cat, casilla: c, valor, origen: 'supuesto' });
+    }
+  }
+  // Todo lo pendiente fuera de la evaluación pedida queda fijo: con un
+  // supuesto, con `resto`, o se pide en vez de suponerlo en silencio.
+  const faltan = [];
+  for (const r of partes) for (const c of r.categorias || []) for (const casilla of pendientesDeCategoria(c)) {
+    if (!(Number(c.peso) > 0) || esObjetivo(r, c, casilla) || fijadas.has(clave(r, c, casilla))) continue;
+    if (resto !== null) fijadas.set(clave(r, c, casilla), { r, cat: c, casilla, valor: resto, origen: 'resto' });
+    else faltan.push(`${c.nombre}${casilla != null ? ' ' + casilla : ''}${r !== ramo ? ' (' + r.nombre + ')' : ''}`);
+  }
+  if (faltan.length) {
+    return { error: `Para calcular ${objetivoCat.nombre} con el resto fijo falta suponer: ${faltan.join(', ')}. Pásalos en «supuestos» o usa «resto» para darles a todos la misma nota.` };
+  }
+
+  const fijas = [...fijadas.values()];
+  const clones = new Map(partes.map(r => [r, ramoSimulado(r, fijas.filter(f => f.r === r).map(f => ({ evaluacion: f.cat.nombre, valor: f.valor, casilla: f.casilla })))]));
+  const calculo = calculoPara(ramos.map(x => clones.get(x) || x), tenant);
+  const necesaria = calculo.notaNecesaria(clones.get(ramo), meta);
+  let estado = 'alcanzable';
+  if (necesaria === null) estado = 'no_calculable';
+  else if (necesaria > 7) estado = 'fuera_de_escala';
+  else if (necesaria <= 1 + 1e-9) estado = 'con_cualquier_nota';
+  // La comprobación con la nota puesta: la misma copia con la evaluación
+  // pedida en esa nota, para que el agente vea la final y las compuertas.
+  let comprobacion = null;
+  if (estado === 'alcanzable' || estado === 'con_cualquier_nota') {
+    const valor = Math.max(1, Math.min(7, necesaria));
+    const conObjetivo = new Map([...clones].map(([orig, c]) => [orig, orig === ramoObjetivo
+      ? ramoSimulado(c, pendientesObjetivo.map(casilla => ({ evaluacion: objetivoCat.nombre, valor, casilla })))
+      : c]));
+    const calc2 = calculoPara(ramos.map(x => conObjetivo.get(x) || x), tenant);
+    const final = calc2.ramoAvg(conObjetivo.get(ramo));
+    comprobacion = {
+      finalConEsaNota: final,
+      alcanzaLaMeta: alcanzaMetaOficial(calc2, conObjetivo.get(ramo), final, meta),
+      compuertasIncumplidas: calc2.gatesActivas(conObjetivo.get(ramo)).map(g => ({ nombre: g.nombre, actual: g.actual, minimo: g.min, tope: g.cap })),
+    };
+  }
+  return {
+    ramo: ramo.nombre, meta,
+    evaluacion: objetivoCat.nombre,
+    ...(ramoObjetivo !== ramo ? { enRamoVinculado: ramoObjetivo.nombre } : {}),
+    ...(slotsDe(objetivoCat) > 1 ? { casillas: pendientesObjetivo } : {}),
+    notaNecesaria: necesaria,
+    estado,
+    ...(estado === 'no_calculable' ? { motivo: 'El motor no puede proyectar esta evaluación (por ejemplo, una ausencia justificada sin resolver o una eximición ya cerrada).' } : {}),
+    ...(comprobacion || {}),
+    supuestos: fijas.map(f => ({ evaluacion: f.cat.nombre, ...(f.casilla != null ? { casilla: f.casilla } : {}), ...(f.r !== ramo ? { ramo: f.r.nombre } : {}), valor: f.valor, origen: f.origen })),
+    ...((calculoBase.reglasCalculoVigentes?.(ramo) || []).some(g => g.type === 'conditional_weights')
+      ? { advertencia: 'Este ramo cambia de fórmula según las notas: con otros supuestos la respuesta puede cambiar más de lo esperado.' } : {}),
+    nota: 'Cálculo con el resto fijo en los supuestos. No se guardó nada.',
+  };
+}
+
 function queNecesitoParaAprobar(ramos, args, tenant) {
   const ramo = buscarRamo(ramos, args.ramo);
   if (!ramo) return { error: 'No encontré ese ramo', ramos: ramos.map(r => r.nombre) };
   const meta = args.meta == null ? 4 : Number(args.meta);
   if (!Number.isFinite(meta) || meta < 1 || meta > 7) return { error: 'La meta debe ser una nota entre 1,0 y 7,0.' };
+  if (args.evaluacion != null) return necesitaEnEvaluacion(ramos, ramo, args, meta, tenant);
 
   const calculo = calculoPara(ramos, tenant);
   const promedioNecesario = calculo.notaNecesaria(ramo, meta);
