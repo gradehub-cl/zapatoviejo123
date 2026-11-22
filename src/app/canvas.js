@@ -20,6 +20,8 @@ function pluginCanvas(){
 // No espera a Canvas ni falla: es solo borrar del llavero de este iPhone.
 async function olvidarCanvasCuenta(){
   try{const p=pluginCanvas();if(p)await p.desconectar();}catch(e){}
+  if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
+  if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
   if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();
   if(typeof canvasProgramaRamo!=='undefined')canvasProgramaRamo.clear();
 }
@@ -42,55 +44,169 @@ function cursosCanvasDelSemestre(cursos,ahora){
   return actuales.length?actuales:conCodigo.filter(c=>c.periodo.includes(anio));
 }
 function avisoCanvas(texto,error){
-  const el=document.getElementById('s-canvas-estado');
+  const el=document.querySelector('#modal.open #s-canvas-estado');
   if(el){el.textContent=texto;el.classList.toggle('es-error',!!error);}
   else if(texto)showToast(texto,!!error);
 }
-async function pintarCanvasAjustes(){
+function iconoAjustesCanvas(trazo,clase=''){
+  return `<svg class="ic ${clase}" viewBox="0 0 24 24" aria-hidden="true">${trazo}</svg>`;
+}
+const ACCIONES_CANVAS={
+  ramos:{titulo:'Traer mis ramos',detalle:'Agrega los que te faltan',icono:'academico',importar:traerRamosCanvas},
+  fechas:{titulo:'Traer fechas',detalle:'Tareas, eventos y anuncios',icono:'calendario',importar:traerFechasCanvas},
+  notas:{titulo:'Traer notas',detalle:'Calificaciones publicadas',icono:'ficha',importar:traerNotasCanvas}
+};
+const AVISO_AJUSTES_CANVAS='<p class="canvas-aviso" id="s-canvas-estado" role="status" aria-atomic="true"></p>';
+function formularioConexionCanvas(caja,accion){
+  caja.innerHTML=`<form class="canvas-token" onsubmit="event.preventDefault();conectarCanvas()">
+    <h3 id="s-canvas-titulo">${ACCIONES_CANVAS[accion]?.titulo||'Conectar Canvas'}</h3>
+    <p id="s-canvas-ayuda">Para continuar, pega tu token de Canvas UC autorizado para GradeHub.</p>
+    <label for="s-canvas-token">Token de acceso</label>
+    <input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go"
+      placeholder="Pega el token de Canvas" aria-describedby="s-canvas-ayuda s-canvas-privacidad s-canvas-estado"/>
+    ${AVISO_AJUSTES_CANVAS}
+    <p id="s-canvas-privacidad">El token queda solo en el llavero de este iPhone. Podrás volver a usar Canvas sin pegarlo otra vez.</p>
+    <button type="submit" class="btn-confirm canvas-conectar" id="s-canvas-conectar">${accion?'Conectar y continuar':'Conectar Canvas'}</button>
+    <button type="button" class="btn-cancel" onclick="this.form.reset();this.form.remove();pintarCanvasAjustes({enfocar:true})">Volver</button>
+  </form>`;
+  caja.dataset.accionCanvas=accion||'';
+  caja.querySelector('#s-canvas-token').focus();
+}
+async function pintarCanvasAjustes({enfocar=false,accion}={}){
   const caja=document.getElementById('s-canvas');
-  if(!caja||!canvasDisponible())return;
-  let conectado=false;
-  try{const r=await pluginCanvas().estado();conectado=!!(r&&r.conectado);}catch(e){}
-  if(!caja.isConnected)return;
-  caja.innerHTML=conectado?`
-    <p class="settings-help" style="margin-top:0;"><b>Canvas conectado.</b> El token queda solo en el llavero de este iPhone. Revisas cada fecha y nota antes de guardarla.</p>
-    <div class="settings-data-actions" style="margin-bottom:0;">
-      <button type="button" onclick="traerRamosCanvas()">Traer mis ramos</button>
-      <button type="button" onclick="traerFechasCanvas()">Traer fechas</button>
-      <button type="button" onclick="traerNotasCanvas()">Traer notas</button>
+  const plugin=canvasDisponible()&&pluginCanvas();
+  if(!caja||!plugin)return;
+  const cuenta=currentUser.id,estado=S;
+  const vigente=()=>!!caja.closest('#modal.open')&&currentUser?.id===cuenta&&S===estado;
+  let conectado;
+  try{conectado=(await plugin.estado()).conectado;}
+  catch(e){
+    if(!vigente())return;
+    caja.innerHTML=`<div class="canvas-aviso es-error" role="status">No pudimos revisar la conexión en este dispositivo.</div>
+      <button type="button" class="btn-confirm canvas-conectar">Volver a intentar</button>`;
+    const reintento=caja.querySelector('button');
+    reintento.onclick=()=>{reintento.disabled=true;pintarCanvasAjustes({enfocar:true,accion});};
+    return;
+  }
+  if(!vigente())return;
+  if(!conectado&&accion&&Object.hasOwn(ACCIONES_CANVAS,accion)){formularioConexionCanvas(caja,accion);return;}
+  caja.innerHTML=`<div class="canvas-cabecera">
+    <span class="canvas-marca">${iconoAjustesCanvas(ICONO_CANVAS)}</span>
+    <div><h3 id="s-canvas-titulo" tabindex="-1">${conectado?'Canvas conectado':'Canvas UC'}</h3>
+      <p>${conectado?'Acceso guardado en este dispositivo.':'Elige qué quieres traer. Te pediremos el token para conectar Canvas.'}</p></div>
     </div>
-    <button type="button" class="settings-reset-btn" style="min-height:44px;margin-top:12px;" onclick="desconectarCanvas()">Desconectar Canvas</button>
-    <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite"></p>`
-  :`
-    <p class="settings-help" style="margin-top:0;">En Canvas UC abre Cuenta, entra a tu perfil y toca «Nuevo token de acceso». Cópialo y pégalo acá.</p>
-    <label class="modal-label" for="s-canvas-token">Token de Canvas</label>
-    <div class="modal-input"><input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="1234~…"/></div>
-    <button type="button" class="btn-confirm" style="min-height:44px;width:100%;" id="s-canvas-conectar" onclick="conectarCanvas()">Conectar Canvas</button>
-    <p class="settings-help" id="s-canvas-estado" role="status" aria-live="polite">Solo queda en el llavero de este iPhone. No se sube a tu cuenta de GradeHub.</p>`;
+    <section class="canvas-importar" aria-labelledby="s-canvas-importar">
+      <h4 id="s-canvas-importar">Importar a GradeHub</h4>
+      <p>Revisa las propuestas antes de guardarlas.</p>
+      <div class="canvas-filas">${Object.entries(ACCIONES_CANVAS).map(([clave,a])=>`
+        <button type="button" class="canvas-fila" data-canvas-importar="${clave}">
+          ${iconoAjustesCanvas(PERFIL_ICONOS[a.icono],'canvas-fila-icono')}
+          <span><strong>${a.titulo}</strong><small>${a.detalle}</small></span>
+          ${iconoAjustesCanvas('<path d="m9 6 6 6-6 6"/>','canvas-fila-flecha')}
+        </button>`).join('')}</div>
+    </section>${AVISO_AJUSTES_CANVAS}
+    ${conectado?'<button type="button" class="canvas-desconectar" id="s-canvas-desconectar">Desconectar Canvas</button>':'<button type="button" class="btn-cancel" id="s-canvas-solo-conectar">Solo conectar Canvas</button>'}`;
+  for(const boton of caja.querySelectorAll('[data-canvas-importar]')){
+    const clave=boton.dataset.canvasImportar;
+    boton.onclick=()=>conectado?ejecutarImportacionCanvas(boton,ACCIONES_CANVAS[clave].importar):formularioConexionCanvas(caja,clave);
+  }
+  const desconectar=caja.querySelector('#s-canvas-desconectar');
+  if(desconectar)desconectar.onclick=()=>{if(desconectar.getAttribute('aria-disabled')!=='true')desconectarCanvas();};
+  const soloConectar=caja.querySelector('#s-canvas-solo-conectar');
+  if(soloConectar)soloConectar.onclick=()=>formularioConexionCanvas(caja,'');
+  if(enfocar)caja.querySelector('#s-canvas-titulo').focus({preventScroll:true});
+  if(conectado&&accion&&Object.hasOwn(ACCIONES_CANVAS,accion)){
+    const boton=caja.querySelector(`[data-canvas-importar="${accion}"]`);
+    await ejecutarImportacionCanvas(boton,ACCIONES_CANVAS[accion].importar);
+  }
+}
+async function ejecutarImportacionCanvas(boton,importar){
+  if(boton.getAttribute('aria-disabled')==='true')return;
+  const caja=boton.closest('#s-canvas'),estado=S,cuenta=currentUser.id;
+  const acciones=caja.querySelectorAll('[data-canvas-importar],.canvas-desconectar');
+  acciones.forEach(b=>b.setAttribute('aria-disabled','true'));
+  boton.setAttribute('data-canvas-buscando','');
+  try{await importar(()=>!!boton.closest('#modal.open')&&S===estado&&currentUser?.id===cuenta);}
+  finally{
+    boton.removeAttribute('data-canvas-buscando');
+    acciones.forEach(b=>b.removeAttribute('aria-disabled'));
+  }
+}
+async function estadoConexionCanvas(){
+  try{return (await pluginCanvas()?.estado())?.conectado;}
+  catch(e){return undefined;}
+}
+async function avisarErrorLecturaCanvas(error,mensaje){
+  const codigo=Number(error?.code);
+  if(codigo===429){avisoCanvas('Canvas recibió muchas consultas. Espera un momento y vuelve a intentar.',true);return;}
+  if(codigo!==401){avisoCanvas(mensaje,true);return;}
+  const caja=document.querySelector('#modal.open #s-canvas');
+  const cuenta=currentUser?.id,estado=S;
+  const conectado=await estadoConexionCanvas();
+  if(cuenta!==currentUser?.id||estado!==S)return;
+  if(caja&&!caja.closest?.('#modal.open'))return;
+  if(conectado!==false){avisoCanvas(conectado?'Canvas no dio acceso a esos datos.':mensaje,true);return;}
+  if(caja)formularioConexionCanvas(caja,caja.querySelector('[data-canvas-buscando]')?.dataset.canvasImportar);
+  if(!caja||caja.closest?.('#modal.open'))avisoCanvas('El acceso de Canvas venció o fue revocado. Si tienes un acceso autorizado vigente, vuelve a conectar Canvas.',true);
+}
+async function falloLecturaOpcionalCanvas(error){
+  const codigo=Number(error?.code);
+  // Canvas usa 401 tanto para falta de permiso como para una credencial
+  // inválida. El puente ya comprobó si sigue vigente antes de retirarla.
+  return codigo===429||(codigo===401&&!(await estadoConexionCanvas()));
 }
 async function conectarCanvas(){
   if(!canvasDisponible())return;
   const campo=document.getElementById('s-canvas-token'),boton=document.getElementById('s-canvas-conectar');
-  const token=String(campo&&campo.value||'').trim();
-  if(!TOKEN_CANVAS_RE.test(token)){avisoCanvas('Copia el token completo de Canvas, incluido el número y la ~.',true);return;}
-  if(boton)boton.disabled=true;
-  avisoCanvas('Revisando con Canvas…');
+  if(!campo?.closest('#modal.open')||!boton||boton.disabled)return;
+  const caja=campo.closest('#s-canvas'),accion=caja.dataset.accionCanvas;
+  const cuenta=currentUser.id,estado=S;
+  const vigente=()=>!!campo.closest('#modal.open')&&currentUser?.id===cuenta&&S===estado;
+  const token=campo.value.trim();
+  if(!TOKEN_CANVAS_RE.test(token)){
+    campo.setAttribute('aria-invalid','true');
+    campo.focus();
+    avisoCanvas('Copia el token completo de Canvas, incluido el número, la ~ y lo que sigue.',true);
+    return;
+  }
+  campo.removeAttribute('aria-invalid');
+  campo.readOnly=true;
+  boton.disabled=true;boton.textContent='Conectando…';
+  avisoCanvas('Revisando el token con Canvas…');
   try{
     await pluginCanvas().conectar({token});
-    if(campo)campo.value='';
+    if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
+    campo.value='';
+    if(!vigente())return;
     track('canvas_conectado');
-    await pintarCanvasAjustes();
-    avisoCanvas('Canvas conectado. Ahora puedes traer tus ramos y fechas.');
   }catch(e){
-    if(boton)boton.disabled=false;
-    avisoCanvas('No pudimos conectar Canvas. Revisa el token e inténtalo de nuevo.',true);
+    if(!vigente())return;
+    campo.readOnly=false;
+    boton.disabled=false;boton.textContent=accion?'Conectar y continuar':'Conectar Canvas';
+    const codigo=String(e?.code);
+    if(codigo==='401'){campo.value='';campo.setAttribute('aria-invalid','true');campo.focus();}
+    const mensajes={'401':'Canvas rechazó el token. Pega uno vigente para continuar.','403':'Canvas no autorizó el acceso con esta cuenta.',
+      '429':'Canvas recibió muchas consultas. Espera un momento y vuelve a intentar.','0':'No pudimos llegar a Canvas. Revisa tu conexión y vuelve a intentar.'};
+    avisoCanvas(mensajes[codigo]||'No pudimos conectar Canvas. Inténtalo de nuevo.',true);
+    return;
   }
+  await pintarCanvasAjustes({enfocar:true,accion});
 }
 function desconectarCanvas(){
   if(!canvasDisponible())return;
+  const plugin=pluginCanvas(),estado=S,cuenta=currentUser.id;
+  const vigente=()=>S===estado&&currentUser?.id===cuenta;
   showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
-    try{await pluginCanvas().desconectar();if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes();}
-    catch(e){avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
+    if(!vigente())return;
+    try{
+      await plugin.desconectar();
+      if(!vigente())return;
+      if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
+      if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
+      canvasPesosRamo.clear();canvasProgramaRamo.clear();
+      track('canvas_desconectado');
+      await pintarCanvasAjustes({enfocar:true});
+    }catch(e){if(vigente())avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
   },{label:'Desconectar',focusCancel:true});
 }
 async function canvasGet(path,params){
@@ -101,12 +217,13 @@ async function canvasGet(path,params){
 async function cursosCanvas(){
   return cursosCanvasDelSemestre(await canvasGet('courses',{enrollment_state:'active','include[]':['term'],per_page:50}));
 }
-async function traerRamosCanvas(){
+async function traerRamosCanvas(vistaVigente=()=>true){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando tus ramos en Canvas…');
   let cursos;
   try{cursos=await cursosCanvas();}
-  catch(e){avisoCanvas('No pudimos leer Canvas. Revisa la conexión o el token.',true);return;}
+  catch(e){if(vistaVigente())await avisarErrorLecturaCanvas(e,'No pudimos leer tus ramos. Revisa la conexión e inténtalo de nuevo.');return;}
+  if(!vistaVigente())return;
   const tienes=new Set((S.ramos||[]).map(siglaRamoCanvas).filter(Boolean));
   const faltan=cursos.filter(c=>!tienes.has(c.sigla));
   track('canvas_ramos',{encontrados:cursos.length,faltan:faltan.length});
@@ -130,12 +247,12 @@ function isoMasDiasCanvas(ahora,dias){
   const d=new Date(ahora.getTime()+dias*864e5);
   return fechaChileCanvas(d);
 }
-async function traerFechasCanvas(){
+async function traerFechasCanvas(vistaVigente=()=>true){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando fechas en Canvas…');
-  let propuestas=[],ramos=0,anunciosSinLeer=0;
+  let propuestas=[],ramos=0,anunciosSinLeer=0,eventosSinLeer=0;
   const estado=S,cuenta=currentUser?.id||null;
-  const vigente=()=>S===estado&&(currentUser?.id||null)===cuenta;
+  const vigente=()=>vistaVigente()&&S===estado&&(currentUser?.id||null)===cuenta;
   contextoFechasCanvas=null;avisoAnunciosCanvas='';
   const conteos={total:0,tareas:0,eventos:0,sinFecha:0,pasadas:0,duplicadas:0,sinDestino:0,noEvaluacion:0};
   try{
@@ -147,12 +264,24 @@ async function traerFechasCanvas(){
       ramos++;
       const tareas=await canvasGet(`courses/${c.id}/assignments`,{bucket:'future',per_page:100});
       // Sin fechas, Canvas devuelve solo los eventos de hoy.
-      const eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
-        start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
+      let eventos=[];
+      try{
+        eventos=await canvasGet('calendar_events',{'context_codes[]':[`course_${c.id}`],type:'event',
+          start_date:fechaChileCanvas(ahora),end_date:isoMasDiasCanvas(ahora,200),per_page:100});
+      }catch(error){
+        if(!vigente())return;
+        if(await falloLecturaOpcionalCanvas(error))throw error;
+        eventosSinLeer++;
+      }
+      if(!vigente())return;
       const r=resumenFechasCanvas(tareas,ramo,ahora,[],eventos);
       let anuncios=[];
       try{anuncios=await canvasGet(`courses/${c.id}/discussion_topics`,{only_announcements:'true',per_page:50});}
-      catch(e){anunciosSinLeer++;}
+      catch(e){
+        if(!vigente())return;
+        if(await falloLecturaOpcionalCanvas(e))throw e;
+        anunciosSinLeer++;
+      }
       if(!vigente())return;
       const desdeAnuncios=propuestasAnunciosCanvas(anuncios,ramo,ahora);
       const destinos=destinosAnunciosCanvas(ramo);
@@ -161,15 +290,17 @@ async function traerFechasCanvas(){
       propuestas=propuestas.concat(r.propuestas.filter(p=>!reemplazada(p)),desdeAnuncios);
       for(const k of Object.keys(conteos))conteos[k]+=r.conteos[k]||0;
     }
-  }catch(e){avisoCanvas('No pudimos leer las fechas de Canvas. Revisa la conexión o el token.',true);return;}
+  }catch(e){if(vigente())await avisarErrorLecturaCanvas(e,'No pudimos leer las fechas. Revisa la conexión e inténtalo de nuevo.');return;}
   if(!vigente())return;
-  avisoAnunciosCanvas=anunciosSinLeer?'No pudimos leer los anuncios de '+anunciosSinLeer+' curso'+(anunciosSinLeer===1?'':'s')+'. Las tareas y eventos siguen disponibles.':'';
+  avisoAnunciosCanvas=anunciosSinLeer?'No pudimos leer los anuncios de '+anunciosSinLeer+' curso'+(anunciosSinLeer===1?'':'s')+'.':'';
+  const avisoEventos=eventosSinLeer?'No pudimos leer los eventos del calendario de '+eventosSinLeer+' curso'+(eventosSinLeer===1?'':'s')+'.':'';
+  const avisos=[avisoEventos,avisoAnunciosCanvas].filter(Boolean).join(' ');
   track('canvas_fechas',{propuestas:propuestas.length,sin_fecha:conteos.sinFecha,pasadas:conteos.pasadas,
     duplicadas:conteos.duplicadas,sin_destino:conteos.sinDestino,eventos:conteos.eventos,no_evaluacion:conteos.noEvaluacion,anuncios:propuestas.filter(p=>p.origen==='canvas-anuncio').length,anuncios_sin_leer:anunciosSinLeer});
-  if(!propuestas.length){avisoCanvas('Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos)+(avisoAnunciosCanvas?' '+avisoAnunciosCanvas:''));return;}
+  if(!propuestas.length){avisoCanvas(avisos?'No encontramos fechas nuevas en los datos disponibles. '+avisos:'Canvas no tiene fechas próximas para tus ramos. '+explicarConteosCanvas(conteos,ramos));return;}
   avisoCanvas('');
   icsImportDraft=propuestas.sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).slice(0,ICS_IMPORT_MAX_EVENTS);
-  contextoFechasCanvas={estado,cuenta};
+  contextoFechasCanvas={estado,cuenta,avisos};
   renderRevisionIcs();
   openModal();
 }

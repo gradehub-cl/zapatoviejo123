@@ -11,6 +11,7 @@ assert.equal(recibido.cuenta,ctx.currentUser.id);assert.equal(recibido.path,'cou
 ctx.currentUser={id:'00000000-0000-0000-0000-000000000002'};resolver({data:['privado']});await assert.rejects(p,/Cambió la cuenta/);
 ctx.currentUser=null;assert.equal(ctx.pluginCanvas(),null,'sin sesión no usa el token de un tercero');
 const swift=read('ios/App/App/CanvasPlugin.swift');
+assert.equal(JSON.parse(read('capacitor.config.json')).ios.loggingBehavior,'none','Capacitor tampoco imprime los argumentos del puente en Debug');
 assert(swift.includes('kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly'));assert(swift.includes('kSecAttrAccount as String: cuenta'));
 assert(swift.includes('completionHandler(nil)'),'nunca sigue una redirección con Authorization');
 assert(swift.includes('session.bytes(for: pedido)')&&swift.includes('bytes.task.cancel()'),'tope durante la lectura');
@@ -31,6 +32,16 @@ if(process.platform==='darwin'){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gh-canvas-politica-'));
  try{
  fs.writeFileSync(path.join(dir,'main.swift'),`import Foundation
+let conexiones = ConexionesCanvas()
+let primero = conexiones.iniciar("cuenta A")
+let otraCuenta = conexiones.iniciar("cuenta B")
+let segundo = conexiones.iniciar("cuenta A")
+assert(!conexiones.terminar(primero, cuenta:"cuenta A") { fatalError("una validación antigua escribió") })
+assert(conexiones.desconectar("cuenta A") { true })
+assert(!conexiones.terminar(segundo, cuenta:"cuenta A") { fatalError("se guardó el token después de salir") })
+var guardados = 0
+assert(conexiones.terminar(otraCuenta, cuenta:"cuenta B") { guardados += 1 })
+assert(guardados == 1)
 assert(CanvasPolitica.rutaValida("courses/123/assignment_groups"))
 assert(CanvasPolitica.rutaValida("courses/123/assignments"))
 assert(!CanvasPolitica.rutaValida("courses/123/grades"))

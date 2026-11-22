@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [{
+      "appIDs": ["PH6XQV8L2M.cl.gradehub.app"],
+      "components": [
+        {"/": "/", "?": {"amigo": "?*"}, "comment": "Link para agregar un amigo (gradehub.cl/?amigo=usuario): abre la app si está instalada."}
+      ]
+    }]
+  }
+}
