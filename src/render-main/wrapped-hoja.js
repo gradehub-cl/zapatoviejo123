@@ -64,7 +64,7 @@ function reglaWrapped(p){
   return `<svg class="wrapped-regla" viewBox="0 0 ${w} 110" aria-hidden="true">
     <g transform="translate(0 46)"><rect class="cuerpo" x=".75" y=".75" width="${w-1.5}" height="62.5" rx="6"/>
     <rect class="relleno" x="${x(0)}" y="4" width="${(x(v)-x(0)).toFixed(1)}" height="24" rx="3"/>${marcas}
-    ${[0,20,40,60,80,100].map(n=>`<text x="${x(n).toFixed(1)}" y="48" text-anchor="middle">${n}</text>`).join('')}</g>
+    ${[0,20,40,60,80,100].map(n=>`<text x="${x(n).toFixed(1)}" y="48" text-anchor="middle">${n||'·'}</text>`).join('')}</g>
     <text class="tu" x="${(x(v)-40).toFixed(1)}" y="20" text-anchor="end">tú</text>
     <path class="trazo" d="M ${(x(v)-34).toFixed(1)} 16 C ${(x(v)-16).toFixed(1)} 6, ${(x(v)-4).toFixed(1)} 18, ${x(v).toFixed(1)} 42 M ${(x(v)-7).toFixed(1)} 34 L ${x(v).toFixed(1)} 44 L ${(x(v)+6).toFixed(1)} 33"/></svg>`;
 }
@@ -167,7 +167,7 @@ function borradoGomaWrapped(g){
 function videoWrapped(v){
   const pie=v&&v.quien?`<figcaption>${esc(v.quien)}${v.ramo?`<small>${esc(v.ramo)}</small>`:''}</figcaption>`:'';
   if(v&&v.fallo)return `<figure class="hoja-video vacio"><div><p>No pudimos cargar el video.</p><small>Vuelve a abrir tu hoja más tarde para verlo.</small></div>${pie}</figure>`;
-  if(!v||!v.src)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Se carga en el bucket <code>wrapped</code> (ver wrapped_recado.sql).</small></div>${pie}</figure>`;
+  if(!v||!v.src)return `<figure class="hoja-video vacio"><div><p>Aquí va el video del profe.</p><small>Espacio reservado en la vista previa.</small></div>${pie}</figure>`;
   // Sin póster, Safari en iPhone muestra un cuadro negro hasta apretar play:
   // `#t=0.1` le pide pintar el primer cuadro.
   const src=v.poster?v.src:`${v.src}#t=0.1`;

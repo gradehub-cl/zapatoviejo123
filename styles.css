@@ -3206,6 +3206,10 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .wrapped-accion,.wrapped-compartir{border:0;background:var(--tinta);color:var(--sup);}
 .wrapped-descargar{border:1.5px solid var(--tinta);background:transparent;color:var(--tinta);}
 .wrapped-compartir:disabled,.wrapped-descargar:disabled{opacity:.5;cursor:default;}
+.wrapped-slide{justify-content:safe center;}
+.wrapped-compartir.historia{align-self:flex-start;min-height:44px;border-radius:8px;padding:8px 16px;}
+.hoja-ramos{margin:0;padding:0;list-style:none;text-align:left;}
+.hoja-ramos li{padding:.55em 0;border-bottom:1px solid currentColor;}
 .wrapped-acciones{display:grid;gap:10px;}
 .wrapped-tarjeta{align-self:center;width:min(62%,280px);aspect-ratio:9/16;border-radius:10px;overflow:hidden;transform:rotate(-1.5deg);background:#F3EFE4;box-shadow:0 22px 40px -18px rgba(29,29,31,.5),0 0 0 1px rgba(29,29,31,.12);display:grid;place-items:center;}
 .wrapped-tarjeta img{width:100%;height:100%;display:block;}
@@ -3399,7 +3403,7 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .wrapped-slide[data-forma="objeto"] .hoja-semana .dia{justify-content:flex-start;gap:0;padding:0;border-radius:0;}
 .wrapped-slide[data-forma="objeto"] .hoja-semana .dia+.dia{border-left:1.5px solid #CBD5E3;}
 .wrapped-slide[data-forma="objeto"] .hoja-semana b{order:-1;align-self:stretch;padding:8px 0;border-bottom:2px solid #1D1D1F;text-align:center;font-size:17px;color:#1D1D1F;}
-.wrapped-slide[data-forma="objeto"] .hoja-semana .pila{flex-direction:column;justify-content:flex-start;min-height:min(34vh,270px);gap:8px;padding:12px 0;}
+.wrapped-slide[data-forma="objeto"] .hoja-semana .pila{flex-direction:column;justify-content:flex-start;min-height:0;gap:8px;padding:12px 0;}
 .wrapped-slide[data-forma="objeto"] .hoja-semana .dia.tope{background:var(--acento);}
 .wrapped-slide[data-forma="objeto"] .hoja-semana .hoja-burbuja.chica{width:clamp(26px,8vw,36px);height:clamp(26px,8vw,36px);background:#1D1D1F;border-color:#1D1D1F;}
 .wrapped-slide[data-forma="objeto"] .wrapped-titulo{font-size:22px;font-weight:600;line-height:1.25;letter-spacing:0;}

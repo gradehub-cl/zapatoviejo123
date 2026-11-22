@@ -38,6 +38,10 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
   mostrar([{...ramo('sin-pauta'),categorias:[]}]);assert.equal(run('cierreWrapped(ramosWrapped()).listo'),false);
   mostrar([ramo('reprobado',2)]);assert.equal(run('cierreWrapped(ramosWrapped()).listo'),true);
  });
+ check('la página pública explica quién elige el destino de una imagen sin anticipar la campaña',()=>{
+  assert.doesNotMatch(read('privacidad.html'),/\bwrapped\b/i);
+  assert.match(read('privacidad.html'),/tú eliges si enviarla y a quién/);
+ });
  check('Inicio no revela historias ni cifras antes de finalizar',()=>{
   mostrar([ramo('listo')]);run('renderWrappedHome()');
   assert.match(ids['home-wrapped'].innerHTML,/Semestre terminado/);
@@ -145,7 +149,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  assert.doesNotMatch(run('_wrapped.ov.querySelector(".wrapped-slide").innerHTML'),/Nombre Privado|5[.,]0|Mejor nota/);
  assert.equal(run('_wrapped.ov.querySelector(\'[data-paso="1"]\').textContent'),'Revisar mi hoja');
  check('Tab permanece en el modal y Espacio respeta Compartir',()=>{
-  const ov=run('_wrapped.ov'),a=el(),b=el();ov.querySelectorAll=()=>[a,b];ctx.document.activeElement=b;let prevenido=false;
+  const ov=run('_wrapped.ov'),a=el(),b=el();ov.querySelector('.wrapped-indice').hidden=true;ov.querySelectorAll=()=>[a,b];ctx.document.activeElement=b;let prevenido=false;
   ctx.teclaWrapped({key:'Tab',preventDefault(){prevenido=true;}});assert.ok(prevenido);assert.equal(ctx.document.activeElement,a);
   const i=run('_wrapped.i');ctx.teclaWrapped({key:' ',target:{closest:()=>a},preventDefault(){throw Error('Espacio secuestrado');}});assert.equal(run('_wrapped.i'),i);
  });
@@ -201,7 +205,7 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  assert.equal(preparado.querySelector('.wrapped-slide').querySelector('.wrapped-compartir').disabled,false);
  assert.equal(run('_wrapped.archivo.name'),archivo.name);
  console.log('  OK   preparación lenta habilita compartir solo cuando el File está listo');
- mostrar([ramo('uno')]);const final=run('slidesWrapped(datosWrapped(S.ramos),null,semester()).at(-1)');assert.doesNotMatch(JSON.stringify(final),/Nombre Privado|privado-sintetico@example\.invalid|correo|email/);
+ mostrar([ramo('a'),ramo('b'),ramo('c'),ramo('d')]);const final=run('slidesWrapped(datosWrapped(S.ramos),null,semester()).at(-1)');assert.doesNotMatch(JSON.stringify(final),/Nombre Privado|privado-sintetico@example\.invalid|correo|email/);
  // Exportación sin Canvas.roundRect (Safari antiguo); nunca dibuja la identidad.
  const dibujado=[],curvas=[];
  const canvasCtx={fillRect(){},beginPath(){},moveTo(){},lineTo(){},quadraticCurveTo(...x){curvas.push(x);},closePath(){},fill(){},stroke(){},clip(){},save(){},restore(){},drawImage(){},arc(){},translate(){},rotate(){},
@@ -217,6 +221,16 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  assert.ok(curvas.length>=2,"el resaltador se dibuja como trazo, sin roundRect");assert.doesNotMatch(dibujado.join(' '),/Nombre Privado|Privado|privado-sintetico@example\.invalid|correo|email/);assert.ok(!dibujado.some(t=>t.includes('Promedio')),'el promedio no sale si la persona no lo pide');
  dibujado.length=0;await ctx.imagenWrapped(final,true);assert.ok(dibujado.some(t=>t.includes('Promedio')&&t.includes(final.big)),'y sale cuando lo pide');
  console.log('  OK   imagen 1080×1920: solo el primer nombre, sin apellido ni correo, y el promedio solo si se pide');
+ // El canvas recibe un DTO de textos permitidos, incluso si un nombre de cuenta
+ // o ramo contiene un correo. Capturar fillText comprueba la imagen real.
+ set('S.userName','nombre.privado@example.invalid Apellido');
+ run('S.ramos=ramosVistaPreviaWrapped();S.ramos[0].nombre="ramo.privado@example.invalid"');
+ const paginas=run('slidesWrapped(extrasWrapped(datosWrapped(S.ramos),S.ramos),{uni:{mejorQue:70,total:22}},semester())');
+ for(const pagina of paginas.filter(p=>p.compartible)){
+   dibujado.length=0;await ctx.imagenWrapped(pagina);
+   assert.doesNotMatch(dibujado.join(' '),/@|Apellido|I3 de/);
+   assert.ok(dibujado.includes(pagina.compartible[0]));
+ }
  assert.equal(writes.length,0,'revisar Wrapped no escribe notas ni gradehub_v1');
  // Esta regresión se complementa con getAnimations y tamaños reales en Chrome.
  check('CSS apaga toda animación y conserva controles/safe areas',()=>{
@@ -244,12 +258,24 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  assert.equal(run('_wrapped.archivo.name'),'sin-promedio.png');
  assert.equal(run('_wrapped.vista'),'data:image/png;base64,sin-promedio.png');
  console.log('  OK   una imagen atrasada no reemplaza a la última pedida');
+ // Dos historias distintas pueden terminar de dibujarse en orden inverso.
+ const a={tipo:'pregunta'},b={tipo:'avance'},hoja=el();
+ set('_wrapped',{ov:hoja,slides:[a,b],i:0,imagen:null,archivo:null});
+ ctx.prepararImagenWrapped(a);const primera=run('_wrapped.imagen');
+ run('_wrapped.i=1;_wrapped.imagen=null;_wrapped.archivo=null');ctx.prepararImagenWrapped(b);const segunda=run('_wrapped.imagen');
+ pendientes[3]({name:'avance.png'});await segunda;pendientes[2]({name:'pregunta.png'});await primera;
+ assert.equal(run('_wrapped.archivo.name'),'avance.png');
  check('la universidad siempre va con artículo',()=>{
   for(const [id,t] of Object.entries(run('TENANTS')))assert.match(t.conArticulo,/^la /,id);
-  mostrar([ramo('uno')]);
+  mostrar([ramo('a'),ramo('b'),ramo('c'),ramo('d')]);
   const slides=run("slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())");
-  const uni=slides.find(x=>/^En toda/.test(x.k||''));
-  assert.equal(uni.k,'En toda la UC quedaste sobre el');assert.match(uni.sub,/otras 119 personas/);
+  const uni=slides.find(x=>/^En la/.test(x.k||''));
+  assert.equal(uni.k,'En la UC quedaste sobre el');assert.match(uni.sub,/otras 119 personas/);
+  for(const [tenant,articulo] of Object.entries(run('TENANTS'))){
+    set('S.tenant',tenant);
+    const pagina=run('slidesWrapped(datosWrapped(S.ramos),{uni:{mejorQue:71,total:120}},semester())').find(x=>x.forma==='gigante');
+    assert.equal(pagina.k,'En '+articulo.conArticulo+' quedaste sobre el');
+  }
  });
  check('en pantalla ancha la hoja es una columna centrada',()=>{
   const ancho=read('styles.css').match(/@media \(min-width:768px\)\{\s*\.wrapped-arriba[^}]*\}/);
