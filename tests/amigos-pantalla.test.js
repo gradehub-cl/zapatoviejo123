@@ -136,6 +136,35 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   const p=run('cargarAmigos()');run('olvidarAmigos()');await p;
   chk('una respuesta tardía de la cuenta anterior se descarta',run('amigosVisible()')===false);
 
+  console.log('\n=== Al día sin cerrar la app ===');
+  // Antes, si alguien te agregaba, no lo veías hasta cerrar y abrir la app.
+  const llamadas=[];
+  cliente(`n=>{globalThis.__llamadas.push(n);return n==='amigos_estado'?{data:{username:'ana_s',recibidas:globalThis.__recibidas},error:null}
+    :n==='mis_amistades'?{data:Array.from({length:globalThis.__recibidas},(_,i)=>({id:'r'+i,username:'sol_'+i,estado:'recibida'})),error:null}
+    :n==='amigos_horarios'||n==='mis_grupos'?{data:[],error:null}:{data:null,error:{message:'Could not find the function'}}}`);
+  ctx.__llamadas=llamadas;ctx.__recibidas=0;
+  await run('cargarAmigos()');run(`currentTab='home';_amigosRefrescadoAt=Date.now();amigosListaCache=[];`);
+  llamadas.length=0;await run('revisarAmigos()');
+  chk('fuera de la pestaña, la revisión pregunta solo estado y grupos',llamadas.sort().join()==='amigos_estado,mis_grupos');
+  chk('sin nada nuevo no hay insignia',run('pendientesAmigos()')===0);
+  ctx.__recibidas=1;llamadas.length=0;await run('revisarAmigos()');
+  chk('una solicitud nueva aparece en la insignia sin reabrir',run('pendientesAmigos()')===1&&nav['_aria-label']==='Amigos, 1 pendiente');
+  chk('y se trae la lista para que al abrir ya esté',llamadas.includes('mis_amistades')&&run('amigosListaCache.length')===1);
+  let pintadas=0;ctx.__pintar=()=>pintadas++;run(`pintarAmigos=()=>globalThis.__pintar();currentTab='amigos';`);
+  llamadas.length=0;await run('revisarAmigos()');
+  chk('en la pestaña Amigos la revisión trae todo',llamadas.includes('mis_amistades')&&llamadas.includes('amigos_horarios'));
+  chk('si nada cambió, no se repinta (no salta el scroll)',pintadas===0);
+  ctx.__recibidas=2;await run('revisarAmigos()');
+  chk('si cambió, se repinta solo',pintadas===1&&run('amigosListaCache.length')===2);
+  run(`showToast=()=>{globalThis.__avisos++;}`);ctx.__avisos=0;
+  cliente(`n=>({data:null,error:{message:'Failed to fetch'}})`);await run('revisarAmigos()');
+  chk('sin red, la revisión automática no muestra errores',ctx.__avisos===0);
+  run(`currentTab='home';`);
+  chk('volver a la app revisa al tiro',/visibilitychange[\s\S]{0,120}revisarAmigos\(\)/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'))
+    &&/addListener\('resume',\(\)=>\{if\(Date\.now\(\)-_amigosRevisadoAt>5e3\)revisarAmigos\(\);\}\)/.test(fs.readFileSync(raiz+'src/app-session/oauth-y-recuperacion.js','utf8')));
+  run('olvidarAmigos()');
+  chk('al cerrar sesión se deja de revisar',run('_amigosTimer')===null&&run('_amigosFirma')===null);
+
   console.log('\n=== Mensajes ===');
   chk('los del SQL se muestran con mayúscula',run(`mensajeErrorAmigos({message:'ese username ya está ocupado'})`)==='Ese username ya está ocupado');
   chk('los técnicos no llegan a la persona',run(`mensajeErrorAmigos({message:'relation "public.usernames" does not exist'})`)==='No se pudo conectar. Intenta de nuevo.');
