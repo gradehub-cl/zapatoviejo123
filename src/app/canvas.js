@@ -51,62 +51,82 @@ function avisoCanvas(texto,error){
 function iconoAjustesCanvas(trazo,clase=''){
   return `<svg class="ic ${clase}" viewBox="0 0 24 24" aria-hidden="true">${trazo}</svg>`;
 }
-async function pintarCanvasAjustes({enfocar=false}={}){
+const ACCIONES_CANVAS={
+  ramos:{titulo:'Traer mis ramos',detalle:'Agrega los que te faltan',icono:'academico',importar:traerRamosCanvas},
+  fechas:{titulo:'Traer fechas',detalle:'Tareas, eventos y anuncios',icono:'calendario',importar:traerFechasCanvas},
+  notas:{titulo:'Traer notas',detalle:'Calificaciones publicadas',icono:'ficha',importar:traerNotasCanvas}
+};
+const AVISO_AJUSTES_CANVAS='<p class="canvas-aviso" id="s-canvas-estado" role="status" aria-atomic="true"></p>';
+function formularioConexionCanvas(caja,accion){
+  caja.innerHTML=`<form class="canvas-token" onsubmit="event.preventDefault();conectarCanvas()">
+    <h3 id="s-canvas-titulo">${ACCIONES_CANVAS[accion]?.titulo||'Conectar Canvas'}</h3>
+    <p id="s-canvas-ayuda">Para continuar, pega tu token de Canvas UC autorizado para GradeHub.</p>
+    <label for="s-canvas-token">Token de acceso</label>
+    <input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go"
+      placeholder="Pega el token de Canvas" aria-describedby="s-canvas-ayuda s-canvas-privacidad s-canvas-estado"/>
+    ${AVISO_AJUSTES_CANVAS}
+    <p id="s-canvas-privacidad">El token queda solo en el llavero de este iPhone. Podrás volver a usar Canvas sin pegarlo otra vez.</p>
+    <button type="submit" class="btn-confirm canvas-conectar" id="s-canvas-conectar">${accion?'Conectar y continuar':'Conectar Canvas'}</button>
+    <button type="button" class="btn-cancel" onclick="this.form.reset();this.form.remove();pintarCanvasAjustes({enfocar:true})">Volver</button>
+  </form>`;
+  caja.dataset.accionCanvas=accion||'';
+  caja.querySelector('#s-canvas-token').focus();
+}
+async function pintarCanvasAjustes({enfocar=false,accion}={}){
   const caja=document.getElementById('s-canvas');
   const plugin=canvasDisponible()&&pluginCanvas();
   if(!caja||!plugin)return;
-  let estado;
-  try{estado=await plugin.estado();}
+  const cuenta=currentUser.id,estado=S;
+  const vigente=()=>!!caja.closest('#modal.open')&&currentUser?.id===cuenta&&S===estado;
+  let conectado;
+  try{conectado=(await plugin.estado()).conectado;}
   catch(e){
-    if(caja.isConnected&&canvasDisponible())caja.innerHTML=`
-      <div class="canvas-aviso es-error" role="status">No pudimos revisar la conexión en este dispositivo.</div>
-      <button type="button" class="btn-confirm canvas-conectar" onclick="this.disabled=true;this.textContent='Revisando…';pintarCanvasAjustes({enfocar:true})">Volver a intentar</button>`;
+    if(!vigente())return;
+    caja.innerHTML=`<div class="canvas-aviso es-error" role="status">No pudimos revisar la conexión en este dispositivo.</div>
+      <button type="button" class="btn-confirm canvas-conectar">Volver a intentar</button>`;
+    const reintento=caja.querySelector('button');
+    reintento.onclick=()=>{reintento.disabled=true;pintarCanvasAjustes({enfocar:true,accion});};
     return;
   }
-  if(!caja.isConnected)return;
-  const conectado=!!estado?.conectado;
-  const cabecera=`<div class="canvas-cabecera">
+  if(!vigente())return;
+  if(!conectado&&accion&&Object.hasOwn(ACCIONES_CANVAS,accion)){formularioConexionCanvas(caja,accion);return;}
+  caja.innerHTML=`<div class="canvas-cabecera">
     <span class="canvas-marca">${iconoAjustesCanvas(ICONO_CANVAS)}</span>
-    <div><h3 id="s-canvas-titulo" tabindex="-1">${conectado?'Canvas conectado':'Conecta Canvas UC'}</h3>
-      <p>${conectado?'Acceso guardado en este dispositivo.':'Trae tus ramos, fechas y notas publicadas.'}</p></div>
-  </div>`;
-  const aviso='<p class="canvas-aviso" id="s-canvas-estado" role="status" aria-atomic="true"></p>';
-  const fila=(accion,titulo,detalle,icono)=>`<button type="button" class="canvas-fila" data-canvas-importar
-      onclick="ejecutarImportacionCanvas(this,${accion})">
-    ${iconoAjustesCanvas(icono,'canvas-fila-icono')}
-    <span><strong>${titulo}</strong><small>${detalle}</small></span>
-    ${iconoAjustesCanvas('<path d="m9 6 6 6-6 6"/>','canvas-fila-flecha')}
-  </button>`;
-  caja.innerHTML=cabecera+(conectado?`
+    <div><h3 id="s-canvas-titulo" tabindex="-1">${conectado?'Canvas conectado':'Canvas UC'}</h3>
+      <p>${conectado?'Acceso guardado en este dispositivo.':'Elige qué quieres traer. Te pediremos el token para conectar Canvas.'}</p></div>
+    </div>
     <section class="canvas-importar" aria-labelledby="s-canvas-importar">
       <h4 id="s-canvas-importar">Importar a GradeHub</h4>
       <p>Revisa las propuestas antes de guardarlas.</p>
-      <div class="canvas-filas">
-        ${fila('traerRamosCanvas','Traer mis ramos','Agrega los que te faltan',PERFIL_ICONOS.academico)}
-        ${fila('traerFechasCanvas','Traer fechas','Tareas, eventos y anuncios',PERFIL_ICONOS.calendario)}
-        ${fila('traerNotasCanvas','Traer notas','Calificaciones publicadas',PERFIL_ICONOS.ficha)}
-      </div>
-    </section>
-    ${aviso}
-    <button type="button" class="canvas-desconectar" onclick="if(this.getAttribute('aria-disabled')!=='true')desconectarCanvas()">Desconectar Canvas</button>`:`
-    <form class="canvas-token" onsubmit="event.preventDefault();conectarCanvas()">
-      <p id="s-canvas-ayuda">Si ya tienes un token autorizado para GradeHub, pégalo aquí.</p>
-      <label for="s-canvas-token">Token de acceso</label>
-      <input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go"
-        placeholder="Pega el token de Canvas" aria-describedby="s-canvas-ayuda s-canvas-privacidad s-canvas-estado"/>
-      ${aviso}
-      <p id="s-canvas-privacidad">El token queda solo en el llavero de este dispositivo.</p>
-      <button type="submit" class="btn-confirm canvas-conectar" id="s-canvas-conectar">Conectar Canvas</button>
-    </form>`);
-  if(enfocar)document.querySelector('#modal.open #s-canvas-titulo')?.focus({preventScroll:true});
+      <div class="canvas-filas">${Object.entries(ACCIONES_CANVAS).map(([clave,a])=>`
+        <button type="button" class="canvas-fila" data-canvas-importar="${clave}">
+          ${iconoAjustesCanvas(PERFIL_ICONOS[a.icono],'canvas-fila-icono')}
+          <span><strong>${a.titulo}</strong><small>${a.detalle}</small></span>
+          ${iconoAjustesCanvas('<path d="m9 6 6 6-6 6"/>','canvas-fila-flecha')}
+        </button>`).join('')}</div>
+    </section>${AVISO_AJUSTES_CANVAS}
+    ${conectado?'<button type="button" class="canvas-desconectar" id="s-canvas-desconectar">Desconectar Canvas</button>':'<button type="button" class="btn-cancel" id="s-canvas-solo-conectar">Solo conectar Canvas</button>'}`;
+  for(const boton of caja.querySelectorAll('[data-canvas-importar]')){
+    const clave=boton.dataset.canvasImportar;
+    boton.onclick=()=>conectado?ejecutarImportacionCanvas(boton,ACCIONES_CANVAS[clave].importar):formularioConexionCanvas(caja,clave);
+  }
+  const desconectar=caja.querySelector('#s-canvas-desconectar');
+  if(desconectar)desconectar.onclick=()=>{if(desconectar.getAttribute('aria-disabled')!=='true')desconectarCanvas();};
+  const soloConectar=caja.querySelector('#s-canvas-solo-conectar');
+  if(soloConectar)soloConectar.onclick=()=>formularioConexionCanvas(caja,'');
+  if(enfocar)caja.querySelector('#s-canvas-titulo').focus({preventScroll:true});
+  if(conectado&&accion&&Object.hasOwn(ACCIONES_CANVAS,accion)){
+    const boton=caja.querySelector(`[data-canvas-importar="${accion}"]`);
+    await ejecutarImportacionCanvas(boton,ACCIONES_CANVAS[accion].importar);
+  }
 }
 async function ejecutarImportacionCanvas(boton,importar){
   if(boton.getAttribute('aria-disabled')==='true')return;
-  const caja=boton.closest('#s-canvas');
+  const caja=boton.closest('#s-canvas'),estado=S,cuenta=currentUser.id;
   const acciones=caja.querySelectorAll('[data-canvas-importar],.canvas-desconectar');
   acciones.forEach(b=>b.setAttribute('aria-disabled','true'));
   boton.setAttribute('data-canvas-buscando','');
-  try{await importar(()=>!!boton.closest('#modal.open'));}
+  try{await importar(()=>!!boton.closest('#modal.open')&&S===estado&&currentUser?.id===cuenta);}
   finally{
     boton.removeAttribute('data-canvas-buscando');
     acciones.forEach(b=>b.removeAttribute('aria-disabled'));
@@ -121,10 +141,12 @@ async function avisarErrorLecturaCanvas(error,mensaje){
   if(codigo===429){avisoCanvas('Canvas recibió muchas consultas. Espera un momento y vuelve a intentar.',true);return;}
   if(codigo!==401){avisoCanvas(mensaje,true);return;}
   const caja=document.querySelector('#modal.open #s-canvas');
+  const cuenta=currentUser?.id,estado=S;
   const conectado=await estadoConexionCanvas();
+  if(cuenta!==currentUser?.id||estado!==S)return;
   if(caja&&!caja.closest?.('#modal.open'))return;
   if(conectado!==false){avisoCanvas(conectado?'Canvas no dio acceso a esos datos.':mensaje,true);return;}
-  if(caja)await pintarCanvasAjustes({enfocar:true});
+  if(caja)formularioConexionCanvas(caja,caja.querySelector('[data-canvas-buscando]')?.dataset.canvasImportar);
   if(!caja||caja.closest?.('#modal.open'))avisoCanvas('El acceso de Canvas venció o fue revocado. Si tienes un acceso autorizado vigente, vuelve a conectar Canvas.',true);
 }
 async function falloLecturaOpcionalCanvas(error){
@@ -136,35 +158,55 @@ async function falloLecturaOpcionalCanvas(error){
 async function conectarCanvas(){
   if(!canvasDisponible())return;
   const campo=document.getElementById('s-canvas-token'),boton=document.getElementById('s-canvas-conectar');
-  if(boton?.disabled)return;
-  const token=String(campo&&campo.value||'').trim();
+  if(!campo?.closest('#modal.open')||!boton||boton.disabled)return;
+  const caja=campo.closest('#s-canvas'),accion=caja.dataset.accionCanvas;
+  const cuenta=currentUser.id,estado=S;
+  const vigente=()=>!!campo.closest('#modal.open')&&currentUser?.id===cuenta&&S===estado;
+  const token=campo.value.trim();
   if(!TOKEN_CANVAS_RE.test(token)){
-    campo?.setAttribute('aria-invalid','true');
-    campo?.focus();
+    campo.setAttribute('aria-invalid','true');
+    campo.focus();
     avisoCanvas('Copia el token completo de Canvas, incluido el número, la ~ y lo que sigue.',true);
     return;
   }
-  campo?.removeAttribute('aria-invalid');
-  if(campo)campo.readOnly=true;
-  if(boton){boton.disabled=true;boton.textContent='Conectando…';}
+  campo.removeAttribute('aria-invalid');
+  campo.readOnly=true;
+  boton.disabled=true;boton.textContent='Conectando…';
   avisoCanvas('Revisando el token con Canvas…');
   try{
     await pluginCanvas().conectar({token});
     if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
-    if(campo)campo.value='';
+    campo.value='';
+    if(!vigente())return;
     track('canvas_conectado');
-    await pintarCanvasAjustes({enfocar:true});
   }catch(e){
-    if(campo)campo.readOnly=false;
-    if(boton){boton.disabled=false;boton.textContent='Conectar Canvas';}
-    avisoCanvas('No pudimos conectar Canvas. Revisa el token y tu conexión, e inténtalo de nuevo.',true);
+    if(!vigente())return;
+    campo.readOnly=false;
+    boton.disabled=false;boton.textContent=accion?'Conectar y continuar':'Conectar Canvas';
+    const codigo=String(e?.code);
+    if(codigo==='401'){campo.value='';campo.setAttribute('aria-invalid','true');campo.focus();}
+    const mensajes={'401':'Canvas rechazó el token. Pega uno vigente para continuar.','403':'Canvas no autorizó el acceso con esta cuenta.',
+      '429':'Canvas recibió muchas consultas. Espera un momento y vuelve a intentar.','0':'No pudimos llegar a Canvas. Revisa tu conexión y vuelve a intentar.'};
+    avisoCanvas(mensajes[codigo]||'No pudimos conectar Canvas. Inténtalo de nuevo.',true);
+    return;
   }
+  await pintarCanvasAjustes({enfocar:true,accion});
 }
 function desconectarCanvas(){
   if(!canvasDisponible())return;
+  const plugin=pluginCanvas(),estado=S,cuenta=currentUser.id;
+  const vigente=()=>S===estado&&currentUser?.id===cuenta;
   showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
-    try{await pluginCanvas().desconectar();if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes({enfocar:true});}
-    catch(e){avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
+    if(!vigente())return;
+    try{
+      await plugin.desconectar();
+      if(!vigente())return;
+      if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
+      if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
+      canvasPesosRamo.clear();canvasProgramaRamo.clear();
+      track('canvas_desconectado');
+      await pintarCanvasAjustes({enfocar:true});
+    }catch(e){if(vigente())avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
   },{label:'Desconectar',focusCancel:true});
 }
 async function canvasGet(path,params){
