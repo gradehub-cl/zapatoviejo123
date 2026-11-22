@@ -48,6 +48,7 @@
     "src/app/herramientas-inicio.js",
     "src/app/agentes-conexion.js",
     "src/app/agentes-propuestas-notas.js",
+    "src/app/notas-desde-excel.js",
     "src/app/agentes-propuestas-ramos-pautas.js",
     "src/app/ajustes.js",
     "src/app/feedback-enviar.js",
