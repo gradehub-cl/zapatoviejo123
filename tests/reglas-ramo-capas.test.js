@@ -39,3 +39,5 @@ run("limpio.categorias.find(c=>c.id==='p').peso=90");assert.match(run('reglasRam
 const maxima=run(`crearProgramaCanvas('a'.repeat(500),Array(100).fill('b'.repeat(999)),limpio)`);assert(maxima.archivo.length<=160&&maxima.citas.length===4&&maxima.citas.every(c=>c.length<=220));
 run('delete limpio.programaCanvas');assert.equal(run('reglasRamoHTML(limpio)'),'','cuenta sin campo sigue sin reglas');
 console.log('PASS reglas: eximición activa/inactiva, compuerta, bonus, curso, reparto, consenso, web y Canvas guardado/recarga/sync');
+// Lucas, 2026-11-22: en la ficha de la app las reglas van plegadas, como en la web.
+{const ficha=leer('src/render-main/ficha-ramo.js');assert(!/reglasRamoHTML\(/.test(ficha),'la ficha no abre «Reglas del ramo»');assert.match(ficha,/class="reglas-toggle"/);}
