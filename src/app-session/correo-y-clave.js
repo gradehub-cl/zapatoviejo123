@@ -54,97 +54,117 @@ async function cambiarCorreoCuenta(){
   }
 }
 
-// Cambiar la contraseña estando dentro (#714). Antes solo se llegaba desde el
-// correo de recuperación. Misma política y mismo updateUser que esa pantalla.
-// Solo para cuentas que entran con correo: las de Google no tienen contraseña.
-// Solo cuentas que se crearon con correo: `provider` guarda el primer método de
-// entrada. Una cuenta que nació con Google no cambia contraseña aquí aunque
-// después haya quedado también con correo (decisión de Lucas, 2026-11-09).
-function cuentaConClave(u){
-  const m=u&&u.app_metadata;
-  return !!m&&m.provider==='email';
+// El proveedor original manda también cuando hay una identidad vinculada.
+function cuentaConClave(usuario){
+  return !!usuario?.email&&usuario.app_metadata?.provider==='email';
 }
-function estadoCambioClave(mensaje,esError,campo){
-  const aviso=document.getElementById('s-account-pass-status');
-  if(aviso){aviso.textContent=mensaje||'';aviso.hidden=!mensaje;aviso.style.color=esError?'var(--red)':'var(--fg2)';}
-  ['s-account-pass','s-account-pass2'].forEach(id=>{
-    const input=document.getElementById(id);
-    if(!input)return;
-    const invalido=esError&&campo!=='verificacion';
-    if(invalido)input.setAttribute('aria-invalid','true');
-    else input.removeAttribute('aria-invalid');
+
+// updateUser del cliente compartido lee su sesión desde almacenamiento al tomar
+// el lock y vuelve a guardarla al recibir la respuesta. Para esta operación
+// usamos el mismo endpoint con el token de la visita que abrió la hoja (#579).
+async function peticionClaveCuenta(token,ruta,atributos){
+  const respuesta=await fetch(SUPABASE_URL+'/auth/v1/'+ruta,{
+    method:atributos?'PUT':'GET',credentials:'omit',cache:'no-store',redirect:'error',
+    headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json','X-Supabase-Api-Version':'2024-01-01'},
+    ...(atributos?{body:JSON.stringify(atributos)}:{})
   });
-}
-async function cambiarClaveCuenta(){
-  const btn=document.getElementById('s-account-pass-save');
-  if(btn&&btn.disabled)return false;
-  const recuperar=document.getElementById('s-account-pass-recover');
-  if(recuperar&&recuperar.disabled)return false;
-  const i1=document.getElementById('s-account-pass'),i2=document.getElementById('s-account-pass2');
-  const p1=i1?i1.value:'',p2=i2?i2.value:'';
-  estadoCambioClave('',false);
-  if(recuperar)recuperar.hidden=true;
-  const politica=passwordPolicyError(p1);
-  if(politica){estadoCambioClave(politica,true);if(i1)i1.focus();return false;}
-  if(p1!==p2){estadoCambioClave('Las contraseñas no coinciden.',true);if(i2)i2.focus();return false;}
-  if(!supabaseClient||!supabaseClient.auth||!currentUser){
-    estadoCambioClave('Necesitas iniciar sesión para cambiar tu contraseña.',true);
-    return false;
-  }
-  if(!cuentaConClave(currentUser)){
-    estadoCambioClave('Tu cuenta entra con Google: la contraseña se cambia en tu cuenta de Google.',true,'verificacion');
-    return false;
-  }
-  const original=btn?btn.textContent:'';
-  const usuario=currentUser;
-  if(btn){btn.disabled=true;btn.textContent='Guardando…';}
-  try{
-    const {error}=await supabaseClient.auth.updateUser({password:p1});
-    // La respuesta es de la visita que la pidió: una tardía no puede escribir
-    // en la hoja de otra cuenta (#579, punto 15).
-    if(currentUser!==usuario)return false;
-    if(error)throw error;
-    if(i1)i1.value='';
-    if(i2)i2.value='';
-    estadoCambioClave('Contraseña actualizada. La próxima vez entra con la nueva.',false);
-    return true;
-  }catch(e){
-    if(currentUser!==usuario)return false;
-    const requiereVerificacion=e&&['current_password_required','current_password_mismatch','reauthentication_needed'].includes(e.code);
-    if(requiereVerificacion){
-      estadoCambioClave('Verifica tu cuenta por correo para cambiar la contraseña sin la anterior.',true,'verificacion');
-      if(recuperar)recuperar.hidden=false;
-    }else estadoCambioClave(traduceAuthError(e),true);
-    return false;
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent=original;}
+  if(!respuesta.ok){
+    const datos=await respuesta.json().catch(()=>({}));
+    throw {status:respuesta.status,code:datos.error_code||datos.code};
   }
 }
 
-// Si Auth exige otra verificación, se conserva su protección: el enlace abre
-// la pantalla PASSWORD_RECOVERY existente, sin pedir la contraseña anterior.
-async function recuperarClaveCuenta(){
-  const btn=document.getElementById('s-account-pass-recover');
-  const guardar=document.getElementById('s-account-pass-save');
-  if((btn&&btn.disabled)||(guardar&&guardar.disabled))return false;
-  const usuario=currentUser;
-  if(!supabaseClient||!supabaseClient.auth||!usuario||!cuentaConClave(usuario)||!correoValido(usuario.email||'')){
-    estadoCambioClave('Necesitas iniciar sesión con correo para recuperar tu contraseña.',true,'verificacion');
+async function cambiarClaveCuenta(form){
+  const usuario=currentUser,visita=_visitaSesion;
+  const vigente=()=>currentUser===usuario&&visita===_visitaSesion&&!_cerrandoSesion&&
+    document.getElementById('cuenta-clave')===form&&document.getElementById('modal').classList.contains('open');
+  if(!form||!cuentaConClave(usuario)||!vigente())return false;
+  const el=id=>form.querySelector('#clave-'+id);
+  const boton=el('guardar');
+  if(boton.disabled)return false;
+  const errorCampo=(id,texto)=>{
+    el(id+'-error').textContent=texto;
+    el(id).setAttribute('aria-invalid','true');
+    el(id).focus();
     return false;
+  };
+  for(const id of ['actual','nueva','repetida','codigo']){
+    el(id+'-error').textContent='';
+    el(id).removeAttribute('aria-invalid');
   }
-  const original=btn?btn.textContent:'';
-  if(btn){btn.disabled=true;btn.textContent='Enviando…';}
+  el('estado').textContent='';
+  const actual=el('actual').value,nueva=el('nueva').value;
+  if(!actual)return errorCampo('actual','Escribe tu contraseña actual.');
+  const politica=passwordPolicyError(nueva);
+  if(politica)return errorCampo('nueva',politica);
+  if(nueva===actual)return errorCampo('nueva','Elige una contraseña distinta de la actual.');
+  if(nueva!==el('repetida').value)return errorCampo('repetida','Las contraseñas no coinciden.');
+  const conCodigo=!el('verificacion').hidden;
+  const nonce=el('codigo').value.trim();
+  if(conCodigo&&!nonce)return errorCampo('codigo','Ingresa el código de verificación.');
+  boton.disabled=true;
+  boton.textContent='Cambiando…';
+  let temporal,verificada=false;
   try{
-    const {error}=await supabaseClient.auth.resetPasswordForEmail(usuario.email,{redirectTo:paginaPublica()});
-    if(currentUser!==usuario)return false;
+    const {data,error}=await supabaseClient.auth.getSession();
+    if(!vigente())return false;
     if(error)throw error;
-    estadoCambioClave('Revisa el correo de acceso de tu cuenta. Desde el enlace podrás elegir una contraseña nueva.',false);
+    const sesion=data?.session;
+    if(!sesion)throw {code:'session_not_found'};
+    if(sesion.user.id!==usuario.id)return false;
+    // El ingreso de comprobación no puede sobrescribir la sesión de esta u otra pestaña.
+    temporal=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{
+      persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'verificar-'+crypto.randomUUID()
+    }});
+    const ingreso=await temporal.auth.signInWithPassword({email:usuario.email,password:actual});
+    verificada=!!ingreso.data?.session;
+    if(!vigente())return false;
+    if(ingreso.error)throw ingreso.error;
+    if(!verificada||ingreso.data.user?.id!==usuario.id)throw {code:'invalid_credentials'};
+    try{
+      await peticionClaveCuenta(sesion.access_token,'user',{password:nueva,current_password:actual,...(conCodigo?{nonce}:{})});
+    }catch(e){
+      if(!vigente())return false;
+      if(e?.code!=='reauthentication_needed'||conCodigo)throw e;
+      await peticionClaveCuenta(sesion.access_token,'reauthenticate');
+      if(!vigente())return false;
+      el('verificacion').hidden=false;
+      el('estado').textContent='Te enviamos un código. Ingrésalo para confirmar el cambio.';
+      el('codigo').focus();
+      return false;
+    }
+    if(!vigente())return false;
+    closeModal();
+    showToast('Contraseña cambiada. Vuelve a entrar en tus otros dispositivos.');
     return true;
   }catch(e){
-    if(currentUser!==usuario)return false;
-    estadoCambioClave(traduceAuthError(e),true,'verificacion');
+    if(!vigente())return false;
+    const code=e?.code;
+    if(code==='invalid_credentials'||code==='current_password_mismatch')
+      return errorCampo('actual','La contraseña actual no coincide. Vuelve a escribirla.');
+    if(code==='same_password')return errorCampo('nueva','Elige una contraseña distinta de la actual.');
+    if(code==='weak_password')return errorCampo('nueva','Elige una contraseña más segura.');
+    if(code==='reauthentication_not_valid'||code==='reauthentication_needed'||code==='otp_expired')
+      return errorCampo('codigo','El código venció o no coincide. Revisa el código o vuelve a abrir esta hoja para pedir otro.');
+    if(['session_not_found','session_expired','bad_jwt','refresh_token_not_found','refresh_token_already_used'].includes(code)||e?.name==='AuthSessionMissingError'||e?.status===401){
+      ++_visitaSesion;
+      currentUser=null;
+      closeModal();showAuthScreen();ponerModoAuth('login');
+      authError('Tu sesión venció. Vuelve a entrar para cambiar la contraseña.');
+    }else if(e?.status===429||code==='over_request_rate_limit'){
+      el('estado').textContent='Hubo varios intentos. Espera unos minutos y vuelve a probar.';
+    }else if(e instanceof TypeError||e?.name==='AuthRetryableFetchError'||e?.status===0){
+      el('estado').textContent='No pudimos confirmar el cambio. Revisa tu conexión a internet.';
+    }else{
+      el('estado').textContent='No pudimos cambiar la contraseña. Inténtalo de nuevo.';
+    }
     return false;
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=original;}
+    if(vigente()){boton.disabled=false;boton.textContent='Cambiar contraseña';}
+    if(temporal){
+      // Solo la sesión efímera. El alcance por defecto cerraría también la principal.
+      try{if(verificada)await temporal.auth.signOut({scope:'local'});}catch{}
+      try{await temporal.auth.dispose();}catch{}
+    }
   }
 }

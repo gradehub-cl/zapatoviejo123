@@ -29,8 +29,7 @@ function arnes({nativa,origin,pathname}){
   const app=arnes({nativa:true,origin:'capacitor://localhost',pathname:'/'});
   assert.equal(await app.run('pedirFeedCalendario(false)'),'https://gradehub.cl/cal/token-sintetico','en la app, el calendario se suscribe a la web');
   await app.run('forgotPassword()');
-  await app.run('recuperarClaveCuenta()');
-  assert.deepEqual(app.destinos,['https://gradehub.cl/','https://gradehub.cl/'],'en la app, los dos correos de recuperación vuelven a la web');
+  assert.deepEqual(app.destinos,['https://gradehub.cl/'],'en la app, el correo de recuperación vuelve a la web');
   assert.ok(!JSON.stringify(app.destinos).includes('capacitor'),'nada sale con la dirección interna');
 
   // La web y la versión de prueba conservan su propio origen y su ruta.
@@ -38,8 +37,7 @@ function arnes({nativa,origin,pathname}){
     const web=arnes({nativa:false,origin,pathname});
     assert.equal(await web.run('pedirFeedCalendario(false)'),origin+'/cal/token-sintetico');
     await web.run('forgotPassword()');
-    await web.run('recuperarClaveCuenta()');
-    assert.deepEqual(web.destinos,[origin+pathname,origin+pathname],origin+': la web no cambia');
+    assert.deepEqual(web.destinos,[origin+pathname],origin+': la web no cambia');
   }
   console.log('OK: en la app, el calendario y la recuperación de clave usan la dirección pública; la web no cambia');
 })().catch(e=>{console.error(e);process.exitCode=1;});

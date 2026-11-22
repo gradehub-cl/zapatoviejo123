@@ -11,7 +11,7 @@ function renderSettingsSiAbierto(){
 function openSettings(){
   const initialSection=arguments[0];
   const soloProfesor=esCuentaProfesor();
-  const seccionesProfesor=['perfil','apariencia','datos','sugerencias'];
+  const seccionesProfesor=['clave','perfil','apariencia','datos','sugerencias'];
   let settingsSem=S.careerSemestre;
   let settingsCarrera=S.carrera,settingsCarreraNombre=S.carreraNombre||null,settingsCarreraFiltro='';
   let settingsName=S.userName;
@@ -27,6 +27,7 @@ function openSettings(){
     &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
+    clave:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
     perfil:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.8-3.4 3.5-5.3 7.5-5.3s6.7 1.9 7.5 5.3"/></svg>',
     profesor:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h7"/></svg>',
     academico:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg>',
@@ -40,7 +41,8 @@ function openSettings(){
   // Las cuentas de Google no tienen contraseña: ni la prometen ni la encuentran al buscar.
   const conClave=typeof cuentaConClave==='function'&&cuentaConClave(currentUser);
   const sections=[
-    ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
+    ['Tu cuenta','perfil','Perfil','Tu nombre y correo de acceso','cambiar nombre correo email'],
+    ...(conClave?[['Tu cuenta','clave','Cambiar contraseña','Verifica tu contraseña actual','clave password seguridad']]:[]),
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
     ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso'],
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
@@ -106,16 +108,6 @@ function openSettings(){
         <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Se cambia al tiro. Revisa que esté bien escrito: con él entras y recuperas tu cuenta.</p>
         <p id="s-account-email-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
-      </div>`:''}
-      ${currentUser&&conClave?`<div class="settings-account-access">
-        <label class="modal-label" for="s-account-pass">Nueva contraseña</label>
-        <div class="modal-input"><input type="password" id="s-account-pass" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-help s-account-pass-status"/></div>
-        <label class="modal-label" for="s-account-pass2" style="margin-top:10px;">Repite la contraseña</label>
-        <div class="modal-input"><input type="password" id="s-account-pass2" maxlength="72" autocomplete="new-password" aria-describedby="s-account-pass-status"/></div>
-        <p class="settings-help" id="s-account-pass-help" style="margin:7px 0 10px;">Al menos ${PASS_MIN} caracteres, con letras y números.</p>
-        <p id="s-account-pass-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
-        <button type="button" class="settings-reset-btn" id="s-account-pass-save" style="min-height:44px;" onclick="cambiarClaveCuenta()">Cambiar contraseña</button>
-        <button type="button" class="settings-reset-btn" id="s-account-pass-recover" style="min-height:44px;margin-top:8px;" onclick="recuperarClaveCuenta()" hidden>Enviar enlace al correo</button>
       </div>`:''}`;
     if(section==='academico')return `
       <div class="modal-label">Universidad</div>
@@ -270,6 +262,7 @@ function openSettings(){
     nav.innerHTML=grupos.map(([group,filas])=>`<div class="settings-nav-group">${group}</div><div class="settings-nav-card">${filas.map(([,id,title,detail])=>`<button type="button" class="settings-nav-item${id===activeSection?' active':''}" data-settings-section="${id}"${id===activeSection?' aria-current="page"':''}><span class="settings-nav-icon" aria-hidden="true">${icons[id]}</span><span><b>${title}</b><small>${detail}</small></span><span class="settings-nav-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`).join('')||`<p class="settings-search-empty">No encontramos esa opción. Prueba con ${soloProfesor?'«correo», «fondo» o «cuenta»':'«carrera», «correo» o «fondo»'}.</p>`;
     document.getElementById('settings-search-status').textContent=settingsSearch.trim()?`${results.length} ${results.length===1?'sección encontrada':'secciones encontradas'}`:'';
     document.querySelectorAll('[data-settings-section]').forEach(b=>b.onclick=()=>{
+      if(b.dataset.settingsSection==='clave'){abrirCambioClaveCuenta();return;}
       activeSection=b.dataset.settingsSection;renderSettings();
       entrarDesde(document.querySelector('.settings-shell'),'push');
       if(activeSection!=='perfil')document.getElementById('settings-detail-title').focus();
@@ -499,3 +492,39 @@ function openSettings(){
 // borrador lleva contexto que la persona reconoce y que nos ayuda a ubicarla.
 // No van correo, UID, ramos ni notas: el remitente ya llega en el mail y los
 // otros datos serían innecesarios o incómodos si la persona lo reenvía.
+
+function abrirCambioClaveCuenta(){
+  const usuario=currentUser,visita=_visitaSesion;
+  if(!cuentaConClave(usuario))return;
+  const campo=(id,etiqueta,autocomplete,ayuda='')=>`
+    <div class="clave-campo">
+      <label for="${id}">${etiqueta}</label>
+      <input id="${id}" name="${id}" type="password" autocomplete="${autocomplete}" autocorrect="off"
+        autocapitalize="none" spellcheck="false" required aria-describedby="${id}-error${ayuda?' '+id+'-ayuda':''}">
+      ${ayuda?`<small id="${id}-ayuda">${ayuda}</small>`:''}
+      <span id="${id}-error" aria-live="polite"></span>
+    </div>`;
+  document.getElementById('modal-content').innerHTML=`
+    <div class="settings-modal-head"><h2 class="modal-title" id="modal-titulo" tabindex="-1">Cambiar contraseña</h2>
+      <button type="button" class="settings-cerrar clave-cerrar" onclick="closeModal()">Cerrar</button></div>
+    <form id="cuenta-clave" novalidate>
+      <input type="text" name="username" autocomplete="username" value="${esc(currentUser.email)}" hidden>
+      ${campo('clave-actual','Contraseña actual','current-password')}
+      ${campo('clave-nueva','Contraseña nueva','new-password','Al menos '+PASS_MIN+' caracteres, con letras y números.')}
+      ${campo('clave-repetida','Repite la contraseña nueva','new-password')}
+      <div class="clave-campo" id="clave-verificacion" hidden>
+        <label for="clave-codigo">Código de verificación</label>
+        <input id="clave-codigo" type="text" inputmode="numeric" autocomplete="one-time-code" aria-describedby="clave-codigo-error">
+        <span id="clave-codigo-error" aria-live="polite"></span>
+      </div>
+      <p id="clave-estado" role="status" aria-live="polite"></p>
+      <button id="clave-guardar" type="submit" class="btn-primary">Cambiar contraseña</button>
+    </form>`;
+  const form=document.getElementById('cuenta-clave');
+  form.onsubmit=event=>{
+    event.preventDefault();
+    if(usuario===currentUser&&visita===_visitaSesion)cambiarClaveCuenta(form);
+  };
+  openModal();
+  document.getElementById('modal-titulo').focus();
+}

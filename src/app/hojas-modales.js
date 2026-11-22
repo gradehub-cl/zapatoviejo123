@@ -107,6 +107,8 @@ function enfocarEnHoja(el,despues){
   setTimeout(ir,subiendo?Math.max(100,dura):100);
 }
 function closeModal(){
+  const clave=document.getElementById('cuenta-clave');
+  if(clave&&typeof clave.reset==='function')clave.reset();
   const despuesDeCancelar=alCancelarAgregarRamo;
   alAgregarRamo=null;
   alCancelarAgregarRamo=null;
