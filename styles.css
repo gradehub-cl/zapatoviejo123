@@ -6570,6 +6570,42 @@ html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-hei
 .amigos-elegir{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;}
 .amigos-elegir input[type=checkbox]{flex-shrink:0;width:22px;height:22px;margin:0;accent-color:var(--primary);}
 
+/* Conversación del grupo y detalle de las pruebas. */
+html.app-nativa #screen-amigos:has(.grupo-actividad)>.topbar{display:none;}
+html.app-nativa #screen-amigos:has(.grupo-actividad)>.scroll{background:var(--bg);}
+html.app-nativa #amigos-body:has(.grupo-actividad){max-width:680px;margin-inline:auto;padding:0 0 2rem;}
+html.app-nativa .grupo-actividad{color:var(--fg);}
+html.app-nativa .grupo-barra{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:3px;padding:.45rem .75rem .45rem .25rem;background:var(--bg2);border-bottom:1px solid var(--border);}
+html.app-nativa .grupo-barra h1{min-width:0;flex:1;margin:0;font-size:1.1rem;}
+html.app-nativa .grupo-atras,html.app-nativa .grupo-identidad{min-height:44px;border:0;background:transparent;color:var(--fg);cursor:pointer;}
+html.app-nativa .grupo-atras{display:grid;place-items:center;width:44px;color:var(--primary);}
+html.app-nativa .grupo-atras svg{width:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+html.app-nativa .grupo-identidad{display:flex;align-items:center;gap:.65rem;width:100%;text-align:left;font:inherit;padding:0;}
+html.app-nativa .grupo-rotulo{min-width:0;flex:1;}
+html.app-nativa .grupo-rotulo strong,html.app-nativa .grupo-rotulo small{display:block;overflow-wrap:anywhere;line-height:1.25;}
+html.app-nativa .grupo-rotulo small,html.app-nativa .grupo-cantidad{font-weight:500;font-size:.8125rem;color:var(--fg2);}
+html.app-nativa .grupo-cantidad{flex:none;}
+html.app-nativa .grupo-actividad-titulo{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:1rem 1rem 0;}
+html.app-nativa .grupo-actividad-titulo h2{margin:0;font-size:1rem;}
+html.app-nativa .grupo-actividad>p{margin:1rem;line-height:1.45;color:var(--fg2);}
+html.app-nativa .grupo-hilo,html.app-nativa .grupo-hilo ul{list-style:none;padding:0;margin:0;}
+html.app-nativa .grupo-hilo{padding:0 1rem;}
+html.app-nativa .grupo-hilo h3{width:fit-content;margin:1rem auto .8rem;padding:.3rem .7rem;border-radius:1rem;font-size:.8125rem;font-weight:600;color:var(--fg2);background:var(--muted);}
+html.app-nativa .grupo-hilo li li{margin:.45rem 0;}
+html.app-nativa .grupo-mensaje{display:flex;align-items:flex-start;gap:.65rem;width:fit-content;max-width:100%;border:1px solid var(--border);border-radius:16px 16px 16px 4px;background:var(--bg2);color:var(--fg);padding:.75rem .9rem;text-align:left;font:inherit;overflow-wrap:anywhere;}
+html.app-nativa .grupo-mensaje.grupo-mensaje-mio{margin-inline-start:auto;border-radius:16px 16px 4px 16px;background:var(--primary-light);}
+html.app-nativa .grupo-mensaje .cal-icono{flex:none;}
+html.app-nativa .grupo-mensaje b,html.app-nativa .grupo-mensaje small,html.app-nativa .grupo-mensaje>span>span,html.app-nativa .grupo-mensaje>div>span{display:block;}
+html.app-nativa .grupo-mensaje b{margin:.15rem 0;font-size:1rem;}
+html.app-nativa .grupo-mensaje small,html.app-nativa .grupo-mensaje>span>span,html.app-nativa .grupo-mensaje>div>span{color:var(--fg2);font-size:.875rem;}
+html.app-nativa .grupo-prueba,html.app-nativa .grupo-reserva{cursor:pointer;min-height:44px;}
+html.app-nativa .grupo-mensaje>svg{align-self:center;flex:none;}
+html.app-nativa .grupo-actividad button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+
+html.app-nativa [data-detalle-prueba] .grupo-cuando{margin:.5rem 0 1.4rem;color:var(--fg2);}
+html.app-nativa [data-detalle-prueba] .grupo-celdas{list-style:none;padding:0;}
+html.app-nativa [data-detalle-prueba] .grupo-celdas .amigo-fila{border-inline:0;border-radius:0;}
+
 /* Grupos nativos: la misma jerarquía de listas que Perfil y Ajustes. */
 html.app-nativa .amigos-grupos>h2{
   margin-bottom:10px;color:var(--fg);font-size:1.1875rem;font-weight:650;letter-spacing:-.015em;text-transform:none;

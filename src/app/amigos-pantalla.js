@@ -73,6 +73,7 @@ async function sondearExtrasAmigos(v){
   amigosNotasDisponible=n.status==='fulfilled';amigosNotasComparte=!!(amigosNotasDisponible&&n.value&&n.value.comparte);
 }
 function olvidarAmigos(){
+  if(typeof document!=='undefined')document.querySelector?.('#amigos-body .grupo-actividad')?.remove();
   borrarAmigosWidget();
   amigosVersion++;amigosDisponibleCache=false;amigosEstadoCache=null;amigosListaCache=null;amigosHorariosCache=new Map();
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
@@ -100,6 +101,12 @@ async function refrescarAmigos(opc={}){
     if(v===amigosVersion&&!amigosListaCache)amigosListaCache=[];
     if(v===amigosVersion&&!opc.silencioso)showToast(mensajeErrorAmigos(e),true);
   }finally{amigosCargando=false;}
+  if(v!==amigosVersion)return;
+  if(amigosGrupoDetalle&&currentTab==='amigos'){
+    if(!amigosGruposCache?.some(g=>g.id===amigosGrupoDetalle.id&&g.estado==='miembro')){
+      volverDeGrupo();
+    }else await cargarActividadGrupo(amigosGrupoDetalle);
+  }
   _amigosRefrescadoAt=Date.now();
   if(typeof currentTab!=='undefined'&&currentTab==='amigos'&&(opc.silencioso?cambio&&!escribiendoEnAmigos():true))pintarAmigos();
   pintarInsigniaAmigos();
@@ -262,6 +269,7 @@ function pintarAmigos(){
   // Sin username no hay a quién agregar todavía: el botón de arriba aparece después.
   const agregar=document.querySelector('#screen-amigos .topbar-link');if(agregar)agregar.hidden=!e.username;
   if(!e.username){pintarElegirUsername(caja);return;}
+  if(amigosGrupoDetalle){pintarActividadGrupo(amigosGrupoDetalle);return;}
   // Mientras llega la lista, su forma (como Instagram), no un «Cargando…».
   if(!amigosListaCache){caja.innerHTML=`<div class="amigos-esqueleto" role="status" aria-label="Cargando amigos">
     <div class="amigos-perfil-fila"><span class="esq esq-avatar"></span><span class="esq esq-linea"></span></div>
@@ -706,24 +714,62 @@ function etiquetaDiaCalendario(fecha){
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
 // Agrupado por día, como la Agenda. `items` viene de grupo_calendario.
+function eventosGrupo(items){
+  const eventos=new Map();
+  const normalizar=t=>String(t||'').normalize('NFC').trim().toLocaleLowerCase('es').replace(/\s+/g,' ');
+  for(const it of items||[]){
+    if(it.tipo==='reserva'){eventos.set(it.id,it);continue;}
+    if(it.tipo!=='prueba')continue;
+    const clave=JSON.stringify([it.fecha,it.inicio||'',normalizar(it.detalle),normalizar(it.titulo)]);
+    if(!eventos.has(clave))eventos.set(clave,{...it,clave,personas:[]});
+    const personas=eventos.get(clave).personas;
+    if(!personas.some(p=>p.username===it.username))personas.push({username:it.username,nombre:it.nombre,yo:it.yo});
+  }
+  return [...eventos.values()].sort((a,b)=>a.fecha.localeCompare(b.fecha)||(a.inicio||'24').localeCompare(b.inicio||'24')||a.titulo.localeCompare(b.titulo,'es'));
+}
+function quienGrupo(p){return p.yo?'Tú':p.nombre?.trim().split(/\s+/)[0]||'@'+p.username;}
+function participantesGrupo(personas){
+  const nombres=[...personas].sort((a,b)=>Number(!!b.yo)-Number(!!a.yo)||quienGrupo(a).localeCompare(quienGrupo(b),'es')).map(quienGrupo);
+  return listaNombres(nombres.length>3?[...nombres.slice(0,3),`${nombres.length-3} más`]:nombres);
+}
 function calendarioGrupoHTML(id,items){
   const porDia=new Map();
-  for(const it of items||[]){const f=String(it.fecha).slice(0,10);if(!porDia.has(f))porDia.set(f,[]);porDia.get(f).push(it);}
-  const quien=it=>it.yo?'Tú':(it.nombre||'@'+it.username).split(' ')[0];
+  for(const it of eventosGrupo(items)){
+    if(!porDia.has(it.fecha))porDia.set(it.fecha,[]);
+    porDia.get(it.fecha).push(it);
+  }
   const fila=it=>it.tipo==='reserva'
-    ?`<li class="cal-item"><span class="cal-icono sala" aria-hidden="true">${ICONO_SALA}</span>
-        <span class="amigo-texto"><b>${esc(it.titulo)}</b><small>${esc(`${it.inicio}–${it.fin} · ${quien(it)}`)}</small></span>
-        ${it.yo?`<button type="button" class="amigos-link cal-borrar" data-amigos="reserva-borrar" data-id="${esc(it.id)}" data-grupo="${esc(id)}" aria-label="Borrar la reserva de ${esc(it.titulo)}">Borrar</button>`:''}</li>`
-    :`<li class="cal-item"><span class="cal-icono prueba" aria-hidden="true">${ICONO_PRUEBA}</span>
-        <span class="amigo-texto"><b>${esc(it.titulo)}${it.detalle?` · ${esc(it.detalle)}`:''}</b><small>${esc([it.inicio,quien(it)].filter(Boolean).join(' · '))}</small></span></li>`;
-  const cuerpo=porDia.size?[...porDia].map(([f,l])=>`<li class="cal-dia"><h4>${esc(etiquetaDiaCalendario(f))}</h4><ul>${l.map(fila).join('')}</ul></li>`).join('')
-    :`<li><p class="amigos-vacio-texto">Nada en las próximas tres semanas.${amigosPruebasComparte?'':' Activa «Compartir mis pruebas» en Privacidad para que el grupo vea las tuyas.'}</p></li>`;
-  return `<h3 class="modal-label">Calendario</h3>
-    <ul class="cal-grupo">${cuerpo}</ul>
-    <button type="button" class="amigo-fila amigos-fila-mas cal-anotar" data-amigos="reserva-nueva" data-id="${esc(id)}">
-      <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Anotar sala reservada</b></span></button>`;
+    ?`<li><button type="button" class="grupo-mensaje grupo-reserva${it.yo?' grupo-mensaje-mio':''}" data-amigos="grupo-reserva" data-id="${esc(id)}" data-reserva="${esc(it.id)}">
+      <span class="cal-icono sala">${ICONO_SALA}</span><span><small>Sala reservada · ${esc(quienGrupo(it))}</small><b>${esc(it.titulo)}</b>
+      <span>${esc(it.inicio)}–${esc(it.fin)}</span></span>${FLECHA_GRUPO}</button></li>`
+    :`<li><button class="grupo-mensaje grupo-prueba" type="button" data-amigos="grupo-prueba" data-id="${esc(id)}" data-prueba="${esc(it.clave)}">
+      <span class="cal-icono prueba">${ICONO_PRUEBA}</span><span><small>${esc([it.detalle,it.inicio].filter(Boolean).join(' · '))}</small><b>${esc(it.titulo)}</b>
+      <span>${esc(participantesGrupo(it.personas))}</span></span>${FLECHA_GRUPO}</button></li>`;
+  return `<ol class="grupo-hilo">${[...porDia].map(([fecha,lista])=>`<li><h3>${esc(etiquetaDiaCalendario(fecha))}</h3><ul>${lista.map(fila).join('')}</ul></li>`).join('')}</ol>`;
+}
+function abrirPruebaGrupo(id,clave){
+  const d=amigosGrupoDetalle;
+  const prueba=d?.id===id&&eventosGrupo(d.cal).find(it=>it.clave===clave);
+  if(!prueba)return;
+  document.getElementById('modal-content').innerHTML=`<section data-detalle-prueba="${esc(clave)}" data-personas="${esc(JSON.stringify(prueba.personas))}"><p class="modal-label">${esc(prueba.detalle||'Prueba')}</p>
+    <h2 class="modal-title">${esc(prueba.titulo)}</h2><p class="grupo-cuando">${esc([etiquetaDiaCalendario(prueba.fecha),prueba.inicio].filter(Boolean).join(' · '))}</p>
+    <h3 class="grupo-etiqueta">La tienen en su calendario</h3><ul class="grupo-celdas">${prueba.personas.map(p=>`<li class="amigo-fila"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span><span>${esc(p.yo?'Tú':nombreAmigo(p))}</span></li>`).join('')}</ul>
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver al grupo</button></div></section>`;
+  openModal();
+}
+function abrirReservaGrupo(id,reserva){
+  const d=amigosGrupoDetalle;
+  const it=d?.id===id&&d.cal?.find(e=>e.tipo==='reserva'&&e.id===reserva);
+  if(!it)return;
+  document.getElementById('modal-content').innerHTML=`<section data-detalle-reserva="${esc(it.id)}"><p class="modal-label">Sala reservada</p>
+    <h2 class="modal-title">${esc(it.titulo)}</h2><p>${esc(etiquetaDiaCalendario(it.fecha))} · ${esc(it.inicio)}–${esc(it.fin)}</p>
+    <p>Anotada por ${esc(it.yo?'ti':nombreAmigo(it))}.</p>
+    ${it.yo?`<button type="button" class="grupo-salir" data-amigos="reserva-borrar" data-id="${esc(it.id)}" data-grupo="${esc(id)}">Borrar reserva</button>`:''}
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver al grupo</button></div></section>`;
+  openModal();
 }
 function abrirReservaNueva(id){
+  const visita=amigosGrupoDetalle;
   const hoy=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
   const max=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
   document.getElementById('modal-content').innerHTML=`
@@ -741,15 +787,22 @@ function abrirReservaNueva(id){
     </form>
     <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
       <button type="submit" form="amigos-reserva-form" class="btn-confirm">Guardar</button></div>`;
+  openModal();
   document.getElementById('amigos-reserva-form').addEventListener('submit',async ev=>{
     ev.preventDefault();
+    const form=ev.currentTarget;
+    if(form.hasAttribute('aria-busy'))return;
     const v=k=>document.getElementById('amigos-reserva-'+k).value;
     if(!v('lugar').trim()){showToast('Escribe dónde',true);return;}
+    form.setAttribute('aria-busy','true');
+    const vigente=()=>visita===amigosGrupoDetalle&&form.isConnected&&document.getElementById('modal').classList.contains('open');
     try{
       await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin')});
+      if(!vigente())return;
       if(typeof vibrar==='function')vibrar('exito');
       abrirGrupo(id);
-    }catch(e){showToast(mensajeErrorAmigos(e),true);}
+    }catch(e){if(vigente())showToast(mensajeErrorAmigos(e),true);}
+    finally{form.removeAttribute('aria-busy');}
   });
 }
 // El promedio del amigo con el semáforo de siempre; sin notas, en gris.
@@ -797,7 +850,7 @@ function avatarGrupoHTML(nombres,grande){
 }
 // Bajo el nombre: quiénes están. Si son más de los que llegan, «y 2 más».
 function lineaGrupo(g){
-  const otros=g.nombres||[],resto=Math.max(0,(g.miembros||0)-(g.estado==='miembro'?1:0)-otros.length);
+  const otros=(g.nombres||[]).filter(Boolean).slice(0,2),resto=Math.max(0,(g.miembros||0)-(g.estado==='miembro'?1:0)-otros.length);
   const quienes=g.estado==='miembro'?['Tú',...otros]:otros.slice();
   if(resto)quienes.push(`${resto} más`);
   return listaNombres(quienes)||personasTxt(g.miembros||0);
@@ -871,9 +924,8 @@ function abrirGrupoNuevo(preUser){
       <button type="submit" form="amigos-grupo-form" class="btn-confirm" id="amigos-grupo-crear" disabled>Crear</button></div>`;
   openModal();
   const form=document.getElementById('amigos-grupo-form'),nombre=document.getElementById('amigos-grupo-nombre'),crear=document.getElementById('amigos-grupo-crear');
-  const sugerido=m=>listaNombres([...m.map(i=>i.dataset.nombre.replace(/^@/,'').split(' ')[0]),'tú']).slice(0,GRUPO_NOMBRE_MAX);
   if(preUser){const i=[...form.querySelectorAll('input[name=u]')].find(x=>x.value===preUser);if(i)i.checked=true;}
-  enlazarElegirAmigos(form,m=>{crear.disabled=!m.length||form.hasAttribute('aria-busy');nombre.placeholder=m.length?sugerido(m):'Ej. Grupo de estudio';});
+  enlazarElegirAmigos(form,m=>{crear.disabled=!m.length||form.hasAttribute('aria-busy');});
   form.addEventListener('submit',async ev=>{
     ev.preventDefault();
     const marcados=[...form.querySelectorAll('input[name=u]:checked')];
@@ -881,7 +933,7 @@ function abrirGrupoNuevo(preUser){
     crear.disabled=true;crear.textContent='Creando…';form.setAttribute('aria-busy','true');
     const v=amigosVersion;
     try{
-      const id=await rpcAmigos('crear_grupo',{p_nombre:nombre.value.trim()||sugerido(marcados),p_usernames:marcados.map(i=>i.value)});
+      const id=await rpcAmigos('crear_grupo',{p_nombre:nombre.value.trim()||'Grupo de estudio',p_usernames:marcados.map(i=>i.value)});
       if(v!==amigosVersion)return;
       if(typeof vibrar==='function')vibrar('exito');
       showToast('Grupo creado');
@@ -891,28 +943,92 @@ function abrirGrupoNuevo(preUser){
     finally{form.removeAttribute('aria-busy');crear.textContent='Crear';crear.disabled=!form.querySelector('input[name=u]:checked');}
   });
 }
-async function abrirGrupo(id){
-  const g=(amigosGruposCache||[]).find(x=>x.id===id);
-  const contenido=document.getElementById('modal-content'),v=amigosVersion;
-  contenido.innerHTML=`<h2 class="modal-title grupo-titulo">${esc(g?g.nombre:'Grupo')}</h2><p class="amigos-vacio-texto grupo-cargando" role="status">Cargando grupo…</p>
-    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
-  const carga=contenido.querySelector('.grupo-cargando');
-  const sigueAbierto=()=>v===amigosVersion&&carga.isConnected&&document.getElementById('modal').classList.contains('open');
-  openModal();
-  let filas,cal=null;
-  try{[filas,cal]=await Promise.all([rpcAmigos('grupo_detalle',{p_grupo:id}),amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:id}).catch(()=>null):null]);filas=filas||[];}
-  catch(e){
-    if(!sigueAbierto())return;
-    carga.textContent='No se pudo cargar el grupo.';
-    carga.insertAdjacentHTML('afterend',`<button type="button" class="amigo-boton" data-amigos="grupo" data-id="${esc(id)}">Reintentar</button>`);
-    return;
-  }
-  if(!sigueAbierto())return;
-  amigosGrupoDetalle={id,filas,cal};
-  pintarGrupo(id,filas,cal);
+function volverDeGrupo(){
+  const id=amigosGrupoDetalle?.id,arriba=amigosGrupoDetalle?.origenScroll||0;
+  amigosGrupoDetalle=null;
+  if(document.getElementById('modal')?.classList.contains('open'))closeModal();
+  pintarAmigos();
+  const scroll=document.querySelector('#screen-amigos .scroll');
+  if(scroll)scroll.scrollTop=arriba;
+  const fila=[...document.querySelectorAll('#amigos-body [data-amigos="grupo"]')].find(b=>b.dataset.id===id);
+  fila?.focus({preventScroll:true});
 }
-function pintarGrupo(id,filas,cal){
+async function abrirGrupo(id){
+  if(!amigosVisible()||!id)return;
+  if(document.getElementById('modal').classList.contains('open'))closeModal();
+  const scroll=document.querySelector('#screen-amigos .scroll');
+  const d={id,filas:[],cal:null,cargando:true,origenScroll:amigosGrupoDetalle?.origenScroll??scroll?.scrollTop??0};
+  if(scroll)scroll.scrollTop=0;
+  amigosGrupoDetalle=d;
+  pintarActividadGrupo(d);
+  document.getElementById('grupo-actividad-titulo')?.focus?.({preventScroll:true});
+  await cargarActividadGrupo(d);
+}
+async function cargarActividadGrupo(d){
+  if(d.consultando)return;
+  d.consultando=true;
+  const v=amigosVersion,cuenta=currentUser?.id;
+  const vigente=()=>amigosGrupoDetalle===d&&v===amigosVersion&&currentUser?.id===cuenta;
+  try{
+    const [filas,cal]=await Promise.all([rpcAmigos('grupo_detalle',{p_grupo:d.id}),
+      amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:d.id}).catch(()=>null):null]);
+    if(!vigente())return;
+    d.filas=filas||[];d.cal=cal;d.error=false;
+    const g=amigosGruposCache?.find(g=>g.id===d.id),miembros=d.filas.filter(f=>f.estado==='miembro');
+    d.resumen={estado:'miembro',miembros:miembros.length,nombres:miembros.filter(f=>!f.yo).map(quienGrupo)};
+    if(g)Object.assign(g,d.resumen);
+  }catch(e){
+    if(!vigente())return;
+    d.filas=[];d.cal=null;d.error=true;
+  }finally{d.consultando=false;}
+  if(!vigente())return;
+  d.cargando=false;
+  pintarActividadGrupo(d);
+  const reserva=document.querySelector('#modal.open [data-detalle-reserva]');
+  if(reserva&&!d.cal?.some(it=>it.tipo==='reserva'&&it.id===reserva.dataset.detalleReserva))closeModal();
+  const prueba=document.querySelector('#modal.open [data-detalle-prueba]');
+  if(prueba){
+    const evento=eventosGrupo(d.cal).find(e=>e.clave===prueba.dataset.detallePrueba);
+    if(!evento)closeModal();
+    else if(prueba.dataset.personas!==JSON.stringify(evento.personas))abrirPruebaGrupo(d.id,evento.clave);
+  }
+  if(document.querySelector('#modal.open .grupo-ficha')&&d.firmaInfo!==JSON.stringify(d.filas)){
+    if(d.error)closeModal();else pintarGrupo(d.id,d.filas);
+  }
+}
+function pintarActividadGrupo(d){
+  const caja=document.getElementById('amigos-body');if(!caja)return;
+  const g=amigosGruposCache?.find(x=>x.id===d.id);
+  const cabecera=d.resumen||g;
+  const pendientes=d.filas.filter(f=>f.estado==='invitado').length;
+  const id=esc(d.id);
+  const acceso=(accion,texto)=>`<button type="button" class="amigos-link" data-amigos="${accion}" data-id="${id}">${texto}</button>`;
+  const nombre=esc(g?.nombre||'Grupo');
+  const contenido=`<section class="grupo-actividad"><header class="grupo-barra">
+    <button type="button" class="grupo-atras" data-amigos="grupo-volver" aria-label="Volver a Amigos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg></button>
+    <h1 id="grupo-actividad-titulo" tabindex="-1"><button type="button" class="grupo-identidad" data-amigos="grupo-info" data-id="${id}" ${d.cargando||d.error?'disabled':''} aria-label="Información de ${nombre}" aria-describedby="grupo-participantes grupo-cantidad">
+      ${avatarGrupoHTML(cabecera?.nombres)}<span class="grupo-rotulo"><strong>${nombre}</strong>
+      ${cabecera&&!d.error?`<small id="grupo-participantes">${esc(lineaGrupo(cabecera))}</small>`:''}</span>
+      ${cabecera&&!d.error?`<span class="grupo-cantidad" id="grupo-cantidad">${esc(personasTxt(cabecera.miembros))}</span>`:''}
+    </button></h1></header>
+    ${d.cargando?'<p role="status">Cargando grupo…</p>':d.error?`<p role="status">No se pudo cargar el grupo.</p>${acceso('grupo','Reintentar')}`:`
+    ${pendientes?`<p class="grupo-pendientes">${acceso('grupo-info',pendientes===1?'1 invitación pendiente':pendientes+' invitaciones pendientes')}</p>`:''}
+    <div class="grupo-actividad-titulo"><h2>Actividad del grupo</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
+    ${!amigosCalendarioDisponible?'<p>El calendario del grupo aún no está disponible.</p>':d.cal===null?`<p>No se pudo actualizar el calendario.</p>${acceso('grupo','Reintentar')}`:d.cal.length?calendarioGrupoHTML(d.id,d.cal):'<p>Las pruebas que compartan y las salas que anoten para las próximas tres semanas aparecerán aquí.</p>'}`}</section>`;
+  if(d.html!==contenido||!caja.querySelector('.grupo-actividad')){
+    const activo=document.activeElement;
+    const previo=activo&&caja.contains?.(activo)?activo:null;
+    d.html=contenido;caja.innerHTML=contenido;
+    if(previo){
+      const target=previo.dataset;
+      const equivalente=[...caja.querySelectorAll('[data-amigos]')].find(b=>target.amigos&&b.dataset.amigos===target.amigos&&b.dataset.prueba===target.prueba&&b.dataset.reserva===target.reserva);
+      (equivalente||caja.querySelector('h1'))?.focus({preventScroll:true});
+    }
+  }
+}
+function pintarGrupo(id,filas){
   const g=(amigosGruposCache||[]).find(x=>x.id===id)||{nombre:'Grupo'};
+  if(amigosGrupoDetalle?.id===id)amigosGrupoDetalle.firmaInfo=JSON.stringify(filas);
   const ahora=new Date();
   const miembros=filas.filter(f=>f.estado==='miembro');
   const pendientes=filas.filter(f=>f.estado==='invitado');
@@ -942,7 +1058,6 @@ function pintarGrupo(id,filas,cal){
         Cambiar nombre
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
     </div>
-    ${Array.isArray(cal)?calendarioGrupoHTML(id,cal):''}
     <section class="grupo-seccion">
       <h3 class="grupo-etiqueta">Horarios libres en común</h3>
       ${!horariosSuficientes?'<p class="amigos-vacio-texto">Se necesitan al menos dos horarios para calcular las coincidencias.</p>'
@@ -1058,7 +1173,7 @@ async function accionGrupo(accion,{id,user,confirmado}={}){
     if(accion==='grupo-rechazar')await rpcAmigos('responder_grupo',{p_grupo:id,p_aceptar:false});
     else if(accion==='grupo-salir'){
       if(!confirmado)return showConfirm(`¿Salir de ${nombre}?`,'Perderás acceso al grupo y a los horarios compartidos allí. No le avisaremos a nadie.',()=>accionGrupo(accion,{id,confirmado:true}),{label:'Salir',danger:true,focusCancel:true});
-      await rpcAmigos('salir_de_grupo',{p_grupo:id});closeModal();
+      await rpcAmigos('salir_de_grupo',{p_grupo:id});volverDeGrupo();
     }else if(accion==='grupo-quitar'){
       if(!confirmado)return showConfirm(`¿Sacar a @${user}?`,'Perderá acceso al grupo y a los horarios compartidos allí. No le avisaremos.',()=>accionGrupo(accion,{id,user,confirmado:true}),{label:'Sacar',danger:true,focusCancel:true});
       await rpcAmigos('quitar_de_grupo',{p_grupo:id,p_username:user});
@@ -1109,6 +1224,10 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='bloqueados')abrirBloqueados();
     else if(acc==='denunciar')abrirDenunciarAmigo(user);
     else if(acc==='grupo')abrirGrupo(id);
+    else if(acc==='grupo-volver')volverDeGrupo();
+    else if(acc==='grupo-info'&&amigosGrupoDetalle?.id===id)pintarGrupo(id,amigosGrupoDetalle.filas);
+    else if(acc==='grupo-reserva')abrirReservaGrupo(id,b.dataset.reserva);
+    else if(acc==='grupo-prueba')abrirPruebaGrupo(id,b.dataset.prueba);
     else if(acc==='grupo-nuevo')abrirGrupoNuevo();
     else if(acc==='grupo-con')abrirGrupoNuevo(user);
     else if(acc==='reserva-nueva')abrirReservaNueva(id);
@@ -1116,7 +1235,15 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
       try{localStorage.setItem(CLAVE_AVISOS_PREGUNTA,acc==='avisos-si'?'si':'no');}catch(e){}
       (acc==='avisos-si'?activarAvisosAmigos():Promise.resolve()).then(()=>pintarAmigos());
     }
-    else if(acc==='reserva-borrar'){const g=b.dataset.grupo;showConfirm('¿Borrar esta reserva del calendario?','Solo la quita del grupo. Si reservaste en tu universidad, cancélala allá.',async()=>{try{await rpcAmigos('borrar_reserva_grupo',{p_id:id});abrirGrupo(g);}catch(e){showToast(mensajeErrorAmigos(e),true);}},{label:'Borrar'});}
+    else if(acc==='reserva-borrar'){
+      const d=amigosGrupoDetalle;
+      if(!d||d.id!==b.dataset.grupo)return;
+      showConfirm('¿Borrar esta reserva del calendario?','Solo la quita del grupo. Si reservaste en tu universidad, cancélala allá.',async()=>{
+        if(d!==amigosGrupoDetalle)return;
+        try{await rpcAmigos('borrar_reserva_grupo',{p_id:id});if(d===amigosGrupoDetalle)abrirGrupo(d.id);}
+        catch(e){if(d===amigosGrupoDetalle)showToast(mensajeErrorAmigos(e),true);}
+      },{label:'Borrar',focusCancel:true});
+    }
     else if(acc==='menu-amigo')abrirMenuAmigo(id);
     else if(acc==='semana')abrirSemanaAmigo(id);
     else if(acc==='grupo-invitar')abrirInvitarGrupo(id);
