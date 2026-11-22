@@ -25,6 +25,7 @@ function contenedorDesplazable(el){
 }
 function asegurarVisibleSobreTeclado(el){
   if(!el||!el.getBoundingClientRect)return;
+  if(typeof ajustarCampoNativo==='function'&&ajustarCampoNativo(el))return;
   const cont=contenedorDesplazable(el);
   const oculto=espacioTeclado();
   if(cont&&oculto>0)cont.style.paddingBottom=oculto+'px';

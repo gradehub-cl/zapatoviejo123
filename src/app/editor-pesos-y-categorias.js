@@ -230,6 +230,7 @@ function leerReglasEvaluacionModal(r,varias,cantidad){
 }
 let addCatError='';
 function mostrarErrorCampo(inputId,errorId,mensaje){
+  if(typeof avisoErrorNativo==='function')avisoErrorNativo();
   const input=document.getElementById(inputId),error=document.getElementById(errorId);
   if(error){error.textContent=mensaje;error.hidden=false;}
   if(input){input.setAttribute('aria-invalid','true');input.focus();}

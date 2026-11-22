@@ -74,9 +74,7 @@ function histogramaEstHTML(r,estado){
       ${r.mediana===null?'':`<span class="est-mediana" style="left:${Math.min(100,Math.max(0,x(r.mediana))).toFixed(2)}%"></span>`}</div>
     <div class="est-eje" aria-hidden="true">${marcas}</div></div>`;
 }
-function barraParalelaEstHTML(nombre,v,texto,ahora){
-  return `<div class="est-par"><span>${nombre}</span><span class="est-pista${ahora?' est-pista-ahora':''}" aria-hidden="true"><i style="width:${v===null?0:Math.round(v*100)}%"></i></span><b>${texto}</b></div>`;
-}
+
 function tarjetasEstHTML(r,metodo){
   const [sin,con]=ladosEstPanel(metodo);
   const nota=v=>v===null?null:(v-1)/6,prom=v=>v===null?'—':comaEstPanel(v);

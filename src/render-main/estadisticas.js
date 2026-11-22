@@ -184,7 +184,7 @@ function renderStats(){
                 <div style="font-size:0.75rem;color:var(--fg3);margin-top:3px;">${Number.isFinite(h.careerSemestre)?`Sem. ${h.careerSemestre} · `:''}${ramosHistorial.length} ramo${ramosHistorial.length!==1?'s':''}</div>
               </div>
               <span class="hist-gpa" style="color:${gpaColor}">${historialGpa!==null?fmtPromedioGeneral(historialGpa):'—'}</span>
-              <span style="color:var(--fg3);font-size:0.6875rem;">${isOpen?'▲':'▼'}</span>
+              ${iconoDespliegue(isOpen)}
             </div>
             <div class="hist-body${isOpen?' open':''}">
               ${ramosRows||'<p style="font-size:0.8125rem;color:var(--fg3);">Sin ramos</p>'}
@@ -200,7 +200,7 @@ function renderStats(){
   }
 
   // Tu olfato: cuánto te sacas de verdad cuando dices que te fue bien o mal.
-  if(typeof resumenOlfato==='function'&&avisosPruebasDisponibles()){
+  if(typeof resumenOlfato==='function'&&avisosPruebasDisponibles()&&enAppIOS()){
     const o=resumenOlfato();
     if(o.pares){
       const titular=o.veredicto==='pesimista'?`Eres pesimista: te va ${simConComa(Math.abs(o.diferencia).toFixed(1))} mejor de lo que crees`

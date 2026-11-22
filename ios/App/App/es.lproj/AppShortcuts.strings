@@ -1,0 +1,8 @@
+/* Frases de Siri en español: el proyecto es "en" y sin esto Siri en español no las reconoce. Iguales a las de Atajos.swift. */
+"Mi próxima clase en ${applicationName}" = "Mi próxima clase en ${applicationName}";
+"Mi próxima evaluación en ${applicationName}" = "Mi próxima evaluación en ${applicationName}";
+"¿Cuánto necesito en ${applicationName}?" = "¿Cuánto necesito en ${applicationName}?";
+"¿Dónde es mi clase en ${applicationName}?" = "¿Dónde es mi clase en ${applicationName}?";
+"¿Qué clase tengo ahora en ${applicationName}?" = "¿Qué clase tengo ahora en ${applicationName}?";
+"¿Qué clase tengo en ${applicationName}?" = "¿Qué clase tengo en ${applicationName}?";
+"¿Qué nota necesito en ${applicationName}?" = "¿Qué nota necesito en ${applicationName}?";

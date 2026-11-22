@@ -106,14 +106,24 @@ function graficosClase(d,pesos,ahora){
     embudoClase(d.totales);
 }
 
+// App Review 3.1.1 (Lucas, 2026-11-17): en la app de iPhone no se compra ni se
+// configura publicidad. El profesor crea, renueva y paga sus campañas en la
+// web. En la app ve sus anuncios y sus números, y puede pausarlos, pero sin
+// costo, tope ni presupuesto, sin botones para crear o volver a publicar, y sin
+// ningún «hazlo en la web». Las notas para el revisor lo dicen tal cual.
+function campanasSeCompranAqui(){return !(typeof enAppNativa==='function'&&enAppNativa());}
 function prepararMetricasClase(a,m){
   const totales=m.agregados?m.agregados.total:totalesDeCortes(m.cortes);
+  // Sin costo en la app: lo que lo muestra (cifras, presupuesto, costo por
+  // concepto, resumen) depende de este dato y desaparece con él.
+  const compras=campanasSeCompranAqui(),costo=costoCampanaClase(m.campana);
   return {a,alcance:m.alcance,porCanal:m.porCanal,totales,agregados:m.agregados,campana:m.campana,historial:m.historial,eventos:m.eventos,
-    error:m.error||a.campanaError,hayCortes:Object.values(totales).some(n=>n>0),costo:costoCampanaClase(m.campana)};
+    error:m.error||a.campanaError,hayCortes:Object.values(totales).some(n=>n>0),costo:compras?costo:null,agotada:!!(costo&&costo.agotada)};
 }
 function detalleMetricasClaseHTML(d,pesos,ahora){
-  return (d.costo&&d.costo.agotada?'<p class="clase-aviso-tope">Llegó a tu tope: dejó de mostrarse y no suma más costo.</p>':'')+
-    cifrasClase(d,pesos,'personas distintas',true)+'<details class="profesor-hig-estadisticas"><summary>Más estadísticas</summary>'+graficosClase(d,pesos,ahora)+
+  const compras=campanasSeCompranAqui();
+  return (d.agotada||d.costo&&d.costo.agotada?`<p class="clase-aviso-tope">${compras?'Llegó a tu tope: dejó de mostrarse y no suma más costo.':'Llegó a su tope y dejó de mostrarse.'}</p>`:'')+
+    cifrasClase(d,pesos,'personas distintas',compras)+'<details class="profesor-hig-estadisticas"><summary>Más estadísticas</summary>'+graficosClase(d,pesos,ahora)+
     (d.hayCortes?'':Array.isArray(d.historial)?'<p class="clase-sin-datos">El desglose por ramo aparece cuando hay suficientes datos para que nadie quede identificado.</p>':'<p class="clase-sin-datos">Los registros por día aparecen cuando hay suficientes datos para que nadie quede identificado.</p>')+
     (d.costo?`<p class="clase-sin-datos">${esc(lineaCostoCampanaClase(d.costo))}.</p>`:'')+'</details>';
 }
@@ -123,13 +133,18 @@ function tarjetaPanelClase(a,pesos,ahora){
   const [etiqueta,detalle]=ESTADOS_ANUNCIO[vig]||[vig,''];
   const dias=vig==='publicado'?diasRestantesAnuncio(a,ahora):null,avance=vig==='publicado'?avanceCampanaAnuncio(a,ahora):null;
   const empieza=vig==='programado'?new Date(a.publicado_at).toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'}):'';
+  // Editar y volver a publicar llevan a configurar la campaña: en la app solo
+  // queda pausar (3.1.1, ver campanasSeCompranAqui).
+  const compras=campanasSeCompranAqui();
   const accion={
     publicado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>`,
     programado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>`,
-    borrador:`<button type="button" class="clase-accion" data-editar="${esc(a.id)}">Seguir editando</button>`,
-    pausado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
-    expirado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
-    agotado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
+    ...(compras?{
+      borrador:`<button type="button" class="clase-accion" data-editar="${esc(a.id)}">Seguir editando</button>`,
+      pausado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
+      expirado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
+      agotado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
+    }:{}),
   }[vig]||'';
   return `<article class="clase-card" data-anuncio="${esc(a.id)}">
     <div class="clase-card-top">
@@ -155,7 +170,7 @@ function filaProfesorClaseHTML(a,pesos,ahora){
   return `<details class="profesor-hig-fila" data-profesor-anuncio="${esc(a.id)}"><summary>
     <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
     <span class="clase-estado clase-estado-${esc(vig)}" data-estado-campana="${esc(a.id)}">${esc(etiqueta)}</span>
-    <span class="profesor-hig-importe"><b data-costo-campana="${esc(a.id)}">${['publicado','pausado','expirado','agotado','sin_confirmar'].includes(vig)?'Cargando…':'—'}</b><small>Costo de campaña</small></span>
+    ${campanasSeCompranAqui()?`<span class="profesor-hig-importe"><b data-costo-campana="${esc(a.id)}">${['publicado','pausado','expirado','agotado','sin_confirmar'].includes(vig)?'Cargando…':'—'}</b><small>Costo de campaña</small></span>`:''}
     <span class="profesor-hig-flecha" aria-hidden="true">⌄</span>
     </summary><div class="profesor-hig-detalle">${tarjetaPanelClase(a,pesos,ahora)}</div></details>`;
 }

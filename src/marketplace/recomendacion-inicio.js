@@ -20,6 +20,16 @@
 // RECOMENDACIONES_CLASES_ACTIVAS es el interruptor. Apagarlo esconde el banner
 // sin tocar el catálogo, que es la puerta abierta a todos.
 const RECOMENDACIONES_CLASES_ACTIVAS=true;
+// «Usar mis notas para elegir anuncios» (Ajustes, Lucas 2026-11-17): prendido
+// salvo que la persona lo apague. Apagado no hay recomendación en Inicio, que
+// es lo único que compara notas y avance; Apoyo y el catálogo siguen abiertos.
+// Campo opcional de la cuenta: sin él (cuentas existentes) cuenta como prendido.
+function anunciosConNotasActivos(){return !(S&&S.anunciosConNotas===false);}
+function cambiarAnunciosConNotas(activo){
+  S.anunciosConNotas=activo===true;
+  save();
+  track(activo?'anuncios_con_notas_prendido':'anuncios_con_notas_apagado');
+}
 const CLAVE_MARKETPLACE='gradehub_marketplace_v1';
 let estadoMarketplaceMemoria={},marketplaceSoloMemoria=false;
 
@@ -365,6 +375,7 @@ function pintarRecomendacionClase(contenedor){
   contenedor.querySelectorAll('.clase-apoyo').forEach(b=>b.remove());
   contenedor.querySelectorAll('.tiene-clase-apoyo').forEach(f=>{f.classList.remove('tiene-clase-apoyo','junto-der','junto-izq');f.style.removeProperty('--info-mitad');});
   limpiarPosicionesRecomendaciones(contenedor);
+  if(!anunciosConNotasActivos())return;
   const uid=currentUser.id,cierre=cierreAnunciosCuenta(uid);
   if(!cierre.leido){
     sincronizarCierreAnuncios().then(()=>{if(currentUser?.id===uid&&contenedor.isConnected)pintarRecomendacionClase(contenedor);});

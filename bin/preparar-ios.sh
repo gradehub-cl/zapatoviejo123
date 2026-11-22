@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Arma `ios-web/` —lo que Capacitor mete dentro de la app iOS— con los mismos
-# archivos que publica el deploy en gradehub.cl, y lo sincroniza con `ios/`.
+# Arma `ios-web/` —lo que Capacitor mete dentro de la app— con los mismos
+# archivos que publica el deploy en gradehub.cl, y lo sincroniza con `ios/` o,
+# con el argumento `android`, con `android/`.
 #
 #   npm run ios:preparar
+#   npm run android:preparar     # bash bin/preparar-ios.sh android
 #
 # LA LISTA DE EXCLUSIONES ESTÁ DUPLICADA A PROPÓSITO: es la del `rsync` de
 # .github/workflows/deploy.yml, más `ios`, `ios-web` y `capacitor.config.*`.
@@ -14,6 +16,8 @@
 # viajan con el binario y no hay una versión anterior en caché que confundir.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+PLATAFORMA="${1:-ios}"
+case "$PLATAFORMA" in ios|android) ;; *) echo "Plataforma desconocida: $PLATAFORMA (ios o android)"; exit 1;; esac
 
 node bin/compilar-js.js
 
@@ -27,6 +31,7 @@ rsync -a ./ ios-web/ \
   --exclude '*.md' --exclude 'package.json' --exclude 'package-lock.json' \
   --exclude '.gitignore' --exclude '.ignore' \
   --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*' \
+  --exclude 'android' \
   --exclude '/functions' --exclude '/_headers' --exclude '/sitemap.xml' \
   --exclude '/robots.txt' --exclude '/.well-known'
 # La última línea es solo de la app: son archivos que gradehub.cl sí publica,
@@ -57,15 +62,25 @@ node -e '
 VERSION="$(git rev-parse --short=7 HEAD 2>/dev/null || echo dev)"
 perl -pi -e "s/__ASSET_VERSION__/$VERSION/g" ios-web/index.html
 
-npx --no-install cap sync ios
+npx --no-install cap sync "$PLATAFORMA"
 
 # `npm run ios:rama`: la app de prueba no usa la copia de la web que lleva
 # adentro, sino la que está publicada en la rama compartida, así cada push a
 # `ios` aparece al volver a abrirla. El archivo es generado y no se commitea:
 # un `npm run ios:preparar` normal lo deja sin servidor, como va a la App Store.
+#
+# Android carga siempre desde un servidor, gradehub.cl si no se dice otro: así
+# recibe cada cambio de la web al tiro, como el TWA que reemplaza, y la tienda
+# solo se toca cuando cambia algo nativo.
+if [ "$PLATAFORMA" = android ]; then
+  GRADEHUB_SERVIDOR="${GRADEHUB_SERVIDOR:-https://gradehub.cl}"
+  CONFIG_NATIVA=android/app/src/main/assets/capacitor.config.json
+else
+  CONFIG_NATIVA=ios/App/App/capacitor.config.json
+fi
 if [ -n "${GRADEHUB_SERVIDOR:-}" ]; then
-  node -e '
-    const f="ios/App/App/capacitor.config.json",fs=require("fs");
+  CONFIG_NATIVA="$CONFIG_NATIVA" GRADEHUB_SERVIDOR="$GRADEHUB_SERVIDOR" node -e '
+    const f=process.env.CONFIG_NATIVA,fs=require("fs");
     const c=JSON.parse(fs.readFileSync(f,"utf8"));
     c.server={url:process.env.GRADEHUB_SERVIDOR};
     fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");
@@ -75,4 +90,4 @@ fi
 # Xcode se niega a firmar si los archivos traen atributos extendidos de macOS
 # ("resource fork, Finder information, or similar detritus not allowed"). Los
 # pone, por ejemplo, un repo dentro de ~/Desktop sincronizado con iCloud.
-xattr -cr ios/App/App/public 2>/dev/null || true
+if [ "$PLATAFORMA" = ios ]; then xattr -cr ios/App/App/public 2>/dev/null || true; fi

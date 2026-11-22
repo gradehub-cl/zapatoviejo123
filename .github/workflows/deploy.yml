@@ -88,7 +88,8 @@ jobs:
             --exclude 'tests' --exclude 'supabase' --exclude 'bin' --exclude 'src' \
             --exclude '*.md' --exclude 'package.json' --exclude 'package-lock.json' \
             --exclude '.gitignore' --exclude '.ignore' \
-            --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*'
+            --exclude 'ios' --exclude 'ios-web' --exclude 'capacitor.config.*' \
+            --exclude 'android'
 
           # Lista cerrada: comprueba a la vez que la app esté completa y que
           # ningún artefacto interno termine publicado por una exclusión
@@ -100,6 +101,7 @@ jobs:
           .well-known/assetlinks.json .well-known/apple-app-site-association
           functions/canvas-calendario.js functions/apple-revocar.js functions/cal/[token].js functions/mcp/[[ruta]].js functions/mcp/herramientas.js functions/ds/[[ruta]].js
           ocr/tesseract.min.js ocr/worker.min.js ocr/tesseract-core-simd-lstm.wasm.js ocr/tesseract-core-lstm.wasm.js ocr/eng.traineddata.gz ocr/LICENSE.txt
+          apple/continuar-negro.png apple/continuar-blanco.png
           pdf/pdf.min.mjs pdf/pdf.worker.min.mjs pdf/LICENSE.txt
           festivos.js festivos.css'
           for f in $archivos_app; do

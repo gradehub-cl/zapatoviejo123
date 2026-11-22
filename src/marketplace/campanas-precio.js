@@ -95,7 +95,8 @@ async function cargarAnunciosClases(tenant,{propagarError=false}={}){
       if(error)throw error;
       const pagina=Array.isArray(data)?data:[];
       pagina.forEach(a=>{if(!vistos.has(a.id)){vistos.add(a.id);anuncios.push(a);}});
-      if(pagina.length<tamano)return anuncios;
+      // Lo de un profesor bloqueado no aparece en ninguna parte (denuncias.js).
+      if(pagina.length<tamano)return sinAnunciosBloqueados(anuncios,await bloqueosVigentes());
     }
   }catch(error){console.warn('No se pudieron cargar las clases particulares:',error.message||error);if(propagarError)throw error;return [];}
 }

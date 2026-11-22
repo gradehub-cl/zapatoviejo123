@@ -19,11 +19,11 @@ function kit(){
 }
 let failed=0;
 function test(name,fn){try{fn();console.log('OK '+name);}catch(e){failed++;console.error('ERROR '+name+'\n'+e.message);}}
-test('cada grupo aparece una vez, sin perder ninguna de las ocho secciones',()=>{
+test('cada grupo aparece una vez, sin perder ninguna de las nueve secciones (Canvas incluida en la UC)',()=>{
   const k=kit();vm.runInContext('openSettings()',k.ctx);
   const groups=[...k.nav().matchAll(/class="settings-nav-group">([^<]+)/g)].map(m=>m[1]);
   assert.equal(groups.length,3);assert.equal(new Set(groups).size,groups.length);
-  assert.equal(k.buttons().length,8);
+  assert.equal(k.buttons().length,9);assert.match(k.nav(),/data-section="canvas"|canvas/);
 });
 test('el buscador encuentra opciones internas, ignora tildes y explica cero resultados',()=>{
   const k=kit();vm.runInContext('openSettings()',k.ctx);
@@ -33,7 +33,7 @@ test('el buscador encuentra opciones internas, ignora tildes y explica cero resu
     assert.deepEqual(k.buttons().map(b=>b.dataset.settingsSection),section?[section]:[]);
     if(!section)assert.match(k.nav(),/No encontramos/);
   }
-  k.get('settings-search').value='';k.get('settings-search').oninput();assert.equal(k.buttons().length,8);
+  k.get('settings-search').value='';k.get('settings-search').oninput();assert.equal(k.buttons().length,9);
 });
 test('buscar no borra lo escrito en el panel ni guarda estado; volver mantiene la consulta',()=>{
   const k=kit();vm.runInContext("openSettings('perfil')",k.ctx);
@@ -55,5 +55,23 @@ test('correo vive en Perfil y las acciones destructivas siguen en Datos y cuenta
 test('Apariencia tiene exactamente un selector de fondo',()=>{
   const k=kit();vm.runInContext("openSettings('apariencia')",k.ctx);
   assert.equal((k.html().match(/id="s-fondo-grid"/g)||[]).length,1);
+});
+test('entrar desde Perfil a una sección: la flecha dice Perfil y vuelve ahí, no al índice de Ajustes',()=>{
+  const k=kit();let cerrado=0;vm.runInContext('closeModal=()=>{__cerrado()}',Object.assign(k.ctx,{__cerrado:()=>cerrado++}));
+  vm.runInContext("openSettings('calendario',{volverA:'Perfil'})",k.ctx);
+  assert.match(k.html(),/class="settings-back" aria-label="Volver a Perfil">[\s\S]*?<span>Perfil<\/span>/);
+  const antes=k.html();k.get('back').onclick();
+  assert.equal(cerrado,1,'cierra Ajustes y deja ver Perfil');assert.equal(k.html(),antes,'no repinta el índice de Ajustes');
+});
+test('sin origen, la flecha sigue llevando al índice de Ajustes',()=>{
+  const k=kit();let cerrado=0;vm.runInContext('closeModal=()=>{__cerrado()}',Object.assign(k.ctx,{__cerrado:()=>cerrado++}));
+  vm.runInContext("openSettings('calendario')",k.ctx);
+  assert.match(k.html(),/aria-label="Volver a Ajustes"/);
+  k.get('back').onclick();assert.equal(cerrado,0);assert.equal(k.buttons().length,9,'vuelve a la lista de secciones (con Canvas: cuenta UC con sesión)');
+});
+test('la pestaña Perfil abre cada sección pidiendo volver a Perfil',()=>{
+  const src=fs.readFileSync(root+'src/app/perfil-pestana.js','utf8');
+  assert.ok(!/openSettings\('[a-z]+'\)/.test(src),'ninguna fila abre Ajustes sin decir a dónde volver');
+  assert.ok(/openSettings\('calendario',\{volverA:'Perfil'\}\)/.test(src));
 });
 process.exitCode=failed?1:0;

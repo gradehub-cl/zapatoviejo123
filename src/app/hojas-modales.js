@@ -107,6 +107,9 @@ function enfocarEnHoja(el,despues){
   setTimeout(ir,subiendo?Math.max(100,dura):100);
 }
 function closeModal(){
+  // El modal conserva su HTML al cerrarse. Descarta la credencial pegada.
+  const tokenCanvas=document.getElementById('s-canvas-token');
+  if(tokenCanvas)tokenCanvas.value='';
   const despuesDeCancelar=alCancelarAgregarRamo;
   alAgregarRamo=null;
   alCancelarAgregarRamo=null;

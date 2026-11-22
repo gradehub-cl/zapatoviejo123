@@ -16,16 +16,18 @@ const delDeploy = excluye(deploy.slice(deploy.indexOf('rsync -a ./ dist/')));
 const deIos = excluye(preparar);
 
 console.log('\n=== Lo de iOS no se publica en gradehub.cl ===');
-for (const x of ['ios', 'ios-web', 'capacitor.config.*']) chk(`el deploy excluye ${x}`, delDeploy.has(x));
+for (const x of ['ios', 'ios-web', 'capacitor.config.*', 'android']) chk(`el deploy excluye ${x}`, delDeploy.has(x));
 
 console.log('\n=== Dentro de la app no va lo que la web no publica ===');
 const faltan = [...delDeploy].filter(x => !deIos.has(x));
 chk(`preparar-ios excluye todo lo que excluye el deploy${faltan.length ? ' (falta: ' + faltan.join(', ') + ')' : ''}`, faltan.length === 0);
 for (const x of ['tests', 'supabase', 'docs', 'bin', '*.md', 'node_modules']) chk(`incluido ${x}`, deIos.has(x));
-for (const x of ['ios', 'ios-web', 'capacitor.config.*']) chk(`preparar-ios no se copia a sí mismo: ${x}`, deIos.has(x));
+for (const x of ['ios', 'ios-web', 'capacitor.config.*', 'android']) chk(`preparar-ios no se copia a sí mismo: ${x}`, deIos.has(x));
 // La web los publica para el servidor, los buscadores y Android; la app no.
 for (const x of ['/functions', '/_headers', '/sitemap.xml', '/robots.txt', '/.well-known']) chk(`el binario no lleva ${x}`, deIos.has(x) && !delDeploy.has(x));
-chk('copia a ios-web y sincroniza con Capacitor', /rsync -a \.\/ ios-web\//.test(preparar) && /cap sync ios/.test(preparar));
+chk('copia a ios-web y sincroniza con Capacitor', /rsync -a \.\/ ios-web\//.test(preparar) && /cap sync "\$PLATAFORMA"/.test(preparar));
+chk('Android carga gradehub.cl si no se dice otro servidor',
+  /GRADEHUB_SERVIDOR="\$\{GRADEHUB_SERVIDOR:-https:\/\/gradehub\.cl\}"/.test(preparar) && /android\/app\/src\/main\/assets\/capacitor\.config\.json/.test(preparar));
 const config = JSON.parse(fs.readFileSync(path.join(raiz, 'capacitor.config.json'), 'utf8'));
 chk('Capacitor toma la web de ios-web', config.webDir === 'ios-web' && config.appId === 'cl.gradehub.app');
 
@@ -60,7 +62,7 @@ chk('la versión empaquetada es la misma que pide index.html', !!versionWeb && (
 chk('preparar copia supabase-js del paquete y le pone su SRI',
   /node_modules\/@supabase\/supabase-js\/dist\/umd\/supabase\.js/.test(preparar) && /ios-web\/supabase\.js/.test(preparar) && /createHash\("sha384"\)/.test(preparar));
 chk('si las versiones no coinciden, se detiene', /if\(v!==m\[1\]\)\{[^}]*process\.exit\(1\)/.test(preparar));
-chk('lo hace antes de pasarle la web a Capacitor', preparar.indexOf('ios-web/supabase.js') < preparar.indexOf('cap sync ios'));
+chk('lo hace antes de pasarle la web a Capacitor', preparar.indexOf('ios-web/supabase.js') < preparar.indexOf('cap sync "$PLATAFORMA"'));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
 process.exit(fail ? 1 : 0);
