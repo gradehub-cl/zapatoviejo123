@@ -20,7 +20,9 @@ const PERFIL_ICONOS={
   agentes:'<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/>',
   sugerencias:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>',
   datos:'<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/>',
-  profesor:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h7"/>'
+  profesor:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h7"/>',
+  username:'<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>',
+  compartir:'<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>'
 };
 // Lo que hace cada fila. Se busca por clave al tocar, no se escribe en el HTML.
 const PERFIL_ACCIONES={
@@ -33,6 +35,10 @@ const PERFIL_ACCIONES={
   sugerencias:()=>openSettings('sugerencias',{volverA:'Perfil'}),
   datos:()=>openSettings('datos',{volverA:'Perfil'}),
   profesor:()=>openSettings('profesor',{volverA:'Perfil'}),
+  // Como «Nombre de usuario» en Editar perfil de Instagram. Sin username todavía,
+  // se elige en Amigos, que explica para qué sirve.
+  username:()=>{if(amigosEstadoCache&&amigosEstadoCache.username)abrirCambiarUsername();else showTab('amigos');},
+  compartir:()=>invitarAmigos(),
   archivar:()=>confirmArchiveSemester(),
   calculadora:()=>openCalculadoraApp(),
   ficha:()=>openAvanceCurricular(),
@@ -40,7 +46,7 @@ const PERFIL_ACCIONES={
   salir:()=>signOut()
 };
 // Qué filas ve esta cuenta. Función pura: recibe lo que necesita y no toca el DOM.
-function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas=false}){
+function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas=false,conAmigos=false,conUsername=false}){
   if(soloProfesor)return [
     ['La app',[['apariencia','Apariencia'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',[['datos','Datos y cuenta']]]
@@ -51,7 +57,8 @@ function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas
   const herramientas=[['calculadora','Calculadora de nota']];
   if(conFicha)herramientas.push(['ficha','Cargar semestres pasados']);
   if(tenant==='uc')herramientas.push(['horario','Subir foto de tu horario']);
-  const cuenta=[['datos','Datos y cuenta']];
+  // Con username, compartir el perfil va al lado, como en Instagram.
+  const cuenta=conAmigos?[['username','Username'],...(conUsername?[['compartir','Compartir perfil']]:[]),['datos','Datos y cuenta']]:[['datos','Datos y cuenta']];
   if(conSesion)cuenta.push(['profesor','Ofrecer clases o material']);
   return [
     ['Tu semestre',semestre],
@@ -75,12 +82,19 @@ function renderPerfil(){
   const grupos=gruposPerfil({
     soloProfesor:esCuentaProfesor(),tenant:S.tenant,hayRamos:S.ramos.length>0,
     conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),conSesion,
-    conCanvas:typeof canvasSeccionDisponible==='function'&&canvasSeccionDisponible()
+    conCanvas:typeof canvasSeccionDisponible==='function'&&canvasSeccionDisponible(),
+    conAmigos:typeof amigosVisible==='function'&&amigosVisible(),
+    conUsername:!!(typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username)
   });
+  const username=typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username;
+  // Bajo el @: cuántos amigos y grupos, si la lista ya llegó (nunca un «0» inventado).
+  const c=username&&typeof cifrasAmigos==='function'?cifrasAmigos():null;
+  const cifras=c?[`${c.amigos} ${c.amigos===1?'amigo':'amigos'}`,c.grupos?`${c.grupos} ${c.grupos===1?'grupo':'grupos'}`:''].filter(Boolean).join(' · '):'';
+  const valores={username:username?'@'+username:'Elegir'};
   const flecha='<svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   const fila=([clave,titulo])=>`<li><button type="button" class="perfil-fila" data-perfil="${clave}">
       <span class="perfil-icono" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24">${PERFIL_ICONOS[clave]||''}</svg></span>
-      <span class="perfil-fila-titulo">${esc(titulo)}</span>${flecha}</button></li>`;
+      <span class="perfil-fila-titulo">${esc(titulo)}</span>${valores[clave]?`<span class="perfil-fila-valor">${esc(valores[clave])}</span>`:''}${flecha}</button></li>`;
   const lineas=lineasPerfil();
   const correo=conSesion&&currentUser.email?currentUser.email:'';
   caja.innerHTML=`
@@ -88,6 +102,7 @@ function renderPerfil(){
       <span class="perfil-avatar" aria-hidden="true">${esc(userInitial())}</span>
       <span class="perfil-quien">
         <b class="perfil-nombre">${esc(S.userName||'Tu cuenta')}</b>
+        ${username?`<span class="perfil-linea perfil-username">@${esc(username)}${cifras?` · <span class="perfil-cifras">${esc(cifras)}</span>`:''}</span>`:''}
         ${lineas.map(l=>`<span class="perfil-linea">${esc(l)}</span>`).join('')}
         ${correo?`<span class="perfil-correo">${esc(correo)}</span>`:''}
       </span>${flecha}

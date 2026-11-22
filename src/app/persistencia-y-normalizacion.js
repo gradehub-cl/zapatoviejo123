@@ -304,7 +304,7 @@ function resolverBonus(def,categorias){
     }
     out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
       ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
-      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
+      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{}),...(b.alCompletar===true?{alCompletar:true}:{})});
   });
   return out.length?out:null;
 }

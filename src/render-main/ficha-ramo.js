@@ -98,13 +98,14 @@ function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
   return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
 }
-function abrirNotaEnFila(boton){
+function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   if(!boton||!boton.isConnected)return;
   const input=document.createElement('input');
   input.type='text';input.className='eval-row-input nota-campo';input.inputMode='decimal';
   // Lucas, 2026-11-03: al tocar una sombra la casilla queda vacía. Si no se anota
   // nada, guardar() devuelve el botón y la sombra vuelve a verse.
   input.autocapitalize='characters';input.maxLength=4;
+  if(idCampo)input.id=idCampo;
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
   if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);
   let terminado=false;
@@ -115,6 +116,8 @@ function abrirNotaEnFila(boton){
     terminado=true;
     const raw=input.value.trim();
     if(!raw){input.replaceWith(boton);return;}
+    // Inicio reutiliza el mismo campo sin navegar ni cambiar currentRamoId.
+    if(alGuardar){if(alGuardar(raw)===false)terminado=false;return;}
     if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,raw);
     else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),raw);
     else setDirectNota(boton.dataset.catId,raw);
@@ -127,6 +130,7 @@ function abrirNotaEnFila(boton){
     else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');}
   });
   boton.replaceWith(input);input.focus({preventScroll:true});
+  return input;
 }
 
 function renderRamo(){
@@ -377,10 +381,10 @@ function renderRamo(){
   const noCalcula=reglasNoCalculadas(r);
   const delCurso=reglasDelCurso(r);
   const calculadas=reglasCalculadas(r);
-  if(enAppNativa()){
-    const html=reglasRamoHTML(r);
-    ncw.style.display=html?'block':'none';ncw.className='';ncw.innerHTML=html;
-  }else if(noCalcula.length||delCurso.length||calculadas.length){
+  // Lucas, 2026-11-22: la sección «Reglas del ramo» (reglasRamoHTML) abierta en
+  // la ficha de la app molestaba en cada ramo. La app vuelve a la línea plegada
+  // de la web; el detalle queda a un toque.
+  if(noCalcula.length||delCurso.length||calculadas.length){
     ncw.style.display='flex';ncw.className='weight-setup-nudge';
     const items=lista=>`<ul style="margin:6px 0 0;padding-left:17px;">${lista.map(regla=>`<li>${esc(regla)}</li>`).join('')}</ul>`;
     const bloques=[];
@@ -411,10 +415,7 @@ function renderRamo(){
   // cualquier ramo. Llegar al promedio solo habilita la confirmación: nunca
   // afirma la eximición sola.
   const ew=document.getElementById('eximicion-warning');
-  if(ew&&enAppNativa()&&eximicion?.regla.notaExamen==='maxima'&&faltasActivas(r)){
-    // La lectura nueva ya muestra el estado; el contador conserva su acción.
-    ew.style.display='none';ew.innerHTML='';
-  }else if(ew&&eximicion?.regla.notaExamen==='maxima'){
+  if(ew&&eximicion?.regla.notaExamen==='maxima'){
     const presentacion=eximicion.promedio===null?'Pendiente':fmtPromedioExacto(eximicion.promedio);
     ew.style.display='block';ew.className='weight-setup-nudge eximicion-note mejoras-programa';
     ew.innerHTML=`<div class="mejoras-programa-contenido"><b>Eximición del examen</b>
@@ -527,7 +528,8 @@ function renderRamo(){
             :`Suman ${coma((Math.min(v,topeBonus(b))/10).toFixed(1))} ${esc(destino(b))}.`;
         }else{
           const quedan=b.hasta-v;
-          detalle=v<=b.hasta?`Sumas ${coma(b.suma.toFixed(1))} ${esc(destino(b))}. ${quedan===0?'No puedes faltar a otro.':quedan===1?'Puedes faltar a 1 más.':`Puedes faltar a ${quedan} más.`}`
+          const espera=b.alCompletar&&calc.res.breakdown.find(x=>x.id===b.destino)?.complete!==true;
+          detalle=v<=b.hasta?`${espera?'Sumarás':'Sumas'} ${coma(b.suma.toFixed(1))} ${esc(destino(b))}${espera?' cuando estén todas sus notas':''}. ${quedan===0?'No puedes faltar a otro.':quedan===1?'Puedes faltar a 1 más.':`Puedes faltar a ${quedan} más.`}`
             :`Con más de ${b.hasta} ${unidad[1]} ya no sumas las ${coma((b.suma*10).toFixed(0))} décimas.`;
         }
         const control=v===null
@@ -658,7 +660,14 @@ function renderRamo(){
     if(cat.directNota){
       // Preset con varios espacios (ej: Laboratorio = 3 notas que se promedian) — COLAPSABLE
       if(cat.slots&&cat.slots>1){
-        const av=cat.dropLowest?calculoCategoria?.value??avgPond(notas):avgPond(notas);
+        // Las décimas del programa (#631) van sobre el promedio de la
+        // evaluación: el número de la fila es el que cuenta, con ellas, y se
+        // dice cuántas incluye (Lucas, 2026-11-20). Sin regla, el de siempre.
+        const base=cat.dropLowest?null:avgPond(notas);
+        const decimasBonus=base!==null&&!justificada&&(r.bonus||[]).some(b=>b&&b.destino===cat.id)&&typeof calculoCategoria?.value==='number'
+          ?Math.round((calculoCategoria.value-base)*10):0;
+        const av=cat.dropLowest?calculoCategoria?.value??avgPond(notas):decimasBonus>0?calculoCategoria.value:base;
+        const avisoBonus=decimasBonus>0?`<div class="eval-row-weight">Incluye ${decimasBonus===1?'1 décima':decimasBonus+' décimas'} de bonificación${calculoCategoria.value>=7-1e-9?', con tope de 7,0':''}</div>`:'';
         // Vacío parte compacto, pero al guardar la primera nota (o dejar una
         // anotada para después) hay algo concreto que revisar. `openCats` solo
         // toma el control después de que la persona abrió o cerró a mano.
@@ -725,6 +734,7 @@ function renderRamo(){
               <div class="eval-row-name">${esc(cat.nombre)}</div>
               ${borrables?`<div class="eval-row-weight">${esc(borrables)}</div>`:''}
               <div class="eval-row-weight">${r2(cat.peso)}% · promedio de ${cat.slots}${notasCount?` · ${notasCount}/${cat.slots} ingresadas`:''}${fechaChip?' '+fechaChip:''}${exenta?' · exento/a':''}</div>
+              ${avisoBonus}
             </div>
             <div class="ramo-nota ${justificada?'':colorClass(av)}" style="--grade-color:${getColor(av)};min-width:auto;font-size:${justificada?'.8125':'1.1875'}rem;">${justificada?'Justificada':fmtPromedio(av)}</div>
             ${iconoDespliegue(isOpen)}
@@ -746,7 +756,7 @@ function renderRamo(){
           <div class="eval-row-name">${esc(cat.nombre)}</div>${derivada}
           <div class="eval-row-weight">${g==null&&!justificada&&!exenta?'Pendiente · ':''}${r2(cat.peso)}% de la nota final${fechaChip?' '+fechaChip:''}${exenta?' · exento/a':''}${recorreccion?` <span class="recorreccion-chip">Falta mandar${textoRecorreccion!=='sin plazo calculable'?` · ${esc(textoRecorreccion)}`:''}</span>`:''}</div>
         </div>
-        ${exenta?`<span class="ramo-nota">${nf(calculoCategoria?.value)}</span>`:justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
+        ${exenta?(typeof calculoCategoria?.value==='number'?`<span class="ramo-nota">${nf(calculoCategoria.value)}</span>`:`<span class="ramo-nota neutral" aria-label="Sin nota: exento/a">·</span>`):justificada?'':g==null?botonNotaEnFilaHTML(cat.id,null,cat.nombre,sombras):`<input class="eval-row-input" inputmode="${inputModeNota()}" autocapitalize="characters" maxlength="4" value="${esc(textoCalificacionNota(notas[0]))}" style="color:${getColor(g)}" onchange="setDirectNota('${cat.id}',this.value)" onclick="event.stopPropagation();" aria-label="Nota de ${esc(cat.nombre)}"/>`}
         ${detalleAusencia}
         ${barraPeso}`;
       adjuntarCategoria(row,cat);

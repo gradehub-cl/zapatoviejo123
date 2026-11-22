@@ -15,7 +15,8 @@
 --     nunca lee evaluaciones ni notas sueltas de user_ramos para esto.
 --   - Recíproco: solo ve notas de sus amigos quien también comparte las suyas.
 --   - Solo ramos en común: de cada amigo se entregan únicamente los ramos cuya
---     sigla está también en el user_ramos de quien pregunta.
+--     sigla está también en el user_ramos de quien pregunta, y solo entre
+--     cuentas de la misma universidad (la misma sigla puede ser otro ramo).
 --   - Solo amistades aceptadas. Eliminar, bloquear o apagar corta al tiro;
 --     apagar borra la fila.
 --
@@ -98,7 +99,10 @@ begin
   select a.id, coalesce((select jsonb_agg(r) from jsonb_array_elements(n.ramos) r where r ->> 'sigla' = any (mias)), '[]'::jsonb)
     from public.amistades a
     join public.amigos_notas n on n.user_id = case when a.de = uid then a.para else a.de end
-   where (a.de = uid or a.para = uid) and a.estado = 'aceptada';
+   where (a.de = uid or a.para = uid) and a.estado = 'aceptada'
+     -- La misma sigla puede ser otro ramo en otra universidad.
+     and (select p.universidad from public.profiles p where p.id = n.user_id)
+         is not distinct from (select p.universidad from public.profiles p where p.id = uid);
 end;
 $$;
 

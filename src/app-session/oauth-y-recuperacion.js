@@ -83,6 +83,7 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
   if(App)App.addListener('appUrlOpen',ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
+    else if(typeof recibirLinkAmigo==='function'&&recibirLinkAmigo(url))return;
     else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
   });
   // Lo que se respondió en la Actividad en Vivo con la app cerrada.
@@ -90,6 +91,8 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
     setTimeout(recogerSensaciones,0);
     if(App)App.addListener('resume',()=>recogerSensaciones());
   }
+  // Volver a la app trae solicitudes e invitaciones nuevas de Amigos.
+  if(App&&typeof revisarAmigos==='function')App.addListener('resume',()=>{if(Date.now()-_amigosRevisadoAt>5e3)revisarAmigos();});
   if(Browser)Browser.addListener('browserFinished',()=>{if(!currentUser)reactivarBotonesOAuth();});
 }
 

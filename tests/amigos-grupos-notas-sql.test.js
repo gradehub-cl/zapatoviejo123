@@ -90,7 +90,7 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   paso('sacar, renombrar, salir; sin grupos huérfanos');
 
   await db.exec('reset role');
-  const extra=[];for(let i=0;i<14;i++){const id=u(200+i);extra.push(id);await q('insert into auth.users(id) values($1)',[id]);await q('insert into public.usernames values($1,$2)',[id,'extra'+i]);
+  const extra=[];for(let i=0;i<14;i++){const id=u(200+i);extra.push(id);await q('insert into auth.users(id) values($1)',[id]);await q('insert into public.usernames values($1,$2)',[id,'extra'+i]);await q("insert into public.profiles(id,universidad) values($1,'uc')",[id]);
     await q("insert into public.amistades(de,para,estado) values($1,$2,'aceptada')",[A,id]);}
   await sesion(A);
   for(let i=0;i<13;i++)await uno('select public.invitar_a_grupo($1,$2)',[g,'extra'+i]);
@@ -120,6 +120,9 @@ const ramo=(nombre,sigla,dias,inicio,fin,nota)=>({id:sigla,nombre,sigla,origen:{
   await sesion(E);await pub([{sigla:'SYN101',promedio:5}]);assert.equal((await q('select * from public.amigos_notas()')).length,0,'quien no es amigo no ve');
   await db.exec('reset role');await q('update public.amigos_notas set ramos=$2 where user_id=$1',[B,JSON.stringify([{sigla:'SYN999',promedio:6,avance:9,nivel:'good'}])]);
   await sesion(B);assert.deepEqual((await q('select * from public.amigos_notas()'))[0].ramos.map(r=>r.sigla),['SYN101'],'B ve SYN101 de A, no SYN202: no lo toma');
+  await db.exec('reset role');await q("update public.profiles set universidad='uai' where id=$1",[B]);
+  await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'otra universidad: la misma sigla puede ser otro ramo');
+  await db.exec('reset role');await q("update public.profiles set universidad='uc' where id=$1",[B]);
   await sesion(B);assert.equal(await uno('select public.dejar_de_compartir_notas()'),true);
   await sesion(A);assert.equal((await q('select * from public.amigos_notas()')).length,0,'apagar corta al tiro');
   paso('notas: apagadas por defecto, recíprocas, solo ramos en común y validadas');
