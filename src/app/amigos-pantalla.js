@@ -707,9 +707,10 @@ function preguntarAvisosHTML(hayAlgo){
 // ─── Calendario del grupo: salas reservadas y pruebas ───
 const ICONO_SALA='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const ICONO_PRUEBA='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+const DIAS_CALENDARIO_GRUPO=60;
 function etiquetaDiaCalendario(fecha){
-  const d=diasHasta(fecha);
-  if(d===0)return 'Hoy';if(d===1)return 'Mañana';
+  const hoy=fechaHorarioChile(Date.now());
+  if(fecha===hoy)return 'Hoy';if(fecha===sumarDiasAgenda(hoy,1))return 'Mañana';
   const t=new Date(fecha+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'short'});
   return t.charAt(0).toUpperCase()+t.slice(1);
 }
@@ -752,7 +753,7 @@ function abrirPruebaGrupo(id,clave){
   const prueba=d?.id===id&&eventosGrupo(d.cal).find(it=>it.clave===clave);
   if(!prueba)return;
   document.getElementById('modal-content').innerHTML=`<section data-detalle-prueba="${esc(clave)}" data-personas="${esc(JSON.stringify(prueba.personas))}"><p class="modal-label">${esc(prueba.detalle||'Prueba')}</p>
-    <h2 class="modal-title">${esc(prueba.titulo)}</h2><p class="grupo-cuando">${esc([etiquetaDiaCalendario(prueba.fecha),prueba.inicio].filter(Boolean).join(' · '))}</p>
+    <h2 class="modal-title">${esc(prueba.titulo)}</h2><p class="grupo-cuando">${esc([etiquetaDiaCalendario(prueba.fecha),prueba.inicio||'Sin hora indicada'].join(' · '))}</p>
     <h3 class="grupo-etiqueta">La tienen en su calendario</h3><ul class="grupo-celdas">${prueba.personas.map(p=>`<li class="amigo-fila"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span><span>${esc(p.yo?'Tú':nombreAmigo(p))}</span></li>`).join('')}</ul>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver al grupo</button></div></section>`;
   openModal();
@@ -770,23 +771,22 @@ function abrirReservaGrupo(id,reserva){
 }
 function abrirReservaNueva(id){
   const visita=amigosGrupoDetalle;
-  const hoy=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
-  const max=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
+  const hoy=fechaHorarioChile(Date.now()),max=sumarDiasAgenda(hoy,DIAS_CALENDARIO_GRUPO);
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Sala reservada</div>
-    <form id="amigos-reserva-form" class="amigos-grupo-form" novalidate>
+    <h2 class="modal-title">Anotar sala</h2>
+    <form id="amigos-reserva-form" class="amigos-grupo-form">
       <label class="modal-label" for="amigos-reserva-lugar">Dónde</label>
-      <input id="amigos-reserva-lugar" class="amigos-grupo-nombre" type="text" maxlength="60" autocomplete="off" placeholder="Sala B-12, Biblioteca San Joaquín">
+      <input id="amigos-reserva-lugar" class="amigos-grupo-nombre" type="text" maxlength="60" required autocomplete="off" placeholder="Sala B-12, Biblioteca San Joaquín">
       <label class="modal-label" for="amigos-reserva-fecha">Día</label>
-      <input id="amigos-reserva-fecha" class="amigos-grupo-nombre" type="date" min="${hoy}" max="${max}" value="${hoy}">
+      <input id="amigos-reserva-fecha" class="amigos-grupo-nombre" type="date" required min="${hoy}" max="${max}" value="${hoy}">
       <div class="cal-horas">
-        <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" value="14:00"></label>
-        <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" value="16:00"></label>
+        <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" required value="14:00"></label>
+        <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" required value="16:00"></label>
       </div>
-      <p class="amigos-vacio-texto">La ve solo este grupo. La reserva en sí la haces en el sistema de tu universidad.</p>
+      <p class="amigos-vacio-texto">Anota una sala que ya reservaste en tu universidad para que el grupo sepa dónde juntarse.</p>
     </form>
-    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
-      <button type="submit" form="amigos-reserva-form" class="btn-confirm">Guardar</button></div>`;
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button type="submit" form="amigos-reserva-form" class="btn-confirm">Anotar sala</button></div>`;
   openModal();
   document.getElementById('amigos-reserva-form').addEventListener('submit',async ev=>{
     ev.preventDefault();
@@ -794,15 +794,18 @@ function abrirReservaNueva(id){
     if(form.hasAttribute('aria-busy'))return;
     const v=k=>document.getElementById('amigos-reserva-'+k).value;
     if(!v('lugar').trim()){showToast('Escribe dónde',true);return;}
-    form.setAttribute('aria-busy','true');
+    if(v('fin')<=v('inicio')){document.getElementById('amigos-reserva-fin').focus();showToast('La hora de término debe ser posterior a la de inicio.',true);return;}
+    const enviar=document.querySelector('[form="amigos-reserva-form"]');
+    form.setAttribute('aria-busy','true');enviar.disabled=true;
     const vigente=()=>visita===amigosGrupoDetalle&&form.isConnected&&document.getElementById('modal').classList.contains('open');
     try{
       await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin')});
       if(!vigente())return;
       if(typeof vibrar==='function')vibrar('exito');
+      showToast('Sala anotada');
       abrirGrupo(id);
     }catch(e){if(vigente())showToast(mensajeErrorAmigos(e),true);}
-    finally{form.removeAttribute('aria-busy');}
+    finally{form.removeAttribute('aria-busy');enviar.disabled=false;}
   });
 }
 // El promedio del amigo con el semáforo de siempre; sin notas, en gris.
@@ -875,7 +878,7 @@ function seccionGruposHTML(){
       ${FLECHA_GRUPO}</button></li>`).join('')}
     ${hayAmigos?`<li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-nuevo">
       <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span>
-      <span class="amigo-texto"><b>Crear grupo</b>${mios.length?'':'<small>Encuentra horarios libres en común</small>'}</span>${FLECHA_GRUPO}</button></li>`:''}
+      <span class="amigo-texto"><b>Crear grupo</b>${mios.length?'':'<small>Comparte pruebas, salas y horarios</small>'}</span>${FLECHA_GRUPO}</button></li>`:''}
   </ul>`:''}
     ${!mios.length&&!invit.length&&!hayAmigos?'<p class="amigos-vacio-texto">Cuando tengas amigos en GradeHub, podrás crear un grupo.</p>':''}
   </section>`;
@@ -971,7 +974,7 @@ async function cargarActividadGrupo(d){
   const vigente=()=>amigosGrupoDetalle===d&&v===amigosVersion&&currentUser?.id===cuenta;
   try{
     const [filas,cal]=await Promise.all([rpcAmigos('grupo_detalle',{p_grupo:d.id}),
-      amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:d.id}).catch(()=>null):null]);
+      amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:d.id,p_dias:DIAS_CALENDARIO_GRUPO}).catch(()=>null):null]);
     if(!vigente())return;
     d.filas=filas||[];d.cal=cal;d.error=false;
     const g=amigosGruposCache?.find(g=>g.id===d.id),miembros=d.filas.filter(f=>f.estado==='miembro');
@@ -1004,6 +1007,12 @@ function pintarActividadGrupo(d){
   const id=esc(d.id);
   const acceso=(accion,texto)=>`<button type="button" class="amigos-link" data-amigos="${accion}" data-id="${id}">${texto}</button>`;
   const nombre=esc(g?.nombre||'Grupo');
+  let actividad;
+  if(!amigosCalendarioDisponible)actividad='<p>El calendario del grupo aún no está disponible.</p>';
+  else if(d.cal===null)actividad=`<p>No se pudo actualizar el calendario.</p>${acceso('grupo','Reintentar')}`;
+  else if(d.cal?.length)actividad=calendarioGrupoHTML(d.id,d.cal);
+  else if(pendientes&&cabecera?.miembros===1)actividad='<p>Por ahora solo estás tú. Cuando tus amigos se unan, verán aquí las salas y las pruebas que compartan.</p>';
+  else actividad=`<p>Aún no hay pruebas compartidas ni salas anotadas para los próximos ${DIAS_CALENDARIO_GRUPO} días.</p>`;
   const contenido=`<section class="grupo-actividad"><header class="grupo-barra">
     <button type="button" class="grupo-atras" data-amigos="grupo-volver" aria-label="Volver a Amigos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg></button>
     <h1 id="grupo-actividad-titulo" tabindex="-1"><button type="button" class="grupo-identidad" data-amigos="grupo-info" data-id="${id}" ${d.cargando||d.error?'disabled':''} aria-label="Información de ${nombre}" aria-describedby="grupo-participantes grupo-cantidad">
@@ -1012,9 +1021,9 @@ function pintarActividadGrupo(d){
       ${cabecera&&!d.error?`<span class="grupo-cantidad" id="grupo-cantidad">${esc(personasTxt(cabecera.miembros))}</span>`:''}
     </button></h1></header>
     ${d.cargando?'<p role="status">Cargando grupo…</p>':d.error?`<p role="status">No se pudo cargar el grupo.</p>${acceso('grupo','Reintentar')}`:`
-    ${pendientes?`<p class="grupo-pendientes">${acceso('grupo-info',pendientes===1?'1 invitación pendiente':pendientes+' invitaciones pendientes')}</p>`:''}
-    <div class="grupo-actividad-titulo"><h2>Actividad del grupo</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
-    ${!amigosCalendarioDisponible?'<p>El calendario del grupo aún no está disponible.</p>':d.cal===null?`<p>No se pudo actualizar el calendario.</p>${acceso('grupo','Reintentar')}`:d.cal.length?calendarioGrupoHTML(d.id,d.cal):'<p>Las pruebas que compartan y las salas que anoten para las próximas tres semanas aparecerán aquí.</p>'}`}</section>`;
+    ${pendientes?`<p class="grupo-pendientes">${acceso('grupo-pendientes',pendientes===1?'1 invitación pendiente':pendientes+' invitaciones pendientes')}</p>`:''}
+    <div class="grupo-actividad-titulo"><h2>Próximas pruebas y salas</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
+    ${actividad}`}</section>`;
   if(d.html!==contenido||!caja.querySelector('.grupo-actividad')){
     const activo=document.activeElement;
     const previo=activo&&caja.contains?.(activo)?activo:null;
@@ -1026,7 +1035,7 @@ function pintarActividadGrupo(d){
     }
   }
 }
-function pintarGrupo(id,filas){
+function pintarGrupo(id,filas,seccion){
   const g=(amigosGruposCache||[]).find(x=>x.id===id)||{nombre:'Grupo'};
   if(amigosGrupoDetalle?.id===id)amigosGrupoDetalle.firmaInfo=JSON.stringify(filas);
   const ahora=new Date();
@@ -1039,6 +1048,7 @@ function pintarGrupo(id,filas){
   const semana=horariosSuficientes?semanaLibresGrupo(agendas):[];
   const turnos=mioConHorario?horarios.map(({f,ramos})=>({f,m:matchTurno(S.ramos,ramos)})).filter(x=>x.m.tipo!=='ninguno'):[];
   const nombres=miembros.filter(f=>!f.yo).map(f=>(f.nombre||f.username).split(' ')[0]);
+  const hayInvitables=(amigosListaCache||[]).some(a=>a.estado==='amigos'&&!filas.some(f=>f.username===a.username));
   const filaHTML=f=>{
     const ramos=f.ramos?normalizarRamosAmigo(f.ramos):null,est=ramos?estadoAhoraAmigo(ramos,ahora):null;
     const linea=f.estado==='invitado'||f.yo?'@'+f.username:est?textoEstadoAmigo(est):'Horario no disponible';
@@ -1059,6 +1069,16 @@ function pintarGrupo(id,filas){
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
     </div>
     <section class="grupo-seccion">
+    <h3 class="grupo-etiqueta">Integrantes</h3>
+    <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">
+      ${hayInvitables?`<li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-invitar" data-id="${esc(id)}">
+        <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Invitar amigos</b></span>${FLECHA_GRUPO}</button></li>`:''}
+      ${miembros.map(filaHTML).join('')}
+    </ul>
+    </section>
+    ${pendientes.length?`<section class="grupo-seccion"><h3 class="grupo-etiqueta" id="grupo-invitaciones" tabindex="-1">Invitaciones pendientes</h3>
+      <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">${pendientes.map(filaHTML).join('')}</ul></section>`:''}
+    <section class="grupo-seccion">
       <h3 class="grupo-etiqueta">Horarios libres en común</h3>
       ${!horariosSuficientes?'<p class="amigos-vacio-texto">Se necesitan al menos dos horarios para calcular las coincidencias.</p>'
         :semana.length?`<ul class="amigo-lista grupo-celdas grupo-horarios" role="list">${semana.map(d=>`<li>
@@ -1069,45 +1089,45 @@ function pintarGrupo(id,filas){
     ${turnos.length?`<section class="grupo-seccion"><h3 class="grupo-etiqueta">Hacer turno contigo</h3>
       <ul class="amigo-lista grupo-celdas grupo-horarios" role="list">${turnos.map(({f,m})=>`<li><b>${esc(nombreAmigo(f))}</b>
       <span class="amigo-horas">${esc(m.tipo==='perfecto'?'Coinciden todos los días':listaDiasTurno(m.dias))}</span></li>`).join('')}</ul></section>`:''}
-    <section class="grupo-seccion">
-    <h3 class="grupo-etiqueta">Integrantes</h3>
-    <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">
-      <li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-invitar" data-id="${esc(id)}">
-        <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span><span class="amigo-texto"><b>Invitar amigos</b></span>${FLECHA_GRUPO}</button></li>
-      ${miembros.map(filaHTML).join('')}
-    </ul>
-    </section>
-    ${pendientes.length?`<section class="grupo-seccion"><h3 class="grupo-etiqueta">Invitaciones pendientes</h3>
-      <ul class="amigo-lista amigo-lista-personas grupo-celdas" role="list">${pendientes.map(filaHTML).join('')}</ul></section>`:''}
     <button type="button" class="grupo-salir" data-amigos="grupo-salir" data-id="${esc(id)}">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/></svg>Salir del grupo</button>
     </div>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
   openModal();
+  if(seccion==='pendientes')document.getElementById('grupo-invitaciones')?.focus();
 }
 // Tocar a alguien del grupo: como en WhatsApp, un menú corto. Su ficha si es
 // tu amigo; sacarlo si eres admin.
 function abrirMiembroGrupo(id,username){
   const f=amigosGrupoDetalle&&amigosGrupoDetalle.id===id&&amigosGrupoDetalle.filas.find(x=>x.username===username);if(!f)return;
-  const yo=amigosGrupoDetalle.filas.find(x=>x.yo),amigo=(amigosListaCache||[]).find(a=>a.estado==='amigos'&&a.username===username);
+  const yo=amigosGrupoDetalle.filas.find(x=>x.yo),amistad=(amigosListaCache||[]).find(a=>a.username===username);
   const opciones=[
-    amigo?`<button type="button" class="grupo-opcion" data-amigos="ver" data-id="${esc(amigo.id)}">Ver ficha de ${esc(f.nombre||'@'+f.username)}</button>`:'',
-    !amigo?`<button type="button" class="grupo-opcion" data-amigos="grupo-agregar-amigo" data-user="${esc(username)}">Agregar a amigos</button>`:'',
-    yo&&yo.creador?`<button type="button" class="grupo-opcion peligro" data-amigos="grupo-quitar" data-id="${esc(id)}" data-user="${esc(username)}">Sacar del grupo</button>`:''
+    amistad?.estado==='amigos'?`<button type="button" class="grupo-opcion" data-amigos="ver" data-id="${esc(amistad.id)}">Ver ficha de ${esc(f.nombre||'@'+f.username)}</button>`:'',
+    amistad?.estado==='enviada'?'<p class="amigo-sub">Solicitud de amistad enviada</p>':'',
+    amistad?.estado==='recibida'?`<button type="button" class="grupo-opcion" data-amigos="grupo-aceptar-amistad" data-id="${esc(amistad.id)}" data-user="${esc(username)}">Aceptar solicitud de amistad</button>`:'',
+    !amistad?`<button type="button" class="grupo-opcion" data-amigos="grupo-agregar-amigo" data-user="${esc(username)}">Agregar a amigos</button>`:'',
+    yo&&yo.creador?`<button type="button" class="grupo-opcion peligro" data-amigos="grupo-quitar" data-id="${esc(id)}" data-user="${esc(username)}">${f.estado==='invitado'?'Retirar invitación':'Sacar del grupo'}</button>`:''
   ].filter(Boolean);
   document.getElementById('modal-content').innerHTML=`
     <div class="amigo-cabecera"><span class="amigo-avatar grande" aria-hidden="true">${inicialAmigo(f)}</span>
       <div><h2 class="modal-title grupo-titulo">${esc(nombreAmigo(f))}</h2>${f.nombre?`<p class="amigo-sub">@${esc(f.username)}</p>`:''}</div></div>
     <div class="grupo-opciones">${opciones.join('')}</div>
-    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button></div>`;
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo-info" data-id="${esc(id)}">Volver</button></div>`;
   openModal();
+}
+async function volverAInfoTrasEdicion(id,form){
+  const visita=amigosGrupoDetalle;
+  if(visita?.id!==id)return;
+  await refrescarAmigos();
+  if(amigosGrupoDetalle!==visita||!form.isConnected||!document.getElementById('modal').classList.contains('open'))return;
+  if(visita.error)closeModal();else pintarGrupo(id,visita.filas);
 }
 function abrirInvitarGrupo(id){
   const fuera=amigosGrupoDetalle&&amigosGrupoDetalle.id===id?amigosGrupoDetalle.filas.map(f=>f.username):[];
   document.getElementById('modal-content').innerHTML=`
     <h2 class="modal-title grupo-titulo">Invitar amigos</h2>
     <form id="amigos-invitar-form" class="amigos-grupo-form" novalidate>${elegirAmigosHTML(fuera)}</form>
-    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo-info" data-id="${esc(id)}">Volver</button>
       <button type="submit" form="amigos-invitar-form" class="btn-confirm" id="amigos-invitar-ok" disabled>Enviar</button></div>`;
   openModal();
   const ok=document.getElementById('amigos-invitar-ok'),form=document.getElementById('amigos-invitar-form');
@@ -1118,16 +1138,20 @@ function abrirInvitarGrupo(id){
     if(ok.disabled||!usernames.length)return;
     ok.disabled=true;ok.textContent='Enviando…';form.setAttribute('aria-busy','true');
     const v=amigosVersion;
+    let enviadas=0;
     try{
       for(const u of usernames){
         if(v!==amigosVersion)return;
         await rpcAmigos('invitar_a_grupo',{p_grupo:id,p_username:u});
+        enviadas++;
       }
-      if(v!==amigosVersion)return;
-      showToast(usernames.length===1?'Invitación enviada':'Invitaciones enviadas');
-    }catch(e){if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);}
-    finally{form.removeAttribute('aria-busy');ok.textContent='Enviar';ok.disabled=!form.querySelector('input[name=u]:checked');}
-    if(v===amigosVersion&&form.isConnected&&document.getElementById('modal').classList.contains('open'))abrirGrupo(id);
+      if(v===amigosVersion)showToast(enviadas===1?'Invitación enviada':'Invitaciones enviadas');
+    }catch(e){
+      if(v===amigosVersion)showToast(enviadas?`Se enviaron ${enviadas} de ${usernames.length} invitaciones. Puedes volver a invitar a quienes faltan.`:mensajeErrorAmigos(e),true);
+    }finally{
+      if(enviadas&&v===amigosVersion)await volverAInfoTrasEdicion(id,form);
+      form.removeAttribute('aria-busy');ok.textContent='Enviar';ok.disabled=!form.querySelector('input[name=u]:checked');
+    }
   });
 }
 function abrirRenombrarGrupo(id){
@@ -1136,7 +1160,7 @@ function abrirRenombrarGrupo(id){
     <h2 class="modal-title grupo-titulo">Cambiar nombre</h2>
     <form id="amigos-renombrar-form" novalidate><label class="grupo-etiqueta" for="amigos-renombrar">Nombre del grupo</label>
     <input id="amigos-renombrar" class="amigos-grupo-nombre" type="text" maxlength="${GRUPO_NOMBRE_MAX}" autocomplete="off" value="${esc(g.nombre)}" required></form>
-    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
+    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo-info" data-id="${esc(id)}">Volver</button>
       <button type="submit" form="amigos-renombrar-form" class="btn-confirm" id="amigos-renombrar-ok">Guardar</button></div>`;
   openModal();
   const form=document.getElementById('amigos-renombrar-form'),nombre=document.getElementById('amigos-renombrar'),ok=document.getElementById('amigos-renombrar-ok');
@@ -1153,8 +1177,7 @@ function abrirRenombrarGrupo(id){
       if(v!==amigosVersion)return;
       if(typeof nuevoNombre==='string')g.nombre=nuevoNombre;
       showToast('Nombre actualizado');
-      await refrescarAmigos();
-      if(v===amigosVersion&&form.isConnected&&document.getElementById('modal').classList.contains('open'))abrirGrupo(id);
+      await volverAInfoTrasEdicion(id,form);
     }catch(e){if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);}
     finally{form.removeAttribute('aria-busy');ok.textContent='Guardar';actualizar();}
   });
@@ -1175,7 +1198,12 @@ async function accionGrupo(accion,{id,user,confirmado}={}){
       if(!confirmado)return showConfirm(`¿Salir de ${nombre}?`,'Perderás acceso al grupo y a los horarios compartidos allí. No le avisaremos a nadie.',()=>accionGrupo(accion,{id,confirmado:true}),{label:'Salir',danger:true,focusCancel:true});
       await rpcAmigos('salir_de_grupo',{p_grupo:id});volverDeGrupo();
     }else if(accion==='grupo-quitar'){
-      if(!confirmado)return showConfirm(`¿Sacar a @${user}?`,'Perderá acceso al grupo y a los horarios compartidos allí. No le avisaremos.',()=>accionGrupo(accion,{id,user,confirmado:true}),{label:'Sacar',danger:true,focusCancel:true});
+      if(!confirmado){
+        const invitado=amigosGrupoDetalle?.filas.find(f=>f.username===user)?.estado==='invitado';
+        return showConfirm(invitado?`¿Retirar la invitación de @${user}?`:`¿Sacar a @${user}?`,
+          invitado?'Si ya aceptó la invitación, también saldrá del grupo.':'Perderá acceso al grupo y a los horarios compartidos allí.',
+          ()=>accionGrupo(accion,{id,user,confirmado:true}),{label:invitado?'Retirar':'Sacar',danger:true,focusCancel:true});
+      }
       await rpcAmigos('quitar_de_grupo',{p_grupo:id,p_username:user});
       await refrescarAmigos();abrirGrupo(id);return;
     }
@@ -1225,7 +1253,11 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='denunciar')abrirDenunciarAmigo(user);
     else if(acc==='grupo')abrirGrupo(id);
     else if(acc==='grupo-volver')volverDeGrupo();
-    else if(acc==='grupo-info'&&amigosGrupoDetalle?.id===id)pintarGrupo(id,amigosGrupoDetalle.filas);
+    else if(acc==='grupo-info'||acc==='grupo-pendientes'){
+      const d=amigosGrupoDetalle;
+      if(d?.id!==id||d.cargando)return;
+      if(d.error)closeModal();else pintarGrupo(id,d.filas,acc==='grupo-pendientes'?'pendientes':null);
+    }
     else if(acc==='grupo-reserva')abrirReservaGrupo(id,b.dataset.reserva);
     else if(acc==='grupo-prueba')abrirPruebaGrupo(id,b.dataset.prueba);
     else if(acc==='grupo-nuevo')abrirGrupoNuevo();
@@ -1249,6 +1281,14 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='grupo-invitar')abrirInvitarGrupo(id);
     else if(acc==='grupo-renombrar')abrirRenombrarGrupo(id);
     else if(acc==='grupo-miembro')abrirMiembroGrupo(id,user);
+    else if(acc==='grupo-aceptar-amistad'){
+      const d=amigosGrupoDetalle;
+      if(!d||b.disabled)return;
+      b.disabled=true;
+      accionAmigos('aceptar',{id}).then(()=>{
+        if(d===amigosGrupoDetalle&&b.isConnected&&document.getElementById('modal').classList.contains('open'))abrirMiembroGrupo(d.id,user);
+      });
+    }
     else if(acc==='grupo-agregar-amigo')accionAmigos('pedir',{user});
     else if(acc.startsWith('grupo-'))accionGrupo(acc,{id,user});
     else accionAmigos(acc,{id,user});
