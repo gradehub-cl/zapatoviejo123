@@ -252,6 +252,7 @@ function openAddCatModal(prefillDate){
       <input type="checkbox" id="m-cat-varias" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Son varias notas que se promedian <span style="color:var(--fg3);">(controles, laboratorios, tareas)</span></span>
     </label>
+    ${cantidadVariasHTML({notas:[]},false,false)}
     ${campoFechaHoraHTML('m-cat',prefillDate||'',null,false)}
     ${reglasEvaluacionEditorHTML({manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:true})}
     <div class="modal-btns">
@@ -259,6 +260,8 @@ function openAddCatModal(prefillDate){
       <button class="btn-confirm" id="m-add-cat-btn" onclick="confirmAddCat()">Agregar evaluación</button>
     </div>`;
   openModal();wirePesoControl();
+  const varias=document.getElementById('m-cat-varias'),filaCantidad=document.getElementById('m-cat-cantidad-fila');
+  if(varias&&filaCantidad)varias.addEventListener('change',()=>{filaCantidad.hidden=!varias.checked;});
   enfocarEnHoja(document.getElementById('m-cat-name'));
   document.getElementById('m-cat-name').addEventListener('input',()=>{if(addCatError){addCatError='';limpiarErrorCampo('m-cat-name','m-cat-error');}});
   document.getElementById('m-cat-name').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddCat();});
@@ -279,11 +282,13 @@ function confirmAddCat(){
   // Pero "Controles 20%" sí tiene varias notas adentro, y a mano no había forma
   // de decirlo: la casilla es el único camino que tiene el estudiante hacia la
   // tarjeta con "+ Agregar nota" que las pautas oficiales usan vía `lista:true`.
+  // Varias notas son un grupo de casillas, con su cantidad (ver cantidadVariasHTML).
   const varias=!!(document.getElementById('m-cat-varias')||{}).checked;
-  const reglas=leerReglasEvaluacionModal(r,varias,null);if(!reglas)return false;
+  const cantidad=varias?leerCantidadVarias({notas:[]},false):null;if(cantidad===false)return false;
+  const reglas=leerReglasEvaluacionModal(r,varias,cantidad);if(!reglas)return false;
   const hora=leerHora('m-cat');
-  const cat={id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:!varias,notas:[]};
+  const cat={id:uid(),nombre:name,peso,fecha,hora,fechaOrigen:fecha?'usuario':null,horaOrigen:hora?'usuario':null,ponderaNotas:false,directNota:true,notas:[],...(cantidad?{slots:cantidad}:{})};
   guardarReglasEvaluacionEditor(r,cat,reglas);
-  r.categorias.push(cat);
+  r.categorias.push(cat);abrirGrupoVacio(cat);
   save();track('add_categoria',{peso,tiene_fecha:!!fecha,varias_notas:varias});closeModal();renderRamo();
 }

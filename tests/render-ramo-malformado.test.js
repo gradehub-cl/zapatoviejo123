@@ -64,7 +64,8 @@ error=null;try{val('renderRamo')();}catch(e){error=e;}
 const listaAbierta=byId('cat-list').children;
 chk('marcar varias notas no rompe el render',error===null);
 chk('mantiene visible la prueba junto a Controles',listaAbierta.length===2&&listaAbierta[0]?.innerHTML.includes('Prueba 1')&&listaAbierta[1]?.innerHTML.includes('Controles'));
-chk('Controles conserva la puerta para agregar sus notas',/Agregar nota/.test(listaAbierta[1]?.innerHTML||''));
+// Vacía se ve como nota sola (seVeComoNotaSola), con su "+ Nota".
+chk('Controles conserva la puerta para anotar su nota',/class="nota-en-fila"/.test(listaAbierta[1]?.innerHTML||''));
 
 console.log('\n=== Una pauta oficial no invita a borrar una evaluación ===');
 const pautaBiocel=val("presetRamo('Biología de la Célula','uc','ING-PC')");

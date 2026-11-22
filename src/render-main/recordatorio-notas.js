@@ -73,7 +73,7 @@ function abrirRecordatorioNota(item){
     nodo.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
     if(boton){abrirNotaEnFila(boton);return;}
     if(vigente.nota){openEditNotaModal(c.id,vigente.nota.id);document.getElementById('m-nota-val')?.focus({preventScroll:true});}
-    else if(!c.directNota){openAddNotaModal(c.id);document.getElementById('m-nota-val')?.focus({preventScroll:true});}
+    else if(!c.directNota&&!seVeComoNotaSola(r,c)){openAddNotaModal(c.id);document.getElementById('m-nota-val')?.focus({preventScroll:true});}
   };
   enfocar();
 }

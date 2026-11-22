@@ -3,6 +3,7 @@ function openEditCatModal(catId){
   const cat=r.categorias.find(c=>c.id===catId);
   editCatError='';
   const reglas=reglasEvaluacionEditor(r,cat);
+  const comoLista=cat.directNota===false&&!seVeComoNotaSola(r,cat);
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Editar evaluación</div>
     <label class="modal-label">Nombre</label>
@@ -10,15 +11,15 @@ function openEditCatModal(catId){
     <p id="m-cat-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     ${pesoControlHTML(cat.peso,catId)}
     ${cat.slots>1?'':`<label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 14px;line-height:1.35;${(cat.notas||[]).length>1?'opacity:.55;cursor:not-allowed;':''}">
-      <input type="checkbox" id="m-cat-varias" ${cat.directNota===false?'checked':''} ${(cat.notas||[]).length>1?'disabled':''} style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
+      <input type="checkbox" id="m-cat-varias" ${comoLista?'checked':''} ${(cat.notas||[]).length>1?'disabled':''} style="width:18px;height:18px;flex-shrink:0;accent-color:var(--primary);"/>
       <span>Son varias notas que se promedian ${(cat.notas||[]).length>1?'<span style="color:var(--fg3);">(ya tiene varias notas: para volver a una sola, bórralas)</span>':'<span style="color:var(--fg3);">(controles, laboratorios, tareas)</span>'}</span>
     </label>
-    ${cantidadVariasHTML(cat)}`}
+    ${cantidadVariasHTML(cat,comoLista||(cat.notas||[]).length>1,listaAbiertaPermitida(r,cat))}`}
     <div id="m-cat-fecha-grupo" ${cat.slots>1&&!cat.fecha?'hidden':''}>${campoFechaHoraHTML('m-cat',cat.fecha,cat.hora,true)}</div>
     <div id="m-cat-fechas-casillas">${cat.slots>1?fechasCasillasHTML(r,cat,cat.slots):''}</div>
     ${cat.directNota===true&&!(Number.isInteger(cat.slots)&&cat.slots>1)?controlRecorreccionHTML((cat.notas||[])[0],cat.fecha):''}
     ${cat.fecha?enlaceGoogleCalHTML(r,cat):''}
-    ${reglasEvaluacionEditorHTML({reglas,varias:cat.directNota===false||cat.slots>1,manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:!(cat.slots>1)})}
+    ${reglasEvaluacionEditorHTML({reglas,varias:comoLista||cat.slots>1,manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:!(cat.slots>1)})}
     ${opcionAusenciaHojaHTML(r,cat)}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
@@ -44,7 +45,7 @@ function confirmEditCat(catId){
   const cat=r.categorias.find(c=>c.id===catId);
   const casilla=document.getElementById('m-cat-varias');
   const varias=cat.slots>1||(casilla&&!casilla.disabled?casilla.checked:cat.directNota===false);
-  const cantidad=varias&&!(cat.slots>1)?leerCantidadVarias(cat):null;if(cantidad===false)return false;
+  const cantidad=varias&&!(cat.slots>1)?leerCantidadVarias(cat,listaAbiertaPermitida(r,cat)):null;if(cantidad===false)return false;
   const reglas=leerReglasEvaluacionModal(r,varias,cantidad||cat.slots);if(!reglas)return false;
   guardarReglasEvaluacionEditor(r,cat,reglas);
   cat.nombre=name;cat.peso=peso;marcarFechaUsuario(cat,fecha,leerHora('m-cat'));
@@ -68,26 +69,29 @@ function confirmEditCat(catId){
 // avance da por evaluado todo su porcentaje, y el grupo tiene una sola fecha.
 // Preguntar cuántas son, acá mismo y no solo en «Editar pauta», lo convierte en
 // casillas: el avance cuenta solo las rendidas y cada una lleva su fecha
-// (comentario de una estudiante, 2026-11-17). Vacío sigue como lista abierta:
-// no inventamos cuántos controles habrá.
+// (comentario de una estudiante, 2026-11-17). Desde 2026-11-22 la cantidad se
+// pide siempre: sin ella quedaba una lista abierta, el tercer tipo que ya no se
+// crea (ver seVeComoNotaSola). Es la cantidad de la persona, no del programa, y
+// crece después con "+ Agregar nota". Solo la lista que ya existe con varias
+// notas, o la que el programa declara sin cantidad, puede quedar vacía.
 const CANTIDAD_VARIAS_MAX=30;
-function cantidadVariasHTML(cat){
-  const visible=cat.directNota===false||(cat.notas||[]).length>1;
+function cantidadVariasHTML(cat,visible,permiteVacio){
   return `<div id="m-cat-cantidad-fila" ${visible?'':'hidden'} style="margin:-4px 0 14px;">
       <label class="modal-label" for="m-cat-cantidad">¿Cuántas son?</label>
-      <div class="modal-input"><input type="text" inputmode="numeric" id="m-cat-cantidad" maxlength="2" placeholder="No sé todavía" autocomplete="off" aria-describedby="m-cat-cantidad-ayuda m-cat-error"/></div>
-      <p id="m-cat-cantidad-ayuda" style="margin:-6px 0 0;font-size:0.8125rem;color:var(--fg3);line-height:1.35;">Con la cantidad, el avance cuenta solo las que ya rendiste y cada una puede tener su fecha.</p>
+      <div class="modal-input"><input type="text" inputmode="numeric" id="m-cat-cantidad" maxlength="2" placeholder="${permiteVacio?'No sé todavía':'Ej: 4'}" autocomplete="off" aria-describedby="m-cat-cantidad-ayuda m-cat-error"/></div>
+      <p id="m-cat-cantidad-ayuda" style="margin:-6px 0 0;font-size:0.8125rem;color:var(--fg3);line-height:1.35;">${permiteVacio?'Con la cantidad, el avance cuenta solo las que ya rendiste y cada una puede tener su fecha.':'Si después son más, las agregas con «+ Agregar nota».'}</p>
     </div>`;
 }
 // null = sin cantidad; false = error mostrado; número = cantidad válida.
-function leerCantidadVarias(cat){
+function leerCantidadVarias(cat,permiteVacio){
   const input=document.getElementById('m-cat-cantidad');
   const texto=String(input&&input.value||'').trim();
-  if(!texto)return null;
-  const n=/^\d+$/.test(texto)?parseInt(texto,10):NaN;
   const notas=(cat.notas||[]).length;
   let error='';
-  if(!Number.isInteger(n)||n<2||n>CANTIDAD_VARIAS_MAX)error=`Escribe un número entre 2 y ${CANTIDAD_VARIAS_MAX}, o déjalo vacío si aún no sabes.`;
+  if(!texto&&permiteVacio)return null;
+  const n=/^\d+$/.test(texto)?parseInt(texto,10):NaN;
+  if(!texto)error='Escribe cuántas notas son (2 o más). Si después son más, las agregas con «+ Agregar nota».';
+  else if(!Number.isInteger(n)||n<2||n>CANTIDAD_VARIAS_MAX)error=`Escribe un número entre 2 y ${CANTIDAD_VARIAS_MAX}${permiteVacio?', o déjalo vacío si aún no sabes':''}.`;
   else if(n<notas)error=`Ya tiene ${notas} notas: la cantidad tiene que ser ${notas} o más.`;
   if(error){editCatError=error;mostrarErrorCampo('m-cat-cantidad','m-cat-error',error);return false;}
   return n;
