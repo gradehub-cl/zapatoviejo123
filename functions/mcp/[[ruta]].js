@@ -145,6 +145,83 @@ function reglasDelRamo(r, calculo) {
   return out;
 }
 
+// ¿La pauta guardada es la del catálogo oficial, tal como se cargó? Es lo que
+// separa «no tiene mínimo de examen» de «no lo tenemos anotado». Repite el
+// núcleo de `pautaEditada` (src/app/pautas-actualizacion.js) porque el servidor
+// no tiene el catálogo: misma huella `nombre:peso` sobre las evaluaciones que
+// son parte de la pauta, y una regla puesta a mano o una pauta sugerida ya no
+// es la oficial. tests/mcp-reglas-ramo.test.js compara las dos respuestas.
+function pautaOficialSinEditar(r) {
+  if (!r || typeof r.pautaHuella !== 'string' || !r.pautaHuella || r.pautaSugerida?.aceptada || r.consensoRespaldos) return false;
+  if ((r.gates || []).some(g => g && g.origen === 'editor')) return false;
+  const cats = (r.categorias || []).filter(c => !c.fueraDePauta);
+  if (cats.some(c => c.descarteOrigen === 'editor')) return false;
+  const huella = cats.map(c => `${c.nombre}:${Math.round((Number(c.peso) || 0) * 100) / 100}`).join('|');
+  return cats.length > 0 && huella === r.pautaHuella;
+}
+
+// El mínimo de examen dicho siempre, también cuando NO hay. Callarse obligaba al
+// agente a adivinar si Cálculo no tiene mínimo o si nadie lo anotó. Sale de las
+// compuertas que el motor aplica de verdad —las de la pauta y la del reglamento
+// de la universidad (GH_REGLAS_NOTA_POR_TENANT)—, no de las guardadas a secas.
+const ES_EXAMEN = /^(examen|evaluacion final)\b/;
+function examenDelRamo(r, calculo) {
+  const coma = n => String(n).replace('.', ',');
+  const cats = Array.isArray(r.categorias) ? r.categorias : [];
+  const examenes = cats.filter(c => Number(c.peso) > 0 && ES_EXAMEN.test(norm(c.nombre)));
+  if (!examenes.length) return { evaluaciones: [], minimo: null, texto: 'El ramo no tiene una evaluación de examen en su pauta.' };
+  const ids = new Set(examenes.map(c => c.id));
+  const guardadas = Array.isArray(r.gates) ? r.gates : [];
+  const efectivas = (calculo.compuertasEfectivas ? calculo.compuertasEfectivas(r) : guardadas)
+    .filter(g => g && ((g.type === 'min_grade_required' && ids.has(g.catId)) || (g.type === 'group_min' && (g.catIds || []).some(id => ids.has(id)))));
+  const nombres = examenes.map(c => c.nombre);
+  const oficial = pautaOficialSinEditar(r);
+  if (!efectivas.length) {
+    return {
+      evaluaciones: nombres, minimo: null, pautaOficialSinEditar: oficial,
+      texto: oficial
+        ? `${nombres.join(' y ')} no tiene nota mínima: la pauta oficial cargada no la pide.`
+        : `${nombres.join(' y ')} no tiene nota mínima en la pauta guardada, pero esa pauta la armó o editó la persona: confírmalo con el programa.`,
+    };
+  }
+  const nombreDe = id => (cats.find(c => c.id === id) || {}).nombre || null;
+  const reglas = efectivas.map(g => {
+    const sobre = g.type === 'group_min' ? (g.catIds || []).map(nombreDe).filter(Boolean) : [nombreDe(g.catId)].filter(Boolean);
+    const origen = guardadas.includes(g) ? 'pauta' : 'reglamento';
+    const efecto = g.efecto === 'reemplazar' || g.cap === 'self' ? 'la final queda en esa nota'
+      : Number.isFinite(g.cap) ? `la final queda en ${coma(g.cap)}` : 'no se aprueba';
+    return { sobre, minimo: g.min, ...(g.cap != null ? { tope: g.cap } : {}), origen,
+      texto: `${sobre.join(' + ')}: mínimo ${coma(g.min)}; si no, ${efecto}${origen === 'reglamento' ? ' (reglamento de la universidad)' : ''}.` };
+  });
+  return { evaluaciones: nombres, minimo: Math.max(...reglas.map(x => x.minimo)), pautaOficialSinEditar: oficial, reglas, texto: reglas.map(x => x.texto).join(' ') };
+}
+
+// La exigencia que la persona guardó para el ramo: «exigencia» la pone Editar
+// ramo en la app y «exigenciaPuntaje» la calculadora. Es del ramo, no de cada
+// evaluación, y sin ella la app usa 50 %. El puntaje máximo de cada evaluación
+// no se guarda en ninguna parte: eso va en `sinDato`.
+function exigenciaDelRamo(r) {
+  const valida = v => Number.isFinite(Number(v)) && Number(v) >= 1 && Number(v) <= 99 ? Number(v) : null;
+  if (valida(r.exigencia) !== null) return { porcentaje: valida(r.exigencia), origen: 'ramo' };
+  if (valida(r.exigenciaPuntaje) !== null) return { porcentaje: valida(r.exigenciaPuntaje), origen: 'calculadora' };
+  return { porcentaje: null, origen: null, texto: 'La persona no guardó exigencia para este ramo; la app usa 50 % por defecto. Pregúntala o léela del programa antes de convertir puntos.' };
+}
+
+// De dónde salió una fecha o una hora. Los valores son los de la app
+// (ORIGENES_FECHA): 'usuario' la escribió o confirmó la persona —también una
+// propuesta de agente que aceptó—, 'catalogo' viene de la pauta publicada,
+// 'calendario' de Canvas o de un calendario importado. Lo que no lo dice queda
+// 'desconocido', que no es lo mismo que oficial.
+const ORIGENES = new Set(['usuario', 'catalogo', 'calendario']);
+const origenDe = (valor, origen) => (valor ? (ORIGENES.has(origen) ? origen : 'desconocido') : null);
+
+const SIN_DATO = {
+  puntajeMaximo: 'GradeHub no guarda el puntaje máximo de cada evaluación. Para pasar puntos a nota usa puntaje_a_nota con el total que diga el programa o Canvas.',
+  origenNota: 'No se guarda de dónde salió cada nota (Canvas, correo o a mano). editadaEn dice cuándo cambió su valor, cuando se sabe.',
+  sala: 'No se guarda la sala de las evaluaciones.',
+  temario: 'No se guarda qué materia entra en cada evaluación; pídela o léela del programa.',
+};
+
 // Cada llamada arma el adaptador con los ramos entregados por `agente_datos`.
 // No se guarda identidad ni estado académico en el isolate: otro request nunca
 // puede heredar la cuenta anterior. El catálogo no viaja al servidor, por eso
@@ -419,7 +496,7 @@ function fechasDeRamos(ramos) {
       if (!n.fecha) return;
       out.push({
         ramo: r.nombre, evaluacion: n.nombre || c.nombre, fecha: n.fecha,
-        hora: n.hora || null, peso: c.peso, grupo: c.nombre,
+        hora: n.hora || null, origenHora: origenDe(n.hora, n.horaOrigen), peso: c.peso, grupo: c.nombre,
         rendida: typeof n.valor === 'number',
       });
     });
@@ -429,7 +506,7 @@ function fechasDeRamos(ramos) {
     // como la próxima del ramo, y la app (agendaEvents) ya no la mostraba.
     const conFecha = new Set((c.notas || []).filter(n => n.fecha && Number.isInteger(n.slot)).map(n => n.slot + 1));
     const rendida = !pendientesDeCategoria(c).some(casilla => !conFecha.has(casilla));
-    out.push({ ramo: r.nombre, evaluacion: c.nombre, fecha: c.fecha, hora: c.hora || null, peso: c.peso, rendida });
+    out.push({ ramo: r.nombre, evaluacion: c.nombre, fecha: c.fecha, hora: c.hora || null, origenHora: origenDe(c.hora, c.horaOrigen), peso: c.peso, rendida });
   }));
   // Mismo orden que la Agenda: dos pruebas el mismo día van por hora.
   return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.hora || '').localeCompare(b.hora || ''));
@@ -457,7 +534,7 @@ function promedioGeneral(ramos, calculo) {
 
 function proximaConFecha(ramo, hoy) {
   const f = fechasDeRamos([ramo]).find(x => x.fecha >= hoy && !x.rendida);
-  return f ? { evaluacion: f.evaluacion, fecha: f.fecha, hora: f.hora, peso: f.peso } : null;
+  return f ? { evaluacion: f.evaluacion, fecha: f.fecha, hora: f.hora, origenHora: f.origenHora, peso: f.peso } : null;
 }
 
 // Una copia del ramo con notas hipotéticas puestas encima. No toca el original
@@ -694,6 +771,38 @@ function simular(ramos, args, tenant) {
   };
 }
 
+// Puntos a nota con la escala de la calculadora pública (gh_notaDesdePuntaje):
+// un agente que convierte a mano los puntos de Canvas se equivoca, y la fórmula
+// ya vive en el motor. Es una herramienta aparte a propósito: ninguna otra pide
+// puntos, cada evaluación pide su nota (#735). Sin exigencia dicha se usa la
+// del ramo; sin ramo ni exigencia, 50 %, y la respuesta lo dice.
+function puntajeANota(ramos, args) {
+  const puntaje = Number(args.puntaje), total = Number(args.total);
+  if (!Number.isFinite(puntaje) || !Number.isFinite(total) || total <= 0 || puntaje < 0 || puntaje > total) {
+    return { error: 'El puntaje tiene que ser un número entre 0 y el total, y el total mayor que 0.' };
+  }
+  let exigencia = null, origen = null;
+  if (args.exigencia != null) {
+    exigencia = Number(args.exigencia);
+    if (!Number.isFinite(exigencia) || exigencia < 1 || exigencia > 99) return { error: 'La exigencia es un porcentaje entre 1 y 99, como 60.' };
+    origen = 'pedida';
+  } else if (args.ramo != null) {
+    const r = buscarRamo(ramos, args.ramo);
+    if (!r) return { error: 'No encontré ese ramo', ramos: ramos.map(x => x.nombre) };
+    const guardada = exigenciaDelRamo(r);
+    if (guardada.porcentaje !== null) { exigencia = guardada.porcentaje; origen = guardada.origen; }
+  }
+  if (exigencia === null) { exigencia = 50; origen = 'por_defecto'; }
+  const convertir = motorCompartido && motorCompartido.gh_notaDesdePuntaje;
+  const r = typeof convertir === 'function' ? convertir(puntaje, total, { exigencia: exigencia / 100 }) : null;
+  if (!r) return { error: 'No se pudo convertir ese puntaje.' };
+  return {
+    puntaje, total, exigencia, origenExigencia: origen,
+    nota: r.nota, notaSinRedondear: Math.round(r.cruda * 1000) / 1000, puntajeAprobacion: Math.round(r.puntajeAprobacion * 100) / 100,
+    ...(origen === 'por_defecto' ? { supuesto: 'No hay exigencia del ramo guardada: se usó 50 %. Si el programa dice otra, vuelve a pedirla con «exigencia».' } : {}),
+  };
+}
+
 function despachar(nombre, estado, args) {
   const ramos = Array.isArray(estado.ramos) ? estado.ramos : [];
   const tenant = typeof estado.tenant === 'string' ? estado.tenant : null;
@@ -733,11 +842,17 @@ function despachar(nombre, estado, args) {
   if (nombre === 'ver_ramo') {
     const r = buscar(args.ramo);
     if (!r) return { error: 'No encontré ese ramo', ramos: ramos.map(x => x.nombre) };
-    const reglas = reglasDelRamo(r, calculoPara(ramos, tenant));
+    const calculo = calculoPara(ramos, tenant);
+    const reglas = reglasDelRamo(r, calculo);
+    // La casilla se cuenta desde 1, como la dice la persona y como la piden
+    // simular y proponer_notas; `slot` es la posición interna, desde 0.
+    const casillaDe = n => (Number.isInteger(n.slot) ? { casilla: n.slot + 1 } : {});
     return {
       nombre: r.nombre,
       sigla: siglaDeRamo(r),
       ...(Object.keys(reglas).length ? { reglas } : {}),
+      examen: examenDelRamo(r, calculo),
+      exigencia: exigenciaDelRamo(r),
       evaluaciones: (r.categorias || []).map(c => ({
         nombre: c.nombre,
         peso: c.peso,
@@ -745,8 +860,26 @@ function despachar(nombre, estado, args) {
         // Qué es cada casilla cuando no son la N-ésima de lo mismo: sin esto el
         // agente no sabe si la casilla 1 de "Trabajos de IA" son las Cápsulas.
         ...(Array.isArray(c.nombresCasillas) && c.nombresCasillas.length ? { nombresCasillas: c.nombresCasillas } : {}),
-        notas: (c.notas || []).filter(n => typeof n.valor === 'number').map(n => ({ nombre: n.nombre, valor: n.valor })),
+        fecha: c.fecha || null,
+        hora: c.fecha && c.hora ? c.hora : null,
+        origenFecha: origenDe(c.fecha, c.fechaOrigen),
+        origenHora: origenDe(c.fecha && c.hora, c.horaOrigen),
+        notas: (c.notas || []).filter(n => typeof n.valor === 'number').map(n => ({
+          nombre: n.nombre, valor: n.valor, ...casillaDe(n),
+          // Cuándo cambió el valor por última vez. Las notas anteriores a ese
+          // registro no lo tienen, y eso no se rellena con una fecha inventada.
+          ...(typeof n.editadaEn === 'string' && n.editadaEn ? { editadaEn: n.editadaEn } : {}),
+        })),
+        // Una casilla con fecha propia es una evaluación suelta dentro del
+        // grupo (el Control 2 tres semanas después del 1), tenga o no nota.
+        ...((c.notas || []).some(n => n.fecha) ? {
+          fechasPorCasilla: (c.notas || []).filter(n => n.fecha).map(n => ({
+            nombre: n.nombre, ...casillaDe(n), fecha: n.fecha, hora: n.hora || null,
+            origenFecha: origenDe(n.fecha, n.fechaOrigen), origenHora: origenDe(n.hora, n.horaOrigen),
+          })),
+        } : {}),
       })),
+      sinDato: SIN_DATO,
     };
   }
 
@@ -827,6 +960,10 @@ function despachar(nombre, estado, args) {
 
   if (nombre === 'simular') {
     return simular(ramos, args, tenant);
+  }
+
+  if (nombre === 'puntaje_a_nota') {
+    return puntajeANota(ramos, args);
   }
 
   if (nombre === 'que_necesito_para_aprobar') {

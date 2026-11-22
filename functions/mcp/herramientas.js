@@ -90,13 +90,27 @@ export const HERRAMIENTAS = [
   {
     nombre: 'ver_ramo',
     tipo: 'lectura',
-    resumen: 'Un ramo con sus evaluaciones, ponderaciones y notas, y sus reglas: eximición, descartes, compuertas (mínimos para aprobar), bonus o décimas, ausencias justificadas, ramo vinculado, faltas y las reglas del curso que el promedio no incluye. Úsala antes de explicar cómo se calcula un ramo.',
+    resumen: 'Un ramo con sus evaluaciones, ponderaciones y notas, y sus reglas: eximición, descartes, compuertas (mínimos para aprobar), bonus o décimas, ausencias justificadas, ramo vinculado, faltas y las reglas del curso que el promedio no incluye. «examen» dice siempre el mínimo de examen, también cuando no hay, y si la pauta es la oficial sin editar. Cada evaluación trae fecha y hora con su origen (usuario: la escribió o confirmó la persona; catalogo: pauta publicada; calendario: Canvas o un calendario importado; desconocido), y cada nota su casilla y, si se sabe, cuándo cambió (editadaEn). «exigencia» es la del ramo, no de cada evaluación. «sinDato» dice lo que GradeHub no guarda: no lo inventes. Úsala antes de explicar cómo se calcula un ramo.',
     args: { ramo: 'nombre o sigla' },
+  },
+  {
+    // Un agente que pasó a mano los puntos de Canvas a nota se equivocó con los
+    // talleres. La fórmula es la de la calculadora pública (gh_notaDesdePuntaje);
+    // va aparte porque ninguna otra herramienta pide puntos (#735).
+    nombre: 'puntaje_a_nota',
+    tipo: 'lectura',
+    resumen: 'Pasa un puntaje a nota con la escala chilena y una exigencia (por ejemplo, 2 de 3 puntos con 60 %). Sin exigencia usa la guardada en el ramo, y si no hay, 50 %, y lo dice. No guarda nada: para cargar la nota usa proponer_notas.',
+    args: {
+      puntaje: { type: 'number', description: 'Puntaje obtenido' },
+      total: { type: 'number', description: 'Puntaje máximo de la evaluación' },
+      exigencia: { type: 'number', description: 'Exigencia en porcentaje, entre 1 y 99 (por ejemplo 60)' },
+      ramo: 'opcional: nombre o sigla, para usar la exigencia guardada en ese ramo',
+    },
   },
   {
     nombre: 'evaluaciones_proximas',
     tipo: 'lectura',
-    resumen: 'Qué viene y cuándo, ordenado por fecha, con cuánto pesa cada una.',
+    resumen: 'Qué viene y cuándo, ordenado por fecha, con cuánto pesa cada una. La hora trae su origen (origenHora): una que viene de calendario o desconocido no es la oficial; confírmala antes de darla por cierta.',
     args: { dias: 'cuántos días mirar hacia adelante (por defecto 30)' },
   },
   {
