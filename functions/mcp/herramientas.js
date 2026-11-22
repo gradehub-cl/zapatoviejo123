@@ -107,8 +107,30 @@ export const HERRAMIENTAS = [
     // compuertas y el ramo vinculado son cuatro reglas que ya se equivocaron
     // acá adentro. Un agente que las reinventa se equivoca igual, pero sin
     // tests que lo atajen.
-    resumen: 'Qué promedio necesita en lo que le queda de un ramo para llegar a una meta.',
-    args: { ramo: 'nombre o sigla', meta: 'nota objetivo (por defecto 4,0)' },
+    resumen: 'Qué promedio necesita en lo que le queda de un ramo para llegar a una meta. Con «evaluacion» contesta cuánto necesita en ESA evaluación (por ejemplo, el examen) dejando fijo todo lo demás que falta: cada pendiente se fija con «supuestos» o con «resto»; si falta alguno, la respuesta dice cuáles. Incluye las del ramo vinculado (el laboratorio que aporta a la nota). Usa la pauta, sus compuertas y el redondeo oficial; no guarda nada.',
+    args: {
+      ramo: 'nombre o sigla',
+      meta: 'nota objetivo (por defecto 4,0)',
+      evaluacion: 'opcional: la evaluación en la que se pide la nota mínima, tal como está en el ramo',
+      casilla: { type: 'integer', minimum: 1, maximum: 100, description: 'opcional: cuál casilla de esa evaluación, si tiene varias; sin casilla, la misma nota en todas sus casillas pendientes' },
+      supuestos: {
+        type: 'array',
+        description: 'Notas supuestas para lo demás que falta. Una sin casilla vale para todas las casillas pendientes de esa evaluación.',
+        maxItems: 60,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['evaluacion', 'valor'],
+          properties: {
+            evaluacion: { type: 'string', description: 'Nombre de la evaluación tal como está en el ramo' },
+            valor: { type: 'number', description: 'Nota entre 1,0 y 7,0' },
+            casilla: { type: 'integer', minimum: 1, maximum: 100, description: 'Cuál de las notas de esa evaluación, si tiene varias' },
+            ramo: { type: 'string', description: 'Solo si la evaluación es del ramo vinculado y el nombre se repite' },
+          },
+        },
+      },
+      resto: { type: 'number', description: 'opcional: una nota para todo lo pendiente que no tenga supuesto' },
+    },
   },
   {
     nombre: 'proponer_pauta',
