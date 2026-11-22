@@ -54,6 +54,7 @@ async function cargarAmigos(){
     // En la app, la lista se trae al entrar para que el widget no espere a que
     // abras la pestaña.
     if(typeof pluginWidgets==='function'&&pluginWidgets())refrescarAmigos();
+    programarRevisionAmigos();
   }catch(e){if(v===amigosVersion)amigosDisponibleCache=false;}
   return amigosDisponibleCache;
 }
@@ -77,24 +78,29 @@ function olvidarAmigos(){
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
   _notasPublicadas=null;clearTimeout(_notasTimer);
   amigosCalendarioDisponible=false;amigosPruebasComparte=false;_pruebasPublicadas=null;amigosAvisosDisponible=false;
+  _amigosFirma=null;if(_amigosTimer)clearInterval(_amigosTimer);_amigosTimer=null;
 }
-async function refrescarAmigos(){
+// silencioso: la revisión automática no muestra errores ni repinta si nada
+// cambió o si la persona está escribiendo en la pestaña.
+async function refrescarAmigos(opc={}){
   if(!amigosVisible()||amigosCargando)return;
-  amigosCargando=true;const v=amigosVersion;
+  amigosCargando=true;const v=amigosVersion;let cambio=true;
   try{
     const [estado,lista,horarios,grupos,notas]=await Promise.all([rpcAmigos('amigos_estado'),rpcAmigos('mis_amistades'),rpcAmigos('amigos_horarios'),
       amigosGruposDisponible?rpcAmigos('mis_grupos'):null,amigosNotasDisponible&&amigosNotasComparte?rpcAmigos('amigos_notas'):null]);
     if(v!==amigosVersion)return;
+    const firma=JSON.stringify([estado,lista,horarios,grupos,notas]);
+    cambio=firma!==_amigosFirma;_amigosFirma=firma;
     amigosEstadoCache=estado||{};amigosListaCache=lista||[];
     amigosHorariosCache=new Map((horarios||[]).map(h=>[h.id,normalizarRamosAmigo(h.ramos)]));
     if(amigosGruposDisponible)amigosGruposCache=Array.isArray(grupos)?grupos:[];
     amigosNotasCache=new Map((Array.isArray(notas)?notas:[]).map(n=>[n.id,Array.isArray(n.ramos)?n.ramos:[]]));
   }catch(e){
     if(v===amigosVersion&&!amigosListaCache)amigosListaCache=[];
-    if(v===amigosVersion)showToast(mensajeErrorAmigos(e),true);
+    if(v===amigosVersion&&!opc.silencioso)showToast(mensajeErrorAmigos(e),true);
   }finally{amigosCargando=false;}
   _amigosRefrescadoAt=Date.now();
-  if(typeof currentTab!=='undefined'&&currentTab==='amigos')pintarAmigos();
+  if(typeof currentTab!=='undefined'&&currentTab==='amigos'&&(opc.silencioso?cambio&&!escribiendoEnAmigos():true))pintarAmigos();
   pintarInsigniaAmigos();
   publicarNotasAmigos();publicarPruebasAmigos();publicarAmigosWidget();
 }
@@ -102,11 +108,14 @@ function renderAmigos(){
   pintarAmigos();
   refrescarAmigos();
 }
+// Solicitudes de amistad e invitaciones a grupos: las dos esperan una respuesta.
+function pendientesAmigos(){
+  return (Number(amigosEstadoCache&&amigosEstadoCache.recibidas)||0)+(amigosGruposCache||[]).filter(g=>g.estado==='invitado').length;
+}
 // El número de solicitudes, sobre el ícono de la pestaña (HIG: Tab bars, badges).
 function pintarInsigniaAmigos(){
   const btn=typeof document!=='undefined'&&document.getElementById('nav-amigos');if(!btn)return;
-  // Solicitudes de amistad e invitaciones a grupos: las dos esperan una respuesta.
-  const n=(Number(amigosEstadoCache&&amigosEstadoCache.recibidas)||0)+(amigosGruposCache||[]).filter(g=>g.estado==='invitado').length;
+  const n=pendientesAmigos();
   let marca=btn.querySelector('.nav-insignia');
   if(!n){if(marca)marca.remove();btn.setAttribute('aria-label','Amigos');return;}
   if(!marca){marca=document.createElement('span');marca.className='nav-insignia';marca.setAttribute('aria-hidden','true');btn.querySelector('.nav-icon').appendChild(marca);}
@@ -140,11 +149,45 @@ function borrarAmigosWidget(){
   if(!p||typeof p.borrarAmigos!=='function')return;
   try{const r=p.borrarAmigos();if(r&&typeof r.catch==='function')r.catch(()=>{});}catch(e){}
 }
-// Volver a la app después de un rato pone el widget al día (los amigos cambian
-// su horario); como mucho una vez cada 15 minutos.
-let _amigosRefrescadoAt=0;
+// ─── Al día sin cerrar la app (Lucas, 2026-11-21) ───
+// Antes la lista se pedía solo al entrar: si alguien te agregaba, no lo veías
+// hasta cerrar y abrir. Ahora, con la app a la vista, se revisa cada 45 s y al
+// volver a ella. En la pestaña Amigos se trae todo; en otra, solo el estado y
+// los grupos (dos preguntas) para el número sobre el ícono, y si llegó algo
+// nuevo se trae la lista para que al abrir ya esté. Cada 15 minutos se trae
+// todo igual, para el widget. Con la app en segundo plano no corre nada.
+const AMIGOS_REVISION_MS=45e3;
+let _amigosRefrescadoAt=0,_amigosRevisadoAt=0,_amigosRevisando=false,_amigosTimer=null,_amigosFirma=null;
+function appALaVista(){return typeof document==='undefined'||document.visibilityState!=='hidden';}
+function escribiendoEnAmigos(){
+  const a=typeof document!=='undefined'&&document.activeElement;
+  return !!(a&&typeof a.closest==='function'&&a.closest('#amigos-body')&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.type!=='checkbox');
+}
+async function revisarAmigos(){
+  if(!amigosVisible()||amigosCargando||_amigosRevisando||!appALaVista())return;
+  _amigosRevisadoAt=Date.now();
+  if((typeof currentTab!=='undefined'&&currentTab==='amigos')||Date.now()-_amigosRefrescadoAt>15*6e4)return refrescarAmigos({silencioso:true});
+  _amigosRevisando=true;const v=amigosVersion;let nuevo=false;
+  try{
+    const [estado,grupos]=await Promise.all([rpcAmigos('amigos_estado'),amigosGruposDisponible?rpcAmigos('mis_grupos'):null]);
+    if(v!==amigosVersion)return;
+    const antes=pendientesAmigos();
+    amigosEstadoCache=estado||{};
+    if(amigosGruposDisponible&&Array.isArray(grupos))amigosGruposCache=grupos;
+    nuevo=pendientesAmigos()!==antes;
+    pintarInsigniaAmigos();
+  }catch(e){}finally{_amigosRevisando=false;}
+  if(nuevo&&v===amigosVersion)return refrescarAmigos({silencioso:true});
+}
+function programarRevisionAmigos(){
+  if(_amigosTimer)clearInterval(_amigosTimer);_amigosTimer=null;
+  if(typeof setInterval!=='function'||!amigosVisible()||!appALaVista())return;
+  _amigosTimer=setInterval(revisarAmigos,AMIGOS_REVISION_MS);
+  if(_amigosTimer&&typeof _amigosTimer.unref==='function')_amigosTimer.unref();
+}
 if(typeof document!=='undefined'&&typeof document.addEventListener==='function')document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&amigosVisible()&&Date.now()-_amigosRefrescadoAt>15*6e4)refrescarAmigos();
+  if(document.visibilityState==='visible'&&Date.now()-_amigosRevisadoAt>5e3)revisarAmigos();
+  programarRevisionAmigos();
 });
 
 // ─── Pintar ───
