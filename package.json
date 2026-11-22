@@ -15,6 +15,7 @@
     "android:preparar": "bash bin/preparar-ios.sh android",
     "android:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh android",
     "android:abrir": "npx --no-install cap open android",
+    "android:play": "bash bin/android-play.sh",
     "build": "node bin/compilar-js.js",
     "prepare": "npm run build",
     "js:watch": "node bin/compilar-js.js --watch",
