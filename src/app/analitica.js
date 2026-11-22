@@ -106,7 +106,7 @@ function propsAnaliticaCuenta(){
   return {
     tenant:(typeof S!=='undefined'&&S&&S.tenant)||null,
     tipo_cuenta:(typeof esCuentaProfesor==='function'&&esCuentaProfesor())?'profesor':'estudiante',
-    plataforma:(typeof enAppNativa==='function'&&enAppNativa())?(enAppIOS()?'ios':'android'):'web',
+    plataforma:(typeof enAppNativa==='function'&&enAppNativa())?((typeof enAppIOS!=='function'||enAppIOS())?'ios':'android'):'web',
   };
 }
 function identificarAnalitica(){
