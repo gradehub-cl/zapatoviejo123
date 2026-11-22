@@ -191,31 +191,11 @@ function seccionTurnoHTML(amigos){
     ${m.tipo==='perfecto'?'<span class="amigo-chip perfecto">Match perfecto</span>':''}
     <svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>`).join('')}</ul></section>`;
 }
-// La cabecera de un perfil de Instagram: avatar y tres cifras al lado, el nombre
-// abajo y dos botones del mismo peso («Editar username», «Compartir perfil»).
-function cabeceraPerfilAmigosHTML(e,amigos,ahora){
-  const grupos=(amigosGruposCache||[]).filter(g=>g.estado==='miembro').length;
-  const enLaU=amigos.filter(a=>{const r=amigosHorariosCache.get(a.id),est=r&&estadoAhoraAmigo(r,ahora);return est&&(est.estado==='clase'||est.estado==='libre');}).length;
-  const nombre=[S.userName,S.userApellido].filter(Boolean).join(' ');
-  const t=typeof TENANTS!=='undefined'&&TENANTS[S.tenant];
-  const linea=[t?t.short:'',S.carreraNombre].filter(Boolean).join(' · ');
-  const cifra=(n,txt,accion)=>accion?`<button type="button" class="amigos-cifra" data-amigos="${accion}"><b>${n}</b><small>${txt}</small></button>`:`<div class="amigos-cifra"><b>${n}</b><small>${txt}</small></div>`;
-  return `<section class="amigos-perfil">
-    <div class="amigos-perfil-fila">
-      <span class="amigo-avatar perfil-grande" aria-hidden="true">${esc(userInitial())}</span>
-      <div class="amigos-cifras">
-        ${cifra(amigos.length,amigos.length===1?'amigo':'amigos',amigos.length?'ir-amigos':'')}
-        ${amigosGruposDisponible?cifra(grupos,grupos===1?'grupo':'grupos',grupos?'ir-grupos':''):''}
-        ${cifra(enLaU,'en la u','')}
-      </div>
-    </div>
-    ${nombre?`<b class="amigos-perfil-nombre">${esc(nombre)}</b>`:''}
-    <span class="amigos-perfil-user">@${esc(e.username)}${linea?` · ${esc(linea)}`:''}</span>
-    <div class="amigos-perfil-botones">
-      <button type="button" class="amigo-boton" data-amigos="editar-username">Editar username</button>
-      <button type="button" class="amigo-boton" data-amigos="invitar">Compartir perfil</button>
-    </div>
-  </section>`;
+// Lo tuyo (username, cuántos amigos y grupos, compartir perfil) vive en la
+// pestaña Perfil (Lucas, 2026-11-21): acá queda solo lo de los amigos.
+function cifrasAmigos(){
+  if(!amigosListaCache)return null;
+  return {amigos:amigosListaCache.filter(a=>a.estado==='amigos').length,grupos:amigosGruposDisponible?(amigosGruposCache||[]).filter(g=>g.estado==='miembro').length:null};
 }
 // Como las historias de Instagram, pero con lo útil: quién está hoy en la u.
 // Anillo de color = libre ahora (para juntarse); gris = en clases.
@@ -248,7 +228,6 @@ function pintarAmigos(){
   const recibidas=lista.filter(a=>a.estado==='recibida'),enviadas=lista.filter(a=>a.estado==='enviada');
   const sub=a=>esc(['@'+a.username,a.universidad&&TENANTS[a.universidad]?TENANTS[a.universidad].short:''].filter(Boolean).join(' · '));
   caja.innerHTML=`
-    ${cabeceraPerfilAmigosHTML(e,amigos,ahora)}
     ${preguntarAvisosHTML(amigos.length+recibidas.length>0)}
     ${historiasAmigosHTML(amigos,ahora)}
     ${recibidas.length?`<section class="perfil-grupo amigos-grupo"><h2>Solicitudes</h2><ul>${recibidas.map(a=>`<li class="amigo-solicitud recibida">
@@ -280,7 +259,7 @@ function pintarAmigos(){
         <li><button type="button" class="perfil-fila" data-amigos="bloqueados"><span class="perfil-fila-titulo">Bloqueados</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>
       </ul>
     </section>`;
-  if(!S.ramos.some(r=>copiarHorario(r.horario).length)&&amigos.length)caja.querySelector('.amigos-perfil').insertAdjacentHTML('afterend','<p class="amigos-aviso">Agrega el horario de tus ramos para ver cuándo coinciden con tus amigos.</p>');
+  if(!S.ramos.some(r=>copiarHorario(r.horario).length)&&amigos.length)caja.insertAdjacentHTML('afterbegin','<p class="amigos-aviso">Agrega el horario de tus ramos para ver cuándo coinciden con tus amigos.</p>');
 }
 
 // ─── Elegir username ───
@@ -1020,8 +999,6 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='reserva-borrar'){const g=b.dataset.grupo;showConfirm('¿Borrar esta reserva del calendario?','Solo la quita del grupo. Si reservaste en tu universidad, cancélala allá.',async()=>{try{await rpcAmigos('borrar_reserva_grupo',{p_id:id});abrirGrupo(g);}catch(e){showToast(mensajeErrorAmigos(e),true);}},{label:'Borrar'});}
     else if(acc==='menu-amigo')abrirMenuAmigo(id);
     else if(acc==='semana')abrirSemanaAmigo(id);
-    else if(acc==='editar-username')abrirCambiarUsername();
-    else if(acc==='ir-amigos'||acc==='ir-grupos'){const sec=document.getElementById(acc==='ir-amigos'?'amigos-seccion-amigos':'amigos-seccion-grupos');if(sec)sec.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});}
     else if(acc==='grupo-invitar')abrirInvitarGrupo(id);
     else if(acc==='grupo-renombrar')abrirRenombrarGrupo(id);
     else if(acc==='grupo-miembro')abrirMiembroGrupo(id,user);
