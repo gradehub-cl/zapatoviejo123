@@ -566,6 +566,43 @@ async function guardarPropuestaRamos(token, estado, args) {
   }
 }
 
+// La bandeja de propuestas vista desde el agente: qué dejó pendiente y cómo
+// sacar una que leyó mal. Antes una propuesta equivocada quedaba viva hasta que
+// la persona la rechazara, y el agente que se dio cuenta no podía ni verla.
+// Retirar solo alcanza propuestas PENDIENTES de la dueña del token (lo decide
+// la RPC, no este archivo): lo aceptado o rechazado ya es decisión de ella.
+const ID_PROPUESTA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function listarPropuestas(token) {
+  try {
+    const r = await rpc('listar_propuestas_agente', { p_token: token });
+    if (!r.ok) return { error: errorPropuesta(await r.json().catch(() => null)) };
+    const filas = await r.json();
+    const pendientes = (Array.isArray(filas) ? filas : []).map(f => ({
+      id: f.id, tipo: f.tipo, ramo: f.tipo === 'ramos' ? null : f.ramo, creada: f.creada, fuente: f.fuente, contenido: f.contenido,
+    }));
+    return {
+      pendientes,
+      total: pendientes.length,
+      nota: 'Siguen esperando a la persona en la app. retirar_propuesta saca una por su id. Una propuesta nueva de notas o fechas para el mismo ramo, o de ramos, reemplaza sola a la pendiente anterior; una de pauta no: retira la vieja antes de proponer otra.',
+    };
+  } catch {
+    return { error: 'No se pudo conectar con GradeHub para leer las propuestas.' };
+  }
+}
+
+async function retirarPropuesta(token, args) {
+  const id = String(args && args.id || '').trim();
+  if (!ID_PROPUESTA.test(id)) return { error: 'Propuesta inválida: el id es el que devolvió la propuesta o listar_propuestas.' };
+  try {
+    const r = await rpc('retirar_propuesta_agente', { p_token: token, p_id: id });
+    if (!r.ok) return { error: errorPropuesta(await r.json().catch(() => null)) };
+    return { id, retirada: true, mensaje: 'Propuesta retirada: ya no le aparece a la persona. No se tocó nada de su semestre.' };
+  } catch {
+    return { error: 'No se pudo conectar con GradeHub para retirar la propuesta.' };
+  }
+}
+
 // Da forma a las herramientas que responden directamente desde el estado
 // autorizado. `proponer_pauta` se despacha aparte porque usa su propia RPC;
 // cualquier herramienta todavía pendiente devuelve `undefined` y el endpoint
@@ -1156,6 +1193,12 @@ export async function onRequestPost({ request, params }) {
     if (!estado) return error(id, -32001, 'Esta conexión ya no es válida. Vuelve a vincular desde Ajustes.');
 
     const argumentos = args.arguments || {};
+    if (nombre === 'listar_propuestas' || nombre === 'retirar_propuesta') {
+      const resultado = nombre === 'listar_propuestas' ? await listarPropuestas(token) : await retirarPropuesta(token, argumentos);
+      if (resultado.error) return error(id, -32602, resultado.error);
+      return respuesta(id, { content: [{ type: 'text', text: JSON.stringify(resultado) }] });
+    }
+
     if (nombre === 'proponer_fechas') {
       const propuesta = await guardarPropuestaFechas(token, estado, argumentos);
       if (propuesta.error) return error(id, -32602, propuesta.error);
