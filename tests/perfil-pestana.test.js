@@ -31,6 +31,11 @@ chk('con Amigos, el username se cambia en Tu cuenta, como en Instagram', !est.in
 chk('compartir perfil solo con username, al lado de Username', !claves(ctx.gruposPerfil({ ...base, conAmigos: true })).includes('compartir') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conAmigos: true, conUsername: true }));return c.indexOf('compartir')===c.indexOf('username')+1;})());
 chk('la cabecera muestra cuántos amigos solo si la lista llegó', /cifrasAmigos\(\):null/.test(fuente) && /if\(!amigosListaCache\)return null/.test(fs.readFileSync(raiz + 'src/app/amigos-pantalla.js', 'utf8')));
 chk('Canvas tiene su fila solo donde está disponible, después de Calendario', !est.includes('canvas') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conCanvas: true }));return c.indexOf('canvas')===c.indexOf('calendario')+1;})());
+// Lucas, 2026-11-22: los avisos de Amigos salen de su Privacidad y viven en Avisos.
+chk('Avisos tiene su fila solo en la app, después de Apariencia', !est.includes('avisos') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conAvisos: true }));return c.indexOf('avisos')===c.indexOf('apariencia')+1&&typeof ctx.PERFIL_ACCIONES.avisos==='function'&&!!ctx.PERFIL_ICONOS.avisos;})());
+{const amigos=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'),ajustes=fs.readFileSync(raiz+'src/app/ajustes.js','utf8');
+ chk('Privacidad de Amigos ya no tiene el interruptor de avisos', !/id="amigos-avisos"/.test(amigos) && /Compartir notas/.test(amigos) && /Compartir fechas/.test(amigos) && !/Compartir mis (promedios|pruebas)/.test(amigos));
+ chk('Ajustes › Avisos junta amigos y evaluaciones', /section==='avisos'[\s\S]{0,400}id="amigos-avisos"[\s\S]{0,600}Avisos antes de tus evaluaciones/.test(ajustes) && !/section==='calendario'[\s\S]{0,2000}Avisos antes de tus evaluaciones[\s\S]{0,800}section==='avisos'/.test(ajustes));}
 console.log('\n=== Herramientas en Inicio ===');
 const herr = o => vm.runInContext('herramientasInicio('+JSON.stringify(o)+')', ctx).map(([c]) => c);
 chk('la calculadora siempre está', herr({}).join() === 'calculadora');

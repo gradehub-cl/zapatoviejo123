@@ -293,11 +293,9 @@ function pintarAmigos(){
       <ul>
         <li><label class="amigos-ajuste" for="amigos-compartir"><span><b>Compartir mi horario</b><small>${amigosGruposDisponible?'Tus amigos y tus grupos':'Tus amigos'} ven tus ramos y tus clases.${amigosNotasDisponible?'':' Nunca tus notas.'}</small></span>
           <input id="amigos-compartir" type="checkbox" role="switch"${e.comparte_horario!==false?' checked':''}></label></li>
-        ${amigosNotasDisponible?`<li><label class="amigos-ajuste" for="amigos-notas"><span><b>Compartir mis promedios</b><small>Solo en ramos que toman juntos y con amigos que también comparten.</small></span>
+        ${amigosNotasDisponible?`<li><label class="amigos-ajuste" for="amigos-notas"><span><b>Compartir notas</b><small>Solo en ramos que toman juntos y con amigos que también comparten.</small></span>
           <input id="amigos-notas" type="checkbox" role="switch"${amigosNotasComparte?' checked':''}></label></li>`:''}
-        ${amigosAvisosDisponible?`<li><label class="amigos-ajuste" for="amigos-avisos"><span><b>Avisos</b><small>Solicitudes, invitaciones a grupos y salas nuevas. Nunca tus notas.</small></span>
-          <input id="amigos-avisos" type="checkbox" role="switch"${avisosAmigosActivos()?' checked':''}></label></li>`:''}
-        ${amigosCalendarioDisponible&&amigosGruposDisponible?`<li><label class="amigos-ajuste" for="amigos-pruebas"><span><b>Compartir mis pruebas con mis grupos</b><small>Ramo, nombre y fecha de lo que viene. Nunca la nota ni la ponderación.</small></span>
+        ${amigosCalendarioDisponible&&amigosGruposDisponible?`<li><label class="amigos-ajuste" for="amigos-pruebas"><span><b>Compartir fechas</b><small>Con tus grupos: ramo, evaluación y fecha de lo que viene. Nunca la nota ni la ponderación.</small></span>
           <input id="amigos-pruebas" type="checkbox" role="switch"${amigosPruebasComparte?' checked':''}></label></li>`:''}
         <li><button type="button" class="perfil-fila" data-amigos="bloqueados"><span class="perfil-fila-titulo">Bloqueados</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>
       </ul>
@@ -499,7 +497,7 @@ function abrirAmigo(id){
       ${comun.length?`<ul class="amigo-lista">${comun.map(r=>{
           const n=notas.find(x=>x.sigla===r.sigla);
           return `<li><span>${esc(r.nombre)}</span><span class="amigo-lista-der">${r.mismaSeccion?'<span class="amigo-chip">Misma sección</span>':''}${n?notaAmigoHTML(n,a):''}</span></li>`;
-        }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir mis promedios» en Privacidad para comparar notas en estos ramos.</p>':''}`
+        }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir notas» en Privacidad para comparar notas en estos ramos.</p>':''}`
         :'<p class="amigos-vacio-texto">No toman ramos juntos este semestre.</p>'}
       <h3 class="modal-label">Libres a la vez</h3>
       ${sinCruce||(semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
@@ -716,7 +714,7 @@ function calendarioGrupoHTML(id,items){
     :`<li class="cal-item"><span class="cal-icono prueba" aria-hidden="true">${ICONO_PRUEBA}</span>
         <span class="amigo-texto"><b>${esc(it.titulo)}${it.detalle?` · ${esc(it.detalle)}`:''}</b><small>${esc([it.inicio,quien(it)].filter(Boolean).join(' · '))}</small></span></li>`;
   const cuerpo=porDia.size?[...porDia].map(([f,l])=>`<li class="cal-dia"><h4>${esc(etiquetaDiaCalendario(f))}</h4><ul>${l.map(fila).join('')}</ul></li>`).join('')
-    :`<li><p class="amigos-vacio-texto">Nada en las próximas tres semanas.${amigosPruebasComparte?'':' Activa «Compartir mis pruebas» en Privacidad para que el grupo vea las tuyas.'}</p></li>`;
+    :`<li><p class="amigos-vacio-texto">Nada en las próximas tres semanas.${amigosPruebasComparte?'':' Activa «Compartir fechas» en Privacidad para que el grupo vea las tuyas.'}</p></li>`;
   return `<h3 class="modal-label">Calendario</h3>
     <ul class="cal-grupo">${cuerpo}</ul>
     <button type="button" class="amigo-fila amigos-fila-mas cal-anotar" data-amigos="reserva-nueva" data-id="${esc(id)}">
