@@ -171,7 +171,8 @@ function openSettings(){
       </div>
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
-      <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
+      <p class="settings-help" style="margin-top:0;">${enAppIOS()?'Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.'
+        :'Para las evaluaciones con hora: la noche anterior y 15 minutos antes, para caminar a la sala. Al terminar, te preguntamos cómo te fue. Solo en este teléfono.'}</p>
       <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-avisos-pruebas" onclick="alternarAvisosPruebas()">${avisosPruebasActivos()?'Desactivar avisos':'Activar avisos'}</button></div>
       <p class="settings-help" id="s-avisos-estado" role="status" aria-live="polite"></p>`:''}`;
     if(section==='apariencia')return `

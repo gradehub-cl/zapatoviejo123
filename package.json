@@ -12,6 +12,9 @@
     "ios:preparar": "bash bin/preparar-ios.sh",
     "ios:abrir": "npx --no-install cap open ios",
     "ios:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh",
+    "android:preparar": "bash bin/preparar-ios.sh android",
+    "android:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh android",
+    "android:abrir": "npx --no-install cap open android",
     "build": "node bin/compilar-js.js",
     "prepare": "npm run build",
     "js:watch": "node bin/compilar-js.js --watch",
@@ -26,6 +29,7 @@
     "wrangler": "4.123.0"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.2",
     "@capacitor/app": "8.1.2",
     "@capacitor/browser": "8.0.5",
     "@capacitor/core": "8.5.2",
