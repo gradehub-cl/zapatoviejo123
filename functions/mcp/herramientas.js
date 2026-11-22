@@ -117,7 +117,7 @@ export const HERRAMIENTAS = [
     // próxima vez que el estudiante abra, para que confirme contra el programa
     // que él mismo subió. Sin ese paso, un peso mal leído queda calculando su
     // promedio durante meses sin que nada falle.
-    resumen: 'Propone las evaluaciones y ponderaciones de un ramo, sacadas de un programa. Queda pendiente hasta que el estudiante la confirme en la app.',
+    resumen: 'Propone las evaluaciones y ponderaciones de un ramo, sacadas de un programa. Queda pendiente hasta que el estudiante la confirme en la app. No reemplaza una pauta ya propuesta: para corregirla, retírala con retirar_propuesta y propón de nuevo.',
     args: {
       ramo: 'nombre o sigla de un ramo que la persona ya tenga agregado',
       evaluaciones: {
@@ -145,7 +145,7 @@ export const HERRAMIENTAS = [
     // Igual que proponer_pauta: deja la propuesta esperando. La diferencia con
     // escribir la nota es la confirmación, así que la confirmación es el
     // producto: la app muestra qué evaluación, qué valor y de dónde salió.
-    resumen: 'Propone notas para las evaluaciones de un ramo (por ejemplo, leídas de un correo o de una foto de la pauta). No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app.',
+    resumen: 'Propone notas para las evaluaciones de un ramo (por ejemplo, leídas de un correo o de una foto de la pauta). No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app. Una propuesta nueva de notas para el mismo ramo reemplaza a la pendiente anterior.',
     args: {
       ramo: 'nombre o sigla de un ramo que la persona ya tenga agregado',
       notas: {
@@ -173,7 +173,7 @@ export const HERRAMIENTAS = [
     // El calendario del curso vive en un PDF, en un correo o en una
     // publicación, y transcribir diez fechas a mano es justo lo que nadie hace.
     // Sin fechas la Agenda queda vacía, así que esto es lo que la llena.
-    resumen: 'Propone fechas (y hora) para las evaluaciones de un ramo, leídas del calendario del curso. No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app.',
+    resumen: 'Propone fechas (y hora) para las evaluaciones de un ramo, leídas del calendario del curso. No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app. Una propuesta nueva de fechas para el mismo ramo reemplaza a la pendiente anterior.',
     args: {
       ramo: 'nombre o sigla de un ramo que la persona ya tenga agregado',
       fechas: {
@@ -224,6 +224,19 @@ export const HERRAMIENTAS = [
       },
       fuente: 'De dónde salió la lista: el horario de la universidad, el correo de inscripción, la captura',
     },
+  },
+  {
+    // Una propuesta mal leída quedaba viva hasta que la persona la rechazara.
+    // Ver la bandeja es lo que deja al agente corregirse sin duplicar.
+    nombre: 'listar_propuestas',
+    tipo: 'propuesta',
+    resumen: 'Las propuestas que siguen pendientes en la app (pauta, notas, fechas o ramos), con su id, ramo, fuente y contenido. Úsala antes de proponer de nuevo o para revisar lo que dejaste. No guarda nada.',
+  },
+  {
+    nombre: 'retirar_propuesta',
+    tipo: 'propuesta',
+    resumen: 'Retira una propuesta tuya que sigue pendiente, por ejemplo porque leíste mal un peso o una nota; deja de aparecerle a la persona. Solo actúa sobre propuestas pendientes: lo que la persona ya aceptó o rechazó no cambia, y no toca su semestre. Para reemplazar una pauta, retírala y vuelve a proponer.',
+    args: { id: 'el id que devolvió la propuesta o listar_propuestas' },
   },
   {
     nombre: 'agregar_ramo',
