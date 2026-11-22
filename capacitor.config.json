@@ -16,6 +16,7 @@
     }
   },
   "ios": {
-    "allowsLinkPreview": false
+    "allowsLinkPreview": false,
+    "loggingBehavior": "none"
   }
 }

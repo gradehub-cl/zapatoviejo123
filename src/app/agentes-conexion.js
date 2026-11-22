@@ -161,13 +161,24 @@ Cierra con un plan semana por semana hasta que termine el semestre, ordenado por
 
 No inventes nada: si falta una nota, una fecha o una ponderación, dime cuál y pídemela.`,
   },
+  importar: {
+    soloApp: true,
+    titulo: 'Preparar notas y fechas para revisar',
+    bajada: 'A partir de un calendario o de las notas que tú le des, deja propuestas para revisar en la ficha del ramo.',
+    texto: `Te voy a compartir un calendario de evaluaciones o una lista de notas. Consulta primero mis ramos y evaluaciones en GradeHub. Empareja por sigla, evaluación y casilla. Si hay más de una coincidencia, pregúntame cuál corresponde.
+
+Usa solo los datos que te entregue. Si faltan la escala, la fecha o la hora, consúltame cuando sea necesario. No conviertas puntajes a notas sin la escala del curso. Si ya tengo un dato distinto en GradeHub, avísame y consulta antes de proponer un cambio.
+
+Envía a GradeHub las coincidencias claras como propuestas de notas o fechas, con su fuente. Dime qué quedó listo para revisar en la ficha de cada ramo y qué quedó pendiente por aclarar.`,
+  },
 };
 // Un solo bloque con un desplegable: tres tarjetas abiertas ocupaban media
 // pantalla de Ajustes para algo que se usa una vez. El texto elegido se pinta
 // en el momento, así que la pantalla sirve igual antes de tocar nada.
 function promptAgenteElegido(){
   const sel=document.getElementById('s-agent-prompt-pick');
-  const clave=sel&&PROMPTS_AGENTE[sel.value]?sel.value:'repaso';
+  const prompt=sel&&PROMPTS_AGENTE[sel.value];
+  const clave=prompt&&(!prompt.soloApp||enAppNativa())?sel.value:'repaso';
   return {clave,...PROMPTS_AGENTE[clave]};
 }
 function pintarPromptAgente(){

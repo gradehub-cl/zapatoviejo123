@@ -225,3 +225,123 @@ enum Clases {
     // El color no viaja con la clase: es el de su ramo.
     static func color(_ c: Resumen.Clase, _ r: Resumen?) -> String? { r?.ramos.first { $0.id == c.ramoId }?.color }
 }
+
+// MARK: - Hoy en la u (Amigos)
+
+// Los bloques de clases de tus amigos de hoy y los siete días siguientes, tal
+// como los ves en la pestaña Amigos (la app los entrega en `amigos.v1`; las
+// clases «no voy» ya vienen fuera). Acá solo se decide, con la hora, quién está
+// libre en la u, quién en clases y quién llega más tarde. Nunca notas.
+struct AmigosHoy: Decodable {
+    struct Bloque: Decodable { let fecha: String; let inicioAt: String; let finAt: String; let sala: String? }
+    struct Amigo: Decodable { let id: String; let nombre: String; let inicial: String; let bloques: [Bloque] }
+    let version: Int
+    let actualizado: String
+    let fechaHoy: String
+    let total: Int
+    let amigos: [Amigo]
+}
+
+enum AlmacenAmigos {
+    static let clave = "amigos.v1"
+    static func leer() -> AmigosHoy? {
+        guard let texto = UserDefaults(suiteName: Almacen.grupo)?.string(forKey: clave),
+              let datos = texto.data(using: .utf8),
+              let a = try? JSONDecoder().decode(AmigosHoy.self, from: datos),
+              a.version == 1 else { return nil }
+        return a
+    }
+}
+
+enum EnLaU {
+    enum Estado {
+        case libre(proxima: Date)          // entre clases: para juntarse
+        case enClase(hasta: Date, sala: String?)
+        case llega(Date)                   // todavía no llega hoy
+    }
+    struct Persona: Identifiable {
+        let id: String
+        let nombre: String
+        let inicial: String
+        let estado: Estado
+        var orden: Int {
+            switch estado { case .libre: return 0; case .enClase: return 1; case .llega: return 2 }
+        }
+    }
+
+    // Igual que la app: clases seguidas (a 10 minutos o menos) cuentan como una.
+    static func tramos(_ a: AmigosHoy.Amigo, dia: String) -> [(inicio: Date, fin: Date, sala: String?)] {
+        let lista = a.bloques.filter { $0.fecha == dia }.compactMap { b -> (Date, Date, String?)? in
+            guard let i = Clases.instante.date(from: b.inicioAt), let f = Clases.instante.date(from: b.finAt), f > i else { return nil }
+            return (i, f, b.sala)
+        }.sorted { $0.0 < $1.0 }
+        var unidos: [(inicio: Date, fin: Date, sala: String?)] = []
+        for (i, f, s) in lista {
+            if let u = unidos.last, i.timeIntervalSince(u.fin) <= 600 {
+                unidos[unidos.count - 1].fin = max(u.fin, f)
+            } else { unidos.append((i, f, s)) }
+        }
+        return unidos
+    }
+
+    // Quién está hoy, ordenado: libres, en clases y los que llegan más tarde.
+    // El que ya se fue o no tiene clases hoy no aparece.
+    static func hoy(_ datos: AmigosHoy?, _ ahora: Date) -> [Persona] {
+        guard let datos else { return [] }
+        let dia = Clases.dia.string(from: ahora)
+        return datos.amigos.compactMap { a -> Persona? in
+            let t = tramos(a, dia: dia)
+            guard let primero = t.first, let ultimo = t.last, ahora < ultimo.fin else { return nil }
+            let estado: Estado
+            if let ahoraMismo = t.first(where: { $0.inicio <= ahora && ahora < $0.fin }) {
+                estado = .enClase(hasta: ahoraMismo.fin, sala: ahoraMismo.sala)
+            } else if ahora < primero.inicio {
+                estado = .llega(primero.inicio)
+            } else if let sigue = t.first(where: { $0.inicio > ahora }) {
+                estado = .libre(proxima: sigue.inicio)
+            } else { return nil }
+            return Persona(id: a.id, nombre: a.nombre, inicial: a.inicial, estado: estado)
+        }.sorted { ($0.orden, $0.nombre) < ($1.orden, $1.nombre) }
+    }
+
+    // La app manda hoy y los siete días siguientes; pasado eso, pide abrirla.
+    static func vencido(_ datos: AmigosHoy?, _ ahora: Date) -> Bool {
+        guard let hoy = datos.flatMap({ Clases.dia.date(from: $0.fechaHoy) }),
+              let fin = Clases.cal.date(byAdding: .day, value: 8, to: hoy) else { return true }
+        return ahora >= fin
+    }
+    // Cada inicio y fin de clase de las próximas 24 horas, y la medianoche.
+    static func cambios(_ datos: AmigosHoy?, desde ahora: Date) -> [Date] {
+        guard let datos else { return [] }
+        let limite = ahora.addingTimeInterval(24 * 3600)
+        var fechas = datos.amigos.flatMap { $0.bloques }.flatMap { b -> [Date] in
+            [Clases.instante.date(from: b.inicioAt), Clases.instante.date(from: b.finAt)].compactMap { $0 }
+        }
+        if let noche = Clases.cal.date(byAdding: .day, value: 1, to: Clases.cal.startOfDay(for: ahora)) { fechas.append(noche) }
+        return Array(Set(fechas.filter { $0 > ahora && $0 <= limite })).sorted()
+    }
+
+    static let hora: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = Clases.zona
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+    // «Libre · clase 14:00», «En clases hasta 12:10», «Llega 15:30».
+    static func linea(_ p: Persona) -> String {
+        switch p.estado {
+        case .libre(let proxima): return "Libre · clase \(hora.string(from: proxima))"
+        case .enClase(let hasta, let sala): return "En clases hasta \(hora.string(from: hasta))\(sala.map { " · \($0)" } ?? "")"
+        case .llega(let d): return "Llega \(hora.string(from: d))"
+        }
+    }
+    // «Beto», «Beto y Dani», «Beto, Dani y 2 más».
+    static func nombres(_ lista: [Persona], maximo: Int = 2) -> String {
+        let n = lista.map(\.nombre)
+        if n.count <= 1 { return n.first ?? "" }
+        if n.count <= maximo + 1 { return n.dropLast().joined(separator: ", ") + " y " + n.last! }
+        return n.prefix(maximo).joined(separator: ", ") + " y \(n.count - maximo) más"
+    }
+    static func enlace(_ p: Persona) -> URL { URL(string: "cl.gradehub.app://amigo/\(p.id)") ?? URL(string: "cl.gradehub.app://amigos")! }
+}

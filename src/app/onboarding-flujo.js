@@ -250,6 +250,7 @@ function mostrarRamosCargados(cantidad,oficiales){
       ${oficiales?`<p style="font-size:0.75rem;color:var(--fg3);margin:2px 0 0;">${ramosTxt}</p>`:''}
     </div>
     ${ofertaFichaOnboardingHTML()}
+    ${excelOfertaOnboardingHTML()}
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Ver mis ramos</button></div>`;
   openModal();
 }

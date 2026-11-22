@@ -8,5 +8,6 @@ class MainViewController: CAPBridgeViewController {
         webView?.scrollView.bounces = false
         bridge?.registerPluginInstance(AppleSignInPlugin())
         bridge?.registerPluginInstance(GradeHubCanvasPlugin())
+        bridge?.registerPluginInstance(GradeHubAvisosPlugin())
     }
 }

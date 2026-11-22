@@ -32,6 +32,8 @@ chk('Android no es iPhone',android('enAppIOS()')===false);
 chk('iOS es iPhone',ios('enAppIOS()')===true);
 chk('sin getPlatform cuenta como iPhone (tests y binarios viejos)',viejo('enAppIOS()')===true);
 chk('la web no es ninguna',web('enAppNativa()')===false&&web('enAppIOS()')===false);
+chk('la analítica distingue Android de iOS',android('propsAnaliticaCuenta().plataforma')==='android'&&ios('propsAnaliticaCuenta().plataforma')==='ios'&&web('propsAnaliticaCuenta().plataforma')==='web');
+chk('los avisos push de amigos (APNs) no aparecen en Android',android('pluginAvisosAmigos()')===null);
 
 console.log('\n=== Lo que es solo del iPhone ===');
 chk('Android no arma un plugin de widgets que falla en cada llamada',android('pluginWidgets()')===null);

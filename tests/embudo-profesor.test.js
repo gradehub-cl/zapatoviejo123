@@ -35,9 +35,11 @@ function auth(tipo,origen){
   const ctx={location:{search:'',href:'https://gradehub.cl/'},URL,URLSearchParams,
     history:{state:null,replaceState(){}},sessionStorage,track:(...a)=>eventos.push(a),
     currentUser:{id:'sintetica'},supabaseClient:null,
-    aislarCacheEnRegistro:()=>{throw stop},registrarVisitaDiaria:()=>{throw stop},
-    restaurarCacheApartada:()=>{throw stop}};
+    aislarCacheEnRegistro:()=>({propia:false}),registrarVisitaDiaria:()=>{},restaurarCacheApartada:()=>{},
+    enterOnboarding:()=>{throw stop},getCacheOwner:()=>'sintetica',leerBaseSync:()=>true,S:{onboardingDone:true},enterApp:()=>{},_visitaSesion:0,cargarAvisosFeedback:()=>{throw stop}};
   vm.createContext(ctx);vm.runInContext(helper+sesion.slice(inicio,fin),ctx);
+  // Entrada rápida con la copia local, para llegar a cargasAlEntrar sin red.
+  vm.runInContext('getCacheOwner=()=>"sintetica";leerBaseSync=()=>true;enterApp=()=>{};',ctx);
   return {ctx,eventos,sessionStorage,stop};
 }
 (async()=>{

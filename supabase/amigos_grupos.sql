@@ -226,6 +226,7 @@ begin
                  left join public.profiles p on p.id = x.user_id
                 where x.grupo_id = g.id and x.estado = 'miembro' and x.user_id <> uid
                   and not public.amigos_hay_bloqueo(uid, x.user_id)
+                  and public.amigos_misma_u(uid, x.user_id)
                 order by x.created_at limit 3)
     from public.amigos_grupo_miembros m
     join public.amigos_grupos g on g.id = m.grupo_id
@@ -255,7 +256,7 @@ begin
     left join public.profiles p on p.id = m.user_id
     left join public.user_ramos d on d.user_id = m.user_id
    where m.grupo_id = p_grupo
-     and (m.user_id = uid or not public.amigos_hay_bloqueo(uid, m.user_id))
+     and (m.user_id = uid or (not public.amigos_hay_bloqueo(uid, m.user_id) and public.amigos_misma_u(uid, m.user_id)))
    order by (m.user_id <> uid), (m.estado <> 'miembro'), lower(coalesce(p.nombre, u.username));
 end;
 $$;

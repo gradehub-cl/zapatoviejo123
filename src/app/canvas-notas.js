@@ -114,20 +114,21 @@ function renderRevisionNotasCanvas(){
   const filas=canvasNotasDraft.map((p,i)=>{
     const ramo=(S.ramos||[]).find(r=>r.id===p.ramoId);
     const valor=p.editado!=null?p.editado:p.valor!=null?String(p.valor).replace('.',','):'';
-    return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
-      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;"><b style="font-size:0.875rem;">'+esc(p.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;font-variant-numeric:tabular-nums;">Canvas: '+esc(p.crudo)+'</span></div>'
-      +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+esc(ramo?ramo.nombre:'')+(p.valor===null?' · Canvas no la da en escala 1 a 7: escribe tu nota':'')+'</div>'
+    return '<section class="canvas-nota" aria-labelledby="cn-titulo-'+i+'">'
+      +'<header class="canvas-nota-contexto"><div><h3 id="cn-titulo-'+i+'">'+esc(p.titulo)+'</h3>'
+      +(ramo?'<p>'+esc(ramo.nombre)+'</p>':'')+'</div><p class="canvas-nota-origen">'+esc(p.crudo)+' en Canvas</p></header>'
+      +(p.valor===null?'<p class="canvas-nota-hint">Escribe una nota entre 1,0 y 7,0 para guardarla.</p>':'')
       +(p.puntos?exigenciaOpcionesHTML(p.exigencia,{id:'cn-exig-'+i,elegir:'exigenciaNotaCanvas('+i+',',etiqueta:'Exigencia de «'+p.titulo+'»'}):'')
-      +'<div class="modal-input"><label class="modal-label" for="cn-eval-'+i+'">Evaluación</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="cn-eval-'+i+'" data-cn-eval onchange="asignarNotaCanvas('+i+',this.value)">'+opcionesNotaCanvas(p.ramoId,p.target,used)+'</select></div>'
-      +'<div class="modal-input"><label class="modal-label" for="cn-nota-'+i+'">Nota</label><input type="text" id="cn-nota-'+i+'" class="eval-row-input" style="min-height:44px;font-variant-numeric:tabular-nums;" inputmode="decimal" maxlength="4" autocomplete="off" value="'+esc(valor)+'" placeholder="Ej: 5,5" oninput="canvasNotasDraft['+i+'].editado=this.value"'+(p.target?'':' disabled')+'/></div>'
-      +'</div>';
+      +'<div class="canvas-nota-campos"><div><label for="cn-eval-'+i+'">Evaluación</label><select class="feedback-select" id="cn-eval-'+i+'" data-cn-eval onchange="asignarNotaCanvas('+i+',this.value)">'+opcionesNotaCanvas(p.ramoId,p.target,used)+'</select></div>'
+      +'<div><label for="cn-nota-'+i+'">Nota</label><input type="text" id="cn-nota-'+i+'" inputmode="decimal" maxlength="4" autocomplete="off" value="'+esc(valor)+'" placeholder="5,5" oninput="canvasNotasDraft['+i+'].editado=this.value"'+(p.target?'':' disabled')+'/></div></div>'
+      +'</section>';
   }).join('');
   document.getElementById('modal-content').innerHTML=[
-    '<div class="modal-title">Revisa las notas de Canvas</div>',
-    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 8px;">Solo van a evaluaciones sin nota: las que ya escribiste no cambian. Corrige lo que no calce o elige «No guardar».</p>',
-    '<div id="cn-lista" style="max-height:48vh;overflow:auto;border-top:1px solid var(--border);">'+filas+'</div>',
-    '<p id="cn-error" role="alert" hidden style="margin:10px 0 0;font-size:0.8125rem;color:var(--red);"></p>',
-    '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarNotasCanvas()">Guardar notas elegidas</button></div>'
+    '<h2 class="modal-title" id="modal-titulo">Revisa las notas de Canvas</h2>',
+    '<p class="canvas-nota-intro">Confirma en qué evaluación va cada nota. Puedes corregirla o elegir «No guardar». Solo se guardan en casillas vacías.</p>',
+    '<p id="cn-error" role="alert" hidden class="canvas-aviso es-error"></p>',
+    '<div class="canvas-nota-lista">'+filas+'</div>',
+    '<div class="modal-btns"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button><button class="btn-confirm" type="button" onclick="confirmarNotasCanvas()">Guardar notas</button></div>'
   ].join('');
 }
 // 50 % y 60 % a un toque y otra escrita. La usan la revisión de Canvas (por
@@ -148,9 +149,9 @@ function exigenciaNotaCanvas(index,valor){
   if(e===null){if(error){error.textContent='La exigencia es un porcentaje entre 1 y 99, como 55.';error.hidden=false;}return;}
   if(error)error.hidden=true;
   p.exigencia=e;p.valor=notaDesdePuntaje(p.puntos.obtenido,p.puntos.total,e);p.editado=null;
-  const lista=document.getElementById('cn-lista');const arriba=lista?lista.scrollTop:0;
+  const hoja=document.querySelector('.modal-sheet');const arriba=hoja?.scrollTop||0;
   renderRevisionNotasCanvas();
-  const nueva=document.getElementById('cn-lista');if(nueva)nueva.scrollTop=arriba;
+  if(hoja)hoja.scrollTop=arriba;
   const campo=document.getElementById('cn-nota-'+index);if(campo&&!campo.disabled)campo.focus({preventScroll:true});
 }
 function asignarNotaCanvas(index,target){
@@ -158,9 +159,9 @@ function asignarNotaCanvas(index,target){
   const ramo=(S.ramos||[]).find(r=>r.id===p.ramoId);
   const valido=ramo&&destinosNotaCanvas(ramo).some(d=>!d.lleno&&claveNotaCanvas(d)===target);
   p.target=valido?target:null;
-  const lista=document.getElementById('cn-lista');const arriba=lista?lista.scrollTop:0;
+  const hoja=document.querySelector('.modal-sheet');const arriba=hoja?.scrollTop||0;
   renderRevisionNotasCanvas();
-  const nueva=document.getElementById('cn-lista');if(nueva)nueva.scrollTop=arriba;
+  if(hoja)hoja.scrollTop=arriba;
   const campo=document.getElementById(p.target?'cn-nota-'+index:'cn-eval-'+index);
   if(campo)campo.focus({preventScroll:true});
 }
@@ -201,25 +202,29 @@ function confirmarNotasCanvas(){
   if(typeof currentRamoId!=='undefined'&&currentRamoId&&typeof renderRamo==='function')renderRamo();
   else if(typeof renderHome==='function')renderHome();
   track('canvas_notas_guardadas',{notas:puestas,elegidas:r.elegidas.length});
-  showToast(puestas+' nota'+(puestas===1?' guardada':'s guardadas')+(puestas<r.elegidas.length?'; el resto ya tenía nota':''),puestas<r.elegidas.length);
+  const lecturaInicio=typeof lecturaCanvasGuardadaInicio==='function'?lecturaCanvasGuardadaInicio():null;
+  showToast(lecturaInicio||puestas+' nota'+(puestas===1?' guardada':'s guardadas')+(puestas<r.elegidas.length?'; el resto ya tenía nota':''),puestas<r.elegidas.length);
 }
-async function traerNotasCanvas(){
+async function traerNotasCanvas(vistaVigente=()=>true){
   if(!canvasDisponible())return;
   avisoCanvas('Buscando tus notas en Canvas…');
   let propuestas=[],ramos=0;const conteos={total:0,sinNota:0,yaTienes:0,sinDestino:0};
   try{
     const cursos=await cursosCanvas();
     for(const c of cursos){
+      if(!vistaVigente())return;
       const ramo=(S.ramos||[]).find(r=>siglaRamoCanvas(r)===c.sigla);
       if(!ramo)continue;
       ramos++;
       const r=await pluginCanvas().get({path:`courses/${c.id}/assignments`,params:{'include[]':['submission'],order_by:'due_at',per_page:100}});
+      if(!vistaVigente())return;
       if(c.usaPesos)canvasPesosRamo.set(ramo.id,{grupos:r&&r.grupos||[],usaPesos:true});
       const res=resumenNotasCanvas(r&&r.data,ramo);
       propuestas=propuestas.concat(res.propuestas);
       for(const k of Object.keys(conteos))conteos[k]+=res.conteos[k]||0;
     }
-  }catch(e){avisoCanvas('No pudimos leer las notas de Canvas. Revisa la conexión o el token.',true);return;}
+  }catch(e){if(vistaVigente())await avisarErrorLecturaCanvas(e,'No pudimos leer tus notas. Revisa la conexión e inténtalo de nuevo.');return;}
+  if(!vistaVigente())return;
   track('canvas_notas',{propuestas:propuestas.length,ya_tienes:conteos.yaTienes,sin_destino:conteos.sinDestino});
   if(!propuestas.length){
     avisoCanvas(!ramos?'Ninguno de tus ramos de Canvas está en GradeHub. Agrégalos con «Traer mis ramos».'

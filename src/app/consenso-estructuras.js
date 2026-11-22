@@ -94,15 +94,25 @@ function estructuraParaConsenso(est){
 // Sin conectores: "Controles Ejercicios" y "Control de Ejercicios" tambi\u00e9n lo
 // son (Contabilidad FEN, 2026-10-05). `conConectores` es la regla anterior, solo
 // para reconocer lo que ya se envi\u00f3 con ella (ver yaAportada).
+//
+// Abreviaturas: "I1" = "Interrogaci\u00f3n 1", "P2" = "Prueba 2", "C3" = "Control 3"
+// (solo una letra sola seguida de n\u00famero) y "Lab" = "Laboratorio". Al 2026-11-21
+// 27 reportes UC dec\u00edan "I1/I2/I3" con los pesos del programa oficial y
+// contaban como otra pauta: confirmaban el cat\u00e1logo y part\u00edan el consenso.
+// No se abrevian T ni S: "T1" es Tarea o Taller seg\u00fan el ramo.
 function singularHuella(p){
   if(!/^[a-z]{4,}$/.test(p))return p;
   return p.replace(/zz/g,'z').replace(/s$/,'').replace(/([lrndjz])e$/,'$1');
 }
 const CONECTORES_HUELLA=new Set(['de','del','la','las','el','los','y','e','en']);
+const ABREVIATURAS_HUELLA={i:'interrogacion',p:'prueba',c:'control'};
 function nombreHuella(nombre,conConectores){
-  return normName(nombre).replace(/\s+/g,' ')
-    .replace(/([a-z])(?=\d)|(\d)(?=[a-z])/g,'$& ')
-    .split(' ').filter(w=>w&&(conConectores||!CONECTORES_HUELLA.has(w))).map(singularHuella).join(' ');
+  let t=normName(nombre).replace(/\s+/g,' ')
+    .replace(/([a-z])(?=\d)|(\d)(?=[a-z])/g,'$& ');
+  // La regla anterior no las conoc\u00eda: sigue igual para reconocer lo ya enviado.
+  if(!conConectores)t=t.replace(/(^| )([ipc])(?= \d)/g,(m,a,l)=>a+ABREVIATURAS_HUELLA[l])
+    .replace(/(^| )lab(?= |$)/g,'$1laboratorio');
+  return t.split(' ').filter(w=>w&&(conConectores||!CONECTORES_HUELLA.has(w))).map(singularHuella).join(' ');
 }
 // Tres o m\u00e1s evaluaciones numeradas del mismo nombre y el mismo peso son una
 // categor\u00eda con casillas: "Control 1, 2 y 3" de 10% cada uno = "Controles" de

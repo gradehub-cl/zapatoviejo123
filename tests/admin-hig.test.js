@@ -79,17 +79,20 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert(area('profesores').querySelector('[data-admin-profesor]'),'las acciones actuales del profesor siguen en su pestaña');
  assert.equal(areas[0].attrs['aria-selected'],'true');
  const visiblesProfesores=()=>root.querySelectorAll('[data-admin-persona]').filter(n=>!n.hidden).map(n=>n.dataset.adminPersona);
- const filtroProf=root.querySelector('#admin-estado-profesor'),buscarProf=root.querySelector('#admin-buscar-profesor');
- assert.equal(filtroProf.value,'aprobado','Profesores parte en Aprobados aunque existan pendientes');
- assert.deepEqual(visiblesProfesores(),['p1']);
- assert.equal(root.querySelectorAll('[data-admin-filtro-prof]').length,0,'el estado se elige en un select');
- for(const [estado,id] of [['pendiente','p2'],['suspendido','p3'],['rechazado','p4']]){
-  filtroProf.value=estado;filtroProf.listeners.change();assert.deepEqual(visiblesProfesores(),[id]);
+ const tabProf=estado=>root.querySelector(`[data-admin-filtro-prof="${estado}"]`);
+ const buscarProf=root.querySelector('#admin-buscar-profesor');
+ assert.equal(tabProf('pendiente').attrs['aria-selected'],'true');
+ assert.deepEqual(visiblesProfesores(),['p2'],'las postulaciones se ven al abrir');
+ assert.doesNotMatch(root.innerHTML,/SQL Editor/);
+ for(const [estado,id] of [['aprobado','p1'],['pendiente','p2'],['suspendido','p3'],['rechazado','p4']]){
+  tabProf(estado).listeners.click();assert.deepEqual(visiblesProfesores(),[id]);
+  assert.match(root.innerHTML,new RegExp(`data-admin-filtro-prof="${estado}">[^<]+<span>1</span>`));
  }
- filtroProf.value='';filtroProf.listeners.change();assert.equal(visiblesProfesores().length,4);
+ tabProf('rechazado').listeners.keydown({key:'Home',preventDefault(){}});
+ assert.equal(tabProf('pendiente').focused,true);
  buscarProf.value='academia';buscarProf.listeners.input();assert.deepEqual(visiblesProfesores(),['p2']);
  buscarProf.value='nadie coincide';buscarProf.listeners.input();assert.equal(root.querySelector('#admin-profesores-vacio').hidden,false);
- buscarProf.value='';filtroProf.value='aprobado';filtroProf.listeners.change();
+ buscarProf.value='';tabProf('aprobado').listeners.click();
  let prevenido=false;
  areas[0].listeners.keydown({key:'ArrowRight',preventDefault(){prevenido=true;}});
  assert.equal(prevenido,true);assert.equal(areas[1].focused,true);
@@ -139,16 +142,15 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  root.querySelectorAll('[data-admin-seccion]').find(b=>b.dataset.adminSeccion==='revision').listeners.click();
  assert.equal(root.querySelectorAll('[data-admin-fila]').filter(n=>!n.hidden).length,1);
  root.querySelector('[data-admin-area="profesores"]').listeners.click();
- root.querySelector('#admin-estado-profesor').value='pendiente';
+ tabProf('pendiente').listeners.click();
  root.querySelector('#admin-buscar-profesor').value='academia';
  root.querySelector('#admin-buscar-profesor').listeners.input();
  await run('pintarPanelAdmin(root)');
  assert.equal(area('profesores').hidden,false,'una acción que repinta conserva la subpestaña');
- assert.equal(root.querySelector('#admin-estado-profesor').value,'pendiente');
+ assert.equal(tabProf('pendiente').attrs['aria-selected'],'true');
  assert.equal(root.querySelector('#admin-buscar-profesor').value,'academia','también conserva la búsqueda de profesores');
  assert.deepEqual(visiblesProfesores(),['p2']);
- root.querySelector('#admin-estado-profesor').value='aprobado';root.querySelector('#admin-buscar-profesor').value='';
- root.querySelector('#admin-estado-profesor').listeners.change();
+ root.querySelector('#admin-buscar-profesor').value='';tabProf('aprobado').listeners.click();
  root.querySelector('[data-admin-area="anuncios"]').listeners.click();
  assert.equal(root.querySelectorAll('[data-admin-fila]').filter(n=>!n.hidden).length,1,'conserva el filtro de anuncios');
  root.querySelector('[data-admin-publicar]').listeners.click();await confirmacion;
@@ -185,10 +187,16 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  panelActual=[{...profesores[0],anuncios:[{...anuncio,estado:'pausado',publicado_at:'2026-09-30T00:00:00Z'},...profesores[0].anuncios.slice(1)]}];
  const previas=calls.length;
  await root.querySelectorAll('[data-admin-estadisticas]').find(b=>b.dataset.adminEstadisticas==='a1').listeners.click();
- assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='admin_anuncio_publico'&&n!=='crecimiento_semanal_admin'&&n!=='admin_alcance_diario'&&n!=='admin_historial_anuncios'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'&&n!=='admin_editar_anuncio'&&n!=='admin_directorio_perfiles'),['admin_panel_clases','admin_panel_clases','admin_reportes_programa','admin_denuncias'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
+ assert.deepEqual(calls.slice(previas).map(c=>c.n).filter(n=>n!=='admin_anuncio_publico'&&n!=='crecimiento_semanal_admin'&&n!=='admin_alcance_diario'&&n!=='admin_historial_anuncios'&&n!=='admin_alumnos_ejemplo'&&n!=='admin_descuento_anuncio'&&n!=='admin_descuento_codigo_anuncio'&&n!=='admin_editar_anuncio'&&n!=='admin_directorio_perfiles'),['admin_panel_clases','admin_panel_clases','admin_reportes_programa','admin_denuncias','admin_denuncias_usuarios'],'si el aviso cambió se repinta sin mezclar gráficos de publicaciones');
  assert(calls.slice(previas).filter(c=>c.n==='admin_descuento_anuncio').every(c=>c.p.p_anuncio_id===null&&c.p.p_pct===null),'la comprobación de descuento no edita anuncios');
  assert(calls.slice(previas).filter(c=>c.n==='admin_editar_anuncio').every(c=>c.p.p_anuncio_id===null&&JSON.stringify(c.p.p_datos)==='{}'),'la comprobación de edición no escribe anuncios');
  assert.match(toasts.at(-1).text,/Actualicé el panel/);
+ run('vistaAdmin.profesores=null;vistaAdmin.busquedaProfesores=""');
+ await run('pintarPanelAdmin(root)');
+ assert.equal(tabProf('aprobado').attrs['aria-selected'],'true','sin postulaciones abre en Activos');
+ assert.deepEqual(visiblesProfesores(),['p1']);
+ assert.match(root.innerHTML,/data-admin-filtro-prof="pendiente">Por revisar <span>0/);
+
  modo='missing-report';await run('pintarPanelAdmin(root)');await new Promise(setImmediate);
  assert.match(root.innerHTML,/admin-hig-fila/,'sin el SQL nuevo sigue disponible el panel de clases');
  assert.match(root.querySelector('#admin-reportes-programa').innerHTML,/disponible cuando se aplique su SQL/);

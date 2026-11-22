@@ -42,6 +42,10 @@ alter table public.catalog_reports
 --   · 3+ evaluaciones numeradas del mismo nombre y el mismo peso, sin casillas
 --     ni compuerta propia, son una categoría con casillas: "Control 1, 2 y 3" de
 --     10% = "Controles" de 30% con 3 casillas. Con pesos distintos no se juntan.
+--   · Abreviaturas (2026-11-21): una i, p o c sola seguida de número es
+--     Interrogación, Prueba o Control ("I1" = "Interrogación 1"), y "lab" es
+--     Laboratorio. Mismo mapa que ABREVIATURAS_HUELLA en app.js. Para aplicar
+--     solo este cambio en producción: supabase/huella_abreviaturas.sql.
 create or replace function public.huella_catalogo(p_estructura jsonb)
 returns text
 language sql
@@ -58,12 +62,20 @@ as $$
           ' ' order by i)
         from regexp_split_to_table(
           regexp_replace(
+          regexp_replace(
+          regexp_replace(
+          regexp_replace(
+          regexp_replace(
             regexp_replace(
               regexp_replace(
                 regexp_replace(normalize(lower(e.valor->>'nombre'), NFD), '[\u0300-\u036f]', '', 'g'),
                 '[[:space:]]+', ' ', 'g'),
               '([a-z])([0-9])', '\1 \2', 'g'),
             '([0-9])([a-z])', '\1 \2', 'g'),
+          '(^| )i(?= [0-9])', '\1interrogacion', 'g'),
+          '(^| )p(?= [0-9])', '\1prueba', 'g'),
+          '(^| )c(?= [0-9])', '\1control', 'g'),
+          '(^| )lab(?= |$)', '\1laboratorio', 'g'),
           ' ') with ordinality as t(w, i)
         where w <> '' and w not in ('de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en')
       ) as clave,

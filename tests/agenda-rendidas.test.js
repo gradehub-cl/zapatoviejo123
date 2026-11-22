@@ -37,7 +37,7 @@ run('toggleRendidasAgenda()');
 chk('al cerrar vuelve a una sola',!(/Control 1/.test(run('agendaRendidasHTML(agendaRendidas(),[])'))));
 
 console.log('\n=== Funciona aunque ninguna rendida tenga fecha ===');
-run("delete S.ramos[0].categorias[0].fecha;agendaRendidasAbiertas=false;(agendaVista='mes',renderAgenda())");
+run("delete S.ramos[0].categorias[0].fecha;agendaRendidasAbiertas=false;(agendaVista='evaluaciones',renderAgenda())");
 chk('no cae en la pantalla vacía',/Ya rendidas/.test(stub.innerHTML)&&/Control 2/.test(stub.innerHTML));
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);
