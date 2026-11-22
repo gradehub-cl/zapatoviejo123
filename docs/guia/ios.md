@@ -355,3 +355,38 @@ en `ios/App/App/es.lproj/AppShortcuts.strings` para que Siri en español las
 reconozca. Una frase nueva va en los dos lados. Para probarlas: compila con
 `GRADEHUB_BUNDLE_ID=cl.gradehub.app.qa`, abre la app con `-gradehubDemoWidgets`
 y toca los atajos en la app Atajos → Apps → GradeHub.
+
+## La app Android
+
+Desde la PR de `android/`, la app de Google Play es Capacitor, igual que la de
+iOS, en vez del TWA de `~/code/gradehub-android`. Mismo `cl.gradehub.app`, misma
+clave de subida: llega como actualización del TWA. Comparte todo el JS; lo que
+existe solo en el iPhone (widgets, Actividad en Vivo, Apple nativo, Canvas con
+token, el gesto de volver desde el borde) va detrás de `enAppIOS()` / `APP_IOS`.
+Android es la excepción: sin `getPlatform`, todo cuenta como iPhone.
+
+**Carga siempre desde un servidor**, gradehub.cl por defecto: un cambio de la web
+le llega al tiro, como al TWA, y Play solo se toca cuando cambia algo nativo
+(`android/`, plugins, `capacitor.config.json`). Por eso un cambio de JS para
+Android sirve recién cuando está en `main`.
+
+```bash
+npm run android:preparar   # carga gradehub.cl
+npm run android:rama       # carga ios.gradehub.pages.dev
+npm run android:abrir      # Android Studio
+```
+
+Para compilar desde la terminal hace falta JDK 21 (el de Android Studio es más
+nuevo de lo que acepta el Gradle de Capacitor 8) y `android/local.properties`
+con `sdk.dir`, que git ignora:
+
+```bash
+cd android && JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew assembleDebug
+```
+
+Lo propio de Android: el botón atrás (`atrasAndroid`: cierra lo de encima como
+Escape, sale del ramo, recorre el historial y al final manda la app al fondo) y
+los avisos de evaluación, que en Android 12+ van a la hora exacta solo si la
+persona permite «Alarmas y recordatorios». Se pide una vez, al activarlos: con
+alarmas exactas sin permiso, el plugin abriría esa pantalla con cada nota
+guardada.
