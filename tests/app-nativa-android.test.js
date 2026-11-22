@@ -82,6 +82,14 @@ chk('«Alarmas y recordatorios» se pide solo al activar los avisos, no al repro
 chk('preparar no termina en error en Android (la última línea no es un && que falla)',!/\[ "\$PLATAFORMA" = ios \] &&/.test(leer('bin/preparar-ios.sh')));
 chk('solo Android escucha el botón atrás',/if\(App&&!APP_IOS&&typeof atrasAndroid==='function'\)App\.addListener\('backButton'/.test(leer('app-session.js')));
 
+console.log('\n=== El .aab de Play ===');
+const play=leer('bin/android-play.sh'),gradle=leer('android/app/build.gradle');
+chk('ninguna contraseña ni clave en el repo: jarsigner la pide',!/storepass|keypass|storePassword|keyPassword/.test(play+gradle)&&/jarsigner" -keystore "\$KEYSTORE"/.test(play));
+chk('la de Play carga gradehub.cl, nunca la versión de prueba',/unset GRADEHUB_SERVIDOR/.test(play)&&/c\.server\.url!=="https:\/\/gradehub\.cl"/.test(play));
+chk('sin firma se detiene (jarsigner -verify no sirve de control)',/if \[ -z "\$HUELLA" \]/.test(play)&&!/jarsigner" -verify/.test(play));
+chk('la firma tiene que ser la clave de subida de assetlinks.json',/grep -qF "\$HUELLA" \.well-known\/assetlinks\.json/.test(play));
+chk('versionCode mayor que el del TWA (1)',+(gradle.match(/versionCode (\d+)/)||[])[1]>1);
+
 console.log('\n=== Apple y el gesto de volver ===');
 const app=leer('app.js'),sesion=leer('app-session.js');
 chk('Apple nativo solo en el iPhone',/provider==='apple'&&APP_IOS\)\{await entrarConAppleNativo/.test(sesion));

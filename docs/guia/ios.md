@@ -390,3 +390,10 @@ los avisos de evaluación, que en Android 12+ van a la hora exacta solo si la
 persona permite «Alarmas y recordatorios». Se pide una vez, al activarlos: con
 alarmas exactas sin permiso, el plugin abriría esa pantalla con cada nota
 guardada.
+
+**Publicar en Play:** sube `versionCode` en `android/app/build.gradle` y corre
+`npm run android:play` en Terminal.app. Arma el `.aab` cargando gradehub.cl, lo
+firma con la clave de subida del TWA (`~/code/gradehub-android/gradehub-upload.keystore`,
+o `GRADEHUB_KEYSTORE`) pidiendo la contraseña, y se detiene si la firma no es la
+de `.well-known/assetlinks.json`. La clave y la contraseña nunca entran al repo.
+Antes, lo que la app va a cargar tiene que estar en `main`.
