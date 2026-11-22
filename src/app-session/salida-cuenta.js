@@ -21,10 +21,13 @@ async function signOut(){
 async function cerrarSesion(){
   if(typeof olvidarAvisosFeedback==='function')olvidarAvisosFeedback();
   if(typeof olvidarCanvasCuenta==='function')await olvidarCanvasCuenta();
+  // Avisos de Amigos: con la sesión viva.
+  if(typeof olvidarAvisosAmigos==='function')try{await olvidarAvisosAmigos();}catch(e){}
   _visitaSesion++;
   try{_cerrandoSesion=true;await supabaseClient.auth.signOut();}catch(e){}
   finally{_cerrandoSesion=false;}
   currentUser=null;closeModal();
+  if(typeof olvidarAnalitica==='function')olvidarAnalitica();
   if(typeof borrarResumenWidgets==='function')borrarResumenWidgets();
   if(typeof olvidarSesionAgentes==='function')olvidarSesionAgentes();
   // Las propuestas pertenecen a la cuenta que salió, no al navegador.
@@ -43,6 +46,7 @@ async function cerrarSesion(){
   S=freshState();
   // Las pestañas de profesor y admin son de la cuenta que salió, no del navegador.
   if(typeof olvidarSesionMarketplace==='function')olvidarSesionMarketplace();
+  if(typeof olvidarAmigos==='function')olvidarAmigos();
   if(typeof recalcularNavTabs==='function')recalcularNavTabs();
   authMode='login';
   document.getElementById('auth-user').value='';

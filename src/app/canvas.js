@@ -20,6 +20,8 @@ function pluginCanvas(){
 // No espera a Canvas ni falla: es solo borrar del llavero de este iPhone.
 async function olvidarCanvasCuenta(){
   try{const p=pluginCanvas();if(p)await p.desconectar();}catch(e){}
+  if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
+  if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
   if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();
   if(typeof canvasProgramaRamo!=='undefined')canvasProgramaRamo.clear();
 }
@@ -148,6 +150,7 @@ async function conectarCanvas(){
   avisoCanvas('Revisando el token con Canvas…');
   try{
     await pluginCanvas().conectar({token});
+    if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
     if(campo)campo.value='';
     track('canvas_conectado');
     await pintarCanvasAjustes({enfocar:true});
@@ -160,7 +163,7 @@ async function conectarCanvas(){
 function desconectarCanvas(){
   if(!canvasDisponible())return;
   showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
-    try{await pluginCanvas().desconectar();if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes({enfocar:true});}
+    try{await pluginCanvas().desconectar();if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;if(typeof canvasPesosRamo!=='undefined')canvasPesosRamo.clear();track('canvas_desconectado');await pintarCanvasAjustes({enfocar:true});}
     catch(e){avisoCanvas('No pudimos desconectar Canvas. Inténtalo de nuevo.',true);}
   },{label:'Desconectar',focusCancel:true});
 }

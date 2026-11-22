@@ -987,6 +987,229 @@ struct ActividadPruebaWidget: Widget {
     }
 }
 
+// MARK: - Hoy en la u (Amigos)
+
+// Quién de tus amigos está hoy en la u: libres ahora (anillo del color de la
+// app), en clases (anillo gris) y los que llegan más tarde (sin anillo). Es el
+// mismo código de la pestaña Amigos. Solo horas: nunca notas ni ramos.
+struct EntradaAmigos: TimelineEntry {
+    let date: Date
+    let datos: AmigosHoy?
+    var relevance: TimelineEntryRelevance? = nil
+}
+
+struct ProveedorAmigos: TimelineProvider {
+    func placeholder(in context: Context) -> EntradaAmigos { EntradaAmigos(date: .now, datos: nil) }
+    func getSnapshot(in context: Context, completion: @escaping (EntradaAmigos) -> Void) {
+        completion(EntradaAmigos(date: .now, datos: AlmacenAmigos.leer() ?? (context.isPreview ? Self.muestra : nil)))
+    }
+    // Una entrada en cada inicio y fin de clase de las próximas 24 horas: así
+    // «libre» pasa a «en clases» sin abrir la app. Sube en la Smart Stack
+    // cuando hay amigos libres.
+    func getTimeline(in context: Context, completion: @escaping (Timeline<EntradaAmigos>) -> Void) {
+        let datos = AlmacenAmigos.leer(), ahora = Date()
+        let fechas = [ahora] + EnLaU.cambios(datos, desde: ahora)
+        let entradas = fechas.map { d -> EntradaAmigos in
+            let libres = EnLaU.hoy(datos, d).filter { if case .libre = $0.estado { return true }; return false }.count
+            return EntradaAmigos(date: d, datos: datos, relevance: TimelineEntryRelevance(score: Float(min(libres, 5))))
+        }
+        completion(Timeline(entries: entradas, policy: fechas.count > 1 ? .after(fechas.last!) : .never))
+    }
+    // Solo para la galería de widgets: amigos de ejemplo, nunca reales.
+    static let muestra: AmigosHoy? = {
+        let f = Clases.dia.string(from: .now)
+        func b(_ h1: Int, _ h2: Int) -> AmigosHoy.Bloque {
+            let i = Clases.cal.date(bySettingHour: h1, minute: 0, second: 0, of: .now) ?? .now
+            let fin = Clases.cal.date(bySettingHour: h2, minute: 10, second: 0, of: .now) ?? .now
+            return AmigosHoy.Bloque(fecha: f, inicioAt: Clases.instante.string(from: i), finAt: Clases.instante.string(from: fin), sala: "B12")
+        }
+        let h = Clases.cal.component(.hour, from: .now)
+        return AmigosHoy(version: 1, actualizado: "", fechaHoy: f, total: 4, amigos: [
+            AmigosHoy.Amigo(id: "m1", nombre: "Sofía", inicial: "S", bloques: [b(h - 2, h - 1), b(h + 1, h + 2)]),
+            AmigosHoy.Amigo(id: "m2", nombre: "Tomás", inicial: "T", bloques: [b(h - 1, h + 1)]),
+            AmigosHoy.Amigo(id: "m3", nombre: "Isi", inicial: "I", bloques: [b(h - 3, h - 2), b(h + 2, h + 3)]),
+            AmigosHoy.Amigo(id: "m4", nombre: "Matías", inicial: "M", bloques: [b(h + 2, h + 4)]),
+        ])
+    }()
+}
+
+// El acento de GradeHub (--primary), en claro y oscuro.
+struct AcentoApp {
+    static func color(_ esquema: ColorScheme) -> Color { Color(hexRamo: esquema == .dark ? "#2dd4bf" : "#0d7a6b") }
+}
+
+// Inicial en un círculo, con el anillo que dice qué hace. El anillo se dibuja
+// con aire (como las historias de Instagram) para que no se pegue a la letra.
+struct AvatarAmigo: View {
+    @Environment(\.colorScheme) var esquema
+    @Environment(\.widgetRenderingMode) var modo
+    let persona: EnLaU.Persona
+    var tamano: CGFloat = 34
+
+    var body: some View {
+        let anillo: Color? = {
+            switch persona.estado {
+            case .libre: return AcentoApp.color(esquema)
+            case .enClase: return .secondary.opacity(0.55)
+            case .llega: return nil
+            }
+        }()
+        ZStack {
+            Circle().fill(Color.primary.opacity(modo == .fullColor ? 0.07 : 0.15))
+            Text(persona.inicial)
+                .font(.system(size: tamano * 0.42, weight: .semibold, design: .rounded))
+                .foregroundStyle(persona.orden == 2 ? .secondary : .primary)
+        }
+        .frame(width: tamano, height: tamano)
+        .padding(3)
+        .overlay {
+            if let anillo {
+                Circle().strokeBorder(anillo, lineWidth: 2).widgetAccentable(persona.orden == 0)
+            }
+        }
+        .privacySensitive()
+    }
+}
+
+// Avatares superpuestos, como «y 3 más» en Instagram. Cada uno con su borde
+// del fondo para que se separen.
+struct PilaAvatares: View {
+    let personas: [EnLaU.Persona]
+    var tamano: CGFloat = 30
+    var body: some View {
+        HStack(spacing: -tamano * 0.32) {
+            ForEach(personas.prefix(4)) { p in
+                AvatarAmigo(persona: p, tamano: tamano)
+                    .background(Circle().fill(.background))
+            }
+        }
+    }
+}
+
+struct HoyEnLaUVista: View {
+    @Environment(\.widgetFamily) var familia
+    @Environment(\.colorScheme) var esquema
+    let entrada: EntradaAmigos
+
+    var personas: [EnLaU.Persona] { EnLaU.vencido(entrada.datos, entrada.date) ? [] : EnLaU.hoy(entrada.datos, entrada.date) }
+    var libres: [EnLaU.Persona] { personas.filter { $0.orden == 0 } }
+    var enClases: [EnLaU.Persona] { personas.filter { $0.orden == 1 } }
+
+    // El titular dice lo más útil primero: cuántos están libres para juntarse.
+    var titular: String {
+        if !libres.isEmpty { return libres.count == 1 ? "1 libre ahora" : "\(libres.count) libres ahora" }
+        if !enClases.isEmpty { return enClases.count == 1 ? "1 en clases" : "\(enClases.count) en clases" }
+        if let p = personas.first, case .llega(let d) = p.estado { return "Llegan desde las \(EnLaU.hora.string(from: d))" }
+        return "Nadie en la u"
+    }
+    var bajada: String {
+        if !libres.isEmpty { return EnLaU.nombres(libres) }
+        if !enClases.isEmpty { return EnLaU.nombres(enClases) }
+        if !personas.isEmpty { return EnLaU.nombres(personas) }
+        guard let d = entrada.datos else { return "Abre Amigos en GradeHub" }
+        if EnLaU.vencido(d, entrada.date) { return "Abre GradeHub para actualizar" }
+        return d.total == 0 ? "Agrega amigos en GradeHub" : "Ninguno tiene más clases hoy"
+    }
+
+    var body: some View {
+        Group {
+            switch familia {
+            case .accessoryInline:
+                Label(libres.isEmpty ? titular : "\(titular) en la u", systemImage: "person.2.fill")
+            case .accessoryCircular:
+                ZStack {
+                    AccessoryWidgetBackground()
+                    VStack(spacing: 0) {
+                        Text("\(libres.count)").font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit()
+                        Text("libres").font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(titular). \(bajada)")
+            case .accessoryRectangular:
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(titular).font(.headline).widgetAccentable().lineLimit(1)
+                    Text(bajada).font(.subheadline).lineLimit(2).privacySensitive()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            case .systemMedium:
+                HStack(alignment: .top, spacing: 14) {
+                    resumen.frame(width: 118, alignment: .leading)
+                    lista(Array(personas.prefix(3)))
+                }
+            case .systemLarge:
+                VStack(alignment: .leading, spacing: 12) {
+                    resumen
+                    Divider()
+                    lista(Array(personas.prefix(6)))
+                }
+            default:
+                resumen
+            }
+        }
+        .widgetURL(URL(string: "cl.gradehub.app://amigos"))
+    }
+
+    // Arriba a la izquierda, como los demás widgets: la etiqueta, el titular
+    // grande y quiénes. Los avatares van entre medio, que es lo que se reconoce.
+    var resumen: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("HOY EN LA U").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            if !personas.isEmpty { PilaAvatares(personas: libres.isEmpty ? personas : libres) }
+            Text(titular)
+                // En el mediano la columna es angosta: un paso menos para que no parta en tres líneas.
+                .font(familia == .systemMedium ? .headline : .title3.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(libres.isEmpty ? Color.primary : AcentoApp.color(esquema))
+                .lineLimit(2).minimumScaleFactor(0.75)
+            Text(bajada).font(.caption).foregroundStyle(.secondary).lineLimit(2).privacySensitive()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    // Cada fila abre la ficha de ese amigo.
+    func lista(_ lista: [EnLaU.Persona]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if lista.isEmpty {
+                Spacer(minLength: 0)
+                Text(entrada.datos == nil ? "Abre la pestaña Amigos para verlos acá." : "Cuando tengan clases hoy, aparecen acá.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            ForEach(lista) { p in
+                Link(destination: EnLaU.enlace(p)) {
+                    // Filas de 32 pt: nombre y una sola línea de estado, como una lista de iOS compacta.
+                    HStack(spacing: 9) {
+                        AvatarAmigo(persona: p, tamano: 24)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(p.nombre).font(.footnote.weight(.semibold)).lineLimit(1)
+                            Text(EnLaU.linea(p)).font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+                                .lineLimit(1).minimumScaleFactor(0.85)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .privacySensitive()
+                }
+                .accessibilityLabel("\(p.nombre): \(EnLaU.linea(p))")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct HoyEnLaUWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "hoy-en-la-u", provider: ProveedorAmigos()) { entrada in
+            HoyEnLaUVista(entrada: entrada).containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("Hoy en la u")
+        .description("Cuáles de tus amigos están libres en la u ahora y quién está en clases.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+    }
+}
+
 @main
 struct GradeHubWidgets: WidgetBundle {
     var body: some Widget {
@@ -996,5 +1219,6 @@ struct GradeHubWidgets: WidgetBundle {
         ProximaClaseWidget()
         EstadisticasWidget()
         ActividadPruebaWidget()
+        HoyEnLaUWidget()
     }
 }

@@ -64,12 +64,12 @@ antes de responder en App Store Connect. Esto no certifica el proyecto desplegad
 | Tipo Apple | Qué es en GradeHub | Propósitos | Evidencia |
 | --- | --- | --- | --- |
 | Contact Info → **Email Address** | Correo de la cuenta, Google o Apple (real o relay) | App Functionality | Supabase Auth; `src/app-session/login-registro.js`, `oauth-y-recuperacion.js` |
-| Contact Info → **Name** | Nombre opcional; nombre recibido de Google o Apple; nombre con que el alumno aparece ante su profesor | App Functionality | `profiles` (`src/app-session/perfil-y-legal.js`), `supabase/profesor_alumnos.sql` |
+| Contact Info → **Name** | Nombre opcional; nombre recibido de Google o Apple; nombre con que el alumno aparece ante su profesor; nombre y apellido que ven amigos y grupos (Amigos) | App Functionality | `profiles` (`src/app-session/perfil-y-legal.js`), `supabase/profesor_alumnos.sql`, `supabase/amigos.sql` |
 | Contact Info → **Phone Number** | WhatsApp elegido por el particular que publica, visible en su contacto | App Functionality | `src/marketplace/perfil-profesor.js`, `supabase/perfil_profesor.sql` |
-| User Content → **Other User Content** | Ramos, evaluaciones, notas, pautas propias, calificación y etiquetas a profesores, respuestas a encuestas, denuncias y propuestas de agentes | App Functionality; Analytics (promedios anónimos agregados) | `user_ramos` (`src/app-session/sync-escritura.js`), `evaluacion_notas` en `supabase/notas_tipicas.sql`, `profesor_calificaciones` en `supabase/profesores.sql`, `supabase/encuestas.sql` |
+| User Content → **Other User Content** | Ramos, evaluaciones, notas, pautas propias, calificación y etiquetas a profesores, respuestas a encuestas, denuncias y propuestas de agentes. **Amigos:** solicitudes, amistades, bloqueos, grupos (nombre, quién invitó), denuncias de usuarios, el horario que ven amigos y grupos y, si se activa, el promedio por ramo que ven los amigos | App Functionality; Analytics (promedios anónimos agregados) | `user_ramos` (`src/app-session/sync-escritura.js`), `evaluacion_notas` en `supabase/notas_tipicas.sql`, `profesor_calificaciones` en `supabase/profesores.sql`, `supabase/encuestas.sql` |
 | User Content → **Customer Support** | Sugerencias y comentarios enviados desde Ajustes | App Functionality | `supabase/user_feedback.sql`, `src/app/feedback-enviar.js` |
 | User Content → **Photos or Videos** | Solo cuentas de profesor particular: logo y flyer del aviso | App Functionality | bucket `tutor-flyers` en `src/marketplace/logo-y-seleccion-apoyo.js` |
-| Identifiers → **User ID** | UUID de la cuenta en Supabase y el identificador Apple usado por Auth | App Functionality; Analytics | todas las tablas con `user_id`; `supabase/visitas_diarias.sql` |
+| Identifiers → **User ID** | UUID de la cuenta en Supabase, el identificador Apple usado por Auth y el **username** de Amigos (Apple cuenta un *screen name / handle* como User ID) | App Functionality; Analytics | todas las tablas con `user_id`; `supabase/visitas_diarias.sql` |
 | Usage Data → **Product Interaction** | Días en que la cuenta abrió la app; visitas a encuestas; creación, último uso y vencimiento de agentes conectados | Analytics; App Functionality | `supabase/visitas_diarias.sql`, `encuesta_visitas` en `supabase/encuestas.sql`, `supabase/agente_mcp.sql` |
 | Usage Data → **Advertising Data** | Qué clase particular vio la cuenta, el día y si llegó por recomendación/búsqueda/catálogo (para cobrar una vez por persona) | Third-Party Advertising *(conservador; ver nota)*; Analytics | `anuncio_interacciones`, `anuncio_alcance` en `supabase/clases_particulares.sql`; `supabase/anuncio_eventos.sql` |
 | Diagnostics → **Other Diagnostic Data** | Tipo de error, pantalla y versión, asociados a la cuenta | App Functionality | `supabase/errores_app.sql`, `src/app-session/errores.js` |
@@ -82,6 +82,39 @@ solo le llegan totales, lo conservador es declararlo así. La **elección** de q
 clase recomendar se hace en el dispositivo con las notas (`src/marketplace/recomendacion-inicio.js`);
 lo que se procesa solo en el dispositivo no cuenta como «recogido» para Apple,
 así que las notas **no** se declaran con propósito publicitario.
+
+### Amigos (2026-11-20): qué cambia en App Store Connect
+
+La pestaña Amigos (solo en la app; `supabase/amigos.sql`, `amigos_grupos.sql`,
+`amigos_notas.sql`) **no agrega tipos de dato nuevos**: cae en Name, Other User
+Content y User ID, que ya se declaran como vinculados y para App Functionality.
+El calendario de grupos (salas reservadas y fechas de pruebas, sin notas) también
+cae en Other User Content.
+**Avisos push (opt-in):** el token APNs del iPhone se guarda asociado a la cuenta
+(`push_dispositivos`) solo para mandar avisos. Apple no lo pide como tipo de dato
+propio; lo conservador es incluirlo en *Identifiers → Device ID* vinculado y para
+App Functionality (*verificar* con la definición vigente antes de enviar). El
+widget «Hoy en la u» lee datos guardados en el teléfono: no se declara aparte.
+Lo que sí cambia es que hay datos que **otros usuarios ven**, y eso tiene que
+estar en la política pública (`privacidad.html`, filas de Amigos y «Con tus
+amigos y tus grupos»). Ni la ubicación ni los contactos del teléfono se usan:
+«qué hace ahora» sale del horario y a los amigos se los agrega por username o
+link. *Precise/Coarse Location* y *Contacts* siguen sin declararse por Amigos.
+
+**App Review 1.2 (contenido generado por usuarios)** — lo que pide y dónde está:
+
+| Exige | En GradeHub |
+|---|---|
+| Filtrar contenido ofensivo | `amigos_texto_ofensivo` en la base rechaza groserías e insultos en usernames y nombres de grupo, más la lista de nombres reservados |
+| Denunciar | «Denunciar» en la ficha de un amigo (`denunciar_usuario`) |
+| Bloquear | «Bloquear» en la ficha; corta la amistad y separa también en grupos |
+| Responder a tiempo | `admin_denuncias_usuarios` / `admin_resolver_denuncia_usuario` con segundo factor. **Pendiente: pantalla en el panel de admin** (hoy solo SQL) |
+| Contacto publicado | `gradehub.app@gmail.com` en la política y en la ficha de la tienda |
+
+Pendientes antes de enviar con Amigos: aplicar los tres SQL, publicar la
+política con las filas de Amigos y, en la nota para App Review, explicar cómo
+probarlo: la cuenta demo necesita un username, al menos un amigo con horario
+y un grupo. Eso todavía no está en `cuenta-demo.md`.
 
 ### Data Not Linked to You
 

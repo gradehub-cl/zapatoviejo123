@@ -176,6 +176,8 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[],eventos=[]){
   const listaEventos=(Array.isArray(eventos)?eventos:[]).filter(Boolean).map(e=>({name:e.title,due_at:e.start_at,
     hora:e.all_day?null:horaChileCanvas(e.start_at),evento:true}));
   const entrada=listaEventos.concat(listaTareas);
+  // Con las ocupadas: una coincidencia exacta que ya tiene fecha no cede su
+  // propuesta a otra evaluación del mismo tipo (#1213).
   const destinos=destinosIcs({incluirOcupados:true}).filter(t=>t.ramo.id===ramo.id&&(t.nota||!(t.cat.notas||[]).length));
   const usados=new Set(),vistas=new Set(),propuestas=[];
   const conteos={total:entrada.length,tareas:listaTareas.length,eventos:listaEventos.length,
@@ -185,7 +187,9 @@ function resumenFechasCanvas(tareas,ramo,ahora,grupos=[],eventos=[]){
     const fecha=fechaChileCanvas(tarea.due_at);
     if(!fecha){conteos.sinFecha++;continue;}
     if(fecha<hoy){conteos.pasadas++;continue;}
-    const nombre=nombreLimpioCanvas(tarea.name);
+    // «P1» o «P2» es el nombre de la evaluación, no el sufijo de pregunta (#1213).
+    const titulo=String(tarea.name||'').replace(/\s*\[[^\]]*\]\s{0,}/g,' ').trim();
+    const nombre=/^P\s*\d+$/i.test(titulo)?titulo:nombreLimpioCanvas(tarea.name);
     if(!nombre){conteos.sinDestino++;continue;}
     const grupo=String(tarea.assignment_group?.name||porGrupo.get(String(tarea.assignment_group_id))||'').trim();
     const clave=normName(nombre)+'|'+fecha+'|'+normName(grupo);
