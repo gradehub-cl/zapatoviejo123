@@ -30,7 +30,7 @@ const pintar=cuantas=>{
     var __fecha=n=>{var x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);};
     var cats=[];for(var i=0;i<__n;i++)cats.push({id:'c'+i,nombre:'Evaluación '+(i+1),peso:100/__n,fecha:__fecha(i+2),notas:[]});
     S=normalize({tenant:'uc',onboardingDone:true,ramos:[{id:'r1',nombre:'R',color:'#6d5dd3',creditos:10,origen:null,gates:[],categorias:cats}]});
-    (agendaVista='mes',renderAgenda());`,ctx);
+    (agendaVista='evaluaciones',renderAgenda());`,ctx);
   return byId('agenda-body').innerHTML;
 };
 // El fantasma lleva su clase ANTES de `ag-event-row`, así que contar por

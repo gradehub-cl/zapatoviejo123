@@ -42,19 +42,24 @@ function renderStats(){
       const imposible=x.necesita>7.05;
       const ex=exigenciaNotaNecesaria(x.necesita);
       const valor=imposible?'—':nfNecesaria(Math.max(1,x.necesita));
-      const color=imposible?'var(--red)':'var(--fg)';
+      // La cifra va del color que marca el medidor y una frase a su izquierda
+      // dice qué es: se lee sola sin conocer la pantalla (pedido frecuente,
+      // Lucas 2026-11-19). Si ya no alcanza, no hay cifra que presentar y la
+      // frase va bajo el nombre.
+      const lectura=imposible?'':'<span class="stats-priority-lectura">En lo que te queda<br>necesitas:</span>';
       const sub=imposible
-        ? 'Ya no alcanza solo con lo pendiente'
+        ? `Ya no alcanza solo con lo que te queda · vas ${fmtPromedio(x.avg)}`
         : x.abierto
           ? `Vas ${fmtPromedio(x.avg)} · puede bajar según cuántas notas te tomen`
-          : `Vas ${fmtPromedio(x.avg)} en lo evaluado`;
+          : `Vas ${fmtPromedio(x.avg)}`;
       return `<button class="ag-row stats-priority-row" onclick="openRamo('${esc(x.ramo.id)}')">
         <span class="ag-row-bar" style="background:${esc(x.ramo.color)}"></span>
-        <div class="ag-row-main">
+        <div class="ag-row-main stats-priority-texto">
           <div class="ag-row-name">${esc(x.ramo.nombre)}</div>
           <div class="ag-row-sub">${sub}</div>
+          ${lectura}
         </div>
-        <div class="stats-priority-medidor">${htmlMedidorNota(imposible?7:x.necesita)}<span class="stats-priority-num" style="color:${color};"><span class="sr-solo">Necesitas </span>${valor}</span><small style="color:${ex.color}">${ex.palabra}</small></div>
+        <div class="stats-priority-medidor">${htmlMedidorNota(imposible?7:x.necesita)}<span class="stats-priority-num" style="color:${ex.color};">${valor}</span><small style="color:${ex.color}">${ex.palabra}</small></div>
       </button>`;
     };
     // La evolución reutiliza el motor; el contorno muestra el mismo avance.

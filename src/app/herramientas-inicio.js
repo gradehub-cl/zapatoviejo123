@@ -17,12 +17,7 @@ const ACCIONES_HERRAMIENTAS={
   calculadora:()=>openCalculadoraApp(),
   horario:()=>abrirImportarHorarioBuscacursos(),
   ficha:()=>openAvanceCurricular(),
-  // Sin token todavía, lleva a conectarlo en vez de fallar.
-  canvas:async()=>{
-    let conectado=false;
-    try{const r=await pluginCanvas().estado();conectado=!!(r&&r.conectado);}catch(e){}
-    if(conectado)traerNotasCanvas();else openSettings('canvas');
-  },
+  canvas:()=>openSettings('canvas',{volverA:'Inicio',accionCanvas:'notas'}),
 };
 function herramientasInicioDisponibles(){
   if(!(typeof enAppNativa==='function'&&enAppNativa())||esCuentaProfesor())return [];

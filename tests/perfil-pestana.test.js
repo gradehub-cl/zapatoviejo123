@@ -27,6 +27,9 @@ chk('sin ramos no hay nada que archivar', !claves(ctx.gruposPerfil({ ...base, ha
 chk('la foto del horario es solo de la UC', !est.includes('horario') && claves(ctx.gruposPerfil({ ...base, tenant: 'uc' })).includes('horario'));
 chk('cargar semestres solo donde hay lector', !est.includes('ficha') && claves(ctx.gruposPerfil({ ...base, conFicha: true })).includes('ficha'));
 chk('sin sesión no se ofrece dar clases', !claves(ctx.gruposPerfil({ ...base, conSesion: false })).includes('profesor'));
+chk('con Amigos, el username se cambia en Tu cuenta, como en Instagram', !est.includes('username') && claves(ctx.gruposPerfil({ ...base, conAmigos: true })).includes('username'));
+chk('compartir perfil solo con username, al lado de Username', !claves(ctx.gruposPerfil({ ...base, conAmigos: true })).includes('compartir') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conAmigos: true, conUsername: true }));return c.indexOf('compartir')===c.indexOf('username')+1;})());
+chk('la cabecera muestra cuántos amigos solo si la lista llegó', /cifrasAmigos\(\):null/.test(fuente) && /if\(!amigosListaCache\)return null/.test(fs.readFileSync(raiz + 'src/app/amigos-pantalla.js', 'utf8')));
 chk('Canvas tiene su fila solo donde está disponible, después de Calendario', !est.includes('canvas') && (()=>{const c=claves(ctx.gruposPerfil({ ...base, conCanvas: true }));return c.indexOf('canvas')===c.indexOf('calendario')+1;})());
 console.log('\n=== Herramientas en Inicio ===');
 const herr = o => vm.runInContext('herramientasInicio('+JSON.stringify(o)+')', ctx).map(([c]) => c);
@@ -40,7 +43,7 @@ const prof = claves(ctx.gruposPerfil({ ...base, soloProfesor: true, tenant: 'uc'
 chk('solo lo suyo: apariencia, sugerencias y datos', prof.join() === 'apariencia,sugerencias,datos');
 
 console.log('\n=== Cada fila abre algo ===');
-const todas = claves(ctx.gruposPerfil({ ...base, tenant: 'uc', conFicha: true }));
+const todas = claves(ctx.gruposPerfil({ ...base, tenant: 'uc', conFicha: true, conAmigos: true, conUsername: true }));
 chk('toda fila tiene acción', todas.every(c => typeof ctx.PERFIL_ACCIONES[c] === 'function'));
 chk('toda fila tiene ícono', todas.every(c => !!ctx.PERFIL_ICONOS[c]));
 chk('la cabecera y cerrar sesión también', ['cuenta', 'salir'].every(c => typeof ctx.PERFIL_ACCIONES[c] === 'function'));

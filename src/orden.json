@@ -4,6 +4,7 @@
     "src/app/horario-clases.js",
     "src/app/amigos-horario.js",
     "src/app/armador-horario.js",
+    "src/app/requisitos-uc.js",
     "src/app/persistencia-y-normalizacion.js",
     "src/app/identidad.js",
     "src/app/catalogo-carga.js",
@@ -48,6 +49,7 @@
     "src/app/herramientas-inicio.js",
     "src/app/agentes-conexion.js",
     "src/app/agentes-propuestas-notas.js",
+    "src/app/notas-desde-excel.js",
     "src/app/agentes-propuestas-ramos-pautas.js",
     "src/app/ajustes.js",
     "src/app/feedback-enviar.js",
@@ -121,7 +123,8 @@
     "src/marketplace/alumnos-ejemplo.js",
     "src/marketplace/alumnos-pantalla.js",
     "src/marketplace/encuestas.js",
-    "src/marketplace/denuncias.js"
+    "src/marketplace/denuncias.js",
+    "src/marketplace/denuncias-usuarios.js"
   ],
   "app-session.js": [
     "src/app-session/cliente-y-politicas.js",

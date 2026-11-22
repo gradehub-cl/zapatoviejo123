@@ -1,6 +1,7 @@
 // Calendario Canvas web: URL secreta local y revisión compartida de #806.
 const CANVAS_ICS_KEY='gradehub_canvas_ics';
 const URL_CANVAS_ICS_RE=/^https:\/\/cursos\.canvas\.uc\.cl\/feeds\/calendars\/user_[A-Za-z0-9]{20,80}\.ics$/;
+const CANVAS_ICS_SIN_FECHAS='Tu calendario de Canvas no tiene fechas próximas para tus ramos.';
 function canvasIcsDisponible(){return !esCuentaProfesor()&&!!currentUser&&S.tenant==='uc'&&!enAppNativa();}
 // Canvas también la ofrece como webcal://; es la misma.
 function normalizarUrlCanvasIcs(texto){
@@ -25,7 +26,7 @@ function fechaChileIcs(inicio){
   const m=/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?Z$/.exec(String(inicio||''));
   if(!m)return null;
   const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)));
-  try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago'}).format(d);}catch(e){return null;}
+  return fechaChileCanvas(d);
 }
 // Canvas pone el curso entre corchetes: "Tarea 2 [MAT1620-2]" o
 // "[2026-2 MAT1620-2 Cálculo II]". Con la sigla se sabe el ramo, y la
@@ -34,7 +35,7 @@ function fechaChileIcs(inicio){
 // Canvas trae también cursos que no llevas acá.
 function propuestasCanvasIcs(eventos,ahora){
   ahora=ahora||new Date();
-  const hoy=isoOf(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  const hoy=fechaChileCanvas(ahora);
   const porRamo=new Map(),sueltos=[];
   (eventos||[]).forEach(ev=>{
     const fecha=fechaChileIcs(ev.inicio)||ev.fecha;
@@ -45,8 +46,8 @@ function propuestasCanvasIcs(eventos,ahora){
     const nombre=String(ev.titulo).replace(/\s*\[[^\]]*\]\s{0,}/g,' ').trim();
     if(ramo){
       if(!porRamo.has(ramo.id))porRamo.set(ramo.id,{ramo,tareas:[]});
-      // A mediodía local, para que fechasCanvas lea el mismo día.
-      porRamo.get(ramo.id).tareas.push({name:nombre||ev.titulo,due_at:fecha+'T12:00:00'});
+      // Mediodía UTC queda dentro del mismo día de Chile en ambos horarios.
+      porRamo.get(ramo.id).tareas.push({name:nombre||ev.titulo,due_at:fecha+'T12:00:00Z'});
     }else sueltos.push({titulo:ev.titulo,fecha});
   });
   let out=[];
@@ -106,7 +107,7 @@ async function importarDesdeCanvasIcs(url,vigente=()=>true){
   const eventos=/BEGIN:VEVENT/.test(texto)?parseIcsCalendario(texto,{inicioCrudo:true}):[];
   const propuestas=propuestasCanvasIcs(eventos);
   track('canvas_ics_fechas',{eventos:eventos.length,propuestas:propuestas.length});
-  if(!propuestas.length){avisoCanvasIcs('Tu calendario de Canvas no tiene fechas próximas para tus ramos.');return false;}
+  if(!propuestas.length){avisoCanvasIcs(CANVAS_ICS_SIN_FECHAS);return false;}
   // La misma revisión que un .ics: cada fecha se confirma o se deja fuera.
   icsImportDraft=propuestas;
   renderRevisionIcs();
@@ -123,13 +124,14 @@ async function conectarCanvasIcs(){
   if(boton)boton.disabled=true;
   avisoCanvasIcs('Leyendo tu calendario de Canvas…');
   try{
-    await importarDesdeCanvasIcs(url,vigente);
+    const abrioRevision=await importarDesdeCanvasIcs(url,vigente);
     if(!vigente())return;
     // Se guarda solo si Canvas la reconoció: una URL mala no queda pegada.
     guardarUrlCanvasIcs(url);
     if(campo)campo.value='';
     track('canvas_ics_conectado');
     pintarCanvasIcsAjustes();
+    if(!abrioRevision)avisoCanvasIcs(CANVAS_ICS_SIN_FECHAS);
   }catch(e){
     if(!vigente())return;
     if(boton)boton.disabled=false;
@@ -145,7 +147,7 @@ async function actualizarDesdeCanvasIcs(){
   const boton=document.getElementById('s-canvas-ics-actualizar');
   if(boton)boton.disabled=true;
   avisoCanvasIcs('Buscando fechas nuevas en Canvas…');
-  try{await importarDesdeCanvasIcs(url,vigente);if(vigente())avisoCanvasIcs('');}
+  try{if(await importarDesdeCanvasIcs(url,vigente)&&vigente())avisoCanvasIcs('');}
   catch(e){if(vigente())avisoCanvasIcs((e&&e.message)||'No pudimos leer tu calendario de Canvas.',true);}
   finally{if(boton)boton.disabled=false;}
 }

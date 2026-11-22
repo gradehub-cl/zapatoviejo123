@@ -1,6 +1,11 @@
 const MIN_EVALUACIONES_REPORTE=2;
 let reporteDraft=[],reporteRamoId=null,reporteComentarioDraft='';
-function estructuraReporte(r){return estructuraDe(r).map(e=>({...e}));}
+// Cada fila recuerda con qué nombre abrió el modal. Si alguien escribe "I1"
+// donde decía "Interrogación 1", es la MISMA evaluación renombrada: sin esto
+// la nota quedaba en 0% fuera de pauta y "I1" aparecía vacía, y el promedio
+// saltaba (reporte de Cálculo II, 2026-11-09). `original` no viaja al servidor.
+function estructuraReporte(r){return estructuraDe(r).map(e=>({...e,original:e.nombre}));}
+function sinOriginalReporte(est){return (est||[]).map(({original,...e})=>e);}
 function parsePesoReporte(raw){
   const txt=String(raw==null?'':raw).trim().replace(',','.');
   const n=Number(txt);
@@ -220,14 +225,29 @@ function aplicarReporteAlRamo(r,borrador){
   const actual=catsDePauta(r.categorias);
   const firma=lista=>lista.map(c=>`${normName(c.nombre)}:${r2(Number(c.peso)||0)}:${Number(c.slots)>1?c.slots:1}`).sort().join('|');
   if(firma(filas)===firma(actual))return 'igual';
-  const nombres=new Set(filas.map(e=>normName(e.nombre)));
+  // Una fila sigue siendo la evaluación con que abrió si conserva el nombre o
+  // si se renombró sin que otra fila tome ese nombre original.
+  const porNombre=new Set(filas.map(e=>normName(e.nombre)));
+  const deDonde=e=>{
+    const propia=actual.find(c=>normName(c.nombre)===normName(e.nombre));
+    if(propia)return propia;
+    const orig=normName(e.original||'');
+    if(!orig||porNombre.has(orig))return null;
+    return actual.find(c=>normName(c.nombre)===orig)||null;
+  };
+  const conserva=new Set(filas.map(deDonde).filter(Boolean).map(c=>c.id));
   const conRegla=new Set();
   (r.gates||[]).forEach(g=>{if(g.catId)conRegla.add(g.catId);(g.catIds||[]).forEach(id=>conRegla.add(id));});
-  if(actual.some(c=>conRegla.has(c.id)&&!nombres.has(normName(c.nombre))))return 'regla';
+  if(actual.some(c=>conRegla.has(c.id)&&!conserva.has(c.id)))return 'regla';
   const nuevas=filas.map(e=>{
-    const anterior=actual.find(c=>normName(c.nombre)===normName(e.nombre));
+    const anterior=deDonde(e);
+    const renombrada=anterior&&normName(anterior.nombre)!==normName(e.nombre);
     const cat=anterior?{...anterior,nombre:e.nombre,peso:e.peso}
       :{id:uid(),nombre:e.nombre,peso:e.peso,ponderaNotas:false,directNota:true,notas:[]};
+    // fusionarPauta busca las notas por nombre: el nombre anterior le dice
+    // de dónde traerlas, junto con el id (y así las reglas que apuntan a él).
+    if(renombrada)cat.nombresAnteriores=[...(anterior.nombresAnteriores||[]),anterior.nombre];
+    delete cat.original;
     const slots=Number(e.slots)>1?Number(e.slots):null;
     // El modal no edita casillas: una fila sin cantidad conserva las que ya
     // tenía, así ninguna nota queda en una casilla que deja de mostrarse.
@@ -245,7 +265,7 @@ async function enviarReporte(ramoId){
   if(!supabaseClient||!currentUser){
     showToast('Necesitas tener sesi\u00f3n iniciada para reportar',true);return;
   }
-  const est=estructuraParaConsenso(reporteRamoId===ramoId?reporteDraft.map(e=>({...e})):[]);
+  const est=estructuraParaConsenso(reporteRamoId===ramoId?sinOriginalReporte(reporteDraft):[]);
   const estado=estadoReporte(est);
   if(!est.length||!estado.lista){
     const total=document.getElementById('m-rep-total');if(total)total.focus();

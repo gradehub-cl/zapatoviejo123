@@ -38,10 +38,14 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
          kSecAttrService as String: servicio,
          kSecAttrAccount as String: cuenta]
     }
+    private static let conexiones = ConexionesCanvas()
+
     static func guardarToken(_ token: String, cuenta: String) -> Bool {
-        SecItemDelete(consulta(cuenta) as CFDictionary)
+        let datos = Data(token.utf8)
+        let cambio = SecItemUpdate(consulta(cuenta) as CFDictionary, [kSecValueData as String: datos] as CFDictionary)
+        if cambio != errSecItemNotFound { return cambio == errSecSuccess }
         var item = consulta(cuenta)
-        item[kSecValueData as String] = Data(token.utf8)
+        item[kSecValueData as String] = datos
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
     }
@@ -54,12 +58,17 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
               let datos = resultado as? Data else { return nil }
         return String(data: datos, encoding: .utf8)
     }
-    static func borrarToken(_ cuenta: String) { SecItemDelete(consulta(cuenta) as CFDictionary) }
+    static func borrarToken(_ cuenta: String) -> Bool {
+        let resultado = SecItemDelete(consulta(cuenta) as CFDictionary)
+        return resultado == errSecSuccess || resultado == errSecItemNotFound
+    }
     // Canvas responde 401 tanto a un token vencido como a «no tienes permiso
     // para eso» (un curso que esconde una sección). Se borra solo si Canvas
     // tampoco acepta el token para `users/self`.
     static func borrarSiVencio(_ token: String, cuenta: String) async {
-        if case .failure(let e) = await pedir("users/self", [], token: token), e.codigo == 401, leerToken(cuenta) == token { borrarToken(cuenta) }
+        if case .failure(let e) = await pedir("users/self", [], token: token), e.codigo == 401 {
+            conexiones.revisarRevocacion { if leerToken(cuenta) == token { _ = borrarToken(cuenta) } }
+        }
     }
 
     // ─── Métodos ─────────────────────────────────────────────────────────────
@@ -70,7 +79,12 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     @objc func estado(_ call: CAPPluginCall) {
         guard let cuenta = cuenta(call) else { return }
-        call.resolve(["conectado": Self.leerToken(cuenta) != nil])
+        // Para mostrar Ajustes basta comprobar si existe, sin leer su valor.
+        switch SecItemCopyMatching(Self.consulta(cuenta) as CFDictionary, nil) {
+        case errSecSuccess: call.resolve(["conectado": true])
+        case errSecItemNotFound: call.resolve(["conectado": false])
+        default: call.reject("No pudimos revisar el llavero de este iPhone.")
+        }
     }
 
     // Revisa con Canvas que el token sirva antes de guardarlo.
@@ -81,21 +95,27 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Eso no parece un token de Canvas.")
             return
         }
+        let intento = Self.conexiones.iniciar(cuenta)
         Task {
-            switch await Self.pedir("users/self", [], token: token) {
-            case .success:
-                if Self.guardarToken(token, cuenta: cuenta) { call.resolve(["conectado": true]) }
-                else { call.reject("No pudimos guardar el token en el iPhone.") }
-            case .failure(let error):
-                call.reject(error.mensaje)
+            let validacion = await Self.pedir("users/self", [], token: token)
+            let vigente = Self.conexiones.terminar(intento, cuenta: cuenta) {
+                switch validacion {
+                case .success:
+                    if Self.guardarToken(token, cuenta: cuenta) { call.resolve(["conectado": true]) }
+                    else { call.reject("No pudimos guardar el token en el iPhone.") }
+                case .failure(let error):
+                    call.reject(error.mensaje, String(error.codigo))
+                }
             }
+            if !vigente { call.reject("La conexión se canceló.") }
         }
     }
 
     @objc func desconectar(_ call: CAPPluginCall) {
         guard let cuenta = cuenta(call) else { return }
-        Self.borrarToken(cuenta)
-        call.resolve(["conectado": false])
+        let borrado = Self.conexiones.desconectar(cuenta) { Self.borrarToken(cuenta) }
+        if borrado { call.resolve(["conectado": false]) }
+        else { call.reject("No pudimos desconectar Canvas en este iPhone.") }
     }
 
     // GET de solo lectura. `params` es un objeto: los arreglos se repiten
@@ -108,7 +128,7 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         guard let token = Self.leerToken(cuenta) else {
-            call.reject("Conecta Canvas primero.")
+            call.reject("Conecta Canvas primero.", "401")
             return
         }
         var items: [URLQueryItem] = []
@@ -163,7 +183,7 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func archivosCurso(_ call: CAPPluginCall) {
         guard let cuenta = cuenta(call) else { return }
         guard let curso = call.getInt("curso"), CanvasPolitica.cursoValido(curso) else { call.reject("Ese curso no es válido."); return }
-        guard let token = Self.leerToken(cuenta) else { call.reject("Conecta Canvas primero."); return }
+        guard let token = Self.leerToken(cuenta) else { call.reject("Conecta Canvas primero.", "401"); return }
         Task {
             let porPagina = URLQueryItem(name: "per_page", value: "100")
             let conItems = [URLQueryItem(name: "include[]", value: "items"), porPagina]
@@ -192,7 +212,7 @@ public class GradeHubCanvasPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let cuenta = cuenta(call) else { return }
         guard let curso = call.getInt("curso"), CanvasPolitica.cursoValido(curso),
               let archivo = call.getInt("archivo"), CanvasPolitica.cursoValido(archivo) else { call.reject("Ese archivo no es válido."); return }
-        guard let token = Self.leerToken(cuenta) else { call.reject("Conecta Canvas primero."); return }
+        guard let token = Self.leerToken(cuenta) else { call.reject("Conecta Canvas primero.", "401"); return }
         Task {
             let ficha: [String: Any]
             switch await Self.pedir("courses/\(curso)/files/\(archivo)", [], token: token, permitida: CanvasPolitica.rutaArchivos) {
