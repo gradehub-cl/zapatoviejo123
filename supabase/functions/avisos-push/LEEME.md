@@ -22,9 +22,12 @@ invitaciones a grupos y salas nuevas). La cola la llena `supabase/amigos_avisos.
    `--no-verify-jwt` porque la llama el webhook con su propio secreto, no una
    sesión. Para probar con una build de Xcode (desarrollo) agrega
    `APNS_SANDBOX=1`; TestFlight y App Store usan producción (sin esa variable).
-5. **Webhook.** Supabase → Database → Webhooks → Create:
-   tabla `public.avisos_salientes`, evento **Insert**, tipo **Supabase Edge
-   Function** → `avisos-push`, header `x-avisos-secreto: <el mismo valor>`.
+5. **Disparador.** En vez del Webhook del panel, `supabase/amigos_avisos_webhook.sql`
+   llama a la función con `pg_net` en cada INSERT de `avisos_salientes`. El
+   secreto del header se guarda en Vault con el nombre `avisos_push_secreto`
+   (el mismo valor que `AVISOS_SECRETO`), nunca en el repo.
+   Puesto en marcha el 2026-11-21: llave `A9PZ8Y5P7W`, función desplegada por
+   la API de administración y secreto en Vault.
 
 ## Qué no hace
 
