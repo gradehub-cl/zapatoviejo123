@@ -2379,6 +2379,20 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .ob-ficha-oferta span{font-size:0.8125rem;color:var(--fg2);line-height:1.4;}
 .ob-ficha-oferta:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 
+/* Notas pegadas desde Excel: solo al terminar el onboarding y solo en la app.
+   Es un enlace discreto, no una segunda acción principal. */
+.ob-excel-enlace{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 4px;border:0;background:none;
+  color:var(--fg2);font:inherit;font-size:0.8125rem;text-align:center;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.ob-excel-enlace:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
+.excel-ramo{margin:0 0 14px;}
+.excel-ramo h3{margin:0 0 6px;font-size:0.875rem;font-weight:700;color:var(--fg);}
+.excel-ramo ul{margin:0;padding:0;list-style:none;}
+.excel-ramo li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--fg);}
+.excel-ramo li small{color:var(--fg3);}
+.excel-ramo b{font-variant-numeric:tabular-nums;font-weight:700;}
+.excel-asignar li{flex-wrap:wrap;padding:6px 0;}
+.excel-asignar select{min-height:44px;flex:1 1 160px;max-width:100%;}
+
 /* Solo se renderiza si hay al menos una pauta oficial. Un "0 pautas oficiales"
    como titular haría ver el producto vacío justo cuando recién se llenó. */
 
