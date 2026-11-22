@@ -81,6 +81,7 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
   if(App)App.addListener('appUrlOpen',ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
+    else if(typeof recibirLinkAmigo==='function'&&recibirLinkAmigo(url))return;
     else if(typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(url);
   });
   // Lo que se respondió en la Actividad en Vivo con la app cerrada.

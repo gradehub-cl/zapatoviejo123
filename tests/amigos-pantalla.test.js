@@ -165,6 +165,15 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   run('olvidarAmigos()');
   chk('al cerrar sesión se deja de revisar',run('_amigosTimer')===null&&run('_amigosFirma')===null);
 
+  console.log('\n=== El link de invitación abre la app ===');
+  ctx.URL=URL;const guardados=[];const setOriginal=ctx.sessionStorage.setItem;ctx.sessionStorage.setItem=(k,v)=>guardados.push([k,v]);
+  chk('gradehub.cl/?amigo= se recibe y se guarda para «Agregar»',run(`recibirLinkAmigo('https://gradehub.cl/?amigo=Beto_Ej')`)===true&&guardados.at(-1)[1]==='beto_ej');
+  chk('con @ también',run(`recibirLinkAmigo('https://gradehub.cl/?amigo=%40ana.s')`)===true&&guardados.at(-1)[1]==='ana.s');
+  chk('otro dominio, otra ruta o un username raro no',[`'https://otro.cl/?amigo=beto'`,`'https://gradehub.cl/x?amigo=beto'`,`'https://gradehub.cl/?amigo=a'`,`'https://gradehub.cl/?amigo=<b>'`,`'https://gradehub.cl/'`,`'cl.gradehub.app://amigos'`,`null`].every(x=>run(`recibirLinkAmigo(${x})`)===false));
+  ctx.sessionStorage.setItem=setOriginal;
+  chk('la app lo atiende antes que los widgets y después del login con Apple/Google',/startsWith\(VUELTA_NATIVA\)\)volverDeOAuthNativo\(url\);\n\s*else if\(typeof recibirLinkAmigo==='function'&&recibirLinkAmigo\(url\)\)return;/.test(fs.readFileSync(raiz+'src/app-session/oauth-y-recuperacion.js','utf8')));
+  chk('la app declara el dominio asociado',/<string>applinks:gradehub\.cl<\/string>/.test(fs.readFileSync(raiz+'ios/App/App/App.entitlements','utf8')));
+
   console.log('\n=== Mensajes ===');
   chk('los del SQL se muestran con mayúscula',run(`mensajeErrorAmigos({message:'ese username ya está ocupado'})`)==='Ese username ya está ocupado');
   chk('los técnicos no llegan a la persona',run(`mensajeErrorAmigos({message:'relation "public.usernames" does not exist'})`)==='No se pudo conectar. Intenta de nuevo.');
