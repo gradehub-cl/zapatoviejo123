@@ -5018,6 +5018,61 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #s-canvas-ics input[type=url]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 #s-canvas-ics button{min-width:44px;min-height:44px;}
 #s-canvas-ics .canvas-pasos{padding-left:20px;color:var(--fg2);font-size:.8125rem;line-height:1.6;}
+
+/* Canvas UC en iOS: el estado primero, las acciones y el acceso por separado. */
+html.app-nativa .settings-help-top:has(+ #s-canvas){display:none;}
+html.app-nativa #s-canvas{padding-bottom:.5rem;}
+html.app-nativa .canvas-cabecera{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;margin:0 0 1.25rem;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);overflow-wrap:anywhere;}
+html.app-nativa .canvas-marca{display:grid;place-items:center;width:44px;height:44px;border-radius:8px;background:var(--primary-light);color:var(--primary);}
+html.app-nativa .canvas-marca .ic{width:24px;height:24px;stroke-width:1.4;}
+html.app-nativa .canvas-cabecera h3{margin:0 0 .15rem;font-size:1.0625rem;line-height:1.25;font-weight:650;letter-spacing:-.015em;}
+html.app-nativa .canvas-cabecera p,html.app-nativa .canvas-importar p{margin:0;color:var(--fg2);font-size:.875rem;line-height:1.45;}
+html.app-nativa .canvas-importar h4{margin:0 0 .2rem;color:var(--fg);font-size:1rem;line-height:1.35;font-weight:650;}
+html.app-nativa .canvas-filas{display:grid;margin-top:.75rem;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);}
+html.app-nativa .canvas-fila{display:grid;grid-template-columns:18px minmax(0,1fr) 14px;align-items:center;gap:12px;width:100%;min-height:52px;padding:.7rem 13px;border:0;border-radius:8px;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+html.app-nativa .canvas-fila + .canvas-fila{border-top:1px solid var(--border);border-top-left-radius:0;border-top-right-radius:0;}
+html.app-nativa .canvas-fila span{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere;}
+html.app-nativa .canvas-fila strong{display:block;font-size:1rem;line-height:1.3;font-weight:600;}
+html.app-nativa .canvas-fila small{display:block;margin-top:.125rem;color:var(--fg2);font-size:.8125rem;line-height:1.35;}
+html.app-nativa .canvas-fila-icono{width:18px;height:18px;color:var(--primary);}
+html.app-nativa .canvas-fila-flecha{grid-column:3;grid-row:1;width:14px;height:14px;color:var(--fg3);}
+html.app-nativa .canvas-fila:active{transform:none;background:var(--muted);}
+html.app-nativa .canvas-fila[aria-disabled=true],html.app-nativa .canvas-desconectar[aria-disabled=true]{cursor:default;}
+html.app-nativa .canvas-fila[aria-disabled=true]:not([data-canvas-buscando]),html.app-nativa .canvas-desconectar[aria-disabled=true]{color:var(--fg2);}
+html.app-nativa .canvas-fila[data-canvas-buscando] .canvas-fila-flecha{visibility:hidden;}
+html.app-nativa .canvas-fila[data-canvas-buscando]::after{content:"";grid-column:3;grid-row:1;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--border2);border-top-color:var(--primary);border-radius:50%;}
+@media(prefers-reduced-motion:no-preference){
+  html.app-nativa .canvas-fila[data-canvas-buscando]::after{animation:canvas-actividad .75s linear infinite;}
+  @keyframes canvas-actividad{to{transform:rotate(1turn);}}
+}
+html.app-nativa .canvas-desconectar{width:100%;min-height:44px;margin-top:1rem;padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);color:var(--red);font:600 .9375rem var(--font-ui);cursor:pointer;}
+html.app-nativa .canvas-token{display:grid;grid-template-columns:minmax(0,1fr);}
+html.app-nativa #s-canvas-ayuda{margin:0 0 1rem;color:var(--fg2);font-size:.9375rem;line-height:1.45;}
+html.app-nativa .canvas-token label,html.app-nativa .canvas-nota-campos label{display:block;margin:0 0 .35rem;color:var(--fg);font-size:.875rem;line-height:1.35;font-weight:600;}
+html.app-nativa .canvas-token input[type=password]{min-height:44px;border-radius:8px;background:var(--celda-agrupada);}
+html.app-nativa .canvas-token input[aria-invalid=true]{border-color:var(--red);}
+html.app-nativa #s-canvas-privacidad{margin:.5rem 0 0;color:var(--fg2);font-size:.8125rem;line-height:1.45;}
+html.app-nativa .canvas-conectar{width:100%;min-height:44px;margin-top:.875rem;padding:.65rem .8rem;background:var(--primary);color:var(--primary-fg);font-size:1rem;line-height:1.35;}
+html.app-nativa .canvas-conectar:disabled{opacity:1;background:var(--muted);color:var(--fg2);cursor:default;}
+html.app-nativa .canvas-aviso:not(:empty){margin:.75rem 0 0;padding:.7rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);color:var(--fg);font-size:.875rem;line-height:1.45;overflow-wrap:anywhere;}
+html.app-nativa .canvas-aviso.es-error:not(:empty){background:var(--red-bg);color:var(--red);border-color:transparent;}
+
+/* Cada propuesta muestra el origen antes de elegir la evaluación y editar la nota. */
+html.app-nativa .canvas-nota-intro{margin:0 0 1rem;color:var(--fg2);font-size:.9375rem;line-height:1.5;}
+html.app-nativa .canvas-nota-lista{container-type:inline-size;}
+html.app-nativa .canvas-nota{padding:1rem 0;border-top:1px solid var(--border);overflow-wrap:anywhere;}
+html.app-nativa .canvas-nota-contexto{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.25rem .75rem;}
+html.app-nativa .canvas-nota-contexto h3{font-size:1rem;line-height:1.3;font-weight:650;}
+html.app-nativa .canvas-nota-contexto p,html.app-nativa .canvas-nota-hint{color:var(--fg2);font-size:.875rem;line-height:1.4;}
+html.app-nativa .canvas-nota-contexto h3 + p,html.app-nativa .canvas-nota-hint{margin-top:.25rem;}
+html.app-nativa .canvas-nota-origen{font-variant-numeric:tabular-nums;}
+html.app-nativa .canvas-nota .exigencia-opciones{margin:.7rem 0 0;}
+html.app-nativa .canvas-nota-campos{display:grid;grid-template-columns:minmax(0,1fr) min(36%,5.25rem);gap:.65rem;margin-top:.7rem;}
+html.app-nativa .canvas-nota-campos :is(input[type=text],select){width:100%;min-width:44px;min-height:44px;margin:0;border-radius:8px;background:var(--celda-agrupada);color:var(--fg);font-size:1rem;}
+html.app-nativa .canvas-nota-campos input[type=text]{text-align:center;font-variant-numeric:tabular-nums;}
+html.app-nativa .canvas-nota-campos input:disabled{background:var(--muted);color:var(--fg2);}
+html.app-nativa .canvas-nota-campos :is(input[type=text],select):focus-visible,html.app-nativa .canvas-token input[type=password]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+@container(max-width:16rem){html.app-nativa .canvas-nota-campos{grid-template-columns:minmax(0,1fr);}}
 /* Opiniones de ramos: distribuciones neutras, sin semáforo académico. */
 .rc-nombre{margin:0 0 20px;color:var(--fg);font-weight:600;line-height:1.5;overflow-wrap:anywhere;}
 .rc-nombre small{display:block;color:var(--fg2);font-size:.8125rem;font-weight:400;}

@@ -323,3 +323,36 @@ enum CanvasPolitica {
         }
     }
 }
+
+// La validación usa red fuera de la cola. Solo el intento más reciente puede
+// escribir; desconectar invalida cualquier respuesta en vuelo de esa cuenta.
+final class ConexionesCanvas {
+    private let cola = DispatchQueue(label: "cl.gradehub.canvas.llavero")
+    private var pendientes: [String: UUID] = [:]
+
+    func iniciar(_ cuenta: String) -> UUID {
+        let intento = UUID()
+        cola.sync { pendientes[cuenta] = intento }
+        return intento
+    }
+
+    func terminar(_ intento: UUID, cuenta: String, completar: () -> Void) -> Bool {
+        cola.sync {
+            guard pendientes[cuenta] == intento else { return false }
+            pendientes.removeValue(forKey: cuenta)
+            completar()
+            return true
+        }
+    }
+
+    func desconectar(_ cuenta: String, borrar: () -> Bool) -> Bool {
+        cola.sync {
+            pendientes.removeValue(forKey: cuenta)
+            return borrar()
+        }
+    }
+
+    func revisarRevocacion(_ revisar: () -> Void) {
+        cola.sync(execute: revisar)
+    }
+}

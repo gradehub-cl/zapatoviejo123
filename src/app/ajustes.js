@@ -13,6 +13,7 @@ function openSettings(){
   // Quien abre una sección directo (la pestaña Perfil) puede pedir que la flecha
   // vuelva a su pantalla en vez de al índice de Ajustes: openSettings('calendario',{volverA:'Perfil'}).
   const volverA=arguments[1]&&typeof arguments[1].volverA==='string'?arguments[1].volverA:'';
+  let accionCanvas=arguments[1]?.accionCanvas;
   const soloProfesor=esCuentaProfesor();
   const seccionesProfesor=['perfil','apariencia','datos','sugerencias'];
   let settingsSem=S.careerSemestre;
@@ -337,7 +338,10 @@ function openSettings(){
     }
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
-    if(activeSection==='canvas'&&canvasDisponible())pintarCanvasAjustes();
+    if(activeSection==='canvas'&&canvasDisponible()){
+      pintarCanvasAjustes({accion:accionCanvas});
+      accionCanvas=null;
+    }
     if(activeSection==='canvas'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
     if(activeSection==='datos'&&currentUser&&typeof pintarBloqueosAjustes==='function')pintarBloqueosAjustes();
