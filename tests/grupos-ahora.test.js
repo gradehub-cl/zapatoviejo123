@@ -64,8 +64,10 @@ const filas=[{username:'ana',nombre:'Ana',estado:'miembro',yo:true},{username:'b
 chk('Ahora en la u: quiénes libres, quiénes en clases (hasta cuándo) y el próximo módulo',()=>{
   const h=run(`ahoraGrupoHTML({id:'g1',filas:__d},new Date('${lunes}'))`,filas);
   assert.match(h,/Ahora en la u/);
-  assert.match(h,/<b>Libres<\/b>\s*<small>Tú y Beto<\/small>/);
-  assert.match(h,/<b>En clases<\/b>\s*<small>Carla hasta las 11:00<\/small>/);
+  assert.match(h,/3 de 4 en la u/,'en la u: libres más en clases, de los integrantes');
+  assert.match(h,/class="grupo-ahora-par"/,'Libres y En clases van mitad y mitad');
+  assert.match(h,/<b>Libres<\/b>[\s\S]*?<small>Tú y Beto<\/small>/);
+  assert.match(h,/<b>En clases<\/b>[\s\S]*?<small>Carla hasta las 11:00<\/small>/);
   assert.ok(!/Flor|Dani/.test(h),'sin horario o invitado no se cuenta como libre ni en clases');
   assert.ok(/data-amigos="grupo-miembro"[^>]*data-user="beto"/.test(h)&&!/data-user="ana"/.test(h),'tocar a otro abre su ficha; tú no eres botón');
 });

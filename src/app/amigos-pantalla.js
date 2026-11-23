@@ -765,17 +765,21 @@ function ahoraGrupoHTML(d,ahora=new Date()){
   const fila=(titulo,detalle,claves,vacio)=>`<li class="grupo-ahora-fila"><span class="grupo-ahora-texto"><b>${esc(titulo)}</b>
       <small>${esc(claves.length?participantesGrupo(personas.filter(p=>claves.includes(p.clave))):vacio)}${detalle?` · ${esc(detalle)}`:''}</small></span>${claves.length?caras(claves):''}</li>`;
   const filas=[];
+  // En clases, con la hora en que salen: así se sabe cuándo se suman.
+  const enClase=personas.map(p=>({p,e:p.ramos?estadoAhoraAmigo(p.ramos,ahora):null})).filter(x=>x.e?.estado==='clase').sort((x,y)=>x.e.hasta.localeCompare(y.e.hasta));
+  // «2 de 4 en la u»: libres entre clases más los que están en clases.
+  const enLaU=new Set([...r.ahora,...enClase.map(x=>x.p.clave)]).size;
   if(!r.hayJornada)filas.push(`<li class="grupo-ahora-fila"><span class="grupo-ahora-texto"><b>Hoy nadie del grupo tiene clases</b></span></li>`);
   else{
-    filas.push(fila('Libres','',r.ahora,'Nadie libre en la u ahora'));
-    // En clases, con la hora en que salen: así se sabe cuándo se suman.
-    const enClase=personas.map(p=>({p,e:p.ramos?estadoAhoraAmigo(p.ramos,ahora):null})).filter(x=>x.e?.estado==='clase').sort((x,y)=>x.e.hasta.localeCompare(y.e.hasta));
-    if(enClase.length)filas.push(`<li class="grupo-ahora-fila"><span class="grupo-ahora-texto"><b>En clases</b>
-      <small>${esc(listaNombres(enClase.map(({p,e})=>`${quienGrupo(p)} hasta las ${e.hasta}`)))}</small></span>${caras(enClase.map(x=>x.p.clave))}</li>`);
+    // Libres y En clases, mitad y mitad (Lucas, 2026-11-22).
+    const celda=(titulo,claves,texto)=>`<div class="grupo-ahora-celda"><b>${esc(titulo)}</b>${claves.length?caras(claves):''}<small>${esc(texto)}</small></div>`;
+    filas.push(`<li class="grupo-ahora-par">
+      ${celda('Libres',r.ahora,r.ahora.length?participantesGrupo(personas.filter(p=>r.ahora.includes(p.clave))):'Nadie ahora')}
+      ${celda('En clases',enClase.map(x=>x.p.clave),enClase.length?listaNombres(enClase.map(({p,e})=>`${quienGrupo(p)} hasta las ${e.hasta}`)):'Nadie ahora')}</li>`);
     if(r.proximo)filas.push(fila(r.proximo.modulo?`Próximo módulo · ${r.proximo.inicio}–${r.proximo.fin}`:`Próxima hora · ${r.proximo.inicio}–${r.proximo.fin}`,'',r.proximo.claves,'Nadie libre en ese bloque'));
   }
   return `<section class="grupo-ahora" aria-labelledby="grupo-ahora-titulo">
-    <div class="grupo-seccion-titulo"><h2 id="grupo-ahora-titulo">Ahora en la u</h2></div>
+    <div class="grupo-seccion-titulo"><h2 id="grupo-ahora-titulo">Ahora en la u</h2><span>${enLaU} de ${personas.length} en la u</span></div>
     <ul class="grupo-libres grupo-ahora-lista">${filas.join('')}</ul></section>`;
 }
 // «Hoy», «Mañana» o «Lunes 24»: corto, para leer de un vistazo.
