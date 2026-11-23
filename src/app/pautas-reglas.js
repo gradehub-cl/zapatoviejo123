@@ -1,7 +1,13 @@
 function claveUc(nombre){
   return claveCatalogo(nombre,Object.keys(PRESETS_UC),'uc');
 }
+// La carrera que manda en programas y siglas: un major de Ingeniería usa los
+// de ING-PC (CARRERA_BASE_UC). El resto de las carreras se representa a sí misma.
+function carreraBaseUc(carrera){
+  return (typeof CARRERA_BASE_UC!=='undefined'&&CARRERA_BASE_UC[carrera])||carrera;
+}
 function presetUcDisponible(nombre,carrera){
+  carrera=carreraBaseUc(carrera);
   const clave=claveUc(nombre);if(!clave)return false;
   if(carrera==='ING-PC')return true;
   if(carrera!=='COM')return false;
@@ -12,8 +18,8 @@ function findPresetName(nombre,tenant,carrera){
     const presets=PRESETS_POR_TENANT[tenant]||{};
     return claveCatalogo(nombre,Object.keys(presets).filter(k=>pautaPresetSuficiente(evalsDePreset(presets[k]))),tenant);
   }
-  if(tenant!=='uc'||!MALLA_UC[carrera])return null;
-  return claveCatalogo(nombre,presetsUcConPauta(carrera),'uc');
+  if(tenant!=='uc'||!MALLA_UC[carreraBaseUc(carrera)])return null;
+  return claveCatalogo(nombre,presetsUcConPauta(carreraBaseUc(carrera)),'uc');
 }
 // La estrella y el selector prometen ponderaciones precargadas. Un programa
 // que solo trae reglas (como Cálculo II) no debe fingir que las tiene, así
