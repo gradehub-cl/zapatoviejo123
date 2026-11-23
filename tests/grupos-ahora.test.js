@@ -61,12 +61,22 @@ console.log('\n=== Pantalla del grupo ===');
 run(`S.ramos=__d.yo;currentUser={id:'u'};`,{yo:yo.ramos});
 const filas=[{username:'ana',nombre:'Ana',estado:'miembro',yo:true},{username:'beto',nombre:'Beto',estado:'miembro',ramos:beto.ramos},
   {username:'carla',nombre:'Carla',estado:'miembro',ramos:carla.ramos},{username:'dani',nombre:'Dani',estado:'miembro',ramos:null},{username:'flor',nombre:'Flor',estado:'invitado'}];
-chk('Ahora en la u: libres primero, con una etiqueta corta, y tú sin botón',()=>{
+chk('Ahora en la u: quiénes libres, quiénes en clases (hasta cuándo) y el próximo módulo',()=>{
   const h=run(`ahoraGrupoHTML({id:'g1',filas:__d},new Date('${lunes}'))`,filas);
-  assert.match(h,/Ahora en la u/);assert.match(h,/2 libres · 1 en clases/);
-  assert.ok(h.indexOf('Libre')<h.indexOf('Hasta 11:00'));assert.match(h,/Sin horario/);
-  assert.ok(!/Flor/.test(h),'las invitaciones no cuentan como del grupo');
-  assert.ok(/<span class="amigos-historia" aria-label="Tú:/.test(h)&&/data-amigos="grupo-miembro"[^>]*data-user="beto"/.test(h));
+  assert.match(h,/Ahora en la u/);
+  assert.match(h,/<b>Libres<\/b>\s*<small>Tú y Beto<\/small>/);
+  assert.match(h,/<b>En clases<\/b>\s*<small>Carla hasta las 11:00<\/small>/);
+  assert.ok(!/Flor|Dani/.test(h),'sin horario o invitado no se cuenta como libre ni en clases');
+  assert.ok(/data-amigos="grupo-miembro"[^>]*data-user="beto"/.test(h)&&!/data-user="ana"/.test(h),'tocar a otro abre su ficha; tú no eres botón');
+});
+chk('libre ahora es estar en la u entre clases; el próximo bloque es el siguiente módulo',()=>{
+  const mods={1:['08:20','09:30'],2:['09:40','10:50'],3:['11:00','12:10'],4:['12:20','13:30']};
+  const r=run(`libresAhoraYProximo(__d,new Date('${lunes}'),${JSON.stringify(mods)})`,[yo,beto,carla]);
+  assert.deepEqual(r.ahora,['ana','beto']);
+  assert.equal(r.proximo.modulo,3);assert.equal(r.proximo.inicio,'11:00');
+  assert.deepEqual(r.proximo.claves,['beto','carla'],'Ana tiene clase a las 12:00, dentro del módulo 3; Carla está libre de 11:00 a 13:00');
+  const sinMod=run(`libresAhoraYProximo(__d,new Date('${lunes}'),null)`,[yo,beto]);
+  assert.equal(sinMod.proximo.inicio,'11:00');assert.equal(sinMod.proximo.modulo,null);
 });
 chk('si nadie más comparte su horario, no aparece',()=>{
   assert.equal(run(`ahoraGrupoHTML({id:'g1',filas:__d})`,[filas[0],filas[3]]),'');

@@ -99,7 +99,10 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('si todos los amigos ya están en el grupo la ficha omite Invitar amigos',!el('modal-content').innerHTML.includes('data-amigos="grupo-invitar"'));
   run("openModal=()=>{};amigosListaCache=[{estado:'enviada',username:'dani'}];abrirMiembroGrupo('g1','dani');openModal=abrirModalOriginal;");
   chk('una amistad solicitada no se puede solicitar por segunda vez',el('modal-content').innerHTML.includes('Solicitud de amistad enviada')&&!el('modal-content').innerHTML.includes('grupo-agregar-amigo'));
-  chk('volver desde un integrante abre otra vez la información del grupo',el('modal-content').innerHTML.includes('data-amigos="grupo-info"'));
+  // Lucas, 2026-11-22: volver desde una persona deja donde estabas, no en la información del grupo.
+  chk('volver desde un integrante cierra y deja donde estabas',!el('modal-content').innerHTML.includes('data-amigos="grupo-info"')&&el('modal-content').innerHTML.includes('onclick="closeModal()"'));
+  {const f=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8');
+   chk('tocar a un integrante abre su ficha de una, con Sacar del grupo al final',/if\(f\.estado==='miembro'\)\{/.test(f)&&/\$\{cuerpo\}\s*\$\{grupo&&[^\n]*Sacar del grupo/.test(f));}
   filas[2].estado='miembro';await run('cargarActividadGrupo(amigosGrupoDetalle)');
   chk('al aceptar cambian la cabecera y el resumen de la lista',/Tú, Beto y Dani/.test(el('amigos-body').innerHTML)&&!/· 1 invitación/.test(el('amigos-body').innerHTML)&&run('lineaGrupo(amigosGruposCache[0])')==='Tú, Beto y Dani'&&!/invitación pendiente/.test(el('amigos-body').innerHTML));
   run('volverDeGrupo()');

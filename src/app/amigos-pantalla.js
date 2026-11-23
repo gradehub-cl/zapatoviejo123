@@ -488,9 +488,16 @@ function abrirAmigoPendiente(){
 }
 
 // ─── Ficha de un amigo ───
-function abrirAmigo(id){
+// `grupo`: se abrió desde un grupo. Entonces, si soy admin, «Sacar del grupo»
+// va al final, y cerrar vuelve al grupo (no a su información).
+function abrirAmigo(id,{grupo=null,ramosGrupo=null}={}){
   const a=(amigosListaCache||[]).find(x=>x.id===id);if(!a)return;
-  const ramos=amigosHorariosCache.get(id),uni=a.universidad&&TENANTS[a.universidad]?TENANTS[a.universidad].short:'';
+  pintarFichaPersona(a,amigosHorariosCache.get(id)||ramosGrupo,{amigo:true,grupo});
+}
+// La misma ficha para un amigo y para alguien del grupo que todavía no lo es:
+// cambian solo los botones de arriba (Amigos ▾ o Agregar) y las notas.
+function pintarFichaPersona(a,ramos,{amigo,grupo=null,amistad=null}){
+  const id=a.id,uni=a.universidad&&TENANTS[a.universidad]?TENANTS[a.universidad].short:'';
   const mioConHorario=S.ramos.some(r=>copiarHorario(r.horario).length);
   let cuerpo,cifras={comun:'–',libres:'–',turno:'–'},estado=null;
   if(!ramos)cuerpo='<p class="amigos-vacio-texto">No comparte su horario.</p>';
@@ -502,12 +509,12 @@ function abrirAmigo(id){
     const suyoConHorario=ramos.some(r=>copiarHorario(r.horario).length);
     const sinCruce=!mioConHorario?'<p class="amigos-vacio-texto">Agrega tu horario para ver cuándo coinciden.</p>'
       :!suyoConHorario?'<p class="amigos-vacio-texto">Todavía no carga su horario.</p>':'';
-    const notas=amigosNotasCache.get(id)||[];
+    const notas=amigo?amigosNotasCache.get(id)||[]:[];
     cuerpo=`<h3 class="modal-label amigo-lista-cabeza"><span>Ramos en común</span>${comun.some(r=>notas.some(x=>x.sigla===r.sigla))?`<span>Promedio de ${esc(a.nombre||'@'+a.username)}</span>`:''}</h3>
       ${comun.length?`<ul class="amigo-lista">${comun.map(r=>{
           const n=notas.find(x=>x.sigla===r.sigla);
           return `<li><span>${esc(r.nombre)}</span><span class="amigo-lista-der">${r.mismaSeccion?'<span class="amigo-chip">Misma sección</span>':''}${n?notaAmigoHTML(n,a):''}</span></li>`;
-        }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir notas» en Privacidad para comparar notas en estos ramos.</p>':''}`
+        }).join('')}</ul>${amigo&&amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir notas» en Privacidad para comparar notas en estos ramos.</p>':''}`
         :'<p class="amigos-vacio-texto">No toman ramos juntos este semestre.</p>'}
       <h3 class="modal-label">Libres a la vez</h3>
       ${sinCruce||(semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
@@ -532,12 +539,16 @@ function abrirAmigo(id){
       <span class="amigos-perfil-user">${esc(['@'+a.username,uni,a.carrera].filter(Boolean).join(' · '))}</span>
       ${estado?`<span class="amigo-ahora${estado.estado==='clase'?' en-clase':''}">${esc(textoEstadoAmigo(estado))}</span>`:''}
       <div class="amigos-perfil-botones">
-        <button type="button" class="amigo-boton" data-amigos="menu-amigo" data-id="${esc(a.id)}" aria-haspopup="true">Amigos <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-        ${amigosGruposDisponible?`<button type="button" class="amigo-boton" data-amigos="grupo-con" data-user="${esc(a.username)}">Armar grupo</button>`:''}
+        ${amigo?`<button type="button" class="amigo-boton" data-amigos="menu-amigo" data-id="${esc(a.id)}" aria-haspopup="true">Amigos <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        ${amigosGruposDisponible&&!grupo?`<button type="button" class="amigo-boton" data-amigos="grupo-con" data-user="${esc(a.username)}">Armar grupo</button>`:''}`
+        :amistad?.estado==='enviada'?'<button type="button" class="amigo-boton" disabled>Solicitud enviada</button>'
+        :amistad?.estado==='recibida'?`<button type="button" class="amigo-boton principal" data-amigos="grupo-aceptar-amistad" data-id="${esc(amistad.id)}" data-user="${esc(a.username)}">Aceptar solicitud</button>`
+        :`<button type="button" class="amigo-boton principal" data-amigos="grupo-agregar-amigo" data-user="${esc(a.username)}">Agregar a amigos</button>`}
       </div>
     </div>
-    ${ramos&&ramos.some(r=>copiarHorario(r.horario).length)?`<button type="button" class="perfil-fila amigo-ver-semana" data-amigos="semana" data-id="${esc(a.id)}"><span class="perfil-fila-titulo">Ver su semana</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>`:''}
+    ${amigo&&ramos&&ramos.some(r=>copiarHorario(r.horario).length)?`<button type="button" class="perfil-fila amigo-ver-semana" data-amigos="semana" data-id="${esc(a.id)}"><span class="perfil-fila-titulo">Ver su semana</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>`:''}
     ${cuerpo}
+    ${grupo&&amigosGrupoDetalle?.id===grupo&&amigosGrupoDetalle.filas.find(f=>f.yo)?.creador?`<button type="button" class="grupo-salir" data-amigos="grupo-quitar" data-id="${esc(grupo)}" data-user="${esc(a.username)}">Sacar del grupo</button>`:''}
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`;
   openModal();
 }
@@ -739,31 +750,33 @@ function personasGrupo(d){
   return (d?.filas||[]).filter(f=>f.estado==='miembro').map(f=>({clave:f.username,yo:!!f.yo,nombre:f.nombre,username:f.username,
     ramos:f.yo?S.ramos:(f.ramos?normalizarRamosAmigo(f.ramos):null)}));
 }
-const ORDEN_AHORA_GRUPO={libre:0,clase:1,termino:2,sinclases:3,sinhorario:4};
-function etiquetaAhoraGrupo(e){
-  if(!e||e.estado==='sinhorario')return 'Sin horario';
-  if(e.estado==='libre')return 'Libre';
-  if(e.estado==='clase')return 'Hasta '+e.hasta;
-  return e.estado==='termino'?'Ya salió':'No viene hoy';
-}
 function ahoraGrupoHTML(d,ahora=new Date()){
-  const gente=personasGrupo(d).map(p=>({p,e:p.ramos?estadoAhoraAmigo(p.ramos,ahora):null}));
-  // Si nadie más comparte horario, no hay nada que mirar todavía.
-  if(!gente.some(x=>!x.p.yo&&x.e&&x.e.estado!=='sinhorario'))return '';
-  gente.sort((x,y)=>(ORDEN_AHORA_GRUPO[x.e?.estado||'sinhorario']-ORDEN_AHORA_GRUPO[y.e?.estado||'sinhorario'])||Number(y.p.yo)-Number(x.p.yo));
-  const libres=gente.filter(x=>x.e?.estado==='libre').length,clase=gente.filter(x=>x.e?.estado==='clase').length;
-  const resumen=libres||clase?[libres?`${libres} ${libres===1?'libre':'libres'}`:'',clase?`${clase} en clases`:''].filter(Boolean).join(' · '):'Nadie del grupo está en la u ahora';
-  const cara=({p,e})=>{
-    const anillo=e?.estado==='libre'?'libre':e?.estado==='clase'?'en-clase':'';
-    const nombre=quienGrupo(p),etiqueta=etiquetaAhoraGrupo(e),texto=e&&e.estado!=='sinhorario'?textoEstadoAmigo(e):'Sin horario cargado';
-    const interior=`<span class="historia-anillo ${anillo}"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span></span>
-      <span class="historia-nombre">${esc(nombre)}</span><small>${esc(etiqueta)}</small>`;
-    return p.yo?`<li><span class="amigos-historia" aria-label="Tú: ${esc(texto)}">${interior}</span></li>`
-      :`<li><button type="button" class="amigos-historia" data-amigos="grupo-miembro" data-id="${esc(d.id)}" data-user="${esc(p.username)}" aria-label="${esc(nombreAmigo(p))}: ${esc(texto)}">${interior}</button></li>`;
+  const personas=personasGrupo(d);
+  // Si nadie más comparte horario, no hay nada que responder todavía.
+  if(!personas.some(p=>!p.yo&&(p.ramos||[]).some(r=>copiarHorario(r.horario).length)))return '';
+  const r=libresAhoraYProximo(personas,ahora,typeof MODULOS_HORARIO_POR_TENANT!=='undefined'?MODULOS_HORARIO_POR_TENANT[S.tenant]||null:null);
+  const caras=claves=>{
+    const gente=personas.filter(p=>claves.includes(p.clave)).sort((x,y)=>Number(y.yo)-Number(x.yo));
+    const resto=Math.max(0,gente.length-4);
+    return `<span class="grupo-caras-fila">${gente.slice(0,4).map(p=>p.yo
+      ?`<span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span>`
+      :`<button type="button" class="amigo-avatar" data-amigos="grupo-miembro" data-id="${esc(d.id)}" data-user="${esc(p.username)}" aria-label="Ver la ficha de ${esc(nombreAmigo(p))}">${inicialAmigo(p)}</button>`).join('')}${resto?`<span class="grupo-caras-mas" aria-hidden="true">+${resto}</span>`:''}</span>`;
   };
+  const fila=(titulo,detalle,claves,vacio)=>`<li class="grupo-ahora-fila"><span class="grupo-ahora-texto"><b>${esc(titulo)}</b>
+      <small>${esc(claves.length?participantesGrupo(personas.filter(p=>claves.includes(p.clave))):vacio)}${detalle?` · ${esc(detalle)}`:''}</small></span>${claves.length?caras(claves):''}</li>`;
+  const filas=[];
+  if(!r.hayJornada)filas.push(`<li class="grupo-ahora-fila"><span class="grupo-ahora-texto"><b>Hoy nadie del grupo tiene clases</b></span></li>`);
+  else{
+    filas.push(fila('Libres','',r.ahora,'Nadie libre en la u ahora'));
+    // En clases, con la hora en que salen: así se sabe cuándo se suman.
+    const enClase=personas.map(p=>({p,e:p.ramos?estadoAhoraAmigo(p.ramos,ahora):null})).filter(x=>x.e?.estado==='clase').sort((x,y)=>x.e.hasta.localeCompare(y.e.hasta));
+    if(enClase.length)filas.push(`<li class="grupo-ahora-fila"><span class="grupo-ahora-texto"><b>En clases</b>
+      <small>${esc(listaNombres(enClase.map(({p,e})=>`${quienGrupo(p)} hasta las ${e.hasta}`)))}</small></span>${caras(enClase.map(x=>x.p.clave))}</li>`);
+    if(r.proximo)filas.push(fila(r.proximo.modulo?`Próximo módulo · ${r.proximo.inicio}–${r.proximo.fin}`:`Próxima hora · ${r.proximo.inicio}–${r.proximo.fin}`,'',r.proximo.claves,'Nadie libre en ese bloque'));
+  }
   return `<section class="grupo-ahora" aria-labelledby="grupo-ahora-titulo">
-    <div class="grupo-seccion-titulo"><h2 id="grupo-ahora-titulo">Ahora en la u</h2><span>${esc(resumen)}</span></div>
-    <div class="amigos-historias grupo-caras"><ul>${gente.map(cara).join('')}</ul></div></section>`;
+    <div class="grupo-seccion-titulo"><h2 id="grupo-ahora-titulo">Ahora en la u</h2></div>
+    <ul class="grupo-libres grupo-ahora-lista">${filas.join('')}</ul></section>`;
 }
 // «Hoy», «Mañana» o «Lunes 24»: corto, para leer de un vistazo.
 function diaCortoGrupo(fecha){
@@ -792,7 +805,7 @@ function calendarioGrupoHTML(id,items){
     porDia.get(it.fecha).push(it);
   }
   const fila=it=>it.tipo==='reserva'
-    ?`<li><button type="button" class="grupo-mensaje grupo-reserva${it.yo?' grupo-mensaje-mio':''}" data-amigos="grupo-reserva" data-id="${esc(id)}" data-reserva="${esc(it.id)}">
+    ?`<li><button type="button" class="grupo-mensaje grupo-reserva" data-amigos="grupo-reserva" data-id="${esc(id)}" data-reserva="${esc(it.id)}">
       <span class="cal-icono sala">${ICONO_SALA}</span><span><small>Sala reservada · ${esc(quienGrupo(it))}</small><b>${esc(it.titulo)}</b>
       <span>${esc(it.inicio)}–${esc(it.fin)}</span>${it.detalle?`<span class="cal-codigo">Código <b>${esc(it.detalle)}</b></span>`:''}</span>${FLECHA_GRUPO}</button></li>`
     :`<li><button class="grupo-mensaje grupo-prueba" type="button" data-amigos="grupo-prueba" data-id="${esc(id)}" data-prueba="${esc(it.clave)}">
@@ -1199,9 +1212,16 @@ function pintarGrupo(id,filas,seccion){
 }
 // Tocar a alguien del grupo: como en WhatsApp, un menú corto. Su ficha si es
 // tu amigo; sacarlo si eres admin.
+// Tocar a alguien del grupo abre su ficha de una (Lucas, 2026-11-22). Solo una
+// invitación pendiente muestra el menú corto, para retirarla.
 function abrirMiembroGrupo(id,username){
   const f=amigosGrupoDetalle&&amigosGrupoDetalle.id===id&&amigosGrupoDetalle.filas.find(x=>x.username===username);if(!f)return;
   const yo=amigosGrupoDetalle.filas.find(x=>x.yo),amistad=(amigosListaCache||[]).find(a=>a.username===username);
+  if(f.estado==='miembro'){
+    const ramosGrupo=f.ramos?normalizarRamosAmigo(f.ramos):null;
+    if(amistad?.estado==='amigos')return abrirAmigo(amistad.id,{grupo:id,ramosGrupo});
+    return pintarFichaPersona({id:null,username:f.username,nombre:f.nombre,apellido:f.apellido,universidad:S.tenant},ramosGrupo,{amigo:false,grupo:id,amistad});
+  }
   const opciones=[
     amistad?.estado==='amigos'?`<button type="button" class="grupo-opcion" data-amigos="ver" data-id="${esc(amistad.id)}">Ver ficha de ${esc(f.nombre||'@'+f.username)}</button>`:'',
     amistad?.estado==='enviada'?'<p class="amigo-sub">Solicitud de amistad enviada</p>':'',
@@ -1213,7 +1233,7 @@ function abrirMiembroGrupo(id,username){
     <div class="amigo-cabecera"><span class="amigo-avatar grande" aria-hidden="true">${inicialAmigo(f)}</span>
       <div><h2 class="modal-title grupo-titulo">${esc(nombreAmigo(f))}</h2>${f.nombre?`<p class="amigo-sub">@${esc(f.username)}</p>`:''}</div></div>
     <div class="grupo-opciones">${opciones.join('')}</div>
-    <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo-info" data-id="${esc(id)}">Volver</button></div>`;
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver</button></div>`;
   openModal();
 }
 async function volverAInfoTrasEdicion(id,form){

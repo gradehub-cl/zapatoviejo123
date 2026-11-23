@@ -136,6 +136,27 @@ function libresJuntosDia(personas,dia,{minimo=45,desde=0}={}){
   return tramos.filter(t=>t.quienes.length>=2&&(!conmigo||t.quienes.some(p=>p.yo))&&t.b-t.a>=minimo)
     .map(t=>({inicio:horaAmigo(t.a),fin:horaAmigo(t.b),minutos:t.b-t.a,claves:t.quienes.map(p=>p.clave)}));
 }
+// «¿Quién está libre ahora y quién el próximo bloque?» (Lucas, 2026-11-22).
+// En la u = entre su primera y su última clase de hoy. Libre ahora = en la u y
+// sin clase en este minuto. Próximo bloque = el siguiente módulo de su
+// universidad (o la próxima hora en punto si no tenemos sus módulos): libres
+// quienes ya llegaron y siguen después de ese bloque, sin clase durante él.
+function libresAhoraYProximo(personas,ahora=new Date(),modulos=null){
+  const ms=new Date(ahora).getTime(),p=partesHorarioChile(ms),min=+p.hour*60+ +p.minute,dia=diaAmigoChile(ms);
+  const jornadas=(personas||[]).map(x=>({x,t:tramosOcupados(x.ramos,dia)})).filter(j=>j.t.length);
+  const ocupado=(t,a,b)=>t.some(([i,f])=>i<b&&f>a);
+  const libresAhora=jornadas.filter(({t})=>t[0][0]<=min&&min<t[t.length-1][1]&&!ocupado(t,min,min+1)).map(j=>j.x.clave);
+  let bloque=null;
+  const lista=modulos?Object.entries(modulos).map(([n,[i,f]])=>({modulo:+n,a:minutosAmigo(i),b:minutosAmigo(f)})).sort((x,y)=>x.a-y.a):null;
+  if(lista)bloque=lista.find(m=>m.a>min)||null;
+  else{const a=Math.ceil((min+1)/60)*60;if(a<=21*60)bloque={modulo:null,a,b:a+60};}
+  let proximo=null;
+  if(bloque){
+    const claves=jornadas.filter(({t})=>t[0][0]<=bloque.a&&t[t.length-1][1]>=bloque.b&&!ocupado(t,bloque.a,bloque.b)).map(j=>j.x.clave);
+    proximo={modulo:bloque.modulo,inicio:horaAmigo(bloque.a),fin:horaAmigo(bloque.b),claves};
+  }
+  return {ahora:libresAhora,proximo,hayJornada:jornadas.length>0};
+}
 const diaDeFechaAmigo=f=>['D','L','M','W','J','V','S'][new Date(f+'T12:00:00Z').getUTCDay()];
 // Las próximas ventanas, de hoy en adelante (hoy, desde ahora). Con `antesDe`
 // ({fecha,hora}) solo las que terminan antes de una prueba.
