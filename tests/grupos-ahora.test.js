@@ -75,6 +75,7 @@ chk('Libres juntos: cada ventana anota una sala con día y horas ya puestos',()=
   const h=run(`libresJuntosHTML({id:'g1',filas:__d},new Date('${lunes}'))`,filas);
   assert.match(h,/Libres juntos/);assert.match(h,/data-amigos="reserva-nueva"[^>]*data-fecha="\d{4}-\d{2}-\d{2}" data-inicio="10:00" data-fin="11:00"/);
   assert.match(h,/Tú, Beto y Carla/);
+  assert.ok(!/anotar una sala<\/span>|Anotar sala</.test(h),'«Anotar sala» se ve una sola vez, en Lo que viene');
 });
 chk('Estudiar juntos solo en una prueba compartida contigo',()=>{
   const cal=[{tipo:'prueba',username:'ana',nombre:'Ana',yo:true,fecha:'2099-02-10',inicio:'18:30',titulo:'Prueba 2',detalle:'SYN1'},

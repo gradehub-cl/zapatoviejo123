@@ -783,7 +783,7 @@ function libresJuntosHTML(d,ahora=new Date()){
       ${FLECHA_GRUPO}</button></li>`).join('')}</ul>`
     :`<p class="grupo-nota">Esta semana no coinciden libres en la u. ${yoSinHorario?'Agrega tu horario para ver cuándo te juntas tú.':''}</p>`;
   return `<section class="grupo-libres-seccion" aria-labelledby="grupo-libres-titulo">
-    <div class="grupo-seccion-titulo"><h2 id="grupo-libres-titulo">Libres juntos</h2>${ventanas.length?'<span>Toca para anotar una sala</span>':''}</div>${cuerpo}</section>`;
+    <div class="grupo-seccion-titulo"><h2 id="grupo-libres-titulo">Libres juntos</h2></div>${cuerpo}</section>`;
 }
 function calendarioGrupoHTML(id,items){
   const porDia=new Map();
