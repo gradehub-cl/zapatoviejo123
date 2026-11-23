@@ -13,6 +13,7 @@ const cabecera=leer('_headers').split('/.well-known/apple-app-site-association\n
 assert(cabecera&&/^  Content-Type: application\/json\s*$/m.test(cabecera));
 assert(!fs.existsSync(path.join(raiz,'_redirects')),'revisar redirecciones nuevas antes de confiar en el AASA');
 assert(leer('ios/App/App/App.entitlements').includes('<string>applinks:gradehub.cl</string>'));
+assert.equal((leer('ios/App/App/App.entitlements').match(/<key>([^<]+)<\/key>/g)||[]).length,new Set(leer('ios/App/App/App.entitlements').match(/<key>([^<]+)<\/key>/g)).size,'App.entitlements sin claves repetidas');
 const escena=leer('ios/App/App/SceneDelegate.swift');assert(escena.indexOf('SceneDelegateProxy.shared.scene(scene, willConnectTo:')<escena.indexOf('window?.makeKeyAndVisible()'),'registrar el arranque antes de que aparezca el WebView');
 const deploy=leer('.github/workflows/deploy.yml');assert(deploy.includes('.well-known/assetlinks.json .well-known/apple-app-site-association'));
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'gh-aasa-dist-'));
