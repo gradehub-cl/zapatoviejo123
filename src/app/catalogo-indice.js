@@ -111,8 +111,11 @@ function catalogRamosUniversidad(tenant,carreraPropia){
       (porSem[sem]||[]).forEach(nombre=>{
         const k=normName(nombre);
         const sigla=tenant==='uc'?siglaCatalogoUC(nombre):null;
+        // La estrella promete el programa que se carga al agregarlo, y eso lo
+        // decide la carrera del alumno. Una malla ajena (un major de Ingeniería
+        // visto desde Comercial) no puede prometer un programa que no llega.
         out.push({nombre,semestre:ajenas.has(car)?0:Number(sem),propio:propios.has(k),sigla,
-                  tienePreset:!!findPresetName(nombre,tenant,carreraPropia)||!!findPresetName(nombre,tenant,car)});
+                  tienePreset:!!findPresetName(nombre,tenant,carreraPropia)||(!ajenas.has(car)&&!!findPresetName(nombre,tenant,car))});
       });
     });
   });

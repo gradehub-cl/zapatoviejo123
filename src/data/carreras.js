@@ -163,6 +163,29 @@ const CARRERAS_DECLARABLES={
   uc:[
     // Sinónimos de búsqueda: admision.uc.cl/carreras/ingenieria/ y /actuacion/.
     {n:'Ingeniería',malla:'ING-PC',alias:['Ingeniería Civil','Ingeniería Plan Común','Ingeniería Civil Plan Común','Plan Común de Ingeniería']},
+    // Majors de Ingeniería con malla oficial de SIDING (mallas-uc.js). Quien ya
+    // eligió «Ingeniería» (ING-PC) no cambia: puede pasarse a su major en Ajustes.
+    {n:'Ingeniería · Major en Computación (Track Computación)',malla:'UC-ING-COMPUTACION'},
+    {n:'Ingeniería · Major en Computación (Track Sistemas de Información)',malla:'UC-ING-COMPUTACION-SI'},
+    {n:'Ingeniería · Major en Geociencias',malla:'UC-ING-GEOCIENCIAS'},
+    {n:'Ingeniería · Major en Ingeniería Biológica',malla:'UC-ING-BIOLOGICA'},
+    {n:'Ingeniería · Major en Ingeniería Civil',malla:'UC-ING-CIVIL'},
+    {n:'Ingeniería · Major en Ingeniería Eléctrica',malla:'UC-ING-ELECTRICA'},
+    {n:'Ingeniería · Major en Ingeniería Estructural',malla:'UC-ING-ESTRUCTURAL'},
+    {n:'Ingeniería · Major en Ingeniería Geotécnica',malla:'UC-ING-GEOTECNICA'},
+    {n:'Ingeniería · Major en Ingeniería Matemática',malla:'UC-ING-MATEMATICA'},
+    {n:'Ingeniería · Major en Ingeniería Mecánica',malla:'UC-ING-MECANICA'},
+    {n:'Ingeniería · Major en Ingeniería Minera',malla:'UC-ING-MINERA'},
+    {n:'Ingeniería · Major en Ingeniería Química',malla:'UC-ING-QUIMICA'},
+    {n:'Ingeniería · Major en Ingeniería Robótica',malla:'UC-ING-ROBOTICA'},
+    {n:'Ingeniería · Major en Ingeniería de Construcción',malla:'UC-ING-CONSTRUCCION'},
+    {n:'Ingeniería · Major en Ingeniería de Sistemas de Transporte',malla:'UC-ING-TRANSPORTE'},
+    {n:'Ingeniería · Major en Ingeniería de Software',malla:'UC-ING-SOFTWARE'},
+    {n:'Ingeniería · Major en Investigación Operativa',malla:'UC-ING-INVESTIGACION-OPERATIVA'},
+    {n:'Ingeniería · Major en Ingeniería y Arquitectura',malla:'UC-ING-ARQUITECTURA'},
+    {n:'Ingeniería · Major en Ingeniería y Ciencias Ambientales',malla:'UC-ING-AMBIENTAL'},
+    {n:'Ingeniería · Major en Ingeniería, Diseño e Innovación (Track Diseño)',malla:'UC-ING-DISENO-TRACK-DISENO'},
+    {n:'Ingeniería · Major en Ingeniería, Diseño e Innovación',malla:'UC-ING-DISENO'},
     {n:'Actuación',malla:'UC-ACTUACION',alias:['Teatro']},
     {n:'Administración Pública',malla:'UC-ADMINISTRACION-PUBLICA'},
     {n:'Agronomía',malla:'UC-AGRONOMIA'},
@@ -236,6 +259,12 @@ const CARRERAS_DECLARABLES={
   ],
 };
 
+// Cada major de Ingeniería UC cursa el mismo plan común: hereda de ING-PC los
+// programas oficiales y las siglas, y solo cambia la malla que se sugiere.
+// Un código que no está acá se representa a sí mismo.
+const CARRERA_BASE_UC=Object.fromEntries(CARRERAS_DECLARABLES.uc
+  .filter(c=>typeof c.malla==='string'&&c.malla.startsWith('UC-ING-'))
+  .map(c=>[c.malla,'ING-PC']));
 const CARRERAS_UC={'ING-PC':'Ingeniería · Plan Común','COM':'Ingeniería Comercial','OTRA':'Otra carrera'};
 // Plan común de Ingeniería UC, currículum C2022. Los nombres y los créditos
 // salen del catálogo oficial vía la API de mallas.ing.uc.cl (la herramienta de
