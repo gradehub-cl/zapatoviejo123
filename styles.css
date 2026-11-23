@@ -6696,6 +6696,11 @@ html.app-nativa .grupo-ahora-texto{flex:1;min-width:0;display:flex;flex-directio
 html.app-nativa .grupo-ahora-texto b{font-size:.9375rem;font-weight:600;}
 html.app-nativa .grupo-ahora-texto small{font-size:.875rem;line-height:1.35;color:var(--fg2);font-variant-numeric:tabular-nums;}
 html.app-nativa .grupo-caras-fila{display:flex;flex:none;gap:4px;}
+html.app-nativa .grupo-ahora-par{display:grid;grid-template-columns:1fr 1fr;}
+html.app-nativa .grupo-ahora-celda{display:flex;flex-direction:column;align-items:flex-start;gap:.45rem;min-width:0;padding:.75rem .9rem;}
+html.app-nativa .grupo-ahora-celda+.grupo-ahora-celda{border-left:1px solid var(--border);}
+html.app-nativa .grupo-ahora-celda b{font-size:.9375rem;font-weight:600;}
+html.app-nativa .grupo-ahora-celda small{font-size:.8125rem;line-height:1.35;color:var(--fg2);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
 /* 36 pt a la vista y 44 pt para el dedo (HIG). */
 html.app-nativa .grupo-caras-fila .amigo-avatar{position:relative;width:36px;height:36px;font-size:.875rem;padding:0;font:inherit;font-weight:600;cursor:pointer;}
 html.app-nativa .grupo-caras-fila button.amigo-avatar::after{content:'';position:absolute;inset:-4px;}
