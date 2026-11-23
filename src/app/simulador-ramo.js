@@ -50,7 +50,7 @@ function simProjectedRamo(r){
   const base={...r,categorias:r.categorias.map(c=>{
     // Una nota hipotética ocupa la casilla pendiente; si se deja también su
     // placeholder sin valor, la meta la contaría dos veces como pendiente.
-    const ocupaCasilla=(simState[c.id]||[]).length&&(c.directNota||c.slots>1);
+    const ocupaCasilla=(simState[c.id]||[]).length&&(simNotaSola(r,c)||c.slots>1);
     const combinadas=simCombinadas(c).filter(n=>!ocupaCasilla||n.valor!==null&&n.valor!==undefined);
     return {...c,notas:combinadas.map((n,i)=>({
       id:n.id||('sim_'+c.id+'_'+i),nombre:n.nombre||'Nota',valor:n.valor,peso:n.peso||1,
@@ -264,14 +264,18 @@ function renderSimulador(){
 // real o hipotética, no hay nada más que simular ahí. Antes se podía "agregar"
 // un 7.0 encima del 5.5 real y el simulador promediaba los dos; al guardar, la
 // categoría quedaba con dos notas que la ficha muestra como una sola casilla.
-function simCatLlena(cat){
-  if(!cat.directNota||(Number.isInteger(cat.slots)&&cat.slots>1))return false;
+// La lista abierta con 0 o 1 nota se ve como nota sola en la ficha
+// (seVeComoNotaSola), y el simulador la trata igual.
+function simNotaSola(r,c){return !!c.directNota||seVeComoNotaSola(r,c);}
+function simCatLlena(cat,r){
+  r=r||S.ramos.find(x=>(x.categorias||[]).includes(cat));
+  if(!simNotaSola(r,cat)||(Number.isInteger(cat.slots)&&cat.slots>1))return false;
   return (cat.notas||[]).some(n=>n.valor!=null)||((simState[cat.id]||[]).length>0);
 }
 function simCampoNotaHTML(r,c,slot,indice,nota,ofreceFalta){
   const id=`sim-in-${c.id}${indice?'-'+indice:''}`;
   const etiqueta=Number.isInteger(slot)?nombreCasilla(r,c,slot)
-    :c.directNota?'Nota hipotética':`Nota ${indice+1}`;
+    :simNotaSola(r,c)?'Nota hipotética':`Nota ${indice+1}`;
   const sugerencia=conceptosNota().length?'1,0–7,0 o D/A/R':'1,0–7,0';
   return `<div class="sim-field-row">
     <label for="${esc(id)}">${esc(etiqueta)}</label>
@@ -293,7 +297,7 @@ function simCamposNotaHTML(r,c){
     return Array.from({length:c.slots},(_,slot)=>slot).filter(slot=>!ocupadas.has(slot))
       .map((slot,i)=>simCampoNotaHTML(r,c,slot,i,notas.find(n=>n.slot===slot),i===0&&simPuedeFaltar(c))).join('');
   }
-  if(c.directNota){
+  if(simNotaSola(r,c)){
     if((c.notas||[]).some(n=>n&&n.valor!=null))return '';
     return simCampoNotaHTML(r,c,null,0,notas[0],simPuedeFaltar(c));
   }
@@ -313,14 +317,15 @@ function simNotaAlEscribir(catId,slot,input){
   const lista=simState[catId]||(simState[catId]=[]);
   const fija=Number.isInteger(slot);
   const id=input.dataset?.simId||'';
-  const indice=fija?lista.findIndex(n=>n.slot===slot):c.directNota?0:lista.findIndex(n=>n.id===id);
+  const sola=simNotaSola(r,c);
+  const indice=fija?lista.findIndex(n=>n.slot===slot):sola?0:lista.findIndex(n=>n.id===id);
   const anterior=indice>=0?lista[indice]:null;
   if(isNaN(nota)){
     if(anterior)lista.splice(indice,1);
     if(input.dataset)input.dataset.simId='';
     // Al borrar la última nota de un grupo abierto, sobra el campo vacío que
     // había aparecido a continuación. Quitarlo no mueve el foco actual.
-    if(anterior&&!fija&&!c.directNota&&input.closest){
+    if(anterior&&!fija&&!sola&&input.closest){
       const siguiente=input.closest('.sim-field-row')?.nextElementSibling;
       if(siguiente&&!siguiente.nextElementSibling&&!siguiente.querySelector('input')?.value)siguiente.remove();
     }
@@ -328,14 +333,14 @@ function simNotaAlEscribir(catId,slot,input){
     asignarCalificacionNota(anterior,raw,nota);
   }else{
     const nueva=asignarCalificacionNota({id:uid(),...(fija?{slot}:{})},raw,nota);
-    const fila=!fija&&!c.directNota&&input.closest?input.closest('.sim-field-row'):null;
+    const fila=!fija&&!sola&&input.closest?input.closest('.sim-field-row'):null;
     const posicion=fila?.parentElement?Array.from(fila.parentElement.children).indexOf(fila):-1;
     if(posicion>=0)lista.splice(Math.min(posicion,lista.length),0,nueva);
     else lista.push(nueva);
     if(input.dataset)input.dataset.simId=nueva.id;
     // Una categoría sin cantidad declarada siempre deja una casilla vacía al
     // final. Se añade sin reemplazar el input que la persona está editando.
-    if(!fija&&!c.directNota&&fila){
+    if(!fija&&!sola&&fila){
       const contenedor=fila.parentElement;
       if(contenedor&&!fila.nextElementSibling&&contenedor.insertAdjacentHTML)
         contenedor.insertAdjacentHTML('beforeend',simCampoNotaHTML(r,c,null,lista.length,null,false));

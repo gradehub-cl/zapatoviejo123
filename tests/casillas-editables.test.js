@@ -40,6 +40,21 @@ run(`setSlotNota('c1',3,'7');cambiarCasillas('c1',-1);`);
 chk('no baja de una casilla con nota',run('S.ramos[0].categorias[0].slots')===4);
 run(`setSlotNota('c1',3,'');cambiarCasillas('c1',-1);cambiarCasillas('c1',-1);cambiarCasillas('c1',-1);`);
 chk('ni de dos casillas',run('S.ramos[0].categorias[0].slots')===2);
+
+console.log('\n=== Eliminar una nota de un grupo ===');
+cargar('fen',grupo([nota('a',6,{slot:0}),nota('b',4,{slot:1})]));
+run(`agregarCasilla('c1');setSlotNota('c1',2,'7');`);
+const idTercera=run(`S.ramos[0].categorias[0].notas.find(n=>n.slot===2).id`);
+run(`openEditNotaModal('c1','${idTercera}')`);
+chk('la hoja de una casilla ofrece eliminar la nota',/confirmarEliminarNota\('c1'/.test(byId('modal-content').innerHTML));
+run(`deleteNota('c1','${idTercera}')`);
+chk('la nota se va y el promedio vuelve a 5',run(`S.ramos[0].categorias[0].notas.length`)===2&&cerca(run('ramoAvg(S.ramos[0])'),5));
+chk('la casilla vacía se puede quitar',/Quitar la última/.test(juntar(byId('cat-list'))));
+run(`abrirCasilla('c1',2);closeModal();renderRamo();`);
+chk('mirar la casilla y cancelar no esconde "Quitar la última"',/Quitar la última/.test(juntar(byId('cat-list'))));
+run(`cambiarCasillas('c1',-1)`);
+chk('al quitarla no queda una nota vacía sobrando',run('S.ramos[0].categorias[0].slots')===2&&run(`S.ramos[0].categorias[0].notas.every(n=>n.slot<2)`));
+
 chk('una casilla con nombre propio del programa no se cambia',!/Agregar nota|Quitar la última/.test(cargar('fen',{...grupo([]),categorias:[
   {id:'c1',nombre:'Trabajos',peso:100,slots:2,directNota:true,notas:[],nombresCasillas:['Cápsulas','Talleres']}]}).html));
 
