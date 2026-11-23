@@ -108,11 +108,19 @@ async function proximoCargarRequisitos(siglas){
 // ── Elegir ramos ────────────────────────────────────────────────────────────
 // Los ramos del semestre siguiente de su malla que tienen sigla y que no
 // aprobó ni está cursando. Una sugerencia, no una lista obligatoria.
+// El semestre que viene. Si ya archivó y subió de semestre al cerrar (el
+// archivo guarda el semestre en que se archivó), el que viene es el actual.
+function proximoSemestreObjetivo(estado){
+  const e=estado||S,sem=Number(e.careerSemestre);
+  if(!sem)return null;
+  const ultimo=(e.historial||[])[0];
+  return !(e.ramos||[]).length&&ultimo&&Number(ultimo.careerSemestre)===sem-1?sem:sem+1;
+}
 function proximoSugeridos(estado,elegidas=[]){
   const e=estado||S;
-  const sem=Number(e.careerSemestre);
-  if(!e.carrera||!sem)return [];
-  const nombres=((mallaFor(e.tenant)||{})[e.carrera]||{})[sem+1]||[];
+  const objetivo=proximoSemestreObjetivo(e);
+  if(!e.carrera||!objetivo)return [];
+  const nombres=((mallaFor(e.tenant)||{})[e.carrera]||{})[objetivo]||[];
   const {aprobadas,cursando}=requisitosDesdeEstado(e);
   const fuera=new Set([...aprobadas,...cursando,...elegidas]);
   const out=[];
@@ -211,7 +219,7 @@ function proximoPintarRamos(){
   const sug=document.getElementById('px-sugeridos');
   if(sug){
     const s=proximoSugeridos(S,elegidas).slice(0,8);
-    sug.innerHTML=s.length?`<p class="px-label">De tu malla (${Number(S.careerSemestre)+1}° semestre)</p><div class="px-chips">${s.map(r=>
+    sug.innerHTML=s.length?`<p class="px-label">De tu malla (${proximoSemestreObjetivo(S)}° semestre)</p><div class="px-chips">${s.map(r=>
       `<button type="button" class="px-chip" onclick="proximoAgregar('${r.sigla}',this.dataset.nombre)" data-nombre="${esc(r.nombre)}" aria-label="Agregar ${esc(r.nombre)} (${r.sigla})">+ ${esc(r.sigla)}</button>`).join('')}</div>`:'';
   }
   const ver=document.getElementById('px-ver-horarios');

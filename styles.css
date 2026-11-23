@@ -4883,6 +4883,17 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .cierre-ramo button{min-height:44px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--border2);border-radius:10px;cursor:pointer}
 .cierre-ramo :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .cierre-incompleto{display:block;color:var(--fg2);font-size:.75rem;font-weight:400;margin-top:4px}
+/* Siguiente paso al archivar (solo app): casilla del semestre y opciones en lista. */
+.sp-semestre{display:flex;align-items:center;gap:12px;min-height:44px;margin:12px 0 0;color:var(--fg);cursor:pointer}
+.sp-semestre input{width:22px;height:22px;flex-shrink:0;accent-color:var(--primary)}
+.sp-pregunta{margin:16px 0 0;color:var(--fg2);font-size:.875rem}
+.sp-opciones{display:grid;margin:4px 0 16px}
+.sp-opciones button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:12px 0;border:0;border-bottom:1px solid var(--border);background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.sp-opciones button>span:first-child{display:grid;gap:2px}
+.sp-opciones button span span{color:var(--fg2);font-size:.8125rem}
+.sp-opciones strong{font-weight:600}
+.sp-opciones button.sp-principal strong{font-weight:700}
+.sp-opciones :focus-visible,.sp-semestre :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* Ficha: la meta es texto al lado del promedio; los demás estados conservan su chip. */
 #screen-ramo .ramo-hero{container:ficha-hero / inline-size;}
 #screen-ramo .ramo-hero-num-row{align-items:center;gap:20px 28px;}
