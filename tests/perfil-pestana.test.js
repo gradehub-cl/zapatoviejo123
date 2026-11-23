@@ -36,6 +36,12 @@ chk('Avisos tiene su fila solo en la app, después de Apariencia', !est.includes
 {const amigos=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'),ajustes=fs.readFileSync(raiz+'src/app/ajustes.js','utf8');
  chk('Privacidad de Amigos ya no tiene el interruptor de avisos', !/id="amigos-avisos"/.test(amigos) && /Compartir notas/.test(amigos) && /Compartir fechas/.test(amigos) && !/Compartir mis (promedios|pruebas)/.test(amigos));
  chk('Ajustes › Avisos junta amigos y evaluaciones', /section==='avisos'[\s\S]{0,400}id="amigos-avisos"[\s\S]{0,600}Avisos antes de tus evaluaciones/.test(ajustes) && !/section==='calendario'[\s\S]{0,2000}Avisos antes de tus evaluaciones[\s\S]{0,800}section==='avisos'/.test(ajustes));}
+// Buscador (Lucas, 2026-11-22): por título o por lo que hay adentro, sin tildes.
+vm.runInContext('this.filasBuscadasPerfil=filasBuscadasPerfil;', ctx);
+{const g=ctx.gruposPerfil({ ...base, conHorario: true, conAmigos: true, conAvisos: true });const b=q=>[...ctx.filasBuscadasPerfil(g,q)];
+ chk('busca por lo que hay adentro', b('cambiar mi carrera').join()==='academico' && b('OSCURO').join()==='apariencia' && b('contraseña').length===0);
+ chk('sin tildes y con varias palabras', b('foto horario').join()==='horario' && b('calculadora').join()==='calculadora' && b('ics').join()==='calendario' && b('notificaciones').join()==='avisos');
+ chk('el buscador solo existe en la app', /conBuscador=typeof enAppNativa==='function'&&enAppNativa\(\)/.test(fuente));}
 console.log('\n=== Herramientas en Inicio ===');
 const herr = o => vm.runInContext('herramientasInicio('+JSON.stringify(o)+')', ctx).map(([c]) => c);
 chk('la calculadora siempre está', herr({}).join() === 'calculadora');

@@ -47,6 +47,52 @@ const PERFIL_ACCIONES={
   horario:()=>abrirImportarHorarioBuscacursos(),
   salir:()=>signOut()
 };
+// Buscador (Lucas, 2026-11-22; solo en la app): cada fila se encuentra por su
+// título y por lo que hay adentro, con las mismas palabras que Ajustes.
+const PERFIL_PALABRAS={
+  academico:'universidad carrera semestre malla cambiar historial cursos',
+  calendario:'apple google outlook importar archivo ics fechas suscripcion url',
+  canvas:'canvas uc token ramos tareas fechas notas programa',
+  archivar:'cerrar terminar semestre nuevo archivar',
+  calculadora:'calculadora nota puntaje escala exigencia',
+  ficha:'avance curricular semestres pasados historial ramos aprobados',
+  horario:'foto horario buscacursos clases salas',
+  apariencia:'tema claro oscuro modo color acento fondo',
+  avisos:'notificaciones avisos push alertas amigos grupos salas evaluaciones pruebas recordatorio',
+  agentes:'chatgpt claude gemini inteligencia artificial agente conectar url',
+  sugerencias:'ayuda problema reportar falla comentario contactar soporte',
+  datos:'exportar importar respaldo copia borrar eliminar cuenta reiniciar privacidad terminos bloqueados',
+  profesor:'profesor particular clases material apoyo anuncio tutor',
+  username:'username usuario arroba amigos nombre',
+  compartir:'compartir perfil link invitar amigos'
+};
+function normPerfil(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+// Pura: qué claves calzan con la búsqueda. Todas las palabras tienen que estar.
+function filasBuscadasPerfil(grupos,q){
+  const tokens=normPerfil(q).split(/\s+/).filter(t=>t&&!['mi','mis','el','la','los','las','de','del','un','una','y','en'].includes(t));
+  return grupos.flatMap(([,filas])=>filas).filter(([clave,titulo])=>{
+    const texto=normPerfil(titulo+' '+(PERFIL_PALABRAS[clave]||''));
+    return tokens.every(t=>texto.includes(t));
+  }).map(([clave])=>clave);
+}
+let perfilBusqueda='';
+function filtrarPerfil(){
+  const caja=document.getElementById('perfil-body');
+  if(!caja||!caja.querySelector)return;
+  const q=perfilBusqueda.trim();
+  let visibles=0;
+  caja.querySelectorAll('.perfil-grupo').forEach(sec=>{
+    let enGrupo=0;
+    sec.querySelectorAll('li[data-buscar]').forEach(li=>{
+      const ok=!q||filasBuscadasPerfil([['',[[li.dataset.clave,li.dataset.titulo]]]],q).length>0;
+      li.hidden=!ok;if(ok)enGrupo++;
+    });
+    sec.hidden=enGrupo===0;visibles+=enGrupo;
+  });
+  const vacio=caja.querySelector('.perfil-buscar-vacio');if(vacio)vacio.hidden=!q||visibles>0;
+  const estado=caja.querySelector('#perfil-buscar-estado');
+  if(estado)estado.textContent=q?`${visibles} ${visibles===1?'opción':'opciones'}`:'';
+}
 // Qué filas ve esta cuenta. Función pura: recibe lo que necesita y no toca el DOM.
 function gruposPerfil({soloProfesor,hayRamos,conFicha,conHorario=false,conSesion,conCanvas=false,conAmigos=false,conUsername=false,conAvisos=false}){
   if(soloProfesor)return [
@@ -97,10 +143,12 @@ function renderPerfil(){
   const cifras=c?[`${c.amigos} ${c.amigos===1?'amigo':'amigos'}`,c.grupos?`${c.grupos} ${c.grupos===1?'grupo':'grupos'}`:''].filter(Boolean).join(' · '):'';
   const valores={username:username?'@'+username:'Elegir'};
   const flecha='<svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
-  const fila=([clave,titulo])=>`<li><button type="button" class="perfil-fila" data-perfil="${clave}">
+  const fila=([clave,titulo])=>`<li data-buscar data-clave="${esc(clave)}" data-titulo="${esc(titulo)}"><button type="button" class="perfil-fila" data-perfil="${clave}">
       <span class="perfil-icono" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24">${PERFIL_ICONOS[clave]||''}</svg></span>
       <span class="perfil-fila-titulo">${esc(titulo)}</span>${valores[clave]?`<span class="perfil-fila-valor">${esc(valores[clave])}</span>`:''}${flecha}</button></li>`;
   const lineas=lineasPerfil();
+  const conBuscador=typeof enAppNativa==='function'&&enAppNativa();
+  const buscando=conBuscador&&document.activeElement&&document.activeElement.id==='perfil-buscar';
   const correo=conSesion&&currentUser.email?currentUser.email:'';
   caja.innerHTML=`
     <button type="button" class="perfil-cabecera" data-perfil="cuenta" aria-label="Editar tu nombre y tu cuenta">
@@ -112,10 +160,22 @@ function renderPerfil(){
         ${correo?`<span class="perfil-correo">${esc(correo)}</span>`:''}
       </span>${flecha}
     </button>
+    ${conBuscador?`<label class="settings-search-label" for="perfil-buscar">Buscar en Perfil y Ajustes</label>
+    <input type="search" class="settings-search perfil-buscar" id="perfil-buscar" value="${esc(perfilBusqueda)}" placeholder="Buscar" autocomplete="off" enterkeyhint="search">
+    <span class="settings-search-status" id="perfil-buscar-estado" role="status"></span>
+    <p class="perfil-buscar-vacio settings-search-empty" hidden>No encontramos esa opción. Prueba con «carrera», «avisos» o «fondo».</p>`:''}
     ${grupos.map(([nombre,filas])=>`<section class="perfil-grupo"><h2>${esc(nombre)}</h2><ul>${filas.map(fila).join('')}</ul></section>`).join('')}
     ${conSesion?'<button type="button" class="perfil-salir" data-perfil="salir">Cerrar sesión</button>':''}
     <p class="perfil-pie">Por estudiantes, para estudiantes.</p>`;
+  if(!conBuscador){perfilBusqueda='';return;}
+  filtrarPerfil();
+  // Si se repinta mientras escribe (llegó la lista de amigos), no pierde el foco.
+  if(buscando){const i=document.getElementById('perfil-buscar');if(i){i.focus({preventScroll:true});i.setSelectionRange(i.value.length,i.value.length);}}
 }
+if(typeof document!=='undefined'&&typeof document.addEventListener==='function')document.addEventListener('input',e=>{
+  if(!e.target||e.target.id!=='perfil-buscar')return;
+  perfilBusqueda=e.target.value;filtrarPerfil();
+});
 // Un solo oyente para toda la pantalla: las filas se repintan y no hay que volver a engancharlas.
 if(typeof document!=='undefined'&&typeof document.addEventListener==='function')document.addEventListener('click',e=>{
   const b=e.target&&e.target.closest&&e.target.closest('#perfil-body [data-perfil]');
