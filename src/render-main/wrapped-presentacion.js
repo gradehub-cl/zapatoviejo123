@@ -15,11 +15,12 @@ function cifraWrapped(texto,desde=1){
 
 // Los textos compartibles se construyen por separado de la ficha privada:
 // nunca se exportan el HTML de la vista, nombres de personas ni nombres de ramos.
+const CIERRE_NEUTRO_WRAPPED='Ahora sí, guarda el lápiz.';
 function slidesWrapped(d,comp,label,recado,contexto=S){
   const s=[],periodo=esc(label),u=esc(TENANTS[contexto.tenant]?.conArticulo||'tu universidad');
   const muestra=d.nNotas>=4&&d.nRamos>=2;
   const dificil=d.reprobados>0||(Number.isFinite(d.gpa)&&d.gpa<4);
-  const cierre=dificil?'Lo que te llevas de este semestre también cuenta para el que viene.':'Ahora sí, guarda el lápiz.';
+  const cierre=dificil?'Lo que te llevas de este semestre también cuenta para el que viene.':CIERRE_NEUTRO_WRAPPED;
   s.push({tipo:'umbral',k:periodo,titulo:`Lápices<br>${hojaMarca('abajo.')}`,
     sub:muestra?'Antes de guardar la hoja, ¿te acuerdas de todo lo que pasó?':'Antes de guardar la hoja, tómate un respiro.',viz:filasUmbralWrapped()});
   if(!muestra&&d.ranking.length)s.push({tipo:'ramos',forma:'cuaderno',k:'Del cuaderno',titulo:'Los ramos de tu hoja',
@@ -39,9 +40,11 @@ function slidesWrapped(d,comp,label,recado,contexto=S){
     titulo:`Tu ${hojaMarca('mejor nota')}`,cifra:fmt(d.mejor.valor),nota:`<b>${esc(d.mejor.ramo)}</b><br>${esc(d.mejor.evaluacion)}`,
     compartible:['Mi mejor nota',fmt(d.mejor.valor),'del semestre']});
   if(dificil&&muestra){
-    const buenas=[];
+    // Lo bueno primero, con cifras de su propia hoja (Lucas, 2026-11-23).
+    const buenas=[`Anotaste <b>${d.nNotas}</b> notas. No te escondiste de ninguna.`];
+    if(d.mejor&&d.mejor.valor>=4)buenas.push(`Sacaste un <b>${fmt(d.mejor.valor)}</b> en ${esc(d.mejor.ramo)}.`);
     if(d.aprobando&&d.completo)buenas.push(`Sacaste adelante <b>${d.aprobando}</b> ramo${d.aprobando===1?'':'s'}.`);
-    buenas.push('Puedes volver a mirar lo que te sirvió y probar otra forma en lo que viene.');
+    else buenas.push('Puedes volver a mirar lo que te sirvió y probar otra forma en lo que viene.');
     s.push({tipo:'animo',titulo:'También queda esto.',viz:corchoWrapped(buenas)});
   }
   const curso=comp?.curso,uni=comp?.uni;
@@ -63,9 +66,15 @@ function slidesWrapped(d,comp,label,recado,contexto=S){
       nota:esc(p.frase)});
   }
   if(recado?.video)s.push({tipo:'video',prep:{texto:'Antes de guardar la hoja, tienes un recado.',obj:'avion'},k:`Un recado de ${esc(recado.video.quien)}`,video:recado.video});
+  // La invitación a calificar va en su propia página: la tarjeta final tiene
+  // una sola acción principal, compartir (HIG, Lucas 2026-11-23).
   const conSeccion=(contexto.ramos||[]).find(r=>r.seccion&&d.ranking.some(x=>x.nombre===r.nombre));
+  if(conSeccion)s.push({forma:'postit',k:'Antes de cerrar',titulo:`¿Cómo fue tu profe de ${esc(conSeccion.nombre)}?`,
+    sub:'Lo que cuentas ayuda al resto a elegir.',accion:{texto:'Calificar profesor',ramo:conSeccion.id}});
+  // El consuelo se queda en la pantalla. La imagen que se comparte lleva
+  // siempre la frase neutra: no cuenta a otros cómo le fue a nadie.
   s.push({tipo:'final',k:periodo,titulo:'Hoja entregada.',sub:cierre,big:muestra&&notaPortalValida(d.gpa)?fmtPromedio(d.gpa):null,
-    marcas:muestra?d.nNotas:null,compartible:['Mi semestre','Entregué mi hoja.',cierre],...(conSeccion?{accion:{texto:'Calificar profesor',ramo:conSeccion.id}}:{})});
+    marcas:muestra?d.nNotas:null,compartible:['Mi semestre','Entregué mi hoja.',CIERRE_NEUTRO_WRAPPED]});
   return s;
 }
 // Pide el recado al servidor y firma sus archivos (el bucket es privado). Ante
@@ -308,8 +317,7 @@ function pintarRevelacionWrapped(){
       ${s.big?`<label class="wrapped-promedio" style="--d:${d++}"><input type="checkbox"${_wrapped.conPromedio?' checked':''}><span>Mostrar mi promedio</span></label>`:''}
       <div class="wrapped-acciones" style="--d:${d++}">
         <button class="wrapped-compartir" type="button" disabled>${ICONO_COMPARTIR}<span>Preparando imagen…</span></button>
-        <button class="wrapped-descargar" type="button" disabled>Guardar imagen</button></div>
-      ${s.accion?`<button class="wrapped-accion" type="button" data-ramo="${esc(s.accion.ramo)}">${s.accion.texto}</button>`:''}`;
+        <button class="wrapped-descargar" type="button" disabled>Guardar imagen</button></div>`;
     // La imagen se prepara al llegar, no al tocar: Safari exige que el menú de
     // compartir se abra en el mismo toque, y dibujarla ahí lo haría esperar.
     prepararImagenWrapped(s);

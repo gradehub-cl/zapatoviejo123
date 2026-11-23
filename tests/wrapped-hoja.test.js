@@ -121,7 +121,8 @@ check('el recado: video de un profe bien calificado y nada más; sin video no se
   for(const r of [null,undefined,{calificaciones:2,video:null}])assert.ok(!armar(r).some(x=>x.tipo==='video'),JSON.stringify(r));
   const con=armar({calificaciones:1,video:{src:'https://ejemplo.invalid/v.mp4',quien:'Profe <b>',ramo:'Ramo A'}});
   const v=con.find(x=>x.tipo==='video');assert.equal(v.k,'Un recado de Profe &lt;b&gt;');assert.ok(!v.sinCalificar);
-  assert.ok(con.at(-1).accion,'quien ya calificó igual puede calificar a otro profe');
+  assert.ok(con.at(-2).accion,'quien ya calificó igual puede calificar a otro profe');
+  assert.equal(con.at(-1).accion,undefined,'la tarjeta final tiene una sola acción principal');
   const sin=armar({calificaciones:0,video:null});
   assert.ok(!sin.some(x=>x.tipo==='video'),'son pocos videos: a quien no calificó no se le promete uno');
   assert.equal(sin.filter(x=>x.accion).length,1,'la invitación a calificar sale una vez');
@@ -214,6 +215,25 @@ check('la personalidad sigue en la hoja y solo cuatro historias ofrecen comparti
   const dificil=ctx.slidesWrapped(datos(reprobado),null,'2026-2');
   assert.ok(dificil.some(s=>s.tipo==='animo'));
   assert.deepEqual(Array.from(dificil.filter(s=>s.compartible),s=>s.compartible[0]),['La vuelta del semestre','Mi mejor nota','Mi semestre']);
+});
+check('la tarjeta compartida es neutra, el ánimo cuenta lo bueno y calificar va en su propia página',()=>{
+  const reprobado=run('ramosVistaPreviaWrapped()');
+  reprobado[3].categorias[0].notas.forEach(n=>n.valor=3.3);
+  const d=datos(reprobado);
+  const dificil=ctx.slidesWrapped(d,null,'2026-2',null,{tenant:'uc',ramos:[]});
+  const final=dificil.at(-1);
+  assert.match(final.sub,/Lo que te llevas/);
+  assert.equal(final.compartible[2],'Ahora sí, guarda el lápiz.');
+  assert.doesNotMatch(final.compartible.join(' '),/Lo que te llevas/);
+  assert.equal(final.accion,undefined);
+  const animo=dificil.find(s=>s.tipo==='animo');
+  assert.match(animo.viz,new RegExp(`Anotaste <b>${d.nNotas}</b> notas`));
+  assert.ok(animo.viz.includes(`<b>${ctx.fmt(d.mejor.valor)}</b>`));
+  const ramo=reprobado.find(r=>r.nombre===d.ranking[0].nombre);
+  const conSeccion=ctx.slidesWrapped(d,null,'2026-2',null,{tenant:'uc',ramos:[{...ramo,seccion:'1'}]});
+  const postit=conSeccion.at(-2);
+  assert.equal(postit.forma,'postit');assert.equal(postit.accion.texto,'Calificar profesor');
+  assert.equal(postit.compartible,undefined);assert.equal(conSeccion.at(-1).accion,undefined);
 });
 check('el cierre con dos notas distingue una reprobación real de tener pocos datos',()=>{
   const rs=run('ramosVistaPreviaWrapped()').slice(0,2);
