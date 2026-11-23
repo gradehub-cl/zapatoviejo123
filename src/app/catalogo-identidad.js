@@ -191,7 +191,7 @@ function siglaDeRamo(r,tenant){
 // nombre ambiguo al momento de encontrar su sigla; una vez resuelto, el
 // consenso se agrupa por universidad + sigla, nunca por carrera ni semestre.
 function siglaUC(nombre,carrera){
-  const tabla=SIGLAS_UC[carrera];
+  const tabla=SIGLAS_UC[carreraBaseUc(carrera)];
   if(!tabla)return null;
   const clave=claveCatalogo(nombre,Object.keys(tabla),'uc');
   return clave?tabla[clave]:null;

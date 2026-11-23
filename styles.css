@@ -261,6 +261,21 @@ body{font-family:var(--font-ui);background:var(--bg);background-image:radial-gra
 @keyframes arrAbajo{50%{transform:translateY(8px);}}
 @media(prefers-reduced-motion:reduce){#arranque.vivo .arr-capa{animation:none;}}
 .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:var(--bg2);background:color-mix(in srgb,var(--bg2),transparent 12%);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
+/* Herramientas en Inicio (Lucas, 2026-11-17): llave inglesa arriba a la derecha
+   con un menú que se despliega hacia abajo, como un pull-down de iOS. */
+.topbar .herramientas-inicio{position:relative;margin-left:auto;}
+.topbar .herramientas-inicio[hidden]{display:none;}
+.topbar-icono{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-10px -10px -10px 0;padding:0;border:0;border-radius:8px;background:transparent;color:var(--fg);font-size:1.375rem;cursor:pointer;}
+.topbar-icono[aria-expanded="true"]{background:color-mix(in srgb,var(--fg) 8%,transparent);}
+.topbar-icono:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.herramientas-menu{position:absolute;right:-6px;top:calc(100% + 12px);z-index:30;min-width:252px;width:max-content;max-width:calc(100vw - 32px);padding:6px;border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 14px 36px rgba(0,0,0,.18);transform-origin:top right;}
+.herramientas-menu[hidden]{display:none;}
+.herramientas-menu button{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;white-space:nowrap;cursor:pointer;}
+.herramientas-menu button:focus-visible{background:color-mix(in srgb,var(--fg) 7%,transparent);outline:none;}
+@media(hover:hover){.herramientas-menu button:hover{background:color-mix(in srgb,var(--fg) 7%,transparent);}}
+.herramientas-menu .ic{font-size:1.25rem;color:var(--fg2);}
+@media(prefers-reduced-motion:no-preference){.herramientas-menu:not([hidden]){animation:herramientas-abre var(--motion-fast) var(--ease-out);}}
+@keyframes herramientas-abre{from{opacity:0;transform:scale(.96) translateY(-4px);}}
 .topbar-title{font-size:1.0625rem;font-weight:700;flex:1;min-width:0;color:var(--fg);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .icon-btn{width:36px;height:36px;border-radius:11px;border:1px solid transparent;background:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;font-weight:600;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast);}
 @media(hover:hover) and (pointer:fine){.icon-btn:hover{background:color-mix(in srgb,var(--muted),var(--primary) 12%);color:var(--fg);}}
@@ -350,9 +365,9 @@ html.app-nativa,html.app-nativa body{overscroll-behavior-y:none;}
 .ob-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px 20px;width:100%;box-shadow:var(--shadow-lg);margin-bottom:16px;}
 .ob-edad{width:100%;max-width:640px;margin:-4px 0 0;font-size:0.8125rem;line-height:1.5;color:var(--fg2);}
 /* Ruletas del onboarding (#697): como la del reloj del iPhone, filas de 44 pt. */
-.ruleta{position:relative;height:220px;border-radius:14px;background:var(--bg2);overflow:hidden;outline:none;}
+.ruleta{position:relative;height:220px;border-radius:8px;background:var(--bg2);overflow:hidden;outline:none;}
 .ruleta:focus-visible{box-shadow:0 0 0 3px var(--primary-light);}
-.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:10px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
+.ruleta-marco{position:absolute;left:8px;right:8px;top:88px;height:44px;border-radius:8px;background:var(--card);border:1px solid var(--border);pointer-events:none;}
 .ruleta-lista{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:88px 0;box-sizing:border-box;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 .ruleta-lista::-webkit-scrollbar{display:none;}
 .ruleta-fila{height:44px;line-height:44px;text-align:center;scroll-snap-align:center;font-size:1.0625rem;color:var(--fg3);font-variant-numeric:tabular-nums;cursor:pointer;}
@@ -487,7 +502,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
   line-height:1;letter-spacing:-.02em;font-size:0.9375rem;}
 .tenant-mono[data-len="3"]{font-size:0.75rem;}
 .tenant-mono[data-len="6"]{font-size:0.53125rem;letter-spacing:0;}
-.tenant-badge.lg{width:46px;height:46px;border-radius:13px;}
+.tenant-badge.lg{width:46px;height:46px;border-radius:8px;}
 .tenant-badge.lg .tenant-mono{font-size:1.0625rem;}
 .tenant-badge.lg .tenant-mono[data-len="3"]{font-size:0.875rem;}
 /* Marca de universidad junto al wordmark de GradeHub */
@@ -501,7 +516,7 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .brand-tenant .tenant-glyph{width:14px;height:14px;}
 /* Opción de universidad en el onboarding: monograma + nombre + bajada */
 .tenant-opt{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
-  padding:12px 14px;border-radius:14px;cursor:pointer;
+  padding:12px 14px;border-radius:8px;cursor:pointer;
   border:1.5px solid var(--border);background:var(--muted);
   font-family:var(--font-ui);transition:border-color var(--motion-fast),background var(--motion-fast),transform var(--motion-press);}
 @media(hover:hover) and (pointer:fine){.tenant-opt:hover{border-color:color-mix(in srgb,var(--tb),transparent 55%);}}
@@ -1171,15 +1186,15 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
    mientras se escribe. Los campos se escriben con .contenedor input: la regla
    base input[type=text] le gana a una clase sola. */
 .pauta-intro{margin:-4px 0 14px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
-.pauta-copiar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;margin:0 0 12px;padding:2px 6px 2px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:.9375rem;color:var(--fg);}
+.pauta-copiar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;margin:0 0 12px;padding:2px 6px 2px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-size:.9375rem;color:var(--fg);}
 .pauta-copiar span{flex:none;white-space:nowrap;}
 .pauta-copiar select{min-width:0;width:auto;max-width:45%;min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--primary);font:600 .9375rem var(--font-ui);text-align:right;text-overflow:ellipsis;}
-.pauta-plantillas{margin:0 0 12px;padding:12px;border-radius:12px;background:var(--muted);}
+.pauta-plantillas{margin:0 0 12px;padding:12px;border-radius:8px;background:var(--muted);}
 .pauta-plantillas-titulo{margin-bottom:8px;font-size:.8125rem;font-weight:700;color:var(--fg);}
 .pauta-plantillas-opciones{display:flex;flex-wrap:wrap;gap:7px;}
-.pauta-plantillas-opciones button{min-height:36px;padding:7px 11px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:600 .75rem var(--font-ui);cursor:pointer;}
+.pauta-plantillas-opciones button{min-height:36px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font:600 .75rem var(--font-ui);cursor:pointer;}
 .pauta-plantillas-nota{margin-top:8px;font-size:.75rem;line-height:1.4;color:var(--fg2);}
-.pauta-total{position:sticky;top:0;z-index:2;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--muted);}
+.pauta-total{position:sticky;top:0;z-index:2;margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--muted);}
 .pauta-total-texto{font-size:.8125rem;font-weight:600;color:var(--fg2);font-variant-numeric:tabular-nums;}
 .pauta-total-texto.lista{color:var(--fg);}
 .pauta-total-barra{height:4px;margin-top:8px;border-radius:2px;background:color-mix(in srgb,var(--fg),transparent 88%);overflow:hidden;}
@@ -1225,12 +1240,12 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 }
 
 #m-pauta-error{margin:-3px 0 10px;font-size:.8125rem;color:var(--red);}
-.pauta-lista{border:1px solid var(--border);border-radius:14px;background:var(--card);overflow:hidden;}
+.pauta-lista{border:1px solid var(--border);border-radius:8px;background:var(--card);overflow:hidden;}
 .pauta-fila{padding:4px 6px 4px 14px;}
 .pauta-fila+.pauta-fila{border-top:1px solid var(--border);}
 .pauta-fila-main{display:flex;align-items:center;gap:8px;}
 .pauta-fila input.pauta-nombre{flex:1;min-width:0;min-height:44px;padding:10px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;}
-.pauta-peso{display:flex;align-items:center;flex:none;gap:3px;min-height:36px;padding:0 10px;border-radius:10px;background:var(--muted);cursor:text;}
+.pauta-peso{display:flex;align-items:center;flex:none;gap:3px;min-height:36px;padding:0 10px;border-radius:8px;background:var(--muted);cursor:text;}
 .pauta-peso input[type=text]{width:2.8em;padding:6px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--fg);font:inherit;font-size:1rem;font-variant-numeric:tabular-nums;text-align:right;}
 .pauta-peso span{font-size:.875rem;color:var(--fg3);}
 .pauta-peso:focus-within{box-shadow:0 0 0 2px color-mix(in srgb,var(--primary),transparent 60%);}
@@ -1507,12 +1522,22 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);margin-top:4px;}
 .toggle-label{font-size:0.875rem;color:var(--fg2);}
 .toggle-sub{font-size:0.75rem;color:var(--fg3);margin-top:2px;}
-.toggle{position:relative;width:44px;height:26px;flex-shrink:0;}
-.toggle input{opacity:0;width:0;height:0;}
-.toggle-slider{position:absolute;inset:0;background:var(--border2);border-radius:13px;cursor:pointer;transition:var(--motion-base);}
-.toggle-slider:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:var(--motion-base);}
-.toggle input:checked+.toggle-slider{background:var(--primary);}
-.toggle input:checked+.toggle-slider:before{transform:translateX(18px);}
+/* ─── Interruptor: uno solo para toda la app ───────────────────────────────
+   HIG Toggles: se usa cuando el cambio se aplica al instante. Mismas medidas
+   en Ajustes, la ficha, Clases y administración: riel de 51×31 y perilla de
+   27, como el de iOS. Encendido va en el acento; la perilla toma el color de
+   texto del acento para que se distinga también en oscuro. El área de toque
+   llega a 44 pt con el margen o con la fila que lo envuelve. */
+input[type=checkbox][role=switch],.toggle input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;box-sizing:border-box;width:51px;min-width:51px;height:31px;min-height:31px;margin:6.5px 0;padding:0;border:0;border-radius:999px;background:color-mix(in srgb,var(--fg) 16%,transparent);opacity:1;cursor:pointer;transition:background-color var(--motion-fast) var(--ease-standard);-webkit-tap-highlight-color:transparent;}
+input[type=checkbox][role=switch]::before,.toggle input[type=checkbox]::before{content:'';position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0/.28),0 0 0 .5px rgb(0 0 0/.06);transition:transform var(--motion-base) var(--ease-out),background-color var(--motion-fast) var(--ease-standard);}
+input[type=checkbox][role=switch]:checked,.toggle input[type=checkbox]:checked{background:var(--primary);}
+input[type=checkbox][role=switch]:checked::before,.toggle input[type=checkbox]:checked::before{transform:translateX(20px);background:var(--primary-fg);}
+input[type=checkbox][role=switch]:focus-visible,.toggle input[type=checkbox]:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+input[type=checkbox][role=switch]:disabled,.toggle input[type=checkbox]:disabled{opacity:.4;cursor:default;}
+@media(prefers-reduced-motion:reduce){input[type=checkbox][role=switch],input[type=checkbox][role=switch]::before,.toggle input[type=checkbox],.toggle input[type=checkbox]::before{transition:none;}}
+/* `.toggle` es el marcado antiguo (casilla + span): la casilla ya se dibuja sola. */
+.toggle{display:inline-flex;align-items:center;flex-shrink:0;min-height:44px;cursor:pointer;}
+.toggle-slider{display:none;}
 .color-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
 .color-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform var(--motion-fast);}
 .color-dot.sel{border-color:var(--fg);transform:scale(1.18);}
@@ -1531,6 +1556,9 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .nav-item .nav-icon .ic-fill{display:none;}
 .nav-item .nav-icon .ic-line{display:inline-block;}
 .nav-item.active .nav-icon .ic-fill{display:inline-block;}
+/* La pestaña activa usa el mismo dibujo, relleno (HIG: Tab bars). `.ic` deja
+   todo en trazo, así que sin esto el relleno se veía como otro ícono delineado. */
+.nav-item .nav-icon .ic-fill{fill:currentColor;stroke:none;}
 .nav-item.active .nav-icon .ic-line{display:none;}
 .nav-item.active .nav-icon{transform:translateY(-1px);}
 /* TOAST */
@@ -1678,6 +1706,8 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .ag-order-option:active{transform:scale(.98);}
 
 .ag-list-hd{display:flex;align-items:baseline;gap:8px;padding:2px 2px 12px;}
+/* Pendientes quedaba pegada a la lista de arriba; las demás secciones ya dejan este aire. */
+.ag-pendientes{margin-top:24px;}
 .ag-count{font-size:0.75rem;font-weight:700;color:var(--fg3);background:var(--muted);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;}
 .ag-priority-heading{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;gap:8px;padding:3px 2px 10px;}
 .ag-priority-stack{display:flex;flex-direction:column;gap:9px;width:100%;max-width:620px;margin-bottom:22px;}
@@ -1810,7 +1840,8 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
    dos piezas conviven para no perder contexto al cambiar entre opciones. */
 .settings-shell{min-width:0;}
 .settings-nav{display:flex;flex-direction:column;gap:3px;}
-.settings-search-label{margin:0 4px 7px;font-size:.75rem;font-weight:550;color:var(--fg2);}
+/* El campo ya dice para qué es; la etiqueta queda solo para el lector de pantalla. */
+.settings-search-label{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);}
 input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:inherit;font-size:1rem;}
 .settings-search::placeholder{color:var(--fg3);}
 .settings-search-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;}
@@ -2034,6 +2065,8 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-agenda,
 .app.tab-mode #screen-profesor,
 .app.tab-mode #screen-alumnos,
+.app.tab-mode #screen-perfil,
+.app.tab-mode #screen-amigos,
 .app.tab-mode #screen-admin{
   position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;bottom:0;
   display:flex!important;flex-direction:column;
@@ -2052,13 +2085,17 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .app.tab-mode #screen-agenda[hidden],
 .app.tab-mode #screen-profesor[hidden],
 .app.tab-mode #screen-alumnos[hidden],
-.app.tab-mode #screen-admin[hidden]{display:none!important;}
+.app.tab-mode #screen-admin[hidden],
+.app.tab-mode #screen-amigos[hidden],
+.app.tab-mode #screen-perfil[hidden]{display:none!important;}
 .app.tab-mode.dragging #screen-stats,
 .app.tab-mode.dragging #screen-home,
 .app.tab-mode.dragging #screen-agenda,
 .app.tab-mode.dragging #screen-profesor,
 .app.tab-mode.dragging #screen-alumnos,
-.app.tab-mode.dragging #screen-admin{transition:none;}
+.app.tab-mode.dragging #screen-admin,
+.app.tab-mode.dragging #screen-amigos,
+.app.tab-mode.dragging #screen-perfil{transition:none;}
 /* Overlay screens (auth, onboard, reset, ramo): pisan a los tab-screens cuando active */
 .app.tab-mode #screen-auth.active,
 .app.tab-mode #screen-onboard.active,
@@ -2299,7 +2336,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* 16px en el input evita que iOS haga zoom al enfocar — a menos de eso, el
    teléfono salta y el estudiante pierde el contexto. */
 .course-picker-search{display:flex;align-items:center;gap:8px;padding:11px 13px;
-  border:1.5px solid var(--border);background:var(--bg2);border-radius:12px;
+  border:1.5px solid var(--border);background:var(--bg2);border-radius:8px;
   transition:border-color var(--motion-fast);}
 .course-picker-search:focus-within{border-color:var(--primary);}
 .course-picker-search input{flex:1;min-width:0;border:none;background:none;outline:none;
@@ -2330,7 +2367,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* Crear un ramo a mano no es el plan B escondido: hay electivos y cursos de
    formación general que no están en ninguna malla. Visible, sin competir. */
 .course-picker-manual{display:block;width:100%;margin-top:12px;padding:11px;
-  border:1px dashed var(--border2);background:none;border-radius:12px;cursor:pointer;
+  border:1px dashed var(--border2);background:none;border-radius:8px;cursor:pointer;
   font-family:var(--font-ui);font-size:0.8125rem;font-weight:600;color:var(--fg2);
   letter-spacing:-.005em;transition:border-color var(--motion-fast),color var(--motion-fast);}
 @media(hover:hover) and (pointer:fine){.course-picker-manual:hover{border-color:var(--primary);color:var(--primary);}}
@@ -2353,6 +2390,20 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .ob-ficha-oferta strong{font-size:0.9375rem;font-weight:700;letter-spacing:-.01em;}
 .ob-ficha-oferta span{font-size:0.8125rem;color:var(--fg2);line-height:1.4;}
 .ob-ficha-oferta:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+
+/* Notas pegadas desde Excel: solo al terminar el onboarding y solo en la app.
+   Es un enlace discreto, no una segunda acción principal. */
+.ob-excel-enlace{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 4px;border:0;background:none;
+  color:var(--fg2);font:inherit;font-size:0.8125rem;text-align:center;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.ob-excel-enlace:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
+.excel-ramo{margin:0 0 14px;}
+.excel-ramo h3{margin:0 0 6px;font-size:0.875rem;font-weight:700;color:var(--fg);}
+.excel-ramo ul{margin:0;padding:0;list-style:none;}
+.excel-ramo li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--fg);}
+.excel-ramo li small{color:var(--fg3);}
+.excel-ramo b{font-variant-numeric:tabular-nums;font-weight:700;}
+.excel-asignar li{flex-wrap:wrap;padding:6px 0;}
+.excel-asignar select{min-height:44px;flex:1 1 160px;max-width:100%;}
 
 /* Solo se renderiza si hay al menos una pauta oficial. Un "0 pautas oficiales"
    como titular haría ver el producto vacío justo cuando recién se llenó. */
@@ -2517,7 +2568,9 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
   .app.tab-mode #screen-agenda,
   .app.tab-mode #screen-profesor,
   .app.tab-mode #screen-alumnos,
-  .app.tab-mode #screen-admin{transition:none;will-change:auto;}
+  .app.tab-mode #screen-admin,
+  .app.tab-mode #screen-amigos,
+  .app.tab-mode #screen-perfil{transition:none;will-change:auto;}
   .ramo-row,.insight-card,.stat-card,.ag-row,.ag-priority-card,.eval-row,.eval-group{will-change:auto;}
 
   /* Hundirse al tocar y levantarse al apuntar: el color y la sombra siguen
@@ -2627,7 +2680,7 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 /* Cargar un semestre anterior vive junto al historial porque es donde tiene
    sentido buscarlo, y aparece aunque el historial esté vacío: quien llega en
    cuarto semestre es justamente el que lo necesita. */
-.stats-hist-add{flex-shrink:0;padding:7px 12px;border:1px solid var(--border);border-radius:9px;
+.stats-hist-add{flex-shrink:0;padding:7px 12px;border:1px solid var(--border);border-radius:8px;
   background:none;color:var(--primary);font:700 0.75rem var(--font-ui);cursor:pointer;
   transition:border-color var(--motion-fast) var(--ease-standard),background var(--motion-fast) var(--ease-standard);}
 @media(hover:hover) and (pointer:fine){.stats-hist-add:hover{border-color:var(--primary);background:var(--primary-light);}}
@@ -2649,6 +2702,11 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .greet-hero{padding:28px 20px 27px;}
 .greet-line{font-size:1.75rem;font-weight:400;letter-spacing:-.04em;line-height:1.18;color:var(--fg2);}
 .greet-line .greet-name{display:block;font-weight:600;color:var(--fg);}
+/* En Inicio la frase del día acompaña y el nombre manda: con las dos al mismo
+   tamaño, una frase larga ocupaba tres líneas y sacaba los ramos de la primera
+   pantalla (HIG: Typography, jerarquía por tamaño y peso). */
+#home-greeting{font-size:1.0625rem;letter-spacing:-.01em;line-height:1.35;}
+#home-greeting .greet-name{margin-top:2px;font-size:1.75rem;letter-spacing:-.04em;line-height:1.18;}
 .gpa-card{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:24px;margin:0 20px;padding-bottom:24px;border-bottom:1px solid var(--border);}
 .gpa-label{font-size:0.6875rem;font-weight:600;letter-spacing:.11em;margin-bottom:10px;}
 .gpa-label,.gpa-reading,#home-gpa-method,.gpa-tags,#gpa-empty-hint{grid-column:1 / -1;}
@@ -2695,7 +2753,12 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
    diálogo. Destructivos y avisos conservan sus clases/colores semánticos. */
 .btn-primary,.btn-confirm,.ob-next,.gpa-start-btn,.ag-empty-cta,.error-cta,.ramo-action.primary{background:var(--fg);background-image:none;color:var(--bg2);border-radius:8px;box-shadow:none;font-weight:600;}
 @media(hover:hover) and (pointer:fine){.btn-primary:not(:disabled):hover,.gpa-start-btn:hover,.ag-empty-cta:hover,.error-cta:hover,.ramo-action.primary:hover{box-shadow:none;}}
-.btn-cancel,.ramo-action,.topbar-link{border-radius:8px;box-shadow:none;}
+/* Un solo radio para todo lo que se aprieta: 8 px. Los que quedaban en 10, 11
+   y 12 se veían de otra familia al lado de un botón principal. */
+.btn-cancel,.ramo-action,.topbar-link,.icon-btn,.s-tenant-btn,.simg-step,.horario-importar-link{border-radius:8px;box-shadow:none;}
+/* Lo mismo para los campos y las tarjetas chicas que se eligen. */
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=time],input[type=search],input[type=url]{border-radius:8px;}
+.accent-opt,.fondo-opt,.settings-danger-btn,.cat-hit,.simg-val{border-radius:8px;}
 .btn-cancel{color:var(--fg);background:var(--muted);}
 .ramo-action:not(.primary){background:transparent;border:1px solid var(--border2);color:var(--fg2);font-weight:500;}
 .modal-sheet{border:1px solid var(--border);border-bottom:0;box-shadow:0 -12px 48px rgba(0,0,0,.16);border-radius:18px 18px 0 0;}
@@ -2716,7 +2779,7 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .settings-danger-zone{background:transparent;}
 .settings-reset-zone{background:var(--card);}
 .feedback-empty{border-radius:8px;background:var(--card);}
-.ob-card{border-radius:10px;box-shadow:none;}
+.ob-card{border-radius:8px;box-shadow:none;}
 .ob-brand{color:var(--fg);letter-spacing:-.035em;font-size:1.125rem;font-weight:650;text-transform:none;}
 .ob-title{font-weight:600;letter-spacing:-.045em;line-height:1.12;}
 .ob-title-accent{background-image:none;color:var(--fg);-webkit-text-fill-color:currentColor;}
@@ -2738,10 +2801,15 @@ body{background-image:none;-webkit-font-smoothing:antialiased;}
 .eval-row-name{font-weight:550;line-height:1.35;}
 .eval-sub-name{line-height:1.4;}
 .eval-row-weight b{color:var(--fg2);font-weight:500;}
-input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
+input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .add-cat-btn{border:1px solid var(--border2);border-radius:8px;color:var(--fg2);margin-left:20px;margin-right:20px;width:calc(100% - 40px);}
 .empty-icon,.ag-empty-icon{background:var(--muted);color:var(--fg2);border-radius:10px;}
 .empty-title{font-weight:600;}
+.empty-accion{max-width:280px;}
+.ic-despliegue{flex-shrink:0;width:18px;height:18px;margin-left:6px;color:var(--fg3);transition:transform var(--motion-fast) var(--ease-standard);}
+.ic-despliegue.abierto{transform:rotate(180deg);}
+@media(prefers-reduced-motion:reduce){.ic-despliegue{transition:none;}}
+.add-cat-btn[hidden]{display:none;}
 
 /* Agenda comparte la línea de identidad y filas sobrias. Fechas, pesos y
    avisos siguen visibles, incluidas las evaluaciones pasadas sin nota. */
@@ -4186,13 +4254,13 @@ input.eval-row-input{border-radius:7px;background:var(--bg2);font-weight:550;}
   color:var(--fg);font:600 .9375rem var(--font-ui);font-variant-numeric:tabular-nums;cursor:pointer;}
 .calc-paso-btn[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-light);color:var(--fg);}
 .calc-paso-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
-input.calc-paso-otro{width:80px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2);
+input.calc-paso-otro{width:80px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);
   color:var(--fg);font:1rem var(--font-ui);font-variant-numeric:tabular-nums;text-align:center;}
 input.calc-paso-otro:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary),transparent 85%);}
 input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .calc-paso-aviso{margin:0 0 6px;color:var(--fg2);font-size:.8125rem;min-height:0;}
 .calc-paso-aviso:empty{display:none;}
-.calc-tabla-scroll{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:12px;}
+.calc-tabla-scroll{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;}
 .calc-tabla-scroll table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .calc-tabla-scroll th{position:sticky;top:0;background:var(--card);color:var(--fg2);font-size:.8125rem;font-weight:600;text-align:left;padding:8px 12px;}
 .calc-tabla-scroll td{padding:7px 12px;border-top:1px solid var(--border);}
@@ -4789,7 +4857,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-serie-lista>.eval-row,#screen-ramo .ficha-serie-lista>.eval-group{margin:0;padding:14px 0;border:0;border-top:1px solid var(--border);border-radius:0;background:none;box-shadow:none;}
 #screen-ramo .ficha-serie-lista{margin-top:14px;}
 #screen-ramo .ficha-serie-lista>*>.ficha-peso{display:none;}
-#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:12px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;line-height:1.35;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;}
+#screen-ramo .ramo-actions>.ramo-action{display:flex;justify-content:center;min-width:0;min-height:44px;margin:0;width:auto;padding:10px 8px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg2);box-shadow:none;font-size:.8125rem;line-height:1.35;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;}
 #screen-ramo .ramo-actions>.ramo-action[hidden]{display:none;}
 #screen-ramo #cat-list{margin:0;padding:0 20px;}
 #screen-ramo .eval-group{margin:0 0 14px;padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:none;}
@@ -4808,8 +4876,8 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
    falta. El tramo del resto del ramo no se entendía (Lucas, 2026-11-03). */
 #screen-ramo .ficha-peso-grupo{display:block;width:100%;height:100%;}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
-#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:10px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
-#screen-ramo button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
+#screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input,html.app-nativa .nota-inicio button.nota-en-fila,html.app-nativa .nota-inicio input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
+#screen-ramo button.nota-en-fila,html.app-nativa .nota-inicio button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
 #screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
@@ -4819,7 +4887,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .casillas-btn:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
 #screen-ramo .nota-campo{animation:nota-en-fila var(--motion-press) ease-out;}
 #screen-ramo input[aria-invalid=true]{border-color:var(--red);outline:2px solid var(--red);}
-#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+#screen-ramo .nota-en-fila:focus-visible,#screen-ramo input.eval-row-input:focus-visible,html.app-nativa .nota-inicio .nota-en-fila:focus-visible,html.app-nativa .nota-inicio input.eval-row-input:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
 @keyframes nota-en-fila{from{opacity:.5;}to{opacity:1;}}
 @media(prefers-reduced-motion:reduce){#screen-ramo .nota-campo{animation:none;}}
 @container ficha-hero (max-width:18rem){
@@ -4833,12 +4901,6 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo :is(.sombras-interruptor,.mejoras-interruptor){display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;min-width:44px;margin-left:auto;flex-shrink:0;color:var(--fg2);font-size:.8125rem;line-height:1.5;cursor:pointer;}
 #screen-ramo .sombras-interruptor-examen{flex:0 0 100%;width:100%;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--border);justify-content:space-between;}
 #screen-ramo .eval-group>.sombras-interruptor-examen{width:auto;margin:0 14px;padding:8px 0;}
-#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:44px;height:28px;margin:8px 0;padding:0;border:1px solid var(--fg2);border-radius:14px;background:var(--muted);cursor:pointer;}
-#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]::before{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--fg2);transition:transform var(--motion-fast) ease-out;}
-#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]:checked{background:var(--primary);border-color:var(--primary);}
-#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]:checked::before{transform:translateX(16px);background:var(--primary-fg);}
-#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input:focus-visible{outline:2px solid var(--primary);outline-offset:4px;}
-@media(prefers-reduced-motion:reduce){#screen-ramo :is(.sombras-interruptor,.mejoras-interruptor) input[type=checkbox]::before{transition:none;}}
 #screen-ramo button.nota-sombra{color:var(--fg3);border-style:dashed;border-radius:8px;font-variant-numeric:tabular-nums;background:none;white-space:normal;}
 #screen-ramo button.nota-sombra.sombra-fija{border-style:solid;border-color:var(--fg3);}
 #screen-ramo input.nota-campo::placeholder{color:var(--fg3);opacity:1;}
@@ -4968,6 +5030,61 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #s-canvas-ics input[type=url]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 #s-canvas-ics button{min-width:44px;min-height:44px;}
 #s-canvas-ics .canvas-pasos{padding-left:20px;color:var(--fg2);font-size:.8125rem;line-height:1.6;}
+
+/* Canvas UC en iOS: el estado primero, las acciones y el acceso por separado. */
+html.app-nativa .settings-help-top:has(+ #s-canvas){display:none;}
+html.app-nativa #s-canvas{padding-bottom:.5rem;}
+html.app-nativa .canvas-cabecera{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;margin:0 0 1.25rem;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);overflow-wrap:anywhere;}
+html.app-nativa .canvas-marca{display:grid;place-items:center;width:44px;height:44px;border-radius:8px;background:var(--primary-light);color:var(--primary);}
+html.app-nativa .canvas-marca .ic{width:24px;height:24px;stroke-width:1.4;}
+html.app-nativa .canvas-cabecera h3{margin:0 0 .15rem;font-size:1.0625rem;line-height:1.25;font-weight:650;letter-spacing:-.015em;}
+html.app-nativa .canvas-cabecera p,html.app-nativa .canvas-importar p{margin:0;color:var(--fg2);font-size:.875rem;line-height:1.45;}
+html.app-nativa .canvas-importar h4{margin:0 0 .2rem;color:var(--fg);font-size:1rem;line-height:1.35;font-weight:650;}
+html.app-nativa .canvas-filas{display:grid;margin-top:.75rem;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);}
+html.app-nativa .canvas-fila{display:grid;grid-template-columns:18px minmax(0,1fr) 14px;align-items:center;gap:12px;width:100%;min-height:52px;padding:.7rem 13px;border:0;border-radius:8px;background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+html.app-nativa .canvas-fila + .canvas-fila{border-top:1px solid var(--border);border-top-left-radius:0;border-top-right-radius:0;}
+html.app-nativa .canvas-fila span{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere;}
+html.app-nativa .canvas-fila strong{display:block;font-size:1rem;line-height:1.3;font-weight:600;}
+html.app-nativa .canvas-fila small{display:block;margin-top:.125rem;color:var(--fg2);font-size:.8125rem;line-height:1.35;}
+html.app-nativa .canvas-fila-icono{width:18px;height:18px;color:var(--primary);}
+html.app-nativa .canvas-fila-flecha{grid-column:3;grid-row:1;width:14px;height:14px;color:var(--fg3);}
+html.app-nativa .canvas-fila:active{transform:none;background:var(--muted);}
+html.app-nativa .canvas-fila[aria-disabled=true],html.app-nativa .canvas-desconectar[aria-disabled=true]{cursor:default;}
+html.app-nativa .canvas-fila[aria-disabled=true]:not([data-canvas-buscando]),html.app-nativa .canvas-desconectar[aria-disabled=true]{color:var(--fg2);}
+html.app-nativa .canvas-fila[data-canvas-buscando] .canvas-fila-flecha{visibility:hidden;}
+html.app-nativa .canvas-fila[data-canvas-buscando]::after{content:"";grid-column:3;grid-row:1;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--border2);border-top-color:var(--primary);border-radius:50%;}
+@media(prefers-reduced-motion:no-preference){
+  html.app-nativa .canvas-fila[data-canvas-buscando]::after{animation:canvas-actividad .75s linear infinite;}
+  @keyframes canvas-actividad{to{transform:rotate(1turn);}}
+}
+html.app-nativa .canvas-desconectar{width:100%;min-height:44px;margin-top:1rem;padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);color:var(--red);font:600 .9375rem var(--font-ui);cursor:pointer;}
+html.app-nativa .canvas-token{display:grid;grid-template-columns:minmax(0,1fr);}
+html.app-nativa #s-canvas-ayuda{margin:0 0 1rem;color:var(--fg2);font-size:.9375rem;line-height:1.45;}
+html.app-nativa .canvas-token label,html.app-nativa .canvas-nota-campos label{display:block;margin:0 0 .35rem;color:var(--fg);font-size:.875rem;line-height:1.35;font-weight:600;}
+html.app-nativa .canvas-token input[type=password]{min-height:44px;border-radius:8px;background:var(--celda-agrupada);}
+html.app-nativa .canvas-token input[aria-invalid=true]{border-color:var(--red);}
+html.app-nativa #s-canvas-privacidad{margin:.5rem 0 0;color:var(--fg2);font-size:.8125rem;line-height:1.45;}
+html.app-nativa .canvas-conectar{width:100%;min-height:44px;margin-top:.875rem;padding:.65rem .8rem;background:var(--primary);color:var(--primary-fg);font-size:1rem;line-height:1.35;}
+html.app-nativa .canvas-conectar:disabled{opacity:1;background:var(--muted);color:var(--fg2);cursor:default;}
+html.app-nativa .canvas-aviso:not(:empty){margin:.75rem 0 0;padding:.7rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--celda-agrupada);color:var(--fg);font-size:.875rem;line-height:1.45;overflow-wrap:anywhere;}
+html.app-nativa .canvas-aviso.es-error:not(:empty){background:var(--red-bg);color:var(--red);border-color:transparent;}
+
+/* Cada propuesta muestra el origen antes de elegir la evaluación y editar la nota. */
+html.app-nativa .canvas-nota-intro{margin:0 0 1rem;color:var(--fg2);font-size:.9375rem;line-height:1.5;}
+html.app-nativa .canvas-nota-lista{container-type:inline-size;}
+html.app-nativa .canvas-nota{padding:1rem 0;border-top:1px solid var(--border);overflow-wrap:anywhere;}
+html.app-nativa .canvas-nota-contexto{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.25rem .75rem;}
+html.app-nativa .canvas-nota-contexto h3{font-size:1rem;line-height:1.3;font-weight:650;}
+html.app-nativa .canvas-nota-contexto p,html.app-nativa .canvas-nota-hint{color:var(--fg2);font-size:.875rem;line-height:1.4;}
+html.app-nativa .canvas-nota-contexto h3 + p,html.app-nativa .canvas-nota-hint{margin-top:.25rem;}
+html.app-nativa .canvas-nota-origen{font-variant-numeric:tabular-nums;}
+html.app-nativa .canvas-nota .exigencia-opciones{margin:.7rem 0 0;}
+html.app-nativa .canvas-nota-campos{display:grid;grid-template-columns:minmax(0,1fr) min(36%,5.25rem);gap:.65rem;margin-top:.7rem;}
+html.app-nativa .canvas-nota-campos :is(input[type=text],select){width:100%;min-width:44px;min-height:44px;margin:0;border-radius:8px;background:var(--celda-agrupada);color:var(--fg);font-size:1rem;}
+html.app-nativa .canvas-nota-campos input[type=text]{text-align:center;font-variant-numeric:tabular-nums;}
+html.app-nativa .canvas-nota-campos input:disabled{background:var(--muted);color:var(--fg2);}
+html.app-nativa .canvas-nota-campos :is(input[type=text],select):focus-visible,html.app-nativa .canvas-token input[type=password]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+@container(max-width:16rem){html.app-nativa .canvas-nota-campos{grid-template-columns:minmax(0,1fr);}}
 /* Opiniones de ramos: distribuciones neutras, sin semáforo académico. */
 .rc-nombre{margin:0 0 20px;color:var(--fg);font-weight:600;line-height:1.5;overflow-wrap:anywhere;}
 .rc-nombre small{display:block;color:var(--fg2);font-size:.8125rem;font-weight:400;}
@@ -5084,8 +5201,6 @@ button.ramo-opinion-resumen{display:block;min-height:44px;width:100%;border:0;pa
 .panel-percentiles:has(.ah-sube) progress{accent-color:var(--green);}
 .panel-percentiles:has(.ah-baja) progress{accent-color:var(--red);}
 .panel-solo-pruebas{display:flex;align-items:center;gap:12px;min-height:44px;margin:12px 0;color:var(--fg);}
-.panel-solo-pruebas input{width:24px;height:24px;accent-color:var(--primary);}
-@media(prefers-reduced-motion:reduce){.panel-solo-pruebas input{transition:none;}}
 
 /* Directorio: contenido con color propio; controles y superficies Editorial. */
 /* Tarjeta de perfil con el estilo de los anuncios (Lucas, 2026-11-11): el color
@@ -5749,6 +5864,8 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .cr-panel .clases-pendientes .agent-refresh{color:var(--fg);text-decoration:underline;text-underline-offset:3px;}
 .cr-panel .cr-resumen{display:grid;gap:1rem;}
 .cr-panel .cr-grilla{display:grid;grid-template-columns:minmax(0,2fr) minmax(12rem,1fr);gap:1rem;align-items:start;}
+/* En la app no hay tarjeta de costo (App Review 3.1.1): el alcance ocupa el ancho. */
+.cr-panel .cr-grilla.cr-grilla-sola{grid-template-columns:minmax(0,1fr);}
 .cr-panel :is(.cr-costo,.cr-anuncios){min-width:0;padding:1rem;border:1px solid var(--border);border-radius:20px;background:var(--card);}
 .cr-panel .cr-costo{display:grid;grid-column:2;grid-row:1;gap:.65rem;}
 .cr-panel .cr-costo .adm-metrica{display:grid;grid-column:auto;gap:.2rem;}
@@ -5855,7 +5972,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 /* Reglas opcionales del editor de evaluaciones. */
 #modal-content .editor-reglas{margin:4px 0 12px;color:var(--fg2);font-size:.8125rem;}
 #modal-content .editor-reglas>summary{min-height:44px;align-content:center;cursor:pointer;}
-#modal-content .editor-reglas-campos{display:grid;gap:8px;padding:8px 12px 12px;border:1px solid var(--border);border-radius:12px;}
+#modal-content .editor-reglas-campos{display:grid;gap:8px;padding:8px 12px 12px;border:1px solid var(--border);border-radius:8px;}
 #modal-content .editor-reglas-campos :is(small,p){margin:0;font-size:.8125rem;}
 #modal-content .editor-reglas-campos label{display:grid;grid-template-columns:minmax(0,1fr) minmax(44px,5rem);align-items:center;gap:8px;}
 #modal-content .editor-reglas-campos input[type=text]{width:100%;min-height:44px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
@@ -5942,11 +6059,6 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe-interruptor+.pfe-interruptor{border-top:1px solid var(--pfe-linea);}
 .pfe-interruptor b{display:block;font-size:.9375rem;font-weight:550;color:var(--fg);}
 .pfe-interruptor small{display:block;margin-top:2px;font-size:.8125rem;line-height:1.4;color:var(--fg3);}
-.profesor-form .pfe-interruptor input{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:48px;min-width:48px;height:28px;min-height:28px;margin:0;padding:0;border:0;border-radius:99px;background:color-mix(in srgb,var(--fg) 18%,transparent);cursor:pointer;transition:background var(--motion-fast) var(--ease-standard);}
-.pfe-interruptor input::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0/.3);transition:transform var(--motion-fast) var(--ease-standard);}
-.profesor-form .pfe-interruptor input:checked{background:var(--primary);}
-.pfe-interruptor input:checked::after{transform:translateX(20px);}
-.pfe-interruptor input:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 .pfe-guardar{position:sticky;bottom:12px;z-index:3;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:10px 12px;border-radius:16px;background:var(--card);box-shadow:0 8px 28px -10px rgb(0 0 0/.35),0 0 0 1px var(--pfe-linea);}
 .pfe-guardar .profesor-estado{flex:1;min-width:0;margin:0;font-size:.875rem;color:var(--fg2);}
 .pfe-guardar .accion-principal{margin:0;}
@@ -6033,9 +6145,6 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 
 /* ─── Ajustes: aporte de pautas ───────────────────────────────────────── */
 .settings-pautas .toggle-row{gap:16px;cursor:pointer;}
-.settings-pautas .toggle{height:44px;}
-.settings-pautas .toggle-slider{inset:9px 0;}
-.settings-pautas .toggle input:focus-visible+.toggle-slider{outline:2px solid var(--primary);outline-offset:3px;}
 
 /* Ramos declarados por universidad: solo el editor del perfil. */
 .pfe [data-pf-ramos-editor]{display:grid;gap:6px;min-width:0;}
@@ -6044,7 +6153,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .pfe [data-pf-ramos-editor] select{width:100%;max-width:100%;margin:6px 0;}
 /* ─── Horario por ramo y clases de hoy ─────────────────────────────────── */
 .clases-hoy,.horario-ficha{font-family:var(--font-ui);color:var(--fg);font-variant-numeric:tabular-nums;}
-.clases-hoy{margin:0 0 24px;border:1px solid var(--border);border-radius:16px;background:var(--card);overflow:hidden;}
+.clases-hoy{margin:16px 20px 4px;border:1px solid var(--border);border-radius:8px;background:var(--card);overflow:hidden;}
 .clases-hoy header,.horario-ficha header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .clases-hoy header{padding:16px 18px 0;}.clases-hoy h2,.horario-ficha h2{font-size:1rem;font-weight:650;margin:0;}.clases-hoy header>span{font-size:.8125rem;color:var(--fg2);}
 .clases-hoy button{width:100%;min-height:44px;border:0;background:none;color:var(--fg);font:inherit;text-align:left;display:flex;align-items:center;gap:18px;padding:14px 18px;cursor:pointer;}
@@ -6052,14 +6161,512 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .clases-hoy-hora{font-size:1.5rem;font-weight:650;flex-shrink:0;line-height:1.25;}.clases-hoy small{display:block;color:var(--fg2);font-size:.8125rem;font-weight:400;line-height:1.5;}.clases-hoy-hora small{margin-top:4px;}
 .clases-hoy-nombre,.clases-hoy li button>span:first-of-type{flex:1;min-width:0;overflow-wrap:anywhere;}.clases-hoy-nombre b{font-size:1.125rem;line-height:1.35;}.clases-hoy-nombre small{margin-top:4px;}
 .clases-hoy ul,.horario-ficha ul{list-style:none;margin:0;padding:0;}.clases-hoy li{border-top:1px solid var(--border);}.clases-hoy time{font-weight:600;}.clases-hoy li b{font-size:.875rem;font-weight:500;}
-.horario-ficha{margin:24px 0;padding:16px 0;border-top:1px solid var(--border);}.horario-ficha p{color:var(--fg2);font-size:.875rem;}.horario-ficha li{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 0;font-size:.875rem;}.horario-ficha li>span:last-child{color:var(--fg2);}
-.horario-accion{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
+.horario-ficha{margin:24px 20px;padding:16px 0;border-top:1px solid var(--border);}.horario-ficha p{color:var(--fg2);font-size:.875rem;}.horario-ficha li{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 0;font-size:.875rem;}.horario-ficha li>span:last-child{color:var(--fg2);}
+.horario-accion{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
 .horario-editor{container-type:inline-size;}
 .horario-editor fieldset{min-width:0;margin:0 0 16px;padding:14px;border:1px solid var(--border);border-radius:12px;}.horario-editor legend{font-size:.875rem;font-weight:600;padding:0 6px;}.horario-bloques{margin-top:18px;}
 .horario-dias{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}.horario-dias label{position:relative;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;cursor:pointer;}.horario-dias input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}.horario-dias label>span:first-of-type{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:6px;border:1px solid var(--border2);border-radius:9px;font-size:.8125rem;}.horario-dias input:checked+span{background:var(--primary);border-color:var(--primary);color:var(--primary-fg);}.horario-dias input:focus-visible+span{outline:2px solid var(--fg);outline-offset:2px;}
-.horario-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.horario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}.horario-campos label{min-width:0;display:grid;gap:6px;font-size:.875rem;}.horario-campos small{font-size:.75rem;color:var(--fg2);}.horario-editor input[type=time],.horario-editor input[type=text]{min-width:0;width:100%;min-height:44px;padding:10px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--input-bg,var(--bg2));border:1px solid var(--border2);border-radius:8px;color-scheme:light dark;}.horario-bloque-acciones{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}.horario-error{color:var(--red);font-size:.875rem;}.horario-editor .modal-title{overflow-wrap:anywhere;}
+.horario-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.horario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}.horario-campos label{min-width:0;display:grid;gap:6px;font-size:.875rem;}.horario-campos small{font-size:.75rem;color:var(--fg2);}.horario-editor input[type=time],.horario-editor input[type=text]{box-sizing:border-box;display:block;-webkit-appearance:none;appearance:none;min-width:0;width:100%;min-height:44px;padding:10px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--input-bg,var(--bg2));border:1px solid var(--border2);border-radius:8px;color-scheme:light dark;}.horario-bloque-acciones{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}.horario-error{color:var(--red);font-size:.875rem;}.horario-editor .modal-title{overflow-wrap:anywhere;}
 @container(max-width:18rem){.horario-campos{grid-template-columns:minmax(0,1fr);}}
+/* «No voy» (Lucas, 2026-11-17): la clase sigue a la vista en la semana, apagada:
+   contorno punteado del color del ramo, sin relleno y texto secundario. */
+.horario-semana-clase.no-voy{background:transparent;border-style:dashed;}
+.horario-semana-clase.no-voy b,.horario-semana-clase.no-voy .horario-semana-sala{color:var(--fg2);font-weight:600;}
+.horario-ficha li.no-voy{color:var(--fg2);}
+.horario-voy{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin-top:12px;font:500 .9375rem var(--font-ui);color:var(--fg);cursor:pointer;}
+.horario-voy-grande{margin-top:18px;font-size:1rem;}
+.horario-voy-ayuda{margin:2px 0 16px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.horario-clase-hoja>.horario-accion{width:100%;margin-bottom:8px;}
+/* Exigencia (Lucas, 2026-11-17): 50 % y 60 % a un toque y otra escrita. La
+   elegida lleva un relleno suave del acento con anillo tenue, no la cápsula gris. */
+.exigencia-opciones{display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap;}
+.exigencia-titulo{font-size:.8125rem;color:var(--fg2);margin-right:2px;}
+.exigencia-opciones button{min-width:56px;min-height:44px;padding:0 12px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);font-variant-numeric:tabular-nums;cursor:pointer;}
+.exigencia-opciones button[aria-pressed="true"],.exigencia-otra.elegida input.exigencia-campo{border-color:color-mix(in srgb,var(--primary) 55%,transparent);background:color-mix(in srgb,var(--primary) 12%,transparent);font-weight:650;}
+.exigencia-opciones button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.exigencia-otra input.exigencia-campo{box-sizing:border-box;width:84px;min-height:44px;margin:0;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);font-variant-numeric:tabular-nums;text-align:center;}
+.exigencia-ayuda{margin:-2px 0 12px;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.exigencia-ayuda.error{color:var(--red);}
+/* Revisión de la foto: las clases leídas de cada ramo, con Corregir al lado. */
+.horario-revision-ramo{border:1px solid var(--border);border-radius:11px;background:var(--bg2);}.horario-revision-ramo>.agent-ramo-row{border:0;background:transparent;align-items:flex-start;padding-bottom:2px;}.horario-revision-ramo .agent-ramo-check{margin-top:1px;}.horario-revision-ramo>.horario-accion{display:block;margin:0 12px 10px auto;}
+.agent-ramo-row small.horario-revision-diferencia{color:var(--fg);font-weight:600;}
+.horario-revision-bloques{list-style:none;margin:4px 0 0;padding:0;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}.horario-revision-bloques li{padding:1px 0;}
+/* Agenda «Evaluaciones | Horario» (HIG: Segmented controls), solo en la app. */
+/* Evaluaciones | Horario (Lucas, 16-11: fuera la cápsula gris tipo sistema).
+   Pestañas de texto con la raya bajo la activa, como el rango de «Tu promedio
+   en el tiempo» en Estadísticas: se leen como parte de la app. */
+#agenda-vista{padding:2px 20px 0;}
+.agenda-vista-fila{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);}
+.agenda-vista{display:flex;gap:24px;}
+#agenda-vista .agenda-vista-accion{min-height:44px;padding:0 0 0 8px;border:0;background:transparent;color:var(--primary);font:600 .875rem var(--font-ui);cursor:pointer;white-space:nowrap;}
+#agenda-vista .agenda-vista-accion:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+#agenda-vista .agenda-vista button{position:relative;min-height:44px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--fg2);font:500 .9375rem var(--font-ui);cursor:pointer;}
+#agenda-vista .agenda-vista button[aria-pressed="true"]{color:var(--fg);font-weight:650;}
+#agenda-vista .agenda-vista button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:1px;background:currentColor;}
+#agenda-vista .agenda-vista button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+/* La semana: columnas por día, la altura es la duración. El color del ramo va
+   solo en la línea lateral, como en Inicio: no es una nota, no hay semáforo. */
+.horario-semana{--horario-gutter:42px;font-family:var(--font-ui);font-variant-numeric:tabular-nums;color:var(--fg);margin-top:6px;}
+.horario-semana-cabecera,.horario-semana-cuerpo{display:grid;grid-template-columns:var(--horario-gutter) repeat(var(--horario-dias),minmax(0,1fr));gap:0 3px;}
+.horario-semana-cabecera{position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 0;}
+.horario-semana-cabecera span{text-align:center;font-size:.75rem;font-weight:600;color:var(--fg2);padding:4px 0;border-radius:8px;}
+.horario-semana-cabecera span.hoy{color:var(--fg);background:color-mix(in srgb,var(--fg),transparent 91%);}
+.horario-semana-cuerpo{position:relative;height:var(--horario-alto);margin-bottom:14px;}
+.horario-semana-horas{position:relative;}
+.horario-semana-horas span{position:absolute;left:0;transform:translateY(-50%);font-size:.6875rem;color:var(--fg2);}
+.horario-semana-horas span:first-child{transform:none;}
+.horario-semana-dia{position:relative;border-left:1px solid var(--border);}
+.horario-semana-dia.hoy{background:color-mix(in srgb,var(--fg),transparent 97%);}
+.horario-semana-ahora{position:absolute;left:0;right:0;height:2px;background:var(--fg);z-index:1;pointer-events:none;}
+.horario-semana-clase{position:absolute;box-sizing:border-box;min-width:0;margin:0;padding:5px 3px 4px 5px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;
+  border:1px solid var(--horario-borde);border-radius:6px;background:color-mix(in srgb,var(--ramo) var(--horario-tinte),var(--card));color:var(--fg2);text-align:left;font:inherit;cursor:pointer;
+  --horario-tinte:6%;--horario-borde:color-mix(in srgb,var(--ramo) 45%,var(--border));}
+/* Como las tarjetas de perfil (.directorio-tarjeta): contorno del color del ramo y fondo atenuado. */
+/* Las clases son el fondo de la semana: tinte y contorno más bajos, texto
+   secundario (≥4,5:1). Las evaluaciones, rellenas, van encima. */
+@media(prefers-color-scheme:dark){:root:not([data-modo="claro"]) .horario-semana-clase{--horario-tinte:10%;--horario-borde:color-mix(in srgb,var(--ramo) 50%,var(--border));}}
+:root[data-modo="oscuro"] .horario-semana-clase{--horario-tinte:10%;--horario-borde:color-mix(in srgb,var(--ramo) 50%,var(--border));}
+.horario-semana-clase b{display:flex;flex-wrap:wrap;column-gap:.2em;font-size:.6875rem;font-weight:700;line-height:1.2;letter-spacing:-.01em;max-width:100%;}
+.horario-semana-clase b span{white-space:nowrap;}
+.horario-semana-clase b.horario-semana-nombre{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:650;}
+.horario-semana-sala{font-size:.6875rem;line-height:1.2;color:var(--fg2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.horario-semana-clase:focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
+.horario-semana-secundaria{margin-top:10px;border:0;color:var(--fg2);padding-left:0;}
+.horario-semana-mas{color:var(--fg2);font-size:.8125rem;font-weight:600;}
+.horario-elegir-ramo{display:grid;gap:6px;margin:14px 0;}
+.horario-elegir-ramo button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ramo);border-radius:10px;background:var(--card);color:var(--fg);font:500 .9375rem var(--font-ui);text-align:left;cursor:pointer;}
+.horario-elegir-ramo small{color:var(--fg2);font-size:.75rem;font-variant-numeric:tabular-nums;}
+@media(prefers-reduced-motion:no-preference){#agenda-vista .agenda-vista button{transition:color var(--motion-fast) var(--ease-out);}}
+/* Agenda Día | Semana | Mes (2026-11-18). Navegación ‹ Hoy › compartida;
+   botones de 44 pt (HIG Layout). El color del ramo marca el ramo, nunca el
+   estado: no hay semáforo acá. */
+#agenda-body .agenda-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 0 8px;}
+#agenda-body .agenda-nav-titulo{font-size:1rem;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-nav-botones{display:flex;align-items:center;gap:2px;}
+#agenda-body .agenda-nav-flecha{width:44px;height:44px;border:0;border-radius:10px;background:transparent;color:var(--fg2);font:400 1.375rem var(--font-ui);cursor:pointer;}
+#agenda-body .agenda-nav-hoy{min-height:44px;padding:0 10px;border:0;background:transparent;color:var(--primary);font:600 .9375rem var(--font-ui);cursor:pointer;}
+#agenda-body :is(.agenda-nav-flecha,.agenda-nav-hoy):focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+#agenda-body .agenda-dia-seccion{display:block;margin:18px 0 8px;}
+/* Día: lo que se rinde, con la nota que pide lo pendiente */
+#agenda-body .agenda-dia-pruebas{display:grid;gap:8px;}
+#agenda-body .agenda-dia-prueba{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:64px;padding:12px 14px 12px 12px;border-radius:14px;
+  border:1px solid color-mix(in srgb,var(--ramo) 45%,var(--border));background:color-mix(in srgb,var(--ramo) 9%,var(--card));color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+#agenda-body .agenda-dia-prueba>i{align-self:stretch;border-radius:2px;background:var(--ramo);}
+#agenda-body .agenda-dia-que{display:flex;flex-direction:column;gap:2px;min-width:0;}
+#agenda-body .agenda-dia-que b{font-size:.9375rem;font-weight:650;letter-spacing:-.01em;}
+#agenda-body .agenda-dia-que span{font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-dia-nec{display:flex;flex-direction:column;align-items:flex-end;text-align:right;line-height:1.15;}
+#agenda-body .agenda-dia-nec small{font-size:.6875rem;color:var(--fg2);}
+#agenda-body .agenda-dia-nec b{font-size:1.375rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+/* Día: la línea del día, clases y evaluaciones juntas */
+#agenda-body .agenda-dia-linea{display:flex;flex-direction:column;}
+#agenda-body .agenda-dia-fila{display:grid;grid-template-columns:52px 3px minmax(0,1fr);gap:12px;align-items:stretch;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+#agenda-body .agenda-dia-linea>.agenda-dia-fila:first-child{border-top:0;}
+#agenda-body .agenda-dia-hora{padding-top:2px;font-size:.75rem;color:var(--fg2);text-align:right;font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-dia-fila>i{border-radius:2px;background:var(--ramo);}
+#agenda-body .agenda-dia-fila>span:last-child{display:flex;flex-direction:column;gap:1px;min-width:0;}
+#agenda-body .agenda-dia-fila b{font-size:.875rem;font-weight:600;}
+#agenda-body .agenda-dia-fila b em{font-style:normal;font-weight:700;color:var(--fg2);}
+#agenda-body .agenda-dia-fila>span:last-child>span{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-dia-fila.no-voy>i{background:transparent;border:1px dashed var(--border2);}
+#agenda-body .agenda-dia-fila.no-voy b{color:var(--fg2);font-weight:500;}
+#agenda-body .agenda-dia-ahora{position:relative;display:block;height:0;margin:0 0 0 58px;border-top:2px solid var(--fg);}
+#agenda-body .agenda-dia-ahora::before{content:"";position:absolute;left:-4px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--fg);}
+#agenda-body .agenda-dia-vacio{padding:18px 0 6px;color:var(--fg2);font-size:.9375rem;}
+#agenda-body .agenda-dia-proxima{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);text-align:left;font:500 .875rem var(--font-ui);cursor:pointer;}
+#agenda-body :is(.agenda-dia-prueba,.agenda-dia-fila,.agenda-dia-proxima,.agenda-fila-eval):focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:10px;}
+/* Una evaluación en una lista (Mes y Semana sin horario) */
+#agenda-body .agenda-fila-eval{display:grid;grid-template-columns:3px minmax(0,1fr);gap:12px;align-items:stretch;width:100%;min-height:52px;padding:8px 0;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--fg);text-align:left;font:inherit;cursor:pointer;}
+#agenda-body .agenda-fila-eval>i{border-radius:2px;background:var(--ramo);}
+#agenda-body .agenda-fila-eval>span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+#agenda-body .agenda-fila-t{font-size:.9375rem;font-weight:600;}
+#agenda-body .agenda-fila-s{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+/* Semana: fecha en la cabecera, franja «Día» y evaluaciones encima */
+.horario-semana-cabecera span b{display:block;font-size:.9375rem;font-weight:650;color:var(--fg);line-height:1.2;}
+.horario-semana-todo-dia{display:grid;grid-template-columns:var(--horario-gutter) repeat(var(--horario-dias),minmax(0,1fr));gap:0 3px;margin:2px 0 6px;}
+.horario-semana-todo-dia>div{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.horario-semana-todo-dia-r{align-self:center;font-size:.6875rem;color:var(--fg2);}
+/* Relleno sólido: se distingue de una clase sin depender solo del color, y el
+   texto es blanco o casi negro según el ramo (≥4,5:1, HIG Color). */
+.horario-semana-chip,.horario-semana-eval{border:0;background:var(--ramo);color:var(--ramo-texto,var(--fg));font:inherit;text-align:left;cursor:pointer;}
+.horario-semana-chip{display:flex;flex-direction:column;gap:1px;min-height:44px;padding:4px;border-radius:6px;font-size:.6875rem;font-weight:700;line-height:1.2;overflow:hidden;overflow-wrap:anywhere;}
+.horario-semana-chip b{font-weight:800;}
+.horario-semana-eval-ramo{display:flex;flex-wrap:wrap;font-weight:600;}
+.horario-semana-eval-ramo>span{white-space:nowrap;}
+.horario-semana-eval{position:absolute;left:0;right:0;z-index:2;box-sizing:border-box;display:flex;flex-direction:column;gap:1px;padding:4px 3px 3px 5px;border-radius:6px;box-shadow:0 0 0 2px var(--bg);overflow:hidden;}
+.horario-semana-eval b{font-size:.6875rem;font-weight:800;line-height:1.15;overflow-wrap:anywhere;}
+.horario-semana-eval span{font-size:.6875rem;font-weight:600;font-variant-numeric:tabular-nums;}
+:is(.horario-semana-chip,.horario-semana-eval):focus-visible{outline:2px solid var(--primary);outline-offset:1px;z-index:3;}
+/* Ver y editar separados: «Editar horario» va junto a las pestañas. */
+#agenda-body .agenda-nav-texto{display:flex;flex-direction:column;min-width:0;}
+#agenda-body .agenda-nav-nota{font-size:.75rem;font-weight:600;color:var(--fg2);}
+#agenda-body .horario-semana-faltan-aviso{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;margin:-6px 0 8px;padding:0;border:0;background:transparent;color:var(--fg2);font:500 .875rem var(--font-ui);text-align:left;cursor:pointer;}
+#agenda-body .horario-semana-faltan-aviso span{color:var(--primary);font-weight:600;}
+#agenda-body .horario-semana-faltan-aviso:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
+/* Horario: la tira elige el día que se ve debajo; su columna se marca suave en la semana. */
+#agenda-body .horario-tira{display:grid;grid-template-columns:repeat(var(--horario-dias),minmax(0,1fr));gap:4px;margin:0 0 4px;}
+#agenda-body .horario-tira button{min-height:52px;padding:4px 0;border:0;border-radius:10px;background:transparent;color:var(--fg2);font:600 .75rem var(--font-ui);text-align:center;cursor:pointer;font-variant-numeric:tabular-nums;}
+#agenda-body .horario-tira button b{display:block;font-size:1.0625rem;font-weight:650;color:var(--fg);line-height:1.25;}
+#agenda-body .horario-tira button.hoy{color:var(--primary);}
+#agenda-body .horario-tira button.hoy b{color:var(--primary);}
+#agenda-body .horario-tira button[aria-pressed="true"]{background:var(--fg);color:var(--bg);}
+#agenda-body .horario-tira button[aria-pressed="true"] b{color:var(--bg);}
+#agenda-body .horario-tira button:focus-visible{outline:2px solid var(--primary);outline-offset:1px;}
+@media(hover:hover){#agenda-body .horario-tira button[aria-pressed="false"]:hover{background:var(--muted);}}
+@media(prefers-reduced-motion:no-preference){#agenda-body .horario-tira button{transition:background var(--motion-fast) var(--ease-out);}}
+.horario-semana-cabecera span.sel{color:var(--fg);box-shadow:inset 0 -2px 0 var(--fg);border-radius:0;}
+.horario-semana-dia.sel{background:color-mix(in srgb,var(--fg),transparent 95%);}
+#agenda-body .horario-semana-detalle{margin-bottom:8px;}
+/* «Tu horario» (hoja) */
+.tu-horario-ramos{list-style:none;margin:8px 0 12px;padding:0;}
+.tu-horario-ramos button{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.tu-horario-ramos li:last-child button{border-bottom:1px solid var(--border);}
+.tu-horario-ramos i{flex:none;width:4px;align-self:stretch;border-radius:2px;background:var(--ramo);}
+.tu-horario-ramos button>span:not(.horario-semana-mas){display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.tu-horario-ramos b{font:600 .9375rem var(--font-ui);}
+.tu-horario-ramos small{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.tu-horario-ramos button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+.tu-horario-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+/* Mes */
+#agenda-body .agenda-mes{margin-bottom:6px;font-variant-numeric:tabular-nums;}
+#agenda-body .agenda-mes-semana,#agenda-body .agenda-mes-grilla{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}
+#agenda-body .agenda-mes-semana span{text-align:center;font-size:.6875rem;font-weight:600;color:var(--fg2);padding-bottom:4px;}
+#agenda-body .agenda-mes-dia{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;min-width:0;height:52px;padding:6px 0 0;border:0;border-radius:12px;background:transparent;color:var(--fg);font:500 .9375rem var(--font-ui);cursor:pointer;}
+#agenda-body .agenda-mes-dia.fuera{color:var(--fg3);}
+#agenda-body .agenda-mes-n{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;line-height:1;}
+#agenda-body .agenda-mes-dia.hoy .agenda-mes-n{background:var(--fg);color:var(--bg);font-weight:700;}
+#agenda-body .agenda-mes-dia[aria-pressed="true"]:not(.hoy) .agenda-mes-n{box-shadow:inset 0 0 0 1.5px var(--fg);font-weight:650;}
+#agenda-body .agenda-mes-puntos{display:flex;gap:3px;height:6px;}
+#agenda-body .agenda-mes-puntos i{width:6px;height:6px;border-radius:50%;}
+#agenda-body .agenda-mes-dia:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+#agenda-body .agenda-mes-detalle{margin-top:6px;border-top:1px solid var(--border);}
+#agenda-body .agenda-mes-vacio{margin:0;padding:8px 0 12px;color:var(--fg2);font-size:.875rem;}
+@media(hover:hover){#agenda-body .agenda-mes-dia:hover,#agenda-body .agenda-nav-flecha:hover{background:var(--muted);}}
+@media(prefers-reduced-motion:no-preference){#agenda-body :is(.agenda-mes-dia,.agenda-nav-flecha){transition:background var(--motion-fast) var(--ease-out);}}
 @media(max-width:480px){.clases-hoy-principal{flex-wrap:wrap;}.clases-hoy-hora{flex-basis:100%;}.clases-hoy-hora small{display:inline;margin-left:10px;font-size:.8125rem;}.horario-campos small{display:block;}}
+
+/* ─── Pestaña Perfil ───────────────────────────────────────────────────────
+   Lista agrupada (HIG: Lists and tables). Filas de 52 px, una línea fina entre
+   ellas y el mismo trazo de íconos que Ajustes. Sin color de semáforo: acá no
+   hay notas. */
+#perfil-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
+.perfil-cabecera{display:flex;align-items:center;gap:16px;width:100%;min-height:88px;padding:20px 0 12px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.perfil-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;}
+.perfil-quien{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
+.perfil-nombre{font-size:1.375rem;font-weight:650;letter-spacing:-.03em;line-height:1.2;overflow-wrap:anywhere;}
+.perfil-linea,.perfil-sublinea,.perfil-correo{font-size:.875rem;line-height:1.35;color:var(--fg2);overflow-wrap:anywhere;}
+.perfil-correo{color:var(--fg3);}
+.perfil-grupo{margin-top:28px;}
+.perfil-grupo h2{margin:0 0 4px;font-size:.75rem;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--fg3);}
+.perfil-grupo ul{list-style:none;margin:0;padding:0;}
+.perfil-grupo li+li{border-top:1px solid var(--border);}
+.perfil-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:52px;padding:8px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.perfil-icono{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:24px;height:24px;color:var(--fg2);}
+.perfil-icono .ic{width:21px;height:21px;}
+.perfil-fila-titulo{flex:1;min-width:0;font-size:1rem;letter-spacing:-.01em;line-height:1.3;}
+.perfil-flecha{flex-shrink:0;width:18px;height:18px;color:var(--fg3);}
+.perfil-cabecera,.perfil-fila,.perfil-salir{border-radius:10px;}
+.perfil-cabecera:active .perfil-quien,.perfil-fila:active .perfil-fila-titulo{opacity:.55;}
+@media(hover:hover) and (pointer:fine){.perfil-fila:hover .perfil-fila-titulo,.perfil-cabecera:hover .perfil-nombre{color:var(--primary);}}
+.perfil-cabecera:focus-visible,.perfil-fila:focus-visible,.perfil-salir:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.perfil-salir{display:block;width:100%;min-height:48px;margin-top:32px;border:1px solid var(--border2);background:var(--card);color:var(--red);font:600 1rem var(--font-ui);cursor:pointer;}
+.perfil-pie{margin:24px 0 0;text-align:center;font-size:.8125rem;color:var(--fg3);}
+/* ─── Acceso con Apple: arte oficial, contraste independiente del acento ─── */
+#screen-auth .oauth-btn{min-height:48px;}
+#screen-auth #btn-apple{height:48px;padding:0;background:#000;color:#fff;border:0;margin-bottom:10px;overflow:hidden;}
+#screen-auth #btn-apple img{display:block;width:100%;height:48px;object-fit:contain;}
+#screen-auth #btn-apple .apple-blanco{display:none;}
+#screen-auth #btn-apple:focus-visible{outline:3px solid var(--fg);outline-offset:4px;}
+:root[data-modo=oscuro] #screen-auth #btn-apple{background:#fff;color:#000;border-color:#fff;}
+:root[data-modo=oscuro] #screen-auth #btn-apple .apple-negro{display:none;}
+:root[data-modo=oscuro] #screen-auth #btn-apple .apple-blanco{display:block;}
+@media(prefers-color-scheme:dark){:root:not([data-modo]) #screen-auth #btn-apple{background:#fff;color:#000;border-color:#fff;}:root:not([data-modo]) #screen-auth #btn-apple .apple-negro{display:none;}:root:not([data-modo]) #screen-auth #btn-apple .apple-blanco{display:block;}}
+
+/* ─── Denunciar y bloquear (App Review 1.2) ──────────────────────────────────
+   Secundario a propósito: no compite con la acción principal de la tarjeta, el
+   perfil o la calificación (HIG, Buttons). Bloquear es destructivo: rojo, como
+   los demás botones de peligro, y siempre con confirmación. */
+.denuncia-abrir{display:inline-flex;align-items:center;min-height:44px;margin-top:6px;padding:10px 0;border:0;background:none;color:var(--fg2);font:inherit;font-size:.8125rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.denuncia-abrir:focus-visible,.denuncia-bloquear:focus-visible,.denuncia-motivo:has(input:focus-visible){outline:2px solid var(--fg);outline-offset:2px;}
+/* La hoja de denuncia tapa lo que se estaba viendo; Volver lo devuelve. */
+#modal-content>[hidden]{display:none;}
+.denuncia-vista .modal-title{margin-top:4px;}
+.denuncia-vista .modal-title:focus{outline:none;}
+.denuncia-sobre{margin:-4px 0 14px;color:var(--fg2);font-size:.9375rem;overflow-wrap:anywhere;}
+.denuncia-motivos{margin:0 0 14px;padding:0;border:0;min-width:0;}
+.denuncia-motivos legend{margin-bottom:2px;padding:0;font-size:.9375rem;font-weight:600;color:var(--fg);}
+.denuncia-motivo{display:flex;align-items:center;gap:12px;min-height:44px;margin-top:6px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-size:.9375rem;line-height:1.3;color:var(--fg);cursor:pointer;}
+.denuncia-form .denuncia-motivo input[type=radio]{flex:none;width:20px;height:20px;margin:0;padding:0;accent-color:var(--primary);}
+.denuncia-motivo:has(input:checked){border-color:var(--fg);}
+.denuncia-form .denuncia-detalle{min-height:88px;}
+.denuncia-cuenta{margin:4px 0 8px;text-align:right;font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.denuncia-nota{margin:14px 0 0;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.denuncia-nota a{color:var(--fg);overflow-wrap:anywhere;}
+.denuncia-bloqueo{margin-top:18px;padding-top:12px;border-top:1px solid var(--border);}
+.denuncia-bloquear{min-height:44px;padding:10px 0;border:0;background:none;color:var(--red);font:inherit;font-size:.9375rem;font-weight:600;text-align:left;cursor:pointer;}
+.denuncia-bloqueo p{margin:0;font-size:.8125rem;line-height:1.45;color:var(--fg2);}
+.denuncia-gracias{margin:8px 0 12px;font-size:1rem;font-weight:600;color:var(--fg);}
+.calif-denunciar{display:block;margin-top:4px;color:var(--fg2);font-size:.875rem;}
+.admin-denuncias{margin-bottom:16px;}
+.denuncia-admin-detalles{margin:6px 0 10px;padding-left:18px;font-size:.8125rem;color:var(--fg2);}
+
+/* Nota pendiente en Inicio: reutiliza el control de la ficha, solo app. */
+html.app-nativa .nota-inicio{margin:8px 20px 14px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);color:var(--fg);font-family:var(--font-ui);}
+html.app-nativa .nota-inicio[hidden]{display:none;}
+html.app-nativa .nota-inicio-fila{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;}
+html.app-nativa .nota-inicio-texto{flex:1 1 10rem;min-width:0;}
+html.app-nativa .nota-inicio h2{margin:0;font-size:1rem;line-height:1.35;font-weight:650;overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-ramo{margin:4px 0 0;font-size:.8125rem;line-height:1.4;color:var(--fg2);overflow-wrap:anywhere;}
+html.app-nativa .nota-inicio-acciones{display:flex;flex:none;flex-direction:column;align-items:flex-end;gap:0;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-ahora]{min-width:44px;min-height:44px;padding:8px 6px;border:0;border-radius:8px;background:none;color:var(--fg2);font:inherit;font-size:.8125rem;cursor:pointer;}
+html.app-nativa .nota-inicio-acciones button[data-nota-inicio-canvas]{min-width:44px;min-height:44px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--primary);font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;}
+html.app-nativa .nota-inicio-acciones button:active{opacity:.75;}
+html.app-nativa .nota-inicio-acciones button:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+html.app-nativa #nota-inicio-error{margin:8px 0 0;font-size:.8125rem;color:var(--fg2);}
+
+/* ─── Reglas del ramo: lectura por capas, solo app ─────────────────────── */
+html.app-nativa .reglas-ramo{--est-linea:var(--border);--est-gris:var(--fg3);margin:20px 0 24px;padding:0 20px;color:var(--fg);font-family:var(--font-ui);}
+html.app-nativa .reglas-ramo h2{font-size:1.125rem;font-weight:650;line-height:1.3;margin:0 0 8px;}
+html.app-nativa .reglas-ramo .reglas-etiqueta{font-size:.8125rem;color:var(--fg2);margin:0 0 4px;}
+html.app-nativa .reglas-ramo .reglas-fila{padding:14px 0;border-bottom:1px solid var(--border);}
+html.app-nativa .reglas-ramo h3{font-size:.8125rem;font-weight:600;line-height:1.45;color:var(--fg2);margin:0 0 5px;}
+html.app-nativa .reglas-ramo p.reglas-simple{font-size:1rem;line-height:1.55;margin:0;overflow-wrap:anywhere;}
+html.app-nativa .reglas-ramo .reglas-aviso{display:block;font-size:.8125rem;line-height:1.5;color:var(--fg2);margin-top:5px;}
+html.app-nativa .reglas-ramo summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;list-style:none;cursor:pointer;color:var(--fg2);font-size:.8125rem;font-weight:550;line-height:1.5;}
+html.app-nativa .reglas-ramo summary::-webkit-details-marker{display:none;}
+html.app-nativa .reglas-ramo summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px;}
+html.app-nativa .reglas-ramo summary .ic{flex-shrink:0;width:18px;height:18px;}
+html.app-nativa .reglas-ramo details[open]>summary .ic-despliegue{transform:rotate(180deg);}
+html.app-nativa .reglas-ramo blockquote{margin:8px 0;padding:0 0 0 12px;border-left:2px solid var(--border);font-size:.875rem;line-height:1.65;overflow-wrap:anywhere;white-space:pre-wrap;}
+html.app-nativa .reglas-ramo .reglas-texto-origen,html.app-nativa .reglas-ramo .reglas-fuente,html.app-nativa .reglas-ramo .reglas-cita>p{font-size:.8125rem;color:var(--fg2);line-height:1.55;margin:8px 0;overflow-wrap:anywhere;}
+html.app-nativa .reglas-ramo .reglas-reparto{margin-top:22px;}
+html.app-nativa .reglas-ramo .reglas-reparto>h3{display:flex;justify-content:space-between;font-size:.9375rem;color:var(--fg);}
+html.app-nativa .reglas-ramo .reglas-reparto p{font-size:.8125rem;color:var(--fg2);line-height:1.5;margin:6px 0 12px;}
+html.app-nativa .reglas-ramo .reglas-peso{margin-top:12px;min-width:0;}
+html.app-nativa .reglas-ramo .reglas-grupo-hijos .est-par>span:first-child{padding-left:12px;border-left:1px solid var(--border);}
+html.app-nativa .reglas-ramo .reglas-grupo>.est-par>span:first-child{font-weight:600;}
+html.app-nativa .reglas-ramo .est-par{grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;font-size:.875rem;color:var(--fg);line-height:1.4;}
+html.app-nativa .reglas-ramo .est-par>span:first-child{overflow-wrap:anywhere;}
+html.app-nativa .reglas-ramo .est-par b{font-size:.875rem;color:var(--fg);font-variant-numeric:tabular-nums;}
+html.app-nativa .reglas-ramo .est-par .est-pista{grid-column:1/-1;grid-row:2;height:5px;}
+html.app-nativa .reglas-ramo .reglas-peso>small{display:block;font-size:.8125rem;color:var(--fg2);line-height:1.5;margin-top:6px;}
+html.app-nativa .reglas-ramo footer{font-size:.8125rem;color:var(--fg2);line-height:1.6;margin-top:20px;padding-top:12px;border-top:1px solid var(--border);overflow-wrap:anywhere;}
+@media(prefers-reduced-motion:reduce){html.app-nativa .reglas-ramo .ic-despliegue{transition:none;}}
+
+/* ─── Pestaña Amigos ───────────────────────────────────────────────────────
+   Misma lista agrupada que Perfil (HIG: Lists and tables). El semáforo solo
+   aparece en los promedios compartidos. «En clases» se marca con el acento,
+   no con verde ni rojo. */
+#amigos-body{max-width:680px;padding:8px 20px 32px;font-family:var(--font-ui);color:var(--fg);}
+.amigos-invitar,.amigo-boton{flex-shrink:0;min-height:44px;min-width:44px;padding:0 16px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--fg);font:600 .9375rem var(--font-ui);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigo-boton.principal{border-color:var(--fg);background:var(--fg);color:var(--bg2);}
+.amigos-invitar:active,.amigo-boton:active{opacity:.6;}
+.amigos-invitar:focus-visible,.amigo-boton:focus-visible,.amigo-fila:focus-visible,.amigos-link:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.amigos-aviso{margin:16px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-size:.875rem;line-height:1.45;color:var(--fg2);}
+.amigos-grupo li+li{border-top:1px solid var(--border);}
+.amigo-fila{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 0;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigo-fila:active .amigo-texto{opacity:.55;}
+.amigo-avatar{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:1rem;font-weight:600;color:var(--fg);}
+.amigo-avatar.libre{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--primary);}
+.amigo-avatar.en-clase{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--border2);}
+.amigo-avatar.grande{width:56px;height:56px;font-size:1.375rem;}
+.amigo-texto{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.amigo-texto b{font-size:1rem;font-weight:550;letter-spacing:-.01em;overflow-wrap:anywhere;}
+.amigo-texto small{font-size:.8125rem;line-height:1.35;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.amigo-comun{flex-shrink:0;font-size:.75rem;color:var(--fg3);white-space:nowrap;}
+.amigo-solicitud{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;}
+.amigo-acciones{display:flex;gap:8px;flex-shrink:0;}
+/* Acciones de fila compactas, como «Confirmar / Eliminar» en las solicitudes de
+   Instagram: al lado del nombre, del mismo tamaño que los botones del perfil.
+   32 pt a la vista y 44 de área para el dedo (HIG Buttons). */
+.amigo-solicitud .amigo-boton{position:relative;min-height:32px;min-width:0;padding:0 14px;border:0;border-radius:8px;background:var(--muted);font-size:.875rem;}
+.amigo-solicitud .amigo-boton.principal{background:var(--fg);color:var(--bg2);}
+.amigo-solicitud .amigo-boton::after{content:'';position:absolute;inset:-6px -2px;}
+.amigo-solicitud .amigo-acciones{gap:6px;}
+.amigo-solicitud .amigo-texto b,.amigo-solicitud .amigo-texto small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal;}
+.amigo-estado{font-size:.875rem;color:var(--fg3);}
+.amigos-vacio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:32px;padding:28px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);text-align:center;}
+.amigos-vacio h2{margin:0;font-size:1.125rem;font-weight:650;}
+.amigos-vacio p{margin:0 0 8px;font-size:.875rem;color:var(--fg2);}
+.amigos-vacio .btn-primary{max-width:280px;}
+.amigos-link{min-height:44px;padding:0 8px;border:0;background:none;color:var(--primary);font:600 .9375rem var(--font-ui);cursor:pointer;}
+.amigos-link-centro{display:block;margin:12px auto 0;}
+.amigos-vacio-texto{margin:8px 0;font-size:.875rem;line-height:1.45;color:var(--fg2);}
+.amigos-ajuste{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:8px 0;cursor:pointer;}
+.amigos-ajuste>span{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.amigos-ajuste b{font-size:1rem;font-weight:400;}
+.amigos-ajuste small{font-size:.8125rem;line-height:1.35;color:var(--fg3);}
+.amigos-username{display:flex;flex-direction:column;gap:12px;padding:32px 0 0;}
+.amigos-username h2{margin:0;font-size:1.5rem;font-weight:650;letter-spacing:-.03em;}
+.amigos-username>p{margin:0;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
+.amigos-campo{display:flex;align-items:center;gap:2px;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);}
+.amigos-campo:focus-within{border-color:var(--primary);}
+.amigos-campo>span{color:var(--fg3);font-size:1rem;}
+.amigos-campo input[type=text],.amigos-campo input[type=search]{flex:1;min-width:0;min-height:46px;padding:0;border:0;background:transparent;box-shadow:none;font-size:1rem;}
+.amigos-campo input[type=text]:focus,.amigos-campo input[type=search]:focus{outline:none;}
+.amigos-username-hoja{padding:4px 0 0;}
+.perfil-fila-valor{margin-left:auto;padding-left:12px;font-size:.9375rem;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50%;}
+.perfil-username{color:var(--fg);font-weight:500;}
+.amigos-username-estado{min-height:1.4em;margin:0;font-size:.8125rem;color:var(--fg2);}
+.amigos-username-estado.libre{color:var(--primary);}
+.amigos-buscar{display:flex;gap:8px;margin-bottom:12px;}
+.amigos-buscar .amigos-campo{flex:1;min-width:0;}
+.amigos-encontrado{padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.amigo-cabecera{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+.amigo-cabecera .modal-title{margin:0;}
+.amigo-sub{margin:2px 0 0;font-size:.875rem;color:var(--fg2);}
+.amigo-ahora{margin:0 0 20px;font-size:.9375rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+.amigo-ahora.en-clase{color:var(--fg);font-weight:550;}
+.amigo-lista{list-style:none;margin:0 0 20px;padding:0;}
+.amigo-lista li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:6px 0;font-size:.9375rem;}
+.amigo-lista li+li{border-top:1px solid var(--border);}
+.amigo-chip{flex-shrink:0;padding:2px 8px;border-radius:999px;background:var(--muted);font-size:.75rem;color:var(--fg2);}
+.amigo-horas{color:var(--fg2);font-variant-numeric:tabular-nums;text-align:right;}
+.amigo-peligro{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 4px;padding-top:12px;border-top:1px solid var(--border);}
+.amigo-peligro .amigos-link{color:var(--red);padding:0;}
+.amigos-denuncia fieldset{margin:0 0 12px;padding:0;border:0;}
+.amigos-motivo{display:flex;align-items:center;gap:12px;min-height:44px;font-size:.9375rem;cursor:pointer;}
+.amigos-motivo input{width:20px;height:20px;accent-color:var(--primary);}
+.amigos-denuncia textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;}
+/* Grupos, turno y promedios compartidos. El promedio usa el semáforo de
+   siempre (aprobado / al borde / reprobado): es una nota, no un adorno. */
+.amigo-avatar.grupo{color:var(--fg2);}
+.amigo-avatar .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
+.amigo-avatar.grande .ic{width:28px;height:28px;}
+/* «Nuevo grupo» y «Agregar personas»: la fila verde con + de WhatsApp. */
+.amigos-fila-mas .amigo-avatar{border-color:transparent;background:var(--primary);color:var(--primary-fg);}
+.amigos-fila-mas b{color:var(--primary);font-weight:600;}
+/* Avatar de grupo: dos iniciales superpuestas, como Instagram o iMessage. */
+.amigo-avatar.pila{position:relative;border:0;background:none;}
+.amigo-avatar.pila>span{position:absolute;display:flex;align-items:center;justify-content:center;width:62%;height:62%;border-radius:50%;border:1px solid var(--border2);background:var(--card);font-size:.75rem;font-weight:600;}
+.amigo-avatar.pila>span:first-child{top:0;left:0;}
+.amigo-avatar.pila>span:last-child{right:0;bottom:0;box-shadow:0 0 0 2px var(--bg2);background:var(--muted);}
+.amigo-avatar.grande.pila{width:80px;height:80px;}
+.amigo-avatar.grande.pila>span{font-size:1.25rem;}
+.grupo-cabecera{display:flex;flex-direction:column;align-items:center;gap:6px;margin:4px 0 20px;text-align:center;}
+.grupo-cabecera>.amigo-avatar.grande:not(.pila){width:80px;height:80px;}
+.grupo-nombre{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:0;background:none;color:var(--fg);font:650 1.375rem/1.2 var(--font-ui);letter-spacing:-.02em;cursor:pointer;}
+.grupo-nombre .ic{width:18px;height:18px;fill:none;stroke:var(--fg3);stroke-width:1.8;stroke-linejoin:round;}
+.grupo-cabecera .amigo-sub{margin:0;font-variant-numeric:tabular-nums;}
+.grupo-salir{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;margin:8px 0 4px;padding:0;border:0;border-top:1px solid var(--border);background:none;color:var(--red);font:500 1rem var(--font-ui);cursor:pointer;}
+.grupo-salir .ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.grupo-opciones{display:flex;flex-direction:column;margin:4px 0 12px;border-top:1px solid var(--border);}
+.grupo-opcion{min-height:52px;padding:0;border:0;border-bottom:1px solid var(--border);background:none;color:var(--fg);font:1rem var(--font-ui);text-align:left;cursor:pointer;}
+.grupo-opcion.peligro{color:var(--red);}
+.amigos-elegidos{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px;}
+.amigos-elegidos:empty{display:none;}
+.amigos-elegido{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;border:0;border-radius:999px;background:var(--primary-light);color:var(--fg);font:500 .875rem var(--font-ui);cursor:pointer;}
+.amigos-elegido span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;font-size:1.125rem;color:var(--fg2);}
+.grupo-nombre:focus-visible,.grupo-salir:focus-visible,.grupo-opcion:focus-visible,.amigos-elegido:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.amigo-texto small+small{color:var(--fg3);}
+.amigo-lista-der{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.amigo-nota{min-width:44px;padding:3px 10px;border-radius:999px;box-sizing:border-box;font-size:.8125rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;}
+.amigo-nota.good{background:var(--green-bg);color:var(--green);}
+.amigo-nota.warn{background:var(--yellow-bg);color:var(--yellow);}
+.amigo-nota.bad{background:var(--red-bg);color:var(--red);}
+.amigo-nota.neutral{background:var(--muted);color:var(--fg3);font-weight:500;}
+.amigo-turno{display:flex;flex-direction:column;gap:2px;margin:0 0 8px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.amigo-turno b{font-size:.9375rem;font-weight:600;}
+.amigo-turno small{font-size:.8125rem;color:var(--fg2);}
+.amigo-turno.perfecto{border-color:var(--primary);background:var(--primary-light);}
+.amigo-chip.perfecto{background:var(--primary-light);color:var(--primary);font-weight:600;}
+.amigo-de{font-size:.75rem;color:var(--fg3);font-variant-numeric:tabular-nums;}
+.amigo-lista-personas li{justify-content:flex-start;}
+.amigo-lista-personas .amigo-chip{font-weight:500;}
+.amigo-lista-personas .amigo-fila{min-height:60px;}
+.amigo-lista-cabeza{display:flex;justify-content:space-between;gap:12px;}
+.amigos-grupo-form fieldset{margin:16px 0 4px;padding:0;border:0;}
+.amigos-grupo-form .amigos-grupo-nombre[type=text],#amigos-renombrar-form .amigos-grupo-nombre[type=text]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
+.amigos-elegir-lista{list-style:none;margin:0;padding:0;max-height:42vh;overflow-y:auto;}
+.amigos-elegir-lista li+li{border-top:1px solid var(--border);}
+.amigos-elegir{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;}
+.amigos-elegir input[type=checkbox]{flex-shrink:0;width:22px;height:22px;margin:0;accent-color:var(--primary);}
+/* Cabecera como un perfil de Instagram: avatar, tres cifras, nombre y dos
+   botones del mismo peso. Sin gradiente: el anillo usa el acento de la app. */
+.amigos-perfil{display:flex;flex-direction:column;gap:2px;padding:16px 0 4px;}
+.amigos-perfil-fila{display:flex;align-items:center;gap:20px;margin-bottom:10px;}
+.amigo-avatar.perfil-grande{width:80px;height:80px;font-size:1.875rem;font-weight:600;}
+.amigos-cifras{display:flex;flex:1;justify-content:space-around;gap:4px;min-width:0;}
+.amigos-cifra{display:flex;flex-direction:column;align-items:center;gap:0;min-width:56px;min-height:44px;justify-content:center;padding:0;border:0;background:none;color:var(--fg);font:inherit;cursor:default;}
+button.amigos-cifra{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+button.amigos-cifra:active{opacity:.55;}
+.amigos-cifra b{font-size:1.125rem;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.amigos-cifra small{font-size:.8125rem;color:var(--fg2);white-space:nowrap;}
+.amigos-perfil-nombre{font-size:.9375rem;font-weight:600;}
+.amigos-perfil-user{font-size:.875rem;color:var(--fg2);overflow-wrap:anywhere;}
+.amigos-perfil .amigo-ahora{margin:4px 0 0;font-size:.875rem;}
+.amigos-perfil-botones{display:flex;gap:8px;margin-top:12px;}
+.amigos-perfil-botones .amigo-boton{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:36px;padding:0 12px;border:0;background:var(--muted);font-size:.875rem;}
+.amigos-perfil-botones .amigo-boton .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
+/* 36 pt de alto a la vista, 44 de área para el dedo (HIG Buttons). */
+.amigos-perfil-botones .amigo-boton{position:relative;}
+.amigos-perfil-botones .amigo-boton::after{content:'';position:absolute;inset:-4px 0;}
+.amigos-perfil-ficha{padding-top:0;margin-bottom:12px;}
+/* Historias: quién está hoy en la u. Anillo de color = libre ahora. */
+.amigos-historias{margin:12px -20px 4px;padding:4px 0 8px;border-bottom:1px solid var(--border);}
+.amigos-historias ul{display:flex;gap:14px;list-style:none;margin:0;padding:0 20px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.amigos-historias ul::-webkit-scrollbar{display:none;}
+.amigos-historia{display:flex;flex-direction:column;align-items:center;gap:4px;width:68px;padding:0;border:0;background:none;color:var(--fg);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.amigos-historia:active{opacity:.6;}
+.historia-anillo{display:inline-flex;padding:3px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--border2);}
+.historia-anillo.libre{box-shadow:inset 0 0 0 2.5px var(--primary);}
+.historia-anillo .amigo-avatar{width:56px;height:56px;font-size:1.25rem;border:2px solid var(--bg2);}
+.historia-anillo.grande .amigo-avatar{width:80px;height:80px;font-size:1.875rem;}
+.historia-anillo.grande:not(.libre):not(.en-clase){box-shadow:none;padding:0;}
+.historia-anillo.grande:not(.libre):not(.en-clase) .amigo-avatar{border:1px solid var(--border2);}
+.historia-nombre{max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem;}
+.amigos-historia small{font-size:.6875rem;color:var(--fg3);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.amigos-historia:focus-visible,.amigos-cifra:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px;}
+/* Calendario del grupo: por día, como la Agenda. */
+.cal-grupo{list-style:none;margin:0 0 4px;padding:0;}
+.cal-dia h4{margin:12px 0 2px;font-size:.8125rem;font-weight:600;color:var(--fg2);}
+.cal-dia ul{list-style:none;margin:0;padding:0;}
+.cal-item{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 0;border-bottom:1px solid var(--border);}
+.cal-icono{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:var(--muted);color:var(--fg2);}
+.cal-icono.sala{background:var(--primary-light);color:var(--primary);}
+.cal-icono .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.cal-borrar{color:var(--fg3);font-weight:500;}
+.cal-anotar{margin-bottom:12px;}
+.cal-horas{display:flex;gap:12px;}
+.cal-horas label{flex:1;display:flex;flex-direction:column;}
+.amigos-grupo-form input.amigos-grupo-nombre[type=date],.amigos-grupo-form input.amigos-grupo-nombre[type=time]{width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font-size:1rem;}
+/* Primera vez: qué se gana, antes de pedir el username. */
+.amigos-bienvenida{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:12px;text-align:center;}
+.amigos-bienvenida h2{margin:6px 0 4px;}
+.amigos-bienvenida .amigo-avatar.perfil-grande{width:64px;height:64px;font-size:1.5rem;}
+#amigos-username-form{padding-top:16px;}
+.amigos-beneficios{list-style:none;margin:0;padding:0;width:100%;text-align:left;border-top:1px solid var(--border);}
+.amigos-beneficios li{display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border);}
+.amigos-beneficios b{font-size:.9375rem;font-weight:600;}
+.amigos-beneficios small{font-size:.875rem;color:var(--fg2);line-height:1.4;}
+.amigos-letra-chica{font-size:.8125rem;color:var(--fg3);text-align:center;}
+/* Esqueleto de carga: la forma de la pantalla, con un brillo suave. */
+.amigos-esqueleto{padding:16px 0;}
+.esq{display:block;border-radius:8px;background:var(--muted);}
+.esq-avatar{width:80px;height:80px;border-radius:50%;flex-shrink:0;}
+.esq-linea{flex:1;height:44px;}
+.esq-fila{display:flex;align-items:center;gap:14px;padding:12px 0;}
+.esq-circulo{width:40px;height:40px;border-radius:50%;flex-shrink:0;}
+.esq-texto{flex:1;height:32px;}
+@media (prefers-reduced-motion:no-preference){.esq{animation:esq-brillo 1.4s ease-in-out infinite;}}
+@keyframes esq-brillo{0%,100%{opacity:1}50%{opacity:.55}}
+.amigo-ver-semana{margin:0 0 4px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.amigo-semana .horario-semana-cabecera{background:var(--bg2);}
+.amigo-semana-leyenda{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.amigo-semana-punto{display:inline-block;width:10px;height:10px;margin-left:8px;border-radius:3px;background:var(--fg3);}
+.amigo-semana-punto:first-child{margin-left:0;}
+.amigo-semana-punto.comun{background:var(--primary);}
+.amigos-aviso-push{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:12px 0 4px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.amigos-aviso-push .amigo-texto{flex:1 1 180px;}
+.amigos-aviso-push .amigo-texto small{white-space:normal;}
+.amigos-aviso-push .amigo-acciones{margin-left:auto;}
+.amigos-aviso-push .amigo-boton{position:relative;min-height:32px;padding:0 12px;border:0;border-radius:8px;background:var(--muted);font-size:.8125rem;}
+.amigos-aviso-push .amigo-boton.principal{background:var(--fg);color:var(--bg2);}
+.amigos-aviso-push .amigo-boton::after{content:'';position:absolute;inset:-6px -2px;}
+.amigos-aviso-push .cal-icono .ic{fill:none;}
+/* Insignia de solicitudes sobre el ícono, como en iOS. */
+.nav-item .nav-icon{position:relative;}
+.nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió
@@ -6154,7 +6761,16 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
    al final del archivo. */
 .app-nativa .bottom-nav{left:16px;right:16px;width:auto;max-width:none;transform:none;bottom:calc(env(safe-area-inset-bottom,0px) * .5 + 6px);padding:5px;gap:2px;border:1px solid color-mix(in srgb,var(--fg),transparent 90%);border-radius:999px;background:color-mix(in srgb,var(--bg2),transparent 28%);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff,transparent 82%),0 10px 30px rgba(0,0,0,.14);}
 .app-nativa .bottom-nav .nav-item{min-height:52px;padding:6px 0 5px;border-radius:999px;}
+/* Solo íconos, como Instagram (decisión de Lucas, 2026-11-15): el nombre se
+   entiende al segundo uso. VoiceOver sigue leyéndolo por el aria-label. */
+.app-nativa .bottom-nav .nav-item{font-size:0;gap:0;min-height:48px;padding:0;}
+.app-nativa .bottom-nav .nav-icon .ic{width:24px;height:24px;}
 .app-nativa .bottom-nav .nav-item.active{background:color-mix(in srgb,var(--fg),transparent 91%);}
+.app-nativa .bottom-nav{touch-action:none;}
+.app-nativa .bottom-nav .nav-item{transition:background-color var(--motion-press) var(--ease-out);}
+.app-nativa .bottom-nav.nav-arrastrando .nav-item.active:not(.nav-bajo-dedo){background:transparent;}
+.app-nativa .bottom-nav .nav-item.nav-bajo-dedo{background:color-mix(in srgb,var(--fg),transparent 91%);}
+@media (prefers-reduced-motion:reduce){.app-nativa .bottom-nav .nav-item{transition:none;}}
 
 /* Nada de comportamientos de página (pedido de Martín: "sácalos todos"): sin
    seleccionar texto de la interfaz, sin el menú de mantener presionado y sin
@@ -6174,3 +6790,26 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 
 /* El total del editor de pauta se pega justo bajo la barra de la hoja. */
 .app-nativa .pauta-total{top:44px;}
+
+/* Interacción nativa: raíz inmóvil; el contenido, los campos y los textos
+   copiables conservan su comportamiento. HIG Layout, Haptics y Motion. */
+.app-nativa{height:100%;overflow:hidden;overscroll-behavior:none;}
+.app-nativa body{height:100%;min-height:0;overflow:hidden;overscroll-behavior:none;background-image:none;}
+.app-nativa .app{height:100dvh;min-height:0;}
+.app-nativa .topbar{flex-shrink:0;}
+.app-nativa .scroll{min-height:0;overscroll-behavior-y:contain;scroll-padding:16px;}
+.app-nativa #screen-auth,.app-nativa #screen-onboard,.app-nativa #screen-reset,.app-nativa #screen-app-error{overflow-y:auto;min-height:0;overscroll-behavior-y:contain;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+.app-nativa body:has(#modal.open) .app .screen>.scroll{overflow-y:hidden;}
+.app-nativa body:has(.confirm-overlay.open) .app .screen>.scroll{overflow-y:hidden;}
+.app-nativa #modal .modal-sheet{overscroll-behavior-y:contain;scroll-padding:64px 0 24px;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 12px);}
+.app-nativa.nativa-teclado .bottom-nav{visibility:hidden;pointer-events:none;}
+.app-nativa #modal input,.app-nativa #modal textarea,.app-nativa #modal select,.app-nativa #screen-auth input,.app-nativa #screen-onboard input{font-size:max(16px,1rem);}
+.app-nativa #ramo-subtitulo,.app-nativa .course-picker-sigla-fija,.app-nativa .catalogo-clase-ramos strong,.app-nativa .nativa-copiable,.app-nativa [data-copiable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+.app-nativa .nativa-conexion{margin:12px 16px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg2);font-size:.875rem;line-height:1.4;}
+.app-nativa .nativa-conexion[hidden]{display:none;}
+@media(prefers-reduced-motion:reduce){
+  .app-nativa{--motion-press:0ms;--motion-fast:0ms;--motion-base:0ms;--motion-screen:0ms;--motion-navegar:0ms;}
+  .app-nativa *,.app-nativa *::before,.app-nativa *::after{animation:none;transition:none;scroll-behavior:auto;}
+  .app-nativa button:active,.app-nativa #modal button:active,.app-nativa .confirm-overlay.open .confirm-box{transform:none;}
+  .app-nativa::view-transition-group(root),.app-nativa::view-transition-old(root),.app-nativa::view-transition-new(root){animation:none;}
+}

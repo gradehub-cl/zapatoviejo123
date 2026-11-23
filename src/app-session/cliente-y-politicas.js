@@ -2,7 +2,7 @@ const PASS_MIN = 8;
 // La versión acompaña a cada aceptación para poder saber qué texto leyó alguien
 // si cambian los términos o la política. Las cuentas anteriores no la traen y
 // siguen entrando: esta constancia se exige solo al crear una cuenta nueva.
-const LEGAL_ACCEPTANCE_VERSION = '2026-10-27';
+const LEGAL_ACCEPTANCE_VERSION = '2026-11-12';
 
 // UN SOLO TEXTO para dos caminos que tienen que verse iguales desde afuera: el
 // registro que no devolvió sesión y el correo que YA tenía cuenta. Si difieren,
@@ -91,6 +91,8 @@ let _cerrandoSesion=false;
 // un código que solo sirve con el verificador guardado en este dispositivo, no
 // la sesión. La web sigue con el flujo de siempre.
 const APP_NATIVA=typeof window!=='undefined'&&!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());
+// Igual que enAppIOS() en app.js: Android es la excepción.
+const APP_IOS=APP_NATIVA&&!(typeof window.Capacitor.getPlatform==='function'&&window.Capacitor.getPlatform()==='android');
 const VUELTA_NATIVA='cl.gradehub.app://login-callback';
 try{
   if(window.supabase && SUPABASE_URL.startsWith('http')){

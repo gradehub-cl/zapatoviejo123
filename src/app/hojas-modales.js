@@ -109,6 +109,9 @@ function enfocarEnHoja(el,despues){
 function closeModal(){
   const clave=document.getElementById('cuenta-clave');
   if(clave&&typeof clave.reset==='function')clave.reset();
+  // El modal conserva su HTML al cerrarse. Descarta la credencial pegada.
+  const tokenCanvas=document.getElementById('s-canvas-token');
+  if(tokenCanvas)tokenCanvas.value='';
   const despuesDeCancelar=alCancelarAgregarRamo;
   alAgregarRamo=null;
   alCancelarAgregarRamo=null;

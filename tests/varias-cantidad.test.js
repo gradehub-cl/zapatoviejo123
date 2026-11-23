@@ -25,7 +25,9 @@ const avance=()=>run('calculoRamo.avanceRamo(__r).pct');
 assert.equal(avance(),30,'sin cantidad, dos controles dan por evaluado todo el 30%');
 
 // Leer la cantidad: vacío, inválido, menor que lo que ya hay, válido.
-const leer=v=>{el('m-cat-cantidad').value=v;el('m-cat-error').hidden=true;return run("leerCantidadVarias(__r.categorias[0])");};
+// Esta lista ya tiene dos notas: puede seguir abierta (listaAbiertaPermitida).
+const leer=v=>{el('m-cat-cantidad').value=v;el('m-cat-error').hidden=true;return run("leerCantidadVarias(__r.categorias[0],true)");};
+el('m-cat-cantidad').value='';assert.equal(run("leerCantidadVarias({notas:[]},false)"),false,'una nueva sin cantidad no se guarda');
 assert.equal(leer(''),null,'vacío = no sé todavía');
 assert.equal(leer('  '),null);
 assert.equal(leer('1'),false);assert.equal(el('m-cat-error').hidden,false,'muestra el error');
@@ -60,9 +62,12 @@ const norm=run('normalize({ramos:[JSON.parse(JSON.stringify(__r))]}).ramos[0].ca
 assert.equal(norm.slots,5);assert.equal(JSON.stringify(norm.notas.map(n=>n.slot)),'[0,1,2]');
 
 // El HTML del editor: la pregunta aparece solo en «varias notas».
-assert.match(run("cantidadVariasHTML({directNota:false,notas:[]})"),/¿Cuántas son\?/);
-assert.doesNotMatch(run("cantidadVariasHTML({directNota:false,notas:[]})"),/id="m-cat-cantidad-fila" hidden/);
-assert.match(run("cantidadVariasHTML({directNota:true,notas:[]})"),/id="m-cat-cantidad-fila" hidden/);
+// Quien la llama decide si se ve (openEditCatModal) y si puede quedar vacía.
+assert.match(run("cantidadVariasHTML({notas:[]},true,false)"),/¿Cuántas son\?/);
+assert.doesNotMatch(run("cantidadVariasHTML({notas:[]},true,false)"),/id="m-cat-cantidad-fila" hidden/);
+assert.match(run("cantidadVariasHTML({notas:[]},false,false)"),/id="m-cat-cantidad-fila" hidden/);
+assert.match(run("cantidadVariasHTML({notas:[]},true,false)"),/placeholder="Ej: 4"/);
+assert.match(run("cantidadVariasHTML({notas:[]},true,true)"),/placeholder="No sé todavía"/);
 
 // Una fecha por casilla: solo se escriben las que cambian, y una fila vacía no
 // crea notas ni marca fechas quitadas.

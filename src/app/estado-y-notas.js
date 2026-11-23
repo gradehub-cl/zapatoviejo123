@@ -6,6 +6,7 @@ let openHist={};
 
 let _toastTimer=null;
 function showToast(msg,isError=false){
+  if(isError&&typeof avisoErrorNativo==='function')avisoErrorNativo();
   const t=document.getElementById('toast');
   t.textContent=msg;
   t.style.background=isError?'var(--red)':'var(--fg)';

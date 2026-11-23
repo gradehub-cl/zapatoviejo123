@@ -47,7 +47,7 @@ run(`S=normalize({tenant:'uc',ramos:[
     {id:'e1',nombre:'Prueba E1',peso:50,fecha:'2026-09-22',notas:[{id:'ne1',nombre:'Prueba E1',valor:2.0,peso:1}]},
     {id:'e2',nombre:'Prueba E2',peso:50,fecha:'2026-10-26',notas:[]}]}
 ]})`);
-run('agendaOrdenActual="fecha";agendaRestantesAbiertas=true;renderAgenda()');
+run('agendaOrdenActual="fecha";agendaRestantesAbiertas=true;(agendaVista="evaluaciones",renderAgenda())');
 const h=stub.innerHTML;
 // La misma elegibilidad y una sola meta por ramo, ahora como medidor.
 const apariciones=[];const re=/(ag-priority-name|ag-row-name)">([^<]*)<[\s\S]*?(?=ag-priority-name|ag-row-name|$)/g;let m;
@@ -73,7 +73,7 @@ assert.match(bloque('Control D'),/ag-need-value[^]*?<strong>—<\/strong>/,'impo
 assert.equal(run('medidorRamoAgendaHTML({necesita:null})'),'','sin meta calculable no inventa un medidor');
 
 console.log('\n=== Recomendado no prioriza un ramo imposible ===');
-run('agendaOrdenActual="recomendado";renderAgenda()');
+run('agendaOrdenActual="recomendado";(agendaVista="evaluaciones",renderAgenda())');
 const tarjetas=[...stub.innerHTML.matchAll(/ag-priority-name">([^<]*)</g)].map(x=>x[1]);
 assert.ok(!tarjetas.includes('Control D'),'el control de mañana del ramo imposible no es prioridad: '+tarjetas.join(', '));
 assert.match(stub.innerHTML,/Control D/,'pero sigue en la Agenda');

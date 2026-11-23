@@ -69,6 +69,32 @@ function traerNubeAlVolver(ahora=Date.now()){
   reconciliarEnSegundoPlano(uid,vigente,{alVolver:true}).catch(()=>{});
   return true;
 }
+// Con la pestaña abierta y a la vista no hay ningún evento que avise: el
+// computador queda en el escritorio mientras se anota en el celular, y la nota
+// no aparecía hasta cambiar de pestaña o de ventana (2026-11-23). Cada minuto,
+// solo si la pantalla está a la vista, se pregunta a la nube su versión
+// (`_rev`, unos bytes, no el JSON entero). Si es otra que la de la base, se
+// trae por el mismo camino de siempre (traerNubeAlVolver).
+const NUBE_A_LA_VISTA_MS=60000;
+async function revisarNubeALaVista(){
+  if(typeof document==='undefined'||document.visibilityState!=='visible')return false;
+  if(!supabaseClient||!currentUser||!S||!S.onboardingDone)return false;
+  const uid=currentUser.id,base=leerBaseSync(uid);
+  if(getCacheOwner()!==uid||!base||_subida||escribiendoAhora())return false;
+  let rev;
+  try{
+    const {data,error}=await supabaseClient.from('user_ramos').select('rev:data->>_rev').eq('user_id',uid).maybeSingle();
+    if(error||!data)return false;
+    rev=data.rev;
+  }catch(e){return false;}
+  if(!currentUser||currentUser.id!==uid)return false;
+  const conocida=revSync(leerBaseSync(uid));
+  if(String(rev==null?'':rev)===String(conocida==null?'':conocida))return false;
+  _ultimaLecturaNube=0;
+  return traerNubeAlVolver();
+}
+if(typeof setInterval==='function'&&typeof document!=='undefined'&&typeof document.addEventListener==='function')
+  setInterval(()=>{revisarNubeALaVista().catch(()=>{});},NUBE_A_LA_VISTA_MS);
 let _syncTimer=null;
 function syncToCloud(){
   if(!supabaseClient||!currentUser)return;

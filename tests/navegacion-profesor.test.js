@@ -41,7 +41,7 @@ const cuenta = (tipo, aprobado) => {
 console.log('\n=== Una cuenta de estudiante no cambia ===');
 // Una cuenta vieja no trae tipoCuenta: normalize la deja de estudiante (#698).
 cuenta(null, false);
-chk('tiene Estadísticas, Inicio y Agenda', tabs() === 'stats,home,agenda');
+chk('tiene Inicio, Agenda y Estadísticas', tabs() === 'home,agenda,stats,perfil');
 chk('abre en Inicio', run('pestanaInicial()') === 'home');
 chk('Clases y Alumnos siguen escondidas', el('nav-profesor').hidden && el('nav-alumnos').hidden && el('screen-profesor').hidden);
 chk('Inicio a la vista', !el('nav-home').hidden && !el('screen-home').hidden);
@@ -50,12 +50,12 @@ chk('pedir Clases sin tenerla lleva a Inicio', run('currentTab') === 'home');
 
 console.log('\n=== Estudiante que además es profesor aprobado (cuentas mixtas) ===');
 cuenta('estudiante', true);
-chk('tiene sus cinco pestañas, como hoy', tabs() === 'stats,home,agenda,profesor,alumnos');
+chk('tiene sus cinco pestañas, como hoy', tabs() === 'home,agenda,stats,profesor,alumnos,perfil');
 chk('y sigue abriendo en Inicio', run('pestanaInicial()') === 'home');
 
 console.log('\n=== Una cuenta de profesor ===');
 cuenta('profesor', false);
-chk('tiene solo Clases y Alumnos, aunque no esté aprobada', tabs() === 'profesor,alumnos');
+chk('tiene solo Clases y Alumnos, aunque no esté aprobada', tabs() === 'profesor,alumnos,perfil');
 chk('abre en Clases', run('pestanaInicial()') === 'profesor');
 chk('Inicio, Estadísticas y Agenda quedan escondidas, botón y pantalla',
   ['stats', 'home', 'agenda'].every(t => el('nav-' + t).hidden && el('screen-' + t).hidden));
@@ -68,22 +68,24 @@ run("currentTab='home'"); run('goHome()');
 chk('volver lleva a Clases, no a Inicio', run('currentTab') === 'profesor');
 chk('un enlace de widget no abre nada', run("abrirEnlaceWidget('cl.gradehub.app://agenda')") === false);
 cuenta('profesor', true);
-chk('aprobada, las mismas dos pestañas', tabs() === 'profesor,alumnos');
+chk('aprobada, las mismas dos pestañas', tabs() === 'profesor,alumnos,perfil');
 
 console.log('\n=== Recién creada, con la lista todavía de estudiante ===');
 // Al terminar el onboarding de profesor la lista viene de la sesión anterior.
 run("S=normalize(Object.assign(freshState(),{onboardingDone:true}));perfilProfesorCache=null;recalcularNavTabs();S.tipoCuenta='profesor'");
 run("showTab(pestanaInicial())");
-chk('mostrar Clases rearma la lista y llega', run('currentTab') === 'profesor' && tabs() === 'profesor,alumnos');
+chk('mostrar Clases rearma la lista y llega', run('currentTab') === 'profesor' && tabs() === 'profesor,alumnos,perfil');
 
 console.log('\n=== Al cerrar sesión vuelve todo a estudiante ===');
 run("S=freshState();perfilProfesorCache=null;recalcularNavTabs()");
-chk('tres pestañas de nuevo', tabs() === 'stats,home,agenda' && !el('nav-home').hidden && !el('screen-home').hidden);
+chk('tres pestañas de nuevo', tabs() === 'home,agenda,stats,perfil' && !el('nav-home').hidden && !el('screen-home').hidden);
 
 console.log('\n=== Sin Inicio, igual se llega a Ajustes ===');
 const topbar = id => (html.match(new RegExp(`<div id="screen-${id}"[\\s\\S]*?<div class="scroll">`)) || [''])[0];
-chk('Clases tiene su avatar con el menú de la cuenta', /class="avatar-btn" onclick="toggleUserMenu\(event\)"[^>]*aria-haspopup="menu"/.test(topbar('profesor')));
-chk('Alumnos también', /class="avatar-btn" onclick="toggleUserMenu\(event\)"/.test(topbar('alumnos')));
+// El avatar con su menú se reemplazó por la pestaña Perfil, que toda cuenta tiene.
+cuenta('profesor', false);
+chk('una cuenta de profesor tiene Perfil a la vista', !el('nav-perfil').hidden && !el('screen-perfil').hidden);
+chk('ya no depende de un avatar en Clases ni en Alumnos', !/avatar-btn/.test(topbar('profesor') + topbar('alumnos')));
 cuenta('profesor', false); run("S.tenant='uc';openUserMenu()");
 chk('el menú no ofrece importar el horario a un profesor', el('um-horario').hidden);
 cuenta(null, false); run("S.tenant='uc';openUserMenu()");
@@ -98,11 +100,11 @@ chk('la malla ya no ocupa un lugar en el menú del perfil', !/id="um-malla"/.tes
 console.log('\n=== Un admin le oculta Alumnos (2026-10-23) ===');
 run(`S=normalize(Object.assign(freshState(),{onboardingDone:true,tipoCuenta:'profesor'}))`);
 run(`perfilProfesorCache={estado:'aprobado',panel_alumnos:false}`);run('recalcularNavTabs()');
-chk('con el panel oculto, solo Clases', tabs() === 'profesor' && el('nav-alumnos').hidden && el('screen-alumnos').hidden);
+chk('con el panel oculto, solo Clases', tabs() === 'profesor,perfil' && el('nav-alumnos').hidden && el('screen-alumnos').hidden);
 run(`S=normalize(Object.assign(freshState(),{onboardingDone:true}))`);run('recalcularNavTabs()');
-chk('un estudiante que es profesor sigue con sus pestañas, sin Alumnos', tabs() === 'stats,home,agenda,profesor');
+chk('un estudiante que es profesor sigue con sus pestañas, sin Alumnos', tabs() === 'home,agenda,stats,profesor,perfil');
 run(`perfilProfesorCache={estado:'aprobado'}`);run('recalcularNavTabs()');
-chk('sin el SQL nuevo (sin el campo), Alumnos se ve como antes', tabs() === 'stats,home,agenda,profesor,alumnos');
+chk('sin el SQL nuevo (sin el campo), Alumnos se ve como antes', tabs() === 'home,agenda,stats,profesor,alumnos,perfil');
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
