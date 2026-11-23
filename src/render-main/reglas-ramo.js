@@ -9,10 +9,10 @@ function notaEstadoRegla(n){
 function fuenteReglasRamo(r,def){
   const a=r.pautaSugerida?.aceptada;
   if(Number.isSafeInteger(r.consensoRespaldos)&&r.consensoRespaldos>0)
-    return `Reportada por ${r.consensoRespaldos} estudiantes${pautaEditada(r)?' · pauta editada':''}`;
+    return `Reportada por ${r.consensoRespaldos} estudiantes${pautaEditada(r)?' · ponderaciones editadas':''}`;
   if(a&&a.fuente!=='programa')return textoProcedenciaSugerida(a);
   const periodo=periodoDePreset(def);
-  return def?(periodo?`Del programa ${periodo}`:'Del catálogo · período no informado'):'De tu pauta';
+  return def?(periodo?`Del programa ${periodo}`:'Del catálogo · período no informado'):'De tus ponderaciones';
 }
 function textoEximicionRegla(e){
   const regla=e.regla,examen=regla.etiqueta||regla.evaluacion||(regla.evaluaciones||[]).join(' y ');
@@ -54,7 +54,7 @@ function modeloReglasRamo(r){
     const activa=unica&&activas.find(a=>a.nombre===clave(g)&&a.min===g.min);
     const efecto=activa?` Hoy el motor aplica este requisito: tope ${notaEstadoRegla(activa.cap)}.`:'';
     agregar(nombre,`Si ${g.type==='group_min'?'el promedio de ':''}${nombre} queda bajo ${numeroRegla(g.min)}${g.exacto?' sin aproximar':''}, la final queda topada en ${tope}.${efecto}`,
-      typeof g.ayuda==='string'?[g.ayuda]:[],g.origen==='editor'?'De tu pauta':fuente);
+      typeof g.ayuda==='string'?[g.ayuda]:[],g.origen==='editor'?'De tus ponderaciones':fuente);
   });
   // Las compuertas implícitas vienen del reglamento. Solo se anuncia su estado
   // devuelto por el motor; no se replica la elección de examen ni su fórmula.
@@ -62,13 +62,13 @@ function modeloReglasRamo(r){
     .forEach(a=>agregar(a.nombre,`Con ${notaEstadoRegla(a.actual)} en ${a.nombre}, el requisito vigente deja un tope de ${notaEstadoRegla(a.cap)}.`,[],'Del reglamento de tu universidad'));
   (r.categorias||[]).filter(c=>c.dropLowest).forEach(c=>{
     const n=c.dropLowest.count,parte=Number.isInteger(n)?`${n} nota${n===1?'':'s'}`:c.dropLowest.fraction?`${numeroRegla(c.dropLowest.fraction*100)} % de las notas`:null;
-    if(parte&&(n>0||c.dropLowest.fraction>0))agregar(c.nombre,gh_descarteManual(r,S.tenant)?`${c.nombre}: puedes borrar ${parte}; tú eliges cuáles.`:`${c.nombre}: no cuentan las ${parte} más bajas; siempre queda al menos una.`,[],c.descarteOrigen==='editor'?'De tu pauta':fuente);
+    if(parte&&(n>0||c.dropLowest.fraction>0))agregar(c.nombre,gh_descarteManual(r,S.tenant)?`${c.nombre}: puedes borrar ${parte}; tú eliges cuáles.`:`${c.nombre}: no cuentan las ${parte} más bajas; siempre queda al menos una.`,[],c.descarteOrigen==='editor'?'De tus ponderaciones':fuente);
   });
   reglasBonusVigentes(r).forEach(b=>agregar(b.pregunta||'Bonus',textoBonusRegla(b,r),b.ayuda?[b.ayuda]:[]));
   reglasCalculadas(r).forEach(s=>agregar('Regla de cálculo',s));
   reglasDelCurso(r).forEach(s=>agregar('Regla del curso',s,[s],fuente,'La app no la aplica automáticamente.'));
   const textosCatalogo=new Set([...reglasDelPreset(r,'noCalcula'),...reglasDelPreset(r,'bonus').map(b=>b.ayuda)]);
-  reglasNoCalculadas(r).forEach(s=>agregar('Por revisar',s,textosCatalogo.has(s)?[s]:[],textosCatalogo.has(s)?fuente:'Comprobación de tu pauta','Esta condición no está incluida en el promedio.'));
+  reglasNoCalculadas(r).forEach(s=>agregar('Por revisar',s,textosCatalogo.has(s)?[s]:[],textosCatalogo.has(s)?fuente:'Comprobación de tus ponderaciones','Esta condición no está incluida en el promedio.'));
   const canvas=copiarProgramaCanvas(r.programaCanvas);
   if(canvas){
     const origen=canvas.archivo?`De “${canvas.archivo}” en Canvas`:'Del programa escrito en Canvas';
@@ -86,7 +86,7 @@ function repartoReglasHTML(r,ex){
     const n=Number.isInteger(c.slots)&&c.slots>1?c.slots:0;
     const pesos=n?Array.from({length:n},(_,i)=>Array.isArray(c.pesosCasillas)&&Number(c.pesosCasillas[i])>0?Number(c.pesosCasillas[i]):1):[];
     const suma=pesos.reduce((a,b)=>a+b,0);
-    const detalle=n?`<details class="reglas-subpesos"><summary>${n} evaluaciones en ${esc(c.nombre)}${iconoDespliegue(false)}</summary><p>Porcentaje del ramo · reparto de la pauta</p>${pesos.map((p,i)=>barra(etiquetaCasilla(r,c,i),c.peso*p/suma)).join('')}</details>`
+    const detalle=n?`<details class="reglas-subpesos"><summary>${n} evaluaciones en ${esc(c.nombre)}${iconoDespliegue(false)}</summary><p>Porcentaje del ramo · reparto de las ponderaciones</p>${pesos.map((p,i)=>barra(etiquetaCasilla(r,c,i),c.peso*p/suma)).join('')}</details>`
       :c.directNota===false?'<small>Cantidad de notas sin declarar: no se inventan subpesos.</small>':'';
     return `<div class="reglas-peso">${barra(c.nombre,c.peso)}${detalle}</div>`;
   };
@@ -101,9 +101,9 @@ function reglasRamoHTML(r){
   const modelo=modeloReglasRamo(r);
   if(!modelo.reglas.length)return '';
   const filas=modelo.reglas.map(regla=>`<article class="reglas-fila"><h3>${esc(regla.titulo)}</h3><p class="reglas-simple">${esc(regla.simple)}</p>${regla.aviso?`<small class="reglas-aviso">${esc(regla.aviso)}</small>`:''}
-    <details class="reglas-cita"><summary>Lo que dice el programa${iconoDespliegue(false)}</summary>${regla.citas.length?`<p class="reglas-texto-origen">${regla.fuente.includes('Canvas')?'Fragmentos leídos de Canvas; pueden estar recortados.':regla.fuente==='De tu pauta'?'Texto guardado con tu pauta.':'Texto registrado en el catálogo; puede ser un resumen del programa.'}</p>${regla.citas.map(c=>`<blockquote>${esc(c)}</blockquote>`).join('')}`:'<p>No hay una cita textual guardada para esta regla. Comprueba el programa del curso.</p>'}<p class="reglas-fuente">${esc(regla.fuente)}</p></details></article>`).join('');
+    <details class="reglas-cita"><summary>Lo que dice el programa${iconoDespliegue(false)}</summary>${regla.citas.length?`<p class="reglas-texto-origen">${regla.fuente.includes('Canvas')?'Fragmentos leídos de Canvas; pueden estar recortados.':regla.fuente==='De tus ponderaciones'?'Texto guardado con tus ponderaciones.':'Texto registrado en el catálogo; puede ser un resumen del programa.'}</p>${regla.citas.map(c=>`<blockquote>${esc(c)}</blockquote>`).join('')}`:'<p>No hay una cita textual guardada para esta regla. Comprueba el programa del curso.</p>'}<p class="reglas-fuente">${esc(regla.fuente)}</p></details></article>`).join('');
   const editada=modelo.canvas&&modelo.canvas.pauta!==firmaPautaSugerida(r);
   const fuenteCanvas=modelo.canvas?(modelo.canvas.archivo?`De “${modelo.canvas.archivo}” en Canvas`:'Del programa escrito en Canvas'):null;
   const fuenteFinal=fuenteCanvas?`${modelo.reglas.some(regla=>!regla.fuente.includes('Canvas'))?modelo.fuente+' · ':''}${fuenteCanvas}`:modelo.fuente;
-  return `<section class="reglas-ramo" aria-label="Reglas del ramo"><h2>Reglas del ramo</h2><p class="reglas-etiqueta">En simple</p>${filas}${repartoReglasHTML(r,modelo.eximicion)}<footer>${esc(fuenteFinal)}${editada?'<p>Pauta editada después de importar Canvas. Las citas se conservan como referencia; los pesos son los de tu pauta.</p>':''}</footer></section>`;
+  return `<section class="reglas-ramo" aria-label="Reglas del ramo"><h2>Reglas del ramo</h2><p class="reglas-etiqueta">En simple</p>${filas}${repartoReglasHTML(r,modelo.eximicion)}<footer>${esc(fuenteFinal)}${editada?'<p>Ponderaciones editadas después de importar Canvas. Las citas se conservan como referencia; los pesos son los de tus ponderaciones.</p>':''}</footer></section>`;
 }

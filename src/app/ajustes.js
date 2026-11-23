@@ -51,7 +51,7 @@ function openSettings(){
   const sections=[
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta ponderaciones programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
@@ -197,8 +197,8 @@ function openSettings(){
       <div class="agent-explainer">
         <b>Qué puede hacer</b>
         ${enAppNativa()
-          ?'<span>Puede leer tus ramos, notas y fechas, simular escenarios y preparar propuestas de ramos, pautas, notas y fechas.</span><span class="agent-explainer-no">Tú revisas y eliges qué propuestas aplicar en GradeHub.</span>'
-          :'<span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span><span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>'}
+          ?'<span>Puede leer tus ramos, notas y fechas, simular escenarios y preparar propuestas de ramos, ponderaciones, notas y fechas.</span><span class="agent-explainer-no">Tú revisas y eliges qué propuestas aplicar en GradeHub.</span>'
+          :'<span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte ponderaciones que tú confirmas.</span><span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>'}
       </div>
 
       <label class="modal-label">1. Pregúntale a tu agente dónde conectarlo</label>
@@ -231,7 +231,7 @@ function openSettings(){
         <details class="agent-prompt-ver"><summary>Ver el mensaje</summary><span id="s-agent-prompt-texto">${esc(PROMPTS_AGENTE.repaso.texto)}</span></details>
       </div><button type="button" class="agent-refresh" onclick="copiarPromptAgente()">Copiar</button></div>
 
-      <div class="agent-proposal-entry"><div><b>Pautas por revisar</b><span>Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
+      <div class="agent-proposal-entry"><div><b>Ponderaciones por revisar</b><span>Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
       :`<div class="feedback-empty"><b>Necesitas iniciar sesión</b><p>Así puedes ver y desconectar tus agentes.</p></div>`;
     if(section==='sugerencias'){
       const contacto=`<p class="feedback-contact">¿Prefieres escribirnos por correo? <a id="feedback-contact" href="${esc(correoSugerenciaHref())}" onclick="actualizarCorreoSugerencia()">gradehub.app@gmail.com</a></p>`;
@@ -259,10 +259,10 @@ function openSettings(){
       </div>
       ${!soloProfesor?`<div class="settings-pautas">
         <label class="toggle-row" for="s-compartir-pautas">
-          <span class="toggle-label">Compartir mis pautas en forma anónima</span>
+          <span class="toggle-label">Compartir mis ponderaciones en forma anónima</span>
           <span class="toggle"><input id="s-compartir-pautas" type="checkbox" role="switch" ${S.aportarPautasAutomaticamente===false?'':'checked'} onchange="cambiarCompartirPautas(this.checked)" aria-describedby="s-pautas-ayuda"/><span class="toggle-slider"></span></span>
         </label>
-        <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas pautas; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
+        <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas ponderaciones; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
       </div>`:''}
       ${!soloProfesor&&typeof cambiarAnunciosConNotas==='function'?`<div class="settings-pautas">
         <label class="toggle-row" for="s-anuncios-notas">
@@ -270,6 +270,13 @@ function openSettings(){
           <span class="toggle"><input id="s-anuncios-notas" type="checkbox" role="switch" ${S.anunciosConNotas===false?'':'checked'} onchange="cambiarAnunciosConNotas(this.checked)" aria-describedby="s-anuncios-notas-ayuda"/><span class="toggle-slider"></span></span>
         </label>
         <p class="settings-help" id="s-anuncios-notas-ayuda">Las clases particulares recomendadas en Inicio se eligen en este dispositivo según tus ramos y notas; tus notas no se envían para eso. Si lo apagas, no verás recomendaciones en Inicio y puedes seguir buscando en Apoyo.</p>
+      </div>`:''}
+      ${typeof enAppNativa==='function'&&enAppNativa()&&typeof cambiarAnaliticaApp==='function'?`<div class="settings-pautas">
+        <label class="toggle-row" for="s-analitica">
+          <span class="toggle-label">Estadísticas de uso</span>
+          <span class="toggle"><input id="s-analitica" type="checkbox" role="switch" ${analiticaApagadaEnEsteTelefono()?'':'checked'} onchange="cambiarAnaliticaApp(this.checked)" aria-describedby="s-analitica-ayuda"/><span class="toggle-slider"></span></span>
+        </label>
+        <p class="settings-help" id="s-analitica-ayuda">Nos dicen qué partes de la app se usan, nunca tus notas, ramos ni tu nombre. Si las apagas, este teléfono deja de enviarlas.</p>
       </div>`:''}
       ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>

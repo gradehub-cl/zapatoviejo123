@@ -241,7 +241,7 @@ function mostrarRamosCargados(cantidad,oficiales){
   }
 
   const ramosTxt=`${cantidad} ramo${cantidad!==1?'s':''} agregado${cantidad!==1?'s':''}`;
-  const oficialesTxt=`${oficiales} ramo${oficiales!==1?'s':''} con pauta`;
+  const oficialesTxt=`${oficiales} ramo${oficiales!==1?'s':''} con programa`;
   const pendientes=cantidad-oficiales;
   let titulo,principal,detalle;
   if(oficiales===cantidad){

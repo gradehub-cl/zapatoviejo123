@@ -171,7 +171,7 @@ assert.equal(evidencia([fila(A, 4)]), false);
   const deTtf = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rT), rT, []);
   assert.equal(deTtf.length, 1);
   assert.equal(deTtf[0].fuente, 'catalogo', 'sin reportes, se ofrece la del catálogo diciendo de dónde sale');
-  assert.match(run('textoReferenciaSugerida')(deTtf[0]), /Pauta publicada para este ramo; puede no ser la de tu sección/);
+  assert.match(run('textoReferenciaSugerida')(deTtf[0]), /Ponderaciones publicadas para este ramo; pueden no ser las de tu sección/);
   const bio = { id: 'b', nombre: 'Biología de la Célula', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', seccion: 5, categorias: [], gates: [] };
   run(`S.ramos=${JSON.stringify([bio])}`);
   const rB = run('S.ramos[0]');

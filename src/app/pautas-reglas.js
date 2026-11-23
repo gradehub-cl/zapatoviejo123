@@ -1,7 +1,13 @@
 function claveUc(nombre){
   return claveCatalogo(nombre,Object.keys(PRESETS_UC),'uc');
 }
+// La carrera que manda en programas y siglas: un major de Ingeniería usa los
+// de ING-PC (CARRERA_BASE_UC). El resto de las carreras se representa a sí misma.
+function carreraBaseUc(carrera){
+  return (typeof CARRERA_BASE_UC!=='undefined'&&CARRERA_BASE_UC[carrera])||carrera;
+}
 function presetUcDisponible(nombre,carrera){
+  carrera=carreraBaseUc(carrera);
   const clave=claveUc(nombre);if(!clave)return false;
   if(carrera==='ING-PC')return true;
   if(carrera!=='COM')return false;
@@ -12,8 +18,8 @@ function findPresetName(nombre,tenant,carrera){
     const presets=PRESETS_POR_TENANT[tenant]||{};
     return claveCatalogo(nombre,Object.keys(presets).filter(k=>pautaPresetSuficiente(evalsDePreset(presets[k]))),tenant);
   }
-  if(tenant!=='uc'||!MALLA_UC[carrera])return null;
-  return claveCatalogo(nombre,presetsUcConPauta(carrera),'uc');
+  if(tenant!=='uc'||!MALLA_UC[carreraBaseUc(carrera)])return null;
+  return claveCatalogo(nombre,presetsUcConPauta(carreraBaseUc(carrera)),'uc');
 }
 // La estrella y el selector prometen ponderaciones precargadas. Un programa
 // que solo trae reglas (como Cálculo II) no debe fingir que las tiene, así
@@ -53,13 +59,13 @@ function reglasNoCalculadas(ramo){
   const def=definicionPresetDelRamo(ramo);
   const calculadas=reglasCalculoVigentes(ramo);
   if(def?.eximicion?.requierePautaOriginal===true&&!estadoEximicion(ramo))
-    pendientes.push('La eximición necesita la pauta del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
+    pendientes.push('La eximición necesita las ponderaciones del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
   const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
   const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
   const optativos=!Array.isArray(def)&&def&&(def.reemplazosOptativos||[]).length;
-  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
-  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
-  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a su pauta. Si la personalizaste, tu versión se conserva');
+  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a sus ponderaciones. Si personalizaste las evaluaciones, tu versión se conserva y esta regla no se aplica');
+  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a las ponderaciones del programa');
+  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a sus ponderaciones. Si las personalizaste, tu versión se conserva');
   const ausencias=estadoAusenciasJustificadas(ramo);
   if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
   return pendientes;
