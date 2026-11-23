@@ -115,6 +115,16 @@ for (const f of ['ios/App/App/PrivacyInfo.xcprivacy', 'ios/App/GradeHubWidgets/P
   const m = leer(f);
   chk(f.split('/')[2] + ': manifiesto sin rastreo y con el motivo del App Group', /<key>NSPrivacyTracking<\/key>\s*<false\/>/.test(m) && /NSPrivacyAccessedAPICategoryUserDefaults/.test(m) && /<string>1C8F\.1<\/string>/.test(m));
 }
+{
+  // Lo que junta la app tiene que calzar con el manifiesto (App Review 5.1.1/5.1.2):
+  // PostHog y visitas_diarias ligan el uso a la cuenta, los anuncios guardan qué
+  // vio cada cuenta y el profesor puede dejar un WhatsApp.
+  const m = leer('ios/App/App/PrivacyInfo.xcprivacy');
+  const ligado = t => new RegExp(`<string>NSPrivacyCollectedDataType${t}</string>\\s*<key>NSPrivacyCollectedDataTypeLinked</key>\\s*<true/>`).test(m);
+  chk('manifiesto: uso de la app ligado a la cuenta', ligado('ProductInteraction'));
+  chk('manifiesto: teléfono de contacto del profesor', ligado('PhoneNumber'));
+  chk('manifiesto: datos de los anuncios vistos', ligado('AdvertisingData'));
+}
 chk('los dos manifiestos van en los recursos de la app y del widget', (pbx.match(/PrivacyInfo\.xcprivacy in Resources \*\/,/g) || []).length === 2);
 const icono = JSON.parse(leer('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json')).images;
 chk('ícono con versión oscura y teñida', ['dark', 'tinted'].every(v => icono.some(i => (i.appearances || []).some(a => a.value === v) && fs.existsSync(path.join(raiz, 'ios/App/App/Assets.xcassets/AppIcon.appiconset', i.filename)))));
