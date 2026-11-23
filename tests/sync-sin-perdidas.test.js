@@ -30,8 +30,11 @@ function crearNube(){
     from(tabla){
       if(tabla!=='user_ramos')return cualquiera();
       return {
-        select:()=>({eq:(_c,uid)=>({maybeSingle:async()=>{sinRed();
-          return {data:filas.has(uid)?{data:JSON.parse(JSON.stringify(filas.get(uid)))}:null,error:null};}})}),
+        select:cols=>({eq:(_c,uid)=>({maybeSingle:async()=>{sinRed();nube.lecturas=(nube.lecturas||0)+1;
+          if(!filas.has(uid))return {data:null,error:null};
+          // `rev:data->>_rev` (revisarNubeALaVista) trae solo la versión, como texto.
+          if(/_rev/.test(cols||''))return {data:{rev:leerRev(filas.get(uid))},error:null};
+          return {data:{data:JSON.parse(JSON.stringify(filas.get(uid)))},error:null};}})}),
         upsert:async fila=>{sinRed();nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
         update(valores){
           const filtros=[];
@@ -249,6 +252,30 @@ const esperar=ms=>new Promise(r=>setTimeout(r,ms));
     chk('y ahí aparece la nota',JSON.stringify(cel.notas())===JSON.stringify([[[6.1],[]]]));
     cel.run('document.activeElement=null');
   }
+  {
+    // La pestaña del computador queda abierta y a la vista mientras se anota en
+    // el celular: ningún evento avisa. La revisión de cada minuto la trae.
+    const nube=createNubeYa();
+    const pc=await preparar(nube);
+    const cel=dispositivo(nube);await cel.entrar('u1');
+    chk('sin cambios en la nube, la revisión no trae nada',(await pc.run('revisarNubeALaVista()'))===false);
+    cel.anotar(0,6.6,'del-cel');await cel.subir();
+    chk('con la versión de la nube nueva, la revisión la trae',(await pc.run('revisarNubeALaVista()'))===true);
+    await esperar(50);
+    chk('y aparece la nota del celular en el computador',JSON.stringify(pc.notas())===JSON.stringify([[[6.6],[]]]));
+    chk('la siguiente revisión, ya al día, no trae nada',(await pc.run('revisarNubeALaVista()'))===false);
+    cel.anotar(1,5.1,'otra');await cel.subir();
+    pc.run(`document.visibilityState='hidden'`);
+    chk('con la pantalla escondida no pregunta',(await pc.run('revisarNubeALaVista()'))===false);
+    pc.run(`document.visibilityState='visible';document.activeElement={tagName:'INPUT',type:'text'}`);
+    chk('con un campo de nota con el foco no pregunta',(await pc.run('revisarNubeALaVista()'))===false);
+    pc.run('document.activeElement=null');
+    nube.red=false;
+    chk('sin red no pasa nada',(await pc.run('revisarNubeALaVista()'))===false);
+    nube.red=true;
+  }
+  chk('la revisión corre cada minuto, solo con la pantalla a la vista',
+    /setInterval\(\(\)=>\{revisarNubeALaVista\(\)/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8')));
   chk('volver a la pantalla, a la ventana o recuperar la red llaman a traerNubeAlVolver',
     /else\{reintentarSubida\(\);traerNubeAlVolver\(\);\}/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8'))
     &&/addEventListener\('focus',\(\)=>traerNubeAlVolver\(\)\)/.test(fs.readFileSync(path.join(raiz,'src/app-session/visitas-y-subidas.js'),'utf8')));
