@@ -45,5 +45,16 @@ chk('Derecho se representa a sí misma', run('carreraBaseUc("UC-DERECHO")') === 
 chk('la malla de ING-PC sigue igual en 1°', JSON.stringify(run('MALLA_UC["ING-PC"][1]')) === JSON.stringify(['Cálculo I', 'Álgebra Lineal', 'Química para Ingeniería', 'Desafíos de la Ingeniería', 'Filosofía: ¿Para Qué?']));
 chk('un major sugiere ramos de 5° en adelante', (run('mallaDeCarrera("uc","UC-ING-MECANICA")[5]') || []).includes('Mecánica de Fluidos'));
 
+console.log('\n=== El onboarding no muestra majors; Ajustes sí ===');
+// Quien se registra es casi siempre novato y no tiene major: 21 opciones lo
+// confunden. El major se elige después, en Ajustes.
+chk('cada major está marcado soloAjustes', majors.every(m => m.soloAjustes === true));
+chk('la carrera de plan común se llama Ingeniería Civil', run('CARRERAS_DECLARABLES.uc.find(c=>c.malla==="ING-PC").n') === 'Ingeniería Civil');
+chk('buscar «Ingeniería» encuentra Ingeniería Civil', run('coincideBusquedaCarrera(CARRERAS_DECLARABLES.uc.find(c=>c.malla==="ING-PC"),"ingenieria")'));
+const onb = fs.readFileSync(__dirname + '/../src/app/onboarding-estado.js', 'utf8');
+chk('el onboarding filtra soloAjustes', /carrerasDeclarables\(selectedTenant\)\.filter\(c=>!c\.soloAjustes\)/.test(onb));
+const aj = fs.readFileSync(__dirname + '/../src/app/ajustes.js', 'utf8');
+chk('Ajustes sigue ofreciendo todas', /const todas=carrerasDeclarables\(settingsTenant\);/.test(aj));
+
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

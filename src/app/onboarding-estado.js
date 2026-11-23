@@ -95,7 +95,8 @@ function initSemGrid(){
 // solo su nombre: la cobertura del catálogo no orienta qué carrera elegir.
 function initCarreraGrid(){
   const g=document.getElementById('carrera-grid');if(!g)return;g.innerHTML='';
-  const todas=carrerasDeclarables(selectedTenant);
+  // Lo marcado `soloAjustes` (los majors de Ingeniería UC) se elige después.
+  const todas=carrerasDeclarables(selectedTenant).filter(c=>!c.soloAjustes);
   const q=normName(carreraFiltro||'');
   const vistas=q?todas.filter(c=>coincideBusquedaCarrera(c,q)):todas;
   // Una carrera declarable no puede quedar escondida en un paso obligatorio.
