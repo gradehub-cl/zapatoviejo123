@@ -709,7 +709,7 @@ function calendarioGrupoHTML(id,items){
   const quien=it=>it.yo?'Tú':(it.nombre||'@'+it.username).split(' ')[0];
   const fila=it=>it.tipo==='reserva'
     ?`<li class="cal-item"><span class="cal-icono sala" aria-hidden="true">${ICONO_SALA}</span>
-        <span class="amigo-texto"><b>${esc(it.titulo)}</b><small>${esc(`${it.inicio}–${it.fin} · ${quien(it)}`)}</small></span>
+        <span class="amigo-texto"><b>${esc(it.titulo)}</b><small>${esc(`${it.inicio}–${it.fin} · ${quien(it)}`)}</small>${it.detalle?`<span class="cal-codigo">Código <b>${esc(it.detalle)}</b></span>`:''}</span>
         ${it.yo?`<button type="button" class="amigos-link cal-borrar" data-amigos="reserva-borrar" data-id="${esc(it.id)}" data-grupo="${esc(id)}" aria-label="Borrar la reserva de ${esc(it.titulo)}">Borrar</button>`:''}</li>`
     :`<li class="cal-item"><span class="cal-icono prueba" aria-hidden="true">${ICONO_PRUEBA}</span>
         <span class="amigo-texto"><b>${esc(it.titulo)}${it.detalle?` · ${esc(it.detalle)}`:''}</b><small>${esc([it.inicio,quien(it)].filter(Boolean).join(' · '))}</small></span></li>`;
@@ -734,7 +734,9 @@ function abrirReservaNueva(id){
         <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" value="14:00"></label>
         <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" value="16:00"></label>
       </div>
-      <p class="amigos-vacio-texto">La ve solo este grupo. La reserva en sí la haces en el sistema de tu universidad.</p>
+      <label class="modal-label" for="amigos-reserva-codigo">Código de la sala (opcional)</label>
+      <input id="amigos-reserva-codigo" class="amigos-grupo-nombre" type="text" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="El que te llegó por mail">
+      <p class="amigos-vacio-texto">La ve solo este grupo, con el código si lo anotas: así entra cualquiera aunque tú no llegues. La reserva en sí la haces en el sistema de tu universidad.</p>
     </form>
     <div class="modal-btns"><button type="button" class="btn-cancel" data-amigos="grupo" data-id="${esc(id)}">Volver</button>
       <button type="submit" form="amigos-reserva-form" class="btn-confirm">Guardar</button></div>`;
@@ -742,8 +744,11 @@ function abrirReservaNueva(id){
     ev.preventDefault();
     const v=k=>document.getElementById('amigos-reserva-'+k).value;
     if(!v('lugar').trim()){showToast('Escribe dónde',true);return;}
+    // Sin código no se manda p_codigo: la llamada queda igual que antes.
+    const codigo=v('codigo').trim().replace(/\s+/g,' ');
+    if(codigo&&!/^[A-Za-z0-9][A-Za-z0-9 -]{0,23}$/.test(codigo)){showToast('El código va con letras y números',true);return;}
     try{
-      await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin')});
+      await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin'),...(codigo?{p_codigo:codigo}:{})});
       if(typeof vibrar==='function')vibrar('exito');
       abrirGrupo(id);
     }catch(e){showToast(mensajeErrorAmigos(e),true);}

@@ -22,6 +22,12 @@
 --   - amigos_grupo_reservas: grupo → amigos_grupos ON DELETE CASCADE y
 --     user_id → auth.users ON DELETE CASCADE. Salir del grupo borra las propias.
 --   - amigos_pruebas: user_id → auth.users ON DELETE CASCADE.
+--
+-- CÓDIGO DE LA SALA (Lucas, 2026-11-22): en la UC, quien reserva recibe por
+-- mail un código que se ingresa en la sala. Se anota opcional con la reserva y
+-- lo ve todo el grupo, por si quien reservó no llega. Viaja en `detalle` de
+-- grupo_calendario (null en reservas hasta ahora), así el build 4, que no lo
+-- lee, sigue igual. Nunca va en el aviso push.
 begin;
 
 create table if not exists public.amigos_grupo_reservas (
@@ -35,6 +41,10 @@ create table if not exists public.amigos_grupo_reservas (
   created_at timestamptz not null default now(),
   check (fin > inicio)
 );
+alter table public.amigos_grupo_reservas add column if not exists codigo text;
+alter table public.amigos_grupo_reservas drop constraint if exists amigos_grupo_reservas_codigo_check;
+alter table public.amigos_grupo_reservas add constraint amigos_grupo_reservas_codigo_check
+  check (codigo is null or codigo ~ '^[A-Za-z0-9][A-Za-z0-9 -]{0,23}$');
 create index if not exists amigos_grupo_reservas_grupo_idx on public.amigos_grupo_reservas (grupo_id, fecha);
 create index if not exists amigos_grupo_reservas_user_idx on public.amigos_grupo_reservas (user_id);
 alter table public.amigos_grupo_reservas enable row level security;
@@ -63,21 +73,26 @@ create trigger amigos_reservas_al_salir after delete on public.amigos_grupo_miem
 
 -- ─── RESERVAS ───────────────────────────────────────────────────────────────
 -- Hasta 60 días adelante y 30 reservas por venir por persona y grupo.
-create or replace function public.agregar_reserva_grupo(p_grupo uuid, p_lugar text, p_fecha date, p_inicio time, p_fin time)
+-- La versión sin código se borra: con las dos, una llamada de 5 argumentos
+-- (build 4) sería ambigua. p_codigo tiene default, así que esa llamada sirve.
+drop function if exists public.agregar_reserva_grupo(uuid, text, date, time, time);
+create or replace function public.agregar_reserva_grupo(p_grupo uuid, p_lugar text, p_fecha date, p_inicio time, p_fin time, p_codigo text default null)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare uid uuid := public.amigos_exigir_sesion(); l text := btrim(coalesce(p_lugar, '')); id uuid;
         hoy date := (now() at time zone 'America/Santiago')::date;
+        cod text := nullif(regexp_replace(btrim(coalesce(p_codigo, '')), '[[:space:]]+', ' ', 'g'), '');
 begin
   if not public.amigos_es_miembro(p_grupo, uid) then raise exception 'no estás en ese grupo'; end if;
   if char_length(l) not between 1 and 60 then raise exception 'escribe dónde: hasta 60 caracteres'; end if;
   if public.amigos_texto_ofensivo(l) then raise exception 'ese texto no está permitido'; end if;
   if p_fecha is null or p_fecha < hoy or p_fecha > hoy + 60 then raise exception 'la fecha va de hoy a 60 días más'; end if;
   if p_inicio is null or p_fin is null or p_fin <= p_inicio then raise exception 'la hora de término va después de la de inicio'; end if;
+  if cod is not null and cod !~ '^[A-Za-z0-9][A-Za-z0-9 -]{0,23}$' then raise exception 'el código va con letras y números: hasta 24'; end if;
   if (select count(*) from public.amigos_grupo_reservas where grupo_id = p_grupo and user_id = uid and fecha >= hoy) >= 30 then
     raise exception 'ya tienes 30 reservas por venir en este grupo';
   end if;
-  insert into public.amigos_grupo_reservas(grupo_id, user_id, lugar, fecha, inicio, fin)
-  values (p_grupo, uid, l, p_fecha, p_inicio, p_fin) returning amigos_grupo_reservas.id into id;
+  insert into public.amigos_grupo_reservas(grupo_id, user_id, lugar, fecha, inicio, fin, codigo)
+  values (p_grupo, uid, l, p_fecha, p_inicio, p_fin, cod) returning amigos_grupo_reservas.id into id;
   return id;
 end;
 $$;
@@ -148,6 +163,7 @@ $$;
 -- ─── EL CALENDARIO DEL GRUPO ────────────────────────────────────────────────
 -- De hoy a `p_dias` días: reservas del grupo y pruebas de quienes comparten.
 -- tipo: 'reserva' | 'prueba'. `mia`: la anoté yo (para poder borrarla).
+-- detalle: en una reserva, el código de la sala; en una prueba, la sigla.
 create or replace function public.grupo_calendario(p_grupo uuid, p_dias integer default 21)
 returns table(tipo text, id uuid, username text, nombre text, yo boolean, fecha date, inicio text, fin text, titulo text, detalle text)
 language plpgsql stable security definer set search_path = '' as $$
@@ -158,7 +174,7 @@ begin
   if not public.amigos_es_miembro(p_grupo, uid) then raise exception 'no estás en ese grupo'; end if;
   return query
   select 'reserva'::text, r.id, u.username, p.nombre, r.user_id = uid, r.fecha,
-         to_char(r.inicio, 'HH24:MI'), to_char(r.fin, 'HH24:MI'), r.lugar, null::text
+         to_char(r.inicio, 'HH24:MI'), to_char(r.fin, 'HH24:MI'), r.lugar, r.codigo
     from public.amigos_grupo_reservas r
     join public.usernames u on u.user_id = r.user_id
     left join public.profiles p on p.id = r.user_id
@@ -185,7 +201,7 @@ do $$
 declare f text;
 begin
   foreach f in array array[
-    'agregar_reserva_grupo(uuid, text, date, time, time)', 'borrar_reserva_grupo(uuid)', 'amigos_pruebas_estado()',
+    'agregar_reserva_grupo(uuid, text, date, time, time, text)', 'borrar_reserva_grupo(uuid)', 'amigos_pruebas_estado()',
     'publicar_mis_pruebas(jsonb)', 'dejar_de_compartir_pruebas()', 'grupo_calendario(uuid, integer)']
   loop
     execute format('revoke all on function public.%s from public, anon', f);
