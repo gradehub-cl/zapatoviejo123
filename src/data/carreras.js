@@ -259,6 +259,12 @@ const CARRERAS_DECLARABLES={
   ],
 };
 
+// Cada major de Ingeniería UC cursa el mismo plan común: hereda de ING-PC los
+// programas oficiales y las siglas, y solo cambia la malla que se sugiere.
+// Un código que no está acá se representa a sí mismo.
+const CARRERA_BASE_UC=Object.fromEntries(CARRERAS_DECLARABLES.uc
+  .filter(c=>typeof c.malla==='string'&&c.malla.startsWith('UC-ING-'))
+  .map(c=>[c.malla,'ING-PC']));
 const CARRERAS_UC={'ING-PC':'Ingeniería · Plan Común','COM':'Ingeniería Comercial','OTRA':'Otra carrera'};
 // Plan común de Ingeniería UC, currículum C2022. Los nombres y los créditos
 // salen del catálogo oficial vía la API de mallas.ing.uc.cl (la herramienta de
