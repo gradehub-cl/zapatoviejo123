@@ -94,7 +94,6 @@
 
 <!-- Analítica: Google Analytics 4. Nunca le mandamos notas ni nombres de ramos
      — ver la regla en track(), app.js. El ID sale de GA → Admin → Flujos de datos. -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -102,10 +101,22 @@
   // Va ANTES del config. client_storage:'none' no sirve en GA4 (se probó en
   // producción y la _ga apareció igual); lo que corta la cookie es consent mode.
   gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
-  gtag('js', new Date());
-  // Solo analítica propia: sin Google Signals ni señales de anuncios. Así GA no
-  // cruza datos con otras apps o sitios y la App Store no lo cuenta como rastreo.
-  gtag('config', 'G-TS791S6PDM', { allow_google_signals: false, allow_ad_personalization_signals: false });
+  // En la web carga al tiro, como siempre. En la app (App Review 5.1.1) carga
+  // recién con sesión iniciada —quien entra ya aceptó términos y privacidad— y
+  // si no apagó las estadísticas en Ajustes: lo llama activarAnaliticaApp().
+  function cargarGoogleAnalytics(){
+    if (window.__gaCargado) return;
+    window.__gaCargado = true;
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-TS791S6PDM';
+    document.head.appendChild(s);
+    gtag('js', new Date());
+    // Solo analítica propia: sin Google Signals ni señales de anuncios. Así GA no
+    // cruza datos con otras apps o sitios y la App Store no lo cuenta como rastreo.
+    gtag('config', 'G-TS791S6PDM', { allow_google_signals: false, allow_ad_personalization_signals: false });
+  }
+  if (!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform())) cargarGoogleAnalytics();
 </script>
 
 <!-- La app iOS (Capacitor) se marca antes de pintar: la pantalla de carga de

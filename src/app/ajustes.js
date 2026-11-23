@@ -271,6 +271,13 @@ function openSettings(){
         </label>
         <p class="settings-help" id="s-anuncios-notas-ayuda">Las clases particulares recomendadas en Inicio se eligen en este dispositivo según tus ramos y notas; tus notas no se envían para eso. Si lo apagas, no verás recomendaciones en Inicio y puedes seguir buscando en Apoyo.</p>
       </div>`:''}
+      ${typeof enAppNativa==='function'&&enAppNativa()&&typeof cambiarAnaliticaApp==='function'?`<div class="settings-pautas">
+        <label class="toggle-row" for="s-analitica">
+          <span class="toggle-label">Estadísticas de uso</span>
+          <span class="toggle"><input id="s-analitica" type="checkbox" role="switch" ${analiticaApagadaEnEsteTelefono()?'':'checked'} onchange="cambiarAnaliticaApp(this.checked)" aria-describedby="s-analitica-ayuda"/><span class="toggle-slider"></span></span>
+        </label>
+        <p class="settings-help" id="s-analitica-ayuda">Nos dicen qué partes de la app se usan, nunca tus notas, ramos ni tu nombre. Si las apagas, este teléfono deja de enviarlas.</p>
+      </div>`:''}
       ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
