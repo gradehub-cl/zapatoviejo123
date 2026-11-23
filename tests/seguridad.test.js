@@ -136,11 +136,36 @@ chk('"ese correo ya existe" responde el mismo texto',
 const sinSesion=(src.match(/if\(!data\.session\)\{[\s\S]*?\n      \}/)||[''])[0];
 chk('sin sesión, intenta entrar con el mismo correo y la misma contraseña',
   /signInWithPassword\(\{email,password:p\}\)/.test(sinSesion));
-chk('si no calza, responde el mismo texto que un registro nuevo',
-  /if\(errorEntrada\|\|!entrada\|\|!entrada\.session\)\{authError\(MSG_VERIFICA,'info'\)/.test(sinSesion));
+chk('si no calza, pasa a Iniciar sesión y responde el mismo texto que un registro nuevo',
+  /if\(errorEntrada\|\|!entrada\|\|!entrada\.session\)\{ponerModoAuth\('login'\);authError\(MSG_VERIFICA,'info'\)/.test(sinSesion));
+// Con la confirmación apagada, Supabase responde 422 «User already registered»
+// en vez de «sin sesión» (producción, 2026-11-23). Ese error no puede cortar el
+// intento de entrar: llega al mismo bloque que la respuesta sin sesión.
+const correoYaRegistrado=(()=>{try{return val('correoYaRegistrado');}catch(e){return null;}})();
+chk('reconoce el 422 de correo ya registrado',
+  !!correoYaRegistrado&&correoYaRegistrado({status:422,code:'user_already_exists',message:'User already registered'})
+  &&correoYaRegistrado({message:'User already registered'})&&!correoYaRegistrado({message:'Invalid login credentials'})&&!correoYaRegistrado(null));
+chk('el 422 sigue al intento de entrar en vez de lanzarse',
+  /if\(registro\.error&&!yaRegistrado\)throw registro\.error;/.test(src)&&/const data=yaRegistrado\?\{session:null\}:registro\.data;/.test(src));
 chk('si calza, entra por el camino normal de inicio de sesión',/await afterLogin\(\);/.test(sinSesion)&&!/afterSignup/.test(sinSesion));
 chk('el texto vive en una constante, no copiado en dos lados',
   src.split(MSG).length - 1 === 1);
+
+console.log('\n=== Todas las contraseñas aceptan el mismo largo ===');
+// Ajustes dejaba 72 y el login 60: una contraseña larga guardada en Ajustes se
+// cortaba al entrar y nunca calzaba (2026-11-23).
+{
+  const html=fs.readFileSync(raiz+'index.html','utf8');
+  const largos=[];
+  // Solo las contraseñas de la cuenta (el token de Canvas también es password).
+  for(const m of (html+'\n'+src).matchAll(/<input[^>]*type="password"[^>]*id="(?:auth-pass2?|reset-pass2?|s-account-pass2?)"[^>]*>|<input[^>]*id="(?:auth-pass2?|reset-pass2?|s-account-pass2?)"[^>]*type="password"[^>]*>/g)){
+    const l=(m[0].match(/maxlength="(\d+)"/)||[])[1];largos.push(l||'sin límite');
+  }
+  chk('los campos de contraseña del login, la recuperación y Ajustes usan 72 ('+[...new Set(largos)].join(', ')+')',
+    largos.length>=6&&largos.every(l=>l==='72'));
+  chk('el login prueba también los primeros 60 de una contraseña más larga',
+    /p\.length>60&&[\s\S]{0,120}signInWithPassword\(\{email,password:p\.slice\(0,60\)\}\)/.test(src));
+}
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
