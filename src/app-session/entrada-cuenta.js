@@ -199,7 +199,7 @@ function tareasConEstadoAlEntrar(){
   aplicarConsensoAuto().then(n=>{
     if(!n)return;
     renderHome();
-    showToast(n===1?'Agregamos una pauta reportada por otros estudiantes':`Agregamos ${n} pautas reportadas por otros estudiantes`);
+    showToast(n===1?'Agregamos ponderaciones reportadas por otros estudiantes en 1 ramo':`Agregamos ponderaciones reportadas por otros estudiantes en ${n} ramos`);
   }).catch(()=>{});
   // La otra dirección: las pautas que esta persona armó para ramos que el
   // catálogo trae vacíos. No avisa ni pregunta —viaja la pauta, nunca las

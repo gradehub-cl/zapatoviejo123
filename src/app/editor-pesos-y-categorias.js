@@ -165,7 +165,7 @@ function confirmAddRamo(){
   const despues=alAgregarRamo;
   alCancelarAgregarRamo=null;
   save();track('add_ramo',{total_ramos:S.ramos.length,preset:!!preset,con_creditos:!!cr});closeModal();renderHome();
-  showToast(preset?'Pauta cargada':'Ramo agregado');
+  showToast(preset?'Ponderaciones cargadas':'Ramo agregado');
   if(despues)despues();
 }
 

@@ -370,7 +370,7 @@ const appPeriodo = fs.readFileSync(__dirname + '/../app.js', 'utf8') + '\n' +
   fs.readFileSync(__dirname + '/../render-main.js', 'utf8');
 const htmlPeriodo = fs.readFileSync(__dirname + '/../index.html', 'utf8');
 chk('la ficha muestra el período junto a la marca de pauta',
-  /id="pauta-periodo"/.test(htmlPeriodo) && /Pauta del \$\{esc\(info\.periodo\)\}/.test(appPeriodo));
+  /id="pauta-periodo"/.test(htmlPeriodo) && /Programa \$\{esc\(info\.periodo\)\}/.test(appPeriodo));
 // Los otros dos ramos donde el número de controles tampoco es fijo.
 [['Gestión y Empresas', 'Controles de Lectura'], ['Marketing', 'Controles']].forEach(([ramo, ev]) => {
   const c = run('presetRamo')(ramo, 'fen', null).categorias.find(x => x.nombre === ev);

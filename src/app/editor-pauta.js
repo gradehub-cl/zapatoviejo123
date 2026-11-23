@@ -81,7 +81,7 @@ function openPautaManualModal(){
 }
 function pautaResumen(){
   const e=estadoPauta(pautaDraft);
-  if(e.lista)return`✓ ${r2(e.total)} / 100% · pauta lista`;
+  if(e.lista)return`✓ ${r2(e.total)} / 100% · ponderaciones listas`;
   return e.diferencia>0?`${r2(e.total)} / 100% · faltan ${r2(e.diferencia)}%`:`${r2(e.total)} / 100% · te pasas por ${r2(Math.abs(e.diferencia))}%`;
 }
 // Las plantillas solo ahorran escribir nombres. Jamás sugieren pesos: cada
@@ -203,10 +203,10 @@ function duplicarPautaDesdeRamo(){
   if(origenId)selector.value='';
   const origen=S.ramos.find(r=>r.id===origenId);const copia=pautaDuplicada(origen);
   if(!copia.length){showToast('Elige un ramo con evaluaciones',true);return;}
-  showConfirm(`Usar la pauta de ${origen.nombre}`,textoConfirmarPautaDuplicada(origen,copia),()=>{
+  showConfirm(`Usar las ponderaciones de ${origen.nombre}`,textoConfirmarPautaDuplicada(origen,copia),()=>{
     pautaDraft=copia;renderPautaManualModal();
     setTimeout(()=>{const i=document.getElementById('m-pauta-peso-0');if(i)i.focus();},0);
-  },{label:'Usar pauta'});
+  },{label:'Usar ponderaciones'});
 }
 function renderPautaManualModal(){
   const fuentes=puedeUsarPlantillaPauta()?ramosParaDuplicarPauta(S.ramos,currentRamoId):[];
@@ -248,7 +248,7 @@ function renderPautaManualModal(){
     </div>`;
   }).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">${pautaArmando?'Armar mi pauta':'Editar evaluaciones'}</div>
+    <div class="modal-title">${pautaArmando?'Armar mis ponderaciones':'Editar evaluaciones'}</div>
     <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
     ${typeof canvasProgramaEditorHTML==='function'?canvasProgramaEditorHTML():''}
     ${plantillas}
@@ -340,7 +340,7 @@ function quitarPautaFila(i){
   if(pautaDraft[i].tieneNotas)return quitarPautaFilaConNotas(i);
   const nombre=String(pautaDraft[i].nombre||'').trim();
   showConfirm(nombre?`¿Quitar "${nombre}"?`:'¿Quitar esta evaluación?',
-    'Se quitará de esta pauta. Puedes volver a agregarla antes de guardar.',()=>{
+    'Se quitará de tus ponderaciones. Puedes volver a agregarla antes de guardar.',()=>{
       limpiarErrorPauta();
       const totalAntes=pautaDraft.reduce((s,f)=>s+(Number(f.peso)||0),0);
       pautaDraft.splice(i,1);
@@ -360,7 +360,7 @@ function informarAportePauta(){
   // Se recuerda al mostrar, también si se cierra con Escape o fuera de la hoja.
   S.avisoAportePautaVisto=true;save();
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Tu pauta ayuda a tus compañeros</div>
+    <div class="modal-title">Tus ponderaciones ayudan a tus compañeros</div>
     <p class="settings-help">Tus programas se suman en forma anónima para ayudar a tus compañeros. Nunca se comparten tus notas. Puedes desactivarlo en Ajustes.</p>
     <div class="modal-btns"><button type="button" class="btn-confirm" onclick="closeModal()">Entendido</button></div>`;
   openModal();

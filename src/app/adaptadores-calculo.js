@@ -188,7 +188,7 @@ function textoNotasBorrables(r,cat){
   const d=cat&&cat.dropLowest;
   if(!d||!gh_descarteManual(r,S.tenant))return '';
   if(typeof d.fraction==='number'){
-    const base=`Según la pauta, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
+    const base=`Según las reglas del ramo, se puede borrar el ${Math.round(d.fraction*100)}% de las notas`;
     const rendidas=(cat.notas||[]).filter(n=>typeof n.valor==='number').length;
     const redondear=gh_reglasNota(r&&r.origen&&r.origen.tenant||S.tenant).descarte_redondeo==='arriba'?Math.ceil:Math.floor;
     const k=Math.min(redondear(Math.round(d.fraction*rendidas*1e6)/1e6),rendidas-1);
@@ -196,7 +196,7 @@ function textoNotasBorrables(r,cat){
   }
   const n=Math.floor(Number(d.count))||0;
   if(n<1)return '';
-  return `Según la pauta, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
+  return `Según las reglas del ramo, ${n===1?'se puede borrar 1 nota':`se pueden borrar ${n} notas`}`;
 }
 // Los descartes vienen del motor, pero se explican en la evaluación donde
 // ocurren. La nota sigue visible: solo no participa en ese promedio.
@@ -211,7 +211,7 @@ function textoDescarte(cat,descarte){
     const porcentaje=Math.round(regla.fraction*100);
     redondeo=` Con ${descarte.rendidas} evaluaciones rendidas, el ${porcentaje}% equivale a ${cantidad} ${cantidad===1?'nota':'notas'}: se redondea hacia abajo.`;
   }
-  return `${propia?'Tu pauta':'El programa'} descarta ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
+  return `${propia?'Tus ponderaciones descartan':'El programa descarta'} ${cantidad===1?'la nota más baja':'las notas más bajas'} de esta evaluación. ${lista} ${cantidad===1?'no cuenta':'no cuentan'} en este promedio.${redondeo}`;
 }
 
 // Promedio general. En Chile el PPA se pondera por créditos (SCT), no es simple.

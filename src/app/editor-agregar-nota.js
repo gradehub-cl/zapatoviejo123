@@ -6,7 +6,7 @@ function openAddNotaModal(catId){
   const pauta=estadoPauta(r.categorias);
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Nueva nota — ${esc(cat.nombre)}</div>
-    ${pauta.lista?'':`<div class="weight-setup-nudge"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M3 8h18"/><path d="M4 8l2 10h12l2-10"/></svg><div><b>Tu pauta suma ${r2(pauta.total)}%.</b><br>Esta nota se guarda igual. Completa el resto cuando tengas la pauta.<br><button type="button" onclick="abrirPautaDesdeNota()">Editar pauta</button></div></div>`}
+    ${pauta.lista?'':`<div class="weight-setup-nudge"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M3 8h18"/><path d="M4 8l2 10h12l2-10"/></svg><div><b>Tus ponderaciones suman ${r2(pauta.total)}%.</b><br>Esta nota se guarda igual. Completa el resto cuando tengas el programa.<br><button type="button" onclick="abrirPautaDesdeNota()">Editar evaluaciones</button></div></div>`}
     <label class="modal-label">Nombre</label>
     <div class="modal-input"><input type="text" id="m-nota-name" placeholder="Ej: Prueba 1" maxlength="${NOMBRE_MAX}" autocomplete="off" aria-describedby="m-nota-error"/></div>
     <p id="m-nota-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
