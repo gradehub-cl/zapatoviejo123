@@ -12,6 +12,7 @@
     "ios:preparar": "bash bin/preparar-ios.sh",
     "ios:abrir": "npx --no-install cap open ios",
     "ios:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh",
+    "ios:verificar-envio": "node bin/verificar-envio-ios.js",
     "android:preparar": "bash bin/preparar-ios.sh android",
     "android:rama": "GRADEHUB_SERVIDOR=https://ios.gradehub.pages.dev bash bin/preparar-ios.sh android",
     "android:abrir": "npx --no-install cap open android",
