@@ -6345,6 +6345,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-linea,.perfil-sublinea,.perfil-correo{font-size:.875rem;line-height:1.35;color:var(--fg2);overflow-wrap:anywhere;}
 .perfil-correo{color:var(--fg3);}
 .perfil-grupo{margin-top:28px;}
+/* Buscador de Perfil (solo en la app): toma el estilo del de Ajustes. */
+.app-nativa #perfil-body input.perfil-buscar{margin:4px 0 0;}
+#perfil-body .perfil-buscar-vacio{margin:20px 6px 0;}
+
 .perfil-grupo h2{margin:0 0 4px;font-size:.75rem;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--fg3);}
 .perfil-grupo ul{list-style:none;margin:0;padding:0;}
 .perfil-grupo li+li{border-top:1px solid var(--border);}
