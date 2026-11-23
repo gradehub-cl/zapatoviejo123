@@ -109,10 +109,20 @@ function ausenciaDeEvaluacion(r,cat,slot){
   if(!declarada&&(!pendiente||!(Number(cat.peso)>0)||!!oficial&&!entrada))return null;
   const estado=declarada?estadoAusenciasJustificadas(r):null;
   const aplicada=[...(estado?.activas||[]),...(estado?.pendientes||[])].find(x=>x.desdeId===clave);
-  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===clave);
+  // Antes de marcarla, una regla con cupo (Cálculo I y II: solo la primera
+  // interrogación toma el examen) depende de las otras ausencias ya marcadas.
+  // Se simula la declaración para que el aviso diga lo que va a pasar de verdad
+  // y no siempre «se calcula con el Examen». Nada se guarda.
+  let previa=null;
+  if(!declarada&&entrada&&(Number.isInteger(regla?.maxReemplazos)||Number.isInteger(regla?.maxTraspasos))){
+    const simulado=estadoAusenciasJustificadas({...r,ausenciasJustificadas:[...(r.ausenciasJustificadas||[]),clave]});
+    const buscar=lista=>(lista||[]).find(x=>x.desdeId===clave)||null;
+    previa={aplicada:buscar(simulado?.activas)||buscar(simulado?.pendientes),bloqueada:buscar(simulado?.bloqueadas)};
+  }
+  const bloqueada=(estado?.bloqueadas||[]).find(x=>x.desdeId===clave)||previa?.bloqueada;
   const inactiva=(estado?.inactivas||[]).find(x=>x.desdeId===clave)||
     (declarada&&!aplicada&&!bloqueada?{motivo:'pauta_cambio'}:null);
-  const detalle=aplicada||bloqueada||inactiva||entrada;
+  const detalle=aplicada||bloqueada||inactiva||previa?.aplicada||entrada;
   const destino=(r.categorias||[]).find(c=>c.id===detalle?.haciaId);
   const peso=porcentajeAusencia(esCasilla?cat.peso/cat.slots:cat.peso);
   let texto='';

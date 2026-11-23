@@ -170,6 +170,19 @@ sinExamen.ausenciasJustificadas=['i1','i2'];
 chk('la primera espera el examen sin ceder su turno a la segunda',
   estadoAusencias(sinExamen).pendientes.some(x=>x.desdeId==='i1'&&x.motivo==='falta_destino')&&
   estadoAusencias(sinExamen).pendientes.some(x=>x.desdeId==='i2'&&x.motivo==='espera_rezago'));
+// El aviso antes de marcar dice lo mismo que se calcula después de marcar.
+const ausenciaDeEvaluacion=val('ausenciaDeEvaluacion');
+const aviso=(r,id)=>ausenciaDeEvaluacion(r,r.categorias.find(x=>x.id===id));
+const previa=primeraJustificada();previa.ausenciasJustificadas=['i1'];
+chk('con la primera ya marcada, el aviso de la segunda anuncia rezago, no el examen',
+  /pendiente para rendir en rezago/.test(aviso(previa,'i2').texto)&&!/Examen/.test(aviso(previa,'i2').texto)&&aviso(previa,'i2').declarada===false);
+chk('el aviso no guarda la declaración simulada',previa.ausenciasJustificadas.join()==='i1');
+const libre=primeraJustificada();
+chk('sin otras marcadas, la primera anuncia la nota del examen',/nota del Examen/.test(aviso(libre,'i1').texto));
+previa.ausenciasJustificadas=['i1','i2'];
+chk('marcada, la segunda dice lo mismo que anunciaba',/pendiente para rendir en rezago/.test(aviso(previa,'i2').texto));
+const sinCupo=primeraJustificada();delete sinCupo.reglasAusenciaJustificada.excesoReemplazos;sinCupo.ausenciasJustificadas=['i1'];
+chk('sin regla para la segunda, el aviso dice que el programa no lo define',/no define/.test(aviso(sinCupo,'i2').texto));
 const persistida=normalize({tenant:'uc',ramos:[primeraJustificada()]}).ramos[0];
 chk('el límite y el rezago sobreviven la normalización de cuentas existentes',
   persistida.reglasAusenciaJustificada.maxReemplazos===1&&
