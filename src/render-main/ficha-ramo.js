@@ -35,7 +35,7 @@ function medidorFichaHTML(needed,cual='',condicional=false,donde='en lo pendient
 // La pista completa es el ramo; la banda de la categoría ocupa su peso vigente.
 function cantidadEvaluacionesFicha(cat){
   const notas=Array.isArray(cat.notas)?cat.notas:[];
-  return cat.directNota?Math.max(1,Number(cat.slots)||0,notas.length):notas.length;
+  return cat.directNota?Math.max(1,Number(cat.slots)||0,notas.length):Math.max(1,notas.length);
 }
 function barraCategoriaFichaHTML(r,cat,calculo,serie=[cat]){
   if(serie.reduce((n,c)=>n+cantidadEvaluacionesFicha(c),0)<2)return '';
@@ -381,10 +381,10 @@ function renderRamo(){
   const noCalcula=reglasNoCalculadas(r);
   const delCurso=reglasDelCurso(r);
   const calculadas=reglasCalculadas(r);
-  if(enAppNativa()){
-    const html=reglasRamoHTML(r);
-    ncw.style.display=html?'block':'none';ncw.className='';ncw.innerHTML=html;
-  }else if(noCalcula.length||delCurso.length||calculadas.length){
+  // Lucas, 2026-11-22: la sección «Reglas del ramo» (reglasRamoHTML) abierta en
+  // la ficha de la app molestaba en cada ramo. La app vuelve a la línea plegada
+  // de la web; el detalle queda a un toque.
+  if(noCalcula.length||delCurso.length||calculadas.length){
     ncw.style.display='flex';ncw.className='weight-setup-nudge';
     const items=lista=>`<ul style="margin:6px 0 0;padding-left:17px;">${lista.map(regla=>`<li>${esc(regla)}</li>`).join('')}</ul>`;
     const bloques=[];
@@ -415,10 +415,7 @@ function renderRamo(){
   // cualquier ramo. Llegar al promedio solo habilita la confirmación: nunca
   // afirma la eximición sola.
   const ew=document.getElementById('eximicion-warning');
-  if(ew&&enAppNativa()&&eximicion?.regla.notaExamen==='maxima'&&faltasActivas(r)){
-    // La lectura nueva ya muestra el estado; el contador conserva su acción.
-    ew.style.display='none';ew.innerHTML='';
-  }else if(ew&&eximicion?.regla.notaExamen==='maxima'){
+  if(ew&&eximicion?.regla.notaExamen==='maxima'){
     const presentacion=eximicion.promedio===null?'Pendiente':fmtPromedioExacto(eximicion.promedio);
     ew.style.display='block';ew.className='weight-setup-nudge eximicion-note mejoras-programa';
     ew.innerHTML=`<div class="mejoras-programa-contenido"><b>Eximición del examen</b>
@@ -648,7 +645,9 @@ function renderRamo(){
     const ausencia=ausenciaDeEvaluacion(r,cat);
     const justificada=ausencia?.declarada&&!ausencia.inactiva;
     const detalleAusencia=ausencia?.declarada?`<button type="button" class="ausencia-estado" onclick="openDetalleAusenciaJustificada('${esc(cat.id)}');event.stopPropagation()"><strong>${ausencia.inactiva?'Declaración no aplicada':'Justificada'}</strong><span>${esc(ausencia.texto)}</span></button>`:'';
-    const fechaChip=cat.fecha?`<span class="cat-fecha-chip">${esc(fechaHoraCorta(cat.fecha,cat.hora))}</span>`:'';
+    // La lista abierta que se ve como nota sola guarda la fecha en su nota.
+    const fechaVista=cat.fecha?cat:seVeComoNotaSola(r,cat)&&notas[0]?.fecha?notas[0]:null;
+    const fechaChip=fechaVista?`<span class="cat-fecha-chip">${esc(fechaHoraCorta(fechaVista.fecha,fechaVista.hora))}</span>`:'';
     const exenta=categoriaEximida(r,cat);
     const borrables=textoNotasBorrables(r,cat);
     const barraPeso=barraCategoriaFichaHTML(r,cat,calculo);
@@ -660,7 +659,7 @@ function renderRamo(){
     const notasDescartadas=new Set((descarte?.dropped||[]).map(n=>n.id));
     const explicacionDescarte=descarte?`<div class="drop-rule-note">${esc(textoDescarte(cat,descarte))}</div>`:'';
     // Sección de preset: fila directa, solo escribir la nota (estilo simulador)
-    if(cat.directNota){
+    if(cat.directNota||seVeComoNotaSola(r,cat)){
       // Preset con varios espacios (ej: Laboratorio = 3 notas que se promedian) — COLAPSABLE
       if(cat.slots&&cat.slots>1){
         // Las décimas del programa (#631) van sobre el promedio de la

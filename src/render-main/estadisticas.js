@@ -200,7 +200,7 @@ function renderStats(){
   }
 
   // Tu olfato: cuánto te sacas de verdad cuando dices que te fue bien o mal.
-  if(typeof resumenOlfato==='function'&&avisosPruebasDisponibles()){
+  if(typeof resumenOlfato==='function'&&avisosPruebasDisponibles()&&enAppIOS()){
     const o=resumenOlfato();
     if(o.pares){
       const titular=o.veredicto==='pesimista'?`Eres pesimista: te va ${simConComa(Math.abs(o.diferencia).toFixed(1))} mejor de lo que crees`

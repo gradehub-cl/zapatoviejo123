@@ -6345,6 +6345,10 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .perfil-linea,.perfil-sublinea,.perfil-correo{font-size:.875rem;line-height:1.35;color:var(--fg2);overflow-wrap:anywhere;}
 .perfil-correo{color:var(--fg3);}
 .perfil-grupo{margin-top:28px;}
+/* Buscador de Perfil (solo en la app): toma el estilo del de Ajustes. */
+.app-nativa #perfil-body input.perfil-buscar{margin:4px 0 0;}
+#perfil-body .perfil-buscar-vacio{margin:20px 6px 0;}
+
 .perfil-grupo h2{margin:0 0 4px;font-size:.75rem;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--fg3);}
 .perfil-grupo ul{list-style:none;margin:0;padding:0;}
 .perfil-grupo li+li{border-top:1px solid var(--border);}
@@ -6600,6 +6604,10 @@ html.app-nativa .grupo-mensaje b{margin:.15rem 0;font-size:1rem;}
 html.app-nativa .grupo-mensaje small,html.app-nativa .grupo-mensaje>span>span,html.app-nativa .grupo-mensaje>div>span{color:var(--fg2);font-size:.875rem;}
 html.app-nativa .grupo-prueba,html.app-nativa .grupo-reserva{cursor:pointer;min-height:44px;}
 html.app-nativa .grupo-mensaje>svg{align-self:center;flex:none;}
+/* El código de la sala va en la misma línea que su etiqueta, no como otro título. */
+html.app-nativa .grupo-mensaje .cal-codigo b{display:inline;margin:0;font-size:inherit;}
+html.app-nativa .grupo-codigo{font-size:1rem;}
+
 html.app-nativa .grupo-actividad button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 
 html.app-nativa [data-detalle-prueba] .grupo-cuando{margin:.5rem 0 1.4rem;color:var(--fg2);}
@@ -6706,6 +6714,9 @@ button.amigos-cifra:active{opacity:.55;}
 .cal-icono.sala{background:var(--primary-light);color:var(--primary);}
 .cal-icono .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .cal-borrar{color:var(--fg3);font-weight:500;}
+/* El código de la sala se lee de pie en la puerta: cifras parejas y seleccionable para copiarlo. */
+.cal-codigo{display:block;margin-top:2px;font-size:.8125rem;color:var(--fg2);font-variant-numeric:tabular-nums;-webkit-user-select:text;user-select:text;}
+.cal-codigo b{color:var(--fg);font-weight:600;letter-spacing:.04em;}
 .cal-anotar{margin-bottom:12px;}
 .cal-horas{display:flex;gap:12px;}
 .cal-horas label{flex:1;display:flex;flex-direction:column;}

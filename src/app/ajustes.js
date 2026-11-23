@@ -8,6 +8,9 @@ function renderSettingsSiAbierto(){
   if(!document.querySelector('.settings-shell'))return;
   _repintarSettings();
 }
+// Avisos de Amigos: solo con su SQL aplicado y el plugin de la app.
+function avisosAmigosEnAjustes(){return typeof amigosAvisosDisponible!=='undefined'&&amigosAvisosDisponible&&typeof pluginAvisosAmigos==='function'&&!!pluginAvisosAmigos();}
+function avisosSeccionDisponible(){return avisosAmigosEnAjustes()||(typeof avisosPruebasDisponibles==='function'&&avisosPruebasDisponibles());}
 function openSettings(){
   const initialSection=arguments[0];
   // Quien abre una sección directo (la pestaña Perfil) puede pedir que la flecha
@@ -27,7 +30,7 @@ function openSettings(){
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
   let settingsTenant=S.tenant||'fen';
-  const directSection=['perfil','profesor','academico','calendario','canvas','apariencia','agentes','sugerencias','datos'].includes(initialSection)
+  const directSection=['perfil','profesor','academico','calendario','canvas','avisos','apariencia','agentes','sugerencias','datos'].includes(initialSection)
     &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
@@ -39,6 +42,7 @@ function openSettings(){
     apariencia:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
     agentes:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/></svg>',
     sugerencias:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>',
+    avisos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
     datos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/></svg>',
     arrow:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'
   };
@@ -53,6 +57,9 @@ function openSettings(){
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
     ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas','Ramos, fechas y notas de Canvas UC','canvas uc token ramos tareas fechas notas programa pesos']]:[]),
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
+    // Lucas, 2026-11-22: los avisos de Amigos salen de su Privacidad y se juntan
+    // acá con los de evaluaciones. Solo en la app: en la web no hay avisos.
+    ...(avisosSeccionDisponible()?[['La app','avisos','Avisos','Amigos, grupos y evaluaciones','notificaciones avisos push alertas amigos grupos salas solicitudes invitaciones evaluaciones pruebas recordatorio']]:[]),
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte denunciar abuso']
   ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
 
@@ -168,10 +175,14 @@ function openSettings(){
       <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> de tu calendario. Revisas cada fecha antes de agregarla.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
-      </div>
-      ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      </div>`;
+    if(section==='avisos')return `
+      ${avisosAmigosEnAjustes()?`<label class="amigos-ajuste" for="amigos-avisos"><span><b>Amigos y grupos</b><small>Solicitudes, invitaciones a grupos y salas nuevas. Nunca tus notas.</small></span>
+        <input id="amigos-avisos" type="checkbox" role="switch"${avisosAmigosActivos()?' checked':''}></label>`:''}
+      ${avisosPruebasDisponibles()?`${avisosAmigosEnAjustes()?'<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>':''}
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
-      <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
+      <p class="settings-help" style="margin-top:0;">${enAppIOS()?'Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.'
+        :'Para las evaluaciones con hora: la noche anterior y 15 minutos antes, para caminar a la sala. Al terminar, te preguntamos cómo te fue. Solo en este teléfono.'}</p>
       <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-avisos-pruebas" onclick="alternarAvisosPruebas()">${avisosPruebasActivos()?'Desactivar avisos':'Activar avisos'}</button></div>
       <p class="settings-help" id="s-avisos-estado" role="status" aria-live="polite"></p>`:''}`;
     if(section==='apariencia')return `

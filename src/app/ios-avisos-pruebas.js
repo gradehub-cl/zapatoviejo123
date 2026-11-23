@@ -9,7 +9,9 @@ const CLAVE_AVISOS_PRUEBAS='gradehub_avisos_pruebas';
 const DURACION_PRUEBA_MIN=120;
 const AVISOS_PRUEBA_MAX=60; // iOS guarda hasta 64 notificaciones pendientes por app
 function pluginNotificaciones(){
-  if(!pluginWidgets())return null;
+  // Los avisos son notificaciones locales: no dependen de los widgets, así
+  // que también corren en Android.
+  if(!enAppNativa())return null;
   const cap=window.Capacitor;
   return cap&&cap.Plugins&&cap.Plugins.LocalNotifications||null;
 }
@@ -69,6 +71,15 @@ function avisosDePrueba(p,ahora){
   ].map(([fase,at,titulo,cuerpo,destino])=>({id:idAvisoPrueba(p.clave,fase),at,titulo,cuerpo,url:`cl.gradehub.app://${destino}/${p.ramoId}`}))
    .filter(a=>a.at.getTime()>(ahora||new Date()).getTime());
 }
+// Android 12+ pide permiso aparte para alarmas a la hora exacta («Alarmas y
+// recordatorios»). Sin él, Android puede atrasar un aviso hasta una hora, y el
+// plugin abre esa pantalla del sistema cada vez que programa una alarma exacta
+// (o sea, con cada nota guardada). Por eso se pide una vez, al activar los
+// avisos, y después se programa exacta solo si la persona la permitió.
+async function alarmaExactaPermitida(ln){
+  if(enAppIOS()||typeof ln.checkExactNotificationSetting!=='function')return true;
+  try{const r=await ln.checkExactNotificationSetting();return !!r&&r.exact_alarm==='granted';}catch(e){return false;}
+}
 async function programarAvisosPruebas(ahora){
   if(esCuentaProfesor())return 0;
   const ln=pluginNotificaciones();if(!ln)return 0;
@@ -81,8 +92,11 @@ async function programarAvisosPruebas(ahora){
     if(!permiso||permiso.display!=='granted')return 0;
     const lista=pruebasConHora(ahora,14).flatMap(p=>avisosDePrueba(p,ahora))
       .sort((a,b)=>a.at-b.at).slice(0,AVISOS_PRUEBA_MAX);
+    // isExactNotification y allowWhileIdle son de Android (iOS no los lee):
+    // allowWhileIdle despierta al teléfono aunque esté en reposo.
+    const exacta=lista.length?await alarmaExactaPermitida(ln):true;
     if(lista.length)await ln.schedule({notifications:lista.map(a=>({id:a.id,title:a.titulo,body:a.cuerpo,
-      schedule:{at:a.at},extra:{gradehub:'prueba',url:a.url}}))});
+      schedule:{at:a.at,allowWhileIdle:true},isExactNotification:exacta,extra:{gradehub:'prueba',url:a.url}}))});
     return lista.length;
   }catch(e){return 0;}
 }

@@ -145,6 +145,10 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('el hilo agrupa las reservas por día y abre su detalle',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12'},
     {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3'}])`);
     return (h.match(/<h3>/g)||[]).length===1&&(h.match(/data-amigos="grupo-reserva"/g)||[]).length===2&&!h.includes('reserva-borrar');})());
+  chk('el código de la sala se ve en la reserva, escapado',(()=>{const h=run(`calendarioGrupoHTML('g1',[{tipo:'reserva',id:'r1',username:'b',nombre:'Beto',yo:false,fecha:'2099-01-10',inicio:'14:00',fin:'16:00',titulo:'Sala B-12',detalle:'4821<b>'},
+    {tipo:'reserva',id:'r2',username:'a',nombre:'Ana',yo:true,fecha:'2099-01-10',inicio:'10:00',fin:'11:00',titulo:'Sala 3',detalle:null}])`);
+    return (h.match(/cal-codigo/g)||[]).length===1&&/Código <b>4821&lt;b&gt;<\/b>/.test(h);})());
+  chk('el formulario de sala pide el código y lo manda solo si hay',/id="amigos-reserva-codigo"/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'))&&/\.\.\.\(codigo\?\{p_codigo:codigo\}:\{\}\)/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8'))&&/Código de la sala <b>/.test(fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8')));
 
   chk('la semana del amigo se mira, no se edita: sin botones',(()=>{const h=run(`semanaAmigoHTML({universidad:'uc'},normalizarRamosAmigo([{nombre:'Uno',sigla:'SYN1',horario:[{dias:['L'],inicio:'08:00',fin:'10:00'}]}]))`);
     return /horario-semana/.test(h)&&!/<button/.test(h)&&/role="img"/.test(h);})());

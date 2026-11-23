@@ -21,10 +21,18 @@ let _promptInstalar=null;
 function lsLeer(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsEscribir(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
-// La app iOS (Capacitor). app-session.js tiene su propia constante; esta es
-// función porque app.js carga antes y no puede declarar el mismo nombre.
+// La app de Capacitor, en iPhone o Android. app-session.js tiene su propia
+// constante; esta es función porque app.js carga antes y no puede declarar el
+// mismo nombre.
 function enAppNativa(){
   try{return !!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==='function'&&window.Capacitor.isNativePlatform());}
+  catch(e){return false;}
+}
+// Lo que existe solo en el iPhone: widgets, Actividad en Vivo, Apple nativo y
+// el gesto de volver desde el borde (en Android ese borde es del sistema).
+// Android es la excepción, así que sin getPlatform cuenta como iPhone.
+function enAppIOS(){
+  try{return enAppNativa()&&!(typeof window.Capacitor.getPlatform==='function'&&window.Capacitor.getPlatform()==='android');}
   catch(e){return false;}
 }
 // Dentro de la app la página vive en capacitor://localhost. Una dirección que

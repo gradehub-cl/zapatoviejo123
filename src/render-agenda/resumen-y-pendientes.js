@@ -90,7 +90,7 @@ function completarNotaDesdeAgenda(ramoId,catId,notaId){
     else{
       const r=S.ramos.find(x=>x.id===ramoId);
       const c=r&&(r.categorias||[]).find(x=>x.id===catId);
-      if(c&&c.directNota===false)openAddNotaModal(catId);
+      if(c&&c.directNota===false&&!seVeComoNotaSola(r,c))openAddNotaModal(catId);
     }
   },320);
 }

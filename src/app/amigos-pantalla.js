@@ -302,11 +302,9 @@ function pintarAmigos(){
       <ul>
         <li><label class="amigos-ajuste" for="amigos-compartir"><span><b>Compartir mi horario</b><small>${amigosGruposDisponible?'Tus amigos y tus grupos':'Tus amigos'} ven tus ramos y tus clases.${amigosNotasDisponible?'':' Nunca tus notas.'}</small></span>
           <input id="amigos-compartir" type="checkbox" role="switch"${e.comparte_horario!==false?' checked':''}></label></li>
-        ${amigosNotasDisponible?`<li><label class="amigos-ajuste" for="amigos-notas"><span><b>Compartir mis promedios</b><small>Solo en ramos que toman juntos y con amigos que también comparten.</small></span>
+        ${amigosNotasDisponible?`<li><label class="amigos-ajuste" for="amigos-notas"><span><b>Compartir notas</b><small>Solo en ramos que toman juntos y con amigos que también comparten.</small></span>
           <input id="amigos-notas" type="checkbox" role="switch"${amigosNotasComparte?' checked':''}></label></li>`:''}
-        ${amigosAvisosDisponible?`<li><label class="amigos-ajuste" for="amigos-avisos"><span><b>Avisos</b><small>Solicitudes, invitaciones a grupos y salas nuevas. Nunca tus notas.</small></span>
-          <input id="amigos-avisos" type="checkbox" role="switch"${avisosAmigosActivos()?' checked':''}></label></li>`:''}
-        ${amigosCalendarioDisponible&&amigosGruposDisponible?`<li><label class="amigos-ajuste" for="amigos-pruebas"><span><b>Compartir mis pruebas con mis grupos</b><small>Ramo, nombre y fecha de lo que viene. Nunca la nota ni la ponderación.</small></span>
+        ${amigosCalendarioDisponible&&amigosGruposDisponible?`<li><label class="amigos-ajuste" for="amigos-pruebas"><span><b>Compartir fechas</b><small>Con tus grupos: ramo, evaluación y fecha de lo que viene. Nunca la nota ni la ponderación.</small></span>
           <input id="amigos-pruebas" type="checkbox" role="switch"${amigosPruebasComparte?' checked':''}></label></li>`:''}
         <li><button type="button" class="perfil-fila" data-amigos="bloqueados"><span class="perfil-fila-titulo">Bloqueados</span><svg class="ic perfil-flecha" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></li>
       </ul>
@@ -508,7 +506,7 @@ function abrirAmigo(id){
       ${comun.length?`<ul class="amigo-lista">${comun.map(r=>{
           const n=notas.find(x=>x.sigla===r.sigla);
           return `<li><span>${esc(r.nombre)}</span><span class="amigo-lista-der">${r.mismaSeccion?'<span class="amigo-chip">Misma sección</span>':''}${n?notaAmigoHTML(n,a):''}</span></li>`;
-        }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir mis promedios» en Privacidad para comparar notas en estos ramos.</p>':''}`
+        }).join('')}</ul>${amigosNotasDisponible&&!amigosNotasComparte?'<p class="amigos-vacio-texto">Activa «Compartir notas» en Privacidad para comparar notas en estos ramos.</p>':''}`
         :'<p class="amigos-vacio-texto">No toman ramos juntos este semestre.</p>'}
       <h3 class="modal-label">Libres a la vez</h3>
       ${sinCruce||(semana.length?`<ul class="amigo-lista">${semana.map(d=>`<li><span>${esc(d.nombre)}</span><span class="amigo-horas">${d.ventanas.map(v=>`${esc(v.inicio)}–${esc(v.fin)}`).join(' · ')}</span></li>`).join('')}</ul>`
@@ -742,7 +740,7 @@ function calendarioGrupoHTML(id,items){
   const fila=it=>it.tipo==='reserva'
     ?`<li><button type="button" class="grupo-mensaje grupo-reserva${it.yo?' grupo-mensaje-mio':''}" data-amigos="grupo-reserva" data-id="${esc(id)}" data-reserva="${esc(it.id)}">
       <span class="cal-icono sala">${ICONO_SALA}</span><span><small>Sala reservada · ${esc(quienGrupo(it))}</small><b>${esc(it.titulo)}</b>
-      <span>${esc(it.inicio)}–${esc(it.fin)}</span></span>${FLECHA_GRUPO}</button></li>`
+      <span>${esc(it.inicio)}–${esc(it.fin)}</span>${it.detalle?`<span class="cal-codigo">Código <b>${esc(it.detalle)}</b></span>`:''}</span>${FLECHA_GRUPO}</button></li>`
     :`<li><button class="grupo-mensaje grupo-prueba" type="button" data-amigos="grupo-prueba" data-id="${esc(id)}" data-prueba="${esc(it.clave)}">
       <span class="cal-icono prueba">${ICONO_PRUEBA}</span><span><small>${esc([it.detalle,it.inicio].filter(Boolean).join(' · '))}</small><b>${esc(it.titulo)}</b>
       <span>${esc(participantesGrupo(it.personas))}</span></span>${FLECHA_GRUPO}</button></li>`;
@@ -764,6 +762,7 @@ function abrirReservaGrupo(id,reserva){
   if(!it)return;
   document.getElementById('modal-content').innerHTML=`<section data-detalle-reserva="${esc(it.id)}"><p class="modal-label">Sala reservada</p>
     <h2 class="modal-title">${esc(it.titulo)}</h2><p>${esc(etiquetaDiaCalendario(it.fecha))} · ${esc(it.inicio)}–${esc(it.fin)}</p>
+    ${it.detalle?`<p class="cal-codigo grupo-codigo">Código de la sala <b>${esc(it.detalle)}</b></p>`:''}
     <p>Anotada por ${esc(it.yo?'ti':nombreAmigo(it))}.</p>
     ${it.yo?`<button type="button" class="grupo-salir" data-amigos="reserva-borrar" data-id="${esc(it.id)}" data-grupo="${esc(id)}">Borrar reserva</button>`:''}
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver al grupo</button></div></section>`;
@@ -783,7 +782,9 @@ function abrirReservaNueva(id){
         <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" required value="14:00"></label>
         <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" required value="16:00"></label>
       </div>
-      <p class="amigos-vacio-texto">Anota una sala que ya reservaste en tu universidad para que el grupo sepa dónde juntarse.</p>
+      <label class="modal-label" for="amigos-reserva-codigo">Código de la sala (opcional)</label>
+      <input id="amigos-reserva-codigo" class="amigos-grupo-nombre" type="text" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="El que te llegó por mail">
+      <p class="amigos-vacio-texto">La ve solo este grupo, con el código si lo anotas: así entra cualquiera aunque tú no llegues. La reserva en sí la haces en el sistema de tu universidad.</p>
     </form>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button type="submit" form="amigos-reserva-form" class="btn-confirm">Anotar sala</button></div>`;
@@ -795,11 +796,14 @@ function abrirReservaNueva(id){
     const v=k=>document.getElementById('amigos-reserva-'+k).value;
     if(!v('lugar').trim()){showToast('Escribe dónde',true);return;}
     if(v('fin')<=v('inicio')){document.getElementById('amigos-reserva-fin').focus();showToast('La hora de término debe ser posterior a la de inicio.',true);return;}
+    // Sin código no se manda p_codigo: la llamada queda igual que antes.
+    const codigo=v('codigo').trim().replace(/\s+/g,' ');
+    if(codigo&&!/^[A-Za-z0-9][A-Za-z0-9 -]{0,23}$/.test(codigo)){document.getElementById('amigos-reserva-codigo').focus();showToast('El código va con letras y números',true);return;}
     const enviar=document.querySelector('[form="amigos-reserva-form"]');
     form.setAttribute('aria-busy','true');enviar.disabled=true;
     const vigente=()=>visita===amigosGrupoDetalle&&form.isConnected&&document.getElementById('modal').classList.contains('open');
     try{
-      await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin')});
+      await rpcAmigos('agregar_reserva_grupo',{p_grupo:id,p_lugar:v('lugar'),p_fecha:v('fecha'),p_inicio:v('inicio'),p_fin:v('fin'),...(codigo?{p_codigo:codigo}:{})});
       if(!vigente())return;
       if(typeof vibrar==='function')vibrar('exito');
       showToast('Sala anotada');

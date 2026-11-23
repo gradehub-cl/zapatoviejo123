@@ -11,7 +11,7 @@ async function signInWithProvider(provider){
       const anterior=currentUser,cliente=supabaseClient;await confirmarAppleDisponible();
       if(currentUser!==anterior||supabaseClient!==cliente){reactivarBotonesOAuth();return;}
     }
-    if(provider==='apple'&&APP_NATIVA){await entrarConAppleNativo();return;}
+    if(provider==='apple'&&APP_IOS){await entrarConAppleNativo();return;}
     if(provider==='apple')guardarEntradaApple(contextoEntradaApple());
     if(APP_NATIVA){
       const {data,error}=await supabaseClient.auth.signInWithOAuth({
@@ -78,6 +78,8 @@ if(typeof APP_NATIVA!=='undefined'&&APP_NATIVA&&window.Capacitor.Plugins){
     const extra=ev&&ev.notification&&ev.notification.extra;
     if(extra&&extra.gradehub==='prueba'&&typeof abrirEnlaceWidget==='function')abrirEnlaceWidget(extra.url);
   });
+  // Android tiene botón atrás; el iPhone, el gesto desde el borde.
+  if(App&&!APP_IOS&&typeof atrasAndroid==='function')App.addListener('backButton',ev=>atrasAndroid(!!(ev&&ev.canGoBack)));
   if(App)App.addListener('appUrlOpen',ev=>{
     const url=ev&&ev.url;
     if(typeof url==='string'&&url.startsWith(VUELTA_NATIVA))volverDeOAuthNativo(url);
