@@ -74,7 +74,7 @@ chk('al editar, también',
 // dejó de describir el requisito real.
 const campos={
   'm-nota-name':{value:'Caso pendiente'},'m-nota-val':{value:''},'m-nota-fecha':{value:''},
-  'm-pond-toggle':{checked:false},'m-nota-peso':{value:'40'},'m-nota-hora':{value:''},
+  'm-pond-toggle':{checked:false},'m-nota-peso-num':{value:'40'},'m-nota-hora':{value:''},
 };
 ctx.document.getElementById=id=>campos[id]||stub;
 ctx.renderRamo=()=>{};ctx.renderAgenda=()=>{};ctx.closeModal=()=>{};ctx.showToast=()=>{};ctx.track=()=>{};
