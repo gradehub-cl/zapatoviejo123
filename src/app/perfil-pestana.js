@@ -17,6 +17,7 @@ const PERFIL_ICONOS={
   ficha:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6m-3 3 3 3 3-3"/>',
   horario:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="4"/>',
   apariencia:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  avisos:'<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   agentes:'<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/>',
   sugerencias:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>',
   datos:'<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/>',
@@ -31,6 +32,7 @@ const PERFIL_ACCIONES={
   calendario:()=>openSettings('calendario',{volverA:'Perfil'}),
   canvas:()=>openSettings('canvas',{volverA:'Perfil'}),
   apariencia:()=>openSettings('apariencia',{volverA:'Perfil'}),
+  avisos:()=>openSettings('avisos',{volverA:'Perfil'}),
   agentes:()=>openSettings('agentes',{volverA:'Perfil'}),
   sugerencias:()=>openSettings('sugerencias',{volverA:'Perfil'}),
   datos:()=>openSettings('datos',{volverA:'Perfil'}),
@@ -46,7 +48,7 @@ const PERFIL_ACCIONES={
   salir:()=>signOut()
 };
 // Qué filas ve esta cuenta. Función pura: recibe lo que necesita y no toca el DOM.
-function gruposPerfil({soloProfesor,hayRamos,conFicha,conHorario=false,conSesion,conCanvas=false,conAmigos=false,conUsername=false}){
+function gruposPerfil({soloProfesor,hayRamos,conFicha,conHorario=false,conSesion,conCanvas=false,conAmigos=false,conUsername=false,conAvisos=false}){
   if(soloProfesor)return [
     ['La app',[['apariencia','Apariencia'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',[['datos','Datos y cuenta']]]
@@ -63,7 +65,7 @@ function gruposPerfil({soloProfesor,hayRamos,conFicha,conHorario=false,conSesion
   return [
     ['Tu semestre',semestre],
     ['Herramientas',herramientas],
-    ['La app',[['apariencia','Apariencia'],['agentes','Agentes conectados'],['sugerencias','Sugerencias y comentarios']]],
+    ['La app',[['apariencia','Apariencia'],...(conAvisos?[['avisos','Avisos']]:[]),['agentes','Agentes conectados'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',cuenta]
   ];
 }
@@ -86,7 +88,8 @@ function renderPerfil(){
     conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),conSesion,
     conCanvas:typeof canvasSeccionDisponible==='function'&&canvasSeccionDisponible(),
     conAmigos:typeof amigosVisible==='function'&&amigosVisible(),
-    conUsername:!!(typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username)
+    conUsername:!!(typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username),
+    conAvisos:typeof avisosSeccionDisponible==='function'&&avisosSeccionDisponible()
   });
   const username=typeof amigosEstadoCache!=='undefined'&&amigosEstadoCache&&amigosEstadoCache.username;
   // Bajo el @: cuántos amigos y grupos, si la lista ya llegó (nunca un «0» inventado).
