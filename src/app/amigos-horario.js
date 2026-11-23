@@ -112,6 +112,57 @@ function semanaLibresGrupo(listas,opciones){
   return DIAS_HORARIO.filter(([k])=>k!=='D').map(([dia,nombre])=>({dia,nombre,...ventanasLibresGrupo(listas,dia,opciones)})).filter(d=>d.ventanas.length);
 }
 
+// ─── Grupos: cuándo juntarse (Lucas, 2026-11-22) ───
+// Alguien está «en la u y libre» en los huecos entre su primera y su última
+// clase del día (las «no voy» no ocupan). Una ventana sirve si coinciden al
+// menos dos, y contigo si tienes horario: es para que TÚ te juntes. Se parte
+// donde cambia quién está, así cada ventana dice exactamente con quiénes.
+// `personas`: [{clave,yo,ramos}]. `desde`: minuto del día desde el que mirar.
+function libresJuntosDia(personas,dia,{minimo=45,desde=0}={}){
+  const huecos=[];
+  for(const p of personas||[]){
+    const t=tramosOcupados(p.ramos,dia);
+    for(let i=0;i<t.length-1;i++)if(t[i+1][0]>t[i][1])huecos.push({p,a:t[i][1],b:t[i+1][0]});
+  }
+  const conmigo=(personas||[]).some(p=>p.yo&&(p.ramos||[]).some(r=>copiarHorario(r.horario).length));
+  const marcas=[...new Set(huecos.flatMap(h=>[h.a,h.b]).concat(desde))].filter(m=>m>=desde).sort((x,y)=>x-y);
+  const tramos=[];
+  for(let i=0;i<marcas.length-1;i++){
+    const a=marcas[i],b=marcas[i+1];
+    const quienes=(personas||[]).filter(p=>huecos.some(h=>h.p===p&&h.a<=a&&b<=h.b));
+    const clave=quienes.map(p=>p.clave).join('|'),u=tramos[tramos.length-1];
+    if(u&&u.b===a&&u.clave===clave)u.b=b;else tramos.push({a,b,clave,quienes});
+  }
+  return tramos.filter(t=>t.quienes.length>=2&&(!conmigo||t.quienes.some(p=>p.yo))&&t.b-t.a>=minimo)
+    .map(t=>({inicio:horaAmigo(t.a),fin:horaAmigo(t.b),minutos:t.b-t.a,claves:t.quienes.map(p=>p.clave)}));
+}
+const diaDeFechaAmigo=f=>['D','L','M','W','J','V','S'][new Date(f+'T12:00:00Z').getUTCDay()];
+// Las próximas ventanas, de hoy en adelante (hoy, desde ahora). Con `antesDe`
+// ({fecha,hora}) solo las que terminan antes de una prueba.
+function proximasLibresJuntos(personas,ahora=new Date(),{cuantas=2,dias=7,minimo=45,antesDe=null}={}){
+  const ms=new Date(ahora).getTime(),hoy=fechaHorarioChile(ms),p=partesHorarioChile(ms),min=+p.hour*60+ +p.minute;
+  const out=[];
+  for(let i=0;i<dias&&out.length<cuantas;i++){
+    const fecha=sumarDiasAgenda(hoy,i);
+    if(antesDe&&fecha>antesDe.fecha)break;
+    for(const v of libresJuntosDia(personas,diaDeFechaAmigo(fecha),{minimo,desde:i===0?min:0})){
+      if(antesDe&&fecha===antesDe.fecha&&(!antesDe.hora||minutosAmigo(v.fin)>minutosAmigo(antesDe.hora)))continue;
+      out.push({fecha,...v});
+      if(out.length>=cuantas)break;
+    }
+  }
+  return out;
+}
+// Para estudiar antes de una prueba: la ventana con más gente de la prueba y,
+// si empatan, la más cercana a la prueba (el repaso sirve más cerca).
+function mejorLibreAntesDe(personas,prueba,ahora=new Date()){
+  const hoy=fechaHorarioChile(new Date(ahora).getTime());
+  if(!prueba||!prueba.fecha||prueba.fecha<hoy)return null;
+  const dias=Math.min(14,Math.round((new Date(prueba.fecha+'T12:00:00Z')-new Date(hoy+'T12:00:00Z'))/864e5)+1);
+  const todas=proximasLibresJuntos(personas,ahora,{cuantas:40,dias,antesDe:{fecha:prueba.fecha,hora:prueba.inicio||null}});
+  return todas.reduce((mejor,v)=>!mejor||v.claves.length>mejor.claves.length||(v.claves.length===mejor.claves.length)?v:mejor,null);
+}
+
 // ─── Hacer turno: llegan y se van a la misma hora ───
 // Un día sirve para hacer turno (irse juntos, compartir auto o micro) solo si
 // los dos llegan Y se van a la misma hora: la primera clase y la última a las

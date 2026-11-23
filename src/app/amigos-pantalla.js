@@ -77,7 +77,7 @@ function olvidarAmigos(){
   borrarAmigosWidget();
   amigosVersion++;amigosDisponibleCache=false;amigosEstadoCache=null;amigosListaCache=null;amigosHorariosCache=new Map();
   amigosGruposDisponible=false;amigosGruposCache=null;amigosNotasDisponible=false;amigosNotasComparte=false;amigosNotasCache=new Map();
-  amigosGrupoDetalle=null;
+  amigosGrupoDetalle=null;amigosGrupoProximo=new Map();
   _notasPublicadas=null;clearTimeout(_notasTimer);
   amigosCalendarioDisponible=false;amigosPruebasComparte=false;_pruebasPublicadas=null;amigosAvisosDisponible=false;
   _amigosFirma=null;if(_amigosTimer)clearInterval(_amigosTimer);_amigosTimer=null;
@@ -111,6 +111,7 @@ async function refrescarAmigos(opc={}){
   if(typeof currentTab!=='undefined'&&currentTab==='amigos'&&(opc.silencioso?cambio&&!escribiendoEnAmigos():true))pintarAmigos();
   pintarInsigniaAmigos();
   publicarNotasAmigos();publicarPruebasAmigos();publicarAmigosWidget();
+  if(!opc.silencioso)cargarProximosGrupos();
 }
 function renderAmigos(){
   pintarAmigos();
@@ -731,6 +732,59 @@ function participantesGrupo(personas){
   const nombres=[...personas].sort((a,b)=>Number(!!b.yo)-Number(!!a.yo)||quienGrupo(a).localeCompare(quienGrupo(b),'es')).map(quienGrupo);
   return listaNombres(nombres.length>3?[...nombres.slice(0,3),`${nombres.length-3} más`]:nombres);
 }
+// ─── Lo de ahora en el grupo (Lucas, 2026-11-22) ───
+// Lo que sirve para juntarse va arriba: quién está en la u y cuándo coinciden
+// libres. Solo con horarios (nunca ubicación), y lo tuyo sale de tus ramos.
+function personasGrupo(d){
+  return (d?.filas||[]).filter(f=>f.estado==='miembro').map(f=>({clave:f.username,yo:!!f.yo,nombre:f.nombre,username:f.username,
+    ramos:f.yo?S.ramos:(f.ramos?normalizarRamosAmigo(f.ramos):null)}));
+}
+const ORDEN_AHORA_GRUPO={libre:0,clase:1,termino:2,sinclases:3,sinhorario:4};
+function etiquetaAhoraGrupo(e){
+  if(!e||e.estado==='sinhorario')return 'Sin horario';
+  if(e.estado==='libre')return 'Libre';
+  if(e.estado==='clase')return 'Hasta '+e.hasta;
+  return e.estado==='termino'?'Ya salió':'No viene hoy';
+}
+function ahoraGrupoHTML(d,ahora=new Date()){
+  const gente=personasGrupo(d).map(p=>({p,e:p.ramos?estadoAhoraAmigo(p.ramos,ahora):null}));
+  // Si nadie más comparte horario, no hay nada que mirar todavía.
+  if(!gente.some(x=>!x.p.yo&&x.e&&x.e.estado!=='sinhorario'))return '';
+  gente.sort((x,y)=>(ORDEN_AHORA_GRUPO[x.e?.estado||'sinhorario']-ORDEN_AHORA_GRUPO[y.e?.estado||'sinhorario'])||Number(y.p.yo)-Number(x.p.yo));
+  const libres=gente.filter(x=>x.e?.estado==='libre').length,clase=gente.filter(x=>x.e?.estado==='clase').length;
+  const resumen=libres||clase?[libres?`${libres} ${libres===1?'libre':'libres'}`:'',clase?`${clase} en clases`:''].filter(Boolean).join(' · '):'Nadie del grupo está en la u ahora';
+  const cara=({p,e})=>{
+    const anillo=e?.estado==='libre'?'libre':e?.estado==='clase'?'en-clase':'';
+    const nombre=quienGrupo(p),etiqueta=etiquetaAhoraGrupo(e),texto=e&&e.estado!=='sinhorario'?textoEstadoAmigo(e):'Sin horario cargado';
+    const interior=`<span class="historia-anillo ${anillo}"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span></span>
+      <span class="historia-nombre">${esc(nombre)}</span><small>${esc(etiqueta)}</small>`;
+    return p.yo?`<li><span class="amigos-historia" aria-label="Tú: ${esc(texto)}">${interior}</span></li>`
+      :`<li><button type="button" class="amigos-historia" data-amigos="grupo-miembro" data-id="${esc(d.id)}" data-user="${esc(p.username)}" aria-label="${esc(nombreAmigo(p))}: ${esc(texto)}">${interior}</button></li>`;
+  };
+  return `<section class="grupo-ahora" aria-labelledby="grupo-ahora-titulo">
+    <div class="grupo-seccion-titulo"><h2 id="grupo-ahora-titulo">Ahora en la u</h2><span>${esc(resumen)}</span></div>
+    <div class="amigos-historias grupo-caras"><ul>${gente.map(cara).join('')}</ul></div></section>`;
+}
+// «Hoy», «Mañana» o «Lunes 24»: corto, para leer de un vistazo.
+function diaCortoGrupo(fecha){
+  const e=etiquetaDiaCalendario(fecha);
+  return e==='Hoy'||e==='Mañana'?e:e.replace(/,.*$/,'')+' '+Number(fecha.slice(8,10));
+}
+function libresJuntosHTML(d,ahora=new Date()){
+  const personas=personasGrupo(d);
+  const conHorario=personas.filter(p=>(p.ramos||[]).some(r=>copiarHorario(r.horario).length));
+  if(!(conHorario.length>=2))return '';
+  const yoSinHorario=!personas.some(p=>p.yo&&conHorario.includes(p));
+  const ventanas=proximasLibresJuntos(personas,ahora,{cuantas:2});
+  const quienes=v=>participantesGrupo(personas.filter(p=>v.claves.includes(p.clave)));
+  const cuerpo=ventanas.length?`<ul class="grupo-libres">${ventanas.map(v=>`<li><button type="button" class="grupo-libre" data-amigos="reserva-nueva" data-id="${esc(d.id)}" data-fecha="${esc(v.fecha)}" data-inicio="${esc(v.inicio)}" data-fin="${esc(v.fin)}" aria-label="${esc(`${diaCortoGrupo(v.fecha)}, de ${v.inicio} a ${v.fin}, con ${quienes(v)}. Anotar una sala para ese horario`)}">
+      <span class="grupo-libre-cuando"><b>${esc(diaCortoGrupo(v.fecha))}</b><span>${esc(v.inicio)}–${esc(v.fin)}</span></span>
+      <span class="grupo-libre-quienes">${esc(quienes(v))}</span>
+      ${FLECHA_GRUPO}</button></li>`).join('')}</ul>`
+    :`<p class="grupo-nota">Esta semana no coinciden libres en la u. ${yoSinHorario?'Agrega tu horario para ver cuándo te juntas tú.':''}</p>`;
+  return `<section class="grupo-libres-seccion" aria-labelledby="grupo-libres-titulo">
+    <div class="grupo-seccion-titulo"><h2 id="grupo-libres-titulo">Libres juntos</h2>${ventanas.length?'<span>Toca para anotar una sala</span>':''}</div>${cuerpo}</section>`;
+}
 function calendarioGrupoHTML(id,items){
   const porDia=new Map();
   for(const it of eventosGrupo(items)){
@@ -743,7 +797,8 @@ function calendarioGrupoHTML(id,items){
       <span>${esc(it.inicio)}–${esc(it.fin)}</span>${it.detalle?`<span class="cal-codigo">Código <b>${esc(it.detalle)}</b></span>`:''}</span>${FLECHA_GRUPO}</button></li>`
     :`<li><button class="grupo-mensaje grupo-prueba" type="button" data-amigos="grupo-prueba" data-id="${esc(id)}" data-prueba="${esc(it.clave)}">
       <span class="cal-icono prueba">${ICONO_PRUEBA}</span><span><small>${esc([it.detalle,it.inicio].filter(Boolean).join(' · '))}</small><b>${esc(it.titulo)}</b>
-      <span>${esc(participantesGrupo(it.personas))}</span></span>${FLECHA_GRUPO}</button></li>`;
+      <span>${esc(participantesGrupo(it.personas))}</span></span>${FLECHA_GRUPO}</button>
+      ${it.personas.length>=2&&it.personas.some(p=>p.yo)?`<button type="button" class="grupo-estudiar" data-amigos="grupo-estudiar" data-id="${esc(id)}" data-prueba="${esc(it.clave)}" aria-label="Estudiar juntos para ${esc(it.titulo)}">Estudiar juntos</button>`:''}</li>`;
   return `<ol class="grupo-hilo">${[...porDia].map(([fecha,lista])=>`<li><h3>${esc(etiquetaDiaCalendario(fecha))}</h3><ul>${lista.map(fila).join('')}</ul></li>`).join('')}</ol>`;
 }
 function abrirPruebaGrupo(id,clave){
@@ -752,9 +807,27 @@ function abrirPruebaGrupo(id,clave){
   if(!prueba)return;
   document.getElementById('modal-content').innerHTML=`<section data-detalle-prueba="${esc(clave)}" data-personas="${esc(JSON.stringify(prueba.personas))}"><p class="modal-label">${esc(prueba.detalle||'Prueba')}</p>
     <h2 class="modal-title">${esc(prueba.titulo)}</h2><p class="grupo-cuando">${esc([etiquetaDiaCalendario(prueba.fecha),prueba.inicio||'Sin hora indicada'].join(' · '))}</p>
+    ${prueba.personas.length>=2&&prueba.personas.some(p=>p.yo)?`<button type="button" class="btn-primary grupo-estudiar-principal" data-amigos="grupo-estudiar" data-id="${esc(id)}" data-prueba="${esc(clave)}">Estudiar juntos</button>`:''}
     <h3 class="grupo-etiqueta">La tienen en su calendario</h3><ul class="grupo-celdas">${prueba.personas.map(p=>`<li class="amigo-fila"><span class="amigo-avatar" aria-hidden="true">${inicialAmigo(p)}</span><span>${esc(p.yo?'Tú':nombreAmigo(p))}</span></li>`).join('')}</ul>
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver al grupo</button></div></section>`;
   openModal();
+}
+// Una prueba que tienen varios del grupo: anotar sala en la mejor ventana libre
+// antes de la prueba, entre quienes la tienen. Sin ventana, el día anterior.
+function estudiarJuntos(id,clave){
+  const d=amigosGrupoDetalle;
+  const prueba=d?.id===id&&eventosGrupo(d.cal).find(it=>it.clave===clave);
+  if(!prueba)return;
+  const enLaPrueba=new Set(prueba.personas.map(p=>p.username));
+  const personas=personasGrupo(d).filter(p=>p.yo||enLaPrueba.has(p.username));
+  const v=mejorLibreAntesDe(personas,prueba);
+  const para=`Para estudiar ${prueba.titulo}${prueba.detalle?' ('+prueba.detalle+')':''}`;
+  if(document.getElementById('modal').classList.contains('open'))closeModal();
+  if(v)abrirReservaNueva(id,{fecha:v.fecha,inicio:v.inicio,fin:v.fin,para:`${para}. Coinciden libres ${participantesGrupo(personas.filter(p=>v.claves.includes(p.clave))).replace(/^Tú\b/,'tú')}.`});
+  else{
+    const hoy=fechaHorarioChile(Date.now()),antes=sumarDiasAgenda(prueba.fecha,-1);
+    abrirReservaNueva(id,{fecha:antes>=hoy?antes:hoy,para:`${para}. No encontramos un horario libre en común antes de la prueba: elige uno.`});
+  }
 }
 function abrirReservaGrupo(id,reserva){
   const d=amigosGrupoDetalle;
@@ -768,19 +841,24 @@ function abrirReservaGrupo(id,reserva){
     <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Volver al grupo</button></div></section>`;
   openModal();
 }
-function abrirReservaNueva(id){
+// `pre`: {fecha,inicio,fin,para} desde «Libres juntos» o «Estudiar juntos».
+function abrirReservaNueva(id,pre={}){
   const visita=amigosGrupoDetalle;
   const hoy=fechaHorarioChile(Date.now()),max=sumarDiasAgenda(hoy,DIAS_CALENDARIO_GRUPO);
+  const hora=h=>/^([01]\d|2[0-3]):[0-5]\d$/.test(h||'')?h:null;
+  const fecha=/^\d{4}-\d{2}-\d{2}$/.test(pre.fecha||'')&&pre.fecha>=hoy&&pre.fecha<=max?pre.fecha:hoy;
+  const inicio=hora(pre.inicio)||'14:00',fin=hora(pre.fin)&&hora(pre.fin)>inicio?pre.fin:(inicio<'22:00'?horaAmigo(minutosAmigo(inicio)+120):'23:59');
   document.getElementById('modal-content').innerHTML=`
     <h2 class="modal-title">Anotar sala</h2>
+    ${pre.para?`<p class="grupo-para">${esc(pre.para)}</p>`:''}
     <form id="amigos-reserva-form" class="amigos-grupo-form">
       <label class="modal-label" for="amigos-reserva-lugar">Dónde</label>
       <input id="amigos-reserva-lugar" class="amigos-grupo-nombre" type="text" maxlength="60" required autocomplete="off" placeholder="Sala B-12, Biblioteca San Joaquín">
       <label class="modal-label" for="amigos-reserva-fecha">Día</label>
-      <input id="amigos-reserva-fecha" class="amigos-grupo-nombre" type="date" required min="${hoy}" max="${max}" value="${hoy}">
+      <input id="amigos-reserva-fecha" class="amigos-grupo-nombre" type="date" required min="${hoy}" max="${max}" value="${fecha}">
       <div class="cal-horas">
-        <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" required value="14:00"></label>
-        <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" required value="16:00"></label>
+        <label><span class="modal-label">Desde</span><input id="amigos-reserva-inicio" class="amigos-grupo-nombre" type="time" required value="${inicio}"></label>
+        <label><span class="modal-label">Hasta</span><input id="amigos-reserva-fin" class="amigos-grupo-nombre" type="time" required value="${fin}"></label>
       </div>
       <label class="modal-label" for="amigos-reserva-codigo">Código de la sala (opcional)</label>
       <input id="amigos-reserva-codigo" class="amigos-grupo-nombre" type="text" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="El que te llegó por mail">
@@ -842,6 +920,24 @@ const personasTxt=n=>`${n} ${n===1?'persona':'personas'}`;
 // El mismo tope que amigos_grupos.sql: no es un nombre académico (NOMBRE_MAX).
 const GRUPO_NOMBRE_MAX=40;
 let amigosGrupoDetalle=null;
+// Lo próximo de cada grupo, para la lista («Interrogación 2 · martes 24»). Se
+// llena al abrir un grupo y al cargar la lista; nunca inventa si no hay dato.
+let amigosGrupoProximo=new Map();
+function proximoGrupoTexto(cal){
+  const ev=eventosGrupo(cal||[]).find(e=>e.tipo==='reserva'||(e.personas||[]).length>=2)||eventosGrupo(cal||[])[0];
+  if(!ev)return '';
+  const cuando=diaCortoGrupo(ev.fecha);
+  return ev.tipo==='reserva'?`Sala ${cuando.toLowerCase()}${ev.inicio?' a las '+ev.inicio:''}`:`${ev.titulo} · ${cuando.toLowerCase()}`;
+}
+async function cargarProximosGrupos(){
+  if(!amigosCalendarioDisponible||!amigosGruposCache)return;
+  const v=amigosVersion,mios=amigosGruposCache.filter(g=>g.estado==='miembro').slice(0,6);
+  const res=await Promise.allSettled(mios.map(g=>rpcAmigos('grupo_calendario',{p_grupo:g.id,p_dias:14})));
+  if(v!==amigosVersion)return;
+  let cambio=false;
+  res.forEach((r,i)=>{if(r.status!=='fulfilled')return;const t=proximoGrupoTexto(r.value);if(amigosGrupoProximo.get(mios[i].id)!==t){amigosGrupoProximo.set(mios[i].id,t);cambio=true;}});
+  if(cambio&&typeof currentTab!=='undefined'&&currentTab==='amigos'&&!amigosGrupoDetalle&&!escribiendoEnAmigos())pintarAmigos();
+}
 // «Beto, Dani y Flor»: la lista que muestran WhatsApp e Instagram bajo un grupo.
 function listaNombres(nombres){
   const n=(nombres||[]).filter(Boolean);
@@ -878,7 +974,7 @@ function seccionGruposHTML(){
     ${mios.length||hayAmigos?`<ul class="grupo-celdas" role="list">
     ${mios.map(g=>`<li><button type="button" class="amigo-fila" data-amigos="grupo" data-id="${esc(g.id)}">
       ${avatarGrupoHTML(g.nombres)}
-      <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(lineaGrupo(g))}</small></span>
+      <span class="amigo-texto"><b>${esc(g.nombre)}</b><small>${esc(lineaGrupo(g))}</small>${amigosGrupoProximo.get(g.id)?`<small class="grupo-proximo">${esc(amigosGrupoProximo.get(g.id))}</small>`:''}</span>
       ${FLECHA_GRUPO}</button></li>`).join('')}
     ${hayAmigos?`<li><button type="button" class="amigo-fila amigos-fila-mas" data-amigos="grupo-nuevo">
       <span class="amigo-avatar" aria-hidden="true">${ICONO_MAS}</span>
@@ -981,6 +1077,7 @@ async function cargarActividadGrupo(d){
       amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:d.id,p_dias:DIAS_CALENDARIO_GRUPO}).catch(()=>null):null]);
     if(!vigente())return;
     d.filas=filas||[];d.cal=cal;d.error=false;
+    if(Array.isArray(cal))amigosGrupoProximo.set(d.id,proximoGrupoTexto(cal));
     const g=amigosGruposCache?.find(g=>g.id===d.id),miembros=d.filas.filter(f=>f.estado==='miembro');
     d.resumen={estado:'miembro',miembros:miembros.length,nombres:miembros.filter(f=>!f.yo).map(quienGrupo)};
     if(g)Object.assign(g,d.resumen);
@@ -1019,14 +1116,14 @@ function pintarActividadGrupo(d){
   else actividad=`<p>Aún no hay pruebas compartidas ni salas anotadas para los próximos ${DIAS_CALENDARIO_GRUPO} días.</p>`;
   const contenido=`<section class="grupo-actividad"><header class="grupo-barra">
     <button type="button" class="grupo-atras" data-amigos="grupo-volver" aria-label="Volver a Amigos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg></button>
-    <h1 id="grupo-actividad-titulo" tabindex="-1"><button type="button" class="grupo-identidad" data-amigos="grupo-info" data-id="${id}" ${d.cargando||d.error?'disabled':''} aria-label="Información de ${nombre}" aria-describedby="grupo-participantes grupo-cantidad">
+    <h1 id="grupo-actividad-titulo" tabindex="-1"><button type="button" class="grupo-identidad" data-amigos="grupo-info" data-id="${id}" ${d.cargando||d.error?'disabled':''} aria-label="Información de ${nombre}" aria-describedby="grupo-participantes">
       ${avatarGrupoHTML(cabecera?.nombres)}<span class="grupo-rotulo"><strong>${nombre}</strong>
-      ${cabecera&&!d.error?`<small id="grupo-participantes">${esc(lineaGrupo(cabecera))}</small>`:''}</span>
-      ${cabecera&&!d.error?`<span class="grupo-cantidad" id="grupo-cantidad">${esc(personasTxt(cabecera.miembros))}</span>`:''}
+      ${cabecera&&!d.error?`<small id="grupo-participantes">${esc(lineaGrupo(cabecera))}${pendientes&&!d.cargando?` · ${pendientes===1?'1 invitación':pendientes+' invitaciones'}`:''}</small>`:''}</span>
     </button></h1></header>
     ${d.cargando?'<p role="status">Cargando grupo…</p>':d.error?`<p role="status">No se pudo cargar el grupo.</p>${acceso('grupo','Reintentar')}`:`
-    ${pendientes?`<p class="grupo-pendientes">${acceso('grupo-pendientes',pendientes===1?'1 invitación pendiente':pendientes+' invitaciones pendientes')}</p>`:''}
-    <div class="grupo-actividad-titulo"><h2>Próximas pruebas y salas</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
+    ${ahoraGrupoHTML(d)}
+    ${libresJuntosHTML(d)}
+    <div class="grupo-actividad-titulo grupo-seccion-titulo"><h2>Lo que viene</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
     ${actividad}`}</section>`;
   if(d.html!==contenido||!caja.querySelector('.grupo-actividad')){
     const activo=document.activeElement;
@@ -1086,7 +1183,7 @@ function pintarGrupo(id,filas,seccion){
       <h3 class="grupo-etiqueta">Horarios libres en común</h3>
       ${!horariosSuficientes?'<p class="amigos-vacio-texto">Se necesitan al menos dos horarios para calcular las coincidencias.</p>'
         :semana.length?`<ul class="amigo-lista grupo-celdas grupo-horarios" role="list">${semana.map(d=>`<li>
-          <span><b>${esc(d.nombre)}</b><small>${esc(personasTxt(d.personas))} con clases</small></span>
+          <span><b>${esc(d.nombre)}</b><small>Libres juntos los ${esc(String(d.personas))} que van ese día</small></span>
           <span class="amigo-horas">${d.ventanas.map(v=>`<span>${esc(v.inicio)}–${esc(v.fin)}</span>`).join('')}</span></li>`).join('')}</ul>`
         :'<p class="amigos-vacio-texto">Esta semana no hay ventanas libres en común.</p>'}
     </section>
@@ -1266,7 +1363,8 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='grupo-prueba')abrirPruebaGrupo(id,b.dataset.prueba);
     else if(acc==='grupo-nuevo')abrirGrupoNuevo();
     else if(acc==='grupo-con')abrirGrupoNuevo(user);
-    else if(acc==='reserva-nueva')abrirReservaNueva(id);
+    else if(acc==='reserva-nueva')abrirReservaNueva(id,{fecha:b.dataset.fecha,inicio:b.dataset.inicio,fin:b.dataset.fin});
+    else if(acc==='grupo-estudiar')estudiarJuntos(id,b.dataset.prueba);
     else if(acc==='avisos-si'||acc==='avisos-no'){
       try{localStorage.setItem(CLAVE_AVISOS_PREGUNTA,acc==='avisos-si'?'si':'no');}catch(e){}
       (acc==='avisos-si'?activarAvisosAmigos():Promise.resolve()).then(()=>pintarAmigos());
