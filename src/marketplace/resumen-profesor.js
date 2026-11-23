@@ -29,7 +29,10 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   // grande, la acción principal queda arriba. Abierto como hoja, conserva su
   // título, que la hoja necesita.
   // Misma acción principal que «Invitar alumno» en Alumnos: botón con el acento.
-  const crearAnuncio='<button type="button" class="accion-principal" id="clase-nueva">Crear anuncio</button>';
+  // En la app no se crea ni se edita un anuncio: lleva a configurar y pagar la
+  // campaña (3.1.1, campanasSeCompranAqui en graficos-profesor.js).
+  const compras=campanasSeCompranAqui();
+  const crearAnuncio=compras?'<button type="button" class="accion-principal" id="clase-nueva">Crear anuncio</button>':'';
   // Resumen, Anuncios y Perfil (Lucas, 2026-10-22). En pantalla ancha están en
   // la barra lateral y el control de abajo se oculta. El Resumen dice primero
   // lo que pide algo del profesor.
@@ -39,7 +42,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const devueltos=g.borradores.filter(a=>a.comentario_revision);
   const agotados=g.cerrados.filter(a=>vigenciaAnuncio(a,ahora)==='agotado');
   const pendientesHTML=[
-    ...devueltos.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Devuelto · ${esc(a.comentario_revision)}</small></span><button type="button" class="agent-refresh" data-editar="${esc(a.id)}">Revisar</button></li>`),
+    ...devueltos.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Devuelto · ${esc(a.comentario_revision)}</small></span>${compras?`<button type="button" class="agent-refresh" data-editar="${esc(a.id)}">Revisar</button>`:''}</li>`),
     ...porVencer.map(a=>{const d=enDias(a);return `<li><span><b>${esc(a.titulo||'Sin título')}</b><small>${d<=1?'Campaña por vencer · hasta mañana':`Campaña por vencer · ${d} días`}</small></span><button type="button" class="agent-refresh" data-cr-ver="${esc(a.id)}">Ver campaña</button></li>`;}),
     ...agotados.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Tope alcanzado</small></span><button type="button" class="agent-refresh" data-cr-ver="${esc(a.id)}">Ver campaña</button></li>`),
     ...ediciones.map(e=>{const a=anuncios.find(a=>a.id===e.anuncio_id);const fecha=new Date(e.editado_at).toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'});return `<li data-aviso-edicion="${esc(a.id)}"><span><b>${esc(a.titulo||'Sin título')}</b><small>GradeHub editó tu anuncio · ${esc(fecha)}</small></span><button type="button" class="agent-refresh" data-ver-edicion="${esc(a.id)}">Ver anuncio</button></li>`;}),
@@ -58,15 +61,15 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     <section class="panel-alumnos-vista cr-panel" data-clases-panel="resumen" aria-label="Resumen de tus clases">
       <section class="cr-pendientes"><h2>Pendientes</h2>
         ${pendientesHTML?`<ul class="clases-pendientes">${pendientesHTML}</ul>`:anuncios.length?'<p class="clases-pendiente-vacio">Nada pendiente de tu parte.</p>':
-          enHoja?'<p class="clases-pendiente-vacio">Todavía no tienes anuncios.</p>':'<button type="button" class="accion-principal" data-cr-crear>Crear tu primer anuncio</button>'}
+          enHoja||!compras?'<p class="clases-pendiente-vacio">Todavía no tienes anuncios.</p>':'<button type="button" class="accion-principal" data-cr-crear>Crear tu primer anuncio</button>'}
       </section>
       ${g.sinConfirmar.length?'<p class="clase-sin-datos" role="status">No pudimos confirmar qué campañas siguen activas.</p>':''}
       <div id="clases-kpis">${conNumeros.length?'<p class="clase-sin-datos" role="status">Cargando cifras…</p>':''}</div>
     </section>
     <section class="panel-alumnos-vista" data-clases-panel="anuncios" aria-label="Tus anuncios" hidden>
-    ${enHoja?'':`<div class="profesor-hig-accion">${crearAnuncio}</div>`}
+    ${enHoja||!crearAnuncio?'':`<div class="profesor-hig-accion">${crearAnuncio}</div>`}
     <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
-    (anuncios.length?'':'<p class="profesor-hig-vacio">Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.</p>')+
+    (anuncios.length?'':`<p class="profesor-hig-vacio">${compras?'Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.':'Todavía no tienes anuncios.'}</p>`)+
     seccionPanelClases('Publicadas',g.activos,pesos,ahora)+
     seccionPanelClases('Programadas',g.programados,pesos,ahora)+
     seccionPanelClases('En revisión',g.revision,pesos,ahora)+

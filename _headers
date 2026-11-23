@@ -67,6 +67,8 @@
 /sw.js
   Cache-Control: no-cache
 
-# Apple exige el AASA como JSON, en esta URL exacta y sin redirección.
+# Apple lee este archivo (sin extensión) para abrir en la app de iOS los links
+# de gradehub.cl que declara: Inicio, ?profe=, ?dar-clases y ?amigo=usuario.
+# Debe llegar como JSON, con 200 y sin redirección.
 /.well-known/apple-app-site-association
   Content-Type: application/json

@@ -28,7 +28,7 @@ enum Sensacion {
 
     // Lo respondido queda en el App Group hasta que la app lo recoge.
     // Sale de Firma.xcconfig (vía Info.plist): con otra cuenta de Apple el grupo cambia.
-    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app"
+    static let grupo = Bundle.main.object(forInfoDictionaryKey: "GradeHubAppGroup") as? String ?? "group.cl.gradehub.app.shared"
     static let clave = "sensaciones.v1"
 
     static func guardar(clave c: String, valor: Int) {

@@ -10,6 +10,14 @@ function enterOnboarding(){
     const n=(m.full_name||m.name||'').trim();
     if(n)nameInput.value=n.split(' ')[0];
   }
+  // El apellido también, si el proveedor lo trae: el que separa Google
+  // (family_name) o lo que sigue al primer nombre.
+  const apellidoInput=document.getElementById('ob-apellido');
+  if(apellidoInput&&!apellidoInput.value.trim()&&currentUser&&currentUser.user_metadata){
+    const m=currentUser.user_metadata,completo=String(m.full_name||m.name||'').trim().split(/\s+/);
+    const a=String(m.family_name||'').trim()||(completo.length>1?completo.slice(1).join(' '):'');
+    if(a)apellidoInput.value=a.slice(0,60);
+  }
   obIniciar();
   // Con el correo institucional ya sabemos su universidad: llega marcada en el
   // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:
@@ -39,8 +47,15 @@ function enterApp(){
 
 function traduceAuthError(e,contexto){
   if(e&&e.code==='CACHE_LOCAL_NO_AISLADA')return 'No pudimos proteger los ramos guardados en este dispositivo. La cuenta se creó, pero no se copiaron. Libera espacio o entra desde otro navegador.';
+  if(e?.code==='APPLE_CACHE_NO_AISLADA')return 'No pudimos proteger los ramos guardados en este dispositivo. No se mezclaron con Apple. Libera espacio o entra desde otro navegador.';
+  if(e?.code==='APPLE_PLUGIN_NO_DISPONIBLE')return 'Actualiza GradeHub para entrar con Apple desde la app.';
+  if(e?.code==='APPLE_CONFIGURACION')return 'No pudimos comprobar si Apple está disponible. Intenta de nuevo o entra con Google o con tu correo.';
+  if(e?.code==='APPLE_SESION_INVALIDA'||e?.code==='APPLE_TOKEN_INVALIDO')return 'No pudimos completar el acceso con Apple. Intenta de nuevo.';
+  if(e?.code==='APPLE_NO_DISPONIBLE')return 'No pudimos abrir el acceso con Apple. Puedes entrar con Google o con tu correo.';
   const m=((e&&e.message)||'').toLowerCase();
   const code=String((e&&e.code)||'');
+  if(code==='provider_disabled'||code==='unsupported_provider'||m.includes('provider is not enabled')||m.includes('unsupported provider'))return 'Ese método de acceso todavía no está disponible. Entra con Google o con tu correo.';
+  if(m.includes('nonce')||m.includes('identity token'))return 'No pudimos verificar el acceso con Apple. Vuelve a intentarlo.';
   if(code==='current_password_required')return 'Escribe tu contraseña actual para poder cambiarla.';
   if(code==='current_password_mismatch')return 'La contraseña actual no es correcta.';
   // No confirmar si un correo ya tiene cuenta: esa diferencia permite enumerar

@@ -4,6 +4,8 @@
 // pauta real. Los pesos pueden quedar incompletos porque en semana 1 muchas
 // veces todavía no está toda la información.
 let pautaDraft=[];
+// Solo el borrador: aceptar una lectura Canvas no escribe el ramo hasta Guardar.
+let pautaProgramaCanvasDraft=null;
 // Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
 // `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.
 let pautaQuitadas=[];
@@ -68,8 +70,10 @@ function openPautaManualModal(){
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
-  pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
-  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];
+  pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:(c.directNota===false&&!seVeComoNotaSola(r,c))||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
+  pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];pautaProgramaCanvasDraft=null;
+  // La lectura pertenece a esta apertura, nunca a otra cuenta o borrador.
+  canvasProgramaRamo.delete(r.id);
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
   if(!pautaDraft.length)pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});
   renderPautaManualModal();openModal();
@@ -186,7 +190,7 @@ function ramosParaDuplicarPauta(ramos,ramoActualId){
 }
 function pautaDuplicada(ramo){
   return ((ramo&&ramo.categorias)||[]).filter(c=>String(c.nombre||'').trim())
-    .map(c=>({id:null,nombre:String(c.nombre).trim(),peso:Number(c.peso)||0,tieneNotas:false,varias:c.directNota===false||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
+    .map(c=>({id:null,nombre:String(c.nombre).trim(),peso:Number(c.peso)||0,tieneNotas:false,varias:(c.directNota===false&&!seVeComoNotaSola(ramo,c))||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null}));
 }
 function textoConfirmarPautaDuplicada(origen,copia){
   const cantidad=copia.length;
@@ -228,7 +232,7 @@ function renderPautaManualModal(){
     const invalido=t=>pautaDraftErrorIndex===i&&pautaDraftErrorTarget===t?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
     const nombre=esc(fila.nombre||'evaluación');
     const usarResto=!fila.peso&&resto>0?`<button type="button" class="pauta-resto" onclick="usarRestoPauta(${i})">Usar ${r2(resto)}%</button>`:'';
-    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="—" maxlength="3"${invalido('cantidad')} oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
+    const cantidad=fila.varias?`<label class="pauta-cantidad">Varias notas · esperas <input type="text" inputmode="numeric" id="m-pauta-cantidad-${i}" value="${fila.cantidad||''}" placeholder="Ej: 4" maxlength="3"${invalido('cantidad')} oninput="actualizarPautaCantidad(${i},this.value)" aria-label="Cantidad esperada de notas para ${nombre}"/></label>`:'';
     const mas=unaVacia?'':`<button type="button" class="pauta-mas" id="m-pauta-quitar-${i}" onclick="abrirMenuPautaFila(this,${i})" aria-haspopup="menu" aria-expanded="false" aria-label="Opciones de ${nombre}"${invalido('quitar')}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg></button>`;
     return `
     <div class="pauta-fila">
@@ -246,8 +250,10 @@ function renderPautaManualModal(){
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">${pautaArmando?'Armar mi pauta':'Editar evaluaciones'}</div>
     <p class="pauta-intro">Escribe cada evaluación con su porcentaje. Puedes guardar aunque falten algunas.</p>
+    ${typeof canvasProgramaEditorHTML==='function'?canvasProgramaEditorHTML():''}
     ${plantillas}
     ${duplicar}
+    ${typeof canvasPesosEditorHTML==='function'?canvasPesosEditorHTML():''}
     <datalist id="m-pauta-sugerencias">${sugerencias}</datalist>
     <div class="pauta-total" id="m-pauta-total">${totalPautaHTML()}</div>
     <p id="m-pauta-error" role="alert"${pautaDraftError?'':' hidden'}>${esc(pautaDraftError)}</p>
@@ -405,6 +411,11 @@ function guardarPautaManual(){
     const anterior=r.categorias.find(c=>c.id===fila.id);
     if(anterior&&fila.cantidad&&fila.cantidad<anterior.slots&&(anterior.notas||[]).some(n=>Number.isInteger(n.slot)&&n.slot>=fila.cantidad))
       return mostrarErrorPauta(pautaDraft.indexOf(fila),'Hay notas guardadas en las casillas que quieres quitar.','cantidad');
+    // Varias notas sin cantidad era la lista abierta, que ya no se crea (ver
+    // seVeComoNotaSola). La que ya existe con varias notas, o la del programa,
+    // puede seguir sin ella.
+    if(fila.varias&&!fila.cantidad&&!(anterior&&listaAbiertaPermitida(r,anterior)))
+      return mostrarErrorPauta(pautaDraft.indexOf(fila),'Escribe cuántas notas son (2 o más). Si después son más, las agregas con «+ Agregar nota».','cantidad');
     const varias=fila.varias||(anterior?.notas||[]).length>1;
     const cambios=validarReglasEvaluacionEditor(fila.reglas||{},varias,fila.cantidad,escala);
     if(cambios.error)return mostrarErrorPauta(pautaDraft.indexOf(fila),cambios.error,cambios.campo);
@@ -440,12 +451,11 @@ function guardarPautaManual(){
       existente.nombre=f.nombre.trim();existente.peso=f.peso;
       if(f.varias){
         // Cantidad declarada = casillas que la ficha puede mostrar y recorrer.
-        // Sin cantidad, sigue siendo una lista abierta: no inventamos cuántos
-        // controles habrá durante el semestre.
-        existente.directNota=cantidadFija;
-        if(cantidadFija)existente.slots=f.cantidad;
-        else delete existente.slots;
-        abrirGrupoVacio(existente);
+        // Las notas que ya tenía pasan a las primeras casillas, como en «Editar
+        // evaluación»; sin eso quedaban fuera de la vista. Sin cantidad solo
+        // llega una lista abierta que puede seguir así (guardarPautaManual).
+        if(cantidadFija)fijarCantidadVarias(r,existente,f.cantidad);
+        else{existente.directNota=false;delete existente.slots;}
       }
       else if((existente.notas||[]).length<=1){existente.directNota=true;delete existente.slots;}
     }
@@ -460,6 +470,10 @@ function guardarPautaManual(){
   const vigentes=new Set(r.categorias.map(c=>c.id));
   if(r.gates?.some(g=>g.origen==='editor'&&!vigentes.has(g.catId)))
     r.gates=r.gates.filter(g=>g.origen!=='editor'||vigentes.has(g.catId));
+  if(enAppNativa()&&pautaProgramaCanvasDraft?.ramoId===r.id){
+    r.programaCanvas=crearProgramaCanvas(pautaProgramaCanvasDraft.archivo,pautaProgramaCanvasDraft.citas,r);
+    pautaProgramaCanvasDraft=null;
+  }
   const estado=estadoPauta(r.categorias);save();track('configurar_pauta',{evaluaciones:filas.length,total:estado.total});closeModal();renderRamo();
   showToast(estado.lista?'✓ Listo, ya suma 100%':'Guardado · puedes completar el resto después');
   // Aviso informativo de una sola vez por cuenta, sin pedir una decisión ni

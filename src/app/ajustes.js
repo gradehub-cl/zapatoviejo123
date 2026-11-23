@@ -10,17 +10,24 @@ function renderSettingsSiAbierto(){
 }
 function openSettings(){
   const initialSection=arguments[0];
+  // Quien abre una sección directo (la pestaña Perfil) puede pedir que la flecha
+  // vuelva a su pantalla en vez de al índice de Ajustes: openSettings('calendario',{volverA:'Perfil'}).
+  const volverA=arguments[1]&&typeof arguments[1].volverA==='string'?arguments[1].volverA:'';
+  let accionCanvas=arguments[1]?.accionCanvas;
   const soloProfesor=esCuentaProfesor();
   const seccionesProfesor=['perfil','apariencia','datos','sugerencias'];
   let settingsSem=S.careerSemestre;
   let settingsCarrera=S.carrera,settingsCarreraNombre=S.carreraNombre||null,settingsCarreraFiltro='';
   let settingsName=S.userName;
   let settingsNameError='';
+  // Apellido (2026-11-18): se corrige acá. Quien ya lo tiene no lo puede dejar
+  // vacío; una cuenta antigua puede agregarlo o seguir sin él.
+  let settingsApellido=S.userApellido||'',settingsApellidoError='';
   let settingsSearch='';
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
   let settingsTenant=S.tenant||'fen';
-  const directSection=['perfil','academico','calendario','apariencia','agentes','sugerencias','datos'].includes(initialSection)
+  const directSection=['perfil','profesor','academico','calendario','canvas','apariencia','agentes','sugerencias','datos'].includes(initialSection)
     &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
@@ -28,6 +35,7 @@ function openSettings(){
     profesor:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h10M7 14h7"/></svg>',
     academico:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17A2.5 2.5 0 0 1 6.5 2z"/></svg>',
     calendario:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>',
+    canvas:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'+ICONO_CANVAS+'</svg>',
     apariencia:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
     agentes:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/></svg>',
     sugerencias:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>',
@@ -39,12 +47,13 @@ function openSettings(){
   const sections=[
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
-    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion canvas token ramos tareas'],
+    ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
+    ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas','Ramos, fechas y notas de Canvas UC','canvas uc token ramos tareas fechas notas programa pesos']]:[]),
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
-    ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte']
+    ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte denunciar abuso']
   ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
 
   function guardarBtn(){return '<button class="btn-primary settings-save" id="s-save-btn" onclick="saveSettings()">Guardar</button>';}
@@ -90,6 +99,12 @@ function openSettings(){
         <p id="s-name-error" role="alert" ${settingsNameError?'':'hidden'} style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);">${esc(settingsNameError)}</p>
         <p class="settings-name-hint" id="s-name-hint">${soloProfesor?'Es el nombre que ves en tu cuenta.':'Aparece en el saludo de inicio.'}</p>
       </div>
+      <label class="modal-label" for="s-apellido">Apellido</label>
+      <div class="settings-name-field">
+        <div class="modal-input"><input type="text" id="s-apellido" value="${esc(settingsApellido)}" maxlength="60" autocomplete="family-name" autocapitalize="words" aria-describedby="s-apellido-hint s-apellido-error"/></div>
+        <p id="s-apellido-error" role="alert" ${settingsApellidoError?'':'hidden'} style="margin:7px 0 0;font-size:0.75rem;line-height:1.4;color:var(--red);">${esc(settingsApellidoError)}</p>
+        <p class="settings-name-hint" id="s-apellido-hint">No se muestra a otros estudiantes.</p>
+      </div>
       ${guardarBtn()}
       ${currentUser?`<div class="settings-account-access">
         <label class="modal-label" for="s-account-email">Correo de acceso</label>
@@ -130,6 +145,12 @@ function openSettings(){
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="closeModal();openSemestreAnteriorModal()">Agregar un semestre anterior</button>
       </div>`;
+    // Canvas en su propia sección, con su ícono (Lucas, 2026-11-17): antes
+    // estaba dentro de Calendario, pero trae ramos, fechas, notas y programa.
+    if(section==='canvas')return canvasDisponible()?`
+      <p class="settings-help settings-help-top">Nada se agrega sin que lo revises antes.</p>
+      <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`
+      :canvasIcsDisponible()?'<div id="s-canvas-ics"></div>':'<p class="settings-help settings-help-top">Canvas está disponible para la UC.</p>';
     if(section==='calendario')return `
       <p class="settings-help settings-help-top">Tus evaluaciones en Google Calendar, Apple Calendar u Outlook. Se agrega una vez y se actualiza sola cada algunas horas.</p>
       ${currentUser?`
@@ -148,14 +169,10 @@ function openSettings(){
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
       </div>
-      ${canvasDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
-      <label class="modal-label">Canvas UC</label>
-      <p class="settings-help" style="margin-top:0;">Trae ramos y fechas. Revisas cada propuesta antes de agregarla.</p>
-      <div id="s-canvas"><p class="settings-help">Revisando…</p></div>`:''}
-      ${canvasIcsDisponible()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div><label class="modal-label">Canvas UC</label><div id="s-canvas-ics"></div>`:''}
       ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
-      <p class="settings-help" style="margin-top:0;">Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.</p>
+      <p class="settings-help" style="margin-top:0;">${enAppIOS()?'Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.'
+        :'Para las evaluaciones con hora: la noche anterior y 15 minutos antes, para caminar a la sala. Al terminar, te preguntamos cómo te fue. Solo en este teléfono.'}</p>
       <div class="settings-data-actions" style="margin-bottom:0;"><button type="button" id="s-avisos-pruebas" onclick="alternarAvisosPruebas()">${avisosPruebasActivos()?'Desactivar avisos':'Activar avisos'}</button></div>
       <p class="settings-help" id="s-avisos-estado" role="status" aria-live="polite"></p>`:''}`;
     if(section==='apariencia')return `
@@ -169,8 +186,9 @@ function openSettings(){
     if(section==='agentes')return currentUser?`
       <div class="agent-explainer">
         <b>Qué puede hacer</b>
-        <span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span>
-        <span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>
+        ${enAppNativa()
+          ?'<span>Puede leer tus ramos, notas y fechas, simular escenarios y preparar propuestas de ramos, pautas, notas y fechas.</span><span class="agent-explainer-no">Tú revisas y eliges qué propuestas aplicar en GradeHub.</span>'
+          :'<span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span><span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>'}
       </div>
 
       <label class="modal-label">1. Pregúntale a tu agente dónde conectarlo</label>
@@ -197,7 +215,7 @@ function openSettings(){
         <b>Ideas para pedirle</b>
         <span>Elige un mensaje y pégalo en el chat.</span>
         <select class="feedback-select" id="s-agent-prompt-pick" onchange="pintarPromptAgente()" aria-label="Qué pedirle a tu agente">
-          ${Object.entries(PROMPTS_AGENTE).map(([clave,p])=>`<option value="${esc(clave)}">${esc(p.titulo)}</option>`).join('')}
+          ${Object.entries(PROMPTS_AGENTE).filter(([,p])=>!p.soloApp||enAppNativa()).map(([clave,p])=>`<option value="${esc(clave)}">${esc(p.titulo)}</option>`).join('')}
         </select>
         <span id="s-agent-prompt-bajada">${esc(PROMPTS_AGENTE.repaso.bajada)}</span>
         <details class="agent-prompt-ver"><summary>Ver el mensaje</summary><span id="s-agent-prompt-texto">${esc(PROMPTS_AGENTE.repaso.texto)}</span></details>
@@ -236,10 +254,22 @@ function openSettings(){
         </label>
         <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas pautas; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
       </div>`:''}
+      ${!soloProfesor&&typeof cambiarAnunciosConNotas==='function'?`<div class="settings-pautas">
+        <label class="toggle-row" for="s-anuncios-notas">
+          <span class="toggle-label">Usar mis notas para elegir anuncios</span>
+          <span class="toggle"><input id="s-anuncios-notas" type="checkbox" role="switch" ${S.anunciosConNotas===false?'':'checked'} onchange="cambiarAnunciosConNotas(this.checked)" aria-describedby="s-anuncios-notas-ayuda"/><span class="toggle-slider"></span></span>
+        </label>
+        <p class="settings-help" id="s-anuncios-notas-ayuda">Las clases particulares recomendadas en Inicio se eligen en este dispositivo según tus ramos y notas; tus notas no se envían para eso. Si lo apagas, no verás recomendaciones en Inicio y puedes seguir buscando en Apoyo.</p>
+      </div>`:''}
       ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>
         <p class="settings-help" style="margin-top:0;">Los profesores a los que les aceptaste el link ven tus notas de los ramos que elegiste.</p>
         <div id="s-compartidos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
+      </div>
+      <div class="settings-compartidos settings-bloqueos">
+        <div class="modal-label" role="heading" aria-level="3">Profesores bloqueados</div>
+        <p class="settings-help" style="margin-top:0;">No ves sus clases, perfiles ni anuncios. Para denunciar algo, toca «Denunciar o bloquear» en el anuncio o el perfil, o escríbenos a gradehub.app@gmail.com.</p>
+        <div id="s-bloqueos" aria-live="polite"><p class="settings-help">Cargando…</p></div>
       </div>`:''}
       <div class="settings-danger-zone">
         <div class="settings-danger-label">Zona sensible</div>
@@ -276,18 +306,20 @@ function openSettings(){
       <div class="settings-shell${activeSection?' settings-detail-open':''}">
         <nav class="settings-nav" aria-label="Secciones de Ajustes">
           <label class="settings-search-label" for="settings-search">Buscar en Ajustes</label>
-          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="Buscar" autocomplete="off" aria-controls="settings-nav-list"/>
+          <input type="search" class="settings-search" id="settings-search" value="${esc(settingsSearch)}" placeholder="Buscar en Ajustes" autocomplete="off" aria-controls="settings-nav-list"/>
           <span class="settings-search-status" id="settings-search-status" role="status"></span>
           <div id="settings-nav-list"></div>
         </nav>
         <section class="settings-detail" ${activeSection?'':'aria-hidden="true"'}>
-          ${activeSection?`<div class="settings-detail-heading"><button type="button" class="settings-back" aria-label="Volver a Ajustes">${icons.arrow}<span>Ajustes</span></button><div><h2 id="settings-detail-title" tabindex="-1">${current[2]}</h2><p>${current[3]}</p></div></div><div class="settings-detail-body">${panel(activeSection)}</div>`:''}
+          ${activeSection?`<div class="settings-detail-heading"><button type="button" class="settings-back" aria-label="Volver a ${volverA&&activeSection===directSection?esc(volverA):'Ajustes'}">${icons.arrow}<span>${volverA&&activeSection===directSection?esc(volverA):'Ajustes'}</span></button><div><h2 id="settings-detail-title" tabindex="-1">${current[2]}</h2><p>${current[3]}</p></div></div><div class="settings-detail-body">${panel(activeSection)}</div>`:''}
         </section>
       </div>`;
     renderSettingsNav();
     const search=document.getElementById('settings-search');
     search.oninput=()=>{settingsSearch=search.value;renderSettingsNav();};
     const back=document.querySelector('.settings-back');if(back)back.onclick=()=>{
+      // Si se entró desde afuera a esta misma sección, volver es cerrar.
+      if(volverA&&activeSection===directSection){closeModal();return;}
       const previous=activeSection;activeSection='';renderSettings();
       entrarDesde(document.querySelector('.settings-shell'),'pop');
       const option=document.querySelector(`[data-settings-section="${previous}"]`);
@@ -299,7 +331,7 @@ function openSettings(){
       const malla=document.getElementById('s-malla');
       if(malla)malla.onclick=()=>{
         if(settingsTenant!==S.tenant||settingsCarrera!==S.carrera||settingsSem!==S.careerSemestre
-          ||settingsCarreraNombre!==(S.carreraNombre||null)||settingsName!==S.userName){
+          ||settingsCarreraNombre!==(S.carreraNombre||null)||settingsName!==S.userName||settingsApellido!==(S.userApellido||'')){
           showToast('Guarda tus cambios en Ajustes antes de ver tu malla.');return;
         }
         openMallaModal();
@@ -307,9 +339,13 @@ function openSettings(){
     }
     if(activeSection==='apariencia'){renderModoGrid();renderAcentoGrid();renderFondoGrid();}
     if(activeSection==='calendario'&&currentUser)pintarFeedCalendario();
-    if(activeSection==='calendario'&&canvasDisponible())pintarCanvasAjustes();
-    if(activeSection==='calendario'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
+    if(activeSection==='canvas'&&canvasDisponible()){
+      pintarCanvasAjustes({accion:accionCanvas});
+      accionCanvas=null;
+    }
+    if(activeSection==='canvas'&&canvasIcsDisponible())pintarCanvasIcsAjustes();
     if(activeSection==='datos'&&currentUser&&typeof pintarCompartidosProfesor==='function')pintarCompartidosProfesor();
+    if(activeSection==='datos'&&currentUser&&typeof pintarBloqueosAjustes==='function')pintarBloqueosAjustes();
     // Al SALIR de la pantalla la URL se olvida: es una llave y no tiene por qué
     // seguir viva en memoria mientras alguien anda en Apariencia.
     if(activeSection!=='agentes')olvidarUrlAgente();
@@ -320,6 +356,11 @@ function openSettings(){
         inp.addEventListener('input',()=>{settingsName=inp.value;if(settingsNameError){settingsNameError='';limpiarErrorCampo('s-name','s-name-error');}checkSave();});
         inp.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
         enfocarEnHoja(inp,()=>inp.select());
+      }
+      const ape=document.getElementById('s-apellido');
+      if(ape){
+        ape.addEventListener('input',()=>{settingsApellido=ape.value;if(settingsApellidoError){settingsApellidoError='';limpiarErrorCampo('s-apellido','s-apellido-error');}checkSave();});
+        ape.addEventListener('keydown',e=>{if(e.key==='Enter')window.saveSettings();});
       }
     }
   }
@@ -465,8 +506,14 @@ function openSettings(){
       mostrarErrorCampo('s-name','s-name-error',settingsNameError);
       return false;
     }
+    const apellido=apellidoLimpio(settingsApellido);
+    if(!apellido&&S.userApellido){
+      settingsApellidoError='Escribe tu apellido para guardar los cambios.';
+      mostrarErrorCampo('s-apellido','s-apellido-error',settingsApellidoError);
+      return false;
+    }
     const cambioUni=settingsTenant!==S.tenant;
-    S.userName=name;S.careerSemestre=settingsSem;S.carrera=settingsCarrera;S.carreraNombre=settingsCarreraNombre;S.tenant=settingsTenant;
+    S.userName=name;S.userApellido=apellido;S.careerSemestre=settingsSem;S.carrera=settingsCarrera;S.carreraNombre=settingsCarreraNombre;S.tenant=settingsTenant;
     selectedTenant=settingsTenant;
     applyTheme();
     save();syncProfile();track('settings_saved',{cambio_universidad:cambioUni});

@@ -74,7 +74,7 @@
         {"?": "error_description&*", "exclude": true},
         {"?": "*&error_description", "exclude": true},
         {"?": "*&error_description&*", "exclude": true},
-        {"/": "/", "comment": "Inicio, ?profe= y ?dar-clases; inventario en docs/guia/ios.md."}
+        {"/": "/", "comment": "Inicio, ?profe=, ?dar-clases y ?amigo=; inventario en docs/guia/ios.md."}
       ]
     }]
   }

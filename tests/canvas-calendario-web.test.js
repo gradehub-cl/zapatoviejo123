@@ -92,6 +92,15 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('lo que ya pasó queda fuera',!props.some(p=>p.fecha==='2026-09-01'));
   chk('sin corchetes, se empareja por el nombre del ramo como un .ics',props.some(p=>p.titulo==='I3 Cálculo II'&&p.target==='calc|i3|'));
   chk('un evento suelto que no calza con nada queda fuera',!props.some(p=>p.titulo==='Feriado'));
+  const zonaOriginal=process.env.TZ;
+  try{
+    process.env.TZ='Pacific/Kiritimati';
+    const hoyEnChile=run(`propuestasCanvasIcs(__ev,new Date('2026-10-16T01:00:00Z'))`);
+    chk('en otra zona horaria, mantiene la fecha y el día de corte de Chile',hoyEnChile.some(p=>p.target==='calc|i2|'&&p.fecha==='2026-10-15'));
+  }finally{
+    if(zonaOriginal===undefined)delete process.env.TZ;
+    else process.env.TZ=zonaOriginal;
+  }
 
   console.log('\n=== La URL es secreta: solo en el dispositivo y de esta cuenta ===');
   chk('webcal:// se acepta como la misma URL',run(`normalizarUrlCanvasIcs(${JSON.stringify(' '+URL_OK.replace('https:','webcal:')+' ')})`)===URL_OK);
@@ -103,7 +112,7 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   chk('otra cuenta en el mismo navegador no la ve, y se borra',run('urlCanvasIcsGuardada()')===null&&!('gradehub_canvas_ics' in guardado));
   chk('cerrar sesión la borra',/olvidarUrlCanvasIcs\(\)/.test(leer('app-session.js').split('async function cerrarSesion')[1].split('\n}\n')[0]));
   chk('desconectar pide confirmar, con Cancelar a mano',/function desconectarCanvasIcs\(\)\{[^]*showConfirm\([^]*focusCancel:true/.test(leer('app.js')));
-  chk('en la app iOS no aparece: ahí está el token',run(`enAppNativa=()=>true;canvasIcsDisponible()`)===false);
+  chk('en la app con Canvas nativo no aparece: ahí está el token',run(`const pc=pluginCanvas;pluginCanvas=()=>({});const r=canvasIcsDisponible();pluginCanvas=pc;r`)===false);
 
   run(`enAppNativa=()=>false;S.tenant='uc';currentUser={id:'u1'};supabaseClient={auth:{getSession:async()=>({data:{session:{access_token:'jwt-sintetico'}}})}};icsImportDraft=null`);
   let responder;ctx.fetch=()=>new Promise(r=>responder=r);
@@ -112,6 +121,16 @@ const ICS=(eventos)=>['BEGIN:VCALENDAR','VERSION:2.0',...eventos.flatMap(([t,ini
   run(`currentUser={id:'u2'}`);
   responder(new Response(ICS([['I2 [MAT1620-2]',':20991116T025900Z']])));
   chk('respuesta tardía de otra cuenta no abre ni guarda propuestas',(await tardia)===false&&run('icsImportDraft')===null);
+
+  ctx.fetch=async()=>new Response(ICS([]));
+  let estadoVisible={...stub,textContent:''};
+  const caja={set innerHTML(html){estadoVisible={...stub,textContent:''};}};
+  ctx.document.getElementById=id=>id==='s-canvas-ics-estado'?estadoVisible:id==='s-canvas-ics'?caja:stub;
+  stub.value=URL_OK;
+  await run('conectarCanvasIcs()');
+  chk('conectar un calendario vacío lo guarda y explica que no hay fechas próximas',run('urlCanvasIcsGuardada()')===URL_OK&&/no tiene fechas próximas/.test(estadoVisible.textContent));
+  await run('actualizarDesdeCanvasIcs()');
+  chk('actualizar un calendario vacío mantiene el aviso',/no tiene fechas próximas/.test(estadoVisible.textContent));
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});

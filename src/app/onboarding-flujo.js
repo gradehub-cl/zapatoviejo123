@@ -41,6 +41,10 @@ function obRender(){
     const publico=document.getElementById('ob-prof-nombre'),nombre=document.getElementById('ob-name');
     if(publico&&nombre&&!publico.value.trim())publico.value=nombre.value.trim();
   }
+  // Recién dijo su nombre: el paso siguiente lo usa, para que se entienda para
+  // qué lo pedimos y que la app es suya (Lucas, 2026-11-18).
+  const tituloUniversidad=document.getElementById('ob-titulo-universidad');
+  if(tituloUniversidad&&typeof tituloUniversidadOnboarding==='function')tituloUniversidad.textContent=tituloUniversidadOnboarding((document.getElementById('ob-name')||{}).value);
   obTrackPaso();
   document.querySelectorAll('.ob-step').forEach(el=>{
     el.style.display=(Number(el.dataset.step)===obStep)?'block':'none';
@@ -106,6 +110,10 @@ function obPasoIncompleto(){
   return 0;
 }
 
+function tituloUniversidadOnboarding(nombre){
+  const primero=String(nombre||'').trim().split(/\s+/)[0]||'';
+  return primero?`${primero}, ¿cuál es tu universidad?`:'¿Cuál es tu universidad?';
+}
 function completeOnboarding(){
   const name=document.getElementById('ob-name').value.trim();
   // UNA sola fuente de verdad para "¿se puede seguir?": la misma función que
@@ -125,6 +133,7 @@ function completeOnboarding(){
     showToast('Falta un dato para crear tu cuenta',true);
     return;
   }
+  S.userApellido=apellidoLimpio((document.getElementById('ob-apellido')||{}).value);
   if(obTipo==='profesor'){completarOnboardingProfesor(name);return;}
   S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.verano=obVerano?{hasta:finDeVerano()}:null;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
   obRamos.forEach(item=>{
@@ -241,6 +250,7 @@ function mostrarRamosCargados(cantidad,oficiales){
       ${oficiales?`<p style="font-size:0.75rem;color:var(--fg3);margin:2px 0 0;">${ramosTxt}</p>`:''}
     </div>
     ${ofertaFichaOnboardingHTML()}
+    ${excelOfertaOnboardingHTML()}
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Ver mis ramos</button></div>`;
   openModal();
 }

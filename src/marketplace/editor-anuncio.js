@@ -1,5 +1,8 @@
 
 function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profesor=null,volverAdmin=null}={}){
+  // El editor configura la campaña y su costo: en la app no se abre (3.1.1,
+  // campanasSeCompranAqui). Ningún botón de la app lleva acá; esto es la red.
+  if(!admin&&typeof campanasSeCompranAqui==='function'&&!campanasSeCompranAqui())return;
   let id=anuncio&&anuncio.id||null,flyerActual=anuncio&&anuncio.flyer_path||null;
   const valor=(campo,defecto='')=>esc(anuncio&&anuncio[campo]!=null?anuncio[campo]:defecto);
   const tipoContactoInicial=anuncio&&PREFIJO_CONTACTO_CLASE[anuncio.contacto_tipo]!==undefined?anuncio.contacto_tipo:'whatsapp';

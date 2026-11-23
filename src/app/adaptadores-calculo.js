@@ -95,6 +95,26 @@ function nombreNotaCasilla(ramo,cat,nota){
 // Para dibujar una casilla, manda el nombre que su dueño ya guardó, incluso
 // antes de ponerle una nota. La etiqueta derivada queda solo como respaldo.
 // No se usa al recuperar slots antiguos: ahí el nombre automático es la pauta.
+// En GradeHub hay dos tipos de evaluación: una nota sola (un examen) y un grupo
+// de casillas (Controles). La lista abierta —"varias notas" sin cantidad— era
+// un tercero que se veía como desplegable aunque tuviera una sola nota: una
+// "Solemne 1" con su "+ Agregar nota" (Martín, 2026-11-22). Ya no se crea; las
+// guardadas con 0 o 1 nota se dibujan como nota sola sin tocar el dato, que el
+// motor calcula igual en los dos casos. Sigue como grupo la que el programa
+// oficial declara sin cantidad: pasarla a nota sola le inventaría una.
+function listaDelPrograma(ramo,cat){
+  const def=definicionPresetDelRamo(ramo);
+  const evals=Array.isArray(def)?def:(def&&def.evals||[]);
+  return evals.some(([nombre,,extra])=>extra&&extra.lista===true&&normName(nombre)===normName(cat&&cat.nombre));
+}
+function seVeComoNotaSola(ramo,cat){
+  return !!cat&&cat.directNota===false&&(Array.isArray(cat.notas)?cat.notas:[]).length<=1&&!listaDelPrograma(ramo,cat);
+}
+// Una lista abierta guardada puede seguir así: con varias notas ya es un grupo
+// a la vista, y la del programa no tiene cantidad que pedir.
+function listaAbiertaPermitida(ramo,cat){
+  return !!cat&&cat.directNota===false&&((Array.isArray(cat.notas)?cat.notas:[]).length>1||listaDelPrograma(ramo,cat));
+}
 function nombreCasilla(ramo,cat,slot){
   const nota=(Array.isArray(cat.notas)?cat.notas:[]).find(n=>n&&n.slot===slot);
   return (nota&&nombreNotaCasilla(ramo,cat,nota))||etiquetaCasilla(ramo,cat,slot);

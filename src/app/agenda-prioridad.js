@@ -16,6 +16,7 @@ function reglaDescarteConCantidadAbierta(ramo){
 // Convierte una nota recién ingresada en una consecuencia académica concreta.
 // El cálculo habla solo de lo que queda pendiente y respeta compuertas activas.
 function lecturaDespuesDeNota(ramo){
+  const desdeInicio=typeof consumirEntradaNotaInicio==='function'&&consumirEntradaNotaInicio(ramo);
   const avg=ramoAvg(ramo);
   if(avg===null)return 'Nota guardada';
   const gate=gatesActivas(ramo)[0];
@@ -27,6 +28,7 @@ function lecturaDespuesDeNota(ramo){
   if(necesita>7.05)return `Vas ${fmtPromedio(avg)} · ya no alcanza sólo con lo pendiente`;
   if(notaNecesariaCondicional(ramo))return `Vas ${fmtPromedio(avg)} · con ${nfNecesaria(necesita)} en cada evaluación pendiente llegas al 4,0`;
   if(necesita<=1.0)return `Vas ${fmtPromedio(avg)} · tienes margen para aprobar`;
+  if(desdeInicio)return `Ahora necesitas ${nfNecesaria(necesita)} en lo que queda para aprobar`;
   if(nivelNota(avg)==='good'&&necesita<=4.0)return `Vas ${fmtPromedio(avg)} · buen margen en lo pendiente`;
   return `Vas ${fmtPromedio(avg)} · necesitas ${nfNecesaria(necesita)} en lo pendiente para aprobar`;
 }
@@ -49,6 +51,20 @@ function estadoEventoAgenda(e,dias){
   const d=Number.isFinite(dias)?dias:diasHasta(e.fecha);
   if(d<-DIAS_PARA_REVISAR_FECHA)return 'requiere_revision';
   return d<0?'esperando_nota':'por_venir';
+}
+
+// Recomendado prioriza APROBAR los ramos (Lucas, 2026-11-19). Antes el riesgo
+// solo sumaba desde un 5,0 necesario, así que un ramo al que le bastaba un 2,4
+// valía lo mismo que uno que pedía un 4,0, y ganaba la prueba que pesaba más.
+// Ahora la nota que necesitas en lo pendiente (N) modula de forma continua:
+// N=4,0 es neutro; bajo eso la evaluación cede (2,4 → ×0,53; con margen, ×0,3)
+// y sobre eso sube hasta ×2 con N=7,0. Sin N calculable, neutro.
+const FACTOR_APROBAR_MIN=0.3,FACTOR_APROBAR_MAX=2;
+function factorAprobar(necesita){
+  if(!Number.isFinite(necesita))return 1;
+  const n=Math.min(7,Math.max(1,necesita));
+  if(n<=4)return Math.pow(FACTOR_APROBAR_MIN,(4-n)/3);
+  return 1+(FACTOR_APROBAR_MAX-1)*(n-4)/3;
 }
 
 function withPriority(e){
@@ -78,7 +94,8 @@ function withPriority(e){
   // (Lucas, 2026-10-20): su riesgo no suma y su puntaje baja. Sigue en la
   // Agenda, pero el tiempo se va primero a lo que todavía se puede salvar.
   const imposible=necesita!==null&&necesita>7.05;
-  // Riesgo: si el ramo va mal, sus evaluaciones suben de prioridad
+  // Riesgo por tramos: solo decide el color de la barra (`nivel`). El orden
+  // usa `factorAprobar`, que es continuo.
   let riesgo=0;
   if(avg!==null){
     if(!notaAprobadaRamo(e.ramo,avg))riesgo=45;
@@ -90,10 +107,13 @@ function withPriority(e){
     else if(necesita>5.0)riesgo+=15;
   }
 
-  // El riesgo del ramo reordena, pero solo dentro del horizonte que uno puede
-  // preparar: avisar de un examen a cuatro meses porque el ramo va mal es
-  // volver a poner algo lejano en el lugar de "ahora".
-  const riesgoAplicado=(!imposible&&dias>=0&&dias<=HORIZONTE_FOCO)?riesgo:0;
+  // Lo que cuesta aprobar reordena. Bajar prioridad vale siempre; subirla,
+  // solo dentro del horizonte que uno puede preparar: avisar de un examen a
+  // cuatro meses porque el ramo va mal es volver a poner algo lejano en el
+  // lugar de "ahora".
+  const enHorizonte=dias>=0&&dias<=HORIZONTE_FOCO;
+  const aprobar=factorAprobar(necesita);
+  const factor=(imposible||!enHorizonte)?Math.min(1,aprobar):aprobar;
 
   // Los tres factores se MULTIPLICAN, no se suman, y ese es el arreglo de
   // fondo. Sumando, `peso*1.2` valía 36 puntos fijos para un 30%: como la
@@ -101,7 +121,7 @@ function withPriority(e){
   // la evaluación estaba lo bastante lejos. Multiplicando, la cercanía manda y
   // el peso y el riesgo modulan: un 30% pesa un 30% más que un 0%, esté donde
   // esté, pero nunca convierte diciembre en "ahora".
-  const score=urgencia*(1+peso/100)*(1+riesgoAplicado/100)*(imposible?0.25:1);
+  const score=urgencia*(1+peso/100)*factor*(imposible?0.25:1);
 
   // Nivel legible para el color de la barra. Va por DÍAS y no por el valor de
   // `urgencia`: los cortes viejos (85, 35) eran los escalones de la escala

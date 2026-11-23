@@ -227,7 +227,7 @@ $$;
 -- vive en la base, no solo en la app.
 create or replace function public.profesor_texto_permitido(p_texto text)
 returns boolean language sql immutable set search_path = '' as $$
-  select p_texto ~ '^[[:alpha:]]+( [[:alpha:]]+)*$' and char_length(p_texto) between 3 and 20
+  select p_texto ~ '^[[:alpha:]]+( [[:alpha:]]+)*$' and char_length(p_texto) between 3 and 40
     and public.profesor_normalizar(p_texto) !~ ('(^| )(' || array_to_string(array[
       'wn','wna','wea','weas','ql','qlo','ctm','csm','ptm','pico','raja','zorra','perra','perro','cerdo','cerda',
       'tonto','tonta','idiota','imbecil','estupido','estupida','pendejo','pendeja','cabron','gil','gila','longi',

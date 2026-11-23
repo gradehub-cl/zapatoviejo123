@@ -1,5 +1,6 @@
 async function syncProfile(){
   if(!supabaseClient||!currentUser)return;
+  await copiarNombreAAuth();
   // Una cuenta solo profesor no eligió universidad ni carrera en el onboarding.
   // S.tenant conserva el valor técnico por defecto ('fen'): publicarlo en
   // profiles haría parecer que estudia en FEN y contaminaría los reportes.
@@ -19,7 +20,32 @@ async function syncProfile(){
       // Columna de #697: si todavía no existe, esta subida falla entera; por
       // eso solo va cuando hay generación, que tienen solo las cuentas nuevas.
       ...(S.generacion?{generacion:S.generacion}:{}),
+      // Igual que generación: solo cuando hay apellido (cuentas nuevas), para
+      // que una cuenta antigua nunca dependa de la columna nueva.
+      ...(S.userApellido?{apellido:S.userApellido}:{}),
     });
+  }catch(e){}
+}
+// El nombre del onboarding también va a los metadatos de Auth, que es lo que
+// muestra la columna «Display name» del panel de Supabase. Google y Apple ya
+// lo traen; quien se registró con correo solo lo escribió en el onboarding
+// (o en Ajustes, si es una cuenta anterior al campo de apellido).
+// Nunca pisa un nombre que ya esté ahí (el de Google, el de Apple o uno
+// anterior), y un fallo no bloquea nada: se reintenta en la próxima entrada.
+async function copiarNombreAAuth(){
+  const cliente=supabaseClient,user=currentUser;
+  if(!cliente?.auth?.updateUser||!user?.id)return;
+  const meta=user.user_metadata||{};
+  if(String(meta.full_name||meta.name||'').trim())return;
+  // Solo con nombre Y apellido: como nunca se pisa, un nombre de pila suelto
+  // quedaría fijo en Auth aunque después agregue su apellido en Ajustes.
+  const [nom,ape]=[S.userName,S.userApellido].map(v=>String(v||'').replace(/\s+/g,' ').trim());
+  if(!nom||!ape)return;
+  const nombre=(nom+' '+ape).slice(0,100);
+  try{
+    const r=await cliente.auth.updateUser({data:{full_name:nombre}});
+    if(currentUser!==user||supabaseClient!==cliente)return;
+    if(!r?.error&&r?.data?.user?.id===user.id)currentUser=r.data.user;
   }catch(e){}
 }
 // Se guarda apenas se crea la cuenta, antes del onboarding. Así no depende de

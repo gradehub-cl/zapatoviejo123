@@ -20,7 +20,8 @@ run(`S={tenant:'uc',userName:'',historial:[],ramos:[{id:'r',nombre:'Ramo fictici
   {id:'real',nombre:'Prueba rendida',peso:25,directNota:true,notas:[{id:'n',valor:3,peso:1}]},
   {id:'casillas',nombre:'Controles',peso:25,directNota:true,slots:3,notas:[]},
   {id:'unica',nombre:'Examen',peso:25,directNota:true,notas:[]},
-  {id:'abierta',nombre:'Talleres',peso:25,directNota:false,notas:[]}
+  // Una lista abierta con dos notas: con 0 o 1 se ve como nota sola (seVeComoNotaSola).
+  {id:'abierta',nombre:'Talleres',peso:25,directNota:false,notas:[{id:'t1',nombre:'Taller 1',valor:5,peso:1},{id:'t2',nombre:'Taller 2',valor:6,peso:1}]}
 ]}]};currentRamoId='r';simState={};simAusencias={};
   save=()=>__guardado++;showConfirm=(titulo,detalle,aceptar)=>aceptar();
   closeModal=()=>{};renderRamo=()=>{};track=()=>{};showToast=()=>{};`);
@@ -82,5 +83,5 @@ chk('Falté tiene objetivo táctil de al menos 44 pt',
 
 run('simCommit()');
 chk('solo Guardar como reales escribe en S',ctx.__guardado===1&&run('S.ramos[0].categorias[1].notas.length')===0
-  &&run('S.ramos[0].categorias[3].notas[0].valor')===4.5);
+  &&run('S.ramos[0].categorias[3].notas[2].valor')===4.5);
 console.log('Simulador por casillas OK');

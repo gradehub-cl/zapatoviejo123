@@ -1,8 +1,8 @@
 // Revocar «Entrar con Apple» al borrar la cuenta (App Review 5.1.1(v)).
 // 1. La función del servidor canjea el código de un solo uso, comprueba que sea
 //    del mismo Apple ID de la cuenta con sesión y revoca. No guarda nada.
-// 2. La parte de la app (pedir la confirmación antes de borrar) vive en la
-//    rama `ios` y su test cubre el orden Apple → servidor → borrado.
+// 2. La app pide la confirmación a Apple antes de borrar. Si la revocación
+//    falla, la cuenta NO se borra.
 // Todo sintético: llave generada acá, cuentas, códigos y tokens inventados.
 const fs=require('fs'),path=require('path'),vm=require('vm'),{webcrypto}=require('crypto');
 const leer=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
@@ -72,6 +72,42 @@ const jwt=payload=>['e30',Buffer.from(JSON.stringify(payload)).toString('base64u
   chk('si Apple no acepta el código: 502',r.status===502&&!llamadas.some(l=>l.url.endsWith('/auth/revoke')));
   r=await revocar(pedido(),env,pedidor({revoca:500}));
   chk('si Apple no revoca: 502',r.status===502);
+
+  console.log('\n=== La app antes de borrar ===');
+  const fuente=['data.js','engine.js','app.js','app-session.js'].map(f=>leer(f)).join('\n');
+  async function borrar({proveedor='apple',nativa=true,code='c0d1g0.sintetico-123',fetchOk=true,cancela=false}={}){
+    const el=()=>({style:{setProperty(){},removeProperty(){}},classList:{add(){},remove(){},contains(){return false},toggle(){}},addEventListener(){},appendChild(){},setAttribute(){},removeAttribute(){},getAttribute(){return null},querySelector(){return null},querySelectorAll(){return []},focus(){},innerHTML:'',textContent:'',value:''});
+    const pasos=[];const almacen=new Map();
+    const window={addEventListener(){},matchMedia:()=>({matches:true,addEventListener(){},addListener(){}}),
+      Capacitor:nativa?{isNativePlatform:()=>true,Plugins:{AppleSignIn:{authorize:async()=>{pasos.push('apple');if(cancela)throw new Error('cancelado');return code?{identityToken:'t',authorizationCode:code}:{identityToken:'t'};}},
+        GradeHubWidgets:{guardarResumen:()=>Promise.resolve(),borrarResumen:()=>Promise.resolve(),sincronizarActividades:()=>Promise.resolve()},
+        LocalNotifications:{getPending:()=>Promise.resolve({notifications:[]}),cancel:()=>Promise.resolve()}}}:undefined};
+    const ctx={window,document:{getElementById:()=>el(),createElement:el,addEventListener(){},documentElement:el(),body:el(),querySelector:()=>null,querySelectorAll:()=>[]},
+      localStorage:{getItem:k=>almacen.has(k)?almacen.get(k):null,setItem:(k,v)=>almacen.set(k,String(v)),removeItem:k=>almacen.delete(k)},
+      navigator:{},location:{origin:nativa?'capacitor://localhost':'https://gradehub.cl',pathname:'/',hash:'',reload(){}},crypto:webcrypto,
+      fetch:async(url,o)=>{pasos.push('servidor:'+url);return {ok:fetchOk,json:async()=>({error:'Apple no revocó el acceso.'})};},
+      setTimeout:()=>0,clearTimeout(){},console:{...console,warn(){}},URL};
+    vm.createContext(ctx);vm.runInContext(fuente,ctx);
+    ctx.__pasos=pasos;ctx.__toasts=[];
+    ctx.__cliente={rpc:async n=>{pasos.push('rpc:'+n);return {error:null};},auth:{signOut:async()=>({error:null}),getSession:async()=>({data:{session:{access_token:'b'.repeat(40)}}})}};
+    vm.runInContext(`supabaseClient=__cliente;currentUser={id:'u-sintetico',identities:[{provider:'${proveedor}'}],app_metadata:{providers:['${proveedor}']}};
+      showToast=(m,e)=>{__toasts.push(m)};showAuthScreen=()=>{};closeModal=()=>{};track=()=>{};S.onboardingDone=true;`,ctx);
+    await vm.runInContext('eliminarCuenta()',ctx);
+    return {pasos,toasts:ctx.__toasts};
+  }
+  let b=await borrar();
+  chk('en la app: confirma con Apple, revoca y recién ahí borra',
+    b.pasos.join(' > ')==='apple > servidor:https://gradehub.cl/apple-revocar > rpc:eliminar_mi_cuenta');
+  b=await borrar({fetchOk:false});
+  chk('si la revocación falla, la cuenta NO se borra',!b.pasos.includes('rpc:eliminar_mi_cuenta')&&b.toasts.some(t=>/Tu cuenta no se borró/.test(t)));
+  b=await borrar({cancela:true});
+  chk('si cancela la hoja de Apple, no se borra nada',!b.pasos.some(p=>p.startsWith('servidor')||p.startsWith('rpc')));
+  b=await borrar({code:null});
+  chk('sin código de Apple, no se borra',!b.pasos.some(p=>p.startsWith('rpc')));
+  b=await borrar({proveedor:'google'});
+  chk('una cuenta de Google borra como siempre, sin hablar con Apple',b.pasos.join(' > ')==='rpc:eliminar_mi_cuenta');
+  b=await borrar({nativa:false});
+  chk('en la web, una cuenta de Apple se borra sin la revocación (no hay código)',b.pasos.join(' > ')==='rpc:eliminar_mi_cuenta');
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
   process.exit(fail?1:0);

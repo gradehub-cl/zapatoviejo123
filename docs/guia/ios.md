@@ -39,8 +39,11 @@ HIG valen igual que en la web.
 que git ignora (el ejemplo está en `Firma.xcconfig`). No elijas el Team en
 Signing & Capabilities: Xcode lo escribe en `project.pbxproj`, y si ese archivo
 aparece modificado sin que lo hayas tocado, no lo subas. Nunca registres
-`cl.gradehub.app` ni `group.cl.gradehub.app` con una cuenta personal. Si Xcode
-ofrece «Update to recommended settings», es Cancel.
+`cl.gradehub.app` ni `group.cl.gradehub.app.shared` con una cuenta personal. Si Xcode
+ofrece «Update to recommended settings», es Cancel. El App Group es
+`group.cl.gradehub.app.shared` y no `group.cl.gradehub.app`: ese nombre ya lo
+tenía otro equipo de Apple (probablemente un Personal Team de cuando el proyecto
+lo traía fijo, antes del 2026-10-08) y no se puede recuperar.
 
 **Compilar y ver:**
 
@@ -48,6 +51,22 @@ ofrece «Update to recommended settings», es Cancel.
 npm run ios:preparar   # mete la web dentro de la app (la que va a la App Store)
 npm run ios:rama       # lo mismo, pero la app carga desde ios.gradehub.pages.dev
 ```
+
+**Antes de Archive:** ejecutar `npm run ios:preparar`, no `ios:rama`, y comprobar
+la copia que realmente usa Xcode:
+
+```bash
+python3 bin/verificar-build-ios.py
+```
+
+El target App ejecuta el mismo verificador automáticamente en cada build
+**Release**, incluido Archive. Falla si la configuración copiada
+`ios/App/App/capacitor.config.json` contiene `server.url`, si falta la web o si
+algún script local de su `index.html` no está empaquetado. La fase usa Python 3
+de Xcode/Command Line Tools (`/usr/bin/python3`), sin instalar paquetes ni depender
+del PATH de Node. Debug conserva `ios:rama` para probar la rama compartida.
+El control no modifica el contenido: ante un error hay que volver a preparar
+la app. No equivale a una auditoría de todas las conexiones de red.
 
 En el simulador, sin firmar (`xcrun simctl list devices available` dice cuáles
 hay). El DerivedData va fuera de `~/Desktop`: codesign rechaza los atributos que
@@ -160,8 +179,37 @@ módulos conocidos: no inventa horas para otro tenant o módulo ni rellena los
 recreos entre módulos. `proponerHorarioDesdeCatalogo({tenant,sigla,seccion})`
 devuelve hoy `null`: es el punto de entrada para el futuro catálogo de secciones,
 sin consulta ni escritura actuales. Toda propuesta futura debe pasar por la
-confirmación de la persona. El OCR actual sigue agregando ramos/secciones; aún no
-reconstruye con suficiente certeza qué días/módulos/salas pertenecen a cada ramo.
+confirmación de la persona.
+
+**Horario desde la foto (UC, 2026-11-15).** El pantallazo real es «Carga
+Académica» de Mi UC: columna Módulo (número y horas), Lunes a Sábado (el sábado
+puede salir cortado) y en cada celda solo «SIGLA-» y la sección debajo. **El tipo
+va solo en el color de fondo** según la leyenda; **no trae sala**.
+`celdasDeFotoHorario(lecturas, existe, tenant)` (`src/app/horario-ocr.js`) ubica
+días y filas con las cajas de Tesseract (recta robusta: una hora mal leída no
+corre las demás) y lee el tipo muestreando el fondo de la celda contra los
+colores de la leyenda de la misma foto, o contra `COLORES_TIPO_UC` si no se leyó.
+`leerFotoOcr` guarda una copia de los píxeles antes del blanco y negro. Las horas
+salen solo de `horarioDesdeModulos`; sin grilla o fuera de la UC no propone nada.
+
+**Sala y profesores desde BuscaCursos (#986).** `proponerHorarioDesdeCatalogo`
+(`horario-clases.js`) lee la RPC pública `catalogo_uc_secciones_publicas(p_periodo,
+p_sigla)` y devuelve celdas `{dia, mod, tipo, sala}` y profesores (sin «Sin
+informar»). La foto manda en día, módulo y tipo; BuscaCursos pone la sala, completa
+un tipo que no se leyó y lo que no calza se **avisa** en la revisión. Si la RPC no
+existe todavía (PGRST202/404), no hay conexión o tarda 6 s, devuelve `null` y la
+foto sigue sola, sin sala. Los profesores solo se muestran: no hay campo donde
+guardarlos.
+
+La revisión muestra las clases por ramo y permite **Corregir** con la misma hoja de
+la ficha (`abrirEditorHorario`). Al aplicar escribe solo `horario`; si el ramo ya
+tenía uno, va desmarcado, y si cambió mientras se revisaba, no se pisa. Fixtures
+sintéticos (cajas y píxeles) en `tests/horario-pantallazo.test.js`.
+
+**Semana en la Agenda (solo app).** `src/render-agenda/horario-semana.js` agrega
+«Evaluaciones | Horario» detrás de `enAppNativa()` y fuera de cuentas de
+profesor. Lunes a viernes; sábado y domingo solo si hay clases. Tocar una clase
+abre la hoja del ramo; «Agregar clase» elige ramo y abre la misma hoja.
 
 ### Payload aditivo, versión 1
 
@@ -263,3 +311,157 @@ HIG: [Widgets](https://developer.apple.com/design/human-interface-guidelines/wid
 y [Layout](https://developer.apple.com/design/human-interface-guidelines/layout):
 contenido oportuno y breve, jerarquía de próxima clase, enlace al ramo,
 controles de 44 puntos y adaptación al tamaño de texto/pantalla.
+
+## Entrar con Apple
+
+La web usa `signInWithOAuth({provider:'apple'})`. La app usa el plugin propio
+`AppleSignInPlugin.swift` (AuthenticationServices) y `signInWithIdToken`: JS crea
+un nonce aleatorio de 256 bits, manda su SHA-256 a Apple y su valor original a
+Supabase. No se guarda el nonce, el identity token ni el código de autorización.
+Se debe **reinstalar** el binario: una actualización de la web no agrega el plugin.
+
+El entitlement de App es `com.apple.developer.applesignin = [Default]`; no se
+agrega al widget. La firma sigue en `Firma.xcconfig`/`Firma.local.xcconfig`, sin
+Team ni Bundle ID escrito en `project.pbxproj`.
+
+Antes del merge, Lucas configura con el equipo Apple Developer de la SpA:
+
+1. Sign in with Apple en el App ID de `cl.gradehub.app` y su provisioning profile.
+2. Un **Services ID para la web**, asociado al mismo App ID/grupo de Sign in with
+   Apple; dominio `gradehub.cl` y retorno de Apple al callback HTTPS de Supabase
+   (`https://lsulsnswzesyekpsvlql.supabase.co/auth/v1/callback`). Así web y nativo
+   representan el mismo servicio; comprobar la misma cuenta en ambos.
+3. Proveedor Apple en Supabase Auth: **Client IDs** de la app (`cl.gradehub.app`)
+   y del Services ID web. Configurar el secreto web generado con Team ID, Key ID
+   y la clave `.p8`, exclusivamente en Apple/Supabase: nunca en JS ni git.
+   Mantener también el retorno de la app web en la lista de redirect URLs.
+4. **Lucas renueva el secreto web antes de seis meses** (puede delegar su ejecución
+   a Martín), registra vencimiento y verifica el login web tras renovarlo. La
+   clave `.p8` y el JWT de secreto no son lo mismo: la firma genera un JWT nuevo.
+   No se programó una renovación automática ni se cambiaron credenciales aquí.
+
+### Revocar Apple al borrar la cuenta (5.1.1(v))
+
+Al borrar una cuenta que entra con Apple, **en la app** se le pide a Apple que
+confirme (el mismo `AppleSignInPlugin`, que ahora también devuelve el
+`authorizationCode`) y `cuenta-borrado.js` manda ese código de un solo uso a
+`functions/apple-revocar.js`. La función verifica la sesión de Supabase, canjea
+el código con Apple, comprueba que el Apple ID (`sub`) sea el de la cuenta y
+revoca el token. **No se guarda ningún token**, ni hay tabla nueva ni SQL. Si la
+revocación falla, la cuenta no se borra y la persona puede reintentar. En la web
+no hay cómo pedir ese código sin la librería de Apple: la cuenta se borra igual.
+
+La función necesita tres secretos en **Cloudflare Pages → Settings → Variables
+and Secrets** (Production y Preview), nunca en el repo ni en el cliente:
+
+| Variable | Valor |
+|---|---|
+| `APPLE_TEAM_ID` | `PH6XQV8L2M` |
+| `APPLE_KEY_ID` | El Key ID de la llave de Sign in with Apple |
+| `APPLE_P8` | El contenido de la `.p8`, con sus líneas BEGIN/END (tipo *Secret*) |
+
+Sin esos secretos la función responde 503 y la app avisa que no pudo
+desconectar el Apple ID, sin borrar la cuenta.
+
+Antes de abrir Apple se consulta el endpoint público `/auth/v1/settings`, sin
+sesión ni datos personales. Si el proveedor está apagado o no se puede consultar,
+la pantalla conserva sus otros métodos y explica el error en español. Esto no
+comprueba una clave web vencida ni la configuración del equipo: hay que probarlas.
+
+### Cuentas existentes y siguientes PRs
+
+El correo verificado compartido puede vincular identidades automáticamente en
+Supabase; elegir relay puede crear otra cuenta. Nunca se unen cuentas desde el
+cliente. Antes de entrar con Apple se aplica el aislamiento de caché existente:
+se aparta la copia bajo su dueño original y no se importa a la cuenta nueva.
+Volver al dueño permite restaurarla. El nombre recibido por el plugin solo se
+manda a `updateUser` si falta `full_name`.
+
+El aviso de cuenta nueva requiere relay, señales de otro acceso y creación dentro
+del intento Apple con primer acceso próximo. Supabase no entrega `is_new_user` en
+este flujo: se contrastan `created_at`, `last_sign_in_at` y el inicio guardado en
+esta pestaña (máximo 15 minutos). No se infiere creación por tener cero ramos.
+Sin contexto/fechas fiables no se muestra; un reloj local adelantado puede
+suprimirlo. Esta detección solo decide un aviso: **nunca** permisos ni mezcla de
+cuentas. Falta validarla con la respuesta real de Apple/Supabase en iPhone.
+
+**No está listo para App Store sin resolver el borrado Apple.** La guía de
+[eliminación de cuenta de Apple](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
+exige revocar autorización al borrar. Borrar Auth o cerrar sesión no llama por sí
+solo a `https://appleid.apple.com/auth/revoke`. Ese endpoint requiere access o
+refresh token de **Apple** y un secreto del servidor; el JWT de Supabase y el
+identity token de Apple no sirven como sustitutos.
+
+Recomendación para otra PR: intercambiar el authorization code en el servidor
+al autorizar, conservar cifrado el refresh token de Apple por dueño, revocarlo
+antes de borrar Auth y limpiar el registro/token con la cuenta. Necesita diseño
+de retención, SQL/RLS/FK, servidor y clave de cifrado: fuera de esta PR. Alternativa:
+pedir reautorización al borrar y canjear el código entonces, sin guardar refresh
+token a largo plazo; debe prever una autorización vencida o una cuenta solo web.
+También queda aparte «Vincular Apple» en Ajustes con `linkIdentity`, reautenticación
+y resolución explícita de dos cuentas con notas: nunca fusionarlas por correo.
+
+Referencias: [Supabase — Apple](https://supabase.com/docs/guides/auth/social-sign-in/auth-apple),
+[HIG — Sign in with Apple](https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple),
+[revocación REST](https://developer.apple.com/documentation/signinwithapplerestapi/revoke-tokens).
+
+## Siri, Atajos y Spotlight
+
+`ios/App/App/Atajos.swift` tiene dos App Intents, «Próxima clase» y «Nota que
+necesito», y el `AppShortcutsProvider` con sus frases («¿Qué clase tengo ahora
+en GradeHub?», «¿Qué nota necesito en GradeHub?»). Responden sin abrir la app
+leyendo el mismo resumen que los widgets: `Resumen`, `Almacen`, `Fechas`,
+`Nota` y `Clases` viven en `ios/App/Shared/Resumen.swift`, que compilan los dos
+targets, así que Siri elige la clase con las mismas funciones que el widget
+«Próxima clase». No calculan nada: `necesitas` ya viene escrito por la app.
+Piden desbloquear el iPhone antes de responder
+(`authenticationPolicy = .requiresAuthentication`), porque dicen ramos, salas y
+notas en voz alta. Son de iOS 17 en adelante.
+
+El proyecto está en inglés (`developmentRegion = en`): las frases van repetidas
+en `ios/App/App/es.lproj/AppShortcuts.strings` para que Siri en español las
+reconozca. Una frase nueva va en los dos lados. Para probarlas: compila con
+`GRADEHUB_BUNDLE_ID=cl.gradehub.app.qa`, abre la app con `-gradehubDemoWidgets`
+y toca los atajos en la app Atajos → Apps → GradeHub.
+
+## La app Android
+
+Desde la PR de `android/`, la app de Google Play es Capacitor, igual que la de
+iOS, en vez del TWA de `~/code/gradehub-android`. Mismo `cl.gradehub.app`, misma
+clave de subida: llega como actualización del TWA. Comparte todo el JS; lo que
+existe solo en el iPhone (widgets, Actividad en Vivo, Apple nativo, Canvas con
+token, el gesto de volver desde el borde) va detrás de `enAppIOS()` / `APP_IOS`.
+Android es la excepción: sin `getPlatform`, todo cuenta como iPhone.
+
+**Carga siempre desde un servidor**, gradehub.cl por defecto: un cambio de la web
+le llega al tiro, como al TWA, y Play solo se toca cuando cambia algo nativo
+(`android/`, plugins, `capacitor.config.json`). Por eso un cambio de JS para
+Android sirve recién cuando está en `main`.
+
+```bash
+npm run android:preparar   # carga gradehub.cl
+npm run android:rama       # carga ios.gradehub.pages.dev
+npm run android:abrir      # Android Studio
+```
+
+Para compilar desde la terminal hace falta JDK 21 (el de Android Studio es más
+nuevo de lo que acepta el Gradle de Capacitor 8) y `android/local.properties`
+con `sdk.dir`, que git ignora:
+
+```bash
+cd android && JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew assembleDebug
+```
+
+Lo propio de Android: el botón atrás (`atrasAndroid`: cierra lo de encima como
+Escape, sale del ramo, recorre el historial y al final manda la app al fondo) y
+los avisos de evaluación, que en Android 12+ van a la hora exacta solo si la
+persona permite «Alarmas y recordatorios». Se pide una vez, al activarlos: con
+alarmas exactas sin permiso, el plugin abriría esa pantalla con cada nota
+guardada.
+
+**Publicar en Play:** sube `versionCode` en `android/app/build.gradle` y corre
+`npm run android:play` en Terminal.app. Arma el `.aab` cargando gradehub.cl, lo
+firma con la clave de subida del TWA (`~/code/gradehub-android/gradehub-upload.keystore`,
+o `GRADEHUB_KEYSTORE`) pidiendo la contraseña, y se detiene si la firma no es la
+de `.well-known/assetlinks.json`. La clave y la contraseña nunca entran al repo.
+Antes, lo que la app va a cargar tiene que estar en `main`.

@@ -2,6 +2,9 @@
   "app.js": [
     "src/app/analitica.js",
     "src/app/horario-clases.js",
+    "src/app/amigos-horario.js",
+    "src/app/armador-horario.js",
+    "src/app/requisitos-uc.js",
     "src/app/persistencia-y-normalizacion.js",
     "src/app/identidad.js",
     "src/app/catalogo-carga.js",
@@ -14,6 +17,7 @@
     "src/app/onboarding-ramos.js",
     "src/app/onboarding-flujo.js",
     "src/app/instalacion-nativa.js",
+    "src/app/experiencia-nativa.js",
     "src/app/navegacion.js",
     "src/app/orden-ramos.js",
     "src/app/ficha-ausencias.js",
@@ -40,8 +44,12 @@
     "src/app/editor-pauta.js",
     "src/app/editor-agregar-nota.js",
     "src/app/perfil-menu.js",
+    "src/app/perfil-pestana.js",
+    "src/app/amigos-pantalla.js",
+    "src/app/herramientas-inicio.js",
     "src/app/agentes-conexion.js",
     "src/app/agentes-propuestas-notas.js",
+    "src/app/notas-desde-excel.js",
     "src/app/agentes-propuestas-ramos-pautas.js",
     "src/app/ajustes.js",
     "src/app/feedback-enviar.js",
@@ -70,7 +78,10 @@
     "src/app/olfato.js",
     "src/app/calendario-formato.js",
     "src/app/calendario-importar.js",
+    "src/app/canvas-anuncios.js",
     "src/app/canvas.js",
+    "src/app/canvas-notas.js",
+    "src/app/canvas-programa.js",
     "src/app/canvas-calendario-web.js",
     "src/app/calendario-exportar.js",
     "src/app/calendario-suscripcion.js",
@@ -111,7 +122,9 @@
     "src/marketplace/alumnos-marcar.js",
     "src/marketplace/alumnos-ejemplo.js",
     "src/marketplace/alumnos-pantalla.js",
-    "src/marketplace/encuestas.js"
+    "src/marketplace/encuestas.js",
+    "src/marketplace/denuncias.js",
+    "src/marketplace/denuncias-usuarios.js"
   ],
   "app-session.js": [
     "src/app-session/cliente-y-politicas.js",
@@ -121,6 +134,7 @@
     "src/app-session/entrada-y-traducciones.js",
     "src/app-session/correo-y-clave.js",
     "src/app-session/login-registro.js",
+    "src/app-session/apple-acceso.js",
     "src/app-session/oauth-y-recuperacion.js",
     "src/app-session/cache-aislamiento.js",
     "src/app-session/avisos-feedback.js",
@@ -138,6 +152,7 @@
     "src/render-main/inicio.js",
     "src/render-main/recordatorio-notas.js",
     "src/render-main/recordatorio-notas-profesor.js",
+    "src/render-main/reglas-ramo.js",
     "src/render-main/ficha-ramo.js",
     "src/render-main/curso-y-evolucion.js",
     "src/render-main/estadisticas-evolucion.js",
@@ -156,7 +171,9 @@
     "src/render-agenda/tarjetas.js",
     "src/render-agenda/interacciones.js",
     "src/render-agenda/resumen-y-pendientes.js",
-    "src/render-agenda/pantalla.js"
+    "src/render-agenda/pantalla.js",
+    "src/render-agenda/horario-semana.js",
+    "src/render-agenda/agenda-dia-mes.js"
   ],
   "engine.js": [
     "src/engine/reglas-y-puntajes.js",
@@ -164,7 +181,8 @@
     "src/engine/ausencias-y-reemplazos.js",
     "src/engine/calculo-final.js",
     "src/engine/resolver-meta.js",
-    "src/engine/adaptador-ramo.js"
+    "src/engine/adaptador-ramo.js",
+    "src/engine/programa-pauta.js"
   ],
   "data.js": [
     "src/data/colores.js",

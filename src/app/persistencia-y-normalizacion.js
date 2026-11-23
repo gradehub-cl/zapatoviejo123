@@ -304,7 +304,7 @@ function resolverBonus(def,categorias){
     }
     out.push({id:b.id,...(Array.isArray(b.secciones)?{secciones:b.secciones.slice()}:{}),pregunta:String(b.pregunta||''),ayuda:String(b.ayuda||''),entrada:b.entrada,destino,
       ...(typeof b.max==='number'?{max:b.max}:{}),...(typeof b.hasta==='number'?{hasta:b.hasta}:{}),
-      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{})});
+      ...(typeof b.suma==='number'?{suma:b.suma}:{}),...(si?{si}:{}),...(b.alCompletar===true?{alCompletar:true}:{})});
   });
   return out.length?out:null;
 }
@@ -338,6 +338,7 @@ function normalize(data) {
     ...r,
     id: idSeguro(r.id),
     ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
     color: r.color || '#2563eb',
     // Créditos SCT — opcional. Si todos los ramos lo tienen, el promedio se pondera.
     // El 0 se conserva: es un dato exacto, no un faltante. Ver tieneCreditos().
@@ -583,6 +584,8 @@ function normalize(data) {
   data.onboardingDone = Boolean(data.onboardingDone);
   data.careerSemestre = Number(data.careerSemestre) || 1;
   data.userName = data.userName || '';
+  // Apellido (2026-11-18): las cuentas anteriores no lo tienen y quedan vacías.
+  data.userApellido = typeof data.userApellido === 'string' ? data.userApellido.replace(/\s+/g,' ').trim().slice(0, 60) : '';
   // Lo que el estudiante DECLARÓ que estudia. Es lo único que hay cuando su
   // carrera no tiene malla, y es el dato que dice qué malla construir después.
   data.carreraNombre = typeof data.carreraNombre === 'string' && data.carreraNombre.trim()
@@ -602,6 +605,7 @@ function normalize(data) {
       ...r,
       id: idSeguro(r.id),
       ...(r.horario!==undefined?{horario:copiarHorario(r.horario)}:{}),
+    ...(r.programaCanvas!==undefined?{programaCanvas:copiarProgramaCanvas(r.programaCanvas)}:{}),
       categorias: comoLista(r.categorias).map(c => ({
         ...c,
         id: idSeguro(c.id),

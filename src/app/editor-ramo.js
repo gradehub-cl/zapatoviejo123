@@ -1,10 +1,28 @@
 
 // ─── EDITAR RAMO ─────────────────────────────────────────────────────────────
 let editRamoError='';
+// Exigencia de las pruebas del ramo (Lucas, 2026-11-17): con ella las notas de
+// Canvas en puntos pasan a nota sola. Solo en la app, donde está Canvas.
+let modalExigencia=null;
+function exigenciaRamoEditorHTML(){
+  if(!(typeof enAppNativa==='function'&&enAppNativa())||typeof exigenciaOpcionesHTML!=='function')return '';
+  return `<span class="modal-label" id="m-ramo-exig-t">Exigencia de las pruebas</span>
+    <div id="m-ramo-exigencia">${exigenciaOpcionesHTML(modalExigencia,{id:'m-ramo-exig-otra',elegir:'elegirExigenciaRamo(',etiqueta:'Exigencia de las pruebas',titulo:false})}</div>
+    <p class="exigencia-ayuda" id="m-ramo-exig-ayuda">Con ella pasamos a nota los puntajes de Canvas. Si no la sabes, deja 50 %.</p>`;
+}
+function elegirExigenciaRamo(valor){
+  const e=exigenciaValida(valor),ayuda=document.getElementById('m-ramo-exig-ayuda');
+  if(e===null){if(ayuda){ayuda.textContent='La exigencia es un porcentaje entre 1 y 99, como 55.';ayuda.classList.add('error');}return;}
+  modalExigencia=e;
+  const caja=document.getElementById('m-ramo-exigencia');
+  if(caja)caja.innerHTML=exigenciaOpcionesHTML(e,{id:'m-ramo-exig-otra',elegir:'elegirExigenciaRamo(',etiqueta:'Exigencia de las pruebas',titulo:false});
+  if(ayuda){ayuda.textContent='Con ella pasamos a nota los puntajes de Canvas. Si no la sabes, deja 50 %.';ayuda.classList.remove('error');}
+}
 function openEditRamoModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   editRamoError='';
   modalColor=r.color;
+  modalExigencia=typeof exigenciaRamo==='function'?exigenciaRamo(r):50;
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Editar ramo</div>
     <label class="modal-label">Nombre del ramo</label>
@@ -16,6 +34,7 @@ function openEditRamoModal(){
     <label class="modal-label" for="m-ramo-seccion">Sección</label>
     <div class="modal-input"><input type="text" inputmode="numeric" id="m-ramo-seccion" value="${r.seccion!=null?r.seccion:''}" placeholder="Ej: 3" maxlength="3" autocomplete="off" aria-describedby="m-ramo-seccion-error"/></div>
     <p id="m-ramo-seccion-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
+    ${exigenciaRamoEditorHTML()}
     <span class="modal-label">Profesor</span>
     <button type="button" class="editar-profe" id="editar-profe"><span>Sin profesor<small>Sin calificar</small></span></button>
     <label class="modal-label" style="display:flex;align-items:center;gap:10px;text-transform:none;font-weight:500;letter-spacing:0;cursor:pointer;margin:2px 0 12px;line-height:1.35;">
@@ -60,6 +79,12 @@ function confirmEditRamo(){
   r.nombre=name;r.color=modalColor;
   r.creditos=parseCreditos((document.getElementById('m-ramo-creditos')||{}).value);
   r.seccion=seccion;
+  // 50 % es lo de siempre: no se guarda. Otra exigencia queda en el ramo.
+  if(document.getElementById('m-ramo-exigencia')){
+    const otra=document.getElementById('m-ramo-exig-otra');
+    if(otra&&otra.value.trim()&&exigenciaValida(otra.value)!==null)modalExigencia=exigenciaValida(otra.value);
+    if(modalExigencia!==null&&modalExigencia!==50)r.exigencia=modalExigencia;else delete r.exigencia;
+  }
   // Las fechas de la sección (los controles de Dinámica, por ejemplo) se
   // ven al tiro, sin esperar a la próxima carga.
   completarFechasOficiales(r,{tenant:S.tenant,carrera:S.carrera});

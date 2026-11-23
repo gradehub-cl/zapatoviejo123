@@ -6,7 +6,7 @@ assert.deepEqual(detalle.map(d=>d.appIDs),[['PH6XQV8L2M.cl.gradehub.app']]);
 assert.deepEqual(detalle[0].components.filter(c=>!c.exclude).map(c=>c['/']),['/']);
 const patron=(p,v)=>new RegExp('^'+p.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*').replace(/\?/g,'.')+'$').test(v);
 function asociado(url){const u=new URL(url);const c=detalle[0].components.find(c=>(!c['/']||patron(c['/'],u.pathname))&&(!c['#']||patron(c['#'],u.hash.slice(1)))&&(!c['?']||(typeof c['?']==='string'?patron(c['?'],u.search.slice(1)):Object.entries(c['?']).every(([k,v])=>(u.searchParams.has(k)?u.searchParams.getAll(k):['']).every(valor=>patron(v,valor))))));return !!c&&!c.exclude;}
-for(const ruta of ['/','/?profe=ABCD2345','/?dar-clases','/?desde=calculadora'])assert(asociado('https://gradehub.cl'+ruta),ruta);
+for(const ruta of ['/','/?profe=ABCD2345','/?dar-clases','/?desde=calculadora','/?amigo=usuario_sintetico'])assert(asociado('https://gradehub.cl'+ruta),ruta);
 for(const ruta of ['/privacidad.html','/terminos','/auth/callback','/login-callback','/cal/token-sintetico','/mcp/','/calculadora','/clase/inventada','/ramo/inventado','/#access_token=sintetico','/#type=recovery'])assert(!asociado('https://gradehub.cl'+ruta),ruta);
 for(const k of ['code','token','token_hash','access_token','refresh_token','type','state','error','error_code','error_description'])for(const cola of [k+'=sintetico',k+'=',k,k+'&profe=ABCD2345','profe=ABCD2345&'+k,'profe=ABCD2345&'+k+'=&desde=calculadora',k+'=&'+k+'=sintetico'])assert(!asociado('https://gradehub.cl/?'+cola),cola);
 const cabecera=leer('_headers').split('/.well-known/apple-app-site-association\n')[1];
@@ -36,6 +36,10 @@ function contexto({nativa=true,lanzamiento,falloLanzamiento=false,retenido}={}){
 const pausa=()=>new Promise(r=>setImmediate(r));
 (async()=>{
  const c=contexto();assert.equal(c.oyentes.appUrlOpen.length,1,'un solo oyente nativo para no robar eventos retenidos');c.entrar();c.llamadas.length=0;
+ // ?amigo= no es Inicio: lo atiende recibirLinkAmigo por el mismo oyente.
+ const amigo=contexto();amigo.entrar();amigo.llamadas.length=0;amigo.run(`globalThis.__amigos=[];recibirLinkAmigo=url=>(__amigos.push(url),true)`);
+ assert.equal(amigo.run(`destinoEnlaceUniversal('https://gradehub.cl/?amigo=usuario_sintetico')`),null);
+ amigo.emitir('https://gradehub.cl/?amigo=usuario_sintetico');assert.equal(amigo.run('__amigos.length'),1,'el link de amigo llega a recibirLinkAmigo');assert.equal(amigo.llamadas.length,0,'y no se convierte en Inicio');
  const callback='cl.gradehub.app://login-callback?code=sintetico';
  const oauthFrio=contexto({lanzamiento:callback});oauthFrio.run(`globalThis.__oauth=[];volverDeOAuthNativo=url=>__oauth.push(url)`);await pausa();oauthFrio.emitir(callback);assert.equal(oauthFrio.run('__oauth.length'),1,'getLaunchUrl no consume ni deduplica un callback OAuth que no manejó');
  const retenido=contexto({lanzamiento:callback,retenido:callback});retenido.run(`globalThis.__oauth=[];volverDeOAuthNativo=url=>__oauth.push(url)`);await pausa();assert.equal(retenido.run('__oauth.length'),1,'el único oyente entrega el OAuth retenido al flujo original');

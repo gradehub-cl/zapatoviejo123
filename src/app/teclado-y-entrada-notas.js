@@ -25,6 +25,7 @@ function contenedorDesplazable(el){
 }
 function asegurarVisibleSobreTeclado(el){
   if(!el||!el.getBoundingClientRect)return;
+  if(typeof ajustarCampoNativo==='function'&&ajustarCampoNativo(el))return;
   const cont=contenedorDesplazable(el);
   const oculto=espacioTeclado();
   if(cont&&oculto>0)cont.style.paddingBottom=oculto+'px';
@@ -106,15 +107,20 @@ window.visualViewport&&window.visualViewport.addEventListener('resize',()=>{
 // puede decir 2 controles y su sección tomar 4. No se baja de una casilla ya
 // ocupada, para que ninguna nota quede sobrando.
 function minimoCasillas(cat){
-  return Math.max(2,(Number(cat.dropLowest?.count)||0)+1,...(cat.notas||[]).filter(n=>Number.isInteger(n.slot)).map(n=>n.slot+1));
+  return Math.max(2,(Number(cat.dropLowest?.count)||0)+1,...(cat.notas||[]).filter(n=>Number.isInteger(n.slot)&&casillaConDato(n)).map(n=>n.slot+1));
 }
+// Abrir la hoja de una casilla crea su nota vacía (abrirCasilla). Esa no es un
+// dato: sin esto, mirar la última casilla y cancelar escondía "Quitar la última".
+function casillaConDato(n){return n.valor!=null||!!n.fecha||n.recorreccionPendiente===true;}
 function cambiarCasillas(catId,delta){
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r&&r.categorias.find(c=>c.id===catId);
   if(!cat||!(cat.slots>1))return;
   const nuevo=cat.slots+delta;
   if(nuevo<minimoCasillas(cat)||nuevo>100)return;
-  cat.slots=nuevo;save();renderRamo();
+  cat.slots=nuevo;
+  cat.notas=(cat.notas||[]).filter(n=>!(Number.isInteger(n.slot)&&n.slot>=nuevo&&!casillaConDato(n)));
+  save();renderRamo();
 }
 // "+ Agregar nota" de un grupo: suma una casilla y la deja lista para escribir.
 function agregarCasilla(catId){

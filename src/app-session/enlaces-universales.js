@@ -10,6 +10,9 @@ function destinoEnlaceUniversal(valor){
     /^\/(?:auth(?:\/|$)|login-callback(?:\/|$)|privacidad(?:\.html)?\/?$|terminos(?:\.html)?\/?$|preguntas(?:\.html)?\/?$|calculadora(?:\.html)?\/?$|cal\/|mcp\/)/.test(u.pathname))return null;
   if(u.pathname==='/'){
     const p=u.searchParams,profe=p.get('profe');
+    // ?amigo= lo atiende recibirLinkAmigo (amigos-pantalla.js), que ya espera
+    // a la cuenta: este router no lo convierte en Inicio.
+    if(p.has('amigo'))return null;
     if(p.getAll('profe').length===1&&!p.has('dar-clases')&&/^[A-HJ-NP-Z2-9]{8}$/i.test(profe||''))return {tipo:'profe',codigo:profe.toUpperCase()};
     if(p.has('dar-clases')&&!p.has('profe')&&p.getAll('dar-clases').length===1)return {tipo:'dar-clases'};
     if(p.get('desde')==='calculadora')return {tipo:'calculadora'};
