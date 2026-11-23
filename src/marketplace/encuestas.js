@@ -5,6 +5,10 @@ let encuestaCuenta=null,encuestaVisita=null,encuestaIntentada=false,encuestaActi
 function olvidarEncuestas(){
   encuestaVersion++;encuestaCuenta=null;encuestaVisita=null;encuestaIntentada=false;encuestaActiva=null;encuestaCuentaNueva=null;
   cerrarHojaEncuesta(false);
+  if(typeof document!=='undefined'){
+    document.removeEventListener?.('visibilitychange',comunicadoAlVolver);
+    document.getElementById('inicio-comunicado')?.remove?.();
+  }
   if(typeof document!=='undefined')document.querySelector?.('.encuestas-admin')?.remove?.();
 }
 function marcarPrimeraSesionEncuesta(uid){
@@ -35,6 +39,10 @@ async function consultarEncuestaAlEntrar(){
   const uid=currentUser?.id;
   if(!uid||!S.onboardingDone||!supabaseClient||!encuestaConexion()||document.visibilityState==='hidden')return;
   if(encuestaCuenta!==uid){olvidarEncuestas();encuestaCuenta=uid;}
+  if(typeof enAppNativa==='function'&&enAppNativa()){
+    document.addEventListener('visibilitychange',comunicadoAlVolver);
+    consultarComunicadoInicio();
+  }
   if(encuestaIntentada)return;
   if(document.getElementById('modal')?.classList.contains('open'))return;
   encuestaIntentada=true;
@@ -159,7 +167,8 @@ function resultadosEncuestaAdminHTML(r){
 }
 async function renderAdminEncuestas(raiz){
   const uid=currentUser?.id,version=encuestaVersion;
-  const cabecera='<div class="encuestas-admin"><div class="encuestas-admin-cabecera"><h3>Encuestas</h3><button type="button" data-encuestas-actualizar>Actualizar</button></div>';
+  raiz.setAttribute('aria-label','Encuestas y comunicados');
+  const cabecera='<div class="encuestas-admin"><div class="encuestas-admin-cabecera"><h3>Encuestas y comunicados</h3><button type="button" data-encuestas-actualizar>Actualizar</button></div>';
   const pintar=contenido=>{raiz.innerHTML=cabecera+contenido+'</div>';raiz.querySelector('[data-encuestas-actualizar]').addEventListener('click',()=>renderAdminEncuestas(raiz));};
   pintar('<p role="status">Cargando…</p>');
   const vista=raiz.querySelector('.encuestas-admin');
@@ -182,8 +191,9 @@ async function renderAdminEncuestas(raiz){
     <div class="encuesta-fechas"><label>Inicio<input type="date" name="inicio" value="${hoy}" required></label><label>Término<input type="date" name="termino" value="${hoy}" required></label></div>
     <p>Fechas completas de Chile, incluido el día de término. Una encuesta simultánea por público.</p>
     <p role="status" data-crear-estado></p><button type="button" data-encuesta-preview>Vista previa</button><button type="submit" class="encuesta-enviar">Crear encuesta</button>
-    </form></details><div class="encuestas-lista">${[...vigentes,...terminadas].map(e=>`<section data-encuesta-admin="${esc(e.id)}"><div class="adu-encuesta-cabeza"><h4>${esc(e.pregunta)}</h4><span class="adu-estado">${estadoVisible(e)}</span></div><p class="adu-nota">${esc(publicos.find(([id])=>id===e.publico)?.[1]||e.publico)} · ${esc(e.inicio.split('-').reverse().join('/'))} a ${esc(e.termino.split('-').reverse().join('/'))}</p>
+    </form></details><div data-panel-comunicado></div><div class="encuestas-lista">${[...vigentes,...terminadas].map(e=>`<section data-encuesta-admin="${esc(e.id)}"><div class="adu-encuesta-cabeza"><h4>${esc(e.pregunta)}</h4><span class="adu-estado">${estadoVisible(e)}</span></div><p class="adu-nota">${esc(publicos.find(([id])=>id===e.publico)?.[1]||e.publico)} · ${esc(e.inicio.split('-').reverse().join('/'))} a ${esc(e.termino.split('-').reverse().join('/'))}</p>
     <div class="encuesta-acciones">${e.estado!=='terminada'&&e.termino>=hoy?`<button type="button" data-encuesta-cambiar="${e.estado==='activa'?'pausada':'activa'}">${e.estado==='activa'?'Pausar':'Reanudar'}</button><button type="button" data-encuesta-cambiar="terminada">Terminar</button>`:''}<button type="button" data-encuesta-resultados>Ver resultados</button></div><div data-encuesta-totales aria-live="polite"></div></section>`).join('')||'<p>Todavía no hay encuestas.</p>'}</div>`);
+  renderAdminComunicado(raiz.querySelector('[data-panel-comunicado]'));
   const form=raiz.querySelector('.encuesta-crear form'),f=form.elements,estado=raiz.querySelector('[data-crear-estado]');
   f.tipo.addEventListener('change',()=>{const texto=f.tipo.value==='texto';raiz.querySelector('[data-opciones-admin]').hidden=texto;f.opciones.required=!texto;});
   form.querySelector('[data-encuesta-preview]').addEventListener('click',()=>{
@@ -240,4 +250,138 @@ async function renderAdminEncuestas(raiz){
       }catch(error){if(caja.isConnected)totales.textContent='No pudimos leer los resultados. Revisa tu conexión.';}finally{if(b.isConnected)b.disabled=false;}
     });
   });
+}
+
+// El comunicado se lee en Inicio. El panel y la vista previa comparten la misma tarjeta.
+function contenidoComunicadoHTML(c){
+  const imagen=c.imagen?`<div class="profesor-flyer-preview"><img alt="" src="data:image/jpeg;base64,${esc(c.imagen)}"></div>`:'';
+  return `<p class="modal-label">Comunicado del equipo</p><h3 style="overflow-wrap:anywhere">${esc(c.titulo)}</h3>
+    <p class="admin-revision-descripcion">${esc(c.mensaje)}</p>${imagen}`;
+}
+let consultaComunicado=0;
+async function consultarComunicadoInicio(){
+  const uid=currentUser?.id,version=encuestaVersion,consulta=++consultaComunicado;
+  if(!uid||!S.onboardingDone||!enAppNativa()||!encuestaConexion())return;
+  const clave='gradehub_comunicado_cerrado_'+uid;
+  const cerrado=()=>{try{return localStorage.getItem(clave);}catch(e){return null;}};
+  try{
+    const {data,error}=await supabaseClient.rpc('comunicado_equipo_actual',{p_omitido:cerrado()});
+    if(error||!encuestaSigue(uid,version)||consulta!==consultaComunicado)return;
+    const anterior=document.getElementById('inicio-comunicado');
+    if(!data||cerrado()===data.id){anterior?.remove();return;}
+    if(anterior?.dataset.id===data.id){
+      if(!data.imagen)anterior.querySelector('.profesor-flyer-preview')?.remove();
+      return;
+    }
+    const saludo=document.querySelector('#screen-home .greet-hero');if(!saludo)return;
+    const tarjeta=document.createElement('section');tarjeta.id='inicio-comunicado';tarjeta.className='adm-tarjeta';
+    tarjeta.dataset.id=data.id;tarjeta.setAttribute('aria-label','Comunicado del equipo');
+    tarjeta.innerHTML=contenidoComunicadoHTML(data)+'<button type="button" class="clase-accion" aria-label="Cerrar comunicado">Cerrar</button>';
+    tarjeta.querySelector('button').addEventListener('click',()=>{
+      if(!encuestaSigue(uid,version))return;
+      try{localStorage.setItem(clave,data.id);}catch(e){}
+      tarjeta.remove();
+    });
+    anterior?.remove();saludo.after(tarjeta);
+  }catch(e){} // Un comunicado opcional nunca bloquea Inicio.
+}
+function comunicadoAlVolver(){
+  if(document.visibilityState==='visible'&&typeof enAppNativa==='function'&&enAppNativa()&&encuestaCuenta===currentUser?.id)consultarComunicadoInicio();
+}
+
+async function imagenComunicado(archivo){
+  if(!archivo)return null;
+  const validacion=validarFlyerClase(archivo);
+  if(!validacion.ok)throw new Error(validacion.error);
+  const img=new Image();
+  img.src=await new Promise((resolve,reject)=>{
+    const lector=new FileReader();
+    lector.onload=()=>resolve(lector.result);
+    lector.onerror=()=>reject(new Error('No pudimos leer el archivo.'));
+    lector.readAsDataURL(archivo);
+  });
+  try{await img.decode();}catch(e){throw new Error('No pudimos leer la imagen. Prueba con otro archivo.');}
+  const escala=Math.min(1,1200/Math.max(img.naturalWidth,img.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*escala));canvas.height=Math.max(1,Math.round(img.naturalHeight*escala));
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  for(const calidad of [.82,.65,.45]){
+    const jpeg=canvas.toDataURL('image/jpeg',calidad).split(',')[1];
+    if(jpeg&&jpeg.length<=349524)return jpeg;
+  }
+  throw new Error('Elige una imagen más pequeña para este comunicado.');
+}
+
+async function renderAdminComunicado(raiz){
+  const uid=currentUser?.id,version=encuestaVersion;
+  const vigente=()=>raiz.isConnected&&encuestaSigue(uid,version);
+  raiz.innerHTML='<p role="status">Cargando comunicado…</p>';
+  let actual;
+  try{
+    const {data,error}=await supabaseClient.rpc('comunicado_equipo_actual');
+    if(!vigente())return;
+    if(error)throw error;
+    actual=data;
+  }catch(error){
+    if(vigente())raiz.textContent=sqlEncuestasAusente(error)?'Los comunicados todavía no están habilitados.':'No pudimos cargar el comunicado. Usa Actualizar para reintentar.';
+    return;
+  }
+  if(actual){
+    raiz.innerHTML=`<section>${contenidoComunicadoHTML(actual)}<div class="encuesta-acciones">
+      ${actual.imagen?'<button type="button" data-quitar-imagen>Quitar imagen</button>':''}
+      <button type="button" data-retirar>Retirar comunicado</button></div><p role="status"></p></section>`;
+    const cambiar=async soloImagen=>{
+      if(!vigente())return;
+      const botones=raiz.querySelectorAll('button'),estado=raiz.querySelector('[role=status]');
+      botones.forEach(b=>b.disabled=true);
+      try{
+        const {data,error}=await supabaseClient.rpc('admin_retirar_comunicado',{p_id:actual.id,p_solo_imagen:soloImagen});
+        if(!vigente())return;
+        if(error)throw error;
+        if(!data)showToast('El comunicado ya había cambiado.');
+        if(typeof enAppNativa==='function'&&enAppNativa())consultarComunicadoInicio();
+        await renderAdminComunicado(raiz);
+      }catch(e){if(vigente())estado.textContent='No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.';}
+      finally{botones.forEach(b=>b.disabled=false);}
+    };
+    raiz.querySelector('[data-quitar-imagen]')?.addEventListener('click',()=>cambiar(true));
+    raiz.querySelector('[data-retirar]').addEventListener('click',()=>showConfirm('¿Retirar el comunicado?','Dejará de aparecer al entrar a la app.',()=>cambiar(false),{label:'Retirar',focusCancel:true}));
+    return;
+  }
+  raiz.innerHTML=`<details class="encuesta-crear"><summary>Crear comunicado</summary><form>
+    <p>Aparecerá en Inicio hasta que lo retires. Cada persona puede cerrarlo en su dispositivo.</p>
+    <label>Título<input name="titulo" maxlength="100" required></label>
+    <label>Mensaje<textarea name="mensaje" rows="4" maxlength="2000" required></textarea></label>
+    <label>Imagen (opcional)<input name="imagen" type="file" accept="image/jpeg,image/png,image/webp"></label>
+    <p>JPG, PNG o WebP de hasta 5 MB. Incluye en el mensaje lo importante de la imagen.</p>
+    <button type="button" data-quitar-imagen hidden>Quitar imagen</button>
+    <div data-vista-comunicado hidden></div><p role="status"></p>
+    <button type="button" data-preview>Vista previa del comunicado</button>
+    <button type="submit" class="encuesta-enviar">Publicar en la app</button></form></details>`;
+  const form=raiz.querySelector('form'),f=form.elements,estado=form.querySelector('[role=status]'),preview=form.querySelector('[data-vista-comunicado]');
+  const quitar=form.querySelector('[data-quitar-imagen]');
+  let revision=0,enviando=false;
+  const limpiarPrevia=()=>{revision++;preview.hidden=true;preview.replaceChildren();estado.textContent='';quitar.hidden=!f.imagen.files.length;};
+  form.addEventListener('input',limpiarPrevia);
+  f.imagen.addEventListener('change',limpiarPrevia);
+  quitar.addEventListener('click',()=>{f.imagen.value='';limpiarPrevia();f.imagen.focus();});
+  const preparar=async publicar=>{
+    if(enviando||!form.reportValidity())return;
+    const titulo=f.titulo.value.trim(),mensaje=f.mensaje.value.trim();
+    if(!titulo||!mensaje){estado.textContent='Completa el título y el mensaje.';(!titulo?f.titulo:f.mensaje).focus();return;}
+    const turno=++revision,archivo=f.imagen.files[0],controles=[...form.elements];
+    if(publicar){enviando=true;controles.forEach(c=>c.disabled=true);estado.textContent='Publicando…';}
+    try{
+      const imagen=await imagenComunicado(archivo);
+      if(!vigente()||!form.isConnected||turno!==revision)return;
+      if(!publicar){preview.innerHTML=contenidoComunicadoHTML({titulo,mensaje,imagen});preview.hidden=false;return;}
+      const {data,error}=await supabaseClient.rpc('admin_publicar_comunicado',{p_titulo:titulo,p_mensaje:mensaje,p_imagen:imagen});
+      if(!vigente()||!form.isConnected)return;
+      if(error||!data){estado.textContent=error?.message?.includes('Ya hay un comunicado')?'Ya hay un comunicado publicado. Actualiza el panel.':'No se pudo publicar. Revisa tu acceso y conexión.';return;}
+      if(typeof enAppNativa==='function'&&enAppNativa())consultarComunicadoInicio();
+      showToast('Comunicado publicado');await renderAdminComunicado(raiz);
+    }catch(e){if(vigente()&&turno===revision)estado.textContent=e instanceof TypeError?'No se pudo completar. Intenta de nuevo.':e.message;}
+    finally{if(publicar){enviando=false;controles.forEach(c=>c.disabled=false);}}
+  };
+  form.querySelector('[data-preview]').addEventListener('click',()=>preparar(false));
+  form.addEventListener('submit',e=>{e.preventDefault();preparar(true);});
 }

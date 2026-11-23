@@ -16,7 +16,7 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  await page.goto('https://encuestas.test/');await page.waitForFunction(()=>typeof consultarEncuestaAlEntrar==='function');
  await page.evaluate(async()=>{
   S.tenant='uc';S.onboardingDone=true;S.modo='claro';S.fondo='neutro';S.ramos=[];currentUser={id:'cuenta-sintetica'};
-  window.calls=[];window.nivel='aal2';window.fallo=null;
+  window.comunicadoQA=null;window.calls=[];window.nivel='aal2';window.fallo=null;
   window.encuestaQA={id:'00000000-0000-4000-8000-000000000011',pregunta:'¿Qué te ayudaría a organizar el semestre?',tipo:'una',opciones:['Recordatorios','Vista del semestre'],publico:'uc',inicio:diaChileEncuesta(),termino:diaChileEncuesta(),estado:'activa',respuesta:null};
   window.listaQA=[encuestaQA];window.totalQA={total:2,opciones:[{opcion:'Recordatorios',total:1},{opcion:'Vista del semestre',total:1}],textos:[{texto:'<img src=x onerror=alert(1)>',total:1},{texto:'=SUM(1,2)',total:1}]};
   supabaseClient={auth:{mfa:{listFactors:async()=>({data:{totp:[{id:'factor-qa',status:'verified'}]}}),getAuthenticatorAssuranceLevel:async()=>({data:{currentLevel:nivel}})}},rpc:async(n,p)=>{
@@ -26,6 +26,9 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
    if(n==='encuesta_al_entrar')return {data:{encuesta:structuredClone(encuestaQA),mostrar:true}};
    if(n==='mi_encuesta_activa')return {data:structuredClone(encuestaQA)};
    if(n==='responder_encuesta'){encuestaQA.respuesta={opciones:p.p_opciones,texto:p.p_texto};return {data:true};}
+   if(n==='comunicado_equipo_actual')return {data:comunicadoQA?.id===p?.p_omitido?null:structuredClone(comunicadoQA)};
+   if(n==='admin_publicar_comunicado'){comunicadoQA={id:crypto.randomUUID(),titulo:p.p_titulo,mensaje:p.p_mensaje,imagen:p.p_imagen};return {data:comunicadoQA.id};}
+   if(n==='admin_retirar_comunicado'){if(p.p_solo_imagen)comunicadoQA.imagen=null;else comunicadoQA=null;return {data:true};}
    if(n==='admin_panel_clases')return {data:[]};
    if(n==='admin_encuestas')return {data:structuredClone(listaQA)};
    if(n==='admin_resultados_encuesta')return {data:structuredClone(totalQA)};
@@ -69,7 +72,9 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  async function qa(selector){
   const errores=await page.locator(selector).evaluate(root=>{
    const errores=[],visible=el=>el.getClientRects().length>0;
-   const canales=color=>color.match(/[\d.]+/g).slice(0,3).map(Number);
+   // Chrome también devuelve color(srgb …) para los fondos con color-mix.
+   const muestra=document.createElement('canvas').getContext('2d',{willReadFrequently:true});
+   const canales=color=>{muestra.fillStyle=color;muestra.fillRect(0,0,1,1);return [...muestra.getImageData(0,0,1,1).data].slice(0,3);};
    const lum=color=>canales(color).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((a,n,i)=>a+n*[.2126,.7152,.0722][i],0);
    const fondo=el=>{for(let x=el;x;x=x.parentElement){const c=getComputedStyle(x).backgroundColor;if(c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')return c;}return 'rgb(255, 255, 255)';};
    for(const el of root.querySelectorAll('button,input,select,textarea,summary,.encuesta-opcion'))if(visible(el)){
@@ -135,7 +140,9 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
   assert.equal(await page.locator('[name=pregunta]').inputValue(),'¿Qué herramienta te sirve?');
   await page.context().setOffline(false);
  }
- assert.equal(await page.evaluate(()=>calls.length),llamadasAntesPreview,'probar no genera ninguna RPC');
+ // Al volver la conexión, la app sincroniza los cierres de anuncios de clases.
+ const llamadasPreview=await page.evaluate(i=>calls.slice(i).map(c=>c.n),llamadasAntesPreview);
+ assert.deepEqual(llamadasPreview.filter(n=>!['mi_cierre_anuncios','mis_cierres_anuncios'].includes(n)),[],'la vista previa no genera ninguna RPC');
  await page.locator('[name=tipo]').selectOption('una');
  await page.locator('[name=pregunta]').fill('¿Qué prefieres? <img src=x onerror=alert(1)>');
  await page.locator('[name=opciones]').fill('Repasar contenidos\nPracticar con ejercicios');
@@ -176,6 +183,33 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  }
  await card.getByRole('button',{name:'Terminar',exact:true}).click();assert(await page.locator('#confirm-overlay').isVisible());
  await page.locator('#confirm-action').click();await page.waitForFunction(()=>listaQA[0].estado==='terminada');
+ // Publicar desde la web, mostrar solo en la app, cerrar y retirar por separado.
+ await page.setViewportSize({width:390,height:844});
+ const panel=page.locator('[data-panel-comunicado]');
+ await panel.getByText('Crear comunicado',{exact:true}).click();
+ await panel.getByLabel('Título',{exact:true}).fill('Cierre de semestre');
+ await panel.getByLabel('Mensaje',{exact:true}).fill('Aviso sintético para estudiantes.');await qa('[data-panel-comunicado]');
+ const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=40;c.height=30;return c.toDataURL().split(',')[1];});
+ const adjunto={name:'aviso.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')};
+ await panel.locator('[type=file]').setInputFiles(adjunto);
+ await panel.getByRole('button',{name:'Vista previa del comunicado'}).click();
+ await panel.locator('[data-vista-comunicado] img').waitFor();assert.equal(await page.evaluate(()=>comunicadoQA),null);assert(await panel.locator('[data-vista-comunicado] img').evaluate(img=>img.complete&&img.naturalWidth===40));
+ await panel.getByRole('button',{name:'Quitar imagen'}).click();assert(await panel.locator('[data-vista-comunicado]').isHidden());
+ await panel.locator('[type=file]').setInputFiles(adjunto);await panel.getByRole('button',{name:'Publicar en la app'}).click();
+ await panel.getByRole('button',{name:'Retirar comunicado'}).waitFor();await panel.screenshot({path:salida+'/comunicado-admin.png'});
+ await page.evaluate(()=>consultarEncuestaAlEntrar());assert.equal(await page.locator('#inicio-comunicado').count(),0);
+ await page.evaluate(()=>{window.Capacitor={isNativePlatform:()=>true};return consultarEncuestaAlEntrar();});
+ const aviso=page.locator('#inicio-comunicado');await aviso.waitFor({state:'attached'});assert.equal(await aviso.locator('img').count(),1);
+ await panel.getByRole('button',{name:'Quitar imagen'}).click();await page.waitForFunction(()=>!document.querySelector('#inicio-comunicado img'));
+ assert.match(await aviso.textContent(),/Cierre de semestre/);
+ await page.evaluate(()=>{document.getElementById('screen-home').hidden=false;showTab('home',true);});
+ await aviso.waitFor();await qa('#inicio-comunicado');await aviso.screenshot({path:salida+'/comunicado-inicio.png'});
+ await aviso.getByRole('button',{name:'Cerrar comunicado'}).click();
+ await page.evaluate(()=>{showTab('admin',true);});
+ await page.locator('[data-admin-area="usuarios"]').first().evaluate(b=>b.click());
+ await page.evaluate(()=>consultarComunicadoInicio());assert.equal(await aviso.count(),0);
+ await panel.getByRole('button',{name:'Retirar comunicado'}).click();await page.locator('#confirm-action').click();
+ await panel.getByText('Crear comunicado',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>comunicadoQA),null);
  await page.evaluate(()=>{currentUser={id:'otra-cuenta'};sesionEncuestasCambio('SIGNED_IN','otra-cuenta');});assert.equal(await page.locator('.encuestas-admin').count(),0);
  console.log('Chrome OK: vista previa sin RPC, tres tipos, offline, borrador/foco, 375/1280 claro/oscuro y texto 200%; hoja no modal, envío/edición, 280 caracteres Unicode, cierre/Escape/arrastre, controles 44 pt, 4.5:1 en seis fondos, reduced-motion, admin MFA, crear/pausar/terminar, CSV y aislamiento de cuenta.');
  }finally{await browser.close();}

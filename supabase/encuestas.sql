@@ -225,4 +225,55 @@ revoke all on function public.mi_encuesta_activa(),public.encuesta_al_entrar(uui
   public.admin_crear_encuesta(text,text,text[],text,date,date),public.admin_estado_encuesta(uuid,text),public.admin_encuestas(),public.admin_resultados_encuesta(uuid) from public,anon;
 grant execute on function public.mi_encuesta_activa(),public.encuesta_al_entrar(uuid),public.responder_encuesta(uuid,integer[],text),
   public.admin_crear_encuesta(text,text,text[],text,date,date),public.admin_estado_encuesta(uuid,text),public.admin_encuestas(),public.admin_resultados_encuesta(uuid) to authenticated;
+-- Comunicado vigente del equipo. Una sola publicación para toda la app.
+-- La imagen JPEG normalizada viaja con su texto y se retira en la misma transacción.
+create table if not exists admin.comunicado_equipo (
+  unico boolean primary key default true check (unico),
+  id uuid not null unique default gen_random_uuid(),
+  creado_por uuid not null references auth.users(id) on delete cascade,
+  titulo text not null check (char_length(btrim(titulo)) between 1 and 100),
+  mensaje text not null check (char_length(btrim(mensaje)) between 1 and 2000),
+  imagen bytea check (octet_length(imagen) between 4 and 262144
+    and substring(imagen from 1 for 3)=decode('ffd8ff','hex')
+    and substring(imagen from octet_length(imagen)-1 for 2)=decode('ffd9','hex'))
+);
+alter table admin.comunicado_equipo enable row level security;
+revoke all on admin.comunicado_equipo from public,anon,authenticated;
+
+create or replace function public.comunicado_equipo_actual(p_omitido uuid default null)
+returns jsonb language sql stable security definer set search_path='' as $$
+  select jsonb_build_object('id',c.id,'titulo',c.titulo,'mensaje',c.mensaje,
+    'imagen',replace(encode(c.imagen,'base64'),chr(10),''))
+  from admin.comunicado_equipo c where auth.uid() is not null and c.id is distinct from p_omitido;
+$$;
+
+create or replace function public.admin_publicar_comunicado(p_titulo text,p_mensaje text,p_imagen text default null)
+returns uuid language plpgsql security definer set search_path='' as $$
+declare nuevo uuid;
+begin
+  perform admin.exigir_administrador();
+  if length(p_imagen)>349528 then raise exception 'La imagen es demasiado grande.'; end if;
+  insert into admin.comunicado_equipo(creado_por,titulo,mensaje,imagen)
+    values(auth.uid(),btrim(p_titulo),btrim(p_mensaje),decode(p_imagen,'base64'))
+    on conflict(unico) do nothing returning id into nuevo;
+  if nuevo is null then raise exception 'Ya hay un comunicado publicado. Actualiza el panel.'; end if;
+  return nuevo;
+end; $$;
+
+create or replace function public.admin_retirar_comunicado(p_id uuid,p_solo_imagen boolean)
+returns boolean language plpgsql security definer set search_path='' as $$
+begin
+  perform admin.exigir_administrador();
+  if p_solo_imagen is true then
+    update admin.comunicado_equipo set imagen=null where id=p_id and imagen is not null;
+  elsif p_solo_imagen is false then
+    delete from admin.comunicado_equipo where id=p_id;
+  else return false;
+  end if;
+  return found;
+end; $$;
+revoke all on function public.comunicado_equipo_actual(uuid),public.admin_publicar_comunicado(text,text,text),
+  public.admin_retirar_comunicado(uuid,boolean) from public,anon;
+grant execute on function public.comunicado_equipo_actual(uuid),public.admin_publicar_comunicado(text,text,text),
+  public.admin_retirar_comunicado(uuid,boolean) to authenticated;
 commit;
