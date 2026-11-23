@@ -6685,8 +6685,8 @@ html.app-nativa .grupo-caras ul{padding:0 1rem;}
 html.app-nativa .grupo-caras .amigos-historia small{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;white-space:nowrap;}
 html.app-nativa .grupo-libres{list-style:none;margin:0 1rem;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--celda-agrupada);overflow:hidden;}
 html.app-nativa .grupo-libres>li+li{border-top:1px solid var(--border);}
-html.app-nativa .grupo-libre{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.25rem .9rem;width:100%;min-height:60px;padding:.7rem .9rem;border:0;background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
-html.app-nativa .grupo-libre:active{background:var(--muted);}
+/* Libres juntos se lee, no se toca (Lucas, 2026-11-22): «Anotar sala» tiene su enlace. */
+html.app-nativa .grupo-libre{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.25rem .9rem;min-height:56px;padding:.65rem .9rem;color:var(--fg);}
 html.app-nativa .grupo-libre-cuando{display:flex;flex-direction:column;min-width:4.6rem;}
 html.app-nativa .grupo-libre-cuando b{font-size:.9375rem;font-weight:600;}
 html.app-nativa .grupo-libre-cuando span{font-size:.875rem;color:var(--fg2);font-variant-numeric:tabular-nums;}

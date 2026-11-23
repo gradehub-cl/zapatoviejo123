@@ -794,10 +794,9 @@ function libresJuntosHTML(d,ahora=new Date()){
   const yoSinHorario=!personas.some(p=>p.yo&&conHorario.includes(p));
   const ventanas=proximasLibresJuntos(personas,ahora,{cuantas:2});
   const quienes=v=>participantesGrupo(personas.filter(p=>v.claves.includes(p.clave)));
-  const cuerpo=ventanas.length?`<ul class="grupo-libres">${ventanas.map(v=>`<li><button type="button" class="grupo-libre" data-amigos="reserva-nueva" data-id="${esc(d.id)}" data-fecha="${esc(v.fecha)}" data-inicio="${esc(v.inicio)}" data-fin="${esc(v.fin)}" aria-label="${esc(`${diaCortoGrupo(v.fecha)}, de ${v.inicio} a ${v.fin}, con ${quienes(v)}. Anotar una sala para ese horario`)}">
+  const cuerpo=ventanas.length?`<ul class="grupo-libres">${ventanas.map(v=>`<li class="grupo-libre">
       <span class="grupo-libre-cuando"><b>${esc(diaCortoGrupo(v.fecha))}</b><span>${esc(v.inicio)}–${esc(v.fin)}</span></span>
-      <span class="grupo-libre-quienes">${esc(quienes(v))}</span>
-      ${FLECHA_GRUPO}</button></li>`).join('')}</ul>`
+      <span class="grupo-libre-quienes">${esc(quienes(v))}</span></li>`).join('')}</ul>`
     :`<p class="grupo-nota">Esta semana no coinciden libres en la u. ${yoSinHorario?'Agrega tu horario para ver cuándo te juntas tú.':''}</p>`;
   return `<section class="grupo-libres-seccion" aria-labelledby="grupo-libres-titulo">
     <div class="grupo-seccion-titulo"><h2 id="grupo-libres-titulo">Libres juntos</h2></div>${cuerpo}</section>`;
