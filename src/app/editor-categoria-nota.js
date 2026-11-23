@@ -207,8 +207,7 @@ function openEditNotaModal(catId,notaId){
       <label class="toggle"><input type="checkbox" id="m-pond-toggle" ${hasPond?'checked':''} onchange="togglePondSlider()"/><span class="toggle-slider"></span></label>
     </div>
     <div id="pond-slider-wrap" style="display:${hasPond?'block':'none'};margin-top:12px;">
-      <label class="modal-label">Peso de esta nota: <span id="m-nota-peso-val">${n.peso}</span>%</label>
-      <input type="range" min="1" max="100" value="${n.peso}" id="m-nota-peso" oninput="document.getElementById('m-nota-peso-val').textContent=this.value"/>
+      ${pesoNotaHTML(n.peso)}
     </div>
     ${Number.isInteger(n.slot)?opcionAusenciaHojaHTML(r,cat,{slot:n.slot}):''}
     <button type="button" class="btn-eliminar-nota" onclick="confirmarEliminarNota('${catId}','${notaId}')">Eliminar nota</button>
@@ -242,7 +241,7 @@ function confirmEditNota(catId,notaId){
   if(!name){editNotaError='Escribe el nombre de la nota para guardarla.';mostrarErrorCampo('m-nota-name','m-nota-error',editNotaError);return false;}
   const fechaNota=(document.getElementById('m-nota-fecha')||{}).value||null;
   const usaPond=document.getElementById('m-pond-toggle').checked;
-  const peso=usaPond?parseInt(document.getElementById('m-nota-peso').value)||40:1;
+  const peso=usaPond?leerPesoNota():1;
   const r=S.ramos.find(x=>x.id===currentRamoId);
   const cat=r.categorias.find(c=>c.id===catId);
   const n=cat.notas.find(x=>x.id===notaId);

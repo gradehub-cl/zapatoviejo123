@@ -795,7 +795,7 @@ function renderRamo(){
     if(catAvg!=null&&!justificada)wrap.style.borderLeftColor=getColor(catAvg);
     const rows=notas.map(n=>{
       const v=n.valor!=null?n.valor:null;
-      const detalle=[n.peso!==1?`${n.peso}%`:'',v==null?'Pendiente':'',n.fecha?fechaHoraCorta(n.fecha,n.hora):''].filter(Boolean).join(' · ');
+      const detalle=[n.peso!==1?`${pesoTexto(n.peso)}%`:'',v==null?'Pendiente':'',n.fecha?fechaHoraCorta(n.fecha,n.hora):''].filter(Boolean).join(' · ');
       const textoRecorreccion=n.recorreccionPendiente===true?textoPlazoRecorreccion(plazoRecorreccion(n,cat,S.tenant)):'';
       return `<div class="eval-sub">
         <button type="button" class="eval-sub-open" onclick="event.stopPropagation();openEditNotaModal('${cat.id}','${n.id}')" title="Fecha y detalle de ${esc(n.nombre)}" aria-label="Fecha y detalle de ${esc(n.nombre)}">

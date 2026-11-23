@@ -18,8 +18,7 @@ function openAddNotaModal(catId){
       <label class="toggle"><input type="checkbox" id="m-pond-toggle" onchange="togglePondSlider()"/><span class="toggle-slider"></span></label>
     </div>
     <div id="pond-slider-wrap" style="display:none;margin-top:12px;">
-      <label class="modal-label">Peso de esta nota: <span id="m-nota-peso-val">40</span>%</label>
-      <input type="range" min="1" max="100" value="40" id="m-nota-peso" oninput="document.getElementById('m-nota-peso-val').textContent=this.value"/>
+      ${pesoNotaHTML(40)}
       <div class="slider-desc">Las notas se ponderan por el porcentaje asignado</div>
     </div>
     <div class="modal-btns" style="margin-top:14px;">
@@ -36,6 +35,29 @@ function openAddNotaModal(catId){
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(addNotaError){addNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}checkValid();});
   document.getElementById('m-nota-val').addEventListener('input',checkValid);
 }
+// Peso de una nota dentro de su evaluación. Como la ponderación de una
+// evaluación: se escribe con hasta dos decimales (2,5%) y el slider acerca de
+// a 1. Antes era solo el slider y se guardaba con parseInt: 2,5 quedaba en 2.
+function pesoNotaHTML(peso){
+  const v=r2(peso||40);
+  return `<label class="modal-label" for="m-nota-peso-num">Peso de esta nota</label>
+      <div class="peso-control"><div class="peso-field">
+        <input type="text" inputmode="decimal" id="m-nota-peso-num" value="${pesoTexto(v)}" maxlength="6" onfocus="this.select()" oninput="escribirPesoNota(this)" onblur="this.value=pesoTexto(leerPesoNota())"/>
+        <span class="peso-pct">%</span>
+      </div></div>
+      <input type="range" min="1" max="100" step="1" value="${Math.round(v)}" id="m-nota-peso" class="peso-slider" aria-label="Ajustar el peso de esta nota" oninput="document.getElementById('m-nota-peso-num').value=this.value"/>`;
+}
+function escribirPesoNota(input){
+  const raw=input.value.replace(/[^0-9.,]/g,'');
+  if(raw!==input.value)input.value=raw;
+  const v=leerPesoTexto(raw),slider=document.getElementById('m-nota-peso');
+  if(slider&&v>0)slider.value=String(Math.min(100,Math.max(1,Math.round(v))));
+}
+// Vacío o cero vuelve a 40, como antes; más de 100 queda en 100.
+function leerPesoNota(){
+  const v=leerPesoTexto((document.getElementById('m-nota-peso-num')||{}).value);
+  return v>0?Math.min(100,v):40;
+}
 function togglePondSlider(){
   document.getElementById('pond-slider-wrap').style.display=document.getElementById('m-pond-toggle').checked?'block':'none';
 }
@@ -50,7 +72,7 @@ function confirmAddNota(catId){
   if(!name){addNotaError='Escribe el nombre de la nota para agregarla.';mostrarErrorCampo('m-nota-name','m-nota-error',addNotaError);return false;}
   const fechaNota=(document.getElementById('m-nota-fecha')||{}).value||null;
   const usaPond=document.getElementById('m-pond-toggle').checked;
-  const peso=usaPond?parseInt(document.getElementById('m-nota-peso').value)||40:1;
+  const peso=usaPond?leerPesoNota():1;
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
   const horaNota=leerHora('m-nota');
   const nueva={id:uid(),nombre:name,peso,fecha:fechaNota,hora:horaNota,fechaOrigen:fechaNota?'usuario':null,horaOrigen:horaNota?'usuario':null};
