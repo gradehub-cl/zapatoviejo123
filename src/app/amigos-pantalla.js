@@ -798,6 +798,95 @@ function libresJuntosHTML(d,ahora=new Date()){
   return `<section class="grupo-libres-seccion" aria-labelledby="grupo-libres-titulo">
     <div class="grupo-seccion-titulo"><h2 id="grupo-libres-titulo">Libres juntos</h2></div>${cuerpo}</section>`;
 }
+// ─── Novedades del grupo (Lucas, 2026-11-22) ───
+// El grupo cuenta lo que pasó, en orden: sala anotada, fecha puesta, quién
+// entró. Lo tuyo ya está en tu Agenda; acá no se repite.
+function haceGrupo(iso){
+  const min=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/6e4));
+  if(min<1)return 'recién';if(min<60)return `hace ${min} min`;
+  const h=Math.round(min/60);if(h<24)return `hace ${h} h`;
+  const d=Math.round(h/24);return d===1?'ayer':`hace ${d} días`;
+}
+// Tu evaluación que corresponde a una fecha del grupo: mismo ramo (por sigla, o
+// nombre si no hay) y mismo nombre de evaluación, comparados como el consenso.
+function evaluacionParaFecha(ev){
+  const huella=t=>typeof nombreHuella==='function'?nombreHuella(t):normName(t);
+  const objetivo=huella(ev.nombre);
+  for(const r of S.ramos||[]){
+    const sigla=typeof siglaDeRamo==='function'?siglaDeRamo(r):r.sigla;
+    if(!(ev.sigla?sigla&&String(sigla).toUpperCase()===String(ev.sigla).toUpperCase():normName(r.nombre)===normName(ev.ramo)))continue;
+    for(const c of r.categorias||[]){
+      if(huella(c.nombre)===objetivo)return {r,item:c};
+      for(const n of c.notas||[])if(huella(nombreNotaCasilla(r,c,n))===objetivo)return {r,item:n};
+    }
+  }
+  return null;
+}
+// «para mañana a las 18:30» / «para el miércoles 25».
+function paraCuandoGrupo(fecha,hora){
+  const dia=diaCortoGrupo(fecha);
+  return (dia==='Hoy'||dia==='Mañana'?dia.toLowerCase():'el '+dia.toLowerCase())+(hora?' a las '+hora:'');
+}
+function fechaCortaGrupo(fecha,hora){return [diaCortoGrupo(fecha),hora].filter(Boolean).join(' · ');}
+function novedadesGrupoHTML(d){
+  if(!d.nov.length)return '<p class="grupo-nota">Todavía no hay novedades. Cuando alguien anote una sala o ponga una fecha, aparece acá.</p>';
+  const porDia=new Map();
+  for(const e of d.nov){const k=fechaHorarioChile(new Date(e.creado).getTime());if(!porDia.has(k))porDia.set(k,[]);porDia.get(k).push(e);}
+  const quien=e=>e.yo?'Tú':(e.nombre||'@'+e.username).split(' ')[0];
+  const fila=e=>{
+    const x=e.datos||{};
+    if(e.tipo==='sala')return `<li><button type="button" class="grupo-mensaje grupo-reserva" data-amigos="grupo-reserva" data-id="${esc(d.id)}" data-reserva="${esc(x.reserva)}">
+      <span class="cal-icono sala">${ICONO_SALA}</span><span><small>${esc(quien(e))} ${e.yo?'anotaste':'anotó'} una sala · ${esc(haceGrupo(e.creado))}</small><b>${esc(x.lugar)}</b>
+      <span>${esc(fechaCortaGrupo(x.fecha,`${x.inicio}–${x.fin}`))}</span>${x.codigo?`<span class="cal-codigo">Código <b>${esc(x.codigo)}</b></span>`:''}</span>${FLECHA_GRUPO}</button></li>`;
+    if(e.tipo==='fecha'){
+      const mia=e.yo?null:evaluacionParaFecha(x);
+      const igual=mia&&mia.item.fecha===x.fecha&&(!x.hora||mia.item.hora===x.hora);
+      const accion=!mia?'':igual?'<span class="grupo-ya">Ya está en tu Agenda</span>'
+        :`<button type="button" class="grupo-estudiar" data-amigos="grupo-ponerla" data-id="${esc(d.id)}" data-evento="${esc(e.id)}">${mia.item.fecha?'Cambiar la mía':'Ponerla en mi Agenda'}</button>`;
+      return `<li><div class="grupo-mensaje"><span class="cal-icono prueba">${ICONO_PRUEBA}</span><span><small>${esc(quien(e))} ${e.yo?'pusiste':'puso'} fecha · ${esc(haceGrupo(e.creado))}</small>
+        <b>${esc(x.nombre)}${x.sigla?` · ${esc(x.sigla)}`:''}</b><span>${esc(fechaCortaGrupo(x.fecha,x.hora))}</span></span></div>${accion}</li>`;
+    }
+    return `<li><div class="grupo-mensaje"><span class="cal-icono">${ICONO_GRUPO}</span><span><small>${esc(haceGrupo(e.creado))}</small><b>${esc(quien(e))} ${e.yo?'entraste':'entró'} al grupo</b></span></div></li>`;
+  };
+  const ayer=sumarDiasAgenda(fechaHorarioChile(Date.now()),-1);
+  return `<ol class="grupo-hilo">${[...porDia].map(([k,l])=>`<li><h3>${esc(k===ayer?'Ayer':diaCortoGrupo(k))}</h3><ul>${l.map(fila).join('')}</ul></li>`).join('')}</ol>`;
+}
+// «Ponerla»: la fecha de otro, sugerida, con la hora fácil. Si no trae hora, se
+// propone la de tu clase de ese ramo ese día. Guardar es tu decisión (origen usuario).
+function abrirPonerFecha(id,eventoId){
+  const d=amigosGrupoDetalle,e=d?.id===id&&(d.nov||[]).find(x=>x.id===eventoId);
+  if(!e)return;
+  const x=e.datos||{},mia=evaluacionParaFecha(x);
+  if(!mia){showToast('No encontramos esa evaluación en tus ramos',true);return;}
+  const dia=diaDeFechaAmigo(x.fecha);
+  const clase=copiarHorario(mia.r.horario).filter(b=>b.dias.includes(dia)).sort((a,b)=>a.inicio.localeCompare(b.inicio))[0];
+  const hora=x.hora||clase?.inicio||'';
+  const quien=(e.nombre||'@'+e.username).split(' ')[0];
+  document.getElementById('modal-content').innerHTML=`
+    <h2 class="modal-title">Poner fecha</h2>
+    <p class="grupo-para">${esc(x.nombre)} · ${esc(mia.r.nombre)}. ${esc(quien)} la puso para ${esc(paraCuandoGrupo(x.fecha,x.hora))}.${!x.hora&&clase?' Te sugerimos la hora de tu clase.':''}</p>
+    <form id="grupo-fecha-form" class="amigos-grupo-form">
+      <label class="modal-label" for="grupo-fecha-dia">Día</label>
+      <input id="grupo-fecha-dia" class="amigos-grupo-nombre" type="date" required value="${esc(x.fecha)}">
+      <label class="modal-label" for="grupo-fecha-hora">Hora <small>(opcional)</small></label>
+      <input id="grupo-fecha-hora" class="amigos-grupo-nombre" type="time" value="${esc(hora)}">
+    </form>
+    <div class="modal-btns"><button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button type="submit" form="grupo-fecha-form" class="btn-confirm">Guardar</button></div>`;
+  openModal();
+  document.getElementById('grupo-fecha-form').addEventListener('submit',ev=>{
+    ev.preventDefault();
+    const f=document.getElementById('grupo-fecha-dia').value,h=document.getElementById('grupo-fecha-hora').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(f)){showToast('Elige un día',true);return;}
+    // Se busca de nuevo: pudo cambiar mientras la hoja estaba abierta.
+    const actual=evaluacionParaFecha(x);if(!actual){closeModal();return;}
+    marcarFechaUsuario(actual.item,f,h);
+    save();track('grupo_fecha_puesta');
+    if(typeof vibrar==='function')vibrar('exito');
+    closeModal();showToast('Quedó en tu Agenda');
+    if(amigosGrupoDetalle===d)pintarActividadGrupo(d);
+  });
+}
 function calendarioGrupoHTML(id,items){
   const porDia=new Map();
   for(const it of eventosGrupo(items)){
@@ -1086,10 +1175,12 @@ async function cargarActividadGrupo(d){
   const v=amigosVersion,cuenta=currentUser?.id;
   const vigente=()=>amigosGrupoDetalle===d&&v===amigosVersion&&currentUser?.id===cuenta;
   try{
-    const [filas,cal]=await Promise.all([rpcAmigos('grupo_detalle',{p_grupo:d.id}),
-      amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:d.id,p_dias:DIAS_CALENDARIO_GRUPO}).catch(()=>null):null]);
+    // Novedades: si su SQL no está aplicado, vuelve null y se muestra la agenda de antes.
+    const [filas,cal,nov]=await Promise.all([rpcAmigos('grupo_detalle',{p_grupo:d.id}),
+      amigosCalendarioDisponible?rpcAmigos('grupo_calendario',{p_grupo:d.id,p_dias:DIAS_CALENDARIO_GRUPO}).catch(()=>null):null,
+      rpcAmigos('grupo_novedades',{p_grupo:d.id}).catch(()=>null)]);
     if(!vigente())return;
-    d.filas=filas||[];d.cal=cal;d.error=false;
+    d.filas=filas||[];d.cal=cal;d.nov=Array.isArray(nov)?nov:null;d.error=false;
     if(Array.isArray(cal))amigosGrupoProximo.set(d.id,proximoGrupoTexto(cal));
     const g=amigosGruposCache?.find(g=>g.id===d.id),miembros=d.filas.filter(f=>f.estado==='miembro');
     d.resumen={estado:'miembro',miembros:miembros.length,nombres:miembros.filter(f=>!f.yo).map(quienGrupo)};
@@ -1136,8 +1227,8 @@ function pintarActividadGrupo(d){
     ${d.cargando?'<p role="status">Cargando grupo…</p>':d.error?`<p role="status">No se pudo cargar el grupo.</p>${acceso('grupo','Reintentar')}`:`
     ${ahoraGrupoHTML(d)}
     ${libresJuntosHTML(d)}
-    <div class="grupo-actividad-titulo grupo-seccion-titulo"><h2>Lo que viene</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
-    ${actividad}`}</section>`;
+    <div class="grupo-actividad-titulo grupo-seccion-titulo"><h2>${d.nov?'Novedades':'Lo que viene'}</h2>${amigosCalendarioDisponible?acceso('reserva-nueva','Anotar sala'):''}</div>
+    ${d.nov?novedadesGrupoHTML(d):actividad}`}</section>`;
   if(d.html!==contenido||!caja.querySelector('.grupo-actividad')){
     const activo=document.activeElement;
     const previo=activo&&caja.contains?.(activo)?activo:null;
@@ -1385,6 +1476,7 @@ if(typeof document!=='undefined'&&typeof document.addEventListener==='function')
     else if(acc==='grupo-con')abrirGrupoNuevo(user);
     else if(acc==='reserva-nueva')abrirReservaNueva(id,{fecha:b.dataset.fecha,inicio:b.dataset.inicio,fin:b.dataset.fin});
     else if(acc==='grupo-estudiar')estudiarJuntos(id,b.dataset.prueba);
+    else if(acc==='grupo-ponerla')abrirPonerFecha(id,b.dataset.evento);
     else if(acc==='avisos-si'||acc==='avisos-no'){
       try{localStorage.setItem(CLAVE_AVISOS_PREGUNTA,acc==='avisos-si'?'si':'no');}catch(e){}
       (acc==='avisos-si'?activarAvisosAmigos():Promise.resolve()).then(()=>pintarAmigos());

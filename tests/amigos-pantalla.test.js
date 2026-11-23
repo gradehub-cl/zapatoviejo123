@@ -85,11 +85,12 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   cliente("n=>({data:n==='grupo_detalle'?filasPrueba:[],error:null})");
   await run("abrirGrupo('g1')");
   // Lucas, 2026-11-22: la cabecera no repite «2 personas» y la invitación va en su subtítulo (la ficha la abre).
-  chk('entra a actividad con dos miembros y una invitación aparte',/Lo que viene/.test(el('amigos-body').innerHTML)&&/Tú y Beto · 1 invitación/.test(el('amigos-body').innerHTML)&&!/2 personas/.test(el('amigos-body').innerHTML)&&!/Cambiar nombre|Salir del grupo/.test(el('amigos-body').innerHTML));
+  chk('entra a actividad con dos miembros y una invitación aparte',/Novedades|Lo que viene/.test(el('amigos-body').innerHTML)&&/Tú y Beto · 1 invitación/.test(el('amigos-body').innerHTML)&&!/2 personas/.test(el('amigos-body').innerHTML)&&!/Cambiar nombre|Salir del grupo/.test(el('amigos-body').innerHTML));
   chk('la invitación se ve en la cabecera, que abre la ficha',el('amigos-body').innerHTML.includes('data-amigos="grupo-info"'));
   run('amigosCalendarioDisponible=true');
   ctx.solicitudesCalendario=[];
-  run("supabaseClient.rpc=async(n,args)=>{if(n==='grupo_calendario')solicitudesCalendario.push(args);return {data:n==='grupo_detalle'?filasPrueba:[]};}");
+  // Sin el SQL de novedades aplicado: el grupo vuelve a la agenda de antes.
+  run("supabaseClient.rpc=async(n,args)=>{if(n==='grupo_calendario')solicitudesCalendario.push(args);if(n==='grupo_novedades')return {data:null,error:{message:'no existe'}};return {data:n==='grupo_detalle'?filasPrueba:[]};}");
   await run('cargarActividadGrupo(amigosGrupoDetalle)');
   chk('el grupo lee los mismos 60 días que permite anotar y aclara el período vacío',ctx.solicitudesCalendario[0].p_dias===60&&el('amigos-body').innerHTML.includes('próximos 60 días'));
   run("openModal=()=>{};pintarGrupo('g1',filasPrueba);openModal=abrirModalOriginal;");

@@ -6643,6 +6643,8 @@ html.app-nativa .grupo-estudiar{display:inline-flex;align-items:center;min-heigh
 html.app-nativa .grupo-estudiar-principal{width:100%;margin:0 0 1.25rem;}
 html.app-nativa .grupo-para{margin:-.25rem 0 1rem;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
 html.app-nativa .grupo-proximo{color:var(--primary);}
+html.app-nativa .grupo-ya{display:block;margin:-.4rem 0 .6rem 3.6rem;font-size:.8125rem;color:var(--fg2);}
+html.app-nativa .grupo-hilo div.grupo-mensaje{cursor:default;}
 
 
 html.app-nativa [data-detalle-prueba] .grupo-cuando{margin:.5rem 0 1.4rem;color:var(--fg2);}
