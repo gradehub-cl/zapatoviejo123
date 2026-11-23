@@ -6594,10 +6594,15 @@ html.app-nativa .grupo-actividad-titulo h2{margin:0;font-size:1rem;}
 html.app-nativa .grupo-actividad>p{margin:1rem;line-height:1.45;color:var(--fg2);}
 html.app-nativa .grupo-hilo,html.app-nativa .grupo-hilo ul{list-style:none;padding:0;margin:0;}
 html.app-nativa .grupo-hilo{padding:0 1rem;}
-html.app-nativa .grupo-hilo h3{width:fit-content;margin:1rem auto .8rem;padding:.3rem .7rem;border-radius:1rem;font-size:.8125rem;font-weight:600;color:var(--fg2);background:var(--muted);}
-html.app-nativa .grupo-hilo li li{margin:.45rem 0;}
-html.app-nativa .grupo-mensaje{display:flex;align-items:flex-start;gap:.65rem;width:fit-content;max-width:100%;border:1px solid var(--border);border-radius:16px 16px 16px 4px;background:var(--bg2);color:var(--fg);padding:.75rem .9rem;text-align:left;font:inherit;overflow-wrap:anywhere;}
-html.app-nativa .grupo-mensaje.grupo-mensaje-mio{margin-inline-start:auto;border-radius:16px 16px 4px 16px;background:var(--primary-light);}
+/* Lo que viene es una agenda, no un chat (Lucas, 2026-11-22): días como en la
+   Agenda y filas a lo ancho, todas alineadas igual. */
+html.app-nativa .grupo-hilo h3{margin:1rem 0 .4rem;padding:0;font-size:.8125rem;font-weight:600;letter-spacing:.02em;color:var(--fg2);background:none;}
+html.app-nativa .grupo-hilo li li{margin:0;}
+html.app-nativa .grupo-hilo ul{border:1px solid var(--border);border-radius:12px;background:var(--celda-agrupada);overflow:hidden;}
+html.app-nativa .grupo-hilo ul>li+li{border-top:1px solid var(--border);}
+html.app-nativa .grupo-mensaje{display:flex;align-items:center;gap:.75rem;width:100%;border:0;border-radius:0;background:transparent;color:var(--fg);padding:.7rem .9rem;text-align:left;font:inherit;overflow-wrap:anywhere;}
+html.app-nativa .grupo-mensaje>span:not(.cal-icono){flex:1;min-width:0;}
+
 html.app-nativa .grupo-mensaje .cal-icono{flex:none;}
 html.app-nativa .grupo-mensaje b,html.app-nativa .grupo-mensaje small,html.app-nativa .grupo-mensaje>span>span,html.app-nativa .grupo-mensaje>div>span{display:block;}
 html.app-nativa .grupo-mensaje b{margin:.15rem 0;font-size:1rem;}
@@ -6609,6 +6614,36 @@ html.app-nativa .grupo-mensaje .cal-codigo b{display:inline;margin:0;font-size:i
 html.app-nativa .grupo-codigo{font-size:1rem;}
 
 html.app-nativa .grupo-actividad button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+/* Grupo (Lucas, 2026-11-22): arriba lo que sirve para juntarse. */
+html.app-nativa .grupo-seccion-titulo{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;margin:1.25rem 1rem .5rem;}
+html.app-nativa .grupo-seccion-titulo h2{margin:0;font-size:1.0625rem;font-weight:650;letter-spacing:-.01em;color:var(--fg);}
+html.app-nativa .grupo-seccion-titulo>span{font-size:.8125rem;color:var(--fg2);text-align:right;}
+html.app-nativa .grupo-caras{margin:0;padding:0 0 .25rem;border-bottom:0;}
+html.app-nativa .grupo-caras ul{padding:0 1rem;}
+html.app-nativa .grupo-caras .amigos-historia small{font-size:.75rem;color:var(--fg2);font-variant-numeric:tabular-nums;white-space:nowrap;}
+html.app-nativa .grupo-libres{list-style:none;margin:0 1rem;padding:0;border:1px solid var(--border);border-radius:12px;background:var(--celda-agrupada);overflow:hidden;}
+html.app-nativa .grupo-libres>li+li{border-top:1px solid var(--border);}
+html.app-nativa .grupo-libre{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.25rem .9rem;width:100%;min-height:60px;padding:.7rem .9rem;border:0;background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+html.app-nativa .grupo-libre:active{background:var(--muted);}
+html.app-nativa .grupo-libre-cuando{display:flex;flex-direction:column;min-width:4.6rem;}
+html.app-nativa .grupo-libre-cuando b{font-size:.9375rem;font-weight:600;}
+html.app-nativa .grupo-libre-cuando span{font-size:.875rem;color:var(--fg2);font-variant-numeric:tabular-nums;}
+html.app-nativa .grupo-libre-quienes{min-width:0;font-size:.9375rem;color:var(--fg);overflow-wrap:anywhere;}
+html.app-nativa .grupo-ahora-fila{display:flex;align-items:center;gap:.75rem;min-height:60px;padding:.6rem .9rem;}
+html.app-nativa .grupo-ahora-texto{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+html.app-nativa .grupo-ahora-texto b{font-size:.9375rem;font-weight:600;}
+html.app-nativa .grupo-ahora-texto small{font-size:.875rem;line-height:1.35;color:var(--fg2);font-variant-numeric:tabular-nums;}
+html.app-nativa .grupo-caras-fila{display:flex;flex:none;gap:4px;}
+/* 36 pt a la vista y 44 pt para el dedo (HIG). */
+html.app-nativa .grupo-caras-fila .amigo-avatar{position:relative;width:36px;height:36px;font-size:.875rem;padding:0;font:inherit;font-weight:600;cursor:pointer;}
+html.app-nativa .grupo-caras-fila button.amigo-avatar::after{content:'';position:absolute;inset:-4px;}
+html.app-nativa .grupo-caras-mas{display:grid;place-items:center;min-width:36px;height:36px;font-size:.8125rem;color:var(--fg2);}
+html.app-nativa .grupo-nota{margin:0 1rem;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
+html.app-nativa .grupo-estudiar{display:inline-flex;align-items:center;min-height:44px;margin:-.4rem 0 0 3.6rem;padding:0 .2rem;border:0;background:none;color:var(--primary);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer;}
+html.app-nativa .grupo-estudiar-principal{width:100%;margin:0 0 1.25rem;}
+html.app-nativa .grupo-para{margin:-.25rem 0 1rem;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
+html.app-nativa .grupo-proximo{color:var(--primary);}
+
 
 html.app-nativa [data-detalle-prueba] .grupo-cuando{margin:.5rem 0 1.4rem;color:var(--fg2);}
 html.app-nativa [data-detalle-prueba] .grupo-celdas{list-style:none;padding:0;}

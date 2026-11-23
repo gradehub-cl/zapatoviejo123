@@ -84,8 +84,9 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   ctx.filasPrueba=filas;
   cliente("n=>({data:n==='grupo_detalle'?filasPrueba:[],error:null})");
   await run("abrirGrupo('g1')");
-  chk('entra a actividad con dos miembros y una invitación aparte',/Próximas pruebas y salas/.test(el('amigos-body').innerHTML)&&/2 personas/.test(el('amigos-body').innerHTML)&&/1 invitación pendiente/.test(el('amigos-body').innerHTML)&&!/Cambiar nombre|Salir del grupo/.test(el('amigos-body').innerHTML));
-  chk('la invitación pendiente dirige a su propia sección',el('amigos-body').innerHTML.includes('data-amigos="grupo-pendientes"'));
+  // Lucas, 2026-11-22: la cabecera no repite «2 personas» y la invitación va en su subtítulo (la ficha la abre).
+  chk('entra a actividad con dos miembros y una invitación aparte',/Lo que viene/.test(el('amigos-body').innerHTML)&&/Tú y Beto · 1 invitación/.test(el('amigos-body').innerHTML)&&!/2 personas/.test(el('amigos-body').innerHTML)&&!/Cambiar nombre|Salir del grupo/.test(el('amigos-body').innerHTML));
+  chk('la invitación se ve en la cabecera, que abre la ficha',el('amigos-body').innerHTML.includes('data-amigos="grupo-info"'));
   run('amigosCalendarioDisponible=true');
   ctx.solicitudesCalendario=[];
   run("supabaseClient.rpc=async(n,args)=>{if(n==='grupo_calendario')solicitudesCalendario.push(args);return {data:n==='grupo_detalle'?filasPrueba:[]};}");
@@ -98,9 +99,12 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   chk('si todos los amigos ya están en el grupo la ficha omite Invitar amigos',!el('modal-content').innerHTML.includes('data-amigos="grupo-invitar"'));
   run("openModal=()=>{};amigosListaCache=[{estado:'enviada',username:'dani'}];abrirMiembroGrupo('g1','dani');openModal=abrirModalOriginal;");
   chk('una amistad solicitada no se puede solicitar por segunda vez',el('modal-content').innerHTML.includes('Solicitud de amistad enviada')&&!el('modal-content').innerHTML.includes('grupo-agregar-amigo'));
-  chk('volver desde un integrante abre otra vez la información del grupo',el('modal-content').innerHTML.includes('data-amigos="grupo-info"'));
+  // Lucas, 2026-11-22: volver desde una persona deja donde estabas, no en la información del grupo.
+  chk('volver desde un integrante cierra y deja donde estabas',!el('modal-content').innerHTML.includes('data-amigos="grupo-info"')&&el('modal-content').innerHTML.includes('onclick="closeModal()"'));
+  {const f=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8');
+   chk('tocar a un integrante abre su ficha de una, con Sacar del grupo al final',/if\(f\.estado==='miembro'\)\{/.test(f)&&/\$\{cuerpo\}\s*\$\{grupo&&[^\n]*Sacar del grupo/.test(f));}
   filas[2].estado='miembro';await run('cargarActividadGrupo(amigosGrupoDetalle)');
-  chk('al aceptar cambian la cabecera y el resumen de la lista',/Tú, Beto y Dani/.test(el('amigos-body').innerHTML)&&/3 personas/.test(el('amigos-body').innerHTML)&&run('lineaGrupo(amigosGruposCache[0])')==='Tú, Beto y Dani'&&!/invitación pendiente/.test(el('amigos-body').innerHTML));
+  chk('al aceptar cambian la cabecera y el resumen de la lista',/Tú, Beto y Dani/.test(el('amigos-body').innerHTML)&&!/· 1 invitación/.test(el('amigos-body').innerHTML)&&run('lineaGrupo(amigosGruposCache[0])')==='Tú, Beto y Dani'&&!/invitación pendiente/.test(el('amigos-body').innerHTML));
   run('volverDeGrupo()');
   const prueba={tipo:'prueba',fecha:'2099-01-10',inicio:'09:00',titulo:'Prueba 1',detalle:'SYN101',username:'beto',nombre:'Beto'};
   const eventos=ctx.eventosGrupo([prueba,{...prueba},{...prueba,username:'ana',yo:true},{...prueba,inicio:'10:00'},{...prueba,detalle:'SYN102'}]);
