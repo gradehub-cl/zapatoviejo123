@@ -329,13 +329,19 @@ function gh_crearCalculoRamo(deps){
     // no se deben pedir sus notas para dar por terminado el ramo.
     const pesoDeclarado=(r&&r.categorias||[]).reduce((s,c)=>s+(Number(c.peso)||0),0);
     if(Math.abs(pesoDeclarado-100)>0.05)return false;
-    const cubiertas=new Set((calculo&&calculo.ausencias&&calculo.ausencias.activas||[]).map(x=>x.desdeId));
+    // Sin cálculo a mano (ficha, Inicio, Wrapped) se miran igual las ausencias
+    // justificadas: un Control justificado no se rinde y no deja el ramo abierto.
+    const ausencias=calculo?calculo.ausencias:((r&&r.ausenciasJustificadas||[]).length?estadoAusenciasJustificadas(r):null);
+    const cubiertas=new Set((ausencias&&ausencias.activas||[]).map(x=>x.desdeId));
     const categorias=categoriasVigentes(r);
     return categorias.length>0&&categorias.every(c=>{
       if(c.optativa===true&&c.peso===0||categoriaEximida(r,c))return true;
       if(cubiertas.has(c.id))return true;
       const objetivo=Number.isInteger(c.slots)&&c.slots>1?c.slots:1;
-      return (c.notas||[]).filter(n=>typeof n.valor==='number').length>=objetivo;
+      // Una casilla reemplazada solo está activa si no tenía nota propia.
+      let reemplazadas=0;
+      for(let s=0;s<objetivo;s++)if(cubiertas.has(gh_claveAusenciaCasilla(c.id,s)))reemplazadas++;
+      return (c.notas||[]).filter(n=>typeof n.valor==='number').length+reemplazadas>=objetivo;
     });
   }
   function estadoRecuperativo(r,calculo){
@@ -553,12 +559,21 @@ function gh_crearCalculoRamo(deps){
     // la misma nota en lo pendiente y vuelve a pasar por el cálculo del ramo.
     if(((definicionPresetDelRamo(ramo)?.eximicion?.notaExamen==='maxima')||gh_bonusActivos(reglasBonusVigentes(ramo),ramo.bonusIngresado,ramo.bonusConfirmado).mejoras.length||(Array.isArray(ramo.reemplazosOptativos)&&ramo.reemplazosOptativos.length)||compuertasEfectivas(ramo).some(g=>g.efecto==='reemplazar'))&&
        !ramo.aporta&&!reglasCalculoVigentes(ramo).some(g=>g.type==='conditional_weights')){
+      // Una ausencia justificada que ya tiene su peso o su nota en otra
+      // evaluación no se rinde: proyectarle una nota la desactivaría
+      // («tiene_nota») y la nota necesaria ignoraría la justificación. Un
+      // rezago sí se rinde después, así que sigue pendiente.
+      const ausencias=baseInicial.ausencias;
+      const justificadas=new Set([...(ausencias?.activas||[]),...(ausencias?.pendientes||[]).filter(a=>a.tipo!=='rezago')].map(a=>a.desdeId));
       const pendientes=[];
-      categoriasVigentes(ramo).filter(c=>c.peso>0).forEach(c=>{
+      categoriasVigentes(ramo).filter(c=>c.peso>0&&!justificadas.has(c.id)).forEach(c=>{
         const hojas=hojasCategoria(c);
         if(!hojas.length&&c.directNota!==false)
           hojas.push({id:`__gh_pendiente_direct__${c.id}`,name:c.nombre,weight:1,type:'leaf'});
-        hojas.forEach(h=>{if(!Number.isFinite(baseInicial.notas[h.id]))pendientes.push({catId:c.id,hoja:h});});
+        hojas.forEach(h=>{
+          if(Number.isInteger(h.slot)&&justificadas.has(gh_claveAusenciaCasilla(c.id,h.slot)))return;
+          if(!Number.isFinite(baseInicial.notas[h.id]))pendientes.push({catId:c.id,hoja:h});
+        });
       });
       if(!pendientes.length)return null;
       const borde=gh_bordeOficial(objetivo,gh_meta(baseInicial.estructura));
