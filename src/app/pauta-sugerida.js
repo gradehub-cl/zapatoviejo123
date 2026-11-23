@@ -100,10 +100,34 @@ function opcionesDeConsensoNoCoordinado(r,cons){
   return (cons||[]).filter(c=>c&&c.ramo_key===clave&&consensoVigenteParaRamo(c,r)&&c.respaldos>=CONSENSO_AUTO)
     .map(c=>opcionPautaSugerida({huella:c.huella,respaldos:c.respaldos,estructura:c.estructura},r));
 }
+// ¿La distribución más respaldada se carga sola, como un consenso?
+//
+// El consenso del servidor exige tres reportes con la pauta escrita IGUAL,
+// nombres incluidos. Al 2026-11-21 eso casi nunca pasaba: en Pensamiento
+// Crítico II (UAndes) 19 de 19 daban los mismos pesos, pero escribían «Act.
+// Semanal», «Act.Semana», «Act. Semana»… y el grupo idéntico más grande era
+// de 2. Cada estudiante nuevo tenía que tocar la sugerencia para recibirla.
+//
+// Acá decide la distribución (mismos pesos y nombres parecidos), con los
+// mismos umbrales que el consenso: tres personas o más y al menos el 60% de
+// quienes reportaron el ramo (catalog_consensus_periodo). Sin empate, sin
+// haberla descartado («Ahora no») y solo en ramos coordinados: en uno no
+// coordinado describe la pauta de un profesor. Las demás garantías las pone
+// aceptarPautaSugeridaEnRamo: ramo vacío, sin programa oficial ni pendiente.
+// `total` cuenta personas, no distribuciones: también las que no calzan.
+function distribucionAutomatica(dists,total,r){
+  if(!ramoCoordinado(r))return null;
+  const [d,otra]=dists||[];
+  if(!d||!Number.isSafeInteger(total)||d.respaldos<CONSENSO_AUTO||d.respaldos*5<total*3)return null;
+  if(otra&&otra.respaldos===d.respaldos)return null;
+  if(d.respaldos<=(r.pautaSugerida?.descartada||0))return null;
+  return opcionPautaSugerida({huella:d.huella,respaldos:d.respaldos,estructura:d.estructura},r);
+}
 // Coordinado: la distribución más respaldada (o dos si empatan), como siempre.
 // No coordinado: hasta tres, primero la de tu profe o tu sección.
+// `salida.automatica` recibe la opción que se carga sola, si la hay.
 const MAX_OPCIONES_NO_COORDINADO=3;
-async function leerPautaSugerida(ctx,r,cons){
+async function leerPautaSugerida(ctx,r,cons,salida){
   try{
     const leidas=await leerFilasDistribucion(ctx)||{filas:[],completas:false};
     // Con la RPC anterior el consenso no viene entre las filas: se suma acá.
@@ -111,6 +135,9 @@ async function leerPautaSugerida(ctx,r,cons){
       .map(o=>({estructura:o.estructura,respaldos:o.respaldos,seccion:null,profe:null,profesor:null,mio:false}));
     const dists=agruparDistribuciones([...leidas.filas,...extras],ctx.seccion);
     if(leidas.completas)registrarEvidenciaCoordinacion(ctx,dists);
+    // Solo con las filas completas se sabe cuántas personas reportaron.
+    if(salida)salida.automatica=leidas.completas?distribucionAutomatica(dists,
+      leidas.filas.reduce((s,f)=>s+(Number.isSafeInteger(f?.respaldos)&&f.respaldos>0?f.respaldos:0),0),r):null;
     const opciones=dists.map(d=>{
       const o=opcionPautaSugerida({huella:d.huella,respaldos:d.respaldos,estructura:d.estructura},r);
       return o&&{...o,secciones:d.secciones,profesores:d.profesores,
@@ -226,9 +253,17 @@ async function pintarPautaSugerida(r,el){
   if(!vigente())return;
   // Primero las distribuciones: pueden mostrar que el ramo no es coordinado, y
   // entonces el consenso no se aplica solo.
-  const opciones=await leerPautaSugerida(ctx,r,cons);
+  const salida={};
+  const opciones=await leerPautaSugerida(ctx,r,cons,salida);
   if(!vigente())return;
   if(ponerConsensoEnRamo(r,cons||[])){save();renderRamo();return;}
+  // Sin tres iguales letra por letra, la distribución que los junta por pesos
+  // y nombres parecidos entra sola si cumple lo mismo (distribucionAutomatica).
+  // Queda como una sugerencia aceptada: la ficha dice de dónde salió y, si se
+  // forma el consenso exacto, pasa a contarse como tal.
+  if(salida.automatica&&aceptarPautaSugeridaEnRamo(r,salida.automatica,ctx)){
+    save();track('pauta_sugerida_automatica');renderRamo();return;
+  }
   if(!opciones.length)return;
   const noCoordinado=ramoNoCoordinado(r);
   el.className='pauta-sugerida';

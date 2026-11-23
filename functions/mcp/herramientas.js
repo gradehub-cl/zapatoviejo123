@@ -105,15 +105,29 @@ export const HERRAMIENTAS = [
     nombre: 'ver_ramo',
     titulo: 'Ver evaluaciones y reglas del ramo',
     tipo: 'lectura',
-    resumen: 'Evaluaciones, ponderaciones, fechas, notas y reglas del ramo. Úsala para explicar el cálculo o elegir la evaluación y la casilla antes de simular o proponer notas o fechas.',
+    resumen: 'Un ramo con sus evaluaciones, ponderaciones y notas, y sus reglas: eximición, descartes, compuertas (mínimos para aprobar), bonus o décimas, ausencias justificadas, ramo vinculado, faltas y las reglas del curso que el promedio no incluye. «examen» dice siempre el mínimo de examen, también cuando no hay, y si la pauta es la oficial sin editar. Cada evaluación trae fecha y hora con su origen (usuario: la escribió o confirmó la persona; catalogo: pauta publicada; calendario: Canvas o un calendario importado; desconocido), y cada nota su casilla y, si se sabe, cuándo cambió (editadaEn). «exigencia» es la del ramo, no de cada evaluación. «sinDato» dice lo que GradeHub no guarda: no lo inventes. Úsala antes de explicar cómo se calcula un ramo.',
     requeridos: ['ramo'],
     args: { ramo: 'nombre o sigla' },
+  },
+  {
+    // Un agente que pasó a mano los puntos de Canvas a nota se equivocó con los
+    // talleres. La fórmula es la de la calculadora pública (gh_notaDesdePuntaje);
+    // va aparte porque ninguna otra herramienta pide puntos (#735).
+    nombre: 'puntaje_a_nota',
+    tipo: 'lectura',
+    resumen: 'Pasa un puntaje a nota con la escala chilena y una exigencia (por ejemplo, 2 de 3 puntos con 60 %). Sin exigencia usa la guardada en el ramo, y si no hay, 50 %, y lo dice. No guarda nada: para cargar la nota usa proponer_notas.',
+    args: {
+      puntaje: { type: 'number', description: 'Puntaje obtenido' },
+      total: { type: 'number', description: 'Puntaje máximo de la evaluación' },
+      exigencia: { type: 'number', description: 'Exigencia en porcentaje, entre 1 y 99 (por ejemplo 60)' },
+      ramo: 'opcional: nombre o sigla, para usar la exigencia guardada en ese ramo',
+    },
   },
   {
     nombre: 'evaluaciones_proximas',
     titulo: 'Ver próximas evaluaciones',
     tipo: 'lectura',
-    resumen: 'Qué viene y cuándo, ordenado por fecha, con cuánto pesa cada una.',
+    resumen: 'Qué viene y cuándo, ordenado por fecha, con cuánto pesa cada una. La hora trae su origen (origenHora): una que viene de calendario o desconocido no es la oficial; confírmala antes de darla por cierta.',
     args: { dias: diasAdelante(30) },
   },
   {
@@ -125,9 +139,31 @@ export const HERRAMIENTAS = [
     // compuertas y el ramo vinculado son cuatro reglas que ya se equivocaron
     // acá adentro. Un agente que las reinventa se equivoca igual, pero sin
     // tests que lo atajen.
-    resumen: 'Qué promedio necesita en lo que le queda de un ramo para llegar a una meta.',
+    resumen: 'Qué promedio necesita en lo que le queda de un ramo para llegar a una meta. Con «evaluacion» contesta cuánto necesita en ESA evaluación (por ejemplo, el examen) dejando fijo todo lo demás que falta: cada pendiente se fija con «supuestos» o con «resto»; si falta alguno, la respuesta dice cuáles. Incluye las del ramo vinculado (el laboratorio que aporta a la nota). Usa la pauta, sus compuertas y el redondeo oficial; no guarda nada.',
     requeridos: ['ramo'],
-    args: { ramo: 'nombre o sigla', meta: notaObjetivo },
+    args: {
+      ramo: 'nombre o sigla',
+      meta: notaObjetivo,
+      evaluacion: 'opcional: la evaluación en la que se pide la nota mínima, tal como está en el ramo',
+      casilla: { type: 'integer', minimum: 1, maximum: 100, description: 'opcional: cuál casilla de esa evaluación, si tiene varias; sin casilla, la misma nota en todas sus casillas pendientes' },
+      supuestos: {
+        type: 'array',
+        description: 'Notas supuestas para lo demás que falta. Una sin casilla vale para todas las casillas pendientes de esa evaluación.',
+        maxItems: 60,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['evaluacion', 'valor'],
+          properties: {
+            evaluacion: { type: 'string', description: 'Nombre de la evaluación tal como está en el ramo' },
+            valor: { type: 'number', minimum: 1, maximum: 7, description: 'Nota de 1,0 a 7,0' },
+            casilla: { type: 'integer', minimum: 1, maximum: 100, description: 'Número de casilla entregado por ver_ramo, contando desde 1. Indícalo si la evaluación tiene varias casillas.' },
+            ramo: { type: 'string', description: 'Solo si la evaluación es del ramo vinculado y el nombre se repite' },
+          },
+        },
+      },
+      resto: { type: 'number', minimum: 1, maximum: 7, description: 'opcional: una nota para todo lo pendiente que no tenga supuesto' },
+    },
   },
   {
     nombre: 'proponer_pauta',
@@ -137,7 +173,7 @@ export const HERRAMIENTAS = [
     // próxima vez que el estudiante abra, para que confirme contra el programa
     // que él mismo subió. Sin ese paso, un peso mal leído queda calculando su
     // promedio durante meses sin que nada falle.
-    resumen: 'Propone las evaluaciones y ponderaciones de un ramo, sacadas de un programa. Queda pendiente hasta que el estudiante la confirme en la app.',
+    resumen: 'Propone las evaluaciones y ponderaciones de un ramo, sacadas de un programa. Queda pendiente hasta que el estudiante la confirme en la app. No reemplaza una pauta ya propuesta: para corregirla, retírala con retirar_propuesta y propón de nuevo.',
     requeridos: ['ramo', 'evaluaciones', 'fuente'],
     args: {
       ramo: 'nombre o sigla de un ramo que la persona ya tenga agregado',
@@ -167,7 +203,7 @@ export const HERRAMIENTAS = [
     // Igual que proponer_pauta: deja la propuesta esperando. La diferencia con
     // escribir la nota es la confirmación, así que la confirmación es el
     // producto: la app muestra qué evaluación, qué valor y de dónde salió.
-    resumen: 'Propone notas para las evaluaciones de un ramo (por ejemplo, leídas de un correo o de una foto de la pauta). No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app.',
+    resumen: 'Propone notas para las evaluaciones de un ramo (por ejemplo, leídas de un correo o de una foto de la pauta). No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app. Una propuesta nueva de notas para el mismo ramo reemplaza a la pendiente anterior.',
     requeridos: ['ramo', 'notas', 'fuente'],
     args: {
       ramo: 'nombre o sigla de un ramo que la persona ya tenga agregado',
@@ -197,7 +233,7 @@ export const HERRAMIENTAS = [
     // El calendario del curso vive en un PDF, en un correo o en una
     // publicación, y transcribir diez fechas a mano es justo lo que nadie hace.
     // Sin fechas la Agenda queda vacía, así que esto es lo que la llena.
-    resumen: 'Propone fechas (y hora) para las evaluaciones de un ramo, leídas del calendario del curso. No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app.',
+    resumen: 'Propone fechas (y hora) para las evaluaciones de un ramo, leídas del calendario del curso. No las guarda: quedan pendientes y el estudiante las acepta, edita o rechaza en la app. Una propuesta nueva de fechas para el mismo ramo reemplaza a la pendiente anterior.',
     requeridos: ['ramo', 'fechas', 'fuente'],
     args: {
       ramo: 'nombre o sigla de un ramo que la persona ya tenga agregado',
@@ -251,6 +287,22 @@ export const HERRAMIENTAS = [
       },
       fuente: 'De dónde salió la lista: el horario de la universidad, el correo de inscripción, la captura',
     },
+  },
+  {
+    // Una propuesta mal leída quedaba viva hasta que la persona la rechazara.
+    // Ver la bandeja es lo que deja al agente corregirse sin duplicar.
+    nombre: 'listar_propuestas',
+    titulo: 'Ver propuestas pendientes',
+    tipo: 'propuesta',
+    resumen: 'Las propuestas que siguen pendientes en la app (pauta, notas, fechas o ramos), con su id, ramo, fuente y contenido. Úsala antes de proponer de nuevo o para revisar lo que dejaste. No guarda nada.',
+  },
+  {
+    nombre: 'retirar_propuesta',
+    titulo: 'Retirar una propuesta',
+    tipo: 'propuesta',
+    resumen: 'Retira una propuesta tuya que sigue pendiente, por ejemplo porque leíste mal un peso o una nota; deja de aparecerle a la persona. Solo actúa sobre propuestas pendientes: lo que la persona ya aceptó o rechazó no cambia, y no toca su semestre. Para reemplazar una pauta, retírala y vuelve a proponer.',
+    requeridos: ['id'],
+    args: { id: 'el id que devolvió la propuesta o listar_propuestas' },
   },
 ];
 
