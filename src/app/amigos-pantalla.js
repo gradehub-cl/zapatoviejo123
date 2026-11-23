@@ -529,7 +529,7 @@ async function prepararEnlaceGrupo(id,boton){
     if(visita!==amigosGrupoDetalle||version!==amigosVersion||!boton.isConnected||currentTab!=='amigos'||desdeFicha!==document.getElementById('modal').classList.contains('open'))return;
     const url=URL_AMIGOS+'unirse#'+token;
     const caja=document.getElementById('modal-content');
-    caja.innerHTML=`<h2 class="modal-title">Invitar con enlace</h2><p>La primera persona de tu universidad que acepte podrá entrar. Dura siete días. Si generas otro enlace, este vence.</p><label class="modal-label" for="enlace-grupo">Enlace de invitación</label><input id="enlace-grupo" type="text" readonly value="${esc(url)}"><div class="modal-btns"><button class="btn-cancel" ${desdeFicha?'data-amigos="grupo-info"':'onclick="closeModal()"'} data-id="${esc(id)}">Volver</button><button class="btn-confirm" data-compartir-grupo>${navigator.share?'Compartir enlace':'Copiar enlace'}</button></div>`;
+    caja.innerHTML=`<h2 class="modal-title">Invitar con enlace</h2><p>Comparte este enlace con tus compañeros de universidad. Pueden unirse mientras haya cupos, durante siete días desde que se creó.</p><label class="modal-label" for="enlace-grupo">Enlace de invitación</label><input id="enlace-grupo" type="text" readonly value="${esc(url)}"><div class="modal-btns"><button class="btn-cancel" ${desdeFicha?'data-amigos="grupo-info"':'onclick="closeModal()"'} data-id="${esc(id)}">Volver</button><button class="btn-confirm" data-compartir-grupo>${navigator.share?'Compartir enlace':'Copiar enlace'}</button></div>`;
     openModal();
     caja.querySelector('[data-compartir-grupo]').onclick=async()=>{
       try{
@@ -1466,7 +1466,7 @@ async function accionGrupo(accion,{id,user,confirmado}={}){
       if(!confirmado){
         const invitado=amigosGrupoDetalle?.filas.find(f=>f.username===user)?.estado==='invitado';
         return showConfirm(invitado?`¿Retirar la invitación de @${user}?`:`¿Sacar a @${user}?`,
-          invitado?'Si ya aceptó la invitación, también saldrá del grupo.':'Perderá acceso al grupo y a los horarios compartidos allí.',
+          (invitado?'Si ya aceptó la invitación, también saldrá del grupo.':'Perderá acceso al grupo y a los horarios compartidos allí.')+' Los enlaces de invitación actuales vencerán.',
           ()=>accionGrupo(accion,{id,user,confirmado:true}),{label:invitado?'Retirar':'Sacar',danger:true,focusCancel:true});
       }
       await rpcAmigos('quitar_de_grupo',{p_grupo:id,p_username:user});

@@ -191,8 +191,11 @@ begin
   end if;
   select user_id into otro from public.usernames where username = public.amigos_normalizar(p_username);
   if otro is null or otro = uid then return false; end if;
-  delete from public.amigos_grupo_miembros where grupo_id = p_grupo and user_id = otro;
-  return found;
+  perform 1 from public.amigos_grupos where id=p_grupo for update;
+  delete from public.amigos_grupo_miembros where grupo_id=p_grupo and user_id=otro;
+  if not found then return false; end if;
+  update public.amigos_grupo_miembros set enlace=null,enlace_vence=null where grupo_id=p_grupo and enlace is not null;
+  return true;
 end;
 $$;
 
@@ -264,7 +267,7 @@ begin
 end;
 $$;
 
--- Cada integrante puede compartir una invitación de un uso. Al salir pierde el enlace.
+-- Cada integrante puede compartir una invitación reutilizable por siete días. Al salir pierde el enlace.
 alter table public.amigos_grupo_miembros add column if not exists enlace uuid,
   add column if not exists enlace_vence timestamptz;
 create unique index if not exists amigos_grupo_enlace_idx on public.amigos_grupo_miembros(enlace) where enlace is not null;
@@ -273,7 +276,9 @@ create or replace function public.crear_enlace_grupo(p_grupo uuid)
 returns uuid language plpgsql security definer set search_path='' as $$
 declare uid uuid:=public.amigos_exigir_sesion(); token uuid;
 begin
-  update public.amigos_grupo_miembros set enlace=gen_random_uuid(), enlace_vence=now()+interval '7 days'
+  update public.amigos_grupo_miembros set
+    enlace=case when enlace_vence>now() then enlace else gen_random_uuid() end,
+    enlace_vence=case when enlace_vence>now() then enlace_vence else now()+interval '7 days' end
     where grupo_id=p_grupo and user_id=uid and estado='miembro' returning enlace into token;
   if token is null then raise exception 'no estás en ese grupo'; end if;
   return token;
@@ -302,7 +307,6 @@ begin
     else
       if not public.responder_grupo(g,true) then raise exception 'vuelve a abrir la invitación'; end if;
     end if;
-    update public.amigos_grupo_miembros set enlace=null,enlace_vence=null where enlace=p_enlace;
     miembro:=true;
   end if;
   return jsonb_build_object('nombre',nombre,'id',case when miembro then g end);
