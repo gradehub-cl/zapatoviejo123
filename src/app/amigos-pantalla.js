@@ -801,12 +801,6 @@ function libresJuntosHTML(d,ahora=new Date()){
 // ─── Novedades del grupo (Lucas, 2026-11-22) ───
 // El grupo cuenta lo que pasó, en orden: sala anotada, fecha puesta, quién
 // entró. Lo tuyo ya está en tu Agenda; acá no se repite.
-function haceGrupo(iso){
-  const min=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/6e4));
-  if(min<1)return 'recién';if(min<60)return `hace ${min} min`;
-  const h=Math.round(min/60);if(h<24)return `hace ${h} h`;
-  const d=Math.round(h/24);return d===1?'ayer':`hace ${d} días`;
-}
 // Tu evaluación que corresponde a una fecha del grupo: mismo ramo (por sigla, o
 // nombre si no hay) y mismo nombre de evaluación, comparados como el consenso.
 function evaluacionParaFecha(ev){
@@ -835,18 +829,19 @@ function novedadesGrupoHTML(d){
   const quien=e=>e.yo?'Tú':(e.nombre||'@'+e.username).split(' ')[0];
   const fila=e=>{
     const x=e.datos||{};
-    if(e.tipo==='sala')return `<li><button type="button" class="grupo-mensaje grupo-reserva" data-amigos="grupo-reserva" data-id="${esc(d.id)}" data-reserva="${esc(x.reserva)}">
-      <span class="cal-icono sala">${ICONO_SALA}</span><span><small>${esc(quien(e))} ${e.yo?'anotaste':'anotó'} una sala · ${esc(haceGrupo(e.creado))}</small><b>${esc(x.lugar)}</b>
+    const mio=e.yo?' grupo-mensaje-mio':'';
+    if(e.tipo==='sala')return `<li><button type="button" class="grupo-mensaje grupo-reserva${mio}" data-amigos="grupo-reserva" data-id="${esc(d.id)}" data-reserva="${esc(x.reserva)}">
+      <span class="cal-icono sala">${ICONO_SALA}</span><span><small>Sala reservada · ${esc(quien(e))}</small><b>${esc(x.lugar)}</b>
       <span>${esc(fechaCortaGrupo(x.fecha,`${x.inicio}–${x.fin}`))}</span>${x.codigo?`<span class="cal-codigo">Código <b>${esc(x.codigo)}</b></span>`:''}</span>${FLECHA_GRUPO}</button></li>`;
     if(e.tipo==='fecha'){
       const mia=e.yo?null:evaluacionParaFecha(x);
       const igual=mia&&mia.item.fecha===x.fecha&&(!x.hora||mia.item.hora===x.hora);
       const accion=!mia?'':igual?'<span class="grupo-ya">Ya está en tu Agenda</span>'
         :`<button type="button" class="grupo-estudiar" data-amigos="grupo-ponerla" data-id="${esc(d.id)}" data-evento="${esc(e.id)}">${mia.item.fecha?'Cambiar la mía':'Ponerla en mi Agenda'}</button>`;
-      return `<li><div class="grupo-mensaje"><span class="cal-icono prueba">${ICONO_PRUEBA}</span><span><small>${esc(quien(e))} ${e.yo?'pusiste':'puso'} fecha · ${esc(haceGrupo(e.creado))}</small>
+      return `<li><div class="grupo-mensaje${mio}"><span class="cal-icono prueba">${ICONO_PRUEBA}</span><span><small>Fecha nueva · ${esc(quien(e))}</small>
         <b>${esc(x.nombre)}${x.sigla?` · ${esc(x.sigla)}`:''}</b><span>${esc(fechaCortaGrupo(x.fecha,x.hora))}</span></span></div>${accion}</li>`;
     }
-    return `<li><div class="grupo-mensaje"><span class="cal-icono">${ICONO_GRUPO}</span><span><small>${esc(haceGrupo(e.creado))}</small><b>${esc(quien(e))} ${e.yo?'entraste':'entró'} al grupo</b></span></div></li>`;
+    return `<li><div class="grupo-mensaje${mio}"><span class="cal-icono">${ICONO_GRUPO}</span><span><small>Nuevo en el grupo</small><b>${esc(quien(e))}</b></span></div></li>`;
   };
   const ayer=sumarDiasAgenda(fechaHorarioChile(Date.now()),-1);
   return `<ol class="grupo-hilo">${[...porDia].map(([k,l])=>`<li><h3>${esc(k===ayer?'Ayer':diaCortoGrupo(k))}</h3><ul>${l.map(fila).join('')}</ul></li>`).join('')}</ol>`;

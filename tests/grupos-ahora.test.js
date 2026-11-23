@@ -117,8 +117,8 @@ chk('el hilo: sala con código, fecha con «Ponerla» si la tienes y quién entr
     {id:'e3',tipo:'fecha',username:'dani',nombre:'Dani',yo:false,creado:new Date().toISOString(),datos:{ramo:'Otro',sigla:'SYN777',nombre:'Control 4',fecha:'2099-03-05',hora:null}},
     {id:'e4',tipo:'union',username:'dani',nombre:'Dani',yo:false,creado:new Date().toISOString(),datos:{}}];
   const h=run(`novedadesGrupoHTML({id:'g1',nov:__d})`,nov);
-  assert.match(h,/Beto puso fecha/);assert.equal((h.match(/data-amigos="grupo-ponerla"/g)||[]).length,1,'solo donde tienes la evaluación');
-  assert.match(h,/Código <b>4821<\/b>/);assert.match(h,/Dani entró al grupo/);
+  assert.match(h,/Fecha nueva · Beto/);assert.match(h,/Sala reservada · Beto/);assert.equal((h.match(/data-amigos="grupo-ponerla"/g)||[]).length,1,'solo donde tienes la evaluación');
+  assert.match(h,/Código <b>4821<\/b>/);assert.match(h,/Nuevo en el grupo<\/small><b>Dani<\/b>/);
   run(`S.ramos[0].categorias[0].fecha='2099-03-04';S.ramos[0].categorias[0].hora='18:30';`);
   assert.match(run(`novedadesGrupoHTML({id:'g1',nov:__d})`,nov),/Ya está en tu Agenda/);
 });
