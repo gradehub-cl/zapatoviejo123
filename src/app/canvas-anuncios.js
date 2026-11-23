@@ -123,7 +123,10 @@ function propuestasAnunciosCanvas(anuncios,ramo,ahora){
   const porDestino=new Map(),destinos=destinosAnunciosCanvas(ramo),hoy=fechaChileCanvas(ahora);
   const lista=(Array.isArray(anuncios)?anuncios:[]).filter(a=>fechaChileCanvas(a?.posted_at)&&fechaChileCanvas(a.posted_at)<=hoy)
     .sort((a,b)=>Date.parse(b.posted_at)-Date.parse(a.posted_at));
-  for(const a of lista){
+  for(const original of lista){
+    // La proyección de lectura conserva hasta la última letra. Para proponer
+    // fechas solo sirven frases completas, como en el puente anterior.
+    const a=original.recortado?{...original,texto:original.texto.replace(/[^.;\n]*$/,'')}:original;
     const propuestas=leerFechasAnuncioCanvas(a,destinos,ahora,true);
     const menciones=mencionesAnuncioCanvas(normName(String(a.title||'')+'\n'+String(a.texto||'')),destinos);
     const claves=new Set([...menciones.map(m=>claveDestinoIcs(m.t)),...propuestas.map(p=>p.target)]);

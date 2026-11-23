@@ -137,6 +137,7 @@ function renderRamo(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r){goHome();return;}
   document.getElementById('grade-gpa-echo')?.remove();
   document.getElementById('ramo-title').textContent=r.nombre;
+  if(typeof pintarAvisosCanvas==='function')pintarAvisosCanvas('ficha',r.id);
   const subtitulo=document.getElementById('ramo-subtitulo');
   if(subtitulo)subtitulo.textContent=[siglaDeRamo(r),r.creditos!=null?`${r.creditos} créditos`:''].filter(Boolean).join(' · ');
   const avg=ramoAvg(r);

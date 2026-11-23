@@ -19,6 +19,7 @@ function pluginCanvas(){
 // cerrar la sesión: el plugin necesita la cuenta para saber qué token borrar.
 // No espera a Canvas ni falla: es solo borrar del llavero de este iPhone.
 async function olvidarCanvasCuenta(){
+  if(typeof limpiarAvisosCanvas==='function')limpiarAvisosCanvas(true);
   try{const p=pluginCanvas();if(p)await p.desconectar();}catch(e){}
   if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
   if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
@@ -203,6 +204,7 @@ function desconectarCanvas(){
       if(!vigente())return;
       if(typeof lecturaCanvasInicio!=='undefined')lecturaCanvasInicio=null;
       if(typeof entradaNotaInicio!=='undefined')entradaNotaInicio=null;
+      limpiarAvisosCanvas(false);
       canvasPesosRamo.clear();canvasProgramaRamo.clear();
       track('canvas_desconectado');
       await pintarCanvasAjustes({enfocar:true});
