@@ -114,7 +114,7 @@ function tituloUniversidadOnboarding(nombre){
   const primero=String(nombre||'').trim().split(/\s+/)[0]||'';
   return primero?`${primero}, ¿cuál es tu universidad?`:'¿Cuál es tu universidad?';
 }
-function completeOnboarding(){
+function completeOnboarding({conFoto=false}={}){
   const name=document.getElementById('ob-name').value.trim();
   // UNA sola fuente de verdad para "¿se puede seguir?": la misma función que
   // decide si el botón va habilitado. Antes esta guarda derivaba su propia
@@ -135,8 +135,11 @@ function completeOnboarding(){
   }
   S.userApellido=apellidoLimpio((document.getElementById('ob-apellido')||{}).value);
   if(obTipo==='profesor'){completarOnboardingProfesor(name);return;}
+  // Con la foto, los ramos salen del horario y no de lo marcado en el paso 5:
+  // ahí venían premarcados los sugeridos de la malla, que son una suposición.
+  const ramosOb=conFoto?[]:obRamos;
   S.userName=name;S.careerSemestre=selectedSem;S.generacion=obGeneracion;S.verano=obVerano?{hasta:finDeVerano()}:null;S.carrera=selectedCarrera;S.carreraNombre=selectedCarreraNombre;S.tenant=selectedTenant;
-  obRamos.forEach(item=>{
+  ramosOb.forEach(item=>{
     if(S.ramos.some(r=>normName(r.nombre)===normName(item.nombre)))return;
     const preset=!item.manual?presetRamo(item.nombre,selectedTenant,selectedCarrera):null;
     const creditos=typeof item.creditos==='number'?item.creditos:creditosDe(item.nombre,selectedTenant,preset,item.sigla);
@@ -155,10 +158,11 @@ function completeOnboarding(){
   // texto suyo — lo prohíbe tests/analitica.test.js y lo promete la política.
   // La bandera dice lo único que la analítica necesita: si le pudimos cargar la
   // malla o no. Quién estudia qué se cuenta en la base, no acá.
-  track('onboarding_complete',{semestre:selectedSem,carrera:selectedCarrera,con_malla:!!selectedCarrera,ramos:obRamos.length});
+  track('onboarding_complete',{semestre:selectedSem,carrera:selectedCarrera,con_malla:!!selectedCarrera,ramos:ramosOb.length,con_foto:conFoto});
   enterApp();
-  const oficiales=obRamos.filter(item=>!item.manual&&!!presetRamo(item.nombre,selectedTenant,selectedCarrera)).length;
-  mostrarRamosCargados(obRamos.length,oficiales);
+  if(conFoto){abrirFotoHorarioOnboarding();return;}
+  const oficiales=ramosOb.filter(item=>!item.manual&&!!presetRamo(item.nombre,selectedTenant,selectedCarrera)).length;
+  mostrarRamosCargados(ramosOb.length,oficiales);
 }
 // La cuenta de profesor queda creada solo si la postulación llegó: sin su
 // `tutor_perfiles` sería una cuenta sin nada adentro. Si ya existía (un reintento
@@ -200,6 +204,17 @@ async function completarOnboardingProfesor(name){
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0;">Puedes preparar tu anuncio en Clases mientras revisamos tu postulación. Podrás publicarlo cuando quede aprobada.</p>
     <div class="modal-btns"><button class="btn-confirm" onclick="closeModal()">Entendido</button></div>`;
   openModal();
+}
+// Recién creada la cuenta se abre la misma importación por foto de Inicio. Al
+// terminar se muestra el resumen de siempre, contando lo que quedó en el
+// semestre; si cancela, el de "agrega tu primer ramo desde Inicio".
+function abrirFotoHorarioOnboarding(){
+  abrirImportarHorarioBuscacursos();
+  alAgregarRamo=()=>{
+    const ramos=S.ramos||[];
+    mostrarRamosCargados(ramos.length,ramos.filter(r=>!!presetRamo(r.nombre,S.tenant,S.carrera)).length);
+  };
+  alCancelarAgregarRamo=()=>mostrarRamosCargados(0,0);
 }
 // Quien ya pasó su primer semestre tiene notas anteriores: se le ofrece cargarlas
 // todas de una con la ficha académica (Lucas, 2026-11-11). Es opcional; si no
