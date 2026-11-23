@@ -36,6 +36,8 @@ const herr = o => vm.runInContext('herramientasInicio('+JSON.stringify(o)+')', c
 chk('la calculadora siempre está', herr({ tenant: 'syn' }).join() === 'calculadora');
 chk('UC con Canvas y ficha: las cuatro, en orden', herr({ tenant: 'uc', conCanvas: true, conFicha: true }).join() === 'calculadora,horario,canvas,ficha');
 chk('sin Canvas no se ofrece traer notas', !herr({ tenant: 'uc', conFicha: true }).includes('canvas'));
+chk('la llave también está en la web, no solo en la app', !/enAppNativa/.test(fs.readFileSync(raiz + 'src/app/herramientas-inicio.js', 'utf8').split('function herramientasInicioDisponibles')[1].split('}')[0]));
+chk('las cuentas de profesor no ven la llave', /function herramientasInicioDisponibles\(\)\{\s*if\(esCuentaProfesor\(\)\)return \[\];/.test(fs.readFileSync(raiz + 'src/app/herramientas-inicio.js', 'utf8')));
 chk('Canvas tiene su propio ícono', /circle/.test(vm.runInContext('PERFIL_ICONOS.canvas', ctx)));
 
 console.log('\n=== Cuenta de profesor ===');

@@ -2,8 +2,9 @@
 // La llave inglesa arriba a la derecha de Inicio abre un menú con las
 // herramientas de vez en cuando: calculadora, foto del horario, notas de
 // Canvas y semestres pasados (HIG: Pull-down buttons). Las mismas siguen en
-// Perfil › Herramientas; acá solo quedan más a mano. Solo en la app: hasta el
-// lanzamiento, lo nuevo va solo a la app.
+// Perfil › Herramientas; acá solo quedan más a mano. En la app y en la web
+// (Lucas, 2026-11-23): las herramientas ya existían en la web, esto solo las
+// acerca. Canvas sigue apareciendo solo donde está su plugin nativo.
 const ICONO_HERRAMIENTAS='<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>';
 // Qué herramientas ve esta cuenta. Función pura, como gruposPerfil.
 function herramientasInicio({tenant,conCanvas,conFicha}){
@@ -20,7 +21,7 @@ const ACCIONES_HERRAMIENTAS={
   canvas:()=>openSettings('canvas',{volverA:'Inicio',accionCanvas:'notas'}),
 };
 function herramientasInicioDisponibles(){
-  if(!(typeof enAppNativa==='function'&&enAppNativa())||esCuentaProfesor())return [];
+  if(esCuentaProfesor())return [];
   return herramientasInicio({tenant:S.tenant,conCanvas:typeof canvasDisponible==='function'&&canvasDisponible(),
     conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible()});
 }
