@@ -124,6 +124,7 @@ for (const f of ['ios/App/App/PrivacyInfo.xcprivacy', 'ios/App/GradeHubWidgets/P
   chk('manifiesto: uso de la app ligado a la cuenta', ligado('ProductInteraction'));
   chk('manifiesto: teléfono de contacto del profesor', ligado('PhoneNumber'));
   chk('manifiesto: datos de los anuncios vistos', ligado('AdvertisingData'));
+  chk('manifiesto: token de avisos push', ligado('DeviceID'));
 }
 chk('los dos manifiestos van en los recursos de la app y del widget', (pbx.match(/PrivacyInfo\.xcprivacy in Resources \*\/,/g) || []).length === 2);
 const icono = JSON.parse(leer('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json')).images;

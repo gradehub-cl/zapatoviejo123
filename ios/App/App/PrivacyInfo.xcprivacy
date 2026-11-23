@@ -24,6 +24,10 @@
     para contar cada persona una vez y medir y cobrar la campaña. No usa notas
     para eso y nunca se entrega al profesor quién fue.
 
+  - Token de avisos push (Device ID), ligado a la cuenta: lo guarda el servidor
+    para mandar los avisos de Amigos (supabase/functions/avisos-push). Se
+    declara por precaución; no es el identificador de publicidad.
+
   No hay rastreo entre apps ni con datos de otras empresas
   (NSPrivacyTracking = false). Sí hay anuncios de profesores dentro de la app.
 
@@ -157,6 +161,18 @@
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
 				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
 	</array>
