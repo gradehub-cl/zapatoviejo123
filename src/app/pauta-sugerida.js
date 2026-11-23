@@ -23,7 +23,7 @@ function copiarFuenteSugerida(a){
   return a?.fuente==='programa'&&secciones.length?{fuente:'programa',secciones}:{};
 }
 function textoReferenciaSugerida(o){
-  if(o?.fuente==='catalogo')return 'Pauta publicada para este ramo; puede no ser la de tu sección';
+  if(o?.fuente==='catalogo')return 'Ponderaciones publicadas para este ramo; pueden no ser las de tu sección';
   if(o?.fuente==='programa')return `Programa oficial de la${o.secciones.length>1?'s secciones':' sección'} ${listaY(o.secciones.map(String))}`;
   return '';
 }
@@ -220,7 +220,7 @@ function htmlPautaSugerida(opciones,{noCoordinado,sinSeccion}){
     return varias?`<label class="${clase}"><input type="radio" name="pauta-sugerida-opcion" value="${i}"${tuya&&i===0?' checked':''} aria-label="${esc(etiqueta)}"><span>${contenido}</span></label>`
       :`<div class="${clase}">${contenido}</div>`;
   };
-  const titulo=noCoordinado?(varias?'Pautas que reportan en este ramo':'Pauta que reportan en este ramo'):(varias?'Dos pautas sugeridas':'Pauta sugerida');
+  const titulo=noCoordinado?(varias?'Versiones que reportan en este ramo':'Ponderaciones que reportan en este ramo'):(varias?'Dos versiones sugeridas':'Ponderaciones sugeridas');
   const ayuda=noCoordinado?'Este ramo cambia según profesor o sección. Elige la que calce con el programa de tu curso.'
     :'Compárala con el programa de tu curso antes de usarla.';
   // Saber la sección de más estudiantes es lo que permite sugerir la correcta.
@@ -233,7 +233,7 @@ function htmlPautaSugerida(opciones,{noCoordinado,sinSeccion}){
     </fieldset>
     <div class="modal-btns pauta-sugerida-acciones">
       <button type="button" class="btn-cancel">Ahora no</button>
-      <button type="button" class="btn-confirm"${varias&&!preelegida?' disabled':''}>Usar esta pauta</button>
+      <button type="button" class="btn-confirm"${varias&&!preelegida?' disabled':''}>Usar estas ponderaciones</button>
     </div>`;
 }
 

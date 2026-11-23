@@ -173,7 +173,7 @@ function ramoNormReporte(r){return siglaReporteUC(r)?normName(r.nombre):claveRep
 function openReportModal(ramoId,conservarBorrador=false){
   const r=S.ramos.find(x=>x.id===(ramoId||currentRamoId));
   if(!r){showToast('No se encontr\u00f3 el ramo',true);return;}
-  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tu pauta.',true);return;}
+  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tus ponderaciones.',true);return;}
   const est=conservarBorrador?reporteDraft:estructuraReporte(r);
   if(!est.length&&!conservarBorrador){showToast('Agrega las evaluaciones antes de reportar',true);return;}
   if(!conservarBorrador){reporteDraft=est;reporteComentarioDraft='';}
@@ -186,7 +186,7 @@ function openReportModal(ramoId,conservarBorrador=false){
       <button type="button" onclick="quitarReporteFila(${i})" aria-label="Quitar ${esc(e.nombre||'evaluaci\u00f3n')} del reporte" style="min-height:44px;padding:9px 8px;border:0;border-radius:10px;background:none;color:var(--fg3);font:600 0.75rem var(--font-ui);cursor:pointer;">Quitar</button>
     </div>`).join('');
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">Reportar pauta</div>
+    <div class="modal-title">Reportar ponderaciones</div>
     <p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin-bottom:14px;">
       Corrige las evaluaciones de <b>${esc(r.nombre)}</b> como son en tu curso. El cambio queda en tu ramo y,
       si otros reportan lo mismo, pasa al cat\u00e1logo.
@@ -260,7 +260,7 @@ function aplicarReporteAlRamo(r,borrador){
 
 async function enviarReporte(ramoId){
   const r=S.ramos.find(x=>x.id===ramoId);if(!r)return;
-  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tu pauta.',true);return;}
+  if(pautaConReglasDelEditor(r)){showToast('El reporte todavía no admite las reglas que agregaste a tus ponderaciones.',true);return;}
   const btn=document.getElementById('m-rep-btn');
   if(!supabaseClient||!currentUser){
     showToast('Necesitas tener sesi\u00f3n iniciada para reportar',true);return;
@@ -272,7 +272,7 @@ async function enviarReporte(ramoId){
     showToast(est.length?textoEstadoReporte(estado):'Vuelve a abrir el reporte',true);return;
   }
   if(repiteVotoSugerido(r,est)){
-    showToast('Esta pauta ya fue reportada por otros estudiantes.');
+    showToast('Estas ponderaciones ya fueron reportadas por otros estudiantes.');
     return;
   }
   const notaEl=document.getElementById('m-rep-nota');
@@ -307,15 +307,15 @@ async function enviarReporte(ramoId){
     track('reporte_catalogo',{tenant:S.tenant});
     closeModal();
     reporteDraft=[];reporteRamoId=null;reporteComentarioDraft='';
-    showToast(enRamo==='aplicada'?'Gracias \u00b7 tu reporte qued\u00f3 registrado y tu pauta, actualizada'
-      :enRamo==='regla'?'Reporte enviado. Tu pauta no cambi\u00f3: una evaluaci\u00f3n con regla de aprobaci\u00f3n se ajusta en Editar pauta.'
+    showToast(enRamo==='aplicada'?'Gracias \u00b7 tu reporte qued\u00f3 registrado y tus ponderaciones, actualizadas'
+      :enRamo==='regla'?'Reporte enviado. Tus ponderaciones no cambiaron: una evaluaci\u00f3n con regla de aprobaci\u00f3n se ajusta en Editar evaluaciones.'
       :'Gracias \u00b7 tu reporte qued\u00f3 registrado');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='Enviar reporte';}
     // Tabla no creada todav\u00eda \u2192 mensaje entendible en vez del error crudo
     const msg=/relation .* does not exist|schema cache/i.test(e.message||'')
       ? 'Los reportes a\u00fan no est\u00e1n habilitados en el servidor.'
-      : enRamo==='aplicada'?'Tu pauta qued\u00f3 guardada, pero el reporte no se pudo enviar. Revisa tu conexi\u00f3n.'
+      : enRamo==='aplicada'?'Tus ponderaciones quedaron guardadas, pero el reporte no se pudo enviar. Revisa tu conexi\u00f3n.'
       : 'No se pudo enviar. Revisa tu conexi\u00f3n.';
     showToast(msg,true);
   }finally{_suspenderAportePautas=false;}

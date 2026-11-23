@@ -33,7 +33,7 @@ const INSTRUCCIONES = [
   'Usa la sigla del ramo si está disponible. Antes de simular o proponer notas o fechas, consulta ver_ramo. En una evaluación con varias casillas, usa el nombre del grupo y su número de casilla por separado.',
   'Si ver_ramo indica registrosSinCasilla, confirma a cuál corresponden antes de asumir que una casilla está vacía.',
   'Usa simular y que_necesito_para_aprobar para calcular con las reglas guardadas en GradeHub.',
-  'Para proponer ramos, pautas, notas o fechas, usa una fuente y pide que confirmen los datos faltantes. Cada propuesta queda pendiente de revisión en la app.',
+  'Para proponer ramos, ponderaciones, notas o fechas, usa una fuente y pide que confirmen los datos faltantes. Cada propuesta queda pendiente de revisión en la app.',
 ].join(' ');
 
 // Formato fijo: descarta basura antes de tocar la base.
@@ -187,7 +187,7 @@ function examenDelRamo(r, calculo) {
   const coma = n => String(n).replace('.', ',');
   const cats = Array.isArray(r.categorias) ? r.categorias : [];
   const examenes = cats.filter(c => Number(c.peso) > 0 && ES_EXAMEN.test(norm(c.nombre)));
-  if (!examenes.length) return { evaluaciones: [], minimo: null, texto: 'El ramo no tiene una evaluación de examen en su pauta.' };
+  if (!examenes.length) return { evaluaciones: [], minimo: null, texto: 'El ramo no tiene una evaluación de examen en sus ponderaciones.' };
   const ids = new Set(examenes.map(c => c.id));
   const guardadas = Array.isArray(r.gates) ? r.gates : [];
   const efectivas = (calculo.compuertasEfectivas ? calculo.compuertasEfectivas(r) : guardadas)
@@ -198,8 +198,8 @@ function examenDelRamo(r, calculo) {
     return {
       evaluaciones: nombres, minimo: null, pautaOficialSinEditar: oficial,
       texto: oficial
-        ? `${nombres.join(' y ')} no tiene nota mínima: la pauta oficial cargada no la pide.`
-        : `${nombres.join(' y ')} no tiene nota mínima en la pauta guardada, pero esa pauta la armó o editó la persona: confírmalo con el programa.`,
+        ? `${nombres.join(' y ')} no tiene nota mínima: el programa cargado no la pide.`
+        : `${nombres.join(' y ')} no tiene nota mínima en las ponderaciones guardadas, pero las armó o editó la persona: confírmalo con el programa.`,
     };
   }
   const nombreDe = id => (cats.find(c => c.id === id) || {}).nombre || null;
@@ -282,7 +282,7 @@ function necesitaEnEvaluacion(ramos, ramo, args, meta, tenant) {
     const donde = ramoPedido == null ? partes : partes.filter(r => norm(r.nombre) === norm(ramoPedido) || norm(siglaDeRamo(r)) === norm(ramoPedido));
     for (const r of donde) {
       const cats = enRamo(r, nombre);
-      if (cats.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}" en ${r.nombre}. Corrige la pauta en la app antes de calcular.` };
+      if (cats.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}" en ${r.nombre}. Corrige las ponderaciones en la app antes de calcular.` };
       if (cats.length) return { r, cat: cats[0] };
     }
     const declaradas = partes.flatMap(r => (r.categorias || []).map(c => (partes.length > 1 ? `${c.nombre} (${r.nombre})` : c.nombre)));
@@ -587,7 +587,7 @@ async function guardarPropuestaRamos(token, estado, args) {
       // Se dicen los que se dejaron fuera: el agente le puede avisar en vez de
       // que la persona note después que faltaba uno.
       yaLosTenia: repetidos,
-      mensaje: 'Ramos propuestos. NO están agregados: la persona los revisa y acepta en GradeHub, y ahí se les carga la pauta oficial si existe.',
+      mensaje: 'Ramos propuestos. NO están agregados: la persona los revisa y acepta en GradeHub, y ahí se les cargan las ponderaciones del programa si existen.',
     };
   } catch {
     return { error: 'No se pudo conectar con GradeHub para guardar la propuesta.' };
@@ -612,7 +612,7 @@ async function listarPropuestas(token) {
     return {
       pendientes,
       total: pendientes.length,
-      nota: 'Siguen esperando a la persona en la app. retirar_propuesta saca una por su id. Una propuesta nueva de notas o fechas para el mismo ramo, o de ramos, reemplaza sola a la pendiente anterior; una de pauta no: retira la vieja antes de proponer otra.',
+      nota: 'Siguen esperando a la persona en la app. retirar_propuesta saca una por su id. Una propuesta nueva de notas o fechas para el mismo ramo, o de ramos, reemplaza sola a la pendiente anterior; una de ponderaciones no: retira la vieja antes de proponer otra.',
     };
   } catch {
     return { error: 'No se pudo conectar con GradeHub para leer las propuestas.' };
@@ -785,7 +785,7 @@ function prepararAusenciasSimuladas(ramo, ausencias, notas) {
     if (!nombre) return { error: 'Cada ausencia necesita el nombre de su evaluación.' };
     const encontradas = (ramo.categorias || []).filter(c => norm(c.nombre) === norm(nombre));
     if (!encontradas.length) return { error: `No encontré "${nombre}" en ${ramo.nombre}.` };
-    if (encontradas.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}". Corrige la pauta en la app antes de simular la ausencia.` };
+    if (encontradas.length > 1) return { error: `Hay más de una evaluación llamada "${nombre}". Corrige las ponderaciones en la app antes de simular la ausencia.` };
     const cat = encontradas[0];
     if (vistas.has(cat.id)) return { error: `La ausencia de ${cat.nombre} está repetida.` };
     vistas.add(cat.id);
@@ -816,7 +816,7 @@ function detalleAusenciasSimuladas(ramo, categorias, estado) {
     const pendiente = (estado.pendientes || []).find(x => x.desdeId === cat.id);
     const inactiva = (estado.inactivas || []).find(x => x.desdeId === cat.id);
     if (inactiva || (!aplicada && !pendiente))
-      return { error: `La ausencia de ${cat.nombre} no se puede aplicar a esta pauta; revisa la regla en la app.` };
+      return { error: `La ausencia de ${cat.nombre} no se puede aplicar a estas ponderaciones; revisa la regla en la app.` };
     const movimiento = aplicada || pendiente;
     const destino = (ramo.categorias || []).find(c => c.id === movimiento.haciaId);
     const nuevoDestino = (estado.estructura.children || []).find(c => c.id === movimiento.haciaId);

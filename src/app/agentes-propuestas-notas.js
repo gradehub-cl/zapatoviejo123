@@ -299,11 +299,11 @@ function renderPropuestasPautaHome(){
   caja.style.display='block';
   caja.innerHTML=`
     <div class="home-recorrecciones-hd">
-      <span class="section-hd-title">Pautas de tu agente por revisar</span>
+      <span class="section-hd-title">Ponderaciones de tu agente por revisar</span>
       <span class="ag-count">${propuestasPautaAgente.length}</span>
     </div>
     ${propuestasPautaAgente.map(p=>`<button type="button" class="home-propuesta-row" onclick="abrirPropuestasPautaAgente()">
       <strong>${esc((ramoDePropuestaPauta(p)||{}).nombre||p.ramo)}</strong>
-      <span>Revisar pauta propuesta</span>
+      <span>Revisar ponderaciones propuestas</span>
     </button>`).join('')}`;
 }

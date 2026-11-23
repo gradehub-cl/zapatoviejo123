@@ -69,7 +69,7 @@ chk('la pantalla explica qué puede hacer el agente',!!explica);
 if(explica){
   const t=explica[0];
   chk('dice que ve ramos, notas y fechas',/ramos/i.test(t)&&/notas/i.test(t)&&/fechas/i.test(t));
-  chk('dice que puede agregar un ramo y proponer una pauta',/agregar un ramo/i.test(t)&&/pauta/i.test(t));
+  chk('dice que puede agregar un ramo y proponer una pauta',/agregar un ramo/i.test(t)&&/ponderaciones/i.test(t));
   chk('y dice el límite: no escribe notas',/no puede escribir tus notas/i.test(t));
 }
 chk('la URL y las fichas siguen legibles en pantalla angosta',/\.agent-url-value\{[^}]*word-break:break-all/.test(css)&&/\.agent-link-heading b\{[^}]*text-overflow:ellipsis/.test(css));
@@ -104,7 +104,7 @@ chk('los tres están en un solo desplegable, con un botón para copiar',
   (html.match(/<option value="(repaso|proxima|plan)"/g)||[]).length===3&&
   (html.match(/onclick="copiarPromptAgente\(\)"/g)||[]).length===1);
 chk('en iOS aparecen las propuestas como una acción que la persona decide aplicar',
-  htmlApp.includes('preparar propuestas de ramos, pautas, notas y fechas')&&
+  htmlApp.includes('preparar propuestas de ramos, ponderaciones, notas y fechas')&&
   htmlApp.includes('Tú revisas y eliges qué propuestas aplicar')&&!htmlApp.includes('agregar un ramo'));
 chk('solo en iOS aparece el ejemplo de importar notas o fechas',
   P.importar.soloApp&&htmlApp.includes(P.importar.titulo)&&!html.includes(P.importar.titulo)&&

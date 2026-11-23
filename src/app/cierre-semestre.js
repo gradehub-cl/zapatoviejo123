@@ -7,7 +7,7 @@ function revisionCierreSemestre(base){
     const {res,estructura}=calculoRamoConCompuertas(r);
     const faltantes=res.emptyLeaves.filter(n=>n.effectiveWeight>0).map(n=>n.name||'Evaluación sin nota');
     for(const c of estructura.children||[]){if(c.weight>0&&!c.children.length)faltantes.push(c.name||'Evaluaciones sin registrar');}
-    if(!Number.isFinite(ramoAvg(r,undefined,base.ramos)))faltantes.push('Revisa la pauta y las notas de este ramo');
+    if(!Number.isFinite(ramoAvg(r,undefined,base.ramos)))faltantes.push('Revisa las ponderaciones y las notas de este ramo');
     if(faltantes.length)pendientes.push({id:r.id,nombre:r.nombre,evaluaciones:[...new Set(faltantes)]});
   }
   // Un ramo que incorpora un laboratorio pendiente tampoco tiene final cerrada.

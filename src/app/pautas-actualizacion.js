@@ -108,7 +108,7 @@ function cambioDePauta(r){
   const notasFueraDePauta=cambios.filter(c=>c.tipo==='se-va'&&!nombresReconocidos.has(normName(c.nombre)))
     .some(c=>((r.categorias.find(x=>x.nombre===c.nombre)||{}).notas||[])
       .some(n=>typeof n.valor==='number'));
-  if(sugerida&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar la pauta del programa del curso'});
+  if(sugerida&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar las ponderaciones del programa del curso'});
   return {preset:p,cambios,notasFueraDePauta};
 }
 
@@ -121,13 +121,13 @@ function verCambioDePauta(ramoId){
     if(c.tipo==='regla')return `<li>${esc(c.nombre)}</li>`;
     if(c.tipo==='peso')return `<li><b>${esc(c.nombre)}</b>: ${r2(c.antes)}% → <b>${r2(c.despues)}%</b></li>`;
     if(c.tipo==='llega')return `<li><b>${esc(c.nombre)}</b>: nueva, ${r2(c.despues)}%</li>`;
-    return `<li><b>${esc(c.nombre)}</b>: ya no está en la pauta del catálogo</li>`;
+    return `<li><b>${esc(c.nombre)}</b>: ya no está en el catálogo</li>`;
   };
   const aviso=cambio.notasFueraDePauta
     ? `<p class="modal-desc" style="margin-top:10px;">Alguna de las evaluaciones que desaparecen tiene notas tuyas. <b>No se borran</b>: quedan en tu ficha con sus notas y en 0%, así no mueven tu promedio.</p>`
     : `<p class="modal-desc" style="margin-top:10px;">Tus notas se conservan: se reconocen por el nombre de la evaluación.</p>`;
   document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">La pauta de este ramo cambió</div>
+    <div class="modal-title">Las ponderaciones de este ramo cambiaron</div>
     <p class="modal-desc">Esto es lo que cambia respecto de lo que tienes hoy en <b>${esc(r.nombre)}</b>.</p>
     <ul style="margin:10px 0 0;padding-left:18px;font-size:0.875rem;color:var(--fg2);line-height:1.6;">${cambio.cambios.map(fila).join('')}</ul>
     ${aviso}
@@ -322,7 +322,7 @@ function traducirIdsCategoria(valor,mapa){
 function aplicarPautaNueva(ramoId){
   if(!actualizarPauta(ramoId))return;
   save();track('pauta_actualizada');closeModal();renderRamo();
-  showToast('Pauta actualizada — tus notas se conservaron');
+  showToast('Ponderaciones actualizadas — tus notas se conservaron');
 }
 
 function pautaPendiente(r){
