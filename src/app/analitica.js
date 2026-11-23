@@ -7,7 +7,40 @@
 // evaluaciones, ni nada que escriba él. Solo conteos, banderas y el tenant.
 // Queremos saber si la app se usa, no qué le fue mal a quién.
 // tests/analitica.test.js falla si alguien manda una clave prohibida.
+//
+// En la app (App Review 5.1.1, Lucas 2026-11-23) nada sale antes de entrar:
+// quien inicia sesión ya aceptó términos y privacidad en el acceso, y en
+// Ajustes → Estadísticas de uso puede apagarlo en ese teléfono. La web no cambia.
+const CLAVE_SIN_ANALITICA='gradehub_sin_analitica';
+function analiticaApagadaEnEsteTelefono(){
+  try{return localStorage.getItem(CLAVE_SIN_ANALITICA)==='1';}catch(e){return false;}
+}
+function analiticaPermitida(){
+  if(typeof enAppNativa!=='function'||!enAppNativa())return true;
+  return !!(typeof currentUser!=='undefined'&&currentUser&&currentUser.id)&&!analiticaApagadaEnEsteTelefono();
+}
+// Se llama al entrar con cuenta: en la app recién ahí cargan GA y PostHog.
+function activarAnaliticaApp(){
+  if(!analiticaPermitida())return;
+  try{window['ga-disable-G-TS791S6PDM']=false;}catch(e){}
+  try{if(typeof cargarGoogleAnalytics==='function')cargarGoogleAnalytics();}catch(e){}
+  // Como al abrir: PostHog carga después, sin competir con la entrada.
+  if(_analiticaPropiaEstado==='sin-iniciar')setTimeout(iniciarAnaliticaPropia,1500);
+  if(_analiticaPropia&&typeof _analiticaPropia.opt_in_capturing==='function'){try{_analiticaPropia.opt_in_capturing();}catch(e){}}
+}
+function cambiarAnaliticaApp(activo){
+  try{if(activo)localStorage.removeItem(CLAVE_SIN_ANALITICA);else localStorage.setItem(CLAVE_SIN_ANALITICA,'1');}catch(e){}
+  if(activo){activarAnaliticaApp();return;}
+  // Apagar corta en el acto: GA con su interruptor oficial y PostHog sin cola.
+  try{window['ga-disable-G-TS791S6PDM']=true;}catch(e){}
+  _analiticaPropiaCola=[];
+  if(_analiticaPropia){
+    try{if(typeof _analiticaPropia.opt_out_capturing==='function')_analiticaPropia.opt_out_capturing();}catch(e){}
+    try{_analiticaPropia.reset();}catch(e){}
+  }
+}
 function track(event, params){
+  if(!analiticaPermitida())return;
   try{ if(typeof gtag==='function') gtag('event', event, params||{}); }catch(e){}
   conAnaliticaPropia(ph=>ph.capture(event, params||{}));
 }
@@ -68,6 +101,7 @@ function configAnaliticaPropia(){
 const MAX_COLA_ANALITICA=200;
 let _analiticaPropia=null,_analiticaPropiaEstado='sin-iniciar',_analiticaPropiaCola=[];
 function conAnaliticaPropia(f){
+  if(!analiticaPermitida())return;
   if(_analiticaPropiaEstado==='lista'){try{f(_analiticaPropia);}catch(e){}return;}
   if(_analiticaPropiaEstado==='falló'||!analiticaPropiaActiva())return;
   if(_analiticaPropiaCola.length<MAX_COLA_ANALITICA)_analiticaPropiaCola.push(f);
@@ -75,6 +109,8 @@ function conAnaliticaPropia(f){
 function iniciarAnaliticaPropia(){
   if(_analiticaPropiaEstado!=='sin-iniciar')return;
   if(!analiticaPropiaActiva()){_analiticaPropiaCola=[];return;}
+  // En la app espera a activarAnaliticaApp(), sin marcarse como iniciada.
+  if(!analiticaPermitida())return;
   _analiticaPropiaEstado='cargando';
   const fallar=()=>{_analiticaPropiaEstado='falló';_analiticaPropiaCola=[];};
   try{
@@ -111,6 +147,7 @@ function propsAnaliticaCuenta(){
 }
 function identificarAnalitica(){
   if(!currentUser||!currentUser.id)return;
+  activarAnaliticaApp();
   const uid=currentUser.id,props=propsAnaliticaCuenta();
   conAnaliticaPropia(ph=>{ph.identify(uid);ph.register(props);});
 }
@@ -123,5 +160,7 @@ function registrarEntradaAnalitica(evento,origen){
 }
 // Al cerrar sesión: la siguiente persona en este navegador parte de cero.
 function olvidarAnalitica(){
+  // En la app currentUser puede ya no estar: el reset no depende del permiso.
+  if(_analiticaPropiaEstado==='lista'&&_analiticaPropia){try{_analiticaPropia.reset();}catch(e){}return;}
   conAnaliticaPropia(ph=>ph.reset());
 }
