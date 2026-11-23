@@ -230,7 +230,7 @@ const declarables = run('carrerasDeclarables');
 chk('la oferta de pregrado completa de las dos universidades visibles',
   DECL.uc.length > 40 && DECL.fen.length === 3);
 chk('las que tienen malla siguen apuntando a su código',
-  DECL.uc.find(c => c.n === 'Ingeniería').malla === 'ING-PC' &&
+  DECL.uc.find(c => c.n === 'Ingeniería Civil').malla === 'ING-PC' &&
   DECL.fen.find(c => c.n === 'Ingeniería Comercial').malla === 'IC');
 // Contador Auditor conserva su malla en MALLA pero se sacó de la oferta a
 // propósito: se declara, no se carga. Reactivarla sería una decisión, no un
