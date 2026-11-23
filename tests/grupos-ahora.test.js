@@ -104,4 +104,27 @@ chk('Anotar sala acepta día y horas, y los valida',()=>{
   assert.match(f,/function abrirReservaNueva\(id,pre=\{\}\)/);assert.match(f,/pre\.fecha>=hoy&&pre\.fecha<=max/);
   assert.match(f,/abrirReservaNueva\(id,\{fecha:b\.dataset\.fecha,inicio:b\.dataset\.inicio,fin:b\.dataset\.fin\}\)/);
 });
+
+console.log('\n=== Novedades del grupo ===');
+run(`S.ramos=[{id:'r1',nombre:'Curso Uno',sigla:'SYN101',horario:[{dias:['W'],inicio:'10:00',fin:'11:10'}],categorias:[{id:'c1',nombre:'Interrogación 2',peso:25,directNota:true,notas:[]},{id:'c2',nombre:'Controles',peso:20,slots:3,notas:[{id:'n1',slot:0,valor:null}]}],gates:[]}];`);
+chk('encuentra tu evaluación por sigla y nombre (I2 = Interrogación 2)',()=>{
+  assert.equal(run(`evaluacionParaFecha({ramo:'Otro nombre',sigla:'syn101',nombre:'I2',fecha:'2099-03-04'})?.item.id`),'c1');
+  assert.equal(run(`evaluacionParaFecha({ramo:'Curso Uno',sigla:'SYN999',nombre:'Interrogación 2'})`),null,'otra sigla no es tu ramo');
+});
+chk('el hilo: sala con código, fecha con «Ponerla» si la tienes y quién entró',()=>{
+  const nov=[{id:'e1',tipo:'fecha',username:'beto',nombre:'Beto',yo:false,creado:new Date().toISOString(),datos:{ramo:'Curso Uno',sigla:'SYN101',nombre:'Interrogación 2',fecha:'2099-03-04',hora:'18:30'}},
+    {id:'e2',tipo:'sala',username:'beto',nombre:'Beto',yo:false,creado:new Date().toISOString(),datos:{reserva:'r9',lugar:'Sala 9',fecha:'2099-03-03',inicio:'12:10',fin:'14:00',codigo:'4821'}},
+    {id:'e3',tipo:'fecha',username:'dani',nombre:'Dani',yo:false,creado:new Date().toISOString(),datos:{ramo:'Otro',sigla:'SYN777',nombre:'Control 4',fecha:'2099-03-05',hora:null}},
+    {id:'e4',tipo:'union',username:'dani',nombre:'Dani',yo:false,creado:new Date().toISOString(),datos:{}}];
+  const h=run(`novedadesGrupoHTML({id:'g1',nov:__d})`,nov);
+  assert.match(h,/Fecha nueva · Beto/);assert.match(h,/Sala reservada · Beto/);assert.equal((h.match(/data-amigos="grupo-ponerla"/g)||[]).length,1,'solo donde tienes la evaluación');
+  assert.match(h,/Código <b>4821<\/b>/);assert.match(h,/Nuevo en el grupo<\/small><b>Dani<\/b>/);
+  run(`S.ramos[0].categorias[0].fecha='2099-03-04';S.ramos[0].categorias[0].hora='18:30';`);
+  assert.match(run(`novedadesGrupoHTML({id:'g1',nov:__d})`,nov),/Ya está en tu Agenda/);
+});
+chk('sin novedades lo dice; «Ponerla» guarda como decisión tuya',()=>{
+  assert.match(run(`novedadesGrupoHTML({id:'g1',nov:[]})`),/Todavía no hay novedades/);
+  const f=fs.readFileSync(raiz+'src/app/amigos-pantalla.js','utf8');
+  assert.match(f,/marcarFechaUsuario\(actual\.item,f,h\)/);assert.match(f,/rpcAmigos\('grupo_novedades'[^)]*\)\.catch\(\(\)=>null\)/);
+});
 console.log(`\nPASS: ${ok}`);

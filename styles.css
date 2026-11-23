@@ -6594,14 +6594,12 @@ html.app-nativa .grupo-actividad-titulo h2{margin:0;font-size:1rem;}
 html.app-nativa .grupo-actividad>p{margin:1rem;line-height:1.45;color:var(--fg2);}
 html.app-nativa .grupo-hilo,html.app-nativa .grupo-hilo ul{list-style:none;padding:0;margin:0;}
 html.app-nativa .grupo-hilo{padding:0 1rem;}
-/* Lo que viene es una agenda, no un chat (Lucas, 2026-11-22): días como en la
-   Agenda y filas a lo ancho, todas alineadas igual. */
-html.app-nativa .grupo-hilo h3{margin:1rem 0 .4rem;padding:0;font-size:.8125rem;font-weight:600;letter-spacing:.02em;color:var(--fg2);background:none;}
-html.app-nativa .grupo-hilo li li{margin:0;}
-html.app-nativa .grupo-hilo ul{border:1px solid var(--border);border-radius:12px;background:var(--celda-agrupada);overflow:hidden;}
-html.app-nativa .grupo-hilo ul>li+li{border-top:1px solid var(--border);}
-html.app-nativa .grupo-mensaje{display:flex;align-items:center;gap:.75rem;width:100%;border:0;border-radius:0;background:transparent;color:var(--fg);padding:.7rem .9rem;text-align:left;font:inherit;overflow-wrap:anywhere;}
-html.app-nativa .grupo-mensaje>span:not(.cal-icono){flex:1;min-width:0;}
+/* Novedades como mensajes (Lucas, 2026-11-22): lo tuyo a la derecha. */
+html.app-nativa .grupo-hilo h3{width:fit-content;margin:1rem auto .8rem;padding:.3rem .7rem;border-radius:1rem;font-size:.8125rem;font-weight:600;color:var(--fg2);background:var(--muted);}
+html.app-nativa .grupo-hilo li li{margin:.45rem 0;}
+html.app-nativa .grupo-hilo li li:has(.grupo-mensaje-mio){display:flex;flex-direction:column;align-items:flex-end;}
+html.app-nativa .grupo-mensaje{display:flex;align-items:flex-start;gap:.65rem;width:fit-content;max-width:100%;border:1px solid var(--border);border-radius:16px 16px 16px 4px;background:var(--bg2);color:var(--fg);padding:.75rem .9rem;text-align:left;font:inherit;overflow-wrap:anywhere;}
+html.app-nativa .grupo-mensaje.grupo-mensaje-mio{border-radius:16px 16px 4px 16px;background:var(--primary-light);}
 
 html.app-nativa .grupo-mensaje .cal-icono{flex:none;}
 html.app-nativa .grupo-mensaje b,html.app-nativa .grupo-mensaje small,html.app-nativa .grupo-mensaje>span>span,html.app-nativa .grupo-mensaje>div>span{display:block;}
@@ -6639,10 +6637,12 @@ html.app-nativa .grupo-caras-fila .amigo-avatar{position:relative;width:36px;hei
 html.app-nativa .grupo-caras-fila button.amigo-avatar::after{content:'';position:absolute;inset:-4px;}
 html.app-nativa .grupo-caras-mas{display:grid;place-items:center;min-width:36px;height:36px;font-size:.8125rem;color:var(--fg2);}
 html.app-nativa .grupo-nota{margin:0 1rem;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
-html.app-nativa .grupo-estudiar{display:inline-flex;align-items:center;min-height:44px;margin:-.4rem 0 0 3.6rem;padding:0 .2rem;border:0;background:none;color:var(--primary);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer;}
+html.app-nativa .grupo-estudiar{display:inline-flex;align-items:center;min-height:44px;margin:.1rem 0 0 .9rem;padding:0 .2rem;border:0;background:none;color:var(--primary);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer;}
 html.app-nativa .grupo-estudiar-principal{width:100%;margin:0 0 1.25rem;}
 html.app-nativa .grupo-para{margin:-.25rem 0 1rem;font-size:.9375rem;line-height:1.45;color:var(--fg2);}
 html.app-nativa .grupo-proximo{color:var(--primary);}
+html.app-nativa .grupo-ya{display:block;margin:.35rem 0 0 .9rem;font-size:.8125rem;color:var(--fg2);}
+html.app-nativa .grupo-hilo div.grupo-mensaje{cursor:default;}
 
 
 html.app-nativa [data-detalle-prueba] .grupo-cuando{margin:.5rem 0 1.4rem;color:var(--fg2);}
