@@ -116,7 +116,7 @@ function openSettings(){
       ${currentUser?`<div class="settings-account-access">
         <label class="modal-label" for="s-account-email">Correo de acceso</label>
         <div class="modal-input"><input type="email" id="s-account-email" value="${esc(currentUser.email||'')}" maxlength="60" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" aria-describedby="s-account-email-help s-account-email-status"/></div>
-        <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Se cambia al tiro. Revisa que esté bien escrito: con él entras y recuperas tu cuenta.</p>
+        <p class="settings-help" id="s-account-email-help" style="margin:7px 0 10px;">Te mandaremos un enlace a la dirección nueva para confirmarla. Revisa que esté bien escrita: con ella entras y recuperas tu cuenta.</p>
         <p id="s-account-email-status" role="alert" aria-live="polite" hidden style="margin:0 0 10px;font-size:0.75rem;line-height:1.4;"></p>
         <button type="button" class="settings-reset-btn" id="s-account-email-save" onclick="cambiarCorreoCuenta()">Cambiar correo</button>
       </div>`:''}
