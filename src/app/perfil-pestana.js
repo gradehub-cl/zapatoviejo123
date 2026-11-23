@@ -46,7 +46,7 @@ const PERFIL_ACCIONES={
   salir:()=>signOut()
 };
 // Qué filas ve esta cuenta. Función pura: recibe lo que necesita y no toca el DOM.
-function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas=false,conAmigos=false,conUsername=false}){
+function gruposPerfil({soloProfesor,hayRamos,conFicha,conHorario=false,conSesion,conCanvas=false,conAmigos=false,conUsername=false}){
   if(soloProfesor)return [
     ['La app',[['apariencia','Apariencia'],['sugerencias','Sugerencias y comentarios']]],
     ['Tu cuenta',[['datos','Datos y cuenta']]]
@@ -56,7 +56,7 @@ function gruposPerfil({soloProfesor,tenant,hayRamos,conFicha,conSesion,conCanvas
   if(hayRamos)semestre.push(['archivar','Archivar semestre']);
   const herramientas=[['calculadora','Calculadora de nota']];
   if(conFicha)herramientas.push(['ficha','Cargar semestres pasados']);
-  if(tenant==='uc')herramientas.push(['horario','Subir foto de tu horario']);
+  if(conHorario)herramientas.push(['horario','Subir foto de tu horario']);
   // Con username, compartir el perfil va al lado, como en Instagram.
   const cuenta=conAmigos?[['username','Username'],...(conUsername?[['compartir','Compartir perfil']]:[]),['datos','Datos y cuenta']]:[['datos','Datos y cuenta']];
   if(conSesion)cuenta.push(['profesor','Ofrecer clases o material']);
@@ -80,7 +80,9 @@ function renderPerfil(){
   if(!caja)return;
   const conSesion=typeof currentUser!=='undefined'&&!!currentUser;
   const grupos=gruposPerfil({
-    soloProfesor:esCuentaProfesor(),tenant:S.tenant,hayRamos:S.ramos.length>0,
+    soloProfesor:esCuentaProfesor(),hayRamos:S.ramos.length>0,
+    // Donde sabemos leer la foto (UC y FEN), igual que Agregar ramo y el menú.
+    conHorario:typeof HORARIO_FOTO_POR_TENANT!=='undefined'&&!!HORARIO_FOTO_POR_TENANT[S.tenant],
     conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible(),conSesion,
     conCanvas:typeof canvasSeccionDisponible==='function'&&canvasSeccionDisponible(),
     conAmigos:typeof amigosVisible==='function'&&amigosVisible(),

@@ -6,9 +6,9 @@
 // lanzamiento, lo nuevo va solo a la app.
 const ICONO_HERRAMIENTAS='<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>';
 // Qué herramientas ve esta cuenta. Función pura, como gruposPerfil.
-function herramientasInicio({tenant,conCanvas,conFicha}){
+function herramientasInicio({conHorario,conCanvas,conFicha}){
   const lista=[['calculadora','Calculadora de nota']];
-  if(tenant==='uc')lista.push(['horario','Subir foto del horario']);
+  if(conHorario)lista.push(['horario','Subir foto del horario']);
   if(conCanvas)lista.push(['canvas','Traer notas de Canvas']);
   if(conFicha)lista.push(['ficha','Cargar semestres pasados']);
   return lista;
@@ -21,7 +21,7 @@ const ACCIONES_HERRAMIENTAS={
 };
 function herramientasInicioDisponibles(){
   if(!(typeof enAppNativa==='function'&&enAppNativa())||esCuentaProfesor())return [];
-  return herramientasInicio({tenant:S.tenant,conCanvas:typeof canvasDisponible==='function'&&canvasDisponible(),
+  return herramientasInicio({conHorario:typeof HORARIO_FOTO_POR_TENANT!=='undefined'&&!!HORARIO_FOTO_POR_TENANT[S.tenant],conCanvas:typeof canvasDisponible==='function'&&canvasDisponible(),
     conFicha:typeof avanceCurricularDisponible==='function'&&avanceCurricularDisponible()});
 }
 // La llama renderHome: el botón se ve solo si hay herramientas para esta cuenta.
