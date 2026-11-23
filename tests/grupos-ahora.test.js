@@ -83,9 +83,10 @@ chk('libre ahora es estar en la u entre clases; el próximo bloque es el siguien
 chk('si nadie más comparte su horario, no aparece',()=>{
   assert.equal(run(`ahoraGrupoHTML({id:'g1',filas:__d})`,[filas[0],filas[3]]),'');
 });
-chk('Libres juntos: cada ventana anota una sala con día y horas ya puestos',()=>{
+chk('Libres juntos: cada ventana dice cuándo y con quiénes, sin acción',()=>{
   const h=run(`libresJuntosHTML({id:'g1',filas:__d},new Date('${lunes}'))`,filas);
-  assert.match(h,/Libres juntos/);assert.match(h,/data-amigos="reserva-nueva"[^>]*data-fecha="\d{4}-\d{2}-\d{2}" data-inicio="10:00" data-fin="11:00"/);
+  assert.match(h,/Libres juntos/);assert.match(h,/<b>[^<]+<\/b><span>10:00–11:00<\/span>/);
+  assert.ok(!/data-amigos=|<button/.test(h),'tocar una ventana no abre Anotar sala ni nada');
   assert.match(h,/Tú, Beto y Carla/);
   assert.ok(!/anotar una sala<\/span>|Anotar sala</.test(h),'«Anotar sala» se ve una sola vez, en Lo que viene');
 });
