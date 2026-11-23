@@ -68,7 +68,7 @@ create trigger amigos_evento_sala after insert on public.amigos_grupo_reservas
 create or replace function public.amigos_evento_union()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if old.estado = 'invitado' and new.estado = 'miembro' then
+  if new.estado='miembro' and new.invitado_por is not null and (tg_op='INSERT' or old.estado='invitado') then
     perform public.amigos_eventos_limpiar(new.grupo_id);
     insert into public.amigos_grupo_eventos(grupo_id, user_id, tipo) values (new.grupo_id, new.user_id, 'union');
   end if;
@@ -78,7 +78,7 @@ end;
 $$;
 revoke all on function public.amigos_evento_union() from public, anon, authenticated;
 drop trigger if exists amigos_evento_union on public.amigos_grupo_miembros;
-create trigger amigos_evento_union after update of estado on public.amigos_grupo_miembros
+create trigger amigos_evento_union after insert or update of estado on public.amigos_grupo_miembros
   for each row execute function public.amigos_evento_union();
 
 -- Salir del grupo (o que te saquen) se lleva tus eventos de ese grupo.

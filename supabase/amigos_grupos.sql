@@ -95,6 +95,7 @@ create or replace function public.amigos_grupo_invitar(p_grupo uuid, p_yo uuid, 
 returns text language plpgsql security definer set search_path = '' as $$
 declare otro uuid := public.amigos_resolver(p_username, p_yo);
 begin
+  perform 1 from public.amigos_grupos where id=p_grupo for update;
   if otro is null or otro = p_yo or not public.amigos_son_amigos(p_yo, otro) then
     raise exception 'solo puedes invitar a tus amigos';
   end if;
@@ -126,6 +127,7 @@ begin
   end if;
   if char_length(n) not between 1 and 40 then raise exception 'el nombre del grupo va de 1 a 40 caracteres'; end if;
   if public.amigos_texto_ofensivo(n) then raise exception 'ese nombre de grupo no está permitido'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(uid::text, 871));
   if (select count(*) from public.amigos_grupo_miembros where user_id = uid and estado = 'miembro') >= 10 then
     raise exception 'puedes estar en hasta 10 grupos';
   end if;
@@ -154,6 +156,7 @@ begin
     return false;
   end if;
   if coalesce(p_aceptar, false) then
+    perform pg_advisory_xact_lock(hashtextextended(uid::text, 871));
     if (select count(*) from public.amigos_grupo_miembros where user_id = uid and estado = 'miembro') >= 10 then
       raise exception 'puedes estar en hasta 10 grupos';
     end if;
@@ -261,11 +264,55 @@ begin
 end;
 $$;
 
+-- Cada integrante puede compartir una invitación de un uso. Al salir pierde el enlace.
+alter table public.amigos_grupo_miembros add column if not exists enlace uuid,
+  add column if not exists enlace_vence timestamptz;
+create unique index if not exists amigos_grupo_enlace_idx on public.amigos_grupo_miembros(enlace) where enlace is not null;
+
+create or replace function public.crear_enlace_grupo(p_grupo uuid)
+returns uuid language plpgsql security definer set search_path='' as $$
+declare uid uuid:=public.amigos_exigir_sesion(); token uuid;
+begin
+  update public.amigos_grupo_miembros set enlace=gen_random_uuid(), enlace_vence=now()+interval '7 days'
+    where grupo_id=p_grupo and user_id=uid and estado='miembro' returning enlace into token;
+  if token is null then raise exception 'no estás en ese grupo'; end if;
+  return token;
+end; $$;
+
+create or replace function public.abrir_enlace_grupo(p_enlace uuid,p_unirse boolean default false)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare uid uuid:=public.amigos_exigir_sesion(); g uuid; emisor uuid; nombre text; miembro boolean;
+begin
+  select m.grupo_id into g from public.amigos_grupo_miembros m where m.enlace=p_enlace;
+  select a.nombre into nombre from public.amigos_grupos a where a.id=g for update;
+  select m.user_id into emisor from public.amigos_grupo_miembros m where m.grupo_id=g and m.enlace=p_enlace
+    and m.enlace_vence>now() and m.estado='miembro' for update;
+  if emisor is null or not exists(select 1 from public.usernames where user_id=uid)
+    or (emisor<>uid and not public.amigos_misma_u(emisor,uid)) or public.amigos_grupo_bloqueo(g,uid)
+  then raise exception 'este enlace ya no está disponible para tu cuenta'; end if;
+  miembro:=public.amigos_es_miembro(g,uid);
+  if p_unirse and not miembro then
+    if not exists(select 1 from public.amigos_grupo_miembros where grupo_id=g and user_id=uid) then
+      if (select count(*) from public.amigos_grupo_miembros where grupo_id=g)>=15 then raise exception 'el grupo está lleno'; end if;
+      perform pg_advisory_xact_lock(hashtextextended(uid::text,871));
+      if (select count(*) from public.amigos_grupo_miembros where user_id=uid and estado='miembro')>=10 then
+        raise exception 'puedes estar en hasta 10 grupos';
+      end if;
+      insert into public.amigos_grupo_miembros(grupo_id,user_id,invitado_por,estado) values(g,uid,emisor,'miembro');
+    else
+      if not public.responder_grupo(g,true) then raise exception 'vuelve a abrir la invitación'; end if;
+    end if;
+    update public.amigos_grupo_miembros set enlace=null,enlace_vence=null where enlace=p_enlace;
+    miembro:=true;
+  end if;
+  return jsonb_build_object('nombre',nombre,'id',case when miembro then g end);
+end; $$;
+
 do $$
 declare f text;
 begin
   foreach f in array array[
-    'crear_grupo(text, text[])', 'invitar_a_grupo(uuid, text)', 'responder_grupo(uuid, boolean)', 'salir_de_grupo(uuid)',
+    'crear_enlace_grupo(uuid)', 'abrir_enlace_grupo(uuid, boolean)', 'crear_grupo(text, text[])', 'invitar_a_grupo(uuid, text)', 'responder_grupo(uuid, boolean)', 'salir_de_grupo(uuid)',
     'quitar_de_grupo(uuid, text)', 'renombrar_grupo(uuid, text)', 'mis_grupos()', 'grupo_detalle(uuid)']
   loop
     execute format('revoke all on function public.%s from public, anon', f);

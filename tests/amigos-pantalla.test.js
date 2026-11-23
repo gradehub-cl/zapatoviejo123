@@ -57,8 +57,8 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   console.log('\n=== Ficha de grupo ===');
   run(`amigosGruposDisponible=true;amigosGruposCache=[{id:'g1',nombre:'Estudio & repaso',estado:'miembro',miembros:2}];
     amigosListaCache=[];S.ramos=[];`);
-  chk('sin amigos se conservan los grupos existentes y no se ofrece crear otro',
-    /Estudio &amp; repaso/.test(run('seccionGruposHTML()'))&&!/grupo-nuevo/.test(run('seccionGruposHTML()')));
+  chk('sin amigos se puede crear un grupo para invitar por enlace',
+    /Estudio &amp; repaso/.test(run('seccionGruposHTML()'))&&/grupo-nuevo/.test(run('seccionGruposHTML()')));
   run(`amigosListaCache=[{estado:'amigos',username:'beto_ej',nombre:'Beto'}];`);
   chk('con amigos aparece la acción para crear y el selector tiene etiquetas',
     /Crear grupo/.test(run('seccionGruposHTML()'))&&/role="status"[\s\S]*<label class="amigos-elegir"/.test(run('elegirAmigosHTML([])')));
@@ -229,6 +229,12 @@ const cliente=resp=>run(`currentUser={id:'00000000-0000-4000-8000-000000000001'}
   console.log('\n=== El link de invitación abre la app ===');
   ctx.URL=URL;const guardados=[];const setOriginal=ctx.sessionStorage.setItem;ctx.sessionStorage.setItem=(k,v)=>guardados.push([k,v]);
   chk('gradehub.cl/?amigo= se recibe y se guarda para «Agregar»',run(`recibirLinkAmigo('https://gradehub.cl/?amigo=Beto_Ej')`)===true&&guardados.at(-1)[1]==='beto_ej');
+  const tokenEnlace='10000000-0000-4000-8000-000000000001';
+  for(const prefijo of ['https://gradehub.cl/unirse#','cl.gradehub.app://grupo#']){
+    chk('el enlace de grupo queda pendiente antes de entrar',ctx.recibirLinkAmigo(prefijo+tokenEnlace)&&guardados.at(-1)[1]===tokenEnlace);
+  }
+  chk('rechaza un enlace de grupo ajeno o incompleto',!ctx.recibirLinkAmigo('https://otro.cl/unirse#'+tokenEnlace)&&!ctx.recibirLinkAmigo('https://gradehub.cl/unirse#incompleto'));
+  run('enlaceGrupoPendiente=null');
   chk('con @ también',run(`recibirLinkAmigo('https://gradehub.cl/?amigo=%40ana.s')`)===true&&guardados.at(-1)[1]==='ana.s');
   chk('otro dominio, otra ruta o un username raro no',[`'https://otro.cl/?amigo=beto'`,`'https://gradehub.cl/x?amigo=beto'`,`'https://gradehub.cl/?amigo=a'`,`'https://gradehub.cl/?amigo=<b>'`,`'https://gradehub.cl/'`,`'cl.gradehub.app://amigos'`,`null`].every(x=>run(`recibirLinkAmigo(${x})`)===false));
   ctx.sessionStorage.setItem=setOriginal;
