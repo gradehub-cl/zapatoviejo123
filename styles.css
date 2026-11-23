@@ -2393,6 +2393,70 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .excel-asignar li{flex-wrap:wrap;padding:6px 0;}
 .excel-asignar select{min-height:44px;flex:1 1 160px;max-width:100%;}
 
+/* Arma tu próximo semestre (solo app, UC). El semáforo marca solo el estado de
+   requisitos (cumple / depende / falta) con un punto, no tiñe la fila. */
+.px-label{display:block;margin:12px 0 6px;font-size:0.75rem;font-weight:600;color:var(--fg2);}
+.px-buscar{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-size:1rem;}
+.px-buscar:focus-visible{outline:2px solid var(--primary);outline-offset:1px;}
+.px-resultados:empty{display:none;}
+.px-resultados{margin-top:4px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.px-resultado{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:8px 12px;border:0;border-bottom:1px solid var(--border);background:var(--card);color:var(--fg);font:inherit;font-size:0.875rem;text-align:left;cursor:pointer;}
+.px-resultado:last-child{border-bottom:0;}
+.px-resultado:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+@media(hover:hover){.px-resultado:hover{background:color-mix(in srgb,var(--fg) 5%,var(--card));}}
+.px-sigla{font-weight:700;font-variant-numeric:tabular-nums;color:var(--fg);white-space:nowrap;}
+.px-nombre{flex:1;min-width:0;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.px-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.px-chip{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:22px;background:var(--card);color:var(--fg);font:inherit;font-size:0.8125rem;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;}
+.px-chip:focus-visible,.px-dia:focus-visible,.px-quitar:focus-visible,.px-enlace:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.px-ramos{list-style:none;margin:12px 0 0;padding:0;}
+.px-ramo{padding:10px 0;border-bottom:1px solid var(--border);}
+.px-ramo-cab{display:flex;align-items:center;gap:10px;min-height:44px;}
+.px-quitar{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin-right:-10px;border:0;border-radius:10px;background:none;color:var(--fg3);cursor:pointer;}
+.px-quitar .ic{width:18px;height:18px;}
+.px-req{display:flex;align-items:baseline;gap:8px;margin:2px 0 0;font-size:0.8125rem;line-height:1.4;color:var(--fg);}
+.px-punto{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--fg3);transform:translateY(-1px);}
+.px-ok .px-punto{background:var(--green);}
+.px-borde .px-punto{background:var(--yellow);}
+.px-falta .px-punto{background:var(--red);}
+.px-neutro{color:var(--fg2);}
+.px-req-detalle{margin:4px 0 0 16px;font-size:0.75rem;line-height:1.4;color:var(--fg2);}
+.px-enlace{min-height:44px;margin-left:16px;padding:0;border:0;background:none;color:var(--primary);font:inherit;font-size:0.8125rem;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.px-req .px-enlace{margin-left:4px;min-height:auto;padding:12px 0;}
+.px-catalogo{margin:4px 0 0 16px;font-size:0.75rem;color:var(--fg2);}
+.px-catalogo summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--fg2);}
+.px-catalogo p{margin:0 0 6px;line-height:1.5;overflow-wrap:anywhere;}
+.px-nota{margin:12px 0;font-size:0.75rem;line-height:1.45;color:var(--fg3);}
+.px-vacio{margin:16px 0;font-size:0.875rem;line-height:1.5;color:var(--fg2);}
+.px-oculto{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.px-num{font-variant-numeric:tabular-nums;}
+.px-dias{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.px-dias .px-label{margin:0 6px 0 0;}
+.px-dia{min-width:44px;min-height:44px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--fg);font:inherit;font-size:0.8125rem;font-weight:600;cursor:pointer;}
+.px-dia[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--card);}
+.px-opcion{margin:14px 0;padding:12px 10px;border:1px solid var(--border);border-radius:14px;background:var(--card);}
+.px-opcion-titulo{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 10px;font-size:0.9375rem;font-weight:700;color:var(--fg);}
+.px-resumen{font-size:0.75rem;font-weight:500;color:var(--fg2);}
+.px-grilla{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:2px;font-size:0.6875rem;font-variant-numeric:tabular-nums;}
+.px-grilla th{font-weight:600;color:var(--fg3);text-align:center;padding:2px 0;}
+.px-grilla thead th:first-child,.px-grilla tbody th{width:34px;}
+.px-grilla tbody th{text-align:right;padding-right:3px;font-weight:500;font-size:0.625rem;}
+.px-grilla td{height:30px;padding:0 1px;border-radius:6px;background:color-mix(in srgb,var(--fg) 4%,transparent);text-align:center;color:var(--fg);font-size:0.625rem;font-weight:600;letter-spacing:-0.01em;line-height:1.15;white-space:nowrap;overflow:hidden;}
+.px-grilla td.px-fija{background:color-mix(in srgb,var(--primary) 18%,var(--card));}
+.px-grilla td.px-ayu{background:var(--card);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 45%,transparent);}
+.px-grilla td.px-tope{box-shadow:inset 0 0 0 2px var(--yellow);}
+.px-leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 0;font-size:0.6875rem;color:var(--fg3);}
+.px-leyenda span{display:inline-flex;align-items:center;gap:6px;}
+.px-leyenda i{display:inline-block;width:12px;height:12px;border-radius:3px;}
+.px-leyenda .px-fija{background:color-mix(in srgb,var(--primary) 18%,var(--card));}
+.px-leyenda .px-ayu{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--primary) 45%,transparent);}
+.px-secciones{list-style:none;margin:10px 0 0;padding:0;font-size:0.8125rem;line-height:1.45;color:var(--fg2);}
+.px-secciones li{padding:6px 0;border-top:1px solid var(--border);}
+.px-nrc{color:var(--fg3);white-space:nowrap;}
+.px-otras{font-size:0.75rem;color:var(--fg3);}
+.px-avisos{margin:8px 0 0;padding-left:18px;font-size:0.75rem;line-height:1.45;color:var(--fg2);}
+.px-copiar{display:block;width:100%;margin-top:10px;}
+
 /* Solo se renderiza si hay al menos una pauta oficial. Un "0 pautas oficiales"
    como titular haría ver el producto vacío justo cuando recién se llenó. */
 

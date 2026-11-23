@@ -5,6 +5,7 @@
     "src/app/amigos-horario.js",
     "src/app/armador-horario.js",
     "src/app/requisitos-uc.js",
+    "src/app/proximo-semestre.js",
     "src/app/persistencia-y-normalizacion.js",
     "src/app/identidad.js",
     "src/app/catalogo-carga.js",
