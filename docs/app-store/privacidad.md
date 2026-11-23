@@ -70,7 +70,7 @@ antes de responder en App Store Connect. Esto no certifica el proyecto desplegad
 | User Content → **Customer Support** | Sugerencias y comentarios enviados desde Ajustes | App Functionality | `supabase/user_feedback.sql`, `src/app/feedback-enviar.js` |
 | User Content → **Photos or Videos** | Solo cuentas de profesor particular: logo y flyer del aviso | App Functionality | bucket `tutor-flyers` en `src/marketplace/logo-y-seleccion-apoyo.js` |
 | Identifiers → **User ID** | UUID de la cuenta en Supabase, el identificador Apple usado por Auth y el **username** de Amigos (Apple cuenta un *screen name / handle* como User ID) | App Functionality; Analytics | todas las tablas con `user_id`; `supabase/visitas_diarias.sql` |
-| Usage Data → **Product Interaction** | Días en que la cuenta abrió la app; visitas a encuestas; creación, último uso y vencimiento de agentes conectados | Analytics; App Functionality | `supabase/visitas_diarias.sql`, `encuesta_visitas` en `supabase/encuestas.sql`, `supabase/agente_mcp.sql` |
+| Usage Data → **Product Interaction** | Días en que la cuenta abrió la app; visitas a encuestas; creación, último uso y vencimiento de agentes conectados; eventos de PostHog con el identificador técnico de la cuenta (#1219) | Analytics; App Functionality | `supabase/visitas_diarias.sql`, `encuesta_visitas` en `supabase/encuestas.sql`, `supabase/agente_mcp.sql`, `src/app/analitica.js` (`identify`) |
 | Usage Data → **Advertising Data** | Qué clase particular vio la cuenta, el día y si llegó por recomendación/búsqueda/catálogo (para cobrar una vez por persona) | Third-Party Advertising *(conservador; ver nota)*; Analytics | `anuncio_interacciones`, `anuncio_alcance` en `supabase/clases_particulares.sql`; `supabase/anuncio_eventos.sql` |
 | Diagnostics → **Other Diagnostic Data** | Tipo de error, pantalla y versión, asociados a la cuenta | App Functionality | `supabase/errores_app.sql`, `src/app-session/errores.js` |
 | Other Data → **Other Data Types** | Universidad, carrera, semestre, generación (año de ingreso); edad elegida en cuentas antiguas | App Functionality; Analytics | `profiles` (`src/app-session/perfil-y-legal.js`), `supabase/edad_declarada.sql` |
@@ -90,6 +90,7 @@ La pestaña Amigos (solo en la app; `supabase/amigos.sql`, `amigos_grupos.sql`,
 Content y User ID, que ya se declaran como vinculados y para App Functionality.
 El calendario de grupos (salas reservadas y fechas de pruebas, sin notas) también
 cae en Other User Content.
+**Manifiesto de la app:** desde #1267, `ios/App/App/PrivacyInfo.xcprivacy` declara los mismos tipos y propósitos de esta página, incluidos Device ID y Coarse Location. Si cambia uno, cambia el otro.
 **Avisos push (opt-in):** el token APNs del iPhone se guarda asociado a la cuenta
 (`push_dispositivos`) solo para mandar avisos. Apple no lo pide como tipo de dato
 propio; lo conservador es incluirlo en *Identifiers → Device ID* vinculado y para
