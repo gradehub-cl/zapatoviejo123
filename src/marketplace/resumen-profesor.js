@@ -18,6 +18,17 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
       anuncios=anuncios.map(a=>a.estado==='borrador'?{...a,comentario_revision_error:true}:a);
     }
   }
+  // Cambios que el profesor envió a revisión sobre un anuncio publicado
+  // (profesor_editar_anuncio.sql). Sin el SQL, la consulta falla y no se muestra nada.
+  if(anuncios.some(a=>['publicado','pausado'].includes(a.estado))){
+    try{
+      const {data,error}=await supabaseClient.from('tutor_anuncio_ediciones').select('anuncio_id,datos,estado,comentario,enviada_at');
+      if(!error&&Array.isArray(data)){
+        const porAnuncio=new Map(data.map(e=>[e.anuncio_id,e]));
+        anuncios=anuncios.map(a=>porAnuncio.has(a.id)?{...a,edicion_propia:porAnuncio.get(a.id)}:a);
+      }
+    }catch(e){}
+  }
   let ediciones=[];
   try{
     const {data,error}=await supabaseClient.rpc('mis_anuncios_editados_gradehub');
@@ -43,6 +54,7 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const agotados=g.cerrados.filter(a=>vigenciaAnuncio(a,ahora)==='agotado');
   const pendientesHTML=[
     ...devueltos.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Devuelto · ${esc(a.comentario_revision)}</small></span>${compras?`<button type="button" class="agent-refresh" data-editar="${esc(a.id)}">Revisar</button>`:''}</li>`),
+    ...anuncios.filter(a=>a.edicion_propia&&a.edicion_propia.estado==='rechazada').map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Cambios no aprobados · ${esc(a.edicion_propia.comentario||'')}</small></span>${compras?`<button type="button" class="agent-refresh" data-editar-publicado="${esc(a.id)}">Revisar</button>`:''}</li>`),
     ...porVencer.map(a=>{const d=enDias(a);return `<li><span><b>${esc(a.titulo||'Sin título')}</b><small>${d<=1?'Campaña por vencer · hasta mañana':`Campaña por vencer · ${d} días`}</small></span><button type="button" class="agent-refresh" data-cr-ver="${esc(a.id)}">Ver campaña</button></li>`;}),
     ...agotados.map(a=>`<li><span><b>${esc(a.titulo||'Sin título')}</b><small>Tope alcanzado</small></span><button type="button" class="agent-refresh" data-cr-ver="${esc(a.id)}">Ver campaña</button></li>`),
     ...ediciones.map(e=>{const a=anuncios.find(a=>a.id===e.anuncio_id);const fecha=new Date(e.editado_at).toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric',timeZone:'America/Santiago'});return `<li data-aviso-edicion="${esc(a.id)}"><span><b>${esc(a.titulo||'Sin título')}</b><small>GradeHub editó tu anuncio · ${esc(fecha)}</small></span><button type="button" class="agent-refresh" data-ver-edicion="${esc(a.id)}">Ver anuncio</button></li>`;}),
@@ -138,7 +150,12 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   raiz.querySelectorAll('[data-editar]').forEach(b=>
     b.addEventListener('click',async()=>{await mostrarEdicion(b.dataset.editar);renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null);}));
   raiz.querySelectorAll('[data-editar-publicado]').forEach(b=>
-    b.addEventListener('click',()=>{const a=anuncios.find(a=>a.id===b.dataset.editarPublicado);if(a)renderBorradorProfesor(raiz,a,{propio:true});}));
+    b.addEventListener('click',()=>{
+      const a=anuncios.find(a=>a.id===b.dataset.editarPublicado);if(!a)return;
+      // El editor parte de lo que ya envió a revisión, si hay algo.
+      const e=a.edicion_propia;
+      renderBorradorProfesor(raiz,e&&e.datos&&typeof e.datos==='object'?{...a,...e.datos,edicion_estado:e.estado}:a,{propio:true});
+    }));
   raiz.querySelectorAll('[data-pausar]').forEach(b=>
     b.addEventListener('click',()=>pausarAnuncioClase(b.dataset.pausar,repintar)));
   // Volver a publicar = volver a borrador y abrirlo: el anuncio pasa por

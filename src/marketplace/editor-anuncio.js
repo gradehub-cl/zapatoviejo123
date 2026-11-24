@@ -1,8 +1,10 @@
 
 function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profesor=null,volverAdmin=null,propio=false}={}){
   // propio: el profesor corrige su anuncio publicado o pausado (Lucas,
-  // 2026-11-24). Se guarda como la edición de GradeHub (sin revisión, sin
-  // tocar publicación ni campaña), con profesor_editar_anuncio.
+  // 2026-11-24). Los cambios van a revisión (profesor_editar_anuncio) y el
+  // anuncio se sigue mostrando como estaba hasta que GradeHub los aprueba;
+  // nunca tocan publicación, campaña ni medición. `anuncio` llega con la
+  // propuesta anterior ya aplicada, si había una.
   propio=!admin&&!!propio&&!!(anuncio&&anuncio.id);
   const edicion=admin||propio;
   // El editor configura la campaña y su costo: en la app no se abre (3.1.1,
@@ -17,7 +19,7 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
   raiz.innerHTML='<div class="profesor-hig profesor-hig-editor">'+
     `<button type="button" class="profesor-volver" id="pr-volver"><span aria-hidden="true">‹</span> ${admin?'Anuncios':pendiente?'Volver':'Tus anuncios'}</button>`+
     cabeceraProfesorHTML(admin?`Editando el anuncio de ${profesor&&profesor.nombre||'este profesor'}`:propio?'Edita tu anuncio.':id?'Edita tu borrador.':'Prepara tu clase.',
-    admin?'Corrige el anuncio y revisa cómo se verá. El profesor recibirá un aviso al guardar.':propio?'Los cambios se ven al tiro, sin volver a revisión. Su público, su campaña y sus números no cambian.':pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo',admin?'ADMINISTRACIÓN':undefined)+`
+    admin?'Corrige el anuncio y revisa cómo se verá. El profesor recibirá un aviso al guardar.':propio?'Tus cambios pasan por revisión. Mientras, los estudiantes siguen viendo la versión actual. Su público, su campaña y sus números no cambian.':pendiente?'Puedes guardar tu anuncio mientras revisamos tu postulación. Nadie lo verá todavía.':'Nada se publica al guardar. Completa tu clase, revisa el público y luego envíala a revisión.','',raiz.id==='modal-content'?'modal-titulo':'profesor-titulo',admin?'ADMINISTRACIÓN':undefined)+`
     ${anuncio&&anuncio.comentario_revision?`<div class="clase-comentario-revision"><strong>Cambios pedidos en la revisión</strong><p>${esc(anuncio.comentario_revision)}</p></div>`:''}
     <form class="profesor-form" id="profesor-borrador">
       <!-- Campos y vista previa van juntos para que la vista previa, sticky en
@@ -109,8 +111,8 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
       </section>
       </div>
       <div class="profesor-form-acciones">
-      <div class="modal-btns"><button class="${edicion?'accion-principal':pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">${edicion?'Guardar cambios':'Guardar borrador'}</button>${edicion||pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
-      <p class="profesor-estado" role="status" aria-live="polite">${edicion?'Los cambios se guardan en este anuncio, sin cambiar su publicación ni su campaña.':id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
+      <div class="modal-btns"><button class="${edicion?'accion-principal':pendiente?'btn-confirm':'btn-cancel'}" id="pr-guardar" type="button">${propio?'Enviar cambios a revisión':edicion?'Guardar cambios':'Guardar borrador'}</button>${edicion||pendiente?'':'<button class="btn-confirm" id="pr-enviar" type="button">Enviar a revisión</button>'}</div>
+      <p class="profesor-estado" role="status" aria-live="polite">${propio?(anuncio.edicion_estado==='rechazada'?'Corrige lo que te pedimos y vuelve a enviarlo.':anuncio.edicion_estado==='pendiente'?'Ya tienes cambios en revisión. Lo que envíes ahora se suma a esos.':'Se publican cuando los aprobemos, sin cambiar su campaña.'):edicion?'Los cambios se guardan en este anuncio, sin cambiar su publicación ni su campaña.':id?'Borrador recuperado. Puedes seguir editándolo.':'Completa la clase para guardar el primer borrador.'}</p>
       </div>
     </form></div>`;
   const form=raiz.querySelector('#profesor-borrador'),campo=id=>form.querySelector('#pr-'+id),estado=form.querySelector('.profesor-estado');
@@ -447,14 +449,16 @@ function renderBorradorProfesor(raiz,anuncio,{pendiente=false,admin=false,profes
         try{
           const {data,error}=await supabaseClient.rpc(propio?'profesor_editar_anuncio':'admin_editar_anuncio',{p_anuncio_id:id,p_datos:cambios});
           if(error){estado.textContent=sqlClasesDesactualizado(error)?(propio?'Todavía no se pueden editar anuncios publicados. Escríbenos y lo corregimos nosotros.':'Aplica administradores.sql para editar anuncios desde acá.'):'No pudimos guardar los cambios. Revisa los datos e intenta de nuevo.';return;}
+          if(data!==true&&propio){sinGuardar=false;await volverAdmin();if(typeof showToast==='function')showToast('Quedó igual que lo publicado: no hay cambios por revisar');return;}
           if(data!==true){estado.textContent=propio?'No hubo cambios. Si esperabas guardar algo, vuelve a Tus anuncios y ábrelo de nuevo.':'No hubo cambios. Si esperabas guardar algo, vuelve a Anuncios y abre el anuncio de nuevo.';return;}
           sinGuardar=false;
           await volverAdmin();
-          if(typeof showToast==='function')showToast('Anuncio actualizado');
+          if(typeof showToast==='function')showToast(propio?'Cambios enviados a revisión':'Anuncio actualizado');
         }catch(e){estado.textContent='No pudimos guardar los cambios. Revisa tu conexión e intenta de nuevo.';}
         finally{procesando=false;if(campo('guardar')&&campo('guardar').isConnected)campo('guardar').disabled=false;}
       };
-      if(anuncio.estado==='publicado')showConfirm('¿Guardar los cambios?','Los estudiantes verán los cambios al tiro.',guardar,{label:'Guardar cambios',danger:false});
+      if(propio)showConfirm('¿Enviar los cambios a revisión?','Mientras los revisamos, los estudiantes siguen viendo la versión actual. Su campaña y sus números no cambian.',guardar,{label:'Enviar a revisión',danger:false});
+      else if(anuncio.estado==='publicado')showConfirm('¿Guardar los cambios?','Los estudiantes verán los cambios al tiro.',guardar,{label:'Guardar cambios',danger:false});
       else await guardar();
       return;
     }
