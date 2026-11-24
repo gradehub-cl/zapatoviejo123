@@ -6801,3 +6801,16 @@ button.amigos-cifra:active{opacity:.55;}
   .app-nativa button:active,.app-nativa #modal button:active,.app-nativa .confirm-overlay.open .confirm-box{transform:none;}
   .app-nativa::view-transition-group(root),.app-nativa::view-transition-old(root),.app-nativa::view-transition-new(root){animation:none;}
 }
+
+/* Clases · anuncios del profesor. Comparte la barra y filtros de Admin. */
+.profesor-hig .profesor-anuncios{--est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:var(--border);margin-top:0;border-radius:8px;padding:12px}
+.profesor-anuncios .adm-seg{border-radius:8px}
+.profesor-anuncios .adm-seg button{min-width:44px;min-height:44px;border-radius:8px}
+.profesor-anuncios .admin-hig-herramientas :is(input,select){border-radius:8px;color:var(--fg)}
+.profesor-anuncios .admin-hig-herramientas input::placeholder{color:var(--fg2)}
+.profesor-anuncios .profesor-anuncios-estado{margin:0 0 8px;color:var(--fg2);font-size:.8125rem;font-variant-numeric:tabular-nums}
+.profesor-anuncios [data-profesor-banner]{margin:0 0 8px;border-radius:10px;border-top:0}
+.profesor-anuncios [data-profesor-banner][hidden]{display:none}
+.profesor-anuncios .clase-apoyo-abrir{min-height:44px}
+.profesor-anuncios .clase-apoyo-logo{margin-inline-end:14px}
+.profesor-anuncios .profesor-hig-fila>summary{min-height:44px}
