@@ -933,6 +933,8 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .clase-apoyo-cerrar{flex:none;display:flex;align-items:center;justify-content:center;width:44px;border:0;background:none;color:var(--fg3);cursor:pointer;}
 .clase-apoyo-cerrar .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
 .ramo-reordering .clase-apoyo{display:none;}
+/* Lista de anuncios activos en Apoyo (app): el mismo banner, suelto. */
+.directorio-banners .clase-apoyo{margin:0 0 8px;border-radius:10px;border-top:0;}
 /* La clase como casilla de la grilla (Inicio en escritorio y la vista previa
    del profesor). El puente cruza el espacio entre columnas con el mismo tinte;
    la etiqueta va encima del título y "Ver clase" a la altura de la barra del
