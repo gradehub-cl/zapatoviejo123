@@ -11,7 +11,7 @@ function filasAnunciosProfesor(g,ahora){
   for(const [lista,vista] of [[g.activos,'activas'],[g.programados,'activas'],[g.revision,'revision'],
     [g.borradores,'revision'],[g.cerrados,'historial'],[g.sinConfirmar,'historial']]){
     for(const a of lista){
-      const cambios=a.estado==='publicado'&&['pendiente','rechazada'].includes(a.edicion_propia?.estado);
+      const cambios=['publicado','pausado'].includes(a.estado)&&['pendiente','rechazada'].includes(a.edicion_propia?.estado);
       filas.push({a,vista,cambios,estado:vigenciaAnuncio(a,ahora),
         texto:normalizarBusquedaClase([a.titulo,...(a.ramos_siglas||[])].join(' '))});
     }
