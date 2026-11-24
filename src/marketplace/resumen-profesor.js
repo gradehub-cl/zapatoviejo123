@@ -137,6 +137,8 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   raiz.querySelector('[data-cr-crear]')?.addEventListener('click',()=>renderBorradorProfesor(raiz,null));
   raiz.querySelectorAll('[data-editar]').forEach(b=>
     b.addEventListener('click',async()=>{await mostrarEdicion(b.dataset.editar);renderBorradorProfesor(raiz,anuncios.find(a=>a.id===b.dataset.editar)||null);}));
+  raiz.querySelectorAll('[data-editar-publicado]').forEach(b=>
+    b.addEventListener('click',()=>{const a=anuncios.find(a=>a.id===b.dataset.editarPublicado);if(a)renderBorradorProfesor(raiz,a,{propio:true});}));
   raiz.querySelectorAll('[data-pausar]').forEach(b=>
     b.addEventListener('click',()=>pausarAnuncioClase(b.dataset.pausar,repintar)));
   // Volver a publicar = volver a borrador y abrirlo: el anuncio pasa por
