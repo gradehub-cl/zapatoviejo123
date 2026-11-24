@@ -52,7 +52,8 @@ final class CanvasDocumentos {
             } catch (LimiteTexto recorte) {
                 return texto.toString();
             }
-            return texto.toString();
+            String extraido = texto.toString();
+            return extraido.trim().isEmpty() ? "" : extraido;
         }
     }
 
