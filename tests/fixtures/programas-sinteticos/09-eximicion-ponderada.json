@@ -1,0 +1,33 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Proyecto",
+      30,
+      null
+    ],
+    [
+      "Prueba",
+      30,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "eximicion",
+      "nombre": "Examen",
+      "cita": "Se exime del examen con promedio ponderado de presentación >= 5.3.",
+      "segun": [
+        "Proyecto",
+        "Prueba"
+      ],
+      "min": 5.3
+    }
+  ],
+  "revisar": []
+}

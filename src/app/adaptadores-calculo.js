@@ -125,7 +125,11 @@ function nombreCasilla(ramo,cat,slot){
 const calculoRamo=gh_crearCalculoRamo({
   normName,
   copiarRecuperativo,
-  definicionPresetDelRamo,
+  definicionPresetDelRamo:r=>{
+    const def=definicionPresetDelRamo(r);
+    if(def?.eximicion||!r?.eximicion?.ayuda||!r.programaCanvas?.citas?.includes(r.eximicion.ayuda))return def;
+    return { ...def, eximicion:r.eximicion, evals:r.eximicion.pauta };
+  },
   ramos:()=>S.ramos,
   tenant:()=>S.tenant,
 });

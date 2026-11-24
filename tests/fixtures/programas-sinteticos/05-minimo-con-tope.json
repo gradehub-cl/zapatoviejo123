@@ -1,0 +1,25 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Prueba",
+      60,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "minimo",
+      "nombre": "Prueba",
+      "cita": "Si la nota de Prueba es inferior a 3,7, la nota final tiene tope de 3,9.",
+      "min": 3.7,
+      "cap": 3.9
+    }
+  ],
+  "revisar": []
+}

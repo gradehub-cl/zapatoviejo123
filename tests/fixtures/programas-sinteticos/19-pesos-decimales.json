@@ -1,0 +1,17 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Ensayo",
+      37.5,
+      null
+    ],
+    [
+      "Taller",
+      62.5,
+      null
+    ]
+  ],
+  "propuestas": [],
+  "revisar": []
+}

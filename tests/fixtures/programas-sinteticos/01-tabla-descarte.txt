@@ -1,0 +1,5 @@
+# Evaluación
+Evaluación	Peso
+3 Controles	60%
+Examen	40%
+Se elimina la peor nota de controles.

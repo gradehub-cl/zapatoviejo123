@@ -1,0 +1,19 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Prueba",
+      60,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [],
+  "revisar": [
+    "La nota se distribuye así (60% Prueba, 40% Examen)."
+  ]
+}

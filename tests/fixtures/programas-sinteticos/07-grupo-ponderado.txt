@@ -1,0 +1,5 @@
+# Evaluación
+Proyecto 30%
+Prueba 30%
+Examen 40%
+Si el promedio ponderado de Proyecto y Prueba queda bajo 4,0, la nota final tiene tope de 3,9.

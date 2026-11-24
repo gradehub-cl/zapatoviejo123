@@ -5,7 +5,10 @@
 // veces todavía no está toda la información.
 let pautaDraft=[];
 // Solo el borrador: aceptar una lectura Canvas no escribe el ramo hasta Guardar.
-let pautaProgramaCanvasDraft=null;
+let pautaProgramaCanvasDraft=null,reglasAlAbrirEditor=null;
+function firmaReglasAlEditar(r){
+  return JSON.stringify([r.categorias.map(c=>[c.id,c.dropLowest,c.descarteOrigen]),r.gates,r.eximicion,r.reemplazosOptativos]);
+}
 // Evaluaciones con notas que la persona decidió quitar en el editor: {id, hacia}.
 // `hacia` es otra evaluación con el mismo nombre, a la que pasan sus notas.
 let pautaQuitadas=[];
@@ -70,6 +73,7 @@ function openPautaManualModal(){
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
   // Es el camino mayoritario: los ramos sin preset parten sin evaluaciones.
   if(!Array.isArray(r.categorias))r.categorias=[];
+  reglasAlAbrirEditor=enAppNativa()?firmaReglasAlEditar(r):null;
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:(c.directNota===false&&!seVeComoNotaSola(r,c))||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];pautaProgramaCanvasDraft=null;
   // La lectura pertenece a esta apertura, nunca a otra cuenta o borrador.
@@ -292,7 +296,12 @@ function mostrarErrorPauta(i,mensaje,target){
 }
 function actualizarReglaPauta(i,clave,valor){
   limpiarErrorPauta();
-  if(pautaDraft[i])(pautaDraft[i].reglas??={})[clave]=valor;
+  if(pautaDraft[i]){
+    const reglas=pautaDraft[i].reglas??={};
+    reglas[clave]=valor;
+    reglas[clave==='descarte'?'editoDescarte':'editoMinimo']=true;
+    if(pautaProgramaCanvasDraft)repintarProgramaCanvas();
+  }
 }
 function actualizarPautaNombre(i,valor){limpiarErrorPauta();if(pautaDraft[i])pautaDraft[i].nombre=valor;}
 function actualizarPautaVarias(i,valor){
@@ -423,6 +432,14 @@ function guardarPautaManual(){
       return mostrarErrorPauta(pautaDraft.indexOf(fila),'La cantidad de notas tiene que superar el descarte del programa.','cantidad');
     reglas.set(fila,cambios);
   }
+  const programa=enAppNativa()&&pautaProgramaCanvasDraft?.ramoId===r.id?pautaProgramaCanvasDraft:null;
+  if(programa&&reglasAlAbrirEditor!==firmaReglasAlEditar(r)){
+    pautaDraftError='Las reglas del ramo cambiaron mientras editabas. Vuelve a abrir el editor para revisar la versión actual.';
+    renderPautaManualModal();
+    return;
+  }
+  const aceptadas=(programa?.aceptadas||[]).filter(p=>!diferenciaReglaCanvas(p,r));
+
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
   // Las que la persona quitó con notas: pasan a su gemela o se van.
   const quitadas=new Set();
@@ -471,7 +488,9 @@ function guardarPautaManual(){
   if(r.gates?.some(g=>g.origen==='editor'&&!vigentes.has(g.catId)))
     r.gates=r.gates.filter(g=>g.origen!=='editor'||vigentes.has(g.catId));
   if(enAppNativa()&&pautaProgramaCanvasDraft?.ramoId===r.id){
-    r.programaCanvas=crearProgramaCanvas(pautaProgramaCanvasDraft.archivo,pautaProgramaCanvasDraft.citas,r);
+    guardarReglasProgramaCanvas(r,aceptadas);
+    const citas=[...new Set([...(programa.citasAnteriores||[]),...aceptadas.filter(p=>['eximicion','reemplazo'].includes(p.tipo)).map(p=>p.cita),...programa.citas])];
+    if(!programa.conservarFuente)r.programaCanvas=crearProgramaCanvas(programa.archivo,citas,r);
     pautaProgramaCanvasDraft=null;
   }
   const estado=estadoPauta(r.categorias);save();track('configurar_pauta',{evaluaciones:filas.length,total:estado.total});closeModal();renderRamo();

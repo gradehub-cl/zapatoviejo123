@@ -525,7 +525,7 @@ function normalize(data) {
     // renueva en cada carga, así que sigue al catálogo si este cambia.
     const eximicionOficial=definicionPresetDelRamo(r)?.eximicion;
     if(eximicionOficial)r.eximicion=eximicionParaGuardar(definicionPresetDelRamo(r));
-    else delete r.eximicion;
+    else if(!eximicionGuardadaCanvas(r))delete r.eximicion;
     // Las décimas del programa (#631), igual: la regla llega también a los
     // ramos ya creados y se renueva en cada carga para seguir al catálogo. No
     // suma nada hasta que la persona anota lo que ganó (bonusIngresado).
@@ -559,7 +559,7 @@ function normalize(data) {
         if(c&&c.peso===0)c.optativa=true;
       });
     }
-    else delete r.reemplazosOptativos;
+    else if(!citaReemplazoCanvas(r))delete r.reemplazosOptativos;
     // Igual que el recuperativo, la regla llega a los ramos oficiales creados
     // antes de publicarla, sin activar nada por sí sola.
     if(!r.reglasAusenciaJustificada){

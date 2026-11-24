@@ -1,0 +1,27 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Prueba",
+      60,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "eximicion",
+      "nombre": "Examen",
+      "cita": "Se eximen del examen quienes tengan promedio igual o superior a 5,5.",
+      "segun": [
+        "Prueba"
+      ],
+      "min": 5.5
+    }
+  ],
+  "revisar": []
+}

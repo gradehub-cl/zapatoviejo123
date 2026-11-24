@@ -1,0 +1,24 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Prueba",
+      60,
+      null
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "reemplazo",
+      "nombre": "Prueba",
+      "cita": "El examen puede reemplazar la nota de Prueba si mejora la nota final.",
+      "examen": "Examen"
+    }
+  ],
+  "revisar": []
+}

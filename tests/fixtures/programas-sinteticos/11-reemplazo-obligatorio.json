@@ -1,0 +1,19 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Controles",
+      60,
+      3
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [],
+  "revisar": [
+    "El examen reemplaza la peor nota de controles."
+  ]
+}

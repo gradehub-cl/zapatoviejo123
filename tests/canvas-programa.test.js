@@ -133,6 +133,58 @@ const conTabla=[
   await run('leerProgramaCanvas()');plugin.archivosCurso=listaReal;
   assert.match(run('canvasProgramaEditorHTML()'),/no nos dejó ver los archivos/);
   assert.equal(json('S.ramos.find(r=>r.id===\'r3\').categorias').length,0,'nada se guarda solo');
+  // Del puente al borrador, al mismo Guardar y al motor. Cada ramo tiene
+  // estructura propia. Abrir la fuente o cancelar nunca cambia la cuenta.
+  const fixture=slug=>leer('tests/fixtures/programas-sinteticos/'+slug+'.txt');
+  const preparar=async slug=>{
+    programa={texto:fixture(slug),recortado:false};
+    run("S.ramos=[{id:'motor',sigla:'MAT1620',nombre:'Ramo sintético de reglas',categorias:[],gates:[]}];currentRamoId='motor';globalThis.r=S.ramos.find(x=>x.id===currentRamoId);openPautaManualModal()");
+    await run('leerProgramaCanvas()');run('usarProgramaCanvas()');
+    const antes=run('JSON.stringify(r)');
+    assert.match(run('canvasProgramaEditorHTML()'),/Usar también estas reglas/);
+    run('verProgramaCanvas()');assert.match(nodo('modal-content').innerHTML,/Volver/);
+    run('renderPautaManualModal();usarReglasProgramaCanvas()');
+    assert.equal(run('JSON.stringify(r)'),antes);
+  };
+  const notas=(nombre,valores)=>run('r.categorias.find(c=>c.nombre==='+JSON.stringify(nombre)+').notas='+
+    JSON.stringify(valores.map((valor,slot)=>({id:nombre+slot,nombre:nombre+' '+(slot+1),valor,slot,peso:1}))));
+  const recargar=()=>run("S=normalize(JSON.parse(JSON.stringify(S)));globalThis.r=S.ramos.find(x=>x.id==='motor')");
+  await preparar('03-eximicion-con-minimos');run('guardarPautaManual()');recargar();
+  notas('Controles',[4,5,6]);assert.equal(run('estadoEximicion(r).activa'),true,'eximición exactamente en 5,0');
+  assert.equal(run('ramoAvg(r)'),5);
+  notas('Controles',[3.9,6,7]);assert.equal(run('estadoEximicion(r).activa'),false,'ninguna nota bajo 4,0');
+  await preparar('01-tabla-descarte');run('guardarPautaManual()');recargar();
+  notas('Controles',[1,7,7]);notas('Examen',[7]);assert.equal(run('ramoAvg(r)'),7);
+  notas('Controles',[1,1,1]);notas('Examen',[1]);assert.equal(run('gpa([r])'),1);
+  await preparar('05-minimo-con-tope');run('guardarPautaManual()');recargar();
+  notas('Prueba',[3.69]);notas('Examen',[7]);assert.equal(run('ramoAvg(r)'),3.9,'justo bajo el mínimo');
+  notas('Prueba',[3.7]);assert(run('ramoAvg(r)')>3.9,'en el mínimo no rige el tope');
+  await preparar('07-grupo-ponderado');run('guardarPautaManual()');recargar();
+  notas('Proyecto',[3.9]);notas('Prueba',[4]);notas('Examen',[7]);assert.equal(run('ramoAvg(r)'),3.9);
+  await preparar('08-reemplazo-optativo');run('guardarPautaManual()');recargar();
+  notas('Prueba',[1]);notas('Examen',[7]);assert.equal(run('ramoAvg(r)'),7);
+  notas('Prueba',[7]);notas('Examen',[1]);assert.equal(run('ramoAvg(r)'),4.6,'el examen solo reemplaza si mejora');
+  await preparar('05-minimo-con-tope');
+  run("actualizarReglaPauta(pautaDraft.findIndex(f=>f.nombre==='Prueba'),'min','4,5');actualizarReglaPauta(pautaDraft.findIndex(f=>f.nombre==='Prueba'),'tope','3,5')");
+  assert.match(run('canvasProgramaEditorHTML()'),/Se conserva tu requisito de 4,5, con tope 3,5/);
+  run('guardarPautaManual()');assert.equal(run('r.gates.length'),1);assert.equal(run('r.gates.find(g=>g.origen==="editor").min'),4.5);
+  run('openPautaManualModal()');await run('leerProgramaCanvas()');run('usarProgramaCanvas()');assert.match(run('canvasProgramaEditorHTML()'),/Se conserva tu requisito/);assert.doesNotMatch(run('canvasProgramaEditorHTML()'),/onclick="usarReglasProgramaCanvas\(\)"/);
+  run('openPautaManualModal()');assert.equal(run('pautaProgramaCanvasDraft'),null);
+  programa={texto:'# Bienvenida\nTexto completo <script>prueba()</script>\n# Evaluación\nPrueba 100%'};
+  await run('leerProgramaCanvas()');run('verProgramaCanvas()');
+  assert.match(nodo('modal-content').innerHTML,/&lt;script&gt;/);assert.doesNotMatch(nodo('modal-content').innerHTML,/<script>/);
+  await preparar('05-minimo-con-tope');
+  run("r.gates=[{type:'min_grade_required',catId:'externa',min:4,cap:3.5,origen:'editor'}];guardarPautaManual()");
+  assert.match(run('pautaDraftError'),/cambiaron mientras editabas/);
+  assert.equal(run('r.categorias.length'),0);
+  assert.equal(run('r.gates.find(g=>g.catId==="externa").min'),4);
+  // Un corte puede ocultar una segunda fórmula incluso si el prefijo suma 100.
+  assert.equal(leerPrograma({texto:fixture('01-tabla-descarte'),recortado:true}).estado,'incompleto');
+  const anteriores=llamadasArchivos.length;
+  programa={texto:fixture('14-discrecion')};await run('leerProgramaCanvas()');
+  assert.match(run('canvasProgramaEditorHTML()'),/criterio del profesor/);
+  assert.doesNotMatch(run('canvasProgramaEditorHTML()'),/Usar estas evaluaciones/);
+  assert.equal(llamadasArchivos.length,anteriores,'no sustituye un programa ambiguo por otro archivo');
   // Una lectura que termina después de cambiar de cuenta no deja fuente reutilizable.
   const getReal=plugin.get;let resolverPrograma;
   plugin.get=async p=>p.path==='courses/42'?new Promise(resolve=>{resolverPrograma=resolve}):getReal(p);

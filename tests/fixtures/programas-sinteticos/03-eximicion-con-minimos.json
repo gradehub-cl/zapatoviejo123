@@ -1,0 +1,28 @@
+{
+  "estado": "propuesta",
+  "filas": [
+    [
+      "Controles",
+      60,
+      3
+    ],
+    [
+      "Examen",
+      40,
+      null
+    ]
+  ],
+  "propuestas": [
+    {
+      "tipo": "eximicion",
+      "nombre": "Examen",
+      "cita": "Se exime del examen con promedio de presentación ≥ 5,0 y ninguna nota bajo 4,0.",
+      "segun": [
+        "Controles"
+      ],
+      "min": 5,
+      "cadaNota": 4
+    }
+  ],
+  "revisar": []
+}
