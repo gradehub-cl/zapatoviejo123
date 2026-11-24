@@ -16,6 +16,7 @@
 // verdad.
 
 import { HERRAMIENTAS, NOMBRES, validarPropuestaPauta, validarPropuestaNotas, validarPropuestaRamos, validarPropuestaFechas } from './herramientas.js';
+import { consultarCanvas } from '../../bin/borradores/canvas-lecturas.js';
 import motorCompartido from '../../engine.js';
 
 const SUPABASE_URL = 'https://lsulsnswzesyekpsvlql.supabase.co';
@@ -1193,7 +1194,7 @@ function despachar(nombre, estado, args) {
   return undefined;
 }
 
-export async function onRequestPost({ request, params }) {
+export async function onRequestPost({ request, params, env = {} }) {
   const token = String((params.ruta && params.ruta[0]) || '');
   if (!tokenValido(token)) return json({ error: 'Not found' }, 404);
 
@@ -1249,6 +1250,11 @@ export async function onRequestPost({ request, params }) {
     // revisión de qué puede hacer un agente.
     if (!NOMBRES.includes(nombre)) return error(id, -32601, `Herramienta desconocida: ${nombre}`);
     if (!esObjeto(argumentos)) return error(id, -32602, 'Los argumentos de la herramienta tienen que ser un objeto.');
+
+    if (nombre.startsWith('canvas_')) {
+      const datos = await consultarCanvas(nombre, argumentos, token, request, env, siglaDeRamo);
+      return respuesta(id, { content: [{ type: 'text', text: JSON.stringify(datos) }], ...(datos.error ? { isError: true } : {}) });
+    }
 
     // La base entrega el estado y el despacho se arma acá. Es a propósito: dar
     // forma a cada herramienta en SQL obligaría a reescribir en plpgsql reglas
