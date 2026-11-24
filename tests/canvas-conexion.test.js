@@ -5,7 +5,7 @@ const leer = f => fs.readFileSync(__dirname + '/../' + f, 'utf8');
 const A = '00000000-0000-0000-0000-000000000001', B = '00000000-0000-0000-0000-000000000002';
 const JWT_A = 'eyJhbGciOiJIUzI1NiJ9.personaA.sintetico', JWT_B = 'eyJhbGciOiJIUzI1NiJ9.personaB.sintetico';
 const TOKEN = '123~' + 'A'.repeat(24), OTRO = '456~' + 'B'.repeat(24);
-const env = { CANVAS_TOKEN_KEY_1: Buffer.alloc(32,37).toString('base64'), CANVAS_TOKEN_KEY_2: Buffer.alloc(32,91).toString('base64') };
+const env = { CANVAS_TOKEN_KEY: Buffer.alloc(32,37).toString('base64'), CANVAS_TOKEN_KEY_2: Buffer.alloc(32,91).toString('base64') };
 const host = 'https://cursos.canvas.uc.cl';
 const vence = () => new Date(Date.now() + 30 * 86400000).toISOString();
 const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'Content-Type': 'application/json' } });
@@ -28,8 +28,8 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     try { return await q(sql, params); } finally { await db.exec('reset role'); }
   };
   const funciones = {
-    guardar_canvas_conexion: ['p_token_cifrado','p_iv','p_vence','p_llave_version'], borrar_canvas_conexion: [],
-    canvas_conexion_mia: [], canvas_registrar_intento: [], canvas_borrar_rechazada: ['p_iv'],
+    guardar_canvas_conexion: ['p_token_cifrado','p_iv','p_vence','p_llave_version','p_verificador'], borrar_canvas_conexion: [],
+    canvas_conexion_mia: ['p_prueba'], canvas_registrar_intento: [], canvas_borrar_rechazada: ['p_iv'],
   };
   let llamadas, modo, authStatus, mutar;
   const reset = async () => { await q('delete from canvas_conexion_intentos'); llamadas=[];modo=200;authStatus=200;mutar=null; };
@@ -68,7 +68,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
   const ejecutar = (r = req(), e = env, f = pedir) => fn(r, e, f);
   const sinSecretos = async r => {
     const texto = await r.text();
-    assert(!texto.includes(TOKEN) && !texto.includes(OTRO) && !texto.includes(env.CANVAS_TOKEN_KEY_1) && !texto.includes(env.CANVAS_TOKEN_KEY_2));
+    assert(!texto.includes(TOKEN) && !texto.includes(OTRO) && !texto.includes(env.CANVAS_TOKEN_KEY) && !texto.includes(env.CANVAS_TOKEN_KEY_2));
     const guardada = await fila(); if (guardada) { assert(!texto.includes(guardada.token_cifrado));assert(!texto.includes(guardada.iv)); }
     assert(!texto.includes('token_cifrado')&&!/\"iv\"/.test(texto),'los errores no incluyen campos cifrados');
     assert.equal(r.headers.get('Cache-Control'), 'no-store');
@@ -135,7 +135,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     }
     await reset(); r = await ejecutar(req(undefined, { url: 'https://gradehub.cl/canvas-conexion?host=otro' }));
     assert.equal(r.status, 400); assert.equal(llamadas.length, 0);
-    for (const e of [{}, { ...env, CANVAS_TOKEN_KEY_1: 'corta' }, { ...env, CANVAS_TOKEN_KEY_VERSION: 'inválida' }]) {
+    for (const e of [{}, { ...env, CANVAS_TOKEN_KEY: 'corta' }, { ...env, CANVAS_TOKEN_KEY_VERSION: 'inválida' }]) {
       await reset(); r = await ejecutar(req(), e); assert.equal(r.status, 503); assert.equal(llamadas.length, 2); await sinSecretos(r);
     }
     await reset();
@@ -173,8 +173,8 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     }
     const otraLlave = await webcrypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['decrypt']);
     await assert.rejects(descifrar(segunda, otraLlave));
-    await assert.rejects(como('authenticated', A, 'select guardar_canvas_conexion($1,$2,$3,$4)', ['plano', 'IV inválido', hasta,'1']), /No se pudo guardar/);
-    await assert.rejects(como('authenticated', A, "select guardar_canvas_conexion($1,$2,(now()+interval '91 days')::text,$3)", [segunda.token_cifrado, segunda.iv,'1']), /No se pudo guardar/);
+    await assert.rejects(como('authenticated', A, 'select guardar_canvas_conexion($1,$2,$3,$4,$5)', ['plano', 'IV inválido', hasta,'1',segunda.verificador]), /No se pudo guardar/);
+    await assert.rejects(como('authenticated', A, "select guardar_canvas_conexion($1,$2,(now()+interval '91 days')::text,$3,$4)", [segunda.token_cifrado, segunda.iv,'1',segunda.verificador]), /No se pudo guardar/);
     console.log('PASS: AES-256-GCM real, IV aleatorio por guardado, AAD por persona/origen/vencimiento y manipulación rechazada');
 
     // Otra cuenta puede guardar/borrar solo lo suyo: la RPC no recibe user_id.
@@ -187,7 +187,13 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     const mcpA = 'a'.repeat(64), mcpB = 'b'.repeat(64), mcpExp = 'e'.repeat(64);
     await q("insert into agent_links(user_id,token,expires_at) values($1,$2,now()+interval '1 day'),($3,$4,now()+interval '1 day'),($1,$5,now()-interval '1 day')", [A, mcpA, B, mcpB, mcpExp]);
     const interna = async args => (await como(args[0]?'authenticated':'anon',args[0],args[0]?'select canvas_conexion_mia() v':'select canvas_conexion_agente($1) v',args[0]?[]:[args[1]]))[0].v;
-    assert.equal((await interna([null, mcpA])).user_id, A);
+    assert.deepEqual(await interna([null, mcpA]), {user_id:A,llave_version:1});
+    assert.deepEqual(await interna([A,null]), {user_id:A,llave_version:1});
+    const pruebaA = await vm.runInContext('pruebaLectura',ctx)(env,A,1);
+    const rpcAgente = async (token,prueba) => (await como('anon',null,'select canvas_conexion_agente($1,$2) v',[token,prueba]))[0].v;
+    assert.equal((await rpcAgente(mcpA,pruebaA)).iv,segunda.iv);
+    assert.deepEqual(await rpcAgente(mcpB,pruebaA), {user_id:B,llave_version:1});
+    assert.deepEqual(await rpcAgente(mcpA,segunda.verificador), {user_id:A,llave_version:1});
     assert.equal((await interna([null,mcpB])).user_id,B);
     assert.equal(await interna([null, mcpExp]), null);
     assert.equal((await interna([A,null])).user_id,A);
@@ -212,7 +218,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     assert.equal(r.status, 401); assert.equal((await fila()).iv, valida.iv);
     await reset(); modo = 401;
     const renovada = await vm.runInContext('cifrarTokenCanvas', ctx)(OTRO, A, hasta, llave);
-    mutar = async () => { await como('authenticated', A, 'select guardar_canvas_conexion($1,$2,$3,$4)', [renovada.token_cifrado, renovada.iv, hasta,'1']); };
+    mutar = async () => { await como('authenticated', A, 'select guardar_canvas_conexion($1,$2,$3,$4,$5)', [renovada.token_cifrado, renovada.iv, hasta,'1',segunda.verificador]); };
     r = await ejecutar(); assert.equal(r.status, 401); assert.equal((await fila()).iv, renovada.iv, '401 tardío no borra una renovación');
     assert.equal(await descifrar(await fila(), llave), OTRO);
     await reset(); await ejecutar();
@@ -269,7 +275,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     };
     for(const datos of [[TOKEN,v2.iv,vence(),'2'],[v2.token_cifrado,TOKEN,vence(),'2'],
       [v2.token_cifrado,v2.iv,TOKEN,'2'],[v2.token_cifrado,v2.iv,vence(),TOKEN]]){
-      await secretoSql(como('authenticated',A,'select guardar_canvas_conexion($1,$2,$3,$4)',datos));
+      await secretoSql(como('authenticated',A,'select guardar_canvas_conexion($1,$2,$3,$4,$5)',[...datos,v2.verificador]));
     }
     await reset();await ejecutar();await ejecutar(req(undefined,{jwt:JWT_B}));
     await db.exec(`create function public.error_canvas_prueba() returns trigger language plpgsql as $$
@@ -299,9 +305,9 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     assert.deepEqual(await q('select * from user_ramos'), [], 'el borrado de cuenta conserva la cascada de su estado académico');
     await db.exec(leer('supabase/canvas_conexion.sql'));
     assert.equal(await fila(), undefined, 'reaplicar no revive conexiones borradas');
-    assert(/functions\/canvas-conexion\.js/.test(leer('.github/workflows/deploy.yml')));
+    assert(!/functions\/canvas-conexion\.js/.test(leer('.github/workflows/deploy.yml')));
     assert(!/console\.|waitUntil|passThroughOnException/.test(leer('functions/canvas-conexion.js')));
 
-    console.log('PASS: límite de tiempo, vencimiento, borrado de cuenta, estado académico intacto y deploy declarado');
+    console.log('PASS: límite de tiempo, vencimiento, borrado de cuenta, estado académico intacto y función fuera del deploy');
   } finally { await db.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

@@ -248,12 +248,11 @@ la instalación ni ejecutaron SQL en producción.
 
 ### Conexión Canvas · propuesta revisada, 2026-11-11
 
-PR #1078, SQL aún sin aprobación ni aplicación. La Function usa clave publicable
-más JWT; el dueño nunca llega como argumento de una RPC. El cifrado propio se
-lee por `canvas_conexion_mia()` y el de un agente por su token vigente en
-`agent_links`. La llave AES vive solo en Pages, por versión; ni la Function ni
-los errores RPC devuelven token, cifrado o IV. Las lecturas RPC autorizadas sí
-entregan el cifrado a su propio dueño, según la revisión aprobada por Lucas.
+SQL sin aplicar. Pages usa la clave publicable y el JWT o vínculo MCP vigente.
+Las RPC de lectura solo entregan metadatos hasta que Pages demuestra posesión
+de una capacidad derivada por cuenta y versión. La base guarda su huella SHA-256.
+El cifrado, el IV y la prueba de Pages quedan fuera de las respuestas al cliente.
+Las filas antiguas de preview necesitan reconexión para obtener el verificador.
 
 | Tabla propuesta | Acceso directo | Dueño por RPC | Borrado de cuenta |
 |---|---|---|---|

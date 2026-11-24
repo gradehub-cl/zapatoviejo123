@@ -15,6 +15,7 @@ create table if not exists public.canvas_conexiones (
 -- Compatibilidad del esquema en entornos de prueba que instalaron el borrador.
 -- Sus cifrados con la AAD antigua necesitan recifrado: cambiar esta columna no basta.
 alter table public.canvas_conexiones add column if not exists llave_version smallint not null default 1 check (llave_version > 0);
+alter table public.canvas_conexiones add column if not exists verificador text check (verificador ~ '^[0-9a-f]{64}$');
 create table if not exists public.canvas_conexion_intentos (
   user_id uuid primary key references auth.users(id) on delete cascade,
   ventana timestamptz not null default now(),
@@ -28,6 +29,10 @@ revoke all on public.canvas_conexiones, public.canvas_conexion_intentos from pub
 drop function if exists public.canvas_conexion_interna(uuid,text);
 drop function if exists public.canvas_borrar_rechazada(uuid,text);
 drop function if exists public.guardar_canvas_conexion(text,text,timestamptz);
+
+drop function if exists public.guardar_canvas_conexion(text,text,text,text);
+drop function if exists public.canvas_conexion_mia();
+drop function if exists public.canvas_conexion_agente(text);
 
 create or replace function public.canvas_registrar_intento()
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -49,21 +54,21 @@ end $$;
 
 -- Parámetros text: la conversión de fecha/versión ocurre dentro del bloque
 -- protegido; un error de cast no puede repetir un secreto en el mensaje.
-create or replace function public.guardar_canvas_conexion(p_token_cifrado text,p_iv text,p_vence text,p_llave_version text)
+create or replace function public.guardar_canvas_conexion(p_token_cifrado text,p_iv text,p_vence text,p_llave_version text,p_verificador text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_vence timestamptz; v_version smallint;
 begin
   if auth.uid() is null then raise exception 'sin sesión'; end if;
-  if p_token_cifrado is null or length(p_token_cifrado) not between 52 and 192
+  if p_verificador is null or p_verificador !~ '^[0-9a-f]{64}$' or p_token_cifrado is null or length(p_token_cifrado) not between 52 and 192
     or p_token_cifrado !~ '^[A-Za-z0-9+/]+={0,2}$' or p_iv is null or p_iv !~ '^[A-Za-z0-9+/]{16}$'
     or p_llave_version is null or p_llave_version !~ '^[1-9][0-9]{0,4}$' then raise exception 'conexión inválida'; end if;
   v_version := p_llave_version::smallint;
   v_vence := p_vence::timestamptz;
   if v_vence is null or v_vence<=now() or v_vence>now()+interval '90 days' then raise exception 'conexión inválida'; end if;
-  insert into public.canvas_conexiones(user_id,host,token_cifrado,iv,vence,llave_version)
-    values(auth.uid(),'https://cursos.canvas.uc.cl',p_token_cifrado,p_iv,v_vence,v_version)
+  insert into public.canvas_conexiones(user_id,host,token_cifrado,iv,vence,llave_version,verificador)
+    values(auth.uid(),'https://cursos.canvas.uc.cl',p_token_cifrado,p_iv,v_vence,v_version,p_verificador)
     on conflict(user_id) do update set token_cifrado=excluded.token_cifrado,iv=excluded.iv,
-      vence=excluded.vence,llave_version=excluded.llave_version,creado=now(),ultimo_uso=null;
+      vence=excluded.vence,llave_version=excluded.llave_version,verificador=excluded.verificador,creado=now(),ultimo_uso=null;
   return jsonb_build_object('conectado',true,'vence',v_vence);
 exception when others then
   raise exception using errcode='22023', message='No se pudo guardar la conexión.';
@@ -79,20 +84,22 @@ exception when others then
   raise exception using errcode='22023', message='Operación Canvas no disponible.';
 end $$;
 
-create or replace function public.canvas_conexion_mia()
+create or replace function public.canvas_conexion_mia(p_prueba text default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_fila jsonb;
 begin
   if auth.uid() is null then raise exception 'sin sesión'; end if;
   delete from public.canvas_conexiones where user_id=auth.uid() and vence<=now();
   update public.canvas_conexiones set ultimo_uso=now() where user_id=auth.uid()
-    returning jsonb_build_object('user_id',user_id,'host',host,'token_cifrado',token_cifrado,
-      'iv',iv,'vence',vence,'llave_version',llave_version) into v_fila;
+    returning jsonb_build_object('user_id',user_id,'llave_version',llave_version) ||
+      case when length(p_prueba)=44 and verificador=encode(sha256(convert_to(p_prueba,'UTF8')),'hex')
+        then jsonb_build_object('host',host,'token_cifrado',token_cifrado,'iv',iv,'vence',vence)
+        else '{}'::jsonb end into v_fila;
   return v_fila;
 exception when others then
   raise exception using errcode='22023', message='Operación Canvas no disponible.';
 end $$;
-create or replace function public.canvas_conexion_agente(p_token text)
+create or replace function public.canvas_conexion_agente(p_token text,p_prueba text default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid; v_fila jsonb;
 begin
@@ -101,8 +108,10 @@ begin
   if v_user is null then return null; end if;
   delete from public.canvas_conexiones where user_id=v_user and vence<=now();
   update public.canvas_conexiones set ultimo_uso=now() where user_id=v_user
-    returning jsonb_build_object('user_id',user_id,'host',host,'token_cifrado',token_cifrado,
-      'iv',iv,'vence',vence,'llave_version',llave_version) into v_fila;
+    returning jsonb_build_object('user_id',user_id,'llave_version',llave_version) ||
+      case when length(p_prueba)=44 and verificador=encode(sha256(convert_to(p_prueba,'UTF8')),'hex')
+        then jsonb_build_object('host',host,'token_cifrado',token_cifrado,'iv',iv,'vence',vence)
+        else '{}'::jsonb end into v_fila;
   return v_fila;
 exception when others then
   raise exception using errcode='22023', message='Operación Canvas no disponible.';
@@ -130,10 +139,10 @@ exception when others then
   raise exception using errcode='22023', message='Operación Canvas no disponible.';
 end $$;
 
-revoke all on function public.canvas_registrar_intento(), public.guardar_canvas_conexion(text,text,text,text),
-  public.borrar_canvas_conexion(), public.canvas_conexion_mia(), public.canvas_conexion_agente(text),
+revoke all on function public.canvas_registrar_intento(), public.guardar_canvas_conexion(text,text,text,text,text),
+  public.borrar_canvas_conexion(), public.canvas_conexion_mia(text), public.canvas_conexion_agente(text,text),
   public.canvas_borrar_rechazada(text), public.canvas_borrar_rechazada_agente(text,text) from public,anon,authenticated;
-grant execute on function public.canvas_registrar_intento(), public.guardar_canvas_conexion(text,text,text,text),
-  public.borrar_canvas_conexion(), public.canvas_conexion_mia(), public.canvas_borrar_rechazada(text) to authenticated;
-grant execute on function public.canvas_conexion_agente(text), public.canvas_borrar_rechazada_agente(text,text) to anon,authenticated;
+grant execute on function public.canvas_registrar_intento(), public.guardar_canvas_conexion(text,text,text,text,text),
+  public.borrar_canvas_conexion(), public.canvas_conexion_mia(text), public.canvas_borrar_rechazada(text) to authenticated;
+grant execute on function public.canvas_conexion_agente(text,text), public.canvas_borrar_rechazada_agente(text,text) to anon,authenticated;
 commit;

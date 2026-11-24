@@ -1,5 +1,5 @@
 // Conexión personal a Canvas UC (#1063). No registra cuerpos ni secretos.
-// CANVAS_TOKEN_KEY_<n>: 32 bytes aleatorios base64 por versión y entorno.
+// CANVAS_TOKEN_KEY (v1), CANVAS_TOKEN_KEY_<n> (v2 en adelante): 32 bytes aleatorios base64 por versión y entorno.
 // CANVAS_TOKEN_KEY_VERSION selecciona la versión de guardado (por defecto 1).
 const SUPABASE_PRODUCCION = 'https://lsulsnswzesyekpsvlql.supabase.co';
 const PUBLICABLE_PRODUCCION = 'sb_publishable_JwBMAOR7iHW-gcRdLMGrYw_eCOISwqA';
@@ -13,7 +13,7 @@ const json = (valor, status = 200) => new Response(JSON.stringify(valor), {
 const error = (mensaje, status) => json({ error: mensaje }, status);
 
 // Acota también un cuerpo sin Content-Length o que no termina de llegar.
-async function leerJson(r, limite, signal) {
+export async function leerBytes(r, limite, signal) {
   if (!r.body) throw new Error('respuesta');
   const lector = r.body.getReader(), partes = [];
   let total = 0;
@@ -31,17 +31,44 @@ async function leerJson(r, limite, signal) {
     }
     const bytes = new Uint8Array(total); let i = 0;
     for (const parte of partes) { bytes.set(parte, i); i += parte.byteLength; }
-    return JSON.parse(new TextDecoder().decode(bytes));
+    return bytes;
   } finally { signal.removeEventListener('abort', cancelar); lector.releaseLock(); }
+}
+export async function leerJson(r, limite, signal) {
+  return JSON.parse(new TextDecoder().decode(await leerBytes(r, limite, signal)));
 }
 const base64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 const bytes64 = texto => Uint8Array.from(atob(texto), c => c.charCodeAt(0));
-async function llaveDe(env, version) {
-  const configurada = env['CANVAS_TOKEN_KEY_' + version];
+function material(env, version) {
+  const configurada = env[version === 1 ? 'CANVAS_TOKEN_KEY' : 'CANVAS_TOKEN_KEY_' + version];
   if (!/^[A-Za-z0-9+/]{43}=$/.test(configurada || '')) throw new Error('configuración');
   const bytes = bytes64(configurada);
   if (bytes.byteLength !== 32) throw new Error('configuración');
-  return crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
+  return bytes;
+}
+export async function llaveDe(env, version) {
+  return crypto.subtle.importKey('raw', material(env, version), 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+// Una RPC pública con JWT o vínculo MCP solo entrega metadatos. Pages prueba
+// posesión de una capacidad por cuenta y versión antes de recibir el cifrado.
+async function pruebaLectura(env, userId, version) {
+  if (!UUID.test(userId) || !Number.isInteger(version) || version < 1 || version > 32767) throw new Error('conexión');
+  const key = await crypto.subtle.importKey('raw', material(env, version), 'HKDF', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256',
+    salt: new TextEncoder().encode('GradeHub/Canvas/lectura/v1'), info: new TextEncoder().encode(userId + '/' + version) }, key, 256);
+  return base64(bits);
+}
+async function huella(prueba) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(prueba));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+export async function leerConexionServidor(env, rpc, nombre, args) {
+  const meta = await rpc(nombre, args);
+  if (!meta) return null;
+  const prueba = await pruebaLectura(env, meta.user_id, meta.llave_version);
+  const fila = await rpc(nombre, { ...args, p_prueba: prueba });
+  if (!fila || !fila.token_cifrado || fila.user_id !== meta.user_id || fila.llave_version !== meta.llave_version) throw new Error('conexión');
+  return fila;
 }
 // AAD liga el cifrado a persona, origen y vencimiento; mover filas no lo valida.
 function parametros(userId, vence, iv, version) {
@@ -61,12 +88,7 @@ export async function descifrarTokenCanvas(fila, llave) {
   return token;
 }
 
-export async function gestionarConexionCanvas(request, env, pedir = fetch) {
-  if (!['POST', 'DELETE'].includes(request.method)) return error('Método no permitido.', 405);
-  const url = new URL(request.url), origen = request.headers.get('Origin');
-  if (url.search || (origen && origen !== url.origin)) return error('Pedido inválido.', 400);
-  const auth = /^Bearer ([A-Za-z0-9._-]{20,4096})$/.exec(request.headers.get('Authorization') || '');
-  if (!auth) return error('Inicia sesión en GradeHub.', 401);
+export function baseCanvas(url, env) {
   // Una preview con otra llave AES no puede escribir en la base de producción.
   // Estas opciones son bindings del servidor, nunca parámetros del pedido.
   const supabase = env.CANVAS_SUPABASE_URL || SUPABASE_PRODUCCION;
@@ -75,8 +97,20 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
   if (!/^https:\/\/[a-z0-9]{20}\.supabase\.co$/.test(supabase)
     || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(publicable)
     || (!produccion && (supabase === SUPABASE_PRODUCCION || !env.CANVAS_SUPABASE_PUBLISHABLE_KEY))) {
-    return error('La conexión con Canvas todavía no está disponible.', 503);
+    return null;
   }
+  return { supabase, publicable };
+}
+
+export async function gestionarConexionCanvas(request, env, pedir = fetch) {
+  if (!['POST', 'DELETE'].includes(request.method)) return error('Método no permitido.', 405);
+  const url = new URL(request.url), origen = request.headers.get('Origin');
+  if (url.search || (origen && origen !== url.origin)) return error('Pedido inválido.', 400);
+  const auth = /^Bearer ([A-Za-z0-9._-]{20,4096})$/.exec(request.headers.get('Authorization') || '');
+  if (!auth) return error('Inicia sesión en GradeHub.', 401);
+  const base = baseCanvas(url, env);
+  if (!base) return error('La conexión con Canvas todavía no está disponible.', 503);
+  const { supabase, publicable } = base;
   const corte = new AbortController(), reloj = setTimeout(() => corte.abort(), PLAZO_MS);
   const rpc = async (nombre, cuerpo) => {
     const headers = { 'Content-Type': 'application/json', apikey: publicable, Authorization: 'Bearer ' + auth[1] };
@@ -124,8 +158,9 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
       if (canvas.status === 401) {
         // Un token nuevo inválido no borra el anterior. Si se rechazó el que ya
         // estaba guardado, borra solo esa versión (IV), nunca una renovación.
-        if (anterior && anterior.user_id === cuenta.id && await descifrarTokenCanvas(anterior, await llaveDe(env, anterior.llave_version)) === cuerpo.token) {
-          await rpc('canvas_borrar_rechazada', { p_iv: anterior.iv });
+        const guardada = anterior && await leerConexionServidor(env, rpc, 'canvas_conexion_mia', {});
+        if (guardada && guardada.user_id === cuenta.id && await descifrarTokenCanvas(guardada, await llaveDe(env, guardada.llave_version)) === cuerpo.token) {
+          await rpc('canvas_borrar_rechazada', { p_iv: guardada.iv });
         }
         return error('Canvas rechazó ese token. Genera uno nuevo para conectar.', 401);
       }
@@ -134,7 +169,7 @@ export async function gestionarConexionCanvas(request, env, pedir = fetch) {
     const perfil = await leerJson(canvas, MAX_RESPUESTA, corte.signal);
     if (!Number.isSafeInteger(perfil?.id) || perfil.id <= 0) return error('Canvas no respondió bien. Intenta de nuevo.', 502);
     const cifrado = await cifrarTokenCanvas(cuerpo.token, cuenta.id, vence, llave, version);
-    await rpc('guardar_canvas_conexion', { p_token_cifrado: cifrado.token_cifrado, p_iv: cifrado.iv, p_vence: vence, p_llave_version: String(version) });
+    await rpc('guardar_canvas_conexion', { p_token_cifrado: cifrado.token_cifrado, p_iv: cifrado.iv, p_vence: vence, p_llave_version: String(version), p_verificador: await huella(await pruebaLectura(env, cuenta.id, version)) });
     return json({ conectado: true, vence });
   } catch {
     return error(corte.signal.aborted ? 'Canvas no respondió a tiempo. Intenta de nuevo.' : 'No pudimos conectar Canvas. Intenta de nuevo.', corte.signal.aborted ? 504 : 503);
