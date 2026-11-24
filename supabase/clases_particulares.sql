@@ -1486,10 +1486,18 @@ begin
     dias_cobrados := greatest(0, ceil((extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos) / 86400)::integer);
     if dias is not null then dias_cobrados := least(dias_cobrados, dias); end if;
   end if;
-  select count(*)::integer into vistas from public.anuncio_alcance where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
-  select count(*) filter (where tipo = 'apertura')::integer, count(*) filter (where tipo = 'contacto')::integer
+  -- Cada persona se cobra una vez por anuncio (Lucas, 2026-11-24): quien ya lo
+  -- vio, abrió o contactó en una publicación anterior del mismo anuncio (por
+  -- ejemplo, al subirle el tope y volver a publicarlo) no vuelve a contar.
+  select count(*)::integer into vistas from public.anuncio_alcance x
+    where x.anuncio_id = p_anuncio_id and x.publicacion = a.medicion_desde
+      and not exists (select 1 from public.anuncio_alcance y where y.anuncio_id = p_anuncio_id
+                        and y.user_id = x.user_id and y.publicacion < a.medicion_desde);
+  select count(*) filter (where x.tipo = 'apertura')::integer, count(*) filter (where x.tipo = 'contacto')::integer
     into aperturas, contactos
-    from public.anuncio_interacciones where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
+    from public.anuncio_interacciones x where x.anuncio_id = p_anuncio_id and x.publicacion = a.medicion_desde
+      and not exists (select 1 from public.anuncio_interacciones y where y.anuncio_id = p_anuncio_id
+                        and y.user_id = x.user_id and y.tipo = x.tipo and y.publicacion < a.medicion_desde);
   costo_bruto := dias_cobrados * public.tarifa_campana_clp('dia', a.precio_campana_clp)
                + vistas * public.tarifa_campana_clp('vista', a.precio_campana_clp)
                + aperturas * public.tarifa_campana_clp('apertura', a.precio_campana_clp)
