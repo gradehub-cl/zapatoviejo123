@@ -15,6 +15,9 @@
       "iconColor": "#2DD4BF"
     }
   },
+  "android": {
+    "loggingBehavior": "none"
+  },
   "ios": {
     "allowsLinkPreview": false,
     "loggingBehavior": "none"

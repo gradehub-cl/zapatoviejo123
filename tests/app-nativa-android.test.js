@@ -13,7 +13,7 @@ function contexto(plataforma,{canvas=false,protocolo='https:'}={}){
   if(plataforma){
     window.Capacitor={isNativePlatform:()=>true,registerPlugin:()=>({guardarResumen:()=>Promise.reject(new Error('not implemented'))}),
       Plugins:{LocalNotifications:{getPending:async()=>({notifications:[{id:7,extra:{gradehub:'prueba'}},{id:8,extra:{}}]}),
-        cancel:async o=>{(window.__cancelados=window.__cancelados||[]).push(...o.notifications.map(n=>n.id));}},...(canvas?{GradeHubCanvas:{}}:{})}};
+        cancel:async o=>{(window.__cancelados=window.__cancelados||[]).push(...o.notifications.map(n=>n.id));}},...(canvas?{GradeHubCanvas:{desconectar:async o=>{window.__canvasDesconectado=o.cuenta;return {conectado:false}}}}:{})}};
     if(plataforma!=='sin-plataforma')window.Capacitor.getPlatform=()=>plataforma;
   }
   const ctx={window,document:{getElementById:el,createElement:el,addEventListener(){},documentElement:el(),body:el(),querySelector:()=>null,querySelectorAll:()=>[]},
@@ -44,6 +44,9 @@ chk('avisos de evaluación en Android (notificaciones locales)',android('avisosP
 chk('avisos de evaluación siguen en el iPhone',ios('avisosPruebasDisponibles()')===true);
 chk('avisos no aparecen en la web',web('avisosPruebasDisponibles()')===false);
 chk('Android sin Canvas nativo usa el calendario .ics',android('canvasIcsDisponible()')===true);
+const androidCanvas=contexto('android',{canvas:true});
+chk('Android con plugin usa Canvas nativo',androidCanvas('canvasDisponible()')===true);
+chk('Android con plugin omite el calendario .ics',androidCanvas('canvasIcsDisponible()')===false);
 chk('el iPhone con Canvas nativo no muestra el .ics',contexto('ios',{canvas:true})('canvasIcsDisponible()')===false);
 chk('la app con la web adentro (capacitor://) no muestra el .ics',contexto('ios',{protocolo:'capacitor:'})('canvasIcsDisponible()')===false);
 chk('la web sigue mostrando el .ics',web('canvasIcsDisponible()')===true);
@@ -54,6 +57,17 @@ chk('el texto de los avisos en Android no promete pantalla de bloqueo ni dice iP
   /:'Para las evaluaciones con hora: la noche anterior y 15 minutos antes, para caminar a la sala\. Al terminar, te preguntamos cómo te fue\. Solo en este teléfono\.'/.test(ajustes));
 
 (async()=>{
+await androidCanvas('olvidarCanvasCuenta()');
+chk('la limpieza de cuenta llama al plugin Android con su dueño',
+  androidCanvas('window.__canvasDesconectado')===androidCanvas('currentUser.id'));
+const puente='android/app/src/main/java/cl/gradehub/app/';
+chk('MainActivity registra GradeHubCanvas',leer(puente+'MainActivity.java').includes('registerPlugin(GradeHubCanvas.class)'));
+chk('Capacitor Android protege los argumentos del puente también en debug',JSON.parse(leer('capacitor.config.json')).android.loggingBehavior==='none');
+const xml='android/app/src/main/res/xml/';
+chk('las credenciales quedan fuera del respaldo y la transferencia',[
+  'backup_rules.xml','data_extraction_rules.xml'
+].every(f=>leer(xml+f).includes('gradehub_canvas_tokens.xml'))&&leer(xml+'data_extraction_rules.xml').includes('device-transfer'));
+
 console.log('\n=== Avisos en Android, sin widgets ===');
 android(`S.onboardingDone=true;var __programados=0;programarAvisosPruebas=()=>{__programados++};publicarResumenWidgets()`);
 chk('guardar notas programa los avisos aunque no haya widgets',android('__programados')===1);

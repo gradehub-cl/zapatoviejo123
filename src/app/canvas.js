@@ -65,7 +65,7 @@ function formularioConexionCanvas(caja,accion){
     <input type="password" id="s-canvas-token" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go"
       placeholder="Pega el token de Canvas" aria-describedby="s-canvas-ayuda s-canvas-privacidad s-canvas-estado"/>
     ${AVISO_AJUSTES_CANVAS}
-    <p id="s-canvas-privacidad">El token queda solo en el llavero de este iPhone. Podrás volver a usar Canvas sin pegarlo otra vez.</p>
+    <p id="s-canvas-privacidad">El token queda cifrado solo en este teléfono. Podrás volver a usar Canvas sin pegarlo otra vez.</p>
     <button type="submit" class="btn-confirm canvas-conectar" id="s-canvas-conectar">${accion?'Conectar y continuar':'Conectar Canvas'}</button>
     <button type="button" class="btn-cancel" onclick="this.form.reset();this.form.remove();pintarCanvasAjustes({enfocar:true})">Volver</button>
   </form>`;
@@ -196,7 +196,7 @@ function desconectarCanvas(){
   if(!canvasDisponible())return;
   const plugin=pluginCanvas(),estado=S,cuenta=currentUser.id;
   const vigente=()=>S===estado&&currentUser?.id===cuenta;
-  showConfirm('Desconectar Canvas','Borraremos el token de este iPhone. Tus ramos y fechas no cambian.',async()=>{
+  showConfirm('Desconectar Canvas','Borraremos el token de este teléfono. Tus ramos y fechas no cambian.',async()=>{
     if(!vigente())return;
     try{
       await plugin.desconectar();
