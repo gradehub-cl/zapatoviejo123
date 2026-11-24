@@ -71,7 +71,8 @@ try{
   await db.query("update tutor_anuncios set estado='en_revision' where id=$1",[aviso]);
   await db.query('select admin.publicar_anuncio($1,0)',[aviso]);
   c=await coste(aviso);
-  check('republicar empieza con cero vistas, aperturas y contactos',c.vistas===0&&c.aperturas===0&&c.contactos===0);
+  // Republicar antes de que venza (p. ej. al subirle el tope) sigue la misma campaña (Lucas, 2026-11-24).
+  check('republicar antes de vencer conserva las personas de la campaña',c.vistas===1&&c.aperturas===1&&c.contactos===1);
   check('los registros de la primera publicación no se borraron',(await q('select count(*)::int as n from anuncio_interacciones where anuncio_id=$1',[aviso]))[0].n===2);
   const panel=(await q('select admin_panel_clases() as p'))[0].p;
   const a=panel.find(p=>p.user_id===prof).anuncios.find(a=>a.id===aviso);
@@ -86,7 +87,7 @@ try{
   c=await coste(aviso);
   // Subirle el tope y republicar no vuelve a cobrar a quien ya lo vio (Lucas, 2026-11-24).
   check('la misma cuenta queda registrada en la nueva publicación',(await q('select count(*)::int as n from anuncio_alcance where anuncio_id=$1',[aviso]))[0].n===2);
-  check('quien ya lo vio o contactó antes no se cobra de nuevo',c.vistas===0&&c.contactos===0&&c.aperturas===0);
+  check('quien ya lo vio o contactó antes no se cobra de nuevo',c.vistas===1&&c.contactos===1&&c.aperturas===1);
   await sesion(prof);
   const canales=await q('select * from alcance_anuncio_por_canal($1)',[aviso]);
   check('el alcance por canal solo incluye la nueva publicación',canales.length===1&&canales[0].canal==='busqueda'&&canales[0].cuentas===1);
@@ -95,7 +96,7 @@ try{
   await db.query('insert into user_ramos values($1)',[nuevo]);
   await sesion(nuevo);
   await db.query('select registrar_alcance_anuncio($1,$2)',[aviso,'lista']);
-  check('una persona nueva sí se cobra en la republicación',(await coste(aviso)).vistas===1);
+  check('una persona nueva sí se suma a la campaña',(await coste(aviso)).vistas===2);
   await sesion(prof);
 
   // Gráficos: dos publicaciones el mismo día no comparten eventos anónimos.
