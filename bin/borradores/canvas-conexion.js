@@ -1,3 +1,4 @@
+// Ruta final: functions/canvas-conexion.js (mover junto con la autorización de deploy).
 // Conexión personal a Canvas UC (#1063). No registra cuerpos ni secretos.
 // CANVAS_TOKEN_KEY (v1), CANVAS_TOKEN_KEY_<n> (v2 en adelante): 32 bytes aleatorios base64 por versión y entorno.
 // CANVAS_TOKEN_KEY_VERSION selecciona la versión de guardado (por defecto 1).

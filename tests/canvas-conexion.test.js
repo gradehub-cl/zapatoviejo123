@@ -17,7 +17,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
   const db = new PGlite(), q = async (s, p = []) => (await db.query(s, p)).rows;
   const ctx = vm.createContext({ Response, Request, URL, Uint8Array, TextEncoder, TextDecoder, AbortController,
     setTimeout, clearTimeout, atob, btoa, crypto: webcrypto, fetch: () => { throw new Error('red prohibida'); } });
-  vm.runInContext(leer('functions/canvas-conexion.js').replace(/^export /gm, ''), ctx);
+  vm.runInContext(leer('bin/borradores/canvas-conexion.js').replace(/^export /gm, ''), ctx);
   const fn = vm.runInContext('gestionarConexionCanvas', ctx), descifrar = vm.runInContext('descifrarTokenCanvas', ctx);
   const llave = await webcrypto.subtle.importKey('raw', Buffer.alloc(32, 37), 'AES-GCM', false, ['encrypt', 'decrypt']);
   const fila = async (id = A) => (await q('select * from public.canvas_conexiones where user_id=$1', [id]))[0];
@@ -290,7 +290,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     // Plazo incluso con un stream que queda pendiente, sin esperar ocho segundos.
     const timers = vm.createContext({ Response, Request, URL, Uint8Array, TextEncoder, TextDecoder, AbortController, atob, btoa, crypto: webcrypto,
       setTimeout: f => setTimeout(f, 20), clearTimeout });
-    vm.runInContext(leer('functions/canvas-conexion.js').replace(/^export /gm, ''), timers);
+    vm.runInContext(leer('bin/borradores/canvas-conexion.js').replace(/^export /gm, ''), timers);
     await reset(); modo = 'lento';
     r = await vm.runInContext('gestionarConexionCanvas', timers)(req(), env, pedir);
     assert.equal(r.status, 504); await sinSecretos(r);
@@ -306,7 +306,7 @@ const req = (cuerpo = { token: TOKEN, vence: vence() }, { method = 'POST', jwt =
     await db.exec(leer('supabase/canvas_conexion.sql'));
     assert.equal(await fila(), undefined, 'reaplicar no revive conexiones borradas');
     assert(!/functions\/canvas-conexion\.js/.test(leer('.github/workflows/deploy.yml')));
-    assert(!/console\.|waitUntil|passThroughOnException/.test(leer('functions/canvas-conexion.js')));
+    assert(!/console\.|waitUntil|passThroughOnException/.test(leer('bin/borradores/canvas-conexion.js')));
 
     console.log('PASS: límite de tiempo, vencimiento, borrado de cuenta, estado académico intacto y función fuera del deploy');
   } finally { await db.close(); }
