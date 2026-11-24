@@ -1,3 +1,120 @@
+const VISTAS_ANUNCIOS_PROFESOR=[['activas','Activas'],['revision','En revisión'],['historial','Historial']];
+const ESTADOS_FILTRO_PROFESOR=[
+  ['', 'Todos'],['publicado','Activas','activas'],['programado','Programadas','activas'],
+  ['en_revision','En revisión','revision'],['borrador','Borradores','revision'],
+  ['pausado','Pausadas','historial'],['expirado','Terminadas','historial'],['agotado','Tope alcanzado','historial'],
+];
+const filtrosAnunciosProfesor=new WeakMap();
+
+function filasAnunciosProfesor(g,ahora){
+  const filas=[];
+  for(const [lista,vista] of [[g.activos,'activas'],[g.programados,'activas'],[g.revision,'revision'],
+    [g.borradores,'revision'],[g.cerrados,'historial'],[g.sinConfirmar,'historial']]){
+    for(const a of lista){
+      const cambios=['publicado','pausado'].includes(a.estado)&&['pendiente','rechazada'].includes(a.edicion_propia?.estado);
+      filas.push({a,vista,cambios,estado:vigenciaAnuncio(a,ahora),
+        texto:normalizarBusquedaClase([a.titulo,...(a.ramos_siglas||[])].join(' '))});
+    }
+  }
+  return filas;
+}
+function anuncioProfesorEnVista(f,vista){
+  return f.vista===vista||(vista==='revision'&&f.cambios);
+}
+function listaAnunciosProfesorHTML(filas,pesos,ahora,filtro,compras){
+  const segmentos=VISTAS_ANUNCIOS_PROFESOR.map(([vista,titulo])=>`<button type="button" data-profesor-seccion="${vista}" aria-pressed="${vista===filtro.vista}">${titulo}</button>`).join('');
+  const estados=ESTADOS_FILTRO_PROFESOR.map(([valor,titulo])=>`<option value="${valor}"${valor===filtro.estado?' selected':''}>${titulo}</option>`).join('');
+  const lista=filas.map(({a,vista,cambios})=>`<article data-profesor-fila="${esc(a.id)}"${anuncioProfesorEnVista({vista,cambios},filtro.vista)?'':' hidden'}>
+    ${vista==='activas'?`<aside class="clase-apoyo" data-profesor-banner="${esc(a.id)}"${filtro.vista==='activas'?'':' hidden'}>${contenidoRecomendacionClase(a,{vistaPrevia:true,enPanelProfesor:true})}</aside>`:''}
+    ${filaProfesorClaseHTML(a,pesos,ahora)}
+  </article>`).join('');
+  return `<div class="adm-lista profesor-anuncios">
+    <div class="adm-lista-barra"><nav class="adm-seg" aria-label="Vistas de anuncios">${segmentos}</nav>
+      <div class="admin-hig-herramientas" role="search" aria-label="Buscar tus anuncios">
+        <label class="admin-hig-busqueda"><span class="adm-oculto">Buscar por título o sigla</span>
+          <input type="search" id="profesor-anuncios-buscar" autocomplete="off" placeholder="Buscar por título o sigla" value="${esc(filtro.busqueda)}"></label>
+        <label><span class="adm-oculto">Estado del anuncio</span><select id="profesor-anuncios-estado">${estados}</select></label>
+      </div>
+    </div>
+    <p class="admin-hig-nota profesor-anuncios-estado" role="status" aria-atomic="true" data-profesor-cantidad></p>
+    ${filas.length&&!filas.some(f=>f.vista==='activas')?`<p class="profesor-hig-vacio" data-profesor-sin-activas hidden>No tienes anuncios activos.${compras?' Puedes crear uno.':''}</p>`:''}
+    <p class="profesor-hig-vacio" data-profesor-vacio hidden></p>
+    <p class="clase-sin-datos" data-profesor-comentarios role="alert" hidden>No pudimos cargar los comentarios de revisión. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>
+    <div class="clase-lista">${lista}</div>
+  </div>`;
+}
+function enlazarAnunciosProfesor(raiz,filas,filtro,compras){
+  const porId=new Map(filas.map(f=>[String(f.a.id),f]));
+  const filasDOM=[...raiz.querySelectorAll('[data-profesor-fila]')];
+  const segmentos=[...raiz.querySelectorAll('[data-profesor-seccion]')];
+  const buscar=raiz.querySelector('#profesor-anuncios-buscar'),estado=raiz.querySelector('#profesor-anuncios-estado');
+  const cantidad=raiz.querySelector('[data-profesor-cantidad]'),vacio=raiz.querySelector('[data-profesor-vacio]');
+  const comentarios=raiz.querySelector('[data-profesor-comentarios]');
+  const sinActivas=raiz.querySelector('[data-profesor-sin-activas]');
+  const actualizar=()=>{
+    const palabras=normalizarBusquedaClase(filtro.busqueda).split(' ').filter(Boolean);
+    const visibles=filas.filter(f=>anuncioProfesorEnVista(f,filtro.vista)&&
+      (!filtro.estado||f.estado===filtro.estado||(filtro.estado==='en_revision'&&f.cambios))&&palabras.every(p=>f.texto.includes(p)));
+    const ids=new Set(visibles.map(f=>String(f.a.id)));
+    filasDOM.forEach(el=>{
+      el.hidden=!ids.has(el.dataset.profesorFila);
+      const banner=el.querySelector('[data-profesor-banner]');
+      if(banner)banner.hidden=filtro.vista!=='activas';
+    });
+    segmentos.forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.profesorSeccion===filtro.vista)));
+    if(estado)estado.value=filtro.estado;
+    if(cantidad)cantidad.textContent=visibles.length===1?'1 anuncio':`${visibles.length} anuncios`;
+    if(sinActivas)sinActivas.hidden=filtro.vista==='activas'||visibles.length===0;
+    if(comentarios)comentarios.hidden=!visibles.some(f=>f.a.comentario_revision_error);
+    if(vacio){
+      vacio.hidden=visibles.length>0;
+      vacio.textContent=palabras.length||filtro.estado?'No encontramos anuncios con esta búsqueda o filtro.':
+        filtro.vista==='activas'?(compras?'No tienes anuncios activos. Crea uno o revisa el historial.':'No tienes anuncios activos. Puedes revisar el historial.'):
+        filtro.vista==='revision'?'No tienes anuncios en revisión ni borradores.':'Todavía no tienes anuncios en el historial.';
+    }
+    return ids;
+  };
+  segmentos.forEach(b=>b.addEventListener('click',()=>{
+    filtro.vista=b.dataset.profesorSeccion;filtro.estado='';actualizar();
+  }));
+  buscar?.addEventListener('input',()=>{filtro.busqueda=buscar.value;actualizar();});
+  estado?.addEventListener('change',()=>{
+    const opcion=ESTADOS_FILTRO_PROFESOR.find(([valor])=>valor===estado.value);
+    if(!opcion)return;
+    filtro.estado=opcion[0];
+    if(opcion[2])filtro.vista=opcion[2];
+    actualizar();
+  });
+  actualizar();
+  return id=>{
+    const fila=porId.get(String(id));
+    if(!fila)return;
+    if(!actualizar().has(String(id))){
+      filtro.vista=fila.vista;filtro.estado='';filtro.busqueda='';
+      if(buscar)buscar.value='';
+      actualizar();
+    }
+  };
+}
+function cargarLogosAnunciosProfesor(raiz){
+  const banners=[...raiz.querySelectorAll('[data-profesor-banner]')];
+  const ids=banners.map(b=>b.dataset.profesorBanner);
+  // logosDeAnuncios admite hasta cien ids por consulta.
+  for(let i=0;i<ids.length;i+=100){
+    logosDeAnuncios(ids.slice(i,i+100)).then(logos=>{
+      for(const banner of banners.slice(i,i+100)){
+        const ruta=logos.get(banner.dataset.profesorBanner);
+        if(!ruta)continue;
+        const caja=banner.querySelector('.clase-apoyo-logo');
+        if(!caja)continue;
+        urlFlyerClase(ruta).then(url=>{
+          if(url&&caja.isConnected){caja.innerHTML=imgLogoClase(url);caja.hidden=false;}
+        }).catch(()=>{});
+      }
+    }).catch(()=>{});
+  }
+}
+
 async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   const pesos=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
   anuncios=await Promise.all(anuncios.map(async a=>{
@@ -35,6 +152,14 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     if(!error&&Array.isArray(data))ediciones=data.filter(e=>anuncios.some(a=>a.id===e.anuncio_id));
   }catch(e){}
   const ahora=Date.now(),g=gruposPanelClases(anuncios,ahora);
+  const filasAnuncios=filasAnunciosProfesor(g,ahora);
+  const cuenta=typeof currentUser==='undefined'?null:currentUser?.id;
+  const anterior=filtrosAnunciosProfesor.get(raiz);
+  const volverAAnuncios=vistaClasesAlVolver==='anuncios';
+  const filtro=!volverAAnuncios&&anterior?.cuenta===cuenta?anterior:{
+    cuenta,busqueda:'',estado:'',vista:VISTAS_ANUNCIOS_PROFESOR.find(([v])=>filasAnuncios.some(f=>anuncioProfesorEnVista(f,v)))?.[0]||'activas',
+  };
+  filtrosAnunciosProfesor.set(raiz,filtro);
   const conNumeros=[...g.activos,...g.cerrados,...g.sinConfirmar];
   // En su pestaña, «Clases» va en la barra (Lucas, 2026-10-22): sin título
   // grande, la acción principal queda arriba. Abierto como hoja, conserva su
@@ -80,17 +205,11 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
     </section>
     <section class="panel-alumnos-vista" data-clases-panel="anuncios" aria-label="Tus anuncios" hidden>
     ${enHoja||!crearAnuncio?'':`<div class="profesor-hig-accion">${crearAnuncio}</div>`}
-    <div class="profesor-hig-lista-cabeza"><h2>Tus anuncios</h2><span>${anuncios.length} ${anuncios.length===1?'anuncio':'anuncios'}</span></div>`+
-    (anuncios.length?'':`<p class="profesor-hig-vacio">${compras?'Todavía no tienes anuncios. Crea el primero y guárdalo como borrador hasta que esté listo.':'Todavía no tienes anuncios.'}</p>`)+
-    seccionPanelClases('Publicadas',g.activos,pesos,ahora)+
-    seccionPanelClases('Programadas',g.programados,pesos,ahora)+
-    seccionPanelClases('En revisión',g.revision,pesos,ahora)+
-    seccionPanelClases('Borradores',g.borradores,pesos,ahora)+
-    (g.borradores.some(a=>a.comentario_revision_error)?'<p class="clase-sin-datos" role="alert">No pudimos cargar los comentarios de revisión. Vuelve a abrir tu espacio para intentarlo de nuevo.</p>':'')+
-    seccionPanelClases('Pausadas y terminadas',g.cerrados,pesos,ahora)+
-    seccionPanelClases('Estado sin confirmar',g.sinConfirmar,pesos,ahora)+
+    ${listaAnunciosProfesorHTML(filasAnuncios,pesos,ahora,filtro,compras)}`+
     '</section><section class="panel-alumnos-vista clases-seccion" data-clases-panel="perfil" aria-label="Tu perfil" hidden><h3>Tu perfil</h3><div id="clases-perfil"></div></section>'+
     salida()+'</div>';
+  const mostrarFilaAnuncio=enlazarAnunciosProfesor(raiz,filasAnuncios,filtro,compras);
+  cargarLogosAnunciosProfesor(raiz);
   // Cambiar de vista no vuelve a pedir nada: las tres ya están pintadas.
   const activarVistaClases=v=>{
     if(!['resumen','anuncios','perfil'].includes(v))v='resumen';
@@ -141,9 +260,12 @@ async function renderPanelProfesor(raiz,anuncios,{cabecera,salida}){
   raiz.querySelectorAll('[data-profesor-anuncio]').forEach(f=>f.addEventListener('toggle',()=>{if(f.open)mostrarEdicion(f.dataset.profesorAnuncio);}));
   const verAnuncio=id=>{
     activarVistaClases('anuncios');
+    mostrarFilaAnuncio(id);
     const fila=[...raiz.querySelectorAll('[data-profesor-anuncio]')].find(f=>f.dataset.profesorAnuncio===id);
-    if(fila){fila.open=true;mostrarEdicion(id);const summary=fila.querySelector('summary');if(summary){summary.focus();summary.scrollIntoView({block:'start'});}}
+    if(fila){fila.open=true;mostrarEdicion(id);const summary=fila.querySelector('summary');if(summary){summary.focus();summary.scrollIntoView?.({block:'nearest'});}}
   };
+  raiz.querySelectorAll('[data-profesor-banner]').forEach(banner=>
+    banner.querySelector('.clase-apoyo-abrir')?.addEventListener('click',()=>verAnuncio(banner.dataset.profesorBanner)));
   raiz.querySelectorAll('[data-ver-edicion]').forEach(b=>b.addEventListener('click',()=>verAnuncio(b.dataset.verEdicion)));
   raiz.querySelectorAll('[data-cr-ver]').forEach(b=>b.addEventListener('click',()=>verAnuncio(b.dataset.crVer)));
   raiz.querySelector('[data-cr-crear]')?.addEventListener('click',()=>renderBorradorProfesor(raiz,null));

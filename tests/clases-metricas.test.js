@@ -143,7 +143,7 @@ const pintar=async(anuncios,datos)=>{
   // ofrecer exactamente eso y nada más.
   html=await pintar([anuncio({id:'p2'})],{alcance:7});
   chk('un anuncio publicado se puede pausar',/data-pausar="p2"/.test(html));
-  chk('y no se ofrece terminarlo, que no le corresponde',!/expirad/i.test(html));
+  chk('y no se ofrece terminarlo, que no le corresponde',!/clase-estado-expirado|data-terminar/i.test(html));
   html=await pintar([anuncio({id:'z1',estado:'pausado'})],{alcance:7});
   chk('uno pausado ofrece volver a editarlo',/data-retomar="z1"/.test(html));
   html=await pintar([anuncio({id:'b2',estado:'borrador'})],{alcance:7});

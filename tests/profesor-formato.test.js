@@ -86,6 +86,10 @@ chk('el catálogo muestra el texto de "Otra"',run("formatoClase({modalidad:'otra
 chk('y nada si no se indicó',run("formatoClase({modalidad:null,ubicacion:null})")==='');
 
 console.log('\n=== El chat parte escrito ===');
+chk('el banner del profesor usa el mismo formato publicado',
+  run(`contenidoRecomendacionClase({titulo:'Clase sintética',modalidad:'otra',modalidad_otra:'Grupos de 3',ubicacion:'online'},{vistaPrevia:true,enPanelProfesor:true})`)
+    .includes('Grupos de 3 · Online'));
+
 ctx.__a={titulo:'Cálculo II para la I2',contacto_tipo:'whatsapp',contacto_valor:'+56 9 1234 5678'};
 const wa=run('enlaceContactoClase(__a.contacto_tipo,__a.contacto_valor,mensajeContactoClase(__a))');
 chk('abre WhatsApp con el mensaje',wa.startsWith('https://wa.me/56912345678?text=')&&decodeURIComponent(wa.split('text=')[1])==='Hola, vi tu clase «Cálculo II para la I2» en GradeHub. ¿Me puedes dar más información?');

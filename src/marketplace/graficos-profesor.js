@@ -173,8 +173,10 @@ function cabeceraProfesorHTML(titulo,bajada,accion='',idTitulo='profesor-titulo'
 }
 function filaProfesorClaseHTML(a,pesos,ahora){
   const vig=vigenciaAnuncio(a,ahora),etiqueta=(ESTADOS_ANUNCIO[vig]||[vig])[0];
+  const cambios=a.edicion_propia?.estado==='pendiente'?'Cambios en revisión':
+    a.edicion_propia?.estado==='rechazada'?'Cambios no aprobados':'';
   return `<details class="profesor-hig-fila" data-profesor-anuncio="${esc(a.id)}"><summary>
-    <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc((a.ramos_siglas||[]).join(' · '))}</small></span>
+    <span class="profesor-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc([...(a.ramos_siglas||[]),cambios].filter(Boolean).join(' · '))}</small></span>
     <span class="clase-estado clase-estado-${esc(vig)}" data-estado-campana="${esc(a.id)}">${esc(etiqueta)}</span>
     ${campanasSeCompranAqui()?`<span class="profesor-hig-importe"><b data-costo-campana="${esc(a.id)}">${['publicado','pausado','expirado','agotado','sin_confirmar'].includes(vig)?'Cargando…':'—'}</b><small>Costo de campaña</small></span>`:''}
     <span class="profesor-hig-flecha" aria-hidden="true">⌄</span>
@@ -192,12 +194,6 @@ function presupuestoProfesorHTML(costo){
   if(costo.sinCosto)return '<p class="profesor-info">Publicación sin costo</p>';
   const porcentaje=costo.tope?Math.min(100,Math.round(costo.total/costo.tope*100)):0;
   return `<section class="profesor-hig-presupuesto presupuesto-visual"><div class="dato-circular">${datoCircularHTML(costo.tope?porcentaje:null,costo.tope?porcentaje+'%':'—',`Presupuesto utilizado: ${porcentaje}%`)}</div><div><span>Presupuesto utilizado</span><strong>${pesosClase(costo.total)}</strong><p>${costo.tope!==null?`de tu tope de ${pesosClase(costo.tope)}`:'Sin tope disponible'}</p><small>Publicación actual</small></div></section>`;
-}
-
-function seccionPanelClases(titulo,lista,pesos,ahora,vacio){
-  if(!lista.length&&!vacio)return '';
-  return `<section class="clases-seccion"><h3>${titulo}${lista.length?` <span>${lista.length}</span>`:''}</h3>
-    ${lista.length?`<div class="clase-lista">${lista.map(a=>filaProfesorClaseHTML(a,pesos,ahora)).join('')}</div>`:`<p class="clase-sin-datos">${vacio}</p>`}</section>`;
 }
 
 // La vista de Clases que estaba abierta: repintar tras pausar o retomar un
