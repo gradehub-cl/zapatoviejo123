@@ -310,11 +310,13 @@ function proximoAvisoHorario(a){
   if(a.tipo==='dia_libre')return `La ayudantía de ${a.siglas[0]} cae en tu día libre${cuando}`;
   if(a.tipo==='hora')return `La ayudantía de ${a.siglas[0]} cae fuera del horario que pediste${cuando}`;
   if(a.tipo==='horario_incompleto')return `BuscaCursos no tiene el horario completo de ${a.siglas[0]}`;
+  if(a.tipo==='sin_cupos')return `${a.siglas[0]} no tiene cupos libres en este horario según BuscaCursos`;
   return '';
 }
 function proximoSeccionTexto(s){
   const profes=(s.profesores||[]).filter(p=>p&&!/^sin informar$/i.test(p));
-  return `Secc. ${s.seccion}${profes.length?' · '+profes.join(', '):''}`;
+  const cupos=Number.isInteger(s.cupos)?` · ${s.cupos===0?'sin cupos':s.cupos===1?'1 cupo':s.cupos+' cupos'}`:'';
+  return `Secc. ${s.seccion}${profes.length?' · '+profes.join(', '):''}${cupos}`;
 }
 function proximoHorariosHTML({periodo,siglas,filas,resultado},estadoRed){
   if(estadoRed==='error')return `<p class="px-nota">No pudimos traer la oferta. Revisa tu conexión. <button type="button" class="px-enlace" onclick="proximoVerHorarios()">Reintentar</button></p>`;
