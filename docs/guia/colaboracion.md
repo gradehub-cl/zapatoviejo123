@@ -20,30 +20,14 @@ Dos personas y varios agentes sobre cuatro archivos. Para no chocar:
   y sácalo antes del commit, porque un enlace no lo ignora `node_modules/`.
 - **Lo que es para la app iOS va a la rama `ios`, no a `main`.** Ver [ios.md](ios.md).
 
-### Carriles
+### Todo es de todos
 
-El reparto es **por archivo, no por feature**. Con varios agentes capaces de
-tocar todo, es lo único que evita conflictos.
+No hay carriles ni áreas reservadas: cualquier persona o agente puede tocar
+cualquier archivo, sea motor, datos de cualquier universidad, estilos,
+infraestructura o iOS. Para evitar conflictos, antes de empezar revisa las PRs y
+ramas abiertas que tocan lo mismo y coordina con quien las lleva.
 
-| Carril | Archivos | Quién |
-|---|---|---|
-| Contenido FEN | `data.js` — mallas, presets y carreras de FEN | `ms` |
-| Contenido UC | `data.js` — mallas, presets, carreras y créditos de UC | `li` |
-| Contenido UAndes | `data.js` — carreras de la UAndes; `mallas-uandes.js` | `ms` |
-| Contenido UDD | `src/data/` — carreras de la UDD; `mallas-udd.js` | `ms` |
-| Motor y experiencia | `engine.js`, `app.js`, `app-session.js`, `render-main.js`, `render-agenda.js` | `codex` |
-| Infra y seguridad | workflows, `sw.js`, `styles.css`, `_headers` | `li` |
-| App iOS | `ios/`, `capacitor.config.json`, `bin/preparar-ios.sh` | `li` y `ms`, en la rama `ios` |
-
-Si tu tarea te obliga a salir de tu carril, no lo hagas: dilo primero.
-
-**`data.js` se reparte por universidad, no por archivo.** Es la única excepción
-al reparto por archivo y existe porque las dos universidades avanzan en
-paralelo: Martín transcribe programas de FEN, Lucas arma UC. Dentro de `data.js`
-cada uno toca lo suyo — `PRESETS_FEN` y las mallas FEN por un lado,
-`PRESETS_UC`, `MALLA_UC` y `CREDITOS_UC` por el otro.
-
-Los siete JS de raíz son ahora generados: cada carril se aplica a su carpeta
+Los siete JS de raíz son ahora generados: cada uno sale de su carpeta
 `src/<nombre>/`. No edites ni resuelvas conflictos en el generado; cambia la
 fuente y corre `npm run build`. Para adaptar ramas anteriores, ver
 [fuentes-js.md](fuentes-js.md#ramas-anteriores-a-la-separacion).
