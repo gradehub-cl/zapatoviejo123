@@ -136,12 +136,15 @@ function tarjetaPanelClase(a,pesos,ahora){
   // Editar y volver a publicar llevan a configurar la campaña: en la app solo
   // queda pausar (3.1.1, ver campanasSeCompranAqui).
   const compras=campanasSeCompranAqui();
+  // Editar uno publicado corrige el contenido sin revisión ni campaña nueva
+  // (2026-11-24); como el editor, solo en la web.
+  const editar=compras?`<button type="button" class="clase-accion" data-editar-publicado="${esc(a.id)}">Editar</button>`:'';
   const accion={
-    publicado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>`,
-    programado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>`,
+    publicado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>${editar}`,
+    programado:`<button type="button" class="clase-accion" data-pausar="${esc(a.id)}">Pausar</button>${editar}`,
     ...(compras?{
       borrador:`<button type="button" class="clase-accion" data-editar="${esc(a.id)}">Seguir editando</button>`,
-      pausado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
+      pausado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>${editar}`,
       expirado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
       agotado:`<button type="button" class="clase-accion" data-retomar="${esc(a.id)}">Volver a publicar</button>`,
     }:{}),
