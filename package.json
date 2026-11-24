@@ -39,6 +39,7 @@
     "@capacitor/keyboard": "8.0.6",
     "@capacitor/local-notifications": "8.3.1",
     "@capacitor/splash-screen": "8.0.2",
-    "@capacitor/status-bar": "8.0.4"
+    "@capacitor/status-bar": "8.0.4",
+    "unpdf": "1.9.1"
   }
 }
