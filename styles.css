@@ -4966,7 +4966,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
 #screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input,html.app-nativa .nota-inicio button.nota-en-fila,html.app-nativa .nota-inicio input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
 #screen-ramo button.nota-en-fila,html.app-nativa .nota-inicio button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
-#screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
+#screen-ramo .casillas-pie{display:flex;flex-wrap:wrap;align-items:center;gap:0 20px;border-top:1px solid var(--border2);}
 #screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
 #screen-ramo .casillas-btn:active{opacity:.6;}
@@ -5355,6 +5355,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-publicidad{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
 .directorio-anuncio-marca{display:block;padding:12px 16px 0;color:var(--fg2);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .directorio-publicidad .catalogo-clase-card{border:0}
+/* Abierta con flyer, la publicidad toma la fila entera de la grilla, como en
+   el catálogo: si no, texto y flyer se apretaban en media fila (2026-11-25). */
+@media(min-width:768px){.directorio-grilla>.directorio-publicidad:has(.catalogo-clase-flyer:not([hidden])){grid-column:1/-1}}
 .directorio-perfil-abierto{max-width:760px;margin:auto;color:var(--fg)}
 .directorio-perfil-cabecera{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px}
 .directorio-perfil-cabecera button{min-height:44px;white-space:normal}

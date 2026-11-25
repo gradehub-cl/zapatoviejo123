@@ -509,6 +509,16 @@ function quitarPautaFilaConNotas(i){
   },{label:gemela?'Quitar repetida':'Quitar y borrar notas',danger:!gemela,focusCancel:true});
   return true;
 }
+// Lo que una evaluación deja al quitarse: sus notas y sus reglas (un mínimo, un
+// grupo) pasan a la gemela; sin gemela se van.
+function soltarCategoria(r,cat,destino){
+  if(destino){
+    const ya=new Set((destino.notas||[]).map(x=>x.id));
+    destino.notas=[...(destino.notas||[]),...(cat.notas||[]).filter(x=>!ya.has(x.id))];
+  }
+  r.gates=destino?unificarCategoriaEnReglas(r.gates,cat.id,destino.id)
+    :(r.gates||[]).filter(g=>g.catId!==cat.id).map(g=>Array.isArray(g.catIds)?{...g,catIds:g.catIds.filter(id=>id!==cat.id)}:g);
+}
 function guardarPautaManual(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const filas=pautaDraft.filter(f=>f.nombre.trim());
@@ -547,15 +557,8 @@ function guardarPautaManual(){
   const quitadas=new Set();
   pautaQuitadas.forEach(q=>{
     const cat=r.categorias.find(c=>c.id===q.id);if(!cat||ids.has(q.id))return;
-    const destino=q.hacia&&r.categorias.find(c=>c.id===q.hacia);
-    if(destino){
-      const ya=new Set((destino.notas||[]).map(x=>x.id));
-      destino.notas=[...(destino.notas||[]),...(cat.notas||[]).filter(x=>!ya.has(x.id))];
-    }
+    soltarCategoria(r,cat,q.hacia&&r.categorias.find(c=>c.id===q.hacia));
     quitadas.add(q.id);
-    // Sus reglas (un mínimo, un grupo) pasan a la gemela; sin gemela se van.
-    r.gates=destino?unificarCategoriaEnReglas(r.gates,q.id,destino.id)
-      :(r.gates||[]).filter(g=>g.catId!==q.id).map(g=>Array.isArray(g.catIds)?{...g,catIds:g.catIds.filter(id=>id!==q.id)}:g);
   });
   pautaQuitadas=[];
   r.categorias=r.categorias.filter(c=>!quitadas.has(c.id)&&(ids.has(c.id)||(c.notas||[]).length>0));
