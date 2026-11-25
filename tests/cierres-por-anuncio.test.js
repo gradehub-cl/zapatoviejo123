@@ -33,5 +33,20 @@ const c=cliente(b);c.ctx.ad=A;const antes=Date.parse('2026-11-01T02:59:59.999Z')
 await db.exec('reset role');await q('delete from auth.users where id=$1',[b]);assert.equal((await q('select * from anuncios_cierres_por_anuncio where user_id=$1',[b])).length,0);await q('delete from tutor_anuncios where id=$1',[B]);assert.equal((await q('select * from anuncios_cierres_por_anuncio where anuncio_id=$1',[B])).length,0);
 await db.exec("alter table anuncios_cierres_por_anuncio disable trigger cierre_anuncio_fecha;update anuncios_cierres_por_anuncio set oculta_hasta=now()-interval '1 minute';alter table anuncios_cierres_por_anuncio enable trigger cierre_anuncio_fecha");assert.equal((await q('select limpiar_cierres_anuncios() n'))[0].n,1);assert.equal((await q('select count(*)::int n from anuncios_cierres_por_anuncio'))[0].n,0);
 await db.exec('set role anon');await assert.rejects(q('select * from anuncios_cierres_por_anuncio'),/permission denied/);await assert.rejects(q('select mis_cierres_anuncios()'),/permission denied/);await db.exec('set role authenticated');await como('');await assert.rejects(q('select mis_cierres_anuncios()'),/inicia sesión/);
-console.log('OK: cierre por anuncio, dos dispositivos, cola, concurrencia, medianoche Chile, legado global, RLS, cascadas, cron y reaplicación');
+// Tope de 5 días distintos (día de Chile) por anuncio, en total y no solo seguidos.
+const C='00000000-0000-0000-0000-000000000023',D='00000000-0000-0000-0000-000000000024';
+await db.exec('reset role');await q('insert into tutor_anuncios values($1,$3),($2,$3)',[C,D,due]);
+await db.exec("create table anuncio_eventos_recibos(user_id uuid references auth.users(id) on delete cascade,anuncio_id uuid references tutor_anuncios(id) on delete cascade,tipo text,creado_at timestamptz);revoke all on anuncio_eventos_recibos from public,anon,authenticated");
+const recibo=(u,ad,tipo,t)=>q('insert into anuncio_eventos_recibos values($1,$2,$3,$4)',[u,ad,tipo,t]);
+// C: 5 días con saltos (1, 3, 4, 8 y 9) y dos vistas el mismo día. D: 5 fechas UTC pero 4 días de Chile, más clics que no cuentan.
+for(const t of ['2026-11-01T12:00Z','2026-11-01T18:00Z','2026-11-03T12:00Z','2026-11-04T12:00Z','2026-11-08T12:00Z','2026-11-09T12:00Z'])await recibo(a,C,'impresion',t);
+for(const t of ['2026-11-01T12:00Z','2026-11-02T12:00Z','2026-11-03T12:00Z','2026-11-04T12:00Z','2026-11-05T02:00Z'])await recibo(a,D,'impresion',t);
+for(const t of ['2026-11-06T12:00Z','2026-11-07T12:00Z'])await recibo(a,D,'clic',t);
+for(const t of ['2026-11-01T12:00Z','2026-11-02T12:00Z','2026-11-03T12:00Z','2026-11-04T12:00Z'])await recibo(due,C,'impresion',t);
+await db.exec('set role authenticated');await assert.rejects(q('select * from anuncio_eventos_recibos'),/permission denied/);
+await como(a);const topes=(await q('select * from mis_cierres_anuncios()')).map(f=>f.anuncio_id);assert.deepEqual(topes,[C],'solo C llega a 5 días de Chile');
+await como(due);assert.equal((await q('select * from mis_cierres_anuncios()')).length,0,'4 días no bastan y no ve los recibos de otra cuenta');
+const tope=cliente(a);assert.equal(await tope.run('sincronizarCierreAnuncios()'),true);tope.ctx.C=C;tope.ctx.D=D;assert(tope.run('anunciosCerradosHoy(leerEstadoMarketplace()).includes(C)'));assert(!tope.run('anunciosCerradosHoy(leerEstadoMarketplace()).includes(D)'));
+await db.exec('reset role');await recibo(due,C,'impresion','2026-11-10T12:00Z');await db.exec('set role authenticated');await como(due);assert.deepEqual((await q('select anuncio_id from mis_cierres_anuncios()')).map(f=>f.anuncio_id),[C],'el quinto día lo oculta');
+console.log('OK: cierre por anuncio, dos dispositivos, cola, concurrencia, medianoche Chile, legado global, RLS, cascadas, cron, reaplicación y tope de 5 días');
 }finally{await db.close()}})().catch(e=>{console.error(e);process.exitCode=1});
