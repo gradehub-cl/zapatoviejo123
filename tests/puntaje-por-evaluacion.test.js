@@ -1,4 +1,4 @@
-// Anotar puntos en vez de nota (solo app): una evaluación con «Puntaje total»
+// Anotar puntos en vez de nota: una evaluación con «Puntaje total»
 // recibe los puntos que sacaste y los pasa a nota con su exigencia, o la del
 // ramo. La nota que llega al motor es la misma en la web y en la app; los
 // puntos quedan guardados solo para mostrar de dónde salió. Datos sintéticos.
@@ -54,12 +54,13 @@ chk('normalize conserva los puntos al recargar',norm==='{"obtenido":38,"total":6
 run(`setDirectNota('p1','5.0');`);
 chk('corregir la nota a mano quita los puntos viejos',val("S.ramos[0].categorias[0].notas[0].valor")===5&&!val("'puntos' in S.ramos[0].categorias[0].notas[0]"));
 
-console.log('\n=== En la web nada cambia ===');
+console.log('\n=== En la web funciona igual ===');
 app(false);
-chk('en la web no hay puntaje: se lee nota',val("puntajeDeCategoria(S.ramos[0],S.ramos[0].categorias[0])")===null&&JSON.parse(leer('55','p1')).valor===5.5);
+chk('en la web también se leen puntos',JSON.parse(leer('38','p1')).valor===4.3);
+chk('sin puntaje total se lee como nota (55 = 5,5)',val("leerNotaEnCategoria('55',S.ramos[0],{}).valor")===5.5);
 val('openPautaManualModal')();
-chk('el editor web no trae los campos',val("'puntos' in pautaDraft[0].reglas")===false);
+chk('el editor web trae los campos con lo guardado',val("pautaDraft[0].reglas.puntos")==='60'&&val("pautaDraft[0].reglas.exigencia")==='60');
 val('guardarPautaManual')();
-chk('guardar en la web conserva el puntaje configurado en la app',val("S.ramos[0].categorias[0].puntajeTotal")===60&&val("S.ramos[0].categorias[0].exigencia")===60);
+chk('guardar en la web sin cambios conserva el puntaje',val("S.ramos[0].categorias[0].puntajeTotal")===60&&val("S.ramos[0].categorias[0].exigencia")===60);
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

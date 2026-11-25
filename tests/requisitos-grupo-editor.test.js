@@ -1,6 +1,6 @@
 // Requisitos que combinan evaluaciones, escritos a mano en «Editar evaluaciones».
 // El motor ya calculaba `group_min` para los programas del catálogo; acá se
-// prueba que el editor de la app lo escriba bien y que nadie lo borre de pasada:
+// prueba que el editor lo escriba bien y que nadie lo borre de pasada:
 // mínimo sobre un grupo ((15·I1+20·I2+30·E)/65 ≥ 4,0) y aprobar por partes
 // (si una parte queda bajo 4,0, la final es el promedio de esa parte).
 // Ramos y notas sintéticos.
@@ -45,12 +45,12 @@ chk('el borrador trae el requisito con sus evaluaciones',val('pautaRequisitosDra
 val('guardarPautaManual')();
 chk('guardar sin cambios no duplica el requisito',val("S.ramos[0].gates.filter(g=>g.type==='group_min').length")===1);
 
-console.log('\n=== La web no muestra la sección ni borra lo que hiciste en la app ===');
+console.log('\n=== En la web el editor es el mismo ===');
 app(false);
 val('openPautaManualModal')();
-chk('en la web no hay borrador de requisitos',val('pautaRequisitosDraft')===null);
+chk('en la web el borrador trae el requisito',val('pautaRequisitosDraft.length')===1);
 val('guardarPautaManual')();
-chk('guardar en la web conserva el requisito de grupo',val("S.ramos[0].gates.filter(g=>g.type==='group_min'&&g.origen==='editor').length")===1);
+chk('guardar en la web sin cambios conserva el requisito de grupo',val("S.ramos[0].gates.filter(g=>g.type==='group_min'&&g.origen==='editor').length")===1);
 
 console.log('\n=== Quitar una evaluación del grupo solo la saca de ese requisito ===');
 app(true);

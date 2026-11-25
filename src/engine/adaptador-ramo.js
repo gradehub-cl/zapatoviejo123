@@ -48,7 +48,7 @@ function gh_crearCalculoRamo(deps){
         return c&&c.peso===e.peso&&(c.slots||1)===e.slots&&normName(c.nombre)===normName(e.nombre)&&JSON.stringify(c.dropLowest||null)===JSON.stringify(e.dropLowest||null);
       }));
   }
-  // La eximición que la persona escribe en «Editar evaluaciones» (solo app),
+  // La eximición que la persona escribe en «Editar evaluaciones»,
   // cuando el programa del catálogo no trae una. Se guarda por id y se lleva
   // al mismo formato del catálogo, así que la calcula el mismo camino: si la
   // presentación alcanza el mínimo, con los mínimos por evaluación y la
