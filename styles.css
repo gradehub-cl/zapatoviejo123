@@ -1225,6 +1225,18 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .pauta-sugerida .pauta-sugerida-acciones{flex-wrap:wrap;margin-top:.8rem;}
 .pauta-sugerida .pauta-sugerida-acciones button{flex:1 1 8rem;min-width:44px;min-height:44px;}
 .pauta-sugerida .pauta-sugerida-acciones button:disabled{opacity:1;background:var(--muted);color:var(--fg2);}
+/* Pedir la sección en un ramo no coordinado (solo app, pauta-sugerida.js). */
+.pauta-sugerida .pedir-seccion{margin:0 0 .85rem;}
+.pauta-sugerida.pauta-sugerida-solo-seccion .pedir-seccion{margin:0;}
+.pauta-sugerida .pedir-seccion label{display:grid;gap:.2rem;}
+.pauta-sugerida .pedir-seccion label b{font-size:1rem;}
+.pauta-sugerida .pedir-seccion label span{color:var(--fg2);font-size:.875rem;}
+.pauta-sugerida .pedir-seccion-fila{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
+.pauta-sugerida .pedir-seccion-fila input[type=text]{flex:0 1 6.5rem;min-width:5rem;min-height:44px;padding:10px 13px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--bg2);border:1px solid var(--border);border-radius:10px;}
+.pauta-sugerida .pedir-seccion-fila input[type=text][aria-invalid=true]{border-color:var(--red);}
+.pauta-sugerida .pedir-seccion-fila .pedir-seccion-guardar{flex:1 1 9rem;min-width:44px;min-height:44px;padding:10px 14px;font:inherit;font-weight:600;color:var(--primary);background:var(--primary-light);border:0;border-radius:10px;cursor:pointer;}
+.pauta-sugerida .pedir-seccion-fila .pedir-seccion-guardar:focus-visible,.pauta-sugerida .pedir-seccion-fila input[type=text]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.pauta-sugerida .pedir-seccion-error{margin:.4rem 0 0;color:var(--red);font-size:.8125rem;}
 @media(prefers-reduced-motion:reduce){
   .pauta-sugerida .pauta-sugerida-acciones button{transition:none;}
 }
