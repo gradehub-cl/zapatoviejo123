@@ -6096,6 +6096,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #modal-content .pauta-requisito-efecto select{min-height:44px;width:100%;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;font-size:.9375rem;}
 #modal-content .pauta-requisito-nota[hidden]{display:none;}
 #modal-content .pauta-requisito-quitar{justify-self:start;min-height:44px;padding:0 4px;background:none;border:0;color:var(--fg2);text-decoration:underline;cursor:pointer;}
+#modal-content #m-exi-detalle{display:grid;gap:8px;}
+#modal-content #m-exi-detalle[hidden]{display:none;}
+#modal-content .pauta-exi-minimo{display:grid;gap:8px;padding:8px 0;border-top:1px solid var(--border);}
 
 /* Marcar evaluaciones por ramo: alumnos en filas, evaluaciones en columnas. */
 .ramos-acciones{display:flex;align-items:center;gap:8px;flex:none;}

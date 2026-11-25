@@ -174,6 +174,7 @@ function requisitosGrupoHTML(){
   </details>`;
 }
 function refrescarEvalsRequisitos(){
+  if(pautaEximicionDraft?.activa&&!document.activeElement?.closest?.('#m-exi-detalle'))pintarEximicion();
   (pautaRequisitosDraft||[]).forEach((_,i)=>{const caja=document.getElementById('m-req-evals-'+i);if(caja)caja.innerHTML=evalsRequisitoHTML(i);});
 }
 function agregarRequisitoGrupo(){
@@ -192,6 +193,112 @@ function marcarEvalRequisito(i,clave,marcada){
   limpiarErrorPauta();
   q.claves=q.claves.filter(k=>k!==clave);if(marcada)q.claves.push(clave);
 }
+// ─── EXIMICIÓN PROPIA (solo app) ────────────────────────────────────────────
+// Cuando el programa del catálogo no trae eximición, la persona la escribe:
+// examen, presentación mínima (promedio ponderado de las evaluaciones que
+// marque), mínimos por evaluación y asistencia. El adaptador la calcula por el
+// mismo camino del catálogo (eximicionPropia). null = la sección no se mostró.
+let pautaEximicionDraft=null;
+function eximicionEditor(r){
+  if(definicionPresetDelRamo(r)?.eximicion)return {programa:true};
+  const p=r.eximicionPropia,ids=new Set((r.categorias||[]).map(c=>c.id));
+  if(!p||!ids.has(p.examenId))return {activa:false,examen:'',segun:[],min:'5,0',minimos:[],asistencia:''};
+  return {activa:true,examen:p.examenId,segun:(p.segun||[]).filter(id=>ids.has(id)),min:textoNotaEditor(p.min),
+    minimos:(p.minimos||[]).filter(m=>ids.has(m.catId)).map(m=>({clave:m.catId,min:textoNotaEditor(m.min)})),
+    asistencia:Number.isFinite(p.asistencia)?String(p.asistencia).replace('.',','):''};
+}
+function validarEximicionEditor(d,filas,escala){
+  if(!d||d.programa)return {sinCambios:true};
+  if(!d.activa)return {eximicion:null};
+  const fila=k=>filas.find(f=>f.nombre.trim()&&claveFilaPauta(f)===k);
+  const examen=fila(d.examen);
+  if(!examen)return {campo:'examen',error:'Elige de qué evaluación te eximes.'};
+  const segun=d.segun.filter(k=>k!==d.examen).map(fila).filter(Boolean);
+  if(!segun.length)return {campo:'segun',error:'Marca las evaluaciones que forman tu nota de presentación.'};
+  const nota=(texto,campo,que)=>{
+    const v=String(texto||'').trim(),n=Number(v.replace(',','.'));
+    return /^\d+(?:[.,]\d{1,2})?$/.test(v)&&n>=escala.min&&n<=escala.max?{n}:{campo,error:`Escribe ${que} entre ${escala.min} y ${escala.max}.`};
+  };
+  const min=nota(d.min,'min','una presentación mínima');if(min.error)return min;
+  const minimos=[];
+  for(let i=0;i<d.minimos.length;i++){
+    const m=d.minimos[i],f=fila(m.clave);
+    if(!f&&!String(m.min||'').trim())continue;
+    if(!f||f===examen)return {campo:'minimo-eval-'+i,error:'Elige la evaluación de ese mínimo (no puede ser el examen).'};
+    const v=nota(m.min,'minimo-'+i,'un mínimo');if(v.error)return v;
+    minimos.push({fila:f,min:v.n});
+  }
+  const a=String(d.asistencia||'').trim(),asistencia=Number(a.replace(',','.').replace('%',''));
+  if(a&&!(/^\d+(?:[.,]\d)?\s*%?$/.test(a)&&asistencia>0&&asistencia<=100))
+    return {campo:'asistencia',error:'La asistencia mínima es un porcentaje entre 1 y 100, como 75.'};
+  return {eximicion:{examen,segun,min:min.n,minimos,...(a?{asistencia}:{})}};
+}
+function guardarEximicionEditor(r,v,idDe){
+  if(v.sinCambios)return;
+  const nueva=v.eximicion&&{examenId:idDe(v.eximicion.examen),segun:v.eximicion.segun.map(idDe),min:v.eximicion.min,
+    minimos:v.eximicion.minimos.map(m=>({catId:idDe(m.fila),min:m.min})),...(v.eximicion.asistencia?{asistencia:v.eximicion.asistencia}:{})};
+  if(JSON.stringify(nueva||null)===JSON.stringify(r.eximicionPropia||null))return;
+  // Una confirmación de la regla anterior no vale para la nueva.
+  delete r.eximicionConfirmada;
+  if(nueva)r.eximicionPropia=nueva;else delete r.eximicionPropia;
+}
+function opcionesEvalsHTML(elegida,excluir){
+  return `<option value="">Elegir</option>`+pautaDraft.filter(f=>f.nombre.trim()).map(f=>{const k=claveFilaPauta(f);
+    return k===excluir?'':`<option value="${esc(k)}"${k===elegida?' selected':''}>${esc(f.nombre.trim())}</option>`;}).join('');
+}
+function detalleEximicionHTML(){
+  const d=pautaEximicionDraft;
+  const invalido=t=>pautaDraftErrorIndex===null&&pautaDraftErrorTarget==='exi-'+t?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
+  const otras=pautaDraft.filter(f=>f.nombre.trim()&&claveFilaPauta(f)!==d.examen);
+  const nota=(clave,etiqueta,valor,modo='decimal')=>`<label class="pauta-requisito-nota"><span>${etiqueta}</span><input type="text" inputmode="${modo}" maxlength="5" id="m-exi-${clave}" value="${esc(valor)}" oninput="actualizarEximicion('${clave}',this.value)"${invalido(clave)}></label>`;
+  return `<label class="pauta-requisito-efecto"><span>Examen</span><select id="m-exi-examen" onchange="elegirExamenEximicion(this.value)"${invalido('examen')}>${opcionesEvalsHTML(d.examen,null)}</select></label>
+    <p>Tu nota de presentación es el promedio ponderado de:</p>
+    <div class="pauta-requisito-evals" id="m-exi-segun" role="group" aria-label="Evaluaciones de la nota de presentación"${invalido('segun')}>${otras.length?otras.map(f=>{const k=claveFilaPauta(f);
+      return `<label class="pauta-requisito-eval"><input type="checkbox"${d.segun.includes(k)?' checked':''} onchange="marcarSegunEximicion('${esc(k)}',this.checked)"><span>${esc(f.nombre.trim())}${f.peso?` · ${r2(f.peso)} %`:''}</span></label>`;}).join(''):'<small>Primero escribe las evaluaciones.</small>'}</div>
+    ${nota('min','Presentación mínima para eximirte',d.min)}
+    ${d.minimos.map((m,i)=>`<div class="pauta-exi-minimo"><label class="pauta-requisito-efecto"><span>Mínimo en</span><select id="m-exi-minimo-eval-${i}" onchange="actualizarMinimoEximicion(${i},'clave',this.value)"${invalido('minimo-eval-'+i)}>${opcionesEvalsHTML(m.clave,d.examen)}</select></label>
+      <label class="pauta-requisito-nota"><span>Nota mínima</span><input type="text" inputmode="decimal" maxlength="5" id="m-exi-minimo-${i}" value="${esc(m.min)}" oninput="actualizarMinimoEximicion(${i},'min',this.value)"${invalido('minimo-'+i)}></label>
+      <button type="button" class="pauta-requisito-quitar" onclick="quitarMinimoEximicion(${i})">Quitar mínimo</button></div>`).join('')}
+    <button type="button" class="pauta-agregar" onclick="agregarMinimoEximicion()"><span aria-hidden="true">+</span> Mínimo en una evaluación</button>
+    ${nota('asistencia','Asistencia mínima (%), si la piden',d.asistencia)}
+    <small>Si cumples, lo confirmas en la ficha del ramo. El examen deja de contar y tu nota final es el promedio de las demás evaluaciones. La presentación se aproxima a la décima.</small>`;
+}
+function eximicionEditorHTML(){
+  const d=pautaEximicionDraft;if(!d)return '';
+  return `<details class="editor-reglas pauta-requisitos pauta-eximicion"${d.activa?' open':''}>
+    <summary>Eximición del examen</summary>
+    <div class="editor-reglas-campos">${d.programa?'<p>El programa ya indica la eximición de este ramo.</p>':`
+      <label class="pauta-requisito-eval pauta-eximicion-activa"><input type="checkbox" id="m-exi-activa"${d.activa?' checked':''} onchange="activarEximicion(this.checked)"><span>El programa permite eximirse del examen</span></label>
+      <div id="m-exi-detalle"${d.activa?'':' hidden'}>${d.activa?detalleEximicionHTML():''}</div>`}
+    </div>
+  </details>`;
+}
+function pintarEximicion(){
+  const caja=document.getElementById('m-exi-detalle');
+  if(caja&&pautaEximicionDraft&&!pautaEximicionDraft.programa){caja.hidden=!pautaEximicionDraft.activa;caja.innerHTML=pautaEximicionDraft.activa?detalleEximicionHTML():'';}
+}
+function activarEximicion(si){
+  const d=pautaEximicionDraft;if(!d||d.programa)return;
+  limpiarErrorPauta();d.activa=!!si;
+  // Sugerencia de partida: una evaluación que se llama examen, y todo lo demás
+  // como presentación. La persona lo cambia antes de guardar.
+  if(d.activa&&!d.examen){const ex=pautaDraft.find(f=>f.nombre.trim()&&/examen/i.test(f.nombre));if(ex)elegirExamenEximicion(claveFilaPauta(ex),true);}
+  pintarEximicion();
+}
+function elegirExamenEximicion(clave,sinPintar){
+  const d=pautaEximicionDraft;if(!d)return;
+  limpiarErrorPauta();d.examen=clave;
+  d.segun=d.segun.filter(k=>k!==clave);
+  if(!d.segun.length)d.segun=pautaDraft.filter(f=>f.nombre.trim()).map(claveFilaPauta).filter(k=>k!==clave);
+  d.minimos.forEach(m=>{if(m.clave===clave)m.clave='';});
+  if(!sinPintar)pintarEximicion();
+}
+function marcarSegunEximicion(clave,si){const d=pautaEximicionDraft;if(!d)return;limpiarErrorPauta();d.segun=d.segun.filter(k=>k!==clave);if(si)d.segun.push(clave);}
+function actualizarEximicion(campo,valor){const d=pautaEximicionDraft;if(!d)return;limpiarErrorPauta();d[campo]=valor;}
+function actualizarMinimoEximicion(i,campo,valor){const m=pautaEximicionDraft?.minimos[i];if(!m)return;limpiarErrorPauta();m[campo]=valor;}
+function agregarMinimoEximicion(){const d=pautaEximicionDraft;if(!d)return;d.minimos.push({clave:'',min:'4,0'});pintarEximicion();
+  setTimeout(()=>{const s=document.getElementById('m-exi-minimo-eval-'+(d.minimos.length-1));if(s)s.focus();},0);}
+function quitarMinimoEximicion(i){const d=pautaEximicionDraft;if(!d?.minimos[i])return;d.minimos.splice(i,1);limpiarErrorPauta();pintarEximicion();}
 function openPautaManualModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
@@ -200,6 +307,7 @@ function openPautaManualModal(){
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:(c.directNota===false&&!seVeComoNotaSola(r,c))||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];pautaProgramaCanvasDraft=null;
   pautaRequisitosDraft=enAppNativa()?requisitosGrupoEditor(r):null;
+  pautaEximicionDraft=enAppNativa()?eximicionEditor(r):null;
   // La lectura pertenece a esta apertura, nunca a otra cuenta o borrador.
   canvasProgramaRamo.delete(r.id);
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
@@ -389,6 +497,7 @@ function renderPautaManualModal(){
       <button type="button" class="pauta-agregar" onclick="agregarPautaFila()"><span aria-hidden="true">+</span> Agregar evaluación</button>
     </div>
     ${requisitosGrupoHTML()}
+    ${eximicionEditorHTML()}
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" onclick="guardarPautaManual()">Guardar</button>
@@ -417,7 +526,7 @@ function limpiarErrorPauta(){
 function mostrarErrorPauta(i,mensaje,target){
   pautaDraftError=mensaje;pautaDraftErrorIndex=i;pautaDraftErrorTarget=target;
   renderPautaManualModal();
-  const id=i===null&&/^req-/.test(target)?'m-'+target:`m-pauta-${target}-${i}`;
+  const id=i===null&&/^(req|exi)-/.test(target)?'m-'+target:`m-pauta-${target}-${i}`;
   setTimeout(()=>{const control=document.getElementById(id);if(control)control.focus();},0);
 }
 function actualizarReglaPauta(i,clave,valor){
@@ -565,6 +674,11 @@ function guardarPautaManual(){
     reglas.set(fila,cambios);
   }
   const requisitos=pautaRequisitosDraft===null?null:validarRequisitosGrupo(pautaRequisitosDraft,filas,escala);
+  const eximicion=validarEximicionEditor(pautaEximicionDraft,filas,escala);
+  if(eximicion.error){
+    if(pautaEximicionDraft)pautaEximicionDraft.activa=true;
+    return mostrarErrorPauta(null,eximicion.error,'exi-'+eximicion.campo);
+  }
   if(requisitos?.error){
     const id=requisitos.campo==='evals'?`m-req-nombre-${requisitos.i}`:null;
     mostrarErrorPauta(null,requisitos.error,`req-${requisitos.campo}-${requisitos.i}`);
@@ -611,7 +725,8 @@ function guardarPautaManual(){
     }
   });
   if(requisitos)guardarRequisitosGrupo(r,requisitos.requisitos,f=>f.catIdGuardado);
-  pautaRequisitosDraft=null;
+  guardarEximicionEditor(r,eximicion,f=>f.catIdGuardado);
+  pautaRequisitosDraft=null;pautaEximicionDraft=null;
   const vigentes=new Set(r.categorias.map(c=>c.id));
   if(Array.isArray(r.gates))r.gates=reglasEditorVigentes(r.gates,vigentes);
   if(enAppNativa()&&pautaProgramaCanvasDraft?.ramoId===r.id){
