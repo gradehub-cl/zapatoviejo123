@@ -57,20 +57,26 @@ function parseIcsCalendario(text,{inicioCrudo=false}={}){
   if(!blocks.length)throw new Error('No encontramos eventos en este calendario');
   if(blocks.length>ICS_IMPORT_MAX_EVENTS)throw new Error('El archivo trae más de 250 eventos');
 
+  // Moodle (Webcursos UAI) pone el curso en CATEGORIES y no en el título. En otros
+  // calendarios esa línea es una etiqueta personal y no dice de qué ramo es.
+  const esMoodle=lines.some(line=>/^PRODID:.*Moodle/i.test(line));
   return blocks.map((block,index)=>{
-    let summary='',start='';
+    let summary='',start='',curso='';
     block.forEach(line=>{
       const cut=line.indexOf(':');if(cut<1)return;
       const key=line.slice(0,cut).split(';')[0].toUpperCase();
       const value=line.slice(cut+1);
       if(key==='SUMMARY'&&!summary)summary=desescaparIcs(value);
       if(key==='DTSTART'&&!start)start=value;
+      if(esMoodle&&key==='CATEGORIES'&&!curso)curso=desescaparIcs(value).trim().replace(/\s+/g,' ').slice(0,ICS_IMPORT_TITLE_MAX);
     });
     summary=summary.trim().replace(/\s+/g,' ');
-    const fecha=fechaDesdeIcs(start);
+    // Una hora en UTC es de otro día cerca de la medianoche: las 23:59 de Chile
+    // llegan como las 02:59Z del día siguiente.
+    const escrita=fechaDesdeIcs(start),fecha=escrita&&(fechaChileIcs(start)||escrita);
     if(!summary||summary.length>ICS_IMPORT_TITLE_MAX||/[\u0000-\u001F\u007F]/.test(summary))throw new Error('El evento '+(index+1)+' no trae un título válido');
     if(!fecha)throw new Error('El evento '+(index+1)+' no trae una fecha válida');
-    return {titulo:summary,fecha,...(inicioCrudo?{inicio:start}:{})};
+    return {titulo:summary,fecha,...(curso?{curso}:{}),...(inicioCrudo?{inicio:start}:{})};
   });
 }
 
@@ -248,12 +254,17 @@ function aplicarPropuestasIcs(propuestas){
 
 function abrirImportarCalendario(){
   icsImportDraft=[];contextoFechasCanvas=null;avisoAnunciosCanvas='';
+  const portal=CALENDARIO_PORTAL_POR_TENANT[S.tenant];
   document.getElementById('modal-content').innerHTML=[
     '<div class="modal-title">Importar fechas desde un calendario</div>',
-    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">Elige un archivo <b>.ics</b> exportado desde Apple, Google u Outlook. Primero revisas dónde va cada fecha: nada se guarda todavía.</p>',
+    '<p style="font-size:0.8125rem;color:var(--fg2);line-height:1.5;margin:0 0 14px;">Elige un archivo <b>.ics</b> exportado desde Apple, Google'+(portal?', Outlook o '+esc(portal.donde):' u Outlook')+'. Primero revisas dónde va cada fecha: nada se guarda todavía.</p>',
+    portal?'<div class="modal-label">Desde '+esc(portal.donde)+'</div><ol class="avance-pasos">'
+      +'<li>Abre <a href="'+esc(portal.url)+'" target="_blank" rel="noopener">Exportar calendario en '+esc(portal.donde)+'</a> con tu cuenta '+esc(TENANTS[S.tenant].short)+'.</li>'
+      +'<li>Elige todos los eventos y los próximos 60 días, y toca «Exportar».</li>'
+      +'<li>Vuelve y elige acá el archivo descargado.</li></ol>':'',
     '<label class="modal-label" for="ics-file">Archivo de calendario</label>',
     '<div class="modal-input"><input type="file" id="ics-file" accept=".ics,text/calendar" aria-describedby="ics-file-help"/></div>',
-    '<p id="ics-file-help" class="settings-help">Máximo 500 KB y 250 eventos. Solo leemos títulos y fechas; tus notas no se tocan.</p>',
+    '<p id="ics-file-help" class="settings-help">Máximo 500 KB y 250 eventos. Solo leemos títulos'+(portal?', cursos':'')+' y fechas; tus notas no se tocan.</p>',
     '<div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button></div>'
   ].join('');
   openModal();
@@ -288,7 +299,7 @@ function renderRevisionIcs(){
     const estado=item.target?(item.origen==='canvas'?'Sugerencia de Canvas':'Coincidencia propuesta'):'Sin asignar';
     return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">'
       +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;'+(canvasNativo?'flex-wrap:wrap;column-gap:12px;row-gap:4px;':'')+'"><b style="font-size:0.875rem;">'+esc(item.titulo)+'</b><span style="font-size:0.75rem;color:var(--fg3);white-space:nowrap;">'+esc(item.hora?fechaHoraCorta(item.fecha,item.hora):fechaCorta(item.fecha))+'</span></div>'
-      +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+estado+'</div>'
+      +'<div style="font-size:0.75rem;color:var(--fg3);margin:4px 0 8px;">'+(item.curso?esc(item.curso)+' · ':'')+estado+'</div>'
       +'<div class="modal-input"><label class="modal-label" for="ics-ramo-'+index+'">Ramo</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-ramo-'+index+'" data-ics-ramo aria-label="Ramo de '+esc(item.titulo)+'" onchange="asignarRamoIcs('+index+',this.value)">'+opcionesRamoIcs(ramoId)+'</select></div>'
       +'<div class="modal-input"><label class="modal-label" for="ics-evaluacion-'+index+'">Evaluación</label><select class="feedback-select" style="min-height:44px;margin-bottom:0;" id="ics-evaluacion-'+index+'" data-ics-evaluacion aria-label="Evaluación de '+esc(item.titulo)+'" onchange="asignarDestinoIcs('+index+',this.value)"'+(ramoId?'':' disabled')+'>'+opcionesDestinoIcs(item.target,used,ramoId)+'</select></div>'
       +'</div>';
@@ -315,6 +326,9 @@ function asignarRamoIcs(index,ramoId){
   if(!Number.isInteger(index)||!icsImportDraft[index])return;
   icsImportDraft[index].ramoId=(S.ramos||[]).some(r=>r.id===ramoId)?ramoId:null;
   icsImportDraft[index].target=null;
+  // Elegir el ramo de un curso de Webcursos vale para sus eventos que no tienen.
+  const {curso,ramoId:elegido}=icsImportDraft[index];
+  if(curso&&elegido)icsImportDraft.forEach(p=>{if(p.curso===curso&&!p.ramoId)p.ramoId=elegido;});
   redibujarRevisionIcs(index);
 }
 function asignarDestinoIcs(index,target){
