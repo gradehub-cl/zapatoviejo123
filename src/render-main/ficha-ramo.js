@@ -726,9 +726,11 @@ function renderRamo(){
         // "+ Agregar nota" en vez del contador −/+ (Martín, 2026-11-11): la cantidad
         // ya se lee arriba ("promedio de 3"). Quitar solo aparece si la última
         // casilla está vacía, así que nunca se lleva una nota.
-        const cantidad=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas)?'':`<div class="casillas-pie">
-            ${cat.slots<100?`<button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarCasilla('${cat.id}')">+ Agregar nota</button>`:''}
-            ${cat.slots>minimoCasillas(cat)?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="cambiarCasillas('${cat.id}',-1)">Quitar la última</button>`:''}
+        const fijas=Array.isArray(cat.nombresCasillas)||Array.isArray(cat.pesosCasillas);
+        const cantidad=`<div class="casillas-pie">
+            ${!fijas&&cat.slots<100?`<button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarCasilla('${cat.id}')">+ Agregar nota</button>`:''}
+            <button type="button" class="casillas-btn" aria-label="Editar evaluación ${esc(cat.nombre)}" onclick="openEditCatModal('${cat.id}')">Editar</button>
+            ${!fijas&&cat.slots>minimoCasillas(cat)?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="cambiarCasillas('${cat.id}',-1)">Quitar la última</button>`:''}
           </div>`;
         wrap.innerHTML=`
           <div class="eval-group-hd" role="button" tabindex="0" aria-expanded="${isOpen?'true':'false'}" onclick="toggleCat('${cat.id}')">
@@ -810,6 +812,7 @@ function renderRamo(){
     const ultima=notas[notas.length-1];
     const pie=`<div class="casillas-pie">
         <button type="button" class="casillas-btn" aria-label="Agregar una nota en ${esc(cat.nombre)}" onclick="agregarNotaLista('${cat.id}')">+ Agregar nota</button>
+        <button type="button" class="casillas-btn" aria-label="Editar evaluación ${esc(cat.nombre)}" onclick="openEditCatModal('${cat.id}')">Editar</button>
         ${ultima&&ultima.valor==null&&!ultima.fecha?`<button type="button" class="casillas-btn casillas-quitar" aria-label="Quitar la última nota de ${esc(cat.nombre)}, que está vacía" onclick="deleteNota('${cat.id}','${ultima.id}')">Quitar la última</button>`:''}
       </div>`;
     wrap.innerHTML=`
