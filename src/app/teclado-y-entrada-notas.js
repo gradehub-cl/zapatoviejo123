@@ -220,14 +220,31 @@ function confirmDeleteRamo(){
 function confirmDeleteCat(catId){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
-  showConfirm(`Eliminar "${cat.nombre}"`,`Se eliminarán todas las notas de esta evaluación.`,()=>{
-    const totalAntes=r.categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  const ramoId=r.id;
+  const suma=cats=>cats.reduce((s,c)=>s+(Number(c.peso)||0),0);
+  // Las mismas reglas que quitarla en «Editar evaluaciones»: una repetida le
+  // pasa sus notas a la otra, y el porcentaje se reparte solo si sumaba 100%.
+  const gemela=r.categorias.find(c=>c.id!==catId&&normName(c.nombre)===normName(cat.nombre));
+  const n=(cat.notas||[]).filter(x=>typeof x.valor==='number').length;
+  const reparte=!gemela&&Number(cat.peso)>0&&Math.abs(suma(r.categorias)-100)<0.05&&suma(r.categorias)-Number(cat.peso)>0;
+  const desc=[
+    gemela?`Hay otra evaluación llamada "${cat.nombre}": sus notas quedan en esa y no se pierde ninguna.`
+      :n?`Se ${n===1?'borra su nota':`borran sus ${n} notas`}.`:'',
+    reparte?`Su ${r2(cat.peso)}% se reparte entre las demás.`:'',
+    'No se puede deshacer.',
+  ].filter(Boolean).join(' ');
+  showConfirm(`¿Eliminar "${cat.nombre}"?`,desc,()=>{
+    // La sincronización puede haber reemplazado S con la confirmación abierta.
+    const r=S.ramos.find(x=>x.id===ramoId),cat=r?.categorias.find(c=>c.id===catId);if(!cat)return;
+    const totalAntes=suma(r.categorias);
+    soltarCategoria(r,cat,gemela&&r.categorias.find(c=>c.id===gemela.id));
     r.categorias=r.categorias.filter(c=>c.id!==catId);
-    if(r.gates?.some(g=>g.origen==='editor'&&g.catId===catId))
-      r.gates=r.gates.filter(g=>g.origen!=='editor'||g.catId!==catId);
-    repartirPesoRestante(r.categorias,totalAntes);
-    save();renderRamo();
-  });
+    if(!gemela)repartirPesoRestante(r.categorias,totalAntes);
+    save();track('eliminar_categoria');closeModal();renderRamo();
+    if(typeof renderAgenda==='function')renderAgenda();
+    if(typeof renderHome==='function')renderHome();
+    showToast('Evaluación eliminada');
+  },{focusCancel:true});
 }
 function deleteNota(catId,notaId){
   const r=S.ramos.find(x=>x.id===currentRamoId);const cat=r.categorias.find(c=>c.id===catId);
