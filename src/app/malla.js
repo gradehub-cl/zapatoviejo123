@@ -4,7 +4,11 @@ function mallaFaltantes(){
   if(!S.carrera) return [];
   // En TAV no hay ramos de malla que sugerir.
   const ramos=enVerano()?[]:((mallaFor(S.tenant)[S.carrera]||{})[S.careerSemestre]||[]);
-  return ramos.filter(n=>!S.ramos.some(r=>r.nombre.toLowerCase()===n.toLowerCase()));
+  return ramos.filter(nombre=>{
+    if(S.ramos.some(r=>normName(r.nombre)===normName(nombre)))return false;
+    // Un curso ya inscrito puede tener un nombre anterior al de la malla.
+    return S.tenant!=='uc'||!ramoConSigla(siglaCatalogoUC(nombre));
+  });
 }
 let _mallaSel={}, _mallaList=[];
 function openMallaModal(){
