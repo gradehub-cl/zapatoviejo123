@@ -239,6 +239,7 @@ function confirmDeleteCat(catId){
     const totalAntes=suma(r.categorias);
     soltarCategoria(r,cat,gemela&&r.categorias.find(c=>c.id===gemela.id));
     r.categorias=r.categorias.filter(c=>c.id!==catId);
+    if(Array.isArray(r.gates))r.gates=reglasEditorVigentes(r.gates,new Set(r.categorias.map(c=>c.id)));
     if(!gemela)repartirPesoRestante(r.categorias,totalAntes);
     save();track('eliminar_categoria');closeModal();renderRamo();
     if(typeof renderAgenda==='function')renderAgenda();
