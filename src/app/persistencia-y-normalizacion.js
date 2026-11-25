@@ -423,6 +423,10 @@ function normalize(data) {
         // Si se pierde `slot` al recargar, Informe 0 sigue guardado pero ya no
         // puede volver a dibujarse en ninguna de las seis casillas.
         ...(Number.isInteger(n.slot) ? {slot:n.slot} : {}),
+        // De qué puntaje salió la nota, si se anotó en puntos (solo app). Es un
+        // dato para mostrar: el motor usa `valor`, que ya es la nota.
+        ...(Number.isFinite(n.valor) && n.puntos && [n.puntos.obtenido,n.puntos.total,n.puntos.exigencia].every(Number.isFinite)
+          ? {puntos:{obtenido:n.puntos.obtenido,total:n.puntos.total,exigencia:n.puntos.exigencia}} : {}),
         // Una nota puede tener su propia fecha y todavía no tener valor: es una
         // evaluación que viene. La fecha de la categoría sirve cuando todo el
         // grupo cae el mismo día; no alcanza para "Casos y ensayos", que son
