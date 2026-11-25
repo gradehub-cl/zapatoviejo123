@@ -10,15 +10,13 @@ function presetUcDisponible(nombre,carrera){
   carrera=carreraBaseUc(carrera);
   const clave=claveUc(nombre);if(!clave)return false;
   if(carrera==='ING-PC')return true;
-  if(carrera!=='COM')return false;
-  return PRESETS_UC_COM.some(n=>normName(n)===normName(clave));
+  return (PRESETS_UC_POR_CARRERA[carrera]||[]).some(n=>normName(n)===normName(clave));
 }
 function findPresetName(nombre,tenant,carrera){
   if(tenant!=='uc'){
     const presets=PRESETS_POR_TENANT[tenant]||{};
     return claveCatalogo(nombre,Object.keys(presets).filter(k=>pautaPresetSuficiente(evalsDePreset(presets[k]))),tenant);
   }
-  if(tenant!=='uc'||!MALLA_UC[carreraBaseUc(carrera)])return null;
   return claveCatalogo(nombre,presetsUcConPauta(carreraBaseUc(carrera)),'uc');
 }
 // La estrella y el selector prometen ponderaciones precargadas. Un programa
