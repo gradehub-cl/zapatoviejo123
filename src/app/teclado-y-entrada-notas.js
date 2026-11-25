@@ -144,7 +144,7 @@ function agregarNotaLista(catId){
   const boton=document.querySelector(`#cat-list .nota-en-fila[data-nota-id="${nueva.id}"]`);
   if(boton)abrirNotaEnFila(boton);
 }
-function setSlotNota(catId,slot,raw){
+function setSlotNota(catId,slot,raw,puntos){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
   const promedioAntes=ramoAvg(r);const gpaAntes=gpa(S.ramos);
@@ -158,18 +158,18 @@ function setSlotNota(catId,slot,raw){
   // hoja o con "Quitar la última".
   const porId=typeof slot==='string';
   const existente=cat.notas.find(n=>porId?n.id===slot:n.slot===slot);
-  const val=txt===''?NaN:parseNota(txt);
+  const val=txt===''?NaN:parseNota(txt),leida={valor:val,puntos:isNaN(val)?null:puntos};
   if(txt!==''&&!isNaN(val)){
-    if(existente)asignarCalificacionNota(existente,txt,val);
-    else if(!porId)cat.notas.push(asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,slot),peso:1,slot},txt,val));
+    if(existente)asignarPuntosNota(asignarCalificacionNota(existente,txt,val),leida.puntos);
+    else if(!porId)cat.notas.push(asignarPuntosNota(asignarCalificacionNota({id:uid(),nombre:etiquetaCasilla(r,cat,slot),peso:1,slot},txt,val),leida.puntos));
   }else if(existente){
     // Vaciar la nota no borra la casilla si tiene fecha: queda pendiente, que
     // es lo que dice "esto se rinde ese día y todavía no tengo la nota".
-    if(existente.fecha||porId)asignarCalificacionNota(existente,'',null);
+    if(existente.fecha||porId)asignarPuntosNota(asignarCalificacionNota(existente,'',null),null);
     else cat.notas=cat.notas.filter(n=>n.slot!==slot);
   }
-  save();track('set_nota_slot');renderRamo();
-  const notaValida=txt!==''&&!isNaN(parseNota(txt));
+  save();track('set_nota_slot',leida.puntos?{puntaje:true}:undefined);renderRamo();
+  const notaValida=txt!==''&&!isNaN(val);
   if(notaValida){
     vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
@@ -178,28 +178,28 @@ function setSlotNota(catId,slot,raw){
       pendingGpaFeedback={antes:gpaAntes,despues:gpaDespues};
       mostrarEcoGpa(gpaAntes,gpaDespues);
     }
-    showToast(lecturaDespuesDeNota(r));
+    showToast((leida?.puntos?`${textoPuntosNota(leida.puntos)} = ${fmtNota(leida.valor)}. `:'')+lecturaDespuesDeNota(r));
   }
 }
 // Nota directa para secciones de preset: crea/actualiza/borra la única nota.
-function setDirectNota(catId,raw){
+function setDirectNota(catId,raw,puntos){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   const cat=r.categorias.find(c=>c.id===catId);if(!cat)return;
   const promedioAntes=ramoAvg(r);const gpaAntes=gpa(S.ramos);
   const txt=String(raw||'').trim();
   if(txt===''){cat.notas=[];}
   else{
-    const val=parseNota(txt);
+    var val=parseNota(txt),leida={valor:val,puntos:isNaN(val)?null:puntos};
     if(!isNaN(val)){
       // Igual que las casillas: editar el objeto conserva los metadatos de la
       // nota, incluida una recorrección pendiente.
       const existente=cat.notas[0];
-      if(existente){existente.nombre=cat.nombre;existente.peso=1;asignarCalificacionNota(existente,txt,val);}
-      else cat.notas=[asignarCalificacionNota({id:uid(),nombre:cat.nombre,peso:1},txt,val)];
+      if(existente){existente.nombre=cat.nombre;existente.peso=1;asignarPuntosNota(asignarCalificacionNota(existente,txt,val),leida.puntos);}
+      else cat.notas=[asignarPuntosNota(asignarCalificacionNota({id:uid(),nombre:cat.nombre,peso:1},txt,val),leida.puntos)];
     }
   }
-  save();track('set_nota_directa');renderRamo();
-  const notaValida=txt!==''&&!isNaN(parseNota(txt));
+  save();track('set_nota_directa',leida?.puntos?{puntaje:true}:undefined);renderRamo();
+  const notaValida=txt!==''&&!isNaN(leida?.valor);
   if(notaValida){
     vibrar('nota');
     const promedioDespues=ramoAvg(r);const gpaDespues=gpa(S.ramos);
@@ -208,7 +208,7 @@ function setDirectNota(catId,raw){
       pendingGpaFeedback={antes:gpaAntes,despues:gpaDespues};
       mostrarEcoGpa(gpaAntes,gpaDespues);
     }
-    showToast(lecturaDespuesDeNota(r));
+    showToast((leida?.puntos?`${textoPuntosNota(leida.puntos)} = ${fmtNota(leida.valor)}. `:'')+lecturaDespuesDeNota(r));
   }
 }
 function confirmDeleteRamo(){

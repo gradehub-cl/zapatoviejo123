@@ -19,7 +19,8 @@ function reglasEvaluacionEditor(r,cat){
   const propia=gates.find(g=>g.origen==='editor');
   return {descarte:cat.descarteOrigen==='editor'?String(cat.dropLowest?.count||''):'',
     min:propia?String(propia.min).replace('.',','):'',tope:propia?String(propia.cap).replace('.',','):'',
-    descartePrograma:!!cat.dropLowest&&cat.descarteOrigen!=='editor',minimoPrograma:gates.some(g=>g.origen!=='editor')};
+    descartePrograma:!!cat.dropLowest&&cat.descarteOrigen!=='editor',minimoPrograma:gates.some(g=>g.origen!=='editor'),
+    ...(enAppNativa()?{puntos:Number(cat.puntajeTotal)>0?String(cat.puntajeTotal).replace('.',','):'',exigencia:exigenciaValida(cat.exigencia)!==null?String(exigenciaValida(cat.exigencia)).replace('.',','):''}:{})};
 }
 function validarReglasEvaluacionEditor(reglas,varias,cantidad,escala){
   const descarte=String(reglas.descarte||'').trim();
@@ -36,9 +37,25 @@ function validarReglasEvaluacionEditor(reglas,varias,cantidad,escala){
         return {campo,error:`Escribe ${campo==='min'?'un mínimo':'un tope'} entre ${escala.min} y ${escala.max}.`};
     }
   }
-  return {count:descarte?n:null,min:min?Number(min.replace(',','.')):null,cap:tope?Number(tope.replace(',','.')):null};
+  // Puntaje (solo app): la evaluación se anota en puntos y se pasa a nota con
+  // su exigencia, o la del ramo si no tiene una propia.
+  const puntaje={};
+  if(typeof reglas.puntos==='string'){
+    const puntos=reglas.puntos.trim(),total=Number(puntos.replace(',','.'));
+    if(puntos&&(!/^\d+(?:[.,]\d{1,2})?$/.test(puntos)||!(total>0)||total>10000))
+      return {campo:'puntos',error:'Escribe el puntaje total, entre 1 y 10.000, o deja el campo vacío.'};
+    const exig=String(reglas.exigencia||'').trim();
+    if(exig&&exigenciaValida(exig)===null)
+      return {campo:'exigencia',error:'La exigencia es un porcentaje entre 1 y 99, como 60.'};
+    puntaje.puntajeTotal=puntos?total:null;puntaje.exigencia=exig?exigenciaValida(exig):null;
+  }
+  return {count:descarte?n:null,min:min?Number(min.replace(',','.')):null,cap:tope?Number(tope.replace(',','.')):null,...puntaje};
 }
 function guardarReglasEvaluacionEditor(r,cat,reglas){
+  if('puntajeTotal' in reglas){
+    if(reglas.puntajeTotal)cat.puntajeTotal=reglas.puntajeTotal;else delete cat.puntajeTotal;
+    if(reglas.puntajeTotal&&reglas.exigencia!==null)cat.exigencia=reglas.exigencia;else delete cat.exigencia;
+  }
   if(reglas.count!==null){
     cat.dropLowest={count:reglas.count};cat.descarteOrigen='editor';
   }else if(cat.descarteOrigen==='editor'){
@@ -62,6 +79,8 @@ function reglasEvaluacionEditorHTML({reglas={},varias,manual,abierto,id,permiteC
       ${reglas.minimoPrograma?'<p>El programa ya indica el mínimo de esta evaluación.</p>':
         campo('min','Nota mínima','decimal')+campo('tope','Tope de la nota final','decimal')+
         '<small>Si quedas bajo el mínimo, tu nota final no supera este tope. Deja ambos campos vacíos si no aplica.</small>'}
+      ${enAppNativa()?campo('puntos','Puntaje total, si te la entregan en puntos','decimal')+campo('exigencia','Exigencia (%)','decimal')+
+        '<small>Con puntaje total anotas los puntos que sacaste y te los pasamos a nota. Sin exigencia usamos la del ramo.</small>':''}
     </div>
   </details>`;
 }
@@ -352,7 +371,7 @@ function renderPautaManualModal(){
       </div>${cantidad||usarResto?`
       <div class="pauta-fila-extra">${cantidad}${usarResto}</div>`:''}
       ${reglasEvaluacionEditorHTML({reglas:fila.reglas,varias:fila.varias,manual,
-        abierto:pautaDraftErrorIndex===i&&['descarte','min','tope'].includes(pautaDraftErrorTarget),
+        abierto:pautaDraftErrorIndex===i&&['descarte','min','tope','puntos','exigencia'].includes(pautaDraftErrorTarget),
         id:clave=>`m-pauta-${clave}-${i}`,oninput:clave=>`actualizarReglaPauta(${i},'${clave}',this.value)`,invalido})}
     </div>`;
   }).join('');
@@ -526,7 +545,7 @@ function guardarPautaManual(){
   const reglas=new Map();
   for(const fila of pautaDraft){
     if(!fila.nombre.trim()){
-      if(['descarte','min','tope'].some(campo=>fila.reglas?.[campo]?.trim()))
+      if(['descarte','min','tope','puntos'].some(campo=>fila.reglas?.[campo]?.trim()))
         return mostrarErrorPauta(pautaDraft.indexOf(fila),'Escribe el nombre de la evaluación que lleva la regla.','nombre');
       continue;
     }
