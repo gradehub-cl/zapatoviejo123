@@ -89,7 +89,10 @@ chk('Dinámica llega con su vínculo al laboratorio',
 
 // El nombre de la malla y el de la pauta no siempre coinciden en mayúsculas.
 const filo = cargar([{ id: 'c', nombre: 'Filosofía: ¿Para Qué?', origen: uc, categorias: [], gates: [] }]);
-chk('calza aunque la malla escriba el nombre distinto (¿Para Qué? vs ¿para qué?)', filo[0].categorias.length === 4);
+// Filosofía no es coordinado desde 2026-11-25: calza con su registro (la
+// ficha ofrece su programa como opción), pero no se le carga solo a nadie.
+chk('calza aunque la malla escriba el nombre distinto (¿Para Qué? vs ¿para qué?)', run('claveUc("Filosofía: ¿Para Qué?")') === 'Filosofía: ¿para qué?');
+chk('y no se carga solo: no es coordinado', filo[0].categorias.length === 0);
 
 // Lo que NO puede pasar: pisar lo que el estudiante escribió a mano.
 const conNotas = cargar([{
