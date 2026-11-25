@@ -21,7 +21,8 @@ function openEditCatModal(catId){
     ${cat.fecha?enlaceGoogleCalHTML(r,cat):''}
     ${reglasEvaluacionEditorHTML({reglas,varias:comoLista||cat.slots>1,manual:gh_descarteManual(r,S.tenant),id:idReglaModal,permiteCambiarVarias:!(cat.slots>1)})}
     ${opcionAusenciaHojaHTML(r,cat)}
-    <div class="modal-btns">
+    <button type="button" class="btn-eliminar-nota" onclick="confirmDeleteCat('${catId}')">Eliminar evaluación</button>
+    <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" onclick="confirmEditCat('${catId}')">Guardar</button>
     </div>`;
