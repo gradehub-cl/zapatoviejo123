@@ -96,7 +96,10 @@ function seriesNumeradasFicha(categorias){
 function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
   const pendiente=sombrasActivadas()&&sombras?.pendientes.find(p=>p.catId===catId&&p.slot===slot);
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
-  return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar nota de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">+ Nota</button>`;
+  // Con puntaje total se anotan puntos: el botón lo dice.
+  const ramo=S.ramos.find(x=>x.id===currentRamoId),cat=ramo&&(ramo.categorias||[]).find(c=>c.id===catId);
+  const enPuntos=!!(cat&&puntajeDeCategoria(ramo,cat));
+  return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar ${enPuntos?'puntos':'nota'} de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">${enPuntos?'+ Puntos':'+ Nota'}</button>`;
 }
 function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   if(!boton||!boton.isConnected)return;
@@ -109,25 +112,36 @@ function abrirNotaEnFila(boton,{alGuardar,idCampo}={}){
   input.setAttribute('aria-label',boton.getAttribute('aria-label'));
   if(boton.dataset.sombraClave)input.setAttribute('aria-label','Anotar nota real de '+boton.dataset.sombraNombre);
   let terminado=false;
-  const valido=()=>!input.value.trim()||!isNaN(parseNota(input.value));
+  // Inicio guarda por su cuenta; en la ficha, una evaluación con puntaje total
+  // recibe puntos (ver leerNotaEnCategoria).
+  const ramo=!alGuardar&&S.ramos.find(x=>x.id===currentRamoId);
+  const cat=ramo&&(ramo.categorias||[]).find(c=>c.id===boton.dataset.catId);
+  const puntaje=cat?puntajeDeCategoria(ramo,cat):null;
+  if(puntaje){
+    input.maxLength=7;input.placeholder='pts';
+    input.setAttribute('aria-label',`${boton.getAttribute('aria-label')}, en puntos de ${nf(puntaje.total,Number.isInteger(puntaje.total)?0:1)}`);
+  }
+  const valido=()=>!input.value.trim()||!isNaN(puntaje?leerNotaEnCategoria(input.value,ramo,cat).valor:parseNota(input.value));
   const guardar=()=>{
     if(terminado)return;
-    if(!valido()){input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');return;}
+    if(!valido()){input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast(puntaje?`Escribe tus puntos, de 0 a ${nf(puntaje.total,Number.isInteger(puntaje.total)?0:1)}`:'Escribe una calificación válida');return;}
     terminado=true;
     const raw=input.value.trim();
     if(!raw){input.replaceWith(boton);return;}
     // Inicio reutiliza el mismo campo sin navegar ni cambiar currentRamoId.
     if(alGuardar){if(alGuardar(raw)===false)terminado=false;return;}
-    if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,raw);
-    else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),raw);
-    else setDirectNota(boton.dataset.catId,raw);
+    const leida=puntaje?leerNotaEnCategoria(raw,ramo,cat):null;
+    const nota=leida?String(leida.valor):raw,puntos=leida?leida.puntos:undefined;
+    if(boton.dataset.notaId)setSlotNota(boton.dataset.catId,boton.dataset.notaId,nota,puntos);
+    else if(boton.dataset.slot!==undefined)setSlotNota(boton.dataset.catId,Number(boton.dataset.slot),nota,puntos);
+    else setDirectNota(boton.dataset.catId,nota,puntos);
   };
   input.addEventListener('click',e=>e.stopPropagation());
   input.addEventListener('input',()=>input.removeAttribute('aria-invalid'));
   input.addEventListener('blur',guardar);
   input.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();e.stopPropagation();terminado=true;input.replaceWith(boton);boton.focus({preventScroll:true});}
-    else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast('Escribe una calificación válida');}
+    else if((e.key==='Enter'||e.key==='Tab')&&!valido()){e.preventDefault();e.stopPropagation();input.setAttribute('aria-invalid','true');if(typeof avisoErrorNativo==='function')avisoErrorNativo();showToast(puntaje?`Escribe tus puntos, de 0 a ${nf(puntaje.total,Number.isInteger(puntaje.total)?0:1)}`:'Escribe una calificación válida');}
   });
   boton.replaceWith(input);input.focus({preventScroll:true});
   return input;
