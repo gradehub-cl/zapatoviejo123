@@ -6066,6 +6066,21 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #modal-content .editor-reglas-campos input[type=text]{width:100%;min-height:44px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
 #modal-content .editor-reglas-descarte small{display:block;margin-top:6px;}
 #modal-content:not(:has(#m-cat-varias:checked)) .editor-reglas-al-marcar-varias{display:none;}
+/* Requisitos que combinan evaluaciones (solo app): mínimo sobre un grupo y aprobar por partes. */
+#modal-content .pauta-requisito{display:grid;gap:8px;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;min-width:0;}
+#modal-content .pauta-requisito>legend{padding:0 4px;color:var(--fg);font-weight:600;font-size:.8125rem;}
+#modal-content .pauta-requisito label.pauta-requisito-nombre{grid-template-columns:minmax(0,5rem) minmax(0,1fr);}
+#modal-content .pauta-requisito label.pauta-requisito-nombre input[type=text]{text-align:left;padding:6px 10px;}
+#modal-content .pauta-requisito-evals{display:flex;flex-wrap:wrap;gap:6px;}
+#modal-content .pauta-requisito-evals[aria-invalid=true]{outline:2px solid var(--red);outline-offset:2px;border-radius:8px;}
+#modal-content .editor-reglas-campos label.pauta-requisito-eval{display:inline-flex;grid-template-columns:none;align-items:center;gap:8px;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:22px;color:var(--fg);cursor:pointer;}
+#modal-content label.pauta-requisito-eval:has(input:checked){border-color:var(--fg);}
+#modal-content label.pauta-requisito-eval input[type=checkbox]{width:18px;height:18px;margin:0;}
+#modal-content .pauta-requisito-eval span{font-variant-numeric:tabular-nums;}
+#modal-content .editor-reglas-campos label.pauta-requisito-efecto{grid-template-columns:minmax(0,5rem) minmax(0,1fr);}
+#modal-content .pauta-requisito-efecto select{min-height:44px;width:100%;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;font-size:.9375rem;}
+#modal-content .pauta-requisito-nota[hidden]{display:none;}
+#modal-content .pauta-requisito-quitar{justify-self:start;min-height:44px;padding:0 4px;background:none;border:0;color:var(--fg2);text-decoration:underline;cursor:pointer;}
 
 /* Marcar evaluaciones por ramo: alumnos en filas, evaluaciones en columnas. */
 .ramos-acciones{display:flex;align-items:center;gap:8px;flex:none;}

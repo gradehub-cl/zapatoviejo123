@@ -223,8 +223,7 @@ function confirmDeleteCat(catId){
   showConfirm(`Eliminar "${cat.nombre}"`,`Se eliminarán todas las notas de esta evaluación.`,()=>{
     const totalAntes=r.categorias.reduce((s,c)=>s+(Number(c.peso)||0),0);
     r.categorias=r.categorias.filter(c=>c.id!==catId);
-    if(r.gates?.some(g=>g.origen==='editor'&&g.catId===catId))
-      r.gates=r.gates.filter(g=>g.origen!=='editor'||g.catId!==catId);
+    if(Array.isArray(r.gates))r.gates=reglasEditorVigentes(r.gates,new Set(r.categorias.map(c=>c.id)));
     repartirPesoRestante(r.categorias,totalAntes);
     save();renderRamo();
   });
