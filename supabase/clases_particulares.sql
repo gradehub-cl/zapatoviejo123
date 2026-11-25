@@ -1468,7 +1468,8 @@ declare
   configuracion jsonb;
   inicio_campana timestamptz;
   anterior timestamptz;
-  dias_anteriores integer := 0;
+  segundos_actuales numeric := 0;
+  segundos_anteriores numeric := 0;
 begin
   select * into a from public.tutor_anuncios where id = p_anuncio_id;
   if not found then return; end if;
@@ -1486,8 +1487,9 @@ begin
       (least(hasta_cobro, coalesce(s.hasta, hasta_cobro)) - greatest(a.publicado_at, s.desde))))), 0)
       into segundos_suspendidos from public.tutor_suspensiones s
       where s.user_id = a.autor_id and s.desde < hasta_cobro and (s.hasta is null or s.hasta > a.publicado_at);
-    dias_cobrados := greatest(0, ceil((extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos) / 86400)::integer);
-    if dias is not null then dias_cobrados := least(dias_cobrados, dias); end if;
+    segundos_actuales := greatest(0, extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos);
+    if dias is not null then segundos_actuales := least(segundos_actuales, dias * 86400); end if;
+    dias_cobrados := ceil(segundos_actuales / 86400)::integer;
   end if;
   -- Subirle el tope y volver a publicar sigue la misma campaña (Lucas,
   -- 2026-11-24). Una publicación anterior que todavía no vencía cuando empezó
@@ -1503,16 +1505,22 @@ begin
     exit when anterior is null;
     inicio_campana := anterior;
   end loop;
-  -- Días de las publicaciones anteriores de esta campaña, hasta que empezó la siguiente.
-  select coalesce(sum(greatest(0, ceil(extract(epoch from (least(t.vence, t.siguiente) - t.publicacion)) / 86400)::integer)), 0)
-    into dias_anteriores
+  -- Tiempo de las publicaciones anteriores de esta campaña: hasta que vence,
+  -- empieza la siguiente o termina el último día con actividad (lo que pase
+  -- antes). Si llegó al tope dejó de mostrarse: los días detenida o pausada
+  -- antes de republicar no se cobran. Todo se suma y se redondea una vez.
+  select coalesce(sum(greatest(0, extract(epoch from (least(t.vence, t.siguiente, t.fin_actividad) - t.publicacion)))), 0)
+    into segundos_anteriores
     from (select p.publicacion, p.vence,
-                 coalesce(lead(p.publicacion) over (order by p.publicacion), a.medicion_desde) siguiente
-          from (select publicacion, max(vence_publicacion) vence from (
-                  select publicacion, vence_publicacion from public.anuncio_alcance where anuncio_id = p_anuncio_id
-                  union select publicacion, vence_publicacion from public.anuncio_interacciones where anuncio_id = p_anuncio_id
+                 coalesce(lead(p.publicacion) over (order by p.publicacion), a.medicion_desde) siguiente,
+                 coalesce((p.ultimo_dia + 1)::timestamp at time zone 'America/Santiago', p.vence) fin_actividad
+          from (select publicacion, max(vence_publicacion) vence, max(dia) ultimo_dia from (
+                  select publicacion, vence_publicacion, dia from public.anuncio_alcance where anuncio_id = p_anuncio_id
+                  union all select publicacion, vence_publicacion, dia from public.anuncio_interacciones where anuncio_id = p_anuncio_id
                 ) u where isfinite(publicacion) and vence_publicacion is not null and publicacion >= inicio_campana and publicacion < a.medicion_desde group by publicacion) p) t;
-  dias_cobrados := dias_cobrados + dias_anteriores;
+  if segundos_anteriores > 0 then
+    dias_cobrados := ceil((segundos_actuales + segundos_anteriores) / 86400)::integer;
+  end if;
   select count(distinct x.user_id)::integer into vistas from public.anuncio_alcance x
     where x.anuncio_id = p_anuncio_id and x.publicacion >= inicio_campana and x.publicacion <= a.medicion_desde
       and not exists (select 1 from public.anuncio_alcance y where y.anuncio_id = p_anuncio_id
