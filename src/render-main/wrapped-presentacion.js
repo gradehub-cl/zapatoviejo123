@@ -163,14 +163,34 @@ function ramosVistaPreviaWrapped(){
     r('d','Estadística',[n('C1',4.4,'2026-09-14'),n('C2',4.9,'2026-09-16'),n('C3',4.6,'2026-11-18')]),
   ];
 }
-function abrirWrappedVistaPrevia(){
+// La vista previa muestra un video cargado de verdad (Lucas, 2026-11-25:
+// «para poder ver cómo queda»). Solo administración con segundo factor puede
+// leer el bucket; si no se puede, queda el espacio reservado.
+async function videoVistaPreviaWrapped(tenant){
+  if(typeof supabaseClient==='undefined'||!supabaseClient)return null;
+  try{
+    const bucket=supabaseClient.storage.from('wrapped');
+    const {data,error}=await bucket.list(tenant,{limit:100,sortBy:{column:'name',order:'asc'}});
+    if(error||!Array.isArray(data))return null;
+    const video=data.find(f=>/\.(mp4|webm)$/i.test(f.name));if(!video)return null;
+    const base=video.name.replace(/\.[a-z0-9]+$/i,''),poster=data.find(f=>f.name.startsWith(base+'.')&&/\.(jpe?g|png|webp)$/i.test(f.name));
+    const firmar=async n=>{if(!n)return null;const f=await bucket.createSignedUrl(`${tenant}/${n}`,3600);return f.error?null:f.data.signedUrl;};
+    const [src,img]=await Promise.all([firmar(video.name),firmar(poster&&poster.name)]);
+    return src?{src,poster:img,subtitulos:null,quien:'tu profe',ramo:'Vista previa'}:null;
+  }catch(e){return null;}
+}
+async function abrirWrappedVistaPrevia(){
   if(_wrapped||_wrappedAbriendo||typeof esAdministrador!=='function'||!esAdministrador())return;
+  _wrappedAbriendo=true;
+  const foco=document.activeElement;
+  const real=await Promise.race([videoVistaPreviaWrapped('uc'),new Promise(r=>setTimeout(()=>r(null),4000))]);
+  _wrappedAbriendo=false;
+  if(_wrapped)return;
   const ramos=ramosVistaPreviaWrapped(),datos=datosWrapped(ramos);
   extrasWrapped(datos,ramos);
-  // El recado de ejemplo muestra el espacio del video, sin archivo real.
   const slides=slidesWrapped(datos,{curso:{ramo:'Cálculo II',mejorQue:82,total:39},uni:{mejorQue:71,total:120}},WRAPPED_PERIODO,
-    {calificaciones:2,video:{src:null,quien:'tu profe',ramo:'Cálculo II'}},{tenant:'uc',ramos});
-  montarWrapped(slides,{foco:document.activeElement,vistaPrevia:true});
+    {calificaciones:2,video:real||{src:null,quien:'tu profe',ramo:'Cálculo II'}},{tenant:'uc',ramos});
+  montarWrapped(slides,{foco,vistaPrevia:true});
 }
 function montarWrapped(slides,estado){
   const ov=document.createElement('div');
@@ -420,9 +440,9 @@ function armarGomaWrapped(canvas){
     canvas.addEventListener('pointermove',e=>{
       if(!ultimo)return;
       const p=punto(e);g.c.beginPath();g.c.moveTo(...ultimo);g.c.lineTo(...p);g.c.stroke();ultimo=p;
-      if(++trazos%8===0&&borradoGomaWrapped(g)>=.45)borrarGomaWrapped();
+      if(++trazos%8===0&&borradoGomaWrapped(g)>=GOMA_BORRADO_WRAPPED)borrarGomaWrapped();
     });
-    ['pointerup','pointercancel'].forEach(ev=>canvas.addEventListener(ev,()=>{ultimo=null;if(borradoGomaWrapped(g)>=.45)borrarGomaWrapped();}));
+    ['pointerup','pointercancel'].forEach(ev=>canvas.addEventListener(ev,()=>{ultimo=null;if(borradoGomaWrapped(g)>=GOMA_BORRADO_WRAPPED)borrarGomaWrapped();}));
   });
 }
 function borrarGomaWrapped(){
@@ -497,6 +517,14 @@ function contarWrapped(caja,i){
 
 function pasarWrapped(paso){
   if(!_wrapped)return;
+  // La goma no se salta: hay que borrar la nota entera (Lucas, 2026-11-25).
+  // «Borrar de una» sigue para VoiceOver y teclado.
+  const actual=_wrapped.slides[_wrapped.i];
+  if(paso>0&&actual.tipo==='goma'&&!actual.borrada&&_wrapped.fase!=='prep'){
+    const pie=_wrapped.ov.querySelector('.hoja-goma-pie p');
+    if(pie)pie.textContent='Bórrala entera para seguir.';
+    return;
+  }
   const i=_wrapped.i+paso;
   if(i>=_wrapped.slides.length)return cerrarWrapped();
   if(i<0)return programarWrapped();

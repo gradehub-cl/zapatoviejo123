@@ -187,6 +187,18 @@ const check=(nombre,fn)=>{fn();console.log('  OK   '+nombre);};
  ctx.pasarWrapped(-1);assert.equal(ctx.document.activeElement,foco,'si la historia se cierra al repintar, no vuelve a enfocar el overlay retirado');
  ctx.pintarWrapped=pintarAntes;
  console.log('  OK   cambio de historia restaura solo el foco retirado y conserva navegación persistente');
+ // La goma no se salta con «Siguiente»: hay que borrar la nota entera.
+ const goma={tipo:'goma',borrada:false},pieGoma=el(),ovGoma=el();
+ ovGoma.querySelector=sel=>sel==='.hoja-goma-pie p'?pieGoma:el();
+ let repintes=0;ctx.pintarWrapped=()=>{repintes++;};
+ set('_wrapped',{ov:ovGoma,slides:[goma,{}],i:0,fase:'revela'});
+ ctx.pasarWrapped(1);assert.equal(run('_wrapped.i'),0,'sin borrar no avanza');assert.equal(repintes,0);
+ assert.match(pieGoma.textContent,/entera/);
+ set('_wrapped',{ov:ovGoma,slides:[goma,{}],i:0,fase:'prep'});ctx.pasarWrapped(1);assert.equal(run('_wrapped.i'),1,'en la preparación sigue como antes');
+ goma.borrada=true;set('_wrapped',{ov:ovGoma,slides:[goma,{}],i:0,fase:'revela'});ctx.pasarWrapped(1);assert.equal(run('_wrapped.i'),1,'borrada, avanza');
+ assert.ok(run('GOMA_BORRADO_WRAPPED')>=0.9,'hay que destapar casi toda la cifra');
+ ctx.pintarWrapped=pintarAntes;
+ console.log('  OK   la goma exige borrar la nota entera antes de seguir');
  // Compartir se llama sin esperar ninguna promesa: requisito de Safari iOS.
  const archivo={name:'mi-semestre-gradehub.png',type:'image/png'};set('_wrapped',{ov:el(),archivo,imagen:new Promise(()=>{}),slides:[],i:0});
  let invocado=false;ctx.navigator.canShare=()=>true;ctx.navigator.share=()=>{invocado=true;return Promise.resolve();};

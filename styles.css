@@ -3380,6 +3380,8 @@ input.eval-row-input{border-radius:8px;background:var(--bg2);font-weight:550;}
 .hoja-goma-pie{position:absolute;left:0;right:0;bottom:12px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
 .hoja-goma-pie p{margin:0;padding:6px 12px;border-radius:8px;background:var(--sup);font-size:16px;font-weight:600;}
 .hoja-goma-pie .hoja-goma-btn{pointer-events:auto;background:var(--sup);}
+/* «Borrar de una» queda para VoiceOver y teclado: a la vista solo al enfocarlo. */
+.hoja-goma-pie .hoja-goma-btn:not(:focus-visible){position:absolute;width:1px;height:1px;min-height:0;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
 .hoja-goma-btn{min-height:44px;padding:0 18px;border:1.5px dashed var(--tinta);border-radius:22px;background:transparent;color:var(--tinta);font:inherit;font-size:16px;font-weight:600;cursor:pointer;}
 .hoja-goma-btn:focus-visible{outline:3px solid var(--tinta);outline-offset:2px;}
 /* El recado del profe: una foto instantánea pegada con cinta a la hoja. */

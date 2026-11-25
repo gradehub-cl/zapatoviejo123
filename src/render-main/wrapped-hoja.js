@@ -119,7 +119,7 @@ function gomaWrapped(cifra,borrada){
   // El lugar sale de la cifra: siempre el mismo para la misma nota.
   const lugares=[[30,32],[68,60],[34,68],[66,30]],[x,y]=lugares[[...String(cifra)].reduce((s,ch)=>s+ch.charCodeAt(0),0)%lugares.length];
   return `<div class="hoja-goma pantalla" style="--x:${x}%;--y:${y}%"><p class="wrapped-big" aria-hidden="true">${cifra}</p><canvas aria-hidden="true"></canvas>
-    <div class="hoja-goma-pie"><p>Frota la hoja hasta encontrarla.</p><button type="button" class="hoja-goma-btn">Borrar de una</button></div></div>`;
+    <div class="hoja-goma-pie"><p>Frota la hoja hasta borrar la nota entera.</p><button type="button" class="hoja-goma-btn">Borrar de una</button></div></div>`;
 }
 // El borrón son rayas de lápiz cruzadas, con trazos fijos: el mismo en cada
 // apertura. Tapa la cifra sin ser un rectángulo negro.
@@ -154,6 +154,8 @@ function rayarGomaWrapped(canvas,completa){
 }
 // Cuánto se destapó: de la zona donde está la cifra si se conoce, para que
 // frotar lejos de la nota no la revele.
+// Cuánto de la cifra hay que destapar para revelarla: casi entera, no un toque.
+const GOMA_BORRADO_WRAPPED=.9;
 function borradoGomaWrapped(g){
   const z=g.zona||{x:0,y:0,w:g.ancho,h:g.alto};
   const datos=g.c.getImageData(z.x,z.y,Math.max(1,z.w),Math.max(1,z.h)).data;let vacios=0,total=0;
