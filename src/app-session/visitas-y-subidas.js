@@ -71,11 +71,12 @@ function traerNubeAlVolver(ahora=Date.now()){
 }
 // Con la pestaña abierta y a la vista no hay ningún evento que avise: el
 // computador queda en el escritorio mientras se anota en el celular, y la nota
-// no aparecía hasta cambiar de pestaña o de ventana (2026-11-23). Cada minuto,
+// no aparecía hasta cambiar de pestaña o de ventana (2026-11-23). Cada 3 minutos,
 // solo si la pantalla está a la vista, se pregunta a la nube su versión
 // (`_rev`, unos bytes, no el JSON entero). Si es otra que la de la base, se
 // trae por el mismo camino de siempre (traerNubeAlVolver).
-const NUBE_A_LA_VISTA_MS=60000;
+// Antes cada minuto: inflaba los logs de Supabase (plan gratis) sin necesidad.
+const NUBE_A_LA_VISTA_MS=180000;
 async function revisarNubeALaVista(){
   if(typeof document==='undefined'||document.visibilityState!=='visible')return false;
   if(!supabaseClient||!currentUser||!S||!S.onboardingDone)return false;

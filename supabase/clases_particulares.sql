@@ -1466,6 +1466,9 @@ declare
   hasta_cobro timestamptz;
   segundos_suspendidos numeric := 0;
   configuracion jsonb;
+  inicio_campana timestamptz;
+  anterior timestamptz;
+  dias_anteriores integer := 0;
 begin
   select * into a from public.tutor_anuncios where id = p_anuncio_id;
   if not found then return; end if;
@@ -1486,10 +1489,40 @@ begin
     dias_cobrados := greatest(0, ceil((extract(epoch from (hasta_cobro - a.publicado_at)) - segundos_suspendidos) / 86400)::integer);
     if dias is not null then dias_cobrados := least(dias_cobrados, dias); end if;
   end if;
-  select count(*)::integer into vistas from public.anuncio_alcance where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
-  select count(*) filter (where tipo = 'apertura')::integer, count(*) filter (where tipo = 'contacto')::integer
+  -- Subirle el tope y volver a publicar sigue la misma campaña (Lucas,
+  -- 2026-11-24). Una publicación anterior que todavía no vencía cuando empezó
+  -- la siguiente es parte de la misma campaña: sus días y sus personas se
+  -- suman, y el tope se mide contra el total. Cada persona cuenta una vez por
+  -- anuncio: quien ya lo vio, abrió o contactó antes no vuelve a contar.
+  inicio_campana := a.medicion_desde;
+  loop
+    select max(s.publicacion) into anterior from (
+      select publicacion, vence_publicacion from public.anuncio_alcance where anuncio_id = p_anuncio_id
+      union select publicacion, vence_publicacion from public.anuncio_interacciones where anuncio_id = p_anuncio_id
+    ) s where isfinite(s.publicacion) and s.publicacion < inicio_campana and s.vence_publicacion > inicio_campana;
+    exit when anterior is null;
+    inicio_campana := anterior;
+  end loop;
+  -- Días de las publicaciones anteriores de esta campaña, hasta que empezó la siguiente.
+  select coalesce(sum(greatest(0, ceil(extract(epoch from (least(t.vence, t.siguiente) - t.publicacion)) / 86400)::integer)), 0)
+    into dias_anteriores
+    from (select p.publicacion, p.vence,
+                 coalesce(lead(p.publicacion) over (order by p.publicacion), a.medicion_desde) siguiente
+          from (select publicacion, max(vence_publicacion) vence from (
+                  select publicacion, vence_publicacion from public.anuncio_alcance where anuncio_id = p_anuncio_id
+                  union select publicacion, vence_publicacion from public.anuncio_interacciones where anuncio_id = p_anuncio_id
+                ) u where isfinite(publicacion) and vence_publicacion is not null and publicacion >= inicio_campana and publicacion < a.medicion_desde group by publicacion) p) t;
+  dias_cobrados := dias_cobrados + dias_anteriores;
+  select count(distinct x.user_id)::integer into vistas from public.anuncio_alcance x
+    where x.anuncio_id = p_anuncio_id and x.publicacion >= inicio_campana and x.publicacion <= a.medicion_desde
+      and not exists (select 1 from public.anuncio_alcance y where y.anuncio_id = p_anuncio_id
+                        and y.user_id = x.user_id and y.publicacion < inicio_campana);
+  select count(distinct x.user_id) filter (where x.tipo = 'apertura')::integer, count(distinct x.user_id) filter (where x.tipo = 'contacto')::integer
     into aperturas, contactos
-    from public.anuncio_interacciones where anuncio_id = p_anuncio_id and publicacion = a.medicion_desde;
+    from public.anuncio_interacciones x
+    where x.anuncio_id = p_anuncio_id and x.publicacion >= inicio_campana and x.publicacion <= a.medicion_desde
+      and not exists (select 1 from public.anuncio_interacciones y where y.anuncio_id = p_anuncio_id
+                        and y.user_id = x.user_id and y.tipo = x.tipo and y.publicacion < inicio_campana);
   costo_bruto := dias_cobrados * public.tarifa_campana_clp('dia', a.precio_campana_clp)
                + vistas * public.tarifa_campana_clp('vista', a.precio_campana_clp)
                + aperturas * public.tarifa_campana_clp('apertura', a.precio_campana_clp)

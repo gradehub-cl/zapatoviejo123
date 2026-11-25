@@ -522,8 +522,13 @@ const PRESETS_UC={
       ['Examen',40], // El 11 de diciembre figura por confirmar.
     ],
     aporta:{ramo:'Laboratorio de Termodinámica',peso:30,min:4.0},
+    // El examen reemplaza UNA interrogación justificada. Con las dos, el
+    // programa exige reprobar: la segunda queda bloqueada y se sigue avisando.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+    ]},
     noCalcula:[
-      'El examen puede reemplazar una sola interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente',
       'Si justificas ambas interrogaciones, el programa exige reprobar el ramo. La app no aplica esa reprobación por inasistencias',
     ],
     reglasDelCurso:[
@@ -544,8 +549,14 @@ const PRESETS_UC={
       ['Examen',40,{fecha:'2026-12-01'}],
     ],
     aporta:{ramo:'Laboratorio de Electricidad y Magnetismo',peso:30,min:4.0},
+    // El examen reemplaza una única interrogación justificada; con dos, el
+    // programa remite a la facultad y la segunda queda bloqueada.
+    ausenciasJustificadas:{maxReemplazos:1,reemplazos:[
+      {desde:'Interrogación 1',hacia:'Examen'},
+      {desde:'Interrogación 2',hacia:'Examen'},
+    ]},
     noCalcula:[
-      'El examen reemplaza una única interrogación con inasistencia justificada. Este ajuste no se aplica automáticamente; con dos o más inasistencias, debes consultar a tu facultad',
+      'Con dos inasistencias justificadas a interrogaciones, el programa no dice cómo se calcula: debes consultar a tu facultad',
     ],
     reglasDelCurso:[
       'Programa 2026-2. El documento indica los mismos criterios para todas las secciones de ese período',

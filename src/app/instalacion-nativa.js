@@ -189,7 +189,8 @@ function showMainApp(){
   contarVisita();
   pintarAvisoInstalar();
   // Si llegó con el link de un profesor, ahora que hay sesión se le ofrece compartir.
-  if(typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
+  const enlaceUniversal=typeof activarEnlacesUniversales==='function'&&activarEnlacesUniversales();
+  if(enlaceUniversal!=='profe'&&typeof revisarInvitacionProfesor==='function')setTimeout(revisarInvitacionProfesor,600);
   // En una cuenta existente el catálogo puede no haberse pedido nunca: si un
   // ramo UC quedó sin SCT, hay que traerlo incluso sin abrir el buscador. Si ya
   // se cargó durante onboarding, completa de inmediato.
