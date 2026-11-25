@@ -197,8 +197,9 @@ function openEditNotaModal(catId,notaId){
     <label class="modal-label">Nombre</label>
     <div class="modal-input"><input type="text" id="m-nota-name" value="${esc(nombreNotaCasilla(r,cat,n))}" maxlength="${NOMBRE_MAX}" autocomplete="off" aria-describedby="m-nota-error"/></div>
     <p id="m-nota-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
-    <label class="modal-label">${etiquetaNotaEntrada()} <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">— vacía si todavía no la rindes</span></label>
-    <div class="modal-input"><input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="m-nota-val" value="${n.valor!==null?textoCalificacionNota(n):''}"/></div>
+    <label class="modal-label" for="m-nota-val">${etiquetaNotaEntrada()} <span style="text-transform:none;font-weight:500;color:var(--fg3);letter-spacing:0;">— vacía si todavía no la rindes</span></label>
+    <div class="modal-input"><input type="text" inputmode="${inputModeNota()}" autocapitalize="characters" id="m-nota-val" value="${n.valor!==null?textoCalificacionNota(n):''}" aria-describedby="m-nota-val-error"/></div>
+    <p id="m-nota-val-error" role="alert" hidden style="margin:-6px 0 10px;font-size:0.8125rem;color:var(--red);"></p>
     ${campoFechaHoraHTML('m-nota',n.fecha,n.hora,true)}
     ${n.fecha?enlaceGoogleCalHTML(r,cat,n):''}
     ${controlRecorreccionHTML(n,n.fecha||cat.fecha,cat.fecha)}
@@ -217,6 +218,7 @@ function openEditNotaModal(catId,notaId){
     </div>`;
   openModal();
   enfocarEnHoja(document.getElementById('m-nota-name'));
+  document.getElementById('m-nota-val').addEventListener('input',()=>limpiarErrorCampo('m-nota-val','m-nota-val-error'));
   document.getElementById('m-nota-name').addEventListener('input',()=>{if(editNotaError){editNotaError='';limpiarErrorCampo('m-nota-name','m-nota-error');}});
 }
 // Una nota se borra desde su hoja, sea de lista o de un grupo con casillas: en
@@ -235,10 +237,11 @@ function confirmEditNota(catId,notaId){
   const input=document.getElementById('m-nota-name');
   const name=(input&&input.value||'').trim();
   const rawNota=document.getElementById('m-nota-val').value;
-  const val=parseNota(rawNota);
   // Igual que al crearla: sin valor queda pendiente. Es el camino de vuelta —
   // se anota la evaluación cuando se sabe la fecha y se completa al rendirla.
   if(!name){editNotaError='Escribe el nombre de la nota para guardarla.';mostrarErrorCampo('m-nota-name','m-nota-error',editNotaError);return false;}
+  const val=leerCalificacionHoja(rawNota);
+  if(val===undefined)return false;
   const fechaNota=(document.getElementById('m-nota-fecha')||{}).value||null;
   const usaPond=document.getElementById('m-pond-toggle').checked;
   const peso=usaPond?leerPesoNota():1;
@@ -246,13 +249,13 @@ function confirmEditNota(catId,notaId){
   const cat=r.categorias.find(c=>c.id===catId);
   const n=cat.notas.find(x=>x.id===notaId);
   n.nombre=name;n.peso=peso;
-  asignarCalificacionNota(n,rawNota,isNaN(val)?null:val);
+  asignarCalificacionNota(n,rawNota,val);
   marcarFechaUsuario(n,fechaNota,leerHora('m-nota'));
   aplicarRecorreccion(n);
-  save();track('edit_nota',{pendiente:isNaN(val)});closeModal();renderRamo();
-  if(!isNaN(val))vibrar('nota');
+  save();track('edit_nota',{pendiente:val===null});closeModal();renderRamo();
+  if(val!==null)vibrar('nota');
   if(typeof renderAgenda==='function')renderAgenda();
-  showToast(isNaN(val)?'Guardada como pendiente':lecturaDespuesDeNota(r));
+  showToast(val===null?'Guardada como pendiente':lecturaDespuesDeNota(r));
 }
 
 // «Nota mínima» se juntó con el simulador (Lucas, 2026-10-23): la meta se
