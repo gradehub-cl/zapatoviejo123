@@ -131,8 +131,17 @@ const PRESETS_UC={
   // es "causal de reprobación del curso, independientemente del promedio";
   // como no dice con qué nota, va el 3,9 de siempre. La asistencia mínima pasa
   // el filtro de reglas visibles: el estudiante puede cumplirla y cambia su nota.
+  //
+  // NO ES COORDINADO (Lucas, 2026-11-25): cada sección arma su programa. Por
+  // eso va en `evalsReferencia` y no en `evals`: no se carga sola a nadie. La
+  // ficha la ofrece como una opción más, diciendo que puede no ser la de tu
+  // sección, junto a lo que reportan los compañeros de cada sección
+  // (distribuciones-pauta.js). Quien ya la tenía cargada conserva sus reglas
+  // (programaQueCalza).
   'Filosofía: ¿para qué?':{
-    evals:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
+    sigla:'FIL2001',
+    coordinado:false,
+    evalsReferencia:[['Prueba 1',30],['Ejercicio de análisis',20],['Prueba 2',30],['Podcast',20,{min:4.0,cap:3.9}]],
     reglasDelCurso:[
       'Necesitas al menos 75% de asistencia a clases: si no, el curso queda con nota R, que equivale a 3,0. La app no registra asistencia',
     ],
