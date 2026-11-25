@@ -107,7 +107,20 @@ function syncToCloud(){
 // Al volver a entrar, afterLogin() carga la nube encima de la copia local y
 // esa nota se pierde sin aviso. Cuando la página se esconde, se sube de
 // inmediato lo que estaba esperando.
+// Una nota escrita en la ficha (o en Inicio) se guarda al soltar el campo
+// (blur o change). Si la persona escribe un 6 y sale de la app sin tocar fuera,
+// iOS deja el campo con el foco, y si después cierra la app en segundo plano la
+// nota nunca llegó a S ni al disco (Lucas, 2026-11-25: «tenía un 6 cargado y
+// al volver no estaba»). Al esconderse la página se suelta el campo de nota:
+// el blur guarda por el camino de siempre y subirSyncPendiente lo sube.
+function soltarNotaEnCurso(){
+  const el=typeof document!=='undefined'&&document.activeElement;
+  if(!el||!el.classList||!el.classList.contains('eval-row-input')||typeof el.blur!=='function')return false;
+  try{el.blur();}catch(e){return false;}
+  return true;
+}
 function subirSyncPendiente(){
+  soltarNotaEnCurso();
   if(!_syncTimer)return false;
   clearTimeout(_syncTimer);_syncTimer=null;
   syncNow();
