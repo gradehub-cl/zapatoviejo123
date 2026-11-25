@@ -48,9 +48,30 @@ function gh_crearCalculoRamo(deps){
         return c&&c.peso===e.peso&&(c.slots||1)===e.slots&&normName(c.nombre)===normName(e.nombre)&&JSON.stringify(c.dropLowest||null)===JSON.stringify(e.dropLowest||null);
       }));
   }
+  // La eximición que la persona escribe en «Editar evaluaciones» (solo app),
+  // cuando el programa del catálogo no trae una. Se guarda por id y se lleva
+  // al mismo formato del catálogo, así que la calcula el mismo camino: si la
+  // presentación alcanza el mínimo, con los mínimos por evaluación y la
+  // confirmación (que incluye la asistencia), el examen sale del cálculo y la
+  // final es el promedio del resto. La presentación se aproxima a la décima,
+  // como la nota final. Sin nombres únicos no se adivina: no rige.
+  function eximicionPropia(r){
+    const p=r&&r.eximicionPropia,cats=(r&&r.categorias||[]).filter(c=>!c.fueraDePauta);
+    if(!p||typeof p!=='object'||!Array.isArray(p.segun)||!Number.isFinite(p.min))return null;
+    const nombre=id=>cats.find(c=>c.id===id)?.nombre;
+    const examen=nombre(p.examenId),segun=p.segun.map(nombre);
+    const minimos=(Array.isArray(p.minimos)?p.minimos:[]).map(m=>({evaluacion:nombre(m&&m.catId),min:m&&m.min}));
+    if(!examen||!segun.length||segun.some(n=>!n)||segun.includes(examen)||minimos.some(m=>!m.evaluacion||!Number.isFinite(m.min)))return null;
+    const usados=[examen,...segun,...minimos.map(m=>m.evaluacion)];
+    if(usados.some(n=>cats.filter(c=>normName(c.nombre)===normName(n)).length!==1))return null;
+    const asistencia=Number.isFinite(p.asistencia)&&p.asistencia>0&&p.asistencia<=100?p.asistencia:null;
+    return {origen:'editor',evaluacion:examen,segun,min:p.min,minimos,ignoraDescartes:false,comparaNotaOficial:true,requiereConfirmacion:true,
+      ...(asistencia?{confirmar:`cumples con ${String(asistencia).replace('.',',')} % de asistencia`,asistencia}:{})};
+  }
   function reglaDeEximicion(r){
     const def=definicionPresetDelRamo(r),regla=def?.eximicion;
-    if(!regla||Array.isArray(regla.secciones)&&!regla.secciones.includes(r.seccion))return null;
+    if(!regla)return eximicionPropia(r);
+    if(Array.isArray(regla.secciones)&&!regla.secciones.includes(r.seccion))return null;
     if(regla.requierePautaOriginal===true){
       const evals=def.evals||regla.pauta||[],cats=r.categorias||[];
       if(!Array.isArray(evals)||evals.length!==cats.length||evals.some(([nombre,peso,extra])=>{
