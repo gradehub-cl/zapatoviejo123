@@ -504,7 +504,7 @@ function normalize(data) {
     if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
       r.pautaHuella = tiene;
       const cambio = cambioDePauta(r);
-      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+      if (cambio && !cambio.notasFueraDePauta && !juntaFilasAMedias(r, cambio)) aplicarCambioDePauta(r, cambio);
     }
     // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
     // topando la nota en los ramos creados antes: el aviso de pauta cambiada

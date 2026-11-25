@@ -319,6 +319,17 @@ function traducirIdsCategoria(valor,mapa){
   if(valor&&typeof valor==='object'){const out={};Object.keys(valor).forEach(k=>{out[k]=traducirIdsCategoria(valor[k],mapa);});return out;}
   return valor;
 }
+// Filas con peso propio que la pauta nueva junta en una (`nombresAnteriores`
+// con peso): si solo algunas tienen nota, la que queda pasa a valer el peso de
+// todas y el promedio se mueve. Eso no se aplica sin preguntar.
+function juntaFilasAMedias(r,cambio){
+  const conNota=new Set(catsDePauta(r.categorias).filter(c=>(c.notas||[]).some(n=>typeof n.valor==='number')).map(c=>normName(c.nombre)));
+  return (cambio.preset.categorias||[]).some(c=>{
+    const filas=(c.nombresAnteriores||[]).filter(x=>x&&typeof x==='object'&&Number.isFinite(x.peso)).map(x=>normName(x.nombre));
+    const llenas=filas.filter(n=>conNota.has(n)).length;
+    return llenas>0&&llenas<filas.length;
+  });
+}
 function aplicarPautaNueva(ramoId){
   if(!actualizarPauta(ramoId))return;
   save();track('pauta_actualizada');closeModal();renderRamo();
