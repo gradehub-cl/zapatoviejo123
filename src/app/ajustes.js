@@ -8,6 +8,9 @@ function renderSettingsSiAbierto(){
   if(!document.querySelector('.settings-shell'))return;
   _repintarSettings();
 }
+// Avisos de Amigos: solo con su SQL aplicado y el plugin de la app.
+function avisosAmigosEnAjustes(){return typeof amigosAvisosDisponible!=='undefined'&&amigosAvisosDisponible&&typeof pluginAvisosAmigos==='function'&&!!pluginAvisosAmigos();}
+function avisosSeccionDisponible(){return avisosAmigosEnAjustes()||(typeof avisosPruebasDisponibles==='function'&&avisosPruebasDisponibles());}
 function openSettings(){
   const initialSection=arguments[0];
   // Quien abre una sección directo (la pestaña Perfil) puede pedir que la flecha
@@ -27,7 +30,7 @@ function openSettings(){
   // Se declara acá arriba: los render*Grid() se llaman antes de las definiciones
   // de función y con `let` más abajo caería en la zona muerta temporal (TDZ).
   let settingsTenant=S.tenant||'fen';
-  const directSection=['perfil','profesor','academico','calendario','canvas','apariencia','agentes','sugerencias','datos'].includes(initialSection)
+  const directSection=['perfil','profesor','academico','calendario','canvas','avisos','apariencia','agentes','sugerencias','datos'].includes(initialSection)
     &&(!soloProfesor||seccionesProfesor.includes(initialSection))?initialSection:'';
   let activeSection=directSection||(window.matchMedia('(min-width:768px)').matches?'perfil':'');
   const icons={
@@ -39,6 +42,7 @@ function openSettings(){
     apariencia:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
     agentes:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h.01M8 13h.01M11 9h5M11 13h5M8 17h8"/></svg>',
     sugerencias:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>',
+    avisos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
     datos:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/></svg>',
     arrow:'<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>'
   };
@@ -47,12 +51,15 @@ function openSettings(){
   const sections=[
     ['Tu cuenta','perfil','Perfil',conClave?'Tu nombre, correo y contraseña':'Tu nombre y correo de acceso','cambiar nombre correo email'+(conClave?' contraseña clave password':'')],
     ['Tu cuenta','agentes','Agentes conectados','Conectar o desconectar un agente','chatgpt claude gemini inteligencia artificial url revocar permisos'],
-    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
+    ['Tu cuenta','datos','Datos y cuenta','Respaldos, reinicio y eliminación','exportar importar copia respaldo borrar eliminar cuenta reiniciar dispositivo privacidad terminos profesor compartir notas dejar de compartir pauta ponderaciones programa anonimo consenso bloquear bloqueados desbloquear denunciar'],
     ['Tu cuenta','profesor','Apoyo','Ofrece clases, material o tu app','profesor particular clases particulares apoyo material app plataforma ofrecer anuncio tutor postular enseñar dar clases hacer clases'],
     ['Tu semestre','academico','Información académica','Universidad, carrera y semestre','cambiar carrera universidad agregar semestre anterior historial ramos malla cursos obligatorios'],
     ['Tu semestre','calendario','Calendario','Importar fechas o suscribirte','apple google outlook importar archivo ics fechas copiar url suscripcion'],
     ...(canvasSeccionDisponible()?[['Tu semestre','canvas','Canvas','Ramos, fechas y notas de Canvas UC','canvas uc token ramos tareas fechas notas programa pesos']]:[]),
     ['La app','apariencia','Apariencia','Modo, acento y fondo','tema claro oscuro sistema color cambiar fondo'],
+    // Lucas, 2026-11-22: los avisos de Amigos salen de su Privacidad y se juntan
+    // acá con los de evaluaciones. Solo en la app: en la web no hay avisos.
+    ...(avisosSeccionDisponible()?[['La app','avisos','Avisos','Amigos, grupos y evaluaciones','notificaciones avisos push alertas amigos grupos salas solicitudes invitaciones evaluaciones pruebas recordatorio']]:[]),
     ['La app','sugerencias','Sugerencias y comentarios','Cuéntanos qué mejorar','ayuda problema reportar falla comentario enviar contactar soporte denunciar abuso']
   ].filter(([,id])=>!soloProfesor||seccionesProfesor.includes(id));
 
@@ -168,8 +175,11 @@ function openSettings(){
       <p class="settings-help" style="margin-top:0;">Sube un archivo <b>.ics</b> de tu calendario. Revisas cada fecha antes de agregarla.</p>
       <div class="settings-data-actions" style="margin-bottom:0;">
         <button type="button" onclick="abrirImportarCalendario()">Importar archivo .ics</button>
-      </div>
-      ${avisosPruebasDisponibles()?`<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>
+      </div>`;
+    if(section==='avisos')return `
+      ${avisosAmigosEnAjustes()?`<label class="amigos-ajuste" for="amigos-avisos"><span><b>Amigos y grupos</b><small>Solicitudes, invitaciones a grupos y salas nuevas. Nunca tus notas.</small></span>
+        <input id="amigos-avisos" type="checkbox" role="switch"${avisosAmigosActivos()?' checked':''}></label>`:''}
+      ${avisosPruebasDisponibles()?`${avisosAmigosEnAjustes()?'<div style="height:1px;background:var(--border);margin:22px 0 16px;"></div>':''}
       <label class="modal-label">Avisos antes de tus evaluaciones</label>
       <p class="settings-help" style="margin-top:0;">${enAppIOS()?'Para las evaluaciones con hora: último repaso, baño y agua, y el camino a la sala, con una cuenta regresiva en la pantalla de bloqueo. Al terminar, te preguntamos cómo te fue. Solo en este iPhone.'
         :'Para las evaluaciones con hora: la noche anterior y 15 minutos antes, para caminar a la sala. Al terminar, te preguntamos cómo te fue. Solo en este teléfono.'}</p>
@@ -187,8 +197,8 @@ function openSettings(){
       <div class="agent-explainer">
         <b>Qué puede hacer</b>
         ${enAppNativa()
-          ?'<span>Puede leer tus ramos, notas y fechas, simular escenarios y preparar propuestas de ramos, pautas, notas y fechas.</span><span class="agent-explainer-no">Tú revisas y eliges qué propuestas aplicar en GradeHub.</span>'
-          :'<span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte pautas que tú confirmas.</span><span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>'}
+          ?'<span>Puede leer tus ramos, notas y fechas, simular escenarios y preparar propuestas de ramos, ponderaciones, notas y fechas.</span><span class="agent-explainer-no">Tú revisas y eliges qué propuestas aplicar en GradeHub.</span>'
+          :'<span>Ver tus ramos, notas y fechas, simular escenarios, agregar un ramo y proponerte ponderaciones que tú confirmas.</span><span class="agent-explainer-no">No puede escribir tus notas ni borrar nada.</span>'}
       </div>
 
       <label class="modal-label">1. Pregúntale a tu agente dónde conectarlo</label>
@@ -221,7 +231,7 @@ function openSettings(){
         <details class="agent-prompt-ver"><summary>Ver el mensaje</summary><span id="s-agent-prompt-texto">${esc(PROMPTS_AGENTE.repaso.texto)}</span></details>
       </div><button type="button" class="agent-refresh" onclick="copiarPromptAgente()">Copiar</button></div>
 
-      <div class="agent-proposal-entry"><div><b>Pautas por revisar</b><span>Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
+      <div class="agent-proposal-entry"><div><b>Ponderaciones por revisar</b><span>Nada cambia hasta que la confirmes.</span></div><button type="button" class="agent-refresh" onclick="cargarPropuestasPautaAgente({mostrar:true,avisar:true})">Ver propuestas</button></div>`
       :`<div class="feedback-empty"><b>Necesitas iniciar sesión</b><p>Así puedes ver y desconectar tus agentes.</p></div>`;
     if(section==='sugerencias'){
       const contacto=`<p class="feedback-contact">¿Prefieres escribirnos por correo? <a id="feedback-contact" href="${esc(correoSugerenciaHref())}" onclick="actualizarCorreoSugerencia()">gradehub.app@gmail.com</a></p>`;
@@ -249,10 +259,10 @@ function openSettings(){
       </div>
       ${!soloProfesor?`<div class="settings-pautas">
         <label class="toggle-row" for="s-compartir-pautas">
-          <span class="toggle-label">Compartir mis pautas en forma anónima</span>
+          <span class="toggle-label">Compartir mis ponderaciones en forma anónima</span>
           <span class="toggle"><input id="s-compartir-pautas" type="checkbox" role="switch" ${S.aportarPautasAutomaticamente===false?'':'checked'} onchange="cambiarCompartirPautas(this.checked)" aria-describedby="s-pautas-ayuda"/><span class="toggle-slider"></span></span>
         </label>
-        <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas pautas; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
+        <p class="settings-help" id="s-pautas-ayuda">Se comparten los nombres y porcentajes de las evaluaciones, nunca tus notas. Al apagarlo dejas de aportar nuevas ponderaciones; lo ya aportado se conserva en el consenso anónimo y agregado.</p>
       </div>`:''}
       ${!soloProfesor&&typeof cambiarAnunciosConNotas==='function'?`<div class="settings-pautas">
         <label class="toggle-row" for="s-anuncios-notas">
@@ -260,6 +270,13 @@ function openSettings(){
           <span class="toggle"><input id="s-anuncios-notas" type="checkbox" role="switch" ${S.anunciosConNotas===false?'':'checked'} onchange="cambiarAnunciosConNotas(this.checked)" aria-describedby="s-anuncios-notas-ayuda"/><span class="toggle-slider"></span></span>
         </label>
         <p class="settings-help" id="s-anuncios-notas-ayuda">Las clases particulares recomendadas en Inicio se eligen en este dispositivo según tus ramos y notas; tus notas no se envían para eso. Si lo apagas, no verás recomendaciones en Inicio y puedes seguir buscando en Apoyo.</p>
+      </div>`:''}
+      ${typeof enAppNativa==='function'&&enAppNativa()&&typeof cambiarAnaliticaApp==='function'?`<div class="settings-pautas">
+        <label class="toggle-row" for="s-analitica">
+          <span class="toggle-label">Estadísticas de uso</span>
+          <span class="toggle"><input id="s-analitica" type="checkbox" role="switch" ${analiticaApagadaEnEsteTelefono()?'':'checked'} onchange="cambiarAnaliticaApp(this.checked)" aria-describedby="s-analitica-ayuda"/><span class="toggle-slider"></span></span>
+        </label>
+        <p class="settings-help" id="s-analitica-ayuda">Nos dicen qué partes de la app se usan, nunca tus notas, ramos ni tu nombre. Si las apagas, este teléfono deja de enviarlas.</p>
       </div>`:''}
       ${currentUser&&!soloProfesor?`<div class="settings-compartidos">
         <label class="modal-label">Compartido con profesores</label>

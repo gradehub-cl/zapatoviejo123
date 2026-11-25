@@ -16,7 +16,7 @@ assert.match(html,/Sin justificativo dentro de 48 h/);assert.match(html,/La app 
 run('curso.faltas.cantidad=7');assert(!run('estadoEximicion(curso).activa'));assert.match(run('reglasRamoHTML(curso)'),/falta cumplir o registrar la asistencia/);
 run("curso.faltas.cantidad=6;curso.categorias.find(c=>c.id==='e1').notas[0].valor=4");assert(!run('estadoEximicion(curso).activa'));assert(!/estás eximido/.test(run('reglasRamoHTML(curso)')));
 run(`globalThis.manual={id:'manual',nombre:'Propio',origen:null,categorias:[{id:'pr',nombre:'Pruebas',peso:60,slots:3,pesosCasillas:[1,2,1],directNota:true,notas:[{id:'npr',valor:7,slot:0}]},{id:'ex',nombre:'Examen',peso:40,directNota:true,notas:[{id:'nex',valor:2.9}]}],gates:[{type:'min_grade_required',catId:'ex',min:3,cap:3.9,origen:'editor'}]};S.ramos=[manual];`);
-assert.equal(run('ramoAvg(manual)'),3.9);html=run('reglasRamoHTML(manual)');assert.match(html,/bajo 3/);assert.match(html,/topada en 3,9/);assert.match(html,/Hoy el motor aplica/);assert.match(html,/De tu pauta/);assert(!/Del programa 2026-2/.test(html));
+assert.equal(run('ramoAvg(manual)'),3.9);html=run('reglasRamoHTML(manual)');assert.match(html,/bajo 3/);assert.match(html,/topada en 3,9/);assert.match(html,/Hoy el motor aplica/);assert.match(html,/De tus ponderaciones/);assert(!/Del programa 2026-2/.test(html));
 assert.match(html,/15 %/);assert.match(html,/30 %/,'subpesos 15/30/15 desde 1/2/1');
 run(`manual.bonus=[{id:'texto',pregunta:'Presenté un texto',destino:'grupo',entrada:'confirmacion',operacion:'promediar',valor:7,catIds:['pr'],etapa:'previa',ayuda:'El texto promedia un 7,0 con la menor nota.'}];manual.bonusConfirmado={texto:true};`);
 html=run('reglasRamoHTML(manual)');assert.match(html,/[Pp]romedia un 7,0/);assert.match(html,/con tope 7,0/);assert.match(html,/El texto promedia un 7,0/);
@@ -35,7 +35,7 @@ run(`globalThis.recargado=normalize(JSON.parse(localStorage.getItem('gradehub_v1
 run(`globalThis.copia=JSON.parse(JSON.stringify(recargado));copia.historial=[{id:'h',label:'2026-1',ramos:copia.ramos}];copia=normalize(copia)`);assert.deepEqual(json('copia.historial.find(h=>h.id==="h").ramos.find(r=>r.id==="sin").programaCanvas'),meta);
 const fusionar=run('fusionarObjetoSync'),remoto=json('limpio'),local=JSON.parse(JSON.stringify(remoto));local.categorias.find(c=>c.id==='p').notas.push({id:'nueva',valor:5});const fusion=fusionar(remoto,local,remoto,'local');assert.deepEqual(JSON.parse(JSON.stringify(fusion.programaCanvas)),meta,'sync conserva fuente con una nota nueva');
 assert.equal(run(`copiarProgramaCanvas(${JSON.stringify({...meta,archivo:'Otro.docx'})})`),null,'una fusión parcial no atribuye citas a otro archivo');
-run("limpio.categorias.find(c=>c.id==='p').peso=90");assert.match(run('reglasRamoHTML(limpio)'),/Pauta editada después de importar/);
+run("limpio.categorias.find(c=>c.id==='p').peso=90");assert.match(run('reglasRamoHTML(limpio)'),/Ponderaciones editadas después de importar/);
 const maxima=run(`crearProgramaCanvas('a'.repeat(500),Array(100).fill('b'.repeat(999)),limpio)`);assert(maxima.archivo.length<=160&&maxima.citas.length===4&&maxima.citas.every(c=>c.length<=220));
 run('delete limpio.programaCanvas');assert.equal(run('reglasRamoHTML(limpio)'),'','cuenta sin campo sigue sin reglas');
 console.log('PASS reglas: eximición activa/inactiva, compuerta, bonus, curso, reparto, consenso, web y Canvas guardado/recarga/sync');

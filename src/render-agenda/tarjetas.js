@@ -101,7 +101,7 @@ function referenciaEvaluacionAgenda(e){
   };
   if(e.necesita===null)return {
     titulo:'Todavía no hay una meta calculable',
-    texto:'Completa la pauta del ramo para estimar cuánto necesitas.',
+    texto:'Completa las ponderaciones del ramo para estimar cuánto necesitas.',
   };
   if(e.necesita>7.05)return {
     titulo:'No alcanza solo con lo pendiente',

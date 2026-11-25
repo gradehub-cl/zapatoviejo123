@@ -283,7 +283,7 @@ const ramo = (nombre, notas, extra = {}) => ({
   const lp = salida(rp.cuerpo);
   chk('listar_propuestas devuelve las pendientes con su id', lp.total === 2 && lp.pendientes[0].id === ID && lp.pendientes[0].contenido[0].valor === 5);
   chk('una de ramos no se presenta como si fuera de un ramo', lp.pendientes[1].ramo === null);
-  chk('y explica cómo se reemplaza cada tipo', /reemplaza sola/.test(lp.nota) && /pauta no/.test(lp.nota));
+  chk('y explica cómo se reemplaza cada tipo', /reemplaza sola/.test(lp.nota) && /ponderaciones no/.test(lp.nota));
   const rpcListar = rp.llamadas.find(x => x.url.endsWith('/listar_propuestas_agente'));
   chk('a la RPC solo viaja el token', JSON.stringify(JSON.parse(rpcListar.options.body)) === JSON.stringify({ p_token: TOKEN }));
   llamar = servidorPropuestas({ agente_datos: { cuerpo: { ramos: [] } }, retirar_propuesta_agente: { cuerpo: true } });

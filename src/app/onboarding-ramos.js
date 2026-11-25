@@ -153,7 +153,7 @@ function obCatalogMeta(r){
   const detalles=[r.sigla?esc(r.sigla):'',lugar];
   if(typeof r.creditos==='number')detalles.push(`${r.creditos} créditos`);
   if(r.escuela)detalles.push(esc(r.escuela));
-  if(r.tienePreset)detalles.push(r.consenso?`pauta de ${r.consenso} estudiantes`:'con pauta');
+  if(r.tienePreset)detalles.push(r.consenso?`ponderaciones según ${r.consenso} estudiantes`:'con programa');
   return detalles.filter(Boolean).join(' · ');
 }
 function renderObCoursePicker(){

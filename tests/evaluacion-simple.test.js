@@ -74,7 +74,7 @@ chk('distingue un ramo del catálogo que todavía no tiene pauta oficial',
   pautaCatalogoSinOficial && pautaCatalogoSinOficial({ nombre: 'Ramo sin programa', origen: { tenant: 'uc', carrera: 'ING-PC' }, categorias: [] }) &&
   !pautaCatalogoSinOficial({ nombre: 'Ramo manual', origen: null, categorias: [] }));
 chk('la acción vacía le dice que puede armar su pauta',
-  /pautaCatalogoSinOficial\(r\)[\s\S]{0,500}Armar mi pauta/.test(renderMain));
+  /pautaCatalogoSinOficial\(r\)[\s\S]{0,500}Armar mis ponderaciones/.test(renderMain));
 chk('guardar una pauta propia usa el aviso informativo único',
   /if\(filas.length\)[\s\S]{0,150}informarAportePauta/.test(src) &&
   /Tus programas se suman en forma anónima/.test(src) && /Nunca se comparten tus notas/.test(src));

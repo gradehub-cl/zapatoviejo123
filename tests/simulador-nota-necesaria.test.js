@@ -159,8 +159,8 @@ const textoSorpresa=n=>run('textoNotasBorrables')(fen,sorpresa(n));
 assert.match(textoSorpresa(4),/25% de las notas\. Con 4 rendidas, puedes borrar 1$/);
 assert.match(textoSorpresa(5),/Con 5 rendidas, puedes borrar 2$/);
 assert.match(textoSorpresa(6),/Con 6 rendidas, puedes borrar 2$/);
-assert.equal(textoSorpresa(0),'Según la pauta, se puede borrar el 25% de las notas','sin notas no inventa un número');
-assert.equal(textoSorpresa(1),'Según la pauta, se puede borrar el 25% de las notas','nunca se borran todas');
+assert.equal(textoSorpresa(0),'Según las reglas del ramo, se puede borrar el 25% de las notas','sin notas no inventa un número');
+assert.equal(textoSorpresa(1),'Según las reglas del ramo, se puede borrar el 25% de las notas','nunca se borran todas');
 S.tenant=tenantAnterior;
 
 console.log('=== El reglamento y las reglas personales de una pauta UDD ===');
@@ -256,7 +256,7 @@ assert.match(pintar(casiAsegurado),/^Para el 4,0 necesitas 4,0 en lo que queda/)
 assert.match(byId('sim-needed').textContent,/Evaluación final debe llegar a 4,0/,
   'una compuerta pendiente impide decir que el 4,0 está asegurado');
 assert.equal(pintar(ramo([c('prueba','Prueba escrita',40,[n('n1',5)]),c('cierre','Evaluación final',40)])),
-  'Completa la pauta para calcularlo');
+  'Completa las ponderaciones para calcularlo');
 assert.equal(pintar(ramo([c('prueba','Prueba escrita',50,[n('n1',5)]),c('cierre','Evaluación final',50,[n('n2',4)])])), '');
 assert.equal(byId('sim-needed').hidden,true,'un ramo completo solo muestra su promedio final');
 

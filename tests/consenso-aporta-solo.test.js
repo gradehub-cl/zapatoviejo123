@@ -106,12 +106,12 @@ setTimeout(() => {
             chk('solo una pauta oficial ofrece el botón de reporte',
               /if\(r\.categorias\.length&&oficial\)/.test(render));
             chk('el reporte de la oficial conserva su texto',
-              /'¿La pauta oficial no calza con tu curso\? Repórtala'/.test(render) &&
-              /'Corregiste la pauta oficial · agrega un reporte'/.test(render));
+              /'¿El programa cargado no calza con tu curso\? Repórtalo'/.test(render) &&
+              /'Corregiste las ponderaciones del programa · agrega un reporte'/.test(render));
             chk('la política dice que esto pasa y que las notas no viajan',
               /ramo agregado a mano/.test(leer('privacidad.html')) &&
               /Nunca se incluyen tus calificaciones/.test(leer('privacidad.html')) &&
-              /Compartir mis pautas en forma anónima/.test(leer('privacidad.html')));
+              /Compartir mis ponderaciones en forma anónima/.test(leer('privacidad.html')));
 
             console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
             process.exit(fail ? 1 : 0);

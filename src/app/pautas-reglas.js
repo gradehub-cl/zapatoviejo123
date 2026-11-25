@@ -59,13 +59,13 @@ function reglasNoCalculadas(ramo){
   const def=definicionPresetDelRamo(ramo);
   const calculadas=reglasCalculoVigentes(ramo);
   if(def?.eximicion?.requierePautaOriginal===true&&!estadoEximicion(ramo))
-    pendientes.push('La eximición necesita la pauta del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
+    pendientes.push('La eximición necesita las ponderaciones del programa. Revisa tus evaluaciones y pesos antes de aplicarla');
   const formula=!Array.isArray(def)&&def&&(def.formulasCondicionales||[]).length;
   const limite=!Array.isArray(def)&&def&&def.limiteAusencias;
   const optativos=!Array.isArray(def)&&def&&(def.reemplazosOptativos||[]).length;
-  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a su pauta. Si personalizaste las evaluaciones, tu pauta se conserva y esta regla no se aplica');
-  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a la pauta del programa');
-  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a su pauta. Si la personalizaste, tu versión se conserva');
+  if(formula&&!calculadas.some(g=>g.type==='conditional_weights'))pendientes.push('La exclusión condicional del programa requiere actualizar a sus ponderaciones. Si personalizaste las evaluaciones, tu versión se conserva y esta regla no se aplica');
+  if(limite&&!calculadas.some(g=>g.type==='absence_limit'))pendientes.push('El traspaso por pruebas justificadas y su máximo requieren actualizar a las ponderaciones del programa');
+  if(optativos&&!(ramo.reemplazosOptativos||[]).length)pendientes.push('El reemplazo optativo del programa requiere actualizar a sus ponderaciones. Si las personalizaste, tu versión se conserva');
   const ausencias=estadoAusenciasJustificadas(ramo);
   if(ausencias&&ausencias.bloqueadas&&ausencias.bloqueadas.length)pendientes.push(`Las pruebas justificadas superan el máximo de ${ausencias.normaAplicada.topePesoDestino}% del examen. El promedio y la nota necesaria quedan pendientes de resolver el derecho a examen o la recuperativa con el curso`);
   return pendientes;

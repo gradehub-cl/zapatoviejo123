@@ -90,6 +90,8 @@ chk('ninguna contraseña ni clave en el repo: jarsigner la pide',!/storepass|key
 chk('la de Play carga gradehub.cl, nunca la versión de prueba',/unset GRADEHUB_SERVIDOR/.test(play)&&/c\.server\.url!=="https:\/\/gradehub\.cl"/.test(play));
 chk('sin firma se detiene (jarsigner -verify no sirve de control)',/if \[ -z "\$HUELLA" \]/.test(play)&&!/jarsigner" -verify/.test(play));
 chk('la firma tiene que ser la clave de subida de assetlinks.json',/grep -qF "\$HUELLA" \.well-known\/assetlinks\.json/.test(play));
+const lectura=play.match(/VERSION="\$\((awk .*)\)"/)[1];
+chk('el script muestra el número de versionCode, no el comentario',/^\d+$/.test(require('child_process').execSync(lectura,{cwd:raiz,encoding:'utf8'}).trim()));
 chk('versionCode mayor que el del TWA (1)',+(gradle.match(/versionCode (\d+)/)||[])[1]>1);
 
 console.log('\n=== Apple y el gesto de volver ===');

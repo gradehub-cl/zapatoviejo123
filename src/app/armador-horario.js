@@ -15,6 +15,12 @@
 // (módulos vacíos entre la primera y la última clase fija del día), menos
 // avisos, más profes preferidos y, al final, la sigla/NRC para que el
 // resultado no dependa del orden de llegada.
+//
+// Cupos (idea de HorarioUC, que muestra los cupos por sección; solo la idea,
+// ese repo no tiene licencia): dentro de un mismo horario va primero la
+// sección con cupos libres. Si ninguna tiene, la combinación se propone igual
+// con un aviso y queda más abajo: los cupos de BuscaCursos cambian y hay
+// vacantes por escuela que no vemos.
 const ARMADOR_TIPOS_FLEXIBLES=new Set(['AYU','AYUD']);
 const ARMADOR_MAX_NODOS=200000;
 const ARMADOR_MAX_RESULTADOS=5;
@@ -87,11 +93,14 @@ function armadorGrupos(sigla,filas,pref){
     const firma=bloques.map(b=>`${b.dia}${b.modulo}${b.fijo?'F':'f'}`).join(',')+(incompleto?'?':'');
     if(!porFirma.has(firma))porFirma.set(firma,{sigla,bloques,incompleto,secciones:[]});
     const preferido=!!pref.profes[sigla]&&(fila.profesores||[]).some(x=>armadorProfeCoincide(pref.profes[sigla],x));
-    porFirma.get(firma).secciones.push({nrc:fila.nrc,seccion:fila.seccion,profesores:(fila.profesores||[]).slice(),preferido});
+    const libres=Number.isInteger(fila.vacantes_disponibles)&&fila.vacantes_disponibles>=0?fila.vacantes_disponibles:null;
+    porFirma.get(firma).secciones.push({nrc:fila.nrc,seccion:fila.seccion,profesores:(fila.profesores||[]).slice(),preferido,cupos:libres});
   }
   const grupos=[...porFirma.values()].map(g=>{
-    g.secciones.sort((a,b)=>Number(b.preferido)-Number(a.preferido)||a.seccion-b.seccion||a.nrc-b.nrc);
+    const sinCupos=s=>s.cupos===0;
+    g.secciones.sort((a,b)=>Number(b.preferido)-Number(a.preferido)||Number(sinCupos(a))-Number(sinCupos(b))||a.seccion-b.seccion||a.nrc-b.nrc);
     g.preferido=g.secciones.some(s=>s.preferido);
+    g.sinCupos=g.secciones.every(sinCupos);
     return g;
   });
   // Primero los grupos con el profe preferido: si se corta la búsqueda, se
@@ -104,6 +113,7 @@ function armadorPuntaje(elegidos,pref){
   const ocupado=new Map();
   for(const g of elegidos){
     if(g.incompleto)avisos.push({tipo:'horario_incompleto',siglas:[g.sigla]});
+    if(g.sinCupos)avisos.push({tipo:'sin_cupos',siglas:[g.sigla]});
     for(const b of g.bloques){
       dias.add(b.dia);
       if(b.fijo){if(!fijosPorDia.has(b.dia))fijosPorDia.set(b.dia,new Set());fijosPorDia.get(b.dia).add(b.modulo);}
