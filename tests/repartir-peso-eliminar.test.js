@@ -76,11 +76,44 @@ run(`
     {id:'b',nombre:'B',peso:20,notas:[]},
     {id:'c',nombre:'C',peso:20,notas:[]},
     {id:'ex',nombre:'Examen',peso:40,notas:[]}
-  ]}]};currentRamoId='r';save=()=>{};renderRamo=()=>{};
+  ]}]};currentRamoId='r';save=()=>{};renderRamo=()=>{};renderHome=()=>{};renderAgenda=()=>{};
   confirmDeleteCat('ex');confirmacionPendiente();
 `);
 const ficha=run('S.ramos[0].categorias');
 chk('la eliminación directa también deja 100%',cerca(ficha.reduce((s,c)=>s+c.peso,0),100));
 chk('la nota que ya existía no cambia',ficha[0].notas.length===1&&ficha[0].notas[0].valor===5);
+
+console.log('\n=== La hoja «Editar evaluación» permite eliminarla, en todos los casos ===');
+run('closeModal=()=>{};openModal=()=>{};wirePesoControl=()=>{};showToast=()=>{};track=()=>{};renderAgenda=()=>{};renderHome=()=>{};textoConfirmacion="";showConfirm=(t,d,f)=>{textoConfirmacion=d;confirmacionPendiente=f;};');
+const armar=(b,gates=[])=>{ctx.__r=JSON.stringify([{id:'r',nombre:'Ramo',gates,categorias:[
+  {id:'a',nombre:'A',peso:60,directNota:true,notas:[{id:'na',nombre:'A',valor:6,peso:1}]},b]}]);
+  run("S={...freshState(),tenant:'fen',ramos:JSON.parse(__r)};currentRamoId='r';confirmacionPendiente=null;");};
+for(const [caso,extra] of [['sin notas',{notas:[]}],['con nota',{notas:[{id:'n',nombre:'B',valor:5,peso:1}]}],
+  ['pendiente con fecha',{notas:[{id:'n',nombre:'B',valor:null,peso:1,fecha:'2026-12-01'}]}],
+  ['grupo de casillas',{slots:3,notas:[{id:'n',nombre:'B 1',valor:5,peso:1,slot:0}]}],
+  ['lista',{directNota:false,notas:[{id:'n',nombre:'x',valor:5,peso:1},{id:'m',nombre:'y',valor:4,peso:1}]}]]){
+  armar({id:'b',nombre:'B',peso:40,directNota:true,...extra});
+  run("openEditCatModal('b')");
+  chk(`${caso}: la hoja la ofrece`,/confirmDeleteCat\('b'\)/.test(ids['modal-content'].innerHTML));
+  run("confirmDeleteCat('b')");
+  chk(`${caso}: no borra antes de confirmar`,run('S.ramos[0].categorias.length')===2);
+  run('confirmacionPendiente()');
+  chk(`${caso}: queda fuera y la otra conserva su nota`,run('S.ramos[0].categorias.map(c=>c.id+c.peso+c.notas[0].valor).join()')==='a1006');
+}
+armar({id:'b',nombre:'B',peso:40,directNota:true,notas:[{id:'n',valor:5,peso:1}]},[
+  {type:'min_grade_required',catId:'b',min:4,cap:3.9},{type:'group_min',catIds:['a','b'],min:4,cap:'self'}]);
+run("confirmDeleteCat('b')");
+chk('avisa que borra la nota y reparte el porcentaje',/borra su nota/.test(run('textoConfirmacion'))&&/40% se reparte/.test(run('textoConfirmacion')));
+run('confirmacionPendiente()');
+chk('su mínimo se va y el grupo deja de mirarla',run('JSON.stringify(S.ramos[0].gates.map(g=>g.catIds||g.catId))')==='[["a"]]');
+armar({id:'b',nombre:'a',peso:60,directNota:true,notas:[{id:'nb',valor:5,peso:1}]});
+run("confirmDeleteCat('b');confirmacionPendiente()");
+chk('una repetida le pasa su nota a la otra',run('S.ramos[0].categorias[0].notas.map(n=>n.id).join()')==='na,nb');
+armar({id:'b',nombre:'B',peso:40,directNota:true,notas:[]});
+run("confirmDeleteCat('b');S=JSON.parse(JSON.stringify(S));confirmacionPendiente()");
+chk('si la sincronización reemplazó el estado, borra en el vigente',run('S.ramos[0].categorias.length')===1);
+armar({id:'b',nombre:'B',peso:40,directNota:true,notas:[]});
+ctx.__base=run('JSON.stringify(S)');run("confirmDeleteCat('b');confirmacionPendiente()");
+chk('la copia de la nube no la revive',run('fusionarSync(JSON.parse(__base),S,JSON.parse(__base)).ramos[0].categorias.length')===1);
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);
