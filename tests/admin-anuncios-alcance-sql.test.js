@@ -17,6 +17,14 @@ const read=f=>fs.readFileSync(__dirname+'/../'+f,'utf8'),id=i=>'00000000-0000-00
  await sesion(2,'aal2');await assert.rejects(q('select admin_anuncio_publico($1)',[id(10)]),/sin acceso/);
  await sesion(1,'aal2');await db.exec('set role authenticated');const x=(await q('select admin_anuncio_publico($1) x',[id(10)]))[0].x;
  assert.equal(x.activos,4);assert.equal(x.activos_ramo,3,'mismo ramo dos veces no duplica una persona; otra universidad no cuenta');assert.equal(x.vieron,1);assert.equal(x.abrieron,1);assert.equal(x.contactaron,0);assert(!JSON.stringify(x).includes('user_id'));
+ // Republicar antes de vencer (subir el tope) suma la campaña: cada persona una vez.
+ await db.exec('reset role');
+ await q("update anuncio_alcance set publicacion=now()-interval '1 day',vence_publicacion=now()+interval '10 days' where anuncio_id=$1",[id(10)]);
+ await q("update anuncio_interacciones set publicacion=now()-interval '1 day',vence_publicacion=now()+interval '10 days' where anuncio_id=$1",[id(10)]);
+ await q("update tutor_anuncios set vence_at=now()+interval '10 days',medicion_desde=now()+interval '1 second' where id=$1",[id(10)]);
+ for(const u of [2,3])await q("insert into anuncio_alcance(anuncio_id,user_id,publicacion,vence_publicacion) select id,$2,medicion_desde,vence_at from tutor_anuncios where id=$1",[id(10),id(u)]);
+ await db.exec('set role authenticated');const y=(await q('select admin_anuncio_publico($1) x',[id(10)]))[0].x;
+ assert.equal(y.vieron,2,'la persona repetida cuenta una vez y la nueva se suma');assert.equal(y.abrieron,1,'conserva las aperturas de antes');
  await db.exec('reset role;set role anon');await assert.rejects(q('select admin_anuncio_publico($1)',[id(10)]),/permission denied/);
  console.log('OK admin alcance: campañas, deduplicación, tenant, MFA/anon, solo conteos y reaplicación');
  }finally{await db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

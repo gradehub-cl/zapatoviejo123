@@ -2,7 +2,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),{PGlite}=require('@electric-sql/pglite');
 const leer=f=>fs.readFileSync(__dirname+'/../'+f,'utf8');
 // Consulta de solo lectura a pg_proc en producción durante la revisión de #924.
-const esperados={costo_campana:'02328b1099e8b45a44e8e9cf8637ccce',
+// costo_campana: campaña acumulada entre republicaciones (2026-11-24); producción debe quedar igual al aplicarlo.
+const esperados={costo_campana:'f9200c162d526795029e8c089a78b816',
  limpiar_alcance_anuncios:'b91679afd74141870ee652d4642c7ab5',
  limpiar_interacciones_anuncios:'c58a31b3f87c13a93fd5c30e6bf83e28',
  preparar_publicacion_clase:'786608014571764ae767317c3c830f22',

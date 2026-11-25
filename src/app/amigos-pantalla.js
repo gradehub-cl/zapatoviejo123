@@ -165,7 +165,8 @@ function borrarAmigosWidget(){
 // los grupos (dos preguntas) para el número sobre el ícono, y si llegó algo
 // nuevo se trae la lista para que al abrir ya esté. Cada 15 minutos se trae
 // todo igual, para el widget. Con la app en segundo plano no corre nada.
-const AMIGOS_REVISION_MS=45e3;
+// Cada consulta deja una línea en los logs de Supabase (plan gratis, 1 GB): 3 min basta.
+const AMIGOS_REVISION_MS=180e3;
 let _amigosRefrescadoAt=0,_amigosRevisadoAt=0,_amigosRevisando=false,_amigosTimer=null,_amigosFirma=null;
 function appALaVista(){return typeof document==='undefined'||document.visibilityState!=='hidden';}
 function escribiendoEnAmigos(){

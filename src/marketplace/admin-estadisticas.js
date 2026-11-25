@@ -353,7 +353,12 @@ async function pintarPanelAdmin(raiz){
   // Si el SQL agregado aún no se aplicó, las campañas siguen disponibles.
   // Lo mismo con el alcance diario (admin_estadisticas.sql): null = sin SQL.
   let crecimiento=[],alcance=null,historial=null;
-  const [rc,ra,rh]=await Promise.allSettled([supabaseClient.rpc('crecimiento_semanal_admin'),supabaseClient.rpc('admin_alcance_diario',{p_dias:30}),supabaseClient.rpc('admin_historial_anuncios',{p_dias:null})]);
+  const [rc,ra,rh,re]=await Promise.allSettled([supabaseClient.rpc('crecimiento_semanal_admin'),supabaseClient.rpc('admin_alcance_diario',{p_dias:30}),supabaseClient.rpc('admin_historial_anuncios',{p_dias:null}),supabaseClient.rpc('admin_ediciones_anuncio_pendientes')]);
+  // Cambios que los profesores enviaron sobre anuncios publicados. Sin el SQL, ninguno.
+  if(re.status==='fulfilled'&&re.value&&!re.value.error&&Array.isArray(re.value.data)){
+    const porAnuncio=new Map(re.value.data.map(e=>[e.anuncio_id,e]));
+    profesores=profesores.map(p=>({...p,anuncios:(p.anuncios||[]).map(a=>porAnuncio.has(a.id)?{...a,edicion_pendiente:porAnuncio.get(a.id)}:a)}));
+  }
   if(rc.status==='fulfilled'&&rc.value&&!rc.value.error&&Array.isArray(rc.value.data))crecimiento=rc.value.data;
   if(ra.status==='fulfilled'&&ra.value&&!ra.value.error&&Array.isArray(ra.value.data))alcance=ra.value.data;
   if(rh.status==='fulfilled'&&rh.value&&!rh.value.error&&Array.isArray(rh.value.data))historial=rh.value.data;
@@ -531,6 +536,17 @@ async function pintarPanelAdmin(raiz){
       showToast(ok);await repintar();
     }catch(e){showToast('No pudimos completar la acción. Revisa tu conexión e intenta de nuevo.',true);}
   };
+  // Cambios de profesores por revisar (profesor_editar_anuncio.sql).
+  raiz.querySelectorAll('[data-admin-aprobar-edicion]').forEach(b=>b.addEventListener('click',()=>showConfirm('¿Aprobar los cambios?','Los estudiantes verán el anuncio con estos cambios desde ahora. Su campaña, sus números y su cobro siguen igual.',
+    ()=>llamar('admin_resolver_edicion_anuncio',{p_anuncio_id:b.dataset.adminAprobarEdicion,p_aprobar:true,p_comentario:null},'Cambios aprobados'),{label:'Aprobar',danger:false})));
+  raiz.querySelectorAll('[data-admin-rechazar-edicion]').forEach(b=>b.addEventListener('click',async()=>{
+    const comentario=raiz.querySelector(`[data-admin-comentario-edicion="${b.dataset.adminRechazarEdicion}"]`);
+    const texto=String(comentario&&comentario.value||'').trim();
+    if(texto.length<10||texto.length>1000){showToast('Escribe un comentario de 10 a 1000 caracteres para el profesor.',true);comentario?.focus();return;}
+    b.disabled=true;
+    await llamar('admin_resolver_edicion_anuncio',{p_anuncio_id:b.dataset.adminRechazarEdicion,p_aprobar:false,p_comentario:texto},'Cambios rechazados con comentario');
+    if(b.isConnected)b.disabled=false;
+  }));
   // Alumnos de ejemplo (alumnos_ejemplo.sql): el botón aparece cuando se sabe
   // a quién ya se le activó. Sin el SQL aplicado la consulta falla y no se muestra.
   const cajasEjemplo=[...raiz.querySelectorAll('[data-admin-ejemplo]')];
