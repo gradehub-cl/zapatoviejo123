@@ -65,6 +65,114 @@ function reglasEvaluacionEditorHTML({reglas={},varias,manual,abierto,id,permiteC
     </div>
   </details>`;
 }
+// ─── REQUISITOS QUE COMBINAN EVALUACIONES (solo app) ────────────────────────
+// El motor ya calcula `group_min` (compuertasEfectivas): el promedio ponderado
+// de varias evaluaciones tiene que llegar a un mínimo. Si no llega, la final
+// queda topada, o pasa a ser el promedio de ese grupo (aprobar por partes, como
+// la parte teórica y la práctica). Así se escribe (15·I1+20·I2+30·E)/65 ≥ 4,0:
+// se marcan I1, I2 y E, y el motor pondera con sus pesos.
+// Los del programa se conservan tal cual; el editor solo escribe los suyos.
+// null = la sección no se mostró (web) y guardar no toca esos requisitos.
+let pautaRequisitosDraft=null;
+let pautaClaveNueva=0;
+// Una evaluación nueva todavía no tiene id: el requisito la nombra por clave.
+function claveFilaPauta(fila){if(!fila.clave)fila.clave=fila.id||('nueva-'+(++pautaClaveNueva));return fila.clave;}
+function textoNotaEditor(n){return Number.isFinite(n)?(Number.isInteger(n)?n.toFixed(1):String(n)).replace('.',','):'';}
+function requisitosGrupoEditor(r){
+  return (r.gates||[]).filter(g=>g.type==='group_min'&&g.origen==='editor').map(g=>({
+    nombre:g.nombre||'',claves:[...(g.catIds||[])],min:textoNotaEditor(g.min),
+    efecto:g.efecto==='reemplazar'&&g.cap==='self'?'reemplazar':'tope',tope:g.cap==='self'?'3,9':textoNotaEditor(g.cap)}));
+}
+function requisitoGrupoVacio(){return {nombre:'',claves:[],min:'4,0',efecto:'tope',tope:'3,9'};}
+// Valida sin tocar el ramo. Un requisito sin nombre ni evaluaciones se ignora.
+function validarRequisitosGrupo(draft,filas,escala){
+  const requisitos=[];
+  const nota=(texto,campo,i,que)=>{
+    const valor=String(texto||'').trim(),n=Number(valor.replace(',','.'));
+    if(!/^\d+(?:[.,]\d{1,2})?$/.test(valor)||n<escala.min||n>escala.max)
+      return {error:`Escribe ${que} entre ${escala.min} y ${escala.max}.`,campo,i};
+    return {n};
+  };
+  for(let i=0;i<(draft||[]).length;i++){
+    const q=draft[i];
+    const elegidas=filas.filter(f=>f.nombre.trim()&&q.claves.includes(claveFilaPauta(f)));
+    if(!elegidas.length&&!String(q.nombre||'').trim())continue;
+    if(!elegidas.length)return {error:'Marca al menos una evaluación para el requisito.',campo:'evals',i};
+    const min=nota(q.min,'min',i,'un mínimo');if(min.error)return min;
+    let cap='self';
+    if(q.efecto!=='reemplazar'){const tope=nota(q.tope,'tope',i,'un tope');if(tope.error)return tope;cap=tope.n;}
+    requisitos.push({nombre:String(q.nombre||'').trim()||elegidas.map(f=>f.nombre.trim()).join(' y '),
+      filas:elegidas,min:min.n,cap,efecto:q.efecto==='reemplazar'?'reemplazar':'tope'});
+  }
+  return {requisitos};
+}
+// Reemplaza solo los requisitos de grupo del editor; idDe traduce cada fila.
+function guardarRequisitosGrupo(r,requisitos,idDe){
+  const propios=requisitos.map(q=>({type:'group_min',catIds:q.filas.map(idDe).filter(Boolean),min:q.min,cap:q.cap,
+    ...(q.efecto==='reemplazar'?{efecto:'reemplazar'}:{}),nombre:q.nombre,origen:'editor'})).filter(g=>g.catIds.length);
+  r.gates=[...(r.gates||[]).filter(g=>!(g&&g.type==='group_min'&&g.origen==='editor')),...propios];
+}
+// Las reglas del editor que nombran una evaluación que ya no existe se van; un
+// requisito de grupo solo pierde esa evaluación. Las del programa no se tocan.
+function reglasEditorVigentes(gates,vigentes){
+  return (gates||[]).map(g=>{
+    if(!g||g.origen!=='editor')return g;
+    if(Array.isArray(g.catIds)){const ids=g.catIds.filter(id=>vigentes.has(id));return ids.length?(ids.length===g.catIds.length?g:{...g,catIds:ids}):null;}
+    return vigentes.has(g.catId)?g:null;
+  }).filter(Boolean);
+}
+function evalsRequisitoHTML(i){
+  const q=pautaRequisitosDraft[i],filas=pautaDraft.filter(f=>f.nombre.trim());
+  if(!filas.length)return '<small>Primero escribe las evaluaciones.</small>';
+  return filas.map(f=>{const k=claveFilaPauta(f);return `<label class="pauta-requisito-eval"><input type="checkbox"${q.claves.includes(k)?' checked':''} onchange="marcarEvalRequisito(${i},'${esc(k)}',this.checked)"><span>${esc(f.nombre.trim())}${f.peso?` · ${r2(f.peso)} %`:''}</span></label>`;}).join('');
+}
+function requisitosGrupoHTML(){
+  if(pautaRequisitosDraft===null)return '';
+  const r=S.ramos.find(x=>x.id===currentRamoId);
+  const programa=(r?.gates||[]).filter(g=>g.type==='group_min'&&g.origen!=='editor').length;
+  const invalido=(i,t)=>pautaDraftErrorIndex===null&&pautaDraftErrorTarget===`req-${t}-${i}`?' aria-invalid="true" aria-describedby="m-pauta-error"':'';
+  const campo=(i,clave,etiqueta,valor,oculto=false)=>`<label class="pauta-requisito-nota" id="m-req-${clave}-caja-${i}"${oculto?' hidden':''}><span>${etiqueta}</span><input type="text" inputmode="decimal" maxlength="5" id="m-req-${clave}-${i}" value="${esc(valor)}" oninput="actualizarRequisitoGrupo(${i},'${clave}',this.value)"${invalido(i,clave)}></label>`;
+  const items=pautaRequisitosDraft.map((q,i)=>`<fieldset class="pauta-requisito">
+      <legend>Requisito ${i+1}</legend>
+      <label class="pauta-requisito-nombre"><span>Nombre</span><input type="text" id="m-req-nombre-${i}" value="${esc(q.nombre)}" placeholder="Ej: Parte práctica" maxlength="${NOMBRE_MAX}" oninput="actualizarRequisitoGrupo(${i},'nombre',this.value)"></label>
+      <div class="pauta-requisito-evals" id="m-req-evals-${i}" role="group" aria-label="Evaluaciones que se promedian"${invalido(i,'evals')}>${evalsRequisitoHTML(i)}</div>
+      ${campo(i,'min','Nota mínima del promedio',q.min)}
+      <label class="pauta-requisito-efecto"><span>Si no llegas</span><select id="m-req-efecto-${i}" onchange="actualizarRequisitoGrupo(${i},'efecto',this.value)">
+        <option value="tope"${q.efecto!=='reemplazar'?' selected':''}>La final queda topada</option>
+        <option value="reemplazar"${q.efecto==='reemplazar'?' selected':''}>La final es este promedio</option>
+      </select></label>
+      ${campo(i,'tope','Tope de la nota final',q.tope,q.efecto==='reemplazar')}
+      <button type="button" class="pauta-requisito-quitar" onclick="quitarRequisitoGrupo(${i})">Quitar requisito</button>
+    </fieldset>`).join('');
+  return `<details class="editor-reglas pauta-requisitos"${pautaRequisitosDraft.length?' open':''}>
+    <summary>Requisitos que combinan evaluaciones</summary>
+    <div class="editor-reglas-campos">
+      <p>Para cuando el programa exige un mínimo sobre varias evaluaciones juntas, o aprobar cada parte por separado. El promedio usa los pesos de arriba.</p>
+      ${programa?`<p>El programa ya indica ${programa===1?'un requisito':programa+' requisitos'} de este tipo; se mantiene${programa===1?'':'n'}.</p>`:''}
+      ${items}
+      <button type="button" class="pauta-agregar" onclick="agregarRequisitoGrupo()"><span aria-hidden="true">+</span> Agregar requisito</button>
+    </div>
+  </details>`;
+}
+function refrescarEvalsRequisitos(){
+  (pautaRequisitosDraft||[]).forEach((_,i)=>{const caja=document.getElementById('m-req-evals-'+i);if(caja)caja.innerHTML=evalsRequisitoHTML(i);});
+}
+function agregarRequisitoGrupo(){
+  if(pautaRequisitosDraft===null)return;
+  pautaRequisitosDraft.push(requisitoGrupoVacio());renderPautaManualModal();
+  setTimeout(()=>{const i=document.getElementById('m-req-nombre-'+(pautaRequisitosDraft.length-1));if(i)i.focus();},0);
+}
+function quitarRequisitoGrupo(i){if(pautaRequisitosDraft?.[i]){pautaRequisitosDraft.splice(i,1);limpiarErrorPauta();renderPautaManualModal();}}
+function actualizarRequisitoGrupo(i,clave,valor){
+  const q=pautaRequisitosDraft?.[i];if(!q)return;
+  limpiarErrorPauta();q[clave]=valor;
+  if(clave==='efecto'){const caja=document.getElementById('m-req-tope-caja-'+i);if(caja)caja.hidden=valor==='reemplazar';}
+}
+function marcarEvalRequisito(i,clave,marcada){
+  const q=pautaRequisitosDraft?.[i];if(!q)return;
+  limpiarErrorPauta();
+  q.claves=q.claves.filter(k=>k!==clave);if(marcada)q.claves.push(clave);
+}
 function openPautaManualModal(){
   const r=S.ramos.find(x=>x.id===currentRamoId);if(!r)return;
   // Además de normalizar al cargar, el editor tolera un ramo legado incompleto.
@@ -72,6 +180,7 @@ function openPautaManualModal(){
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:(c.directNota===false&&!seVeComoNotaSola(r,c))||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];pautaProgramaCanvasDraft=null;
+  pautaRequisitosDraft=enAppNativa()?requisitosGrupoEditor(r):null;
   // La lectura pertenece a esta apertura, nunca a otra cuenta o borrador.
   canvasProgramaRamo.delete(r.id);
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());
@@ -260,6 +369,7 @@ function renderPautaManualModal(){
     <div class="pauta-lista">${filas}
       <button type="button" class="pauta-agregar" onclick="agregarPautaFila()"><span aria-hidden="true">+</span> Agregar evaluación</button>
     </div>
+    ${requisitosGrupoHTML()}
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-confirm" onclick="guardarPautaManual()">Guardar</button>
@@ -288,13 +398,14 @@ function limpiarErrorPauta(){
 function mostrarErrorPauta(i,mensaje,target){
   pautaDraftError=mensaje;pautaDraftErrorIndex=i;pautaDraftErrorTarget=target;
   renderPautaManualModal();
-  setTimeout(()=>{const control=document.getElementById(`m-pauta-${target}-${i}`);if(control)control.focus();},0);
+  const id=i===null&&/^req-/.test(target)?'m-'+target:`m-pauta-${target}-${i}`;
+  setTimeout(()=>{const control=document.getElementById(id);if(control)control.focus();},0);
 }
 function actualizarReglaPauta(i,clave,valor){
   limpiarErrorPauta();
   if(pautaDraft[i])(pautaDraft[i].reglas??={})[clave]=valor;
 }
-function actualizarPautaNombre(i,valor){limpiarErrorPauta();if(pautaDraft[i])pautaDraft[i].nombre=valor;}
+function actualizarPautaNombre(i,valor){limpiarErrorPauta();if(pautaDraft[i])pautaDraft[i].nombre=valor;refrescarEvalsRequisitos();}
 function actualizarPautaVarias(i,valor){
   if(!pautaDraft[i])return;
   pautaDraft[i].varias=!!valor;
@@ -330,6 +441,7 @@ function actualizarPautaPeso(i,valor){
   pautaDraft[i].peso=peso;
   const input=document.getElementById('m-pauta-peso-'+i);if(input&&input.value!==limpio)input.value=limpio;
   const total=document.getElementById('m-pauta-total');if(total)total.innerHTML=totalPautaHTML();
+  refrescarEvalsRequisitos();
 }
 function agregarPautaFila(){
   pautaDraft.push({id:null,nombre:'',peso:0,tieneNotas:false,varias:false,cantidad:null});renderPautaManualModal();
@@ -433,6 +545,13 @@ function guardarPautaManual(){
       return mostrarErrorPauta(pautaDraft.indexOf(fila),'La cantidad de notas tiene que superar el descarte del programa.','cantidad');
     reglas.set(fila,cambios);
   }
+  const requisitos=pautaRequisitosDraft===null?null:validarRequisitosGrupo(pautaRequisitosDraft,filas,escala);
+  if(requisitos?.error){
+    const id=requisitos.campo==='evals'?`m-req-nombre-${requisitos.i}`:null;
+    mostrarErrorPauta(null,requisitos.error,`req-${requisitos.campo}-${requisitos.i}`);
+    if(id)setTimeout(()=>{const c=document.getElementById(id);if(c)c.focus();},0);
+    return;
+  }
   const ids=new Set(filas.filter(f=>f.id).map(f=>f.id));
   // Las que la persona quitó con notas: pasan a su gemela o se van.
   const quitadas=new Set();
@@ -452,6 +571,7 @@ function guardarPautaManual(){
     if(existente){
       guardarReglasEvaluacionEditor(r,existente,reglas.get(f));
       existente.nombre=f.nombre.trim();existente.peso=f.peso;
+      f.catIdGuardado=existente.id;
       if(f.varias){
         // Cantidad declarada = casillas que la ficha puede mostrar y recorrer.
         // Las notas que ya tenía pasan a las primeras casillas, como en «Editar
@@ -467,12 +587,14 @@ function guardarPautaManual(){
       if(cantidadFija)cat.slots=f.cantidad;
       r.categorias.push(cat);
       guardarReglasEvaluacionEditor(r,cat,reglas.get(f));
+      f.catIdGuardado=cat.id;
       abrirGrupoVacio(cat);
     }
   });
+  if(requisitos)guardarRequisitosGrupo(r,requisitos.requisitos,f=>f.catIdGuardado);
+  pautaRequisitosDraft=null;
   const vigentes=new Set(r.categorias.map(c=>c.id));
-  if(r.gates?.some(g=>g.origen==='editor'&&!vigentes.has(g.catId)))
-    r.gates=r.gates.filter(g=>g.origen!=='editor'||vigentes.has(g.catId));
+  if(Array.isArray(r.gates))r.gates=reglasEditorVigentes(r.gates,vigentes);
   if(enAppNativa()&&pautaProgramaCanvasDraft?.ramoId===r.id){
     r.programaCanvas=crearProgramaCanvas(pautaProgramaCanvasDraft.archivo,pautaProgramaCanvasDraft.citas,r);
     pautaProgramaCanvasDraft=null;
