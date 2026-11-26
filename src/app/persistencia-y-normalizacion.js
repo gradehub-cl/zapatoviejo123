@@ -201,6 +201,21 @@ function marcarFechaUsuario(item,fecha,hora){
   if(!item.fecha){item.hora=null;item.horaOrigen=null;item.horaQuitada=true;}
   return item;
 }
+// Guardar una hoja sin tocar la fecha no es elegirla: abrir la evaluación para
+// poner la nota o cambiar el peso convertía una fecha adoptada de compañeros
+// ('consenso') en 'usuario', y desde ahí contaba como voto propio (#1338).
+// Los editores marcan solo si la fecha o la hora cambiaron; si no, el origen y
+// la marca de quitada quedan como estaban. Confirmar explícitamente una fecha
+// (propuesta, grupo) sigue usando marcarFechaUsuario.
+function fechaHoraSinCambio(item,fecha,hora){
+  const f=fecha||null,h=f&&HORA_RE.test(hora||'')?hora:null;
+  return (item&&item.fecha||null)===f&&(item&&item.fecha&&item.hora||null)===h;
+}
+function marcarFechaUsuarioSiCambio(item,fecha,hora){
+  if(fechaHoraSinCambio(item,fecha,hora))return false;
+  marcarFechaUsuario(item,fecha,hora);
+  return true;
+}
 
 function copiarRecuperativo(regla){
   if(!regla||!Number.isFinite(regla.min)||!Number.isFinite(regla.max)||!Number.isFinite(regla.nota)||regla.min>regla.max)return null;
