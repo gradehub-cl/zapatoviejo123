@@ -127,12 +127,11 @@ function parseNota(raw,tenant){
   if(v<1||v>7)return NaN;
   return Math.round(v*100)/100;
 }
-// En la app, una evaluación con puntaje total se anota en puntos: «38» de 60
+// Una evaluación con puntaje total se anota en puntos: «38» de 60
 // con 60 % de exigencia es un 4,6. Usa su exigencia, o la del ramo. Solo lo
 // usa el campo «+ Nota» de la ficha, que entrega la nota ya convertida a
 // setSlotNota/setDirectNota; una nota que se corrige sigue siendo nota.
 function puntajeDeCategoria(r,cat){
-  if(!(typeof enAppNativa==='function'&&enAppNativa()))return null;
   const total=Number(cat&&cat.puntajeTotal);
   // La del ramo: la de Canvas (Editar ramo) o la última de la calculadora.
   const delRamo=exigenciaValida(r&&r.exigencia)??exigenciaValida(r&&r.exigenciaPuntaje)??EXIGENCIA_DEFECTO;

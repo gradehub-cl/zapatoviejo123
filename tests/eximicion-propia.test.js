@@ -1,4 +1,4 @@
-// Eximición propia (solo app): cuando el programa del catálogo no trae una, la
+// Eximición propia: cuando el programa del catálogo no trae una, la
 // persona la escribe en «Editar evaluaciones» y se calcula por el mismo camino
 // que las del catálogo. Ejemplos con la forma de los que pidió un estudiante
 // (NP ≥ 5,0 con I1 e I2 ≥ 4,0; NP ≥ 5,5 y 75 % de asistencia), datos sintéticos.
@@ -88,13 +88,13 @@ run(`activarEximicion(false);`);
 val('guardarPautaManual')();
 chk('desactivarla la borra',!val("'eximicionPropia' in S.ramos[0]")&&val('estadoEximicion(S.ramos[0])')===null);
 
-console.log('\n=== La web no la toca ===');
+console.log('\n=== En la web el editor es el mismo ===');
 run(`S.ramos[0].eximicionPropia={examenId:'ex',segun:['i1','i2','ta'],min:5,minimos:[]};`);
 app(false);
 val('openPautaManualModal')();
-chk('en la web no hay borrador',val('pautaEximicionDraft')===null);
+chk('en la web el borrador trae la regla',val('pautaEximicionDraft.activa')===true&&val('pautaEximicionDraft.min')==='5,0');
 val('guardarPautaManual')();
-chk('guardar en la web conserva la regla',val("S.ramos[0].eximicionPropia.min")===5);
+chk('guardar en la web sin cambios conserva la regla',val("S.ramos[0].eximicionPropia.min")===5);
 chk('la web la normaliza sin perderla',val("normalize({tenant:'uc',ramos:S.ramos}).ramos[0].eximicionPropia.min")===5);
 
 console.log(`\nPASS: ${ok}   FAIL: ${fail}`);process.exit(fail?1:0);

@@ -6081,7 +6081,7 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #modal-content .editor-reglas-campos input[type=text]{width:100%;min-height:44px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
 #modal-content .editor-reglas-descarte small{display:block;margin-top:6px;}
 #modal-content:not(:has(#m-cat-varias:checked)) .editor-reglas-al-marcar-varias{display:none;}
-/* Requisitos que combinan evaluaciones (solo app): mínimo sobre un grupo y aprobar por partes. */
+/* Requisitos que combinan evaluaciones: mínimo sobre un grupo y aprobar por partes. */
 #modal-content .pauta-requisito{display:grid;gap:8px;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;min-width:0;}
 #modal-content .pauta-requisito>legend{padding:0 4px;color:var(--fg);font-weight:600;font-size:.8125rem;}
 #modal-content .pauta-requisito label.pauta-requisito-nombre{grid-template-columns:minmax(0,5rem) minmax(0,1fr);}
