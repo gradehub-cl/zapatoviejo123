@@ -19,7 +19,9 @@ const chk=(n,c)=>{if(c){ok++;console.log('  OK   '+n);}else{fail++;console.log('
 // ── La nube (la misma de sync-sin-perdidas.test.js) ──────────────────────────
 function crearNube(){
   const filas=new Map();                      // user_id → data
-  const nube={filas,red:true,escrituras:0};
+  // `sesion:false` es el cliente sin sesión: supabase-js manda la llave pública,
+  // RLS esconde la fila y nada se puede escribir, pero la lectura no da error.
+  const nube={filas,red:true,escrituras:0,sesion:true,ultimo:null};
   const sinRed=()=>{if(!nube.red)throw new TypeError('Failed to fetch');};
   const leerRev=d=>d&&d._rev!=null?String(d._rev):null;
   const cualquiera=()=>new Proxy(function(){},{
@@ -28,17 +30,17 @@ function crearNube(){
   });
   nube.cliente={
     rpc:async()=>({data:null,error:null}),
-    auth:{signOut:async()=>{}},
+    auth:{signOut:async()=>{},getSession:async()=>({data:{session:nube.sesion?{user:{id:nube.ultimo}}:null},error:null})},
     from(tabla){
       if(tabla!=='user_ramos')return cualquiera();
       return {
-        select:cols=>({eq:(_c,uid)=>({maybeSingle:async()=>{sinRed();nube.lecturas=(nube.lecturas||0)+1;
-          if(!filas.has(uid))return {data:null,error:null};
+        select:cols=>({eq:(_c,uid)=>({maybeSingle:async()=>{sinRed();nube.lecturas=(nube.lecturas||0)+1;nube.ultimo=uid;
+          if(!nube.sesion||!filas.has(uid))return {data:null,error:null};
           // `rev:data->>_rev` (revisarNubeALaVista) trae solo la versión, como texto.
           if(/_rev/.test(cols||''))return {data:{rev:leerRev(filas.get(uid))},error:null};
           return {data:{data:JSON.parse(JSON.stringify(filas.get(uid)))},error:null};}})}),
         upsert:async fila=>{sinRed();nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
-        insert:async fila=>{sinRed();if(filas.has(fila.user_id))return {error:{code:"23505"}};nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
+        insert:async fila=>{sinRed();if(!nube.sesion)return {error:{code:'42501'}};if(filas.has(fila.user_id))return {error:{code:"23505"}};nube.escrituras++;filas.set(fila.user_id,JSON.parse(JSON.stringify(fila.data)));return {error:null};},
         update(valores){
           const filtros=[];
           const q={
@@ -47,7 +49,7 @@ function crearNube(){
             async select(){sinRed();
               const uid=(filtros.find(f=>f[0]==='user_id')||[])[2];
               const actual=filas.get(uid);
-              const calza=actual!==undefined&&filtros.every(([col,op,val])=>{
+              const calza=nube.sesion&&actual!==undefined&&filtros.every(([col,op,val])=>{
                 if(col==='user_id')return true;
                 const rev=leerRev(actual);
                 return op==='is'?rev===null:rev===val;
@@ -191,6 +193,52 @@ const ultima=d=>d.pantalla[d.pantalla.length-1];
     const d=dispositivo(crearNube());
     d.run(`showAppErrorScreen('abrir_app')`);
     chk('«No pudimos abrir GradeHub» sigue con «Recargar»',d.ids['app-error-title'].textContent==='No pudimos abrir GradeHub'&&d.boton.textContent==='Recargar');
+  }
+
+  console.log('\n=== Sesión caída con la app abierta: «sin fila» no es verdad ===');
+  // Visto en los registros de Supabase el 2026-11-26: con el token vencido y
+  // sin renovar, la app leía y escribía user_ramos con la llave pública. La
+  // lectura volvía vacía, subirConVersion borraba la base de sincronización y
+  // la subida siguiente fusionaba sin base, donde manda la nube.
+  {
+    const nube=crearNube();
+    nube.filas.set('u1',{...conNota(estado(),6.5),_rev:4});
+    const d=dispositivo(nube);await d.entrar('u1');await esperar(30);
+    chk('entra y deja su base de sincronización',d.run("revSync(leerBaseSync('u1'))")===4);
+    nube.sesion=false;
+    d.run("S.ramos[0].categorias[0].notas[0].valor=5.9;save();clearTimeout(_syncTimer);_syncTimer=null;");
+    const subio=await d.run('syncNow()');
+    chk('sin sesión la subida falla',subio===false);
+    chk('y no borra la base de sincronización',d.run("revSync(leerBaseSync('u1'))")===4);
+    chk('la nube queda como estaba',nube.filas.get('u1')._rev===4&&nube.filas.get('u1').ramos[0].categorias[0].notas[0].valor===6.5);
+    chk('la nota corregida sigue en el dispositivo',d.run('S.ramos[0].categorias[0].notas[0].valor')===5.9);
+    nube.sesion=true;d.avisos.length=0;
+    const despues=await d.run('syncNow()');
+    chk('al volver la sesión, sube',despues===true&&nube.filas.get('u1')._rev===5);
+    chk('con la nota corregida, no con la vieja de la nube',nube.filas.get('u1').ramos[0].categorias[0].notas[0].valor===5.9&&d.run('S.ramos[0].categorias[0].notas[0].valor')===5.9);
+    chk('y sin fusionar a ciegas',!d.avisos.some(a=>/otro dispositivo/.test(String(a))));
+  }
+
+  console.log('\n=== Sesión caída al entrar en un dispositivo nuevo ===');
+  {
+    const nube=crearNube();
+    nube.filas.set('u1',{...conNota(estado(),6.5),_rev:4});
+    nube.sesion=false;
+    const d=dispositivo(nube);await d.entrar('u1');
+    chk('una cuenta con ramos no pasa al onboarding',!d.pantalla.includes('onboarding')&&ultima(d)==='error:leer_nube');
+    chk('ni se marca la caché con un estado vacío',!d.almacen.has('gradehub_cache_owner'));
+    chk('y no se escribe nada en la nube',nube.filas.get('u1')._rev===4);
+    nube.sesion=true;
+    const r=dispositivo(nube,d.almacen);await r.entrar('u1');await esperar(30);
+    chk('con la sesión de vuelta entra con sus notas',ultima(r)==='app'&&r.run('S.ramos[0].categorias[0].notas[0].valor')===6.5);
+  }
+
+  console.log('\n=== Una cuenta de verdad nueva sigue entrando al onboarding ===');
+  {
+    const nube=crearNube();
+    const d=dispositivo(nube);await d.entrar('u9');
+    chk('sin fila y con sesión: onboarding',ultima(d)==='onboarding');
+    chk('la fila se preguntó dos veces antes de creerlo',nube.lecturas===2);
   }
 
   console.log(`\nPASS: ${ok}   FAIL: ${fail}`);
