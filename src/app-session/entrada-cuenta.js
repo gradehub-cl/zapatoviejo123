@@ -145,7 +145,19 @@ function subirTrasEntrar(motivo){
 // `null` significa que la consulta no encontró una fila; NO demuestra que
 // esta persona no tenga datos. Si la caché ya tiene el mismo dueño, es la
 // única copia conocida: se conserva y se intenta crear el respaldo.
+//
+// Excepción: una cuenta nueva no tiene fila hasta terminar el onboarding. Si
+// cerró la app a mitad de camino y vuelve, su copia local es un onboarding sin
+// terminar, sin ramos ni historial: no hay nada que recuperar. No se sube
+// (sería una fila vacía con onboardingDone:false) ni se avisa nada; la persona
+// sigue en el onboarding y la fila nace al terminarlo, como siempre.
+function onboardingSinDatos(estado){
+  return !!estado&&!estado.onboardingDone
+    &&!(Array.isArray(estado.ramos)&&estado.ramos.length)
+    &&!(Array.isArray(estado.historial)&&estado.historial.length);
+}
 async function respaldarCopiaSinFila(){
+  if(onboardingSinDatos(S))return;
   const respaldado=await syncNow();
   showToast(respaldado
     ? 'Recuperamos tu copia local y la respaldamos en la nube'
