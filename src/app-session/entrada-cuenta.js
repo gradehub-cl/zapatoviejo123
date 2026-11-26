@@ -208,7 +208,11 @@ function tareasConEstadoAlEntrar(){
   if(typeof aportarPautasAlCatalogo==='function')aportarPautasAlCatalogo().catch(()=>{});
   // Cuentas por correo que ya tienen nombre y apellido pero entraron antes de
   // esto: llegan a Auth en su próxima entrada, con el estado de esta cuenta.
-  if(S.onboardingDone&&typeof copiarNombreAAuth==='function')copiarNombreAAuth();
+  // El perfil (profiles) que no alcanzó a llegar al terminar el onboarding o
+  // al guardar Ajustes se reintenta acá. syncProfile() ya incluye
+  // copiarNombreAAuth(); sin perfil pendiente, solo va lo del nombre.
+  const perfilReintentado=S.onboardingDone&&typeof reintentarPerfilPendiente==='function'&&reintentarPerfilPendiente();
+  if(S.onboardingDone&&!perfilReintentado&&typeof copiarNombreAAuth==='function')copiarNombreAAuth();
   // Los promedios de la comparación con el curso se renuevan al entrar, no solo
   // al abrir Estadísticas: curso_posicion y universidad_posicion ignoran filas
   // sin actualizar en 30 días (para que no cuenten los ramos borrados o

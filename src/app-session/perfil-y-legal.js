@@ -1,13 +1,22 @@
+// Devuelve true si el perfil quedó en `profiles` (o no había nada que
+// publicar). Si no, queda la marca de «perfil pendiente» de esta cuenta y
+// tareasConEstadoAlEntrar() lo reintenta en la próxima entrada.
 async function syncProfile(){
-  if(!supabaseClient||!currentUser)return;
+  if(!supabaseClient||!currentUser)return false;
   await copiarNombreAAuth();
+  if(!currentUser)return false;
+  const uid=currentUser.id;
   // Una cuenta solo profesor no eligió universidad ni carrera en el onboarding.
   // S.tenant conserva el valor técnico por defecto ('fen'): publicarlo en
   // profiles haría parecer que estudia en FEN y contaminaría los reportes.
-  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor())return;
+  if(typeof esCuentaProfesor==='function'&&esCuentaProfesor()){marcarPerfilPendiente(uid,false);return true;}
+  // La marca va antes de mandar: si la app se cierra con la subida en camino,
+  // también se reintenta. Solo se borra con la confirmación de Supabase.
+  marcarPerfilPendiente(uid,true);
   try{
-    await supabaseClient.from('profiles').upsert({
-      id:currentUser.id,
+    // supabase-js no lanza: el fallo llega en `error` y hay que mirarlo.
+    const {error}=await supabaseClient.from('profiles').upsert({
+      id:uid,
       nombre:S.userName||null,
       universidad:TENANTS[S.tenant]?S.tenant:null,
       // Se manda lo DECLARADO, no el código: 'Derecho' vale para saber qué
@@ -23,8 +32,37 @@ async function syncProfile(){
       // Igual que generación: solo cuando hay apellido (cuentas nuevas), para
       // que una cuenta antigua nunca dependa de la columna nueva.
       ...(S.userApellido?{apellido:S.userApellido}:{}),
-    });
+    })||{};
+    if(error)return false;
+    marcarPerfilPendiente(uid,false);
+    return true;
+  }catch(e){return false;}
+}
+// «Perfil pendiente»: una clave aparte por cuenta, fuera de gradehub_v1, que
+// solo existe mientras el último envío del perfil no se confirmó (un corte de
+// red al terminar el onboarding o al guardar Ajustes). Si el almacenamiento no
+// está disponible, la marca vive en memoria hasta cerrar la app.
+const PERFIL_PENDIENTE_PREFIJO='gradehub_perfil_pendiente:';
+const _perfilPendienteMemoria=new Set();
+function marcarPerfilPendiente(uid,pendiente){
+  if(!uid)return;
+  if(pendiente)_perfilPendienteMemoria.add(uid);else _perfilPendienteMemoria.delete(uid);
+  try{
+    if(pendiente)localStorage.setItem(PERFIL_PENDIENTE_PREFIJO+uid,'1');
+    else localStorage.removeItem(PERFIL_PENDIENTE_PREFIJO+uid);
   }catch(e){}
+}
+function perfilPendiente(uid){
+  if(!uid)return false;
+  if(_perfilPendienteMemoria.has(uid))return true;
+  try{return localStorage.getItem(PERFIL_PENDIENTE_PREFIJO+uid)==='1';}catch(e){return false;}
+}
+// Se llama al entrar, con el estado ya reconciliado. Solo manda el perfil si
+// quedó pendiente: una cuenta cuyo perfil ya llegó no hace ninguna consulta.
+function reintentarPerfilPendiente(){
+  if(!currentUser||!perfilPendiente(currentUser.id))return false;
+  syncProfile().catch(()=>{});
+  return true;
 }
 // El nombre del onboarding también va a los metadatos de Auth, que es lo que
 // muestra la columna «Display name» del panel de Supabase. Google y Apple ya
