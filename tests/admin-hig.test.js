@@ -47,6 +47,7 @@ const ctx={console,Intl,S:{get ramos(){throw Error('No leer notas');}},currentUs
  supabaseClient:{rpc:async(n,p)=>{calls.push({n,p});if(modo==='throw')throw Error('red caída');if(modo==='denegado')return {error:{code:'42501',message:'sin acceso'}};
   if(modo==='missing-report'&&n==='admin_reportes_programa')return {error:{code:'PGRST202',message:'no existe'}};
   if(n==='admin_encuestas'&&modo==='encuestas-sin-sql')return {error:{code:'PGRST202'}};
+  if(n==='comunicado_equipo_actual')return {data:null};
   if(n==='admin_encuestas')return {data:encuestasAdmin};
   const datos={admin_panel_clases:panelActual,admin_reportes_programa:reportes,admin_encuestas:[],crecimiento_semanal_admin:[{semana:'2026-10-19',nuevas:2,nuevas_estudiantes:1,nuevas_profesores:1,activas:4,activas_estudiantes:3,activas_profesores:1,vuelven:1,vuelven_estudiantes:1,vuelven_profesores:0}],campana_anuncio_con_tarifa:[anuncio.campana],alcance_anuncio:3,alcance_anuncio_por_canal:[{canal:'lista',cuentas:3}],
    resumen_metricas_anuncio:[{dia:'2026-09-01',tipo:'impresion',ramo_sigla:'MAT1620',eventos:18}],
@@ -109,7 +110,7 @@ vm.createContext(ctx);const run=s=>vm.runInContext(s,ctx);run(fs.readFileSync(pa
  assert.deepEqual(encuestas.map(n=>n.dataset.encuestaAdmin),['activa','programada','cerrada']);
  assert.match(area('usuarios').querySelector('#admin-encuestas-contenido').innerHTML,/Programada/);
  assert.equal(encuestas.at(-1).querySelectorAll('[data-encuesta-cambiar]').length,0,'la terminada solo permite ver resultados');
- assert.deepEqual(calls.slice(rpcsAntesDeNavegar).map(c=>c.n),['admin_encuestas'],'solo Usuarios consulta sus datos al abrir');
+ assert.deepEqual(calls.slice(rpcsAntesDeNavegar).map(c=>c.n),['admin_encuestas','comunicado_equipo_actual'],'solo Usuarios consulta sus datos al abrir');
  modo='encuestas-sin-sql';area('usuarios').querySelector('[data-encuestas-actualizar]').listeners.click();
  await new Promise(setImmediate);
  assert.match(root.querySelector('#admin-encuestas-contenido').html,/Encuestas todavía no disponibles/,'sin SQL la sección explica el estado');
