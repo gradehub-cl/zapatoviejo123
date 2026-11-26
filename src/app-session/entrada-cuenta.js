@@ -67,12 +67,12 @@ async function afterLogin(){
       .catch(e=>registrarErrorArranque(e,'reconciliar'));
     return;
   }
-  let cloud,ok=true;
+  let cloud,ok=true,errorNube=null;
   // Solo la lectura remota es recuperable: si falla, la copia local ya fue
   // normalizada al cargar y además está protegida por el dueño de la caché.
   // normalize() y enterApp() quedan fuera a propósito. Si una de ellas falla,
   // continuar con estado o DOM a medias sería peor que detenerse con un aviso.
-  try{cloud=await loadFromCloud();}catch(e){ok=false;}
+  try{cloud=await loadFromCloud();}catch(e){ok=false;errorNube=e;}
   if(!vigente())return;
   const mismaCache=getCacheOwner()===uid;
   // La copia previa a importar es de quien importó. Si la caché es de otra
@@ -91,16 +91,24 @@ async function afterLogin(){
     S=freshState();
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}catch(e){}
     setCacheOwner(uid);
+  }else if(mismaCache&&S.onboardingDone){
+    // Sin red con una copia armada de esta misma cuenta: se entra con ella y
+    // la nube se reconcilia después (Sincronización sin pérdidas).
+    showToast('Sin conexión · usando tu copia local');
   }else{
-    // Sin red: la caché local sirve, pero SOLO si es de este mismo usuario.
-    // Si es de otro (navegador compartido), se descarta para no filtrar sus datos.
-    if(mismaCache){
-      showToast('Sin conexión · usando tu copia local');
-    }else{
-      S=freshState();
-      try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
-      showToast('No pudimos cargar tus datos. Revisa tu conexión.',true);
-    }
+    // Sin red y sin una copia propia con qué entrar: caché de otra cuenta o
+    // sin dueño (dispositivo nuevo, después de entrar con Google o correo), o
+    // la caché vacía que deja el aislamiento de Apple. No se sabe si esta
+    // cuenta ya tiene ramos en la nube. Hasta el 2026-11-26 se la mandaba al
+    // onboarding como si fuera nueva: lo armado ahí chocaba después con la
+    // nube (ramos duplicados) o se perdía al reabrir con red (la nube, o un
+    // estado vacío, lo pisaba). Ahora se detiene con «Sin conexión» y
+    // «Reintentar». S queda vacía en memoria para no mostrar ni subir datos de
+    // otra persona, y el disco no se toca: se resuelve al entrar con red.
+    S=freshState();
+    if(typeof registrarErrorArranque==='function')registrarErrorArranque(errorNube,'leer_nube');
+    if(typeof showAppErrorScreen==='function')showAppErrorScreen('leer_nube');
+    return;
   }
   if(!vigente())return;
   if(S.onboardingDone)enterApp();else enterOnboarding();
