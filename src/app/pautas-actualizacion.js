@@ -105,9 +105,10 @@ function cambioDePauta(r){
   const nombresReconocidos=new Set((p.categorias||[]).flatMap(c=>[
     c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x.nombre),
   ]).map(normName));
+  const conNota=x=>(x.notas||[]).some(n=>typeof n.valor==='number');
   const notasFueraDePauta=cambios.filter(c=>c.tipo==='se-va'&&!nombresReconocidos.has(normName(c.nombre)))
-    .some(c=>((r.categorias.find(x=>x.nombre===c.nombre)||{}).notas||[])
-      .some(n=>typeof n.valor==='number'));
+    .some(c=>r.categorias.filter(x=>x.nombre===c.nombre).some(conNota))||
+    repetidasSinPareja(r,p.categorias).some(conNota);
   if(sugerida&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar las ponderaciones del programa del curso'});
   return {preset:p,cambios,notasFueraDePauta};
 }
@@ -195,10 +196,40 @@ function idCategoriaEstable(r,nombre){
   for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
   return 'c'+h.toString(36);
 }
+// Las evaluaciones viejas agrupadas por nombre normalizado, cada grupo en una
+// fila de espera: un ramo puede tener dos "Controles" (5,0 y 6,0). Con un solo
+// lugar por nombre la segunda pisaba a la primera y esas notas desaparecían al
+// adoptar o actualizar una pauta. Cada evaluación nueva toma la primera que
+// queda con su nombre; la segunda "Controles" nueva, la segunda vieja. Las vivas
+// van antes que las que ya estaban fuera de pauta: si coinciden en nombre, manda
+// la que está viva, y la otra sigue conservada.
+function viejasPorNombre(r){
+  const viejas=new Map();
+  [...catsDePauta(r.categorias),...(r.categorias||[]).filter(c=>c&&c.fueraDePauta)].forEach(c=>{
+    const k=normName(c.nombre);
+    if(!viejas.has(k))viejas.set(k,[]);
+    viejas.get(k).push(c);
+  });
+  return viejas;
+}
+// Las evaluaciones vivas que se quedarían sin pareja por estar repetidas: si la
+// pauta nueva trae un "Controles" y el ramo tiene dos, la segunda queda en 0%.
+// Una que desaparece del todo ya la cuenta cambioDePauta como 'se-va'.
+function repetidasSinPareja(r,nuevas){
+  const sobran=[];
+  viejasPorNombre({categorias:catsDePauta(r.categorias)}).forEach((grupo,k)=>{
+    if(!grupo[1])return;
+    const lugares=(nuevas||[]).filter(c=>[c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x&&x.nombre)]
+      .some(n=>normName(n)===k)).length;
+    if(lugares)sobran.push(...grupo.slice(lugares));
+  });
+  return sobran;
+}
 function fusionarPauta(r,nuevas){
   const nombresAusencia=new Map((r.categorias||[]).map(c=>[c.id,normName(c.nombre)]));
-  const viejas=new Map([...(r.categorias||[]).filter(c=>c.fueraDePauta),...catsDePauta(r.categorias)]
-    .map(c=>[normName(c.nombre),c]));
+  const originales=(r.categorias||[]).filter(Boolean);
+  const viejas=viejasPorNombre(r);
+  const tomadas=new Set();
   const idsFinales={},idsUsados=new Set();
   r.categorias=nuevas.map(c=>{
     const fuentes=[{nombre:c.nombre},...(c.nombresAnteriores||[]).map(x=>
@@ -206,17 +237,20 @@ function fusionarPauta(r,nuevas){
     const usadas=new Set(),idsNotas=new Set(),notas=[];
     let idHeredado=null;
     fuentes.forEach(f=>{
-      let k=normName(f.nombre),vieja=viejas.get(k);
-      if(!vieja){
+      let k=normName(f.nombre),cola=viejas.get(k);
+      if(!cola){
         // El mismo nombre salvo conectores o plural ("Controles Ejercicios" y
         // "Control de Ejercicios"): sin esto, adoptar una pauta dejaba esas
-        // notas en 0%. Solo si hay una candidata; con dos no se adivina.
+        // notas en 0%. Solo si hay un nombre candidato; con dos no se adivina.
         const clave=nombreHuella(f.nombre);
-        const candidatas=[...viejas].filter(([,v])=>nombreHuella(v.nombre)===clave);
-        if(candidatas.length===1)[k,vieja]=candidatas[0];
+        const candidatas=[...viejas].filter(([,g])=>nombreHuella(g[0].nombre)===clave);
+        if(candidatas.length===1)[k,cola]=candidatas[0];
       }
-      if(!vieja||usadas.has(k))return;
-      usadas.add(k);viejas.delete(k);
+      if(!cola||usadas.has(k))return;
+      usadas.add(k);
+      const vieja=cola.shift();
+      if(!cola.length)viejas.delete(k);
+      tomadas.add(vieja);
       if(!idHeredado&&vieja.id&&!idsUsados.has(vieja.id))idHeredado=vieja.id;
       (vieja.notas||[]).forEach(n=>{
         if(n&&n.id&&idsNotas.has(n.id))return;
@@ -240,9 +274,19 @@ function fusionarPauta(r,nuevas){
   // es del estudiante, y la escribió porque rindió esa evaluación. Se queda en
   // 0%, así no mueve el promedio, y sigue estando donde la dejó. Las que quedaron
   // vacías sí se van: no hay nada que conservar y ensucian la ficha.
-  viejas.forEach(v=>{
-    const conValor=(v.notas||[]).filter(n=>typeof n.valor==='number');
-    if(conValor.length)r.categorias.push({...v,peso:0,notas:conValor,fueraDePauta:true});
+  // Van en el orden en que el estudiante las tenía, y sin repetir un id que ya
+  // tomó una evaluación de la pauta nueva. Una nota cuyo id ya quedó en otra
+  // evaluación es la misma nota (una copia duplicada por la sincronización): no
+  // se conserva dos veces.
+  const notasQuedan=new Set(r.categorias.flatMap(c=>(c.notas||[]).map(n=>n&&n.id).filter(Boolean)));
+  originales.filter(v=>!tomadas.has(v)).forEach(v=>{
+    const conValor=(v.notas||[]).filter(n=>n&&typeof n.valor==='number'&&!(n.id&&notasQuedan.has(n.id)));
+    conValor.forEach(n=>{if(n.id)notasQuedan.add(n.id);});
+    if(!conValor.length)return;
+    let id=v.id;
+    if(id)while(idsUsados.has(id))id+='_';
+    if(id)idsUsados.add(id);
+    r.categorias.push({...v,id,peso:0,notas:conValor,fueraDePauta:true});
   });
   // Un cambio de pauta genera ids nuevos. La declaración pertenece a
   // una evaluación por su nombre, no al id efímero; si esa evaluación ya no
@@ -250,6 +294,10 @@ function fusionarPauta(r,nuevas){
   const idAusenciaEnPautaNueva=id=>{
     const casilla=/^__gh_ausencia_(.+)_([0-9]+)$/.exec(id);
     if(casilla)return gh_claveAusenciaCasilla(idAusenciaEnPautaNueva(casilla[1]),Number(casilla[2]));
+    // Si su evaluación sigue en el ramo con el mismo id —en la pauta o
+    // conservada fuera de ella—, la declaración se queda donde estaba: con dos
+    // "Controles", la de la segunda no puede pasar a la primera.
+    if((r.categorias||[]).some(c=>c.id===id))return id;
     const nombre=nombresAusencia.get(id);
     const nueva=(r.categorias||[]).find(c=>[c.nombre,...(c.nombresAnteriores||[]).map(x=>typeof x==='string'?x:x.nombre)]
       .some(n=>normName(n)===nombre));
