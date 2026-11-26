@@ -97,6 +97,72 @@ const CARRERAS_DECLARABLES={
     {n:'Bachillerato de Odontología',malla:'UA-BACHILLERATO-DE-ODONTOLOGIA'},
     {n:'Bachillerato de Psicología',malla:'UA-BACHILLERATO-DE-PSICOLOGIA'},
   ],
+  // UDP: las 48 fichas de admision.udp.cl (carrera-sitemap.xml), con el
+  // nombre de cada una (og:title), leídas el 2026-11-26. Las menciones de
+  // Ingeniería Comercial, Ingeniería en Administración de Empresas y
+  // Tecnología Médica tienen ficha propia y van como opciones distintas.
+  // Las vespertinas (Campus Casco Histórico) llevan «(vespertino)» porque el
+  // nombre oficial no lo dice y Contador Auditor existe en las dos jornadas.
+  // Ninguna lleva malla todavía: sus PDF no traen siglas ni créditos.
+  udp:[
+    // Administración y Economía
+    {n:'Ingeniería Comercial mención Administración',alias:['Ingeniería Comercial','Comercial']},
+    {n:'Ingeniería Comercial mención Economía',alias:['Ingeniería Comercial','Comercial']},
+    {n:'Ingeniería Comercial mención Emprendimiento',alias:['Ingeniería Comercial','Comercial']},
+    {n:'Contador Auditor – Contador Público',alias:['Contador Auditor','Auditoría']},
+    {n:'Ingeniería en Control de Gestión',alias:['Control de Gestión']},
+    {n:'Administración Pública'},
+    {n:'Bachillerato en Administración y Economía',alias:['Bachillerato']},
+    // Arquitectura, Arte y Diseño
+    {n:'Arquitectura'},
+    {n:'Artes Visuales',alias:['Arte']},
+    {n:'Diseño'},
+    // Ciencias Sociales e Historia
+    {n:'Antropología'},
+    {n:'Ciencia Política'},
+    {n:'Sociología'},
+    {n:'Licenciatura en Historia',alias:['Historia']},
+    {n:'Bachillerato en Ciencias Sociales y Humanidades',alias:['Bachillerato']},
+    // Comunicación y Letras
+    {n:'Periodismo'},
+    {n:'Publicidad'},
+    {n:'Cine y Realización Audiovisual',alias:['Cine']},
+    {n:'Cine de Animación',alias:['Cine','Animación']},
+    {n:'Literatura Creativa',alias:['Literatura']},
+    // Derecho
+    {n:'Derecho'},
+    // Educación
+    {n:'Pedagogía en Educación Parvularia',alias:['Pedagogía','Educación Parvularia']},
+    {n:'Pedagogía en Educación General Básica',alias:['Pedagogía','Educación Básica']},
+    {n:'Pedagogía en Educación Diferencial con mención en Desarrollo Cognitivo',alias:['Pedagogía','Educación Diferencial']},
+    {n:'Pedagogía en Inglés',alias:['Pedagogía','Inglés']},
+    {n:'Pedagogía Media en Matemática',alias:['Pedagogía']},
+    {n:'Pedagogía Media en Historia y Ciencias Sociales',alias:['Pedagogía']},
+    {n:'Pedagogía Media en Lengua Castellana y Comunicación',alias:['Pedagogía','Lenguaje']},
+    // Ingeniería y Ciencias
+    {n:'Ingeniería Civil Plan Común',alias:['Plan Común','Ingeniería','Ingeniería Civil']},
+    {n:'Ingeniería Civil Industrial',alias:['Industrial']},
+    {n:'Ingeniería Civil en Informática y Telecomunicaciones',alias:['Informática']},
+    {n:'Ingeniería Civil en Obras Civiles',alias:['Obras Civiles']},
+    {n:'Ingeniería Civil en Ciencia de Datos e Inteligencia Artificial',alias:['Ciencia de Datos','Inteligencia Artificial']},
+    // Medicina, Psicología, Salud y Odontología
+    {n:'Medicina'},
+    {n:'Psicología'},
+    {n:'Enfermería'},
+    {n:'Kinesiología'},
+    {n:'Obstetricia y Neonatología',alias:['Obstetricia']},
+    {n:'Odontología',alias:['Dental']},
+    {n:'Tecnología Médica mención Bioanálisis Clínico y Medicina Transfusional',alias:['Tecnología Médica']},
+    {n:'Tecnología Médica mención Imagenología y Física Médica',alias:['Tecnología Médica']},
+    {n:'Tecnología Médica mención en Oftalmología y Optometría',alias:['Tecnología Médica']},
+    // Vespertinas
+    {n:'Contador Auditor (vespertino)',alias:['Auditoría']},
+    {n:'Ingeniería en Administración de Empresas mención Gestión de Marketing (vespertino)',alias:['Administración de Empresas']},
+    {n:'Ingeniería en Administración de Empresas mención Gestión Empresarial (vespertino)',alias:['Administración de Empresas']},
+    {n:'Ingeniería en Administración de Empresas mención Gestión en Finanzas (vespertino)',alias:['Administración de Empresas']},
+    {n:'Ingeniería en Industria y Logística (vespertino)',alias:['Logística']},
+    {n:'Ingeniería en Informática y Gestión (vespertino)',alias:['Informática']},
+  ],
   // Las 32 carreras, 6 bachilleratos y el Plan Común que la UDD lista en
   // udd.cl/admision-pregrado/carreras (revisada el 2026-10-31), con los nombres
   // tal como salen ahí. Concepción no tiene carreras propias: las doce que
