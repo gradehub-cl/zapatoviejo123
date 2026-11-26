@@ -256,7 +256,7 @@ begin
   insert into admin.comunicado_equipo(creado_por,titulo,mensaje,imagen)
     values(auth.uid(),btrim(p_titulo),btrim(p_mensaje),decode(p_imagen,'base64'))
     on conflict(unico) do nothing returning id into nuevo;
-  if nuevo is null then raise exception 'Ya hay un comunicado publicado. Actualiza el panel.'; end if;
+  if nuevo is null then raise exception 'Ya hay un anuncio publicado. Actualiza el panel.'; end if;
   return nuevo;
 end; $$;
 

@@ -43,7 +43,7 @@ let hoy;
   await assert.rejects(publicar('PGh0bWw+'),/check constraint/);
   const jpeg=Buffer.from([255,216,255,224,255,217]).toString('base64');
   const aviso=(await publicar(jpeg))[0].id;
-  await assert.rejects(publicar(null),/Ya hay un comunicado/);
+  await assert.rejects(publicar(null),/Ya hay un anuncio/);
   await sesion(a,'aal2');await assert.rejects(publicar(null),/sin acceso/);
   await assert.rejects(retirar(aviso,false),/sin acceso/);
   await assert.rejects(q('select * from admin.comunicado_equipo'),/permission denied/);

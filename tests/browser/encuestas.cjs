@@ -186,17 +186,17 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  // Publicar desde la web, mostrar solo en la app, cerrar y retirar por separado.
  await page.setViewportSize({width:390,height:844});
  const panel=page.locator('[data-panel-comunicado]');
- await panel.getByText('Crear comunicado',{exact:true}).click();
+ await panel.getByText('Crear anuncio',{exact:true}).click();
  await panel.getByLabel('Título',{exact:true}).fill('Cierre de semestre');
  await panel.getByLabel('Mensaje',{exact:true}).fill('Aviso sintético para estudiantes.');await qa('[data-panel-comunicado]');
  const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=40;c.height=30;return c.toDataURL().split(',')[1];});
  const adjunto={name:'aviso.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')};
  await panel.locator('[type=file]').setInputFiles(adjunto);
- await panel.getByRole('button',{name:'Vista previa del comunicado'}).click();
+ await panel.getByRole('button',{name:'Vista previa del anuncio'}).click();
  await panel.locator('[data-vista-comunicado] img').waitFor();assert.equal(await page.evaluate(()=>comunicadoQA),null);assert(await panel.locator('[data-vista-comunicado] img').evaluate(img=>img.complete&&img.naturalWidth===40));
  await panel.getByRole('button',{name:'Quitar imagen'}).click();assert(await panel.locator('[data-vista-comunicado]').isHidden());
  await panel.locator('[type=file]').setInputFiles(adjunto);await panel.getByRole('button',{name:'Publicar en la app'}).click();
- await panel.getByRole('button',{name:'Retirar comunicado'}).waitFor();await panel.screenshot({path:salida+'/comunicado-admin.png'});
+ await panel.getByRole('button',{name:'Retirar anuncio'}).waitFor();await panel.screenshot({path:salida+'/comunicado-admin.png'});
  await page.evaluate(()=>consultarEncuestaAlEntrar());assert.equal(await page.locator('#inicio-comunicado').count(),0);
  await page.evaluate(()=>{window.Capacitor={isNativePlatform:()=>true};return consultarEncuestaAlEntrar();});
  const aviso=page.locator('#inicio-comunicado');await aviso.waitFor({state:'attached'});assert.equal(await aviso.locator('img').count(),1);
@@ -204,12 +204,12 @@ const repo=path.resolve(__dirname,'../..'),salida=process.env.ENCUESTAS_CAPTURAS
  assert.match(await aviso.textContent(),/Cierre de semestre/);
  await page.evaluate(()=>{document.getElementById('screen-home').hidden=false;showTab('home',true);});
  await aviso.waitFor();await qa('#inicio-comunicado');await aviso.screenshot({path:salida+'/comunicado-inicio.png'});
- await aviso.getByRole('button',{name:'Cerrar comunicado'}).click();
+ await aviso.getByRole('button',{name:'Cerrar anuncio'}).click();
  await page.evaluate(()=>{showTab('admin',true);});
  await page.locator('[data-admin-area="usuarios"]').first().evaluate(b=>b.click());
  await page.evaluate(()=>consultarComunicadoInicio());assert.equal(await aviso.count(),0);
- await panel.getByRole('button',{name:'Retirar comunicado'}).click();await page.locator('#confirm-action').click();
- await panel.getByText('Crear comunicado',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>comunicadoQA),null);
+ await panel.getByRole('button',{name:'Retirar anuncio'}).click();await page.locator('#confirm-action').click();
+ await panel.getByText('Crear anuncio',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>comunicadoQA),null);
  await page.evaluate(()=>{currentUser={id:'otra-cuenta'};sesionEncuestasCambio('SIGNED_IN','otra-cuenta');});assert.equal(await page.locator('.encuestas-admin').count(),0);
  console.log('Chrome OK: vista previa sin RPC, tres tipos, offline, borrador/foco, 375/1280 claro/oscuro y texto 200%; hoja no modal, envío/edición, 280 caracteres Unicode, cierre/Escape/arrastre, controles 44 pt, 4.5:1 en seis fondos, reduced-motion, admin MFA, crear/pausar/terminar, CSV y aislamiento de cuenta.');
  }finally{await browser.close();}

@@ -167,8 +167,8 @@ function resultadosEncuestaAdminHTML(r){
 }
 async function renderAdminEncuestas(raiz){
   const uid=currentUser?.id,version=encuestaVersion;
-  raiz.setAttribute('aria-label','Encuestas y comunicados');
-  const cabecera='<div class="encuestas-admin"><div class="encuestas-admin-cabecera"><h3>Encuestas y comunicados</h3><button type="button" data-encuestas-actualizar>Actualizar</button></div>';
+  raiz.setAttribute('aria-label','Encuestas y anuncios');
+  const cabecera='<div class="encuestas-admin"><div class="encuestas-admin-cabecera"><h3>Encuestas y anuncios</h3><button type="button" data-encuestas-actualizar>Actualizar</button></div>';
   const pintar=contenido=>{raiz.innerHTML=cabecera+contenido+'</div>';raiz.querySelector('[data-encuestas-actualizar]').addEventListener('click',()=>renderAdminEncuestas(raiz));};
   pintar('<p role="status">Cargando…</p>');
   const vista=raiz.querySelector('.encuestas-admin');
@@ -255,7 +255,7 @@ async function renderAdminEncuestas(raiz){
 // El comunicado se lee en Inicio. El panel y la vista previa comparten la misma tarjeta.
 function contenidoComunicadoHTML(c){
   const imagen=c.imagen?`<div class="profesor-flyer-preview"><img alt="" src="data:image/jpeg;base64,${esc(c.imagen)}"></div>`:'';
-  return `<p class="modal-label">Comunicado del equipo</p><h3 style="overflow-wrap:anywhere">${esc(c.titulo)}</h3>
+  return `<p class="modal-label">Anuncio del equipo</p><h3 style="overflow-wrap:anywhere">${esc(c.titulo)}</h3>
     <p class="admin-revision-descripcion">${esc(c.mensaje)}</p>${imagen}`;
 }
 let consultaComunicado=0;
@@ -275,8 +275,8 @@ async function consultarComunicadoInicio(){
     }
     const saludo=document.querySelector('#screen-home .greet-hero');if(!saludo)return;
     const tarjeta=document.createElement('section');tarjeta.id='inicio-comunicado';tarjeta.className='adm-tarjeta';
-    tarjeta.dataset.id=data.id;tarjeta.setAttribute('aria-label','Comunicado del equipo');
-    tarjeta.innerHTML=contenidoComunicadoHTML(data)+'<button type="button" class="clase-accion" aria-label="Cerrar comunicado">Cerrar</button>';
+    tarjeta.dataset.id=data.id;tarjeta.setAttribute('aria-label','Anuncio del equipo');
+    tarjeta.innerHTML=contenidoComunicadoHTML(data)+'<button type="button" class="clase-accion" aria-label="Cerrar anuncio">Cerrar</button>';
     tarjeta.querySelector('button').addEventListener('click',()=>{
       if(!encuestaSigue(uid,version))return;
       try{localStorage.setItem(clave,data.id);}catch(e){}
@@ -308,13 +308,13 @@ async function imagenComunicado(archivo){
     const jpeg=canvas.toDataURL('image/jpeg',calidad).split(',')[1];
     if(jpeg&&jpeg.length<=349524)return jpeg;
   }
-  throw new Error('Elige una imagen más pequeña para este comunicado.');
+  throw new Error('Elige una imagen más pequeña para este anuncio.');
 }
 
 async function renderAdminComunicado(raiz){
   const uid=currentUser?.id,version=encuestaVersion;
   const vigente=()=>raiz.isConnected&&encuestaSigue(uid,version);
-  raiz.innerHTML='<p role="status">Cargando comunicado…</p>';
+  raiz.innerHTML='<p role="status">Cargando anuncio…</p>';
   let actual;
   try{
     const {data,error}=await supabaseClient.rpc('comunicado_equipo_actual');
@@ -322,13 +322,13 @@ async function renderAdminComunicado(raiz){
     if(error)throw error;
     actual=data;
   }catch(error){
-    if(vigente())raiz.textContent=sqlEncuestasAusente(error)?'Los comunicados todavía no están habilitados.':'No pudimos cargar el comunicado. Usa Actualizar para reintentar.';
+    if(vigente())raiz.textContent=sqlEncuestasAusente(error)?'Los anuncios todavía no están habilitados.':'No pudimos cargar el anuncio. Usa Actualizar para reintentar.';
     return;
   }
   if(actual){
     raiz.innerHTML=`<section>${contenidoComunicadoHTML(actual)}<div class="encuesta-acciones">
       ${actual.imagen?'<button type="button" data-quitar-imagen>Quitar imagen</button>':''}
-      <button type="button" data-retirar>Retirar comunicado</button></div><p role="status"></p></section>`;
+      <button type="button" data-retirar>Retirar anuncio</button></div><p role="status"></p></section>`;
     const cambiar=async soloImagen=>{
       if(!vigente())return;
       const botones=raiz.querySelectorAll('button'),estado=raiz.querySelector('[role=status]');
@@ -337,17 +337,17 @@ async function renderAdminComunicado(raiz){
         const {data,error}=await supabaseClient.rpc('admin_retirar_comunicado',{p_id:actual.id,p_solo_imagen:soloImagen});
         if(!vigente())return;
         if(error)throw error;
-        if(!data)showToast('El comunicado ya había cambiado.');
+        if(!data)showToast('El anuncio ya había cambiado.');
         if(typeof enAppNativa==='function'&&enAppNativa())consultarComunicadoInicio();
         await renderAdminComunicado(raiz);
       }catch(e){if(vigente())estado.textContent='No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.';}
       finally{botones.forEach(b=>b.disabled=false);}
     };
     raiz.querySelector('[data-quitar-imagen]')?.addEventListener('click',()=>cambiar(true));
-    raiz.querySelector('[data-retirar]').addEventListener('click',()=>showConfirm('¿Retirar el comunicado?','Dejará de aparecer al entrar a la app.',()=>cambiar(false),{label:'Retirar',focusCancel:true}));
+    raiz.querySelector('[data-retirar]').addEventListener('click',()=>showConfirm('¿Retirar el anuncio?','Dejará de aparecer al entrar a la app.',()=>cambiar(false),{label:'Retirar',focusCancel:true}));
     return;
   }
-  raiz.innerHTML=`<details class="encuesta-crear"><summary>Crear comunicado</summary><form>
+  raiz.innerHTML=`<details class="encuesta-crear"><summary>Crear anuncio</summary><form>
     <p>Aparecerá en Inicio hasta que lo retires. Cada persona puede cerrarlo en su dispositivo.</p>
     <label>Título<input name="titulo" maxlength="100" required></label>
     <label>Mensaje<textarea name="mensaje" rows="4" maxlength="2000" required></textarea></label>
@@ -355,7 +355,7 @@ async function renderAdminComunicado(raiz){
     <p>JPG, PNG o WebP de hasta 5 MB. Incluye en el mensaje lo importante de la imagen.</p>
     <button type="button" data-quitar-imagen hidden>Quitar imagen</button>
     <div data-vista-comunicado hidden></div><p role="status"></p>
-    <button type="button" data-preview>Vista previa del comunicado</button>
+    <button type="button" data-preview>Vista previa del anuncio</button>
     <button type="submit" class="encuesta-enviar">Publicar en la app</button></form></details>`;
   const form=raiz.querySelector('form'),f=form.elements,estado=form.querySelector('[role=status]'),preview=form.querySelector('[data-vista-comunicado]');
   const quitar=form.querySelector('[data-quitar-imagen]');
@@ -376,9 +376,9 @@ async function renderAdminComunicado(raiz){
       if(!publicar){preview.innerHTML=contenidoComunicadoHTML({titulo,mensaje,imagen});preview.hidden=false;return;}
       const {data,error}=await supabaseClient.rpc('admin_publicar_comunicado',{p_titulo:titulo,p_mensaje:mensaje,p_imagen:imagen});
       if(!vigente()||!form.isConnected)return;
-      if(error||!data){estado.textContent=error?.message?.includes('Ya hay un comunicado')?'Ya hay un comunicado publicado. Actualiza el panel.':'No se pudo publicar. Revisa tu acceso y conexión.';return;}
+      if(error||!data){estado.textContent=error?.message?.includes('Ya hay un anuncio')?'Ya hay un anuncio publicado. Actualiza el panel.':'No se pudo publicar. Revisa tu acceso y conexión.';return;}
       if(typeof enAppNativa==='function'&&enAppNativa())consultarComunicadoInicio();
-      showToast('Comunicado publicado');await renderAdminComunicado(raiz);
+      showToast('Anuncio publicado');await renderAdminComunicado(raiz);
     }catch(e){if(vigente()&&turno===revision)estado.textContent=e instanceof TypeError?'No se pudo completar. Intenta de nuevo.':e.message;}
     finally{if(publicar){enviando=false;controles.forEach(c=>c.disabled=false);}}
   };
