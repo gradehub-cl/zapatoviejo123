@@ -9,6 +9,39 @@ const run=s=>vm.runInContext(s,ctx);
 const cerca=(a,b)=>assert.ok(Number.isFinite(a)&&Math.abs(a-b)<1e-9,`${a} ≠ ${b}`);
 run("S.tenant='uc';S.carrera='UC-MEDICINA'");
 
+const malla=ctx.mallaDeCarrera('uc','UC-MEDICINA');
+const catalogo=ctx.catalogRamos('uc','UC-MEDICINA');
+assert.equal(ctx.semestresDeCarrera('uc','UC-MEDICINA'),12);
+assert.equal(catalogo.length,47);
+assert.equal(new Set(catalogo.map(r=>r.sigla)).size,47);
+assert.deepEqual(Array.from(Object.values(malla),ramos=>ramos.reduce(
+  (total,nombre)=>total+ctx.creditosDe(nombre,'uc'),0)),[45,40,40,50,45,45,45,50,45,65,60,55]);
+const esperados=[
+  ['QIM201M',1,10],['FIS119M',1,10],['BIO239M',2,15],['MED104B',2,5],
+  ['MED212A',3,15],['MED206A',3,5],['MED306B',5,5],['MED307B',5,5],
+  ['MED505B',9,15],['MED603B',11,25],['MED610A',12,5],['MED612A',12,5],
+];
+const revisarBuscador=()=>{
+  for(const [sigla,semestre,creditos] of esperados){
+    const fila=ctx.searchCatalog(sigla,'uc','UC-MEDICINA',semestre)[0];
+    assert.ok(fila?.propio,sigla);
+    assert.deepEqual([fila.sigla,fila.semestre,ctx.creditosDe(fila.nombre,'uc')],[sigla,semestre,creditos]);
+  }
+};
+revisarBuscador();
+for(const f of ['mallas-uc.js','cursos-uc.js'])vm.runInContext(fs.readFileSync(raiz+f,'utf8'),ctx,{filename:f});
+revisarBuscador();
+assert.equal(ctx.searchCatalog('Bioestadística','uc','UC-MEDICINA',2)[0].sigla,'MED104B');
+assert.equal(ctx.searchCatalog('BIO230C','uc','UC-BIOLOGIA',3)[0].sigla,'BIO230C');
+assert.equal(ctx.searchCatalog('Internado Electivo','uc','UC-FONOAUDIOLOGIA',10)[0].sigla,'FON507');
+run("selectedTenant='uc';selectedCarrera='UC-MEDICINA';selectedSem=12;S.careerSemestre=12");
+assert.ok(ctx.obRamosActuales().includes('Internado de Profundización'));
+assert.ok(ctx.mallaFaltantes().includes('Internado de Profundización'));
+run("S.ramos=[{nombre:'Medicina Familiar',sigla:'MED605A'}]");
+assert.ok(!ctx.mallaFaltantes().includes('Internado Medicina Familiar'));
+assert.ok(ctx.mallaFaltantes().includes('Internado de Profundización'));
+run('S.ramos=[]');
+
 const ramos={'Integrado Ciencias Médicas III':['MED210A',5,4],'Morfología III':['MED213A',15,10],'Bases y Mecanismos de la Enfermedad I':['MED214A',30,9]};
 for(const [nombre,[sigla,creditos,filas]] of Object.entries(ramos)){
   const def=run('PRESETS_UC')[nombre],p=ctx.presetRamo(nombre,'uc','UC-MEDICINA');

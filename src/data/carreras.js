@@ -268,7 +268,92 @@ const CARRERAS_DECLARABLES={
 const CARRERA_BASE_UC=Object.fromEntries(CARRERAS_DECLARABLES.uc
   .filter(c=>typeof c.malla==='string'&&c.malla.startsWith('UC-ING-'))
   .map(c=>[c.malla,'ING-PC']));
-const CARRERAS_UC={'ING-PC':'Ingeniería Civil','COM':'Ingeniería Comercial','OTRA':'Otra carrera'};
+const CARRERAS_UC={'ING-PC':'Ingeniería Civil','COM':'Ingeniería Comercial','UC-MEDICINA':'Medicina','OTRA':'Otra carrera'};
+
+// Medicina UC, resoluciones VRA 035/2019 y 098/2023. Los dos diagramas oficiales
+// (admisión 2018 y 2025) coinciden para los ramos y créditos del cuadro:
+// https://registrosacademicos.uc.cl/wp-content/uploads/2024/04/m_140002_2018.pdf
+// https://registrosacademicos.uc.cl/wp-content/uploads/2024/06/m_140002_2025.pdf
+// Nombres, siglas y créditos cotejados en BuscaCursos UC, 2026-1 y 2026-2.
+// El cuadro abrevia MED612; la resolución y la oferta confirman MED612A.
+// Los paréntesis distinguen homónimos conforme a la convención del catálogo.
+// Los 40 créditos de electivos y Teología se eligen aparte. Los requisitos
+// VRA100C, VRA2000 y (admisión 2025) VRA4000 no son ramos que precargar con nota.
+const RAMOS_MALLA_UC_MEDICINA={
+  1:[
+    ['Bases y Fundamentos de la Medicina I','MED107A',10],
+    ['Química (QIM201M)','QIM201M',10],
+    ['Psicología Médica','MED109A',5],
+    ['Física (FIS119M)','FIS119M',10],
+    ['Razonamiento Matemático','MAT1033',10],
+  ],
+  2:[
+    ['Bases y Fundamentos de la Medicina II','MED108A',10],
+    ['Morfología I','MED111A',5],
+    ['Biología Molecular de la Célula (BIO239M)','BIO239M',15],
+    ['Bioestadística (MED104B)','MED104B',5],
+    ['Integrado Ciencias Médicas I','MED110A',5],
+  ],
+  3:[
+    ['Morfología II (MED212A)','MED212A',15],
+    ['Inmunología y Genética','MED208A',5],
+    ['Antropología y Ética','MED207A',10],
+    ['Salud Pública (MED206A)','MED206A',5],
+    ['Integrado Ciencias Médicas II','MED209A',5],
+  ],
+  4:[
+    ['Morfología III','MED213A',15],
+    ['Bases y Mecanismos de la Enfermedad I','MED214A',30],
+    ['Integrado Ciencias Médicas III','MED210A',5],
+  ],
+  5:[
+    ['Clínica I','MED308A',15],
+    ['Microbiología Médica (MED306B)','MED306B',5],
+    ['Farmacología Médica (MED307B)','MED307B',5],
+    ['Bases y Mecanismos de la Enfermedad II','MED310B',15],
+    ['Integrado Ciencias Médicas IV','MED311A',5],
+  ],
+  6:[
+    ['Clínica II','MED309A',40],
+    ['Integrado Ciencias Médicas V','MED312A',5],
+  ],
+  7:[
+    ['Clínica III','MED404A',40],
+    ['Integrado Ciencias Médicas VI','MED405A',5],
+  ],
+  8:[
+    ['Integrado Quirúrgico','MED407A',15],
+    ['Medicina Adulto','MED409A',15],
+    ['Neurociencias (MED408A)','MED408A',15],
+    ['Integrado Ciencias Médicas VII','MED406A',5],
+  ],
+  9:[
+    ['Pediatría y Cirugía Infantil','MED504B',15],
+    ['Obstetricia y Ginecología (MED505B)','MED505B',15],
+    ['Bases de la Práctica Profesional','MED508A',10],
+    ['Integrado Ciencias Médicas VIII','MED509A',5],
+  ],
+  // Distribución de referencia del diagrama. Las inscripciones de internados
+  // de 10° y 11° se organizan entre ambos semestres según la resolución.
+  10:[
+    ['Internado de Cirugía (MED601B)','MED601B',25],
+    ['Internado de Medicina Interna (MED602B)','MED602B',25],
+    ['Internado de Urgencias (MED606A)','MED606A',15],
+  ],
+  11:[
+    ['Internado de Obstetricia y Ginecología (MED603B)','MED603B',25],
+    ['Internado de Pediatría (MED604B)','MED604B',25],
+    ['Internado de Dermatología','MED611A',5],
+    ['Internado de Otorrinolaringología','MED607A',5],
+  ],
+  12:[
+    ['Internado Medicina Familiar','MED605A',20],
+    ['Internado de Neuropsiquiatría Clínica','MED608A',20],
+    ['Internado de Oftalmología','MED609A',5],
+    ['Internado de Profundización','MED612A',5],
+    ['Internado Electivo (MED610A)','MED610A',5],
+  ],
+};
 // Plan común de Ingeniería UC, currículum C2022. Los nombres y los créditos
 // salen del catálogo oficial vía la API de mallas.ing.uc.cl (la herramienta de
 // la propia Escuela), no de una imagen ni de memoria.
@@ -320,6 +405,8 @@ const MALLA_UC={
     7:['Empresas y Legislación','Macroeconomía II','Contabilidad Gerencial','Dirección de Personas'],
     8:['Práctica Social'],
   },
+  'UC-MEDICINA':Object.fromEntries(Object.entries(RAMOS_MALLA_UC_MEDICINA)
+    .map(([semestre,ramos])=>[semestre,ramos.map(([nombre])=>nombre)])),
 };
 // Carreras UAI — sin mallas verificadas todavía, el estudiante arma sus ramos
 const CARRERAS_UAI={'ING':'Ingeniería Civil','COM-UAI':'Ingeniería Comercial','DER-UAI':'Derecho','PSI':'Psicología','OTRA':'Otra carrera'};
