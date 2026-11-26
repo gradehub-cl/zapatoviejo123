@@ -95,6 +95,7 @@ create or replace function public.clave_evaluacion(p_nombre text)
 returns text
 language sql
 immutable
+set search_path = ''
 as $$
   select nullif(btrim(regexp_replace(
     translate(lower(coalesce(p_nombre, '')), 'áàäâéèëêíìïîóòöôúùüûñ', 'aaaaeeeeiiiioooouuuun'),

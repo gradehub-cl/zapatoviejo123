@@ -39,6 +39,7 @@ create or replace function public.calendar_feed_new_token()
 returns text
 language sql
 volatile
+set search_path = ''
 as $$
   select replace(gen_random_uuid()::text, '-', '') ||
          replace(gen_random_uuid()::text, '-', '');
