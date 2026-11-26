@@ -3,7 +3,10 @@ function enterOnboarding(){
   document.getElementById('screen-auth').classList.remove('active');
   document.getElementById('screen-onboard').classList.add('active');
   if(typeof mostrarContextoInvitacionProfesor==='function')mostrarContextoInvitacionProfesor();
-  // Si entró con Google, ya sabemos su nombre: no se lo preguntamos en blanco
+  // Primero se limpia el borrador de cualquier cuenta anterior y recién
+  // después se prellena con lo de esta: al revés, obIniciar borraba el nombre.
+  obIniciar();
+  // Si entró con Google o Apple, ya sabemos su nombre: no se lo preguntamos en blanco
   const nameInput=document.getElementById('ob-name');
   if(nameInput && !nameInput.value.trim() && currentUser && currentUser.user_metadata){
     const m=currentUser.user_metadata;
@@ -18,7 +21,7 @@ function enterOnboarding(){
     const a=String(m.family_name||'').trim()||(completo.length>1?completo.slice(1).join(' '):'');
     if(a)apellidoInput.value=a.slice(0,60);
   }
-  obIniciar();
+  checkOb();
   // Con el correo institucional ya sabemos su universidad: llega marcada en el
   // paso 2, sin saltarlo, para que pueda corregirla. Solo en el onboarding:
   // una cuenta que ya existe nunca cambia de universidad por su correo.

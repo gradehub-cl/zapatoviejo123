@@ -166,8 +166,17 @@ function repintarAlCargarMallas(tenant,repintar){
   if(!ARCHIVO_MALLAS[tenant]||mallasExtraDe(tenant))return;
   cargarMallasUC(tenant).then(ok=>{if(ok)repintar();});
 }
+// Las carreras son de cada universidad: al cambiarla se olvida todo lo del
+// paso 3 —código, nombre declarado y búsqueda—. Si quedaba el nombre, el paso 3
+// se veía sin nada marcado pero «Continuar» seguía activo, y terminaba con la
+// carrera de la otra universidad y sin malla aunque esta sí la tuviera.
+// Volver a tocar la misma universidad no borra lo que ya eligió.
 function selectTenant(t){
-  selectedTenant=t;selectedCarrera=null;applyTheme();renderTenantPick();initCarreraGrid();checkOb();
+  if(t!==selectedTenant){
+    selectedCarrera=null;selectedCarreraNombre=null;carreraFiltro='';
+    const buscar=document.getElementById('ob-carrera-buscar');if(buscar)buscar.value='';
+  }
+  selectedTenant=t;applyTheme();renderTenantPick();initCarreraGrid();checkOb();
   // En onboarding avanzamos solo: el usuario ve la selección y pasa al siguiente paso
   if(typeof obStep!=='undefined' && obStep===2 && document.getElementById('screen-onboard').classList.contains('active')){
     setTimeout(()=>{if(obStep===2)obNext();},260);
