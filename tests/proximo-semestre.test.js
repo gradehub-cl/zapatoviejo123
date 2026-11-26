@@ -177,10 +177,45 @@ console.log('\nPantalla con Supabase de mentira');
   await pausa();await pausa();await pausa();
   chk('error de red: ofrece reintentar',/Reintentar/.test(elementos['px-horarios'].innerHTML));
 
+  // Un fallo de prerrequisitos conserva el error hasta que se pida reintentar.
+  const fromOriginal=ctx.supabaseClient.from;
+  let intentosReq=0,resolverReqAnterior;
+  ctx.supabaseClient.from=()=>({select:()=>({in:()=>{
+    intentosReq++;
+    return intentosReq===1?Promise.resolve({error:{code:'500'}}):new Promise(r=>{resolverReqAnterior=r;});
+  }})});
+  run("abrirProximoSemestre(true);_proximo.requisitos.clear();_proximo.estadoReq='listo';");
+  run("proximoAgregar('TST2002','Ramo Dos')");
+  await pausa();
+  chk('un fallo se muestra sin reintentos automáticos',intentosReq===1&&/Reintentar/.test(elementos['px-ramos'].innerHTML));
+  if(resolverReqAnterior)resolverReqAnterior({data:[],error:null});
+  await pausa();
+  ctx.supabaseClient.from=fromOriginal;
+  await run('proximoActualizarRequisitos()');
+  chk('reintentar recupera el aviso de equivalencia',/TST2002[\s\S]*Cumples los prerrequisitos/.test(elementos['px-ramos'].innerHTML));
+
+  // Con una respuesta pendiente, cambiar el día no adelanta el estado final.
+  let resolverOferta;
+  ctx.supabaseClient.rpc=()=>new Promise(r=>{resolverOferta=r;});
+  run("_proximo.ramos=[{sigla:'TST3001',nombre:''}];");
+  run('proximoVerHorarios()');
+  run("proximoAlternarDia('L',null)");
+  chk('sigue mostrando carga al marcar día libre',/Buscando secciones/.test(elementos['px-horarios'].innerHTML));
+  resolverOferta({data:[],error:null});
+  await pausa();
+  chk('el mensaje de oferta vacía aparece solo después de la respuesta',/todavía no publica/.test(elementos['px-horarios'].innerHTML));
+
+  await pausa();
+  let resolverRequisitos;
+  ctx.supabaseClient.from=()=>({select:()=>({in:()=>new Promise(r=>{resolverRequisitos=r;})})});
+  run("abrirProximoSemestre(true);proximoAgregar('TST4001','Ramo anterior')");
   // Otra cuenta en el mismo teléfono no ve lo elegido.
   ctx.currentUser={id:'otra-cuenta-sintetica'};
   run('abrirProximoSemestre()');
   chk('al cambiar de cuenta se olvida lo elegido',run('_proximo.ramos.length')===0);
+  resolverRequisitos({data:[],error:null});
+  await pausa();
+  chk('una consulta anterior no modifica el plan de la otra cuenta',run('_proximo.requisitos.size===0&&_proximo.estadoReq==="listo"'));
 
   run("S={...S,tenant:'fen'}");
   ctx.currentUser={id:'tercera-cuenta'};

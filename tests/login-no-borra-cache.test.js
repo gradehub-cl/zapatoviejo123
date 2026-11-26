@@ -12,7 +12,7 @@ function estadoConNota(nombre='Cálculo I'){
   return {ramos:[{id:'r1',nombre,categorias:[{id:'c1',nombre:'Interrogación',peso:100,notas:[{id:'n1',nombre:'I1',valor:5.8,peso:1}]}]}],
     userName:'Estudiante',careerSemestre:1,carrera:'ING-PC',tenant:'uc',onboardingDone:true,historial:[],sortMode:'manual'};
 }
-function arnes({owner='usuario-a',upsertError=null}={}){
+function arnes({owner='usuario-a',insertError=null}={}){
   const guardado=new Map([['gradehub_v1',JSON.stringify(estadoConNota())],['gradehub_cache_owner',owner]]);
   const avisos=[],subidas=[];let setOwner=0,entro='';
   const ctx={
@@ -26,7 +26,7 @@ function arnes({owner='usuario-a',upsertError=null}={}){
     restaurarCacheApartada:()=>false,
     supabaseClient:{from:()=>({
       select:()=>({eq:()=>({maybeSingle:async()=>({data:null,error:null})})}),
-      upsert:async fila=>{subidas.push(fila);return {data:null,error:upsertError};}
+      insert:async fila=>{subidas.push(fila);return {data:null,error:insertError};}
     })},
     track(){},showToast:(mensaje,error)=>avisos.push({mensaje,error}),
     enterApp:()=>{entro='app';},enterOnboarding:()=>{entro='onboarding';},
@@ -49,13 +49,13 @@ const tieneNota=s=>s&&s.ramos&&s.ramos[0]&&s.ramos[0].categorias[0].notas[0].val
   chk('la copia local se intenta respaldar en la nube',kit.subidas.length===1&&tieneNota(kit.subidas[0].data));
   chk('entra a la app y no devuelve al onboarding',kit.entro()==='app');
 
-  console.log('\n=== El upsert devuelve error sin lanzar ===');
-  kit=arnes({upsertError:{code:'42501',message:'new row violates row-level security policy'}});
+  console.log('\n=== El insert devuelve error sin lanzar ===');
+  kit=arnes({insertError:{code:'42501',message:'new row violates row-level security policy'}});
   await kit.ctx.afterLogin();
   chk('el error de Supabase no borra la nota en memoria',tieneNota(kit.ctx.S));
   chk('ni sobrescribe la copia local',tieneNota(JSON.parse(kit.guardado.get('gradehub_v1'))));
   chk('la app reconoce que el respaldo falló',kit.avisos.some(x=>x.error&&/siguen en este dispositivo/i.test(x.mensaje)));
-  chk('un upsert rechazado no se marca como caché alineada',kit.setOwner()===0);
+  chk('un insert rechazado no se marca como caché alineada',kit.setOwner()===0);
 
   console.log('\n=== Caché de otra cuenta ===');
   kit=arnes({owner:'usuario-b'});

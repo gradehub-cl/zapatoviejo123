@@ -77,10 +77,31 @@ const campos={
   'm-pond-toggle':{checked:false},'m-nota-peso-num':{value:'40'},'m-nota-hora':{value:''},
 };
 ctx.document.getElementById=id=>campos[id]||stub;
-ctx.renderRamo=()=>{};ctx.renderAgenda=()=>{};ctx.closeModal=()=>{};ctx.showToast=()=>{};ctx.track=()=>{};
+const errores=[];
+ctx.renderRamo=()=>{};ctx.renderAgenda=()=>{};ctx.closeModal=()=>{};ctx.showToast=()=>{};ctx.track=()=>{};ctx.vibrar=()=>{};
+ctx.mostrarErrorCampo=(campo,_,mensaje)=>errores.push({campo,mensaje});
 vm.runInContext(`save=()=>{};S={tenant:'fen',ramos:[{id:'r2',nombre:'Ramo',categorias:[{id:'c2',nombre:'Casos',directNota:false,notas:[]}]}]};currentRamoId='r2';`,ctx);
 val('confirmAddNota')('c2');
 chk('y el valor vacío se guarda como null, no como cero',val("S.ramos[0].categorias[0].notas[0].valor")===null);
+
+console.log('\n=== Una nota inválida no se guarda como pendiente ===');
+const notasDelRamo=()=>val('S.ramos.find(r=>r.id==="r2").categorias.find(c=>c.id==="c2").notas');
+campos['m-nota-val'].value='7,1';
+val('confirmAddNota')('c2');
+chk('sobre 7 bloquea la creación y enfoca el campo',notasDelRamo().length===1&&errores.at(-1)?.campo==='m-nota-val');
+const id=notasDelRamo().find(n=>n.nombre==='Caso pendiente').id;
+campos['m-nota-val'].value='7';
+val('confirmEditNota')('c2',id);
+chk('se puede completar la nota con el máximo',notasDelRamo().find(n=>n.id===id).valor===7);
+campos['m-nota-val'].value='0,9';
+val('confirmEditNota')('c2',id);
+chk('bajo 1 conserva la calificación guardada',notasDelRamo().find(n=>n.id===id).valor===7&&errores.at(-1)?.campo==='m-nota-val');
+campos['m-nota-val'].value='1,0';
+val('confirmEditNota')('c2',id);
+chk('se acepta el mínimo con coma',notasDelRamo().find(n=>n.id===id).valor===1);
+campos['m-nota-val'].value=' ';
+val('confirmEditNota')('c2',id);
+chk('borrar el texto a propósito sí deja la evaluación pendiente',notasDelRamo().find(n=>n.id===id).valor===null);
 
 console.log('\nPASS: ' + ok + '   FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
