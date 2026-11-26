@@ -126,19 +126,24 @@ function pasoNotasSemestreAnterior(){
 function actualizarNotaSemestreAnterior(i,v){
   if(!histManual.ramos[i])return;
   histManual.ramos[i].nota=v;
+  // Corregida o borrada, la nota deja de estar marcada.
+  const campo=document.getElementById('m-hist-nota-'+i);
+  if(campo&&!notaMalSemestreAnterior(histManual.ramos[i]))campo.removeAttribute('aria-invalid');
   const el=document.getElementById('m-hist-aviso');
   if(el)el.textContent=textoAvisoSemestreAnterior();
 }
 
-// La escala se comprueba acá y no se delega: una nota fuera de 1,0–7,0 tiene que
-// avisarle a la persona en el momento, no desaparecer callada del promedio al
-// guardar. Se acepta coma o punto, que es como la gente la escribe.
+// La nota se lee con el mismo parser que el resto de la app: coma o punto, y
+// "65" vale 6,5 igual que en la ficha. Una nota que no sirve tiene que avisarle a
+// la persona en el momento y frenar el guardado, no desaparecer callada del
+// promedio. Un campo en blanco sí se ignora: es un ramo que no recuerda.
 function notaSemestreAnterior(txt){
-  const t=String(txt||'').trim().replace(',','.');
-  if(!t)return null;
-  const v=Number(t);
-  if(!Number.isFinite(v)||v<1||v>7)return null;
-  return r2(v);
+  if(!String(txt==null?'':txt).trim())return null;
+  const v=parseNota(txt,S.tenant);
+  return Number.isFinite(v)?v:null;
+}
+function notaMalSemestreAnterior(r){
+  return !!String(r&&r.nota||'').trim()&&notaSemestreAnterior(r.nota)===null;
 }
 function notasValidasSemestreAnterior(){
   return histManual.ramos
@@ -147,7 +152,7 @@ function notasValidasSemestreAnterior(){
 }
 function textoAvisoSemestreAnterior(){
   const conNota=notasValidasSemestreAnterior();
-  const fuera=histManual.ramos.filter(r=>String(r.nota||'').trim()&&notaSemestreAnterior(r.nota)===null);
+  const fuera=histManual.ramos.filter(notaMalSemestreAnterior);
   if(fuera.length)return `Revisa ${fuera.map(r=>r.nombre).join(', ')}: la nota va entre 1,0 y 7,0.`;
   if(!conNota.length)return 'Pon al menos una nota para guardar el semestre.';
   const prom=gpa(conNota.map(r=>({...r,avgOverride:r.valor,categorias:[]})));
@@ -155,6 +160,18 @@ function textoAvisoSemestreAnterior(){
 }
 
 function guardarSemestreAnterior(){
+  // Con una nota mala no se guarda nada: guardar sin ese ramo le cambiaría el
+  // promedio sin que se dé cuenta. Se marcan los campos y se lleva al primero.
+  const malas=histManual.ramos.map((r,i)=>notaMalSemestreAnterior(r)?i:-1).filter(i=>i>=0);
+  if(malas.length){
+    malas.forEach(i=>{const c=document.getElementById('m-hist-nota-'+i);if(c)c.setAttribute('aria-invalid','true');});
+    const aviso=document.getElementById('m-hist-aviso');
+    if(aviso)aviso.textContent=textoAvisoSemestreAnterior();
+    const primero=document.getElementById('m-hist-nota-'+malas[0]);
+    if(primero)primero.focus();
+    showToast(textoAvisoSemestreAnterior(),true);
+    return;
+  }
   const conNota=notasValidasSemestreAnterior();
   if(!conNota.length){showToast('Pon al menos una nota para guardar',true);return;}
   const label=etiquetaSemestre(histManual.anio,histManual.periodo);
@@ -164,7 +181,9 @@ function guardarSemestreAnterior(){
     id:uid(),nombre:r.nombre,color:COLORS[Math.floor(Math.random()*COLORS.length)],
     creditos:r.creditos,avgOverride:r.valor,categorias:[],origen:{manual:true}
   }));
-  S.historial.unshift({
+  // En su lugar cronológico: el primero del historial es "el semestre anterior"
+  // para Inicio, Estadísticas y el Wrapped, y uno viejo no puede quedar arriba.
+  insertarEnHistorial(S.historial,{
     id:uid(),label,archivedAt:Date.now(),manual:true,
     gpa:gpa(ramos),ramos
   });
