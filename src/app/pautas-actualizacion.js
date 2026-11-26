@@ -62,7 +62,7 @@ function requisitosDeGrupo(r){
 function pautaOficialIntacta(r){
   if(!r.origen?.tenant||!r.pautaHuella||r.consensoRespaldos||r.pautaSugerida?.aceptada||pautaEditada(r))return false;
   const {tenant,carrera}=r.origen;
-  const programa=presetRamo(r.nombre,tenant,carrera);
+  const programa=presetRamo(r.nombre,tenant,carrera,undefined,siglaParaPrograma(r));
   return !!programa&&firmaPautaSugerida(r)===firmaPautaSugerida(programa);
 }
 function cambioDePauta(r){
@@ -70,19 +70,27 @@ function cambioDePauta(r){
   const sugerida=r.pautaSugerida?.aceptada;
   const origen=r.origen||(sugerida&&{tenant:sugerida.tenant,carrera:S.carrera});
   if(!origen?.tenant||(sugerida&&!pautaSugeridaIntacta(r)))return null;
-  const nombre=findPresetName(r.nombre,origen.tenant,origen.carrera);
+  // Con la sigla del ramo tal cual, aunque traiga la pauta del consenso: el
+  // programa se le OFRECE. Nada entra sin que la persona acepte.
+  const sigla=typeof r.sigla==='string'&&r.sigla.trim()?r.sigla:null;
+  const nombre=findPresetName(r.nombre,origen.tenant,origen.carrera,sigla);
   if(!nombre)return null;
-  const p=presetRamo(nombre,origen.tenant,origen.carrera);
+  const p=presetRamo(nombre,origen.tenant,origen.carrera,undefined,sigla);
   if(!p)return null;
   const actual=huellaPauta(catsDePauta(r.categorias));
   if(!sugerida&&actual!==r.pautaHuella)return null;
+  // Una pauta que llegó sola del consenso y nadie editó se ve "al día" si sus
+  // pesos coinciden con el programa, y se quedaba para siempre como reportada
+  // por estudiantes, sin las reglas del programa. El programa manda sobre el
+  // consenso: se ofrece igual que a una pauta sugerida aceptada.
+  const consenso=!sugerida&&!!r.consensoRespaldos;
   const oficial=huellaPauta(p.categorias);
   const reglasCambian=firmaReglasCalculo(r)!==firmaReglasCalculo(p);
   const reqAntes=requisitosDeGrupo(r),reqDespues=requisitosDeGrupo(p);
   const claves=lista=>new Set(lista.map(g=>g.clave));
   const reqLlegan=reqDespues.filter(g=>!claves(reqAntes).has(g.clave));
   const reqSeVan=reqAntes.filter(g=>!claves(reqDespues).has(g.clave));
-  if(!sugerida&&oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
+  if(!sugerida&&!consenso&&oficial===actual&&!reglasCambian&&!reqLlegan.length&&!reqSeVan.length)return null; // al día
   // Qué cambia exactamente, para poder mostrárselo antes de que decida.
   const antes=new Map(catsDePauta(r.categorias).map(c=>[c.nombre,Number(c.peso)||0]));
   const despues=new Map((p.categorias||[]).map(c=>[c.nombre,Number(c.peso)||0]));
@@ -109,7 +117,7 @@ function cambioDePauta(r){
   const notasFueraDePauta=cambios.filter(c=>c.tipo==='se-va'&&!nombresReconocidos.has(normName(c.nombre)))
     .some(c=>r.categorias.filter(x=>x.nombre===c.nombre).some(conNota))||
     repetidasSinPareja(r,p.categorias).some(conNota);
-  if(sugerida&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar las ponderaciones del programa del curso'});
+  if((sugerida||consenso)&&!cambios.length)cambios.push({tipo:'regla',nombre:'Puedes usar las ponderaciones del programa del curso'});
   return {preset:p,cambios,notasFueraDePauta};
 }
 
@@ -146,6 +154,11 @@ function verCambioDePauta(ramoId){
 function actualizarPauta(ramoId){
   const r=(S.ramos||[]).find(x=>x.id===ramoId);if(!r)return false;
   const cambio=cambioDePauta(r);if(!cambio)return false;
+  // Aceptar el programa deja atrás la pauta del consenso, también la que se
+  // aplicó sola. Solo acá, cuando la persona aprieta «Actualizar»: la
+  // corrección automática de normalize() no le cambia la procedencia a nadie.
+  delete r.consensoRespaldos;
+  delete r.consensoAportado;
   aplicarCambioDePauta(r,cambio);
   return true;
 }
@@ -387,6 +400,7 @@ function aplicarPautaNueva(ramoId){
 function pautaPendiente(r){
   if(!r||!r.origen||!r.origen.tenant)return null;
   if((r.categorias||[]).length||(r.gates||[]).length)return null;
-  const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera);
-  return nombre?presetRamo(nombre,r.origen.tenant,r.origen.carrera):null;
+  const sigla=siglaParaPrograma(r);
+  const nombre=findPresetName(r.nombre,r.origen.tenant,r.origen.carrera,sigla);
+  return nombre?presetRamo(nombre,r.origen.tenant,r.origen.carrera,undefined,sigla):null;
 }
