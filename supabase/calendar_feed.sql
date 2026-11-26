@@ -175,5 +175,11 @@ $$;
 
 revoke all on function public.calendar_feed_data(text) from public;
 grant execute on function public.calendar_feed_data(text) to anon, authenticated;
+-- Supabase le da EXECUTE a anon por defecto en cada función nueva, y quitárselo
+-- a `public` no alcanza: son permisos separados. Estas piden sesión por dentro
+-- (auth.uid()), así que sin sesión no devolvían nada, pero no hay razón para
+-- que alguien sin cuenta pueda siquiera llamarlas.
+revoke all on function public.calendar_feed_token()  from public, anon;
+revoke all on function public.calendar_feed_revoke() from public, anon;
 grant execute on function public.calendar_feed_token()   to authenticated;
 grant execute on function public.calendar_feed_revoke()  to authenticated;
