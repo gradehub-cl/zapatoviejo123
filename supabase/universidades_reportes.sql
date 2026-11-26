@@ -12,6 +12,8 @@ begin
   when 'uai','u. adolfo ibáñez' then return 'uai';
   when 'uandes','u. de los andes' then return 'uandes';
   when 'udd','u. del desarrollo' then return 'udd';
+  when 'udp','u. diego portales' then return 'udp';
+  when 'unab','u. andrés bello' then return 'unab';
   else raise exception 'universidad desconocida: revisar antes de migrar' using errcode='22023';
  end case;
 end;
@@ -30,7 +32,7 @@ update public.profiles set universidad=public.codigo_universidad_perfil(universi
  where universidad is distinct from public.codigo_universidad_perfil(universidad);
 alter table public.profiles drop constraint if exists profiles_universidad_tenant_check;
 alter table public.profiles add constraint profiles_universidad_tenant_check
- check(universidad is null or universidad in ('uc','fen','uai','uandes','udd'));
+ check(universidad is null or universidad in ('uc','fen','uai','uandes','udd','udp','unab'));
 drop trigger if exists profiles_universidad_codigo on public.profiles;
 create trigger profiles_universidad_codigo before insert or update of universidad on public.profiles
  for each row execute function public.normalizar_universidad_perfil();

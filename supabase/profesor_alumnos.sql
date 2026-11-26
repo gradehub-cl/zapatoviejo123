@@ -399,7 +399,7 @@ set search_path = ''
 as $$
   select coalesce(
     nullif(upper(btrim(p_ramo->>'sigla')), ''),
-    case when lower(p_tenant) in ('uai', 'uandes', 'udd') then
+    case when lower(p_tenant) in ('uai', 'uandes', 'udd', 'udp', 'unab') then
       nullif(upper(btrim(regexp_replace(
         normalize(lower(coalesce(nullif(p_ramo#>>'{origen,ramoKey}', ''), p_ramo->>'nombre', '')), NFD),
         '[\u0300-\u036f]', '', 'g'))), '')

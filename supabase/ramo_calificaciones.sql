@@ -22,7 +22,7 @@ $$;
 
 create table if not exists public.ramo_calificaciones (
  user_id uuid not null references auth.users(id) on delete cascade,
- tenant text not null check (tenant in ('uc','fen','uai','uandes','udd')),
+ tenant text not null check (tenant in ('uc','fen','uai','uandes','udd','udp','unab')),
  ramo_clave text not null check (char_length(ramo_clave) between 1 and 200),
  seccion integer not null check (seccion between 1 and 999),
  periodo text not null check (periodo ~ '^20[0-9]{2}-[12]$'),
@@ -71,7 +71,7 @@ begin
  )
  select c.t,public.profesor_normalizar(coalesce(nullif(c.r->>'sigla',''),nullif(c.r->'origen'->>'ramoKey',''),c.r->>'nombre'))
  from candidatos c where c.r->>'id'=p_ramo_id and p_seccion between 1 and 999
-  and c.r->>'seccion'=p_seccion::text and c.t in ('uc','fen','uai','uandes','udd')
+  and c.r->>'seccion'=p_seccion::text and c.t in ('uc','fen','uai','uandes','udd','udp','unab')
  limit 1;
  if not found then raise exception 'ramo o sección no sincronizados en ese semestre'; end if;
 end;
@@ -167,7 +167,7 @@ returns jsonb language plpgsql stable security definer set search_path = '' as $
 declare resultado jsonb; clave text:=public.profesor_normalizar(p_ramo_clave); piso integer:=public.ramo_piso_publicacion();
 begin
  if auth.uid() is null then raise exception 'sin sesión'; end if;
- if p_tenant is null or p_tenant not in ('uc','fen','uai','uandes','udd') or char_length(clave) not between 1 and 200 then
+ if p_tenant is null or p_tenant not in ('uc','fen','uai','uandes','udd','udp','unab') or char_length(clave) not between 1 and 200 then
   return jsonb_build_object('disponible',false); end if;
  with contextos as materialized (
   select a.seccion,a.periodo,public.ramo_docente_interno(p_tenant,clave,a.seccion,a.periodo) as docente
