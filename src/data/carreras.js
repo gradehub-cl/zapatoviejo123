@@ -332,7 +332,7 @@ const CARRERAS_UANDES={'ING-UA':'Ingeniería Civil','COM-UA':'Ingeniería Comerc
 // El link de descarga es un recurso interno que cambia: no sirve como link fijo.
 const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:'ficha académica acumulada',
   url:'https://seguimientocurricular.uc.cl/avance/avancecurricular.xhtml',sistema:'Sistema de Avance Curricular',
-  pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',archivoFicha:'FAA',
+  pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',
   alternativa:'Mi UC › Información Académica › Avance curricular'}};
 
 // Dónde exportar a .ics las fechas de los cursos. Sin entrada, el importador solo
