@@ -26,7 +26,10 @@ const ramo=(key,cat,fecha,hora,origen='usuario')=>({id:'r',nombre:'Curso sintét
     await db.query('insert into auth.users(id,email) values($1,$2) on conflict do nothing',[u(i),`sintetico${i}@example.invalid`]);
     await db.query('insert into user_ramos values($1,$2) on conflict (user_id) do update set data=excluded.data',[u(i),JSON.stringify({ramos})]);
   };
-  const consenso=async()=>{await soy(9);return q("select * from date_consensus('uc')");};
+  // La función lee una tabla que pg_cron refresca cada 15 minutos: acá el
+  // refresco se pide a mano antes de cada lectura.
+  const refrescar=async()=>{await db.exec('reset role');await db.exec('select public.date_consensus_refrescar()');};
+  const consenso=async(tenant='uc')=>{await refrescar();await soy(9);return q('select * from date_consensus($1)',[tenant]);};
   await poner(1,[ramo('TST101','Prueba 1',FECHA,'10:00')]);
   await poner(2,[ramo('TST101','prueba  1',FECHA,'10:00')]);
   chk('con 2 personas no aparece',(await consenso()).length===0);
@@ -43,6 +46,25 @@ const ramo=(key,cat,fecha,hora,origen='usuario')=>({id:'r',nombre:'Curso sintét
   await poner(7,[ramo('TST101','Prueba 1',OTRA,'12:00')]);
   filas=await consenso();
   chk('gana la de más respaldo; la hora solo si 3 coinciden en ella',filas.length===1&&filas[0].fecha===OTRA&&filas[0].fecha_respaldos===4&&filas[0].hora==='10:00');
+  // ─── Precalculado: una pasada para todas las universidades ───
+  const enFen=r=>({...r,origen:{tenant:'fen',ramoKey:'TST101'}});
+  for(const i of [10,11,12])await poner(i,[enFen(ramo('TST101','Prueba 1',FECHA,'09:00'))]);
+  await soy(9);
+  chk('sin refresco, lo nuevo todavía no aparece',(await q("select * from date_consensus('fen')")).length===0);
+  filas=await consenso('fen');
+  chk('otra universidad con la misma clave de ramo tiene su propio consenso',filas.length===1&&filas[0].fecha===FECHA&&filas[0].fecha_respaldos===3&&filas[0].hora==='09:00');
+  filas=await consenso();
+  chk('y no se mezcla con el de la primera',filas.length===1&&filas[0].fecha===OTRA&&filas[0].fecha_respaldos===4);
+  await refrescar();await refrescar();await db.exec('reset role');
+  chk('refrescar dos veces no duplica filas',(await q('select count(*)::int n from date_consensus_cache'))[0].n===2);
+  chk('la tabla no guarda quién votó',!(await q("select column_name c from information_schema.columns where table_name='date_consensus_cache'")).some(f=>/user|email/.test(f.c)));
+  await soy(9);
+  for(const s of ['select * from date_consensus_cache','select date_consensus_refrescar()','select * from date_consensus_calcular()'])
+    await assert.rejects(q(s),/permission denied/);
+  chk('con sesión solo se entra por date_consensus: ni la tabla, ni el cálculo, ni el refresco',true);
+  await db.exec('reset role');await db.exec("update date_consensus_cache set actualizado_at=now()-interval '2 days'");
+  await soy(9);
+  chk('si el refresco lleva más de un día sin correr, deja de sugerir',(await q("select * from date_consensus('uc')")).length===0);
   await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub','',false)");await db.exec('set role anon');
   await assert.rejects(q("select * from date_consensus('uc')"),/permission denied/);chk('sin sesión no se puede leer',true);
 
