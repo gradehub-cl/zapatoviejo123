@@ -20,6 +20,15 @@ function obIniciar(){
   ['ob-prof-nombre','ob-prof-presentacion'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
   const mayor=document.getElementById('ob-prof-mayor');if(mayor)mayor.checked=false;
   const error=document.getElementById('ob-prof-error');if(error)error.textContent='';
+  // Y el resto del borrador: nombre, carrera y ramos. Cerrar sesión no recarga,
+  // así que la cuenta que entraba después en el mismo dispositivo veía el nombre
+  // y la carrera de la anterior, y podía heredar sus ramos agregados a mano.
+  // El nombre que trae Google o Apple lo pone enterOnboarding DESPUÉS de esto,
+  // con la cuenta que entra. No toca S ni nada guardado.
+  ['ob-name','ob-apellido','ob-carrera-buscar'].forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
+  selectedCarrera=null;selectedCarreraNombre=null;carreraFiltro='';
+  obRamos=[];obRamosKey='';obManualOpen=false;obManualError='';obVarianteElegida={};
+  if(typeof initCarreraGrid==='function')initCarreraGrid();
   elegirTipoCuenta(typeof consumirEntradaProfesor==='function'&&consumirEntradaProfesor()?'profesor':'estudiante');
   montarRuletasOnboarding();renderTenantPick();obRender();checkOb();
 }
