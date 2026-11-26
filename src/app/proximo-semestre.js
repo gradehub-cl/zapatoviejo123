@@ -86,22 +86,26 @@ function proximoCliente(){
 }
 // Trae las filas que faltan, y también las de las siglas citadas en sus
 // prerrequisitos: sus equivalencias cuentan (MAT1512 aprobado vale MAT1620).
-async function proximoCargarRequisitos(siglas){
+async function proximoCargarRequisitos(plan,siglas){
   const cliente=proximoCliente();
   if(!cliente)return false;
+  const requisitos=new Map(plan.requisitos);
   const pedir=async lista=>{
-    const faltan=[...new Set(lista)].filter(s=>PROXIMO_SIGLA_RE.test(s)&&!_proximo.requisitos.has(s)).slice(0,200);
+    const faltan=[...new Set(lista)].filter(s=>PROXIMO_SIGLA_RE.test(s)&&!requisitos.has(s)).slice(0,200);
     if(!faltan.length)return true;
     const {data,error}=await proximoConEspera(cliente.from('catalogo_uc_requisitos')
       .select('sigla,prerrequisitos,relacion,restricciones,equivalencias').in('sigla',faltan));
     if(error)return false;
     const porSigla=new Map((Array.isArray(data)?data:[]).map(f=>[f.sigla,f]));
-    faltan.forEach(s=>_proximo.requisitos.set(s,porSigla.get(s)||null));
+    faltan.forEach(s=>requisitos.set(s,porSigla.get(s)||null));
     return true;
   };
   try{
     if(!await pedir(siglas))return false;
-    return await pedir(siglas.flatMap(s=>{const f=_proximo.requisitos.get(s);return f?requisitosSiglasDe(f.prerrequisitos):[];}));
+    const citadas=siglas.flatMap(s=>requisitosSiglasDe(requisitos.get(s)?.prerrequisitos));
+    if(!await pedir(citadas))return false;
+    plan.requisitos=requisitos;
+    return true;
   }catch(e){return false;}
 }
 
@@ -147,9 +151,10 @@ function proximoResultados(q,estado,elegidas=[]){
   return out;
 }
 
+function proximoDueno(){return (typeof currentUser!=='undefined'&&currentUser?.id)||'local';}
 function abrirProximoSemestre(volviendo=false){
   if(!proximoSemestreDisponible())return;
-  const dueno=(typeof currentUser!=='undefined'&&currentUser&&currentUser.id)||'local';
+  const dueno=proximoDueno();
   if(_proximo.dueno!==dueno)_proximo=proximoEstadoInicial(dueno);
   _proximo.paso='ramos';
   if(!volviendo&&typeof track==='function')track('proximo_semestre_abierto');
@@ -224,26 +229,28 @@ function proximoPintarRamos(){
   }
   const ver=document.getElementById('px-ver-horarios');
   if(ver)ver.disabled=!_proximo.ramos.length;
-  if(elegidas.some(s=>!_proximo.requisitos.has(s))&&_proximo.estadoReq!=='cargando')proximoActualizarRequisitos();
+  if(elegidas.some(s=>!_proximo.requisitos.has(s))&&_proximo.estadoReq==='listo')proximoActualizarRequisitos();
 }
 async function proximoActualizarRequisitos(){
-  const siglas=_proximo.ramos.map(r=>r.sigla);
-  _proximo.estadoReq='cargando';
+  const plan=_proximo;
+  if(plan.estadoReq==='cargando')return;
+  const siglas=plan.ramos.map(r=>r.sigla);
+  plan.estadoReq='cargando';
   proximoPintarRamos();
-  const ok=await proximoCargarRequisitos(siglas);
-  _proximo.estadoReq=ok?'listo':'error';
-  if(_proximo.paso==='ramos')proximoPintarRamos();
+  const ok=await proximoCargarRequisitos(plan,siglas);
+  plan.estadoReq=ok?'listo':'error';
+  if(plan===_proximo&&plan.dueno===proximoDueno()&&plan.paso==='ramos')proximoPintarRamos();
 }
 
 // ── Horarios ────────────────────────────────────────────────────────────────
-async function proximoCargarSecciones(periodo,siglas){
+async function proximoCargarSecciones(plan,periodo,siglas){
   const cliente=proximoCliente();
   if(!cliente)return false;
   try{
-    const resultados=await Promise.all(siglas.filter(s=>!_proximo.secciones.has(periodo+'|'+s)).map(async s=>{
+    const resultados=await Promise.all(siglas.filter(s=>!plan.secciones.get(periodo+'|'+s)?.length).map(async s=>{
       const {data,error}=await proximoConEspera(cliente.rpc('catalogo_uc_secciones_publicas',{p_periodo:periodo,p_sigla:s}));
       if(error)return false;
-      _proximo.secciones.set(periodo+'|'+s,Array.isArray(data)?data:[]);
+      plan.secciones.set(periodo+'|'+s,Array.isArray(data)?data:[]);
       return true;
     }));
     return resultados.every(Boolean);
@@ -251,8 +258,10 @@ async function proximoCargarSecciones(periodo,siglas){
 }
 const PROXIMO_DIAS_SEMANA=['L','M','W','J','V'];
 function proximoVerHorarios(){
-  if(!_proximo.ramos.length)return;
-  _proximo.paso='horarios';
+  const plan=_proximo;
+  if(!plan.ramos.length)return;
+  plan.paso='horarios';
+  plan.estadoHorarios='cargando';
   const periodo=proximoPeriodo();
   const nombreDia=Object.fromEntries(DIAS_HORARIO);
   document.getElementById('modal-content').innerHTML=`
@@ -261,14 +270,17 @@ function proximoVerHorarios(){
       <span id="px-dias-titulo" class="px-label">Día libre</span>
       ${PROXIMO_DIAS_SEMANA.map(d=>`<button type="button" class="px-dia" aria-pressed="${_proximo.diasLibres.has(d)}" aria-label="${nombreDia[d]} libre" onclick="proximoAlternarDia('${d}',this)">${d==='W'?'Mi':nombreDia[d].slice(0,2)}</button>`).join('')}
     </div>
-    <div id="px-horarios" aria-live="polite"><p class="px-nota">Buscando secciones en BuscaCursos…</p></div>
+    <div id="px-horarios" aria-live="polite"></div>
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="abrirProximoSemestre(true)">Atrás</button>
     </div>`;
   if(typeof track==='function')track('proximo_horarios_vistos',{ramos:_proximo.ramos.length});
-  proximoCargarSecciones(periodo,_proximo.ramos.map(r=>r.sigla)).then(ok=>{
-    _proximo.estadoHorarios=ok?'listo':'error';
-    if(_proximo.paso==='horarios')proximoPintarHorarios();
+  const caja=document.getElementById('px-horarios');
+  proximoPintarHorarios();
+  proximoCargarSecciones(plan,periodo,plan.ramos.map(r=>r.sigla)).then(ok=>{
+    if(plan!==_proximo||plan.dueno!==proximoDueno()||plan.paso!=='horarios'||caja!==document.getElementById('px-horarios'))return;
+    plan.estadoHorarios=ok?'listo':'error';
+    proximoPintarHorarios();
   });
 }
 function proximoAlternarDia(d,boton){
@@ -341,7 +353,10 @@ function proximoHorariosHTML({periodo,siglas,filas,resultado},estadoRed){
 function proximoPintarHorarios(){
   const caja=document.getElementById('px-horarios');
   if(!caja)return;
-  caja.innerHTML=proximoHorariosHTML(proximoResultadoActual(),_proximo.estadoHorarios);
+  const estado=_proximo.estadoHorarios;
+  caja.innerHTML=estado==='cargando'
+    ?'<p class="px-nota">Buscando secciones en BuscaCursos…</p>'
+    :proximoHorariosHTML(proximoResultadoActual(),estado);
 }
 async function proximoCopiarNRC(i){
   const c=proximoResultadoActual().resultado.combinaciones[i];
