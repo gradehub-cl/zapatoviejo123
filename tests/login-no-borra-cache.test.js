@@ -29,7 +29,7 @@ function arnes({owner='usuario-a',insertError=null,estado=estadoConNota}={}){
     getCacheOwner:()=>guardado.get('gradehub_cache_owner')||null,
     setCacheOwner:uid=>{setOwner++;guardado.set('gradehub_cache_owner',uid);},
     restaurarCacheApartada:()=>false,
-    supabaseClient:{from:()=>({
+    supabaseClient:{auth:{getSession:async()=>({data:{session:{user:{id:'usuario-a'}}},error:null})},from:()=>({
       select:()=>({eq:()=>({maybeSingle:async()=>({data:null,error:null})})}),
       insert:async fila=>{subidas.push(fila);return {data:null,error:insertError};}
     })},
