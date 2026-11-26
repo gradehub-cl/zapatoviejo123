@@ -22,6 +22,10 @@ const TENANTS={
   // Las mallas de la UDD viven en mallas-udd.js; sus pautas, en udd-pautas.js,
   // solo de los programas que publican ponderaciones.
   udd:{name:'U. del Desarrollo', nombreCompleto:'Universidad del Desarrollo', colores:{fondo:'#005293',texto:'#FFFFFF'}, short:'UDD', conArticulo:'la UDD', mono:'UDD', sub:'Todas las carreras'},
+  // Fondo: Pantone 296 del manual de marca UNAB (enero 2026,
+  // institucional.unab.cl), en su equivalente sRGB. Carreras, reglamento y
+  // fuentes: docs/mallas-unab.md.
+  unab:{name:'U. Andrés Bello', nombreCompleto:'Universidad Andrés Bello', colores:{fondo:'#051C2C',texto:'#FFFFFF'}, short:'UNAB', conArticulo:'la UNAB', mono:'UNAB', sub:'Todas las carreras'},
 };
 
 // El dominio del correo institucional de los estudiantes, por universidad. Al
@@ -31,6 +35,8 @@ const TENANTS={
 // Workspace de los alumnos UAndes (su acceso al correo usa hd=miuandes.cl).
 const DOMINIOS_CORREO_POR_TENANT={
   uandes:['miuandes.cl'],
+  // Infografía oficial de la Intranet UNAB (servicioestudiante, abril 2026).
+  unab:['uandresbello.edu'],
 };
 
 // Equivalencias institucionales para calificaciones que sí participan del

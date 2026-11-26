@@ -501,10 +501,12 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .tenant-mono{font-family:var(--font-ui);font-weight:800;color:var(--tb);
   line-height:1;letter-spacing:-.02em;font-size:0.9375rem;}
 .tenant-mono[data-len="3"]{font-size:0.75rem;}
+.tenant-mono[data-len="4"]{font-size:0.625rem;letter-spacing:0;}
 .tenant-mono[data-len="6"]{font-size:0.53125rem;letter-spacing:0;}
 .tenant-badge.lg{width:46px;height:46px;border-radius:8px;}
 .tenant-badge.lg .tenant-mono{font-size:1.0625rem;}
 .tenant-badge.lg .tenant-mono[data-len="3"]{font-size:0.875rem;}
+.tenant-badge.lg .tenant-mono[data-len="4"]{font-size:0.75rem;}
 /* Marca de universidad junto al wordmark de GradeHub */
 .brand-lockup{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
 .brand-glyph-slot{display:flex;align-items:center;flex-shrink:0;}

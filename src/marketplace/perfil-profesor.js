@@ -6,7 +6,7 @@
 const CAMPOS_PERFIL_PROFESOR=',tipo_perfil,instagram,sitio_web,universidades,ramos_siglas,perfil_publico';
 // También son las de un anuncio (editor y validarBorradorClase). Calzan con
 // los checks de clases_particulares.sql y perfil_profesor.sql.
-const UNIVERSIDADES_PERFIL=[['uc','UC'],['fen','UChile'],['uai','UAI'],['uandes','UAndes'],['udd','UDD']];
+const UNIVERSIDADES_PERFIL=[['uc','UC'],['fen','UChile'],['uai','UAI'],['uandes','UAndes'],['udd','UDD'],['unab','UNAB']];
 const TIPOS_PERFIL=[['profesor','Particular'],['empresa','Academia o empresa']];
 function tienePerfilCompleto(perfil){return !!perfil&&Object.prototype.hasOwnProperty.call(perfil,'perfil_publico');}
 function validarPerfilProfesor(e){
