@@ -105,6 +105,22 @@ vm.runInContext("S.carrera='ING-PC';S.carreraNombre='Ingeniería Civil';renderPa
 chk('el mismo editor conserva Prueba e Interrogación para Ingeniería',
   /placeholder="Ej: Prueba 1"/.test(stub.innerHTML)&&stub.innerHTML.includes('<option value="Interrogación 1">')&&stub.innerHTML.includes('3 interrogaciones + laboratorio'));
 
+console.log('\n=== Medicina UC · editor en la app ===');
+vm.runInContext("S.carrera='UC-MEDICINA';S.carreraNombre='Medicina';renderPautaManualModal()",appCtx);
+chk('el editor web mantiene su vocabulario general', !stub.innerHTML.includes('<option value="ECOE">'));
+appCtx.window.Capacitor={isNativePlatform:()=>true,getPlatform:()=> 'ios'};
+llamar('renderPautaManualModal');
+chk('el editor nativo ofrece los términos de Medicina',
+  /placeholder="Ej: Interrogación 1"/.test(stub.innerHTML)&&['ECOE','Gymkhana','Minitest']
+    .every(nombre=>stub.innerHTML.includes('<option value="'+nombre+'">')));
+chk('el editor nativo de Medicina parte con una evaluación editable',
+  !stub.innerHTML.includes('Parte con una estructura')&&!stub.innerHTML.includes('3 interrogaciones + laboratorio'));
+chk('funciona con el nombre declarado de Medicina', llamar('sugerenciasEvaluacion','uc','Medicina').includes('ECOE'));
+chk('Medicina de otra universidad y Veterinaria conservan sus opciones',
+  !llamar('sugerenciasEvaluacion','uandes','MED-UA').includes('ECOE')&&
+  !llamar('sugerenciasEvaluacion','uc','UC-MEDICINA-VETERINARIA').includes('ECOE'));
+delete appCtx.window.Capacitor;
+
 console.log('\n=== La UAI habla su propio idioma, que usa las dos palabras ===');
 // No es una suposición: sale de sus programas. Management 2026-2 dice "tres
 // pruebas solemnes"; Matemáticas Avanzadas II dice "pruebas de cátedra" y

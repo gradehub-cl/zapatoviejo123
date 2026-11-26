@@ -7,7 +7,7 @@ function abrirImportarHorarioBuscacursos(conservarTexto=false){
   _horarioUCReconocido=null;_horarioClasesUC=[];
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Subir foto de tu horario</div>
-    <p class="modal-desc">Sube un pantallazo de tu horario de ${esc(fuente.donde)}. Lo leemos en tu teléfono: <b>la imagen no sale de tu dispositivo</b>. Después revisas los ramos${fuente.horas?' y sus horas de clase':' y sus clases'} antes de agregarlos.</p>
+    <p class="modal-desc">Sube un pantallazo de tu horario de ${fuente.url?`<a href="${esc(fuente.url)}" target="_blank" rel="noopener" style="color:var(--primary);">${esc(fuente.donde)}</a>`:esc(fuente.donde)}. Lo leemos en tu teléfono: <b>la imagen no sale de tu dispositivo</b>. Después revisas los ramos${fuente.horas?' y sus horas de clase':' y sus clases'} antes de agregarlos.</p>
     <label class="btn-confirm horario-foto-btn" for="m-horario-foto">Elegir foto del horario</label>
     <input type="file" id="m-horario-foto" class="horario-foto-input" accept="image/*" onchange="leerFotoHorario(this)" aria-describedby="m-horario-estado"/>
     <p id="m-horario-estado" class="horario-importar-estado" role="status" aria-live="polite">Solo se reconocerán siglas verificadas en el catálogo ${esc(TENANTS[S.tenant].short)}.</p>

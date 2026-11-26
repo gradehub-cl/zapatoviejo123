@@ -335,6 +335,13 @@ const AVANCE_CURRICULAR={uc:{portal:'Mi UC',documento:'avance curricular',ficha:
   pestanaFicha:'Ficha Académica Acumulada',pestanaAvance:'Seguimiento Curricular',archivoFicha:'FAA',
   alternativa:'Mi UC › Información Académica › Avance curricular'}};
 
+// Dónde exportar a .ics las fechas de los cursos. Sin entrada, el importador solo
+// habla de Apple, Google u Outlook. Webcursos es Moodle 4.5: verificado el
+// 2026-11-24 que su exportación está encendida (apagada responde "no export"
+// antes de pedir sesión). Se usa el archivo y no la URL de suscripción, que deja
+// leer el calendario a cualquiera que la tenga y habría que cuidar como clave.
+const CALENDARIO_PORTAL_POR_TENANT={uai:{donde:'Webcursos',url:'https://webc.uai.cl/calendar/export.php'}};
+
 // Portal por universidad: recursos oficiales según el tenant del estudiante.
 const PORTAL_UC=[
   {title:'Académico',links:[
@@ -358,7 +365,7 @@ const PORTAL_UC=[
 const PORTAL=[
   {title:'Académico',links:[
     {label:'Canvas',desc:'Plataforma de cursos y tareas',url:'https://uchile.instructure.com',color:'#e84646'},
-    {label:'Docencia Web FEN',desc:'Portal académico de la facultad',url:'https://docencia.fen.uchile.cl',color:'#2563eb'},
+    {label:'Docencia Web FEN',desc:'Portal académico de la facultad',url:'https://docenciaweb.fen.uchile.cl/',color:'#2563eb'},
     {label:'U-Campus',desc:'Inscripción de ramos, horarios y más',url:'https://ucampus.uchile.cl',color:'#16a34a'},
   ]},
   {title:'Facultad',links:[

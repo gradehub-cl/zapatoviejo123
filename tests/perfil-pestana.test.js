@@ -55,6 +55,8 @@ for (const f of ['perfil-pestana.js', 'herramientas-inicio.js']) {
 }
 const creditos = fs.readFileSync(raiz + 'src/data/creditos.js', 'utf8');
 chk('FEN tiene lector de horario', /HORARIO_FOTO_POR_TENANT=\{[^;]*\bfen:\{/.test(creditos));
+chk('la llave también está en la web, no solo en la app', !/enAppNativa/.test(fs.readFileSync(raiz + 'src/app/herramientas-inicio.js', 'utf8').split('function herramientasInicioDisponibles')[1].split('}')[0]));
+chk('las cuentas de profesor no ven la llave', /function herramientasInicioDisponibles\(\)\{\s*if\(esCuentaProfesor\(\)\)return \[\];/.test(fs.readFileSync(raiz + 'src/app/herramientas-inicio.js', 'utf8')));
 chk('Canvas tiene su propio ícono', /circle/.test(vm.runInContext('PERFIL_ICONOS.canvas', ctx)));
 
 console.log('\n=== Cuenta de profesor ===');

@@ -156,6 +156,27 @@ function obCatalogMeta(r){
   if(r.tienePreset)detalles.push(r.consenso?`ponderaciones según ${r.consenso} estudiantes`:'con programa');
   return detalles.filter(Boolean).join(' · ');
 }
+// Foto del horario como primera opción para cargar ramos (#1054). Solo en la
+// app (lo nuevo va solo a la app hasta su lanzamiento) y solo donde ya sabemos
+// leer el horario. Elegir la foto termina el onboarding sin los ramos
+// sugeridos de la malla y abre la misma importación de Inicio: ahí se revisa
+// todo antes de agregar, y un ramo que ya existe solo recibe su sección.
+function obOfreceFotoHorario(){
+  return obTipo!=='profesor'&&!!selectedTenant&&enAppNativa()&&!!HORARIO_FOTO_POR_TENANT[selectedTenant];
+}
+function obFotoHorarioHTML(){
+  if(!obOfreceFotoHorario())return '';
+  const fuente=HORARIO_FOTO_POR_TENANT[selectedTenant];
+  return `<button type="button" class="ob-ficha-oferta ob-horario-oferta" style="margin:0 0 14px;" onclick="obSubirFotoHorario()">
+      <strong>Sube una foto de tu horario</strong>
+      <span>Un pantallazo de ${esc(fuente.donde)} basta: leemos tus ramos y su sección, y los revisas antes de agregarlos. La imagen no sale de tu teléfono.</span>
+    </button>
+    <p class="course-picker-reassurance" style="margin:0 0 6px;">O elígelos tú:</p>`;
+}
+function obSubirFotoHorario(){
+  if(!obOfreceFotoHorario())return;
+  completeOnboarding({conFoto:true});
+}
 function renderObCoursePicker(){
   const box=document.getElementById('ob-course-picker');if(!box)return;
   const sugeridos=obRamosActuales();
@@ -190,6 +211,7 @@ function renderObCoursePicker(){
     '';
   box.innerHTML=`
     <div class="course-picker">
+      ${obFotoHorarioHTML()}
       <p class="course-picker-intro">${obCoursePickerIntro(sugeridos)}</p>
       ${sinCatalogoVerificado&&!visibles.length?'':`
       <div class="course-picker-section">

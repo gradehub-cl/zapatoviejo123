@@ -18,6 +18,7 @@ function textoEximicionRegla(e){
   const regla=e.regla,examen=regla.etiqueta||regla.evaluacion||(regla.evaluaciones||[]).join(' y ');
   let condicion=`Te eximes de ${examen} con ${numeroRegla(regla.min)} de presentación`;
   if(Number.isInteger(regla.maxInasistencias))condicion+=` y hasta ${regla.maxInasistencias} faltas`;
+  if(Number.isFinite(regla.asistencia))condicion+=` y ${numeroRegla(regla.asistencia)} % de asistencia`;
   if(regla.minimos?.length)condicion+=' y cumpliendo los mínimos de cada grupo';
   let estado=e.activa?'estás eximido':e.puedeConfirmar?'puedes confirmar la eximición en la ficha'
     :e.razon==='examen_rendido'?'se conserva la nota de examen que ingresaste'
@@ -42,7 +43,7 @@ function modeloReglasRamo(r){
   const def=definicionPresetDelRamo(r),fuente=fuenteReglasRamo(r,def),reglas=[];
   const agregar=(titulo,simple,citas=[],origen=fuente,aviso='')=>reglas.push({titulo,simple,citas,fuente:origen,aviso});
   const ex=estadoEximicion(r);
-  if(ex)agregar('Eximición',textoEximicionRegla(ex),typeof ex.regla.ayuda==='string'?[ex.regla.ayuda]:[],fuente,ex.activa&&Number.isFinite(ex.notaExamen)?`El examen conserva su peso y vale ${nf(ex.notaExamen)}, la mayor nota previa.`:'');
+  if(ex)agregar('Eximición',textoEximicionRegla(ex),typeof ex.regla.ayuda==='string'?[ex.regla.ayuda]:[],ex.regla.origen==='editor'?'De tus ponderaciones':fuente,ex.activa&&Number.isFinite(ex.notaExamen)?`El examen conserva su peso y vale ${nf(ex.notaExamen)}, la mayor nota previa.`:'');
   const activas=gatesActivas(r);
   (r.gates||[]).filter(g=>['min_grade_required','group_min'].includes(g.type)).forEach(g=>{
     const cats=(g.catIds||[g.catId]).map(id=>r.categorias.find(c=>c.id===id)).filter(Boolean);

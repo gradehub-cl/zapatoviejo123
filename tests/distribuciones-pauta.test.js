@@ -205,5 +205,55 @@ assert.equal(evidencia([fila(A, 4)]), false);
   assert.equal(run('textoReferenciaSugerida')(run('programaQueCalza')(rev, defRev)), 'Programa oficial de las secciones 1 y 2');
   assert.equal(run('definicionPresetDelRamo')({...rev,seccion:3}),null,'mismos pesos en otra sección no reciben reglas de JP');
   assert.equal(run('definicionPresetDelRamo')({...rev,seccion:null}),null,'sin sección no se infiere el profesor por la pauta');
+
+  // ─── Pedir la sección en la ficha (app, 2026-11-25) ───
+  {
+    const sinSec = { id: 's', nombre: 'Biología de la Célula', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', categorias: [], gates: [] };
+    run(`S.tenant='uc';S.ramos=${JSON.stringify([sinSec])}`);
+    const rS = run('S.ramos[0]');
+    run('enAppNativa=()=>false');
+    assert.equal(run('pideSeccionRamo')(rS), false, 'en la web se conserva el enlace de siempre');
+    run('enAppNativa=()=>true');
+    assert.equal(run('pideSeccionRamo')(rS), true, 'en la app, un ramo no coordinado sin sección la pide');
+    assert.equal(run('pideSeccionRamo')({ ...J(rS), seccion: 3 }), false, 'con sección ya no');
+    assert.equal(run('pideSeccionRamo')({ ...J(rS), nombre: 'Cálculo II' }), false, 'un ramo coordinado no la pide');
+    assert.match(run('htmlPautaSugerida')([{ estructura: [{ nombre: 'Examen', peso: 100 }], respaldos: 3 }], { noCoordinado: true, sinSeccion: true, pedirSeccion: true }), /pedir-seccion-input/);
+    assert.doesNotMatch(run('htmlPautaSugerida')([{ estructura: [{ nombre: 'Examen', peso: 100 }], respaldos: 3 }], { noCoordinado: true, sinSeccion: true, pedirSeccion: false }), /pedir-seccion-input/);
+    // Guardar: valida el número y deja la sección como la guarda el editor.
+    const oyentes = {}, campo = { value: '', addEventListener: (t, f) => { oyentes['input:' + t] = f; } };
+    const boton = { addEventListener: (t, f) => { oyentes['boton:' + t] = f; } };
+    const caja = { querySelector: q => q === '#pedir-seccion-input' ? campo : boton };
+    let errores = 0, guardados = 0;
+    run('mostrarErrorCampo=()=>{globalThis.__err=(globalThis.__err||0)+1};renderRamo=()=>{};track=()=>{};save=()=>{globalThis.__save=(globalThis.__save||0)+1}');
+    run('enlazarPedirSeccion')(caja, rS, () => true);
+    campo.value = 'tres'; oyentes['boton:click']();
+    errores = run('globalThis.__err||0'); guardados = run('globalThis.__save||0');
+    assert.equal(errores, 1, 'texto que no es número: avisa');
+    assert.equal(rS.seccion, undefined, 'y no guarda nada');
+    campo.value = '4'; oyentes['boton:click']();
+    assert.equal(rS.seccion, 4, 'guarda la sección como entero');
+    assert.equal(run('globalThis.__save'), guardados + 1);
+    assert.equal(run('pideSeccionRamo')(rS), false, 'y deja de pedirla');
+    const deSec = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rS), rS, []);
+    assert.equal(deSec[0].tuya, 'programa', 'con su sección, su programa va primero');
+    run('enAppNativa=()=>false');
+  }
+  // ─── Filosofía: ¿Para Qué? no es coordinado (Lucas, 2026-11-25) ───
+  ctx.filasPrueba = [];
+  const filo = { id: 'f', nombre: 'Filosofía: ¿Para Qué?', origen: { tenant: 'uc', carrera: 'ING-PC' }, periodo: '2026-2', categorias: [], gates: [] };
+  run(`S.ramos=${JSON.stringify([filo])}`);
+  const rF = run('S.ramos[0]');
+  assert.deepEqual(J(run('coordinacionRamo')(rF)), { coordinado: false, fuente: 'programa' });
+  assert.equal(run('presetRamo')(rF.nombre, 'uc', 'ING-PC'), null, 'el programa de una sección no se carga solo a todos');
+  assert.equal(run('elegiblePautaSugerida')(rF), true, 'un ramo vacío recibe sugerencias');
+  const deFilo = await run('leerPautaSugerida')(run('contextoPautaSugerida')(rF), rF, []);
+  assert.equal(deFilo[0].fuente, 'catalogo', 'sin reportes, se ofrece el programa publicado diciendo que puede no ser el de tu sección');
+  // Quien ya lo tenía cargado conserva el mínimo del Podcast y la asistencia.
+  const defFilo = run("PRESETS_UC['Filosofía: ¿para qué?']");
+  const filoCargada = { ...filo, categorias: desdePreset('', defFilo.evalsReferencia), gates: [] };
+  const reglasFilo = run('definicionPresetDelRamo')(filoCargada);
+  assert.ok(reglasFilo && (reglasFilo.reglasDelCurso || []).length === 1, 'con el programa cargado conserva sus reglas');
+  filoCargada.pautaHuella = run('huellaPauta')(filoCargada.categorias);
+  assert.equal(run('cambioDePauta')(filoCargada), null, 'y no se le ofrece cambiar ni borrar nada');
   console.log('distribuciones-pauta: OK');
 })().catch(e => { console.error(e); process.exit(1); });

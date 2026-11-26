@@ -94,6 +94,32 @@ function revisionAdminAnuncioHTML(a,profesor){
     </div>
   </section>`;
 }
+// Cambios que un profesor envió sobre su anuncio publicado (2026-11-24). El
+// anuncio sigue mostrándose como estaba hasta que se aprueban.
+const CAMPOS_EDICION_ADMIN={titulo:'Título',descripcion:'Descripción',precio_clp:'Precio',pack_clases:'Clases por pack',
+  modalidad:'Formato',modalidad_otra:'Formato (otro)',ubicacion:'Dónde',ubicacion_otra:'Dónde (otro)',detalles:'Detalles',
+  linea_datos:'Bajo el título',contacto_tipo:'Tipo de contacto',contacto_valor:'Contacto',
+  descuento_gradehub_pct:'Descuento %',codigo_descuento:'Código de descuento'};
+function valorEdicionAdmin(k,v){
+  if(v===null||v===undefined||v==='')return 'Sin indicar';
+  if(k==='precio_clp')return pesosClase(Number(v));
+  if(k==='descuento_gradehub_pct')return v+'%';
+  if(k==='detalles'&&Array.isArray(v))return v.map(d=>d&&typeof d==='object'?[d.etiqueta,d.valor].filter(Boolean).join(': '):String(d)).join(' · ')||'Sin indicar';
+  if(Array.isArray(v))return v.join(' · ')||'Sin indicar';
+  if(typeof v==='object')return JSON.stringify(v);
+  return String(v);
+}
+function edicionPendienteAdminHTML(id,cambios,enviada){
+  const filas=Object.entries(cambios||{}).map(([k,c])=>`<div><dt>${esc(CAMPOS_EDICION_ADMIN[k]||k)}</dt><dd><del>${esc(valorEdicionAdmin(k,c&&c.antes))}</del><br><ins>${esc(valorEdicionAdmin(k,c&&c.despues))}</ins></dd></div>`).join('');
+  return `<h4>El profesor envió cambios</h4>
+    <p class="profesor-info">${enviada?`Enviados el ${esc(new Date(enviada).toLocaleString('es-CL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}. `:''}El anuncio se sigue mostrando como estaba hasta que los apruebes. Aprobar no cambia su campaña ni sus números.</p>
+    <dl class="admin-revision-datos">${filas}</dl>
+    <div class="admin-revision-acciones">
+      <button type="button" class="btn-confirm" data-admin-aprobar-edicion="${esc(id)}">Aprobar cambios</button>
+      <label>Comentario para el profesor<textarea data-admin-comentario-edicion="${esc(id)}" maxlength="1000" placeholder="Qué debe corregir antes de volver a enviarlos"></textarea></label>
+      <button type="button" class="clase-accion" data-admin-rechazar-edicion="${esc(id)}">Rechazar con comentario</button>
+    </div>`;
+}
 // El descuento es de GradeHub: el profesor conserva solo lectura.
 function descuentoAdminPct(a){
   const pct=a&&a.descuento_gradehub_pct;
@@ -219,6 +245,7 @@ function filaAdminAnuncio(a,ahora=Date.now()){
       <p class="clase-sin-datos">${esc(lineaCostoCampanaClase(costo))}</p>`:''}
     ${vig==='expirado'&&!costo?.sinCosto?'<p class="admin-lista-cobro">Campaña terminada · lista para revisar y registrar el cobro.</p>':''}
     ${vig==='eliminado'&&publicado?'<p class="admin-lista-cobro">Anuncio borrado de la revisión. Esta publicación anterior se conserva para el cobro.</p>':''}
+    ${a.edicion_pendiente?`<section class="admin-revision" aria-label="Cambios enviados por el profesor">${edicionPendienteAdminHTML(a.id,a.edicion_pendiente.cambios,a.edicion_pendiente.enviada_at)}</section>`:''}
     <div class="admin-anuncio-acciones">
       ${['borrador','en_revision','publicado','pausado'].includes(a.estado)?`<span data-admin-edicion="${esc(a.id)}"></span>`:''}
       <button type="button" class="clase-accion" data-admin-estadisticas="${esc(a.id)}" aria-controls="admin-estadisticas-${esc(a.id)}" aria-expanded="false">Ver estadísticas</button>
@@ -273,7 +300,7 @@ function filasAdminHig(profesores,ahora=Date.now()){
 function filtrarAdminHig(filas,{seccion='campanas',busqueda='',estado=''}={}){
   const palabras=normalizarBusquedaClase(busqueda).split(' ').filter(Boolean);
   return filas.filter(f=>(seccion==='cobros'||f.a.estado!=='eliminado')&&
-    (seccion!=='revision'||f.a.estado==='en_revision')&&
+    (seccion!=='revision'||f.a.estado==='en_revision'||!!f.a.edicion_pendiente)&&
     (seccion!=='cobros'||f.a.publicado_at||(f.a.cobros||[]).length||f.a.cobro)&&
     (!estado||f.estado[1]===estado)&&palabras.every(t=>normalizarBusquedaClase([f.p.nombre,f.a.titulo,...(f.a.ramos_siglas||[])].join(' ')).includes(t)));
 }
@@ -284,7 +311,7 @@ function cobroPendienteAdmin({a,costo,estado}){
 }
 // Primero lo que espera una decisión; después, lo que más se está mostrando.
 function ordenFilasAdmin(x,y){
-  const prioridad=f=>f.a.estado==='en_revision'?0:cobroPendienteAdmin(f)?1:2;
+  const prioridad=f=>f.a.estado==='en_revision'||f.a.edicion_pendiente?0:cobroPendienteAdmin(f)?1:2;
   return prioridad(x)-prioridad(y)||(Number(y.a.campana?.vistas)||0)-(Number(x.a.campana?.vistas)||0);
 }
 // Cuántas personas con el ramo vieron el anuncio. Cada consulta recorre las
@@ -320,7 +347,7 @@ function filaAdminHigHTML({p,a,costo,estado},ahora){
   // respeta pausas y suspensiones. No se reconstruye desde el reloj local.
   const dias=campana&&Number.isSafeInteger(campana.dias_cobrados)?campana.dias_cobrados:null;
   return `<details class="admin-hig-fila pe-admin-fila" data-admin-fila="${esc(a.id)}"><summary>
-    <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span></small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
+    <span class="pe-identidad"><span class="pe-avatar" aria-hidden="true">${esc(inicial)}</span><span class="admin-hig-identidad"><b>${esc(a.titulo||'Sin título')}</b><small>${esc(p.nombre||'Sin nombre')} <span class="clase-estado clase-estado-${esc(estado[1])}">${esc(estado[0])}</span>${a.edicion_pendiente?' <span class="clase-estado clase-estado-en_revision">Cambios por revisar</span>':''}</small>${descuentoAdminPct(a)===null?'':`<span class="admin-descuento-etiqueta">−${descuentoAdminPct(a)}% GradeHub</span>`}</span></span>
     <span class="pe-fila-metricas" data-pe-anuncio-metricas="${esc(a.id)}">${[['vistas','Vistas'],['aperturas','Aperturas'],['contactos','Contactos']].map(([k,t])=>`<span><b data-pe-conteo="${k}">${valor(k)}</b><small>${t}</small></span>`).join('')}<span><b>${numeroPrivado(dias)}</b><small>Días publicada</small></span><span class="adm-alcance" data-adm-alcance-fila="${esc(a.id)}">${alcanceFilaAdminHTML(null)}</span></span><span class="pe-ver"><i aria-hidden="true">⌄</i><span class="adm-oculto">Ver</span></span>
     </summary><div class="admin-hig-detalle">${a.estado==='en_revision'?revisionAdminAnuncioHTML(a,p):''}${filaAdminAnuncio(a,ahora)}</div></details>`;
 }
