@@ -196,9 +196,14 @@ begin
  ),
  resumen_docentes as (
   select d.nombre,
-   (select jsonb_build_object('total',count(*),'promedio',round(avg(k.estrellas),1))
-    from public.profesor_calificaciones k join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
-    where k.tenant=p_tenant and k.ramo_clave=clave and public.profesor_coinciden(a.nombre,d.nombre) having count(*)>=3) as estrellas,
+   -- Una persona, una calificación (la más reciente), igual que en
+   -- profesor_calificacion_estado: varias secciones no multiplican su voto.
+   (select jsonb_build_object('total',count(*),'promedio',round(avg(u.estrellas),1))
+    from (select distinct on (k.user_id) k.estrellas
+      from public.profesor_calificaciones k join public.profesor_aportes a on a.user_id=k.user_id and a.tenant=k.tenant and a.ramo_clave=k.ramo_clave and a.seccion=k.seccion and a.periodo=k.periodo
+      where k.tenant=p_tenant and k.ramo_clave=clave and public.profesor_coinciden(a.nombre,d.nombre)
+      order by k.user_id, k.actualizada desc) u
+    having count(*)>=3) as estrellas,
    public.ramo_resumen_bloque((select jsonb_agg(to_jsonb(u)) from datos u
     where not u.oculto and public.profesor_coinciden(u.docente,d.nombre))) as opiniones
   from docentes d
