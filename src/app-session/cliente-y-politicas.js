@@ -17,7 +17,7 @@ const LEGAL_ACCEPTANCE_VERSION = '2026-11-12';
 // nadie despacha lo deja botado sin saberlo. Lo que dice es cierto en los dos
 // casos y sigue sin distinguirlos. Si algún día se reactiva la confirmación,
 // hay que volver a redactarlo. Lo fija `tests/seguridad.test.js`.
-const MSG_VERIFICA = 'Ya puedes entrar con ese correo y tu contraseña.';
+const MSG_VERIFICA = 'Inicia sesión con ese correo y tu contraseña. Si creaste tu cuenta con Google o Apple, entra con ese botón.';
 
 // El enlace de la calculadora solo atribuye la entrada en esta pestaña. No se
 // mezcla con gradehub_v1 ni se guarda puntaje, nota o identidad en la URL.

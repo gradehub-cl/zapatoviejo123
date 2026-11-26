@@ -933,6 +933,8 @@ input.rep-peso-input{width:100%;min-height:44px;box-sizing:border-box;padding:9p
 .clase-apoyo-cerrar{flex:none;display:flex;align-items:center;justify-content:center;width:44px;border:0;background:none;color:var(--fg3);cursor:pointer;}
 .clase-apoyo-cerrar .ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;}
 .ramo-reordering .clase-apoyo{display:none;}
+/* Lista de anuncios activos en Apoyo (app): el mismo banner, suelto. */
+.directorio-banners .clase-apoyo{margin:0 0 8px;border-radius:10px;border-top:0;}
 /* La clase como casilla de la grilla (Inicio en escritorio y la vista previa
    del profesor). El puente cruza el espacio entre columnas con el mismo tinte;
    la etiqueta va encima del título y "Ver clase" a la altura de la barra del
@@ -1223,6 +1225,18 @@ input[type=range]{width:100%;accent-color:var(--primary);margin-top:8px;}
 .pauta-sugerida .pauta-sugerida-acciones{flex-wrap:wrap;margin-top:.8rem;}
 .pauta-sugerida .pauta-sugerida-acciones button{flex:1 1 8rem;min-width:44px;min-height:44px;}
 .pauta-sugerida .pauta-sugerida-acciones button:disabled{opacity:1;background:var(--muted);color:var(--fg2);}
+/* Pedir la sección en un ramo no coordinado (solo app, pauta-sugerida.js). */
+.pauta-sugerida .pedir-seccion{margin:0 0 .85rem;}
+.pauta-sugerida.pauta-sugerida-solo-seccion .pedir-seccion{margin:0;}
+.pauta-sugerida .pedir-seccion label{display:grid;gap:.2rem;}
+.pauta-sugerida .pedir-seccion label b{font-size:1rem;}
+.pauta-sugerida .pedir-seccion label span{color:var(--fg2);font-size:.875rem;}
+.pauta-sugerida .pedir-seccion-fila{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
+.pauta-sugerida .pedir-seccion-fila input[type=text]{flex:0 1 6.5rem;min-width:5rem;min-height:44px;padding:10px 13px;font:inherit;font-variant-numeric:tabular-nums;color:var(--fg);background:var(--bg2);border:1px solid var(--border);border-radius:10px;}
+.pauta-sugerida .pedir-seccion-fila input[type=text][aria-invalid=true]{border-color:var(--red);}
+.pauta-sugerida .pedir-seccion-fila .pedir-seccion-guardar{flex:1 1 9rem;min-width:44px;min-height:44px;padding:10px 14px;font:inherit;font-weight:600;color:var(--primary);background:var(--primary-light);border:0;border-radius:10px;cursor:pointer;}
+.pauta-sugerida .pedir-seccion-fila .pedir-seccion-guardar:focus-visible,.pauta-sugerida .pedir-seccion-fila input[type=text]:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+.pauta-sugerida .pedir-seccion-error{margin:.4rem 0 0;color:var(--red);font-size:.8125rem;}
 @media(prefers-reduced-motion:reduce){
   .pauta-sugerida .pauta-sugerida-acciones button{transition:none;}
 }
@@ -2455,7 +2469,30 @@ input.settings-search{width:100%;min-width:0;min-height:44px;margin-bottom:20px;
 .px-nrc{color:var(--fg3);white-space:nowrap;}
 .px-otras{font-size:0.75rem;color:var(--fg3);}
 .px-avisos{margin:8px 0 0;padding-left:18px;font-size:0.75rem;line-height:1.45;color:var(--fg2);}
-.px-copiar{display:block;width:100%;margin-top:10px;}
+.px-acciones{display:flex;gap:8px;margin-top:12px;}
+.px-acciones>button{min-height:44px;margin:0;}
+/* Armador: una opción a la vez. Celular: flechas «Opción N de M» y deslizar.
+   Pantalla ancha (teléfono horizontal, tablet): lista de opciones al lado. */
+.px-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 0;}
+.px-nav-texto{font-size:0.875rem;font-weight:600;color:var(--fg);}
+.px-flecha{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--fg);cursor:pointer;}
+.px-flecha:disabled{opacity:.35;cursor:default;}
+.px-flecha .ic{width:20px;height:20px;}
+.px-selector{display:none;}
+.px-sel{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--fg);font:inherit;text-align:left;cursor:pointer;}
+.px-sel[aria-pressed="true"]{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg);}
+.px-sel-titulo{font-size:0.875rem;font-weight:700;}
+.px-sel-aviso{font-size:0.6875rem;color:var(--fg3);}
+.px-opcion{touch-action:pan-y;}
+@media(min-width:700px){
+  .modal-sheet:has(.px-armador){max-width:min(960px,94vw);}
+  .px-resultados-horario.px-varias{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:start;margin-top:8px;}
+  .px-varias .px-selector{display:flex;flex-direction:column;gap:6px;position:sticky;top:0;}
+  .px-varias .px-nav{display:none;}
+  .px-varias .px-opcion{margin-top:0;}
+  .px-armador .px-grilla td{height:38px;font-size:0.75rem;}
+  .px-armador .px-grilla tbody th{font-size:0.6875rem;}
+}
 
 /* Solo se renderiza si hay al menos una pauta oficial. Un "0 pautas oficiales"
    como titular haría ver el producto vacío justo cuando recién se llenó. */
@@ -4883,6 +4920,17 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 .cierre-ramo button{min-height:44px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--border2);border-radius:10px;cursor:pointer}
 .cierre-ramo :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .cierre-incompleto{display:block;color:var(--fg2);font-size:.75rem;font-weight:400;margin-top:4px}
+/* Siguiente paso al archivar (solo app): casilla del semestre y opciones en lista. */
+.sp-semestre{display:flex;align-items:center;gap:12px;min-height:44px;margin:12px 0 0;color:var(--fg);cursor:pointer}
+.sp-semestre input{width:22px;height:22px;flex-shrink:0;accent-color:var(--primary)}
+.sp-pregunta{margin:16px 0 0;color:var(--fg2);font-size:.875rem}
+.sp-opciones{display:grid;margin:4px 0 16px}
+.sp-opciones button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:12px 0;border:0;border-bottom:1px solid var(--border);background:none;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.sp-opciones button>span:first-child{display:grid;gap:2px}
+.sp-opciones button span span{color:var(--fg2);font-size:.8125rem}
+.sp-opciones strong{font-weight:600}
+.sp-opciones button.sp-principal strong{font-weight:700}
+.sp-opciones :focus-visible,.sp-semestre :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* Ficha: la meta es texto al lado del promedio; los demás estados conservan su chip. */
 #screen-ramo .ramo-hero{container:ficha-hero / inline-size;}
 #screen-ramo .ramo-hero-num-row{align-items:center;gap:20px 28px;}
@@ -4930,7 +4978,7 @@ input.calc-paso-otro[aria-invalid="true"]{border-color:var(--red);}
 #screen-ramo .ficha-peso-grupo>i{display:block;width:var(--ficha-evaluado);height:100%;background:var(--ficha-color);}
 #screen-ramo button.nota-en-fila,#screen-ramo input.eval-row-input,html.app-nativa .nota-inicio button.nota-en-fila,html.app-nativa .nota-inicio input.eval-row-input{flex-shrink:0;width:5.25rem;min-width:44px;min-height:44px;padding:8px 4px;border:1px solid var(--border2);border-radius:8px;background:var(--card);font-family:var(--font-ui);font-size:1rem;text-align:center;font-variant-numeric:tabular-nums;}
 #screen-ramo button.nota-en-fila,html.app-nativa .nota-inicio button.nota-en-fila{color:var(--primary);font-size:.875rem;font-weight:600;cursor:pointer;}
-#screen-ramo .casillas-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border2);}
+#screen-ramo .casillas-pie{display:flex;flex-wrap:wrap;align-items:center;gap:0 20px;border-top:1px solid var(--border2);}
 #screen-ramo .casillas-btn{min-width:44px;min-height:44px;padding:8px 0;border:0;background:none;color:var(--primary);font-family:var(--font-ui);font-size:.8125rem;font-weight:600;cursor:pointer;}
 #screen-ramo .casillas-quitar{margin-left:auto;color:var(--fg2);font-weight:500;}
 #screen-ramo .casillas-btn:active{opacity:.6;}
@@ -5319,6 +5367,9 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 .directorio-publicidad{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card)}
 .directorio-anuncio-marca{display:block;padding:12px 16px 0;color:var(--fg2);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .directorio-publicidad .catalogo-clase-card{border:0}
+/* Abierta con flyer, la publicidad toma la fila entera de la grilla, como en
+   el catálogo: si no, texto y flyer se apretaban en media fila (2026-11-25). */
+@media(min-width:768px){.directorio-grilla>.directorio-publicidad:has(.catalogo-clase-flyer:not([hidden])){grid-column:1/-1}}
 .directorio-perfil-abierto{max-width:760px;margin:auto;color:var(--fg)}
 .directorio-perfil-cabecera{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px}
 .directorio-perfil-cabecera button{min-height:44px;white-space:normal}
@@ -6030,6 +6081,24 @@ button.directorio-tarjeta:focus-visible{outline:3px solid var(--fg);outline-offs
 #modal-content .editor-reglas-campos input[type=text]{width:100%;min-height:44px;padding:6px;text-align:center;font-variant-numeric:tabular-nums;}
 #modal-content .editor-reglas-descarte small{display:block;margin-top:6px;}
 #modal-content:not(:has(#m-cat-varias:checked)) .editor-reglas-al-marcar-varias{display:none;}
+/* Requisitos que combinan evaluaciones: mínimo sobre un grupo y aprobar por partes. */
+#modal-content .pauta-requisito{display:grid;gap:8px;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;min-width:0;}
+#modal-content .pauta-requisito>legend{padding:0 4px;color:var(--fg);font-weight:600;font-size:.8125rem;}
+#modal-content .pauta-requisito label.pauta-requisito-nombre{grid-template-columns:minmax(0,5rem) minmax(0,1fr);}
+#modal-content .pauta-requisito label.pauta-requisito-nombre input[type=text]{text-align:left;padding:6px 10px;}
+#modal-content .pauta-requisito-evals{display:flex;flex-wrap:wrap;gap:6px;}
+#modal-content .pauta-requisito-evals[aria-invalid=true]{outline:2px solid var(--red);outline-offset:2px;border-radius:8px;}
+#modal-content .editor-reglas-campos label.pauta-requisito-eval{display:inline-flex;grid-template-columns:none;align-items:center;gap:8px;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:22px;color:var(--fg);cursor:pointer;}
+#modal-content label.pauta-requisito-eval:has(input:checked){border-color:var(--fg);}
+#modal-content label.pauta-requisito-eval input[type=checkbox]{width:18px;height:18px;margin:0;}
+#modal-content .pauta-requisito-eval span{font-variant-numeric:tabular-nums;}
+#modal-content .editor-reglas-campos label.pauta-requisito-efecto{grid-template-columns:minmax(0,5rem) minmax(0,1fr);}
+#modal-content .pauta-requisito-efecto select{min-height:44px;width:100%;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--fg);font:inherit;font-size:.9375rem;}
+#modal-content .pauta-requisito-nota[hidden]{display:none;}
+#modal-content .pauta-requisito-quitar{justify-self:start;min-height:44px;padding:0 4px;background:none;border:0;color:var(--fg2);text-decoration:underline;cursor:pointer;}
+#modal-content #m-exi-detalle{display:grid;gap:8px;}
+#modal-content #m-exi-detalle[hidden]{display:none;}
+#modal-content .pauta-exi-minimo{display:grid;gap:8px;padding:8px 0;border-top:1px solid var(--border);}
 
 /* Marcar evaluaciones por ramo: alumnos en filas, evaluaciones en columnas. */
 .ramos-acciones{display:flex;align-items:center;gap:8px;flex:none;}
@@ -6862,6 +6931,19 @@ button.amigos-cifra:active{opacity:.55;}
 /* Insignia de solicitudes sobre el ícono, como en iOS. */
 .nav-item .nav-icon{position:relative;}
 .nav-insignia{position:absolute;top:-4px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:var(--red);color:#fff;font:700 .6875rem/17px var(--font-ui);text-align:center;font-variant-numeric:tabular-nums;}
+
+/* Clases · anuncios del profesor. Comparte la barra y filtros de Admin. */
+.profesor-hig .profesor-anuncios{--est-tile:color-mix(in srgb,var(--fg) 5%,var(--card));--est-linea:var(--border);margin-top:0;border-radius:8px;padding:12px}
+.profesor-anuncios .adm-seg{border-radius:8px}
+.profesor-anuncios .adm-seg button{min-width:44px;min-height:44px;border-radius:8px}
+.profesor-anuncios .admin-hig-herramientas :is(input,select){border-radius:8px;color:var(--fg)}
+.profesor-anuncios .admin-hig-herramientas input::placeholder{color:var(--fg2)}
+.profesor-anuncios .profesor-anuncios-estado{margin:0 0 8px;color:var(--fg2);font-size:.8125rem;font-variant-numeric:tabular-nums}
+.profesor-anuncios [data-profesor-banner]{margin:0 0 8px;border-radius:10px;border-top:0}
+.profesor-anuncios [data-profesor-banner][hidden]{display:none}
+.profesor-anuncios .clase-apoyo-abrir{min-height:44px}
+.profesor-anuncios .clase-apoyo-logo{margin-inline-end:14px}
+.profesor-anuncios .profesor-hig-fila>summary{min-height:44px}
 
 /* ─── App iOS: aspecto nativo ───────────────────────────────────────────────
    Solo con html.app-nativa (la app de Capacitor); la web no cambia. Lo pidió

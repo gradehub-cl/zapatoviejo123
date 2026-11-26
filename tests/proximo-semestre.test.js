@@ -138,6 +138,31 @@ console.log('\nPantalla con Supabase de mentira');
   await run('proximoCopiarNRC(0)');
   chk('copia un NRC por ramo',/^TST2001 NRC \d+\nTST2002 NRC \d+$/.test(ctx.__copiado)&&toasts.includes('NRC copiados'));
 
+  // Una opción a la vez, con «Opción N de M» y flechas.
+  const totalOpciones=run('proximoResultadoActual().resultado.combinaciones.length');
+  chk('muestra solo una opción por pantalla',(html.match(/<section class="px-opcion"/g)||[]).length===1);
+  if(totalOpciones>1){
+    chk('dice cuántas opciones hay',new RegExp('Opción 1 de '+totalOpciones).test(html));
+    run('proximoElegirOpcion(1)');
+    chk('la flecha pasa a la opción 2',/Opción 2 de /.test(elementos['px-horarios'].innerHTML)&&run('_proximo.opcion')===1);
+    run('proximoElegirOpcion(99)');
+    chk('no se pasa de la última',run('_proximo.opcion')===1);
+    run("proximoToqueInicio({changedTouches:[{clientX:300,clientY:100}]});proximoToqueFin({changedTouches:[{clientX:120,clientY:110}]})");
+    chk('deslizar a la izquierda avanza',run('_proximo.opcion')===Math.min(2,totalOpciones-1));
+    run("proximoToqueInicio({changedTouches:[{clientX:100,clientY:100}]});proximoToqueFin({changedTouches:[{clientX:130,clientY:300}]})");
+    chk('un gesto vertical no cambia de opción',run('_proximo.opcion')===Math.min(2,totalOpciones-1));
+    run("proximoAlternarDia('M',null);proximoAlternarDia('M',null)");
+    chk('cambiar el día libre vuelve a la primera opción',run('_proximo.opcion')===0);
+  }
+
+  // Compartir: sin hoja de compartir, copia el horario en texto.
+  await run('proximoCompartirHorario(0)');
+  chk('compartir sin hoja copia el horario con días y NRC',/^Mi horario /.test(ctx.__copiado)&&/Lunes: TST/.test(ctx.__copiado)&&/NRC \d+/.test(ctx.__copiado)&&toasts.includes('Horario copiado'));
+  ctx.navigator.share=async d=>{ctx.__compartido=d;};
+  await run('proximoCompartirHorario(0)');
+  chk('con hoja de compartir manda el texto',ctx.__compartido&&/^Mi horario /.test(ctx.__compartido.text));
+  delete ctx.navigator.share;
+
   // Oferta todavía sin publicar.
   oferta={};
   run("_proximo.secciones.clear();_proximo.ramos=[{sigla:'TST2001',nombre:''}]");

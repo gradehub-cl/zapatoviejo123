@@ -90,7 +90,13 @@ async function pintarConsensoDisponible(r){
   const hit=await consensoParaRamo(r);
   // El await deja pasar tiempo: si el estudiante ya se fue a otro ramo, no se
   // le pinta el aviso del anterior encima.
-  if(!hit||currentRamoId!==r.id)return;
+  if(currentRamoId!==r.id)return;
+  if(!hit){
+    // Ya tiene ponderaciones: su sección sirve para que sus reportes lleguen a
+    // quienes están en su mismo curso (pauta-sugerida.js).
+    if(pideSeccionRamo(r))mostrarPedirSeccion(el,r,true,()=>currentRamoId===r.id&&S.ramos.includes(r)&&pideSeccionRamo(r));
+    return;
+  }
   const n=hit.respaldos;
   el.className='weight-setup-nudge';
   el.innerHTML=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor"/></svg><div><b>${n} estudiantes de tu universidad reportan otras ponderaciones.</b><br>Coincidieron entre ellos. No salen del programa del curso: míralas y decide tú.<div style="margin-top:8px;"><button type="button" class="rep-link" style="width:auto;padding:7px 12px;margin:0;" onclick="verConsensoDisponible('${esc(r.id)}')">Ver la que reportan</button></div></div>`;

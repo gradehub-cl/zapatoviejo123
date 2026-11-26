@@ -71,11 +71,12 @@ function traerNubeAlVolver(ahora=Date.now()){
 }
 // Con la pestaña abierta y a la vista no hay ningún evento que avise: el
 // computador queda en el escritorio mientras se anota en el celular, y la nota
-// no aparecía hasta cambiar de pestaña o de ventana (2026-11-23). Cada minuto,
+// no aparecía hasta cambiar de pestaña o de ventana (2026-11-23). Cada 3 minutos,
 // solo si la pantalla está a la vista, se pregunta a la nube su versión
 // (`_rev`, unos bytes, no el JSON entero). Si es otra que la de la base, se
 // trae por el mismo camino de siempre (traerNubeAlVolver).
-const NUBE_A_LA_VISTA_MS=60000;
+// Antes cada minuto: inflaba los logs de Supabase (plan gratis) sin necesidad.
+const NUBE_A_LA_VISTA_MS=180000;
 async function revisarNubeALaVista(){
   if(typeof document==='undefined'||document.visibilityState!=='visible')return false;
   if(!supabaseClient||!currentUser||!S||!S.onboardingDone)return false;
@@ -106,7 +107,20 @@ function syncToCloud(){
 // Al volver a entrar, afterLogin() carga la nube encima de la copia local y
 // esa nota se pierde sin aviso. Cuando la página se esconde, se sube de
 // inmediato lo que estaba esperando.
+// Una nota escrita en la ficha (o en Inicio) se guarda al soltar el campo
+// (blur o change). Si la persona escribe un 6 y sale de la app sin tocar fuera,
+// iOS deja el campo con el foco, y si después cierra la app en segundo plano la
+// nota nunca llegó a S ni al disco (Lucas, 2026-11-25: «tenía un 6 cargado y
+// al volver no estaba»). Al esconderse la página se suelta el campo de nota:
+// el blur guarda por el camino de siempre y subirSyncPendiente lo sube.
+function soltarNotaEnCurso(){
+  const el=typeof document!=='undefined'&&document.activeElement;
+  if(!el||!el.classList||!el.classList.contains('eval-row-input')||typeof el.blur!=='function')return false;
+  try{el.blur();}catch(e){return false;}
+  return true;
+}
 function subirSyncPendiente(){
+  soltarNotaEnCurso();
   if(!_syncTimer)return false;
   clearTimeout(_syncTimer);_syncTimer=null;
   syncNow();

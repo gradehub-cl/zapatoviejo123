@@ -11,3 +11,11 @@ update public.pautas_catalogo_registro
   set definicion=definicion||'{"coordinado":false}'::jsonb
   where tenant='uc' and clave in ('BIO141C','TTF012','TTF036','TTF109','TTF115','TTF116','TTF118','TTF202','TTF205','TTF206','TTF207','TTF208','TTF210','TTF211','TTF213','TTF215','TTF216','TTF217','TTF218','TTF219','TTF220','TTF222','TTF225','TTF226','TTF232','TTF233')
     and definicion->>'coordinado' is distinct from 'false';
+
+-- Filosofía: ¿Para Qué? (FIL2001) tampoco es coordinado (Lucas, 2026-11-25).
+-- Su fila vieja tiene como clave el nombre normalizado, no la sigla: se marca
+-- por nombre_norm para que pautas_sugeridas devuelva sus reportes por sección.
+update public.pautas_catalogo_registro
+  set definicion=definicion||'{"coordinado":false}'::jsonb
+  where tenant='uc' and (clave='FIL2001' or nombre_norm='filosofia: ¿para que?')
+    and definicion->>'coordinado' is distinct from 'false';

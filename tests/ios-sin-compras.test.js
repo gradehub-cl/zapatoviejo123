@@ -29,6 +29,7 @@ function raiz(){const nodos=new Map();return {innerHTML:'',querySelector(sel){if
     const donde=nativa?'app':'web';
     console.log(`=== ${donde} ===`);
     chk(`${donde}: campanasSeCompranAqui() = ${!nativa}`,vm.runInContext('campanasSeCompranAqui()',ctx)===!nativa);
+    chk(`${donde}: se conserva el banner y su fila de campaña`,/data-profesor-banner/.test(html)&&/data-profesor-anuncio/.test(html));
     if(nativa){
       chk('app: sin «Crear anuncio» ni «Crear tu primer anuncio»',!/Crear anuncio|Crear tu primer anuncio|id="clase-nueva"|data-cr-crear/.test(html));
       chk('app: sin «Costo de campaña», «Tope» ni «Presupuesto»',!/Costo de campaña|Costo acumulado|Presupuesto utilizado|>Tope<|Va costando|Por contacto|Costo por concepto/.test(todo));

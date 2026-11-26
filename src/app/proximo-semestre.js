@@ -22,7 +22,7 @@ let _proximo=proximoEstadoInicial();
 
 function proximoEstadoInicial(dueno=null){
   return {dueno,ramos:[],requisitos:new Map(),secciones:new Map(),diasLibres:new Set(),
-    estadoReq:'listo',estadoHorarios:'listo',paso:'ramos'};
+    estadoReq:'listo',estadoHorarios:'listo',paso:'ramos',opcion:0};
 }
 function proximoSemestreDisponible(){
   return typeof enAppNativa==='function'&&enAppNativa()&&!esCuentaProfesor()&&PROXIMO_UNIVERSIDADES.has(S.tenant);
@@ -108,11 +108,19 @@ async function proximoCargarRequisitos(siglas){
 // ── Elegir ramos ────────────────────────────────────────────────────────────
 // Los ramos del semestre siguiente de su malla que tienen sigla y que no
 // aprobó ni está cursando. Una sugerencia, no una lista obligatoria.
+// El semestre que viene. Si ya archivó y subió de semestre al cerrar (el
+// archivo guarda el semestre en que se archivó), el que viene es el actual.
+function proximoSemestreObjetivo(estado){
+  const e=estado||S,sem=Number(e.careerSemestre);
+  if(!sem)return null;
+  const ultimo=(e.historial||[])[0];
+  return !(e.ramos||[]).length&&ultimo&&Number(ultimo.careerSemestre)===sem-1?sem:sem+1;
+}
 function proximoSugeridos(estado,elegidas=[]){
   const e=estado||S;
-  const sem=Number(e.careerSemestre);
-  if(!e.carrera||!sem)return [];
-  const nombres=((mallaFor(e.tenant)||{})[e.carrera]||{})[sem+1]||[];
+  const objetivo=proximoSemestreObjetivo(e);
+  if(!e.carrera||!objetivo)return [];
+  const nombres=((mallaFor(e.tenant)||{})[e.carrera]||{})[objetivo]||[];
   const {aprobadas,cursando}=requisitosDesdeEstado(e);
   const fuera=new Set([...aprobadas,...cursando,...elegidas]);
   const out=[];
@@ -211,7 +219,7 @@ function proximoPintarRamos(){
   const sug=document.getElementById('px-sugeridos');
   if(sug){
     const s=proximoSugeridos(S,elegidas).slice(0,8);
-    sug.innerHTML=s.length?`<p class="px-label">De tu malla (${Number(S.careerSemestre)+1}° semestre)</p><div class="px-chips">${s.map(r=>
+    sug.innerHTML=s.length?`<p class="px-label">De tu malla (${proximoSemestreObjetivo(S)}° semestre)</p><div class="px-chips">${s.map(r=>
       `<button type="button" class="px-chip" onclick="proximoAgregar('${r.sigla}',this.dataset.nombre)" data-nombre="${esc(r.nombre)}" aria-label="Agregar ${esc(r.nombre)} (${r.sigla})">+ ${esc(r.sigla)}</button>`).join('')}</div>`:'';
   }
   const ver=document.getElementById('px-ver-horarios');
@@ -245,15 +253,18 @@ const PROXIMO_DIAS_SEMANA=['L','M','W','J','V'];
 function proximoVerHorarios(){
   if(!_proximo.ramos.length)return;
   _proximo.paso='horarios';
+  _proximo.opcion=0;
   const periodo=proximoPeriodo();
   const nombreDia=Object.fromEntries(DIAS_HORARIO);
   document.getElementById('modal-content').innerHTML=`
     <div class="modal-title">Horarios ${esc(periodo)}</div>
+    <div class="px-armador">
     <div class="px-dias" role="group" aria-labelledby="px-dias-titulo">
       <span id="px-dias-titulo" class="px-label">Día libre</span>
       ${PROXIMO_DIAS_SEMANA.map(d=>`<button type="button" class="px-dia" aria-pressed="${_proximo.diasLibres.has(d)}" aria-label="${nombreDia[d]} libre" onclick="proximoAlternarDia('${d}',this)">${d==='W'?'Mi':nombreDia[d].slice(0,2)}</button>`).join('')}
     </div>
     <div id="px-horarios" aria-live="polite"><p class="px-nota">Buscando secciones en BuscaCursos…</p></div>
+    </div>
     <div class="modal-btns">
       <button type="button" class="btn-cancel" onclick="abrirProximoSemestre(true)">Atrás</button>
     </div>`;
@@ -266,6 +277,7 @@ function proximoVerHorarios(){
 function proximoAlternarDia(d,boton){
   if(_proximo.diasLibres.has(d))_proximo.diasLibres.delete(d);else _proximo.diasLibres.add(d);
   if(boton)boton.setAttribute('aria-pressed',String(_proximo.diasLibres.has(d)));
+  _proximo.opcion=0;
   proximoPintarHorarios();
 }
 function proximoResultadoActual(){
@@ -302,13 +314,15 @@ function proximoAvisoHorario(a){
   if(a.tipo==='dia_libre')return `La ayudantía de ${a.siglas[0]} cae en tu día libre${cuando}`;
   if(a.tipo==='hora')return `La ayudantía de ${a.siglas[0]} cae fuera del horario que pediste${cuando}`;
   if(a.tipo==='horario_incompleto')return `BuscaCursos no tiene el horario completo de ${a.siglas[0]}`;
+  if(a.tipo==='sin_cupos')return `${a.siglas[0]} no tiene cupos libres en este horario según BuscaCursos`;
   return '';
 }
 function proximoSeccionTexto(s){
   const profes=(s.profesores||[]).filter(p=>p&&!/^sin informar$/i.test(p));
-  return `Secc. ${s.seccion}${profes.length?' · '+profes.join(', '):''}`;
+  const cupos=Number.isInteger(s.cupos)?` · ${s.cupos===0?'sin cupos':s.cupos===1?'1 cupo':s.cupos+' cupos'}`:'';
+  return `Secc. ${s.seccion}${profes.length?' · '+profes.join(', '):''}${cupos}`;
 }
-function proximoHorariosHTML({periodo,siglas,filas,resultado},estadoRed){
+function proximoHorariosHTML({periodo,siglas,filas,resultado},estadoRed,opcion=0){
   if(estadoRed==='error')return `<p class="px-nota">No pudimos traer la oferta. Revisa tu conexión. <button type="button" class="px-enlace" onclick="proximoVerHorarios()">Reintentar</button></p>`;
   if(!filas.length)return `<p class="px-vacio">BuscaCursos todavía no publica la oferta de ${esc(periodo)}. Cuando esté, aquí verás tus horarios sin topes.</p>`;
   const partes=[];
@@ -316,22 +330,58 @@ function proximoHorariosHTML({periodo,siglas,filas,resultado},estadoRed){
   if(resultado.sinOpciones.length)partes.push(`<p class="px-vacio">Con ese día libre, ${esc(proximoLista(resultado.sinOpciones.map(x=>x.sigla)))} se queda sin secciones. Prueba con otro día.</p>`);
   if(partes.length)return partes.join('');
   if(!resultado.combinaciones.length)return `<p class="px-vacio">No hay forma de tomar ${siglas.length>2?'todos estos ramos':'estos ramos'} sin topes de cátedra o laboratorio. Prueba quitando uno.</p>`;
-  const opciones=resultado.combinaciones.map((c,i)=>{
-    const avisos=c.avisos.map(proximoAvisoHorario).filter(Boolean);
-    return `<section class="px-opcion" aria-labelledby="px-op-${i}">
-      <h3 id="px-op-${i}" class="px-opcion-titulo">Opción ${i+1}<span class="px-resumen px-num">${c.diasFijos} día${c.diasFijos!==1?'s':''} · ${c.ventanas} ventana${c.ventanas!==1?'s':''}</span></h3>
+  // Una opción a la vez. En el celular se cambia con las flechas o deslizando
+  // sobre la opción; en pantalla ancha la lista de opciones queda al lado de
+  // la grilla (CSS, .px-resultados-horario).
+  const total=resultado.combinaciones.length;
+  const i=Math.min(Math.max(0,Number(opcion)||0),total-1),c=resultado.combinaciones[i];
+  const resumen=x=>`${x.diasFijos} día${x.diasFijos!==1?'s':''} · ${x.ventanas} ventana${x.ventanas!==1?'s':''}`;
+  const avisos=c.avisos.map(proximoAvisoHorario).filter(Boolean);
+  const selector=`<div class="px-selector" role="group" aria-label="Opciones de horario">${resultado.combinaciones.map((x,j)=>
+    `<button type="button" class="px-sel" aria-pressed="${j===i}" aria-controls="px-op-activa" onclick="proximoElegirOpcion(${j})"><span class="px-sel-titulo">Opción ${j+1}</span><span class="px-resumen px-num">${resumen(x)}</span>${x.avisos.length?`<span class="px-sel-aviso">${x.avisos.length} aviso${x.avisos.length!==1?'s':''}</span>`:''}</button>`).join('')}</div>`;
+  const nav=total>1?`<div class="px-nav">
+      <button type="button" class="px-flecha" onclick="proximoElegirOpcion(${i-1})" ${i===0?'disabled':''} aria-label="Opción anterior"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <span class="px-nav-texto px-num">Opción ${i+1} de ${total}</span>
+      <button type="button" class="px-flecha" onclick="proximoElegirOpcion(${i+1})" ${i===total-1?'disabled':''} aria-label="Opción siguiente"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>`:'';
+  const activa=`<section class="px-opcion" id="px-op-activa" aria-labelledby="px-op-${i}" ontouchstart="proximoToqueInicio(event)" ontouchend="proximoToqueFin(event)">
+      <h3 id="px-op-${i}" class="px-opcion-titulo">Opción ${i+1}<span class="px-resumen px-num">${resumen(c)}</span></h3>
       ${proximoGrillaHTML(c)}
       <ul class="px-secciones">${c.ramos.map(r=>`<li><span class="px-sigla">${esc(r.sigla)}</span> ${esc(proximoSeccionTexto(r.secciones[0]))} <span class="px-nrc px-num">NRC ${esc(r.secciones[0].nrc)}</span>${r.secciones.length>1?`<br><span class="px-otras">Mismo horario: ${r.secciones.slice(1).map(s=>'secc. '+esc(s.seccion)).join(', ')}</span>`:''}</li>`).join('')}</ul>
       ${avisos.length?`<ul class="px-avisos">${avisos.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`:''}
-      <button type="button" class="btn-cancel px-copiar" onclick="proximoCopiarNRC(${i})">Copiar NRC</button>
+      <div class="px-acciones">
+        <button type="button" class="btn-cancel px-copiar" onclick="proximoCopiarNRC(${i})">Copiar NRC</button>
+        <button type="button" class="btn-confirm px-compartir" onclick="proximoCompartirHorario(${i})">Compartir horario</button>
+      </div>
     </section>`;
-  }).join('');
-  return opciones+(resultado.incompleto?'<p class="px-nota">Hay demasiadas combinaciones: estas son las mejores que encontramos. Elige un día libre para afinar.</p>':'');
+  return `<div class="px-resultados-horario${total>1?' px-varias':''}">${total>1?selector:''}<div class="px-detalle">${nav}${activa}</div></div>`
+    +(resultado.incompleto?'<p class="px-nota">Hay demasiadas combinaciones: estas son las mejores que encontramos. Elige un día libre para afinar.</p>':'');
+}
+function proximoElegirOpcion(i){
+  const total=proximoResultadoActual().resultado.combinaciones.length;
+  if(!total||i<0||i>=total||i===_proximo.opcion)return;
+  _proximo.opcion=i;
+  proximoPintarHorarios();
+}
+// Deslizar sobre la opción cambia a la siguiente o la anterior. Solo un gesto
+// claramente horizontal, para no robarle el scroll vertical a la hoja.
+let _proximoToque=null;
+function proximoToqueInicio(e){
+  const t=e&&e.changedTouches&&e.changedTouches[0];
+  _proximoToque=t?{x:t.clientX,y:t.clientY}:null;
+}
+function proximoToqueFin(e){
+  const t=e&&e.changedTouches&&e.changedTouches[0],ini=_proximoToque;
+  _proximoToque=null;
+  if(!t||!ini)return;
+  const dx=t.clientX-ini.x,dy=t.clientY-ini.y;
+  if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5)return;
+  proximoElegirOpcion(_proximo.opcion+(dx<0?1:-1));
 }
 function proximoPintarHorarios(){
   const caja=document.getElementById('px-horarios');
   if(!caja)return;
-  caja.innerHTML=proximoHorariosHTML(proximoResultadoActual(),_proximo.estadoHorarios);
+  caja.innerHTML=proximoHorariosHTML(proximoResultadoActual(),_proximo.estadoHorarios,_proximo.opcion);
 }
 async function proximoCopiarNRC(i){
   const c=proximoResultadoActual().resultado.combinaciones[i];
@@ -339,4 +389,86 @@ async function proximoCopiarNRC(i){
   const texto=c.ramos.map(r=>`${r.sigla} NRC ${r.secciones[0].nrc}`).join('\n');
   try{await navigator.clipboard.writeText(texto);showToast('NRC copiados');}
   catch(e){showToast('No se pudo copiar');}
+}
+// ── Compartir el horario ────────────────────────────────────────────────────
+// Texto con los ramos por día y los NRC, y una imagen de la grilla si el
+// teléfono acepta archivos. Sin hoja de compartir, se copia el texto.
+function proximoTextoHorario(c,periodo){
+  const nombreDia=Object.fromEntries(DIAS_HORARIO),modulos=MODULOS_HORARIO_POR_TENANT.uc;
+  const dias=[...new Set((c.bloques||[]).map(b=>b.dia))].sort((a,b)=>armadorOrdenDia(a)-armadorOrdenDia(b));
+  const lineasDia=dias.map(d=>{
+    const del=(c.bloques||[]).filter(b=>b.dia===d).sort((a,b)=>a.modulo-b.modulo);
+    return `${nombreDia[d]||d}: ${del.map(b=>`${b.sigla} ${(modulos[b.modulo]||[])[0]||b.modulo}${b.fijo?'':' (ayud.)'}`).join(', ')}`;
+  });
+  const nrc=c.ramos.map(r=>`${r.sigla} secc. ${r.secciones[0].seccion} · NRC ${r.secciones[0].nrc}`);
+  return [`Mi horario ${periodo}`,'',...lineasDia,'',...nrc,'','Armado con GradeHub · gradehub.cl'].join('\n');
+}
+// Imagen clara y fija (no sigue el tema): se comparte a otras personas.
+async function proximoImagenHorario(c,periodo){
+  if(typeof document==='undefined'||typeof document.createElement!=='function')return null;
+  const cv=document.createElement('canvas');
+  const g=cv&&typeof cv.getContext==='function'&&cv.getContext('2d');
+  if(!g||typeof cv.toBlob!=='function')return null;
+  const modulos=MODULOS_HORARIO_POR_TENANT.uc,bloques=c.bloques||[];
+  if(!bloques.length)return null;
+  const dias=PROXIMO_DIAS_SEMANA.concat(bloques.some(b=>b.dia==='S')?['S']:[]);
+  const mods=bloques.map(b=>b.modulo),desde=Math.min(...mods),hasta=Math.max(...mods);
+  const nombreDia=Object.fromEntries(DIAS_HORARIO);
+  const fuente='-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+  const W=1080,M=64,colHora=120,alto=96,cab=56,top=200;
+  const filasGrilla=hasta-desde+1,listaY=top+cab+filasGrilla*alto+56;
+  const H=listaY+c.ramos.length*52+120;
+  cv.width=W;cv.height=H;
+  g.fillStyle='#ffffff';g.fillRect(0,0,W,H);
+  g.fillStyle='#14201e';g.font=`700 52px ${fuente}`;g.textBaseline='alphabetic';
+  g.fillText(`Mi horario ${periodo}`,M,M+52);
+  g.fillStyle='#4b5a57';g.font=`500 30px ${fuente}`;
+  g.fillText(`${c.diasFijos} día${c.diasFijos!==1?'s':''} con clases · ${c.ventanas} ventana${c.ventanas!==1?'s':''}`,M,M+104);
+  const ancho=(W-2*M-colHora)/dias.length;
+  g.textAlign='center';g.font=`600 28px ${fuente}`;g.fillStyle='#4b5a57';
+  dias.forEach((d,j)=>g.fillText((nombreDia[d]||d).slice(0,3),M+colHora+ancho*j+ancho/2,top+36));
+  const caja=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();};
+  for(let m=desde;m<=hasta;m++){
+    const y=top+cab+(m-desde)*alto;
+    g.textAlign='right';g.fillStyle='#4b5a57';g.font=`500 26px ${fuente}`;
+    g.fillText((modulos[m]||[])[0]||String(m),M+colHora-16,y+alto/2+9);
+    dias.forEach((d,j)=>{
+      const x=M+colHora+ancho*j+3,aca=bloques.filter(b=>b.dia===d&&b.modulo===m);
+      caja(x,y+3,ancho-6,alto-6,14);
+      if(!aca.length){g.fillStyle='#f2f4f3';g.fill();return;}
+      const fija=aca.some(b=>b.fijo);
+      g.fillStyle=fija?'#cfe9e4':'#ffffff';g.fill();
+      if(!fija){g.lineWidth=3;g.strokeStyle='#0d7a6b';g.stroke();}
+      g.textAlign='center';g.fillStyle='#14201e';g.font=`700 ${aca.length>1?22:26}px ${fuente}`;
+      aca.forEach((b,k)=>g.fillText(b.sigla,x+(ancho-6)/2,y+alto/2+9+(k-(aca.length-1)/2)*28));
+    });
+  }
+  g.textAlign='left';
+  c.ramos.forEach((r,k)=>{
+    const y=listaY+k*52,s=r.secciones[0];
+    g.fillStyle='#14201e';g.font=`700 30px ${fuente}`;g.fillText(r.sigla,M,y);
+    g.fillStyle='#4b5a57';g.font=`500 30px ${fuente}`;g.fillText(`Secc. ${s.seccion} · NRC ${s.nrc}`,M+200,y);
+  });
+  g.fillStyle='#0d7a6b';g.font=`600 28px ${fuente}`;g.fillText('Armado con GradeHub · gradehub.cl',M,H-56);
+  const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+  if(!blob||typeof File!=='function')return null;
+  return new File([blob],`horario-${periodo}.png`,{type:'image/png'});
+}
+async function proximoCompartirHorario(i){
+  const {periodo,resultado}=proximoResultadoActual(),c=resultado.combinaciones[i];
+  if(!c)return;
+  const texto=proximoTextoHorario(c,periodo);
+  if(typeof track==='function')track('proximo_horario_compartido',{ramos:c.ramos.length});
+  const nav=typeof navigator!=='undefined'?navigator:{};
+  try{
+    if(typeof nav.share==='function'){
+      let archivo=null;
+      try{archivo=await proximoImagenHorario(c,periodo);}catch(e){archivo=null;}
+      if(archivo&&typeof nav.canShare==='function'&&nav.canShare({files:[archivo]}))await nav.share({files:[archivo],text:texto});
+      else await nav.share({text:texto});
+      return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  try{await nav.clipboard.writeText(texto);showToast('Horario copiado');}
+  catch(e){showToast('No se pudo compartir');}
 }

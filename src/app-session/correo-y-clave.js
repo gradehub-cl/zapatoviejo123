@@ -6,9 +6,12 @@ function estadoCambioCorreo(mensaje,esError){
   if(aviso){aviso.textContent=mensaje||'';aviso.hidden=!mensaje;aviso.style.color=esError?'var(--red)':'var(--fg2)';}
   if(input){if(esError)input.setAttribute('aria-invalid','true');else input.removeAttribute('aria-invalid');}
 }
-// GradeHub tiene las confirmaciones de correo desactivadas mientras usa el SMTP
-// limitado de Supabase. El cambio debe llegar aplicado en la respuesta; si no,
-// no fingimos que la persona ya puede entrar con la dirección nueva.
+// La confirmación al REGISTRARSE está apagada, pero la del cambio de correo no:
+// en producción Supabase deja la dirección nueva como `new_email` pendiente y
+// manda un enlace (comprobado el 2026-11-23). Antes eso se leía como fallo y la
+// app decía «inténtalo más tarde»: cada reintento mandaba otro correo y, al
+// abrir uno, el correo cambiaba sin que la app lo hubiera dicho. Si algún día
+// se apaga esa confirmación, el cambio llega aplicado y sale el primer aviso.
 async function cambiarCorreoCuenta(){
   const input=document.getElementById('s-account-email');
   const btn=document.getElementById('s-account-email-save');
@@ -38,6 +41,12 @@ async function cambiarCorreoCuenta(){
     if(currentUser!==usuario)return false;
     if(error)throw error;
     const correoGuardado=String(data&&data.user&&data.user.email||'').trim().toLowerCase();
+    const correoPendiente=String(data&&data.user&&data.user.new_email||'').trim().toLowerCase();
+    if(correoGuardado!==correo&&correoPendiente===correo){
+      currentUser=data.user;
+      estadoCambioCorreo('Te mandamos un enlace a '+correo+' para confirmar el cambio. Hasta que lo abras, sigues entrando con tu correo actual.',false);
+      return true;
+    }
     if(correoGuardado!==correo){
       estadoCambioCorreo('No pudimos actualizar el correo al tiro. Sigue usando tu correo actual e inténtalo más tarde.',true);
       return false;
