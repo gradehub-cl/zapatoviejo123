@@ -117,10 +117,12 @@ const UNIVERSIDADES_CHILE=[
   ['uta','UTA','Universidad de Tarapacá'],
   ['utal','UTalca','Universidad de Talca'],
   ['utem','UTEM','Universidad Tecnológica Metropolitana'],
-  ['uantof','UA','Universidad de Antofagasta',['UAntofagasta']],
+  // «UA» ya es la Autónoma; Antofagasta va con la sigla de su dominio.
+  ['uantof','UANTOF','Universidad de Antofagasta',['UA','UAntofagasta']],
   ['uv','UV','Universidad de Valparaíso'],
   ['uvm','UVM','Universidad de Viña del Mar'],
 ];
 for(const [id,short,nombreCompleto,alias] of UNIVERSIDADES_CHILE){
-  TENANTS[id]??={name:nombreCompleto.replace(/^Universidad /,'U. '),nombreCompleto,short,alias,registroBasico:true};
+  const name=nombreCompleto.replace(/^Universidad /,'U. ');
+  TENANTS[id]??={name,nombreCompleto,short,conArticulo:'la '+name,alias,registroBasico:true};
 }
