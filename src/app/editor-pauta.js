@@ -20,7 +20,7 @@ function reglasEvaluacionEditor(r,cat){
   return {descarte:cat.descarteOrigen==='editor'?String(cat.dropLowest?.count||''):'',
     min:propia?String(propia.min).replace('.',','):'',tope:propia?String(propia.cap).replace('.',','):'',
     descartePrograma:!!cat.dropLowest&&cat.descarteOrigen!=='editor',minimoPrograma:gates.some(g=>g.origen!=='editor'),
-    ...(enAppNativa()?{puntos:Number(cat.puntajeTotal)>0?String(cat.puntajeTotal).replace('.',','):'',exigencia:exigenciaValida(cat.exigencia)!==null?String(exigenciaValida(cat.exigencia)).replace('.',','):''}:{})};
+    puntos:Number(cat.puntajeTotal)>0?String(cat.puntajeTotal).replace('.',','):'',exigencia:exigenciaValida(cat.exigencia)!==null?String(exigenciaValida(cat.exigencia)).replace('.',','):''};
 }
 function validarReglasEvaluacionEditor(reglas,varias,cantidad,escala){
   const descarte=String(reglas.descarte||'').trim();
@@ -37,7 +37,7 @@ function validarReglasEvaluacionEditor(reglas,varias,cantidad,escala){
         return {campo,error:`Escribe ${campo==='min'?'un mínimo':'un tope'} entre ${escala.min} y ${escala.max}.`};
     }
   }
-  // Puntaje (solo app): la evaluación se anota en puntos y se pasa a nota con
+  // Puntaje: la evaluación se anota en puntos y se pasa a nota con
   // su exigencia, o la del ramo si no tiene una propia.
   const puntaje={};
   if(typeof reglas.puntos==='string'){
@@ -79,19 +79,19 @@ function reglasEvaluacionEditorHTML({reglas={},varias,manual,abierto,id,permiteC
       ${reglas.minimoPrograma?'<p>El programa ya indica el mínimo de esta evaluación.</p>':
         campo('min','Nota mínima','decimal')+campo('tope','Tope de la nota final','decimal')+
         '<small>Si quedas bajo el mínimo, tu nota final no supera este tope. Deja ambos campos vacíos si no aplica.</small>'}
-      ${enAppNativa()?campo('puntos','Puntaje total, si te la entregan en puntos','decimal')+campo('exigencia','Exigencia (%)','decimal')+
-        '<small>Con puntaje total anotas los puntos que sacaste y te los pasamos a nota. Sin exigencia usamos la del ramo.</small>':''}
+      ${campo('puntos','Puntaje total, si te la entregan en puntos','decimal')+campo('exigencia','Exigencia (%)','decimal')+
+        '<small>Con puntaje total anotas los puntos que sacaste y te los pasamos a nota. Sin exigencia usamos la del ramo.</small>'}
     </div>
   </details>`;
 }
-// ─── REQUISITOS QUE COMBINAN EVALUACIONES (solo app) ────────────────────────
+// ─── REQUISITOS QUE COMBINAN EVALUACIONES ───────────────────────────────────
 // El motor ya calcula `group_min` (compuertasEfectivas): el promedio ponderado
 // de varias evaluaciones tiene que llegar a un mínimo. Si no llega, la final
 // queda topada, o pasa a ser el promedio de ese grupo (aprobar por partes, como
 // la parte teórica y la práctica). Así se escribe (15·I1+20·I2+30·E)/65 ≥ 4,0:
 // se marcan I1, I2 y E, y el motor pondera con sus pesos.
 // Los del programa se conservan tal cual; el editor solo escribe los suyos.
-// null = la sección no se mostró (web) y guardar no toca esos requisitos.
+// null = el editor no está abierto.
 let pautaRequisitosDraft=null;
 let pautaClaveNueva=0;
 // Una evaluación nueva todavía no tiene id: el requisito la nombra por clave.
@@ -193,7 +193,7 @@ function marcarEvalRequisito(i,clave,marcada){
   limpiarErrorPauta();
   q.claves=q.claves.filter(k=>k!==clave);if(marcada)q.claves.push(clave);
 }
-// ─── EXIMICIÓN PROPIA (solo app) ────────────────────────────────────────────
+// ─── EXIMICIÓN PROPIA ────────────────────────────────────────────
 // Cuando el programa del catálogo no trae eximición, la persona la escribe:
 // examen, presentación mínima (promedio ponderado de las evaluaciones que
 // marque), mínimos por evaluación y asistencia. El adaptador la calcula por el
@@ -306,8 +306,8 @@ function openPautaManualModal(){
   if(!Array.isArray(r.categorias))r.categorias=[];
   pautaDraft=r.categorias.map(c=>({id:c.id,nombre:c.nombre,peso:Number(c.peso)||0,tieneNotas:(c.notas||[]).length>0,varias:(c.directNota===false&&!seVeComoNotaSola(r,c))||(Number.isInteger(c.slots)&&c.slots>1),cantidad:Number.isInteger(c.slots)&&c.slots>1?c.slots:null,reglas:reglasEvaluacionEditor(r,c)}));
   pautaDraftError='';pautaDraftErrorIndex=null;pautaDraftErrorTarget='';pautaQuitadas=[];pautaProgramaCanvasDraft=null;
-  pautaRequisitosDraft=enAppNativa()?requisitosGrupoEditor(r):null;
-  pautaEximicionDraft=enAppNativa()?eximicionEditor(r):null;
+  pautaRequisitosDraft=requisitosGrupoEditor(r);
+  pautaEximicionDraft=eximicionEditor(r);
   // La lectura pertenece a esta apertura, nunca a otra cuenta o borrador.
   canvasProgramaRamo.delete(r.id);
   pautaArmando=!r.categorias.some(c=>String(c.nombre||'').trim());

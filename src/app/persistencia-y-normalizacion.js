@@ -423,7 +423,7 @@ function normalize(data) {
         // Si se pierde `slot` al recargar, Informe 0 sigue guardado pero ya no
         // puede volver a dibujarse en ninguna de las seis casillas.
         ...(Number.isInteger(n.slot) ? {slot:n.slot} : {}),
-        // De qué puntaje salió la nota, si se anotó en puntos (solo app). Es un
+        // De qué puntaje salió la nota, si se anotó en puntos. Es un
         // dato para mostrar: el motor usa `valor`, que ya es la nota.
         ...(Number.isFinite(n.valor) && n.puntos && [n.puntos.obtenido,n.puntos.total,n.puntos.exigencia].every(Number.isFinite)
           ? {puntos:{obtenido:n.puntos.obtenido,total:n.puntos.total,exigencia:n.puntos.exigencia}} : {}),
@@ -504,7 +504,7 @@ function normalize(data) {
     if (Array.isArray(corregibles) && corregibles.some(p => huellaPauta(p.map(([nombre, peso]) => ({ nombre, peso }))) === tiene)) {
       r.pautaHuella = tiene;
       const cambio = cambioDePauta(r);
-      if (cambio && !cambio.notasFueraDePauta) aplicarCambioDePauta(r, cambio);
+      if (cambio && !cambio.notasFueraDePauta && !juntaFilasAMedias(r, cambio)) aplicarCambioDePauta(r, cambio);
     }
     // Un mínimo que el catálogo sacó a propósito (`retiraCompuertas`) seguía
     // topando la nota en los ramos creados antes: el aviso de pauta cambiada

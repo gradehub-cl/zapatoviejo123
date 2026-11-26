@@ -96,7 +96,7 @@ function seriesNumeradasFicha(categorias){
 function botonNotaEnFilaHTML(catId,slot,nombre,sombras=null){
   const pendiente=sombrasActivadas()&&sombras?.pendientes.find(p=>p.catId===catId&&p.slot===slot);
   if(pendiente)return botonNotaSombraHTML(sombras,pendiente);
-  // Con puntaje total (solo app) se anotan puntos: el botón lo dice.
+  // Con puntaje total se anotan puntos: el botón lo dice.
   const ramo=S.ramos.find(x=>x.id===currentRamoId),cat=ramo&&(ramo.categorias||[]).find(c=>c.id===catId);
   const enPuntos=!!(cat&&puntajeDeCategoria(ramo,cat));
   return `<button type="button" class="nota-en-fila" data-cat-id="${esc(catId)}"${slot===null?'':` data-slot="${slot}"`} aria-label="Anotar ${enPuntos?'puntos':'nota'} de ${esc(nombre)}" onclick="event.stopPropagation();abrirNotaEnFila(this)">${enPuntos?'+ Puntos':'+ Nota'}</button>`;
